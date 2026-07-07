@@ -34,7 +34,7 @@ const MUTATING_ANNOTATION_ACTION_IDS = Object.freeze<
 const SELECT_EDIT_ENTRY_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
   {
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-    text: "Langer Klick auf einen Punkt einer ausgewählten Messung öffnet die Bearbeitung.",
+    text: "Lange auf einen Punkt der ausgewählten Messung klicken, um den Bearbeitungsmodus zu öffnen.",
   },
 ];
 
@@ -187,12 +187,15 @@ export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
     let editEntryInstructionContent: ReactNode | undefined;
     if (isNodeEditable) {
       // eslint-disable-next-line react/no-children-prop -- createElement props form, mirrors the authoring/editing instructions
-      editEntryInstructionContent = createElement(AnnotationInfoBoxTextContent, {
-        visualOptions: resolvedVisualOptions,
-        children: createElement(AnnotationInfoBoxHelpContent, {
-          items: SELECT_EDIT_ENTRY_HELP_ITEMS,
-        }),
-      });
+      editEntryInstructionContent = createElement(
+        AnnotationInfoBoxTextContent,
+        {
+          visualOptions: resolvedVisualOptions,
+          children: createElement(AnnotationInfoBoxHelpContent, {
+            items: SELECT_EDIT_ENTRY_HELP_ITEMS,
+          }),
+        }
+      );
     }
 
     return {
