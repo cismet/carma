@@ -222,18 +222,6 @@ export const extractVectorStyles = (keywords: string[]) => {
   return vectorObject;
 };
 
-export const createBaseConfig = (layers: XMLLayer[]) => {
-  const result: Record<string, Item[]> = {};
-  layers.forEach((item) => {
-    result[item.Title] = {
-      // @ts-ignore
-      layers: item.layers.map((layer) => ({ name: layer.Name })),
-    };
-  });
-
-  return null;
-};
-
 const getLeafLayers = (layer: any, leafLayers: Layer[] = []) => {
   // Check if the layer has sub-layers
   if (layer.Layer && Array.isArray(layer.Layer) && layer.Layer.length > 0) {

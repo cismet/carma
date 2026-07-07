@@ -56,7 +56,6 @@ interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
   activeLayers: ActiveLayers;
   updateActiveLayer?: (layer: Layer) => void;
-  setLayers?: (layers: any[]) => void;
   setFilteredCategories?: React.Dispatch<
     React.SetStateAction<
       {
@@ -92,7 +91,6 @@ export const useLoadCapabilities = ({
   loadingAdditionalConfig,
   activeLayers,
   updateActiveLayer,
-  setLayers,
   setFilteredCategories,
   setAllCategories,
   getDataFromJson,
@@ -220,10 +218,6 @@ export const useLoadCapabilities = ({
             const mergedLayer = mergeStructures(layerStructure, newLayers);
             newLayers = mergedLayer;
             const updatedLayers: Layer[] = newLayers;
-
-            if (setLayers) {
-              setLayers(updatedLayers);
-            }
             dispatch(setAllLayers(updatedLayers));
           }
         }

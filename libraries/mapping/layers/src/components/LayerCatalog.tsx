@@ -136,7 +136,6 @@ export const LayerCatalog = ({
     }[]
   >(elements);
   const [preview, setPreview] = useState(false);
-  const [layers, setLayers] = useState<any[]>([]);
   const allLayers = useSelector(getAllLayers);
   const [searchValue, setSearchValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -485,7 +484,6 @@ export const LayerCatalog = ({
     loadingAdditionalConfig,
     activeLayers,
     updateActiveLayer,
-    setLayers,
     setFilteredCategories,
     setAllCategories,
     getDataFromJson,
@@ -503,7 +501,6 @@ export const LayerCatalog = ({
     }[] = [];
     for (let key in discoverConfig) {
       let layers: Item[] = [];
-      // discoverCategories.push(discoverConfig[key]);
       const filteredItems = discoverItems?.filter((item) => {
         return JSON.parse(item.config).serviceName === discoverConfig[key].id;
       });
@@ -652,8 +649,6 @@ export const LayerCatalog = ({
   };
 
   useEffect(() => {
-    setLayers(allLayers);
-
     if (checkIfAllLayersAreLoaded()) {
       const favoriteLayerCategory = customCategories.filter(
         (category) => category.id === "favoriteLayers"
@@ -1115,7 +1110,7 @@ export const LayerCatalog = ({
                 )}
                 activeId={currentShownCategory}
                 setActiveId={setCurrentShownCategory}
-                numberOfItems={getNumberOfLayers(layers)}
+                numberOfItems={getNumberOfLayers(allLayers)}
               />
               <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
             </div>
