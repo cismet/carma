@@ -785,35 +785,34 @@ const BelisMapLibWrapper = ({
   // matter which store originally selected it. Also drop it from toggledFeatures
   // to keep state clean when the feature was lasso-selected.
   //
-  // promoteId: "id" is set on every BelIS vector layer, so MVT feature.id ===
-  // properties.id === DB pk. That means we can suppress by the sidebar feature's
-  // own id without re-querying source features — works even when the feature is
-  // outside the current viewport.
+  // Key by `feature.id` (the map's own feature id) — that's what matchesCriteria
+  // hashes into the toggleKey. For MVT sources `promoteId: "id"` makes it equal
+  // to the DB pk; for brandnew geojson it's the assigned geojson feature id,
+  // which may differ from `properties.id`. Using `properties.id` here would
+  // silently miss brandnew features.
   const handleSidebarDismiss = useCallback(
     (feature: SidebarFeature) => {
       const sl = feature.sourceLayer ?? "";
-      const dbId = feature.properties?.id ?? feature.id;
-      if (dbId == null || !sl) return;
+      const mapId = feature.id;
+      if (mapId == null || !sl) return;
       const featureSource =
         (feature as unknown as { source?: string }).source ?? namespacedSource;
 
       ensureSuppressedFeatures(
-        [{ source: featureSource, sourceLayer: sl, id: dbId }],
+        [{ source: featureSource, sourceLayer: sl, id: mapId }],
         true
       );
       ensureToggledFeatures(
-        [{ source: featureSource, sourceLayer: sl, id: dbId }],
+        [{ source: featureSource, sourceLayer: sl, id: mapId }],
         false
       );
 
-      const dbIdStr = String(dbId);
+      const mapIdStr = String(mapId);
       setUnfilteredHighlights((prev) => {
         if (!prev) return prev;
         return prev.filter((f) => {
-          const key = `${f.sourceLayer ?? ""}::${String(
-            f.properties?.id ?? f.id ?? ""
-          )}`;
-          return key !== `${sl}::${dbIdStr}`;
+          const key = `${f.sourceLayer ?? ""}::${String(f.id ?? "")}`;
+          return key !== `${sl}::${mapIdStr}`;
         });
       });
     },
