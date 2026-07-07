@@ -23,7 +23,7 @@ import {
   mergeStructures,
   normalizeObject,
 } from "../helper/layerHelper";
-import type { ActiveLayers } from "../components/NewLibModal";
+import type { ActiveLayers } from "../components/LayerCatalog";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { FALLBACK_CAPABILITIES_BASE_URL } from "../helper/assetUrls";
 

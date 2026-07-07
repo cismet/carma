@@ -35,7 +35,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
-import type { ActiveLayers } from "./NewLibModal";
+import type { ActiveLayers } from "./LayerCatalog";
 import ThumbnailDisplay from "./ThumbnailDisplay";
 
 // Kept as local literals to avoid a circular dependency on

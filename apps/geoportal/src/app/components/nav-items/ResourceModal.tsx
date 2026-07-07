@@ -8,7 +8,7 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerLib } from "@carma-mapping/layers";
+import { LayerCatalog } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   addCustomFeatureFlags,
@@ -95,7 +95,7 @@ const ResourceModal = () => {
   return (
     <>
       {contextHolder}
-      <LayerLib
+      <LayerCatalog
         open={showResourceModal}
         setOpen={(show) => dispatch(setShowResourceModal(show))}
         setAdditionalLayers={updateLayers}

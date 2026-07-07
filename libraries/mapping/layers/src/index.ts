@@ -1,4 +1,7 @@
-export * from "./lib/layer-lib";
+export {
+  default as LayerCatalog,
+  type LayerCatalogProps,
+} from "./components/LayerCatalog";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
 export * from "./helper/layerHelper";

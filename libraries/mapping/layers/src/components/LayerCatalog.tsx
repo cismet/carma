@@ -85,7 +85,7 @@ type LayerCategories = {
 
 export type ActiveLayers = [BackgroundLayer, ...Layer[]];
 
-export interface LibModalProps {
+export interface LayerCatalogProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   setAdditionalLayers: any;
@@ -108,7 +108,7 @@ export interface LibModalProps {
   appKey?: string;
 }
 
-export const NewLibModal = ({
+export const LayerCatalog = ({
   open,
   setOpen,
   setAdditionalLayers,
@@ -125,7 +125,7 @@ export const NewLibModal = ({
   store,
   unauthorizedCallback,
   appKey,
-}: LibModalProps) => {
+}: LayerCatalogProps) => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [sidebarElements, setSidebarElements] = useState<
     {
@@ -1167,4 +1167,4 @@ export const NewLibModal = ({
   );
 };
 
-export default NewLibModal;
+export default LayerCatalog;

@@ -36,7 +36,7 @@ import { setTriggerRefetch } from "../slices/ui";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
-import type { ActiveLayers } from "./NewLibModal";
+import type { ActiveLayers } from "./LayerCatalog";
 import LegendDisplay from "./LegendDisplay";
 
 interface InfoCardProps {

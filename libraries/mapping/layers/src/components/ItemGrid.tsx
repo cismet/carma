@@ -3,7 +3,7 @@ import LayerItem from "./LayerItem";
 import ItemSkeleton from "./ItemSkeleton";
 import { getLoadingCapabilities } from "../slices/mapLayers";
 import { useSelector } from "react-redux";
-import type { ActiveLayers } from "./NewLibModal";
+import type { ActiveLayers } from "./LayerCatalog";
 
 interface ItemGridProps {
   categories: {

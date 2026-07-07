@@ -38,7 +38,7 @@ vi.mock("@carma-providers/auth", () => ({
 
 import { mapLayersReducer } from "../slices/mapLayers";
 import { mapLayersUIReducer } from "../slices/ui";
-import { NewLibModal, type ActiveLayers } from "./NewLibModal";
+import { LayerCatalog, type ActiveLayers } from "./LayerCatalog";
 
 const textResponse = (body: string, status = 200) =>
   Promise.resolve({
@@ -121,7 +121,7 @@ const routedFetch = (input: RequestInfo | URL): Promise<Response> => {
   }
 
   return Promise.reject(
-    new Error(`Unmocked fetch in NewLibModal.spec: ${url}`)
+    new Error(`Unmocked fetch in LayerCatalog.spec: ${url}`)
   );
 };
 
@@ -144,7 +144,7 @@ const backgroundLayer = {
 } as unknown as ActiveLayers[0];
 
 const renderModal = (
-  overrides: Partial<Parameters<typeof NewLibModal>[0]> = {}
+  overrides: Partial<Parameters<typeof LayerCatalog>[0]> = {}
 ) => {
   const store = createTestStore();
   capabilitiesGate = createCapabilitiesGate(store);
@@ -171,7 +171,7 @@ const renderModal = (
 
   const view = render(
     <Provider store={store}>
-      <NewLibModal {...props} />
+      <LayerCatalog {...props} />
     </Provider>
   );
 
@@ -187,7 +187,7 @@ const findLayerCard = async (title: string) => {
   return card as HTMLElement;
 };
 
-describe("NewLibModal", () => {
+describe("LayerCatalog", () => {
   beforeAll(() => {
     configure({ testIdAttribute: "data-test-id" });
   });

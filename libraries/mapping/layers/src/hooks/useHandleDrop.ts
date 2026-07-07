@@ -3,7 +3,7 @@ import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
 import { SavedLayerConfig } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { ActiveLayers } from "../components/NewLibModal";
+import { ActiveLayers } from "../components/LayerCatalog";
 import type { Layer } from "@carma-mapping/layers";
 import { useDispatch } from "react-redux";
 import { setCustomLayerConfig } from "../slices/mapLayers";
