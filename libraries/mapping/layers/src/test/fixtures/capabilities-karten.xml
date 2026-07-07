@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WMT_MS_Capabilities version="1.1.1" updateSequence="0">
+  <Service>
+    <Name>OGC:WMS</Name>
+    <Title>Testdienst Wuppertal Karten</Title>
+    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.wuppertal.de/karten?"/>
+  </Service>
+  <Capability>
+    <Request>
+      <GetCapabilities>
+        <Format>application/vnd.ogc.wms_xml</Format>
+        <DCPType><HTTP><Get>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.wuppertal.de/karten?"/>
+        </Get></HTTP></DCPType>
+      </GetCapabilities>
+      <GetMap>
+        <Format>image/png</Format>
+        <DCPType><HTTP><Get>
+          <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.wuppertal.de/karten?"/>
+        </Get></HTTP></DCPType>
+      </GetMap>
+    </Request>
+    <Exception>
+      <Format>application/vnd.ogc.se_xml</Format>
+    </Exception>
+
+    <Layer queryable="0">
+      <Title>Stadt Wuppertal Karten (Test)</Title>
+      <SRS>EPSG:25832</SRS>
+      <SRS>EPSG:3857</SRS>
+      <LatLonBoundingBox minx="7.00000000" miny="51.10000000" maxx="7.40000000" maxy="51.40000000"/>
+      <BoundingBox SRS="EPSG:3857" minx="779236.43555291" miny="6639001.66376131" maxx="823764.23187022" maxy="6692356.43526254"/>
+
+      <Layer queryable="1">
+        <Name>alkomgw</Name>
+        <Title>Stadtgrundkarte (grau)</Title>
+        <Abstract>Inhalt: Aus dem Liegenschaftskataster erzeugte Hintergrundkarte in Graustufen. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes.</Abstract>
+        <KeywordList>
+          <Keyword>Grundkarte</Keyword>
+          <Keyword>carmaconf://infoBoxMapping:default</Keyword>
+          <Keyword>carmaConf://thumbnail:https://example.test/vorschau/alkomgw.png</Keyword>
+          <Keyword>carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/alkomgw</Keyword>
+        </KeywordList>
+        <SRS>EPSG:25832</SRS>
+        <LatLonBoundingBox minx="7.00000000" miny="51.10000000" maxx="7.40000000" maxy="51.40000000"/>
+        <BoundingBox SRS="EPSG:3857" minx="779236.43555291" miny="6639001.66376131" maxx="823764.23187022" maxy="6692356.43526254"/>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="230" height="215">
+            <Format>image/png</Format>
+            <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://example.test/legenden/alkomgw-legende.png"/>
+          </LegendURL>
+        </Style>
+        <ScaleHint min="0" max="2999999.99999937"/>
+      </Layer>
+
+      <Layer queryable="0">
+        <Name>expg</Name>
+        <Title>ALKIS Strichkarte (gelb)</Title>
+        <Abstract>Inhalt: Gelbe Strichkartenausprägung des Liegenschaftskatasters.</Abstract>
+        <SRS>EPSG:25832</SRS>
+        <LatLonBoundingBox minx="7.00000000" miny="51.10000000" maxx="7.40000000" maxy="51.40000000"/>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="230" height="215">
+            <Format>image/png</Format>
+            <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://example.test/legenden/expg-legende.png"/>
+          </LegendURL>
+        </Style>
+      </Layer>
+
+      <Layer queryable="0">
+        <Name>albsf</Name>
+        <Title>Schätzungskarte (farbig)</Title>
+        <Abstract>Inhalt: Bodenschätzungskarte in Farbdarstellung.</Abstract>
+        <KeywordList>
+          <Keyword>Bodenschätzung</Keyword>
+        </KeywordList>
+        <SRS>EPSG:25832</SRS>
+        <LatLonBoundingBox minx="7.00000000" miny="51.10000000" maxx="7.40000000" maxy="51.40000000"/>
+      </Layer>
+
+      <Layer queryable="0">
+        <Name>abkf</Name>
+        <Title>Amtliche Basiskarte (farbig)</Title>
+        <Abstract>Inhalt: Amtliche Basiskarte, soll ausgeblendet werden.</Abstract>
+        <KeywordList>
+          <Keyword>carmaconf://hideLayer</Keyword>
+        </KeywordList>
+        <SRS>EPSG:25832</SRS>
+        <LatLonBoundingBox minx="7.00000000" miny="51.10000000" maxx="7.40000000" maxy="51.40000000"/>
+      </Layer>
+
+      <Layer queryable="0">
+        <Name>testneu</Name>
+        <Title>Testebene ohne Konfiguration</Title>
+        <Abstract>Inhalt: Ebene, die nur in den Capabilities existiert und nicht in der baseConfig.</Abstract>
+        <KeywordList>
+          <Keyword>carmaConf://thumbnail:https://example.test/vorschau/testneu.png</Keyword>
+        </KeywordList>
+        <SRS>EPSG:25832</SRS>
+        <LatLonBoundingBox minx="7.00000000" miny="51.10000000" maxx="7.40000000" maxy="51.40000000"/>
+      </Layer>
+    </Layer>
+  </Capability>
+</WMT_MS_Capabilities>

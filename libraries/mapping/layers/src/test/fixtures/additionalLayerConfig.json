@@ -1,0 +1,45 @@
+[
+  {
+    "layers": [
+      {
+        "replaceId": "wuppKarten:expg",
+        "id": "wuppKarten:expg",
+        "path": "Basis",
+        "type": "layer",
+        "layerType": "vector",
+        "title": "ALKIS Ersatzkarte (Test)",
+        "description": "Inhalt: Vektorbasierte Ersatzdarstellung der Strichkarte.",
+        "tags": ["Basis", "Vektorlayer"],
+        "thumbnail": "https://example.test/vorschau/expg-ersatz.png",
+        "vectorStyle": "https://example.test/styles/expg.style.json"
+      }
+    ]
+  },
+  {
+    "Title": "Zusatzebenen",
+    "serviceName": "zusatzTest",
+    "layers": [
+      {
+        "id": "zusatzTest:testlayer",
+        "type": "layer",
+        "layerType": "vector",
+        "title": "Zusatz Testlayer",
+        "description": "Inhalt: Über die additionalLayerConfig eingebundene Testebene.",
+        "tags": ["Zusatz"],
+        "thumbnail": "https://example.test/vorschau/zusatz.png",
+        "vectorStyle": "https://example.test/styles/zusatz.style.json"
+      },
+      {
+        "ff": "testFlag",
+        "id": "zusatzTest:hinterflag",
+        "type": "layer",
+        "layerType": "vector",
+        "title": "Featureflag Testlayer",
+        "description": "Inhalt: Darf ohne aktives Featureflag nicht erscheinen.",
+        "tags": ["Zusatz"],
+        "thumbnail": "https://example.test/vorschau/flag.png",
+        "vectorStyle": "https://example.test/styles/flag.style.json"
+      }
+    ]
+  }
+]

@@ -1,0 +1,21 @@
+[
+  {
+    "Title": "Boden",
+    "serviceName": "wuppSensorsBoden",
+    "layers": [
+      {
+        "title": "Bodenfeuchte Testsensor",
+        "description": "Inhalt: Testsensor für Bodenfeuchte. Nutzung: Nur für Tests.",
+        "tags": ["Sensoren", "Boden"],
+        "id": "wuppSensorsBoden:soilMoisture.test",
+        "name": "soilMoisture.test",
+        "type": "layer",
+        "layerType": "vector",
+        "queryable": true,
+        "path": "Sensoren",
+        "thumbnail": "https://example.test/vorschau/bodenfeuchte.png",
+        "vectorStyle": "https://example.test/styles/bodenfeuchte.style.json"
+      }
+    ]
+  }
+]
