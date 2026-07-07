@@ -7,6 +7,10 @@ const host = process.env.HOST ?? "localhost";
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 const app = express();
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+
 // Default route
 app.get("/", (req: Request, res: Response) => {
   res.send({ message: "Hello rasterfari-tileserver-wms-companion" });
@@ -73,6 +77,79 @@ app.get(
     }
   }
 );
+
+
+app.post(
+  "/tgl-wms/:scalefactor/:sizefactor?",
+  async (req: Request, res: Response) => {
+    // console.log(req);
+    // console.log(req.query);
+    // console.log(req.body);
+    const { BBOX, WIDTH, HEIGHT, REQUEST, LAYERS, style } = req.body;
+    const { scalefactor, sizefactor } = req.params;
+
+    if (!BBOX || !WIDTH || !HEIGHT || !REQUEST || !LAYERS) {
+      return res.status(400).send("Missing required parameters.");
+    }
+
+    const styleId = LAYERS.toString();
+
+    let SCALE_FACTOR = "";
+    if (scalefactor === "1x") {
+      SCALE_FACTOR = "";
+    } else {
+      const numericScaleFactor = parseFloat(scalefactor);
+      if (isNaN(numericScaleFactor) || numericScaleFactor <= 0) {
+        return res.status(400).send("Invalid scale factor.");
+      }
+      SCALE_FACTOR = `@${numericScaleFactor}x`;
+    }
+
+    let factor = 1;
+    if (sizefactor) {
+      factor = parseFloat(sizefactor);
+      if (isNaN(factor) || factor <= 0) {
+        return res.status(400).send("Invalid size factor.");
+      }
+    }
+
+    const adjustedWidth = Math.round(Number(WIDTH) * factor);
+    const adjustedHeight = Math.round(Number(HEIGHT) * factor);
+
+    const bboxStr = BBOX.toString();
+    const bboxCleaned = bboxStr.replace(/,/g, ",");
+
+    const sizeString = `${adjustedWidth}x${adjustedHeight}${SCALE_FACTOR}.${IMAGE_FORMAT}`;
+    const imageUrl = `${BASE_URL}/@${styleId}/static/raw/${bboxCleaned}/${sizeString}?padding=0.0`;
+
+    try {
+      // console.log(req.body);
+      // console.log({"style": JSON.parse(req.body.style)});
+      // console.log(imageUrl);
+      const response = await fetch(imageUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({"style": JSON.parse(req.body.style)})
+      });
+
+      if (!response.ok) {
+        return res.status(500).send("Failed to fetch image.");
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      res.set("Content-Type", `image/${IMAGE_FORMAT}`);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error fetching image:", error);
+      res.status(500).send("Server error.");
+    }
+  }
+);
+
 
 // Start the server and capture the server instance
 const server = app.listen(port, host, () => {
