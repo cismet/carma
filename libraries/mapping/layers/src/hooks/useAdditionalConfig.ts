@@ -7,11 +7,6 @@ import {
 import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
 import type { Config, SavedLayerConfig } from "../lib/contracts/carma-layers.d";
 import { processCategoryConfig } from "../helper/processCategoryConfig";
-import {
-  ADDITIONAL_LAYER_CONFIG_URL,
-  ADDITIONAL_OBJECT_CONFIG_URL,
-  ADDITIONAL_SENSOR_CONFIG_URL,
-} from "../helper/assetUrls";
 
 interface UseAdditionalConfigProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
@@ -30,17 +25,19 @@ interface UseAdditionalConfigProps {
       }[]
     >
   >;
+  assetBaseUrl: string;
 }
-
-const additionalConfigUrl = ADDITIONAL_LAYER_CONFIG_URL;
-const sensorUrl = ADDITIONAL_SENSOR_CONFIG_URL;
-const objectUrl = ADDITIONAL_OBJECT_CONFIG_URL;
 
 export const useAdditionalConfig = ({
   setFeatureFlags,
   addItemToCategory,
   setSidebarElements,
+  assetBaseUrl,
 }: UseAdditionalConfigProps) => {
+  const dataBaseUrl = `${assetBaseUrl}/data`;
+  const additionalConfigUrl = `${dataBaseUrl}/additionalLayerConfig.json`;
+  const sensorUrl = `${dataBaseUrl}/additionalSensorConfig.json`;
+  const objectUrl = `${dataBaseUrl}/additionalObjectConfig.json`;
   const [additionalConfig, setAdditionalConfig] = useState<Config[]>([]);
   const [sensorConfig, setSensorConfig] = useState<Config[]>([]);
   const [objectConfig, setObjectConfig] = useState<Config[]>([]);

@@ -39,6 +39,7 @@ vi.mock("@carma-providers/auth", () => ({
 import { mapLayersReducer } from "../slices/mapLayers";
 import { mapLayersUIReducer } from "../slices/ui";
 import { LayerCatalog, type ActiveLayers } from "./LayerCatalog";
+import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
 
 const textResponse = (body: string, status = 200) =>
   Promise.resolve({
@@ -159,10 +160,13 @@ const renderModal = (
     favorites: [],
     customCategories: [],
     activeLayers: [backgroundLayer] as ActiveLayers,
-    discoverProps: {
-      appKey: "geoportal-test",
-      apiUrl: "https://wunda-cloud-api.cismet.de",
-      daqKey: "gp_entdecken",
+    config: {
+      ...wuppLayerCatalogConfig,
+      discoverProps: {
+        appKey: "geoportal-test",
+        apiUrl: "https://wunda-cloud-api.cismet.de",
+        daqKey: "gp_entdecken",
+      },
     },
     appKey: "geoportal-test",
     store,

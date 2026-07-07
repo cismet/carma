@@ -36,6 +36,7 @@ import { setTriggerRefetch } from "../slices/ui";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
+import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import type { ActiveLayers } from "./LayerCatalog";
 import LegendDisplay from "./LegendDisplay";
 
@@ -54,11 +55,6 @@ interface InfoCardProps {
   links: { url: string; text: string }[];
   deleteCollection: () => void;
   loadingData: boolean;
-  discoverProps?: {
-    appKey: string;
-    apiUrl: string;
-    daqKey: string;
-  };
 }
 
 const InfoCard = ({
@@ -71,11 +67,11 @@ const InfoCard = ({
   links,
   deleteCollection,
   loadingData,
-  discoverProps,
 }: InfoCardProps) => {
   const dispatch = useDispatch();
   const layer = useSelector(getSelectedLayer);
   const [messageApi, contextHolder] = message.useMessage();
+  const { discoverProps } = useLayerCatalogConfig();
 
   const [editCollection, setEditCollection] = useState(false);
   const [updatedTitle, setUpdatedTitle] = useState(layer?.title);
@@ -172,7 +168,7 @@ const InfoCard = ({
 
   const updateItem = async (publish?: boolean) => {
     let fileUrl;
-    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
+    const apiUrl = discoverProps?.apiUrl ?? "";
     if (updatedFile && updatedFile instanceof File) {
       fileUrl = await uploadImage({
         file: updatedFile,
@@ -209,7 +205,7 @@ const InfoCard = ({
     setLoading(true);
     const taskParameters = {
       parameters: {
-        className: discoverProps?.daqKey || "gp_entdecken",
+        className: discoverProps?.daqKey ?? "",
         data: JSON.stringify({
           id: layer.id,
           name: updatedTitle,

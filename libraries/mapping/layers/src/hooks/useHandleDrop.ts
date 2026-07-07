@@ -1,10 +1,7 @@
 import { Dispatch, SetStateAction, useEffect } from "react";
 import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
-import type {
-  Layer,
-  SavedLayerConfig,
-} from "../lib/contracts/carma-layers.d";
+import type { Layer, SavedLayerConfig } from "../lib/contracts/carma-layers.d";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { ActiveLayers } from "../components/LayerCatalog";
 import { useDispatch } from "react-redux";
@@ -54,6 +51,7 @@ interface UseHandleDropProps {
       }[]
     >
   >;
+  vectorTileServerUrl: string;
 }
 
 export const useHandleDrop = ({
@@ -65,6 +63,7 @@ export const useHandleDrop = ({
   updateActiveLayer,
   setAdditionalLayers,
   setSidebarElements,
+  vectorTileServerUrl,
 }: UseHandleDropProps) => {
   const flags = useFeatureFlags();
   const dispatch = useDispatch();
@@ -78,14 +77,12 @@ export const useHandleDrop = ({
 
   const preTransformJson = (input: string) => {
     return input
-      .replaceAll("__SERVER_URL__", "https://tiles.cismet.de")
-      .replaceAll("__server_url__", "https://tiles.cismet.de");
+      .replaceAll("__SERVER_URL__", vectorTileServerUrl)
+      .replaceAll("__server_url__", vectorTileServerUrl);
   };
 
   const handleAddToMap = async (newItem: any, instant = false) => {
-    const existingLayer = activeLayers.find(
-      (layer) => layer.id === newItem.id
-    );
+    const existingLayer = activeLayers.find((layer) => layer.id === newItem.id);
 
     if (existingLayer) {
       try {

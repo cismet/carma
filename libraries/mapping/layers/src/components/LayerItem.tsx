@@ -35,6 +35,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
+import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import type { ActiveLayers } from "./LayerCatalog";
 import ThumbnailDisplay from "./ThumbnailDisplay";
 
@@ -53,11 +54,6 @@ interface LayerItemProps {
   setPreview: (preview: boolean) => void;
   showWithoutThumbnail?: boolean;
   loadingData: boolean;
-  discoverProps?: {
-    appKey: string;
-    apiUrl: string;
-    daqKey: string;
-  };
 }
 
 const LayerItem = ({
@@ -70,13 +66,13 @@ const LayerItem = ({
   setPreview,
   showWithoutThumbnail,
   loadingData,
-  discoverProps,
 }: LayerItemProps) => {
   const dispatch = useDispatch();
   const selectedLayer = useSelector(getSelectedLayer);
   const { isCesium, requestTransitionToCesium, requestTransitionToLeaflet } =
     useMapFrameworkSwitcherContext();
   const [messageApi, contextHolder] = message.useMessage();
+  const { discoverProps } = useLayerCatalogConfig();
   const [hovered, setHovered] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
   const isFavorite = favorites
@@ -217,10 +213,10 @@ const LayerItem = ({
   }, []);
 
   const deleteDiscoverItem = async () => {
-    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
+    const apiUrl = discoverProps?.apiUrl ?? "";
     const taskParameters = {
       parameters: {
-        className: discoverProps?.daqKey || "gp_entdecken",
+        className: discoverProps?.daqKey ?? "",
         data: JSON.stringify({
           id: layer.id,
         }),
@@ -510,7 +506,6 @@ const LayerItem = ({
             setOpenDeleteModal(true);
           }}
           loadingData={loadingData}
-          discoverProps={discoverProps}
         />
       )}
     </>

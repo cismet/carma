@@ -20,11 +20,6 @@ interface ItemGridProps {
   isDiscoverCategory?: boolean;
   loadingData: boolean;
   currentCategoryIndex: number;
-  discoverProps?: {
-    appKey: string;
-    apiUrl: string;
-    daqKey: string;
-  };
   currentlySearching?: boolean;
 }
 
@@ -44,7 +39,6 @@ const ItemGrid = ({
   isDiscoverCategory,
   loadingData,
   currentCategoryIndex,
-  discoverProps,
   currentlySearching,
 }: ItemGridProps) => {
   const getNumberOfLayers = (
@@ -132,7 +126,6 @@ const ItemGrid = ({
                               removeFavorite={removeFavorite}
                               setPreview={setPreview}
                               loadingData={loadingData}
-                              discoverProps={discoverProps}
                               key={`${subCategory.Title}_layer_${i}_${layer.id}`}
                             />
                           );
@@ -173,7 +166,6 @@ const ItemGrid = ({
                         removeFavorite={removeFavorite}
                         setPreview={setPreview}
                         loadingData={loadingData}
-                        discoverProps={discoverProps}
                         key={`${category.Title}_layer_${i}_${layer.id}`}
                       />
                     );

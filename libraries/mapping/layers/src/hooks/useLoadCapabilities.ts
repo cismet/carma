@@ -3,7 +3,11 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { isEqual } from "lodash";
 import WMSCapabilities from "wms-capabilities";
-import type { Layer, SavedLayerConfig } from "../lib/contracts/carma-layers.d";
+import type {
+  Layer,
+  LayerConfig,
+  SavedLayerConfig,
+} from "../lib/contracts/carma-layers.d";
 import type { Store } from "redux";
 
 import {
@@ -13,11 +17,7 @@ import {
   setAllLayers,
   getAllLayers,
 } from "../slices/mapLayers";
-import {
-  baseConfig as config,
-  partianTwinConfig,
-  serviceConfig,
-} from "../helper/config";
+import { baseConfig as config, partianTwinConfig } from "../helper/config";
 import {
   getLayerStructure,
   mergeStructures,
@@ -85,6 +85,7 @@ interface UseLoadCapabilitiesProps {
     layers: any[];
   }[];
   store: Store;
+  services: Record<string, LayerConfig>;
 }
 
 export const useLoadCapabilities = ({
@@ -95,9 +96,9 @@ export const useLoadCapabilities = ({
   setAllCategories,
   getDataFromJson,
   store,
+  services,
 }: UseLoadCapabilitiesProps) => {
   const dispatch = useDispatch();
-  const services = serviceConfig;
   const allLayers = useSelector(getAllLayers);
 
   useEffect(() => {

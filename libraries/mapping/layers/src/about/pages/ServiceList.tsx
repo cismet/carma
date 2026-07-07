@@ -8,6 +8,7 @@ import React, {
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import type { Item } from "../../lib/contracts/carma-layers.d";
+import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
 import {
   getAllLayers,
   getloadingCapabilitiesIDs,
@@ -643,7 +644,10 @@ interface ServiceListProps {
   markdown?: boolean;
 }
 
-const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
+const ServiceList = ({
+  discoverProps = wuppLayerCatalogConfig.discoverProps,
+  markdown = false,
+}: ServiceListProps) => {
   const allLayers = useSelector(getAllLayers);
   const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
   const store = useStore();
@@ -720,12 +724,14 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
   const { loadingAdditionalConfig } = useAdditionalConfig({
     addItemToCategory,
     setSidebarElements: noopSetSidebarElements,
+    assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
 
   useLoadCapabilities({
     loadingAdditionalConfig,
     activeLayers: [] as any,
     store,
+    services: wuppLayerCatalogConfig.services,
   });
 
   const displayLayers = useMemo(() => {

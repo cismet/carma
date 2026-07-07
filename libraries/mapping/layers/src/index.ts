@@ -2,6 +2,16 @@ export {
   default as LayerCatalog,
   type LayerCatalogProps,
 } from "./components/LayerCatalog";
+export {
+  type LayerCatalogConfig,
+  wuppDiscoverProps,
+  wuppLayerCatalogConfig,
+} from "./config/layerCatalogConfig";
+export type { DiscoverProps } from "./helper/discover";
+export {
+  LayerCatalogConfigProvider,
+  useLayerCatalogConfig,
+} from "./config/LayerCatalogConfigContext";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
 export * from "./helper/layerHelper";

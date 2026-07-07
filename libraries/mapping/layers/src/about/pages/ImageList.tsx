@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import type { Item, Layer } from "../../lib/contracts/carma-layers.d";
+import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
 import { getAllLayers } from "../../slices/mapLayers";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
@@ -116,12 +117,14 @@ const ImageList = ({ markdown = false }: ImageListProps) => {
   const { loadingAdditionalConfig } = useAdditionalConfig({
     addItemToCategory,
     setSidebarElements: noopSetSidebarElements,
+    assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
 
   useLoadCapabilities({
     loadingAdditionalConfig,
     activeLayers: [] as any,
     store,
+    services: wuppLayerCatalogConfig.services,
   });
 
   // Merge additional layers (from useAdditionalConfig) into WMS layers for display

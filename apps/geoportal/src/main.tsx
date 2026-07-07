@@ -14,7 +14,7 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
-import { apiUrl } from "./app/constants/discover";
+import { discoverProps } from "./app/constants/discover";
 
 cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper
@@ -60,27 +60,12 @@ root.render(
             },
             {
               path: "/about/services",
-              element: (
-                <ServiceList
-                  discoverProps={{
-                    appKey: "Geoportal.Online.Wuppertal",
-                    apiUrl: apiUrl,
-                    daqKey: "gp_entdecken",
-                  }}
-                />
-              ),
+              element: <ServiceList discoverProps={discoverProps} />,
             },
             {
               path: "/about/services.md",
               element: (
-                <ServiceList
-                  discoverProps={{
-                    appKey: "Geoportal.Online.Wuppertal",
-                    apiUrl: apiUrl,
-                    daqKey: "gp_entdecken",
-                  }}
-                  markdown
-                />
+                <ServiceList discoverProps={discoverProps} markdown />
               ),
             },
           ])}

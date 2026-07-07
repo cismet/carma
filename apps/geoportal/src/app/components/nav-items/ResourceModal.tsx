@@ -32,7 +32,7 @@ import {
   setShowLoginModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
-import { apiUrl } from "../../constants/discover";
+import { layerCatalogConfig } from "../../constants/discover";
 import store from "../../store";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
@@ -230,11 +230,7 @@ const ResourceModal = () => {
         updateFavorite={(layer) => {
           dispatch(updateFavorite(layer));
         }}
-        discoverProps={{
-          appKey: "Geoportal.Online.Wuppertal",
-          apiUrl: apiUrl,
-          daqKey: "gp_entdecken",
-        }}
+        config={layerCatalogConfig}
         setFeatureFlags={(flags) => {
           dispatch(addCustomFeatureFlags(flags));
         }}
