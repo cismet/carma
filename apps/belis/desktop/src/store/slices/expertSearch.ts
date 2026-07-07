@@ -10,6 +10,8 @@ import type { RootState } from "../index";
 
 export type Conjunction = "UND" | "ODER";
 
+export type SortDirection = "asc" | "desc";
+
 export interface ExpertRuleState {
   id: number;
   field: string; // registry key = backend column
@@ -23,11 +25,20 @@ export interface ExpertGroupState {
   rules: ExpertRuleState[];
 }
 
+export interface ExpertSortState {
+  id: number;
+  field: string; // registry key = backend column to order by
+  direction: SortDirection;
+}
+
 export interface ExpertTypeState {
   groups: ExpertGroupState[];
   groupConjunction: Conjunction; // how the groups combine
+  sorts: ExpertSortState[]; // order_by list (first entry = primary sort)
+  limit: number | null; // max rows; null = no limit
   nextGroupId: number;
   nextRuleId: number;
+  nextSortId: number;
 }
 
 type ExpertSearchState = Record<ObjectType, ExpertTypeState>;
@@ -41,11 +52,16 @@ const OBJECT_TYPES: ObjectType[] = [
 ];
 
 // Every tab starts with a single empty group, matching the previous default.
+// The limit is unset (null) by default, so no `limit` clause is emitted and all
+// matching rows come back until the user enters one.
 const createTypeState = (): ExpertTypeState => ({
   groups: [{ id: 1, conjunction: "UND", rules: [] }],
   groupConjunction: "UND",
+  sorts: [],
+  limit: null,
   nextGroupId: 2,
   nextRuleId: 1,
+  nextSortId: 1,
 });
 
 const initialState: ExpertSearchState = OBJECT_TYPES.reduce((acc, type) => {
@@ -185,6 +201,60 @@ const slice = createSlice({
       );
       if (rule) rule.value = action.payload.value;
     },
+    addSort(
+      state,
+      action: PayloadAction<{
+        objectType: ObjectType;
+        field: string;
+        direction?: SortDirection;
+      }>
+    ) {
+      const t = state[action.payload.objectType];
+      t.sorts.push({
+        id: t.nextSortId++,
+        field: action.payload.field,
+        direction: action.payload.direction ?? "asc",
+      });
+    },
+    removeSort(
+      state,
+      action: PayloadAction<{ objectType: ObjectType; sortId: number }>
+    ) {
+      const t = state[action.payload.objectType];
+      t.sorts = t.sorts.filter((s) => s.id !== action.payload.sortId);
+    },
+    setSortField(
+      state,
+      action: PayloadAction<{
+        objectType: ObjectType;
+        sortId: number;
+        field: string;
+      }>
+    ) {
+      const sort = state[action.payload.objectType].sorts.find(
+        (s) => s.id === action.payload.sortId
+      );
+      if (sort) sort.field = action.payload.field;
+    },
+    setSortDirection(
+      state,
+      action: PayloadAction<{
+        objectType: ObjectType;
+        sortId: number;
+        direction: SortDirection;
+      }>
+    ) {
+      const sort = state[action.payload.objectType].sorts.find(
+        (s) => s.id === action.payload.sortId
+      );
+      if (sort) sort.direction = action.payload.direction;
+    },
+    setLimit(
+      state,
+      action: PayloadAction<{ objectType: ObjectType; limit: number | null }>
+    ) {
+      state[action.payload.objectType].limit = action.payload.limit;
+    },
     resetType(state, action: PayloadAction<ObjectType>) {
       state[action.payload] = createTypeState();
     },
@@ -203,6 +273,11 @@ export const {
   setRuleField,
   setRuleOperator,
   setRuleValue,
+  addSort,
+  removeSort,
+  setSortField,
+  setSortDirection,
+  setLimit,
   resetType,
 } = slice.actions;
 
