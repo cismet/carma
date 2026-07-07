@@ -165,3 +165,25 @@ export const buildExpertWhereClause = (
 
   return `where: {_and: [${NOT_DELETED}, ${userFilter}]}`;
 };
+
+// Build the `order_by: [...]` clause from the user's sort list, in list form so
+// multiple sorts apply in order (first = primary). Returns "" when no valid sort
+// is configured, so the caller keeps the query's default order. Sorts on fields
+// not in the registry are skipped, guarding against stale keys.
+export const buildExpertOrderBy = (
+  query: ExpertTypeState,
+  fields: Field[]
+): string => {
+  const fieldKeys = new Set(fields.map((f) => f.key));
+  const clauses = query.sorts
+    .filter((s) => fieldKeys.has(s.field))
+    .map((s) => `{${s.field}: ${s.direction}}`);
+  return clauses.length ? `order_by: [${clauses.join(", ")}]` : "";
+};
+
+// Build the `limit: N` clause, or "" when no positive limit is set (= all rows).
+export const buildExpertLimit = (query: ExpertTypeState): string => {
+  const n = query.limit;
+  if (n == null || !Number.isFinite(n) || n <= 0) return "";
+  return `limit: ${Math.floor(n)}`;
+};

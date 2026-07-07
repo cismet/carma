@@ -1,16 +1,19 @@
 import { Fragment, useState } from "react";
-import { Input } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { Input, InputNumber } from "antd";
+import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
+import SortRow from "./SortRow";
 import { TYPE_META, REGISTRY, defaultOperatorForType } from "./fieldRegistry";
 import type { ObjectType } from "./fieldRegistry";
 import {
   addGroup,
   addRule,
   removeGroup,
+  addSort,
+  setLimit,
   getExpertTypeState,
 } from "../../../store/slices/expertSearch";
 
@@ -21,8 +24,20 @@ interface ExpertSearchProps {
 const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   const dispatch = useDispatch();
   const fields = REGISTRY[objectType];
-  const { groups } = useSelector(getExpertTypeState(objectType));
+  const { groups, sorts, limit } = useSelector(getExpertTypeState(objectType));
   const [fieldFilter, setFieldFilter] = useState("");
+
+  // A new sort defaults to the first field not already sorted on (so it never
+  // duplicates an existing row), ascending.
+  const handleAddSort = () => {
+    const used = new Set(sorts.map((s) => s.field));
+    const nextField = fields.find((f) => !used.has(f.key))?.key;
+    if (!nextField) return;
+    dispatch(addSort({ objectType, field: nextField }));
+  };
+
+  // Every field is already used → no more sorts can be added without duplicating.
+  const allFieldsSorted = sorts.length >= fields.length;
 
   // Clicking a field in the sidebar adds a rule (prefilled) to the last group
   const handleFieldClick = (fieldKey: string) => {
@@ -96,14 +111,66 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
             </span>{" "}
             <span className="text-gray-500">{totalRules} Bedingungen</span>
           </div>
-          <button
-            type="button"
-            onClick={() => dispatch(addGroup(objectType))}
-            className="text-sm text-gray-700 border border-gray-200 rounded-lg px-5 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
-          >
-            + Gruppe
-          </button>
+          <div className="flex items-center gap-3">
+            {/* LIMIT */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold tracking-wide uppercase text-gray-400">
+                Limit
+              </span>
+              <InputNumber
+                size="small"
+                min={1}
+                controls={false}
+                className="w-16"
+                value={limit}
+                onChange={(value) =>
+                  dispatch(setLimit({ objectType, limit: value ?? null }))
+                }
+              />
+            </div>
+            {/* SORTIERUNG */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold tracking-wide uppercase text-gray-400">
+                Sortierung
+              </span>
+              <button
+                type="button"
+                onClick={handleAddSort}
+                disabled={allFieldsSorted}
+                aria-label="Sortierung hinzufügen"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:text-gray-400"
+              >
+                <PlusOutlined />
+              </button>
+            </div>
+            <div className="w-px h-5 bg-gray-200" />
+            <button
+              type="button"
+              onClick={() => dispatch(addGroup(objectType))}
+              className="text-sm text-gray-700 border border-gray-200 rounded-lg px-5 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
+            >
+              + Gruppe
+            </button>
+          </div>
         </div>
+        {sorts.length > 0 && (
+          <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 mb-4">
+            <div className="flex flex-col gap-2">
+              {sorts.map((sort, index) => (
+                <SortRow
+                  key={sort.id}
+                  objectType={objectType}
+                  sort={sort}
+                  index={index}
+                  fields={fields}
+                  usedFieldKeys={sorts
+                    .filter((s) => s.id !== sort.id)
+                    .map((s) => s.field)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto flex flex-col border border-dashed border-gray-200 rounded-xl bg-gray-50 p-3 text-gray-500 mt-2 mb-5">
           {totalRules === 0 && groups.length === 1 && (
             <div className="flex-1 flex items-center justify-center">

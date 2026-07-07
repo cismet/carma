@@ -19,7 +19,11 @@ import {
 } from "../../store/slices/expertSearch";
 import { REGISTRY } from "./expert-search/fieldRegistry";
 import type { ObjectType } from "./expert-search/fieldRegistry";
-import { buildExpertWhereClause } from "./expert-search/expertSearchUtils";
+import {
+  buildExpertWhereClause,
+  buildExpertOrderBy,
+  buildExpertLimit,
+} from "./expert-search/expertSearchUtils";
 import { ENDPOINT } from "../../constants/belis";
 import {
   LEUCHTEN_FIELDS,
@@ -478,8 +482,19 @@ const buildMauerlascheWhereClause = (
 const generateQueryString = (
   searchType: SearchType,
   values: SearchValues,
-  whereOverride?: string | null
+  whereOverride?: string | null,
+  orderByOverride?: string,
+  limitOverride?: string
 ): string => {
+  // Assemble the parenthesised query args (where / order_by / limit), dropping
+  // empty parts. The overrides come from the expert search — when it is active
+  // (orderByOverride passed) an empty order means NO order_by at all; classic
+  // searches pass no overrides and keep their per-type default order.
+  const isExpert = orderByOverride !== undefined;
+  const args = (whereClause: string, defaultOrder: string) => {
+    const orderBy = isExpert ? orderByOverride : defaultOrder;
+    return [whereClause, orderBy, limitOverride].filter(Boolean).join(", ");
+  };
   if (searchType === "arbeitsauftrag") {
     const whereClause = buildArbeitsauftragWhereClause(
       values as ArbeitsauftragSearchValues
@@ -495,9 +510,7 @@ const generateQueryString = (
     const whereClause =
       whereOverride ?? buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
-  tdta_leuchten(${
-    whereClause ? `${whereClause}, ` : ""
-  }order_by: {einbaudatum: desc}) {
+  tdta_leuchten(${args(whereClause, "order_by: {einbaudatum: desc}")}) {
     ${LEUCHTEN_FIELDS}
   }
 }`;
@@ -505,9 +518,7 @@ const generateQueryString = (
     const whereClause =
       whereOverride ?? buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
-  tdta_standort_mast(${
-    whereClause ? `${whereClause}, ` : ""
-  }order_by: {inbetriebnahme_mast: desc}) {
+  tdta_standort_mast(${args(whereClause, "order_by: {inbetriebnahme_mast: desc}")}) {
     ${MAST_FIELDS}
   }
 }`;
@@ -516,9 +527,7 @@ const generateQueryString = (
       whereOverride ??
       buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
     return `query SchaltstelleSearch {
-  schaltstelle(${
-    whereClause ? `${whereClause}, ` : ""
-  }order_by: {erstellungsjahr: desc}) {
+  schaltstelle(${args(whereClause, "order_by: {erstellungsjahr: desc}")}) {
     ${SCHALTSTELLE_FIELDS}
   }
 }`;
@@ -527,9 +536,7 @@ const generateQueryString = (
     // where builder — the where clause always comes from whereOverride.
     const whereClause = whereOverride ?? "";
     return `query LeitungSearch {
-  leitung(${
-    whereClause ? `${whereClause}, ` : ""
-  }order_by: {id: desc}) {
+  leitung(${args(whereClause, "order_by: {id: desc}")}) {
     ${LEITUNG_FIELDS}
   }
 }`;
@@ -538,9 +545,7 @@ const generateQueryString = (
       whereOverride ??
       buildMauerlascheWhereClause(values as MauerlascheSearchValues);
     return `query MauerlascheSearch {
-  mauerlasche(${
-    whereClause ? `${whereClause}, ` : ""
-  }order_by: {erstellungsjahr: desc}) {
+  mauerlasche(${args(whereClause, "order_by: {erstellungsjahr: desc}")}) {
     ${MAUERLASCHE_FIELDS}
   }
 }`;
@@ -917,6 +922,19 @@ const SearchModal = ({
     const expertWhere = isExpertSearch
       ? buildExpertWhereClause(expertTypeState, REGISTRY[expertObjectType])
       : null;
+    // In expert mode the user chooses the sort order and result limit. When they
+    // add no sort, expertOrderBy is "" and NO order_by is emitted (the default
+    // per-type order is only used by the classic searches).
+    const expertOrderBy = isExpertSearch
+      ? buildExpertOrderBy(expertTypeState, REGISTRY[expertObjectType])
+      : "";
+    const expertLimit = isExpertSearch ? buildExpertLimit(expertTypeState) : "";
+    // Assemble the parenthesised query args, dropping any empty part so there is
+    // never a trailing comma or an empty order_by.
+    const args = (whereClause: string, defaultOrder: string) => {
+      const orderBy = isExpertSearch ? expertOrderBy : defaultOrder;
+      return [whereClause, orderBy, expertLimit].filter(Boolean).join(", ");
+    };
 
     if (effectiveType === "arbeitsauftrag") {
       const whereClause = buildArbeitsauftragWhereClause(
@@ -1044,9 +1062,10 @@ const SearchModal = ({
       const whereClause =
         expertWhere ?? buildLeuchteWhereClause(values as LeuchteSearchValues);
       const query = `query LeuchtenSearch {
-        tdta_leuchten(${
-          whereClause ? `${whereClause}, ` : ""
-        }order_by: {einbaudatum: desc}) {
+        tdta_leuchten(${args(
+          whereClause,
+          "order_by: {einbaudatum: desc}"
+        )}) {
           ${LEUCHTEN_FIELDS}
         }
       }`;
@@ -1070,9 +1089,10 @@ const SearchModal = ({
       const whereClause =
         expertWhere ?? buildMastWhereClause(values as MastSearchValues);
       const query = `query MastSearch {
-        tdta_standort_mast(${
-          whereClause ? `${whereClause}, ` : ""
-        }order_by: {inbetriebnahme_mast: desc}) {
+        tdta_standort_mast(${args(
+          whereClause,
+          "order_by: {inbetriebnahme_mast: desc}"
+        )}) {
           ${MAST_FIELDS}
         }
       }`;
@@ -1094,9 +1114,10 @@ const SearchModal = ({
         expertWhere ??
         buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
       const query = `query SchaltstelleSearch {
-        schaltstelle(${
-          whereClause ? `${whereClause}, ` : ""
-        }order_by: {erstellungsjahr: desc}) {
+        schaltstelle(${args(
+          whereClause,
+          "order_by: {erstellungsjahr: desc}"
+        )}) {
           ${SCHALTSTELLE_FIELDS}
         }
       }`;
@@ -1118,9 +1139,10 @@ const SearchModal = ({
         expertWhere ??
         buildMauerlascheWhereClause(values as MauerlascheSearchValues);
       const query = `query MauerlascheSearch {
-        mauerlasche(${
-          whereClause ? `${whereClause}, ` : ""
-        }order_by: {erstellungsjahr: desc}) {
+        mauerlasche(${args(
+          whereClause,
+          "order_by: {erstellungsjahr: desc}"
+        )}) {
           ${MAUERLASCHE_FIELDS}
         }
       }`;
@@ -1142,9 +1164,7 @@ const SearchModal = ({
       // here because the tab is only reachable in expert mode.
       const whereClause = expertWhere ?? "";
       const query = `query LeitungSearch {
-        leitung(${
-          whereClause ? `${whereClause}, ` : ""
-        }order_by: {id: desc}) {
+        leitung(${args(whereClause, "order_by: {id: desc}")}) {
           ${LEITUNG_FIELDS}
         }
       }`;
@@ -1226,7 +1246,12 @@ const SearchModal = ({
                     buildExpertWhereClause(
                       expertTypeState,
                       REGISTRY[expertObjectType]
-                    )
+                    ),
+                    buildExpertOrderBy(
+                      expertTypeState,
+                      REGISTRY[expertObjectType]
+                    ),
+                    buildExpertLimit(expertTypeState)
                   )
                 );
               }
