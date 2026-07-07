@@ -60,7 +60,6 @@ import {
   setAllLayers,
 } from "../slices/mapLayers";
 import { useDispatch, useSelector } from "react-redux";
-import type { Store } from "redux";
 import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
@@ -99,7 +98,6 @@ export interface LayerCatalogProps {
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
-  store: Store;
   unauthorizedCallback?: () => void;
   appKey?: string;
   config?: LayerCatalogConfig;
@@ -118,7 +116,6 @@ export const LayerCatalog = ({
   removeLastLayer,
   updateFavorite,
   setFeatureFlags,
-  store,
   unauthorizedCallback,
   appKey,
   config,
@@ -405,7 +402,6 @@ export const LayerCatalog = ({
     updateActiveLayer,
     setAllCategories,
     getDataFromJson,
-    store,
     services: catalogConfig.services,
   });
 

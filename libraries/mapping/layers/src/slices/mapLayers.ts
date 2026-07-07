@@ -1,8 +1,12 @@
 import localForage from "localforage";
 import { createSlice } from "@reduxjs/toolkit";
-import { Config, Item } from "../lib/contracts/carma-layers.d";
+import {
+  Config,
+  ExtendedItem,
+  Item,
+} from "../lib/contracts/carma-layers.d";
 
-export type ExtendedItem = Item & { replaceId?: string; mergeId?: string };
+export type { ExtendedItem };
 
 interface MapLayersState {
   replaceLayers: ExtendedItem[];

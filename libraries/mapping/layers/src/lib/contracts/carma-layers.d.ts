@@ -296,6 +296,8 @@ export type Config = {
   layers: Item[];
 };
 
+export type ExtendedItem = Item & { replaceId?: string; mergeId?: string };
+
 export type Item = {
   title: string;
   description: string;

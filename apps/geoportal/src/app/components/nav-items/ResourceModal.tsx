@@ -234,7 +234,6 @@ const ResourceModal = () => {
         setFeatureFlags={(flags) => {
           dispatch(addCustomFeatureFlags(flags));
         }}
-        store={store}
         unauthorizedCallback={() => {
           dispatch(setShowLoginModal(true));
         }}

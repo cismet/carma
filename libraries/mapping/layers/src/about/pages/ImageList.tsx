@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { useStore } from "react-redux";
 import type { Item, Layer } from "../../lib/contracts/carma-layers.d";
 import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
 import { getAllLayers } from "../../slices/mapLayers";
@@ -43,7 +42,6 @@ interface ImageListProps {
 
 const ImageList = ({ markdown = false }: ImageListProps) => {
   const allLayers = useSelector(getAllLayers);
-  const store = useStore();
   const additionalLayersRef = useRef<
     { serviceName: string; title: string; layers: any[] }[]
   >([]);
@@ -123,7 +121,6 @@ const ImageList = ({ markdown = false }: ImageListProps) => {
   useLoadCapabilities({
     loadingAdditionalConfig,
     activeLayers: [] as any,
-    store,
     services: wuppLayerCatalogConfig.services,
   });
 

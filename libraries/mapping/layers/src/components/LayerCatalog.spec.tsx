@@ -169,7 +169,6 @@ const renderModal = (
       },
     },
     appKey: "geoportal-test",
-    store,
     ...overrides,
   };
 

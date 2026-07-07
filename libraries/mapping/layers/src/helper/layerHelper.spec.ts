@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import WMSCapabilities from "wms-capabilities";
-import { configureStore } from "@reduxjs/toolkit";
 
 import capabilitiesKartenXml from "../test/fixtures/capabilities-karten.xml?raw";
-import { addReplaceLayers, mapLayersReducer } from "../slices/mapLayers";
+import type { ExtendedItem } from "../lib/contracts/carma-layers.d";
 import { baseConfig } from "./config";
 import {
   extractVectorStyles,
@@ -25,9 +24,6 @@ import {
 const parser = new WMSCapabilities();
 
 const parseFixture = () => parser.toJSON(capabilitiesKartenXml);
-
-const createTestStore = () =>
-  configureStore({ reducer: { mapLayers: mapLayersReducer } });
 
 describe("getInteractionButtons", () => {
   it("returns an empty array for undefined", () => {
@@ -332,13 +328,13 @@ describe("capabilities fixture pipeline", () => {
 });
 
 describe("getLayerStructure characterization", () => {
-  const buildStructure = (store = createTestStore()) =>
+  const buildStructure = (replaceLayers?: ExtendedItem[]) =>
     getLayerStructure({
       config: baseConfig,
       wms: parseFixture(),
       serviceName: "wuppKarten",
       skipTopicMaps: true,
-      store,
+      replaceLayers,
     });
 
   it("fills only the matching category and leaves the others empty", () => {
@@ -413,18 +409,15 @@ describe("getLayerStructure characterization", () => {
   });
 
   it("replaces a layer when a replaceId matches", () => {
-    const store = createTestStore();
-    store.dispatch(
-      addReplaceLayers({
+    const structure = buildStructure([
+      {
         replaceId: "wuppKarten:expg",
         id: "wuppKarten:expg",
         type: "layer",
         title: "ALKIS Ersatzkarte (Test)",
         vectorStyle: "https://example.test/styles/expg.style.json",
-      })
-    );
-
-    const structure = buildStructure(store);
+      } as unknown as ExtendedItem,
+    ]);
     const basis = structure.find((cat) => cat.Title === "Basis")!;
     const titles = basis.layers.map((layer: any) => layer.title);
 
@@ -437,19 +430,16 @@ describe("getLayerStructure characterization", () => {
   });
 
   it("merges config values over the capabilities layer when a mergeId matches", () => {
-    const store = createTestStore();
-    store.dispatch(
-      addReplaceLayers({
+    const structure = buildStructure([
+      {
         mergeId: "wuppKarten:albsf",
         id: "wuppKarten:albsf",
         type: "layer",
         title: "Schätzungskarte (vektorisiert)",
         keywords: ["carmaConf://vectorStyle:https://example.test/albsf.json"],
         props: { zusatz: true },
-      })
-    );
-
-    const structure = buildStructure(store);
+      } as unknown as ExtendedItem,
+    ]);
     const basis = structure.find((cat) => cat.Title === "Basis")!;
     const merged: any = basis.layers.find(
       (layer: any) => layer.id === "wuppKarten:albsf"

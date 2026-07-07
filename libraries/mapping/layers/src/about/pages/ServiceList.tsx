@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import { useSelector } from "react-redux";
-import { useStore } from "react-redux";
 import type { Item } from "../../lib/contracts/carma-layers.d";
 import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
 import {
@@ -650,7 +649,6 @@ const ServiceList = ({
 }: ServiceListProps) => {
   const allLayers = useSelector(getAllLayers);
   const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
-  const store = useStore();
   const [additionalLayers, setAdditionalLayers] = useState<
     { serviceName: string; title: string; layers: any[] }[]
   >([]);
@@ -730,7 +728,6 @@ const ServiceList = ({
   useLoadCapabilities({
     loadingAdditionalConfig,
     activeLayers: [] as any,
-    store,
     services: wuppLayerCatalogConfig.services,
   });
 

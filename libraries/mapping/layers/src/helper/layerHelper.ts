@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
 import type {
+  ExtendedItem,
   InteractionButton,
   Item,
   XMLLayer,
@@ -8,8 +9,6 @@ import type {
 } from "../lib/contracts/carma-layers.d";
 
 import { serviceConfig } from "./config";
-import { ExtendedItem, getReplaceLayers } from "../slices/mapLayers";
-import type { Store } from "redux";
 
 export const getInteractionButtons = (
   buttons?: InteractionButton | InteractionButton[]
@@ -348,15 +347,14 @@ export const getLayerStructure = ({
   wms,
   serviceName,
   skipTopicMaps,
-  store,
+  replaceLayers,
 }: {
   config: any;
   wms?: WMSCapabilitiesJSON;
   serviceName: string;
   skipTopicMaps?: boolean;
-  store: Store;
+  replaceLayers?: ExtendedItem[];
 }) => {
-  const replaceLayers = getReplaceLayers(store.getState());
   const structure: {
     Title: string;
     layers: Item[];
@@ -408,26 +406,6 @@ export const getLayerStructure = ({
               merge = true;
             }
           });
-          // if (replace || merge) {
-          //   let newLayer = replaceLayers.find(
-          //     (layer) =>
-          //       layer.replaceId === foundLayer?.id ||
-          //       layer.mergeId === foundLayer?.id
-          //   );
-          //   if (newLayer) {
-          //     if (merge) {
-          //       console.log("xxx merging", newLayer);
-          //       console.log("xxx merging", foundLayer);
-          //       newLayer = mergeLayers(newLayer, foundLayer);
-          //       console.log("xxx merging finished", newLayer);
-          //     }
-          //     layers.push({
-          //       ...newLayer,
-          //       serviceName: service.name,
-          //     });
-          //   }
-          //   continue;
-          // }
           if (wms) {
             // @ts-expect-error fix typing
             foundLayer.props["url"] =
@@ -453,7 +431,7 @@ export const getLayerStructure = ({
             foundLayer = applyKeywordSettings(foundLayer);
 
             if (replace || merge) {
-              let newLayer = replaceLayers.find(
+              let newLayer = replaceLayers?.find(
                 (layer) =>
                   layer.replaceId === foundLayer?.id ||
                   layer.mergeId === foundLayer?.id

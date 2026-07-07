@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { isEqual } from "lodash";
 import WMSCapabilities from "wms-capabilities";
@@ -8,7 +8,6 @@ import type {
   LayerConfig,
   SavedLayerConfig,
 } from "../lib/contracts/carma-layers.d";
-import type { Store } from "redux";
 import type { CatalogMainCategory } from "./useCatalogSearch";
 
 import {
@@ -17,6 +16,7 @@ import {
   setLoadingCapabilities,
   setAllLayers,
   getAllLayers,
+  getReplaceLayers,
 } from "../slices/mapLayers";
 import { baseConfig as config, partianTwinConfig } from "../helper/config";
 import {
@@ -64,7 +64,6 @@ interface UseLoadCapabilitiesProps {
     Title: string;
     layers: any[];
   }[];
-  store: Store;
   services: Record<string, LayerConfig>;
 }
 
@@ -74,11 +73,13 @@ export const useLoadCapabilities = ({
   updateActiveLayer,
   setAllCategories,
   getDataFromJson,
-  store,
   services,
 }: UseLoadCapabilitiesProps) => {
   const dispatch = useDispatch();
   const allLayers = useSelector(getAllLayers);
+  const replaceLayers = useSelector(getReplaceLayers);
+  const replaceLayersRef = useRef(replaceLayers);
+  replaceLayersRef.current = replaceLayers;
 
   useEffect(() => {
     const loadCapabilites = async () => {
@@ -122,7 +123,7 @@ export const useLoadCapabilities = ({
                     wms: result,
                     serviceName: services[key].name,
                     skipTopicMaps: true,
-                    store: store,
+                    replaceLayers: replaceLayersRef.current,
                   });
 
                   layerStructure.forEach((category) => {
@@ -193,7 +194,7 @@ export const useLoadCapabilities = ({
               config,
               serviceName: services[key].name,
               skipTopicMaps: true,
-              store,
+              replaceLayers: replaceLayersRef.current,
             });
             const mergedLayer = mergeStructures(layerStructure, newLayers);
             newLayers = mergedLayer;
