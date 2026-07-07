@@ -9,6 +9,7 @@ import type {
   SavedLayerConfig,
 } from "../lib/contracts/carma-layers.d";
 import type { Store } from "redux";
+import type { CatalogMainCategory } from "./useCatalogSearch";
 
 import {
   addloadingCapabilitiesIDs,
@@ -56,29 +57,8 @@ interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
   activeLayers: ActiveLayers;
   updateActiveLayer?: (layer: Layer) => void;
-  setFilteredCategories?: React.Dispatch<
-    React.SetStateAction<
-      {
-        id: string;
-        categories: {
-          Title: string;
-          id?: string;
-          layers: SavedLayerConfig[];
-        }[];
-      }[]
-    >
-  >;
   setAllCategories?: React.Dispatch<
-    React.SetStateAction<
-      {
-        id: string;
-        categories: {
-          Title: string;
-          id?: string;
-          layers: SavedLayerConfig[];
-        }[];
-      }[]
-    >
+    React.SetStateAction<CatalogMainCategory[]>
   >;
   getDataFromJson?: (data: any) => {
     Title: string;
@@ -92,7 +72,6 @@ export const useLoadCapabilities = ({
   loadingAdditionalConfig,
   activeLayers,
   updateActiveLayer,
-  setFilteredCategories,
   setAllCategories,
   getDataFromJson,
   store,
@@ -234,21 +213,6 @@ export const useLoadCapabilities = ({
       for (let key in partianTwinConfig) {
         partialTwinsCategories.push(partianTwinConfig[key]);
       }
-      if (setFilteredCategories) {
-        setFilteredCategories((prev) => {
-          if (prev.find((item) => item.id === "partialTwins")) {
-            prev.splice(
-              prev.findIndex((item) => item.id === "partialTwins"),
-              1
-            );
-          }
-          return [
-            ...prev,
-            { id: "partialTwins", categories: partialTwinsCategories },
-          ];
-        });
-      }
-
       if (setAllCategories) {
         setAllCategories((prev) => {
           if (prev.find((item) => item.id === "partialTwins")) {

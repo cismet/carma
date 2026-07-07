@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isEqual } from "lodash";
 import { useHandleDrop } from "../hooks/useHandleDrop";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
@@ -22,9 +22,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal, Spin } from "antd";
-import Fuse from "fuse.js";
 import type {
   BackgroundLayer,
   Item,
@@ -65,6 +63,12 @@ import { useDispatch, useSelector } from "react-redux";
 import type { Store } from "redux";
 import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import {
+  findFirstCategoryIdWithResults,
+  useCatalogSearch,
+  type CatalogMainCategory,
+  type CatalogSubCategory,
+} from "../hooks/useCatalogSearch";
 
 const { Search } = Input;
 
@@ -78,13 +82,7 @@ const elements = [
   { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
 ];
 
-type LayerCategories = {
-  Title: string;
-  layers: SavedLayerConfig[];
-  id?: string;
-  mainCategoryId?: string;
-  hideWhenEmpty?: boolean;
-};
+type LayerCategories = CatalogSubCategory;
 
 export type ActiveLayers = [BackgroundLayer, ...Layer[]];
 
@@ -137,22 +135,25 @@ export const LayerCatalog = ({
   >(elements);
   const [preview, setPreview] = useState(false);
   const allLayers = useSelector(getAllLayers);
-  const [searchValue, setSearchValue] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
-  const [allCategories, setAllCategories] = useState<
-    {
-      id: string;
-      categories: LayerCategories[];
-    }[]
-  >([]);
-  const [filteredCategories, setFilteredCategories] = useState<
-    {
-      id: string;
-      categories: LayerCategories[];
-    }[]
-  >([]);
+  const [allCategories, setAllCategories] = useState<CatalogMainCategory[]>([]);
+  const disabledCategoryIds = useMemo(
+    () =>
+      new Set(
+        sidebarElements
+          .filter((element) => element.disabled)
+          .map((element) => element.id)
+      ),
+    [sidebarElements]
+  );
+  const {
+    searchValue,
+    setSearchValue,
+    debouncedSearchTerm,
+    isSearching,
+    filteredCategories,
+  } = useCatalogSearch({ allCategories, disabledCategoryIds });
   const [currentShownCategory, setCurrentShownCategory] = useState(
     filteredCategories[0]?.id
   );
@@ -160,7 +161,6 @@ export const LayerCatalog = ({
   const [loadingData, setLoadingData] = useState(false);
   const [delayedLoading, setDelayedLoading] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
-  const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const triggerRefetch = useSelector(getTriggerRefetch);
   const dispatch = useDispatch();
@@ -252,113 +252,33 @@ export const LayerCatalog = ({
     }, 0);
   };
 
-  const search = (value: string) => {
-    setIsSearching(true);
-    if (value) {
-      const results = fuse.search(value);
-
-      const copiedCategories = JSON.parse(JSON.stringify(allCategories));
-
-      const categoriesWithResults = copiedCategories.map((category) => {
-        const sidebarElement = sidebarElements.find(
-          (element) => element.id === category.id
-        );
-        const isCategoryDisabled = sidebarElement?.disabled;
-
-        category.categories.map((tmp) => {
-          const newLayers: any[] = [];
-
-          if (!isCategoryDisabled) {
-            results.forEach((result) => {
-              const resultItem = result.item;
-
-              if (tmp.id === resultItem.serviceName && tmp.id) {
-                newLayers.push({
-                  ...resultItem,
-                });
-              }
-            });
-          }
-
-          tmp.layers = newLayers;
-
-          return tmp;
-        });
-
-        return category;
-      });
-
-      const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
-      let categoryContainsResults = false;
-      if (selectedCategoryId === "searchResults") {
-        categoryContainsResults = true;
-      }
-      categoriesWithResults.forEach((category) => {
-        if (category.id === selectedCategoryId) {
-          let subCats = category.categories;
-          let numOfResults = 0;
-          subCats.forEach((subCat) => {
-            numOfResults = numOfResults + subCat.layers.length;
-          });
-
-          if (numOfResults > 0) {
-            categoryContainsResults = true;
-          }
-        }
-      });
-
-      // select first category with results
-      if (!categoryContainsResults) {
-        let firstCategoryId = "";
-
-        categoriesWithResults.forEach((category) => {
-          let subCats = category.categories;
-          let numOfResults = 0;
-          subCats.forEach((subCat) => {
-            numOfResults = numOfResults + subCat.layers.length;
-          });
-          if (numOfResults > 0) {
-            firstCategoryId = category.id;
-            return;
-          }
-        });
-
-        if (firstCategoryId) {
-          const categoryIndex = sidebarElements.findIndex(
-            (element) => element.id === firstCategoryId
-          );
-
-          if (categoryIndex > -1) {
-            setSelectedNavItemIndex(categoryIndex);
-          }
-        }
-      }
-
-      setFilteredCategories(categoriesWithResults);
-    } else {
-      if (allCategories.length > 0) {
-        setFilteredCategories(allCategories);
+  useEffect(() => {
+    if (!debouncedSearchTerm) {
+      return;
+    }
+    const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
+    if (selectedCategoryId === "searchResults") {
+      return;
+    }
+    const selectedCategoryHasResults = filteredCategories.some(
+      (category) =>
+        category.id === selectedCategoryId &&
+        category.categories.some((subCategory) => subCategory.layers.length > 0)
+    );
+    if (selectedCategoryHasResults) {
+      return;
+    }
+    const firstCategoryId = findFirstCategoryIdWithResults(filteredCategories);
+    if (firstCategoryId) {
+      const categoryIndex = sidebarElements.findIndex(
+        (element) => element.id === firstCategoryId
+      );
+      if (categoryIndex > -1) {
+        setSelectedNavItemIndex(categoryIndex);
       }
     }
-    setIsSearching(false);
-  };
-
-  const flattenedLayers = allCategories.flatMap((obj) =>
-    obj.categories.flatMap((obj) => obj.layers)
-  );
-  const fuse = new Fuse(flattenedLayers, {
-    keys: [
-      { name: "title", weight: 2 },
-      { name: "description", weight: 1 },
-      { name: "keywords", weight: 1 },
-      { name: "tags", weight: 1 },
-    ],
-    shouldSort: false,
-    includeMatches: true,
-    useExtendedSearch: true,
-    ignoreLocation: true,
-    threshold: 0.1,
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm, filteredCategories]);
 
   const getDataFromJson = (data: any) => {
     const flattenedLayers: any[] = [];
@@ -457,7 +377,6 @@ export const LayerCatalog = ({
       return newCategories;
     };
 
-    setFilteredCategories(createNewCategories);
     setAllCategories(createNewCategories);
   };
 
@@ -484,7 +403,6 @@ export const LayerCatalog = ({
     loadingAdditionalConfig,
     activeLayers,
     updateActiveLayer,
-    setFilteredCategories,
     setAllCategories,
     getDataFromJson,
     store,
@@ -523,16 +441,6 @@ export const LayerCatalog = ({
         layers,
       });
     }
-
-    setFilteredCategories((prev) => {
-      if (prev.find((item) => item.id === "discover")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "discover"),
-          1
-        );
-      }
-      return [...prev, { id: "discover", categories: discoverCategories }];
-    });
 
     setAllCategories((prev) => {
       if (prev.find((item) => item.id === "discover")) {
@@ -625,16 +533,9 @@ export const LayerCatalog = ({
         return nextMainCategories;
       };
 
-      if (!searchValue) {
-        setFilteredCategories(mergeSubCategoriesIntoMainCategories);
-      }
       setAllCategories(mergeSubCategoriesIntoMainCategories);
     }
   }, [customCategories, allCategories]);
-
-  useEffect(() => {
-    search(debouncedSearchTerm);
-  }, [debouncedSearchTerm]);
 
   const checkIfAllLayersAreLoaded = () => {
     let allLayersLoaded = true;
@@ -797,17 +698,7 @@ export const LayerCatalog = ({
         featuredLayersWithServiceName
       );
     }
-
-    if (searchValue) {
-      search(debouncedSearchTerm);
-    }
   }, [allLayers]);
-
-  useEffect(() => {
-    if (searchValue) {
-      search(debouncedSearchTerm);
-    }
-  }, [allCategories]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1064,7 +955,6 @@ export const LayerCatalog = ({
                   className="w-full sm:w-[76%]"
                   allowClear
                   onChange={(e) => {
-                    setIsSearching(true);
                     setSearchValue(e.target.value);
 
                     const searchResultsIndex = sidebarElements.findIndex(
@@ -1080,8 +970,6 @@ export const LayerCatalog = ({
                   }}
                   loading={isSearching}
                   onSearch={(value) => {
-                    search(value);
-
                     const searchResultsIndex = sidebarElements.findIndex(
                       (item) => item.id === "searchResults"
                     );
