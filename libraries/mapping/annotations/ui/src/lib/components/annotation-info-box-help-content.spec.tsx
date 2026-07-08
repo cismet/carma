@@ -58,7 +58,7 @@ describe("AnnotationInfoBoxHelpContent", () => {
     ).toBeTruthy();
     expect(actionRows).toHaveLength(3);
     expect(actionRows[0]?.textContent).toContain("Click");
-    expect(actionRows[1]?.textContent).toContain("←");
+    expect(actionRows[1]?.textContent).toContain("⌫");
     expect(actionRows[1]?.textContent).toContain("Backspace");
     expect(actionRows[1]?.textContent).toContain("+");
     expect(actionRows[1]?.textContent).toContain("or");
@@ -86,7 +86,7 @@ describe("AnnotationInfoBoxHelpContent", () => {
 
     const actionRows = screen.getAllByTestId("annotation-help-action");
 
-    expect(actionRows[0]?.textContent).toContain("←");
+    expect(actionRows[0]?.textContent).toContain("⌫");
     expect(actionRows[0]?.textContent).toContain("Rücktaste");
     expect(actionRows[0]?.textContent).not.toContain("Backspace");
   });

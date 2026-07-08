@@ -111,14 +111,15 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
 
     return {
       plugin,
-      content: createElement(AnnotationInfoBoxTextContent, {
-        visualOptions: resolvedVisualOptions,
-        children: createElement(AnnotationInfoBoxHelpContent, {
+      content: createElement(
+        AnnotationInfoBoxTextContent,
+        { visualOptions: resolvedVisualOptions },
+        createElement(AnnotationInfoBoxHelpContent, {
           items: helpItems,
           layout: authoringInstructionHelpLayout,
           locale: helpLocale,
-        }),
-      }),
+        })
+      ),
       visualOptions: resolvedVisualOptions,
     };
   }, [

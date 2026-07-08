@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   AnnotationsStore,
@@ -11,6 +11,41 @@ import { usePointEditingGizmo } from "./use-point-editing-gizmo";
 vi.mock("@carma-mapping/gizmo/cesium", () => ({
   useCesiumPointMoveGizmo: vi.fn(),
 }));
+
+// The hook publishes live drag anchors on the overlay provider's registry; the
+// spec has no provider mounted (and its synchronous rAF mock would recurse in
+// the provider's frame loop), so stub the context with a Map-backed registry.
+vi.mock("@carma-providers/label-overlay", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@carma-providers/label-overlay")
+  >();
+  const liveAnchorsMap = new Map<string, unknown>();
+  return {
+    ...actual,
+    useLabelOverlay: () => ({
+      addLabelOverlayElement: vi.fn(),
+      removeLabelOverlayElement: vi.fn(),
+      updateLabelOverlayElement: vi.fn(),
+      clearLabelOverlayElements: vi.fn(),
+      updatePositions: vi.fn(),
+      liveAnchors: {
+        set: (id: string, anchor: unknown) => {
+          liveAnchorsMap.set(id, anchor);
+        },
+        get: (id: string) => liveAnchorsMap.get(id),
+        delete: (id: string) => {
+          liveAnchorsMap.delete(id);
+        },
+        clear: () => {
+          liveAnchorsMap.clear();
+        },
+        get size() {
+          return liveAnchorsMap.size;
+        },
+      },
+    }),
+  };
+});
 
 const node = {
   id: "node-a",
@@ -61,8 +96,42 @@ const createAnnotationsStore = ({
   } as unknown as AnnotationsStore & { dispatch: ReturnType<typeof vi.fn> });
 
 describe("usePointEditingGizmo", () => {
-  it("starts node editing without changing measurement selection", () => {
-    const annotationsStore = createAnnotationsStore();
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The draft preview flush is a trailing throttle (setTimeout); run it so the
+  // React draft state reflects the latest pointer input.
+  const flushDraftPreview = () => {
+    act(() => {
+      vi.runAllTimers();
+    });
+  };
+
+  it("starts node editing on the selected measurement without changing selection", () => {
+    const annotationsStore = createAnnotationsStore({
+      selectedAnnotationIds: ["measurement-a"],
+    });
+    const { result } = renderHook(() =>
+      usePointEditingGizmo(null, [node], [], {
+        annotationsStore,
+        annotationEntries: [measurement],
+        selectedAnnotationIds: ["measurement-a"],
+      })
+    );
+
+    act(() => {
+      result.current.handleNodeLongPress("node-a");
+    });
+
+    expect(result.current.activeEditedNodeId).toBe("node-a");
+    expect(annotationsStore.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("does not start node editing when the node's measurement is not selected", () => {
+    const annotationsStore = createAnnotationsStore({
+      selectedAnnotationIds: ["measurement-b"],
+    });
     const { result } = renderHook(() =>
       usePointEditingGizmo(null, [node], [], {
         annotationsStore,
@@ -75,15 +144,12 @@ describe("usePointEditingGizmo", () => {
       result.current.handleNodeLongPress("node-a");
     });
 
-    expect(result.current.activeEditedNodeId).toBe("node-a");
+    expect(result.current.activeEditedNodeId).toBeNull();
     expect(annotationsStore.dispatch).not.toHaveBeenCalled();
   });
 
   it("limits live linked-node preview moves to selected measurements", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
+    vi.useFakeTimers();
     const nodes = [
       createNode("node-a"),
       createNode("node-b"),
@@ -119,6 +185,7 @@ describe("usePointEditingGizmo", () => {
     act(() => {
       result.current.handleReferenceNodeHover("ref", true);
     });
+    flushDraftPreview();
 
     expect(Object.keys(result.current.draftNodeCoordinateOverrides)).toEqual([
       "node-a",
@@ -139,11 +206,8 @@ describe("usePointEditingGizmo", () => {
     });
   });
 
-  it("keeps linked nodes together during live preview when no measurement is selected", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
+  it("keeps linked nodes together during live preview when their measurements are selected", () => {
+    vi.useFakeTimers();
     const nodes = [
       createNode("node-a"),
       createNode("node-b"),
@@ -155,7 +219,7 @@ describe("usePointEditingGizmo", () => {
     ];
     const annotationsStore = createAnnotationsStore({
       annotationEntries,
-      selectedAnnotationIds: [],
+      selectedAnnotationIds: ["measurement-a", "measurement-b"],
     });
     const { result } = renderHook(() =>
       usePointEditingGizmo(
@@ -168,7 +232,7 @@ describe("usePointEditingGizmo", () => {
         {
           annotationsStore,
           annotationEntries,
-          selectedAnnotationIds: [],
+          selectedAnnotationIds: ["measurement-a", "measurement-b"],
         }
       )
     );
@@ -179,6 +243,7 @@ describe("usePointEditingGizmo", () => {
     act(() => {
       result.current.handleReferenceNodeHover("ref", true);
     });
+    flushDraftPreview();
 
     expect(Object.keys(result.current.draftNodeCoordinateOverrides)).toEqual([
       "node-a",

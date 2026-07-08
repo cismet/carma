@@ -19,18 +19,24 @@ describe("keyboardDisplay", () => {
     expect(resolveKeyboardDisplayPlatform("other")).toBe("other");
   });
 
-  it("formats backspace labels by platform", () => {
+  it("pairs backspace labels with the keyboard symbol on every platform", () => {
     expect(
       resolveBackspaceDisplayLabel(
         "windows",
         resolveKeyboardDisplayLabels("de-DE")
       )
-    ).toBe("← Rücktaste");
+    ).toBe("⌫ Rücktaste");
     expect(
       resolveBackspaceDisplayLabel(
         "macos",
         resolveKeyboardDisplayLabels("de-DE")
       )
-    ).toBe("⌫");
+    ).toBe("⌫ Rücktaste");
+    expect(
+      resolveBackspaceDisplayLabel(
+        "other",
+        resolveKeyboardDisplayLabels("en-US")
+      )
+    ).toBe("⌫ Backspace");
   });
 });
