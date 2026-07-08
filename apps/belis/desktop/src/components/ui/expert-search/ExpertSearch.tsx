@@ -172,11 +172,6 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
           </div>
         )}
         <div className="flex-1 overflow-y-auto flex flex-col border border-dashed border-gray-200 rounded-xl bg-gray-50 p-3 text-gray-500 mt-2 mb-5">
-          {totalRules === 0 && groups.length === 1 && (
-            <div className="flex-1 flex items-center justify-center">
-              <FilterEmptyState />
-            </div>
-          )}
           <div className="flex flex-col gap-4">
             {groups.map((group, index) => (
               <Fragment key={group.id}>
@@ -195,6 +190,11 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
               </Fragment>
             ))}
           </div>
+          {totalRules === 0 && groups.length === 1 && (
+            <div className="flex-1 flex items-center justify-center">
+              <FilterEmptyState />
+            </div>
+          )}
         </div>
       </div>
     </div>
