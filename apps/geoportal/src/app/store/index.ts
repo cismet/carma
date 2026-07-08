@@ -99,6 +99,9 @@ const mappingConfig = {
 const layersConfig = {
   key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.layers",
   storage: localForage,
+  // "favorites" is dormant legacy data: kept in the record so the
+  // LayerCatalogProvider one-time import (legacyFavoritesKey in App.tsx)
+  // still finds it, no matter when redux-persist rewrites the record
   whitelist: ["thumbnails", "favorites"],
 };
 

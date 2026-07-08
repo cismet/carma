@@ -8,15 +8,9 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerCatalog } from "@carma-mapping/layers";
+import { LayerCatalog, useLayerCatalog } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import {
-  addCustomFeatureFlags,
-  addFavorite,
-  getFavorites,
-  removeFavorite,
-  updateFavorite,
-} from "../../store/slices/layers";
+import { addCustomFeatureFlags } from "../../store/slices/layers";
 import {
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
@@ -32,7 +26,6 @@ import {
   setShowLoginModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
-import { layerCatalogConfig } from "../../constants/discover";
 import store from "../../store";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
@@ -45,7 +38,7 @@ const ResourceModal = () => {
 
   const activeLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const favorites = useSelector(getFavorites);
+  const { favorites } = useLayerCatalog();
   const measurements = useSelector(getMeasurements);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
@@ -99,20 +92,12 @@ const ResourceModal = () => {
         open={showResourceModal}
         setOpen={(show) => dispatch(setShowResourceModal(show))}
         setAdditionalLayers={updateLayers}
-        favorites={[...favorites, ...savedLayerConfigs]}
-        addFavorite={(layer) => {
-          if (layer.type !== "collection") {
-            dispatch(addFavorite(layer));
-          } else {
-            dispatch(appendSavedLayerConfig(layer));
-          }
+        savedCollections={savedLayerConfigs}
+        onAddCollection={(layer) => {
+          dispatch(appendSavedLayerConfig(layer));
         }}
-        removeFavorite={(layer) => {
-          if (layer.type !== "collection") {
-            dispatch(removeFavorite(layer));
-          } else {
-            dispatch(deleteSavedLayerConfig(layer.id));
-          }
+        onRemoveCollection={(layer) => {
+          dispatch(deleteSavedLayerConfig(layer.id));
         }}
         activeLayers={[backgroundLayer, ...activeLayers]}
         customCategories={[
@@ -227,10 +212,6 @@ const ResourceModal = () => {
         removeLastLayer={() => {
           dispatch(removeLastLayer());
         }}
-        updateFavorite={(layer) => {
-          dispatch(updateFavorite(layer));
-        }}
-        config={layerCatalogConfig}
         setFeatureFlags={(flags) => {
           dispatch(addCustomFeatureFlags(flags));
         }}

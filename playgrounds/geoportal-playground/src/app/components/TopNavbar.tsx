@@ -235,8 +235,6 @@ const TopNavbar = () => {
             layers: savedLayerConfigs,
           },
         ]}
-        addFavorite={() => {}}
-        removeFavorite={() => {}}
         updateActiveLayer={() => {}}
       />
 

@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   type ReactNode,
@@ -12,6 +13,11 @@ import type { LayerCatalogConfig } from "../config/layerCatalogConfig";
 import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
 import { LayerCatalogConfigProvider } from "../config/LayerCatalogConfigContext";
 import { CatalogQueryProvider } from "../config/CatalogQueryProvider";
+import {
+  buildFavoritesStorageKey,
+  loadFavorites,
+  persistFavorites,
+} from "./favoritesStorage";
 
 /** category tree derived from one WMS or local config service */
 export interface CatalogServiceCategory {
@@ -29,6 +35,10 @@ interface CatalogState {
   replaceLayers: ExtendedItem[];
   selectedItem: Item | null;
   discoverRefetchRequested: boolean;
+  /** stored with a `fav_` id prefix, matching the persisted shape */
+  favorites: Item[];
+  /** false until the persisted favorites finished loading */
+  favoritesReady: boolean;
 }
 
 const initialState: CatalogState = {
@@ -38,7 +48,12 @@ const initialState: CatalogState = {
   replaceLayers: [],
   selectedItem: null,
   discoverRefetchRequested: false,
+  favorites: [],
+  favoritesReady: false,
 };
+
+const isFavoriteOf = (favorite: Item, item: Item) =>
+  favorite.id === `fav_${item.id}` || favorite.id === item.id;
 
 type CatalogAction =
   | { type: "serviceCategoriesDerived"; categories: CatalogServiceCategory[] }
@@ -50,7 +65,11 @@ type CatalogAction =
   | { type: "replaceLayerUpserted"; layer: ExtendedItem }
   | { type: "itemSelected"; item: Item | null }
   | { type: "discoverRefetchRequested" }
-  | { type: "discoverRefetchHandled" };
+  | { type: "discoverRefetchHandled" }
+  | { type: "favoritesLoaded"; favorites: Item[] }
+  | { type: "favoriteAdded"; item: Item }
+  | { type: "favoriteRemoved"; item: Item }
+  | { type: "favoriteUpdated"; item: Item };
 
 // All branches must be idempotent: re-dispatching unchanged data returns the
 // same state reference (React then skips the re-render), otherwise derivation
@@ -144,6 +163,56 @@ const catalogReducer = (
       return state.discoverRefetchRequested
         ? { ...state, discoverRefetchRequested: false }
         : state;
+    case "favoritesLoaded": {
+      // favorites added before the async load finished win over stored ones
+      const merged = [...action.favorites];
+      state.favorites.forEach((favorite) => {
+        const index = merged.findIndex((entry) => entry.id === favorite.id);
+        if (index === -1) {
+          merged.push(favorite);
+        } else {
+          merged[index] = favorite;
+        }
+      });
+      return { ...state, favorites: merged, favoritesReady: true };
+    }
+    case "favoriteAdded": {
+      if (
+        state.favorites.some((favorite) => isFavoriteOf(favorite, action.item))
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        favorites: [
+          ...state.favorites,
+          { ...action.item, id: `fav_${action.item.id}` },
+        ],
+      };
+    }
+    case "favoriteRemoved": {
+      const favorites = state.favorites.filter(
+        (favorite) => !isFavoriteOf(favorite, action.item)
+      );
+      return favorites.length === state.favorites.length
+        ? state
+        : { ...state, favorites };
+    }
+    case "favoriteUpdated": {
+      let changed = false;
+      const favorites = state.favorites.map((favorite) => {
+        if (favorite.id !== `fav_${action.item.id}`) {
+          return favorite;
+        }
+        const updated = { ...action.item, id: `fav_${action.item.id}` };
+        if (isEqual(favorite, updated)) {
+          return favorite;
+        }
+        changed = true;
+        return updated;
+      });
+      return changed ? { ...state, favorites } : state;
+    }
   }
 };
 
@@ -174,9 +243,25 @@ export interface CatalogSelectionContextValue extends CatalogSelectionActions {
   discoverRefetchRequested: boolean;
 }
 
+interface CatalogFavoritesActions {
+  addFavorite: (item: Item) => void;
+  removeFavorite: (item: Item) => void;
+  updateFavorite: (item: Item) => void;
+}
+
+export interface LayerCatalogContextValue extends CatalogFavoritesActions {
+  /** favorited items, ids carry the `fav_` prefix */
+  favorites: Item[];
+  /** false until the persisted favorites finished loading */
+  favoritesReady: boolean;
+}
+
 const CatalogDataContext = createContext<CatalogDataContextValue | null>(null);
 const CatalogSelectionContext =
   createContext<CatalogSelectionContextValue | null>(null);
+const CatalogFavoritesContext = createContext<LayerCatalogContextValue | null>(
+  null
+);
 
 export const useCatalogData = (): CatalogDataContextValue => {
   const value = useContext(CatalogDataContext);
@@ -194,8 +279,52 @@ export const useCatalogSelection = (): CatalogSelectionContextValue => {
   return value;
 };
 
-const CatalogStateProvider = ({ children }: { children: ReactNode }) => {
+/** host-facing catalog API (favorites for now, grows with phase 3) */
+export const useLayerCatalog = (): LayerCatalogContextValue => {
+  const value = useContext(CatalogFavoritesContext);
+  if (!value) {
+    throw new Error("useLayerCatalog requires a LayerCatalogProvider");
+  }
+  return value;
+};
+
+/** lets LayerCatalog reuse a host-mounted provider instead of nesting one */
+export const useIsInsideLayerCatalogProvider = () =>
+  useContext(CatalogDataContext) !== null;
+
+interface CatalogStateProviderProps {
+  favoritesStorageKey: string;
+  legacyFavoritesKey?: string;
+  children: ReactNode;
+}
+
+const CatalogStateProvider = ({
+  favoritesStorageKey,
+  legacyFavoritesKey,
+  children,
+}: CatalogStateProviderProps) => {
   const [state, dispatch] = useReducer(catalogReducer, initialState);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadFavorites(favoritesStorageKey, legacyFavoritesKey).then((favorites) => {
+      if (!cancelled) {
+        dispatch({ type: "favoritesLoaded", favorites });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [favoritesStorageKey, legacyFavoritesKey]);
+
+  // The first write after loading claims the key, so the legacy import never
+  // runs again, even when the user removes every favorite afterwards.
+  useEffect(() => {
+    if (!state.favoritesReady) {
+      return;
+    }
+    persistFavorites(favoritesStorageKey, state.favorites);
+  }, [state.favorites, state.favoritesReady, favoritesStorageKey]);
 
   // dispatch is stable, so the action callbacks stay identity-stable across
   // state changes and are safe to use in effect dependency lists
@@ -224,6 +353,14 @@ const CatalogStateProvider = ({ children }: { children: ReactNode }) => {
     }),
     []
   );
+  const favoritesActions = useMemo<CatalogFavoritesActions>(
+    () => ({
+      addFavorite: (item) => dispatch({ type: "favoriteAdded", item }),
+      removeFavorite: (item) => dispatch({ type: "favoriteRemoved", item }),
+      updateFavorite: (item) => dispatch({ type: "favoriteUpdated", item }),
+    }),
+    []
+  );
 
   const dataValue = useMemo<CatalogDataContextValue>(
     () => ({
@@ -249,11 +386,21 @@ const CatalogStateProvider = ({ children }: { children: ReactNode }) => {
     }),
     [state.selectedItem, state.discoverRefetchRequested, selectionActions]
   );
+  const favoritesValue = useMemo<LayerCatalogContextValue>(
+    () => ({
+      favorites: state.favorites,
+      favoritesReady: state.favoritesReady,
+      ...favoritesActions,
+    }),
+    [state.favorites, state.favoritesReady, favoritesActions]
+  );
 
   return (
     <CatalogDataContext.Provider value={dataValue}>
       <CatalogSelectionContext.Provider value={selectionValue}>
-        {children}
+        <CatalogFavoritesContext.Provider value={favoritesValue}>
+          {children}
+        </CatalogFavoritesContext.Provider>
       </CatalogSelectionContext.Provider>
     </CatalogDataContext.Provider>
   );
@@ -262,16 +409,32 @@ const CatalogStateProvider = ({ children }: { children: ReactNode }) => {
 export interface LayerCatalogProviderProps {
   /** host-supplied catalog config; defaults to the Wuppertal preset */
   config?: LayerCatalogConfig;
+  /** app identity for the favorites localforage key; avoids cross-app bleed */
+  appKey?: string;
+  storagePrefix?: string;
+  /**
+   * localforage key of a redux-persist record to import favorites from ONCE:
+   * only consulted while the lib's own favorites key was never written
+   */
+  legacyFavoritesKey?: string;
   children: ReactNode;
 }
 
 export const LayerCatalogProvider = ({
   config,
+  appKey = "carma",
+  storagePrefix = "defaultStorage",
+  legacyFavoritesKey,
   children,
 }: LayerCatalogProviderProps) => (
   <LayerCatalogConfigProvider value={config ?? wuppLayerCatalogConfig}>
     <CatalogQueryProvider>
-      <CatalogStateProvider>{children}</CatalogStateProvider>
+      <CatalogStateProvider
+        favoritesStorageKey={buildFavoritesStorageKey(appKey, storagePrefix)}
+        legacyFavoritesKey={legacyFavoritesKey}
+      >
+        {children}
+      </CatalogStateProvider>
     </CatalogQueryProvider>
   </LayerCatalogConfigProvider>
 );

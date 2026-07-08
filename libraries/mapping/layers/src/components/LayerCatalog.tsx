@@ -5,11 +5,13 @@ import { useHandleDrop } from "../hooks/useHandleDrop";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 import type { LayerCatalogConfig } from "../config/layerCatalogConfig";
-import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
+import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import {
   LayerCatalogProvider,
   useCatalogData,
   useCatalogSelection,
+  useIsInsideLayerCatalogProvider,
+  useLayerCatalog,
 } from "../context/LayerCatalogProvider";
 
 import {
@@ -87,10 +89,10 @@ export interface LayerCatalogProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   setAdditionalLayers: any;
-  favorites?: Array<Item | SavedLayerConfig>;
-  addFavorite: (layer: Item) => void;
-  removeFavorite: (layer: Item) => void;
-  updateFavorite?: (layer: Item) => void;
+  /** host-owned saved collections, shown as favorited alongside the items */
+  savedCollections?: SavedLayerConfig[];
+  onAddCollection?: (layer: Item) => void;
+  onRemoveCollection?: (layer: Item) => void;
   activeLayers: ActiveLayers;
   customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
@@ -98,6 +100,7 @@ export interface LayerCatalogProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
   unauthorizedCallback?: () => void;
   appKey?: string;
+  /** only used when no LayerCatalogProvider is mounted above */
   config?: LayerCatalogConfig;
 }
 
@@ -107,26 +110,44 @@ const LayerCatalogView = ({
   setAdditionalLayers,
   activeLayers,
   customCategories,
-  addFavorite,
-  removeFavorite,
-  favorites,
+  savedCollections,
+  onAddCollection,
+  onRemoveCollection,
   updateActiveLayer,
   removeLastLayer,
-  updateFavorite,
   setFeatureFlags,
   unauthorizedCallback,
   appKey,
-  config,
 }: LayerCatalogProps) => {
-  const catalogConfig = config ?? wuppLayerCatalogConfig;
+  const catalogConfig = useLayerCatalogConfig();
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [preview, setPreview] = useState(false);
   const { serviceCategories } = useCatalogData();
-  const {
-    selectItem,
-    discoverRefetchRequested,
-    markDiscoverRefetchHandled,
-  } = useCatalogSelection();
+  const { selectItem, discoverRefetchRequested, markDiscoverRefetchHandled } =
+    useCatalogSelection();
+  const { favorites, addFavorite, removeFavorite, updateFavorite } =
+    useLayerCatalog();
+
+  // collections stay host-owned (saved layer configs); everything else goes
+  // through the provider favorites
+  const displayedFavorites = useMemo<Array<Item | SavedLayerConfig>>(
+    () => [...favorites, ...(savedCollections ?? [])],
+    [favorites, savedCollections]
+  );
+  const handleAddFavorite = (layer: Item) => {
+    if (layer.type === "collection") {
+      onAddCollection?.(layer);
+    } else {
+      addFavorite(layer);
+    }
+  };
+  const handleRemoveFavorite = (layer: Item) => {
+    if (layer.type === "collection") {
+      onRemoveCollection?.(layer);
+    } else {
+      removeFavorite(layer);
+    }
+  };
   const [showItems, setShowItems] = useState(false);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [dropped, applyDrop] = useReducer(
@@ -156,12 +177,16 @@ const LayerCatalogView = ({
     ? "Fehler beim Laden der Inhalte"
     : null;
 
-  const { additionalConfig, sensorConfig, objectConfig, loadingAdditionalConfig } =
-    useAdditionalConfig({
-      setFeatureFlags,
-      assetBaseUrl: catalogConfig.assetBaseUrl,
-      droppedLayerConfigs: dropped.layerConfigs,
-    });
+  const {
+    additionalConfig,
+    sensorConfig,
+    objectConfig,
+    loadingAdditionalConfig,
+  } = useAdditionalConfig({
+    setFeatureFlags,
+    assetBaseUrl: catalogConfig.assetBaseUrl,
+    droppedLayerConfigs: dropped.layerConfigs,
+  });
 
   useLoadCapabilities({
     loadingAdditionalConfig,
@@ -377,33 +402,26 @@ const LayerCatalogView = ({
     if (!checkIfAllLayersAreLoaded()) {
       return;
     }
-    const favoriteLayerCategory = customCategories.filter(
-      (category) => category.id === "favoriteLayers"
-    );
-    if (favoriteLayerCategory.length > 0) {
-      const favoriteLayers = favoriteLayerCategory[0].layers;
-      favoriteLayers.forEach((layer) => {
-        const serviceId = (layer as unknown as any)?.service?.name; // TODO: fix type
-        const serviceCategory = serviceCategories.filter(
-          (category) => category.id === serviceId
-        );
-        if (serviceCategory.length > 0) {
-          const serviceLayers = serviceCategory[0].layers;
-          const foundLayer = serviceLayers.find(
-            (serviceLayer) => serviceLayer.id === layer.id.slice(4)
-          );
-          if (foundLayer) {
-            if (!isEqual(foundLayer, layer)) {
-              if (updateFavorite) {
-                updateFavorite(foundLayer);
-              }
-            }
-          }
-        }
-      });
-    }
+    favorites.forEach((favorite) => {
+      const serviceId = (favorite as unknown as any)?.service?.name; // TODO: fix type
+      const serviceCategory = serviceCategories.find(
+        (category) => category.id === serviceId
+      );
+      if (!serviceCategory) {
+        return;
+      }
+      const foundLayer = serviceCategory.layers.find(
+        (serviceLayer) => serviceLayer.id === favorite.id.slice(4)
+      );
+      if (
+        foundLayer &&
+        !isEqual(foundLayer, { ...favorite, id: foundLayer.id })
+      ) {
+        updateFavorite(foundLayer);
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceCategories]);
+  }, [serviceCategories, favorites]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -732,9 +750,9 @@ const LayerCatalogView = ({
                   )}
                   setAdditionalLayers={setAdditionalLayers}
                   activeLayers={activeLayers}
-                  favorites={favorites}
-                  addFavorite={addFavorite}
-                  removeFavorite={removeFavorite}
+                  favorites={displayedFavorites}
+                  addFavorite={handleAddFavorite}
+                  removeFavorite={handleRemoveFavorite}
                   setPreview={setPreview}
                   isSearchCategory={
                     sidebarElements[selectedNavItemIndex].id === "searchResults"
@@ -755,10 +773,16 @@ const LayerCatalogView = ({
   );
 };
 
-export const LayerCatalog = (props: LayerCatalogProps) => (
-  <LayerCatalogProvider config={props.config}>
-    <LayerCatalogView {...props} />
-  </LayerCatalogProvider>
-);
+export const LayerCatalog = (props: LayerCatalogProps) => {
+  const hasProvider = useIsInsideLayerCatalogProvider();
+  if (hasProvider) {
+    return <LayerCatalogView {...props} />;
+  }
+  return (
+    <LayerCatalogProvider config={props.config} appKey={props.appKey}>
+      <LayerCatalogView {...props} />
+    </LayerCatalogProvider>
+  );
+};
 
 export default LayerCatalog;

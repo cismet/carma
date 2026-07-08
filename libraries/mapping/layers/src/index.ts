@@ -14,7 +14,9 @@ export {
 } from "./config/LayerCatalogConfigContext";
 export {
   LayerCatalogProvider,
+  useLayerCatalog,
   type LayerCatalogProviderProps,
+  type LayerCatalogContextValue,
   type CatalogServiceCategory,
 } from "./context/LayerCatalogProvider";
 export * from "./lib/contracts/carma-config.d";

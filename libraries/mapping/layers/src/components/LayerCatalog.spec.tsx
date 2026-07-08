@@ -34,7 +34,10 @@ vi.mock("@carma-providers/auth", () => ({
   }),
 }));
 
+import localForage from "localforage";
+
 import { LayerCatalog, type ActiveLayers } from "./LayerCatalog";
+import { LayerCatalogProvider } from "../context/LayerCatalogProvider";
 import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
 
 const textResponse = (body: string, status = 200) =>
@@ -104,32 +107,37 @@ const backgroundLayer = {
   props: { name: "", url: "" },
 } as unknown as ActiveLayers[0];
 
+// the self-mounted provider derives this from the appKey prop
+const FAVORITES_KEY = "@geoportal-test.defaultStorage.catalog.favorites";
+
+const testCatalogConfig = {
+  ...wuppLayerCatalogConfig,
+  discoverProps: {
+    appKey: "geoportal-test",
+    apiUrl: "https://wunda-cloud-api.cismet.de",
+    daqKey: "gp_entdecken",
+  },
+};
+
+const buildProps = (
+  overrides: Partial<Parameters<typeof LayerCatalog>[0]> = {}
+) => ({
+  open: true,
+  setOpen: vi.fn(),
+  setAdditionalLayers: vi.fn(),
+  updateActiveLayer: vi.fn(),
+  setFeatureFlags: vi.fn(),
+  customCategories: [],
+  activeLayers: [backgroundLayer] as ActiveLayers,
+  config: testCatalogConfig,
+  appKey: "geoportal-test",
+  ...overrides,
+});
+
 const renderModal = (
   overrides: Partial<Parameters<typeof LayerCatalog>[0]> = {}
 ) => {
-  const props = {
-    open: true,
-    setOpen: vi.fn(),
-    setAdditionalLayers: vi.fn(),
-    addFavorite: vi.fn(),
-    removeFavorite: vi.fn(),
-    updateActiveLayer: vi.fn(),
-    setFeatureFlags: vi.fn(),
-    favorites: [],
-    customCategories: [],
-    activeLayers: [backgroundLayer] as ActiveLayers,
-    config: {
-      ...wuppLayerCatalogConfig,
-      discoverProps: {
-        appKey: "geoportal-test",
-        apiUrl: "https://wunda-cloud-api.cismet.de",
-        daqKey: "gp_entdecken",
-      },
-    },
-    appKey: "geoportal-test",
-    ...overrides,
-  };
-
+  const props = buildProps(overrides);
   const view = render(<LayerCatalog {...props} />);
 
   return { ...view, props };
@@ -169,31 +177,23 @@ describe("LayerCatalog", () => {
     expect(screen.getAllByText("Basis").length).toBeGreaterThan(0);
 
     // layer only present in the capabilities, appended to the category
-    expect(
-      screen.getByText("Testebene ohne Konfiguration")
-    ).toBeTruthy();
+    expect(screen.getByText("Testebene ohne Konfiguration")).toBeTruthy();
 
     // layer hidden via carmaconf://hideLayer keyword
-    expect(
-      screen.queryByText("Amtliche Basiskarte (farbig)")
-    ).toBeNull();
+    expect(screen.queryByText("Amtliche Basiskarte (farbig)")).toBeNull();
 
     // replaceId from the additional config swaps the capabilities layer
     await screen.findByText("ALKIS Ersatzkarte (Test)", undefined, {
       timeout: 8000,
     });
-    expect(
-      screen.queryByText("ALKIS Strichkarte (gelb)")
-    ).toBeNull();
+    expect(screen.queryByText("ALKIS Strichkarte (gelb)")).toBeNull();
 
     // additional config category with own title
     expect(screen.getAllByText("Zusatzebenen").length).toBeGreaterThan(0);
     expect(screen.getByText("Zusatz Testlayer")).toBeTruthy();
 
     // feature flag layers stay hidden without the active flag
-    expect(
-      screen.queryByText("Featureflag Testlayer")
-    ).toBeNull();
+    expect(screen.queryByText("Featureflag Testlayer")).toBeNull();
   });
 
   it("fills the sensor, object and discover categories", async () => {
@@ -243,32 +243,70 @@ describe("LayerCatalog", () => {
   });
 
   it("adds and removes favorites via the card star", async () => {
-    const { props } = renderModal();
+    renderModal();
 
     const card = await findLayerCard("Stadtgrundkarte (grau)");
     fireEvent.click(within(card).getByTestId("add-layer-favorite"));
 
-    expect(props.addFavorite).toHaveBeenCalledTimes(1);
-    expect(props.addFavorite).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "wuppKarten:alkomgw" })
-    );
-  });
+    // the star flips to the filled state backed by the provider favorites
+    await within(card).findByTestId("remove-layer-favorite");
 
-  it("shows the filled favorite star and removes the favorite again", async () => {
-    const { props } = renderModal({
-      favorites: [{ id: "fav_wuppKarten:alkomgw" } as any],
+    // and the favorite is persisted for the next session
+    await waitFor(async () => {
+      expect(await localForage.getItem(FAVORITES_KEY)).toEqual([
+        expect.objectContaining({ id: "fav_wuppKarten:alkomgw" }),
+      ]);
     });
 
-    const card = await findLayerCard("Stadtgrundkarte (grau)");
-    expect(
-      within(card).queryByTestId("add-layer-favorite")
-    ).toBeNull();
-
     fireEvent.click(within(card).getByTestId("remove-layer-favorite"));
-    expect(props.removeFavorite).toHaveBeenCalledTimes(1);
-    expect(props.removeFavorite).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "wuppKarten:alkomgw" })
+    await within(card).findByTestId("add-layer-favorite");
+    await waitFor(async () => {
+      expect(await localForage.getItem(FAVORITES_KEY)).toEqual([]);
+    });
+  });
+
+  it("shows the filled favorite star for persisted favorites", async () => {
+    await localForage.setItem(FAVORITES_KEY, [
+      { id: "fav_wuppKarten:alkomgw" },
+    ]);
+
+    renderModal();
+
+    const card = await findLayerCard("Stadtgrundkarte (grau)");
+    await within(card).findByTestId("remove-layer-favorite");
+    expect(within(card).queryByTestId("add-layer-favorite")).toBeNull();
+  });
+
+  it("imports favorites once from a legacy redux-persist record", async () => {
+    const legacyKey = "persist:@geoportal-test.1.app.layers";
+    await localForage.setItem(
+      legacyKey,
+      JSON.stringify({
+        favorites: JSON.stringify([{ id: "fav_wuppKarten:alkomgw" }]),
+        thumbnails: JSON.stringify([]),
+      })
     );
+
+    // host-mounted provider (geoportal pattern); LayerCatalog reuses it
+    render(
+      <LayerCatalogProvider
+        config={testCatalogConfig}
+        appKey="geoportal-test"
+        legacyFavoritesKey={legacyKey}
+      >
+        <LayerCatalog {...buildProps()} />
+      </LayerCatalogProvider>
+    );
+
+    const card = await findLayerCard("Stadtgrundkarte (grau)");
+    await within(card).findByTestId("remove-layer-favorite");
+
+    // the import claimed the lib's own key, so it never runs again
+    await waitFor(async () => {
+      expect(await localForage.getItem(FAVORITES_KEY)).toEqual([
+        { id: "fav_wuppKarten:alkomgw" },
+      ]);
+    });
   });
 
   it("opens the info card with title, description sections, links and legend", async () => {
@@ -299,15 +337,21 @@ describe("LayerCatalog", () => {
     const capabilitiesLink = info.getByRole("link", {
       name: "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
     });
-    expect(capabilitiesLink.getAttribute("href")).toBe("https://maps.wuppertal.de/karten?service=WMS&request=GetCapabilities&version=1.1.1");
+    expect(capabilitiesLink.getAttribute("href")).toBe(
+      "https://maps.wuppertal.de/karten?service=WMS&request=GetCapabilities&version=1.1.1"
+    );
     const openDataLink = info.getByRole("link", {
       name: "Datenquelle im Open-Data-Portal Wuppertal",
     });
-    expect(openDataLink.getAttribute("href")).toBe("https://offenedaten-wuppertal.de/dataset/alkomgw");
+    expect(openDataLink.getAttribute("href")).toBe(
+      "https://offenedaten-wuppertal.de/dataset/alkomgw"
+    );
 
     // legend image from the capabilities style
     expect(info.getByText("Legende")).toBeTruthy();
-    expect(info.getByAltText("Legende").getAttribute("src")).toBe("https://example.test/legenden/alkomgw-legende.png");
+    expect(info.getByAltText("Legende").getAttribute("src")).toBe(
+      "https://example.test/legenden/alkomgw-legende.png"
+    );
 
     // tag footer
     expect(info.getByText("Basis")).toBeTruthy();
@@ -321,9 +365,7 @@ describe("LayerCatalog", () => {
       false
     );
     fireEvent.click(info.getByRole("button", { name: /Favorisieren/ }));
-    expect(props.addFavorite).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "wuppKarten:alkomgw" })
-    );
+    await info.findByRole("button", { name: /Favorit entfernen/ });
   });
 
   it("remounts cleanly with a persisted capabilities cache (page refresh)", async () => {

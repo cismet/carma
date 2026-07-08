@@ -37,11 +37,7 @@ import {
   setUIShowInfo,
   setUIShowInfoText,
 } from "../../store/slices/ui";
-import {
-  addFavorite,
-  getFavorites,
-  removeFavorite,
-} from "../../store/slices/layers";
+import { useLayerCatalog } from "@carma-mapping/layers";
 import type { Item, Layer } from "@carma-mapping/layers";
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
@@ -69,7 +65,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const favorites = useSelector(getFavorites);
+  const { favorites, addFavorite, removeFavorite } = useLayerCatalog();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
@@ -137,9 +133,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const toggleFavorite = () => {
     const item = buildFavoriteItem();
     if (isFavorite) {
-      dispatch(removeFavorite(item));
+      removeFavorite(item);
     } else {
-      dispatch(addFavorite(item));
+      addFavorite(item);
     }
   };
 
