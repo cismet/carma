@@ -42,6 +42,67 @@ export const fetchDiscoverItems = async (
   }
 };
 
+const postDiscoverAction = async (
+  discoverProps: DiscoverProps,
+  action: string,
+  data: Record<string, unknown>,
+  jwt?: string
+): Promise<boolean> => {
+  const taskParameters = {
+    parameters: {
+      className: discoverProps.daqKey,
+      data: JSON.stringify(data),
+    },
+  };
+  const body = new FormData();
+  body.append(
+    "taskparams",
+    new Blob([JSON.stringify(taskParameters)], { type: "application/json" })
+  );
+  const response = await fetch(
+    `${discoverProps.apiUrl}/actions/${action}/tasks?resultingInstanceType=result`,
+    {
+      method: "POST",
+      headers: { Authorization: "Bearer " + jwt },
+      body,
+    }
+  );
+  return response.status === 200;
+};
+
+export const saveDiscoverItem = async ({
+  discoverProps,
+  jwt,
+  id,
+  name,
+  draft,
+  config,
+}: {
+  discoverProps: DiscoverProps;
+  jwt?: string;
+  id: string | number;
+  name?: string;
+  draft?: boolean;
+  config: unknown;
+}): Promise<boolean> =>
+  postDiscoverAction(
+    discoverProps,
+    "WUNDA_BLAU.SaveObject",
+    { id, name, draft, config: JSON.stringify(config) },
+    jwt
+  );
+
+export const deleteDiscoverItem = async ({
+  discoverProps,
+  jwt,
+  id,
+}: {
+  discoverProps: DiscoverProps;
+  jwt?: string;
+  id: string | number;
+}): Promise<boolean> =>
+  postDiscoverAction(discoverProps, "WUNDA_BLAU.DeleteObject", { id }, jwt);
+
 export const discoverConfig = {
   POI: {
     Title: "POI",
