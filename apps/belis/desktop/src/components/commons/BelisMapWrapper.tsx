@@ -280,6 +280,72 @@ const draftFeatureStateId = (key: string): number => {
   return h >>> 0;
 };
 
+// Stable, globally-unique MapLibre feature id for a SERVER brandnew feature.
+// The server FC assigns volatile top-level ids (100001…) that get reassigned on
+// every regeneration — and the FC regenerates constantly while the user creates
+// / edits brandnew features. Because the brandnew geojson source has no
+// promoteId, `feature.id` IS that volatile top-level id, so a highlighted or
+// selected feature's `feature-state` and highlight toggle key would silently
+// point at a stale id (or a different feature) after any refresh — the
+// "shown in the sidebar but gone on the map" desync. Derive the id from the
+// feature's own stable identity (source-layer + DB pk) instead, so it survives
+// regenerations — mirroring `promoteId: "id"` on the vector layers. The
+// source-layer is folded in because the single-layer geojson source keys
+// feature-state by id alone, so a Leuchte and a Mauerlasche that happen to
+// share a DB integer must not collide. The `bn:` prefix keeps this id space
+// disjoint from the draft ids (draftFeatureStateId of a bare properties.id).
+const brandnewFeatureStateId = (sourceLayer: string, dbId: unknown): number =>
+  draftFeatureStateId(`bn:${sourceLayer}:${String(dbId)}`);
+
+// Re-point SearchModal (expert / funnel) highlight rows that actually belong to
+// a same-day BRANDNEW feature so their identity matches the map.
+//
+// `convertResultsToSidebarFeatures` builds every expert-search row against the
+// vector-tile source (`namespacedSource`) with the DB pk as the feature id —
+// correct for regular Fachobjekte, wrong for an entity that only exists in the
+// brandnew geojson source (created today, not yet baked into the tiles). Both
+// the visual selection (`setFeatureState` in applyVisualSelection) and the
+// dismiss suppression (`matchesCriteria`'s toggleKey) key on the MAP feature's
+// identity — the brandnew SOURCE and its stable stamped id (brandnewFeatureStateId,
+// mirroring the map source stamped by useBrandnewFcSync). A vector-source + DB-pk
+// row matches neither, so selection paints nothing and dismiss never un-highlights
+// the feature on the map (it only leaves the list) — the reported desync.
+//
+// Detect brandnew entities via the live brandnew FC (keyed by _sourceLayer + DB
+// pk) and rewrite only those rows to { source: brandnewSource, id: bnHash },
+// leaving properties.id (and everything the info box / row-highlight pk-match /
+// counts read) untouched. Regular rows — and rows for entities not in the FC —
+// pass through unchanged.
+const repointBrandnewHighlightRows = (
+  rows: SidebarFeature[] | null,
+  brandnewFc: GeoJSON.FeatureCollection,
+  brandnewSource: string
+): SidebarFeature[] | null => {
+  if (!rows || rows.length === 0) return rows;
+  const brandnewKeys = new Set<string>();
+  for (const f of brandnewFc.features ?? []) {
+    const sl = String(f.properties?._sourceLayer ?? "");
+    const dbId = f.properties?.id;
+    if (sl && dbId != null) brandnewKeys.add(`${sl}::${String(dbId)}`);
+  }
+  if (brandnewKeys.size === 0) return rows;
+  let changed = false;
+  const out = rows.map((f) => {
+    const sl = f.sourceLayer ?? "";
+    const dbId = f.properties?.id ?? f.id;
+    if (sl && dbId != null && brandnewKeys.has(`${sl}::${String(dbId)}`)) {
+      changed = true;
+      return {
+        ...f,
+        source: brandnewSource,
+        id: brandnewFeatureStateId(sl, dbId),
+      } as SidebarFeature;
+    }
+    return f;
+  });
+  return changed ? out : rows;
+};
+
 // Move every brandnew sub-style layer to before `leuchten-selection` (the
 // first Leuchten symbol layer in styleY.json) so drafts — and same-day saved
 // features that live in the brandnew layer until the overnight tile build —
@@ -639,10 +705,25 @@ const BelisMapLibWrapper = ({
   const [unfilteredHighlights, setUnfilteredHighlights] = useState<
     SidebarFeature[] | null
   >(highlightResults);
-  // Reset when new highlight results arrive
+  // Latest brandnew FC, read (not depended on) by the highlight-row re-pointer
+  // below so a 1s brandnew poll never re-runs the reset and clobbers the user's
+  // alt+click / dismiss edits. Assigned from `brandnewFc` once it's declared.
+  const brandnewFcRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  // Reset when new highlight results arrive. Re-point rows that belong to a
+  // brandnew feature onto the brandnew source + stamped id so selection and
+  // dismiss land on the map feature (see repointBrandnewHighlightRows).
   useEffect(() => {
-    setUnfilteredHighlights(highlightResults);
-  }, [highlightResults]);
+    setUnfilteredHighlights(
+      repointBrandnewHighlightRows(
+        highlightResults,
+        brandnewFcRef.current,
+        brandnewSource
+      )
+    );
+  }, [highlightResults, brandnewSource]);
 
   // Clear selection when highlighting activates (e.g. search).
   // When highlighting is deactivated (the "clean" X button), also drop the
@@ -937,6 +1018,22 @@ const BelisMapLibWrapper = ({
     type: "FeatureCollection",
     features: [],
   });
+  // Keep the re-pointer's ref current every render (before effects flush) so the
+  // reset effect above reads the freshly-fetched FC without depending on it.
+  brandnewFcRef.current = brandnewFc;
+  // Pin each server brandnew feature to a stable, regeneration-proof id
+  // (see brandnewFeatureStateId). Features lacking a source-layer or DB pk keep
+  // the server's id untouched.
+  const assignBrandnewStableId = useCallback(
+    (f: GeoJSON.Feature): number | undefined => {
+      const props = f.properties as Record<string, unknown> | null;
+      const sl = props?._sourceLayer != null ? String(props._sourceLayer) : "";
+      const dbId = props?.id;
+      if (!sl || dbId == null) return undefined;
+      return brandnewFeatureStateId(sl, dbId);
+    },
+    []
+  );
   useBrandnewFcSync({
     map,
     enabled: brandnewLayerEnabled,
@@ -946,6 +1043,7 @@ const BelisMapLibWrapper = ({
     syncVersion: featureDataVersion,
     onCountChange: onBrandnewCountChange,
     onDataChange: setBrandnewFc,
+    assignStableId: assignBrandnewStableId,
   });
 
   // AA lasso selection (disabled – button now only logs "hallo world")

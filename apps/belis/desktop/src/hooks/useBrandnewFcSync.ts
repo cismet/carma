@@ -20,6 +20,16 @@ interface UseBrandnewFcSyncOptions {
   /** Notified with the FC the hook just pushed to the map. Lets sibling
    * surfaces (e.g. the mini-map) mirror the same data without polling again. */
   onDataChange?: (fc: GeoJSON.FeatureCollection) => void;
+  /** Optional: derive a stable, unique MapLibre feature `id` for each fetched
+   * feature. The server FC assigns volatile top-level ids that are reassigned
+   * on every regeneration, which would move `feature-state` (selection /
+   * highlight) and toggle keys off their feature whenever the FC refreshes.
+   * Stamping a stable id derived from the feature's own identity (source-layer
+   * + DB pk) — mirroring `promoteId: "id"` on the vector layers — keeps
+   * selection/highlight pinned across refreshes. Return `undefined` to leave a
+   * feature's id untouched. Applied to BOTH the map payload and the FC handed
+   * to `onDataChange`, so every downstream writer keys on the same stable id. */
+  assignStableId?: (feature: GeoJSON.Feature) => number | undefined;
 }
 
 const LOG_PREFIX = "[BRAND-NEW-SYNC]";
@@ -47,11 +57,14 @@ export const useBrandnewFcSync = ({
   syncVersion,
   onCountChange,
   onDataChange,
+  assignStableId,
 }: UseBrandnewFcSyncOptions): void => {
   const onCountChangeRef = useRef(onCountChange);
   onCountChangeRef.current = onCountChange;
   const onDataChangeRef = useRef(onDataChange);
   onDataChangeRef.current = onDataChange;
+  const assignStableIdRef = useRef(assignStableId);
+  assignStableIdRef.current = assignStableId;
   // Tracks the syncVersion the running poll loop was started for, so the
   // effect can tell a save-triggered restart from an unrelated one.
   const prevSyncVersionRef = useRef(syncVersion);
@@ -134,7 +147,21 @@ export const useBrandnewFcSync = ({
           }
           return;
         }
-        const fc = (await fcRes.json()) as GeoJSON.FeatureCollection;
+        const rawFc = (await fcRes.json()) as GeoJSON.FeatureCollection;
+        // Stamp a stable, unique feature id up front so every consumer — the
+        // map source set below, and the FC forwarded via onDataChange (which
+        // seeds the mini-map re-merge and the sidebar) — keys on the same
+        // regeneration-stable id instead of the server's volatile top-level id.
+        const stamp = assignStableIdRef.current;
+        const fc: GeoJSON.FeatureCollection = stamp
+          ? {
+              ...rawFc,
+              features: (rawFc.features ?? []).map((f) => {
+                const id = stamp(f);
+                return id === undefined ? f : { ...f, id };
+              }),
+            }
+          : rawFc;
         const count = fc.features?.length ?? 0;
         const src = getSource();
         if (!src || typeof src.setData !== "function") {
