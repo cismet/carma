@@ -96,7 +96,10 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "zaehler", label: "Zähler vorhanden", type: "text" },
     { key: "bemerkungen", label: "Bemerkung", type: "text" },
     COMMON.dokumente,
-    COMMON.is_deleted,
+    // "Gelöscht" hidden from the expert search: the not-deleted guard in
+    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
+    // filter only confused users. Definition kept in COMMON to re-enable easily.
+    // COMMON.is_deleted,
   ],
   // tdta_standort_mast
   mast: [
@@ -131,7 +134,10 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "montagefirma", label: "Montagefirma", type: "text" },
     { key: "bemerkungen", label: "Bemerkung", type: "text" },
     COMMON.dokumente,
-    COMMON.is_deleted,
+    // "Gelöscht" hidden from the expert search: the not-deleted guard in
+    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
+    // filter only confused users. Definition kept in COMMON to re-enable easily.
+    // COMMON.is_deleted,
   ],
   // schaltstelle
   schaltstelle: [
@@ -148,7 +154,10 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     COMMON.pruefdatum,
     COMMON.bemerkung,
     COMMON.dokumente,
-    COMMON.is_deleted,
+    // "Gelöscht" hidden from the expert search: the not-deleted guard in
+    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
+    // filter only confused users. Definition kept in COMMON to re-enable easily.
+    // COMMON.is_deleted,
   ],
   // mauerlasche
   mauerlasche: [
@@ -160,7 +169,10 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     COMMON.pruefdatum,
     COMMON.bemerkung,
     COMMON.dokumente,
-    COMMON.is_deleted,
+    // "Gelöscht" hidden from the expert search: the not-deleted guard in
+    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
+    // filter only confused users. Definition kept in COMMON to re-enable easily.
+    // COMMON.is_deleted,
   ],
   // leitung
   leitung: [
@@ -170,6 +182,7 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "fk_leitungstyp", label: "Leitungstyp", type: "fk", fkTable: "leitungstyp" },
     { key: "fk_material", label: "Material", type: "fk", fkTable: "materialLeitung" },
     { key: "fk_querschnitt", label: "Querschnitt", type: "fk", fkTable: "querschnitt" },
-    COMMON.is_deleted,
+    // "Gelöscht" hidden — see note above; not-deleted guard already applies.
+    // COMMON.is_deleted,
   ],
 };

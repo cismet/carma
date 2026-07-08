@@ -145,11 +145,13 @@ export const buildExpertWhereClause = (
       }
     }
     if (ruleClauses.length === 0) continue;
-    groupClauses.push(
+    const groupBody =
       ruleClauses.length === 1
         ? ruleClauses[0]
-        : `{${hasuraConj(group.conjunction)}: [${ruleClauses.join(", ")}]}`
-    );
+        : `{${hasuraConj(group.conjunction)}: [${ruleClauses.join(", ")}]}`;
+    // A negated group wraps its whole condition in Hasura `_not` (matching the
+    // `_not` branch in the Hasura query builder) — "none of these hold".
+    groupClauses.push(group.negated ? `{_not: ${groupBody}}` : groupBody);
   }
 
   const userFilter =
