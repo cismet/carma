@@ -1,7 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
+import { persistReducer, createTransform } from "redux-persist";
 import localForage from "localforage";
+import {
+  serializeValues,
+  deserializeValues,
+} from "../helper/draftSerialize";
+import type { ExpertTypeState } from "./slices/expertSearch";
 import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
 import ui from "./slices/ui";
@@ -105,6 +110,23 @@ const measurementsConfig = {
   whitelist: ["features"],
 };
 
+// The expert-search filter tree can hold dayjs values in `rule.value` (date
+// fields like Prüfdatum), which redux-persist's JSON.stringify would collapse
+// into bare ISO strings and lose on reload. This transform runs each per-type
+// slice through the shared draft (de)serializer, which tags dayjs values with
+// DAYJS_PREFIX on the way to storage and rebuilds them on rehydrate — the same
+// mechanism the featuresForms drafts use.
+const expertSearchTransform = createTransform<ExpertTypeState, unknown>(
+  (typeState) => serializeValues(typeState as Record<string, unknown>),
+  (raw) => deserializeValues(raw as Record<string, unknown>) as ExpertTypeState
+);
+
+const expertSearchConfig = {
+  key: "@belis-desktop.expertSearch",
+  storage: localForage,
+  transforms: [expertSearchTransform],
+};
+
 const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
@@ -116,8 +138,12 @@ const store = configureStore({
     ui: ui.reducer,
     keyTables: keyTables.reducer,
     print: printSlice.reducer,
-    // Not persisted: rule values can hold dayjs objects (non-serializable).
-    expertSearch: expertSearchSlice.reducer,
+    // Persisted through expertSearchTransform, which serializes the dayjs values
+    // that rule.value can hold (date fields) so they survive a reload.
+    expertSearch: persistReducer(
+      expertSearchConfig,
+      expertSearchSlice.reducer
+    ),
     arbeitsauftraege: persistReducer(
       arbeitsauftraegeConfig,
       arbeitsauftraege.reducer
