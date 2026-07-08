@@ -209,16 +209,24 @@ const triggerLabelStyle: CSSProperties = {
   whiteSpace: "normal",
 };
 
-// Left-aligned, wrapping trigger cell for the instruction-table style, holding
-// an optional leading label, the input tokens, and an optional trailing label
-// on one line (with a line break when it does not fit). (cismet/wupp#4078)
+// Left-aligned trigger cell for the instruction-table style. The leading label
+// and input tokens sit on one line; a trailing label always drops to the next
+// line (wrap after the icon) so the trigger column stays narrow instead of
+// growing to icon-plus-text width. (cismet/wupp#4078)
 const startTriggerCellStyle: CSSProperties = {
+  display: "inline-flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  justifyContent: "flex-start",
+  gap: "0.16rem",
+  minWidth: 0,
+};
+
+const startTriggerTokenRowStyle: CSSProperties = {
   display: "inline-flex",
   flexWrap: "wrap",
   alignItems: "center",
-  justifyContent: "flex-start",
   gap: "0.34rem",
-  minWidth: 0,
 };
 
 const actionColumnGap = "1em";
@@ -647,10 +655,12 @@ const renderActionItem = (
   const trigger =
     triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START ? (
       <span style={startTriggerCellStyle}>
-        {item.leadingLabel ? (
-          <span style={triggerLabelStyle}>{item.leadingLabel}</span>
-        ) : null}
-        {tokens}
+        <span style={startTriggerTokenRowStyle}>
+          {item.leadingLabel ? (
+            <span style={triggerLabelStyle}>{item.leadingLabel}</span>
+          ) : null}
+          {tokens}
+        </span>
         {item.trailingLabel ? (
           <span style={triggerLabelStyle}>{item.trailingLabel}</span>
         ) : null}
