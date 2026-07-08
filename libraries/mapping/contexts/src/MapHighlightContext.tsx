@@ -180,14 +180,26 @@ export const MapHighlightProvider = ({
       const key = `${id.source}::${id.sourceLayer}::${id.id}`;
       const toggled = criteriaRef.current.toggledFeatures;
       const suppressed = criteriaRef.current.suppressedFeatures;
+      // Feature is currently DISMISSED (suppression wins over every match in
+      // matchesCriteria, so it renders un-highlighted). A click means "bring it
+      // back" — undo the dismiss and let the base criteria decide. Crucially do
+      // NOT also add it to toggledFeatures: for a feature that matches the
+      // active criteria (e.g. an expert-search hit) the toggle is an XOR flip
+      // that would turn the match straight back off, so it would re-appear in
+      // the sidebar list but stay dimmed on the map. Dropping any stale toggle
+      // too restores the pure criteria state.
+      if (suppressed.has(key)) {
+        suppressed.delete(key);
+        toggled.delete(key);
+        if (debug) console.log("[MapHighlight] un-dismissed feature", key);
+        bump();
+        return;
+      }
       if (toggled.has(key)) {
         toggled.delete(key);
         if (debug) console.log("[MapHighlight] un-toggled feature", key);
       } else {
         toggled.set(key, id);
-        // Re-toggling counts as re-adding — drop any prior suppression so the
-        // feature actually shows up (would otherwise stay hidden by the dismiss).
-        suppressed.delete(key);
         if (debug) console.log("[MapHighlight] toggled feature", key);
       }
       bump();
