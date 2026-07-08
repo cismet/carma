@@ -14,11 +14,6 @@ import uiReducer, { initialUIState, UIMode } from "./slices/ui";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
 import { resolveGeoportalCustomHashState } from "../helper/geoportal-custom-hash-state";
-import {
-  getMapLayersConfig,
-  mapLayersReducer,
-  mapLayersUIReducer,
-} from "@carma-mapping/layers";
 
 console.info("store initializing ....");
 
@@ -132,14 +127,6 @@ const store = configureStore({
     layers: persistReducer(layersConfig, layersReducer),
     measurements: persistReducer(measurementsConfig, measurementsReducer),
     features: persistReducer(featuresConfig, featuresReducer),
-    mapLayers: persistReducer(
-      getMapLayersConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
-      mapLayersReducer
-    ),
-    mapLayersUI: persistReducer(
-      getMapLayersConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
-      mapLayersUIReducer
-    ),
     print: persistReducer(printConfig, printReducer),
   },
   preloadedState: {

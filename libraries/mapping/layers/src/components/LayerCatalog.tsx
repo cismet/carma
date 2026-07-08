@@ -6,7 +6,11 @@ import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 import type { LayerCatalogConfig } from "../config/layerCatalogConfig";
 import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
-import { LayerCatalogConfigProvider } from "../config/LayerCatalogConfigContext";
+import {
+  LayerCatalogProvider,
+  useCatalogData,
+  useCatalogSelection,
+} from "../context/LayerCatalogProvider";
 
 import {
   faBook,
@@ -50,11 +54,7 @@ import "./input.css";
 import "./modal.css";
 import ItemSkeleton from "./ItemSkeleton";
 import SystemMessageBanner from "./SystemMessageBanner";
-import { setSelectedLayer, getAllLayers } from "../slices/mapLayers";
-import { useDispatch, useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
-import { CatalogQueryProvider } from "../config/CatalogQueryProvider";
-import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   findFirstCategoryIdWithResults,
@@ -121,7 +121,12 @@ const LayerCatalogView = ({
   const catalogConfig = config ?? wuppLayerCatalogConfig;
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [preview, setPreview] = useState(false);
-  const allLayers = useSelector(getAllLayers);
+  const { serviceCategories } = useCatalogData();
+  const {
+    selectItem,
+    discoverRefetchRequested,
+    markDiscoverRefetchHandled,
+  } = useCatalogSelection();
   const [showItems, setShowItems] = useState(false);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [dropped, applyDrop] = useReducer(
@@ -129,9 +134,6 @@ const LayerCatalogView = ({
     EMPTY_DROPPED_CATALOG
   );
   const [delayedLoading, setDelayedLoading] = useState(false);
-
-  const triggerRefetch = useSelector(getTriggerRefetch);
-  const dispatch = useDispatch();
 
   const flags = useFeatureFlags();
 
@@ -147,7 +149,7 @@ const LayerCatalogView = ({
   } = useQuery({
     queryKey: ["discoverItems", discoverProps?.daqKey ?? "", jwt ?? ""],
     queryFn: () => fetchDiscoverItems(discoverProps!, jwt || undefined),
-    enabled: !!discoverProps && (open || triggerRefetch),
+    enabled: !!discoverProps && (open || discoverRefetchRequested),
     retry: false,
   });
   const discoverError = discoverHasError
@@ -175,7 +177,7 @@ const LayerCatalogView = ({
     () =>
       buildCatalog(
         {
-          serviceCategories: allLayers,
+          serviceCategories,
           additionalConfig,
           sensorConfig,
           objectConfig,
@@ -185,7 +187,7 @@ const LayerCatalogView = ({
         { featureFlags: flags, customCategories }
       ),
     [
-      allLayers,
+      serviceCategories,
       additionalConfig,
       sensorConfig,
       objectConfig,
@@ -245,13 +247,13 @@ const LayerCatalogView = ({
   }, [rawDiscoverError]);
 
   useEffect(() => {
-    if (triggerRefetch) {
+    if (discoverRefetchRequested) {
       refetchDiscoverItems().finally(() => {
-        dispatch(setTriggerRefetch(false));
+        markDiscoverRefetchHandled();
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triggerRefetch]);
+  }, [discoverRefetchRequested]);
 
   useEffect(() => {
     if (!loadingData) {
@@ -359,10 +361,10 @@ const LayerCatalogView = ({
 
   const checkIfAllLayersAreLoaded = () => {
     let allLayersLoaded = true;
-    if (allLayers.length === 0) {
+    if (serviceCategories.length === 0) {
       allLayersLoaded = false;
     }
-    allLayers.forEach((category) => {
+    serviceCategories.forEach((category) => {
       if (category.layers.length === 0) {
         allLayersLoaded = false;
       }
@@ -382,7 +384,7 @@ const LayerCatalogView = ({
       const favoriteLayers = favoriteLayerCategory[0].layers;
       favoriteLayers.forEach((layer) => {
         const serviceId = (layer as unknown as any)?.service?.name; // TODO: fix type
-        const serviceCategory = allLayers.filter(
+        const serviceCategory = serviceCategories.filter(
           (category) => category.id === serviceId
         );
         if (serviceCategory.length > 0) {
@@ -401,7 +403,7 @@ const LayerCatalogView = ({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allLayers]);
+  }, [serviceCategories]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -642,7 +644,7 @@ const LayerCatalogView = ({
                   onClick={() => {
                     setOpen(false);
                     setPreview(false);
-                    dispatch(setSelectedLayer(null));
+                    selectItem(null);
                   }}
                 >
                   <FontAwesomeIcon icon={faX} />
@@ -683,7 +685,7 @@ const LayerCatalogView = ({
                 onClick={() => {
                   setOpen(false);
                   setPreview(false);
-                  dispatch(setSelectedLayer(null));
+                  selectItem(null);
                 }}
               >
                 <FontAwesomeIcon icon={faX} />
@@ -702,7 +704,7 @@ const LayerCatalogView = ({
                 )}
                 activeId={currentShownCategory}
                 setActiveId={setCurrentShownCategory}
-                numberOfItems={getNumberOfLayers(allLayers)}
+                numberOfItems={getNumberOfLayers(serviceCategories)}
               />
               <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
             </div>
@@ -754,11 +756,9 @@ const LayerCatalogView = ({
 };
 
 export const LayerCatalog = (props: LayerCatalogProps) => (
-  <LayerCatalogConfigProvider value={props.config ?? wuppLayerCatalogConfig}>
-    <CatalogQueryProvider>
-      <LayerCatalogView {...props} />
-    </CatalogQueryProvider>
-  </LayerCatalogConfigProvider>
+  <LayerCatalogProvider config={props.config}>
+    <LayerCatalogView {...props} />
+  </LayerCatalogProvider>
 );
 
 export default LayerCatalog;

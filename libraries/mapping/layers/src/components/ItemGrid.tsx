@@ -1,8 +1,7 @@
 import { Item } from "../lib/contracts/carma-layers.d";
 import LayerItem from "./LayerItem";
 import ItemSkeleton from "./ItemSkeleton";
-import { getLoadingCapabilities } from "../slices/mapLayers";
-import { useSelector } from "react-redux";
+import { useCatalogData } from "../context/LayerCatalogProvider";
 import type { ActiveLayers } from "./LayerCatalog";
 
 interface ItemGridProps {
@@ -51,7 +50,7 @@ const ItemGrid = ({
     });
     return numberOfLayers;
   };
-  const loadingCapabilities = useSelector(getLoadingCapabilities);
+  const { loadingCapabilities } = useCatalogData();
   const numberOfLayers = getNumberOfLayers(categories);
   if (
     numberOfLayers === 0 &&

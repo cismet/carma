@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import type { FeatureFlagConfig } from "@carma-providers/feature-flag";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { addReplaceLayers } from "../slices/mapLayers";
+import { useCatalogData } from "../context/LayerCatalogProvider";
 import type { Config } from "../lib/contracts/carma-layers.d";
 import {
   extractReplaceLayers,
@@ -35,7 +34,7 @@ export const useAdditionalConfig = ({
   const sensorUrl = `${dataBaseUrl}/additionalSensorConfig.json`;
   const objectUrl = `${dataBaseUrl}/additionalObjectConfig.json`;
   const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
-  const dispatch = useDispatch();
+  const { upsertReplaceLayer } = useCatalogData();
   const flags = useFeatureFlags();
 
   const additionalConfigQuery = useQuery({
@@ -105,7 +104,7 @@ export const useAdditionalConfig = ({
       );
     }
     extractReplaceLayers(additionalConfig, flags).forEach((layer) => {
-      dispatch(addReplaceLayers(layer));
+      upsertReplaceLayer(layer);
     });
     if (additionalConfigQuery.isSuccess || additionalConfigQuery.isError) {
       setLoadingAdditionalConfig(false);

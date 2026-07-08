@@ -31,9 +31,7 @@ import {
 
 import InfoCard from "./InfoCard";
 import { useAuth } from "@carma-providers/auth";
-import { useDispatch, useSelector } from "react-redux";
-import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
-import { setTriggerRefetch } from "../slices/ui";
+import { useCatalogSelection } from "../context/LayerCatalogProvider";
 import ImageCollage from "./ImageCollage";
 import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import type { ActiveLayers } from "./LayerCatalog";
@@ -67,8 +65,11 @@ const LayerItem = ({
   showWithoutThumbnail,
   loadingData,
 }: LayerItemProps) => {
-  const dispatch = useDispatch();
-  const selectedLayer = useSelector(getSelectedLayer);
+  const {
+    selectedItem: selectedLayer,
+    selectItem,
+    requestDiscoverRefetch,
+  } = useCatalogSelection();
   const { isCesium, requestTransitionToCesium, requestTransitionToLeaflet } =
     useMapFrameworkSwitcherContext();
   const [messageApi, contextHolder] = message.useMessage();
@@ -245,7 +246,7 @@ const LayerItem = ({
       }
     );
     if (response.status === 200) {
-      dispatch(setTriggerRefetch(true));
+      requestDiscoverRefetch();
     }
   };
 
@@ -259,7 +260,7 @@ const LayerItem = ({
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
           if (canShowInfo) {
-            dispatch(setSelectedLayer(showInfo ? null : layer));
+            selectItem(showInfo ? null : layer);
           }
         }}
         data-test-id="card-layer-prev"

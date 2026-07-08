@@ -12,11 +12,14 @@ export {
   LayerCatalogConfigProvider,
   useLayerCatalogConfig,
 } from "./config/LayerCatalogConfigContext";
+export {
+  LayerCatalogProvider,
+  type LayerCatalogProviderProps,
+  type CatalogServiceCategory,
+} from "./context/LayerCatalogProvider";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
 export * from "./helper/layerHelper";
-export * from "./slices/mapLayers";
-export * from "./slices/ui";
 export { default as ImageList } from "./about/pages/ImageList";
 export { default as ServiceList } from "./about/pages/ServiceList";
 export { default as LegendDisplay } from "./components/LegendDisplay";

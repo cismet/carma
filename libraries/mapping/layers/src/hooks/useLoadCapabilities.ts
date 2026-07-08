@@ -1,19 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { isEqual } from "lodash";
 import { useQueries } from "@tanstack/react-query";
 import WMSCapabilities from "wms-capabilities";
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
 import type { Layer, LayerConfig } from "../lib/contracts/carma-layers.d";
 
-import {
-  addloadingCapabilitiesIDs,
-  removeloadingCapabilitiesIDs,
-  setLoadingCapabilities,
-  setAllLayers,
-  getReplaceLayers,
-} from "../slices/mapLayers";
+import { useCatalogData } from "../context/LayerCatalogProvider";
 import { baseConfig as config } from "../helper/config";
 import {
   getLayerStructure,
@@ -82,8 +75,8 @@ export const useLoadCapabilities = ({
   updateActiveLayer,
   services,
 }: UseLoadCapabilitiesProps) => {
-  const dispatch = useDispatch();
-  const replaceLayers = useSelector(getReplaceLayers);
+  const { replaceLayers, setCapabilitiesLoading, setServiceCategories } =
+    useCatalogData();
 
   const wmsServices = useMemo(
     () => Object.values(services).filter((service) => !!service.url),
@@ -116,23 +109,17 @@ export const useLoadCapabilities = ({
     }),
   });
 
-  // feed the redux loading flags consumed by LayerTabs / ItemGrid
+  // feed the loading flags consumed by LayerTabs / ItemGrid
   useEffect(() => {
-    wmsServices.forEach((service) => {
-      if (capabilities.initialLoadingNames.includes(service.name)) {
-        dispatch(addloadingCapabilitiesIDs(service.name));
-      } else {
-        dispatch(removeloadingCapabilitiesIDs(service.name));
-      }
-    });
-    dispatch(
-      setLoadingCapabilities(wmsServices.length > 0 && !capabilities.anySettled)
+    setCapabilitiesLoading(
+      capabilities.initialLoadingNames,
+      wmsServices.length > 0 && !capabilities.anySettled
     );
   }, [
     capabilities.initialLoadingNames,
     capabilities.anySettled,
     wmsServices,
-    dispatch,
+    setCapabilitiesLoading,
   ]);
 
   // the active layers are only read when a rebuild runs; going through a ref
@@ -213,8 +200,7 @@ export const useLoadCapabilities = ({
     });
 
     if (newLayers.length > 0) {
-      const updatedLayers: Layer[] = newLayers;
-      dispatch(setAllLayers(updatedLayers));
+      setServiceCategories(newLayers);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -223,6 +209,6 @@ export const useLoadCapabilities = ({
     loadingAdditionalConfig,
     wmsServices,
     localServices,
-    dispatch,
+    setServiceCategories,
   ]);
 };

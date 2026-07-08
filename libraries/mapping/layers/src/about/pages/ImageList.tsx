@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import type { Item, Layer } from "../../lib/contracts/carma-layers.d";
 import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
-import { CatalogQueryProvider } from "../../config/CatalogQueryProvider";
-import { getAllLayers } from "../../slices/mapLayers";
+import {
+  LayerCatalogProvider,
+  useCatalogData,
+} from "../../context/LayerCatalogProvider";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
 import { deriveAdditionalConfigFragments } from "../../helper/buildCatalog";
@@ -44,7 +45,7 @@ interface ImageListProps {
 }
 
 const ImageListContent = ({ markdown = false }: ImageListProps) => {
-  const allLayers = useSelector(getAllLayers);
+  const { serviceCategories: allLayers } = useCatalogData();
   const [parsedLayerMap, setParsedLayerMap] = useState<Record<string, Layer>>(
     {}
   );
@@ -726,9 +727,9 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
 };
 
 const ImageList = (props: ImageListProps) => (
-  <CatalogQueryProvider>
+  <LayerCatalogProvider>
     <ImageListContent {...props} />
-  </CatalogQueryProvider>
+  </LayerCatalogProvider>
 );
 
 export default ImageList;

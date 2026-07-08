@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createElement, type ReactNode } from "react";
-import { configureStore } from "@reduxjs/toolkit";
 import {
   configure,
   fireEvent,
@@ -9,7 +8,6 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { Provider } from "react-redux";
 
 import capabilitiesKartenXml from "../test/fixtures/capabilities-karten.xml?raw";
 import additionalLayerConfig from "../test/fixtures/additionalLayerConfig.json";
@@ -36,8 +34,6 @@ vi.mock("@carma-providers/auth", () => ({
   }),
 }));
 
-import { mapLayersReducer } from "../slices/mapLayers";
-import { mapLayersUIReducer } from "../slices/ui";
 import { LayerCatalog, type ActiveLayers } from "./LayerCatalog";
 import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
 
@@ -95,11 +91,6 @@ const routedFetch = (input: RequestInfo | URL): Promise<Response> => {
   );
 };
 
-const createTestStore = () =>
-  configureStore({
-    reducer: { mapLayers: mapLayersReducer, mapLayersUI: mapLayersUIReducer },
-  });
-
 const backgroundLayer = {
   id: "karte",
   title: "Stadtplan",
@@ -116,7 +107,6 @@ const backgroundLayer = {
 const renderModal = (
   overrides: Partial<Parameters<typeof LayerCatalog>[0]> = {}
 ) => {
-  const store = createTestStore();
   const props = {
     open: true,
     setOpen: vi.fn(),
@@ -140,13 +130,9 @@ const renderModal = (
     ...overrides,
   };
 
-  const view = render(
-    <Provider store={store}>
-      <LayerCatalog {...props} />
-    </Provider>
-  );
+  const view = render(<LayerCatalog {...props} />);
 
-  return { ...view, props, store };
+  return { ...view, props };
 };
 
 const findLayerCard = async (title: string) => {
@@ -349,7 +335,7 @@ describe("LayerCatalog", () => {
     await new Promise((resolve) => setTimeout(resolve, 1200));
     first.unmount();
 
-    // fresh store + fresh QueryClient over the same storage = page refresh
+    // fresh provider + fresh QueryClient over the same storage = page refresh
     renderModal();
     await screen.findByText("Stadtgrundkarte (grau)", undefined, {
       timeout: 8000,
@@ -471,24 +457,33 @@ describe("LayerCatalog", () => {
   });
 
   it("clears the loading state when capabilities fail to load", async () => {
+    // capabilities AND the additional layer config fail, so the map layers
+    // grid has no content at all and its state is purely loading-driven
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = String(input);
-        if (url.includes("maps.wuppertal.de")) {
+        if (
+          url.includes("maps.wuppertal.de") ||
+          url.includes("additionalLayerConfig.json")
+        ) {
           return Promise.reject(new Error("network down"));
         }
         return routedFetch(input);
       })
     );
 
-    const { store } = renderModal();
+    renderModal();
 
+    // loading skeletons show while the capabilities requests are pending ...
+    await waitFor(() => {
+      expect(document.querySelector(".animate-pulse")).not.toBeNull();
+    });
+
+    // ... and clear once every request has failed (instead of spinning forever)
     await waitFor(
       () => {
-        const state = store.getState() as any;
-        expect(state.mapLayers.loadingCapabilities).toBe(false);
-        expect(state.mapLayers.loadingCapabilitiesIDs).toEqual([]);
+        expect(document.querySelector(".animate-pulse")).toBeNull();
       },
       { timeout: 8000 }
     );

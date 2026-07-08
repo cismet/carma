@@ -1,11 +1,7 @@
 import { Badge, Spin, Tabs } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@carma-commons/utils";
-import {
-  getLoadingCapabilities,
-  getloadingCapabilitiesIDs,
-} from "../slices/mapLayers";
-import { useSelector } from "react-redux";
+import { useCatalogData } from "../context/LayerCatalogProvider";
 import { LoadingOutlined } from "@ant-design/icons";
 
 interface LayerTabsProps {
@@ -25,8 +21,7 @@ const LayerTabs = ({
 }: LayerTabsProps) => {
   const [tabClicked, setTabClicked] = useState(false);
   const [clickedId, setClickedId] = useState("");
-  const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
-  const loadingCapabilities = useSelector(getLoadingCapabilities);
+  const { loadingServiceIds, loadingCapabilities } = useCatalogData();
 
   const clickedRef = useRef("");
   const isClickedRef = useRef(false);
@@ -75,7 +70,7 @@ const LayerTabs = ({
                 >
                   {title}
                 </span>
-                {loadingCapabilitiesIDs.includes(layer.id) &&
+                {loadingServiceIds.includes(layer.id) &&
                   layer.layers.length === 0 &&
                   !loadingCapabilities && (
                     <Spin indicator={<LoadingOutlined spin />} size="small" />

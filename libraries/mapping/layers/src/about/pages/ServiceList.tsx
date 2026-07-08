@@ -5,14 +5,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useSelector } from "react-redux";
 import type { Item } from "../../lib/contracts/carma-layers.d";
 import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
-import { CatalogQueryProvider } from "../../config/CatalogQueryProvider";
 import {
-  getAllLayers,
-  getloadingCapabilitiesIDs,
-} from "../../slices/mapLayers";
+  LayerCatalogProvider,
+  useCatalogData,
+} from "../../context/LayerCatalogProvider";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
 import {
@@ -653,8 +651,7 @@ const ServiceListContent = ({
   discoverProps = wuppLayerCatalogConfig.discoverProps,
   markdown = false,
 }: ServiceListProps) => {
-  const allLayers = useSelector(getAllLayers);
-  const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
+  const { serviceCategories: allLayers, loadingServiceIds } = useCatalogData();
   const [discoverLayers, setDiscoverLayers] = useState<
     { id: string; Title: string; layers: any[] }[]
   >([]);
@@ -957,7 +954,7 @@ const ServiceListContent = ({
 
   const allDataLoaded = useMemo(() => {
     // WMS capabilities still loading (individual services tracked by ID)
-    if (loadingCapabilitiesIDs.length > 0) return false;
+    if (loadingServiceIds.length > 0) return false;
     // Additional/sensor/object configs still loading
     if (loadingAdditionalConfig) return false;
     // Discover items still loading
@@ -984,7 +981,7 @@ const ServiceListContent = ({
     }
     return true;
   }, [
-    loadingCapabilitiesIDs,
+    loadingServiceIds,
     loadingAdditionalConfig,
     discoverLoaded,
     displayLayers,
@@ -1535,9 +1532,9 @@ const ServiceListContent = ({
 };
 
 const ServiceList = (props: ServiceListProps) => (
-  <CatalogQueryProvider>
+  <LayerCatalogProvider>
     <ServiceListContent {...props} />
-  </CatalogQueryProvider>
+  </LayerCatalogProvider>
 );
 
 export default ServiceList;

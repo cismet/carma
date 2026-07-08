@@ -30,9 +30,7 @@ import {
 import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
-import { useDispatch, useSelector } from "react-redux";
-import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
-import { setTriggerRefetch } from "../slices/ui";
+import { useCatalogSelection } from "../context/LayerCatalogProvider";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
@@ -68,8 +66,8 @@ const InfoCard = ({
   deleteCollection,
   loadingData,
 }: InfoCardProps) => {
-  const dispatch = useDispatch();
-  const layer = useSelector(getSelectedLayer);
+  const { selectedItem: layer, selectItem, requestDiscoverRefetch } =
+    useCatalogSelection();
   const [messageApi, contextHolder] = message.useMessage();
   const { discoverProps } = useLayerCatalogConfig();
 
@@ -236,14 +234,14 @@ const InfoCard = ({
       }
     );
     if (response.status === 200) {
-      dispatch(setTriggerRefetch(true));
+      requestDiscoverRefetch();
       const waitForLoadingToFinish = async () => {
         while (loadingData) {
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
         setLoading(false);
         setEditCollection(false);
-        dispatch(setSelectedLayer(null));
+        selectItem(null);
       };
 
       waitForLoadingToFinish();
@@ -406,7 +404,7 @@ const InfoCard = ({
           </div>
           <button
             onClick={() => {
-              dispatch(setSelectedLayer(null));
+              selectItem(null);
             }}
             className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1 absolute top-2 right-0"
           >
