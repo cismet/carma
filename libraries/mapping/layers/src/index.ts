@@ -19,6 +19,12 @@ export {
   type LayerCatalogContextValue,
   type CatalogServiceCategory,
 } from "./context/LayerCatalogProvider";
+export {
+  defaultCategoryDefinitions,
+  defaultFavoriteSubCategories,
+  type CategoryDefinition,
+  type CustomCategoryDefinition,
+} from "./config/categoryDefinitions";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
 export * from "./helper/layerHelper";

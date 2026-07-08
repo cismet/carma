@@ -10,22 +10,16 @@ import {
   LayerCatalogProvider,
   useCatalogData,
   useCatalogSelection,
+  useCategoryDefinitions,
   useIsInsideLayerCatalogProvider,
   useLayerCatalog,
 } from "../context/LayerCatalogProvider";
-
 import {
-  faBook,
-  faCubes,
-  faList,
-  faMap,
-  faMapPin,
-  faSearch,
-  faStar,
-  faTriangleExclamation,
-  faX,
-  IconDefinition,
-} from "@fortawesome/free-solid-svg-icons";
+  resolveCustomCategories,
+  type CustomCategoryDefinition,
+} from "../config/categoryDefinitions";
+
+import { faTriangleExclamation, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Button, Input, Modal, Spin } from "antd";
@@ -66,21 +60,6 @@ import {
 
 const { Search } = Input;
 
-const elements: {
-  icon: IconDefinition;
-  text: string;
-  id: string;
-  disabledIn3D?: boolean;
-}[] = [
-  { icon: faStar, text: "Favoriten", id: "favorites" },
-  { icon: faList, text: "Entdecken", id: "discover", disabledIn3D: true },
-  { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
-  { icon: faMap, text: "Kartenebenen", id: "mapLayers", disabledIn3D: true },
-  { icon: faMapPin, text: "Sensoren", id: "sensors", disabledIn3D: true },
-  { icon: faCubes, text: "Objekte", id: "objects" },
-  { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
-];
-
 type LayerCategories = CatalogSubCategory;
 
 export type ActiveLayers = [BackgroundLayer, ...Layer[]];
@@ -94,7 +73,11 @@ export interface LayerCatalogProps {
   onAddCollection?: (layer: Item) => void;
   onRemoveCollection?: (layer: Item) => void;
   activeLayers: ActiveLayers;
-  customCategories: LayerCategories[];
+  /**
+   * app-specific subcategories in addition to the registry defaults
+   * (`subCategories` of the category definitions); same id overrides a default
+   */
+  customCategories?: CustomCategoryDefinition[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
@@ -120,6 +103,7 @@ const LayerCatalogView = ({
   appKey,
 }: LayerCatalogProps) => {
   const catalogConfig = useLayerCatalogConfig();
+  const categoryDefinitions = useCategoryDefinitions();
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [preview, setPreview] = useState(false);
   const { serviceCategories } = useCatalogData();
@@ -148,6 +132,40 @@ const LayerCatalogView = ({
       removeFavorite(layer);
     }
   };
+
+  // registry-default subcategories (favorites section etc.) extended by the
+  // host's customCategories prop; host entries override defaults by id
+  const customCategoryDefinitions = useMemo(() => {
+    const registryDefaults = categoryDefinitions.flatMap((definition) =>
+      (definition.subCategories ?? []).map((subCategory) => ({
+        ...subCategory,
+        mainCategoryId: subCategory.mainCategoryId ?? definition.id,
+      }))
+    );
+    const hostDefinitions = customCategories ?? [];
+    return [
+      ...registryDefaults.map(
+        (definition) =>
+          hostDefinitions.find((host) => host.id === definition.id) ??
+          definition
+      ),
+      ...hostDefinitions.filter(
+        (host) =>
+          !registryDefaults.some((definition) => definition.id === host.id)
+      ),
+    ];
+  }, [categoryDefinitions, customCategories]);
+
+  const resolvedCustomCategories = useMemo(
+    () =>
+      resolveCustomCategories(
+        customCategoryDefinitions,
+        favorites,
+        savedCollections ?? [],
+        isCesium
+      ),
+    [customCategoryDefinitions, favorites, savedCollections, isCesium]
+  );
   const [showItems, setShowItems] = useState(false);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [dropped, applyDrop] = useReducer(
@@ -204,12 +222,15 @@ const LayerCatalogView = ({
         {
           serviceCategories,
           additionalConfig,
-          sensorConfig,
-          objectConfig,
+          categoryConfigs: { sensors: sensorConfig, objects: objectConfig },
           discoverItems,
           dropped,
         },
-        { featureFlags: flags, customCategories }
+        {
+          featureFlags: flags,
+          customCategories: resolvedCustomCategories,
+          categoryDefinitions,
+        }
       ),
     [
       serviceCategories,
@@ -219,7 +240,8 @@ const LayerCatalogView = ({
       discoverItems,
       dropped,
       flags,
-      customCategories,
+      resolvedCustomCategories,
+      categoryDefinitions,
     ]
   );
 
@@ -229,14 +251,13 @@ const LayerCatalogView = ({
         .find((category) => category.id === id)
         ?.categories.some((subCategory) => subCategory.layers.length > 0) ??
       false;
-    return elements.map((element) => ({
-      ...element,
+    return categoryDefinitions.map((definition) => ({
+      ...definition,
       disabled:
-        (!!element.disabledIn3D && isCesium) ||
-        ((element.id === "sensors" || element.id === "objects") &&
-          !categoryHasItems(element.id)),
+        (!!definition.disabledIn3D && isCesium) ||
+        (!!definition.disableWhenEmpty && !categoryHasItems(definition.id)),
     }));
-  }, [allCategories, isCesium]);
+  }, [allCategories, categoryDefinitions, isCesium]);
 
   const disabledCategoryIds = useMemo(
     () =>
@@ -321,7 +342,7 @@ const LayerCatalogView = ({
   }, [sidebarElements]);
 
   const getNumOfCustomLayers = () => {
-    return customCategories.reduce((acc, category) => {
+    return resolvedCustomCategories.reduce((acc, category) => {
       return acc + category.layers.length;
     }, 0);
   };
@@ -379,10 +400,15 @@ const LayerCatalogView = ({
       selectedNavItemIndex === 0 &&
       !isCesium
     ) {
-      setSelectedNavItemIndex(3);
+      const mapLayersIndex = categoryDefinitions.findIndex(
+        (definition) => definition.source === "serviceLayers"
+      );
+      if (mapLayersIndex !== -1) {
+        setSelectedNavItemIndex(mapLayersIndex);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customCategories]);
+  }, [resolvedCustomCategories]);
 
   const checkIfAllLayersAreLoaded = () => {
     let allLayersLoaded = true;
@@ -519,7 +545,7 @@ const LayerCatalogView = ({
             matchingCategory?.categories.map((cat) => cat.layers).flat() || [];
 
           return {
-            Title: element.text,
+            Title: element.label,
             id: element.id,
             layers: elementLayers,
           };
@@ -589,7 +615,7 @@ const LayerCatalogView = ({
               return (
                 <SidebarItem
                   icon={element.icon}
-                  text={element.text}
+                  text={element.label}
                   active={i === selectedNavItemIndex}
                   onClick={() => {
                     setSelectedNavItemIndex(i);
@@ -607,7 +633,7 @@ const LayerCatalogView = ({
                   }
                   showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
                   disabled={
-                    (i === sidebarElements.length - 1 && !searchValue) ||
+                    (element.source === "searchResults" && !searchValue) ||
                     element.disabled
                   }
                 />

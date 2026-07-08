@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useCallback, useContext } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -8,7 +8,8 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerCatalog, useLayerCatalog } from "@carma-mapping/layers";
+import { LayerCatalog } from "@carma-mapping/layers";
+import type { CustomCategoryDefinition, Item } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import {
@@ -38,7 +39,6 @@ const ResourceModal = () => {
 
   const activeLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const { favorites } = useLayerCatalog();
   const measurements = useSelector(getMeasurements);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
@@ -57,7 +57,22 @@ const ResourceModal = () => {
   const { toggle, getIsLeaflet, getIsCesium } =
     useMapFrameworkSwitcherContext();
   const { addLayerById } = useCarmaMapAPIActions();
-  const isLeaflet = getIsLeaflet();
+
+  // the favorites-derived subcategories are registry defaults of the lib;
+  // only the genuinely app-owned measurements category is added here
+  const customCategories = useMemo<CustomCategoryDefinition[]>(
+    () => [
+      {
+        id: "measurements",
+        label: "Meine Messungen",
+        mainCategoryId: "objects",
+        hideWhenEmpty: true,
+        keepItemServiceName: true,
+        source: { kind: "items", items: measurements as unknown as Item[] },
+      },
+    ],
+    [measurements]
+  );
 
   const getFrameworkMode = useCallback(
     () => ({
@@ -100,84 +115,7 @@ const ResourceModal = () => {
           dispatch(deleteSavedLayerConfig(layer.id));
         }}
         activeLayers={[backgroundLayer, ...activeLayers]}
-        customCategories={[
-          {
-            Title: "Meine Teilzwillinge",
-            layers: favorites
-              .filter((favorite) => {
-                return (
-                  favorite.serviceName === "wuppTopicMaps" ||
-                  favorite.serviceName === "wuppArcGisOnline"
-                );
-              })
-              .map((favorite) => {
-                return {
-                  ...favorite,
-                  serviceName: "favoriteDigitalTwins",
-                  path: "Meine Teilzwillinge",
-                };
-              }),
-            id: "favoriteDigitalTwins",
-          },
-          isLeaflet && {
-            Title: "Meine Karten",
-            layers: savedLayerConfigs.map((layer) => {
-              return {
-                ...layer,
-                serviceName: "collections",
-                path: "Meine Karten",
-              };
-            }),
-            id: "collections",
-          },
-          isLeaflet && {
-            Title: "Meine Kartenebenen",
-            layers: favorites
-              .filter((favorite) => {
-                return (
-                  favorite.serviceName !== "wuppTopicMaps" &&
-                  favorite.serviceName !== "wuppArcGisOnline" &&
-                  favorite.type !== "object"
-                );
-              })
-              .map((favorite) => {
-                return {
-                  ...favorite,
-                  serviceName: "favoriteLayers",
-                  path: "Meine Kartenebenen",
-                };
-              }),
-            id: "favoriteLayers",
-          },
-          {
-            Title: "Meine Messungen",
-            layers: measurements.map((measurement) => {
-              return {
-                ...measurement,
-                path: "Meine Messungen",
-              };
-            }),
-            id: "measurements",
-            mainCategoryId: "objects",
-            hideWhenEmpty: true,
-          },
-          {
-            Title: "Meine Objekte",
-            layers: favorites
-              .filter((favorite) => {
-                return favorite.type === "object";
-              })
-              .map((favorite) => {
-                return {
-                  ...favorite,
-                  serviceName: "favoriteObjects",
-                  path: "Meine Objekte",
-                };
-              }),
-
-            id: "favoriteObjects",
-          },
-        ].filter(Boolean)}
+        customCategories={customCategories}
         updateActiveLayer={(layer) => {
           dispatch(updateLayer(layer));
 

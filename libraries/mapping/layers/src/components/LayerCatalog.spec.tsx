@@ -267,7 +267,12 @@ describe("LayerCatalog", () => {
 
   it("shows the filled favorite star for persisted favorites", async () => {
     await localForage.setItem(FAVORITES_KEY, [
-      { id: "fav_wuppKarten:alkomgw" },
+      {
+        id: "fav_wuppKarten:alkomgw",
+        title: "Stadtgrundkarte (grau)",
+        type: "layer",
+        serviceName: "wuppKarten",
+      },
     ]);
 
     renderModal();
@@ -275,6 +280,17 @@ describe("LayerCatalog", () => {
     const card = await findLayerCard("Stadtgrundkarte (grau)");
     await within(card).findByTestId("remove-layer-favorite");
     expect(within(card).queryByTestId("add-layer-favorite")).toBeNull();
+
+    // the lib-default favorites subcategory lists the favorite
+    fireEvent.click(screen.getByText("Favoriten"));
+    const headings = await screen.findAllByText(
+      "Meine Kartenebenen",
+      undefined,
+      {
+        timeout: 8000,
+      }
+    );
+    expect(headings.length).toBeGreaterThan(0);
   });
 
   it("imports favorites once from a legacy redux-persist record", async () => {

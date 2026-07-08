@@ -223,16 +223,17 @@ const TopNavbar = () => {
         open={isModalOpen}
         setOpen={setIsModalOpen}
         setAdditionalLayers={updateLayers}
-        setThumbnail={(thumbnail) => {
-          dispatch(setThumbnail(thumbnail));
-        }}
-        thumbnails={thumbnails}
         activeLayers={[backgroundLayer, ...activeLayers]}
         customCategories={[
           {
-            Title: "Meine Zusammenstellungen",
-            // @ts-expect-error
-            layers: savedLayerConfigs,
+            id: "collections",
+            label: "Meine Zusammenstellungen",
+            keepItemServiceName: true,
+            // the playground's SavedLayerConfig is a reduced local type
+            source: {
+              kind: "items",
+              items: savedLayerConfigs as unknown as Item[],
+            },
           },
         ]}
         updateActiveLayer={() => {}}

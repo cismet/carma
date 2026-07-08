@@ -18,6 +18,8 @@ import {
   loadFavorites,
   persistFavorites,
 } from "./favoritesStorage";
+import type { CategoryDefinition } from "../config/categoryDefinitions";
+import { defaultCategoryDefinitions } from "../config/categoryDefinitions";
 
 /** category tree derived from one WMS or local config service */
 export interface CatalogServiceCategory {
@@ -262,6 +264,9 @@ const CatalogSelectionContext =
 const CatalogFavoritesContext = createContext<LayerCatalogContextValue | null>(
   null
 );
+const CatalogCategoriesContext = createContext<CategoryDefinition[]>(
+  defaultCategoryDefinitions
+);
 
 export const useCatalogData = (): CatalogDataContextValue => {
   const value = useContext(CatalogDataContext);
@@ -291,6 +296,10 @@ export const useLayerCatalog = (): LayerCatalogContextValue => {
 /** lets LayerCatalog reuse a host-mounted provider instead of nesting one */
 export const useIsInsideLayerCatalogProvider = () =>
   useContext(CatalogDataContext) !== null;
+
+/** the main category registry (sidebar entries + tree assembly order) */
+export const useCategoryDefinitions = () =>
+  useContext(CatalogCategoriesContext);
 
 interface CatalogStateProviderProps {
   favoritesStorageKey: string;
@@ -409,6 +418,8 @@ const CatalogStateProvider = ({
 export interface LayerCatalogProviderProps {
   /** host-supplied catalog config; defaults to the Wuppertal preset */
   config?: LayerCatalogConfig;
+  /** main category registry override; defaults to the standard categories */
+  categories?: CategoryDefinition[];
   /** app identity for the favorites localforage key; avoids cross-app bleed */
   appKey?: string;
   storagePrefix?: string;
@@ -422,19 +433,22 @@ export interface LayerCatalogProviderProps {
 
 export const LayerCatalogProvider = ({
   config,
+  categories = defaultCategoryDefinitions,
   appKey = "carma",
   storagePrefix = "defaultStorage",
   legacyFavoritesKey,
   children,
 }: LayerCatalogProviderProps) => (
   <LayerCatalogConfigProvider value={config ?? wuppLayerCatalogConfig}>
-    <CatalogQueryProvider>
-      <CatalogStateProvider
-        favoritesStorageKey={buildFavoritesStorageKey(appKey, storagePrefix)}
-        legacyFavoritesKey={legacyFavoritesKey}
-      >
-        {children}
-      </CatalogStateProvider>
-    </CatalogQueryProvider>
+    <CatalogCategoriesContext.Provider value={categories}>
+      <CatalogQueryProvider>
+        <CatalogStateProvider
+          favoritesStorageKey={buildFavoritesStorageKey(appKey, storagePrefix)}
+          legacyFavoritesKey={legacyFavoritesKey}
+        >
+          {children}
+        </CatalogStateProvider>
+      </CatalogQueryProvider>
+    </CatalogCategoriesContext.Provider>
   </LayerCatalogConfigProvider>
 );

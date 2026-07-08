@@ -15,9 +15,10 @@ import {
   wmsLayerToGenericItem,
 } from "./layerHelper";
 import { isCurrentlyFeatured } from "./dateHelper";
-import { partianTwinConfig } from "./config";
 import { discoverConfig } from "./discover";
 import type { DiscoverItem } from "./discover";
+import type { CategoryDefinition } from "../config/categoryDefinitions";
+import { defaultCategoryDefinitions } from "../config/categoryDefinitions";
 
 // The additional configs come from JSON files where `Title` is optional; a
 // config without Title contributes per-layer entries (or replace layers)
@@ -76,7 +77,11 @@ export const EMPTY_DROPPED_CATALOG: DroppedCatalogState = {
 export type CatalogDrop =
   | { kind: "layers"; items: Item[] }
   | { kind: "layerConfig"; configs: CatalogConfigEntry[] }
-  | { kind: "categoryConfig"; categoryId: string; configs: CatalogConfigEntry[] };
+  | {
+      kind: "categoryConfig";
+      categoryId: string;
+      configs: CatalogConfigEntry[];
+    };
 
 // Pure reducer for drop events: newest drop wins and moves to the front.
 export const applyCatalogDrop = (
@@ -253,9 +258,7 @@ export const deriveConfigSubcategories = (
       return;
     }
     const id = config.id || config.serviceName;
-    const existing = subCategories.find(
-      (subCategory) => subCategory.id === id
-    );
+    const existing = subCategories.find((subCategory) => subCategory.id === id);
     if (existing) {
       existing.layers = reorderLayersByInsertRules(
         dedupeById([...existing.layers, ...layers])
@@ -423,8 +426,8 @@ export interface CatalogSources {
   serviceCategories: ServiceCategory[];
   /** effective additional layer config (fetched + dropped overlay) */
   additionalConfig: CatalogConfigEntry[];
-  sensorConfig: CatalogConfigEntry[];
-  objectConfig: CatalogConfigEntry[];
+  /** config entries for the "configs"-sourced categories, keyed by their id */
+  categoryConfigs?: Record<string, CatalogConfigEntry[]>;
   discoverItems?: DiscoverItem[];
   dropped?: DroppedCatalogState;
 }
@@ -432,10 +435,13 @@ export interface CatalogSources {
 export interface CatalogBuildOptions {
   featureFlags: FeatureFlags;
   customCategories?: CatalogSubCategory[];
+  /** main category registry; order defines the sidebar/tree order */
+  categoryDefinitions?: CategoryDefinition[];
 }
 
 // Pure derivation of the complete category tree. Main categories follow the
-// sidebar order, so "first category with search results" matches the sidebar.
+// registry order (= sidebar order), so "first category with search results"
+// matches the sidebar.
 export const buildCatalog = (
   sources: CatalogSources,
   options: CatalogBuildOptions
@@ -443,50 +449,62 @@ export const buildCatalog = (
   const {
     serviceCategories,
     additionalConfig,
-    sensorConfig,
-    objectConfig,
+    categoryConfigs = {},
     discoverItems,
     dropped = EMPTY_DROPPED_CATALOG,
   } = sources;
-  const { featureFlags, customCategories = [] } = options;
+  const {
+    featureFlags,
+    customCategories = [],
+    categoryDefinitions = defaultCategoryDefinitions,
+  } = options;
 
-  const catalog: CatalogMainCategory[] = [
-    { id: DEFAULT_MAIN_CATEGORY_ID, categories: [] },
-  ];
+  const catalog: CatalogMainCategory[] = [];
 
-  const discoverCategories = deriveDiscoverCategories(discoverItems);
-  if (discoverCategories) {
-    catalog.push({ id: "discover", categories: discoverCategories });
-  }
-
-  catalog.push({
-    id: "partialTwins",
-    categories: Object.values(partianTwinConfig),
-  });
-
-  catalog.push({
-    id: "mapLayers",
-    categories: buildMapLayerSubcategories(
-      serviceCategories,
-      additionalConfig,
-      dropped.customLayers,
-      featureFlags
-    ),
-  });
-
-  catalog.push({
-    id: "sensors",
-    categories: deriveConfigSubcategories(
-      [...(dropped.categoryConfigs["sensors"] ?? []), ...sensorConfig],
-      featureFlags
-    ),
-  });
-  catalog.push({
-    id: "objects",
-    categories: deriveConfigSubcategories(
-      [...(dropped.categoryConfigs["objects"] ?? []), ...objectConfig],
-      featureFlags
-    ),
+  categoryDefinitions.forEach((definition) => {
+    switch (definition.source) {
+      case "custom":
+        catalog.push({ id: definition.id, categories: [] });
+        break;
+      case "discover": {
+        const discoverCategories = deriveDiscoverCategories(discoverItems);
+        if (discoverCategories) {
+          catalog.push({ id: definition.id, categories: discoverCategories });
+        }
+        break;
+      }
+      case "static":
+        catalog.push({
+          id: definition.id,
+          categories: definition.staticCategories ?? [],
+        });
+        break;
+      case "serviceLayers":
+        catalog.push({
+          id: definition.id,
+          categories: buildMapLayerSubcategories(
+            serviceCategories,
+            additionalConfig,
+            dropped.customLayers,
+            featureFlags
+          ),
+        });
+        break;
+      case "configs":
+        catalog.push({
+          id: definition.id,
+          categories: deriveConfigSubcategories(
+            [
+              ...(dropped.categoryConfigs[definition.id] ?? []),
+              ...(categoryConfigs[definition.id] ?? []),
+            ],
+            featureFlags
+          ),
+        });
+        break;
+      case "searchResults":
+        break;
+    }
   });
 
   return mergeCustomCategories(catalog, customCategories);

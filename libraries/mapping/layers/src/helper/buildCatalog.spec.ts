@@ -11,6 +11,11 @@ import {
   mergeAdditionalConfigs,
 } from "./buildCatalog";
 import type { CatalogConfigEntry, ServiceCategory } from "./buildCatalog";
+import {
+  defaultCategoryDefinitions,
+  resolveCustomCategories,
+} from "../config/categoryDefinitions";
+import type { CustomCategoryDefinition } from "../config/categoryDefinitions";
 
 const item = (id: string, title: string, extra: Partial<Item> = {}): Item =>
   ({
@@ -36,8 +41,6 @@ const serviceCategories: ServiceCategory[] = [
 const emptySources = {
   serviceCategories: [],
   additionalConfig: [],
-  sensorConfig: [],
-  objectConfig: [],
 };
 
 describe("buildCatalog", () => {
@@ -137,6 +140,131 @@ describe("buildCatalog", () => {
   });
 });
 
+describe("category registry", () => {
+  it("assembles main categories in registry order, configs keyed by id", () => {
+    const catalog = buildCatalog(
+      {
+        ...emptySources,
+        serviceCategories,
+        categoryConfigs: {
+          extra: [
+            {
+              Title: "Extra Inhalte",
+              serviceName: "extra",
+              layers: [item("extra:1", "Extra Layer")],
+            },
+          ],
+        },
+      },
+      {
+        featureFlags: {},
+        categoryDefinitions: [
+          {
+            id: "extra",
+            label: "Extra",
+            icon: defaultCategoryDefinitions[0].icon,
+            source: "configs",
+          },
+          defaultCategoryDefinitions.find(
+            (definition) => definition.id === "mapLayers"
+          )!,
+        ],
+      }
+    );
+    expect(catalog.map((category) => category.id)).toEqual([
+      "extra",
+      "mapLayers",
+    ]);
+    expect(catalog[0].categories[0].layers[0].title).toBe("Extra Layer");
+  });
+
+  it("resolves custom category definitions against the favorites", () => {
+    const favorites = [
+      item("fav_a", "Twin", { serviceName: "wuppTopicMaps" }),
+      item("fav_b", "Layer", { serviceName: "wuppKarten" }),
+    ];
+    const definitions: CustomCategoryDefinition[] = [
+      {
+        id: "favoriteDigitalTwins",
+        label: "Meine Teilzwillinge",
+        source: {
+          kind: "favorites",
+          filter: (entry) => entry.serviceName === "wuppTopicMaps",
+        },
+      },
+      {
+        id: "leafletOnly",
+        label: "Nur 2D",
+        hiddenIn3D: true,
+        source: { kind: "items", items: [item("x:1", "X")] },
+      },
+      {
+        id: "measurements",
+        label: "Meine Messungen",
+        keepItemServiceName: true,
+        source: {
+          kind: "items",
+          items: [item("m:1", "M", { serviceName: "own" })],
+        },
+      },
+    ];
+
+    const resolved = resolveCustomCategories(definitions, favorites, [], false);
+    expect(resolved.map((category) => category.id)).toEqual([
+      "favoriteDigitalTwins",
+      "leafletOnly",
+      "measurements",
+    ]);
+    // favorites narrowed by the predicate, serviceName/path stamped
+    expect(resolved[0].layers).toEqual([
+      expect.objectContaining({
+        id: "fav_a",
+        serviceName: "favoriteDigitalTwins",
+        path: "Meine Teilzwillinge",
+      }),
+    ]);
+    // keepItemServiceName leaves the item's own serviceName untouched
+    expect(resolved[2].layers[0]).toMatchObject({
+      serviceName: "own",
+      path: "Meine Messungen",
+    });
+
+    // hiddenIn3D definitions drop out while the 3D map is active
+    const resolvedIn3D = resolveCustomCategories(
+      definitions,
+      favorites,
+      [],
+      true
+    );
+    expect(resolvedIn3D.map((category) => category.id)).toEqual([
+      "favoriteDigitalTwins",
+      "measurements",
+    ]);
+  });
+
+  it("resolves collections-sourced categories from the savedCollections", () => {
+    const resolved = resolveCustomCategories(
+      [
+        {
+          id: "collections",
+          label: "Meine Karten",
+          source: { kind: "collections" },
+        },
+      ],
+      [],
+      [item("saved:1", "Meine Zusammenstellung", { type: "collection" })],
+      false
+    );
+    expect(resolved[0].layers).toEqual([
+      expect.objectContaining({
+        id: "saved:1",
+        serviceName: "collections",
+        path: "Meine Karten",
+      }),
+    ]);
+  });
+});
+
 describe("deriveConfigSubcategories", () => {
   it("skips title-less and flag-hidden entries, earlier configs win on id", () => {
     const configs: CatalogConfigEntry[] = [
@@ -184,9 +312,7 @@ describe("additional config handling", () => {
 
   it("extracts replace layers only from title-less configs", () => {
     const replaceLayers = extractReplaceLayers(baseConfig, {});
-    expect(replaceLayers.map((layer) => layer.id)).toEqual([
-      "wuppKarten:expg",
-    ]);
+    expect(replaceLayers.map((layer) => layer.id)).toEqual(["wuppKarten:expg"]);
   });
 
   it("keeps replace layers out of the catalog fragments", () => {
@@ -225,7 +351,9 @@ describe("additional config handling", () => {
       "Neuer Zusatz",
     ]);
 
-    expect(merged.find((config) => config.Title === "Drop Kategorie")).toBeTruthy();
+    expect(
+      merged.find((config) => config.Title === "Drop Kategorie")
+    ).toBeTruthy();
 
     // the unmatched replace layer extends the title-less base config
     const titleless = merged.find((config) => !config.Title);
@@ -303,13 +431,15 @@ describe("applyCatalogDrop", () => {
     const catalog = buildCatalog(
       {
         ...emptySources,
-        sensorConfig: [
-          {
-            Title: "Luft",
-            serviceName: "luft",
-            layers: [item("luft:1", "Luftsensor")],
-          },
-        ],
+        categoryConfigs: {
+          sensors: [
+            {
+              Title: "Luft",
+              serviceName: "luft",
+              layers: [item("luft:1", "Luftsensor")],
+            },
+          ],
+        },
         dropped,
       },
       { featureFlags: {} }
