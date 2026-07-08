@@ -24,6 +24,18 @@ import {
   formatMeters,
 } from "@carma-mapping/measurements";
 import AuswahlBlock from "./AuswahlBlock";
+import type { ExpertSortSpec } from "./expert-search/expertSearchUtils";
+
+// Stable empty default so an absent prop doesn't invalidate the sort memo each
+// render.
+const EMPTY_EXPERT_SORT: ExpertSortSpec = [];
+
+// Identity of a feature across the tile layer and the GraphQL search results:
+// both carry the DB id in `properties.id` under the same `sourceLayer`, so this
+// key lets Fachobjekte rows be ordered to match the (backend-sorted) Highlights
+// list. Sidebar-scoped: extend if we ever need it elsewhere.
+const featureIdentityKey = (f: SidebarFeature): string =>
+  `${f.sourceLayer || f.source || ""}:${f.properties?.id ?? f.id}`;
 
 export const displayId = (id: unknown): string => {
   if (id == null) return "?";
@@ -236,6 +248,20 @@ export interface BelisSidebarProps {
   emptyMessage?: string;
   sidebarMode?: "fachobjekte" | "highlights" | "drafts";
   onModeChange?: (mode: "fachobjekte" | "highlights" | "drafts") => void;
+  /** Sort list the user picked in Expert Search (field + direction). When
+   *  non-empty AND `preserveOrder` is false, it replaces the standard
+   *  street/lfd_nummer/leuchtennummer comparator — so the Fachobjekte tab
+   *  follows the same ordering as the Highlights tab. */
+  expertSort?: ExpertSortSpec;
+  /** Frozen source used to rank features under expert sort — the original
+   *  search results at query time, not the live `unfilteredHighlights` (which
+   *  shrinks on dismiss). Keeping it frozen means a dismissed feature keeps
+   *  its slot instead of dropping to the street-sort tail. */
+  expertRankFeatures?: SidebarFeature[] | null;
+  /** When true, skip client-side sorting entirely and render features in the
+   *  order they arrived. Set for the Highlights tab under expert search, where
+   *  the backend already ordered the results. */
+  preserveOrder?: boolean;
   hasHighlights?: boolean;
   hasDrafts?: boolean;
   fachobjekteCount?: number;
@@ -289,6 +315,9 @@ const BelisSidebar = ({
   emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
   sidebarMode = "fachobjekte",
   onModeChange,
+  expertSort = EMPTY_EXPERT_SORT,
+  expertRankFeatures,
+  preserveOrder = false,
   hasHighlights = false,
   hasDrafts = false,
   fachobjekteCount,
@@ -510,6 +539,30 @@ const BelisSidebar = ({
       groups[groupKey].items.push(feature);
     });
 
+    // Sorting policy:
+    //  - preserveOrder → skip sorting entirely (Highlights tab: backend already
+    //    ordered the results).
+    //  - expertSort non-empty AND we have highlights → mirror the Highlights
+    //    order by feature identity; features not in that list fall through to
+    //    the street sort. This avoids re-implementing Hasura's FK-column sort
+    //    on data the tile layer strips out (`fk_strassenschluessel` etc).
+    //  - otherwise → the historic street / lfd_nummer / leuchtennummer sort.
+    // Clustering + Standort-first flattening runs regardless so indentation is
+    // preserved in all modes.
+    const expertRank =
+      expertSort.length > 0 && expertRankFeatures?.length
+        ? (() => {
+            const m = new Map<string, number>();
+            expertRankFeatures.forEach((f, i) => {
+              const k = featureIdentityKey(f);
+              if (!m.has(k)) m.set(k, i);
+            });
+            return m;
+          })()
+        : null;
+    const rankOf = (f: SidebarFeature) =>
+      expertRank?.get(featureIdentityKey(f)) ?? Infinity;
+
     // Sort the merged group: group by fk_standort, standort feature first, then its leuchten by leuchtennummer
     const merged = groups[MERGED_GROUP_KEY];
     if (merged) {
@@ -565,52 +618,97 @@ const BelisSidebar = ({
           c.standort?.properties?.lfd_nummer ??
             c.leuchten[0]?.properties?.lfd_nummer
         ) || 0;
-      const sortedClusters = [...clusters.entries()].sort(([, a], [, b]) => {
-        const streetA = clusterStreet(a);
-        const streetB = clusterStreet(b);
-        if (streetA !== streetB) return streetA.localeCompare(streetB);
-        return clusterNr(a) - clusterNr(b);
-      });
+      if (!preserveOrder) {
+        // Cluster rank = best (earliest) rank among its members; keeps the
+        // Standort with its Leuchten even when the Leuchten alone would sort
+        // to a different place. Unranked clusters (all members outside the
+        // Highlights list) get Infinity → fall through to the street sort.
+        const clusterRank = (c: {
+          standort: SidebarFeature | null;
+          leuchten: SidebarFeature[];
+        }) => {
+          let best = c.standort ? rankOf(c.standort) : Infinity;
+          for (const l of c.leuchten) {
+            const r = rankOf(l);
+            if (r < best) best = r;
+          }
+          return best;
+        };
+        const sortedClusters = [...clusters.entries()].sort(([, a], [, b]) => {
+          if (expertRank) {
+            const ra = clusterRank(a);
+            const rb = clusterRank(b);
+            if (ra !== rb) return ra - rb;
+          }
+          const streetA = clusterStreet(a);
+          const streetB = clusterStreet(b);
+          if (streetA !== streetB) return streetA.localeCompare(streetB);
+          return clusterNr(a) - clusterNr(b);
+        });
 
-      // Flatten: standort first, then leuchten sorted by leuchtennummer
-      const sorted: SidebarFeature[] = [];
-      for (const [, cluster] of sortedClusters) {
-        if (cluster.standort) sorted.push(cluster.standort);
-        cluster.leuchten.sort(
-          (a, b) =>
-            (Number(a.properties?.leuchtennummer) || 0) -
-            (Number(b.properties?.leuchtennummer) || 0)
-        );
-        sorted.push(...cluster.leuchten);
+        // Flatten: standort first, then leuchten (by Highlights rank when an
+        // expert sort is active, otherwise by leuchtennummer).
+        const sorted: SidebarFeature[] = [];
+        for (const [, cluster] of sortedClusters) {
+          if (cluster.standort) sorted.push(cluster.standort);
+          cluster.leuchten.sort((a, b) => {
+            if (expertRank) {
+              const ra = rankOf(a);
+              const rb = rankOf(b);
+              if (ra !== rb) return ra - rb;
+            }
+            return (
+              (Number(a.properties?.leuchtennummer) || 0) -
+              (Number(b.properties?.leuchtennummer) || 0)
+            );
+          });
+          sorted.push(...cluster.leuchten);
+        }
+        merged.items = sorted;
       }
-      merged.items = sorted;
     }
 
-    // Sort other groups by street, standort nr, leuchtennummer
-    for (const [key, group] of Object.entries(groups)) {
-      if (key === MERGED_GROUP_KEY) continue;
-      group.items.sort((a, b) => {
-        const aStreet = (
-          a.properties?.strasse ||
-          a.properties?.strassenschluessel ||
-          ""
-        ).toLowerCase();
-        const bStreet = (
-          b.properties?.strasse ||
-          b.properties?.strassenschluessel ||
-          ""
-        ).toLowerCase();
-        if (aStreet !== bStreet) return aStreet.localeCompare(bStreet);
-        const aStandort = Number(a.properties?.lfd_nummer) || 0;
-        const bStandort = Number(b.properties?.lfd_nummer) || 0;
-        if (aStandort !== bStandort) return aStandort - bStandort;
-        const aLeuchte = Number(a.properties?.leuchtennummer) || 0;
-        const bLeuchte = Number(b.properties?.leuchtennummer) || 0;
-        return aLeuchte - bLeuchte;
-      });
+    // Sort other groups. preserveOrder skips it (Highlights already ordered by
+    // backend); the Highlights rank replaces the street sort when active.
+    if (!preserveOrder) {
+      for (const [key, group] of Object.entries(groups)) {
+        if (key === MERGED_GROUP_KEY) continue;
+        group.items.sort((a, b) => {
+          if (expertRank) {
+            const ra = rankOf(a);
+            const rb = rankOf(b);
+            if (ra !== rb) return ra - rb;
+          }
+          const aStreet = (
+            a.properties?.strasse ||
+            a.properties?.strassenschluessel ||
+            ""
+          ).toLowerCase();
+          const bStreet = (
+            b.properties?.strasse ||
+            b.properties?.strassenschluessel ||
+            ""
+          ).toLowerCase();
+          if (aStreet !== bStreet) return aStreet.localeCompare(bStreet);
+          const aStandort = Number(a.properties?.lfd_nummer) || 0;
+          const bStandort = Number(b.properties?.lfd_nummer) || 0;
+          if (aStandort !== bStandort) return aStandort - bStandort;
+          const aLeuchte = Number(a.properties?.leuchtennummer) || 0;
+          const bLeuchte = Number(b.properties?.leuchtennummer) || 0;
+          return aLeuchte - bLeuchte;
+        });
+      }
     }
     return groups;
-  }, [filteredFeatures, countsByLayer, activeSourceLayers, isOverviewMode]);
+  }, [
+    filteredFeatures,
+    countsByLayer,
+    activeSourceLayers,
+    isOverviewMode,
+    expertSort,
+    preserveOrder,
+    expertRankFeatures,
+  ]);
 
   // Stable-ordered group entries
   const sortedGroupEntries = useMemo(() => {
