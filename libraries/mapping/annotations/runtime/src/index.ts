@@ -21,6 +21,12 @@ export {
 } from "./lib/components/annotation-info-box/runtime-annotation-info-box-slots.types";
 export { useRuntimeAnnotationInfoBoxSlots } from "./lib/components/annotation-info-box/use-runtime-annotation-info-box-slots";
 export {
+  resolveNodeEditHelpItems,
+  resolveEditGeometryCategory,
+  EDIT_GEOMETRY_CATEGORY,
+  type EditGeometryCategory,
+} from "./lib/components/annotation-info-box/node-edit-help";
+export {
   ANNOTATION_THEME,
   type AnnotationTheme,
   type AnnotationThemeStyle,
