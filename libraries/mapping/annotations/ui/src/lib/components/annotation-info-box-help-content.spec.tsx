@@ -58,7 +58,7 @@ describe("AnnotationInfoBoxHelpContent", () => {
     ).toBeTruthy();
     expect(actionRows).toHaveLength(3);
     expect(actionRows[0]?.textContent).toContain("Click");
-    expect(actionRows[1]?.textContent).toContain("⌫");
+    expect(actionRows[1]?.textContent).toContain("←");
     expect(actionRows[1]?.textContent).toContain("Backspace");
     expect(actionRows[1]?.textContent).toContain("+");
     expect(actionRows[1]?.textContent).toContain("or");
@@ -86,9 +86,34 @@ describe("AnnotationInfoBoxHelpContent", () => {
 
     const actionRows = screen.getAllByTestId("annotation-help-action");
 
-    expect(actionRows[0]?.textContent).toContain("⌫");
+    expect(actionRows[0]?.textContent).toContain("←");
     expect(actionRows[0]?.textContent).toContain("Rücktaste");
     expect(actionRows[0]?.textContent).not.toContain("Backspace");
+  });
+
+  it("uses the macOS backspace glyph on Apple keyboards, same label", () => {
+    render(
+      <AnnotationInfoBoxHelpContent
+        locale="de-DE"
+        platform="macos"
+        items={[
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            inputAlternatives: [
+              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE],
+            ],
+            description: "Löscht den letzten Punkt.",
+          },
+        ]}
+      />
+    );
+
+    const actionRows = screen.getAllByTestId("annotation-help-action");
+
+    // Same localized label as Windows, OS-appropriate glyph (⌫ vs ←).
+    expect(actionRows[0]?.textContent).toContain("⌫");
+    expect(actionRows[0]?.textContent).toContain("Rücktaste");
+    expect(actionRows[0]?.textContent).not.toContain("←");
   });
 
   it("uses localized keyboard labels when a locale is provided", () => {
