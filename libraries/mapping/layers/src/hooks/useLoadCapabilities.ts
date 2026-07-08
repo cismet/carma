@@ -13,7 +13,7 @@ import {
   mergeStructures,
   normalizeObject,
 } from "../helper/layerHelper";
-import type { ActiveLayers } from "../components/LayerCatalog";
+import type { ActiveLayers } from "../lib/contracts/carma-layers.d";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { FALLBACK_CAPABILITIES_BASE_URL } from "../helper/assetUrls";
 import {
@@ -109,7 +109,7 @@ export const useLoadCapabilities = ({
     }),
   });
 
-  // feed the loading flags consumed by LayerTabs / ItemGrid
+  // feed the loading flags consumed by CategoryTabs / CatalogGrid
   useEffect(() => {
     setCapabilitiesLoading(
       capabilities.initialLoadingNames,

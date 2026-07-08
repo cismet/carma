@@ -1,121 +1,82 @@
-import { Button, Input, message, Select, Tabs, Tooltip } from "antd";
+import { Fragment, useState } from "react";
+import { Button, message } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBan,
   faCircleMinus,
   faCirclePlus,
   faEdit,
   faExternalLink,
   faMap,
-  faPlus,
-  faRotateLeft,
-  faSave,
   faSquareUpRight,
   faStar,
   faTrash,
   faUpload,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
-import isEqual from "lodash/isEqual";
 
-import { serviceOptions } from "@carma-commons/resources";
-import { FileUploader, uploadImage } from "@carma-commons/ui/components";
-import { BackgroundLayer, Item, Layer } from "../lib/contracts/carma-layers.d";
+import type { Item } from "../lib/contracts/carma-layers.d";
 import {
   extractCarmaConfig,
   resolveLayerTitle,
   resolveLayerDescription,
 } from "@carma-commons/utils";
+import { useAuth } from "@carma-providers/auth";
 
 import { parseDescription } from "../helper/layerHelper";
-import { Fragment, useState } from "react";
-import { TagSelector } from "@carma-commons/ui/tag-selection";
-import { useCatalogSelection } from "../context/LayerCatalogProvider";
-import { LayerButton, LayerIcon } from "@carma-mapping/components";
-
-import { useAuth } from "@carma-providers/auth";
+import { saveDiscoverItem } from "../helper/discover";
+import {
+  useCatalogSelectedItem,
+  useCatalogSelectionActions,
+  useDiscoverRefetch,
+} from "../context/LayerCatalogProvider";
+import { useCatalogInteraction } from "../context/CatalogInteractionContext";
 import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
-import type { ActiveLayers } from "./LayerCatalog";
+import DiscoverItemEditor, {
+  checkForRequiredDiscoverFields,
+} from "./DiscoverItemEditor";
 import LegendDisplay from "./LegendDisplay";
 
 interface InfoCardProps {
   isFavorite: boolean;
   isActiveLayer: boolean;
-  activeLayers: ActiveLayers;
-  handleAddClick: (
+  onAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview?: boolean
   ) => void;
-  handleFavoriteClick: (
+  onFavoriteClick: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => void;
-  setPreview: (preview: boolean) => void;
   links: { url: string; text: string }[];
-  deleteCollection: () => void;
-  loadingData: boolean;
+  onDeleteCollection: () => void;
 }
 
+type LegendEntry = { OnlineResource: string };
+
+/** the expanded detail view below a selected card */
 const InfoCard = ({
   isFavorite,
   isActiveLayer,
-  activeLayers,
-  handleAddClick,
-  handleFavoriteClick,
-  setPreview,
+  onAddClick,
+  onFavoriteClick,
   links,
-  deleteCollection,
-  loadingData,
+  onDeleteCollection,
 }: InfoCardProps) => {
-  const { selectedItem: layer, selectItem, requestDiscoverRefetch } =
-    useCatalogSelection();
-  const [messageApi, contextHolder] = message.useMessage();
+  const layer = useCatalogSelectedItem();
+  const { selectItem } = useCatalogSelectionActions();
+  const { requestDiscoverRefetch } = useDiscoverRefetch();
+  const { activeLayers, setPreview } = useCatalogInteraction();
   const { discoverProps } = useLayerCatalogConfig();
-
-  const [editCollection, setEditCollection] = useState(false);
-  const [updatedTitle, setUpdatedTitle] = useState(layer?.title);
-  const [editedDescriptions, setEditedDescriptions] = useState<{
-    [key: string]: string;
-  }>({});
-  const [updatedService, setUpdatedService] = useState(
-    layer?.serviceName || "discoverPoi"
-  );
-  const [updatedThumbnail, setUpdatedThumbnail] = useState(layer?.thumbnail);
-  const [updatedKeywords, setUpdatedKeywords] = useState(layer?.tags || []);
-  const [updatedFile, setUpdatedFile] = useState<File | string | null>(
-    layer?.thumbnail || null
-  );
-  const [keywordInput, setKeywordInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [useNewLayers, setUseNewLayers] = useState(false);
-
-  // Function to reconstruct the original description format from edited descriptions
-  const reconstructDescription = () => {
-    if (Object.keys(editedDescriptions).length === 0) {
-      return description; // Return original if no edits were made
-    }
-
-    let newDescription = "";
-
-    // Use the parsed descriptions to maintain the original order
-    parsedDescriptions.forEach((section) => {
-      const content =
-        editedDescriptions[section.title] !== undefined
-          ? editedDescriptions[section.title]
-          : section.description;
-
-      newDescription += `${section.title}: ${content}\n\n`;
-    });
-
-    return newDescription.trim();
-  };
-
   const { jwt, userGroups } = useAuth();
+  const [messageApi, contextHolder] = message.useMessage();
+
+  const [editing, setEditing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   if (!layer) {
     return null;
   }
-  const { title, description, tags } = layer;
+  const { description, tags } = layer;
   const displayTitle = resolveLayerTitle(layer);
 
   const allowPublishing =
@@ -128,13 +89,17 @@ const InfoCard = ({
     layer.vectorLegendTitle || (carmaConf?.vectorLegendTitle as string);
   const legendTitle = vectorLegendTitle || "Legende";
 
-  const legends =
-    vectorStyle && vectorLegend
+  const legends: LegendEntry[] | undefined =
+    vectorStyle && typeof vectorLegend === "string"
       ? [{ OnlineResource: vectorLegend }]
-      : (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
+      : (
+          layer as {
+            props?: { Style?: Array<{ LegendURL?: LegendEntry[] }> };
+          }
+        ).props?.Style?.[0]?.LegendURL;
   const displayDescription = resolveLayerDescription(layer);
   const parsedDescriptions = parseDescription(
-    editCollection ? description : displayDescription ?? description
+    displayDescription ?? description
   );
   const isVectorLayer = carmaConf?.vectorStyle;
   const canFavoriteItem =
@@ -146,107 +111,36 @@ const InfoCard = ({
   const isArcGisOnline = layer?.name?.startsWith("wuppArcGisOnline_");
   const copyright = layer.copyright;
 
-  const checkForRequiredFields = (config: Item) => {
-    setErrorMessage("");
-    const updatedParsedDescription = parseDescription(config.description);
-    let descriptionEmpty = false;
-    updatedParsedDescription.forEach((section) => {
-      if (
-        (section.title === "Inhalt" || section.title === "Verwendungszweck") &&
-        !section.description
-      ) {
-        descriptionEmpty = true;
-      }
-    });
-    if (!config.title || !config.thumbnail || descriptionEmpty) {
-      return "Bitte alle Pflichtfelder ausfüllen.";
+  // publish the item as it is stored, without entering the edit mode
+  const publishItem = async () => {
+    if (!discoverProps) {
+      return;
     }
-    return "";
-  };
-
-  const updateItem = async (publish?: boolean) => {
-    let fileUrl;
-    const apiUrl = discoverProps?.apiUrl ?? "";
-    if (updatedFile && updatedFile instanceof File) {
-      fileUrl = await uploadImage({
-        file: updatedFile,
-        jwt,
-        apiUrl,
-        messageApi,
-      });
-      if (!fileUrl) return;
-    }
-
-    // Create base config without layers property
     const config = {
       ...layer,
-      description: reconstructDescription(),
-      title: updatedTitle,
-      thumbnail: fileUrl || updatedThumbnail,
-      serviceName: updatedService,
-      tags: updatedKeywords,
       backgroundLayer: activeLayers[0],
-      layers: useNewLayers
-        ? activeLayers.slice(1)
-        : layer.type === "collection"
-        ? layer.layers
-        : [],
-    };
-
-    if (!(!publish && layer.isDraft)) {
-      const error = checkForRequiredFields(config);
-      if (error) {
-        setErrorMessage(error);
-        return;
-      }
+      layers: layer.type === "collection" ? layer.layers : [],
+    } as Item;
+    const error = checkForRequiredDiscoverFields(config);
+    if (error) {
+      setErrorMessage(error);
+      return;
     }
-    setLoading(true);
-    const taskParameters = {
-      parameters: {
-        className: discoverProps?.daqKey ?? "",
-        data: JSON.stringify({
-          id: layer.id,
-          name: updatedTitle,
-          draft: publish ? !publish : layer.isDraft,
-          config: JSON.stringify(config),
-        }),
-      },
-    };
-
-    const fd = new FormData();
-    fd.append(
-      "taskparams",
-      new Blob([JSON.stringify(taskParameters)], {
-        type: "application/json",
-      })
-    );
-    const response = await fetch(
-      apiUrl +
-        "/actions/WUNDA_BLAU.SaveObject/tasks?resultingInstanceType=result",
-      {
-        method: "POST",
-        // method: "GET",
-        headers: {
-          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
-          // Accept: "application/json",
-        },
-        body: fd,
-      }
-    );
-    if (response.status === 200) {
+    setErrorMessage("");
+    setPublishing(true);
+    const saved = await saveDiscoverItem({
+      discoverProps,
+      jwt: jwt || undefined,
+      id: layer.id,
+      name: layer.title,
+      draft: false,
+      config,
+    });
+    setPublishing(false);
+    if (saved) {
       requestDiscoverRefetch();
-      const waitForLoadingToFinish = async () => {
-        while (loadingData) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-        setLoading(false);
-        setEditCollection(false);
-        selectItem(null);
-      };
-
-      waitForLoadingToFinish();
+      selectItem(null);
     } else {
-      setLoading(false);
       messageApi?.open({
         type: "error",
         content: `Es gab einen Fehler beim Speichern der Karte.`,
@@ -262,520 +156,259 @@ const InfoCard = ({
       data-test-id="card-layer-detailed-info"
     >
       {contextHolder}
-      <div className="flex h-full flex-col justify-between">
-        <div className="relative pb-4">
-          <div className="flex flex-wrap gap-4 items-center pr-8">
-            {editCollection ? (
-              <Input
-                value={updatedTitle}
-                onChange={(e) => {
-                  setUpdatedTitle(e.target.value);
-                }}
-                className="w-fit bg-white"
-              />
-            ) : (
+      {editing && isDiscoverItem ? (
+        <DiscoverItemEditor layer={layer} onCancel={() => setEditing(false)} />
+      ) : (
+        <div className="flex h-full flex-col justify-between">
+          <div className="relative pb-4">
+            <div className="flex flex-wrap gap-4 items-center pr-8">
               <h3 className="mb-0 truncate leading-10 text-xl sm:text-2xl">
                 {displayTitle}
               </h3>
-            )}
-            <div className="flex flex-wrap items-center gap-4">
-              {(layer.type === "layer" || layer.type === "object") && (
-                <Button
-                  onClick={handleAddClick}
-                  icon={
-                    <FontAwesomeIcon
-                      icon={isActiveLayer ? faCircleMinus : faCirclePlus}
-                    />
-                  }
-                >
-                  <span className="!hidden sm:!inline-block">
-                    {isActiveLayer ? "Entfernen" : "Hinzufügen"}
-                  </span>
-                </Button>
-              )}
-              {layer.type === "collection" && (
-                <>
+              <div className="flex flex-wrap items-center gap-4">
+                {(layer.type === "layer" || layer.type === "object") && (
                   <Button
-                    onClick={handleAddClick}
-                    icon={<FontAwesomeIcon icon={faSquareUpRight} />}
-                  >
-                    <span className="!hidden sm:!inline-block">Laden</span>
-                  </Button>
-                  {!layer.serviceName.includes("discover") && (
-                    <Button
-                      onClick={deleteCollection}
-                      icon={<FontAwesomeIcon icon={faTrash} />}
-                    >
-                      <span className="!hidden sm:!inline-block">Löschen</span>
-                    </Button>
-                  )}
-                </>
-              )}
-              {layer.serviceName === "measurements" && (
-                <Button
-                  onClick={deleteCollection}
-                  icon={<FontAwesomeIcon icon={faTrash} />}
-                >
-                  <span className="!hidden sm:!inline-block">Löschen</span>
-                </Button>
-              )}
-              {layer.type === "link" && (
-                <Button
-                  href={layer.url}
-                  target="_topicMaps"
-                  icon={<FontAwesomeIcon icon={faExternalLink} />}
-                >
-                  <span className="!hidden sm:!inline-block">Öffnen</span>
-                </Button>
-              )}
-              {canFavoriteItem && (
-                <Button
-                  onClick={handleFavoriteClick}
-                  icon={<FontAwesomeIcon icon={faStar} />}
-                >
-                  <span className="!hidden sm:!inline-block">
-                    {isFavorite ? "Favorit entfernen" : "Favorisieren"}
-                  </span>
-                </Button>
-              )}
-              {allowPublishing && isDiscoverItem && (
-                <>
-                  {layer.isDraft && (
-                    <Button
-                      icon={<FontAwesomeIcon icon={faUpload} />}
-                      onClick={() => updateItem(true)}
-                    >
-                      Publizieren
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => {
-                      if (editCollection) {
-                        updateItem();
-                      } else {
-                        setEditCollection(true);
-                      }
-                    }}
+                    onClick={onAddClick}
                     icon={
                       <FontAwesomeIcon
-                        icon={editCollection ? faSave : faEdit}
+                        icon={isActiveLayer ? faCircleMinus : faCirclePlus}
                       />
                     }
-                    loading={loading}
                   >
                     <span className="!hidden sm:!inline-block">
-                      {editCollection ? "Speichern" : "Bearbeiten"}
+                      {isActiveLayer ? "Entfernen" : "Hinzufügen"}
                     </span>
                   </Button>
-                  {editCollection ? (
+                )}
+                {layer.type === "collection" && (
+                  <>
                     <Button
-                      icon={<FontAwesomeIcon icon={faBan} />}
-                      onClick={() => {
-                        setEditCollection(false);
-                        setErrorMessage("");
-                      }}
+                      onClick={onAddClick}
+                      icon={<FontAwesomeIcon icon={faSquareUpRight} />}
                     >
-                      Abbrechen
+                      <span className="!hidden sm:!inline-block">Laden</span>
                     </Button>
-                  ) : (
+                    {!layer.serviceName.includes("discover") && (
+                      <Button
+                        onClick={onDeleteCollection}
+                        icon={<FontAwesomeIcon icon={faTrash} />}
+                      >
+                        <span className="!hidden sm:!inline-block">
+                          Löschen
+                        </span>
+                      </Button>
+                    )}
+                  </>
+                )}
+                {layer.serviceName === "measurements" && (
+                  <Button
+                    onClick={onDeleteCollection}
+                    icon={<FontAwesomeIcon icon={faTrash} />}
+                  >
+                    <span className="!hidden sm:!inline-block">Löschen</span>
+                  </Button>
+                )}
+                {layer.type === "link" && (
+                  <Button
+                    href={layer.url}
+                    target="_topicMaps"
+                    icon={<FontAwesomeIcon icon={faExternalLink} />}
+                  >
+                    <span className="!hidden sm:!inline-block">Öffnen</span>
+                  </Button>
+                )}
+                {canFavoriteItem && (
+                  <Button
+                    onClick={onFavoriteClick}
+                    icon={<FontAwesomeIcon icon={faStar} />}
+                  >
+                    <span className="!hidden sm:!inline-block">
+                      {isFavorite ? "Favorit entfernen" : "Favorisieren"}
+                    </span>
+                  </Button>
+                )}
+                {allowPublishing && isDiscoverItem && (
+                  <>
+                    {layer.isDraft && (
+                      <Button
+                        icon={<FontAwesomeIcon icon={faUpload} />}
+                        onClick={publishItem}
+                        loading={publishing}
+                      >
+                        Publizieren
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => setEditing(true)}
+                      icon={<FontAwesomeIcon icon={faEdit} />}
+                    >
+                      <span className="!hidden sm:!inline-block">
+                        Bearbeiten
+                      </span>
+                    </Button>
                     <Button
                       type="primary"
                       danger
                       icon={<FontAwesomeIcon icon={faTrash} />}
-                      onClick={() => deleteCollection()}
+                      onClick={onDeleteCollection}
                     >
                       Löschen
                     </Button>
-                  )}
-                </>
-              )}
-              {layer.type === "layer" && (
-                <Button
-                  onClick={(e) => {
-                    setPreview(true);
-                    handleAddClick(e, true);
-                  }}
-                  icon={<FontAwesomeIcon icon={faMap} />}
-                >
-                  <span className="!hidden sm:!inline-block">Vorschau</span>
-                </Button>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              selectItem(null);
-            }}
-            className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1 absolute top-2 right-0"
-          >
-            <FontAwesomeIcon icon={faX} />
-          </button>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full h-full overflow-hidden">
-          <div className="w-full flex flex-col justify-between overflow-auto">
-            <div>
-              {errorMessage && (
-                <div className="text-red-500">{errorMessage}</div>
-              )}
-
-              {editCollection && (
-                <div>
-                  <label
-                    htmlFor="service"
-                    className="font-semibold text-lg pt-2 mb-1"
+                  </>
+                )}
+                {layer.type === "layer" && (
+                  <Button
+                    onClick={(e) => {
+                      setPreview(true);
+                      onAddClick(e, true);
+                    }}
+                    icon={<FontAwesomeIcon icon={faMap} />}
                   >
-                    Kategorie
-                    <span className="text-red-500"> *</span>
-                  </label>
-                  <br />
-                  <Select
-                    options={serviceOptions}
-                    onChange={(value) => setUpdatedService(value)}
-                    value={updatedService}
-                    className="w-40"
-                    id="service"
-                  />
-                </div>
-              )}
-              {parsedDescriptions.map((description, i) => {
-                if (description.title === "Sichtbarkeit") {
-                  return null;
-                }
-                return (
-                  <Fragment key={`description_${i}`}>
-                    <label
-                      htmlFor={description.title}
-                      className="font-semibold text-lg mb-1 pt-2"
-                    >
-                      {description.title}
-                      {editCollection && (
-                        <span className="text-red-500"> *</span>
-                      )}
-                    </label>
-                    {editCollection ? (
-                      <Input.TextArea
-                        id={description.title}
-                        value={
-                          editedDescriptions[description.title] !== undefined
-                            ? editedDescriptions[description.title]
-                            : description.description
-                        }
-                        onChange={(e) => {
-                          setEditedDescriptions((prev) => ({
-                            ...prev,
-                            [description.title]: e.target.value,
-                          }));
-                        }}
-                        className="bg-white"
-                      />
-                    ) : (
+                    <span className="!hidden sm:!inline-block">Vorschau</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                selectItem(null);
+              }}
+              className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1 absolute top-2 right-0"
+            >
+              <FontAwesomeIcon icon={faX} />
+            </button>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full h-full overflow-hidden">
+            <div className="w-full flex flex-col justify-between overflow-auto">
+              <div>
+                {errorMessage && (
+                  <div className="text-red-500">{errorMessage}</div>
+                )}
+
+                {parsedDescriptions.map((section, i) => {
+                  if (section.title === "Sichtbarkeit") {
+                    return null;
+                  }
+                  return (
+                    <Fragment key={`description_${i}`}>
+                      <label
+                        htmlFor={section.title}
+                        className="font-semibold text-lg mb-1 pt-2"
+                      >
+                        {section.title}
+                      </label>
                       <p
                         className="text-base text-gray-600"
                         dangerouslySetInnerHTML={{
-                          __html: description.description,
+                          __html: section.description,
                         }}
                       />
-                    )}
-                  </Fragment>
-                );
-              })}
-              {editCollection && (
-                <>
-                  <div className="flex gap-6 items-center">
-                    <div>
-                      <h5 className="font-semibold text-lg pt-2 mb-1">
-                        Kartenebenen
-                        <Tooltip
-                          title={
-                            useNewLayers
-                              ? "zurücksetzen auf gespeicherte Kartenebenen"
-                              : "aktuelle Kartenebenen übernehmen"
-                          }
-                        >
-                          <Button
-                            className="ml-2"
-                            disabled={
-                              layer?.type === "collection" &&
-                              isEqual(
-                                [layer.backgroundLayer, ...layer.layers]
-                                  .filter(
-                                    (l): l is BackgroundLayer | Layer =>
-                                      l !== undefined
-                                  )
-                                  .map((l) => {
-                                    return {
-                                      title: l.title,
-                                      opacity: l.opacity,
-                                      id: l.id,
-                                    };
-                                  }),
-                                activeLayers.map((l) => {
-                                  return {
-                                    title: l.title,
-                                    opacity: l.opacity,
-                                    id: l.id,
-                                  };
-                                })
-                              )
-                            }
-                            icon={
-                              <FontAwesomeIcon
-                                className={useNewLayers ? "" : "fa-rotate-180"}
-                                icon={
-                                  useNewLayers ? faRotateLeft : faSquareUpRight
-                                }
-                              />
-                            }
-                            onClick={() => {
-                              setUseNewLayers(!useNewLayers);
-                            }}
-                          />
-                        </Tooltip>
-                      </h5>
-
-                      <div className="flex gap-2">
-                        {layer.type === "collection" &&
-                          (!useNewLayers ? (
-                            <>
-                              {layer.backgroundLayer && (
-                                <LayerButton
-                                  key={layer.id}
-                                  classNames={["px-3"]}
-                                  useShadow={false}
-                                >
-                                  <LayerIcon layer={layer.backgroundLayer} />
-                                  <span className="text-base ml-1">
-                                    {layer.backgroundLayer?.title}
-                                  </span>
-                                  {layer.backgroundLayer?.opacity !== 1 && (
-                                    <span className="text-base ml-1 text-gray-500">
-                                      ({layer.backgroundLayer?.opacity * 100}%)
-                                    </span>
-                                  )}
-                                </LayerButton>
-                              )}
-                              {layer.layers.map((layer) => (
-                                <LayerButton
-                                  key={layer.id}
-                                  classNames={["px-3"]}
-                                  useShadow={false}
-                                >
-                                  <LayerIcon
-                                    layer={layer}
-                                    fallbackIcon={layer.icon}
-                                  />
-                                  <span className="text-base ml-1">
-                                    {layer.title}
-                                  </span>
-                                  {layer.opacity !== 1 && (
-                                    <span className="text-base ml-1 text-gray-500">
-                                      ({layer.opacity * 100}%)
-                                    </span>
-                                  )}
-                                </LayerButton>
-                              ))}
-                            </>
-                          ) : (
-                            activeLayers.map((layer) => (
-                              <LayerButton
-                                key={layer.id}
-                                classNames={["px-3"]}
-                                useShadow={false}
-                              >
-                                <LayerIcon
-                                  layer={layer}
-                                  fallbackIcon={layer.icon}
-                                />
-                                <span className="text-base ml-1">
-                                  {layer.title}
-                                </span>
-                                {layer.opacity !== 1 && (
-                                  <span className="text-base ml-1 text-gray-500">
-                                    ({layer.opacity * 100}%)
-                                  </span>
-                                )}
-                              </LayerButton>
-                            ))
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                  <br />
-                  <label
-                    htmlFor="thumbnail"
-                    className="font-semibold text-lg pt-2 mb-1"
-                  >
-                    Vorschaubild
-                    <span className="text-red-500"> *</span>
-                  </label>
-                  <div className="w-1/3 hide-tabs">
-                    <Tabs
-                      defaultActiveKey="1"
-                      items={[
-                        {
-                          key: "1",
-                          label: "Datei",
-                          children: (
-                            <FileUploader
-                              file={updatedFile}
-                              setFile={setUpdatedFile}
-                            />
-                          ),
-                        },
-                        {
-                          key: "2",
-                          label: "URL",
-                          children: (
-                            <Input
-                              className="bg-white"
-                              value={updatedThumbnail}
-                              onChange={(e) =>
-                                setUpdatedThumbnail(e.target.value)
-                              }
-                              id="thumbnail"
-                            />
-                          ),
-                        },
-                      ]}
-                    />
-                  </div>
-                  <label
-                    htmlFor="tags"
-                    className="font-semibold text-lg pt-2 mb-1"
-                  >
-                    Schlüsselwörter
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      onChange={(e) => setKeywordInput(e.target.value)}
-                      value={keywordInput}
-                      className="bg-white"
-                      placeholder="Schlüsselwort hinzufügen"
-                    />
-                    <Button
-                      onClick={() => {
-                        setUpdatedKeywords([...updatedKeywords, keywordInput]);
-                        setKeywordInput("");
-                      }}
-                      icon={<FontAwesomeIcon icon={faPlus} />}
-                    >
-                      Hinzufügen
-                    </Button>
-                  </div>
-                </>
-              )}
-              {isGenericTopicMap && (
-                <>
-                  <h5 className="font-semibold text-lg">Implementierung</h5>
-                  <p className="text-base text-gray-600">
-                    Themenspezifische Kartenanwendung im Framework{" "}
-                    <a href="https://github.com/cismet/carma">carma</a>, durch
-                    Anpassen von Konfigurationsdateien aus den Daten und
-                    Methoden des DigiTal Zwillings abgeleitet ("Generic
-                    TopicMap").
-                  </p>
-                </>
-              )}
-              {isTopicMap && (
-                <>
-                  <h5 className="font-semibold text-lg">Implementierung</h5>
-                  <p className="text-base text-gray-600">
-                    Themenspezifische Kartenanwendung im Framework{" "}
-                    <a href="https://github.com/cismet/carma">carma</a>, durch
-                    spezifische Programmierung aus den Daten und Methoden des
-                    DigiTal Zwillings abgeleitet.
-                  </p>
-                </>
-              )}
-              {isArcGisOnline && (
-                <>
-                  <h5 className="font-semibold text-lg">Implementierung</h5>
-                  <p className="text-base text-gray-600">
-                    Interaktive 3D-Szene realisiert mit ArcGIS Online auf Basis
-                    von Daten des DigiTal Zwillings.
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-          {(links.length > 0 || copyright) && (
-            <>
-              <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
-              <div className="flex flex-col gap-0 sm:w-1/4 w-full">
-                {links.length > 0 && (
-                  <h5 className="font-semibold text-lg">Links</h5>
-                )}
-                {links.map((link, i) => (
-                  <a
-                    key={`link_${i}`}
-                    href={link.url}
-                    target="_blank"
-                    className="pb-2"
-                  >
-                    {link.text}
-                  </a>
-                ))}
-                {copyright && (
+                    </Fragment>
+                  );
+                })}
+                {isGenericTopicMap && (
                   <>
-                    <h5 className="font-semibold text-lg">Bildnachweis</h5>
-                    <p className="text-base text-gray-600">{copyright}</p>
+                    <h5 className="font-semibold text-lg">Implementierung</h5>
+                    <p className="text-base text-gray-600">
+                      Themenspezifische Kartenanwendung im Framework{" "}
+                      <a href="https://github.com/cismet/carma">carma</a>,
+                      durch Anpassen von Konfigurationsdateien aus den Daten
+                      und Methoden des DigiTal Zwillings abgeleitet ("Generic
+                      TopicMap").
+                    </p>
+                  </>
+                )}
+                {isTopicMap && (
+                  <>
+                    <h5 className="font-semibold text-lg">Implementierung</h5>
+                    <p className="text-base text-gray-600">
+                      Themenspezifische Kartenanwendung im Framework{" "}
+                      <a href="https://github.com/cismet/carma">carma</a>,
+                      durch spezifische Programmierung aus den Daten und
+                      Methoden des DigiTal Zwillings abgeleitet.
+                    </p>
+                  </>
+                )}
+                {isArcGisOnline && (
+                  <>
+                    <h5 className="font-semibold text-lg">Implementierung</h5>
+                    <p className="text-base text-gray-600">
+                      Interaktive 3D-Szene realisiert mit ArcGIS Online auf
+                      Basis von Daten des DigiTal Zwillings.
+                    </p>
                   </>
                 )}
               </div>
-            </>
-          )}
-          {legends && (
-            <>
-              <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
-              <div className="flex flex-col gap-0 sm:w-1/4 w-full">
-                <h5 className="font-semibold text-lg">{legendTitle}</h5>
-                <div className="h-full overflow-auto">
-                  {legends?.map((legend, i) => (
-                    <LegendDisplay
-                      key={`legend_${i}`}
-                      url={legend.OnlineResource}
-                      updateUrl
-                    />
+            </div>
+            {(links.length > 0 || copyright) && (
+              <>
+                <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
+                <div className="flex flex-col gap-0 sm:w-1/4 w-full">
+                  {links.length > 0 && (
+                    <h5 className="font-semibold text-lg">Links</h5>
+                  )}
+                  {links.map((link, i) => (
+                    <a
+                      key={`link_${i}`}
+                      href={link.url}
+                      target="_blank"
+                      className="pb-2"
+                    >
+                      {link.text}
+                    </a>
                   ))}
+                  {copyright && (
+                    <>
+                      <h5 className="font-semibold text-lg">Bildnachweis</h5>
+                      <p className="text-base text-gray-600">{copyright}</p>
+                    </>
+                  )}
                 </div>
-              </div>
-            </>
-          )}
-          {(layer.createdAt || layer.createdBy || layer.updatedAt) && (
-            <>
-              <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
-              <div className="flex flex-col gap-0 sm:w-1/4 w-full">
-                <h5 className="font-semibold text-lg">Bearbeitungsvermerk</h5>
-                {layer.createdBy && (
-                  <p className="text-base text-gray-600 mb-1">
-                    Erstellt von: {layer.createdBy}
-                  </p>
-                )}
-                {layer.createdAt && (
-                  <p className="text-base text-gray-600 mb-1">
-                    Erstellt am:{" "}
-                    {new Date(layer.createdAt).toLocaleDateString("de-DE")}
-                  </p>
-                )}
-                {layer.updatedAt && (
-                  <p className="text-base text-gray-600 mb-1">
-                    Aktualisiert am:{" "}
-                    {new Date(layer.updatedAt).toLocaleDateString("de-DE")}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        {editCollection ? (
-          <div className="pt-2">
-            <TagSelector
-              keywords={updatedKeywords}
-              setKeywords={setUpdatedKeywords}
-              showAddButton={false}
-            />
+              </>
+            )}
+            {legends && (
+              <>
+                <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
+                <div className="flex flex-col gap-0 sm:w-1/4 w-full">
+                  <h5 className="font-semibold text-lg">{legendTitle}</h5>
+                  <div className="h-full overflow-auto">
+                    {legends?.map((legend, i) => (
+                      <LegendDisplay
+                        key={`legend_${i}`}
+                        url={legend.OnlineResource}
+                        updateUrl
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+            {(layer.createdAt || layer.createdBy || layer.updatedAt) && (
+              <>
+                <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
+                <div className="flex flex-col gap-0 sm:w-1/4 w-full">
+                  <h5 className="font-semibold text-lg">Bearbeitungsvermerk</h5>
+                  {layer.createdBy && (
+                    <p className="text-base text-gray-600 mb-1">
+                      Erstellt von: {layer.createdBy}
+                    </p>
+                  )}
+                  {layer.createdAt && (
+                    <p className="text-base text-gray-600 mb-1">
+                      Erstellt am:{" "}
+                      {new Date(layer.createdAt).toLocaleDateString("de-DE")}
+                    </p>
+                  )}
+                  {layer.updatedAt && (
+                    <p className="text-base text-gray-600 mb-1">
+                      Aktualisiert am:{" "}
+                      {new Date(layer.updatedAt).toLocaleDateString("de-DE")}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
-        ) : (
           <p
             style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}
             className="mb-0"
@@ -793,8 +426,8 @@ const InfoCard = ({
               </span>
             )}
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

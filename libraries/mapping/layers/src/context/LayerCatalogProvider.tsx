@@ -234,15 +234,14 @@ export interface CatalogDataContextValue extends CatalogDataActions {
   replaceLayers: ExtendedItem[];
 }
 
-interface CatalogSelectionActions {
+export interface CatalogSelectionActions {
   selectItem: (item: Item | null) => void;
-  requestDiscoverRefetch: () => void;
-  markDiscoverRefetchHandled: () => void;
 }
 
-export interface CatalogSelectionContextValue extends CatalogSelectionActions {
-  selectedItem: Item | null;
+export interface CatalogDiscoverRefetchContextValue {
   discoverRefetchRequested: boolean;
+  requestDiscoverRefetch: () => void;
+  markDiscoverRefetchHandled: () => void;
 }
 
 interface CatalogFavoritesActions {
@@ -259,8 +258,14 @@ export interface LayerCatalogContextValue extends CatalogFavoritesActions {
 }
 
 const CatalogDataContext = createContext<CatalogDataContextValue | null>(null);
-const CatalogSelectionContext =
-  createContext<CatalogSelectionContextValue | null>(null);
+// selection state, selection actions and discover-refetch coordination live in
+// separate contexts so pure action consumers (the whole catalog view) do not
+// re-render on every selection change
+const CatalogSelectedItemContext = createContext<Item | null>(null);
+const CatalogSelectionActionsContext =
+  createContext<CatalogSelectionActions | null>(null);
+const CatalogDiscoverRefetchContext =
+  createContext<CatalogDiscoverRefetchContextValue | null>(null);
 const CatalogFavoritesContext = createContext<LayerCatalogContextValue | null>(
   null
 );
@@ -276,10 +281,25 @@ export const useCatalogData = (): CatalogDataContextValue => {
   return value;
 };
 
-export const useCatalogSelection = (): CatalogSelectionContextValue => {
-  const value = useContext(CatalogSelectionContext);
+/** the currently selected item (InfoCard); re-renders per selection change */
+export const useCatalogSelectedItem = (): Item | null =>
+  useContext(CatalogSelectedItemContext);
+
+/** identity-stable selection actions; never causes re-renders */
+export const useCatalogSelectionActions = (): CatalogSelectionActions => {
+  const value = useContext(CatalogSelectionActionsContext);
   if (!value) {
-    throw new Error("useCatalogSelection requires a LayerCatalogProvider");
+    throw new Error(
+      "useCatalogSelectionActions requires a LayerCatalogProvider"
+    );
+  }
+  return value;
+};
+
+export const useDiscoverRefetch = (): CatalogDiscoverRefetchContextValue => {
+  const value = useContext(CatalogDiscoverRefetchContext);
+  if (!value) {
+    throw new Error("useDiscoverRefetch requires a LayerCatalogProvider");
   }
   return value;
 };
@@ -355,12 +375,18 @@ const CatalogStateProvider = ({
   const selectionActions = useMemo<CatalogSelectionActions>(
     () => ({
       selectItem: (item) => dispatch({ type: "itemSelected", item }),
+    }),
+    []
+  );
+  const discoverRefetchValue = useMemo<CatalogDiscoverRefetchContextValue>(
+    () => ({
+      discoverRefetchRequested: state.discoverRefetchRequested,
       requestDiscoverRefetch: () =>
         dispatch({ type: "discoverRefetchRequested" }),
       markDiscoverRefetchHandled: () =>
         dispatch({ type: "discoverRefetchHandled" }),
     }),
-    []
+    [state.discoverRefetchRequested]
   );
   const favoritesActions = useMemo<CatalogFavoritesActions>(
     () => ({
@@ -370,6 +396,36 @@ const CatalogStateProvider = ({
     }),
     []
   );
+
+  // reconcile stored favorites with the freshly derived layer definitions
+  // once every service answered (a favorited layer may have changed upstream)
+  useEffect(() => {
+    const allLayersLoaded =
+      state.serviceCategories.length > 0 &&
+      state.serviceCategories.every(
+        (category) => category.layers.length > 0
+      );
+    if (!allLayersLoaded) {
+      return;
+    }
+    state.favorites.forEach((favorite) => {
+      const serviceCategory = state.serviceCategories.find(
+        (category) => category.id === favorite.service?.name
+      );
+      if (!serviceCategory) {
+        return;
+      }
+      const foundLayer = serviceCategory.layers.find(
+        (serviceLayer) => serviceLayer.id === favorite.id.slice(4)
+      );
+      if (
+        foundLayer &&
+        !isEqual(foundLayer, { ...favorite, id: foundLayer.id })
+      ) {
+        dispatch({ type: "favoriteUpdated", item: foundLayer });
+      }
+    });
+  }, [state.serviceCategories, state.favorites]);
 
   const dataValue = useMemo<CatalogDataContextValue>(
     () => ({
@@ -387,14 +443,6 @@ const CatalogStateProvider = ({
       dataActions,
     ]
   );
-  const selectionValue = useMemo<CatalogSelectionContextValue>(
-    () => ({
-      selectedItem: state.selectedItem,
-      discoverRefetchRequested: state.discoverRefetchRequested,
-      ...selectionActions,
-    }),
-    [state.selectedItem, state.discoverRefetchRequested, selectionActions]
-  );
   const favoritesValue = useMemo<LayerCatalogContextValue>(
     () => ({
       favorites: state.favorites,
@@ -406,11 +454,15 @@ const CatalogStateProvider = ({
 
   return (
     <CatalogDataContext.Provider value={dataValue}>
-      <CatalogSelectionContext.Provider value={selectionValue}>
-        <CatalogFavoritesContext.Provider value={favoritesValue}>
-          {children}
-        </CatalogFavoritesContext.Provider>
-      </CatalogSelectionContext.Provider>
+      <CatalogSelectionActionsContext.Provider value={selectionActions}>
+        <CatalogSelectedItemContext.Provider value={state.selectedItem}>
+          <CatalogDiscoverRefetchContext.Provider value={discoverRefetchValue}>
+            <CatalogFavoritesContext.Provider value={favoritesValue}>
+              {children}
+            </CatalogFavoritesContext.Provider>
+          </CatalogDiscoverRefetchContext.Provider>
+        </CatalogSelectedItemContext.Provider>
+      </CatalogSelectionActionsContext.Provider>
     </CatalogDataContext.Provider>
   );
 };

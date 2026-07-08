@@ -20,4 +20,17 @@ if (typeof window !== "undefined") {
     unobserve() {}
     disconnect() {}
   };
+
+  window.IntersectionObserver ??= class IntersectionObserver {
+    root = null;
+    rootMargin = "";
+    thresholds = [];
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 }

@@ -298,6 +298,18 @@ export type Config = {
 
 export type ExtendedItem = Item & { replaceId?: string; mergeId?: string };
 
+/** the map's current layer stack: background layer first, overlays after it */
+export type ActiveLayers = [BackgroundLayer, ...Layer[]];
+
+/** host callback that applies, removes or updates a catalog item on the map */
+export type SetAdditionalLayers = (
+  layer: Item,
+  deleteItem?: boolean,
+  forceWMS?: boolean,
+  previewLayer?: boolean,
+  updateExisting?: boolean
+) => void | Promise<void>;
+
 export type Item = {
   title: string;
   description: string;

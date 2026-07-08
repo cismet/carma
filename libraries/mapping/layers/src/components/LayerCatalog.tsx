@@ -1,73 +1,81 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useReducer, useState } from "react";
-import { isEqual } from "lodash";
-import { useHandleDrop } from "../hooks/useHandleDrop";
-import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
-import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
-import type { LayerCatalogConfig } from "../config/layerCatalogConfig";
-import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import {
-  LayerCatalogProvider,
-  useCatalogData,
-  useCatalogSelection,
-  useCategoryDefinitions,
-  useIsInsideLayerCatalogProvider,
-  useLayerCatalog,
-} from "../context/LayerCatalogProvider";
-import {
-  resolveCustomCategories,
-  type CustomCategoryDefinition,
-} from "../config/categoryDefinitions";
-
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { useQuery } from "@tanstack/react-query";
 import { faTriangleExclamation, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { LoadingOutlined } from "@ant-design/icons";
-import { Button, Input, Modal, Spin } from "antd";
-import type {
-  BackgroundLayer,
-  Item,
-  Layer,
-  SavedLayerConfig,
-} from "../lib/contracts/carma-layers.d";
+import { Button, Spin } from "antd";
+
 import { useAuth } from "@carma-providers/auth";
 import {
   useFeatureFlags,
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
+import type {
+  ActiveLayers,
+  Item,
+  Layer,
+  SavedLayerConfig,
+  SetAdditionalLayers,
+} from "../lib/contracts/carma-layers.d";
+import type { LayerCatalogConfig } from "../config/layerCatalogConfig";
+import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
+import {
+  LayerCatalogProvider,
+  useCatalogData,
+  useCatalogSelectionActions,
+  useCategoryDefinitions,
+  useDiscoverRefetch,
+  useIsInsideLayerCatalogProvider,
+  useLayerCatalog,
+} from "../context/LayerCatalogProvider";
+import {
+  CatalogInteractionProvider,
+  type CatalogInteractionContextValue,
+} from "../context/CatalogInteractionContext";
+import {
+  resolveCustomCategories,
+  type CustomCategoryDefinition,
+} from "../config/categoryDefinitions";
 import {
   applyCatalogDrop,
   buildCatalog,
   EMPTY_DROPPED_CATALOG,
 } from "../helper/buildCatalog";
-import LayerTabs from "./LayerTabs";
-import { SidebarItem } from "./SidebarItems";
-
-import ItemGrid from "./ItemGrid";
 import { fetchDiscoverItems } from "../helper/discover";
-
-import "./input.css";
-import "./modal.css";
-import ItemSkeleton from "./ItemSkeleton";
-import SystemMessageBanner from "./SystemMessageBanner";
-import { useQuery } from "@tanstack/react-query";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import {
+  countCategoryLayers,
+  getShownCategories,
+} from "../helper/categoryDisplay";
 import {
   findFirstCategoryIdWithResults,
   useCatalogSearch,
-  type CatalogSubCategory,
 } from "../hooks/useCatalogSearch";
+import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
+import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
+import { useHandleDrop } from "../hooks/useHandleDrop";
+import { useScrollSpy } from "../hooks/useScrollSpy";
 
-const { Search } = Input;
-
-type LayerCategories = CatalogSubCategory;
-
-export type ActiveLayers = [BackgroundLayer, ...Layer[]];
+import ModalShell from "./ModalShell";
+import CategorySidebar, { type SidebarEntry } from "./CategorySidebar";
+import CatalogSearch from "./CatalogSearch";
+import CategoryTabs from "./CategoryTabs";
+import CatalogGrid from "./CatalogGrid";
+import ItemSkeleton from "./ItemSkeleton";
+import SystemMessageBanner from "./SystemMessageBanner";
 
 export interface LayerCatalogProps {
   open: boolean;
   setOpen: (open: boolean) => void;
-  setAdditionalLayers: any;
+  setAdditionalLayers: SetAdditionalLayers;
   /** host-owned saved collections, shown as favorited alongside the items */
   savedCollections?: SavedLayerConfig[];
   onAddCollection?: (layer: Item) => void;
@@ -106,11 +114,11 @@ const LayerCatalogView = ({
   const categoryDefinitions = useCategoryDefinitions();
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [preview, setPreview] = useState(false);
-  const { serviceCategories } = useCatalogData();
-  const { selectItem, discoverRefetchRequested, markDiscoverRefetchHandled } =
-    useCatalogSelection();
-  const { favorites, addFavorite, removeFavorite, updateFavorite } =
-    useLayerCatalog();
+  const { serviceCategories, loadingCapabilities } = useCatalogData();
+  const { selectItem } = useCatalogSelectionActions();
+  const { discoverRefetchRequested, markDiscoverRefetchHandled } =
+    useDiscoverRefetch();
+  const { favorites, addFavorite, removeFavorite } = useLayerCatalog();
 
   // collections stay host-owned (saved layer configs); everything else goes
   // through the provider favorites
@@ -118,20 +126,26 @@ const LayerCatalogView = ({
     () => [...favorites, ...(savedCollections ?? [])],
     [favorites, savedCollections]
   );
-  const handleAddFavorite = (layer: Item) => {
-    if (layer.type === "collection") {
-      onAddCollection?.(layer);
-    } else {
-      addFavorite(layer);
-    }
-  };
-  const handleRemoveFavorite = (layer: Item) => {
-    if (layer.type === "collection") {
-      onRemoveCollection?.(layer);
-    } else {
-      removeFavorite(layer);
-    }
-  };
+  const handleAddFavorite = useCallback(
+    (layer: Item) => {
+      if (layer.type === "collection") {
+        onAddCollection?.(layer);
+      } else {
+        addFavorite(layer);
+      }
+    },
+    [onAddCollection, addFavorite]
+  );
+  const handleRemoveFavorite = useCallback(
+    (layer: Item) => {
+      if (layer.type === "collection") {
+        onRemoveCollection?.(layer);
+      } else {
+        removeFavorite(layer);
+      }
+    },
+    [onRemoveCollection, removeFavorite]
+  );
 
   // registry-default subcategories (favorites section etc.) extended by the
   // host's customCategories prop; host entries override defaults by id
@@ -181,7 +195,7 @@ const LayerCatalogView = ({
   const discoverProps = catalogConfig.discoverProps;
   const {
     data: discoverItems,
-    isFetching: loadingData,
+    isFetching: discoverIsFetching,
     isError: discoverHasError,
     error: rawDiscoverError,
     refetch: refetchDiscoverItems,
@@ -275,9 +289,70 @@ const LayerCatalogView = ({
     isSearching,
     filteredCategories,
   } = useCatalogSearch({ allCategories, disabledCategoryIds });
-  const [currentShownCategory, setCurrentShownCategory] = useState(
-    filteredCategories[0]?.id
+
+  const currentDefinition = sidebarElements[selectedNavItemIndex];
+  const isSearchCategory = currentDefinition.source === "searchResults";
+  const isDiscoverCategory = currentDefinition.source === "discover";
+  const loadingCurrentCategory =
+    (currentDefinition.source === "serviceLayers" && loadingCapabilities) ||
+    (isDiscoverCategory && discoverIsFetching);
+
+  const shownCategories = useMemo(
+    () =>
+      getShownCategories(
+        filteredCategories,
+        currentDefinition.id,
+        sidebarElements,
+        searchValue
+      ),
+    [filteredCategories, currentDefinition.id, sidebarElements, searchValue]
   );
+
+  const sidebarEntries = useMemo<SidebarEntry[]>(
+    () =>
+      sidebarElements.map((element) => ({
+        id: element.id,
+        label: element.label,
+        icon: element.icon,
+        disabled:
+          (element.source === "searchResults" && !searchValue) ||
+          element.disabled,
+        count:
+          isSearching || !searchValue
+            ? 0
+            : countCategoryLayers(
+                getShownCategories(
+                  filteredCategories,
+                  element.id,
+                  sidebarElements,
+                  searchValue
+                )
+              ),
+        showCount: !!searchValue && !!debouncedSearchTerm,
+      })),
+    [
+      sidebarElements,
+      filteredCategories,
+      searchValue,
+      isSearching,
+      debouncedSearchTerm,
+    ]
+  );
+
+  // the tab highlight follows the section scrolled into view
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const sectionIds = useMemo(
+    () =>
+      (shownCategories ?? [])
+        .filter((category) => category.layers.length > 0)
+        .map((category) => category.Title),
+    [shownCategories]
+  );
+  const { activeId: currentShownCategory, scrollToSection } = useScrollSpy({
+    containerRef: scrollContainerRef,
+    sectionIds,
+    enabled: open && showItems,
+  });
 
   useEffect(() => {
     const error = rawDiscoverError as (Error & { status?: number }) | null;
@@ -302,13 +377,13 @@ const LayerCatalogView = ({
   }, [discoverRefetchRequested]);
 
   useEffect(() => {
-    if (!loadingData) {
+    if (!discoverIsFetching) {
       setDelayedLoading(false);
       return;
     }
     const timer = setTimeout(() => setDelayedLoading(true), 750);
     return () => clearTimeout(timer);
-  }, [loadingData]);
+  }, [discoverIsFetching]);
 
   // when the selected sidebar entry becomes disabled (3D switch, category
   // emptied), move the selection to the first sensible entry
@@ -341,20 +416,16 @@ const LayerCatalogView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sidebarElements]);
 
-  const getNumOfCustomLayers = () => {
-    return resolvedCustomCategories.reduce((acc, category) => {
-      return acc + category.layers.length;
-    }, 0);
-  };
-
+  // an active search jumps to the first category with results when the
+  // selected one has none
   useEffect(() => {
     if (!debouncedSearchTerm) {
       return;
     }
-    const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
-    if (selectedCategoryId === "searchResults") {
+    if (sidebarElements[selectedNavItemIndex].source === "searchResults") {
       return;
     }
+    const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
     const selectedCategoryHasResults = filteredCategories.some(
       (category) =>
         category.id === selectedCategoryId &&
@@ -375,14 +446,6 @@ const LayerCatalogView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchTerm, filteredCategories]);
 
-  const getNumberOfLayers = (layerCategories: LayerCategories[]) => {
-    let numberOfLayers = 0;
-    layerCategories?.forEach((category) => {
-      numberOfLayers += category?.layers?.length;
-    });
-    return numberOfLayers;
-  };
-
   useHandleDrop({
     setOpen,
     setSelectedNavItemIndex,
@@ -395,11 +458,11 @@ const LayerCatalogView = ({
 
   // start on the map layers tab as long as there is nothing in the favorites
   useEffect(() => {
-    if (
-      getNumOfCustomLayers() === 0 &&
-      selectedNavItemIndex === 0 &&
-      !isCesium
-    ) {
+    const numOfCustomLayers = resolvedCustomCategories.reduce(
+      (acc, category) => acc + category.layers.length,
+      0
+    );
+    if (numOfCustomLayers === 0 && selectedNavItemIndex === 0 && !isCesium) {
       const mapLayersIndex = categoryDefinitions.findIndex(
         (definition) => definition.source === "serviceLayers"
       );
@@ -410,45 +473,6 @@ const LayerCatalogView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedCustomCategories]);
 
-  const checkIfAllLayersAreLoaded = () => {
-    let allLayersLoaded = true;
-    if (serviceCategories.length === 0) {
-      allLayersLoaded = false;
-    }
-    serviceCategories.forEach((category) => {
-      if (category.layers.length === 0) {
-        allLayersLoaded = false;
-      }
-    });
-    return allLayersLoaded;
-  };
-
-  // reconcile stored favorites with the freshly derived layer definitions
-  useEffect(() => {
-    if (!checkIfAllLayersAreLoaded()) {
-      return;
-    }
-    favorites.forEach((favorite) => {
-      const serviceId = (favorite as unknown as any)?.service?.name; // TODO: fix type
-      const serviceCategory = serviceCategories.find(
-        (category) => category.id === serviceId
-      );
-      if (!serviceCategory) {
-        return;
-      }
-      const foundLayer = serviceCategory.layers.find(
-        (serviceLayer) => serviceLayer.id === favorite.id.slice(4)
-      );
-      if (
-        foundLayer &&
-        !isEqual(foundLayer, { ...favorite, id: foundLayer.id })
-      ) {
-        updateFavorite(foundLayer);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceCategories, favorites]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowItems(open);
@@ -457,121 +481,62 @@ const LayerCatalogView = ({
     return () => clearTimeout(timer);
   }, [open]);
 
-  useEffect(() => {
-    if (filteredCategories) {
-      let firstIdWithItems = "";
-
-      const gridItemIDs = categoriesToShownLayers(
-        filteredCategories,
-        sidebarElements[selectedNavItemIndex].id
-      )?.map((category) => {
-        if (category.layers.length > 0) {
-          return category.Title;
-        }
-      });
-
-      gridItemIDs?.forEach((id) => {
-        if (id && !firstIdWithItems) {
-          firstIdWithItems = id;
-        }
-      });
-
-      setCurrentShownCategory(firstIdWithItems);
-    }
-
-    const handleScroll = (event) => {
-      let firstIdWithItems = "";
-      const scrollTop = event.target.scrollTop;
-
-      const gridItemIDs = categoriesToShownLayers(
-        filteredCategories,
-        sidebarElements[selectedNavItemIndex].id
-      ).map((category) => {
-        if (category.layers.length > 0) {
-          return category.Title;
-        }
-      });
-
-      let items: HTMLElement[] = [];
-
-      gridItemIDs.forEach((id) => {
-        const item = document.getElementById(id);
-        if (item) {
-          items.push(item);
-          if (!firstIdWithItems) {
-            firstIdWithItems = id;
-          }
-        }
-      });
-
-      let currentItemId = "";
-      let currentItemHeight = 0;
-      items.forEach((item) => {
-        if (item.getBoundingClientRect().top + 200 < window.innerHeight) {
-          if (currentItemId) {
-            if (item.getBoundingClientRect().top > currentItemHeight) {
-              currentItemId = item.id;
-              currentItemHeight = item.getBoundingClientRect().top;
-            }
-          } else {
-            currentItemId = item.id;
-            currentItemHeight = item.getBoundingClientRect().top;
-          }
-        }
-      });
-      if (scrollTop > 0) {
-        setCurrentShownCategory(currentItemId);
-      } else {
-        setCurrentShownCategory(firstIdWithItems);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchValue(value);
+      if (
+        sidebarElements[selectedNavItemIndex]?.source === "searchResults" &&
+        !value
+      ) {
+        setSelectedNavItemIndex(0);
       }
-    };
-
-    const scrollContainer = document.getElementById("scrollContainer");
-    scrollContainer?.addEventListener("scroll", handleScroll);
-
-    return () => {
-      scrollContainer?.removeEventListener("scroll", handleScroll);
-    };
-  }, [filteredCategories, selectedNavItemIndex, debouncedSearchTerm]);
-
-  const categoriesToShownLayers = (categories, shownId) => {
-    if (shownId === "searchResults") {
-      if (searchValue) {
-        const searchCategories = sidebarElements.map((element) => {
-          const matchingCategory = categories.find(
-            (category) => category.id === element.id
-          );
-          const elementLayers =
-            matchingCategory?.categories.map((cat) => cat.layers).flat() || [];
-
-          return {
-            Title: element.label,
-            id: element.id,
-            layers: elementLayers,
-          };
-        });
-
-        return searchCategories.filter((cat) => cat.id !== "searchResults");
-      } else {
-        return null;
+    },
+    [setSearchValue, sidebarElements, selectedNavItemIndex]
+  );
+  const handleSearchSubmit = useCallback(
+    (value: string) => {
+      if (value !== "") {
+        const searchResultsIndex = sidebarElements.findIndex(
+          (element) => element.source === "searchResults"
+        );
+        if (searchResultsIndex !== -1) {
+          setSelectedNavItemIndex(searchResultsIndex);
+        }
       }
-    }
+    },
+    [sidebarElements]
+  );
 
-    const subCategories = categories.filter(
-      (mainCategory) => mainCategory.id === shownId
-    )?.[0]?.categories;
-    return subCategories?.filter(
-      (subCategory) =>
-        !(subCategory.hideWhenEmpty && subCategory.layers.length === 0)
-    );
+  const closeCatalog = () => {
+    setOpen(false);
+    setPreview(false);
+    selectItem(null);
   };
 
+  const interactionValue = useMemo<CatalogInteractionContextValue>(
+    () => ({
+      setAdditionalLayers,
+      activeLayers,
+      favorites: displayedFavorites,
+      addFavorite: handleAddFavorite,
+      removeFavorite: handleRemoveFavorite,
+      setPreview,
+      discoverIsFetching,
+    }),
+    [
+      setAdditionalLayers,
+      activeLayers,
+      displayedFavorites,
+      handleAddFavorite,
+      handleRemoveFavorite,
+      discoverIsFetching,
+    ]
+  );
+
   return (
-    <Modal
+    <ModalShell
       open={open}
-      classNames={{
-        content: "modal-content",
-      }}
+      preview={preview}
       onCancel={() => {
         if (preview) {
           setPreview(false);
@@ -582,220 +547,133 @@ const LayerCatalogView = ({
           setOpen(false);
         }
       }}
-      style={{
-        top: preview ? "84%" : undefined,
-        transition: "top 400ms linear",
-      }}
-      mask={!preview}
-      footer={<></>}
-      width={"100%"}
-      closeIcon={false}
-      wrapClassName="h-full !overflow-y-hidden hide-tabs"
-      className="h-[88%]"
-      styles={{
-        content: {
-          backgroundColor: "#f2f2f2",
-        },
-      }}
     >
-      <div
-        className="w-full h-full flex bg-[#f2f2f2]"
-        style={{
-          maxHeight: "calc(100vh - 200px)",
-          minHeight: "calc(100vh - 200px)",
-        }}
-      >
+      <CatalogInteractionProvider value={interactionValue}>
         <div
-          className={`sm:w-40 w-16 h-full flex justify-between items-center flex-col pb-3 bg-gray-600`}
-          style={{ height: "calc(100vh - 188px)" }}
-        >
-          <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
-            <div className="h-8 sm:h-24"></div>
-            {sidebarElements.map((element, i) => {
-              return (
-                <SidebarItem
-                  icon={element.icon}
-                  text={element.label}
-                  active={i === selectedNavItemIndex}
-                  onClick={() => {
-                    setSelectedNavItemIndex(i);
-                  }}
-                  key={element.id}
-                  numberOfItems={
-                    isSearching || !searchValue
-                      ? 0
-                      : getNumberOfLayers(
-                          categoriesToShownLayers(
-                            filteredCategories,
-                            element.id
-                          )
-                        )
-                  }
-                  showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
-                  disabled={
-                    (element.source === "searchResults" && !searchValue) ||
-                    element.disabled
-                  }
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        <div
-          className="sm:w-[calc(100vw-160px)] w-[calc(100vw-56px)] h-full flex flex-col bg-[#f2f2f2]"
+          className="w-full h-full flex bg-[#f2f2f2]"
           style={{
             maxHeight: "calc(100vh - 200px)",
             minHeight: "calc(100vh - 200px)",
           }}
         >
-          <div className="sticky top-0 px-6 pt-6">
-            <div className="flex flex-col sm:flex-row justify-between md:gap-0 gap-1 items-center">
-              <div className="flex w-full sm:w-fit items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h1 className="mb-0 text-3xl font-semibold">Karteninhalte</h1>
-                  {sidebarElements[selectedNavItemIndex].id === "discover" &&
-                    (discoverError || delayedLoading) &&
-                    (discoverError ? (
-                      <FontAwesomeIcon
-                        icon={faTriangleExclamation}
-                        className="text-red-500"
-                        title={discoverError || "Fehler beim Laden der Karten"}
-                        role="status"
-                        aria-label={
-                          discoverError || "Fehler beim Laden der Karten"
-                        }
-                      />
-                    ) : (
-                      filteredCategories
-                        .find((cat) => cat.id === "discover")
-                        ?.categories.some(
-                          (subCat) => subCat.layers?.length > 0
-                        ) && (
-                        <Spin
-                          indicator={
-                            <LoadingOutlined spin className="text-gray-600" />
+          <CategorySidebar
+            entries={sidebarEntries}
+            selectedIndex={selectedNavItemIndex}
+            onSelect={setSelectedNavItemIndex}
+          />
+
+          <div
+            className="sm:w-[calc(100vw-160px)] w-[calc(100vw-56px)] h-full flex flex-col bg-[#f2f2f2]"
+            style={{
+              maxHeight: "calc(100vh - 200px)",
+              minHeight: "calc(100vh - 200px)",
+            }}
+          >
+            <div className="sticky top-0 px-6 pt-6">
+              <div className="flex flex-col sm:flex-row justify-between md:gap-0 gap-1 items-center">
+                <div className="flex w-full sm:w-fit items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h1 className="mb-0 text-3xl font-semibold">
+                      Karteninhalte
+                    </h1>
+                    {isDiscoverCategory &&
+                      (discoverError || delayedLoading) &&
+                      (discoverError ? (
+                        <FontAwesomeIcon
+                          icon={faTriangleExclamation}
+                          className="text-red-500"
+                          title={
+                            discoverError || "Fehler beim Laden der Karten"
                           }
-                          size="small"
-                          aria-label="Anfrage dauert länger als erwartet"
+                          role="status"
+                          aria-label={
+                            discoverError || "Fehler beim Laden der Karten"
+                          }
                         />
-                      )
-                    ))}
+                      ) : (
+                        filteredCategories
+                          .find((cat) => cat.id === currentDefinition.id)
+                          ?.categories.some(
+                            (subCat) => subCat.layers?.length > 0
+                          ) && (
+                          <Spin
+                            indicator={
+                              <LoadingOutlined
+                                spin
+                                className="text-gray-600"
+                              />
+                            }
+                            size="small"
+                            aria-label="Anfrage dauert länger als erwartet"
+                          />
+                        )
+                      ))}
+                  </div>
+                  <Button
+                    type="text"
+                    className="sm:hidden block"
+                    onClick={closeCatalog}
+                  >
+                    <FontAwesomeIcon icon={faX} />
+                  </Button>
                 </div>
+                <CatalogSearch
+                  onChange={handleSearchChange}
+                  onSubmit={handleSearchSubmit}
+                  isSearching={isSearching}
+                />
                 <Button
                   type="text"
-                  className="sm:hidden block"
-                  onClick={() => {
-                    setOpen(false);
-                    setPreview(false);
-                    selectItem(null);
-                  }}
+                  className="hidden sm:block"
+                  onClick={closeCatalog}
                 >
                   <FontAwesomeIcon icon={faX} />
                 </Button>
               </div>
-              <Search
-                placeholder="Suchbegriff eingeben"
-                className="w-full sm:w-[76%]"
-                allowClear
-                onChange={(e) => {
-                  setSearchValue(e.target.value);
-
-                  const searchResultsIndex = sidebarElements.findIndex(
-                    (item) => item.id === "searchResults"
-                  );
-
-                  if (
-                    selectedNavItemIndex === searchResultsIndex &&
-                    !e.target.value
-                  ) {
-                    setSelectedNavItemIndex(0);
-                  }
-                }}
-                loading={isSearching}
-                onSearch={(value) => {
-                  const searchResultsIndex = sidebarElements.findIndex(
-                    (item) => item.id === "searchResults"
-                  );
-
-                  if (value !== "") {
-                    setSelectedNavItemIndex(searchResultsIndex);
-                  }
-                }}
+              <SystemMessageBanner
+                appKey={appKey}
+                slot="karteninhalte"
+                className="-mx-6 mt-2"
               />
-              <Button
-                type="text"
-                className="hidden sm:block"
-                onClick={() => {
-                  setOpen(false);
-                  setPreview(false);
-                  selectItem(null);
-                }}
-              >
-                <FontAwesomeIcon icon={faX} />
-              </Button>
-            </div>
-            <SystemMessageBanner
-              appKey={appKey}
-              slot="karteninhalte"
-              className="-mx-6 mt-2"
-            />
-            <div className="flex w-full gap-2">
-              <LayerTabs
-                layers={categoriesToShownLayers(
-                  filteredCategories,
-                  sidebarElements[selectedNavItemIndex].id
-                )}
-                activeId={currentShownCategory}
-                setActiveId={setCurrentShownCategory}
-                numberOfItems={getNumberOfLayers(serviceCategories)}
-              />
-              <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
-            </div>
-          </div>
-          <div
-            className="w-full gap-4 h-full overflow-auto pt-0.5 px-6"
-            id="scrollContainer"
-          >
-            {!showItems && open && (
-              <div className="w-full">
-                <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
-                  {[...Array(10)].map((_, i) => (
-                    <ItemSkeleton key={`itemSkeleton_${i}`} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="w-full">
-              {showItems && (
-                <ItemGrid
-                  categories={categoriesToShownLayers(
-                    filteredCategories,
-                    sidebarElements[selectedNavItemIndex].id
-                  )}
-                  setAdditionalLayers={setAdditionalLayers}
-                  activeLayers={activeLayers}
-                  favorites={displayedFavorites}
-                  addFavorite={handleAddFavorite}
-                  removeFavorite={handleRemoveFavorite}
-                  setPreview={setPreview}
-                  isSearchCategory={
-                    sidebarElements[selectedNavItemIndex].id === "searchResults"
-                  }
-                  isDiscoverCategory={
-                    sidebarElements[selectedNavItemIndex].id === "discover"
-                  }
-                  loadingData={loadingData}
-                  currentCategoryIndex={selectedNavItemIndex}
-                  currentlySearching={!!debouncedSearchTerm}
+              <div className="flex w-full gap-2">
+                <CategoryTabs
+                  categories={shownCategories}
+                  activeId={currentShownCategory}
+                  onTabClick={scrollToSection}
                 />
+                <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
+              </div>
+            </div>
+            <div
+              className="w-full gap-4 h-full overflow-auto pt-0.5 px-6"
+              id="scrollContainer"
+              ref={scrollContainerRef}
+            >
+              {!showItems && open && (
+                <div className="w-full">
+                  <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
+                    {[...Array(10)].map((_, i) => (
+                      <ItemSkeleton key={`itemSkeleton_${i}`} />
+                    ))}
+                  </div>
+                </div>
               )}
+
+              <div className="w-full">
+                {showItems && (
+                  <CatalogGrid
+                    categories={shownCategories}
+                    loadingCurrentCategory={loadingCurrentCategory}
+                    isSearchCategory={isSearchCategory}
+                    currentlySearching={!!debouncedSearchTerm}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </Modal>
+      </CatalogInteractionProvider>
+    </ModalShell>
   );
 };
 

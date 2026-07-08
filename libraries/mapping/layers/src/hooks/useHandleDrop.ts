@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
-import type { Item, Layer } from "../lib/contracts/carma-layers.d";
-import { ActiveLayers } from "../components/LayerCatalog";
+import type {
+  ActiveLayers,
+  Item,
+  Layer,
+  SetAdditionalLayers,
+} from "../lib/contracts/carma-layers.d";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { wmsCapabilitiesToCustomItems } from "../helper/buildCatalog";
 import type { CatalogDrop } from "../helper/buildCatalog";
@@ -27,13 +31,7 @@ interface UseHandleDropProps {
   onDrop: (drop: CatalogDrop) => void;
   activeLayers: ActiveLayers;
   updateActiveLayer: (layer: Layer) => void;
-  setAdditionalLayers: (
-    layers: unknown,
-    deleteItem?: boolean,
-    forceWMS?: boolean,
-    previewLayer?: boolean,
-    updateExisting?: boolean
-  ) => void;
+  setAdditionalLayers: SetAdditionalLayers;
   vectorTileServerUrl: string;
 }
 

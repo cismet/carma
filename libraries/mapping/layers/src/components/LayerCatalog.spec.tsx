@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createElement, type ReactNode } from "react";
 import {
   configure,
@@ -36,7 +35,8 @@ vi.mock("@carma-providers/auth", () => ({
 
 import localForage from "localforage";
 
-import { LayerCatalog, type ActiveLayers } from "./LayerCatalog";
+import { LayerCatalog } from "./LayerCatalog";
+import type { ActiveLayers } from "../lib/contracts/carma-layers.d";
 import { LayerCatalogProvider } from "../context/LayerCatalogProvider";
 import { wuppLayerCatalogConfig } from "../config/layerCatalogConfig";
 
