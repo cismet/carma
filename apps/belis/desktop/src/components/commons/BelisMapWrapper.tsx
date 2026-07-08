@@ -169,6 +169,7 @@ const MEASUREMENT_DELETE_ICON = (
 );
 
 import type { SidebarFeature } from "../ui/BelisSidebar";
+import type { ExpertSortSpec } from "../ui/expert-search/expertSearchUtils";
 
 import {
   getAllDraftFeatures,
@@ -321,10 +322,18 @@ const attachBrandnewBelowLeuchten = (
   };
 };
 
+// Stable default so an absent prop doesn't make a fresh [] each render (which
+// would needlessly retrigger the sidebar's memoised sort).
+const EMPTY_EXPERT_SORT: ExpertSortSpec = [];
+
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
   highlightResults: SidebarFeature[] | null;
+  /** Sort list (field + direction) of the expert search behind
+   *  `highlightResults`, or empty. The sidebar applies the same ordering to
+   *  its rows in both the Highlights and Fachobjekte tabs. */
+  highlightExpertSort?: ExpertSortSpec;
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
@@ -348,6 +357,7 @@ const BelisMapLibWrapper = ({
   mapSizes,
   activeSourceLayers,
   highlightResults,
+  highlightExpertSort = EMPTY_EXPERT_SORT,
   lassoActive,
   onLassoDeactivate,
   sidebarVariant,
@@ -794,25 +804,36 @@ const BelisMapLibWrapper = ({
     (feature: SidebarFeature) => {
       const sl = feature.sourceLayer ?? "";
       const mapId = feature.id;
-      if (mapId == null || !sl) return;
+      // Brand-new features have separate id spaces: `f.id` is the geojson
+      // feature id, `properties.id` is the DB / synthetic PK. Either identity
+      // may appear in unfilteredHighlights depending on which path put it
+      // there (accumulator dedup + map-toggle removal both prefer
+      // properties.id). Fire suppression and filter on BOTH so the feature is
+      // removed regardless of which one matches.
+      const dbId = feature.properties?.id;
+      if ((mapId == null && dbId == null) || !sl) return;
       const featureSource =
         (feature as unknown as { source?: string }).source ?? namespacedSource;
 
-      ensureSuppressedFeatures(
-        [{ source: featureSource, sourceLayer: sl, id: mapId }],
-        true
+      const ids = [mapId, dbId].filter(
+        (id): id is string | number => id != null && id !== ""
       );
-      ensureToggledFeatures(
-        [{ source: featureSource, sourceLayer: sl, id: mapId }],
-        false
-      );
+      const suppressList = ids.map((id) => ({
+        source: featureSource,
+        sourceLayer: sl,
+        id,
+      }));
+      ensureSuppressedFeatures(suppressList, true);
+      ensureToggledFeatures(suppressList, false);
 
-      const mapIdStr = String(mapId);
+      const idStrs = new Set(ids.map((id) => String(id)));
       setUnfilteredHighlights((prev) => {
         if (!prev) return prev;
         return prev.filter((f) => {
-          const key = `${f.sourceLayer ?? ""}::${String(f.id ?? "")}`;
-          return key !== `${sl}::${mapIdStr}`;
+          if ((f.sourceLayer ?? "") !== sl) return true;
+          const fMapId = f.id != null ? String(f.id) : "";
+          const fDbId = f.properties?.id != null ? String(f.properties.id) : "";
+          return !idStrs.has(fMapId) && !idStrs.has(fDbId);
         });
       });
     },
@@ -4760,6 +4781,19 @@ const BelisMapLibWrapper = ({
           }
           sidebarMode={sidebarMode}
           onModeChange={setSidebarMode}
+          expertSort={highlightExpertSort}
+          // Frozen search results, used as the rank source when expert sort is
+          // active. Passing `highlightResults` (shell state) rather than the
+          // mutable `unfilteredHighlights` means dismisses don't reshuffle
+          // ranks — a dismissed feature keeps its slot instead of dropping to
+          // the street-sort tail.
+          expertRankFeatures={highlightResults}
+          // Highlights list is already in backend expert-sort order — tell the
+          // sidebar to keep it as-is instead of re-sorting. Fachobjekte gets
+          // the same order via `expertRankFeatures` + `expertSort`.
+          preserveOrder={
+            sidebarMode === "highlights" && highlightExpertSort.length > 0
+          }
           hasHighlights={hasHighlights}
           hasDrafts={!isReadOnly && draftFeaturesCount > 0}
           fachobjekteCount={totalCount}

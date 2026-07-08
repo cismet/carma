@@ -13,7 +13,13 @@ import type {
   Conjunction,
   ExpertRuleState,
   ExpertTypeState,
+  SortDirection,
 } from "../../../store/slices/expertSearch";
+
+// Same sort list `buildExpertOrderBy` sends to the backend, in structured form.
+// Handed to the sidebar so it can order its rows by the same fields the user
+// picked in the Expert Search — see `BelisSidebar.expertSort`.
+export type ExpertSortSpec = { field: string; direction: SortDirection }[];
 
 // Scalar comparison operators → Hasura operators.
 const OP_MAP: Record<string, string> = {
@@ -179,6 +185,18 @@ export const buildExpertOrderBy = (
     .filter((s) => fieldKeys.has(s.field))
     .map((s) => `{${s.field}: ${s.direction}}`);
   return clauses.length ? `order_by: [${clauses.join(", ")}]` : "";
+};
+
+// Structured counterpart of `buildExpertOrderBy` for the client-side sidebar
+// sort. Filtered to registry fields, same as the order_by builder.
+export const buildExpertSortSpec = (
+  query: ExpertTypeState,
+  fields: Field[]
+): ExpertSortSpec => {
+  const fieldKeys = new Set(fields.map((f) => f.key));
+  return query.sorts
+    .filter((s) => fieldKeys.has(s.field))
+    .map((s) => ({ field: s.field, direction: s.direction }));
 };
 
 // Build the `limit: N` clause, or "" when no positive limit is set (= all rows).

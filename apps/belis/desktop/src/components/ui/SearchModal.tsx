@@ -23,7 +23,9 @@ import {
   buildExpertWhereClause,
   buildExpertOrderBy,
   buildExpertLimit,
+  buildExpertSortSpec,
 } from "./expert-search/expertSearchUtils";
+import type { ExpertSortSpec } from "./expert-search/expertSearchUtils";
 import { ENDPOINT } from "../../constants/belis";
 import {
   LEUCHTEN_FIELDS,
@@ -63,7 +65,13 @@ type SearchType =
 interface SearchModalProps {
   defaultOpen?: boolean;
   showFinalQuery?: boolean;
-  onSearchResults?: (features: SidebarFeature[] | null) => void;
+  // `meta.expertSort` is the sort list (field + direction) the user picked in
+  // Expert Search — empty for classic searches. The sidebar applies the same
+  // ordering to its rows via its `expertSort` prop.
+  onSearchResults?: (
+    features: SidebarFeature[] | null,
+    meta?: { expertSort?: ExpertSortSpec }
+  ) => void;
 }
 
 interface LeuchteSearchValues {
@@ -775,6 +783,10 @@ const SearchModal = ({
       ) => Array<[number, number]>;
       getHighlightIds?: (item: Record<string, unknown>) => string[];
       logPrefix?: string;
+      // Sort spec the query used (empty for classic searches). Passed through
+      // in the `onSearchResults` meta so the sidebar can order its rows the
+      // same way.
+      expertSort?: ExpertSortSpec;
     }) => {
       const {
         query,
@@ -785,6 +797,7 @@ const SearchModal = ({
         getAllGeometries,
         getHighlightIds,
         logPrefix = "[SEARCH]",
+        expertSort = [],
       } = options;
 
       if (!jwt) {
@@ -887,7 +900,7 @@ const SearchModal = ({
               forSearchType,
               namespacedSource
             );
-            onSearchResults(sidebarFeatures);
+            onSearchResults(sidebarFeatures, { expertSort });
           }
 
           setIsSearching(false);
@@ -929,6 +942,11 @@ const SearchModal = ({
       ? buildExpertOrderBy(expertTypeState, REGISTRY[expertObjectType])
       : "";
     const expertLimit = isExpertSearch ? buildExpertLimit(expertTypeState) : "";
+    // Structured mirror of `expertOrderBy` for the sidebar sort. Empty for
+    // classic searches or when the user set no sort rows.
+    const expertSort: ExpertSortSpec = isExpertSearch
+      ? buildExpertSortSpec(expertTypeState, REGISTRY[expertObjectType])
+      : [];
     // Assemble the parenthesised query args, dropping any empty part so there is
     // never a trailing comma or an empty order_by.
     const args = (whereClause: string, defaultOrder: string) => {
@@ -1076,6 +1094,7 @@ const SearchModal = ({
         featurePrefix: "leuchten",
         forSearchType: "leuchte",
         logPrefix: "[LEUCHTE_SEARCH]",
+        expertSort,
         getGeometry: (item) => {
           const mast = item.tdta_standort_mast as
             | Record<string, unknown>
@@ -1103,6 +1122,7 @@ const SearchModal = ({
         featurePrefix: "standorte",
         forSearchType: "mast",
         logPrefix: "[MAST_SEARCH]",
+        expertSort,
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
@@ -1128,6 +1148,7 @@ const SearchModal = ({
         featurePrefix: "schaltstelle",
         forSearchType: "schaltstelle",
         logPrefix: "[SCHALTSTELLE_SEARCH]",
+        expertSort,
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
@@ -1153,6 +1174,7 @@ const SearchModal = ({
         featurePrefix: "mauerlaschen",
         forSearchType: "mauerlasche",
         logPrefix: "[MAUERLASCHE_SEARCH]",
+        expertSort,
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
@@ -1175,6 +1197,7 @@ const SearchModal = ({
         featurePrefix: "leitungen",
         forSearchType: "leitung",
         logPrefix: "[LEITUNG_SEARCH]",
+        expertSort,
         // Leitungen are line features with no point geom_84; derive a
         // representative WGS84 point from geom.geo_field for fit-to-bounds.
         // The map highlight itself matches by id against the "leitungen"

@@ -29,6 +29,7 @@ import SearchModal from "../ui/SearchModal";
 import ArbeitsauftragSearchModal from "../ui/ArbeitsauftragSearchModal";
 import StreetSearch from "../ui/StreetSearch";
 import type { SidebarFeature } from "../ui/BelisSidebar";
+import type { ExpertSortSpec } from "../ui/expert-search/expertSearchUtils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
@@ -75,6 +76,12 @@ const BelisMapPageShell = () => {
   const [highlightResults, setHighlightResults] = useState<
     SidebarFeature[] | null
   >(null);
+  // Sort list (field + direction) behind the current `highlightResults`, empty
+  // for classic searches. Feeds the sidebar so both the Highlights and the
+  // Fachobjekte lists follow that order; reset to empty on clear.
+  const [highlightExpertSort, setHighlightExpertSort] = useState<ExpertSortSpec>(
+    []
+  );
   const [lassoActive, setLassoActive] = useState(false);
 
   // Filter-aware highlight list (mirrors the Highlights sidebar tab): the CSV
@@ -295,13 +302,15 @@ const BelisMapPageShell = () => {
                     gazData={gazData}
                     onClearHighlightResults={() => {
                       setHighlightResults(null);
+                      setHighlightExpertSort([]);
                       closeDatasheet();
                     }}
                   />
                   <SearchModal
                     showFinalQuery={showRaw}
-                    onSearchResults={(features) => {
+                    onSearchResults={(features, meta) => {
                       setHighlightResults(features);
+                      setHighlightExpertSort(meta?.expertSort ?? []);
                       closeDatasheet();
                     }}
                   />
@@ -419,6 +428,7 @@ const BelisMapPageShell = () => {
             mapSizes={mapStyle}
             activeSourceLayers={activeSourceLayers}
             highlightResults={highlightResults}
+            highlightExpertSort={highlightExpertSort}
             lassoActive={lassoActive}
             onLassoDeactivate={() => setLassoActive(false)}
             sidebarVariant={sidebarVariant}
