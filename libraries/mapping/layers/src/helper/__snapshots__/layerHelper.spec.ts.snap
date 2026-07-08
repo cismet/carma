@@ -1,0 +1,378 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`getLayerStructure characterization > matches the recorded snapshot of the Basis category 1`] = `
+{
+  "Title": "Basis",
+  "id": "wuppKarten",
+  "layers": [
+    {
+      "description": "Inhalt: Aus dem Liegenschaftskataster erzeugte Hintergrundkarte in Graustufen. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes.",
+      "icon": "basis/Stadtgrundkarte_Graustufen_ABK",
+      "id": "wuppKarten:alkomgw",
+      "keywords": [
+        "Grundkarte",
+        "carmaconf://infoBoxMapping:default",
+        "carmaConf://thumbnail:https://example.test/vorschau/alkomgw.png",
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/alkomgw",
+      ],
+      "layerType": "wmts-nt",
+      "maxZoom": 24,
+      "minZoom": -4,
+      "name": "alkomgw",
+      "path": "Basis",
+      "props": {
+        "Abstract": "Inhalt: Aus dem Liegenschaftskataster erzeugte Hintergrundkarte in Graustufen. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes.",
+        "Attribution": undefined,
+        "BoundingBox": [
+          {
+            "crs": "EPSG:3857",
+            "extent": [
+              779236.43555291,
+              6639001.66376131,
+              823764.23187022,
+              6692356.43526254,
+            ],
+            "res": [
+              undefined,
+              undefined,
+            ],
+          },
+        ],
+        "Dimension": undefined,
+        "EX_GeographicBoundingBox": undefined,
+        "KeywordList": [
+          "Grundkarte",
+          "carmaconf://infoBoxMapping:default",
+          "carmaConf://thumbnail:https://example.test/vorschau/alkomgw.png",
+          "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/alkomgw",
+        ],
+        "LatLonBoundingBox": [
+          7,
+          51.1,
+          7.4,
+          51.4,
+        ],
+        "MaxScaleDenominator": undefined,
+        "MinScaleDenominator": undefined,
+        "Name": "alkomgw",
+        "SRS": [
+          "EPSG:25832",
+        ],
+        "ScaleHint": {
+          "max": 2999999.99999937,
+          "min": 0,
+        },
+        "Style": [
+          {
+            "LegendURL": [
+              {
+                "Format": "image/png",
+                "OnlineResource": "https://example.test/legenden/alkomgw-legende.png",
+                "size": [
+                  230,
+                  215,
+                ],
+              },
+            ],
+            "Name": "default",
+            "Title": "default",
+          },
+        ],
+        "Title": "Stadtgrundkarte (grau)",
+        "cascaded": undefined,
+        "fixedHeight": undefined,
+        "fixedWidth": undefined,
+        "noSubsets": false,
+        "opaque": false,
+        "queryable": true,
+        "tags": [
+          "Basis",
+        ],
+        "url": "https://maps.wuppertal.de/karten?",
+      },
+      "queryable": true,
+      "service": {
+        "name": "wuppKarten",
+        "url": "https://maps.wuppertal.de/karten",
+      },
+      "serviceName": "wuppKarten",
+      "tags": [
+        "Basis",
+      ],
+      "thumbnail": "https://example.test/vorschau/alkomgw.png",
+      "title": "Stadtgrundkarte (grau)",
+      "type": "layer",
+    },
+    {
+      "description": "Inhalt: Bodenschätzungskarte in Farbdarstellung.",
+      "icon": "basis/Schätzungskarte_farbig_ABK",
+      "id": "wuppKarten:albsf",
+      "keywords": [
+        "Bodenschätzung",
+      ],
+      "layerType": "wmts-nt",
+      "maxZoom": 24,
+      "minZoom": 0,
+      "name": "albsf",
+      "path": "Basis",
+      "props": {
+        "Abstract": "Inhalt: Bodenschätzungskarte in Farbdarstellung.",
+        "Attribution": undefined,
+        "BoundingBox": [
+          {
+            "crs": "EPSG:3857",
+            "extent": [
+              779236.43555291,
+              6639001.66376131,
+              823764.23187022,
+              6692356.43526254,
+            ],
+            "res": [
+              undefined,
+              undefined,
+            ],
+          },
+        ],
+        "Dimension": undefined,
+        "EX_GeographicBoundingBox": undefined,
+        "KeywordList": [
+          "Bodenschätzung",
+        ],
+        "LatLonBoundingBox": [
+          7,
+          51.1,
+          7.4,
+          51.4,
+        ],
+        "MaxScaleDenominator": undefined,
+        "MinScaleDenominator": undefined,
+        "Name": "albsf",
+        "SRS": [
+          "EPSG:25832",
+        ],
+        "Title": "Schätzungskarte (farbig)",
+        "cascaded": undefined,
+        "fixedHeight": undefined,
+        "fixedWidth": undefined,
+        "noSubsets": false,
+        "opaque": false,
+        "queryable": false,
+        "tags": [
+          "Basis",
+        ],
+        "url": "https://maps.wuppertal.de/karten?",
+      },
+      "queryable": false,
+      "service": {
+        "name": "wuppKarten",
+        "url": "https://maps.wuppertal.de/karten",
+      },
+      "serviceName": "wuppKarten",
+      "tags": [
+        "Basis",
+      ],
+      "title": "Schätzungskarte (farbig)",
+      "type": "layer",
+    },
+    {
+      "description": "Inhalt: Gelbe Strichkartenausprägung des Liegenschaftskatasters.",
+      "icon": "basis/Expresskarte_Strichkarte_gelb",
+      "id": "wuppKarten:expg",
+      "keywords": undefined,
+      "layerType": "wmts",
+      "maxZoom": 24,
+      "minZoom": 0,
+      "name": "expg",
+      "path": "Basis",
+      "pictureBoundingBox": [
+        784874.5156892611,
+        6655868.893474152,
+        821182.1041247197,
+        6679927.448126909,
+      ],
+      "props": {
+        "Abstract": "Inhalt: Gelbe Strichkartenausprägung des Liegenschaftskatasters.",
+        "Attribution": undefined,
+        "BoundingBox": [
+          {
+            "crs": "EPSG:3857",
+            "extent": [
+              779236.43555291,
+              6639001.66376131,
+              823764.23187022,
+              6692356.43526254,
+            ],
+            "res": [
+              undefined,
+              undefined,
+            ],
+          },
+        ],
+        "Dimension": undefined,
+        "EX_GeographicBoundingBox": undefined,
+        "LatLonBoundingBox": [
+          7,
+          51.1,
+          7.4,
+          51.4,
+        ],
+        "MaxScaleDenominator": undefined,
+        "MinScaleDenominator": undefined,
+        "Name": "expg",
+        "SRS": [
+          "EPSG:25832",
+        ],
+        "Style": [
+          {
+            "LegendURL": [
+              {
+                "Format": "image/png",
+                "OnlineResource": "https://example.test/legenden/expg-legende.png",
+                "size": [
+                  230,
+                  215,
+                ],
+              },
+            ],
+            "Name": "default",
+            "Title": "default",
+          },
+        ],
+        "Title": "ALKIS Strichkarte (gelb)",
+        "cascaded": undefined,
+        "fixedHeight": undefined,
+        "fixedWidth": undefined,
+        "noSubsets": false,
+        "opaque": false,
+        "queryable": false,
+        "tags": [
+          "Basis",
+        ],
+        "url": "https://maps.wuppertal.de/karten?",
+      },
+      "queryable": false,
+      "service": {
+        "name": "wuppKarten",
+        "url": "https://maps.wuppertal.de/karten",
+      },
+      "serviceName": "wuppKarten",
+      "tags": [
+        "Basis",
+      ],
+      "title": "ALKIS Strichkarte (gelb)",
+      "type": "layer",
+    },
+    {
+      "Abstract": "Inhalt: Ebene, die nur in den Capabilities existiert und nicht in der baseConfig.",
+      "Attribution": undefined,
+      "BoundingBox": [
+        {
+          "crs": "EPSG:3857",
+          "extent": [
+            779236.43555291,
+            6639001.66376131,
+            823764.23187022,
+            6692356.43526254,
+          ],
+          "res": [
+            undefined,
+            undefined,
+          ],
+        },
+      ],
+      "Dimension": undefined,
+      "EX_GeographicBoundingBox": undefined,
+      "KeywordList": [
+        "carmaConf://thumbnail:https://example.test/vorschau/testneu.png",
+      ],
+      "LatLonBoundingBox": [
+        7,
+        51.1,
+        7.4,
+        51.4,
+      ],
+      "MaxScaleDenominator": undefined,
+      "MinScaleDenominator": undefined,
+      "Name": "testneu",
+      "SRS": [
+        "EPSG:25832",
+      ],
+      "Title": "Testebene ohne Konfiguration",
+      "cascaded": undefined,
+      "description": "Inhalt: Ebene, die nur in den Capabilities existiert und nicht in der baseConfig.",
+      "fixedHeight": undefined,
+      "fixedWidth": undefined,
+      "id": "wuppKarten:testneu",
+      "keywords": [
+        "carmaConf://thumbnail:https://example.test/vorschau/testneu.png",
+      ],
+      "layerType": "wmts",
+      "maxZoom": 24,
+      "minZoom": 0,
+      "name": "testneu",
+      "noSubsets": false,
+      "opaque": false,
+      "path": "Basis",
+      "props": {
+        "Abstract": "Inhalt: Ebene, die nur in den Capabilities existiert und nicht in der baseConfig.",
+        "Attribution": undefined,
+        "BoundingBox": [
+          {
+            "crs": "EPSG:3857",
+            "extent": [
+              779236.43555291,
+              6639001.66376131,
+              823764.23187022,
+              6692356.43526254,
+            ],
+            "res": [
+              undefined,
+              undefined,
+            ],
+          },
+        ],
+        "Dimension": undefined,
+        "EX_GeographicBoundingBox": undefined,
+        "KeywordList": [
+          "carmaConf://thumbnail:https://example.test/vorschau/testneu.png",
+        ],
+        "LatLonBoundingBox": [
+          7,
+          51.1,
+          7.4,
+          51.4,
+        ],
+        "MaxScaleDenominator": undefined,
+        "MinScaleDenominator": undefined,
+        "Name": "testneu",
+        "SRS": [
+          "EPSG:25832",
+        ],
+        "Title": "Testebene ohne Konfiguration",
+        "cascaded": undefined,
+        "fixedHeight": undefined,
+        "fixedWidth": undefined,
+        "noSubsets": false,
+        "opaque": false,
+        "queryable": false,
+        "tags": [
+          "Basis",
+        ],
+        "url": "https://maps.wuppertal.de/karten?",
+      },
+      "queryable": false,
+      "service": {
+        "name": "wuppKarten",
+        "url": "https://maps.wuppertal.de/karten",
+      },
+      "serviceName": "wuppKarten",
+      "tags": [
+        "Basis",
+      ],
+      "thumbnail": "https://example.test/vorschau/testneu.png",
+      "title": "Testebene ohne Konfiguration",
+      "type": "layer",
+    },
+  ],
+}
+`;
