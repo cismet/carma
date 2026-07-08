@@ -8,6 +8,7 @@ import {
   addRule,
   removeRule,
   setGroupInnerConjunction,
+  setGroupNegated,
 } from "../../../store/slices/expertSearch";
 import type { ExpertGroupState } from "../../../store/slices/expertSearch";
 
@@ -35,8 +36,33 @@ const FilterGroup = ({
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
           <span className="w-2 h-2 rounded-sm bg-gray-300 flex-shrink-0" />
           {title}
+          {group.negated && (
+            <span className="text-blue-600 normal-case">(negiert)</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {/* NICHT: negate the whole group (Hasura `_not`) */}
+          <button
+            type="button"
+            aria-pressed={group.negated}
+            onClick={() =>
+              dispatch(
+                setGroupNegated({
+                  objectType,
+                  groupId: group.id,
+                  negated: !group.negated,
+                })
+              )
+            }
+            title="Gruppe negieren (NICHT / _not)"
+            className={`text-xs font-semibold px-3 py-1 rounded-md border cursor-pointer transition-colors ${
+              group.negated
+                ? "bg-blue-50 text-blue-600 border-blue-200"
+                : "bg-white text-gray-400 border-gray-200 hover:text-gray-600"
+            }`}
+          >
+            NICHT
+          </button>
           <ConjunctionToggle
             value={group.conjunction}
             onChange={(conjunction) =>

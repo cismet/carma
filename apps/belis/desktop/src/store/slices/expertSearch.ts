@@ -22,6 +22,7 @@ export interface ExpertRuleState {
 export interface ExpertGroupState {
   id: number;
   conjunction: Conjunction; // how rules inside the group combine
+  negated: boolean; // wrap the whole group in Hasura `_not` when true
   rules: ExpertRuleState[];
 }
 
@@ -55,7 +56,7 @@ const OBJECT_TYPES: ObjectType[] = [
 // The limit is unset (null) by default, so no `limit` clause is emitted and all
 // matching rows come back until the user enters one.
 const createTypeState = (): ExpertTypeState => ({
-  groups: [{ id: 1, conjunction: "UND", rules: [] }],
+  groups: [{ id: 1, conjunction: "UND", negated: false, rules: [] }],
   groupConjunction: "UND",
   sorts: [],
   limit: null,
@@ -84,7 +85,12 @@ const slice = createSlice({
   reducers: {
     addGroup(state, action: PayloadAction<ObjectType>) {
       const t = state[action.payload];
-      t.groups.push({ id: t.nextGroupId++, conjunction: "UND", rules: [] });
+      t.groups.push({
+        id: t.nextGroupId++,
+        conjunction: "UND",
+        negated: false,
+        rules: [],
+      });
     },
     removeGroup(
       state,
@@ -113,6 +119,20 @@ const slice = createSlice({
         action.payload.groupId
       );
       if (group) group.conjunction = action.payload.conjunction;
+    },
+    setGroupNegated(
+      state,
+      action: PayloadAction<{
+        objectType: ObjectType;
+        groupId: number;
+        negated: boolean;
+      }>
+    ) {
+      const group = findGroup(
+        state[action.payload.objectType],
+        action.payload.groupId
+      );
+      if (group) group.negated = action.payload.negated;
     },
     addRule(
       state,
@@ -268,6 +288,7 @@ export const {
   removeGroup,
   setGroupConjunction,
   setGroupInnerConjunction,
+  setGroupNegated,
   addRule,
   removeRule,
   setRuleField,
