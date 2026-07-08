@@ -15,6 +15,11 @@ import {
 } from "../../slices/mapLayers";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
+import {
+  deriveAdditionalConfigFragments,
+  deriveConfigSubcategories,
+} from "../../helper/buildCatalog";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import { parseDescription } from "../../helper/layerHelper";
 import { partianTwinConfig } from "../../helper/config";
@@ -650,15 +655,6 @@ const ServiceListContent = ({
 }: ServiceListProps) => {
   const allLayers = useSelector(getAllLayers);
   const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
-  const [additionalLayers, setAdditionalLayers] = useState<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
-  const [sensorEntries, setSensorEntries] = useState<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
-  const [objectEntries, setObjectEntries] = useState<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
   const [discoverLayers, setDiscoverLayers] = useState<
     { id: string; Title: string; layers: any[] }[]
   >([]);
@@ -695,36 +691,38 @@ const ServiceListContent = ({
     });
   }, []);
 
-  const addItemToCategory = useCallback(
-    (
-      categoryId: string,
-      subCategory: { id: string; Title: string },
-      item: any
-    ) => {
-      const layers = Array.isArray(item) ? item : [item];
-      const entry = {
-        serviceName: subCategory.id,
-        title: subCategory.Title,
-        layers,
-      };
-      if (categoryId === "mapLayers") {
-        setAdditionalLayers((prev) => [...prev, entry]);
-      } else if (categoryId === "sensors") {
-        setSensorEntries((prev) => [...prev, entry]);
-      } else if (categoryId === "objects") {
-        setObjectEntries((prev) => [...prev, entry]);
-      }
-    },
-    []
-  );
-
-  const noopSetSidebarElements = useCallback((() => {}) as any, []);
-
-  const { loadingAdditionalConfig } = useAdditionalConfig({
-    addItemToCategory,
-    setSidebarElements: noopSetSidebarElements,
+  const flags = useFeatureFlags();
+  const {
+    additionalConfig,
+    sensorConfig,
+    objectConfig,
+    loadingAdditionalConfig,
+  } = useAdditionalConfig({
     assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
+
+  const fragmentsToEntries = (fragments: { id?: string; Title: string; layers: any[] }[]) =>
+    fragments.map((fragment) => ({
+      serviceName: fragment.id ?? "",
+      title: fragment.Title,
+      layers: fragment.layers,
+    }));
+
+  const additionalLayers = useMemo(
+    () => fragmentsToEntries(deriveAdditionalConfigFragments(additionalConfig, flags)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [additionalConfig, flags]
+  );
+  const sensorEntries = useMemo(
+    () => fragmentsToEntries(deriveConfigSubcategories(sensorConfig, flags)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sensorConfig, flags]
+  );
+  const objectEntries = useMemo(
+    () => fragmentsToEntries(deriveConfigSubcategories(objectConfig, flags)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [objectConfig, flags]
+  );
 
   useLoadCapabilities({
     loadingAdditionalConfig,

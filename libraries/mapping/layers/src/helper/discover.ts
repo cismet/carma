@@ -7,17 +7,19 @@ export type DiscoverProps = {
   daqKey: string;
 };
 
+export type DiscoverItem = {
+  config: string;
+  id: number;
+  name: string;
+  draft?: boolean;
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+};
+
 type DiscoverResult = {
   time: string | null;
-  data: {
-    config: string;
-    id: number;
-    name: string;
-    draft?: boolean;
-    created_at?: string;
-    created_by?: string;
-    updated_at?: string;
-  }[];
+  data: DiscoverItem[];
 };
 
 export const fetchDiscoverItems = async (

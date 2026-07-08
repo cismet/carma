@@ -5,12 +5,7 @@ import { isEqual } from "lodash";
 import { useQueries } from "@tanstack/react-query";
 import WMSCapabilities from "wms-capabilities";
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
-import type {
-  Layer,
-  LayerConfig,
-  SavedLayerConfig,
-} from "../lib/contracts/carma-layers.d";
-import type { CatalogMainCategory } from "./useCatalogSearch";
+import type { Layer, LayerConfig } from "../lib/contracts/carma-layers.d";
 
 import {
   addloadingCapabilitiesIDs,
@@ -19,7 +14,7 @@ import {
   setAllLayers,
   getReplaceLayers,
 } from "../slices/mapLayers";
-import { baseConfig as config, partianTwinConfig } from "../helper/config";
+import { baseConfig as config } from "../helper/config";
 import {
   getLayerStructure,
   mergeStructures,
@@ -78,9 +73,6 @@ interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
   activeLayers: ActiveLayers;
   updateActiveLayer?: (layer: Layer) => void;
-  setAllCategories?: React.Dispatch<
-    React.SetStateAction<CatalogMainCategory[]>
-  >;
   services: Record<string, LayerConfig>;
 }
 
@@ -88,7 +80,6 @@ export const useLoadCapabilities = ({
   loadingAdditionalConfig,
   activeLayers,
   updateActiveLayer,
-  setAllCategories,
   services,
 }: UseLoadCapabilitiesProps) => {
   const dispatch = useDispatch();
@@ -234,33 +225,4 @@ export const useLoadCapabilities = ({
     localServices,
     dispatch,
   ]);
-
-  // Partial Twins Category (static config)
-  useEffect(() => {
-    if (!setAllCategories) {
-      return;
-    }
-    const partialTwinsCategories: {
-      Title: string;
-      id: string;
-      layers: SavedLayerConfig[];
-    }[] = [];
-
-    for (let key in partianTwinConfig) {
-      partialTwinsCategories.push(partianTwinConfig[key]);
-    }
-
-    setAllCategories((prev) => {
-      if (prev.find((item) => item.id === "partialTwins")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "partialTwins"),
-          1
-        );
-      }
-      return [
-        ...prev,
-        { id: "partialTwins", categories: partialTwinsCategories },
-      ];
-    });
-  }, [setAllCategories]);
 };

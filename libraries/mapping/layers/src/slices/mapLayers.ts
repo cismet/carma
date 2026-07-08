@@ -1,7 +1,7 @@
 import localForage from "localforage";
 import { createSlice, current } from "@reduxjs/toolkit";
 import { isEqual } from "lodash";
-import { Config, ExtendedItem, Item } from "../lib/contracts/carma-layers.d";
+import { ExtendedItem, Item } from "../lib/contracts/carma-layers.d";
 
 export type { ExtendedItem };
 
@@ -11,7 +11,6 @@ interface MapLayersState {
   loadingCapabilities: boolean;
   selectedLayer: Item | null;
   allLayers: { Title: string; id: string; layers: Item[] }[];
-  customLayerConfig: Config[];
 }
 
 type RootState = {
@@ -24,7 +23,6 @@ const initialState: MapLayersState = {
   loadingCapabilities: true,
   selectedLayer: null,
   allLayers: [],
-  customLayerConfig: [],
 };
 
 export const getMapLayersConfig = ({
@@ -114,9 +112,6 @@ const sliceMapLayers = createSlice({
         });
       }
     },
-    setCustomLayerConfig: (state, action) => {
-      state.customLayerConfig = action.payload;
-    },
   },
 });
 
@@ -128,7 +123,6 @@ export const {
   setLoadingCapabilities,
   setSelectedLayer,
   setAllLayers,
-  setCustomLayerConfig,
 } = sliceMapLayers.actions;
 
 export const getReplaceLayers = ({ mapLayers }: RootState) =>
@@ -144,9 +138,6 @@ export const getSelectedLayer = ({ mapLayers }: RootState) =>
   mapLayers.selectedLayer;
 
 export const getAllLayers = ({ mapLayers }: RootState) => mapLayers.allLayers;
-
-export const getCustomLayerConfig = ({ mapLayers }: RootState) =>
-  mapLayers.customLayerConfig;
 
 export const mapLayersReducer = sliceMapLayers.reducer;
 

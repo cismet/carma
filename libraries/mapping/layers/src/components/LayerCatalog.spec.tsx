@@ -359,6 +359,117 @@ describe("LayerCatalog", () => {
     });
   });
 
+  it("shows a dropped vector style at the top of the catalog", async () => {
+    renderModal();
+    await screen.findByText("Stadtgrundkarte (grau)", undefined, {
+      timeout: 8000,
+    });
+
+    const style = {
+      version: 8,
+      layers: [],
+      metadata: {
+        carmaConf: { layerInfo: { title: "Dropped Style Layer" } },
+      },
+    };
+    const file = new File([JSON.stringify(style)], "dropped.style.json", {
+      type: "application/json",
+    });
+    fireEvent.drop(window, {
+      dataTransfer: { files: [file], getData: () => "" },
+    });
+
+    await screen.findByText("Dropped Style Layer", undefined, {
+      timeout: 8000,
+    });
+
+    // the dropped item leads the catalog: "Externe Dienste" is the first
+    // rendered subcategory of the map layers grid
+    const scrollContainer = document.getElementById("scrollContainer");
+    const headings = scrollContainer?.querySelectorAll("p.text-2xl");
+    expect(headings?.[0]?.textContent).toBe("Externe Dienste");
+  });
+
+  it("applies a dropped layer config to the current catalog", async () => {
+    renderModal();
+    await screen.findByText("Stadtgrundkarte (grau)", undefined, {
+      timeout: 8000,
+    });
+    await screen.findByText("Zusatz Testlayer", undefined, { timeout: 8000 });
+
+    const droppedConfig = [
+      {
+        // new category with a new layer
+        Title: "Drop Kategorie",
+        serviceName: "dropTest",
+        layers: [
+          {
+            id: "dropTest:neu",
+            type: "layer",
+            layerType: "vector",
+            title: "Drop Testlayer",
+            description: "Inhalt: Per Drop ergänzte Testebene.",
+            tags: ["Drop"],
+          },
+        ],
+      },
+      {
+        // override a layer that came from the fetched additional config
+        Title: "Zusatzebenen",
+        serviceName: "zusatzTest",
+        layers: [
+          {
+            id: "zusatzTest:testlayer",
+            title: "Zusatz Testlayer (geändert)",
+          },
+        ],
+      },
+      {
+        // replace a layer that came from the WMS capabilities
+        layers: [
+          {
+            id: "drop:alkomgw-ersatz",
+            replaceId: "wuppKarten:alkomgw",
+            path: "Basis",
+            type: "layer",
+            layerType: "vector",
+            title: "Stadtgrundkarte Ersatz (Drop)",
+            description: "Inhalt: Per Drop ersetzte Stadtgrundkarte.",
+          },
+        ],
+      },
+    ];
+    const configJson = JSON.stringify(droppedConfig);
+    const file = new File([configJson], "dropped-layer-config.json", {
+      type: "application/json",
+    });
+    // jsdom's File misses Blob.text()
+    Object.defineProperty(file, "text", {
+      value: () => Promise.resolve(configJson),
+    });
+    fireEvent.drop(window, {
+      dataTransfer: { files: [file], getData: () => "" },
+    });
+
+    // new layer in its new category
+    await screen.findByText("Drop Testlayer", undefined, { timeout: 8000 });
+    expect(screen.getAllByText("Drop Kategorie").length).toBeGreaterThan(0);
+
+    // existing additional-config layer changed in place
+    await screen.findByText("Zusatz Testlayer (geändert)", undefined, {
+      timeout: 8000,
+    });
+    expect(screen.queryByText("Zusatz Testlayer")).toBeNull();
+
+    // WMS-derived layer swapped via replaceId
+    await screen.findByText("Stadtgrundkarte Ersatz (Drop)", undefined, {
+      timeout: 8000,
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Stadtgrundkarte (grau)")).toBeNull();
+    });
+  });
+
   it("clears the loading state when capabilities fail to load", async () => {
     vi.stubGlobal(
       "fetch",

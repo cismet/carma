@@ -6,6 +6,8 @@ import { CatalogQueryProvider } from "../../config/CatalogQueryProvider";
 import { getAllLayers } from "../../slices/mapLayers";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
+import { deriveAdditionalConfigFragments } from "../../helper/buildCatalog";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { LayerIcon } from "@carma-mapping/components";
 import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
 import { parseToMapLayer, resolveLayerIconUrl } from "@carma-mapping/utils";
@@ -43,9 +45,6 @@ interface ImageListProps {
 
 const ImageListContent = ({ markdown = false }: ImageListProps) => {
   const allLayers = useSelector(getAllLayers);
-  const additionalLayersRef = useRef<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
   const [parsedLayerMap, setParsedLayerMap] = useState<Record<string, Layer>>(
     {}
   );
@@ -93,31 +92,22 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
     [addError]
   );
 
-  const addItemToCategory = useCallback(
-    (
-      categoryId: string,
-      subCategory: { id: string; Title: string },
-      item: any
-    ) => {
-      if (categoryId === "mapLayers") {
-        const layers = Array.isArray(item) ? item : [item];
-        additionalLayersRef.current.push({
-          serviceName: subCategory.id,
-          title: subCategory.Title,
-          layers,
-        });
-      }
-    },
-    []
-  );
-
-  const noopSetSidebarElements = useCallback((() => {}) as any, []);
-
-  const { loadingAdditionalConfig } = useAdditionalConfig({
-    addItemToCategory,
-    setSidebarElements: noopSetSidebarElements,
+  const flags = useFeatureFlags();
+  const { additionalConfig, loadingAdditionalConfig } = useAdditionalConfig({
     assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
+
+  const additionalLayers = useMemo(
+    () =>
+      deriveAdditionalConfigFragments(additionalConfig, flags).map(
+        (fragment) => ({
+          serviceName: fragment.id ?? "",
+          title: fragment.Title,
+          layers: fragment.layers,
+        })
+      ),
+    [additionalConfig, flags]
+  );
 
   useLoadCapabilities({
     loadingAdditionalConfig,
@@ -129,7 +119,7 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
   const displayLayers = useMemo(() => {
     if (allLayers.length === 0) return allLayers;
     const merged = JSON.parse(JSON.stringify(allLayers));
-    for (const entry of additionalLayersRef.current) {
+    for (const entry of additionalLayers) {
       const existing = merged.find((cat: any) => cat.id === entry.serviceName);
       if (existing) {
         for (const layer of entry.layers) {
@@ -146,7 +136,7 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
       }
     }
     return merged;
-  }, [allLayers]);
+  }, [allLayers, additionalLayers]);
 
   const loading = allLayers.length === 0;
   const totalLayerCount = displayLayers.reduce(

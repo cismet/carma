@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { isEqual } from "lodash";
 import { useHandleDrop } from "../hooks/useHandleDrop";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
@@ -36,18 +36,15 @@ import {
 } from "@carma-providers/feature-flag";
 
 import {
-  applyKeywordSettings,
-  flattenLayer,
-  hasHideLayerKeyword,
-  reorderLayersByInsertRules,
-  wmsLayerToGenericItem,
-} from "../helper/layerHelper";
-import { isCurrentlyFeatured } from "../helper/dateHelper";
+  applyCatalogDrop,
+  buildCatalog,
+  EMPTY_DROPPED_CATALOG,
+} from "../helper/buildCatalog";
 import LayerTabs from "./LayerTabs";
 import { SidebarItem } from "./SidebarItems";
 
 import ItemGrid from "./ItemGrid";
-import { discoverConfig, fetchDiscoverItems } from "../helper/discover";
+import { fetchDiscoverItems } from "../helper/discover";
 
 import "./input.css";
 import "./modal.css";
@@ -62,13 +59,17 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   findFirstCategoryIdWithResults,
   useCatalogSearch,
-  type CatalogMainCategory,
   type CatalogSubCategory,
 } from "../hooks/useCatalogSearch";
 
 const { Search } = Input;
 
-const elements = [
+const elements: {
+  icon: IconDefinition;
+  text: string;
+  id: string;
+  disabledIn3D?: boolean;
+}[] = [
   { icon: faStar, text: "Favoriten", id: "favorites" },
   { icon: faList, text: "Entdecken", id: "discover", disabledIn3D: true },
   { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
@@ -119,37 +120,13 @@ const LayerCatalogView = ({
 }: LayerCatalogProps) => {
   const catalogConfig = config ?? wuppLayerCatalogConfig;
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const [sidebarElements, setSidebarElements] = useState<
-    {
-      icon: IconDefinition;
-      text: string;
-      id: string;
-      disabled?: boolean;
-    }[]
-  >(elements);
   const [preview, setPreview] = useState(false);
   const allLayers = useSelector(getAllLayers);
   const [showItems, setShowItems] = useState(false);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
-  const [allCategories, setAllCategories] = useState<CatalogMainCategory[]>([]);
-  const disabledCategoryIds = useMemo(
-    () =>
-      new Set(
-        sidebarElements
-          .filter((element) => element.disabled)
-          .map((element) => element.id)
-      ),
-    [sidebarElements]
-  );
-  const {
-    searchValue,
-    setSearchValue,
-    debouncedSearchTerm,
-    isSearching,
-    filteredCategories,
-  } = useCatalogSearch({ allCategories, disabledCategoryIds });
-  const [currentShownCategory, setCurrentShownCategory] = useState(
-    filteredCategories[0]?.id
+  const [dropped, applyDrop] = useReducer(
+    applyCatalogDrop,
+    EMPTY_DROPPED_CATALOG
   );
   const [delayedLoading, setDelayedLoading] = useState(false);
 
@@ -176,6 +153,83 @@ const LayerCatalogView = ({
   const discoverError = discoverHasError
     ? "Fehler beim Laden der Inhalte"
     : null;
+
+  const { additionalConfig, sensorConfig, objectConfig, loadingAdditionalConfig } =
+    useAdditionalConfig({
+      setFeatureFlags,
+      assetBaseUrl: catalogConfig.assetBaseUrl,
+      droppedLayerConfigs: dropped.layerConfigs,
+    });
+
+  useLoadCapabilities({
+    loadingAdditionalConfig,
+    activeLayers,
+    updateActiveLayer,
+    services: catalogConfig.services,
+  });
+
+  // The complete category tree is a pure derivation over all sources; every
+  // source change (fetch result, drop, feature flag, custom categories)
+  // triggers exactly one recompute instead of cascading state writes.
+  const allCategories = useMemo(
+    () =>
+      buildCatalog(
+        {
+          serviceCategories: allLayers,
+          additionalConfig,
+          sensorConfig,
+          objectConfig,
+          discoverItems,
+          dropped,
+        },
+        { featureFlags: flags, customCategories }
+      ),
+    [
+      allLayers,
+      additionalConfig,
+      sensorConfig,
+      objectConfig,
+      discoverItems,
+      dropped,
+      flags,
+      customCategories,
+    ]
+  );
+
+  const sidebarElements = useMemo(() => {
+    const categoryHasItems = (id: string) =>
+      allCategories
+        .find((category) => category.id === id)
+        ?.categories.some((subCategory) => subCategory.layers.length > 0) ??
+      false;
+    return elements.map((element) => ({
+      ...element,
+      disabled:
+        (!!element.disabledIn3D && isCesium) ||
+        ((element.id === "sensors" || element.id === "objects") &&
+          !categoryHasItems(element.id)),
+    }));
+  }, [allCategories, isCesium]);
+
+  const disabledCategoryIds = useMemo(
+    () =>
+      new Set(
+        sidebarElements
+          .filter((element) => element.disabled)
+          .map((element) => element.id)
+      ),
+    [sidebarElements]
+  );
+  const {
+    searchValue,
+    setSearchValue,
+    debouncedSearchTerm,
+    isSearching,
+    filteredCategories,
+  } = useCatalogSearch({ allCategories, disabledCategoryIds });
+  const [currentShownCategory, setCurrentShownCategory] = useState(
+    filteredCategories[0]?.id
+  );
 
   useEffect(() => {
     const error = rawDiscoverError as (Error & { status?: number }) | null;
@@ -208,45 +262,36 @@ const LayerCatalogView = ({
     return () => clearTimeout(timer);
   }, [loadingData]);
 
+  // when the selected sidebar entry becomes disabled (3D switch, category
+  // emptied), move the selection to the first sensible entry
   useEffect(() => {
-    const updatedElements = elements.map((element) => {
-      const currentElement = sidebarElements.find((e) => e.id === element.id);
-      const wasDisabledForOtherReasons =
-        currentElement?.disabled && !element.disabledIn3D;
-      return {
-        ...element,
-        disabled:
-          wasDisabledForOtherReasons || (element.disabledIn3D && isCesium),
-      };
+    const currentElement = sidebarElements[selectedNavItemIndex];
+    if (!currentElement?.disabled) {
+      return;
+    }
+    const firstValidIndex = sidebarElements.findIndex((element) => {
+      if (element.disabled) return false;
+      const categoryData = filteredCategories.find(
+        (cat) => cat.id === element.id
+      );
+      if (!categoryData) return false;
+      return categoryData.categories.some(
+        (subCat) => subCat.layers?.length > 0
+      );
     });
-    setSidebarElements(updatedElements);
 
-    const currentElement = updatedElements[selectedNavItemIndex];
-    if (currentElement?.disabled) {
-      const firstValidIndex = updatedElements.findIndex((element) => {
-        if (element.disabled) return false;
-        const categoryData = filteredCategories.find(
-          (cat) => cat.id === element.id
-        );
-        if (!categoryData) return false;
-        const hasItems = categoryData.categories.some(
-          (subCat) => subCat.layers?.length > 0
-        );
-        return hasItems;
-      });
-
-      if (firstValidIndex !== -1) {
-        setSelectedNavItemIndex(firstValidIndex);
-      } else {
-        const firstNonDisabled = updatedElements.findIndex(
-          (element) => !element.disabled
-        );
-        if (firstNonDisabled !== -1) {
-          setSelectedNavItemIndex(firstNonDisabled);
-        }
+    if (firstValidIndex !== -1) {
+      setSelectedNavItemIndex(firstValidIndex);
+    } else {
+      const firstNonDisabled = sidebarElements.findIndex(
+        (element) => !element.disabled
+      );
+      if (firstNonDisabled !== -1) {
+        setSelectedNavItemIndex(firstNonDisabled);
       }
     }
-  }, [isCesium]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarElements]);
 
   const getNumOfCustomLayers = () => {
     return customCategories.reduce((acc, category) => {
@@ -282,29 +327,6 @@ const LayerCatalogView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchTerm, filteredCategories]);
 
-  const getDataFromJson = (data: any) => {
-    const flattenedLayers: any[] = [];
-    const rootLayer = data.Capability.Layer;
-    const getUrl =
-      data.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
-    flattenedLayers.push(flattenLayer(rootLayer, [], getUrl));
-
-    const tmpLayer = flattenedLayers[0].layers
-      .map((layer) => wmsLayerToGenericItem(layer, "custom"))
-      .filter(
-        (layer): layer is Item =>
-          layer !== null && !hasHideLayerKeyword(layer.keywords)
-      )
-      .map((layer) => applyKeywordSettings(layer));
-
-    return [
-      {
-        Title: "Externe Dienste",
-        layers: tmpLayer,
-      },
-    ];
-  };
-
   const getNumberOfLayers = (layerCategories: LayerCategories[]) => {
     let numberOfLayers = 0;
     layerCategories?.forEach((category) => {
@@ -313,146 +335,17 @@ const LayerCatalogView = ({
     return numberOfLayers;
   };
 
-  const addItemToCategory = (
-    categoryId: string,
-    subCategory: { id: string; Title: string },
-    item: SavedLayerConfig | SavedLayerConfig[]
-  ) => {
-    const createNewCategories = (prev) => {
-      const newCategories = [...prev];
-      const categoryExists = newCategories.find((cat) => cat.id === categoryId);
-      if (!categoryExists) {
-        newCategories.push({
-          id: categoryId,
-          categories: [],
-        });
-      }
-      newCategories.map((cat) => {
-        if (cat.id === categoryId) {
-          let subCats = cat.categories;
-          let newSubCat: LayerCategories | undefined = undefined;
-          subCats.forEach((subCat) => {
-            if (subCat.id === subCategory.id) {
-              newSubCat = subCat;
-              newSubCat.Title = subCategory.Title;
-              if (newSubCat) {
-                if (Array.isArray(item)) {
-                  newSubCat.layers.unshift(...item);
-                } else {
-                  newSubCat.layers.unshift(item);
-                }
-                newSubCat.layers = newSubCat.layers.filter(
-                  (layer, index) =>
-                    newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
-                    index
-                );
-
-                // Position layers via insertAfterId / insertPosition hints
-                newSubCat.layers = reorderLayersByInsertRules(newSubCat.layers);
-              }
-            }
-          });
-          if (!newSubCat) {
-            if (Array.isArray(item)) {
-              cat.categories.unshift({
-                id: subCategory.id,
-                Title: subCategory.Title,
-                layers: item,
-              });
-            } else {
-              cat.categories.unshift({
-                id: subCategory.id,
-                Title: subCategory.Title,
-                layers: [item],
-              });
-            }
-
-            cat.categories = cat.categories.filter(
-              (layer, index) =>
-                cat?.categories.findIndex((l) => l.id === layer.id) === index
-            );
-          } else {
-            return newSubCat;
-          }
-        }
-      });
-      return newCategories;
-    };
-
-    setAllCategories(createNewCategories);
-  };
-
   useHandleDrop({
     setOpen,
     setSelectedNavItemIndex,
-    addItemToCategory,
-    getDataFromJson,
+    onDrop: applyDrop,
     activeLayers,
     updateActiveLayer,
     setAdditionalLayers,
-    setSidebarElements,
     vectorTileServerUrl: catalogConfig.vectorTileServerUrl,
   });
 
-  const { loadingAdditionalConfig } = useAdditionalConfig({
-    setFeatureFlags,
-    addItemToCategory,
-    setSidebarElements,
-    assetBaseUrl: catalogConfig.assetBaseUrl,
-  });
-
-  useLoadCapabilities({
-    loadingAdditionalConfig,
-    activeLayers,
-    updateActiveLayer,
-    setAllCategories,
-    services: catalogConfig.services,
-  });
-
-  useEffect(() => {
-    if (!discoverItems || discoverItems.length === 0) {
-      return;
-    }
-    const discoverCategories: {
-      Title: string;
-      id: string;
-      layers: SavedLayerConfig[];
-    }[] = [];
-    for (let key in discoverConfig) {
-      let layers: Item[] = [];
-      const filteredItems = discoverItems?.filter((item) => {
-        return JSON.parse(item.config).serviceName === discoverConfig[key].id;
-      });
-      layers.push(
-        ...filteredItems?.map((item) => {
-          return {
-            ...JSON.parse(item.config),
-            id: item.id.toString(),
-            isDraft: item.draft ? true : false,
-            createdAt: item.created_at,
-            createdBy: item.created_by,
-            updatedAt: item.updated_at,
-          };
-        })
-      );
-
-      discoverCategories.push({
-        ...discoverConfig[key],
-        layers,
-      });
-    }
-
-    setAllCategories((prev) => {
-      if (prev.find((item) => item.id === "discover")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "discover"),
-          1
-        );
-      }
-      return [...prev, { id: "discover", categories: discoverCategories }];
-    });
-  }, [discoverItems]);
-
+  // start on the map layers tab as long as there is nothing in the favorites
   useEffect(() => {
     if (
       getNumOfCustomLayers() === 0 &&
@@ -461,81 +354,8 @@ const LayerCatalogView = ({
     ) {
       setSelectedNavItemIndex(3);
     }
-
-    if (customCategories) {
-      const DEFAULT_MAIN_CATEGORY_ID = "favorites";
-      const subCategoriesByMainCategoryId = new Map<
-        string,
-        LayerCategories[]
-      >();
-      customCategories.forEach((subCategory) => {
-        const mainCategoryId =
-          subCategory.mainCategoryId ?? DEFAULT_MAIN_CATEGORY_ID;
-        const existingForMain =
-          subCategoriesByMainCategoryId.get(mainCategoryId) ?? [];
-        existingForMain.push(subCategory);
-        subCategoriesByMainCategoryId.set(mainCategoryId, existingForMain);
-      });
-      if (!subCategoriesByMainCategoryId.has(DEFAULT_MAIN_CATEGORY_ID)) {
-        subCategoriesByMainCategoryId.set(DEFAULT_MAIN_CATEGORY_ID, []);
-      }
-
-      const mergeSubCategoriesIntoMainCategories = (
-        previousMainCategories: {
-          id: string;
-          categories: LayerCategories[];
-        }[]
-      ) => {
-        const nextMainCategories = [...previousMainCategories];
-        subCategoriesByMainCategoryId.forEach(
-          (subCategories, mainCategoryId) => {
-            const mainCategoryIndex = nextMainCategories.findIndex(
-              (mainCategory) => mainCategory.id === mainCategoryId
-            );
-            if (mainCategoryId === DEFAULT_MAIN_CATEGORY_ID) {
-              if (mainCategoryIndex !== -1) {
-                nextMainCategories.splice(mainCategoryIndex, 1);
-              }
-              nextMainCategories.push({
-                id: DEFAULT_MAIN_CATEGORY_ID,
-                categories: subCategories,
-              });
-            } else {
-              const customSubCategoryIds = new Set(
-                subCategories
-                  .map((subCategory) => subCategory.id)
-                  .filter(Boolean) as string[]
-              );
-              if (mainCategoryIndex !== -1) {
-                const preservedSubCategories = nextMainCategories[
-                  mainCategoryIndex
-                ].categories.filter(
-                  (existingSubCategory) =>
-                    !existingSubCategory.id ||
-                    !customSubCategoryIds.has(existingSubCategory.id)
-                );
-                nextMainCategories[mainCategoryIndex] = {
-                  ...nextMainCategories[mainCategoryIndex],
-                  categories: [...subCategories, ...preservedSubCategories],
-                };
-              } else {
-                nextMainCategories.push({
-                  id: mainCategoryId,
-                  categories: subCategories,
-                });
-              }
-            }
-          }
-        );
-        if (isEqual(nextMainCategories, previousMainCategories)) {
-          return previousMainCategories;
-        }
-        return nextMainCategories;
-      };
-
-      setAllCategories(mergeSubCategoriesIntoMainCategories);
-    }
-  }, [customCategories, allCategories]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customCategories]);
 
   const checkIfAllLayersAreLoaded = () => {
     let allLayersLoaded = true;
@@ -550,144 +370,37 @@ const LayerCatalogView = ({
     return allLayersLoaded;
   };
 
+  // reconcile stored favorites with the freshly derived layer definitions
   useEffect(() => {
-    if (checkIfAllLayersAreLoaded()) {
-      const favoriteLayerCategory = customCategories.filter(
-        (category) => category.id === "favoriteLayers"
-      );
-      if (favoriteLayerCategory.length > 0) {
-        const favoriteLayers = favoriteLayerCategory[0].layers;
-        favoriteLayers.forEach((layer) => {
-          const serviceId = (layer as unknown as any)?.service?.name; // TODO: fix type
-          const serviceCategory = allLayers.filter(
-            (category) => category.id === serviceId
+    if (!checkIfAllLayersAreLoaded()) {
+      return;
+    }
+    const favoriteLayerCategory = customCategories.filter(
+      (category) => category.id === "favoriteLayers"
+    );
+    if (favoriteLayerCategory.length > 0) {
+      const favoriteLayers = favoriteLayerCategory[0].layers;
+      favoriteLayers.forEach((layer) => {
+        const serviceId = (layer as unknown as any)?.service?.name; // TODO: fix type
+        const serviceCategory = allLayers.filter(
+          (category) => category.id === serviceId
+        );
+        if (serviceCategory.length > 0) {
+          const serviceLayers = serviceCategory[0].layers;
+          const foundLayer = serviceLayers.find(
+            (serviceLayer) => serviceLayer.id === layer.id.slice(4)
           );
-          if (serviceCategory.length > 0) {
-            const serviceLayers = serviceCategory[0].layers;
-            const foundLayer = serviceLayers.find(
-              (serviceLayer) => serviceLayer.id === layer.id.slice(4)
-            );
-            if (foundLayer) {
-              if (!isEqual(foundLayer, layer)) {
-                if (updateFavorite) {
-                  updateFavorite(foundLayer);
-                }
+          if (foundLayer) {
+            if (!isEqual(foundLayer, layer)) {
+              if (updateFavorite) {
+                updateFavorite(foundLayer);
               }
             }
           }
-        });
-      }
-    }
-
-    const allLayersCopy = JSON.parse(JSON.stringify(allLayers));
-    allLayersCopy.reverse().forEach((layers) => {
-      addItemToCategory(
-        "mapLayers",
-        { id: layers.id, Title: layers.Title },
-        layers.layers
-      );
-    });
-
-    const featuredLayers = allLayers
-      .flatMap((category) =>
-        category.layers.filter((layer) =>
-          layer.keywords?.some(
-            (keyword: string) =>
-              keyword.includes("carmaconf://featuredUntil") ||
-              keyword.includes("carmaconf://featuredFrom")
-          )
-        )
-      )
-      .filter((layer) => {
-        const featuredFrom = layer.keywords
-          ?.find((keyword: string) =>
-            keyword.includes("carmaconf://featuredFrom")
-          )
-          ?.split(":")[2];
-        const featuredUntil = layer.keywords
-          ?.find((keyword: string) =>
-            keyword.includes("carmaconf://featuredUntil")
-          )
-          ?.split(":")[2];
-        return isCurrentlyFeatured(featuredFrom, featuredUntil);
+        }
       });
-
-    setAllCategories((prev) => {
-      const newCategories = [...prev];
-      const currentMapLayers = newCategories.find(
-        (item) => item.id === "mapLayers"
-      )?.categories;
-
-      const mergedCategories = JSON.parse(JSON.stringify(allLayers));
-      if (currentMapLayers) {
-        currentMapLayers.forEach((currentCategory) => {
-          const mergedCategoryIndex = mergedCategories.findIndex(
-            (cat) => cat.id === currentCategory.id
-          );
-
-          if (mergedCategoryIndex !== -1) {
-            // Category exists in allLayers, check for additional layers
-            const mergedCategory = mergedCategories[mergedCategoryIndex];
-
-            currentCategory.layers.forEach((currentLayer) => {
-              // Check if this layer exists in the merged category
-              const layerExists = mergedCategory.layers.some(
-                (layer) => layer.id === currentLayer.id
-              );
-
-              if (!layerExists) {
-                mergedCategory.layers.push(currentLayer);
-              }
-            });
-
-            // Position layers via insertAfterId / insertPosition hints
-            mergedCategory.layers = reorderLayersByInsertRules(
-              mergedCategory.layers
-            );
-          } else {
-            // Category doesn't exist in allLayers, add the entire category
-            if (currentCategory.id === "featured") {
-              mergedCategories.unshift(currentCategory);
-            } else {
-              mergedCategories.push(currentCategory);
-            }
-          }
-        });
-      }
-
-      const mapLayersIndex = newCategories.findIndex(
-        (item) => item.id === "mapLayers"
-      );
-
-      if (mapLayersIndex !== -1) {
-        newCategories[mapLayersIndex] = {
-          id: "mapLayers",
-          categories: mergedCategories,
-        };
-      } else {
-        newCategories.push({
-          id: "mapLayers",
-          categories: mergedCategories,
-        });
-      }
-
-      return newCategories;
-    });
-
-    if (featuredLayers.length > 0) {
-      const featuredLayersWithServiceName = featuredLayers.map((layer) => ({
-        ...layer,
-        serviceName: "featured",
-        path: "Neu",
-        originalPath: layer.path,
-      }));
-      addItemToCategory(
-        "mapLayers",
-        { id: "featured", Title: "Neu" },
-        // @ts-ignore
-        featuredLayersWithServiceName
-      );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allLayers]);
 
   useEffect(() => {

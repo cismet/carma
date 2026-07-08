@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
+import type { FeatureFlagConfig } from "@carma-providers/feature-flag";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { addReplaceLayers } from "../slices/mapLayers";
+import type { Config } from "../lib/contracts/carma-layers.d";
 import {
-  useFeatureFlags,
-  type FeatureFlagConfig,
-} from "@carma-providers/feature-flag";
-import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
-import type { Config, SavedLayerConfig } from "../lib/contracts/carma-layers.d";
-import { processCategoryConfig } from "../helper/processCategoryConfig";
+  extractReplaceLayers,
+  mergeAdditionalConfigs,
+} from "../helper/buildCatalog";
+import type { CatalogConfigEntry } from "../helper/buildCatalog";
 
 const EMPTY_CONFIG: Config[] = [];
 
@@ -18,41 +20,23 @@ const fetchConfigJson = async (url: string): Promise<Config[]> => {
 
 interface UseAdditionalConfigProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
-  addItemToCategory: (
-    categoryId: string,
-    subCategory: { id: string; Title: string },
-    item: SavedLayerConfig | SavedLayerConfig[]
-  ) => void;
-  setSidebarElements: React.Dispatch<
-    React.SetStateAction<
-      {
-        icon: any;
-        text: string;
-        id: string;
-        disabled?: boolean;
-      }[]
-    >
-  >;
   assetBaseUrl: string;
+  /** dropped layer configs, applied as overlay over the fetched config */
+  droppedLayerConfigs?: CatalogConfigEntry[];
 }
 
 export const useAdditionalConfig = ({
   setFeatureFlags,
-  addItemToCategory,
-  setSidebarElements,
   assetBaseUrl,
+  droppedLayerConfigs,
 }: UseAdditionalConfigProps) => {
   const dataBaseUrl = `${assetBaseUrl}/data`;
   const additionalConfigUrl = `${dataBaseUrl}/additionalLayerConfig.json`;
   const sensorUrl = `${dataBaseUrl}/additionalSensorConfig.json`;
   const objectUrl = `${dataBaseUrl}/additionalObjectConfig.json`;
   const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
-  const [loadingSensorConfig, setLoadingSensorConfig] = useState(true);
-  const [loadingObjectConfig, setLoadingObjectConfig] = useState(true);
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
-
-  const customLayerConfig = useSelector(getCustomLayerConfig);
 
   const additionalConfigQuery = useQuery({
     queryKey: ["additionalConfig", additionalConfigUrl],
@@ -67,144 +51,80 @@ export const useAdditionalConfig = ({
     queryFn: () => fetchConfigJson(objectUrl),
   });
 
-  const additionalConfig = customLayerConfig?.length
-    ? customLayerConfig
-    : additionalConfigQuery.data ?? EMPTY_CONFIG;
+  const additionalConfig = useMemo(
+    () =>
+      mergeAdditionalConfigs(
+        additionalConfigQuery.data ?? EMPTY_CONFIG,
+        droppedLayerConfigs ?? []
+      ),
+    [additionalConfigQuery.data, droppedLayerConfigs]
+  );
   const sensorConfig = sensorConfigQuery.data ?? EMPTY_CONFIG;
   const objectConfig = objectConfigQuery.data ?? EMPTY_CONFIG;
 
   // register feature flags found in any of the configs
   useEffect(() => {
-    [
-      additionalConfigQuery.data,
-      sensorConfigQuery.data,
-      objectConfigQuery.data,
-    ].forEach((data) => {
-      data?.forEach((config) => {
-        config.layers.forEach((layer) => {
-          if (layer.ff as string) {
-            setFeatureFlags?.({
-              [layer.ff]: {
-                default: false,
-                alias: layer.ff,
-              },
-            });
-          }
+    [additionalConfig, sensorConfigQuery.data, objectConfigQuery.data].forEach(
+      (data) => {
+        data?.forEach((config) => {
+          config.layers.forEach((layer) => {
+            if (layer.ff as string) {
+              setFeatureFlags?.({
+                [layer.ff]: {
+                  default: false,
+                  alias: layer.ff,
+                },
+              });
+            }
+          });
         });
-      });
-    });
+      }
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    additionalConfigQuery.data,
-    sensorConfigQuery.data,
-    objectConfigQuery.data,
-  ]);
+  }, [additionalConfig, sensorConfigQuery.data, objectConfigQuery.data]);
 
-  // a failed config fetch must not keep the catalog in the loading state
+  useEffect(() => {
+    if (sensorConfigQuery.isError) {
+      console.error("Error fetching sensor config:", sensorConfigQuery.error);
+    }
+  }, [sensorConfigQuery.isError, sensorConfigQuery.error]);
+  useEffect(() => {
+    if (objectConfigQuery.isError) {
+      console.error("Error fetching object config:", objectConfigQuery.error);
+    }
+  }, [objectConfigQuery.isError, objectConfigQuery.error]);
+
+  // Dispatch the replace/merge layers derived from the effective config, then
+  // release the loading gate so the capabilities queries (which consume the
+  // replace layers) may start. A failed fetch must not keep the gate closed.
   useEffect(() => {
     if (additionalConfigQuery.isError) {
       console.error(
         "Error fetching additional config:",
         additionalConfigQuery.error
       );
-      setLoadingAdditionalConfig(false);
     }
-  }, [additionalConfigQuery.isError, additionalConfigQuery.error]);
-  useEffect(() => {
-    if (sensorConfigQuery.isError) {
-      console.error("Error fetching sensor config:", sensorConfigQuery.error);
-      setLoadingSensorConfig(false);
-    }
-  }, [sensorConfigQuery.isError, sensorConfigQuery.error]);
-  useEffect(() => {
-    if (objectConfigQuery.isError) {
-      console.error("Error fetching object config:", objectConfigQuery.error);
-      setLoadingObjectConfig(false);
-    }
-  }, [objectConfigQuery.isError, objectConfigQuery.error]);
-
-  // Process additional config for map layers
-  useEffect(() => {
-    if (additionalConfig.length > 0) {
-      additionalConfig.forEach((config, i) => {
-        let layers = config.layers
-          .filter((layer) => {
-            if (layer.ff) {
-              const ff = layer.ff as string;
-              return flags[ff];
-            }
-            return true;
-          })
-          .map((layer) => {
-            return {
-              ...layer,
-              serviceName: config.serviceName || layer.serviceName,
-            };
-          });
-
-        if (layers.length === 0) {
-          return;
-        }
-
-        if (config.Title) {
-          addItemToCategory(
-            "mapLayers",
-            { id: config.serviceName, Title: config.Title },
-            layers
-          );
-        } else {
-          layers.forEach((layer) => {
-            if (layer.replaceId || layer.mergeId) {
-              dispatch(addReplaceLayers(layer));
-            } else {
-              addItemToCategory(
-                "mapLayers",
-                { id: layer.serviceName, Title: layer.path },
-                layer
-              );
-            }
-          });
-        }
-
-        if (i === additionalConfig.length - 1) {
-          setLoadingAdditionalConfig(false);
-        }
-      });
-    } else if (additionalConfigQuery.isSuccess) {
+    extractReplaceLayers(additionalConfig, flags).forEach((layer) => {
+      dispatch(addReplaceLayers(layer));
+    });
+    if (additionalConfigQuery.isSuccess || additionalConfigQuery.isError) {
       setLoadingAdditionalConfig(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [additionalConfig, additionalConfigQuery.isSuccess, flags]);
-
-  useEffect(() => {
-    processCategoryConfig({
-      config: sensorConfig,
-      categoryId: "sensors",
-      flags,
-      addItemToCategory,
-      setSidebarElements,
-      setLoading: setLoadingSensorConfig,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sensorConfig, flags]);
-
-  useEffect(() => {
-    processCategoryConfig({
-      config: objectConfig,
-      categoryId: "objects",
-      flags,
-      addItemToCategory,
-      setSidebarElements,
-      setLoading: setLoadingObjectConfig,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectConfig, flags]);
+  }, [
+    additionalConfig,
+    additionalConfigQuery.isSuccess,
+    additionalConfigQuery.isError,
+    flags,
+  ]);
 
   return {
     additionalConfig,
     sensorConfig,
     objectConfig,
     loadingAdditionalConfig:
-      loadingAdditionalConfig || loadingSensorConfig || loadingObjectConfig,
+      loadingAdditionalConfig ||
+      sensorConfigQuery.isPending ||
+      objectConfigQuery.isPending,
   };
 };
