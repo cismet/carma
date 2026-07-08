@@ -1,5 +1,6 @@
 import { createElement, useMemo } from "react";
 import {
+  ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
   resolveAnnotationInfoBoxVisualOptions,
@@ -90,15 +91,17 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
       kind: RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.AUTHORING_INSTRUCTION,
       plugin,
       slots: {
-        // eslint-disable-next-line react/no-children-prop -- createElement props form, mirrors the authoring-instruction hook
-        content: createElement(AnnotationInfoBoxTextContent, {
-          visualOptions: resolvedVisualOptions,
-          children: createElement(AnnotationInfoBoxHelpContent, {
+        content: createElement(
+          AnnotationInfoBoxTextContent,
+          { visualOptions: resolvedVisualOptions },
+          createElement(AnnotationInfoBoxHelpContent, {
             items: helpItems,
             layout: authoringInstructionHelpLayout,
             locale: helpLocale,
-          }),
-        }),
+            actionTriggerAlign:
+              ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START,
+          })
+        ),
         collapsible: false,
       },
       visualOptions: resolvedVisualOptions,

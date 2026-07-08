@@ -21,6 +21,21 @@ export const ANNOTATION_INFO_BOX_HELP_ITEM_KINDS = {
   TEXT: "text",
   ACTION: "action",
   ALERT: "alert",
+  HEADING: "heading",
+} as const;
+
+export const ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS = {
+  // Block title (e.g. "Bearbeitungsmodus"); section subheading (e.g.
+  // "Weitere Funktionen"). Both render bold and without a trailing colon.
+  TITLE: "title",
+  SECTION: "section",
+} as const;
+
+export const ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS = {
+  // Trigger tokens hug the description (default key-hint style) vs. start of the
+  // trigger column (instruction-table style, e.g. the node-edit help).
+  END: "end",
+  START: "start",
 } as const;
 
 export const ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS = {
@@ -66,6 +81,12 @@ export type AnnotationInfoBoxHelpAlertSeverity =
 export type AnnotationInfoBoxHelpLayout =
   (typeof ANNOTATION_INFO_BOX_HELP_LAYOUTS)[keyof typeof ANNOTATION_INFO_BOX_HELP_LAYOUTS];
 
+export type AnnotationInfoBoxHelpHeadingLevel =
+  (typeof ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS)[keyof typeof ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS];
+
+export type AnnotationInfoBoxHelpActionTriggerAlignment =
+  (typeof ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS)[keyof typeof ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS];
+
 export type AnnotationInfoBoxHelpActionInputCombination =
   readonly AnnotationInfoBoxHelpActionInput[];
 
@@ -74,10 +95,24 @@ export type AnnotationInfoBoxHelpTextItem = Readonly<{
   text: string;
 }>;
 
+// Bold heading (block title or section subheading), rendered without a trailing
+// colon. Spans both columns in the grid. (cismet/wupp#4078)
+export type AnnotationInfoBoxHelpHeadingItem = Readonly<{
+  kind: typeof ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING;
+  text: string;
+  level?: AnnotationInfoBoxHelpHeadingLevel;
+}>;
+
 export type AnnotationInfoBoxHelpActionItem = Readonly<{
   kind: typeof ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION;
   indicator?: AnnotationInfoBoxHelpActionIndicator;
+  // May be empty for a label-only trigger cell (e.g. "Blaue Pfeilspitzen").
   inputAlternatives: readonly AnnotationInfoBoxHelpActionInputCombination[];
+  // Optional text rendered before / after the input tokens inside the trigger
+  // cell, so a row can read "Scheibenmitte [icon]" or "[icon] auf anderen
+  // Punkt" (cismet/wupp#4078).
+  leadingLabel?: string;
+  trailingLabel?: string;
   description: string;
 }>;
 
@@ -91,6 +126,7 @@ export type AnnotationInfoBoxHelpAlertItem = Readonly<{
 export type AnnotationInfoBoxHelpItem =
   | string
   | AnnotationInfoBoxHelpTextItem
+  | AnnotationInfoBoxHelpHeadingItem
   | AnnotationInfoBoxHelpActionItem
   | AnnotationInfoBoxHelpAlertItem;
 
@@ -108,6 +144,9 @@ type AnnotationInfoBoxHelpContentProps = {
   layout?: AnnotationInfoBoxHelpLayout;
   locale?: string;
   platform?: KeyboardDisplayPlatform;
+  // Where the trigger tokens sit in their column: "end" (default, key-hint
+  // style, hugging the description) or "start" (instruction-table style).
+  actionTriggerAlign?: AnnotationInfoBoxHelpActionTriggerAlignment;
 };
 
 const resolveAnnotationInfoBoxHelpLocale = (): string | undefined =>
@@ -145,6 +184,41 @@ const resolvePointerDisplayLabels = (
 
 const paragraphStyle: CSSProperties = {
   margin: "0 0 0.9rem",
+};
+
+const headingStyles = {
+  [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.TITLE]: {
+    margin: "0 0 0.5rem",
+    fontWeight: 700,
+    fontSize: "1.02em",
+    lineHeight: 1.25,
+  },
+  [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION]: {
+    margin: "0.5rem 0 0.35rem",
+    fontWeight: 700,
+    lineHeight: 1.25,
+  },
+} satisfies Record<AnnotationInfoBoxHelpHeadingLevel, CSSProperties>;
+
+// In the shared subgrid (COMPACT) a heading must span both columns.
+const compactHeadingSpanStyle: CSSProperties = {
+  gridColumn: "1 / -1",
+};
+
+const triggerLabelStyle: CSSProperties = {
+  whiteSpace: "normal",
+};
+
+// Left-aligned, wrapping trigger cell for the instruction-table style, holding
+// an optional leading label, the input tokens, and an optional trailing label
+// on one line (with a line break when it does not fit). (cismet/wupp#4078)
+const startTriggerCellStyle: CSSProperties = {
+  display: "inline-flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  gap: "0.34rem",
+  minWidth: 0,
 };
 
 const actionColumnGap = "1em";
@@ -527,32 +601,77 @@ const renderHelpActionInputAlternatives = (
   );
 };
 
+const renderHeadingItem = (
+  item: AnnotationInfoBoxHelpHeadingItem,
+  index: number,
+  layout: AnnotationInfoBoxHelpLayout
+) => {
+  const level = item.level ?? ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION;
+  return (
+    <div
+      key={`heading-${item.text}-${index}`}
+      data-testid="annotation-help-heading"
+      data-level={level}
+      style={
+        layout === ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
+          ? { ...headingStyles[level], ...compactHeadingSpanStyle }
+          : headingStyles[level]
+      }
+    >
+      {item.text}
+    </div>
+  );
+};
+
 const renderActionItem = (
   item: AnnotationInfoBoxHelpActionItem,
   index: number,
   keyboardLabels: KeyboardDisplayLabels,
   keyboardPlatform: KeyboardDisplayPlatform,
   pointerLabels: PointerDisplayLabels,
-  layout: AnnotationInfoBoxHelpLayout
-) => (
-  <div
-    key={`${item.inputAlternatives
-      .map((inputCombination) => inputCombination.join("+"))
-      .join("-")}-${index}`}
-    data-testid="annotation-help-action"
-    style={actionRowStyles[layout]}
-  >
-    {renderHelpActionInputAlternatives(
-      item.indicator,
-      item.inputAlternatives,
-      keyboardLabels,
-      keyboardPlatform,
-      pointerLabels,
-      layout
-    )}
-    <span style={actionDescriptionStyles[layout]}>{item.description}</span>
-  </div>
-);
+  layout: AnnotationInfoBoxHelpLayout,
+  triggerAlign: AnnotationInfoBoxHelpActionTriggerAlignment = ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.END
+) => {
+  const tokens =
+    item.inputAlternatives.length > 0 || item.indicator
+      ? renderHelpActionInputAlternatives(
+          item.indicator,
+          item.inputAlternatives,
+          keyboardLabels,
+          keyboardPlatform,
+          pointerLabels,
+          layout
+        )
+      : null;
+
+  const trigger =
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START ? (
+      <span style={startTriggerCellStyle}>
+        {item.leadingLabel ? (
+          <span style={triggerLabelStyle}>{item.leadingLabel}</span>
+        ) : null}
+        {tokens}
+        {item.trailingLabel ? (
+          <span style={triggerLabelStyle}>{item.trailingLabel}</span>
+        ) : null}
+      </span>
+    ) : (
+      tokens ?? <span style={tokenGroupStyle} />
+    );
+
+  return (
+    <div
+      key={`${item.inputAlternatives
+        .map((inputCombination) => inputCombination.join("+"))
+        .join("-")}-${item.leadingLabel ?? ""}-${index}`}
+      data-testid="annotation-help-action"
+      style={actionRowStyles[layout]}
+    >
+      {trigger}
+      <span style={actionDescriptionStyles[layout]}>{item.description}</span>
+    </div>
+  );
+};
 
 const renderAlertItem = (
   item: AnnotationInfoBoxHelpAlertItem,
@@ -606,6 +725,7 @@ export const AnnotationInfoBoxHelpContent = ({
   layout,
   locale,
   platform,
+  actionTriggerAlign = ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.END,
 }: AnnotationInfoBoxHelpContentProps) => {
   const resolvedLayout = resolveAnnotationInfoBoxHelpLayout(layout);
   const resolvedLocale = locale ?? resolveAnnotationInfoBoxHelpLocale();
@@ -620,6 +740,8 @@ export const AnnotationInfoBoxHelpContent = ({
         ? renderTextItem(item, resolvedLayout)
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT
         ? renderTextItem(item, resolvedLayout)
+        : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING
+        ? renderHeadingItem(item, index, resolvedLayout)
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT
         ? renderAlertItem(
             item,
@@ -635,7 +757,8 @@ export const AnnotationInfoBoxHelpContent = ({
             keyboardLabels,
             keyboardPlatform,
             pointerLabels,
-            resolvedLayout
+            resolvedLayout,
+            actionTriggerAlign
           )
     );
 
@@ -651,6 +774,8 @@ export const AnnotationInfoBoxHelpContent = ({
       ? renderTextItem(item, resolvedLayout)
       : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT
       ? renderTextItem(item, resolvedLayout)
+      : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING
+      ? renderHeadingItem(item, index, resolvedLayout)
       : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT
       ? renderAlertItem(
           item,
@@ -666,7 +791,8 @@ export const AnnotationInfoBoxHelpContent = ({
           keyboardLabels,
           keyboardPlatform,
           pointerLabels,
-          resolvedLayout
+          resolvedLayout,
+          actionTriggerAlign
         )
   );
 

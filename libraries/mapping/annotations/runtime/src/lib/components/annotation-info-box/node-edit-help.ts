@@ -1,5 +1,6 @@
 import {
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
+  ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   type AnnotationInfoBoxHelpItem,
 } from "@carma-mapping/annotations/ui";
@@ -99,38 +100,62 @@ export const resolveEditGeometryCategory = (
   }
 };
 
+// Two-section edit-mode help laid out per the #4078 review: bold headings, the
+// drag-target label on the left of its cursor icon, the effect (with a leading
+// arrow) on the right, and the discrete actions as icon + text. Rendered with
+// actionTriggerAlign="start". (cismet/wupp#4078)
+const EDIT_HELP_TITLE = {
+  kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING,
+  text: "Bearbeitungsmodus",
+  level: ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.TITLE,
+} satisfies AnnotationInfoBoxHelpItem;
+
+const DRAG_SECTION_HEADING = {
+  kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING,
+  text: "Punkt verschieben durch ziehen von",
+  level: ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION,
+} satisfies AnnotationInfoBoxHelpItem;
+
+const OTHER_SECTION_HEADING = {
+  kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING,
+  text: "Weitere Funktionen",
+  level: ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION,
+} satisfies AnnotationInfoBoxHelpItem;
+
 const DRAG_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
-  {
-    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-    text: "Punkt ziehen:",
-  },
+  DRAG_SECTION_HEADING,
   {
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+    leadingLabel: "Scheibenmitte",
     inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_CENTER]],
-    description: "Scheibenmitte – auf Boden- bzw. Oberflächenhöhe.",
+    description: "→ auf der Oberfläche des 3D-Modells",
   },
   {
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+    leadingLabel: "Äußere Scheibe",
     inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_OUTER]],
-    description: "Äußere Scheibe – in der Höhenebene.",
+    description: "→ in der Höhenebene",
   },
   {
-    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-    text: "Blaue Pfeile – entlang der Höhenachse.",
+    kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+    leadingLabel: "Blaue Pfeilspitzen",
+    inputAlternatives: [],
+    description: "→ entlang der Höhenachse",
   },
 ];
 
 const ADOPT_HEIGHT_ACTION = {
   kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
   inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
-  description: "Klick auf einen anderen Punkt übernimmt dessen Höhe.",
+  trailingLabel: "auf anderen Punkt",
+  description: "Höhe des Punktes übernehmen",
 } satisfies AnnotationInfoBoxHelpItem;
 
 const LEAVE_EDIT_MODE_ACTION = {
   kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
   inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
-  description:
-    "Beendet die Bearbeitung (ebenso ein Klick außerhalb des Punktes).",
+  trailingLabel: "/ Klick außerhalb des Punktes",
+  description: "Bearbeitungsmodus verlassen",
 } satisfies AnnotationInfoBoxHelpItem;
 
 const deleteAction = (description: string): AnnotationInfoBoxHelpItem => ({
@@ -139,37 +164,52 @@ const deleteAction = (description: string): AnnotationInfoBoxHelpItem => ({
   description,
 });
 
-// One generic, state-agnostic help block per main geometry category. The delete
-// hint names the geometry minimum so the text stays correct in every state.
-const GENERIC_EDIT_HELP_BY_CATEGORY: Readonly<
-  Record<EditGeometryCategory, readonly AnnotationInfoBoxHelpItem[]>
-> = {
-  [EDIT_GEOMETRY_CATEGORY.POINT]: [
-    ...DRAG_HELP_ITEMS,
-    LEAVE_EDIT_MODE_ACTION,
-    deleteAction("Löscht die Punktmessung (nach Rückfrage)."),
-  ],
-  [EDIT_GEOMETRY_CATEGORY.LINE]: [
-    ...DRAG_HELP_ITEMS,
-    ADOPT_HEIGHT_ACTION,
-    LEAVE_EDIT_MODE_ACTION,
-    deleteAction("Löscht diesen Punkt. Eine Strecke benötigt mindestens zwei Punkte."),
-  ],
-  [EDIT_GEOMETRY_CATEGORY.AREA]: [
-    ...DRAG_HELP_ITEMS,
-    ADOPT_HEIGHT_ACTION,
-    LEAVE_EDIT_MODE_ACTION,
-    deleteAction("Löscht diesen Punkt. Eine Fläche benötigt mindestens drei Punkte."),
-  ],
+// Delete hint per tool type. For a point or distance measurement, removing a
+// node drops below the geometry minimum and deletes the whole measurement, so
+// the hint says exactly that (Stefan, #4078). For a polyline/area above the
+// minimum, removing a node keeps the measurement, so the hint stays accurate.
+const resolveDeleteAction = (
+  toolType: AnnotationToolType
+): AnnotationInfoBoxHelpItem => {
+  switch (toolType) {
+    case ANNOTATION_TYPES.POINT:
+    case ANNOTATION_TYPES.DISTANCE:
+      return deleteAction("Messung löschen");
+    case ANNOTATION_TYPES.POLYLINE:
+      return deleteAction(
+        "Punkt löschen (beim letzten verbleibenden Punkt die Messung)"
+      );
+    case ANNOTATION_TYPES.AREA_GROUND:
+    case ANNOTATION_TYPES.AREA_PLANAR:
+    case ANNOTATION_TYPES.AREA_VERTICAL:
+      return deleteAction(
+        "Punkt löschen (unter drei Punkten die Messung)"
+      );
+    default:
+      return deleteAction("Messung löschen");
+  }
 };
 
-// Resolve the generic editing help shown while a node of this measurement is
-// being edited. Returns an empty list for geometries that are not node-edited.
+// Resolve the editing help shown while a node of this measurement is being
+// edited. The adopt-height action only applies where another node exists (line
+// / area), never on a single-point measurement. Returns an empty list for
+// geometries that are not node-edited.
 export const resolveNodeEditHelpItems = ({
   toolType,
 }: {
   toolType: AnnotationToolType;
 }): readonly AnnotationInfoBoxHelpItem[] => {
   const category = resolveEditGeometryCategory(toolType);
-  return category ? GENERIC_EDIT_HELP_BY_CATEGORY[category] : [];
+  if (!category) {
+    return [];
+  }
+
+  const otherFunctions: AnnotationInfoBoxHelpItem[] = [
+    OTHER_SECTION_HEADING,
+    ...(category === EDIT_GEOMETRY_CATEGORY.POINT ? [] : [ADOPT_HEIGHT_ACTION]),
+    LEAVE_EDIT_MODE_ACTION,
+    resolveDeleteAction(toolType),
+  ];
+
+  return [EDIT_HELP_TITLE, ...DRAG_HELP_ITEMS, ...otherFunctions];
 };
