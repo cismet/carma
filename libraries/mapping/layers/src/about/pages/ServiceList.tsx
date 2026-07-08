@@ -729,12 +729,18 @@ const ServiceListContent = ({
 
   const displayLayers = useMemo(() => {
     if (allLayers.length === 0) return allLayers;
-    const merged = JSON.parse(JSON.stringify(allLayers));
+    // copy only what gets extended; the layer objects themselves stay shared
+    const merged = allLayers.map((category) => ({
+      ...category,
+      layers: [...category.layers],
+    }));
     for (const entry of additionalLayers) {
-      const existing = merged.find((cat: any) => cat.id === entry.serviceName);
+      // the config fragments carry catalog items (loose legacy typing)
+      const entryLayers = entry.layers as Item[];
+      const existing = merged.find((cat) => cat.id === entry.serviceName);
       if (existing) {
-        for (const layer of entry.layers) {
-          if (!existing.layers.some((l: any) => l.id === layer.id)) {
+        for (const layer of entryLayers) {
+          if (!existing.layers.some((l) => l.id === layer.id)) {
             existing.layers.push(layer);
           }
         }
@@ -742,7 +748,7 @@ const ServiceListContent = ({
         merged.push({
           id: entry.serviceName,
           Title: entry.title,
-          layers: entry.layers,
+          layers: entryLayers,
         });
       }
     }
