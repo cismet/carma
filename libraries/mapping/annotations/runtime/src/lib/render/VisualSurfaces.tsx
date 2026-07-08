@@ -91,9 +91,17 @@ export const VisualSurfaces = ({
     onDistanceTriangleCornerClick,
   });
 
+  // While a node is edited, its measurement carries a draft override and so
+  // renders on THIS overlay surface instead of the committed one. The reference
+  // nodes (the other endpoints) must stay clickable here so their height can be
+  // adopted — otherwise the click falls through to the scene and exits edit
+  // mode. Enable host interaction targets on the overlay only during edit and
+  // wire just the reference-node handlers (the edited node is in the preview
+  // link, so it stays non-interactive). (cismet/wupp#4078)
+  const isNodeEditActive = activeEditedNodeId !== null;
   useAnnotationVisualizers(scene, {
     surfaceKey: "preview",
-    enableHostInteractionTargets: false,
+    enableHostInteractionTargets: isNodeEditActive,
     points: overlayVisualModels?.points ?? [],
     linkedNodeGroups: effectiveLinkedNodeGroups,
     edges: overlayVisualModels?.edges ?? [],
@@ -103,6 +111,11 @@ export const VisualSurfaces = ({
     formatOptions,
     lineLabelOptions,
     activeEditedNodeId,
+    isMoveGizmoDragging,
+    onNodeLongPress: isNodeEditActive ? onNodeLongPress : undefined,
+    canStartNodeEditing: isNodeEditActive ? canStartNodeEditing : undefined,
+    onReferenceNodeClick: isNodeEditActive ? onReferenceNodeClick : undefined,
+    onReferenceNodeHover: isNodeEditActive ? onReferenceNodeHover : undefined,
   });
 
   return null;
