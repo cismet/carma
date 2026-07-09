@@ -2,10 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { createLogger } from "redux-logger";
 import { persistReducer, createTransform } from "redux-persist";
 import localForage from "localforage";
-import {
-  serializeValues,
-  deserializeValues,
-} from "../helper/draftSerialize";
+import { serializeValues, deserializeValues } from "../helper/draftSerialize";
 import type { ExpertTypeState } from "./slices/expertSearch";
 import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
@@ -19,7 +16,6 @@ import measurementsSlice from "./slices/measurements";
 import creationDefaultsSlice from "./slices/creationDefaults";
 import printSlice from "./slices/print";
 import expertSearchSlice from "./slices/expertSearch";
-
 
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
@@ -117,8 +113,12 @@ const measurementsConfig = {
 // DAYJS_PREFIX on the way to storage and rebuilds them on rehydrate — the same
 // mechanism the featuresForms drafts use.
 const expertSearchTransform = createTransform<ExpertTypeState, unknown>(
-  (typeState) => serializeValues(typeState as Record<string, unknown>),
-  (raw) => deserializeValues(raw as Record<string, unknown>) as ExpertTypeState
+  (typeState) =>
+    serializeValues(typeState as unknown as Record<string, unknown>),
+  (raw) =>
+    deserializeValues(
+      raw as Record<string, unknown>
+    ) as unknown as ExpertTypeState
 );
 
 const expertSearchConfig = {
@@ -140,10 +140,7 @@ const store = configureStore({
     print: printSlice.reducer,
     // Persisted through expertSearchTransform, which serializes the dayjs values
     // that rule.value can hold (date fields) so they survive a reload.
-    expertSearch: persistReducer(
-      expertSearchConfig,
-      expertSearchSlice.reducer
-    ),
+    expertSearch: persistReducer(expertSearchConfig, expertSearchSlice.reducer),
     arbeitsauftraege: persistReducer(
       arbeitsauftraegeConfig,
       arbeitsauftraege.reducer
@@ -160,10 +157,7 @@ const store = configureStore({
       creationDefaultsConfig,
       creationDefaultsSlice.reducer
     ),
-    measurements: persistReducer(
-      measurementsConfig,
-      measurementsSlice.reducer
-    ),
+    measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
