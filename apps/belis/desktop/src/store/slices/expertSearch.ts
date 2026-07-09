@@ -37,6 +37,7 @@ export interface ExpertTypeState {
   groupConjunction: Conjunction; // how the groups combine
   sorts: ExpertSortState[]; // order_by list (first entry = primary sort)
   limit: number | null; // max rows; null = no limit
+  selectedGroupId: number; // clicking a field adds its rule to this group
   nextGroupId: number;
   nextRuleId: number;
   nextSortId: number;
@@ -60,6 +61,7 @@ const createTypeState = (): ExpertTypeState => ({
   groupConjunction: "UND",
   sorts: [],
   limit: null,
+  selectedGroupId: 1,
   nextGroupId: 2,
   nextRuleId: 1,
   nextSortId: 1,
@@ -85,12 +87,15 @@ const slice = createSlice({
   reducers: {
     addGroup(state, action: PayloadAction<ObjectType>) {
       const t = state[action.payload];
+      const id = t.nextGroupId++;
       t.groups.push({
-        id: t.nextGroupId++,
+        id,
         conjunction: "UND",
         negated: false,
         rules: [],
       });
+      // A freshly added group becomes the target for sidebar field clicks.
+      t.selectedGroupId = id;
     },
     removeGroup(
       state,
@@ -98,6 +103,16 @@ const slice = createSlice({
     ) {
       const t = state[action.payload.objectType];
       t.groups = t.groups.filter((g) => g.id !== action.payload.groupId);
+      // If the selected group was removed, fall back to the last remaining one.
+      if (!t.groups.some((g) => g.id === t.selectedGroupId)) {
+        t.selectedGroupId = t.groups[t.groups.length - 1]?.id ?? 0;
+      }
+    },
+    selectGroup(
+      state,
+      action: PayloadAction<{ objectType: ObjectType; groupId: number }>
+    ) {
+      state[action.payload.objectType].selectedGroupId = action.payload.groupId;
     },
     setGroupConjunction(
       state,
@@ -286,6 +301,7 @@ export default slice;
 export const {
   addGroup,
   removeGroup,
+  selectGroup,
   setGroupConjunction,
   setGroupInnerConjunction,
   setGroupNegated,
