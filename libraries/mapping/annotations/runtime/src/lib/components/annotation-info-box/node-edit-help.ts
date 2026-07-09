@@ -153,8 +153,13 @@ const ADOPT_HEIGHT_ACTION = {
 
 const LEAVE_EDIT_MODE_ACTION = {
   kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-  inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE]],
-  trailingLabel: "/ Klick außerhalb des Punktes",
+  // Esc or a click outside the point both leave edit mode; render both as icons
+  // with the click qualifier on its own line, like the adopt-height row.
+  inputAlternatives: [
+    [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE],
+    [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK],
+  ],
+  trailingLabel: "außerhalb des Punktes",
   description: "Bearbeitungsmodus verlassen",
 } satisfies AnnotationInfoBoxHelpItem;
 
