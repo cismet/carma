@@ -631,6 +631,55 @@ const renderHeadingItem = (
   );
 };
 
+// Trigger cell for instruction rows: each input alternative gets its own line,
+// with the "oder" separator trailing the alternative it follows, and the
+// trailing qualifier wrapped underneath. So a leave-edit row reads
+// "[Escape] oder" / "[Klick]" / "außerhalb des Punktes". (cismet/wupp#4078)
+const renderStartAlignedTrigger = (
+  item: AnnotationInfoBoxHelpActionItem,
+  keyboardLabels: KeyboardDisplayLabels,
+  keyboardPlatform: KeyboardDisplayPlatform,
+  pointerLabels: PointerDisplayLabels
+) => {
+  const lastAlternativeIndex = item.inputAlternatives.length - 1;
+
+  return (
+    <span style={startTriggerCellStyle}>
+      {item.inputAlternatives.length === 0
+        ? item.leadingLabel && (
+            <span style={startTriggerTokenRowStyle}>
+              <span style={triggerLabelStyle}>{item.leadingLabel}</span>
+            </span>
+          )
+        : item.inputAlternatives.map((inputCombination, index) => (
+            <span
+              key={`${inputCombination.join("+")}-${index}`}
+              style={startTriggerTokenRowStyle}
+            >
+              {index === 0 && item.leadingLabel ? (
+                <span style={triggerLabelStyle}>{item.leadingLabel}</span>
+              ) : null}
+              {index === 0 && item.indicator
+                ? renderActionIndicatorToken(item.indicator)
+                : null}
+              {renderHelpActionInputCombination(
+                inputCombination,
+                keyboardLabels,
+                keyboardPlatform,
+                pointerLabels
+              )}
+              {index < lastAlternativeIndex ? (
+                <span>{pointerLabels.alternative}</span>
+              ) : null}
+            </span>
+          ))}
+      {item.trailingLabel ? (
+        <span style={triggerLabelStyle}>{item.trailingLabel}</span>
+      ) : null}
+    </span>
+  );
+};
+
 const renderActionItem = (
   item: AnnotationInfoBoxHelpActionItem,
   index: number,
@@ -640,34 +689,26 @@ const renderActionItem = (
   layout: AnnotationInfoBoxHelpLayout,
   triggerAlign: AnnotationInfoBoxHelpActionTriggerAlignment = ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.END
 ) => {
-  const tokens =
-    item.inputAlternatives.length > 0 || item.indicator
-      ? renderHelpActionInputAlternatives(
-          item.indicator,
-          item.inputAlternatives,
-          keyboardLabels,
-          keyboardPlatform,
-          pointerLabels,
-          layout
-        )
-      : null;
+  const isStartAligned =
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START;
 
-  const trigger =
-    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START ? (
-      <span style={startTriggerCellStyle}>
-        <span style={startTriggerTokenRowStyle}>
-          {item.leadingLabel ? (
-            <span style={triggerLabelStyle}>{item.leadingLabel}</span>
-          ) : null}
-          {tokens}
-        </span>
-        {item.trailingLabel ? (
-          <span style={triggerLabelStyle}>{item.trailingLabel}</span>
-        ) : null}
-      </span>
-    ) : (
-      tokens ?? <span style={tokenGroupStyle} />
-    );
+  const trigger = isStartAligned
+    ? renderStartAlignedTrigger(
+        item,
+        keyboardLabels,
+        keyboardPlatform,
+        pointerLabels
+      )
+    : (item.inputAlternatives.length > 0 || item.indicator
+        ? renderHelpActionInputAlternatives(
+            item.indicator,
+            item.inputAlternatives,
+            keyboardLabels,
+            keyboardPlatform,
+            pointerLabels,
+            layout
+          )
+        : null) ?? <span style={tokenGroupStyle} />;
 
   return (
     <div
