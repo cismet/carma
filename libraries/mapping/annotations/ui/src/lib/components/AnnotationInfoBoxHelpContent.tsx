@@ -190,6 +190,10 @@ const HELP_BASELINE_VARIABLE = "--carma-help-baseline";
 const HELP_BASELINE_STEP = "1.5em";
 const HELP_LINE_HEIGHT = 1.5;
 const oneBaselineStep = `var(${HELP_BASELINE_VARIABLE})`;
+// Rows are separated by half a step: line boxes stay one full step, wrapped
+// continuation lines inside a cell stay step-tight (so they read as one row),
+// and every distance remains on the half-step lattice (18 / 27 / 36px at 12px).
+const halfBaselineStep = `calc(var(${HELP_BASELINE_VARIABLE}) / 2)`;
 
 // An unregistered custom property is substituted as raw tokens, so the `em` in
 // the step above resolves against whichever element *uses* it, not the root that
@@ -218,9 +222,10 @@ const headingStyles = {
     fontWeight: 700,
     lineHeight: HELP_LINE_HEIGHT,
   },
-  // A blank baseline step separates a section from what precedes it.
+  // Half a step of own margin — the shared row gap brings the total space
+  // above a section to one full step.
   [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION]: {
-    margin: `${oneBaselineStep} 0 0`,
+    margin: `${halfBaselineStep} 0 0`,
     fontWeight: 700,
     lineHeight: HELP_LINE_HEIGHT,
   },
@@ -265,7 +270,7 @@ const compactContentStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: actionGridTemplateColumns,
   columnGap: actionColumnGap,
-  rowGap: 0,
+  rowGap: halfBaselineStep,
   alignItems: "start",
 };
 
@@ -280,7 +285,7 @@ const actionRowStyles = {
     gridTemplateColumns: actionGridTemplateColumns,
     columnGap: actionColumnGap,
     alignItems: "start",
-    margin: 0,
+    margin: `0 0 ${halfBaselineStep}`,
     lineHeight: HELP_LINE_HEIGHT,
   },
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT]: {
