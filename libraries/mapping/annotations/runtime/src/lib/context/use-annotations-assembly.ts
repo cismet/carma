@@ -212,9 +212,23 @@ export const useAnnotationsAssembly = ({
   const annotationsStore = annotationsStoreRef.current;
   const annotationToolDraftStore = annotationToolDraftStoreRef.current;
 
+  // Single funnel for every tool change (direct, mode lifecycle, keyboard
+  // cancel). A mode change resets the focus, so the info box falls back to the
+  // new mode's own instruction instead of still showing the previously focused
+  // measurement. The edit gizmo closes with the selection — see the deselect
+  // effect in usePointEditingGizmo. Re-selecting the active tool is a no-op, so
+  // leaving edit mode with Escape keeps the measurement selected.
+  // (cismet/wupp#4078)
   const setActiveToolTypeInStore = useCallback(
     (toolType: AnnotationToolId) => {
+      const previousToolType = annotationsStore.getState().annotationToolType;
       annotationsStore.dispatch(setAnnotationToolType(toolType));
+      if (previousToolType === toolType) {
+        return;
+      }
+
+      setActiveEditedNodeId(null);
+      annotationsStore.dispatch(setSelectedAnnotationId(null));
     },
     [annotationsStore]
   );

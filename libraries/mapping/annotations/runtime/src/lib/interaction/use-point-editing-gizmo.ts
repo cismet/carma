@@ -794,6 +794,39 @@ export const usePointEditingGizmo = (
     }
   }, [activeEditedNodeId, clearDraftNodeCoordinateOverrides, effectiveNodes]);
 
+  // Editing requires the measurement to stay selected, just as starting an edit
+  // does. When it is deselected — e.g. because the mode changed — commit the
+  // pending move and leave edit mode, so no gizmo lingers over a measurement
+  // whose info box no longer shows it. A removed node is handled by the effect
+  // above, which clears without committing. (cismet/wupp#4078)
+  useEffect(() => {
+    if (!activeEditedNodeId) {
+      return;
+    }
+    if (!nodes.some((node) => node.id === activeEditedNodeId)) {
+      return;
+    }
+
+    const isEditedMeasurementSelected = annotationEntries.some(
+      (annotation) =>
+        annotation.nodeIds.includes(activeEditedNodeId) &&
+        selectedAnnotationIds.includes(annotation.id)
+    );
+    if (isEditedMeasurementSelected) {
+      return;
+    }
+
+    commitDraftNodeCoordinateOverrides(activeEditedNodeId);
+    setAxisOverride(null);
+    setActiveEditedNodeId(null);
+  }, [
+    activeEditedNodeId,
+    annotationEntries,
+    commitDraftNodeCoordinateOverrides,
+    nodes,
+    selectedAnnotationIds,
+  ]);
+
   useEffect(() => {
     if (activeEditedNodeId) {
       draftBaseCoordinateRef.current =

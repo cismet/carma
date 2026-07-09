@@ -128,6 +128,31 @@ describe("usePointEditingGizmo", () => {
     expect(annotationsStore.dispatch).not.toHaveBeenCalled();
   });
 
+  it("leaves edit mode when the edited measurement is deselected (e.g. mode change)", () => {
+    const annotationsStore = createAnnotationsStore({
+      selectedAnnotationIds: ["measurement-a"],
+    });
+    const { result, rerender } = renderHook(
+      ({ selectedAnnotationIds }: { selectedAnnotationIds: string[] }) =>
+        usePointEditingGizmo(null, [node], [], {
+          annotationsStore,
+          annotationEntries: [measurement],
+          selectedAnnotationIds,
+        }),
+      { initialProps: { selectedAnnotationIds: ["measurement-a"] } }
+    );
+
+    act(() => {
+      result.current.handleNodeLongPress("node-a");
+    });
+    expect(result.current.activeEditedNodeId).toBe("node-a");
+
+    // A mode change clears the selection; the gizmo must not linger.
+    rerender({ selectedAnnotationIds: [] });
+
+    expect(result.current.activeEditedNodeId).toBeNull();
+  });
+
   it("does not start node editing when the node's measurement is not selected", () => {
     const annotationsStore = createAnnotationsStore({
       selectedAnnotationIds: ["measurement-b"],
