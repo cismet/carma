@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { Input, InputNumber } from "antd";
+import { Input, AutoComplete } from "antd";
 import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
@@ -12,6 +12,7 @@ import {
   addGroup,
   addRule,
   removeGroup,
+  selectGroup,
   addSort,
   setLimit,
   getExpertTypeState,
@@ -21,10 +22,17 @@ interface ExpertSearchProps {
   objectType: ObjectType;
 }
 
+// Preset row limits offered in the LIMIT dropdown; a custom value can still be
+// typed in.
+const LIMIT_PRESETS = [10, 20, 50, 100, 500];
+const LIMIT_OPTIONS = LIMIT_PRESETS.map((n) => ({ value: String(n) }));
+
 const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   const dispatch = useDispatch();
   const fields = REGISTRY[objectType];
-  const { groups, sorts, limit } = useSelector(getExpertTypeState(objectType));
+  const { groups, sorts, limit, selectedGroupId } = useSelector(
+    getExpertTypeState(objectType)
+  );
   const [fieldFilter, setFieldFilter] = useState("");
 
   // A new sort defaults to the first field not already sorted on (so it never
@@ -39,15 +47,17 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   // Every field is already used → no more sorts can be added without duplicating.
   const allFieldsSorted = sorts.length >= fields.length;
 
-  // Clicking a field in the sidebar adds a rule (prefilled) to the last group
+  // Clicking a field in the sidebar adds a rule (prefilled) to the currently
+  // selected group, falling back to the last group if none is selected.
   const handleFieldClick = (fieldKey: string) => {
-    const lastGroup = groups[groups.length - 1];
-    if (!lastGroup) return;
+    const targetGroup =
+      groups.find((g) => g.id === selectedGroupId) ?? groups[groups.length - 1];
+    if (!targetGroup) return;
     const fieldType = fields.find((f) => f.key === fieldKey)?.type ?? "text";
     dispatch(
       addRule({
         objectType,
-        groupId: lastGroup.id,
+        groupId: targetGroup.id,
         field: fieldKey,
         operator: defaultOperatorForType(fieldType),
       })
@@ -111,25 +121,36 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
             </span>{" "}
             <span className="text-gray-500">{totalRules} Bedingungen</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {/* LIMIT */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold tracking-wide uppercase text-gray-400">
                 Limit
               </span>
-              <InputNumber
+              <AutoComplete
                 size="small"
-                min={1}
-                controls={false}
                 className="w-16"
-                value={limit}
-                onChange={(value) =>
-                  dispatch(setLimit({ objectType, limit: value ?? null }))
+                placeholder="Alle"
+                value={limit == null ? "" : String(limit)}
+                options={LIMIT_OPTIONS}
+                // Show only presets that begin with what's typed.
+                filterOption={(input, option) =>
+                  option?.value.startsWith(input) ?? false
                 }
+                // Accept digits only; empty clears the limit (= all rows).
+                onChange={(value) => {
+                  const digits = value.replace(/\D/g, "");
+                  dispatch(
+                    setLimit({
+                      objectType,
+                      limit: digits === "" ? null : Number(digits),
+                    })
+                  );
+                }}
               />
             </div>
             {/* SORTIERUNG */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <span className="text-xs font-semibold tracking-wide uppercase text-gray-400">
                 Sortierung
               </span>
@@ -138,19 +159,11 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                 onClick={handleAddSort}
                 disabled={allFieldsSorted}
                 aria-label="Sortierung hinzufügen"
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:text-gray-400"
+                className="flex items-center justify-center text-gray-400 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
               >
                 <PlusOutlined />
               </button>
             </div>
-            <div className="w-px h-5 bg-gray-200" />
-            <button
-              type="button"
-              onClick={() => dispatch(addGroup(objectType))}
-              className="text-sm text-gray-700 border border-gray-200 rounded-lg px-5 py-1.5 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
-            >
-              + Gruppe
-            </button>
           </div>
         </div>
         {sorts.length > 0 && (
@@ -181,14 +194,35 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                   group={group}
                   title={`Gruppe ${index + 1}`}
                   fields={fields}
+                  selected={groups.length > 1 && group.id === selectedGroupId}
+                  onSelect={
+                    groups.length > 1
+                      ? () =>
+                          dispatch(
+                            selectGroup({ objectType, groupId: group.id })
+                          )
+                      : undefined
+                  }
                   onDelete={
                     groups.length > 1
-                      ? () => dispatch(removeGroup({ objectType, groupId: group.id }))
+                      ? () =>
+                          dispatch(
+                            removeGroup({ objectType, groupId: group.id })
+                          )
                       : undefined
                   }
                 />
               </Fragment>
             ))}
+            <button
+              type="button"
+              onClick={() => dispatch(addGroup(objectType))}
+              aria-label="Gruppe hinzufügen"
+              title="Gruppe hinzufügen"
+              className="self-start w-9 h-9 flex items-center justify-center text-gray-700 border border-gray-200 rounded-lg bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
+            >
+              <PlusOutlined />
+            </button>
           </div>
           {totalRules === 0 && groups.length === 1 && (
             <div className="flex-1 flex items-center justify-center">

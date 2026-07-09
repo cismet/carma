@@ -17,6 +17,8 @@ interface FilterGroupProps {
   group: ExpertGroupState;
   title: string;
   fields: Field[];
+  selected?: boolean; // highlighted with a blue border when there are >1 groups
+  onSelect?: () => void; // clicking anywhere in the group targets it for new rules
   onDelete?: () => void;
 }
 
@@ -25,13 +27,24 @@ const FilterGroup = ({
   group,
   title,
   fields,
+  selected,
+  onSelect,
   onDelete,
 }: FilterGroupProps) => {
   const dispatch = useDispatch();
   const { rules } = group;
 
   return (
-    <div className="border border-gray-200 rounded-xl p-4 bg-white">
+    // Convenience: clicking anywhere in the group targets it for new rules.
+    // The group is a container of interactive controls, so it stays a div
+    // rather than becoming a (nested-button-invalid) button element.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    <div
+      onClick={onSelect}
+      className={`border rounded-xl p-4 bg-white transition-colors ${
+        onSelect ? "cursor-pointer" : ""
+      } ${selected ? "border-blue-500" : "border-gray-200"}`}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
           <span className="w-2 h-2 rounded-sm bg-gray-300 flex-shrink-0" />
@@ -78,7 +91,10 @@ const FilterGroup = ({
           {onDelete && (
             <button
               type="button"
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               aria-label="Gruppe entfernen"
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
             >
@@ -122,7 +138,8 @@ const FilterGroup = ({
           )
         }
         aria-label="Bedingung hinzufügen"
-        className="w-9 h-9 flex items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
+        // Kept in place but hidden for now — reveal by removing `hidden`.
+        className="hidden w-9 h-9 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
       >
         <PlusOutlined />
       </button>
