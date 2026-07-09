@@ -182,21 +182,47 @@ const resolvePointerDisplayLabels = (
     : POINTER_DISPLAY_LABELS_BY_LANGUAGE.en;
 };
 
+// Vertical rhythm. Every line of help content — text, headings, key tokens and
+// cursor glyphs — occupies exactly one baseline step, and every gap is a whole
+// number of steps, so content lands on a constant interval in y. Sizing the step
+// in `em` keeps it locked to the info box's font size. (cismet/wupp#4078)
+const HELP_BASELINE_VARIABLE = "--carma-help-baseline";
+const HELP_BASELINE_STEP = "1.5em";
+const HELP_LINE_HEIGHT = 1.5;
+const oneBaselineStep = `var(${HELP_BASELINE_VARIABLE})`;
+
+// An unregistered custom property is substituted as raw tokens, so the `em` in
+// the step above resolves against whichever element *uses* it, not the root that
+// declares it. Elements that scale their own font-size would therefore read a
+// shrunken step (a 0.74em key token read 13.3px instead of 18px), so they
+// express one step in their own em instead.
+const KEY_TOKEN_FONT_SCALE = 0.74;
+// 16px at the info box's 12px font.
+const DRAG_GLYPH_FONT_SCALE = 4 / 3;
+const baselineStepInOwnEm = (fontScale: number) =>
+  `${HELP_LINE_HEIGHT / fontScale}em`;
+
+const helpContentRootStyle = {
+  [HELP_BASELINE_VARIABLE]: HELP_BASELINE_STEP,
+  lineHeight: HELP_LINE_HEIGHT,
+} as CSSProperties;
+
 const paragraphStyle: CSSProperties = {
-  margin: "0 0 0.9rem",
+  margin: `0 0 ${oneBaselineStep}`,
+  lineHeight: HELP_LINE_HEIGHT,
 };
 
 const headingStyles = {
   [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.TITLE]: {
-    margin: "0 0 0.5rem",
+    margin: 0,
     fontWeight: 700,
-    fontSize: "1.02em",
-    lineHeight: 1.25,
+    lineHeight: HELP_LINE_HEIGHT,
   },
+  // A blank baseline step separates a section from what precedes it.
   [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION]: {
-    margin: "0.5rem 0 0.35rem",
+    margin: `${oneBaselineStep} 0 0`,
     fontWeight: 700,
-    lineHeight: 1.25,
+    lineHeight: HELP_LINE_HEIGHT,
   },
 } satisfies Record<AnnotationInfoBoxHelpHeadingLevel, CSSProperties>;
 
@@ -218,25 +244,28 @@ const startTriggerCellStyle: CSSProperties = {
   flexDirection: "column",
   alignItems: "flex-start",
   justifyContent: "flex-start",
-  gap: "0.16rem",
   minWidth: 0,
 };
 
+// Each sub-row is exactly one baseline step tall, so a trigger cell that wraps
+// stays on the grid.
 const startTriggerTokenRowStyle: CSSProperties = {
   display: "inline-flex",
   flexWrap: "wrap",
   alignItems: "center",
-  gap: "0.34rem",
+  gap: "0.34em",
+  minHeight: oneBaselineStep,
 };
 
 const actionColumnGap = "1em";
 const actionGridTemplateColumns = "max-content minmax(0, 1fr)";
 
 const compactContentStyle: CSSProperties = {
+  ...helpContentRootStyle,
   display: "grid",
   gridTemplateColumns: actionGridTemplateColumns,
   columnGap: actionColumnGap,
-  rowGap: "0.58rem",
+  rowGap: 0,
   alignItems: "start",
 };
 
@@ -250,9 +279,9 @@ const actionRowStyles = {
     display: "grid",
     gridTemplateColumns: actionGridTemplateColumns,
     columnGap: actionColumnGap,
-    alignItems: "baseline",
-    margin: "0 0 0.58rem",
-    lineHeight: 1.28,
+    alignItems: "start",
+    margin: 0,
+    lineHeight: HELP_LINE_HEIGHT,
   },
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT]: {
     display: "contents",
@@ -263,15 +292,17 @@ const tokenGroupStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "flex-end",
-  gap: "0.22rem",
+  gap: "0.22em",
+  minHeight: oneBaselineStep,
   whiteSpace: "nowrap",
 };
 
+// Stacked alternatives in the key column: one baseline step per entry.
 const compactTokenGroupStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   alignItems: "flex-end",
-  gap: "0.2rem",
+  gap: 0,
   whiteSpace: "nowrap",
 };
 
@@ -322,17 +353,18 @@ const compactAlertContainerStyles = {
 const alertTextStyle: CSSProperties = {
   minWidth: 0,
   fontWeight: 600,
-  lineHeight: 1.28,
+  lineHeight: HELP_LINE_HEIGHT,
 };
 
 const actionDescriptionStyles = {
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.STANDARD]: {
     minWidth: 0,
+    lineHeight: HELP_LINE_HEIGHT,
     whiteSpace: "nowrap",
   },
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT]: {
     minWidth: 0,
-    lineHeight: 1.28,
+    lineHeight: HELP_LINE_HEIGHT,
   },
 } satisfies Record<AnnotationInfoBoxHelpLayout, CSSProperties>;
 
@@ -377,10 +409,12 @@ const orderAnnotationInfoBoxHelpItems = (
   ];
 };
 
+// Exactly one baseline step tall (border-box), so a key never inflates its row.
 const keyTokenStyle: CSSProperties = {
   display: "inline-flex",
-  minWidth: "1.85rem",
-  minHeight: "1.35rem",
+  boxSizing: "border-box",
+  minWidth: "3.4em",
+  height: baselineStepInOwnEm(KEY_TOKEN_FONT_SCALE),
   alignItems: "center",
   justifyContent: "center",
   border: "1px solid rgba(0, 0, 0, 0.34)",
@@ -388,10 +422,10 @@ const keyTokenStyle: CSSProperties = {
   background: "rgba(255, 255, 255, 0.68)",
   boxShadow: "inset 0 -1px 0 rgba(0, 0, 0, 0.2)",
   color: "#1f2937",
-  fontSize: "0.74em",
+  fontSize: `${KEY_TOKEN_FONT_SCALE}em`,
   fontWeight: 700,
   lineHeight: 1,
-  padding: "0.16rem 0.32rem",
+  padding: "0 0.58em",
 };
 
 const pointerTokenStyle: CSSProperties = {
@@ -401,8 +435,8 @@ const pointerTokenStyle: CSSProperties = {
 
 const actionIndicatorTokenStyle: CSSProperties = {
   display: "inline-flex",
-  minWidth: "1.35rem",
-  minHeight: "1.35rem",
+  minWidth: oneBaselineStep,
+  height: oneBaselineStep,
   alignItems: "center",
   justifyContent: "center",
   lineHeight: 1,
@@ -454,9 +488,9 @@ const dragTargetTokenStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  minWidth: "1.35rem",
-  minHeight: "1.35rem",
-  fontSize: "16px",
+  minWidth: baselineStepInOwnEm(DRAG_GLYPH_FONT_SCALE),
+  height: baselineStepInOwnEm(DRAG_GLYPH_FONT_SCALE),
+  fontSize: `${DRAG_GLYPH_FONT_SCALE}em`,
   lineHeight: 1,
   color: COLORS_HEX.ACCENT_NEUTRALS,
 };
@@ -847,5 +881,10 @@ export const AnnotationInfoBoxHelpContent = ({
         )
   );
 
-  return <>{content}</>;
+  // A root element also carries the baseline step down to the nested tokens.
+  return (
+    <div data-testid="annotation-help-content" style={helpContentRootStyle}>
+      {content}
+    </div>
+  );
 };
