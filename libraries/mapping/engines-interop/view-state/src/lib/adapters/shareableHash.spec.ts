@@ -213,6 +213,27 @@ describe("applyToShareableViewState", () => {
 });
 
 describe("readFromShareableViewState", () => {
+  it("restores a valid deep hash zoom without applying camera-limit policy", () => {
+    const codec = createShareableViewStateHashCodec({
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+      defaultFovDeg: 45,
+    });
+
+    const restored = codec.decode({
+      lat: 51.2718193,
+      lng: 7.1997518,
+      altitude: 157,
+      zoom: 25,
+      pitch: 45,
+      bearing: 312.7,
+    });
+
+    expect(restored).not.toBeNull();
+    const restoredRange = deriveOrbitAngles(restored!).range;
+    expect(restoredRange).toBeGreaterThan(0);
+    expect(restoredRange).toBeLessThan(10);
+  });
+
   it.each([
     { pitch: -10, expectedPitch: 0 },
     { pitch: 200, expectedPitch: 180 },
