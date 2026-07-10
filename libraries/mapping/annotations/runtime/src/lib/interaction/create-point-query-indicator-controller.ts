@@ -15,7 +15,11 @@ import {
   safeRemovePrimitive,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
-import { createSteppedScreenScaler } from "@carma-commons/math";
+import {
+  createSteppedScreenScaler,
+  REFERENCE_OBJECT_SCALING_MODES,
+  type ReferenceObjectScalingMode,
+} from "@carma-commons/math";
 import {
   type CandidateRingSample,
   getAveragedCandidateRingNormal,
@@ -64,13 +68,11 @@ export type PointQueryIndicatorControllerOptions = {
   materialPreset?: RingMaterialPreset;
   innerHoleRadiusRatio?: number;
   // `screen`: hold the on-screen size every frame. `world`: fixed metres.
-  // `stepped`: capture a world size at authoring start that hits the screen
-  // target, then hold it and only re-step once the on-screen resolution drifts
-  // past the [1/factor, factor] band — the scale-bar rule (cismet/wupp#4078).
-  scalingMode?: "screen" | "world" | "stepped";
+  scalingMode?: ReferenceObjectScalingMode;
   targetScreenRadiusCssPx?: number;
-  // `stepped` only: permissible apparent-size band is [1/factor, factor]
-  // (4 → 0.25×–4×). Snap each step to the 1-2-5 series when quantize is set.
+  // In world mode, periodically recalculate the held radius toward the screen
+  // target. The step factor controls the permissible apparent-size band.
+  resizeWorldRadiusToScreenTarget?: boolean;
   discResizeStepFactor?: number;
   quantizeStepWorldRadius?: boolean;
   showNormalLine?: boolean;
@@ -98,6 +100,7 @@ export const createPointQueryIndicatorController = (
     innerHoleRadiusRatio = pointPreviewRingVisualDefaults.innerHoleRadiusRatio,
     scalingMode = pointPreviewRingVisualDefaults.scalingMode,
     targetScreenRadiusCssPx = pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
+    resizeWorldRadiusToScreenTarget = false,
     discResizeStepFactor = 4,
     quantizeStepWorldRadius = false,
     showNormalLine = false,
@@ -145,9 +148,8 @@ export const createPointQueryIndicatorController = (
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewPoint: Cartesian3 | null = null;
-  // `stepped` scaling: hold a captured world radius across authoring and re-step
-  // only on a meaningful zoom change. Reset when authoring restarts so each
-  // session re-captures its size. (cismet/wupp#4078)
+  // Optional world-radius resizing holds a captured radius across authoring and
+  // only recalculates it after a meaningful zoom change.
   const steppedScaler = createSteppedScreenScaler();
 
   const resolveSteppedRadiusMeters = (center: Cartesian3): number =>
@@ -346,7 +348,8 @@ export const createPointQueryIndicatorController = (
       previewSurfaceNormal
     );
     const sampledRadius =
-      scalingMode === "stepped"
+      scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED &&
+      resizeWorldRadiusToScreenTarget
         ? resolveSteppedRadiusMeters(center)
         : resolvePointQueryDiscRadius({
             scene: activeScene,
@@ -402,7 +405,7 @@ export const createPointQueryIndicatorController = (
 
   // preRender (not postRender): set the ring modelMatrix before the draw so the
   // probe/query disc tracks the cursor on the same frame, matching the gizmo
-  // disc. postRender would draw the new matrix one frame late. (cismet/wupp#4078)
+  // disc. postRender would draw the new matrix one frame late.
   removePreviewRingFrameListener =
     activeScene.preRender.addEventListener(updatePreviewRing);
 

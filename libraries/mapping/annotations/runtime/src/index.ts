@@ -46,6 +46,7 @@ export {
   RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
 } from "./lib/config/runtime-authoring-colors";
 export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotations-runtime-format-options";
+export type { AnnotationReferenceObjectSizingOptions } from "./lib/config/annotation-reference-object-sizing";
 export {
   AREA_OCCLUSION_STYLE_DEFAULTS,
   isCoplanarPolygonFillPlacement,

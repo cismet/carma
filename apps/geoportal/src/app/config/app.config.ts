@@ -5,6 +5,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
+import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
@@ -17,6 +18,7 @@ import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   type AreaOcclusionStyleOptions,
   type AnnotationLineStyleOptions,
+  type AnnotationReferenceObjectSizingOptions,
 } from "@carma-mapping/annotations/runtime";
 import {
   DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
@@ -94,6 +96,7 @@ export type GeoportalCesiumAnnotationConfig = {
     areaOcclusion: AreaOcclusionStyleOptions;
   };
   infoBox: GeoportalAnnotationInfoBoxConfig;
+  referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
   tools: {
     defaultToolId: AnnotationToolId;
     allToolIds: readonly AnnotationToolId[];
@@ -174,6 +177,14 @@ export const CESIUM_ANNOTATION_CONFIG = {
     pixelWidth: 350,
     fitContentWidth: false,
     controlOrder: 12,
+  },
+  referenceObjectSizing: {
+    scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED,
+    worldRadiusMeters: 3,
+    targetScreenRadiusCssPx: 48,
+    resizeWorldRadiusToScreenTarget: false,
+    resizeStepFactor: 4,
+    quantizeWorldRadius: false,
   },
   tools: {
     defaultToolId: ANNOTATION_TYPES.DISTANCE,

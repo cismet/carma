@@ -19,7 +19,9 @@ import {
   MINUS_PI_OVER_FOUR,
   negativePiToPi,
   createSteppedScreenScaler,
+  REFERENCE_OBJECT_SCALING_MODES,
   resolveWorldSizeForScreenTarget,
+  type ReferenceObjectScalingMode,
 } from "@carma-commons/math";
 import {
   createRotationAxisVisualizer,
@@ -27,10 +29,8 @@ import {
 } from "@carma-mapping/engines/cesium/react/runtime";
 import {
   AXIS_NUMERIC_EPSILON,
-  GIZMO_DISC_RESIZE_TRIGGERS,
   beginPointerDragSession,
   toSvgPathD,
-  type GizmoDiscResizeTrigger,
 } from "@carma-mapping/gizmo/core";
 import {
   useLabelOverlay,
@@ -150,24 +150,23 @@ export type UseCesiumPointMoveGizmoOptions = {
   axisCandidates?: CesiumMoveGizmoAxisCandidate[] | null;
   showRotationHandle?: boolean;
   showDisc?: boolean;
-  discOutlineFixedScreenSize?: boolean;
+  discScalingMode?: ReferenceObjectScalingMode;
   discOutlineScreenPixelRadius?: number;
-  // Snap the disc world radius to the 1-2-5 decade series (cismet/wupp#4078).
+  // In world mode, periodically recalculate the held world radius toward the
+  // screen target instead of keeping the configured radius indefinitely.
+  discResizeWorldRadiusToScreenTarget?: boolean;
+  // Snap the disc world radius to the 1-2-5 decade series.
   discQuantizeWorldRadius?: boolean;
-  // `camera`: recompute the world radius every frame to hold the screen size.
-  // `selection`: compute once when the gizmo attaches and keep that world size,
-  // letting perspective change the apparent size.
-  discResizeTrigger?: GizmoDiscResizeTrigger;
   // Hold the disc world radius fixed for the duration of a drag: the size is
   // captured at drag start (where a re-step may happen) and then frozen until
-  // the drag ends, so the disc never resizes mid-drag (cismet/wupp#4078).
+  // the drag ends, so the disc never resizes mid-drag.
   freezeDiscScaleDuringDrag?: boolean;
-  // `selection` trigger only: how far the on-screen resolution may drift before
+  // World-radius resizing only: how far the on-screen resolution may drift before
   // the disc re-steps. The permissible apparent-size band is [1/factor, factor]
-  // of the target, so 4 → 0.25×–4×. Default 4 (cismet/wupp#4078).
+  // of the target, so 4 → 0.25×–4×. Default 4.
   discResizeStepFactor?: number;
   // Draw a DOM-only hairline from the disc centre to its outer edge and label it
-  // with the disc's world radius (8px). Edit-tool readout only (cismet/wupp#4078).
+  // with the disc's world radius (8px). Edit-tool readout only.
   showDiscRadiusLabel?: boolean;
   axisWidthPx?: number;
   outlineWidthPx?: number;
@@ -258,7 +257,6 @@ const DEFAULT_AXIS_PRESENTATION = [
 
 type DefaultAxisId = (typeof DEFAULT_AXIS_PRESENTATION)[number]["id"];
 
-// Which default axes are actually surfaced to tools for now (cismet/wupp#4078).
 // Only height adjustment is enabled; the horizontal axes stay generated but
 // hidden until a hyper-local ENU use case enables them.
 const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
@@ -414,10 +412,10 @@ export const useCesiumPointMoveGizmo = (
     axisCandidates = null,
     showRotationHandle = false,
     showDisc = true,
-    discOutlineFixedScreenSize = true,
+    discScalingMode = REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
+    discResizeWorldRadiusToScreenTarget = false,
     discQuantizeWorldRadius = false,
-    discResizeTrigger = GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
     freezeDiscScaleDuringDrag = false,
     discResizeStepFactor = 4,
     showDiscRadiusLabel = false,
@@ -447,9 +445,8 @@ export const useCesiumPointMoveGizmo = (
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
-  // `selection` resize trigger: hold the disc world radius fixed across the
-  // selection, re-stepping only when the screen-centre resolution doubles/halves.
-  // Reset on (re)attach. (cismet/wupp#4078)
+  // Optional world-radius resizing holds a radius across the selection and
+  // re-evaluates it only after a meaningful screen-scale change.
   const discSteppedScalerRef = useRef(createSteppedScreenScaler());
   // Disc world radius captured at the start of a drag and held until it ends,
   // when `freezeDiscScaleDuringDrag` is on. Null outside a frozen drag.
@@ -460,7 +457,7 @@ export const useCesiumPointMoveGizmo = (
   // Radius readout reuses the label-overlay line visualizer (DOM-only SVG line
   // + label, no Cesium scene primitive). updatePosition publishes the current
   // screen-space hairline endpoints here; the visualizer's getSvgLine reads them
-  // each frame. The label text is React state (changes rarely). (cismet/wupp#4078)
+  // each frame. The label text is React state (changes rarely).
   const radiusHairlineGeometryRef = useRef<{
     startX: number;
     startY: number;
@@ -493,14 +490,14 @@ export const useCesiumPointMoveGizmo = (
     () => axisWidthPx ?? getPhysicalHairlinePx(),
     [axisWidthPx]
   );
-  const getDiscWorldRadius = useCallback(
+  const resolveScreenFixedDiscWorldRadius = useCallback(
     (
       origin: Cartesian3,
       planeNormal: Cartesian3,
       configuredWorldRadius: number
     ): number => {
       const baseRadius = Math.max(configuredWorldRadius, AXIS_NUMERIC_EPSILON);
-      if (!discOutlineFixedScreenSize || !scene || scene.isDestroyed()) {
+      if (!scene || scene.isDestroyed()) {
         return baseRadius;
       }
 
@@ -527,24 +524,18 @@ export const useCesiumPointMoveGizmo = (
       const worldRadius = resolveWorldSizeForScreenTarget({
         targetScreenPx: discOutlineScreenPixelRadius,
         pixelPerWorld: pixelPerWorldMax,
-        quantize: discQuantizeWorldRadius,
+        quantize: false,
       });
       return Math.max(worldRadius, AXIS_NUMERIC_EPSILON);
     },
-    [
-      discOutlineFixedScreenSize,
-      discOutlineScreenPixelRadius,
-      discQuantizeWorldRadius,
-      scene,
-    ]
+    [discOutlineScreenPixelRadius, scene]
   );
 
-  // `selection` trigger: hold the disc world radius fixed across the selection,
-  // re-stepping (to the screen-targeted, optionally quantized size) only when
-  // the screen-centre resolution has doubled or halved since the current step.
+  // Optional world-radius resizing: hold the radius across the selection and
+  // recalculate it toward the screen target only after a meaningful zoom change.
   const resolveSteppedDiscWorldRadius = useCallback(
     (origin: Cartesian3): number => {
-      if (!discOutlineFixedScreenSize || !scene || scene.isDestroyed()) {
+      if (!scene || scene.isDestroyed()) {
         return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
       }
 
@@ -557,28 +548,38 @@ export const useCesiumPointMoveGizmo = (
         minWorldSize: AXIS_NUMERIC_EPSILON,
       });
     },
-    [
-      discOutlineFixedScreenSize,
-      discOutlineScreenPixelRadius,
-      discQuantizeWorldRadius,
-      scene,
-    ]
+    [discOutlineScreenPixelRadius, discQuantizeWorldRadius, scene]
   );
 
-  // Disc world radius for the current frame: continuous (hold screen size) for
-  // the `camera` trigger, stepped/fixed for the `selection` trigger.
   const computeDiscWorldRadius = useCallback(
-    (origin: Cartesian3, planeNormal: Cartesian3): number =>
-      discResizeTrigger === GIZMO_DISC_RESIZE_TRIGGERS.SELECTION
-        ? resolveSteppedDiscWorldRadius(origin)
-        : getDiscWorldRadius(origin, planeNormal, radiusRef.current),
-    [discResizeTrigger, getDiscWorldRadius, resolveSteppedDiscWorldRadius]
+    (origin: Cartesian3, planeNormal: Cartesian3): number => {
+      if (
+        discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED &&
+        discResizeWorldRadiusToScreenTarget
+      ) {
+        return resolveSteppedDiscWorldRadius(origin);
+      }
+      if (discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED) {
+        return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
+      }
+      return resolveScreenFixedDiscWorldRadius(
+        origin,
+        planeNormal,
+        radiusRef.current
+      );
+    },
+    [
+      discScalingMode,
+      discResizeWorldRadiusToScreenTarget,
+      resolveScreenFixedDiscWorldRadius,
+      resolveSteppedDiscWorldRadius,
+    ]
   );
 
   // Frame disc radius with the optional during-drag freeze: the first frame of a
   // drag captures (and may re-step) the radius, then it is held until the drag
   // ends so the disc never resizes mid-drag. `frozenDragDiscRadiusRef` is reset
-  // to null on drag end, so the next drag re-captures at its start. (cismet/wupp#4078)
+  // to null on drag end, so the next drag re-captures at its start.
   const resolveDiscWorldRadiusForFrame = useCallback(
     (origin: Cartesian3, planeNormal: Cartesian3): number => {
       if (freezeDiscScaleDuringDragRef.current && isDraggingRef.current) {
@@ -604,7 +605,7 @@ export const useCesiumPointMoveGizmo = (
       // dragged node (its measurement lines) that the host registers as a drag
       // occluder. Foreign lines/models stay visible and snappable. Works because
       // getGroundPointFromClientPosition ray-picks (its own render pass) rather
-      // than reading the cached depth buffer. (cismet/wupp#4078)
+      // than reading the cached depth buffer.
       const hiddenVisualizers: Array<{ show: () => void }> = [];
       const hiddenPrimitives: Array<{ show: boolean }> = [];
       const axisVisualizer = axisVisualizerRef.current;
@@ -676,7 +677,7 @@ export const useCesiumPointMoveGizmo = (
       liveAnchors.clear();
       // Render one settle frame so overlays re-resolve from the committed
       // position now that the live anchors are gone (otherwise they only
-      // refresh on the next camera move). (cismet/wupp#4078)
+      // refresh on the next camera move).
       if (scene && !scene.isDestroyed()) {
         scene.requestRender();
       }
@@ -990,7 +991,7 @@ export const useCesiumPointMoveGizmo = (
     restoreGlobalDragCursor(restoreGlobalCursorRef);
 
     // Drop the frozen-during-drag radius so the next drag re-captures (and may
-    // re-step) its size at its own start. (cismet/wupp#4078)
+    // re-step) its size at its own start.
     frozenDragDiscRadiusRef.current = null;
 
     if (isDraggingRef.current) {
@@ -1510,7 +1511,7 @@ export const useCesiumPointMoveGizmo = (
         initialDiscPlaneNormal
       );
       // Tessellate from the disc's apparent screen size so the filled ring
-      // reads as round rather than a visible polygon (cismet/wupp#4078).
+      // reads as round rather than a visible polygon.
       const disc = createRing(`point-move-disc-${movePoint.id}`, {
         radius: 1,
         innerRadius: 0.5,
@@ -1533,7 +1534,7 @@ export const useCesiumPointMoveGizmo = (
     // disc one frame behind the DOM overlay. With both reading the shared
     // liveAnchors inside the same synchronous render turn, the disc (drawn this
     // frame) and the overlay (postRender DOM, composited with this frame's canvas)
-    // stay locked to the same position on the same frame. (cismet/wupp#4078)
+    // stay locked to the same position on the same frame.
     const removeDiscFrameListener = scene.preRender.addEventListener(() => {
       try {
         const currentPoint = movePointRef.current;
@@ -1544,7 +1545,7 @@ export const useCesiumPointMoveGizmo = (
 
         // Prefer the synchronously-published live anchor so the disc tracks the
         // pointer without the setState round-trip, locked to the same shared
-        // position the measurement visualizers read this frame (cismet/wupp#4078).
+        // position the measurement visualizers read this frame.
         const livePosition =
           (liveAnchors.get(currentPoint.id) as Cartesian3 | undefined) ??
           currentPoint.geometryECEF;
@@ -1924,7 +1925,7 @@ export const useCesiumPointMoveGizmo = (
 
   // Disc radius readout as a reusable DOM-only line visualizer (SVG line +
   // label, no Cesium scene primitive). getSvgLine reads the screen-space
-  // endpoints published by updatePosition each frame. (cismet/wupp#4078)
+  // endpoints published by updatePosition each frame.
   const radiusHairlineLineVisualizers = useMemo<LineVisualizerData[]>(() => {
     if (!showDiscRadiusLabel || !showDisc || !movePoint) {
       return [];
@@ -1982,7 +1983,7 @@ export const useCesiumPointMoveGizmo = (
           // movePointRef, so the overlay anchor stays locked to the 3D disc with
           // no setState round-trip. Only the disc *scale* (computeDiscWorldRadius
           // below) may ride a frame behind; the anchor never does.
-          // (cismet/wupp#4078)
+          //
           const activePoint = {
             id: rawPoint.id,
             geometryECEF:
@@ -2071,8 +2072,8 @@ export const useCesiumPointMoveGizmo = (
             const planeBasis = createPlaneBasis(planeNormalForCandidate);
 
             // Sync the overlay outline to the exact world radius the 3D disc
-            // uses (same continuous/stepped/frozen logic) so both representations
-            // always agree (cismet/wupp#4078).
+            // uses (same screen/world resize/freeze logic) so both representations
+            // always agree.
             const discWorldRadius = resolveDiscWorldRadiusForFrame(
               activePoint.geometryECEF,
               planeNormalForCandidate
@@ -2096,8 +2097,9 @@ export const useCesiumPointMoveGizmo = (
               pixelPerWorldMax > AXIS_NUMERIC_EPSILON
                 ? discWorldRadius * pixelPerWorldMax
                 : discOutlineScreenPixelRadius;
-            const outlineSegments =
-              computeCircleSegments(outlineScreenRadiusPx);
+            const outlineSegments = computeCircleSegments(
+              outlineScreenRadiusPx
+            );
 
             const projectedOutlinePoints = projectPlaneOutlinePoints(
               scene,
@@ -2158,11 +2160,10 @@ export const useCesiumPointMoveGizmo = (
 
           // Perspective sizing factor for the arrows: how big the disc actually
           // appears vs its target screen size. ~1 when the disc holds screen
-          // size (`camera` mode), and shrinks/grows with zoom when the disc
-          // holds world size (`selection` mode), so the arrows track the disc.
+          // size (`screen` mode), and shrinks/grows with zoom when the disc
+          // holds world size (`world` mode), so the arrows track the disc.
           const arrowPerspectiveScale =
-            activeOutline &&
-            discOutlineScreenPixelRadius > AXIS_NUMERIC_EPSILON
+            activeOutline && discOutlineScreenPixelRadius > AXIS_NUMERIC_EPSILON
               ? Math.min(
                   ARROW_PERSPECTIVE_SCALE_MAX,
                   Math.max(
@@ -2597,7 +2598,7 @@ export const useCesiumPointMoveGizmo = (
           // label text for the line visualizer below. The hairline is a
           // billboard — it lives in the screen plane (orthogonal to the view
           // axis), a horizontal line of the disc's apparent screen radius — so
-          // no perspective math is needed to keep it oriented. (cismet/wupp#4078)
+          // no perspective math is needed to keep it oriented.
           const horizontalRadiusPx = activeOutline?.supportRadius ?? 0;
           const radiusWorldValue = activeOutline?.worldRadius;
           if (
@@ -2650,7 +2651,7 @@ export const useCesiumPointMoveGizmo = (
     computeDiscWorldRadius,
     resolveDiscWorldRadiusForFrame,
     radius,
-    discOutlineFixedScreenSize,
+    discScalingMode,
     discOutlineScreenPixelRadius,
     arrowActiveEdgePx,
     arrowInactiveEdgePx,

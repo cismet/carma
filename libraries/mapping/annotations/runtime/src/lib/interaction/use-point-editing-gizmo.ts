@@ -20,8 +20,12 @@ import {
   type CesiumGizmoScreenPosition,
 } from "@carma-mapping/gizmo/cesium";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
-import { Cartesian3 } from "@carma-cesium";
+import { Cartesian3, type Scene } from "@carma-cesium";
 
+import {
+  ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
+  type AnnotationReferenceObjectSizingOptions,
+} from "../config/annotation-reference-object-sizing";
 import {
   resolveAnnotationNodeMoveScope,
   resolveNextNodeLinksForNodeMove,
@@ -32,7 +36,6 @@ import {
   type AnnotationNode,
   type StoredAnnotation,
 } from "../store";
-import type { Scene } from "@carma-cesium";
 import {
   applyNodeCoordinateOverridesToNodes,
   areNodeCoordinateOverridesEqual,
@@ -45,11 +48,10 @@ import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
 // React readouts (area/length, counts) are paced to ~5 Hz; live geometry tracks
-// the pointer every frame via liveAnchors. (cismet/wupp#4078)
+// the pointer every frame via liveAnchors.
 const DRAFT_PREVIEW_FLUSH_INTERVAL_MS = 200;
 
 const POINT_EDITING_GIZMO_DEFAULTS = {
-  radiusMeters: 3,
   referenceNodeInteractionReleaseGuardMs: 48,
   referenceLineAxis: {
     primary: {
@@ -121,6 +123,7 @@ type UsePointEditingGizmoOptions = {
   annotationEntries: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
   onActiveEditedNodeIdChange?: (nodeId: string | null) => void;
+  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
 };
 
 type DraftCoordinatePreviewOptions = {
@@ -216,6 +219,7 @@ export const usePointEditingGizmo = (
     annotationEntries,
     selectedAnnotationIds,
     onActiveEditedNodeIdChange,
+    referenceObjectSizing = ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
   }: UsePointEditingGizmoOptions
 ) => {
   const { liveAnchors } = useLabelOverlay();
@@ -234,7 +238,6 @@ export const usePointEditingGizmo = (
     EMPTY_NODE_COORDINATE_OVERRIDES
   );
   const draftLinkToNodeIdRef = useRef<string | null>(null);
-  // Trailing-throttle handles for the draft flush (DRAFT_PREVIEW_FLUSH_INTERVAL_MS).
   const draftFlushTimeoutRef = useRef<number | null>(null);
   const lastDraftFlushAtRef = useRef(0);
   const snappedNodeIdRef = useRef<string | null>(null);
@@ -306,8 +309,7 @@ export const usePointEditingGizmo = (
     // Trailing throttle: at most one React flush per interval. Pointer moves
     // arriving within the interval are coalesced into the trailing flush; the
     // live geometry stays at frame rate via liveAnchors regardless.
-    const now =
-      typeof performance !== "undefined" ? performance.now() : 0;
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
     const elapsed = now - lastDraftFlushAtRef.current;
     const delay = Math.max(0, DRAFT_PREVIEW_FLUSH_INTERVAL_MS - elapsed);
     draftFlushTimeoutRef.current = window.setTimeout(() => {
@@ -459,9 +461,10 @@ export const usePointEditingGizmo = (
         // Publish all moved nodes on the shared live-anchor registry so the
         // measurement visualizers patch their geometry this frame, in lockstep
         // with the gizmo disc, ahead of the draft-state round-trip. The gizmo
-        // clears the registry once React has committed. (cismet/wupp#4078)
-        const liveAnchorECEF =
-          cartesian3FromGeographicCoordinate(constrainedCoordinate);
+        // clears the registry once React has committed.
+        const liveAnchorECEF = cartesian3FromGeographicCoordinate(
+          constrainedCoordinate
+        );
         movedNodeIds.forEach((movedNodeId) => {
           liveAnchors.set(movedNodeId, liveAnchorECEF);
         });
@@ -503,7 +506,7 @@ export const usePointEditingGizmo = (
       }, {});
 
       // See the disableSnap branch: publish the resolved (snapped) position for
-      // all moved nodes on the shared live-anchor registry. (cismet/wupp#4078)
+      // all moved nodes on the shared live-anchor registry.
       const liveAnchorECEF = cartesian3FromGeographicCoordinate(
         resolvedNodeSnapSample.coordinate
       );
@@ -565,10 +568,6 @@ export const usePointEditingGizmo = (
 
   const handleNodeLongPress = useCallback(
     (nodeId: string) => {
-      // Editing is gated behind selection (cismet/wupp#4078): the node's
-      // measurement must be selected and editable before edit mode opens. This
-      // removes the ambiguity of editing an unselected measurement and lets the
-      // info box always show the edited measurement together with its help.
       const isEditableSelectedNode = annotationEntries.some(
         (annotation) =>
           annotation.nodeIds.includes(nodeId) &&
@@ -768,7 +767,15 @@ export const usePointEditingGizmo = (
     axisTitle: axisOverride?.axisTitle ?? null,
     preferredAxisId: axisOverride?.preferredAxisId ?? null,
     axisCandidates: axisOverride?.axisCandidates ?? null,
-    radius: POINT_EDITING_GIZMO_DEFAULTS.radiusMeters,
+    radius: referenceObjectSizing.worldRadiusMeters,
+    discScalingMode: referenceObjectSizing.scalingMode,
+    discOutlineScreenPixelRadius: referenceObjectSizing.targetScreenRadiusCssPx,
+    discResizeWorldRadiusToScreenTarget:
+      referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+    discQuantizeWorldRadius: referenceObjectSizing.quantizeWorldRadius,
+    freezeDiscScaleDuringDrag:
+      referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+    discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
     showRotationHandle: false,
     snapPlaneDragToGround: activePlanarAreaEditPlane === null,
     onDragStateChange: handleGizmoDragStateChange,
@@ -794,11 +801,8 @@ export const usePointEditingGizmo = (
     }
   }, [activeEditedNodeId, clearDraftNodeCoordinateOverrides, effectiveNodes]);
 
-  // Editing requires the measurement to stay selected, just as starting an edit
-  // does. When it is deselected — e.g. because the mode changed — commit the
-  // pending move and leave edit mode, so no gizmo lingers over a measurement
-  // whose info box no longer shows it. A removed node is handled by the effect
-  // above, which clears without committing. (cismet/wupp#4078)
+  // Commit before leaving when selection changes; node removal is handled above
+  // and intentionally clears without committing.
   useEffect(() => {
     if (!activeEditedNodeId) {
       return;

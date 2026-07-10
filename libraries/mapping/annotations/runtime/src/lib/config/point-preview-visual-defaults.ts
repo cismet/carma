@@ -2,10 +2,14 @@ import {
   RING_MATERIAL_PRESETS,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
+import {
+  REFERENCE_OBJECT_SCALING_MODES,
+  type ReferenceObjectScalingMode,
+} from "@carma-commons/math";
 
 export type PointPreviewRingVisualDefaults = {
   primitiveId: string;
-  scalingMode: "screen" | "world";
+  scalingMode: ReferenceObjectScalingMode;
   innerHoleRadiusRatio: number;
   alpha: number;
   materialPreset: RingMaterialPreset;
@@ -17,7 +21,7 @@ export type PointPreviewRingVisualDefaults = {
 
 export const pointPreviewRingVisualDefaults: PointPreviewRingVisualDefaults = {
   primitiveId: "measurement-preview-point-ring",
-  scalingMode: "screen",
+  scalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
   targetScreenRadiusCssPx: 32,
   // Visually tuned against PointLabel.tsx HIDDEN_INTERACTION_MARKER_DIAMETER_PX.
   // Keep this as a soft visual match, not a hard shared sizing contract.

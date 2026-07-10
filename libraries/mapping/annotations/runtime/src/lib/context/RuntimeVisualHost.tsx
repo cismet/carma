@@ -30,6 +30,7 @@ import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import { SceneSelectionHost } from "./SceneSelectionHost";
 import { useVisualInteraction } from "./use-visual-interaction";
 import { selectRenderableAnnotationEntries } from "../utils/annotation-tool-collections";
+import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 
 type RuntimeVisualHostProps = {
   scene: Scene | null;
@@ -47,6 +48,7 @@ type RuntimeVisualHostProps = {
   activeEditedNodeId: string | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
+  referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
   visualInteractionEnabled?: boolean;
   visualAnnotationEntryRoles?: readonly AnnotationEntryRole[];
 };
@@ -64,6 +66,7 @@ export const RuntimeVisualHost = ({
   activeEditedNodeId,
   formatOptions,
   lineLabelOptions,
+  referenceObjectSizing,
   visualInteractionEnabled = false,
   visualAnnotationEntryRoles,
 }: RuntimeVisualHostProps) => {
@@ -171,8 +174,6 @@ export const RuntimeVisualHost = ({
   );
   const canStartNodeEditing = useCallback(
     (nodeId: string, annotationId?: string) =>
-      // Node editing is only available in Select mode (cismet/wupp#4078): no
-      // long-press editing while a measurement/point-query tool is active.
       activeToolType === ANNOTATION_SELECT_TOOL_ID &&
       !nodeEditingDisabledNodeIds.has(nodeId) &&
       annotationEntries.some(
@@ -219,6 +220,7 @@ export const RuntimeVisualHost = ({
     isSelectionAdditiveModifierPressed,
     onActiveEditedNodeIdChange,
     onHoveredPointQueryNodeIdChange,
+    referenceObjectSizing,
   });
   const { baseVisualModels, overlayVisualModels } = useVisualLayers({
     plugins: registry.plugins,

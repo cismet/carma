@@ -6,10 +6,6 @@ export * from "./lib/cssAxisGizmoElement";
 export * from "./lib/svgProjection";
 export * from "./lib/projectedMoveGizmoView";
 export {
-  GIZMO_DISC_RESIZE_TRIGGERS,
-  type GizmoDiscResizeTrigger,
-} from "./lib/gizmoDiscSizing";
-export {
   beginPointerDragSession,
   type PointerDragSession,
   type PointerDragSessionEndReason,

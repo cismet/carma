@@ -17,9 +17,9 @@ import {
   type CesiumMoveGizmoAxisCandidate,
 } from "@carma-mapping/gizmo/cesium";
 import {
-  GIZMO_DISC_RESIZE_TRIGGERS,
-  type GizmoDiscResizeTrigger,
-} from "@carma-mapping/gizmo/core";
+  REFERENCE_OBJECT_SCALING_MODES,
+  type ReferenceObjectScalingMode,
+} from "@carma-commons/math";
 import {
   createPointQueryIndicatorController,
   type PointQueryIndicatorController,
@@ -58,8 +58,6 @@ if (typeof window !== "undefined") {
 
 type AxisMode = "geoportal-default" | "enu" | "up-only" | "world";
 
-// Which dynamic-scale reference object to demo: the move-gizmo disc or the
-// point-query indicator disc (both use the same stepped scale-bar sizing).
 type ReferenceObject = "gizmo" | "query-disc";
 
 type GizmoSandboxProps = {
@@ -72,13 +70,13 @@ type GizmoSandboxProps = {
   showDisc: boolean;
   showCube: boolean;
   snapPlaneDragToGround: boolean;
-  discOutlineFixedScreenSize: boolean;
+  discScalingMode: ReferenceObjectScalingMode;
   discOutlineScreenPixelRadius: number;
+  discResizeWorldRadiusToScreenTarget: boolean;
   discQuantizeWorldRadius: boolean;
-  discResizeTrigger: GizmoDiscResizeTrigger;
   freezeDiscScaleDuringDrag: boolean;
   // Permissible apparent-size band before the disc re-steps: [1/factor, factor]
-  // (4 → 0.25×–4×). Applies to the `selection` trigger and the query disc.
+  // (4 → 0.25×–4×). Applies when world-radius resizing is enabled.
   discResizeStepFactor: number;
   showDiscRadiusLabel: boolean;
   axisWidthPx?: number;
@@ -258,10 +256,10 @@ const GizmoSandboxContent = ({
   showDisc,
   showCube,
   snapPlaneDragToGround,
-  discOutlineFixedScreenSize,
+  discScalingMode,
   discOutlineScreenPixelRadius,
+  discResizeWorldRadiusToScreenTarget,
   discQuantizeWorldRadius,
-  discResizeTrigger,
   freezeDiscScaleDuringDrag,
   discResizeStepFactor,
   showDiscRadiusLabel,
@@ -350,7 +348,7 @@ const GizmoSandboxContent = ({
         cesiumContainerRef.current as HTMLDivElement,
         {
           // Physical-pixel (DPR) resolution like the geoportal widget, so the
-          // disc/gizmo render sharp instead of blurry (cismet/wupp#4078).
+          // disc/gizmo render sharp instead of blurry.
           useBrowserRecommendedResolution: false,
         }
       );
@@ -588,10 +586,10 @@ const GizmoSandboxContent = ({
     showDisc: showDisc && referenceObject === "gizmo",
     showRotationHandle,
     snapPlaneDragToGround,
-    discOutlineFixedScreenSize,
+    discScalingMode,
     discOutlineScreenPixelRadius,
+    discResizeWorldRadiusToScreenTarget,
     discQuantizeWorldRadius,
-    discResizeTrigger,
     freezeDiscScaleDuringDrag,
     discResizeStepFactor,
     showDiscRadiusLabel,
@@ -602,8 +600,7 @@ const GizmoSandboxContent = ({
   });
 
   // Query-disc reference object: the actual point-query indicator controller,
-  // locked to the gizmo point. CAMERA trigger → screen-fixed scaling (pre-PR
-  // behaviour); SELECTION trigger → stepped scale-bar sizing.
+  // locked to the gizmo point and fed the same sizing options as the gizmo.
   const queryControllerRef = useRef<PointQueryIndicatorController | null>(null);
   useEffect(() => {
     if (!scene || scene.isDestroyed() || referenceObject !== "query-disc") {
@@ -613,10 +610,8 @@ const GizmoSandboxContent = ({
     }
     const controller = createPointQueryIndicatorController(scene, {
       radius,
-      scalingMode:
-        discResizeTrigger === GIZMO_DISC_RESIZE_TRIGGERS.SELECTION
-          ? "stepped"
-          : "screen",
+      scalingMode: discScalingMode,
+      resizeWorldRadiusToScreenTarget,
       discResizeStepFactor,
       quantizeStepWorldRadius: discQuantizeWorldRadius,
       targetScreenRadiusCssPx: discOutlineScreenPixelRadius,
@@ -632,7 +627,8 @@ const GizmoSandboxContent = ({
     scene,
     referenceObject,
     radius,
-    discResizeTrigger,
+    discScalingMode,
+    discResizeWorldRadiusToScreenTarget,
     discResizeStepFactor,
     discQuantizeWorldRadius,
     discOutlineScreenPixelRadius,
@@ -670,7 +666,6 @@ const GizmoSandboxContent = ({
     </div>
   );
 };
-
 
 // Resolution/status bar, like the other Cesium stories. Lives in screen space;
 // all sizing/scaling is driven by the Storybook controls (no in-canvas panel
@@ -751,11 +746,13 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
         scene={scene}
         referenceObject={props.referenceObject}
         scaling={
-          props.discResizeTrigger === GIZMO_DISC_RESIZE_TRIGGERS.SELECTION
-            ? `stepped (${1 / props.discResizeStepFactor}×–${
+          props.discScalingMode === REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED
+            ? "screen-fixed"
+            : props.discResizeWorldRadiusToScreenTarget
+            ? `world, stepped target (${1 / props.discResizeStepFactor}×–${
                 props.discResizeStepFactor
               }×)`
-            : "screen-fixed"
+            : "world-fixed"
         }
       />
     </LabelOverlayProvider>
@@ -809,20 +806,20 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "range", min: 8, max: 120, step: 1 },
       table: { category: "Disc" },
     },
-    discOutlineFixedScreenSize: {
-      control: { type: "boolean" },
+    discScalingMode: {
+      control: { type: "inline-radio" },
+      options: [
+        REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
+        REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED,
+      ],
       table: { category: "Disc" },
     },
     discQuantizeWorldRadius: {
       control: { type: "boolean" },
       table: { category: "Disc" },
     },
-    discResizeTrigger: {
-      control: { type: "inline-radio" },
-      options: [
-        GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
-        GIZMO_DISC_RESIZE_TRIGGERS.SELECTION,
-      ],
+    discResizeWorldRadiusToScreenTarget: {
+      control: { type: "boolean" },
       table: { category: "Disc" },
     },
     freezeDiscScaleDuringDrag: {
@@ -904,10 +901,10 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
     showDisc: true,
     showCube: true,
     snapPlaneDragToGround: true,
-    discOutlineFixedScreenSize: true,
+    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
     discOutlineScreenPixelRadius: 48,
+    discResizeWorldRadiusToScreenTarget: false,
     discQuantizeWorldRadius: false,
-    discResizeTrigger: GIZMO_DISC_RESIZE_TRIGGERS.CAMERA,
     freezeDiscScaleDuringDrag: false,
     discResizeStepFactor: 4,
     showDiscRadiusLabel: false,
@@ -920,26 +917,17 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
   },
 };
 
-// Dynamic-scale reference-object sizing demo (cismet/wupp#4078). All sizing is
-// driven by the Storybook controls (no in-canvas panel). Switch `referenceObject`
-// between the move-gizmo disc and the point-query indicator disc; switch
-// `discResizeTrigger` between screen-fixed (CAMERA, the pre-PR behaviour) and the
-// stepped scale-bar sizing (SELECTION). Defaults to the gizmo disc with the
-// stepped (SELECTION) trigger.
 export const ReferenceObjectSizing: StoryObj<GizmoSandboxProps> = {
   name: "Dynamic Scene Reference Object Sizing",
   args: {
     ...Cesium.args,
     referenceObject: "gizmo",
-    // The geoportal edit-tool default: only the vertical (height) axis plus the
-    // disc, no cube — so the demo matches the in-app gizmo (cismet/wupp#4078).
     axisMode: "geoportal-default",
     showCube: false,
-    discResizeTrigger: GIZMO_DISC_RESIZE_TRIGGERS.SELECTION,
+    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED,
+    discResizeWorldRadiusToScreenTarget: true,
     discQuantizeWorldRadius: true,
-    // Hold the disc size during a drag; it re-steps only at the next drag start.
     freezeDiscScaleDuringDrag: true,
-    // Show the world-radius readout hairline + 8px label.
     showDiscRadiusLabel: true,
     discOutlineScreenPixelRadius: 48,
   },

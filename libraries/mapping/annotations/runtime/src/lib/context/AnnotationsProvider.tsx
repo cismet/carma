@@ -25,6 +25,10 @@ import {
 } from "../store";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import {
+  ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
+  type AnnotationReferenceObjectSizingOptions,
+} from "../config/annotation-reference-object-sizing";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
@@ -131,6 +135,7 @@ type AnnotationsProviderProps = {
   visualAnnotationEntryRoles?: readonly AnnotationEntryRole[];
   formatOptions?: AnnotationsRuntimeFormatOptions;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
+  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
   initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
   onPersistenceStateChange?: (
     state: AnnotationsRuntimePersistenceEnvelope
@@ -202,6 +207,7 @@ export const AnnotationsProvider = ({
   visualAnnotationEntryRoles,
   formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
   lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
+  referenceObjectSizing = ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
   initialPersistenceState,
   onPersistenceStateChange,
   confirmAnnotationDelete,
@@ -265,13 +271,17 @@ export const AnnotationsProvider = ({
           setActiveToolType={setActiveToolType}
         />
         {renderEnabled ? (
-          <RuntimeAuthoringHost {...runtimeAuthoringHost} />
+          <RuntimeAuthoringHost
+            {...runtimeAuthoringHost}
+            referenceObjectSizing={referenceObjectSizing}
+          />
         ) : null}
         {visualRenderEnabled ?? renderEnabled ? (
           <RuntimeVisualHost
             {...runtimeVisualHost}
             visualAnnotationEntryRoles={visualAnnotationEntryRoles}
             visualInteractionEnabled={visualInteractionEnabled}
+            referenceObjectSizing={referenceObjectSizing}
           />
         ) : null}
         {children}

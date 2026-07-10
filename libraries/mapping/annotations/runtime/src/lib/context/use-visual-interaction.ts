@@ -25,6 +25,7 @@ import {
 } from "../render/distance-triangle-overlay";
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/annotation-render-models";
 import { resolveAnnotationEntryCoordinates } from "../utils/annotation-coordinates";
+import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 
 const {
   POLYLINE: ANNOTATION_TYPE_POLYLINE,
@@ -82,6 +83,7 @@ type UseVisualInteractionOptions = {
   isSelectionAdditiveModifierPressed: boolean;
   onActiveEditedNodeIdChange: (nodeId: string | null) => void;
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
+  referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
 };
 
 export const useVisualInteraction = ({
@@ -97,6 +99,7 @@ export const useVisualInteraction = ({
   isSelectionAdditiveModifierPressed,
   onActiveEditedNodeIdChange,
   onHoveredPointQueryNodeIdChange,
+  referenceObjectSizing,
 }: UseVisualInteractionOptions) => {
   const previewSnapTargetHoverEnabled =
     activeEditedNodeId === null && isMeasurementToolActive;
@@ -114,6 +117,7 @@ export const useVisualInteraction = ({
     annotationEntries,
     selectedAnnotationIds,
     onActiveEditedNodeIdChange,
+    referenceObjectSizing,
   });
   const handleDistanceTriangleCornerClick = useCallback(
     (annotationId: string) => {

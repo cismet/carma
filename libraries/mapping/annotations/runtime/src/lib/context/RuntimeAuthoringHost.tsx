@@ -35,6 +35,7 @@ import type {
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import type { AnnotationDeleteRequestOptions } from "./annotation-delete-confirmation";
 import {
@@ -82,6 +83,7 @@ type RuntimeAuthoringHostProps = {
   ) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
+  referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
   requestLabelText?: AnnotationLabelTextRequester;
 };
 
@@ -103,6 +105,7 @@ export const RuntimeAuthoringHost = ({
   onPointQueryPickResultChange,
   formatOptions,
   lineLabelOptions,
+  referenceObjectSizing,
   requestLabelText,
 }: RuntimeAuthoringHostProps) => {
   const labelOverlay = useLabelOverlay();
@@ -322,7 +325,13 @@ export const RuntimeAuthoringHost = ({
     pointQueryIndicatorControllerRef.current?.destroy();
     const nextPointQueryIndicatorController =
       createPointQueryIndicatorController(scene, {
-        radius: ANNOTATIONS_HOST_DEFAULTS.pointQuery.discRadiusMeters,
+        radius: referenceObjectSizing.worldRadiusMeters,
+        scalingMode: referenceObjectSizing.scalingMode,
+        targetScreenRadiusCssPx: referenceObjectSizing.targetScreenRadiusCssPx,
+        resizeWorldRadiusToScreenTarget:
+          referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+        discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
+        quantizeStepWorldRadius: referenceObjectSizing.quantizeWorldRadius,
         showNormalLine: true,
         tangentDiscVisualizerTrailSampleCount:
           ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
@@ -349,7 +358,17 @@ export const RuntimeAuthoringHost = ({
       pointQueryIndicatorControllerRef.current?.destroy();
       pointQueryIndicatorControllerRef.current = null;
     };
-  }, [pointQueryEnabled, resolveHoveredPointQueryNode, scene]);
+  }, [
+    pointQueryEnabled,
+    referenceObjectSizing.quantizeWorldRadius,
+    referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+    referenceObjectSizing.resizeStepFactor,
+    referenceObjectSizing.scalingMode,
+    referenceObjectSizing.targetScreenRadiusCssPx,
+    referenceObjectSizing.worldRadiusMeters,
+    resolveHoveredPointQueryNode,
+    scene,
+  ]);
 
   useEffect(() => {
     pointQueryIndicatorControllerRef.current?.setEnabled(pointQueryEnabled);

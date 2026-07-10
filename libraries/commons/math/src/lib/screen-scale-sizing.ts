@@ -8,7 +8,15 @@
 // "nice numbers" choice (Heckbert, Graphics Gems, 1990; also D3 ticks).
 //
 // These are deliberately not tied to any specific renderer (Cesium gizmo,
-// point-query disc, …) — callers map them onto their own world units. (#4078)
+// point-query disc, …) — callers map them onto their own world units.
+
+export const REFERENCE_OBJECT_SCALING_MODES = {
+  SCREEN_FIXED: "screen",
+  WORLD_FIXED: "world",
+} as const;
+
+export type ReferenceObjectScalingMode =
+  (typeof REFERENCE_OBJECT_SCALING_MODES)[keyof typeof REFERENCE_OBJECT_SCALING_MODES];
 
 const NICE_STEP_MANTISSAS = [1, 2, 5, 10] as const;
 
