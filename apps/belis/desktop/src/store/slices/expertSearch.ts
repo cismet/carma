@@ -38,6 +38,7 @@ export interface ExpertTypeState {
   sorts: ExpertSortState[]; // order_by list (first entry = primary sort)
   limit: number | null; // max rows; null = no limit
   selectedGroupId: number; // clicking a field adds its rule to this group
+  sortSelected: boolean; // when true, clicking a field adds a sort instead
   nextGroupId: number;
   nextRuleId: number;
   nextSortId: number;
@@ -62,6 +63,7 @@ const createTypeState = (): ExpertTypeState => ({
   sorts: [],
   limit: null,
   selectedGroupId: 1,
+  sortSelected: false,
   nextGroupId: 2,
   nextRuleId: 1,
   nextSortId: 1,
@@ -96,6 +98,7 @@ const slice = createSlice({
       });
       // A freshly added group becomes the target for sidebar field clicks.
       t.selectedGroupId = id;
+      t.sortSelected = false;
     },
     removeGroup(
       state,
@@ -112,7 +115,12 @@ const slice = createSlice({
       state,
       action: PayloadAction<{ objectType: ObjectType; groupId: number }>
     ) {
-      state[action.payload.objectType].selectedGroupId = action.payload.groupId;
+      const t = state[action.payload.objectType];
+      t.selectedGroupId = action.payload.groupId;
+      t.sortSelected = false;
+    },
+    selectSort(state, action: PayloadAction<ObjectType>) {
+      state[action.payload].sortSelected = true;
     },
     setGroupConjunction(
       state,
@@ -250,6 +258,8 @@ const slice = createSlice({
         field: action.payload.field,
         direction: action.payload.direction ?? "asc",
       });
+      // Adding a sort makes the sort list the target for sidebar field clicks.
+      t.sortSelected = true;
     },
     removeSort(
       state,
@@ -257,6 +267,8 @@ const slice = createSlice({
     ) {
       const t = state[action.payload.objectType];
       t.sorts = t.sorts.filter((s) => s.id !== action.payload.sortId);
+      // Nothing left to sort → drop back out of sort-select mode.
+      if (t.sorts.length === 0) t.sortSelected = false;
     },
     setSortField(
       state,
@@ -302,6 +314,7 @@ export const {
   addGroup,
   removeGroup,
   selectGroup,
+  selectSort,
   setGroupConjunction,
   setGroupInnerConjunction,
   setGroupNegated,
