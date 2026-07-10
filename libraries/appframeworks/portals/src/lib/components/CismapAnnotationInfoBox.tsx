@@ -271,11 +271,10 @@ export const CismapAnnotationInstructionInfoBox = ({
     ...CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
     ...visualOptions,
   });
-  // No extra top inset: the wrapper's former mt-2 + p-2 stacked ~16px of dead
-  // space above the first content line (e.g. the "Bearbeitungsmodus" title in
-  // the node-edit help). Keep side/bottom padding for the panel inset. (cismet/wupp#4078)
+  // Keep the instruction inset on the sides and at the top. The surrounding
+  // body already provides the bottom panel inset. (cismet/wupp#4078)
   const contentClassName =
-    "mt-0 w-[90%] px-2 pb-2 pt-1 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
+    "mt-0 w-[94%] pl-2 pr-0 pt-1 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
   const hasHeaderTitle =
     headerTitle !== undefined && headerTitle !== null && headerTitle !== false;
   const instructionContentElement = (

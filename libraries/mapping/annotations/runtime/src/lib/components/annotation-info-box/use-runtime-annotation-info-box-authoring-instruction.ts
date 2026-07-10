@@ -1,5 +1,6 @@
 import { createElement, useMemo, type ReactNode } from "react";
 import {
+  ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   AnnotationInfoBoxHelpContent,
@@ -118,6 +119,8 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
           items: helpItems,
           layout: authoringInstructionHelpLayout,
           locale: helpLocale,
+          actionTriggerAlign:
+            ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START,
         })
       ),
       visualOptions: resolvedVisualOptions,

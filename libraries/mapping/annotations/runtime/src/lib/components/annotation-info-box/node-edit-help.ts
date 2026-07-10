@@ -128,12 +128,14 @@ const DRAG_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
     leadingLabel: "Scheibenmitte",
     inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_CENTER]],
+    rightAlignInput: true,
     description: "→ auf der Oberfläche des 3D-Modells",
   },
   {
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
     leadingLabel: "Äußere Scheibe",
     inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_OUTER]],
+    rightAlignInput: true,
     description: "→ in der Höhenebene",
   },
   {
@@ -160,6 +162,7 @@ const LEAVE_EDIT_MODE_ACTION = {
     [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK],
   ],
   trailingLabel: "außerhalb des Punktes",
+  trailingLabelAfterLastInput: true,
   description: "Bearbeitungsmodus verlassen",
 } satisfies AnnotationInfoBoxHelpItem;
 

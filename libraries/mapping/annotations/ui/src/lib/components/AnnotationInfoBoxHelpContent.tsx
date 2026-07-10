@@ -113,6 +113,12 @@ export type AnnotationInfoBoxHelpActionItem = Readonly<{
   // Punkt" (cismet/wupp#4078).
   leadingLabel?: string;
   trailingLabel?: string;
+  // Align a single input token to the right edge of the trigger column, keeping
+  // its leading label on the left.
+  rightAlignInput?: boolean;
+  // Keep a qualifier beside the final input token. Its text may wrap naturally
+  // within that line's baseline grid.
+  trailingLabelAfterLastInput?: boolean;
   description: string;
 }>;
 
@@ -262,21 +268,50 @@ const startTriggerTokenRowStyle: CSSProperties = {
   minHeight: oneBaselineStep,
 };
 
-const actionColumnGap = "1em";
-const actionGridTemplateColumns = "max-content minmax(0, 1fr)";
+const startTriggerAlternativeRowStyle: CSSProperties = {
+  ...startTriggerTokenRowStyle,
+  marginTop: halfBaselineStep,
+};
 
-const compactContentStyle: CSSProperties = {
+const startTriggerRightAlignedTokenRowStyle: CSSProperties = {
+  ...startTriggerTokenRowStyle,
+  justifyContent: "space-between",
+  width: "100%",
+};
+
+const actionColumnGap = "1em";
+const startAlignedActionColumnGap = "0.5em";
+const actionGridTemplateColumns = "max-content minmax(0, 1fr)";
+// The edit-mode instruction table has labels, icons, and multi-line shortcut
+// qualifiers in its first column. Give it a stable measure so longer left-hand
+// entries do not change where the effects column begins. (cismet/wupp#4078)
+const startAlignedActionGridTemplateColumns = "7.75rem minmax(0, 1fr)";
+
+const resolveCompactContentStyle = (
+  triggerAlign: AnnotationInfoBoxHelpActionTriggerAlignment
+): CSSProperties => ({
   ...helpContentRootStyle,
   display: "grid",
-  gridTemplateColumns: actionGridTemplateColumns,
-  columnGap: actionColumnGap,
+  gridTemplateColumns:
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START
+      ? startAlignedActionGridTemplateColumns
+      : actionGridTemplateColumns,
+  columnGap:
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START
+      ? startAlignedActionColumnGap
+      : actionColumnGap,
   rowGap: halfBaselineStep,
   alignItems: "start",
-};
+});
 
 const compactParagraphStyle: CSSProperties = {
   ...paragraphStyle,
   gridColumn: "1 / -1",
+};
+
+const compactLastParagraphStyle: CSSProperties = {
+  ...compactParagraphStyle,
+  margin: 0,
 };
 
 const actionRowStyles = {
@@ -458,7 +493,8 @@ const actionIndicatorIconStyles = {
 
 const renderTextItem = (
   item: string | AnnotationInfoBoxHelpTextItem,
-  layout: AnnotationInfoBoxHelpLayout
+  layout: AnnotationInfoBoxHelpLayout,
+  isLastCompactItem = false
 ) => {
   const text = typeof item === "string" ? item : item.text;
   return (
@@ -466,7 +502,9 @@ const renderTextItem = (
       key={text}
       style={
         layout === ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
-          ? compactParagraphStyle
+          ? isLastCompactItem
+            ? compactLastParagraphStyle
+            : compactParagraphStyle
           : paragraphStyle
       }
     >
@@ -671,9 +709,8 @@ const renderHeadingItem = (
 };
 
 // Trigger cell for instruction rows: each input alternative gets its own line,
-// with the "oder" separator trailing the alternative it follows, and the
-// trailing qualifier wrapped underneath. So a leave-edit row reads
-// "[Escape] oder" / "[Klick]" / "außerhalb des Punktes". (cismet/wupp#4078)
+// with a half-baseline gap after the first. A qualifier can follow the final
+// input token and wrap naturally within that line. (cismet/wupp#4078)
 const renderStartAlignedTrigger = (
   item: AnnotationInfoBoxHelpActionItem,
   keyboardLabels: KeyboardDisplayLabels,
@@ -693,7 +730,13 @@ const renderStartAlignedTrigger = (
         : item.inputAlternatives.map((inputCombination, index) => (
             <span
               key={`${inputCombination.join("+")}-${index}`}
-              style={startTriggerTokenRowStyle}
+              style={
+                item.rightAlignInput && index === 0
+                  ? startTriggerRightAlignedTokenRowStyle
+                  : index === 0
+                  ? startTriggerTokenRowStyle
+                  : startTriggerAlternativeRowStyle
+              }
             >
               {index === 0 && item.leadingLabel ? (
                 <span style={triggerLabelStyle}>{item.leadingLabel}</span>
@@ -710,9 +753,14 @@ const renderStartAlignedTrigger = (
               {index < lastAlternativeIndex ? (
                 <span>{pointerLabels.alternative}</span>
               ) : null}
+              {index === lastAlternativeIndex &&
+              item.trailingLabelAfterLastInput &&
+              item.trailingLabel ? (
+                <span style={triggerLabelStyle}>{item.trailingLabel}</span>
+              ) : null}
             </span>
           ))}
-      {item.trailingLabel ? (
+      {item.trailingLabel && !item.trailingLabelAfterLastInput ? (
         <span style={triggerLabelStyle}>{item.trailingLabel}</span>
       ) : null}
     </span>
@@ -827,9 +875,17 @@ export const AnnotationInfoBoxHelpContent = ({
   if (resolvedLayout === ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT) {
     const content: ReactNode[] = displayItems.map((item, index) =>
       typeof item === "string"
-        ? renderTextItem(item, resolvedLayout)
+        ? renderTextItem(
+            item,
+            resolvedLayout,
+            index === displayItems.length - 1
+          )
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT
-        ? renderTextItem(item, resolvedLayout)
+        ? renderTextItem(
+            item,
+            resolvedLayout,
+            index === displayItems.length - 1
+          )
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING
         ? renderHeadingItem(item, index, resolvedLayout)
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT
@@ -853,7 +909,10 @@ export const AnnotationInfoBoxHelpContent = ({
     );
 
     return (
-      <div data-testid="annotation-help-content" style={compactContentStyle}>
+      <div
+        data-testid="annotation-help-content"
+        style={resolveCompactContentStyle(actionTriggerAlign)}
+      >
         {content}
       </div>
     );

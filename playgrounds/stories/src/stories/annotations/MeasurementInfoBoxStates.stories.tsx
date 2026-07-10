@@ -1,6 +1,7 @@
 import { Fragment, type CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 
+import type { KeyboardDisplayPlatform } from "@carma-commons/ui/components";
 import {
   ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   ANNOTATION_INFO_BOX_HELP_LAYOUTS,
@@ -30,6 +31,7 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 type StatesStoryArgs = {
   locale: "de-DE" | "en-US";
   layout: AnnotationInfoBoxHelpLayout;
+  platform: KeyboardDisplayPlatform;
 };
 
 const meta = {
@@ -41,9 +43,11 @@ const meta = {
   args: {
     locale: "de-DE",
     layout: ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT,
+    platform: "macos",
   },
   argTypes: {
     locale: { control: "radio", options: ["de-DE", "en-US"] },
+    platform: { control: "radio", options: ["macos", "windows", "other"] },
     layout: {
       control: "radio",
       options: [
@@ -199,7 +203,7 @@ const infoBoxPreviewStyle: CSSProperties = {
   display: "inline-block",
   minWidth: 280,
   maxWidth: 380,
-  padding: "14px 16px",
+  padding: "14px 16px 8px",
   borderRadius: 6,
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 1px 6px rgba(15, 23, 42, 0.2)",
@@ -212,7 +216,7 @@ const emptyStateStyle: CSSProperties = {
   fontStyle: "italic",
 };
 
-const StatesStory = ({ locale, layout }: StatesStoryArgs) => (
+const StatesStory = ({ locale, layout, platform }: StatesStoryArgs) => (
   <div style={pageStyle}>
     <h1 style={pageTitleStyle}>Mess-Infobox — Hilfe- und Bedienzustände</h1>
     <p style={pageSubtitleStyle}>
@@ -233,7 +237,8 @@ const StatesStory = ({ locale, layout }: StatesStoryArgs) => (
                     items={entry.items}
                     layout={layout}
                     locale={locale}
-                    actionTriggerAlign={entry.actionTriggerAlign}
+                    platform={platform}
+                    actionTriggerAlign={entry.actionTriggerAlign ?? START}
                   />
                 ) : (
                   <span style={emptyStateStyle}>(kein Hilfetext)</span>

@@ -180,6 +180,25 @@ describe("AnnotationInfoBoxHelpContent", () => {
     expect(actionRow.textContent).toContain("Enter");
   });
 
+  it("removes the trailing baseline margin from final compact text", () => {
+    render(
+      <AnnotationInfoBoxHelpContent
+        layout={ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT}
+        items={[
+          "Eine Position in der 3D-Darstellung anklicken.",
+          "Jeder weitere Klick erzeugt sofort eine neue Punktmessung.",
+        ]}
+      />
+    );
+
+    const paragraphs = screen.getAllByText(/.+/, { selector: "p" });
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs[0]?.style.marginBottom).toBe(
+      "var(--carma-help-baseline)"
+    );
+    expect(paragraphs[1]?.style.margin).toBe("0px");
+  });
+
   it("renders informative action indicators in the input column", () => {
     render(
       <AnnotationInfoBoxHelpContent
@@ -345,6 +364,7 @@ describe("AnnotationInfoBoxHelpContent", () => {
             inputAlternatives: [
               [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_CENTER],
             ],
+            rightAlignInput: true,
             description: "→ auf der Oberfläche des 3D-Modells",
           },
           {
@@ -359,14 +379,30 @@ describe("AnnotationInfoBoxHelpContent", () => {
             inputAlternatives: [],
             description: "→ entlang der Höhenachse",
           },
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            inputAlternatives: [
+              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE],
+              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK],
+            ],
+            trailingLabel: "außerhalb des Punktes",
+            trailingLabelAfterLastInput: true,
+            description: "Bearbeitungsmodus verlassen",
+          },
         ]}
       />
     );
 
     const rows = screen.getAllByTestId("annotation-help-action");
+    expect(
+      screen.getByTestId("annotation-help-content").style.gridTemplateColumns
+    ).toBe("7.75rem minmax(0, 1fr)");
     // Leading label precedes the disc icon; description carries the arrow.
     expect(rows[0]?.textContent).toContain("Scheibenmitte");
     expect(rows[0]?.textContent).toContain("→ auf der Oberfläche des 3D-Modells");
+    expect(rows[0]?.children[0]?.children[0]?.style.justifyContent).toBe(
+      "space-between"
+    );
     expect(
       (rows[0]?.textContent ?? "").indexOf("Scheibenmitte")
     ).toBeLessThan((rows[0]?.textContent ?? "").indexOf("→"));
@@ -376,5 +412,14 @@ describe("AnnotationInfoBoxHelpContent", () => {
     // Label-only trigger (no input token) still renders.
     expect(rows[2]?.textContent).toContain("Blaue Pfeilspitzen");
     expect(rows[2]?.textContent).toContain("→ entlang der Höhenachse");
+    // The second alternative stays on the baseline lattice while its qualifier
+    // follows the click token and can wrap within that row.
+    const leaveTrigger = rows[3]?.children[0];
+    expect(leaveTrigger?.children[1]?.style.marginTop).toBe(
+      "calc(var(--carma-help-baseline) / 2)"
+    );
+    expect(leaveTrigger?.children[1]?.textContent).toContain(
+      "Klickaußerhalb des Punktes"
+    );
   });
 });
