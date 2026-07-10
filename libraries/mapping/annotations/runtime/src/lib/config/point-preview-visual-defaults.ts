@@ -21,7 +21,7 @@ export type PointPreviewRingVisualDefaults = {
 
 export const pointPreviewRingVisualDefaults: PointPreviewRingVisualDefaults = {
   primitiveId: "measurement-preview-point-ring",
-  scalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
+  scalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN,
   targetScreenRadiusCssPx: 32,
   // Visually tuned against PointLabel.tsx HIDDEN_INTERACTION_MARKER_DIAMETER_PX.
   // Keep this as a soft visual match, not a hard shared sizing contract.

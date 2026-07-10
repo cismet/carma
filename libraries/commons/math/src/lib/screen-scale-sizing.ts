@@ -11,8 +11,8 @@
 // point-query disc, …) — callers map them onto their own world units.
 
 export const REFERENCE_OBJECT_SCALING_MODES = {
-  SCREEN_FIXED: "screen",
-  WORLD_FIXED: "world",
+  SCREEN: "screen",
+  WORLD: "world",
 } as const;
 
 export type ReferenceObjectScalingMode =

@@ -412,7 +412,7 @@ export const useCesiumPointMoveGizmo = (
     axisCandidates = null,
     showRotationHandle = false,
     showDisc = true,
-    discScalingMode = REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
+    discScalingMode = REFERENCE_OBJECT_SCALING_MODES.SCREEN,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
     discResizeWorldRadiusToScreenTarget = false,
     discQuantizeWorldRadius = false,
@@ -554,12 +554,12 @@ export const useCesiumPointMoveGizmo = (
   const computeDiscWorldRadius = useCallback(
     (origin: Cartesian3, planeNormal: Cartesian3): number => {
       if (
-        discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED &&
+        discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
         discResizeWorldRadiusToScreenTarget
       ) {
         return resolveSteppedDiscWorldRadius(origin);
       }
-      if (discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED) {
+      if (discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD) {
         return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
       }
       return resolveScreenFixedDiscWorldRadius(

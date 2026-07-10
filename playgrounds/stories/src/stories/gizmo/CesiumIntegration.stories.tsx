@@ -746,13 +746,13 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
         scene={scene}
         referenceObject={props.referenceObject}
         scaling={
-          props.discScalingMode === REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED
-            ? "screen-fixed"
+          props.discScalingMode === REFERENCE_OBJECT_SCALING_MODES.SCREEN
+            ? "screen"
             : props.discResizeWorldRadiusToScreenTarget
-            ? `world, stepped target (${1 / props.discResizeStepFactor}×–${
+            ? `world, adaptive range (${1 / props.discResizeStepFactor}×–${
                 props.discResizeStepFactor
               }×)`
-            : "world-fixed"
+            : "world"
         }
       />
     </LabelOverlayProvider>
@@ -809,8 +809,8 @@ const meta: Meta<GizmoSandboxProps> = {
     discScalingMode: {
       control: { type: "inline-radio" },
       options: [
-        REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
-        REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED,
+        REFERENCE_OBJECT_SCALING_MODES.SCREEN,
+        REFERENCE_OBJECT_SCALING_MODES.WORLD,
       ],
       table: { category: "Disc" },
     },
@@ -901,7 +901,7 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
     showDisc: true,
     showCube: true,
     snapPlaneDragToGround: true,
-    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
+    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN,
     discOutlineScreenPixelRadius: 48,
     discResizeWorldRadiusToScreenTarget: false,
     discQuantizeWorldRadius: false,
@@ -924,7 +924,7 @@ export const ReferenceObjectSizing: StoryObj<GizmoSandboxProps> = {
     referenceObject: "gizmo",
     axisMode: "geoportal-default",
     showCube: false,
-    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED,
+    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
     discResizeWorldRadiusToScreenTarget: true,
     discQuantizeWorldRadius: true,
     freezeDiscScaleDuringDrag: true,

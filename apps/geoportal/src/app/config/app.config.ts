@@ -179,10 +179,10 @@ export const CESIUM_ANNOTATION_CONFIG = {
     controlOrder: 12,
   },
   referenceObjectSizing: {
-    scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED,
+    scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
     worldRadiusMeters: 3,
     targetScreenRadiusCssPx: 48,
-    resizeWorldRadiusToScreenTarget: false,
+    resizeWorldRadiusToScreenTarget: true,
     resizeStepFactor: 4,
     quantizeWorldRadius: false,
   },

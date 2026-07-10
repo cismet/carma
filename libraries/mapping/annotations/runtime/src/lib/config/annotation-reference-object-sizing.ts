@@ -13,7 +13,7 @@ export type AnnotationReferenceObjectSizingOptions = {
 };
 
 export const ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS = {
-  scalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN_FIXED,
+  scalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN,
   worldRadiusMeters: 3,
   targetScreenRadiusCssPx: 48,
   resizeWorldRadiusToScreenTarget: false,

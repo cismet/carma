@@ -348,7 +348,7 @@ export const createPointQueryIndicatorController = (
       previewSurfaceNormal
     );
     const sampledRadius =
-      scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD_FIXED &&
+      scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
       resizeWorldRadiusToScreenTarget
         ? resolveSteppedRadiusMeters(center)
         : resolvePointQueryDiscRadius({
