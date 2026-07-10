@@ -5,6 +5,7 @@ import {
   PlusOutlined,
   DashboardOutlined,
   SortAscendingOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
@@ -40,6 +41,15 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
     getExpertTypeState(objectType)
   );
   const [fieldFilter, setFieldFilter] = useState("");
+  // Whether the sort panel is expanded. Opening it also makes sorting the
+  // target for sidebar field clicks (selectSort).
+  const [sortOpen, setSortOpen] = useState(sorts.length > 0);
+
+  const toggleSortPanel = () => {
+    const next = !sortOpen;
+    setSortOpen(next);
+    if (next) dispatch(selectSort(objectType));
+  };
 
   // A new sort defaults to the first field not already sorted on (so it never
   // duplicates an existing row), ascending.
@@ -48,6 +58,7 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
     const nextField = fields.find((f) => !used.has(f.key))?.key;
     if (!nextField) return;
     dispatch(addSort({ objectType, field: nextField }));
+    setSortOpen(true);
   };
 
   // Every field is already used → no more sorts can be added without duplicating.
@@ -166,47 +177,79 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
               />
             </div>
             <div className="w-px h-5 bg-gray-200" />
-            {/* SORTIERUNG */}
-            <div className="flex items-center gap-2">
-              <SortAscendingOutlined className="text-gray-400 text-xs" />
-              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500">
+            {/* SORTIERUNG — toggles the sort panel below */}
+            <button
+              type="button"
+              onClick={toggleSortPanel}
+              aria-expanded={sortOpen}
+              className="flex items-center gap-2 cursor-pointer group"
+            >
+              <SortAscendingOutlined className="text-gray-400 text-xs group-hover:text-blue-500" />
+              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 group-hover:text-blue-500">
                 Sortierung
               </span>
-              <button
-                type="button"
-                onClick={handleAddSort}
-                disabled={allFieldsSorted}
-                aria-label="Sortierung hinzufügen"
-                className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-gray-400"
-              >
-                <PlusOutlined />
-              </button>
-            </div>
+              {sorts.length > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-semibold">
+                  {sorts.length}
+                </span>
+              )}
+              <DownOutlined
+                className={`text-gray-400 text-[10px] transition-transform group-hover:text-blue-500 ${
+                  sortOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
           </div>
         </div>
-        {sorts.length > 0 && (
+        {sortOpen && (
           // Selectable like a group: click it, then sidebar fields add sorts.
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
           <div
             onClick={() => dispatch(selectSort(objectType))}
-            className={`border rounded-xl p-4 bg-gray-50 mb-4 cursor-pointer transition-colors ${
+            className={`border rounded-xl bg-gray-50 mb-4 cursor-pointer transition-colors overflow-hidden ${
               sortSelected ? "border-blue-500" : "border-gray-200"
             }`}
           >
-            <div className="flex flex-col gap-2">
-              {sorts.map((sort, index) => (
-                <SortRow
-                  key={sort.id}
-                  objectType={objectType}
-                  sort={sort}
-                  index={index}
-                  fields={fields}
-                  usedFieldKeys={sorts
-                    .filter((s) => s.id !== sort.id)
-                    .map((s) => s.field)}
-                />
-              ))}
+            {/* Panel header: title + add-rule button */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-100/60">
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
+                <SortAscendingOutlined className="text-gray-400" />
+                Sortierung
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddSort();
+                }}
+                disabled={allFieldsSorted}
+                className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 rounded-md px-2.5 py-1 bg-white hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-600"
+              >
+                <PlusOutlined className="text-[10px]" />
+                Regel
+              </button>
             </div>
+            {sorts.length > 0 ? (
+              <div className="flex flex-col gap-2 p-4">
+                {sorts.map((sort, index) => (
+                  <SortRow
+                    key={sort.id}
+                    objectType={objectType}
+                    sort={sort}
+                    index={index}
+                    fields={fields}
+                    usedFieldKeys={sorts
+                      .filter((s) => s.id !== sort.id)
+                      .map((s) => s.field)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-sm text-gray-400">
+                Noch keine Sortierung — Feld links anklicken oder „Regel“
+                hinzufügen.
+              </div>
+            )}
           </div>
         )}
         <div className="flex-1 overflow-y-auto flex flex-col border border-dashed border-gray-200 rounded-xl bg-gray-50 p-3 text-gray-500 mt-2 mb-5">
@@ -223,8 +266,9 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                     !sortSelected &&
                     group.id === selectedGroupId &&
                     // Highlight when there's something to disambiguate against:
-                    // multiple groups, or a sort list competing for the target.
-                    (groups.length > 1 || sorts.length > 0)
+                    // multiple groups, or an open sort panel competing for the
+                    // target.
+                    (groups.length > 1 || sortOpen)
                   }
                   onSelect={() =>
                     dispatch(selectGroup({ objectType, groupId: group.id }))
