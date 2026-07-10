@@ -18,6 +18,7 @@ import {
   addRule,
   removeGroup,
   selectGroup,
+  selectSort,
   addSort,
   setLimit,
   getExpertTypeState,
@@ -35,7 +36,7 @@ const LIMIT_OPTIONS = LIMIT_PRESETS.map((n) => ({ value: String(n) }));
 const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   const dispatch = useDispatch();
   const fields = REGISTRY[objectType];
-  const { groups, sorts, limit, selectedGroupId } = useSelector(
+  const { groups, sorts, limit, selectedGroupId, sortSelected } = useSelector(
     getExpertTypeState(objectType)
   );
   const [fieldFilter, setFieldFilter] = useState("");
@@ -52,9 +53,16 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   // Every field is already used → no more sorts can be added without duplicating.
   const allFieldsSorted = sorts.length >= fields.length;
 
-  // Clicking a field in the sidebar adds a rule (prefilled) to the currently
-  // selected group, falling back to the last group if none is selected.
+  // Clicking a field in the sidebar targets whatever is currently selected:
+  // the sort list (add a sort on that field) or a filter group (add a rule).
   const handleFieldClick = (fieldKey: string) => {
+    if (sortSelected) {
+      // Skip fields already sorted on — no duplicate order_by entries.
+      if (!sorts.some((s) => s.field === fieldKey)) {
+        dispatch(addSort({ objectType, field: fieldKey }));
+      }
+      return;
+    }
     const targetGroup =
       groups.find((g) => g.id === selectedGroupId) ?? groups[groups.length - 1];
     if (!targetGroup) return;
@@ -96,7 +104,9 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
           placeholder="Feld suchen…"
         />
         <div className="text-xs text-gray-400 mt-3 mb-2">
-          Klick fügt zur letzten Gruppe hinzu
+          {sortSelected
+            ? "Klick fügt zur Sortierung hinzu"
+            : "Klick fügt zur ausgewählten Gruppe hinzu"}
         </div>
         <div className="flex flex-col gap-2 overflow-y-auto pr-1">
           {filteredFields.map((field) => (
@@ -175,7 +185,14 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
           </div>
         </div>
         {sorts.length > 0 && (
-          <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 mb-4">
+          // Selectable like a group: click it, then sidebar fields add sorts.
+          // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+          <div
+            onClick={() => dispatch(selectSort(objectType))}
+            className={`border rounded-xl p-4 bg-gray-50 mb-4 cursor-pointer transition-colors ${
+              sortSelected ? "border-blue-500" : "border-gray-200"
+            }`}
+          >
             <div className="flex flex-col gap-2">
               {sorts.map((sort, index) => (
                 <SortRow
@@ -202,14 +219,15 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                   group={group}
                   title={`Gruppe ${index + 1}`}
                   fields={fields}
-                  selected={groups.length > 1 && group.id === selectedGroupId}
-                  onSelect={
-                    groups.length > 1
-                      ? () =>
-                          dispatch(
-                            selectGroup({ objectType, groupId: group.id })
-                          )
-                      : undefined
+                  selected={
+                    !sortSelected &&
+                    group.id === selectedGroupId &&
+                    // Highlight when there's something to disambiguate against:
+                    // multiple groups, or a sort list competing for the target.
+                    (groups.length > 1 || sorts.length > 0)
+                  }
+                  onSelect={() =>
+                    dispatch(selectGroup({ objectType, groupId: group.id }))
                   }
                   onDelete={
                     groups.length > 1
