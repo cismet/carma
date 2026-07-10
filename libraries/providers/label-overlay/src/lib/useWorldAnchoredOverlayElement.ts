@@ -25,7 +25,7 @@ export type UseWorldAnchoredOverlayElementOptions = {
  * hand-writing the engine projection (`worldToWindowCoordinates`) or the
  * per-frame `updatePosition` plumbing. The provider projects the `worldAnchor`
  * via the host every frame, so the element stays pinned to the world point
- * (including mid-drag) with no React re-render. (cismet/wupp#4078)
+ * (including mid-drag) with no React re-render.
  *
  * The `worldAnchor` getter is read through a ref, so passing a fresh closure
  * each render does not re-register the element; content/style changes do.

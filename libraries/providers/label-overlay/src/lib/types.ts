@@ -10,7 +10,7 @@ export type LabelOverlayWorldAnchor = { x: number; y: number; z: number };
  * Per-frame registry of live world anchors by entity id — the single source of
  * truth for an entity's mid-interaction position (set synchronously from pointer
  * input, before React commits). Read by `worldAnchor` overlay elements and by 3D
- * primitives in the render loop. (cismet/wupp#4078)
+ * primitives in the render loop.
  */
 export interface LabelOverlayLiveAnchors {
   set: (id: string, anchor: LabelOverlayWorldAnchor) => void;

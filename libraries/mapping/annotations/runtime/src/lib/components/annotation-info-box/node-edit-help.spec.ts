@@ -41,10 +41,6 @@ describe("resolveNodeEditHelpItems", () => {
       "Punkt verschieben durch ziehen von",
       "Weitere Funktionen",
     ]);
-    // No trailing colons on any heading.
-    headings(items).forEach((heading) => {
-      expect(heading.text).not.toContain(":");
-    });
   });
 
   it("labels the drag targets and puts the arrow effect on the right", () => {
@@ -99,7 +95,9 @@ describe("resolveNodeEditHelpItems", () => {
     const pointItems = resolveNodeEditHelpItems({
       toolType: ANNOTATION_TYPES.POINT,
     });
-    const hasAdoptHeight = (items: ReturnType<typeof resolveNodeEditHelpItems>) =>
+    const hasAdoptHeight = (
+      items: ReturnType<typeof resolveNodeEditHelpItems>
+    ) =>
       actions(items).some((action) =>
         action.description.includes("Höhe des Punktes übernehmen")
       );

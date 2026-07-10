@@ -18,7 +18,7 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 // Re-exported from cesium-core (single source of truth); kept available here for
-// the gizmo's plane math callers. (cismet/wupp#4078)
+// the gizmo's plane math callers.
 export { createPlaneBasis };
 
 export type PlaneBasis = {
@@ -282,7 +282,7 @@ export const getGroundPointFromClientPosition = (
   // hidden (gizmo visuals, the dragged node's own lines) are genuinely excluded —
   // unlike scene.pickPosition, which reads the cached depth buffer from the last
   // main render and so cannot be filtered. pickFromRay still hits the globe and
-  // every other primitive, keeping all foreign geometry snappable. (cismet/wupp#4078)
+  // every other primitive, keeping all foreign geometry snappable.
   // `pickFromRay` is an experimental Cesium API absent from the bundled typings.
   const rayPick = scene as unknown as {
     pickFromRay?: (

@@ -174,7 +174,7 @@ const resolvePointLabelCoordinateProjection = (
 };
 
 // Prefer the live drag anchor (as geographic) over the React-fed coordinate so a
-// moved node's label tracks it every frame, like the lines/disc. (cismet/wupp#4078)
+// moved node's label tracks it every frame, like the lines/disc.
 const resolveLiveLabelCoordinate = (
   candidate: RuntimePointLabelCoordinateCandidate,
   liveAnchors: LabelOverlayLiveAnchors
@@ -322,7 +322,7 @@ export const usePointLabelVisualizer = (
     // Keep the shared label field stable during active node editing so the
     // dragged label can float above its neighbors without re-laying them out.
     // Also reuse occlusion verdicts during live drags: re-testing runs a
-    // pick-pass render per label per frame. (cismet/wupp#4078)
+    // pick-pass render per label per frame.
     const preserveOcclusionDuringCameraMove =
       isCameraMovingRef.current || liveAnchors.size > 0;
     const freezeLayoutDuringActiveMove =
@@ -477,7 +477,7 @@ export const usePointLabelVisualizer = (
         // Live drag anchors move the node while the camera is static (equal
         // snapshot), so force a recompute then or the label freezes. Also force it
         // on the settle frame (anchors just cleared, e.g. closing an edit) so the
-        // committed position/visibility is restored without a camera move. (cismet/wupp#4078)
+        // committed position/visibility is restored without a camera move.
         const liveAnchorsActive = liveAnchors.size > 0;
         const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
         hadLiveAnchorsRef.current = liveAnchorsActive;

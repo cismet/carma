@@ -45,7 +45,7 @@ export const ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS = {
   BACKSPACE: "backspace",
   ESCAPE: "escape",
   SHIFT: "shift",
-  // Drag-target cursor symbols for the point-move gizmo (cismet/wupp#4078):
+  // Drag-target cursor symbols for the point-move gizmo:
   // the disc centre uses a row-resize cursor, the outer disc a move cursor.
   DISC_CENTER: "disc-center",
   DISC_OUTER: "disc-outer",
@@ -96,7 +96,7 @@ export type AnnotationInfoBoxHelpTextItem = Readonly<{
 }>;
 
 // Bold heading (block title or section subheading), rendered without a trailing
-// colon. Spans both columns in the grid. (cismet/wupp#4078)
+// colon. Spans both columns in the grid.
 export type AnnotationInfoBoxHelpHeadingItem = Readonly<{
   kind: typeof ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING;
   text: string;
@@ -110,7 +110,7 @@ export type AnnotationInfoBoxHelpActionItem = Readonly<{
   inputAlternatives: readonly AnnotationInfoBoxHelpActionInputCombination[];
   // Optional text rendered before / after the input tokens inside the trigger
   // cell, so a row can read "Scheibenmitte [icon]" or "[icon] auf anderen
-  // Punkt" (cismet/wupp#4078).
+  // Punkt".
   leadingLabel?: string;
   trailingLabel?: string;
   // Align a single input token to the right edge of the trigger column, keeping
@@ -191,7 +191,7 @@ const resolvePointerDisplayLabels = (
 // Vertical rhythm. Every line of help content — text, headings, key tokens and
 // cursor glyphs — occupies exactly one baseline step, and every gap is a whole
 // number of steps, so content lands on a constant interval in y. Sizing the step
-// in `em` keeps it locked to the info box's font size. (cismet/wupp#4078)
+// in `em` keeps it locked to the info box's font size.
 const HELP_BASELINE_VARIABLE = "--carma-help-baseline";
 const HELP_BASELINE_STEP = "1.5em";
 const HELP_LINE_HEIGHT = 1.5;
@@ -249,7 +249,7 @@ const triggerLabelStyle: CSSProperties = {
 // Left-aligned trigger cell for the instruction-table style. The leading label
 // and input tokens sit on one line; a trailing label always drops to the next
 // line (wrap after the icon) so the trigger column stays narrow instead of
-// growing to icon-plus-text width. (cismet/wupp#4078)
+// growing to icon-plus-text width.
 const startTriggerCellStyle: CSSProperties = {
   display: "inline-flex",
   flexDirection: "column",
@@ -284,7 +284,7 @@ const startAlignedActionColumnGap = "0.5em";
 const actionGridTemplateColumns = "max-content minmax(0, 1fr)";
 // The edit-mode instruction table has labels, icons, and multi-line shortcut
 // qualifiers in its first column. Give it a stable measure so longer left-hand
-// entries do not change where the effects column begins. (cismet/wupp#4078)
+// entries do not change where the effects column begins.
 const startAlignedActionGridTemplateColumns = "7.75rem minmax(0, 1fr)";
 
 const resolveCompactContentStyle = (
@@ -710,7 +710,7 @@ const renderHeadingItem = (
 
 // Trigger cell for instruction rows: each input alternative gets its own line,
 // with a half-baseline gap after the first. A qualifier can follow the final
-// input token and wrap naturally within that line. (cismet/wupp#4078)
+// input token and wrap naturally within that line.
 const renderStartAlignedTrigger = (
   item: AnnotationInfoBoxHelpActionItem,
   keyboardLabels: KeyboardDisplayLabels,

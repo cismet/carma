@@ -50,7 +50,6 @@ const renderSurfaces = (activeEditedNodeId: string | null) => {
       onDistanceTriangleCornerClick={noop}
     />
   );
-  // First call is the committed surface, second is the preview/overlay surface.
   const previewArgs = useAnnotationVisualizersMock.mock.calls.find(
     ([, options]) => options?.surfaceKey === "preview"
   );

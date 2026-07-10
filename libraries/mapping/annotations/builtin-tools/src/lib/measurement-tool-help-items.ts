@@ -4,7 +4,7 @@ import {
   type AnnotationInfoBoxHelpItem,
 } from "@carma-mapping/annotations/ui";
 
-// Creation hints shown while a measurement tool is active (cismet/wupp#4078).
+// Creation hints shown while a measurement tool is active.
 // The detailed editing controls are NOT part of the tools: they are resolved
 // from the edited measurement's geometry in the runtime's node-edit help, so
 // editing behaves consistently regardless of which tool is active.
@@ -32,7 +32,7 @@ export type BuildMeasurementToolHelpItemsOptions = {
   includeRunningMeasurementStartPointHint?: boolean;
   // Override the remove-point wording. Distance passes the "Startpunkt" phrasing
   // (only the start point exists mid-measurement); multi-point tools keep the
-  // default "zuletzt gesetzten Punkt" (cismet/wupp#4078).
+  // default "zuletzt gesetzten Punkt".
   runningMeasurementRemovePointDescription?: string;
 };
 

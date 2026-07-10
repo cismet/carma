@@ -218,7 +218,6 @@ export const useAnnotationsAssembly = ({
   // measurement. The edit gizmo closes with the selection — see the deselect
   // effect in usePointEditingGizmo. Re-selecting the active tool is a no-op, so
   // leaving edit mode with Escape keeps the measurement selected.
-  // (cismet/wupp#4078)
   const setActiveToolTypeInStore = useCallback(
     (toolType: AnnotationToolId) => {
       const previousToolType = annotationsStore.getState().annotationToolType;
@@ -559,7 +558,6 @@ export const useAnnotationsAssembly = ({
     // it deletes the whole measurement — confirm first (matches the "nach
     // Rückfrage" help and the other delete paths). The node-edit keyboard handler
     // is already "handled" (true); the actual removal runs once confirmed.
-    // (cismet/wupp#4078)
     void requestAnnotationDeleteConfirmation([targetAnnotation], {
       source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.KEYBOARD,
     }).then((confirmed) => {

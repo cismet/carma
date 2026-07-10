@@ -103,13 +103,13 @@ type EdgeSceneLine = {
   strokeWidth: number;
   // Node ids of the endpoints, when this line maps directly to a node-to-node
   // segment. Lets the preRender patch override endpoints from live drag anchors
-  // so the polyline tracks the gizmo in the same frame. (cismet/wupp#4078)
+  // so the polyline tracks the gizmo in the same frame.
   startNodeId?: string;
   endNodeId?: string;
   // Re-derive both endpoints from the live drag anchors. Used by distance-
   // triangle component (height-leg) lines whose geometry depends on both edge
   // endpoints (anchor/auxiliary/target), not a single node. Returns null when no
-  // relevant anchor is overridden, so the base geometry is kept. (cismet/wupp#4078)
+  // relevant anchor is overridden, so the base geometry is kept.
   recompute?: (
     liveAnchors: LabelOverlayLiveAnchors
   ) => readonly [Cartesian3, Cartesian3] | null;
@@ -342,7 +342,7 @@ const destroySceneLineHandles = (handles: Map<string, SceneLineHandle>) => {
 // Patch polyline endpoints from the shared live-drag anchors so the lines track
 // the gizmo in the same frame, bypassing the React rebuild. Runs in preRender
 // (before the draw). Restores the React-fed base positions once an anchor
-// clears. Cheap no-op when nothing is/was overridden. (cismet/wupp#4078)
+// clears. Cheap no-op when nothing is/was overridden.
 const applyLiveAnchorsToSceneLines = (
   handles: Map<string, SceneLineHandle>,
   liveAnchors: LabelOverlayLiveAnchors
@@ -380,7 +380,7 @@ const applyLiveAnchorsToSceneLines = (
 // Resolve an edge endpoint to ECEF, preferring the live drag anchor for its node
 // over the React-fed coordinate, so the SVG overlay lines and every label track
 // the drag in the same frame (the Cesium 3D polylines are patched separately in
-// preRender). Returns a fresh Cartesian3 so callers may mutate it. (cismet/wupp#4078)
+// preRender). Returns a fresh Cartesian3 so callers may mutate it.
 const resolveEdgePointECEF = (
   liveAnchors: LabelOverlayLiveAnchors,
   nodeId: string | undefined,
@@ -423,7 +423,7 @@ const edgeSegmentHasLiveAnchor = (
 // ECEF anchor/auxiliary/target points of a distance-triangle, re-derived from
 // the live drag anchors. The component (height-leg) scene lines use this to track
 // a dragged node every frame in preRender, without the React rebuild. Returns
-// fresh Cartesian3s the caller may keep. (cismet/wupp#4078)
+// fresh Cartesian3s the caller may keep.
 const resolveDistanceTriangleComponentEndpointsECEF = (
   scene: Scene,
   edge: EdgeSegment,
@@ -1160,9 +1160,7 @@ export const useAnnotationEdgesController = (
           onAnnotationSelect &&
           edge.distanceTriangleOverlay?.annotationId
             ? () =>
-                onAnnotationSelect(
-                  edge.distanceTriangleOverlay!.annotationId!
-                )
+                onAnnotationSelect(edge.distanceTriangleOverlay!.annotationId!)
             : undefined;
         const lineClickHandler =
           referenceEdgeClickHandler ?? selectionEdgeClickHandler;
@@ -1333,7 +1331,10 @@ export const useAnnotationEdgesController = (
     }
     const removePreRenderListener = scene.preRender.addEventListener(() => {
       try {
-        applyLiveAnchorsToSceneLines(sceneLineHandleByIdRef.current, liveAnchors);
+        applyLiveAnchorsToSceneLines(
+          sceneLineHandleByIdRef.current,
+          liveAnchors
+        );
       } catch {
         // Ignore frame races during teardown.
       }
@@ -1398,7 +1399,7 @@ export const useAnnotationEdgesController = (
         }
 
         // Track live drag anchors so an edge's insert-node handle follows the
-        // dragged endpoint in lockstep with the patched line. (cismet/wupp#4078)
+        // dragged endpoint in lockstep with the patched line.
         const startWorld = resolveEdgePointECEF(
           liveAnchors,
           edge.startNodeId,
@@ -1596,7 +1597,7 @@ export const useAnnotationEdgesController = (
       const nextSceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
       // While a drag is live (anchors present) the camera is usually static, so
       // the snapshot compares equal — but the dragged node IS moving. Don't skip
-      // then, or the labels freeze while the lines/disc track. (cismet/wupp#4078)
+      // then, or the labels freeze while the lines/disc track.
       if (
         !force &&
         liveAnchors.size === 0 &&

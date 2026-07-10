@@ -28,9 +28,6 @@ const MUTATING_ANNOTATION_ACTION_IDS = Object.freeze<
   readonly AnnotationInfoBoxActionId[]
 >([ANNOTATION_INFO_BOX_ACTION_IDS.LOCK, ANNOTATION_INFO_BOX_ACTION_IDS.DELETE]);
 
-// Shown in the selected-measurement panel once a measurement is selected and
-// editable, so the long-press editing entry is only advertised when it is
-// actually reachable (cismet/wupp#4078).
 const SELECT_EDIT_ENTRY_HELP_ITEMS: readonly AnnotationInfoBoxHelpItem[] = [
   {
     kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
@@ -178,8 +175,6 @@ export const useRuntimeSelectedAnnotationInfoBoxSlots = ({
         activeToolDraftFeedback !== null);
 
     const isNodeEditable =
-      // Only advertise long-press editing while the Select tool is active
-      // (cismet/wupp#4078), not when a measurement is selected under another tool.
       activeToolType === ANNOTATION_SELECT_TOOL_ID &&
       resolveEditGeometryCategory(selectedAnnotation.toolType) !== null &&
       !selectedAnnotation.locked &&

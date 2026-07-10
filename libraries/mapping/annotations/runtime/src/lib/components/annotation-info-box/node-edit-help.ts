@@ -8,25 +8,14 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 
 import type { StoredAnnotation } from "../../store";
 
-// Editing help for measurement nodes (cismet/wupp#4078).
-//
-// Two layers live here:
-//  - The STATE MODEL (`EDIT_STATUS`, `resolveEditStatus`, minimum node counts).
-//    It is modeled so the edit tool can gracefully handle every state, and is
-//    reserved for the behavioral edit lifecycle.
-//  - The DISPLAYED HELP (`resolveNodeEditHelpItems`). For now this is a single
-//    generic block per main geometry type (point / line / area), shown while
-//    edit mode is active — it is intentionally NOT yet wired dynamically to the
-//    live node count or status.
+// Edit status is reserved for the lifecycle; displayed help currently depends
+// only on the geometry category.
 
 type AnnotationToolType = StoredAnnotation["toolType"];
 
 export const EDIT_STATUS = {
-  // Enough nodes and valid geometry: committable.
   COMPLETE: "complete",
-  // Fewer nodes than the geometry minimum: needs another point.
   INCOMPLETE: "incomplete",
-  // Minimum met but geometry invalid (e.g. self-intersection): not committable.
   DEGRADED: "degraded",
 } as const;
 
@@ -52,7 +41,6 @@ export const resolveMinimumNodeCountForToolType = (
   }
 };
 
-// Derived edit status — the model the edit tool uses to handle every state.
 export const resolveEditStatus = ({
   toolType,
   nodeCount,
@@ -72,7 +60,6 @@ export const resolveEditStatus = ({
   return EDIT_STATUS.COMPLETE;
 };
 
-// Main geometry categories that share one generic edit-help block.
 export const EDIT_GEOMETRY_CATEGORY = {
   POINT: "point",
   LINE: "line",
@@ -100,10 +87,6 @@ export const resolveEditGeometryCategory = (
   }
 };
 
-// Two-section edit-mode help laid out per the #4078 review: bold headings, the
-// drag-target label on the left of its cursor icon, the effect (with a leading
-// arrow) on the right, and the discrete actions as icon + text. Rendered with
-// actionTriggerAlign="start". (cismet/wupp#4078)
 const EDIT_HELP_TITLE = {
   kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING,
   text: "Bearbeitungsmodus",
@@ -155,8 +138,6 @@ const ADOPT_HEIGHT_ACTION = {
 
 const LEAVE_EDIT_MODE_ACTION = {
   kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-  // Esc or a click outside the point both leave edit mode; render both as icons
-  // with the click qualifier on its own line, like the adopt-height row.
   inputAlternatives: [
     [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE],
     [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK],
@@ -172,10 +153,8 @@ const deleteAction = (description: string): AnnotationInfoBoxHelpItem => ({
   description,
 });
 
-// Delete hint per tool type. For a point or distance measurement, removing a
-// node drops below the geometry minimum and deletes the whole measurement, so
-// the hint says exactly that (Stefan, #4078). For a polyline/area above the
-// minimum, removing a node keeps the measurement, so the hint stays accurate.
+// Point and distance fall below their minimum when one node is removed;
+// polyline and area measurements can remain valid.
 const resolveDeleteAction = (
   toolType: AnnotationToolType
 ): AnnotationInfoBoxHelpItem => {
@@ -190,18 +169,12 @@ const resolveDeleteAction = (
     case ANNOTATION_TYPES.AREA_GROUND:
     case ANNOTATION_TYPES.AREA_PLANAR:
     case ANNOTATION_TYPES.AREA_VERTICAL:
-      return deleteAction(
-        "Punkt löschen (unter drei Punkten die Messung)"
-      );
+      return deleteAction("Punkt löschen (unter drei Punkten die Messung)");
     default:
       return deleteAction("Messung löschen");
   }
 };
 
-// Resolve the editing help shown while a node of this measurement is being
-// edited. The adopt-height action only applies where another node exists (line
-// / area), never on a single-point measurement. Returns an empty list for
-// geometries that are not node-edited.
 export const resolveNodeEditHelpItems = ({
   toolType,
 }: {

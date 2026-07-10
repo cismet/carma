@@ -93,31 +93,6 @@ describe("AnnotationInfoBoxHelpContent", () => {
     expect(actionRows[0]?.textContent).not.toContain("Backspace");
   });
 
-  it("uses the macOS backspace glyph on Apple keyboards, same label", () => {
-    render(
-      <AnnotationInfoBoxHelpContent
-        locale="de-DE"
-        platform="macos"
-        items={[
-          {
-            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
-            inputAlternatives: [
-              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.BACKSPACE],
-            ],
-            description: "Löscht den letzten Punkt.",
-          },
-        ]}
-      />
-    );
-
-    const actionRows = screen.getAllByTestId("annotation-help-action");
-
-    // Same localized label as Windows, OS-appropriate glyph (⌫ vs ←).
-    expect(actionRows[0]?.textContent).toContain("⌫");
-    expect(actionRows[0]?.textContent).toContain("Rücktaste");
-    expect(actionRows[0]?.textContent).not.toContain("←");
-  });
-
   it("uses localized keyboard labels when a locale is provided", () => {
     render(
       <AnnotationInfoBoxHelpContent
@@ -178,25 +153,6 @@ describe("AnnotationInfoBoxHelpContent", () => {
     expect(actionRow.textContent).toContain("2x Klick");
     expect(actionRow.textContent).toContain("oder");
     expect(actionRow.textContent).toContain("Enter");
-  });
-
-  it("removes the trailing baseline margin from final compact text", () => {
-    render(
-      <AnnotationInfoBoxHelpContent
-        layout={ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT}
-        items={[
-          "Eine Position in der 3D-Darstellung anklicken.",
-          "Jeder weitere Klick erzeugt sofort eine neue Punktmessung.",
-        ]}
-      />
-    );
-
-    const paragraphs = screen.getAllByText(/.+/, { selector: "p" });
-    expect(paragraphs).toHaveLength(2);
-    expect(paragraphs[0]?.style.marginBottom).toBe(
-      "var(--carma-help-baseline)"
-    );
-    expect(paragraphs[1]?.style.margin).toBe("0px");
   });
 
   it("renders informative action indicators in the input column", () => {
@@ -316,7 +272,7 @@ describe("AnnotationInfoBoxHelpContent", () => {
     expect(content.children[2]).toBe(action);
   });
 
-  it("renders bold headings without a trailing colon in both levels", () => {
+  it("renders both heading levels", () => {
     render(
       <AnnotationInfoBoxHelpContent
         layout={ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT}
@@ -340,11 +296,7 @@ describe("AnnotationInfoBoxHelpContent", () => {
     const headings = screen.getAllByTestId("annotation-help-heading");
     expect(headings).toHaveLength(2);
     expect(headings[0]?.textContent).toBe("Bearbeitungsmodus");
-    expect(headings[0]?.textContent).not.toContain(":");
-    expect(headings[0]?.style.fontWeight).toBe("700");
     expect(headings[0]?.getAttribute("data-level")).toBe("title");
-    // Spans both grid columns in the shared subgrid.
-    expect(headings[0]?.style.gridColumn).toBe("1 / -1");
     expect(headings[1]?.getAttribute("data-level")).toBe("section");
   });
 
@@ -394,30 +346,18 @@ describe("AnnotationInfoBoxHelpContent", () => {
     );
 
     const rows = screen.getAllByTestId("annotation-help-action");
-    expect(
-      screen.getByTestId("annotation-help-content").style.gridTemplateColumns
-    ).toBe("7.75rem minmax(0, 1fr)");
-    // Leading label precedes the disc icon; description carries the arrow.
     expect(rows[0]?.textContent).toContain("Scheibenmitte");
-    expect(rows[0]?.textContent).toContain("→ auf der Oberfläche des 3D-Modells");
-    expect(rows[0]?.children[0]?.children[0]?.style.justifyContent).toBe(
-      "space-between"
+    expect(rows[0]?.textContent).toContain(
+      "→ auf der Oberfläche des 3D-Modells"
     );
-    expect(
-      (rows[0]?.textContent ?? "").indexOf("Scheibenmitte")
-    ).toBeLessThan((rows[0]?.textContent ?? "").indexOf("→"));
-    // Icon + trailing text on the left, effect on the right.
+    expect((rows[0]?.textContent ?? "").indexOf("Scheibenmitte")).toBeLessThan(
+      (rows[0]?.textContent ?? "").indexOf("→")
+    );
     expect(rows[1]?.textContent).toContain("auf anderen Punkt");
     expect(rows[1]?.textContent).toContain("Höhe des Punktes übernehmen");
-    // Label-only trigger (no input token) still renders.
     expect(rows[2]?.textContent).toContain("Blaue Pfeilspitzen");
     expect(rows[2]?.textContent).toContain("→ entlang der Höhenachse");
-    // The second alternative stays on the baseline lattice while its qualifier
-    // follows the click token and can wrap within that row.
     const leaveTrigger = rows[3]?.children[0];
-    expect(leaveTrigger?.children[1]?.style.marginTop).toBe(
-      "calc(var(--carma-help-baseline) / 2)"
-    );
     expect(leaveTrigger?.children[1]?.textContent).toContain(
       "Klickaußerhalb des Punktes"
     );

@@ -7,7 +7,7 @@ import type {
 // Custom FontAwesome-style icon mirroring the CSS `row-resize` cursor: a
 // vertical double-headed arrow with a straight horizontal bar through the
 // middle, as wide as the arrow is tall. Used to mark the move gizmo's disc
-// centre, which moves a point to ground/surface height (cismet/wupp#4078).
+// centre, which moves a point to ground/surface height.
 //
 // Derived from Font Awesome Free "up-down-left-right" (faUpDownLeftRight): the
 // vertical arrows are the original artwork; the left/right arrowheads are

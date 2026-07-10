@@ -26,7 +26,7 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 // (Rücktaste vs Backspace, Klick vs Click). The selected-measurement readouts
 // (metric grids) live in the "Geoportal/InfoBox Parity" story — this one covers
 // the help / instruction states for the select, point and distance tools,
-// including the node-edit "Bearbeitungsmodus" help. (cismet/wupp#4078)
+// including the node-edit "Bearbeitungsmodus" help.
 
 type StatesStoryArgs = {
   locale: "de-DE" | "en-US";

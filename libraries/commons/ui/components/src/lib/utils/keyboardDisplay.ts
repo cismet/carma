@@ -54,7 +54,7 @@ export const resolveKeyboardDisplayLabels = (
 // Mac erase-left symbol (⌫) on macOS/iOS, the backspace arrow (←) elsewhere —
 // followed by the localized label ("Rücktaste"/"Backspace"), which stays the
 // same across platforms. So the hint names a specific physical key while the
-// symbol matches the user's keyboard. (cismet/wupp#4078)
+// symbol matches the user's keyboard.
 export const resolveBackspaceDisplayLabel = (
   platform: KeyboardDisplayPlatform,
   labels: KeyboardDisplayLabels

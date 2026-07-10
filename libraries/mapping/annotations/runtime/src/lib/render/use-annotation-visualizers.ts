@@ -26,7 +26,7 @@ import { POINT_LABEL_ANCHOR_KIND } from "@carma-providers/label-overlay";
 // When a node is being edited the gizmo disc covers it, so a measurement's value
 // label must not sit on that node: re-anchor it to another node, or hide it when
 // the measurement has no other node (a point measurement). Area labels live at the
-// polygon centroid (not on a node) and are left untouched. (cismet/wupp#4078)
+// polygon centroid (not on a node) and are left untouched.
 const relocateOrHideLabelForActiveEdit = (
   label: RuntimePointLabelRenderModel,
   isEditedNode: (nodeId?: string) => boolean

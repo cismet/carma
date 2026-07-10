@@ -40,12 +40,11 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
     | "visualOptions"
   >): Extract<
   RuntimeAnnotationInfoBoxSlotsState,
-  { kind: typeof RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.AUTHORING_INSTRUCTION }
+  {
+    kind: typeof RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.AUTHORING_INSTRUCTION;
+  }
 > | null =>
   useMemo(() => {
-    // The editing tutorial is only shown while the Select tool is active, so it
-    // does not appear when a measurement is selected under another tool
-    // (cismet/wupp#4078).
     if (
       !includeAuthoringInstruction ||
       !activeEditedNodeId ||

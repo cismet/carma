@@ -97,7 +97,7 @@ export const VisualSurfaces = ({
   // adopted — otherwise the click falls through to the scene and exits edit
   // mode. Enable host interaction targets on the overlay only during edit and
   // wire just the reference-node handlers (the edited node is in the preview
-  // link, so it stays non-interactive). (cismet/wupp#4078)
+  // link, so it stays non-interactive).
   const isNodeEditActive = activeEditedNodeId !== null;
   useAnnotationVisualizers(scene, {
     surfaceKey: "preview",

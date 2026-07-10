@@ -261,9 +261,8 @@ export const usePointMarkerVisualizer = (
     // Reuse the previous occlusion verdict while the camera moves AND while a
     // live drag is active: recomputing runs scene.pick/pickPosition per marker
     // per frame (a pick-pass render each), which collapses the frame rate in
-    // marker-rich scenes. (cismet/wupp#4078)
-    const preserveOcclusion =
-      isCameraMovingRef.current || liveAnchors.size > 0;
+    // marker-rich scenes.
+    const preserveOcclusion = isCameraMovingRef.current || liveAnchors.size > 0;
 
     pointsRef.current.forEach((point) => {
       // During a drag the node moves while the camera is static, so anchor to its
@@ -300,7 +299,7 @@ export const usePointMarkerVisualizer = (
         // Live drag anchors move the node while the camera is static (equal
         // snapshot), so force a recompute then or the marker freezes. Also force
         // it on the settle frame (anchors just cleared) so the committed position
-        // replaces the last live one without needing a camera move. (cismet/wupp#4078)
+        // replaces the last live one without needing a camera move.
         const liveAnchorsActive = liveAnchors.size > 0;
         const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
         hadLiveAnchorsRef.current = liveAnchorsActive;
@@ -336,7 +335,7 @@ export const usePointMarkerVisualizer = (
   // Diff by point id and update registered overlays in place (like the label
   // visualizer): a remove+re-add drops the element's DOM registration until the
   // portal re-commits, so the per-frame loop skips the marker for a frame on
-  // every draft flush — a marker-only stutter during drags. (cismet/wupp#4078)
+  // every draft flush — a marker-only stutter during drags.
   useEffect(() => {
     const nextPointIds = new Set<string>();
 
@@ -368,7 +367,7 @@ export const usePointMarkerVisualizer = (
           // The dragged node moves between rendered frames too (forced update
           // passes run outside postRender, where the frame-keyed state cache
           // stays pinned). Project its live anchor directly so the circle stays
-          // glued to the gizmo/lines, which read the registry live. (cismet/wupp#4078)
+          // glued to the gizmo/lines, which read the registry live.
           let screenPosition = visibilityState.screenPosition;
           const liveAnchor = point.nodeId
             ? (liveAnchors.get(point.nodeId) as Cartesian3 | undefined)
@@ -421,7 +420,9 @@ export const usePointMarkerVisualizer = (
         return;
       }
 
-      removeLabelOverlayElement(getPointMarkerOverlayId(overlayIdPrefix, pointId));
+      removeLabelOverlayElement(
+        getPointMarkerOverlayId(overlayIdPrefix, pointId)
+      );
     });
 
     previousPointIdsRef.current = nextPointIds;

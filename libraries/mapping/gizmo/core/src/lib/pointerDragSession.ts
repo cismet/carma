@@ -1,4 +1,4 @@
-// Window-level pointer drag session (cismet/wupp#4078).
+// Window-level pointer drag session.
 //
 // A drag that starts on an element but must keep tracking the pointer anywhere
 // (and end on release / focus loss / tab switch) needs the same window-level
