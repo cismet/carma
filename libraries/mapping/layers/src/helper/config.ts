@@ -1322,7 +1322,6 @@ export const baseConfig = {
       {
         name: "poi_ksp",
         keywords: [":vec:"],
-        icon: "poi/Kinderspielplätze_2022",
       },
       {
         name: "poi_kita",
