@@ -708,6 +708,7 @@ const BelisMapLibWrapper = ({
     highlightVersion,
     ensureToggledFeatures,
     ensureSuppressedFeatures,
+    toggleFeatureHighlight,
     criteria,
   } = useMapHighlight();
 
@@ -791,7 +792,10 @@ const BelisMapLibWrapper = ({
 
       let standort: SidebarFeature | null = null;
       let leuchten: SidebarFeature[] = [];
-      if (map && (clickedLayer === "standorte" || clickedLayer === "leuchten")) {
+      if (
+        map &&
+        (clickedLayer === "standorte" || clickedLayer === "leuchten")
+      ) {
         standort =
           clickedLayer === "standorte"
             ? clicked
@@ -813,39 +817,55 @@ const BelisMapLibWrapper = ({
         ? leuchten
         : [clicked];
 
-      // toggleFeatureHighlight already toggled the clicked feature (useMapHighlighting
-      // calls it before onToggle), so criteria.toggledFeatures reflects its new state.
-      // Read the direction from there: clicked now ON → add the rest, OFF → remove them.
-      const adding = criteria.toggledFeatures.has(
-        `${featureSource}::${clickedLayer}::${feature.id}`
-      );
       const clickedKey = keyOf(clicked);
 
-      // Sync the cluster's map feature-state BEFORE updating unfilteredHighlights.
-      // Compare by key, not identity: the clicked Leuchte also comes back from
-      // the source query as a separate object, and re-toggling it here would
-      // undo what useMapHighlighting just did.
-      const extras = cluster.filter((f) => keyOf(f) !== clickedKey);
-      if (extras.length > 0) {
-        ensureToggledFeatures(
-          extras.map((f) => ({
-            // Each member carries its own source: a tile Standort can own a
-            // brandnew Leuchte, so a single `featureSource` would write the
-            // feature-state onto the wrong source.
-            source:
-              (f as unknown as { source?: string }).source ?? featureSource,
-            sourceLayer: f.sourceLayer ?? "",
-            id: f.id!, // promoted DB id, matching what matchesCriteria uses
-          })),
-          adding
-        );
+      // Each member carries its own source: a tile Standort can own a brandnew
+      // Leuchte, so a single `featureSource` would write the feature-state onto
+      // the wrong source. getFeatureState needs the geojson-aware target (no
+      // sourceLayer), while toggleFeatureHighlight keys on the logical layer —
+      // hence the two shapes.
+      const memberOf = (f: SidebarFeature) => ({
+        source: (f as unknown as { source?: string }).source ?? featureSource,
+        sourceLayer: f.sourceLayer ?? "",
+        id: f.id!, // promoted DB id, matching what matchesCriteria uses
+      });
+      // Pre-click highlight state. useMapHighlighting has toggled the clicked
+      // feature in the criteria already, but applyHighlights only runs in an
+      // effect afterwards, so every member still reads its state from before
+      // the click — including the clicked one.
+      const wasHighlighted = (f: SidebarFeature) =>
+        map
+          ? Boolean(
+              map.getFeatureState(buildFeatureStateTarget(map, memberOf(f)))
+                .highlighted
+            )
+          : false;
+
+      // The direction must come from the CLUSTER, not from the clicked member.
+      // A Standort and its Leuchte are drawn on the same coordinate, and
+      // queryRenderedFeatures returns the topmost hit, so which member a click
+      // resolves to varies between clicks on the same symbol. After an expert
+      // search the cluster is mixed — Leuchten lit (they matched queryIds),
+      // Standort dark (it did not) — so reading the direction off the clicked
+      // member made the same click mean "add" or "remove" at random.
+      //
+      // Any lit member => the click clears the cluster; otherwise it lights it.
+      const adding = !cluster.some(wasHighlighted);
+
+      // Drive every member to `adding`, the clicked one included: the hook
+      // already XOR-flipped it, which is only correct when its own pre-state
+      // happened to agree with the cluster's.
+      for (const f of cluster) {
+        const pre = wasHighlighted(f);
+        const post = keyOf(f) === clickedKey ? !pre : pre;
+        if (post !== adding) toggleFeatureHighlight(memberOf(f));
       }
 
       // Update sidebar content
       setUnfilteredHighlights((prev) => {
-        if (!prev) return cluster;
+        if (!prev) return adding ? cluster : null;
 
-        if (prev.some((f) => keyOf(f) === clickedKey)) {
+        if (!adding) {
           const removeKeys = new Set(cluster.map(keyOf));
           return prev.filter((f) => !removeKeys.has(keyOf(f)));
         }
@@ -860,8 +880,7 @@ const BelisMapLibWrapper = ({
       namespacedSource,
       brandnewSource,
       brandnewLayerEnabled,
-      ensureToggledFeatures,
-      criteria,
+      toggleFeatureHighlight,
     ]
   );
 
@@ -892,7 +911,9 @@ const BelisMapLibWrapper = ({
       for (const raw of matched) {
         const f = toSidebarFeature(raw, raw.source, raw.sourceLayer ?? "");
         const clusterId = clusterIdOf(f);
-        const decisionKey = clusterId ? `cluster:${clusterId}` : buildFeatureKey(f);
+        const decisionKey = clusterId
+          ? `cluster:${clusterId}`
+          : buildFeatureKey(f);
         if (decided.has(decisionKey)) continue;
         const members = clusterId ? clusterMembers(clusterId, index) : [f];
         decided.set(decisionKey, {
@@ -908,7 +929,8 @@ const BelisMapLibWrapper = ({
       for (const { adding, members } of decided.values()) {
         ensureToggledFeatures(
           members.map((f) => ({
-            source: (f as unknown as { source?: string }).source ?? namespacedSource,
+            source:
+              (f as unknown as { source?: string }).source ?? namespacedSource,
             sourceLayer: f.sourceLayer ?? "",
             id: f.id!,
           })),
