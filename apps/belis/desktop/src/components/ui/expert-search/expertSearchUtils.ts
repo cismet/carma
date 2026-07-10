@@ -143,7 +143,12 @@ export const buildExpertWhereClause = (
       if (!field) continue;
       const cond = buildRuleCondition(rule, field);
       if (cond) {
-        ruleClauses.push(`{${cond}}`);
+        const clause = `{${cond}}`;
+        // Skip an exact-duplicate condition within the group. The value
+        // dropdowns already prevent duplicates for select-type fields; this
+        // guards the free-input fields (number/text/date) too.
+        if (ruleClauses.includes(clause)) continue;
+        ruleClauses.push(clause);
         if (field.key === IS_DELETED_COL) userFiltersDeleted = true;
       }
     }

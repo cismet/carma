@@ -116,6 +116,20 @@ const FilterGroup = ({
               groupId={group.id}
               rule={rule}
               fields={fields}
+              // Values already picked by sibling rules on the same field +
+              // operator — the value dropdown greys these out so the user can't
+              // build an exact-duplicate condition.
+              usedValues={rules
+                .filter(
+                  (r) =>
+                    r.id !== rule.id &&
+                    r.field === rule.field &&
+                    r.operator === rule.operator &&
+                    r.value !== undefined &&
+                    r.value !== null &&
+                    r.value !== ""
+                )
+                .map((r) => r.value)}
               onDelete={() =>
                 dispatch(
                   removeRule({ objectType, groupId: group.id, ruleId: rule.id })
