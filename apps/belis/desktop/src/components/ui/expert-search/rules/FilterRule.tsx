@@ -65,6 +65,9 @@ interface FilterRuleProps {
   groupId: number;
   rule: ExpertRuleState;
   fields: Field[];
+  // Values already used by sibling rules on the same field + operator; these
+  // are disabled in the value dropdown to prevent exact-duplicate conditions.
+  usedValues?: unknown[];
   onDelete?: () => void;
 }
 
@@ -73,6 +76,7 @@ const FilterRule = ({
   groupId,
   rule,
   fields,
+  usedValues = [],
   onDelete,
 }: FilterRuleProps) => {
   const dispatch = useDispatch();
@@ -136,6 +140,8 @@ const FilterRule = ({
       .map((item) => ({
         value: item.id as number,
         label: template ? parseTemplate(template, item) : String(item.id),
+        // Grey out values a sibling rule already uses (same field + operator).
+        disabled: usedValues.includes(item.id),
       }))
       .sort((a, b) =>
         a.label.localeCompare(b.label, "de", {
@@ -203,7 +209,11 @@ const FilterRule = ({
             status={errorStatus}
             value={value as string | undefined}
             onChange={(val) => setValue(val)}
-            options={BOOLEAN_OPTIONS}
+            // Grey out a value a sibling rule already uses (same field + op).
+            options={BOOLEAN_OPTIONS.map((o) => ({
+              ...o,
+              disabled: usedValues.includes(o.value),
+            }))}
             placeholder="Ja / Nein"
           />
         );
