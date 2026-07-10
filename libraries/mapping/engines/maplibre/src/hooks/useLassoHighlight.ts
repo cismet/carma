@@ -29,6 +29,13 @@ export interface UseLassoHighlightOptions {
   onDeactivate?: () => void;
   /** Called after lasso completes with the toggled features (for sidebar updates). */
   onToggle?: (feature: MapGeoJSONFeature) => void;
+  /**
+   * Called once after lasso completes with every matched feature, deduplicated
+   * and with `sourceLayer` stamped on geojson hits. Prefer this over `onToggle`
+   * for sidebar updates: `onToggle` fires per feature, so a source query inside
+   * it runs hundreds of times on a large lasso.
+   */
+  onMatched?: (features: MapGeoJSONFeature[]) => void;
 }
 
 export interface UseLassoHighlightResult {
@@ -42,6 +49,7 @@ export const useLassoHighlight = ({
   sources,
   onDeactivate,
   onToggle,
+  onMatched,
 }: UseLassoHighlightOptions): UseLassoHighlightResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const managerRef = useRef<LassoDrawingManager | null>(null);
@@ -60,6 +68,8 @@ export const useLassoHighlight = ({
   setActiveRef.current = setHighlightingActive;
   const onToggleRef = useRef(onToggle);
   onToggleRef.current = onToggle;
+  const onMatchedRef = useRef(onMatched);
+  onMatchedRef.current = onMatched;
 
   const handleDrawComplete = useCallback(
     (lassoPolygon: Polygon) => {
@@ -184,6 +194,7 @@ export const useLassoHighlight = ({
       for (const feat of matched) {
         onToggleRef.current?.(feat);
       }
+      onMatchedRef.current?.(matched);
     },
     [map]
   );
