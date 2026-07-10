@@ -1,6 +1,11 @@
 import { Fragment, useState } from "react";
 import { Input, AutoComplete } from "antd";
-import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  SearchOutlined,
+  PlusOutlined,
+  DashboardOutlined,
+  SortAscendingOutlined,
+} from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
@@ -121,10 +126,11 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
             </span>{" "}
             <span className="text-gray-500">{totalRules} Bedingungen</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 border border-gray-200 rounded-lg bg-gray-50 px-3 py-1.5">
             {/* LIMIT */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold tracking-wide uppercase text-gray-400">
+              <DashboardOutlined className="text-gray-400 text-xs" />
+              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500">
                 Limit
               </span>
               <AutoComplete
@@ -149,9 +155,11 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                 }}
               />
             </div>
+            <div className="w-px h-5 bg-gray-200" />
             {/* SORTIERUNG */}
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-semibold tracking-wide uppercase text-gray-400">
+            <div className="flex items-center gap-2">
+              <SortAscendingOutlined className="text-gray-400 text-xs" />
+              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500">
                 Sortierung
               </span>
               <button
@@ -159,7 +167,7 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                 onClick={handleAddSort}
                 disabled={allFieldsSorted}
                 aria-label="Sortierung hinzufügen"
-                className="flex items-center justify-center text-gray-400 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-gray-400"
               >
                 <PlusOutlined />
               </button>
@@ -217,11 +225,10 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
             <button
               type="button"
               onClick={() => dispatch(addGroup(objectType))}
-              aria-label="Gruppe hinzufügen"
-              title="Gruppe hinzufügen"
-              className="self-start w-9 h-9 flex items-center justify-center text-gray-700 border border-gray-200 rounded-lg bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
+              className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg py-2.5 bg-transparent hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
             >
               <PlusOutlined />
+              Weitere Gruppe
             </button>
           </div>
           {totalRules === 0 && groups.length === 1 && (
