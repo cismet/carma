@@ -25,6 +25,18 @@ export {
   type CategoryDefinition,
   type CustomCategoryDefinition,
 } from "./config/categoryDefinitions";
+export {
+  buildCategoryFilterGroup,
+  buildKeywordFilterGroup,
+  defaultCatalogFilterGroups,
+  filterCategoriesByActiveFilters,
+  getEffectiveLayerType,
+  getItemMapModes,
+  type CatalogFilterField,
+  type CatalogFilterGroup,
+  type CatalogFilterOption,
+  type CategoryFilterEntry,
+} from "./helper/catalogFilter";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
 export * from "./helper/layerHelper";

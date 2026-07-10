@@ -14,7 +14,9 @@ interface CatalogGridProps {
   /** the source backing the shown category is still loading */
   loadingCurrentCategory: boolean;
   isSearchCategory: boolean;
-  currentlySearching: boolean;
+  /** a search term or attribute filter narrows the results, so an empty
+   * grid means "no matches" instead of "nothing here" */
+  currentlyNarrowed: boolean;
 }
 
 const countLayers = (categories: { layers: readonly unknown[] }[]): number =>
@@ -68,7 +70,7 @@ const CatalogGrid = memo(
     categories,
     loadingCurrentCategory,
     isSearchCategory,
-    currentlySearching,
+    currentlyNarrowed,
   }: CatalogGridProps) => {
     const selectedItem = useCatalogSelectedItem();
     const selectedId = selectedItem?.id;
@@ -127,7 +129,7 @@ const CatalogGrid = memo(
       );
     }
 
-    if (numberOfLayers === 0 && currentlySearching) {
+    if (numberOfLayers === 0 && currentlyNarrowed) {
       return <NoItemFound />;
     }
 

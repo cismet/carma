@@ -11,6 +11,8 @@ export interface SidebarEntry {
   label: string;
   icon: IconProp;
   disabled: boolean;
+  /** entry not rendered at all, e.g. no results under active filters */
+  hidden?: boolean;
   /** search-hit count shown as badge; only rendered while a search is active */
   count: number;
   showCount: boolean;
@@ -73,14 +75,16 @@ const CategorySidebar = memo(
     >
       <div className="flex flex-col w-full items-center gap-2 overflow-y-auto overflow-x-hidden">
         <div className="h-8 sm:h-24"></div>
-        {entries.map((entry, index) => (
-          <SidebarItem
-            key={entry.id}
-            entry={entry}
-            active={index === selectedIndex}
-            onClick={() => onSelect(index)}
-          />
-        ))}
+        {entries.map((entry, index) =>
+          entry.hidden ? null : (
+            <SidebarItem
+              key={entry.id}
+              entry={entry}
+              active={index === selectedIndex}
+              onClick={() => onSelect(index)}
+            />
+          )
+        )}
       </div>
     </div>
   )

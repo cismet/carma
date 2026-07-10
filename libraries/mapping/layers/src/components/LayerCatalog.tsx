@@ -54,11 +54,14 @@ import { fetchDiscoverItems } from "../helper/discover";
 import {
   countCategoryLayers,
   getShownCategories,
+  mainCategoryHasResults,
 } from "../helper/categoryDisplay";
 import {
   findFirstCategoryIdWithResults,
   useCatalogSearch,
 } from "../hooks/useCatalogSearch";
+import { useCatalogFilter } from "../hooks/useCatalogFilter";
+import { defaultCatalogFilterGroups } from "../helper/catalogFilter";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 import { useHandleDrop } from "../hooks/useHandleDrop";
@@ -259,19 +262,17 @@ const LayerCatalogView = ({
     ]
   );
 
-  const sidebarElements = useMemo(() => {
-    const categoryHasItems = (id: string) =>
-      allCategories
-        .find((category) => category.id === id)
-        ?.categories.some((subCategory) => subCategory.layers.length > 0) ??
-      false;
-    return categoryDefinitions.map((definition) => ({
-      ...definition,
-      disabled:
-        (!!definition.disabledIn3D && isCesium) ||
-        (!!definition.disableWhenEmpty && !categoryHasItems(definition.id)),
-    }));
-  }, [allCategories, categoryDefinitions, isCesium]);
+  const sidebarElements = useMemo(
+    () =>
+      categoryDefinitions.map((definition) => ({
+        ...definition,
+        disabled:
+          (!!definition.disabledIn3D && isCesium) ||
+          (!!definition.disableWhenEmpty &&
+            !mainCategoryHasResults(allCategories, definition.id)),
+      })),
+    [allCategories, categoryDefinitions, isCesium]
+  );
 
   const disabledCategoryIds = useMemo(
     () =>
@@ -287,8 +288,20 @@ const LayerCatalogView = ({
     setSearchValue,
     debouncedSearchTerm,
     isSearching,
-    filteredCategories,
+    filteredCategories: searchedCategories,
   } = useCatalogSearch({ allCategories, disabledCategoryIds });
+
+  const filterGroups = useMemo(
+    () => catalogConfig.filterGroups ?? defaultCatalogFilterGroups,
+    [catalogConfig.filterGroups]
+  );
+  const { activeFilterCount, filteredCategories } = useCatalogFilter({
+    categories: searchedCategories,
+    filterGroups,
+  });
+  // active attribute/keyword filters hide empty categories entirely instead
+  // of showing them grayed out
+  const isFiltering = activeFilterCount > 0;
 
   const currentDefinition = sidebarElements[selectedNavItemIndex];
   const isSearchCategory = currentDefinition.source === "searchResults";
@@ -303,9 +316,16 @@ const LayerCatalogView = ({
         filteredCategories,
         currentDefinition.id,
         sidebarElements,
-        searchValue
+        searchValue,
+        isFiltering
       ),
-    [filteredCategories, currentDefinition.id, sidebarElements, searchValue]
+    [
+      filteredCategories,
+      currentDefinition.id,
+      sidebarElements,
+      searchValue,
+      isFiltering,
+    ]
   );
 
   const sidebarEntries = useMemo<SidebarEntry[]>(
@@ -317,6 +337,10 @@ const LayerCatalogView = ({
         disabled:
           (element.source === "searchResults" && !searchValue) ||
           element.disabled,
+        hidden:
+          isFiltering &&
+          element.source !== "searchResults" &&
+          !mainCategoryHasResults(filteredCategories, element.id),
         count:
           isSearching || !searchValue
             ? 0
@@ -336,6 +360,7 @@ const LayerCatalogView = ({
       searchValue,
       isSearching,
       debouncedSearchTerm,
+      isFiltering,
     ]
   );
 
@@ -416,22 +441,17 @@ const LayerCatalogView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sidebarElements]);
 
-  // an active search jumps to the first category with results when the
-  // selected one has none
+  // an active search or filter jumps to the first category with results when
+  // the selected one has none (filters hide empty sidebar categories)
   useEffect(() => {
-    if (!debouncedSearchTerm) {
+    if (!debouncedSearchTerm && !isFiltering) {
       return;
     }
     if (sidebarElements[selectedNavItemIndex].source === "searchResults") {
       return;
     }
     const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
-    const selectedCategoryHasResults = filteredCategories.some(
-      (category) =>
-        category.id === selectedCategoryId &&
-        category.categories.some((subCategory) => subCategory.layers.length > 0)
-    );
-    if (selectedCategoryHasResults) {
+    if (mainCategoryHasResults(filteredCategories, selectedCategoryId)) {
       return;
     }
     const firstCategoryId = findFirstCategoryIdWithResults(filteredCategories);
@@ -444,7 +464,7 @@ const LayerCatalogView = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchTerm, filteredCategories]);
+  }, [debouncedSearchTerm, isFiltering, filteredCategories]);
 
   useHandleDrop({
     setOpen,
@@ -665,7 +685,7 @@ const LayerCatalogView = ({
                     categories={shownCategories}
                     loadingCurrentCategory={loadingCurrentCategory}
                     isSearchCategory={isSearchCategory}
-                    currentlySearching={!!debouncedSearchTerm}
+                    currentlyNarrowed={!!debouncedSearchTerm || isFiltering}
                   />
                 )}
               </div>
