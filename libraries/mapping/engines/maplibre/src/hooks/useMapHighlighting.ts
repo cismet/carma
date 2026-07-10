@@ -47,6 +47,26 @@ type MapWithGlobalState = MaplibreMap & {
   setGlobalStateProperty(key: string, value: unknown): void;
 };
 
+/** Does `source` promote `property` to feature.id for `sourceLayer`?
+ *  Only then is a queryId value usable as a setFeatureState id: without
+ *  promoteId, feature.id is the tile-local MVT id, so a DB id would key an
+ *  unrelated feature (or none). Handles both promoteId spec forms — a bare
+ *  string, or a per-source-layer record. */
+function promotesProperty(
+  map: MaplibreMap,
+  source: string,
+  sourceLayer: string,
+  property: string
+): boolean {
+  const promoteId = (map.getSource(source) as { promoteId?: unknown } | undefined)
+    ?.promoteId;
+  if (typeof promoteId === "string") return promoteId === property;
+  if (promoteId && typeof promoteId === "object") {
+    return (promoteId as Record<string, unknown>)[sourceLayer] === property;
+  }
+  return false;
+}
+
 export interface UseMapHighlightingOptions {
   map: MaplibreMap | null;
   /** Source config. If omitted, auto-discovered from map style sources. */
@@ -231,6 +251,51 @@ export const useMapHighlighting = ({
       const matched: GeoJSONFeature[] = [];
       const seen = new Set<string>();
       const marked = markedRef.current;
+
+      // Mark exact-id hits without waiting for their tiles. MapLibre keeps
+      // feature-state in a plain sourceLayer -> id -> state map that never
+      // checks whether the feature exists, and stamps the accumulated state
+      // onto every tile as it loads (SourceFeatureState.initializeTileState,
+      // called from the tile manager's _tileLoaded). So a hit that is still
+      // off-screen or in an unloaded tile can be marked right now and renders
+      // highlighted on its very first frame.
+      //
+      // Without this, the scan below only sees features in already-loaded
+      // tiles: zooming into unloaded tiles drew the search hits dimmed (the
+      // style dims everything not `highlighted` while `highlightingEnabled`)
+      // until the debounced sourcedata re-apply caught up.
+      //
+      // Only exact ids on a promoting source qualify. propertyMatchers and
+      // wildcard ("*") sourceLayers need the feature's properties, and geojson
+      // sources have no source-layer to key by, so those stay on the scan path.
+      const sourcesBySourceLayer = new Map<string, string[]>();
+      for (const { source, sourceLayers } of srcs) {
+        for (const sl of sourceLayers) {
+          const existing = sourcesBySourceLayer.get(sl);
+          if (existing) existing.push(source);
+          else sourcesBySourceLayer.set(sl, [source]);
+        }
+      }
+      for (const qid of criteria.queryIds) {
+        if (qid.sourceLayer === "*") continue;
+        for (const source of sourcesBySourceLayer.get(qid.sourceLayer) ?? []) {
+          if (!promotesProperty(mapInst, source, qid.sourceLayer, qid.property))
+            continue;
+          const key = `${source}::${qid.sourceLayer}::${qid.value}`;
+          // Mirror matchesCriteria: a dismiss wins outright, and a toggle on an
+          // already-matching feature is an XOR flip that turns it back off.
+          if (criteria.suppressedFeatures.has(key)) continue;
+          if (criteria.toggledFeatures.has(key)) continue;
+          if (marked.has(key)) continue;
+          const target = buildFeatureStateTarget(mapInst, {
+            source,
+            sourceLayer: qid.sourceLayer,
+            id: qid.value,
+          });
+          mapInst.setFeatureState(target, { [stateKey]: true });
+          marked.set(key, target);
+        }
+      }
 
       for (const { source, sourceLayers } of srcs) {
         // Geojson sources: querySourceFeatures ignores sourceLayer; iterate
