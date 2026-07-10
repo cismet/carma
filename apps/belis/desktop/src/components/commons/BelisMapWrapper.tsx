@@ -193,6 +193,16 @@ import {
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 import {
+  buildClusterIndex,
+  clusterIdOf,
+  clusterMembers,
+  clusterSourceIds,
+  queryLeuchtenByStandort,
+  queryStandortById,
+  toSidebarFeature,
+} from "../../helper/standortCluster";
+import { buildFeatureKey } from "../../helper/featureKeys";
+import {
   buildLeuchteDraftStandortFeature,
   expandDraftSidebarFeatures,
 } from "../../helper/expandDraftSidebarFeatures";
@@ -760,51 +770,72 @@ const BelisMapLibWrapper = ({
 
   const handleHighlightToggle = useCallback(
     (feature: maplibregl.MapGeoJSONFeature) => {
-      const toSidebarFeature = (f: Record<string, any>): SidebarFeature =>
-        Object.assign(f, { original: f }) as unknown as SidebarFeature;
-
-      // Use the feature's own source so brandnew (geojson) and regular
-      // (vector) features both resolve siblings against the right source.
       const featureSource = feature.source ?? namespacedSource;
-      const isFeatureGeojson =
-        map?.getSource(featureSource)?.type === "geojson";
+      const clickedLayer = feature.sourceLayer ?? "";
+      const sourceIds = clusterSourceIds(
+        namespacedSource,
+        brandnewLayerEnabled ? brandnewSource : undefined
+      );
 
-      // Determine if this is a standort with sibling leuchten to expand
-      const isStandort = feature.sourceLayer === "standorte";
-      let siblingLeuchten: maplibregl.GeoJSONFeature[] = [];
-      if (isStandort && map) {
-        const standortId = String(feature.properties?.id ?? "");
-        if (standortId) {
-          // For geojson sources querySourceFeatures ignores sourceLayer;
-          // we filter by the stamped _sourceLayer property instead.
-          const queryOpts = isFeatureGeojson
-            ? undefined
-            : { sourceLayer: "leuchten" };
-          siblingLeuchten = map
-            .querySourceFeatures(featureSource, queryOpts)
-            .filter((f) => {
-              if (
-                isFeatureGeojson &&
-                String(f.properties?._sourceLayer ?? "") !== "leuchten"
-              )
-                return false;
-              return String(f.properties?.fk_standort ?? "") === standortId;
-            });
+      // A Standort and its Leuchten are one unit: Alt+clicking any member
+      // toggles the whole cluster, so the Highlights tab shows the same nested
+      // block the Fachobjekte tab does. Clicking a Leuchte resolves its parent
+      // first, then re-reads the cluster from that parent — otherwise the
+      // sibling Leuchten stay out and the row cannot nest (BelisSidebar only
+      // indents a Leuchte whose Standort is in the same list).
+      const clicked = toSidebarFeature(feature, featureSource, clickedLayer);
+      const standortDbId =
+        clickedLayer === "standorte"
+          ? String(feature.properties?.id ?? "")
+          : String(feature.properties?.fk_standort ?? "");
+
+      let standort: SidebarFeature | null = null;
+      let leuchten: SidebarFeature[] = [];
+      if (map && (clickedLayer === "standorte" || clickedLayer === "leuchten")) {
+        standort =
+          clickedLayer === "standorte"
+            ? clicked
+            : queryStandortById(map, standortDbId, sourceIds);
+        leuchten = queryLeuchtenByStandort(map, standortDbId, sourceIds);
+        // A Leuchte outside the loaded tiles still highlights on its own.
+        if (leuchten.length === 0 && clickedLayer === "leuchten") {
+          leuchten = [clicked];
         }
       }
+      // Any other layer (Leitung, Schaltstelle, …) toggles on its own.
 
-      // Sync sibling leuchten in the highlight context BEFORE updating unfilteredHighlights.
-      // toggleFeatureHighlight already toggled the standort itself (called by useMapHighlighting
-      // before onToggle fires), so criteria.toggledFeatures already reflects the standort's state.
-      // Read direction from the ref: if standort is now toggled ON, we add siblings; if OFF, remove.
-      if (isStandort && siblingLeuchten.length > 0) {
-        const standortKey = `${featureSource}::standorte::${feature.id}`;
-        const adding = criteria.toggledFeatures.has(standortKey);
+      const keyOf = buildFeatureKey;
+      // Standort first — the sidebar's flatten expects the parent before its
+      // children, and the `!prev` branch seeds the list verbatim.
+      const cluster: SidebarFeature[] = standort
+        ? [standort, ...leuchten]
+        : leuchten.length > 0
+        ? leuchten
+        : [clicked];
+
+      // toggleFeatureHighlight already toggled the clicked feature (useMapHighlighting
+      // calls it before onToggle), so criteria.toggledFeatures reflects its new state.
+      // Read the direction from there: clicked now ON → add the rest, OFF → remove them.
+      const adding = criteria.toggledFeatures.has(
+        `${featureSource}::${clickedLayer}::${feature.id}`
+      );
+      const clickedKey = keyOf(clicked);
+
+      // Sync the cluster's map feature-state BEFORE updating unfilteredHighlights.
+      // Compare by key, not identity: the clicked Leuchte also comes back from
+      // the source query as a separate object, and re-toggling it here would
+      // undo what useMapHighlighting just did.
+      const extras = cluster.filter((f) => keyOf(f) !== clickedKey);
+      if (extras.length > 0) {
         ensureToggledFeatures(
-          siblingLeuchten.map((l) => ({
-            source: featureSource,
-            sourceLayer: "leuchten",
-            id: l.id!, // MVT tile ID (or geojson feature id), matching what matchesCriteria uses
+          extras.map((f) => ({
+            // Each member carries its own source: a tile Standort can own a
+            // brandnew Leuchte, so a single `featureSource` would write the
+            // feature-state onto the wrong source.
+            source:
+              (f as unknown as { source?: string }).source ?? featureSource,
+            sourceLayer: f.sourceLayer ?? "",
+            id: f.id!, // promoted DB id, matching what matchesCriteria uses
           })),
           adding
         );
@@ -812,60 +843,100 @@ const BelisMapLibWrapper = ({
 
       // Update sidebar content
       setUnfilteredHighlights((prev) => {
-        if (!prev) {
-          const items = [toSidebarFeature(feature)];
-          for (const l of siblingLeuchten) items.push(toSidebarFeature(l));
-          return items;
+        if (!prev) return cluster;
+
+        if (prev.some((f) => keyOf(f) === clickedKey)) {
+          const removeKeys = new Set(cluster.map(keyOf));
+          return prev.filter((f) => !removeKeys.has(keyOf(f)));
         }
 
-        const dbId = String(feature.properties?.id ?? feature.id ?? "");
-        const sl = feature.sourceLayer ?? "";
-        const alreadyPresent = prev.some(
-          (f) =>
-            (f.sourceLayer ?? "") === sl &&
-            String(f.properties?.id ?? f.id ?? "") === dbId
-        );
-
-        if (alreadyPresent) {
-          // Remove standort + all sibling leuchten
-          const removeSet = new Set<string>();
-          removeSet.add(`${sl}::${dbId}`);
-          for (const l of siblingLeuchten) {
-            const lid = String(l.properties?.id ?? l.id ?? "");
-            removeSet.add(`${(l as any).sourceLayer ?? "leuchten"}::${lid}`);
-          }
-          return prev.filter((f) => {
-            const key = `${f.sourceLayer ?? ""}::${String(
-              f.properties?.id ?? f.id ?? ""
-            )}`;
-            return !removeSet.has(key);
-          });
-        }
-
-        // Add standort + all sibling leuchten (skip duplicates)
-        const existing = new Set(
-          prev.map(
-            (f) =>
-              `${f.sourceLayer ?? ""}::${String(
-                f.properties?.id ?? f.id ?? ""
-              )}`
-          )
-        );
-        const toAdd: SidebarFeature[] = [];
-        if (!existing.has(`${sl}::${dbId}`)) {
-          toAdd.push(toSidebarFeature(feature));
-        }
-        for (const l of siblingLeuchten) {
-          const lid = String(l.properties?.id ?? l.id ?? "");
-          const key = `${(l as any).sourceLayer ?? "leuchten"}::${lid}`;
-          if (!existing.has(key)) {
-            toAdd.push(toSidebarFeature(l));
-          }
-        }
-        return [...prev, ...toAdd];
+        const existing = new Set(prev.map(keyOf));
+        const toAdd = cluster.filter((f) => !existing.has(keyOf(f)));
+        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
       });
     },
-    [map, namespacedSource, ensureToggledFeatures, criteria]
+    [
+      map,
+      namespacedSource,
+      brandnewSource,
+      brandnewLayerEnabled,
+      ensureToggledFeatures,
+      criteria,
+    ]
+  );
+
+  // Lasso → sidebar. The lasso only writes map feature-state; the accumulator
+  // in `handleHighlightsApplied` is the sidebar's usual feed, and it bails out
+  // whenever a SearchModal result set is active — so without this the Highlights
+  // tab stayed empty after a lasso on top of a search.
+  //
+  // Fires once with every hit, so the cluster index is built one time instead of
+  // per feature. Like Alt+click, a hit expands to its whole Standort/Leuchten
+  // cluster, and the direction is read from the state useLassoHighlight just
+  // wrote for the first hit of that cluster.
+  const handleLassoMatched = useCallback(
+    (matched: maplibregl.MapGeoJSONFeature[]) => {
+      if (!map || matched.length === 0) return;
+      const sourceIds = clusterSourceIds(
+        namespacedSource,
+        brandnewLayerEnabled ? brandnewSource : undefined
+      );
+      const index = buildClusterIndex(map, sourceIds);
+
+      // First hit per cluster decides add vs remove, mirroring the clicked
+      // feature in handleHighlightToggle. Standalone layers are their own cluster.
+      const decided = new Map<
+        string,
+        { adding: boolean; members: SidebarFeature[] }
+      >();
+      for (const raw of matched) {
+        const f = toSidebarFeature(raw, raw.source, raw.sourceLayer ?? "");
+        const clusterId = clusterIdOf(f);
+        const decisionKey = clusterId ? `cluster:${clusterId}` : buildFeatureKey(f);
+        if (decided.has(decisionKey)) continue;
+        const members = clusterId ? clusterMembers(clusterId, index) : [f];
+        decided.set(decisionKey, {
+          adding: criteria.toggledFeatures.has(
+            `${raw.source}::${raw.sourceLayer ?? ""}::${raw.id}`
+          ),
+          members: members.length > 0 ? members : [f],
+        });
+      }
+
+      const addRows: SidebarFeature[] = [];
+      const removeKeys = new Set<string>();
+      for (const { adding, members } of decided.values()) {
+        ensureToggledFeatures(
+          members.map((f) => ({
+            source: (f as unknown as { source?: string }).source ?? namespacedSource,
+            sourceLayer: f.sourceLayer ?? "",
+            id: f.id!,
+          })),
+          adding
+        );
+        if (adding) addRows.push(...members);
+        else for (const f of members) removeKeys.add(buildFeatureKey(f));
+      }
+
+      setUnfilteredHighlights((prev) => {
+        const base = (prev ?? []).filter(
+          (f) => !removeKeys.has(buildFeatureKey(f))
+        );
+        const existing = new Set(base.map(buildFeatureKey));
+        const toAdd = addRows.filter((f) => !existing.has(buildFeatureKey(f)));
+        const next = toAdd.length > 0 ? [...base, ...toAdd] : base;
+        // null (not []) is the "nothing highlighted" signal the tab gate reads.
+        return next.length > 0 ? next : null;
+      });
+    },
+    [
+      map,
+      namespacedSource,
+      brandnewSource,
+      brandnewLayerEnabled,
+      ensureToggledFeatures,
+      criteria,
+    ]
   );
 
   // Sidebar dismiss: remove a single feature from highlights.
@@ -995,13 +1066,11 @@ const BelisMapLibWrapper = ({
     active: lassoActive,
     sources: highlightSources,
     onDeactivate: onLassoDeactivate,
-    // NOTE: handleHighlightToggle is intentionally NOT passed here. For the
-    // lasso it is pure waste (~10s of the freeze): the lasso already sets map
-    // state in one batched ensureToggledFeatures, the PIP already caught the
-    // sibling leuchten, and the applyHighlights sweep's onHighlightsApplied
-    // (handleHighlightsApplied) rebuilds the whole sidebar in one pass. So
-    // handleHighlightToggle now fires only on a real alt+click toggle.
-    // onToggle: handleHighlightToggle,
+    // NOTE: handleHighlightToggle is intentionally NOT passed as `onToggle`. For
+    // the lasso it is pure waste (~10s of the freeze): it fires per feature and
+    // each call rescans the whole source. `onMatched` fires once with every hit,
+    // so handleLassoMatched builds the cluster index a single time.
+    onMatched: handleLassoMatched,
   });
 
   // Brandnew FC poll-and-reload: short cadence in localhost (yellow-border

@@ -4,10 +4,15 @@ import {
   useMapHighlight,
   useLibreContext,
 } from "@carma-mapping/engines/maplibre";
-import type { MapGeoJSONFeature, GeoJSONFeature } from "maplibre-gl";
 import { SELECTED_ROW_STYLE } from "./BelisSidebar";
 import type { ListItemData, SidebarFeature } from "./BelisSidebar";
 import { buildFeatureKey } from "../../helper/featureKeys";
+import {
+  clusterSourceIds,
+  queryLeuchtenByStandort,
+  queryStandortById,
+  toSidebarFeature,
+} from "../../helper/standortCluster";
 
 export interface AuswahlBlockProps {
   namespacedSource: string;
@@ -29,20 +34,6 @@ export interface AuswahlBlockProps {
   ) => void;
   activeSourceLayers: Set<string>;
 }
-
-const toSidebarFeature = (
-  f: MapGeoJSONFeature | GeoJSONFeature,
-  source?: string,
-  sourceLayer?: string
-): SidebarFeature => {
-  const feat = f as unknown as Record<string, unknown>;
-  return {
-    ...f,
-    original: f,
-    source: (feat.source as string | undefined) ?? source,
-    sourceLayer: (feat.sourceLayer as string | undefined) ?? sourceLayer,
-  } as unknown as SidebarFeature;
-};
 
 const AuswahlBlock = ({
   namespacedSource,
@@ -126,36 +117,7 @@ const AuswahlBlock = ({
       return;
     }
 
-    // Brandnew features live in a separate GeoJSON source; query both so
-    // newly-created Standorte/Leuchten resolve their siblings the same as
-    // regular MVT-backed features.
-    const sourcesToQuery =
-      brandnewSource && brandnewSource !== namespacedSource
-        ? [namespacedSource, brandnewSource]
-        : [namespacedSource];
-
-    // Query all Leuchten for a given Standort DB id, deduplicated and sorted
-    const queryLeuchtenByStandort = (standortDbId: string): SidebarFeature[] => {
-      const seen = new Map<string, SidebarFeature>();
-      for (const src of sourcesToQuery) {
-        const allLeuchten = map.querySourceFeatures(src, {
-          sourceLayer: "leuchten",
-        });
-        for (const l of allLeuchten) {
-          if (String(l.properties?.fk_standort ?? "") !== standortDbId) continue;
-          const lid = String(l.properties?.id ?? l.id ?? "");
-          if (!seen.has(lid)) {
-            seen.set(lid, toSidebarFeature(l, src, "leuchten"));
-          }
-        }
-      }
-      return [...seen.values()].sort(
-        (a, b) =>
-          (Number(a.properties?.leuchtennummer) || 0) -
-          (Number(b.properties?.leuchtennummer) || 0)
-      );
-    };
-
+    const sourcesToQuery = clusterSourceIds(namespacedSource, brandnewSource);
     const clickedSource = rawFeature.source ?? namespacedSource;
 
     if (sl === "standorte") {
@@ -164,30 +126,16 @@ const AuswahlBlock = ({
       );
       setAuswahlFeatures({
         standort: toSidebarFeature(rawFeature, clickedSource, "standorte"),
-        leuchten: queryLeuchtenByStandort(standortDbId),
+        leuchten: queryLeuchtenByStandort(map, standortDbId, sourcesToQuery),
       });
     } else if (sl === "leuchten") {
       const fkStandort = String(rawFeature.properties?.fk_standort ?? "");
       // Query the related standort so AuswahlBlock can show it when the filter is toggled on
-      let standort: SidebarFeature | null = null;
-      if (fkStandort) {
-        for (const src of sourcesToQuery) {
-          const allStandorte = map.querySourceFeatures(src, {
-            sourceLayer: "standorte",
-          });
-          const match = allStandorte.find(
-            (s) => String(s.properties?.id ?? "") === fkStandort
-          );
-          if (match) {
-            standort = toSidebarFeature(match, src, "standorte");
-            break;
-          }
-        }
-      }
+      const standort = queryStandortById(map, fkStandort, sourcesToQuery);
       setAuswahlFeatures({
         standort,
         leuchten: fkStandort
-          ? queryLeuchtenByStandort(fkStandort)
+          ? queryLeuchtenByStandort(map, fkStandort, sourcesToQuery)
           : [toSidebarFeature(rawFeature, clickedSource, "leuchten")],
       });
     } else {
