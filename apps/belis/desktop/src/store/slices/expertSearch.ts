@@ -336,10 +336,11 @@ export const getExpertTypeState =
   (state: RootState): ExpertTypeState =>
     state.expertSearch[objectType];
 
-// A rule is complete when its value is filled — except "ist leer" (empty),
-// which needs no value. 0 / false count as filled.
+// A rule is complete when its value is filled — except "ist leer" (empty) and
+// "ist nicht leer" (notEmpty), which need no value. 0 / false count as filled.
 export const isRuleComplete = (rule: ExpertRuleState): boolean =>
   rule.operator === "empty" ||
+  rule.operator === "notEmpty" ||
   !(rule.value === undefined || rule.value === null || rule.value === "");
 
 // True when the tab has at least one rule still missing its value.

@@ -23,6 +23,7 @@ const OPERATOR_OPTIONS = [
   { value: "lt", label: "< kleiner als" },
   { value: "lte", label: "≤ kleiner / gleich" },
   { value: "empty", label: "ø ist leer" },
+  { value: "notEmpty", label: "◉ ist nicht leer" },
 ];
 
 // Only offer operators that actually mean something for the field type, so the
@@ -34,7 +35,9 @@ const getOperatorOptions = (fieldType: FieldType) =>
   OPERATOR_OPTIONS.filter((op) => {
     if (op.value === "contains") return fieldType === "text";
     if (fieldType === "boolean") {
-      return op.value === "eq" || op.value === "empty";
+      return (
+        op.value === "eq" || op.value === "empty" || op.value === "notEmpty"
+      );
     }
     return true;
   });
@@ -166,8 +169,8 @@ const FilterRule = ({
 
   // The last element type depends on the selected field.
   const renderValueInput = () => {
-    // "ist leer" needs no value
-    if (operator === "empty") {
+    // "ist leer" / "ist nicht leer" need no value
+    if (operator === "empty" || operator === "notEmpty") {
       return null;
     }
 

@@ -61,9 +61,12 @@ const buildRuleCondition = (
   const col = field.key;
   const { operator, value } = rule;
 
-  // "ist leer" needs no value.
+  // "ist leer" / "ist nicht leer" need no value.
   if (operator === "empty") {
     return `${col}: {_is_null: true}`;
+  }
+  if (operator === "notEmpty") {
+    return `${col}: {_is_null: false}`;
   }
 
   if (isEmptyValue(value)) return null;
