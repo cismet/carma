@@ -289,10 +289,12 @@ export const parseToMapLayer = async (
       switch (layer.layerType) {
         case "wmts-nt":
         case "wmts": {
+          const layerType =
+            carmaConf && "nonTiled" in carmaConf ? "wmts-nt" : layer.layerType;
           newLayer = {
             title: resolvedTitle,
             id: id,
-            layerType: layer.layerType,
+            layerType,
             opacity: opacity || 1.0,
             description: resolvedDescription,
             conf: carmaConf!,

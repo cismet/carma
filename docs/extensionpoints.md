@@ -63,6 +63,7 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
     "keywords": [
         "carmaconf://infoBoxMapping:",
         "carmaconf://blockLegacyGetFeatureInfo", // Wird genutzt um die Verlinkung auf die die Wuppertaler Feature Info nicht anzuzeigen
+        "carmaconf://nonTiled", // Der Layer wird nicht gekachelt angefragt, sondern als ein Bild pro Kartenausschnitt (layerType "wmts-nt")
         "carmaconf://opendata:https://www.offenedaten-wuppertal.de/dataset/interessante-orte-poi-wuppertal" // Wird unter den Links als "Datenquelle im Open-Data-Portal Wuppertal" angezeigt
     ],
     "id": "string",
