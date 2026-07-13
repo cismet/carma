@@ -245,7 +245,10 @@ import {
   changeIfMapPrinted,
   changeRedrawPreview,
 } from "../../store/slices/print";
-import { buildBelisPrintLayers } from "../../helper/printLayers";
+import {
+  buildBelisInlineFachobjekteLayer,
+  buildBelisPrintLayers,
+} from "../../helper/printLayers";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -711,6 +714,53 @@ const BelisMapLibWrapper = ({
     toggleFeatureHighlight,
     criteria,
   } = useMapHighlight();
+
+  // Print: build the layer stack fresh at print time so it reflects the live map
+  // (visible features + current selection/highlight). The Fachobjekte go out as
+  // ONE inline-geojson style with the features embedded (see printLayers.ts).
+  const resolvePrintLayers = useCallback(
+    (m: maplibregl.Map, bbox: [number, number, number, number]) => {
+      const inlineFachobjekteLayer = buildBelisInlineFachobjekteLayer({
+        map: m,
+        namespacedSource,
+        brandnewSource,
+        enabledCategoryFilters,
+        regularEnabled: regularLayerEnabled,
+        brandnewEnabled: brandnewLayerEnabled,
+        highlightingActive,
+        bbox,
+      });
+      return buildBelisPrintLayers({
+        activeBackgroundLayer,
+        backgroundLayerOpacities: printBackgroundOpacities,
+        activeAdditionalLayers,
+        additionalLayerOpacities,
+        enabledCategoryFilters,
+        enabledLeitungstypen,
+        leitungstypen: (keyTablesData.leitungstyp || []) as {
+          id: number;
+          bezeichnung?: string;
+        }[],
+        regularEnabled: regularLayerEnabled,
+        brandnewEnabled: brandnewLayerEnabled,
+        inlineFachobjekteLayer,
+      });
+    },
+    [
+      namespacedSource,
+      brandnewSource,
+      enabledCategoryFilters,
+      enabledLeitungstypen,
+      regularLayerEnabled,
+      brandnewLayerEnabled,
+      highlightingActive,
+      activeBackgroundLayer,
+      printBackgroundOpacities,
+      activeAdditionalLayers,
+      additionalLayerOpacities,
+      keyTablesData.leitungstyp,
+    ]
+  );
 
   // Adjusted highlights: starts from highlightResults, updated by Alt+click toggles
   const [unfilteredHighlights, setUnfilteredHighlights] = useState<
@@ -5187,6 +5237,7 @@ const BelisMapLibWrapper = ({
                 dpi={printDpi}
                 name={printName}
                 layers={printLayers}
+                resolveLayers={resolvePrintLayers}
                 redrawTrigger={printRedraw}
                 keepRectangle={printIfMapPrinted}
                 loading={printLoading}

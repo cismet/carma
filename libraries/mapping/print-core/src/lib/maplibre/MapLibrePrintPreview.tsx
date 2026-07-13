@@ -63,6 +63,19 @@ export interface MapLibrePrintPreviewProps {
   layers?: PrintInputLayer[];
 
   /**
+   * Optional hook to compute the print layers fresh at print time from the live
+   * map (e.g. query the currently-visible features into an inline geojson
+   * style). When provided its result is used instead of `layers`, so the print
+   * always reflects the map state at the moment the user prints. Return the
+   * static `layers` yourself for anything that isn't dynamic.
+   */
+  resolveLayers?: (
+    map: MapLibreMap,
+    /** Print rectangle bbox [west, south, east, north] in WGS84. */
+    bbox: [number, number, number, number]
+  ) => PrintInputLayer[];
+
+  /**
    * Change this value to (re)seed the rectangle at the current map center —
    * the MapLibre analog of geoportal's redrawPreview toggle.
    */
@@ -94,6 +107,7 @@ export const MapLibrePrintPreview = ({
   dpi,
   name,
   layers,
+  resolveLayers,
   redrawTrigger,
   keepRectangle = false,
   loading = false,
@@ -132,12 +146,19 @@ export const MapLibrePrintPreview = ({
     const bounds = boundsRef.current;
     if (!map || !bounds) return;
     onPrintStart?.();
+    const bbox: [number, number, number, number] = [
+      bounds.minLng,
+      bounds.minLat,
+      bounds.maxLng,
+      bounds.maxLat,
+    ];
+    const inputLayers = resolveLayers ? resolveLayers(map, bbox) : layers ?? [];
     const job = {
       center: getRectCenter3857(bounds),
       scale: Number(scale),
       orientation,
       dpi: Number(dpi),
-      layers: getPrintLayers(layers ?? []),
+      layers: getPrintLayers(inputLayers),
       name,
     };
     void printMap(job, {
@@ -158,6 +179,7 @@ export const MapLibrePrintPreview = ({
     orientation,
     dpi,
     layers,
+    resolveLayers,
     name,
     onPrintStart,
     onLoadingChange,
