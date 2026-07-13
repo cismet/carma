@@ -176,6 +176,7 @@ export const flattenLayer = (
     Name: layer.Name ? layer.Name : "",
     Abstract: layer.Abstract,
     tags: layerTags,
+    KeywordList: layer.KeywordList,
     srs: layer.SRS,
     BoundingBox: layer.BoundingBox,
     LatLonBoundingBox: layer.LatLonBoundingBox,
@@ -301,6 +302,42 @@ export const wmsLayerToGenericItem = (
   }
 };
 
+export const hasHideLayerKeyword = (keywords?: string[]) => {
+  return (
+    keywords?.some((keyword) => keyword.includes("carmaconf://hideLayer")) ??
+    false
+  );
+};
+
+export const applyKeywordSettings = <T extends Item>(layer: T): T => {
+  let infoBoxMapping = "";
+  let thumbnail = "";
+
+  layer.keywords?.forEach((keyword) => {
+    const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
+    const foundThumbnail = keyword.split("carmaConf://thumbnail:")[1];
+
+    if (foundThumbnail) {
+      thumbnail = foundThumbnail;
+    }
+
+    if (extracted) {
+      infoBoxMapping += extracted + "\n";
+    }
+  });
+
+  const updatedLayer = {
+    ...layer,
+    queryable: infoBoxMapping ? true : false,
+  } as T;
+
+  if (thumbnail) {
+    updatedLayer.thumbnail = thumbnail;
+  }
+
+  return updatedLayer;
+};
+
 export const normalizeObject = (obj: any): any => {
   if (!obj || typeof obj !== "object") return obj;
 
@@ -410,13 +447,7 @@ export const getLayerStructure = ({
           }
           let tags = foundLayer.tags || [];
           let keywords = foundLayer.keywords;
-          let hideLayer = false;
-          keywords?.forEach((keyword) => {
-            if (keyword.includes("carmaconf://hideLayer")) {
-              hideLayer = true;
-            }
-          });
-          if (hideLayer) {
+          if (hasHideLayerKeyword(keywords)) {
             continue;
           }
           tags[0] =
@@ -430,38 +461,8 @@ export const getLayerStructure = ({
             );
           }
 
-          let infoBoxMapping = "";
-          let thumbnail = "";
-
-          foundLayer?.keywords?.forEach((keyword) => {
-            const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
-            const foundThumbnail = keyword.split("carmaConf://thumbnail:")[1];
-
-            if (foundThumbnail) {
-              thumbnail = foundThumbnail;
-            }
-
-            if (extracted) {
-              infoBoxMapping += extracted + "\n";
-            }
-          });
-
           if (foundLayer) {
-            if (!infoBoxMapping) {
-              foundLayer = {
-                ...foundLayer,
-                queryable: false,
-              };
-            } else {
-              foundLayer = {
-                ...foundLayer,
-                queryable: true,
-              };
-            }
-
-            if (thumbnail) {
-              foundLayer.thumbnail = thumbnail;
-            }
+            foundLayer = applyKeywordSettings(foundLayer);
 
             if (replace || merge) {
               let newLayer = replaceLayers.find(
@@ -518,38 +519,8 @@ export const getLayerStructure = ({
             service: services[categoryConfig.serviceName as string],
           };
 
-          let infoBoxMapping = "";
-          let thumbnail = "";
-
-          foundLayer?.keywords?.forEach((keyword) => {
-            const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
-            const foundThumbnail = keyword.split("carmaConf://thumbnail:")[1];
-
-            if (foundThumbnail) {
-              thumbnail = foundThumbnail;
-            }
-
-            if (extracted) {
-              infoBoxMapping += extracted + "\n";
-            }
-          });
-
           if (foundLayer) {
-            if (!infoBoxMapping) {
-              foundLayer = {
-                ...foundLayer,
-                queryable: false,
-              };
-            } else {
-              foundLayer = {
-                ...foundLayer,
-                queryable: true,
-              };
-            }
-
-            if (thumbnail) {
-              foundLayer.thumbnail = thumbnail;
-            }
+            foundLayer = applyKeywordSettings(foundLayer);
             layers.push(foundLayer);
           }
         }

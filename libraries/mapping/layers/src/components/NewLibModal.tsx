@@ -35,7 +35,9 @@ import {
 } from "@carma-providers/feature-flag";
 
 import {
+  applyKeywordSettings,
   flattenLayer,
+  hasHideLayerKeyword,
   reorderLayersByInsertRules,
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
@@ -366,9 +368,13 @@ export const NewLibModal = ({
       data.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
     flattenedLayers.push(flattenLayer(rootLayer, [], getUrl));
 
-    const tmpLayer = flattenedLayers[0].layers.map((layer) => {
-      return wmsLayerToGenericItem(layer, "custom");
-    });
+    const tmpLayer = flattenedLayers[0].layers
+      .map((layer) => wmsLayerToGenericItem(layer, "custom"))
+      .filter(
+        (layer): layer is Item =>
+          layer !== null && !hasHideLayerKeyword(layer.keywords)
+      )
+      .map((layer) => applyKeywordSettings(layer));
 
     return [
       {
