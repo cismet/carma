@@ -11,17 +11,25 @@
 // its own colored belis4print style, so the print mirrors the on-map filter
 // toggles (category + Leitungstyp sub-type + regular/brandnew source).
 
+import type { Map as MaplibreMap, GeoJSONFeature } from "maplibre-gl";
+
 import type { PrintInputLayer } from "@carma-mapping/print-core";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
+import { buildFeatureStateTarget } from "@carma-mapping/utils";
 
 import {
   additionalLayerConfigs,
   backgroundLayerConfigs,
   BELIS_PRINT_CATEGORY_BASENAMES,
   BELIS_PRINT_CATEGORY_ORDER,
+  BELIS_SOURCE_LAYERS,
   leitungstypSlug,
   printCategoryStyleUrl,
 } from "../config/mapLayerConfigs";
+import {
+  createBelisInlinePrintStyle,
+  type BelisPrintFeature,
+} from "../config/belisPrintStyle";
 
 const toInputLayer = (
   layer: LibreLayer,
@@ -116,11 +124,234 @@ const buildVisibleCategoryBasenames = (params: {
 };
 
 /**
+ * Source-layer name -> on-map category filter key. Mostly identity; only
+ * schaltstelle (layer, singular) vs schaltstellen (filter, plural) differ.
+ */
+const SOURCE_LAYER_TO_FILTER_KEY: Record<string, string> = {
+  leuchten: "leuchten",
+  standorte: "standorte",
+  mauerlaschen: "mauerlaschen",
+  schaltstelle: "schaltstellen",
+  leitungen: "leitungen",
+  abzweigdosen: "abzweigdosen",
+};
+
+/** Bounding box [west, south, east, north] in WGS84. */
+type Bbox = [number, number, number, number];
+
+/** Visit every [lng, lat] position in an arbitrarily-nested coordinate array. */
+const eachPosition = (
+  coords: unknown,
+  cb: (x: number, y: number) => void
+): void => {
+  if (!Array.isArray(coords)) return;
+  if (typeof coords[0] === "number" && typeof coords[1] === "number") {
+    cb(coords[0] as number, coords[1] as number);
+    return;
+  }
+  for (const c of coords) eachPosition(c, cb);
+};
+
+interface GeomStats {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  /** vertex count — used to keep the richest of several tile-clipped copies. */
+  n: number;
+}
+
+const geometryStats = (geometry: GeoJSON.Geometry): GeomStats => {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let n = 0;
+  eachPosition((geometry as { coordinates?: unknown }).coordinates, (x, y) => {
+    n++;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  });
+  return { minX, minY, maxX, maxY, n };
+};
+
+/** True when the geometry's bbox overlaps the print rectangle bbox. */
+const statsIntersectBbox = (s: GeomStats, bbox: Bbox): boolean =>
+  !(s.maxX < bbox[0] || s.minX > bbox[2] || s.maxY < bbox[1] || s.minY > bbox[3]);
+
+/**
+ * Assemble a single inline-geojson Fachobjekt print layer from the LIVE map:
+ * query the currently-loaded features from the belis source(s), keep only those
+ * inside the print rectangle, bake the selection / highlight / neighborhood
+ * feature-state into their properties, and embed them into the self-contained
+ * print style (see belisPrintStyle.ts).
+ *
+ * This replaces the per-category hosted belis4print styles: nothing is fetched
+ * at render time, so brand-new (geojson-only) features are no longer blank, and
+ * selection/highlight render because the print style reads them from properties.
+ *
+ * querySourceFeatures returns tile-clipped features, duplicated once per tile
+ * across the whole loaded viewport — so we (a) clip to the print bbox and (b)
+ * de-duplicate by id, keeping the copy with the most vertices. Without this the
+ * request body overflows the print server (HTTP 413).
+ *
+ * Returns null when there is nothing to print.
+ *
+ * NOTE: category-level filter toggles are mirrored; the Leitungstyp sub-filter
+ * is not yet applied here (all visible Leitungen are printed).
+ */
+export const buildBelisInlineFachobjekteLayer = (params: {
+  map: MaplibreMap;
+  /** Namespaced vector-tile source id (`${slugifyUrl(styleUrl)}::belis-source`). */
+  namespacedSource: string;
+  /** Namespaced brand-new geojson source id. */
+  brandnewSource: string;
+  enabledCategoryFilters: Record<string, boolean>;
+  regularEnabled: boolean;
+  brandnewEnabled: boolean;
+  /**
+   * Whether on-map highlight mode is active. When true, only actually-
+   * highlighted features stay full opacity and the rest are dimmed; when false,
+   * every printed feature is marked highlighted (fully visible).
+   */
+  highlightingActive: boolean;
+  /** Print rectangle bbox (WGS84); when set, only features inside are printed. */
+  bbox?: Bbox;
+}): PrintInputLayer | null => {
+  const {
+    map,
+    namespacedSource,
+    brandnewSource,
+    enabledCategoryFilters,
+    regularEnabled,
+    brandnewEnabled,
+    highlightingActive,
+    bbox,
+  } = params;
+
+  // key `${sourceLayer}:${id}` -> best (richest-geometry) copy seen so far.
+  const byId = new Map<string, { feature: BelisPrintFeature; n: number }>();
+
+  const categoryVisible = (sourceLayer: string): boolean => {
+    const key = SOURCE_LAYER_TO_FILTER_KEY[sourceLayer] ?? sourceLayer;
+    return enabledCategoryFilters[key] !== false;
+  };
+
+  const readState = (
+    source: string,
+    sourceLayer: string | undefined,
+    id: string | number | undefined
+  ): Record<string, unknown> => {
+    if (id == null) return {};
+    try {
+      return (
+        (map.getFeatureState(
+          buildFeatureStateTarget(map, { source, sourceLayer, id })
+        ) as Record<string, unknown>) ?? {}
+      );
+    } catch {
+      return {};
+    }
+  };
+
+  const addFeature = (
+    source: string,
+    sourceLayer: string,
+    f: GeoJSONFeature
+  ): void => {
+    if (!f.geometry) return;
+    const stats = geometryStats(f.geometry);
+    if (bbox && !statsIntersectBbox(stats, bbox)) return;
+
+    const id =
+      f.id ?? (f.properties?.id as string | number | undefined) ?? undefined;
+    const key = `${sourceLayer}:${id ?? ""}`;
+    // Keep the copy with the most vertices (least tile-clipping); features with
+    // no id can't be de-duped, so give each a unique key.
+    const existing = byId.get(key);
+    if (id != null && existing && existing.n >= stats.n) return;
+
+    const st = readState(source, sourceLayer, id);
+    const p = f.properties ?? {};
+    // Keep the full property set (matching the backend example), plus the
+    // category the layer filters read (["get","sourceLayer"]). State flags are
+    // written ONLY when true — the style's ["get", …] rules already treat a
+    // missing flag as false, so emitting `false` is dead weight.
+    const properties: Record<string, unknown> = {
+      ...p,
+      id: id ?? 0,
+      sourceLayer,
+      // Mirror the on-map highlight mode: with highlighting active, only the
+      // actually-highlighted features stay full opacity and the rest are dimmed;
+      // with it off, everything prints fully visible. The print style has no
+      // global-state gate, so the dimming is driven purely by this property.
+      highlighted: highlightingActive ? !!st.highlighted : true,
+    };
+    if (st.selected) properties.selected = true;
+    if (st.selectionInNeighborhood) properties.selectionInNeighborhood = true;
+
+    const feature: BelisPrintFeature = {
+      id: id ?? 0,
+      type: "Feature",
+      sourceLayer,
+      geometry: f.geometry,
+      properties,
+    };
+    byId.set(id != null ? key : `${key}:${byId.size}`, { feature, n: stats.n });
+  };
+
+  // Regular (vector-tile) source: query per source-layer.
+  if (regularEnabled && map.getSource(namespacedSource)) {
+    for (const sl of BELIS_SOURCE_LAYERS) {
+      if (!categoryVisible(sl)) continue;
+      let feats: GeoJSONFeature[] = [];
+      try {
+        feats = map.querySourceFeatures(namespacedSource, { sourceLayer: sl });
+      } catch {
+        feats = [];
+      }
+      for (const f of feats) addFeature(namespacedSource, sl, f);
+    }
+  }
+
+  // Brand-new (geojson) source: one flat source; category = properties._sourceLayer.
+  if (brandnewEnabled && map.getSource(brandnewSource)) {
+    let feats: GeoJSONFeature[] = [];
+    try {
+      feats = map.querySourceFeatures(brandnewSource);
+    } catch {
+      feats = [];
+    }
+    for (const f of feats) {
+      // GeoJSON sources have no native source-layer; the brand-new pipeline
+      // stamps the category into properties._sourceLayer (sourceLayerStamp).
+      const sl = (f.properties?._sourceLayer as string) || "";
+      if (!sl || !categoryVisible(sl)) continue;
+      addFeature(brandnewSource, sl, f);
+    }
+  }
+
+  if (byId.size === 0) return null;
+
+  const features = Array.from(byId.values(), (v) => v.feature);
+  return {
+    visible: true,
+    layerType: "inline",
+    inlineStyle: createBelisInlinePrintStyle(features),
+    opacity: 1,
+  };
+};
+
+/**
  * Build the printable layer stack in draw order (bottom -> top):
  * active background, then active additional overlays, then the visible
- * Fachobjekt data layers (one colored belis4print style per visible category /
- * Leitungstyp / source). getPrintLayers reverses via unshift, so this order
- * yields the Fachobjekte on top of the overlays on top of the background.
+ * Fachobjekt data layers. When `inlineFachobjekteLayer` is provided it is used
+ * for the Fachobjekte (inline geojson, current selection baked in); otherwise
+ * the legacy per-category belis4print vector styles are emitted as a fallback.
+ * getPrintLayers reverses via unshift, so this order yields the Fachobjekte on
+ * top of the overlays on top of the background.
  */
 export const buildBelisPrintLayers = (params: {
   activeBackgroundLayer: string;
@@ -136,6 +367,12 @@ export const buildBelisPrintLayers = (params: {
   /** Source flavours visible on the map (default both on). */
   regularEnabled: boolean;
   brandnewEnabled: boolean;
+  /**
+   * When provided, a single inline-geojson Fachobjekt layer (built from the live
+   * map via buildBelisInlineFachobjekteLayer) replaces the per-category hosted
+   * belis4print vector styles. null means "nothing to print for Fachobjekte".
+   */
+  inlineFachobjekteLayer?: PrintInputLayer | null;
 }): PrintInputLayer[] => {
   const {
     activeBackgroundLayer,
@@ -147,7 +384,9 @@ export const buildBelisPrintLayers = (params: {
     leitungstypen,
     regularEnabled,
     brandnewEnabled,
+    inlineFachobjekteLayer,
   } = params;
+  const useInline = inlineFachobjekteLayer !== undefined;
 
   const out: PrintInputLayer[] = [];
 
@@ -174,9 +413,17 @@ export const buildBelisPrintLayers = (params: {
     );
   }
 
-  // Visible Fachobjekt categories, one colored print style per category /
-  // Leitungstyp. Regular sits below its brandnew counterpart so same-day edits
-  // stay visible; both only when the corresponding source is shown on the map.
+  // Preferred path: one inline-geojson layer with the live features + selection
+  // baked in (nothing fetched at render time). undefined => caller didn't opt in
+  // (use the legacy per-category styles); null => opted in but nothing to print.
+  if (useInline) {
+    if (inlineFachobjekteLayer) out.push(inlineFachobjekteLayer);
+    return out;
+  }
+
+  // Legacy fallback: visible Fachobjekt categories, one colored print style per
+  // category / Leitungstyp. Regular sits below its brandnew counterpart so
+  // same-day edits stay visible; both only when the source is shown on the map.
   const basenames = buildVisibleCategoryBasenames({
     enabledCategoryFilters,
     enabledLeitungstypen,

@@ -6,6 +6,7 @@ export { getPrintLayers } from "./getPrintLayers";
 export {
   buildWMSPrint,
   buildVectorStylePrint,
+  buildInlineStylePrint,
   buildOSMPrint,
   buildTilesPrint,
   getStyleName,

@@ -9,11 +9,18 @@ export type Orientation = "portrait" | "landscape";
  */
 export interface PrintInputLayer {
   visible?: boolean;
-  layerType: "wms" | "wmts" | "wmts-nt" | "vector" | "tiles";
+  layerType: "wms" | "wmts" | "wmts-nt" | "vector" | "tiles" | "inline";
   opacity?: number;
   url?: string;
   layers?: string;
   style?: string;
+  /**
+   * A complete, self-contained MapLibre style object (with its data inlined as
+   * a geojson source). Used by layerType "inline": the tgl-wms renderer is
+   * handed this whole style via customParams.style + layers:["inline"] instead
+   * of resolving a hosted style by name. See buildInlineStylePrint.
+   */
+  inlineStyle?: Record<string, unknown>;
   props?: {
     url?: string;
     name?: string;

@@ -6,6 +6,7 @@
 // already-resolved list so it has no dependency on app config.
 
 import {
+  buildInlineStylePrint,
   buildTilesPrint,
   buildVectorStylePrint,
   buildWMSPrint,
@@ -48,6 +49,14 @@ export function getPrintLayers(layers: PrintInputLayer[]): MapFishLayer[] {
       case "tiles": {
         if (layer.url) {
           layerPrint.unshift(buildTilesPrint(layer.url, layer.opacity));
+        }
+        break;
+      }
+      case "inline": {
+        if (layer.inlineStyle) {
+          layerPrint.unshift(
+            buildInlineStylePrint(layer.inlineStyle, layer.opacity)
+          );
         }
         break;
       }

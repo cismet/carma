@@ -55,6 +55,28 @@ export const buildVectorStylePrint = (
     opacity
   );
 
+/**
+ * Print a complete, self-contained MapLibre style (data inlined as a geojson
+ * source) via the tgl-wms "inline" renderer. Instead of naming a hosted style,
+ * the whole style is POSTed in customParams.style and `layers:["inline"]` tells
+ * the renderer to use it verbatim — so nothing is fetched at render time.
+ */
+export const buildInlineStylePrint = (
+  style: Record<string, unknown>,
+  opacity = 1,
+  scalefactor = 2,
+  sizefactor = 1
+): MapFishLayer => ({
+  imageFormat: "image/png",
+  baseURL: `https://tsgl4printing-wms.cismet.de/tgl-wms/${scalefactor}x/${sizefactor}/`,
+  method: "POST",
+  customParams: { style },
+  layers: ["inline"],
+  type: "WMS",
+  opacity,
+  failOnError: true,
+});
+
 export const buildOSMPrint = (baseURL: string): MapFishLayer => ({
   baseURL,
   type: "OSM",
