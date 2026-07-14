@@ -74,6 +74,21 @@ interface Leitungstyp {
 }
 
 /**
+ * The ONLY raw feature properties the inline print style (belisPrintStyle.ts)
+ * reads via ["get", …]. `sourceLayer`, `id`, `highlighted`, `selected` and
+ * `selectionInNeighborhood` are set explicitly/from feature-state below, so
+ * they are NOT copied from here. Everything else on the vector-tile / geojson
+ * feature is dead weight in the request body — embedding the full record
+ * overflows the print server (HTTP 413 "Payload Too Large"), so we copy only
+ * these keys.
+ */
+const PRINT_STYLE_PROPERTY_KEYS = [
+  "bezeichnung", // leitungen line color + Leitungstyp sub-filter
+  "leuchten_count", // leuchten / standorte icon variant
+  "lfd_nummer", // standorte label text
+] as const;
+
+/**
  * Resolve which Leitungen print-style basenames to use, mirroring the on-map
  * Leitungstyp filter (applyLeitungenFilter):
  *   - all types enabled (or none explicitly set) -> the combined "leitungen"
@@ -327,12 +342,13 @@ export const buildBelisInlineFachobjekteLayer = (params: {
 
     const st = readState(source, sourceLayer, id);
     const p = f.properties ?? {};
-    // Keep the full property set (matching the backend example), plus the
-    // category the layer filters read (["get","sourceLayer"]). State flags are
-    // written ONLY when true — the style's ["get", …] rules already treat a
-    // missing flag as false, so emitting `false` is dead weight.
+    // Copy ONLY the properties the print style actually reads (see
+    // PRINT_STYLE_PROPERTY_KEYS) plus the category the layer filters read
+    // (["get","sourceLayer"]). Embedding the full record overflows the print
+    // server (HTTP 413). State flags are written ONLY when true — the style's
+    // ["get", …] rules already treat a missing flag as false, so emitting
+    // `false` is dead weight.
     const properties: Record<string, unknown> = {
-      ...p,
       id: id ?? 0,
       sourceLayer,
       // Mirror the on-map highlight mode: with highlighting active, only the
@@ -341,6 +357,9 @@ export const buildBelisInlineFachobjekteLayer = (params: {
       // global-state gate, so the dimming is driven purely by this property.
       highlighted: highlightingActive ? !!st.highlighted : true,
     };
+    for (const k of PRINT_STYLE_PROPERTY_KEYS) {
+      if (p[k] != null) properties[k] = p[k];
+    }
     if (st.selected) properties.selected = true;
     if (st.selectionInNeighborhood) properties.selectionInNeighborhood = true;
 
