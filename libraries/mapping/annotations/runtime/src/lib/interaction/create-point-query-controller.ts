@@ -149,9 +149,7 @@ export const createPointQueryController = ({
   let discNormalLineRuntime: AuthoringLineRuntime | null = null;
   const unregisterScenePickExclusions =
     registerCesiumScenePickExclusionResolver(scene, () =>
-      [discPrimitive].filter(
-        (candidate): candidate is object => candidate !== null
-      )
+      discPrimitive === null ? [] : [discPrimitive]
     );
   let discNeedsRender = false;
   let previousSurfaceNormal: Cartesian3 | null = null;

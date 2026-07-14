@@ -39,6 +39,7 @@ import {
 const createEmptyPointVisibilityState = (): OverlayVisibilityState => ({
   canvasPosition: null,
   screenPosition: null,
+  isInViewport: false,
   isHidden: true,
   isOccluded: false,
 });

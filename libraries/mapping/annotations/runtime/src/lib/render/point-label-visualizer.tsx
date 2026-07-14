@@ -94,6 +94,7 @@ const getPointLabelOverlayId = (overlayIdPrefix: string, labelId: string) =>
 const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
   canvasPosition: null,
   screenPosition: null,
+  isInViewport: false,
   isHidden: true,
   isOccluded: false,
   hiddenByLayout: true,
