@@ -75,7 +75,11 @@ export const getAveragedCandidateRingNormal = ({
   nowMs?: number;
 }): Cartesian3 => {
   const cutoffTimestamp = nowMs - Math.max(0, maxSampleAgeMs);
-  while (samples.length > 0 && samples[0]!.timestampMs < cutoffTimestamp) {
+  // Keep the newest sample as the stable target after pointer input stops.
+  // Only historical samples form the temporal trail and are allowed to age
+  // out; otherwise callers would fall back to their already-smoothed normal
+  // and retain part of the trail indefinitely.
+  while (samples.length > 1 && samples[0]!.timestampMs < cutoffTimestamp) {
     samples.shift();
   }
 
@@ -90,6 +94,7 @@ export const getAveragedCandidateRingNormal = ({
   const effectiveWeightDecayWindowMs = Math.max(0, weightDecayWindowMs);
   const effectiveWeightDecayGamma = Math.max(weightDecayGamma, 0.01);
 
+  const latestSample = samples[samples.length - 1]!;
   for (const sample of samples) {
     SAMPLE_NORMAL_SCRATCH.x = sample.normalX;
     SAMPLE_NORMAL_SCRATCH.y = sample.normalY;
@@ -97,7 +102,9 @@ export const getAveragedCandidateRingNormal = ({
     orientNormalTowardReference(SAMPLE_NORMAL_SCRATCH, fallbackNormal);
     const sampleAgeMs = Math.max(0, nowMs - sample.timestampMs);
     const sampleWeight =
-      effectiveWeightDecayWindowMs > 0
+      sample === latestSample
+        ? 1
+        : effectiveWeightDecayWindowMs > 0
         ? Math.pow(
             Math.max(0, 1 - sampleAgeMs / effectiveWeightDecayWindowMs),
             effectiveWeightDecayGamma

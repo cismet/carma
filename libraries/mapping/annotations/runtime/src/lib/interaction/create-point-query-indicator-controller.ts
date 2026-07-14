@@ -157,6 +157,7 @@ export const createPointQueryIndicatorController = (
       previewRing === null ? [] : [previewRing]
     );
   let removePreviewRingFrameListener: (() => void) | null = null;
+  let previewRingSmoothingRenderPending = false;
   let previewPoint: Cartesian3 | null = null;
   // Optional world-radius resizing holds a captured radius across authoring and
   // only recalculates it after a meaningful zoom change.
@@ -189,6 +190,7 @@ export const createPointQueryIndicatorController = (
     }
     previewRingSamples = [];
     previewRingLastQueuedInput = null;
+    previewRingSmoothingRenderPending = false;
     // Re-capture the stepped size at the next authoring session.
     steppedScaler.reset();
   };
@@ -332,7 +334,24 @@ export const createPointQueryIndicatorController = (
       nowMs: performance.now(),
     });
 
-  const updatePreviewRing = () => {
+  const requestPreviewRingSmoothingRender = () => {
+    if (
+      previewRingSmoothingRenderPending ||
+      previewRingSamples.length <= 1 ||
+      activeScene.isDestroyed()
+    ) {
+      return;
+    }
+
+    previewRingSmoothingRenderPending = true;
+    activeScene.requestRender();
+  };
+
+  const updatePreviewRing = ({
+    requestSmoothingRender = true,
+  }: {
+    requestSmoothingRender?: boolean;
+  } = {}) => {
     if (!enabled) {
       clearPreviewRing();
       return;
@@ -371,6 +390,9 @@ export const createPointQueryIndicatorController = (
       queuePreviewSample(discNormal);
     }
     const averagedPreviewNormal = getAveragedPreviewNormal(discNormal);
+    if (requestSmoothingRender) {
+      requestPreviewRingSmoothingRender();
+    }
     activeRing.modelMatrix = createOrientedDiscModelMatrix(
       center,
       averagedPreviewNormal,
@@ -390,8 +412,12 @@ export const createPointQueryIndicatorController = (
   // probe/query disc tracks the cursor on the same frame. The point-query hook
   // owns the coalesced render request for pointer input; this controller only
   // applies the latest tracked position to that frame.
-  removePreviewRingFrameListener =
-    activeScene.preRender.addEventListener(updatePreviewRing);
+  removePreviewRingFrameListener = activeScene.preRender.addEventListener(
+    () => {
+      previewRingSmoothingRenderPending = false;
+      updatePreviewRing();
+    }
+  );
 
   return {
     setEnabled: (nextEnabled) => {
@@ -403,7 +429,7 @@ export const createPointQueryIndicatorController = (
       if (!enabled) {
         clearPreviewRing();
       } else {
-        updatePreviewRing();
+        updatePreviewRing({ requestSmoothingRender: false });
       }
       activeScene.requestRender();
     },
@@ -417,7 +443,7 @@ export const createPointQueryIndicatorController = (
       previewRingColor = nextPreviewRingColor;
       previewRingStyleKey = nextPreviewRingStyleKey;
       clearPreviewRing();
-      updatePreviewRing();
+      updatePreviewRing({ requestSmoothingRender: false });
       if (options?.requestRender !== false) {
         activeScene.requestRender();
       }
@@ -459,7 +485,7 @@ export const createPointQueryIndicatorController = (
         : null;
       latestPreviewPointLocked = preview.lockToPreviewPoint === true;
       previewInputVersion += 1;
-      updatePreviewRing();
+      updatePreviewRing({ requestSmoothingRender: false });
       if (options?.requestRender !== false) {
         activeScene.requestRender();
       }

@@ -1459,12 +1459,12 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
     }
 
     const canvasRect = cesiumCanvas.getBoundingClientRect();
-    const movePointer = async (offset: number) => {
+    const movePointer = async (offset: number, waitMs = 180) => {
       fireEvent.pointerMove(cesiumCanvas, {
         clientX: canvasRect.left + canvasRect.width / 2 + offset,
         clientY: canvasRect.top + canvasRect.height / 2 + offset,
       });
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 180));
+      await new Promise<void>((resolve) => window.setTimeout(resolve, waitMs));
     };
     const readTelemetry = () =>
       (
@@ -1495,7 +1495,7 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
     const warmedProcessedVersion =
       warmedTelemetry?.lastProcessedInputVersion ?? 0;
     for (let offset = 4; offset < 9; offset += 1) {
-      await movePointer(offset);
+      await movePointer(offset, 40);
     }
     await waitFor(
       () => {
@@ -1511,7 +1511,10 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
       { timeout: 10_000 }
     );
 
+    const smoothingStartEntryCount = readTelemetry()?.entries.length ?? 0;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 420));
     const settledEntryCount = readTelemetry()?.entries.length ?? 0;
+    expect(settledEntryCount).toBeGreaterThan(smoothingStartEntryCount);
     await new Promise<void>((resolve) => window.setTimeout(resolve, 120));
     expect(readTelemetry()?.entries.length ?? 0).toBe(settledEntryCount);
   },

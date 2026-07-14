@@ -151,7 +151,8 @@ export const createPointQueryController = ({
     registerCesiumScenePickExclusionResolver(scene, () =>
       discPrimitive === null ? [] : [discPrimitive]
     );
-  let discNeedsRender = false;
+  let discInputNeedsRender = false;
+  let discSmoothingNeedsRender = false;
   let previousSurfaceNormal: Cartesian3 | null = null;
   let latestDiscWorldPosition: Cartesian3 | null = null;
   let latestDiscNormal: Cartesian3 | null = null;
@@ -455,6 +456,21 @@ export const createPointQueryController = ({
 
   const markRenderRequestEvent = () => {
     pointQueryDebugRuntime.markRenderRequestEvent();
+  };
+
+  const requestNormalSmoothingRender = () => {
+    if (
+      scene.isDestroyed() ||
+      discNormalSamples.length <= 1 ||
+      discInputNeedsRender ||
+      discSmoothingNeedsRender
+    ) {
+      return;
+    }
+
+    discSmoothingNeedsRender = true;
+    markRenderRequestEvent();
+    scene.requestRender();
   };
 
   const markSampleEvent = () => {
@@ -850,6 +866,7 @@ export const createPointQueryController = ({
       fallbackNormal ?? null
     );
     const averagedDiscNormal = getAveragedDiscNormal(discNormal);
+    requestNormalSmoothingRender();
     const discRadius = Math.max(currentOptions.discRadiusMeters, 0.1);
     const sampledRadius = resolvePointQueryDiscRadius({
       scene,
@@ -1130,9 +1147,11 @@ export const createPointQueryController = ({
     };
   };
 
-  const renderDiscAndReadout = () => {
-    discNeedsRender = false;
-
+  const renderDiscAndReadout = ({
+    allowTrueSample,
+  }: {
+    allowTrueSample: boolean;
+  }) => {
     if (!currentOptions.queryEnabled) {
       clearDiscPrimitive();
       updateReadout(null, null);
@@ -1148,7 +1167,7 @@ export const createPointQueryController = ({
     let trueDiscSample: PreparedDiscSample | null = null;
     let renderDiscSample: PreparedDiscSample | null = null;
 
-    if (shouldRefreshTrueDiscSample(nowMs)) {
+    if (allowTrueSample && shouldRefreshTrueDiscSample(nowMs)) {
       trueDiscSample = sampleTrueDiscAtCurrentPointer({
         sampleSurfaceNormal: shouldRefreshTrueDiscNormal(nowMs),
       });
@@ -1164,7 +1183,10 @@ export const createPointQueryController = ({
       }
     }
 
-    if (trueDiscSample) {
+    if (!allowTrueSample) {
+      renderDiscSample =
+        prepareDisplayedDiscSampleForSmoothing(latestInputVersion);
+    } else if (trueDiscSample) {
       renderDiscSample = trueDiscSample;
       latestPreparedDiscSample = null;
     } else if (shouldUseFastReproject) {
@@ -1226,7 +1248,8 @@ export const createPointQueryController = ({
       return;
     }
 
-    discNeedsRender = true;
+    discInputNeedsRender = true;
+    discSmoothingNeedsRender = false;
     requestRenderOnly();
   };
 
@@ -1255,11 +1278,14 @@ export const createPointQueryController = ({
   };
 
   const removePreRenderListener = scene.preRender.addEventListener(() => {
-    if (!discNeedsRender) {
+    if (!discInputNeedsRender && !discSmoothingNeedsRender) {
       return;
     }
 
-    renderDiscAndReadout();
+    const allowTrueSample = discInputNeedsRender;
+    discInputNeedsRender = false;
+    discSmoothingNeedsRender = false;
+    renderDiscAndReadout({ allowTrueSample });
   });
 
   const commitLatestInputClientPosition = ({
