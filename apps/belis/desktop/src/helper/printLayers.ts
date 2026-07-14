@@ -98,6 +98,33 @@ const resolveLeitungenBasenames = (
 };
 
 /**
+ * Resolve which Leitungstyp bezeichnungen may print, mirroring the on-map
+ * Leitungstyp filter (applyLeitungenFilter):
+ *   - key table not loaded, all types enabled, or none explicitly set
+ *     -> null ("no filter"; every Leitung prints)
+ *   - a subset enabled -> a Set of the enabled bezeichnungen; a Leitung prints
+ *     only when its `bezeichnung` property is in the set.
+ */
+const resolveLeitungenAllowedNames = (
+  enabledLeitungstypen: Record<number, boolean>,
+  leitungstypen: Leitungstyp[]
+): Set<string> | null => {
+  if (!leitungstypen || leitungstypen.length === 0) return null;
+
+  const noneExplicitlySet = Object.keys(enabledLeitungstypen).length === 0;
+  const allEnabled = leitungstypen.every(
+    (t) => enabledLeitungstypen[t.id] !== false
+  );
+  if (allEnabled || noneExplicitlySet) return null;
+
+  return new Set(
+    leitungstypen
+      .filter((t) => enabledLeitungstypen[t.id] !== false && t.bezeichnung)
+      .map((t) => t.bezeichnung as string)
+  );
+};
+
+/**
  * Build the print-style basenames for every visible Fachobjekt category, in
  * bottom -> top draw order. A category contributes only when its filter toggle
  * is on (missing/true = on, matching the on-map behaviour).
@@ -199,8 +226,10 @@ const statsIntersectBbox = (s: GeomStats, bbox: Bbox): boolean =>
  *
  * Returns null when there is nothing to print.
  *
- * NOTE: category-level filter toggles are mirrored; the Leitungstyp sub-filter
- * is not yet applied here (all visible Leitungen are printed).
+ * NOTE: both the category-level filter toggles and the Leitungstyp sub-filter
+ * are mirrored — a Leitung is only printed when its `bezeichnung` matches an
+ * enabled Leitungstyp (see resolveLeitungenAllowedNames), just like the on-map
+ * applyLeitungenFilter.
  */
 export const buildBelisInlineFachobjekteLayer = (params: {
   map: MaplibreMap;
@@ -209,6 +238,10 @@ export const buildBelisInlineFachobjekteLayer = (params: {
   /** Namespaced brand-new geojson source id. */
   brandnewSource: string;
   enabledCategoryFilters: Record<string, boolean>;
+  /** On-map Leitungstyp sub-filter (id -> enabled, missing/true = visible). */
+  enabledLeitungstypen: Record<number, boolean>;
+  /** Leitungstyp key table (id -> bezeichnung) for sub-variant matching. */
+  leitungstypen: Leitungstyp[];
   regularEnabled: boolean;
   brandnewEnabled: boolean;
   /**
@@ -225,6 +258,8 @@ export const buildBelisInlineFachobjekteLayer = (params: {
     namespacedSource,
     brandnewSource,
     enabledCategoryFilters,
+    enabledLeitungstypen,
+    leitungstypen,
     regularEnabled,
     brandnewEnabled,
     highlightingActive,
@@ -237,6 +272,22 @@ export const buildBelisInlineFachobjekteLayer = (params: {
   const categoryVisible = (sourceLayer: string): boolean => {
     const key = SOURCE_LAYER_TO_FILTER_KEY[sourceLayer] ?? sourceLayer;
     return enabledCategoryFilters[key] !== false;
+  };
+
+  // Leitungstyp sub-filter: null = print all Leitungen; otherwise a Leitung is
+  // printed only when its `bezeichnung` is in the allowed set (mirrors the
+  // on-map applyLeitungenFilter's `["in", ["get","bezeichnung"], …]`).
+  const allowedLeitungenNames = resolveLeitungenAllowedNames(
+    enabledLeitungstypen,
+    leitungstypen
+  );
+  const leitungstypVisible = (
+    sourceLayer: string,
+    props: Record<string, unknown> | undefined
+  ): boolean => {
+    if (sourceLayer !== "leitungen" || allowedLeitungenNames === null)
+      return true;
+    return allowedLeitungenNames.has(props?.bezeichnung as string);
   };
 
   const readState = (
@@ -262,6 +313,7 @@ export const buildBelisInlineFachobjekteLayer = (params: {
     f: GeoJSONFeature
   ): void => {
     if (!f.geometry) return;
+    if (!leitungstypVisible(sourceLayer, f.properties)) return;
     const stats = geometryStats(f.geometry);
     if (bbox && !statsIntersectBbox(stats, bbox)) return;
 
