@@ -8,7 +8,7 @@ import {
   createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
 } from "../interaction/authoring-visual-runtime";
-import { ANNOTATION_OVERLAY_GROUP } from "../interaction/preview-overlay-mount.shared";
+import { ANNOTATION_OVERLAY_GROUP } from "../interaction/annotation-overlay-mount.shared";
 import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 
 export type AnnotationOverlayPolygonFillsController = {

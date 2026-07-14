@@ -4,7 +4,6 @@ export * from "./hooks/useCesiumFovWheelZoom";
 export * from "./hooks/useCesiumDevConsoleTrigger";
 export * from "./hooks/useCesiumOverlayView";
 export * from "./hooks/useCesiumLabelOverlayHost";
-export * from "./hooks/useCesiumOverlaySync";
 export * from "./hooks/useCesiumPointQuery";
 export * from "./hooks/useCesiumViewProjector";
 export * from "./hooks/scenePointerTracker";

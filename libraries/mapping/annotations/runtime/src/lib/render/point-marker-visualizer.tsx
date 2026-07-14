@@ -186,12 +186,8 @@ export const usePointMarkerVisualizer = (
   liveAnchors: LiveAnnotationAnchors,
   overlayIdPrefix: string = "runtime-point-marker"
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    updateLabelOverlayElement,
-    updatePositions,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
+    useLabelOverlay();
   const pointsRef = useRef(points);
   const previousPointIdsRef = useRef<Set<string>>(new Set());
   const stateCacheRef = useRef<{
@@ -408,12 +404,7 @@ export const usePointMarkerVisualizer = (
         },
       };
 
-      if (previousPointIdsRef.current.has(point.id)) {
-        updateLabelOverlayElement(overlayId, overlayElement);
-        return;
-      }
-
-      addLabelOverlayElement(overlayElement);
+      setLabelOverlayElement(overlayElement);
     });
 
     previousPointIdsRef.current.forEach((pointId) => {
@@ -431,14 +422,13 @@ export const usePointMarkerVisualizer = (
     updatePositions();
     scene?.requestRender();
   }, [
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     liveAnchors,
     overlayIdPrefix,
     points,
     removeLabelOverlayElement,
     resolvePointVisibilityState,
     scene,
-    updateLabelOverlayElement,
     updatePositions,
   ]);
 

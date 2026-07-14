@@ -557,10 +557,6 @@ export const createTransientPointLabelController = ({
 
     if (!currentState) {
       if (mounted) {
-        labelOverlay.updateLabelOverlayElement(overlayId, {
-          zIndex: transientPointLabelControllerDefaults.zIndex,
-          updatePosition,
-        });
         labelOverlay.updatePositions();
         requestRender?.();
       }
@@ -570,42 +566,20 @@ export const createTransientPointLabelController = ({
     const nextContentSignature =
       getPointLabelOverlayContentSignature(currentState);
 
-    if (!mounted) {
-      currentContentSignature = nextContentSignature;
-      labelOverlay.addLabelOverlayElement({
-        id: overlayId,
-        zIndex:
-          currentState.zIndex ?? transientPointLabelControllerDefaults.zIndex,
-        contentKey: nextContentSignature,
-        content: renderPointLabelOverlayContent(currentState),
-        updatePosition,
-      });
-      mounted = true;
-      labelOverlay.updatePositions();
-      requestRender?.();
-      return;
-    }
-
     if (nextContentSignature !== currentContentSignature) {
       currentContentSignature = nextContentSignature;
       cachedDomRefs = null;
-      labelOverlay.updateLabelOverlayElement(overlayId, {
-        zIndex:
-          currentState.zIndex ?? transientPointLabelControllerDefaults.zIndex,
-        contentKey: nextContentSignature,
-        content: renderPointLabelOverlayContent(currentState),
-        updatePosition,
-      });
-      labelOverlay.updatePositions();
-      requestRender?.();
-      return;
     }
 
-    labelOverlay.updateLabelOverlayElement(overlayId, {
+    labelOverlay.setLabelOverlayElement({
+      id: overlayId,
       zIndex:
         currentState.zIndex ?? transientPointLabelControllerDefaults.zIndex,
+      contentKey: nextContentSignature,
+      content: renderPointLabelOverlayContent(currentState),
       updatePosition,
     });
+    mounted = true;
     labelOverlay.updatePositions();
     requestRender?.();
   };

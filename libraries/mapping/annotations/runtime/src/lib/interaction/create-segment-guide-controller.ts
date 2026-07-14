@@ -11,11 +11,11 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
@@ -42,7 +42,10 @@ export const createSegmentGuideController = (
     lineLabelOptions?: PartialAnnotationLineLabelOptions;
   }
 ): SegmentGuideController => {
-  const overlayLayer = createPreviewOverlayLayer(scene, SEGMENT_GUIDE_LAYER_ID);
+  const overlayLayer = createAnnotationOverlayLayer(
+    scene,
+    SEGMENT_GUIDE_LAYER_ID
+  );
   if (!overlayLayer) {
     return {
       setSegment: () => undefined,
@@ -201,7 +204,7 @@ export const createSegmentGuideController = (
       removePostRenderListener();
       hide();
       destroyLineCollection(scene, lineCollection);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

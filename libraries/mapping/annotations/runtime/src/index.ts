@@ -1,9 +1,6 @@
 import "./lib/interaction/annotation-overlay-line-label.css";
 
-export {
-  AnnotationOverlayRoots,
-  AnnotationPreviewOverlayRoots,
-} from "./lib/components/AnnotationPreviewOverlayRoots";
+export { AnnotationOverlayRoots } from "./lib/components/AnnotationOverlayRoots";
 export {
   RuntimeAnnotationsToolbar,
   type AnnotationsToolbarClassNames,
@@ -145,12 +142,10 @@ export {
   createAnnotationOverlayLayers,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
   destroyAnnotationOverlayLayer,
-  destroyPreviewOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
   placePointMarkers,
@@ -178,19 +173,13 @@ export { resolveSegmentGuideFrame } from "./lib/interaction/resolve-segment-guid
 export {
   ANNOTATION_OVERLAY_GROUP,
   ANNOTATION_OVERLAY_GROUP_RENDER_ORDER,
-  PREVIEW_OVERLAY_GROUP,
-  PREVIEW_OVERLAY_GROUP_RENDER_ORDER,
   resolveAnnotationOverlayMountConfig,
-  resolvePreviewOverlayMountConfig,
-} from "./lib/interaction/preview-overlay-mount.shared";
+} from "./lib/interaction/annotation-overlay-mount.shared";
 export type { CrosshairCursorStyle } from "./lib/interaction/crosshair-cursor-asset";
 export type { PointQueryController } from "./lib/interaction/point-query-controller.types";
 export { POINT_QUERY_DISC_PLACEMENT_MODES } from "./lib/interaction/point-query-disc-placement-mode";
 export type { PointQueryDiscPlacementMode } from "./lib/interaction/point-query-disc-placement-mode";
-export type {
-  AnnotationOverlayGroup,
-  PreviewOverlayGroup,
-} from "./lib/interaction/preview-overlay-mount.shared";
+export type { AnnotationOverlayGroup } from "./lib/interaction/annotation-overlay-mount.shared";
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
   ANNOTATION_ENTRY_ROLES,

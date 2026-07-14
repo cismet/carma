@@ -4,14 +4,12 @@ import type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
   LabelOverlayViewChangeProbe,
-  LabelOverlayWorldAnchorProjector,
 } from "./host";
 type UseLabelOverlayHostOptions = {
   kind?: string;
   instanceId?: string;
   containerRef: RefObject<HTMLElement | null>;
   subscribeFrame?: LabelOverlayFrameSubscription | null;
-  projectWorldAnchor?: LabelOverlayWorldAnchorProjector | null;
   hasViewChanged?: LabelOverlayViewChangeProbe | null;
   onResize?: (() => void) | null;
   forceLayoutOnPortalRender?: boolean;
@@ -22,7 +20,6 @@ export const useLabelOverlayHost = ({
   instanceId,
   containerRef,
   subscribeFrame,
-  projectWorldAnchor,
   hasViewChanged,
   onResize,
   forceLayoutOnPortalRender = true,
@@ -99,7 +96,6 @@ export const useLabelOverlayHost = ({
       instanceId,
       containerRef,
       subscribeFrame: subscribeResponsiveFrame,
-      projectWorldAnchor: projectWorldAnchor ?? undefined,
       hasViewChanged: hasViewChanged ?? undefined,
       forceLayoutOnPortalRender,
     }),
@@ -109,7 +105,6 @@ export const useLabelOverlayHost = ({
       hasViewChanged,
       instanceId,
       kind,
-      projectWorldAnchor,
       subscribeResponsiveFrame,
     ]
   );

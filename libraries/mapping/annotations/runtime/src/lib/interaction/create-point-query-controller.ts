@@ -149,7 +149,7 @@ export const createPointQueryController = ({
   let discNormalLineRuntime: AuthoringLineRuntime | null = null;
   const unregisterScenePickExclusions =
     registerCesiumScenePickExclusionResolver(scene, () =>
-      [discPrimitive, discNormalLineCollection].filter(
+      [discPrimitive].filter(
         (candidate): candidate is object => candidate !== null
       )
     );

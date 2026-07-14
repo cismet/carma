@@ -1117,6 +1117,7 @@ const dragSurfacePickTestHandle = async (
 
 export const SurfacePickExclusions: StoryObj<GizmoSandboxProps> = {
   name: "Surface Pick Exclusions",
+  tags: ["pick-exclusion"],
   args: {
     ...Cesium.args,
     referenceObject: "query-disc",
@@ -1141,6 +1142,7 @@ export const SurfacePickExclusions: StoryObj<GizmoSandboxProps> = {
 
 export const GizmoSelfPickExclusion: StoryObj<GizmoSandboxProps> = {
   name: "Gizmo Never Picks Itself",
+  tags: ["pick-exclusion"],
   args: {
     ...Cesium.args,
     referenceObject: "gizmo",
@@ -1165,6 +1167,7 @@ export const GizmoSelfPickExclusion: StoryObj<GizmoSandboxProps> = {
 
 export const OwnGeometryAsSurface: StoryObj<GizmoSandboxProps> = {
   name: "Own Geometry As Surface (Opt-in)",
+  tags: ["pick-exclusion"],
   args: {
     ...SurfacePickExclusions.args,
     excludeRegisteredDragSampleOccluders: false,

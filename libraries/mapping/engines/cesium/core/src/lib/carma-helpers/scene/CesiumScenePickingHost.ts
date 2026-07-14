@@ -1,4 +1,4 @@
-import type { Cartesian3, Ray, Scene } from "@carma-cesium";
+import type { Cartesian2, Cartesian3, Ray, Scene } from "@carma-cesium";
 
 export type CesiumScenePickExclusionResolver = () => readonly object[];
 
@@ -38,6 +38,13 @@ export type CesiumSceneRayPickOptions = {
 };
 
 export type CesiumSceneRayPickResult = { position?: Cartesian3 } | undefined;
+
+export type CesiumScenePickOptions = {
+  width?: number;
+  height?: number;
+};
+
+export type CesiumScenePickResult = object | undefined;
 
 const isCesiumPickCollection = (
   candidate: object
@@ -184,19 +191,11 @@ export const getCesiumScenePickExclusions = (
   return [...exclusions];
 };
 
-/**
- * Pick through the Scene host so every registered exclusion is honored.
- *
- * Cesium's `objectsToExclude` only applies when the offscreen pass returns a
- * pick object. Translucent/depth-only helpers can return a position without an
- * object, so the host also hides registered showable objects for the duration
- * of the synchronous pick and restores their exact state afterwards.
- */
-export const pickCesiumSceneFromRay = (
+const runWithHiddenCesiumScenePickExclusions = <T>(
   scene: Scene,
-  ray: Ray,
-  { includeDragSampleExclusions = false, width }: CesiumSceneRayPickOptions = {}
-): CesiumSceneRayPickResult => {
+  includeDragSampleExclusions: boolean,
+  pick: (exclusions: readonly object[]) => T
+): T => {
   const exclusions = getCesiumScenePickExclusions(scene, {
     includeDragSampleExclusions,
   });
@@ -215,18 +214,7 @@ export const pickCesiumSceneFromRay = (
   });
 
   try {
-    const pickFromRay = (
-      scene as Scene & {
-        pickFromRay?: (
-          pickRay: Ray,
-          objectsToExclude?: readonly object[],
-          pickWidth?: number
-        ) => CesiumSceneRayPickResult;
-      }
-    ).pickFromRay;
-    return width === undefined
-      ? pickFromRay?.(ray, exclusions)
-      : pickFromRay?.(ray, exclusions, width);
+    return pick(exclusions);
   } finally {
     previousShowByObject.forEach((show, exclusion) => {
       try {
@@ -236,4 +224,49 @@ export const pickCesiumSceneFromRay = (
       }
     });
   }
+};
+
+/** Pick at a screen position while every permanent tool exclusion is hidden. */
+export const pickCesiumSceneAtPosition = (
+  scene: Scene,
+  position: Cartesian2,
+  { width, height }: CesiumScenePickOptions = {}
+): CesiumScenePickResult =>
+  runWithHiddenCesiumScenePickExclusions(scene, false, () =>
+    width === undefined && height === undefined
+      ? scene.pick(position)
+      : scene.pick(position, width, height)
+  ) as CesiumScenePickResult;
+
+/**
+ * Pick through the Scene host so every registered exclusion is honored.
+ *
+ * Cesium's `objectsToExclude` only applies when the offscreen pass returns a
+ * pick object. Translucent/depth-only helpers can return a position without an
+ * object, so the host also hides registered showable objects for the duration
+ * of the synchronous pick and restores their exact state afterwards.
+ */
+export const pickCesiumSceneFromRay = (
+  scene: Scene,
+  ray: Ray,
+  { includeDragSampleExclusions = false, width }: CesiumSceneRayPickOptions = {}
+): CesiumSceneRayPickResult => {
+  return runWithHiddenCesiumScenePickExclusions(
+    scene,
+    includeDragSampleExclusions,
+    (exclusions) => {
+      const pickFromRay = (
+        scene as Scene & {
+          pickFromRay?: (
+            pickRay: Ray,
+            objectsToExclude?: readonly object[],
+            pickWidth?: number
+          ) => CesiumSceneRayPickResult;
+        }
+      ).pickFromRay;
+      return width === undefined
+        ? pickFromRay?.(ray, exclusions)
+        : pickFromRay?.(ray, exclusions, width);
+    }
+  );
 };

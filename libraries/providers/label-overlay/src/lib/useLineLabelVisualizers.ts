@@ -247,11 +247,8 @@ export const useLineLabelVisualizers = (
   lines: LineVisualizerData[],
   showLines: boolean = true
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    updateLabelOverlayElement,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement } =
+    useLabelOverlay();
   const previousLineLabelSignatureByIdRef = useRef<Map<string, string>>(
     new Map()
   );
@@ -287,26 +284,12 @@ export const useLineLabelVisualizers = (
 
       const nextLabelSignature = lineLabelSignatureById.get(lineId) ?? "";
       nextLabelSignatureById.set(lineId, nextLabelSignature);
-      const previousLabelSignature =
-        previousLineLabelSignatureByIdRef.current.get(lineId) ?? null;
-      if (previousLabelSignature === nextLabelSignature) {
-        updateLabelOverlayElement(labelOverlayId, {
-          visible: line.visible !== false,
-          isHidden: line.isHidden,
-          onClick: labelClickHandler,
-          cursor: labelClickHandler ? "pointer" : undefined,
-          updatePosition: buildLineLabelOverlayUpdatePosition(line),
-        });
-        return;
-      }
-
-      addLabelOverlayElement({
+      setLabelOverlayElement({
         id: labelOverlayId,
         zIndex: lineLabelVisualizerDefaults.overlayZIndex,
         contentKey: nextLabelSignature,
         content: createLineLabelOverlayContent(line),
-        visible: line.visible !== false,
-        isHidden: line.isHidden,
+        visible: line.visible !== false && line.isHidden !== true,
         onClick: labelClickHandler,
         cursor: labelClickHandler ? "pointer" : undefined,
         updatePosition: buildLineLabelOverlayUpdatePosition(line),
@@ -322,9 +305,8 @@ export const useLineLabelVisualizers = (
     showLines,
     lineIndexById,
     lineLabelSignatureById,
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     removeLabelOverlayElement,
-    updateLabelOverlayElement,
   ]);
 
   useEffect(

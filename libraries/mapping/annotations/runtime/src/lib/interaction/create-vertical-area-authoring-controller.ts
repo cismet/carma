@@ -22,9 +22,9 @@ import {
   applyLineLabel,
   buildVerticalAreaLoopCoordinates,
   createAreaLabelController,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   createSegmentLineLabels,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   annotationOverlayDefaults,
   runtimeCoordinateFromCartesian,
@@ -194,7 +194,7 @@ export const createVerticalAreaAuthoringController = ({
       scene,
       `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview`
     );
-  const labelOverlayLayer = createPreviewOverlayLayer(
+  const labelOverlayLayer = createAnnotationOverlayLayer(
     scene,
     VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID
   );
@@ -444,7 +444,7 @@ export const createVerticalAreaAuthoringController = ({
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();
-      destroyPreviewOverlayLayer(labelOverlayLayer);
+      destroyAnnotationOverlayLayer(labelOverlayLayer);
     },
   };
 };

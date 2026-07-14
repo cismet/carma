@@ -20,12 +20,12 @@ import {
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
   placePointMarkers,
   annotationOverlayDefaults,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
 } from "@carma-mapping/annotations/runtime";
 import { resolveSegmentGuideFrame } from "@carma-mapping/annotations/runtime";
 import {
@@ -124,7 +124,7 @@ export const createDistanceAuthoringController = ({
     return null;
   }
 
-  const overlayLayer = createPreviewOverlayLayer(
+  const overlayLayer = createAnnotationOverlayLayer(
     scene,
     DISTANCE_PREVIEW_LAYER_ID
   );
@@ -368,7 +368,7 @@ export const createDistanceAuthoringController = ({
       removePostRenderListener();
       hide();
       destroyLineCollection(scene, lineCollection);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

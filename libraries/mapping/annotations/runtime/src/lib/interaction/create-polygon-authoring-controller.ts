@@ -30,9 +30,9 @@ import {
   createAreaLabelController,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   annotationOverlayDefaults,
   type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
@@ -408,7 +408,7 @@ export const createPolygonAuthoringController = ({
       scene,
       `${previewId}-draft-preview`
     );
-  const areaLabelOverlayLayer = createPreviewOverlayLayer(
+  const areaLabelOverlayLayer = createAnnotationOverlayLayer(
     scene,
     `${AREA_LABEL_OVERLAY_LAYER_ID}-${previewId}`
   );
@@ -678,7 +678,7 @@ export const createPolygonAuthoringController = ({
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();
-      destroyPreviewOverlayLayer(areaLabelOverlayLayer);
+      destroyAnnotationOverlayLayer(areaLabelOverlayLayer);
     },
   };
 };

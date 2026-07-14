@@ -104,7 +104,6 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   }, []);
   const resolvedContainerRef = host.containerRef;
   const resolvedFrameSubscription = host.subscribeFrame;
-  const resolvedProjectWorldAnchor = host.projectWorldAnchor;
   const resolvedHasViewChanged = host.hasViewChanged;
   const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
 
@@ -162,7 +161,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     };
   }, [forceRender, resolvedContainerRef]);
 
-  const addLabelOverlayElement = useCallback(
+  const setLabelOverlayElement = useCallback(
     (element: LabelOverlayElement) => {
       markPositionsDirty();
       const existing = overlayElementsRef.current.get(element.id);
@@ -188,31 +187,6 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     [forceRender, markPositionsDirty]
   );
 
-  const updateLabelOverlayElement = useCallback(
-    (id: string, updates: Partial<LabelOverlayElement>) => {
-      const existing = overlayElementsRef.current.get(id);
-      if (existing) {
-        const updated = { ...existing, ...updates };
-        const shouldRender = !shouldReuseOverlayPortal(existing, updated);
-        overlayElementsRef.current.set(id, updated);
-        markPositionsDirty();
-
-        if (shouldRender) {
-          forceRender();
-        }
-      }
-    },
-    [forceRender, markPositionsDirty]
-  );
-
-  const clearLabelOverlayElements = useCallback(() => {
-    if (overlayElementsRef.current.size === 0) return;
-    overlayElementsRef.current.clear();
-    overlayElementNodeByIdRef.current.clear();
-    markPositionsDirty();
-    forceRender();
-  }, [forceRender, markPositionsDirty]);
-
   // Update overlay positions (imperative, no React render). `force` bypasses the
   // idle gate for explicit/structural updates; the per-frame loop calls it
   // unforced so it can skip reprojection when neither the view nor any tracked
@@ -233,11 +207,6 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         const elementDiv = overlayElementNodeByIdRef.current.get(id);
         if (!elementDiv) return;
 
-        if (element.isHidden === true) {
-          elementDiv.style.display = "none";
-          return;
-        }
-
         if (element.updatePosition) {
           const hasPosition = element.updatePosition(elementDiv);
           elementDiv.style.display =
@@ -245,39 +214,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
           return;
         }
 
-        if (element.worldAnchor && resolvedProjectWorldAnchor) {
-          const anchor = element.worldAnchor();
-          const anchorScreenPosition = anchor
-            ? resolvedProjectWorldAnchor(anchor)
-            : null;
-          if (anchorScreenPosition && element.visible !== false) {
-            elementDiv.style.position = "absolute";
-            elementDiv.style.left = `${anchorScreenPosition.x}px`;
-            elementDiv.style.top = `${anchorScreenPosition.y}px`;
-            elementDiv.style.transform = "translate(-50%, -50%)";
-            elementDiv.style.display = "block";
-          } else {
-            elementDiv.style.display = "none";
-          }
-          return;
-        }
-
-        const canvasPosition = element.getCanvasPosition
-          ? element.getCanvasPosition()
-          : null;
-
-        if (canvasPosition && element.visible !== false) {
-          elementDiv.style.position = "absolute";
-          elementDiv.style.left = `${canvasPosition.x}px`;
-          elementDiv.style.top = `${canvasPosition.y}px`;
-          elementDiv.style.transform = "translate(-50%, -50%)";
-          elementDiv.style.display = "block";
-        } else {
-          elementDiv.style.display = "none";
-        }
+        elementDiv.style.display = "none";
       });
     },
-    [resolvedHasViewChanged, resolvedProjectWorldAnchor]
+    [resolvedHasViewChanged]
   );
 
   // Explicit, consumer-driven update — always runs (a caller asking for it has
@@ -290,26 +230,12 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   // (scene, time)); wrap so they never land in `force`.
   useEffect(() => {
     const runFrame = () => updatePositionsInternal();
-    if (resolvedFrameSubscription) {
-      const cleanup = resolvedFrameSubscription(runFrame);
-      return () => {
-        if (typeof cleanup === "function") {
-          cleanup();
-        }
-      };
-    } else {
-      let animationFrameId: number;
-      const animationLoop = () => {
-        runFrame();
-        animationFrameId = requestAnimationFrame(animationLoop);
-      };
-      animationFrameId = requestAnimationFrame(animationLoop);
-      return () => {
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-        }
-      };
-    }
+    const cleanup = resolvedFrameSubscription(runFrame);
+    return () => {
+      if (typeof cleanup === "function") {
+        cleanup();
+      }
+    };
   }, [resolvedFrameSubscription, updatePositionsInternal]);
 
   useLayoutEffect(() => {
@@ -323,18 +249,14 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
 
   const contextValue: LabelOverlayContextType = useMemo(
     () => ({
-      addLabelOverlayElement,
+      setLabelOverlayElement,
       removeLabelOverlayElement,
-      updateLabelOverlayElement,
-      clearLabelOverlayElements,
       updatePositions,
       invalidatePositions: markPositionsDirty,
     }),
     [
-      addLabelOverlayElement,
+      setLabelOverlayElement,
       removeLabelOverlayElement,
-      updateLabelOverlayElement,
-      clearLabelOverlayElements,
       updatePositions,
       markPositionsDirty,
     ]

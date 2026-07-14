@@ -42,7 +42,7 @@ import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
 import { RuntimeVisualHost } from "./RuntimeVisualHost";
 import { useAnnotationsAssembly } from "./use-annotations-assembly";
-import { AnnotationOverlayRoots } from "../components/AnnotationPreviewOverlayRoots";
+import { AnnotationOverlayRoots } from "../components/AnnotationOverlayRoots";
 import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/useLocalAnnotationsStorePersistence";
 import {
   useAnnotationLabelTextRequest,

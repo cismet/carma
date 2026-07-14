@@ -20,9 +20,9 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
   annotationOverlayDefaults,
@@ -153,7 +153,7 @@ export const createPathAuthoringController = (
     pointMarkerStyle?: PointMarkerVisualStyle;
   }
 ): PathAuthoringController => {
-  const overlayLayer = createPreviewOverlayLayer(scene, overlayLayerId);
+  const overlayLayer = createAnnotationOverlayLayer(scene, overlayLayerId);
   if (!overlayLayer) {
     return {
       setState: () => undefined,
@@ -253,7 +253,7 @@ export const createPathAuthoringController = (
       removePostRenderListener();
       hide();
       destroyLineCollection(scene, lineCollection);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

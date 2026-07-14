@@ -4,6 +4,7 @@ import type { Scene } from "@carma-cesium";
 
 import {
   getCesiumScenePickExclusions,
+  pickCesiumSceneAtPosition,
   pickCesiumSceneFromRay,
   registerCesiumSceneDragSampleExclusionResolver,
   registerCesiumScenePickExclusionResolver,
@@ -93,6 +94,31 @@ describe("Cesium scene picking host", () => {
 
     expect(observedShowStates).toEqual([false, false]);
     expect(observedExclusions).toEqual([helper, alreadyHiddenHelper]);
+    expect(helper.show).toBe(true);
+    expect(alreadyHiddenHelper.show).toBe(false);
+
+    unregister();
+  });
+
+  it("hides registered helpers only for the synchronous screen pick", () => {
+    const helper = { show: true };
+    const alreadyHiddenHelper = { show: false };
+    const position = {} as Parameters<typeof pickCesiumSceneAtPosition>[1];
+    const underlyingObject = {};
+    let observedShowStates: boolean[] = [];
+    const scene = {
+      pick: () => {
+        observedShowStates = [helper.show, alreadyHiddenHelper.show];
+        return underlyingObject;
+      },
+    } as unknown as Scene;
+    const unregister = registerCesiumScenePickExclusionResolver(scene, () => [
+      helper,
+      alreadyHiddenHelper,
+    ]);
+
+    expect(pickCesiumSceneAtPosition(scene, position)).toBe(underlyingObject);
+    expect(observedShowStates).toEqual([false, false]);
     expect(helper.show).toBe(true);
     expect(alreadyHiddenHelper.show).toBe(false);
 

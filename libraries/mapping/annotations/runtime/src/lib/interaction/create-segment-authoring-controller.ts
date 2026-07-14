@@ -23,8 +23,8 @@ import { createSegmentGuideController } from "./create-segment-guide-controller"
 import {
   applyLineLabel,
   createLineLabel,
-  createPreviewOverlayLayer,
-  destroyPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
+  destroyAnnotationOverlayLayer,
   annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
 import {
@@ -88,7 +88,7 @@ export const createSegmentAuthoringController = ({
     formatOptions,
     lineLabelOptions,
   });
-  const labelOverlayLayer = createPreviewOverlayLayer(
+  const labelOverlayLayer = createAnnotationOverlayLayer(
     scene,
     DRAFT_CHAIN_LABEL_LAYER_ID
   );
@@ -275,7 +275,7 @@ export const createSegmentAuthoringController = ({
       draftChainController.destroy();
       segmentController.destroy();
       totalLengthLabelController.destroy();
-      destroyPreviewOverlayLayer(labelOverlayLayer);
+      destroyAnnotationOverlayLayer(labelOverlayLayer);
     },
   };
 };

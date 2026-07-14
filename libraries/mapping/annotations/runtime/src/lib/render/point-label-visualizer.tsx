@@ -235,12 +235,8 @@ export const usePointLabelVisualizer = (
   overlayIdPrefix: string = "runtime-point-label",
   areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    updateLabelOverlayElement,
-    updatePositions,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
+    useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());
   const overlayDomRefsByIdRef = useRef<Map<string, PointLabelOverlayDomRefs>>(
@@ -682,19 +678,12 @@ export const usePointLabelVisualizer = (
         renderPointLabelOverlayContent(currentOverlayRenderState)
       );
 
-      if (previousLabelIdsRef.current.has(label.id)) {
-        updateLabelOverlayElement(overlayId, {
-          ...overlayElementUpdate,
-          contentKey: nextContentSignature,
-          content: overlayElementContent,
-        });
-        return;
+      if (!previousLabelIdsRef.current.has(label.id)) {
+        didMutateOverlayElements = true;
+        overlayDomRefsByIdRef.current.delete(label.id);
       }
 
-      didMutateOverlayElements = true;
-      overlayDomRefsByIdRef.current.delete(label.id);
-
-      addLabelOverlayElement({
+      setLabelOverlayElement({
         id: overlayId,
         contentKey: nextContentSignature,
         content: overlayElementContent,
@@ -721,7 +710,7 @@ export const usePointLabelVisualizer = (
       scene?.requestRender();
     }
   }, [
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,
@@ -729,7 +718,6 @@ export const usePointLabelVisualizer = (
     resolveLabelOverlayState,
     resolveOverlayDomRefs,
     scene,
-    updateLabelOverlayElement,
     updatePositions,
   ]);
 

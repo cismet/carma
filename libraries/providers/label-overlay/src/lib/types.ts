@@ -1,41 +1,21 @@
 import type { CSSProperties } from "react";
 import type { ReactNode } from "react";
 
-import type { CssPixelPosition } from "@carma-units";
-
-/** World-space anchor (structural x/y/z, so the provider stays engine-agnostic; a Cesium Cartesian3 satisfies it) the host projects to screen. */
-export type LabelOverlayWorldAnchor = { x: number; y: number; z: number };
-
 export interface LabelOverlayElement {
   id: string;
-  getCanvasPosition?: () => CssPixelPosition | null;
   updatePosition?: (elementDiv: HTMLElement) => boolean;
-  /**
-   * Optional live world anchor. When provided (and the host can project world
-   * anchors), the provider projects it to screen every frame and positions the
-   * element — no per-element `updatePosition` needed. Return `null` to hide.
-   * Read the anchor live from its owning runtime to track a drag in lockstep.
-   * Ignored when `updatePosition` is set (that takes full control).
-   */
-  worldAnchor?: () => LabelOverlayWorldAnchor | null;
   content: ReactNode;
   contentKey?: string;
   zIndex?: number;
   visible?: boolean;
-  isHidden?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
   cursor?: CSSProperties["cursor"];
 }
 
 export interface LabelOverlayContextType {
-  addLabelOverlayElement: (element: LabelOverlayElement) => void;
+  setLabelOverlayElement: (element: LabelOverlayElement) => void;
   removeLabelOverlayElement: (id: string) => void;
-  updateLabelOverlayElement: (
-    id: string,
-    updates: Partial<LabelOverlayElement>
-  ) => void;
-  clearLabelOverlayElements: () => void;
   updatePositions: () => void;
   invalidatePositions: () => void;
 }

@@ -457,7 +457,7 @@ export const useCesiumPointMoveGizmo = (
     onExit,
   }: UseCesiumPointMoveGizmoOptions
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
+  const { setLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
   const axisVisualizerRef = useRef<RotationAxisVisualizer | null>(null);
   const discVisualizerRef = useRef<Primitive | null>(null);
@@ -1986,7 +1986,7 @@ export const useCesiumPointMoveGizmo = (
     // Ensure a hard replace when this effect reruns so stale duplicate DOM cannot accumulate.
     removeLabelOverlayElement(OVERLAY_HANDLE_ID);
 
-    addLabelOverlayElement({
+    setLabelOverlayElement({
       id: OVERLAY_HANDLE_ID,
       zIndex: MOVE_GIZMO_OVERLAY_Z_INDEX,
       content: handleContent,
@@ -2650,14 +2650,13 @@ export const useCesiumPointMoveGizmo = (
         }
       },
       visible: true,
-      isHidden: false,
     });
 
     return () => {
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
     };
   }, [
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     handleContent,
     movePoint?.id,
     axisArrowOffsetPx,

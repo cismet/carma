@@ -1,5 +1,11 @@
 import { Cartesian2, Cartesian3, defined, type Scene } from "@carma-cesium";
 
+import {
+  getCesiumScenePickExclusions,
+  pickCesiumSceneAtPosition,
+  pickCesiumSceneFromRay,
+} from "./CesiumScenePickingHost";
+
 const isFiniteCartesian2 = (position: Cartesian2): boolean =>
   Number.isFinite(position.x) && Number.isFinite(position.y);
 
@@ -37,37 +43,30 @@ export function isPointOccluded(
     return false;
   }
 
-  let pickedObject;
+  let pickedCartesian: Cartesian3 | undefined;
   try {
-    // Use Cesium's scene.pick to test visibility against depth buffer
-    pickedObject = scene.pick(canvasPosition);
+    if (getCesiumScenePickExclusions(scene).length > 0) {
+      const ray = scene.camera.getPickRay(canvasPosition);
+      pickedCartesian = ray
+        ? pickCesiumSceneFromRay(scene, ray)?.position
+        : undefined;
+    } else {
+      const pickedObject = pickCesiumSceneAtPosition(scene, canvasPosition);
+      if (defined(pickedObject)) {
+        pickedCartesian = scene.pickPosition(canvasPosition);
+      }
+    }
   } catch {
     // During HMR / resize Cesium can have a transient invalid frustum state.
     // Treat as "not occluded" and continue rendering labels.
     return false;
   }
 
-  if (defined(pickedObject)) {
-    let pickedCartesian;
-    try {
-      // Get the depth of the picked object
-      pickedCartesian = scene.pickPosition(canvasPosition);
-    } catch {
-      return false;
-    }
-
-    if (defined(pickedCartesian)) {
-      // Calculate distances from camera
-      const cameraPosition = scene.camera.position;
-      const pointDistance = Cartesian3.distance(cameraPosition, point3D);
-      const pickedDistance = Cartesian3.distance(
-        cameraPosition,
-        pickedCartesian
-      );
-
-      // Point is occluded if something is closer to the camera
-      return pickedDistance < pointDistance - tolerance;
-    }
+  if (defined(pickedCartesian)) {
+    const cameraPosition = scene.camera.position;
+    const pointDistance = Cartesian3.distance(cameraPosition, point3D);
+    const pickedDistance = Cartesian3.distance(cameraPosition, pickedCartesian);
+    return pickedDistance < pointDistance - tolerance;
   }
 
   return false;

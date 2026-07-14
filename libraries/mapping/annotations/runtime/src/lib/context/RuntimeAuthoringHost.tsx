@@ -290,6 +290,10 @@ export const RuntimeAuthoringHost = ({
       activePlugin?.pointQuery?.onPointCreated) &&
       !activeEditedNodeId
   );
+  const pointQueryEnabledRef = useRef(pointQueryEnabled);
+  pointQueryEnabledRef.current = pointQueryEnabled;
+  const resolveHoveredPointQueryNodeRef = useRef(resolveHoveredPointQueryNode);
+  resolveHoveredPointQueryNodeRef.current = resolveHoveredPointQueryNode;
   const handlePreviewSnapTargetNodeClick = useCallback(
     (nodeId: string) => {
       if (!pointQueryEnabled) {
@@ -342,13 +346,13 @@ export const RuntimeAuthoringHost = ({
       });
     pointQueryIndicatorControllerRef.current =
       nextPointQueryIndicatorController;
-    nextPointQueryIndicatorController?.setEnabled(pointQueryEnabled);
-    if (pointQueryEnabled && latestPointQueryPickResultRef.current) {
+    nextPointQueryIndicatorController?.setEnabled(pointQueryEnabledRef.current);
+    if (pointQueryEnabledRef.current && latestPointQueryPickResultRef.current) {
       nextPointQueryIndicatorController?.setPreview({
         pointECEF: latestPointQueryPickResultRef.current.pointECEF,
         surfaceNormalECEF:
           latestPointQueryPickResultRef.current.surfaceNormalECEF,
-        lockToPreviewPoint: resolveHoveredPointQueryNode() !== null,
+        lockToPreviewPoint: resolveHoveredPointQueryNodeRef.current() !== null,
       });
     } else {
       nextPointQueryIndicatorController?.clearPreview();
@@ -359,14 +363,12 @@ export const RuntimeAuthoringHost = ({
       pointQueryIndicatorControllerRef.current = null;
     };
   }, [
-    pointQueryEnabled,
     referenceObjectSizing.quantizeWorldRadius,
     referenceObjectSizing.resizeWorldRadiusToScreenTarget,
     referenceObjectSizing.resizeStepFactor,
     referenceObjectSizing.scalingMode,
     referenceObjectSizing.targetScreenRadiusCssPx,
     referenceObjectSizing.worldRadiusMeters,
-    resolveHoveredPointQueryNode,
     scene,
   ]);
 
@@ -391,9 +393,11 @@ export const RuntimeAuthoringHost = ({
         lineLabelOptions,
       } satisfies AnnotationToolAuthoringContext) ?? null;
     activeAuthoringControllerRef.current = nextAuthoringController;
-    nextAuthoringController?.setEnabled(pointQueryEnabled);
+    nextAuthoringController?.setEnabled(pointQueryEnabledRef.current);
     nextAuthoringController?.setPointQueryPickResult(
-      pointQueryEnabled ? latestPointQueryPickResultRef.current : null
+      pointQueryEnabledRef.current
+        ? latestPointQueryPickResultRef.current
+        : null
     );
 
     return () => {
@@ -406,7 +410,6 @@ export const RuntimeAuthoringHost = ({
     annotationToolDraftStore,
     formatOptions,
     labelOverlay,
-    pointQueryEnabled,
     lineLabelOptions,
     scene,
   ]);

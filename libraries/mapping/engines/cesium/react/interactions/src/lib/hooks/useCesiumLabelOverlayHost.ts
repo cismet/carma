@@ -5,20 +5,8 @@ import {
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,
   type LabelOverlayViewChangeProbe,
-  type LabelOverlayWorldAnchorProjector,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma-units";
-import {
-  Cartesian2,
-  Cartesian3,
-  Matrix4,
-  SceneTransforms,
-  defined,
-  type Scene,
-} from "@carma-cesium";
-
-const worldAnchorScratch = new Cartesian3();
-const windowPositionScratch = new Cartesian2();
+import { Matrix4, type Scene } from "@carma-cesium";
 export const CESIUM_LABEL_OVERLAY_FRAME_PHASES = {
   PRE_RENDER: "preRender",
   POST_RENDER: "postRender",
@@ -106,35 +94,11 @@ export const useCesiumLabelOverlayHost = ({
     return changed;
   }, [scene]);
 
-  // Project a world anchor to a canvas position so the provider can position
-  // `worldAnchor` overlay elements without depending on Cesium itself.
-  const projectWorldAnchor = useCallback<LabelOverlayWorldAnchorProjector>(
-    (anchor) => {
-      if (!scene || scene.isDestroyed()) {
-        return null;
-      }
-      worldAnchorScratch.x = anchor.x;
-      worldAnchorScratch.y = anchor.y;
-      worldAnchorScratch.z = anchor.z;
-      const windowPosition = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        worldAnchorScratch,
-        windowPositionScratch
-      );
-      if (!defined(windowPosition)) {
-        return null;
-      }
-      return { x: windowPosition.x, y: windowPosition.y } as CssPixelPosition;
-    },
-    [scene]
-  );
-
   return useLabelOverlayHost({
     kind,
     instanceId,
     containerRef,
     subscribeFrame,
-    projectWorldAnchor,
     hasViewChanged,
     onResize: requestRender,
     forceLayoutOnPortalRender,

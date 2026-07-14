@@ -20,6 +20,7 @@ import {
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   isValidScene,
+  registerCesiumScenePickExclusionResolver,
 } from "@carma-mapping/engines/cesium/core";
 import {
   clampUnitRangeRatio,
@@ -50,7 +51,7 @@ import {
   ANNOTATION_OVERLAY_GROUP,
   resolveAnnotationOverlayContainer,
   type AnnotationOverlayGroup,
-} from "./preview-overlay-mount.shared";
+} from "./annotation-overlay-mount.shared";
 import {
   TEXT_OVERLAY_AREA_LABEL_STYLE,
   createTextOverlayElement,
@@ -65,12 +66,9 @@ export {
 } from "../config/annotation-overlay-defaults";
 export {
   ANNOTATION_OVERLAY_GROUP,
-  PREVIEW_OVERLAY_GROUP,
   resolveAnnotationOverlayContainer,
-  resolvePreviewContainer,
   type AnnotationOverlayGroup,
-  type PreviewOverlayGroup,
-} from "./preview-overlay-mount.shared";
+} from "./annotation-overlay-mount.shared";
 
 export type AuthoringLineRuntime = {
   polyline: Polyline;
@@ -124,13 +122,6 @@ type AnnotationLineLabelPlacement = {
   shouldFlip: boolean;
   normalX: number;
   normalY: number;
-};
-
-type LineCollectionFrameState = {
-  passes: {
-    pick: boolean;
-    render: boolean;
-  };
 };
 
 export const applyStyles = (
@@ -254,8 +245,6 @@ export const createAnnotationOverlayLayer = (
   return overlayLayer;
 };
 
-export const createPreviewOverlayLayer = createAnnotationOverlayLayer;
-
 export const createAnnotationOverlayLayers = (
   scene: Scene,
   layerIdByGroup: Partial<Record<AnnotationOverlayGroup, string>>
@@ -273,37 +262,38 @@ export const createAnnotationOverlayLayers = (
     ])
   ) as Partial<Record<AnnotationOverlayGroup, HTMLDivElement | null>>;
 
-export const createPreviewOverlayLayers = createAnnotationOverlayLayers;
-
 export const destroyAnnotationOverlayLayer = (
   overlayLayer: HTMLElement | null
 ) => {
   overlayLayer?.remove();
 };
 
-export const destroyPreviewOverlayLayer = destroyAnnotationOverlayLayer;
-
 export const createLineCollection = (scene: Scene) => {
   const collection = new PolylineCollection();
-  const originalUpdate = collection.update.bind(collection) as (
-    frameState: LineCollectionFrameState
-  ) => void;
-  collection.update = ((frameState: LineCollectionFrameState) => {
-    if (frameState.passes.pick && !frameState.passes.render) {
-      return;
-    }
-
-    return originalUpdate(frameState);
-  }) as typeof collection.update;
   scene.primitives.add(collection);
+  lineCollectionPickExclusionCleanupByCollection.set(
+    collection,
+    registerCesiumScenePickExclusionResolver(scene, () => [collection])
+  );
   return collection;
 };
+
+const lineCollectionPickExclusionCleanupByCollection = new WeakMap<
+  PolylineCollection,
+  () => void
+>();
 
 export const destroyLineCollection = (
   scene: Scene,
   collection: PolylineCollection | null
 ) => {
-  if (!collection || !isValidScene(scene)) {
+  if (!collection) {
+    return;
+  }
+
+  lineCollectionPickExclusionCleanupByCollection.get(collection)?.();
+  lineCollectionPickExclusionCleanupByCollection.delete(collection);
+  if (!isValidScene(scene)) {
     return;
   }
 

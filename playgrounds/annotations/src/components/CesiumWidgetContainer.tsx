@@ -22,7 +22,7 @@ import {
   createMinimalCesiumWidget,
   setViewFromCameraState,
 } from "@carma-mapping/engines/cesium/core";
-import { AnnotationPreviewOverlayRoots } from "@carma-mapping/annotations/runtime";
+import { AnnotationOverlayRoots } from "@carma-mapping/annotations/runtime";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
 
@@ -401,7 +401,7 @@ export function CesiumWidgetContainer({
           inset: 0,
         }}
       />
-      <AnnotationPreviewOverlayRoots />
+      <AnnotationOverlayRoots />
       {children}
     </div>
   );

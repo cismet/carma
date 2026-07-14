@@ -5,24 +5,20 @@ import {
 
 import type { Scene } from "@carma-cesium";
 
-export const PREVIEW_OVERLAY_GROUP = {
+export const ANNOTATION_OVERLAY_GROUP = {
   LABEL: "label",
   VISUALIZER: "visualizer",
 } as const;
 
-export type PreviewOverlayGroup =
-  (typeof PREVIEW_OVERLAY_GROUP)[keyof typeof PREVIEW_OVERLAY_GROUP];
+export type AnnotationOverlayGroup =
+  (typeof ANNOTATION_OVERLAY_GROUP)[keyof typeof ANNOTATION_OVERLAY_GROUP];
 
-export const ANNOTATION_OVERLAY_GROUP = PREVIEW_OVERLAY_GROUP;
-export type AnnotationOverlayGroup = PreviewOverlayGroup;
-
-export type PreviewOverlayMountConfig = {
+export type AnnotationOverlayMountConfig = {
   rootAttribute: string;
   containerAttribute: string;
   rootSelector: string;
   containerSelector: string;
 };
-export type AnnotationOverlayMountConfig = PreviewOverlayMountConfig;
 
 const createDataAttributeSelector = (attribute: string) =>
   `[${attribute}="true"]`;
@@ -36,23 +32,20 @@ const VISUALIZER_OVERLAY_CONTAINER_SELECTOR = createDataAttributeSelector(
   VISUALIZER_OVERLAY_CONTAINER_ATTRIBUTE
 );
 
-export const PREVIEW_OVERLAY_GROUP_RENDER_ORDER = Object.freeze([
-  PREVIEW_OVERLAY_GROUP.VISUALIZER,
-  PREVIEW_OVERLAY_GROUP.LABEL,
-] as const satisfies readonly PreviewOverlayGroup[]);
-export const ANNOTATION_OVERLAY_GROUP_RENDER_ORDER =
-  PREVIEW_OVERLAY_GROUP_RENDER_ORDER;
-
-export const PREVIEW_OVERLAY_MOUNT_CONFIG_BY_GROUP: Readonly<
-  Record<PreviewOverlayGroup, PreviewOverlayMountConfig>
+export const ANNOTATION_OVERLAY_GROUP_RENDER_ORDER = Object.freeze([
+  ANNOTATION_OVERLAY_GROUP.VISUALIZER,
+  ANNOTATION_OVERLAY_GROUP.LABEL,
+] as const satisfies readonly AnnotationOverlayGroup[]);
+export const ANNOTATION_OVERLAY_MOUNT_CONFIG_BY_GROUP: Readonly<
+  Record<AnnotationOverlayGroup, AnnotationOverlayMountConfig>
 > = Object.freeze({
-  [PREVIEW_OVERLAY_GROUP.LABEL]: {
+  [ANNOTATION_OVERLAY_GROUP.LABEL]: {
     rootAttribute: LABEL_OVERLAY_ROOT_ATTRIBUTE,
     containerAttribute: LABEL_OVERLAY_CONTAINER_ATTRIBUTE,
     rootSelector: createDataAttributeSelector(LABEL_OVERLAY_ROOT_ATTRIBUTE),
     containerSelector: LABEL_OVERLAY_CONTAINER_SELECTOR,
   },
-  [PREVIEW_OVERLAY_GROUP.VISUALIZER]: {
+  [ANNOTATION_OVERLAY_GROUP.VISUALIZER]: {
     rootAttribute: VISUALIZER_OVERLAY_ROOT_ATTRIBUTE,
     containerAttribute: VISUALIZER_OVERLAY_CONTAINER_ATTRIBUTE,
     rootSelector: createDataAttributeSelector(
@@ -62,17 +55,16 @@ export const PREVIEW_OVERLAY_MOUNT_CONFIG_BY_GROUP: Readonly<
   },
 });
 
-export const resolvePreviewOverlayMountConfig = (group: PreviewOverlayGroup) =>
-  PREVIEW_OVERLAY_MOUNT_CONFIG_BY_GROUP[group];
-export const resolveAnnotationOverlayMountConfig =
-  resolvePreviewOverlayMountConfig;
+export const resolveAnnotationOverlayMountConfig = (
+  group: AnnotationOverlayGroup
+) => ANNOTATION_OVERLAY_MOUNT_CONFIG_BY_GROUP[group];
 
-export const resolvePreviewContainer = (
+export const resolveAnnotationOverlayContainer = (
   scene: Scene,
-  group: PreviewOverlayGroup = PREVIEW_OVERLAY_GROUP.LABEL
+  group: AnnotationOverlayGroup = ANNOTATION_OVERLAY_GROUP.LABEL
 ) => {
   const { rootSelector, containerSelector } =
-    resolvePreviewOverlayMountConfig(group);
+    resolveAnnotationOverlayMountConfig(group);
   let currentContainer: HTMLElement | null = scene.canvas.parentElement;
   let fallbackContainer: HTMLElement | null = currentContainer;
 
@@ -102,4 +94,3 @@ export const resolvePreviewContainer = (
 
   return fallbackContainer;
 };
-export const resolveAnnotationOverlayContainer = resolvePreviewContainer;

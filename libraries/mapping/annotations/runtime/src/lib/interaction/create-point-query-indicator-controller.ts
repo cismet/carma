@@ -149,7 +149,7 @@ export const createPointQueryIndicatorController = (
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
   const unregisterScenePickExclusions =
     registerCesiumScenePickExclusionResolver(activeScene, () =>
-      [previewRing, previewRingNormalLineCollection].filter(
+      [previewRing].filter(
         (candidate): candidate is object => candidate !== null
       )
     );

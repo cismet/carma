@@ -6,6 +6,7 @@ export {
   type SceneRenderStage,
 } from "./FrameWait";
 export * from "./CoordinateAdapters";
+export * from "./CesiumSceneProjectionHost";
 export * from "./Occlusion";
 export * from "./Picking";
 export * from "./SurfacePicking";

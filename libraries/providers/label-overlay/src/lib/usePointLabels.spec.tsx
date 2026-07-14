@@ -40,16 +40,14 @@ describe("usePointLabels", () => {
     useLabelOverlayMock.mockReset();
   });
 
-  it("updates overlay positions in place without re-adding unchanged point portals", () => {
-    const addLabelOverlayElement = vi.fn();
+  it("upserts overlay positions without removing unchanged point portals", () => {
+    const setLabelOverlayElement = vi.fn();
     const removeLabelOverlayElement = vi.fn();
-    const updateLabelOverlayElement = vi.fn();
     const stableClickHandler = vi.fn();
 
     useLabelOverlayMock.mockReturnValue({
-      addLabelOverlayElement,
+      setLabelOverlayElement,
       removeLabelOverlayElement,
-      updateLabelOverlayElement,
     });
 
     const { rerender } = renderHook(
@@ -63,8 +61,7 @@ describe("usePointLabels", () => {
       }
     );
 
-    expect(addLabelOverlayElement).toHaveBeenCalledTimes(1);
-    expect(updateLabelOverlayElement).not.toHaveBeenCalled();
+    expect(setLabelOverlayElement).toHaveBeenCalledTimes(1);
 
     rerender({
       points: [
@@ -72,12 +69,11 @@ describe("usePointLabels", () => {
       ],
     });
 
-    expect(addLabelOverlayElement).toHaveBeenCalledTimes(1);
-    expect(updateLabelOverlayElement).toHaveBeenCalledTimes(1);
-    expect(updateLabelOverlayElement).toHaveBeenCalledWith(
-      "point-label-point-1",
+    expect(setLabelOverlayElement).toHaveBeenCalledTimes(2);
+    expect(setLabelOverlayElement).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        getCanvasPosition: expect.any(Function),
+        id: "point-label-point-1",
+        updatePosition: expect.any(Function),
         onClick: stableClickHandler,
         visible: true,
       })
@@ -87,16 +83,14 @@ describe("usePointLabels", () => {
     );
   });
 
-  it("updates visibility-only changes in place without re-adding point portals", () => {
-    const addLabelOverlayElement = vi.fn();
+  it("upserts visibility-only changes without removing point portals", () => {
+    const setLabelOverlayElement = vi.fn();
     const removeLabelOverlayElement = vi.fn();
-    const updateLabelOverlayElement = vi.fn();
     const stableClickHandler = vi.fn();
 
     useLabelOverlayMock.mockReturnValue({
-      addLabelOverlayElement,
+      setLabelOverlayElement,
       removeLabelOverlayElement,
-      updateLabelOverlayElement,
     });
 
     const { rerender } = renderHook(
@@ -114,7 +108,7 @@ describe("usePointLabels", () => {
       }
     );
 
-    expect(addLabelOverlayElement).toHaveBeenCalledTimes(1);
+    expect(setLabelOverlayElement).toHaveBeenCalledTimes(1);
 
     rerender({
       points: [
@@ -126,12 +120,11 @@ describe("usePointLabels", () => {
       ],
     });
 
-    expect(addLabelOverlayElement).toHaveBeenCalledTimes(1);
-    expect(updateLabelOverlayElement).toHaveBeenCalledTimes(1);
-    expect(updateLabelOverlayElement).toHaveBeenCalledWith(
-      "point-label-point-1",
+    expect(setLabelOverlayElement).toHaveBeenCalledTimes(2);
+    expect(setLabelOverlayElement).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        isHidden: true,
+        id: "point-label-point-1",
+        visible: false,
         onClick: stableClickHandler,
       })
     );
