@@ -945,9 +945,10 @@ const BelisMapLibWrapper = ({
   // tab stayed empty after a lasso on top of a search.
   //
   // Fires once with every hit, so the cluster index is built one time instead of
-  // per feature. Like Alt+click, a hit expands to its whole Standort/Leuchten
-  // cluster, and the direction is read from the state useLassoHighlight just
-  // wrote for the first hit of that cluster.
+  // per feature, and this callback OWNS all highlight-state mutation (useLasso-
+  // Highlight defers to us instead of toggling the raw hits itself). Like
+  // Alt+click, a hit expands to its whole Standort/Leuchten cluster and the whole
+  // cluster is driven to one direction.
   const handleLassoMatched = useCallback(
     (matched: maplibregl.MapGeoJSONFeature[]) => {
       if (!map || matched.length === 0) return;
@@ -957,40 +958,55 @@ const BelisMapLibWrapper = ({
       );
       const index = buildClusterIndex(map, sourceIds);
 
-      // First hit per cluster decides add vs remove, mirroring the clicked
-      // feature in handleHighlightToggle. Standalone layers are their own cluster.
-      const decided = new Map<
-        string,
-        { adding: boolean; members: SidebarFeature[] }
-      >();
+      // Expand each hit to its whole cluster, deduped so a Standort and its
+      // Leuchten caught by the same lasso are handled once. Standalone layers
+      // (Leitung, Schaltstelle, …) are their own cluster.
+      const clusters = new Map<string, SidebarFeature[]>();
       for (const raw of matched) {
         const f = toSidebarFeature(raw, raw.source, raw.sourceLayer ?? "");
         const clusterId = clusterIdOf(f);
         const decisionKey = clusterId
           ? `cluster:${clusterId}`
           : buildFeatureKey(f);
-        if (decided.has(decisionKey)) continue;
+        if (clusters.has(decisionKey)) continue;
         const members = clusterId ? clusterMembers(clusterId, index) : [f];
-        decided.set(decisionKey, {
-          adding: criteria.toggledFeatures.has(
-            `${raw.source}::${raw.sourceLayer ?? ""}::${raw.id}`
-          ),
-          members: members.length > 0 ? members : [f],
-        });
+        clusters.set(decisionKey, members.length > 0 ? members : [f]);
       }
+
+      // Each member carries its own source (a tile Standort can own a brandnew
+      // Leuchte). getFeatureState needs the geojson-aware target; toggleFeature-
+      // Highlight keys on the logical layer — same two shapes as Alt+click.
+      const memberOf = (f: SidebarFeature) => ({
+        source: (f as unknown as { source?: string }).source ?? namespacedSource,
+        sourceLayer: f.sourceLayer ?? "",
+        id: f.id!,
+      });
+      // The member's ACTUAL rendered highlight, not its toggledFeatures
+      // membership. On top of an expert search a cluster is mixed — Leuchten lit
+      // via queryIds, Standort dark — and only the real feature-state captures
+      // that. useLassoHighlight now leaves the raw hits untouched, so this reads
+      // the true pre-lasso state for every member.
+      const wasHighlighted = (f: SidebarFeature) =>
+        Boolean(
+          map.getFeatureState(buildFeatureStateTarget(map, memberOf(f)))
+            .highlighted
+        );
 
       const addRows: SidebarFeature[] = [];
       const removeKeys = new Set<string>();
-      for (const { adding, members } of decided.values()) {
-        ensureToggledFeatures(
-          members.map((f) => ({
-            source:
-              (f as unknown as { source?: string }).source ?? namespacedSource,
-            sourceLayer: f.sourceLayer ?? "",
-            id: f.id!,
-          })),
-          adding
-        );
+      for (const members of clusters.values()) {
+        // Direction from the whole cluster, exactly like Alt+click: any lit
+        // member clears the cluster, otherwise light it. A uniform
+        // ensureToggledFeatures write cannot do this — toggledFeatures is an XOR
+        // against queryIds, so on an expert-search cluster it would light the
+        // (unmatched) Standort while switching its (matched) Leuchten off,
+        // splitting the group instead of toggling it as a unit.
+        const adding = !members.some(wasHighlighted);
+        for (const f of members) {
+          // toggleFeatureHighlight flips toggled-set membership, which flips the
+          // visible state; only flip members whose current state disagrees.
+          if (wasHighlighted(f) !== adding) toggleFeatureHighlight(memberOf(f));
+        }
         if (adding) addRows.push(...members);
         else for (const f of members) removeKeys.add(buildFeatureKey(f));
       }
@@ -1011,8 +1027,7 @@ const BelisMapLibWrapper = ({
       namespacedSource,
       brandnewSource,
       brandnewLayerEnabled,
-      ensureToggledFeatures,
-      criteria,
+      toggleFeatureHighlight,
     ]
   );
 

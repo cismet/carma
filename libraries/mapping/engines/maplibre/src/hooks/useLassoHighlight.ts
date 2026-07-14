@@ -166,9 +166,22 @@ export const useLassoHighlight = ({
 
       if (matched.length === 0) return;
 
-      // 5. Split into add/remove groups for per-feature toggle semantics.
-      //    Uses ensureToggledFeatures (idempotent) to avoid double-toggle when
-      //    Standort expansion adds sibling Leuchten also caught by the lasso.
+      setActiveRef.current(true);
+
+      // When a consumer supplies onMatched, it takes FULL ownership of highlight
+      // state: it expands each hit to its whole Standort/Leuchten cluster and
+      // drives feature-state directly. Toggling the raw hits here as well would
+      // double-flip them — and on top of an expert search (hits lit via queryIds,
+      // toggledFeatures being an XOR) it would split the cluster instead of
+      // toggling it as a unit. Hand the matches over and stop.
+      if (onMatchedRef.current) {
+        onMatchedRef.current(matched);
+        return;
+      }
+
+      // 5. Standalone path (no cluster-aware consumer): toggle each matched
+      //    feature ourselves. Uses ensureToggledFeatures (idempotent) to avoid
+      //    double-toggle across overlapping lassos.
       const currentToggled = criteriaRef.current.toggledFeatures;
       const toId = (f: MapGeoJSONFeature) => ({
         source: f.source,
@@ -184,7 +197,6 @@ export const useLassoHighlight = ({
         return currentToggled.has(key);
       });
 
-      setActiveRef.current(true);
       if (toAdd.length > 0) {
         ensureRef.current(toAdd.map(toId), true);
       }
@@ -194,7 +206,6 @@ export const useLassoHighlight = ({
       for (const feat of matched) {
         onToggleRef.current?.(feat);
       }
-      onMatchedRef.current?.(matched);
     },
     [map]
   );
