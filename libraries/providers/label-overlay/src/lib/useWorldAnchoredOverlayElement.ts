@@ -6,7 +6,7 @@ import type { LabelOverlayWorldAnchor } from "./types";
 export type UseWorldAnchoredOverlayElementOptions = {
   id: string;
   // Live world anchor, projected to screen by the host each frame. Read it live
-  // (e.g. from `liveAnchors`) so the element tracks a drag without a re-render.
+  // from its owning runtime so the element tracks a drag without a re-render.
   worldAnchor: () => LabelOverlayWorldAnchor | null;
   content: ReactNode;
   contentKey?: string;

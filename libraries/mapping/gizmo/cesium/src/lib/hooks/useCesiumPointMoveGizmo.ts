@@ -54,8 +54,8 @@ import {
   CarmaTransforms,
   createOrientedDiscModelMatrix,
   createRing,
-  getSceneDragSampleOccluders,
   getScreenPixelsPerMeterAtWorldPoint,
+  registerCesiumScenePickExclusionResolver,
   safeCall,
   safeRemovePrimitive,
 } from "@carma-mapping/engines/cesium/core";
@@ -140,8 +140,19 @@ export type CesiumGizmoRotationDelta = {
 
 export type CesiumGizmoScreenPosition = ScreenPoint2;
 
+export type CesiumPointMoveGizmoLabels = {
+  verticalAxis: string;
+  eastAxis: string;
+  northAxis: string;
+  genericAxis: string;
+  outerDisc: string;
+  surfacePlane: string;
+  freePlane: string;
+};
+
 export type UseCesiumPointMoveGizmoOptions = {
   points: CesiumGizmoPoint[];
+  labels: CesiumPointMoveGizmoLabels;
   movePointId?: string | null;
   axisDirection?: Cartesian3 | null;
   discPlaneNormal?: Cartesian3 | null;
@@ -173,6 +184,10 @@ export type UseCesiumPointMoveGizmoOptions = {
   arrowActiveEdgePx?: number;
   arrowInactiveEdgePx?: number;
   snapPlaneDragToGround?: boolean;
+  // Gizmo helpers are always hidden from surface picks. Enable this additionally
+  // when host geometry registered for the active edit (such as a distance
+  // measurement's own lines) must not become the sampled surface.
+  excludeRegisteredDragSampleOccluders?: boolean;
   radius: number;
   onPointPositionChange?: (
     pointId: string,
@@ -228,10 +243,6 @@ const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
 const ROTATION_HANDLE_MIN_MINOR_RADIUS_PX = 0.25;
 const ROTATION_NORMAL_SCREEN_SAMPLE_WORLD = 1;
 
-const DEFAULT_VERTICAL_AXIS_TITLE = "Punkt entlang der U-Achse verschieben";
-const DEFAULT_EAST_AXIS_TITLE = "Punkt entlang der E-Achse verschieben";
-const DEFAULT_NORTH_AXIS_TITLE = "Punkt entlang der N-Achse verschieben";
-
 // Full local ENU frame. The geometry generator keeps the horizontal East/West
 // and North/South axes so a hyper-local ENU frame (e.g. aligned to a plane
 // corner) can be wired up later, the way reference-line editing already lets a
@@ -240,18 +251,17 @@ const DEFAULT_AXIS_PRESENTATION = [
   {
     id: "vertical",
     color: ENU_UP_AXIS_COLOR,
-    getTitle: (axisTitle?: string | null) =>
-      axisTitle ?? DEFAULT_VERTICAL_AXIS_TITLE,
+    labelKey: "verticalAxis",
   },
   {
     id: "horizontal-east",
     color: ENU_EAST_AXIS_COLOR,
-    getTitle: () => DEFAULT_EAST_AXIS_TITLE,
+    labelKey: "eastAxis",
   },
   {
     id: "horizontal-north",
     color: ENU_NORTH_AXIS_COLOR,
-    getTitle: () => DEFAULT_NORTH_AXIS_TITLE,
+    labelKey: "northAxis",
   },
 ] as const;
 
@@ -264,15 +274,24 @@ const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
 const isDefaultAxisEnabled = (axisId: string): boolean =>
   DEFAULT_ENABLED_AXIS_IDS.includes(axisId);
 
-const getDefaultAxisPresentation = (axisTitle?: string | null) =>
+const getDefaultAxisPresentation = (
+  labels: CesiumPointMoveGizmoLabels,
+  axisTitle?: string | null
+) =>
   DEFAULT_AXIS_PRESENTATION.map((axisDefinition) => ({
     id: axisDefinition.id,
     color: axisDefinition.color,
-    title: axisDefinition.getTitle(axisTitle),
+    title:
+      axisDefinition.id === "vertical" && axisTitle
+        ? axisTitle
+        : labels[axisDefinition.labelKey],
   }));
 
-const getEnabledDefaultAxisPresentation = (axisTitle?: string | null) =>
-  getDefaultAxisPresentation(axisTitle).filter((axisDefinition) =>
+const getEnabledDefaultAxisPresentation = (
+  labels: CesiumPointMoveGizmoLabels,
+  axisTitle?: string | null
+) =>
+  getDefaultAxisPresentation(labels, axisTitle).filter((axisDefinition) =>
     isDefaultAxisEnabled(axisDefinition.id)
   );
 
@@ -346,6 +365,7 @@ const updateTrianglePathAppearance = (
 
 const getDefaultAxisCandidatesAtPosition = (
   origin: Cartesian3,
+  labels: CesiumPointMoveGizmoLabels,
   axisTitle?: string | null
 ): CesiumMoveGizmoAxisCandidate[] => {
   const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(
@@ -382,28 +402,32 @@ const getDefaultAxisCandidatesAtPosition = (
     "horizontal-north": northDirection,
   };
 
-  return getDefaultAxisPresentation(axisTitle).map((axisDefinition) => ({
-    id: axisDefinition.id,
-    direction: directionsByAxisId[axisDefinition.id],
-    color: axisDefinition.color,
-    title: axisDefinition.title,
-  }));
+  return getDefaultAxisPresentation(labels, axisTitle).map(
+    (axisDefinition) => ({
+      id: axisDefinition.id,
+      direction: directionsByAxisId[axisDefinition.id],
+      color: axisDefinition.color,
+      title: axisDefinition.title,
+    })
+  );
 };
 
 // Default axis candidates limited to the axes currently enabled for tools.
 // `getDefaultAxisCandidatesAtPosition` keeps generating the full ENU frame.
 const getEnabledDefaultAxisCandidatesAtPosition = (
   origin: Cartesian3,
+  labels: CesiumPointMoveGizmoLabels,
   axisTitle?: string | null
 ): CesiumMoveGizmoAxisCandidate[] =>
-  getDefaultAxisCandidatesAtPosition(origin, axisTitle).filter((candidate) =>
-    isDefaultAxisEnabled(candidate.id)
+  getDefaultAxisCandidatesAtPosition(origin, labels, axisTitle).filter(
+    (candidate) => isDefaultAxisEnabled(candidate.id)
   );
 
 export const useCesiumPointMoveGizmo = (
   scene: Scene | null,
   {
     points,
+    labels,
     movePointId = null,
     axisDirection = null,
     discPlaneNormal = null,
@@ -424,6 +448,7 @@ export const useCesiumPointMoveGizmo = (
     arrowActiveEdgePx = DEFAULT_ACTIVE_ARROW_EDGE_PX,
     arrowInactiveEdgePx = DEFAULT_INACTIVE_ARROW_EDGE_PX,
     snapPlaneDragToGround = false,
+    excludeRegisteredDragSampleOccluders = false,
     radius,
     onPointPositionChange,
     onDragStateChange,
@@ -432,7 +457,7 @@ export const useCesiumPointMoveGizmo = (
     onExit,
   }: UseCesiumPointMoveGizmoOptions
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement, liveAnchors } =
+  const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
   const axisVisualizerRef = useRef<RotationAxisVisualizer | null>(null);
   const discVisualizerRef = useRef<Primitive | null>(null);
@@ -442,6 +467,7 @@ export const useCesiumPointMoveGizmo = (
   const suppressNextSceneClickRef = useRef(false);
   const clearInitialSceneClickGuardTimeoutRef = useRef<number | null>(null);
   const movePointRef = useRef<CesiumGizmoPoint | null>(null);
+  const livePointPositionsRef = useRef<Map<string, Cartesian3>>(new Map());
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
@@ -600,45 +626,14 @@ export const useCesiumPointMoveGizmo = (
     (clientX: number, clientY: number): Cartesian3 | null => {
       if (!scene || scene.isDestroyed()) return null;
 
-      // Hide self-geometry during depth sampling so snaps never land on it:
-      // the gizmo's own axis/disc helpers, plus any geometry attached to the
-      // dragged node (its measurement lines) that the host registers as a drag
-      // occluder. Foreign lines/models stay visible and snappable. Works because
-      // getGroundPointFromClientPosition ray-picks (its own render pass) rather
-      // than reading the cached depth buffer.
-      const hiddenVisualizers: Array<{ show: () => void }> = [];
-      const hiddenPrimitives: Array<{ show: boolean }> = [];
-      const axisVisualizer = axisVisualizerRef.current;
-      if (axisVisualizer?.isVisible) {
-        axisVisualizer.hide();
-        hiddenVisualizers.push(axisVisualizer);
-      }
-      const discVisualizer = discVisualizerRef.current;
-      if (discVisualizer?.show) {
-        discVisualizer.show = false;
-        hiddenPrimitives.push(discVisualizer);
-      }
-      for (const occluder of getSceneDragSampleOccluders(scene)) {
-        if (occluder.show) {
-          occluder.show = false;
-          hiddenPrimitives.push(occluder);
-        }
-      }
-
-      try {
-        return getGroundPointFromClientPosition(scene, clientX, clientY, {
-          ignoreTranslucentDepth: true,
-        });
-      } finally {
-        for (const visualizer of hiddenVisualizers) {
-          visualizer.show();
-        }
-        for (const primitive of hiddenPrimitives) {
-          primitive.show = true;
-        }
-      }
+      // The scene host owns all permanent helper exclusions (including this
+      // gizmo's axis/disc) and optionally adds the active measurement geometry.
+      return getGroundPointFromClientPosition(scene, clientX, clientY, {
+        ignoreTranslucentDepth: true,
+        includeDragSampleExclusions: excludeRegisteredDragSampleOccluders,
+      });
     },
-    [scene]
+    [excludeRegisteredDragSampleOccluders, scene]
   );
   const getCanvasScreenPosition = useCallback(
     (
@@ -670,19 +665,19 @@ export const useCesiumPointMoveGizmo = (
   useEffect(() => {
     movePointRef.current = movePoint;
     // Once React has committed the drag result, movePoint.geometryECEF equals
-    // the last published anchor, so drop the live anchors here (not on mouseup)
+    // the last published position, so drop the local live position here (not on mouseup)
     // to avoid a one-frame snap-back to the pre-commit position. Never clear
     // mid-drag (movePoint also changes every move while dragging).
-    if (!isDraggingRef.current) {
-      liveAnchors.clear();
+    if (!isDraggingRef.current && livePointPositionsRef.current.size > 0) {
+      livePointPositionsRef.current.clear();
       // Render one settle frame so overlays re-resolve from the committed
-      // position now that the live anchors are gone (otherwise they only
+      // position now that the live position is gone (otherwise they only
       // refresh on the next camera move).
       if (scene && !scene.isDestroyed()) {
         scene.requestRender();
       }
     }
-  }, [liveAnchors, movePoint, scene]);
+  });
 
   useEffect(() => {
     axisScreenDirectionRef.current = {};
@@ -777,6 +772,7 @@ export const useCesiumPointMoveGizmo = (
         ? axisCandidates
         : getEnabledDefaultAxisCandidatesAtPosition(
             movePoint.geometryECEF,
+            labels,
             axisTitle
           );
     if (candidates.length === 0) return;
@@ -830,13 +826,24 @@ export const useCesiumPointMoveGizmo = (
     }
 
     activeAxisIdRef.current = candidates[0].id;
-  }, [axisCandidates, axisDirection, axisTitle, movePointKey, preferredAxisId]);
+  }, [
+    axisCandidates,
+    axisDirection,
+    axisTitle,
+    labels,
+    movePointKey,
+    preferredAxisId,
+  ]);
 
   const getAxisCandidatesAtPosition = useCallback(
     (origin: Cartesian3): CesiumMoveGizmoAxisCandidate[] => {
       const configuredCandidates = axisCandidatesRef.current;
       if (!configuredCandidates || configuredCandidates.length === 0) {
-        return getEnabledDefaultAxisCandidatesAtPosition(origin, axisTitle);
+        return getEnabledDefaultAxisCandidatesAtPosition(
+          origin,
+          labels,
+          axisTitle
+        );
       }
 
       const normalizedCandidates = configuredCandidates
@@ -901,7 +908,7 @@ export const useCesiumPointMoveGizmo = (
         };
       });
     },
-    [axisTitle]
+    [axisTitle, labels]
   );
 
   const getActiveAxisAtPosition = useCallback(
@@ -912,7 +919,7 @@ export const useCesiumPointMoveGizmo = (
           id: "vertical",
           direction: getUpVectorAtPosition(origin),
           color: ENU_UP_AXIS_COLOR,
-          title: axisTitle ?? DEFAULT_VERTICAL_AXIS_TITLE,
+          title: axisTitle ?? labels.verticalAxis,
         };
       }
 
@@ -955,7 +962,7 @@ export const useCesiumPointMoveGizmo = (
       activeAxisIdRef.current = candidates[0].id;
       return candidates[0];
     },
-    [axisTitle, getAxisCandidatesAtPosition]
+    [axisTitle, getAxisCandidatesAtPosition, labels.verticalAxis]
   );
 
   const getDiscPlaneNormalAtPosition = useCallback(
@@ -1086,7 +1093,7 @@ export const useCesiumPointMoveGizmo = (
         // Publish synchronously so the disc + overlay (and downstream
         // visualizers) repaint this position on the render we request below,
         // ahead of the setState round-trip.
-        liveAnchors.set(dragState.pointId, nextPosition);
+        livePointPositionsRef.current.set(dragState.pointId, nextPosition);
 
         onPointPositionChangeRef.current?.(
           dragState.pointId,
@@ -1350,7 +1357,10 @@ export const useCesiumPointMoveGizmo = (
           if (nextGroundPoint) {
             // Depth pick already resolved synchronously above, so the snapped
             // world point is known now — publish it for this frame's repaint.
-            liveAnchors.set(dragState.pointId, nextGroundPoint);
+            livePointPositionsRef.current.set(
+              dragState.pointId,
+              nextGroundPoint
+            );
             onPointPositionChangeRef.current?.(
               dragState.pointId,
               nextGroundPoint,
@@ -1401,7 +1411,7 @@ export const useCesiumPointMoveGizmo = (
 
         // Plane intersection is pure math against the frozen plane, so the
         // position is known now — publish before requesting the render.
-        liveAnchors.set(dragState.pointId, nextPosition);
+        livePointPositionsRef.current.set(dragState.pointId, nextPosition);
 
         onPointPositionChangeRef.current?.(
           dragState.pointId,
@@ -1527,13 +1537,19 @@ export const useCesiumPointMoveGizmo = (
       discVisualizerRef.current = disc;
     }
 
+    const unregisterScenePickExclusions =
+      registerCesiumScenePickExclusionResolver(scene, () => [
+        ...(axisVisualizerRef.current?.getPickExclusions() ?? []),
+        ...(discVisualizerRef.current ? [discVisualizerRef.current] : []),
+      ]);
+
     // Update the disc/axis in preRender, not postRender: preRender fires after
     // the camera/scene is updated but BEFORE primitives build their draw
     // commands, so a modelMatrix set here is drawn in THIS frame. Setting it in
     // postRender (after the draw) would only show up next frame, leaving the 3D
-    // disc one frame behind the DOM overlay. With both reading the shared
-    // liveAnchors inside the same synchronous render turn, the disc (drawn this
-    // frame) and the overlay (postRender DOM, composited with this frame's canvas)
+    // disc one frame behind the DOM overlay. With both reading the local live
+    // position inside the same synchronous render turn, the disc (drawn this
+    // frame) and overlay (postRender DOM, composited with this frame's canvas)
     // stay locked to the same position on the same frame.
     const removeDiscFrameListener = scene.preRender.addEventListener(() => {
       try {
@@ -1544,10 +1560,10 @@ export const useCesiumPointMoveGizmo = (
         }
 
         // Prefer the synchronously-published live anchor so the disc tracks the
-        // pointer without the setState round-trip, locked to the same shared
-        // position the measurement visualizers read this frame.
+        // pointer without the setState round-trip. The annotation runtime
+        // publishes the same callback position to its own visualizers.
         const livePosition =
-          (liveAnchors.get(currentPoint.id) as Cartesian3 | undefined) ??
+          livePointPositionsRef.current.get(currentPoint.id) ??
           currentPoint.geometryECEF;
 
         const axisDirection = getActiveAxisAtPosition(livePosition).direction;
@@ -1576,6 +1592,7 @@ export const useCesiumPointMoveGizmo = (
     scene.requestRender();
 
     return () => {
+      unregisterScenePickExclusions();
       if (removeDiscFrameListenerRef.current) {
         safeCall(removeDiscFrameListenerRef.current);
         removeDiscFrameListenerRef.current = null;
@@ -1599,7 +1616,6 @@ export const useCesiumPointMoveGizmo = (
     computeDiscWorldRadius,
     resolveDiscWorldRadiusForFrame,
     discOutlineScreenPixelRadius,
-    liveAnchors,
     movePoint?.id,
     scene,
     showDisc,
@@ -1680,7 +1696,7 @@ export const useCesiumPointMoveGizmo = (
       "horizontal-north": Cartesian3.UNIT_Y,
     };
 
-    return getEnabledDefaultAxisPresentation(axisTitle).map(
+    return getEnabledDefaultAxisPresentation(labels, axisTitle).map(
       (axisDefinition) => ({
         id: axisDefinition.id,
         direction: unitDirectionsByAxisId[axisDefinition.id],
@@ -1688,7 +1704,7 @@ export const useCesiumPointMoveGizmo = (
         title: axisDefinition.title,
       })
     ) as CesiumMoveGizmoAxisCandidate[];
-  }, [axisCandidates, axisTitle]);
+  }, [axisCandidates, axisTitle, labels]);
 
   const handleContent = useMemo(
     () =>
@@ -1746,8 +1762,7 @@ export const useCesiumPointMoveGizmo = (
                 userSelect: "none",
                 overflow: "visible",
               },
-              title:
-                axisCandidate.title ?? "Punkt entlang der Achse verschieben",
+              title: axisCandidate.title ?? labels.genericAxis,
             },
             createElement("path", {
               d: getEquilateralTrianglePathD(arrowActiveEdgePx),
@@ -1786,8 +1801,7 @@ export const useCesiumPointMoveGizmo = (
                 userSelect: "none",
                 overflow: "visible",
               },
-              title:
-                axisCandidate.title ?? "Punkt entlang der Achse verschieben",
+              title: axisCandidate.title ?? labels.genericAxis,
             },
             createElement("path", {
               d: getEquilateralTrianglePathD(arrowActiveEdgePx),
@@ -1857,7 +1871,7 @@ export const useCesiumPointMoveGizmo = (
                 cursor: PLANE_DRAG_DISC_CURSOR,
               },
             },
-            createElement("title", null, "Punkt auf Höhenebene verschieben")
+            createElement("title", null, labels.outerDisc)
           ),
           ...(showRotationHandle
             ? [
@@ -1904,9 +1918,7 @@ export const useCesiumPointMoveGizmo = (
             cursor: centerPlaneDragCursor,
             userSelect: "none",
           },
-          title: snapPlaneDragToGround
-            ? "Punkt auf Oberfläche verschieben"
-            : "Punkt in der Ebene verschieben",
+          title: snapPlaneDragToGround ? labels.surfacePlane : labels.freePlane,
         })
       ),
     [
@@ -1921,6 +1933,7 @@ export const useCesiumPointMoveGizmo = (
       forwardWheelToScene,
       overlayAxisCandidates,
       centerPlaneDragCursor,
+      labels,
       showRotationHandle,
       snapPlaneDragToGround,
       startPlaneDragging,
@@ -1991,7 +2004,7 @@ export const useCesiumPointMoveGizmo = (
           const activePoint = {
             id: rawPoint.id,
             geometryECEF:
-              (liveAnchors.get(rawPoint.id) as Cartesian3 | undefined) ??
+              livePointPositionsRef.current.get(rawPoint.id) ??
               rawPoint.geometryECEF,
           };
 
@@ -2646,7 +2659,6 @@ export const useCesiumPointMoveGizmo = (
   }, [
     addLabelOverlayElement,
     handleContent,
-    liveAnchors,
     movePoint?.id,
     axisArrowOffsetPx,
     removeLabelOverlayElement,
@@ -2702,6 +2714,7 @@ export const useCesiumPointMoveGizmo = (
         clearInitialSceneClickGuardTimeoutRef.current = null;
       }
       stopDragging(false);
+      livePointPositionsRef.current.clear();
       restoreGlobalDragCursor(restoreGlobalCursorRef);
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
       if (axisVisualizerRef.current) {

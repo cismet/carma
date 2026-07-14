@@ -11,7 +11,7 @@ import {
   cartesian3FromGeographicCoordinate,
   getArcPointsInSpannedPlane,
   isValidScene,
-  setSceneDragSampleOccluderResolver,
+  registerCesiumSceneDragSampleExclusionResolver,
 } from "@carma-mapping/engines/cesium/core";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import {
@@ -30,9 +30,7 @@ import {
   labelOverlayAffordanceDefaults,
   labelOverlayLayerDefaults,
   resolveOverlayMidpointTickMetrics,
-  useLabelOverlay,
   useLineVisualizers,
-  type LabelOverlayLiveAnchors,
   type LineVisualizerData,
   type Rect,
 } from "@carma-providers/label-overlay";
@@ -76,6 +74,8 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
+import { isAnnotationSceneLineDragSampleOccluder } from "./annotation-edge-drag-sample-exclusions";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
 type UseRuntimeAnnotationEdgesControllerArgs = {
   edges: readonly RuntimeEdgeRenderModel[];
@@ -93,6 +93,7 @@ type UseRuntimeAnnotationEdgesControllerArgs = {
     endNodeId: string
   ) => boolean;
   onDistanceTriangleCornerClick?: (annotationId: string) => void;
+  liveAnchors: LiveAnnotationAnchors;
 };
 
 type EdgeSceneLine = {
@@ -111,7 +112,7 @@ type EdgeSceneLine = {
   // endpoints (anchor/auxiliary/target), not a single node. Returns null when no
   // relevant anchor is overridden, so the base geometry is kept.
   recompute?: (
-    liveAnchors: LabelOverlayLiveAnchors
+    liveAnchors: LiveAnnotationAnchors
   ) => readonly [Cartesian3, Cartesian3] | null;
 };
 
@@ -219,7 +220,7 @@ type SceneLineHandle = {
   baseStart: Cartesian3;
   baseEnd: Cartesian3;
   recompute?: (
-    liveAnchors: LabelOverlayLiveAnchors
+    liveAnchors: LiveAnnotationAnchors
   ) => readonly [Cartesian3, Cartesian3] | null;
   overridden: boolean;
   destroy: () => void;
@@ -345,7 +346,7 @@ const destroySceneLineHandles = (handles: Map<string, SceneLineHandle>) => {
 // clears. Cheap no-op when nothing is/was overridden.
 const applyLiveAnchorsToSceneLines = (
   handles: Map<string, SceneLineHandle>,
-  liveAnchors: LabelOverlayLiveAnchors
+  liveAnchors: LiveAnnotationAnchors
 ) => {
   const hasAnchors = liveAnchors.size > 0;
   handles.forEach((handle) => {
@@ -382,7 +383,7 @@ const applyLiveAnchorsToSceneLines = (
 // the drag in the same frame (the Cesium 3D polylines are patched separately in
 // preRender). Returns a fresh Cartesian3 so callers may mutate it.
 const resolveEdgePointECEF = (
-  liveAnchors: LabelOverlayLiveAnchors,
+  liveAnchors: LiveAnnotationAnchors,
   nodeId: string | undefined,
   coordinate: Parameters<typeof cartesian3FromGeographicCoordinate>[0]
 ): Cartesian3 => {
@@ -413,7 +414,7 @@ const resolveDistanceTriangleAnchorSelection = ({
 
 const edgeSegmentHasLiveAnchor = (
   edge: EdgeSegment,
-  liveAnchors: LabelOverlayLiveAnchors
+  liveAnchors: LiveAnnotationAnchors
 ): boolean =>
   (edge.startNodeId !== undefined &&
     liveAnchors.get(edge.startNodeId) !== undefined) ||
@@ -427,7 +428,7 @@ const edgeSegmentHasLiveAnchor = (
 const resolveDistanceTriangleComponentEndpointsECEF = (
   scene: Scene,
   edge: EdgeSegment,
-  liveAnchors: LabelOverlayLiveAnchors,
+  liveAnchors: LiveAnnotationAnchors,
   scratch: AnnotationGeometryScratch
 ): {
   anchorECEF: Cartesian3;
@@ -480,7 +481,7 @@ const resolveDistanceTriangleOverlayScreenData = ({
   scratch: AnnotationGeometryScratch;
   previousOutsideSigns?: DistanceTriangleLineLabelOutsideSigns;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  liveAnchors: LabelOverlayLiveAnchors;
+  liveAnchors: LiveAnnotationAnchors;
 }): DistanceTriangleOverlayScreenData | null => {
   const overlay = edge.distanceTriangleOverlay;
   if (!overlay || !edge.startCoordinate || !edge.endCoordinate) {
@@ -967,9 +968,9 @@ export const useAnnotationEdgesController = (
     insertNodeTargetAnnotationIds = [],
     onInsertNodeTargetClick,
     onDistanceTriangleCornerClick,
+    liveAnchors,
   }: UseRuntimeAnnotationEdgesControllerArgs
 ) => {
-  const { liveAnchors } = useLabelOverlay();
   const sceneLineHandleByIdRef = useRef<Map<string, SceneLineHandle>>(
     new Map()
   );
@@ -1340,27 +1341,30 @@ export const useAnnotationEdgesController = (
       }
     });
     // Let a drag tool (the point-move gizmo) exclude this annotation's own lines
-    // from depth sampling while a node is being dragged — those are exactly the
-    // handles incident to a live-anchored node. Foreign lines stay snappable.
-    setSceneDragSampleOccluderResolver(scene, () => {
-      const occluders: Array<{ show: boolean }> = [];
-      sceneLineHandleByIdRef.current.forEach((handle) => {
-        const incidentToDraggedNode =
-          (handle.startNodeId !== undefined &&
-            liveAnchors.get(handle.startNodeId) !== undefined) ||
-          (handle.endNodeId !== undefined &&
-            liveAnchors.get(handle.endNodeId) !== undefined);
-        if (incidentToDraggedNode) {
-          occluders.push(handle.collection);
-        }
+    // from depth sampling while a node is being dragged. The active node covers
+    // the first sample; live anchors additionally cover linked nodes moved in
+    // the same scope. Foreign lines stay snappable.
+    const unregisterDragSampleOccluders =
+      registerCesiumSceneDragSampleExclusionResolver(scene, () => {
+        const occluders: Array<{ show: boolean }> = [];
+        sceneLineHandleByIdRef.current.forEach((handle) => {
+          if (
+            isAnnotationSceneLineDragSampleOccluder(
+              handle,
+              activeEditedNodeId,
+              (nodeId) => liveAnchors.get(nodeId) !== undefined
+            )
+          ) {
+            occluders.push(handle.collection);
+          }
+        });
+        return occluders;
       });
-      return occluders;
-    });
     return () => {
       removePreRenderListener?.();
-      setSceneDragSampleOccluderResolver(scene, null);
+      unregisterDragSampleOccluders();
     };
-  }, [liveAnchors, scene]);
+  }, [activeEditedNodeId, liveAnchors, scene]);
 
   useEffect(() => {
     destroyEdgeMidpointHandles(edgeMidpointHandleByIdRef.current);

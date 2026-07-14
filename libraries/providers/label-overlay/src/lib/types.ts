@@ -6,20 +6,6 @@ import type { CssPixelPosition } from "@carma-units";
 /** World-space anchor (structural x/y/z, so the provider stays engine-agnostic; a Cesium Cartesian3 satisfies it) the host projects to screen. */
 export type LabelOverlayWorldAnchor = { x: number; y: number; z: number };
 
-/**
- * Per-frame registry of live world anchors by entity id — the single source of
- * truth for an entity's mid-interaction position (set synchronously from pointer
- * input, before React commits). Read by `worldAnchor` overlay elements and by 3D
- * primitives in the render loop.
- */
-export interface LabelOverlayLiveAnchors {
-  set: (id: string, anchor: LabelOverlayWorldAnchor) => void;
-  get: (id: string) => LabelOverlayWorldAnchor | undefined;
-  delete: (id: string) => void;
-  clear: () => void;
-  readonly size: number;
-}
-
 export interface LabelOverlayElement {
   id: string;
   getCanvasPosition?: () => CssPixelPosition | null;
@@ -28,7 +14,7 @@ export interface LabelOverlayElement {
    * Optional live world anchor. When provided (and the host can project world
    * anchors), the provider projects it to screen every frame and positions the
    * element — no per-element `updatePosition` needed. Return `null` to hide.
-   * Read the anchor live (e.g. from `liveAnchors`) to track a drag in lockstep.
+   * Read the anchor live from its owning runtime to track a drag in lockstep.
    * Ignored when `updatePosition` is set (that takes full control).
    */
   worldAnchor?: () => LabelOverlayWorldAnchor | null;
@@ -51,5 +37,5 @@ export interface LabelOverlayContextType {
   ) => void;
   clearLabelOverlayElements: () => void;
   updatePositions: () => void;
-  liveAnchors: LabelOverlayLiveAnchors;
+  invalidatePositions: () => void;
 }

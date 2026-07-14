@@ -22,6 +22,7 @@ import {
 } from "../config/annotation-line-label-options";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 import { POINT_LABEL_ANCHOR_KIND } from "@carma-providers/label-overlay";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
 // When a node is being edited the gizmo disc covers it, so a measurement's value
 // label must not sit on that node: re-anchor it to another node, or hide it when
@@ -75,6 +76,7 @@ type UseAnnotationVisualizersArgs = {
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   activeEditedNodeId: string | null;
   isMoveGizmoDragging?: boolean;
+  liveAnchors: LiveAnnotationAnchors;
   previewSnapTargetHoverEnabled?: boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onAnnotationSelect?: (annotationId: string) => void;
@@ -108,6 +110,7 @@ export const useAnnotationVisualizers = (
     lineLabelOptions,
     activeEditedNodeId,
     isMoveGizmoDragging = false,
+    liveAnchors,
     previewSnapTargetHoverEnabled = false,
     onPreviewSnapTargetNodeClick,
     onAnnotationSelect,
@@ -148,6 +151,7 @@ export const useAnnotationVisualizers = (
     insertNodeTargetAnnotationIds,
     onInsertNodeTargetClick,
     onDistanceTriangleCornerClick,
+    liveAnchors,
   });
   useAnnotationPolygonFillsController(scene, polygonFills);
   useAnnotationOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
@@ -236,12 +240,14 @@ export const useAnnotationVisualizers = (
   usePointMarkerVisualizer(
     scene,
     visualizerInputs.visibleStandalonePoints,
+    liveAnchors,
     `${surfaceKey}-runtime-point-marker`
   );
 
   usePointLabelVisualizer(
     scene,
     visualizerInputs.pointLabels,
+    liveAnchors,
     isInPreviewNodeLink,
     `${surfaceKey}-runtime-point-label`,
     resolvedAnnotationLineLabelOptions

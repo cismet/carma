@@ -20,7 +20,6 @@ import {
   useLabelOverlay,
   type LayoutPointInput,
   type LabelOverlayElement,
-  type LabelOverlayLiveAnchors,
   type PointLabelAttach,
   type PointLabelOverlayDomRefs,
   type PointLabelOverlayRenderState,
@@ -47,6 +46,7 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,
@@ -177,7 +177,7 @@ const resolvePointLabelCoordinateProjection = (
 // moved node's label tracks it every frame, like the lines/disc.
 const resolveLiveLabelCoordinate = (
   candidate: RuntimePointLabelCoordinateCandidate,
-  liveAnchors: LabelOverlayLiveAnchors
+  liveAnchors: LiveAnnotationAnchors
 ) => {
   const liveAnchor = candidate.nodeId
     ? (liveAnchors.get(candidate.nodeId) as Cartesian3 | undefined)
@@ -230,6 +230,7 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
 export const usePointLabelVisualizer = (
   scene: Scene | null,
   labels: readonly RuntimePointLabelRenderModel[],
+  liveAnchors: LiveAnnotationAnchors,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
   overlayIdPrefix: string = "runtime-point-label",
   areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
@@ -239,7 +240,6 @@ export const usePointLabelVisualizer = (
     removeLabelOverlayElement,
     updateLabelOverlayElement,
     updatePositions,
-    liveAnchors,
   } = useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());

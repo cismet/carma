@@ -16,12 +16,7 @@ import {
   LABEL_OVERLAY_CONTAINER_ATTRIBUTE,
   LABEL_OVERLAY_CONTAINER_SELECTOR,
 } from "./constants";
-import type {
-  LabelOverlayElement,
-  LabelOverlayContextType,
-  LabelOverlayLiveAnchors,
-  LabelOverlayWorldAnchor,
-} from "./types";
+import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
 const hasSameOverlayPortalContent = (
   left: LabelOverlayElement,
   right: LabelOverlayElement
@@ -90,13 +85,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   );
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
-  // Set whenever something the overlay loop depends on changes (element set/data,
-  // live anchors, manual updatePositions). Together with the host's view-change
+  // Set whenever something the overlay loop depends on changes (element set/data
+  // or an explicit invalidation). Together with the host's view-change
   // probe it lets the per-frame loop skip reprojection on otherwise-idle frames.
   const positionsDirtyRef = useRef(true);
-  const liveAnchorsMapRef = useRef<Map<string, LabelOverlayWorldAnchor>>(
-    new Map()
-  );
   // Force a re-render when we need to update Portals (add/remove/content change)
   const [renderCounter, setRenderCounter] = useState(0);
   const forceRender = useCallback(() => {
@@ -118,34 +110,6 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
 
   const markPositionsDirty = useCallback(() => {
     positionsDirtyRef.current = true;
-  }, []);
-
-  // Shared, stable registry of live world anchors (see LabelOverlayLiveAnchors).
-  // Backed by a ref so writes never re-render; the frame loop and engine readers
-  // observe it imperatively. Identity is stable for the provider's lifetime.
-  const liveAnchors = useMemo<LabelOverlayLiveAnchors>(() => {
-    const map = liveAnchorsMapRef.current;
-    return {
-      set: (id, anchor) => {
-        map.set(id, anchor);
-        positionsDirtyRef.current = true;
-      },
-      get: (id) => map.get(id),
-      delete: (id) => {
-        if (map.delete(id)) {
-          positionsDirtyRef.current = true;
-        }
-      },
-      clear: () => {
-        if (map.size > 0) {
-          positionsDirtyRef.current = true;
-        }
-        map.clear();
-      },
-      get size() {
-        return map.size;
-      },
-    };
   }, []);
 
   // Create overlay container
@@ -255,61 +219,63 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   // input changed (see positionsDirtyRef / host.hasViewChanged).
   const updatePositionsInternal = useCallback(
     (force = false) => {
-    const overlayContainer = overlayRef.current;
-    if (!overlayContainer) return;
+      const overlayContainer = overlayRef.current;
+      if (!overlayContainer) return;
 
-    // Probe the view every frame even when forcing, so its cache stays current.
-    const viewChanged = resolvedHasViewChanged ? resolvedHasViewChanged() : true;
-    if (!force && !viewChanged && !positionsDirtyRef.current) return;
-    positionsDirtyRef.current = false;
+      // Probe the view every frame even when forcing, so its cache stays current.
+      const viewChanged = resolvedHasViewChanged
+        ? resolvedHasViewChanged()
+        : true;
+      if (!force && !viewChanged && !positionsDirtyRef.current) return;
+      positionsDirtyRef.current = false;
 
-    overlayElementsRef.current.forEach((element, id) => {
-      const elementDiv = overlayElementNodeByIdRef.current.get(id);
-      if (!elementDiv) return;
+      overlayElementsRef.current.forEach((element, id) => {
+        const elementDiv = overlayElementNodeByIdRef.current.get(id);
+        if (!elementDiv) return;
 
-      if (element.isHidden === true) {
-        elementDiv.style.display = "none";
-        return;
-      }
+        if (element.isHidden === true) {
+          elementDiv.style.display = "none";
+          return;
+        }
 
-      if (element.updatePosition) {
-        const hasPosition = element.updatePosition(elementDiv);
-        elementDiv.style.display =
-          hasPosition && element.visible !== false ? "block" : "none";
-        return;
-      }
+        if (element.updatePosition) {
+          const hasPosition = element.updatePosition(elementDiv);
+          elementDiv.style.display =
+            hasPosition && element.visible !== false ? "block" : "none";
+          return;
+        }
 
-      if (element.worldAnchor && resolvedProjectWorldAnchor) {
-        const anchor = element.worldAnchor();
-        const anchorScreenPosition = anchor
-          ? resolvedProjectWorldAnchor(anchor)
+        if (element.worldAnchor && resolvedProjectWorldAnchor) {
+          const anchor = element.worldAnchor();
+          const anchorScreenPosition = anchor
+            ? resolvedProjectWorldAnchor(anchor)
+            : null;
+          if (anchorScreenPosition && element.visible !== false) {
+            elementDiv.style.position = "absolute";
+            elementDiv.style.left = `${anchorScreenPosition.x}px`;
+            elementDiv.style.top = `${anchorScreenPosition.y}px`;
+            elementDiv.style.transform = "translate(-50%, -50%)";
+            elementDiv.style.display = "block";
+          } else {
+            elementDiv.style.display = "none";
+          }
+          return;
+        }
+
+        const canvasPosition = element.getCanvasPosition
+          ? element.getCanvasPosition()
           : null;
-        if (anchorScreenPosition && element.visible !== false) {
+
+        if (canvasPosition && element.visible !== false) {
           elementDiv.style.position = "absolute";
-          elementDiv.style.left = `${anchorScreenPosition.x}px`;
-          elementDiv.style.top = `${anchorScreenPosition.y}px`;
+          elementDiv.style.left = `${canvasPosition.x}px`;
+          elementDiv.style.top = `${canvasPosition.y}px`;
           elementDiv.style.transform = "translate(-50%, -50%)";
           elementDiv.style.display = "block";
         } else {
           elementDiv.style.display = "none";
         }
-        return;
-      }
-
-      const canvasPosition = element.getCanvasPosition
-        ? element.getCanvasPosition()
-        : null;
-
-      if (canvasPosition && element.visible !== false) {
-        elementDiv.style.position = "absolute";
-        elementDiv.style.left = `${canvasPosition.x}px`;
-        elementDiv.style.top = `${canvasPosition.y}px`;
-        elementDiv.style.transform = "translate(-50%, -50%)";
-        elementDiv.style.display = "block";
-      } else {
-        elementDiv.style.display = "none";
-      }
-    });
+      });
     },
     [resolvedHasViewChanged, resolvedProjectWorldAnchor]
   );
@@ -362,7 +328,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       updateLabelOverlayElement,
       clearLabelOverlayElements,
       updatePositions,
-      liveAnchors,
+      invalidatePositions: markPositionsDirty,
     }),
     [
       addLabelOverlayElement,
@@ -370,7 +336,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       updateLabelOverlayElement,
       clearLabelOverlayElements,
       updatePositions,
-      liveAnchors,
+      markPositionsDirty,
     ]
   );
 

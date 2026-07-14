@@ -33,6 +33,7 @@ export type RotationAxisVisualizer = {
   readonly isAttached: boolean;
   readonly origin: Cartesian3;
   readonly isVisible: boolean;
+  getPickExclusions: () => readonly object[];
   attach: (scene: Scene, requestRender: () => void) => void;
   detach: () => void;
   destroy: () => void;
@@ -387,6 +388,8 @@ export const createRotationAxisVisualizer = (
     get isVisible() {
       return isVisible;
     },
+
+    getPickExclusions: () => (polylineCollection ? [polylineCollection] : []),
 
     attach: (sceneRef, requestRenderFn) => {
       if (isDestroyed) {

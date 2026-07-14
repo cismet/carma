@@ -19,7 +19,6 @@ import {
   type CesiumMoveGizmoAxisCandidate,
   type CesiumGizmoScreenPosition,
 } from "@carma-mapping/gizmo/cesium";
-import { useLabelOverlay } from "@carma-providers/label-overlay";
 import { Cartesian3, type Scene } from "@carma-cesium";
 
 import {
@@ -44,6 +43,11 @@ import {
   type NodeCoordinateOverrides,
 } from "../utils/node-coordinate-overrides";
 import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
+import { shouldExcludeOwnGeometryFromPointEditSurfacePick } from "./point-editing-surface-pick-policy";
+import {
+  createLiveAnnotationAnchors,
+  type LiveAnnotationAnchors,
+} from "./live-annotation-anchors";
 
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
@@ -53,6 +57,15 @@ const DRAFT_PREVIEW_FLUSH_INTERVAL_MS = 200;
 
 const POINT_EDITING_GIZMO_DEFAULTS = {
   referenceNodeInteractionReleaseGuardMs: 48,
+  labels: {
+    verticalAxis: "Punkt entlang der U-Achse verschieben",
+    eastAxis: "Punkt entlang der E-Achse verschieben",
+    northAxis: "Punkt entlang der N-Achse verschieben",
+    genericAxis: "Punkt entlang der Achse verschieben",
+    outerDisc: "Punkt auf Höhenebene verschieben",
+    surfacePlane: "Punkt auf Oberfläche verschieben",
+    freePlane: "Punkt in der Ebene verschieben",
+  },
   referenceLineAxis: {
     primary: {
       id: "reference-line-parallel",
@@ -124,6 +137,7 @@ type UsePointEditingGizmoOptions = {
   selectedAnnotationIds: readonly string[];
   onActiveEditedNodeIdChange?: (nodeId: string | null) => void;
   referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
+  liveAnchors?: LiveAnnotationAnchors;
 };
 
 type DraftCoordinatePreviewOptions = {
@@ -220,9 +234,14 @@ export const usePointEditingGizmo = (
     selectedAnnotationIds,
     onActiveEditedNodeIdChange,
     referenceObjectSizing = ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
+    liveAnchors: providedLiveAnchors,
   }: UsePointEditingGizmoOptions
 ) => {
-  const { liveAnchors } = useLabelOverlay();
+  const fallbackLiveAnchors = useMemo(
+    () => createLiveAnnotationAnchors(() => undefined),
+    []
+  );
+  const liveAnchors = providedLiveAnchors ?? fallbackLiveAnchors;
   const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
     null
   );
@@ -268,6 +287,15 @@ export const usePointEditingGizmo = (
         ? cartesian3FromMetricVector3(activePlanarAreaEditPlane.normalECEF)
         : null,
     [activePlanarAreaEditPlane]
+  );
+  const excludeOwnGeometryFromSurfacePick = useMemo(
+    () =>
+      shouldExcludeOwnGeometryFromPointEditSurfacePick({
+        activeEditedNodeId,
+        annotationEntries,
+        selectedAnnotationIds,
+      }),
+    [activeEditedNodeId, annotationEntries, selectedAnnotationIds]
   );
   const areReferenceInteractionsSuppressed = useCallback(() => {
     if (isMoveGizmoDraggingRef.current) {
@@ -460,8 +488,7 @@ export const usePointEditingGizmo = (
 
         // Publish all moved nodes on the shared live-anchor registry so the
         // measurement visualizers patch their geometry this frame, in lockstep
-        // with the gizmo disc, ahead of the draft-state round-trip. The gizmo
-        // clears the registry once React has committed.
+        // with the gizmo disc, ahead of the draft-state round-trip.
         const liveAnchorECEF = cartesian3FromGeographicCoordinate(
           constrainedCoordinate
         );
@@ -761,6 +788,7 @@ export const usePointEditingGizmo = (
 
   useCesiumPointMoveGizmo(scene, {
     points: gizmoPoints,
+    labels: POINT_EDITING_GIZMO_DEFAULTS.labels,
     movePointId: activeEditedNodeId,
     axisDirection: axisOverride?.axisDirection ?? null,
     discPlaneNormal: activePlanarAreaDiscNormal,
@@ -778,6 +806,7 @@ export const usePointEditingGizmo = (
     discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
     showRotationHandle: false,
     snapPlaneDragToGround: activePlanarAreaEditPlane === null,
+    excludeRegisteredDragSampleOccluders: excludeOwnGeometryFromSurfacePick,
     onDragStateChange: handleGizmoDragStateChange,
     onPointPositionChange: handleGizmoPointPositionChange,
     onExit: () => {
@@ -844,6 +873,19 @@ export const usePointEditingGizmo = (
   useEffect(() => {
     onActiveEditedNodeIdChange?.(activeEditedNodeId);
   }, [activeEditedNodeId, onActiveEditedNodeIdChange]);
+
+  useEffect(() => {
+    if (
+      isMoveGizmoDragging ||
+      hasNodeCoordinateOverrides(draftNodeCoordinateOverrides)
+    ) {
+      return;
+    }
+    liveAnchors.clear();
+    if (scene && !scene.isDestroyed()) {
+      scene.requestRender();
+    }
+  }, [draftNodeCoordinateOverrides, isMoveGizmoDragging, liveAnchors, scene]);
 
   useEffect(
     () => () => {

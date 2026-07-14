@@ -8,11 +8,14 @@ import {
 } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import { expect, waitFor } from "@storybook/test";
 
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+import { registerCesiumSceneDragSampleExclusionResolver } from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
+  getGroundPointFromClientPosition,
   type CesiumGizmoRotationDelta,
   type CesiumMoveGizmoAxisCandidate,
 } from "@carma-mapping/gizmo/cesium";
@@ -29,10 +32,14 @@ import { WUPPERTAL } from "@carma-commons/resources";
 import {
   Cartesian3,
   Cartesian4,
+  Cartographic,
   CesiumMath,
+  Color,
   HeadingPitchRange,
+  Material,
   Matrix3,
   Matrix4,
+  PolylineCollection,
   Quaternion,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -60,6 +67,16 @@ type AxisMode = "geoportal-default" | "enu" | "up-only" | "world";
 
 type ReferenceObject = "gizmo" | "query-disc";
 
+const STORY_POINT_MOVE_GIZMO_LABELS = {
+  verticalAxis: "Move point along the up axis",
+  eastAxis: "Move point along the east axis",
+  northAxis: "Move point along the north axis",
+  genericAxis: "Move point along the axis",
+  outerDisc: "Move point on the height plane",
+  surfacePlane: "Move point on the surface",
+  freePlane: "Move point in the plane",
+} as const;
+
 type GizmoSandboxProps = {
   referenceObject: ReferenceObject;
   pointLon: number;
@@ -69,6 +86,8 @@ type GizmoSandboxProps = {
   showRotationHandle: boolean;
   showDisc: boolean;
   showCube: boolean;
+  showDragSampleOccluder: boolean;
+  excludeRegisteredDragSampleOccluders: boolean;
   snapPlaneDragToGround: boolean;
   discScalingMode: ReferenceObjectScalingMode;
   discOutlineScreenPixelRadius: number;
@@ -255,6 +274,8 @@ const GizmoSandboxContent = ({
   showRotationHandle,
   showDisc,
   showCube,
+  showDragSampleOccluder,
+  excludeRegisteredDragSampleOccluders,
   snapPlaneDragToGround,
   discScalingMode,
   discOutlineScreenPixelRadius,
@@ -287,6 +308,48 @@ const GizmoSandboxContent = ({
     () => buildCubeLocalCorners(CUBE_HALF_SIZE_M),
     []
   );
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed() || !showDragSampleOccluder) {
+      return;
+    }
+
+    const localFrame = Transforms.eastNorthUpToFixedFrame(initialCubeCenter);
+    const occluderLine = new PolylineCollection();
+    occluderLine.add({
+      id: "surface-pick-own-measurement-line",
+      positions: [
+        Matrix4.multiplyByPoint(
+          localFrame,
+          new Cartesian3(0, -35, 0),
+          new Cartesian3()
+        ),
+        Matrix4.multiplyByPoint(
+          localFrame,
+          new Cartesian3(0, 35, 0),
+          new Cartesian3()
+        ),
+      ],
+      width: 24,
+      material: Material.fromType("Color", {
+        color: Color.fromCssColorString("rgba(239, 68, 68, 0.96)"),
+      }),
+    });
+    scene.primitives.add(occluderLine);
+    const unregisterOccluder = registerCesiumSceneDragSampleExclusionResolver(
+      scene,
+      () => [occluderLine]
+    );
+    scene.requestRender();
+
+    return () => {
+      unregisterOccluder();
+      if (!scene.isDestroyed()) {
+        scene.primitives.remove(occluderLine);
+        scene.requestRender();
+      }
+    };
+  }, [initialCubeCenter, scene, showDragSampleOccluder]);
 
   const [cubeState, setCubeState] = useState<CubeState>(() =>
     createInitialCubeState(initialCubeCenter)
@@ -573,6 +636,7 @@ const GizmoSandboxContent = ({
 
   useCesiumPointMoveGizmo(scene, {
     ...gizmoBinding,
+    labels: STORY_POINT_MOVE_GIZMO_LABELS,
     axisTitle: axisTitleForHook,
     preferredAxisId:
       preferredAxisId.trim().toLowerCase() === "auto"
@@ -586,6 +650,7 @@ const GizmoSandboxContent = ({
     showDisc: showDisc && referenceObject === "gizmo",
     showRotationHandle,
     snapPlaneDragToGround,
+    excludeRegisteredDragSampleOccluders,
     discScalingMode,
     discOutlineScreenPixelRadius,
     discResizeWorldRadiusToScreenTarget,
@@ -611,7 +676,7 @@ const GizmoSandboxContent = ({
     const controller = createPointQueryIndicatorController(scene, {
       radius,
       scalingMode: discScalingMode,
-      resizeWorldRadiusToScreenTarget,
+      resizeWorldRadiusToScreenTarget: discResizeWorldRadiusToScreenTarget,
       discResizeStepFactor,
       quantizeStepWorldRadius: discQuantizeWorldRadius,
       targetScreenRadiusCssPx: discOutlineScreenPixelRadius,
@@ -649,6 +714,10 @@ const GizmoSandboxContent = ({
   return (
     <div
       ref={rootRef}
+      data-test-id="gizmo-sandbox"
+      data-point-height-m={Cartographic.fromCartesian(
+        pointPosition
+      ).height.toFixed(3)}
       style={{
         height: "100vh",
         width: "100%",
@@ -663,6 +732,62 @@ const GizmoSandboxContent = ({
           overflow: "hidden",
         }}
       />
+      <button
+        data-test-id="surface-pick-test-trigger"
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={() => {
+          if (!scene || scene.isDestroyed()) {
+            return;
+          }
+          const pointScreenPosition =
+            scene.cartesianToCanvasCoordinates(pointPosition);
+          if (!pointScreenPosition) {
+            return;
+          }
+          const canvasRect = scene.canvas.getBoundingClientRect();
+          const sampleDeltaPx = referenceObject === "gizmo" ? 30 : 1;
+          const sampledPoint = getGroundPointFromClientPosition(
+            scene,
+            canvasRect.left + pointScreenPosition.x + sampleDeltaPx,
+            canvasRect.top + pointScreenPosition.y,
+            {
+              ignoreTranslucentDepth: true,
+              includeDragSampleExclusions: excludeRegisteredDragSampleOccluders,
+            }
+          );
+          if (sampledPoint) {
+            setPointPosition(sampledPoint);
+          }
+        }}
+        style={{ display: "none" }}
+      />
+      {showDragSampleOccluder ? (
+        <div
+          data-test-id="surface-pick-exclusion-status"
+          data-point-height-m={Cartographic.fromCartesian(
+            pointPosition
+          ).height.toFixed(3)}
+          data-own-geometry-excluded={`${excludeRegisteredDragSampleOccluders}`}
+          style={{
+            position: "fixed",
+            left: 12,
+            bottom: 12,
+            zIndex: 4000,
+            padding: "6px 9px",
+            background: "rgba(17, 24, 39, 0.86)",
+            color: "#e5e7eb",
+            font: "12px/1.4 Inter, system-ui, sans-serif",
+            pointerEvents: "none",
+          }}
+        >
+          Mittleren Griff auf der roten Eigengeometrie ziehen · Höhe{" "}
+          {Cartographic.fromCartesian(pointPosition).height.toFixed(2)} m ·{" "}
+          Eigengeometrie{" "}
+          {excludeRegisteredDragSampleOccluders ? "ausgeschlossen" : "pickbar"}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -798,6 +923,14 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "boolean" },
       table: { category: "Scene" },
     },
+    showDragSampleOccluder: {
+      control: { type: "boolean" },
+      table: { category: "Surface pick test" },
+    },
+    excludeRegisteredDragSampleOccluders: {
+      control: { type: "boolean" },
+      table: { category: "Surface pick test" },
+    },
     snapPlaneDragToGround: {
       control: { type: "boolean" },
       table: { category: "Disc" },
@@ -900,6 +1033,8 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
     showRotationHandle: false,
     showDisc: true,
     showCube: true,
+    showDragSampleOccluder: false,
+    excludeRegisteredDragSampleOccluders: false,
     snapPlaneDragToGround: true,
     discScalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN,
     discOutlineScreenPixelRadius: 48,
@@ -930,5 +1065,111 @@ export const ReferenceObjectSizing: StoryObj<GizmoSandboxProps> = {
     freezeDiscScaleDuringDrag: true,
     showDiscRadiusLabel: true,
     discOutlineScreenPixelRadius: 48,
+  },
+};
+
+const dragSurfacePickTestHandle = async (
+  canvasElement: HTMLElement,
+  expectOwnGeometryExcluded: boolean
+) => {
+  const centerHit = await waitFor(
+    () => {
+      const candidate = canvasElement.querySelector<HTMLElement>(
+        '[data-point-move-axis-center-hit="true"]'
+      );
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLElement;
+    },
+    { timeout: 20_000 }
+  );
+  const status = canvasElement.querySelector<HTMLElement>(
+    '[data-test-id="gizmo-sandbox"]'
+  );
+  expect(status).not.toBeNull();
+  const initialHeight = Number(status?.dataset.pointHeightM);
+  expect(Number.isFinite(initialHeight)).toBe(true);
+
+  expect(centerHit.getBoundingClientRect().width).toBeGreaterThan(0);
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+  const testTrigger = canvasElement.querySelector<HTMLButtonElement>(
+    '[data-test-id="surface-pick-test-trigger"]'
+  );
+  expect(testTrigger).not.toBeNull();
+  testTrigger?.click();
+
+  await waitFor(
+    () => {
+      const height = Number(status?.dataset.pointHeightM);
+      expect(Number.isFinite(height)).toBe(true);
+      if (expectOwnGeometryExcluded) {
+        expect(height).toBeLessThan(initialHeight - 5);
+      } else {
+        expect(height).toBeGreaterThan(initialHeight - 1);
+      }
+    },
+    { timeout: 10_000 }
+  );
+};
+
+export const SurfacePickExclusions: StoryObj<GizmoSandboxProps> = {
+  name: "Surface Pick Exclusions",
+  args: {
+    ...Cesium.args,
+    referenceObject: "query-disc",
+    pointHeight: PLACE_CENTER.height + 20,
+    axisMode: "geoportal-default",
+    showCube: false,
+    showDragSampleOccluder: true,
+    excludeRegisteredDragSampleOccluders: true,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The query disc is always excluded from surface picking. The red line emulates a measurement's own geometry: point/distance editing excludes it, while the control can be disabled to test tools that intentionally use their own geometry as a surface.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await dragSurfacePickTestHandle(canvasElement, true);
+  },
+};
+
+export const GizmoSelfPickExclusion: StoryObj<GizmoSandboxProps> = {
+  name: "Gizmo Never Picks Itself",
+  args: {
+    ...Cesium.args,
+    referenceObject: "gizmo",
+    pointHeight: PLACE_CENTER.height + 50,
+    axisMode: "geoportal-default",
+    showCube: false,
+    showDragSampleOccluder: false,
+    excludeRegisteredDragSampleOccluders: false,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The gizmo axis and disc are permanent CesiumScenePickingHost exclusions. Dragging the centre samples the scene below the gizmo even without domain-geometry exclusions.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await dragSurfacePickTestHandle(canvasElement, true);
+  },
+};
+
+export const OwnGeometryAsSurface: StoryObj<GizmoSandboxProps> = {
+  name: "Own Geometry As Surface (Opt-in)",
+  args: {
+    ...SurfacePickExclusions.args,
+    excludeRegisteredDragSampleOccluders: false,
+  },
+  play: async ({ canvasElement }) => {
+    await dragSurfacePickTestHandle(canvasElement, false);
   },
 };

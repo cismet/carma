@@ -12,41 +12,6 @@ vi.mock("@carma-mapping/gizmo/cesium", () => ({
   useCesiumPointMoveGizmo: vi.fn(),
 }));
 
-// The hook publishes live drag anchors on the overlay provider's registry; the
-// spec has no provider mounted (and its synchronous rAF mock would recurse in
-// the provider's frame loop), so stub the context with a Map-backed registry.
-vi.mock("@carma-providers/label-overlay", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@carma-providers/label-overlay")
-  >();
-  const liveAnchorsMap = new Map<string, unknown>();
-  return {
-    ...actual,
-    useLabelOverlay: () => ({
-      addLabelOverlayElement: vi.fn(),
-      removeLabelOverlayElement: vi.fn(),
-      updateLabelOverlayElement: vi.fn(),
-      clearLabelOverlayElements: vi.fn(),
-      updatePositions: vi.fn(),
-      liveAnchors: {
-        set: (id: string, anchor: unknown) => {
-          liveAnchorsMap.set(id, anchor);
-        },
-        get: (id: string) => liveAnchorsMap.get(id),
-        delete: (id: string) => {
-          liveAnchorsMap.delete(id);
-        },
-        clear: () => {
-          liveAnchorsMap.clear();
-        },
-        get size() {
-          return liveAnchorsMap.size;
-        },
-      },
-    }),
-  };
-});
-
 const node = {
   id: "node-a",
   coordinate: {

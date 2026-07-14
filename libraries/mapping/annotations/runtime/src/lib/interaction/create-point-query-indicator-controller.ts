@@ -10,6 +10,7 @@ import {
   createRing,
   getScreenPixelsPerMeterAtWorldPoint,
   isValidScene,
+  registerCesiumScenePickExclusionResolver,
   resolveStableDiscNormal,
   safeCall,
   safeRemovePrimitive,
@@ -146,6 +147,12 @@ export const createPointQueryIndicatorController = (
     typeof createLineCollection
   > | null = null;
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
+  const unregisterScenePickExclusions =
+    registerCesiumScenePickExclusionResolver(activeScene, () =>
+      [previewRing, previewRingNormalLineCollection].filter(
+        (candidate): candidate is object => candidate !== null
+      )
+    );
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewPoint: Cartesian3 | null = null;
   // Optional world-radius resizing holds a captured radius across authoring and
@@ -487,6 +494,7 @@ export const createPointQueryIndicatorController = (
     destroy: () => {
       unsubscribeClientPosition();
       unregisterPointerTracker();
+      unregisterScenePickExclusions();
       safeCall(removePreviewRingFrameListener);
       removePreviewRingFrameListener = null;
       clearPreviewRing();

@@ -15,6 +15,7 @@ import {
   CarmaTransforms,
   cartesian3ToVector3,
   createPlaneBasis,
+  pickCesiumSceneFromRay,
 } from "@carma-mapping/engines/cesium/core";
 
 // Re-exported from cesium-core (single source of truth); kept available here for
@@ -266,6 +267,7 @@ export const getGroundPointFromClientPosition = (
   clientY: number,
   options?: {
     ignoreTranslucentDepth?: boolean;
+    includeDragSampleExclusions?: boolean;
   }
 ): Cartesian3 | null => {
   if (scene.isDestroyed()) return null;
@@ -284,14 +286,7 @@ export const getGroundPointFromClientPosition = (
   // main render and so cannot be filtered. pickFromRay still hits the globe and
   // every other primitive, keeping all foreign geometry snappable.
   // `pickFromRay` is an experimental Cesium API absent from the bundled typings.
-  const rayPick = scene as unknown as {
-    pickFromRay?: (
-      ray: typeof pickRay,
-      objectsToExclude?: unknown[],
-      width?: number
-    ) => { position?: Cartesian3 } | undefined;
-  };
-  if (typeof rayPick.pickFromRay === "function") {
+  {
     const previousPickTranslucentDepth = scene.pickTranslucentDepth;
     const shouldIgnoreTranslucentDepth =
       options?.ignoreTranslucentDepth === true &&
@@ -300,7 +295,10 @@ export const getGroundPointFromClientPosition = (
       scene.pickTranslucentDepth = false;
     }
     try {
-      const rayPickResult = rayPick.pickFromRay(pickRay);
+      const rayPickResult = pickCesiumSceneFromRay(scene, pickRay, {
+        includeDragSampleExclusions:
+          options?.includeDragSampleExclusions === true,
+      });
       if (rayPickResult && defined(rayPickResult.position)) {
         return Cartesian3.clone(rayPickResult.position);
       }

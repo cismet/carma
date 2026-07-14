@@ -20,6 +20,7 @@ import {
   RING_MATERIAL_PRESETS,
   resolvePreferredSurfacePick,
   resolveStableDiscNormal,
+  registerCesiumScenePickExclusionResolver,
   safeRemovePrimitive,
   sampleSurfacePickNormalAtScreenPosition,
 } from "@carma-mapping/engines/cesium/core";
@@ -146,6 +147,12 @@ export const createPointQueryController = ({
     typeof createLineCollection
   > | null;
   let discNormalLineRuntime: AuthoringLineRuntime | null = null;
+  const unregisterScenePickExclusions =
+    registerCesiumScenePickExclusionResolver(scene, () =>
+      [discPrimitive, discNormalLineCollection].filter(
+        (candidate): candidate is object => candidate !== null
+      )
+    );
   let discNeedsRender = false;
   let previousSurfaceNormal: Cartesian3 | null = null;
   let latestDiscWorldPosition: Cartesian3 | null = null;
@@ -1443,6 +1450,7 @@ export const createPointQueryController = ({
     destroy: () => {
       removePreRenderListener?.();
       unregisterPointerTracker();
+      unregisterScenePickExclusions();
       scene.canvas.removeEventListener("pointermove", handleCanvasPointerMove);
       scene.canvas.removeEventListener(
         "pointerrawupdate",

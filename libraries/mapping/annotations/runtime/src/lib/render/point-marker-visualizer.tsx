@@ -26,6 +26,7 @@ import {
 import type { CssPixelPosition } from "@carma-units";
 import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,
@@ -182,6 +183,7 @@ export const PointMarkerOverlayShell = ({
 export const usePointMarkerVisualizer = (
   scene: Scene | null,
   points: readonly RuntimePointMarkerRenderModel[],
+  liveAnchors: LiveAnnotationAnchors,
   overlayIdPrefix: string = "runtime-point-marker"
 ) => {
   const {
@@ -189,7 +191,6 @@ export const usePointMarkerVisualizer = (
     removeLabelOverlayElement,
     updateLabelOverlayElement,
     updatePositions,
-    liveAnchors,
   } = useLabelOverlay();
   const pointsRef = useRef(points);
   const previousPointIdsRef = useRef<Set<string>>(new Set());

@@ -92,7 +92,7 @@ export {
   type SceneRenderStage,
 } from "./carma-helpers/scene";
 export * from "./carma-helpers/scene/CoordinateAdapters";
-export * from "./carma-helpers/scene/DragSampleExclusions";
+export * from "./carma-helpers/scene/CesiumScenePickingHost";
 export * from "./carma-helpers/scene/Occlusion";
 export * from "./carma-helpers/scene/Picking";
 export * from "./carma-helpers/scene/ProjectionScale";

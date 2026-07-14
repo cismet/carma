@@ -40,7 +40,6 @@ export {
 export {
   type LabelOverlayElement,
   type LabelOverlayContextType,
-  type LabelOverlayLiveAnchors,
   type LabelOverlayWorldAnchor,
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,

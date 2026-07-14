@@ -12,7 +12,6 @@ export {
 export type {
   LabelOverlayElement,
   LabelOverlayContextType,
-  LabelOverlayLiveAnchors,
   LabelOverlayWorldAnchor,
 } from "../types";
 export type {

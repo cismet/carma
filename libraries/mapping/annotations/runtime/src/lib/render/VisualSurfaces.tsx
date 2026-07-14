@@ -5,6 +5,7 @@ import type { PartialAnnotationLineLabelOptions } from "../config/annotation-lin
 import type { AnnotationNodeLink } from "../store";
 import { useAnnotationVisualizers } from "./use-annotation-visualizers";
 import type { RuntimeVisualModels } from "./visual-models";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
 type VisualSurfacesProps = {
   scene: Scene | null;
@@ -17,6 +18,7 @@ type VisualSurfacesProps = {
   lineLabelOptions: PartialAnnotationLineLabelOptions;
   activeEditedNodeId: string | null;
   isMoveGizmoDragging: boolean;
+  liveAnchors: LiveAnnotationAnchors;
   isMeasurementToolActive: boolean;
   previewSnapTargetHoverEnabled: boolean;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
@@ -48,6 +50,7 @@ export const VisualSurfaces = ({
   lineLabelOptions,
   activeEditedNodeId,
   isMoveGizmoDragging,
+  liveAnchors,
   isMeasurementToolActive,
   previewSnapTargetHoverEnabled,
   onPreviewSnapTargetNodeClick,
@@ -76,6 +79,7 @@ export const VisualSurfaces = ({
     lineLabelOptions,
     activeEditedNodeId,
     isMoveGizmoDragging,
+    liveAnchors,
     previewSnapTargetHoverEnabled,
     onPreviewSnapTargetNodeClick,
     onAnnotationSelect,
@@ -112,6 +116,7 @@ export const VisualSurfaces = ({
     lineLabelOptions,
     activeEditedNodeId,
     isMoveGizmoDragging,
+    liveAnchors,
     onNodeLongPress: isNodeEditActive ? onNodeLongPress : undefined,
     canStartNodeEditing: isNodeEditActive ? canStartNodeEditing : undefined,
     onReferenceNodeClick: isNodeEditActive ? onReferenceNodeClick : undefined,

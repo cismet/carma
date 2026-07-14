@@ -6,6 +6,10 @@ import {
   pickGlobePositionAtScreenPosition,
   pickScenePositionAtScreenPosition,
 } from "./Picking";
+import {
+  getCesiumScenePickExclusions,
+  pickCesiumSceneFromRay,
+} from "./CesiumScenePickingHost";
 
 type SceneWithFrameState = Scene & {
   frameState?: {
@@ -87,6 +91,29 @@ const resolveSurfaceDepthPickAtScreenPosition = (
   const screenKey = toScreenKey(screenPosition);
   if (frameCache.surfacePickByScreenKey.has(screenKey)) {
     return frameCache.surfacePickByScreenKey.get(screenKey) ?? null;
+  }
+
+  const scenePickExclusions = getCesiumScenePickExclusions(scene);
+  if (scenePickExclusions.length > 0) {
+    const pickRay = scene.camera.getPickRay(screenPosition);
+    if (pickRay) {
+      try {
+        const rayPick = pickCesiumSceneFromRay(scene, pickRay);
+        const resolvedPosition = isValidCartesian3(rayPick?.position)
+          ? rayPick?.position ?? null
+          : null;
+        frameCache.surfacePickByScreenKey.set(screenKey, resolvedPosition);
+        return resolvedPosition;
+      } catch {
+        // A query helper must never become the fallback surface. The globe
+        // result is resolved separately by the caller when ray picking fails.
+        frameCache.surfacePickByScreenKey.set(screenKey, null);
+        return null;
+      }
+    }
+
+    frameCache.surfacePickByScreenKey.set(screenKey, null);
+    return null;
   }
 
   if (!isDepthPickingSupported(scene)) {

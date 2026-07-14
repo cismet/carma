@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import type { Scene } from "@carma-cesium";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
@@ -31,6 +32,7 @@ import { SceneSelectionHost } from "./SceneSelectionHost";
 import { useVisualInteraction } from "./use-visual-interaction";
 import { selectRenderableAnnotationEntries } from "../utils/annotation-tool-collections";
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
+import { createLiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
 type RuntimeVisualHostProps = {
   scene: Scene | null;
@@ -70,6 +72,11 @@ export const RuntimeVisualHost = ({
   visualInteractionEnabled = false,
   visualAnnotationEntryRoles,
 }: RuntimeVisualHostProps) => {
+  const { invalidatePositions } = useLabelOverlay();
+  const liveAnchors = useMemo(
+    () => createLiveAnnotationAnchors(invalidatePositions),
+    [invalidatePositions]
+  );
   const activeToolType = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationToolType
   );
@@ -221,6 +228,7 @@ export const RuntimeVisualHost = ({
     onActiveEditedNodeIdChange,
     onHoveredPointQueryNodeIdChange,
     referenceObjectSizing,
+    liveAnchors,
   });
   const { baseVisualModels, overlayVisualModels } = useVisualLayers({
     plugins: registry.plugins,
@@ -265,6 +273,7 @@ export const RuntimeVisualHost = ({
         lineLabelOptions={lineLabelOptions}
         activeEditedNodeId={activeEditedNodeId}
         isMoveGizmoDragging={isMoveGizmoDragging}
+        liveAnchors={liveAnchors}
         isMeasurementToolActive={isMeasurementToolActive}
         previewSnapTargetHoverEnabled={previewSnapTargetHoverEnabled}
         onPreviewSnapTargetNodeClick={onPreviewSnapTargetNodeClick}
