@@ -1841,20 +1841,24 @@ export const useCesiumPointMoveGizmo = (
               },
             })
           ),
-          createElement("path", {
-            key: "disc-interaction-path",
-            "data-point-move-disc-interaction-path": "true",
-            d: "",
-            onMouseDown: handleDiscPlaneMouseDown,
-            onWheel: forwardWheelToScene,
-            fill: "rgba(255,255,255,0.001)",
-            stroke: "none",
-            style: {
-              display: "none",
-              pointerEvents: "auto",
-              cursor: PLANE_DRAG_DISC_CURSOR,
+          createElement(
+            "path",
+            {
+              key: "disc-interaction-path",
+              "data-point-move-disc-interaction-path": "true",
+              d: "",
+              onMouseDown: handleDiscPlaneMouseDown,
+              onWheel: forwardWheelToScene,
+              fill: "rgba(255,255,255,0.001)",
+              stroke: "none",
+              style: {
+                display: "none",
+                pointerEvents: "auto",
+                cursor: PLANE_DRAG_DISC_CURSOR,
+              },
             },
-          }),
+            createElement("title", null, "Punkt auf Höhenebene verschieben")
+          ),
           ...(showRotationHandle
             ? [
                 createElement("ellipse", {
@@ -1901,7 +1905,7 @@ export const useCesiumPointMoveGizmo = (
             userSelect: "none",
           },
           title: snapPlaneDragToGround
-            ? "Punkt auf Bodenhöhe verschieben"
+            ? "Punkt auf Oberfläche verschieben"
             : "Punkt in der Ebene verschieben",
         })
       ),
