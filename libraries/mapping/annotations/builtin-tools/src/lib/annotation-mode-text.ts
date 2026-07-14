@@ -191,8 +191,7 @@ export const defaultAnnotationToolTexts = {
     label: "Auswahl",
     tooltip: "Messung auswählen",
     helpText: [
-      "Messungen oder Anmerkungen anklicken, um sie auszuwählen.",
-      "Langes Drücken auf einen Punkt öffnet den Editiermodus.",
+      "Messgeometrie oder Anmerkung anklicken, um eine Messung auszuwählen.",
     ],
   },
   point: {
@@ -200,8 +199,8 @@ export const defaultAnnotationToolTexts = {
     tooltip: "Punkt messen",
     headingTitle: "Punktmessung",
     helpText: [
-      "Klick auf eine Position in der Karte setzt dort eine Punktmessung.",
-      "Jeder weitere Klick erstellt sofort eine neue Punktmessung.",
+      "Eine Position in der 3D-Darstellung anklicken, um dort einen Messpunkt zu setzen.",
+      "Jeder weitere Klick erzeugt sofort eine neue Punktmessung.",
     ],
     elevationLabels: {
       absolutePrefix: "NHN",
@@ -214,8 +213,7 @@ export const defaultAnnotationToolTexts = {
     tooltip: "Distanz messen",
     headingTitle: "Distanzmessung",
     helpText: [
-      "Zwei Positionen in der Karte anklicken, um eine Distanzmessung zu erstellen.",
-      "Backspace entfernt den letzten Vorschaupunkt, Escape verwirft ihn.",
+      "Zwei Positionen in der 3D-Darstellung anklicken, um eine Distanz zu messen.",
     ],
     metricLabels: {
       direct: "Direkt",

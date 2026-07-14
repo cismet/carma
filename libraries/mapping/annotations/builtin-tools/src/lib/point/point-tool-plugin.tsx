@@ -23,6 +23,7 @@ import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runti
 import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
+import { buildMeasurementToolHelpItems } from "../measurement-tool-help-items";
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POINT;
@@ -60,7 +61,9 @@ export const createPointToolPlugin = ({
       shortcutKey: "M",
       icon: <FontAwesomeIcon icon={faLocationDot} />,
     },
-    helpText: text.helpText,
+    helpText: buildMeasurementToolHelpItems({
+      primaryInstructions: text.helpText,
+    }),
     capabilities: [
       ...KEYBOARD_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,

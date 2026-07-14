@@ -23,8 +23,8 @@ import { createSegmentGuideController } from "./create-segment-guide-controller"
 import {
   applyLineLabel,
   createLineLabel,
-  createPreviewOverlayLayer,
-  destroyPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
+  destroyAnnotationOverlayLayer,
   annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
 import {
@@ -88,7 +88,7 @@ export const createSegmentAuthoringController = ({
     formatOptions,
     lineLabelOptions,
   });
-  const labelOverlayLayer = createPreviewOverlayLayer(
+  const labelOverlayLayer = createAnnotationOverlayLayer(
     scene,
     DRAFT_CHAIN_LABEL_LAYER_ID
   );
@@ -96,7 +96,6 @@ export const createSegmentAuthoringController = ({
   const totalLengthLabelController = createTransientPointLabelController({
     labelOverlay,
     overlayId: `${toolType}-draft-total-length-label`,
-    requestRender: () => scene.requestRender(),
   });
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;
@@ -218,13 +217,13 @@ export const createSegmentAuthoringController = ({
     }
   };
 
-  const render = () => {
+  const render = (requestRender = true) => {
     if (!enabled) {
-      draftChainController.clear();
-      segmentController.clear();
+      draftChainController.clear(false);
+      segmentController.clear(false);
       hideCommittedSegmentLabels();
       totalLengthLabelController.setState(null);
-      if (!scene.isDestroyed()) {
+      if (requestRender && !scene.isDestroyed()) {
         scene.requestRender();
       }
       return;
@@ -235,15 +234,19 @@ export const createSegmentAuthoringController = ({
       ? [...draftCoordinates, hoverCoordinate]
       : [...draftCoordinates];
 
-    draftChainController.setState({
-      lineCoordinates: showCommittedDraftChain ? draftCoordinates : [],
-      markerCoordinates,
-    });
+    draftChainController.setState(
+      {
+        lineCoordinates: showCommittedDraftChain ? draftCoordinates : [],
+        markerCoordinates,
+      },
+      false
+    );
     segmentController.setSegment(
       draftCoordinates[draftCoordinates.length - 1] ?? null,
-      hoverCoordinate
+      hoverCoordinate,
+      false
     );
-    renderLabels();
+    renderLabels(requestRender);
   };
 
   const unsubscribe = drafts.subscribe(toolType, () => {
@@ -266,16 +269,16 @@ export const createSegmentAuthoringController = ({
       }
       render();
     },
-    setPointQueryPickResult: (pickResult) => {
+    setPointQueryPickResult: (pickResult, options) => {
       pointQueryPickResult = pickResult;
-      render();
+      render(options?.requestRender);
     },
     destroy: () => {
       unsubscribe();
       draftChainController.destroy();
       segmentController.destroy();
       totalLengthLabelController.destroy();
-      destroyPreviewOverlayLayer(labelOverlayLayer);
+      destroyAnnotationOverlayLayer(labelOverlayLayer);
     },
   };
 };

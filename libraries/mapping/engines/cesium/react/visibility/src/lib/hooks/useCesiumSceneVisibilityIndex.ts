@@ -6,14 +6,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { Cartesian3, type Cartesian2, type Scene } from "@carma-cesium";
 import {
-  Cartesian3,
-  SceneTransforms,
-  defined,
-  type Cartesian2,
-  type Scene,
-} from "@carma-cesium";
-import { isPointOccluded } from "@carma-mapping/engines/cesium/core";
+  isPointOccluded,
+  projectCesiumScenePoint,
+} from "@carma-mapping/engines/cesium/core";
 import type { CssPixelPosition } from "@carma-units";
 
 import {
@@ -68,18 +65,6 @@ const EMPTY_VISIBILITY_STATE: SceneVisibilityState = {
   screenPosition: null,
 };
 
-const isPointInViewport = (
-  point: CssPixelPosition,
-  viewportWidth: number,
-  viewportHeight: number,
-  paddingHorizontal = 0,
-  paddingVertical = 0
-) =>
-  point.x >= -paddingHorizontal &&
-  point.y >= -paddingVertical &&
-  point.x <= viewportWidth + paddingHorizontal &&
-  point.y <= viewportHeight + paddingVertical;
-
 export const useCesiumSceneVisibilityIndex = (
   scene: Scene | null,
   {
@@ -108,50 +93,18 @@ export const useCesiumSceneVisibilityIndex = (
 
   const computeProjectionStateForPoint = useCallback(
     (point: PointEntry): ProjectedPointState => {
-      if (!scene || scene.isDestroyed()) {
-        return {
-          point,
-          canvasPosition: null,
-          screenPosition: null,
-          isInViewport: false,
-          isHidden: false,
-        };
-      }
-
-      const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        point.positionECEF
-      );
-      if (!defined(canvasPosition)) {
-        return {
-          point,
-          canvasPosition: null,
-          isHidden: shouldTestVisibility,
-          screenPosition: null,
-          isInViewport: false,
-        };
-      }
-
-      const screenPosition = {
-        x: canvasPosition.x,
-        y: canvasPosition.y,
-      } as CssPixelPosition;
-
-      const isInViewport = isPointInViewport(
-        screenPosition,
-        scene.canvas.clientWidth,
-        scene.canvas.clientHeight,
+      const projection = projectCesiumScenePoint(scene, point.positionECEF, {
+        shouldTestVisibility,
+        shouldTestOcclusion: false,
         viewportPaddingHorizontal,
-        viewportPaddingVertical
-      );
-
-      const isHidden = shouldTestVisibility ? !isInViewport : false;
+        viewportPaddingVertical,
+      });
       return {
         point,
-        canvasPosition,
-        isInViewport,
-        isHidden,
-        screenPosition,
+        canvasPosition: projection.canvasPosition,
+        isInViewport: projection.isInViewport,
+        isHidden: projection.isHidden,
+        screenPosition: projection.screenPosition,
       };
     },
     [

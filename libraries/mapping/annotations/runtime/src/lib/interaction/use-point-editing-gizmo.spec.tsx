@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   AnnotationsStore,
@@ -61,8 +61,67 @@ const createAnnotationsStore = ({
   } as unknown as AnnotationsStore & { dispatch: ReturnType<typeof vi.fn> });
 
 describe("usePointEditingGizmo", () => {
-  it("starts node editing without changing measurement selection", () => {
-    const annotationsStore = createAnnotationsStore();
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The draft preview flush is a trailing throttle (setTimeout); run it so the
+  // React draft state reflects the latest pointer input.
+  const flushDraftPreview = () => {
+    act(() => {
+      vi.runAllTimers();
+    });
+  };
+
+  it("starts node editing on the selected measurement without changing selection", () => {
+    const annotationsStore = createAnnotationsStore({
+      selectedAnnotationIds: ["measurement-a"],
+    });
+    const { result } = renderHook(() =>
+      usePointEditingGizmo(null, [node], [], {
+        annotationsStore,
+        annotationEntries: [measurement],
+        selectedAnnotationIds: ["measurement-a"],
+      })
+    );
+
+    act(() => {
+      result.current.handleNodeLongPress("node-a");
+    });
+
+    expect(result.current.activeEditedNodeId).toBe("node-a");
+    expect(annotationsStore.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("leaves edit mode when the edited measurement is deselected (e.g. mode change)", () => {
+    const annotationsStore = createAnnotationsStore({
+      selectedAnnotationIds: ["measurement-a"],
+    });
+    const { result, rerender } = renderHook(
+      ({ selectedAnnotationIds }: { selectedAnnotationIds: string[] }) =>
+        usePointEditingGizmo(null, [node], [], {
+          annotationsStore,
+          annotationEntries: [measurement],
+          selectedAnnotationIds,
+        }),
+      { initialProps: { selectedAnnotationIds: ["measurement-a"] } }
+    );
+
+    act(() => {
+      result.current.handleNodeLongPress("node-a");
+    });
+    expect(result.current.activeEditedNodeId).toBe("node-a");
+
+    // A mode change clears the selection; the gizmo must not linger.
+    rerender({ selectedAnnotationIds: [] });
+
+    expect(result.current.activeEditedNodeId).toBeNull();
+  });
+
+  it("does not start node editing when the node's measurement is not selected", () => {
+    const annotationsStore = createAnnotationsStore({
+      selectedAnnotationIds: ["measurement-b"],
+    });
     const { result } = renderHook(() =>
       usePointEditingGizmo(null, [node], [], {
         annotationsStore,
@@ -75,15 +134,12 @@ describe("usePointEditingGizmo", () => {
       result.current.handleNodeLongPress("node-a");
     });
 
-    expect(result.current.activeEditedNodeId).toBe("node-a");
+    expect(result.current.activeEditedNodeId).toBeNull();
     expect(annotationsStore.dispatch).not.toHaveBeenCalled();
   });
 
   it("limits live linked-node preview moves to selected measurements", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
+    vi.useFakeTimers();
     const nodes = [
       createNode("node-a"),
       createNode("node-b"),
@@ -119,6 +175,7 @@ describe("usePointEditingGizmo", () => {
     act(() => {
       result.current.handleReferenceNodeHover("ref", true);
     });
+    flushDraftPreview();
 
     expect(Object.keys(result.current.draftNodeCoordinateOverrides)).toEqual([
       "node-a",
@@ -139,11 +196,8 @@ describe("usePointEditingGizmo", () => {
     });
   });
 
-  it("keeps linked nodes together during live preview when no measurement is selected", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
+  it("keeps linked nodes together during live preview when their measurements are selected", () => {
+    vi.useFakeTimers();
     const nodes = [
       createNode("node-a"),
       createNode("node-b"),
@@ -155,7 +209,7 @@ describe("usePointEditingGizmo", () => {
     ];
     const annotationsStore = createAnnotationsStore({
       annotationEntries,
-      selectedAnnotationIds: [],
+      selectedAnnotationIds: ["measurement-a", "measurement-b"],
     });
     const { result } = renderHook(() =>
       usePointEditingGizmo(
@@ -168,7 +222,7 @@ describe("usePointEditingGizmo", () => {
         {
           annotationsStore,
           annotationEntries,
-          selectedAnnotationIds: [],
+          selectedAnnotationIds: ["measurement-a", "measurement-b"],
         }
       )
     );
@@ -179,6 +233,7 @@ describe("usePointEditingGizmo", () => {
     act(() => {
       result.current.handleReferenceNodeHover("ref", true);
     });
+    flushDraftPreview();
 
     expect(Object.keys(result.current.draftNodeCoordinateOverrides)).toEqual([
       "node-a",

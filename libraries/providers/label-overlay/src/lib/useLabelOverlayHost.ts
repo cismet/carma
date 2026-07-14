@@ -3,12 +3,14 @@ import { useCallback, useMemo, type RefObject } from "react";
 import type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
+  LabelOverlayViewChangeProbe,
 } from "./host";
 type UseLabelOverlayHostOptions = {
   kind?: string;
   instanceId?: string;
   containerRef: RefObject<HTMLElement | null>;
   subscribeFrame?: LabelOverlayFrameSubscription | null;
+  probeViewChange?: LabelOverlayViewChangeProbe | null;
   onResize?: (() => void) | null;
   forceLayoutOnPortalRender?: boolean;
 };
@@ -18,6 +20,7 @@ export const useLabelOverlayHost = ({
   instanceId,
   containerRef,
   subscribeFrame,
+  probeViewChange,
   onResize,
   forceLayoutOnPortalRender = true,
 }: UseLabelOverlayHostOptions): LabelOverlayHostBinding => {
@@ -93,11 +96,13 @@ export const useLabelOverlayHost = ({
       instanceId,
       containerRef,
       subscribeFrame: subscribeResponsiveFrame,
+      probeViewChange: probeViewChange ?? undefined,
       forceLayoutOnPortalRender,
     }),
     [
       containerRef,
       forceLayoutOnPortalRender,
+      probeViewChange,
       instanceId,
       kind,
       subscribeResponsiveFrame,

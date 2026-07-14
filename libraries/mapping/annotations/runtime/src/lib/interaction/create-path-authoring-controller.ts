@@ -20,9 +20,9 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
   annotationOverlayDefaults,
@@ -42,8 +42,11 @@ export type PathAuthoringLineOptions = Partial<
 >;
 
 export type PathAuthoringController = {
-  setState: (state: PathAuthoringControllerState) => void;
-  clear: () => void;
+  setState: (
+    state: PathAuthoringControllerState,
+    requestRender?: boolean
+  ) => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -153,7 +156,7 @@ export const createPathAuthoringController = (
     pointMarkerStyle?: PointMarkerVisualStyle;
   }
 ): PathAuthoringController => {
-  const overlayLayer = createPreviewOverlayLayer(scene, overlayLayerId);
+  const overlayLayer = createAnnotationOverlayLayer(scene, overlayLayerId);
   if (!overlayLayer) {
     return {
       setState: () => undefined,
@@ -220,7 +223,7 @@ export const createPathAuthoringController = (
   });
 
   return {
-    setState: (nextState) => {
+    setState: (nextState, requestRender = true) => {
       if (
         areCoordinateListsEqual(
           currentState.lineCoordinates,
@@ -241,19 +244,21 @@ export const createPathAuthoringController = (
       linePositions = currentState.lineCoordinates.map(
         cartesian3FromGeographicCoordinate
       );
-      render();
+      render(requestRender);
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       currentState = EMPTY_PATH_AUTHORING_STATE;
       linePositions = [];
       hide();
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
     },
     destroy: () => {
       removePostRenderListener();
       hide();
       destroyLineCollection(scene, lineCollection);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

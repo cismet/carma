@@ -4,24 +4,41 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type MouseEvent as ReactMouseEvent,
+  type WheelEvent as ReactWheelEvent,
 } from "react";
 
 import {
   buildCirclePoints,
+  computeCircleSegments,
+  createSteppedScreenScaler,
   getEquilateralTriangleHeight,
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
   getSupportRadius2d,
   MINUS_PI_OVER_FOUR,
   negativePiToPi,
+  REFERENCE_OBJECT_SCALING_MODES,
+  resolveWorldSizeForScreenTarget,
+  type ReferenceObjectScalingMode,
 } from "@carma-commons/math";
 import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/react/runtime";
-import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
-import { useLabelOverlay } from "@carma-providers/label-overlay";
+import {
+  AXIS_NUMERIC_EPSILON,
+  beginPointerDragSession,
+  POINTER_DRAG_SESSION_END_REASONS,
+  toSvgPathD,
+} from "@carma-mapping/gizmo/core";
+import {
+  useLabelOverlay,
+  useLineVisualizers,
+  type LineVisualizerData,
+} from "@carma-providers/label-overlay";
+import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import {
   Cartesian3,
   Color,
@@ -36,7 +53,12 @@ import {
 } from "@carma-cesium";
 import {
   CarmaTransforms,
+  createOrientedDiscModelMatrix,
   createRing,
+  getScreenPixelsPerMeterAtWorldPoint,
+  registerCesiumScenePickExclusionResolver,
+  safeCall,
+  safeRemovePrimitive,
 } from "@carma-mapping/engines/cesium/core";
 
 import {
@@ -119,8 +141,19 @@ export type CesiumGizmoRotationDelta = {
 
 export type CesiumGizmoScreenPosition = ScreenPoint2;
 
+export type CesiumPointMoveGizmoLabels = {
+  verticalAxis: string;
+  eastAxis: string;
+  northAxis: string;
+  genericAxis: string;
+  outerDisc: string;
+  surfacePlane: string;
+  freePlane: string;
+};
+
 export type UseCesiumPointMoveGizmoOptions = {
   points: CesiumGizmoPoint[];
+  labels: CesiumPointMoveGizmoLabels;
   movePointId?: string | null;
   axisDirection?: Cartesian3 | null;
   discPlaneNormal?: Cartesian3 | null;
@@ -129,13 +162,33 @@ export type UseCesiumPointMoveGizmoOptions = {
   axisCandidates?: CesiumMoveGizmoAxisCandidate[] | null;
   showRotationHandle?: boolean;
   showDisc?: boolean;
-  discOutlineFixedScreenSize?: boolean;
+  discScalingMode?: ReferenceObjectScalingMode;
   discOutlineScreenPixelRadius?: number;
+  // In world mode, periodically recalculate the held world radius toward the
+  // screen target instead of keeping the configured radius indefinitely.
+  discResizeWorldRadiusToScreenTarget?: boolean;
+  // Snap the disc world radius to the 1-2-5 decade series.
+  discQuantizeWorldRadius?: boolean;
+  // Hold the disc world radius fixed for the duration of a drag: the size is
+  // captured at drag start (where a re-step may happen) and then frozen until
+  // the drag ends, so the disc never resizes mid-drag.
+  freezeDiscScaleDuringDrag?: boolean;
+  // World-radius resizing only: how far the on-screen resolution may drift before
+  // the disc re-steps. The permissible apparent-size band is [1/factor, factor]
+  // of the target, so 4 → 0.25×–4×. Default 4.
+  discResizeStepFactor?: number;
+  // Draw a DOM-only hairline from the disc centre to its outer edge and label it
+  // with the disc's world radius (8px). Edit-tool readout only.
+  showDiscRadiusLabel?: boolean;
   axisWidthPx?: number;
   outlineWidthPx?: number;
   arrowActiveEdgePx?: number;
   arrowInactiveEdgePx?: number;
   snapPlaneDragToGround?: boolean;
+  // Gizmo helpers are always hidden from surface picks. Enable this additionally
+  // when host geometry registered for the active edit (such as a distance
+  // measurement's own lines) must not become the sampled surface.
+  excludeRegisteredDragSampleOccluders?: boolean;
   radius: number;
   onPointPositionChange?: (
     pointId: string,
@@ -161,8 +214,7 @@ const INACTIVE_AXIS_OPACITY = 1;
 const DISC_OUTLINE_COLOR = "rgba(255,255,255,0.92)";
 const DISC_OUTLINE_BASE_OPACITY = 0.92;
 const DISC_FILL_COLOR = Color.WHITE.withAlpha(0.5);
-const DISC_SCREEN_PIXEL_RADIUS = 32;
-const DISC_OUTLINE_SEGMENTS = 72;
+const DISC_SCREEN_PIXEL_RADIUS = 48;
 const DISC_SVG_EXTENT = 320;
 const DISC_SVG_HALF_EXTENT = DISC_SVG_EXTENT / 2;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
@@ -172,7 +224,6 @@ const AXIS_SCREEN_SAMPLE_MIN_WORLD = 0.25;
 const AXIS_SCREEN_SAMPLE_MAX_WORLD = 500;
 const DEFAULT_ACTIVE_ARROW_EDGE_PX = 16;
 const DEFAULT_INACTIVE_ARROW_EDGE_PX = 12;
-// Keep rotate handle/disc below arrows.
 const AXIS_LINE_LAYER_Z_INDEX = 0;
 const DISC_LAYER_Z_INDEX = 1;
 const CENTER_HIT_LAYER_Z_INDEX = 2;
@@ -182,42 +233,62 @@ const PLANE_DRAG_GROUND_SNAP_CURSOR = "row-resize";
 const PLANE_DRAG_DISC_CURSOR = "move";
 const ACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.3;
 const INACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.05;
+// Perspective sizing for the move arrows: their edge length scales with the
+// disc's apparent radius relative to its target, clamped so they neither vanish
+// when far nor overwhelm the view when close.
+const ARROW_PERSPECTIVE_SCALE_MIN = 0.4;
+const ARROW_PERSPECTIVE_SCALE_MAX = 4;
 const ROTATION_HANDLE_RADIUS_PX = 8;
 const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
 const ROTATION_HANDLE_MIN_MINOR_RADIUS_PX = 0.25;
 const ROTATION_NORMAL_SCREEN_SAMPLE_WORLD = 1;
 
-const DEFAULT_VERTICAL_AXIS_TITLE = "Punkt entlang der U-Achse verschieben";
-const DEFAULT_EAST_AXIS_TITLE = "Punkt entlang der E-Achse verschieben";
-const DEFAULT_NORTH_AXIS_TITLE = "Punkt entlang der N-Achse verschieben";
-
 const DEFAULT_AXIS_PRESENTATION = [
   {
     id: "vertical",
     color: ENU_UP_AXIS_COLOR,
-    getTitle: (axisTitle?: string | null) =>
-      axisTitle ?? DEFAULT_VERTICAL_AXIS_TITLE,
+    labelKey: "verticalAxis",
   },
   {
     id: "horizontal-east",
     color: ENU_EAST_AXIS_COLOR,
-    getTitle: () => DEFAULT_EAST_AXIS_TITLE,
+    labelKey: "eastAxis",
   },
   {
     id: "horizontal-north",
     color: ENU_NORTH_AXIS_COLOR,
-    getTitle: () => DEFAULT_NORTH_AXIS_TITLE,
+    labelKey: "northAxis",
   },
 ] as const;
 
 type DefaultAxisId = (typeof DEFAULT_AXIS_PRESENTATION)[number]["id"];
 
-const getDefaultAxisPresentation = (axisTitle?: string | null) =>
+// Keep the full ENU presentation available while tools expose height only.
+const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
+
+const isDefaultAxisEnabled = (axisId: string): boolean =>
+  DEFAULT_ENABLED_AXIS_IDS.includes(axisId);
+
+const getDefaultAxisPresentation = (
+  labels: CesiumPointMoveGizmoLabels,
+  axisTitle?: string | null
+) =>
   DEFAULT_AXIS_PRESENTATION.map((axisDefinition) => ({
     id: axisDefinition.id,
     color: axisDefinition.color,
-    title: axisDefinition.getTitle(axisTitle),
+    title:
+      axisDefinition.id === "vertical" && axisTitle
+        ? axisTitle
+        : labels[axisDefinition.labelKey],
   }));
+
+const getEnabledDefaultAxisPresentation = (
+  labels: CesiumPointMoveGizmoLabels,
+  axisTitle?: string | null
+) =>
+  getDefaultAxisPresentation(labels, axisTitle).filter((axisDefinition) =>
+    isDefaultAxisEnabled(axisDefinition.id)
+  );
 
 const getPhysicalHairlinePx = (): number => {
   if (typeof window === "undefined") return 1;
@@ -234,15 +305,6 @@ const safeDestroy = (
     destroyable.destroy();
   } catch {
     // Scene/widget teardown can race with explicit cleanup; ignore already-destroyed internals.
-  }
-};
-
-const safeCall = (callback: (() => void) | null | undefined) => {
-  if (!callback) return;
-  try {
-    callback();
-  } catch {
-    // Listener removal can race with scene/widget destruction.
   }
 };
 
@@ -280,42 +342,7 @@ const restoreGlobalDragCursor = (restoreRef: {
   restoreRef.current?.();
 };
 
-const safeRemovePrimitive = (
-  scene: Scene | null,
-  primitive: Primitive | null | undefined
-) => {
-  if (!scene || !primitive) return;
-  try {
-    if (!scene.isDestroyed()) {
-      scene.primitives.remove(primitive);
-    }
-  } catch {
-    // Scene/primitive teardown may race while effects are cleaning up.
-  }
-};
-
 const DEFAULT_AXIS_ENU_MATRIX_SCRATCH = new Matrix4();
-
-const createOrientedDiscModelMatrix = (
-  origin: Cartesian3,
-  planeNormal: Cartesian3,
-  radius: number,
-  result?: Matrix4
-): Matrix4 => {
-  const safeRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
-  const normalizedNormal = Cartesian3.normalize(planeNormal, new Cartesian3());
-  const planeBasis = createPlaneBasis(normalizedNormal);
-  return CarmaTransforms.createBasisScaleTranslationMatrix(
-    origin,
-    planeBasis.xAxis,
-    planeBasis.yAxis,
-    normalizedNormal,
-    safeRadius,
-    safeRadius,
-    1,
-    result
-  );
-};
 
 const updateTrianglePathAppearance = (
   pathElement: SVGPathElement | null,
@@ -333,6 +360,7 @@ const updateTrianglePathAppearance = (
 
 const getDefaultAxisCandidatesAtPosition = (
   origin: Cartesian3,
+  labels: CesiumPointMoveGizmoLabels,
   axisTitle?: string | null
 ): CesiumMoveGizmoAxisCandidate[] => {
   const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(
@@ -369,33 +397,53 @@ const getDefaultAxisCandidatesAtPosition = (
     "horizontal-north": northDirection,
   };
 
-  return getDefaultAxisPresentation(axisTitle).map((axisDefinition) => ({
-    id: axisDefinition.id,
-    direction: directionsByAxisId[axisDefinition.id],
-    color: axisDefinition.color,
-    title: axisDefinition.title,
-  }));
+  return getDefaultAxisPresentation(labels, axisTitle).map(
+    (axisDefinition) => ({
+      id: axisDefinition.id,
+      direction: directionsByAxisId[axisDefinition.id],
+      color: axisDefinition.color,
+      title: axisDefinition.title,
+    })
+  );
 };
+
+// Default axis candidates limited to the axes currently enabled for tools.
+// `getDefaultAxisCandidatesAtPosition` keeps generating the full ENU frame.
+const getEnabledDefaultAxisCandidatesAtPosition = (
+  origin: Cartesian3,
+  labels: CesiumPointMoveGizmoLabels,
+  axisTitle?: string | null
+): CesiumMoveGizmoAxisCandidate[] =>
+  getDefaultAxisCandidatesAtPosition(origin, labels, axisTitle).filter(
+    (candidate) => isDefaultAxisEnabled(candidate.id)
+  );
 
 export const useCesiumPointMoveGizmo = (
   scene: Scene | null,
   {
     points,
+    labels,
     movePointId = null,
     axisDirection = null,
     discPlaneNormal = null,
     axisTitle = null,
     preferredAxisId = null,
     axisCandidates = null,
-    showRotationHandle = true,
+    showRotationHandle = false,
     showDisc = true,
-    discOutlineFixedScreenSize = true,
+    discScalingMode = REFERENCE_OBJECT_SCALING_MODES.SCREEN,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
+    discResizeWorldRadiusToScreenTarget = false,
+    discQuantizeWorldRadius = false,
+    freezeDiscScaleDuringDrag = false,
+    discResizeStepFactor = 4,
+    showDiscRadiusLabel = false,
     axisWidthPx,
     outlineWidthPx: _outlineWidthPx,
     arrowActiveEdgePx = DEFAULT_ACTIVE_ARROW_EDGE_PX,
     arrowInactiveEdgePx = DEFAULT_INACTIVE_ARROW_EDGE_PX,
     snapPlaneDragToGround = false,
+    excludeRegisteredDragSampleOccluders = false,
     radius,
     onPointPositionChange,
     onDragStateChange,
@@ -404,19 +452,33 @@ export const useCesiumPointMoveGizmo = (
     onExit,
   }: UseCesiumPointMoveGizmoOptions
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
+  const { setLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
   const axisVisualizerRef = useRef<RotationAxisVisualizer | null>(null);
   const discVisualizerRef = useRef<Primitive | null>(null);
-  const removePostRenderListenerRef = useRef<(() => void) | null>(null);
+  const removeDiscFrameListenerRef = useRef<(() => void) | null>(null);
   const dragStateRef = useRef<AxisDragState | null>(null);
   const isDraggingRef = useRef(false);
   const suppressNextSceneClickRef = useRef(false);
   const clearInitialSceneClickGuardTimeoutRef = useRef<number | null>(null);
   const movePointRef = useRef<CesiumGizmoPoint | null>(null);
+  const livePointPositionsRef = useRef<Map<string, Cartesian3>>(new Map());
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
+  const discSteppedScalerRef = useRef(createSteppedScreenScaler());
+  const frozenDragDiscRadiusRef = useRef<number | null>(null);
+  const freezeDiscScaleDuringDragRef = useRef(freezeDiscScaleDuringDrag);
+  const stepFactorRef = useRef(discResizeStepFactor);
+  const showDiscRadiusLabelRef = useRef(showDiscRadiusLabel);
+  const radiusHairlineGeometryRef = useRef<{
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  } | null>(null);
+  const [radiusLabelText, setRadiusLabelText] = useState("");
+  const radiusLabelTextRef = useRef("");
   const restoreGlobalCursorRef = useRef<(() => void) | null>(null);
   const onPointPositionChangeRef = useRef(onPointPositionChange);
   const onDragStateChangeRef = useRef(onDragStateChange);
@@ -441,14 +503,14 @@ export const useCesiumPointMoveGizmo = (
     () => axisWidthPx ?? getPhysicalHairlinePx(),
     [axisWidthPx]
   );
-  const getDiscWorldRadius = useCallback(
+  const resolveScreenFixedDiscWorldRadius = useCallback(
     (
       origin: Cartesian3,
       planeNormal: Cartesian3,
       configuredWorldRadius: number
     ): number => {
       const baseRadius = Math.max(configuredWorldRadius, AXIS_NUMERIC_EPSILON);
-      if (!discOutlineFixedScreenSize || !scene || scene.isDestroyed()) {
+      if (!scene || scene.isDestroyed()) {
         return baseRadius;
       }
 
@@ -472,47 +534,87 @@ export const useCesiumPointMoveGizmo = (
         return baseRadius;
       }
 
-      return Math.max(
-        discOutlineScreenPixelRadius / pixelPerWorldMax,
-        AXIS_NUMERIC_EPSILON
+      const worldRadius = resolveWorldSizeForScreenTarget({
+        targetScreenPx: discOutlineScreenPixelRadius,
+        pixelPerWorld: pixelPerWorldMax,
+        quantize: false,
+      });
+      return Math.max(worldRadius, AXIS_NUMERIC_EPSILON);
+    },
+    [discOutlineScreenPixelRadius, scene]
+  );
+
+  const resolveSteppedDiscWorldRadius = useCallback(
+    (origin: Cartesian3): number => {
+      if (!scene || scene.isDestroyed()) {
+        return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
+      }
+
+      return discSteppedScalerRef.current.resolve({
+        currentScale: getScreenPixelsPerMeterAtWorldPoint(scene, origin),
+        targetScreenPx: discOutlineScreenPixelRadius,
+        fallback: Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON),
+        stepFactor: stepFactorRef.current,
+        quantize: discQuantizeWorldRadius,
+        minWorldSize: AXIS_NUMERIC_EPSILON,
+      });
+    },
+    [discOutlineScreenPixelRadius, discQuantizeWorldRadius, scene]
+  );
+
+  const computeDiscWorldRadius = useCallback(
+    (origin: Cartesian3, planeNormal: Cartesian3): number => {
+      if (
+        discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
+        discResizeWorldRadiusToScreenTarget
+      ) {
+        return resolveSteppedDiscWorldRadius(origin);
+      }
+      if (discScalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD) {
+        return Math.max(radiusRef.current, AXIS_NUMERIC_EPSILON);
+      }
+      return resolveScreenFixedDiscWorldRadius(
+        origin,
+        planeNormal,
+        radiusRef.current
       );
     },
-    [discOutlineFixedScreenSize, discOutlineScreenPixelRadius, scene]
+    [
+      discScalingMode,
+      discResizeWorldRadiusToScreenTarget,
+      resolveScreenFixedDiscWorldRadius,
+      resolveSteppedDiscWorldRadius,
+    ]
+  );
+
+  const resolveDiscWorldRadiusForFrame = useCallback(
+    (origin: Cartesian3, planeNormal: Cartesian3): number => {
+      if (freezeDiscScaleDuringDragRef.current && isDraggingRef.current) {
+        if (frozenDragDiscRadiusRef.current === null) {
+          frozenDragDiscRadiusRef.current = computeDiscWorldRadius(
+            origin,
+            planeNormal
+          );
+        }
+        return frozenDragDiscRadiusRef.current;
+      }
+      return computeDiscWorldRadius(origin, planeNormal);
+    },
+    [computeDiscWorldRadius]
   );
 
   const getGroundPointWithoutGizmoVisuals = useCallback(
     (clientX: number, clientY: number): Cartesian3 | null => {
       if (!scene || scene.isDestroyed()) return null;
 
-      // Ignore gizmo visuals during depth sampling so snaps never land on
-      // axis/disc helper geometry.
-      const hiddenVisualizers: Array<{ show: () => void }> = [];
-      const hiddenPrimitives: Primitive[] = [];
-      const axisVisualizer = axisVisualizerRef.current;
-      if (axisVisualizer?.isVisible) {
-        axisVisualizer.hide();
-        hiddenVisualizers.push(axisVisualizer);
-      }
-      const discVisualizer = discVisualizerRef.current;
-      if (discVisualizer?.show) {
-        discVisualizer.show = false;
-        hiddenPrimitives.push(discVisualizer);
-      }
-
-      try {
-        return getGroundPointFromClientPosition(scene, clientX, clientY, {
-          ignoreTranslucentDepth: true,
-        });
-      } finally {
-        for (const visualizer of hiddenVisualizers) {
-          visualizer.show();
-        }
-        for (const primitive of hiddenPrimitives) {
-          primitive.show = true;
-        }
-      }
+      // The scene host owns all permanent helper exclusions (including this
+      // gizmo's axis/disc) and optionally adds the active measurement geometry.
+      return getGroundPointFromClientPosition(scene, clientX, clientY, {
+        ignoreTranslucentDepth: true,
+        includeDragSampleExclusions: excludeRegisteredDragSampleOccluders,
+      });
     },
-    [scene]
+    [excludeRegisteredDragSampleOccluders, scene]
   );
   const getCanvasScreenPosition = useCallback(
     (
@@ -543,7 +645,20 @@ export const useCesiumPointMoveGizmo = (
 
   useEffect(() => {
     movePointRef.current = movePoint;
-  }, [movePoint]);
+    // Once React has committed the drag result, movePoint.geometryECEF equals
+    // the last published position, so drop the local live position here (not on mouseup)
+    // to avoid a one-frame snap-back to the pre-commit position. Never clear
+    // mid-drag (movePoint also changes every move while dragging).
+    if (!isDraggingRef.current && livePointPositionsRef.current.size > 0) {
+      livePointPositionsRef.current.clear();
+      // Render one settle frame so overlays re-resolve from the committed
+      // position now that the live position is gone (otherwise they only
+      // refresh on the next camera move).
+      if (scene && !scene.isDestroyed()) {
+        scene.requestRender();
+      }
+    }
+  });
 
   useEffect(() => {
     axisScreenDirectionRef.current = {};
@@ -595,6 +710,18 @@ export const useCesiumPointMoveGizmo = (
   }, [radius]);
 
   useEffect(() => {
+    freezeDiscScaleDuringDragRef.current = freezeDiscScaleDuringDrag;
+  }, [freezeDiscScaleDuringDrag]);
+
+  useEffect(() => {
+    showDiscRadiusLabelRef.current = showDiscRadiusLabel;
+  }, [showDiscRadiusLabel]);
+
+  useEffect(() => {
+    stepFactorRef.current = discResizeStepFactor;
+  }, [discResizeStepFactor]);
+
+  useEffect(() => {
     onPointPositionChangeRef.current = onPointPositionChange;
   }, [onPointPositionChange]);
 
@@ -624,7 +751,11 @@ export const useCesiumPointMoveGizmo = (
     const candidates =
       axisCandidates && axisCandidates.length > 0
         ? axisCandidates
-        : getDefaultAxisCandidatesAtPosition(movePoint.geometryECEF, axisTitle);
+        : getEnabledDefaultAxisCandidatesAtPosition(
+            movePoint.geometryECEF,
+            labels,
+            axisTitle
+          );
     if (candidates.length === 0) return;
 
     if (preferredAxisId) {
@@ -676,13 +807,24 @@ export const useCesiumPointMoveGizmo = (
     }
 
     activeAxisIdRef.current = candidates[0].id;
-  }, [axisCandidates, axisDirection, axisTitle, movePointKey, preferredAxisId]);
+  }, [
+    axisCandidates,
+    axisDirection,
+    axisTitle,
+    labels,
+    movePointKey,
+    preferredAxisId,
+  ]);
 
   const getAxisCandidatesAtPosition = useCallback(
     (origin: Cartesian3): CesiumMoveGizmoAxisCandidate[] => {
       const configuredCandidates = axisCandidatesRef.current;
       if (!configuredCandidates || configuredCandidates.length === 0) {
-        return getDefaultAxisCandidatesAtPosition(origin, axisTitle);
+        return getEnabledDefaultAxisCandidatesAtPosition(
+          origin,
+          labels,
+          axisTitle
+        );
       }
 
       const normalizedCandidates = configuredCandidates
@@ -747,7 +889,7 @@ export const useCesiumPointMoveGizmo = (
         };
       });
     },
-    [axisTitle]
+    [axisTitle, labels]
   );
 
   const getActiveAxisAtPosition = useCallback(
@@ -758,7 +900,7 @@ export const useCesiumPointMoveGizmo = (
           id: "vertical",
           direction: getUpVectorAtPosition(origin),
           color: ENU_UP_AXIS_COLOR,
-          title: axisTitle ?? DEFAULT_VERTICAL_AXIS_TITLE,
+          title: axisTitle ?? labels.verticalAxis,
         };
       }
 
@@ -801,7 +943,7 @@ export const useCesiumPointMoveGizmo = (
       activeAxisIdRef.current = candidates[0].id;
       return candidates[0];
     },
-    [axisTitle, getAxisCandidatesAtPosition]
+    [axisTitle, getAxisCandidatesAtPosition, labels.verticalAxis]
   );
 
   const getDiscPlaneNormalAtPosition = useCallback(
@@ -835,6 +977,10 @@ export const useCesiumPointMoveGizmo = (
     }
 
     restoreGlobalDragCursor(restoreGlobalCursorRef);
+
+    // Drop the frozen-during-drag radius so the next drag re-captures (and may
+    // re-step) its size at its own start.
+    frozenDragDiscRadiusRef.current = null;
 
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
@@ -925,6 +1071,11 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
+        // Publish synchronously so the disc + overlay (and downstream
+        // visualizers) repaint this position on the render we request below,
+        // ahead of the setState round-trip.
+        livePointPositionsRef.current.set(dragState.pointId, nextPosition);
+
         onPointPositionChangeRef.current?.(
           dragState.pointId,
           nextPosition,
@@ -936,25 +1087,15 @@ export const useCesiumPointMoveGizmo = (
         scene.requestRender();
       };
 
-      const finishDrag = (suppressSceneClick: boolean) => {
-        if (suppressSceneClick) {
-          suppressNextSceneClickRef.current = true;
-        }
-        stopDragging(false);
-      };
-      const onWindowMouseUp = () => finishDrag(true);
-      const onWindowPointerUp = () => finishDrag(true);
-      const onWindowBlur = () => finishDrag(false);
-      const onVisibilityChange = () => {
-        if (document.visibilityState === "visible") return;
-        finishDrag(false);
-      };
-
-      window.addEventListener("mousemove", onWindowMouseMove);
-      window.addEventListener("mouseup", onWindowMouseUp);
-      window.addEventListener("pointerup", onWindowPointerUp);
-      window.addEventListener("blur", onWindowBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const dragSession = beginPointerDragSession({
+        onMove: onWindowMouseMove,
+        onEnd: ({ reason }) => {
+          if (reason === POINTER_DRAG_SESSION_END_REASONS.RELEASE) {
+            suppressNextSceneClickRef.current = true;
+          }
+          stopDragging(false);
+        },
+      });
 
       dragStateRef.current = {
         mode: "translate",
@@ -962,13 +1103,7 @@ export const useCesiumPointMoveGizmo = (
         axisOrigin,
         axisDirection,
         startAxisParam,
-        cleanupWindowListeners: () => {
-          window.removeEventListener("mousemove", onWindowMouseMove);
-          window.removeEventListener("mouseup", onWindowMouseUp);
-          window.removeEventListener("pointerup", onWindowPointerUp);
-          window.removeEventListener("blur", onWindowBlur);
-          document.removeEventListener("visibilitychange", onVisibilityChange);
-        },
+        cleanupWindowListeners: dragSession.cleanup,
       };
 
       isDraggingRef.current = true;
@@ -1053,8 +1188,7 @@ export const useCesiumPointMoveGizmo = (
         );
         dragStateRef.current.lastPlaneAngleRad = nextPlaneAngleRad;
 
-        // Global rotation direction inversion (requested):
-        // keep interaction symmetric and flip output for all camera sides.
+        // Keep rotation direction independent of the camera side.
         dragStateRef.current.accumulatedDeltaRad -= incrementalDelta;
         const deltaAngleRad = -incrementalDelta;
         const nextAngle =
@@ -1078,26 +1212,15 @@ export const useCesiumPointMoveGizmo = (
         scene.requestRender();
       };
 
-      const finishRotation = (suppressSceneClick: boolean) => {
-        if (suppressSceneClick) {
-          suppressNextSceneClickRef.current = true;
-        }
-        stopDragging(false);
-      };
-
-      const onWindowMouseUp = () => finishRotation(true);
-      const onWindowPointerUp = () => finishRotation(true);
-      const onWindowBlur = () => finishRotation(false);
-      const onVisibilityChange = () => {
-        if (document.visibilityState === "visible") return;
-        finishRotation(false);
-      };
-
-      window.addEventListener("mousemove", onWindowMouseMove);
-      window.addEventListener("mouseup", onWindowMouseUp);
-      window.addEventListener("pointerup", onWindowPointerUp);
-      window.addEventListener("blur", onWindowBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const dragSession = beginPointerDragSession({
+        onMove: onWindowMouseMove,
+        onEnd: ({ reason }) => {
+          if (reason === POINTER_DRAG_SESSION_END_REASONS.RELEASE) {
+            suppressNextSceneClickRef.current = true;
+          }
+          stopDragging(false);
+        },
+      });
 
       dragStateRef.current = {
         mode: "rotate",
@@ -1109,13 +1232,7 @@ export const useCesiumPointMoveGizmo = (
         lastPlaneAngleRad: startPlaneAngleRad,
         accumulatedDeltaRad: 0,
         baseRotationAngleRad,
-        cleanupWindowListeners: () => {
-          window.removeEventListener("mousemove", onWindowMouseMove);
-          window.removeEventListener("mouseup", onWindowMouseUp);
-          window.removeEventListener("pointerup", onWindowPointerUp);
-          window.removeEventListener("blur", onWindowBlur);
-          document.removeEventListener("visibilitychange", onVisibilityChange);
-        },
+        cleanupWindowListeners: dragSession.cleanup,
       };
 
       isDraggingRef.current = true;
@@ -1218,6 +1335,12 @@ export const useCesiumPointMoveGizmo = (
             mouseMoveEvent.clientY
           );
           if (nextGroundPoint) {
+            // Depth pick already resolved synchronously above, so the snapped
+            // world point is known now — publish it for this frame's repaint.
+            livePointPositionsRef.current.set(
+              dragState.pointId,
+              nextGroundPoint
+            );
             onPointPositionChangeRef.current?.(
               dragState.pointId,
               nextGroundPoint,
@@ -1266,6 +1389,10 @@ export const useCesiumPointMoveGizmo = (
           new Cartesian3()
         );
 
+        // Plane intersection is pure math against the frozen plane, so the
+        // position is known now — publish before requesting the render.
+        livePointPositionsRef.current.set(dragState.pointId, nextPosition);
+
         onPointPositionChangeRef.current?.(
           dragState.pointId,
           nextPosition,
@@ -1277,25 +1404,15 @@ export const useCesiumPointMoveGizmo = (
         scene.requestRender();
       };
 
-      const finishDrag = (suppressSceneClick: boolean) => {
-        if (suppressSceneClick) {
-          suppressNextSceneClickRef.current = true;
-        }
-        stopDragging(false);
-      };
-      const onWindowMouseUp = () => finishDrag(true);
-      const onWindowPointerUp = () => finishDrag(true);
-      const onWindowBlur = () => finishDrag(false);
-      const onVisibilityChange = () => {
-        if (document.visibilityState === "visible") return;
-        finishDrag(false);
-      };
-
-      window.addEventListener("mousemove", onWindowMouseMove);
-      window.addEventListener("mouseup", onWindowMouseUp);
-      window.addEventListener("pointerup", onWindowPointerUp);
-      window.addEventListener("blur", onWindowBlur);
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const dragSession = beginPointerDragSession({
+        onMove: onWindowMouseMove,
+        onEnd: ({ reason }) => {
+          if (reason === POINTER_DRAG_SESSION_END_REASONS.RELEASE) {
+            suppressNextSceneClickRef.current = true;
+          }
+          stopDragging(false);
+        },
+      });
 
       dragStateRef.current = {
         mode: "plane-translate",
@@ -1305,13 +1422,7 @@ export const useCesiumPointMoveGizmo = (
         planeBasisX,
         planeBasisY,
         startPlanePoint,
-        cleanupWindowListeners: () => {
-          window.removeEventListener("mousemove", onWindowMouseMove);
-          window.removeEventListener("mouseup", onWindowMouseUp);
-          window.removeEventListener("pointerup", onWindowPointerUp);
-          window.removeEventListener("blur", onWindowBlur);
-          document.removeEventListener("visibilitychange", onVisibilityChange);
-        },
+        cleanupWindowListeners: dragSession.cleanup,
       };
 
       isDraggingRef.current = true;
@@ -1340,17 +1451,17 @@ export const useCesiumPointMoveGizmo = (
         safeRemovePrimitive(scene, discVisualizerRef.current);
         discVisualizerRef.current = null;
       }
-      if (removePostRenderListenerRef.current) {
-        safeCall(removePostRenderListenerRef.current);
-        removePostRenderListenerRef.current = null;
+      if (removeDiscFrameListenerRef.current) {
+        safeCall(removeDiscFrameListenerRef.current);
+        removeDiscFrameListenerRef.current = null;
       }
       return;
     }
 
     // Defensive reset before (re)attach to guarantee at most one axis/disc visualizer pair.
-    if (removePostRenderListenerRef.current) {
-      safeCall(removePostRenderListenerRef.current);
-      removePostRenderListenerRef.current = null;
+    if (removeDiscFrameListenerRef.current) {
+      safeCall(removeDiscFrameListenerRef.current);
+      removeDiscFrameListenerRef.current = null;
     }
     if (axisVisualizerRef.current) {
       safeDestroy(axisVisualizerRef.current);
@@ -1383,16 +1494,19 @@ export const useCesiumPointMoveGizmo = (
     axisVisualizerRef.current = visualizer;
 
     if (showDisc) {
-      const initialDiscRadius = getDiscWorldRadius(
+      // Fresh selection: clear any prior step so the size is captured anew.
+      discSteppedScalerRef.current.reset();
+      const initialDiscRadius = computeDiscWorldRadius(
         movePoint.geometryECEF,
-        initialDiscPlaneNormal,
-        radiusRef.current
+        initialDiscPlaneNormal
       );
+      // Tessellate from the disc's apparent screen size so the filled ring
+      // reads as round rather than a visible polygon.
       const disc = createRing(`point-move-disc-${movePoint.id}`, {
         radius: 1,
         innerRadius: 0.5,
         color: DISC_FILL_COLOR,
-        segments: 24,
+        segments: computeCircleSegments(discOutlineScreenPixelRadius),
         modelMatrix: createOrientedDiscModelMatrix(
           movePoint.geometryECEF,
           initialDiscPlaneNormal,
@@ -1403,7 +1517,15 @@ export const useCesiumPointMoveGizmo = (
       discVisualizerRef.current = disc;
     }
 
-    const removePostRenderListener = scene.postRender.addEventListener(() => {
+    const unregisterScenePickExclusions =
+      registerCesiumScenePickExclusionResolver(scene, () => [
+        ...(axisVisualizerRef.current?.getPickExclusions() ?? []),
+        ...(discVisualizerRef.current ? [discVisualizerRef.current] : []),
+      ]);
+
+    // preRender applies the live position before Cesium builds this frame's draw
+    // commands, keeping the primitive aligned with the DOM overlay.
+    const removeDiscFrameListener = scene.preRender.addEventListener(() => {
       try {
         const currentPoint = movePointRef.current;
         const axisVisualizer = axisVisualizerRef.current;
@@ -1411,40 +1533,43 @@ export const useCesiumPointMoveGizmo = (
           return;
         }
 
-        const axisDirection = getActiveAxisAtPosition(
-          currentPoint.geometryECEF
-        ).direction;
-        const discPlaneNormal = getDiscPlaneNormalAtPosition(
-          currentPoint.geometryECEF
-        );
-        axisVisualizer.update(currentPoint.geometryECEF, axisDirection);
+        // Prefer the synchronously-published live anchor so the disc tracks the
+        // pointer without the setState round-trip. The annotation runtime
+        // publishes the same callback position to its own visualizers.
+        const livePosition =
+          livePointPositionsRef.current.get(currentPoint.id) ??
+          currentPoint.geometryECEF;
+
+        const axisDirection = getActiveAxisAtPosition(livePosition).direction;
+        const discPlaneNormal = getDiscPlaneNormalAtPosition(livePosition);
+        axisVisualizer.update(livePosition, axisDirection);
 
         const discVisualizer = discVisualizerRef.current;
         if (discVisualizer) {
-          const discWorldRadius = getDiscWorldRadius(
-            currentPoint.geometryECEF,
-            discPlaneNormal,
-            radiusRef.current
+          const discWorldRadius = resolveDiscWorldRadiusForFrame(
+            livePosition,
+            discPlaneNormal
           );
           discVisualizer.modelMatrix = createOrientedDiscModelMatrix(
-            currentPoint.geometryECEF,
+            livePosition,
             discPlaneNormal,
             discWorldRadius,
             discVisualizer.modelMatrix
           );
         }
       } catch {
-        // Ignore postRender races during teardown.
+        // Ignore frame races during teardown.
       }
     });
-    removePostRenderListenerRef.current = removePostRenderListener;
+    removeDiscFrameListenerRef.current = removeDiscFrameListener;
 
     scene.requestRender();
 
     return () => {
-      if (removePostRenderListenerRef.current) {
-        safeCall(removePostRenderListenerRef.current);
-        removePostRenderListenerRef.current = null;
+      unregisterScenePickExclusions();
+      if (removeDiscFrameListenerRef.current) {
+        safeCall(removeDiscFrameListenerRef.current);
+        removeDiscFrameListenerRef.current = null;
       }
       if (axisVisualizerRef.current) {
         safeDestroy(axisVisualizerRef.current);
@@ -1462,7 +1587,9 @@ export const useCesiumPointMoveGizmo = (
     getDiscPlaneNormalAtPosition,
     resolvedAxisWidthPx,
     getActiveAxisAtPosition,
-    getDiscWorldRadius,
+    computeDiscWorldRadius,
+    resolveDiscWorldRadiusForFrame,
+    discOutlineScreenPixelRadius,
     movePoint?.id,
     scene,
     showDisc,
@@ -1499,6 +1626,31 @@ export const useCesiumPointMoveGizmo = (
     },
     [startPlaneDragging]
   );
+
+  // The interactive overlay parts capture pointer events (so drags work), which
+  // would otherwise swallow the wheel and stop Cesium zooming when the cursor is
+  // over the disc/handles. Re-dispatch the wheel to the scene canvas so zoom
+  // keeps working over the gizmo.
+  const forwardWheelToScene = useCallback(
+    (event: ReactWheelEvent) => {
+      if (!scene || scene.isDestroyed()) return;
+      const canvas = scene.canvas;
+      if (!canvas) return;
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaZ: event.deltaZ,
+          deltaMode: event.deltaMode,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          bubbles: false,
+          cancelable: true,
+        })
+      );
+    },
+    [scene]
+  );
   const axisUiLengthPx = useMemo(
     () => Math.min(108, Math.max(72, radius * 16)),
     [radius]
@@ -1518,13 +1670,15 @@ export const useCesiumPointMoveGizmo = (
       "horizontal-north": Cartesian3.UNIT_Y,
     };
 
-    return getDefaultAxisPresentation(axisTitle).map((axisDefinition) => ({
-      id: axisDefinition.id,
-      direction: unitDirectionsByAxisId[axisDefinition.id],
-      color: axisDefinition.color,
-      title: axisDefinition.title,
-    })) as CesiumMoveGizmoAxisCandidate[];
-  }, [axisCandidates, axisTitle]);
+    return getEnabledDefaultAxisPresentation(labels, axisTitle).map(
+      (axisDefinition) => ({
+        id: axisDefinition.id,
+        direction: unitDirectionsByAxisId[axisDefinition.id],
+        color: axisDefinition.color,
+        title: axisDefinition.title,
+      })
+    ) as CesiumMoveGizmoAxisCandidate[];
+  }, [axisCandidates, axisTitle, labels]);
 
   const handleContent = useMemo(
     () =>
@@ -1564,6 +1718,7 @@ export const useCesiumPointMoveGizmo = (
               "data-point-move-axis-arrow-up": axisCandidate.id,
               onMouseDown: (event: ReactMouseEvent<HTMLDivElement>) =>
                 handleAxisMouseDown(event, axisCandidate),
+              onWheel: forwardWheelToScene,
               viewBox: getEquilateralTriangleViewBox(arrowActiveEdgePx),
               style: {
                 position: "absolute",
@@ -1581,8 +1736,7 @@ export const useCesiumPointMoveGizmo = (
                 userSelect: "none",
                 overflow: "visible",
               },
-              title:
-                axisCandidate.title ?? "Punkt entlang der Achse verschieben",
+              title: axisCandidate.title ?? labels.genericAxis,
             },
             createElement("path", {
               d: getEquilateralTrianglePathD(arrowActiveEdgePx),
@@ -1603,6 +1757,7 @@ export const useCesiumPointMoveGizmo = (
               "data-point-move-axis-arrow-down": axisCandidate.id,
               onMouseDown: (event: ReactMouseEvent<HTMLDivElement>) =>
                 handleAxisMouseDown(event, axisCandidate),
+              onWheel: forwardWheelToScene,
               viewBox: getEquilateralTriangleViewBox(arrowActiveEdgePx),
               style: {
                 position: "absolute",
@@ -1620,8 +1775,7 @@ export const useCesiumPointMoveGizmo = (
                 userSelect: "none",
                 overflow: "visible",
               },
-              title:
-                axisCandidate.title ?? "Punkt entlang der Achse verschieben",
+              title: axisCandidate.title ?? labels.genericAxis,
             },
             createElement("path", {
               d: getEquilateralTrianglePathD(arrowActiveEdgePx),
@@ -1675,19 +1829,24 @@ export const useCesiumPointMoveGizmo = (
               },
             })
           ),
-          createElement("path", {
-            key: "disc-interaction-path",
-            "data-point-move-disc-interaction-path": "true",
-            d: "",
-            onMouseDown: handleDiscPlaneMouseDown,
-            fill: "rgba(255,255,255,0.001)",
-            stroke: "none",
-            style: {
-              display: "none",
-              pointerEvents: "auto",
-              cursor: PLANE_DRAG_DISC_CURSOR,
+          createElement(
+            "path",
+            {
+              key: "disc-interaction-path",
+              "data-point-move-disc-interaction-path": "true",
+              d: "",
+              onMouseDown: handleDiscPlaneMouseDown,
+              onWheel: forwardWheelToScene,
+              fill: "rgba(255,255,255,0.001)",
+              stroke: "none",
+              style: {
+                display: "none",
+                pointerEvents: "auto",
+                cursor: PLANE_DRAG_DISC_CURSOR,
+              },
             },
-          }),
+            createElement("title", null, labels.outerDisc)
+          ),
           ...(showRotationHandle
             ? [
                 createElement("ellipse", {
@@ -1698,6 +1857,7 @@ export const useCesiumPointMoveGizmo = (
                   rx: `${ROTATION_HANDLE_RADIUS_PX}`,
                   ry: `${ROTATION_HANDLE_RADIUS_PX}`,
                   onMouseDown: handleRotationHandleMouseDown,
+                  onWheel: forwardWheelToScene,
                   fill: DISC_OUTLINE_COLOR,
                   stroke: DISC_OUTLINE_COLOR,
                   strokeWidth: `${AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX}`,
@@ -1717,6 +1877,7 @@ export const useCesiumPointMoveGizmo = (
             startPlaneDragging(event.clientX, event.clientY, {
               snapToGround: snapPlaneDragToGround,
             }),
+          onWheel: forwardWheelToScene,
           style: {
             position: "absolute",
             left: "50%",
@@ -1731,9 +1892,7 @@ export const useCesiumPointMoveGizmo = (
             cursor: centerPlaneDragCursor,
             userSelect: "none",
           },
-          title: snapPlaneDragToGround
-            ? "Punkt auf Bodenhöhe verschieben"
-            : "Punkt in der Ebene verschieben",
+          title: snapPlaneDragToGround ? labels.surfacePlane : labels.freePlane,
         })
       ),
     [
@@ -1745,12 +1904,48 @@ export const useCesiumPointMoveGizmo = (
       handleDiscPlaneMouseDown,
       handleAxisMouseDown,
       handleRotationHandleMouseDown,
+      forwardWheelToScene,
       overlayAxisCandidates,
       centerPlaneDragCursor,
+      labels,
       showRotationHandle,
       snapPlaneDragToGround,
       startPlaneDragging,
     ]
+  );
+
+  const radiusHairlineLineVisualizers = useMemo<LineVisualizerData[]>(() => {
+    if (!showDiscRadiusLabel || !showDisc || !movePoint) {
+      return [];
+    }
+    return [
+      {
+        id: `${OVERLAY_HANDLE_ID}-radius-hairline`,
+        getSvgLine: () => {
+          const geometry = radiusHairlineGeometryRef.current;
+          if (!geometry) {
+            return null;
+          }
+          return {
+            start: {
+              x: geometry.startX,
+              y: geometry.startY,
+            } as CssPixelPosition,
+            end: { x: geometry.endX, y: geometry.endY } as CssPixelPosition,
+          };
+        },
+        stroke: DISC_OUTLINE_COLOR,
+        strokeWidth: 0.25,
+        labelText: radiusLabelText,
+        labelColor: DISC_OUTLINE_COLOR,
+        labelFontSize: 8,
+      },
+    ];
+  }, [movePoint, radiusLabelText, showDisc, showDiscRadiusLabel]);
+
+  useLineVisualizers(
+    radiusHairlineLineVisualizers,
+    radiusHairlineLineVisualizers.length > 0
   );
 
   useEffect(() => {
@@ -1759,17 +1954,24 @@ export const useCesiumPointMoveGizmo = (
       return;
     }
 
-    // Ensure a hard replace when this effect reruns so stale duplicate DOM cannot accumulate.
     removeLabelOverlayElement(OVERLAY_HANDLE_ID);
 
-    addLabelOverlayElement({
+    setLabelOverlayElement({
       id: OVERLAY_HANDLE_ID,
       zIndex: MOVE_GIZMO_OVERLAY_Z_INDEX,
       content: handleContent,
       updatePosition: (elementDiv) => {
         try {
-          const activePoint = movePointRef.current;
-          if (!activePoint || scene.isDestroyed()) return false;
+          const rawPoint = movePointRef.current;
+          if (!rawPoint || scene.isDestroyed()) return false;
+
+          // Use the live anchor so the overlay does not wait for React state.
+          const activePoint = {
+            id: rawPoint.id,
+            geometryECEF:
+              livePointPositionsRef.current.get(rawPoint.id) ??
+              rawPoint.geometryECEF,
+          };
 
           const anchorCanvasPosition = SceneTransforms.worldToWindowCoordinates(
             scene,
@@ -1824,7 +2026,7 @@ export const useCesiumPointMoveGizmo = (
                 planeCandidate.id === activeAxisId;
               const fallbackPoints = buildCirclePoints(
                 discOutlineScreenPixelRadius,
-                DISC_OUTLINE_SEGMENTS
+                computeCircleSegments(discOutlineScreenPixelRadius)
               );
               const fallbackPathD = toSvgPathD(fallbackPoints, {
                 close: true,
@@ -1843,43 +2045,50 @@ export const useCesiumPointMoveGizmo = (
               discOutlinePath.style.stroke = DISC_OUTLINE_COLOR;
             };
 
-            const planeBasis = createPlaneBasis(
+            const planeNormalForCandidate =
               configuredDiscPlaneNormal &&
-                Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
-                  AXIS_NUMERIC_EPSILON
+              Cartesian3.magnitudeSquared(configuredDiscPlaneNormal) >
+                AXIS_NUMERIC_EPSILON
                 ? activeDiscPlaneNormal
-                : planeCandidate.direction
+                : planeCandidate.direction;
+            const planeBasis = createPlaneBasis(planeNormalForCandidate);
+
+            // Sync the overlay outline to the exact world radius the 3D disc
+            // uses (same screen/world resize/freeze logic) so both representations
+            // always agree.
+            const discWorldRadius = resolveDiscWorldRadiusForFrame(
+              activePoint.geometryECEF,
+              planeNormalForCandidate
             );
-            let discWorldRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
-
-            if (discOutlineFixedScreenSize) {
-              const pixelPerWorldMax = getPlanePixelsPerWorldMax(
-                scene,
-                activePoint.geometryECEF,
-                planeBasis,
-                anchorCanvasPosition,
-                DISC_PROJECTION_SCALE_SAMPLE_COUNT
-              );
-
-              if (pixelPerWorldMax > AXIS_NUMERIC_EPSILON) {
-                discWorldRadius = Math.max(
-                  discOutlineScreenPixelRadius / pixelPerWorldMax,
-                  AXIS_NUMERIC_EPSILON
-                );
-              }
-            }
 
             if (!Number.isFinite(discWorldRadius) || discWorldRadius <= 0) {
               showFallbackCenteredCircle();
               return;
             }
 
+            // Tessellate from the disc's apparent screen radius so the outline
+            // stays smooth (round) as it grows/shrinks with the camera.
+            const pixelPerWorldMax = getPlanePixelsPerWorldMax(
+              scene,
+              activePoint.geometryECEF,
+              planeBasis,
+              anchorCanvasPosition,
+              DISC_PROJECTION_SCALE_SAMPLE_COUNT
+            );
+            const outlineScreenRadiusPx =
+              pixelPerWorldMax > AXIS_NUMERIC_EPSILON
+                ? discWorldRadius * pixelPerWorldMax
+                : discOutlineScreenPixelRadius;
+            const outlineSegments = computeCircleSegments(
+              outlineScreenRadiusPx
+            );
+
             const projectedOutlinePoints = projectPlaneOutlinePoints(
               scene,
               activePoint.geometryECEF,
               planeBasis,
               discWorldRadius,
-              DISC_OUTLINE_SEGMENTS,
+              outlineSegments,
               anchorCanvasPosition
             );
 
@@ -1930,6 +2139,18 @@ export const useCesiumPointMoveGizmo = (
           const activeOutline = activeAxisId
             ? projectedOutlinesByAxisId.get(activeAxisId)
             : undefined;
+
+          const arrowPerspectiveScale =
+            activeOutline && discOutlineScreenPixelRadius > AXIS_NUMERIC_EPSILON
+              ? Math.min(
+                  ARROW_PERSPECTIVE_SCALE_MAX,
+                  Math.max(
+                    ARROW_PERSPECTIVE_SCALE_MIN,
+                    activeOutline.supportRadius / discOutlineScreenPixelRadius
+                  )
+                )
+              : 1;
+
           const activeAxisColor =
             axisCandidatesAtPoint.find(
               (candidate) => candidate.id === activeAxisId
@@ -2212,9 +2433,13 @@ export const useCesiumPointMoveGizmo = (
 
             const isActiveAxis = activeAxisIdRef.current === axisCandidate.id;
             const axisOpacity = isActiveAxis ? 1 : INACTIVE_AXIS_OPACITY;
-            const arrowEdgePx = isActiveAxis
-              ? Math.max(1, arrowActiveEdgePx)
-              : Math.max(1, arrowInactiveEdgePx);
+            const baseArrowEdgePx = isActiveAxis
+              ? arrowActiveEdgePx
+              : arrowInactiveEdgePx;
+            const arrowEdgePx = Math.max(
+              1,
+              baseArrowEdgePx * arrowPerspectiveScale
+            );
             const arrowHeightPx = getEquilateralTriangleHeight(arrowEdgePx);
             let arrowAnchorBaseDistancePx = axisArrowOffsetPx;
 
@@ -2227,12 +2452,14 @@ export const useCesiumPointMoveGizmo = (
                   const s = outline.supportRadius;
                   if (s > supportDistance) supportDistance = s;
                 });
-              } else {
-                const activeOutline =
-                  projectedOutlinesByAxisId.get(activeAxisId);
-                if (activeOutline) {
-                  supportDistance = activeOutline.supportRadius;
+                // No other in-plane disc to clear (e.g. only the vertical axis
+                // is enabled) → sit just outside our own disc so the distance
+                // tracks the disc under perspective.
+                if (supportDistance <= AXIS_NUMERIC_EPSILON) {
+                  supportDistance = activeOutline?.supportRadius ?? 0;
                 }
+              } else if (activeOutline) {
+                supportDistance = activeOutline.supportRadius;
               }
 
               if (supportDistance > AXIS_NUMERIC_EPSILON) {
@@ -2345,6 +2572,32 @@ export const useCesiumPointMoveGizmo = (
                 : centerPlaneDragCursor;
           }
 
+          const horizontalRadiusPx = activeOutline?.supportRadius ?? 0;
+          const radiusWorldValue = activeOutline?.worldRadius;
+          if (
+            showDiscRadiusLabelRef.current &&
+            showDisc &&
+            horizontalRadiusPx > AXIS_NUMERIC_EPSILON &&
+            radiusWorldValue !== undefined &&
+            Number.isFinite(radiusWorldValue)
+          ) {
+            radiusHairlineGeometryRef.current = {
+              startX: anchorCanvasPosition.x,
+              startY: anchorCanvasPosition.y,
+              endX: anchorCanvasPosition.x + horizontalRadiusPx,
+              endY: anchorCanvasPosition.y,
+            };
+            const nextRadiusLabelText = formatLengthMeters(radiusWorldValue, {
+              maximumFractionDigitsMeters: 0,
+            });
+            if (nextRadiusLabelText !== radiusLabelTextRef.current) {
+              radiusLabelTextRef.current = nextRadiusLabelText;
+              setRadiusLabelText(nextRadiusLabelText);
+            }
+          } else if (radiusHairlineGeometryRef.current !== null) {
+            radiusHairlineGeometryRef.current = null;
+          }
+
           return true;
         } catch {
           // Overlay refresh can race with scene/widget teardown.
@@ -2352,22 +2605,23 @@ export const useCesiumPointMoveGizmo = (
         }
       },
       visible: true,
-      isHidden: false,
     });
 
     return () => {
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
     };
   }, [
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     handleContent,
     movePoint?.id,
     axisArrowOffsetPx,
     removeLabelOverlayElement,
     scene,
     getAxisCandidatesAtPosition,
+    computeDiscWorldRadius,
+    resolveDiscWorldRadiusForFrame,
     radius,
-    discOutlineFixedScreenSize,
+    discScalingMode,
     discOutlineScreenPixelRadius,
     arrowActiveEdgePx,
     arrowInactiveEdgePx,
@@ -2414,6 +2668,7 @@ export const useCesiumPointMoveGizmo = (
         clearInitialSceneClickGuardTimeoutRef.current = null;
       }
       stopDragging(false);
+      livePointPositionsRef.current.clear();
       restoreGlobalDragCursor(restoreGlobalCursorRef);
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
       if (axisVisualizerRef.current) {
@@ -2424,9 +2679,9 @@ export const useCesiumPointMoveGizmo = (
         safeRemovePrimitive(scene, discVisualizerRef.current);
         discVisualizerRef.current = null;
       }
-      if (removePostRenderListenerRef.current) {
-        safeCall(removePostRenderListenerRef.current);
-        removePostRenderListenerRef.current = null;
+      if (removeDiscFrameListenerRef.current) {
+        safeCall(removeDiscFrameListenerRef.current);
+        removeDiscFrameListenerRef.current = null;
       }
     },
     [removeLabelOverlayElement, scene, stopDragging]

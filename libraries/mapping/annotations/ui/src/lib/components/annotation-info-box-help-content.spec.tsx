@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS,
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
+  ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
+  ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   ANNOTATION_INFO_BOX_HELP_LAYOUTS,
   AnnotationInfoBoxHelpContent,
@@ -268,5 +270,96 @@ describe("AnnotationInfoBoxHelpContent", () => {
     );
     expect(content.children[1]).toBe(alert);
     expect(content.children[2]).toBe(action);
+  });
+
+  it("renders both heading levels", () => {
+    render(
+      <AnnotationInfoBoxHelpContent
+        layout={ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT}
+        locale="de-DE"
+        platform="windows"
+        items={[
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING,
+            text: "Bearbeitungsmodus",
+            level: ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.TITLE,
+          },
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING,
+            text: "Weitere Funktionen",
+            level: ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION,
+          },
+        ]}
+      />
+    );
+
+    const headings = screen.getAllByTestId("annotation-help-heading");
+    expect(headings).toHaveLength(2);
+    expect(headings[0]?.textContent).toBe("Bearbeitungsmodus");
+    expect(headings[0]?.getAttribute("data-level")).toBe("title");
+    expect(headings[1]?.getAttribute("data-level")).toBe("section");
+  });
+
+  it("places the trigger label beside its icon in start-aligned rows", () => {
+    render(
+      <AnnotationInfoBoxHelpContent
+        layout={ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT}
+        locale="de-DE"
+        platform="windows"
+        actionTriggerAlign={
+          ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START
+        }
+        items={[
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            leadingLabel: "Scheibenmitte",
+            inputAlternatives: [
+              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_CENTER],
+            ],
+            rightAlignInput: true,
+            description: "→ auf der Oberfläche des 3D-Modells",
+          },
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            inputAlternatives: [[ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK]],
+            trailingLabel: "auf anderen Punkt",
+            description: "Höhe des Punktes übernehmen",
+          },
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            leadingLabel: "Blaue Pfeilspitzen",
+            inputAlternatives: [],
+            description: "→ entlang der Höhenachse",
+          },
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION,
+            inputAlternatives: [
+              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.ESCAPE],
+              [ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.CLICK],
+            ],
+            trailingLabel: "außerhalb des Punktes",
+            trailingLabelAfterLastInput: true,
+            description: "Bearbeitungsmodus verlassen",
+          },
+        ]}
+      />
+    );
+
+    const rows = screen.getAllByTestId("annotation-help-action");
+    expect(rows[0]?.textContent).toContain("Scheibenmitte");
+    expect(rows[0]?.textContent).toContain(
+      "→ auf der Oberfläche des 3D-Modells"
+    );
+    expect((rows[0]?.textContent ?? "").indexOf("Scheibenmitte")).toBeLessThan(
+      (rows[0]?.textContent ?? "").indexOf("→")
+    );
+    expect(rows[1]?.textContent).toContain("auf anderen Punkt");
+    expect(rows[1]?.textContent).toContain("Höhe des Punktes übernehmen");
+    expect(rows[2]?.textContent).toContain("Blaue Pfeilspitzen");
+    expect(rows[2]?.textContent).toContain("→ entlang der Höhenachse");
+    const leaveTrigger = rows[3]?.children[0];
+    expect(leaveTrigger?.children[1]?.textContent).toContain(
+      "Klickaußerhalb des Punktes"
+    );
   });
 });

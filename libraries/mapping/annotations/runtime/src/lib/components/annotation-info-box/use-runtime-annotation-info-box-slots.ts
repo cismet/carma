@@ -1,10 +1,14 @@
-import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
+import {
+  useActivePointQueryPickResult,
+  useAnnotationsRuntime,
+} from "../../context/AnnotationsProvider";
 import {
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
   type RuntimeAnnotationInfoBoxSlotsState,
   type UseRuntimeAnnotationInfoBoxSlotsOptions,
 } from "./runtime-annotation-info-box-slots.types";
 import { useRuntimeAnnotationInfoBoxAuthoringInstruction } from "./use-runtime-annotation-info-box-authoring-instruction";
+import { useRuntimeAnnotationInfoBoxEditingInstruction } from "./use-runtime-annotation-info-box-editing-instruction";
 import { useRuntimeAnnotationInfoBoxDraftState } from "./use-runtime-annotation-info-box-draft-state";
 import { useRuntimeSelectedAnnotationInfoBoxSlots } from "./use-runtime-selected-annotation-info-box-slots";
 
@@ -15,10 +19,11 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
   visualOptions,
 }: UseRuntimeAnnotationInfoBoxSlotsOptions = {}): RuntimeAnnotationInfoBoxSlotsState | null => {
   const runtime = useAnnotationsRuntime();
+  const activePointQueryPickResult = useActivePointQueryPickResult();
   const { activeToolDraftFeedback, activeToolDraftState } =
     useRuntimeAnnotationInfoBoxDraftState(runtime);
   const authoringInstruction = useRuntimeAnnotationInfoBoxAuthoringInstruction({
-    activePointQueryPickResult: runtime.activePointQueryPickResult,
+    activePointQueryPickResult,
     activeToolDraftFeedback,
     activeToolDraftState,
     activeToolType: runtime.activeToolType,
@@ -28,9 +33,20 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     registry: runtime.registry,
     visualOptions,
   });
+  const editingInstruction = useRuntimeAnnotationInfoBoxEditingInstruction({
+    activeEditedNodeId: runtime.activeEditedNodeId,
+    activeToolType: runtime.activeToolType,
+    annotationEntries: runtime.annotationEntries,
+    registry: runtime.registry,
+    authoringInstructionHelpLayout,
+    helpLocale,
+    includeAuthoringInstruction,
+    visualOptions,
+  });
   const selectedAnnotationSlots = useRuntimeSelectedAnnotationInfoBoxSlots({
     activeToolDraftFeedback,
     activeToolDraftState,
+    activeToolType: runtime.activeToolType,
     annotationEntries: runtime.annotationEntries,
     elevationReferenceAnnotationId: runtime.elevationReferenceAnnotationId,
     exportAnnotationGeoJson: runtime.exportAnnotationGeoJson,
@@ -51,6 +67,12 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     updateAnnotationShortLabel: runtime.updateAnnotationShortLabel,
     visualOptions,
   });
+
+  // While a node is being edited the help describes that interaction; it takes
+  // priority over the selected-measurement panel and the creation hint.
+  if (editingInstruction) {
+    return editingInstruction;
+  }
 
   if (selectedAnnotationSlots || runtime.selectedAnnotationId) {
     return selectedAnnotationSlots;

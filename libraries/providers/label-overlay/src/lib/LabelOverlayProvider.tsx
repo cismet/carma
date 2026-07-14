@@ -85,6 +85,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   );
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
+  const positionsDirtyRef = useRef(true);
   // Force a re-render when we need to update Portals (add/remove/content change)
   const [renderCounter, setRenderCounter] = useState(0);
   const forceRender = useCallback(() => {
@@ -100,7 +101,12 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   }, []);
   const resolvedContainerRef = host.containerRef;
   const resolvedFrameSubscription = host.subscribeFrame;
+  const probeViewChange = host.probeViewChange;
   const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
+
+  const markPositionsDirty = useCallback(() => {
+    positionsDirtyRef.current = true;
+  }, []);
 
   // Create overlay container
   useLayoutEffect(() => {
@@ -152,8 +158,9 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     };
   }, [forceRender, resolvedContainerRef]);
 
-  const addLabelOverlayElement = useCallback(
+  const setLabelOverlayElement = useCallback(
     (element: LabelOverlayElement) => {
+      markPositionsDirty();
       const existing = overlayElementsRef.current.get(element.id);
       if (existing && shouldReuseOverlayPortal(existing, element)) {
         overlayElementsRef.current.set(element.id, element);
@@ -163,7 +170,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       overlayElementsRef.current.set(element.id, element);
       forceRender();
     },
-    [forceRender]
+    [forceRender, markPositionsDirty]
   );
 
   const removeLabelOverlayElement = useCallback(
@@ -171,97 +178,51 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       if (!overlayElementsRef.current.has(id)) return;
       overlayElementsRef.current.delete(id);
       overlayElementNodeByIdRef.current.delete(id);
+      markPositionsDirty();
       forceRender();
     },
-    [forceRender]
+    [forceRender, markPositionsDirty]
   );
 
-  const updateLabelOverlayElement = useCallback(
-    (id: string, updates: Partial<LabelOverlayElement>) => {
-      const existing = overlayElementsRef.current.get(id);
-      if (existing) {
-        const updated = { ...existing, ...updates };
-        const shouldRender = !shouldReuseOverlayPortal(existing, updated);
-        overlayElementsRef.current.set(id, updated);
+  const updatePositionsInternal = useCallback(
+    (force = false) => {
+      const overlayContainer = overlayRef.current;
+      if (!overlayContainer) return;
 
-        if (shouldRender) {
-          forceRender();
+      // Keep the stateful probe current even when a forced update bypasses it.
+      const viewChanged = probeViewChange ? probeViewChange() : true;
+      if (!force && !viewChanged && !positionsDirtyRef.current) return;
+      positionsDirtyRef.current = false;
+
+      overlayElementsRef.current.forEach((element, id) => {
+        const elementDiv = overlayElementNodeByIdRef.current.get(id);
+        if (!elementDiv) return;
+
+        if (element.updatePosition) {
+          const hasPosition = element.updatePosition(elementDiv);
+          elementDiv.style.display =
+            hasPosition && element.visible !== false ? "block" : "none";
+          return;
         }
-      }
+
+        elementDiv.style.display = "none";
+      });
     },
-    [forceRender]
+    [probeViewChange]
   );
-
-  const clearLabelOverlayElements = useCallback(() => {
-    if (overlayElementsRef.current.size === 0) return;
-    overlayElementsRef.current.clear();
-    overlayElementNodeByIdRef.current.clear();
-    forceRender();
-  }, [forceRender]);
-
-  // Update overlay positions (imperative, no React render)
-  const updatePositionsInternal = useCallback(() => {
-    const overlayContainer = overlayRef.current;
-    if (!overlayContainer) return;
-
-    overlayElementsRef.current.forEach((element, id) => {
-      const elementDiv = overlayElementNodeByIdRef.current.get(id);
-      if (!elementDiv) return;
-
-      if (element.isHidden === true) {
-        elementDiv.style.display = "none";
-        return;
-      }
-
-      if (element.updatePosition) {
-        const hasPosition = element.updatePosition(elementDiv);
-        elementDiv.style.display =
-          hasPosition && element.visible !== false ? "block" : "none";
-        return;
-      }
-
-      const canvasPosition = element.getCanvasPosition
-        ? element.getCanvasPosition()
-        : null;
-
-      if (canvasPosition && element.visible !== false) {
-        elementDiv.style.position = "absolute";
-        elementDiv.style.left = `${canvasPosition.x}px`;
-        elementDiv.style.top = `${canvasPosition.y}px`;
-        elementDiv.style.transform = "translate(-50%, -50%)";
-        elementDiv.style.display = "block";
-      } else {
-        elementDiv.style.display = "none";
-      }
-    });
-  }, []);
 
   const updatePositions = useCallback(() => {
-    updatePositionsInternal();
+    updatePositionsInternal(true);
   }, [updatePositionsInternal]);
 
-  // Register update loop
   useEffect(() => {
-    if (resolvedFrameSubscription) {
-      const cleanup = resolvedFrameSubscription(updatePositionsInternal);
-      return () => {
-        if (typeof cleanup === "function") {
-          cleanup();
-        }
-      };
-    } else {
-      let animationFrameId: number;
-      const animationLoop = () => {
-        updatePositionsInternal();
-        animationFrameId = requestAnimationFrame(animationLoop);
-      };
-      animationFrameId = requestAnimationFrame(animationLoop);
-      return () => {
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-        }
-      };
-    }
+    const runFrame = () => updatePositionsInternal();
+    const cleanup = resolvedFrameSubscription(runFrame);
+    return () => {
+      if (typeof cleanup === "function") {
+        cleanup();
+      }
+    };
   }, [resolvedFrameSubscription, updatePositionsInternal]);
 
   useLayoutEffect(() => {
@@ -269,23 +230,22 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       return;
     }
 
-    updatePositionsInternal();
+    // Portals (re)mounted — newly attached nodes must be positioned now.
+    updatePositionsInternal(true);
   }, [forceLayoutOnPortalRender, renderCounter, updatePositionsInternal]);
 
   const contextValue: LabelOverlayContextType = useMemo(
     () => ({
-      addLabelOverlayElement,
+      setLabelOverlayElement,
       removeLabelOverlayElement,
-      updateLabelOverlayElement,
-      clearLabelOverlayElements,
       updatePositions,
+      invalidatePositions: markPositionsDirty,
     }),
     [
-      addLabelOverlayElement,
+      setLabelOverlayElement,
       removeLabelOverlayElement,
-      updateLabelOverlayElement,
-      clearLabelOverlayElements,
       updatePositions,
+      markPositionsDirty,
     ]
   );
 

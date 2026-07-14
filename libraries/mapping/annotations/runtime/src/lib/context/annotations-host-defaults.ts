@@ -1,6 +1,5 @@
 export const ANNOTATIONS_HOST_DEFAULTS = {
   pointQuery: {
-    discRadiusMeters: 1,
     discSmoothingSampleCount: 120,
     discSmoothingWindowMs: 500,
     discSmoothingWeightDecayGamma: 3,

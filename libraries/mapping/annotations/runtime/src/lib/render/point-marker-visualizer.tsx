@@ -17,8 +17,16 @@ import {
   useLabelOverlay,
 } from "@carma-providers/label-overlay";
 
-import type { Scene } from "@carma-cesium";
+import {
+  SceneTransforms,
+  defined,
+  type Cartesian3,
+  type Scene,
+} from "@carma-cesium";
+import type { CssPixelPosition } from "@carma-units";
+import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,
@@ -31,6 +39,7 @@ import {
 const createEmptyPointVisibilityState = (): OverlayVisibilityState => ({
   canvasPosition: null,
   screenPosition: null,
+  isInViewport: false,
   isHidden: true,
   isOccluded: false,
 });
@@ -175,11 +184,13 @@ export const PointMarkerOverlayShell = ({
 export const usePointMarkerVisualizer = (
   scene: Scene | null,
   points: readonly RuntimePointMarkerRenderModel[],
+  liveAnchors: LiveAnnotationAnchors,
   overlayIdPrefix: string = "runtime-point-marker"
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
+  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
     useLabelOverlay();
   const pointsRef = useRef(points);
+  const previousPointIdsRef = useRef<Set<string>>(new Set());
   const stateCacheRef = useRef<{
     frameKey: number | null;
     sceneSnapshot: OverlayVisibilitySceneSnapshot | null;
@@ -190,6 +201,7 @@ export const usePointMarkerVisualizer = (
     statesById: new Map(),
   });
   const isCameraMovingRef = useRef(false);
+  const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
     pointsRef.current = points;
@@ -244,17 +256,28 @@ export const usePointMarkerVisualizer = (
   const computeStatesById = useCallback(() => {
     const nextStatesById = new Map<string, OverlayVisibilityState>();
     const previousStatesById = stateCacheRef.current.statesById;
-    const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
+    // Reuse the previous occlusion verdict while the camera moves AND while a
+    // live drag is active: recomputing runs scene.pick/pickPosition per marker
+    // per frame (a pick-pass render each), which collapses the frame rate in
+    // marker-rich scenes.
+    const preserveOcclusion = isCameraMovingRef.current || liveAnchors.size > 0;
 
     pointsRef.current.forEach((point) => {
+      // During a drag the node moves while the camera is static, so anchor to its
+      // live position when present — otherwise the marker lags the gizmo/lines.
+      const liveAnchor = point.nodeId
+        ? (liveAnchors.get(point.nodeId) as Cartesian3 | undefined)
+        : undefined;
       const computedState = computeOverlayVisibilityState({
         scene,
-        coordinate: point.coordinate,
-        shouldTestOcclusion: !preserveOcclusionDuringCameraMove,
+        coordinate: liveAnchor
+          ? geographicCoordinateFromCartesian3(liveAnchor)
+          : point.coordinate,
+        shouldTestOcclusion: !preserveOcclusion,
       });
       nextStatesById.set(
         point.id,
-        preserveOcclusionDuringCameraMove
+        preserveOcclusion
           ? {
               ...computedState,
               isOccluded: previousStatesById.get(point.id)?.isOccluded ?? false,
@@ -264,17 +287,27 @@ export const usePointMarkerVisualizer = (
     });
 
     return nextStatesById;
-  }, [scene]);
+  }, [liveAnchors, scene]);
 
   const resolvePointVisibilityState = useCallback(
     (pointId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
         const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
-        const shouldRecomputeStates = !areOverlayVisibilitySceneSnapshotsEqual(
-          stateCacheRef.current.sceneSnapshot,
-          sceneSnapshot
-        );
+        // Live drag anchors move the node while the camera is static (equal
+        // snapshot), so force a recompute then or the marker freezes. Also force
+        // it on the settle frame (anchors just cleared) so the committed position
+        // replaces the last live one without needing a camera move.
+        const liveAnchorsActive = liveAnchors.size > 0;
+        const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
+        hadLiveAnchorsRef.current = liveAnchorsActive;
+        const shouldRecomputeStates =
+          liveAnchorsActive ||
+          justSettled ||
+          !areOverlayVisibilitySceneSnapshotsEqual(
+            stateCacheRef.current.sceneSnapshot,
+            sceneSnapshot
+          );
 
         stateCacheRef.current = shouldRecomputeStates
           ? {
@@ -294,17 +327,22 @@ export const usePointMarkerVisualizer = (
         createEmptyPointVisibilityState()
       );
     },
-    [computeStatesById, scene]
+    [computeStatesById, liveAnchors, scene]
   );
 
+  // Diff by point id and update registered overlays in place (like the label
+  // visualizer): a remove+re-add drops the element's DOM registration until the
+  // portal re-commits, so the per-frame loop skips the marker for a frame on
+  // every draft flush — a marker-only stutter during drags.
   useEffect(() => {
-    const overlayIds = points.map((point) =>
-      getPointMarkerOverlayId(overlayIdPrefix, point.id)
-    );
+    const nextPointIds = new Set<string>();
 
     points.forEach((point) => {
-      addLabelOverlayElement({
-        id: getPointMarkerOverlayId(overlayIdPrefix, point.id),
+      const overlayId = getPointMarkerOverlayId(overlayIdPrefix, point.id);
+      nextPointIds.add(point.id);
+
+      const overlayElement = {
+        id: overlayId,
         zIndex: labelOverlayLayerDefaults.zIndex.pointMarker,
         contentKey: getPointMarkerContentSignature(point),
         content: (
@@ -318,14 +356,35 @@ export const usePointMarkerVisualizer = (
             longPressDurationMs={point.longPressDurationMs}
           />
         ),
-        updatePosition: (elementDiv) => {
+        updatePosition: (elementDiv: HTMLElement) => {
           const visibilityState = resolvePointVisibilityState(point.id);
           if (!visibilityState.screenPosition || visibilityState.isHidden) {
             return false;
           }
 
-          elementDiv.style.left = `${visibilityState.screenPosition.x}px`;
-          elementDiv.style.top = `${visibilityState.screenPosition.y}px`;
+          // The dragged node moves between rendered frames too (forced update
+          // passes run outside postRender, where the frame-keyed state cache
+          // stays pinned). Project its live anchor directly so the circle stays
+          // glued to the gizmo/lines, which read the registry live.
+          let screenPosition = visibilityState.screenPosition;
+          const liveAnchor = point.nodeId
+            ? (liveAnchors.get(point.nodeId) as Cartesian3 | undefined)
+            : undefined;
+          if (liveAnchor && scene && !scene.isDestroyed()) {
+            const projected = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              liveAnchor
+            );
+            if (defined(projected)) {
+              screenPosition = {
+                x: projected.x,
+                y: projected.y,
+              } as CssPixelPosition;
+            }
+          }
+
+          elementDiv.style.left = `${screenPosition.x}px`;
+          elementDiv.style.top = `${screenPosition.y}px`;
           elementDiv.style.transform = "none";
 
           const circle = elementDiv.querySelector(
@@ -344,19 +403,28 @@ export const usePointMarkerVisualizer = (
 
           return true;
         },
-      });
+      };
+
+      setLabelOverlayElement(overlayElement);
     });
+
+    previousPointIdsRef.current.forEach((pointId) => {
+      if (nextPointIds.has(pointId)) {
+        return;
+      }
+
+      removeLabelOverlayElement(
+        getPointMarkerOverlayId(overlayIdPrefix, pointId)
+      );
+    });
+
+    previousPointIdsRef.current = nextPointIds;
 
     updatePositions();
     scene?.requestRender();
-
-    return () => {
-      overlayIds.forEach((overlayId) => {
-        removeLabelOverlayElement(overlayId);
-      });
-    };
   }, [
-    addLabelOverlayElement,
+    setLabelOverlayElement,
+    liveAnchors,
     overlayIdPrefix,
     points,
     removeLabelOverlayElement,
@@ -364,4 +432,16 @@ export const usePointMarkerVisualizer = (
     scene,
     updatePositions,
   ]);
+
+  useEffect(
+    () => () => {
+      previousPointIdsRef.current.forEach((pointId) => {
+        removeLabelOverlayElement(
+          getPointMarkerOverlayId(overlayIdPrefix, pointId)
+        );
+      });
+      previousPointIdsRef.current.clear();
+    },
+    [overlayIdPrefix, removeLabelOverlayElement]
+  );
 };

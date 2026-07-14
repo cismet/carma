@@ -4,6 +4,7 @@ export {
   type CesiumGizmoPoint,
   type CesiumGizmoRotationDelta,
   type CesiumGizmoScreenPosition,
+  type CesiumPointMoveGizmoLabels,
   type CesiumMoveGizmoAxisCandidate,
 } from "./hooks/useCesiumPointMoveGizmo";
 

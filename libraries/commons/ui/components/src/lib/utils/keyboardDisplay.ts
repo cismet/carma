@@ -13,12 +13,12 @@ const KEYBOARD_DISPLAY_LABELS_BY_LANGUAGE: Readonly<
 > = {
   de: {
     backspace: "Rücktaste",
-    escape: "Esc",
+    escape: "Escape",
     shift: "Umschalt",
   },
   en: {
     backspace: "Backspace",
-    escape: "Esc",
+    escape: "Escape",
     shift: "Shift",
   },
 };
@@ -50,7 +50,12 @@ export const resolveKeyboardDisplayLabels = (
     : KEYBOARD_DISPLAY_LABELS_BY_LANGUAGE.en;
 };
 
+// Pair the backspace key with the glyph printed on that platform's key — the
+// Mac erase-left symbol (⌫) on macOS/iOS, the backspace arrow (←) elsewhere —
+// followed by the localized label ("Rücktaste"/"Backspace"), which stays the
+// same across platforms. So the hint names a specific physical key while the
+// symbol matches the user's keyboard.
 export const resolveBackspaceDisplayLabel = (
   platform: KeyboardDisplayPlatform,
   labels: KeyboardDisplayLabels
-): string => (platform === "macos" ? "⌫" : `← ${labels.backspace}`);
+): string => `${platform === "macos" ? "⌫" : "←"} ${labels.backspace}`;

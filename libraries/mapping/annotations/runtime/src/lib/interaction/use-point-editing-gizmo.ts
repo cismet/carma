@@ -19,8 +19,12 @@ import {
   type CesiumMoveGizmoAxisCandidate,
   type CesiumGizmoScreenPosition,
 } from "@carma-mapping/gizmo/cesium";
-import { Cartesian3 } from "@carma-cesium";
+import { Cartesian3, type Scene } from "@carma-cesium";
 
+import {
+  ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
+  type AnnotationReferenceObjectSizingOptions,
+} from "../config/annotation-reference-object-sizing";
 import {
   resolveAnnotationNodeMoveScope,
   resolveNextNodeLinksForNodeMove,
@@ -31,7 +35,6 @@ import {
   type AnnotationNode,
   type StoredAnnotation,
 } from "../store";
-import type { Scene } from "@carma-cesium";
 import {
   applyNodeCoordinateOverridesToNodes,
   areNodeCoordinateOverridesEqual,
@@ -40,12 +43,29 @@ import {
   type NodeCoordinateOverrides,
 } from "../utils/node-coordinate-overrides";
 import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
+import { shouldExcludeOwnGeometryFromPointEditSurfacePick } from "./point-editing-surface-pick-policy";
+import {
+  createLiveAnnotationAnchors,
+  type LiveAnnotationAnchors,
+} from "./live-annotation-anchors";
 
 const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
 
+// React readouts (area/length, counts) are paced to ~5 Hz; live geometry tracks
+// the pointer every frame via liveAnchors.
+const DRAFT_PREVIEW_FLUSH_INTERVAL_MS = 200;
+
 const POINT_EDITING_GIZMO_DEFAULTS = {
-  radiusMeters: 3,
   referenceNodeInteractionReleaseGuardMs: 48,
+  labels: {
+    verticalAxis: "Punkt entlang der U-Achse verschieben",
+    eastAxis: "Punkt entlang der E-Achse verschieben",
+    northAxis: "Punkt entlang der N-Achse verschieben",
+    genericAxis: "Punkt entlang der Achse verschieben",
+    outerDisc: "Punkt auf Höhenebene verschieben",
+    surfacePlane: "Punkt auf Oberfläche verschieben",
+    freePlane: "Punkt in der Ebene verschieben",
+  },
   referenceLineAxis: {
     primary: {
       id: "reference-line-parallel",
@@ -116,6 +136,8 @@ type UsePointEditingGizmoOptions = {
   annotationEntries: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
   onActiveEditedNodeIdChange?: (nodeId: string | null) => void;
+  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
+  liveAnchors?: LiveAnnotationAnchors;
 };
 
 type DraftCoordinatePreviewOptions = {
@@ -211,8 +233,15 @@ export const usePointEditingGizmo = (
     annotationEntries,
     selectedAnnotationIds,
     onActiveEditedNodeIdChange,
+    referenceObjectSizing = ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
+    liveAnchors: providedLiveAnchors,
   }: UsePointEditingGizmoOptions
 ) => {
+  const fallbackLiveAnchors = useMemo(
+    () => createLiveAnnotationAnchors(() => undefined),
+    []
+  );
+  const liveAnchors = providedLiveAnchors ?? fallbackLiveAnchors;
   const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
     null
   );
@@ -228,7 +257,8 @@ export const usePointEditingGizmo = (
     EMPTY_NODE_COORDINATE_OVERRIDES
   );
   const draftLinkToNodeIdRef = useRef<string | null>(null);
-  const draftPreviewAnimationFrameRef = useRef<number | null>(null);
+  const draftFlushTimeoutRef = useRef<number | null>(null);
+  const lastDraftFlushAtRef = useRef(0);
   const snappedNodeIdRef = useRef<string | null>(null);
   const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(
     null
@@ -258,6 +288,15 @@ export const usePointEditingGizmo = (
         : null,
     [activePlanarAreaEditPlane]
   );
+  const excludeOwnGeometryFromSurfacePick = useMemo(
+    () =>
+      shouldExcludeOwnGeometryFromPointEditSurfacePick({
+        activeEditedNodeId,
+        annotationEntries,
+        selectedAnnotationIds,
+      }),
+    [activeEditedNodeId, annotationEntries, selectedAnnotationIds]
+  );
   const areReferenceInteractionsSuppressed = useCallback(() => {
     if (isMoveGizmoDraggingRef.current) {
       return true;
@@ -267,7 +306,9 @@ export const usePointEditingGizmo = (
   }, []);
 
   const flushDraftPreviewState = useCallback(() => {
-    draftPreviewAnimationFrameRef.current = null;
+    draftFlushTimeoutRef.current = null;
+    lastDraftFlushAtRef.current =
+      typeof performance !== "undefined" ? performance.now() : 0;
     setDraftLinkToNodeId((currentDraftLinkToNodeId) =>
       currentDraftLinkToNodeId === draftLinkToNodeIdRef.current
         ? currentDraftLinkToNodeId
@@ -284,7 +325,7 @@ export const usePointEditingGizmo = (
   }, []);
 
   const scheduleDraftPreviewStateFlush = useCallback(() => {
-    if (draftPreviewAnimationFrameRef.current !== null) {
+    if (draftFlushTimeoutRef.current !== null) {
       return;
     }
 
@@ -293,9 +334,15 @@ export const usePointEditingGizmo = (
       return;
     }
 
-    draftPreviewAnimationFrameRef.current = window.requestAnimationFrame(() => {
+    // Trailing throttle: at most one React flush per interval. Pointer moves
+    // arriving within the interval are coalesced into the trailing flush; the
+    // live geometry stays at frame rate via liveAnchors regardless.
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
+    const elapsed = now - lastDraftFlushAtRef.current;
+    const delay = Math.max(0, DRAFT_PREVIEW_FLUSH_INTERVAL_MS - elapsed);
+    draftFlushTimeoutRef.current = window.setTimeout(() => {
       flushDraftPreviewState();
-    });
+    }, delay);
   }, [flushDraftPreviewState]);
 
   const updateDraftPreviewState = useCallback(
@@ -332,11 +379,11 @@ export const usePointEditingGizmo = (
 
   const clearDraftNodeCoordinateOverrides = useCallback(() => {
     if (
-      draftPreviewAnimationFrameRef.current !== null &&
+      draftFlushTimeoutRef.current !== null &&
       typeof window !== "undefined"
     ) {
-      window.cancelAnimationFrame(draftPreviewAnimationFrameRef.current);
-      draftPreviewAnimationFrameRef.current = null;
+      window.clearTimeout(draftFlushTimeoutRef.current);
+      draftFlushTimeoutRef.current = null;
     }
 
     draftNodeCoordinateOverridesRef.current = EMPTY_NODE_COORDINATE_OVERRIDES;
@@ -439,6 +486,16 @@ export const usePointEditingGizmo = (
           return draftCoordinatesByNodeId;
         }, {});
 
+        // Publish all moved nodes on the shared live-anchor registry so the
+        // measurement visualizers patch their geometry this frame, in lockstep
+        // with the gizmo disc, ahead of the draft-state round-trip.
+        const liveAnchorECEF = cartesian3FromGeographicCoordinate(
+          constrainedCoordinate
+        );
+        movedNodeIds.forEach((movedNodeId) => {
+          liveAnchors.set(movedNodeId, liveAnchorECEF);
+        });
+
         updateDraftPreviewState({
           nextDraftNodeCoordinateOverrides,
           nextDraftLinkToNodeId: null,
@@ -475,6 +532,15 @@ export const usePointEditingGizmo = (
         return draftCoordinatesByNodeId;
       }, {});
 
+      // See the disableSnap branch: publish the resolved (snapped) position for
+      // all moved nodes on the shared live-anchor registry.
+      const liveAnchorECEF = cartesian3FromGeographicCoordinate(
+        resolvedNodeSnapSample.coordinate
+      );
+      movedNodeIds.forEach((movedNodeId) => {
+        liveAnchors.set(movedNodeId, liveAnchorECEF);
+      });
+
       updateDraftPreviewState({
         nextDraftNodeCoordinateOverrides,
         nextDraftLinkToNodeId: resolvedNodeSnapSample.snappedNodeId,
@@ -484,6 +550,7 @@ export const usePointEditingGizmo = (
       activePlanarAreaEditPlane,
       annotationsStore,
       linkedNodeGroups,
+      liveAnchors,
       nodes,
       scene,
       selectedAnnotationIds,
@@ -528,6 +595,17 @@ export const usePointEditingGizmo = (
 
   const handleNodeLongPress = useCallback(
     (nodeId: string) => {
+      const isEditableSelectedNode = annotationEntries.some(
+        (annotation) =>
+          annotation.nodeIds.includes(nodeId) &&
+          selectedAnnotationIds.includes(annotation.id) &&
+          !annotation.locked &&
+          !annotation.readOnly
+      );
+      if (!isEditableSelectedNode) {
+        return;
+      }
+
       if (activeEditedNodeId && activeEditedNodeId !== nodeId) {
         commitDraftNodeCoordinateOverrides(activeEditedNodeId);
       }
@@ -535,7 +613,12 @@ export const usePointEditingGizmo = (
       setAxisOverride(null);
       setActiveEditedNodeId(nodeId);
     },
-    [activeEditedNodeId, commitDraftNodeCoordinateOverrides]
+    [
+      activeEditedNodeId,
+      annotationEntries,
+      commitDraftNodeCoordinateOverrides,
+      selectedAnnotationIds,
+    ]
   );
 
   const nodesById = useMemo(
@@ -705,15 +788,25 @@ export const usePointEditingGizmo = (
 
   useCesiumPointMoveGizmo(scene, {
     points: gizmoPoints,
+    labels: POINT_EDITING_GIZMO_DEFAULTS.labels,
     movePointId: activeEditedNodeId,
     axisDirection: axisOverride?.axisDirection ?? null,
     discPlaneNormal: activePlanarAreaDiscNormal,
     axisTitle: axisOverride?.axisTitle ?? null,
     preferredAxisId: axisOverride?.preferredAxisId ?? null,
     axisCandidates: axisOverride?.axisCandidates ?? null,
-    radius: POINT_EDITING_GIZMO_DEFAULTS.radiusMeters,
+    radius: referenceObjectSizing.worldRadiusMeters,
+    discScalingMode: referenceObjectSizing.scalingMode,
+    discOutlineScreenPixelRadius: referenceObjectSizing.targetScreenRadiusCssPx,
+    discResizeWorldRadiusToScreenTarget:
+      referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+    discQuantizeWorldRadius: referenceObjectSizing.quantizeWorldRadius,
+    freezeDiscScaleDuringDrag:
+      referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+    discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
     showRotationHandle: false,
     snapPlaneDragToGround: activePlanarAreaEditPlane === null,
+    excludeRegisteredDragSampleOccluders: excludeOwnGeometryFromSurfacePick,
     onDragStateChange: handleGizmoDragStateChange,
     onPointPositionChange: handleGizmoPointPositionChange,
     onExit: () => {
@@ -737,6 +830,36 @@ export const usePointEditingGizmo = (
     }
   }, [activeEditedNodeId, clearDraftNodeCoordinateOverrides, effectiveNodes]);
 
+  // Commit before leaving when selection changes; node removal is handled above
+  // and intentionally clears without committing.
+  useEffect(() => {
+    if (!activeEditedNodeId) {
+      return;
+    }
+    if (!nodes.some((node) => node.id === activeEditedNodeId)) {
+      return;
+    }
+
+    const isEditedMeasurementSelected = annotationEntries.some(
+      (annotation) =>
+        annotation.nodeIds.includes(activeEditedNodeId) &&
+        selectedAnnotationIds.includes(annotation.id)
+    );
+    if (isEditedMeasurementSelected) {
+      return;
+    }
+
+    commitDraftNodeCoordinateOverrides(activeEditedNodeId);
+    setAxisOverride(null);
+    setActiveEditedNodeId(null);
+  }, [
+    activeEditedNodeId,
+    annotationEntries,
+    commitDraftNodeCoordinateOverrides,
+    nodes,
+    selectedAnnotationIds,
+  ]);
+
   useEffect(() => {
     if (activeEditedNodeId) {
       draftBaseCoordinateRef.current =
@@ -751,13 +874,26 @@ export const usePointEditingGizmo = (
     onActiveEditedNodeIdChange?.(activeEditedNodeId);
   }, [activeEditedNodeId, onActiveEditedNodeIdChange]);
 
+  useEffect(() => {
+    if (
+      isMoveGizmoDragging ||
+      hasNodeCoordinateOverrides(draftNodeCoordinateOverrides)
+    ) {
+      return;
+    }
+    liveAnchors.clear();
+    if (scene && !scene.isDestroyed()) {
+      scene.requestRender();
+    }
+  }, [draftNodeCoordinateOverrides, isMoveGizmoDragging, liveAnchors, scene]);
+
   useEffect(
     () => () => {
       if (
-        draftPreviewAnimationFrameRef.current !== null &&
+        draftFlushTimeoutRef.current !== null &&
         typeof window !== "undefined"
       ) {
-        window.cancelAnimationFrame(draftPreviewAnimationFrameRef.current);
+        window.clearTimeout(draftFlushTimeoutRef.current);
       }
     },
     []

@@ -41,6 +41,7 @@ export {
   type LabelOverlayContextType,
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,
+  type LabelOverlayViewChangeProbe,
   type PointLabelStyle,
   type PointLabelStyleProps,
   type PillbuttonBadgePosition,

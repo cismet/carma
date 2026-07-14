@@ -1,20 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import { expect, waitFor } from "@storybook/test";
 
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+import { registerCesiumSceneDragSampleExclusionResolver } from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
+  getGroundPointFromClientPosition,
   type CesiumGizmoRotationDelta,
   type CesiumMoveGizmoAxisCandidate,
 } from "@carma-mapping/gizmo/cesium";
+import {
+  REFERENCE_OBJECT_SCALING_MODES,
+  type ReferenceObjectScalingMode,
+} from "@carma-commons/math";
+import {
+  createPointQueryIndicatorController,
+  type PointQueryIndicatorController,
+} from "@carma-mapping/annotations/runtime";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { WUPPERTAL } from "@carma-commons/resources";
 import {
   Cartesian3,
   Cartesian4,
+  Cartographic,
+  CesiumMath,
+  Color,
+  HeadingPitchRange,
+  Material,
   Matrix3,
   Matrix4,
+  PolylineCollection,
   Quaternion,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -40,16 +65,39 @@ if (typeof window !== "undefined") {
 
 type AxisMode = "geoportal-default" | "enu" | "up-only" | "world";
 
+type ReferenceObject = "gizmo" | "query-disc";
+
+const STORY_POINT_MOVE_GIZMO_LABELS = {
+  verticalAxis: "Move point along the up axis",
+  eastAxis: "Move point along the east axis",
+  northAxis: "Move point along the north axis",
+  genericAxis: "Move point along the axis",
+  outerDisc: "Move point on the height plane",
+  surfacePlane: "Move point on the surface",
+  freePlane: "Move point in the plane",
+} as const;
+
 type GizmoSandboxProps = {
+  referenceObject: ReferenceObject;
   pointLon: number;
   pointLat: number;
   pointHeight: number;
   radius: number;
   showRotationHandle: boolean;
   showDisc: boolean;
+  showCube: boolean;
+  showDragSampleOccluder: boolean;
+  excludeRegisteredDragSampleOccluders: boolean;
   snapPlaneDragToGround: boolean;
-  discOutlineFixedScreenSize: boolean;
+  discScalingMode: ReferenceObjectScalingMode;
   discOutlineScreenPixelRadius: number;
+  discResizeWorldRadiusToScreenTarget: boolean;
+  discQuantizeWorldRadius: boolean;
+  freezeDiscScaleDuringDrag: boolean;
+  // Permissible apparent-size band before the disc re-steps: [1/factor, factor]
+  // (4 → 0.25×–4×). Applies when world-radius resizing is enabled.
+  discResizeStepFactor: number;
+  showDiscRadiusLabel: boolean;
   axisWidthPx?: number;
   arrowActiveEdgePx: number;
   arrowInactiveEdgePx: number;
@@ -67,10 +115,15 @@ type CubeState = {
 
 const CUBE_HALF_SIZE_M = 10;
 const ROTATION_DELTA_EPSILON = 1e-7;
-const RATHAUS_START = {
-  longitude: 7.19993,
-  latitude: 51.27225,
-  height: 170,
+// Centre of the Barmen plaza, taken from the WUPPERTAL position preset in the
+// resources lib. The preset's nominal altitude is not the real surface; ground
+// there is ~162.6 m, so the anchor sits 5 m above ground (the cube extends
+// ±CUBE_HALF_SIZE_M around it).
+const PLACE_CENTER_GROUND_HEIGHT_M = 162.6;
+const PLACE_CENTER = {
+  longitude: WUPPERTAL.position.longitude,
+  latitude: WUPPERTAL.position.latitude,
+  height: PLACE_CENTER_GROUND_HEIGHT_M + 5,
 } as const;
 
 const buildEnuCandidates = (
@@ -213,15 +266,24 @@ const GizmoSandboxContent = ({
   scene,
   onSceneChange,
   rootRef,
+  referenceObject,
   pointLon,
   pointLat,
   pointHeight,
   radius,
   showRotationHandle,
   showDisc,
+  showCube,
+  showDragSampleOccluder,
+  excludeRegisteredDragSampleOccluders,
   snapPlaneDragToGround,
-  discOutlineFixedScreenSize,
+  discScalingMode,
   discOutlineScreenPixelRadius,
+  discResizeWorldRadiusToScreenTarget,
+  discQuantizeWorldRadius,
+  freezeDiscScaleDuringDrag,
+  discResizeStepFactor,
+  showDiscRadiusLabel,
   axisWidthPx,
   arrowActiveEdgePx,
   arrowInactiveEdgePx,
@@ -246,6 +308,48 @@ const GizmoSandboxContent = ({
     () => buildCubeLocalCorners(CUBE_HALF_SIZE_M),
     []
   );
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed() || !showDragSampleOccluder) {
+      return;
+    }
+
+    const localFrame = Transforms.eastNorthUpToFixedFrame(initialCubeCenter);
+    const occluderLine = new PolylineCollection();
+    occluderLine.add({
+      id: "surface-pick-own-measurement-line",
+      positions: [
+        Matrix4.multiplyByPoint(
+          localFrame,
+          new Cartesian3(0, -35, 0),
+          new Cartesian3()
+        ),
+        Matrix4.multiplyByPoint(
+          localFrame,
+          new Cartesian3(0, 35, 0),
+          new Cartesian3()
+        ),
+      ],
+      width: 24,
+      material: Material.fromType("Color", {
+        color: Color.fromCssColorString("rgba(239, 68, 68, 0.96)"),
+      }),
+    });
+    scene.primitives.add(occluderLine);
+    const unregisterOccluder = registerCesiumSceneDragSampleExclusionResolver(
+      scene,
+      () => [occluderLine]
+    );
+    scene.requestRender();
+
+    return () => {
+      unregisterOccluder();
+      if (!scene.isDestroyed()) {
+        scene.primitives.remove(occluderLine);
+        scene.requestRender();
+      }
+    };
+  }, [initialCubeCenter, scene, showDragSampleOccluder]);
 
   const [cubeState, setCubeState] = useState<CubeState>(() =>
     createInitialCubeState(initialCubeCenter)
@@ -306,7 +410,9 @@ const GizmoSandboxContent = ({
       const result = await setupCesium(
         cesiumContainerRef.current as HTMLDivElement,
         {
-          useBrowserRecommendedResolution: true,
+          // Physical-pixel (DPR) resolution like the geoportal widget, so the
+          // disc/gizmo render sharp instead of blurry.
+          useBrowserRecommendedResolution: false,
         }
       );
       if (!mounted) {
@@ -325,6 +431,18 @@ const GizmoSandboxContent = ({
       onSceneChange(widget.scene);
 
       setPointPosition(initialCubeCenter);
+
+      // Frame the cube wherever it sits (the default camera is over the city
+      // centre); release the look-at frame afterwards so free orbit still works.
+      widget.camera.lookAt(
+        initialCubeCenter,
+        new HeadingPitchRange(
+          CesiumMath.toRadians(20),
+          CesiumMath.toRadians(-30),
+          90
+        )
+      );
+      widget.camera.lookAtTransform(Matrix4.IDENTITY);
 
       widget.scene.requestRender();
     };
@@ -352,10 +470,11 @@ const GizmoSandboxContent = ({
   }, [initialCubeCenter, onSceneChange, setPointPosition]);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
+    if (!scene || scene.isDestroyed() || !showCube) {
       if (cubeVisualsRef.current) {
         cubeVisualsRef.current.destroy();
         cubeVisualsRef.current = null;
+        scene?.requestRender();
       }
       return;
     }
@@ -373,7 +492,7 @@ const GizmoSandboxContent = ({
         cubeVisualsRef.current = null;
       }
     };
-  }, [localCorners, scene]);
+  }, [localCorners, scene, showCube]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
@@ -517,6 +636,7 @@ const GizmoSandboxContent = ({
 
   useCesiumPointMoveGizmo(scene, {
     ...gizmoBinding,
+    labels: STORY_POINT_MOVE_GIZMO_LABELS,
     axisTitle: axisTitleForHook,
     preferredAxisId:
       preferredAxisId.trim().toLowerCase() === "auto"
@@ -525,20 +645,79 @@ const GizmoSandboxContent = ({
     axisCandidates: axisCandidatesForHook,
     axisDirection: axisDirectionForHook,
     onRotationDelta: handleRotationDelta,
-    showDisc,
+    // In query-disc mode the point-query indicator draws the reference disc, so
+    // hide the gizmo's own disc (the gizmo still anchors/moves the point).
+    showDisc: showDisc && referenceObject === "gizmo",
     showRotationHandle,
     snapPlaneDragToGround,
-    discOutlineFixedScreenSize,
+    excludeRegisteredDragSampleOccluders,
+    discScalingMode,
     discOutlineScreenPixelRadius,
+    discResizeWorldRadiusToScreenTarget,
+    discQuantizeWorldRadius,
+    freezeDiscScaleDuringDrag,
+    discResizeStepFactor,
+    showDiscRadiusLabel,
     axisWidthPx,
     arrowActiveEdgePx,
     arrowInactiveEdgePx,
     radius,
   });
 
+  // Query-disc reference object: the actual point-query indicator controller,
+  // locked to the gizmo point and fed the same sizing options as the gizmo.
+  const queryControllerRef = useRef<PointQueryIndicatorController | null>(null);
+  useEffect(() => {
+    if (!scene || scene.isDestroyed() || referenceObject !== "query-disc") {
+      queryControllerRef.current?.destroy();
+      queryControllerRef.current = null;
+      return;
+    }
+    const controller = createPointQueryIndicatorController(scene, {
+      radius,
+      scalingMode: discScalingMode,
+      resizeWorldRadiusToScreenTarget: discResizeWorldRadiusToScreenTarget,
+      discResizeStepFactor,
+      quantizeStepWorldRadius: discQuantizeWorldRadius,
+      targetScreenRadiusCssPx: discOutlineScreenPixelRadius,
+      showNormalLine: false,
+    });
+    queryControllerRef.current = controller;
+    controller.setEnabled(true);
+    return () => {
+      controller.destroy();
+      queryControllerRef.current = null;
+    };
+  }, [
+    scene,
+    referenceObject,
+    radius,
+    discScalingMode,
+    discResizeWorldRadiusToScreenTarget,
+    discResizeStepFactor,
+    discQuantizeWorldRadius,
+    discOutlineScreenPixelRadius,
+  ]);
+
+  useEffect(() => {
+    const controller = queryControllerRef.current;
+    if (!controller || referenceObject !== "query-disc") {
+      return;
+    }
+    controller.setPreview({
+      pointECEF: pointPosition,
+      lockToPreviewPoint: true,
+    });
+    scene?.requestRender();
+  }, [pointPosition, referenceObject, scene]);
+
   return (
     <div
       ref={rootRef}
+      data-test-id="gizmo-sandbox"
+      data-point-height-m={Cartographic.fromCartesian(
+        pointPosition
+      ).height.toFixed(3)}
       style={{
         height: "100vh",
         width: "100%",
@@ -553,6 +732,121 @@ const GizmoSandboxContent = ({
           overflow: "hidden",
         }}
       />
+      <button
+        data-test-id="surface-pick-test-trigger"
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={() => {
+          if (!scene || scene.isDestroyed()) {
+            return;
+          }
+          const pointScreenPosition =
+            scene.cartesianToCanvasCoordinates(pointPosition);
+          if (!pointScreenPosition) {
+            return;
+          }
+          const canvasRect = scene.canvas.getBoundingClientRect();
+          const sampleDeltaPx = referenceObject === "gizmo" ? 30 : 1;
+          const sampledPoint = getGroundPointFromClientPosition(
+            scene,
+            canvasRect.left + pointScreenPosition.x + sampleDeltaPx,
+            canvasRect.top + pointScreenPosition.y,
+            {
+              ignoreTranslucentDepth: true,
+              includeDragSampleExclusions: excludeRegisteredDragSampleOccluders,
+            }
+          );
+          if (sampledPoint) {
+            setPointPosition(sampledPoint);
+          }
+        }}
+        style={{ display: "none" }}
+      />
+      {showDragSampleOccluder ? (
+        <div
+          data-test-id="surface-pick-exclusion-status"
+          data-point-height-m={Cartographic.fromCartesian(
+            pointPosition
+          ).height.toFixed(3)}
+          data-own-geometry-excluded={`${excludeRegisteredDragSampleOccluders}`}
+          style={{
+            position: "fixed",
+            left: 12,
+            bottom: 12,
+            zIndex: 4000,
+            padding: "6px 9px",
+            background: "rgba(17, 24, 39, 0.86)",
+            color: "#e5e7eb",
+            font: "12px/1.4 Inter, system-ui, sans-serif",
+            pointerEvents: "none",
+          }}
+        >
+          Mittleren Griff auf der roten Eigengeometrie ziehen · Höhe{" "}
+          {Cartographic.fromCartesian(pointPosition).height.toFixed(2)} m ·{" "}
+          Eigengeometrie{" "}
+          {excludeRegisteredDragSampleOccluders ? "ausgeschlossen" : "pickbar"}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+// Resolution/status bar, like the other Cesium stories. Lives in screen space;
+// all sizing/scaling is driven by the Storybook controls (no in-canvas panel
+// that would clash with them).
+const STATUS_BAR_STYLE: CSSProperties = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 4000,
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 16,
+  padding: "6px 12px",
+  background: "rgba(17, 24, 39, 0.86)",
+  color: "#e5e7eb",
+  font: "12px/1.4 Inter, system-ui, sans-serif",
+  pointerEvents: "none",
+  userSelect: "none",
+};
+
+const GizmoStoryStatusBar = ({
+  scene,
+  referenceObject,
+  scaling,
+}: {
+  scene: Scene | null;
+  referenceObject: ReferenceObject;
+  scaling: string;
+}) => {
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const intervalId = window.setInterval(
+      () => forceUpdate((value) => value + 1),
+      250
+    );
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1;
+  const bufferWidth = scene?.drawingBufferWidth ?? 0;
+  const bufferHeight = scene?.drawingBufferHeight ?? 0;
+  const cssWidth = scene?.canvas?.clientWidth ?? 0;
+  const cssHeight = scene?.canvas?.clientHeight ?? 0;
+
+  return (
+    <div style={STATUS_BAR_STYLE}>
+      <span>physical pixels (DPR {dpr})</span>
+      <span>
+        buffer {bufferWidth}×{bufferHeight}
+      </span>
+      <span>
+        css {cssWidth}×{cssHeight}
+      </span>
+      <span>object: {referenceObject}</span>
+      <span>scaling: {scaling}</span>
     </div>
   );
 };
@@ -572,6 +866,19 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
         scene={scene}
         onSceneChange={setScene}
         rootRef={rootRef}
+      />
+      <GizmoStoryStatusBar
+        scene={scene}
+        referenceObject={props.referenceObject}
+        scaling={
+          props.discScalingMode === REFERENCE_OBJECT_SCALING_MODES.SCREEN
+            ? "screen"
+            : props.discResizeWorldRadiusToScreenTarget
+            ? `world, adaptive range (${1 / props.discResizeStepFactor}×–${
+                props.discResizeStepFactor
+              }×)`
+            : "world"
+        }
       />
     </LabelOverlayProvider>
   );
@@ -612,6 +919,18 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "boolean" },
       table: { category: "Disc" },
     },
+    showCube: {
+      control: { type: "boolean" },
+      table: { category: "Scene" },
+    },
+    showDragSampleOccluder: {
+      control: { type: "boolean" },
+      table: { category: "Surface pick test" },
+    },
+    excludeRegisteredDragSampleOccluders: {
+      control: { type: "boolean" },
+      table: { category: "Surface pick test" },
+    },
     snapPlaneDragToGround: {
       control: { type: "boolean" },
       table: { category: "Disc" },
@@ -620,7 +939,31 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "range", min: 8, max: 120, step: 1 },
       table: { category: "Disc" },
     },
-    discOutlineFixedScreenSize: {
+    discScalingMode: {
+      control: { type: "inline-radio" },
+      options: [
+        REFERENCE_OBJECT_SCALING_MODES.SCREEN,
+        REFERENCE_OBJECT_SCALING_MODES.WORLD,
+      ],
+      table: { category: "Disc" },
+    },
+    discQuantizeWorldRadius: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    discResizeWorldRadiusToScreenTarget: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    freezeDiscScaleDuringDrag: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    discResizeStepFactor: {
+      control: { type: "range", min: 2, max: 8, step: 1 },
+      table: { category: "Disc" },
+    },
+    showDiscRadiusLabel: {
       control: { type: "boolean" },
       table: { category: "Disc" },
     },
@@ -637,7 +980,15 @@ const meta: Meta<GizmoSandboxProps> = {
       table: { category: "Axes" },
     },
     axisMode: {
-      control: { type: "inline-radio" },
+      control: {
+        type: "inline-radio",
+        labels: {
+          "geoportal-default": "Vertical axis + disc only",
+          enu: "ENU (E/N/Up)",
+          "up-only": "Up only",
+          world: "World X/Y/Z",
+        },
+      },
       options: ["geoportal-default", "enu", "up-only", "world"],
       table: { category: "Axes" },
     },
@@ -661,6 +1012,11 @@ const meta: Meta<GizmoSandboxProps> = {
       control: { type: "text" },
       table: { category: "Axes" },
     },
+    referenceObject: {
+      control: { type: "inline-radio" },
+      options: ["gizmo", "query-disc"],
+      table: { category: "Reference object" },
+    },
   },
 };
 
@@ -669,20 +1025,154 @@ export default meta;
 export const Cesium: StoryObj<GizmoSandboxProps> = {
   name: "Cesium Integration",
   args: {
-    pointLon: RATHAUS_START.longitude,
-    pointLat: RATHAUS_START.latitude,
-    pointHeight: RATHAUS_START.height,
+    referenceObject: "gizmo",
+    pointLon: PLACE_CENTER.longitude,
+    pointLat: PLACE_CENTER.latitude,
+    pointHeight: PLACE_CENTER.height,
     radius: 8,
-    showRotationHandle: true,
+    showRotationHandle: false,
     showDisc: true,
+    showCube: true,
+    showDragSampleOccluder: false,
+    excludeRegisteredDragSampleOccluders: false,
     snapPlaneDragToGround: true,
-    discOutlineFixedScreenSize: true,
-    discOutlineScreenPixelRadius: 32,
+    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.SCREEN,
+    discOutlineScreenPixelRadius: 48,
+    discResizeWorldRadiusToScreenTarget: false,
+    discQuantizeWorldRadius: false,
+    freezeDiscScaleDuringDrag: false,
+    discResizeStepFactor: 4,
+    showDiscRadiusLabel: false,
     axisWidthPx: 1,
     arrowActiveEdgePx: 16,
     arrowInactiveEdgePx: 12,
     axisMode: "enu",
     preferredAxisId: "auto",
     axisTitle: "Move cube anchor along selected axis",
+  },
+};
+
+export const ReferenceObjectSizing: StoryObj<GizmoSandboxProps> = {
+  name: "Dynamic Scene Reference Object Sizing",
+  args: {
+    ...Cesium.args,
+    referenceObject: "gizmo",
+    axisMode: "geoportal-default",
+    showCube: false,
+    discScalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
+    discResizeWorldRadiusToScreenTarget: true,
+    discQuantizeWorldRadius: true,
+    freezeDiscScaleDuringDrag: true,
+    showDiscRadiusLabel: true,
+    discOutlineScreenPixelRadius: 48,
+  },
+};
+
+const dragSurfacePickTestHandle = async (
+  canvasElement: HTMLElement,
+  expectOwnGeometryExcluded: boolean
+) => {
+  const centerHit = await waitFor(
+    () => {
+      const candidate = canvasElement.querySelector<HTMLElement>(
+        '[data-point-move-axis-center-hit="true"]'
+      );
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLElement;
+    },
+    { timeout: 20_000 }
+  );
+  const status = canvasElement.querySelector<HTMLElement>(
+    '[data-test-id="gizmo-sandbox"]'
+  );
+  expect(status).not.toBeNull();
+  const initialHeight = Number(status?.dataset.pointHeightM);
+  expect(Number.isFinite(initialHeight)).toBe(true);
+
+  expect(centerHit.getBoundingClientRect().width).toBeGreaterThan(0);
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+  const testTrigger = canvasElement.querySelector<HTMLButtonElement>(
+    '[data-test-id="surface-pick-test-trigger"]'
+  );
+  expect(testTrigger).not.toBeNull();
+  testTrigger?.click();
+
+  await waitFor(
+    () => {
+      const height = Number(status?.dataset.pointHeightM);
+      expect(Number.isFinite(height)).toBe(true);
+      if (expectOwnGeometryExcluded) {
+        expect(height).toBeLessThan(initialHeight - 5);
+      } else {
+        expect(height).toBeGreaterThan(initialHeight - 1);
+      }
+    },
+    { timeout: 10_000 }
+  );
+};
+
+export const SurfacePickExclusions: StoryObj<GizmoSandboxProps> = {
+  name: "Surface Pick Exclusions",
+  tags: ["pick-exclusion"],
+  args: {
+    ...Cesium.args,
+    referenceObject: "query-disc",
+    pointHeight: PLACE_CENTER.height + 20,
+    axisMode: "geoportal-default",
+    showCube: false,
+    showDragSampleOccluder: true,
+    excludeRegisteredDragSampleOccluders: true,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The query disc is always excluded from surface picking. The red line emulates a measurement's own geometry: point/distance editing excludes it, while the control can be disabled to test tools that intentionally use their own geometry as a surface.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await dragSurfacePickTestHandle(canvasElement, true);
+  },
+};
+
+export const GizmoSelfPickExclusion: StoryObj<GizmoSandboxProps> = {
+  name: "Gizmo Never Picks Itself",
+  tags: ["pick-exclusion"],
+  args: {
+    ...Cesium.args,
+    referenceObject: "gizmo",
+    pointHeight: PLACE_CENTER.height + 50,
+    axisMode: "geoportal-default",
+    showCube: false,
+    showDragSampleOccluder: false,
+    excludeRegisteredDragSampleOccluders: false,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The gizmo axis and disc are permanent scene-picking exclusions. Dragging the centre samples the scene below the gizmo even without domain-geometry exclusions.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await dragSurfacePickTestHandle(canvasElement, true);
+  },
+};
+
+export const OwnGeometryAsSurface: StoryObj<GizmoSandboxProps> = {
+  name: "Own Geometry As Surface (Opt-in)",
+  tags: ["pick-exclusion"],
+  args: {
+    ...SurfacePickExclusions.args,
+    excludeRegisteredDragSampleOccluders: false,
+  },
+  play: async ({ canvasElement }) => {
+    await dragSurfacePickTestHandle(canvasElement, false);
   },
 };

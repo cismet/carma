@@ -4,7 +4,8 @@ import type { AnnotationInfoBoxVisualOptions } from "../annotation-info-box.type
 import { resolveAnnotationInfoBoxVisualOptions } from "../config/annotation-info-box-visual-defaults";
 
 type AnnotationInfoBoxTextContentProps = {
-  children: ReactNode;
+  // Optional so createElement callers can pass children positionally.
+  children?: ReactNode;
   className?: string;
   style?: CSSProperties;
   visualOptions?: Partial<AnnotationInfoBoxVisualOptions>;

@@ -163,7 +163,9 @@ export const initializeCesium = (
   options: CesiumSetupOptions = {}
 ): CesiumWidget => {
   const {
-    useBrowserRecommendedResolution = true,
+    // Match the geoportal's Cesium widget: render at physical device pixels
+    // (DPR) so the canvas is sharp on hi-dpi displays instead of blurry.
+    useBrowserRecommendedResolution = false,
     showRenderLoopErrors = false,
   } = options;
 

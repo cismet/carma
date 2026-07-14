@@ -5,6 +5,7 @@ import {
   type Cartesian2,
   type Scene,
 } from "@carma-cesium";
+import { pickCesiumSceneAtPosition } from "@carma-mapping/engines/cesium/core";
 
 import type {
   RuntimeEdgeRenderModel,
@@ -58,7 +59,7 @@ export const SceneSelectionHost = ({
 
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     handler.setInputAction((event: { position: Cartesian2 }) => {
-      const pickedObject = scene.pick(event.position);
+      const pickedObject = pickCesiumSceneAtPosition(scene, event.position);
       const selectionTarget = resolveSceneSelectionTarget({
         pickedObject,
         edgeAnnotationIdsById,

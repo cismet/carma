@@ -129,7 +129,10 @@ export type AnnotationPointQueryVisualStyle = Readonly<{
 
 export type AnnotationToolAuthoringController = {
   setEnabled: (enabled: boolean) => void;
-  setPointQueryPickResult: (pickResult: PointQueryPickResult | null) => void;
+  setPointQueryPickResult: (
+    pickResult: PointQueryPickResult | null,
+    options?: { requestRender?: boolean }
+  ) => void;
   isPointQueryPickResultAcceptable?: () => boolean;
   getPointQueryVisualStyle?: () => AnnotationPointQueryVisualStyle | undefined;
   destroy: () => void;

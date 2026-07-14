@@ -55,7 +55,6 @@ import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
-  PointQueryPickResult,
 } from "../registry";
 import type { Scene } from "@carma-cesium";
 import {
@@ -80,6 +79,10 @@ import {
   type AnnotationDeleteRequestOptions,
 } from "./annotation-delete-confirmation";
 import { resolveDraftNodeIdsAfterEditedNodeRemoval } from "./edited-node-removal.helpers";
+import {
+  createActivePointQueryPickResultStore,
+  type ActivePointQueryPickResultStore,
+} from "./active-point-query-pick-result-store";
 
 const {
   DISTANCE: ANNOTATION_TYPE_DISTANCE,
@@ -164,8 +167,8 @@ export const useAnnotationsAssembly = ({
   const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
     null
   );
-  const [activePointQueryPickResult, setActivePointQueryPickResult] =
-    useState<PointQueryPickResult | null>(null);
+  const activePointQueryPickResultStoreRef =
+    useRef<ActivePointQueryPickResultStore | null>(null);
   const hoveredPointQueryNodeIdRef = useRef<string | null>(null);
   const setHoveredPointQueryNodeId = useCallback((nodeId: string | null) => {
     hoveredPointQueryNodeIdRef.current = nodeId;
@@ -174,6 +177,13 @@ export const useAnnotationsAssembly = ({
     () => hoveredPointQueryNodeIdRef.current,
     []
   );
+
+  if (activePointQueryPickResultStoreRef.current === null) {
+    activePointQueryPickResultStoreRef.current =
+      createActivePointQueryPickResultStore();
+  }
+  const activePointQueryPickResultStore =
+    activePointQueryPickResultStoreRef.current;
 
   if (annotationsStoreRef.current === null) {
     const initialStoreState = initialPersistenceState
@@ -212,9 +222,22 @@ export const useAnnotationsAssembly = ({
   const annotationsStore = annotationsStoreRef.current;
   const annotationToolDraftStore = annotationToolDraftStoreRef.current;
 
+  // Single funnel for every tool change (direct, mode lifecycle, keyboard
+  // cancel). A mode change resets the focus, so the info box falls back to the
+  // new mode's own instruction instead of still showing the previously focused
+  // measurement. The edit gizmo closes with the selection — see the deselect
+  // effect in usePointEditingGizmo. Re-selecting the active tool is a no-op, so
+  // leaving edit mode with Escape keeps the measurement selected.
   const setActiveToolTypeInStore = useCallback(
     (toolType: AnnotationToolId) => {
+      const previousToolType = annotationsStore.getState().annotationToolType;
       annotationsStore.dispatch(setAnnotationToolType(toolType));
+      if (previousToolType === toolType) {
+        return;
+      }
+
+      setActiveEditedNodeId(null);
+      annotationsStore.dispatch(setSelectedAnnotationId(null));
     },
     [annotationsStore]
   );
@@ -541,27 +564,39 @@ export const useAnnotationsAssembly = ({
       return false;
     }
 
-    annotationToolDraftStore.set(targetAnnotation.toolType, {
-      coordinates: draftNodes.map((node) => node.coordinate),
-      linkedNodeGroupIds: draftNodeIds.map((nodeId) =>
-        resolveNodeLinkIdForNodeId(runtimeState.linkedNodeGroups, nodeId)
-      ),
-      feedback: null,
+    // Removing this node drops the measurement below its minimum node count, so
+    // it deletes the whole measurement — confirm first (matches the "nach
+    // Rückfrage" help and the other delete paths). The node-edit keyboard handler
+    // is already "handled" (true); the actual removal runs once confirmed.
+    void requestAnnotationDeleteConfirmation([targetAnnotation], {
+      source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.KEYBOARD,
+    }).then((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+      // Keep the degraded measurement's draft so it can be restored, but stay in
+      // Select mode — restoring must not switch to the authoring tool.
+      annotationToolDraftStore.set(targetAnnotation.toolType, {
+        coordinates: draftNodes.map((node) => node.coordinate),
+        linkedNodeGroupIds: draftNodeIds.map((nodeId) =>
+          resolveNodeLinkIdForNodeId(runtimeState.linkedNodeGroups, nodeId)
+        ),
+        feedback: null,
+      });
+      annotationsStore.dispatch(
+        removeAnnotationsByIds({
+          annotationIds: [targetAnnotation.id],
+          nextSelectedAnnotationId: null,
+        })
+      );
+      setActiveEditedNodeId(null);
     });
-    annotationsStore.dispatch(
-      removeAnnotationsByIds({
-        annotationIds: [targetAnnotation.id],
-        nextSelectedAnnotationId: null,
-      })
-    );
-    setActiveEditedNodeId(null);
-    setActiveToolType(targetAnnotation.toolType);
     return true;
   }, [
     activeEditedNodeId,
     annotationToolDraftStore,
     annotationsStore,
-    setActiveToolType,
+    requestAnnotationDeleteConfirmation,
   ]);
 
   const exportAnnotationGeoJson = useCallback(
@@ -998,7 +1033,7 @@ export const useAnnotationsAssembly = ({
       annotationToolDraftStore,
       annotationsStore,
       formatOptions,
-      activePointQueryPickResult,
+      activeEditedNodeId,
       addAnnotation,
       appendAnnotationsRuntimePersistenceState,
       removeExternalAnnotationsByCollection,
@@ -1034,7 +1069,7 @@ export const useAnnotationsAssembly = ({
     [
       addAnnotation,
       appendAnnotationsRuntimePersistenceState,
-      activePointQueryPickResult,
+      activeEditedNodeId,
       annotationToolDraftStore,
       annotationsStore,
       buildAllAnnotationsGeoJson,
@@ -1069,6 +1104,7 @@ export const useAnnotationsAssembly = ({
     annotationsStore,
     registry,
     services,
+    activePointQueryPickResultStore,
     setActiveToolType,
     runtimeAuthoringHost: {
       scene,
@@ -1084,7 +1120,7 @@ export const useAnnotationsAssembly = ({
       activeEditedNodeId,
       getHoveredPointQueryNodeId,
       setHoveredPointQueryNodeId,
-      onPointQueryPickResultChange: setActivePointQueryPickResult,
+      onPointQueryPickResultChange: activePointQueryPickResultStore.setSnapshot,
       formatOptions,
       lineLabelOptions,
       bindApi: bindLifecycleHostApi,

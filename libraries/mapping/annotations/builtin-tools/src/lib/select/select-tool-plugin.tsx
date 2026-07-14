@@ -7,6 +7,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
+import { buildMeasurementToolHelpItems } from "../measurement-tool-help-items";
 
 export type SelectToolPluginOptions = {
   texts?: DefaultAnnotationToolTexts;
@@ -28,7 +29,9 @@ export const createSelectToolPlugin = ({
       shortcutKey: "S",
       icon: <FontAwesomeIcon icon={faArrowPointer} />,
     },
-    helpText: text.helpText,
+    helpText: buildMeasurementToolHelpItems({
+      primaryInstructions: text.helpText,
+    }),
     capabilities: INTERACTION_PLUGIN_CAPABILITIES,
     session: {
       createSession: ({ setActiveToolType }) => ({

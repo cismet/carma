@@ -20,8 +20,10 @@ import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../../registry";
 import type { StoredAnnotation } from "../../store";
 
 const useAnnotationsRuntimeMock = vi.hoisted(() => vi.fn());
+const useActivePointQueryPickResultMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../context/AnnotationsProvider", () => ({
+  useActivePointQueryPickResult: useActivePointQueryPickResultMock,
   useAnnotationsRuntime: useAnnotationsRuntimeMock,
 }));
 
@@ -132,6 +134,8 @@ const createRuntime = (
 
 describe("useRuntimeAnnotationInfoBoxSlots", () => {
   beforeEach(() => {
+    useActivePointQueryPickResultMock.mockReset();
+    useActivePointQueryPickResultMock.mockReturnValue(null);
     useAnnotationsRuntimeMock.mockReset();
   });
 
@@ -520,6 +524,13 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
       id: ANNOTATION_TYPES.POINT,
       resolveHelpText,
     });
+    const pointQueryPickResult = {
+      coordinate: null,
+      pointECEF: null,
+      screenPosition: { x: 10, y: 20 },
+      surfaceNormalECEF: null,
+    };
+    useActivePointQueryPickResultMock.mockReturnValue(pointQueryPickResult);
 
     useAnnotationsRuntimeMock.mockReturnValue(
       createRuntime({
@@ -554,6 +565,7 @@ describe("useRuntimeAnnotationInfoBoxSlots", () => {
             expect.objectContaining({ longitude: 7 }),
           ]),
         }),
+        pointQueryPickResult,
       })
     );
     expect(screen.getByText("1 gesetzter Punkt")).toBeTruthy();

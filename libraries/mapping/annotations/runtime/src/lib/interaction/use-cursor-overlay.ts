@@ -20,10 +20,10 @@ import {
 } from "@carma-mapping/engines/cesium/react/interactions";
 import type { Scene } from "@carma-cesium";
 import {
-  createPreviewOverlayLayer,
-  destroyPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
+  destroyAnnotationOverlayLayer,
   annotationOverlayDefaults,
-  PREVIEW_OVERLAY_GROUP,
+  ANNOTATION_OVERLAY_GROUP,
 } from "./authoring-visual-runtime";
 
 const cursorOverlayDefaults = (() => {
@@ -198,10 +198,10 @@ export const useCursorOverlay = (
       return;
     }
 
-    const cursorLayer = createPreviewOverlayLayer(
+    const cursorLayer = createAnnotationOverlayLayer(
       scene,
       CURSOR_LAYER_ID_BY_VARIANT[variant],
-      PREVIEW_OVERLAY_GROUP.VISUALIZER
+      ANNOTATION_OVERLAY_GROUP.VISUALIZER
     );
     const container = cursorLayer?.parentElement;
     if (!cursorLayer || !(container instanceof HTMLElement)) {
@@ -331,7 +331,7 @@ export const useCursorOverlay = (
       window.removeEventListener("scroll", refreshBounds, true);
       unsubscribeClientPosition();
       unregisterScenePointerTracker();
-      destroyPreviewOverlayLayer(cursorLayer);
+      destroyAnnotationOverlayLayer(cursorLayer);
     };
   }, [scene, variant]);
 };

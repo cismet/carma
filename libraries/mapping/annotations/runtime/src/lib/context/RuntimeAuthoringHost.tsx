@@ -35,6 +35,7 @@ import type {
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import type { AnnotationDeleteRequestOptions } from "./annotation-delete-confirmation";
 import {
@@ -53,6 +54,7 @@ import {
 import { RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS } from "../config/runtime-authoring-colors";
 
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
+const CURRENT_CESIUM_FRAME_UPDATE_OPTIONS = { requestRender: false } as const;
 
 type RuntimeAuthoringHostProps = {
   scene: Scene | null;
@@ -82,6 +84,7 @@ type RuntimeAuthoringHostProps = {
   ) => void;
   formatOptions: AnnotationsRuntimeFormatOptions;
   lineLabelOptions: PartialAnnotationLineLabelOptions;
+  referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
   requestLabelText?: AnnotationLabelTextRequester;
 };
 
@@ -103,6 +106,7 @@ export const RuntimeAuthoringHost = ({
   onPointQueryPickResultChange,
   formatOptions,
   lineLabelOptions,
+  referenceObjectSizing,
   requestLabelText,
 }: RuntimeAuthoringHostProps) => {
   const labelOverlay = useLabelOverlay();
@@ -127,9 +131,15 @@ export const RuntimeAuthoringHost = ({
     null
   );
   const setLatestPointQueryPickResult = useCallback(
-    (pickResult: PointQueryPickResult | null) => {
+    (
+      pickResult: PointQueryPickResult | null,
+      options?: { requestRender?: boolean }
+    ) => {
       latestPointQueryPickResultRef.current = pickResult;
-      activeAuthoringControllerRef.current?.setPointQueryPickResult(pickResult);
+      activeAuthoringControllerRef.current?.setPointQueryPickResult(
+        pickResult,
+        options
+      );
       onPointQueryPickResultChange(pickResult);
     },
     [onPointQueryPickResultChange]
@@ -287,6 +297,10 @@ export const RuntimeAuthoringHost = ({
       activePlugin?.pointQuery?.onPointCreated) &&
       !activeEditedNodeId
   );
+  const pointQueryEnabledRef = useRef(pointQueryEnabled);
+  pointQueryEnabledRef.current = pointQueryEnabled;
+  const resolveHoveredPointQueryNodeRef = useRef(resolveHoveredPointQueryNode);
+  resolveHoveredPointQueryNodeRef.current = resolveHoveredPointQueryNode;
   const handlePreviewSnapTargetNodeClick = useCallback(
     (nodeId: string) => {
       if (!pointQueryEnabled) {
@@ -322,7 +336,13 @@ export const RuntimeAuthoringHost = ({
     pointQueryIndicatorControllerRef.current?.destroy();
     const nextPointQueryIndicatorController =
       createPointQueryIndicatorController(scene, {
-        radius: ANNOTATIONS_HOST_DEFAULTS.pointQuery.discRadiusMeters,
+        radius: referenceObjectSizing.worldRadiusMeters,
+        scalingMode: referenceObjectSizing.scalingMode,
+        targetScreenRadiusCssPx: referenceObjectSizing.targetScreenRadiusCssPx,
+        resizeWorldRadiusToScreenTarget:
+          referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+        discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
+        quantizeStepWorldRadius: referenceObjectSizing.quantizeWorldRadius,
         showNormalLine: true,
         tangentDiscVisualizerTrailSampleCount:
           ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
@@ -333,13 +353,13 @@ export const RuntimeAuthoringHost = ({
       });
     pointQueryIndicatorControllerRef.current =
       nextPointQueryIndicatorController;
-    nextPointQueryIndicatorController?.setEnabled(pointQueryEnabled);
-    if (pointQueryEnabled && latestPointQueryPickResultRef.current) {
+    nextPointQueryIndicatorController?.setEnabled(pointQueryEnabledRef.current);
+    if (pointQueryEnabledRef.current && latestPointQueryPickResultRef.current) {
       nextPointQueryIndicatorController?.setPreview({
         pointECEF: latestPointQueryPickResultRef.current.pointECEF,
         surfaceNormalECEF:
           latestPointQueryPickResultRef.current.surfaceNormalECEF,
-        lockToPreviewPoint: resolveHoveredPointQueryNode() !== null,
+        lockToPreviewPoint: resolveHoveredPointQueryNodeRef.current() !== null,
       });
     } else {
       nextPointQueryIndicatorController?.clearPreview();
@@ -349,7 +369,15 @@ export const RuntimeAuthoringHost = ({
       pointQueryIndicatorControllerRef.current?.destroy();
       pointQueryIndicatorControllerRef.current = null;
     };
-  }, [pointQueryEnabled, resolveHoveredPointQueryNode, scene]);
+  }, [
+    referenceObjectSizing.quantizeWorldRadius,
+    referenceObjectSizing.resizeWorldRadiusToScreenTarget,
+    referenceObjectSizing.resizeStepFactor,
+    referenceObjectSizing.scalingMode,
+    referenceObjectSizing.targetScreenRadiusCssPx,
+    referenceObjectSizing.worldRadiusMeters,
+    scene,
+  ]);
 
   useEffect(() => {
     pointQueryIndicatorControllerRef.current?.setEnabled(pointQueryEnabled);
@@ -372,9 +400,11 @@ export const RuntimeAuthoringHost = ({
         lineLabelOptions,
       } satisfies AnnotationToolAuthoringContext) ?? null;
     activeAuthoringControllerRef.current = nextAuthoringController;
-    nextAuthoringController?.setEnabled(pointQueryEnabled);
+    nextAuthoringController?.setEnabled(pointQueryEnabledRef.current);
     nextAuthoringController?.setPointQueryPickResult(
-      pointQueryEnabled ? latestPointQueryPickResultRef.current : null
+      pointQueryEnabledRef.current
+        ? latestPointQueryPickResultRef.current
+        : null
     );
 
     return () => {
@@ -387,7 +417,6 @@ export const RuntimeAuthoringHost = ({
     annotationToolDraftStore,
     formatOptions,
     labelOverlay,
-    pointQueryEnabled,
     lineLabelOptions,
     scene,
   ]);
@@ -498,16 +527,26 @@ export const RuntimeAuthoringHost = ({
         surfaceNormalECEF,
         inputModifier,
       });
-      setLatestPointQueryPickResult(nextPointQueryPickResult);
+      // The point-query callback runs inside Cesium's preRender phase. All
+      // authoring visuals are therefore applied to the frame already in
+      // progress; requesting another frame here creates a redundant follow-up
+      // render for every pointer sample.
+      setLatestPointQueryPickResult(
+        nextPointQueryPickResult,
+        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+      );
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const isHoverLockedToSnapPoint =
         hoveredPointQueryNode !== null ||
         !areCoordinatesEqual(nextPointQueryPickResult.coordinate, coordinate);
-      pointQueryIndicatorControllerRef.current?.setPreview({
-        pointECEF: nextPointQueryPickResult.pointECEF,
-        surfaceNormalECEF: nextPointQueryPickResult.surfaceNormalECEF,
-        lockToPreviewPoint: isHoverLockedToSnapPoint,
-      });
+      pointQueryIndicatorControllerRef.current?.setPreview(
+        {
+          pointECEF: nextPointQueryPickResult.pointECEF,
+          surfaceNormalECEF: nextPointQueryPickResult.surfaceNormalECEF,
+          lockToPreviewPoint: isHoverLockedToSnapPoint,
+        },
+        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+      );
       const isPointQueryPickResultAcceptable =
         activeAuthoringControllerRef.current?.isPointQueryPickResultAcceptable?.() ??
         true;
@@ -518,7 +557,8 @@ export const RuntimeAuthoringHost = ({
           ? pointQueryVisualStyle
           : isPointQueryPickResultAcceptable
           ? null
-          : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS }
+          : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS },
+        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
       );
     },
   });

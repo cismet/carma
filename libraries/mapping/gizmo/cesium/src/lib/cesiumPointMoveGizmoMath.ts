@@ -14,7 +14,14 @@ import {
 import {
   CarmaTransforms,
   cartesian3ToVector3,
+  createPlaneBasis,
+  pickCesiumSceneFromRay,
 } from "@carma-mapping/engines/cesium/core";
+
+// Re-exported from cesium-core (single source of truth); kept available here for
+// the gizmo's plane math callers.
+export { createPlaneBasis };
+
 export type PlaneBasis = {
   xAxis: Cartesian3;
   yAxis: Cartesian3;
@@ -38,23 +45,6 @@ export const getUpVectorAtPosition = (origin: Cartesian3): Cartesian3 => {
     2
   );
   return Cartesian3.normalize(upAxis, upAxis);
-};
-
-export const createPlaneBasis = (normal: Cartesian3): PlaneBasis => {
-  const up = Cartesian3.normalize(normal, new Cartesian3());
-  const reference =
-    Math.abs(Cartesian3.dot(up, Cartesian3.UNIT_Z)) > 0.9
-      ? Cartesian3.UNIT_X
-      : Cartesian3.UNIT_Z;
-  const xAxis = Cartesian3.normalize(
-    Cartesian3.cross(up, reference, new Cartesian3()),
-    new Cartesian3()
-  );
-  const yAxis = Cartesian3.normalize(
-    Cartesian3.cross(xAxis, up, new Cartesian3()),
-    new Cartesian3()
-  );
-  return { xAxis, yAxis };
 };
 
 export const rotateVectorByVersor = (
@@ -277,6 +267,7 @@ export const getGroundPointFromClientPosition = (
   clientY: number,
   options?: {
     ignoreTranslucentDepth?: boolean;
+    includeDragSampleExclusions?: boolean;
   }
 ): Cartesian3 | null => {
   if (scene.isDestroyed()) return null;
@@ -286,7 +277,16 @@ export const getGroundPointFromClientPosition = (
     clientY - canvasRect.top
   );
 
-  if (scene.pickPositionSupported) {
+  const pickRay = scene.camera.getPickRay(windowPosition);
+  if (!pickRay) return null;
+
+  // Ray picking runs its own offscreen render pass, so primitives the caller has
+  // hidden (gizmo visuals, the dragged node's own lines) are genuinely excluded —
+  // unlike scene.pickPosition, which reads the cached depth buffer from the last
+  // main render and so cannot be filtered. pickFromRay still hits the globe and
+  // every other primitive, keeping all foreign geometry snappable.
+  // `pickFromRay` is an experimental Cesium API absent from the bundled typings.
+  {
     const previousPickTranslucentDepth = scene.pickTranslucentDepth;
     const shouldIgnoreTranslucentDepth =
       options?.ignoreTranslucentDepth === true &&
@@ -295,12 +295,15 @@ export const getGroundPointFromClientPosition = (
       scene.pickTranslucentDepth = false;
     }
     try {
-      const pickedPosition = scene.pickPosition(windowPosition);
-      if (defined(pickedPosition)) {
-        return Cartesian3.clone(pickedPosition);
+      const rayPickResult = pickCesiumSceneFromRay(scene, pickRay, {
+        includeDragSampleExclusions:
+          options?.includeDragSampleExclusions === true,
+      });
+      if (rayPickResult && defined(rayPickResult.position)) {
+        return Cartesian3.clone(rayPickResult.position);
       }
     } catch {
-      // Depth picking may fail during tileset/terrain streaming.
+      // Ray picking may fail during tileset/terrain streaming.
     } finally {
       if (shouldIgnoreTranslucentDepth) {
         scene.pickTranslucentDepth = previousPickTranslucentDepth;
@@ -308,9 +311,7 @@ export const getGroundPointFromClientPosition = (
     }
   }
 
-  const pickRay = scene.camera.getPickRay(windowPosition);
-  if (!pickRay) return null;
-
+  // Fallback: terrain-only intersection (also excludes every primitive).
   const groundPoint = scene.globe?.pick(pickRay, scene);
   if (defined(groundPoint)) {
     return Cartesian3.clone(groundPoint);

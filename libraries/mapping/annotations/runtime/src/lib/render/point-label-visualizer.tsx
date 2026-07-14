@@ -25,7 +25,10 @@ import {
   type PointLabelOverlayRenderState,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+import {
+  cartesian3FromGeographicCoordinate,
+  geographicCoordinateFromCartesian3,
+} from "@carma-mapping/engines/cesium/core";
 
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
 import type { Scene } from "@carma-cesium";
@@ -43,6 +46,7 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
   captureOverlayVisibilitySceneSnapshot,
@@ -90,6 +94,7 @@ const getPointLabelOverlayId = (overlayIdPrefix: string, labelId: string) =>
 const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
   canvasPosition: null,
   screenPosition: null,
+  isInViewport: false,
   isHidden: true,
   isOccluded: false,
   hiddenByLayout: true,
@@ -169,6 +174,20 @@ const resolvePointLabelCoordinateProjection = (
   };
 };
 
+// Prefer the live drag anchor (as geographic) over the React-fed coordinate so a
+// moved node's label tracks it every frame, like the lines/disc.
+const resolveLiveLabelCoordinate = (
+  candidate: RuntimePointLabelCoordinateCandidate,
+  liveAnchors: LiveAnnotationAnchors
+) => {
+  const liveAnchor = candidate.nodeId
+    ? (liveAnchors.get(candidate.nodeId) as Cartesian3 | undefined)
+    : undefined;
+  return liveAnchor
+    ? geographicCoordinateFromCartesian3(liveAnchor)
+    : candidate.coordinate;
+};
+
 const resolveEffectivePointLabelCoordinateCandidate = ({
   scene,
   label,
@@ -212,16 +231,13 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
 export const usePointLabelVisualizer = (
   scene: Scene | null,
   labels: readonly RuntimePointLabelRenderModel[],
+  liveAnchors: LiveAnnotationAnchors,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
   overlayIdPrefix: string = "runtime-point-label",
   areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    updateLabelOverlayElement,
-    updatePositions,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
+    useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());
   const overlayDomRefsByIdRef = useRef<Map<string, PointLabelOverlayDomRefs>>(
@@ -237,6 +253,7 @@ export const usePointLabelVisualizer = (
     statesById: new Map(),
   });
   const isCameraMovingRef = useRef(false);
+  const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
     labelsRef.current = labels;
@@ -301,7 +318,10 @@ export const usePointLabelVisualizer = (
     const previousStatesById = stateCacheRef.current.statesById;
     // Keep the shared label field stable during active node editing so the
     // dragged label can float above its neighbors without re-laying them out.
-    const preserveOcclusionDuringCameraMove = isCameraMovingRef.current;
+    // Also reuse occlusion verdicts during live drags: re-testing runs a
+    // pick-pass render per label per frame.
+    const preserveOcclusionDuringCameraMove =
+      isCameraMovingRef.current || liveAnchors.size > 0;
     const freezeLayoutDuringActiveMove =
       !preserveOcclusionDuringCameraMove &&
       labelsRef.current.some(
@@ -328,9 +348,13 @@ export const usePointLabelVisualizer = (
           scene,
           label,
         });
+      const effectiveCoordinate = resolveLiveLabelCoordinate(
+        effectiveCoordinateCandidate,
+        liveAnchors
+      );
       const computedBaseState = computeOverlayVisibilityState({
         scene,
-        coordinate: effectiveCoordinateCandidate.coordinate,
+        coordinate: effectiveCoordinate,
         shouldTestOcclusion:
           !preserveOcclusionDuringCameraMove &&
           shouldTestPointLabelOcclusion({
@@ -346,9 +370,7 @@ export const usePointLabelVisualizer = (
         : computedBaseState;
       const cameraDistanceMeters = Cartesian3.distance(
         scene.camera.positionWC,
-        cartesian3FromGeographicCoordinate(
-          effectiveCoordinateCandidate.coordinate
-        )
+        cartesian3FromGeographicCoordinate(effectiveCoordinate)
       );
       const overlayZIndex =
         resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);
@@ -442,17 +464,27 @@ export const usePointLabelVisualizer = (
     });
 
     return nextStatesById;
-  }, [isInPreviewNodeLink, scene]);
+  }, [isInPreviewNodeLink, liveAnchors, scene]);
 
   const resolveLabelOverlayState = useCallback(
     (labelId: string) => {
       const frameKey = getSceneFrameKey(scene);
       if (stateCacheRef.current.frameKey !== frameKey) {
         const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
-        const shouldRecomputeStates = !areOverlayVisibilitySceneSnapshotsEqual(
-          stateCacheRef.current.sceneSnapshot,
-          sceneSnapshot
-        );
+        // Live drag anchors move the node while the camera is static (equal
+        // snapshot), so force a recompute then or the label freezes. Also force it
+        // on the settle frame (anchors just cleared, e.g. closing an edit) so the
+        // committed position/visibility is restored without a camera move.
+        const liveAnchorsActive = liveAnchors.size > 0;
+        const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
+        hadLiveAnchorsRef.current = liveAnchorsActive;
+        const shouldRecomputeStates =
+          liveAnchorsActive ||
+          justSettled ||
+          !areOverlayVisibilitySceneSnapshotsEqual(
+            stateCacheRef.current.sceneSnapshot,
+            sceneSnapshot
+          );
 
         stateCacheRef.current = shouldRecomputeStates
           ? {
@@ -472,7 +504,7 @@ export const usePointLabelVisualizer = (
         createEmptyLabelOverlayState()
       );
     },
-    [computeStatesById, scene]
+    [computeStatesById, liveAnchors, scene]
   );
 
   const normalizedLabels = useMemo(
@@ -647,19 +679,12 @@ export const usePointLabelVisualizer = (
         renderPointLabelOverlayContent(currentOverlayRenderState)
       );
 
-      if (previousLabelIdsRef.current.has(label.id)) {
-        updateLabelOverlayElement(overlayId, {
-          ...overlayElementUpdate,
-          contentKey: nextContentSignature,
-          content: overlayElementContent,
-        });
-        return;
+      if (!previousLabelIdsRef.current.has(label.id)) {
+        didMutateOverlayElements = true;
+        overlayDomRefsByIdRef.current.delete(label.id);
       }
 
-      didMutateOverlayElements = true;
-      overlayDomRefsByIdRef.current.delete(label.id);
-
-      addLabelOverlayElement({
+      setLabelOverlayElement({
         id: overlayId,
         contentKey: nextContentSignature,
         content: overlayElementContent,
@@ -686,7 +711,7 @@ export const usePointLabelVisualizer = (
       scene?.requestRender();
     }
   }, [
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,
@@ -694,7 +719,6 @@ export const usePointLabelVisualizer = (
     resolveLabelOverlayState,
     resolveOverlayDomRefs,
     scene,
-    updateLabelOverlayElement,
     updatePositions,
   ]);
 

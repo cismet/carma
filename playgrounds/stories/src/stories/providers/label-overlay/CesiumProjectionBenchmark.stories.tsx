@@ -782,15 +782,12 @@ const BenchmarkPortalSquares = ({
   points: readonly BenchmarkPoint[];
   anchorsRef: MutableRefObject<readonly ScreenAnchor[]>;
 }) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    clearLabelOverlayElements,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement } =
+    useLabelOverlay();
 
   useEffect(() => {
     points.forEach((point, index) => {
-      addLabelOverlayElement({
+      setLabelOverlayElement({
         id: point.id,
         contentKey: point.id,
         content: buildPortalPointContent(point.label),
@@ -818,15 +815,8 @@ const BenchmarkPortalSquares = ({
       points.forEach((point) => {
         removeLabelOverlayElement(point.id);
       });
-      clearLabelOverlayElements();
     };
-  }, [
-    addLabelOverlayElement,
-    anchorsRef,
-    clearLabelOverlayElements,
-    points,
-    removeLabelOverlayElement,
-  ]);
+  }, [setLabelOverlayElement, anchorsRef, points, removeLabelOverlayElement]);
 
   return null;
 };

@@ -271,8 +271,10 @@ export const CismapAnnotationInstructionInfoBox = ({
     ...CISMAP_ANNOTATION_INFO_BOX_VISUAL_OPTIONS,
     ...visualOptions,
   });
+  // Keep the instruction inset on the sides and at the top. The surrounding
+  // body already provides the bottom panel inset.
   const contentClassName =
-    "mt-2 w-[90%] p-2 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
+    "mt-0 w-[94%] pl-2 pr-0 pt-1 text-xs font-normal leading-normal text-[#212529] [&_*]:font-normal";
   const hasHeaderTitle =
     headerTitle !== undefined && headerTitle !== null && headerTitle !== false;
   const instructionContentElement = (

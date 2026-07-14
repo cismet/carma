@@ -9,6 +9,7 @@ export type { LabelOverlayElement, LabelOverlayContextType } from "../types";
 export type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
+  LabelOverlayViewChangeProbe,
 } from "../host";
 export {
   PointLabel,

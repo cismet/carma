@@ -21,6 +21,47 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { buildVisualizerInputs } from "./visualizer-inputs";
+import { POINT_LABEL_ANCHOR_KIND } from "@carma-providers/label-overlay";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
+
+// When a node is being edited the gizmo disc covers it, so a measurement's value
+// label must not sit on that node: re-anchor it to another node, or hide it when
+// the measurement has no other node (a point measurement). Area labels live at the
+// polygon centroid (not on a node) and are left untouched.
+const relocateOrHideLabelForActiveEdit = (
+  label: RuntimePointLabelRenderModel,
+  isEditedNode: (nodeId?: string) => boolean
+): RuntimePointLabelRenderModel => {
+  if (label.anchorKind === POINT_LABEL_ANCHOR_KIND.AREA_CENTROID) {
+    return label;
+  }
+
+  const candidates = label.coordinateCandidates;
+  if (candidates && candidates.length > 0) {
+    const remaining = candidates.filter(
+      (candidate) => !isEditedNode(candidate.nodeId)
+    );
+    if (remaining.length === candidates.length) {
+      return label; // none of the anchor options is the edited node
+    }
+    if (remaining.length === 0) {
+      return { ...label, hideLabelAndStem: true };
+    }
+    const [primary] = remaining;
+    return {
+      ...label,
+      coordinateCandidates: remaining,
+      nodeId: primary.nodeId ?? label.nodeId,
+      coordinate: primary.coordinate,
+    };
+  }
+
+  // Single-anchor value label (e.g. a point measurement): hide it while its node
+  // is edited, since there is no other node to move it to.
+  return isEditedNode(label.nodeId)
+    ? { ...label, hideLabelAndStem: true }
+    : label;
+};
 
 type UseAnnotationVisualizersArgs = {
   surfaceKey?: string;
@@ -35,6 +76,7 @@ type UseAnnotationVisualizersArgs = {
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
   activeEditedNodeId: string | null;
   isMoveGizmoDragging?: boolean;
+  liveAnchors: LiveAnnotationAnchors;
   previewSnapTargetHoverEnabled?: boolean;
   onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
   onAnnotationSelect?: (annotationId: string) => void;
@@ -68,6 +110,7 @@ export const useAnnotationVisualizers = (
     lineLabelOptions,
     activeEditedNodeId,
     isMoveGizmoDragging = false,
+    liveAnchors,
     previewSnapTargetHoverEnabled = false,
     onPreviewSnapTargetNodeClick,
     onAnnotationSelect,
@@ -108,6 +151,7 @@ export const useAnnotationVisualizers = (
     insertNodeTargetAnnotationIds,
     onInsertNodeTargetClick,
     onDistanceTriangleCornerClick,
+    liveAnchors,
   });
   useAnnotationPolygonFillsController(scene, polygonFills);
   useAnnotationOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
@@ -134,6 +178,15 @@ export const useAnnotationVisualizers = (
       (nodeLinkIdByNodeId.get(nodeId) ?? nodeId) === previewNodeLinkId,
     [nodeLinkIdByNodeId, previewNodeLinkId]
   );
+  const pointLabelsForActiveEdit = useMemo(
+    () =>
+      activeEditedNodeId === null
+        ? pointLabels
+        : pointLabels.map((label) =>
+            relocateOrHideLabelForActiveEdit(label, isInPreviewNodeLink)
+          ),
+    [activeEditedNodeId, isInPreviewNodeLink, pointLabels]
+  );
   const referenceNodeInteractionsEnabled =
     activeEditedNodeId !== null && !isMoveGizmoDragging;
   const referenceNodeClickEnabled = Boolean(
@@ -146,7 +199,7 @@ export const useAnnotationVisualizers = (
     () =>
       buildVisualizerInputs({
         points,
-        pointLabels,
+        pointLabels: pointLabelsForActiveEdit,
         selectedAnnotationIdSet,
         previewSnapTargetsEnabled,
         referenceNodeClickEnabled,
@@ -174,7 +227,7 @@ export const useAnnotationVisualizers = (
       onPreviewSnapTargetNodeClick,
       onReferenceNodeClick,
       onReferenceNodeHover,
-      pointLabels,
+      pointLabelsForActiveEdit,
       points,
       previewNodeLinkId,
       previewSnapTargetsEnabled,
@@ -187,12 +240,14 @@ export const useAnnotationVisualizers = (
   usePointMarkerVisualizer(
     scene,
     visualizerInputs.visibleStandalonePoints,
+    liveAnchors,
     `${surfaceKey}-runtime-point-marker`
   );
 
   usePointLabelVisualizer(
     scene,
     visualizerInputs.pointLabels,
+    liveAnchors,
     isInPreviewNodeLink,
     `${surfaceKey}-runtime-point-label`,
     resolvedAnnotationLineLabelOptions

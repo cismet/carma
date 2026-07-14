@@ -355,7 +355,8 @@ const CesiumSlot = ({
 
     (async () => {
       nextWidget = initializeCesium(container, {
-        useBrowserRecommendedResolution: true,
+        // Physical-pixel (DPR) resolution like the geoportal widget (sharp).
+        useBrowserRecommendedResolution: false,
       });
 
       if (initialTargetRef.current) {

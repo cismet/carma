@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, within } from "@storybook/test";
+import { expect, fireEvent, waitFor, within } from "@storybook/test";
 
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
@@ -1405,6 +1405,7 @@ export default meta;
 
 export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
   name: "Disc Sampler",
+  tags: ["pick-exclusion", "cursor-idle-render"],
   args: {
     queryEnabled: true,
     hideNativeCursor: true,
@@ -1444,5 +1445,77 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
     await expect(canvas.getByText(/trace ok/)).toBeInTheDocument();
     await expect(canvas.getByText(/jump ok/)).toBeInTheDocument();
     await expect(canvas.getByText(/scale ok/)).toBeInTheDocument();
+
+    await waitFor(
+      () => expect(canvas.getByText("tileset ready")).toBeInTheDocument(),
+      { timeout: 30_000 }
+    );
+    const cesiumCanvas = canvasElement.querySelector<HTMLCanvasElement>(
+      ".cesium-widget canvas"
+    );
+    expect(cesiumCanvas).not.toBeNull();
+    if (!cesiumCanvas) {
+      return;
+    }
+
+    const canvasRect = cesiumCanvas.getBoundingClientRect();
+    const movePointer = async (offset: number, waitMs = 180) => {
+      fireEvent.pointerMove(cesiumCanvas, {
+        clientX: canvasRect.left + canvasRect.width / 2 + offset,
+        clientY: canvasRect.top + canvasRect.height / 2 + offset,
+      });
+      await new Promise<void>((resolve) => window.setTimeout(resolve, waitMs));
+    };
+    const readTelemetry = () =>
+      (
+        window as Window & {
+          __CARMA_CURSOR_OVERLAY_SAMPLER__?: {
+            getTelemetrySnapshot: () => ReturnType<
+              PointQueryController["getTelemetrySnapshot"]
+            > | null;
+          };
+        }
+      ).__CARMA_CURSOR_OVERLAY_SAMPLER__?.getTelemetrySnapshot() ?? null;
+
+    for (let offset = 0; offset < 4; offset += 1) {
+      await movePointer(offset);
+    }
+    await waitFor(
+      () => {
+        const telemetry = readTelemetry();
+        expect(telemetry?.lastProcessedInputVersion ?? 0).toBeGreaterThan(1);
+        expect(telemetry?.entries.length ?? 0).toBeGreaterThan(0);
+      },
+      { timeout: 10_000 }
+    );
+
+    const warmedTelemetry = readTelemetry();
+    const warmedFailureCount =
+      warmedTelemetry?.tangentPlaneFailureCount ?? Number.POSITIVE_INFINITY;
+    const warmedProcessedVersion =
+      warmedTelemetry?.lastProcessedInputVersion ?? 0;
+    for (let offset = 4; offset < 9; offset += 1) {
+      await movePointer(offset, 40);
+    }
+    await waitFor(
+      () => {
+        const telemetry = readTelemetry();
+        expect(telemetry?.lastProcessedInputVersion ?? 0).toBeGreaterThan(
+          warmedProcessedVersion
+        );
+        expect(telemetry?.lastProcessedInputVersion).toBe(
+          telemetry?.latestInputVersion
+        );
+        expect(telemetry?.tangentPlaneFailureCount).toBe(warmedFailureCount);
+      },
+      { timeout: 10_000 }
+    );
+
+    const smoothingStartEntryCount = readTelemetry()?.entries.length ?? 0;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 420));
+    const settledEntryCount = readTelemetry()?.entries.length ?? 0;
+    expect(settledEntryCount).toBeGreaterThan(smoothingStartEntryCount);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 120));
+    expect(readTelemetry()?.entries.length ?? 0).toBe(settledEntryCount);
   },
 };

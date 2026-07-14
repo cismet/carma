@@ -264,6 +264,7 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
       plugins={availableAnnotationToolPlugins}
       annotationOverlayContainer={overlayContainer}
       initialActiveToolType={CESIUM_ANNOTATION_CONFIG.tools.defaultToolId}
+      referenceObjectSizing={CESIUM_ANNOTATION_CONFIG.referenceObjectSizing}
       labelOverlayHost={overlayHost}
       localPersistence={{
         storageKey: "@" + APP_KEY + ".app.cesium-annotations",

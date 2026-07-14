@@ -11,11 +11,11 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   annotationOverlayDefaults,
 } from "./authoring-visual-runtime";
@@ -24,9 +24,10 @@ import { resolveSegmentGuideFrame } from "./resolve-segment-guide-frame";
 export type SegmentGuideController = {
   setSegment: (
     anchorCoordinate: CesiumGeographicCoordinate | null,
-    hoverCoordinate: CesiumGeographicCoordinate | null
+    hoverCoordinate: CesiumGeographicCoordinate | null,
+    requestRender?: boolean
   ) => void;
-  clear: () => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -42,7 +43,10 @@ export const createSegmentGuideController = (
     lineLabelOptions?: PartialAnnotationLineLabelOptions;
   }
 ): SegmentGuideController => {
-  const overlayLayer = createPreviewOverlayLayer(scene, SEGMENT_GUIDE_LAYER_ID);
+  const overlayLayer = createAnnotationOverlayLayer(
+    scene,
+    SEGMENT_GUIDE_LAYER_ID
+  );
   if (!overlayLayer) {
     return {
       setSegment: () => undefined,
@@ -187,21 +191,21 @@ export const createSegmentGuideController = (
   });
 
   return {
-    setSegment: (anchorCoordinate, hoverCoordinate) => {
+    setSegment: (anchorCoordinate, hoverCoordinate, requestRender = true) => {
       currentAnchorCoordinate = anchorCoordinate;
       currentHoverCoordinate = hoverCoordinate;
-      render();
+      render(requestRender);
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       currentAnchorCoordinate = null;
       currentHoverCoordinate = null;
-      render();
+      render(requestRender);
     },
     destroy: () => {
       removePostRenderListener();
       hide();
       destroyLineCollection(scene, lineCollection);
-      destroyPreviewOverlayLayer(overlayLayer);
+      destroyAnnotationOverlayLayer(overlayLayer);
       if (!scene.isDestroyed()) {
         scene.requestRender();
       }

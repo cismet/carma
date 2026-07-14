@@ -1,9 +1,6 @@
 import "./lib/interaction/annotation-overlay-line-label.css";
 
-export {
-  AnnotationOverlayRoots,
-  AnnotationPreviewOverlayRoots,
-} from "./lib/components/AnnotationPreviewOverlayRoots";
+export { AnnotationOverlayRoots } from "./lib/components/AnnotationOverlayRoots";
 export {
   RuntimeAnnotationsToolbar,
   type AnnotationsToolbarClassNames,
@@ -20,6 +17,7 @@ export {
   type UseRuntimeAnnotationInfoBoxSlotsOptions,
 } from "./lib/components/annotation-info-box/runtime-annotation-info-box-slots.types";
 export { useRuntimeAnnotationInfoBoxSlots } from "./lib/components/annotation-info-box/use-runtime-annotation-info-box-slots";
+export { resolveNodeEditHelpItems } from "./lib/components/annotation-info-box/node-edit-help";
 export {
   ANNOTATION_THEME,
   type AnnotationTheme,
@@ -40,6 +38,7 @@ export {
   RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
 } from "./lib/config/runtime-authoring-colors";
 export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotations-runtime-format-options";
+export type { AnnotationReferenceObjectSizingOptions } from "./lib/config/annotation-reference-object-sizing";
 export {
   AREA_OCCLUSION_STYLE_DEFAULTS,
   isCoplanarPolygonFillPlacement,
@@ -122,6 +121,11 @@ export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotatio
 export { resolveRuntimeAnnotationNavigation } from "./lib/components/annotation-info-box/runtime-annotation-navigation";
 export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
 export {
+  createPointQueryIndicatorController,
+  type PointQueryIndicatorControllerOptions,
+  type PointQueryIndicatorController,
+} from "./lib/interaction/create-point-query-indicator-controller";
+export {
   CROSSHAIR_CURSOR_STYLES,
   resolveCrosshairCursorCssValue,
 } from "./lib/interaction/crosshair-cursor-asset";
@@ -133,12 +137,10 @@ export {
   createAnnotationOverlayLayers,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
   destroyLineCollection,
   destroyAnnotationOverlayLayer,
-  destroyPreviewOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
   placePointMarkers,
@@ -166,19 +168,13 @@ export { resolveSegmentGuideFrame } from "./lib/interaction/resolve-segment-guid
 export {
   ANNOTATION_OVERLAY_GROUP,
   ANNOTATION_OVERLAY_GROUP_RENDER_ORDER,
-  PREVIEW_OVERLAY_GROUP,
-  PREVIEW_OVERLAY_GROUP_RENDER_ORDER,
   resolveAnnotationOverlayMountConfig,
-  resolvePreviewOverlayMountConfig,
-} from "./lib/interaction/preview-overlay-mount.shared";
+} from "./lib/interaction/annotation-overlay-mount";
 export type { CrosshairCursorStyle } from "./lib/interaction/crosshair-cursor-asset";
 export type { PointQueryController } from "./lib/interaction/point-query-controller.types";
 export { POINT_QUERY_DISC_PLACEMENT_MODES } from "./lib/interaction/point-query-disc-placement-mode";
 export type { PointQueryDiscPlacementMode } from "./lib/interaction/point-query-disc-placement-mode";
-export type {
-  AnnotationOverlayGroup,
-  PreviewOverlayGroup,
-} from "./lib/interaction/preview-overlay-mount.shared";
+export type { AnnotationOverlayGroup } from "./lib/interaction/annotation-overlay-mount";
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
   ANNOTATION_ENTRY_ROLES,

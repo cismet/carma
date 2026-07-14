@@ -31,6 +31,7 @@ import { buildDistanceToolRenderModels } from "./distance-tool-render-models";
 import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
+import { buildMeasurementToolHelpItems } from "../measurement-tool-help-items";
 const { DISTANCE: ANNOTATION_TYPE_DISTANCE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_DISTANCE;
@@ -78,7 +79,20 @@ export const createDistanceToolPlugin = ({
       shortcutKey: "D",
       icon: <FontAwesomeIcon icon={faRuler} />,
     },
-    helpText: text.helpText,
+    helpText: buildMeasurementToolHelpItems({
+      primaryInstructions: text.helpText,
+    }),
+    resolveHelpText: ({ draftState }) =>
+      buildMeasurementToolHelpItems({
+        primaryInstructions: text.helpText,
+        // The start point can only be removed once it has been placed.
+        includeRunningMeasurementStartPointHint:
+          draftState.coordinates.length >= 1,
+        // A running distance measurement only ever holds the start point until
+        // the second click completes it.
+        runningMeasurementRemovePointDescription:
+          "Entfernt bei laufender Messung den Startpunkt.",
+      }),
     capabilities: [
       ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.ADD_ANNOTATION,

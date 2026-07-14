@@ -1,3 +1,4 @@
+export { faRowResize } from "./lib/icons/fa-row-resize";
 export {
   CarmaResponsiveInfoBox,
   type CarmaResponsiveInfoBoxProps,

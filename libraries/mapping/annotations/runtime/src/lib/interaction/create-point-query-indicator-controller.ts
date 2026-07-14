@@ -2,18 +2,24 @@ import { Cartesian3, Color, Matrix4, Primitive } from "@carma-cesium";
 import {
   getCesiumScenePointerScreenPosition,
   registerCesiumScenePointerTracker,
-  subscribeCesiumScenePointerClientPosition,
 } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscModelMatrix,
   createRing,
+  getScreenPixelsPerMeterAtWorldPoint,
   isValidScene,
+  registerCesiumScenePickExclusionResolver,
   resolveStableDiscNormal,
   safeCall,
   safeRemovePrimitive,
   type RingMaterialPreset,
 } from "@carma-mapping/engines/cesium/core";
+import {
+  createSteppedScreenScaler,
+  REFERENCE_OBJECT_SCALING_MODES,
+  type ReferenceObjectScalingMode,
+} from "@carma-commons/math";
 import {
   type CandidateRingSample,
   getAveragedCandidateRingNormal,
@@ -61,8 +67,14 @@ export type PointQueryIndicatorControllerOptions = {
   opacity?: number;
   materialPreset?: RingMaterialPreset;
   innerHoleRadiusRatio?: number;
-  scalingMode?: "screen" | "world";
+  // `screen`: hold the on-screen size every frame. `world`: fixed metres.
+  scalingMode?: ReferenceObjectScalingMode;
   targetScreenRadiusCssPx?: number;
+  // In world mode, periodically recalculate the held radius toward the screen
+  // target. The step factor controls the permissible apparent-size band.
+  resizeWorldRadiusToScreenTarget?: boolean;
+  discResizeStepFactor?: number;
+  quantizeStepWorldRadius?: boolean;
   showNormalLine?: boolean;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerSmoothingWindowMs?: number;
@@ -71,8 +83,14 @@ export type PointQueryIndicatorControllerOptions = {
 
 export type PointQueryIndicatorController = {
   setEnabled: (enabled: boolean) => void;
-  setVisualStyle: (style: PointQueryIndicatorVisualStyle) => void;
-  setPreview: (preview: PointQueryIndicatorSample | null) => void;
+  setVisualStyle: (
+    style: PointQueryIndicatorVisualStyle,
+    options?: { requestRender?: boolean }
+  ) => void;
+  setPreview: (
+    preview: PointQueryIndicatorSample | null,
+    options?: { requestRender?: boolean }
+  ) => void;
   clearPreview: () => void;
   destroy: () => void;
 };
@@ -88,6 +106,9 @@ export const createPointQueryIndicatorController = (
     innerHoleRadiusRatio = pointPreviewRingVisualDefaults.innerHoleRadiusRatio,
     scalingMode = pointPreviewRingVisualDefaults.scalingMode,
     targetScreenRadiusCssPx = pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
+    resizeWorldRadiusToScreenTarget = false,
+    discResizeStepFactor = 4,
+    quantizeStepWorldRadius = false,
     showNormalLine = false,
     tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
     tangentDiscVisualizerSmoothingWindowMs = pointPreviewRingVisualDefaults.smoothingWindowMs,
@@ -131,8 +152,26 @@ export const createPointQueryIndicatorController = (
     typeof createLineCollection
   > | null = null;
   let previewRingNormalLineRuntime: AuthoringLineRuntime | null = null;
-  let removePreviewRingPostRenderListener: (() => void) | null = null;
+  const unregisterScenePickExclusions =
+    registerCesiumScenePickExclusionResolver(activeScene, () =>
+      previewRing === null ? [] : [previewRing]
+    );
+  let removePreviewRingFrameListener: (() => void) | null = null;
+  let previewRingSmoothingRenderPending = false;
   let previewPoint: Cartesian3 | null = null;
+  // Optional world-radius resizing holds a captured radius across authoring and
+  // only recalculates it after a meaningful zoom change.
+  const steppedScaler = createSteppedScreenScaler();
+
+  const resolveSteppedRadiusMeters = (center: Cartesian3): number =>
+    steppedScaler.resolve({
+      currentScale: getScreenPixelsPerMeterAtWorldPoint(activeScene, center),
+      targetScreenPx: targetScreenRadiusCssPx,
+      fallback: previewRingRadius,
+      stepFactor: discResizeStepFactor,
+      quantize: quantizeStepWorldRadius,
+      minWorldSize: 0.1,
+    });
   let previewSurfaceNormal: Cartesian3 | null = null;
   let latestTruePreviewPoint: Cartesian3 | null = null;
   let latestTrueSurfaceNormal: Cartesian3 | null = null;
@@ -151,6 +190,9 @@ export const createPointQueryIndicatorController = (
     }
     previewRingSamples = [];
     previewRingLastQueuedInput = null;
+    previewRingSmoothingRenderPending = false;
+    // Re-capture the stepped size at the next authoring session.
+    steppedScaler.reset();
   };
 
   const ensurePreviewRingNormalLine = () => {
@@ -292,14 +334,24 @@ export const createPointQueryIndicatorController = (
       nowMs: performance.now(),
     });
 
-  const hasPendingPreviewSmoothing = (nowMs = performance.now()) =>
-    previewRingSamples.length > 1 &&
-    previewRingSamples.some(
-      (sample) =>
-        nowMs - sample.timestampMs < tangentDiscVisualizerSmoothingWindowMs
-    );
+  const requestPreviewRingSmoothingRender = () => {
+    if (
+      previewRingSmoothingRenderPending ||
+      previewRingSamples.length <= 1 ||
+      activeScene.isDestroyed()
+    ) {
+      return;
+    }
 
-  const updatePreviewRing = () => {
+    previewRingSmoothingRenderPending = true;
+    activeScene.requestRender();
+  };
+
+  const updatePreviewRing = ({
+    requestSmoothingRender = true,
+  }: {
+    requestSmoothingRender?: boolean;
+  } = {}) => {
     if (!enabled) {
       clearPreviewRing();
       return;
@@ -317,14 +369,18 @@ export const createPointQueryIndicatorController = (
       latestTrueSurfaceNormal ?? previewSurfaceNormal,
       previewSurfaceNormal
     );
-    const sampledRadius = resolvePointQueryDiscRadius({
-      scene: activeScene,
-      pointECEF: center,
-      discNormalECEF: discNormal,
-      radiusMeters: previewRingRadius,
-      scalingMode,
-      targetScreenRadiusCssPx,
-    });
+    const sampledRadius =
+      scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
+      resizeWorldRadiusToScreenTarget
+        ? resolveSteppedRadiusMeters(center)
+        : resolvePointQueryDiscRadius({
+            scene: activeScene,
+            pointECEF: center,
+            discNormalECEF: discNormal,
+            radiusMeters: previewRingRadius,
+            scalingMode,
+            targetScreenRadiusCssPx,
+          });
     const activeRing = previewRing ?? ensurePreviewRing();
     if (!activeRing) {
       return;
@@ -334,6 +390,9 @@ export const createPointQueryIndicatorController = (
       queuePreviewSample(discNormal);
     }
     const averagedPreviewNormal = getAveragedPreviewNormal(discNormal);
+    if (requestSmoothingRender) {
+      requestPreviewRingSmoothingRender();
+    }
     activeRing.modelMatrix = createOrientedDiscModelMatrix(
       center,
       averagedPreviewNormal,
@@ -344,33 +403,21 @@ export const createPointQueryIndicatorController = (
       modelMatrix: activeRing.modelMatrix,
       lineLengthMeters: sampledRadius * 2,
     });
-
-    if (hasPendingPreviewSmoothing()) {
-      activeScene.requestRender();
-    }
   };
 
   const unregisterPointerTracker =
     registerCesiumScenePointerTracker(activeScene);
-  const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
-    activeScene,
-    () => {
-      if (
-        !enabled ||
-        !latestTruePreviewPoint ||
-        latestPreviewPointLocked ||
-        !isPointQueryDiscPlaneOffsetPlacementMode(placementMode)
-      ) {
-        return;
-      }
 
+  // preRender (not postRender): set the ring modelMatrix before the draw so the
+  // probe/query disc tracks the cursor on the same frame. The point-query hook
+  // owns the coalesced render request for pointer input; this controller only
+  // applies the latest tracked position to that frame.
+  removePreviewRingFrameListener = activeScene.preRender.addEventListener(
+    () => {
+      previewRingSmoothingRenderPending = false;
       updatePreviewRing();
-      activeScene.requestRender();
     }
   );
-
-  removePreviewRingPostRenderListener =
-    activeScene.postRender.addEventListener(updatePreviewRing);
 
   return {
     setEnabled: (nextEnabled) => {
@@ -382,11 +429,11 @@ export const createPointQueryIndicatorController = (
       if (!enabled) {
         clearPreviewRing();
       } else {
-        updatePreviewRing();
+        updatePreviewRing({ requestSmoothingRender: false });
       }
       activeScene.requestRender();
     },
-    setVisualStyle: (style) => {
+    setVisualStyle: (style, options) => {
       const nextPreviewRingColor = resolvePreviewRingColor(style);
       const nextPreviewRingStyleKey = nextPreviewRingColor.toCssColorString();
       if (previewRingStyleKey === nextPreviewRingStyleKey) {
@@ -396,10 +443,12 @@ export const createPointQueryIndicatorController = (
       previewRingColor = nextPreviewRingColor;
       previewRingStyleKey = nextPreviewRingStyleKey;
       clearPreviewRing();
-      updatePreviewRing();
-      activeScene.requestRender();
+      updatePreviewRing({ requestSmoothingRender: false });
+      if (options?.requestRender !== false) {
+        activeScene.requestRender();
+      }
     },
-    setPreview: (preview) => {
+    setPreview: (preview, options) => {
       if (!preview?.pointECEF) {
         previewPoint = null;
         previewSurfaceNormal = null;
@@ -408,7 +457,9 @@ export const createPointQueryIndicatorController = (
         latestPreviewPointLocked = false;
         previewInputVersion += 1;
         clearPreviewRing();
-        activeScene.requestRender();
+        if (options?.requestRender !== false) {
+          activeScene.requestRender();
+        }
         return;
       }
 
@@ -434,8 +485,10 @@ export const createPointQueryIndicatorController = (
         : null;
       latestPreviewPointLocked = preview.lockToPreviewPoint === true;
       previewInputVersion += 1;
-      updatePreviewRing();
-      activeScene.requestRender();
+      updatePreviewRing({ requestSmoothingRender: false });
+      if (options?.requestRender !== false) {
+        activeScene.requestRender();
+      }
     },
     clearPreview: () => {
       previewPoint = null;
@@ -448,10 +501,10 @@ export const createPointQueryIndicatorController = (
       activeScene.requestRender();
     },
     destroy: () => {
-      unsubscribeClientPosition();
       unregisterPointerTracker();
-      safeCall(removePreviewRingPostRenderListener);
-      removePreviewRingPostRenderListener = null;
+      unregisterScenePickExclusions();
+      safeCall(removePreviewRingFrameListener);
+      removePreviewRingFrameListener = null;
       clearPreviewRing();
       destroyLineCollection(activeScene, previewRingNormalLineCollection);
       previewRingNormalLineCollection = null;

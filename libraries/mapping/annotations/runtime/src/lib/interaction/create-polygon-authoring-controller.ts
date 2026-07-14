@@ -30,16 +30,16 @@ import {
   createAreaLabelController,
   createLineCollection,
   createLineRuntime,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   destroyLineCollection,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   annotationOverlayDefaults,
   type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
-import { createAnnotationPolygonFillsController } from "../render/annotation-polygon-fills-controller.shared";
-import { createAnnotationOverlayPolygonFillsController } from "../render/annotation-overlay-polygon-fills-controller.shared";
+import { createAnnotationPolygonFillsController } from "../render/create-annotation-polygon-fills-controller";
+import { createAnnotationOverlayPolygonFillsController } from "../render/create-annotation-overlay-polygon-fills-controller";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -79,8 +79,11 @@ type ProjectionNormalSegment = {
 };
 
 type ProjectionNormalController = {
-  setSegments: (segments: readonly ProjectionNormalSegment[]) => void;
-  clear: () => void;
+  setSegments: (
+    segments: readonly ProjectionNormalSegment[],
+    requestRender?: boolean
+  ) => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -227,7 +230,7 @@ const createProjectionNormalController = ({
   };
 
   return {
-    setSegments: (segments) => {
+    setSegments: (segments, requestRender = true) => {
       ensureLineCount(segments.length);
       segments.forEach((segment, index) => {
         const line = lines[index];
@@ -238,11 +241,15 @@ const createProjectionNormalController = ({
         ]);
       });
       lines.slice(segments.length).forEach(clearLineRuntime);
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       lines.forEach(clearLineRuntime);
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
     },
     destroy: () => {
       destroyLineCollection(scene, lineCollection);
@@ -408,7 +415,7 @@ export const createPolygonAuthoringController = ({
       scene,
       `${previewId}-draft-preview`
     );
-  const areaLabelOverlayLayer = createPreviewOverlayLayer(
+  const areaLabelOverlayLayer = createAnnotationOverlayLayer(
     scene,
     `${AREA_LABEL_OVERLAY_LAYER_ID}-${previewId}`
   );
@@ -430,12 +437,12 @@ export const createPolygonAuthoringController = ({
 
     if (!enabled || draftCoordinates.length === 0) {
       currentPointQueryPickAcceptable = true;
-      draftChainController.clear();
-      polygonLoopController.clear();
-      projectionNormalController.clear();
-      initialHorizontalLinePreviewController?.clear();
-      previewFillController.clear();
-      previewOverlayFillController.clear();
+      draftChainController.clear(false);
+      polygonLoopController.clear(false);
+      projectionNormalController.clear(false);
+      initialHorizontalLinePreviewController?.clear(false);
+      previewFillController.clear(false);
+      previewOverlayFillController.clear(false);
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
@@ -536,30 +543,39 @@ export const createPolygonAuthoringController = ({
         hoverCoordinate &&
         draftCoordinates[0]
       ) {
-        initialHorizontalLinePreviewController.setState({
-          anchorECEF: cartesian3FromGeographicCoordinate(draftCoordinates[0]),
-          targetECEF: cartesian3FromGeographicCoordinate(hoverCoordinate),
-        });
+        initialHorizontalLinePreviewController.setState(
+          {
+            anchorECEF: cartesian3FromGeographicCoordinate(draftCoordinates[0]),
+            targetECEF: cartesian3FromGeographicCoordinate(hoverCoordinate),
+          },
+          false
+        );
       } else {
-        initialHorizontalLinePreviewController.clear();
+        initialHorizontalLinePreviewController.clear(false);
       }
     }
 
-    draftChainController.setState({
-      lineCoordinates,
-      markerCoordinates,
-    });
-    polygonLoopController.setState({
-      lineCoordinates: hasFillCoordinates
-        ? buildFillLoopPreviewCoordinates(fillCoordinateRings)
-        : [],
-      markerCoordinates: [],
-    });
+    draftChainController.setState(
+      {
+        lineCoordinates,
+        markerCoordinates,
+      },
+      false
+    );
+    polygonLoopController.setState(
+      {
+        lineCoordinates: hasFillCoordinates
+          ? buildFillLoopPreviewCoordinates(fillCoordinateRings)
+          : [],
+        markerCoordinates: [],
+      },
+      false
+    );
 
     if (!hasLineCoordinates || lineCoordinates.length < 3) {
-      projectionNormalController.clear();
-      previewFillController.clear();
-      previewOverlayFillController.clear();
+      projectionNormalController.clear(false);
+      previewFillController.clear(false);
+      previewOverlayFillController.clear(false);
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
@@ -579,12 +595,13 @@ export const createPolygonAuthoringController = ({
               },
             ]
           : [];
-      })
+      }),
+      false
     );
 
     if (!hasFillCoordinates) {
-      previewFillController.clear();
-      previewOverlayFillController.clear();
+      previewFillController.clear(false);
+      previewOverlayFillController.clear(false);
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
@@ -611,9 +628,10 @@ export const createPolygonAuthoringController = ({
           : {}),
         placement: previewFillPlacement,
       }));
-    previewFillController.setPolygonFills(previewPolygonFills);
+    previewFillController.setPolygonFills(previewPolygonFills, false);
     previewOverlayFillController.setPolygonFills(
-      previewPolygonFills.filter((polygonFill) => polygonFill.overlayFill)
+      previewPolygonFills.filter((polygonFill) => polygonFill.overlayFill),
+      false
     );
     currentAreaLabelState = buildPolygonPreviewAreaLabelState({
       toolType,
@@ -654,9 +672,9 @@ export const createPolygonAuthoringController = ({
       }
       render();
     },
-    setPointQueryPickResult: (pickResult) => {
+    setPointQueryPickResult: (pickResult, options) => {
       pointQueryPickResult = pickResult;
-      render();
+      render(options?.requestRender);
     },
     isPointQueryPickResultAcceptable: () => currentPointQueryPickAcceptable,
     ...(resolvePointQueryVisualStyle
@@ -678,7 +696,7 @@ export const createPolygonAuthoringController = ({
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();
-      destroyPreviewOverlayLayer(areaLabelOverlayLayer);
+      destroyAnnotationOverlayLayer(areaLabelOverlayLayer);
     },
   };
 };

@@ -88,6 +88,7 @@ import {
   toGeoJsonFeatureId,
   toSelectionIdSet,
 } from "../utils/adhoc-cesium-feature-display-utils";
+import { removeInactiveAdhocVisualizers } from "../utils/adhoc-cesium-visualizer-lifecycle";
 
 export type AdhocCesiumModelShaderOptions = {
   sampling?: Omit<ModelShaderSamplingOptions, "getScene">;
@@ -832,6 +833,35 @@ export const useAdhocCesiumFeatureDisplay = (
   const needsSyncRef = useRef<boolean>(needsSync);
   needsSyncRef.current = needsSync;
 
+  // Removal is independent from visualizer creation and registration. In
+  // particular, an attached primitive may outlive an interrupted async sync
+  // before its feature key reaches registeredFeatureKeys. Destroy every
+  // visualizer whose owning feature disappeared, even while Cesium is staged
+  // or inactive, and let each visualizer remove its own primitive collection.
+  useEffect(() => {
+    const removedFeatureKeys = removeInactiveAdhocVisualizers(
+      visualizersRef.current,
+      geojsonFeatureKeys
+    );
+    if (removedFeatureKeys.size === 0) {
+      return;
+    }
+
+    for (const featureKey of removedFeatureKeys) {
+      selectedPrimitiveIdByFeatureRef.current.delete(featureKey);
+    }
+    setRegisteredFeatureKeys((currentFeatureKeys) => {
+      const nextFeatureKeys = new Set(
+        [...currentFeatureKeys].filter((featureKey) =>
+          geojsonFeatureKeys.has(featureKey)
+        )
+      );
+      return areEqualStringSets(currentFeatureKeys, nextFeatureKeys)
+        ? currentFeatureKeys
+        : nextFeatureKeys;
+    });
+  }, [geojsonFeatureKeys]);
+
   const activeAdhocFeatureKeys = useMemo(
     () => adhocFeatureEntries.map((entry) => entry.key),
     [adhocFeatureEntries]
@@ -1218,14 +1248,6 @@ export const useAdhocCesiumFeatureDisplay = (
         }
       }, 100);
       return () => clearInterval(interval);
-    }
-
-    // Clean up visualizers for removed features
-    for (const [key, entry] of visualizersRef.current.entries()) {
-      if (!geojsonFeatureKeys.has(entry.featureKey)) {
-        entry.visualizer.destroy();
-        visualizersRef.current.delete(key);
-      }
     }
 
     const staleFeatureKeys = new Set<string>();

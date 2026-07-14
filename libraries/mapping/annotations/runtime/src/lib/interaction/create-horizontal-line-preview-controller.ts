@@ -32,8 +32,11 @@ export type HorizontalLinePreviewState = {
 };
 
 export type HorizontalLinePreviewController = {
-  setState: (state: HorizontalLinePreviewState | null) => void;
-  clear: () => void;
+  setState: (
+    state: HorizontalLinePreviewState | null,
+    requestRender?: boolean
+  ) => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -100,8 +103,8 @@ export const createHorizontalLinePreviewController = (
     null;
   let invalidNormalLine: AuthoringLineRuntime | null = null;
 
-  const requestRender = () => {
-    if (isValidScene(scene)) {
+  const requestSceneRender = (requestRender = true) => {
+    if (requestRender && isValidScene(scene)) {
       scene.requestRender();
     }
   };
@@ -151,18 +154,18 @@ export const createHorizontalLinePreviewController = (
     }
   };
 
-  const clear = () => {
+  const clear = (requestRender = true) => {
     if (previewDisc) {
       previewDisc.show = false;
     }
     clearInvalidNormalLine();
-    requestRender();
+    requestSceneRender(requestRender);
   };
 
   return {
-    setState: (state) => {
+    setState: (state, requestRender = true) => {
       if (!state || !isValidScene(scene)) {
-        clear();
+        clear(requestRender);
         return;
       }
 
@@ -187,7 +190,7 @@ export const createHorizontalLinePreviewController = (
       );
 
       if (!Number.isFinite(radiusMeters)) {
-        clear();
+        clear(requestRender);
         return;
       }
 
@@ -215,12 +218,12 @@ export const createHorizontalLinePreviewController = (
           targetOnHorizontalPlane,
           state.targetECEF,
         ]);
-        requestRender();
+        requestSceneRender(requestRender);
         return;
       }
 
       clearInvalidNormalLine();
-      requestRender();
+      requestSceneRender(requestRender);
     },
     clear,
     destroy: () => {

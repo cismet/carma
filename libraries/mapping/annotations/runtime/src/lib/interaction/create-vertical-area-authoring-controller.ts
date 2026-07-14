@@ -22,17 +22,17 @@ import {
   applyLineLabel,
   buildVerticalAreaLoopCoordinates,
   createAreaLabelController,
-  createPreviewOverlayLayer,
+  createAnnotationOverlayLayer,
   createSegmentLineLabels,
-  destroyPreviewOverlayLayer,
+  destroyAnnotationOverlayLayer,
   hideLineLabels,
   annotationOverlayDefaults,
   runtimeCoordinateFromCartesian,
 } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
-import { createAnnotationPolygonFillsController } from "../render/annotation-polygon-fills-controller.shared";
-import { createAnnotationOverlayPolygonFillsController } from "../render/annotation-overlay-polygon-fills-controller.shared";
+import { createAnnotationPolygonFillsController } from "../render/create-annotation-polygon-fills-controller";
+import { createAnnotationOverlayPolygonFillsController } from "../render/create-annotation-overlay-polygon-fills-controller";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
@@ -194,7 +194,7 @@ export const createVerticalAreaAuthoringController = ({
       scene,
       `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview`
     );
-  const labelOverlayLayer = createPreviewOverlayLayer(
+  const labelOverlayLayer = createAnnotationOverlayLayer(
     scene,
     VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID
   );
@@ -308,10 +308,10 @@ export const createVerticalAreaAuthoringController = ({
 
     const firstCorner = draftCoordinates[0] ?? null;
     if (!enabled || !firstCorner) {
-      draftChainController.clear();
-      polygonLoopController.clear();
-      previewFillController.clear();
-      previewOverlayFillController.clear();
+      draftChainController.clear(false);
+      polygonLoopController.clear(false);
+      previewFillController.clear(false);
+      previewOverlayFillController.clear(false);
       currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       areaLabelController.setState(null);
@@ -321,13 +321,16 @@ export const createVerticalAreaAuthoringController = ({
 
     const hoverCoordinate = pointQueryPickResult?.coordinate ?? null;
     if (!hoverCoordinate) {
-      draftChainController.setState({
-        lineCoordinates: [],
-        markerCoordinates: [firstCorner],
-      });
-      polygonLoopController.clear();
-      previewFillController.clear();
-      previewOverlayFillController.clear();
+      draftChainController.setState(
+        {
+          lineCoordinates: [],
+          markerCoordinates: [firstCorner],
+        },
+        false
+      );
+      polygonLoopController.clear(false);
+      previewFillController.clear(false);
+      previewOverlayFillController.clear(false);
       currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       areaLabelController.setState(null);
@@ -341,13 +344,16 @@ export const createVerticalAreaAuthoringController = ({
     });
 
     if (!loopCoordinates) {
-      draftChainController.setState({
-        lineCoordinates: [firstCorner, hoverCoordinate],
-        markerCoordinates: [firstCorner, hoverCoordinate],
-      });
-      polygonLoopController.clear();
-      previewFillController.clear();
-      previewOverlayFillController.clear();
+      draftChainController.setState(
+        {
+          lineCoordinates: [firstCorner, hoverCoordinate],
+          markerCoordinates: [firstCorner, hoverCoordinate],
+        },
+        false
+      );
+      polygonLoopController.clear(false);
+      previewFillController.clear(false);
+      previewOverlayFillController.clear(false);
       currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       renderOverlayLabels(requestRender);
@@ -359,11 +365,14 @@ export const createVerticalAreaAuthoringController = ({
       ...loopCoordinates.slice(1, 4).map(runtimeCoordinateFromCartesian),
     ];
 
-    draftChainController.clear();
-    polygonLoopController.setState({
-      lineCoordinates: loopCoordinates.map(runtimeCoordinateFromCartesian),
-      markerCoordinates,
-    });
+    draftChainController.clear(false);
+    polygonLoopController.setState(
+      {
+        lineCoordinates: loopCoordinates.map(runtimeCoordinateFromCartesian),
+        markerCoordinates,
+      },
+      false
+    );
     const previewFill = getAnnotationAreaFillCssColor(
       ANNOTATION_TYPE_AREA_VERTICAL,
       false
@@ -385,8 +394,8 @@ export const createVerticalAreaAuthoringController = ({
         : {}),
       placement: previewFillPlacement,
     };
-    previewFillController.setPolygonFills([previewPolygonFill]);
-    previewOverlayFillController.setPolygonFills([previewPolygonFill]);
+    previewFillController.setPolygonFills([previewPolygonFill], false);
+    previewOverlayFillController.setPolygonFills([previewPolygonFill], false);
     currentAreaLabelState = buildVerticalAreaPreviewAreaLabelState({
       loopCoordinates,
       formatOptions,
@@ -432,9 +441,9 @@ export const createVerticalAreaAuthoringController = ({
       }
       render();
     },
-    setPointQueryPickResult: (pickResult) => {
+    setPointQueryPickResult: (pickResult, options) => {
       pointQueryPickResult = pickResult;
-      render();
+      render(options?.requestRender);
     },
     destroy: () => {
       unsubscribe();
@@ -444,7 +453,7 @@ export const createVerticalAreaAuthoringController = ({
       previewFillController.destroy();
       previewOverlayFillController.destroy();
       areaLabelController.destroy();
-      destroyPreviewOverlayLayer(labelOverlayLayer);
+      destroyAnnotationOverlayLayer(labelOverlayLayer);
     },
   };
 };

@@ -256,10 +256,9 @@ describe("CismapAnnotationInfoBox", () => {
     expect(instructionContainer?.getAttribute("class")).toContain(
       "font-normal"
     );
-    expect(instructionContainer?.getAttribute("class")).toContain("mt-2");
-    expect(instructionContainer?.getAttribute("class")).toContain("w-[90%]");
-    expect(instructionContainer?.getAttribute("class")).toContain("p-2");
-    expect(instructionContainer?.getAttribute("class")).not.toContain("w-full");
+    expect(instructionContainer?.getAttribute("class")).not.toContain("mt-2");
+    expect(instructionContainer?.getAttribute("class")).toContain("pt-1");
+    expect(instructionContainer?.getAttribute("class")).not.toContain("pb-2");
     expect(screen.getByText("Instruction content")).toBeTruthy();
   });
 

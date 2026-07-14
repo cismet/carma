@@ -137,11 +137,8 @@ export const useLineSegmentVisualizers = (
   lines: LineVisualizerData[],
   showLines: boolean = true
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    updateLabelOverlayElement,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement } =
+    useLabelOverlay();
   const previousLineSignatureByIdRef = useRef<Map<string, string>>(new Map());
   const previousDashCacheSignatureByIdRef = useRef<Map<string, string>>(
     new Map()
@@ -186,19 +183,7 @@ export const useLineSegmentVisualizers = (
       }
       const dasharrayCache = dasharrayCacheByLineIdRef.current.get(lineId);
       const lineOverlayId = getLineOverlayId(line.id);
-      const previousGeometrySignature =
-        previousLineSignatureByIdRef.current.get(lineId) ?? null;
-
-      if (previousGeometrySignature === nextGeometrySignature) {
-        updateLabelOverlayElement(lineOverlayId, {
-          visible: line.visible !== false,
-          isHidden: line.isHidden,
-          updatePosition: buildLineOverlayUpdatePosition(line, dasharrayCache),
-        });
-        return;
-      }
-
-      addLabelOverlayElement({
+      setLabelOverlayElement({
         id: lineOverlayId,
         zIndex: LINE_OVERLAY_Z_INDEX,
         contentKey: nextGeometrySignature,
@@ -214,8 +199,7 @@ export const useLineSegmentVisualizers = (
           onLineLongPress: line.onLineLongPress,
           longPressDurationMs: line.longPressDurationMs,
         }),
-        visible: line.visible !== false,
-        isHidden: line.isHidden,
+        visible: line.visible !== false && line.isHidden !== true,
         updatePosition: buildLineOverlayUpdatePosition(line, dasharrayCache),
       });
     });
@@ -231,9 +215,8 @@ export const useLineSegmentVisualizers = (
     showLines,
     lineIndexById,
     lineGeometrySignatureById,
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     removeLabelOverlayElement,
-    updateLabelOverlayElement,
   ]);
 
   useEffect(

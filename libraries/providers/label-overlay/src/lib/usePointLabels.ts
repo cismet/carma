@@ -86,6 +86,21 @@ const resolvePointBadgeContent = (
   point: Pick<PointLabelData, "badgeContent">
 ) => point.badgeContent;
 
+const buildPointOverlayUpdatePosition =
+  (getCanvasPosition: PointLabelData["getCanvasPosition"]) =>
+  (elementDiv: HTMLElement) => {
+    const canvasPosition = getCanvasPosition?.();
+    if (!canvasPosition) {
+      return false;
+    }
+
+    elementDiv.style.position = "absolute";
+    elementDiv.style.left = `${canvasPosition.x}px`;
+    elementDiv.style.top = `${canvasPosition.y}px`;
+    elementDiv.style.transform = "translate(-50%, -50%)";
+    return true;
+  };
+
 const getPointStyleSignature = (
   styleProps: PointLabelStyleProps | undefined
 ): string =>
@@ -184,11 +199,8 @@ export const usePointLabels = (
   styleProps?: PointLabelStyleProps,
   layoutOptions?: PointLabelLayoutOptions
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    updateLabelOverlayElement,
-  } = useLabelOverlay();
+  const { setLabelOverlayElement, removeLabelOverlayElement } =
+    useLabelOverlay();
   const previousPointSignatureByIdRef = useRef<Map<string, string>>(new Map());
   const pointStyleSignature = useMemo(
     () => getPointStyleSignature(styleProps),
@@ -229,8 +241,6 @@ export const usePointLabels = (
       const nextSignature = pointSignatureById.get(pointId) ?? "";
       nextSignatureById.set(pointId, nextSignature);
       const labelId = `point-label-${point.id}`;
-      const previousSignature =
-        previousPointSignatureByIdRef.current.get(pointId) ?? null;
 
       // Use pitch from point data or fallback to getPitch callback
       const pitch = point.pitch ?? (getPitch ? getPitch() : MINUS_PI_OVER_FOUR);
@@ -278,24 +288,13 @@ export const usePointLabels = (
         ? point.onDoubleClick
         : undefined;
 
-      if (previousSignature === nextSignature) {
-        updateLabelOverlayElement(labelId, {
-          getCanvasPosition: point.getCanvasPosition,
-          zIndex: point.zIndex ?? labelOverlayLayerDefaults.zIndex.pointLabel,
-          visible: point.visible !== false,
-          isHidden: point.isHidden,
-          onClick: overlayClickHandler,
-          onDoubleClick: overlayDoubleClickHandler,
-          cursor: point.forceMarkerInteractionTarget ? "none" : undefined,
-        });
-        return;
-      }
-
-      addLabelOverlayElement({
+      setLabelOverlayElement({
         id: labelId,
         zIndex: point.zIndex ?? labelOverlayLayerDefaults.zIndex.pointLabel,
         contentKey: nextSignature,
-        getCanvasPosition: point.getCanvasPosition,
+        updatePosition: buildPointOverlayUpdatePosition(
+          point.getCanvasPosition
+        ),
         content: React.createElement(PointLabel, {
           pointId: point.id,
           pitch,
@@ -330,8 +329,7 @@ export const usePointLabels = (
           onMarkerDragEnd: point.onMarkerDragEnd,
           ...pointStyleProps,
         }),
-        visible: point.visible !== false,
-        isHidden: point.isHidden,
+        visible: point.visible !== false && point.isHidden !== true,
         onClick: overlayClickHandler,
         onDoubleClick: overlayDoubleClickHandler,
         cursor: point.forceMarkerInteractionTarget ? "none" : undefined,
@@ -347,9 +345,8 @@ export const usePointLabels = (
     showLabels,
     pointIndexById,
     pointSignatureById,
-    addLabelOverlayElement,
+    setLabelOverlayElement,
     removeLabelOverlayElement,
-    updateLabelOverlayElement,
     getPitch,
     styleProps,
     layoutOptions?.transitionDurationMs,

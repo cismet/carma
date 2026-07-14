@@ -12,19 +12,22 @@ import {
   PolygonHierarchy,
   Primitive,
   PrimitiveCollection,
+  type Scene,
 } from "@carma-cesium";
 import { offsetCartesian3Positions } from "@carma-mapping/engines/cesium/core";
 
-import type { Scene } from "@carma-cesium";
-import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+import {
+  RUNTIME_POLYGON_FILL_PLACEMENT,
+  type RuntimePolygonFillRenderModel,
+} from "./annotation-render-models";
 
 export type AnnotationPolygonFillsController = {
   setPolygonFills: (
-    polygonFills: readonly RuntimePolygonFillRenderModel[]
+    polygonFills: readonly RuntimePolygonFillRenderModel[],
+    requestRender?: boolean
   ) => void;
-  clear: () => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -115,12 +118,15 @@ export const createAnnotationPolygonFillsController = (
   };
 
   const renderPolygonFills = (
-    normalizedPolygonFills: readonly RuntimePolygonFillRenderModel[]
+    normalizedPolygonFills: readonly RuntimePolygonFillRenderModel[],
+    requestRender = true
   ) => {
     clearRenderedPolygonFills({ requestRender: false });
 
     if (normalizedPolygonFills.length === 0) {
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
       return;
     }
 
@@ -220,11 +226,13 @@ export const createAnnotationPolygonFillsController = (
       scene.primitives.add(nextCoplanarCollection);
     }
 
-    scene.requestRender();
+    if (requestRender) {
+      scene.requestRender();
+    }
   };
 
   return {
-    setPolygonFills: (polygonFills) => {
+    setPolygonFills: (polygonFills, requestRender = true) => {
       const normalizedPolygonFills = normalizePolygonFills(polygonFills);
       if (arePolygonFillsEqual(currentPolygonFills, normalizedPolygonFills)) {
         return;
@@ -235,9 +243,9 @@ export const createAnnotationPolygonFillsController = (
         return;
       }
 
-      renderPolygonFills(normalizedPolygonFills);
+      renderPolygonFills(normalizedPolygonFills, requestRender);
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       if (currentPolygonFills.length === 0) {
         return;
       }
@@ -249,7 +257,7 @@ export const createAnnotationPolygonFillsController = (
         return;
       }
 
-      clearRenderedPolygonFills({ requestRender: true });
+      clearRenderedPolygonFills({ requestRender });
     },
     destroy: () => {
       currentPolygonFills = [];

@@ -76,7 +76,6 @@ export class ShareableViewStateEncodingError extends Error {
 const DEFAULT_FOV_DEG = 45;
 const DEFAULT_MIN_PITCH_RAD = 0 as Radians;
 const DEFAULT_MAX_CANONICAL_PITCH_RAD = Math.PI as Radians;
-const DEFAULT_MIN_RANGE_M = 10;
 const DEFAULT_SHAREABLE_VIEW_STATE_SOURCE_ID = "shareable-hash-restore";
 const MAPLIBRE_TILE_SIZE_PX = 512;
 
@@ -468,8 +467,11 @@ export const readFromShareableViewState = (
     const fromZoom = readRangeFromMetersPerCssPixel({
       metersPerCssPixel,
       fovRad: resolvedFovRad,
-      minRangeM: DEFAULT_MIN_RANGE_M,
+      minRangeM: 0,
     });
+    // Hash decoding validates recoverability only. Product camera-limit policy
+    // belongs to the runtime limiter, which may be suspended (for example while
+    // measuring), so preserve every positive finite derived range here.
     return isFiniteNumber(fromZoom) ? fromZoom : null;
   })();
 

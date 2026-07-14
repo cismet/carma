@@ -1,5 +1,6 @@
 import { createElement, useMemo, type ReactNode } from "react";
 import {
+  ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   AnnotationInfoBoxHelpContent,
@@ -12,6 +13,7 @@ import {
 import type {
   AnnotationToolDraftState,
   AnnotationToolPlugin,
+  PointQueryPickResult,
 } from "../../registry";
 import type { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { resolveAnnotationToolAuthoringInstructionPlugin } from "../../utils/annotation-tool-collections";
@@ -55,7 +57,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "activePointQueryPickResult" | "activeToolType" | "registry"
+  "activeToolType" | "registry"
 > &
   Pick<
     UseRuntimeAnnotationInfoBoxSlotsOptions,
@@ -64,6 +66,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
     | "includeAuthoringInstruction"
     | "visualOptions"
   > & {
+    activePointQueryPickResult: PointQueryPickResult | null;
     activeToolDraftFeedback: AnnotationToolDraftState["feedback"];
     activeToolDraftState: AnnotationToolDraftState;
   }): RuntimeAnnotationInfoBoxAuthoringInstruction | null =>
@@ -111,14 +114,17 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
 
     return {
       plugin,
-      content: createElement(AnnotationInfoBoxTextContent, {
-        visualOptions: resolvedVisualOptions,
-        children: createElement(AnnotationInfoBoxHelpContent, {
+      content: createElement(
+        AnnotationInfoBoxTextContent,
+        { visualOptions: resolvedVisualOptions },
+        createElement(AnnotationInfoBoxHelpContent, {
           items: helpItems,
           layout: authoringInstructionHelpLayout,
           locale: helpLocale,
-        }),
-      }),
+          actionTriggerAlign:
+            ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START,
+        })
+      ),
       visualOptions: resolvedVisualOptions,
     };
   }, [

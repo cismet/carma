@@ -5,7 +5,7 @@ import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import {
   createAnnotationPolygonFillsController,
   type AnnotationPolygonFillsController,
-} from "./annotation-polygon-fills-controller.shared";
+} from "./create-annotation-polygon-fills-controller";
 
 export const useAnnotationPolygonFillsController = (
   scene: Scene | null,
@@ -17,8 +17,7 @@ export const useAnnotationPolygonFillsController = (
   latestPolygonFillsRef.current = polygonFills;
 
   useEffect(() => {
-    const polygonFillController =
-      createAnnotationPolygonFillsController(scene);
+    const polygonFillController = createAnnotationPolygonFillsController(scene);
     polygonFillControllerRef.current = polygonFillController;
     polygonFillController.setPolygonFills(latestPolygonFillsRef.current);
 

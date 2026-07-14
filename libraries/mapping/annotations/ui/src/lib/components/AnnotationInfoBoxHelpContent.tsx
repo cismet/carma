@@ -1,22 +1,37 @@
 import type { CSSProperties, ReactNode } from "react";
 import {
+  faRowResize,
   resolveBackspaceDisplayLabel,
   resolveKeyboardDisplayLabels,
   resolveKeyboardDisplayPlatform,
   type KeyboardDisplayLabels,
   type KeyboardDisplayPlatform,
 } from "@carma-commons/ui/components";
+import { COLORS_HEX } from "@carma-commons/utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
   faCircleExclamation,
   faCircleInfo,
   faComputerMouse,
+  faUpDownLeftRight,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const ANNOTATION_INFO_BOX_HELP_ITEM_KINDS = {
   TEXT: "text",
   ACTION: "action",
   ALERT: "alert",
+  HEADING: "heading",
+} as const;
+
+export const ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS = {
+  TITLE: "title",
+  SECTION: "section",
+} as const;
+
+export const ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS = {
+  END: "end",
+  START: "start",
 } as const;
 
 export const ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS = {
@@ -26,6 +41,8 @@ export const ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS = {
   BACKSPACE: "backspace",
   ESCAPE: "escape",
   SHIFT: "shift",
+  DISC_CENTER: "disc-center",
+  DISC_OUTER: "disc-outer",
 } as const;
 
 export const ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS = {
@@ -58,6 +75,12 @@ export type AnnotationInfoBoxHelpAlertSeverity =
 export type AnnotationInfoBoxHelpLayout =
   (typeof ANNOTATION_INFO_BOX_HELP_LAYOUTS)[keyof typeof ANNOTATION_INFO_BOX_HELP_LAYOUTS];
 
+export type AnnotationInfoBoxHelpHeadingLevel =
+  (typeof ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS)[keyof typeof ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS];
+
+export type AnnotationInfoBoxHelpActionTriggerAlignment =
+  (typeof ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS)[keyof typeof ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS];
+
 export type AnnotationInfoBoxHelpActionInputCombination =
   readonly AnnotationInfoBoxHelpActionInput[];
 
@@ -66,10 +89,28 @@ export type AnnotationInfoBoxHelpTextItem = Readonly<{
   text: string;
 }>;
 
+export type AnnotationInfoBoxHelpHeadingItem = Readonly<{
+  kind: typeof ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING;
+  text: string;
+  level?: AnnotationInfoBoxHelpHeadingLevel;
+}>;
+
 export type AnnotationInfoBoxHelpActionItem = Readonly<{
   kind: typeof ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ACTION;
   indicator?: AnnotationInfoBoxHelpActionIndicator;
+  // May be empty for a label-only trigger cell (e.g. "Blaue Pfeilspitzen").
   inputAlternatives: readonly AnnotationInfoBoxHelpActionInputCombination[];
+  // Optional text rendered before / after the input tokens inside the trigger
+  // cell, so a row can read "Scheibenmitte [icon]" or "[icon] auf anderen
+  // Punkt".
+  leadingLabel?: string;
+  trailingLabel?: string;
+  // Align a single input token to the right edge of the trigger column, keeping
+  // its leading label on the left.
+  rightAlignInput?: boolean;
+  // Keep a qualifier beside the final input token. Its text may wrap naturally
+  // within that line's baseline grid.
+  trailingLabelAfterLastInput?: boolean;
   description: string;
 }>;
 
@@ -83,6 +124,7 @@ export type AnnotationInfoBoxHelpAlertItem = Readonly<{
 export type AnnotationInfoBoxHelpItem =
   | string
   | AnnotationInfoBoxHelpTextItem
+  | AnnotationInfoBoxHelpHeadingItem
   | AnnotationInfoBoxHelpActionItem
   | AnnotationInfoBoxHelpAlertItem;
 
@@ -100,6 +142,7 @@ type AnnotationInfoBoxHelpContentProps = {
   layout?: AnnotationInfoBoxHelpLayout;
   locale?: string;
   platform?: KeyboardDisplayPlatform;
+  actionTriggerAlign?: AnnotationInfoBoxHelpActionTriggerAlignment;
 };
 
 const resolveAnnotationInfoBoxHelpLocale = (): string | undefined =>
@@ -135,24 +178,130 @@ const resolvePointerDisplayLabels = (
     : POINTER_DISPLAY_LABELS_BY_LANGUAGE.en;
 };
 
+// Vertical rhythm. Every line of help content — text, headings, key tokens and
+// cursor glyphs — occupies exactly one baseline step, and every gap is a whole
+// number of steps, so content lands on a constant interval in y. Sizing the step
+// in `em` keeps it locked to the info box's font size.
+const HELP_BASELINE_VARIABLE = "--carma-help-baseline";
+const HELP_BASELINE_STEP = "1.5em";
+const HELP_LINE_HEIGHT = 1.5;
+const oneBaselineStep = `var(${HELP_BASELINE_VARIABLE})`;
+// Rows are separated by half a step: line boxes stay one full step, wrapped
+// continuation lines inside a cell stay step-tight (so they read as one row),
+// and every distance remains on the half-step lattice (18 / 27 / 36px at 12px).
+const halfBaselineStep = `calc(var(${HELP_BASELINE_VARIABLE}) / 2)`;
+
+// An unregistered custom property is substituted as raw tokens, so the `em` in
+// the step above resolves against whichever element *uses* it, not the root that
+// declares it. Elements that scale their own font-size would therefore read a
+// shrunken step (a 0.74em key token read 13.3px instead of 18px), so they
+// express one step in their own em instead.
+const KEY_TOKEN_FONT_SCALE = 0.74;
+// 16px at the info box's 12px font.
+const DRAG_GLYPH_FONT_SCALE = 4 / 3;
+const baselineStepInOwnEm = (fontScale: number) =>
+  `${HELP_LINE_HEIGHT / fontScale}em`;
+
+const helpContentRootStyle = {
+  [HELP_BASELINE_VARIABLE]: HELP_BASELINE_STEP,
+  lineHeight: HELP_LINE_HEIGHT,
+} as CSSProperties;
+
 const paragraphStyle: CSSProperties = {
-  margin: "0 0 0.9rem",
+  margin: `0 0 ${oneBaselineStep}`,
+  lineHeight: HELP_LINE_HEIGHT,
+};
+
+const headingStyles = {
+  [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.TITLE]: {
+    margin: 0,
+    fontWeight: 700,
+    lineHeight: HELP_LINE_HEIGHT,
+  },
+  // Half a step of own margin — the shared row gap brings the total space
+  // above a section to one full step.
+  [ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION]: {
+    margin: `${halfBaselineStep} 0 0`,
+    fontWeight: 700,
+    lineHeight: HELP_LINE_HEIGHT,
+  },
+} satisfies Record<AnnotationInfoBoxHelpHeadingLevel, CSSProperties>;
+
+// In the shared subgrid (COMPACT) a heading must span both columns.
+const compactHeadingSpanStyle: CSSProperties = {
+  gridColumn: "1 / -1",
+};
+
+const triggerLabelStyle: CSSProperties = {
+  whiteSpace: "normal",
+};
+
+// Left-aligned trigger cell for the instruction-table style. The leading label
+// and input tokens sit on one line; a trailing label always drops to the next
+// line (wrap after the icon) so the trigger column stays narrow instead of
+// growing to icon-plus-text width.
+const startTriggerCellStyle: CSSProperties = {
+  display: "inline-flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  justifyContent: "flex-start",
+  minWidth: 0,
+};
+
+// Each sub-row is exactly one baseline step tall, so a trigger cell that wraps
+// stays on the grid.
+const startTriggerTokenRowStyle: CSSProperties = {
+  display: "inline-flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: "0.34em",
+  minHeight: oneBaselineStep,
+};
+
+const startTriggerAlternativeRowStyle: CSSProperties = {
+  ...startTriggerTokenRowStyle,
+  marginTop: halfBaselineStep,
+};
+
+const startTriggerRightAlignedTokenRowStyle: CSSProperties = {
+  ...startTriggerTokenRowStyle,
+  justifyContent: "space-between",
+  width: "100%",
 };
 
 const actionColumnGap = "1em";
+const startAlignedActionColumnGap = "0.5em";
 const actionGridTemplateColumns = "max-content minmax(0, 1fr)";
+// The edit-mode instruction table has labels, icons, and multi-line shortcut
+// qualifiers in its first column. Give it a stable measure so longer left-hand
+// entries do not change where the effects column begins.
+const startAlignedActionGridTemplateColumns = "7.75rem minmax(0, 1fr)";
 
-const compactContentStyle: CSSProperties = {
+const resolveCompactContentStyle = (
+  triggerAlign: AnnotationInfoBoxHelpActionTriggerAlignment
+): CSSProperties => ({
+  ...helpContentRootStyle,
   display: "grid",
-  gridTemplateColumns: actionGridTemplateColumns,
-  columnGap: actionColumnGap,
-  rowGap: "0.58rem",
+  gridTemplateColumns:
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START
+      ? startAlignedActionGridTemplateColumns
+      : actionGridTemplateColumns,
+  columnGap:
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START
+      ? startAlignedActionColumnGap
+      : actionColumnGap,
+  rowGap: halfBaselineStep,
   alignItems: "start",
-};
+});
 
 const compactParagraphStyle: CSSProperties = {
   ...paragraphStyle,
   gridColumn: "1 / -1",
+};
+
+const compactLastParagraphStyle: CSSProperties = {
+  ...compactParagraphStyle,
+  margin: 0,
 };
 
 const actionRowStyles = {
@@ -160,9 +309,9 @@ const actionRowStyles = {
     display: "grid",
     gridTemplateColumns: actionGridTemplateColumns,
     columnGap: actionColumnGap,
-    alignItems: "baseline",
-    margin: "0 0 0.58rem",
-    lineHeight: 1.28,
+    alignItems: "start",
+    margin: `0 0 ${halfBaselineStep}`,
+    lineHeight: HELP_LINE_HEIGHT,
   },
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT]: {
     display: "contents",
@@ -173,15 +322,17 @@ const tokenGroupStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "flex-end",
-  gap: "0.22rem",
+  gap: "0.22em",
+  minHeight: oneBaselineStep,
   whiteSpace: "nowrap",
 };
 
+// Stacked alternatives in the key column: one baseline step per entry.
 const compactTokenGroupStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   alignItems: "flex-end",
-  gap: "0.2rem",
+  gap: 0,
   whiteSpace: "nowrap",
 };
 
@@ -232,17 +383,18 @@ const compactAlertContainerStyles = {
 const alertTextStyle: CSSProperties = {
   minWidth: 0,
   fontWeight: 600,
-  lineHeight: 1.28,
+  lineHeight: HELP_LINE_HEIGHT,
 };
 
 const actionDescriptionStyles = {
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.STANDARD]: {
     minWidth: 0,
+    lineHeight: HELP_LINE_HEIGHT,
     whiteSpace: "nowrap",
   },
   [ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT]: {
     minWidth: 0,
-    lineHeight: 1.28,
+    lineHeight: HELP_LINE_HEIGHT,
   },
 } satisfies Record<AnnotationInfoBoxHelpLayout, CSSProperties>;
 
@@ -287,10 +439,12 @@ const orderAnnotationInfoBoxHelpItems = (
   ];
 };
 
+// Exactly one baseline step tall (border-box), so a key never inflates its row.
 const keyTokenStyle: CSSProperties = {
   display: "inline-flex",
-  minWidth: "1.85rem",
-  minHeight: "1.35rem",
+  boxSizing: "border-box",
+  minWidth: "3.4em",
+  height: baselineStepInOwnEm(KEY_TOKEN_FONT_SCALE),
   alignItems: "center",
   justifyContent: "center",
   border: "1px solid rgba(0, 0, 0, 0.34)",
@@ -298,10 +452,10 @@ const keyTokenStyle: CSSProperties = {
   background: "rgba(255, 255, 255, 0.68)",
   boxShadow: "inset 0 -1px 0 rgba(0, 0, 0, 0.2)",
   color: "#1f2937",
-  fontSize: "0.74em",
+  fontSize: `${KEY_TOKEN_FONT_SCALE}em`,
   fontWeight: 700,
   lineHeight: 1,
-  padding: "0.16rem 0.32rem",
+  padding: "0 0.58em",
 };
 
 const pointerTokenStyle: CSSProperties = {
@@ -311,8 +465,8 @@ const pointerTokenStyle: CSSProperties = {
 
 const actionIndicatorTokenStyle: CSSProperties = {
   display: "inline-flex",
-  minWidth: "1.35rem",
-  minHeight: "1.35rem",
+  minWidth: oneBaselineStep,
+  height: oneBaselineStep,
   alignItems: "center",
   justifyContent: "center",
   lineHeight: 1,
@@ -329,7 +483,8 @@ const actionIndicatorIconStyles = {
 
 const renderTextItem = (
   item: string | AnnotationInfoBoxHelpTextItem,
-  layout: AnnotationInfoBoxHelpLayout
+  layout: AnnotationInfoBoxHelpLayout,
+  isLastCompactItem = false
 ) => {
   const text = typeof item === "string" ? item : item.text;
   return (
@@ -337,7 +492,9 @@ const renderTextItem = (
       key={text}
       style={
         layout === ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
-          ? compactParagraphStyle
+          ? isLastCompactItem
+            ? compactLastParagraphStyle
+            : compactParagraphStyle
           : paragraphStyle
       }
     >
@@ -354,6 +511,26 @@ const renderPointerToken = (label: string) => (
   <span style={pointerTokenStyle}>
     <FontAwesomeIcon icon={faComputerMouse} />
     <span>{label}</span>
+  </span>
+);
+
+// Cursor symbols render without the key/pointer backdrop, at the same effective
+// footprint as the bordered tokens, with a 16px glyph in the info box's action
+// icon grey.
+const dragTargetTokenStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: baselineStepInOwnEm(DRAG_GLYPH_FONT_SCALE),
+  height: baselineStepInOwnEm(DRAG_GLYPH_FONT_SCALE),
+  fontSize: `${DRAG_GLYPH_FONT_SCALE}em`,
+  lineHeight: 1,
+  color: COLORS_HEX.ACCENT_NEUTRALS,
+};
+
+const renderDragTargetToken = (icon: IconDefinition) => (
+  <span style={dragTargetTokenStyle}>
+    <FontAwesomeIcon icon={icon} />
   </span>
 );
 
@@ -405,6 +582,10 @@ const renderHelpActionInput = (
       return renderKeyToken(keyboardLabels.escape);
     case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.SHIFT:
       return renderKeyToken(keyboardLabels.shift);
+    case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_CENTER:
+      return renderDragTargetToken(faRowResize);
+    case ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS.DISC_OUTER:
+      return renderDragTargetToken(faUpDownLeftRight);
   }
 };
 
@@ -495,32 +676,130 @@ const renderHelpActionInputAlternatives = (
   );
 };
 
+const renderHeadingItem = (
+  item: AnnotationInfoBoxHelpHeadingItem,
+  index: number,
+  layout: AnnotationInfoBoxHelpLayout
+) => {
+  const level = item.level ?? ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS.SECTION;
+  return (
+    <div
+      key={`heading-${item.text}-${index}`}
+      data-testid="annotation-help-heading"
+      data-level={level}
+      style={
+        layout === ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
+          ? { ...headingStyles[level], ...compactHeadingSpanStyle }
+          : headingStyles[level]
+      }
+    >
+      {item.text}
+    </div>
+  );
+};
+
+// Trigger cell for instruction rows: each input alternative gets its own line,
+// with a half-baseline gap after the first. A qualifier can follow the final
+// input token and wrap naturally within that line.
+const renderStartAlignedTrigger = (
+  item: AnnotationInfoBoxHelpActionItem,
+  keyboardLabels: KeyboardDisplayLabels,
+  keyboardPlatform: KeyboardDisplayPlatform,
+  pointerLabels: PointerDisplayLabels
+) => {
+  const lastAlternativeIndex = item.inputAlternatives.length - 1;
+
+  return (
+    <span style={startTriggerCellStyle}>
+      {item.inputAlternatives.length === 0
+        ? item.leadingLabel && (
+            <span style={startTriggerTokenRowStyle}>
+              <span style={triggerLabelStyle}>{item.leadingLabel}</span>
+            </span>
+          )
+        : item.inputAlternatives.map((inputCombination, index) => (
+            <span
+              key={`${inputCombination.join("+")}-${index}`}
+              style={
+                item.rightAlignInput && index === 0
+                  ? startTriggerRightAlignedTokenRowStyle
+                  : index === 0
+                  ? startTriggerTokenRowStyle
+                  : startTriggerAlternativeRowStyle
+              }
+            >
+              {index === 0 && item.leadingLabel ? (
+                <span style={triggerLabelStyle}>{item.leadingLabel}</span>
+              ) : null}
+              {index === 0 && item.indicator
+                ? renderActionIndicatorToken(item.indicator)
+                : null}
+              {renderHelpActionInputCombination(
+                inputCombination,
+                keyboardLabels,
+                keyboardPlatform,
+                pointerLabels
+              )}
+              {index < lastAlternativeIndex ? (
+                <span>{pointerLabels.alternative}</span>
+              ) : null}
+              {index === lastAlternativeIndex &&
+              item.trailingLabelAfterLastInput &&
+              item.trailingLabel ? (
+                <span style={triggerLabelStyle}>{item.trailingLabel}</span>
+              ) : null}
+            </span>
+          ))}
+      {item.trailingLabel && !item.trailingLabelAfterLastInput ? (
+        <span style={triggerLabelStyle}>{item.trailingLabel}</span>
+      ) : null}
+    </span>
+  );
+};
+
 const renderActionItem = (
   item: AnnotationInfoBoxHelpActionItem,
   index: number,
   keyboardLabels: KeyboardDisplayLabels,
   keyboardPlatform: KeyboardDisplayPlatform,
   pointerLabels: PointerDisplayLabels,
-  layout: AnnotationInfoBoxHelpLayout
-) => (
-  <div
-    key={`${item.inputAlternatives
-      .map((inputCombination) => inputCombination.join("+"))
-      .join("-")}-${index}`}
-    data-testid="annotation-help-action"
-    style={actionRowStyles[layout]}
-  >
-    {renderHelpActionInputAlternatives(
-      item.indicator,
-      item.inputAlternatives,
-      keyboardLabels,
-      keyboardPlatform,
-      pointerLabels,
-      layout
-    )}
-    <span style={actionDescriptionStyles[layout]}>{item.description}</span>
-  </div>
-);
+  layout: AnnotationInfoBoxHelpLayout,
+  triggerAlign: AnnotationInfoBoxHelpActionTriggerAlignment = ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.END
+) => {
+  const isStartAligned =
+    triggerAlign === ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.START;
+
+  const trigger = isStartAligned
+    ? renderStartAlignedTrigger(
+        item,
+        keyboardLabels,
+        keyboardPlatform,
+        pointerLabels
+      )
+    : (item.inputAlternatives.length > 0 || item.indicator
+        ? renderHelpActionInputAlternatives(
+            item.indicator,
+            item.inputAlternatives,
+            keyboardLabels,
+            keyboardPlatform,
+            pointerLabels,
+            layout
+          )
+        : null) ?? <span style={tokenGroupStyle} />;
+
+  return (
+    <div
+      key={`${item.inputAlternatives
+        .map((inputCombination) => inputCombination.join("+"))
+        .join("-")}-${item.leadingLabel ?? ""}-${index}`}
+      data-testid="annotation-help-action"
+      style={actionRowStyles[layout]}
+    >
+      {trigger}
+      <span style={actionDescriptionStyles[layout]}>{item.description}</span>
+    </div>
+  );
+};
 
 const renderAlertItem = (
   item: AnnotationInfoBoxHelpAlertItem,
@@ -574,6 +853,7 @@ export const AnnotationInfoBoxHelpContent = ({
   layout,
   locale,
   platform,
+  actionTriggerAlign = ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS.END,
 }: AnnotationInfoBoxHelpContentProps) => {
   const resolvedLayout = resolveAnnotationInfoBoxHelpLayout(layout);
   const resolvedLocale = locale ?? resolveAnnotationInfoBoxHelpLocale();
@@ -585,9 +865,19 @@ export const AnnotationInfoBoxHelpContent = ({
   if (resolvedLayout === ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT) {
     const content: ReactNode[] = displayItems.map((item, index) =>
       typeof item === "string"
-        ? renderTextItem(item, resolvedLayout)
+        ? renderTextItem(
+            item,
+            resolvedLayout,
+            index === displayItems.length - 1
+          )
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT
-        ? renderTextItem(item, resolvedLayout)
+        ? renderTextItem(
+            item,
+            resolvedLayout,
+            index === displayItems.length - 1
+          )
+        : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING
+        ? renderHeadingItem(item, index, resolvedLayout)
         : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT
         ? renderAlertItem(
             item,
@@ -603,12 +893,16 @@ export const AnnotationInfoBoxHelpContent = ({
             keyboardLabels,
             keyboardPlatform,
             pointerLabels,
-            resolvedLayout
+            resolvedLayout,
+            actionTriggerAlign
           )
     );
 
     return (
-      <div data-testid="annotation-help-content" style={compactContentStyle}>
+      <div
+        data-testid="annotation-help-content"
+        style={resolveCompactContentStyle(actionTriggerAlign)}
+      >
         {content}
       </div>
     );
@@ -619,6 +913,8 @@ export const AnnotationInfoBoxHelpContent = ({
       ? renderTextItem(item, resolvedLayout)
       : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT
       ? renderTextItem(item, resolvedLayout)
+      : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING
+      ? renderHeadingItem(item, index, resolvedLayout)
       : item.kind === ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.ALERT
       ? renderAlertItem(
           item,
@@ -634,9 +930,15 @@ export const AnnotationInfoBoxHelpContent = ({
           keyboardLabels,
           keyboardPlatform,
           pointerLabels,
-          resolvedLayout
+          resolvedLayout,
+          actionTriggerAlign
         )
   );
 
-  return <>{content}</>;
+  // A root element also carries the baseline step down to the nested tokens.
+  return (
+    <div data-testid="annotation-help-content" style={helpContentRootStyle}>
+      {content}
+    </div>
+  );
 };

@@ -6,13 +6,16 @@ vi.mock("@carma-commons/utils", () => ({
 }));
 
 import { resolvePreferredSurfacePick } from "./SurfacePicking";
+import { registerCesiumScenePickExclusionResolver } from "./cesium-scene-picking";
 
 type FakeScene = Scene & {
   frameState: {
     frameNumber: number;
   };
   pickPositionSupported: boolean;
+  pick: ReturnType<typeof vi.fn>;
   pickPosition: ReturnType<typeof vi.fn>;
+  pickFromRay: ReturnType<typeof vi.fn>;
   camera: {
     getPickRay: ReturnType<typeof vi.fn>;
   };
@@ -27,7 +30,9 @@ const createFakeScene = (): FakeScene =>
       frameNumber: 1,
     },
     pickPositionSupported: true,
+    pick: vi.fn(),
     pickPosition: vi.fn(),
+    pickFromRay: vi.fn(),
     camera: {
       getPickRay: vi.fn(() => ({ ray: true })),
     },
@@ -84,5 +89,27 @@ describe("resolvePreferredSurfacePick", () => {
     expect(scene.pickPosition).toHaveBeenCalledTimes(1);
     expect(firstPick.surfacePositionECEF).toBe(depthPick);
     expect(secondPick.surfacePositionECEF).toBe(depthPick);
+  });
+
+  it("keeps mesh depth picking when tool helpers are registered", () => {
+    const scene = createFakeScene();
+    const screenPosition = new Cartesian2(10, 20);
+    const queryDisc = {};
+    const meshDepth = new Cartesian3(1, 2, 3);
+    const unregister = registerCesiumScenePickExclusionResolver(scene, () => [
+      queryDisc,
+    ]);
+    scene.pickPosition.mockReturnValue(meshDepth);
+
+    const resolvedPick = resolvePreferredSurfacePick(scene, screenPosition, {
+      resolveGlobePosition: false,
+    });
+
+    expect(scene.pick).not.toHaveBeenCalled();
+    expect(scene.pickPosition).toHaveBeenCalledWith(screenPosition);
+    expect(scene.pickFromRay).not.toHaveBeenCalled();
+    expect(resolvedPick.surfacePositionECEF).toBe(meshDepth);
+
+    unregister();
   });
 });
