@@ -81,29 +81,17 @@ class ProjGeoJson extends Component {
           (options.editModeStatusChanged || (() => {}))(layer.feature);
         });
       }
-      const bindLabelerTooltip = () => {
-        if (options.labeler) {
-          layer.bindTooltip(options.labeler(feature), {
-            className: "customGeoJSONFeatureTooltipClass",
-            permanent: true,
-            direction: "center",
-            offset: new L.point(0, 0),
-            opacity: "0.9",
-          });
-        }
-      };
-      if (feature.selected) {
-        // a direct call of bringToFront has no effect (legacy behavior)
-        setTimeout(() => {
-          try {
-            layer.bringToFront();
-          } catch (err) {
-            // ignore
-          }
-          bindLabelerTooltip();
-        }, 10);
-      } else {
-        bindLabelerTooltip();
+      // no bringToFront() for selected features anymore: the z-order is fully
+      // controlled by the order of the featureCollection array (later features
+      // are rendered on top), see sortFeaturesForRendering in FeatureCollection
+      if (options.labeler) {
+        layer.bindTooltip(options.labeler(feature), {
+          className: "customGeoJSONFeatureTooltipClass",
+          permanent: true,
+          direction: "center",
+          offset: new L.point(0, 0),
+          opacity: "0.9",
+        });
       }
       if (options.hoverer) {
         const theStyle = options.style(feature, featureStylerScalableImageSize);

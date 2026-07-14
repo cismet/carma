@@ -1,5 +1,6 @@
 import Color from "color";
 import { useContext } from "react";
+import { area } from "@turf/turf";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -41,6 +42,43 @@ export const defaultClusteringOptions = {
   selectionSpiderfyMinZoom: 12,
   colorizer: (props) => props.color,
   clusterIconSize: 30,
+};
+
+const getFeatureRenderSize = (feature) => {
+  const type = feature?.geometry?.type;
+  if (type === "Polygon" || type === "MultiPolygon") {
+    try {
+      return area(feature);
+    } catch (e) {
+      return 0;
+    }
+  }
+  return 0;
+};
+
+// Leaflet renders later features on top of earlier ones, so bigger polygons go
+// first and smaller objects stay visible (and clickable) above them. The
+// selected feature only wins among features of equal size: a selected point
+// marker surfaces above overlapping markers, but a selected big polygon no
+// longer covers the small ones.
+export const sortFeaturesForRendering = (features = []) => {
+  const entries = features.map((feature) => ({
+    feature,
+    size: getFeatureRenderSize(feature),
+  }));
+  entries.sort((a, b) => {
+    if (a.size !== b.size) {
+      return b.size - a.size;
+    }
+    if (a.feature.selected === true && b.feature.selected !== true) {
+      return 1;
+    }
+    if (b.feature.selected === true && a.feature.selected !== true) {
+      return -1;
+    }
+    return 0;
+  });
+  return entries.map((entry) => entry.feature);
 };
 
 const FeatureCollection = (props) => {
@@ -123,7 +161,7 @@ const FeatureCollection = (props) => {
     featureClickHandler(event);
   };
 
-  const featureCollection = shownFeatures;
+  const featureCollection = sortFeaturesForRendering(shownFeatures || []);
 
   if (featureLabeler) {
     return (
