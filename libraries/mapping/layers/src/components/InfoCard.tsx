@@ -748,7 +748,7 @@ const InfoCard = ({
             <>
               <div className="h-full w-0 border-r border-gray-300 my-0 hidden sm:block" />
               <div className="flex flex-col gap-0 sm:w-1/4 w-full">
-                <h5 className="font-semibold text-lg">Informationen</h5>
+                <h5 className="font-semibold text-lg">Bearbeitungsvermerk</h5>
                 {layer.createdBy && (
                   <p className="text-base text-gray-600 mb-1">
                     Erstellt von: {layer.createdBy}
