@@ -41,6 +41,9 @@ const basePolygonFill = {
 } satisfies RuntimePolygonFillRenderModel;
 
 const polygonFill = Object.freeze([basePolygonFill]);
+const noPolygonFills = Object.freeze(
+  []
+) as readonly RuntimePolygonFillRenderModel[];
 
 const nextPolygonFill = Object.freeze([
   {
@@ -102,6 +105,25 @@ describe("useAnnotationPolygonFillsController", () => {
     expect(createAnnotationPolygonFillsController).toHaveBeenCalledOnce();
     expect(sceneController.setPolygonFills).toHaveBeenCalledWith(
       nextPolygonFill
+    );
+  });
+
+  it("removes ground and coplanar fills when their measurement disappears", () => {
+    const sceneController = createFillController();
+    vi.mocked(createAnnotationPolygonFillsController).mockReturnValue(
+      sceneController
+    );
+    const scene = {} as Scene;
+
+    const { rerender } = renderHook(
+      ({ fills }) => useAnnotationPolygonFillsController(scene, fills),
+      { initialProps: { fills: polygonFill } }
+    );
+
+    rerender({ fills: noPolygonFills });
+
+    expect(sceneController.setPolygonFills).toHaveBeenLastCalledWith(
+      noPolygonFills
     );
   });
 });
@@ -171,5 +193,25 @@ describe("useAnnotationOverlayPolygonFillsController", () => {
       createAnnotationOverlayPolygonFillsController
     ).toHaveBeenLastCalledWith(scene, "preview");
     expect(previewController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
+  });
+
+  it("removes the overlay fill when its measurement disappears", () => {
+    const sceneController = createFillController();
+    vi.mocked(createAnnotationOverlayPolygonFillsController).mockReturnValue(
+      sceneController
+    );
+    const scene = {} as Scene;
+
+    const { rerender } = renderHook(
+      ({ fills }) =>
+        useAnnotationOverlayPolygonFillsController(scene, fills, "committed"),
+      { initialProps: { fills: polygonFill } }
+    );
+
+    rerender({ fills: noPolygonFills });
+
+    expect(sceneController.setPolygonFills).toHaveBeenLastCalledWith(
+      noPolygonFills
+    );
   });
 });
