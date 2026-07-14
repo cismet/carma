@@ -25,15 +25,11 @@ export const ANNOTATION_INFO_BOX_HELP_ITEM_KINDS = {
 } as const;
 
 export const ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS = {
-  // Block title (e.g. "Bearbeitungsmodus"); section subheading (e.g.
-  // "Weitere Funktionen"). Both render bold and without a trailing colon.
   TITLE: "title",
   SECTION: "section",
 } as const;
 
 export const ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS = {
-  // Trigger tokens hug the description (default key-hint style) vs. start of the
-  // trigger column (instruction-table style, e.g. the node-edit help).
   END: "end",
   START: "start",
 } as const;
@@ -45,8 +41,6 @@ export const ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS = {
   BACKSPACE: "backspace",
   ESCAPE: "escape",
   SHIFT: "shift",
-  // Drag-target cursor symbols for the point-move gizmo:
-  // the disc centre uses a row-resize cursor, the outer disc a move cursor.
   DISC_CENTER: "disc-center",
   DISC_OUTER: "disc-outer",
 } as const;
@@ -95,8 +89,6 @@ export type AnnotationInfoBoxHelpTextItem = Readonly<{
   text: string;
 }>;
 
-// Bold heading (block title or section subheading), rendered without a trailing
-// colon. Spans both columns in the grid.
 export type AnnotationInfoBoxHelpHeadingItem = Readonly<{
   kind: typeof ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.HEADING;
   text: string;
@@ -150,8 +142,6 @@ type AnnotationInfoBoxHelpContentProps = {
   layout?: AnnotationInfoBoxHelpLayout;
   locale?: string;
   platform?: KeyboardDisplayPlatform;
-  // Where the trigger tokens sit in their column: "end" (default, key-hint
-  // style, hugging the description) or "start" (instruction-table style).
   actionTriggerAlign?: AnnotationInfoBoxHelpActionTriggerAlignment;
 };
 

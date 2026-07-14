@@ -9,8 +9,6 @@ import {
 // from the edited measurement's geometry in the runtime's node-edit help, so
 // editing behaves consistently regardless of which tool is active.
 
-// Default wording for multi-point measurements (polyline/area): the removed
-// point is the most recently placed one.
 export const DEFAULT_RUNNING_MEASUREMENT_REMOVE_POINT_DESCRIPTION =
   "Entfernt den zuletzt gesetzten Punkt der laufenden Messung.";
 

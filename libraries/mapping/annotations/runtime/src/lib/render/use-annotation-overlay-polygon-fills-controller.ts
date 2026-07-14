@@ -5,7 +5,7 @@ import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import {
   createAnnotationOverlayPolygonFillsController,
   type AnnotationOverlayPolygonFillsController,
-} from "./annotation-overlay-polygon-fills-controller.shared";
+} from "./create-annotation-overlay-polygon-fills-controller";
 
 export const useAnnotationOverlayPolygonFillsController = (
   scene: Scene | null,

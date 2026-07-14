@@ -59,19 +59,13 @@ export const useCesiumLabelOverlayHost = ({
     scene.requestRender();
   }, [scene]);
 
-  // Reports whether anything affecting on-screen projection changed since the last
-  // call, so the overlay loop can skip reprojection on frames rendered for
-  // unrelated reasons (e.g. an idle-hover requestRender). The view + projection
-  // matrices capture pan/orbit/zoom/fov/aspect; the canvas CSS size captures
-  // aspect-preserving resizes / browser-zoom (which leave both matrices identical
-  // yet change the pixel mapping in worldToWindowCoordinates). Stateful: caches
-  // the last-seen values.
+  // Canvas size complements the matrices for browser zoom and CSS-only resizes.
   const lastViewMatrixRef = useRef(Matrix4.clone(Matrix4.IDENTITY));
   const lastProjectionMatrixRef = useRef(Matrix4.clone(Matrix4.IDENTITY));
   const lastCanvasWidthRef = useRef(0);
   const lastCanvasHeightRef = useRef(0);
   const hasCachedViewRef = useRef(false);
-  const hasViewChanged = useCallback<LabelOverlayViewChangeProbe>(() => {
+  const probeViewChange = useCallback<LabelOverlayViewChangeProbe>(() => {
     if (!scene || scene.isDestroyed()) {
       return true;
     }
@@ -99,7 +93,7 @@ export const useCesiumLabelOverlayHost = ({
     instanceId,
     containerRef,
     subscribeFrame,
-    hasViewChanged,
+    probeViewChange,
     onResize: requestRender,
     forceLayoutOnPortalRender,
   });

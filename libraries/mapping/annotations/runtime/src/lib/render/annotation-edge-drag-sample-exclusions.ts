@@ -3,7 +3,7 @@ type AnnotationSceneLineEndpoints = {
   endNodeId?: string;
 };
 
-export const isAnnotationSceneLineDragSampleOccluder = (
+export const shouldExcludeAnnotationSceneLineFromDragSample = (
   line: AnnotationSceneLineEndpoints,
   activeEditedNodeId: string | null,
   hasLiveAnchor: (nodeId: string) => boolean

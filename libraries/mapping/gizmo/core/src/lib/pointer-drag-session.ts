@@ -1,24 +1,18 @@
-// Window-level pointer drag session.
-//
-// A drag that starts on an element but must keep tracking the pointer anywhere
-// (and end on release / focus loss / tab switch) needs the same window-level
-// listener set every time. This helper owns that lifecycle so callers only
-// supply the per-drag move handler and an end handler, instead of re-wiring
-// mousemove/mouseup/pointerup/blur/visibilitychange + their teardown by hand.
+export const POINTER_DRAG_SESSION_END_REASONS = {
+  RELEASE: "release",
+  BLUR: "blur",
+  VISIBILITY: "visibility",
+} as const;
 
-export type PointerDragSessionEndReason = "pointerup" | "blur" | "visibility";
+export type PointerDragSessionEndReason =
+  (typeof POINTER_DRAG_SESSION_END_REASONS)[keyof typeof POINTER_DRAG_SESSION_END_REASONS];
 
 export type PointerDragSessionOptions = {
-  // Called on every window mousemove for the duration of the drag.
   onMove: (event: MouseEvent) => void;
-  // Called once when the drag ends. `reason` distinguishes a real release
-  // (`pointerup`) from an interruption (window blur / tab hidden), so callers
-  // can e.g. suppress a trailing click only on a genuine release.
   onEnd: (info: { reason: PointerDragSessionEndReason }) => void;
 };
 
 export type PointerDragSession = {
-  // Remove all listeners. Safe to call more than once.
   cleanup: () => void;
 };
 
@@ -31,13 +25,15 @@ export const beginPointerDragSession = ({
   }
 
   const handleMouseMove = (event: MouseEvent) => onMove(event);
-  const handlePointerUp = () => onEnd({ reason: "pointerup" });
-  const handleBlur = () => onEnd({ reason: "blur" });
+  const handlePointerUp = () =>
+    onEnd({ reason: POINTER_DRAG_SESSION_END_REASONS.RELEASE });
+  const handleBlur = () =>
+    onEnd({ reason: POINTER_DRAG_SESSION_END_REASONS.BLUR });
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
       return;
     }
-    onEnd({ reason: "visibility" });
+    onEnd({ reason: POINTER_DRAG_SESSION_END_REASONS.VISIBILITY });
   };
 
   window.addEventListener("mousemove", handleMouseMove);

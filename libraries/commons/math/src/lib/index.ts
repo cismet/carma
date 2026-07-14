@@ -3,7 +3,20 @@ export * as PI_VALUES from "./pi";
 export * from "./numeric";
 export * from "./easing-functions";
 export * from "./scaling";
-export * from "./screen-scale-sizing";
+export {
+  REFERENCE_OBJECT_SCALING_MODES,
+  SCREEN_SCALE_STEP_FACTOR,
+  computeCircleSegments,
+  createSteppedScreenScaler,
+  resolveWorldSizeForScreenTarget,
+  shouldRestepScreenScale,
+  snapToNiceStep,
+  type CircleSegmentOptions,
+  type ReferenceObjectScalingMode,
+  type ResolveWorldSizeForScreenTargetInput,
+  type SteppedScreenScaleInput,
+  type SteppedScreenScaler,
+} from "./screen-scale-sizing";
 export * from "./geometry2d";
 export * from "./geometry3d";
 export * from "./orientation3d";

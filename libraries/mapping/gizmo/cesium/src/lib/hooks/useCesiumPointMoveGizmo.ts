@@ -12,13 +12,13 @@ import {
 import {
   buildCirclePoints,
   computeCircleSegments,
+  createSteppedScreenScaler,
   getEquilateralTriangleHeight,
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
   getSupportRadius2d,
   MINUS_PI_OVER_FOUR,
   negativePiToPi,
-  createSteppedScreenScaler,
   REFERENCE_OBJECT_SCALING_MODES,
   resolveWorldSizeForScreenTarget,
   type ReferenceObjectScalingMode,
@@ -30,6 +30,7 @@ import {
 import {
   AXIS_NUMERIC_EPSILON,
   beginPointerDragSession,
+  POINTER_DRAG_SESSION_END_REASONS,
   toSvgPathD,
 } from "@carma-mapping/gizmo/core";
 import {
@@ -223,7 +224,6 @@ const AXIS_SCREEN_SAMPLE_MIN_WORLD = 0.25;
 const AXIS_SCREEN_SAMPLE_MAX_WORLD = 500;
 const DEFAULT_ACTIVE_ARROW_EDGE_PX = 16;
 const DEFAULT_INACTIVE_ARROW_EDGE_PX = 12;
-// Keep rotate handle/disc below arrows.
 const AXIS_LINE_LAYER_Z_INDEX = 0;
 const DISC_LAYER_Z_INDEX = 1;
 const CENTER_HIT_LAYER_Z_INDEX = 2;
@@ -243,10 +243,6 @@ const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
 const ROTATION_HANDLE_MIN_MINOR_RADIUS_PX = 0.25;
 const ROTATION_NORMAL_SCREEN_SAMPLE_WORLD = 1;
 
-// Full local ENU frame. The geometry generator keeps the horizontal East/West
-// and North/South axes so a hyper-local ENU frame (e.g. aligned to a plane
-// corner) can be wired up later, the way reference-line editing already lets a
-// caller translate along an explicit distance axis.
 const DEFAULT_AXIS_PRESENTATION = [
   {
     id: "vertical",
@@ -267,8 +263,7 @@ const DEFAULT_AXIS_PRESENTATION = [
 
 type DefaultAxisId = (typeof DEFAULT_AXIS_PRESENTATION)[number]["id"];
 
-// Only height adjustment is enabled; the horizontal axes stay generated but
-// hidden until a hyper-local ENU use case enables them.
+// Keep the full ENU presentation available while tools expose height only.
 const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
 
 const isDefaultAxisEnabled = (axisId: string): boolean =>
@@ -471,19 +466,11 @@ export const useCesiumPointMoveGizmo = (
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
   const radiusRef = useRef(radius);
-  // Optional world-radius resizing holds a radius across the selection and
-  // re-evaluates it only after a meaningful screen-scale change.
   const discSteppedScalerRef = useRef(createSteppedScreenScaler());
-  // Disc world radius captured at the start of a drag and held until it ends,
-  // when `freezeDiscScaleDuringDrag` is on. Null outside a frozen drag.
   const frozenDragDiscRadiusRef = useRef<number | null>(null);
   const freezeDiscScaleDuringDragRef = useRef(freezeDiscScaleDuringDrag);
   const stepFactorRef = useRef(discResizeStepFactor);
   const showDiscRadiusLabelRef = useRef(showDiscRadiusLabel);
-  // Radius readout reuses the label-overlay line visualizer (DOM-only SVG line
-  // + label, no Cesium scene primitive). updatePosition publishes the current
-  // screen-space hairline endpoints here; the visualizer's getSvgLine reads them
-  // each frame. The label text is React state (changes rarely).
   const radiusHairlineGeometryRef = useRef<{
     startX: number;
     startY: number;
@@ -557,8 +544,6 @@ export const useCesiumPointMoveGizmo = (
     [discOutlineScreenPixelRadius, scene]
   );
 
-  // Optional world-radius resizing: hold the radius across the selection and
-  // recalculate it toward the screen target only after a meaningful zoom change.
   const resolveSteppedDiscWorldRadius = useCallback(
     (origin: Cartesian3): number => {
       if (!scene || scene.isDestroyed()) {
@@ -602,10 +587,6 @@ export const useCesiumPointMoveGizmo = (
     ]
   );
 
-  // Frame disc radius with the optional during-drag freeze: the first frame of a
-  // drag captures (and may re-step) the radius, then it is held until the drag
-  // ends so the disc never resizes mid-drag. `frozenDragDiscRadiusRef` is reset
-  // to null on drag end, so the next drag re-captures at its start.
   const resolveDiscWorldRadiusForFrame = useCallback(
     (origin: Cartesian3, planeNormal: Cartesian3): number => {
       if (freezeDiscScaleDuringDragRef.current && isDraggingRef.current) {
@@ -1109,7 +1090,7 @@ export const useCesiumPointMoveGizmo = (
       const dragSession = beginPointerDragSession({
         onMove: onWindowMouseMove,
         onEnd: ({ reason }) => {
-          if (reason === "pointerup") {
+          if (reason === POINTER_DRAG_SESSION_END_REASONS.RELEASE) {
             suppressNextSceneClickRef.current = true;
           }
           stopDragging(false);
@@ -1207,8 +1188,7 @@ export const useCesiumPointMoveGizmo = (
         );
         dragStateRef.current.lastPlaneAngleRad = nextPlaneAngleRad;
 
-        // Global rotation direction inversion (requested):
-        // keep interaction symmetric and flip output for all camera sides.
+        // Keep rotation direction independent of the camera side.
         dragStateRef.current.accumulatedDeltaRad -= incrementalDelta;
         const deltaAngleRad = -incrementalDelta;
         const nextAngle =
@@ -1235,7 +1215,7 @@ export const useCesiumPointMoveGizmo = (
       const dragSession = beginPointerDragSession({
         onMove: onWindowMouseMove,
         onEnd: ({ reason }) => {
-          if (reason === "pointerup") {
+          if (reason === POINTER_DRAG_SESSION_END_REASONS.RELEASE) {
             suppressNextSceneClickRef.current = true;
           }
           stopDragging(false);
@@ -1427,7 +1407,7 @@ export const useCesiumPointMoveGizmo = (
       const dragSession = beginPointerDragSession({
         onMove: onWindowMouseMove,
         onEnd: ({ reason }) => {
-          if (reason === "pointerup") {
+          if (reason === POINTER_DRAG_SESSION_END_REASONS.RELEASE) {
             suppressNextSceneClickRef.current = true;
           }
           stopDragging(false);
@@ -1543,14 +1523,8 @@ export const useCesiumPointMoveGizmo = (
         ...(discVisualizerRef.current ? [discVisualizerRef.current] : []),
       ]);
 
-    // Update the disc/axis in preRender, not postRender: preRender fires after
-    // the camera/scene is updated but BEFORE primitives build their draw
-    // commands, so a modelMatrix set here is drawn in THIS frame. Setting it in
-    // postRender (after the draw) would only show up next frame, leaving the 3D
-    // disc one frame behind the DOM overlay. With both reading the local live
-    // position inside the same synchronous render turn, the disc (drawn this
-    // frame) and overlay (postRender DOM, composited with this frame's canvas)
-    // stay locked to the same position on the same frame.
+    // preRender applies the live position before Cesium builds this frame's draw
+    // commands, keeping the primitive aligned with the DOM overlay.
     const removeDiscFrameListener = scene.preRender.addEventListener(() => {
       try {
         const currentPoint = movePointRef.current;
@@ -1940,9 +1914,6 @@ export const useCesiumPointMoveGizmo = (
     ]
   );
 
-  // Disc radius readout as a reusable DOM-only line visualizer (SVG line +
-  // label, no Cesium scene primitive). getSvgLine reads the screen-space
-  // endpoints published by updatePosition each frame.
   const radiusHairlineLineVisualizers = useMemo<LineVisualizerData[]>(() => {
     if (!showDiscRadiusLabel || !showDisc || !movePoint) {
       return [];
@@ -1983,7 +1954,6 @@ export const useCesiumPointMoveGizmo = (
       return;
     }
 
-    // Ensure a hard replace when this effect reruns so stale duplicate DOM cannot accumulate.
     removeLabelOverlayElement(OVERLAY_HANDLE_ID);
 
     setLabelOverlayElement({
@@ -1995,12 +1965,7 @@ export const useCesiumPointMoveGizmo = (
           const rawPoint = movePointRef.current;
           if (!rawPoint || scene.isDestroyed()) return false;
 
-          // Anchor on the synchronously-published live anchor (known from the
-          // pointer + frozen axis/plane) rather than the React-state-backed
-          // movePointRef, so the overlay anchor stays locked to the 3D disc with
-          // no setState round-trip. Only the disc *scale* (computeDiscWorldRadius
-          // below) may ride a frame behind; the anchor never does.
-          //
+          // Use the live anchor so the overlay does not wait for React state.
           const activePoint = {
             id: rawPoint.id,
             geometryECEF:
@@ -2175,10 +2140,6 @@ export const useCesiumPointMoveGizmo = (
             ? projectedOutlinesByAxisId.get(activeAxisId)
             : undefined;
 
-          // Perspective sizing factor for the arrows: how big the disc actually
-          // appears vs its target screen size. ~1 when the disc holds screen
-          // size (`screen` mode), and shrinks/grows with zoom when the disc
-          // holds world size (`world` mode), so the arrows track the disc.
           const arrowPerspectiveScale =
             activeOutline && discOutlineScreenPixelRadius > AXIS_NUMERIC_EPSILON
               ? Math.min(
@@ -2611,11 +2572,6 @@ export const useCesiumPointMoveGizmo = (
                 : centerPlaneDragCursor;
           }
 
-          // Radius readout: publish the hairline endpoints (screen space) +
-          // label text for the line visualizer below. The hairline is a
-          // billboard — it lives in the screen plane (orthogonal to the view
-          // axis), a horizontal line of the disc's apparent screen radius — so
-          // no perspective math is needed to keep it oriented.
           const horizontalRadiusPx = activeOutline?.supportRadius ?? 0;
           const radiusWorldValue = activeOutline?.worldRadius;
           if (
@@ -2631,7 +2587,6 @@ export const useCesiumPointMoveGizmo = (
               endX: anchorCanvasPosition.x + horizontalRadiusPx,
               endY: anchorCanvasPosition.y,
             };
-            // Localised length unit, rounded to whole metres (no fractions).
             const nextRadiusLabelText = formatLengthMeters(radiusWorldValue, {
               maximumFractionDigitsMeters: 0,
             });

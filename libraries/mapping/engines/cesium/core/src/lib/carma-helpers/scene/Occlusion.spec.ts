@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
 
-import { registerCesiumScenePickExclusionResolver } from "./CesiumScenePickingHost";
+import { registerCesiumScenePickExclusionResolver } from "./cesium-scene-picking";
 import { isPointOccluded } from "./Occlusion";
 
 describe("isPointOccluded", () => {

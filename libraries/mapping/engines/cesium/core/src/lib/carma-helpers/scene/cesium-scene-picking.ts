@@ -14,14 +14,14 @@ type CesiumScenePickExclusionRegistration = {
   resolve: CesiumScenePickExclusionResolver;
 };
 
-type CesiumScenePickingHost = {
+type CesiumScenePickingRegistry = {
   registrationsByScope: Map<
     CesiumScenePickExclusionScope,
     Set<CesiumScenePickExclusionRegistration>
   >;
 };
 
-const pickingHostByScene = new WeakMap<Scene, CesiumScenePickingHost>();
+const pickingRegistryByScene = new WeakMap<Scene, CesiumScenePickingRegistry>();
 
 type CesiumPickCollection = {
   length: number;
@@ -92,19 +92,19 @@ const isCesiumShowablePickObject = (
 ): candidate is CesiumShowablePickObject =>
   typeof (candidate as Partial<CesiumShowablePickObject>).show === "boolean";
 
-const getOrCreateCesiumScenePickingHost = (
+const getOrCreateCesiumScenePickingRegistry = (
   scene: Scene
-): CesiumScenePickingHost => {
-  const existingHost = pickingHostByScene.get(scene);
-  if (existingHost) {
-    return existingHost;
+): CesiumScenePickingRegistry => {
+  const existingRegistry = pickingRegistryByScene.get(scene);
+  if (existingRegistry) {
+    return existingRegistry;
   }
 
-  const host: CesiumScenePickingHost = {
+  const registry: CesiumScenePickingRegistry = {
     registrationsByScope: new Map(),
   };
-  pickingHostByScene.set(scene, host);
-  return host;
+  pickingRegistryByScene.set(scene, registry);
+  return registry;
 };
 
 const registerExclusionResolver = (
@@ -112,27 +112,28 @@ const registerExclusionResolver = (
   scope: CesiumScenePickExclusionScope,
   resolver: CesiumScenePickExclusionResolver
 ): (() => void) => {
-  const host = getOrCreateCesiumScenePickingHost(scene);
+  const registry = getOrCreateCesiumScenePickingRegistry(scene);
   const registration = { resolve: resolver };
   const registrations =
-    host.registrationsByScope.get(scope) ??
+    registry.registrationsByScope.get(scope) ??
     new Set<CesiumScenePickExclusionRegistration>();
   registrations.add(registration);
-  host.registrationsByScope.set(scope, registrations);
+  registry.registrationsByScope.set(scope, registrations);
 
   return () => {
-    const currentHost = pickingHostByScene.get(scene);
-    const currentRegistrations = currentHost?.registrationsByScope.get(scope);
-    if (!currentHost || !currentRegistrations) {
+    const currentRegistry = pickingRegistryByScene.get(scene);
+    const currentRegistrations =
+      currentRegistry?.registrationsByScope.get(scope);
+    if (!currentRegistry || !currentRegistrations) {
       return;
     }
 
     currentRegistrations.delete(registration);
     if (currentRegistrations.size === 0) {
-      currentHost.registrationsByScope.delete(scope);
+      currentRegistry.registrationsByScope.delete(scope);
     }
-    if (currentHost.registrationsByScope.size === 0) {
-      pickingHostByScene.delete(scene);
+    if (currentRegistry.registrationsByScope.size === 0) {
+      pickingRegistryByScene.delete(scene);
     }
   };
 };
@@ -168,8 +169,8 @@ export const getCesiumScenePickExclusions = (
     includeDragSampleExclusions = false,
   }: { includeDragSampleExclusions?: boolean } = {}
 ): readonly object[] => {
-  const host = pickingHostByScene.get(scene);
-  if (!host) {
+  const registry = pickingRegistryByScene.get(scene);
+  if (!registry) {
     return [];
   }
 
@@ -182,7 +183,7 @@ export const getCesiumScenePickExclusions = (
 
   const exclusions = new Set<object>();
   scopes.forEach((scope) => {
-    host.registrationsByScope.get(scope)?.forEach(({ resolve }) => {
+    registry.registrationsByScope.get(scope)?.forEach(({ resolve }) => {
       resolve().forEach((exclusion) =>
         addResolvedPickExclusion(exclusion, exclusions)
       );
@@ -239,11 +240,12 @@ export const pickCesiumSceneAtPosition = (
   ) as CesiumScenePickResult;
 
 /**
- * Pick through the Scene host so every registered exclusion is honored.
+ * Pick through the shared scene-picking boundary so every registered exclusion
+ * is honored.
  *
  * Cesium's `objectsToExclude` only applies when the offscreen pass returns a
  * pick object. Translucent/depth-only helpers can return a position without an
- * object, so the host also hides registered showable objects for the duration
+ * object, so the helper also hides registered showable objects for the duration
  * of the synchronous pick and restores their exact state afterwards.
  */
 export const pickCesiumSceneFromRay = (

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isAnnotationSceneLineDragSampleOccluder } from "./annotation-edge-drag-sample-exclusions";
+import { shouldExcludeAnnotationSceneLineFromDragSample } from "./annotation-edge-drag-sample-exclusions";
 
 describe("annotation edge drag-sample exclusions", () => {
   it("excludes a line incident to the edited node before the first live anchor", () => {
     expect(
-      isAnnotationSceneLineDragSampleOccluder(
+      shouldExcludeAnnotationSceneLineFromDragSample(
         { startNodeId: "edited", endNodeId: "other" },
         "edited",
         () => false
@@ -15,7 +15,7 @@ describe("annotation edge drag-sample exclusions", () => {
 
   it("also excludes lines incident to linked nodes once their live anchors exist", () => {
     expect(
-      isAnnotationSceneLineDragSampleOccluder(
+      shouldExcludeAnnotationSceneLineFromDragSample(
         { startNodeId: "linked", endNodeId: "other" },
         "edited",
         (nodeId) => nodeId === "linked"
@@ -25,7 +25,7 @@ describe("annotation edge drag-sample exclusions", () => {
 
   it("keeps unrelated lines pickable", () => {
     expect(
-      isAnnotationSceneLineDragSampleOccluder(
+      shouldExcludeAnnotationSceneLineFromDragSample(
         { startNodeId: "foreign-a", endNodeId: "foreign-b" },
         "edited",
         () => false

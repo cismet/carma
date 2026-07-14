@@ -61,7 +61,7 @@ describe("resolveNodeEditHelpItems", () => {
     });
   });
 
-  it("deletes the whole measurement for point and distance", () => {
+  it("uses whole-measurement delete wording for point and distance", () => {
     for (const toolType of [
       ANNOTATION_TYPES.POINT,
       ANNOTATION_TYPES.DISTANCE,
@@ -76,7 +76,7 @@ describe("resolveNodeEditHelpItems", () => {
     }
   });
 
-  it("keeps per-node delete wording for polyline (aligned, not yet live)", () => {
+  it("uses per-node delete wording for polyline measurements", () => {
     const items = resolveNodeEditHelpItems({
       toolType: ANNOTATION_TYPES.POLYLINE,
     });

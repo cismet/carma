@@ -2,7 +2,7 @@ import { PrimitiveCollection, type Scene } from "@carma-cesium";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
-import { createAnnotationPolygonFillsController } from "./annotation-polygon-fills-controller.shared";
+import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";
 
 const collections: PrimitiveCollection[] = [];
 

@@ -3,16 +3,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Scene } from "@carma-cesium";
 import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
-import { createAnnotationOverlayPolygonFillsController } from "./annotation-overlay-polygon-fills-controller.shared";
-import { createAnnotationPolygonFillsController } from "./annotation-polygon-fills-controller.shared";
+import { createAnnotationOverlayPolygonFillsController } from "./create-annotation-overlay-polygon-fills-controller";
+import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";
 import { useAnnotationOverlayPolygonFillsController } from "./use-annotation-overlay-polygon-fills-controller";
 import { useAnnotationPolygonFillsController } from "./use-annotation-polygon-fills-controller";
 
-vi.mock("./annotation-polygon-fills-controller.shared", () => ({
+vi.mock("./create-annotation-polygon-fills-controller", () => ({
   createAnnotationPolygonFillsController: vi.fn(),
 }));
 
-vi.mock("./annotation-overlay-polygon-fills-controller.shared", () => ({
+vi.mock("./create-annotation-overlay-polygon-fills-controller", () => ({
   createAnnotationOverlayPolygonFillsController: vi.fn(),
 }));
 

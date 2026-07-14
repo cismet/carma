@@ -51,7 +51,7 @@ import {
   ANNOTATION_OVERLAY_GROUP,
   resolveAnnotationOverlayContainer,
   type AnnotationOverlayGroup,
-} from "./annotation-overlay-mount.shared";
+} from "./annotation-overlay-mount";
 import {
   TEXT_OVERLAY_AREA_LABEL_STYLE,
   createTextOverlayElement,
@@ -68,7 +68,7 @@ export {
   ANNOTATION_OVERLAY_GROUP,
   resolveAnnotationOverlayContainer,
   type AnnotationOverlayGroup,
-} from "./annotation-overlay-mount.shared";
+} from "./annotation-overlay-mount";
 
 export type AuthoringLineRuntime = {
   polyline: Polyline;

@@ -12,13 +12,15 @@ import {
   PolygonHierarchy,
   Primitive,
   PrimitiveCollection,
+  type Scene,
 } from "@carma-cesium";
 import { offsetCartesian3Positions } from "@carma-mapping/engines/cesium/core";
 
-import type { Scene } from "@carma-cesium";
-import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+import {
+  RUNTIME_POLYGON_FILL_PLACEMENT,
+  type RuntimePolygonFillRenderModel,
+} from "./annotation-render-models";
 
 export type AnnotationPolygonFillsController = {
   setPolygonFills: (

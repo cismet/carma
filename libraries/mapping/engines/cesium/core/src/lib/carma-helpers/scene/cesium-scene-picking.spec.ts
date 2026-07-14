@@ -8,9 +8,9 @@ import {
   pickCesiumSceneFromRay,
   registerCesiumSceneDragSampleExclusionResolver,
   registerCesiumScenePickExclusionResolver,
-} from "./CesiumScenePickingHost";
+} from "./cesium-scene-picking";
 
-describe("Cesium scene picking host", () => {
+describe("Cesium scene picking", () => {
   it("always excludes tool helpers and conditionally includes drag geometry", () => {
     const scene = {} as Scene;
     const queryDisc = {};

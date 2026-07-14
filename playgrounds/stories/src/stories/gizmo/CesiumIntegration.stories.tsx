@@ -1156,7 +1156,7 @@ export const GizmoSelfPickExclusion: StoryObj<GizmoSandboxProps> = {
     docs: {
       description: {
         story:
-          "The gizmo axis and disc are permanent CesiumScenePickingHost exclusions. Dragging the centre samples the scene below the gizmo even without domain-geometry exclusions.",
+          "The gizmo axis and disc are permanent scene-picking exclusions. Dragging the centre samples the scene below the gizmo even without domain-geometry exclusions.",
       },
     },
   },

@@ -74,7 +74,7 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
-import { isAnnotationSceneLineDragSampleOccluder } from "./annotation-edge-drag-sample-exclusions";
+import { shouldExcludeAnnotationSceneLineFromDragSample } from "./annotation-edge-drag-sample-exclusions";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
 type UseRuntimeAnnotationEdgesControllerArgs = {
@@ -1349,7 +1349,7 @@ export const useAnnotationEdgesController = (
         const occluders: Array<{ show: boolean }> = [];
         sceneLineHandleByIdRef.current.forEach((handle) => {
           if (
-            isAnnotationSceneLineDragSampleOccluder(
+            shouldExcludeAnnotationSceneLineFromDragSample(
               handle,
               activeEditedNodeId,
               (nodeId) => liveAnchors.get(nodeId) !== undefined

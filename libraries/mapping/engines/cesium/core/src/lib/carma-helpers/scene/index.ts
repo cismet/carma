@@ -6,7 +6,15 @@ export {
   type SceneRenderStage,
 } from "./FrameWait";
 export * from "./CoordinateAdapters";
-export * from "./CesiumSceneProjectionHost";
+export {
+  areCesiumSceneProjectionSnapshotsEqual,
+  captureCesiumSceneProjectionSnapshot,
+  getCesiumSceneFrameKey,
+  projectCesiumScenePoint,
+  type CesiumSceneProjectionOptions,
+  type CesiumSceneProjectionSnapshot,
+  type CesiumSceneProjectionState,
+} from "./cesium-scene-projection";
 export * from "./Occlusion";
 export * from "./Picking";
 export * from "./SurfacePicking";

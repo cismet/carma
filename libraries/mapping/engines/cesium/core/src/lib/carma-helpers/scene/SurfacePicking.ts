@@ -93,7 +93,7 @@ const resolveSurfaceDepthPickAtScreenPosition = (
   // object-pick exclusions are registered. A ray pick is not equivalent here:
   // it can miss rendered mesh/3D-Tiles depth and made point-query clicks and
   // normals alternate with helper hits. Helper visuals must stay out of sampled
-  // depth; object and drag exclusions remain owned by CesiumScenePickingHost.
+  // depth; object and drag exclusions remain owned by scene picking.
   if (!isDepthPickingSupported(scene)) {
     warnOnce(
       `${SURFACE_PICKING_WARN_PREFIX} scene.pickPosition(...) is unavailable or unsupported while resolving a surface pick.`

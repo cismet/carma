@@ -8,57 +8,7 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 
 import type { StoredAnnotation } from "../../store";
 
-// Edit status is reserved for the lifecycle; displayed help currently depends
-// only on the geometry category.
-
 type AnnotationToolType = StoredAnnotation["toolType"];
-
-export const EDIT_STATUS = {
-  COMPLETE: "complete",
-  INCOMPLETE: "incomplete",
-  DEGRADED: "degraded",
-} as const;
-
-export type EditStatus = (typeof EDIT_STATUS)[keyof typeof EDIT_STATUS];
-
-// Minimum node count for a measurement of the given geometry to be valid.
-// `null` => the geometry is not structurally node-edited (e.g. labels).
-export const resolveMinimumNodeCountForToolType = (
-  toolType: AnnotationToolType
-): number | null => {
-  switch (toolType) {
-    case ANNOTATION_TYPES.POINT:
-      return 1;
-    case ANNOTATION_TYPES.DISTANCE:
-    case ANNOTATION_TYPES.POLYLINE:
-      return 2;
-    case ANNOTATION_TYPES.AREA_GROUND:
-    case ANNOTATION_TYPES.AREA_PLANAR:
-    case ANNOTATION_TYPES.AREA_VERTICAL:
-      return 3;
-    default:
-      return null;
-  }
-};
-
-export const resolveEditStatus = ({
-  toolType,
-  nodeCount,
-  isGeometryValid = true,
-}: {
-  toolType: AnnotationToolType;
-  nodeCount: number;
-  isGeometryValid?: boolean;
-}): EditStatus => {
-  const minimumNodeCount = resolveMinimumNodeCountForToolType(toolType);
-  if (minimumNodeCount !== null && nodeCount < minimumNodeCount) {
-    return EDIT_STATUS.INCOMPLETE;
-  }
-  if (!isGeometryValid) {
-    return EDIT_STATUS.DEGRADED;
-  }
-  return EDIT_STATUS.COMPLETE;
-};
 
 export const EDIT_GEOMETRY_CATEGORY = {
   POINT: "point",
@@ -153,8 +103,6 @@ const deleteAction = (description: string): AnnotationInfoBoxHelpItem => ({
   description,
 });
 
-// Point and distance fall below their minimum when one node is removed;
-// polyline and area measurements can remain valid.
 const resolveDeleteAction = (
   toolType: AnnotationToolType
 ): AnnotationInfoBoxHelpItem => {

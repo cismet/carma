@@ -85,9 +85,6 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   );
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
-  // Set whenever something the overlay loop depends on changes (element set/data
-  // or an explicit invalidation). Together with the host's view-change
-  // probe it lets the per-frame loop skip reprojection on otherwise-idle frames.
   const positionsDirtyRef = useRef(true);
   // Force a re-render when we need to update Portals (add/remove/content change)
   const [renderCounter, setRenderCounter] = useState(0);
@@ -104,7 +101,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   }, []);
   const resolvedContainerRef = host.containerRef;
   const resolvedFrameSubscription = host.subscribeFrame;
-  const resolvedHasViewChanged = host.hasViewChanged;
+  const probeViewChange = host.probeViewChange;
   const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
 
   const markPositionsDirty = useCallback(() => {
@@ -187,19 +184,13 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     [forceRender, markPositionsDirty]
   );
 
-  // Update overlay positions (imperative, no React render). `force` bypasses the
-  // idle gate for explicit/structural updates; the per-frame loop calls it
-  // unforced so it can skip reprojection when neither the view nor any tracked
-  // input changed (see positionsDirtyRef / host.hasViewChanged).
   const updatePositionsInternal = useCallback(
     (force = false) => {
       const overlayContainer = overlayRef.current;
       if (!overlayContainer) return;
 
-      // Probe the view every frame even when forcing, so its cache stays current.
-      const viewChanged = resolvedHasViewChanged
-        ? resolvedHasViewChanged()
-        : true;
+      // Keep the stateful probe current even when a forced update bypasses it.
+      const viewChanged = probeViewChange ? probeViewChange() : true;
       if (!force && !viewChanged && !positionsDirtyRef.current) return;
       positionsDirtyRef.current = false;
 
@@ -217,17 +208,13 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         elementDiv.style.display = "none";
       });
     },
-    [resolvedHasViewChanged]
+    [probeViewChange]
   );
 
-  // Explicit, consumer-driven update — always runs (a caller asking for it has
-  // changed something the loop's gate may not see this frame).
   const updatePositions = useCallback(() => {
     updatePositionsInternal(true);
   }, [updatePositionsInternal]);
 
-  // Register update loop. The frame source passes its own args (e.g. Cesium's
-  // (scene, time)); wrap so they never land in `force`.
   useEffect(() => {
     const runFrame = () => updatePositionsInternal();
     const cleanup = resolvedFrameSubscription(runFrame);

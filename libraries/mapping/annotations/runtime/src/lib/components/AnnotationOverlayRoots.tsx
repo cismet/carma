@@ -5,7 +5,7 @@ import {
   ANNOTATION_OVERLAY_GROUP_RENDER_ORDER,
   resolveAnnotationOverlayMountConfig,
   type AnnotationOverlayGroup,
-} from "../interaction/annotation-overlay-mount.shared";
+} from "../interaction/annotation-overlay-mount";
 
 const ANNOTATION_OVERLAY_ROOT_STYLE: CSSProperties = {
   position: "absolute",

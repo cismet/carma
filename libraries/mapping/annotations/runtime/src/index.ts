@@ -17,12 +17,7 @@ export {
   type UseRuntimeAnnotationInfoBoxSlotsOptions,
 } from "./lib/components/annotation-info-box/runtime-annotation-info-box-slots.types";
 export { useRuntimeAnnotationInfoBoxSlots } from "./lib/components/annotation-info-box/use-runtime-annotation-info-box-slots";
-export {
-  resolveNodeEditHelpItems,
-  resolveEditGeometryCategory,
-  EDIT_GEOMETRY_CATEGORY,
-  type EditGeometryCategory,
-} from "./lib/components/annotation-info-box/node-edit-help";
+export { resolveNodeEditHelpItems } from "./lib/components/annotation-info-box/node-edit-help";
 export {
   ANNOTATION_THEME,
   type AnnotationTheme,
@@ -98,7 +93,6 @@ export type {
 } from "./lib/config/annotation-line-label-options";
 export {
   AnnotationsProvider,
-  useActivePointQueryPickResult,
   useAnnotationLabelTextDialogState,
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";
@@ -175,12 +169,12 @@ export {
   ANNOTATION_OVERLAY_GROUP,
   ANNOTATION_OVERLAY_GROUP_RENDER_ORDER,
   resolveAnnotationOverlayMountConfig,
-} from "./lib/interaction/annotation-overlay-mount.shared";
+} from "./lib/interaction/annotation-overlay-mount";
 export type { CrosshairCursorStyle } from "./lib/interaction/crosshair-cursor-asset";
 export type { PointQueryController } from "./lib/interaction/point-query-controller.types";
 export { POINT_QUERY_DISC_PLACEMENT_MODES } from "./lib/interaction/point-query-disc-placement-mode";
 export type { PointQueryDiscPlacementMode } from "./lib/interaction/point-query-disc-placement-mode";
-export type { AnnotationOverlayGroup } from "./lib/interaction/annotation-overlay-mount.shared";
+export type { AnnotationOverlayGroup } from "./lib/interaction/annotation-overlay-mount";
 export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
   ANNOTATION_ENTRY_ROLES,

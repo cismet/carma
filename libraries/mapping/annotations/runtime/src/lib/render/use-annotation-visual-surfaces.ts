@@ -2,13 +2,12 @@ import type { Scene } from "@carma-cesium";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import type { AnnotationNodeLink } from "../store";
 import { useAnnotationVisualizers } from "./use-annotation-visualizers";
 import type { RuntimeVisualModels } from "./visual-models";
-import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
-type VisualSurfacesProps = {
-  scene: Scene | null;
+type UseAnnotationVisualSurfacesOptions = {
   baseVisualModels: RuntimeVisualModels;
   overlayVisualModels: RuntimeVisualModels | null;
   linkedNodeGroups: readonly AnnotationNodeLink[];
@@ -19,7 +18,6 @@ type VisualSurfacesProps = {
   activeEditedNodeId: string | null;
   isMoveGizmoDragging: boolean;
   liveAnchors: LiveAnnotationAnchors;
-  isMeasurementToolActive: boolean;
   previewSnapTargetHoverEnabled: boolean;
   onPreviewSnapTargetNodeClick: (nodeId: string) => boolean;
   onAnnotationSelect: (annotationId: string | null) => void;
@@ -39,33 +37,34 @@ type VisualSurfacesProps = {
   onDistanceTriangleCornerClick: (annotationId: string) => void;
 };
 
-export const VisualSurfaces = ({
-  scene,
-  baseVisualModels,
-  overlayVisualModels,
-  linkedNodeGroups,
-  effectiveLinkedNodeGroups,
-  selectedAnnotationIds,
-  formatOptions,
-  lineLabelOptions,
-  activeEditedNodeId,
-  isMoveGizmoDragging,
-  liveAnchors,
-  isMeasurementToolActive,
-  previewSnapTargetHoverEnabled,
-  onPreviewSnapTargetNodeClick,
-  onAnnotationSelect,
-  onNodeAnnotationsSelect,
-  onNodeLongPress,
-  canStartNodeEditing,
-  onReferenceNodeClick,
-  onReferenceNodeHover,
-  onPreviewNodeHover,
-  onReferenceEdgeClick,
-  insertNodeTargetAnnotationIds,
-  onInsertNodeTargetClick,
-  onDistanceTriangleCornerClick,
-}: VisualSurfacesProps) => {
+export const useAnnotationVisualSurfaces = (
+  scene: Scene | null,
+  {
+    baseVisualModels,
+    overlayVisualModels,
+    linkedNodeGroups,
+    effectiveLinkedNodeGroups,
+    selectedAnnotationIds,
+    formatOptions,
+    lineLabelOptions,
+    activeEditedNodeId,
+    isMoveGizmoDragging,
+    liveAnchors,
+    previewSnapTargetHoverEnabled,
+    onPreviewSnapTargetNodeClick,
+    onAnnotationSelect,
+    onNodeAnnotationsSelect,
+    onNodeLongPress,
+    canStartNodeEditing,
+    onReferenceNodeClick,
+    onReferenceNodeHover,
+    onPreviewNodeHover,
+    onReferenceEdgeClick,
+    insertNodeTargetAnnotationIds,
+    onInsertNodeTargetClick,
+    onDistanceTriangleCornerClick,
+  }: UseAnnotationVisualSurfacesOptions
+) => {
   useAnnotationVisualizers(scene, {
     surfaceKey: "committed",
     enableHostInteractionTargets: true,
@@ -95,13 +94,8 @@ export const VisualSurfaces = ({
     onDistanceTriangleCornerClick,
   });
 
-  // While a node is edited, its measurement carries a draft override and so
-  // renders on THIS overlay surface instead of the committed one. The reference
-  // nodes (the other endpoints) must stay clickable here so their height can be
-  // adopted — otherwise the click falls through to the scene and exits edit
-  // mode. Enable host interaction targets on the overlay only during edit and
-  // wire just the reference-node handlers (the edited node is in the preview
-  // link, so it stays non-interactive).
+  // The edited measurement moves to the overlay surface; keep only its
+  // reference-node height-adoption targets interactive there.
   const isNodeEditActive = activeEditedNodeId !== null;
   useAnnotationVisualizers(scene, {
     surfaceKey: "preview",
@@ -122,6 +116,4 @@ export const VisualSurfaces = ({
     onReferenceNodeClick: isNodeEditActive ? onReferenceNodeClick : undefined,
     onReferenceNodeHover: isNodeEditActive ? onReferenceNodeHover : undefined,
   });
-
-  return null;
 };

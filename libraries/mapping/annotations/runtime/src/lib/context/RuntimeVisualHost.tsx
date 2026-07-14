@@ -1,10 +1,23 @@
 import { useCallback, useMemo } from "react";
+
 import type { Scene } from "@carma-cesium";
+import {
+  ANNOTATION_SELECT_TOOL_ID,
+  type AnnotationToolId,
+} from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
+import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
-import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
+import { createLiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
+import {
+  ANNOTATION_TOOL_PLUGIN_KINDS,
+  type AnnotationToolDraftStore,
+  type AnnotationToolRegistry,
+} from "../registry";
+import { useAnnotationVisualSurfaces } from "../render/use-annotation-visual-surfaces";
+import { useVisualLayers } from "../render/use-visual-layers";
 import {
   type AnnotationElevationDisplayMode,
   type AnnotationEntryRole,
@@ -14,25 +27,13 @@ import {
   setSelectedAnnotationIds,
   useAnnotationsSelector,
 } from "../store";
-import {
-  ANNOTATION_SELECT_TOOL_ID,
-  type AnnotationToolId,
-} from "@carma-mapping/annotations/core";
-import {
-  ANNOTATION_TOOL_PLUGIN_KINDS,
-  type AnnotationToolDraftStore,
-  type AnnotationToolRegistry,
-} from "../registry";
-import { VisualSurfaces } from "../render/VisualSurfaces";
-import { useVisualLayers } from "../render/use-visual-layers";
-import { useSelectionAdditiveModifierState } from "./use-selection-additive-modifier-state";
-import { useAnnotationSelection } from "./use-annotation-selection";
+import { selectRenderableAnnotationEntries } from "../utils/annotation-tool-collections";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import { SceneSelectionHost } from "./SceneSelectionHost";
+import { useAnnotationSelection } from "./use-annotation-selection";
+import { useAnnotationToolDraftStates } from "./use-annotation-tool-draft-states";
+import { useSelectionAdditiveModifierState } from "./use-selection-additive-modifier-state";
 import { useVisualInteraction } from "./use-visual-interaction";
-import { selectRenderableAnnotationEntries } from "../utils/annotation-tool-collections";
-import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
-import { createLiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
 type RuntimeVisualHostProps = {
   scene: Scene | null;
@@ -251,44 +252,41 @@ export const RuntimeVisualHost = ({
     effectiveLinkedNodeGroups,
   });
 
+  useAnnotationVisualSurfaces(scene, {
+    baseVisualModels,
+    overlayVisualModels,
+    linkedNodeGroups,
+    effectiveLinkedNodeGroups,
+    selectedAnnotationIds,
+    formatOptions,
+    lineLabelOptions,
+    activeEditedNodeId,
+    isMoveGizmoDragging,
+    liveAnchors,
+    previewSnapTargetHoverEnabled,
+    onPreviewSnapTargetNodeClick,
+    onAnnotationSelect: handleAnnotationSelection,
+    onNodeAnnotationsSelect: handleNodeAnnotationsSelection,
+    onNodeLongPress: handleNodeLongPress,
+    canStartNodeEditing,
+    onReferenceNodeClick: handleReferenceNodeClick,
+    onReferenceNodeHover: handleReferenceNodeHover,
+    onPreviewNodeHover: handlePreviewSnapTargetNodeHover,
+    onReferenceEdgeClick: handleReferenceEdgeClick,
+    insertNodeTargetAnnotationIds,
+    onInsertNodeTargetClick: handleInsertNodeTargetClick,
+    onDistanceTriangleCornerClick: handleDistanceTriangleCornerClick,
+  });
+
   return (
-    <>
-      <SceneSelectionHost
-        scene={scene}
-        enabled={isInteractionToolActive || visualInteractionEnabled}
-        baseEdges={baseVisualModels.edges ?? []}
-        overlayEdges={overlayVisualModels?.edges ?? []}
-        basePolygonFills={baseVisualModels.polygonFills ?? []}
-        overlayPolygonFills={overlayVisualModels?.polygonFills ?? []}
-        onAnnotationSelect={handleAnnotationSelection}
-      />
-      <VisualSurfaces
-        scene={scene}
-        baseVisualModels={baseVisualModels}
-        overlayVisualModels={overlayVisualModels}
-        linkedNodeGroups={linkedNodeGroups}
-        effectiveLinkedNodeGroups={effectiveLinkedNodeGroups}
-        selectedAnnotationIds={selectedAnnotationIds}
-        formatOptions={formatOptions}
-        lineLabelOptions={lineLabelOptions}
-        activeEditedNodeId={activeEditedNodeId}
-        isMoveGizmoDragging={isMoveGizmoDragging}
-        liveAnchors={liveAnchors}
-        isMeasurementToolActive={isMeasurementToolActive}
-        previewSnapTargetHoverEnabled={previewSnapTargetHoverEnabled}
-        onPreviewSnapTargetNodeClick={onPreviewSnapTargetNodeClick}
-        onAnnotationSelect={handleAnnotationSelection}
-        onNodeAnnotationsSelect={handleNodeAnnotationsSelection}
-        onNodeLongPress={handleNodeLongPress}
-        canStartNodeEditing={canStartNodeEditing}
-        onReferenceNodeClick={handleReferenceNodeClick}
-        onReferenceNodeHover={handleReferenceNodeHover}
-        onPreviewNodeHover={handlePreviewSnapTargetNodeHover}
-        onReferenceEdgeClick={handleReferenceEdgeClick}
-        insertNodeTargetAnnotationIds={insertNodeTargetAnnotationIds}
-        onInsertNodeTargetClick={handleInsertNodeTargetClick}
-        onDistanceTriangleCornerClick={handleDistanceTriangleCornerClick}
-      />
-    </>
+    <SceneSelectionHost
+      scene={scene}
+      enabled={isInteractionToolActive || visualInteractionEnabled}
+      baseEdges={baseVisualModels.edges ?? []}
+      overlayEdges={overlayVisualModels?.edges ?? []}
+      basePolygonFills={baseVisualModels.polygonFills ?? []}
+      overlayPolygonFills={overlayVisualModels?.polygonFills ?? []}
+      onAnnotationSelect={handleAnnotationSelection}
+    />
   );
 };

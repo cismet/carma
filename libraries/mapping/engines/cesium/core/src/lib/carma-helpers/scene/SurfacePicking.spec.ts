@@ -6,7 +6,7 @@ vi.mock("@carma-commons/utils", () => ({
 }));
 
 import { resolvePreferredSurfacePick } from "./SurfacePicking";
-import { registerCesiumScenePickExclusionResolver } from "./CesiumScenePickingHost";
+import { registerCesiumScenePickExclusionResolver } from "./cesium-scene-picking";
 
 type FakeScene = Scene & {
   frameState: {

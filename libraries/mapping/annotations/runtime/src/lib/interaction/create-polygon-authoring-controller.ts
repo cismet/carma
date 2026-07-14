@@ -38,8 +38,8 @@ import {
 } from "./authoring-visual-runtime";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
-import { createAnnotationPolygonFillsController } from "../render/annotation-polygon-fills-controller.shared";
-import { createAnnotationOverlayPolygonFillsController } from "../render/annotation-overlay-polygon-fills-controller.shared";
+import { createAnnotationPolygonFillsController } from "../render/create-annotation-polygon-fills-controller";
+import { createAnnotationOverlayPolygonFillsController } from "../render/create-annotation-overlay-polygon-fills-controller";
 import {
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,

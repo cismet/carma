@@ -92,11 +92,30 @@ export {
   type SceneRenderStage,
 } from "./carma-helpers/scene";
 export * from "./carma-helpers/scene/CoordinateAdapters";
-export * from "./carma-helpers/scene/CesiumScenePickingHost";
-export * from "./carma-helpers/scene/CesiumSceneProjectionHost";
+export {
+  getCesiumScenePickExclusions,
+  pickCesiumSceneAtPosition,
+  pickCesiumSceneFromRay,
+  registerCesiumSceneDragSampleExclusionResolver,
+  registerCesiumScenePickExclusionResolver,
+  type CesiumScenePickExclusionResolver,
+  type CesiumScenePickOptions,
+  type CesiumScenePickResult,
+  type CesiumSceneRayPickOptions,
+  type CesiumSceneRayPickResult,
+} from "./carma-helpers/scene/cesium-scene-picking";
+export {
+  areCesiumSceneProjectionSnapshotsEqual,
+  captureCesiumSceneProjectionSnapshot,
+  getCesiumSceneFrameKey,
+  projectCesiumScenePoint,
+  type CesiumSceneProjectionOptions,
+  type CesiumSceneProjectionSnapshot,
+  type CesiumSceneProjectionState,
+} from "./carma-helpers/scene/cesium-scene-projection";
 export * from "./carma-helpers/scene/Occlusion";
 export * from "./carma-helpers/scene/Picking";
-export * from "./carma-helpers/scene/ProjectionScale";
+export { getScreenPixelsPerMeterAtWorldPoint } from "./carma-helpers/scene/projection-scale";
 export * from "./carma-helpers/scene/SurfacePicking";
 export * from "./carma-helpers/scene/SurfaceNormalSampling";
 export * from "./carma-helpers/geojson";

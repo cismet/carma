@@ -4,7 +4,7 @@ import {
   getCesiumScenePickExclusions,
   pickCesiumSceneAtPosition,
   pickCesiumSceneFromRay,
-} from "./CesiumScenePickingHost";
+} from "./cesium-scene-picking";
 
 const isFiniteCartesian2 = (position: Cartesian2): boolean =>
   Number.isFinite(position.x) && Number.isFinite(position.y);
