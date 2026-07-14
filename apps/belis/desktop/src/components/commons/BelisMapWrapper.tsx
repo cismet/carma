@@ -725,6 +725,11 @@ const BelisMapLibWrapper = ({
         namespacedSource,
         brandnewSource,
         enabledCategoryFilters,
+        enabledLeitungstypen,
+        leitungstypen: (keyTablesData.leitungstyp || []) as {
+          id: number;
+          bezeichnung?: string;
+        }[],
         regularEnabled: regularLayerEnabled,
         brandnewEnabled: brandnewLayerEnabled,
         highlightingActive,
