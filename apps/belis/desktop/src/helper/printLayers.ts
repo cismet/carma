@@ -14,6 +14,10 @@
 import type { Map as MaplibreMap, GeoJSONFeature } from "maplibre-gl";
 
 import type { PrintInputLayer } from "@carma-mapping/print-core";
+import {
+  createBelisInlinePrintStyle,
+  type BelisPrintFeature,
+} from "@carma-mapping/print-core";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { buildFeatureStateTarget } from "@carma-mapping/utils";
 
@@ -26,10 +30,6 @@ import {
   leitungstypSlug,
   printCategoryStyleUrl,
 } from "../config/mapLayerConfigs";
-import {
-  createBelisInlinePrintStyle,
-  type BelisPrintFeature,
-} from "../config/belisPrintStyle";
 
 const toInputLayer = (
   layer: LibreLayer,
