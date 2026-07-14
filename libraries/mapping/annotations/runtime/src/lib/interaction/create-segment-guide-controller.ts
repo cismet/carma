@@ -24,9 +24,10 @@ import { resolveSegmentGuideFrame } from "./resolve-segment-guide-frame";
 export type SegmentGuideController = {
   setSegment: (
     anchorCoordinate: CesiumGeographicCoordinate | null,
-    hoverCoordinate: CesiumGeographicCoordinate | null
+    hoverCoordinate: CesiumGeographicCoordinate | null,
+    requestRender?: boolean
   ) => void;
-  clear: () => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -190,15 +191,15 @@ export const createSegmentGuideController = (
   });
 
   return {
-    setSegment: (anchorCoordinate, hoverCoordinate) => {
+    setSegment: (anchorCoordinate, hoverCoordinate, requestRender = true) => {
       currentAnchorCoordinate = anchorCoordinate;
       currentHoverCoordinate = hoverCoordinate;
-      render();
+      render(requestRender);
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       currentAnchorCoordinate = null;
       currentHoverCoordinate = null;
-      render();
+      render(requestRender);
     },
     destroy: () => {
       removePostRenderListener();

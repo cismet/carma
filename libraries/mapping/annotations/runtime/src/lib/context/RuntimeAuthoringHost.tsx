@@ -54,6 +54,7 @@ import {
 import { RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS } from "../config/runtime-authoring-colors";
 
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
+const CURRENT_CESIUM_FRAME_UPDATE_OPTIONS = { requestRender: false } as const;
 
 type RuntimeAuthoringHostProps = {
   scene: Scene | null;
@@ -130,9 +131,15 @@ export const RuntimeAuthoringHost = ({
     null
   );
   const setLatestPointQueryPickResult = useCallback(
-    (pickResult: PointQueryPickResult | null) => {
+    (
+      pickResult: PointQueryPickResult | null,
+      options?: { requestRender?: boolean }
+    ) => {
       latestPointQueryPickResultRef.current = pickResult;
-      activeAuthoringControllerRef.current?.setPointQueryPickResult(pickResult);
+      activeAuthoringControllerRef.current?.setPointQueryPickResult(
+        pickResult,
+        options
+      );
       onPointQueryPickResultChange(pickResult);
     },
     [onPointQueryPickResultChange]
@@ -520,16 +527,26 @@ export const RuntimeAuthoringHost = ({
         surfaceNormalECEF,
         inputModifier,
       });
-      setLatestPointQueryPickResult(nextPointQueryPickResult);
+      // The point-query callback runs inside Cesium's preRender phase. All
+      // authoring visuals are therefore applied to the frame already in
+      // progress; requesting another frame here creates a redundant follow-up
+      // render for every pointer sample.
+      setLatestPointQueryPickResult(
+        nextPointQueryPickResult,
+        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+      );
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const isHoverLockedToSnapPoint =
         hoveredPointQueryNode !== null ||
         !areCoordinatesEqual(nextPointQueryPickResult.coordinate, coordinate);
-      pointQueryIndicatorControllerRef.current?.setPreview({
-        pointECEF: nextPointQueryPickResult.pointECEF,
-        surfaceNormalECEF: nextPointQueryPickResult.surfaceNormalECEF,
-        lockToPreviewPoint: isHoverLockedToSnapPoint,
-      });
+      pointQueryIndicatorControllerRef.current?.setPreview(
+        {
+          pointECEF: nextPointQueryPickResult.pointECEF,
+          surfaceNormalECEF: nextPointQueryPickResult.surfaceNormalECEF,
+          lockToPreviewPoint: isHoverLockedToSnapPoint,
+        },
+        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+      );
       const isPointQueryPickResultAcceptable =
         activeAuthoringControllerRef.current?.isPointQueryPickResultAcceptable?.() ??
         true;
@@ -540,7 +557,8 @@ export const RuntimeAuthoringHost = ({
           ? pointQueryVisualStyle
           : isPointQueryPickResultAcceptable
           ? null
-          : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS }
+          : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS },
+        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
       );
     },
   });

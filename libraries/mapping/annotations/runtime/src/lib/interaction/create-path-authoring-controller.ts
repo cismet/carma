@@ -42,8 +42,11 @@ export type PathAuthoringLineOptions = Partial<
 >;
 
 export type PathAuthoringController = {
-  setState: (state: PathAuthoringControllerState) => void;
-  clear: () => void;
+  setState: (
+    state: PathAuthoringControllerState,
+    requestRender?: boolean
+  ) => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -220,7 +223,7 @@ export const createPathAuthoringController = (
   });
 
   return {
-    setState: (nextState) => {
+    setState: (nextState, requestRender = true) => {
       if (
         areCoordinateListsEqual(
           currentState.lineCoordinates,
@@ -241,13 +244,15 @@ export const createPathAuthoringController = (
       linePositions = currentState.lineCoordinates.map(
         cartesian3FromGeographicCoordinate
       );
-      render();
+      render(requestRender);
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       currentState = EMPTY_PATH_AUTHORING_STATE;
       linePositions = [];
       hide();
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
     },
     destroy: () => {
       removePostRenderListener();

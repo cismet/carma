@@ -359,9 +359,9 @@ export const createDistanceAuthoringController = ({
       }
       render();
     },
-    setPointQueryPickResult: (pickResult) => {
+    setPointQueryPickResult: (pickResult, options) => {
       pointQueryPickResult = pickResult;
-      render();
+      render(options?.requestRender);
     },
     destroy: () => {
       unsubscribe();

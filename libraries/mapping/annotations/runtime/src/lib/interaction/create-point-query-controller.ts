@@ -436,14 +436,6 @@ export const createPointQueryController = ({
       nowMs: performance.now(),
     });
 
-  const hasPendingDiscNormalSmoothing = (nowMs = performance.now()) =>
-    discNormalSamples.length > 1 &&
-    discNormalSamples.some(
-      (sample) =>
-        nowMs - sample.timestampMs <
-        pointPreviewRingVisualDefaults.smoothingWindowMs
-    );
-
   const updateReadout = (
     screenPosition: { x: number; y: number } | null,
     pickedPositionECEF: Cartesian3 | null
@@ -1193,7 +1185,7 @@ export const createPointQueryController = ({
             : null
         );
       }
-    } else if (hasPendingDiscNormalSmoothing(nowMs)) {
+    } else {
       renderDiscSample =
         prepareDisplayedDiscSampleForSmoothing(latestInputVersion);
     }
@@ -1218,10 +1210,6 @@ export const createPointQueryController = ({
       trueSampledSurfaceNormal: trueDiscSample?.surfaceNormalECEF ?? null,
       renderedAtMs: nowMs,
     });
-
-    if (hasPendingDiscNormalSmoothing(nowMs)) {
-      requestRenderNow();
-    }
   };
 
   const requestRenderOnly = () => {

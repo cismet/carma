@@ -1,4 +1,7 @@
-import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
+import {
+  useActivePointQueryPickResult,
+  useAnnotationsRuntime,
+} from "../../context/AnnotationsProvider";
 import {
   RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS,
   type RuntimeAnnotationInfoBoxSlotsState,
@@ -16,10 +19,11 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
   visualOptions,
 }: UseRuntimeAnnotationInfoBoxSlotsOptions = {}): RuntimeAnnotationInfoBoxSlotsState | null => {
   const runtime = useAnnotationsRuntime();
+  const activePointQueryPickResult = useActivePointQueryPickResult();
   const { activeToolDraftFeedback, activeToolDraftState } =
     useRuntimeAnnotationInfoBoxDraftState(runtime);
   const authoringInstruction = useRuntimeAnnotationInfoBoxAuthoringInstruction({
-    activePointQueryPickResult: runtime.activePointQueryPickResult,
+    activePointQueryPickResult,
     activeToolDraftFeedback,
     activeToolDraftState,
     activeToolType: runtime.activeToolType,

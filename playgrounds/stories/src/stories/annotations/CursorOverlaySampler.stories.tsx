@@ -1405,7 +1405,7 @@ export default meta;
 
 export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
   name: "Disc Sampler",
-  tags: ["pick-exclusion"],
+  tags: ["pick-exclusion", "cursor-idle-render"],
   args: {
     queryEnabled: true,
     hideNativeCursor: true,
@@ -1510,5 +1510,9 @@ export const CursorOverlaySampler: StoryObj<CursorOverlaySamplerStoryProps> = {
       },
       { timeout: 10_000 }
     );
+
+    const settledEntryCount = readTelemetry()?.entries.length ?? 0;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 120));
+    expect(readTelemetry()?.entries.length ?? 0).toBe(settledEntryCount);
   },
 };

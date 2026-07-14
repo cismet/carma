@@ -55,7 +55,6 @@ import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
-  PointQueryPickResult,
 } from "../registry";
 import type { Scene } from "@carma-cesium";
 import {
@@ -80,6 +79,10 @@ import {
   type AnnotationDeleteRequestOptions,
 } from "./annotation-delete-confirmation";
 import { resolveDraftNodeIdsAfterEditedNodeRemoval } from "./edited-node-removal.helpers";
+import {
+  createActivePointQueryPickResultStore,
+  type ActivePointQueryPickResultStore,
+} from "./active-point-query-pick-result-store";
 
 const {
   DISTANCE: ANNOTATION_TYPE_DISTANCE,
@@ -164,8 +167,8 @@ export const useAnnotationsAssembly = ({
   const [activeEditedNodeId, setActiveEditedNodeId] = useState<string | null>(
     null
   );
-  const [activePointQueryPickResult, setActivePointQueryPickResult] =
-    useState<PointQueryPickResult | null>(null);
+  const activePointQueryPickResultStoreRef =
+    useRef<ActivePointQueryPickResultStore | null>(null);
   const hoveredPointQueryNodeIdRef = useRef<string | null>(null);
   const setHoveredPointQueryNodeId = useCallback((nodeId: string | null) => {
     hoveredPointQueryNodeIdRef.current = nodeId;
@@ -174,6 +177,13 @@ export const useAnnotationsAssembly = ({
     () => hoveredPointQueryNodeIdRef.current,
     []
   );
+
+  if (activePointQueryPickResultStoreRef.current === null) {
+    activePointQueryPickResultStoreRef.current =
+      createActivePointQueryPickResultStore();
+  }
+  const activePointQueryPickResultStore =
+    activePointQueryPickResultStoreRef.current;
 
   if (annotationsStoreRef.current === null) {
     const initialStoreState = initialPersistenceState
@@ -1023,7 +1033,6 @@ export const useAnnotationsAssembly = ({
       annotationToolDraftStore,
       annotationsStore,
       formatOptions,
-      activePointQueryPickResult,
       activeEditedNodeId,
       addAnnotation,
       appendAnnotationsRuntimePersistenceState,
@@ -1060,7 +1069,6 @@ export const useAnnotationsAssembly = ({
     [
       addAnnotation,
       appendAnnotationsRuntimePersistenceState,
-      activePointQueryPickResult,
       activeEditedNodeId,
       annotationToolDraftStore,
       annotationsStore,
@@ -1096,6 +1104,7 @@ export const useAnnotationsAssembly = ({
     annotationsStore,
     registry,
     services,
+    activePointQueryPickResultStore,
     setActiveToolType,
     runtimeAuthoringHost: {
       scene,
@@ -1111,7 +1120,7 @@ export const useAnnotationsAssembly = ({
       activeEditedNodeId,
       getHoveredPointQueryNodeId,
       setHoveredPointQueryNodeId,
-      onPointQueryPickResultChange: setActivePointQueryPickResult,
+      onPointQueryPickResultChange: activePointQueryPickResultStore.setSnapshot,
       formatOptions,
       lineLabelOptions,
       bindApi: bindLifecycleHostApi,

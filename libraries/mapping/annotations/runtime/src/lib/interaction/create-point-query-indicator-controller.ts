@@ -2,7 +2,6 @@ import { Cartesian3, Color, Matrix4, Primitive } from "@carma-cesium";
 import {
   getCesiumScenePointerScreenPosition,
   registerCesiumScenePointerTracker,
-  subscribeCesiumScenePointerClientPosition,
 } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
@@ -84,8 +83,14 @@ export type PointQueryIndicatorControllerOptions = {
 
 export type PointQueryIndicatorController = {
   setEnabled: (enabled: boolean) => void;
-  setVisualStyle: (style: PointQueryIndicatorVisualStyle) => void;
-  setPreview: (preview: PointQueryIndicatorSample | null) => void;
+  setVisualStyle: (
+    style: PointQueryIndicatorVisualStyle,
+    options?: { requestRender?: boolean }
+  ) => void;
+  setPreview: (
+    preview: PointQueryIndicatorSample | null,
+    options?: { requestRender?: boolean }
+  ) => void;
   clearPreview: () => void;
   destroy: () => void;
 };
@@ -327,13 +332,6 @@ export const createPointQueryIndicatorController = (
       nowMs: performance.now(),
     });
 
-  const hasPendingPreviewSmoothing = (nowMs = performance.now()) =>
-    previewRingSamples.length > 1 &&
-    previewRingSamples.some(
-      (sample) =>
-        nowMs - sample.timestampMs < tangentDiscVisualizerSmoothingWindowMs
-    );
-
   const updatePreviewRing = () => {
     if (!enabled) {
       clearPreviewRing();
@@ -383,34 +381,15 @@ export const createPointQueryIndicatorController = (
       modelMatrix: activeRing.modelMatrix,
       lineLengthMeters: sampledRadius * 2,
     });
-
-    if (hasPendingPreviewSmoothing()) {
-      activeScene.requestRender();
-    }
   };
 
   const unregisterPointerTracker =
     registerCesiumScenePointerTracker(activeScene);
-  const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
-    activeScene,
-    () => {
-      if (
-        !enabled ||
-        !latestTruePreviewPoint ||
-        latestPreviewPointLocked ||
-        !isPointQueryDiscPlaneOffsetPlacementMode(placementMode)
-      ) {
-        return;
-      }
-
-      updatePreviewRing();
-      activeScene.requestRender();
-    }
-  );
 
   // preRender (not postRender): set the ring modelMatrix before the draw so the
-  // probe/query disc tracks the cursor on the same frame, matching the gizmo
-  // disc. postRender would draw the new matrix one frame late.
+  // probe/query disc tracks the cursor on the same frame. The point-query hook
+  // owns the coalesced render request for pointer input; this controller only
+  // applies the latest tracked position to that frame.
   removePreviewRingFrameListener =
     activeScene.preRender.addEventListener(updatePreviewRing);
 
@@ -428,7 +407,7 @@ export const createPointQueryIndicatorController = (
       }
       activeScene.requestRender();
     },
-    setVisualStyle: (style) => {
+    setVisualStyle: (style, options) => {
       const nextPreviewRingColor = resolvePreviewRingColor(style);
       const nextPreviewRingStyleKey = nextPreviewRingColor.toCssColorString();
       if (previewRingStyleKey === nextPreviewRingStyleKey) {
@@ -439,9 +418,11 @@ export const createPointQueryIndicatorController = (
       previewRingStyleKey = nextPreviewRingStyleKey;
       clearPreviewRing();
       updatePreviewRing();
-      activeScene.requestRender();
+      if (options?.requestRender !== false) {
+        activeScene.requestRender();
+      }
     },
-    setPreview: (preview) => {
+    setPreview: (preview, options) => {
       if (!preview?.pointECEF) {
         previewPoint = null;
         previewSurfaceNormal = null;
@@ -450,7 +431,9 @@ export const createPointQueryIndicatorController = (
         latestPreviewPointLocked = false;
         previewInputVersion += 1;
         clearPreviewRing();
-        activeScene.requestRender();
+        if (options?.requestRender !== false) {
+          activeScene.requestRender();
+        }
         return;
       }
 
@@ -477,7 +460,9 @@ export const createPointQueryIndicatorController = (
       latestPreviewPointLocked = preview.lockToPreviewPoint === true;
       previewInputVersion += 1;
       updatePreviewRing();
-      activeScene.requestRender();
+      if (options?.requestRender !== false) {
+        activeScene.requestRender();
+      }
     },
     clearPreview: () => {
       previewPoint = null;
@@ -490,7 +475,6 @@ export const createPointQueryIndicatorController = (
       activeScene.requestRender();
     },
     destroy: () => {
-      unsubscribeClientPosition();
       unregisterPointerTracker();
       unregisterScenePickExclusions();
       safeCall(removePreviewRingFrameListener);

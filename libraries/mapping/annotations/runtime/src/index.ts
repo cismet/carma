@@ -98,6 +98,7 @@ export type {
 } from "./lib/config/annotation-line-label-options";
 export {
   AnnotationsProvider,
+  useActivePointQueryPickResult,
   useAnnotationLabelTextDialogState,
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";

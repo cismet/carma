@@ -13,9 +13,10 @@ import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesiu
 
 export type AnnotationOverlayPolygonFillsController = {
   setPolygonFills: (
-    polygonFills: readonly RuntimePolygonFillRenderModel[]
+    polygonFills: readonly RuntimePolygonFillRenderModel[],
+    requestRender?: boolean
   ) => void;
-  clear: () => void;
+  clear: (requestRender?: boolean) => void;
   destroy: () => void;
 };
 
@@ -160,7 +161,7 @@ export const createAnnotationOverlayPolygonFillsController = (
   });
 
   return {
-    setPolygonFills: (polygonFills) => {
+    setPolygonFills: (polygonFills, requestRender = true) => {
       const normalizedPolygonFills = normalizeOverlayPolygonFills(polygonFills);
       if (
         areOverlayPolygonFillsEqual(currentPolygonFills, normalizedPolygonFills)
@@ -181,16 +182,20 @@ export const createAnnotationOverlayPolygonFillsController = (
         polygonById.delete(id);
       });
       render();
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
     },
-    clear: () => {
+    clear: (requestRender = true) => {
       if (currentPolygonFills.length === 0) {
         return;
       }
 
       currentPolygonFills = [];
       clearPolygons();
-      scene.requestRender();
+      if (requestRender) {
+        scene.requestRender();
+      }
     },
     destroy: () => {
       currentPolygonFills = [];

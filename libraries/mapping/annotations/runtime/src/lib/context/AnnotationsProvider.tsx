@@ -1,4 +1,10 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { Provider as ReduxProvider } from "react-redux";
 import {
@@ -33,7 +39,6 @@ import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
   AnnotationToolRegistry,
-  PointQueryPickResult,
 } from "../registry";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { Scene } from "@carma-cesium";
@@ -52,6 +57,7 @@ import type {
   AnnotationDeleteConfirmationRequester,
   AnnotationDeleteRequestOptions,
 } from "./annotation-delete-confirmation";
+import type { ActivePointQueryPickResultStore } from "./active-point-query-pick-result-store";
 
 type AnnotationsRuntimeServices = {
   scene: Scene | null;
@@ -59,7 +65,6 @@ type AnnotationsRuntimeServices = {
   annotationToolDraftStore: AnnotationToolDraftStore;
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
-  activePointQueryPickResult: PointQueryPickResult | null;
   activeEditedNodeId: string | null;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
@@ -155,6 +160,8 @@ const AnnotationsReduxProvider = ReduxProvider as unknown as (
 
 const AnnotationsRuntimeContext =
   createContext<AnnotationsRuntimeServices | null>(null);
+const ActivePointQueryPickResultStoreContext =
+  createContext<ActivePointQueryPickResultStore | null>(null);
 const DEFAULT_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions = {
   lengthMeters: {
     locale: FORMAT_LOCALE.DE_DE,
@@ -190,6 +197,18 @@ const useRequiredAnnotationsRuntimeServices = () => {
   }
 
   return context;
+};
+
+const useRequiredActivePointQueryPickResultStore = () => {
+  const store = useContext(ActivePointQueryPickResultStoreContext);
+
+  if (!store) {
+    throw new Error(
+      "useActivePointQueryPickResult must be used within AnnotationsProvider."
+    );
+  }
+
+  return store;
 };
 
 export const AnnotationsProvider = ({
@@ -236,6 +255,7 @@ export const AnnotationsProvider = ({
     runtimeAuthoringHost,
     runtimeVisualHost,
     registry,
+    activePointQueryPickResultStore,
   } = useAnnotationsAssembly({
     scene,
     plugins,
@@ -263,28 +283,35 @@ export const AnnotationsProvider = ({
       store={annotationsStore}
     >
       <AnnotationsRuntimeContext.Provider value={runtimeServices}>
-        {annotationOverlayContainer
-          ? createPortal(<AnnotationOverlayRoots />, annotationOverlayContainer)
-          : null}
-        <RuntimeToolAvailabilityGuard
-          registry={registry}
-          setActiveToolType={setActiveToolType}
-        />
-        {renderEnabled ? (
-          <RuntimeAuthoringHost
-            {...runtimeAuthoringHost}
-            referenceObjectSizing={referenceObjectSizing}
+        <ActivePointQueryPickResultStoreContext.Provider
+          value={activePointQueryPickResultStore}
+        >
+          {annotationOverlayContainer
+            ? createPortal(
+                <AnnotationOverlayRoots />,
+                annotationOverlayContainer
+              )
+            : null}
+          <RuntimeToolAvailabilityGuard
+            registry={registry}
+            setActiveToolType={setActiveToolType}
           />
-        ) : null}
-        {visualRenderEnabled ?? renderEnabled ? (
-          <RuntimeVisualHost
-            {...runtimeVisualHost}
-            visualAnnotationEntryRoles={visualAnnotationEntryRoles}
-            visualInteractionEnabled={visualInteractionEnabled}
-            referenceObjectSizing={referenceObjectSizing}
-          />
-        ) : null}
-        {children}
+          {renderEnabled ? (
+            <RuntimeAuthoringHost
+              {...runtimeAuthoringHost}
+              referenceObjectSizing={referenceObjectSizing}
+            />
+          ) : null}
+          {visualRenderEnabled ?? renderEnabled ? (
+            <RuntimeVisualHost
+              {...runtimeVisualHost}
+              visualAnnotationEntryRoles={visualAnnotationEntryRoles}
+              visualInteractionEnabled={visualInteractionEnabled}
+              referenceObjectSizing={referenceObjectSizing}
+            />
+          ) : null}
+          {children}
+        </ActivePointQueryPickResultStoreContext.Provider>
       </AnnotationsRuntimeContext.Provider>
     </AnnotationsReduxProvider>
   );
@@ -330,7 +357,6 @@ export const useAnnotationsRuntime = () => {
     toggleAnnotationElevationDisplayMode,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
-    activePointQueryPickResult,
     activeEditedNodeId,
     setPointTemporaryMode,
     setSelectedAnnotationId,
@@ -386,7 +412,6 @@ export const useAnnotationsRuntime = () => {
     toggleAnnotationElevationDisplayMode,
     updateAnnotationDisplayName,
     updateAnnotationShortLabel,
-    activePointQueryPickResult,
     activeEditedNodeId,
     pointTemporaryMode,
     setPointTemporaryMode,
@@ -402,6 +427,15 @@ export const useAnnotationsRuntime = () => {
     removeExternalAnnotationsByCollection,
     labelTextDialogState,
   };
+};
+
+export const useActivePointQueryPickResult = () => {
+  const store = useRequiredActivePointQueryPickResultStore();
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot
+  );
 };
 
 export const useAnnotationLabelTextDialogState = () => {
