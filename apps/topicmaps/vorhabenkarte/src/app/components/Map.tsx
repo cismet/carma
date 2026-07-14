@@ -8,7 +8,7 @@ import {
   UIContext,
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
-import FeatureCollection from "react-cismap/FeatureCollection";
+import { FeatureCollection } from "@carma-commons/cismap";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   InfoBoxTextTitle,
