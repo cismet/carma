@@ -28,3 +28,8 @@ export type {
   PrintJob,
   ScaleOption,
 } from "./types";
+export {
+  BELIS_INLINE_PRINT_STYLE_TEMPLATE,
+  createBelisInlinePrintStyle,
+} from "./belisPrintStyle";
+export type { BelisPrintFeature } from "./belisPrintStyle";
