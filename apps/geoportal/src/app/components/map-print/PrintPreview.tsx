@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 import { PrintPreview as LibPrintPreview } from "@carma-mapping/print-core/leaflet";
+import { showPrintErrorToast } from "@carma-mapping/print-core/ui";
 import { getUIMode, setUIMode } from "../../store/slices/ui";
 import {
   changeIfMapPrinted,
@@ -49,7 +50,10 @@ const PrintPreview = () => {
       redrawPrev={redrawPrev}
       setUIMode={(uiMode) => dispatch(setUIMode(uiMode))}
       handleIsLoading={(status) => dispatch(changeIsLoading(status))}
-      handleIsError={(status) => dispatch(changePrintError(status))}
+      handleIsError={(status) => {
+        showPrintErrorToast(status);
+        dispatch(changePrintError(status));
+      }}
       setIfMapPrinted={(status) => dispatch(changeIfMapPrinted(status))}
       setRedrawPreview={(status) => dispatch(changeRedrawPreview(status))}
     />
