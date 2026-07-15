@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { PrintSettings } from "@carma-mapping/print-core/ui";
+import { PrintSettings, resetPrintErrorCount } from "@carma-mapping/print-core/ui";
 import {
   changeDPI,
   changeIfMapPrinted,
@@ -46,6 +46,10 @@ const Print = ({ closePopover }: PrintProps) => {
         dispatch(changeDPI(value as DPI));
       }}
       onPreview={() => {
+        // Legacy Leaflet printMap has no onSuccess hook, so we can't reset the
+        // toast's failure counter on a successful print. Reset here instead:
+        // opening a new preview session starts with a fresh details-gating slate.
+        resetPrintErrorCount();
         dispatch(setUIMode("print"));
         dispatch(changeRedrawPreview(!redrawPrev));
         closePopover?.();
