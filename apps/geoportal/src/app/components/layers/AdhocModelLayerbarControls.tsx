@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import centroid from "@turf/centroid";
+import pointOnFeature from "@turf/point-on-feature";
 import {
   faCropSimple,
   faPalette,
@@ -623,10 +623,10 @@ export const AdhocModelFlyToLayerbarAction = ({
         }
 
         if (clickFeature?.geometry) {
-          const center = centroid(
+          const clickPoint = pointOnFeature(
             clickFeature as GeoJSON.Feature<GeoJSON.Geometry>
           );
-          const [lng, lat] = center.geometry.coordinates;
+          const [lng, lat] = clickPoint.geometry.coordinates;
           const latlngPoint = L.latLng(lat, lng);
 
           const fireClick = () => {

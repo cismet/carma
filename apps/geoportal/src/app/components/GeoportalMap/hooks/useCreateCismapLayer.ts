@@ -9,7 +9,7 @@ import {
 import type { Dispatch, Store } from "@reduxjs/toolkit";
 import L, { type LatLng, type Map as LeafletMap } from "leaflet";
 import type maplibregl from "maplibre-gl";
-import centroid from "@turf/centroid";
+import pointOnFeature from "@turf/point-on-feature";
 
 import CismapLayer from "react-cismap/CismapLayer";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -562,10 +562,10 @@ export const useCreateCismapLayers = (
                   }
 
                   if (featureToSelect?.geometry) {
-                    const center = centroid(
+                    const clickPoint = pointOnFeature(
                       featureToSelect as GeoJSON.Feature<GeoJSON.Geometry>
                     );
-                    const [lng, lat] = center.geometry.coordinates;
+                    const [lng, lat] = clickPoint.geometry.coordinates;
                     const latlngPoint = L.latLng(lat, lng);
 
                     leafletMap.fireEvent("click", {
