@@ -8,6 +8,7 @@ import {
   getFontSizeForPortrait,
   getPolygonByLeafletId,
   getPolygonPoints,
+  getPreviewBboxWGS84,
   getPreviewBounds,
   getPrintLayers,
   getSmallSizeLandscape,
@@ -46,6 +47,7 @@ const PrintPreview = ({
   loading,
   scale,
   redrawPrev,
+  maplibreMaps,
   setUIMode,
   handleIsLoading,
   handleIsError,
@@ -124,7 +126,10 @@ const PrintPreview = ({
 
         polygon.on("dblclick", () => {
           const polygonCenter = getCenterPrintPreview(map);
-          const layesPrint = getPrintLayers(bgLayer, layers);
+          const layesPrint = getPrintLayers(bgLayer, layers, {
+            maplibreMaps,
+            bbox: getPreviewBboxWGS84(map),
+          });
           printMap(
             polygonCenter,
             scale,
@@ -277,6 +282,7 @@ const PrintPreview = ({
                 layers={layers}
                 loading={loading}
                 scale={scale}
+                maplibreMaps={maplibreMaps}
                 setIfMapPrinted={setIfMapPrinted}
                 handleIsLoading={handleIsLoading}
                 handleIsError={handleIsError}

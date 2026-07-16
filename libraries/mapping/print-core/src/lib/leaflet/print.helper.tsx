@@ -19,6 +19,12 @@ import PrintButton from "./PrintButton";
 import PrintPrevTexts from "./PrintPrevTexts";
 import ClosePrintButton from "./ClosePrintButton";
 import { convertLayerStringToLayers } from "./layerConfig";
+import { buildInlineStylePrint } from "../core";
+import {
+  buildInlineVectorStyle,
+  layerHasActiveFilter,
+  type Bbox,
+} from "./inlineVectorPrint";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
@@ -80,6 +86,7 @@ export const printMap = async (
   handleIsError
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
+  console.log("xxx printMap", layers);
   const latLng = proj4("EPSG:3857", "EPSG:4326", center);
   const data = {
     layout: title,
@@ -175,7 +182,18 @@ export const printMap = async (
   }
 };
 
-export const getPrintLayers = (bgLayer, layers) => {
+// `ctx` is optional so existing callers keep working unchanged. When it carries
+// the live MapLibre maps + the print rectangle bbox, a vector layer that is
+// actually filtered is printed as an inline geojson style (filtered features
+// baked in, see inlineVectorPrint.ts) instead of the hosted, unfiltered style.
+export const getPrintLayers = (
+  bgLayer,
+  layers,
+  ctx?: {
+    maplibreMaps?: Array<{ id: string; map: unknown }> | null;
+    bbox?: Bbox | null;
+  }
+) => {
   const layerPrint = [];
   const bgLayers = convertLayerStringToLayers(
     bgLayer.layers,
@@ -183,6 +201,9 @@ export const getPrintLayers = (bgLayer, layers) => {
     bgLayer.opacity
   );
   const allLayers = [...bgLayers, ...layers];
+
+  const findMaplibreMap = (id: string) =>
+    ctx?.maplibreMaps?.find((entry) => entry.id === id)?.map ?? null;
 
   allLayers.forEach((layer) => {
     if (layer.visible) {
@@ -197,6 +218,29 @@ export const getPrintLayers = (bgLayer, layers) => {
           break;
 
         case "vector":
+          // If this layer is actually filtered on the map, print its live,
+          // filtered features as an inline geojson style — the hosted style
+          // below would re-render ALL classes and lose the filter. Needs the
+          // live MapLibre map (from ctx.maplibreMaps) and the print bbox; when
+          // either is missing we fall through to the hosted-style path.
+          if (ctx?.bbox && layerHasActiveFilter(layer)) {
+            const liveMap = findMaplibreMap(layer.id);
+            if (liveMap) {
+              const inlineStyle = buildInlineVectorStyle(
+                liveMap as never,
+                layer,
+                ctx.bbox
+              );
+              if (inlineStyle) {
+                console.log("xxx inlineStyle", inlineStyle);
+                layerPrint.unshift(
+                  buildInlineStylePrint(inlineStyle, layer.opacity, 2, 1)
+                );
+                break;
+              }
+            }
+          }
+
           // take the vector style and create a proper style name for the tgl4üromt service
           // use the folder name and add the style name like for /poi/style.json use poi-style
           // and for /poi/bildungseinrichtungen.style.json use poi-bildungseinrichtungen-style
@@ -222,6 +266,8 @@ export const getPrintLayers = (bgLayer, layers) => {
       }
     }
   });
+
+  console.log("xxx layerPrint", layerPrint);
 
   return layerPrint;
 };
@@ -1100,4 +1146,16 @@ export const getCenterPrintPreview = (map) => {
   const polygonCenter = proj4("EPSG:4326", "EPSG:3857", [lng, lat]);
 
   return polygonCenter;
+};
+
+// WGS84 [west, south, east, north] bbox of the draggable print rectangle, used
+// to clip which live features get inlined into the print (inlineVectorPrint.ts).
+// Returns null when the print rectangle is not on the map.
+export const getPreviewBboxWGS84 = (map): Bbox | null => {
+  const polygon = getPolygonByLeafletId(map);
+  if (!polygon) return null;
+  const bounds = polygon.getBounds();
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  return [sw.lng, sw.lat, ne.lng, ne.lat];
 };
