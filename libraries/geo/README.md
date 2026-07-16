@@ -21,9 +21,13 @@ Follows the pattern established by `@carma-units` → `@carma-units`.
 ### `@carma-geo/proj`
 Projection transformations using proj4js with strongly typed converters.
 - Typed wrapper around proj4 for coordinate transformations
-- Managed projections: EPSG:4326 (WGS84), EPSG:3857 (Web Mercator), EPSG:25832 (UTM32)
+- Managed projections: EPSG:4326 (WGS84), EPSG:3857 (Web Mercator), EPSG:25832 (UTM32), EPSG:4978 (WGS84 ECEF)
 - Type-safe `getProj4Converter<TSource, TTarget>()` with `CoordinateFor<P>` mapping
 - Converter caching for performance
+- Asynchronous DHHN2016 ↔ ellipsoidal-height transforms using the verified
+  BKG GCG2016 5×5 spline. Geographic, UTM32, batched, and ECEF adapters share
+  the existing managed and cached Proj4js conversions; the tiled grid
+  payload and provenance live in `@carma-commons/resources`.
 
 ### `@carma-geo/utils`
 Higher-level geographic utilities and domain-specific calculations.
