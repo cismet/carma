@@ -2,6 +2,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { Button, Spin } from "antd";
 import {
   getCenterPrintPreview,
+  getPreviewBboxWGS84,
   getPrintLayers,
   printMap,
 } from "./print.helper";
@@ -21,6 +22,7 @@ const PrintButton = ({
   layers,
   loading,
   scale,
+  maplibreMaps,
   setIfMapPrinted,
   handleIsLoading,
   handleIsError,
@@ -29,7 +31,10 @@ const PrintButton = ({
     if (map) {
       setIfMapPrinted(true);
       const polygonCenter = getCenterPrintPreview(map);
-      const layesPrint = getPrintLayers(bgLayer, layers);
+      const layesPrint = getPrintLayers(bgLayer, layers, {
+        maplibreMaps,
+        bbox: getPreviewBboxWGS84(map),
+      });
       printMap(
         polygonCenter,
         scale,

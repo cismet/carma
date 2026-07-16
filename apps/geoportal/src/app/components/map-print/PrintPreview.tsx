@@ -16,7 +16,11 @@ import {
   getRedrawPreview,
   getScale,
 } from "../../store/slices/print";
-import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import {
+  getBackgroundLayer,
+  getLayers,
+  getMaplibreMaps,
+} from "../../store/slices/mapping";
 
 // Thin Redux connector for the print preview. All rendering/behaviour lives in
 // the engine-agnostic library component (@carma-mapping/print-core/leaflet);
@@ -34,6 +38,9 @@ const PrintPreview = () => {
   const loading = useSelector(getIsLoading);
   const scale = useSelector(getScale);
   const redrawPrev = useSelector(getRedrawPreview);
+  // Live MapLibre maps (keyed by layer id) published to the store by the map;
+  // used to inline filtered vector layers' features into the print.
+  const maplibreMaps = useSelector(getMaplibreMaps);
 
   return (
     <LibPrintPreview
@@ -48,6 +55,7 @@ const PrintPreview = () => {
       loading={loading}
       scale={scale}
       redrawPrev={redrawPrev}
+      maplibreMaps={maplibreMaps}
       setUIMode={(uiMode) => dispatch(setUIMode(uiMode))}
       handleIsLoading={(status) => dispatch(changeIsLoading(status))}
       handleIsError={(status) => {
