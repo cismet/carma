@@ -64,6 +64,41 @@ function getStyleName(vectorStyle) {
   return styleKey;
 }
 
+// Fraction of the smaller viewport dimension kept as a margin ("buffer") of
+// live map context around the print rectangle when fitting the map to it, so
+// the rectangle never sits edge-to-edge with the viewport (the geoportal look
+// was too tight at the top/center). Mirrors the MapLibre preview's
+// PREVIEW_BUFFER_FRACTION (previewRect.ts). This only affects the map's
+// zoom/pan; the rectangle's geographic coordinates — and therefore the print
+// center and scale — are computed before fitBounds and stay untouched, so print
+// precision is unchanged.
+const PREVIEW_BUFFER_FRACTION = 0.1;
+
+// Leaflet fitBounds padding (px per side) reproducing the buffer above from the
+// map container size.
+const getPreviewFitPadding = (map): L.PointExpression => {
+  const size = map.getSize();
+  const pad = Math.round(Math.min(size.x, size.y) * PREVIEW_BUFFER_FRACTION);
+  return [pad, pad];
+};
+
+// Fit the map to the print rectangle, keeping the buffer above.
+//
+// The geoportal map uses zoomSnap: 1 (integer zoom only). With integer snapping,
+// fitBounds + padding either does nothing (padding stays within the same zoom
+// level) or jumps a WHOLE level (rectangle becomes ~half size) — there is no
+// smooth "10% margin". To get the fractional zoom that yields a snug buffer
+// (like the MapLibre preview), we drop zoomSnap to 0 for this one fit, then
+// restore the map's own snapping so normal +/- interaction stays integer. Map
+// zoom does not affect print precision — the print center/scale come from the
+// rectangle's geographic bounds, not the map view.
+export const fitPreviewBounds = (map, bounds): void => {
+  const prevSnap = map.options.zoomSnap;
+  map.options.zoomSnap = 0;
+  map.fitBounds(bounds, { padding: getPreviewFitPadding(map), animate: false });
+  map.options.zoomSnap = prevSnap;
+};
+
 const isIOS = () => {
   return (
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -1119,7 +1154,8 @@ export const getPreviewBounds = (
       const ne = bounds[1]; // Northeast
       const nw = [ne[0], sw[1]]; // Northwest
       const se = [sw[0], ne[1]]; // Southeast
-      map.fitBounds(bounds);
+      // Leave a buffer around the rectangle instead of fitting it edge-to-edge.
+      fitPreviewBounds(map, bounds);
       const rectangleCoordinates = [sw, nw, ne, se, sw];
 
       return rectangleCoordinates;
