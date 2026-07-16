@@ -10,6 +10,7 @@ import {
   getPolygonPoints,
   getPreviewBboxWGS84,
   getPreviewBounds,
+  fitPreviewBounds,
   getPrintLayers,
   getSmallSizeLandscape,
   getSmallSizePortrait,
@@ -118,7 +119,7 @@ const PrintPreview = ({
         });
         polygon.on("dragend", () => {
           const newBounds = polygon.getBounds();
-          map.fitBounds(newBounds);
+          fitPreviewBounds(map, newBounds);
           setTimeout(() => {
             setIsHideContent(false);
           }, 250);
