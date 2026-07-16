@@ -92,10 +92,13 @@ const getPreviewFitPadding = (map): L.PointExpression => {
 // restore the map's own snapping so normal +/- interaction stays integer. Map
 // zoom does not affect print precision — the print center/scale come from the
 // rectangle's geographic bounds, not the map view.
-export const fitPreviewBounds = (map, bounds): void => {
+export const fitPreviewBounds = (map, bounds, animate = true): void => {
   const prevSnap = map.options.zoomSnap;
   map.options.zoomSnap = 0;
-  map.fitBounds(bounds, { padding: getPreviewFitPadding(map), animate: false });
+  // The fractional target zoom is computed synchronously inside fitBounds, so
+  // restoring zoomSnap right after does not disturb the (possibly animated)
+  // transition toward it.
+  map.fitBounds(bounds, { padding: getPreviewFitPadding(map), animate });
   map.options.zoomSnap = prevSnap;
 };
 
