@@ -91,10 +91,12 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       "Das Vorhaben wird mit Bürgerbeteiligung umgesetzt."
     : shortenText(item.beschreibung);
 
+  const urlPrefix = window.location.origin + window.location.pathname;
+
   const subtitle = item.buga ? (
     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <img
-        src="/logo/BUGA31_Logo.svg"
+        src={urlPrefix + "logo/BUGA31_Logo.svg"}
         alt="BUGA31 Wuppertal"
         style={{ width: 48, flexShrink: 0 }}
       />
