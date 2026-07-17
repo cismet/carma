@@ -1,4 +1,4 @@
-import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import { addSVGToProps, DEFAULT_SVG } from "react-cismap/tools/svgHelper";
 import { assetsBaseUrl } from "../constants/constants";
 
 export const shortenText = (
@@ -43,11 +43,23 @@ const adjustFeatureColors = (color) => {
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
+  const signatureBaseUrl =
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/";
+
   let item = await addSVGToProps(
     clonedItem,
     (i) => getSignature(i),
-    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
+    signatureBaseUrl
   );
+
+  if (clonedItem.buga && item.svgBadge === DEFAULT_SVG.code) {
+    // BuGa icon not available: fall back to the regular theme icon
+    item = await addSVGToProps(
+      clonedItem,
+      (i) => getSignature({ ...i, buga: false }),
+      signatureBaseUrl
+    );
+  }
 
   const id = item.id;
   const type = "Feature";
