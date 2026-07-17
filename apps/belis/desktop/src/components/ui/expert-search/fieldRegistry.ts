@@ -46,6 +46,12 @@ export interface Field {
   label: string;
   type: FieldType; // drives the value input AND the sidebar dot color (TYPE_META)
   fkTable?: string; // key-table name (keyTableDisplayConfig) — only for type "fk"
+  // For FK fields: sort via a related table's label column instead of the raw
+  // numeric FK. When set, buildExpertOrderBy emits
+  // `{<sortRelation>: {<sortColumn>: dir}}` so users get an alphabetical sort
+  // by the human label (e.g. street name) rather than by the FK id.
+  sortRelation?: string;
+  sortColumn?: string;
 }
 
 // Columns that recur across BELIS object types (same backend name everywhere).
@@ -53,7 +59,7 @@ export interface Field {
 const COMMON = {
   id: { key: "id", label: "ID", type: "number" },
   laufende_nummer: { key: "laufende_nummer", label: "Laufende Nummer", type: "number" },
-  strassenschluessel: { key: "fk_strassenschluessel", label: "Straßenschlüssel", type: "fk", fkTable: "straßenschlüssel" },
+  strassenschluessel: { key: "fk_strassenschluessel", label: "Straßenschlüssel", type: "fk", fkTable: "straßenschlüssel", sortRelation: "tkey_strassenschluessel", sortColumn: "strasse" },
   // Geometrie temporarily hidden — filtering a geom FK by value is meaningless.
   // geom: { key: "fk_geom", label: "Geometrie", type: "number" },
   erstellungsjahr: { key: "erstellungsjahr", label: "Erstellungsjahr", type: "date" },
