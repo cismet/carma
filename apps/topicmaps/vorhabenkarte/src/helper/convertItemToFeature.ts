@@ -16,19 +16,20 @@ export const shortenText = (
 };
 
 const getSignature = (properties) => {
+  const baseSignature =
+    properties.thema.signatur === "Icon_Verkehr.svg"
+      ? "Icon_Mobilitaet.svg"
+      : properties.thema.signatur;
+
+  if (properties.buga) {
+    return baseSignature.replace(/^Icon_/, "Icon_BuGa_");
+  }
   if (properties.stadtweit) {
-    properties.thema.signatur = `Stadtweit_${
-      properties.thema.signatur === "Icon_Verkehr.svg"
-        ? "Icon_Mobilitaet.svg"
-        : properties.thema.signatur
-    }`;
+    properties.thema.signatur = `Stadtweit_${baseSignature}`;
     return properties.thema.signatur;
   }
-  if (properties.thema.signatur === "Icon_Verkehr.svg") {
-    return "Icon_Mobilitaet.svg";
-  }
 
-  return properties.thema.signatur;
+  return baseSignature;
 };
 
 const adjustFeatureColors = (color) => {
