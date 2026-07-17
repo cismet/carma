@@ -85,6 +85,25 @@ const convertItemToFeature = async (itemIn, poiColors) => {
 
   item.color = headerColor;
 
+  const subtitleText = item.buergerbeteiligung
+    ? shortenText(item.beschreibung) +
+      "\n\n" +
+      "Das Vorhaben wird mit Bürgerbeteiligung umgesetzt."
+    : shortenText(item.beschreibung);
+
+  const subtitle = item.buga ? (
+    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <img
+        src="/logo/BUGA31_Logo.svg"
+        alt="BUGA31 Wuppertal"
+        style={{ width: 48, flexShrink: 0 }}
+      />
+      <span>{subtitleText}</span>
+    </span>
+  ) : (
+    subtitleText
+  );
+
   return {
     id,
     text,
@@ -101,11 +120,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       ...item,
       info: {
         title: item.abgeschlossen ? text + " (abgeschlossen)" : text,
-        subtitle: item.buergerbeteiligung
-          ? shortenText(item.beschreibung) +
-            "\n\n" +
-            "Das Vorhaben wird mit Bürgerbeteiligung umgesetzt."
-          : shortenText(item.beschreibung),
+        subtitle,
         header: item.thema.name,
       },
       tel: item.kontakt.telefon,
