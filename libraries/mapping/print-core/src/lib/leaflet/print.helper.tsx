@@ -256,21 +256,25 @@ export const getPrintLayers = (
           break;
 
         case "vector":
-          // If this layer is actually filtered on the map, print its live,
-          // filtered features as an inline geojson style — the hosted style
-          // below would re-render ALL classes and lose the filter. Needs the
-          // live MapLibre map (from ctx.maplibreMaps) and the print bbox; when
-          // either is missing we fall through to the hosted-style path.
-          if (ctx?.bbox && layerHasActiveFilter(layer)) {
+          // Print the layer's live features as an inline geojson style when
+          // either (a) it is actually filtered — the hosted style would
+          // re-render ALL classes and lose the on-map filter — or (b) a feature
+          // is selected/highlighted on it — the hosted style is stateless and
+          // would drop the selection. buildInlineVectorStyle bakes both the
+          // filter and the selection into a self-contained style and returns
+          // null when there is nothing to inline (unfiltered + nothing
+          // selected), so we fall through to the hosted-style path. Needs the
+          // live MapLibre map (from ctx.maplibreMaps) and the print bbox.
+          if (ctx?.bbox) {
             const liveMap = findMaplibreMap(layer.id);
             if (liveMap) {
               const inlineStyle = buildInlineVectorStyle(
                 liveMap as never,
                 layer,
-                ctx.bbox
+                ctx.bbox,
+                layerHasActiveFilter(layer)
               );
               if (inlineStyle) {
-                console.log("xxx inlineStyle", inlineStyle);
                 layerPrint.unshift(
                   buildInlineStylePrint(inlineStyle, layer.opacity, 2, 1)
                 );
@@ -304,8 +308,6 @@ export const getPrintLayers = (
       }
     }
   });
-
-  console.log("xxx layerPrint", layerPrint);
 
   return layerPrint;
 };
