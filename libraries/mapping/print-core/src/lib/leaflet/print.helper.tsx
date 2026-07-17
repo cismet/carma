@@ -124,7 +124,6 @@ export const printMap = async (
   handleIsError
 ) => {
   const { url, title } = getOrientationTemplateParams(orientation);
-  console.log("xxx printMap", layers);
   const latLng = proj4("EPSG:3857", "EPSG:4326", center);
   const data = {
     layout: title,
