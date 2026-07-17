@@ -186,14 +186,25 @@ export const buildExpertWhereClause = (
 // multiple sorts apply in order (first = primary). Returns "" when no valid sort
 // is configured, so the caller keeps the query's default order. Sorts on fields
 // not in the registry are skipped, guarding against stale keys.
+//
+// FK fields with `sortRelation`/`sortColumn` are emitted as nested order_by
+// (e.g. `{tkey_strassenschluessel: {strasse: asc}}`) so users get an
+// alphabetical sort by the human label rather than by the numeric FK id.
 export const buildExpertOrderBy = (
   query: ExpertTypeState,
   fields: Field[]
 ): string => {
-  const fieldKeys = new Set(fields.map((f) => f.key));
-  const clauses = query.sorts
-    .filter((s) => fieldKeys.has(s.field))
-    .map((s) => `{${s.field}: ${s.direction}}`);
+  const fieldMap = new Map(fields.map((f) => [f.key, f]));
+  const clauses = query.sorts.flatMap((s) => {
+    const field = fieldMap.get(s.field);
+    if (!field) return [];
+    if (field.sortRelation && field.sortColumn) {
+      return [
+        `{${field.sortRelation}: {${field.sortColumn}: ${s.direction}}}`,
+      ];
+    }
+    return [`{${s.field}: ${s.direction}}`];
+  });
   return clauses.length ? `order_by: [${clauses.join(", ")}]` : "";
 };
 
