@@ -161,7 +161,12 @@ const PrintPreview = ({
           }, 250);
         });
 
-        polygon.on("dblclick", () => {
+        polygon.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+        });
+        polygon.on("dblclick", (e) => {
+          L.DomEvent.stopPropagation(e);
+          L.DomEvent.preventDefault(e);
           const polygonCenter = getCenterPrintPreview(map);
           const layesPrint = getPrintLayers(bgLayer, layers, {
             maplibreMaps,
