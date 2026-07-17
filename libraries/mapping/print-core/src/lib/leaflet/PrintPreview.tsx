@@ -166,7 +166,7 @@ const PrintPreview = ({
         });
         polygon.on("dblclick", (e) => {
           L.DomEvent.stopPropagation(e);
-          L.DomEvent.preventDefault(e);
+          L.DomEvent.preventDefault(e.originalEvent);
           const polygonCenter = getCenterPrintPreview(map);
           const layesPrint = getPrintLayers(bgLayer, layers, {
             maplibreMaps,
