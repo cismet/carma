@@ -14,6 +14,73 @@ export const getColorForProperties = (properties) => {
   return properties?.thema?.farbe || "#1d599e";
 };
 
+const getFillTransparency = (properties) => {
+  const offset = 0.3;
+  return properties.thema.fuellung / 100 + offset;
+};
+
+const isPolygonFeature = (feature) => {
+  return feature?.geometry?.type?.endsWith("Polygon") === true;
+};
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+const bugaHatchDefs = (() => {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("width", "0");
+  svg.setAttribute("height", "0");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("style", "position:absolute");
+  const defs = document.createElementNS(SVG_NS, "defs");
+  svg.appendChild(defs);
+  document.body.appendChild(svg);
+  return defs;
+})();
+
+const registeredBugaHatchPatternIds = new Set<string>();
+
+const ensureBugaHatchPattern = (properties, colorizer) => {
+  const color = Color(colorizer(properties));
+  const patternId = `buga-hatch-${color.hex().replace("#", "")}-${
+    properties?.thema?.fuellung ?? 0
+  }`;
+
+  if (registeredBugaHatchPatternIds.has(patternId)) {
+    return patternId;
+  }
+  registeredBugaHatchPatternIds.add(patternId);
+
+  const pattern = document.createElementNS(SVG_NS, "pattern");
+  pattern.setAttribute("id", patternId);
+  pattern.setAttribute("width", "8");
+  pattern.setAttribute("height", "8");
+  pattern.setAttribute("patternUnits", "userSpaceOnUse");
+  pattern.setAttribute("patternTransform", "rotate(45)");
+
+  const background = document.createElementNS(SVG_NS, "rect");
+  background.setAttribute("width", "8");
+  background.setAttribute("height", "8");
+  background.setAttribute("fill", color.hex());
+  background.setAttribute(
+    "fill-opacity",
+    String(getFillTransparency(properties))
+  );
+
+  const stripe = document.createElementNS(SVG_NS, "line");
+  stripe.setAttribute("x1", "0");
+  stripe.setAttribute("y1", "0");
+  stripe.setAttribute("x2", "0");
+  stripe.setAttribute("y2", "8");
+  stripe.setAttribute("stroke", color.darken(0.5).hex());
+  stripe.setAttribute("stroke-width", "1.5");
+
+  pattern.appendChild(background);
+  pattern.appendChild(stripe);
+  bugaHatchDefs.appendChild(pattern);
+
+  return patternId;
+};
+
 const selectionColor = new Color("#3b82f6");
 
 export const getFeatureStyler = (
@@ -21,9 +88,16 @@ export const getFeatureStyler = (
   colorizer = getColorForProperties
 ) => {
   return (feature) => {
-    const offset = 0.3;
-    const transparency = feature.properties.thema.fuellung / 100 + offset;
+    const transparency = getFillTransparency(feature.properties);
     const color = Color(colorizer(feature.properties)).alpha(transparency);
+
+    let fillPaint: string | Color = color;
+    if (feature.properties.buga && isPolygonFeature(feature)) {
+      fillPaint = `url(#${ensureBugaHatchPattern(
+        feature.properties,
+        colorizer
+      )})`;
+    }
 
     let radius = svgSize / 2; //needed for the Tooltip Positioning
     let canvasSize = svgSize;
@@ -104,7 +178,7 @@ export const getFeatureStyler = (
 
     const style = {
       radius,
-      fillColor: color,
+      fillColor: fillPaint,
       color: feature.selected === true ? selectionColor : color.darken(0.5),
       opacity: 1,
       fillOpacity: 0.8,
