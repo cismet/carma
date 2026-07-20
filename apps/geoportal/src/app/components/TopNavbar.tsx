@@ -214,7 +214,7 @@ const TopNavbar = () => {
                 title="zurück zum Geoportal"
                 className="text-inherit hover:text-gray-500 hover:no-underline"
               >
-                DigiTal Zwilling / Geoportal
+                DigiTal Zwilling
               </Link>
               {` / ${fachzwilling.title}`}
             </>
