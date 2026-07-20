@@ -36,4 +36,21 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
   description:
     "Beschreibung: Der Fachzwilling Gesundheit bündelt die Karteninhalte des Geoportals zu den Themen Gesundheitsversorgung, Umwelt- und Klimabelastung, Lärm sowie Sport und Erholung.",
   filters: [{ field: "id", values: gesundheitItemIds }],
+  // Platzhalter-Perspektiven (per Konfigurator/Playground pflegbar); die
+  // Workflows haben noch keine Funktion.
+  perspectives: [
+    {
+      id: "versorgung",
+      title: "Gesundheitsversorgung",
+      workflows: [
+        {
+          id: "beispiel-workflow",
+          title: "Beispiel-Workflow",
+          description:
+            "Platzhalter-Workflow. Titel, Beschreibung und Vorschaubild " +
+            "werden über die Konfiguration gepflegt.",
+        },
+      ],
+    },
+  ],
 };

@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { createRoot } from "react-dom/client";
-import { Provider } from "react-redux";
+import { Provider, useDispatch } from "react-redux";
 import {
   RouterProvider,
   createHashRouter,
@@ -24,23 +24,33 @@ import {
   fachzwillingRoutes,
   findFachzwillingByPathname,
   getFachzwillingCatalogConfig,
+  getGeoportalCategoryDefinitions,
 } from "./app/constants/fachzwillinge";
 
 /**
  * One persistent App instance for the default and all Fachzwilling routes:
- * the catalog config follows the location reactively, so navigating between
- * the routes only swaps the active filters instead of remounting the app
- * (map, providers and the open catalog modal stay alive).
+ * the catalog config and category registry follow the location reactively, so
+ * navigating between the routes only swaps the active filters and the route's
+ * workflows instead of remounting the app (map, providers and the open catalog
+ * modal stay alive).
  */
 const RoutedApp = () => {
   const { pathname } = useLocation();
-  const catalogConfig = useMemo(() => {
-    const fachzwilling = findFachzwillingByPathname(pathname);
-    return fachzwilling
-      ? getFachzwillingCatalogConfig(fachzwilling)
-      : undefined;
-  }, [pathname]);
-  return <App catalogConfig={catalogConfig} />;
+  const fachzwilling = useMemo(
+    () => findFachzwillingByPathname(pathname),
+    [pathname]
+  );
+  const catalogConfig = useMemo(
+    () =>
+      fachzwilling ? getFachzwillingCatalogConfig(fachzwilling) : undefined,
+    [fachzwilling]
+  );
+  const categories = useMemo(
+    () => getGeoportalCategoryDefinitions(fachzwilling?.perspectives),
+    [fachzwilling]
+  );
+
+  return <App catalogConfig={catalogConfig} categories={categories} />;
 };
 
 const routedApp = <RoutedApp />;
@@ -97,9 +107,7 @@ root.render(
             },
             {
               path: "/about/services.md",
-              element: (
-                <ServiceList discoverProps={discoverProps} markdown />
-              ),
+              element: <ServiceList discoverProps={discoverProps} markdown />,
             },
           ])}
         />

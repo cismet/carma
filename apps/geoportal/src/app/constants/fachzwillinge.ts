@@ -1,11 +1,13 @@
 import { faDiagramProject } from "@fortawesome/free-solid-svg-icons";
 
 import {
+  buildWorkflowsCategoryDefinition,
   defaultCategoryDefinitions,
   type CatalogFilters,
   type CategoryDefinition,
   type Item,
   type LayerCatalogConfig,
+  type WorkflowPerspective,
 } from "@carma-mapping/layers";
 
 import { layerCatalogConfig } from "./discover";
@@ -27,6 +29,12 @@ export type FachzwillingRoute = {
   thumbnail?: string;
   /** always-active catalog filters applied while the route is open */
   filters: CatalogFilters;
+  /**
+   * workflow perspectives shown in the "Workflows" catalog category while the
+   * route is open; the category is omitted on routes without perspectives
+   * (including the default geoportal route)
+   */
+  perspectives?: WorkflowPerspective[];
 };
 
 export const fachzwillingRoutes: FachzwillingRoute[] = [
@@ -61,28 +69,41 @@ const fachzwillingItems: Item[] = fachzwillingRoutes.map((route) => ({
   serviceName: FACHZWILLINGE_CATEGORY_ID,
 }));
 
+const fachzwillingeCategoryDefinition: CategoryDefinition = {
+  id: FACHZWILLINGE_CATEGORY_ID,
+  label: FACHZWILLINGE_CATEGORY_LABEL,
+  icon: faDiagramProject,
+  source: "static",
+  staticCategories: [
+    {
+      id: FACHZWILLINGE_CATEGORY_ID,
+      Title: FACHZWILLINGE_CATEGORY_LABEL,
+      layers: fachzwillingItems,
+    },
+  ],
+};
+
 /**
- * The default catalog categories plus a "Fachzwillinge" section (after the
- * Teilzwillinge) whose link cards are generated from the route registry.
+ * The default catalog categories plus the "Fachzwillinge" section (after the
+ * Teilzwillinge). When the active route defines workflow perspectives, a
+ * "Workflows" section is appended after the Fachzwillinge; the default route
+ * passes no perspectives and therefore shows no workflows.
  */
-export const geoportalCategoryDefinitions: CategoryDefinition[] =
+export const getGeoportalCategoryDefinitions = (
+  perspectives?: WorkflowPerspective[]
+): CategoryDefinition[] =>
   defaultCategoryDefinitions.flatMap((definition) =>
     definition.id === "partialTwins"
       ? [
           definition,
-          {
-            id: FACHZWILLINGE_CATEGORY_ID,
-            label: FACHZWILLINGE_CATEGORY_LABEL,
-            icon: faDiagramProject,
-            source: "static" as const,
-            staticCategories: [
-              {
-                id: FACHZWILLINGE_CATEGORY_ID,
-                Title: FACHZWILLINGE_CATEGORY_LABEL,
-                layers: fachzwillingItems,
-              },
-            ],
-          },
+          fachzwillingeCategoryDefinition,
+          ...(perspectives?.length
+            ? [buildWorkflowsCategoryDefinition(perspectives)]
+            : []),
         ]
       : [definition]
   );
+
+/** default geoportal category registry (no route-specific workflows) */
+export const geoportalCategoryDefinitions: CategoryDefinition[] =
+  getGeoportalCategoryDefinitions();

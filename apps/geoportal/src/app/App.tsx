@@ -38,6 +38,7 @@ import {
 } from "@carma-providers/feature-flag";
 import {
   LayerCatalogProvider,
+  type CategoryDefinition,
   type LayerCatalogConfig,
 } from "@carma-mapping/layers";
 import { HashStateProvider } from "@carma-providers/hash-state";
@@ -174,10 +175,13 @@ function GeoportalAppSearchParamsIntegration() {
 function App({
   published,
   catalogConfig = layerCatalogConfig,
+  categories = geoportalCategoryDefinitions,
 }: {
   published?: boolean;
   /** route-specific catalog config, e.g. the filtered /gesundheit catalog */
   catalogConfig?: LayerCatalogConfig;
+  /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
+  categories?: CategoryDefinition[];
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -219,7 +223,7 @@ function App({
       <FeatureFlagProvider config={featureFlagsMergedConfig}>
         <LayerCatalogProvider
           config={catalogConfig}
-          categories={geoportalCategoryDefinitions}
+          categories={categories}
           appKey={APP_KEY}
           storagePrefix={STORAGE_PREFIX}
           legacyFavoritesKey={`persist:@${APP_KEY}.${STORAGE_PREFIX}.app.layers`}
