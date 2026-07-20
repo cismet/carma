@@ -114,6 +114,20 @@ const ConfigSidebar = ({
               onRouteChange({ ...route, description: event.target.value })
             }
           />
+          <Input
+            placeholder="Thumbnail-Link (optional)"
+            value={route.thumbnail}
+            onChange={(event) =>
+              onRouteChange({ ...route, thumbnail: event.target.value })
+            }
+          />
+          {route.thumbnail?.trim() && (
+            <img
+              src={route.thumbnail}
+              alt="Thumbnail-Vorschau"
+              className="w-full h-24 object-cover rounded border border-gray-200"
+            />
+          )}
         </section>
 
         <section className="flex flex-col gap-2">

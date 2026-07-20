@@ -38,6 +38,7 @@ const App = () => {
     path: "",
     title: "",
     description: "",
+    thumbnail: "",
   });
   const [filterGroups, setFilterGroups] = useState<FilterGroupDraft[]>([
     { key: 0, filters: [{ key: 0, field: "id", values: [] }] },

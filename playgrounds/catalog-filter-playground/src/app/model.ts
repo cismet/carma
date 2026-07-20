@@ -9,6 +9,7 @@ export type RouteDraft = {
   path: string;
   title: string;
   description: string;
+  thumbnail?: string;
 };
 
 /** one filter row in the builder; `key` keeps the react list stable */
@@ -34,7 +35,9 @@ const toActiveGroup = (group: FilterGroupDraft): CatalogFilter[] =>
  * single active group exports as a flat filter list (today's config style),
  * several active groups export as OR-combined groups.
  */
-export const toCatalogFilters = (groups: FilterGroupDraft[]): CatalogFilters => {
+export const toCatalogFilters = (
+  groups: FilterGroupDraft[]
+): CatalogFilters => {
   const activeGroups = groups
     .map(toActiveGroup)
     .filter((group) => group.length > 0);

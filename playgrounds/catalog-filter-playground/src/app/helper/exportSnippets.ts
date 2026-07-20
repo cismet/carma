@@ -97,6 +97,9 @@ export const buildTypeScriptExport = (
     lines.push(`  description:`);
     lines.push(`    ${quote(route.description.trim())},`);
   }
+  if (route.thumbnail?.trim()) {
+    lines.push(`  thumbnail: ${quote(route.thumbnail.trim())},`);
+  }
   if (groups.length === 0) {
     lines.push("  filters: [],");
   } else if (groups.length === 1) {
@@ -138,6 +141,9 @@ export const buildJsonExport = (
       title: route.title,
       ...(route.description.trim()
         ? { description: route.description.trim() }
+        : {}),
+      ...(route.thumbnail?.trim()
+        ? { thumbnail: route.thumbnail.trim() }
         : {}),
       filters,
     },
