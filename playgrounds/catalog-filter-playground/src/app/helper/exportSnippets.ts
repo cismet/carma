@@ -2,6 +2,8 @@ import {
   toCatalogFilterGroups,
   type CatalogFilter,
   type CatalogFilters,
+  type WorkflowDefinition,
+  type WorkflowPerspective,
 } from "@carma-mapping/layers";
 
 import type { RouteDraft } from "../model";
@@ -63,6 +65,45 @@ const emitFilterLines = (
   ];
 };
 
+const emitWorkflowLines = (
+  workflow: WorkflowDefinition,
+  indent: string
+): string[] => {
+  const lines = [
+    `${indent}{`,
+    `${indent}  id: ${quote(workflow.id)},`,
+    `${indent}  title: ${quote(workflow.title)},`,
+  ];
+  if (workflow.description) {
+    lines.push(`${indent}  description: ${quote(workflow.description)},`);
+  }
+  if (workflow.thumbnail) {
+    lines.push(`${indent}  thumbnail: ${quote(workflow.thumbnail)},`);
+  }
+  lines.push(`${indent}},`);
+  return lines;
+};
+
+const emitPerspectiveLines = (
+  perspectives: WorkflowPerspective[],
+  indent: string
+): string[] => {
+  const lines = [`${indent}perspectives: [`];
+  perspectives.forEach((perspective) => {
+    lines.push(`${indent}  {`);
+    lines.push(`${indent}    id: ${quote(perspective.id)},`);
+    lines.push(`${indent}    title: ${quote(perspective.title)},`);
+    lines.push(`${indent}    workflows: [`);
+    perspective.workflows.forEach((workflow) =>
+      lines.push(...emitWorkflowLines(workflow, `${indent}      `))
+    );
+    lines.push(`${indent}    ],`);
+    lines.push(`${indent}  },`);
+  });
+  lines.push(`${indent}],`);
+  return lines;
+};
+
 /**
  * A complete module in the style of gesundheit.ts: a hoisted ids const for
  * the first larger id filter, the FachzwillingRoute export and a reminder to
@@ -71,7 +112,8 @@ const emitFilterLines = (
  */
 export const buildTypeScriptExport = (
   route: RouteDraft,
-  filters: CatalogFilters
+  filters: CatalogFilters,
+  perspectives: WorkflowPerspective[]
 ): string => {
   const name = toIdentifier(route.path);
   const groups = toCatalogFilterGroups(filters);
@@ -121,6 +163,9 @@ export const buildTypeScriptExport = (
     });
     lines.push("  ],");
   }
+  if (perspectives.length > 0) {
+    lines.push(...emitPerspectiveLines(perspectives, "  "));
+  }
   lines.push("};");
   lines.push("");
   lines.push("// Registrierung in fachzwillinge.ts:");
@@ -133,7 +178,8 @@ export const buildTypeScriptExport = (
 
 export const buildJsonExport = (
   route: RouteDraft,
-  filters: CatalogFilters
+  filters: CatalogFilters,
+  perspectives: WorkflowPerspective[]
 ): string =>
   JSON.stringify(
     {
@@ -146,6 +192,7 @@ export const buildJsonExport = (
         ? { thumbnail: route.thumbnail.trim() }
         : {}),
       filters,
+      ...(perspectives.length > 0 ? { perspectives } : {}),
     },
     null,
     2

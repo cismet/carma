@@ -4,7 +4,11 @@ import { CopyOutlined } from "@ant-design/icons";
 
 import type { CatalogFilters } from "@carma-mapping/layers";
 
-import type { RouteDraft } from "../model";
+import {
+  toWorkflowPerspectives,
+  type PerspectiveDraft,
+  type RouteDraft,
+} from "../model";
 import {
   buildJsonExport,
   buildTypeScriptExport,
@@ -15,17 +19,23 @@ type ExportFormat = "ts" | "json";
 interface ExportPanelProps {
   route: RouteDraft;
   filters: CatalogFilters;
+  perspectives: PerspectiveDraft[];
 }
 
-const ExportPanel = ({ route, filters }: ExportPanelProps) => {
+const ExportPanel = ({ route, filters, perspectives }: ExportPanelProps) => {
   const [format, setFormat] = useState<ExportFormat>("ts");
+
+  const workflowPerspectives = useMemo(
+    () => toWorkflowPerspectives(perspectives),
+    [perspectives]
+  );
 
   const snippet = useMemo(
     () =>
       format === "ts"
-        ? buildTypeScriptExport(route, filters)
-        : buildJsonExport(route, filters),
-    [format, route, filters]
+        ? buildTypeScriptExport(route, filters, workflowPerspectives)
+        : buildJsonExport(route, filters, workflowPerspectives),
+    [format, route, filters, workflowPerspectives]
   );
 
   const handleCopy = async () => {

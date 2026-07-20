@@ -7,11 +7,13 @@ import { itemMatchesFilters, useCatalogData } from "@carma-mapping/layers";
 import {
   toCatalogFilters,
   type FilterGroupDraft,
+  type PerspectiveDraft,
   type RouteDraft,
 } from "../model";
 import { useCatalogSuggestions } from "../hooks/useCatalogSuggestions";
 import ExportPanel from "./ExportPanel";
 import FilterGroup from "./FilterGroup";
+import PerspectiveEditor from "./PerspectiveEditor";
 
 const SectionTitle = ({ children }: { children: string }) => (
   <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
@@ -24,6 +26,8 @@ interface ConfigSidebarProps {
   onRouteChange: (route: RouteDraft) => void;
   filterGroups: FilterGroupDraft[];
   onFilterGroupsChange: (filterGroups: FilterGroupDraft[]) => void;
+  perspectives: PerspectiveDraft[];
+  onPerspectivesChange: (perspectives: PerspectiveDraft[]) => void;
   previewIn3d: boolean;
   onPreviewIn3dChange: (previewIn3d: boolean) => void;
   modalOpen: boolean;
@@ -35,6 +39,8 @@ const ConfigSidebar = ({
   onRouteChange,
   filterGroups,
   onFilterGroupsChange,
+  perspectives,
+  onPerspectivesChange,
   previewIn3d,
   onPreviewIn3dChange,
   modalOpen,
@@ -75,6 +81,15 @@ const ConfigSidebar = ({
     onFilterGroupsChange([
       ...filterGroups,
       { key: nextKey, filters: [{ key: 0, field: "keywords", values: [] }] },
+    ]);
+  };
+
+  const handleAddPerspective = () => {
+    const nextKey =
+      perspectives.reduce((max, entry) => Math.max(max, entry.key), -1) + 1;
+    onPerspectivesChange([
+      ...perspectives,
+      { key: nextKey, id: "", title: "", workflows: [] },
     ]);
   };
 
@@ -193,8 +208,44 @@ const ConfigSidebar = ({
         </section>
 
         <section className="flex flex-col gap-2">
+          <SectionTitle>Workflows</SectionTitle>
+          <p className="text-xs text-gray-500 mb-0">
+            Perspektiven werden zu Unterkategorien der "Workflows"-Kategorie, die
+            enthaltenen Workflows zu Karten. Sie erscheinen nur auf dieser Route
+            und ignorieren die Filter. Perspektiven/Workflows ohne id und Titel
+            werden nicht exportiert.
+          </p>
+          {perspectives.map((perspective, index) => (
+            <PerspectiveEditor
+              key={perspective.key}
+              perspective={perspective}
+              label={`Perspektive ${index + 1}`}
+              onChange={(changed) =>
+                onPerspectivesChange(
+                  perspectives.map((entry) =>
+                    entry.key === changed.key ? changed : entry
+                  )
+                )
+              }
+              onRemove={() =>
+                onPerspectivesChange(
+                  perspectives.filter((entry) => entry.key !== perspective.key)
+                )
+              }
+            />
+          ))}
+          <Button icon={<PlusOutlined />} onClick={handleAddPerspective}>
+            Perspektive hinzufügen
+          </Button>
+        </section>
+
+        <section className="flex flex-col gap-2">
           <SectionTitle>Export</SectionTitle>
-          <ExportPanel route={route} filters={activeFilters} />
+          <ExportPanel
+            route={route}
+            filters={activeFilters}
+            perspectives={perspectives}
+          />
         </section>
       </div>
     </aside>

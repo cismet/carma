@@ -7,17 +7,22 @@ import {
   MapFrameworkSwitcherProvider,
 } from "@carma-mapping/components";
 import {
+  buildWorkflowsCategoryDefinition,
+  defaultCategoryDefinitions,
   LayerCatalog,
   LayerCatalogProvider,
   wuppLayerCatalogConfig,
   type BackgroundLayer,
+  type CategoryDefinition,
   type LayerCatalogConfig,
 } from "@carma-mapping/layers";
 
 import ConfigSidebar from "./components/ConfigSidebar";
 import {
   toCatalogFilters,
+  toWorkflowPerspectives,
   type FilterGroupDraft,
+  type PerspectiveDraft,
   type RouteDraft,
 } from "./model";
 
@@ -43,6 +48,7 @@ const App = () => {
   const [filterGroups, setFilterGroups] = useState<FilterGroupDraft[]>([
     { key: 0, filters: [{ key: 0, field: "id", values: [] }] },
   ]);
+  const [perspectives, setPerspectives] = useState<PerspectiveDraft[]>([]);
   const [previewIn3d, setPreviewIn3d] = useState(false);
   const [open, setOpen] = useState(true);
 
@@ -55,16 +61,33 @@ const App = () => {
     () => ({ ...wuppLayerCatalogConfig, filters: activeFilters }),
     [activeFilters]
   );
+  // the "Workflows" category is appended (like on a Fachzwilling route) once
+  // the drafted perspectives carry content, so the preview mirrors production
+  const categories = useMemo<CategoryDefinition[]>(() => {
+    const workflowPerspectives = toWorkflowPerspectives(perspectives);
+    return workflowPerspectives.length
+      ? [
+          ...defaultCategoryDefinitions,
+          buildWorkflowsCategoryDefinition(workflowPerspectives),
+        ]
+      : defaultCategoryDefinitions;
+  }, [perspectives]);
 
   return (
     <AuthProvider>
-      <LayerCatalogProvider config={config} appKey={APP_KEY}>
+      <LayerCatalogProvider
+        config={config}
+        categories={categories}
+        appKey={APP_KEY}
+      >
         <div className="w-screen h-screen bg-neutral-200">
           <ConfigSidebar
             route={route}
             onRouteChange={setRoute}
             filterGroups={filterGroups}
             onFilterGroupsChange={setFilterGroups}
+            perspectives={perspectives}
+            onPerspectivesChange={setPerspectives}
             previewIn3d={previewIn3d}
             onPreviewIn3dChange={setPreviewIn3d}
             modalOpen={open}
