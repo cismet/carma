@@ -22,7 +22,11 @@ import {
 } from "@carma-commons/utils";
 import { useAuth } from "@carma-providers/auth";
 
-import { parseDescription } from "../helper/layerHelper";
+import {
+  isExternalUrl,
+  navigateToInternalHashLink,
+  parseDescription,
+} from "../helper/layerHelper";
 import { saveDiscoverItem } from "../helper/discover";
 import {
   useCatalogSelectedItem,
@@ -211,8 +215,25 @@ const InfoCard = ({
                 {layer.type === "link" && (
                   <Button
                     href={layer.url}
-                    target="_topicMaps"
-                    icon={<FontAwesomeIcon icon={faExternalLink} />}
+                    target={isExternalUrl(layer.url) ? "_topicMaps" : "_self"}
+                    onClick={
+                      isExternalUrl(layer.url)
+                        ? undefined
+                        : (e) => {
+                            // keep the current hash query (map position etc.)
+                            e.preventDefault();
+                            navigateToInternalHashLink(layer.url);
+                          }
+                    }
+                    icon={
+                      <FontAwesomeIcon
+                        icon={
+                          isExternalUrl(layer.url)
+                            ? faExternalLink
+                            : faSquareUpRight
+                        }
+                      />
+                    }
                   >
                     <span className="!hidden sm:!inline-block">Öffnen</span>
                   </Button>

@@ -10,6 +10,26 @@ import type {
 
 import { serviceConfig } from "./config";
 
+/**
+ * Whether a link item's url leaves the app: absolute http(s) urls open in a
+ * new tab, everything else (e.g. "#/gesundheit" hash routes) navigates in
+ * place.
+ */
+export const isExternalUrl = (url?: string): boolean =>
+  !!url && /^https?:/i.test(url);
+
+/**
+ * Navigate to an internal hash link (e.g. "#/gesundheit"), carrying the
+ * current hash query over: hash-router apps keep state like the map position
+ * in those params, and a plain href would wipe it.
+ */
+export const navigateToInternalHashLink = (url: string) => {
+  const [targetPath, targetQuery] = url.replace(/^#/, "").split("?");
+  const currentQuery = window.location.hash.split("?")[1];
+  const query = targetQuery ?? currentQuery;
+  window.location.hash = query ? `${targetPath}?${query}` : targetPath;
+};
+
 export const getInteractionButtons = (
   buttons?: InteractionButton | InteractionButton[]
 ): InteractionButton[] => {

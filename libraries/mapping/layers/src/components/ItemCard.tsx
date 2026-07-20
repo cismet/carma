@@ -35,6 +35,10 @@ import {
 import { useCatalogInteraction } from "../context/CatalogInteractionContext";
 import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import { deleteDiscoverItem } from "../helper/discover";
+import {
+  isExternalUrl,
+  navigateToInternalHashLink,
+} from "../helper/layerHelper";
 
 // Kept as local literals to avoid a circular dependency on
 // @carma-appframeworks/portals (which already depends on this lib).
@@ -64,7 +68,10 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const { discoverProps } = useLayerCatalogConfig();
   const [hovered, setHovered] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(layer.type !== "collection");
+  // link items without thumbnail render a static placeholder, nothing loads
+  const [isLoading, setIsLoading] = useState(
+    layer.type !== "collection" && !(layer.type === "link" && !layer.thumbnail)
+  );
 
   const { jwt } = useAuth();
 
@@ -90,6 +97,17 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     [layer.keywords]
   );
   const title = resolveLayerTitle(layer);
+  const isExternalLink = layer.type === "link" && isExternalUrl(layer.url);
+  // internal links keep the current hash query (map position etc.)
+  const handleInternalLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement, MouseEvent>
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (layer.type === "link") {
+      navigateToInternalHashLink(layer.url);
+    }
+  };
 
   const links = useMemo(() => {
     const result: { url: string; text: string }[] = [];
@@ -220,6 +238,13 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 </span>
               </div>
             </div>
+          ) : layer.type === "link" && !layer.thumbnail ? (
+            <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+              <FontAwesomeIcon
+                icon={faSquareUpRight}
+                className="text-5xl text-gray-400"
+              />
+            </div>
           ) : layer.type !== "collection" || layer.thumbnail ? (
             <ThumbnailDisplay
               url={layer.thumbnail}
@@ -263,9 +288,12 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
             <a
               className="absolute left-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
               href={layer.url}
-              target="_blank"
+              target={isExternalLink ? "_blank" : undefined}
+              onClick={isExternalLink ? undefined : handleInternalLinkClick}
             >
-              <FontAwesomeIcon icon={faExternalLinkAlt} />
+              <FontAwesomeIcon
+                icon={isExternalLink ? faExternalLinkAlt : faSquareUpRight}
+              />
             </a>
           ) : layer.type === "collection" ? (
             <>
@@ -304,11 +332,12 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 <a
                   className="w-36 bg-gray-100 hover:no-underline text-black hover:text-neutral-600 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
                   href={layer.url}
-                  target="_blank"
+                  target={isExternalLink ? "_blank" : undefined}
+                  onClick={isExternalLink ? undefined : handleInternalLinkClick}
                 >
                   <>
                     <FontAwesomeIcon
-                      icon={faExternalLinkAlt}
+                      icon={isExternalLink ? faExternalLinkAlt : faSquareUpRight}
                       className="text-lg mr-2"
                     />
                     Öffnen
