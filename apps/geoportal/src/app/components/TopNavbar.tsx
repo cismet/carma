@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Link, useLocation } from "react-router-dom";
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
 import {
   faBars,
@@ -41,6 +42,7 @@ import {
 } from "../store/slices/mapping";
 import { getZenMode } from "../store/slices/ui";
 
+import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
@@ -58,6 +60,8 @@ const TopNavbar = () => {
   const { showOverlayHandler } = useOverlayTourContext();
   const { isObliqueMode, setObliqueMode } = useOblique();
   const { currentStyle, setCurrentStyle } = useMapStyle();
+  const { pathname, search } = useLocation();
+  const fachzwilling = findFachzwillingByPathname(pathname);
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -202,7 +206,21 @@ const TopNavbar = () => {
             mobileMenuOpen ? "sm:block hidden" : ""
           }`}
         >
-          DigiTal Zwilling / Geoportal
+          {fachzwilling ? (
+            <>
+              <Link
+                // keep the hash query so the map position survives
+                to={{ pathname: "/", search }}
+                title="zurück zum Geoportal"
+                className="text-inherit hover:text-gray-500 hover:no-underline"
+              >
+                DigiTal Zwilling / Geoportal
+              </Link>
+              {` / ${fachzwilling.title}`}
+            </>
+          ) : (
+            "DigiTal Zwilling / Geoportal"
+          )}
         </p>
 
         <button

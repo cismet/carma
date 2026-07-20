@@ -36,7 +36,10 @@ import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
-import { LayerCatalogProvider } from "@carma-mapping/layers";
+import {
+  LayerCatalogProvider,
+  type LayerCatalogConfig,
+} from "@carma-mapping/layers";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import {
   MapMeasurementsProvider,
@@ -64,6 +67,7 @@ import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { APP_KEY, STORAGE_PREFIX, layerMap } from "./config";
 import { layerCatalogConfig } from "./constants/discover";
+import { geoportalCategoryDefinitions } from "./constants/fachzwillinge";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 import { defaultCesiumState } from "./config/cesium/store.config";
 
@@ -167,7 +171,14 @@ function GeoportalAppSearchParamsIntegration() {
   return null;
 }
 
-function App({ published }: { published?: boolean }) {
+function App({
+  published,
+  catalogConfig = layerCatalogConfig,
+}: {
+  published?: boolean;
+  /** route-specific catalog config, e.g. the filtered /gesundheit catalog */
+  catalogConfig?: LayerCatalogConfig;
+}) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
@@ -207,7 +218,8 @@ function App({ published }: { published?: boolean }) {
     <HashStateProvider>
       <FeatureFlagProvider config={featureFlagsMergedConfig}>
         <LayerCatalogProvider
-          config={layerCatalogConfig}
+          config={catalogConfig}
+          categories={geoportalCategoryDefinitions}
           appKey={APP_KEY}
           storagePrefix={STORAGE_PREFIX}
           legacyFavoritesKey={`persist:@${APP_KEY}.${STORAGE_PREFIX}.app.layers`}

@@ -1,6 +1,11 @@
+import { useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
-import { RouterProvider, createHashRouter } from "react-router-dom";
+import {
+  RouterProvider,
+  createHashRouter,
+  useLocation,
+} from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
@@ -15,6 +20,30 @@ import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
 import { discoverProps } from "./app/constants/discover";
+import {
+  fachzwillingRoutes,
+  findFachzwillingByPathname,
+  getFachzwillingCatalogConfig,
+} from "./app/constants/fachzwillinge";
+
+/**
+ * One persistent App instance for the default and all Fachzwilling routes:
+ * the catalog config follows the location reactively, so navigating between
+ * the routes only swaps the active filters instead of remounting the app
+ * (map, providers and the open catalog modal stay alive).
+ */
+const RoutedApp = () => {
+  const { pathname } = useLocation();
+  const catalogConfig = useMemo(() => {
+    const fachzwilling = findFachzwillingByPathname(pathname);
+    return fachzwilling
+      ? getFachzwillingCatalogConfig(fachzwilling)
+      : undefined;
+  }, [pathname]);
+  return <App catalogConfig={catalogConfig} />;
+};
+
+const routedApp = <RoutedApp />;
 
 cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper
@@ -44,12 +73,16 @@ root.render(
           router={createHashRouter([
             {
               path: "/",
-              element: <App />,
+              element: routedApp,
             },
             {
               path: "/publish",
               element: <App published={true} />,
             },
+            ...fachzwillingRoutes.map((route) => ({
+              path: `/${route.path}`,
+              element: routedApp,
+            })),
             {
               path: "/about/images",
               element: <ImageList />,
