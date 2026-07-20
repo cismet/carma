@@ -152,24 +152,30 @@ export const itemMatchesFilters = (
 
 export const filterCategoriesByFilters = (
   categories: CatalogMainCategory[],
-  filters: CatalogFilters
+  filters: CatalogFilters,
+  /** main category ids that pass through unfiltered (e.g. "Workflows") */
+  exemptCategoryIds?: ReadonlySet<string>
 ): CatalogMainCategory[] => {
   const groups = toCatalogFilterGroups(filters);
   if (groups.length === 0) {
     return categories;
   }
-  return categories.map((mainCategory) => ({
-    ...mainCategory,
-    categories: mainCategory.categories.map(
-      (subCategory): CatalogSubCategory => ({
-        ...subCategory,
-        layers: subCategory.layers.filter((layer) =>
-          itemMatchesFilters(layer, groups, {
-            mainCategoryId: mainCategory.id,
-            subCategoryId: subCategory.id,
-          })
-        ),
-      })
-    ),
-  }));
+  return categories.map((mainCategory) =>
+    exemptCategoryIds?.has(mainCategory.id)
+      ? mainCategory
+      : {
+          ...mainCategory,
+          categories: mainCategory.categories.map(
+            (subCategory): CatalogSubCategory => ({
+              ...subCategory,
+              layers: subCategory.layers.filter((layer) =>
+                itemMatchesFilters(layer, groups, {
+                  mainCategoryId: mainCategory.id,
+                  subCategoryId: subCategory.id,
+                })
+              ),
+            })
+          ),
+        }
+  );
 };

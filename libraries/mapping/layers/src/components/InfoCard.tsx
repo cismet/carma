@@ -107,8 +107,9 @@ const InfoCard = ({
   );
   const isVectorLayer = carmaConf?.vectorStyle;
   const canFavoriteItem =
-    layer.type !== "collection" ||
-    (layer.type === "collection" && layer.serviceName.includes("discover"));
+    layer.type !== "workflow" &&
+    (layer.type !== "collection" ||
+      (layer.type === "collection" && layer.serviceName.includes("discover")));
   const isDiscoverItem = layer.serviceName.includes("discover");
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
   const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");

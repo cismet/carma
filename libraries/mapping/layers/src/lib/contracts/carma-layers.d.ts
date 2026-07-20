@@ -92,6 +92,7 @@ export const LAYER_ENTITY_TYPES = {
   LINK: "link",
   FEATURE: "feature",
   COLLECTION: "collection",
+  WORKFLOW: "workflow",
 } as const;
 export type LayerEntityType =
   (typeof LAYER_ENTITY_TYPES)[keyof typeof LAYER_ENTITY_TYPES];
@@ -229,6 +230,13 @@ type Collection = {
   };
 };
 
+// A workflow catalog entry: a thematic "Perspektive" step shown as an inert
+// card (title/description/thumbnail). It carries no own action yet, so it
+// only extends the shared base Item fields.
+type Workflow = {
+  type: typeof LAYER_ENTITY_TYPES.WORKFLOW;
+};
+
 export type SavedLayerConfig = {
   title: string;
   description: string;
@@ -343,7 +351,7 @@ export type Item = {
   createdBy?: string;
   updatedAt?: string;
   mapMode?: "2d" | "3d";
-} & (TmpLayer | Link | Feature | Collection);
+} & (TmpLayer | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {
   0: number;

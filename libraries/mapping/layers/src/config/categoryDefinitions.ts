@@ -36,6 +36,8 @@ export interface CategoryDefinition {
   disabledIn3D?: boolean;
   /** sidebar entry disabled while the category has no items */
   disableWhenEmpty?: boolean;
+  /** category is exempt from the active catalog filters (always shown in full) */
+  ignoreCatalogFilters?: boolean;
   source: CategoryContentSource;
   /** subcategories for source "static" */
   staticCategories?: CatalogSubCategory[];

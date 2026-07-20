@@ -27,6 +27,13 @@ export {
   type CustomCategoryDefinition,
 } from "./config/categoryDefinitions";
 export {
+  buildWorkflowsCategoryDefinition,
+  WORKFLOWS_CATEGORY_ID,
+  WORKFLOWS_CATEGORY_LABEL,
+  type WorkflowDefinition,
+  type WorkflowPerspective,
+} from "./config/workflows";
+export {
   filterCategoriesByFilters,
   itemMatchesFilters,
   toCatalogFilterGroups,

@@ -5,6 +5,7 @@ import {
   faChevronUp,
   faCircleMinus,
   faCirclePlus,
+  faDiagramProject,
   faExternalLinkAlt,
   faMinus,
   faPlus,
@@ -68,9 +69,11 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const { discoverProps } = useLayerCatalogConfig();
   const [hovered, setHovered] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  // link items without thumbnail render a static placeholder, nothing loads
+  const isWorkflow = layer.type === "workflow";
+  // link/workflow items without thumbnail render a static placeholder, nothing loads
   const [isLoading, setIsLoading] = useState(
-    layer.type !== "collection" && !(layer.type === "link" && !layer.thumbnail)
+    layer.type !== "collection" &&
+      !((layer.type === "link" || isWorkflow) && !layer.thumbnail)
   );
 
   const { jwt } = useAuth();
@@ -88,10 +91,12 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     layer.type === "layer" ||
     layer.type === "object" ||
     (layer.type === "link" && layer.description) ||
-    (layer.type === "collection" && layer.description);
+    (layer.type === "collection" && layer.description) ||
+    (isWorkflow && !!layer.description);
   const canFavoriteItem =
-    layer.type !== "collection" ||
-    (layer.type === "collection" && layer.serviceName.includes("discover"));
+    !isWorkflow &&
+    (layer.type !== "collection" ||
+      (layer.type === "collection" && layer.serviceName.includes("discover")));
   const carmaConf = useMemo(
     () => extractCarmaConfig(layer.keywords),
     [layer.keywords]
@@ -238,10 +243,10 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 </span>
               </div>
             </div>
-          ) : layer.type === "link" && !layer.thumbnail ? (
+          ) : (layer.type === "link" || isWorkflow) && !layer.thumbnail ? (
             <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
               <FontAwesomeIcon
-                icon={faSquareUpRight}
+                icon={isWorkflow ? faDiagramProject : faSquareUpRight}
                 className="text-5xl text-gray-400"
               />
             </div>
@@ -284,7 +289,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
               />
             )
           ) : null}
-          {layer.type === "link" ? (
+          {isWorkflow ? null : layer.type === "link" ? (
             <a
               className="absolute left-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
               href={layer.url}
@@ -326,7 +331,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
               />
             </button>
           )}
-          {hovered && (
+          {hovered && !isWorkflow && (
             <div className="flex flex-col items-center gap-2 absolute top-0 w-full h-full justify-center p-8 px-10">
               {layer.type === "link" ? (
                 <a

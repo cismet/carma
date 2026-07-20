@@ -291,12 +291,25 @@ const LayerCatalogView = ({
   } = useCatalogSearch({ allCategories, disabledCategoryIds });
 
   const catalogFilters = catalogConfig.filters;
+  const filterExemptCategoryIds = useMemo(
+    () =>
+      new Set(
+        categoryDefinitions
+          .filter((definition) => definition.ignoreCatalogFilters)
+          .map((definition) => definition.id)
+      ),
+    [categoryDefinitions]
+  );
   const filteredCategories = useMemo(
     () =>
       catalogFilters?.length
-        ? filterCategoriesByFilters(searchedCategories, catalogFilters)
+        ? filterCategoriesByFilters(
+            searchedCategories,
+            catalogFilters,
+            filterExemptCategoryIds
+          )
         : searchedCategories,
-    [searchedCategories, catalogFilters]
+    [searchedCategories, catalogFilters, filterExemptCategoryIds]
   );
   // active filters hide empty categories entirely instead of showing them
   // grayed out
