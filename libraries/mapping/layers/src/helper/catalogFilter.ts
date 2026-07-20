@@ -6,88 +6,40 @@ import type {
 } from "../hooks/useCatalogSearch";
 import type { SavedLayerConfig } from "../lib/contracts/carma-layers.d";
 
-/** item fields a filter option can match against */
+/** item fields a filter can match against */
 export type CatalogFilterField =
   | "entityType"
   | "layerType"
   | "mapMode"
   | "keywords"
-  | "category";
+  | "category"
+  | "id";
 
-export type CatalogFilterOption = {
-  id: string;
-  label: string;
+/**
+ * One catalog filter: an item matches when its field equals any of the
+ * values (values within one filter OR each other).
+ * `layerType` matches the effective render type ("vector" also for WMS
+ * layers styled via a carmaConf vectorStyle keyword),
+ * `mapMode` matches the modes an item is available in,
+ * `keywords` values match case-insensitive substrings of keywords/tags,
+ * `category` values match the main or sub category id the item sits in,
+ * `id` values match item ids exactly ("<serviceName>:<layerName>"), for
+ * curated configs that pin down an explicit set of items
+ */
+export type CatalogFilter = {
   field: CatalogFilterField;
-  /**
-   * the option matches an item whose field equals any of these values;
-   * `layerType` matches the effective render type ("vector" also for WMS
-   * layers styled via a carmaConf vectorStyle keyword),
-   * `mapMode` matches the modes an item is available in,
-   * `keywords` values match case-insensitive substrings of keywords/tags,
-   * `category` values match the main or sub category id the item sits in
-   */
   values: string[];
 };
 
+/** filters within a group are AND-combined */
+export type CatalogFilterGroup = CatalogFilter[];
+
 /**
- * One checkbox section of the catalog filter. Active options within a group
- * are OR-combined, active groups are AND-combined. Groups are plain data so
- * app configs can ship their own filters without code.
+ * Filter input as configs declare it: a flat filter list is a single
+ * AND-group, a list of groups OR-combines the groups (an item matches
+ * when it satisfies every filter of at least one group).
  */
-export type CatalogFilterGroup = {
-  id: string;
-  label: string;
-  options: CatalogFilterOption[];
-};
-
-/** a main category with its subcategories, as shown in the category filter */
-export type CategoryFilterEntry = {
-  id: string;
-  label: string;
-  subCategories: Array<{ id: string; label: string }>;
-};
-
-export const categoryFilterOptionId = (categoryId: string) =>
-  `category:${categoryId}`;
-
-/** one flat group over the category tree; main and sub selections OR each other */
-export const buildCategoryFilterGroup = (
-  entries: CategoryFilterEntry[]
-): CatalogFilterGroup => ({
-  id: "categories",
-  label: "Kategorien",
-  options: entries.flatMap((entry) => [
-    {
-      id: categoryFilterOptionId(entry.id),
-      label: entry.label,
-      field: "category" as const,
-      values: [entry.id],
-    },
-    ...entry.subCategories.map((subCategory) => ({
-      id: categoryFilterOptionId(subCategory.id),
-      label: subCategory.label,
-      field: "category" as const,
-      values: [subCategory.id],
-    })),
-  ]),
-});
-
-export const keywordFilterOptionId = (keyword: string) =>
-  `keywordFilter:${keyword}`;
-
-/** user-entered keywords as one group: an item matching any of them is shown */
-export const buildKeywordFilterGroup = (
-  keywords: string[]
-): CatalogFilterGroup => ({
-  id: "keywordFilters",
-  label: "Schlüsselwörter",
-  options: keywords.map((keyword) => ({
-    id: keywordFilterOptionId(keyword),
-    label: keyword,
-    field: "keywords" as const,
-    values: [keyword],
-  })),
-});
+export type CatalogFilters = CatalogFilter[] | CatalogFilterGroup[];
 
 // catalog items carry more fields than SavedLayerConfig declares
 type FilterableItem = SavedLayerConfig & {
@@ -137,27 +89,27 @@ export const getItemMapModes = (item: FilterableItem): string[] => {
   return item.type === "object" ? ["2d", "3d"] : ["2d"];
 };
 
-const optionMatchesItem = (
+const filterMatchesItem = (
   item: FilterableItem,
-  option: CatalogFilterOption,
+  filter: CatalogFilter,
   context: CategoryContext
 ): boolean => {
-  switch (option.field) {
+  switch (filter.field) {
     case "entityType":
-      return !!item.type && option.values.includes(item.type);
+      return !!item.type && filter.values.includes(item.type);
     case "layerType": {
       const effectiveLayerType = getEffectiveLayerType(item);
       return (
-        !!effectiveLayerType && option.values.includes(effectiveLayerType)
+        !!effectiveLayerType && filter.values.includes(effectiveLayerType)
       );
     }
     case "mapMode":
       return getItemMapModes(item).some((mode) =>
-        option.values.includes(mode)
+        filter.values.includes(mode)
       );
     case "keywords": {
       const itemKeywords = [...(item.keywords ?? []), ...(item.tags ?? [])];
-      return option.values.some((value) =>
+      return filter.values.some((value) =>
         itemKeywords.some((keyword) =>
           keyword.toLowerCase().includes(value.toLowerCase())
         )
@@ -165,37 +117,45 @@ const optionMatchesItem = (
     }
     case "category":
       return (
-        option.values.includes(context.mainCategoryId) ||
+        filter.values.includes(context.mainCategoryId) ||
         (!!context.subCategoryId &&
-          option.values.includes(context.subCategoryId))
+          filter.values.includes(context.subCategoryId))
       );
+    case "id":
+      return !!item.id && filter.values.includes(item.id);
   }
 };
 
-export const itemMatchesActiveFilters = (
-  item: FilterableItem,
-  filterGroups: CatalogFilterGroup[],
-  activeFilterIds: ReadonlySet<string>,
-  context: CategoryContext
-): boolean =>
-  filterGroups.every((group) => {
-    const activeOptions = group.options.filter((option) =>
-      activeFilterIds.has(option.id)
-    );
-    if (activeOptions.length === 0) {
-      return true;
-    }
-    return activeOptions.some((option) =>
-      optionMatchesItem(item, option, context)
-    );
-  });
+/** normalizes both accepted shapes to groups, dropping empty groups */
+export const toCatalogFilterGroups = (
+  filters: CatalogFilters
+): CatalogFilterGroup[] => {
+  const groups = filters.every(Array.isArray)
+    ? (filters as CatalogFilterGroup[])
+    : [filters as CatalogFilter[]];
+  return groups.filter((group) => group.length > 0);
+};
 
-export const filterCategoriesByActiveFilters = (
+export const itemMatchesFilters = (
+  item: FilterableItem,
+  filters: CatalogFilters,
+  context: CategoryContext
+): boolean => {
+  const groups = toCatalogFilterGroups(filters);
+  return (
+    groups.length === 0 ||
+    groups.some((group) =>
+      group.every((filter) => filterMatchesItem(item, filter, context))
+    )
+  );
+};
+
+export const filterCategoriesByFilters = (
   categories: CatalogMainCategory[],
-  filterGroups: CatalogFilterGroup[],
-  activeFilterIds: ReadonlySet<string>
+  filters: CatalogFilters
 ): CatalogMainCategory[] => {
-  if (activeFilterIds.size === 0) {
+  const groups = toCatalogFilterGroups(filters);
+  if (groups.length === 0) {
     return categories;
   }
   return categories.map((mainCategory) => ({
@@ -204,7 +164,7 @@ export const filterCategoriesByActiveFilters = (
       (subCategory): CatalogSubCategory => ({
         ...subCategory,
         layers: subCategory.layers.filter((layer) =>
-          itemMatchesActiveFilters(layer, filterGroups, activeFilterIds, {
+          itemMatchesFilters(layer, groups, {
             mainCategoryId: mainCategory.id,
             subCategoryId: subCategory.id,
           })
@@ -213,73 +173,3 @@ export const filterCategoriesByActiveFilters = (
     ),
   }));
 };
-
-/** the built-in filters; configs can replace them via `filterGroups` */
-export const defaultCatalogFilterGroups: CatalogFilterGroup[] = [
-  {
-    id: "entityType",
-    label: "Objekt-Typ",
-    options: [
-      {
-        id: "entityType:layer",
-        label: "Layer",
-        field: "entityType",
-        values: ["layer"],
-      },
-      {
-        id: "entityType:object",
-        label: "Objekt",
-        field: "entityType",
-        values: ["object"],
-      },
-      {
-        id: "entityType:link",
-        label: "Link",
-        field: "entityType",
-        values: ["link"],
-      },
-      {
-        id: "entityType:collection",
-        label: "Zusammenstellung",
-        field: "entityType",
-        values: ["collection"],
-      },
-    ],
-  },
-  {
-    id: "layerType",
-    label: "Layer-Typ",
-    options: [
-      {
-        id: "layerType:vector",
-        label: "Vektor",
-        field: "layerType",
-        values: ["vector"],
-      },
-      {
-        id: "layerType:wms",
-        label: "WMS",
-        field: "layerType",
-        values: ["wmts", "wmts-nt"],
-      },
-    ],
-  },
-  {
-    id: "mapMode",
-    label: "Modus",
-    options: [
-      {
-        id: "mapMode:2d",
-        label: "in 2D verfügbar",
-        field: "mapMode",
-        values: ["2d"],
-      },
-      {
-        id: "mapMode:3d",
-        label: "in 3D verfügbar",
-        field: "mapMode",
-        values: ["3d"],
-      },
-    ],
-  },
-];

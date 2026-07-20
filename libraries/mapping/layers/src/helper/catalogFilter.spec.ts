@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildCategoryFilterGroup,
-  buildKeywordFilterGroup,
-  defaultCatalogFilterGroups,
-  filterCategoriesByActiveFilters,
-  type CatalogFilterGroup,
-} from "./catalogFilter";
+import { filterCategoriesByFilters } from "./catalogFilter";
 import type { CatalogMainCategory } from "../hooks/useCatalogSearch";
 
 const item = (
@@ -70,42 +64,32 @@ const layerIds = (result: CatalogMainCategory[], mainId: string) =>
       subCategory.layers.map((layer) => layer.id)
     );
 
-describe("filterCategoriesByActiveFilters", () => {
-  it("returns the input tree unchanged without active filters", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set()
-    );
+describe("filterCategoriesByFilters", () => {
+  it("returns the input tree unchanged without filters", () => {
+    const result = filterCategoriesByFilters(categories, []);
     expect(result).toBe(categories);
   });
 
   it("filters by entity type", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["entityType:link"])
-    );
+    const result = filterCategoriesByFilters(categories, [
+      { field: "entityType", values: ["link"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
     expect(layerIds(result, "favorites")).toEqual([]);
   });
 
-  it("OR-combines options within a group", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["entityType:link", "entityType:collection"])
-    );
+  it("OR-combines values within a filter", () => {
+    const result = filterCategoriesByFilters(categories, [
+      { field: "entityType", values: ["link", "collection"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
     expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
   });
 
   it("counts WMS layers with a carmaConf vectorStyle keyword as vector", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["layerType:vector"])
-    );
+    const result = filterCategoriesByFilters(categories, [
+      { field: "layerType", values: ["vector"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual([
       "styledWmsLayer",
       "vectorLayer",
@@ -114,131 +98,103 @@ describe("filterCategoriesByActiveFilters", () => {
   });
 
   it("matches only raster-rendered layers as WMS", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["layerType:wms"])
-    );
+    const result = filterCategoriesByFilters(categories, [
+      { field: "layerType", values: ["wmts", "wmts-nt"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual(["rasterWmsLayer"]);
   });
 
   it("treats items without an explicit mapMode as 2D-only", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["mapMode:2d"])
-    );
+    const result = filterCategoriesByFilters(categories, [
+      { field: "mapMode", values: ["2d"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual(
       allMapLayerIds.filter((id) => id !== "threeDMeasurement")
     );
   });
 
   it("matches explicit 3D items and objects as available in 3D", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["mapMode:3d"])
-    );
+    const result = filterCategoriesByFilters(categories, [
+      { field: "mapMode", values: ["3d"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual([
       "threeDMeasurement",
       "tilesetObject",
     ]);
   });
 
-  it("AND-combines groups", () => {
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["layerType:vector", "mapMode:3d"])
-    );
+  it("AND-combines filters of a flat list", () => {
+    const result = filterCategoriesByFilters(categories, [
+      { field: "layerType", values: ["vector"] },
+      { field: "mapMode", values: ["3d"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual(["threeDMeasurement"]);
   });
 
-  it("matches custom keyword filters case-insensitively", () => {
-    const keywordGroups: CatalogFilterGroup[] = [
-      {
-        id: "topics",
-        label: "Themen",
-        options: [
-          {
-            id: "topics:verkehr",
-            label: "Verkehr",
-            field: "keywords",
-            values: ["verkehr"],
-          },
-        ],
-      },
-    ];
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      keywordGroups,
-      new Set(["topics:verkehr"])
-    );
-    expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
-  });
-
-  it("shows items matching any of the entered keyword filters", () => {
-    const keywordGroup = buildKeywordFilterGroup(["verkehr", "wasser"]);
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      [keywordGroup],
-      new Set(keywordGroup.options.map((option) => option.id))
-    );
-    expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
-  });
-
-  it("OR-combines main and sub selections of the built category group", () => {
-    const categoryGroup = buildCategoryFilterGroup([
-      {
-        id: "mapLayers",
-        label: "Kartenebenen",
-        subCategories: [{ id: "karten", label: "Karten" }],
-      },
-      {
-        id: "favorites",
-        label: "Favoriten",
-        subCategories: [{ id: "favoriten", label: "Favoriten" }],
-      },
+  it("OR-combines filter groups, AND-combining within each group", () => {
+    const result = filterCategoriesByFilters(categories, [
+      [
+        { field: "layerType", values: ["vector"] },
+        { field: "mapMode", values: ["3d"] },
+      ],
+      [{ field: "entityType", values: ["link"] }],
     ]);
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      [categoryGroup],
-      new Set(["category:karten", "category:favorites"])
-    );
-    expect(layerIds(result, "mapLayers")).toEqual(allMapLayerIds);
-    expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
+    expect(layerIds(result, "mapLayers")).toEqual([
+      "threeDMeasurement",
+      "poiLink",
+    ]);
+  });
+
+  it("ignores empty groups instead of matching everything", () => {
+    const result = filterCategoriesByFilters(categories, [
+      [],
+      [{ field: "entityType", values: ["link"] }],
+    ]);
+    expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
+  });
+
+  it("matches keyword filters case-insensitively as substrings", () => {
+    const result = filterCategoriesByFilters(categories, [
+      { field: "keywords", values: ["verkehr"] },
+    ]);
+    expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
+  });
+
+  it("shows items matching any of the keyword values", () => {
+    const result = filterCategoriesByFilters(categories, [
+      { field: "keywords", values: ["verkehr", "wasser"] },
+    ]);
+    expect(layerIds(result, "mapLayers")).toEqual(["poiLink"]);
   });
 
   it("matches category filters via the containing main or sub category", () => {
-    const categoryGroups: CatalogFilterGroup[] = [
-      {
-        id: "categories",
-        label: "Kategorien",
-        options: [
-          {
-            id: "categories:favoriten",
-            label: "Favoriten",
-            field: "category",
-            values: ["favoriten"],
-          },
-        ],
-      },
-    ];
-    const result = filterCategoriesByActiveFilters(
-      categories,
-      categoryGroups,
-      new Set(["categories:favoriten"])
-    );
+    const result = filterCategoriesByFilters(categories, [
+      { field: "category", values: ["favoriten"] },
+    ]);
     expect(layerIds(result, "mapLayers")).toEqual([]);
     expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
   });
 
-  it("does not mutate the unfiltered tree, so clearing filters restores it", () => {
-    filterCategoriesByActiveFilters(
-      categories,
-      defaultCatalogFilterGroups,
-      new Set(["entityType:link"])
-    );
+  it("OR-combines main and sub category values", () => {
+    const result = filterCategoriesByFilters(categories, [
+      { field: "category", values: ["karten", "favorites"] },
+    ]);
+    expect(layerIds(result, "mapLayers")).toEqual(allMapLayerIds);
+    expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
+  });
+
+  it("matches curated item ids exactly", () => {
+    const result = filterCategoriesByFilters(categories, [
+      { field: "id", values: ["vectorLayer", "savedCollection", "vector"] },
+    ]);
+    expect(layerIds(result, "mapLayers")).toEqual(["vectorLayer"]);
+    expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
+  });
+
+  it("does not mutate the unfiltered tree, so removing filters restores it", () => {
+    filterCategoriesByFilters(categories, [
+      { field: "entityType", values: ["link"] },
+    ]);
     expect(layerIds(categories, "mapLayers")).toEqual(allMapLayerIds);
   });
 });

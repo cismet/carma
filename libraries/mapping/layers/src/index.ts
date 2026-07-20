@@ -14,6 +14,7 @@ export {
 } from "./config/LayerCatalogConfigContext";
 export {
   LayerCatalogProvider,
+  useCatalogData,
   useLayerCatalog,
   type LayerCatalogProviderProps,
   type LayerCatalogContextValue,
@@ -26,16 +27,15 @@ export {
   type CustomCategoryDefinition,
 } from "./config/categoryDefinitions";
 export {
-  buildCategoryFilterGroup,
-  buildKeywordFilterGroup,
-  defaultCatalogFilterGroups,
-  filterCategoriesByActiveFilters,
+  filterCategoriesByFilters,
+  itemMatchesFilters,
+  toCatalogFilterGroups,
   getEffectiveLayerType,
   getItemMapModes,
+  type CatalogFilter,
   type CatalogFilterField,
   type CatalogFilterGroup,
-  type CatalogFilterOption,
-  type CategoryFilterEntry,
+  type CatalogFilters,
 } from "./helper/catalogFilter";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";

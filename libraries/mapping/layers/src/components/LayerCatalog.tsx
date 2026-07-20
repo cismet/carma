@@ -60,8 +60,7 @@ import {
   findFirstCategoryIdWithResults,
   useCatalogSearch,
 } from "../hooks/useCatalogSearch";
-import { useCatalogFilter } from "../hooks/useCatalogFilter";
-import { defaultCatalogFilterGroups } from "../helper/catalogFilter";
+import { filterCategoriesByFilters } from "../helper/catalogFilter";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 import { useHandleDrop } from "../hooks/useHandleDrop";
@@ -291,17 +290,17 @@ const LayerCatalogView = ({
     filteredCategories: searchedCategories,
   } = useCatalogSearch({ allCategories, disabledCategoryIds });
 
-  const filterGroups = useMemo(
-    () => catalogConfig.filterGroups ?? defaultCatalogFilterGroups,
-    [catalogConfig.filterGroups]
+  const catalogFilters = catalogConfig.filters;
+  const filteredCategories = useMemo(
+    () =>
+      catalogFilters?.length
+        ? filterCategoriesByFilters(searchedCategories, catalogFilters)
+        : searchedCategories,
+    [searchedCategories, catalogFilters]
   );
-  const { activeFilterCount, filteredCategories } = useCatalogFilter({
-    categories: searchedCategories,
-    filterGroups,
-  });
-  // active attribute/keyword filters hide empty categories entirely instead
-  // of showing them grayed out
-  const isFiltering = activeFilterCount > 0;
+  // active filters hide empty categories entirely instead of showing them
+  // grayed out
+  const isFiltering = !!catalogFilters?.length;
 
   const currentDefinition = sidebarElements[selectedNavItemIndex];
   const isSearchCategory = currentDefinition.source === "searchResults";
