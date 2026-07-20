@@ -96,7 +96,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   const subtitle = item.buga ? (
     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <img
-        src={urlPrefix + "logo/BUGA31_Logo.svg"}
+        src="https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/vorhaben/BUGA31_Logo.svg"
         alt="BUGA31 Wuppertal"
         style={{ width: 48, flexShrink: 0 }}
       />
