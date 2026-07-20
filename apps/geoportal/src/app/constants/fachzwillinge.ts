@@ -10,6 +10,7 @@ import {
 
 import { layerCatalogConfig } from "./discover";
 import { gesundheitFachzwilling } from "./gesundheit";
+import { bodenFachzwilling } from "./boden";
 
 /**
  * A Fachzwilling is a thematic geoportal variant: an own route whose layer
@@ -28,7 +29,10 @@ export type FachzwillingRoute = {
   filters: CatalogFilters;
 };
 
-export const fachzwillingRoutes: FachzwillingRoute[] = [gesundheitFachzwilling];
+export const fachzwillingRoutes: FachzwillingRoute[] = [
+  gesundheitFachzwilling,
+  bodenFachzwilling,
+];
 
 export const getFachzwillingCatalogConfig = (
   route: FachzwillingRoute
