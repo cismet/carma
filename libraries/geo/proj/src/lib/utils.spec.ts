@@ -8,6 +8,7 @@ describe("CRS utilities", () => {
       expect(normalizeCrsCode("EPSG:4326")).toBe("EPSG:4326");
       expect(normalizeCrsCode("EPSG:3857")).toBe("EPSG:3857");
       expect(normalizeCrsCode("EPSG:25832")).toBe("EPSG:25832");
+      expect(normalizeCrsCode("EPSG:4978")).toBe("EPSG:4978");
     });
 
     it("should handle epsg:XXXX format (lowercase)", () => {
@@ -57,6 +58,7 @@ describe("CRS utilities", () => {
       expect(getManagedCrs("EPSG:4326")).toBe(ManagedProjections.EPSG4326);
       expect(getManagedCrs("EPSG:3857")).toBe(ManagedProjections.EPSG3857);
       expect(getManagedCrs("EPSG:25832")).toBe(ManagedProjections.EPSG25832);
+      expect(getManagedCrs("EPSG:4978")).toBe(ManagedProjections.EPSG4978);
     });
 
     it("should return managed CRS for numeric codes", () => {
@@ -95,6 +97,7 @@ describe("CRS utilities", () => {
         expect((error as Error).message).toContain("EPSG:4326");
         expect((error as Error).message).toContain("EPSG:3857");
         expect((error as Error).message).toContain("EPSG:25832");
+        expect((error as Error).message).toContain("EPSG:4978");
       }
     });
 

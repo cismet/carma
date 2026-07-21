@@ -8,3 +8,7 @@
 
 export const proj4crs25832def =
   "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
+
+/** Proj4 definition for EPSG:4978 (WGS 84 geocentric/ECEF). */
+export const proj4crs4978def =
+  "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs";

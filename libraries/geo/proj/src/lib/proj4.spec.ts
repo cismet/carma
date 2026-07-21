@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 
 import { ManagedProjections } from "./managed-projections";
-import { getProj4Converter, CoordinateFor } from "./proj4";
+import {
+  getFromEcefToWGS84,
+  getFromWGS84ToEcef,
+  getProj4Converter,
+  type CoordinateFor,
+} from "./proj4";
 const WUPPERTAL = {
   position: {
     longitude: 7.20028,
@@ -125,12 +130,36 @@ describe("proj4 converters", () => {
         WUPPERTAL.position.altitude,
       ] as const;
 
-      const webMercator = converter.forward(originalWith3D as any);
+      const webMercator = converter.forward(
+        originalWith3D as unknown as CoordinateFor<
+          typeof ManagedProjections.EPSG4326
+        >
+      );
       const roundTrip = converter.inverse(webMercator);
 
       expect(roundTrip[0]).toBeCloseTo(WUPPERTAL.position.longitude, 10);
       expect(roundTrip[1]).toBeCloseTo(WUPPERTAL.position.latitude, 10);
       expect(roundTrip[2]).toBeCloseTo(WUPPERTAL.position.altitude, 10);
+    });
+
+    it("converts WGS84 3D coordinates to EPSG:4978 and back", () => {
+      const wgs84 = [7.163461245, 51.241111235, 207.598234228] as const;
+      const expectedEcef = [
+        3970046.913639711, 498961.576246063, 4950543.333479255,
+      ];
+
+      const ecef = getFromWGS84ToEcef(
+        wgs84 as Parameters<typeof getFromWGS84ToEcef>[0]
+      );
+
+      expect(ecef[0]).toBeCloseTo(expectedEcef[0], 3);
+      expect(ecef[1]).toBeCloseTo(expectedEcef[1], 3);
+      expect(ecef[2]).toBeCloseTo(expectedEcef[2], 3);
+
+      const roundTrip = getFromEcefToWGS84(ecef);
+      expect(roundTrip[0]).toBeCloseTo(wgs84[0], 10);
+      expect(roundTrip[1]).toBeCloseTo(wgs84[1], 10);
+      expect(roundTrip[2]).toBeCloseTo(wgs84[2], 6);
     });
   });
 
