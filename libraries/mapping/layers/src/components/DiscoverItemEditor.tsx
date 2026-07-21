@@ -22,8 +22,10 @@ import type {
   BackgroundLayer,
   Item,
   Layer,
+  LayerStackEntry,
 } from "../lib/contracts/carma-layers.d";
 import { parseDescription } from "../helper/layerHelper";
+import { isLayerGroup } from "../helper/layerStack";
 import { saveDiscoverItem } from "../helper/discover";
 import {
   useCatalogSelectionActions,
@@ -163,20 +165,31 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
       [layer.backgroundLayer, ...layer.layers]
         .filter((l): l is BackgroundLayer | Layer => l !== undefined)
         .map((l) => ({ title: l.title, opacity: l.opacity, id: l.id })),
-      activeLayers.map((l) => ({ title: l.title, opacity: l.opacity, id: l.id }))
+      activeLayers.map((l) => ({
+        title: l.title,
+        opacity: l.opacity,
+        id: l.id,
+      }))
     );
 
-  const renderLayerButton = (buttonLayer: BackgroundLayer | Layer) => (
-    <LayerButton key={buttonLayer.id} classNames={["px-3"]} useShadow={false}>
-      <LayerIcon layer={buttonLayer} fallbackIcon={buttonLayer.icon} />
-      <span className="text-base ml-1">{buttonLayer.title}</span>
-      {buttonLayer.opacity !== 1 && (
-        <span className="text-base ml-1 text-gray-500">
-          ({buttonLayer.opacity * 100}%)
-        </span>
-      )}
-    </LayerButton>
-  );
+  const renderLayerButton = (
+    buttonLayer: BackgroundLayer | LayerStackEntry
+  ) => {
+    const opacity = buttonLayer.opacity ?? 1;
+    return (
+      <LayerButton key={buttonLayer.id} classNames={["px-3"]} useShadow={false}>
+        {!isLayerGroup(buttonLayer) && (
+          <LayerIcon layer={buttonLayer} fallbackIcon={buttonLayer.icon} />
+        )}
+        <span className="text-base ml-1">{buttonLayer.title}</span>
+        {opacity !== 1 && (
+          <span className="text-base ml-1 text-gray-500">
+            ({opacity * 100}%)
+          </span>
+        )}
+      </LayerButton>
+    );
+  };
 
   return (
     <div className="flex h-full flex-col justify-between">
@@ -206,10 +219,7 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
             >
               <span className="!hidden sm:!inline-block">Speichern</span>
             </Button>
-            <Button
-              icon={<FontAwesomeIcon icon={faBan} />}
-              onClick={onCancel}
-            >
+            <Button icon={<FontAwesomeIcon icon={faBan} />} onClick={onCancel}>
               Abbrechen
             </Button>
           </div>
@@ -333,7 +343,10 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
                     key: "1",
                     label: "Datei",
                     children: (
-                      <FileUploader file={updatedFile} setFile={setUpdatedFile} />
+                      <FileUploader
+                        file={updatedFile}
+                        setFile={setUpdatedFile}
+                      />
                     ),
                   },
                   {

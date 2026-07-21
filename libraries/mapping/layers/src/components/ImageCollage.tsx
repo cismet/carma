@@ -1,4 +1,5 @@
 import { Item } from "../lib/contracts/carma-layers.d";
+import { isLayerGroup } from "../helper/layerStack";
 import { cn } from "@carma-commons/utils";
 
 interface ImageCollageProps {
@@ -75,7 +76,11 @@ const ImageCollage = ({ layer }: ImageCollageProps) => {
               )}
             >
               <img
-                src={item.other?.thumbnail || "/placeholder.svg"}
+                src={
+                  (isLayerGroup(item)
+                    ? item.thumbnail
+                    : item.other?.thumbnail) || "/placeholder.svg"
+                }
                 alt={`Image ${i + 1}`}
                 className={cn(
                   "w-full h-full object-cover transition-transform duration-300 group-hover:scale-105",

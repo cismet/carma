@@ -5,11 +5,11 @@ import { faFileExport } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Tooltip, message } from "antd";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
-import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
 import type { GeoportalCollection } from "../types";
 
 interface SaveProps {
-  layers: Layer[];
+  layers: LayerStackEntry[];
   backgroundLayer: BackgroundLayer;
   storeConfigAction: (config: GeoportalCollection) => void;
   closePopover?: () => void;

@@ -93,6 +93,7 @@ export const LAYER_ENTITY_TYPES = {
   FEATURE: "feature",
   COLLECTION: "collection",
   WORKFLOW: "workflow",
+  GROUP: "group",
 } as const;
 export type LayerEntityType =
   (typeof LAYER_ENTITY_TYPES)[keyof typeof LAYER_ENTITY_TYPES];
@@ -174,6 +175,12 @@ type BaseLayer = {
   conf?: CarmaConfig;
   icon?: string;
   pinned?: "first" | "last";
+  group?: {
+    id: string;
+    title: string;
+    thumbnail?: string;
+    icon?: string;
+  };
   skipSelection?: boolean;
   interactionButtons?: InteractionButton | InteractionButton[];
   other?: OtherLayerProps;
@@ -212,6 +219,20 @@ export type Layer = BaseLayer & {
   props?: LayerProps | VectorStyleProps;
 };
 
+export type LayerGroup = {
+  type: typeof LAYER_ENTITY_TYPES.GROUP;
+  id: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  thumbnail?: string;
+  visible: boolean;
+  opacity?: number;
+  layers: Layer[];
+};
+
+export type LayerStackEntry = Layer | LayerGroup;
+
 type Link = {
   type: typeof LAYER_ENTITY_TYPES.LINK;
   url: string;
@@ -219,7 +240,7 @@ type Link = {
 
 type Collection = {
   type: typeof LAYER_ENTITY_TYPES.COLLECTION;
-  layers: Array<Layer | BackgroundLayer>;
+  layers: Array<LayerStackEntry | BackgroundLayer>;
   backgroundLayer?: BackgroundLayer;
   settings?: {
     lat?: number;
@@ -243,7 +264,7 @@ export type SavedLayerConfig = {
   type: string;
   id: string;
   thumbnail?: string;
-  layers?: Array<Layer | BackgroundLayer>;
+  layers?: Array<LayerStackEntry | BackgroundLayer>;
   serviceName: string;
 };
 
@@ -351,6 +372,8 @@ export type Item = {
   createdBy?: string;
   updatedAt?: string;
   mapMode?: "2d" | "3d";
+  workflowLayers?: string[];
+  workflowLayerItems?: Item[];
 } & (TmpLayer | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {
