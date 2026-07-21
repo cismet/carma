@@ -19,8 +19,8 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  horizontalListSortingStrategy,
   arrayMove,
+  horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -37,9 +37,10 @@ import { cn } from "@carma-commons/utils";
 import { AppDispatch } from "../../store";
 import {
   getBackgroundLayer,
-  getLayers,
+  getLayerStack,
   getSelectedLayerIndex,
-  getSelectedLayerIndexIsNoSelection,
+  getSelectedStackEntry,
+  getSelectionShowsNoInfoView,
   getShowLeftScrollButton,
   getShowRightScrollButton,
   setLayers,
@@ -47,7 +48,10 @@ import {
   setShowLeftScrollButton,
   setShowRightScrollButton,
 } from "../../store/slices/mapping";
+import { isLayerGroup } from "@carma-mapping/layers";
+import type { Layer, LayerStackEntry } from "@carma-mapping/layers";
 import GeoportalLayerButtonSlot from "./GeoportalLayerButtonSlot";
+import GeoportalGroupedLayerButton from "./GeoportalGroupedLayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
@@ -69,11 +73,12 @@ const LayerWrapper = () => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
-  const layers = useSelector(getLayers);
+  const layerStack = useSelector(getLayerStack);
   const backgroundLayer = useSelector(getBackgroundLayer);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
+  const selectedEntry = useSelector(getSelectedStackEntry);
+  const showsNoInfoView = useSelector(getSelectionShowsNoInfoView);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
@@ -81,9 +86,7 @@ const LayerWrapper = () => {
 
   const [isDragging, setIsDragging] = useState(false);
 
-  const isSecondaryViewOpen =
-    !isNoSelectionIndex &&
-    !(selectedLayerIndex >= 0 && layers[selectedLayerIndex]?.skipSelection);
+  const isSecondaryViewOpen = !showsNoInfoView;
 
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
@@ -92,32 +95,51 @@ const LayerWrapper = () => {
     color: isOver ? "green" : undefined,
   };
 
-  const listedLayers = layers.filter((layer) =>
-    shouldShowAdhocLayerInLayerList(layer, isCesium)
+  const listedEntries = layerStack.filter(
+    (entry) =>
+      isLayerGroup(entry) || shouldShowAdhocLayerInLayerList(entry, isCesium)
   );
-  const pinnedFirstLayers = listedLayers.filter((l) => l.pinned === "first");
-  const sortableLayers = listedLayers.filter((l) => !l.pinned);
-  const pinnedLastLayers = listedLayers.filter((l) => l.pinned === "last");
+  const pinnedFirstEntries = listedEntries.filter(
+    (entry) => !isLayerGroup(entry) && entry.pinned === "first"
+  );
+  const sortableEntries = listedEntries.filter(
+    (entry) => isLayerGroup(entry) || !entry.pinned
+  );
+  const pinnedLastEntries = listedEntries.filter(
+    (entry) => !isLayerGroup(entry) && entry.pinned === "last"
+  );
+  const sortableItemIds = sortableEntries.map((entry) => entry.id);
 
-  const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
+  // a group button is hidden in 3D unless one of its members shows there
+  const isEntryHidden = (entry: LayerStackEntry) =>
+    isLayerGroup(entry)
+      ? !isLeaflet && entry.layers.every((member) => member.type !== "object")
+      : entry.type !== "object" && !isLeaflet;
 
   const handleDragEnd = (event) => {
     setIsDragging(false);
     routedMapRef?.leafletMap?.leafletElement.dragging.enable();
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const originalPos = getLayerPos(active.id);
-      const newPos = getLayerPos(over.id);
-      const newLayers = arrayMove(layers, originalPos, newPos);
-      dispatch(setLayers(newLayers));
-      console.debug(
-        "handleDragEnd newPos",
-        newPos,
-        selectedLayerIndex,
-        isNoSelectionIndex
+    if (!over || active.id === over.id) {
+      return;
+    }
+    const activeIndex = layerStack.findIndex((entry) => entry.id === active.id);
+    const overIndex = layerStack.findIndex((entry) => entry.id === over.id);
+    if (activeIndex === -1 || overIndex === -1) {
+      return;
+    }
+
+    const selectedLayerId = selectedEntry?.id;
+
+    const newStack = arrayMove(layerStack, activeIndex, overIndex);
+    dispatch(setLayers(newStack));
+
+    if (selectedLayerId) {
+      const newIndex = newStack.findIndex(
+        (entry) => entry.id === selectedLayerId
       );
-      if (!isNoSelectionIndex && selectedLayerIndex !== newPos) {
-        dispatch(setSelectedLayerIndex(newPos));
+      if (newIndex !== -1 && newIndex !== selectedLayerIndex) {
+        dispatch(setSelectedLayerIndex(newIndex));
       }
     }
   };
@@ -205,39 +227,47 @@ const LayerWrapper = () => {
                   className="flex overflow-x-auto items-center h-20 gap-2 scrollbar-hide"
                   onWheel={handleLayerBarWheel}
                 >
-                  {pinnedFirstLayers.map((layer) => (
+                  {pinnedFirstEntries.map((entry) => (
                     <GeoportalLayerButtonSlot
-                      title={layer.title}
-                      id={layer.id}
-                      key={layer.id}
-                      index={layers.indexOf(layer)}
-                      layer={layer}
-                      hide={layer.type !== "object" && !isLeaflet}
+                      title={entry.title}
+                      id={entry.id}
+                      key={entry.id}
+                      index={layerStack.indexOf(entry)}
+                      layer={entry as Layer}
+                      hide={isEntryHidden(entry)}
                     />
                   ))}
                   <SortableContext
-                    items={sortableLayers}
+                    items={sortableItemIds}
                     strategy={horizontalListSortingStrategy}
                   >
-                    {sortableLayers.map((layer) => (
-                      <GeoportalLayerButtonSlot
-                        title={layer.title}
-                        id={layer.id}
-                        key={layer.id}
-                        index={layers.indexOf(layer)}
-                        layer={layer}
-                        hide={layer.type !== "object" && !isLeaflet}
-                      />
-                    ))}
+                    {sortableEntries.map((entry) =>
+                      isLayerGroup(entry) ? (
+                        <GeoportalGroupedLayerButton
+                          key={entry.id}
+                          group={entry}
+                          hide={isEntryHidden(entry)}
+                        />
+                      ) : (
+                        <GeoportalLayerButtonSlot
+                          title={entry.title}
+                          id={entry.id}
+                          key={entry.id}
+                          index={layerStack.indexOf(entry)}
+                          layer={entry}
+                          hide={isEntryHidden(entry)}
+                        />
+                      )
+                    )}
                   </SortableContext>
-                  {pinnedLastLayers.map((layer) => (
+                  {pinnedLastEntries.map((entry) => (
                     <GeoportalLayerButtonSlot
-                      title={layer.title}
-                      id={layer.id}
-                      key={layer.id}
-                      index={layers.indexOf(layer)}
-                      layer={layer}
-                      hide={layer.type !== "object" && !isLeaflet}
+                      title={entry.title}
+                      id={entry.id}
+                      key={entry.id}
+                      index={layerStack.indexOf(entry)}
+                      layer={entry as Layer}
+                      hide={isEntryHidden(entry)}
                     />
                   ))}
                 </div>

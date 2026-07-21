@@ -22,7 +22,8 @@ import {
   changeVisibility,
   getActiveInteractionLayerID,
   getBackgroundLayer,
-  getLayers,
+  getLayerStack,
+  getSelectedLayer,
   getSelectedLayerIndex,
   setActiveInteractionLayerID,
   setClickFromInfoView,
@@ -37,7 +38,7 @@ import {
   setUIShowInfo,
   setUIShowInfoText,
 } from "../../store/slices/ui";
-import { useLayerCatalog } from "@carma-mapping/layers";
+import { isLayerGroup, useLayerCatalog } from "@carma-mapping/layers";
 import type { Item, Layer } from "@carma-mapping/layers";
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
@@ -63,12 +64,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const showInfo = useSelector(getUIShowInfo);
   const showInfoText = useSelector(getUIShowInfoText);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const layers = useSelector(getLayers);
+  const layerStack = useSelector(getLayerStack);
+  const selectedLayer = useSelector(getSelectedLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { favorites, addFavorite, removeFavorite } = useLayerCatalog();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const layer =
-    selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
+    (selectedLayerIndex >= 0 ? selectedLayer : backgroundLayer) ??
+    backgroundLayer;
   const vectorLegend =
     layer?.conf?.vectorLegend ||
     (layer?.layerInfo?.vectorLegend as string) ||
@@ -221,15 +224,22 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         }
       });
 
-      layerButtons.forEach((layerButton, i) => {
+      layerButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
-          const layerId = layerButton.id.replace("layer-", "");
-          const clickedLayer = layers.find((l) => l.id === layerId);
-          if (clickedLayer?.skipSelection) {
-            returnFunction = true;
+          const entryId = layerButton.id.replace("layer-", "");
+          const entryIndex = layerStack.findIndex(
+            (entry) => entry.id === entryId
+          );
+          const clickedEntry = layerStack[entryIndex];
+          if (!clickedEntry) {
+            newLayerIndex = SELECTED_LAYER_INDEX.BACKGROUND_LAYER;
             return;
           }
-          newLayerIndex = i - 1;
+          if (isLayerGroup(clickedEntry) || clickedEntry.skipSelection) {
+            // has no info view: leave the selection cleared
+            return;
+          }
+          newLayerIndex = entryIndex;
         }
       });
 
@@ -262,7 +272,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     return () => {
       document.removeEventListener("pointerdown", handleOutsideClick);
     };
-  }, [dispatch, selectedLayerIndex]);
+  }, [dispatch, selectedLayerIndex, layerStack]);
 
   useEffect(() => {
     return () => {

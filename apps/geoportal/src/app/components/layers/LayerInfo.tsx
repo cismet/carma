@@ -3,7 +3,7 @@ import { Tabs } from "antd";
 import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
 import { getUIActiveTabKey, setUIActiveTabKey } from "../../store/slices/ui";
-import { getLayers, getSelectedLayerIndex } from "../../store/slices/mapping";
+import { getSelectedLayer } from "../../store/slices/mapping";
 import { useContext, useEffect, useState } from "react";
 import "./text.css";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -31,10 +31,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   const [pdfUrl, setPdfUrl] = useState("");
 
   const activeTabKey = useSelector(getUIActiveTabKey);
-  const layers = useSelector(getLayers);
-  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-
-  const currentLayer = layers[selectedLayerIndex];
+  const currentLayer = useSelector(getSelectedLayer);
   const parsedDescription = parseDescription(description);
   const metadataUrl = currentLayer?.props?.metaData?.[0]?.OnlineResource;
   const { isCesium } = useMapFrameworkSwitcherContext();

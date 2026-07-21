@@ -19,6 +19,28 @@ export const getGeoportalLayerToolActionButtonClassName = (
     className
   );
 
+/**
+ * Background of a layer-bar button. While no entry holds an info-view
+ * selection every button renders on its own visibility; while one is open the
+ * selected button is white and all others grey out.
+ */
+export const getGeoportalLayerButtonBackgroundClassName = ({
+  showsNoSelection,
+  visible,
+  isSelected = false,
+}: {
+  showsNoSelection: boolean;
+  visible: boolean;
+  isSelected?: boolean;
+}): string =>
+  showsNoSelection
+    ? visible
+      ? "bg-white"
+      : "bg-neutral-200/70"
+    : isSelected
+    ? "bg-white"
+    : "bg-neutral-200";
+
 export const GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES = {
   toolButtonBase:
     "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors [&_svg]:text-current",
