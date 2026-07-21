@@ -5,7 +5,14 @@ import type {
   BackgroundLayer,
   Layer,
   LayerFilterInfo,
+  LayerGroup,
+  LayerStackEntry,
   SavedLayerConfig,
+} from "@carma-mapping/layers";
+import {
+  findStackEntryByLayerId,
+  flattenLayerStack,
+  isLayerGroup,
 } from "@carma-mapping/layers";
 import {
   SELECTED_LAYER_INDEX,
@@ -26,26 +33,52 @@ type MapLibreMapEntry = {
 
 const defaultOpacity = 0.2;
 
-const shouldSkipLayerForSelection = (
-  layer: Layer | undefined,
+type GeoportalMappingState = Omit<MappingState, "layers"> & {
+  layers: LayerStackEntry[];
+};
+
+const getPinning = (entry: LayerStackEntry) =>
+  isLayerGroup(entry) ? undefined : entry.pinned;
+
+const resolveStackTarget = (
+  state: GeoportalMappingState,
+  id: string
+): LayerStackEntry | undefined => {
+  const found = findStackEntryByLayerId(state.layers, id);
+  return found?.member ?? found?.entry;
+};
+
+const resolveLayer = (
+  state: GeoportalMappingState,
+  id: string
+): Layer | undefined => {
+  const target = resolveStackTarget(state, id);
+  return target && !isLayerGroup(target) ? target : undefined;
+};
+
+const shouldSkipEntryForSelection = (
+  entry: LayerStackEntry | undefined,
   isLeaflet: boolean
 ): boolean => {
-  if (!layer) {
+  if (!entry) {
     return false;
   }
-  if (layer.skipSelection) {
+  if (isLayerGroup(entry)) {
     return true;
   }
-  if (!isLeaflet && layer.type !== "object") {
+  if (entry.skipSelection) {
     return true;
   }
-  if (!shouldShowAdhocLayerInLayerList(layer, !isLeaflet)) {
+  if (!isLeaflet && entry.type !== "object") {
+    return true;
+  }
+  if (!shouldShowAdhocLayerInLayerList(entry, !isLeaflet)) {
     return true;
   }
   return false;
 };
 
-const initialState: MappingState = {
+const initialState: GeoportalMappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
@@ -112,53 +145,80 @@ const slice = createSlice({
   initialState,
   reducers: {
     setLayers(state, action) {
-      const incoming = action.payload as Layer[];
-      const pinnedFirst = incoming.filter((l) => l.pinned === "first");
-      const unpinned = incoming.filter((l) => !l.pinned);
-      const pinnedLast = incoming.filter((l) => l.pinned === "last");
+      const incoming = action.payload as LayerStackEntry[];
+      const pinnedFirst = incoming.filter((l) => getPinning(l) === "first");
+      const unpinned = incoming.filter((l) => !getPinning(l));
+      const pinnedLast = incoming.filter((l) => getPinning(l) === "last");
       state.layers = [...pinnedFirst, ...unpinned, ...pinnedLast];
     },
-    appendLayer(state, action: PayloadAction<Layer>) {
-      const layer = action.payload;
-      if (layer.pinned === "first") {
+    appendLayer(state, action: PayloadAction<LayerStackEntry>) {
+      const entry = action.payload;
+      const pinning = getPinning(entry);
+      if (pinning === "first") {
         const firstUnpinnedIndex = state.layers.findIndex(
-          (l) => l.pinned !== "first"
+          (l) => getPinning(l) !== "first"
         );
         state.layers.splice(
           firstUnpinnedIndex === -1 ? 0 : firstUnpinnedIndex,
           0,
-          layer
+          entry
         );
-      } else if (layer.pinned === "last") {
-        state.layers.push(layer);
+      } else if (pinning === "last") {
+        state.layers.push(entry);
       } else {
         let lastPinnedIndex = -1;
         for (let i = state.layers.length - 1; i >= 0; i--) {
-          if (state.layers[i].pinned === "last") {
+          if (getPinning(state.layers[i]) === "last") {
             lastPinnedIndex = i;
             break;
           }
         }
         if (lastPinnedIndex === -1) {
-          state.layers.push(layer);
+          state.layers.push(entry);
         } else {
-          state.layers.splice(lastPinnedIndex, 0, layer);
+          state.layers.splice(lastPinnedIndex, 0, entry);
         }
       }
     },
     updateLayer(state, action: PayloadAction<Layer>) {
-      const layer = state.layers.find((obj) => obj.id === action.payload.id);
+      const layer = resolveLayer(state, action.payload.id);
       if (layer) {
         Object.assign(layer, action.payload);
       }
     },
     removeLayer(state, action: PayloadAction<string>) {
-      const removedIndex = state.layers.findIndex(
-        (obj) => obj.id === action.payload
-      );
-      const newLayers = state.layers.filter((obj) => obj.id !== action.payload);
+      const id = action.payload;
+      const found = findStackEntryByLayerId(state.layers, id);
+      let newLayers = state.layers;
+      if (found?.member) {
+        const group = found.entry as LayerGroup;
+        const remainingMembers = group.layers.filter(
+          (member) => member.id !== id
+        );
+        newLayers =
+          remainingMembers.length > 0
+            ? state.layers.map((entry, index) =>
+                index === found.index
+                  ? { ...group, layers: remainingMembers }
+                  : entry
+              )
+            : state.layers.filter((_, index) => index !== found.index);
+      } else {
+        // a group id removes the whole group, taking its members with it
+        newLayers = state.layers.filter((entry) => entry.id !== id);
+      }
       if (state.selectedLayerIndex > newLayers.length - 1) {
         state.selectedLayerIndex = newLayers.length - 1;
+      }
+      const selectedEntry =
+        state.selectedLayerIndex >= 0
+          ? newLayers[state.selectedLayerIndex]
+          : undefined;
+      if (
+        selectedEntry &&
+        (isLayerGroup(selectedEntry) || selectedEntry.skipSelection)
+      ) {
+        state.selectedLayerIndex = SELECTED_LAYER_INDEX.NO_SELECTION;
       }
       state.layers = newLayers;
       state.maplibreMaps = state.maplibreMaps.filter(
@@ -204,17 +264,10 @@ const slice = createSlice({
     },
 
     changeOpacity(state, action) {
-      const newLayers = state.layers.map((obj) => {
-        if (obj.id === action.payload.id) {
-          return {
-            ...obj,
-            opacity: action.payload.opacity,
-          };
-        } else {
-          return obj;
-        }
-      });
-      state.layers = newLayers;
+      const target = resolveStackTarget(state, action.payload.id);
+      if (target) {
+        target.opacity = action.payload.opacity;
+      }
     },
     changeBackgroundVisibility(state, action: PayloadAction<boolean>) {
       if (!action.payload) {
@@ -230,32 +283,18 @@ const slice = createSlice({
       if (action.payload.id === state.backgroundLayer.id) {
         state.backgroundLayer.visible = action.payload.visible;
       }
-      const newLayers = state.layers.map((obj) => {
-        if (obj.id === action.payload.id) {
-          return {
-            ...obj,
-            visible: action.payload.visible,
-          };
-        } else {
-          return obj;
-        }
-      });
-      state.layers = newLayers;
+      // a group id hides the whole group, a member id only that member
+      const target = resolveStackTarget(state, action.payload.id);
+      if (target) {
+        target.visible = action.payload.visible;
+      }
     },
 
     toggleUseInFeatureInfo(state, action) {
-      const { id } = action.payload;
-      const newLayers = state.layers.map((obj) => {
-        if (obj.id === id) {
-          return {
-            ...obj,
-            useInFeatureInfo: !obj.useInFeatureInfo,
-          };
-        } else {
-          return obj;
-        }
-      });
-      state.layers = newLayers;
+      const layer = resolveLayer(state, action.payload.id);
+      if (layer) {
+        layer.useInFeatureInfo = !layer.useInFeatureInfo;
+      }
     },
 
     setLayerFilterInfo(
@@ -263,7 +302,7 @@ const slice = createSlice({
       action: PayloadAction<{ id: string; filterInfo: LayerFilterInfo }>
     ) {
       const { id, filterInfo } = action.payload;
-      const layer = state.layers.find((l) => l.id === id);
+      const layer = resolveLayer(state, id);
       if (layer) {
         layer.filterInfo = filterInfo;
       }
@@ -277,7 +316,7 @@ const slice = createSlice({
       }>
     ) {
       const { id, filterState } = action.payload;
-      const layer = state.layers.find((l) => l.id === id);
+      const layer = resolveLayer(state, id);
       if (layer) {
         layer.filterState = filterState;
       }
@@ -292,7 +331,7 @@ const slice = createSlice({
       }>
     ) {
       const { id, configIndex, selection } = action.payload;
-      const layer = state.layers.find((l) => l.id === id);
+      const layer = resolveLayer(state, id);
       if (layer) {
         const prev =
           typeof layer.dynamicStylingSelection === "object" &&
@@ -312,7 +351,7 @@ const slice = createSlice({
       }>
     ) {
       const { id, layerInfo, carmaConf } = action.payload;
-      const layer = state.layers.find((l) => l.id === id);
+      const layer = resolveLayer(state, id);
       if (!layer) {
         return;
       }
@@ -361,7 +400,7 @@ const slice = createSlice({
       let newIndex = state.selectedLayerIndex + 1;
       while (
         newIndex < state.layers.length &&
-        shouldSkipLayerForSelection(state.layers[newIndex], isLeaflet)
+        shouldSkipEntryForSelection(state.layers[newIndex], isLeaflet)
       ) {
         newIndex += 1;
       }
@@ -379,7 +418,7 @@ const slice = createSlice({
       let newIndex = state.selectedLayerIndex - 1;
       while (
         newIndex >= 0 &&
-        shouldSkipLayerForSelection(state.layers[newIndex], isLeaflet)
+        shouldSkipEntryForSelection(state.layers[newIndex], isLeaflet)
       ) {
         newIndex -= 1;
       }
@@ -387,7 +426,7 @@ const slice = createSlice({
         let wrapIndex = state.layers.length - 1;
         while (
           wrapIndex >= 0 &&
-          shouldSkipLayerForSelection(state.layers[wrapIndex], isLeaflet)
+          shouldSkipEntryForSelection(state.layers[wrapIndex], isLeaflet)
         ) {
           wrapIndex -= 1;
         }
@@ -525,7 +564,15 @@ export const getFocusMode = (state: RootState) => state.mapping.focusMode;
 export const getPaleOpacityValue = (state: RootState) =>
   state.mapping.paleOpacityValue;
 
-export const getLayers = (state: RootState) => state.mapping.layers;
+export const getLayerStack = (state: RootState): LayerStackEntry[] =>
+  state.mapping.layers;
+
+/**
+ * The layers the map actually draws, with groups flattened into their members.
+ * This is what renderers, feature info, print and share consume, so grouping
+ * stays invisible to them.
+ */
+export const getLayers = createSelector([getLayerStack], flattenLayerStack);
 export const getSavedLayerConfigs = (state: RootState) =>
   state.mapping.savedLayerConfigs;
 export const getSelectedLayerIndex = (state: RootState) =>
@@ -566,9 +613,28 @@ export const getConfigSelection = (state: RootState) =>
   state.mapping.configSelection;
 export const getLayersIdle = (state: RootState) => state.mapping.layersIdle;
 
+export const getSelectedStackEntry = createSelector(
+  [getLayerStack, getSelectedLayerIndex],
+  (stack, index): LayerStackEntry | undefined =>
+    index >= 0 ? stack[index] : undefined
+);
+
+export const getSelectedLayer = createSelector(
+  [getSelectedStackEntry],
+  (entry): Layer | undefined =>
+    entry && !isLayerGroup(entry) ? entry : undefined
+);
+
+export const getSelectionShowsNoInfoView = createSelector(
+  [getSelectedLayerIndex, getSelectedStackEntry],
+  (index, entry): boolean =>
+    index === SELECTED_LAYER_INDEX.NO_SELECTION ||
+    (!!entry && (isLayerGroup(entry) || !!entry.skipSelection))
+);
+
 export const getLayerState = createSelector(
   [
-    getLayers,
+    getLayerStack,
     getBackgroundLayer,
     getSelectedMapLayer,
     getSelectedLuftbildLayer,

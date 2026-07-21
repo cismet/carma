@@ -25,6 +25,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features";
 import {
+  getLayers,
   setLayersIdle,
   updateLayerFromLayerInfo,
 } from "../../../store/slices/mapping";
@@ -355,9 +356,9 @@ export const useCreateCismapLayers = (
           const originalFiltersByLayer = new Map<string, unknown>();
 
           const applyLayerFilters = (map: maplibregl.Map) => {
-            const latestLayer = (
-              store.getState() as RootState
-            )?.mapping?.layers?.find((l: Layer) => l.id === layer.id);
+            const latestLayer = getLayers(store.getState() as RootState).find(
+              (l: Layer) => l.id === layer.id
+            );
             const filterConfig = latestLayer?.filterConfig;
             const filterState = latestLayer?.filterState;
             if (!filterConfig || !filterState) {
@@ -437,7 +438,7 @@ export const useCreateCismapLayers = (
               if (!configs.length && !hasFilter) return undefined;
               return (map: maplibregl.Map) => {
                 const latestState = store.getState() as RootState;
-                const latestLayer = latestState?.mapping?.layers?.find(
+                const latestLayer = getLayers(latestState).find(
                   (l: Layer) => l.id === layer.id
                 );
 
