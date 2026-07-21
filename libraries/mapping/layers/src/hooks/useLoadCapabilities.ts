@@ -156,14 +156,25 @@ export const useLoadCapabilities = ({
                 activeLayer.opacity
               );
 
+              // carry over app-owned annotations that capabilities cannot
+              // produce (e.g. layer-group membership); otherwise the re-parsed
+              // layer never matches and this sync dispatches updateLayer forever
+              const mergedLayer: Layer = {
+                ...updatedLayer,
+                ...(activeLayer.group ? { group: activeLayer.group } : {}),
+                ...(activeLayer.skipSelection
+                  ? { skipSelection: activeLayer.skipSelection }
+                  : {}),
+              };
+
               if (
                 !isEqual(
                   normalizeObject(activeLayer),
-                  normalizeObject(updatedLayer)
+                  normalizeObject(mergedLayer)
                 ) &&
                 updateActiveLayer
               ) {
-                updateActiveLayer(updatedLayer);
+                updateActiveLayer(mergedLayer);
               }
             }
           });
