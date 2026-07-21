@@ -261,6 +261,30 @@ const LayerCatalogView = ({
     ]
   );
 
+  const itemsById = useMemo(() => {
+    const index = new Map<string, Item>();
+    allCategories.forEach((mainCategory) =>
+      mainCategory.categories.forEach((subCategory) =>
+        subCategory.layers.forEach((item) => {
+          // catalog subcategories may also carry saved-collection configs; we
+          // only ever resolve real layer ids, so index them as items
+          if (item?.id && !index.has(item.id)) {
+            index.set(item.id, item as Item);
+          }
+        })
+      )
+    );
+    return index;
+  }, [allCategories]);
+
+  const resolveWorkflowLayers = useCallback(
+    (ids: string[]): Item[] =>
+      ids
+        .map((id) => itemsById.get(id))
+        .filter((item): item is Item => item !== undefined),
+    [itemsById]
+  );
+
   const sidebarElements = useMemo(
     () =>
       categoryDefinitions.map((definition) => ({
@@ -554,6 +578,7 @@ const LayerCatalogView = ({
       removeFavorite: handleRemoveFavorite,
       setPreview,
       discoverIsFetching,
+      resolveWorkflowLayers,
     }),
     [
       setAdditionalLayers,
@@ -562,6 +587,7 @@ const LayerCatalogView = ({
       handleAddFavorite,
       handleRemoveFavorite,
       discoverIsFetching,
+      resolveWorkflowLayers,
     ]
   );
 
@@ -630,10 +656,7 @@ const LayerCatalogView = ({
                           ) && (
                           <Spin
                             indicator={
-                              <LoadingOutlined
-                                spin
-                                className="text-gray-600"
-                              />
+                              <LoadingOutlined spin className="text-gray-600" />
                             }
                             size="small"
                             aria-label="Anfrage dauert länger als erwartet"

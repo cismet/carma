@@ -6,6 +6,7 @@ import {
   faCirclePlus,
   faEdit,
   faExternalLink,
+  faLayerGroup,
   faMap,
   faSquareUpRight,
   faStar,
@@ -43,6 +44,8 @@ import LegendDisplay from "./LegendDisplay";
 interface InfoCardProps {
   isFavorite: boolean;
   isActiveLayer: boolean;
+  /** set when the layer is on the map only as a member of this group */
+  activeGroupTitle?: string;
   onAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview?: boolean
@@ -60,6 +63,7 @@ type LegendEntry = { OnlineResource: string };
 const InfoCard = ({
   isFavorite,
   isActiveLayer,
+  activeGroupTitle,
   onAddClick,
   onFavoriteClick,
   links,
@@ -171,20 +175,29 @@ const InfoCard = ({
                 {displayTitle}
               </h3>
               <div className="flex flex-wrap items-center gap-4">
-                {(layer.type === "layer" || layer.type === "object") && (
-                  <Button
-                    onClick={onAddClick}
-                    icon={
-                      <FontAwesomeIcon
-                        icon={isActiveLayer ? faCircleMinus : faCirclePlus}
-                      />
-                    }
-                  >
-                    <span className="!hidden sm:!inline-block">
-                      {isActiveLayer ? "Entfernen" : "Hinzufügen"}
+                {(layer.type === "layer" ||
+                  layer.type === "object" ||
+                  (layer.type === "workflow" &&
+                    !!layer.workflowLayers?.length)) &&
+                  (activeGroupTitle ? (
+                    <span className="flex items-center gap-2 text-gray-600">
+                      <FontAwesomeIcon icon={faLayerGroup} />
+                      In der Karte als Teil der Gruppe „{activeGroupTitle}“
                     </span>
-                  </Button>
-                )}
+                  ) : (
+                    <Button
+                      onClick={onAddClick}
+                      icon={
+                        <FontAwesomeIcon
+                          icon={isActiveLayer ? faCircleMinus : faCirclePlus}
+                        />
+                      }
+                    >
+                      <span className="!hidden sm:!inline-block">
+                        {isActiveLayer ? "Entfernen" : "Hinzufügen"}
+                      </span>
+                    </Button>
+                  ))}
                 {layer.type === "collection" && (
                   <>
                     <Button
@@ -278,7 +291,7 @@ const InfoCard = ({
                     </Button>
                   </>
                 )}
-                {layer.type === "layer" && (
+                {layer.type === "layer" && !activeGroupTitle && (
                   <Button
                     onClick={(e) => {
                       setPreview(true);

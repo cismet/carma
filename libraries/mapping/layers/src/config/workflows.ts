@@ -16,6 +16,7 @@ export type WorkflowDefinition = {
   title: string;
   description?: string;
   thumbnail?: string;
+  layers?: string[];
 };
 
 export type WorkflowPerspective = {
@@ -42,6 +43,7 @@ const toWorkflowItem = (
   path: perspective.title,
   type: LAYER_ENTITY_TYPES.WORKFLOW,
   serviceName: WORKFLOWS_CATEGORY_ID,
+  ...(workflow.layers?.length ? { workflowLayers: workflow.layers } : {}),
 });
 
 /**

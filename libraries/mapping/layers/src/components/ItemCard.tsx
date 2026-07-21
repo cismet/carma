@@ -60,6 +60,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     addFavorite,
     removeFavorite,
     setPreview,
+    resolveWorkflowLayers,
   } = useCatalogInteraction();
   const { selectItem } = useCatalogSelectionActions();
   const { requestDiscoverRefetch } = useDiscoverRefetch();
@@ -70,6 +71,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const [hovered, setHovered] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const isWorkflow = layer.type === "workflow";
+  const isLayerGroupWorkflow = isWorkflow && !!layer.workflowLayers?.length;
   // link/workflow items without thumbnail render a static placeholder, nothing loads
   const [isLoading, setIsLoading] = useState(
     layer.type !== "collection" &&
@@ -79,14 +81,25 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const { jwt } = useAuth();
 
   const isFavorite = favorites.some(
-    (favorite) =>
-      favorite.id === `fav_${layer.id}` || favorite.id === layer.id
+    (favorite) => favorite.id === `fav_${layer.id}` || favorite.id === layer.id
   );
-  const isActiveLayer = activeLayers.some(
-    (activeLayer) =>
-      activeLayer.id ===
-      (layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id)
+  const catalogLayerId = layer.id.startsWith("fav_")
+    ? layer.id.slice(4)
+    : layer.id;
+  const matchingActiveLayers = activeLayers.filter(
+    (activeLayer) => activeLayer.id === catalogLayerId
   );
+  // on the map, but only as a member of a group entry, never standalone;
+  // such cards must not offer add/remove, the group card owns removal
+  const activeGroup =
+    matchingActiveLayers.length > 0 &&
+    matchingActiveLayers.every((activeLayer) => activeLayer.group)
+      ? matchingActiveLayers[0].group
+      : undefined;
+  const isActiveLayer =
+    matchingActiveLayers.length > 0 ||
+    (isLayerGroupWorkflow &&
+      activeLayers.some((activeLayer) => activeLayer.group?.id === layer.id));
   const canShowInfo =
     layer.type === "layer" ||
     layer.type === "object" ||
@@ -146,10 +159,23 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     preview: boolean = false
   ) => {
     e.stopPropagation();
+    // group members offer no add/remove; only the group entry is removable
+    if (activeGroup) {
+      return;
+    }
     // holding alt forces the WMS variant of a vector layer
     const forceWMS = e.altKey;
     const addLayer = () => {
-      setAdditionalLayers(layer, false, forceWMS, preview);
+      const itemToAdd =
+        isLayerGroupWorkflow && resolveWorkflowLayers
+          ? {
+              ...layer,
+              workflowLayerItems: resolveWorkflowLayers(
+                layer.workflowLayers ?? []
+              ),
+            }
+          : layer;
+      setAdditionalLayers(itemToAdd, false, forceWMS, preview);
     };
 
     if (!hasMapModeMismatch || isActiveLayer) {
@@ -289,7 +315,8 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
               />
             )
           ) : null}
-          {isWorkflow ? null : layer.type === "link" ? (
+          {isWorkflow && !isLayerGroupWorkflow ? null : layer.type ===
+            "link" ? (
             <a
               className="absolute left-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
               href={layer.url}
@@ -319,7 +346,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 />
               )}
             </>
-          ) : (
+          ) : activeGroup ? null : (
             <button
               onClick={handleLayerClick}
               className="absolute left-1 top-1 z-50"
@@ -331,7 +358,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
               />
             </button>
           )}
-          {hovered && !isWorkflow && (
+          {hovered && (!isWorkflow || isLayerGroupWorkflow) && (
             <div className="flex flex-col items-center gap-2 absolute top-0 w-full h-full justify-center p-8 px-10">
               {layer.type === "link" ? (
                 <a
@@ -342,7 +369,9 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 >
                   <>
                     <FontAwesomeIcon
-                      icon={isExternalLink ? faExternalLinkAlt : faSquareUpRight}
+                      icon={
+                        isExternalLink ? faExternalLinkAlt : faSquareUpRight
+                      }
                       className="text-lg mr-2"
                     />
                     Öffnen
@@ -376,7 +405,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                     </button>
                   )}
                 </>
-              ) : (
+              ) : activeGroup ? null : (
                 <button
                   className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
                   onClick={handleLayerClick}
@@ -446,6 +475,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
         <InfoCard
           isFavorite={isFavorite}
           isActiveLayer={isActiveLayer}
+          activeGroupTitle={activeGroup?.title}
           onAddClick={handleLayerClick}
           onFavoriteClick={() => {
             if (isFavorite) {

@@ -23,6 +23,7 @@ export interface CatalogInteractionContextValue {
   setPreview: (preview: boolean) => void;
   /** true while the discover query fetches */
   discoverIsFetching: boolean;
+  resolveWorkflowLayers?: (ids: string[]) => Item[];
 }
 
 const CatalogInteractionContext =
