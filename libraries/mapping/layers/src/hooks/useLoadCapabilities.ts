@@ -25,9 +25,32 @@ import {
 } from "../helper/layerHelper";
 import type { ActiveLayers } from "../components/NewLibModal";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { FALLBACK_CAPABILITIES_BASE_URL } from "../helper/assetUrls";
 
 // @ts-expect-error
 const parser = new WMSCapabilities();
+
+const fetchCapabilitiesText = async (url: string, fallbackUrl: string) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `GetCapabilities request failed with status ${response.status}`
+      );
+    }
+    return await response.text();
+  } catch (error) {
+    console.warn(
+      `[CAPABILITIES] remote fetch failed for ${url}, trying local fallback ${fallbackUrl}`,
+      error
+    );
+    const fallbackResponse = await fetch(fallbackUrl);
+    if (!fallbackResponse.ok) {
+      throw error;
+    }
+    return await fallbackResponse.text();
+  }
+};
 
 interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
@@ -106,12 +129,12 @@ export const useLoadCapabilities = ({
             dispatch(addloadingCapabilitiesIDs(services[key].name));
           }
 
-          fetch(
-            `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
+          const serviceSegment = services[key].url.split("/").pop();
+
+          fetchCapabilitiesText(
+            `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`,
+            `${FALLBACK_CAPABILITIES_BASE_URL}/${serviceSegment}.xml`
           )
-            .then(async (response) => {
-              return response.text();
-            })
             .then((text) => {
               const result = parser.toJSON(text);
               if (result) {
