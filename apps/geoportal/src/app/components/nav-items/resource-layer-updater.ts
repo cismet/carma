@@ -1,6 +1,13 @@
 import type { Dispatch } from "redux";
 import { createElement, type ReactNode } from "react";
-import type { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
+import type {
+  BackgroundLayer,
+  Item,
+  Layer,
+  LayerGroup,
+  LayerStackEntry,
+} from "@carma-mapping/layers";
+import { isLayerGroup } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "@carma-appframeworks/portals";
 
@@ -70,6 +77,7 @@ type CollectionLayerItem = Item & {
 type ResourceLayerUpdaterDeps = {
   dispatch: Dispatch;
   activeLayers: Layer[];
+  layerStack: LayerStackEntry[];
   addFeature: AddFeatureFn;
   setSelectedFeatureById: SetSelectedFeatureByIdFn;
   setShouldFocusSelected: SetShouldFocusSelectedFn;
@@ -147,6 +155,10 @@ const applyCollectionLayer = async ({
     if (addLayerById) {
       dispatch(setLayers([]));
       for (const l of layer.layers) {
+        if (isLayerGroup(l)) {
+          dispatch(appendLayer(l));
+          continue;
+        }
         const result = await addLayerById(l.id);
         if (!result) {
           dispatch(appendLayer(l));
@@ -213,6 +225,86 @@ const applyCollectionLayer = async ({
       content: `Es gab einen Fehler beim Laden von ${layer.title}`,
     });
   }
+};
+
+const applyWorkflowLayerGroup = async ({
+  item,
+  activeLayers,
+  layerStack,
+  deleteItem,
+  dispatch,
+  messageApi,
+}: {
+  item: Item;
+  activeLayers: Layer[];
+  layerStack: LayerStackEntry[];
+  deleteItem: boolean;
+  dispatch: Dispatch;
+  messageApi: MessageApiLike;
+}) => {
+  const existingGroup = layerStack.find(
+    (entry) => isLayerGroup(entry) && entry.id === item.id
+  ) as LayerGroup | undefined;
+
+  if (existingGroup || deleteItem) {
+    if (existingGroup) {
+      existingGroup.layers.forEach((member) => {
+        dispatch(updateInfoElementsAfterRemovingFeature(member.id));
+      });
+      dispatch(removeLayer(existingGroup.id));
+      messageApi.open({
+        type: "success",
+        content: toSuccessToastContent(
+          `${item.title} wurde erfolgreich entfernt.`
+        ),
+      });
+    }
+    return;
+  }
+
+  const childItems = item.workflowLayerItems ?? [];
+  const members: Layer[] = [];
+  for (const childItem of childItems) {
+    const childId = childItem.id.startsWith("fav_")
+      ? childItem.id.slice(4)
+      : childItem.id;
+    if (activeLayers.some((activeLayer) => activeLayer.id === childId)) {
+      continue;
+    }
+    try {
+      members.push(await parseToMapLayer(childItem, false, true));
+    } catch {
+      continue;
+    }
+  }
+
+  if (members.length === 0) {
+    messageApi.open({
+      type: "error",
+      content: `Es gab einen Fehler beim hinzufügen von ${item.title}`,
+    });
+    return;
+  }
+
+  dispatch(
+    appendLayer({
+      type: "group",
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      ...(item.icon ? { icon: item.icon } : {}),
+      ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
+      visible: true,
+      layers: members,
+    })
+  );
+
+  messageApi.open({
+    type: "success",
+    content: toSuccessToastContent(
+      `${item.title} wurde erfolgreich hinzugefügt.`
+    ),
+  });
 };
 
 const addAdhocFeatureIfApplicable = async ({
@@ -413,6 +505,7 @@ const addOrUpdateLayer = ({
 export const createResourceLayerUpdater = ({
   dispatch,
   activeLayers,
+  layerStack,
   addFeature,
   setSelectedFeatureById,
   setShouldFocusSelected,
@@ -432,6 +525,18 @@ export const createResourceLayerUpdater = ({
     previewLayer: boolean = false,
     updateExisting: boolean = false
   ) => {
+    if (layer.type === "workflow" && (layer.workflowLayers?.length ?? 0) > 0) {
+      await applyWorkflowLayerGroup({
+        item: layer,
+        activeLayers,
+        layerStack,
+        deleteItem,
+        dispatch,
+        messageApi,
+      });
+      return;
+    }
+
     if (layer.type === "collection") {
       applyCollectionLayer({
         layer: layer as CollectionLayerItem,

@@ -17,6 +17,7 @@ import {
   deleteSavedLayerConfig,
   getBackgroundLayer,
   getLayers,
+  getLayerStack,
   getSavedLayerConfigs,
   removeLastLayer,
   updateLayer,
@@ -38,6 +39,7 @@ const ResourceModal = () => {
   const dispatch = useDispatch();
 
   const activeLayers = useSelector(getLayers);
+  const layerStack = useSelector(getLayerStack);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const measurements = useSelector(getMeasurements);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
@@ -86,6 +88,7 @@ const ResourceModal = () => {
     createResourceLayerUpdater({
       dispatch,
       activeLayers,
+      layerStack,
       addFeature,
       setSelectedFeatureById,
       setShouldFocusSelected,
