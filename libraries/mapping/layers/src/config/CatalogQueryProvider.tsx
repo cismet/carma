@@ -54,6 +54,7 @@ export const CatalogQueryProvider = ({ children }: { children: ReactNode }) => {
         dehydrateOptions: {
           shouldDehydrateQuery: (query) =>
             query.state.status === "success" &&
+            query.state.data != null &&
             query.queryKey[0] === CAPABILITIES_QUERY_KEY,
         },
       }}

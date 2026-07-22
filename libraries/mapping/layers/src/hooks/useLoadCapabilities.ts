@@ -27,39 +27,41 @@ const parser = new WMSCapabilities();
 const CAPABILITIES_STALE_TIME = 0;
 const CAPABILITIES_GC_TIME = CAPABILITIES_MAX_AGE;
 
-const fetchCapabilitiesText = async (url: string, fallbackUrl: string) => {
+const fetchParsedCapabilities = async (
+  url: string
+): Promise<WMSCapabilitiesJSON> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `GetCapabilities request failed with status ${response.status}`
+    );
+  }
+  const result = parser.toJSON(await response.text());
+  // unparseable responses come back as { version: null } without Capability
+  if (!result?.Capability) {
+    throw new Error(`GetCapabilities response from ${url} is not parseable`);
+  }
+  return result;
+};
+
+const fetchCapabilities = async (url: string): Promise<WMSCapabilitiesJSON> => {
+  const serviceSegment = url.split("/").pop();
+  const fallbackUrl = `${FALLBACK_CAPABILITIES_BASE_URL}/${serviceSegment}.xml`;
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(
-        `GetCapabilities request failed with status ${response.status}`
-      );
-    }
-    return await response.text();
+    return await fetchParsedCapabilities(
+      `${url}?service=WMS&request=GetCapabilities&version=1.1.1`
+    );
   } catch (error) {
     console.warn(
       `[CAPABILITIES] remote fetch failed for ${url}, trying local fallback ${fallbackUrl}`,
       error
     );
-    const fallbackResponse = await fetch(fallbackUrl);
-    if (!fallbackResponse.ok) {
+    try {
+      return await fetchParsedCapabilities(fallbackUrl);
+    } catch {
       throw error;
     }
-    return await fallbackResponse.text();
   }
-};
-
-const fetchCapabilities = async (
-  url: string
-): Promise<WMSCapabilitiesJSON | null> => {
-  const serviceSegment = url.split("/").pop();
-  const text = await fetchCapabilitiesText(
-    `${url}?service=WMS&request=GetCapabilities&version=1.1.1`,
-    `${FALLBACK_CAPABILITIES_BASE_URL}/${serviceSegment}.xml`
-  );
-  const result = parser.toJSON(text);
-  // unparseable responses come back as { version: null } without Capability
-  return result?.Capability ? result : null;
 };
 
 interface UseLoadCapabilitiesProps {
