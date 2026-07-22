@@ -341,6 +341,11 @@ export const PanoramaViewer = ({
     const DRAG_PX = 6; // moved more than this since mousedown => a pan, not a click
     const down = { x: 0, y: 0 };
 
+    // Events on pannellum's own controls (the mobile device-orientation
+    // toggle) are UI clicks, not navigation clicks — leave them to pannellum.
+    const isPannellumControl = (e: MouseEvent) =>
+      !!(e.target as HTMLElement | null)?.closest?.(".pnlm-controls-container");
+
     type Entry = (typeof hotspotElsRef.current)[number];
 
     // Nearest on-screen cross to a client point (or null). Only crosses whose
@@ -471,6 +476,11 @@ export const PanoramaViewer = ({
     };
 
     const onMove = (e: MouseEvent) => {
+      if (isPannellumControl(e)) {
+        highlight(null);
+        hideArrow();
+        return;
+      }
       const best = nearestTo(e.clientX, e.clientY);
       highlight(best ? best.entry.el : null);
       updateArrow(e, best ? best.entry : null);
@@ -484,6 +494,9 @@ export const PanoramaViewer = ({
       down.y = e.clientY;
     };
     const onClick = (e: MouseEvent) => {
+      if (isPannellumControl(e)) {
+        return;
+      }
       // Ignore the click that ends a drag-to-pan.
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
       const best = nearestTo(e.clientX, e.clientY);
