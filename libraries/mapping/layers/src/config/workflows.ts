@@ -2,6 +2,7 @@ import { faListCheck } from "@fortawesome/free-solid-svg-icons";
 
 import {
   LAYER_ENTITY_TYPES,
+  type GroupToolEntry,
   type Item,
   type LayerGroupInfo,
 } from "../lib/contracts/carma-layers.d";
@@ -24,6 +25,7 @@ export type WorkflowDefinition = {
   legend?: string[];
   metaDataText?: string;
   links?: { url: string; text: string }[];
+  tools?: GroupToolEntry[];
 };
 
 export type WorkflowPerspective = {
@@ -65,6 +67,7 @@ const toWorkflowItem = (
     serviceName: WORKFLOWS_CATEGORY_ID,
     ...(workflow.layers?.length ? { workflowLayers: workflow.layers } : {}),
     ...(groupInfo ? { groupInfo } : {}),
+    ...(workflow.tools?.length ? { tools: workflow.tools } : {}),
   };
 };
 

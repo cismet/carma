@@ -86,6 +86,26 @@ export const FILTER_TYPES = {
 } as const;
 export type FilterType = (typeof FILTER_TYPES)[keyof typeof FILTER_TYPES];
 
+export const GROUP_TOOL_TYPES = {
+  LAYER_VISIBILITY: "layerVisibility",
+} as const;
+export type GroupToolType =
+  (typeof GROUP_TOOL_TYPES)[keyof typeof GROUP_TOOL_TYPES];
+
+export type LayerVisibilityToolConfig = {
+  labels?: { hide: string; show: string };
+};
+
+export type GroupToolConfigMap = {
+  [GROUP_TOOL_TYPES.LAYER_VISIBILITY]: LayerVisibilityToolConfig;
+};
+
+export type GroupToolDefinition = {
+  [K in GroupToolType]: { type: K; config?: GroupToolConfigMap[K] };
+}[GroupToolType];
+
+export type GroupToolEntry = GroupToolType | GroupToolDefinition;
+
 export const LAYER_ENTITY_TYPES = {
   LAYER: "layer",
   OBJECT: "object",
@@ -235,6 +255,7 @@ export type LayerGroup = {
   visible: boolean;
   opacity?: number;
   groupInfo?: LayerGroupInfo;
+  tools?: GroupToolEntry[];
   layers: Layer[];
 };
 
@@ -382,6 +403,7 @@ export type Item = {
   workflowLayers?: string[];
   workflowLayerItems?: Item[];
   groupInfo?: LayerGroupInfo;
+  tools?: GroupToolEntry[];
 } & (TmpLayer | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {

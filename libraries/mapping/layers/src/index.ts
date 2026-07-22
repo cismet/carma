@@ -46,6 +46,7 @@ export {
 } from "./helper/catalogFilter";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
+export * from "./helper/groupTools";
 export * from "./helper/layerHelper";
 export * from "./helper/layerStack";
 export { default as ImageList } from "./about/pages/ImageList";
