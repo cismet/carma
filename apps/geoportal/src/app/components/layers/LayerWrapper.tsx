@@ -246,6 +246,7 @@ const LayerWrapper = () => {
                         <GeoportalGroupedLayerButton
                           key={entry.id}
                           group={entry}
+                          index={layerStack.indexOf(entry)}
                           hide={isEntryHidden(entry)}
                         />
                       ) : (

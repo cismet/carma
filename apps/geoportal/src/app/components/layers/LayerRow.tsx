@@ -14,7 +14,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import { isLayerGroup } from "@carma-mapping/layers";
+import { isLayerGroup, layerGroupHasInfoView } from "@carma-mapping/layers";
 import type {
   BackgroundLayer,
   Layer,
@@ -78,7 +78,8 @@ const LayerRow = ({
   const icon = getLayerRowFallbackIcon(layer);
   const isPinned = isPinnedLayer(layer);
   const skipSelection = !isGroup && !!(layer as Layer).skipSelection;
-  const isSelectable = index !== -1 && !isGroup;
+  const isSelectable =
+    index !== -1 && (!isGroup || layerGroupHasInfoView(layer));
   const opacity = skipSelection ? 1 : layer.opacity ?? 1;
 
   const { attributes, listeners, setNodeRef, transform, transition } =

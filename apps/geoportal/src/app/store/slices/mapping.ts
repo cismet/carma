@@ -13,6 +13,7 @@ import {
   findStackEntryByLayerId,
   flattenLayerStack,
   isLayerGroup,
+  layerGroupHasInfoView,
 } from "@carma-mapping/layers";
 import {
   SELECTED_LAYER_INDEX,
@@ -56,6 +57,9 @@ const resolveLayer = (
   return target && !isLayerGroup(target) ? target : undefined;
 };
 
+const entryHasInfoView = (entry: LayerStackEntry): boolean =>
+  isLayerGroup(entry) ? layerGroupHasInfoView(entry) : !entry.skipSelection;
+
 const shouldSkipEntryForSelection = (
   entry: LayerStackEntry | undefined,
   isLeaflet: boolean
@@ -63,11 +67,13 @@ const shouldSkipEntryForSelection = (
   if (!entry) {
     return false;
   }
-  if (isLayerGroup(entry)) {
+  if (!entryHasInfoView(entry)) {
     return true;
   }
-  if (entry.skipSelection) {
-    return true;
+  if (isLayerGroup(entry)) {
+    return (
+      !isLeaflet && entry.layers.every((member) => member.type !== "object")
+    );
   }
   if (!isLeaflet && entry.type !== "object") {
     return true;
@@ -214,10 +220,7 @@ const slice = createSlice({
         state.selectedLayerIndex >= 0
           ? newLayers[state.selectedLayerIndex]
           : undefined;
-      if (
-        selectedEntry &&
-        (isLayerGroup(selectedEntry) || selectedEntry.skipSelection)
-      ) {
+      if (selectedEntry && !entryHasInfoView(selectedEntry)) {
         state.selectedLayerIndex = SELECTED_LAYER_INDEX.NO_SELECTION;
       }
       state.layers = newLayers;
@@ -629,7 +632,7 @@ export const getSelectionShowsNoInfoView = createSelector(
   [getSelectedLayerIndex, getSelectedStackEntry],
   (index, entry): boolean =>
     index === SELECTED_LAYER_INDEX.NO_SELECTION ||
-    (!!entry && (isLayerGroup(entry) || !!entry.skipSelection))
+    (!!entry && !entryHasInfoView(entry))
 );
 
 export const getLayerState = createSelector(

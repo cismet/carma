@@ -8,6 +8,7 @@ import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { LayerGroup } from "@carma-mapping/layers";
+import { layerGroupHasInfoView } from "@carma-mapping/layers";
 import { LayerButton } from "@carma-mapping/components";
 import { cn } from "@carma-commons/utils";
 
@@ -15,8 +16,13 @@ import type { AppDispatch } from "../../store";
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
   changeVisibility,
+  getClickFromInfoView,
+  getSelectedLayerIndex,
   getSelectionShowsNoInfoView,
   removeLayer,
+  setClickFromInfoView,
+  setSelectedLayerIndex,
+  setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import { getUIShowLayerHideButtons } from "../../store/slices/ui";
 import { resolveGeoportalLayerButtonCloseIcon } from "../../hooks/use-geoportal-layer-button-actions";
@@ -24,6 +30,8 @@ import { getGeoportalLayerButtonBackgroundClassName } from "./layer-tool-action-
 
 export interface GeoportalGroupedLayerButtonProps {
   group: LayerGroup;
+  /** position of the group entry in the layer stack */
+  index: number;
   hide?: boolean;
 }
 
@@ -34,16 +42,21 @@ export interface GeoportalGroupedLayerButtonProps {
  * while the hide buttons are shown, toggles the group's visibility.
  *
  * Because the group is a single stack entry, both actions are one dispatch
- * against the group's id. Clicking the button body does nothing yet: a group
- * has no info view.
+ * against the group's id. Clicking the button body toggles the group's info
+ * view, as long as the group's config carries content for it.
  */
 const GeoportalGroupedLayerButton = ({
   group,
+  index,
   hide = false,
 }: GeoportalGroupedLayerButtonProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showsNoSelection = useSelector(getSelectionShowsNoInfoView);
+  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
+  const clickFromInfoView = useSelector(getClickFromInfoView);
+  const hasInfoView = layerGroupHasInfoView(group);
+  const isSelected = selectedLayerIndex === index;
 
   const { attributes, listeners, setNodeRef, transform } = useSortable({
     id: group.id,
@@ -77,6 +90,24 @@ const GeoportalGroupedLayerButton = ({
     <div className={cn(hide && "hidden")} id={`layer-${group.id}`}>
       <LayerButton
         ref={setNodeRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!hasInfoView) {
+            return;
+          }
+          // mirror the normal layer button: the outside-click handler of an
+          // open info view already moved the selection, so only reset its flag
+          if (!clickFromInfoView) {
+            dispatch(
+              isSelected
+                ? setSelectedLayerIndexNoSelection()
+                : setSelectedLayerIndex(index)
+            );
+          } else {
+            dispatch(setClickFromInfoView(false));
+          }
+        }}
+        onMouseDown={(e) => e.preventDefault()}
         style={{
           transform: CSS.Translate.toString(transform),
           userSelect: "none",
@@ -88,6 +119,7 @@ const GeoportalGroupedLayerButton = ({
           getGeoportalLayerButtonBackgroundClassName({
             showsNoSelection,
             visible: groupVisible,
+            isSelected,
           }),
           "pl-3 pr-2",
         ]}
