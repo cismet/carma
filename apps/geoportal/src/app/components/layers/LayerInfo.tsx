@@ -14,15 +14,25 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 interface LayerInfoProps {
   description: string;
   legend: any;
-  zoomLevels: {
+  zoomLevels?: {
     maxZoom: number;
     minZoom: number;
   };
+  metaDataText?: string;
+  links?: { url: string; text: string }[];
+  footerText?: string;
 }
 
 const parser = new DOMParser();
 
-const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
+const LayerInfo = ({
+  description,
+  legend,
+  zoomLevels,
+  metaDataText,
+  links,
+  footerText,
+}: LayerInfoProps) => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
@@ -47,6 +57,13 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   };
 
   useEffect(() => {
+    // a static text (layer groups) needs no metadata-catalog fetch
+    if (metaDataText) {
+      setMetadataText(metaDataText);
+      setPdfUrl("");
+      return;
+    }
+
     const fallbackText =
       currentLayer?.layerInfo?.metaDataText ??
       "keine Verknüpfung zum Metadatenkatalog vorhanden";
@@ -78,7 +95,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
       setMetadataText(fallbackText);
       setPdfUrl("");
     }
-  }, [metadataUrl, currentLayer?.layerInfo?.metaDataText]);
+  }, [metadataUrl, currentLayer?.layerInfo?.metaDataText, metaDataText]);
 
   const legendImages = legend?.map((legendItem, i) => (
     <LegendDisplay
@@ -90,8 +107,11 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   ));
 
   const getFooterText = () => {
+    if (footerText) {
+      return footerText;
+    }
     const layerCurrentlyVisible =
-      zoom < zoomLevels.maxZoom && zoom > zoomLevels.minZoom;
+      zoom < zoomLevels?.maxZoom && zoom > zoomLevels?.minZoom;
 
     return (
       (isCesium ? "3D-Objekt" : layerType) +
@@ -137,7 +157,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
               <div className="sm:flex-1 sm:min-h-0 sm:overflow-y-auto">
                 <Tabs
                   animated={false}
-                  items={tabItems(currentLayer, metadataText, pdfUrl)}
+                  items={tabItems(currentLayer, metadataText, pdfUrl, links)}
                   activeKey={activeTabKey}
                   onChange={(key) => dispatch(setUIActiveTabKey(key))}
                 />
