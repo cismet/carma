@@ -15,7 +15,6 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
-import { updateUrl } from "@carma-commons/utils";
 
 export const getColorForProperties = (props = { color: "#dddddd" }) => {
   return props.color;
@@ -47,7 +46,7 @@ export const GenericInfoBoxFromFeature = (props) => {
     getPhotoUrl,
     getPhotoSeriesUrl,
     getPhotoSeriesArray,
-    photoUrlManipulation = updateUrl,
+    photoUrlManipulation,
     captionFactory,
     photoPreviewWidth,
     openLightBox,
