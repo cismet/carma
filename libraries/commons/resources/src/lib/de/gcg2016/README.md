@@ -140,22 +140,24 @@ previous bilinear calculation differed from the spline by at most approximately
   `getGcg2016Undulations(coordinates)` process points concurrently, preserve
   input order, and share in-flight tile imports;
 - `getGcg2016Undulation(longitude, latitude)` accepts geographic
-  ETRS89/DREF91/2016 angles in degrees;
-- `getGcg2016UndulationFromUtm32(easting, northing)`;
-- `dhhn2016ToEllipsoidalHeight(easting, northing, height)`;
-- `ellipsoidalToDhhn2016Height(easting, northing, height)`;
-- `dhhn2016ToEllipsoidalHeights(coordinates)` and
-  `ellipsoidalToDhhn2016Heights(coordinates)` provide explicit batch methods
-  in both directions;
-- `getGcg2016Utm32VerticalTransformer()` returns a cached, Proj4js-like
-  transformer for UTM32 three-dimensional coordinates with asynchronous
-  `forward`, `inverse`, `forwardBatch`, and `inverseBatch`. Its optional
-  `init` preloads tiles for one or more UTM32 positions; later queries outside
-  those positions still load on demand and propagate errors unchanged;
+  ETRS89/DREF91/2016 angles as branded degrees;
+- `getGcg2016UndulationFromUtm(coordinate)` accepts a branded
+  `Coordinates.ETRS89UTM` position in zone 31, 32, or 33;
+- `dhhn2016ToEllipsoidalHeight(coordinate, height)` and
+  `ellipsoidalToDhhn2016Height(coordinate, height)` keep DHHN2016 and
+  ellipsoidal heights distinct through their branded result types;
+- `dhhn2016ToEllipsoidalHeights(coordinates, heights)` and
+  `ellipsoidalToDhhn2016Heights(coordinates, heights)` provide explicit batch
+  methods in both directions;
+- `getGcg2016UtmVerticalTransformer()` returns a cached, zone-aware vertical
+  transformer with asynchronous `forward`, `inverse`, `forwardBatch`, and
+  `inverseBatch`. Its optional `init` preloads tiles for one or more ETRS89 UTM
+  positions; later queries outside those positions still load on demand and
+  propagate errors unchanged;
 - `getGcg2016Wgs84VerticalTransformer()` keeps geographic longitude and
   latitude in `EPSG:4326` and transforms only the height component;
-- `getGcg2016EcefTransformer()` fully transforms between
-  `EPSG:25832+7837` and WGS84 ECEF `EPSG:4978`, individually or in batches;
+- `getGcg2016EcefTransformer()` fully transforms between ETRS89 UTM zones
+  31–33 plus DHHN2016 and WGS84 ECEF `EPSG:4978`, individually or in batches;
 - `prefetchGcg2016Tiles(longitude, latitude, radius)`.
 
 The API is asynchronous because every 2° tile is a separate dynamic import.
@@ -166,15 +168,15 @@ Proj4js converter. Ellipsoidal height is not a separate vertical CRS, so
 `targetReference.verticalCrs` is deliberately `null` rather than an invented
 EPSG identifier.
 
-The horizontal UTM32/WGS84 and geocentric ECEF steps use the existing cached,
-managed Proj4js converters from `@carma-geo/proj`, including `EPSG:4978`.
-This module therefore duplicates neither WGS84 ellipsoid formulas nor the
-Three-based scene geometry in `@carma-geo/utils`. Without a coordinate epoch,
-Proj4js performs no time-dependent WGS84-to-ETRS89 transformation. This is
-recorded as `epochTransformation: null` in the WGS84 and ECEF references and
-must be assessed separately when absolute positioning accuracy matters. The
-combination of an `EPSG:4326` position and a DHHN2016 height is not an official
-compound CRS, so `compoundCrs` is also `null`.
+The UTM/WGS84 steps cache one Proj4js converter per supported ETRS89 UTM zone;
+the geocentric ECEF steps reuse the managed `EPSG:4978` converter from
+`@carma-geo/proj`. This module therefore duplicates neither WGS84 ellipsoid
+formulas nor the Three-based scene geometry in `@carma-geo/utils`. Without a
+coordinate epoch, Proj4js performs no time-dependent WGS84-to-ETRS89
+transformation. This is recorded as `epochTransformation: null` in the WGS84
+and ECEF references and must be assessed separately when absolute positioning
+accuracy matters. The combination of an `EPSG:4326` position and a DHHN2016
+height is not an official compound CRS, so `compoundCrs` is also `null`.
 
 The query metrics document observed agreement with the millimeter-rounded
 official program output and lossless repackaging of the verified raster
@@ -182,10 +184,13 @@ values. The bilinear difference is only a method comparison.
 `physicalModelAccuracyMeters` deliberately remains `null`: these software
 checks do not establish a local physical accuracy bound for GCG2016.
 
-The module and API names describe GCG2016 only. The current partial coverage is
-recorded in `GCG2016_PROVENANCE.supportedRegion` and can be extended with newly
-generated tiles. Within the supported raster cells, the implementation
-reproduces the verified official 5×5 spline method to the output precision of
-the reference program. It does not guarantee the physical accuracy of
-GCG2016, an observed point, or any other input asset, and it does not replace
-verification of CRS, height type, and coordinate epoch.
+The module and API names describe GCG2016 only. The source grid spans ETRS89
+UTM zones 31–33. The currently bundled partial geographic coverage is recorded
+in `GCG2016_PROVENANCE.supportedRegion` and can be extended with newly generated
+tiles. A coordinate outside that extent, an incomplete spline stencil, or a
+NoData cell throws `UnsupportedVerticalOffsetRegionError`; no fallback height
+is returned. Within the supported raster cells, the implementation reproduces
+the verified official 5×5 spline method to the output precision of the
+reference program. It does not guarantee the physical accuracy of GCG2016, an
+observed point, or any other input asset, and it does not replace verification
+of CRS, height type, and coordinate epoch.

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Latitude, Longitude } from "@carma-geo/data-structures";
+
 import {
   getGcg2016Undulation,
   queryGcg2016Undulation,
@@ -9,8 +11,8 @@ import {
 describe("GCG2016 tiled grid", () => {
   it("matches the full source grid across a dynamic two-degree tile seam", async () => {
     const [west, east] = await Promise.all([
-      getGcg2016Undulation(7.9999, 51.25),
-      getGcg2016Undulation(8.0001, 51.25),
+      getGcg2016Undulation(7.9999 as Longitude.deg, 51.25 as Latitude.deg),
+      getGcg2016Undulation(8.0001 as Longitude.deg, 51.25 as Latitude.deg),
     ]);
 
     expect(west).toBeCloseTo(47.540711542030451, 10);
@@ -18,7 +20,10 @@ describe("GCG2016 tiled grid", () => {
   });
 
   it("returns an auditable query result without presenting physical accuracy as known", async () => {
-    const result = await queryGcg2016Undulation(7.25, 51.25);
+    const result = await queryGcg2016Undulation(
+      7.25 as Longitude.deg,
+      51.25 as Latitude.deg
+    );
 
     expect(result).toMatchObject({
       coordinate: {
@@ -48,8 +53,8 @@ describe("GCG2016 tiled grid", () => {
 
   it("preserves order in batched queries", async () => {
     const queries = await queryGcg2016Undulations([
-      { longitude: 7.25, latitude: 51.25 },
-      { longitude: 8.25, latitude: 51.25 },
+      [7.25 as Longitude.deg, 51.25 as Latitude.deg],
+      [8.25 as Longitude.deg, 51.25 as Latitude.deg],
     ]);
     expect(queries.map(({ resourceTileIds }) => resourceTileIds)).toEqual([
       ["N50E006"],

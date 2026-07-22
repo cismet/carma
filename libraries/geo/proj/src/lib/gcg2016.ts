@@ -2,6 +2,12 @@ import {
   GCG2016_PROVENANCE,
   GCG2016_TILE_LOADERS,
 } from "@carma-commons/resources/gcg2016";
+import type {
+  Latitude,
+  LngLatArray,
+  Longitude,
+  Meters,
+} from "@carma-geo/data-structures";
 
 import { createTiledVerticalOffsetModel } from "./tiled-vertical-offset";
 
@@ -52,24 +58,19 @@ export const GCG2016_VALIDATION_METRICS = {
 
 export interface Gcg2016UndulationQueryResult {
   coordinate: {
-    longitude: number;
-    latitude: number;
+    longitude: Longitude.deg;
+    latitude: Latitude.deg;
     horizontalCrs: string;
   };
-  undulationMeters: number;
+  undulationMeters: Meters;
   resourceTileIds: readonly string[];
   method: typeof GCG2016_INTERPOLATION_METHOD;
   validation: typeof GCG2016_VALIDATION_METRICS;
 }
 
-export interface GeographicCoordinateInput {
-  longitude: number;
-  latitude: number;
-}
-
 export const queryGcg2016Undulation = async (
-  longitude: number,
-  latitude: number
+  longitude: Longitude.deg,
+  latitude: Latitude.deg
 ): Promise<Gcg2016UndulationQueryResult> => {
   const query = await gcg2016Model.queryOffset(longitude, latitude);
   return {
@@ -78,7 +79,7 @@ export const queryGcg2016Undulation = async (
       latitude,
       horizontalCrs: GCG2016_PROVENANCE.source.horizontalCrs,
     },
-    undulationMeters: query.offset,
+    undulationMeters: query.offset as Meters,
     resourceTileIds: query.tileIds,
     method: GCG2016_INTERPOLATION_METHOD,
     validation: GCG2016_VALIDATION_METRICS,
@@ -86,28 +87,28 @@ export const queryGcg2016Undulation = async (
 };
 
 export const queryGcg2016Undulations = (
-  coordinates: readonly GeographicCoordinateInput[]
+  coordinates: readonly LngLatArray.deg[]
 ) =>
   Promise.all(
-    coordinates.map(({ longitude, latitude }) =>
+    coordinates.map(([longitude, latitude]) =>
       queryGcg2016Undulation(longitude, latitude)
     )
   );
 
 export const getGcg2016Undulation = async (
-  longitude: number,
-  latitude: number
+  longitude: Longitude.deg,
+  latitude: Latitude.deg
 ) => (await queryGcg2016Undulation(longitude, latitude)).undulationMeters;
 
 export const getGcg2016Undulations = async (
-  coordinates: readonly GeographicCoordinateInput[]
+  coordinates: readonly LngLatArray.deg[]
 ) =>
   (await queryGcg2016Undulations(coordinates)).map(
     ({ undulationMeters }) => undulationMeters
   );
 
 export const prefetchGcg2016Tiles = (
-  longitude: number,
-  latitude: number,
+  longitude: Longitude.deg,
+  latitude: Latitude.deg,
   radius = 1
 ) => gcg2016Model.prefetch(longitude, latitude, radius);
