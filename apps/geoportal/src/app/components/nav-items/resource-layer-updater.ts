@@ -295,6 +295,7 @@ const applyWorkflowLayerGroup = async ({
       ...(item.icon ? { icon: item.icon } : {}),
       ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
       ...(item.groupInfo ? { groupInfo: item.groupInfo } : {}),
+      ...(item.tools?.length ? { tools: item.tools } : {}),
       visible: true,
       opacity: 1,
       layers: members,

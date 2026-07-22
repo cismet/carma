@@ -53,6 +53,7 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
           thumbnail:
             "https://geo.wuppertal.de/geoportal/geoportal_vorschau/infra_apotheken.png",
           layers: ["wuppPOI:poi_krankenhaeuser", "wuppInfra:apotheken"],
+          tools: ["layerVisibility"],
           metaDataText:
             "Die Gruppe bündelt die Datensätze Krankenhäuser (wuppPOI) und " +
             "Apotheken (wuppInfra) aus dem Geoportal Wuppertal.",
@@ -71,6 +72,7 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
             "wuppPOI:poi_sporthallen",
             "wuppPOI:poi_schwimmbaeder",
           ],
+          tools: ["layerVisibility"],
         },
       ],
     },

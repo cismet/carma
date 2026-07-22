@@ -4,8 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Badge } from "antd";
 
 import type { LayerGroup } from "@carma-mapping/layers";
 import { layerGroupHasInfoView } from "@carma-mapping/layers";
@@ -16,17 +17,23 @@ import type { AppDispatch } from "../../store";
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
   changeVisibility,
+  getActiveInteractionLayerID,
   getClickFromInfoView,
   getSelectedLayerIndex,
   getSelectionShowsNoInfoView,
   removeLayer,
+  setActiveInteractionLayerID,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import { getUIShowLayerHideButtons } from "../../store/slices/ui";
+import { hasRenderableGroupTools } from "@carma-mapping/components";
 import { resolveGeoportalLayerButtonCloseIcon } from "../../hooks/use-geoportal-layer-button-actions";
-import { getGeoportalLayerButtonBackgroundClassName } from "./layer-tool-action-button-style";
+import {
+  getGeoportalLayerButtonBackgroundClassName,
+  getGeoportalLayerToolActionButtonClassName,
+} from "./layer-tool-action-button-style";
 
 export interface GeoportalGroupedLayerButtonProps {
   group: LayerGroup;
@@ -55,8 +62,14 @@ const GeoportalGroupedLayerButton = ({
   const showsNoSelection = useSelector(getSelectionShowsNoInfoView);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const clickFromInfoView = useSelector(getClickFromInfoView);
+  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const hasInfoView = layerGroupHasInfoView(group);
   const isSelected = selectedLayerIndex === index;
+  const hasToolControl = hasRenderableGroupTools(group);
+  const isInteractionActive = activeInteractionLayerID === group.id;
+  const hiddenMemberCount = group.layers.filter(
+    (member) => member.visible === false
+  ).length;
 
   const { attributes, listeners, setNodeRef, transform } = useSortable({
     id: group.id,
@@ -92,6 +105,10 @@ const GeoportalGroupedLayerButton = ({
         ref={setNodeRef}
         onClick={(e) => {
           e.stopPropagation();
+          // mirror the normal layer button: close another layer's open tool
+          if (activeInteractionLayerID && !isInteractionActive) {
+            dispatch(setActiveInteractionLayerID(null));
+          }
           if (!hasInfoView) {
             return;
           }
@@ -126,6 +143,38 @@ const GeoportalGroupedLayerButton = ({
       >
         <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
         <span className="text-base ml-1">{group.title}</span>
+        {hasToolControl && (
+          <button
+            type="button"
+            id={`layerInteractionButton-${group.id}`}
+            className={cn(
+              "group",
+              getGeoportalLayerToolActionButtonClassName(isInteractionActive)
+            )}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              dispatch(
+                setActiveInteractionLayerID(
+                  isInteractionActive ? null : group.id
+                )
+              );
+            }}
+            aria-label="Sichtbarkeit der Layer in der Gruppe steuern"
+          >
+            <Badge count={hiddenMemberCount} size="small" color="#4b5563">
+              <FontAwesomeIcon
+                icon={faFilter}
+                className={cn(
+                  "text-sm",
+                  isInteractionActive
+                    ? "!text-[#1677ff]"
+                    : "!text-gray-600 group-hover:!text-gray-500"
+                )}
+              />
+            </Badge>
+          </button>
+        )}
         <button
           type="button"
           id={`removeLayerButton-${group.id}`}
