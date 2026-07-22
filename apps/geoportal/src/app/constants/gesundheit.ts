@@ -36,19 +36,41 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
   description:
     "Beschreibung: Der Fachzwilling Gesundheit bündelt die Karteninhalte des Geoportals zu den Themen Gesundheitsversorgung, Umwelt- und Klimabelastung, Lärm sowie Sport und Erholung.",
   filters: [{ field: "id", values: gesundheitItemIds }],
-  // Platzhalter-Perspektiven (per Konfigurator/Playground pflegbar); die
-  // Workflows haben noch keine Funktion.
   perspectives: [
     {
       id: "versorgung",
       title: "Gesundheitsversorgung",
       workflows: [
         {
-          id: "beispiel-workflow",
-          title: "Beispiel-Workflow",
+          id: "einrichtungen",
+          title: "Gesundheitseinrichtungen",
           description:
-            "Platzhalter-Workflow. Titel, Beschreibung und Vorschaubild " +
-            "werden über die Konfiguration gepflegt.",
+            "Inhalt: Krankenhäuser und Apotheken im Wuppertaler Stadtgebiet, " +
+            "zusammengefasst als eine Layer-Gruppe. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zur Übersicht über die Gesundheitsversorgung im " +
+            "Stadtgebiet.",
+          thumbnail:
+            "https://geo.wuppertal.de/geoportal/geoportal_vorschau/infra_apotheken.png",
+          layers: ["wuppPOI:poi_krankenhaeuser", "wuppInfra:apotheken"],
+          metaDataText:
+            "Die Gruppe bündelt die Datensätze Krankenhäuser (wuppPOI) und " +
+            "Apotheken (wuppInfra) aus dem Geoportal Wuppertal.",
+        },
+        {
+          id: "test",
+          title: "Freizeitangebote",
+          description:
+            "Inhalt: Freizeitsportangebote, Sporthallen und Schwimmbäder, " +
+            "zusammengefasst als eine Layer-Gruppe. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zur Übersicht über Sport- und Erholungsangebote im " +
+            "Stadtgebiet.",
+          layers: [
+            "wuppPOI:poi_freizeitsportangebote",
+            "wuppPOI:poi_sporthallen",
+            "wuppPOI:poi_schwimmbaeder",
+          ],
         },
       ],
     },
