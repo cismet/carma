@@ -58,7 +58,7 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
             "Apotheken (wuppInfra) aus dem Geoportal Wuppertal.",
         },
         {
-          id: "test",
+          id: "freizeit",
           title: "Freizeitangebote",
           description:
             "Inhalt: Freizeitsportangebote, Sporthallen und Schwimmbäder, " +
