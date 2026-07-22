@@ -1,9 +1,10 @@
-import { proj4crs25832def } from "./defs";
+import { proj4crs25832def, proj4crs4978def } from "./defs";
 
 export const ManagedProjections = {
   EPSG25832: "EPSG:25832",
   EPSG3857: "EPSG:3857",
   EPSG4326: "EPSG:4326",
+  EPSG4978: "EPSG:4978",
 } as const;
 
 export type ManagedProjectionMap = typeof ManagedProjections;
@@ -16,4 +17,5 @@ export const ManagedDefs: ManagedDefMap = {
   [ManagedProjections.EPSG25832]: proj4crs25832def,
   [ManagedProjections.EPSG3857]: undefined,
   [ManagedProjections.EPSG4326]: undefined,
+  [ManagedProjections.EPSG4978]: proj4crs4978def,
 } satisfies ManagedDefMap;

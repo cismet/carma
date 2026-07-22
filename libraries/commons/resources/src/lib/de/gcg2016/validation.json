@@ -1,0 +1,95 @@
+{
+  "format": "carma-gcg2016-float32-tile-set-v3",
+  "supportedRegion": [6.0, 50.0, 10.0, 54.0],
+  "rootTileSizeDegrees": 2,
+  "samplePartition": "source pixel centers, no duplicated halo",
+  "source": {
+    "fileName": "de_bkg_gcg2016.tif",
+    "sha256": "598f18324dea7f8e72421d18add7ac6228259adf91eeb335cc9c27d98484f7ac",
+    "byteLength": 995647,
+    "description": "BKG GCG2016 GeoTIFF distributed with PROJ",
+    "provider": "Bundesamt f\u00fcr Kartographie und Geod\u00e4sie (BKG)",
+    "credit": "(c) Bundesamt f\u00fcr Kartographie und Geod\u00e4sie - BKG - Deutschland",
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html",
+    "documentationUrl": "https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/quasigeoid.pdf",
+    "adaptation": "source Float32 samples unchanged; spatially subset and repackaged as independently loadable CARMA TypeScript payload modules",
+    "horizontalCrs": "EPSG:10283 (ETRS89/DREF91/2016)"
+  },
+  "sourceGrid": {
+    "width": 950,
+    "height": 1052,
+    "firstLongitude": 3.25625,
+    "firstLatitude": 55.979166667,
+    "stepLongitude": 0.0125,
+    "stepLatitude": -0.008333333333967649,
+    "sampleEncoding": "source Float32, unchanged"
+  },
+  "runtimeMethod": "BKG-compatible natural bicubic spline over a local five-by-five source stencil",
+  "referenceMethod": "same spline evaluated directly against the complete source GeoTIFF array",
+  "officialReferenceValidation": {
+    "date": "2026-07-16",
+    "method": "five-by-five natural spline reconstructed from BKG gintbs and compared with its millimeter-rounded output",
+    "packageUrl": "https://daten.gdz.bkg.bund.de/produkte/sonstige/quasigeoid/aktuell/quasigeoid.geo89.de.zip",
+    "archiveSha256": "d5a40a20ae4cdb372c6ca27dbf742c1f46d8e28be282a12ef083fb93b823c67a",
+    "windowsExecutableSha256": "6326645be3f0c34bcfb1ca05af48e504c65c9c502fc427af27c7b21e8c6c7813",
+    "linuxExecutableSha256": "77b73e922cd06d4b212514b5cd50e121de237b7f27b9510a85fe8432591f05c6",
+    "binaryGridSha256": "f76662e147c4fcc381390a7b3a49f75fe7459cefb011a9d5c80a4e2b31a73c99",
+    "mesh2024Region": [
+      7.011041137873773, 51.16418982648588, 7.31648523301344, 51.319169007294846
+    ],
+    "pointCount": 321201,
+    "officialOutputResolutionMeters": 0.001,
+    "maximumDistanceToRoundedOfficialOutputMeters": 0.000501833693043352
+  },
+  "bilinearComparison": {
+    "region": [
+      7.011041137873773, 51.16418982648588, 7.31648523301344, 51.319169007294846
+    ],
+    "pointCount": 2883601,
+    "maximumAbsoluteDifferenceMeters": 0.0009526398344519293,
+    "meanAbsoluteDifferenceMeters": 0.00019786990211275216,
+    "rmseMeters": 0.00025106759117135785,
+    "p99AbsoluteDifferenceMeters": 0.000650242044784477
+  },
+  "verificationSeed": 4064,
+  "verificationRandomPointsPerTile": 100000,
+  "verificationEdgePointsPerTile": 16384,
+  "totalSupportedVerificationPointCount": 383384,
+  "maximumVerifiedDifferenceMeters": 0.0,
+  "verification": [
+    {
+      "tileId": "N50E006",
+      "candidatePointCount": 116384,
+      "supportedPointCount": 100292,
+      "maximumAbsoluteErrorMeters": 0.0,
+      "p999AbsoluteErrorMeters": 0.0,
+      "rmseMeters": 0.0
+    },
+    {
+      "tileId": "N50E008",
+      "candidatePointCount": 116384,
+      "supportedPointCount": 105413,
+      "maximumAbsoluteErrorMeters": 0.0,
+      "p999AbsoluteErrorMeters": 0.0,
+      "rmseMeters": 0.0
+    },
+    {
+      "tileId": "N52E006",
+      "candidatePointCount": 116384,
+      "supportedPointCount": 71840,
+      "maximumAbsoluteErrorMeters": 0.0,
+      "p999AbsoluteErrorMeters": 0.0,
+      "rmseMeters": 0.0
+    },
+    {
+      "tileId": "N52E008",
+      "candidatePointCount": 116384,
+      "supportedPointCount": 105839,
+      "maximumAbsoluteErrorMeters": 0.0,
+      "p999AbsoluteErrorMeters": 0.0,
+      "rmseMeters": 0.0
+    }
+  ]
+}
