@@ -63,6 +63,8 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
         {
           id: "freizeit",
           title: "Freizeitangebote",
+          thumbnail:
+            "https://geo.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_freizeitsportangebote.png",
           description:
             "Inhalt: Freizeitsportangebote, Sporthallen und Schwimmbäder, " +
             "zusammengefasst als eine Layer-Gruppe. " +
