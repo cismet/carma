@@ -301,6 +301,7 @@ const FeatureInfoBox = ({
           <InfoBoxFotoPreview
             currentFeature={selectedFeature}
             lightBoxDispatchContext={lightBoxDispatchContext}
+            urlManipulation={updateUrl}
           />,
         ]
       : [...additionalSecondaryInfoBoxElements, ...featureHeaders];
