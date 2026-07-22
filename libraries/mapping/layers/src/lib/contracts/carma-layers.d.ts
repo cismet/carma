@@ -219,6 +219,12 @@ export type Layer = BaseLayer & {
   props?: LayerProps | VectorStyleProps;
 };
 
+export type LayerGroupInfo = {
+  legend?: string[];
+  metaDataText?: string;
+  links?: { url: string; text: string }[];
+};
+
 export type LayerGroup = {
   type: typeof LAYER_ENTITY_TYPES.GROUP;
   id: string;
@@ -228,6 +234,7 @@ export type LayerGroup = {
   thumbnail?: string;
   visible: boolean;
   opacity?: number;
+  groupInfo?: LayerGroupInfo;
   layers: Layer[];
 };
 
@@ -374,6 +381,7 @@ export type Item = {
   mapMode?: "2d" | "3d";
   workflowLayers?: string[];
   workflowLayerItems?: Item[];
+  groupInfo?: LayerGroupInfo;
 } & (TmpLayer | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {

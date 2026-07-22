@@ -9,6 +9,9 @@ export const isLayerGroup = (
   entry: LayerStackEntry | undefined
 ): entry is LayerGroup => entry?.type === LAYER_ENTITY_TYPES.GROUP;
 
+export const layerGroupHasInfoView = (group: LayerGroup): boolean =>
+  !!(group.description || group.groupInfo);
+
 const maskMemberWithGroup = (member: Layer, group: LayerGroup): Layer => {
   const visible = group.visible !== false && member.visible !== false;
   const opacity =
@@ -66,4 +69,3 @@ export const findStackEntryByLayerId = (
   }
   return undefined;
 };
-

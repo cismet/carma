@@ -1,6 +1,10 @@
 import { faListCheck } from "@fortawesome/free-solid-svg-icons";
 
-import { LAYER_ENTITY_TYPES, type Item } from "../lib/contracts/carma-layers.d";
+import {
+  LAYER_ENTITY_TYPES,
+  type Item,
+  type LayerGroupInfo,
+} from "../lib/contracts/carma-layers.d";
 import type { CategoryDefinition } from "./categoryDefinitions";
 
 /**
@@ -17,6 +21,9 @@ export type WorkflowDefinition = {
   description?: string;
   thumbnail?: string;
   layers?: string[];
+  legend?: string[];
+  metaDataText?: string;
+  links?: { url: string; text: string }[];
 };
 
 export type WorkflowPerspective = {
@@ -30,21 +37,36 @@ export type WorkflowPerspective = {
 export const WORKFLOWS_CATEGORY_ID = "workflows";
 export const WORKFLOWS_CATEGORY_LABEL = "Workflows";
 
+const toWorkflowGroupInfo = (
+  workflow: WorkflowDefinition
+): LayerGroupInfo | undefined => {
+  const groupInfo: LayerGroupInfo = {
+    ...(workflow.legend?.length ? { legend: workflow.legend } : {}),
+    ...(workflow.metaDataText ? { metaDataText: workflow.metaDataText } : {}),
+    ...(workflow.links?.length ? { links: workflow.links } : {}),
+  };
+  return Object.keys(groupInfo).length > 0 ? groupInfo : undefined;
+};
+
 const toWorkflowItem = (
   perspective: WorkflowPerspective,
   workflow: WorkflowDefinition
-): Item => ({
-  id: `workflow_${perspective.id}_${workflow.id}`,
-  name: `workflow_${perspective.id}_${workflow.id}`,
-  title: workflow.title,
-  description: workflow.description ?? "",
-  thumbnail: workflow.thumbnail,
-  // the subcategory heading the card is grouped under
-  path: perspective.title,
-  type: LAYER_ENTITY_TYPES.WORKFLOW,
-  serviceName: WORKFLOWS_CATEGORY_ID,
-  ...(workflow.layers?.length ? { workflowLayers: workflow.layers } : {}),
-});
+): Item => {
+  const groupInfo = toWorkflowGroupInfo(workflow);
+  return {
+    id: `workflow_${perspective.id}_${workflow.id}`,
+    name: `workflow_${perspective.id}_${workflow.id}`,
+    title: workflow.title,
+    description: workflow.description ?? "",
+    thumbnail: workflow.thumbnail,
+    // the subcategory heading the card is grouped under
+    path: perspective.title,
+    type: LAYER_ENTITY_TYPES.WORKFLOW,
+    serviceName: WORKFLOWS_CATEGORY_ID,
+    ...(workflow.layers?.length ? { workflowLayers: workflow.layers } : {}),
+    ...(groupInfo ? { groupInfo } : {}),
+  };
+};
 
 /**
  * The "Workflows" main category: one static subcategory per perspective, each
