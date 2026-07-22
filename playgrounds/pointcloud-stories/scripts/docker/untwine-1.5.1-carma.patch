@@ -1,0 +1,60 @@
+diff --git a/bu/PyramidManager.cpp b/bu/PyramidManager.cpp
+index ef6c1b4..d5bc3ae 100644
+--- a/bu/PyramidManager.cpp
++++ b/bu/PyramidManager.cpp
+@@ -10,6 +10,7 @@
+  *                                                                           *
+  ****************************************************************************/
+ 
++#include <cstdlib>
+ #include <regex>
+ #include <string>
+ #include <vector>
+@@ -28,7 +29,25 @@ namespace untwine
+ namespace bu
+ {
+ 
+-PyramidManager::PyramidManager(const BaseInfo& b) : m_b(b), m_pool(10), m_totalPoints(0),
++namespace
++{
++
++std::size_t pyramidThreadCount()
++{
++    const char *configured = std::getenv("UNTWINE_PYRAMID_THREADS");
++    if (!configured)
++        return 4;
++
++    char *end = nullptr;
++    unsigned long value = std::strtoul(configured, &end, 10);
++    if (end == configured || *end != '\0' || value < 1 || value > 64)
++        return 4;
++    return value;
++}
++
++} // unnamed namespace
++
++PyramidManager::PyramidManager(const BaseInfo& b) : m_b(b), m_pool(pyramidThreadCount()), m_totalPoints(0),
+     m_copc(m_b)
+ {}
+ 
+diff --git a/prep/FilePrep.cpp b/prep/FilePrep.cpp
+index 9cb8e6b..b3179b9 100644
+--- a/prep/FilePrep.cpp
++++ b/prep/FilePrep.cpp
+@@ -215,11 +215,14 @@ void FilePrep::filterDims(std::vector<FileInfo>& infos, StringList allowedDims)
+ 
+     // Remove dimensions not in the allowed list.
+     for (FileInfo& info : infos)
+-        for (auto it = info.dimInfo.begin(); it != info.dimInfo.end(); ++it)
++        for (auto it = info.dimInfo.begin(); it != info.dimInfo.end();)
+         {
+             FileDimInfo& fdi = *it;
+-            if (!pdal::Utils::contains(allowedDims, fdi.name))
++            if (!pdal::Utils::contains(
++                    allowedDims, pdal::Utils::toupper(fdi.name)))
+                 it = info.dimInfo.erase(it);
++            else
++                ++it;
+         }
+ }
+ 

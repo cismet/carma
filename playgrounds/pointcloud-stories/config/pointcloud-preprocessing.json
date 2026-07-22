@@ -1,0 +1,88 @@
+{
+  "schema": "carma.pointcloud-preprocessing",
+  "version": 2,
+  "workingFrame": {
+    "horizontalCrs": "EPSG:25832",
+    "verticalDatum": "ellipsoidal height",
+    "outputSrsPolicy": "AO is evaluated in this registered frame; derived COPCs preserve source XYZ and source CRS, and the runtime applies the same registration when mounting them",
+    "purpose": "Mesh 2024 assisted AO evaluation only"
+  },
+  "ao": {
+    "storage": "uint8 sky visibility, 0 occluded, 255 open",
+    "mesh": "https://wupp-3d-data.cismet.de/mesh2024/tileset.json",
+    "algorithm": "shared point/mesh voxel occupancy, exact triangle/AABB rasterization and 3D DDA sky rays",
+    "meshGeometricErrorMeters": 0.5,
+    "voxelSizeMeters": 0.5,
+    "rayLengthMeters": 50,
+    "rayCount": 256,
+    "selfBiasMeters": 1,
+    "footprintCellSizeMeters": 25
+  },
+  "runtime": {
+    "baseUrl": "https://wupp-3d-data.cismet.de/mesh2024/pointclouds",
+    "cachePolicy": "content-versioned immutable files",
+    "fieldNaming": "lowercase browser identifiers; native LAS standard dimensions and AO Extra Byte retain their physical container names"
+  },
+  "assets": {
+    "kwh": {
+      "output": "kaiser-wilhelm-hain-rgb.copc.laz",
+      "copcPointFormat": 7,
+      "retainedPayload": [
+        "classification",
+        "synthetic",
+        "overlap",
+        "red",
+        "green",
+        "blue"
+      ],
+      "extraDimensions": ["AO=uint8"],
+      "runtimeEnabled": true,
+      "publicationFile": "kaiser-wilhelm-hain-rgb-mesh2024-ao-v1-084aca0cfdcf.copc.laz",
+      "sourceCrs": "EPSG:25832+7837",
+      "outputCrs": "EPSG:25832+7837 (source coordinates preserved)",
+      "aoRegistration": "DHHN2016 to ellipsoidal height with the bundled GCG2016 5x5 natural spline; identity rigid transform",
+      "evidence": "embedded compound CRS"
+    },
+    "awg": {
+      "output": "awg-2-segmentierung.copc.laz",
+      "copcPointFormat": 6,
+      "retainedPayload": ["classification"],
+      "extraDimensions": ["AO=uint8"],
+      "runtimeEnabled": true,
+      "publicationFile": "awg-2-segmentierung-mesh2024-ao-v1-c7b7ccc83cb8.copc.laz",
+      "sourceCrs": "EPSG:25832 with inferred ellipsoidal heights",
+      "outputCrs": "EPSG:25832 with inferred ellipsoidal heights (source coordinates preserved)",
+      "aoRegistration": {
+        "pivotEnuMeters": [370327.584, 5680082.375, 200.265],
+        "eulerXyzDegrees": [5.103344567, 4.281994042, 0],
+        "fitTranslationEnuMeters": [0, 0, -11.042280815],
+        "microCorrectionEnuMeters": [1.7, -1, 3.7]
+      },
+      "evidence": "documented DGM1 rigid fit and current Mesh 2024 micro-correction"
+    },
+    "oelbergMls": {
+      "output": "wuppertal-oelberg-mls-2025-09-11.copc.laz",
+      "copcPointFormat": 7,
+      "retainedPayload": ["intensity", "red", "green", "blue"],
+      "extraDimensions": ["AO=uint8"],
+      "runtimeEnabled": true,
+      "publicationFile": "wuppertal-oelberg-mls-2025-09-11-mesh2024-ao-v1-8a2e89b90856.copc.laz",
+      "sourceCrs": "EPSG:25832+7837",
+      "outputCrs": "EPSG:25832+7837 (source coordinates preserved)",
+      "aoRegistration": "DHHN2016 to ellipsoidal height with the bundled GCG2016 5x5 natural spline; identity rigid transform",
+      "evidence": "provider sidecar and embedded compound CRS"
+    },
+    "nordbahntrasseSegments": {
+      "output": "nordbahntrasse-2025-12-segments.copc.laz",
+      "copcPointFormat": 6,
+      "retainedPayload": ["intensity", "classification", "userdata"],
+      "extraDimensions": ["AO=uint8"],
+      "runtimeEnabled": true,
+      "publicationFile": "nordbahntrasse-2025-12-segments-mesh2024-ao-v1-48badd4f8e68.copc.laz",
+      "sourceCrs": "EPSG:25832 with best-known inferred ellipsoidal heights",
+      "outputCrs": "EPSG:25832 with inferred ellipsoidal heights (source coordinates preserved)",
+      "aoRegistration": "identity in the inferred ellipsoidal working frame",
+      "evidence": "DGM1 cross-check median +47.9 m; supplier vertical datum remains unconfirmed"
+    }
+  }
+}

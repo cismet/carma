@@ -6,5 +6,7 @@
 // github.com/prettier/prettier/blob/1b7fad52558e16444399d11ff2d89aa8ed895c77/docs/options.md
 
 module.exports = {
+  // Preserve semantic Markdown paragraphs; editors and renderers handle wrapping.
+  proseWrap: "never",
   // trailingComma: 'all', // all will not work with some old workers, default for prettier 3
 };

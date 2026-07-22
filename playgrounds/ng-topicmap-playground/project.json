@@ -7,7 +7,15 @@
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{workspaceRoot}/dist/playgrounds/ng-topicmap-playground/!(runtime-data)/**/*",
+        "{workspaceRoot}/dist/playgrounds/ng-topicmap-playground/*.*"
+      ],
+      "inputs": [
+        "production",
+        "^production",
+        "!{projectRoot}/.data/**/*"
+      ],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/playgrounds/ng-topicmap-playground"

@@ -36,3 +36,13 @@ export type {
   Gcg2016UtmZone,
   Gcg2016Wgs84VerticalTransformer,
 } from "./lib/gcg2016-transformers";
+export {
+  GRS80_ELLIPSOID,
+  utmToEllipsoidSurface,
+  WGS84_ELLIPSOID,
+} from "./lib/utm-ellipsoid";
+export type {
+  EllipsoidSurfaceCoordinate,
+  ReferenceEllipsoid,
+  UtmReference,
+} from "./lib/utm-ellipsoid";

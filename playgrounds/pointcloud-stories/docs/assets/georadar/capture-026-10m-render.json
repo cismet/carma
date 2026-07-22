@@ -1,0 +1,67 @@
+{
+  "format": "carma-georadar-static-render-v1",
+  "source": {
+    "metadata": "capture-026-10m.json",
+    "metadataSha256": "581d37e8fd1e518a3019f75261bf6252d2277ee608fb147b8455ccb726e456e0",
+    "rawR16": "capture-026-10m.r16",
+    "rawR16Sha256": "1e78ab166dd6471a3748819b228fe35c276805b9db03e9c054026dcef80e8aac",
+    "gatedR16": "capture-026-10m-noise-gated.r16",
+    "gatedR16Sha256": "dadf9e9acf13a6d879365c414e5f09f83deeba45274ac9128593c2cd4edf2bd3"
+  },
+  "shape": {
+    "slice": 142,
+    "trace": 25,
+    "depth": 136
+  },
+  "selection": {
+    "captureId": 26,
+    "segmentStartMeters": 0,
+    "segmentLengthMeters": 9.9464104942435,
+    "selectedSlice": 108,
+    "selectedStationMeters": 7.727587,
+    "method": "maximum robust RMS of unsaturated noise-gated amplitude across trace and depth, excluding 0.5 m segment margins",
+    "energyClipCodes": 24171,
+    "saturationExclusionAbsoluteCodes": 32760
+  },
+  "rendering": {
+    "amplitudeClampCodes": 30256,
+    "centerTrace": 12,
+    "noiseThresholdCodes": 4480,
+    "plotsAreNotPhysicalAspectRatio": true
+  },
+  "volumeRendering": {
+    "sourceStory": "pointcloud-investigation-georadar-volume--single-10-meter-block",
+    "viewportPixels": [1600, 1000],
+    "variant": "noise-gated16",
+    "view": "perspective",
+    "cameraPresetPosition": [8.15, -7.3, 5.5],
+    "cameraWheelDeltaFromPreset": 0,
+    "signal": "local-rms-energy",
+    "rmsDepthWindowSamples": 5,
+    "smoothing": {
+      "x": ["gaussian", 3],
+      "y": ["gaussian", 3],
+      "z": ["gaussian", 3]
+    },
+    "inputClampUnit": [0.04, 0.62],
+    "toneCurve": "contrast",
+    "colorRamp": "inferno",
+    "alphaRamp": "strong-returns",
+    "volumeOpacity": 0.58,
+    "renderMode": "front-to-back-composite",
+    "representation": "volume",
+    "clipUnit": {
+      "x": [0, 1],
+      "y": [0, 0.58],
+      "z": [0, 1]
+    },
+    "interpretation": "signal visualization only; not a reconstructed material surface or void detection"
+  },
+  "outputs": [
+    "capture-026-10m-volume-cutaway.png",
+    "capture-026-10m-depth-energy.png",
+    "capture-026-10m-longitudinal-section.png",
+    "capture-026-10m-cross-section.png",
+    "capture-026-10m-noise-comparison.png"
+  ]
+}

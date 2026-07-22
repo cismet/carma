@@ -1,0 +1,6 @@
+{
+  "provider-a": "/path/to/local/provider-a-mirror",
+  "provider-b": "/path/to/local/provider-b-mirror",
+  "legacy-derived": "/path/to/legacy/derived-data",
+  "pointcloud-worktree-data": "/path/to/pointcloud/story-data"
+}

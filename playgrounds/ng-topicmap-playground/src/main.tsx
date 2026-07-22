@@ -27,6 +27,7 @@ import { Trees } from "./app/Trees";
 import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
 import { FilterMap } from "./app/FilterMap";
+import { PointCloudPlayground } from "./app/pointcloud/PointCloudPlayground";
 import {
   backgroundModes,
   backgroundConfigurations,
@@ -81,6 +82,10 @@ root.render(
                         element={<CustomProfilePlayground />}
                       />
                       <Route path="/filter" element={<FilterMap />} />
+                      <Route
+                        path="/pointcloud"
+                        element={<PointCloudPlayground />}
+                      />
                     </Routes>
                   </MapHighlightProvider>
                 </MapSelectionProvider>
