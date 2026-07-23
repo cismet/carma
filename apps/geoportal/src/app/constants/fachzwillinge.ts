@@ -18,6 +18,7 @@ import {
 import { layerCatalogConfig } from "./discover";
 import { gesundheitFachzwilling } from "./gesundheit";
 import { bodenFachzwilling } from "./boden";
+import { outletFachzwilling } from "./outlet";
 
 /**
  * A Fachzwilling is a thematic geoportal variant: an own route whose layer
@@ -48,6 +49,7 @@ export type FachzwillingRoute = {
   thumbnail?: string;
   /** always-active catalog filters applied while the route is open */
   filters: CatalogFilters;
+  hideFromCatalog?: boolean;
   ui?: FachzwillingUiOptions;
   /**
    * workflow perspectives shown in the "Workflows" catalog category while the
@@ -60,6 +62,7 @@ export type FachzwillingRoute = {
 export const fachzwillingRoutes: FachzwillingRoute[] = [
   gesundheitFachzwilling,
   bodenFachzwilling,
+  outletFachzwilling,
 ];
 
 export const getFachzwillingCatalogConfig = (
@@ -77,17 +80,19 @@ export const findFachzwillingByPathname = (
 const FACHZWILLINGE_CATEGORY_ID = "fachzwillinge";
 const FACHZWILLINGE_CATEGORY_LABEL = "Fachzwillinge";
 
-const fachzwillingItems: Item[] = fachzwillingRoutes.map((route) => ({
-  id: `fachzwilling_${route.path}`,
-  name: `fachzwilling_${route.path}`,
-  title: route.title,
-  description: route.description ?? "",
-  path: FACHZWILLINGE_CATEGORY_LABEL,
-  type: "link",
-  url: `#/${route.path}`,
-  thumbnail: route.thumbnail,
-  serviceName: FACHZWILLINGE_CATEGORY_ID,
-}));
+const fachzwillingItems: Item[] = fachzwillingRoutes
+  .filter((route) => !route.hideFromCatalog)
+  .map((route) => ({
+    id: `fachzwilling_${route.path}`,
+    name: `fachzwilling_${route.path}`,
+    title: route.title,
+    description: route.description ?? "",
+    path: FACHZWILLINGE_CATEGORY_LABEL,
+    type: "link",
+    url: `#/${route.path}`,
+    thumbnail: route.thumbnail,
+    serviceName: FACHZWILLINGE_CATEGORY_ID,
+  }));
 
 const fachzwillingeSubCategory: CatalogSubCategory = {
   id: FACHZWILLINGE_CATEGORY_ID,
