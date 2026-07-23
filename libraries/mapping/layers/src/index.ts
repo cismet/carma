@@ -26,6 +26,7 @@ export {
   type CategoryDefinition,
   type CustomCategoryDefinition,
 } from "./config/categoryDefinitions";
+export type { CatalogSubCategory } from "./hooks/useCatalogSearch";
 export {
   buildWorkflowsCategoryDefinition,
   WORKFLOWS_CATEGORY_ID,

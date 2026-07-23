@@ -1,9 +1,8 @@
-import { faDiagramProject } from "@fortawesome/free-solid-svg-icons";
-
 import {
   buildWorkflowsCategoryDefinition,
   defaultCategoryDefinitions,
   type CatalogFilters,
+  type CatalogSubCategory,
   type CategoryDefinition,
   type Item,
   type LayerCatalogConfig,
@@ -18,7 +17,8 @@ import { bodenFachzwilling } from "./boden";
  * A Fachzwilling is a thematic geoportal variant: an own route whose layer
  * catalog is narrowed to the theme via always-active filters. Registering a
  * route here generates the hash route (main.tsx), the link card in the
- * "Fachzwillinge" catalog category and the navbar breadcrumb (TopNavbar).
+ * "Fachzwillinge" subcategory of the "Teilzwillinge" catalog category and the
+ * navbar breadcrumb (TopNavbar).
  */
 export type FachzwillingRoute = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
@@ -69,25 +69,18 @@ const fachzwillingItems: Item[] = fachzwillingRoutes.map((route) => ({
   serviceName: FACHZWILLINGE_CATEGORY_ID,
 }));
 
-const fachzwillingeCategoryDefinition: CategoryDefinition = {
+const fachzwillingeSubCategory: CatalogSubCategory = {
   id: FACHZWILLINGE_CATEGORY_ID,
-  label: FACHZWILLINGE_CATEGORY_LABEL,
-  icon: faDiagramProject,
-  source: "static",
-  staticCategories: [
-    {
-      id: FACHZWILLINGE_CATEGORY_ID,
-      Title: FACHZWILLINGE_CATEGORY_LABEL,
-      layers: fachzwillingItems,
-    },
-  ],
+  Title: FACHZWILLINGE_CATEGORY_LABEL,
+  layers: fachzwillingItems,
 };
 
 /**
- * The default catalog categories plus the "Fachzwillinge" section (after the
- * Teilzwillinge). When the active route defines workflow perspectives, a
- * "Workflows" section is appended after the Fachzwillinge; the default route
- * passes no perspectives and therefore shows no workflows.
+ * The default catalog categories with the "Fachzwillinge" subcategory merged
+ * into the "Teilzwillinge" section (before "TopicMaps Wuppertal"). When the
+ * active route defines workflow perspectives, a "Workflows" section is
+ * appended after the Teilzwillinge; the default route passes no perspectives
+ * and therefore shows no workflows.
  */
 export const getGeoportalCategoryDefinitions = (
   perspectives?: WorkflowPerspective[]
@@ -95,8 +88,13 @@ export const getGeoportalCategoryDefinitions = (
   defaultCategoryDefinitions.flatMap((definition) =>
     definition.id === "partialTwins"
       ? [
-          definition,
-          fachzwillingeCategoryDefinition,
+          {
+            ...definition,
+            staticCategories: [
+              fachzwillingeSubCategory,
+              ...(definition.staticCategories ?? []),
+            ],
+          },
           ...(perspectives?.length
             ? [buildWorkflowsCategoryDefinition(perspectives)]
             : []),
