@@ -51,7 +51,7 @@ const isDigitalTwinFavorite = (item: Item) =>
 export const defaultFavoriteSubCategories: CustomCategoryDefinition[] = [
   {
     id: "favoriteDigitalTwins",
-    label: "Meine Teilzwillinge",
+    label: "Meine Themenzwillinge",
     source: { kind: "favorites", filter: isDigitalTwinFavorite },
   },
   {
@@ -93,7 +93,7 @@ export const defaultCategoryDefinitions: CategoryDefinition[] = [
   },
   {
     id: "partialTwins",
-    label: "Teilzwillinge",
+    label: "Themenzwillinge",
     icon: faBook,
     source: "static",
     staticCategories: Object.values(partianTwinConfig),
