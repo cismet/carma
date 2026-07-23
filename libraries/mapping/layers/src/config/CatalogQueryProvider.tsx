@@ -16,11 +16,37 @@ const queryStorage = localforage.createInstance({
   storeName: "queryCache",
 });
 
+const countCapabilityEntries = (value: string | null | undefined): number =>
+  value ? value.split(`"${CAPABILITIES_QUERY_KEY}`).length - 1 : 0;
+
 const persister = createAsyncStoragePersister({
   storage: {
-    getItem: (key: string) => queryStorage.getItem<string>(key),
-    setItem: (key: string, value: string) => queryStorage.setItem(key, value),
-    removeItem: (key: string) => queryStorage.removeItem(key),
+    getItem: async (key: string) => {
+      const value = await queryStorage.getItem<string>(key);
+      console.debug("[CAP CACHE] getItem", {
+        key,
+        found: value != null,
+        length: value?.length ?? 0,
+        capabilityEntries: countCapabilityEntries(value),
+      });
+      return value;
+    },
+    setItem: (key: string, value: string) => {
+      console.debug("[CAP CACHE] setItem", {
+        key,
+        length: value.length,
+        capabilityEntries: countCapabilityEntries(value),
+      });
+      return queryStorage.setItem(key, value);
+    },
+    // the persist client only deletes the blob when a restore threw or the
+    // persisted client was considered expired/busted
+    removeItem: (key: string) => {
+      console.warn("[CAP CACHE] removeItem: restore failed or cache expired", {
+        key,
+      });
+      return queryStorage.removeItem(key);
+    },
   },
 });
 
@@ -57,6 +83,15 @@ export const CatalogQueryProvider = ({ children }: { children: ReactNode }) => {
             query.state.data != null &&
             query.queryKey[0] === CAPABILITIES_QUERY_KEY,
         },
+      }}
+      onSuccess={() => {
+        console.debug(
+          "[CAP CACHE] restore finished, queries in cache:",
+          queryClient
+            .getQueryCache()
+            .getAll()
+            .map((query) => query.queryKey.join(" | "))
+        );
       }}
     >
       {children}
