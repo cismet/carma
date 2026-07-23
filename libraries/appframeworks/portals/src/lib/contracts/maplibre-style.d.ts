@@ -16,6 +16,33 @@ export type CarmaConf3DModel = {
   showFootprintIn3d?: boolean;
 };
 
+/** Shared ad-hoc pointcloud asset contract for MapLibre and future Cesium renderers. */
+export type CarmaConf3DPointCloud = {
+  format: "carma-pointcloud-v1";
+  url: string;
+  source?: {
+    horizontalCrs: string;
+    verticalDatum?: string;
+    units: "meters";
+  };
+  transform?: {
+    /** Column-major, column-vector, source-frame to target-frame matrix. */
+    matrix: readonly [
+      number, number, number, number,
+      number, number, number, number,
+      number, number, number, number,
+      number, number, number, number
+    ];
+  };
+  bounds?: {
+    crs: string;
+    min: readonly [number, number, number];
+    max: readonly [number, number, number];
+  };
+  fields?: readonly string[];
+  hasRgb?: boolean;
+};
+
 export type CarmaConf3DClippingPolygon = {
   type: "Polygon";
   coordinates: number[][][];
@@ -25,6 +52,7 @@ export type CarmaConf3DClippingPolygon = {
 
 export type CarmaConf3D = {
   model?: CarmaConf3DModel;
+  pointcloud?: CarmaConf3DPointCloud;
   clippingPolygon?: CarmaConf3DClippingPolygon;
   groundPolyline?:
     | boolean

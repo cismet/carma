@@ -8,6 +8,7 @@ import {
   faEyeSlash,
   faRotateLeft,
   faSliders,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Icon from "react-cismap/commons/Icon";
@@ -93,7 +94,7 @@ import {
 } from "./pointcloud-spatial-registration";
 import {
   formatPointCloudAcquisitionDate,
-  POINT_CLOUD_ASSET_IDENTITIES,
+  POINT_CLOUD_DATASETS,
   POINT_CLOUD_PUBLIC_BASE_URL,
 } from "./point-cloud-assets";
 import type { PointCloudAssetIdentity } from "./point-cloud-assets";
@@ -116,6 +117,13 @@ import {
 } from "./terrainRelativeField";
 import type { TerrainDemFieldSource } from "./terrainRelativeField";
 import { getCloudFlyToButtonState } from "./pointcloudFlyTo";
+import {
+  ADHOC_POINTCLOUD_ID_PREFIX,
+  isAdhocPointCloudFeature,
+  parseAdhocPointCloudJson,
+  pointCloudFeatureToConfig,
+} from "./adhocPointCloud";
+import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 export type { ElevationDatum } from "./elevationFrame";
 import {
   DEFAULT_COLORIZATION,
@@ -142,7 +150,8 @@ import type { ColorizationConfig, ColorSlotConfig } from "./PointColorizer";
 
 const APP_KEY = "ng-topicmap-playground-pointcloud";
 const MICRO_CORRECTIONS_STORAGE_KEY = `${APP_KEY}:microcorrections:v1`;
-const VIEW_STATE_STORAGE_KEY = `${APP_KEY}:view-state:v1`;
+const VIEW_STATE_STORAGE_KEY = `${APP_KEY}:view-state:v2`;
+const ADHOC_POINTCLOUD_STORAGE_KEY = `${APP_KEY}:adhoc-pointclouds:v1`;
 const POINTCLOUD_DATA_BASE_URL = (
   import.meta.env.VITE_POINTCLOUD_DATA_BASE_URL ?? POINT_CLOUD_PUBLIC_BASE_URL
 ).replace(/\/$/, "");
@@ -248,33 +257,17 @@ interface CloudAssetDef extends PointCloudAssetIdentity {
   geoidUndulationMeters?: number;
 }
 
-const CLOUD_ASSETS: CloudAssetDef[] = [
-  {
-    ...POINT_CLOUD_ASSET_IDENTITIES.kwh,
-    url: `${POINTCLOUD_DATA_BASE_URL}/${POINT_CLOUD_ASSET_IDENTITIES.kwh.artifactFileName}`,
-    defaultDatum: "dhhn",
-  },
-  {
-    ...POINT_CLOUD_ASSET_IDENTITIES.awg,
-    url: `${POINTCLOUD_DATA_BASE_URL}/${POINT_CLOUD_ASSET_IDENTITIES.awg.artifactFileName}`,
-    // The dominant vertical delta is the GCG2016 ellipsoid-to-DHHN anomaly.
-    defaultDatum: "ellipsoidal",
-    registration: AWG2_DGM1_RIGID_REGISTRATION,
-    geoidUndulationMeters: AWG2_GCG2016_UNDULATION_METERS,
-  },
-  {
-    ...POINT_CLOUD_ASSET_IDENTITIES.oelbergMls,
-    url: `${POINTCLOUD_DATA_BASE_URL}/${POINT_CLOUD_ASSET_IDENTITIES.oelbergMls.artifactFileName}`,
-    defaultDatum: "dhhn",
-  },
-  {
-    ...POINT_CLOUD_ASSET_IDENTITIES.nordbahntrasseSegments,
-    url: `${POINTCLOUD_DATA_BASE_URL}/${POINT_CLOUD_ASSET_IDENTITIES.nordbahntrasseSegments.artifactFileName}`,
-    // DGM1 cross-check: ground dz median +47.9 m, hence the best-known
-    // working assumption is ellipsoidal height pending supplier confirmation.
-    defaultDatum: "ellipsoidal",
-  },
-];
+const CLOUD_ASSETS: CloudAssetDef[] = POINT_CLOUD_DATASETS.map((dataset) => ({
+  ...dataset,
+  url: `${POINTCLOUD_DATA_BASE_URL}/${dataset.artifactFileName}`,
+  ...(dataset.id === "awg"
+    ? {
+        registration: AWG2_DGM1_RIGID_REGISTRATION,
+        geoidUndulationMeters: AWG2_GCG2016_UNDULATION_METERS,
+      }
+    : {}),
+}));
+const DEFAULT_PRELOADED_CLOUD_IDS = new Set(["kwh", "awg", "mls", "seg2512"]);
 
 const CLOUD_CLASSIFICATION_LABELS: Readonly<
   Partial<Record<string, Readonly<Record<number, string>>>>
@@ -396,7 +389,7 @@ const classificationAoColorizationPreset = (): ColorizationConfig => {
 
 const defaultCloudSettings = (
   def: CloudAssetDef,
-  enabled = def.id === "awg"
+  enabled = DEFAULT_PRELOADED_CLOUD_IDS.has(def.id)
 ): CloudSettings => {
   const colorization = def.runtimeEnabled
     ? def.hasRgb
@@ -658,6 +651,7 @@ interface SceneApi {
 }
 
 function SceneManager({
+  cloudAssets,
   cloudSettings,
   meshSettings,
   pointMemoryBudget,
@@ -673,6 +667,7 @@ function SceneManager({
   onImageryStatus,
   onApi,
 }: {
+  cloudAssets: CloudAssetDef[];
   cloudSettings: Record<string, CloudSettings>;
   meshSettings: Record<string, MeshSettings>;
   pointMemoryBudget: PointMemoryBudget;
@@ -708,7 +703,7 @@ function SceneManager({
     new Map()
   );
 
-  const activeCloudIds = CLOUD_ASSETS.filter(
+  const activeCloudIds = cloudAssets.filter(
     (def) => cloudSettings[def.id]?.enabled
   ).map((def) => def.id);
   const activeMeshIds = MESH_ASSETS.filter(
@@ -743,7 +738,7 @@ function SceneManager({
     return () => {
       stale = true;
       map.off("styledata", add);
-      if (map.getLayer(sharedSceneLayer.id)) {
+      if (map.isStyleLoaded() && map.getLayer(sharedSceneLayer.id)) {
         map.removeLayer(sharedSceneLayer.id);
       }
       sharedSceneLayer.dispose();
@@ -1254,7 +1249,7 @@ function SceneManager({
       slot.pumpNodeLoads?.();
     }
 
-    for (const def of CLOUD_ASSETS) {
+    for (const def of cloudAssets) {
       if (!active.has(def.id) || slots.has(def.id)) continue;
       const slot: CloudSlot = {
         def,
@@ -2076,6 +2071,138 @@ export function PointCloudPlayground({
   showScenePanel = true,
 }: PointCloudPlaygroundProps = {}) {
   const { map } = useLibreContext();
+  const { addFeature, features: adhocFeatures, removeFeature } =
+    useAdhocFeatureDisplay();
+  const [importedCloudAssets, setImportedCloudAssets] = useState<CloudAssetDef[]>(
+    []
+  );
+  const [adhocPointCloudsHydrated, setAdhocPointCloudsHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ADHOC_POINTCLOUD_STORAGE_KEY);
+      if (raw) {
+        const parsed = parseAdhocPointCloudJson(JSON.parse(raw));
+        const restoredAssets = parsed.features.map((feature) => {
+          const config = pointCloudFeatureToConfig(feature);
+          const asset: CloudAssetDef = {
+            id: feature.id,
+            label: feature.metadata?.title ?? config.url.split("/").pop() ?? feature.id,
+            artifactFileName: config.url,
+            sourceTag: "Import",
+            acquiredOn: null,
+            fieldDimensions: config.fields ?? [],
+            hasRgb: config.hasRgb ?? false,
+            runtimeEnabled: true,
+            defaultDatum: config.source?.verticalDatum === "ellipsoidal" ? "ellipsoidal" : "dhhn",
+            url: config.url,
+          };
+          return asset;
+        });
+        setImportedCloudAssets(restoredAssets);
+        setCloudSettings((current) => ({
+          ...current,
+          ...Object.fromEntries(
+            restoredAssets.map((asset) => [asset.id, defaultCloudSettings(asset, true)])
+          ),
+        }));
+        parsed.features.forEach((feature) =>
+          addFeature(feature, {
+            collectionId: parsed.collection.id,
+            collectionTitle: parsed.collection.title,
+            collectionMetadata: parsed.collection.metadata,
+            layerId: "pointcloud",
+          })
+        );
+      }
+    } catch (error) {
+      console.warn("Gespeicherte Pointcloud-Imports konnten nicht geladen werden.", error);
+    } finally {
+      setAdhocPointCloudsHydrated(true);
+    }
+  }, [addFeature]);
+  useEffect(() => {
+    if (!adhocPointCloudsHydrated) return;
+    const imported = adhocFeatures.filter(isAdhocPointCloudFeature);
+    try {
+      localStorage.setItem(
+        ADHOC_POINTCLOUD_STORAGE_KEY,
+        JSON.stringify({
+          type: "FeatureCollection",
+          features: imported,
+        })
+      );
+    } catch (error) {
+      console.warn("Pointcloud-Imports konnten nicht gespeichert werden.", error);
+    }
+  }, [adhocFeatures, adhocPointCloudsHydrated]);
+  const handlePointCloudDrop = useCallback(
+    async (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const file = event.dataTransfer.files[0];
+      if (!file || (!file.name.endsWith(".json") && !file.name.endsWith(".geojson"))) {
+        console.warn("Bitte eine Pointcloud-GeoJSON-Datei ablegen.");
+        return;
+      }
+      try {
+        const parsed = parseAdhocPointCloudJson(JSON.parse(await file.text()));
+        setImportedCloudAssets((current) => [
+          ...current,
+          ...parsed.features.map((feature) => {
+            const config = pointCloudFeatureToConfig(feature);
+            const label =
+              feature.metadata?.title ?? config.url.split("/").pop() ?? feature.id;
+            const nextAsset: CloudAssetDef = {
+              id: feature.id,
+              label,
+              artifactFileName: config.url,
+              sourceTag: "Import",
+              acquiredOn: null,
+              fieldDimensions: config.fields ?? [],
+              hasRgb: config.hasRgb ?? false,
+              runtimeEnabled: true,
+              defaultDatum:
+                config.source?.verticalDatum === "ellipsoidal"
+                  ? "ellipsoidal"
+                  : "dhhn",
+              url: config.url,
+              registration: undefined,
+            };
+            setCloudSettings((current) => ({
+              ...current,
+              [nextAsset.id]: defaultCloudSettings(nextAsset, true),
+            }));
+            return nextAsset;
+          }),
+        ]);
+        parsed.features.forEach((feature) =>
+          addFeature(feature, {
+            collectionId: parsed.collection.id,
+            collectionTitle: parsed.collection.title,
+            collectionMetadata: parsed.collection.metadata,
+            layerId: "pointcloud",
+          })
+        );
+      } catch (error) {
+        console.error("Pointcloud-Import fehlgeschlagen.", error);
+      }
+    },
+    [addFeature]
+  );
+  const cloudAssets = useMemo(
+    () => [...CLOUD_ASSETS, ...importedCloudAssets],
+    [importedCloudAssets]
+  );
+  useEffect(() => {
+    const preventBrowserFileOpen = (event: DragEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("dragover", preventBrowserFileOpen);
+    window.addEventListener("drop", preventBrowserFileOpen);
+    return () => {
+      window.removeEventListener("dragover", preventBrowserFileOpen);
+      window.removeEventListener("drop", preventBrowserFileOpen);
+    };
+  }, []);
   const persistedViewState = useMemo(() => {
     try {
       return readPointcloudViewState(VIEW_STATE_STORAGE_KEY, localStorage);
@@ -2095,10 +2222,12 @@ export function PointCloudPlayground({
   const [cloudSettings, setCloudSettings] = useState<
     Record<string, CloudSettings>
   >(() => {
-    const enabledCloudIds = new Set(initialCloudIds ?? ["awg"]);
+    const enabledCloudIds = new Set(
+      initialCloudIds ?? [...DEFAULT_PRELOADED_CLOUD_IDS]
+    );
     const storedMicroCorrections = readStoredMicroCorrections();
     return Object.fromEntries(
-      CLOUD_ASSETS.map((def) => {
+      cloudAssets.map((def) => {
         const persisted = persistedViewState?.cloudSettings[def.id];
         const enabled = initialCloudIds
           ? enabledCloudIds.has(def.id)
@@ -2314,12 +2443,12 @@ export function PointCloudPlayground({
     setCloudStates((previous) => ({ ...previous, [id]: state }));
   }, []);
 
-  const anyLoading = CLOUD_ASSETS.some(
+  const anyLoading = cloudAssets.some(
     (def) => cloudSettings[def.id]?.enabled && cloudStates[def.id]?.loading
   );
   const sceneMemoryAllocation = deriveSceneMemoryAllocation(
     pointMemoryBudget.bytes,
-    CLOUD_ASSETS.filter((def) => cloudSettings[def.id]?.enabled).length,
+    cloudAssets.filter((def) => cloudSettings[def.id]?.enabled).length,
     MESH_ASSETS.filter((def) => meshSettings[def.id]?.enabled).length
   );
   const pointMemoryPercent = Math.round(
@@ -2332,7 +2461,7 @@ export function PointCloudPlayground({
     map?.setMaxPitch(pitchLimiterEnabled ? 60 : 180);
   }, [map, pitchLimiterEnabled]);
 
-  const cloudItems = CLOUD_ASSETS.map((def) => {
+  const cloudItems = cloudAssets.map((def) => {
     const settings = cloudSettings[def.id];
     const state = cloudStates[def.id];
     let datumOffsetMeters: number | null = null;
@@ -2360,6 +2489,7 @@ export function PointCloudPlayground({
       Boolean(state?.meta),
       Boolean(state?.loading)
     );
+    const isImportedCloud = def.id.startsWith(ADHOC_POINTCLOUD_ID_PREFIX);
     return {
       key: def.id,
       label: (
@@ -2395,6 +2525,30 @@ export function PointCloudPlayground({
               </span>
             )}
           </button>
+          {isImportedCloud && (
+            <button
+              type="button"
+              className="flex size-7 shrink-0 items-center justify-center text-gray-500 hover:text-red-600"
+              title="Importierte Punktwolke entfernen"
+              aria-label="Importierte Punktwolke entfernen"
+              onClick={() => {
+                removeFeature(def.id, {
+                  collectionId: "pointcloud-imports",
+                  layerId: "pointcloud",
+                });
+                setImportedCloudAssets((current) =>
+                  current.filter((asset) => asset.id !== def.id)
+                );
+                setCloudSettings((current) => {
+                  const next = { ...current };
+                  delete next[def.id];
+                  return next;
+                });
+              }}
+            >
+              <FontAwesomeIcon icon={faXmark} />
+            </button>
+          )}
           <button
             type="button"
             className={`flex size-7 shrink-0 items-center justify-center ${
@@ -2794,7 +2948,11 @@ export function PointCloudPlayground({
     };
   });
   return (
-    <div className="relative w-full h-full">
+    <div
+      className="relative w-full h-full"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={handlePointCloudDrop}
+    >
       <CarmaMap
         appKey={APP_KEY}
         mapEngine="maplibre"
@@ -2810,6 +2968,7 @@ export function PointCloudPlayground({
         threeRuntimeParams={BUILDINGS_RUNTIME_PARAMS}
       />
       <SceneManager
+        cloudAssets={cloudAssets}
         cloudSettings={cloudSettings}
         meshSettings={meshSettings}
         pointMemoryBudget={pointMemoryBudget}
@@ -2830,6 +2989,8 @@ export function PointCloudPlayground({
           <div className="flex items-center justify-center w-full">
             <div
               className={`pointer-events-auto min-w-[280px] w-fit max-w-[calc(100vw-24px)] max-h-[80vh] overflow-y-auto bg-white rounded-[10px] ${CARD_SHADOW} flex flex-col gap-1 py-2 transition-all duration-300`}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handlePointCloudDrop}
             >
               <div className="flex items-center w-full h-8 shrink-0 gap-3 px-6">
                 <label className="mb-0 text-base truncate">Szene</label>
@@ -2860,7 +3021,6 @@ export function PointCloudPlayground({
                   />
                 </button>
               </div>
-
               {expanded && (
                 <div className="px-4">
                   <Tabs
@@ -2871,10 +3031,10 @@ export function PointCloudPlayground({
                         {
                           key: "pointclouds",
                           label: `Punktwolken (${
-                            CLOUD_ASSETS.filter(
+                            cloudAssets.filter(
                               (def) => cloudSettings[def.id]?.enabled
                             ).length
-                          }/${CLOUD_ASSETS.length})`,
+                          }/${cloudAssets.length})`,
                           children: (
                             <div className="flex min-w-[360px] flex-col pb-1">
                               {cloudItems.map((item) => (
@@ -2990,7 +3150,7 @@ export function PointCloudPlayground({
       {showScenePanel &&
         cloudOptionsIds.map((cloudId, index) => {
           const options = cloudItems.find((item) => item.key === cloudId);
-          const def = CLOUD_ASSETS.find(
+          const def = cloudAssets.find(
             (candidate) => candidate.id === cloudId
           );
           if (!options || !def) return null;
@@ -3141,7 +3301,7 @@ export function PointCloudPlayground({
         cloudSettings[colorizerCloudId] && (
           <FloatingPanel
             title={`Colorizer — ${
-              CLOUD_ASSETS.find((def) => def.id === colorizerCloudId)?.label ??
+              cloudAssets.find((def) => def.id === colorizerCloudId)?.label ??
               colorizerCloudId
             }`}
             initial={{ x: 448, y: 76 }}

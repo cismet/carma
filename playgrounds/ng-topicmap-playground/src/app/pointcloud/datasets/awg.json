@@ -1,0 +1,14 @@
+{
+  "format": "carma-pointcloud-v1",
+  "id": "awg",
+  "label": "AWG 2 Wuppertal · 3D-Segmentierung",
+  "artifactFileName": "awg-2-segmentierung-mesh2024-ao-v1-c7b7ccc83cb8.copc.laz",
+  "sourceTag": "Fraunhofer",
+  "acquiredOn": null,
+  "fieldDimensions": ["z", "classification", "ao"],
+  "hasRgb": false,
+  "runtimeEnabled": true,
+  "defaultDatum": "ellipsoidal",
+  "source": { "horizontalCrs": "EPSG:25832", "verticalDatum": "ellipsoidal", "units": "meters" },
+  "transform": { "matrix": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1] }
+}
