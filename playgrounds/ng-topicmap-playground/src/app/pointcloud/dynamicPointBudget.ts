@@ -40,6 +40,7 @@ export interface SceneRequestAllocation {
 export interface SceneRequestDemand {
   pointJobsByCloud: readonly number[];
   meshJobsByLayer: readonly number[];
+  prioritizedMeshLayers?: readonly boolean[];
 }
 
 export interface PointMemoryChunk {
@@ -162,6 +163,12 @@ export const deriveSceneRequestAllocation = (
   );
   const pointDemandTotal = pointDemand.reduce((sum, value) => sum + value, 0);
   const meshDemandTotal = meshDemand.reduce((sum, value) => sum + value, 0);
+    const hasPrioritizedMesh = demand.prioritizedMeshLayers?.some(
+      (prioritized, index) => prioritized && meshDemand[index] > 0
+    );
+    const pointReserve = meshDemandTotal > 0
+      ? Math.floor(budget * (hasPrioritizedMesh ? 0.25 : 0.5))
+      : budget;
   if (budget === 0 || pointDemandTotal + meshDemandTotal === 0) {
     return {
       pointJobs: 0,
@@ -171,7 +178,6 @@ export const deriveSceneRequestAllocation = (
     };
   }
 
-  const pointReserve = meshDemandTotal > 0 ? Math.floor(budget / 2) : budget;
   const meshReserve = pointDemandTotal > 0 ? budget - pointReserve : budget;
   let pointJobs = Math.min(pointDemandTotal, pointReserve);
   let meshJobs = Math.min(meshDemandTotal, meshReserve);

@@ -295,6 +295,8 @@ interface MeshAssetDef {
   url: string;
   /** Covers the terrain surface and replaces the draped 2D base map. */
   replacesBasemap?: boolean;
+  /** Initial material presentation for this tileset. */
+  defaultClay?: boolean;
   /** Proven source heights after ECEF reorientation. */
   sourceElevationDatum?: "ellipsoidal" | "terrain" | "unverified";
 }
@@ -323,6 +325,7 @@ const MESH_ASSETS: MeshAssetDef[] = [
     id: "lod2",
     label: "LOD2",
     url: WUPP_LOD2_TILESET.url,
+    defaultClay: true,
     sourceElevationDatum: "unverified",
   },
 ];
@@ -349,6 +352,7 @@ interface MeshSettings {
   enabled: boolean;
   zOffset: number;
   white: boolean;
+    clayColor: string;
   errorTarget: number;
   opacity: number;
   wireframe: boolean;
@@ -418,10 +422,11 @@ const defaultCloudSettings = (
   };
 };
 
-const defaultMeshSettings = (): MeshSettings => ({
+const defaultMeshSettings = (definition?: MeshAssetDef): MeshSettings => ({
   enabled: false,
   zOffset: 0,
-  white: false,
+  white: definition?.defaultClay ?? false,
+    clayColor: "#d6d2ca",
   errorTarget: TILES_ERROR_TARGET_DEFAULT_PIXELS,
   opacity: 1,
   wireframe: false,
@@ -686,11 +691,11 @@ function SceneManager({
   const { map } = useLibreContext();
   const cloudSlotsRef = useRef<Map<string, CloudSlot>>(new Map());
   const meshLayersRef = useRef<Map<string, Tiles3dLayer>>(new Map());
+  const terrainActiveRef = useRef(false);
   const sharedSceneLayer = useMemo(
     () => (map ? buildPointcloudSceneLayer("pointcloud-three-scene") : null),
     [map]
   );
-  const terrainActiveRef = useRef(false);
   const onApiRef = useRef(onApi);
   onApiRef.current = onApi;
   const onPointMemoryUsageRef = useRef(onPointMemoryUsage);
@@ -894,6 +899,7 @@ function SceneManager({
       layer.setHeightOffset(meshOffset(id));
       layer.setErrorTarget(settings.errorTarget);
       layer.setWhiteShading(settings.white);
+      layer.setClayColor(settings.clayColor);
       layer.setOpacity(settings.opacity);
       layer.setWireframe(settings.wireframe);
       layer.setTileBoundsVisible(settings.tileBoundsVisible);
@@ -1075,6 +1081,7 @@ function SceneManager({
       meshJobsByLayer: meshIds.map(
         (id) => meshLayers.get(id)?.getRequestDemand() ?? 1
       ),
+      prioritizedMeshLayers: meshIds.map((id) => id === "lod2"),
     });
 
     cloudIds.forEach((id, index) => {
@@ -2273,7 +2280,7 @@ export function PointCloudPlayground({
       MESH_ASSETS.map((def) => [
         def.id,
         mergePersistedSettings(
-          defaultMeshSettings(),
+          defaultMeshSettings(def),
           persistedViewState?.meshSettings[def.id]
         ),
       ])
@@ -2387,7 +2394,7 @@ export function PointCloudPlayground({
     setMeshSettings((previous) => ({
       ...previous,
       [id]: {
-        ...defaultMeshSettings(),
+        ...defaultMeshSettings(MESH_ASSETS.find((def) => def.id === id)),
         enabled: previous[id]?.enabled ?? false,
       },
     }));
@@ -2862,6 +2869,17 @@ export function PointCloudPlayground({
       children: (
         <div className="pl-1">
           <OptionRow label="Shader">
+                      <OptionRow label="Clay-Farbe">
+                        <input
+                          aria-label="Clay-Farbe"
+                          type="color"
+                          value={settings.clayColor}
+                          onChange={(event) =>
+                            patchMesh(def.id, { clayColor: event.target.value })
+                          }
+                          className="h-7 w-12 cursor-pointer rounded border border-gray-300 bg-transparent p-0.5"
+                        />
+                      </OptionRow>
             <Radio.Group
               size="small"
               optionType="button"

@@ -70,6 +70,7 @@ export interface Tiles3dLayer extends PointcloudSceneRuntime {
   setErrorTarget: (errorTarget: number) => void;
   /** Override textures with flat white shading (reversible) */
   setWhiteShading: (white: boolean) => void;
+  setClayColor: (color: string) => void;
   setOpacity: (opacity: number) => void;
   setWireframe: (enabled: boolean) => void;
   setTileBoundsVisible: (enabled: boolean) => void;
@@ -122,6 +123,7 @@ export function buildTiles3dLayer(
   const offsetGroup = new THREE.Group();
   orientationGroup.add(offsetGroup);
   let whiteShading = false;
+    let clayColor = new THREE.Color(CLAY_COLOR);
   let opacity = 1;
   let wireframe = false;
   let tileBoundsVisible = false;
@@ -141,6 +143,7 @@ export function buildTiles3dLayer(
     uProjMatrix: { value: new THREE.Matrix4() },
     tProj: { value: null as THREE.Texture | null },
     uClayEnabled: { value: 0 },
+    uClayColor: { value: clayColor.clone() },
   };
 
   const patchMaterialForProjection = (material: THREE.Material) => {
@@ -168,7 +171,8 @@ uniform vec3 uProjPos;
 uniform float uProjHeading;
 uniform mat4 uProjMatrix;
 uniform sampler2D tProj;
-uniform float uClayEnabled;`
+uniform float uClayEnabled;
+uniform vec3 uClayColor;`
         )
         .replace(
           "#include <opaque_fragment>",
@@ -194,7 +198,7 @@ uniform float uClayEnabled;`
   ) * 0.16;
   // Replace either unlit or PBR output with the same predictable clay
   // response. This keeps glTF 1 and glTF 2 tiles visually consistent.
-  outgoingLight = diffuseColor.rgb *
+  outgoingLight = uClayColor *
     clamp(clayHemisphere + clayKey + clayFill, 0.3, 1.08);
 }
 #include <opaque_fragment>`
@@ -586,6 +590,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setWhiteShading(white: boolean) {
       whiteShading = white;
       projUniforms.uClayEnabled.value = white ? 1 : 0;
+      applyMaterialFlags(orientationGroup);
+      map?.triggerRepaint();
+    },
+
+    setClayColor(color: string) {
+      clayColor.set(color);
+      projUniforms.uClayColor.value.copy(clayColor);
       applyMaterialFlags(orientationGroup);
       map?.triggerRepaint();
     },
