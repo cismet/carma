@@ -1,5 +1,6 @@
 import Icon from "react-cismap/commons/Icon";
 import { transformImageUrl, getThumbnail } from "./imageHelper";
+import { isMobileDevice } from "./deviceHelper";
 interface Feature {
   id: number;
   properties: {
@@ -323,11 +324,21 @@ export const createInfoBoxControlObject = (
       return timeB - timeA; // descending order (newest first)
     });
 
+    // TEMPORARY WORKAROUND: on mobile the fullscreen lightbox swipes through the
+    // full-resolution originals, which OOM-crashes (force-reloads) the tab. Serve
+    // the small thumbnails there instead until the backend provides a size-capped
+    // web variant. See deviceHelper.isMobileDevice.
+    const useThumbnailsInLightbox = isMobileDevice();
+
     sortedActions.forEach((action: any) => {
       if (action?.payload?.pic) {
         const transformedUrl = transformImageUrl(action.payload.pic, jwt);
         if (transformedUrl) {
-          fotos.push(transformedUrl);
+          fotos.push(
+            useThumbnailsInLightbox
+              ? getThumbnail(transformedUrl) ?? transformedUrl
+              : transformedUrl
+          );
         }
 
         // Create caption: "30.9.2025 08:40 ▶️ Gestartet - Zugang prüfen (thelkl)"

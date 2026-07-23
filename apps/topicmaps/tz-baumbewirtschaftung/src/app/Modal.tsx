@@ -177,9 +177,14 @@ const getTimelineForActions = (
                   ? transformImageUrl(action.payload.pic, jwt)
                   : null;
 
-                // Find the index of this image in the allPhotos array
+                // Find the index of this image in the allPhotos array.
+                // On mobile the lightbox array holds thumbnail URLs (memory
+                // workaround), so match either the full-res or the thumbnail form.
+                const actionThumbnail = getThumbnail(actionImage ?? undefined);
                 const photoIndex =
-                  allPhotos?.findIndex((photo) => photo === actionImage) ?? -1;
+                  allPhotos?.findIndex(
+                    (photo) => photo === actionImage || photo === actionThumbnail
+                  ) ?? -1;
 
                 return (
                   <Timeline.Item
