@@ -8,6 +8,7 @@ import {
   LibreContextProvider,
   MapSelectionProvider,
 } from "@carma-mapping/contexts";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
@@ -212,7 +213,7 @@ export const CarmaMapProviderWrapper = ({
                   >
                     <LibreContextProvider>
                       <MapSelectionProvider>
-                        {wrappedChildren}
+                        <CarmaLightBox>{wrappedChildren}</CarmaLightBox>
                       </MapSelectionProvider>
                     </LibreContextProvider>
                   </CesiumContextProvider>

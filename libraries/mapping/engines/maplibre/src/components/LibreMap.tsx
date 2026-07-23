@@ -15,7 +15,6 @@ import {
 } from "react";
 import { getHashParams } from "@carma-commons/utils";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "../styles/map.css";
 import {
@@ -1736,7 +1735,6 @@ export const LibreMap = ({
               version: "0.1.0",
             }}
           />
-          <PhotoLightBox />
           <LibreMapSelectionContent map={map.current} />
         </>
       )}

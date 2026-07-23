@@ -10,11 +10,13 @@ import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextPr
 // @ts-ignore
 import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { updateUrl } from "@carma-commons/utils";
 
 export const getColorForProperties = (props = { color: "#dddddd" }) => {

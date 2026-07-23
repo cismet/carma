@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useState } from "react";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 
 import { getConvertItemToFeatureWithPOIColors } from "./helper/convertItemToFeature";
 import createItemsDictionary from "./helper/createItemsDistionary";
@@ -59,7 +60,9 @@ function App() {
         }}
       >
         <ProgressIndicator progress={progress} show={showProgress} />
-        <Stadtplankarte poiColors={poiColors} />
+        <CarmaLightBox>
+          <Stadtplankarte poiColors={poiColors} />
+        </CarmaLightBox>
       </TopicMapContextProvider>
     );
   } else {

@@ -1,5 +1,7 @@
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 
 import { useContext, useState, useCallback, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -24,6 +26,8 @@ import {
   type RouteOption,
 } from "@carma-mapping/routing";
 import { useLibreMapLocateControl } from "@carma-mapping/components";
+import { PanoramaLightBox } from "./PanoramaLightBox";
+import { PanoramaPreview } from "./PanoramaPreview";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -47,6 +51,15 @@ export const FeatureInfobox = ({
   const infoBoxControlObject =
     selectedFeature?.properties?.info || selectedFeature?.properties;
   const [openModal, setOpenModal] = useState(false);
+  const [openPanorama, setOpenPanorama] = useState(false);
+
+  useEffect(() => {
+    console.log("[PANORAMA] selected feature", {
+      selectedFeature,
+      infoBoxControlObject,
+      panorama: infoBoxControlObject?.panorama,
+    });
+  }, [selectedFeature]);
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
   const [routeLoading, setRouteLoading] = useState(false);
@@ -209,6 +222,15 @@ export const FeatureInfobox = ({
         }
         noCurrentFeatureContent=""
         secondaryInfoBoxElements={[
+          ...(infoBoxControlObject.panorama
+            ? [
+                <PanoramaPreview
+                  key="infobox-panorama-preview"
+                  src={infoBoxControlObject.panorama}
+                  onExpand={() => setOpenPanorama(true)}
+                />,
+              ]
+            : []),
           ...(infoBoxControlObject.foto || infoBoxControlObject.fotos
             ? [
                 <InfoBoxFotoPreview
@@ -242,6 +264,13 @@ export const FeatureInfobox = ({
           }}
           versionString={getApplicationVersion(versionData)}
           Footer={genericSecondaryInfoFooterFactory()}
+        />
+      )}
+      {openPanorama && infoBoxControlObject.panorama && (
+        <PanoramaLightBox
+          src={infoBoxControlObject.panorama}
+          title={infoBoxControlObject.title}
+          onClose={() => setOpenPanorama(false)}
         />
       )}
     </>
