@@ -2,6 +2,13 @@ import objectAssign from "object-assign";
 import CismapLayer from "react-cismap/CismapLayer";
 import { namedStyles, defaultLayerConfig, layerMap } from "../config";
 import { BackgroundLayer } from "@carma-mapping/layers";
+import type { BackgroundLayerCatalogEntry } from "@carma-appframeworks/portals";
+import type { AppDispatch } from "../store";
+import {
+  setBackgroundLayer,
+  setSelectedLuftbildLayer,
+  setSelectedMapLayer,
+} from "../store/slices/mapping";
 interface backgroundLayersProps {
   layerString: string;
   masterOpacity?: number;
@@ -176,4 +183,18 @@ export const createBackgroundLayerConfig = (
     visible: true,
     layers: layerMap[id].layers,
   };
+};
+
+export const applyBackgroundLayer = (
+  dispatch: AppDispatch,
+  setCurrentStyle: (style: string) => void,
+  entry: BackgroundLayerCatalogEntry
+): void => {
+  dispatch(
+    entry.group === "luftbild"
+      ? setSelectedLuftbildLayer(entry.config)
+      : setSelectedMapLayer(entry.config)
+  );
+  dispatch(setBackgroundLayer({ ...entry.config, id: entry.group }));
+  setCurrentStyle(entry.style);
 };

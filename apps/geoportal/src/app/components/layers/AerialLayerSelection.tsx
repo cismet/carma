@@ -2,17 +2,18 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   getBackgroundLayer,
   getSelectedLuftbildLayer,
-  setBackgroundLayer,
-  setSelectedLuftbildLayer,
 } from "../../store/slices/mapping";
 import { Radio } from "antd";
-import { cesiumBackgroundlayerNames, layerMap } from "../../config";
+import { backgroundLayerCatalog, cesiumBackgroundlayerNames } from "../../config";
 import LayerSelection from "./LayerSelection";
 import { useState } from "react";
 import { useMapStyle } from "@carma-appframeworks/portals";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
-import { createBackgroundLayerConfig } from "../../helper/layer";
+import { applyBackgroundLayer } from "../../helper/layer";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+
+const luftbildEntries = backgroundLayerCatalog.filter(
+  (entry) => entry.group === "luftbild"
+);
 
 const AerialLayerSelection = () => {
   const [hovered, setHovered] = useState(false);
@@ -22,25 +23,6 @@ const AerialLayerSelection = () => {
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { isLeaflet } = useMapFrameworkSwitcherContext();
-
-  const handleRadioClick = (e) => {
-    if (backgroundLayer.id !== "luftbild") {
-      setCurrentStyle(MapStyleKeys.AERIAL);
-      dispatch(
-        setBackgroundLayer({
-          id: "luftbild",
-          title: layerMap[e.target.value].title,
-          opacity: 1.0,
-          description: layerMap[e.target.value].description,
-          inhalt: layerMap[e.target.value].inhalt,
-          eignung: layerMap[e.target.value].eignung,
-          layerType: "wmts",
-          visible: true,
-          layers: layerMap[e.target.value].layers,
-        })
-      );
-    }
-  };
 
   return (
     <LayerSelection
@@ -58,15 +40,10 @@ const AerialLayerSelection = () => {
         <Radio.Group
           value={selectedLuftbildLayer.id}
           onChange={(e) => {
-            const config = createBackgroundLayerConfig(e.target.value);
-            dispatch(setSelectedLuftbildLayer(config));
-
-            dispatch(
-              setBackgroundLayer({
-                ...config,
-                id: "luftbild",
-              })
-            );
+            const entry = luftbildEntries.find((it) => it.id === e.target.value);
+            if (entry) {
+              applyBackgroundLayer(dispatch, setCurrentStyle, entry);
+            }
           }}
           className="pb-2 px-2"
           optionType="default"
@@ -77,20 +54,20 @@ const AerialLayerSelection = () => {
                 : "",
           }}
         >
-          <Radio
-            onClick={handleRadioClick}
-            value="luftbild"
-            className="text-left"
-          >
-            Luftbildkarte 03/24
-          </Radio>
-          <Radio
-            onClick={handleRadioClick}
-            value="luftbild21"
-            className="text-left"
-          >
-            Luftbildkarte 06/21
-          </Radio>
+          {luftbildEntries.map((entry) => (
+            <Radio
+              key={entry.id}
+              value={entry.id}
+              className="text-left"
+              onClick={() => {
+                if (backgroundLayer.id !== "luftbild") {
+                  applyBackgroundLayer(dispatch, setCurrentStyle, entry);
+                }
+              }}
+            >
+              {entry.title}
+            </Radio>
+          ))}
         </Radio.Group>
       )}
     </LayerSelection>

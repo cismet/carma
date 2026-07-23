@@ -1,8 +1,11 @@
 import type {
+  BackgroundLayerCatalogEntry,
   DefaultLayerConfig,
   LayerMap,
   NamedStyles,
 } from "@carma-appframeworks/portals";
+
+import { MapStyleKeys } from "../constants/MapStyleKeys";
 
 export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const APP_KEY = "geoportal";
@@ -195,6 +198,32 @@ export const layerMap: LayerMap = {
     eignung: `Die Amtliche Basiskarte ABK ist ein Kartenprodukt, das aus dem Amtlichen Liegenschaftskatasterinformationssystem ALKIS abgeleitet ist. Neben einer detaillierten Darstellung der Gebäude werden daher auch die Grundstücksgrenzen dargestellt. Damit eignet sich die ABK insbesondere als Hintergrund für gebäude- und grundstücksbezogene Fachdaten sowie planungsrechtliche Darstellungen. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung der Karten aus dem ALKIS-Datenbestand sehr aktuell. Die Identifikation der Gebäude ist mit etwas Aufwand verbunden, da nur ausgewählte Hausnummern dargestellt werden.`,
   },
 };
+
+export const backgroundLayerCatalog: BackgroundLayerCatalogEntry[] = (
+  [
+    { id: "stadtplan", group: "karte", style: MapStyleKeys.TOPO },
+    { id: "gelaende", group: "karte", style: MapStyleKeys.TOPO },
+    { id: "amtlich", group: "karte", style: MapStyleKeys.TOPO },
+    { id: "luftbild", group: "luftbild", style: MapStyleKeys.AERIAL },
+    { id: "luftbild21", group: "luftbild", style: MapStyleKeys.AERIAL },
+  ] as const
+).map(({ id, group, style }) => ({
+  id,
+  title: layerMap[id].title,
+  group,
+  style,
+  config: {
+    id,
+    title: layerMap[id].title,
+    opacity: 1.0,
+    description: layerMap[id].description,
+    inhalt: layerMap[id].inhalt,
+    eignung: layerMap[id].eignung,
+    layerType: "wmts",
+    visible: true,
+    layers: layerMap[id].layers,
+  },
+}));
 
 export const cesiumDescriptions = {
   luftbild: {

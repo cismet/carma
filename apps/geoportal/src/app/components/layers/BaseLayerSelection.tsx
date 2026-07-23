@@ -2,17 +2,18 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   getBackgroundLayer,
   getSelectedMapLayer,
-  setBackgroundLayer,
-  setSelectedMapLayer,
 } from "../../store/slices/mapping";
 import { Radio } from "antd";
-import { cesiumBackgroundlayerNames, layerMap } from "../../config";
+import { backgroundLayerCatalog, cesiumBackgroundlayerNames } from "../../config";
 import LayerSelection from "./LayerSelection";
 import { useState } from "react";
 import { useMapStyle } from "@carma-appframeworks/portals";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
-import { createBackgroundLayerConfig } from "../../helper/layer";
+import { applyBackgroundLayer } from "../../helper/layer";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+
+const karteEntries = backgroundLayerCatalog.filter(
+  (entry) => entry.group === "karte"
+);
 
 const BaseLayerSelection = () => {
   const [hovered, setHovered] = useState(false);
@@ -22,25 +23,6 @@ const BaseLayerSelection = () => {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { isLeaflet } = useMapFrameworkSwitcherContext();
-
-  const handleRadioClick = (e) => {
-    if (backgroundLayer.id !== "karte") {
-      setCurrentStyle(MapStyleKeys.TOPO);
-      dispatch(
-        setBackgroundLayer({
-          id: "karte",
-          title: layerMap[e.target.value].title,
-          opacity: 1.0,
-          description: layerMap[e.target.value].description,
-          inhalt: layerMap[e.target.value].inhalt,
-          eignung: layerMap[e.target.value].eignung,
-          layerType: "wmts",
-          visible: true,
-          layers: layerMap[e.target.value].layers,
-        })
-      );
-    }
-  };
 
   return (
     <LayerSelection
@@ -58,15 +40,10 @@ const BaseLayerSelection = () => {
         <Radio.Group
           value={selectedMapLayer.id}
           onChange={(e) => {
-            const config = createBackgroundLayerConfig(e.target.value);
-            dispatch(setSelectedMapLayer(config));
-
-            dispatch(
-              setBackgroundLayer({
-                ...config,
-                id: "karte",
-              })
-            );
+            const entry = karteEntries.find((it) => it.id === e.target.value);
+            if (entry) {
+              applyBackgroundLayer(dispatch, setCurrentStyle, entry);
+            }
           }}
           className="pb-2 flex flex-col px-2 min-[686px]:inline-block"
           optionType="default"
@@ -75,27 +52,20 @@ const BaseLayerSelection = () => {
               backgroundLayer.id !== "karte" && !hovered ? "saturate(0)" : "",
           }}
         >
-          <Radio
-            onClick={handleRadioClick}
-            value="stadtplan"
-            className="text-left"
-          >
-            Stadtplan
-          </Radio>
-          <Radio
-            onClick={handleRadioClick}
-            value="gelaende"
-            className="text-left"
-          >
-            Gelände
-          </Radio>
-          <Radio
-            onClick={handleRadioClick}
-            value="amtlich"
-            className="text-left"
-          >
-            Amtliche Basiskarte
-          </Radio>
+          {karteEntries.map((entry) => (
+            <Radio
+              key={entry.id}
+              value={entry.id}
+              className="text-left"
+              onClick={() => {
+                if (backgroundLayer.id !== "karte") {
+                  applyBackgroundLayer(dispatch, setCurrentStyle, entry);
+                }
+              }}
+            >
+              {entry.title}
+            </Radio>
+          ))}
         </Radio.Group>
       )}
     </LayerSelection>

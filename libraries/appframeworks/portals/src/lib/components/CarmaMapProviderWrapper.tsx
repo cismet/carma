@@ -11,7 +11,6 @@ import {
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
-import { AdhocFeatureDisplayProvider } from "./AdhocFeatureDisplayProvider";
 import { SelectionProvider } from "./SelectionProvider";
 import {
   MapStyleProvider,
@@ -32,7 +31,10 @@ import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import type { Store } from "redux";
 import type { Layer } from "@carma-mapping/layers";
 
-// Selector factories for layer state operations
+import { CarmaApiBridge } from "./carma-api-bridge";
+
+// Selector factories for the legacy carma-map-api layer state operations.
+// Kept local to this (deprecated) provider; the carma-api bridge owns its own.
 const createLayerSelectors = {
   getLayerById: (id: string) => (state: PortalRootState) => {
     const allLayers = state?.mapLayers?.allLayers ?? [];
@@ -212,6 +214,7 @@ export const CarmaMapProviderWrapper = ({
                   >
                     <LibreContextProvider>
                       <MapSelectionProvider>
+                        <CarmaApiBridge store={store} />
                         {wrappedChildren}
                       </MapSelectionProvider>
                     </LibreContextProvider>

@@ -16,8 +16,8 @@ import {
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { RootState } from "..";
-import { layerMap } from "../../config";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
+import { backgroundLayerCatalog, layerMap } from "../../config";
 
 type MapLibreMapEntry = {
   id: string;
@@ -55,6 +55,7 @@ const initialState: MappingState = {
   libreMapRef: null,
   maplibreMaps: [],
   layersIdle: false,
+  backgroundLayers: backgroundLayerCatalog,
 
   selectedMapLayer: {
     title: "Stadtplan",

@@ -18,6 +18,7 @@ export type {
   Settings,
   LayerState,
   MappingState,
+  BackgroundLayerCatalogEntry,
   FeatureInfoState,
   SelectedObject,
 } from "./lib/types";
