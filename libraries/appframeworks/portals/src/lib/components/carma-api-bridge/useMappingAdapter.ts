@@ -1,6 +1,6 @@
 import { useContext, useLayoutEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/legacy";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { Cartesian3 } from "@carma-cesium";
 import { parseToMapLayer } from "@carma-mapping/utils";
