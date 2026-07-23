@@ -40,7 +40,7 @@ import {
   getSelectedMapLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
-import { getZenMode } from "../store/slices/ui";
+import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
 
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
@@ -74,6 +74,8 @@ const TopNavbar = () => {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
+  const visibleControls = useSelector(getUIVisibleControls);
+  const navbarHidden = zenMode || !visibleControls.navbar;
 
   const hintergrundConfig = useMemo(
     () => getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
@@ -165,12 +167,12 @@ const TopNavbar = () => {
 
   const mainStyle = useMemo((): CSSProperties => {
     return {
-      visibility: zenMode ? "hidden" : undefined,
-      display: zenMode ? "none" : "flex",
+      visibility: navbarHidden ? "hidden" : undefined,
+      display: navbarHidden ? "none" : "flex",
       zIndex: 10000,
       top: "var(--system-message-banner-height, 0px)",
     };
-  }, [zenMode]);
+  }, [navbarHidden]);
 
   const bannerStyle = useMemo((): CSSProperties => {
     return {

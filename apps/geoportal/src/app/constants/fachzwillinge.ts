@@ -9,6 +9,12 @@ import {
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
 
+import {
+  defaultVisibleControls,
+  noVisibleControls,
+  type UIVisibleControls,
+} from "../store/slices/ui";
+
 import { layerCatalogConfig } from "./discover";
 import { gesundheitFachzwilling } from "./gesundheit";
 import { bodenFachzwilling } from "./boden";
@@ -20,6 +26,19 @@ import { bodenFachzwilling } from "./boden";
  * "Fachzwillinge" subcategory of the "Teilzwillinge" catalog category and the
  * navbar breadcrumb (TopNavbar).
  */
+export type FachzwillingUiOptions = Partial<UIVisibleControls> & {
+  hideAll?: boolean;
+};
+
+/** resolve the sparse config into the full flags the ui slice expects */
+export const resolveFachzwillingUi = (
+  ui: FachzwillingUiOptions = {}
+): UIVisibleControls => {
+  const { hideAll = false, ...overrides } = ui;
+  const baseline = hideAll ? noVisibleControls : defaultVisibleControls;
+  return { ...baseline, ...overrides };
+};
+
 export type FachzwillingRoute = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
@@ -29,6 +48,7 @@ export type FachzwillingRoute = {
   thumbnail?: string;
   /** always-active catalog filters applied while the route is open */
   filters: CatalogFilters;
+  ui?: FachzwillingUiOptions;
   /**
    * workflow perspectives shown in the "Workflows" catalog category while the
    * route is open; the category is omitted on routes without perspectives

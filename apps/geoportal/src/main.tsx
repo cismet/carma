@@ -19,12 +19,14 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
+import { setUIVisibleControls } from "./app/store/slices/ui";
 import { discoverProps } from "./app/constants/discover";
 import {
   fachzwillingRoutes,
   findFachzwillingByPathname,
   getFachzwillingCatalogConfig,
   getGeoportalCategoryDefinitions,
+  resolveFachzwillingUi,
 } from "./app/constants/fachzwillinge";
 
 /**
@@ -35,11 +37,17 @@ import {
  * modal stay alive).
  */
 const RoutedApp = () => {
+  const dispatch = useDispatch();
   const { pathname } = useLocation();
   const fachzwilling = useMemo(
     () => findFachzwillingByPathname(pathname),
     [pathname]
   );
+
+  useEffect(() => {
+    dispatch(setUIVisibleControls(resolveFachzwillingUi(fachzwilling?.ui)));
+  }, [dispatch, fachzwilling]);
+
   const catalogConfig = useMemo(
     () =>
       fachzwilling ? getFachzwillingCatalogConfig(fachzwilling) : undefined,

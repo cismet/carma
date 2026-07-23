@@ -84,8 +84,8 @@ import {
   getShowLocatorButton,
 } from "../../../store/slices/mapping.ts";
 import {
-  getUIAllow3d,
   getUIMode,
+  getUIVisibleControls,
   getZenMode,
   setZenMode,
   toggleUIMode,
@@ -132,7 +132,6 @@ const MapWrapper = () => {
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
-  const allow3d = useSelector(getUIAllow3d) && hasGPU;
 
   // Get framework switcher state from context
   const {
@@ -150,6 +149,8 @@ const MapWrapper = () => {
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
+  const visibleControls = useSelector(getUIVisibleControls);
+  const allow3d = visibleControls.allow3d && hasGPU;
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
   const configSelection = useSelector(getConfigSelection);
@@ -306,56 +307,63 @@ const MapWrapper = () => {
       ) : (
         <div
           style={{
-            paddingTop: "calc(4rem + var(--system-message-banner-height, 0px))",
+            paddingTop: visibleControls.navbar
+              ? "calc(4rem + var(--system-message-banner-height, 0px))"
+              : "var(--system-message-banner-height, 0px)",
           }}
         >
           {/* adds padding for topnavbar (+ banner if visible)*/}
-          <Control position="topleft" order={10}>
-            <div ref={tourRefLabels.zoom} className="flex flex-col">
-              <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
-                <ControlButtonStyler
-                  onClick={(event) => {
-                    if (isLeaflet) {
-                      if (showLibreMap) {
-                        if (libreMapRef.current) {
-                          libreMapRef.current.zoomIn();
+          {visibleControls.zoom && (
+            <Control position="topleft" order={10}>
+              <div ref={tourRefLabels.zoom} className="flex flex-col">
+                <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
+                  <ControlButtonStyler
+                    onClick={(event) => {
+                      if (isLeaflet) {
+                        if (showLibreMap) {
+                          if (libreMapRef.current) {
+                            libreMapRef.current.zoomIn();
+                          }
+                        } else {
+                          zoomInLeaflet();
                         }
                       } else {
-                        zoomInLeaflet();
+                        handleZoomInCesium(event);
                       }
-                    } else {
-                      handleZoomInCesium(event);
-                    }
-                  }}
-                  className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                  dataTestId="zoom-in-control"
+                    }}
+                    className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                    dataTestId="zoom-in-control"
+                  >
+                    <FontAwesomeIcon icon={faPlus} className="text-base" />
+                  </ControlButtonStyler>
+                </Tooltip>
+                <Tooltip
+                  title="Maßstab verkleinern (Zoom out)"
+                  placement="right"
                 >
-                  <FontAwesomeIcon icon={faPlus} className="text-base" />
-                </ControlButtonStyler>
-              </Tooltip>
-              <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
-                <ControlButtonStyler
-                  onClick={(event) => {
-                    if (isLeaflet) {
-                      if (showLibreMap) {
-                        if (libreMapRef.current) {
-                          libreMapRef.current.zoomOut();
+                  <ControlButtonStyler
+                    onClick={(event) => {
+                      if (isLeaflet) {
+                        if (showLibreMap) {
+                          if (libreMapRef.current) {
+                            libreMapRef.current.zoomOut();
+                          }
+                        } else {
+                          zoomOutLeaflet();
                         }
                       } else {
-                        zoomOutLeaflet();
+                        handleZoomOutCesium(event);
                       }
-                    } else {
-                      handleZoomOutCesium(event);
-                    }
-                  }}
-                  className="!rounded-t-none !border-t-[1px]"
-                  dataTestId="zoom-out-control"
-                >
-                  <FontAwesomeIcon icon={faMinus} className="text-base" />
-                </ControlButtonStyler>
-              </Tooltip>
-            </div>
-          </Control>
+                    }}
+                    className="!rounded-t-none !border-t-[1px]"
+                    dataTestId="zoom-out-control"
+                  >
+                    <FontAwesomeIcon icon={faMinus} className="text-base" />
+                  </ControlButtonStyler>
+                </Tooltip>
+              </div>
+            </Control>
+          )}
           {allow3d && (
             <Control position="topleft" order={10}>
               <div className="flex flex-col">
@@ -393,7 +401,7 @@ const MapWrapper = () => {
               </div>
             </Control>
           )}
-          {showFullscreenButton && (
+          {showFullscreenButton && visibleControls.fullscreen && (
             <Control position="topleft" order={20}>
               <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
             </Control>
@@ -407,7 +415,7 @@ const MapWrapper = () => {
               />
             </Control>
           )}
-          {!isObliquePreviewVisible && (
+          {!isObliquePreviewVisible && visibleControls.home && (
             <Control position="topleft" order={40}>
               <Tooltip
                 title="Auf Rathaus Barmen positionieren"
@@ -439,23 +447,25 @@ const MapWrapper = () => {
               </Tooltip>
             </Control>
           )}
-          {!isObliquePreviewVisible && !isMobileDevice && (
-            <MeasurementControl
-              position="topleft"
-              order={60}
-              disabled={isLeaflet && showLibreMap}
-              useDisabledStyle={isLeaflet && showLibreMap}
-              tooltip={
-                isModeMeasurement
-                  ? "Messungsmodus ausschalten"
-                  : "Messungsmodus einschalten"
-              }
-              tooltipPlacement="right"
-              showInfoBox={false}
-              ref={tourRefLabels.measurement}
-            />
-          )}
-          {!isObliquePreviewVisible && (
+          {!isObliquePreviewVisible &&
+            !isMobileDevice &&
+            visibleControls.measurement && (
+              <MeasurementControl
+                position="topleft"
+                order={60}
+                disabled={isLeaflet && showLibreMap}
+                useDisabledStyle={isLeaflet && showLibreMap}
+                tooltip={
+                  isModeMeasurement
+                    ? "Messungsmodus ausschalten"
+                    : "Messungsmodus einschalten"
+                }
+                tooltipPlacement="right"
+                showInfoBox={false}
+                ref={tourRefLabels.measurement}
+              />
+            )}
+          {!isObliquePreviewVisible && visibleControls.featureInfo && (
             <Control position="topleft" order={50}>
               <Tooltip
                 title={
@@ -514,34 +524,36 @@ const MapWrapper = () => {
               </Tooltip>
             </Control>
           )}
-          {!isObliquePreviewVisible && (
+          {!isObliquePreviewVisible && visibleControls.layerButtons && (
             <Control position="topcenter" order={10}>
               <LayerWrapper />
             </Control>
           )}
-          <Control position="bottomleft" order={10}>
-            <div
-              ref={tourRefLabels.gazetteer}
-              className={`h-full w-full transition-opacity duration-200 ${
-                isObliquePreviewVisible
-                  ? "opacity-0 pointer-events-none"
-                  : "opacity-100"
-              }`}
-            >
-              <LibFuzzySearch
-                gazData={gazData}
-                onSelection={onGazetteerSelection}
-                placeholder="Wohin?"
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                selection={configSelection}
-                landParcelSearch={true}
-              />
-            </div>
-          </Control>
+          {visibleControls.gazetteer && (
+            <Control position="bottomleft" order={10}>
+              <div
+                ref={tourRefLabels.gazetteer}
+                className={`h-full w-full transition-opacity duration-200 ${
+                  isObliquePreviewVisible
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100"
+                }`}
+              >
+                <LibFuzzySearch
+                  gazData={gazData}
+                  onSelection={onGazetteerSelection}
+                  placeholder="Wohin?"
+                  pixelwidth={
+                    responsiveState === "normal"
+                      ? "300px"
+                      : windowSize.width - gap
+                  }
+                  selection={configSelection}
+                  landParcelSearch={true}
+                />
+              </div>
+            </Control>
+          )}
         </div>
       )}
       <ControlLayoutCanvas>
@@ -550,7 +562,7 @@ const MapWrapper = () => {
           className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
           ref={wrapperRef}
           style={{
-            marginTop: zenMode ? "0px" : "-56px",
+            marginTop: zenMode || !visibleControls.navbar ? "0px" : "-56px",
           }}
         >
           {showLibreMap && isLeaflet ? (

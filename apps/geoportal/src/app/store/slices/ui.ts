@@ -11,10 +11,39 @@ export enum UIMode {
   PRINT = "print",
 }
 
+export type UIVisibleControls = {
+  allow3d: boolean;
+  zoom: boolean;
+  fullscreen: boolean;
+  home: boolean;
+  featureInfo: boolean;
+  measurement: boolean;
+  gazetteer: boolean;
+  layerButtons: boolean;
+  navbar: boolean;
+};
+
+export const defaultVisibleControls: UIVisibleControls = {
+  allow3d: true,
+  zoom: true,
+  fullscreen: true,
+  home: true,
+  featureInfo: true,
+  measurement: true,
+  gazetteer: true,
+  layerButtons: true,
+  navbar: true,
+};
+
+/** all-hidden counterpart of {@link defaultVisibleControls} ("map only") */
+export const noVisibleControls: UIVisibleControls = Object.fromEntries(
+  Object.keys(defaultVisibleControls).map((key) => [key, false])
+) as UIVisibleControls;
+
 export interface UIState {
   mode: UIMode;
   activeTabKey: string;
-  allow3d: boolean;
+  visibleControls: UIVisibleControls;
   allowChanges: boolean;
   showInfo: boolean;
   showInfoText: boolean;
@@ -29,7 +58,7 @@ export interface UIState {
 export const initialUIState: UIState = {
   mode: UIMode.DEFAULT,
   activeTabKey: "1",
-  allow3d: true,
+  visibleControls: defaultVisibleControls,
   allowChanges: true,
   showInfo: true,
   showInfoText: true,
@@ -59,8 +88,12 @@ const slice = createSlice({
     setUIActiveTabKey(state, action) {
       state.activeTabKey = action.payload;
     },
-    setUIAllow3d(state, action: PayloadAction<boolean>) {
-      state.allow3d = action.payload;
+    /** omitted keys fall back to visible, so a partial payload is a full reset */
+    setUIVisibleControls(
+      state,
+      action: PayloadAction<Partial<UIVisibleControls>>
+    ) {
+      state.visibleControls = { ...defaultVisibleControls, ...action.payload };
     },
     setUIAllowChanges(state, action: PayloadAction<boolean>) {
       state.allowChanges = action.payload;
@@ -97,7 +130,7 @@ export const {
   setUIMode,
   toggleUIMode,
   setUIActiveTabKey,
-  setUIAllow3d,
+  setUIVisibleControls,
   setUIAllowChanges,
   setUIShowInfo,
   setUIShowInfoText,
@@ -111,7 +144,8 @@ export const {
 
 export const getUIMode = (state: RootState) => state.ui.mode;
 
-export const getUIAllow3d = (state: RootState) => state.ui.allow3d;
+export const getUIVisibleControls = (state: RootState) =>
+  state.ui.visibleControls;
 export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
 export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
 export const getUIShowInfo = (state: RootState) => state.ui.showInfo;
