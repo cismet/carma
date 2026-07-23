@@ -131,7 +131,6 @@ import {
   FloatingPanel,
   formatColorizerFieldLabel,
   formatColorizerSourceLabel,
-  getPointStyleSelectionOptions,
   PointColorizer,
 } from "./PointColorizer";
 import type { ColorizationConfig, ColorSlotConfig } from "./PointColorizer";
@@ -267,7 +266,8 @@ const CLOUD_ASSETS: CloudAssetDef[] = POINT_CLOUD_DATASETS.map((dataset) => ({
       }
     : {}),
 }));
-const DEFAULT_PRELOADED_CLOUD_IDS = new Set(["kwh", "awg", "mls", "seg2512"]);
+// AWG2 is the only pointcloud shown when the playground has no persisted view.
+const DEFAULT_PRELOADED_CLOUD_IDS = new Set(["awg"]);
 
 const CLOUD_CLASSIFICATION_LABELS: Readonly<
   Partial<Record<string, Readonly<Record<number, string>>>>
@@ -2599,46 +2599,19 @@ export function PointCloudPlayground({
             <div className="text-xs text-red-600 pb-1">{state.error}</div>
           )}
           <OptionRow label="Punktstil">
-            <Select
-              size="small"
-              className="min-w-[160px] flex-1"
-              placeholder="Punktstil wählen"
-              value={(() => {
+            <span className="min-w-[160px] flex-1 truncate text-sm text-gray-700">
+              {(() => {
                 const source = settings.colorization.layers[0].source;
-                if (!source) return undefined;
-                if (source.kind === "field") return `field:${source.field}`;
-                return source.kind;
+                if (!source) return "nicht konfiguriert";
+                if (source.kind === "field") return source.field;
+                if (source.kind === "rgb") return "RGB";
+                if (source.kind === "classification") return "Klassifikation";
+                return "unbekannt";
               })()}
-              onChange={(value) => {
-                let nextSource: ColorSlotConfig["source"] = null;
-                if (value === "rgb") {
-                  nextSource = { kind: "rgb" };
-                } else if (value === "classification") {
-                  nextSource = { kind: "classification" };
-                } else if (value?.startsWith("field:")) {
-                  nextSource = { kind: "field", field: value.slice("field:".length) };
-                }
-                patchCloud(def.id, {
-                  colorization: {
-                    ...settings.colorization,
-                    layers: [
-                      { ...settings.colorization.layers[0], source: nextSource },
-                      settings.colorization.layers[1],
-                      settings.colorization.layers[2],
-                    ],
-                  },
-                });
-              }}
-              options={getPointStyleSelectionOptions(
-                settings.colorization.layers[0].source
-              )}
-            />
-            <button
-              className="rounded bg-neutral-700 px-2 py-0.5 text-xs text-neutral-100 hover:bg-neutral-600"
-              onClick={() => setColorizerCloudId(def.id)}
-            >
-              Details…
-            </button>
+            </span>
+            <Button size="small" onClick={() => setColorizerCloudId(def.id)}>
+              Bearbeiten
+            </Button>
           </OptionRow>
           <OptionRow label="Punktgröße">
             <Radio.Group
