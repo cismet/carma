@@ -1,3 +1,7 @@
+# Machine-local immutable data is served through explicit development mounts.
+# It is neither an Nx input nor an Nx task output.
+playgrounds/pointcloud-stories/.data/**
+
 # Ignore collaboration submodules - they have their own NX setup
 libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule
 libraries/collaboration/carma-pecher-collab/pecher-collab-submodule

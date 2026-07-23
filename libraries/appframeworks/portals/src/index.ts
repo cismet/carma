@@ -28,6 +28,7 @@ export type {
 export type {
   CarmaConf3DClippingPolygon,
   CarmaConf3DModel,
+  CarmaConf3DPointCloud,
   CarmaConf3D,
   CarmaMapLibreStyleMetadata,
   CarmaMapLibreStyleData,

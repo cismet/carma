@@ -10,6 +10,7 @@ import { cjsGlobalShim } from "@carma-commons/utils";
 import {
   SelectionProvider,
   GazDataProvider,
+  AdhocFeatureDisplayProvider,
 } from "@carma-appframeworks/portals";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import {
@@ -27,6 +28,7 @@ import { Trees } from "./app/Trees";
 import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
 import { FilterMap } from "./app/FilterMap";
+import { PointCloudPlayground } from "./app/pointcloud/PointCloudPlayground";
 import {
   backgroundModes,
   backgroundConfigurations,
@@ -49,9 +51,10 @@ root.render(
         >
           <GazDataProvider config={defaultGazDataConfig}>
             <SelectionProvider>
-              <LibreContextProvider>
-                <MapSelectionProvider debug>
-                  <MapHighlightProvider debug>
+              <AdhocFeatureDisplayProvider>
+                <LibreContextProvider>
+                  <MapSelectionProvider debug>
+                    <MapHighlightProvider debug>
                     <Routes>
                       <Route
                         path="/"
@@ -81,10 +84,15 @@ root.render(
                         element={<CustomProfilePlayground />}
                       />
                       <Route path="/filter" element={<FilterMap />} />
+                      <Route
+                        path="/pointcloud"
+                        element={<PointCloudPlayground />}
+                      />
                     </Routes>
-                  </MapHighlightProvider>
-                </MapSelectionProvider>
-              </LibreContextProvider>
+                    </MapHighlightProvider>
+                  </MapSelectionProvider>
+                </LibreContextProvider>
+              </AdhocFeatureDisplayProvider>
             </SelectionProvider>
           </GazDataProvider>
         </TopicMapContextProvider>

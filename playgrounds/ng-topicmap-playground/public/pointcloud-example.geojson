@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "external-kwh",
+      "geometry": null,
+      "properties": {
+        "label": "Kaiser-Wilhelm-Hain · externe Registrierung",
+        "carmaConf3D": {
+          "pointcloud": {
+            "format": "carma-pointcloud-v1",
+            "url": "https://wupp-3d-data.cismet.de/mesh2024/pointclouds/kaiser-wilhelm-hain-rgb-mesh2024-ao-v1-084aca0cfdcf.copc.laz",
+            "source": {
+              "horizontalCrs": "EPSG:25832",
+              "verticalDatum": "DHHN2016",
+              "units": "meters"
+            },
+            "transform": {
+              "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+            },
+            "fields": ["z", "classification", "synthetic", "overlap", "ao"],
+            "hasRgb": true
+          }
+        }
+      }
+    }
+  ]
+}

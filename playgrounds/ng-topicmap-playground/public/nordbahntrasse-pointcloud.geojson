@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "seg2512",
+      "geometry": null,
+      "properties": {
+        "label": "Nordbahntrasse 0–3000 m · Segmentierung",
+        "carmaConf3D": {
+          "pointcloud": {
+            "format": "carma-pointcloud-v1",
+            "url": "https://wupp-3d-data.cismet.de/mesh2024/pointclouds/nordbahntrasse-2025-12-segments-mesh2024-ao-v1-48badd4f8e68.copc.laz",
+            "source": {
+              "horizontalCrs": "EPSG:25832",
+              "verticalDatum": "ellipsoidal",
+              "units": "meters"
+            },
+            "transform": {
+              "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+            },
+            "fields": ["z", "intensity", "classification", "userdata", "ao"],
+            "hasRgb": false
+          }
+        }
+      }
+    }
+  ]
+}

@@ -55,6 +55,39 @@ const proj4ConverterCache = new Map<
   Map<ManagedProjection, TypedConverter>
 >();
 
+type NumericCoordinateConverter = {
+  forward: (coordinate: [number, number]) => [number, number];
+};
+
+const utmToGeographicConverterCache = new Map<
+  string,
+  NumericCoordinateConverter
+>();
+
+export const getUtmToGeographicConverter = ({
+  zone,
+  hemisphere,
+  semiMajorAxis,
+  semiMinorAxis,
+}: {
+  zone: number;
+  hemisphere: "north" | "south";
+  semiMajorAxis: number;
+  semiMinorAxis: number;
+}) => {
+  const key = [zone, hemisphere, semiMajorAxis, semiMinorAxis].join(":");
+  const cached = utmToGeographicConverterCache.get(key);
+  if (cached) return cached;
+  const axes = `+a=${semiMajorAxis} +b=${semiMinorAxis}`;
+  const utm = `+proj=utm +zone=${zone} ${
+    hemisphere === "south" ? "+south " : ""
+  }${axes} +units=m +no_defs`;
+  const geographic = `+proj=longlat ${axes} +no_defs`;
+  const converter = proj4(utm, geographic) as NumericCoordinateConverter;
+  utmToGeographicConverterCache.set(key, converter);
+  return converter;
+};
+
 export function getProj4Converter<
   TSource extends ManagedProjection,
   TTarget extends ManagedProjection

@@ -1,0 +1,2 @@
+# Local mounted runtime data never belongs to source control or Vite publicDir.
+.data/

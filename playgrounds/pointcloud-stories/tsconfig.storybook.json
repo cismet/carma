@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["src/**/*.spec.ts", "src/**/*.spec.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.mdx",
+    ".storybook/*.ts",
+    ".storybook/*.tsx",
+    "../ng-topicmap-playground/src/app/pointcloud/**/*.ts",
+    "../ng-topicmap-playground/src/app/pointcloud/**/*.tsx",
+    "../ng-topicmap-playground/src/app/backgroundConfig.ts",
+    "../stories/src/stories/common/ui/story-masonry-layout.tsx"
+  ]
+}
