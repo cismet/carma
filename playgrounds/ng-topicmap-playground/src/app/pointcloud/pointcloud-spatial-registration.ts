@@ -281,7 +281,7 @@ export const estimateRegistrationAgainstReferenceSurface = (
     north: 0,
   };
 
-  const rotationCandidates = options.enableRotation
+  const rotationCandidates: Array<{ east: number; north: number }> = options.enableRotation
     ? Array.from(
         new Map(
           Array.from(
@@ -303,7 +303,7 @@ export const estimateRegistrationAgainstReferenceSurface = (
                 (_, northIndex) => {
                   const north =
                     rotationSeed.north - rotationWindow + northIndex * rotationStep;
-                  return [`${east}:${north}`, { east, north }];
+                  return [`${east}:${north}`, { east, north }] as const;
                 }
               );
             }

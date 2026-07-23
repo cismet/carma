@@ -66,8 +66,7 @@ export default defineConfig(() => ({
       reporters: ["default"],
       coverage: {
         reportsDirectory: "../../coverage/playgrounds/ng-topicmap-playground",
-        provider: "v8",
+        provider: "v8" as const,
       },
     },
-  },
-));
+}));

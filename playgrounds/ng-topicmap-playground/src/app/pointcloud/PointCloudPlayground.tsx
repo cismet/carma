@@ -2085,6 +2085,7 @@ export function PointCloudPlayground({
         const restoredAssets = parsed.features.map((feature) => {
           const config = pointCloudFeatureToConfig(feature);
           const asset: CloudAssetDef = {
+            format: config.format,
             id: feature.id,
             label: feature.metadata?.title ?? config.url.split("/").pop() ?? feature.id,
             artifactFileName: config.url,
@@ -2094,6 +2095,8 @@ export function PointCloudPlayground({
             hasRgb: config.hasRgb ?? false,
             runtimeEnabled: true,
             defaultDatum: config.source?.verticalDatum === "ellipsoidal" ? "ellipsoidal" : "dhhn",
+            source: config.source,
+            transform: config.transform,
             url: config.url,
           };
           return asset;
@@ -2152,6 +2155,7 @@ export function PointCloudPlayground({
             const label =
               feature.metadata?.title ?? config.url.split("/").pop() ?? feature.id;
             const nextAsset: CloudAssetDef = {
+              format: config.format,
               id: feature.id,
               label,
               artifactFileName: config.url,
@@ -2164,6 +2168,8 @@ export function PointCloudPlayground({
                 config.source?.verticalDatum === "ellipsoidal"
                   ? "ellipsoidal"
                   : "dhhn",
+              source: config.source,
+              transform: config.transform,
               url: config.url,
               registration: undefined,
             };

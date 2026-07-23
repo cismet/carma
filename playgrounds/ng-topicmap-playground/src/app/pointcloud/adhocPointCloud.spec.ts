@@ -22,7 +22,7 @@ describe("parseAdhocPointCloudJson", () => {
     expect(result.features).toHaveLength(1);
     expect(result.features[0].id).toBe("pointcloud-import:demo");
     expect(
-      (result.features[0].properties as { carmaConf3D: { pointcloud: { format: string } } })
+      (result.features[0].properties as unknown as { carmaConf3D: { pointcloud: { format: string } } })
         .carmaConf3D.pointcloud.format
     ).toBe("carma-pointcloud-v1");
   });

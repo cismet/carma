@@ -20,12 +20,12 @@ export type CarmaConf3DModel = {
 export type CarmaConf3DPointCloud = {
   format: "carma-pointcloud-v1";
   url: string;
-  source?: {
+  source: {
     horizontalCrs: string;
     verticalDatum?: string;
     units: "meters";
   };
-  transform?: {
+  transform: {
     /** Column-major, column-vector, source-frame to target-frame matrix. */
     matrix: readonly [
       number, number, number, number,

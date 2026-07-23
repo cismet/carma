@@ -48,7 +48,7 @@ const normalizeFeature = (value: Feature): AdhocFeature => {
     properties: {
       ...properties,
       carmaConf3D: { pointcloud },
-    },
+    } as unknown as AdhocFeature["properties"],
     metadata: {
       title:
         properties.title ??
