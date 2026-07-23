@@ -58,7 +58,7 @@ export const selectCatalogLayerById = (
  */
 export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { viewerRef } = useCesiumContext();
+  const { withCamera } = useCesiumContext();
   const { setCurrentStyle } = useMapStyle();
   const {
     activeFramework,
@@ -70,11 +70,6 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     // Live engine handles, resolved per call so they track mount/unmount.
     const getLeafletMap = () =>
       topicMap?.routedMapRef?.leafletMap?.leafletElement ?? null;
-    const getCamera = () => {
-      const viewer = viewerRef?.current;
-      if (!viewer || viewer.isDestroyed()) return null;
-      return viewer.camera;
-    };
 
     const adapter: MapAdapter = {
       getMode: () =>
@@ -108,30 +103,33 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
       },
 
       // 3d (cesium) ----------------------------------------------------------
-      getCameraPosition3D: () => {
-        const camera = getCamera();
-        if (!camera) return null;
-        const p = camera.positionCartographic;
-        return {
-          lon: p.longitude * RAD_TO_DEG,
-          lat: p.latitude * RAD_TO_DEG,
-          height: p.height,
-          heading: camera.heading * RAD_TO_DEG,
-          pitch: camera.pitch * RAD_TO_DEG,
-          roll: camera.roll * RAD_TO_DEG,
-        };
+      getCameraPosition3D: () =>
+        withCamera((camera) => {
+          const p = camera.positionCartographic;
+          return {
+            lon: p.longitude * RAD_TO_DEG,
+            lat: p.latitude * RAD_TO_DEG,
+            height: p.height,
+            heading: camera.heading * RAD_TO_DEG,
+            pitch: camera.pitch * RAD_TO_DEG,
+            roll: camera.roll * RAD_TO_DEG,
+          };
+        }) ?? null,
+      zoomIn3D: () => {
+        withCamera((camera) => camera.zoomIn());
       },
-      zoomIn3D: () => getCamera()?.zoomIn(),
-      zoomOut3D: () => getCamera()?.zoomOut(),
+      zoomOut3D: () => {
+        withCamera((camera) => camera.zoomOut());
+      },
       flyTo3D: (lon, lat, height) => {
-        const camera = getCamera();
-        if (!camera) return;
-        camera.flyTo({
-          destination: Cartesian3.fromDegrees(
-            lon,
-            lat,
-            height ?? camera.positionCartographic.height
-          ),
+        withCamera((camera) => {
+          camera.flyTo({
+            destination: Cartesian3.fromDegrees(
+              lon,
+              lat,
+              height ?? camera.positionCartographic.height
+            ),
+          });
         });
       },
 
@@ -194,7 +192,7 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     return () => registerMapping(null);
   }, [
     topicMap,
-    viewerRef,
+    withCamera,
     activeFramework,
     requestTransitionToCesium,
     requestTransitionToLeaflet,
