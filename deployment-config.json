@@ -916,6 +916,33 @@
       },
       "projectPath": "./dist/playgrounds/stories"
     },
+    "pointcloud-stories": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "pointclouds"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "pointclouds"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "pointclouds"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/pointcloud-stories"
+    },
     "rainhazardmap-korschenbroich": {
       "deployment": {
         "manual": {
