@@ -174,6 +174,9 @@ const getLazPerf = (): Promise<LazPerf> => {
   return lazPerfPromise;
 };
 
+const yieldToBrowser = (): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, 0));
+
 /**
  * HTTP range getter for copc. Falls back to caching the whole file
  * when the server answers 200 instead of 206 (no range support).
@@ -490,6 +493,10 @@ const decodeCopcNode = async (
       fieldValues[name][i] = normalizeCopcScalarFieldValue(name, getField(i));
     }
     pointIndex[i] = pointIndexOffset + i;
+    // Keep large node conversion cooperative. The LAZ fetch/decode is
+    // asynchronous, but this attribute conversion loop otherwise monopolizes
+    // the main thread until the complete node has been copied.
+    if ((i + 1) % 4096 === 0) await yieldToBrowser();
   }
 
   return {

@@ -26,6 +26,8 @@ export interface PointcloudSceneLayer extends CustomLayerInterface {
   addRuntime: (runtime: PointcloudSceneRuntime) => void;
   removeRuntime: (runtimeId: string) => void;
   hasRuntime: (runtimeId: string) => boolean;
+  /** Detach the custom layer without destroying runtimes preserved across HMR. */
+  detach: () => void;
   dispose: () => void;
 }
 
@@ -99,6 +101,15 @@ export const buildPointcloudSceneLayer = (
 
     hasRuntime(runtimeId) {
       return runtimes.has(runtimeId);
+    },
+
+    detach() {
+      for (const runtime of runtimes.values()) scene.remove(runtime.root);
+      renderer?.dispose();
+      renderer = null;
+      map = null;
+      originMerc = null;
+      meterScale = 0;
     },
 
     onAdd(mapInstance, gl) {

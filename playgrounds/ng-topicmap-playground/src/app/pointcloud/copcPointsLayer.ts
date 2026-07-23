@@ -59,13 +59,17 @@ export interface PointClipCorridor {
 }
 
 /** Engine-side color slot: 0 = off/white, 1 = RGB attribute,
- *  2 = classification LUT, 3 = scalar ramp, 4 = qualitative field LUT */
+ *  2 = classification LUT, 3 = scalar ramp, 4 = qualitative field LUT,
+ *  5 = static solid color. */
 export interface LayerColorSlot {
-  mode: 0 | 1 | 2 | 3 | 4;
+  mode: 0 | 1 | 2 | 3 | 4 | 5;
   rampTexture?: THREE.Texture;
   categoryLut?: Uint8Array;
   range?: [number, number];
+  clipRangeMin?: boolean;
+  clipRangeMax?: boolean;
   gamma?: number;
+  solidColor?: string;
 }
 
 /** 0 = normal, 1 = multiply, 2 = screen, 3 = overlay */
@@ -80,7 +84,10 @@ export interface CopcPointsLayer extends PointcloudSceneRuntime {
   /** Drive on-demand node loading from the exact MapLibre clip matrix. */
   setFrustumNodeSource: (
     nodes: readonly CopcNodeDescriptor[],
-    onSelection: (nodeKeys: readonly string[]) => void
+    onSelection: (
+      nodeKeys: readonly string[],
+      stats: { visibleNodeCount: number; selectedPointCount: number }
+    ) => void
   ) => void;
   /** Fixed point size in pixels (mode "pixels") */
   setPointSize: (sizePx: number) => void;
@@ -120,6 +127,8 @@ export interface CopcPointsLayer extends PointcloudSceneRuntime {
   ) => void;
   /** Maximum number of loaded points submitted to the renderer. */
   setPointBudget: (pointBudget: number) => void;
+  setMinimumSpacingPixels: (pixels: number) => void;
+  setNodeBoundsVisible: (visible: boolean) => void;
   readonly pointCount: number;
 }
 
@@ -212,7 +221,7 @@ const VERTEX_SHADER = /* glsl */ `
 const FRAGMENT_SHADER = /* glsl */ `
   uniform float uShape;      // 0 square, 1 circle, 2 shaded dome, 3 soft splat
 
-  // Color slots: 0 off, 1 RGB, 2 classification, 3 scalar, 4 qualitative
+  // Color slots: 0 off, 1 RGB, 2 classification, 3 scalar, 4 qualitative, 5 solid
   uniform float uSlotAMode;
   uniform float uSlotBMode;
   uniform float uSlotCMode;
@@ -228,6 +237,15 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uGammaA;
   uniform float uGammaB;
   uniform float uGammaC;
+  uniform vec3 uSolidColorA;
+  uniform vec3 uSolidColorB;
+  uniform vec3 uSolidColorC;
+  uniform bool uClipMinA;
+  uniform bool uClipMaxA;
+  uniform bool uClipMinB;
+  uniform bool uClipMaxB;
+  uniform bool uClipMinC;
+  uniform bool uClipMaxC;
   uniform float uBlendBMode;   // 0 normal, 1 multiply, 2 screen, 3 overlay
   uniform float uBlendBOpacity;
   uniform float uBlendCMode;
@@ -244,11 +262,13 @@ const FRAGMENT_SHADER = /* glsl */ `
   varying vec2 vLocalXZ;
 
   vec4 slotColor(
-    float mode, vec3 rgb, float value,
-    sampler2D ramp, sampler2D categoryRamp, vec2 range, float gamma
+    float mode, vec3 rgb, float value, vec3 solidColor,
+    sampler2D ramp, sampler2D categoryRamp, vec2 range, float gamma,
+    bool clipMin, bool clipMax
   ) {
     if (mode < 0.5) return vec4(1.0);
     if (mode < 1.5) return vec4(rgb, 1.0);
+    if (mode > 4.5) return vec4(solidColor, 1.0);
     if (mode < 2.5) {
       float category = clamp(floor(vClassification + 0.5), 0.0, 255.0);
       return texture2D(categoryRamp, vec2((category + 0.5) / 256.0, 0.5));
@@ -257,6 +277,7 @@ const FRAGMENT_SHADER = /* glsl */ `
       float category = clamp(floor(value + 0.5), 0.0, 255.0);
       return texture2D(categoryRamp, vec2((category + 0.5) / 256.0, 0.5));
     }
+    if ((clipMin && value < range.x) || (clipMax && value > range.y)) return vec4(0.0);
     float t = clamp((value - range.x) / max(range.y - range.x, 1e-9), 0.0, 1.0);
     t = pow(t, gamma);
     return texture2D(ramp, vec2(t, 0.5));
@@ -307,13 +328,13 @@ const FRAGMENT_SHADER = /* glsl */ `
     }
     vec4 baseColor = slotColor(
       uSlotAMode, vColor, vFieldA,
-      uRampA, uCategoryRampA, uRangeA, uGammaA);
+      uSolidColorA, uRampA, uCategoryRampA, uRangeA, uGammaA, uClipMinA, uClipMaxA);
     if (baseColor.a <= 0.001) discard;
     vec3 result = baseColor.rgb;
     if (uSlotBMode > 0.5) {
       vec4 colorB = slotColor(
         uSlotBMode, vColor, vFieldB,
-        uRampB, uCategoryRampB, uRangeB, uGammaB);
+        uSolidColorB, uRampB, uCategoryRampB, uRangeB, uGammaB, uClipMinB, uClipMaxB);
       result = mix(
         result,
         blend(result, colorB.rgb, uBlendBMode),
@@ -323,7 +344,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     if (uSlotCMode > 0.5) {
       vec4 colorC = slotColor(
         uSlotCMode, vColor, vFieldC,
-        uRampC, uCategoryRampC, uRangeC, uGammaC);
+        uSolidColorC, uRampC, uCategoryRampC, uRangeC, uGammaC, uClipMinC, uClipMaxC);
       result = mix(
         result,
         blend(result, colorC.rgb, uBlendCMode),
@@ -396,6 +417,15 @@ export function createCopcPointCloudVisualizer(
       uGammaA: { value: 1 },
       uGammaB: { value: 1 },
       uGammaC: { value: 1 },
+      uSolidColorA: { value: new THREE.Color("#ffffff") },
+      uSolidColorB: { value: new THREE.Color("#ffffff") },
+      uSolidColorC: { value: new THREE.Color("#ffffff") },
+      uClipMinA: { value: false },
+      uClipMaxA: { value: false },
+      uClipMinB: { value: false },
+      uClipMaxB: { value: false },
+      uClipMinC: { value: false },
+      uClipMaxC: { value: false },
       uBlendBMode: { value: 1 },
       uBlendBOpacity: { value: 1 },
       uBlendCMode: { value: 1 },
@@ -536,27 +566,33 @@ export function createCopcPointCloudVisualizer(
       return chunkPoints.some((points) => points.userData.nodeKey === nodeKey);
     },
     setPointSize(sizePx: number) {
+      if (material.uniforms.uSizePx.value === sizePx) return;
       material.uniforms.uSizePx.value = sizePx;
       requestRender();
     },
     setRadiusMeters(radius: number) {
+      if (material.uniforms.uRadiusM.value === radius) return;
       material.uniforms.uRadiusM.value = radius;
       requestRender();
     },
     setSizeMode(mode: PointSizeMode) {
-      material.uniforms.uMode.value =
+      const value =
         mode === POINT_SIZE_MODES.AUTO
           ? 2
           : mode === POINT_SIZE_MODES.METERS
           ? 1
           : 0;
+      if (material.uniforms.uMode.value === value) return;
+      material.uniforms.uMode.value = value;
       requestRender();
     },
     setRadiusScale(scale: number) {
+      if (material.uniforms.uRadiusScale.value === scale) return;
       material.uniforms.uRadiusScale.value = scale;
       requestRender();
     },
     setShape(shape: PointShape) {
+      if (pointShape === shape) return;
       pointShape = shape;
       material.uniforms.uShape.value =
         shape === POINT_SHAPES.SOFT_SPLAT
@@ -581,6 +617,11 @@ export function createCopcPointCloudVisualizer(
           slot.range?.[1] ?? 1
         );
         material.uniforms[`uGamma${suffix}`].value = slot.gamma ?? 1;
+        (material.uniforms[`uSolidColor${suffix}`].value as THREE.Color).set(
+          slot.solidColor ?? "#ffffff"
+        );
+        material.uniforms[`uClipMin${suffix}`].value = slot.clipRangeMin ?? false;
+        material.uniforms[`uClipMax${suffix}`].value = slot.clipRangeMax ?? false;
         const categoryTexture = categoryTextures[suffix];
         if (slot.categoryLut) {
           (categoryTexture.image.data as Uint8Array).set(slot.categoryLut);
@@ -618,11 +659,13 @@ export function createCopcPointCloudVisualizer(
       requestRender();
     },
     setDepthTest(enabled: boolean) {
+      if (material.depthTest === enabled) return;
       material.depthTest = enabled;
       material.needsUpdate = true;
       requestRender();
     },
     setCompositeMode(mode: PointCompositeMode) {
+      if (compositeMode === mode) return;
       compositeMode = mode;
       syncMaterialBlending();
       requestRender();
@@ -705,11 +748,55 @@ export function buildCopcPointsLayer(
   );
   const root = new THREE.Group();
   root.add(visualizer.group);
+  const nodeBoundsGroup = new THREE.Group();
+  const nodeBoundsMaterial = new THREE.LineBasicMaterial({
+    color: 0x22c55e,
+    transparent: true,
+    opacity: 0.55,
+    depthTest: false,
+  });
+  nodeBoundsGroup.visible = false;
+  root.add(nodeBoundsGroup);
+  const selectedNodeBoundsMaterial = new THREE.LineBasicMaterial({
+    color: 0xf97316,
+    transparent: true,
+    opacity: 0.9,
+    depthTest: false,
+  });
+  const selectedNodeBoundsGroup = new THREE.Group();
+  selectedNodeBoundsGroup.visible = false;
+  root.add(selectedNodeBoundsGroup);
   const clipFromLocal = new THREE.Matrix4();
   let frustumNodes: readonly CopcNodeDescriptor[] = [];
-  let onFrustumSelection: ((nodeKeys: readonly string[]) => void) | null = null;
+  let onFrustumSelection: ((
+    nodeKeys: readonly string[],
+    stats: { visibleNodeCount: number; selectedPointCount: number }
+  ) => void) | null = null;
   let frustumPointBudget = Number.POSITIVE_INFINITY;
+  let minimumSpacingPixels = 0.75;
   let lastSelectionSignature = "";
+  const buildBoundsGeometry = (nodes: readonly CopcNodeDescriptor[]) => {
+    const positions: number[] = [];
+    for (const node of nodes) {
+      const [minX, minY, minZ, maxX, maxY, maxZ] = node.boundsLocal;
+      const corners = [
+        [minX, minY, minZ], [maxX, minY, minZ], [maxX, maxY, minZ], [minX, maxY, minZ],
+        [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ],
+      ];
+      for (const [a, b] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]) {
+        positions.push(...corners[a], ...corners[b]);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return geometry;
+  };
+  const clearBoundsGroup = (group: THREE.Group) => {
+    group.traverse((object) => {
+      if (object instanceof THREE.LineSegments) object.geometry.dispose();
+    });
+    group.clear();
+  };
 
   const layer: CopcPointsLayer = {
     id: layerId,
@@ -724,6 +811,9 @@ export function buildCopcPointsLayer(
     setFrustumNodeSource(nodes, onSelection) {
       frustumNodes = nodes;
       onFrustumSelection = onSelection;
+      clearBoundsGroup(nodeBoundsGroup);
+      clearBoundsGroup(selectedNodeBoundsGroup);
+      nodeBoundsGroup.add(new THREE.LineSegments(buildBoundsGeometry(nodes), nodeBoundsMaterial));
       lastSelectionSignature = "";
       map?.triggerRepaint();
     },
@@ -741,6 +831,15 @@ export function buildCopcPointsLayer(
       frustumPointBudget = Math.max(0, Math.floor(pointBudget));
       visualizer.setPointBudget(frustumPointBudget);
       lastSelectionSignature = "";
+    },
+    setMinimumSpacingPixels(pixels: number) {
+      minimumSpacingPixels = Math.max(0, pixels);
+      lastSelectionSignature = "";
+      map?.triggerRepaint();
+    },
+    setNodeBoundsVisible(visible: boolean) {
+      nodeBoundsGroup.visible = visible;
+      map?.triggerRepaint();
     },
 
     onAdd(mapInstance: MaplibreMap) {
@@ -763,18 +862,31 @@ export function buildCopcPointsLayer(
           {
             viewportWidth: frame.viewport.x,
             viewportHeight: frame.viewport.y,
+            minimumSpacingPixels,
           }
         );
         const signature = selection.keys.join("|");
         if (signature !== lastSelectionSignature) {
           lastSelectionSignature = signature;
-          onFrustumSelection(selection.keys);
+          clearBoundsGroup(selectedNodeBoundsGroup);
+          selectedNodeBoundsGroup.add(new THREE.LineSegments(
+            buildBoundsGeometry(frustumNodes.filter((node) => selection.keys.includes(node.key))),
+            selectedNodeBoundsMaterial
+          ));
+          onFrustumSelection(selection.keys, {
+            visibleNodeCount: selection.visibleNodeCount,
+            selectedPointCount: selection.pointCount,
+          });
         }
       }
     },
 
     dispose() {
       visualizer.dispose();
+      clearBoundsGroup(nodeBoundsGroup);
+      clearBoundsGroup(selectedNodeBoundsGroup);
+      nodeBoundsMaterial.dispose();
+      selectedNodeBoundsMaterial.dispose();
       root.clear();
       lastSelectionSignature = "";
       map = null;

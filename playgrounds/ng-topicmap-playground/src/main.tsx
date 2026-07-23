@@ -20,6 +20,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import { HashStateProvider } from "@carma-providers/hash-state";
 import BelisPlayground from "./app/BelisPlayground";
 import AlkisPlayground from "./app/AlkisPlayground";
 import Stadtplan2 from "./app/Stadtplan2";
@@ -51,8 +52,9 @@ root.render(
         >
           <GazDataProvider config={defaultGazDataConfig}>
             <SelectionProvider>
-              <AdhocFeatureDisplayProvider>
-                <LibreContextProvider>
+              <HashStateProvider>
+                <AdhocFeatureDisplayProvider>
+                  <LibreContextProvider>
                   <MapSelectionProvider debug>
                     <MapHighlightProvider debug>
                     <Routes>
@@ -91,8 +93,9 @@ root.render(
                     </Routes>
                     </MapHighlightProvider>
                   </MapSelectionProvider>
-                </LibreContextProvider>
-              </AdhocFeatureDisplayProvider>
+                  </LibreContextProvider>
+                </AdhocFeatureDisplayProvider>
+              </HashStateProvider>
             </SelectionProvider>
           </GazDataProvider>
         </TopicMapContextProvider>

@@ -10,7 +10,15 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Checkbox, Input, InputNumber, Select, Slider } from "antd";
+import {
+  Button,
+  Checkbox,
+  Input,
+  InputNumber,
+  Select,
+  Slider,
+  Switch,
+} from "antd";
 
 import {
   categoryColor,
@@ -21,6 +29,7 @@ import {
 } from "./colorRamps";
 import type { CategoryStyle, RampName } from "./colorRamps";
 import { EXPRESSION_SHORTHANDS } from "./deriveField";
+import { HistogramRangeSlider } from "./HistogramRangeSlider";
 
 // ─────────────────────────────────────────────────────────────
 //  PointColorizer v2 — expert colorization console for point
@@ -55,15 +64,19 @@ export interface ColorizerFieldInfo {
 export type SlotSource =
   | { kind: "rgb" }
   | { kind: "classification" }
+  | { kind: "solid"; color: string }
   | { kind: "field"; field: string };
 
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay";
+export type RangeMode = "clamp" | "clip";
 
 export interface ColorSlotConfig {
   source: SlotSource | null;
   ramp: RampName;
   clampMin: number;
   clampMax: number;
+  rangeModeMin: RangeMode;
+  rangeModeMax: RangeMode;
   gamma: number;
   inverted: boolean;
   categoryStyles: Record<string, CategoryStyle>;
@@ -81,6 +94,8 @@ export const DEFAULT_SLOT: ColorSlotConfig = {
   ramp: "viridis",
   clampMin: 0,
   clampMax: 1,
+  rangeModeMin: "clamp",
+  rangeModeMax: "clamp",
   gamma: 1,
   inverted: false,
   categoryStyles: {},
@@ -105,6 +120,9 @@ interface ColorPreset {
     sourceKey: string;
     ramp: RampName;
     clamp: [number, number];
+    rangeModeMin?: RangeMode;
+    rangeModeMax?: RangeMode;
+    rangeMode?: RangeMode;
     gamma: number;
     inverted?: boolean;
     categoryStyles?: Record<string, CategoryStyle>;
@@ -125,6 +143,8 @@ const sourceKey = (source: SlotSource | null): string =>
     ? "none"
     : source.kind === "field"
     ? `field:${source.field}`
+    : source.kind === "solid"
+    ? `solid:${source.color}`
     : source.kind;
 
 const sourceFromKey = (key: string): SlotSource | null =>
@@ -134,16 +154,31 @@ const sourceFromKey = (key: string): SlotSource | null =>
     ? { kind: "rgb" }
     : key === "classification"
     ? { kind: "classification" }
+    : key.startsWith("solid:")
+    ? { kind: "solid", color: key.slice("solid:".length) || "#ffffff" }
     : key.startsWith("field:")
     ? { kind: "field", field: key.slice("field:".length) }
     : null;
 
 export const formatColorizerFieldLabel = (name: string): string => {
-  switch (name.toLowerCase()) {
+  switch (name.trim().toLowerCase()) {
     case "z":
       return "Absolute Höhe";
     case "ao":
-      return "Ambient Occlusion";
+      return "Verschattung (AO)";
+    case "intensity":
+    case "intensität":
+      return "Intensität";
+    case "returnnumber":
+    case "return_number":
+    case "return number":
+      return "Rückgabenummer";
+    case "numberofreturns":
+    case "number_of_returns":
+    case "number of returns":
+      return "Anzahl der Rückgaben";
+    case "classification":
+      return "Klassifikation";
     default:
       return name;
   }
@@ -155,6 +190,7 @@ export const formatColorizerSourceLabel = (
   if (source === null) return "Keine";
   if (source.kind === "rgb") return "RGB";
   if (source.kind === "classification") return "Klassifikation";
+  if (source.kind === "solid") return `Farbe ${source.color}`;
   return formatColorizerFieldLabel(source.field);
 };
 
@@ -195,6 +231,9 @@ export const getPointStyleSelectionOptions = (
   if (source.kind === "rgb") return [{ value: "rgb", label: "RGB" }];
   if (source.kind === "classification") {
     return [{ value: "classification", label: "Klassifikation" }];
+  }
+  if (source.kind === "solid") {
+    return [{ value: sourceKey(source), label: formatColorizerSourceLabel(source) }];
   }
   return [{ value: `field:${source.field}`, label: formatColorizerFieldLabel(source.field) }];
 };
@@ -515,6 +554,11 @@ function SlotEditor({
 
   const options = [
     ...(hasRgb ? [{ value: "rgb", label: "RGB" }] : []),
+    {
+      value:
+        source?.kind === "solid" ? sourceKey(source) : "solid:#ffffff",
+      label: "Farbe (statisch)",
+    },
     ...(classificationAvailable
       ? [{ value: "classification", label: "Klassifikation" }]
       : []),
@@ -712,7 +756,18 @@ function SlotEditor({
                   clampMin={slot.clampMin}
                   clampMax={slot.clampMax}
                 />
-                <div className="flex items-center gap-2">
+                <div className="pt-1">
+                  <HistogramRangeSlider
+                    min={fieldInfo.min}
+                    max={fieldInfo.max}
+                    step={step}
+                    value={[slot.clampMin, slot.clampMax]}
+                    onChange={([low, high]) =>
+                      onChange({ ...slot, clampMin: low, clampMax: high })
+                    }
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
                   <InputNumber
                     size="small"
                     className="w-20"
@@ -724,18 +779,25 @@ function SlotEditor({
                       value !== null && onChange({ ...slot, clampMin: value })
                     }
                   />
-                  <div className="flex-1 pt-1">
-                    <Slider
-                      range
-                      min={fieldInfo.min}
-                      max={fieldInfo.max}
-                      step={step}
-                      value={[slot.clampMin, slot.clampMax]}
-                      onChange={([low, high]) =>
-                        onChange({ ...slot, clampMin: low, clampMax: high })
-                      }
-                    />
-                  </div>
+                  <Switch
+                    size="small"
+                    checked={slot.rangeModeMin === "clip"}
+                    onChange={(clip) =>
+                      onChange({ ...slot, rangeModeMin: clip ? "clip" : "clamp" })
+                    }
+                    checkedChildren="Clip"
+                    unCheckedChildren="Clamp"
+                  />
+                  <span className="text-xs text-gray-500">Min</span>
+                  <Switch
+                    size="small"
+                    checked={slot.rangeModeMax === "clip"}
+                    onChange={(clip) =>
+                      onChange({ ...slot, rangeModeMax: clip ? "clip" : "clamp" })
+                    }
+                    checkedChildren="Clip"
+                    unCheckedChildren="Clamp"
+                  />
                   <InputNumber
                     size="small"
                     className="w-20"
@@ -747,10 +809,32 @@ function SlotEditor({
                       value !== null && onChange({ ...slot, clampMax: value })
                     }
                   />
+                  <span className="text-xs text-gray-500">Max</span>
                 </div>
               </>
             )
           )}
+        </div>
+      )}
+
+      {slot.source?.kind === "solid" && (
+        <div className="flex items-center gap-2 pt-1.5">
+          <span className="text-xs text-gray-500">Farbe</span>
+          <input
+            type="color"
+            value={slot.source.color}
+            aria-label="Statische Mischfarbe"
+            className="h-7 w-12 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
+            onChange={(event) =>
+              onChange({
+                ...slot,
+                source: { kind: "solid", color: event.target.value },
+              })
+            }
+          />
+          <span className="font-mono text-xs text-gray-500">
+            {slot.source.color}
+          </span>
         </div>
       )}
       {slot.source?.kind === "field" && fieldInfo?.empty && !qualitative && (
@@ -847,6 +931,8 @@ export function PointColorizer({
         clamp: absoluteClamp
           ? [slot.clampMin, slot.clampMax]
           : relativeClamp(slot),
+        rangeModeMin: slot.rangeModeMin,
+        rangeModeMax: slot.rangeModeMax,
         gamma: slot.gamma,
         inverted: slot.inverted,
         categoryStyles: slot.categoryStyles,
@@ -889,6 +975,8 @@ export function PointColorizer({
         ramp,
         clampMin,
         clampMax,
+        rangeModeMin: stored.rangeModeMin ?? stored.rangeMode ?? "clamp",
+        rangeModeMax: stored.rangeModeMax ?? stored.rangeMode ?? "clamp",
         gamma: stored.gamma,
         inverted: stored.inverted ?? false,
         categoryStyles: stored.categoryStyles ?? {},

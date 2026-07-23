@@ -399,6 +399,21 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     tiles?.dispatchEvent({ type: "needs-update" });
     scheduleProgressiveRefinement();
   };
+  const pruneStaleQueuedRequests = () => {
+    if (!tiles) return;
+    const queue = tiles.downloadQueue as typeof tiles.downloadQueue & {
+      items: Array<{ inFrustum?: boolean; used?: boolean }>;
+      remove: (item: unknown) => void;
+    };
+    // TilesRenderer refreshes inFrustum/used during update(). Removing only
+    // queued, no-longer-visible work keeps active/current-frustum requests and
+    // lets the following traversal enqueue newly intersecting tiles.
+    for (const tile of [...queue.items]) {
+      if (tile.inFrustum === false && tile.used === false) {
+        queue.remove(tile);
+      }
+    }
+  };
   const handleUpdateAfter = () => {
     scheduleProgressiveRefinement();
     notifyRequestStateChange();
@@ -514,6 +529,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         }
         cameraSet.update(frame.lodCamera, frame.viewport.x, frame.viewport.y);
         tiles.update();
+        pruneStaleQueuedRequests();
       } catch (error) {
         console.error("[tiles3d] update failed:", error);
       }

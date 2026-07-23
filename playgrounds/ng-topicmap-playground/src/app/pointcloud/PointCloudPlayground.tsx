@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   faChevronDown,
@@ -6,6 +6,7 @@ import {
   faCircleInfo,
   faEye,
   faEyeSlash,
+  faMap,
   faRotateLeft,
   faSliders,
   faXmark,
@@ -17,6 +18,7 @@ import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { CarmaMap } from "@carma-mapping/core";
+import { useHashState } from "@carma-providers/hash-state";
 import {
   slugifyUrl,
   useLibreContext,
@@ -345,6 +347,7 @@ interface CloudSettings extends CloudPositionOffset {
   /** Spacing multiplier for the auto size mode */
   radiusScale: number;
   shape: PointShape;
+  nodeBoundsVisible: boolean;
   colorization: ColorizationConfig;
 }
 
@@ -418,6 +421,7 @@ const defaultCloudSettings = (
     radiusMeters: def.id === "mls" ? 0.1 : 0.3,
     radiusScale: 1,
     shape: def.id === "mls" ? POINT_SHAPES.DOME : POINT_SHAPES.CIRCLE,
+    nodeBoundsVisible: false,
     colorization,
   };
 };
@@ -441,6 +445,9 @@ const TRASSE_BBOX_UTM: [number, number, number, number] = [
 
 const DEFAULT_TARGET_FRAME_RATE = 30;
 const SCENE_REQUEST_CONCURRENCY = 12;
+const CAMERA_MOVE_POINT_BUDGET_FACTOR = 0.35;
+const NORMAL_MINIMUM_SPACING_PIXELS = 0.75;
+const CAMERA_MOVE_MINIMUM_SPACING_PIXELS = 2;
 
 const resolvePointMemoryBudget = (): PointMemoryBudget => {
   const memory =
@@ -544,6 +551,9 @@ const downloadJson = (filename: string, payload: unknown) => {
 interface CloudState {
   loading: boolean;
   loadedPoints: number;
+  loadedNodes: number;
+  renderedNodes: number;
+  visibleNodes: number;
   meta: CopcSceneMetadata | null;
   geoidUndulation: number | null;
   /** Per-field stats + histograms once loading finished */
@@ -565,6 +575,9 @@ const toLayerSlot = (slot: ColorSlotConfig): LayerColorSlot => {
       ),
     };
   }
+  if (slot.source.kind === "solid") {
+    return { mode: 5, solidColor: slot.source.color };
+  }
   if (isQualitativeRamp(slot.ramp)) {
     return {
       mode: 4,
@@ -579,6 +592,8 @@ const toLayerSlot = (slot: ColorSlotConfig): LayerColorSlot => {
     mode: 3,
     rampTexture: getRampTexture(slot.ramp, slot.inverted),
     range: [slot.clampMin, slot.clampMax],
+    clipRangeMin: slot.rangeModeMin === "clip",
+    clipRangeMax: slot.rangeModeMax === "clip",
     gamma: slot.gamma,
   };
 };
@@ -592,6 +607,27 @@ const BLEND_MODE_TO_INT = {
 
 const slotFieldName = (slot: ColorSlotConfig): string | null =>
   slot.source?.kind === "field" ? slot.source.field : null;
+
+const getSecondaryPanelPosition = (index: number) => {
+  const panelWidth = 400;
+  const panelGap = 16;
+  const topInset = 76;
+  const estimatedPanelHeight = 460;
+  const panelStep = estimatedPanelHeight + panelGap;
+  const availableHeight = Math.max(0, window.innerHeight - topInset - 24);
+  const rows = Math.max(
+    1,
+    Math.floor((availableHeight + panelGap) / (estimatedPanelHeight + panelGap))
+  );
+  const column = Math.floor(index / rows);
+  const row = index % rows;
+  const rightColumnX = Math.max(16, window.innerWidth - panelWidth - 16);
+  const firstColumnX = 420;
+  return {
+    x: column === 0 ? firstColumnX : rightColumnX,
+    y: topInset + row * panelStep,
+  };
+};
 
 const isAbortError = (value: unknown): boolean =>
   typeof value === "object" &&
@@ -613,6 +649,45 @@ const disableTerrainSkirts = (map: MaplibreMap) => {
     map.triggerRepaint();
   }
 };
+
+/** Central scene state for the map surface shown above MapLibre terrain. */
+type BasemapMode = "stadtplan" | "luftbild" | "off";
+
+const useBasemapMode = (initialMode: BasemapMode = "stadtplan") => {
+  const [mode, setMode] = useState<BasemapMode>(initialMode);
+  const cycle = useCallback(
+    () =>
+      setMode((current) =>
+        current === "stadtplan"
+          ? "luftbild"
+          : current === "luftbild"
+          ? "off"
+          : "stadtplan"
+      ),
+    []
+  );
+  return { mode, setMode, cycle };
+};
+
+const isAerialBasemapLayer = (layerId: string): boolean => {
+  const id = layerId.toLowerCase();
+  return (
+    id.includes("trueortho2024") ||
+    id.includes("rvrgrundriss") ||
+    id.includes("rvrgrund") ||
+    id.includes("rvr-schrift")
+  );
+};
+
+const isCityBasemapLayer = (layerId: string): boolean =>
+  layerId.toLowerCase().includes("wupp-plan-live");
+
+const SCENE_BACKGROUND_COLORS = {
+  white: "#ffffff",
+  black: "#000000",
+  gray50: "#808080",
+} as const;
+type SceneBackgroundPreset = keyof typeof SCENE_BACKGROUND_COLORS;
 
 interface CloudSlot {
   def: CloudAssetDef;
@@ -655,13 +730,13 @@ interface SceneApi {
   ) => Promise<void>;
 }
 
-function SceneManager({
+const SceneManager = memo(function SceneManager({
   cloudAssets,
   cloudSettings,
   meshSettings,
   pointMemoryBudget,
   targetFrameRate,
-  showOriginalMapStyle,
+  basemapMode,
   demId,
   buildingsEnabled,
   imageryPano,
@@ -677,7 +752,7 @@ function SceneManager({
   meshSettings: Record<string, MeshSettings>;
   pointMemoryBudget: PointMemoryBudget;
   targetFrameRate: number;
-  showOriginalMapStyle: boolean;
+  basemapMode: BasemapMode;
   demId: string;
   buildingsEnabled: boolean;
   imageryPano: boolean;
@@ -746,14 +821,11 @@ function SceneManager({
       if (map.isStyleLoaded() && map.getLayer(sharedSceneLayer.id)) {
         map.removeLayer(sharedSceneLayer.id);
       }
-      sharedSceneLayer.dispose();
+      // Fast Refresh may recreate this effect while preserving runtime refs.
+      // Detach the scene but keep mesh/point runtimes available for onAdd.
+      sharedSceneLayer.detach();
     };
   }, [map, sharedSceneLayer]);
-
-  const groundMeshEnabled = MESH_ASSETS.some(
-    (definition) =>
-      definition.replacesBasemap && meshSettings[definition.id]?.enabled
-  );
 
   // Keep MapLibre terrain registered for interaction and elevation queries,
   // but remove its visible raster drape while a surface mesh takes over.
@@ -781,14 +853,19 @@ function SceneManager({
           );
         }
 
+        const isAerial = isAerialBasemapLayer(layerId);
+        const isCity = isCityBasemapLayer(layerId);
         const target =
-          groundMeshEnabled && !showOriginalMapStyle
+          basemapMode === "off" ||
+          (basemapMode === "stadtplan" && isAerial) ||
+          (basemapMode === "luftbild" && isCity)
             ? "none"
-            : rasterLayerVisibilityRef.current.get(layerId) ?? "visible";
+            : "visible";
         if (current !== target) {
           map.setLayoutProperty(layerId, "visibility", target);
         }
       }
+      map.triggerRepaint();
     };
 
     apply();
@@ -796,7 +873,7 @@ function SceneManager({
     return () => {
       map.off("styledata", apply);
     };
-  }, [map, groundMeshEnabled, showOriginalMapStyle]);
+  }, [map, basemapMode]);
 
   // ── offsets into the registered MapLibre terrain-height frame ─
   const cloudBaseHeight = useCallback(
@@ -839,6 +916,7 @@ function SceneManager({
       layer.setRadiusMeters(settings.radiusMeters);
       layer.setRadiusScale(settings.radiusScale);
       layer.setShape(settings.shape);
+      layer.setNodeBoundsVisible(settings.nodeBoundsVisible);
 
       // A layer referencing a not-yet-loaded or lazily derived field stays
       // disabled instead of rendering garbage.
@@ -1119,6 +1197,7 @@ function SceneManager({
   }, [activeCloudKey, activeMeshKey, applySceneRequestAllocation]);
 
   const dynamicPointBudgetRef = useRef(pointCapacity);
+  const cameraMovingRef = useRef(false);
   const dynamicBudgetFrameRef = useRef(0);
   const applyDynamicPointBudgets = useCallback(() => {
     if (!map) return;
@@ -1127,7 +1206,11 @@ function SceneManager({
       (slot) => slot.layer !== null
     );
     const allocations = allocatePointBudget(
-      dynamicPointBudgetRef.current,
+      cameraMovingRef.current
+        ? Math.floor(
+            dynamicPointBudgetRef.current * CAMERA_MOVE_POINT_BUDGET_FACTOR
+          )
+        : dynamicPointBudgetRef.current,
       slots.map((slot) => {
         const cloudBounds = slot.meta?.boundsLngLat;
         const visible = cloudBounds
@@ -1176,8 +1259,31 @@ function SceneManager({
     let sampleCount = 0;
     let lastAdjustment = performance.now();
 
+    const handleMoveStart = () => {
+      cameraMovingRef.current = true;
+      for (const slot of cloudSlotsRef.current.values()) {
+        // A camera move invalidates the previous working set immediately.
+        // The next frustum pass will re-add the nodes that still intersect
+        // the view, avoiding bandwidth spent decoding tiles behind the camera.
+        for (const controller of slot.nodeAbortControllers.values()) {
+          controller.abort();
+        }
+        slot.nodeAbortControllers.clear();
+        slot.loadingNodeKeys.clear();
+        slot.layer?.setMinimumSpacingPixels(CAMERA_MOVE_MINIMUM_SPACING_PIXELS);
+      }
+      applyDynamicPointBudgets();
+    };
     const handleMove = () => {
       scheduleDynamicPointBudgets();
+      scheduleSceneRequestAllocation();
+    };
+    const handleMoveEnd = () => {
+      cameraMovingRef.current = false;
+      for (const slot of cloudSlotsRef.current.values()) {
+        slot.layer?.setMinimumSpacingPixels(NORMAL_MINIMUM_SPACING_PIXELS);
+      }
+      applyDynamicPointBudgets();
       scheduleSceneRequestAllocation();
     };
     const handleRender = () => {
@@ -1204,10 +1310,14 @@ function SceneManager({
       applyDynamicPointBudgets();
     };
 
+    map.on("movestart", handleMoveStart);
     map.on("move", handleMove);
+    map.on("moveend", handleMoveEnd);
     map.on("render", handleRender);
     return () => {
+      map.off("movestart", handleMoveStart);
       map.off("move", handleMove);
+      map.off("moveend", handleMoveEnd);
       map.off("render", handleRender);
     };
   }, [
@@ -1296,6 +1406,9 @@ function SceneManager({
         onCloudState(def.id, {
           loading: false,
           loadedPoints,
+          loadedNodes: 0,
+          renderedNodes: 0,
+          visibleNodes: 0,
           meta: slot.meta,
           geoidUndulation: slot.geoidUndulation,
           fields,
@@ -1306,6 +1419,9 @@ function SceneManager({
         onCloudState(def.id, {
           loading: true,
           loadedPoints,
+          loadedNodes: 0,
+          renderedNodes: 0,
+          visibleNodes: 0,
           meta: slot.meta,
           geoidUndulation: slot.geoidUndulation,
           fields,
@@ -1421,7 +1537,10 @@ function SceneManager({
       };
       slot.pumpNodeLoads = pumpNodeLoads;
 
-      const reconcileFrustumNodes = (nodeKeys: readonly string[]) => {
+      const reconcileFrustumNodes = (
+        nodeKeys: readonly string[],
+        stats: { visibleNodeCount: number; selectedPointCount: number }
+      ) => {
         if (slot.cancelToken.cancelled) return;
         slot.desiredNodeKeys = new Set(nodeKeys);
         for (const [key, controller] of slot.nodeAbortControllers) {
@@ -1443,6 +1562,17 @@ function SceneManager({
             (!slot.chunkCache.has(key) || slot.loadingNodeKeys.has(key))
         );
         if (changed || loading) refreshWorkingSet(loading);
+        onCloudState(def.id, {
+          loading,
+          loadedPoints,
+          loadedNodes: slot.chunkCache.size,
+          renderedNodes: slot.chunks.length,
+          visibleNodes: stats.visibleNodeCount,
+          meta: slot.meta,
+          geoidUndulation: slot.geoidUndulation,
+          fields,
+          error: null,
+        });
         scheduleSceneRequestAllocation();
         pumpNodeLoads();
       };
@@ -1479,6 +1609,11 @@ function SceneManager({
             Math.floor(pointCapacity / Math.max(1, active.size))
           )
         );
+      layer.setMinimumSpacingPixels(
+        cameraMovingRef.current
+          ? CAMERA_MOVE_MINIMUM_SPACING_PIXELS
+          : NORMAL_MINIMUM_SPACING_PIXELS
+      );
         layer.setFrustumNodeSource(source.nodes, reconcileFrustumNodes);
         applyCloudSettings(slot);
         scheduleSceneRequestAllocation();
@@ -1544,6 +1679,22 @@ function SceneManager({
     const addMissing = async () => {
       await whenStyleReady(map);
       if (stale) return;
+      // Fast refresh can preserve this ref while the shared custom layer is
+      // recreated and disposed. Do not let stale layer entries suppress mesh
+      // creation on the next effect run.
+      for (const [id, tilesLayer] of [...layers]) {
+        if (!active.has(id)) continue;
+        if (!sharedSceneLayer.hasRuntime(tilesLayer.id)) {
+          tilesLayer.dispose();
+          layers.delete(id);
+        }
+      }
+      if (!map.getLayer(sharedSceneLayer.id)) {
+        requestAnimationFrame(() => {
+          if (!stale) void addMissing();
+        });
+        return;
+      }
       for (const def of MESH_ASSETS) {
         if (!active.has(def.id) || layers.has(def.id)) continue;
         const center = map.getCenter();
@@ -1776,7 +1927,7 @@ function SceneManager({
   }, [map, sharedSceneLayer]);
 
   return null;
-}
+});
 
 // ─────────────────────────────────────────────────────────────
 //  Panel UI (geoportal secondary-view style, top center)
@@ -2078,6 +2229,8 @@ export function PointCloudPlayground({
   showScenePanel = true,
 }: PointCloudPlaygroundProps = {}) {
   const { map } = useLibreContext();
+  const { getHashStateValues, updateHashState } = useHashState();
+  const hashView = getHashStateValues();
   const { addFeature, features: adhocFeatures, removeFeature } =
     useAdhocFeatureDisplay();
   const [importedCloudAssets, setImportedCloudAssets] = useState<CloudAssetDef[]>(
@@ -2224,13 +2377,43 @@ export function PointCloudPlayground({
     }
   }, []);
   const persistedCameraRef = useRef<PersistedMapCamera | null>(
-    persistedViewState?.camera ?? null
+    typeof hashView.lat === "number" &&
+      typeof hashView.lng === "number" &&
+      typeof hashView.zoom === "number"
+      ? {
+          center: [hashView.lng, hashView.lat],
+          zoom: hashView.zoom - 1,
+          pitch: typeof hashView.p === "number" ? hashView.p : 0,
+          bearing: typeof hashView.b === "number" ? hashView.b : 0,
+        }
+      : persistedViewState?.camera ?? null
   );
   useEffect(() => {
     if (!map) return;
     const restoredCamera = initialMapView ?? persistedCameraRef.current;
     if (restoredCamera) map.jumpTo(restoredCamera);
   }, [map, initialMapView]);
+  useEffect(() => {
+    if (!map) return;
+    const persistCameraInUrl = () => {
+      const center = map.getCenter();
+      updateHashState(
+        {
+          lat: center.lat,
+          lng: center.lng,
+          zoom: map.getZoom() + 1,
+          b: Math.abs(map.getBearing()) >= 0.01 ? map.getBearing() : undefined,
+          p: Math.abs(map.getPitch()) >= 0.01 ? map.getPitch() : undefined,
+        },
+        { replace: true }
+      );
+    };
+    map.on("moveend", persistCameraInUrl);
+    persistCameraInUrl();
+    return () => {
+      map.off("moveend", persistCameraInUrl);
+    };
+  }, [map, updateHashState]);
 
   const [cloudSettings, setCloudSettings] = useState<
     Record<string, CloudSettings>
@@ -2303,7 +2486,16 @@ export function PointCloudPlayground({
   const [terrainActive, setTerrainActive] = useState(false);
   const [demId, setDemId] = useState<string>(DEMS[0].id);
   const [pitchLimiterEnabled, setPitchLimiterEnabled] = useState(false);
-  const [showOriginalMapStyle, setShowOriginalMapStyle] = useState(false);
+  const [sceneBackground, setSceneBackground] =
+    useState<SceneBackgroundPreset>("gray50");
+  const [sceneBackgroundColor, setSceneBackgroundColor] = useState<string>(
+    SCENE_BACKGROUND_COLORS.gray50
+  );
+  const photoMeshEnabled = MESH_ASSETS.some(
+    (definition) =>
+      definition.replacesBasemap && meshSettings[definition.id]?.enabled
+  );
+  const basemap = useBasemapMode(photoMeshEnabled ? "off" : "stadtplan");
   const [expanded, setExpanded] = useState(true);
   const [sceneApi, setSceneApi] = useState<SceneApi | null>(null);
   const [cloudOptionsIds, setCloudOptionsIds] = useState<string[]>([]);
@@ -2311,6 +2503,25 @@ export function PointCloudPlayground({
   const [cloudDetailsOpen, setCloudDetailsOpen] = useState<Record<string, boolean>>({});
   /** Cloud whose colorizer floats as a draggable expert panel */
   const [colorizerCloudId, setColorizerCloudId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    const applyBackground = () => {
+      if (!map.isStyleLoaded()) return;
+      const color = sceneBackgroundColor;
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if (layer.type === "background") {
+          map.setPaintProperty(layer.id, "background-color", color);
+        }
+      }
+      map.getCanvas().style.backgroundColor = color;
+      map.triggerRepaint();
+    };
+    applyBackground();
+    map.on("styledata", applyBackground);
+    return () => {
+      map.off("styledata", applyBackground);
+    };
+  }, [map, sceneBackgroundColor]);
   const libreLayers = useMemo(
     () => [
       ...BUILDINGS_LIBRE_LAYERS,
@@ -2367,11 +2578,18 @@ export function PointCloudPlayground({
       ...previous,
       [id]: !previous[id],
     }));
-  const patchMesh = (id: string, patch: Partial<MeshSettings>) =>
+  const patchMesh = (id: string, patch: Partial<MeshSettings>) => {
+    const definition = MESH_ASSETS.find((candidate) => candidate.id === id);
+    if (definition?.replacesBasemap && patch.enabled === true) {
+      // A photo mesh replaces the draped map. Users can still re-enable the
+      // basemap explicitly with the scene-header map button.
+      basemap.setMode("off");
+    }
     setMeshSettings((previous) => ({
       ...previous,
       [id]: { ...previous[id], ...patch },
     }));
+  };
   const resetCloud = (id: string) => {
     const def = CLOUD_ASSETS.find((candidate) => candidate.id === id);
     if (!def) return;
@@ -2574,9 +2792,15 @@ export function PointCloudPlayground({
             disabled={flyToState.disabled}
             onClick={() => {
               if (!state?.meta || flyToState.disabled) return;
+              const [lng, lat] = state.meta.centerLngLat;
+              const terrainElevation =
+                terrainActive && map
+                  ? map.queryTerrainElevation({ lng, lat }) ?? undefined
+                  : undefined;
               map?.fitBounds(state.meta.boundsLngLat, {
                 padding: 60,
                 pitch: 50,
+                elevation: terrainElevation,
               });
             }}
           >
@@ -2602,11 +2826,9 @@ export function PointCloudPlayground({
             <span className="min-w-[160px] flex-1 truncate text-sm text-gray-700">
               {(() => {
                 const source = settings.colorization.layers[0].source;
-                if (!source) return "nicht konfiguriert";
-                if (source.kind === "field") return source.field;
-                if (source.kind === "rgb") return "RGB";
-                if (source.kind === "classification") return "Klassifikation";
-                return "unbekannt";
+                return source
+                  ? formatColorizerSourceLabel(source)
+                  : "nicht konfiguriert";
               })()}
             </span>
             <Button size="small" onClick={() => setColorizerCloudId(def.id)}>
@@ -2691,30 +2913,27 @@ export function PointCloudPlayground({
               options={[
                 { value: POINT_SHAPES.SQUARE, label: "Quadrat" },
                 { value: POINT_SHAPES.CIRCLE, label: "Kreis" },
-                { value: POINT_SHAPES.DOME, label: "Kuppel" },
-                { value: POINT_SHAPES.SOFT_SPLAT, label: "Splat weich" },
+                { value: POINT_SHAPES.DOME, label: "Kugel" },
+                { value: POINT_SHAPES.SOFT_SPLAT, label: "Gradient" },
               ]}
             />
           </OptionRow>
-          <div className="mt-1 rounded border border-gray-200 bg-gray-50">
+          <div>
             <button
               type="button"
-              className="flex w-full cursor-pointer items-center gap-1.5 px-2 py-1 text-left text-xs font-medium text-gray-600 hover:text-gray-900"
+              className="flex w-full cursor-pointer items-center gap-1.5 py-1 text-left text-xs font-medium text-gray-600 hover:text-gray-900"
               title="Positions-, Quell- und Registrierungsdetails anzeigen"
               onClick={() => toggleCloudDetails(def.id)}
             >
               <FontAwesomeIcon icon={faCircleInfo} className="w-3" />
               <span className="flex-1">Registrierung · Position</span>
-              <span className="text-[11px] font-mono text-gray-500">
-                {cloudDetailsOpen[def.id] ? "weniger" : "mehr"}
-              </span>
               <FontAwesomeIcon
                 icon={cloudDetailsOpen[def.id] ? faChevronUp : faChevronDown}
                 className="w-3"
               />
             </button>
             {cloudDetailsOpen[def.id] && (
-              <div className="border-t border-gray-200 px-2 pb-2">
+              <div className="border-t border-gray-200 pb-2">
                 <OptionRow label="Höhen-Datum">
                   <Select
                     size="small"
@@ -2723,6 +2942,18 @@ export function PointCloudPlayground({
                     onChange={(value) => patchCloud(def.id, { datum: value })}
                     options={[...DATUM_OPTIONS]}
                   />
+                </OptionRow>
+                <OptionRow label="Debug">
+                  <Checkbox
+                    checked={settings.nodeBoundsVisible}
+                    onChange={(event) =>
+                      patchCloud(def.id, {
+                        nodeBoundsVisible: event.target.checked,
+                      })
+                    }
+                  >
+                    COPC-Knotenboxen
+                  </Checkbox>
                 </OptionRow>
                 <div className="pt-1 text-xs font-medium text-gray-600">
                   Positionskorrektur · ENU
@@ -2787,6 +3018,11 @@ export function PointCloudPlayground({
                         .filter(Boolean)
                         .join(", ") || "keine"}
                     </div>
+                    {settings.nodeBoundsVisible && state && (
+                      <div className="pt-1 text-xs tabular-nums text-orange-700">
+                        Knoten: {state.visibleNodes} im Sichtfeld · {state.renderedNodes} gerendert · {state.loadedNodes} geladen
+                      </div>
+                    )}
                     <CloudMountPose
                       def={def}
                       meta={state.meta}
@@ -2970,7 +3206,7 @@ export function PointCloudPlayground({
         meshSettings={meshSettings}
         pointMemoryBudget={pointMemoryBudget}
         targetFrameRate={targetFrameRate}
-        showOriginalMapStyle={showOriginalMapStyle}
+        basemapMode={basemap.mode}
         demId={demId}
         buildingsEnabled={buildingsEnabled}
         imageryPano={imageryPano}
@@ -2991,6 +3227,33 @@ export function PointCloudPlayground({
             >
               <div className="flex items-center w-full h-8 shrink-0 gap-3 px-6">
                 <label className="mb-0 text-base truncate">Szene</label>
+                <button
+                  type="button"
+                  className={`flex size-7 items-center justify-center rounded transition-colors ${
+                    basemap.mode === "off"
+                      ? "bg-gray-200 text-gray-500"
+                      : basemap.mode === "luftbild"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                  aria-label={
+                    basemap.mode === "stadtplan"
+                      ? "Luftbildkarte anzeigen"
+                      : basemap.mode === "luftbild"
+                      ? "Basemap ausblenden"
+                      : "Stadtplan anzeigen"
+                  }
+                  title={
+                    basemap.mode === "stadtplan"
+                      ? "Luftbildkarte anzeigen"
+                      : basemap.mode === "luftbild"
+                      ? "Basemap ausblenden"
+                      : "Stadtplan anzeigen"
+                  }
+                  onClick={basemap.cycle}
+                >
+                  <FontAwesomeIcon icon={faMap} />
+                </button>
                 <span
                   className="ml-auto text-sm whitespace-nowrap text-gray-600"
                   title={`Geschätzter Szenen-Speicher: Punktwolken ${formatMebibytes(
@@ -3099,15 +3362,49 @@ export function PointCloudPlayground({
                                   {targetFrameRate} FPS
                                 </span>
                               </OptionRow>
-                              <OptionRow label="Originalkarte">
-                                <Switch
-                                  size="small"
-                                  checked={showOriginalMapStyle}
-                                  onChange={setShowOriginalMapStyle}
-                                />
-                                <span className="text-xs text-gray-500">
-                                  über dem Gelände anzeigen
-                                </span>
+                              <OptionRow label="Hintergrund">
+                                <div className="flex items-center gap-1">
+                                  {(
+                                    [
+                                      ["white", "Weiß"],
+                                      ["black", "Schwarz"],
+                                      ["gray50", "50 % Grau"],
+                                    ] as const
+                                  ).map(([preset, label]) => (
+                                    <button
+                                      key={preset}
+                                      type="button"
+                                      aria-label={label}
+                                      title={label}
+                                      className={`size-6 rounded border-2 ${
+                                        sceneBackground === preset
+                                          ? "border-blue-600"
+                                          : "border-gray-300"
+                                      }`}
+                                      style={{
+                                        backgroundColor:
+                                          SCENE_BACKGROUND_COLORS[preset],
+                                      }}
+                                      onClick={() => {
+                                        setSceneBackground(preset);
+                                        setSceneBackgroundColor(
+                                          SCENE_BACKGROUND_COLORS[preset]
+                                        );
+                                      }}
+                                    />
+                                  ))}
+                                  <input
+                                    type="color"
+                                    aria-label="Benutzerdefinierte Hintergrundfarbe"
+                                    title="Benutzerdefinierte Hintergrundfarbe"
+                                    value={sceneBackgroundColor}
+                                    onChange={(event) => {
+                                      setSceneBackground("gray50");
+                                      setSceneBackgroundColor(event.target.value);
+                                    }}
+                                    className="size-7 cursor-pointer rounded border border-gray-300 bg-transparent p-0.5"
+                                  />
+                                </div>
                               </OptionRow>
                               <OptionRow label="JSON-Export">
                                 <Button size="small" onClick={exportMicroCorrections}>
@@ -3201,9 +3498,15 @@ export function PointCloudPlayground({
                         disabled={flyToState.disabled}
                         onClick={() => {
                           if (!state?.meta || flyToState.disabled) return;
+                          const [lng, lat] = state.meta.centerLngLat;
+                          const terrainElevation =
+                            terrainActive && map
+                              ? map.queryTerrainElevation({ lng, lat }) ?? undefined
+                              : undefined;
                           map?.fitBounds(state.meta.boundsLngLat, {
                             padding: 60,
                             pitch: 50,
+                            elevation: terrainElevation,
                           });
                         }}
                       >
@@ -3224,7 +3527,7 @@ export function PointCloudPlayground({
                   <FontAwesomeIcon icon={faRotateLeft} className="size-3" />
                 </button>
               }
-              initial={{ x: 24 + index * 28, y: 76 + index * 28 }}
+              initial={getSecondaryPanelPosition(index)}
               zIndex={30 + index}
               onClose={() => {
                 if (colorizerCloudId === cloudId) {
@@ -3280,7 +3583,7 @@ export function PointCloudPlayground({
                   <FontAwesomeIcon icon={faRotateLeft} />
                 </button>
               }
-              initial={{ x: 24 + index * 28, y: 76 + index * 28 }}
+              initial={getSecondaryPanelPosition(cloudOptionsIds.length + index)}
               zIndex={30 + cloudOptionsIds.length + index}
               onClose={() =>
                 setMeshOptionsIds((previous) =>
@@ -3301,7 +3604,9 @@ export function PointCloudPlayground({
               cloudAssets.find((def) => def.id === colorizerCloudId)?.label ??
               colorizerCloudId
             }`}
-            initial={{ x: 448, y: 76 }}
+            initial={getSecondaryPanelPosition(
+              cloudOptionsIds.length + meshOptionsIds.length
+            )}
             zIndex={40}
             onClose={() => setColorizerCloudId(null)}
           >

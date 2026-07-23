@@ -145,10 +145,10 @@ export const deriveSceneMemoryAllocation = (
 };
 
 /**
- * Shares one bounded request allowance between COPC and 3D Tiles. Every active
- * source keeps one probe slot so an idle queue can discover new work after a
- * view change. All remaining slots are lent according to current backlog.
- * Within a type, slots are distributed round-robin.
+ * Shares one bounded request allowance between COPC and 3D Tiles. Mesh
+ * requests have strict priority: while a visible mesh has demand, all slots
+ * are assigned to 3D Tiles. COPC requests resume once the mesh queue is
+ * drained. Within a type, slots are distributed round-robin.
  */
 export const deriveSceneRequestAllocation = (
   totalJobs: number,
@@ -158,17 +158,9 @@ export const deriveSceneRequestAllocation = (
   const pointDemand = demand.pointJobsByCloud.map((jobs) =>
     Math.max(1, normalizeBudget(jobs))
   );
-  const meshDemand = demand.meshJobsByLayer.map((jobs) =>
-    Math.max(1, normalizeBudget(jobs))
-  );
+  const meshDemand = demand.meshJobsByLayer.map((jobs) => normalizeBudget(jobs));
   const pointDemandTotal = pointDemand.reduce((sum, value) => sum + value, 0);
   const meshDemandTotal = meshDemand.reduce((sum, value) => sum + value, 0);
-    const hasPrioritizedMesh = demand.prioritizedMeshLayers?.some(
-      (prioritized, index) => prioritized && meshDemand[index] > 0
-    );
-    const pointReserve = meshDemandTotal > 0
-      ? Math.floor(budget * (hasPrioritizedMesh ? 0.25 : 0.5))
-      : budget;
   if (budget === 0 || pointDemandTotal + meshDemandTotal === 0) {
     return {
       pointJobs: 0,
@@ -178,9 +170,18 @@ export const deriveSceneRequestAllocation = (
     };
   }
 
-  const meshReserve = pointDemandTotal > 0 ? budget - pointReserve : budget;
-  let pointJobs = Math.min(pointDemandTotal, pointReserve);
-  let meshJobs = Math.min(meshDemandTotal, meshReserve);
+  if (meshDemandTotal > 0) {
+    const meshJobs = Math.min(meshDemandTotal, budget);
+    return {
+      pointJobs: 0,
+      pointJobsByCloud: pointDemand.map(() => 0),
+      meshJobs,
+      meshJobsByLayer: distribute(meshJobs, meshDemand),
+    };
+  }
+
+  let pointJobs = Math.min(pointDemandTotal, budget);
+  let meshJobs = 0;
   let remainingJobs = budget - pointJobs - meshJobs;
   const pointUnmet = () => pointDemandTotal - pointJobs;
   const meshUnmet = () => meshDemandTotal - meshJobs;
@@ -195,7 +196,7 @@ export const deriveSceneRequestAllocation = (
     remainingJobs--;
   }
 
-  const distribute = (jobs: number, demands: readonly number[]): number[] => {
+  function distribute(jobs: number, demands: readonly number[]): number[] {
     const allocations = demands.map(() => 0);
     let remaining = jobs;
     while (remaining > 0) {
@@ -209,7 +210,7 @@ export const deriveSceneRequestAllocation = (
       if (!granted) break;
     }
     return allocations;
-  };
+  }
 
   return {
     pointJobs,

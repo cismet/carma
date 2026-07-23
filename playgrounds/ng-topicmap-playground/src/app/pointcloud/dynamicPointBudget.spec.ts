@@ -92,10 +92,10 @@ describe("dynamic point budget", () => {
         meshJobsByLayer: [20],
       })
     ).toEqual({
-      pointJobs: 6,
-      pointJobsByCloud: [2, 2, 1, 1],
-      meshJobs: 6,
-      meshJobsByLayer: [6],
+      pointJobs: 0,
+      pointJobsByCloud: [0, 0, 0, 0],
+      meshJobs: 12,
+      meshJobsByLayer: [12],
     });
     expect(
       deriveSceneRequestAllocation(12, {
@@ -123,40 +123,41 @@ describe("dynamic point budget", () => {
       pointJobsByCloud: [10, 10, 10, 10, 10],
       meshJobsByLayer: [10, 10, 10],
     });
-    expect(fullScene.pointJobsByCloud.every((jobs) => jobs >= 1)).toBe(true);
+    expect(fullScene.pointJobs).toBe(0);
+    expect(fullScene.pointJobsByCloud.every((jobs) => jobs === 0)).toBe(true);
     expect(fullScene.meshJobsByLayer.every((jobs) => jobs >= 1)).toBe(true);
     expect(fullScene.pointJobs + fullScene.meshJobs).toBe(12);
   });
 
-  it("lends idle slots while retaining one probe slot per active source", () => {
+  it("gives all request slots to mesh while mesh demand exists", () => {
     expect(
       deriveSceneRequestAllocation(12, {
         pointJobsByCloud: [1],
         meshJobsByLayer: [100],
       })
-    ).toMatchObject({ pointJobs: 1, meshJobs: 11 });
+    ).toMatchObject({ pointJobs: 0, meshJobs: 12 });
     expect(
       deriveSceneRequestAllocation(12, {
         pointJobsByCloud: [100],
         meshJobsByLayer: [2],
       })
-    ).toMatchObject({ pointJobs: 10, meshJobs: 2 });
+    ).toMatchObject({ pointJobs: 0, meshJobs: 2 });
     expect(
       deriveSceneRequestAllocation(12, {
         pointJobsByCloud: [0],
         meshJobsByLayer: [100],
       })
-    ).toMatchObject({ pointJobs: 1, meshJobs: 11 });
+    ).toMatchObject({ pointJobs: 0, meshJobs: 12 });
     expect(
       deriveSceneRequestAllocation(12, {
         pointJobsByCloud: [100],
         meshJobsByLayer: [0, 0],
       })
     ).toEqual({
-      pointJobs: 10,
-      pointJobsByCloud: [10],
-      meshJobs: 2,
-      meshJobsByLayer: [1, 1],
+      pointJobs: 12,
+      pointJobsByCloud: [12],
+      meshJobs: 0,
+      meshJobsByLayer: [0, 0],
     });
   });
 
