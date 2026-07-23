@@ -19,6 +19,29 @@ const queryStorage = localforage.createInstance({
 const countCapabilityEntries = (value: string | null | undefined): number =>
   value ? value.split(`"${CAPABILITIES_QUERY_KEY}`).length - 1 : 0;
 
+// debug helper: which capability queries (with data) does a persisted blob hold
+const listCapabilityKeys = (value: string | null | undefined): string[] => {
+  if (!value) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return (parsed?.clientState?.queries ?? [])
+      .filter((query: any) => query?.queryKey?.[0] === CAPABILITIES_QUERY_KEY)
+      .map(
+        (query: any) =>
+          `${query.queryKey.join(" | ")} (data: ${
+            query.state?.data != null
+          }, updated: ${new Date(
+            query.state?.dataUpdatedAt ?? 0
+          ).toISOString()})`
+      );
+  } catch (error) {
+    console.warn("[CAP CACHE] persisted blob is not parseable", error);
+    return [];
+  }
+};
+
 const persister = createAsyncStoragePersister({
   storage: {
     getItem: async (key: string) => {
@@ -28,6 +51,7 @@ const persister = createAsyncStoragePersister({
         found: value != null,
         length: value?.length ?? 0,
         capabilityEntries: countCapabilityEntries(value),
+        capabilityKeys: listCapabilityKeys(value),
       });
       return value;
     },
@@ -90,7 +114,12 @@ export const CatalogQueryProvider = ({ children }: { children: ReactNode }) => {
           queryClient
             .getQueryCache()
             .getAll()
-            .map((query) => query.queryKey.join(" | "))
+            .map(
+              (query) =>
+                `${query.queryKey.join(" | ")} (status: ${
+                  query.state.status
+                }, data: ${query.state.data != null})`
+            )
         );
       }}
     >

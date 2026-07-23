@@ -108,8 +108,22 @@ export const useLoadCapabilities = ({
         .filter((_, index) => results[index].isFetching && !results[index].data)
         .map((service) => service.name),
       anySettled: results.some((result) => result.isSuccess || result.isError),
+      debugStates: wmsServices.map((service, index) => ({
+        name: service.name,
+        status: results[index].status,
+        isFetching: results[index].isFetching,
+        hasData: results[index].data != null,
+      })),
     }),
   });
+
+  useEffect(() => {
+    console.debug(
+      "[CAP CACHE] live query states",
+      JSON.stringify(capabilities.debugStates)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(capabilities.debugStates)]);
 
   // feed the loading flags consumed by CategoryTabs / CatalogGrid
   useEffect(() => {
