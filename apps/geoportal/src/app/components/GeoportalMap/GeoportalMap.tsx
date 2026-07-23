@@ -265,6 +265,31 @@ const buildFlyToBoundingSphereOptions = (minRange: number) => ({
   paddingFactor: FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR,
 });
 
+// position-based help entries shared by the leaflet and maplibre map variants
+const useGeoportalHelpOverlays = () => {
+  const infoBoxOverlay = addCssToOverlayHelperItem(
+    getCollabedHelpElementsConfig("INFOBOX", geoElements),
+    "350px",
+    "137px"
+  );
+
+  const layerButtonsOverlay = addCssToOverlayHelperItem(
+    getCollabedHelpElementsConfig("LAYERBUTTONS", geoElements),
+    "146px",
+    "21px"
+  );
+
+  const mapInteractionOverlay = addCssToOverlayHelperItem(
+    getCollabedHelpElementsConfig("CENTER", geoElements),
+    "15px",
+    "15px"
+  );
+
+  useOverlayHelper(infoBoxOverlay);
+  useOverlayHelper(layerButtonsOverlay);
+  useOverlayHelper(mapInteractionOverlay);
+};
+
 const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
   const { activeToolType, selectedAnnotationId, setSelectedAnnotationId } =
@@ -343,27 +368,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       : 0;
   const minFlyToRange = minHeight * 1.5;
 
-  const infoBoxOverlay = addCssToOverlayHelperItem(
-    getCollabedHelpElementsConfig("INFOBOX", geoElements),
-    "350px",
-    "137px"
-  );
-
-  const layerButtonsOverlay = addCssToOverlayHelperItem(
-    getCollabedHelpElementsConfig("LAYERBUTTONS", geoElements),
-    "146px",
-    "21px"
-  );
-
-  const mapInteractionOverlay = addCssToOverlayHelperItem(
-    getCollabedHelpElementsConfig("CENTER", geoElements),
-    "15px",
-    "15px"
-  );
-
-  useOverlayHelper(infoBoxOverlay);
-  useOverlayHelper(layerButtonsOverlay);
-  useOverlayHelper(mapInteractionOverlay);
+  useGeoportalHelpOverlays();
 
   const {
     // routedMapRef --- NOT a REF!
@@ -1238,6 +1243,8 @@ const GeoportalModalMenu = () => {
 };
 
 const LibreGeoportalMap = ({ allow3d }: MapProps) => {
+  useGeoportalHelpOverlays();
+
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
