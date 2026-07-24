@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { TilesetPointCloudScene } from "../components/TilesetPointCloudScene";
 
 const meta = {
-  title: "3D Tiles/Punktwolken-Tileset",
+  title: "Pointcloud Investigation/Point Clouds 3D Tiles",
   component: TilesetPointCloudScene,
   argTypes: {
     tilesetUrl: { name: "tileset url", control: "text" },
@@ -30,9 +30,9 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const OelbergMls: Story = {};
+export const WuppertalOelbergMls: Story = {};
 
-OelbergMls.args = {
+WuppertalOelbergMls.args = {
   tilesetUrl:
     "https://wupp-3d-data.cismet.de/mesh2024/pointclouds/wuppertal-oelberg-mls-2025-09-11-3dtiles-v1/tileset.json",
   pointSize: 2,

@@ -11,10 +11,13 @@
 export const PUBLISHED_INVESTIGATION_DATA_BASE_URL =
   "https://wupp-3d-data.cismet.de/mesh2024";
 
-// The data is published under mesh2024, but switching the default over still
-// breaks the georadar scenes ("Failed to fetch" before any request reaches the
-// host), so the dev-server routes stay the default until that is resolved.
-// Set VITE_INVESTIGATION_DATA_BASE_URL to the published base to test it.
+// KNOWN GAP: a deployed build sits under a sub-path, so these root-relative
+// paths 404 there and the published base above is what deployment needs. It
+// cannot be the default yet: switching it blanks the georadar scenes with
+// "Failed to fetch" thrown before any request reaches the host, while the same
+// URLs fetch fine from the page and every file is present with correct CORS.
+// The dev-server routes therefore stay the default until that is isolated.
+// Set VITE_INVESTIGATION_DATA_BASE_URL to the published base to reproduce it.
 export const INVESTIGATION_DATA_BASE_URL: string =
   import.meta.env.VITE_INVESTIGATION_DATA_BASE_URL ?? "";
 
