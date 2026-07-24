@@ -88,6 +88,9 @@ import {
   resolveTerrainBaseHeight,
   type ElevationDatum,
 } from "./elevationFrame";
+import type { CarmaConf3DPointCloud } from "@carma-appframeworks/portals";
+import { POINT_CLOUD_PRESET_FEATURE_COLLECTION } from "./pointcloud-preset-features";
+import { createPointTilesetSceneRuntime } from "./pointTilesetSceneRuntime";
 import {
   AWG2_DGM1_RIGID_REGISTRATION,
   AWG2_GCG2016_UNDULATION_METERS,
@@ -252,6 +255,13 @@ const DATUM_OPTIONS = [
 interface CloudAssetDef extends PointCloudAssetIdentity {
   url: string;
   defaultDatum: ElevationDatum;
+  /** "3d-tiles" renders the cloud from a tileset instead of a COPC file. */
+  delivery?: "copc" | "3d-tiles";
+  /** Source-CRS extent, used to anchor a tileset without opening a COPC. */
+  sourceBounds?: {
+    min: readonly [number, number, number];
+    max: readonly [number, number, number];
+  };
   /** Empirical rigid registration after the declared/inferred datum transform. */
   registration?: CopcRigidRegistration;
   /** Exact resource-anchor GCG2016 value; otherwise query the cloud center. */
@@ -268,6 +278,34 @@ const CLOUD_ASSETS: CloudAssetDef[] = POINT_CLOUD_DATASETS.map((dataset) => ({
       }
     : {}),
 }));
+// Alternate deliveries of the same clouds (currently the Oelberg MLS tileset)
+// come from the shared ad-hoc FeatureCollection, so the app list and the
+// importable config stay in sync.
+for (const feature of POINT_CLOUD_PRESET_FEATURE_COLLECTION.features) {
+  const properties = feature.properties as {
+    title?: string;
+    carmaConf3D?: { pointcloud?: CarmaConf3DPointCloud };
+  } | null;
+  const pointcloud = properties?.carmaConf3D?.pointcloud;
+  if (!pointcloud || pointcloud.delivery !== "3d-tiles" || !pointcloud.bounds) {
+    continue;
+  }
+  const base = CLOUD_ASSETS.find(
+    (asset) => asset.artifactFileName && pointcloud.fields === asset.fieldDimensions
+  );
+  CLOUD_ASSETS.push({
+    ...(base ?? CLOUD_ASSETS[0]),
+    id: String(feature.id),
+    label: properties?.title ?? String(feature.id),
+    url: pointcloud.url,
+    delivery: "3d-tiles",
+    sourceBounds: {
+      min: pointcloud.bounds.min,
+      max: pointcloud.bounds.max,
+    },
+    registration: undefined,
+  });
+}
 // AWG2 is the only pointcloud shown when the playground has no persisted view.
 const DEFAULT_PRELOADED_CLOUD_IDS = new Set(["awg"]);
 
@@ -693,6 +731,8 @@ interface CloudSlot {
   def: CloudAssetDef;
   cancelToken: { cancelled: boolean };
   layer: CopcPointsLayer | null;
+  /** Set instead of `layer` when the cloud is delivered as a 3D Tiles tileset. */
+  tilesetRuntime?: ReturnType<typeof createPointTilesetSceneRuntime> | null;
   meta: CopcSceneMetadata | null;
   anchorMarker: THREE.Group | null;
   source: CopcPointSource | null;
@@ -1341,6 +1381,10 @@ const SceneManager = memo(function SceneManager({
       const layerId = `copc-points-${id}`;
       disposeAnchorMarker(slot);
       sharedSceneLayer.removeRuntime(layerId);
+      if (slot.tilesetRuntime) {
+        sharedSceneLayer.removeRuntime(slot.tilesetRuntime.id);
+        slot.tilesetRuntime = null;
+      }
       slot.layer = null;
       slot.trimCache = null;
       slot.pumpNodeLoads = null;
@@ -1580,6 +1624,38 @@ const SceneManager = memo(function SceneManager({
       const run = async () => {
         await whenStyleReady(map);
         if (slot.cancelToken.cancelled) return;
+        // A 3D Tiles delivery is served by its own runtime; the octree,
+        // budgeting and node pumping below are COPC-specific.
+        if (def.delivery === "3d-tiles" && def.sourceBounds) {
+          const centerEast =
+            (def.sourceBounds.min[0] + def.sourceBounds.max[0]) / 2;
+          const centerNorth =
+            (def.sourceBounds.min[1] + def.sourceBounds.max[1]) / 2;
+          const [longitude, latitude] = getFromUTM32ToWGS84([
+            centerEast,
+            centerNorth,
+          ]) as [number, number];
+          const undulation = await getGcg2016Undulation(
+            longitude as Longitude.deg,
+            latitude as Latitude.deg
+          );
+          if (slot.cancelToken.cancelled) return;
+          const anchorHeight =
+            def.defaultDatum === "ellipsoidal"
+              ? def.sourceBounds.min[2]
+              : def.sourceBounds.min[2] + undulation;
+          const tilesetRuntime = createPointTilesetSceneRuntime({
+            id: `point-tileset-${def.id}`,
+            tilesetUrl: def.url,
+            originLngLat: [longitude, latitude],
+            anchorHeightEllipsoidal: anchorHeight,
+            requestRender: () => map.triggerRepaint(),
+          });
+          slot.tilesetRuntime = tilesetRuntime;
+          sharedSceneLayer.addRuntime(tilesetRuntime);
+          map.triggerRepaint();
+          return;
+        }
         const source = await openCopcPointSource({
           url: def.url,
           registration: def.registration,
