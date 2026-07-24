@@ -44,6 +44,7 @@ export interface UIState {
   mode: UIMode;
   activeTabKey: string;
   visibleControls: UIVisibleControls;
+  mapInteractionEnabled: boolean;
   allowChanges: boolean;
   showInfo: boolean;
   showInfoText: boolean;
@@ -59,6 +60,7 @@ export const initialUIState: UIState = {
   mode: UIMode.DEFAULT,
   activeTabKey: "1",
   visibleControls: defaultVisibleControls,
+  mapInteractionEnabled: true,
   allowChanges: true,
   showInfo: true,
   showInfoText: true,
@@ -94,6 +96,9 @@ const slice = createSlice({
       action: PayloadAction<Partial<UIVisibleControls>>
     ) {
       state.visibleControls = { ...defaultVisibleControls, ...action.payload };
+    },
+    setUIMapInteractionEnabled(state, action: PayloadAction<boolean>) {
+      state.mapInteractionEnabled = action.payload;
     },
     setUIAllowChanges(state, action: PayloadAction<boolean>) {
       state.allowChanges = action.payload;
@@ -131,6 +136,7 @@ export const {
   toggleUIMode,
   setUIActiveTabKey,
   setUIVisibleControls,
+  setUIMapInteractionEnabled,
   setUIAllowChanges,
   setUIShowInfo,
   setUIShowInfoText,
@@ -146,6 +152,8 @@ export const getUIMode = (state: RootState) => state.ui.mode;
 
 export const getUIVisibleControls = (state: RootState) =>
   state.ui.visibleControls;
+export const getUIMapInteractionEnabled = (state: RootState) =>
+  state.ui.mapInteractionEnabled;
 export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
 export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
 export const getUIShowInfo = (state: RootState) => state.ui.showInfo;

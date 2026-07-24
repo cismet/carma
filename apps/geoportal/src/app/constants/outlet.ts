@@ -6,4 +6,5 @@ export const outletFachzwilling: FachzwillingRoute = {
   title: "Outlet",
   filters: [],
   ui: { hideAll: true },
+  disableMapInteraction: true,
 };

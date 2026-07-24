@@ -19,7 +19,10 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
-import { setUIVisibleControls } from "./app/store/slices/ui";
+import {
+  setUIMapInteractionEnabled,
+  setUIVisibleControls,
+} from "./app/store/slices/ui";
 import { discoverProps } from "./app/constants/discover";
 import {
   fachzwillingRoutes,
@@ -47,6 +50,9 @@ const RoutedApp = () => {
 
   useEffect(() => {
     dispatch(setUIVisibleControls(resolveFachzwillingUi(fachzwilling?.ui)));
+    dispatch(
+      setUIMapInteractionEnabled(!fachzwilling?.disableMapInteraction)
+    );
   }, [dispatch, fachzwilling]);
 
   const catalogConfig = useMemo(

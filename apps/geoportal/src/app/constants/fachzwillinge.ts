@@ -67,6 +67,7 @@ export type FachzwillingRoute = {
   filters: CatalogFilters;
   hideFromCatalog?: boolean;
   ui?: FachzwillingUiOptions;
+  disableMapInteraction?: boolean;
   /**
    * workflow perspectives shown in the "Workflows" catalog category while the
    * route is open; the category is omitted on routes without perspectives
