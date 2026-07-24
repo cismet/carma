@@ -10,5 +10,10 @@
   "runtimeEnabled": true,
   "defaultDatum": "dhhn",
   "source": { "horizontalCrs": "EPSG:25832", "verticalDatum": "DHHN2016", "units": "meters" },
-  "transform": { "matrix": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1] }
+  "transform": { "matrix": [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    1.8, 1.9, 0, 1
+  ] }
 }

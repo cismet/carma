@@ -3,14 +3,13 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { MeshRegistrationScene } from "../components/MeshRegistrationScene";
 import {
-  POINT_CLOUD_HEIGHT_DATUMS,
   POINT_METRICS,
   POINT_SHAPES,
 } from "../components/StandalonePointCloudViewer";
 import { RAMP_NAMES } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
 
 const meta = {
-  title: "Pointcloud Investigation/Mesh Registration",
+  title: "Pointcloud Investigation/Registration Workbench",
   component: MeshRegistrationScene,
   argTypes: {
     color: {
@@ -69,11 +68,9 @@ const meta = {
       control: "inline-radio",
       options: ["white", "black"],
     },
-    sourceHeightDatum: {
-      name: "source height datum",
-      control: "inline-radio",
-      options: Object.values(POINT_CLOUD_HEIGHT_DATUMS),
-    },
+    // No sourceHeightDatum control: each dataset preset declares its datum
+    // (a persisted stale override here is exactly how clouds end up floating
+    // one geoid undulation, about 46 m, above the mesh).
     heightOffset: {
       name: "height offset",
       control: { type: "range", min: -70, max: 70, step: 0.5 },
@@ -110,7 +107,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Click corresponding point-cloud and Mesh 2024 positions, then solve a constrained rigid registration. The solver never estimates scale and reports pair residuals.",
+          "Registers the built-in point-cloud datasets against Mesh 2024: pick corresponding point-cloud and mesh positions, then solve a constrained rigid registration. Dataset presets come from the ng playground's point-cloud FeatureCollection, including each dataset's mount prior and declared height datum.",
       },
     },
   },
@@ -119,7 +116,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Nordbahntrasse: Story = {
+export const Workbench: Story = {
   render: (args) => {
     const [, updateArgs] = useArgs<typeof args>();
     return (
@@ -136,7 +133,7 @@ export const Nordbahntrasse: Story = {
   },
 };
 
-Nordbahntrasse.args = {
+Workbench.args = {
   sizeMode: "meters",
   pointSize: 2,
   radiusMeters: 0.3,
