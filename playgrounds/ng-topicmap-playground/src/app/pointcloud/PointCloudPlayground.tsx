@@ -949,6 +949,15 @@ const SceneManager = memo(function SceneManager({
   const applyCloudSettings = useCallback(
     (slot: CloudSlot) => {
       const settings = cloudSettingsRef.current[slot.def.id];
+      // A 3D Tiles delivery brings its own baked colours and screen-space
+      // point size; only the pixel size is adjustable, and the panel hides
+      // the options that do not apply to it.
+      if (slot.tilesetRuntime) {
+        slot.tilesetRuntime.setPointSize(
+          cloudSettingsRef.current[slot.def.id]?.pointSizePx ?? 2
+        );
+        return;
+      }
       const layer = slot.layer;
       if (!settings || !layer) return;
       layer.setSizeMode(settings.sizeMode);
@@ -1640,10 +1649,15 @@ const SceneManager = memo(function SceneManager({
             latitude as Latitude.deg
           );
           if (slot.cancelToken.cancelled) return;
-          const anchorHeight =
-            def.defaultDatum === "ellipsoidal"
-              ? def.sourceBounds.min[2]
-              : def.sourceBounds.min[2] + undulation;
+          // The scene's vertical frame is DHHN2016: resolveTerrainBaseHeight
+          // returns DHHN heights and the COPC layers are offset by that base,
+          // so a runtime's local y is simply the DHHN height. The tileset
+          // geometry is ECEF on ellipsoidal heights, so anchoring it at the
+          // ellipsoidal height of the DHHN zero level makes its local y come
+          // out as the DHHN height directly - no extra base offset needed.
+          // Anchoring at the cloud's own floor instead (as before) dropped the
+          // whole tileset by that floor, roughly 142 m for Oelberg.
+          const anchorHeight = undulation;
           const tilesetRuntime = createPointTilesetSceneRuntime({
             id: `point-tileset-${def.id}`,
             tilesetUrl: def.url,
@@ -2808,6 +2822,11 @@ export function PointCloudPlayground({
       Boolean(state?.loading)
     );
     const isImportedCloud = def.id.startsWith(ADHOC_POINTCLOUD_ID_PREFIX);
+    // A 3D Tiles delivery renders baked vertex colours through a plain points
+    // material, so the colourizer and the splat shape have nothing to act on
+    // and their rows stay hidden rather than silently doing nothing. Point
+    // size still applies and keeps its row.
+    const isTilesetDelivery = def.delivery === "3d-tiles";
     return {
       key: def.id,
       label: (
@@ -2909,6 +2928,7 @@ export function PointCloudPlayground({
           {state?.error && (
             <div className="text-xs text-red-600 pb-1">{state.error}</div>
           )}
+          {!isTilesetDelivery && (
           <OptionRow label="Punktstil">
             <span className="min-w-[160px] flex-1 truncate text-sm text-gray-700">
               {(() => {
@@ -2922,21 +2942,41 @@ export function PointCloudPlayground({
               Bearbeiten
             </Button>
           </OptionRow>
+          )}
           <OptionRow label="Punktgröße">
-            <Radio.Group
-              size="small"
-              optionType="button"
-              value={settings.sizeMode}
-              onChange={(event) =>
-                patchCloud(def.id, { sizeMode: event.target.value })
-              }
-              options={[
-                { value: POINT_SIZE_MODES.AUTO, label: "auto" },
-                { value: POINT_SIZE_MODES.PIXELS, label: "px" },
-                { value: POINT_SIZE_MODES.METERS, label: "m" },
-              ]}
-            />
-            {settings.sizeMode === POINT_SIZE_MODES.AUTO ? (
+            {!isTilesetDelivery && (
+              <Radio.Group
+                size="small"
+                optionType="button"
+                value={settings.sizeMode}
+                onChange={(event) =>
+                  patchCloud(def.id, { sizeMode: event.target.value })
+                }
+                options={[
+                  { value: POINT_SIZE_MODES.AUTO, label: "auto" },
+                  { value: POINT_SIZE_MODES.PIXELS, label: "px" },
+                  { value: POINT_SIZE_MODES.METERS, label: "m" },
+                ]}
+              />
+            )}
+            {isTilesetDelivery ? (
+              <>
+                <div className="flex-1 min-w-[70px] pt-1">
+                  <Slider
+                    min={1}
+                    max={8}
+                    step={0.5}
+                    value={settings.pointSizePx}
+                    onChange={(value) =>
+                      patchCloud(def.id, { pointSizePx: value })
+                    }
+                  />
+                </div>
+                <span className="text-xs w-12 text-right">
+                  {settings.pointSizePx.toFixed(1)} px
+                </span>
+              </>
+            ) : settings.sizeMode === POINT_SIZE_MODES.AUTO ? (
               <>
                 <div className="flex-1 min-w-[70px] pt-1">
                   <Slider
@@ -2989,6 +3029,7 @@ export function PointCloudPlayground({
               </>
             )}
           </OptionRow>
+          {!isTilesetDelivery && (
           <OptionRow label="Form">
             <Radio.Group
               size="small"
@@ -3005,6 +3046,7 @@ export function PointCloudPlayground({
               ]}
             />
           </OptionRow>
+          )}
           <div>
             <button
               type="button"
