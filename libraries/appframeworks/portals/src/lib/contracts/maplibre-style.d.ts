@@ -19,6 +19,12 @@ export type CarmaConf3DModel = {
 /** Shared ad-hoc pointcloud asset contract for MapLibre and future Cesium renderers. */
 export type CarmaConf3DPointCloud = {
   format: "carma-pointcloud-v1";
+  /**
+   * How the cloud is delivered at `url`. "copc" (the default when absent)
+   * points at a COPC LAZ file streamed by range requests; "3d-tiles" points
+   * at a 3D Tiles 1.1 tileset.json whose tile content is glTF POINTS.
+   */
+  delivery?: "copc" | "3d-tiles";
   url: string;
   source: {
     horizontalCrs: string;

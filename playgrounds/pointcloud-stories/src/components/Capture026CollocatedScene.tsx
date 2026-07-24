@@ -95,6 +95,10 @@ import {
   type ImageDisplayFilter,
 } from "./image-display-filter";
 import {
+  createPointTilesetRuntime,
+} from "./point-tileset-runtime";
+import { POINT_CLOUD_PRESET_FEATURE_COLLECTION } from "../../../ng-topicmap-playground/src/app/pointcloud/pointcloud-preset-features";
+import {
   createMesh2024TilesRuntime,
   MESH_APPEARANCE_MODES,
   MESH_DEFAULT_APPEARANCE,
@@ -194,6 +198,16 @@ export type Capture026RadarSegmentCount =
 export const GEORADAR_MINIMUM_RENDER_DISTANCE_METERS = 10;
 export const GEORADAR_MAXIMUM_RENDER_DISTANCE_METERS = 2_000;
 export const GEORADAR_DEFAULT_RENDER_DISTANCE_METERS = 250;
+
+/** Oelberg MLS 3D Tiles delivery, resolved from the shared preset collection. */
+const OELBERG_POINT_TILESET_URL =
+  (
+    POINT_CLOUD_PRESET_FEATURE_COLLECTION.features.find(
+      (feature) => feature.id === "mls3dtiles"
+    )?.properties as
+      | { carmaConf3D?: { pointcloud?: { url?: string } } }
+      | undefined
+  )?.carmaConf3D?.pointcloud?.url ?? "";
 
 const CAPTURE_026_MANIFEST_BY_SEGMENT_COUNT: Record<
   Capture026RadarSegmentCount,
@@ -299,6 +313,9 @@ export interface Capture026CollocatedSceneProps {
   georadarRenderMode?: Capture026GeoradarRenderMode;
   georadarDepthInverted?: boolean;
   showMesh2024?: boolean;
+  /** Adds the Oelberg MLS cloud from its 3D Tiles delivery. */
+  showOelbergPointTileset?: boolean;
+  oelbergPointTilesetPointSize?: number;
   showNivPoints?: boolean;
   meshOpacity?: number;
   meshAppearance?: Mesh2024AppearanceMode;
@@ -465,6 +482,8 @@ type RuntimeSettings = Required<
     | "showGeoradar"
     | "georadarRenderDistance"
     | "showMesh2024"
+    | "showOelbergPointTileset"
+    | "oelbergPointTilesetPointSize"
     | "showNivPoints"
     | "showPlanar2"
     | "planar3Mode"
@@ -3991,6 +4010,21 @@ const initializeScene = async (
   meshLoadingStatus = meshEnabled ? mesh.getLoadingStatus() : "";
   groups.mesh = mesh.anchor;
 
+  // Optional Ölberg MLS point cloud delivered as a 3D Tiles tileset. It shares
+  // the scene origin with the mesh, so it can be compared against the mesh and
+  // the georadar runs without any further alignment.
+  const oelbergPointTileset = createPointTilesetRuntime({
+    scene,
+    renderer,
+    camera,
+    originLngLat,
+    anchorHeightEllipsoidal: anchorHeight,
+    url: OELBERG_POINT_TILESET_URL,
+    enabled: settings.showOelbergPointTileset ?? false,
+    pointSize: settings.oelbergPointTilesetPointSize ?? 2,
+    requestRender: requestSceneFrame,
+  });
+
   const loadedPlanarImagery = new Set<"planar-2" | "planar-3">();
   const loadPlanarImagery = async (
     imagery: Capture026Manifest["imagery"][number]
@@ -4792,6 +4826,8 @@ const initializeScene = async (
     }
     const wasMeshEnabled = meshEnabled;
     meshEnabled = next.showMesh2024;
+    oelbergPointTileset.setEnabled(next.showOelbergPointTileset ?? false);
+    oelbergPointTileset.setPointSize(next.oelbergPointTilesetPointSize ?? 2);
     if (previous.meshErrorTarget !== next.meshErrorTarget) {
       mesh.applyErrorTarget(next.meshErrorTarget);
     }
@@ -6235,6 +6271,10 @@ const initializeScene = async (
       );
       mesh.tiles.update();
     }
+    // Ölberg MLS as a 3D Tiles point cloud, anchored on the same scene origin
+    // as the mesh so both deliveries are directly comparable.
+    oelbergPointTileset?.setResolutionFromRenderer();
+    oelbergPointTileset?.update();
     if (!panoramaInside && time - lastRuntimeStatusUpdate >= 500) {
       lastRuntimeStatusUpdate = time;
       const nextMeshLoadingStatus = meshEnabled
@@ -6362,6 +6402,7 @@ const initializeScene = async (
       controls.removeEventListener("end", onControlsEnd);
       controls.dispose();
       mesh.dispose();
+      oelbergPointTileset.dispose();
       volume.dispose();
       metricGround.dispose();
       centerlineGeometry.dispose();
@@ -6584,6 +6625,8 @@ export function Capture026CollocatedScene({
   georadarRenderMode = "volume",
   georadarDepthInverted = false,
   showMesh2024 = true,
+  showOelbergPointTileset = false,
+  oelbergPointTilesetPointSize = 2,
   showNivPoints = true,
   showPlanar2 = false,
   planar3Mode = "hidden",
@@ -6748,6 +6791,8 @@ export function Capture026CollocatedScene({
     showGeoradar: georadarVisible,
     georadarRenderDistance,
     showMesh2024: meshVisible,
+    showOelbergPointTileset,
+    oelbergPointTilesetPointSize,
     showNivPoints: nivPointsVisible,
     showPlanar2: planar2Visible,
     planar3Mode: activePlanar3Mode,
@@ -7016,6 +7061,8 @@ export function Capture026CollocatedScene({
       showGeoradar: georadarVisible,
       georadarRenderDistance,
       showMesh2024: meshVisible,
+      showOelbergPointTileset,
+      oelbergPointTilesetPointSize,
       showNivPoints: nivPointsVisible,
       showPlanar2: planar2Visible,
       planar3Mode: activePlanar3Mode,

@@ -427,6 +427,17 @@ function DatasetRegistrationScene({
         showFieldColorizer
         showFieldColorizerButton={false}
         showMesh2024
+        pointTileset={
+          preset.pointcloud.delivery === "3d-tiles" && preset.pointcloud.bounds
+            ? {
+                url: preset.pointcloud.url,
+                bounds: {
+                  min: preset.pointcloud.bounds.min,
+                  max: preset.pointcloud.bounds.max,
+                },
+              }
+            : undefined
+        }
         registrationMatrix={registrationMatrix}
         sourceTransform={preset.pointcloud.transform}
         onMountPriorResolved={(sceneMatrix) => {

@@ -116,6 +116,16 @@ const meta = {
       name: "Mesh anzeigen",
       table: { category: "Mesh 2024" },
     },
+    showOelbergPointTileset: {
+      name: "Ölberg MLS · 3D Tiles anzeigen",
+      table: { category: "Punktwolke" },
+    },
+    oelbergPointTilesetPointSize: {
+      name: "Punktgröße · Pixel",
+      table: { category: "Punktwolke" },
+      control: { type: "range", min: 1, max: 8, step: 0.5 },
+      if: { arg: "showOelbergPointTileset", truthy: true },
+    },
     showNivPoints: {
       name: "Höhenfestpunkte anzeigen",
       table: { category: "Referenz" },
@@ -356,6 +366,8 @@ const meta = {
     trajectoryOffsetDown: 0,
     trajectoryOffsetRight: 0,
     showMesh2024: true,
+    showOelbergPointTileset: false,
+    oelbergPointTilesetPointSize: 2,
     showNivPoints: true,
     meshAppearance: "textured",
     meshOpacity: 1,

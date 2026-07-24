@@ -21,6 +21,7 @@ import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import type { Altitude, Coordinates } from "@carma-geo/data-structures";
 import {
   dhhn2016ToEllipsoidalHeight,
+  getFromUTM32ToWGS84,
   getFromWGS84ToUTM32,
 } from "@carma-geo/proj";
 
@@ -164,6 +165,17 @@ export interface StandalonePointCloudViewerProps {
   pickingEnabled?: boolean;
   pickKind?: "pointcloud" | "mesh";
   registrationMatrix?: THREE.Matrix4;
+  /**
+   * Renders the dataset from a 3D Tiles 1.1 point tileset instead of the COPC
+   * delivery. The bounds anchor the scene frame without opening a COPC file.
+   */
+  pointTileset?: {
+    url: string;
+    bounds: {
+      min: readonly [number, number, number];
+      max: readonly [number, number, number];
+    };
+  };
   /** Source-frame mount prior (carma-pointcloud-v1 transform convention). */
   sourceTransform?: { matrix: readonly number[] };
   /** Reports the mount prior converted into the viewer's scene frame. */
@@ -564,6 +576,169 @@ const addMesh2024 = async (
   };
 };
 
+/**
+ * Loads a 3D Tiles 1.1 point tileset (glTF POINTS content) into the same
+ * scene frame the COPC path uses, so the two deliveries of one dataset are
+ * directly comparable. Placement mirrors addMesh2024: the tileset is ECEF,
+ * and the reorientation plugin anchors it at the scene origin.
+ */
+const addPointTileset = async (
+  scene: THREE.Scene,
+  renderer: THREE.WebGLRenderer,
+  camera: THREE.PerspectiveCamera,
+  metadata: CopcSceneMetadata,
+  sourceHeightDatum: PointCloudHeightDatum,
+  tilesetUrl: string,
+  onStatus?: (status: string | null) => void
+) => {
+  const [centerEast, centerNorth] = getFromWGS84ToUTM32(
+    metadata.centerLngLat as Parameters<typeof getFromWGS84ToUTM32>[0]
+  ) as [number, number];
+  const tiles = new TilesRenderer(tilesetUrl);
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath(
+    "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
+  );
+  tiles.registerPlugin(new ImplicitTilingPlugin());
+  tiles.registerPlugin(new UpdateOnChangePlugin());
+  tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
+  tiles.registerPlugin(
+    new ReorientationPlugin({
+      lat: THREE.MathUtils.degToRad(metadata.centerLngLat[1]),
+      lon: THREE.MathUtils.degToRad(metadata.centerLngLat[0]),
+      // The tileset is anchored on ellipsoidal heights, so an orthometric
+      // scene base has to be converted before it can serve as the anchor.
+      height:
+        sourceHeightDatum === POINT_CLOUD_HEIGHT_DATUMS.DHHN2016
+          ? await dhhn2016ToEllipsoidalHeight(
+              {
+                east: centerEast as Coordinates.ETRS89UTMEastingMeters,
+                north: centerNorth as Coordinates.ETRS89UTMNorthingMeters,
+                zone: 32,
+              },
+              metadata.zBase as Altitude.DHHN2016Meters
+            )
+          : metadata.zBase,
+    })
+  );
+  tiles.downloadQueue.maxJobs = 8;
+  tiles.parseQueue.maxJobs = 8;
+  tiles.lruCache.minSize = 512;
+  tiles.lruCache.maxSize = 4_096;
+  tiles.setCamera(camera);
+  tiles.setResolutionFromRenderer(camera, renderer);
+
+  // Same axis correction the mesh path needs: the reorientation plugin
+  // yields X west / Z north, the scene uses X east / Z south.
+  const anchorGroup = new THREE.Group();
+  anchorGroup.rotation.y = Math.PI;
+  anchorGroup.add(tiles.group);
+  scene.add(anchorGroup);
+
+  let pointCount = 0;
+  const onLoadModel = (event: { scene?: THREE.Object3D }) => {
+    if (!event.scene) return;
+    event.scene.traverse((child) => {
+      const points = child as THREE.Points;
+      if (!(points instanceof THREE.Points)) return;
+      const material = points.material as THREE.PointsMaterial;
+      material.size = 2;
+      material.sizeAttenuation = false;
+      material.vertexColors = Boolean(points.geometry.getAttribute("color"));
+      material.needsUpdate = true;
+      pointCount += points.geometry.getAttribute("position")?.count ?? 0;
+    });
+    onStatus?.(`3D Tiles: ${pointCount.toLocaleString()} points`);
+  };
+  const onLoadError = (event: { error?: unknown }) => {
+    onStatus?.(
+      `3D Tiles error: ${
+        event.error instanceof Error ? event.error.message : String(event.error)
+      }`
+    );
+  };
+  tiles.addEventListener("load-model", onLoadModel);
+  tiles.addEventListener("load-error", onLoadError);
+  // UpdateOnChangePlugin only re-traverses on detected change; a periodic
+  // kick keeps a slow tileset from settling in a half-loaded state.
+  const watchdogTimer = window.setInterval(
+    () => tiles.dispatchEvent({ type: "needs-update" }),
+    2_000
+  );
+
+  return {
+    tiles,
+    group: anchorGroup,
+    setPointSize: (size: number) => {
+      tiles.group.traverse((child) => {
+        const points = child as THREE.Points;
+        if (!(points instanceof THREE.Points)) return;
+        (points.material as THREE.PointsMaterial).size = size;
+      });
+    },
+    dispose: () => {
+      window.clearInterval(watchdogTimer);
+      tiles.removeEventListener("load-model", onLoadModel);
+      tiles.removeEventListener("load-error", onLoadError);
+      scene.remove(anchorGroup);
+      tiles.dispose();
+      dracoLoader.dispose();
+      onStatus?.(null);
+    },
+  };
+};
+
+/**
+ * Synthesizes the scene metadata the viewer normally derives from a COPC
+ * header, so a tileset-only delivery can place the mesh and frame the camera
+ * without opening the COPC file.
+ */
+const sceneMetadataFromBounds = (bounds: {
+  min: readonly [number, number, number];
+  max: readonly [number, number, number];
+}): CopcSceneMetadata => {
+  const centerEast = (bounds.min[0] + bounds.max[0]) / 2;
+  const centerNorth = (bounds.min[1] + bounds.max[1]) / 2;
+  const centerLngLat = getFromUTM32ToWGS84([centerEast, centerNorth]) as [
+    number,
+    number
+  ];
+  const minLngLat = getFromUTM32ToWGS84([bounds.min[0], bounds.min[1]]) as [
+    number,
+    number
+  ];
+  const maxLngLat = getFromUTM32ToWGS84([bounds.max[0], bounds.max[1]]) as [
+    number,
+    number
+  ];
+  const halfWidth = (bounds.max[0] - bounds.min[0]) / 2;
+  const halfDepth = (bounds.max[1] - bounds.min[1]) / 2;
+  return {
+    sourceOrigin: {
+      easting: centerEast,
+      northing: centerNorth,
+      height: bounds.min[2],
+    },
+    centerLngLat,
+    boundsLngLat: [minLngLat, maxLngLat],
+    boundsLocal: [
+      [-halfWidth, -halfDepth],
+      [halfWidth, halfDepth],
+    ],
+    zBase: bounds.min[2],
+    zMin: bounds.min[2],
+    zMax: bounds.max[2],
+    totalFilePoints: 0,
+    selectedPoints: 0,
+    selectedNodes: 0,
+    totalNodes: 0,
+    selectedInsidePoints: 0,
+    selectedOutsidePoints: 0,
+    hasRgb: true,
+    hasClassification: true,
+  };
+};
+
 interface ViewerRuntime {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
@@ -576,6 +751,8 @@ interface ViewerRuntime {
   uploadedBaseField: string | null;
   metadata?: CopcSceneMetadata;
   mesh?: Awaited<ReturnType<typeof addMesh2024>>;
+  /** Present when the dataset is rendered from a 3D Tiles delivery. */
+  pointTileset?: Awaited<ReturnType<typeof addPointTileset>>;
   meshLoad?: Promise<void>;
   /** Lazily opened random-access COPC source for view refinement. */
   copcSource?: Promise<CopcWorkerSource>;
@@ -1185,6 +1362,7 @@ export function StandalonePointCloudViewer({
   pickingEnabled = false,
   pickKind,
   registrationMatrix,
+  pointTileset,
   sourceTransform,
   onMountPriorResolved,
   cameraStorageKey,
@@ -2151,7 +2329,13 @@ export function StandalonePointCloudViewer({
         if (pairIndex !== undefined) selectHandler(pairIndex);
         return;
       }
-      const pointHit = raycaster.intersectObject(visualizer.group, true)[0];
+      // A 3D Tiles delivery holds its points in the tileset group instead of
+      // the COPC visualizer, so pair picking raycasts whichever is present.
+      const pointHit = (
+        runtime.pointTileset
+          ? raycaster.intersectObject(runtime.pointTileset.group, true)
+          : raycaster.intersectObject(visualizer.group, true)
+      ).filter((hit) => hit.object instanceof THREE.Points)[0];
       const meshHit = runtime.mesh
         ? raycaster.intersectObject(runtime.mesh.tiles.group, true)[0]
         : undefined;
@@ -2257,6 +2441,78 @@ export function StandalonePointCloudViewer({
       renderer.render(scene, camera);
     };
     animate();
+
+    // 3D Tiles delivery: the points come from a tileset rather than the COPC
+    // stream. Scene metadata is synthesized from the declared bounds so the
+    // mesh, framing and registration keep working unchanged.
+    if (pointTileset) {
+      const metadata = sceneMetadataFromBounds(pointTileset.bounds);
+      runtime.metadata = metadata;
+      applyViewerSettings(runtime, settingsRef.current, roiAppliedRef.current);
+      setStatus("Loading 3D Tiles point cloud…");
+      let tilesetRuntime: Awaited<ReturnType<typeof addPointTileset>> | undefined;
+      void addPointTileset(
+        scene,
+        renderer,
+        camera,
+        metadata,
+        settingsRef.current.sourceHeightDatum,
+        pointTileset.url,
+        (message) => {
+          if (!disposed && message) setStatus(message);
+        }
+      )
+        .then((loaded) => {
+          if (disposed) {
+            loaded.dispose();
+            return;
+          }
+          tilesetRuntime = loaded;
+          runtime.pointTileset = loaded;
+          if (!cameraRestored) {
+            frameObject(loaded.group, camera, controls);
+          }
+        })
+        .catch((cause: unknown) => {
+          if (!disposed) {
+            setError(cause instanceof Error ? cause.message : String(cause));
+          }
+        });
+      return () => {
+        disposed = true;
+        runtime.disposed = true;
+        cancelToken.cancelled = true;
+        workerClient?.cancelStream();
+        workerClient?.dispose();
+        window.clearTimeout(cameraSaveTimer);
+        window.clearTimeout(maximizeDebounceTimer);
+        saveCamera();
+        controls.removeEventListener("end", scheduleCameraSave);
+        controls.removeEventListener("start", handleInteractionStart);
+        controls.removeEventListener("end", handleInteractionEnd);
+        resizeObserver.disconnect();
+        window.cancelAnimationFrame(animationFrame);
+        controls.dispose();
+        tilesetRuntime?.dispose();
+        runtime.mesh?.dispose();
+        scene.remove(visualizer.group);
+        scene.remove(registrationOverlay);
+        registrationMarkers.forEach((marker) => {
+          marker.geometry.dispose();
+          (marker.material as THREE.Material).dispose();
+          scene.remove(marker);
+        });
+        visualizer.dispose();
+        renderer.dispose();
+        renderer.domElement.remove();
+        renderer.domElement.removeEventListener("click", handlePick);
+        renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
+        renderer.domElement.removeEventListener("pointermove", handlePointerMove);
+        renderer.domElement.removeEventListener("wheel", handleTravelZoom);
+        renderer.domElement.removeEventListener("contextmenu", preventContextMenu);
+        if (runtimeRef.current === runtime) runtimeRef.current = null;
+      };
+    }
 
     const streamCallbacks = {
       onMetadata: async (metadata: CopcSceneMetadata) => {
@@ -2387,6 +2643,7 @@ export function StandalonePointCloudViewer({
   }, [
     cameraStorageKey,
     datasetUrl,
+    pointTileset,
     registration,
     fieldDimensions,
     hasRgb,
