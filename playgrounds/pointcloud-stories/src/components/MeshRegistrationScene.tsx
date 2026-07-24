@@ -24,6 +24,7 @@ import type {
 import type { RampName } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
 import { RegistrationWorkbench } from "./RegistrationWorkbench";
 import type { RegistrationPair, RigidRegistrationResult } from "../registration/rigid-registration";
+import nordbahnRegistrationPresetJson from "../data/mesh-registration-nordbahn.json?raw";
 
 const DATA_BASE =
   import.meta.env.VITE_POINTCLOUD_DATA_BASE_URL ?? POINT_CLOUD_PUBLIC_BASE_URL;
@@ -50,6 +51,22 @@ const toScenePair = (pair: RegistrationPair): ScenePair => ({
   source: new THREE.Vector3(pair.source.x, pair.source.y, pair.source.z),
   target: new THREE.Vector3(pair.target.x, pair.target.y, pair.target.z),
 });
+
+// Curated Nordbahntrasse pair set (a workbench "Export JSON" snapshot). Used
+// as the initial pairs when nothing is stored yet, and available any time
+// through the workbench's "Nordbahn preset" button.
+const NORDBAHN_PRESET = JSON.parse(nordbahnRegistrationPresetJson) as {
+  pairs: Array<{
+    source: [number, number, number];
+    target: [number, number, number];
+  }>;
+};
+
+const presetScenePairs = (): ScenePair[] =>
+  NORDBAHN_PRESET.pairs.map(({ source, target }) => ({
+    source: new THREE.Vector3(...source),
+    target: new THREE.Vector3(...target),
+  }));
 
 export interface MeshRegistrationSceneProps {
   color?: StandalonePointCloudColor;
@@ -100,14 +117,14 @@ export function MeshRegistrationScene({
   const [pairs, setPairs] = useState<ScenePair[]>(() => {
     try {
       const saved = localStorage.getItem(REGISTRATION_STORAGE_KEY);
-      if (!saved) return [];
+      if (!saved) return presetScenePairs();
       const parsed = JSON.parse(saved) as Array<{ source: number[]; target: number[] }>;
       return parsed.map(({ source, target }) => ({
         source: new THREE.Vector3(...source as [number, number, number]),
         target: new THREE.Vector3(...target as [number, number, number]),
       }));
     } catch {
-      return [];
+      return presetScenePairs();
     }
   });
   const [nextKind, setNextKind] = useState<"pointcloud" | "mesh">("pointcloud");
@@ -348,6 +365,11 @@ export function MeshRegistrationScene({
         pairs={completePairs}
         onImportPairs={(imported) => {
           setPairs(imported.map(toScenePair));
+          setNextKind("pointcloud");
+          setResult(null);
+        }}
+        onLoadPreset={() => {
+          setPairs(presetScenePairs());
           setNextKind("pointcloud");
           setResult(null);
         }}

@@ -24,6 +24,8 @@ export type RegistrationWorkbenchProps = {
   onRemovePair: (index: number) => void;
   onAddPointPair: () => void;
   onImportPairs?: (pairs: RegistrationPair[]) => void;
+  /** Replaces the current pairs with the story's bundled preset. */
+  onLoadPreset?: () => void;
   meshLoadState: "loading" | "loaded" | "error";
   onFramePointCloud: () => void;
   onMaximizeCurrentView: () => void;
@@ -147,6 +149,7 @@ export function RegistrationWorkbench({
   onRemovePair,
   onAddPointPair,
   onImportPairs,
+  onLoadPreset,
   meshLoadState,
   onFramePointCloud,
   onMaximizeCurrentView,
@@ -352,6 +355,11 @@ export function RegistrationWorkbench({
             }}
           />
         </label>
+        {onLoadPreset && (
+          <button type="button" onClick={onLoadPreset}>
+            Nordbahn preset
+          </button>
+        )}
       </div>
       </aside>
     </FloatingPanel>
