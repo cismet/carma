@@ -4,6 +4,7 @@ import {
   GLTFExtensionsPlugin,
   ImplicitTilingPlugin,
   ReorientationPlugin,
+  UnloadTilesPlugin,
   UpdateOnChangePlugin,
 } from "3d-tiles-renderer/plugins";
 import * as THREE from "three";
@@ -96,10 +97,18 @@ export const MESH_DEFAULT_ELEVATION_COLOR_RAMP: Mesh2024ElevationColorRamp =
 const MESH_CLAY_COLOR = 0xb9b2a7;
 const MESH_COVERAGE_ERROR_TARGET_PIXELS = 64;
 const MESH_REFINEMENT_FACTOR = 2;
+/** Delay between refinement steps; short enough to feel responsive. */
+const MESH_REFINEMENT_STEP_MILLISECONDS = 70;
+/** Periodic recovery so a stalled or budget-capped refinement resumes. */
+const MESH_REFINEMENT_WATCHDOG_MILLISECONDS = 1_500;
 const MESH_MINIMUM_CACHE_BYTES = 192 * 1024 ** 2;
 const MESH_INITIAL_MAXIMUM_CACHE_BYTES = 768 * 1024 ** 2;
 const MESH_MAXIMUM_CACHE_BYTES = 1_536 * 1024 ** 2;
-const MESH_MINIMUM_CACHE_ENTRIES = 2_048;
+// A low retention floor is what lets the LRU actually reclaim tiles that
+// left the frustum; a high floor keeps stale out-of-view tiles resident and
+// starves the visible view of budget. Visible tiles are marked used every
+// traversal, so they are never the ones evicted.
+const MESH_MINIMUM_CACHE_ENTRIES = 192;
 const MESH_MAXIMUM_CACHE_ENTRIES = 4_096;
 const MESH_RETRY_DELAYS_MILLISECONDS = [
   1_000, 3_000, 8_000, 20_000, 60_000,
@@ -339,6 +348,10 @@ export const createMesh2024TilesRuntime = ({
   tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
   tiles.registerPlugin(debugTilesPlugin);
   tiles.registerPlugin(new UpdateOnChangePlugin());
+  // Frees geometry and textures of tiles that leave the view almost
+  // immediately, so the budget goes to what is actually on screen. The
+  // small delay avoids thrashing while the camera is still moving.
+  tiles.registerPlugin(new UnloadTilesPlugin({ delay: 200 }));
   tiles.registerPlugin(
     new ReorientationPlugin({
       lat: degToRadNumeric(originLngLat[1]),
@@ -501,10 +514,33 @@ export const createMesh2024TilesRuntime = ({
       );
       tiles.errorTarget = activeErrorTarget;
       tiles.dispatchEvent({ type: "needs-update" });
-    }, 180);
+    }, MESH_REFINEMENT_STEP_MILLISECONDS);
   };
   const onNeedsUpdate = () => requestRender();
   tiles.addEventListener("needs-update", onNeedsUpdate);
+  // Recovery watchdog. Two things otherwise leave the mesh pinned at a coarse
+  // level: refinementBudgetLimited latches on the first cache-full event and is
+  // only cleared when the view changes or the quality slider moves, and a
+  // traversal can settle while UpdateOnChangePlugin sees no change to react to.
+  // Once the queues are idle below the requested target, clear the latch and
+  // take another refinement step.
+  const refinementWatchdog = window.setInterval(() => {
+    if (disposed) return;
+    tiles.dispatchEvent({ type: "needs-update" });
+    if (activeErrorTarget <= requestedErrorTarget) return;
+    const { queued, downloading, parsing } = (
+      tiles as unknown as {
+        stats: { queued: number; downloading: number; parsing: number };
+      }
+    ).stats;
+    if (queued + downloading + parsing > 0) return;
+    if (refinementBudgetLimited) {
+      // The budget cap was measured under the previous view; out-of-view tiles
+      // have since been unloaded, so let refinement try again.
+      refinementBudgetLimited = false;
+    }
+    scheduleProgressiveRefinement();
+  }, MESH_REFINEMENT_WATCHDOG_MILLISECONDS);
   const onUpdateAfter = () => {
     // Plugins and renderer updates can replace or restore tile materials after
     // load-model. Reassert the complete style contract after every traversal;
@@ -666,6 +702,22 @@ export const createMesh2024TilesRuntime = ({
       tiles.dispatchEvent({ type: "needs-update" });
     },
     updateCoverageCamera: cameraSet.update,
+    /**
+     * True while the mesh is actually moving data: tiles queued, downloading
+     * or parsing. Deliberately ignores the refinement ladder — a tileset that
+     * yielded until the mesh reached its final target could be starved for as
+     * long as the mesh keeps refining, so other tilesets only step aside for
+     * real network and parse work and fill every gap in between.
+     */
+    isFetching: () => {
+      if (disposed) return false;
+      const { queued, downloading, parsing } = (
+        tiles as unknown as {
+          stats: { queued: number; downloading: number; parsing: number };
+        }
+      ).stats;
+      return queued + downloading + parsing > 0;
+    },
     notifyViewChanged: () => {
       restartProgressiveLod();
       tiles.dispatchEvent({ type: "needs-update" });
@@ -820,6 +872,7 @@ export const createMesh2024TilesRuntime = ({
     },
     dispose: () => {
       disposed = true;
+      window.clearInterval(refinementWatchdog);
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       if (refinementTimer !== undefined) window.clearTimeout(refinementTimer);
       if (budgetPressureTimer !== undefined)

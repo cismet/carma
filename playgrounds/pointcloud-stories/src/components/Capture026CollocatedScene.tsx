@@ -4024,6 +4024,9 @@ const initializeScene = async (
     url: OELBERG_POINT_TILESET_URL,
     enabled: settings.showOelbergPointTileset ?? false,
     pointSize: settings.oelbergPointTilesetPointSize ?? 2,
+    // Mesh 2024 owns the request budget while it is still resolving the
+    // current view; the point tileset fills the gaps afterwards.
+    isDeferred: () => meshEnabled && mesh.isFetching(),
     requestRender: requestSceneFrame,
   });
 

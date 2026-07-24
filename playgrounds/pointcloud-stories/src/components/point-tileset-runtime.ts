@@ -3,6 +3,7 @@ import {
   GLTFExtensionsPlugin,
   ImplicitTilingPlugin,
   ReorientationPlugin,
+  UnloadTilesPlugin,
   UpdateOnChangePlugin,
 } from "3d-tiles-renderer/plugins";
 import * as THREE from "three";
@@ -24,6 +25,11 @@ export type PointTilesetRuntimeOptions = {
   anchorHeightEllipsoidal: number;
   url: string;
   enabled?: boolean;
+  /**
+   * Returns true while another tileset should own the request budget. The
+   * point tileset then skips traversal, so the mesh keeps priority.
+   */
+  isDeferred?: () => boolean;
   pointSize?: number;
   errorTarget?: number;
   requestRender?: () => void;
@@ -31,6 +37,8 @@ export type PointTilesetRuntimeOptions = {
 
 export const POINT_TILESET_DEFAULT_POINT_SIZE = 2;
 export const POINT_TILESET_DEFAULT_ERROR_TARGET = 8;
+/** Upper bound on yielding to the mesh, so points always make progress. */
+const MAXIMUM_DEFER_MILLISECONDS = 3_000;
 
 export const createPointTilesetRuntime = ({
   scene,
@@ -42,10 +50,13 @@ export const createPointTilesetRuntime = ({
   enabled: initialEnabled = true,
   pointSize: initialPointSize = POINT_TILESET_DEFAULT_POINT_SIZE,
   errorTarget: initialErrorTarget = POINT_TILESET_DEFAULT_ERROR_TARGET,
+  isDeferred = () => false,
   requestRender = () => undefined,
 }: PointTilesetRuntimeOptions) => {
   let pointSize = initialPointSize;
   let disposed = false;
+  /** When the current deferral to the mesh started; 0 when not deferring. */
+  let deferringSince = 0;
 
   const tiles = new TilesRenderer(url);
   const dracoLoader = new DRACOLoader();
@@ -55,6 +66,9 @@ export const createPointTilesetRuntime = ({
   tiles.registerPlugin(new ImplicitTilingPlugin());
   tiles.registerPlugin(new UpdateOnChangePlugin());
   tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
+  // Give the budget to what is on screen: tiles that leave the view free
+  // their GPU data almost immediately.
+  tiles.registerPlugin(new UnloadTilesPlugin({ delay: 200 }));
   tiles.registerPlugin(
     new ReorientationPlugin({
       lat: THREE.MathUtils.degToRad(originLngLat[1]),
@@ -65,8 +79,9 @@ export const createPointTilesetRuntime = ({
   tiles.errorTarget = initialErrorTarget;
   tiles.downloadQueue.maxJobs = 8;
   tiles.parseQueue.maxJobs = 8;
-  tiles.lruCache.minSize = 512;
+  tiles.lruCache.minSize = 128;
   tiles.lruCache.maxSize = 4_096;
+  tiles.lruCache.unloadPercent = 0.4;
   tiles.setCamera(camera);
   tiles.setResolutionFromRenderer(camera, renderer as never);
 
@@ -108,6 +123,18 @@ export const createPointTilesetRuntime = ({
     tiles,
     update: () => {
       if (disposed || !group.visible) return;
+      // Mesh 2024 has priority: while it is fetching, the point tileset stays
+      // idle rather than competing for the same connections. Two exceptions
+      // keep the deferral from becoming a deadlock: the root tileset must be
+      // allowed to load at all (nothing can be scheduled before it), and a
+      // long stretch of mesh traffic must not starve the points forever.
+      const now = performance.now();
+      if (tiles.root && isDeferred()) {
+        if (deferringSince === 0) deferringSince = now;
+        if (now - deferringSince < MAXIMUM_DEFER_MILLISECONDS) return;
+      } else {
+        deferringSince = 0;
+      }
       tiles.update();
     },
     setEnabled: (enabled: boolean) => {
