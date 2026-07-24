@@ -714,6 +714,14 @@ export const createGeoradarFaceEditor = (
 
   const onPointerMove = (event: PointerEvent) => {
     if (!drag || drag.pointerId !== event.pointerId || !latest) return;
+    // A pointerup that never reaches this element — released outside the
+    // window, or after the pointer capture was lost — would otherwise leave
+    // the drag engaged and the slice would keep following the cursor. No
+    // button still held means the gesture is over.
+    if (event.buttons === 0) {
+      endDrag(event);
+      return;
+    }
     const coalescedEvents = event.getCoalescedEvents?.() ?? [];
     const currentEvent = coalescedEvents.at(-1) ?? event;
     if (

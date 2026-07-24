@@ -33,7 +33,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Georeferenzierte Three.js/WebGPU-Szene mit allen 27 Georadar-Läufen, allen 1.271 Panoramen, Mesh 2024, orientierten Planarbildern und den amtlichen Höhenfestpunkten entlang der Befahrung. Die komplette Szene läuft in ETRS89-Ellipsoidhöhen; DHHN2016-Quellen werden räumlich variabel mit GCG2016 umgerechnet und bleiben für Kontrolle und Export erhalten. Ein gemeinsamer räumlicher Graph erhält die Reihenfolge innerhalb jeder Befahrung und ergänzt mögliche Übergänge zwischen verschiedenen Läufen bis maximal 20 m. An Kreuzungen erscheinen dadurch mehrere Panorama-Ziele; beim Wechsel der Straße oder Spur wird der Straßenname angezeigt. Radar- und Bilddaten werden sichtbarkeits- und auflösungsabhängig geladen. Ein Klick auf ein Radarlabel wechselt den aktiven Lauf. Kamera, aktives Panorama und aktiver Radar-Lauf werden in der URL gehalten. Die Oberflächenkorrektur kann zwischen DSM 2024 und DGM 2020 wechseln. Mesh 2024 verfeinert progressiv bis zum gewählten Screenfehler und rendert die Szene nur bei Änderungen.",
+          "Georeferenzierte Three.js/WebGPU-Szene mit allen 27 Georadar-Läufen, allen 1.271 Panoramen, Mesh 2024 und orientierten Planarbildern entlang der Befahrung. Die komplette Szene läuft in ETRS89-Ellipsoidhöhen; DHHN2016-Quellen werden räumlich variabel mit GCG2016 umgerechnet und bleiben für Kontrolle und Export erhalten. Ein gemeinsamer räumlicher Graph erhält die Reihenfolge innerhalb jeder Befahrung und ergänzt mögliche Übergänge zwischen verschiedenen Läufen bis maximal 20 m. An Kreuzungen erscheinen dadurch mehrere Panorama-Ziele; beim Wechsel der Straße oder Spur wird der Straßenname angezeigt. Radar- und Bilddaten werden sichtbarkeits- und auflösungsabhängig geladen. Ein Klick auf ein Radarlabel wechselt den aktiven Lauf. Kamera, aktives Panorama und aktiver Radar-Lauf werden in der URL gehalten. Die Oberflächenkorrektur kann zwischen DSM 2024 und DGM 2020 wechseln. Mesh 2024 verfeinert progressiv bis zum gewählten Screenfehler und rendert die Szene nur bei Änderungen.",
       },
     },
   },
@@ -125,10 +125,6 @@ const meta = {
       table: { category: "Punktwolke" },
       control: { type: "range", min: 1, max: 8, step: 0.5 },
       if: { arg: "showOelbergPointTileset", truthy: true },
-    },
-    showNivPoints: {
-      name: "Höhenfestpunkte anzeigen",
-      table: { category: "Referenz" },
     },
     meshAppearance: {
       name: "Mesh-Darstellung",
@@ -368,7 +364,7 @@ const meta = {
     showMesh2024: true,
     showOelbergPointTileset: false,
     oelbergPointTilesetPointSize: 2,
-    showNivPoints: true,
+    showNivPoints: false,
     meshAppearance: "textured",
     meshOpacity: 1,
     meshSaturation: 1,
