@@ -145,7 +145,8 @@ Nordbahntrasse.args = {
   metricBlendMode: "multiply",
   pointCompositeMode: "normal",
   background: "white",
-  sourceHeightDatum: POINT_CLOUD_HEIGHT_DATUMS.ELLIPSOIDAL,
+  // sourceHeightDatum intentionally unset: each dataset preset supplies its
+  // declared datum; the control remains available as a manual override.
   heightOffset: 0,
   color: "intensity",
   metric: "none",

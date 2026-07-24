@@ -26,6 +26,10 @@ export type RegistrationWorkbenchProps = {
   onImportPairs?: (pairs: RegistrationPair[]) => void;
   /** Replaces the current pairs with the story's bundled preset. */
   onLoadPreset?: () => void;
+  /** Registerable dataset presets (ng playground FeatureCollection entries). */
+  datasetPresets?: ReadonlyArray<{ id: string; label: string }>;
+  activeDatasetId?: string;
+  onSelectDataset?: (id: string) => void;
   meshLoadState: "loading" | "loaded" | "error";
   onFramePointCloud: () => void;
   onMaximizeCurrentView: () => void;
@@ -150,6 +154,9 @@ export function RegistrationWorkbench({
   onAddPointPair,
   onImportPairs,
   onLoadPreset,
+  datasetPresets,
+  activeDatasetId,
+  onSelectDataset,
   meshLoadState,
   onFramePointCloud,
   onMaximizeCurrentView,
@@ -272,6 +279,21 @@ export function RegistrationWorkbench({
         Mesh 2024: {meshLoadState === "loaded" ? "loaded" : meshLoadState === "error" ? "error" : "loading…"}
       </div>
       </div>}
+      {datasetPresets && datasetPresets.length > 0 && onSelectDataset && (
+        <label className="registration-dataset-picker">
+          Dataset
+          <select
+            value={activeDatasetId}
+            onChange={(event) => onSelectDataset(event.target.value)}
+          >
+            {datasetPresets.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <fieldset className="pointcloud-style-fieldset">
         <legend>Point cloud style</legend>
         <label>Size mode

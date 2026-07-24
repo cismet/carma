@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import * as THREE from "three";
 
-import {
-  POINT_CLOUD_ASSET_IDENTITIES,
-  POINT_CLOUD_PUBLIC_BASE_URL,
-} from "../../../ng-topicmap-playground/src/app/pointcloud/point-cloud-assets";
+import type { CarmaConf3DPointCloud } from "@carma-appframeworks/portals";
+
+import { POINT_CLOUD_PUBLIC_BASE_URL } from "../../../ng-topicmap-playground/src/app/pointcloud/point-cloud-assets";
+import { POINT_CLOUD_PRESET_FEATURE_COLLECTION } from "../../../ng-topicmap-playground/src/app/pointcloud/pointcloud-preset-features";
 import {
   POINT_CLOUD_HEIGHT_DATUMS,
   POINT_METRICS,
@@ -26,12 +26,53 @@ import { RegistrationWorkbench } from "./RegistrationWorkbench";
 import type { RegistrationPair, RigidRegistrationResult } from "../registration/rigid-registration";
 import nordbahnRegistrationPresetJson from "../data/mesh-registration-nordbahn.json?raw";
 
-const DATA_BASE =
-  import.meta.env.VITE_POINTCLOUD_DATA_BASE_URL ?? POINT_CLOUD_PUBLIC_BASE_URL;
-const REGISTRATION_STORAGE_KEY = "carma.mesh-registration.seg2512";
-const SOLVE_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.solve`;
-const STYLE_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.style`;
-const MESH_PREVIEW_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.mesh-preview`;
+const DATASET_STORAGE_KEY = "carma.mesh-registration.dataset";
+
+/**
+ * Registerable dataset presets, resolved from the ng playground's ad-hoc
+ * point-cloud FeatureCollection format so curated presets and user imports
+ * share one contract. The transform on each config is the dataset's mount
+ * prior and seeds the registration before any solve.
+ */
+type DatasetPreset = {
+  id: string;
+  label: string;
+  sourceTag: string;
+  defaultDatum: "dhhn" | "ellipsoidal" | "surfaceRelative";
+  pointcloud: CarmaConf3DPointCloud;
+};
+
+const DATASET_PRESETS: DatasetPreset[] =
+  POINT_CLOUD_PRESET_FEATURE_COLLECTION.features.map((feature) => {
+    const properties = feature.properties as {
+      title?: string;
+      sourceTag?: string;
+      defaultDatum?: DatasetPreset["defaultDatum"];
+      carmaConf3D?: { pointcloud?: CarmaConf3DPointCloud };
+    };
+    const pointcloud = properties.carmaConf3D?.pointcloud;
+    if (!pointcloud) {
+      throw new Error(
+        `Preset feature ${String(feature.id)} carries no carma-pointcloud-v1 config`
+      );
+    }
+    return {
+      id: String(feature.id),
+      label: properties.title ?? String(feature.id),
+      sourceTag: properties.sourceTag ?? "",
+      defaultDatum: properties.defaultDatum ?? "ellipsoidal",
+      pointcloud,
+    };
+  });
+
+const DEFAULT_DATASET_ID = "seg2512";
+
+const resolveDatasetUrl = (pointcloud: CarmaConf3DPointCloud): string => {
+  const localBase = import.meta.env.VITE_POINTCLOUD_DATA_BASE_URL;
+  return localBase
+    ? pointcloud.url.replace(POINT_CLOUD_PUBLIC_BASE_URL, localBase)
+    : pointcloud.url;
+};
 
 type StoredSolve = {
   pairSignature: string;
@@ -91,7 +132,38 @@ export interface MeshRegistrationSceneProps {
   onColorizerOptionsChange?: ComponentProps<typeof StandalonePointCloudViewer>["onColorizerOptionsChange"];
 }
 
-export function MeshRegistrationScene({
+export function MeshRegistrationScene(props: MeshRegistrationSceneProps = {}) {
+  const [datasetId, setDatasetId] = useState(() => {
+    try {
+      return localStorage.getItem(DATASET_STORAGE_KEY) ?? DEFAULT_DATASET_ID;
+    } catch {
+      return DEFAULT_DATASET_ID;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(DATASET_STORAGE_KEY, datasetId);
+    } catch {
+      // Storage failures never break the story.
+    }
+  }, [datasetId]);
+  const preset =
+    DATASET_PRESETS.find((entry) => entry.id === datasetId) ?? DATASET_PRESETS[0];
+  // The key remounts the whole registration state (pairs, solve, camera,
+  // style) when the dataset changes; every dataset keeps its own storage.
+  return (
+    <DatasetRegistrationScene
+      key={preset.id}
+      preset={preset}
+      onSelectDataset={setDatasetId}
+      {...props}
+    />
+  );
+}
+
+function DatasetRegistrationScene({
+  preset,
+  onSelectDataset,
   color = "classification",
   metric = "z",
   colorRamp,
@@ -103,7 +175,7 @@ export function MeshRegistrationScene({
   metricBlendMode,
   pointCompositeMode,
   background,
-  sourceHeightDatum = POINT_CLOUD_HEIGHT_DATUMS.ELLIPSOIDAL,
+  sourceHeightDatum,
   heightOffset,
   meshOpacity,
   meshErrorTarget,
@@ -112,19 +184,34 @@ export function MeshRegistrationScene({
   clampMin,
   clampMax,
   onColorizerOptionsChange,
-}: MeshRegistrationSceneProps = {}) {
-  const identity = POINT_CLOUD_ASSET_IDENTITIES.seg2512;
+}: MeshRegistrationSceneProps & {
+  preset: DatasetPreset;
+  onSelectDataset: (id: string) => void;
+}) {
+  const datasetId = preset.id;
+  const REGISTRATION_STORAGE_KEY = `carma.mesh-registration.${datasetId}`;
+  const SOLVE_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.solve`;
+  const STYLE_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.style`;
+  const MESH_PREVIEW_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.mesh-preview`;
+  // The dataset's mount prior aligns the cloud before any interactive solve.
+  const priorMatrix = () =>
+    new THREE.Matrix4().fromArray([...preset.pointcloud.transform.matrix]);
+  const resolvedHeightDatum =
+    sourceHeightDatum ??
+    (preset.defaultDatum === "dhhn"
+      ? POINT_CLOUD_HEIGHT_DATUMS.DHHN2016
+      : POINT_CLOUD_HEIGHT_DATUMS.ELLIPSOIDAL);
   const [pairs, setPairs] = useState<ScenePair[]>(() => {
     try {
       const saved = localStorage.getItem(REGISTRATION_STORAGE_KEY);
-      if (!saved) return presetScenePairs();
+      if (!saved) return datasetId === "seg2512" ? presetScenePairs() : [];
       const parsed = JSON.parse(saved) as Array<{ source: number[]; target: number[] }>;
       return parsed.map(({ source, target }) => ({
         source: new THREE.Vector3(...source as [number, number, number]),
         target: new THREE.Vector3(...target as [number, number, number]),
       }));
     } catch {
-      return presetScenePairs();
+      return datasetId === "seg2512" ? presetScenePairs() : [];
     }
   });
   const [nextKind, setNextKind] = useState<"pointcloud" | "mesh">("pointcloud");
@@ -147,7 +234,7 @@ export function MeshRegistrationScene({
     uniformScale: storedSolve.uniformScale ?? 1,
   } : null);
   const [registrationMatrix, setRegistrationMatrix] = useState(() =>
-    storedSolve ? new THREE.Matrix4().fromArray(storedSolve.matrix) : new THREE.Matrix4()
+    storedSolve ? new THREE.Matrix4().fromArray(storedSolve.matrix) : priorMatrix()
   );
   const [selectedPairIndex, setSelectedPairIndex] = useState<number | null>(null);
   // Mesh opacity and wireframe set in the workbench survive reloads and
@@ -279,7 +366,7 @@ export function MeshRegistrationScene({
         preserveSolveOnPairEdit.current = false;
       } else {
         setResult(null);
-        setRegistrationMatrix(new THREE.Matrix4());
+        setRegistrationMatrix(priorMatrix());
         localStorage.removeItem(SOLVE_STORAGE_KEY);
       }
     }
@@ -312,12 +399,12 @@ export function MeshRegistrationScene({
   return (
     <div className="pointcloud-registration-scene">
       <StandalonePointCloudViewer
-        datasetUrl={`${DATA_BASE}/${identity.artifactFileName}`}
-        datasetName={identity.label}
-        sourceTag={identity.sourceTag}
-        fieldDimensions={identity.fieldDimensions}
-        hasRgb={identity.hasRgb}
-        sourceHeightDatum={sourceHeightDatum}
+        datasetUrl={resolveDatasetUrl(preset.pointcloud)}
+        datasetName={preset.label}
+        sourceTag={preset.sourceTag}
+        fieldDimensions={preset.pointcloud.fields ?? []}
+        hasRgb={preset.pointcloud.hasRgb ?? false}
+        sourceHeightDatum={resolvedHeightDatum}
         color={color}
         metric={metric}
         colorRamp={colorRamp}
@@ -368,11 +455,18 @@ export function MeshRegistrationScene({
           setNextKind("pointcloud");
           setResult(null);
         }}
-        onLoadPreset={() => {
-          setPairs(presetScenePairs());
-          setNextKind("pointcloud");
-          setResult(null);
-        }}
+        onLoadPreset={
+          datasetId === "seg2512"
+            ? () => {
+                setPairs(presetScenePairs());
+                setNextKind("pointcloud");
+                setResult(null);
+              }
+            : undefined
+        }
+        datasetPresets={DATASET_PRESETS.map(({ id, label }) => ({ id, label }))}
+        activeDatasetId={datasetId}
+        onSelectDataset={onSelectDataset}
         onRemoveLastPair={() => {
           setPairs((current) => current.slice(0, -1));
           setNextKind("pointcloud");
@@ -402,7 +496,7 @@ export function MeshRegistrationScene({
           setPairs((current) => current.filter((pair) => pair !== currentPair));
           setSelectedPairIndex(null);
           setResult(null);
-          setRegistrationMatrix(new THREE.Matrix4());
+          setRegistrationMatrix(priorMatrix());
           setNextKind("pointcloud");
         }}
         onAddPointPair={() => {
