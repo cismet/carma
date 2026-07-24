@@ -123,6 +123,7 @@ import {
   UIMode,
   getTriggerFeatureInfoUpdate,
   getUIMapInteractionEnabled,
+  getUIVisibleControls,
 } from "../../store/slices/ui.ts";
 
 import LoginForm from "../LoginForm.tsx";
@@ -367,6 +368,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const layersIdle = useSelector(getLayersIdle);
   const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
+  const visibleControls = useSelector(getUIVisibleControls);
 
   useEffect(() => {
     const maps = layers
@@ -845,6 +847,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const renderInfoBox = useCallback(() => {
+    if (!visibleControls.infoBox) {
+      return <div></div>;
+    }
     const hasVisibleSavedAnnotationLayer = layers.some(
       isVisible3dAnnotationAdhocLayer
     );
@@ -906,6 +911,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     isOrbiting,
     toggleOrbit,
     isAnnotationSelectToolActive,
+    visibleControls.infoBox,
   ]);
 
   const showOverlayFromOutside = useCallback(

@@ -17,6 +17,7 @@ export type UIVisibleControls = {
   fullscreen: boolean;
   home: boolean;
   featureInfo: boolean;
+  infoBox: boolean;
   measurement: boolean;
   gazetteer: boolean;
   layerButtons: boolean;
@@ -29,6 +30,7 @@ export const defaultVisibleControls: UIVisibleControls = {
   fullscreen: true,
   home: true,
   featureInfo: true,
+  infoBox: true,
   measurement: true,
   gazetteer: true,
   layerButtons: true,
