@@ -1,3 +1,5 @@
+import { investigationDataUrl } from "./investigation-data";
+
 export const NIV_POINT_TRACK_CORRIDOR_METERS = 25;
 
 export type NivControlPoint = {
@@ -47,7 +49,7 @@ type NivEcefArtifact = {
 
 const NIV_ECEF_URL =
   import.meta.env.VITE_NIV_ECEF_URL ??
-  "/niv-control-points/niv-points-ecef.json";
+  investigationDataUrl("/niv-control-points/niv-points-ecef.json");
 
 const isTransformedNivControlPoint = (
   point: Partial<NivControlPoint> & Record<string, unknown>

@@ -98,6 +98,7 @@ import {
   createPointTilesetRuntime,
 } from "./point-tileset-runtime";
 import { POINT_CLOUD_PRESET_FEATURE_COLLECTION } from "../../../ng-topicmap-playground/src/app/pointcloud/pointcloud-preset-features";
+import { investigationDataUrl } from "./investigation-data";
 import {
   createMesh2024TilesRuntime,
   MESH_APPEARANCE_MODES,
@@ -213,10 +214,10 @@ const CAPTURE_026_MANIFEST_BY_SEGMENT_COUNT: Record<
   Capture026RadarSegmentCount,
   string
 > = {
-  5: "/capture-026-scene/capture-026-scene.json",
-  11: "/capture-026-scene/capture-026-scene-11x10m.json",
-  21: "/capture-026-scene/capture-026-scene-21x10m.json",
-  27: "/capture-026-scene/capture-026-scene-27x10m.json",
+  5: investigationDataUrl("/capture-026-scene/capture-026-scene.json"),
+  11: investigationDataUrl("/capture-026-scene/capture-026-scene-11x10m.json"),
+  21: investigationDataUrl("/capture-026-scene/capture-026-scene-21x10m.json"),
+  27: investigationDataUrl("/capture-026-scene/capture-026-scene-27x10m.json"),
 };
 
 export const CAPTURE_026_DEPTH_CLIP_MODES = [
@@ -1034,7 +1035,8 @@ const resolveGeoradarMdioStoreUrl = (metadataUrl: string) => {
   }
   const storeName = `${metadataFileName.slice(0, -".json".length)}.mdio`;
   const configuredBase =
-    import.meta.env.VITE_GEORADAR_MDIO_BASE_URL ?? "/georadar-mdio/";
+    import.meta.env.VITE_GEORADAR_MDIO_BASE_URL ??
+    `${investigationDataUrl("/georadar-mdio")}/`;
   const base = configuredBase.endsWith("/")
     ? configuredBase
     : `${configuredBase}/`;
@@ -3381,11 +3383,11 @@ const initializeScene = async (
   });
   const manifest = await fetchJson<Capture026Manifest>(manifestUrl);
   const survey = await fetchJson<GeoradarSurveyManifest>(
-    "/georadar-survey/survey.json"
+    investigationDataUrl("/georadar-survey/survey.json")
   ).catch(() => null);
   const imageTextureManifestUrl =
     manifest.imageSelection.imageTextureManifestUrl ??
-    "/capture-026-scene/image-textures.json";
+    investigationDataUrl("/capture-026-scene/image-textures.json");
   const imageTextureManifest = await fetchJson<ImageTextureManifest>(
     imageTextureManifestUrl
   );

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { GeoradarVolumeExplorer } from "../components/GeoradarVolumeExplorer";
+import { investigationDataUrl } from "../components/investigation-data";
 
 const meta = {
   id: "georadar-volume-explorer",
@@ -23,7 +24,7 @@ const meta = {
     },
   },
   args: {
-    metadataUrl: "/georadar-volume/capture-026-10m.json",
+    metadataUrl: investigationDataUrl("/georadar-volume/capture-026-10m.json"),
   },
 } satisfies Meta<typeof GeoradarVolumeExplorer>;
 

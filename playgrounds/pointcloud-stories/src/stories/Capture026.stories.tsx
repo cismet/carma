@@ -26,7 +26,7 @@ import {
 
 const meta = {
   id: "multimodale-strasseninspektion",
-  title: "Multimodale Straßeninspektion",
+  title: "Multimodale Straßeninspektion (WIP)",
   component: Capture026CollocatedScene,
   parameters: {
     controls: { sort: "none" },
