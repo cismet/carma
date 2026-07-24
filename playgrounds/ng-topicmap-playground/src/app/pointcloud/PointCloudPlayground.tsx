@@ -953,8 +953,17 @@ const SceneManager = memo(function SceneManager({
       // point size; only the pixel size is adjustable, and the panel hides
       // the options that do not apply to it.
       if (slot.tilesetRuntime) {
-        slot.tilesetRuntime.setPointSize(
-          cloudSettingsRef.current[slot.def.id]?.pointSizePx ?? 2
+        if (!settings) return;
+        slot.tilesetRuntime.setPointSize(settings.pointSizePx);
+        slot.tilesetRuntime.setPositionOffset(
+          settings.offsetEast,
+          settings.offsetNorth,
+          settings.offsetUp
+        );
+        slot.tilesetRuntime.setRotationOffset(
+          settings.rotationEastDegrees,
+          settings.rotationNorthDegrees,
+          settings.rotationUpDegrees
         );
         return;
       }
@@ -3063,27 +3072,31 @@ export function PointCloudPlayground({
             </button>
             {cloudDetailsOpen[def.id] && (
               <div className="border-t border-gray-200 pb-2">
-                <OptionRow label="Höhen-Datum">
-                  <Select
-                    size="small"
-                    className="w-52"
-                    value={settings.datum}
-                    onChange={(value) => patchCloud(def.id, { datum: value })}
-                    options={[...DATUM_OPTIONS]}
-                  />
-                </OptionRow>
-                <OptionRow label="Debug">
-                  <Checkbox
-                    checked={settings.nodeBoundsVisible}
-                    onChange={(event) =>
-                      patchCloud(def.id, {
-                        nodeBoundsVisible: event.target.checked,
-                      })
-                    }
-                  >
-                    COPC-Knotenboxen
-                  </Checkbox>
-                </OptionRow>
+                {!isTilesetDelivery && (
+                  <OptionRow label="Höhen-Datum">
+                    <Select
+                      size="small"
+                      className="w-52"
+                      value={settings.datum}
+                      onChange={(value) => patchCloud(def.id, { datum: value })}
+                      options={[...DATUM_OPTIONS]}
+                    />
+                  </OptionRow>
+                )}
+                {!isTilesetDelivery && (
+                  <OptionRow label="Debug">
+                    <Checkbox
+                      checked={settings.nodeBoundsVisible}
+                      onChange={(event) =>
+                        patchCloud(def.id, {
+                          nodeBoundsVisible: event.target.checked,
+                        })
+                      }
+                    >
+                      COPC-Knotenboxen
+                    </Checkbox>
+                  </OptionRow>
+                )}
                 <div className="pt-1 text-xs font-medium text-gray-600">
                   Positionskorrektur · ENU
                 </div>

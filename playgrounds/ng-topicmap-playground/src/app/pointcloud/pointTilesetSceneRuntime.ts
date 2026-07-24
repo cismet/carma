@@ -41,6 +41,12 @@ export const createPointTilesetSceneRuntime = ({
   requestRender = () => undefined,
 }: PointTilesetSceneRuntimeOptions): PointcloudSceneRuntime & {
   setPointSize: (size: number) => void;
+  setPositionOffset: (east: number, north: number, up: number) => void;
+  setRotationOffset: (
+    eastDegrees: number,
+    northDegrees: number,
+    upDegrees: number
+  ) => void;
 } => {
   let pointSize = initialPointSize;
   let disposed = false;
@@ -68,9 +74,17 @@ export const createPointTilesetSceneRuntime = ({
 
   // ReorientationPlugin yields X west / Z north; the scene layer expects
   // X east / Z south, the same correction the COPC chunks already carry.
+  // The scene layer positions and scales `root` itself, so the interactive
+  // registration offsets live on their own group between it and the tileset:
+  // translation in the scene frame, rotation about the anchor, then the
+  // X east / Z south correction the reoriented tileset needs.
   const root = new THREE.Group();
-  root.rotation.y = Math.PI;
-  root.add(tiles.group);
+  const registrationGroup = new THREE.Group();
+  const orientationGroup = new THREE.Group();
+  orientationGroup.rotation.y = Math.PI;
+  orientationGroup.add(tiles.group);
+  registrationGroup.add(orientationGroup);
+  root.add(registrationGroup);
 
   const applyPointSize = (object: THREE.Object3D) => {
     object.traverse((child) => {
@@ -111,6 +125,30 @@ export const createPointTilesetSceneRuntime = ({
         Math.max(1, frame.viewport.y)
       );
       tiles.update();
+    },
+    /** Interactive registration offset in ENU metres. */
+    setPositionOffset: (east: number, north: number, up: number) => {
+      // Scene frame is X east, Y up, Z south.
+      registrationGroup.position.set(east, up, -north);
+      registrationGroup.updateMatrixWorld(true);
+      requestRender();
+    },
+    /** Interactive registration rotation about the scene's ENU axes. */
+    setRotationOffset: (
+      eastDegrees: number,
+      northDegrees: number,
+      upDegrees: number
+    ) => {
+      // Extrinsic XYZ about the fixed grid axes, matching the COPC layer:
+      // X east, Y north, Z up -> scene X, -Z, Y.
+      registrationGroup.rotation.set(
+        THREE.MathUtils.degToRad(eastDegrees),
+        THREE.MathUtils.degToRad(upDegrees),
+        -THREE.MathUtils.degToRad(northDegrees),
+        "XYZ"
+      );
+      registrationGroup.updateMatrixWorld(true);
+      requestRender();
     },
     setPointSize: (size: number) => {
       if (size === pointSize) return;
