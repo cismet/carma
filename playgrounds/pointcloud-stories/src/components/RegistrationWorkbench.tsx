@@ -188,7 +188,7 @@ export function RegistrationWorkbench({
     () => ({
       allowRotation: { x: allowRotation, y: allowRotation, z: allowRotation },
       // Seven-DOF solve: translation X/Y/Z, three-axis rotation, optional
-      // uniform scale. Rotation cap (3° total), scale cap (±0.5%), vertical
+      // uniform scale. Rotation cap (15° total), scale cap (±0.5%), vertical
       // priority, and density weighting come from the solver defaults.
       allowTranslation: { x: true, y: true, z: true },
       maxTranslationMeters: maxTranslation,

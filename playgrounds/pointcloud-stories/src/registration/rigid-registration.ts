@@ -6,8 +6,9 @@ export type RegistrationConstraint = {
   maxTranslationMeters?: number;
   /**
    * Cap on the TOTAL rotation angle in degrees (not per Euler axis).
-   * Defaults to 3° — the registration corrects survey-grade placement, so
-   * anything larger than a few degrees is a fitting artifact, not signal.
+   * Defaults to 15° — the registration corrects sensor-mount placement,
+   * which can be off by low double-digit degrees; anything beyond that is a
+   * fitting artifact, not signal.
    */
   maxRotationDegrees?: number;
   /** Enables similarity registration instead of rigid-only registration. */
@@ -53,7 +54,7 @@ export type RigidRegistrationResult = {
   weights?: number[];
 };
 
-const DEFAULT_MAX_ROTATION_DEGREES = 3;
+const DEFAULT_MAX_ROTATION_DEGREES = 15;
 const DEFAULT_UNIFORM_SCALE_DEVIATION = 0.005;
 const DEFAULT_VERTICAL_ERROR_WEIGHT = 4;
 /**

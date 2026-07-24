@@ -141,7 +141,7 @@ describe("solveRigidRegistration", () => {
     expect(rms(density)).toBeLessThan(rms(uniform) * 0.75);
   });
 
-  it("caps the total rotation angle at the default survey allowance", () => {
+  it("recovers rotations within the default 15-degree allowance", () => {
     const tenDegrees = new THREE.Matrix4().makeRotationY(
       THREE.MathUtils.degToRad(10)
     );
@@ -154,10 +154,27 @@ describe("solveRigidRegistration", () => {
     const result = solveRigidRegistration(
       source.map((point) => ({ source: point, target: point.clone().applyMatrix4(tenDegrees) }))
     );
+    // 10 deg is now inside the allowance, so it recovers exactly.
+    expect(totalRotationDegrees(result.rotation)).toBeCloseTo(10, 3);
+  });
+
+  it("caps the total rotation angle at the default 15-degree allowance", () => {
+    const twentyFiveDegrees = new THREE.Matrix4().makeRotationY(
+      THREE.MathUtils.degToRad(25)
+    );
+    const source = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(50, 0, 0),
+      new THREE.Vector3(0, 40, 0),
+      new THREE.Vector3(0, 0, 60),
+    ];
+    const result = solveRigidRegistration(
+      source.map((point) => ({ source: point, target: point.clone().applyMatrix4(twentyFiveDegrees) }))
+    );
     const angle = totalRotationDegrees(result.rotation);
-    expect(angle).toBeLessThanOrEqual(3.001);
-    // The data genuinely wants 10°, so the solve should sit at the cap.
-    expect(angle).toBeGreaterThan(2.5);
+    expect(angle).toBeLessThanOrEqual(15.001);
+    // The data genuinely wants 25°, so the solve should sit at the cap.
+    expect(angle).toBeGreaterThan(14.5);
   });
 
   it("caps the uniform scale at ±0.5% by default", () => {
