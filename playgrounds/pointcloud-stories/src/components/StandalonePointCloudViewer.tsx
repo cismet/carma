@@ -1299,7 +1299,14 @@ export function StandalonePointCloudViewer({
       last.clampMode === clampMode &&
       last.clampMin === clampMin &&
       last.clampMax === clampMax;
-    if (!cameFromColorizer) colorizerOverrideRef.current = {};
+    // The colorizer speaks a richer vocabulary than the color/metric args
+    // (any scalar field as base collapses to "white" on the way out). When
+    // the incoming props are just our own emission echoed back through the
+    // story args, the colorizer state stays authoritative — rebuilding from
+    // the reduced args here is what used to reset field colorization to a
+    // static color after every change.
+    if (cameFromColorizer) return;
+    colorizerOverrideRef.current = {};
     const source = color === "intensity" && metric === "intensity"
       ? null
       : metric === "rgb"
@@ -1607,14 +1614,27 @@ export function StandalonePointCloudViewer({
       max: number;
       empty: boolean;
       histogram: number[];
+      /** Exact value counts while the field stays integer-valued in 0..255;
+       *  null once disqualified. The colorizer needs these to offer the
+       *  qualitative classification mode. */
+      counts: Map<number, number> | null;
     }>();
     let chunksSinceFieldPublish = 0;
     const publishColorizerFields = () => {
       setColorizerFields([...fieldStats.values()].map((field) => {
         const peak = Math.max(...field.histogram, 1);
         return {
-          ...field,
+          name: field.name,
+          min: field.min,
+          max: field.max,
+          empty: field.empty,
           histogram: field.histogram.map((value) => value / peak),
+          categories:
+            field.counts && field.counts.size > 0
+              ? [...field.counts.entries()]
+                  .map(([value, count]) => ({ value, count }))
+                  .sort((a, b) => a.value - b.value)
+              : undefined,
         } satisfies ColorizerFieldInfo;
       }));
     };
@@ -1633,12 +1653,20 @@ export function StandalonePointCloudViewer({
           max: -Infinity,
           empty: true,
           histogram: Array.from({ length: 32 }, () => 0),
+          counts: new Map<number, number>() as Map<number, number> | null,
         };
         values.forEach((value) => {
           if (!Number.isFinite(value)) return;
           field.min = Math.min(field.min, value);
           field.max = Math.max(field.max, value);
           field.empty = false;
+          if (field.counts) {
+            if (Number.isInteger(value) && value >= 0 && value <= 255) {
+              field.counts.set(value, (field.counts.get(value) ?? 0) + 1);
+            } else {
+              field.counts = null;
+            }
+          }
         });
         const span = field.max - field.min || 1;
         values.forEach((value) => {
