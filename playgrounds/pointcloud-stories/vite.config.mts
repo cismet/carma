@@ -46,7 +46,8 @@ const localInvestigationData = (
   georadarSurveyRoot: string,
   capture026SceneRoot: string,
   nivControlPointRoot: string,
-  fraunhoferRoot: string
+  fraunhoferRoot: string,
+  pointcloudTilesetRoot: string
 ): Plugin => {
   const fraunhoferGeoJsonFiles = new Map([
     [
@@ -137,6 +138,20 @@ const localInvestigationData = (
             return;
           }
 
+          // Locally generated 3D Tiles point tilesets (copc-to-3dtiles.mjs)
+          // so a tileset can be reviewed before it is published.
+          const tilesetMatch = pathname.match(
+            /^\/pointcloud-3dtiles\/([A-Za-z0-9._/-]+\.(?:json|glb))$/
+          );
+          if (tilesetMatch && !tilesetMatch[1].includes("..")) {
+            serveRangeDataFile(
+              request,
+              response,
+              resolve(pointcloudTilesetRoot, tilesetMatch[1])
+            );
+            return;
+          }
+
           if (pathname.startsWith("/fraunhofer-geojson/")) {
             const filePath = fraunhoferGeoJsonFiles.get(fileName);
             if (filePath) {
@@ -169,6 +184,7 @@ export default defineConfig(({ mode }) => {
   const capture026SceneRoot = resolve(pointcloudRoot, "capture-026-scene");
   const nivControlPointRoot = resolve(pointcloudRoot, "niv-control-points");
   const fraunhoferRoot = resolve(dataRoot, "source-inputs/nordbahntrasse");
+  const pointcloudTilesetRoot = resolve(pointcloudRoot, "pointcloud-3dtiles");
 
   return {
     root: __dirname,
@@ -195,7 +211,8 @@ export default defineConfig(({ mode }) => {
         georadarSurveyRoot,
         capture026SceneRoot,
         nivControlPointRoot,
-        fraunhoferRoot
+        fraunhoferRoot,
+        pointcloudTilesetRoot
       ),
     ],
     // The COPC decode worker (copc-stream.worker.ts) is bundled in a separate
