@@ -1,9 +1,13 @@
 import { createContext } from "react";
 
-import type { GazDataItem } from "@carma-mapping/fuzzy-search";
+import type {
+  GazDataAdditionalMode,
+  GazDataItem,
+} from "@carma-mapping/fuzzy-search";
 
 export interface GazDataContextType {
   gazData: GazDataItem[];
+  additionalModes: GazDataAdditionalMode[];
   crs: string;
   isLoading: boolean;
   error: Error | null;

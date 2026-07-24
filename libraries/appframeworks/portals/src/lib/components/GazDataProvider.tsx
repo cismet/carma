@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { md5FetchText } from "@carma-commons/utils";
 import {
+  type GazDataAdditionalMode,
   type GazDataConfig,
   type GazDataItem,
   getGazData,
@@ -28,6 +29,9 @@ export function GazDataProvider({
   config = defaultGazDataConfig,
 }: GazDataProviderProps) {
   const [gazData, setGazData] = useState<GazDataItem[]>([]);
+  const [additionalModes, setAdditionalModes] = useState<
+    GazDataAdditionalMode[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const crs = config.crs;
@@ -42,7 +46,20 @@ export function GazDataProvider({
     const loadGazData = async () => {
       try {
         setIsLoading(true);
-        await getGazData(config, setGazData);
+        const [, loadedModes] = await Promise.all([
+          getGazData(config, setGazData),
+          Promise.all(
+            (config.additionalModes ?? []).map(async (mode) => ({
+              ...mode,
+              gazData: await getGazData({
+                crs: config.crs,
+                prefix: config.prefix,
+                sources: mode.sources,
+              }),
+            }))
+          ),
+        ]);
+        setAdditionalModes(loadedModes);
       } catch (err) {
         setError(
           err instanceof Error
@@ -84,6 +101,7 @@ export function GazDataProvider({
   const value = useMemo(
     () => ({
       gazData,
+      additionalModes,
       crs,
       isLoading,
       error,
@@ -93,6 +111,7 @@ export function GazDataProvider({
     }),
     [
       gazData,
+      additionalModes,
       crs,
       isLoading,
       error,

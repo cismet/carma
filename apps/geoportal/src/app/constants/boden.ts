@@ -1,3 +1,5 @@
+import { faMap } from "@fortawesome/free-solid-svg-icons";
+
 import {
   createConfig,
   DEFAULT_HOST,
@@ -22,11 +24,21 @@ export const bodenFachzwilling: FachzwillingRoute = {
   ],
   addons: [
     {
-      kind: "gazetteerSource",
-      source: createConfig(ENDPOINT.BPLAENE, {
-        crs: DEFAULT_PROJ,
-        host: DEFAULT_HOST,
-      }),
+      kind: "gazetteerMode",
+      mode: {
+        key: "bplaene",
+        label: "Bebauungspläne",
+        icon: faMap,
+        iconSize: 14,
+        placeholder: "B-Plan suchen",
+        showAllOnFocus: true,
+        sources: [
+          createConfig(ENDPOINT.BPLAENE, {
+            crs: DEFAULT_PROJ,
+            host: DEFAULT_HOST,
+          }),
+        ],
+      },
     },
   ],
 };

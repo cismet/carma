@@ -9,6 +9,7 @@ import {
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
 import type {
+  GazDataAdditionalModeConfig,
   GazDataConfig,
   GazDataSourceConfig,
 } from "@carma-mapping/fuzzy-search";
@@ -45,10 +46,15 @@ export const resolveFachzwillingUi = (
   return { ...baseline, ...overrides };
 };
 
-export type FachzwillingAddon = {
-  kind: "gazetteerSource";
-  source: GazDataSourceConfig;
-};
+export type FachzwillingAddon =
+  | {
+      kind: "gazetteerSource";
+      source: GazDataSourceConfig;
+    }
+  | {
+      kind: "gazetteerMode";
+      mode: GazDataAdditionalModeConfig;
+    };
 
 export type FachzwillingRoute = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
@@ -87,15 +93,20 @@ export const getFachzwillingGazDataConfig = (
   route?: FachzwillingRoute
 ): GazDataConfig => {
   const addonSources =
-    route?.addons
-      ?.filter((addon) => addon.kind === "gazetteerSource")
-      .map((addon) => addon.source) ?? [];
-  if (addonSources.length === 0) {
+    route?.addons?.flatMap((addon) =>
+      addon.kind === "gazetteerSource" ? [addon.source] : []
+    ) ?? [];
+  const addonModes =
+    route?.addons?.flatMap((addon) =>
+      addon.kind === "gazetteerMode" ? [addon.mode] : []
+    ) ?? [];
+  if (addonSources.length === 0 && addonModes.length === 0) {
     return defaultGazDataConfig;
   }
   return {
     ...defaultGazDataConfig,
     sources: [...defaultGazDataConfig.sources, ...addonSources],
+    additionalModes: addonModes,
   };
 };
 
