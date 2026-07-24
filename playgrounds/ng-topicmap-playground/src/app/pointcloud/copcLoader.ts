@@ -389,6 +389,96 @@ const sourcePositionToLocal = (
   ];
 };
 
+/**
+ * Converts a source-frame transform (EPSG:25832 easting/northing plus
+ * ellipsoidal height, column-major, source-to-target — the mount-prior
+ * convention of carma-pointcloud-v1 assets) into the scene-local frame this
+ * loader emits points in. The conversion conjugates through the linearized
+ * UTM-to-WebMercator mapping at the cloud origin, which carries both the
+ * meridian convergence (about 1.5 degrees at Wuppertal) and the projection
+ * scale; validated to single millimeters across a multi-kilometer extent.
+ */
+export const sceneMatrixFromSourceTransform = (
+  sourceMatrixColumnMajor: readonly number[],
+  sourceOrigin: CopcSourcePosition
+): number[] => {
+  const originLngLat = getFromUTM32ToWGS84([
+    sourceOrigin.easting,
+    sourceOrigin.northing,
+  ]) as [number, number];
+  const originMerc = MercatorCoordinate.fromLngLat(originLngLat, 0);
+  const meterScale = originMerc.meterInMercatorCoordinateUnits();
+  const sceneXZ = (easting: number, northing: number): [number, number] => {
+    const lngLat = getFromUTM32ToWGS84([easting, northing]) as [number, number];
+    const merc = MercatorCoordinate.fromLngLat(lngLat, 0);
+    return [
+      (merc.x - originMerc.x) / meterScale,
+      (merc.y - originMerc.y) / meterScale,
+    ];
+  };
+  const delta = 100;
+  const eastPlus = sceneXZ(sourceOrigin.easting + delta, sourceOrigin.northing);
+  const eastMinus = sceneXZ(sourceOrigin.easting - delta, sourceOrigin.northing);
+  const northPlus = sceneXZ(sourceOrigin.easting, sourceOrigin.northing + delta);
+  const northMinus = sceneXZ(sourceOrigin.easting, sourceOrigin.northing - delta);
+  // Rows map source deltas (east, north, up) to scene (x, y=up, z=south).
+  const basis = [
+    [
+      (eastPlus[0] - eastMinus[0]) / (2 * delta),
+      (northPlus[0] - northMinus[0]) / (2 * delta),
+      0,
+    ],
+    [0, 0, 1],
+    [
+      (eastPlus[1] - eastMinus[1]) / (2 * delta),
+      (northPlus[1] - northMinus[1]) / (2 * delta),
+      0,
+    ],
+  ];
+  const multiply = (a: number[][], b: number[][]): number[][] =>
+    a.map((row, i) =>
+      row.map(
+        (_, j) => a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j]
+      )
+    );
+  const apply = (a: number[][], v: number[]): number[] =>
+    a.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v[2]);
+  const invert = (m: number[][]): number[][] => {
+    const [[a, b, c], [d, e, f], [g, h, i]] = m;
+    const det =
+      a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    return [
+      [(e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det],
+      [(f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det],
+      [(d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det],
+    ];
+  };
+  const m = sourceMatrixColumnMajor;
+  const sourceLinear = [
+    [m[0], m[4], m[8]],
+    [m[1], m[5], m[9]],
+    [m[2], m[6], m[10]],
+  ];
+  const sourceTranslation = [m[12], m[13], m[14]];
+  const origin = [
+    sourceOrigin.easting,
+    sourceOrigin.northing,
+    sourceOrigin.height,
+  ];
+  // scene(p) = basis * (p - origin); solve scene(M_src(p)) = M_scene(scene(p)).
+  const sceneLinear = multiply(basis, multiply(sourceLinear, invert(basis)));
+  const registeredOrigin = apply(sourceLinear, origin).map(
+    (value, index) => value + sourceTranslation[index] - origin[index]
+  );
+  const sceneTranslation = apply(basis, registeredOrigin);
+  return [
+    sceneLinear[0][0], sceneLinear[1][0], sceneLinear[2][0], 0,
+    sceneLinear[0][1], sceneLinear[1][1], sceneLinear[2][1], 0,
+    sceneLinear[0][2], sceneLinear[1][2], sceneLinear[2][2], 0,
+    sceneTranslation[0], sceneTranslation[1], sceneTranslation[2], 1,
+  ];
+};
+
 const nodeBoundsToLocal = (
   context: Pick<
     CopcDecodeContext,

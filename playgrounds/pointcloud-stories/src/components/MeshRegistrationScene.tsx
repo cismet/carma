@@ -194,8 +194,9 @@ function DatasetRegistrationScene({
   const STYLE_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.style`;
   const MESH_PREVIEW_STORAGE_KEY = `${REGISTRATION_STORAGE_KEY}.mesh-preview`;
   // The dataset's mount prior aligns the cloud before any interactive solve.
-  const priorMatrix = () =>
-    new THREE.Matrix4().fromArray([...preset.pointcloud.transform.matrix]);
+  // It is declared in the source frame and only becomes a scene matrix once
+  // the viewer knows the cloud origin (onMountPriorResolved below).
+  const priorSceneMatrixRef = useRef(new THREE.Matrix4());
   const resolvedHeightDatum =
     sourceHeightDatum ??
     (preset.defaultDatum === "dhhn"
@@ -234,7 +235,7 @@ function DatasetRegistrationScene({
     uniformScale: storedSolve.uniformScale ?? 1,
   } : null);
   const [registrationMatrix, setRegistrationMatrix] = useState(() =>
-    storedSolve ? new THREE.Matrix4().fromArray(storedSolve.matrix) : priorMatrix()
+    storedSolve ? new THREE.Matrix4().fromArray(storedSolve.matrix) : new THREE.Matrix4()
   );
   const [selectedPairIndex, setSelectedPairIndex] = useState<number | null>(null);
   // Mesh opacity and wireframe set in the workbench survive reloads and
@@ -366,7 +367,7 @@ function DatasetRegistrationScene({
         preserveSolveOnPairEdit.current = false;
       } else {
         setResult(null);
-        setRegistrationMatrix(priorMatrix());
+        setRegistrationMatrix(priorSceneMatrixRef.current.clone());
         localStorage.removeItem(SOLVE_STORAGE_KEY);
       }
     }
@@ -427,6 +428,17 @@ function DatasetRegistrationScene({
         showFieldColorizerButton={false}
         showMesh2024
         registrationMatrix={registrationMatrix}
+        sourceTransform={preset.pointcloud.transform}
+        onMountPriorResolved={(sceneMatrix) => {
+          priorSceneMatrixRef.current = sceneMatrix;
+          // Seed the alignment with the prior only while nothing solved or
+          // restored governs the registration yet.
+          if (!storedSolve) {
+            setRegistrationMatrix((current) =>
+              current.equals(new THREE.Matrix4()) ? sceneMatrix.clone() : current
+            );
+          }
+        }}
         meshErrorTarget={activeMeshErrorTarget}
         meshOpacity={meshOpacity}
         meshWhite={meshWhite}
@@ -496,7 +508,7 @@ function DatasetRegistrationScene({
           setPairs((current) => current.filter((pair) => pair !== currentPair));
           setSelectedPairIndex(null);
           setResult(null);
-          setRegistrationMatrix(priorMatrix());
+          setRegistrationMatrix(priorSceneMatrixRef.current.clone());
           setNextKind("pointcloud");
         }}
         onAddPointPair={() => {

@@ -38,6 +38,7 @@ import type {
 import { Gltf1UpgradePlugin } from "../../../ng-topicmap-playground/src/app/pointcloud/gltf1UpgradePlugin";
 import {
   openCopcPointSource,
+  sceneMatrixFromSourceTransform,
   streamCopcPoints,
   type CopcPointChunk,
   type CopcRegionOfInterest,
@@ -163,6 +164,10 @@ export interface StandalonePointCloudViewerProps {
   pickingEnabled?: boolean;
   pickKind?: "pointcloud" | "mesh";
   registrationMatrix?: THREE.Matrix4;
+  /** Source-frame mount prior (carma-pointcloud-v1 transform convention). */
+  sourceTransform?: { matrix: readonly number[] };
+  /** Reports the mount prior converted into the viewer's scene frame. */
+  onMountPriorResolved?: (matrix: THREE.Matrix4) => void;
   /** localStorage key that keeps camera position and target across reloads. */
   cameraStorageKey?: string;
   /** Re-runs the maximize-current-view refinement after every camera move. */
@@ -1180,6 +1185,8 @@ export function StandalonePointCloudViewer({
   pickingEnabled = false,
   pickKind,
   registrationMatrix,
+  sourceTransform,
+  onMountPriorResolved,
   cameraStorageKey,
   autoMaximizeOnCameraEnd = false,
   onPick,
@@ -1271,6 +1278,10 @@ export function StandalonePointCloudViewer({
   onPickRef.current = onPick;
   const onPairPickedRef = useRef(onPairPicked);
   onPairPickedRef.current = onPairPicked;
+  const sourceTransformRef = useRef(sourceTransform);
+  sourceTransformRef.current = sourceTransform;
+  const onMountPriorResolvedRef = useRef(onMountPriorResolved);
+  onMountPriorResolvedRef.current = onMountPriorResolved;
   const registrationMatrixRef = useRef(registrationMatrix ?? new THREE.Matrix4());
   registrationMatrixRef.current = registrationMatrix ?? new THREE.Matrix4();
   const [colorizerOpen, setColorizerOpen] = useState(false);
@@ -2223,6 +2234,19 @@ export function StandalonePointCloudViewer({
       onMetadata: async (metadata: CopcSceneMetadata) => {
         if (disposed) return;
         runtime.metadata = metadata;
+        // The mount prior lives in the source frame; the scene frame is only
+        // defined once the cloud origin is known.
+        const activeSourceTransform = sourceTransformRef.current;
+        if (activeSourceTransform && onMountPriorResolvedRef.current) {
+          onMountPriorResolvedRef.current(
+            new THREE.Matrix4().fromArray(
+              sceneMatrixFromSourceTransform(
+                activeSourceTransform.matrix,
+                metadata.sourceOrigin
+              )
+            )
+          );
+        }
         applyViewerSettings(
           runtime,
           settingsRef.current,
