@@ -313,7 +313,7 @@ export function LibFuzzySearch({
   }, [_gazData, prepoHandling]);
 
   useEffect(() => {
-    if (!fuseInstance && allGazeteerData.length > 0) {
+    if (allGazeteerData.length > 0) {
       const fuseAddressesOptions = {
         distance,
         threshold,
@@ -327,7 +327,7 @@ export function LibFuzzySearch({
 
       setFuseInstance(fuse);
     }
-  }, [allGazeteerData, fuseInstance]);
+  }, [allGazeteerData, distance, threshold]);
 
   useEffect(() => {
     if (dropdownContainerRef.current) {

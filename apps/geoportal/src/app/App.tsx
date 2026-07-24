@@ -41,6 +41,7 @@ import {
   type CategoryDefinition,
   type LayerCatalogConfig,
 } from "@carma-mapping/layers";
+import type { GazDataConfig } from "@carma-mapping/fuzzy-search";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import {
   MapMeasurementsProvider,
@@ -176,12 +177,15 @@ function App({
   published,
   catalogConfig = layerCatalogConfig,
   categories = geoportalCategoryDefinitions,
+  gazDataConfig,
 }: {
   published?: boolean;
   /** route-specific catalog config, e.g. the filtered /gesundheit catalog */
   catalogConfig?: LayerCatalogConfig;
   /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
   categories?: CategoryDefinition[];
+  /** route-specific gazetteer config, e.g. with a Fachzwilling's addon sources */
+  gazDataConfig?: GazDataConfig;
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -237,6 +241,7 @@ function App({
                 cesiumOptions={CESIUM_CONFIG}
                 overlayOptions={MAP_OVERLAY_OPTIONS}
                 mapStyleConfig={geoportalMapStyleConfig}
+                gazDataConfig={gazDataConfig}
                 store={store}
                 defaultRuntimeState={defaultCesiumState}
               >

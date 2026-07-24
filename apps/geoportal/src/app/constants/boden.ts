@@ -1,3 +1,10 @@
+import {
+  createConfig,
+  DEFAULT_HOST,
+  DEFAULT_PROJ,
+  ENDPOINT,
+} from "@carma-commons/resources";
+
 import type { FachzwillingRoute } from "./fachzwillinge";
 
 export const bodenFachzwilling: FachzwillingRoute = {
@@ -11,6 +18,15 @@ export const bodenFachzwilling: FachzwillingRoute = {
     {
       field: "keywords",
       values: ["Gebäude", "Flurstück", "Bauwerk"],
+    },
+  ],
+  addons: [
+    {
+      kind: "gazetteerSource",
+      source: createConfig(ENDPOINT.BPLAENE, {
+        crs: DEFAULT_PROJ,
+        host: DEFAULT_HOST,
+      }),
     },
   ],
 };

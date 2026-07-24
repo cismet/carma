@@ -8,6 +8,11 @@ import {
   type LayerCatalogConfig,
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
+import type {
+  GazDataConfig,
+  GazDataSourceConfig,
+} from "@carma-mapping/fuzzy-search";
+import { defaultGazDataConfig } from "@carma-commons/resources";
 
 import {
   defaultVisibleControls,
@@ -40,6 +45,11 @@ export const resolveFachzwillingUi = (
   return { ...baseline, ...overrides };
 };
 
+export type FachzwillingAddon = {
+  kind: "gazetteerSource";
+  source: GazDataSourceConfig;
+};
+
 export type FachzwillingRoute = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
@@ -57,6 +67,7 @@ export type FachzwillingRoute = {
    * (including the default geoportal route)
    */
   perspectives?: WorkflowPerspective[];
+  addons?: FachzwillingAddon[];
 };
 
 export const fachzwillingRoutes: FachzwillingRoute[] = [
@@ -71,6 +82,22 @@ export const getFachzwillingCatalogConfig = (
   ...layerCatalogConfig,
   filters: route.filters,
 });
+
+export const getFachzwillingGazDataConfig = (
+  route?: FachzwillingRoute
+): GazDataConfig => {
+  const addonSources =
+    route?.addons
+      ?.filter((addon) => addon.kind === "gazetteerSource")
+      .map((addon) => addon.source) ?? [];
+  if (addonSources.length === 0) {
+    return defaultGazDataConfig;
+  }
+  return {
+    ...defaultGazDataConfig,
+    sources: [...defaultGazDataConfig.sources, ...addonSources],
+  };
+};
 
 export const findFachzwillingByPathname = (
   pathname: string
