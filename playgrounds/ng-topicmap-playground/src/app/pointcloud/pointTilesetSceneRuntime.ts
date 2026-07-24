@@ -41,6 +41,11 @@ export const createPointTilesetSceneRuntime = ({
   requestRender = () => undefined,
 }: PointTilesetSceneRuntimeOptions): PointcloudSceneRuntime & {
   setPointSize: (size: number) => void;
+  /** WGS84 extent of the loaded tileset, or null before its root arrives. */
+  getGeographicBounds: () => {
+    centerLngLat: [number, number];
+    boundsLngLat: [[number, number], [number, number]];
+  } | null;
   setPositionOffset: (east: number, north: number, up: number) => void;
   setRotationOffset: (
     eastDegrees: number,
@@ -125,6 +130,28 @@ export const createPointTilesetSceneRuntime = ({
         Math.max(1, frame.viewport.y)
       );
       tiles.update();
+    },
+    getGeographicBounds: () => {
+      const sphere = new THREE.Sphere();
+      if (!tiles.getBoundingSphere(sphere) || !(sphere.radius > 0)) return null;
+      // The tileset is anchored on its own centre, so the sphere radius is the
+      // half-extent to frame. Using it for both axes over-frames slightly,
+      // which is what a fly-to wants.
+      const [longitude, latitude] = originLngLat;
+      const metresPerDegreeLatitude = 111_320;
+      const metresPerDegreeLongitude = Math.max(
+        1,
+        metresPerDegreeLatitude * Math.cos((latitude * Math.PI) / 180)
+      );
+      const deltaLatitude = sphere.radius / metresPerDegreeLatitude;
+      const deltaLongitude = sphere.radius / metresPerDegreeLongitude;
+      return {
+        centerLngLat: [longitude, latitude] as [number, number],
+        boundsLngLat: [
+          [longitude - deltaLongitude, latitude - deltaLatitude],
+          [longitude + deltaLongitude, latitude + deltaLatitude],
+        ] as [[number, number], [number, number]],
+      };
     },
     /** Interactive registration offset in ENU metres. */
     setPositionOffset: (east: number, north: number, up: number) => {

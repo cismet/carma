@@ -1677,6 +1677,56 @@ const SceneManager = memo(function SceneManager({
           slot.tilesetRuntime = tilesetRuntime;
           sharedSceneLayer.addRuntime(tilesetRuntime);
           map.triggerRepaint();
+          // Publish the tileset's own extent as scene metadata once its root
+          // has arrived. The fly-to button and the rest of the panel read
+          // meta.boundsLngLat, so the tileset reuses that path unchanged
+          // instead of needing a second code path.
+          const publishTilesetExtent = () => {
+            if (slot.cancelToken.cancelled) return;
+            const extent = tilesetRuntime.getGeographicBounds();
+            if (!extent) {
+              window.setTimeout(publishTilesetExtent, 500);
+              return;
+            }
+            slot.meta = {
+              sourceOrigin: {
+                easting: centerEast,
+                northing: centerNorth,
+                height: def.sourceBounds?.min[2] ?? 0,
+              },
+              centerLngLat: extent.centerLngLat,
+              boundsLngLat: extent.boundsLngLat,
+              boundsLocal: [
+                [0, 0],
+                [0, 0],
+              ],
+              zBase: def.sourceBounds?.min[2] ?? 0,
+              zMin: def.sourceBounds?.min[2] ?? 0,
+              zMax: def.sourceBounds?.max[2] ?? 0,
+              totalFilePoints: 0,
+              selectedPoints: 0,
+              selectedNodes: 0,
+              totalNodes: 0,
+              selectedInsidePoints: 0,
+              selectedOutsidePoints: 0,
+              hasRgb: true,
+              hasClassification: true,
+            };
+            slot.geoidUndulation = undulation;
+            onCloudState(def.id, {
+              loading: false,
+              loadedPoints: 0,
+              loadedNodes: 0,
+              renderedNodes: 0,
+              visibleNodes: 0,
+              meta: slot.meta,
+              geoidUndulation: undulation,
+              fields: null,
+              error: null,
+            });
+            map.triggerRepaint();
+          };
+          publishTilesetExtent();
           return;
         }
         const source = await openCopcPointSource({
