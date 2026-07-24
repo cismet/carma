@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { RAMP_NAMES } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
+import {
+  POINT_CLOUD_ASSET_IDENTITIES,
+  POINT_CLOUD_PUBLIC_BASE_URL,
+} from "../../../ng-topicmap-playground/src/app/pointcloud/point-cloud-assets";
 
 import {
   POINT_CLOUD_HEIGHT_DATUMS,
@@ -14,7 +18,9 @@ import type {
 import type { RampName } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
 
 const DATA_BASE =
-  import.meta.env.VITE_POINTCLOUD_DATA_BASE_URL ?? "/pointclouds";
+  import.meta.env.VITE_POINTCLOUD_DATA_BASE_URL ?? POINT_CLOUD_PUBLIC_BASE_URL;
+
+const NORDTRASSE_SEGMENTS = POINT_CLOUD_ASSET_IDENTITIES.seg2512;
 
 const SEGMENT_METRICS = [
   "none",
@@ -52,7 +58,11 @@ function ElevationCalibrationView({
 }: ElevationCalibrationProps) {
   return (
     <StandalonePointCloudViewer
-      datasetUrl={`${DATA_BASE}/nordbahntrasse-2025-12-segments.copc.laz`}
+      datasetUrl={`${DATA_BASE}/${NORDTRASSE_SEGMENTS.artifactFileName}`}
+      datasetName={NORDTRASSE_SEGMENTS.label}
+      sourceTag={NORDTRASSE_SEGMENTS.sourceTag}
+      fieldDimensions={NORDTRASSE_SEGMENTS.fieldDimensions}
+      hasRgb={NORDTRASSE_SEGMENTS.hasRgb}
       pointBudgetPercent={pointBudgetPercent}
       sourceHeightDatum={POINT_CLOUD_HEIGHT_DATUMS.ELLIPSOIDAL}
       heightOffset={manualOffset}

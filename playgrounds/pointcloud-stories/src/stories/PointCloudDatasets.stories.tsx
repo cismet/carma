@@ -214,7 +214,7 @@ export const WuppertalOelbergMls: Story = {
   name: "Wuppertal-Ölberg · MLS",
   argTypes: datasetArgTypes(["white", "rgb"], MLS_METRICS),
   args: {
-    ...datasetIdentityArgs(POINT_CLOUD_ASSET_IDENTITIES.oelbergMls),
+    ...datasetIdentityArgs(POINT_CLOUD_ASSET_IDENTITIES.mls),
   },
 };
 
@@ -222,7 +222,7 @@ export const NordbahntrasseSegments: Story = {
   name: "Nordbahntrasse 0–3000 m · Segmentierung",
   argTypes: datasetArgTypes(["white", "classification"], SEGMENT_METRICS),
   args: {
-    ...datasetIdentityArgs(POINT_CLOUD_ASSET_IDENTITIES.nordbahntrasseSegments),
+    ...datasetIdentityArgs(POINT_CLOUD_ASSET_IDENTITIES.seg2512),
     color: "classification",
     sourceHeightDatum: POINT_CLOUD_HEIGHT_DATUMS.ELLIPSOIDAL,
   },

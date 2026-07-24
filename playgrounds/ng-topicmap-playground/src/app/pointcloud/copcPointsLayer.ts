@@ -157,6 +157,8 @@ export interface CopcPointCloudVisualizer {
   setPositionOffset: CopcPointsLayer["setPositionOffset"];
   setRotationOffset: CopcPointsLayer["setRotationOffset"];
   setPointBudget: CopcPointsLayer["setPointBudget"];
+  /** Fades the whole cloud uniformly (1 = opaque); keeps colorization intact. */
+  setGlobalOpacity: (opacity: number) => void;
   setViewport: (width: number, height: number) => void;
   dispose: () => void;
 }
@@ -250,6 +252,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uBlendBOpacity;
   uniform float uBlendCMode;
   uniform float uBlendCOpacity;
+  uniform float uGlobalOpacity;
   uniform int uClipSegmentCount;
   uniform vec4 uClipSegments[64];
   uniform float uClipHalfWidth;
@@ -359,7 +362,7 @@ const FRAGMENT_SHADER = /* glsl */ `
       float specular = pow(max(dot(domeNormal, vec3(0.0, 0.0, 1.0)), 0.0), 24.0);
       result = result * mix(0.48, 1.08, diffuse) + vec3(0.12 * specular);
     }
-    float fragmentAlpha = baseColor.a * shapeCoverage;
+    float fragmentAlpha = baseColor.a * shapeCoverage * uGlobalOpacity;
     vec3 fragmentColor = result;
     if (uShape > 2.5) {
       // Premultiply transparent splat edges before they enter MapLibre's
@@ -430,6 +433,7 @@ export function createCopcPointCloudVisualizer(
       uBlendBOpacity: { value: 1 },
       uBlendCMode: { value: 1 },
       uBlendCOpacity: { value: 1 },
+      uGlobalOpacity: { value: 1 },
       uClipSegmentCount: { value: 0 },
       uClipSegments: {
         value: Array.from({ length: 64 }, () => new THREE.Vector4()),
@@ -448,14 +452,16 @@ export function createCopcPointCloudVisualizer(
   let pointShape: PointShape = POINT_SHAPES.SQUARE;
   let compositeMode: PointCompositeMode = "normal";
   let baseHasTransparency = false;
+  let globalOpacity = 1;
 
   const syncMaterialBlending = () => {
     const softSplat = pointShape === POINT_SHAPES.SOFT_SPLAT;
+    const faded = globalOpacity < 1;
     const transparent =
-      softSplat || compositeMode !== "normal" || baseHasTransparency;
+      softSplat || compositeMode !== "normal" || baseHasTransparency || faded;
     const premultipliedAlpha = softSplat || compositeMode === "multiply";
     const depthWrite =
-      !softSplat && compositeMode === "normal" && !baseHasTransparency;
+      !softSplat && compositeMode === "normal" && !baseHasTransparency && !faded;
     const blending =
       compositeMode === "multiply"
         ? THREE.MultiplyBlending
@@ -721,6 +727,14 @@ export function createCopcPointCloudVisualizer(
       if (next === renderPointBudget) return;
       renderPointBudget = next;
       syncPointBudget();
+    },
+    setGlobalOpacity(opacity: number) {
+      const next = THREE.MathUtils.clamp(opacity, 0, 1);
+      if (next === globalOpacity) return;
+      globalOpacity = next;
+      material.uniforms.uGlobalOpacity.value = next;
+      syncMaterialBlending();
+      requestRender();
     },
     setViewport(width: number, height: number) {
       (material.uniforms.uViewport.value as THREE.Vector2).set(width, height);

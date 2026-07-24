@@ -32,7 +32,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import type { Coordinates } from "@carma-geo/data-structures";
+import type { Altitude, Coordinates } from "@carma-geo/data-structures";
 import {
   Cartographic,
   CesiumTerrainProvider,
@@ -984,7 +984,14 @@ const sampleSurfaceProfile = async (
     await Promise.all(
       samples.map(async ({ height }, index) => {
         const [east, north] = centerline[index];
-        return dhhn2016ToEllipsoidalHeight(east, north, height);
+        return dhhn2016ToEllipsoidalHeight(
+          {
+            east: east as Coordinates.ETRS89UTMEastingMeters,
+            north: north as Coordinates.ETRS89UTMNorthingMeters,
+            zone: 32,
+          },
+          height as Altitude.DHHN2016Meters
+        );
       })
     )
   );
@@ -4002,9 +4009,12 @@ const initializeScene = async (
               pose.utm[0],
               pose.utm[1],
               await dhhn2016ToEllipsoidalHeight(
-                pose.utm[0],
-                pose.utm[1],
-                pose.utm[2]
+                {
+                  east: pose.utm[0] as Coordinates.ETRS89UTMEastingMeters,
+                  north: pose.utm[1] as Coordinates.ETRS89UTMNorthingMeters,
+                  zone: 32,
+                },
+                pose.utm[2] as Altitude.DHHN2016Meters
               ),
             ],
           },

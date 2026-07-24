@@ -47,6 +47,11 @@ body {
   background: rgb(100 0 0 / 72%);
 }
 
+.pointcloud-mesh-status {
+  margin-top: 2px;
+  color: rgb(255 224 130 / 90%);
+}
+
 .pointcloud-status-metadata {
   display: flex;
   gap: 5px;
@@ -111,6 +116,738 @@ body {
 
 .pointcloud-roi-panel button:hover {
   background: #0d6d81;
+}
+
+.pointcloud-registration-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 540px;
+}
+
+.pointcloud-registration-panel {
+  position: static;
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  padding: 2px 4px 4px;
+  border: 0;
+  border-radius: 0;
+  color: #111827;
+  background: transparent;
+  box-shadow: none;
+  font: 12px/1.3 "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+.pointcloud-registration-panel h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.pointcloud-registration-panel label {
+  display: grid;
+  gap: 3px;
+}
+
+.info-action {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #111827;
+  background: transparent;
+  cursor: pointer;
+}
+
+.info-action:hover {
+  background: #f3f4f6;
+}
+
+.registration-info {
+  padding: 3px 5px;
+  border-left: 2px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.registration-info p {
+  margin: 0 0 3px;
+}
+
+.registration-constraints {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.registration-constraints label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.inline-range-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.inline-range-label input[type="range"] {
+  min-width: 90px;
+  flex: 1;
+}
+
+.inline-range-label output {
+  min-width: 48px;
+  color: #6b7280;
+  font-size: 11px;
+  text-align: right;
+}
+
+.pointcloud-registration-panel fieldset {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 0 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0;
+  background: transparent;
+}
+
+.pointcloud-style-fieldset {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 3px;
+}
+
+.pointcloud-style-fieldset legend {
+  flex: 0 0 100%;
+}
+
+.pointcloud-style-fieldset > label {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.pointcloud-style-fieldset .inline-range-label {
+  flex: 1 1 100%;
+}
+
+.pointcloud-style-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.pointcloud-style-buttons button {
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  color: #111827;
+  background: white;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.pointcloud-style-buttons button:hover:not(.is-active) {
+  background: #f3f4f6;
+}
+
+.pointcloud-style-buttons button.is-active {
+  border-color: #1677ff;
+  color: white;
+  background: #1677ff;
+}
+
+.pointcloud-registration-panel legend {
+  padding: 0;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pointcloud-registration-panel select,
+.pointcloud-registration-panel input[type="range"] {
+  width: 100%;
+}
+
+.pointcloud-registration-panel select {
+  min-height: 26px;
+  padding: 2px 5px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  color: #1f2937;
+  background: white;
+}
+
+.pointcloud-registration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.registration-modal {
+  width: 400px;
+}
+
+.point-pairs-modal {
+  width: 540px;
+}
+
+.point-adjustment-modal {
+  width: 228px;
+  max-width: 228px;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.point-adjustment-modal,
+.point-adjustment-modal > *,
+.point-adjustment-modal > * > *,
+.point-adjustment-modal-content {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.mesh-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+  color: #1f2937;
+  font-size: 11px;
+}
+
+.mesh-preview-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #1f2937;
+  font-size: 11px;
+}
+
+.mesh-preview-control input[type="range"] {
+  width: 88px;
+}
+
+.mesh-preview-control output {
+  min-width: 32px;
+  color: #6b7280;
+  text-align: right;
+}
+
+.mesh-appearance-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 3px;
+  padding: 2px 0;
+}
+
+.mesh-appearance-controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.mesh-appearance-controls label {
+  flex: 1 1 140px;
+}
+
+.mesh-appearance-controls label input[type="range"] {
+  min-width: 60px;
+  flex: 1;
+}
+
+.mesh-appearance-controls output {
+  min-width: 34px;
+  color: #6b7280;
+  font-size: 11px;
+  text-align: right;
+}
+
+.mesh-appearance-controls > button {
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  color: #111827;
+  background: white;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.mesh-appearance-controls > button:hover:not(.is-active) {
+  background: #f3f4f6;
+}
+
+.mesh-appearance-controls > button.is-active {
+  border-color: #1677ff;
+  color: white;
+  background: #1677ff;
+}
+
+.point-adjustment-modal-content {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.point-adjustment-modal .max-h-\[72vh\] {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.point-adjustment-modal .mesh-point-adjustment {
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.mesh-point-delta {
+  width: 100%;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mesh-point-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.point-adjustment-modal .mesh-xy-pad {
+  width: 76px;
+  height: 76px;
+}
+
+.point-adjustment-modal .mesh-z-adjustment {
+  display: block;
+  min-width: 0;
+  flex: 0 0 30px;
+}
+
+.point-adjustment-modal input.mesh-z-adjustment[type="range"] {
+  width: 16px;
+  height: 76px;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+
+.pair-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pair-header-actions button {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #111827;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pair-header-actions button:hover:not(:disabled) {
+  color: #1677ff;
+  background: #f3f4f6;
+}
+
+.pair-header-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.pointcloud-registration-actions button,
+.pointcloud-registration-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border: 1px solid #1677ff;
+  border-radius: 4px;
+  color: white;
+  background: #1677ff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.pointcloud-registration-actions button:hover:not(:disabled),
+.pointcloud-registration-file-button:hover {
+  border-color: #4096ff;
+  background: #4096ff;
+}
+
+.pointcloud-registration-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.pointcloud-registration-view-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pointcloud-registration-view-actions button,
+.pointcloud-registration-actions > button,
+.pointcloud-registration-file-button {
+  white-space: nowrap;
+}
+
+.pointcloud-registration-status {
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.pointcloud-registration-panel ol {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 14px;
+}
+
+.pointcloud-registration-pair {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0;
+  background: transparent;
+}
+
+.pair-summary-button {
+  display: flex;
+  flex: 1 1 250px;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 2px 4px;
+  border: 0;
+  color: #1677ff;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pair-summary-button code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pair-summary-button.is-selected {
+  color: #0958d9;
+  font-weight: 600;
+}
+
+.pair-target-summary {
+  flex: 0 1 150px;
+  min-width: 0;
+  overflow: hidden;
+  color: #6b7280;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pair-delta-summary {
+  flex: 0 0 auto;
+  max-width: 115px;
+  overflow: hidden;
+  color: #6b7280;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-action {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  color: #111827;
+  background: white;
+  cursor: pointer;
+}
+
+.icon-action:hover:not(.icon-action-danger) {
+  background: #f3f4f6;
+}
+
+.icon-action.is-active {
+  border-color: #1677ff;
+  color: white;
+  background: #1677ff;
+}
+
+.icon-action-danger {
+  color: #ff4d4f;
+  border-color: rgba(255, 77, 79, 0.45);
+  background: white;
+}
+
+.icon-action-danger:hover {
+  background: #fff1f0;
+}
+
+.pointcloud-registration-pair > label {
+  flex: 0 1 auto;
+}
+
+.mesh-point-adjustment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 280px;
+}
+
+.mesh-z-adjustment {
+  min-width: 170px;
+  flex: 1 1 190px;
+}
+
+.mesh-z-adjustment input[type="range"] {
+  display: block;
+  width: 100%;
+}
+
+.pair-error {
+  flex: 0 0 auto;
+  color: #6b7280;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.pair-error.is-worst {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.pointcloud-registration-pair small.is-worst {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.pointcloud-registration-pair > button:first-child {
+  overflow: hidden;
+  color: #1677ff;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pointcloud-registration-pair label {
+  font-size: 11px;
+}
+
+.pointcloud-registration-pair input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 3px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+}
+
+.mesh-xy-pad {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  margin-top: 3px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  background:
+    linear-gradient(to right, transparent 49.5%, #e5e7eb 49.5%, #e5e7eb 50.5%, transparent 50.5%),
+    linear-gradient(to bottom, transparent 49.5%, #e5e7eb 49.5%, #e5e7eb 50.5%, transparent 50.5%),
+    #f9fafb;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.mesh-xy-pad-axis-x,
+.mesh-xy-pad-axis-y {
+  position: absolute;
+  background: #1677ff;
+  opacity: 0.35;
+}
+
+.mesh-xy-pad-axis-x { left: 0; right: 0; top: 50%; height: 1px; }
+.mesh-xy-pad-axis-y { top: 0; bottom: 0; left: 50%; width: 1px; }
+
+.mesh-xy-pad-point {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #e4572e;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.mesh-xy-pad-label {
+  position: absolute;
+  color: #6b7280;
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.mesh-xy-pad-label-x { right: 2px; bottom: 2px; }
+.mesh-xy-pad-label-y { left: 3px; top: 2px; }
+
+.pointcloud-registration-pair > button:last-child {
+  padding: 3px 5px;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.pointcloud-registration-panel code {
+  font-size: 10px;
+}
+
+.pointcloud-registration-panel small {
+  display: block;
+  color: #6b7280;
+}
+
+.registration-result {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #f9fafb;
+  font-size: 11px;
+}
+
+.matrix-readout {
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid rgb(107 114 128 / 0.2);
+  color: #6b7280;
+  font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+}
+
+.pointcloud-registration-instruction {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: white;
+  background: rgb(0 0 0 / 55%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.pointcloud-field-controls {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  width: min(22rem, calc(100% - 1.5rem));
+  padding: 0.5rem;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.375rem;
+  background: rgb(255 255 255 / 92%);
+  color: rgb(55 65 81);
+  font-size: 0.75rem;
+}
+
+.pointcloud-field-histogram-heading {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pointcloud-field-histogram-bars {
+  display: flex;
+  align-items: end;
+  gap: 1px;
+  height: 3rem;
+  padding: 0.125rem;
+  background: rgb(249 250 251);
+  border: 1px solid rgb(229 231 235);
+}
+
+.pointcloud-field-histogram-bars span {
+  flex: 1;
+  min-width: 1px;
+  background: rgb(8 145 178);
+}
+
+.pointcloud-field-clamp-label {
+  margin-top: 0.25rem;
+  color: rgb(107 114 128);
+}
+
+.pointcloud-colorizer-reopen {
+  position: fixed;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  z-index: 40;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 0.25rem;
+  background: white;
+  padding: 0.35rem 0.6rem;
+  color: #111827;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.pointcloud-colorizer-reopen:hover {
+  background: #f3f4f6;
 }
 
 .georadar-volume-explorer {

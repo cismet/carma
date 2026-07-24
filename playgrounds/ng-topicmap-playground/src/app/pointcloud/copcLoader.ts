@@ -868,6 +868,11 @@ export async function streamCopcPoints(
 
     loadedPoints += count;
     onChunk({
+      nodeKey: node.key,
+      boundsLocal: nodeBoundsToLocal(
+        { registration, zBase, originMerc, meterScale: mScale },
+        node.bounds
+      ),
       positions,
       colors,
       spacing,

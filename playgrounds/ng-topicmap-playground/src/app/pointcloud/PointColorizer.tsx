@@ -247,6 +247,9 @@ export function FloatingPanel({
   headerStart,
   headerActions,
   onClose,
+  showClose = true,
+  className = "",
+  transparent = false,
   initial = { x: 80, y: 90 },
   zIndex = 30,
   children,
@@ -255,6 +258,9 @@ export function FloatingPanel({
   headerStart?: React.ReactNode;
   headerActions?: React.ReactNode;
   onClose: () => void;
+  showClose?: boolean;
+  className?: string;
+  transparent?: boolean;
   initial?: { x: number; y: number };
   zIndex?: number;
   children: React.ReactNode;
@@ -285,8 +291,15 @@ export function FloatingPanel({
 
   return (
     <div
-      className="fixed w-[400px] max-w-[95vw] overflow-hidden rounded-[10px] border border-gray-200 bg-white text-gray-800 shadow-[0_1px_2px_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)]"
-      style={{ left: position.x, top: position.y, zIndex }}
+      className={`fixed w-[400px] max-w-[95vw] overflow-hidden rounded-[10px] border border-gray-200 bg-white text-gray-800 shadow-[0_1px_2px_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ${className}`}
+      style={{
+        left: position.x,
+        top: position.y,
+        zIndex,
+        ...(transparent
+          ? { backgroundColor: "transparent", borderColor: "transparent", boxShadow: "none" }
+          : {}),
+      }}
     >
       <div
         className="flex h-8 cursor-move select-none items-center gap-2 border-b border-gray-200 px-3"
@@ -304,13 +317,15 @@ export function FloatingPanel({
         >
           <FontAwesomeIcon icon={collapsed ? faChevronRight : faChevronDown} />
         </button>
-        <button
-          className="flex size-6 items-center justify-center text-gray-600 hover:text-gray-900"
-          onClick={onClose}
-          title="Schließen"
-        >
-          <FontAwesomeIcon icon={faXmark} />
-        </button>
+        {showClose && (
+          <button
+            className="flex size-6 items-center justify-center text-gray-600 hover:text-gray-900"
+            onClick={onClose}
+            title="Schließen"
+          >
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        )}
       </div>
       {!collapsed && (
         <div className="max-h-[72vh] overflow-y-auto p-2">{children}</div>
