@@ -21,7 +21,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Reviews a 3D Tiles 1.1 point tileset (glTF POINTS content) produced by scripts/copc-to-3dtiles.mjs, loaded through the plain 3d-tiles-renderer path. Local tilesets under .data/derived/pointcloud-3dtiles are served at /pointcloud-3dtiles/.",
+          "Reviews a 3D Tiles 1.1 point tileset (glTF POINTS content) produced by scripts/copc-to-3dtiles.mjs, loaded through the plain 3d-tiles-renderer path. Defaults to the published Oelberg MLS tileset; locally generated tilesets under .data/derived/pointcloud-3dtiles are served at /pointcloud-3dtiles/.",
       },
     },
   },
@@ -33,7 +33,8 @@ type Story = StoryObj<typeof meta>;
 export const OelbergMls: Story = {};
 
 OelbergMls.args = {
-  tilesetUrl: "/pointcloud-3dtiles/oelberg-test/tileset.json",
+  tilesetUrl:
+    "https://wupp-3d-data.cismet.de/mesh2024/pointclouds/wuppertal-oelberg-mls-2025-09-11-3dtiles-v1/tileset.json",
   pointSize: 2,
   errorTarget: 8,
   background: "#0d1117",
