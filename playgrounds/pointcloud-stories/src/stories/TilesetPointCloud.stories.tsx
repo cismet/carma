@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { TilesetPointCloudScene } from "../components/TilesetPointCloudScene";
 
 const meta = {
-  title: "Pointcloud Investigation/3D Tiles Point Cloud",
+  title: "3D Tiles/Punktwolken-Tileset",
   component: TilesetPointCloudScene,
   argTypes: {
     tilesetUrl: { name: "tileset url", control: "text" },

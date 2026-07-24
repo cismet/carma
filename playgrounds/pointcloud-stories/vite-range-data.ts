@@ -67,7 +67,9 @@ export const serveRangeDataFile = (
     return;
   }
   const explicitRange = rangeHeader?.match(/^bytes=(\d+)-(\d*)$/);
-  const suffixRange = rangeHeader?.match(/^bytes-(\d+)$/);
+  // RFC 9110 suffix ranges are "bytes=-N"; without the equals sign no suffix
+  // request ever matched and Zarr/MDIO tail reads were answered with 416.
+  const suffixRange = rangeHeader?.match(/^bytes=-(\d+)$/);
   if (rangeHeader && !explicitRange && !suffixRange) {
     response.statusCode = 416;
     response.setHeader("Content-Range", `bytes */${size}`);
