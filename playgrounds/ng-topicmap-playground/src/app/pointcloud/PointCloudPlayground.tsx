@@ -2316,8 +2316,15 @@ export function PointCloudPlayground({
   useEffect(() => {
     try {
       const raw = localStorage.getItem(ADHOC_POINTCLOUD_STORAGE_KEY);
-      if (raw) {
-        const parsed = parseAdhocPointCloudJson(JSON.parse(raw));
+      // Having imported nothing is a normal state, so an empty stored
+      // collection is restored as "no imports" instead of being handed to the
+      // import parser, which rejects empty collections for a reason: an empty
+      // file a user drops really is an error worth reporting.
+      const stored = raw ? (JSON.parse(raw) as { features?: unknown }) : null;
+      const hasStoredFeatures =
+        Array.isArray(stored?.features) && stored.features.length > 0;
+      if (stored && hasStoredFeatures) {
+        const parsed = parseAdhocPointCloudJson(stored);
         const restoredAssets = parsed.features.map((feature) => {
           const config = pointCloudFeatureToConfig(feature);
           const asset: CloudAssetDef = {
@@ -2363,13 +2370,17 @@ export function PointCloudPlayground({
     if (!adhocPointCloudsHydrated) return;
     const imported = adhocFeatures.filter(isAdhocPointCloudFeature);
     try {
-      localStorage.setItem(
-        ADHOC_POINTCLOUD_STORAGE_KEY,
-        JSON.stringify({
-          type: "FeatureCollection",
-          features: imported,
-        })
-      );
+      if (imported.length === 0) {
+        localStorage.removeItem(ADHOC_POINTCLOUD_STORAGE_KEY);
+      } else {
+        localStorage.setItem(
+          ADHOC_POINTCLOUD_STORAGE_KEY,
+          JSON.stringify({
+            type: "FeatureCollection",
+            features: imported,
+          })
+        );
+      }
     } catch (error) {
       console.warn("Pointcloud-Imports konnten nicht gespeichert werden.", error);
     }

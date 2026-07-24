@@ -102,9 +102,14 @@ export const createPointTilesetSceneRuntime = ({
     update: (frame: PointcloudSceneFrame) => {
       if (disposed) return;
       tiles.setCamera(frame.lodCamera);
-      tiles.setResolutionFromRenderer(frame.lodCamera, {
-        domElement: frame.map.getCanvas(),
-      } as never);
+      // setResolutionFromRenderer would call renderer.getSize(); this layer
+      // draws through MapLibre's own context and has no three renderer to
+      // hand over, so the frame's viewport is passed explicitly.
+      tiles.setResolution(
+        frame.lodCamera,
+        Math.max(1, frame.viewport.x),
+        Math.max(1, frame.viewport.y)
+      );
       tiles.update();
     },
     setPointSize: (size: number) => {
