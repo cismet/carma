@@ -198,6 +198,16 @@ export default defineConfig(({ mode }) => {
         fraunhoferRoot
       ),
     ],
+    // The COPC decode worker (copc-stream.worker.ts) is bundled in a separate
+    // Rollup pass that does not inherit the top-level `plugins`. Without
+    // nxViteTsPaths here, workspace aliases the worker pulls in transitively
+    // (e.g. @carma-geo/proj via copcLoader) fail to resolve in production
+    // builds. Vite 5 requires the function form. The worker is created with
+    // { type: "module" }, so emit an ES worker bundle.
+    worker: {
+      format: "es",
+      plugins: () => [nxViteTsPaths()],
+    },
     build: {
       commonjsOptions: {
         transformMixedEsModules: true,
