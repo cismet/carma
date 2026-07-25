@@ -1252,11 +1252,6 @@ body {
   stroke: #06b6d4;
   stroke-width: 1.75;
   vector-effect: non-scaling-stroke;
-  cursor: grab;
-}
-
-.capture026-georadar-face-editor.is-dragging .capture026-georadar-face-clipped {
-  cursor: grabbing;
 }
 
 .capture026-georadar-face-range-connector {
@@ -1312,6 +1307,12 @@ body {
   paint-order: stroke fill;
   font: 650 11px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   pointer-events: none;
+  /* Measurement labels are drag feedback; at rest only the handles show. */
+  visibility: hidden;
+}
+
+.capture026-georadar-face-editor.is-dragging .capture026-georadar-face-label {
+  visibility: visible;
 }
 
 .capture026-georadar-face-label.is-dimension,
@@ -1340,23 +1341,12 @@ body {
   vector-effect: non-scaling-stroke;
 }
 
-.capture026-georadar-spline-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 22;
-  vector-effect: non-scaling-stroke;
-  cursor: col-resize;
-}
-
 .capture026-georadar-spline-clip-plane {
   fill: rgb(14 165 233 / 18%);
   stroke: #38bdf8;
   stroke-dasharray: 4 2;
   stroke-width: 2.25;
   vector-effect: non-scaling-stroke;
-  cursor: col-resize;
 }
 
 .capture026-georadar-spline-clip-plane.is-secondary {
@@ -1413,8 +1403,6 @@ body {
 
 .capture026-georadar-face-editor.is-dragging
   :is(
-    .capture026-georadar-spline-hit,
-    .capture026-georadar-spline-clip-plane,
     .capture026-georadar-spline-target,
     .capture026-georadar-axis-target
   ) {

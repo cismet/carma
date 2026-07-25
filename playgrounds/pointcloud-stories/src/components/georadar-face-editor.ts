@@ -206,28 +206,11 @@ export const createGeoradarFaceEditor = (
     path.classList.add("capture026-georadar-spline-guide");
     return path;
   });
-  const splineHitTarget = createSvgElement("path");
-  splineHitTarget.classList.add(
-    "capture026-georadar-spline-hit",
-    "is-interactive"
-  );
-  splineHitTarget.dataset.dragKind = FACE_DRAG_KIND.clipX;
-  splineHitTarget.setAttribute("role", "slider");
-  splineHitTarget.setAttribute(
-    "aria-label",
-    "Georadar-Schnittfront entlang der Trasse ziehen"
-  );
+  // The clip planes and the face area are display-only: dragging captures
+  // exclusively on the round control points, so working close to the trasse
+  // never starts an edit by accident.
   const splineClipPlane = createSvgElement("polygon");
-  splineClipPlane.classList.add(
-    "capture026-georadar-spline-clip-plane",
-    "is-interactive"
-  );
-  splineClipPlane.dataset.dragKind = FACE_DRAG_KIND.clipX;
-  splineClipPlane.setAttribute("role", "slider");
-  splineClipPlane.setAttribute(
-    "aria-label",
-    "Georadar-Schnittfront als Clip-Ebene entlang der Trasse ziehen"
-  );
+  splineClipPlane.classList.add("capture026-georadar-spline-clip-plane");
   const splineClipTarget = createSvgElement("circle");
   splineClipTarget.classList.add(
     "capture026-georadar-spline-target",
@@ -246,14 +229,7 @@ export const createGeoradarFaceEditor = (
   const farSplineClipPlane = createSvgElement("polygon");
   farSplineClipPlane.classList.add(
     "capture026-georadar-spline-clip-plane",
-    "is-secondary",
-    "is-interactive"
-  );
-  farSplineClipPlane.dataset.dragKind = FACE_DRAG_KIND.clipX;
-  farSplineClipPlane.setAttribute("role", "slider");
-  farSplineClipPlane.setAttribute(
-    "aria-label",
-    "Gegenüberliegende Georadar-Schnittfront verschieben"
+    "is-secondary"
   );
   const farSplineClipTarget = createSvgElement("circle");
   farSplineClipTarget.classList.add(
@@ -315,16 +291,7 @@ export const createGeoradarFaceEditor = (
   const fullFace = createSvgElement("path");
   fullFace.classList.add("capture026-georadar-face-outline");
   const clippedFace = createSvgElement("path");
-  clippedFace.classList.add(
-    "capture026-georadar-face-clipped",
-    "is-interactive"
-  );
-  clippedFace.dataset.dragKind = FACE_DRAG_KIND.clipRange;
-  clippedFace.setAttribute("role", "slider");
-  clippedFace.setAttribute(
-    "aria-label",
-    "Georadar-Ausschnitt zweidimensional verschieben"
-  );
+  clippedFace.classList.add("capture026-georadar-face-clipped");
 
   const clipRangeConnector = createSvgElement("line");
   clipRangeConnector.classList.add("capture026-georadar-face-range-connector");
@@ -422,7 +389,6 @@ export const createGeoradarFaceEditor = (
   splineLayer.append(
     splinePath,
     ...longitudinalGuides,
-    splineHitTarget,
     farSplineClipPlane,
     splineClipPlane,
     rightOffsetConnector,
@@ -1136,7 +1102,6 @@ export const createGeoradarFaceEditor = (
     };
     const path = pathFromProjection(projectedSpline);
     splinePath.setAttribute("d", path);
-    splineHitTarget.setAttribute("d", path);
     const longitudinalGuideAxes = [
       [state.clipY.min, state.clipZ.min],
       [state.clipY.max, state.clipZ.min],
