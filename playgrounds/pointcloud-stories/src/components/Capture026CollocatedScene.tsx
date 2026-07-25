@@ -895,34 +895,39 @@ const addGeoradarSurveyOverlay = (
 ) => {
   for (const trace of survey.traces) {
     const active = trace.captureId === activeCaptureId;
-    const geometry = new THREE.BufferGeometry().setFromPoints(
-      trace.centerlineUtm.map(
-        ([east, north]) =>
-          new THREE.Vector3(east - origin[0], 0.12, -(north - origin[1]))
-      )
-    );
-    const material = new THREE.LineBasicMaterial({
-      color: active ? 0x00b8cf : 0x6d28d9,
-      opacity: active ? 1 : 0.62,
-      transparent: !active,
-      depthTest: false,
-    });
-    const line = new THREE.Line(geometry, material);
-    line.renderOrder = active ? 10 : 8;
     const middle =
       trace.centerlineUtm[Math.floor(trace.centerlineUtm.length / 2)];
     const streetName = getSurveyStreetName(middle);
-    line.userData.navigation = {
-      kind: "georadar-trace",
-      captureId: trace.captureId,
-    };
-    line.userData.streetName = streetName;
-    group.add(line);
+    // The active trace already draws its own centerline through the georadar
+    // rendering — a second overlay line would double the spine.
+    if (!active) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(
+        trace.centerlineUtm.map(
+          ([east, north]) =>
+            new THREE.Vector3(east - origin[0], 0.12, -(north - origin[1]))
+        )
+      );
+      const material = new THREE.LineBasicMaterial({
+        color: 0x6d28d9,
+        opacity: 0.62,
+        transparent: true,
+        depthTest: false,
+      });
+      const line = new THREE.Line(geometry, material);
+      line.renderOrder = 8;
+      line.userData.navigation = {
+        kind: "georadar-trace",
+        captureId: trace.captureId,
+      };
+      line.userData.streetName = streetName;
+      group.add(line);
+    }
 
     const label = createSurveyLabelSprite(streetName, trace.captureId, active);
+    // Labels sit at the georadar level, just above their spine.
     label.position.set(
       middle[0] - origin[0],
-      active ? 2.6 : 1.8,
+      active ? 0.5 : 0.35,
       -(middle[1] - origin[1])
     );
     label.userData.navigation = {
