@@ -572,7 +572,12 @@ type SceneStatus = {
 type TemporalStatusGroupId = "georadar" | "mesh" | "imagery";
 type StatusHistory = Record<TemporalStatusGroupId, number[]>;
 
-type OptionsSection = "georadar" | "mesh" | "planar3" | "panorama";
+type OptionsSection =
+  | "georadar"
+  | "mesh"
+  | "point-tileset"
+  | "planar3"
+  | "panorama";
 
 const splitStatusEntries = (...values: string[]) =>
   values.flatMap((value) =>
@@ -6730,6 +6735,12 @@ export function Capture026CollocatedScene({
   const [meshVisible, setMeshVisible] = useState(
     radarOnly ? false : showMesh2024
   );
+  const [pointTilesetVisible, setPointTilesetVisible] = useState(
+    radarOnly ? false : showOelbergPointTileset
+  );
+  const [pointTilesetPointSize, setPointTilesetPointSize] = useState(
+    oelbergPointTilesetPointSize
+  );
   const [nivPointsVisible, setNivPointsVisible] = useState(
     radarOnly ? false : showNivPoints
   );
@@ -6945,6 +6956,14 @@ export function Capture026CollocatedScene({
   }, [radarOnly, showMesh2024]);
 
   useEffect(() => {
+    setPointTilesetVisible(radarOnly ? false : showOelbergPointTileset);
+  }, [radarOnly, showOelbergPointTileset]);
+
+  useEffect(() => {
+    setPointTilesetPointSize(oelbergPointTilesetPointSize);
+  }, [oelbergPointTilesetPointSize]);
+
+  useEffect(() => {
     setNivPointsVisible(radarOnly ? false : showNivPoints);
   }, [radarOnly, showNivPoints]);
 
@@ -7103,8 +7122,8 @@ export function Capture026CollocatedScene({
       showGeoradar: georadarVisible,
       georadarRenderDistance,
       showMesh2024: meshVisible,
-      showOelbergPointTileset,
-      oelbergPointTilesetPointSize,
+      showOelbergPointTileset: pointTilesetVisible,
+      oelbergPointTilesetPointSize: pointTilesetPointSize,
       showNivPoints: nivPointsVisible,
       showPlanar2: planar2Visible,
       planar3Mode: activePlanar3Mode,
@@ -7202,6 +7221,8 @@ export function Capture026CollocatedScene({
     georadarVisible,
     georadarRenderDistance,
     meshVisible,
+    pointTilesetVisible,
+    pointTilesetPointSize,
     nivPointsVisible,
     panoramasVisible,
     activePanoramaOpacity,
@@ -7922,6 +7943,37 @@ export function Capture026CollocatedScene({
                     onChange={setMeshTileBoundsVisible}
                   />
                 </label>
+              </div>
+            </details>
+            <details
+              className="capture026-options-section is-point-tileset"
+              open={openOptionsSection === "point-tileset"}
+            >
+              <summary
+                onClick={(event) => {
+                  event.preventDefault();
+                  toggleOptionsSection("point-tileset");
+                }}
+              >
+                <span>Punktwolke · 3D Tiles</span>
+                <SectionVisibilityButton
+                  label="Punktwolke · 3D Tiles"
+                  visible={pointTilesetVisible}
+                  onChange={setPointTilesetVisible}
+                />
+              </summary>
+              <div className="capture026-options-section-body">
+                <OffsetSlider
+                  label="Punktgröße"
+                  value={pointTilesetPointSize}
+                  min={1}
+                  max={8}
+                  step={0.5}
+                  precision={1}
+                  unit="px"
+                  valueLabel="Punktgröße der 3D-Tiles-Punktwolke"
+                  onChange={setPointTilesetPointSize}
+                />
               </div>
             </details>
             <details className="capture026-options-section is-niv is-visibility-only">
