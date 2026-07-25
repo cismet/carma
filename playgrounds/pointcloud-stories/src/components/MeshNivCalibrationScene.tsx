@@ -8,6 +8,15 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import * as THREE from "three";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+
+import type { Coordinates } from "@carma-geo/data-structures";
+import {
+  getFromWGS84ToUTM32,
+  getGcg2016UndulationFromUtm,
+} from "@carma-geo/proj";
 
 import {
   averageMeshHeightSamplesByControlPoint,
@@ -37,7 +46,9 @@ const ECEF_TO_SCENE = createEcefToSceneMatrix(
   THREE.MathUtils.degToRad(SCENE_ORIGIN_LATITUDE_DEGREES),
   SCENE_ORIGIN_ELLIPSOIDAL_HEIGHT
 );
-const SAMPLE_STORAGE_KEY = "carma-mesh-niv-height-samples-v2";
+// v3: samples taken before the mesh was raised onto the ellipsoidal datum
+// carry the old ~46 m offset and would poison the statistics.
+const SAMPLE_STORAGE_KEY = "carma-mesh-niv-height-samples-v3";
 const DEFAULT_ERROR_TARGET_PIXELS = 0.5;
 
 type StoredMeshHeightSample = MeshHeightSample & {
@@ -315,14 +326,27 @@ export function MeshNivCalibrationScene() {
 
     const sampleGroup = new THREE.Group();
     scene.add(sampleGroup);
-    const officialMarker = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.26, 0),
-      new THREE.MeshBasicMaterial({
-        color: 0x0891b2,
-        depthTest: false,
-        transparent: true,
-        opacity: 0.88,
-      })
+    // The official point renders as the same debug axis cross the
+    // Registration Workbench uses for mesh anchors: ±1 m per axis in
+    // X-red / Y-green / Z-blue, drawn 3 px wide.
+    const officialMarkerMaterial = new LineMaterial({
+      vertexColors: true,
+      linewidth: 3,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+    });
+    const axisCrossGeometry = new LineSegmentsGeometry();
+    axisCrossGeometry.setPositions([
+      -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, 1,
+    ]);
+    axisCrossGeometry.setColors([
+      1, 0.15, 0.15, 1, 0.15, 0.15, 0.2, 1, 0.2, 0.2, 1, 0.2, 0.2, 0.4, 1,
+      0.2, 0.4, 1,
+    ]);
+    const officialMarker = new LineSegments2(
+      axisCrossGeometry,
+      officialMarkerMaterial
     );
     officialMarker.visible = false;
     officialMarker.renderOrder = 90;
@@ -372,6 +396,24 @@ export function MeshNivCalibrationScene() {
       requestRender,
     });
     const { tiles } = mesh;
+    // Mesh 2024 carries DHHN-as-ellipsoidal heights, one geoid undulation
+    // below the true ellipsoidal frame of this scene. Raising the mesh by the
+    // origin's GCG2016 undulation closes that systematic gap, so the residual
+    // panel shows what remains beyond the known datum defect.
+    const originUtm = getFromWGS84ToUTM32([
+      SCENE_ORIGIN_LONGITUDE_DEGREES,
+      SCENE_ORIGIN_LATITUDE_DEGREES,
+    ] as Parameters<typeof getFromWGS84ToUTM32>[0]) as [number, number];
+    void getGcg2016UndulationFromUtm({
+      east: originUtm[0] as Coordinates.ETRS89UTMEastingMeters,
+      north: originUtm[1] as Coordinates.ETRS89UTMNorthingMeters,
+      zone: 32,
+    }).then((undulation) => {
+      if (disposed) return;
+      mesh.anchor.position.y = undulation;
+      mesh.anchor.updateMatrixWorld(true);
+      requestRender();
+    });
     const updateStatus = () => {
       const nextStatus = mesh.getLoadingStatus();
       if (nextStatus !== lastStatus) {
@@ -383,6 +425,16 @@ export function MeshNivCalibrationScene() {
       animationFrame = 0;
       if (disposed) return;
       controls.update();
+      // Same per-frame loop as the multimodal scene: camera and resolution
+      // stay current before every traversal, which keeps the LOD decisions
+      // stable instead of flickering between two states.
+      mesh.setActiveCamera(camera);
+      tiles.setResolutionFromRenderer(camera, renderer);
+      mesh.updateCoverageCamera(
+        camera,
+        Math.max(1, container.clientWidth),
+        Math.max(1, container.clientHeight)
+      );
       tiles.update();
       renderer.render(scene, camera);
       updateStatus();
@@ -438,6 +490,7 @@ export function MeshNivCalibrationScene() {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       mesh.resize(camera, width, height);
+      officialMarkerMaterial.resolution.set(width, height);
       requestRender();
     };
     const resizeObserver = new ResizeObserver(resize);
