@@ -6284,17 +6284,23 @@ const initializeScene = async (
     if (meshEnabled) {
       // Keep the camera and renderer resolution current before every traversal,
       // matching the three-geospatial and 3DTilesRendererJS reference loops.
-      mesh.setActiveCamera(camera);
-      mesh.tiles.setResolutionFromRenderer(
-        camera,
-        renderer as unknown as ThreeWebGLRenderer
-      );
-      mesh.updateCoverageCamera(
-        camera,
-        Math.max(1, host.clientWidth),
-        Math.max(1, host.clientHeight)
-      );
-      mesh.tiles.update();
+      // A throwing mesh traversal (for example a failing root fetch) must not
+      // abort the frame — everything after it would silently stop updating.
+      try {
+        mesh.setActiveCamera(camera);
+        mesh.tiles.setResolutionFromRenderer(
+          camera,
+          renderer as unknown as ThreeWebGLRenderer
+        );
+        mesh.updateCoverageCamera(
+          camera,
+          Math.max(1, host.clientWidth),
+          Math.max(1, host.clientHeight)
+        );
+        mesh.tiles.update();
+      } catch {
+        // The mesh runtime reports its own load issues.
+      }
     }
     // Ölberg MLS as a 3D Tiles point cloud, anchored on the same scene origin
     // as the mesh so both deliveries are directly comparable.

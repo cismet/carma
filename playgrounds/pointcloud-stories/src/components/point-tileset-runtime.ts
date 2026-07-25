@@ -6,8 +6,18 @@ import {
   UnloadTilesPlugin,
   UpdateOnChangePlugin,
 } from "3d-tiles-renderer/plugins";
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import {
+  Fn,
+  cameraProjectionMatrix,
+  instancedBufferAttribute,
+  modelViewMatrix,
+  positionGeometry,
+  screenSize,
+  uniform,
+  vec4,
+} from "three/tsl";
 
 /**
  * Renders a 3D Tiles 1.1 point tileset (glTF POINTS content) into a scene that
@@ -40,6 +50,19 @@ export const POINT_TILESET_DEFAULT_ERROR_TARGET = 8;
 /** Upper bound on yielding to the mesh, so points always make progress. */
 const MAXIMUM_DEFER_MILLISECONDS = 3_000;
 
+/** Corner quad every point instance expands to in the vertex stage. */
+const buildQuadTemplate = () => {
+  const corners = new THREE.BufferAttribute(
+    new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, -0.5, 0.5, 0, 0.5, 0.5, 0]),
+    3
+  );
+  const index = new THREE.BufferAttribute(
+    new Uint16Array([0, 1, 2, 2, 1, 3]),
+    1
+  );
+  return { corners, index };
+};
+
 export const createPointTilesetRuntime = ({
   scene,
   renderer,
@@ -53,10 +76,12 @@ export const createPointTilesetRuntime = ({
   isDeferred = () => false,
   requestRender = () => undefined,
 }: PointTilesetRuntimeOptions) => {
-  let pointSize = initialPointSize;
   let disposed = false;
   /** When the current deferral to the mesh started; 0 when not deferring. */
   let deferringSince = 0;
+  /** Point size in physical pixels, shared by every tile's material. */
+  const pointSizeUniform = uniform(initialPointSize);
+  const quadTemplate = buildQuadTemplate();
 
   const tiles = new TilesRenderer(url);
   const dracoLoader = new DRACOLoader();
@@ -93,20 +118,122 @@ export const createPointTilesetRuntime = ({
   group.add(tiles.group);
   scene.add(group);
 
-  const applyPointSize = (object: THREE.Object3D) => {
-    object.traverse((child) => {
-      const points = child as THREE.Points;
-      if (!(points instanceof THREE.Points)) return;
-      const material = points.material as THREE.PointsMaterial;
-      material.size = pointSize;
-      material.sizeAttenuation = false;
-      material.vertexColors = Boolean(points.geometry.getAttribute("color"));
-      material.needsUpdate = true;
+  /**
+   * WebGPU has no sized point primitive — three draws THREE.Points one pixel
+   * wide no matter what material.size says. Every loaded tile is therefore
+   * rebuilt as one screen-aligned quad per point, expanded to the configured
+   * pixel size in the vertex stage — the technique three's own WebGPU
+   * instance-points example uses.
+   */
+  const convertTileScene = (tileScene: THREE.Object3D) => {
+    const pointObjects: THREE.Points[] = [];
+    tileScene.traverse((child) => {
+      if ((child as THREE.Points).isPoints) {
+        pointObjects.push(child as THREE.Points);
+      }
     });
+    for (const points of pointObjects) {
+      const source = points.geometry;
+      const position = source.getAttribute("position");
+      if (!position) continue;
+      const geometry = new THREE.InstancedBufferGeometry();
+      geometry.setIndex(quadTemplate.index.clone());
+      geometry.setAttribute("position", quadTemplate.corners.clone());
+      const instancePosition = new THREE.InstancedBufferAttribute(
+        position.array,
+        position.itemSize
+      );
+      geometry.setAttribute("instancePosition", instancePosition);
+      const color = source.getAttribute("color");
+      let instanceColor: THREE.InstancedBufferAttribute | null = null;
+      if (color) {
+        const strideBytes =
+          color.itemSize *
+          (color.array as unknown as { BYTES_PER_ELEMENT: number })
+            .BYTES_PER_ELEMENT;
+        if (strideBytes % 4 === 0) {
+          instanceColor = new THREE.InstancedBufferAttribute(
+            color.array,
+            color.itemSize,
+            color.normalized
+          );
+        } else {
+          // WebGPU requires vertex buffer strides in multiples of 4 bytes;
+          // the u8 RGB colors these tiles carry (stride 3) are padded to RGBA.
+          const channels = color.array as unknown as
+            | Uint8Array
+            | Uint16Array
+            | Float32Array;
+          const TypedArrayCtor = channels.constructor as new (
+            length: number
+          ) => Uint8Array;
+          const alphaMaximum =
+            channels instanceof Uint8Array
+              ? 255
+              : channels instanceof Uint16Array
+              ? 65_535
+              : 1;
+          const rgba = new TypedArrayCtor(color.count * 4);
+          for (let index = 0; index < color.count; index += 1) {
+            rgba[index * 4] = channels[index * 3];
+            rgba[index * 4 + 1] = channels[index * 3 + 1];
+            rgba[index * 4 + 2] = channels[index * 3 + 2];
+            rgba[index * 4 + 3] = alphaMaximum;
+          }
+          instanceColor = new THREE.InstancedBufferAttribute(
+            rgba,
+            4,
+            color.normalized
+          );
+        }
+        geometry.setAttribute("instanceColor", instanceColor);
+      }
+      geometry.instanceCount = position.count;
+      if (!source.boundingSphere) source.computeBoundingSphere();
+      geometry.boundingSphere = source.boundingSphere?.clone() ?? null;
+
+      const material = new THREE.NodeMaterial();
+      const instancePositionNode = instancedBufferAttribute(instancePosition);
+      material.vertexNode = Fn(() => {
+        const clipPosition = cameraProjectionMatrix
+          .mul(modelViewMatrix)
+          .mul(vec4(instancePositionNode, 1));
+        const cornerOffset = positionGeometry.xy
+          .mul(pointSizeUniform)
+          .mul(2)
+          .div(screenSize)
+          .mul(clipPosition.w);
+        return vec4(
+          clipPosition.xy.add(cornerOffset),
+          clipPosition.z,
+          clipPosition.w
+        );
+      })();
+      material.colorNode = instanceColor
+        ? instanceColor.itemSize === 4
+          ? vec4(instancedBufferAttribute(instanceColor))
+          : vec4(instancedBufferAttribute(instanceColor), 1)
+        : vec4(1, 1, 1, 1);
+      material.side = THREE.DoubleSide;
+      material.toneMapped = false;
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(points.position);
+      mesh.quaternion.copy(points.quaternion);
+      mesh.scale.copy(points.scale);
+      mesh.renderOrder = points.renderOrder;
+      const parent = points.parent;
+      if (parent) {
+        parent.add(mesh);
+        parent.remove(points);
+      }
+      source.dispose();
+      (points.material as THREE.Material).dispose();
+    }
   };
   const onLoadModel = (event: { scene?: THREE.Object3D }) => {
     if (!event.scene) return;
-    applyPointSize(event.scene);
+    convertTileScene(event.scene);
     requestRender();
   };
   tiles.addEventListener("load-model", onLoadModel);
@@ -144,9 +271,8 @@ export const createPointTilesetRuntime = ({
       requestRender();
     },
     setPointSize: (size: number) => {
-      if (size === pointSize) return;
-      pointSize = size;
-      applyPointSize(tiles.group);
+      if (size === pointSizeUniform.value) return;
+      pointSizeUniform.value = size;
       requestRender();
     },
     setErrorTarget: (errorTarget: number) => {

@@ -362,7 +362,7 @@ const meta = {
     trajectoryOffsetDown: 0,
     trajectoryOffsetRight: 0,
     showMesh2024: true,
-    showOelbergPointTileset: false,
+    showOelbergPointTileset: true,
     oelbergPointTilesetPointSize: 2,
     showNivPoints: false,
     meshAppearance: "textured",
