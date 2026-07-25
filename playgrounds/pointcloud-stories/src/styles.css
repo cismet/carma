@@ -1372,18 +1372,8 @@ body {
   stroke: #7dd3fc;
 }
 
-.capture026-georadar-spline-target.is-offscreen {
-  fill: rgb(224 242 254 / 76%);
-  stroke-dasharray: 2 2;
-}
-
 .capture026-georadar-face-label.is-secondary {
   fill: #bae6fd;
-}
-
-.capture026-georadar-face-label.is-offscreen {
-  fill: #7dd3fc;
-  font-size: 9px;
 }
 
 .capture026-georadar-axis-target.is-right {

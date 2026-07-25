@@ -1188,31 +1188,13 @@ export const createGeoradarFaceEditor = (
         center.y <= viewportHeight;
       planeElement.dataset.clipBoundary = clip.boundary;
       targetElement.dataset.clipBoundary = clip.boundary;
+      // A slice front outside the view hides its handle completely — a
+      // handle pinned to the screen edge reads as a stray control with no
+      // context, not as an affordance.
       planeElement.setAttribute("visibility", onScreen ? "visible" : "hidden");
-      targetElement.setAttribute("visibility", "visible");
-      labelElement.setAttribute("visibility", "visible");
-      targetElement.classList.toggle("is-offscreen", !onScreen);
-      labelElement.classList.toggle("is-offscreen", !onScreen);
-      if (!onScreen || !rendered || !center) {
-        const fallback = new THREE.Vector2(
-          clip.boundary === "minimum" ? 24 : viewportWidth - 24,
-          viewportHeight * 0.5
-        );
-        setCirclePosition(targetElement, fallback);
-        labelElement.setAttribute(
-          "x",
-          (fallback.x + (clip.boundary === "minimum" ? 14 : -14)).toFixed(2)
-        );
-        labelElement.setAttribute("y", (fallback.y + 4).toFixed(2));
-        labelElement.setAttribute(
-          "text-anchor",
-          clip.boundary === "minimum" ? "start" : "end"
-        );
-        labelElement.textContent = `X ${
-          clip.boundary === "minimum" ? "min" : "max"
-        } ${formatMeters(clip.stationMeters)} · außerhalb`;
-        return null;
-      }
+      targetElement.setAttribute("visibility", onScreen ? "visible" : "hidden");
+      labelElement.setAttribute("visibility", onScreen ? "visible" : "hidden");
+      if (!onScreen || !rendered || !center) return null;
       setPolygonPoints(planeElement, points);
       setCirclePosition(targetElement, center);
       labelElement.setAttribute("text-anchor", "start");
