@@ -436,11 +436,17 @@ const main = async () => {
         );
         const [xEast, xNorth] = gridToEnu((bounds[3] - bounds[0]) / 2, 0);
         const [yEast, yNorth] = gridToEnu(0, (bounds[4] - bounds[1]) / 2);
+        // The octree cube is as tall as it is wide, but the data occupies a
+        // thin height band. Clamping the box to the header's z range keeps
+        // screen-space error and culling honest for street-level cameras.
+        const zMinimum = Math.max(bounds[2], copc.header.min[2]);
+        const zMaximum = Math.min(bounds[5], copc.header.max[2]);
+        const zHalf = Math.max(0.5, (zMaximum - zMinimum) / 2);
         return [
-          centerEast, centerNorth, centerHeight - originHeight,
+          centerEast, centerNorth, (zMinimum + zMaximum) / 2 - originHeight,
           xEast, xNorth, 0,
           yEast, yNorth, 0,
-          0, 0, (bounds[5] - bounds[2]) / 2,
+          0, 0, zHalf,
         ];
       })(),
       geometricError: spacing / 2 ** depth,
