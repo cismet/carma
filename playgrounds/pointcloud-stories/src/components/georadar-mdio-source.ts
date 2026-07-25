@@ -303,7 +303,7 @@ export const createGeoradarMdioSource = async ({
   const requestQueue = createRequestQueue(
     Math.max(1, Math.floor(maximumConcurrentRequests))
   );
-  const fetchRange = async (range: string) => {
+  const fetchRange = async (range: string, expectedBytes: number) => {
     const response = await fetchFunction(shardUrl, {
       headers: { Range: range },
       cache: "force-cache",
@@ -311,22 +311,67 @@ export const createGeoradarMdioSource = async ({
     });
     if (response.status !== 206) {
       throw new Error(
-        `MDIO Range/CORS-Fehler: ${response.status} ${response.statusText} für ${range}; Server muss 206 und Content-Range liefern`
+        `MDIO Range/CORS-Fehler: ${response.status} ${response.statusText} für ${range}; Server muss 206 liefern`
       );
     }
-    const contentRange = response.headers.get("content-range");
-    if (!contentRange) {
-      throw new Error(
-        `MDIO Range/CORS-Fehler: Content-Range fehlt oder ist nicht exponiert (${range})`
-      );
-    }
+    // The byte count validates the range semantics without touching
+    // Content-Range, which the published host does not CORS-expose.
     const buffer = await response.arrayBuffer();
+    if (buffer.byteLength !== expectedBytes) {
+      throw new Error(
+        `MDIO Range-Fehler: ${buffer.byteLength} statt ${expectedBytes} Byte für ${range}`
+      );
+    }
     metrics.rangeRequests += 1;
     metrics.rangeBytes += buffer.byteLength;
     return new Uint8Array(buffer);
   };
+  // A suffix range (`bytes=-N`) is not CORS-safelisted, so browsers preflight
+  // it — and the published static host answers OPTIONS with 405, which kills
+  // the request before it is ever sent. The shard size is therefore resolved
+  // up front so the index read becomes an explicit range without preflight.
+  // A HEAD is tried first, but the published host gzips these text/plain-typed
+  // chunks on the fly, which drops Content-Length (and browsers cannot unset
+  // Accept-Encoding). Ranged responses bypass that gzip filter, so the
+  // fallback reads Content-Length — the only CORS-exposed header — from an
+  // immediately cancelled open-ended `bytes=0-` request, which is safelisted.
+  const resolveShardBytes = async () => {
+    const headResponse = await fetchFunction(shardUrl, {
+      method: "HEAD",
+      signal: abortController.signal,
+    });
+    if (!headResponse.ok) {
+      throw new Error(
+        `MDIO HEAD-Fehler: ${headResponse.status} ${headResponse.statusText}`
+      );
+    }
+    const headBytes = Number(headResponse.headers.get("content-length"));
+    if (Number.isSafeInteger(headBytes) && headBytes > 0) return headBytes;
+    const sizeResponse = await fetchFunction(shardUrl, {
+      headers: { Range: "bytes=0-" },
+      cache: "no-store",
+      signal: abortController.signal,
+    });
+    const sizeBytes = Number(sizeResponse.headers.get("content-length"));
+    await sizeResponse.body?.cancel();
+    if (sizeResponse.status !== 206 || !Number.isSafeInteger(sizeBytes)) {
+      throw new Error(
+        `MDIO Größenermittlung fehlgeschlagen: ${sizeResponse.status} ${sizeResponse.statusText}, Content-Length ${sizeResponse.headers.get("content-length") ?? "fehlt"}`
+      );
+    }
+    return sizeBytes;
+  };
+  const shardBytes = await resolveShardBytes();
+  if (shardBytes <= indexBytes) {
+    throw new Error(
+      `MDIO Größenermittlung: Shard (${shardBytes} Byte) ist kleiner als der Shard-Index (${indexBytes} Byte)`
+    );
+  }
   const index = parseIndex(
-    await fetchRange(`bytes=-${indexBytes}`),
+    await fetchRange(
+      `bytes=${shardBytes - indexBytes}-${shardBytes - 1}`,
+      indexBytes
+    ),
     chunkCount,
     hasIndexCrc32c
   );
@@ -367,7 +412,8 @@ export const createGeoradarMdioSource = async ({
       promise: requestQueue
         .schedule(() =>
           fetchRange(
-            `bytes=${entry.offset}-${entry.offset + entry.byteLength - 1}`
+            `bytes=${entry.offset}-${entry.offset + entry.byteLength - 1}`,
+            entry.byteLength
           )
         )
         .then((bytes) => {

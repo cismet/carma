@@ -83,19 +83,25 @@ describe("createGeoradarMdioSource", () => {
           ],
         });
       }
+      if (init?.method === "HEAD") {
+        // Like the published host: gzip negotiation drops Content-Length, so
+        // the source has to fall back to the open-ended range probe.
+        return new Response(null, { status: 200 });
+      }
       const range = new Headers(init?.headers).get("range");
       if (!range) throw new Error("missing range");
       ranges.push(range);
-      const suffix = range.match(/^bytes=-(\d+)$/);
+      if (range === "bytes=0-") {
+        return new Response(shard.slice(), {
+          status: 206,
+          headers: { "Content-Length": String(shard.byteLength) },
+        });
+      }
       const explicit = range.match(/^bytes=(\d+)-(\d+)$/);
-      const start = suffix
-        ? shard.byteLength - Number(suffix[1])
-        : Number(explicit?.[1]);
-      const end = suffix ? shard.byteLength - 1 : Number(explicit?.[2]);
-      return new Response(shard.slice(start, end + 1), {
-        status: 206,
-        headers: { "Content-Range": `bytes ${start}-${end}/${shard.length}` },
-      });
+      if (!explicit) throw new Error(`unexpected range ${range}`);
+      const start = Number(explicit[1]);
+      const end = Number(explicit[2]);
+      return new Response(shard.slice(start, end + 1), { status: 206 });
     };
     const source = await createGeoradarMdioSource({
       storeUrl: "https://example.test/capture.mdio",
@@ -117,8 +123,11 @@ describe("createGeoradarMdioSource", () => {
 
     expect(Array.from(first)).toEqual(Array.from(second));
     expect(first).toHaveLength(4);
-    expect(ranges[0]).toBe(`bytes=-${indexBytes}`);
-    expect(ranges).toHaveLength(3);
+    expect(ranges[0]).toBe("bytes=0-");
+    expect(ranges[1]).toBe(
+      `bytes=${shard.byteLength - indexBytes}-${shard.byteLength - 1}`
+    );
+    expect(ranges).toHaveLength(4);
     expect(source.getMetrics()).toMatchObject({
       rangeRequests: 3,
       cacheHits: 2,
@@ -162,14 +171,18 @@ describe("createGeoradarMdioSource", () => {
           ],
         });
       }
+      if (init?.method === "HEAD") {
+        // Like the dev middleware: Content-Length answers the size directly.
+        return new Response(null, {
+          status: 200,
+          headers: { "Content-Length": String(shard.byteLength) },
+        });
+      }
       const range = new Headers(init?.headers).get("range")!;
-      const suffixBytes = Number(range.slice("bytes=-".length));
-      const start = shard.length - suffixBytes;
-      return new Response(shard.slice(start), {
+      const explicit = range.match(/^bytes=(\d+)-(\d+)$/)!;
+      const start = Number(explicit[1]);
+      return new Response(shard.slice(start, Number(explicit[2]) + 1), {
         status: 206,
-        headers: {
-          "Content-Range": `bytes ${start}-${shard.length - 1}/${shard.length}`,
-        },
       });
     };
 
