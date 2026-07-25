@@ -1211,7 +1211,12 @@ const createImageTextureRuntime = (
   }
   const entries = new Map(manifest.images.map((entry) => [entry.key, entry]));
   const manifestBaseUrl = new URL(manifestUrl, window.location.href);
-  const assetUrl = (url: string) => new URL(url, manifestBaseUrl).href;
+  // Root-relative entries mean "relative to the investigation data folder" —
+  // resolved against the manifest URL they would drop the folder prefix.
+  const assetUrl = (url: string) =>
+    url.startsWith("/")
+      ? resolveInvestigationDataReference(url)
+      : new URL(url, manifestBaseUrl).href;
   const previewLoads = new Map<string, Promise<LoadedJpegTexture>>();
   const previewResults = new Map<string, LoadedJpegTexture>();
   const externalThumbnailRecords = new Map<
@@ -4033,7 +4038,11 @@ const initializeScene = async (
     renderer,
     camera,
     originLngLat,
-    anchorHeightEllipsoidal: anchorHeight,
+    // The tileset carries true ellipsoidal heights, but Mesh 2024 — and with
+    // it the whole scene level — sits on DHHN-as-ellipsoidal heights, one
+    // geoid undulation lower. Raising the anchor by the undulation lowers the
+    // cloud onto the mesh datum so both deliveries visually coincide.
+    anchorHeightEllipsoidal: anchorHeight + anchorUndulation,
     url: OELBERG_POINT_TILESET_URL,
     enabled: settings.showOelbergPointTileset ?? false,
     pointSize: settings.oelbergPointTilesetPointSize ?? 2,
