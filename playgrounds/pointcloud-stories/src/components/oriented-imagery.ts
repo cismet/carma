@@ -2,8 +2,16 @@ import * as THREE from "three";
 
 import { getFromUTM32ToWGS84 } from "@carma-geo/proj";
 
+/**
+ * The panorama poses and images are published next to the other investigation
+ * data, so the stories work without a machine-specific .env.local. Set
+ * VITE_PANORAMA_BASE_URL to point at another mirror.
+ */
+const PUBLISHED_PANORAMA_BASE_URL =
+  "https://wupp-3d-data.cismet.de/mesh2024/panorama";
+
 const PANORAMA_BASE_URL = (
-  import.meta.env.VITE_PANORAMA_BASE_URL ?? ""
+  import.meta.env.VITE_PANORAMA_BASE_URL ?? PUBLISHED_PANORAMA_BASE_URL
 ).replace(/\/$/, "");
 
 export const PANORAMA_REFERENCE_URL = PANORAMA_BASE_URL

@@ -4080,7 +4080,9 @@ const initializeScene = async (
             ],
           },
           origin,
-          anchorHeight,
+          // Like the point tileset: the poses carry true ellipsoidal heights,
+          // the scene level is DHHN-as-ellipsoidal — one undulation lower.
+          anchorHeight + anchorUndulation,
           accent,
           imageTextures,
           imagery.id,
@@ -4141,7 +4143,7 @@ const initializeScene = async (
           groups.panoramas,
           pose,
           origin,
-          anchorHeight,
+          anchorHeight + anchorUndulation,
           panoramaOutsideGeometry,
           panoramaInsideGeometry,
           panoramaDisplayFilter
