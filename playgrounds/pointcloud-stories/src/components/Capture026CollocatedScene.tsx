@@ -1026,6 +1026,17 @@ const fetchJson = async <Result,>(url: string): Promise<Result> => {
   return response.json() as Promise<Result>;
 };
 
+/**
+ * Scene manifests and the survey graph reference their sibling files with
+ * root-relative paths. Those paths mean "relative to the investigation data
+ * folder" — resolved against the page origin they only work on the dev
+ * server, so anything read from data goes through this resolver.
+ */
+const resolveInvestigationDataReference = (reference: string) =>
+  /^[a-z][a-z0-9+.-]*:/i.test(reference)
+    ? reference
+    : investigationDataUrl(reference);
+
 const resolveGeoradarMdioStoreUrl = (metadataUrl: string) => {
   const metadataFileName = new URL(metadataUrl, window.location.href).pathname
     .split("/")
@@ -3407,7 +3418,9 @@ const initializeScene = async (
     IMAGE_DISPLAY_DEFAULT_CONTRAST,
     settings.imageEdgeEnhancement
   );
-  const metadataResponse = await fetch(manifest.volume.metadataUrl);
+  const metadataResponse = await fetch(
+    resolveInvestigationDataReference(manifest.volume.metadataUrl)
+  );
   if (!metadataResponse.ok) {
     throw new Error(
       `${metadataResponse.status} ${metadataResponse.statusText}`
@@ -5146,8 +5159,12 @@ const initializeScene = async (
       const trace = radarTraceByCaptureId.get(captureId);
       if (!trace) return false;
       const [sceneManifest, volumeMetadata] = await Promise.all([
-        fetchJson<Capture026Manifest>(trace.sceneManifestUrl),
-        fetchJson<VolumeMetadata>(trace.volumeMetadataUrl),
+        fetchJson<Capture026Manifest>(
+          resolveInvestigationDataReference(trace.sceneManifestUrl)
+        ),
+        fetchJson<VolumeMetadata>(
+          resolveInvestigationDataReference(trace.volumeMetadataUrl)
+        ),
       ]);
       const variant = [
         volumeMetadata.data,
@@ -5156,7 +5173,10 @@ const initializeScene = async (
       if (!variant) return false;
       const volumeUrl = new URL(
         variant.url,
-        new URL(trace.volumeMetadataUrl, window.location.href)
+        new URL(
+          resolveInvestigationDataReference(trace.volumeMetadataUrl),
+          window.location.href
+        )
       ).href;
       return assetAvailability.isLoadable(volumeUrl);
     })().catch(() => false);
