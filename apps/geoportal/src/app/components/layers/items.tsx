@@ -9,11 +9,12 @@ import { Layer } from "@carma-mapping/layers";
 export const tabItems = (
   currentLayer: Layer,
   metadataText?: string,
-  pdfUrl?: string
+  pdfUrl?: string,
+  links?: { url: string; text: string }[]
 ) => {
   const wmsUrl = currentLayer?.other?.service?.url;
   const opendataUrl = currentLayer?.conf?.opendata;
-  const hasLinks = Boolean(wmsUrl || opendataUrl);
+  const hasLinks = Boolean(links?.length || wmsUrl || opendataUrl);
 
   const items = [
     {
@@ -36,7 +37,20 @@ export const tabItems = (
     items.push({
       label: "Links",
       key: "2",
-      children: (
+      children: links?.length ? (
+        <div className="flex flex-col gap-2">
+          {links.map((link, i) => (
+            <a
+              key={`link_${i}`}
+              className="text-sm"
+              href={link.url}
+              target="_blank"
+            >
+              {link.text}
+            </a>
+          ))}
+        </div>
+      ) : (
         <div className="flex flex-col gap-2">
           {wmsUrl && (
             <a

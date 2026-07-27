@@ -1,0 +1,19 @@
+[
+  {
+    "id": 4711,
+    "name": "Liegenschaftskarte Testzusammenstellung",
+    "config": "{\"serviceName\":\"discoverBasis\",\"type\":\"collection\",\"title\":\"Liegenschaftskarte Testzusammenstellung\",\"description\":\"Inhalt: Zusammenstellung aus Testebenen. Verwendungszweck: Nur für Tests.\",\"thumbnail\":\"https://example.test/vorschau/discover-liegenschaft.png\",\"backgroundLayer\":{\"id\":\"luftbild\",\"title\":\"Luftbildkarte\",\"opacity\":1,\"layerType\":\"wmts\",\"visible\":true,\"props\":{\"name\":\"\",\"url\":\"https://example.test/karten?\"},\"layers\":\"rvrGrundriss@100\"},\"layers\":[{\"title\":\"Wuppertaler True Orthofoto\",\"id\":\"wuppKarten:R102:trueortho2024\",\"layerType\":\"wmts\",\"opacity\":1,\"visible\":true,\"queryable\":false,\"props\":{\"url\":\"https://maps.wuppertal.de/karten?\",\"name\":\"R102:trueortho2024\"}}]}",
+    "created_at": "2025-06-30T10:00:00",
+    "created_by": "testuser",
+    "updated_at": "2025-07-01T12:00:00"
+  },
+  {
+    "id": 4712,
+    "name": "POI Testkarte (Entwurf)",
+    "draft": true,
+    "config": "{\"serviceName\":\"discoverPoi\",\"type\":\"collection\",\"title\":\"POI Testkarte (Entwurf)\",\"description\":\"Inhalt: Entwurfszusammenstellung für POI. Verwendungszweck: Nur für Tests.\",\"thumbnail\":\"https://example.test/vorschau/discover-poi.png\",\"backgroundLayer\":{\"id\":\"stadtplan\",\"title\":\"Stadtplan\",\"opacity\":1,\"layerType\":\"vector\",\"visible\":true,\"props\":{\"name\":\"\",\"url\":\"\"}},\"layers\":[]}",
+    "created_at": "2025-06-15T09:00:00",
+    "created_by": "testuser",
+    "updated_at": "2025-06-20T09:30:00"
+  }
+]

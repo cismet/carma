@@ -43,6 +43,10 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: true,
     alias: "tracking",
   },
+  featureFlagFachzwillinge: {
+    default: false,
+    alias: "fz",
+  },
 };
 
 type FeatureFlagConfigEntry = FeatureFlagConfig[string];

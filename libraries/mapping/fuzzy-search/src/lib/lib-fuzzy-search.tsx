@@ -11,6 +11,7 @@ import {
   faChevronUp,
   faDrawPolygon,
   faSpinner,
+  type IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import type { BaseSelectRef } from "rc-select";
 
@@ -30,6 +31,7 @@ import {
 import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import { SearchGazetteerProps, Option, GroupedOptions, SearchItem } from "..";
+import type { GazDataItem } from "./gazData";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
@@ -58,15 +60,50 @@ const defaultIcon = (
   />
 );
 
-type SearchMode = "gazetteer" | "parcel";
+const GAZETTEER_MODE = "gazetteer";
+const PARCEL_MODE = "parcel";
 
-const searchModeConfig: Record<
-  SearchMode,
-  { label: string; icon: typeof faLocationDot }
-> = {
-  gazetteer: { label: "Adressen und Orte", icon: faLocationDot },
-  parcel: { label: "Flurstücke", icon: faDrawPolygon },
+type SearchModeEntry = {
+  key: string;
+  label: string;
+  icon: IconDefinition;
+  svgIcon?: string;
+  iconSize?: number;
+  placeholder?: string;
+  showAllOnFocus?: boolean;
+  gazData?: GazDataItem[];
 };
+
+const builtInModes: SearchModeEntry[] = [
+  { key: GAZETTEER_MODE, label: "Adressen und Orte", icon: faLocationDot },
+  { key: PARCEL_MODE, label: "Flurstücke", icon: faDrawPolygon },
+];
+
+const SearchModeIcon = ({
+  icon,
+  svgIcon,
+  size,
+  // injected by antd when used as a dropdown menu item icon
+  className,
+}: {
+  icon: IconDefinition;
+  svgIcon?: string;
+  size: number;
+  className?: string;
+}) =>
+  svgIcon ? (
+    <span
+      className={["fuzzy-mode-svg-icon", className].filter(Boolean).join(" ")}
+      style={{ width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: svgIcon }}
+    />
+  ) : (
+    <FontAwesomeIcon
+      icon={icon}
+      className={className}
+      style={{ fontSize: `${size}px` }}
+    />
+  );
 
 export function LibFuzzySearch({
   gazData,
@@ -105,6 +142,7 @@ export function LibFuzzySearch({
 
   const {
     gazData: hookedGazData,
+    additionalModes,
     landParcelData: hookedLandParcelData,
     landParcelLoading,
     loadLandParcelData,
@@ -142,7 +180,7 @@ export function LibFuzzySearch({
   const [value, setValue] = useState("");
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
-  const [searchMode, setSearchMode] = useState<SearchMode>("gazetteer");
+  const [searchMode, setSearchMode] = useState<string>(GAZETTEER_MODE);
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
   const lastEscRef = useRef(0);
@@ -153,19 +191,38 @@ export function LibFuzzySearch({
     }
   };
 
-  const availableModes = (Object.keys(searchModeConfig) as SearchMode[]).filter(
-    (mode) => (mode === "parcel" ? landParcelSearch : true)
-  );
-
-  const searchModeMenuItems: MenuProps["items"] = availableModes.map((key) => ({
-    key,
-    label: searchModeConfig[key].label,
-    icon: (
-      <FontAwesomeIcon
-        icon={searchModeConfig[key].icon}
-        style={{ fontSize: "14px" }}
-      />
+  const searchModes: SearchModeEntry[] = [
+    ...builtInModes.filter((mode) =>
+      mode.key === PARCEL_MODE ? landParcelSearch : true
     ),
+    ...additionalModes.map((mode) => ({
+      key: mode.key,
+      label: mode.label,
+      icon: mode.icon ?? faLocationDot,
+      svgIcon: mode.svgIcon,
+      iconSize: mode.iconSize,
+      placeholder: mode.placeholder,
+      showAllOnFocus: mode.showAllOnFocus,
+      gazData: mode.gazData,
+    })),
+  ];
+  const availableModes = searchModes.map((mode) => mode.key);
+  const activeMode = searchModes.find((mode) => mode.key === searchMode);
+  const isAdditionalMode = activeMode?.gazData !== undefined;
+  const activeGazData = activeMode?.gazData ?? _gazData;
+
+  // fall back when the active additional mode is removed, e.g. on route change
+  const availableModeKeys = availableModes.join(",");
+  useEffect(() => {
+    if (!availableModeKeys.split(",").includes(searchMode)) {
+      setSearchMode(GAZETTEER_MODE);
+    }
+  }, [availableModeKeys, searchMode]);
+
+  const searchModeMenuItems: MenuProps["items"] = searchModes.map((mode) => ({
+    key: mode.key,
+    label: mode.label,
+    icon: <SearchModeIcon icon={mode.icon} svgIcon={mode.svgIcon} size={14} />,
   }));
 
   const hasMultipleModes = availableModes.length > 1;
@@ -179,8 +236,28 @@ export function LibFuzzySearch({
     },
   };
 
+  const showAllActiveModeEntries = () => {
+    const results = allGazeteerData.map((item, refIndex) => ({
+      item,
+      refIndex,
+    }));
+    if (showCategories) {
+      setSearchResult(
+        mapDataWithCategory(results, false, priorityTypes ?? null)
+      );
+      setOptions([]);
+    } else {
+      setOptions(generateOptions(results, false));
+      setSearchResult([]);
+    }
+  };
+
   const handleSearchAutoComplete = (value) => {
-    if (landParcelData && value.includes(LAND_PARCEL_SEPARATOR)) {
+    if (
+      searchMode === GAZETTEER_MODE &&
+      landParcelData &&
+      value.includes(LAND_PARCEL_SEPARATOR)
+    ) {
       const parseState = parseLandParcelInput(value, landParcelData);
       if (parseState.stage !== "none") {
         const parcelOptions = generateLandParcelOptions(
@@ -282,9 +359,9 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (_gazData) {
+    if (activeGazData) {
       const allModifiedData = prepareGazData(
-        _gazData,
+        activeGazData,
         prepoHandling,
         typeInference
       );
@@ -310,10 +387,10 @@ export function LibFuzzySearch({
       });
       setAllGazeteerData([...allModifiedData, ...modifyAdressen]);
     }
-  }, [_gazData, prepoHandling]);
+  }, [activeGazData, prepoHandling]);
 
   useEffect(() => {
-    if (!fuseInstance && allGazeteerData.length > 0) {
+    if (allGazeteerData.length > 0) {
       const fuseAddressesOptions = {
         distance,
         threshold,
@@ -326,8 +403,10 @@ export function LibFuzzySearch({
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
 
       setFuseInstance(fuse);
+    } else {
+      setFuseInstance(null);
     }
-  }, [allGazeteerData, fuseInstance]);
+  }, [allGazeteerData, distance, threshold]);
 
   useEffect(() => {
     if (dropdownContainerRef.current) {
@@ -472,7 +551,7 @@ export function LibFuzzySearch({
             const nextMode =
               availableModes[(currentIndex + 1) % availableModes.length];
             setSearchMode(nextMode);
-            if (nextMode === "parcel") {
+            if (nextMode === PARCEL_MODE) {
               triggerLandParcelPreload();
             }
             setValue("");
@@ -489,7 +568,7 @@ export function LibFuzzySearch({
             items: searchModeMenuItems,
             selectedKeys: [searchMode],
             onClick: ({ key }) => {
-              setSearchMode(key as SearchMode);
+              setSearchMode(key);
               setValue("");
               setSearchResult([]);
               setOptions([]);
@@ -504,7 +583,7 @@ export function LibFuzzySearch({
           <Button
             ref={btnClosRef}
             icon={
-              landParcelLoading && searchMode === "parcel" ? (
+              landParcelLoading && searchMode === PARCEL_MODE ? (
                 <FontAwesomeIcon
                   icon={faSpinner}
                   spin
@@ -512,9 +591,10 @@ export function LibFuzzySearch({
                 />
               ) : cleanBtnDisable ? (
                 <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <FontAwesomeIcon
-                    icon={searchModeConfig[searchMode].icon}
-                    style={{ fontSize: "16px" }}
+                  <SearchModeIcon
+                    icon={activeMode?.icon ?? faLocationDot}
+                    svgIcon={activeMode?.svgIcon}
+                    size={activeMode?.iconSize ?? 16}
                   />
                   <FontAwesomeIcon
                     icon={modeDropdownOpen ? faChevronDown : faChevronUp}
@@ -560,7 +640,12 @@ export function LibFuzzySearch({
         {(() => {
           // Colored Overlay
           const sepIdx = value.lastIndexOf(LAND_PARCEL_SEPARATOR);
-          if (landParcelData && sepIdx > 0 && cleanBtnDisable) {
+          if (
+            !isAdditionalMode &&
+            landParcelData &&
+            sepIdx > 0 &&
+            cleanBtnDisable
+          ) {
             const prefix = value.substring(0, sepIdx + 1);
             const active = value.substring(sepIdx + 1);
             return (
@@ -582,7 +667,7 @@ export function LibFuzzySearch({
           }
           style={{ width: "100%", borderTopLeftRadius: 0 }}
           onSearch={(value) => {
-            if (searchMode === "parcel" && landParcelData) {
+            if (searchMode === PARCEL_MODE && landParcelData) {
               if (value.includes(LAND_PARCEL_SEPARATOR)) {
                 const directMatch = tryDirectLandParcelMatch(
                   value,
@@ -654,13 +739,17 @@ export function LibFuzzySearch({
             setValue(value);
 
             if (value === "") {
-              setSearchResult([]);
+              if (isAdditionalMode && activeMode?.showAllOnFocus) {
+                showAllActiveModeEntries();
+              } else {
+                setSearchResult([]);
+              }
             }
           }}
           placeholder={
-            searchMode === "parcel" && landParcelSearch
+            searchMode === PARCEL_MODE && landParcelSearch
               ? `Gemarkung${LAND_PARCEL_SEPARATOR}Flur${LAND_PARCEL_SEPARATOR}Flurstück`
-              : placeholder
+              : activeMode?.placeholder ?? placeholder
           }
           value={value}
           open={autoCompleteOpen}
@@ -669,7 +758,7 @@ export function LibFuzzySearch({
             if (
               visible &&
               value === "" &&
-              searchMode === "parcel" &&
+              searchMode === PARCEL_MODE &&
               landParcelData
             ) {
               const gemarkungOpts = generateGemarkungOptions(
@@ -678,11 +767,19 @@ export function LibFuzzySearch({
               );
               setSearchResult(gemarkungOpts);
               setOptions([]);
+            } else if (
+              visible &&
+              value === "" &&
+              isAdditionalMode &&
+              activeMode?.showAllOnFocus
+            ) {
+              showAllActiveModeEntries();
             }
           }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           className={
+            !isAdditionalMode &&
             value.includes(LAND_PARCEL_SEPARATOR) &&
             landParcelData &&
             cleanBtnDisable

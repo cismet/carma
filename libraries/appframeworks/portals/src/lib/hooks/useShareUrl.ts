@@ -57,6 +57,8 @@ export const useShareUrl = () => {
       };
       const jsonString = JSON.stringify(newConfig);
       const baseUrl = window.location.origin + window.location.pathname;
+      const hashRoute =
+        window.location.hash.split("?")[0].replace(/^#/, "") || "/";
       const combinedHash = encodeHashParams(
         normalizeShareHashParams(Object.fromEntries(newSearchParams))
       );
@@ -71,7 +73,7 @@ export const useShareUrl = () => {
       const data = await response.json();
       const key = data.key;
       const prefixedHash = combinedHash.length > 0 ? `${combinedHash}&` : "";
-      const url = `${baseUrl}#/?${prefixedHash}config=${key}&appKey=sharedurl`;
+      const url = `${baseUrl}#${hashRoute}?${prefixedHash}config=${key}&appKey=sharedurl`;
       copyToClipboard(url);
       messageApi.open({
         type: "success",

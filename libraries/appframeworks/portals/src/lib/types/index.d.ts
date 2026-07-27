@@ -2,6 +2,7 @@ import type { CismapLayerProps } from "../contracts/cismap-layer-props.d";
 import type {
   BackgroundLayer,
   Layer,
+  LayerStackEntry,
   SavedLayerConfig,
 } from "@carma-mapping/layers";
 import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
@@ -12,7 +13,7 @@ export type GeoportalCollection = {
   title: string;
   description: string;
   type: "collection";
-  layers: Layer[];
+  layers: LayerStackEntry[];
   backgroundLayer: BackgroundLayer;
   thumbnail: any;
   id: string;
@@ -109,7 +110,7 @@ export type Settings = {
 // Store Mapping Slice
 
 export interface LayerState {
-  layers: Layer[];
+  layers: LayerStackEntry[];
   selectedLayerIndex: SELECTED_LAYER_INDEX | number;
   selectedMapLayer: BackgroundLayer;
   selectedLuftbildLayer: BackgroundLayer;

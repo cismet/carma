@@ -20,7 +20,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import type { Item, Layer } from "@carma-mapping/layers";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { cn, carmaWindow } from "@carma-commons/utils";
-import { LayerLib } from "@carma-mapping/layers";
+import { LayerCatalog } from "@carma-mapping/layers";
 
 import { getThumbnails, setThumbnail } from "../store/slices/layers";
 import {
@@ -219,24 +219,23 @@ const TopNavbar = () => {
   return (
     <div className="h-16 w-full flex items-center relative justify-between py-2 px-[12px]">
       {contextHolder}
-      <LayerLib
+      <LayerCatalog
         open={isModalOpen}
         setOpen={setIsModalOpen}
         setAdditionalLayers={updateLayers}
-        setThumbnail={(thumbnail) => {
-          dispatch(setThumbnail(thumbnail));
-        }}
-        thumbnails={thumbnails}
         activeLayers={[backgroundLayer, ...activeLayers]}
         customCategories={[
           {
-            Title: "Meine Zusammenstellungen",
-            // @ts-expect-error
-            layers: savedLayerConfigs,
+            id: "collections",
+            label: "Meine Zusammenstellungen",
+            keepItemServiceName: true,
+            // the playground's SavedLayerConfig is a reduced local type
+            source: {
+              kind: "items",
+              items: savedLayerConfigs as unknown as Item[],
+            },
           },
         ]}
-        addFavorite={() => {}}
-        removeFavorite={() => {}}
         updateActiveLayer={() => {}}
       />
 

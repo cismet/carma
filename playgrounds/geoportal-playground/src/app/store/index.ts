@@ -7,12 +7,6 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 import { APP_KEY, STORAGE_PREFIX } from "../helper/constants";
-import {
-  getMapLayersConfig,
-  getUIConfig as getMapLayersUIConfig,
-  mapLayersReducer,
-  mapLayersUIReducer,
-} from "@carma-mapping/layers";
 
 console.log("store initializing ....");
 
@@ -94,24 +88,12 @@ const measurementsConfig = {
   whitelist: ["shapes"],
 };
 
-const mapLayersConfig = getMapLayersConfig({
-  appKey: customAppKey || APP_KEY,
-  storagePrefix: STORAGE_PREFIX,
-});
-
-const mapLayersUIConfig = getMapLayersUIConfig({
-  appKey: customAppKey || APP_KEY,
-  storagePrefix: STORAGE_PREFIX,
-});
-
 const store = configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingSlice.reducer),
     ui: persistReducer(uiConfig, uiSlice.reducer),
     layers: persistReducer(layersConfig, layersSlice.reducer),
     measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
-    mapLayers: persistReducer(mapLayersConfig, mapLayersReducer),
-    mapLayersUI: persistReducer(mapLayersUIConfig, mapLayersUIReducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

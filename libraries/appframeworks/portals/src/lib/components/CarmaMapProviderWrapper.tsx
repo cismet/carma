@@ -29,24 +29,14 @@ import {
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 
 import type { Store } from "redux";
-import type { Layer } from "@carma-mapping/layers";
+import { useCatalogDataOptional, type Layer } from "@carma-mapping/layers";
 
 import { CarmaApiBridge } from "./carma-api-bridge";
+import { findCatalogItemById } from "./carma-api-bridge/useMappingAdapter";
 
 // Selector factories for the legacy carma-map-api layer state operations.
 // Kept local to this (deprecated) provider; the carma-api bridge owns its own.
 const createLayerSelectors = {
-  getLayerById: (id: string) => (state: PortalRootState) => {
-    const allLayers = state?.mapLayers?.allLayers ?? [];
-    for (const category of allLayers) {
-      const found = category.layers?.find(
-        (layer: { id: string }) => layer.id === id
-      );
-      if (found) return found;
-    }
-    return undefined;
-  },
-
   hasLayerById: (id: string) => (state: PortalRootState) =>
     state?.mapping?.layers?.some((layer: { id: string }) => layer.id === id) ??
     false,
@@ -54,11 +44,6 @@ const createLayerSelectors = {
 
 // Type for the portal Redux state shape (extends APIRootState for compatibility)
 interface PortalRootState {
-  mapLayers?: {
-    allLayers?: Array<{
-      layers?: Array<{ id: string; [key: string]: unknown }>;
-    }>;
-  };
   mapping?: {
     layers?: Array<{ id: string }>;
   };
@@ -122,35 +107,38 @@ const CarmaMapAPIWithRedux = ({
   children: React.ReactNode;
   store: Store<PortalRootState>;
 }) => {
-  // Create Redux-backed addLayerById implementation
+  const serviceCategories = useCatalogDataOptional()?.serviceCategories;
+
+  // addLayerById resolves the id in the LayerCatalogProvider catalog and
+  // appends the parsed layer to the redux active-layer state
   const addLayerById = useCallback(
     async (
       id: string,
       options?: AddLayerOptions
     ): Promise<Layer | undefined> => {
       const { forceWMS = false, visible = true } = options ?? {};
-      const state = store.getState();
 
-      const layer = createLayerSelectors.getLayerById(id)(state);
-      if (!layer) {
+      const item = findCatalogItemById(serviceCategories ?? [], id);
+      if (!item) {
         console.warn(`Layer with id "${id}" not found`);
         return undefined;
       }
 
-      const isAlreadyAdded = createLayerSelectors.hasLayerById(id)(state);
+      const isAlreadyAdded = createLayerSelectors.hasLayerById(id)(
+        store.getState()
+      );
       if (isAlreadyAdded) {
         console.warn(`Layer with id "${id}" is already added to the map`);
         return undefined;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mapLayer = await parseToMapLayer(layer as any, forceWMS, visible);
+      const mapLayer = await parseToMapLayer(item, forceWMS, visible);
 
       store.dispatch({ type: "mapping/appendLayer", payload: mapLayer });
 
       return mapLayer;
     },
-    [store]
+    [store, serviceCategories]
   );
 
   // Create stable useHasLayerById hook using the factory

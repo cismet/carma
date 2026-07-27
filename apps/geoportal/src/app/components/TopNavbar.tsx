@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Link, useLocation } from "react-router-dom";
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
 import {
   faBars,
@@ -39,8 +40,9 @@ import {
   getSelectedMapLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
-import { getZenMode } from "../store/slices/ui";
+import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
 
+import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
@@ -58,6 +60,8 @@ const TopNavbar = () => {
   const { showOverlayHandler } = useOverlayTourContext();
   const { isObliqueMode, setObliqueMode } = useOblique();
   const { currentStyle, setCurrentStyle } = useMapStyle();
+  const { pathname, search } = useLocation();
+  const fachzwilling = findFachzwillingByPathname(pathname);
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -70,6 +74,8 @@ const TopNavbar = () => {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
+  const visibleControls = useSelector(getUIVisibleControls);
+  const navbarHidden = zenMode || !visibleControls.navbar;
 
   const hintergrundConfig = useMemo(
     () => getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
@@ -161,12 +167,12 @@ const TopNavbar = () => {
 
   const mainStyle = useMemo((): CSSProperties => {
     return {
-      visibility: zenMode ? "hidden" : undefined,
-      display: zenMode ? "none" : "flex",
+      visibility: navbarHidden ? "hidden" : undefined,
+      display: navbarHidden ? "none" : "flex",
       zIndex: 10000,
       top: "var(--system-message-banner-height, 0px)",
     };
-  }, [zenMode]);
+  }, [navbarHidden]);
 
   const bannerStyle = useMemo((): CSSProperties => {
     return {
@@ -202,7 +208,21 @@ const TopNavbar = () => {
             mobileMenuOpen ? "sm:block hidden" : ""
           }`}
         >
-          DigiTal Zwilling / Geoportal
+          {fachzwilling ? (
+            <>
+              <Link
+                // keep the hash query so the map position survives
+                to={{ pathname: "/", search }}
+                title="zurück zum Geoportal"
+                className="text-inherit hover:text-gray-500 hover:no-underline"
+              >
+                DigiTal Zwilling
+              </Link>
+              {` / ${fachzwilling.title}`}
+            </>
+          ) : (
+            "DigiTal Zwilling / Geoportal"
+          )}
         </p>
 
         <button

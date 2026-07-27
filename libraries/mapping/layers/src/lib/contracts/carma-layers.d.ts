@@ -86,12 +86,34 @@ export const FILTER_TYPES = {
 } as const;
 export type FilterType = (typeof FILTER_TYPES)[keyof typeof FILTER_TYPES];
 
+export const GROUP_TOOL_TYPES = {
+  LAYER_VISIBILITY: "layerVisibility",
+} as const;
+export type GroupToolType =
+  (typeof GROUP_TOOL_TYPES)[keyof typeof GROUP_TOOL_TYPES];
+
+export type LayerVisibilityToolConfig = {
+  labels?: { hide: string; show: string };
+};
+
+export type GroupToolConfigMap = {
+  [GROUP_TOOL_TYPES.LAYER_VISIBILITY]: LayerVisibilityToolConfig;
+};
+
+export type GroupToolDefinition = {
+  [K in GroupToolType]: { type: K; config?: GroupToolConfigMap[K] };
+}[GroupToolType];
+
+export type GroupToolEntry = GroupToolType | GroupToolDefinition;
+
 export const LAYER_ENTITY_TYPES = {
   LAYER: "layer",
   OBJECT: "object",
   LINK: "link",
   FEATURE: "feature",
   COLLECTION: "collection",
+  WORKFLOW: "workflow",
+  GROUP: "group",
 } as const;
 export type LayerEntityType =
   (typeof LAYER_ENTITY_TYPES)[keyof typeof LAYER_ENTITY_TYPES];
@@ -173,6 +195,12 @@ type BaseLayer = {
   conf?: CarmaConfig;
   icon?: string;
   pinned?: "first" | "last";
+  group?: {
+    id: string;
+    title: string;
+    thumbnail?: string;
+    icon?: string;
+  };
   skipSelection?: boolean;
   interactionButtons?: InteractionButton | InteractionButton[];
   other?: OtherLayerProps;
@@ -211,6 +239,28 @@ export type Layer = BaseLayer & {
   props?: LayerProps | VectorStyleProps;
 };
 
+export type LayerGroupInfo = {
+  legend?: string[];
+  metaDataText?: string;
+  links?: { url: string; text: string }[];
+};
+
+export type LayerGroup = {
+  type: typeof LAYER_ENTITY_TYPES.GROUP;
+  id: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  thumbnail?: string;
+  visible: boolean;
+  opacity?: number;
+  groupInfo?: LayerGroupInfo;
+  tools?: GroupToolEntry[];
+  layers: Layer[];
+};
+
+export type LayerStackEntry = Layer | LayerGroup;
+
 type Link = {
   type: typeof LAYER_ENTITY_TYPES.LINK;
   url: string;
@@ -218,7 +268,7 @@ type Link = {
 
 type Collection = {
   type: typeof LAYER_ENTITY_TYPES.COLLECTION;
-  layers: Array<Layer | BackgroundLayer>;
+  layers: Array<LayerStackEntry | BackgroundLayer>;
   backgroundLayer?: BackgroundLayer;
   settings?: {
     lat?: number;
@@ -229,13 +279,20 @@ type Collection = {
   };
 };
 
+// A workflow catalog entry: a thematic "Perspektive" step shown as an inert
+// card (title/description/thumbnail). It carries no own action yet, so it
+// only extends the shared base Item fields.
+type Workflow = {
+  type: typeof LAYER_ENTITY_TYPES.WORKFLOW;
+};
+
 export type SavedLayerConfig = {
   title: string;
   description: string;
   type: string;
   id: string;
   thumbnail?: string;
-  layers?: Array<Layer | BackgroundLayer>;
+  layers?: Array<LayerStackEntry | BackgroundLayer>;
   serviceName: string;
 };
 
@@ -296,6 +353,20 @@ export type Config = {
   layers: Item[];
 };
 
+export type ExtendedItem = Item & { replaceId?: string; mergeId?: string };
+
+/** the map's current layer stack: background layer first, overlays after it */
+export type ActiveLayers = [BackgroundLayer, ...Layer[]];
+
+/** host callback that applies, removes or updates a catalog item on the map */
+export type SetAdditionalLayers = (
+  layer: Item,
+  deleteItem?: boolean,
+  forceWMS?: boolean,
+  previewLayer?: boolean,
+  updateExisting?: boolean
+) => void | Promise<void>;
+
 export type Item = {
   title: string;
   description: string;
@@ -329,7 +400,11 @@ export type Item = {
   createdBy?: string;
   updatedAt?: string;
   mapMode?: "2d" | "3d";
-} & (TmpLayer | Link | Feature | Collection);
+  workflowLayers?: string[];
+  workflowLayerItems?: Item[];
+  groupInfo?: LayerGroupInfo;
+  tools?: GroupToolEntry[];
+} & (TmpLayer | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {
   0: number;

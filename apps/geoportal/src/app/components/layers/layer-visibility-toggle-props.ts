@@ -1,4 +1,9 @@
-import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import { isLayerGroup } from "@carma-mapping/layers";
+import type {
+  BackgroundLayer,
+  Layer,
+  LayerStackEntry,
+} from "@carma-mapping/layers";
 import type { FeatureInfo } from "@carma-mapping/utils";
 
 import { layerUsesRuntimeAnnotationVisibility } from "../../helper/annotation-info-box";
@@ -49,9 +54,12 @@ const createRuntimeAnnotationVisibilityHandler =
     onChangeLayerVisibility(layerId, visible);
 
 export const layerSupportsCesiumVisibilityToggle = (
-  layer: BackgroundLayer | Layer
+  layer: BackgroundLayer | LayerStackEntry
 ): boolean =>
-  layerUsesRuntimeAnnotationVisibility(layer) || layer.type === "object";
+  // a group can be toggled in 3D as soon as one of its members can
+  isLayerGroup(layer)
+    ? layer.layers.some(layerSupportsCesiumVisibilityToggle)
+    : layerUsesRuntimeAnnotationVisibility(layer) || layer.type === "object";
 
 export const getLayerVisibilityToggleProps = ({
   isCesium,
@@ -61,7 +69,7 @@ export const getLayerVisibilityToggleProps = ({
 }: {
   isCesium: boolean;
   labels?: LayerVisibilityToggleLabels;
-  layer?: BackgroundLayer | Layer;
+  layer?: BackgroundLayer | LayerStackEntry;
   onChangeLayerVisibility: ChangeLayerVisibility;
 }): LayerVisibilityToggleProps => {
   if (!isCesium) {

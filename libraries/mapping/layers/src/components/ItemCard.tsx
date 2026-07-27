@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
 import {
   faChevronDown,
   faChevronUp,
   faCircleMinus,
   faCirclePlus,
+  faDiagramProject,
   faExternalLinkAlt,
   faMinus,
   faPlus,
@@ -15,117 +16,170 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, message, Spin } from "antd";
 
-import { Item, SavedLayerConfig } from "@carma-mapping/layers";
+import type { Item } from "../lib/contracts/carma-layers.d";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { DeleteConfirmationModal } from "@carma-commons/ui/components";
-import {
-  cn,
-  extractCarmaConfig,
-  resolveLayerTitle,
-  updateUrl,
-} from "@carma-commons/utils";
+import { extractCarmaConfig, resolveLayerTitle } from "@carma-commons/utils";
 import {
   extServiceText,
   extServiceBackgroundImage,
 } from "@carma-collab/wuppertal/geoportal";
+import { useAuth } from "@carma-providers/auth";
 
 import InfoCard from "./InfoCard";
-import { useAuth } from "@carma-providers/auth";
-import { useDispatch, useSelector } from "react-redux";
-import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
-import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
-import type { ActiveLayers } from "./NewLibModal";
 import ThumbnailDisplay from "./ThumbnailDisplay";
+import {
+  useCatalogSelectionActions,
+  useDiscoverRefetch,
+} from "../context/LayerCatalogProvider";
+import { useCatalogInteraction } from "../context/CatalogInteractionContext";
+import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
+import { deleteDiscoverItem } from "../helper/discover";
+import {
+  isExternalUrl,
+  navigateToInternalHashLink,
+} from "../helper/layerHelper";
 
 // Kept as local literals to avoid a circular dependency on
 // @carma-appframeworks/portals (which already depends on this lib).
 const MAP_MODE_2D = "2d";
 const MAP_MODE_3D = "3d";
 
-interface LayerItemProps {
-  setAdditionalLayers: any;
+interface ItemCardProps {
   layer: Item;
-  activeLayers: ActiveLayers;
-  favorites?: Array<Item | SavedLayerConfig>;
-  addFavorite: (layer: Item) => void;
-  removeFavorite: (layer: Item) => void;
-  setPreview: (preview: boolean) => void;
-  showWithoutThumbnail?: boolean;
-  loadingData: boolean;
-  discoverProps?: {
-    appKey: string;
-    apiUrl: string;
-    daqKey: string;
-  };
+  /** whether this card's info card is open below it */
+  isSelected: boolean;
 }
 
-const LayerItem = ({
-  setAdditionalLayers,
-  layer,
-  activeLayers,
-  favorites,
-  addFavorite,
-  removeFavorite,
-  setPreview,
-  showWithoutThumbnail,
-  loadingData,
-  discoverProps,
-}: LayerItemProps) => {
-  const dispatch = useDispatch();
-  const selectedLayer = useSelector(getSelectedLayer);
+const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
+  const {
+    setAdditionalLayers,
+    activeLayers,
+    favorites,
+    addFavorite,
+    removeFavorite,
+    setPreview,
+    resolveWorkflowLayers,
+  } = useCatalogInteraction();
+  const { selectItem } = useCatalogSelectionActions();
+  const { requestDiscoverRefetch } = useDiscoverRefetch();
   const { isCesium, requestTransitionToCesium, requestTransitionToLeaflet } =
     useMapFrameworkSwitcherContext();
   const [messageApi, contextHolder] = message.useMessage();
+  const { discoverProps } = useLayerCatalogConfig();
   const [hovered, setHovered] = useState(false);
-  const [isActiveLayer, setIsActiveLayer] = useState(false);
-  const isFavorite = favorites
-    ? favorites.some(
-        (favorite) =>
-          favorite.id === `fav_${layer.id}` || favorite.id === layer.id
-      )
-    : false;
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [links, setLinks] = useState<
-    {
-      url: string;
-      text: string;
-    }[]
-  >([]);
-  const [forceWMS, setForceWMS] = useState(false);
-  const showInfo = selectedLayer?.id === layer.id;
+  const isWorkflow = layer.type === "workflow";
+  const isLayerGroupWorkflow = isWorkflow && !!layer.workflowLayers?.length;
+  // link/workflow items without thumbnail render a static placeholder, nothing loads
+  const [isLoading, setIsLoading] = useState(
+    layer.type !== "collection" &&
+      !((layer.type === "link" || isWorkflow) && !layer.thumbnail)
+  );
+
+  const { jwt } = useAuth();
+
+  const isFavorite = favorites.some(
+    (favorite) => favorite.id === `fav_${layer.id}` || favorite.id === layer.id
+  );
+  const catalogLayerId = layer.id.startsWith("fav_")
+    ? layer.id.slice(4)
+    : layer.id;
+  const matchingActiveLayers = activeLayers.filter(
+    (activeLayer) => activeLayer.id === catalogLayerId
+  );
+  // on the map, but only as a member of a group entry, never standalone;
+  // such cards must not offer add/remove, the group card owns removal
+  const activeGroup =
+    matchingActiveLayers.length > 0 &&
+    matchingActiveLayers.every((activeLayer) => activeLayer.group)
+      ? matchingActiveLayers[0].group
+      : undefined;
+  const isActiveLayer =
+    matchingActiveLayers.length > 0 ||
+    (isLayerGroupWorkflow &&
+      activeLayers.some((activeLayer) => activeLayer.group?.id === layer.id));
   const canShowInfo =
     layer.type === "layer" ||
     layer.type === "object" ||
     (layer.type === "link" && layer.description) ||
-    (layer.type === "collection" && layer.description);
+    (layer.type === "collection" && layer.description) ||
+    (isWorkflow && !!layer.description);
   const canFavoriteItem =
-    layer.type !== "collection" ||
-    (layer.type === "collection" && layer.serviceName.includes("discover"));
-  const carmaConf = extractCarmaConfig(layer.keywords);
+    !isWorkflow &&
+    (layer.type !== "collection" ||
+      (layer.type === "collection" && layer.serviceName.includes("discover")));
+  const carmaConf = useMemo(
+    () => extractCarmaConfig(layer.keywords),
+    [layer.keywords]
+  );
   const title = resolveLayerTitle(layer);
+  const isExternalLink = layer.type === "link" && isExternalUrl(layer.url);
+  // internal links keep the current hash query (map position etc.)
+  const handleInternalLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement, MouseEvent>
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (layer.type === "link") {
+      navigateToInternalHashLink(layer.url);
+    }
+  };
 
-  const [isLoading, setIsLoading] = useState(layer.type !== "collection");
-
-  const { jwt } = useAuth();
+  const links = useMemo(() => {
+    const result: { url: string; text: string }[] = [];
+    if (layer.service?.url) {
+      result.push({
+        url:
+          layer.service.url +
+          "?service=WMS&request=GetCapabilities&version=1.1.1",
+        text: "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
+      });
+    }
+    if (carmaConf?.opendata) {
+      result.push({
+        url: carmaConf.opendata as string,
+        text:
+          layer.type === "link"
+            ? "Beschreibung im Open-Data-Portal"
+            : "Datenquelle im Open-Data-Portal Wuppertal",
+      });
+    }
+    return result;
+  }, [layer, carmaConf]);
 
   const layerMapMode = layer?.mapMode;
   const currentMapMode = isCesium ? MAP_MODE_3D : MAP_MODE_2D;
   const hasMapModeMismatch =
     layerMapMode !== undefined && layerMapMode !== currentMapMode;
 
-  const addLayer = (preview: boolean) => {
-    setAdditionalLayers(layer, false, forceWMS, preview);
-  };
-
   const handleLayerClick = (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview: boolean = false
   ) => {
     e.stopPropagation();
+    // group members offer no add/remove; only the group entry is removable
+    if (activeGroup) {
+      return;
+    }
+    // holding alt forces the WMS variant of a vector layer
+    const forceWMS = e.altKey;
+    const addLayer = () => {
+      const itemToAdd =
+        isLayerGroupWorkflow && resolveWorkflowLayers
+          ? {
+              ...layer,
+              workflowLayerItems: resolveWorkflowLayers(
+                layer.workflowLayers ?? []
+              ),
+            }
+          : layer;
+      setAdditionalLayers(itemToAdd, false, forceWMS, preview);
+    };
 
     if (!hasMapModeMismatch || isActiveLayer) {
-      addLayer(preview);
+      addLayer();
       return;
     }
 
@@ -148,7 +202,7 @@ const LayerItem = ({
               } else {
                 await requestTransitionToLeaflet();
               }
-              addLayer(preview);
+              addLayer();
             }}
           >
             zur {targetModeLabel}-Ansicht wechseln und hinzufügen
@@ -158,98 +212,17 @@ const LayerItem = ({
     });
   };
 
-  useEffect(() => {
-    let setActive = false;
-    if (
-      activeLayers.find(
-        (activeLayer) =>
-          activeLayer.id ===
-          (layer?.id?.startsWith("fav_") ? layer.id.slice(4) : layer.id)
-      )
-    ) {
-      setActive = true;
+  const handleDeleteDiscoverItem = async () => {
+    if (!discoverProps) {
+      return;
     }
-    setIsActiveLayer(setActive);
-  }, [activeLayers]);
-
-  useEffect(() => {
-    const tmpLinks: { url: string; text: string }[] = [];
-
-    if (layer.service?.url) {
-      tmpLinks.push({
-        url:
-          layer.service.url +
-          "?service=WMS&request=GetCapabilities&version=1.1.1",
-        text: "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
-      });
-    }
-
-    if (carmaConf?.opendata) {
-      tmpLinks.push({
-        url: carmaConf.opendata as string,
-        text:
-          layer.type === "link"
-            ? "Beschreibung im Open-Data-Portal"
-            : "Datenquelle im Open-Data-Portal Wuppertal",
-      });
-    }
-
-    setLinks(tmpLinks);
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey) {
-        setForceWMS(true);
-      }
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      setForceWMS(false);
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-
-      document.removeEventListener("keyup", onKeyUp);
-    };
-  }, []);
-
-  const deleteDiscoverItem = async () => {
-    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
-    const taskParameters = {
-      parameters: {
-        className: discoverProps?.daqKey || "gp_entdecken",
-        data: JSON.stringify({
-          id: layer.id,
-        }),
-      },
-    };
-
-    const fd = new FormData();
-    fd.append(
-      "taskparams",
-      new Blob([JSON.stringify(taskParameters)], {
-        type: "application/json",
-      })
-    );
-
-    const response = await fetch(
-      apiUrl +
-        "/actions/WUNDA_BLAU.DeleteObject/tasks?resultingInstanceType=result",
-      {
-        method: "POST",
-        // method: "GET",
-        headers: {
-          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
-          // Accept: "application/json",
-        },
-        body: fd,
-      }
-    );
-    if (response.status === 200) {
-      dispatch(setTriggerRefetch(true));
+    const deleted = await deleteDiscoverItem({
+      discoverProps,
+      jwt: jwt || undefined,
+      id: layer.id,
+    });
+    if (deleted) {
+      requestDiscoverRefetch();
     }
   };
 
@@ -257,13 +230,13 @@ const LayerItem = ({
     <>
       <div
         className={`flex flex-col cursor-pointer rounded-lg w-full shadow-sm h-fit hover:!shadow-lg ${
-          showInfo ? "bg-blue-50" : "bg-white"
+          isSelected ? "bg-blue-50" : "bg-white"
         }`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
           if (canShowInfo) {
-            dispatch(setSelectedLayer(showInfo ? null : layer));
+            selectItem(isSelected ? null : layer);
           }
         }}
         data-test-id="card-layer-prev"
@@ -274,19 +247,18 @@ const LayerItem = ({
               Entwurf
             </div>
           )}
-          {isLoading && !showWithoutThumbnail && (
+          {isLoading && (
             <div style={{ position: "absolute", left: "50%" }}>
               <Spin />
             </div>
           )}
 
-          {showWithoutThumbnail ||
-          (layer.id.includes("custom") && !layer.thumbnail) ? (
+          {layer.id.includes("custom") && !layer.thumbnail ? (
             <div style={{ height: "100%", width: "100%" }}>
               <ThumbnailDisplay
                 url={extServiceBackgroundImage}
                 hovered={hovered}
-                onLoad={(e) => {
+                onLoad={() => {
                   setIsLoading(false);
                 }}
                 loading="lazy"
@@ -297,12 +269,19 @@ const LayerItem = ({
                 </span>
               </div>
             </div>
+          ) : (layer.type === "link" || isWorkflow) && !layer.thumbnail ? (
+            <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+              <FontAwesomeIcon
+                icon={isWorkflow ? faDiagramProject : faSquareUpRight}
+                className="text-5xl text-gray-400"
+              />
+            </div>
           ) : layer.type !== "collection" || layer.thumbnail ? (
             <ThumbnailDisplay
               url={layer.thumbnail}
               updateUrl
               hovered={hovered}
-              onLoad={(e) => {
+              onLoad={() => {
                 setIsLoading(false);
               }}
               loading="lazy"
@@ -320,9 +299,7 @@ const LayerItem = ({
                 icon={faStar}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (removeFavorite) {
-                    removeFavorite(layer);
-                  }
+                  removeFavorite(layer);
                 }}
                 data-test-id="remove-layer-favorite"
               />
@@ -332,21 +309,23 @@ const LayerItem = ({
                 icon={regularFaStar}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (addFavorite) {
-                    addFavorite(layer);
-                  }
+                  addFavorite(layer);
                 }}
                 data-test-id="add-layer-favorite"
               />
             )
           ) : null}
-          {layer.type === "link" ? (
+          {isWorkflow && !isLayerGroupWorkflow ? null : layer.type ===
+            "link" ? (
             <a
               className="absolute left-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
               href={layer.url}
-              target="_blank"
+              target={isExternalLink ? "_blank" : undefined}
+              onClick={isExternalLink ? undefined : handleInternalLinkClick}
             >
-              <FontAwesomeIcon icon={faExternalLinkAlt} />
+              <FontAwesomeIcon
+                icon={isExternalLink ? faExternalLinkAlt : faSquareUpRight}
+              />
             </a>
           ) : layer.type === "collection" ? (
             <>
@@ -367,7 +346,7 @@ const LayerItem = ({
                 />
               )}
             </>
-          ) : (
+          ) : activeGroup ? null : (
             <button
               onClick={handleLayerClick}
               className="absolute left-1 top-1 z-50"
@@ -379,17 +358,20 @@ const LayerItem = ({
               />
             </button>
           )}
-          {hovered && (
+          {hovered && (!isWorkflow || isLayerGroupWorkflow) && (
             <div className="flex flex-col items-center gap-2 absolute top-0 w-full h-full justify-center p-8 px-10">
               {layer.type === "link" ? (
                 <a
                   className="w-36 bg-gray-100 hover:no-underline text-black hover:text-neutral-600 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
                   href={layer.url}
-                  target="_blank"
+                  target={isExternalLink ? "_blank" : undefined}
+                  onClick={isExternalLink ? undefined : handleInternalLinkClick}
                 >
                   <>
                     <FontAwesomeIcon
-                      icon={faExternalLinkAlt}
+                      icon={
+                        isExternalLink ? faExternalLinkAlt : faSquareUpRight
+                      }
                       className="text-lg mr-2"
                     />
                     Öffnen
@@ -423,7 +405,7 @@ const LayerItem = ({
                     </button>
                   )}
                 </>
-              ) : (
+              ) : activeGroup ? null : (
                 <button
                   className="w-36 bg-gray-100 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
                   onClick={handleLayerClick}
@@ -461,9 +443,7 @@ const LayerItem = ({
           </div>
           {canShowInfo && (
             <FontAwesomeIcon
-              icon={
-                selectedLayer?.id === layer.id ? faChevronUp : faChevronDown
-              }
+              icon={isSelected ? faChevronUp : faChevronDown}
               className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
             />
           )}
@@ -481,7 +461,7 @@ const LayerItem = ({
           onConfirm={() => {
             setOpenDeleteModal(false);
             if (layer.serviceName.includes("discover")) {
-              deleteDiscoverItem();
+              handleDeleteDiscoverItem();
             } else {
               setAdditionalLayers(layer, true);
             }
@@ -491,30 +471,28 @@ const LayerItem = ({
         </DeleteConfirmationModal>
       </div>
       {contextHolder}
-      {showInfo && (
+      {isSelected && (
         <InfoCard
           isFavorite={isFavorite}
           isActiveLayer={isActiveLayer}
-          activeLayers={activeLayers}
-          handleAddClick={handleLayerClick}
-          handleFavoriteClick={() => {
+          activeGroupTitle={activeGroup?.title}
+          onAddClick={handleLayerClick}
+          onFavoriteClick={() => {
             if (isFavorite) {
               removeFavorite(layer);
             } else {
               addFavorite(layer);
             }
           }}
-          setPreview={setPreview}
           links={links}
-          deleteCollection={() => {
+          onDeleteCollection={() => {
             setOpenDeleteModal(true);
           }}
-          loadingData={loadingData}
-          discoverProps={discoverProps}
         />
       )}
     </>
   );
-};
+});
+ItemCard.displayName = "ItemCard";
 
-export default LayerItem;
+export default ItemCard;

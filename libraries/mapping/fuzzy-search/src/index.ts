@@ -17,6 +17,8 @@ export {
   builtInGazetteerHitTrigger,
   getGazData,
   getGazDataFromSources,
+  type GazDataAdditionalMode,
+  type GazDataAdditionalModeConfig,
   type GazDataConfig,
   type GazDataItem,
   type GazDataSourceConfig,

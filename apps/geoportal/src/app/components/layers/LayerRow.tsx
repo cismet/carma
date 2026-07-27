@@ -9,16 +9,22 @@ import {
   faChevronDown,
   faChevronUp,
   faGripVertical,
+  faLayerGroup,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import { isLayerGroup, layerGroupHasInfoView } from "@carma-mapping/layers";
+import type {
+  BackgroundLayer,
+  Layer,
+  LayerStackEntry,
+} from "@carma-mapping/layers";
 
 import {
   changeBackgroundVisibility,
   changeVisibility,
-  getLayers,
+  getLayerStack,
   removeLayer,
   setLayers,
   setSelectedLayerIndex,
@@ -38,17 +44,19 @@ import {
 } from "../../store/slices/features";
 
 interface LayerRowProps extends LayerVisibilityToggleProps {
-  layer: Layer | BackgroundLayer;
+  layer: LayerStackEntry | BackgroundLayer;
   id: string;
   displayTitle?: string;
   isBackgroundLayer?: boolean;
   index: number;
 }
 
-const getLayerRowFallbackIcon = (layer: Layer | BackgroundLayer) =>
-  (layer?.layerInfo?.icon as string) || layer?.other?.icon;
+const getLayerRowFallbackIcon = (layer: LayerStackEntry | BackgroundLayer) =>
+  isLayerGroup(layer)
+    ? undefined
+    : (layer?.layerInfo?.icon as string) || layer?.other?.icon;
 
-const isPinnedLayer = (layer: Layer | BackgroundLayer): boolean =>
+const isPinnedLayer = (layer: LayerStackEntry | BackgroundLayer): boolean =>
   !!(layer as Layer).pinned;
 
 const LayerRow = ({
@@ -64,11 +72,15 @@ const LayerRow = ({
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
-  const layers = useSelector(getLayers);
+  const layers = useSelector(getLayerStack);
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
+  const isGroup = isLayerGroup(layer);
   const icon = getLayerRowFallbackIcon(layer);
   const isPinned = isPinnedLayer(layer);
-  const skipSelection = !!layer.skipSelection;
+  const skipSelection = !isGroup && !!(layer as Layer).skipSelection;
+  const isSelectable =
+    index !== -1 && (!isGroup || layerGroupHasInfoView(layer));
+  const opacity = skipSelection ? 1 : layer.opacity ?? 1;
 
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -83,10 +95,10 @@ const LayerRow = ({
     }
   }, [dispatch, id, selectedFeature]);
   const handleSelectLayer = useCallback(() => {
-    if (index !== -1) {
+    if (isSelectable) {
       dispatch(setSelectedLayerIndex(index));
     }
-  }, [dispatch, index]);
+  }, [dispatch, index, isSelectable]);
   const handleToggleVisibility = useCallback(
     (nextVisible: boolean) => {
       if (onToggleVisibility) {
@@ -105,13 +117,13 @@ const LayerRow = ({
   );
   const handleRemoveLayer = useCallback(() => {
     dispatch(removeLayer(id));
-    if (isAdhocVectorLayer(layer)) {
+    if (!isGroup && isAdhocVectorLayer(layer)) {
       clearFeatureCollections([id]);
       console.debug("[ADHOC|REMOVE] row clearFeatureCollections", {
         collectionId: id,
       });
     }
-  }, [clearFeatureCollections, dispatch, id, layer]);
+  }, [clearFeatureCollections, dispatch, id, isGroup, layer]);
 
   const getMoveTarget = (direction: 1 | -1) => {
     let target = index + direction;
@@ -132,9 +144,7 @@ const LayerRow = ({
     }
   };
 
-  const transparencyPercent = Math.round(
-    (1 - (skipSelection ? 1 : layer.opacity)) * 100
-  );
+  const transparencyPercent = Math.round((1 - opacity) * 100);
 
   return (
     <div ref={setNodeRef} style={style} className="w-full flex flex-col px-1">
@@ -148,15 +158,19 @@ const LayerRow = ({
         >
           <FontAwesomeIcon icon={faGripVertical} />
         </button>
-        <DynamicStylingLayerIcon
-          layer={layer}
-          fallbackIcon={icon}
-          isBackgroundLayer={isBackgroundLayer}
-          indicatorClassName="ml-1 sm:mr-[8px] lg:mr-0 text-[8px]"
-        />
+        {isGroup ? (
+          <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
+        ) : (
+          <DynamicStylingLayerIcon
+            layer={layer}
+            fallbackIcon={icon}
+            isBackgroundLayer={isBackgroundLayer}
+            indicatorClassName="ml-1 sm:mr-[8px] lg:mr-0 text-[8px]"
+          />
+        )}
         <p
           className={`mb-0 text-lg flex-1 min-w-0 truncate ${
-            index !== -1 && "hover:underline cursor-pointer"
+            isSelectable && "hover:underline cursor-pointer"
           }`}
           onClick={handleSelectLayer}
         >
@@ -181,7 +195,7 @@ const LayerRow = ({
             <span className="text-base whitespace-nowrap">Transparenz</span>
             <OpacitySlider
               isBackgroundLayer={isBackgroundLayer}
-              opacity={skipSelection ? 1 : layer.opacity}
+              opacity={opacity}
               id={layer.id}
               isVisible={layer.visible}
               disabled={skipSelection}

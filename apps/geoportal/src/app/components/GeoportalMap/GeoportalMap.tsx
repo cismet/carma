@@ -122,6 +122,8 @@ import {
   getUIMode,
   UIMode,
   getTriggerFeatureInfoUpdate,
+  getUIMapInteractionEnabled,
+  getUIVisibleControls,
 } from "../../store/slices/ui.ts";
 
 import LoginForm from "../LoginForm.tsx";
@@ -365,6 +367,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useState<boolean>(false);
   const layersIdle = useSelector(getLayersIdle);
   const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
+  const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
+  const visibleControls = useSelector(getUIVisibleControls);
 
   useEffect(() => {
     const maps = layers
@@ -803,6 +807,32 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     const leaflet = getLeafletMap();
+    if (!leaflet) {
+      return;
+    }
+    const navigationHandlers = [
+      leaflet.dragging,
+      leaflet.touchZoom,
+      leaflet.doubleClickZoom,
+      leaflet.scrollWheelZoom,
+      leaflet.boxZoom,
+      leaflet.keyboard,
+      leaflet.tap,
+    ];
+    navigationHandlers.forEach((handler) => {
+      if (!handler) {
+        return;
+      }
+      if (mapInteractionEnabled) {
+        handler.enable();
+      } else {
+        handler.disable();
+      }
+    });
+  }, [mapInteractionEnabled, getLeafletMap]);
+
+  useEffect(() => {
+    const leaflet = getLeafletMap();
 
     const handleZoomEnd = () => {
       setShouldUpdateFeatureInfo(true);
@@ -817,6 +847,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const renderInfoBox = useCallback(() => {
+    if (!visibleControls.infoBox) {
+      return <div></div>;
+    }
     const hasVisibleSavedAnnotationLayer = layers.some(
       isVisible3dAnnotationAdhocLayer
     );
@@ -878,6 +911,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     isOrbiting,
     toggleOrbit,
     isAnnotationSelectToolActive,
+    visibleControls.infoBox,
   ]);
 
   const showOverlayFromOutside = useCallback(
@@ -1016,6 +1050,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             touchAction: "none",
             WebkitOverflowScrolling: "touch",
             overscrollBehavior: "none",
+            // blocks clicks/drag/wheel/touch while programmatic clicks
+            // (e.g. the autoSelect flow) still work
+            ...(mapInteractionEnabled ? {} : { pointerEvents: "none" }),
           }}
           leafletMapProps={{ editable: true }}
           minZoom={10}

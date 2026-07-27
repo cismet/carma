@@ -7,11 +7,13 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
-import type { Layer } from "@carma-mapping/layers";
+import type { Layer, LayerGroup } from "@carma-mapping/layers";
+import { isLayerGroup } from "@carma-mapping/layers";
 
 import {
   getActiveInteractionButtonID,
   getActiveInteractionLayerID,
+  getLayerStack,
   getLayers,
 } from "../../store/slices/mapping";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
@@ -25,6 +27,8 @@ import {
 } from "../../helper/annotation-info-box-visual-options";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
+import { hasRenderableGroupTools } from "@carma-mapping/components";
+import GroupToolControl from "./GroupToolControl";
 import LayerFilterControl, {
   hasLayerFilterControl,
 } from "./LayerFilterControl";
@@ -100,7 +104,12 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const layers = useSelector(getLayers);
+  const layerStack = useSelector(getLayerStack);
   const layer = layers.find((l) => l.id === activeInteractionLayerID);
+  const group = layerStack.find(
+    (entry): entry is LayerGroup =>
+      isLayerGroup(entry) && entry.id === activeInteractionLayerID
+  );
 
   const { validBg, filterRef, wrapperRef } = useFilterBackground(
     activeInteractionLayerID,
@@ -112,11 +121,13 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     : false;
   const showFilter = hasLayerFilterControl(layer);
 
-  if (!layer) {
-    return null;
-  }
+  const content = hasRenderableGroupTools(group) ? (
+    <GroupToolControl group={group} />
+  ) : layer && (hasInteractionComponent || showFilter) ? (
+    <InteractionContent layer={layer} />
+  ) : null;
 
-  if (!hasInteractionComponent && !showFilter) {
+  if (!content) {
     return null;
   }
 
@@ -125,7 +136,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
       {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
       <div className="pt-3 w-full flex items-center justify-center">
         <div ref={filterRef} className="relative z-10 pointer-events-auto">
-          <InteractionContent layer={layer} />
+          {content}
         </div>
       </div>
     </div>

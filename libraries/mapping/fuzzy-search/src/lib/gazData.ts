@@ -2,6 +2,7 @@ import proj4 from "proj4";
 import objectAssign from "object-assign";
 import bboxCreator from "@turf/bbox";
 import * as turfHelpers from "@turf/helpers";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 import { ENDPOINT } from "@carma-commons/resources";
 import { md5FetchText } from "@carma-commons/utils";
@@ -14,11 +15,32 @@ export type GazDataSourceConfig = {
   crs: string;
 };
 
+/**
+ * An extra search mode offered in the fuzzy-search mode dropdown next to the
+ * built-in gazetteer and land-parcel modes. While active, the regular fuzzy
+ * search runs over the mode's own sources instead of the default gaz data.
+ */
+export type GazDataAdditionalModeConfig = {
+  key: string;
+  label: string;
+  icon?: IconDefinition;
+  svgIcon?: string;
+  iconSize?: number;
+  showAllOnFocus?: boolean;
+  placeholder?: string;
+  sources: GazDataSourceConfig[];
+};
+
+export type GazDataAdditionalMode = GazDataAdditionalModeConfig & {
+  gazData: GazDataItem[];
+};
+
 export type GazDataConfig = {
   crs: string;
   sources: GazDataSourceConfig[];
   prefix?: string;
   landParcelUrl?: string;
+  additionalModes?: GazDataAdditionalModeConfig[];
 };
 
 type SourceWithPayload = GazDataSourceConfig & {

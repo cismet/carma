@@ -6,6 +6,7 @@ import {
   faChevronRight,
   faChevronUp,
   faFilter,
+  faLayerGroup,
   faStar,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
@@ -22,8 +23,9 @@ import {
   changeVisibility,
   getActiveInteractionLayerID,
   getBackgroundLayer,
-  getLayers,
+  getLayerStack,
   getSelectedLayerIndex,
+  getSelectedStackEntry,
   setActiveInteractionLayerID,
   setClickFromInfoView,
   setNextSelectedLayerIndex,
@@ -38,11 +40,17 @@ import {
   setUIShowInfoText,
 } from "../../store/slices/ui";
 import {
-  addFavorite,
-  getFavorites,
-  removeFavorite,
-} from "../../store/slices/layers";
-import type { Item, Layer } from "@carma-mapping/layers";
+  isLayerGroup,
+  layerGroupHasInfoView,
+  useLayerCatalog,
+} from "@carma-mapping/layers";
+import type {
+  BackgroundLayer,
+  Item,
+  Layer,
+  LayerGroup,
+  LayerStackEntry,
+} from "@carma-mapping/layers";
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
@@ -67,41 +75,57 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const showInfo = useSelector(getUIShowInfo);
   const showInfoText = useSelector(getUIShowInfoText);
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
-  const layers = useSelector(getLayers);
+  const layerStack = useSelector(getLayerStack);
+  const selectedEntry = useSelector(getSelectedStackEntry);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const favorites = useSelector(getFavorites);
+  const { favorites, addFavorite, removeFavorite } = useLayerCatalog();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
-  const layer =
-    selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
-  const vectorLegend =
-    layer?.conf?.vectorLegend ||
-    (layer?.layerInfo?.vectorLegend as string) ||
-    layer?.other?.vectorLegend;
-  const legend =
-    vectorLegend && layer.layerType === "vector"
-      ? [{ OnlineResource: vectorLegend }]
-      : layer.props?.legend || [];
+  const entry =
+    (selectedLayerIndex >= 0 ? selectedEntry : backgroundLayer) ??
+    backgroundLayer;
+  const group = isLayerGroup(entry as LayerStackEntry)
+    ? (entry as LayerGroup)
+    : undefined;
+  // layer-only data (props, conf, favorites, filters) must not be read for a
+  // group entry
+  const layer = group ? undefined : (entry as Layer | BackgroundLayer);
 
-  const icon = layer.title.includes("Orthofoto")
+  const resolveLayerLegend = (target: Layer | BackgroundLayer) => {
+    const vectorLegend =
+      target?.conf?.vectorLegend ||
+      (target?.layerInfo?.vectorLegend as string) ||
+      target?.other?.vectorLegend;
+    return vectorLegend && target.layerType === "vector"
+      ? [{ OnlineResource: vectorLegend }]
+      : target.props?.legend || [];
+  };
+  // a group shows its configured legend images, otherwise its members' legends
+  const legend = group
+    ? group.groupInfo?.legend?.map((url) => ({ OnlineResource: url })) ??
+      group.layers.flatMap(resolveLayerLegend)
+    : resolveLayerLegend(layer);
+
+  const icon = entry.title.includes("Orthofoto")
     ? "ortho"
-    : layer.title === "Bäume"
+    : entry.title === "Bäume"
     ? "bäume"
-    : layer.title.includes("gärten")
+    : entry.title.includes("gärten")
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
 
-  const isInteractionActive = activeInteractionLayerID === layer.id;
-  const canFilter = !isBaseLayer && hasLayerFilterControl(layer as Layer);
-  const filterInfo = (layer as Layer).filterInfo;
+  const isInteractionActive = activeInteractionLayerID === entry.id;
+  const canFilter =
+    !isBaseLayer && !group && hasLayerFilterControl(layer as Layer);
+  const filterInfo = (layer as Layer)?.filterInfo;
 
   const canFavorite =
-    !isBaseLayer && (layer.type === "layer" || layer.type === "object");
+    !isBaseLayer && (entry.type === "layer" || entry.type === "object");
   const isFavorite =
     canFavorite &&
     favorites.some(
       (favorite) =>
-        favorite.id === `fav_${layer.id}` || favorite.id === layer.id
+        favorite.id === `fav_${entry.id}` || favorite.id === entry.id
     );
 
   const buildFavoriteItem = (): Item => {
@@ -137,9 +161,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const toggleFavorite = () => {
     const item = buildFavoriteItem();
     if (isFavorite) {
-      dispatch(removeFavorite(item));
+      removeFavorite(item);
     } else {
-      dispatch(addFavorite(item));
+      addFavorite(item);
     }
   };
 
@@ -225,15 +249,25 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         }
       });
 
-      layerButtons.forEach((layerButton, i) => {
+      layerButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
-          const layerId = layerButton.id.replace("layer-", "");
-          const clickedLayer = layers.find((l) => l.id === layerId);
-          if (clickedLayer?.skipSelection) {
-            returnFunction = true;
+          const entryId = layerButton.id.replace("layer-", "");
+          const entryIndex = layerStack.findIndex(
+            (entry) => entry.id === entryId
+          );
+          const clickedEntry = layerStack[entryIndex];
+          if (!clickedEntry) {
+            newLayerIndex = SELECTED_LAYER_INDEX.BACKGROUND_LAYER;
             return;
           }
-          newLayerIndex = i - 1;
+          const hasInfoView = isLayerGroup(clickedEntry)
+            ? layerGroupHasInfoView(clickedEntry)
+            : !clickedEntry.skipSelection;
+          if (!hasInfoView) {
+            // leave the selection cleared
+            return;
+          }
+          newLayerIndex = entryIndex;
         }
       });
 
@@ -266,7 +300,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     return () => {
       document.removeEventListener("pointerdown", handleOutsideClick);
     };
-  }, [dispatch, selectedLayerIndex]);
+  }, [dispatch, selectedLayerIndex, layerStack]);
 
   useEffect(() => {
     return () => {
@@ -275,7 +309,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     };
   }, [routedMapRef]);
 
-  const iconId = `secview-icon-${layer.id}`;
+  const iconId = `secview-icon-${entry.id}`;
 
   return (
     <div className="pt-3 w-full pointer-events-none">
@@ -317,18 +351,26 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           </button>
           <div className="flex items-center w-full h-8 shrink-0 gap-2 px-6 sm:px-0 sm:gap-6">
             <div className="flex-1 sm:flex-none sm:w-1/4 min-w-0 flex items-center gap-2">
-              <DynamicStylingLayerIcon
-                layer={layer}
-                fallbackIcon={icon}
-                isBackgroundLayer={isBaseLayer}
-                isBaseLayer={isBaseLayer}
-                iconId={iconId}
-              />
+              {group ? (
+                <FontAwesomeIcon
+                  icon={faLayerGroup}
+                  className="text-gray-700"
+                  id={iconId}
+                />
+              ) : (
+                <DynamicStylingLayerIcon
+                  layer={layer}
+                  fallbackIcon={icon}
+                  isBackgroundLayer={isBaseLayer}
+                  isBaseLayer={isBaseLayer}
+                  iconId={iconId}
+                />
+              )}
               <label
                 className="mb-0 text-base w-full truncate"
                 htmlFor={iconId}
               >
-                {isBaseLayer ? "Hintergrund" : layer.title}
+                {isBaseLayer ? "Hintergrund" : entry.title}
               </label>
             </div>
             <div className="hidden sm:flex w-full items-center gap-2">
@@ -341,9 +383,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               <div className="w-2/3 pt-1">
                 <OpacitySlider
                   isBackgroundLayer={isBaseLayer}
-                  opacity={layer.opacity}
-                  id={layer.id}
-                  isVisible={layer.visible}
+                  opacity={entry.opacity ?? 1}
+                  id={entry.id}
+                  isVisible={entry.visible}
                   disabled={isCesium}
                 />
               </div>
@@ -355,7 +397,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                   e.stopPropagation();
                   dispatch(
                     setActiveInteractionLayerID(
-                      isInteractionActive ? null : layer.id
+                      isInteractionActive ? null : entry.id
                     )
                   );
                 }}
@@ -400,14 +442,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               </button>
             )}
             <VisibilityToggle
-              visible={layer.visible}
+              visible={entry.visible}
               disabled={isCesium}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
               onToggleVisibility={(nextVisible) =>
                 dispatch(
                   isBaseLayer
                     ? changeBackgroundVisibility(nextVisible)
-                    : changeVisibility({ id: layer.id, visible: nextVisible })
+                    : changeVisibility({ id: entry.id, visible: nextVisible })
                 )
               }
             />
@@ -445,18 +487,18 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             <div className="flex-1 pt-1">
               <OpacitySlider
                 isBackgroundLayer={isBaseLayer}
-                opacity={layer.opacity}
-                id={layer.id}
-                isVisible={layer.visible}
+                opacity={entry.opacity ?? 1}
+                id={entry.id}
+                isVisible={entry.visible}
                 disabled={isCesium}
               />
             </div>
             <span className="text-sm w-10 text-right whitespace-nowrap">
-              {Math.round((1 - layer.opacity) * 100)}%
+              {Math.round((1 - (entry.opacity ?? 1)) * 100)}%
             </span>
           </div>
 
-          {isInteractionActive && (
+          {isInteractionActive && !group && (
             <div className="w-full px-6 pb-1 sm:hidden">
               <InteractionContent layer={layer as Layer} />
             </div>
@@ -477,6 +519,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           {showInfoText &&
             (isBaseLayer ? (
               <BaseLayerInfo />
+            ) : group ? (
+              <LayerInfo
+                description={group.description ?? ""}
+                legend={legend}
+                metaDataText={group.groupInfo?.metaDataText}
+                links={group.groupInfo?.links}
+                footerText={`Layer-Gruppe (${group.layers.length} Layer)`}
+              />
             ) : (
               <LayerInfo
                 description={layer.description}

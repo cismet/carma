@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+::-webkit-scrollbar {
+  background-color: #fff;
+  width: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #babac0;
+  border-radius: 12px;
+  border: 2px solid #fff;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Park the layer catalog modal right of the fixed config sidebar (384px wide)
+   instead of letting it span the whole viewport. */
+.ant-modal-root .ant-modal {
+  width: calc(100vw - 416px) !important;
+  max-width: none;
+  margin: 0 16px 0 400px;
+}
+
+/* The catalog view sizes its content column against the full viewport width
+   (w-[calc(100vw-...)]); inside the narrowed playground modal it has to fill
+   the remaining modal width instead. */
+.ant-modal [class*="100vw"] {
+  width: auto !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}

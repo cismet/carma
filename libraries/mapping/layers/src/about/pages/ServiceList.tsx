@@ -5,15 +5,19 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useSelector } from "react-redux";
-import { useStore } from "react-redux";
-import type { Item } from "@carma-mapping/layers";
+import type { Item } from "../../lib/contracts/carma-layers.d";
+import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
 import {
-  getAllLayers,
-  getloadingCapabilitiesIDs,
-} from "../../slices/mapLayers";
+  LayerCatalogProvider,
+  useCatalogData,
+} from "../../context/LayerCatalogProvider";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
+import {
+  deriveAdditionalConfigFragments,
+  deriveConfigSubcategories,
+} from "../../helper/buildCatalog";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import { parseDescription } from "../../helper/layerHelper";
 import { partianTwinConfig } from "../../helper/config";
@@ -643,19 +647,11 @@ interface ServiceListProps {
   markdown?: boolean;
 }
 
-const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
-  const allLayers = useSelector(getAllLayers);
-  const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
-  const store = useStore();
-  const [additionalLayers, setAdditionalLayers] = useState<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
-  const [sensorEntries, setSensorEntries] = useState<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
-  const [objectEntries, setObjectEntries] = useState<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
+const ServiceListContent = ({
+  discoverProps = wuppLayerCatalogConfig.discoverProps,
+  markdown = false,
+}: ServiceListProps) => {
+  const { serviceCategories: allLayers, loadingServiceIds } = useCatalogData();
   const [discoverLayers, setDiscoverLayers] = useState<
     { id: string; Title: string; layers: any[] }[]
   >([]);
@@ -692,50 +688,59 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
     });
   }, []);
 
-  const addItemToCategory = useCallback(
-    (
-      categoryId: string,
-      subCategory: { id: string; Title: string },
-      item: any
-    ) => {
-      const layers = Array.isArray(item) ? item : [item];
-      const entry = {
-        serviceName: subCategory.id,
-        title: subCategory.Title,
-        layers,
-      };
-      if (categoryId === "mapLayers") {
-        setAdditionalLayers((prev) => [...prev, entry]);
-      } else if (categoryId === "sensors") {
-        setSensorEntries((prev) => [...prev, entry]);
-      } else if (categoryId === "objects") {
-        setObjectEntries((prev) => [...prev, entry]);
-      }
-    },
-    []
-  );
-
-  const noopSetSidebarElements = useCallback((() => {}) as any, []);
-
-  const { loadingAdditionalConfig } = useAdditionalConfig({
-    addItemToCategory,
-    setSidebarElements: noopSetSidebarElements,
+  const flags = useFeatureFlags();
+  const {
+    additionalConfig,
+    sensorConfig,
+    objectConfig,
+    loadingAdditionalConfig,
+  } = useAdditionalConfig({
+    assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
+
+  const fragmentsToEntries = (fragments: { id?: string; Title: string; layers: any[] }[]) =>
+    fragments.map((fragment) => ({
+      serviceName: fragment.id ?? "",
+      title: fragment.Title,
+      layers: fragment.layers,
+    }));
+
+  const additionalLayers = useMemo(
+    () => fragmentsToEntries(deriveAdditionalConfigFragments(additionalConfig, flags)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [additionalConfig, flags]
+  );
+  const sensorEntries = useMemo(
+    () => fragmentsToEntries(deriveConfigSubcategories(sensorConfig, flags)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sensorConfig, flags]
+  );
+  const objectEntries = useMemo(
+    () => fragmentsToEntries(deriveConfigSubcategories(objectConfig, flags)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [objectConfig, flags]
+  );
 
   useLoadCapabilities({
     loadingAdditionalConfig,
     activeLayers: [] as any,
-    store,
+    services: wuppLayerCatalogConfig.services,
   });
 
   const displayLayers = useMemo(() => {
     if (allLayers.length === 0) return allLayers;
-    const merged = JSON.parse(JSON.stringify(allLayers));
+    // copy only what gets extended; the layer objects themselves stay shared
+    const merged = allLayers.map((category) => ({
+      ...category,
+      layers: [...category.layers],
+    }));
     for (const entry of additionalLayers) {
-      const existing = merged.find((cat: any) => cat.id === entry.serviceName);
+      // the config fragments carry catalog items (loose legacy typing)
+      const entryLayers = entry.layers as Item[];
+      const existing = merged.find((cat) => cat.id === entry.serviceName);
       if (existing) {
-        for (const layer of entry.layers) {
-          if (!existing.layers.some((l: any) => l.id === layer.id)) {
+        for (const layer of entryLayers) {
+          if (!existing.layers.some((l) => l.id === layer.id)) {
             existing.layers.push(layer);
           }
         }
@@ -743,7 +748,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
         merged.push({
           id: entry.serviceName,
           Title: entry.title,
-          layers: entry.layers,
+          layers: entryLayers,
         });
       }
     }
@@ -955,7 +960,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
 
   const allDataLoaded = useMemo(() => {
     // WMS capabilities still loading (individual services tracked by ID)
-    if (loadingCapabilitiesIDs.length > 0) return false;
+    if (loadingServiceIds.length > 0) return false;
     // Additional/sensor/object configs still loading
     if (loadingAdditionalConfig) return false;
     // Discover items still loading
@@ -982,7 +987,7 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
     }
     return true;
   }, [
-    loadingCapabilitiesIDs,
+    loadingServiceIds,
     loadingAdditionalConfig,
     discoverLoaded,
     displayLayers,
@@ -1531,5 +1536,11 @@ const ServiceList = ({ discoverProps, markdown = false }: ServiceListProps) => {
     </PageLayout>
   );
 };
+
+const ServiceList = (props: ServiceListProps) => (
+  <LayerCatalogProvider>
+    <ServiceListContent {...props} />
+  </LayerCatalogProvider>
+);
 
 export default ServiceList;

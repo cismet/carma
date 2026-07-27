@@ -1,14 +1,15 @@
-import { Dispatch, SetStateAction, useEffect } from "react";
+import { useEffect } from "react";
 import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
-import { SavedLayerConfig } from "@carma-mapping/layers";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { ActiveLayers } from "../components/NewLibModal";
-import type { Layer } from "@carma-mapping/layers";
-import { useDispatch } from "react-redux";
-import { setCustomLayerConfig } from "../slices/mapLayers";
+import type {
+  ActiveLayers,
+  Item,
+  Layer,
+  SetAdditionalLayers,
+} from "../lib/contracts/carma-layers.d";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { processCategoryConfig } from "../helper/processCategoryConfig";
+import { wmsCapabilitiesToCustomItems } from "../helper/buildCatalog";
+import type { CatalogDrop } from "../helper/buildCatalog";
 import { parseToMapLayer } from "@carma-mapping/utils";
 
 // @ts-expect-error tbd
@@ -27,45 +28,22 @@ const CONFIG_FILE_LOOKUP: Record<
 interface UseHandleDropProps {
   setOpen: (open: boolean) => void;
   setSelectedNavItemIndex: (index: number) => void;
-  addItemToCategory: (
-    categoryId: string,
-    subCategory: { id: string; Title: string },
-    item: SavedLayerConfig | SavedLayerConfig[]
-  ) => void;
-  getDataFromJson: (data: any) => any;
+  onDrop: (drop: CatalogDrop) => void;
   activeLayers: ActiveLayers;
   updateActiveLayer: (layer: Layer) => void;
-  setAdditionalLayers: (
-    layers: any[],
-    deleteItem?: boolean,
-    forceWMS?: boolean,
-    previewLayer?: boolean,
-    updateExisting?: boolean
-  ) => void;
-  setSidebarElements: Dispatch<
-    SetStateAction<
-      {
-        icon: any;
-        text: string;
-        id: string;
-        disabled?: boolean;
-      }[]
-    >
-  >;
+  setAdditionalLayers: SetAdditionalLayers;
+  vectorTileServerUrl: string;
 }
 
 export const useHandleDrop = ({
   setOpen,
   setSelectedNavItemIndex,
-  addItemToCategory,
-  getDataFromJson,
+  onDrop,
   activeLayers,
   updateActiveLayer,
   setAdditionalLayers,
-  setSidebarElements,
+  vectorTileServerUrl,
 }: UseHandleDropProps) => {
-  const flags = useFeatureFlags();
-  const dispatch = useDispatch();
   const { isCesium } = useMapFrameworkSwitcherContext();
   const openModal = (index?: number) => {
     if (!isCesium) {
@@ -76,25 +54,19 @@ export const useHandleDrop = ({
 
   const preTransformJson = (input: string) => {
     return input
-      .replaceAll("__SERVER_URL__", "https://tiles.cismet.de")
-      .replaceAll("__server_url__", "https://tiles.cismet.de");
+      .replaceAll("__SERVER_URL__", vectorTileServerUrl)
+      .replaceAll("__server_url__", vectorTileServerUrl);
   };
 
-  const handleAddToMap = async (newItem: any, instant = false) => {
-    const existingLayer = activeLayers.find(
-      (layer) => layer.id === newItem.id
-    );
+  const handleAddToMap = async (newItem: Item, instant = false) => {
+    const existingLayer = activeLayers.find((layer) => layer.id === newItem.id);
 
     if (existingLayer) {
       try {
         const updatedLayer = await parseToMapLayer(newItem, false, true);
 
         updateActiveLayer(updatedLayer);
-        addItemToCategory(
-          "mapLayers",
-          { id: "custom", Title: "Externe Dienste" },
-          newItem as unknown as SavedLayerConfig // TODO: Fix type
-        );
+        onDrop({ kind: "layers", items: [newItem] });
         message.success("Layer wurde aktualisiert");
       } catch (error) {
         message.error("Fehler beim Aktualisieren des Layers");
@@ -107,15 +79,11 @@ export const useHandleDrop = ({
       setAdditionalLayers(newItem, false, false, false, true);
     } else {
       openModal();
-      addItemToCategory(
-        "mapLayers",
-        { id: "custom", Title: "Externe Dienste" },
-        newItem as unknown as SavedLayerConfig // TODO: Fix type
-      );
+      onDrop({ kind: "layers", items: [newItem] });
     }
   };
 
-  const handleJsonStyle = async (file, url) => {
+  const handleJsonStyle = async (file: File | null, url: string | null) => {
     let instant = false;
     if (file) {
       const reader = new FileReader();
@@ -129,7 +97,7 @@ export const useHandleDrop = ({
             const jsonData = JSON.parse(processedContent);
 
             const importedId = `custom:${file.name}`;
-            let newItem: any = {
+            let newItem = {
               description: "",
               id: importedId,
               layerType: "vector",
@@ -138,7 +106,7 @@ export const useHandleDrop = ({
               type: "layer",
               keywords: [`carmaConf://vectorStyle:${JSON.stringify(jsonData)}`],
               path: "Externe Dienste",
-            };
+            } as unknown as Item;
 
             if (jsonData.metadata && jsonData.metadata.carmaConf) {
               const carmaConf = jsonData.metadata.carmaConf;
@@ -146,46 +114,14 @@ export const useHandleDrop = ({
                 ...newItem,
                 ...carmaConf.layerInfo,
                 keywords: [
-                  ...newItem?.keywords,
+                  ...(newItem?.keywords ?? []),
                   ...(carmaConf?.layerInfo?.keywords || []),
                 ],
               };
               instant = carmaConf?.instant ?? false;
             }
 
-            const existingLayer = activeLayers.find(
-              (layer) => layer.id === newItem.id
-            );
-
-            if (existingLayer) {
-              try {
-                const updatedLayer = await parseToMapLayer(
-                  newItem,
-                  false,
-                  true
-                );
-
-                updateActiveLayer(updatedLayer);
-                addItemToCategory(
-                  "mapLayers",
-                  { id: "custom", Title: "Externe Dienste" },
-                  newItem as unknown as SavedLayerConfig // TODO: Fix type
-                );
-                message.success("Layer wurde aktualisiert");
-              } catch (error) {
-                message.error("Fehler beim Aktualisieren des Layers");
-                console.error("Error updating layer:", error);
-              }
-            } else if (instant) {
-              setAdditionalLayers(newItem, false, false, false, true);
-            } else {
-              openModal();
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                newItem as unknown as SavedLayerConfig // TODO: Fix type
-              );
-            }
+            await handleAddToMap(newItem, instant);
           }
         } catch (error) {
           console.error("Failed to parse the file as JSON:", error);
@@ -196,9 +132,9 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      let importedId = `custom:${url}`;
+      const importedId = `custom:${url}`;
 
-      let newItem: any = {
+      let newItem = {
         description: "",
         id: importedId,
         layerType: "vector",
@@ -207,7 +143,7 @@ export const useHandleDrop = ({
         type: "layer",
         keywords: [`carmaConf://vectorStyle:${url}`],
         path: "Externe Dienste",
-      };
+      } as unknown as Item;
       await fetch(url)
         .then((response) => response.json())
         .then((data) => {
@@ -218,12 +154,10 @@ export const useHandleDrop = ({
               ...newItem,
               id: importedId,
               ...layerInfo,
-              keywords: [...newItem?.keywords, ...(layerInfo?.keywords || [])],
-            };
-          } else {
-            newItem = {
-              ...newItem,
-              id: importedId,
+              keywords: [
+                ...(newItem?.keywords ?? []),
+                ...(layerInfo?.keywords || []),
+              ],
             };
           }
         })
@@ -231,42 +165,12 @@ export const useHandleDrop = ({
           console.error("Error fetching JSON to check metadata:", error);
         });
 
-      const existingLayer = activeLayers.find(
-        (layer) => layer.id === newItem.id
-      );
-
-      if (existingLayer) {
-        try {
-          const updatedLayer = await parseToMapLayer(newItem, false, true);
-
-          updateActiveLayer(updatedLayer);
-          addItemToCategory(
-            "mapLayers",
-            { id: "custom", Title: "Externe Dienste" },
-            newItem as unknown as SavedLayerConfig // TODO: Fix type
-          );
-          message.success("Layer wurde aktualisiert");
-        } catch (error) {
-          message.error("Fehler beim Aktualisieren des Layers");
-          console.error("Error updating layer:", error);
-        }
-      } else {
-        if (instant) {
-          setAdditionalLayers(newItem, false, false, false, true);
-        } else {
-          openModal();
-          addItemToCategory(
-            "mapLayers",
-            { id: "custom", Title: "Externe Dienste" },
-            newItem as unknown as SavedLayerConfig // TODO: Fix type
-          );
-        }
-      }
+      await handleAddToMap(newItem, instant);
     }
   };
 
-  const handleTwinFile = async (file, url) => {
-    let newItem: any = {
+  const handleTwinFile = async (file: File | null, url: string | null) => {
+    const baseItem = {
       description: "",
       layerType: "vector",
       serviceName: "custom",
@@ -285,18 +189,12 @@ export const useHandleDrop = ({
             const processedContent = preTransformJson(fileContent);
 
             const jsonData = JSON.parse(processedContent);
-            const id = file.name;
-            let keywords = [
-              `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
-            ];
-            let title = file.name;
-
-            newItem = {
-              ...newItem,
-              id,
-              keywords,
-              title,
-            };
+            let newItem = {
+              ...baseItem,
+              id: file.name,
+              keywords: [`carmaConf://vectorStyle:${JSON.stringify(jsonData)}`],
+              title: file.name,
+            } as unknown as Item;
 
             if (jsonData.metadata && jsonData.metadata.carmaConf) {
               const carmaConf = jsonData.metadata.carmaConf;
@@ -304,7 +202,7 @@ export const useHandleDrop = ({
                 ...newItem,
                 ...carmaConf.layerInfo,
                 keywords: [
-                  ...newItem?.keywords,
+                  ...(newItem?.keywords ?? []),
                   ...(carmaConf?.layerInfo?.keywords || []),
                 ],
               };
@@ -322,31 +220,26 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      let id = url;
-      let keywords = [`carmaConf://vectorStyle:${url}`];
-      let title = url.slice(0, -5);
-
-      newItem = {
-        ...newItem,
-        id,
-        keywords,
-        title,
-      };
+      let newItem = {
+        ...baseItem,
+        id: url,
+        keywords: [`carmaConf://vectorStyle:${url}`],
+        title: url.slice(0, -5),
+      } as unknown as Item;
 
       await fetch(url)
         .then((response) => response.json())
         .then((data) => {
-          newItem = {
-            ...newItem,
-            id,
-          };
           if (data.metadata && data.metadata.carmaConf.layerInfo) {
             const layerInfo = data.metadata.carmaConf.layerInfo;
             instant = data.metaData?.carmaConf?.instant ?? false;
             newItem = {
               ...newItem,
               ...layerInfo,
-              keywords: [...newItem?.keywords, ...(layerInfo?.keywords || [])],
+              keywords: [
+                ...(newItem?.keywords ?? []),
+                ...(layerInfo?.keywords || []),
+              ],
             };
           }
         })
@@ -354,7 +247,16 @@ export const useHandleDrop = ({
           console.error("Error fetching JSON to check metadata:", error);
         });
 
-      handleAddToMap(newItem, instant);
+      await handleAddToMap(newItem, instant);
+    }
+  };
+
+  const handleWmsCapabilitiesText = (text: string) => {
+    const result = parser.toJSON(text);
+    const items = wmsCapabilitiesToCustomItems(result);
+    if (items.length > 0) {
+      onDrop({ kind: "layers", items });
+      openModal();
     }
   };
 
@@ -364,13 +266,12 @@ export const useHandleDrop = ({
       const url = event.dataTransfer?.getData("URL");
 
       const file = event?.dataTransfer?.files[0];
-      let instant = false;
 
       if (
         (url && url.includes(TWININDICATOR)) ||
         (file && file.name.includes(TWININDICATOR))
       ) {
-        handleTwinFile(file, url);
+        handleTwinFile(file ?? null, url ?? null);
       } else {
         if (url && url.endsWith(".json")) {
           handleJsonStyle(null, url);
@@ -380,22 +281,7 @@ export const useHandleDrop = ({
               return response.text();
             })
             .then((text) => {
-              const result = parser.toJSON(text);
-
-              const ownLayers = getDataFromJson(result);
-              if (ownLayers) {
-                addItemToCategory(
-                  "mapLayers",
-                  { id: "custom", Title: "Externe Dienste" },
-                  ownLayers[0].layers.map((layer) => {
-                    return {
-                      ...layer,
-                      path: "Externe Dienste",
-                    };
-                  })
-                );
-                openModal();
-              }
+              handleWmsCapabilitiesText(text);
             })
             .catch((error) => {
               console.error("Error handling drop:", error);
@@ -412,7 +298,6 @@ export const useHandleDrop = ({
             file.name.toLowerCase().endsWith(".json") &&
             window.location.hostname === "localhost"
           ) {
-            let index: number | undefined;
             file.text().then((content) => {
               const result = JSON.parse(content);
               if (result) {
@@ -420,18 +305,16 @@ export const useHandleDrop = ({
                   ([key]) => file.name.toLowerCase().includes(key)
                 );
                 if (configMatch) {
-                  index = configMatch[1].index;
-                  processCategoryConfig({
-                    config: result,
+                  onDrop({
+                    kind: "categoryConfig",
                     categoryId: configMatch[1].categoryId,
-                    flags,
-                    addItemToCategory,
-                    setSidebarElements,
+                    configs: result,
                   });
+                  openModal(configMatch[1].index);
                 } else {
-                  dispatch(setCustomLayerConfig(result));
+                  onDrop({ kind: "layerConfig", configs: result });
+                  openModal();
                 }
-                openModal(index);
               }
             });
 
@@ -446,24 +329,10 @@ export const useHandleDrop = ({
           file
             .text()
             .then((text) => {
-              const result = parser.toJSON(text);
-              const ownLayers = getDataFromJson(result);
-              if (ownLayers) {
-                addItemToCategory(
-                  "mapLayers",
-                  { id: "custom", Title: "Externe Dienste" },
-                  ownLayers[0].layers.map((layer) => {
-                    return {
-                      ...layer,
-                      path: "Externe Dienste",
-                    };
-                  })
-                );
-                openModal();
-              }
+              handleWmsCapabilitiesText(text);
             })
             .catch((error) => {
-              // setError(error.message);
+              console.error("Error handling drop:", error);
             });
         }
       }
@@ -483,14 +352,10 @@ export const useHandleDrop = ({
   }, [
     setOpen,
     setSelectedNavItemIndex,
-    addItemToCategory,
-    getDataFromJson,
+    onDrop,
     activeLayers,
     updateActiveLayer,
     setAdditionalLayers,
-    setSidebarElements,
-    flags,
-    dispatch,
     isCesium,
   ]);
 };

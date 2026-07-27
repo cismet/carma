@@ -1,15 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
 import type {
+  ExtendedItem,
   InteractionButton,
   Item,
   XMLLayer,
   Layer,
-} from "@carma-mapping/layers";
+} from "../lib/contracts/carma-layers.d";
 
 import { serviceConfig } from "./config";
-import { ExtendedItem, getReplaceLayers } from "../slices/mapLayers";
-import type { Store } from "redux";
+
+/**
+ * Whether a link item's url leaves the app: absolute http(s) urls open in a
+ * new tab, everything else (e.g. "#/gesundheit" hash routes) navigates in
+ * place.
+ */
+export const isExternalUrl = (url?: string): boolean =>
+  !!url && /^https?:/i.test(url);
+
+/**
+ * Navigate to an internal hash link (e.g. "#/gesundheit"), carrying the
+ * current hash query over: hash-router apps keep state like the map position
+ * in those params, and a plain href would wipe it.
+ */
+export const navigateToInternalHashLink = (url: string) => {
+  const [targetPath, targetQuery] = url.replace(/^#/, "").split("?");
+  const currentQuery = window.location.hash.split("?")[1];
+  const query = targetQuery ?? currentQuery;
+  window.location.hash = query ? `${targetPath}?${query}` : targetPath;
+};
 
 export const getInteractionButtons = (
   buttons?: InteractionButton | InteractionButton[]
@@ -222,18 +241,6 @@ export const extractVectorStyles = (keywords: string[]) => {
   return vectorObject;
 };
 
-export const createBaseConfig = (layers: XMLLayer[]) => {
-  const result: Record<string, Item[]> = {};
-  layers.forEach((item) => {
-    result[item.Title] = {
-      // @ts-ignore
-      layers: item.layers.map((layer) => ({ name: layer.Name })),
-    };
-  });
-
-  return null;
-};
-
 const getLeafLayers = (layer: any, leafLayers: Layer[] = []) => {
   // Check if the layer has sub-layers
   if (layer.Layer && Array.isArray(layer.Layer) && layer.Layer.length > 0) {
@@ -360,15 +367,14 @@ export const getLayerStructure = ({
   wms,
   serviceName,
   skipTopicMaps,
-  store,
+  replaceLayers,
 }: {
   config: any;
   wms?: WMSCapabilitiesJSON;
   serviceName: string;
   skipTopicMaps?: boolean;
-  store: Store;
+  replaceLayers?: ExtendedItem[];
 }) => {
-  const replaceLayers = getReplaceLayers(store.getState());
   const structure: {
     Title: string;
     layers: Item[];
@@ -420,26 +426,6 @@ export const getLayerStructure = ({
               merge = true;
             }
           });
-          // if (replace || merge) {
-          //   let newLayer = replaceLayers.find(
-          //     (layer) =>
-          //       layer.replaceId === foundLayer?.id ||
-          //       layer.mergeId === foundLayer?.id
-          //   );
-          //   if (newLayer) {
-          //     if (merge) {
-          //       console.log("xxx merging", newLayer);
-          //       console.log("xxx merging", foundLayer);
-          //       newLayer = mergeLayers(newLayer, foundLayer);
-          //       console.log("xxx merging finished", newLayer);
-          //     }
-          //     layers.push({
-          //       ...newLayer,
-          //       serviceName: service.name,
-          //     });
-          //   }
-          //   continue;
-          // }
           if (wms) {
             // @ts-expect-error fix typing
             foundLayer.props["url"] =
@@ -465,7 +451,7 @@ export const getLayerStructure = ({
             foundLayer = applyKeywordSettings(foundLayer);
 
             if (replace || merge) {
-              let newLayer = replaceLayers.find(
+              let newLayer = replaceLayers?.find(
                 (layer) =>
                   layer.replaceId === foundLayer?.id ||
                   layer.mergeId === foundLayer?.id
@@ -667,11 +653,7 @@ export const findLayerAndAddTags = (
   tagsToAdd: string[]
 ) => {
   if (layer.Name === name) {
-    if (!layer.Tags) {
-      layer.tags = [];
-    }
-    layer.tags.push(...tagsToAdd);
-    return layer;
+    return { ...layer, tags: [...tagsToAdd] };
   }
   if (layer.Layer) {
     for (const subLayer of layer.Layer) {

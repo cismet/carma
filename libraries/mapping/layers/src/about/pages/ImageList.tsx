@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
-import { useStore } from "react-redux";
-import type { Item, Layer } from "@carma-mapping/layers";
-import { getAllLayers } from "../../slices/mapLayers";
+import type { Item, Layer } from "../../lib/contracts/carma-layers.d";
+import { wuppLayerCatalogConfig } from "../../config/layerCatalogConfig";
+import {
+  LayerCatalogProvider,
+  useCatalogData,
+} from "../../context/LayerCatalogProvider";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
+import { deriveAdditionalConfigFragments } from "../../helper/buildCatalog";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { LayerIcon } from "@carma-mapping/components";
 import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
 import { parseToMapLayer, resolveLayerIconUrl } from "@carma-mapping/utils";
@@ -40,12 +44,8 @@ interface ImageListProps {
   markdown?: boolean;
 }
 
-const ImageList = ({ markdown = false }: ImageListProps) => {
-  const allLayers = useSelector(getAllLayers);
-  const store = useStore();
-  const additionalLayersRef = useRef<
-    { serviceName: string; title: string; layers: any[] }[]
-  >([]);
+const ImageListContent = ({ markdown = false }: ImageListProps) => {
+  const { serviceCategories: allLayers } = useCatalogData();
   const [parsedLayerMap, setParsedLayerMap] = useState<Record<string, Layer>>(
     {}
   );
@@ -93,46 +93,44 @@ const ImageList = ({ markdown = false }: ImageListProps) => {
     [addError]
   );
 
-  const addItemToCategory = useCallback(
-    (
-      categoryId: string,
-      subCategory: { id: string; Title: string },
-      item: any
-    ) => {
-      if (categoryId === "mapLayers") {
-        const layers = Array.isArray(item) ? item : [item];
-        additionalLayersRef.current.push({
-          serviceName: subCategory.id,
-          title: subCategory.Title,
-          layers,
-        });
-      }
-    },
-    []
-  );
-
-  const noopSetSidebarElements = useCallback((() => {}) as any, []);
-
-  const { loadingAdditionalConfig } = useAdditionalConfig({
-    addItemToCategory,
-    setSidebarElements: noopSetSidebarElements,
+  const flags = useFeatureFlags();
+  const { additionalConfig, loadingAdditionalConfig } = useAdditionalConfig({
+    assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
+
+  const additionalLayers = useMemo(
+    () =>
+      deriveAdditionalConfigFragments(additionalConfig, flags).map(
+        (fragment) => ({
+          serviceName: fragment.id ?? "",
+          title: fragment.Title,
+          layers: fragment.layers,
+        })
+      ),
+    [additionalConfig, flags]
+  );
 
   useLoadCapabilities({
     loadingAdditionalConfig,
     activeLayers: [] as any,
-    store,
+    services: wuppLayerCatalogConfig.services,
   });
 
   // Merge additional layers (from useAdditionalConfig) into WMS layers for display
   const displayLayers = useMemo(() => {
     if (allLayers.length === 0) return allLayers;
-    const merged = JSON.parse(JSON.stringify(allLayers));
-    for (const entry of additionalLayersRef.current) {
-      const existing = merged.find((cat: any) => cat.id === entry.serviceName);
+    // copy only what gets extended; the layer objects themselves stay shared
+    const merged = allLayers.map((category) => ({
+      ...category,
+      layers: [...category.layers],
+    }));
+    for (const entry of additionalLayers) {
+      // the config fragments carry catalog items (loose legacy typing)
+      const entryLayers = entry.layers as Item[];
+      const existing = merged.find((cat) => cat.id === entry.serviceName);
       if (existing) {
-        for (const layer of entry.layers) {
-          if (!existing.layers.some((l: any) => l.id === layer.id)) {
+        for (const layer of entryLayers) {
+          if (!existing.layers.some((l) => l.id === layer.id)) {
             existing.layers.push(layer);
           }
         }
@@ -140,12 +138,12 @@ const ImageList = ({ markdown = false }: ImageListProps) => {
         merged.push({
           id: entry.serviceName,
           Title: entry.title,
-          layers: entry.layers,
+          layers: entryLayers,
         });
       }
     }
     return merged;
-  }, [allLayers]);
+  }, [allLayers, additionalLayers]);
 
   const loading = allLayers.length === 0;
   const totalLayerCount = displayLayers.reduce(
@@ -733,5 +731,11 @@ const ImageList = ({ markdown = false }: ImageListProps) => {
     </PageLayout>
   );
 };
+
+const ImageList = (props: ImageListProps) => (
+  <LayerCatalogProvider>
+    <ImageListContent {...props} />
+  </LayerCatalogProvider>
+);
 
 export default ImageList;

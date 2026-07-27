@@ -5,6 +5,11 @@ import { type FeatureFlagConfig } from "@carma-providers/feature-flag";
 
 import type { RootState } from "..";
 
+// Favorites moved into the LayerCatalogProvider of @carma-mapping/layers
+// (persisted there via localforage). `favorites` stays here as DORMANT data
+// with no actions: it must remain in the persisted record so redux-persist
+// does not erase it before the provider's one-time import (legacyFavoritesKey
+// in App.tsx) has run on every device.
 export type LayersState = {
   favorites: Item[];
   thumbnails: any[];
@@ -21,43 +26,6 @@ const slice = createSlice({
   name: "layers",
   initialState,
   reducers: {
-    addFavorite(state, action: PayloadAction<Item>) {
-      const alreadyExists = state.favorites.some(
-        (favorite) =>
-          favorite.id === `fav_${action.payload.id}` ||
-          favorite.id === action.payload.id
-      );
-      if (!alreadyExists) {
-        state.favorites = [
-          ...state.favorites,
-          { ...action.payload, id: `fav_${action.payload.id}` },
-        ];
-      }
-      return state;
-    },
-    removeFavorite(state, action: PayloadAction<Item>) {
-      const newFavorites = state.favorites.filter(
-        (favorite) =>
-          favorite.id !== `fav_${action.payload.id}` &&
-          favorite.id !== action.payload.id
-      );
-      state.favorites = newFavorites;
-      return state;
-    },
-    updateFavorite(state, action: PayloadAction<Item>) {
-      const newFavorites = state.favorites.map((favorite) => {
-        if (favorite.id === `fav_${action.payload.id}`) {
-          return {
-            ...action.payload,
-            id: `fav_${action.payload.id}`,
-          };
-        }
-        return favorite;
-      });
-      state.favorites = newFavorites;
-      return state;
-    },
-
     setThumbnail(state, action) {
       let alreadyExists = state.thumbnails.some(
         (thumbnail) => thumbnail.name === action.payload.name
@@ -77,16 +45,8 @@ const slice = createSlice({
   },
 });
 
-export const {
-  addFavorite,
-  removeFavorite,
-  updateFavorite,
-  setThumbnail,
-  addCustomFeatureFlags,
-} = slice.actions;
+export const { setThumbnail, addCustomFeatureFlags } = slice.actions;
 
-export const getFavorites = (state: RootState): Item[] =>
-  state.layers.favorites;
 export const getThumbnails = (state: RootState): Item[] =>
   state.layers.thumbnails;
 export const getCustomFeatureFlags = (state: RootState): FeatureFlagConfig =>

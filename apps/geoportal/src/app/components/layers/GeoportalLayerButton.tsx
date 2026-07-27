@@ -31,8 +31,9 @@ import {
 } from "../../store/slices/features";
 import {
   getClickFromInfoView,
-  getLayers,
+  getLayerStack,
   getSelectedLayerIndex,
+  getSelectionShowsNoInfoView,
   getActiveInteractionLayerID,
   getActiveInteractionButtonID,
   getShowLeftScrollButton,
@@ -67,7 +68,10 @@ import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
-import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
+import {
+  getGeoportalLayerButtonBackgroundClassName,
+  getGeoportalLayerToolActionButtonClassName,
+} from "./layer-tool-action-button-style";
 
 export interface GeoportalLayerButtonProps {
   title: string;
@@ -130,8 +134,9 @@ const GeoportalLayerButton = ({
   const maplibreMaps = useSelector(getMaplibreMaps);
   const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
-  const layers = useSelector(getLayers);
-  const layersLength = layers.length;
+  const layerStack = useSelector(getLayerStack);
+  const layersLength = layerStack.length;
+  const showsNoSelection = useSelector(getSelectionShowsNoInfoView);
 
   const isPinned = !!(layer as Layer).pinned;
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -267,13 +272,11 @@ const GeoportalLayerButton = ({
         {...listeners}
         {...attributes}
         classNames={[
-          selectedLayerIndex === -2
-            ? layer.visible
-              ? "bg-white"
-              : "bg-neutral-200/70"
-            : showSettings
-            ? "bg-white"
-            : "bg-neutral-200",
+          getGeoportalLayerButtonBackgroundClassName({
+            showsNoSelection,
+            visible: layer.visible,
+            isSelected: showSettings,
+          }),
           !isCurrentlyVisible() && "opacity-50",
           background ? "pr-3" : "pr-2",
           "pl-3",

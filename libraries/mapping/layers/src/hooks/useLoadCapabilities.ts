@@ -1,54 +1,66 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useMemo, useRef } from "react";
 import { isEqual } from "lodash";
+import { useQueries } from "@tanstack/react-query";
 import WMSCapabilities from "wms-capabilities";
-import type { Layer, SavedLayerConfig } from "@carma-mapping/layers";
-import type { Store } from "redux";
+import type { WMSCapabilitiesJSON } from "wms-capabilities";
+import type { Layer, LayerConfig } from "../lib/contracts/carma-layers.d";
 
-import {
-  addloadingCapabilitiesIDs,
-  removeloadingCapabilitiesIDs,
-  setLoadingCapabilities,
-  setAllLayers,
-  getAllLayers,
-} from "../slices/mapLayers";
-import {
-  baseConfig as config,
-  partianTwinConfig,
-  serviceConfig,
-} from "../helper/config";
+import { useCatalogData } from "../context/LayerCatalogProvider";
+import { baseConfig as config } from "../helper/config";
 import {
   getLayerStructure,
   mergeStructures,
   normalizeObject,
 } from "../helper/layerHelper";
-import type { ActiveLayers } from "../components/NewLibModal";
+import type { ActiveLayers } from "../lib/contracts/carma-layers.d";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { FALLBACK_CAPABILITIES_BASE_URL } from "../helper/assetUrls";
+import {
+  CAPABILITIES_MAX_AGE,
+  CAPABILITIES_QUERY_KEY,
+} from "../config/CatalogQueryProvider";
 
 // @ts-expect-error
 const parser = new WMSCapabilities();
 
-const fetchCapabilitiesText = async (url: string, fallbackUrl: string) => {
+const CAPABILITIES_STALE_TIME = 0;
+const CAPABILITIES_GC_TIME = CAPABILITIES_MAX_AGE;
+
+const fetchParsedCapabilities = async (
+  url: string
+): Promise<WMSCapabilitiesJSON> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `GetCapabilities request failed with status ${response.status}`
+    );
+  }
+  const result = parser.toJSON(await response.text());
+  // unparseable responses come back as { version: null } without Capability
+  if (!result?.Capability) {
+    throw new Error(`GetCapabilities response from ${url} is not parseable`);
+  }
+  return result;
+};
+
+const fetchCapabilities = async (url: string): Promise<WMSCapabilitiesJSON> => {
+  const serviceSegment = url.split("/").pop();
+  const fallbackUrl = `${FALLBACK_CAPABILITIES_BASE_URL}/${serviceSegment}.xml`;
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(
-        `GetCapabilities request failed with status ${response.status}`
-      );
-    }
-    return await response.text();
+    return await fetchParsedCapabilities(
+      `${url}?service=WMS&request=GetCapabilities&version=1.1.1`
+    );
   } catch (error) {
     console.warn(
       `[CAPABILITIES] remote fetch failed for ${url}, trying local fallback ${fallbackUrl}`,
       error
     );
-    const fallbackResponse = await fetch(fallbackUrl);
-    if (!fallbackResponse.ok) {
+    try {
+      return await fetchParsedCapabilities(fallbackUrl);
+    } catch {
       throw error;
     }
-    return await fallbackResponse.text();
   }
 };
 
@@ -56,222 +68,187 @@ interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
   activeLayers: ActiveLayers;
   updateActiveLayer?: (layer: Layer) => void;
-  setLayers?: (layers: any[]) => void;
-  setFilteredCategories?: React.Dispatch<
-    React.SetStateAction<
-      {
-        id: string;
-        categories: {
-          Title: string;
-          id?: string;
-          layers: SavedLayerConfig[];
-        }[];
-      }[]
-    >
-  >;
-  setAllCategories?: React.Dispatch<
-    React.SetStateAction<
-      {
-        id: string;
-        categories: {
-          Title: string;
-          id?: string;
-          layers: SavedLayerConfig[];
-        }[];
-      }[]
-    >
-  >;
-  getDataFromJson?: (data: any) => {
-    Title: string;
-    layers: any[];
-  }[];
-  store: Store;
+  services: Record<string, LayerConfig>;
 }
 
 export const useLoadCapabilities = ({
   loadingAdditionalConfig,
   activeLayers,
   updateActiveLayer,
-  setLayers,
-  setFilteredCategories,
-  setAllCategories,
-  getDataFromJson,
-  store,
+  services,
 }: UseLoadCapabilitiesProps) => {
-  const dispatch = useDispatch();
-  const services = serviceConfig;
-  const allLayers = useSelector(getAllLayers);
+  const { replaceLayers, setCapabilitiesLoading, setServiceCategories } =
+    useCatalogData();
+
+  const wmsServices = useMemo(
+    () => Object.values(services).filter((service) => !!service.url),
+    [services]
+  );
+  const localServices = useMemo(
+    () =>
+      Object.values(services).filter(
+        (service) => !service.url && service.type !== "topicmaps"
+      ),
+    [services]
+  );
+
+  const capabilities = useQueries({
+    queries: wmsServices.map((service) => ({
+      queryKey: [CAPABILITIES_QUERY_KEY, service.name, service.url],
+      queryFn: () => fetchCapabilities(service.url as string),
+      // the additional config dispatches the replace layers; waiting for it
+      // keeps active-layer updates based on the replaced definitions
+      enabled: !loadingAdditionalConfig,
+      staleTime: CAPABILITIES_STALE_TIME,
+      gcTime: CAPABILITIES_GC_TIME,
+    })),
+    combine: (results) => ({
+      data: results.map((result) => result.data),
+      initialLoadingNames: wmsServices
+        .filter((_, index) => results[index].isFetching && !results[index].data)
+        .map((service) => service.name),
+      anySettled: results.some((result) => result.isSuccess || result.isError),
+      debugStates: wmsServices.map((service, index) => ({
+        name: service.name,
+        status: results[index].status,
+        isFetching: results[index].isFetching,
+        hasData: results[index].data != null,
+      })),
+    }),
+  });
 
   useEffect(() => {
-    const loadCapabilites = async () => {
-      let newLayers: any[] = [];
+    console.debug(
+      "[CAP CACHE] live query states",
+      JSON.stringify(capabilities.debugStates)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(capabilities.debugStates)]);
 
-      // Check if any service needs to load capabilities
-      let needsLoading = false;
-      for (let key in services) {
-        const hasExistingLayers = allLayers.some(
-          (layer) => layer.id === services[key].name
-        );
-        if (!hasExistingLayers) {
-          needsLoading = true;
-          break;
-        }
-      }
+  // feed the loading flags consumed by CategoryTabs / CatalogGrid
+  useEffect(() => {
+    setCapabilitiesLoading(
+      capabilities.initialLoadingNames,
+      wmsServices.length > 0 && !capabilities.anySettled
+    );
+  }, [
+    capabilities.initialLoadingNames,
+    capabilities.anySettled,
+    wmsServices,
+    setCapabilitiesLoading,
+  ]);
 
-      dispatch(setLoadingCapabilities(needsLoading));
+  // the active layers are only read when a rebuild runs; going through a ref
+  // avoids re-deriving the whole structure on every active layer change
+  const activeLayersRef = useRef(activeLayers);
+  activeLayersRef.current = activeLayers;
 
-      for (let key in services) {
-        if (services[key].url) {
-          const hasExistingLayers = allLayers.some(
-            (layer) => layer.id === services[key].name
-          );
-          if (!hasExistingLayers) {
-            dispatch(addloadingCapabilitiesIDs(services[key].name));
-          }
+  const syncedCapabilitiesRef = useRef<unknown[]>([]);
+  const syncedReplaceLayersRef = useRef<unknown>(undefined);
 
-          const serviceSegment = services[key].url.split("/").pop();
+  // Derive allLayers from all capabilities present so far. Runs again when
+  // late replace layers arrive, so the result no longer depends on response
+  // order.
+  useEffect(() => {
+    if (loadingAdditionalConfig) {
+      return;
+    }
 
-          fetchCapabilitiesText(
-            `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`,
-            `${FALLBACK_CAPABILITIES_BASE_URL}/${serviceSegment}.xml`
-          )
-            .then((text) => {
-              const result = parser.toJSON(text);
-              if (result) {
-                if (config) {
-                  const layerStructure = getLayerStructure({
-                    config,
-                    wms: result,
-                    serviceName: services[key].name,
-                    skipTopicMaps: true,
-                    store: store,
-                  });
-
-                  layerStructure.forEach((category) => {
-                    if (category.layers.length > 0) {
-                      activeLayers.forEach(async (activeLayer) => {
-                        const foundLayer = category.layers.find(
-                          (layer) => layer.id === activeLayer.id
-                        );
-                        if (foundLayer) {
-                          if (activeLayer.dynamicStyling) {
-                            return;
-                          }
-
-                          const updatedLayer = await parseToMapLayer(
-                            foundLayer,
-                            false,
-                            activeLayer.visible,
-                            activeLayer.opacity
-                          );
-
-                          const normalizedActiveLayer =
-                            normalizeObject(activeLayer);
-                          const normalizedUpdatedLayer =
-                            normalizeObject(updatedLayer);
-
-                          if (
-                            !isEqual(
-                              normalizedActiveLayer,
-                              normalizedUpdatedLayer
-                            ) &&
-                            updateActiveLayer
-                          ) {
-                            updateActiveLayer(updatedLayer);
-                          }
-                        }
-                      });
-                    }
-                  });
-                  const mergedLayer = mergeStructures(
-                    layerStructure,
-                    newLayers
-                  );
-
-                  newLayers = mergedLayer;
-                  const updatedLayers: Layer[] = newLayers;
-
-                  dispatch(setAllLayers(updatedLayers));
-                  dispatch(setLoadingCapabilities(false));
-                  dispatch(removeloadingCapabilitiesIDs(services[key].name));
-                } else {
-                  if (getDataFromJson) {
-                    getDataFromJson(result);
-                  }
-                  dispatch(setLoadingCapabilities(false));
-                  dispatch(removeloadingCapabilitiesIDs(services[key].name));
-                }
+    const syncActiveLayers = (
+      layerStructure: { Title: string; layers: any[] }[]
+    ) => {
+      layerStructure.forEach((category) => {
+        if (category.layers.length > 0) {
+          activeLayersRef.current.forEach(async (activeLayer) => {
+            const foundLayer = category.layers.find(
+              (layer) => layer.id === activeLayer.id
+            );
+            if (foundLayer) {
+              if (activeLayer.dynamicStyling) {
+                return;
               }
-            })
-            .catch((error) => {
-              console.error(error);
-              dispatch(setLoadingCapabilities(false));
-              dispatch(removeloadingCapabilitiesIDs(services[key].name));
-            });
-        } else {
-          if (services[key].type === "topicmaps") {
-          } else {
-            const layerStructure = getLayerStructure({
-              config,
-              serviceName: services[key].name,
-              skipTopicMaps: true,
-              store,
-            });
-            const mergedLayer = mergeStructures(layerStructure, newLayers);
-            newLayers = mergedLayer;
-            const updatedLayers: Layer[] = newLayers;
 
-            if (setLayers) {
-              setLayers(updatedLayers);
+              const updatedLayer = await parseToMapLayer(
+                foundLayer,
+                false,
+                activeLayer.visible,
+                activeLayer.opacity
+              );
+
+              // carry over app-owned annotations that capabilities cannot
+              // produce (e.g. layer-group membership); otherwise the re-parsed
+              // layer never matches and this sync dispatches updateLayer forever
+              const mergedLayer: Layer = {
+                ...updatedLayer,
+                ...(activeLayer.group ? { group: activeLayer.group } : {}),
+                ...(activeLayer.skipSelection
+                  ? { skipSelection: activeLayer.skipSelection }
+                  : {}),
+              };
+
+              if (
+                !isEqual(
+                  normalizeObject(activeLayer),
+                  normalizeObject(mergedLayer)
+                ) &&
+                updateActiveLayer
+              ) {
+                updateActiveLayer(mergedLayer);
+              }
             }
-            dispatch(setAllLayers(updatedLayers));
-          }
+          });
         }
-      }
-
-      // Partial Twins Category
-      const partialTwinsCategories: {
-        Title: string;
-        id: string;
-        layers: SavedLayerConfig[];
-      }[] = [];
-
-      for (let key in partianTwinConfig) {
-        partialTwinsCategories.push(partianTwinConfig[key]);
-      }
-      if (setFilteredCategories) {
-        setFilteredCategories((prev) => {
-          if (prev.find((item) => item.id === "partialTwins")) {
-            prev.splice(
-              prev.findIndex((item) => item.id === "partialTwins"),
-              1
-            );
-          }
-          return [
-            ...prev,
-            { id: "partialTwins", categories: partialTwinsCategories },
-          ];
-        });
-      }
-
-      if (setAllCategories) {
-        setAllCategories((prev) => {
-          if (prev.find((item) => item.id === "partialTwins")) {
-            prev.splice(
-              prev.findIndex((item) => item.id === "partialTwins"),
-              1
-            );
-          }
-          return [
-            ...prev,
-            { id: "partialTwins", categories: partialTwinsCategories },
-          ];
-        });
-      }
+      });
     };
 
-    if (!loadingAdditionalConfig) {
-      loadCapabilites();
+    let newLayers: any[] = [];
+
+    const replaceLayersChanged =
+      syncedReplaceLayersRef.current !== replaceLayers;
+    syncedReplaceLayersRef.current = replaceLayers;
+
+    wmsServices.forEach((service, index) => {
+      const wms = capabilities.data[index];
+      if (!wms) {
+        return;
+      }
+      const layerStructure = getLayerStructure({
+        config,
+        wms,
+        serviceName: service.name,
+        skipTopicMaps: true,
+        replaceLayers,
+      });
+      if (
+        replaceLayersChanged ||
+        syncedCapabilitiesRef.current[index] !== wms
+      ) {
+        syncedCapabilitiesRef.current[index] = wms;
+        syncActiveLayers(layerStructure);
+      }
+      newLayers = mergeStructures(layerStructure, newLayers);
+    });
+
+    localServices.forEach((service) => {
+      const layerStructure = getLayerStructure({
+        config,
+        serviceName: service.name,
+        skipTopicMaps: true,
+        replaceLayers,
+      });
+      newLayers = mergeStructures(layerStructure, newLayers);
+    });
+
+    if (newLayers.length > 0) {
+      setServiceCategories(newLayers);
     }
-  }, [loadingAdditionalConfig]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    capabilities.data,
+    replaceLayers,
+    loadingAdditionalConfig,
+    wmsServices,
+    localServices,
+    setServiceCategories,
+  ]);
 };

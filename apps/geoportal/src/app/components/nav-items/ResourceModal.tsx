@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useCallback, useContext } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -8,20 +8,16 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerLib } from "@carma-mapping/layers";
+import { LayerCatalog } from "@carma-mapping/layers";
+import type { CustomCategoryDefinition, Item } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import {
-  addCustomFeatureFlags,
-  addFavorite,
-  getFavorites,
-  removeFavorite,
-  updateFavorite,
-} from "../../store/slices/layers";
+import { addCustomFeatureFlags } from "../../store/slices/layers";
 import {
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
   getBackgroundLayer,
   getLayers,
+  getLayerStack,
   getSavedLayerConfigs,
   removeLastLayer,
   updateLayer,
@@ -32,7 +28,6 @@ import {
   setShowLoginModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
-import { apiUrl } from "../../constants/discover";
 import store from "../../store";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
@@ -44,8 +39,8 @@ const ResourceModal = () => {
   const dispatch = useDispatch();
 
   const activeLayers = useSelector(getLayers);
+  const layerStack = useSelector(getLayerStack);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const favorites = useSelector(getFavorites);
   const measurements = useSelector(getMeasurements);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
@@ -64,7 +59,22 @@ const ResourceModal = () => {
   const { toggle, getIsLeaflet, getIsCesium } =
     useMapFrameworkSwitcherContext();
   const { addLayerById } = useCarmaMapAPIActions();
-  const isLeaflet = getIsLeaflet();
+
+  // the favorites-derived subcategories are registry defaults of the lib;
+  // only the genuinely app-owned measurements category is added here
+  const customCategories = useMemo<CustomCategoryDefinition[]>(
+    () => [
+      {
+        id: "measurements",
+        label: "Meine Messungen",
+        mainCategoryId: "objects",
+        hideWhenEmpty: true,
+        keepItemServiceName: true,
+        source: { kind: "items", items: measurements as unknown as Item[] },
+      },
+    ],
+    [measurements]
+  );
 
   const getFrameworkMode = useCallback(
     () => ({
@@ -78,6 +88,7 @@ const ResourceModal = () => {
     createResourceLayerUpdater({
       dispatch,
       activeLayers,
+      layerStack,
       addFeature,
       setSelectedFeatureById,
       setShouldFocusSelected,
@@ -95,104 +106,19 @@ const ResourceModal = () => {
   return (
     <>
       {contextHolder}
-      <LayerLib
+      <LayerCatalog
         open={showResourceModal}
         setOpen={(show) => dispatch(setShowResourceModal(show))}
         setAdditionalLayers={updateLayers}
-        favorites={[...favorites, ...savedLayerConfigs]}
-        addFavorite={(layer) => {
-          if (layer.type !== "collection") {
-            dispatch(addFavorite(layer));
-          } else {
-            dispatch(appendSavedLayerConfig(layer));
-          }
+        savedCollections={savedLayerConfigs}
+        onAddCollection={(layer) => {
+          dispatch(appendSavedLayerConfig(layer));
         }}
-        removeFavorite={(layer) => {
-          if (layer.type !== "collection") {
-            dispatch(removeFavorite(layer));
-          } else {
-            dispatch(deleteSavedLayerConfig(layer.id));
-          }
+        onRemoveCollection={(layer) => {
+          dispatch(deleteSavedLayerConfig(layer.id));
         }}
         activeLayers={[backgroundLayer, ...activeLayers]}
-        customCategories={[
-          {
-            Title: "Meine Teilzwillinge",
-            layers: favorites
-              .filter((favorite) => {
-                return (
-                  favorite.serviceName === "wuppTopicMaps" ||
-                  favorite.serviceName === "wuppArcGisOnline"
-                );
-              })
-              .map((favorite) => {
-                return {
-                  ...favorite,
-                  serviceName: "favoriteDigitalTwins",
-                  path: "Meine Teilzwillinge",
-                };
-              }),
-            id: "favoriteDigitalTwins",
-          },
-          isLeaflet && {
-            Title: "Meine Karten",
-            layers: savedLayerConfigs.map((layer) => {
-              return {
-                ...layer,
-                serviceName: "collections",
-                path: "Meine Karten",
-              };
-            }),
-            id: "collections",
-          },
-          isLeaflet && {
-            Title: "Meine Kartenebenen",
-            layers: favorites
-              .filter((favorite) => {
-                return (
-                  favorite.serviceName !== "wuppTopicMaps" &&
-                  favorite.serviceName !== "wuppArcGisOnline" &&
-                  favorite.type !== "object"
-                );
-              })
-              .map((favorite) => {
-                return {
-                  ...favorite,
-                  serviceName: "favoriteLayers",
-                  path: "Meine Kartenebenen",
-                };
-              }),
-            id: "favoriteLayers",
-          },
-          {
-            Title: "Meine Messungen",
-            layers: measurements.map((measurement) => {
-              return {
-                ...measurement,
-                path: "Meine Messungen",
-              };
-            }),
-            id: "measurements",
-            mainCategoryId: "objects",
-            hideWhenEmpty: true,
-          },
-          {
-            Title: "Meine Objekte",
-            layers: favorites
-              .filter((favorite) => {
-                return favorite.type === "object";
-              })
-              .map((favorite) => {
-                return {
-                  ...favorite,
-                  serviceName: "favoriteObjects",
-                  path: "Meine Objekte",
-                };
-              }),
-
-            id: "favoriteObjects",
-          },
-        ].filter(Boolean)}
+        customCategories={customCategories}
         updateActiveLayer={(layer) => {
           dispatch(updateLayer(layer));
 
@@ -227,18 +153,9 @@ const ResourceModal = () => {
         removeLastLayer={() => {
           dispatch(removeLastLayer());
         }}
-        updateFavorite={(layer) => {
-          dispatch(updateFavorite(layer));
-        }}
-        discoverProps={{
-          appKey: "Geoportal.Online.Wuppertal",
-          apiUrl: apiUrl,
-          daqKey: "gp_entdecken",
-        }}
         setFeatureFlags={(flags) => {
           dispatch(addCustomFeatureFlags(flags));
         }}
-        store={store}
         unauthorizedCallback={() => {
           dispatch(setShowLoginModal(true));
         }}

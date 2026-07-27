@@ -1,0 +1,20 @@
+[
+  {
+    "Title": "Gebäude",
+    "serviceName": "wuppObjects",
+    "layers": [
+      {
+        "title": "Testgebäude 3D",
+        "description": "Inhalt: 3D-Testobjekt für die Objektkategorie.",
+        "tags": ["Objekte", "Gebäude"],
+        "id": "wuppObjects:test3d",
+        "name": "test3d",
+        "type": "object",
+        "layerType": "tileset",
+        "queryable": false,
+        "path": "Objekte",
+        "thumbnail": "https://example.test/vorschau/gebaeude3d.png"
+      }
+    ]
+  }
+]

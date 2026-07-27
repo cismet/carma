@@ -15,7 +15,7 @@ import {
 import {
   changeVisibility,
   getBackgroundLayer,
-  getLayers,
+  getLayerStack,
   getSelectedLuftbildLayer,
   getSelectedMapLayer,
   setLayers,
@@ -33,7 +33,8 @@ import { useCallback, useState } from "react";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
 import type { AppDispatch } from "../../store";
-import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import { isLayerGroup } from "@carma-mapping/layers";
+import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
@@ -42,18 +43,26 @@ const BaseLayerInfo = () => {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const layers = useSelector(getLayers);
+  const layers = useSelector(getLayerStack);
   const { isCesium } = useMapFrameworkSwitcherContext();
 
-  const filteredLayers = layers.filter(
-    (layer) =>
-      shouldShowAdhocLayerInLayerList(layer, isCesium) &&
-      (isCesium ? filter3dLayers(layer) : true)
-  );
+  const isListed = (entry: LayerStackEntry): boolean =>
+    isLayerGroup(entry)
+      ? entry.layers.some(isListed)
+      : !!shouldShowAdhocLayerInLayerList(entry, isCesium) &&
+        (isCesium ? !!filter3dLayers(entry) : true);
+
+  const filteredLayers = layers.filter(isListed);
+  const isPinnedAs = (entry: LayerStackEntry, pinned: "first" | "last") =>
+    !isLayerGroup(entry) && entry.pinned === pinned;
   const reversedLayers = filteredLayers.slice().reverse();
-  const sortableLayers = reversedLayers.filter((l) => !l.pinned);
-  const pinnedFirstLayers = filteredLayers.filter((l) => l.pinned === "first");
-  const pinnedLastLayers = filteredLayers.filter((l) => l.pinned === "last");
+  const sortableLayers = reversedLayers.filter(
+    (entry) => isLayerGroup(entry) || !entry.pinned
+  );
+  const pinnedFirstLayers = filteredLayers.filter((l) =>
+    isPinnedAs(l, "first")
+  );
+  const pinnedLastLayers = filteredLayers.filter((l) => isPinnedAs(l, "last"));
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
   const handleLayerVisibilityChange = useCallback(
@@ -62,7 +71,9 @@ const BaseLayerInfo = () => {
     },
     [dispatch]
   );
-  const resolveLayerVisibilityToggleProps = (layer: BackgroundLayer | Layer) =>
+  const resolveLayerVisibilityToggleProps = (
+    layer: BackgroundLayer | LayerStackEntry
+  ) =>
     getLayerVisibilityToggleProps({
       isCesium,
       layer,

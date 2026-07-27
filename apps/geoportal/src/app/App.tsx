@@ -36,6 +36,11 @@ import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
+import {
+  LayerCatalogProvider,
+  type CategoryDefinition,
+  type LayerCatalogConfig,
+} from "@carma-mapping/layers";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import {
   MapMeasurementsProvider,
@@ -43,6 +48,8 @@ import {
 } from "@carma-commons/measurements";
 
 // Local Modules
+import type { FachzwillingAddon } from "./addons/registry";
+import { FachzwillingAddonHost } from "./addons/FachzwillingAddonHost";
 import AppErrorFallback from "./components/AppErrorFallback";
 import { AnnotationProvider } from "./components/annotations/AnnotationProvider";
 import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
@@ -61,7 +68,9 @@ import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
-import { APP_KEY, layerMap } from "./config";
+import { APP_KEY, STORAGE_PREFIX, layerMap } from "./config";
+import { layerCatalogConfig } from "./constants/discover";
+import { geoportalCategoryDefinitions } from "./constants/fachzwillinge";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 import { defaultCesiumState } from "./config/cesium/store.config";
 
@@ -165,7 +174,19 @@ function GeoportalAppSearchParamsIntegration() {
   return null;
 }
 
-function App({ published }: { published?: boolean }) {
+function App({
+  published,
+  catalogConfig = layerCatalogConfig,
+  categories = geoportalCategoryDefinitions,
+  addons,
+}: {
+  published?: boolean;
+  /** route-specific catalog config, e.g. the filtered /gesundheit catalog */
+  catalogConfig?: LayerCatalogConfig;
+  /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
+  categories?: CategoryDefinition[];
+  addons?: FachzwillingAddon[];
+}) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
@@ -204,83 +225,103 @@ function App({ published }: { published?: boolean }) {
   const content = (
     <HashStateProvider>
       <FeatureFlagProvider config={featureFlagsMergedConfig}>
-        <MatomoTracker>
-          <CesiumDevConsoleIntegration />
-          <MapFrameworkSwitcherProvider initialFramework={initialMapFramework}>
-            <CarmaMapProviderWrapper
-              cesiumOptions={CESIUM_CONFIG}
-              overlayOptions={MAP_OVERLAY_OPTIONS}
-              mapStyleConfig={geoportalMapStyleConfig}
-              store={store}
-              defaultRuntimeState={defaultCesiumState}
+        <LayerCatalogProvider
+          config={catalogConfig}
+          categories={categories}
+          appKey={APP_KEY}
+          storagePrefix={STORAGE_PREFIX}
+          legacyFavoritesKey={`persist:@${APP_KEY}.${STORAGE_PREFIX}.app.layers`}
+        >
+          <MatomoTracker>
+            <CesiumDevConsoleIntegration />
+            <MapFrameworkSwitcherProvider
+              initialFramework={initialMapFramework}
             >
-              <ObliqueProvider
-                config={OBLIQUE_CONFIG}
-                fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+              <CarmaMapProviderWrapper
+                cesiumOptions={CESIUM_CONFIG}
+                overlayOptions={MAP_OVERLAY_OPTIONS}
+                mapStyleConfig={geoportalMapStyleConfig}
+                store={store}
+                defaultRuntimeState={defaultCesiumState}
               >
-                <GeoportalAppSearchParamsIntegration />
-                <MeasurementsWrapper
-                  externalMode={mode}
-                  setModeExternal={handleSetMode}
-                  baseConfig={MEASUREMENTS_BASE_CONFIG}
+                <ObliqueProvider
+                  config={OBLIQUE_CONFIG}
+                  fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
                 >
-                  <AnnotationProvider>
-                    <MeasurementLayerSyncInner />
-                    <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                      <AdhocFeatureRehydration />
-                      <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                        {isLoadingConfig && (
-                          <div
-                            id="loading"
-                            className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                          >
-                            <h2>Lade Konfiguration</h2>
-                            <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                          </div>
-                        )}
-                        {!published && <TopNavbar />}
-                        <ViewStateProvider>
-                          <ViewStateNavigationManagerProvider
-                            shareableHashOptions={VIEW_STATE_HASH_CODEC_OPTIONS}
-                            replace={true}
-                          >
-                            <MapWrapper />
-                          </ViewStateNavigationManagerProvider>
-                        </ViewStateProvider>
-                        <MobileWarningMessage
-                          headerText={mobileInfo.headerText}
-                          bodyText={mobileInfo.bodyText}
-                          confirmButtonText={mobileInfo.confirmButtonText}
-                        />
-
-                        <Modal
-                          open={showLoginModal}
-                          closable={false}
-                          footer={null}
-                          styles={{
-                            content: {
-                              padding: "0px",
-                              width: window.innerWidth < 600 ? "100%" : "450px",
-                            },
-                          }}
-                        >
-                          <LoginForm
-                            onSuccess={() => dispatch(setShowLoginModal(false))}
-                            closeLoginForm={() =>
-                              dispatch(setShowLoginModal(false))
-                            }
-                            showHelpText={false}
-                            style={{ padding: "20px" }}
+                  <GeoportalAppSearchParamsIntegration />
+                  <FachzwillingAddonHost addons={addons} />
+                  <MeasurementsWrapper
+                    externalMode={mode}
+                    setModeExternal={handleSetMode}
+                    baseConfig={MEASUREMENTS_BASE_CONFIG}
+                  >
+                    <AnnotationProvider>
+                      <MeasurementLayerSyncInner />
+                      <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                        <AdhocFeatureRehydration />
+                        <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                          {isLoadingConfig && (
+                            <div
+                              id="loading"
+                              className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                            >
+                              <h2>Lade Konfiguration</h2>
+                              <FontAwesomeIcon
+                                size="2x"
+                                icon={faSpinner}
+                                spin
+                              />
+                            </div>
+                          )}
+                          {!published && <TopNavbar />}
+                          <ViewStateProvider>
+                            <ViewStateNavigationManagerProvider
+                              shareableHashOptions={
+                                VIEW_STATE_HASH_CODEC_OPTIONS
+                              }
+                              replace={true}
+                            >
+                              <MapWrapper />
+                            </ViewStateNavigationManagerProvider>
+                          </ViewStateProvider>
+                          <MobileWarningMessage
+                            headerText={mobileInfo.headerText}
+                            bodyText={mobileInfo.bodyText}
+                            confirmButtonText={mobileInfo.confirmButtonText}
                           />
-                        </Modal>
-                      </div>
-                    </ErrorBoundary>
-                  </AnnotationProvider>
-                </MeasurementsWrapper>
-              </ObliqueProvider>
-            </CarmaMapProviderWrapper>
-          </MapFrameworkSwitcherProvider>
-        </MatomoTracker>
+
+                          <Modal
+                            open={showLoginModal}
+                            closable={false}
+                            footer={null}
+                            styles={{
+                              content: {
+                                padding: "0px",
+                                width:
+                                  window.innerWidth < 600 ? "100%" : "450px",
+                              },
+                            }}
+                          >
+                            <LoginForm
+                              onSuccess={() =>
+                                dispatch(setShowLoginModal(false))
+                              }
+                              closeLoginForm={() =>
+                                dispatch(setShowLoginModal(false))
+                              }
+                              showHelpText={false}
+                              style={{ padding: "20px" }}
+                            />
+                          </Modal>
+                        </div>
+                      </ErrorBoundary>
+                    </AnnotationProvider>
+                  </MeasurementsWrapper>
+                </ObliqueProvider>
+              </CarmaMapProviderWrapper>
+            </MapFrameworkSwitcherProvider>
+          </MatomoTracker>
+        </LayerCatalogProvider>
       </FeatureFlagProvider>
     </HashStateProvider>
   );

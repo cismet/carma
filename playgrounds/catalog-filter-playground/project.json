@@ -1,0 +1,62 @@
+{
+  "name": "catalog-filter-playground",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "playgrounds/catalog-filter-playground/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/playgrounds/catalog-filter-playground"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "catalog-filter-playground:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "catalog-filter-playground:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "catalog-filter-playground:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "catalog-filter-playground:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "catalog-filter-playground:build:development"
+        },
+        "production": {
+          "buildTarget": "catalog-filter-playground:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  }
+}

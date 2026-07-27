@@ -24,7 +24,7 @@ import {
   changeBackgroundVisibility,
   getBackgroundLayer,
   getFocusMode,
-  getLayers,
+  getLayerStack,
   getLayerState,
   getPaleOpacityValue,
   setFocusMode,
@@ -55,7 +55,7 @@ const ActionButtons = () => {
   const { copyShareUrl, contextHolder } = useShareUrl();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
   const focusMode = useSelector(getFocusMode);
-  const activeLayers = useSelector(getLayers);
+  const activeLayers = useSelector(getLayerStack);
   const showPrintPopup = useSelector(getIfPopupOpend);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const paleOpacityValue = useSelector(getPaleOpacityValue);
