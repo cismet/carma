@@ -122,6 +122,31 @@ const parseZoom = (
   return { maxzoom, minzoom };
 };
 
+const vectorStyleCache = new Map<string, Promise<any>>();
+
+const fetchVectorStyle = (url: string): Promise<any> => {
+  const cached = vectorStyleCache.get(url);
+  if (cached) {
+    return cached;
+  }
+  const request = fetch(url)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(
+          `Fetching vector style ${url} failed with status ${response.status}`
+        );
+      }
+      return response.json();
+    })
+    .catch((error) => {
+      // don't keep a rejected promise around, the next parse should retry
+      vectorStyleCache.delete(url);
+      throw error;
+    });
+  vectorStyleCache.set(url, request);
+  return request;
+};
+
 function isJson(str) {
   try {
     JSON.parse(str);
@@ -205,26 +230,22 @@ export const parseToMapLayer = async (
           }
         }
       } else if (typeof vectorStyle === "string" && vectorStyle) {
-        zoom = await fetch(vectorStyle)
-          .then((response) => {
-            return response.json();
-          })
-          .then((result) => {
-            const parsedZoom = parseZoom(result.layers, {
-              minzoom: 9,
-              maxzoom: 24,
-            });
-            if (result.metadata) {
-              metaData = result.metadata;
-              if (metaData?.carmaConf?.filterConfig) {
-                filterConfig = metaData?.carmaConf?.filterConfig;
-              }
-              if (metaData?.carmaConf?.dynamicStyling) {
-                dynamicStyling = metaData?.carmaConf?.dynamicStyling;
-              }
-            }
-            return parsedZoom;
+        zoom = await fetchVectorStyle(vectorStyle).then((result) => {
+          const parsedZoom = parseZoom(result.layers, {
+            minzoom: 9,
+            maxzoom: 24,
           });
+          if (result.metadata) {
+            metaData = result.metadata;
+            if (metaData?.carmaConf?.filterConfig) {
+              filterConfig = metaData?.carmaConf?.filterConfig;
+            }
+            if (metaData?.carmaConf?.dynamicStyling) {
+              dynamicStyling = metaData?.carmaConf?.dynamicStyling;
+            }
+          }
+          return parsedZoom;
+        });
       }
 
       let vectorConf = null;
