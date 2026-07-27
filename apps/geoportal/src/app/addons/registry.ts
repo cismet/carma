@@ -26,7 +26,7 @@ export type FachzwillingAddon = {
 export type AddonComponentProps<K extends AddonKind = AddonKind> = {
   config: AddonConfigMap[K];
   carma: typeof carma;
-  getLeafletMap: () => LeafletMap | null;
+  leafletMap: LeafletMap | null;
   store: AppStore;
 };
 

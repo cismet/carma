@@ -1,4 +1,4 @@
-import { useCallback, useContext, type ComponentType } from "react";
+import { useContext, type ComponentType } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -14,7 +14,7 @@ import {
 /**
  * Lookup host for the active route's addons: resolves each addon's kind in
  * `addonRegistry` and mounts the kind's component, handing it the shared
- * geoportal interaction inputs (carma api, leaflet map handle, redux store).
+ * geoportal interaction inputs (carma api, leaflet map, redux store).
  * Must render inside `CarmaMapProviderWrapper` so the map contexts and the
  * carma api adapters are available.
  */
@@ -24,11 +24,9 @@ export const FachzwillingAddonHost = ({
   addons?: FachzwillingAddon[];
 }) => {
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
-  const getLeafletMap = useCallback(
-    (): LeafletMap | null =>
-      topicMap?.routedMapRef?.leafletMap?.leafletElement ?? null,
-    [topicMap]
-  );
+  // resolved per render; the context updates once the routed map ref is set
+  const leafletMap: LeafletMap | null =
+    topicMap?.routedMapRef?.leafletMap?.leafletElement ?? null;
 
   if (!addons?.length) {
     return null;
@@ -46,7 +44,7 @@ export const FachzwillingAddonHost = ({
             key={`${addon.kind}_${index}`}
             config={addon.config}
             carma={carma}
-            getLeafletMap={getLeafletMap}
+            leafletMap={leafletMap}
             store={store}
           />
         );
