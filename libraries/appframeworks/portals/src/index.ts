@@ -73,6 +73,7 @@ export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 // LibreContext moved to @carma-mapping/engines/maplibre
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
+export type { GazDataContribution } from "./lib/components/GazDataContext";
 
 export {
   MapStyleProvider,
