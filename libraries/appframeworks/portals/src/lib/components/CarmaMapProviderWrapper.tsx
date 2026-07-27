@@ -7,6 +7,7 @@ import {
 import {
   LibreContextProvider,
   MapSelectionProvider,
+  MapHighlightProvider,
 } from "@carma-mapping/contexts";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -203,7 +204,9 @@ export const CarmaMapProviderWrapper = ({
                     <LibreContextProvider>
                       <MapSelectionProvider>
                         <CarmaApiBridge store={store} />
-                        {wrappedChildren}
+                        <MapHighlightProvider debug>
+                          {wrappedChildren}
+                        </MapHighlightProvider>
                       </MapSelectionProvider>
                     </LibreContextProvider>
                   </CesiumContextProvider>
