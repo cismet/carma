@@ -143,6 +143,9 @@ export const useLoadCapabilities = ({
   const activeLayersRef = useRef(activeLayers);
   activeLayersRef.current = activeLayers;
 
+  const syncedCapabilitiesRef = useRef<unknown[]>([]);
+  const syncedReplaceLayersRef = useRef<unknown>(undefined);
+
   // Derive allLayers from all capabilities present so far. Runs again when
   // late replace layers arrive, so the result no longer depends on response
   // order.
@@ -200,6 +203,10 @@ export const useLoadCapabilities = ({
 
     let newLayers: any[] = [];
 
+    const replaceLayersChanged =
+      syncedReplaceLayersRef.current !== replaceLayers;
+    syncedReplaceLayersRef.current = replaceLayers;
+
     wmsServices.forEach((service, index) => {
       const wms = capabilities.data[index];
       if (!wms) {
@@ -212,7 +219,13 @@ export const useLoadCapabilities = ({
         skipTopicMaps: true,
         replaceLayers,
       });
-      syncActiveLayers(layerStructure);
+      if (
+        replaceLayersChanged ||
+        syncedCapabilitiesRef.current[index] !== wms
+      ) {
+        syncedCapabilitiesRef.current[index] = wms;
+        syncActiveLayers(layerStructure);
+      }
       newLayers = mergeStructures(layerStructure, newLayers);
     });
 
