@@ -4,6 +4,11 @@ import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { Cartesian3 } from "@carma-cesium";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import {
+  useCatalogDataOptional,
+  type CatalogServiceCategory,
+  type Item,
+} from "@carma-mapping/layers";
 import { registerMapping, type MapAdapter } from "@carma-api";
 
 import { useMapStyle } from "../../contexts/MapStyleProvider";
@@ -14,12 +19,6 @@ import type { Store } from "redux";
 const RAD_TO_DEG = 180 / Math.PI;
 
 export interface MappingPortalState {
-  /** The full layer catalog, grouped into categories (source for addLayer). */
-  mapLayers?: {
-    allLayers?: Array<{
-      layers?: Array<{ id: string; [key: string]: unknown }>;
-    }>;
-  };
   /** The layers currently on the map. */
   mapping?: {
     layers?: Array<{ id: string }>;
@@ -36,13 +35,13 @@ export const hasLayerById = (state: MappingPortalState, id: string): boolean =>
 export const selectLayerIDs = (state: MappingPortalState): string[] =>
   state.mapping?.layers?.map((layer) => layer.id) ?? [];
 
-/** Look a layer up in the full catalog by id, or `undefined` if unknown. */
-export const selectCatalogLayerById = (
-  state: MappingPortalState,
+/** Look a layer up in the catalog's service categories by id, or `undefined`. */
+export const findCatalogItemById = (
+  categories: CatalogServiceCategory[],
   id: string
-): { id: string; [key: string]: unknown } | undefined => {
-  for (const category of state.mapLayers?.allLayers ?? []) {
-    const found = category.layers?.find((layer) => layer.id === id);
+): Item | undefined => {
+  for (const category of categories) {
+    const found = category.layers.find((layer) => layer.id === id);
     if (found) return found;
   }
   return undefined;
@@ -51,7 +50,9 @@ export const selectCatalogLayerById = (
 /**
  * Registers the `carma.mapping` / `carma.mapping2D` / `carma.mapping3D`
  * adapter. Grabs the leaflet map (TopicMapContext), the cesium viewer and the
- * framework switcher, plus the optional Redux store for layer reads/mutations.
+ * framework switcher, plus the optional Redux store for the active-layer state.
+ * Catalog lookups (`addLayer` id resolution) read the LayerCatalogProvider,
+ * when one is mounted above.
  *
  * To add a mapping function: extend `MapAdapter` in `@carma-api`, then add the
  * closure to the adapter object below.
@@ -60,6 +61,7 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
   const { withCamera } = useCesiumContext();
   const { setCurrentStyle } = useMapStyle();
+  const serviceCategories = useCatalogDataOptional()?.serviceCategories;
   const {
     activeFramework,
     requestTransitionToCesium,
@@ -133,7 +135,8 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         });
       },
 
-      // layers (redux) — only available when a store was provided ------------
+      // layers — active-layer state lives in redux (needs the store), the
+      // catalog for addLayer id resolution comes from the LayerCatalogProvider
       ...(store && {
         hasLayer: (id: string): boolean => hasLayerById(store.getState(), id),
         getLayerIDs: (): string[] => selectLayerIDs(store.getState()),
@@ -145,16 +148,14 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           return true;
         },
         addLayer: async (id: string): Promise<boolean> => {
-          const state = store.getState();
-          if (hasLayerById(state, id)) {
+          if (hasLayerById(store.getState(), id)) {
             return false; // already on the map
           }
-          const layer = selectCatalogLayerById(state, id);
-          if (!layer) {
-            return false; // unknown id
+          const item = findCatalogItemById(serviceCategories ?? [], id);
+          if (!item) {
+            return false; // unknown id, or no LayerCatalogProvider mounted
           }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const mapLayer = await parseToMapLayer(layer as any, false, true);
+          const mapLayer = await parseToMapLayer(item, false, true);
           store.dispatch({ type: "mapping/appendLayer", payload: mapLayer });
           return true;
         },
@@ -198,5 +199,6 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     requestTransitionToLeaflet,
     setCurrentStyle,
     store,
+    serviceCategories,
   ]);
 };

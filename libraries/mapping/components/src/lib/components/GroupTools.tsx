@@ -2,17 +2,31 @@ import type { FC } from "react";
 
 import type {
   GroupToolConfigMap,
+  GroupToolDefinition,
+  GroupToolEntry,
   GroupToolType,
   LayerGroup,
   LayerStackEntry,
 } from "@carma-mapping/layers";
-import {
-  GROUP_TOOL_TYPES,
-  isLayerGroup,
-  normalizeGroupTools,
-} from "@carma-mapping/layers";
 
 import { GroupLayerVisibilityButtons } from "./GroupLayerVisibilityButtons";
+
+// Local runtime copies of GROUP_TOOL_TYPES.LAYER_VISIBILITY, isLayerGroup and
+// normalizeGroupTools: a runtime import would close a module cycle with
+// @carma-mapping/layers (which imports this lib) and throw a TDZ error; the
+// type imports above are erased and safe.
+const LAYER_VISIBILITY = "layerVisibility" satisfies GroupToolType;
+
+const isLayerGroup = (
+  entry: LayerStackEntry | undefined
+): entry is LayerGroup => entry?.type === "group";
+
+const normalizeGroupTools = (
+  tools?: GroupToolEntry[]
+): GroupToolDefinition[] =>
+  (tools ?? []).map((tool) =>
+    typeof tool === "string" ? { type: tool } : tool
+  );
 
 export type GroupToolHostApi = {
   changeLayerVisibility: (id: string, visible: boolean) => void;
@@ -25,7 +39,7 @@ type GroupToolProps<K extends GroupToolType> = {
 };
 
 const GroupLayerVisibilityTool: FC<
-  GroupToolProps<typeof GROUP_TOOL_TYPES.LAYER_VISIBILITY>
+  GroupToolProps<typeof LAYER_VISIBILITY>
 > = ({ group, config, host }) => (
   <GroupLayerVisibilityButtons
     entries={group.layers.map((member) => ({
@@ -41,7 +55,7 @@ const GroupLayerVisibilityTool: FC<
 const GROUP_TOOL_COMPONENTS: {
   [K in GroupToolType]?: FC<GroupToolProps<K>>;
 } = {
-  [GROUP_TOOL_TYPES.LAYER_VISIBILITY]: GroupLayerVisibilityTool,
+  [LAYER_VISIBILITY]: GroupLayerVisibilityTool,
 };
 
 export const getRenderableGroupTools = (group: LayerGroup) =>

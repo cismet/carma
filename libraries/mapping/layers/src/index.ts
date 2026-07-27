@@ -15,9 +15,11 @@ export {
 export {
   LayerCatalogProvider,
   useCatalogData,
+  useCatalogDataOptional,
   useLayerCatalog,
   type LayerCatalogProviderProps,
   type LayerCatalogContextValue,
+  type CatalogDataContextValue,
   type CatalogServiceCategory,
 } from "./context/LayerCatalogProvider";
 export {

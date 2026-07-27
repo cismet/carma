@@ -281,6 +281,14 @@ export const useCatalogData = (): CatalogDataContextValue => {
   return value;
 };
 
+/**
+ * Like `useCatalogData`, but returns `null` when no LayerCatalogProvider is
+ * mounted. For hosts where the catalog is optional (e.g. the carma-api
+ * bridge, which runs in portals without a catalog).
+ */
+export const useCatalogDataOptional = (): CatalogDataContextValue | null =>
+  useContext(CatalogDataContext);
+
 /** the currently selected item (InfoCard); re-renders per selection change */
 export const useCatalogSelectedItem = (): Item | null =>
   useContext(CatalogSelectedItemContext);
