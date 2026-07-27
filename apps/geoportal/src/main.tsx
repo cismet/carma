@@ -28,7 +28,6 @@ import {
   fachzwillingRoutes,
   findFachzwillingByPathname,
   getFachzwillingCatalogConfig,
-  getFachzwillingGazDataConfig,
   getGeoportalCategoryDefinitions,
   resolveFachzwillingUi,
 } from "./app/constants/fachzwillinge";
@@ -64,16 +63,11 @@ const RoutedApp = () => {
     () => getGeoportalCategoryDefinitions(fachzwilling?.perspectives),
     [fachzwilling]
   );
-  const gazDataConfig = useMemo(
-    () => getFachzwillingGazDataConfig(fachzwilling),
-    [fachzwilling]
-  );
-
   return (
     <App
       catalogConfig={catalogConfig}
       categories={categories}
-      gazDataConfig={gazDataConfig}
+      addons={fachzwilling?.addons}
     />
   );
 };
