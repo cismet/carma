@@ -8,6 +8,7 @@ import {
   type LayerCatalogConfig,
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
+import { resolveFeatureFlags } from "@carma-providers/feature-flag";
 import type { FachzwillingAddon } from "../addons/registry";
 
 import {
@@ -20,13 +21,18 @@ import { layerCatalogConfig } from "./discover";
 import { gesundheitFachzwilling } from "./gesundheit";
 import { bodenFachzwilling } from "./boden";
 import { outletFachzwilling } from "./outlet";
+import { featureFlagConfig } from "../config/featureFlags";
+
+const isFachzwillingeEnabled =
+  resolveFeatureFlags(featureFlagConfig).featureFlagFachzwillinge === true;
 
 /**
  * A Fachzwilling is a thematic geoportal variant: an own route whose layer
  * catalog is narrowed to the theme via always-active filters. Registering a
  * route here generates the hash route (main.tsx), the link card in the
- * "Fachzwillinge" subcategory of the "Teilzwillinge" catalog category and the
- * navbar breadcrumb (TopNavbar).
+ * "Fachzwillinge" subcategory of the "Themenzwillinge" catalog category and the
+ * navbar breadcrumb (TopNavbar). All of it only while featureFlagFachzwillinge
+ * is active, see isFachzwillingeEnabled.
  */
 export type FachzwillingUiOptions = Partial<UIVisibleControls> & {
   hideAll?: boolean;
@@ -62,11 +68,9 @@ export type FachzwillingRoute = {
   addons?: FachzwillingAddon[];
 };
 
-export const fachzwillingRoutes: FachzwillingRoute[] = [
-  gesundheitFachzwilling,
-  bodenFachzwilling,
-  outletFachzwilling,
-];
+export const fachzwillingRoutes: FachzwillingRoute[] = isFachzwillingeEnabled
+  ? [gesundheitFachzwilling, bodenFachzwilling, outletFachzwilling]
+  : [];
 
 export const getFachzwillingCatalogConfig = (
   route: FachzwillingRoute
@@ -103,17 +107,39 @@ const fachzwillingeSubCategory: CatalogSubCategory = {
   layers: fachzwillingItems,
 };
 
+const preFachzwillingeCategoryLabels: Record<string, string> = {
+  partialTwins: "Teilzwillinge",
+  favoriteDigitalTwins: "Meine Teilzwillinge",
+};
+
+const withPreFachzwillingeCategoryLabels = (
+  definitions: CategoryDefinition[]
+): CategoryDefinition[] =>
+  definitions.map((definition) => ({
+    ...definition,
+    label: preFachzwillingeCategoryLabels[definition.id] ?? definition.label,
+    subCategories: definition.subCategories?.map((subCategory) => ({
+      ...subCategory,
+      label:
+        preFachzwillingeCategoryLabels[subCategory.id] ?? subCategory.label,
+    })),
+  }));
+
 /**
  * The default catalog categories with the "Fachzwillinge" subcategory merged
- * into the "Teilzwillinge" section (before "TopicMaps Wuppertal"). When the
+ * into the "Themenzwillinge" section (before "TopicMaps Wuppertal"). When the
  * active route defines workflow perspectives, a "Workflows" section is
- * appended after the Teilzwillinge; the default route passes no perspectives
- * and therefore shows no workflows.
+ * appended after the Themenzwillinge; the default route passes no perspectives
+ * and therefore shows no workflows. While the feature flag is off, the
+ * categories keep their previous labels instead.
  */
 export const getGeoportalCategoryDefinitions = (
   perspectives?: WorkflowPerspective[]
-): CategoryDefinition[] =>
-  defaultCategoryDefinitions.flatMap((definition) =>
+): CategoryDefinition[] => {
+  if (!isFachzwillingeEnabled) {
+    return withPreFachzwillingeCategoryLabels(defaultCategoryDefinitions);
+  }
+  return defaultCategoryDefinitions.flatMap((definition) =>
     definition.id === "partialTwins"
       ? [
           {
@@ -129,6 +155,7 @@ export const getGeoportalCategoryDefinitions = (
         ]
       : [definition]
   );
+};
 
 /** default geoportal category registry (no route-specific workflows) */
 export const geoportalCategoryDefinitions: CategoryDefinition[] =
