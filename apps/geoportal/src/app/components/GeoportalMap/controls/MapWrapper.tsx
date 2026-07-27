@@ -17,6 +17,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
+import { MapHighlightProvider } from "@carma-mapping/engines/maplibre";
+
 import {
   SelectionMapMode,
   type SelectionMetaData,
@@ -289,311 +291,321 @@ const MapWrapper = ({ addons }: { addons?: Addon[] }) => {
   };
 
   return (
-    <ControlLayout>
-      <AddonHost addons={addons} />
-      {zenMode ? (
-        <Control position="topcenter" order={10}>
-          <button
-            className={`text-xl size-16 hover:text-gray-600 button-shadow bg-white/80 rounded-md transition-all duration-300 pointer-events-auto`}
-            onClick={() => {
-              if (zenButtonHidden) {
-                setZenButtonHidden(false);
-              } else {
-                setIsHoveringZenButton(false);
-                dispatch(setZenMode(false));
-              }
-            }}
-            onMouseEnter={() => setIsHoveringZenButton(true)}
-            onMouseLeave={() => setIsHoveringZenButton(false)}
-            // make sure the shadow is still visible after click
-            onMouseDown={(e) => e.preventDefault()}
-            style={{
-              transform: zenButtonHidden ? "translateY(-87%)" : "translateY(0)",
-            }}
-            data-test-id="zen-mode-btn"
-          >
-            <Tooltip
-              title={
-                <span>
-                  Bedienelemente einblenden
-                  <br />
-                  (Zen-Modus beenden)
-                </span>
-              }
-            >
-              <FontAwesomeIcon fixedWidth={true} icon={faEyeSlash} />
-            </Tooltip>
-          </button>
-        </Control>
-      ) : (
-        <div
-          style={{
-            paddingTop: visibleControls.navbar
-              ? "calc(4rem + var(--system-message-banner-height, 0px))"
-              : "var(--system-message-banner-height, 0px)",
-          }}
-        >
-          {/* adds padding for topnavbar (+ banner if visible)*/}
-          {visibleControls.zoom && (
-            <Control position="topleft" order={10}>
-              <div ref={tourRefLabels.zoom} className="flex flex-col">
-                <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
-                  <ControlButtonStyler
-                    onClick={(event) => {
-                      if (isLeaflet) {
-                        if (showLibreMap) {
-                          libreMap?.zoomIn();
-                        } else {
-                          zoomInLeaflet();
-                        }
-                      } else {
-                        handleZoomInCesium(event);
-                      }
-                    }}
-                    className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                    dataTestId="zoom-in-control"
-                  >
-                    <FontAwesomeIcon icon={faPlus} className="text-base" />
-                  </ControlButtonStyler>
-                </Tooltip>
-                <Tooltip
-                  title="Maßstab verkleinern (Zoom out)"
-                  placement="right"
-                >
-                  <ControlButtonStyler
-                    onClick={(event) => {
-                      if (isLeaflet) {
-                        if (showLibreMap) {
-                          libreMap?.zoomOut();
-                        } else {
-                          zoomOutLeaflet();
-                        }
-                      } else {
-                        handleZoomOutCesium(event);
-                      }
-                    }}
-                    className="!rounded-t-none !border-t-[1px]"
-                    dataTestId="zoom-out-control"
-                  >
-                    <FontAwesomeIcon icon={faMinus} className="text-base" />
-                  </ControlButtonStyler>
-                </Tooltip>
-              </div>
-            </Control>
-          )}
-          {allow3d && (
-            <Control position="topleft" order={10}>
-              <div className="flex flex-col">
-                <Tooltip
-                  title="mit gedrückter Maustaste drehen und kippen"
-                  placement="right"
-                >
-                  <ControlButtonStyler
-                    useDisabledStyle={false}
-                    className={
-                      "!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                    }
-                    ref={tourRefLabels.alignNorth}
-                    dataTestId="compass-control"
-                    disabled={
-                      (isLeaflet && !showLibreMap) || isObliquePreviewVisible
-                    }
-                  >
-                    {showLibreMap ? (
-                      <LibrePitchingCompass map={libreMap} />
-                    ) : (
-                      <PitchingCompass />
-                    )}
-                  </ControlButtonStyler>
-                </Tooltip>
-
-                <MapFrameworkSwitcher
-                  enableMobileWarning={true}
-                  className="!rounded-t-none !border-t-[1px]"
-                  ref={tourRefLabels.toggle2d3d}
-                  useDisabledStyle={false}
-                  onToggleOverride={
-                    showLibreMap
-                      ? isLeaflet
-                        ? setActiveFrameworkCesium
-                        : setActiveFrameworkLeaflet
-                      : undefined
-                  }
-                  // nativeTooltip={true}
-                />
-              </div>
-            </Control>
-          )}
-          {showFullscreenButton && visibleControls.fullscreen && (
-            <Control position="topleft" order={20}>
-              <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
-            </Control>
-          )}
-          {!isObliquePreviewVisible && showLocatorButton && isMobile && (
-            <Control position="topleft" order={30}>
-              <RoutedMapLocateControl
-                tourRefLabels={tourRefLabels}
-                disabled={false}
-                nativeTooltip={true}
-              />
-            </Control>
-          )}
-          {!isObliquePreviewVisible && visibleControls.home && (
-            <Control position="topleft" order={40}>
-              <Tooltip
-                title="Auf Rathaus Barmen positionieren"
-                placement="right"
-              >
-                <ControlButtonStyler
-                  ref={tourRefLabels.home}
-                  onClick={() => {
-                    if (showLibreMap) {
-                      if (isCesium) {
-                        handleCesiumHomeClick();
-                      } else {
-                        libreMap?.flyTo({
-                          center: [homeCenter[1], homeCenter[0]],
-                          zoom: homeMaplibreZoom,
-                          essential: true,
-                        });
-                      }
-                    } else {
-                      routedMap.leafletMap.leafletElement.flyTo(
-                        homeCenter,
-                        homeLeafletZoom
-                      );
-                      handleCesiumHomeClick();
-                    }
-                  }}
-                  dataTestId="home-control"
-                >
-                  <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-                </ControlButtonStyler>
-              </Tooltip>
-            </Control>
-          )}
-          {!isObliquePreviewVisible &&
-            !isMobileDevice &&
-            visibleControls.measurement && (
-              <MeasurementControl
-                position="topleft"
-                order={60}
-                tooltip={
-                  isModeMeasurement
-                    ? "Messungsmodus ausschalten"
-                    : "Messungsmodus einschalten"
+    <MapHighlightProvider>
+      <ControlLayout>
+        <AddonHost addons={addons} />
+        {zenMode ? (
+          <Control position="topcenter" order={10}>
+            <button
+              className={`text-xl size-16 hover:text-gray-600 button-shadow bg-white/80 rounded-md transition-all duration-300 pointer-events-auto`}
+              onClick={() => {
+                if (zenButtonHidden) {
+                  setZenButtonHidden(false);
+                } else {
+                  setIsHoveringZenButton(false);
+                  dispatch(setZenMode(false));
                 }
-                tooltipPlacement="right"
-                showInfoBox={false}
-                ref={tourRefLabels.measurement}
-              />
-            )}
-          {!isObliquePreviewVisible && visibleControls.featureInfo && (
-            <Control position="topleft" order={50}>
+              }}
+              onMouseEnter={() => setIsHoveringZenButton(true)}
+              onMouseLeave={() => setIsHoveringZenButton(false)}
+              // make sure the shadow is still visible after click
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                transform: zenButtonHidden
+                  ? "translateY(-87%)"
+                  : "translateY(0)",
+              }}
+              data-test-id="zen-mode-btn"
+            >
               <Tooltip
                 title={
-                  isModeFeatureInfo
-                    ? "Modus Multi-Sachdatenabfrage ausschalten"
-                    : "Modus Multi-Sachdatenabfrage einschalten"
+                  <span>
+                    Bedienelemente einblenden
+                    <br />
+                    (Zen-Modus beenden)
+                  </span>
                 }
-                placement="right"
               >
-                <ControlButtonStyler
-                  disabled={!isLeaflet}
-                  useDisabledStyle={!isLeaflet}
-                  onClick={() => {
-                    handleToggleFeatureInfo();
-                    dispatch(setSelectedFeature(null));
-                    dispatch(setSecondaryInfoBoxElements([]));
-                    dispatch(setFeatures([]));
-                    dispatch(setPreferredLayerId(""));
-                  }}
-                  className="font-semibold"
-                  ref={tourRefLabels.featureInfo}
-                  dataTestId="feature-info-control"
-                >
-                  <FontAwesomeIcon
-                    icon={faInfo}
-                    className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
-                  />
-                </ControlButtonStyler>
+                <FontAwesomeIcon fixedWidth={true} icon={faEyeSlash} />
               </Tooltip>
-            </Control>
-          )}
+            </button>
+          </Control>
+        ) : (
+          <div
+            style={{
+              paddingTop: visibleControls.navbar
+                ? "calc(4rem + var(--system-message-banner-height, 0px))"
+                : "var(--system-message-banner-height, 0px)",
+            }}
+          >
+            {/* adds padding for topnavbar (+ banner if visible)*/}
+            {visibleControls.zoom && (
+              <Control position="topleft" order={10}>
+                <div ref={tourRefLabels.zoom} className="flex flex-col">
+                  <Tooltip
+                    title="Maßstab vergrößern (Zoom in)"
+                    placement="right"
+                  >
+                    <ControlButtonStyler
+                      onClick={(event) => {
+                        if (isLeaflet) {
+                          if (showLibreMap) {
+                            libreMap?.zoomIn();
+                          } else {
+                            zoomInLeaflet();
+                          }
+                        } else {
+                          handleZoomInCesium(event);
+                        }
+                      }}
+                      className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                      dataTestId="zoom-in-control"
+                    >
+                      <FontAwesomeIcon icon={faPlus} className="text-base" />
+                    </ControlButtonStyler>
+                  </Tooltip>
+                  <Tooltip
+                    title="Maßstab verkleinern (Zoom out)"
+                    placement="right"
+                  >
+                    <ControlButtonStyler
+                      onClick={(event) => {
+                        if (isLeaflet) {
+                          if (showLibreMap) {
+                            libreMap?.zoomOut();
+                          } else {
+                            zoomOutLeaflet();
+                          }
+                        } else {
+                          handleZoomOutCesium(event);
+                        }
+                      }}
+                      className="!rounded-t-none !border-t-[1px]"
+                      dataTestId="zoom-out-control"
+                    >
+                      <FontAwesomeIcon icon={faMinus} className="text-base" />
+                    </ControlButtonStyler>
+                  </Tooltip>
+                </div>
+              </Control>
+            )}
+            {allow3d && (
+              <Control position="topleft" order={10}>
+                <div className="flex flex-col">
+                  <Tooltip
+                    title="mit gedrückter Maustaste drehen und kippen"
+                    placement="right"
+                  >
+                    <ControlButtonStyler
+                      useDisabledStyle={false}
+                      className={
+                        "!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                      }
+                      ref={tourRefLabels.alignNorth}
+                      dataTestId="compass-control"
+                      disabled={
+                        (isLeaflet && !showLibreMap) || isObliquePreviewVisible
+                      }
+                    >
+                      {showLibreMap ? (
+                        <LibrePitchingCompass map={libreMap} />
+                      ) : (
+                        <PitchingCompass />
+                      )}
+                    </ControlButtonStyler>
+                  </Tooltip>
 
-          {!isObliquePreviewVisible && showLibreMap && (
-            <Control position="topleft" order={80}>
-              <Tooltip title={"Terrain"} placement="right">
-                <ControlButtonStyler
-                  onClick={toggleTerrain}
-                  className="font-semibold"
-                >
-                  <FontAwesomeIcon
-                    icon={faMountainCity}
-                    className={isTerrainEnabled ? "text-[#1677ff]" : ""}
+                  <MapFrameworkSwitcher
+                    enableMobileWarning={true}
+                    className="!rounded-t-none !border-t-[1px]"
+                    ref={tourRefLabels.toggle2d3d}
+                    useDisabledStyle={false}
+                    onToggleOverride={
+                      showLibreMap
+                        ? isLeaflet
+                          ? setActiveFrameworkCesium
+                          : setActiveFrameworkLeaflet
+                        : undefined
+                    }
+                    // nativeTooltip={true}
                   />
-                </ControlButtonStyler>
-              </Tooltip>
-            </Control>
-          )}
-          {!isObliquePreviewVisible && visibleControls.layerButtons && (
-            <Control position="topcenter" order={10}>
-              <LayerWrapper />
-            </Control>
-          )}
-          {visibleControls.gazetteer && (
-            <Control position="bottomleft" order={10}>
-              <div
-                ref={tourRefLabels.gazetteer}
-                className={`h-full w-full transition-opacity duration-200 ${
-                  isObliquePreviewVisible
-                    ? "opacity-0 pointer-events-none"
-                    : "opacity-100"
-                }`}
-              >
-                <LibFuzzySearch
-                  gazData={gazData}
-                  onSelection={onGazetteerSelection}
-                  placeholder="Wohin?"
-                  pixelwidth={
-                    responsiveState === "normal"
-                      ? "300px"
-                      : windowSize.width - gap
-                  }
-                  selection={configSelection}
-                  landParcelSearch={true}
+                </div>
+              </Control>
+            )}
+            {showFullscreenButton && visibleControls.fullscreen && (
+              <Control position="topleft" order={20}>
+                <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
+              </Control>
+            )}
+            {!isObliquePreviewVisible && showLocatorButton && isMobile && (
+              <Control position="topleft" order={30}>
+                <RoutedMapLocateControl
+                  tourRefLabels={tourRefLabels}
+                  disabled={false}
+                  nativeTooltip={true}
                 />
-              </div>
-            </Control>
-          )}
-        </div>
-      )}
-      <ControlLayoutCanvas>
+              </Control>
+            )}
+            {!isObliquePreviewVisible && visibleControls.home && (
+              <Control position="topleft" order={40}>
+                <Tooltip
+                  title="Auf Rathaus Barmen positionieren"
+                  placement="right"
+                >
+                  <ControlButtonStyler
+                    ref={tourRefLabels.home}
+                    onClick={() => {
+                      if (showLibreMap) {
+                        if (isCesium) {
+                          handleCesiumHomeClick();
+                        } else {
+                          libreMap?.flyTo({
+                            center: [homeCenter[1], homeCenter[0]],
+                            zoom: homeMaplibreZoom,
+                            essential: true,
+                          });
+                        }
+                      } else {
+                        routedMap.leafletMap.leafletElement.flyTo(
+                          homeCenter,
+                          homeLeafletZoom
+                        );
+                        handleCesiumHomeClick();
+                      }
+                    }}
+                    dataTestId="home-control"
+                  >
+                    <FontAwesomeIcon
+                      icon={faHouseChimney}
+                      className="text-lg"
+                    />
+                  </ControlButtonStyler>
+                </Tooltip>
+              </Control>
+            )}
+            {!isObliquePreviewVisible &&
+              !isMobileDevice &&
+              visibleControls.measurement && (
+                <MeasurementControl
+                  position="topleft"
+                  order={60}
+                  tooltip={
+                    isModeMeasurement
+                      ? "Messungsmodus ausschalten"
+                      : "Messungsmodus einschalten"
+                  }
+                  tooltipPlacement="right"
+                  showInfoBox={false}
+                  ref={tourRefLabels.measurement}
+                />
+              )}
+            {!isObliquePreviewVisible && visibleControls.featureInfo && (
+              <Control position="topleft" order={50}>
+                <Tooltip
+                  title={
+                    isModeFeatureInfo
+                      ? "Modus Multi-Sachdatenabfrage ausschalten"
+                      : "Modus Multi-Sachdatenabfrage einschalten"
+                  }
+                  placement="right"
+                >
+                  <ControlButtonStyler
+                    disabled={!isLeaflet}
+                    useDisabledStyle={!isLeaflet}
+                    onClick={() => {
+                      handleToggleFeatureInfo();
+                      dispatch(setSelectedFeature(null));
+                      dispatch(setSecondaryInfoBoxElements([]));
+                      dispatch(setFeatures([]));
+                      dispatch(setPreferredLayerId(""));
+                    }}
+                    className="font-semibold"
+                    ref={tourRefLabels.featureInfo}
+                    dataTestId="feature-info-control"
+                  >
+                    <FontAwesomeIcon
+                      icon={faInfo}
+                      className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
+                    />
+                  </ControlButtonStyler>
+                </Tooltip>
+              </Control>
+            )}
+
+            {!isObliquePreviewVisible && showLibreMap && (
+              <Control position="topleft" order={80}>
+                <Tooltip title={"Terrain"} placement="right">
+                  <ControlButtonStyler
+                    onClick={toggleTerrain}
+                    className="font-semibold"
+                  >
+                    <FontAwesomeIcon
+                      icon={faMountainCity}
+                      className={isTerrainEnabled ? "text-[#1677ff]" : ""}
+                    />
+                  </ControlButtonStyler>
+                </Tooltip>
+              </Control>
+            )}
+            {!isObliquePreviewVisible && visibleControls.layerButtons && (
+              <Control position="topcenter" order={10}>
+                <LayerWrapper />
+              </Control>
+            )}
+            {visibleControls.gazetteer && (
+              <Control position="bottomleft" order={10}>
+                <div
+                  ref={tourRefLabels.gazetteer}
+                  className={`h-full w-full transition-opacity duration-200 ${
+                    isObliquePreviewVisible
+                      ? "opacity-0 pointer-events-none"
+                      : "opacity-100"
+                  }`}
+                >
+                  <LibFuzzySearch
+                    gazData={gazData}
+                    onSelection={onGazetteerSelection}
+                    placeholder="Wohin?"
+                    pixelwidth={
+                      responsiveState === "normal"
+                        ? "300px"
+                        : windowSize.width - gap
+                    }
+                    selection={configSelection}
+                    landParcelSearch={true}
+                  />
+                </div>
+              </Control>
+            )}
+          </div>
+        )}
+        <ControlLayoutCanvas>
+          <div
+            id="mapContainer"
+            className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
+            ref={wrapperRef}
+            style={{
+              marginTop: zenMode || !visibleControls.navbar ? "0px" : "-56px",
+            }}
+          >
+            <GeoportalMap height={height} width={width} allow3d={allow3d} />
+            {isCesium && <ObliqueControls hideControls={zenMode} />}
+          </div>
+        </ControlLayoutCanvas>
         <div
-          id="mapContainer"
-          className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
-          ref={wrapperRef}
           style={{
-            marginTop: zenMode || !visibleControls.navbar ? "0px" : "-56px",
+            position: "fixed",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000000,
+            pointerEvents: "none",
           }}
         >
-          <GeoportalMap height={height} width={width} allow3d={allow3d} />
-          {isCesium && <ObliqueControls hideControls={zenMode} />}
+          <ResponsiveStatusBar text={statusFooterText} />
         </div>
-      </ControlLayoutCanvas>
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1000000,
-          pointerEvents: "none",
-        }}
-      >
-        <ResponsiveStatusBar text={statusFooterText} />
-      </div>
-    </ControlLayout>
+      </ControlLayout>
+    </MapHighlightProvider>
   );
 };
 
