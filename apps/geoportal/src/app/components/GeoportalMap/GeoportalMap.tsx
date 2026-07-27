@@ -111,6 +111,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import { isVisible3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
+import useVectorFeatureDim from "../../hooks/leaflet/useVectorFeatureDim.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
@@ -379,6 +380,8 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
     () => routedMapRef.current?.leafletMap?.leafletElement,
     [routedMapRef]
   );
+
+  useVectorFeatureDim(maplibreMapsRef);
 
   const {
     homeValidationCenter,
