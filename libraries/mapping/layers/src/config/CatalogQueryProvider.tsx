@@ -101,6 +101,10 @@ export const CatalogQueryProvider = ({ children }: { children: ReactNode }) => {
       persistOptions={{
         persister,
         maxAge: CAPABILITIES_MAX_AGE,
+        // blobs written before findLayerAndAddTags stopped mutating the cached
+        // capabilities carry the injected `tags`, which keeps them unequal to
+        // freshly fetched ones; bump to discard them once
+        buster: "capabilities-untagged-v1",
         dehydrateOptions: {
           shouldDehydrateQuery: (query) =>
             query.state.status === "success" &&

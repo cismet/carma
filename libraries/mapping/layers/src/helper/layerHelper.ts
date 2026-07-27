@@ -653,11 +653,7 @@ export const findLayerAndAddTags = (
   tagsToAdd: string[]
 ) => {
   if (layer.Name === name) {
-    if (!layer.Tags) {
-      layer.tags = [];
-    }
-    layer.tags.push(...tagsToAdd);
-    return layer;
+    return { ...layer, tags: [...tagsToAdd] };
   }
   if (layer.Layer) {
     for (const subLayer of layer.Layer) {
