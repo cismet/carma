@@ -1,6 +1,7 @@
 import type { LayerSpecification } from "maplibre-gl";
 import slugify from "slugify";
 import { statusFallbackRgba, statusRgba } from "./statusColors";
+import { BELIS_ICON_SCALE } from "./mapLayerConfigs";
 
 /**
  * AP feature layer definitions for Arbeitsaufträge mode.
@@ -77,11 +78,11 @@ const buildCircleRadius = (halfPx: number) => {
     ["linear"],
     ["zoom"],
     10,
-    h * 0.05,
+    h * 0.05 * BELIS_ICON_SCALE,
     16,
-    h * 0.3,
+    h * 0.3 * BELIS_ICON_SCALE,
     23,
-    h * 0.6,
+    h * 0.6 * BELIS_ICON_SCALE,
   ] as unknown as number;
 };
 
@@ -150,19 +151,22 @@ const buildCirclePaint = (type: PointType) => ({
 
 /**
  * Zoom-based icon sizing, copied from the main Fachobjekte styleY.json
- * (leuchten-icon layer) so protocol icons render at the same on-screen size
- * as Fachobjekte icons.
+ * (leuchten-icon layer), then multiplied by BELIS_ICON_SCALE so protocol icons
+ * render at the same on-screen size as Fachobjekte icons: styleY's layers go
+ * through the StyleComposer, which scales them by
+ * `BELIS_MARKER_SYMBOL_SIZE / 35` (= BELIS_ICON_SCALE), while these
+ * hand-written layers bypass the composer.
  */
 const iconSize = [
   "interpolate",
   ["linear"],
   ["zoom"],
   10,
-  0.05,
+  0.05 * BELIS_ICON_SCALE,
   16,
-  0.3,
+  0.3 * BELIS_ICON_SCALE,
   23,
-  0.6,
+  0.6 * BELIS_ICON_SCALE,
 ] as unknown as number;
 
 export const protocolsLayers: LayerSpecification[] = [

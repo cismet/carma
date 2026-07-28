@@ -12,6 +12,18 @@ import type {
 } from "@carma-mapping/engines/maplibre";
 import type { ExpressionSpecification } from "maplibre-gl";
 
+/**
+ * Symbol scaling base handed to CarmaMap/LibreMap.
+ *
+ * CARMA scales every symbol layer by `markerSymbolSize / 35`, so the shared
+ * default (35) means "unscaled". The belis styles (styleY.json and the
+ * hand-written protocol layers) are authored against the 1.35× rendering that
+ * the engine used to apply globally, so belis pins its own base here instead
+ * of relying on the shared default.
+ */
+export const BELIS_ICON_SCALE = 1.35;
+export const BELIS_MARKER_SYMBOL_SIZE = 35 * BELIS_ICON_SCALE;
+
 export interface LayerEntry {
   title: string;
   layer: LibreLayer | LibreLayer[];

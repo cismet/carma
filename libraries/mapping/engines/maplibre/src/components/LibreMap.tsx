@@ -176,6 +176,10 @@ export interface LibreMapProps {
   ) => void;
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
+  /** Symbol scaling base. Defaults to the value from TopicMapStylingContext
+   * (35 = unscaled). Hosts whose styles are authored for a different base can
+   * override it here without touching the shared context. */
+  markerSymbolSize?: number;
   useRouting?: boolean;
   /** Keep the canvas readable for toDataURL() snapshot capture */
   preserveDrawingBuffer?: boolean;
@@ -314,6 +318,7 @@ export const LibreMap = ({
   onProgressUpdate,
   filterFunction,
   overrideGlyphs,
+  markerSymbolSize: markerSymbolSizeProp,
   useRouting = false,
   interactive = true,
   preserveDrawingBuffer = false,
@@ -370,9 +375,10 @@ export const LibreMap = ({
   const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
   );
-  const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext
-  );
+  const { markerSymbolSize: markerSymbolSizeFromContext } = useContext<
+    typeof TopicMapStylingContext
+  >(TopicMapStylingContext);
+  const markerSymbolSize = markerSymbolSizeProp ?? markerSymbolSizeFromContext;
   const {
     setMapStyle,
     geoJsonMetadata,

@@ -371,6 +371,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                   miniMap ? undefined : props.onSelectionChanged
                 }
                 overrideGlyphs={props.overrideGlyphs}
+                markerSymbolSize={props.markerSymbolSize}
                 selectionEnabled={miniMap ? false : props.selectionEnabled}
                 preserveDrawingBuffer={props.preserveDrawingBuffer}
                 interactive={miniMap ? false : undefined}

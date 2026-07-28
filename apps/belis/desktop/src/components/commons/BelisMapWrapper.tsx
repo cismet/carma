@@ -35,6 +35,7 @@ import {
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
   AA_LAYER_STYLES,
+  BELIS_MARKER_SYMBOL_SIZE,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
@@ -4666,6 +4667,7 @@ const BelisMapLibWrapper = ({
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers="basemap_grey@60"
               layerMode="imperative"
+              markerSymbolSize={BELIS_MARKER_SYMBOL_SIZE}
               libreLayers={[leuchtenDataLayer, brandNewDataLayer]}
               setLibreMap={handleMiniMapReady}
             />
@@ -4712,6 +4714,7 @@ const BelisMapLibWrapper = ({
               <CarmaMap
                 mapEngine="maplibre"
                 layerMode="imperative"
+                markerSymbolSize={BELIS_MARKER_SYMBOL_SIZE}
                 embedded
                 debugLog
                 logErrors={showRaw}
