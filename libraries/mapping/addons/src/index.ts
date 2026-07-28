@@ -10,3 +10,5 @@ export type {
 
 export { GazetteerModeAddon } from "./lib/GazetteerModeAddon";
 export { GazetteerSourceAddon } from "./lib/GazetteerSourceAddon";
+export { VectorHighlightAddon } from "./lib/VectorHighlightAddon";
+export type { VectorHighlightConfig } from "./lib/VectorHighlightAddon";

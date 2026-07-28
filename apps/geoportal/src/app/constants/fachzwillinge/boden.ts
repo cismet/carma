@@ -43,5 +43,8 @@ export const bodenFachzwilling: FachzwillingRoute = {
         ],
       },
     },
+    // alt+click a vector feature -> it stays lit, everything else dims.
+    // Only effective on the MapLibre map (featureFlagLibreMap, alias `ng`).
+    { kind: "vectorHighlight", config: { modifierClick: "alt" } },
   ],
 };
