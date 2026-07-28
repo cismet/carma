@@ -3,7 +3,7 @@
 Baukasten für Fachzwilling-Configs des Geoportals (thematische Routen mit
 immer aktiven Katalog-Filtern, siehe
 `libraries/mapping/layers/FILTERING.MD` und
-`apps/geoportal/src/app/constants/fachzwillinge.ts`).
+`apps/geoportal/src/app/constants/fachzwillinge/index.ts`).
 
 ```sh
 npx nx serve catalog-filter-playground

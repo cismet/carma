@@ -9,19 +9,19 @@ import {
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
 import { resolveFeatureFlags } from "@carma-providers/feature-flag";
-import type { FachzwillingAddon } from "../addons/registry";
+import type { FachzwillingAddon } from "../../addons/registry";
 
 import {
   defaultVisibleControls,
   noVisibleControls,
   type UIVisibleControls,
-} from "../store/slices/ui";
+} from "../../store/slices/ui";
 
-import { layerCatalogConfig } from "./discover";
+import { layerCatalogConfig } from "../discover";
 import { gesundheitFachzwilling } from "./gesundheit";
 import { bodenFachzwilling } from "./boden";
 import { outletFachzwilling } from "./outlet";
-import { featureFlagConfig } from "../config/featureFlags";
+import { featureFlagConfig } from "../../config/featureFlags";
 
 const isFachzwillingeEnabled =
   resolveFeatureFlags(featureFlagConfig).featureFlagFachzwillinge === true;

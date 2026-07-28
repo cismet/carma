@@ -1,4 +1,4 @@
-import type { FachzwillingRoute } from "./fachzwillinge";
+import type { FachzwillingRoute } from ".";
 
 export const outletFachzwilling: FachzwillingRoute = {
   path: "outlet",

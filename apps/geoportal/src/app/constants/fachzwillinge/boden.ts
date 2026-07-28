@@ -7,7 +7,7 @@ import {
   ENDPOINT,
 } from "@carma-commons/resources";
 
-import type { FachzwillingRoute } from "./fachzwillinge";
+import type { FachzwillingRoute } from ".";
 
 export const bodenFachzwilling: FachzwillingRoute = {
   path: "boden",
