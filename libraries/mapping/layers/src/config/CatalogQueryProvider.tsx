@@ -6,8 +6,21 @@ import localforage from "localforage";
 
 export const CAPABILITIES_QUERY_KEY = "wmsCapabilities";
 
+export const ADDITIONAL_CONFIG_QUERY_KEY = "additionalConfig";
+export const SENSOR_CONFIG_QUERY_KEY = "sensorConfig";
+export const OBJECT_CONFIG_QUERY_KEY = "objectConfig";
+
+const PERSISTED_QUERY_KEYS = [
+  CAPABILITIES_QUERY_KEY,
+  ADDITIONAL_CONFIG_QUERY_KEY,
+  SENSOR_CONFIG_QUERY_KEY,
+  OBJECT_CONFIG_QUERY_KEY,
+];
+
 // how long persisted capabilities stay usable across reloads
 export const CAPABILITIES_MAX_AGE = 1000 * 60 * 60 * 24 * 30;
+
+export const PERSISTED_QUERY_GC_TIME = Infinity;
 
 const MAX_RETRIES = 2;
 
@@ -16,61 +29,11 @@ const queryStorage = localforage.createInstance({
   storeName: "queryCache",
 });
 
-const countCapabilityEntries = (value: string | null | undefined): number =>
-  value ? value.split(`"${CAPABILITIES_QUERY_KEY}`).length - 1 : 0;
-
-// debug helper: which capability queries (with data) does a persisted blob hold
-const listCapabilityKeys = (value: string | null | undefined): string[] => {
-  if (!value) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(value);
-    return (parsed?.clientState?.queries ?? [])
-      .filter((query: any) => query?.queryKey?.[0] === CAPABILITIES_QUERY_KEY)
-      .map(
-        (query: any) =>
-          `${query.queryKey.join(" | ")} (data: ${
-            query.state?.data != null
-          }, updated: ${new Date(
-            query.state?.dataUpdatedAt ?? 0
-          ).toISOString()})`
-      );
-  } catch (error) {
-    console.warn("[CAP CACHE] persisted blob is not parseable", error);
-    return [];
-  }
-};
-
 const persister = createAsyncStoragePersister({
   storage: {
-    getItem: async (key: string) => {
-      const value = await queryStorage.getItem<string>(key);
-      console.debug("[CAP CACHE] getItem", {
-        key,
-        found: value != null,
-        length: value?.length ?? 0,
-        capabilityEntries: countCapabilityEntries(value),
-        capabilityKeys: listCapabilityKeys(value),
-      });
-      return value;
-    },
-    setItem: (key: string, value: string) => {
-      console.debug("[CAP CACHE] setItem", {
-        key,
-        length: value.length,
-        capabilityEntries: countCapabilityEntries(value),
-      });
-      return queryStorage.setItem(key, value);
-    },
-    // the persist client only deletes the blob when a restore threw or the
-    // persisted client was considered expired/busted
-    removeItem: (key: string) => {
-      console.warn("[CAP CACHE] removeItem: restore failed or cache expired", {
-        key,
-      });
-      return queryStorage.removeItem(key);
-    },
+    getItem: (key: string) => queryStorage.getItem<string>(key),
+    setItem: (key: string, value: string) => queryStorage.setItem(key, value),
+    removeItem: (key: string) => queryStorage.removeItem(key),
   },
 });
 
@@ -106,25 +69,14 @@ export const CatalogQueryProvider = ({ children }: { children: ReactNode }) => {
         // freshly fetched ones; bump to discard them once
         buster: "capabilities-untagged-v1",
         dehydrateOptions: {
+          // Keyed on data presence, not on `success`: a failed background
+          // refetch flips the status to `error` while keeping the previous
+          // data, and dropping those entries would silently throw away a
+          // perfectly usable cache on the next write.
           shouldDehydrateQuery: (query) =>
-            query.state.status === "success" &&
             query.state.data != null &&
-            query.queryKey[0] === CAPABILITIES_QUERY_KEY,
+            PERSISTED_QUERY_KEYS.includes(query.queryKey[0] as string),
         },
-      }}
-      onSuccess={() => {
-        console.debug(
-          "[CAP CACHE] restore finished, queries in cache:",
-          queryClient
-            .getQueryCache()
-            .getAll()
-            .map(
-              (query) =>
-                `${query.queryKey.join(" | ")} (status: ${
-                  query.state.status
-                }, data: ${query.state.data != null})`
-            )
-        );
       }}
     >
       {children}

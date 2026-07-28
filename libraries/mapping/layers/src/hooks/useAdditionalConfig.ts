@@ -9,6 +9,12 @@ import {
   mergeAdditionalConfigs,
 } from "../helper/buildCatalog";
 import type { CatalogConfigEntry } from "../helper/buildCatalog";
+import {
+  ADDITIONAL_CONFIG_QUERY_KEY,
+  OBJECT_CONFIG_QUERY_KEY,
+  PERSISTED_QUERY_GC_TIME,
+  SENSOR_CONFIG_QUERY_KEY,
+} from "../config/CatalogQueryProvider";
 
 const EMPTY_CONFIG: Config[] = [];
 
@@ -38,16 +44,19 @@ export const useAdditionalConfig = ({
   const flags = useFeatureFlags();
 
   const additionalConfigQuery = useQuery({
-    queryKey: ["additionalConfig", additionalConfigUrl],
+    queryKey: [ADDITIONAL_CONFIG_QUERY_KEY, additionalConfigUrl],
     queryFn: () => fetchConfigJson(additionalConfigUrl),
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
   const sensorConfigQuery = useQuery({
-    queryKey: ["sensorConfig", sensorUrl],
+    queryKey: [SENSOR_CONFIG_QUERY_KEY, sensorUrl],
     queryFn: () => fetchConfigJson(sensorUrl),
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
   const objectConfigQuery = useQuery({
-    queryKey: ["objectConfig", objectUrl],
+    queryKey: [OBJECT_CONFIG_QUERY_KEY, objectUrl],
     queryFn: () => fetchConfigJson(objectUrl),
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
 
   const additionalConfig = useMemo(
@@ -121,6 +130,8 @@ export const useAdditionalConfig = ({
     additionalConfig,
     sensorConfig,
     objectConfig,
+    // this gate blocks both the capabilities queries and the category
+    // derivation, so all three configs are persisted to keep it short
     loadingAdditionalConfig:
       loadingAdditionalConfig ||
       sensorConfigQuery.isPending ||

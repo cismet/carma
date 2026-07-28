@@ -17,15 +17,15 @@ import type { ActiveLayers } from "../lib/contracts/carma-layers.d";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { FALLBACK_CAPABILITIES_BASE_URL } from "../helper/assetUrls";
 import {
-  CAPABILITIES_MAX_AGE,
   CAPABILITIES_QUERY_KEY,
+  PERSISTED_QUERY_GC_TIME,
 } from "../config/CatalogQueryProvider";
 
 // @ts-expect-error
 const parser = new WMSCapabilities();
 
+// 0: the restored capabilities render immediately and refresh in the background
 const CAPABILITIES_STALE_TIME = 0;
-const CAPABILITIES_GC_TIME = CAPABILITIES_MAX_AGE;
 
 const fetchParsedCapabilities = async (
   url: string
@@ -100,7 +100,7 @@ export const useLoadCapabilities = ({
       // keeps active-layer updates based on the replaced definitions
       enabled: !loadingAdditionalConfig,
       staleTime: CAPABILITIES_STALE_TIME,
-      gcTime: CAPABILITIES_GC_TIME,
+      gcTime: PERSISTED_QUERY_GC_TIME,
     })),
     combine: (results) => ({
       data: results.map((result) => result.data),
@@ -108,22 +108,8 @@ export const useLoadCapabilities = ({
         .filter((_, index) => results[index].isFetching && !results[index].data)
         .map((service) => service.name),
       anySettled: results.some((result) => result.isSuccess || result.isError),
-      debugStates: wmsServices.map((service, index) => ({
-        name: service.name,
-        status: results[index].status,
-        isFetching: results[index].isFetching,
-        hasData: results[index].data != null,
-      })),
     }),
   });
-
-  useEffect(() => {
-    console.debug(
-      "[CAP CACHE] live query states",
-      JSON.stringify(capabilities.debugStates)
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(capabilities.debugStates)]);
 
   // feed the loading flags consumed by CategoryTabs / CatalogGrid
   useEffect(() => {
