@@ -36,6 +36,15 @@ carma.mapping3D.zoomOut();
 
 carma.ui.openMenu();
 carma.ui.openHelperOverlay();
+
+// gazetteer search
+const removeMode = carma.gazetteer.addMode({
+  key: "bplaene",
+  label: "Bebauungspläne",
+  sources: [{ topic: "bplaene.v2", url: "...", crs: "3857" }],
+});                                          // extra mode in the search dropdown
+carma.gazetteer.addSource({ topic, url, crs }); // extra source in the default search
+removeMode();                                // contributions return their remover
 ```
 
 In dev, the same object is attached to `window.carma` so you can poke at it
@@ -43,7 +52,7 @@ from the browser console.
 
 ## Namespaces
 
-Currently shipped: `mapping`, `ui`.
+Currently shipped: `mapping`, `ui`, `gazetteer`.
 
 Planned (not yet implemented): `auth`, `print`, ...
 
