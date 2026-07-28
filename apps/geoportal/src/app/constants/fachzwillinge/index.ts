@@ -47,16 +47,9 @@ export const resolveFachzwillingUi = (
   return { ...baseline, ...overrides };
 };
 
-export type FachzwillingRoute = {
+type FachzwillingRouteBase = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
-  /** display title for the catalog card and the navbar breadcrumb */
-  title: string;
-  description?: string;
-  thumbnail?: string;
-  /** always-active catalog filters applied while the route is open */
-  filters: CatalogFilters;
-  hideFromCatalog?: boolean;
   ui?: FachzwillingUiOptions;
   disableMapInteraction?: boolean;
   /**
@@ -68,6 +61,34 @@ export type FachzwillingRoute = {
   addons?: Addon[];
 };
 
+/** route reachable through the catalog, so it needs a card and its filters */
+export type CatalogFachzwillingRoute = FachzwillingRouteBase & {
+  hideFromCatalog?: false;
+  /** display title for the catalog card and the navbar breadcrumb */
+  title: string;
+  description?: string;
+  thumbnail?: string;
+  /** always-active catalog filters applied while the route is open */
+  filters: CatalogFilters;
+};
+
+/**
+ * route only reachable by its url, without a catalog card; title and filters
+ * are pointless here (and typically the catalog is not even openable), so both
+ * stay optional
+ */
+export type HiddenFachzwillingRoute = FachzwillingRouteBase & {
+  hideFromCatalog: true;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  filters?: CatalogFilters;
+};
+
+export type FachzwillingRoute =
+  | CatalogFachzwillingRoute
+  | HiddenFachzwillingRoute;
+
 export const fachzwillingRoutes: FachzwillingRoute[] = isFachzwillingeEnabled
   ? [gesundheitFachzwilling, bodenFachzwilling, outletFachzwilling]
   : [];
@@ -76,7 +97,7 @@ export const getFachzwillingCatalogConfig = (
   route: FachzwillingRoute
 ): LayerCatalogConfig => ({
   ...layerCatalogConfig,
-  filters: route.filters,
+  ...(route.filters ? { filters: route.filters } : {}),
 });
 
 export const findFachzwillingByPathname = (
@@ -88,7 +109,9 @@ const FACHZWILLINGE_CATEGORY_ID = "fachzwillinge";
 const FACHZWILLINGE_CATEGORY_LABEL = "Fachzwillinge";
 
 const fachzwillingItems: Item[] = fachzwillingRoutes
-  .filter((route) => !route.hideFromCatalog)
+  .filter(
+    (route): route is CatalogFachzwillingRoute => !route.hideFromCatalog
+  )
   .map((route) => ({
     id: `fachzwilling_${route.path}`,
     name: `fachzwilling_${route.path}`,

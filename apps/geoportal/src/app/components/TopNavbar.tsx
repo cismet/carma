@@ -208,7 +208,7 @@ const TopNavbar = () => {
             mobileMenuOpen ? "sm:block hidden" : ""
           }`}
         >
-          {fachzwilling ? (
+          {fachzwilling?.title ? (
             <>
               <Link
                 // keep the hash query so the map position survives
