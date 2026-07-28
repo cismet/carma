@@ -44,12 +44,16 @@ export interface UseImperativeStyleOptions {
 function layerKey(layer: LibreLayer, index: number): string {
   switch (layer.type) {
     case "vector":
-      return `vector::${layer.name}::${layer.style}`;
+      return `vector::${layer.name}::${
+        typeof layer.style === "string" ? layer.style : "inline"
+      }`;
     case "geojson":
       return `geojson::${layer.name}::${layer.data}`;
     case "wms":
     case "wmts":
       return `${layer.type}::${layer.url}::${layer.layers}`;
+    case "tiles":
+      return `tiles::${layer.name}::${layer.url}`;
     case "cog":
       return `cog::${layer.name}::${layer.url}`;
     default:
@@ -62,13 +66,17 @@ function subStyleId(layer: LibreLayer, index: number): string {
   switch (layer.type) {
     case "vector": {
       // Must match the layerId used in StyleComposer.addVectorSubStyle
-      return layer.style ? slugifyUrl(layer.style) : layer.name;
+      return typeof layer.style === "string"
+        ? slugifyUrl(layer.style)
+        : layer.name;
     }
     case "geojson":
       return `geojson-${layer.name}-${index}`;
     case "wms":
     case "wmts":
       return `raster-${layer.layers.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
+    case "tiles":
+      return `tiles-${layer.name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
     case "cog":
       return `cog-${layer.name}-${index}`;
     default:
@@ -137,6 +145,8 @@ export function useImperativeStyle({
             geoMeta.push(meta);
           } else if (layer.type === "wms" || layer.type === "wmts") {
             composer.addRasterSubStyle(id, layer, { zIndex: i });
+          } else if (layer.type === "tiles") {
+            composer.addTilesSubStyle(id, layer, { zIndex: i });
           } else if (layer.type === "cog") {
             composer.addCogSubStyle(id, layer, { zIndex: i });
           }
@@ -170,7 +180,8 @@ export function useImperativeStyle({
         const mapping: Record<string, string[] | string> = {};
         for (const vl of vectorLayers) {
           const oldKey = vl.name;
-          const newKey = slugifyUrl(vl.style!);
+          const newKey =
+            typeof vl.style === "string" ? slugifyUrl(vl.style) : vl.name;
           if (rawMapping[oldKey]) {
             mapping[newKey] = rawMapping[oldKey];
             mapping[oldKey] = rawMapping[oldKey]; // keep original key too
@@ -319,10 +330,11 @@ export function useImperativeStyle({
           const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
           if (newOpacity !== prevOpacity) {
             if (layer.type === "vector") {
-              composer.updateVectorOpacity(layer.style!, newOpacity);
+              composer.updateVectorOpacity(id, newOpacity);
             } else if (
               layer.type === "wms" ||
               layer.type === "wmts" ||
+              layer.type === "tiles" ||
               layer.type === "cog"
             ) {
               composer.updateRasterOpacity(id, newOpacity);
@@ -382,6 +394,8 @@ export function useImperativeStyle({
             geoMeta.push(meta);
           } else if (layer.type === "wms" || layer.type === "wmts") {
             composer.addRasterSubStyle(id, layer, { zIndex: i, beforeId });
+          } else if (layer.type === "tiles") {
+            composer.addTilesSubStyle(id, layer, { zIndex: i, beforeId });
           } else if (layer.type === "cog") {
             composer.addCogSubStyle(id, layer, { zIndex: i, beforeId });
           }
@@ -407,7 +421,8 @@ export function useImperativeStyle({
       const mapping: Record<string, string[] | string> = {};
       for (const vl of vectorLayers2) {
         const oldKey = vl.name;
-        const newKey = slugifyUrl(vl.style!);
+        const newKey =
+          typeof vl.style === "string" ? slugifyUrl(vl.style) : vl.name;
         if (rawMapping2[oldKey]) {
           mapping[newKey] = rawMapping2[oldKey];
           mapping[oldKey] = rawMapping2[oldKey];

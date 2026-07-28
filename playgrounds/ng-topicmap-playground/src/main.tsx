@@ -30,6 +30,7 @@ import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
 import { FilterMap } from "./app/FilterMap";
 import { PointCloudPlayground } from "./app/pointcloud/PointCloudPlayground";
+import { DynamicMap } from "./app/DynamicMap";
 import {
   backgroundModes,
   backgroundConfigurations,
@@ -90,6 +91,7 @@ root.render(
                         path="/pointcloud"
                         element={<PointCloudPlayground />}
                       />
+                      <Route path="/dynamic" element={<DynamicMap />} />
                     </Routes>
                     </MapHighlightProvider>
                   </MapSelectionProvider>

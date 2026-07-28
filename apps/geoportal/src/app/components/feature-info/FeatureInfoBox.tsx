@@ -5,6 +5,8 @@ import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
+import { useLibreContext } from "@carma-mapping/contexts";
+
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 
@@ -80,6 +82,7 @@ const FeatureInfoBox = ({
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { map: libreMap } = useLibreContext();
 
   if (secondaryInfoBoxElements.length > 4) {
     dispatch(setSecondaryInfoBoxElements([]));
@@ -181,6 +184,7 @@ const FeatureInfoBox = ({
         utils.zoomToFeature({
           selectedFeature,
           leafletMap: routedMapRef?.leafletMap?.leafletElement,
+          libreMap: libreMap ?? undefined,
           padding: selectionPadding,
         });
         if (onZoomToFeature) {

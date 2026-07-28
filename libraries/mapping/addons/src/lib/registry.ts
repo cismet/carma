@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { Map as LeafletMap } from "leaflet";
+import type maplibregl from "maplibre-gl";
 import type { Store } from "redux";
 
 import type { carma } from "@carma-api";
@@ -26,6 +27,7 @@ export type AddonComponentProps<K extends AddonKind = AddonKind> = {
   config: AddonConfigMap[K];
   carma: typeof carma;
   leafletMap: LeafletMap | null;
+  libreMap: maplibregl.Map | null;
   /** the host app's redux store, taken from the surrounding react-redux provider */
   store: Store;
 };

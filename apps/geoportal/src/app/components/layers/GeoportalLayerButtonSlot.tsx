@@ -24,6 +24,8 @@ import {
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
+import { useMeasurements } from "@carma-mapping/measurements";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
@@ -178,16 +180,23 @@ const useMeasurementLayerbarActions = (
 ) => {
   const { layerbar } = geoportalAnnotationModeText;
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
+  const flags = useFeatureFlags();
+  const isLibreMap = Boolean(flags.featureFlagLibreMap);
+  const { clearAll: clearLibreMeasurements, count: libreCount } =
+    useMeasurements();
+
+  const measurementCount = isLibreMap ? libreCount : shapes.length;
+  const clearMeasurements = isLibreMap ? clearLibreMeasurements : clearAllShapes;
 
   const actions: LayerbarAction[] = [
     {
       id: "delete-all",
       title: layerbar.leafletMeasurements.deleteAll,
       icon: <FontAwesomeIcon icon={faTrashCan} />,
-      disabled: shapes.length === 0,
+      disabled: measurementCount === 0,
       onClick: (event) => {
         if (event.shiftKey) {
-          clearAllShapes();
+          clearMeasurements();
           return;
         }
         setShowDeleteConfirmation(true);
@@ -195,7 +204,7 @@ const useMeasurementLayerbarActions = (
     },
   ];
 
-  return { actions, shapes, clearAllShapes };
+  return { actions, measurementCount, clearMeasurements };
 };
 
 const useSavedCesiumMeasurementLayerbarActions = ({
@@ -355,9 +364,8 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
 
 const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const { actions, shapes, clearAllShapes } = useMeasurementLayerbarActions(
-    setShowDeleteConfirmation
-  );
+  const { actions, measurementCount, clearMeasurements } =
+    useMeasurementLayerbarActions(setShowDeleteConfirmation);
 
   return (
     <>
@@ -367,9 +375,9 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
       />
       <MeasurementDeleteConfirmationModal
         show={showDeleteConfirmation}
-        count={shapes.length}
+        count={measurementCount}
         onConfirm={() => {
-          clearAllShapes();
+          clearMeasurements();
           setShowDeleteConfirmation(false);
         }}
         onCancel={() => setShowDeleteConfirmation(false)}

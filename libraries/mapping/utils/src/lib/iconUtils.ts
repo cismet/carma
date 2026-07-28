@@ -6,43 +6,84 @@ const TWEMOJI_BASE =
 export const twemojiUrl = (unified: string): string =>
   `${TWEMOJI_BASE}/${unified.toLowerCase()}.png`;
 
+export const DEFAULT_ICON_PREFIX =
+  "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
+
 const iconPathAliases: Record<string, string> = {
   verkehr: "mobi",
 };
 
-const mapIconPath = (path: string): string => {
+export const mapIconPath = (path: string): string => {
   const lower = path.toLowerCase();
   return iconPathAliases[lower] ?? lower;
 };
 
-const isUrl = (str: string | undefined): boolean => {
-  if (!str) return false;
-  return str.startsWith("http://") || str.startsWith("https://");
+const isAbsoluteUrl = (value: string | undefined): boolean => {
+  if (!value) {
+    return false;
+  }
+  return value.startsWith("http://") || value.startsWith("https://");
 };
 
 /**
- * Resolves the icon URL for a given layer.
- * Returns `undefined` if no icon can be determined.
+ * Resolves a raw icon name (or absolute URL) to a usable image URL.
+ * Absolute URLs are returned unchanged; bare names get `iconPrefix` + `.png`
+ * appended. Returns `undefined` for empty input.
  */
+export const resolveIconUrl = (
+  iconName: string | undefined,
+  iconPrefix: string = DEFAULT_ICON_PREFIX
+): string | undefined => {
+  if (!iconName) {
+    return undefined;
+  }
+  if (isAbsoluteUrl(iconName)) {
+    return iconName;
+  }
+  return `${iconPrefix}${iconName}.png`;
+};
+
+/**
+ * Resolves the icon URL for a given layer by digging through layerInfo, other,
+ * and conf in priority order. Returns `undefined` if no icon can be determined.
+ */
+const pickFirstString = (
+  ...candidates: unknown[]
+): string | undefined => {
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return candidate;
+    }
+  }
+  return undefined;
+};
+
 export const resolveLayerIconUrl = (
   layer: Layer,
-  iconPrefix: string
+  iconPrefix: string = DEFAULT_ICON_PREFIX
 ): string | undefined => {
-  const icon =
-    (layer.layerInfo?.icon as string | undefined) || layer.other?.icon;
-  if (typeof icon === "string" && icon.startsWith("emoji:")) {
+  const layerInfoIcon = layer.layerInfo?.icon;
+  const otherIcon = layer.other?.icon;
+  const confIcon = layer.conf?.icon;
+
+  const primaryIcon = pickFirstString(layerInfoIcon, otherIcon);
+  if (primaryIcon?.startsWith("emoji:")) {
     return undefined;
   }
 
-  const iconName =
-    icon ||
-    layer.other?.icon ||
-    layer.conf?.icon ||
-    (layer.other?.path && layer.other?.name
-      ? mapIconPath(layer.other.path) + "/" + layer.other.name
-      : undefined);
+  const otherPath = layer.other?.path;
+  const otherName = layer.other?.name;
+  const pathBasedIconName =
+    typeof otherPath === "string" && typeof otherName === "string"
+      ? mapIconPath(otherPath) + "/" + otherName
+      : undefined;
 
-  if (!iconName) return undefined;
+  const iconName = pickFirstString(
+    primaryIcon,
+    otherIcon,
+    confIcon,
+    pathBasedIconName
+  );
 
-  return isUrl(icon) ? icon : iconPrefix + `${iconName}.png`;
+  return resolveIconUrl(iconName, iconPrefix);
 };

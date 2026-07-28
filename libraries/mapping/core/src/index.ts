@@ -12,3 +12,21 @@ export type { DatasheetLayoutProps } from "./components/DatasheetLayout";
 
 // Re-export types from maplibre engine for convenience
 export type { VectorStyle, LibreLayer } from "@carma-mapping/engines/maplibre";
+
+// Hooks
+export {
+  useDynamicStyling,
+  type UseDynamicStylingProps,
+  type UseDynamicStylingResult,
+} from "./hooks/useDynamicStyling";
+export {
+  useDynamicVectorLayer,
+  type UseDynamicVectorLayerProps,
+  type UseDynamicVectorLayerResult,
+} from "./hooks/useDynamicVectorLayer";
+export {
+  useDynamicCismapLayer,
+  type UseDynamicCismapLayerProps,
+  type UseDynamicCismapLayerResult,
+  type CismapVectorLayerProps,
+} from "./hooks/useDynamicCismapLayer";

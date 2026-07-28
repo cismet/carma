@@ -46,6 +46,7 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
+import { MeasurementsProvider as LibreMeasurementsProvider } from "@carma-mapping/measurements";
 
 import { AddonHost, type Addon } from "@carma-mapping/addons";
 
@@ -159,7 +160,9 @@ function MeasurementsWrapper({
       setModeExternal={setModeExternal}
       config={config}
     >
-      {children}
+      <LibreMeasurementsProvider storageKey="geoportal:libreMeasurements">
+        {children}
+      </LibreMeasurementsProvider>
     </MapMeasurementsProvider>
   );
 }
@@ -243,6 +246,7 @@ function App({
                 mapStyleConfig={geoportalMapStyleConfig}
                 store={store}
                 defaultRuntimeState={defaultCesiumState}
+                topicMapConfig={{ appKey: APP_KEY }}
               >
                 <ObliqueProvider
                   config={OBLIQUE_CONFIG}

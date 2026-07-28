@@ -17,6 +17,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import {
   MeasurementHost,
+  MeasurementsProvider,
   type DrawMode,
   type SnapMode,
 } from "@carma-mapping/measurements";
@@ -538,7 +539,7 @@ export function App() {
   }, []);
 
   return (
-    <>
+    <MeasurementsProvider>
       <CarmaMap
         appKey={APP_KEY}
         mapEngine="maplibre"
@@ -612,7 +613,7 @@ export function App() {
         onToggleBackgroundSnapping={toggleBackgroundSnapping}
         onResetAll={resetAll}
       />
-    </>
+    </MeasurementsProvider>
   );
 }
 

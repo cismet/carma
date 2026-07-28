@@ -48,9 +48,18 @@ const getAllLeafLayers = (capabilities: unknown): WMSLayerLike[] => {
 
 export interface VectorStyle {
   name: string;
-  style?: string;
+  /** URL string (fetched) or inline maplibre style spec (used directly). */
+  style: string | StyleSpecification;
   layer?: string;
   infoboxMapping?: string[];
+  /** Optional filter expression to AND into every style layer in this vector style
+   *  during construction. Original filter is preserved at metadata.originalFilter. */
+  userFilter?: unknown[] | null;
+  /** Optional pure transform applied to the freshly fetched/cloned stylesheet
+   *  before it is merged. See LibreMap.VectorStyle.userStyleTransform. */
+  userStyleTransform?: (style: any) => any;
+  /** Serializable fingerprint of `userStyleTransform`. See LibreMap. */
+  userStyleTransformKey?: string;
 }
 
 export interface GeoJsonStyleMetadata {
@@ -92,6 +101,25 @@ export const getPaintProperty = (
   }
 };
 
+/** Legacy MapLibre/Mapbox "stops function" object, e.g. { stops: [[9, 0.32], [24, 1]] }. */
+type StopsObject = { stops: [number, unknown][]; [k: string]: unknown };
+
+export const isStopsObject = (value: unknown): value is StopsObject =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Array.isArray((value as { stops?: unknown }).stops);
+
+export const scaleStopsObject = (
+  stopsObj: StopsObject,
+  scaleValue: (value: unknown) => unknown
+): StopsObject => ({
+  ...stopsObj,
+  stops: stopsObj.stops.map(
+    ([zoom, value]) => [zoom, scaleValue(value)] as [number, unknown]
+  ),
+});
+
 /**
  * Apply marker symbol size scaling to a style
  */
@@ -99,7 +127,7 @@ export const styleManipulation = (
   markerSymbolSize: number,
   style: StyleSpecification
 ): StyleSpecification => {
-  const scale = (markerSymbolSize / 35) * 1.35;
+  const scale = markerSymbolSize / 35;
   const newStyle = JSON.parse(JSON.stringify(style)) as StyleSpecification;
 
   if (newStyle.layers) {
@@ -132,6 +160,14 @@ export const styleManipulation = (
           updatedLayer.layout = {
             ...layout,
             "icon-size": newIconSize as typeof iconSize,
+          };
+        } else if (isStopsObject(iconSize)) {
+          updatedLayer.layout = {
+            ...layout,
+            "icon-size": scaleStopsObject(
+              iconSize,
+              (value) => (value as number) * scale
+            ) as typeof iconSize,
           };
         }
       }
@@ -174,6 +210,14 @@ export const styleManipulation = (
             ...(updatedLayer.layout || layout),
             "text-offset": [x, y * scale] as typeof textOffset,
           };
+        } else if (isStopsObject(textOffset)) {
+          updatedLayer.layout = {
+            ...(updatedLayer.layout || layout),
+            "text-offset": scaleStopsObject(textOffset, (value) => {
+              const offset = value;
+              return [offset[0], offset[1] * scale];
+            }) as typeof textOffset,
+          };
         }
       }
 
@@ -199,11 +243,15 @@ export const getVectorMapping = async (
       vectorStyle.infoboxMapping || [];
     let fetchedStyleJson: Record<string, unknown> | undefined;
 
-    // First, try to get mapping from the vector style's metadata
+    // First, try to get mapping from the vector style's metadata. When the
+    // style is an inline spec, read it directly; when it is a URL string,
+    // fetch and parse it.
     if (!vectorStyle.infoboxMapping && vectorStyle.style) {
       try {
-        const styleResponse = await fetch(vectorStyle.style);
-        const styleJson = await styleResponse.json();
+        const styleJson: any =
+          typeof vectorStyle.style === "string"
+            ? await (await fetch(vectorStyle.style)).json()
+            : vectorStyle.style;
         fetchedStyleJson = styleJson;
 
         const styleKeywords =
@@ -443,6 +491,25 @@ export const vectorStylesToMapLibreStyle = async ({
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
 
+  // Build stable, position-independent source/layer ids. Deriving ids from the
+  // layer's content (WMS layers / name) instead of its array index means a
+  // reorder produces ids identical to the previous render, so MapLibre's
+  // setStyle diff keeps the existing sources (and their cached tiles) and only
+  // reorders layers — no GetMap refetch. A numeric suffix is appended only when
+  // two layers would otherwise collide on the same base id (rare: duplicate WMS
+  // layers / names).
+  const usedIds = new Set<string>();
+  const makeUniqueId = (base: string): string => {
+    let candidate = base;
+    let suffix = 2;
+    while (usedIds.has(candidate)) {
+      candidate = `${base}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(candidate);
+    return candidate;
+  };
+
   // Use provided backgroundStyle or Wuppertal default
   const baseStyle: StyleSpecification =
     backgroundStyle || WUPPERTAL_DEFAULT_STYLE;
@@ -463,13 +530,39 @@ export const vectorStylesToMapLibreStyle = async ({
     const prefetched = await Promise.all(
       layers.map(async (layer) => {
         if (layer.type === "vector") {
-          const response = await fetch(layer.style!);
-          return { type: "vector" as const, data: await response.json() };
+          if (!layer.style) {
+            console.warn(
+              "[styleBuilder] vector layer has no style — skipping",
+              { name: layer.name }
+            );
+            return null;
+          }
+          if (typeof layer.style === "string") {
+            const response = await fetch(layer.style);
+            const fetched = await response.json();
+            const transformed = layer.userStyleTransform
+              ? layer.userStyleTransform(fetched) ?? fetched
+              : fetched;
+            return { type: "vector" as const, data: transformed };
+          }
+          // Deep-clone the inline spec so the per-render prefixing below
+          // doesn't mutate the caller's object (which would compound IDs
+          // on every rerender).
+          const cloned = JSON.parse(JSON.stringify(layer.style));
+          const transformed = layer.userStyleTransform
+            ? layer.userStyleTransform(cloned) ?? cloned
+            : cloned;
+          return {
+            type: "vector" as const,
+            data: transformed,
+          };
         } else if (layer.type === "geojson") {
           const result = await extractGeoJson(layer.data!);
           return { type: "geojson" as const, data: transformedPois(result) };
         } else if (layer.type === "wms" || layer.type === "wmts") {
           return { type: "wms" as const, data: layer };
+        } else if (layer.type === "tiles") {
+          return { type: "tiles" as const, data: layer };
         }
         return null;
       })
@@ -490,6 +583,22 @@ export const vectorStylesToMapLibreStyle = async ({
         }
 
         const layerId = capabilitiesLayer || layer.name;
+
+        // Namespace source IDs to avoid collisions between vector layers that
+        // happen to use the same internal source name (e.g. multiple saved
+        // measurements both naming their source "adhoc"). Build a rename map,
+        // emit a namespaced sources object, and rewrite each layer's `source`
+        // reference below.
+        const sourceRename: Record<string, string> = {};
+        const namespacedSources: Record<string, SourceSpecification> = {};
+        for (const [srcId, srcDef] of Object.entries(
+          (additionalStyle.sources as Record<string, SourceSpecification>) || {}
+        )) {
+          const namespacedId = `${layerId}::${srcId}`;
+          sourceRename[srcId] = namespacedId;
+          namespacedSources[namespacedId] = srcDef;
+        }
+
         let spriteId = layerId.replace(":", "_");
         if (additionalStyle.sprite) {
           spriteId = slugify(additionalStyle.sprite, {
@@ -507,87 +616,106 @@ export const vectorStylesToMapLibreStyle = async ({
             });
           }
         }
+        const userFilter = (layer as { userFilter?: unknown[] | null })
+          .userFilter;
         additionalStyle.layers = additionalStyle.layers.map(
-          (styleLayer: LayerSpecification) => ({
-            ...styleLayer,
-            id: `${layerId}-${styleLayer.id}`,
-            metadata: {
-              ...(
-                styleLayer as LayerSpecification & {
-                  metadata?: Record<string, unknown>;
-                }
-              ).metadata,
-              "z-index": index,
-              "layer-id": layerId,
-            },
-            paint: {
-              ...styleLayer.paint,
-              ...(() => {
-                if (styleLayer.id.toLowerCase().includes("selection"))
-                  return {};
-                // Symbol layers need both text-opacity and icon-opacity
-                const props =
-                  styleLayer.type === "symbol"
-                    ? ["text-opacity", "icon-opacity"]
-                    : ([getPaintProperty(styleLayer)].filter(
-                        Boolean
-                      ) as string[]);
-                if (props.length === 0) return {};
-                const layerOpacity = layer.opacity ?? 1;
-                const result: Record<string, unknown> = {};
-                for (const prop of props) {
-                  const baseOpacity =
-                    (styleLayer.paint as Record<string, unknown>)?.[prop] || 1;
-                  result[prop] =
-                    typeof baseOpacity === "number"
-                      ? baseOpacity * layerOpacity
-                      : layerOpacity < 1
-                      ? layerOpacity
-                      : baseOpacity;
-                }
-                return result;
-              })(),
-              ...((styleLayer.paint as Record<string, unknown>)?.[
-                "fill-pattern"
-              ] !== undefined
-                ? {
-                    "fill-pattern": prefixPatternExpression(
-                      spriteId,
-                      (styleLayer.paint as Record<string, unknown>)[
-                        "fill-pattern"
-                      ]
-                    ),
-                  }
+          (styleLayer: LayerSpecification) => {
+            const src = (styleLayer as { source?: string }).source;
+            const origFilter =
+              (styleLayer as { filter?: unknown[] }).filter ?? null;
+            let bakedFilter: unknown[] | null = origFilter;
+            if (userFilter) {
+              bakedFilter = origFilter
+                ? (["all", origFilter, userFilter] as unknown[])
+                : (userFilter as unknown[]);
+            }
+            return {
+              ...styleLayer,
+              id: `${layerId}-${styleLayer.id}`,
+              ...(src && sourceRename[src]
+                ? { source: sourceRename[src] }
                 : {}),
-            },
-            layout: {
-              ...(
-                styleLayer as LayerSpecification & {
-                  layout?: Record<string, unknown>;
-                }
-              ).layout,
-              ...((
-                styleLayer as LayerSpecification & {
-                  layout?: Record<string, unknown>;
-                }
-              ).layout?.["icon-image"] !== undefined
-                ? {
-                    "icon-image": [
-                      "concat",
-                      `${spriteId}:`,
-                      (
-                        styleLayer as LayerSpecification & {
-                          layout?: Record<string, unknown>;
-                        }
-                      ).layout?.["icon-image"],
-                    ],
+              ...(userFilter ? { filter: bakedFilter as never } : {}),
+              metadata: {
+                ...(
+                  styleLayer as LayerSpecification & {
+                    metadata?: Record<string, unknown>;
                   }
-                : {}),
-            },
-          })
+                ).metadata,
+                "z-index": index,
+                "layer-id": layerId,
+                ...(userFilter ? { originalFilter: origFilter } : {}),
+              },
+              paint: {
+                ...styleLayer.paint,
+                ...(() => {
+                  if (styleLayer.id.toLowerCase().includes("selection"))
+                    return {};
+                  // Symbol layers need both text-opacity and icon-opacity
+                  const props =
+                    styleLayer.type === "symbol"
+                      ? ["text-opacity", "icon-opacity"]
+                      : ([getPaintProperty(styleLayer)].filter(
+                          Boolean
+                        ) as string[]);
+                  if (props.length === 0) return {};
+                  const layerOpacity = layer.opacity ?? 1;
+                  const result: Record<string, unknown> = {};
+                  for (const prop of props) {
+                    const baseOpacity =
+                      (styleLayer.paint as Record<string, unknown>)?.[prop] ||
+                      1;
+                    result[prop] =
+                      typeof baseOpacity === "number"
+                        ? baseOpacity * layerOpacity
+                        : layerOpacity < 1
+                        ? layerOpacity
+                        : baseOpacity;
+                  }
+                  return result;
+                })(),
+                ...((styleLayer.paint as Record<string, unknown>)?.[
+                  "fill-pattern"
+                ] !== undefined
+                  ? {
+                      "fill-pattern": prefixPatternExpression(
+                        spriteId,
+                        (styleLayer.paint as Record<string, unknown>)[
+                          "fill-pattern"
+                        ]
+                      ),
+                    }
+                  : {}),
+              },
+              layout: {
+                ...(
+                  styleLayer as LayerSpecification & {
+                    layout?: Record<string, unknown>;
+                  }
+                ).layout,
+                ...((
+                  styleLayer as LayerSpecification & {
+                    layout?: Record<string, unknown>;
+                  }
+                ).layout?.["icon-image"] !== undefined
+                  ? {
+                      "icon-image": [
+                        "concat",
+                        `${spriteId}:`,
+                        (
+                          styleLayer as LayerSpecification & {
+                            layout?: Record<string, unknown>;
+                          }
+                        ).layout?.["icon-image"],
+                      ],
+                    }
+                  : {}),
+              },
+            };
+          }
         );
 
-        style.sources = { ...style.sources, ...additionalStyle.sources };
+        style.sources = { ...style.sources, ...namespacedSources };
         style.layers = [...style.layers!, ...additionalStyle.layers];
 
         // Adopt glyphs from the first vector style that provides them
@@ -597,7 +725,9 @@ export const vectorStylesToMapLibreStyle = async ({
         }
       } else if (layer.type === "geojson") {
         const transformedData = fetched.data;
-        const sourceId = `geojson-source-${index}`;
+        const sourceId = makeUniqueId(
+          `geojson-source-${layer.name.replace(/[^a-zA-Z0-9]/g, "-")}`
+        );
         const colorProperty = layer.colorProperty ?? "schrift";
 
         // Get unique colors from the geojson features
@@ -749,20 +879,25 @@ export const vectorStylesToMapLibreStyle = async ({
         style.layers = [...style.layers!, ...geoJsonLayers];
       } else if (layer.type === "wms" || layer.type === "wmts") {
         const sanitized = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
-        const sourceId = `source-${sanitized}-${index}`;
-        const id = `${sanitized}-${index}`;
+        const id = makeUniqueId(sanitized);
+        const sourceId = `source-${id}`;
         const version = layer.version || "1.1.1";
         const crsParam = version >= "1.3.0" ? "crs" : "srs";
         const isWmts = layer.type === "wmts";
 
+        const querySep = layer.url.endsWith("?")
+          ? ""
+          : layer.url.includes("?")
+          ? "&"
+          : "?";
         style.sources[sourceId] = {
           type: "raster",
           tiles: [
-            `${layer.url}${
-              layer.url.endsWith("?") ? "" : "?"
-            }service=WMS&version=${version}&request=GetMap&layers=${
+            `${
+              layer.url
+            }${querySep}service=WMS&version=${version}&request=GetMap&layers=${
               layer.layers
-            }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
+            }&styles=${layer.styles || ""}&format=${
               layer.format || "image/png"
             }&transparent=${layer.transparent ? "true" : "false"}${
               isWmts ? "&type=wmts" : ""
@@ -771,6 +906,31 @@ export const vectorStylesToMapLibreStyle = async ({
             }&${crsParam}=EPSG:3857&bbox={bbox-epsg-3857}`,
           ],
           tileSize: layer.tileSize ?? 256,
+        };
+
+        style.layers.push({
+          id: id,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": layer.opacity ?? 1,
+            ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+          },
+          metadata: {
+            "z-index": index,
+            "layer-id": id,
+          },
+        });
+      } else if (layer.type === "tiles") {
+        const sanitized = layer.name.replace(/[^a-zA-Z0-9]/g, "-");
+        const id = makeUniqueId(sanitized);
+        const sourceId = `source-${id}`;
+
+        style.sources[sourceId] = {
+          type: "raster",
+          tiles: [layer.url],
+          tileSize: layer.tileSize ?? 256,
+          ...(layer.maxZoom !== undefined ? { maxzoom: layer.maxZoom } : {}),
         };
 
         style.layers.push({

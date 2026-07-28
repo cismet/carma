@@ -1,6 +1,7 @@
 export {
   DynamicStylingControl,
   applyDynamicStyling,
+  applyDynamicStylingToStylesheet,
   extractCarmaConf,
   extractLayerInfo,
   getDynamicStylingOptionsConfigs,

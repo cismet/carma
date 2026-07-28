@@ -1,6 +1,6 @@
 import { faPalette } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { resolveIconSrc } from "./dynamicStyling.helpers";
+import { resolveIconUrl } from "@carma-mapping/utils";
 import type { DynamicStylingControlProps } from "./DynamicStylingControl";
 
 export const DynamicStylingToggle = ({
@@ -42,9 +42,9 @@ export const DynamicStylingToggle = ({
             className="text-sm text-gray-600 hover:text-gray-500"
           />
         )}
-        {resolveIconSrc(currentOption?.icon) ? (
+        {resolveIconUrl(currentOption?.icon) ? (
           <img
-            src={resolveIconSrc(currentOption?.icon)}
+            src={resolveIconUrl(currentOption?.icon)}
             alt={currentOption?.title}
             className="w-4 h-4 object-contain"
           />

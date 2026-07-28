@@ -26,7 +26,13 @@ export {
   type VectorFeatureResult,
 } from "./lib/featureUtils";
 export { parseToMapLayer } from "./lib/layerUtils";
-export { resolveLayerIconUrl, twemojiUrl } from "./lib/iconUtils";
+export {
+  resolveIconUrl,
+  resolveLayerIconUrl,
+  mapIconPath,
+  twemojiUrl,
+  DEFAULT_ICON_PREFIX,
+} from "./lib/iconUtils";
 
 // setFeatureState/getFeatureState target builder (geojson-aware)
 export { buildFeatureStateTarget } from "./lib/featureStateTarget";

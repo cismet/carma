@@ -91,7 +91,6 @@ const initialState: GeoportalMappingState = {
   activeInteractionLayerID: null,
   activeInteractionButtonID: null,
   paleOpacityValue: defaultOpacity,
-  libreMapRef: null,
   maplibreMaps: [],
   layersIdle: false,
   backgroundLayers: backgroundLayerCatalog,
@@ -488,9 +487,6 @@ const slice = createSlice({
     setClickFromInfoView(state, action: PayloadAction<boolean>) {
       state.clickFromInfoView = action.payload;
     },
-    setLibreMapRef(state, action: PayloadAction<any>) {
-      state.libreMapRef = action.payload;
-    },
     setMaplibreMaps(state, action: PayloadAction<MapLibreMapEntry>) {
       const entry = action.payload;
       const current = state.maplibreMaps;
@@ -553,7 +549,6 @@ export const {
   setLayerFilterState,
   setLayerDynamicStylingSelection,
   updateLayerFromLayerInfo,
-  setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,
   setLayersIdle,
@@ -610,7 +605,6 @@ export const getActiveInteractionLayerID = (state: RootState) =>
 export const getActiveInteractionButtonID = (state: RootState) =>
   state.mapping.activeInteractionButtonID;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
-export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 export const getMaplibreMaps = (state: RootState) => state.mapping.maplibreMaps;
 export const getConfigSelection = (state: RootState) =>
   state.mapping.configSelection;

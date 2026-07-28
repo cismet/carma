@@ -1,5 +1,9 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { Feature } from "geojson";
+import {
+  MEASUREMENT_FEATUREKIND,
+  wrapMeasurement,
+} from "@carma-mapping/measurements";
 import type { AppDispatch, RootState } from "../index";
 import { setSelectedFeature } from "./featureCollection";
 
@@ -7,11 +11,9 @@ import { setSelectedFeature } from "./featureCollection";
 // store/index.ts. Features survive page refresh; MeasurementHost in
 // BelisMapWrapper is the source that lands features here.
 
-// Marker used on the selectedFeature slot to discriminate measurement
-// selections from Fachobjekt selections. Lives on the feature itself so
-// downstream code (getVCard, sidebar highlight) can branch without an
-// extra slice lookup. Sibling field — does not overload `featuretype`.
-export const MEASUREMENT_FEATUREKIND = "measurement" as const;
+// Re-export the marker so existing imports from "store/slices/measurements"
+// keep working until consumers are migrated to the shared library directly.
+export { MEASUREMENT_FEATUREKIND };
 
 interface MeasurementsState {
   features: Feature[];
@@ -40,15 +42,6 @@ export default measurementsSlice;
 
 export const getMeasurements = (state: RootState): Feature[] =>
   state.measurements.features;
-
-/** Wrap a measurement feature for the shared selectedFeature slot. The
- *  `featurekind` marker lets getVCard / sidebar highlight discriminate
- *  it from Fachobjekt features without an extra redux lookup. */
-const wrapMeasurement = (feature: Feature) => ({
-  ...feature,
-  featurekind: MEASUREMENT_FEATUREKIND,
-  selected: true,
-});
 
 /** Select a measurement by id. Routes through the shared selectedFeature
  *  slot so any prior Fachobjekt selection is implicitly cleared (mutually

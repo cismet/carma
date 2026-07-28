@@ -54,6 +54,10 @@ import {
   getUIShowLayerHideButtons,
   triggerFeatureInfoUpdateAction,
 } from "../../store/slices/ui";
+import {
+  MEASUREMENT_DRAW_TOOLS_INTERACTION_ID,
+  MEASUREMENT_LAYER_ID,
+} from "../../hooks/useMeasurementLayerButton";
 import "./pulsing.css";
 import "./tabs.css";
 
@@ -67,6 +71,7 @@ import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
 import {
   getGeoportalLayerButtonBackgroundClassName,
@@ -118,6 +123,8 @@ const GeoportalLayerButton = ({
     },
   });
   const dispatch = useDispatch();
+  const flags = useFeatureFlags();
+  const isLibreMap = Boolean(flags.featureFlagLibreMap);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { loading, error } = useLayerLoading({
@@ -235,6 +242,23 @@ const GeoportalLayerButton = ({
           );
           if (activeInteractionLayerID && activeInteractionLayerID !== id) {
             dispatch(setActiveInteractionLayerID(null));
+          }
+          // The measurement layer has no dedicated interaction icon for its
+          // draw-tools panel — clicking the row itself toggles the panel.
+          // Only meaningful in the libreMap path; the leaflet path has its
+          // own drawing UI driven by leaflet-draw.
+          if (id === MEASUREMENT_LAYER_ID && isLibreMap) {
+            const isPanelOpen =
+              activeInteractionLayerID === id &&
+              activeInteractionButtonID ===
+                MEASUREMENT_DRAW_TOOLS_INTERACTION_ID;
+            dispatch(setActiveInteractionLayerID(isPanelOpen ? null : id));
+            dispatch(
+              setActiveInteractionButtonID(
+                isPanelOpen ? null : MEASUREMENT_DRAW_TOOLS_INTERACTION_ID
+              )
+            );
+            return;
           }
           if (interactionButtons.length > 0) {
             if (interactionActivationMode === "button") {

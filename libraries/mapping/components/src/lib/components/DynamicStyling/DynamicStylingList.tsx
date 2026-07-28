@@ -7,7 +7,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { resolveIconSrc } from "./dynamicStyling.helpers";
+import { resolveIconUrl } from "@carma-mapping/utils";
 import type { DynamicStylingControlProps } from "./DynamicStylingControl";
 import { cn } from "@carma-commons/utils";
 
@@ -40,9 +40,9 @@ export const DynamicStylingList = ({
     key: opt.id,
     label: (
       <div className="flex items-center gap-2">
-        {resolveIconSrc(opt.icon) ? (
+        {resolveIconUrl(opt.icon) ? (
           <img
-            src={resolveIconSrc(opt.icon)}
+            src={resolveIconUrl(opt.icon)}
             alt={opt.title}
             className="w-4 h-4 object-contain"
           />
@@ -115,9 +115,9 @@ export const DynamicStylingList = ({
               className="text-sm text-gray-600 hover:text-gray-500"
             />
           )}
-          {resolveIconSrc(currentOption?.icon) ? (
+          {resolveIconUrl(currentOption?.icon) ? (
             <img
-              src={resolveIconSrc(currentOption?.icon)}
+              src={resolveIconUrl(currentOption?.icon)}
               alt={currentOption?.title}
               className="w-4 h-4 object-contain"
             />

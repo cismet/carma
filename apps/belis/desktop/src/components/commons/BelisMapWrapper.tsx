@@ -35,6 +35,7 @@ import {
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
   AA_LAYER_STYLES,
+  BELIS_MARKER_SYMBOL_SIZE,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
@@ -198,6 +199,10 @@ import { useBrandnewFcSync } from "../../hooks/useBrandnewFcSync";
 import {
   DrawModeControls,
   MeasurementHost,
+  MeasurementsProvider,
+  MEASUREMENT_FEATUREKIND,
+  featureLengthMeters,
+  formatMeters,
   type DrawMode,
   type MeasurementHostHandle,
 } from "@carma-mapping/measurements";
@@ -205,12 +210,7 @@ import {
   getMeasurements,
   replaceMeasurements,
   selectMeasurement,
-  MEASUREMENT_FEATUREKIND,
 } from "../../store/slices/measurements";
-import {
-  featureLengthMeters,
-  formatMeters,
-} from "../../utils/measurementGeometry";
 
 function buildAAFeatureCollection(
   features: ArbeitsauftragTileFeature[]
@@ -365,9 +365,7 @@ const BelisMapLibWrapper = ({
   // out so they don't resurrect on top of the draft icons that consumed them.
   const [initialMeasurementFeatures] = useState<Feature[]>(() =>
     measurements
-      .filter(
-        (f) => !attachedMeasurementReduxIds.has(String(f.id))
-      )
+      .filter((f) => !attachedMeasurementReduxIds.has(String(f.id)))
       .map((f) => ({
         ...f,
         id:
@@ -1105,7 +1103,8 @@ const BelisMapLibWrapper = ({
   // and persisted hidden sets are empty. Hiding by id is a no-op for freshly
   // created features (their new ids aren't in the tiles).
   const SELF_POSITIONED_EDIT_LAYERS = useMemo(
-    () => new Set(["mauerlaschen", "schaltstelle", "abzweigdosen", "leitungen"]),
+    () =>
+      new Set(["mauerlaschen", "schaltstelle", "abzweigdosen", "leitungen"]),
     []
   );
   const brandnewHiddenOriginalIds = useMemo<HiddenOriginalIds>(() => {
@@ -1174,7 +1173,8 @@ const BelisMapLibWrapper = ({
       const bucket = merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
       for (const id of ids) bucket.add(id);
     };
-    for (const [sl, ids] of Object.entries(draftHiddenOriginalIds)) add(sl, ids);
+    for (const [sl, ids] of Object.entries(draftHiddenOriginalIds))
+      add(sl, ids);
     for (const [sl, ids] of Object.entries(brandnewHiddenOriginalIds))
       add(sl, ids);
     for (const [sl, ids] of Object.entries(geometryEditHiddenOriginalIds))
@@ -1212,8 +1212,7 @@ const BelisMapLibWrapper = ({
       if (!ids) continue;
       for (const [sourceLayer, list] of Object.entries(ids)) {
         if (!list || list.length === 0) continue;
-        const bucket =
-          merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
+        const bucket = merged[sourceLayer] ?? (merged[sourceLayer] = new Set());
         for (const id of list) bucket.add(id);
       }
     }
@@ -4032,7 +4031,10 @@ const BelisMapLibWrapper = ({
       for (const id of geometryEditPreviewStateIds) {
         try {
           mapInstance.setFeatureState(
-            buildFeatureStateTarget(mapInstance, { source: brandnewSource, id }),
+            buildFeatureStateTarget(mapInstance, {
+              source: brandnewSource,
+              id,
+            }),
             { selected: id === selectedEditPreviewStateId }
           );
         } catch {
@@ -4053,8 +4055,7 @@ const BelisMapLibWrapper = ({
             const match = mapInstance
               .querySourceFeatures(namespacedSource, { sourceLayer })
               .find(
-                (f) =>
-                  f.properties && String(f.properties.id) === String(dbId)
+                (f) => f.properties && String(f.properties.id) === String(dbId)
               );
             if (match?.id != null) {
               matchId = match.id;
@@ -4666,6 +4667,7 @@ const BelisMapLibWrapper = ({
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers="basemap_grey@60"
               layerMode="imperative"
+              markerSymbolSize={BELIS_MARKER_SYMBOL_SIZE}
               libreLayers={[leuchtenDataLayer, brandNewDataLayer]}
               setLibreMap={handleMiniMapReady}
             />
@@ -4712,6 +4714,7 @@ const BelisMapLibWrapper = ({
               <CarmaMap
                 mapEngine="maplibre"
                 layerMode="imperative"
+                markerSymbolSize={BELIS_MARKER_SYMBOL_SIZE}
                 embedded
                 debugLog
                 logErrors={showRaw}
@@ -4746,40 +4749,47 @@ const BelisMapLibWrapper = ({
                   )
                 }
               />
-              <MeasurementHost
-                ref={measurementHostRef}
-                mode={drawMode}
-                snapping={snappingEnabled}
-                // Tighten terra-draw's click-to-finish tolerance (native
-                // default 40px) so short segments drawn along a building edge
-                // near a snapped corner don't terminate the line prematurely
-                // (#691). Kept <= the snap radius (20px).
-                closePointerDistancePx={10}
-                initialFeatures={initialMeasurementFeatures}
-                onChange={(features) => {
-                  // Prefix terra-draw's UUIDs to namespace measurement ids
-                  // away from any other id space (fachobjekte, brandnew FC,
-                  // etc.). Redux state is persisted via redux-persist
-                  // (see measurementsConfig in store/index.ts) so the next
-                  // refresh re-seeds terra-draw via initialFeatures above.
-                  dispatch(
-                    replaceMeasurements(
-                      features.map((f) => ({
-                        ...f,
-                        id: `measurement.${f.id}`,
-                      }))
-                    )
-                  );
-                }}
-                onSelectionChange={(id) => {
-                  // terra-draw fires with the raw UUID; redux stores the
-                  // prefixed form. Translate before dispatching so the
-                  // shared selectedFeature slot lands on the matching item.
-                  dispatch(
-                    selectMeasurement(id != null ? `measurement.${id}` : null)
-                  );
-                }}
-              />
+              {/* Provider wraps the host so descendants can use the new
+                  useMeasurements() context. Redux dispatch still happens
+                  via the imperative onChange below because replaceMeasurements
+                  also re-syncs the shared selectedFeature slot (the simple
+                  setMeasurements bridge would lose that). */}
+              <MeasurementsProvider>
+                <MeasurementHost
+                  ref={measurementHostRef}
+                  mode={drawMode}
+                  snapping={snappingEnabled}
+                  // Tighten terra-draw's click-to-finish tolerance (native
+                  // default 40px) so short segments drawn along a building edge
+                  // near a snapped corner don't terminate the line prematurely
+                  // (#691). Kept <= the snap radius (20px).
+                  closePointerDistancePx={10}
+                  initialFeatures={initialMeasurementFeatures}
+                  onChange={(features) => {
+                    // Prefix terra-draw's UUIDs to namespace measurement ids
+                    // away from any other id space (fachobjekte, brandnew FC,
+                    // etc.). Redux state is persisted via redux-persist
+                    // (see measurementsConfig in store/index.ts) so the next
+                    // refresh re-seeds terra-draw via initialFeatures above.
+                    dispatch(
+                      replaceMeasurements(
+                        features.map((f) => ({
+                          ...f,
+                          id: `measurement.${f.id}`,
+                        }))
+                      )
+                    );
+                  }}
+                  onSelectionChange={(id) => {
+                    // terra-draw fires with the raw UUID; redux stores the
+                    // prefixed form. Translate before dispatching so the
+                    // shared selectedFeature slot lands on the matching item.
+                    dispatch(
+                      selectMeasurement(id != null ? `measurement.${id}` : null)
+                    );
+                  }}
+                />
+              </MeasurementsProvider>
             </>
           }
           datasheetContent={

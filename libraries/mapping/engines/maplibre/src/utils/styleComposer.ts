@@ -19,6 +19,8 @@ import {
   prefixPatternExpression,
   extractGeoJson,
   transformedPois,
+  isStopsObject,
+  scaleStopsObject,
 } from "./styleBuilder";
 import type { LibreLayer, RasterPaintOverrides } from "../components/LibreMap";
 
@@ -81,7 +83,7 @@ function applySymbolScaling(
   markerSymbolSize: number
 ): void {
   if (layer.type !== "symbol") return;
-  const scale = (markerSymbolSize / 35) * 1.35;
+  const scale = markerSymbolSize / 35;
   const layout = (
     layer as LayerSpecification & { layout?: Record<string, unknown> }
   ).layout;
@@ -99,12 +101,43 @@ function applySymbolScaling(
         }
       }
       layout["icon-size"] = copy;
+    } else if (isStopsObject(iconSize)) {
+      layout["icon-size"] = scaleStopsObject(
+        iconSize,
+        (value) => (value as number) * scale
+      );
     }
   }
   if (layout["text-size"] !== undefined) {
     const textSize = layout["text-size"];
     if (typeof textSize === "number") {
       layout["text-size"] = textSize * scale;
+    }
+  }
+  if (layout["text-offset"] !== undefined) {
+    const textOffset = layout["text-offset"];
+    if (Array.isArray(textOffset) && textOffset[0] === "interpolate") {
+      const copy = [...textOffset] as unknown[];
+      for (let i = 3; i < copy.length; i += 2) {
+        if (
+          Array.isArray(copy[i + 1]) &&
+          (copy[i + 1] as unknown[])[0] === "literal"
+        ) {
+          const literalArray = [...((copy[i + 1] as unknown[])[1] as number[])];
+          literalArray[1] = literalArray[1] * scale;
+          copy[i + 1] = ["literal", literalArray];
+        }
+      }
+      layout["text-offset"] = copy;
+    } else if (Array.isArray(textOffset) && textOffset.length === 2) {
+      const x = typeof textOffset[0] === "number" ? textOffset[0] : 0;
+      const y = typeof textOffset[1] === "number" ? textOffset[1] : 0;
+      layout["text-offset"] = [x, y * scale];
+    } else if (isStopsObject(textOffset)) {
+      layout["text-offset"] = scaleStopsObject(textOffset, (v) => {
+        const offset = v as [number, number];
+        return [offset[0], offset[1] * scale];
+      });
     }
   }
 }
@@ -178,8 +211,12 @@ export class StyleComposer {
     vectorLayer: Extract<LibreLayer, { type: "vector" }>,
     opts: AddVectorSubStyleOptions
   ): Promise<void> {
-    // Compute layerId from the style URL (slugified)
-    const layerId = slugifyUrl(vectorLayer.style!);
+    // Compute layerId: slugified URL when style is a URL string, layer name
+    // when style is an inline spec (no URL to slugify).
+    const layerId =
+      typeof vectorLayer.style === "string"
+        ? slugifyUrl(vectorLayer.style)
+        : vectorLayer.name;
 
     // Compute the merged-mode-equivalent prefix (same logic as styleBuilder)
     let mergedPrefix = vectorLayer.name;
@@ -191,8 +228,10 @@ export class StyleComposer {
     // Idempotency: skip if already managed
     if (this.managed.has(layerId)) return;
 
-    const response = await fetch(vectorLayer.style!);
-    const styleJson = await response.json();
+    const styleJson =
+      typeof vectorLayer.style === "string"
+        ? await (await fetch(vectorLayer.style)).json()
+        : JSON.parse(JSON.stringify(vectorLayer.style));
     let spriteId = layerId;
     if (styleJson.sprite) {
       spriteId = slugify(styleJson.sprite, {
@@ -234,10 +273,7 @@ export class StyleComposer {
       }
       // Refcount so removeSubStyle keeps the sprite alive while another
       // managed sub-style still references the same spriteId.
-      this.spriteRefs.set(
-        spriteId,
-        (this.spriteRefs.get(spriteId) ?? 0) + 1
-      );
+      this.spriteRefs.set(spriteId, (this.spriteRefs.get(spriteId) ?? 0) + 1);
     }
 
     // 3. Add sources (namespaced to prevent collisions)
@@ -585,9 +621,14 @@ export class StyleComposer {
     const crsParam = version >= "1.3.0" ? "crs" : "srs";
     const isWmts = layer.type === "wmts";
 
-    const tileUrl = `${layer.url}${
-      layer.url.endsWith("?") ? "" : "?"
-    }service=WMS&version=${version}&request=GetMap&layers=${
+    const querySep = layer.url.endsWith("?")
+      ? ""
+      : layer.url.includes("?")
+      ? "&"
+      : "?";
+    const tileUrl = `${
+      layer.url
+    }${querySep}service=WMS&version=${version}&request=GetMap&layers=${
       layer.layers
     }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
       layer.format || "image/png"
@@ -601,6 +642,70 @@ export class StyleComposer {
       type: "raster",
       tiles: [tileUrl],
       tileSize: layer.tileSize ?? 256,
+    });
+
+    const layerId = `${id}-raster`;
+    this.map.addLayer(
+      {
+        id: layerId,
+        type: "raster",
+        source: sourceId,
+        paint: {
+          "raster-opacity": layer.opacity ?? 1,
+          ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+        },
+        metadata: { "z-index": opts.zIndex, "layer-id": id },
+      } as LayerSpecification,
+      lastId
+    );
+
+    this.managed.set(id, {
+      sourceIds: [sourceId],
+      layerIds: [layerId],
+      spriteId: null,
+      firstId,
+      lastId,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Pre-built raster tiles sub-style ({z}/{x}/{y} URL template)
+  // -------------------------------------------------------------------------
+
+  addTilesSubStyle(
+    id: string,
+    layer: Extract<LibreLayer, { type: "tiles" }>,
+    opts: AddRasterSubStyleOptions
+  ): void {
+    if (this.managed.has(id)) return;
+
+    const firstId = `---${id}:first---`;
+    const lastId = `---${id}:last---`;
+    const sanitized = layer.name.replace(/[^a-zA-Z0-9]/g, "-");
+    const sourceId = `${id}::${sanitized}`;
+
+    this.map.addLayer(
+      {
+        id: lastId,
+        type: "background",
+        paint: { "background-opacity": 0 },
+      } as LayerSpecification,
+      opts.beforeId
+    );
+    this.map.addLayer(
+      {
+        id: firstId,
+        type: "background",
+        paint: { "background-opacity": 0 },
+      } as LayerSpecification,
+      lastId
+    );
+
+    this.map.addSource(sourceId, {
+      type: "raster",
+      tiles: [layer.url],
+      tileSize: layer.tileSize ?? 256,
+      ...(layer.maxZoom !== undefined ? { maxzoom: layer.maxZoom } : {}),
     });
 
     const layerId = `${id}-raster`;
@@ -694,8 +799,7 @@ export class StyleComposer {
   // In-place opacity updates (no layer rebuild)
   // -------------------------------------------------------------------------
 
-  updateVectorOpacity(styleUrl: string, opacity: number): void {
-    const id = slugifyUrl(styleUrl);
+  updateVectorOpacity(id: string, opacity: number): void {
     const entry = this.managed.get(id);
     if (!entry) return;
     const bases = entry.baseOpacities;

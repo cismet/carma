@@ -5,9 +5,10 @@ export type { DynamicStylingResult } from "./applyDynamicStyling";
 export {
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
-  getLastAppliedSelection,
-  setLastAppliedSelection,
+  applyDynamicStylingToStylesheet,
   extractLayerInfo,
   extractCarmaConf,
+  getLastAppliedSelection,
+  setLastAppliedSelection,
 } from "./dynamicStyling.helpers";
 export type { MetadataChanges, LayerInfo } from "./dynamicStyling.helpers";

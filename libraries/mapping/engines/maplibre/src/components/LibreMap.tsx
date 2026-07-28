@@ -29,6 +29,7 @@ import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
 import {
   applySelectionForwarding,
+  enrichHitsWithCarmaInfo,
   getCarmaConf,
   getCarmaConfFromStyle,
   resolvePropertyTarget,
@@ -85,12 +86,26 @@ export interface GeoJsonData {
 
 export interface VectorStyle {
   name: string;
-  style: string;
+  style: string | StyleSpecification;
   layer?: string;
   opacity?: number;
   infoboxMapping?: string[];
   /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
   carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+  /** Optional filter expression to AND into every style layer in this vector style
+   *  during style construction. The original filter is preserved at
+   *  metadata.originalFilter so consumers can still recover it. */
+  userFilter?: unknown[] | null;
+  /** Optional pure transform applied to the freshly fetched/cloned stylesheet
+   *  before it is merged into the composite style. Used to bake in features
+   *  like dynamic styling selections so the merged map reflects them on the
+   *  first render. Must return a stylesheet (modified or original); returning
+   *  a falsy value keeps the input unchanged. */
+  userStyleTransform?: (style: any) => any;
+  /** Serializable fingerprint of `userStyleTransform`'s effective output.
+   *  Hosts that memoize LibreLayer arrays via JSON.stringify need this to
+   *  detect transform changes (functions are stripped by JSON.stringify). */
+  userStyleTransformKey?: string;
 }
 
 /**
@@ -133,6 +148,15 @@ export type LibreLayer =
       rasterPaint?: RasterPaintOverrides;
     }
   | {
+      type: "tiles";
+      name: string;
+      url: string;
+      opacity?: number;
+      tileSize?: number;
+      maxZoom?: number;
+      rasterPaint?: RasterPaintOverrides;
+    }
+  | {
       type: "cog";
       name: string;
       url: string;
@@ -152,6 +176,10 @@ export interface LibreMapProps {
   ) => void;
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
+  /** Symbol scaling base. Defaults to the value from TopicMapStylingContext
+   * (35 = unscaled). Hosts whose styles are authored for a different base can
+   * override it here without touching the shared context. */
+  markerSymbolSize?: number;
   useRouting?: boolean;
   /** Keep the canvas readable for toDataURL() snapshot capture */
   preserveDrawingBuffer?: boolean;
@@ -171,6 +199,16 @@ export interface LibreMapProps {
       id?: string | number;
     }
   ) => void;
+  /** Fired once per click with the raw filtered hits and the click latlng.
+   * Mirrors the shape of CismapLayer's onSelectionChanged: hosts can drive
+   * their own selection / infobox flow without registering a second
+   * map.on("click", ...) handler. Fires even when there are no hits, so
+   * hosts can also clear state on empty-area clicks. */
+  onSelectionChanged?: (e: {
+    hits: maplibregl.MapGeoJSONFeature[];
+    hit: maplibregl.MapGeoJSONFeature | undefined;
+    latlng: maplibregl.LngLat;
+  }) => void;
   /** Pick which feature to select from all click hits.
    * Receives filtered hits (no selection/cluster layers).
    * Return the preferred feature, or undefined to clear selection.
@@ -189,6 +227,12 @@ export interface LibreMapProps {
   overrideSelectedFeature?: Record<string, unknown> | null;
   /** Show gazetteer selection info when clicking on empty map area (default: true) */
   gazetteerInfoOnClick?: boolean;
+  /** Skip the engine's built-in feature creation and context push on click.
+   * Visual selection (setFeatureState) and onSelectionChanged still fire, so
+   * a host can drive its own infobox flow without LibreMap also running
+   * createFeature against a registered infoboxMapping and competing for the
+   * MapSelectionContext. Default: false (engine handles selection). */
+  disableInternalSelection?: boolean;
   /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
   backgroundRasterPaint?: RasterPaintOverrides;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
@@ -274,18 +318,21 @@ export const LibreMap = ({
   onProgressUpdate,
   filterFunction,
   overrideGlyphs,
+  markerSymbolSize: markerSymbolSizeProp,
   useRouting = false,
   interactive = true,
   preserveDrawingBuffer = false,
   selectionEnabled = true,
   layerMode = "merged",
   onFeatureSelect,
+  onSelectionChanged,
   selectFromHits,
   debugLog = false,
   logErrors = false,
   exposeMapToWindow = false,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
+  disableInternalSelection = false,
   backgroundRasterPaint,
   threeRuntimeParams,
   threePerfRef,
@@ -306,6 +353,8 @@ export const LibreMap = ({
   const mappingRef = useRef({});
   const onFeatureSelectRef = useRef(onFeatureSelect);
   onFeatureSelectRef.current = onFeatureSelect;
+  const onSelectionChangedRef = useRef(onSelectionChanged);
+  onSelectionChangedRef.current = onSelectionChanged;
   const selectFromHitsRef = useRef(selectFromHits);
   selectFromHitsRef.current = selectFromHits;
   const useRoutingRef = useRef(useRouting);
@@ -326,9 +375,10 @@ export const LibreMap = ({
   const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
   );
-  const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext
-  );
+  const { markerSymbolSize: markerSymbolSizeFromContext } = useContext<
+    typeof TopicMapStylingContext
+  >(TopicMapStylingContext);
+  const markerSymbolSize = markerSymbolSizeProp ?? markerSymbolSizeFromContext;
   const {
     setMapStyle,
     geoJsonMetadata,
@@ -358,6 +408,9 @@ export const LibreMap = ({
   // handler would hold the value at mount and never react.
   const selectionEnabledRef = useRef(selectionEnabled);
   selectionEnabledRef.current = selectionEnabled;
+
+  const disableInternalSelectionRef = useRef(disableInternalSelection);
+  disableInternalSelectionRef.current = disableInternalSelection;
 
   // DatasheetContext: when a DatasheetProvider is mounted, isEnabled is true
   // and openDatasheet is a real function. Otherwise createFeature gets undefined.
@@ -856,7 +909,11 @@ export const LibreMap = ({
                   mappingRef.current[sf.source] ||
                   mappingRef.current[sf.sourceLayer ?? ""];
 
-                if (layerMapping3d) {
+                if (disableInternalSelectionRef.current) {
+                  // Host owns selection; skip engine-side feature creation
+                  // and context push. Visual highlight via setFeatureState
+                  // already happened upstream.
+                } else if (layerMapping3d) {
                   const feature = await createFeature(
                     syntheticFeature,
                     layerMapping3d,
@@ -916,6 +973,12 @@ export const LibreMap = ({
         // selection code, sidebar lookups, and forwarding all read
         // feature.sourceLayer.
         for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
+        enrichHitsWithCarmaInfo(mapInstance, filteredHits);
+        onSelectionChangedRef.current?.({
+          hits: filteredHits,
+          hit: filteredHits[0],
+          latlng: e.lngLat,
+        });
 
         console.log(
           "[TERRAIN CLICK]",
@@ -1028,7 +1091,7 @@ export const LibreMap = ({
           }
 
           let feature = null;
-          if (layerMapping) {
+          if (!disableInternalSelectionRef.current && layerMapping) {
             feature = await createFeature(
               selectedVectorFeature,
               layerMapping,
@@ -1069,7 +1132,7 @@ export const LibreMap = ({
             lastHandledVersionRef.current =
               mapSelectionCtxRef.current.selectionVersion + 1;
             onFeatureSelect?.(feature, featureId);
-          } else if (selectionEnabled) {
+          } else if (selectionEnabled && !disableInternalSelectionRef.current) {
             // No feature/mapping but selection enabled: still update context
             mapSelectionCtxRef.current.selectFeature(
               featureId,
@@ -1365,9 +1428,14 @@ export const LibreMap = ({
           if (aborted) return;
 
           // Add mapping for geojson layers
-          geoJsonLayers.forEach((layer, index) => {
+          geoJsonLayers.forEach((layer) => {
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
-              const sourceId = `geojson-source-${index}`;
+              // Mirror the name-based source id produced by styleBuilder so the
+              // by-source-id mapping key stays in sync (position-independent).
+              const sourceId = `geojson-source-${layer.name.replace(
+                /[^a-zA-Z0-9]/g,
+                "-"
+              )}`;
               mapping[layer.name] = layer.infoboxMapping;
               // Also map by source ID for easier lookup
               mapping[sourceId] = layer.infoboxMapping;
@@ -1555,7 +1623,7 @@ export const LibreMap = ({
         sourceLayer: ctxSelectedFeatureId?.sourceLayer,
         hasOpenDatasheet: !!openDatasheetRef.current,
       });
-      if (layerMapping) {
+      if (layerMapping && !disableInternalSelectionRef.current) {
         void createFeature(
           ctxRawFeature,
           layerMapping,
@@ -1637,6 +1705,7 @@ export const LibreMap = ({
       // Stamp effective sourceLayer on geojson hits (same convention as
       // the click handler above).
       for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
+      enrichHitsWithCarmaInfo(mapInstance, filteredHits);
 
       if (filteredHits.length > 0) {
         const selectedVectorFeature = selectFromHitsRef.current
@@ -1654,7 +1723,7 @@ export const LibreMap = ({
           mappingRef.current[selectedVectorFeature.source];
 
         let feature = null;
-        if (layerMapping) {
+        if (!disableInternalSelectionRef.current && layerMapping) {
           feature = await createFeature(
             selectedVectorFeature,
             layerMapping,

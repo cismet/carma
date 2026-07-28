@@ -19,6 +19,7 @@ type MapFrameworkSwitcherProps = {
   switchTo3DText?: string;
   switchTo2DText?: string;
   style?: CSSProperties;
+  onToggleOverride?: () => void | Promise<void>;
 };
 
 export type { MapFrameworkSwitcherProps };
@@ -48,6 +49,7 @@ export const MapFrameworkSwitcher = forwardRef<
       switchTo3DText = LOCALE_DE_SWITCH_TO_3D_MODE,
       switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
       style,
+      onToggleOverride,
     },
     ref
   ) => {
@@ -74,16 +76,24 @@ export const MapFrameworkSwitcher = forwardRef<
         else return;
       }
 
+      if (onToggleOverride) {
+        await onToggleOverride();
+        return;
+      }
+
       await toggle();
     };
 
     const switchInfoText = isLeaflet ? switchTo3DText : switchTo2DText;
 
-    // Disable button if not ready or transitioning (unless forceEnabled)
+    // An override bypasses the leaflet-dependent readiness gate, just like forceEnabled.
+    const bypassReadyGate = forceEnabled === true || Boolean(onToggleOverride);
+
+    // Disable button if not ready or transitioning (unless the ready gate is bypassed)
     const isDisabled =
       disabled === true ||
       ((!isReady || isTransitioning || isPreparingCesiumTransition) &&
-        !forceEnabled);
+        !bypassReadyGate);
 
     const button = (
       <ControlButtonStyler

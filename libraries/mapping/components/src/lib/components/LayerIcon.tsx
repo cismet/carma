@@ -4,10 +4,12 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 import { iconColorMap, iconMap } from "./iconMapping";
-import { resolveLayerIconUrl, twemojiUrl } from "@carma-mapping/utils";
-
-const ICON_PREFIX =
-  "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
+import {
+  DEFAULT_ICON_PREFIX,
+  mapIconPath,
+  resolveLayerIconUrl,
+  twemojiUrl,
+} from "@carma-mapping/utils";
 
 interface LayerIconProps {
   layer: Layer | BackgroundLayer;
@@ -19,15 +21,6 @@ interface LayerIconProps {
   displayUrl?: boolean;
   onError?: (title: string, url: string) => void;
 }
-
-const iconPathAliases: Record<string, string> = {
-  verkehr: "mobi",
-};
-
-const mapIconPath = (path: string): string => {
-  const lower = path.toLowerCase();
-  return iconPathAliases[lower] ?? lower;
-};
 
 function resolveIconKey(
   ...candidates: (string | undefined)[]
@@ -42,7 +35,7 @@ const EMOJI_PREFIX = "emoji:";
 
 export const LayerIcon = ({
   layer,
-  iconPrefix = ICON_PREFIX,
+  iconPrefix = DEFAULT_ICON_PREFIX,
   fallbackIcon,
   isBaseLayer,
   id,

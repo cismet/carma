@@ -2,6 +2,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 
 import {
   CAMERA_TYPE,
+  readLongerEdgeFovFromIntrinsics,
   readRangeFromMetersPerCssPixel,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
@@ -84,9 +85,25 @@ export const readFromMaplibre = (
   const metersPerPx = getPixelResolutionFromZoomAtLatitudeRad(zoom, latRad, {
     tileSize: MAPLIBRE_TILE_SIZE_PX,
   });
+  // readRangeFromMetersPerCssPixel anchors on the longer viewport edge
+  // (max(width, height) / 2), so the FOV passed in must be the longer-edge FOV.
+  // MapLibre reports a vertical FOV; pairing that directly with the longer edge
+  // inflates the range by ~aspect ratio, which made Cesium zoom out a notch on
+  // every 2D->3D switch. Use the same longer-edge FOV that deriveZoom relies on
+  // so the forward (maplibre->cesium) and reverse conversions stay symmetric.
+  const rangeFovRad =
+    readLongerEdgeFovFromIntrinsics(
+      {
+        fov: fovRad as Radians,
+        fovHorizontal:
+          runtimeIntrinsics.fovHorizontal ??
+          seedState?.intrinsics.fovHorizontal,
+      },
+      { viewportWidthPx, viewportHeightPx }
+    ) ?? fovRad;
   const rangeM = readRangeFromMetersPerCssPixel({
     metersPerCssPixel: metersPerPx,
-    fovRad,
+    fovRad: rangeFovRad,
     minRangeM: MIN_RANGE_M,
     viewportWidthPx,
     viewportHeightPx,

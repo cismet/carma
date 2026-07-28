@@ -367,7 +367,11 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 filterFunction={props.filterFunction}
                 useRouting={miniMap ? false : props.useRouting}
                 onFeatureSelect={miniMap ? undefined : props.onFeatureSelect}
+                onSelectionChanged={
+                  miniMap ? undefined : props.onSelectionChanged
+                }
                 overrideGlyphs={props.overrideGlyphs}
+                markerSymbolSize={props.markerSymbolSize}
                 selectionEnabled={miniMap ? false : props.selectionEnabled}
                 preserveDrawingBuffer={props.preserveDrawingBuffer}
                 interactive={miniMap ? false : undefined}
@@ -380,6 +384,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 }
                 gazetteerInfoOnClick={
                   miniMap ? false : props.gazetteerInfoOnClick
+                }
+                disableInternalSelection={
+                  miniMap ? false : props.disableInternalSelection
                 }
                 backgroundRasterPaint={effectiveRasterPaint}
                 threeRuntimeParams={props.threeRuntimeParams}

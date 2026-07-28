@@ -78,16 +78,19 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
   const subscribeRef = useRef(subscribe);
   const getInteractionElementRef = useRef(getInteractionElement);
   const onInteractionRef = useRef(onInteraction);
+  const enabledRef = useRef(enabled);
+  const wasEnabledRef = useRef(false);
 
   readRef.current = read;
   applyRef.current = apply;
   subscribeRef.current = subscribe;
   getInteractionElementRef.current = getInteractionElement;
   onInteractionRef.current = onInteraction;
+  enabledRef.current = enabled;
 
   const adapter = useViewAdapter(id, engine, {
     apply: (state) => {
-      if (!runtime) {
+      if (!runtime || !enabledRef.current) {
         return;
       }
 
@@ -133,8 +136,17 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
 
   useEffect(() => {
     if (!runtime || !enabled) {
+      wasEnabledRef.current = false;
       return;
     }
+
+    if (!wasEnabledRef.current) {
+      const latestState = viewStateContextRef.current.getState();
+      if (latestState && latestState.metadata.sourceId !== id) {
+        applyRef.current(runtime, latestState);
+      }
+    }
+    wasEnabledRef.current = true;
 
     publishCurrentState();
     const cleanup = subscribeRef.current(runtime, publishCurrentState);
@@ -142,7 +154,7 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
     return () => {
       cleanup?.();
     };
-  }, [enabled, publishCurrentState, runtime]);
+  }, [enabled, id, publishCurrentState, runtime]);
 
   // Release ownership only when the bridge is inactive, not on every
   // subscribe effect re-run (which happens during controller transitions).

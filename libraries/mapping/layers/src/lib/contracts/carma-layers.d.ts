@@ -42,21 +42,6 @@ export type DynamicStylingOptionsConfig =
   | DynamicStylingListConfig
   | DynamicStylingToggleConfig;
 
-export type DynamicStylingVisibilityConfig = {
-  type: "visibility";
-  label: string;
-  default: "visible" | "hidden";
-  layers: string[];
-  showIcon?: boolean;
-  iconVisible?: string;
-  iconHidden?: string;
-};
-
-export type DynamicStylingConfig =
-  | DynamicStylingListConfig
-  | DynamicStylingToggleConfig
-  | DynamicStylingVisibilityConfig;
-
 export type BackgroundLayer = BaseLayer & {
   layers: string;
   layerType:
@@ -207,7 +192,7 @@ type BaseLayer = {
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
   filterState?: Record<string, boolean>;
-  dynamicStyling?: DynamicStylingConfig | DynamicStylingConfig[];
+  dynamicStyling?: DynamicStylingOptionsConfig | DynamicStylingOptionsConfig[];
   dynamicStylingSelection?: string | Record<number, string>;
   layerInfo?: {
     accentColor?: string;
