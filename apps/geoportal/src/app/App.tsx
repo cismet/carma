@@ -47,9 +47,9 @@ import {
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 
+import { AddonHost, type Addon } from "@carma-mapping/addons";
+
 // Local Modules
-import type { FachzwillingAddon } from "./addons/registry";
-import { FachzwillingAddonHost } from "./addons/FachzwillingAddonHost";
 import AppErrorFallback from "./components/AppErrorFallback";
 import { AnnotationProvider } from "./components/annotations/AnnotationProvider";
 import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
@@ -185,7 +185,7 @@ function App({
   catalogConfig?: LayerCatalogConfig;
   /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
   categories?: CategoryDefinition[];
-  addons?: FachzwillingAddon[];
+  addons?: Addon[];
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -249,7 +249,7 @@ function App({
                   fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
                 >
                   <GeoportalAppSearchParamsIntegration />
-                  <FachzwillingAddonHost addons={addons} />
+                  <AddonHost addons={addons} />
                   <MeasurementsWrapper
                     externalMode={mode}
                     setModeExternal={handleSetMode}

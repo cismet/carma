@@ -9,7 +9,7 @@ import {
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
 import { resolveFeatureFlags } from "@carma-providers/feature-flag";
-import type { FachzwillingAddon } from "../../addons/registry";
+import type { Addon } from "@carma-mapping/addons";
 
 import {
   defaultVisibleControls,
@@ -65,7 +65,7 @@ export type FachzwillingRoute = {
    * (including the default geoportal route)
    */
   perspectives?: WorkflowPerspective[];
-  addons?: FachzwillingAddon[];
+  addons?: Addon[];
 };
 
 export const fachzwillingRoutes: FachzwillingRoute[] = isFachzwillingeEnabled
