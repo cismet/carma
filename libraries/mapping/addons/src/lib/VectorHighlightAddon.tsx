@@ -157,7 +157,22 @@ export const VectorHighlightAddon = ({
     useMapHighlight();
 
   // owns the `highlighted` feature-state and the click-to-toggle
-  useMapHighlighting({ map: libreMap, modifierClick, stateKey });
+  useMapHighlighting({
+    map: libreMap,
+    modifierClick,
+    stateKey,
+    // TODO #723: delete this debug logging before merge.
+    // Fires after every apply pass, i.e. also on the debounced `sourcedata`
+    // re-apply while panning. The set only covers features currently loaded in
+    // the sources, so it grows and shrinks with the viewport.
+    onHighlightsApplied: (features) =>
+      console.log(
+        "xxx [VectorHighlight] applied",
+        features.length,
+        features.map((f) => `${f.sourceLayer ?? ""}::${String(f.id)}`),
+        features
+      ),
+  });
 
   // route configs pass a fresh array on every render; key the effect on the
   // content instead of the identity
