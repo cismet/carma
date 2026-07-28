@@ -8,8 +8,12 @@ import {
   type LayerCatalogConfig,
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
-import { resolveFeatureFlags } from "@carma-providers/feature-flag";
+import {
+  resolveFeatureFlags,
+  type FeatureFlagConfig,
+} from "@carma-providers/feature-flag";
 import type { Addon } from "@carma-mapping/addons";
+import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
 
 import {
   defaultVisibleControls,
@@ -21,18 +25,24 @@ import { layerCatalogConfig } from "../discover";
 import { gesundheitFachzwilling } from "./gesundheit";
 import { bodenFachzwilling } from "./boden";
 import { outletFachzwilling } from "./outlet";
-import { featureFlagConfig } from "../../config/featureFlags";
+import { getFeatureFlagConfig } from "../../config/featureFlags";
 
-const isFachzwillingeEnabled =
-  resolveFeatureFlags(featureFlagConfig).featureFlagFachzwillinge === true;
+const currentDeployment = resolveDeployment();
+const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
 
 /**
  * A Fachzwilling is a thematic geoportal variant: an own route whose layer
  * catalog is narrowed to the theme via always-active filters. Registering a
  * route here generates the hash route (main.tsx), the link card in the
  * "Fachzwillinge" subcategory of the "Themenzwillinge" catalog category and the
- * navbar breadcrumb (TopNavbar). All of it only while featureFlagFachzwillinge
- * is active, see isFachzwillingeEnabled.
+ * navbar breadcrumb (TopNavbar).
+ *
+ * Two independent gates apply:
+ * - `availability` decides whether the route exists at all, i.e. whether it can
+ *   be opened by its url. Without it the route is reachable on every deployment
+ *   without any feature flag, see isRouteAvailable.
+ * - featureFlagFachzwillinge ("fz") decides whether the routes are advertised
+ *   in the catalog, see isFachzwillingeEnabled.
  */
 export type FachzwillingUiOptions = Partial<UIVisibleControls> & {
   hideAll?: boolean;
@@ -47,9 +57,20 @@ export const resolveFachzwillingUi = (
   return { ...baseline, ...overrides };
 };
 
+/**
+ * Restricts where a route is reachable. Every given condition must hold; an
+ * omitted condition is not checked, so an omitted `availability` means the
+ * route is reachable by its url everywhere, without any feature flag.
+ */
+export type FachzwillingAvailability = {
+  deployments?: DeploymentTarget[];
+  featureFlag?: string;
+};
+
 type FachzwillingRouteBase = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
+  availability?: FachzwillingAvailability;
   ui?: FachzwillingUiOptions;
   disableMapInteraction?: boolean;
   /**
@@ -89,9 +110,50 @@ export type FachzwillingRoute =
   | CatalogFachzwillingRoute
   | HiddenFachzwillingRoute;
 
-export const fachzwillingRoutes: FachzwillingRoute[] = isFachzwillingeEnabled
-  ? [gesundheitFachzwilling, bodenFachzwilling, outletFachzwilling]
-  : [];
+const allFachzwillingRoutes: FachzwillingRoute[] = [
+  gesundheitFachzwilling,
+  bodenFachzwilling,
+  outletFachzwilling,
+];
+
+export const routeFeatureFlagConfig: FeatureFlagConfig = Object.fromEntries(
+  allFachzwillingRoutes
+    .map((route) => route.availability?.featureFlag)
+    .filter(
+      (flagName): flagName is string =>
+        !!flagName && !(flagName in baseFeatureFlagConfig)
+    )
+    .map((flagName) => [flagName, { alias: flagName, default: false }])
+);
+
+const activeFeatureFlags = resolveFeatureFlags({
+  ...baseFeatureFlagConfig,
+  ...routeFeatureFlagConfig,
+});
+
+const isFachzwillingeEnabled =
+  activeFeatureFlags.featureFlagFachzwillinge === true;
+
+const isRouteAvailable = ({ availability }: FachzwillingRoute): boolean => {
+  if (!availability) {
+    return true;
+  }
+  const { deployments, featureFlag } = availability;
+  // an unresolvable deployment (unknown host) never satisfies a deployment list
+  if (
+    deployments &&
+    (currentDeployment === null || !deployments.includes(currentDeployment))
+  ) {
+    return false;
+  }
+  if (featureFlag && activeFeatureFlags[featureFlag] !== true) {
+    return false;
+  }
+  return true;
+};
+
+export const fachzwillingRoutes: FachzwillingRoute[] =
+  allFachzwillingRoutes.filter(isRouteAvailable);
 
 export const getFachzwillingCatalogConfig = (
   route: FachzwillingRoute
@@ -109,9 +171,7 @@ const FACHZWILLINGE_CATEGORY_ID = "fachzwillinge";
 const FACHZWILLINGE_CATEGORY_LABEL = "Fachzwillinge";
 
 const fachzwillingItems: Item[] = fachzwillingRoutes
-  .filter(
-    (route): route is CatalogFachzwillingRoute => !route.hideFromCatalog
-  )
+  .filter((route): route is CatalogFachzwillingRoute => !route.hideFromCatalog)
   .map((route) => ({
     id: `fachzwilling_${route.path}`,
     name: `fachzwilling_${route.path}`,

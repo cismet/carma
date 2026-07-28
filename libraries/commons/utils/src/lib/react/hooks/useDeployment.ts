@@ -36,7 +36,7 @@ const matchesHostname = (
     : candidates === hostname;
 };
 
-const resolveDeployment = ({
+export const resolveDeployment = ({
   hostname = typeof window !== "undefined"
     ? window.location.hostname
     : undefined,

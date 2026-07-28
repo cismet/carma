@@ -14,6 +14,9 @@ export const bodenFachzwilling: FachzwillingRoute = {
   title: "Grund und Boden",
   description: "Boden Fachzwilling",
   ui: { allow3d: false },
+  availability: {
+    deployments: ["localDev", "dev", "pr"],
+  },
   thumbnail:
     "https://tiles.cismet.de/alkis/assets/alkis_flurstuecke_str_hnr_schwarz.png",
   filters: [

@@ -33,6 +33,9 @@ const gesundheitItemIds = [
 export const gesundheitFachzwilling: FachzwillingRoute = {
   path: "gesundheit",
   title: "Gesundheit",
+  availability: {
+    deployments: ["localDev", "dev", "pr"],
+  },
   thumbnail:
     "https://geo.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_krankenhaeuser.png",
   description:

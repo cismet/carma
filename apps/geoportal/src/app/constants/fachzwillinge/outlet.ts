@@ -5,4 +5,7 @@ export const outletFachzwilling: FachzwillingRoute = {
   hideFromCatalog: true,
   ui: { hideAll: true },
   disableMapInteraction: true,
+  availability: {
+    deployments: ["localDev", "dev", "pr"],
+  },
 };

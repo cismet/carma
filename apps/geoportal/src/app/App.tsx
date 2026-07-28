@@ -82,6 +82,7 @@ import {
 } from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
 import { getFeatureFlagConfig } from "./config/featureFlags";
+import { routeFeatureFlagConfig } from "./constants/fachzwillinge";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
@@ -213,7 +214,12 @@ function App({
 
   // Memoize config objects to prevent recreation on every render
   const featureFlagsMergedConfig = useMemo(
-    () => ({ ...getFeatureFlagConfig(deployment), ...customFeatureFlags }),
+    () => ({
+      ...getFeatureFlagConfig(deployment),
+      // flags only referenced by a Fachzwilling route availability
+      ...routeFeatureFlagConfig,
+      ...customFeatureFlags,
+    }),
     [deployment, customFeatureFlags]
   );
 

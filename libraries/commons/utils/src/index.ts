@@ -28,6 +28,7 @@ export { useMemoMergedDefaultOptions } from "./lib/react/hooks/useMemoMergedDefa
 export { isLocalhostHostname } from "./lib/hostname";
 export {
   Deployment,
+  resolveDeployment,
   useDeployment,
   useDevDeployment,
   useLiveDeployment,
