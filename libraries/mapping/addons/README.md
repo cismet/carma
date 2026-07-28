@@ -74,14 +74,17 @@ export const CameraTourAddon = ({
   config,
   carma,
   leafletMap,
+  libreMap,
   store,
 }: AddonComponentProps<"cameraTour">) => {
   useEffect(() => {
     // imperative carma api: mode switching, layers, camera, ui
     carma.mapping2D.flyTo(config.start.lat, config.start.lng, config.zoom);
 
-    // raw leaflet map instance (null while the 2d map is not mounted,
-    // so keep it in the effect deps and guard on it)
+    // raw map instances of the two 2d engines; only the active engine's map is
+    // set, so keep them in the effect deps and guard on the one you need
+    libreMap?.on("moveend", handleMoveEnd);
+
     if (!leafletMap) {
       return;
     }
@@ -92,9 +95,10 @@ export const CameraTourAddon = ({
     const uiMode = (store.getState() as AppState).ui.mode;
 
     return () => {
+      libreMap?.off("moveend", handleMoveEnd);
       leafletMap.off("moveend", handleMoveEnd);
     };
-  }, [config, carma, leafletMap, store]);
+  }, [config, carma, leafletMap, libreMap, store]);
 
   return null;
 };
@@ -106,7 +110,8 @@ The shared props are:
 | ------------ | --------------------------- | ----------------------------------------------------------- |
 | `config`     | `AddonConfigMap[K]`         | The addon's own config from the route declaration           |
 | `carma`      | `typeof carma` (@carma-api) | Imperative api: map mode, layers, camera, ui, gazetteer     |
-| `leafletMap` | `LeafletMap \| null`        | The leaflet map instance, `null` while the 2d map is unmounted |
+| `leafletMap` | `LeafletMap \| null`        | The leaflet map instance, `null` while it is unmounted      |
+| `libreMap`   | `maplibregl.Map \| null`    | The maplibre map instance, `null` while it is unmounted     |
 | `store`      | `Store` (redux)             | Redux reads/dispatches outside the react tree               |
 
 `GazetteerModeAddon` is the canonical example of an addon that extends the
