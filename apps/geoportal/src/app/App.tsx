@@ -48,7 +48,7 @@ import {
 } from "@carma-commons/measurements";
 import { MeasurementsProvider as LibreMeasurementsProvider } from "@carma-mapping/measurements";
 
-import { AddonHost, type Addon } from "@carma-mapping/addons";
+import { type Addon } from "@carma-mapping/addons";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -259,7 +259,6 @@ function App({
                   fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
                 >
                   <GeoportalAppSearchParamsIntegration />
-                  <AddonHost addons={addons} />
                   <MeasurementsWrapper
                     externalMode={mode}
                     setModeExternal={handleSetMode}
@@ -291,7 +290,7 @@ function App({
                               }
                               replace={true}
                             >
-                              <MapWrapper />
+                              <MapWrapper addons={addons} />
                             </ViewStateNavigationManagerProvider>
                           </ViewStateProvider>
                           <MobileWarningMessage
