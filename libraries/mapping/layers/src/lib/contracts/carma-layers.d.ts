@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { DeploymentTarget } from "@carma-commons/utils";
 import type { CarmaConfig } from "./carma-config";
 
 export type LayerFilterInfo = {
@@ -379,6 +380,7 @@ export type Item = {
   vectorTitle?: string;
   vectorDescription?: string;
   ff?: string;
+  restrict?: DeploymentTarget | DeploymentTarget[];
   replaceId?: string;
   mergeId?: string;
   createdAt?: string;

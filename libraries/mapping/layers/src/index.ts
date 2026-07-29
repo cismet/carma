@@ -49,6 +49,12 @@ export {
 } from "./helper/catalogFilter";
 export * from "./lib/contracts/carma-config.d";
 export * from "./lib/contracts/carma-layers.d";
+export {
+  filterCategoriesByDeployment,
+  getRestrictedDeployments,
+  isItemAvailableInDeployment,
+  type RestrictableItem,
+} from "./helper/deploymentRestriction";
 export * from "./helper/groupTools";
 export * from "./helper/layerHelper";
 export * from "./helper/layerStack";

@@ -10,7 +10,11 @@ import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
 import { deriveAdditionalConfigFragments } from "../../helper/buildCatalog";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { LayerIcon } from "@carma-mapping/components";
-import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
+import { updateUrl, extractCarmaConfig, useDeployment } from "@carma-commons/utils";
+import {
+  isItemAvailableInDeployment,
+  type RestrictableItem,
+} from "../../helper/deploymentRestriction";
 import { parseToMapLayer, resolveLayerIconUrl } from "@carma-mapping/utils";
 import LegendDisplay from "../../components/LegendDisplay";
 import ThumbnailDisplay from "../../components/ThumbnailDisplay";
@@ -94,20 +98,23 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
   );
 
   const flags = useFeatureFlags();
+  const deployment = useDeployment();
   const { additionalConfig, loadingAdditionalConfig } = useAdditionalConfig({
     assetBaseUrl: wuppLayerCatalogConfig.assetBaseUrl,
   });
 
   const additionalLayers = useMemo(
     () =>
-      deriveAdditionalConfigFragments(additionalConfig, flags).map(
-        (fragment) => ({
+      deriveAdditionalConfigFragments(additionalConfig, flags)
+        .map((fragment) => ({
           serviceName: fragment.id ?? "",
           title: fragment.Title,
-          layers: fragment.layers,
-        })
-      ),
-    [additionalConfig, flags]
+          layers: fragment.layers.filter((layer) =>
+            isItemAvailableInDeployment(layer as RestrictableItem, deployment)
+          ),
+        }))
+        .filter((entry) => entry.layers.length > 0),
+    [additionalConfig, flags, deployment]
   );
 
   useLoadCapabilities({
@@ -122,7 +129,9 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
     // copy only what gets extended; the layer objects themselves stay shared
     const merged = allLayers.map((category) => ({
       ...category,
-      layers: [...category.layers],
+      layers: category.layers.filter((layer) =>
+        isItemAvailableInDeployment(layer, deployment)
+      ),
     }));
     for (const entry of additionalLayers) {
       // the config fragments carry catalog items (loose legacy typing)
@@ -143,7 +152,7 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
       }
     }
     return merged;
-  }, [allLayers, additionalLayers]);
+  }, [allLayers, additionalLayers, deployment]);
 
   const loading = allLayers.length === 0;
   const totalLayerCount = displayLayers.reduce(

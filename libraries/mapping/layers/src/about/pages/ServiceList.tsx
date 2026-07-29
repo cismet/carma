@@ -18,7 +18,8 @@ import {
   deriveConfigSubcategories,
 } from "../../helper/buildCatalog";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { extractCarmaConfig } from "@carma-commons/utils";
+import { extractCarmaConfig, useDeployment } from "@carma-commons/utils";
+import { isItemAvailableInDeployment } from "../../helper/deploymentRestriction";
 import { parseDescription } from "../../helper/layerHelper";
 import { partianTwinConfig } from "../../helper/config";
 import {
@@ -689,6 +690,7 @@ const ServiceListContent = ({
   }, []);
 
   const flags = useFeatureFlags();
+  const deployment = useDeployment();
   const {
     additionalConfig,
     sensorConfig,
@@ -699,26 +701,30 @@ const ServiceListContent = ({
   });
 
   const fragmentsToEntries = (fragments: { id?: string; Title: string; layers: any[] }[]) =>
-    fragments.map((fragment) => ({
-      serviceName: fragment.id ?? "",
-      title: fragment.Title,
-      layers: fragment.layers,
-    }));
+    fragments
+      .map((fragment) => ({
+        serviceName: fragment.id ?? "",
+        title: fragment.Title,
+        layers: fragment.layers.filter((layer) =>
+          isItemAvailableInDeployment(layer, deployment)
+        ),
+      }))
+      .filter((entry) => entry.layers.length > 0);
 
   const additionalLayers = useMemo(
     () => fragmentsToEntries(deriveAdditionalConfigFragments(additionalConfig, flags)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [additionalConfig, flags]
+    [additionalConfig, flags, deployment]
   );
   const sensorEntries = useMemo(
     () => fragmentsToEntries(deriveConfigSubcategories(sensorConfig, flags)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sensorConfig, flags]
+    [sensorConfig, flags, deployment]
   );
   const objectEntries = useMemo(
     () => fragmentsToEntries(deriveConfigSubcategories(objectConfig, flags)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [objectConfig, flags]
+    [objectConfig, flags, deployment]
   );
 
   useLoadCapabilities({
@@ -732,7 +738,9 @@ const ServiceListContent = ({
     // copy only what gets extended; the layer objects themselves stay shared
     const merged = allLayers.map((category) => ({
       ...category,
-      layers: [...category.layers],
+      layers: category.layers.filter((layer) =>
+        isItemAvailableInDeployment(layer, deployment)
+      ),
     }));
     for (const entry of additionalLayers) {
       // the config fragments carry catalog items (loose legacy typing)
@@ -753,7 +761,7 @@ const ServiceListContent = ({
       }
     }
     return merged;
-  }, [allLayers, additionalLayers]);
+  }, [allLayers, additionalLayers, deployment]);
 
   const topicMaps = useMemo(() => {
     const categories: { id: string; Title: string; layers: any[] }[] = [];

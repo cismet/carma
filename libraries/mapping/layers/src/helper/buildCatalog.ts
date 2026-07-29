@@ -15,8 +15,10 @@ import {
   wmsLayerToGenericItem,
 } from "./layerHelper";
 import { isCurrentlyFeatured } from "./dateHelper";
+import { filterCategoriesByDeployment } from "./deploymentRestriction";
 import { discoverConfig } from "./discover";
 import type { DiscoverItem } from "./discover";
+import type { DeploymentTarget } from "@carma-commons/utils";
 import type { CategoryDefinition } from "../config/categoryDefinitions";
 import { defaultCategoryDefinitions } from "../config/categoryDefinitions";
 
@@ -83,7 +85,9 @@ export type CatalogDrop =
       configs: CatalogConfigEntry[];
     };
 
-// Pure reducer for drop events: newest drop wins and moves to the front.
+// Pure reducer for drop events: the newest drop always wins, either by moving
+// to the front (items, category configs) or to the end (layer configs, whose
+// consumer lets later overlays overwrite).
 export const applyCatalogDrop = (
   state: DroppedCatalogState,
   drop: CatalogDrop
@@ -102,7 +106,7 @@ export const applyCatalogDrop = (
     case "layerConfig":
       return {
         ...state,
-        layerConfigs: [...drop.configs, ...state.layerConfigs],
+        layerConfigs: [...state.layerConfigs, ...drop.configs],
       };
     case "categoryConfig": {
       const existing = state.categoryConfigs[drop.categoryId] ?? [];
@@ -437,6 +441,7 @@ export interface CatalogBuildOptions {
   customCategories?: CatalogSubCategory[];
   /** main category registry; order defines the sidebar/tree order */
   categoryDefinitions?: CategoryDefinition[];
+  deployment?: DeploymentTarget | null;
 }
 
 // Pure derivation of the complete category tree. Main categories follow the
@@ -457,6 +462,7 @@ export const buildCatalog = (
     featureFlags,
     customCategories = [],
     categoryDefinitions = defaultCategoryDefinitions,
+    deployment,
   } = options;
 
   const catalog: CatalogMainCategory[] = [];
@@ -507,5 +513,8 @@ export const buildCatalog = (
     }
   });
 
-  return mergeCustomCategories(catalog, customCategories);
+  return filterCategoriesByDeployment(
+    mergeCustomCategories(catalog, customCategories),
+    deployment
+  );
 };

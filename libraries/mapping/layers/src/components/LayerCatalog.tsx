@@ -13,6 +13,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { Button, Spin } from "antd";
 
 import { useAuth } from "@carma-providers/auth";
+import { useDeployment } from "@carma-commons/utils";
 import {
   useFeatureFlags,
   type FeatureFlagConfig,
@@ -211,6 +212,8 @@ const LayerCatalogView = ({
     ? "Fehler beim Laden der Inhalte"
     : null;
 
+  const deployment = useDeployment();
+
   const {
     additionalConfig,
     sensorConfig,
@@ -246,6 +249,7 @@ const LayerCatalogView = ({
           featureFlags: flags,
           customCategories: resolvedCustomCategories,
           categoryDefinitions,
+          deployment,
         }
       ),
     [
@@ -258,6 +262,7 @@ const LayerCatalogView = ({
       flags,
       resolvedCustomCategories,
       categoryDefinitions,
+      deployment,
     ]
   );
 

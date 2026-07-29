@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { DeploymentTarget } from "@carma-commons/utils";
 import type { Item } from "../lib/contracts/carma-layers.d";
 import {
   applyCatalogDrop,
@@ -449,5 +450,110 @@ describe("applyCatalogDrop", () => {
       "Boden (Drop)",
       "Luft",
     ]);
+  });
+});
+
+describe("deployment restrictions", () => {
+  const restrictedCategories: ServiceCategory[] = [
+    {
+      Title: "Karten",
+      id: "wuppKarten",
+      layers: [
+        item("wuppKarten:alkomgw", "Stadtgrundkarte"),
+        item("wuppKarten:wip", "WIP", { restrict: "live" }),
+        item("wuppKarten:wipKeyword", "WIP Keyword", {
+          keywords: ["carmaConf://restrict:live,pr"],
+        }),
+      ],
+    },
+  ];
+
+  const mapLayerTitles = (deployment: DeploymentTarget | null) =>
+    buildCatalog(
+      { ...emptySources, serviceCategories: restrictedCategories },
+      { featureFlags: {}, deployment }
+    )
+      .find((category) => category.id === "mapLayers")
+      ?.categories.flatMap((subCategory) =>
+        subCategory.layers.map((layer) => layer.title)
+      );
+
+  it("shows every layer without a known deployment", () => {
+    expect(mapLayerTitles(null)).toEqual([
+      "Stadtgrundkarte",
+      "WIP",
+      "WIP Keyword",
+    ]);
+  });
+
+  it("hides restricted layers in the matching deployment", () => {
+    expect(mapLayerTitles("live")).toEqual(["Stadtgrundkarte"]);
+    expect(mapLayerTitles("pr")).toEqual(["Stadtgrundkarte", "WIP"]);
+    expect(mapLayerTitles("dev")).toEqual([
+      "Stadtgrundkarte",
+      "WIP",
+      "WIP Keyword",
+    ]);
+  });
+
+  it("hides restricted config layers and drops emptied subcategories", () => {
+    const catalog = buildCatalog(
+      {
+        ...emptySources,
+        categoryConfigs: {
+          sensors: [
+            {
+              Title: "Luft",
+              serviceName: "luft",
+              layers: [item("luft:1", "Luftsensor", { restrict: ["live"] })],
+            },
+            {
+              Title: "Boden",
+              serviceName: "boden",
+              layers: [item("boden:1", "Bodensensor")],
+            },
+          ],
+        },
+      },
+      { featureFlags: {}, deployment: "live" }
+    );
+    const sensors = catalog.find((category) => category.id === "sensors");
+    expect(sensors?.categories.map((c) => c.Title)).toEqual(["Boden"]);
+  });
+});
+
+describe("re-dropping a layer config", () => {
+  it("lets the newest drop win over an earlier one for the same layer", () => {
+    const drop = (restrict: DeploymentTarget): CatalogConfigEntry[] => [
+      {
+        Title: "Drop",
+        serviceName: "drop",
+        layers: [item("drop:wip", "WIP", { restrict })],
+      },
+    ];
+    const dropped = applyCatalogDrop(
+      applyCatalogDrop(EMPTY_DROPPED_CATALOG, {
+        kind: "layerConfig",
+        configs: drop("localDev"),
+      }),
+      { kind: "layerConfig", configs: drop("live") }
+    );
+    const merged = mergeAdditionalConfigs([], dropped.layerConfigs);
+    expect(
+      merged.flatMap((config) => config.layers).map((layer) => layer.restrict)
+    ).toEqual(["live"]);
+
+    const titlesIn = (deployment: DeploymentTarget) =>
+      buildCatalog(
+        { ...emptySources, additionalConfig: merged },
+        { featureFlags: {}, deployment }
+      )
+        .find((category) => category.id === "mapLayers")
+        ?.categories.flatMap((subCategory) =>
+          subCategory.layers.map((layer) => layer.title)
+        ) ?? [];
+
+    expect(titlesIn("localDev")).toEqual(["WIP"]);
+    expect(titlesIn("live")).toEqual([]);
   });
 });
