@@ -47,5 +47,17 @@ export const bodenFachzwilling: FachzwillingRoute = {
     // alt+drag lassos: everything the stroke covers is toggled the same way.
     // Only effective on the MapLibre map (featureFlagLibreMap, alias `ng`).
     { kind: "vectorHighlight", config: { modifierClick: "alt", lasso: true } },
+    // logs the features inside the visible viewport on every settled pan/zoom.
+    // showDebugBounds draws the queried rectangle (yellow border) so the
+    // measured area can be checked against what is actually on screen.
+    // the map container starts at y=0 behind the top navbar, so the box needs a
+    // larger top inset than the other sides to be visible at all
+    {
+      kind: "visibleFeatureStats",
+      config: {
+        showDebugBounds: true,
+        debugInsetPx: { top: 56, left: 1, right: 0, bottom: 4 },
+      },
+    },
   ],
 };

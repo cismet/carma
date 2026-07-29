@@ -41,3 +41,7 @@ export {
   type LayerVisibilityConfig,
 } from "./addons/LayerVisibility";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
+export {
+  VisibleFeatureStatsAddon,
+  type VisibleFeatureStatsConfig,
+} from "./lib/VisibleFeatureStatsAddon";
