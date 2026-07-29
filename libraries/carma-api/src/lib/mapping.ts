@@ -45,6 +45,7 @@ export interface MapAdapter {
   hasLayer?: (id: string) => boolean;
   addLayer?: (id: string) => Promise<boolean>;
   removeLayer?: (id: string) => boolean;
+  setLayerVisibility?: (id: string, visible: boolean) => boolean;
   getLayerIDs?: () => string[];
   setBackgroundLayer?: (id: string) => boolean;
   getBackgroundLayers?: () => BackgroundLayerInfo[];
@@ -71,6 +72,7 @@ export interface Mapping2DFacade {
   hasLayer: (id: string) => boolean;
   addLayer: (id: string) => Promise<boolean>;
   removeLayer: (id: string) => boolean;
+  setLayerVisibility: (id: string, visible: boolean) => boolean;
   getLayerIDs: () => string[];
   setBackgroundLayer: (id: string) => boolean;
   /**
@@ -112,6 +114,8 @@ export const mapping2D: Mapping2DFacade = {
   hasLayer: (id) => getAdapter()?.hasLayer?.(id) ?? false,
   addLayer: (id) => getAdapter()?.addLayer?.(id) ?? Promise.resolve(false),
   removeLayer: (id) => getAdapter()?.removeLayer?.(id) ?? false,
+  setLayerVisibility: (id, visible) =>
+    getAdapter()?.setLayerVisibility?.(id, visible) ?? false,
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
   setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
   getBackgroundLayers: () => getAdapter()?.getBackgroundLayers?.() ?? [],

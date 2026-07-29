@@ -147,6 +147,13 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           store.dispatch({ type: "mapping/removeLayer", payload: id });
           return true;
         },
+        setLayerVisibility: (id: string, visible: boolean): boolean => {
+          store.dispatch({
+            type: "mapping/changeVisibility",
+            payload: { id, visible },
+          });
+          return true;
+        },
         addLayer: async (id: string): Promise<boolean> => {
           if (hasLayerById(store.getState(), id)) {
             return false; // already on the map
