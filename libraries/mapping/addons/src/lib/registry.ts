@@ -24,6 +24,10 @@ import {
   layerVisibilityTrigger,
   type LayerVisibilityConfig,
 } from "../addons/LayerVisibility";
+import {
+  VisibleFeatureStatsAddon,
+  type VisibleFeatureStatsConfig,
+} from "./VisibleFeatureStatsAddon";
 
 export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
@@ -31,6 +35,7 @@ export type AddonConfigMap = {
   vectorHighlight: VectorHighlightConfig;
   layerVisibility: LayerVisibilityConfig;
   outlet: OutletConfig;
+  visibleFeatureStats: VisibleFeatureStatsConfig;
 };
 
 export type AddonKind = keyof AddonConfigMap;
@@ -117,6 +122,7 @@ export const addonRegistry: {
     Component: LayerVisibility,
     trigger: layerVisibilityTrigger,
   },
+  visibleFeatureStats: { Component: VisibleFeatureStatsAddon },
 };
 
 const isKnownKind = (kind: string): kind is AddonKind =>
