@@ -111,8 +111,6 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import { isVisible3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
-import useVectorFeatureDim from "../../hooks/leaflet/useVectorFeatureDim.ts";
-import useVectorHighlightToggle from "../../hooks/leaflet/useVectorHighlightToggle.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
@@ -160,7 +158,6 @@ import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
-import VectorHighlightBindings from "./VectorHighlightBindings.tsx";
 import { selectionPadding } from "../../constants/selection.ts";
 import { GEOPORTAL_CESIUM_CONTAINER_ID } from "../annotations/cesium-annotations.constants.ts";
 
@@ -382,9 +379,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
     () => routedMapRef.current?.leafletMap?.leafletElement,
     [routedMapRef]
   );
-
-  useVectorFeatureDim(maplibreMapsRef);
-  const toggleVectorHighlight = useVectorHighlightToggle(maplibreMapsRef);
 
   const {
     homeValidationCenter,
@@ -1152,9 +1146,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
               setPos([e.latlng.lat, e.latlng.lng]);
             }
-            // Highlight toggle. Plain click for now — gate this on
-            // `e.originalEvent.altKey` to make it alt+click.
-            toggleVectorHighlight(e.latlng.lat, e.latlng.lng);
             onClickTopicMap(e, {
               dispatch,
               mode: uiMode,
@@ -1182,7 +1173,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
         <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
-        <VectorHighlightBindings maplibreMapsRef={maplibreMapsRef} />
       </div>
       {allow3d && isInitialCameraResolved && shouldMountCesium && (
         <CesiumHost
