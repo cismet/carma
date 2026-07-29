@@ -24,19 +24,6 @@ export {
   type GenericFilterButtonsProps,
 } from "./lib/components/GenericFilterButtonsFactory.tsx";
 export {
-  GroupLayerVisibilityButtons,
-  type GroupLayerVisibilityButtonsProps,
-  type GroupLayerVisibilityEntry,
-} from "./lib/components/GroupLayerVisibilityButtons.tsx";
-export {
-  GroupTools,
-  getRenderableGroupTools,
-  hasRenderableGroupTools,
-  type GroupToolHostApi,
-  type GroupToolsProps,
-} from "./lib/components/GroupTools.tsx";
-
-export {
   FullscreenControl,
   SimpleFullscreenControl,
   NewWindowControl,
