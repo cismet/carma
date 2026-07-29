@@ -42,6 +42,12 @@ export interface MapAdapter {
   zoomIn2D?: () => void;
   zoomOut2D?: () => void;
   flyTo2D?: (lat: number, lng: number, zoom?: number) => void;
+  fitBounds2D?: (
+    minLng: number,
+    minLat: number,
+    maxLng: number,
+    maxLat: number
+  ) => boolean;
   hasLayer?: (id: string) => boolean;
   addLayer?: (id: string) => Promise<boolean>;
   removeLayer?: (id: string) => boolean;
@@ -69,6 +75,12 @@ export interface Mapping2DFacade {
   zoomIn: () => void;
   zoomOut: () => void;
   flyTo: (lat: number, lng: number, zoom?: number) => void;
+  fitBounds: (
+    minLng: number,
+    minLat: number,
+    maxLng: number,
+    maxLat: number
+  ) => boolean;
   hasLayer: (id: string) => boolean;
   addLayer: (id: string) => Promise<boolean>;
   removeLayer: (id: string) => boolean;
@@ -111,6 +123,8 @@ export const mapping2D: Mapping2DFacade = {
   zoomIn: () => getAdapter()?.zoomIn2D?.(),
   zoomOut: () => getAdapter()?.zoomOut2D?.(),
   flyTo: (lat, lng, zoom) => getAdapter()?.flyTo2D?.(lat, lng, zoom),
+  fitBounds: (minLng, minLat, maxLng, maxLat) =>
+    getAdapter()?.fitBounds2D?.(minLng, minLat, maxLng, maxLat) ?? false,
   hasLayer: (id) => getAdapter()?.hasLayer?.(id) ?? false,
   addLayer: (id) => getAdapter()?.addLayer?.(id) ?? Promise.resolve(false),
   removeLayer: (id) => getAdapter()?.removeLayer?.(id) ?? false,

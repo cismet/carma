@@ -2,6 +2,7 @@ import { useContext, useLayoutEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useLibreContext } from "@carma-mapping/contexts";
 import { Cartesian3 } from "@carma-cesium";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import {
@@ -67,6 +68,7 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     requestTransitionToCesium,
     requestTransitionToLeaflet,
   } = useMapFrameworkSwitcherContext();
+  const { map: libreMap } = useLibreContext();
 
   useLayoutEffect(() => {
     // Live engine handles, resolved per call so they track mount/unmount.
@@ -102,6 +104,27 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         const map = getLeafletMap();
         if (!map) return;
         map.flyTo([lat, lng], zoom ?? 18);
+      },
+      fitBounds2D: (minLng, minLat, maxLng, maxLat) => {
+        if (libreMap) {
+          libreMap.fitBounds(
+            [
+              [minLng, minLat],
+              [maxLng, maxLat],
+            ],
+            { padding: 40 }
+          );
+          return true;
+        }
+        const map = getLeafletMap();
+        if (!map) {
+          return false;
+        }
+        map.fitBounds([
+          [minLat, minLng],
+          [maxLat, maxLng],
+        ]);
+        return true;
       },
 
       // 3d (cesium) ----------------------------------------------------------
@@ -207,5 +230,6 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     setCurrentStyle,
     store,
     serviceCategories,
+    libreMap,
   ]);
 };
