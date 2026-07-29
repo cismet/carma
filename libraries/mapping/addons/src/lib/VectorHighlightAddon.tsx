@@ -169,7 +169,12 @@ export const VectorHighlightAddon = ({
       console.log(
         "xxx [VectorHighlight] applied",
         features.length,
-        features.map((f) => `${f.sourceLayer ?? ""}::${String(f.id)}`),
+        features.map((f) => {
+          // applyHighlights stamps source/sourceLayer onto the feature, but
+          // maplibre's GeoJSONFeature type does not declare them
+          const { sourceLayer } = f as typeof f & { sourceLayer?: string };
+          return `${sourceLayer ?? ""}::${String(f.id)}`;
+        }),
         features
       ),
   });
