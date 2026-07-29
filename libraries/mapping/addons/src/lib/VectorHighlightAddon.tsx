@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
-import { useMapHighlighting } from "@carma-mapping/engines/maplibre";
+import {
+  useMapHighlighting,
+  useLassoHighlight,
+} from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "./registry";
 
@@ -10,10 +13,13 @@ import type { AddonComponentProps } from "./registry";
  * Highlight/dim addon for the MapLibre map (`featureFlagLibreMap`, alias `ng`).
  *
  * Modifier+click a feature -> it stays at its normal paint, everything else is
- * dimmed; clicking it again removes it, and removing the last one turns the
- * mode off, leaving the map untouched. `useMapHighlighting` owns the
+ * dimmed; clicking it again removes it. With `lasso: true`, an alt+drag does
+ * the same for every feature it covers. Removing the last highlight does *not*
+ * turn the mode off — the map stays dimmed until the route unmounts, which is
+ * where the untouched paint is restored. `useMapHighlighting` owns the
  * `highlighted` feature-state (including re-applying it to features from newly
- * loaded tiles); this addon only adds the dim half and the lifecycle.
+ * loaded tiles), `useLassoHighlight` owns the drawing; this addon only adds the
+ * dim half and the lifecycle.
  *
  * WHY THE PAINT WRAPPING: BELIS ships the dim expression in its own style
  * config and gates it with `["global-state", "highlightingEnabled"]`. Styles
@@ -40,6 +46,11 @@ export type VectorHighlightConfig = {
   stateKey?: string;
   /** Layer ids containing one of these (lowercased) are never dimmed. */
   excludedLayerPatterns?: string[];
+  /**
+   * Alt+drag draws a freehand lasso; every feature it covers is toggled the
+   * same way a modifier+click would toggle it. Default: false.
+   */
+  lasso?: boolean;
 };
 
 const DEFAULT_DIM_OPACITY = 0.25;
@@ -151,33 +162,14 @@ export const VectorHighlightAddon = ({
     dimOpacity = DEFAULT_DIM_OPACITY,
     stateKey = DEFAULT_STATE_KEY,
     excludedLayerPatterns,
+    lasso = false,
   } = config;
 
   const { highlightingActive, setHighlightingActive, clearHighlights } =
     useMapHighlight();
 
   // owns the `highlighted` feature-state and the click-to-toggle
-  useMapHighlighting({
-    map: libreMap,
-    modifierClick,
-    stateKey,
-    // TODO #723: delete this debug logging before merge.
-    // Fires after every apply pass, i.e. also on the debounced `sourcedata`
-    // re-apply while panning. The set only covers features currently loaded in
-    // the sources, so it grows and shrinks with the viewport.
-    onHighlightsApplied: (features) =>
-      console.log(
-        "xxx [VectorHighlight] applied",
-        features.length,
-        features.map((f) => {
-          // applyHighlights stamps source/sourceLayer onto the feature, but
-          // maplibre's GeoJSONFeature type does not declare them
-          const { sourceLayer } = f as typeof f & { sourceLayer?: string };
-          return `${sourceLayer ?? ""}::${String(f.id)}`;
-        }),
-        features
-      ),
-  });
+  useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
   // route configs pass a fresh array on every render; key the effect on the
   // content instead of the identity
@@ -188,6 +180,21 @@ export const VectorHighlightAddon = ({
     () => (excludedKey ? excludedKey.split(" ") : []),
     [excludedKey]
   );
+
+  // Alt+drag lasso: `active: false` leaves the hook's explicit (toolbar-driven)
+  // manager off, which is exactly what puts its passive Alt+drag manager in
+  // charge — no UI needed. It toggles what it covers and switches highlighting
+  // on if it was off, matching the modifier+click semantics above; a stationary
+  // Alt+click never becomes a lasso (minPoints guard) and a real Alt+drag never
+  // becomes a click (MapLibre drops clicks past its clickTolerance), so the two
+  // coexist on the same modifier. Hooks can't be called conditionally, so the
+  // feature is gated by handing over a null map.
+  //
+  // No `sources` filter: same as the click path above, every source the style
+  // exposes is fair game. Raster basemaps yield no features at all and the
+  // geojson overlays carry no feature ids (no `generateId`), so both are
+  // skipped anyway.
+  useLassoHighlight({ map: lasso ? libreMap : null, active: false });
 
   const controllerRef = useRef<DimController | null>(null);
   // read inside the create effect, so a controller built after the mode was
