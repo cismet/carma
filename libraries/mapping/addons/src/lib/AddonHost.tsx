@@ -36,9 +36,8 @@ export const AddonHost = ({ addons }: { addons?: Addon[] }) => {
     <>
       {addons.map((addon, index) => {
         // the registry entry is typed per kind; the host renders the erased union
-        const Component = addonRegistry[
-          addon.kind
-        ] as ComponentType<AddonComponentProps>;
+        const Component = addonRegistry[addon.kind]
+          .Component as ComponentType<AddonComponentProps>;
         return (
           <Component
             key={`${addon.kind}_${index}`}
@@ -47,6 +46,7 @@ export const AddonHost = ({ addons }: { addons?: Addon[] }) => {
             leafletMap={leafletMap}
             libreMap={libreMap}
             store={store}
+            target={null}
           />
         );
       })}

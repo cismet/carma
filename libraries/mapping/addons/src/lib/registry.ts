@@ -8,6 +8,7 @@ import type {
   GazDataAdditionalModeConfig,
   GazDataSourceConfig,
 } from "@carma-mapping/fuzzy-search";
+import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import { GazetteerModeAddon } from "./GazetteerModeAddon";
 import { GazetteerSourceAddon } from "./GazetteerSourceAddon";
@@ -30,12 +31,17 @@ export type AddonComponentProps<K extends AddonKind = AddonKind> = {
   libreMap: maplibregl.Map | null;
   /** the host app's redux store, taken from the surrounding react-redux provider */
   store: Store;
+  target: LayerStackEntry | null;
 };
 
-/** kind -> component lookup used by `AddonHost` */
+export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
+  Component: ComponentType<AddonComponentProps<K>>;
+};
+
+/** kind -> entry lookup used by `AddonHost` */
 export const addonRegistry: {
-  [K in AddonKind]: ComponentType<AddonComponentProps<K>>;
+  [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
-  gazetteerSource: GazetteerSourceAddon,
-  gazetteerMode: GazetteerModeAddon,
+  gazetteerSource: { Component: GazetteerSourceAddon },
+  gazetteerMode: { Component: GazetteerModeAddon },
 };

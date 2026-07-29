@@ -14,7 +14,7 @@ that kind. All addon wiring lives in `src/lib`:
 
 | File                       | Role                                                         |
 | -------------------------- | ------------------------------------------------------------ |
-| `registry.ts`              | Kind and config types plus the kind -> component lookup      |
+| `registry.ts`              | Kind and config types plus the kind -> entry lookup          |
 | `AddonHost.tsx`            | Mounts the components of the active route's addons           |
 | `GazetteerSourceAddon.tsx` | Built-in kind: extra source for the default gazetteer search |
 | `GazetteerModeAddon.tsx`   | Built-in kind: extra mode in the gazetteer mode dropdown     |
@@ -76,6 +76,7 @@ export const CameraTourAddon = ({
   leafletMap,
   libreMap,
   store,
+  target,
 }: AddonComponentProps<"cameraTour">) => {
   useEffect(() => {
     // imperative carma api: mode switching, layers, camera, ui
@@ -108,11 +109,17 @@ The shared props are:
 
 | Prop         | Type                        | Use for                                                     |
 | ------------ | --------------------------- | ----------------------------------------------------------- |
-| `config`     | `AddonConfigMap[K]`         | The addon's own config from the route declaration           |
+| `config`     | `AddonConfigMap[K]`         | The addon's own config from the declaration                 |
 | `carma`      | `typeof carma` (@carma-api) | Imperative api: map mode, layers, camera, ui, gazetteer     |
 | `leafletMap` | `LeafletMap \| null`        | The leaflet map instance, `null` while it is unmounted      |
 | `libreMap`   | `maplibregl.Map \| null`    | The maplibre map instance, `null` while it is unmounted     |
 | `store`      | `Store` (redux)             | Redux reads/dispatches outside the react tree               |
+| `target`     | `LayerStackEntry \| null`   | The stack entry the addon acts on; `null` for route addons  |
+
+`target` is what lets one kind serve two declaration sites. An addon declared in a
+route's `addons` acts route-wide and receives `null`; the same kind declared in a
+stack entry's `tools` receives that entry. A kind that needs a target should guard on
+it rather than assume one.
 
 `GazetteerModeAddon` is the canonical example of an addon that extends the
 app through the carma api; `addMode`/`addSource` return their remover,
@@ -140,13 +147,16 @@ internals.
 import { CameraTourAddon } from "./CameraTourAddon";
 
 export const addonRegistry: {
-  [K in AddonKind]: ComponentType<AddonComponentProps<K>>;
+  [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
-  gazetteerSource: GazetteerSourceAddon,
-  gazetteerMode: GazetteerModeAddon,
-  cameraTour: CameraTourAddon,
+  gazetteerSource: { Component: GazetteerSourceAddon },
+  gazetteerMode: { Component: GazetteerModeAddon },
+  cameraTour: { Component: CameraTourAddon },
 };
 ```
+
+The entry is a record rather than the component alone so a kind can declare metadata
+the host needs before the component renders. `Component` is the only field today.
 
 ### 4. Declare the addon on a route
 

@@ -5,6 +5,7 @@ export type {
   AddonComponentProps,
   AddonConfigMap,
   AddonKind,
+  AddonRegistryEntry,
 } from "./lib/registry";
 
 export { GazetteerModeAddon } from "./lib/GazetteerModeAddon";
