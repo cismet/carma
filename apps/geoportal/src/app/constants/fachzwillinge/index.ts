@@ -12,7 +12,7 @@ import {
   resolveFeatureFlags,
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
-import type { Addon } from "@carma-mapping/addons";
+import type { Addon, AddonEntry } from "@carma-mapping/addons";
 import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
 
 import {
@@ -78,7 +78,7 @@ type FachzwillingRouteBase = {
    * route is open; the category is omitted on routes without perspectives
    * (including the default geoportal route)
    */
-  perspectives?: WorkflowPerspective[];
+  perspectives?: WorkflowPerspective<AddonEntry>[];
   addons?: Addon[];
 };
 
@@ -217,7 +217,7 @@ const withPreFachzwillingeCategoryLabels = (
  * categories keep their previous labels instead.
  */
 export const getGeoportalCategoryDefinitions = (
-  perspectives?: WorkflowPerspective[]
+  perspectives?: WorkflowPerspective<AddonEntry>[]
 ): CategoryDefinition[] => {
   if (!isFachzwillingeEnabled) {
     return withPreFachzwillingeCategoryLabels(defaultCategoryDefinitions);

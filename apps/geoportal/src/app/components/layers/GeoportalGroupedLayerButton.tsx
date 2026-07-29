@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faFilter, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
+import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Badge } from "antd";
 
@@ -28,7 +28,10 @@ import {
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import { getUIShowLayerHideButtons } from "../../store/slices/ui";
-import { hasRenderableGroupTools } from "@carma-mapping/components";
+import {
+  getTargetAddonsWithButton,
+  resolveAddonLayerButton,
+} from "@carma-mapping/addons";
 import { resolveGeoportalLayerButtonCloseIcon } from "../../hooks/use-geoportal-layer-button-actions";
 import {
   getGeoportalLayerButtonBackgroundClassName,
@@ -65,11 +68,11 @@ const GeoportalGroupedLayerButton = ({
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const hasInfoView = layerGroupHasInfoView(group);
   const isSelected = selectedLayerIndex === index;
-  const hasToolControl = hasRenderableGroupTools(group);
+  const groupAddon = getTargetAddonsWithButton(group)[0];
+  const addonButton = groupAddon
+    ? resolveAddonLayerButton(groupAddon, group)
+    : undefined;
   const isInteractionActive = activeInteractionLayerID === group.id;
-  const hiddenMemberCount = group.layers.filter(
-    (member) => member.visible === false
-  ).length;
 
   const { attributes, listeners, setNodeRef, transform } = useSortable({
     id: group.id,
@@ -143,7 +146,7 @@ const GeoportalGroupedLayerButton = ({
       >
         <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
         <span className="text-base ml-1">{group.title}</span>
-        {hasToolControl && (
+        {addonButton && (
           <button
             type="button"
             id={`layerInteractionButton-${group.id}`}
@@ -160,11 +163,11 @@ const GeoportalGroupedLayerButton = ({
                 )
               );
             }}
-            aria-label="Sichtbarkeit der Layer in der Gruppe steuern"
+            aria-label={addonButton.label}
           >
-            <Badge count={hiddenMemberCount} size="small" color="#4b5563">
+            <Badge count={addonButton.badge} size="small" color="#4b5563">
               <FontAwesomeIcon
-                icon={faFilter}
+                icon={addonButton.icon}
                 className={cn(
                   "text-sm",
                   isInteractionActive

@@ -55,7 +55,6 @@ export {
   isItemAvailableInDeployment,
   type RestrictableItem,
 } from "./helper/deploymentRestriction";
-export * from "./helper/groupTools";
 export * from "./helper/layerHelper";
 export * from "./helper/layerStack";
 export { default as ImageList } from "./about/pages/ImageList";

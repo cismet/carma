@@ -2,9 +2,9 @@ import { faListCheck } from "@fortawesome/free-solid-svg-icons";
 
 import {
   LAYER_ENTITY_TYPES,
-  type GroupToolEntry,
   type Item,
   type LayerGroupInfo,
+  type ToolEntry,
 } from "../lib/contracts/carma-layers.d";
 import type { CategoryDefinition } from "./categoryDefinitions";
 
@@ -15,7 +15,7 @@ import type { CategoryDefinition } from "./categoryDefinitions";
  * Workflows are configured per Fachzwilling, so the "Workflows" category only
  * appears on routes that define perspectives.
  */
-export type WorkflowDefinition = {
+export type WorkflowDefinition<TTool extends ToolEntry = ToolEntry> = {
   /** unique within its perspective; used to build the catalog item id */
   id: string;
   title: string;
@@ -25,15 +25,15 @@ export type WorkflowDefinition = {
   legend?: string[];
   metaDataText?: string;
   links?: { url: string; text: string }[];
-  tools?: GroupToolEntry[];
+  tools?: TTool[];
 };
 
-export type WorkflowPerspective = {
+export type WorkflowPerspective<TTool extends ToolEntry = ToolEntry> = {
   /** unique perspective id; used to build the subcategory + item ids */
   id: string;
   /** subcategory heading shown in the "Workflows" main category */
   title: string;
-  workflows: WorkflowDefinition[];
+  workflows: WorkflowDefinition<TTool>[];
 };
 
 export const WORKFLOWS_CATEGORY_ID = "workflows";

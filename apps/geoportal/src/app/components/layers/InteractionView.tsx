@@ -27,8 +27,10 @@ import {
 } from "../../helper/annotation-info-box-visual-options";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
-import { hasRenderableGroupTools } from "@carma-mapping/components";
-import GroupToolControl from "./GroupToolControl";
+import {
+  TargetAddonHost,
+  getTargetAddonsWithButton,
+} from "@carma-mapping/addons";
 import LayerFilterControl, {
   hasLayerFilterControl,
 } from "./LayerFilterControl";
@@ -123,11 +125,14 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     : false;
   const showFilter = hasLayerFilterControl(layer);
 
-  const content = hasRenderableGroupTools(group) ? (
-    <GroupToolControl group={group} />
-  ) : layer && (hasInteractionComponent || showFilter) ? (
-    <InteractionContent layer={layer} />
-  ) : null;
+  const groupAddon = group ? getTargetAddonsWithButton(group)[0] : undefined;
+
+  const content =
+    group && groupAddon ? (
+      <TargetAddonHost addon={groupAddon} target={group} />
+    ) : layer && (hasInteractionComponent || showFilter) ? (
+      <InteractionContent layer={layer} />
+    ) : null;
 
   if (!content) {
     return null;

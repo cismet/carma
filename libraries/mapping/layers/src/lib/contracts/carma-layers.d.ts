@@ -72,25 +72,14 @@ export const FILTER_TYPES = {
 } as const;
 export type FilterType = (typeof FILTER_TYPES)[keyof typeof FILTER_TYPES];
 
-export const GROUP_TOOL_TYPES = {
-  LAYER_VISIBILITY: "layerVisibility",
-} as const;
-export type GroupToolType =
-  (typeof GROUP_TOOL_TYPES)[keyof typeof GROUP_TOOL_TYPES];
-
-export type LayerVisibilityToolConfig = {
-  labels?: { hide: string; show: string };
-};
-
-export type GroupToolConfigMap = {
-  [GROUP_TOOL_TYPES.LAYER_VISIBILITY]: LayerVisibilityToolConfig;
-};
-
-export type GroupToolDefinition = {
-  [K in GroupToolType]: { type: K; config?: GroupToolConfigMap[K] };
-}[GroupToolType];
-
-export type GroupToolEntry = GroupToolType | GroupToolDefinition;
+/**
+ * A tool declared on a stack entry, as a bare kind or a kind with its config.
+ * Deliberately structural: nothing here reads the kind, entries are only
+ * carried through to the addon registry (`@carma-mapping/addons`), which owns
+ * the typed kinds and their configs. Typing it against that registry would
+ * make the two libraries circular.
+ */
+export type ToolEntry = string | { kind: string; config?: unknown };
 
 export const LAYER_ENTITY_TYPES = {
   LAYER: "layer",
@@ -241,7 +230,7 @@ export type LayerGroup = {
   visible: boolean;
   opacity?: number;
   groupInfo?: LayerGroupInfo;
-  tools?: GroupToolEntry[];
+  tools?: ToolEntry[];
   layers: Layer[];
 };
 
@@ -390,7 +379,7 @@ export type Item = {
   workflowLayers?: string[];
   workflowLayerItems?: Item[];
   groupInfo?: LayerGroupInfo;
-  tools?: GroupToolEntry[];
+  tools?: ToolEntry[];
 } & (TmpLayer | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {
