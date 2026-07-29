@@ -29,7 +29,7 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import {
   TargetAddonHost,
-  getTargetAddonsWithButton,
+  resolveActiveTargetAddon,
 } from "@carma-mapping/addons";
 import LayerFilterControl, {
   hasLayerFilterControl,
@@ -125,7 +125,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     : false;
   const showFilter = hasLayerFilterControl(layer);
 
-  const groupAddon = group ? getTargetAddonsWithButton(group)[0] : undefined;
+  const groupAddon = resolveActiveTargetAddon(group, activeInteractionButtonID);
 
   const content =
     group && groupAddon ? (

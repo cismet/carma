@@ -9,26 +9,9 @@ import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import {
   addonRegistry,
-  resolveAddonEntries,
-  resolveAddonLayerButton,
   type AddonComponentProps,
-  type AddonEntry,
   type ResolvedAddon,
 } from "./registry";
-
-/** The entries of `target` that have an applicable trigger button. */
-export const getTargetAddonsWithButton = (
-  target?: LayerStackEntry | null
-): ResolvedAddon[] =>
-  resolveAddonEntries(
-    (target as { tools?: AddonEntry[] } | null | undefined)?.tools
-  ).filter((entry) =>
-    Boolean(resolveAddonLayerButton(entry, target ?? null))
-  );
-
-export const hasTargetAddonsWithButton = (
-  target?: LayerStackEntry | null
-): boolean => getTargetAddonsWithButton(target).length > 0;
 
 /**
  * Renders one addon declared on a stack entry, with the same interaction

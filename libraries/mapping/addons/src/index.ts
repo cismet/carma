@@ -1,9 +1,11 @@
 export { AddonHost } from "./lib/AddonHost";
+export { TargetAddonHost } from "./lib/TargetAddonHost";
 export {
-  TargetAddonHost,
   getTargetAddonsWithButton,
   hasTargetAddonsWithButton,
-} from "./lib/TargetAddonHost";
+  resolveActiveTargetAddon,
+  toAddonButtonId,
+} from "./lib/target-addons";
 export {
   addonRegistry,
   normalizeAddonEntries,
