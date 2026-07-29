@@ -204,7 +204,7 @@ export const CarmaMapProviderWrapper = ({
                     <LibreContextProvider>
                       <MapSelectionProvider>
                         <CarmaApiBridge store={store} />
-                        <MapHighlightProvider debug>
+                        <MapHighlightProvider>
                           {wrappedChildren}
                         </MapHighlightProvider>
                       </MapSelectionProvider>
