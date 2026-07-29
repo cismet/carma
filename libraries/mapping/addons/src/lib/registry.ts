@@ -5,7 +5,7 @@ import type { Store } from "redux";
 
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
-import type { carma } from "@carma-api";
+import { carma } from "@carma-api";
 import type {
   GazDataAdditionalModeConfig,
   GazDataSourceConfig,
@@ -66,6 +66,10 @@ export type AddonContext<K extends AddonKind = AddonKind> = {
   target: LayerStackEntry | null;
 };
 
+/** What a trigger's `onClick` gets, so an action can reach the app. */
+export type AddonActionContext<K extends AddonKind = AddonKind> =
+  AddonContext<K> & { carma: typeof carma };
+
 /**
  * Opt in to a trigger button in the layer button. Declaring this also decides
  * where the addon is mounted: entries with a `layerButton` are rendered into
@@ -77,10 +81,11 @@ export type AddonLayerButton<K extends AddonKind = AddonKind> = {
   label: (ctx: AddonContext<K>) => string;
   badge?: (ctx: AddonContext<K>) => number;
   isApplicable?: (ctx: AddonContext<K>) => boolean;
+  onClick?: (ctx: AddonActionContext<K>) => void;
 };
 
 export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
-  Component: ComponentType<AddonComponentProps<K>>;
+  Component?: ComponentType<AddonComponentProps<K>>;
   layerButton?: AddonLayerButton<K>;
 };
 
@@ -108,7 +113,14 @@ const isKnownKind = (kind: string): kind is AddonKind =>
 export const resolveAddonLayerButton = (
   addon: ResolvedAddon,
   target: LayerStackEntry | null
-): { icon: IconDefinition; label: string; badge: number } | undefined => {
+):
+  | {
+      icon: IconDefinition;
+      label: string;
+      badge: number;
+      onClick?: () => void;
+    }
+  | undefined => {
   const layerButton = addonRegistry[addon.kind].layerButton as
     | AddonLayerButton<AddonKind>
     | undefined;
@@ -119,10 +131,12 @@ export const resolveAddonLayerButton = (
   if (layerButton.isApplicable?.(ctx) === false) {
     return undefined;
   }
+  const { onClick } = layerButton;
   return {
     icon: layerButton.icon,
     label: layerButton.label(ctx),
     badge: layerButton.badge?.(ctx) ?? 0,
+    ...(onClick ? { onClick: () => onClick({ ...ctx, carma }) } : {}),
   };
 };
 

@@ -36,8 +36,12 @@ export const AddonHost = ({ addons }: { addons?: Addon[] }) => {
     <>
       {addons.map((addon, index) => {
         // the registry entry is typed per kind; the host renders the erased union
-        const Component = addonRegistry[addon.kind]
-          .Component as ComponentType<AddonComponentProps>;
+        const Component = addonRegistry[addon.kind].Component as
+          | ComponentType<AddonComponentProps>
+          | undefined;
+        if (!Component) {
+          return null;
+        }
         return (
           <Component
             key={`${addon.kind}_${index}`}

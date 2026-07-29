@@ -168,6 +168,11 @@ const GeoportalGroupedLayerButton = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  // action kinds run straight away and open nothing
+                  if (addonButton.onClick) {
+                    addonButton.onClick();
+                    return;
+                  }
                   // opening one tool closes the previous one, since both ids
                   // are set together
                   dispatch(

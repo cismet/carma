@@ -31,8 +31,14 @@ export const TargetAddonHost = ({
   const leafletMap: LeafletMap | null =
     topicMap?.routedMapRef?.leafletMap?.leafletElement ?? null;
 
-  const Component = addonRegistry[addon.kind]
-    .Component as ComponentType<AddonComponentProps>;
+  const Component = addonRegistry[addon.kind].Component as
+    | ComponentType<AddonComponentProps>
+    | undefined;
+
+  // action kinds have no panel; their trigger did the work on click
+  if (!Component) {
+    return null;
+  }
 
   return (
     <Component

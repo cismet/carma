@@ -12,30 +12,88 @@ The `kind` selects a component registered in
 [`registry.ts`](./src/lib/registry.ts); the `config` is the typed payload for
 that kind. All addon wiring lives in `src/lib`:
 
-| File                       | Role                                                         |
-| -------------------------- | ------------------------------------------------------------ |
-| `registry.ts`              | Kind and config types plus the kind -> entry lookup          |
-| `AddonHost.tsx`            | Mounts the components of the active route's addons           |
-| `GazetteerSourceAddon.tsx` | Built-in kind: extra source for the default gazetteer search |
-| `GazetteerModeAddon.tsx`   | Built-in kind: extra mode in the gazetteer mode dropdown     |
+| File                        | Role                                                          |
+| --------------------------- | ------------------------------------------------------------- |
+| `registry.ts`               | Kind and config types plus the kind -> entry lookup           |
+| `AddonHost.tsx`             | Mounts the active route's addons                              |
+| `TargetAddonHost.tsx`       | Mounts one addon declared on a stack entry                    |
+| `target-addons.ts`          | Trigger ids and the entry lookups the layer button needs      |
+| `GazetteerSourceAddon.tsx`  | Built-in kind: extra source for the default gazetteer search  |
+| `GazetteerModeAddon.tsx`    | Built-in kind: extra mode in the gazetteer mode dropdown      |
+| `LayerVisibilityAddon.tsx`  | Built-in kind: per-member visibility toggles for a group      |
 
 The library expects the host app to provide the carma api adapters
 (`CarmaMapProviderWrapper`), the react-cismap `TopicMapContext` and a
 react-redux provider; `AddonHost` reads the store from that provider via
 `useStore()`, so it stays independent of any app's store type.
 
-## How addons flow through the app
+## The two declaration sites
+
+The same registry serves both. Where a kind is declared is what decides how it is
+mounted and what it acts on; there is no `scope` field.
+
+| Declared on                             | Mounted by         | `target` | Lifetime                        |
+| --------------------------------------- | ------------------ | -------- | ------------------------------- |
+| a route's `addons: Addon[]`             | `AddonHost`        | `null`   | the whole route                 |
+| a stack entry's `tools: AddonEntry[]`   | `TargetAddonHost`  | that entry | while the entry is in the stack |
+
+A kind that needs a target guards on it rather than assuming one, which is also what
+lets one kind serve both sites.
+
+### Route addons
 
 1. A route config declares `addons: Addon[]`. In the geoportal that is
    `FachzwillingRoute` (see
    `apps/geoportal/src/app/constants/fachzwillinge/index.ts`).
-2. `main.tsx` resolves the active route and passes its addons to `App`.
-3. `App` renders `<AddonHost addons={addons} />` inside
-   `CarmaMapProviderWrapper`. The host looks each addon's `kind` up in
-   `addonRegistry` and mounts the component with the shared interaction props.
+2. `main.tsx` resolves the active route and passes its addons to `App`, which
+   hands them to `MapWrapper`.
+3. `MapWrapper` renders `<AddonHost addons={addons} />` **inside `ControlLayout`**.
+   The host looks each addon's `kind` up in `addonRegistry` and mounts the
+   component with the shared interaction props.
 4. When the user navigates to another route, the host unmounts the components;
    an addon's entire lifecycle is its mount time, cleanup belongs in its effect
    teardowns.
+
+### Workflow tools
+
+A workflow declares `tools`, which travel
+`WorkflowDefinition.tools` -> `Item.tools` -> `LayerGroup.tools`, so the addons land
+on the group the workflow creates. Entries may be a bare kind or the full
+`{ kind, config }` form.
+
+`@carma-mapping/layers` types this field as the structural `ToolEntry`, not as
+`AddonEntry`, because typing the layer contract against this registry would make the
+two libraries circular. Declaration sites keep full kind checking by narrowing the
+`WorkflowPerspective<TTool>` type parameter, as the geoportal does with
+`WorkflowPerspective<AddonEntry>`.
+
+## Where an addon's UI ends up
+
+There is no `surface` field. An addon renders whatever it wants, and one optional
+registry field decides where that lands:
+
+| Entry                            | Clicking the trigger      | Renders                                    |
+| -------------------------------- | ------------------------- | ------------------------------------------ |
+| `layerButton` with `onClick`     | runs the action at once   | nothing; the kind needs no `Component`     |
+| `layerButton` without `onClick`  | toggles the kind's panel  | `Component`, in the interaction view       |
+| no `layerButton`                 | (no trigger)              | `Component`, mounted by the addon host, wherever it renders, including `<Control>` |
+
+Because each entry has exactly one mount point, a tool with a trigger is never also
+mounted headlessly.
+
+**Map UI needs nothing from the registry.** `Control` from
+`@carma-mapping/map-controls-layout` registers its children with the layout rather
+than rendering them in place, so any addon may position itself on the map:
+
+```tsx
+export const SomeAddon = ({ config }: AddonComponentProps<"someKind">) => (
+  <Control position="topright" order={10}>
+    <SomePanel {...config} />
+  </Control>
+);
+```
+
+This works because `AddonHost` is mounted inside `ControlLayout`.
 
 Every addon is a component; there is no separate config-derivation path. The
 gazetteer kinds work by registering their sources/modes through
@@ -156,12 +214,63 @@ export const addonRegistry: {
 ```
 
 The entry is a record rather than the component alone so a kind can declare metadata
-the host needs before the component renders. `Component` is the only field today.
+the host needs before the component renders.
 
-### 4. Declare the addon on a route
+### 4. Optionally, opt in to a layer-button trigger
 
-In the app's route config (geoportal:
-`apps/geoportal/src/app/constants/fachzwillinge/<route>.ts`):
+A kind that should be opened from a stack entry's layer button adds `layerButton`.
+The component then renders as that trigger's panel:
+
+```ts
+export const cameraTourLayerButton: AddonLayerButton<"cameraTour"> = {
+  icon: faVideo,
+  label: ({ config }) => config?.buttonLabel ?? "Kameratour",
+  // optional count on the trigger
+  badge: ({ target }) => stops(target).length,
+  // no trigger when this target cannot support the kind
+  isApplicable: ({ target }) => stops(target).length > 0,
+};
+```
+
+`label`, `badge` and `isApplicable` receive `{ config, target }`, so the button can
+reflect the entry it belongs to. `isApplicable` returning false hides the trigger
+entirely, which is also what makes a target-dependent kind harmless if it is ever
+declared on a route, where `target` is `null`.
+
+**Action kinds: do the thing on click, open nothing.** Add `onClick` and the trigger
+behaves like the measurement layer's layerbar actions rather than a panel toggle. The
+kind then needs no `Component`, and its entry is just the button:
+
+```ts
+export const zoomToLayerButton: AddonLayerButton<"zoomTo"> = {
+  icon: faSearchLocation,
+  label: ({ config }) => config?.buttonLabel ?? "Auf die Gruppe zoomen",
+  isApplicable: ({ target }) => Boolean(unionExtent(target)),
+  onClick: ({ target, carma }) => {
+    const extent = unionExtent(target);
+    if (extent) {
+      carma.mapping2D.fitBounds(...extent);
+    }
+  },
+};
+
+export const addonRegistry = {
+  // ...
+  zoomTo: { layerButton: zoomToLayerButton },
+};
+```
+
+`onClick` additionally receives `carma`, so an action can reach the app without a
+component around it. Prefer an action over a panel holding a single button.
+
+`zoomTo` is the canonical example of both features: it is an action, and it hides
+its own trigger when no member layer's service declared an extent, so the button never
+appears with nothing to do.
+
+### 5. Declare the addon
+
+Either on a route, or on a workflow, or both. On a route, in the app's route config
+(geoportal: `apps/geoportal/src/app/constants/fachzwillinge/<route>.ts`):
 
 ```ts
 export const bodenFachzwilling: FachzwillingRoute = {
@@ -180,6 +289,26 @@ export const bodenFachzwilling: FachzwillingRoute = {
   ],
 };
 ```
+
+On a workflow, in the same route file's `perspectives`, where the bare-kind shorthand
+is available for kinds whose config can be omitted:
+
+```ts
+workflows: [
+  {
+    id: "einrichtungen",
+    title: "Gesundheitseinrichtungen",
+    layers: ["wuppPOI:poi_krankenhaeuser", "wuppInfra:apotheken"],
+    tools: [
+      "layerVisibility",
+      { kind: "zoomTo", config: { buttonLabel: "Auf die Gruppe zoomen" } },
+    ],
+  },
+],
+```
+
+Each declared tool with a `layerButton` gets its own trigger in the group's layer
+button, in declaration order. Opening one closes the others.
 
 That is all; there is no further wiring.
 
