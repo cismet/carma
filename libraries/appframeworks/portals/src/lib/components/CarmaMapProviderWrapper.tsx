@@ -5,6 +5,7 @@ import {
   type CesiumState,
 } from "@carma-mapping/engines/cesium/react/runtime";
 import {
+  AddonProvider,
   LibreContextProvider,
   MapSelectionProvider,
   MapHighlightProvider,
@@ -66,6 +67,7 @@ type CarmaMapProviderWrapperProps = {
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   hashParamNameOrder?: string[];
   defaultRuntimeState?: Partial<CesiumState>;
+  addons?: readonly unknown[];
   topicMapConfig?: {
     appKey?: string;
     featureItemsURL?: string;
@@ -166,6 +168,7 @@ export const CarmaMapProviderWrapper = ({
   topicMapConfig = {},
   store,
   defaultRuntimeState,
+  addons,
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
@@ -205,7 +208,9 @@ export const CarmaMapProviderWrapper = ({
                       <MapSelectionProvider>
                         <CarmaApiBridge store={store} />
                         <MapHighlightProvider>
-                          {wrappedChildren}
+                          <AddonProvider addons={addons}>
+                            {wrappedChildren}
+                          </AddonProvider>
                         </MapHighlightProvider>
                       </MapSelectionProvider>
                     </LibreContextProvider>

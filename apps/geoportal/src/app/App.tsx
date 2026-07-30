@@ -253,6 +253,7 @@ function App({
                 store={store}
                 defaultRuntimeState={defaultCesiumState}
                 topicMapConfig={{ appKey: APP_KEY }}
+                addons={addons}
               >
                 <ObliqueProvider
                   config={OBLIQUE_CONFIG}
@@ -290,7 +291,7 @@ function App({
                               }
                               replace={true}
                             >
-                              <MapWrapper addons={addons} />
+                              <MapWrapper />
                             </ViewStateNavigationManagerProvider>
                           </ViewStateProvider>
                           <MobileWarningMessage
