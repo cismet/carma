@@ -42,3 +42,13 @@ export type {
   QueryId,
   ToggledFeature,
 } from "./MapHighlightContext";
+
+export {
+  AddonListContext,
+  AddonProvider,
+  AddonStateSetterContext,
+  AddonStateValueContext,
+  EMPTY_ADDON_STATE,
+} from "./AddonStateContext";
+
+export type { AddonStateRecord, AddonStateSet } from "./AddonStateContext";

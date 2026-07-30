@@ -15,10 +15,11 @@ so the second folder is the list of what actually exists:
 
 | File                   | Role                                                     |
 | ---------------------- | -------------------------------------------------------- |
-| `lib/registry.ts`      | Kind and config types plus the kind -> entry lookup      |
+| `lib/registry.ts`      | Kind, config and state channel types plus the kind -> entry lookup |
 | `lib/AddonHost.tsx`    | Mounts the active route's addons                         |
 | `lib/TargetAddonHost.tsx` | Mounts one addon declared on a stack entry            |
 | `lib/target-addons.ts` | Trigger ids and the entry lookups the layer button needs |
+| `lib/AddonStateContext.tsx` | Typed hooks over the shared addon state (see below) |
 
 | Addon                       | Kind                                                     |
 | --------------------------- | -------------------------------------------------------- |
@@ -49,13 +50,15 @@ lets one kind serve both sites.
    `FachzwillingRoute` (see
    `apps/geoportal/src/app/constants/fachzwillinge/index.ts`).
 2. `main.tsx` resolves the active route and passes its addons to `App`, which
-   hands them to `MapWrapper`.
-3. `MapWrapper` renders `<AddonHost addons={addons} />` **inside `ControlLayout`**.
-   The host looks each addon's `kind` up in `addonRegistry` and mounts the
-   component with the shared interaction props.
+   hands them to `CarmaMapProviderWrapper`. The wrapper mounts `AddonProvider`
+   (from `@carma-mapping/contexts`), which provides the list and the shared
+   addon state to the whole tree; that is the only place the list is passed.
+3. `MapWrapper` renders a bare `<AddonHost />` **inside `ControlLayout`**. The
+   host reads the list from the provider, looks each addon's `kind` up in
+   `addonRegistry` and mounts the component with the shared interaction props.
 4. When the user navigates to another route, the host unmounts the components;
    an addon's entire lifecycle is its mount time, cleanup belongs in its effect
-   teardowns.
+   teardowns. The shared addon state is scoped the same way (see below).
 
 ### Workflow tools
 
@@ -102,6 +105,90 @@ Every addon is a component; there is no separate config-derivation path. The
 gazetteer kinds work by registering their sources/modes through
 `carma.gazetteer` at runtime (see below); the `GazDataProvider` merges them
 into its config and reloads.
+
+## Shared addon state
+
+Addons are isolated by default: each gets its props and shares nothing with its
+siblings. The shared addon state is the opt-in way for them to cooperate; the
+intended split is a headless addon that analyzes the map and writes what it
+found, and UI addons that read it and display it.
+
+```tsx
+const [mapInsights, setMapInsights] = useAddonState("mapInsights");
+```
+
+**Channels are typed.** `AddonStateMap` in `registry.ts` declares one key per
+channel, the same one-line cost `AddonConfigMap` asks for a config; the value
+type of `useAddonState(key)` and its setter is inferred from the key. The
+setter accepts a value or a functional update (React's `useState` contract,
+including the caveat for function-valued channels) and bails out on
+`Object.is`-equal writes.
+
+**The provider comes with the framework.** `CarmaMapProviderWrapper` mounts
+`AddonProvider` and hands it the route's addons; apps wire nothing. The
+provider and its contexts are a generic, string-keyed core living in
+`@carma-mapping/contexts`, because portals must not depend on this library
+(`portals -> addons -> fuzzy-search -> portals` would be circular); this
+library's `lib/AddonStateContext.tsx` is the typed surface over that core and
+the only import addon authors need. Rendering without a provider is not an
+error: reads see an empty snapshot, writes are dropped with a dev hint.
+
+**State is scoped to the route.** The provider keys its state on the `addons`
+identity, so switching routes starts from an empty map and one route's addons
+never see another's values. Route configs are static module objects, which is
+what makes that identity stable; a route building its list inline can pass an
+explicit `scopeKey` to the provider instead.
+
+**Producers and consumers declare their channels.** A registry entry names the
+channels it writes (`provides`) and reads (`requires`):
+
+```ts
+export const addonRegistry = {
+  // ...
+  mapInsightsSource: { Component: MapInsightsSource, provides: ["mapInsights"] },
+  mapInsightsPanel: { Component: MapInsightsPanel, requires: ["mapInsights"] },
+};
+```
+
+`AddonHost` checks the route's list in dev and warns when a `requires` is not
+covered by any sibling's `provides`, so a consumer configured without its
+producer surfaces in the console instead of as a silently empty panel.
+
+A minimal producer is an effect that publishes, a minimal consumer a component
+that reads:
+
+```tsx
+export const MapInsightsSource = ({
+  libreMap,
+}: AddonComponentProps<"mapInsightsSource">) => {
+  const [, setMapInsights] = useAddonState("mapInsights");
+  useEffect(() => {
+    if (!libreMap) {
+      return;
+    }
+    const publish = () => setMapInsights(analyze(libreMap));
+    publish();
+    libreMap.on("moveend", publish);
+    return () => {
+      libreMap.off("moveend", publish);
+    };
+  }, [libreMap, setMapInsights]);
+  return null;
+};
+
+export const MapInsightsPanel = (
+  _props: AddonComponentProps<"mapInsightsPanel">
+) => {
+  const [mapInsights] = useAddonState("mapInsights");
+  return mapInsights ? <Readout {...mapInsights} /> : null;
+};
+```
+
+`useAddonState` subscribes per component, so a producer that only writes does
+not re-render on state changes. `useAddonStateSnapshot()` returns the whole
+channel map at once for callers outside the addon components (the layer-button
+trigger path, once it derives from state); addons themselves should read
+single channels.
 
 ## Creating a new addon kind
 

@@ -33,6 +33,11 @@ export type AddonConfigMap = {
 
 export type AddonKind = keyof AddonConfigMap;
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type AddonStateMap = {};
+
+export type AddonStateKey = keyof AddonStateMap;
+
 /** A full declaration: the kind plus its config. */
 export type Addon = {
   [K in AddonKind]: { kind: K; config: AddonConfigMap[K] };
@@ -88,6 +93,14 @@ export type AddonTrigger<K extends AddonKind = AddonKind> = {
 export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
   Component?: ComponentType<AddonComponentProps<K>>;
   trigger?: AddonTrigger<K>;
+  /** state channels this addon writes (headless producers declare these) */
+  provides?: readonly AddonStateKey[];
+  /**
+   * state channels this addon reads. `AddonProvider` warns in dev when a
+   * route configures a consumer without any producer covering its channel,
+   * so the mistake surfaces instead of an empty panel.
+   */
+  requires?: readonly AddonStateKey[];
 };
 
 /** kind -> entry lookup used by the hosts */

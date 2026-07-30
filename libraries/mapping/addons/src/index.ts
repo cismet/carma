@@ -20,9 +20,17 @@ export type {
   AddonEntry,
   AddonKind,
   AddonRegistryEntry,
+  AddonStateKey,
+  AddonStateMap,
   AddonTrigger,
   ResolvedAddon,
 } from "./lib/registry";
+
+export {
+  useAddonState,
+  useAddonStateSnapshot,
+} from "./lib/AddonStateContext";
+export type { AddonStateAction } from "./lib/AddonStateContext";
 
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";

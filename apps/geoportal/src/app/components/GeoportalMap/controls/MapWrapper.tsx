@@ -42,7 +42,7 @@ import {
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
-import { AddonHost, type Addon } from "@carma-mapping/addons";
+import { AddonHost } from "@carma-mapping/addons";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -118,7 +118,7 @@ const NON_DEVELOPER_OBLIQUE_DISABLED_NAVIGATION_SHORTCUT_ACTIONS = [
 ] as const;
 const NO_NAVIGATION_SHORTCUT_ACTIONS: readonly [] = [];
 
-const MapWrapper = ({ addons }: { addons?: Addon[] }) => {
+const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -290,7 +290,7 @@ const MapWrapper = ({ addons }: { addons?: Addon[] }) => {
 
   return (
     <ControlLayout>
-      <AddonHost addons={addons} />
+      <AddonHost />
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button
