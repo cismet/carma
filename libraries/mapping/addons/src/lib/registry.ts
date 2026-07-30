@@ -25,9 +25,9 @@ import {
   type LayerVisibilityConfig,
 } from "../addons/LayerVisibility";
 import {
-  VisibleFeatureStatsAddon,
+  VisibleFeatureStats,
   type VisibleFeatureStatsConfig,
-} from "../addons/VisibleFeatureStatsAddon";
+} from "../addons/VisibleFeatureStats";
 
 export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
@@ -122,7 +122,7 @@ export const addonRegistry: {
     Component: LayerVisibility,
     trigger: layerVisibilityTrigger,
   },
-  visibleFeatureStats: { Component: VisibleFeatureStatsAddon },
+  visibleFeatureStats: { Component: VisibleFeatureStats },
 };
 
 const isKnownKind = (kind: string): kind is AddonKind =>
