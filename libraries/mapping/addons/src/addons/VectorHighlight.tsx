@@ -1,11 +1,20 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+
+import { faDrawPolygon, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Tooltip } from "antd";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
 import {
   useMapHighlighting,
   useLassoHighlight,
 } from "@carma-mapping/engines/maplibre";
+import {
+  Control,
+  ControlButtonStyler,
+  type Positions,
+} from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../lib/registry";
 
@@ -19,7 +28,24 @@ import type { AddonComponentProps } from "../lib/registry";
  * where the untouched paint is restored. `useMapHighlighting` owns the
  * `highlighted` feature-state (including re-applying it to features from newly
  * loaded tiles), `useLassoHighlight` owns the drawing; this addon only adds the
- * dim half and the lifecycle.
+ * dim half, the control and the lifecycle.
+ *
+ * THE CONTROL (`showControl`, on by default): one button in the host's control
+ * column, on the geoportal button surface (white `ControlButtonStyler`, blue
+ * `#1677ff` icon while on), wearing BELIS' lasso icon:
+ *
+ *   off -> lasso icon. Click starts the highlighting mode, in which the lasso
+ *          draws on a plain drag (crosshair cursor, no Alt) — the modifier is
+ *          only needed outside the mode.
+ *   on  -> cross icon in the same spot. Click (or Escape) ends the whole thing:
+ *          highlights cleared, paint restored, mode off.
+ *
+ * The mode is not only the button's: an Alt+click or an Alt+drag switches
+ * `highlightingActive` on, and that counts as the mode being on too — so the
+ * usual way in is to Alt+click one feature and keep going without the modifier.
+ * The button's own `useState` covers the one case the context cannot express,
+ * the mode started before anything is highlighted; it is temporary by design
+ * and dies with the route.
  *
  * WHY THE PAINT WRAPPING: BELIS ships the dim expression in its own style
  * config and gates it with `["global-state", "highlightingEnabled"]`. Styles
@@ -51,12 +77,23 @@ export type VectorHighlightConfig = {
    * same way a modifier+click would toggle it. Default: false.
    */
   lasso?: boolean;
+  /** Render the start/stop buttons in the control column. Default: true */
+  showControl?: boolean;
+  /** Corner the buttons are registered in. Default: "topleft" */
+  controlPosition?: Positions;
+  /** Sort order within that corner. Default: 70 */
+  controlOrder?: number;
 };
 
 const DEFAULT_DIM_OPACITY = 0.25;
 const DEFAULT_STATE_KEY = "highlighted";
 // cismap's selection border and the basemap must keep their paint.
 const DEFAULT_EXCLUDED = ["selection", "background"];
+// geoportal's topleft column: measurement is 60, terrain 80.
+const DEFAULT_CONTROL_POSITION: Positions = "topleft";
+const DEFAULT_CONTROL_ORDER = 70;
+/** the blue geoportal marks an active control with (feature info, terrain) */
+const ACTIVE_COLOR = "#1677ff";
 
 // Opacity paint props per MapLibre layer type.
 const OPACITY_PROPS: Record<string, string[]> = {
@@ -153,6 +190,40 @@ const createDimController = (
   };
 };
 
+/**
+ * The one button, presentational: props in, markup out. Off it wears BELIS'
+ * lasso icon, on it becomes a plain cross — same button, so the way in and the
+ * way out are the same place in the column.
+ *
+ * Deliberately stateless — `Control` re-registers its children on every render
+ * (its effect deps are `[children]`, and JSX children are a fresh object each
+ * time), so state kept here would be dropped. The mode lives in the addon.
+ */
+const HighlightModeButton = ({
+  isOn,
+  onClick,
+}: {
+  isOn: boolean;
+  onClick: () => void;
+}) => (
+  <Tooltip
+    title={
+      isOn ? "Hervorhebungsmodus beenden" : "Objekte per Lasso hervorheben"
+    }
+    placement="right"
+  >
+    <ControlButtonStyler
+      onClick={onClick}
+      dataTestId="vector-highlight-control"
+    >
+      <FontAwesomeIcon
+        icon={isOn ? faXmark : faDrawPolygon}
+        style={isOn ? { color: ACTIVE_COLOR } : undefined}
+      />
+    </ControlButtonStyler>
+  </Tooltip>
+);
+
 export const VectorHighlight = ({
   config,
   libreMap,
@@ -163,10 +234,34 @@ export const VectorHighlight = ({
     stateKey = DEFAULT_STATE_KEY,
     excludedLayerPatterns,
     lasso = false,
+    showControl = true,
+    controlPosition = DEFAULT_CONTROL_POSITION,
+    controlOrder = DEFAULT_CONTROL_ORDER,
   } = config;
 
   const { highlightingActive, setHighlightingActive, clearHighlights } =
     useMapHighlight();
+
+  // the control's own, temporary state: nothing outside the addon reads it, and
+  // it is meant to be gone once the route unmounts. Only needed for the one
+  // state the context cannot express — the mode started from the button, before
+  // anything is highlighted.
+  const [modeActive, setModeActive] = useState(false);
+
+  /**
+   * The mode, from every direction: the button switches it on, and so does an
+   * Alt+click on a feature or an Alt+drag lasso, because both set
+   * `highlightingActive`. So whoever started it, the button shows the cross and
+   * the lasso draws without the modifier from that point on.
+   */
+  const isOn = modeActive || highlightingActive;
+
+  /** the cross, and Escape: back to an untouched map */
+  const endMode = useCallback(() => {
+    setModeActive(false);
+    clearHighlights();
+    setHighlightingActive(false);
+  }, [clearHighlights, setHighlightingActive]);
 
   // owns the `highlighted` feature-state and the click-to-toggle
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
@@ -181,20 +276,33 @@ export const VectorHighlight = ({
     [excludedKey]
   );
 
-  // Alt+drag lasso: `active: false` leaves the hook's explicit (toolbar-driven)
-  // manager off, which is exactly what puts its passive Alt+drag manager in
-  // charge — no UI needed. It toggles what it covers and switches highlighting
-  // on if it was off, matching the modifier+click semantics above; a stationary
-  // Alt+click never becomes a lasso (minPoints guard) and a real Alt+drag never
-  // becomes a click (MapLibre drops clicks past its clickTolerance), so the two
-  // coexist on the same modifier. Hooks can't be called conditionally, so the
-  // feature is gated by handing over a null map.
+  // Lasso: `active` picks which of the hook's two managers has the map. While
+  // the mode is off its passive manager waits for an Alt+drag; while the mode is
+  // on the explicit one takes over, drawing on a plain drag with a crosshair
+  // cursor. Either way it toggles what the stroke covers and switches
+  // highlighting on if it was off, matching the modifier+click semantics above;
+  // a stationary Alt+click never becomes a lasso (minPoints guard) and a real
+  // Alt+drag never becomes a click (MapLibre drops clicks past its
+  // clickTolerance), so the two coexist on the same modifier. Hooks can't be
+  // called conditionally, so the feature is gated by handing over a null map.
+  //
+  // Driven by `isOn`, not by the button alone: the first Alt+click or Alt+drag
+  // *is* the way most people start the mode, and from there the modifier should
+  // no longer be needed.
+  //
+  // `onDeactivate` is the hook's Escape route. It ends the mode outright rather
+  // than only leaving the drawing part — with the highlights themselves keeping
+  // the mode on, "drawing off but mode on" is not a state this control has.
   //
   // No `sources` filter: same as the click path above, every source the style
   // exposes is fair game. Raster basemaps yield no features at all and the
   // geojson overlays carry no feature ids (no `generateId`), so both are
   // skipped anyway.
-  useLassoHighlight({ map: lasso ? libreMap : null, active: false });
+  useLassoHighlight({
+    map: lasso ? libreMap : null,
+    active: lasso && isOn,
+    onDeactivate: endMode,
+  });
 
   const controllerRef = useRef<DimController | null>(null);
   // read inside the create effect, so a controller built after the mode was
@@ -232,5 +340,21 @@ export const VectorHighlight = ({
     [clearHighlights, setHighlightingActive]
   );
 
-  return null;
+  // everything here acts on the MapLibre map, so without one there is nothing
+  // the button could do (leaflet-only hosts, or before the map is created)
+  if (!libreMap || !showControl || (!lasso && !isOn)) {
+    return null;
+  }
+
+  // `Control` renders nothing here — it registers the button into the
+  // surrounding `ControlLayout` (AddonHost sits inside it) and the layout draws
+  // it in that corner, sorted by `order`.
+  return (
+    <Control position={controlPosition} order={controlOrder}>
+      <HighlightModeButton
+        isOn={isOn}
+        onClick={isOn ? endMode : () => setModeActive(true)}
+      />
+    </Control>
+  );
 };

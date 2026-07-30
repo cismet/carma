@@ -45,6 +45,8 @@ export const bodenFachzwilling: FachzwillingRoute = {
     },
     // alt+click a vector feature -> it stays lit, everything else dims.
     // alt+drag lassos: everything the stroke covers is toggled the same way.
+    // the control column gets a lasso button that starts the same mode without
+    // the modifier; while it is on the same button is a cross that ends it.
     // Only effective on the MapLibre map (featureFlagLibreMap, alias `ng`).
     { kind: "vectorHighlight", config: { modifierClick: "alt", lasso: true } },
     // logs the features inside the visible viewport on every settled pan/zoom.
