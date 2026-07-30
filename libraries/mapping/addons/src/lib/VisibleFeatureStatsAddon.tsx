@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
+import type { Store } from "redux";
 
+import type { LayerStackEntry } from "@carma-mapping/layers";
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import { useVisibleMapFeatures } from "@carma-mapping/utils";
 
@@ -44,8 +46,6 @@ export type DebugInset = {
 };
 
 export type VisibleFeatureStatsConfig = {
-  /** Above this count the hook drops the feature list and only reports counts. Default: 2000 */
-  maxFeatures?: number;
   /** Debounce after `idle` before querying. Default: 300 */
   debounceMs?: number;
   /** Draw the queried rectangle as a yellow box (BELIS-style debug aid). Default: false */
@@ -76,7 +76,13 @@ export type VisibleFeatureStatsConfig = {
   panelMaxRows?: number;
 };
 
-const DEFAULT_MAX_FEATURES = 2000;
+/**
+ * The nested breakdown is built from the feature list, and the hook empties that
+ * list once the count passes `maxFeatures` (its "overview mode", which exists
+ * because BELIS renders one sidebar row per feature). This panel only counts, so
+ * it opts out: no cap, no overview mode, always a full breakdown.
+ */
+const NO_FEATURE_CAP = Number.MAX_SAFE_INTEGER;
 const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_DEBUG_INSET_PX = 0;
 const DEFAULT_PANEL_POSITION: Positions = "topright";
@@ -86,7 +92,10 @@ const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
 const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
 
 /** module-level so the identity is stable across renders */
-const excludeDebugBox = (feature: { source?: string; layer?: { id: string } }) =>
+const excludeDebugBox = (feature: {
+  source?: string;
+  layer?: { id: string };
+}) =>
   feature.source !== DEBUG_SOURCE_ID && feature.layer?.id !== DEBUG_LAYER_ID;
 
 const resolveInset = (
@@ -100,6 +109,123 @@ const resolveInset = (
     bottom: sides.bottom ?? fallback,
     left: sides.left ?? fallback,
   };
+};
+
+export type LayerStatsRow = { key: string; label: string; count: number };
+export type LayerStatsGroup = LayerStatsRow & { children: LayerStatsRow[] };
+
+/** "layer-poi-3::poi" -> "poi"; ids without a namespace are returned as-is */
+const stripNamespace = (id: string | undefined) => {
+  if (!id) return undefined;
+  const separator = id.indexOf("::");
+  return separator === -1 ? id : id.slice(separator + 2);
+};
+
+/** "trinkwasserbrunnen" -> "Trinkwasserbrunnen", "poi" -> "POI" */
+const humanizeKey = (key: string) => {
+  const cleaned = stripNamespace(key)?.replace(/[-_]+/g, " ").trim() ?? "";
+  if (!cleaned) return key;
+  if (cleaned.length <= 4) return cleaned.toUpperCase();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
+/**
+ * Which catalog layer drew this feature. `styleComposer` stamps the layer stack
+ * id onto every style layer it namespaces (`metadata["layer-id"]`), so that is
+ * the reliable key; the `"<layerId>::<styleLayerId>"` prefix is the fallback for
+ * anything added outside the composer.
+ */
+const catalogLayerIdOf = (feature: MapGeoJSONFeature): string | undefined => {
+  const fromMetadata = feature.layer?.metadata as
+    | Record<string, unknown>
+    | undefined;
+  const stamped = fromMetadata?.["layer-id"];
+  if (typeof stamped === "string" && stamped) return stamped;
+  const layerId = feature.layer?.id;
+  return layerId?.includes("::") ? layerId.split("::")[0] : undefined;
+};
+
+/**
+ * Two POI layers from the same vector source collapse into a single `poi` row
+ * in the hook's `countsByLayer`, which is what makes it useless here. So group
+ * by the data source (`sourceLayer`) and split each group by the catalog layer
+ * that actually drew the feature — the label comes from the layer stack, so it
+ * reads "Trinkwasserbrunnen", not "layer-poi-3".
+ *
+ * Only possible from the feature list, which the hook caps at `maxFeatures` and
+ * drops entirely in overview mode; `flatGroups` below covers that case.
+ */
+const buildGroups = (
+  features: MapGeoJSONFeature[],
+  titles: Map<string, string>
+): LayerStatsGroup[] => {
+  const groups = new Map<
+    string,
+    { count: number; children: Map<string, number> }
+  >();
+
+  for (const feature of features) {
+    const groupKey =
+      feature.sourceLayer || stripNamespace(feature.source) || "other";
+    let group = groups.get(groupKey);
+    if (!group) {
+      group = { count: 0, children: new Map() };
+      groups.set(groupKey, group);
+    }
+    group.count++;
+
+    const childKey = catalogLayerIdOf(feature);
+    if (childKey) {
+      group.children.set(childKey, (group.children.get(childKey) ?? 0) + 1);
+    }
+  }
+
+  const toRows = (counts: Map<string, number>): LayerStatsRow[] =>
+    [...counts.entries()]
+      .map(([key, count]) => ({
+        key,
+        label: titles.get(key) ?? humanizeKey(key),
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+  return [...groups.entries()]
+    .map(([key, { count, children }]) => ({
+      key,
+      label: humanizeKey(key),
+      count,
+      // a single child adds a row that just repeats the group total
+      children: children.size > 1 ? toRows(children) : [],
+    }))
+    .sort((a, b) => b.count - a.count);
+};
+
+type LayerTitleState = { mapping?: { layers?: LayerStackEntry[] } };
+
+const collectTitles = (
+  entries: LayerStackEntry[] | undefined,
+  into: Map<string, string>
+) => {
+  for (const entry of entries ?? []) {
+    if (entry.id && entry.title) into.set(entry.id, entry.title);
+    // groups carry their members in `layers`
+    const nested = (entry as { layers?: LayerStackEntry[] }).layers;
+    if (nested) collectTitles(nested, into);
+  }
+  return into;
+};
+
+/**
+ * Layer id -> readable title, straight from the host app's layer stack. Read
+ * through the store prop rather than `useSelector`, since libraries must not
+ * depend on react-redux; the snapshot is the `layers` array itself, so an
+ * unrelated action does not re-render the panel.
+ */
+const useLayerTitles = (store: Store): Map<string, string> => {
+  const layerStack = useSyncExternalStore(store.subscribe, () => {
+    return (store.getState() as LayerTitleState).mapping?.layers;
+  });
+  return useMemo(() => collectTitles(layerStack, new Map()), [layerStack]);
 };
 
 /**
@@ -228,25 +354,20 @@ const useDebugBoundsBox = (
  */
 export const VisibleFeatureStatsPanel = ({
   totalCount,
-  countsByLayer,
+  groups,
   isLoading,
-  isOverviewMode,
-  maxFeatures,
   maxRows,
 }: {
   totalCount: number;
-  countsByLayer: Record<string, number>;
+  groups: LayerStatsGroup[];
   isLoading: boolean;
-  isOverviewMode: boolean;
-  maxFeatures: number;
   maxRows: number;
 }) => {
-  const rows = Object.entries(countsByLayer).sort((a, b) => b[1] - a[1]);
-  const shown = rows.slice(0, maxRows);
-  const hidden = rows.length - shown.length;
+  const shown = groups.slice(0, maxRows);
+  const hidden = groups.length - shown.length;
 
   return (
-    <div className="pointer-events-auto min-w-52 max-w-72 rounded-md bg-white/90 p-2 text-sm shadow-md">
+    <div className="pointer-events-auto min-w-56 max-w-80 rounded-md bg-white/90 p-2 text-sm shadow-md">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-semibold">Sichtbare Objekte</span>
         <span className={isLoading ? "text-gray-400" : "font-semibold"}>
@@ -254,28 +375,39 @@ export const VisibleFeatureStatsPanel = ({
         </span>
       </div>
 
-      {isOverviewMode && (
-        <div className="mt-1 text-xs text-gray-500">
-          Übersicht — mehr als {maxFeatures} Objekte, keine Einzelliste
-        </div>
-      )}
-
-      {rows.length === 0 ? (
+      {groups.length === 0 ? (
         <div className="mt-1 text-xs text-gray-500">
           {isLoading ? "wird ermittelt …" : "keine Objekte im Ausschnitt"}
         </div>
       ) : (
-        <ul className="mt-1 flex flex-col gap-0.5">
-          {shown.map(([layer, count]) => (
-            <li key={layer} className="flex justify-between gap-2 text-xs">
-              <span className="truncate" title={layer}>
-                {layer}
-              </span>
-              <span className="tabular-nums text-gray-600">{count}</span>
+        <ul className="mt-1 flex flex-col gap-1">
+          {shown.map((group) => (
+            <li key={group.key}>
+              <div className="flex justify-between gap-2 text-xs font-medium">
+                <span className="truncate" title={group.key}>
+                  {group.label}
+                </span>
+                <span className="tabular-nums">{group.count}</span>
+              </div>
+              {group.children.length > 0 && (
+                <ul className="mt-0.5 flex flex-col gap-0.5 border-l border-gray-200 pl-2">
+                  {group.children.slice(0, maxRows).map((child) => (
+                    <li
+                      key={child.key}
+                      className="flex justify-between gap-2 text-xs text-gray-600"
+                    >
+                      <span className="truncate" title={child.key}>
+                        {child.label}
+                      </span>
+                      <span className="tabular-nums">{child.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
           {hidden > 0 && (
-            <li className="text-xs text-gray-500">+{hidden} weitere Ebenen</li>
+            <li className="text-xs text-gray-500">+{hidden} weitere Quellen</li>
           )}
         </ul>
       )}
@@ -286,9 +418,9 @@ export const VisibleFeatureStatsPanel = ({
 export const VisibleFeatureStatsAddon = ({
   config,
   libreMap,
+  store,
 }: AddonComponentProps<"visibleFeatureStats">) => {
   const {
-    maxFeatures = DEFAULT_MAX_FEATURES,
     debounceMs = DEFAULT_DEBOUNCE_MS,
     showDebugBounds = false,
     debugInsetPx = DEFAULT_DEBUG_INSET_PX,
@@ -316,21 +448,26 @@ export const VisibleFeatureStatsAddon = ({
     [filterKey]
   );
 
-  const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
-    useVisibleMapFeatures({
-      // the hook only needs a size once the map exists; 0/0 yields no features
-      maplibreMap: width > 0 && height > 0 ? libreMap : null,
-      visibleMapWidth: width,
-      visibleMapHeight: height,
-      maxFeatures,
-      debounceMs,
-      // the addon draws its own inset box above, the hook's would be clipped
-      showDebugBounds: false,
-      layerFilterExpressions: layerFilters,
-      // the debug box is a rendered feature like any other, so without this it
-      // counts itself and shows up as its own row in the panel
-      filter: excludeDebugBox,
-    });
+  const { features, totalCount, isLoading } = useVisibleMapFeatures({
+    // the hook only needs a size once the map exists; 0/0 yields no features
+    maplibreMap: width > 0 && height > 0 ? libreMap : null,
+    visibleMapWidth: width,
+    visibleMapHeight: height,
+    maxFeatures: NO_FEATURE_CAP,
+    debounceMs,
+    // the addon draws its own inset box above, the hook's would be clipped
+    showDebugBounds: false,
+    layerFilterExpressions: layerFilters,
+    // the debug box is a rendered feature like any other, so without this it
+    // counts itself and shows up as its own row in the panel
+    filter: excludeDebugBox,
+  });
+
+  const titles = useLayerTitles(store);
+  const groups = useMemo(
+    () => buildGroups(features, titles),
+    [features, titles]
+  );
 
   useEffect(() => {
     // `isLoading` is true from `movestart` until the query settles — skip the
@@ -338,19 +475,10 @@ export const VisibleFeatureStatsAddon = ({
     if (isLoading || !logToConsole) return;
     console.info("[VISIBLE_FEATURE_STATS]", {
       totalCount,
-      countsByLayer,
-      isOverviewMode,
+      groups,
       ...(logFeatures ? { features } : {}),
     });
-  }, [
-    features,
-    totalCount,
-    countsByLayer,
-    isLoading,
-    isOverviewMode,
-    logFeatures,
-    logToConsole,
-  ]);
+  }, [features, totalCount, groups, isLoading, logFeatures, logToConsole]);
 
   if (!showPanel) {
     return null;
@@ -363,10 +491,8 @@ export const VisibleFeatureStatsAddon = ({
     <Control position={panelPosition} order={panelOrder}>
       <VisibleFeatureStatsPanel
         totalCount={totalCount}
-        countsByLayer={countsByLayer}
+        groups={groups}
         isLoading={isLoading}
-        isOverviewMode={isOverviewMode}
-        maxFeatures={maxFeatures}
         maxRows={panelMaxRows}
       />
     </Control>
