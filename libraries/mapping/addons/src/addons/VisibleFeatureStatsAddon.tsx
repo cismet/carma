@@ -23,25 +23,11 @@ import type { AddonComponentProps } from "../lib/registry";
  * (the canvas is oversized for momentum scrolling, so `map.getBounds()` is
  * larger than what the user sees), runs `queryRenderedFeatures` and dedupes by
  * `source-sourceLayer-id`. `showDebugBounds` draws that rectangle as the yellow
- * border you see in BELIS.
- *
  * Caveat inherited from `queryRenderedFeatures`: this sees *rendered* features
  * only. Anything hidden by a style filter, out of its zoom range, or in a tile
  * that has not loaded yet is not counted. That is the right input for "stats
  * about what is on screen", the wrong one for "stats about all data in the
  * bbox".
- *
- * First iteration: log to the console. No UI.
- *
- * TODO: the border and the queried bbox are not the same rectangle yet.
- * `useVisibleMapFeatures` always queries the full canvas (its `isOversized`
- * branch is BELIS-specific: it centres on the window and subtracts a hardcoded
- * 300px sidebar), while `debugInsetPx` only moves the drawn box — so features
- * behind the top navbar are counted but sit outside the yellow line. Change the
- * original hook to take the visible rectangle as explicit insets/padding
- * instead of deriving it from a canvas-vs-container size guess, then drop the
- * local box here and let the hook draw the same rectangle it queries. Touches
- * BELIS as well, so it needs to be done deliberately.
  */
 
 export type DebugInset = {
@@ -54,7 +40,10 @@ export type DebugInset = {
 export type VisibleFeatureStatsConfig = {
   /** Debounce after `idle` before querying. Default: 300 */
   debounceMs?: number;
-  /** Draw the queried rectangle as a yellow box (BELIS-style debug aid). Default: false */
+  /**
+   * Draw the queried rectangle as a yellow box.
+   * Default: false. Overridden by `?showBr=true|false` in the URL.
+   */
   showDebugBounds?: boolean;
   /**
    * Pixels the debug box is pulled inside the canvas — a single number for all
@@ -147,6 +136,17 @@ const excludeDebugBox = (feature: {
   layer?: { id: string };
 }) =>
   feature.source !== DEBUG_SOURCE_ID && feature.layer?.id !== DEBUG_LAYER_ID;
+
+const SHOW_BORDER_PARAM = "showBr";
+
+const readShowBorderParam = (): boolean | undefined => {
+  if (typeof window === "undefined") return undefined;
+  const hashQuery = window.location.hash.split("?")[1] || "";
+  const param = new URLSearchParams(hashQuery || window.location.search).get(
+    SHOW_BORDER_PARAM
+  );
+  return param === null ? undefined : param === "true";
+};
 
 const resolveInset = (
   inset: number | DebugInset | undefined
@@ -703,8 +703,13 @@ export const VisibleFeatureStatsAddon = ({
   // fresh object per render costs nothing
   const inset = resolveInset(debugInsetPx);
 
+  // read once per mount: the geoportal hash state rewrites the hash as the user
+  // pans, so a live read would lose the param the moment it is dropped
+  const showBorderParam = useMemo(readShowBorderParam, []);
+  const showBorder = showBorderParam ?? showDebugBounds;
+
   const { width, height } = useMapCanvasSize(libreMap);
-  useDebugBoundsBox(libreMap, showDebugBounds, inset);
+  useDebugBoundsBox(libreMap, showBorder, inset);
 
   // route configs pass a fresh array on every render; key on the content so the
   // hook does not re-resolve its layer ids each time
