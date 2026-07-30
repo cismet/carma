@@ -44,5 +44,9 @@ export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
   VisibleFeatureStatsAddon,
   VisibleFeatureStatsPanel,
+  type ColoredStatsGroup,
+  type LayerStatsGroup,
+  type LayerStatsRow,
+  type MarkShape,
   type VisibleFeatureStatsConfig,
 } from "./lib/VisibleFeatureStatsAddon";
