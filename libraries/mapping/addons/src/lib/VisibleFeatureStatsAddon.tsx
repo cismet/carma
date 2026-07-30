@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import { useVisibleMapFeatures } from "@carma-mapping/utils";
 
 import type { AddonComponentProps } from "./registry";
@@ -63,13 +64,29 @@ export type VisibleFeatureStatsConfig = {
   layerFilterExpressions?: string[];
   /** Also log the feature array, not just the counts. Default: true */
   logFeatures?: boolean;
+  /** Log every settled viewport to the console. Default: true */
+  logToConsole?: boolean;
+  /** Render the stats panel on the map. Default: true */
+  showPanel?: boolean;
+  /** Corner the panel is registered in. Default: "topright" */
+  panelPosition?: Positions;
+  /** Sort order within that corner. Default: 10 */
+  panelOrder?: number;
+  /** Layer rows shown before the rest is folded into a "+n" line. Default: 8 */
+  panelMaxRows?: number;
 };
 
 const DEFAULT_MAX_FEATURES = 2000;
 const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_DEBUG_INSET_PX = 0;
+const DEFAULT_PANEL_POSITION: Positions = "topright";
+const DEFAULT_PANEL_ORDER = 10;
+const DEFAULT_PANEL_MAX_ROWS = 8;
 const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
 const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
+
+const excludeDebugBox = (feature: { source?: string; layer?: { id: string } }) =>
+  feature.source !== DEBUG_SOURCE_ID && feature.layer?.id !== DEBUG_LAYER_ID;
 
 const resolveInset = (
   inset: number | DebugInset | undefined
@@ -199,6 +216,72 @@ const useDebugBoundsBox = (
   }, [map, enabled, top, insetRight, insetBottom, left]);
 };
 
+/**
+ * Presentational half: props in, markup out. No map, no hooks — so it can be
+ * rendered from a story or a test without a MapLibre instance, and restyled
+ * without touching the query logic above.
+ *
+ * Deliberately stateless: `Control` re-registers its children on every render
+ * (its effect deps are `[children]`, and JSX children are a fresh object each
+ * time), so anything held in local state here would be reset on every pan.
+ */
+export const VisibleFeatureStatsPanel = ({
+  totalCount,
+  countsByLayer,
+  isLoading,
+  isOverviewMode,
+  maxFeatures,
+  maxRows,
+}: {
+  totalCount: number;
+  countsByLayer: Record<string, number>;
+  isLoading: boolean;
+  isOverviewMode: boolean;
+  maxFeatures: number;
+  maxRows: number;
+}) => {
+  const rows = Object.entries(countsByLayer).sort((a, b) => b[1] - a[1]);
+  const shown = rows.slice(0, maxRows);
+  const hidden = rows.length - shown.length;
+
+  return (
+    <div className="pointer-events-auto min-w-52 max-w-72 rounded-md bg-white/90 p-2 text-sm shadow-md">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">Sichtbare Objekte</span>
+        <span className={isLoading ? "text-gray-400" : "font-semibold"}>
+          {totalCount}
+        </span>
+      </div>
+
+      {isOverviewMode && (
+        <div className="mt-1 text-xs text-gray-500">
+          Übersicht — mehr als {maxFeatures} Objekte, keine Einzelliste
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <div className="mt-1 text-xs text-gray-500">
+          {isLoading ? "wird ermittelt …" : "keine Objekte im Ausschnitt"}
+        </div>
+      ) : (
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {shown.map(([layer, count]) => (
+            <li key={layer} className="flex justify-between gap-2 text-xs">
+              <span className="truncate" title={layer}>
+                {layer}
+              </span>
+              <span className="tabular-nums text-gray-600">{count}</span>
+            </li>
+          ))}
+          {hidden > 0 && (
+            <li className="text-xs text-gray-500">+{hidden} weitere Ebenen</li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 export const VisibleFeatureStatsAddon = ({
   config,
   libreMap,
@@ -210,6 +293,11 @@ export const VisibleFeatureStatsAddon = ({
     debugInsetPx = DEFAULT_DEBUG_INSET_PX,
     layerFilterExpressions,
     logFeatures = true,
+    logToConsole = true,
+    showPanel = true,
+    panelPosition = DEFAULT_PANEL_POSITION,
+    panelOrder = DEFAULT_PANEL_ORDER,
+    panelMaxRows = DEFAULT_PANEL_MAX_ROWS,
   } = config;
 
   // no memo needed: the drawing hook keys its effect on the four numbers, so a
@@ -238,12 +326,15 @@ export const VisibleFeatureStatsAddon = ({
       // the addon draws its own inset box above, the hook's would be clipped
       showDebugBounds: false,
       layerFilterExpressions: layerFilters,
+      // the debug box is a geojson source on the same map, so it comes back
+      // from queryRenderedFeatures and would count itself as a visible feature
+      filter: excludeDebugBox,
     });
 
   useEffect(() => {
     // `isLoading` is true from `movestart` until the query settles — skip the
     // stale intermediate render so every log line is a finished viewport
-    if (isLoading) return;
+    if (isLoading || !logToConsole) return;
     console.info("[VISIBLE_FEATURE_STATS]", {
       totalCount,
       countsByLayer,
@@ -257,7 +348,26 @@ export const VisibleFeatureStatsAddon = ({
     isLoading,
     isOverviewMode,
     logFeatures,
+    logToConsole,
   ]);
 
-  return null;
+  if (!showPanel) {
+    return null;
+  }
+
+  // `Control` renders nothing here — it registers the panel into the surrounding
+  // `ControlLayout` (AddonHost sits inside it) and the layout draws it in that
+  // corner, sorted by `order`.
+  return (
+    <Control position={panelPosition} order={panelOrder}>
+      <VisibleFeatureStatsPanel
+        totalCount={totalCount}
+        countsByLayer={countsByLayer}
+        isLoading={isLoading}
+        isOverviewMode={isOverviewMode}
+        maxFeatures={maxFeatures}
+        maxRows={panelMaxRows}
+      />
+    </Control>
+  );
 };
