@@ -1245,6 +1245,8 @@ const GeoportalModalMenu = () => {
 const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   useGeoportalHelpOverlays();
 
+  const showHamburgerMenu = useSelector(getShowHamburgerMenu);
+  const visibleControls = useSelector(getUIVisibleControls);
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
@@ -1437,6 +1439,10 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           zoomControls={false}
           fullScreenControl={false}
           terrainControl={false}
+          compassControl={false}
+          locatorControl={false}
+          gazetteerSearchControl={false}
+          modalMenuControl={showHamburgerMenu}
           libreLayers={libreLayers}
           disableInternalSelection={true}
           selectionEnabled={!isModeMeasurement}
@@ -1445,11 +1451,12 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           modalMenu={<GeoportalModalMenu />}
         />
         {isModeMeasurement && <MeasurementHost mode={libreDrawMode} snapping />}
-        {isModeMeasurement || selectedMeasurement ? (
-          <MeasurementInfoBox selectionPadding={selectionPadding} />
-        ) : (
-          <FeatureInfoBox pos={pos ?? undefined} />
-        )}
+        {visibleControls.infoBox &&
+          (isModeMeasurement || selectedMeasurement ? (
+            <MeasurementInfoBox selectionPadding={selectionPadding} />
+          ) : (
+            <FeatureInfoBox pos={pos ?? undefined} />
+          ))}
       </div>
       {allow3d && isInitialCameraResolved && shouldMountCesium && (
         <CesiumHost

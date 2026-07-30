@@ -56,6 +56,7 @@ interface CarmaMapProps extends LibreMapProps {
   /** Show a crosshair overlay that jumps to the last click position (debug aid for 3D selection) */
   clickCrosshairDebugMode?: boolean;
   modalMenu?: React.ReactNode;
+  modalMenuControl?: boolean;
   gazetteerSearchControl?: boolean;
   gazetteerSearchComponent?: React.ReactNode;
   applicationMenuTooltipString?: string;
@@ -63,6 +64,7 @@ interface CarmaMapProps extends LibreMapProps {
   fullScreenControl?: boolean;
   zoomControls?: boolean;
   terrainControl?: boolean;
+  compassControl?: boolean;
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
   vectorStyles?: VectorStyle[];
@@ -99,6 +101,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     fullScreenControl: fullScreenControlProp = true,
     zoomControls: zoomControlsProp = true,
     terrainControl: terrainControlProp = true,
+    compassControl: compassControlProp = true,
+    modalMenuControl: modalMenuControlProp = true,
     gazetteerSearchControl: gazetteerSearchControlProp = true,
     gazetteerSearchComponent,
     modalMenu,
@@ -118,7 +122,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     if (!appKey && !miniMap) {
       console.warn(
         "[CarmaMap] appKey prop is not set. localStorage settings (e.g. terrain) " +
-        "will leak across all apps on this origin. Pass appKey to scope them."
+          "will leak across all apps on this origin. Pass appKey to scope them."
       );
     }
   });
@@ -128,6 +132,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const fullScreenControl = miniMap ? false : fullScreenControlProp;
   const zoomControls = miniMap ? false : zoomControlsProp;
   const terrainControl = miniMap ? false : terrainControlProp;
+  const compassControl = miniMap ? false : compassControlProp;
+  const modalMenuControl = miniMap ? false : modalMenuControlProp;
   const gazetteerSearchControl = miniMap ? false : gazetteerSearchControlProp;
 
   const { responsiveState, gap, windowSize } = useContext<
@@ -139,7 +145,11 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(() => {
-    try { return localStorage.getItem(terrainStorageKey) === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem(terrainStorageKey) === "true";
+    } catch {
+      return false;
+    }
   });
   // Crosshair debug: store geographic position so the crosshair tracks
   // correctly when terrain is toggled or camera moves
@@ -237,7 +247,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
               </Control>
             )}
 
-            {mapEngine === "maplibre" && !miniMap && (
+            {mapEngine === "maplibre" && compassControl && (
               <Control position="topleft" order={20}>
                 <ControlButtonStyler
                   useDisabledStyle={false}
@@ -301,7 +311,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
               </Control>
             )}
 
-            {props.modalMenu && (
+            {props.modalMenu && modalMenuControl && (
               <Control position="topright" order={10}>
                 <ControlButtonStyler
                   useDisabledStyle={false}

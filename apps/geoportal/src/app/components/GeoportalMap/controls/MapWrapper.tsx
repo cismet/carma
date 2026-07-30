@@ -521,7 +521,7 @@ const MapWrapper = () => {
             </Control>
           )}
 
-          {!isObliquePreviewVisible && showLibreMap && (
+          {!isObliquePreviewVisible && showLibreMap && visibleControls.terrain && (
             <Control position="topleft" order={80}>
               <Tooltip title={"Terrain"} placement="right">
                 <ControlButtonStyler

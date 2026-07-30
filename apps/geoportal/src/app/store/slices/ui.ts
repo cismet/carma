@@ -22,6 +22,7 @@ export type UIVisibleControls = {
   gazetteer: boolean;
   layerButtons: boolean;
   navbar: boolean;
+  terrain: boolean;
 };
 
 export const defaultVisibleControls: UIVisibleControls = {
@@ -35,6 +36,7 @@ export const defaultVisibleControls: UIVisibleControls = {
   gazetteer: true,
   layerButtons: true,
   navbar: true,
+  terrain: true,
 };
 
 /** all-hidden counterpart of {@link defaultVisibleControls} ("map only") */
