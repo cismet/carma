@@ -684,7 +684,7 @@ const useStableSeriesColors = (
   }, [groups]);
 };
 
-export const VisibleFeatureStatsAddon = ({
+export const VisibleFeatureStats = ({
   config,
   libreMap,
   store,
