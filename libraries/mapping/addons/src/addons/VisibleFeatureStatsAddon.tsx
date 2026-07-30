@@ -12,7 +12,7 @@ import type { LayerStackEntry } from "@carma-mapping/layers";
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import { useVisibleMapFeatures } from "@carma-mapping/utils";
 
-import type { AddonComponentProps } from "./registry";
+import type { AddonComponentProps } from "../lib/registry";
 
 /**
  * Statistics over the features currently visible on the MapLibre map
