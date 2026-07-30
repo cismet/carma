@@ -45,8 +45,5 @@ export {
   VisibleFeatureStatsAddon,
   VisibleFeatureStatsPanel,
   type ColoredStatsGroup,
-  type LayerStatsGroup,
-  type LayerStatsRow,
-  type MarkShape,
   type VisibleFeatureStatsConfig,
-} from "./lib/VisibleFeatureStatsAddon";
+} from "./addons/VisibleFeatureStatsAddon";

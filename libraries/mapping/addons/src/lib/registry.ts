@@ -27,7 +27,7 @@ import {
 import {
   VisibleFeatureStatsAddon,
   type VisibleFeatureStatsConfig,
-} from "./VisibleFeatureStatsAddon";
+} from "../addons/VisibleFeatureStatsAddon";
 
 export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
