@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import maplibregl from "maplibre-gl";
 
 import { useMapSelection } from "@carma-mapping/contexts";
+import { utils } from "@carma-appframeworks/portals";
 
 import {
   addCompletedVectorLayer,
@@ -26,7 +27,6 @@ import {
   createVectorFeature,
   onClickTopicMap,
   onSelectionChangedVector,
-  zoomToFeatureMaplibre,
 } from "../../components/GeoportalMap/topicmap.utils";
 import { addFeatureInfoCrosshair } from "../../components/feature-info/featureInfoMarker";
 
@@ -275,7 +275,7 @@ export const useLibreMapSelectionHandler = (
         if (feature) {
           dispatch(setSelectedFeature(feature));
           if (isReclick && map) {
-            zoomToFeatureMaplibre(map, feature);
+            utils.zoomToFeature({ selectedFeature: feature, libreMap: map });
           }
         } else {
           dispatch(setSelectedFeature(null));
