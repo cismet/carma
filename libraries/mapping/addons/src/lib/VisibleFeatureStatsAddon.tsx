@@ -211,23 +211,32 @@ const catalogLayerIdOf = (feature: MapGeoJSONFeature): string | undefined => {
   return layerId?.includes("::") ? layerId.split("::")[0] : undefined;
 };
 
+/** prefixes keep a category named "POI" apart from a source layer named "poi" */
+const CATEGORY_PREFIX = "category:";
+const SOURCE_PREFIX = "source:";
+
 /**
- * Two POI layers from the same vector source collapse into a single `poi` row
- * in the hook's `countsByLayer`, which is what makes it useless here. So group
- * by the data source (`sourceLayer`) and split each group by the catalog layer
- * that actually drew the feature — the label comes from the layer stack, so it
- * reads "Trinkwasserbrunnen", not "layer-poi-3".
+ * Groups are the "Karteninhalte" categories the layers were picked from — POI,
+ * Verkehr, Immobilien, Basis — and each group splits by the catalog layer that
+ * actually drew the feature, labelled with its stack title. So "Baujahr
+ * Wohngebäude" and "Baujahr Nicht-Wohngebäude" sit under "Immobilien", and
+ * "Trinkwasserbrunnen" under "POI", the way the catalog itself presents them.
+ *
+ * Features the composer never stamped (basemap, anything added outside it) have
+ * no catalog layer and therefore no category; they fall back to the vector
+ * tile's own `sourceLayer`, which is what this used to group everything by.
  *
  * Only possible from the feature list, which the hook caps at `maxFeatures` and
- * drops entirely in overview mode; `flatGroups` below covers that case.
+ * drops entirely in overview mode; the addon opts out of that cap.
  */
 const buildGroups = (
   features: MapGeoJSONFeature[],
-  titles: Map<string, string>
+  layers: Map<string, LayerMeta>
 ): LayerStatsGroup[] => {
   const groups = new Map<
     string,
     {
+      label: string;
       count: number;
       children: Map<string, number>;
       shapes: Map<MarkShape, number>;
@@ -235,22 +244,40 @@ const buildGroups = (
   >();
 
   for (const feature of features) {
-    const groupKey =
-      feature.sourceLayer || stripNamespace(feature.source) || "other";
+    const layerId = catalogLayerIdOf(feature);
+    const category = layerId ? layers.get(layerId)?.category : undefined;
+
+    let groupKey: string;
+    let groupLabel: string;
+    if (category) {
+      groupKey = CATEGORY_PREFIX + category;
+      // catalog titles are already written for reading
+      groupLabel = category;
+    } else {
+      const source =
+        feature.sourceLayer || stripNamespace(feature.source) || "other";
+      groupKey = SOURCE_PREFIX + source;
+      groupLabel = humanizeKey(source);
+    }
+
     let group = groups.get(groupKey);
     if (!group) {
-      group = { count: 0, children: new Map(), shapes: new Map() };
+      group = {
+        label: groupLabel,
+        count: 0,
+        children: new Map(),
+        shapes: new Map(),
+      };
       groups.set(groupKey, group);
     }
     group.count++;
 
-    const childKey = catalogLayerIdOf(feature);
-    if (childKey) {
-      group.children.set(childKey, (group.children.get(childKey) ?? 0) + 1);
+    if (layerId) {
+      group.children.set(layerId, (group.children.get(layerId) ?? 0) + 1);
     }
 
-    // a source layer is usually homogeneous, but a mixed one should be marked
-    // as whatever it mostly draws rather than as whatever came first
+    // a category is usually homogeneous, but a mixed one should be marked as
+    // whatever it mostly draws rather than as whatever came first
     const shape = shapeOfGeometry(feature.geometry.type);
     group.shapes.set(shape, (group.shapes.get(shape) ?? 0) + 1);
   }
@@ -262,50 +289,74 @@ const buildGroups = (
     [...counts.entries()]
       .map(([key, count]) => ({
         key,
-        label: titles.get(key) ?? humanizeKey(key),
+        label: layers.get(key)?.title ?? humanizeKey(key),
         count,
       }))
       .sort((a, b) => b.count - a.count);
 
   return [...groups.entries()]
-    .map(([key, { count, children, shapes }]) => ({
+    .map(([key, { label, count, children, shapes }]) => ({
       key,
-      label: humanizeKey(key),
+      label,
       count,
       shape: dominantShape(shapes),
-      // always broken down, including the single-child case where the child row
-      // repeats the group total — naming the catalog layer is worth the repeat
+      // always listed, even when a category holds a single layer and the child
+      // row repeats the group total — the layer name is the point
       children: toRows(children),
     }))
     .sort((a, b) => b.count - a.count);
 };
 
-type LayerTitleState = { mapping?: { layers?: LayerStackEntry[] } };
+type LayerStackState = { mapping?: { layers?: LayerStackEntry[] } };
 
-const collectTitles = (
+/** what the layer stack knows about one layer id */
+type LayerMeta = { title: string; category?: string };
+
+/**
+ * The catalog category a layer was picked from. The catalog writes it as the
+ * layer's first tag (`layerHelper.ts`: `tags[0] = categoryObject.Title`), and on
+ * a stack entry it survives under `other` or `layerInfo` — the same two places
+ * geoportal reads for favourites (`layer-favorite-utils.ts`).
+ *
+ * Not to be confused with `layer.group`, which is only filled for user-made
+ * layer groups in the sidebar (`layerStack.ts`, `maskMemberWithGroup`).
+ */
+const categoryOf = (entry: LayerStackEntry): string | undefined => {
+  const { other, layerInfo } = entry as {
+    other?: { tags?: unknown };
+    layerInfo?: { tags?: unknown };
+  };
+  const tags = other?.tags ?? layerInfo?.tags;
+  const first = Array.isArray(tags) ? (tags as unknown[])[0] : undefined;
+  return typeof first === "string" && first.trim() ? first.trim() : undefined;
+};
+
+const collectLayerMeta = (
   entries: LayerStackEntry[] | undefined,
-  into: Map<string, string>
+  into: Map<string, LayerMeta>
 ) => {
   for (const entry of entries ?? []) {
-    if (entry.id && entry.title) into.set(entry.id, entry.title);
+    if (entry.id && entry.title) {
+      into.set(entry.id, { title: entry.title, category: categoryOf(entry) });
+    }
     // groups carry their members in `layers`
     const nested = (entry as { layers?: LayerStackEntry[] }).layers;
-    if (nested) collectTitles(nested, into);
+    if (nested) collectLayerMeta(nested, into);
   }
   return into;
 };
 
 /**
- * Layer id -> readable title, straight from the host app's layer stack. Read
- * through the store prop rather than `useSelector`, since libraries must not
- * depend on react-redux; the snapshot is the `layers` array itself, so an
- * unrelated action does not re-render the panel.
+ * Layer id -> title and catalog category, straight from the host app's layer
+ * stack. Read through the store prop rather than `useSelector`, since libraries
+ * must not depend on react-redux; the snapshot is the `layers` array itself, so
+ * an unrelated action does not re-render the panel.
  */
-const useLayerTitles = (store: Store): Map<string, string> => {
+const useLayerIndex = (store: Store): Map<string, LayerMeta> => {
   const layerStack = useSyncExternalStore(store.subscribe, () => {
-    return (store.getState() as LayerTitleState).mapping?.layers;
+    return (store.getState() as LayerStackState).mapping?.layers;
   });
-  return useMemo(() => collectTitles(layerStack, new Map()), [layerStack]);
+  return useMemo(() => collectLayerMeta(layerStack, new Map()), [layerStack]);
 };
 
 /**
@@ -678,10 +729,10 @@ export const VisibleFeatureStatsAddon = ({
     filter: excludeDebugBox,
   });
 
-  const titles = useLayerTitles(store);
+  const layerIndex = useLayerIndex(store);
   const groups = useMemo(
-    () => buildGroups(features, titles),
-    [features, titles]
+    () => buildGroups(features, layerIndex),
+    [features, layerIndex]
   );
   const coloredGroups = useStableSeriesColors(groups);
 
