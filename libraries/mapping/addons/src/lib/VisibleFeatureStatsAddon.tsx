@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import type { Store } from "redux";
 
@@ -91,6 +97,50 @@ const DEFAULT_PANEL_MAX_ROWS = 8;
 const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
 const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
 
+/**
+ * The geoportal body stack (`apps/geoportal/src/app/index.css`). Set explicitly
+ * instead of relying on inheritance so the panel reads the same in a story, in
+ * BELIS, or in any host that ships a different body font.
+ */
+const FONT_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif';
+
+/**
+ * Categorical slots, validated against a white surface: every adjacent pair
+ * keeps ΔE ≥ 8 (OKLab ×100) under protanopia/deuteranopia/tritanopia, so
+ * neighbouring rows and neighbouring bar segments stay tellable apart. Three of
+ * them sit below 3:1 contrast on white, which is why every swatch is paired
+ * with a written label and a number — colour never carries a value alone.
+ *
+ * Assigned per group key in first-seen order (`useStableSeriesColors`), never
+ * by rank: rows are sorted by count, and panning reorders them, so a rank-based
+ * palette would repaint a group the reader has already learned.
+ */
+const SERIES_COLORS = [
+  "#2a78d6", // blue
+  "#eb6834", // orange
+  "#1baf7a", // aqua
+  "#eda100", // yellow
+  "#e87ba4", // magenta
+  "#008300", // green
+  "#4a3aa7", // violet
+  "#e34948", // red
+];
+
+/** folded-away sources, and any group past the eighth slot */
+const REST_COLOR = "#c3c2b7";
+
+const INK = {
+  /** heading — the deepest step of the same blue ramp slot 1 comes from */
+  title: "#0d366b",
+  primary: "#0b0b0b",
+  secondary: "#52514e",
+  /** empty proportion bar */
+  track: "#e1e0d9",
+};
+
+const formatCount = new Intl.NumberFormat("de-DE").format;
+
 /** module-level so the identity is stable across renders */
 const excludeDebugBox = (feature: {
   source?: string;
@@ -112,7 +162,23 @@ const resolveInset = (
 };
 
 export type LayerStatsRow = { key: string; label: string; count: number };
-export type LayerStatsGroup = LayerStatsRow & { children: LayerStatsRow[] };
+
+/** how a group is marked in the legend — mirrors the geometry it is drawn as */
+export type MarkShape = "area" | "line" | "point";
+
+export type LayerStatsGroup = LayerStatsRow & {
+  shape: MarkShape;
+  children: LayerStatsRow[];
+};
+
+/** a group with its swatch colour resolved, see `useStableSeriesColors` */
+export type ColoredStatsGroup = LayerStatsGroup & { color: string };
+
+const shapeOfGeometry = (type: string): MarkShape => {
+  if (type.includes("Polygon")) return "area";
+  if (type.includes("LineString")) return "line";
+  return "point";
+};
 
 /** "layer-poi-3::poi" -> "poi"; ids without a namespace are returned as-is */
 const stripNamespace = (id: string | undefined) => {
@@ -161,7 +227,11 @@ const buildGroups = (
 ): LayerStatsGroup[] => {
   const groups = new Map<
     string,
-    { count: number; children: Map<string, number> }
+    {
+      count: number;
+      children: Map<string, number>;
+      shapes: Map<MarkShape, number>;
+    }
   >();
 
   for (const feature of features) {
@@ -169,7 +239,7 @@ const buildGroups = (
       feature.sourceLayer || stripNamespace(feature.source) || "other";
     let group = groups.get(groupKey);
     if (!group) {
-      group = { count: 0, children: new Map() };
+      group = { count: 0, children: new Map(), shapes: new Map() };
       groups.set(groupKey, group);
     }
     group.count++;
@@ -178,7 +248,15 @@ const buildGroups = (
     if (childKey) {
       group.children.set(childKey, (group.children.get(childKey) ?? 0) + 1);
     }
+
+    // a source layer is usually homogeneous, but a mixed one should be marked
+    // as whatever it mostly draws rather than as whatever came first
+    const shape = shapeOfGeometry(feature.geometry.type);
+    group.shapes.set(shape, (group.shapes.get(shape) ?? 0) + 1);
   }
+
+  const dominantShape = (shapes: Map<MarkShape, number>): MarkShape =>
+    [...shapes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "point";
 
   const toRows = (counts: Map<string, number>): LayerStatsRow[] =>
     [...counts.entries()]
@@ -190,12 +268,14 @@ const buildGroups = (
       .sort((a, b) => b.count - a.count);
 
   return [...groups.entries()]
-    .map(([key, { count, children }]) => ({
+    .map(([key, { count, children, shapes }]) => ({
       key,
       label: humanizeKey(key),
       count,
-      // a single child adds a row that just repeats the group total
-      children: children.size > 1 ? toRows(children) : [],
+      shape: dominantShape(shapes),
+      // always broken down, including the single-child case where the child row
+      // repeats the group total — naming the catalog layer is worth the repeat
+      children: toRows(children),
     }))
     .sort((a, b) => b.count - a.count);
 };
@@ -344,6 +424,28 @@ const useDebugBoundsBox = (
 };
 
 /**
+ * Legend mark. The shape repeats the geometry the group is drawn with, so it is
+ * a second, non-colour channel for identity: filled square for areas, dot for
+ * points, short rule for lines.
+ */
+const Swatch = ({ shape, color }: { shape: MarkShape; color: string }) => (
+  <span
+    aria-hidden
+    className={
+      shape === "line"
+        ? "h-[3px] w-[10px] shrink-0 rounded-full"
+        : `h-[9px] w-[9px] shrink-0 ${
+            shape === "point" ? "rounded-full" : "rounded-[2px]"
+          }`
+    }
+    style={{ backgroundColor: color }}
+  />
+);
+
+/** swatch width + row gap, so child rows line up under their parent's label */
+const CHILD_INDENT_PX = 19;
+
+/**
  * Presentational half: props in, markup out. No map, no hooks — so it can be
  * rendered from a story or a test without a MapLibre instance, and restyled
  * without touching the query logic above.
@@ -359,60 +461,173 @@ export const VisibleFeatureStatsPanel = ({
   maxRows,
 }: {
   totalCount: number;
-  groups: LayerStatsGroup[];
+  groups: ColoredStatsGroup[];
   isLoading: boolean;
   maxRows: number;
 }) => {
   const shown = groups.slice(0, maxRows);
-  const hidden = groups.length - shown.length;
+  const folded = groups.slice(maxRows);
+  const foldedCount = folded.reduce((sum, group) => sum + group.count, 0);
+
+  // the bar is drawn from the rows themselves rather than from `totalCount`, so
+  // the segments always add up to exactly what the list below shows
+  const segments = [
+    ...shown,
+    ...(folded.length > 0
+      ? [
+          {
+            key: "__rest__",
+            label: `${folded.length} weitere Quellen`,
+            count: foldedCount,
+            color: REST_COLOR,
+          },
+        ]
+      : []),
+  ].filter((segment) => segment.count > 0);
+  const barTotal = segments.reduce((sum, segment) => sum + segment.count, 0);
+
+  // a settled viewport stays on screen while the next one is queried — dimmed
+  // rather than replaced by a skeleton, so nothing jumps on every pan
+  const staleness = { opacity: isLoading ? 0.45 : 1 };
 
   return (
-    <div className="pointer-events-auto min-w-56 max-w-80 rounded-md bg-white/90 p-2 text-sm shadow-md">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold">Sichtbare Objekte</span>
-        <span className={isLoading ? "text-gray-400" : "font-semibold"}>
-          {totalCount}
+    <div
+      className="pointer-events-auto w-[280px] rounded-lg bg-white/95 px-3.5 py-3 shadow-lg ring-1 ring-black/10"
+      style={{ fontFamily: FONT_STACK }}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <span
+          className="text-[11px] font-semibold uppercase leading-none tracking-[0.09em]"
+          style={{ color: INK.title }}
+        >
+          Sichtbare Objekte
+        </span>
+        <span
+          className="text-[17px] font-semibold leading-none transition-opacity"
+          style={{ color: INK.primary, ...staleness }}
+        >
+          {formatCount(totalCount)}
         </span>
       </div>
 
-      {groups.length === 0 ? (
-        <div className="mt-1 text-xs text-gray-500">
-          {isLoading ? "wird ermittelt …" : "keine Objekte im Ausschnitt"}
-        </div>
-      ) : (
-        <ul className="mt-1 flex flex-col gap-1">
-          {shown.map((group) => (
-            <li key={group.key}>
-              <div className="flex justify-between gap-2 text-xs font-medium">
-                <span className="truncate" title={group.key}>
-                  {group.label}
-                </span>
-                <span className="tabular-nums">{group.count}</span>
-              </div>
-              {group.children.length > 0 && (
-                <ul className="mt-0.5 flex flex-col gap-0.5 border-l border-gray-200 pl-2">
-                  {group.children.slice(0, maxRows).map((child) => (
-                    <li
-                      key={child.key}
-                      className="flex justify-between gap-2 text-xs text-gray-600"
-                    >
-                      <span className="truncate" title={child.key}>
-                        {child.label}
-                      </span>
-                      <span className="tabular-nums">{child.count}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-          {hidden > 0 && (
-            <li className="text-xs text-gray-500">+{hidden} weitere Quellen</li>
+      <div className="transition-opacity" style={staleness}>
+        <div className="mt-2.5 flex h-[5px] gap-[2px]">
+          {segments.length === 0 ? (
+            <span
+              className="flex-1 rounded-full"
+              style={{ backgroundColor: INK.track }}
+            />
+          ) : (
+            segments.map((segment) => (
+              <span
+                key={segment.key}
+                className="rounded-full"
+                title={`${segment.label}: ${formatCount(segment.count)} (${(
+                  (segment.count / barTotal) *
+                  100
+                ).toFixed(1)} %)`}
+                // grow by count, but never thinner than a visible sliver — a
+                // handful of features among thousands still gets a mark
+                style={{
+                  flex: `${segment.count} 1 0`,
+                  minWidth: 3,
+                  backgroundColor: segment.color,
+                }}
+              />
+            ))
           )}
-        </ul>
-      )}
+        </div>
+
+        {groups.length === 0 ? (
+          <p className="mt-3 text-[12px]" style={{ color: INK.secondary }}>
+            {isLoading ? "wird ermittelt …" : "keine Objekte im Ausschnitt"}
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {shown.map((group) => (
+              <li key={group.key}>
+                <div className="flex items-center gap-2.5">
+                  <Swatch shape={group.shape} color={group.color} />
+                  <span
+                    className="flex-1 truncate text-[13px] font-medium"
+                    style={{ color: INK.primary }}
+                    title={group.key}
+                  >
+                    {group.label}
+                  </span>
+                  <span
+                    className="text-[13px] font-medium tabular-nums"
+                    style={{ color: INK.primary }}
+                  >
+                    {formatCount(group.count)}
+                  </span>
+                </div>
+                {group.children.length > 0 && (
+                  <ul
+                    className="mt-1 flex flex-col gap-1"
+                    style={{ paddingLeft: CHILD_INDENT_PX }}
+                  >
+                    {group.children.slice(0, maxRows).map((child) => (
+                      <li
+                        key={child.key}
+                        className="flex items-center gap-2.5 text-[12px]"
+                        style={{ color: INK.secondary }}
+                      >
+                        <span className="flex-1 truncate" title={child.key}>
+                          {child.label}
+                        </span>
+                        <span className="tabular-nums">
+                          {formatCount(child.count)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+            {folded.length > 0 && (
+              <li
+                className="flex items-center gap-2.5 text-[12px]"
+                style={{ color: INK.secondary }}
+              >
+                <Swatch shape="area" color={REST_COLOR} />
+                <span className="flex-1 truncate">
+                  {folded.length} weitere Quellen
+                </span>
+                <span className="tabular-nums">{formatCount(foldedCount)}</span>
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
     </div>
   );
+};
+
+/**
+ * Group key -> palette slot, in the order the keys were first seen and kept for
+ * the life of the addon. Rows are sorted by count and panning reorders them, so
+ * indexing the palette by row position would repaint every group on every pan;
+ * this way "Wohngebäude is blue" holds for the whole session. Slots run out
+ * after eight — anything later shares the neutral, which is also what the
+ * folded tail wears.
+ */
+const useStableSeriesColors = (
+  groups: LayerStatsGroup[]
+): ColoredStatsGroup[] => {
+  const slots = useRef<Map<string, number>>(new Map());
+
+  return useMemo(() => {
+    const assigned = slots.current;
+    return groups.map((group) => {
+      let slot = assigned.get(group.key);
+      if (slot === undefined) {
+        slot = assigned.size;
+        assigned.set(group.key, slot);
+      }
+      return { ...group, color: SERIES_COLORS[slot] ?? REST_COLOR };
+    });
+  }, [groups]);
 };
 
 export const VisibleFeatureStatsAddon = ({
@@ -468,6 +683,7 @@ export const VisibleFeatureStatsAddon = ({
     () => buildGroups(features, titles),
     [features, titles]
   );
+  const coloredGroups = useStableSeriesColors(groups);
 
   useEffect(() => {
     // `isLoading` is true from `movestart` until the query settles — skip the
@@ -491,7 +707,7 @@ export const VisibleFeatureStatsAddon = ({
     <Control position={panelPosition} order={panelOrder}>
       <VisibleFeatureStatsPanel
         totalCount={totalCount}
-        groups={groups}
+        groups={coloredGroups}
         isLoading={isLoading}
         maxRows={panelMaxRows}
       />
