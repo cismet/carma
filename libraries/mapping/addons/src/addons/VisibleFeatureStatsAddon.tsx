@@ -139,6 +139,9 @@ const excludeDebugBox = (feature: {
 
 const SHOW_BORDER_PARAM = "showBr";
 
+const isLocalhost = () =>
+  typeof window !== "undefined" && window.location.hostname === "localhost";
+
 const readShowBorderParam = (): boolean | undefined => {
   if (typeof window === "undefined") return undefined;
   const hashQuery = window.location.hash.split("?")[1] || "";
@@ -706,7 +709,7 @@ export const VisibleFeatureStatsAddon = ({
   // read once per mount: the geoportal hash state rewrites the hash as the user
   // pans, so a live read would lose the param the moment it is dropped
   const showBorderParam = useMemo(readShowBorderParam, []);
-  const showBorder = showBorderParam ?? showDebugBounds;
+  const showBorder = showBorderParam ?? (showDebugBounds && isLocalhost());
 
   const { width, height } = useMapCanvasSize(libreMap);
   useDebugBoundsBox(libreMap, showBorder, inset);
