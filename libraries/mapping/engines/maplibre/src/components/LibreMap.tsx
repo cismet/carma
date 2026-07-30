@@ -458,6 +458,34 @@ export const LibreMap = ({
     selectedFeaturesRef.current.clear();
   }, []);
 
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) {
+      return;
+    }
+    const handlers = [
+      mapInstance.scrollZoom,
+      mapInstance.boxZoom,
+      mapInstance.dragRotate,
+      mapInstance.dragPan,
+      mapInstance.keyboard,
+      mapInstance.doubleClickZoom,
+      mapInstance.touchZoomRotate,
+      mapInstance.touchPitch,
+    ];
+    for (const handler of handlers) {
+      if (interactive) {
+        handler.enable();
+      } else {
+        handler.disable();
+      }
+    }
+    // the class carries the grab cursor styling
+    mapInstance
+      .getCanvasContainer()
+      .classList.toggle("maplibregl-interactive", interactive);
+  }, [interactive]);
+
   // Helper: apply visual selection highlighting for a feature
   const applyVisualSelection = useCallback(
     (
