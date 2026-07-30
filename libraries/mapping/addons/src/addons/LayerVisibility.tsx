@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { isLayerGroup, type LayerStackEntry } from "@carma-mapping/layers";
 
-import type { AddonComponentProps, AddonLayerButton } from "./registry";
+import type { AddonComponentProps, AddonTrigger } from "../lib/registry";
 
 export type LayerVisibilityConfig = {
   labels?: { hide: string; show: string };
@@ -32,7 +32,7 @@ const toggleButtonStyle: CSSProperties = {
 const members = (target: LayerStackEntry | null) =>
   target && isLayerGroup(target) ? target.layers : [];
 
-export const layerVisibilityLayerButton: AddonLayerButton<"layerVisibility"> = {
+export const layerVisibilityTrigger: AddonTrigger<"layerVisibility"> = {
   icon: faFilter,
   label: ({ config }) => config?.buttonLabel ?? DEFAULT_BUTTON_LABEL,
   badge: ({ target }) =>
@@ -40,7 +40,7 @@ export const layerVisibilityLayerButton: AddonLayerButton<"layerVisibility"> = {
   isApplicable: ({ target }) => members(target).length > 0,
 };
 
-export const LayerVisibilityAddon = ({
+export const LayerVisibility = ({
   config,
   carma,
   target,

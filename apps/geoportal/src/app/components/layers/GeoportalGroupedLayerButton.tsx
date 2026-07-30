@@ -31,8 +31,8 @@ import {
 } from "../../store/slices/mapping";
 import { getUIShowLayerHideButtons } from "../../store/slices/ui";
 import {
-  getTargetAddonsWithButton,
-  resolveAddonLayerButton,
+  getTargetAddonsWithTrigger,
+  resolveAddonTrigger,
   toAddonButtonId,
 } from "@carma-mapping/addons";
 import { resolveGeoportalLayerButtonCloseIcon } from "../../hooks/use-geoportal-layer-button-actions";
@@ -72,7 +72,7 @@ const GeoportalGroupedLayerButton = ({
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const hasInfoView = layerGroupHasInfoView(group);
   const isSelected = selectedLayerIndex === index;
-  const groupAddons = getTargetAddonsWithButton(group);
+  const groupAddons = getTargetAddonsWithTrigger(group);
   const isInteractionActive = activeInteractionLayerID === group.id;
 
   const { attributes, listeners, setNodeRef, transform } = useSortable({
@@ -149,15 +149,15 @@ const GeoportalGroupedLayerButton = ({
         <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
         <span className="text-base ml-1">{group.title}</span>
         {groupAddons.map((addon) => {
-          const addonButton = resolveAddonLayerButton(addon, group);
-          if (!addonButton) {
+          const addonTrigger = resolveAddonTrigger(addon, group);
+          if (!addonTrigger) {
             return null;
           }
           const buttonId = toAddonButtonId(addon.kind);
           const isAddonActive =
             isInteractionActive && activeInteractionButtonID === buttonId;
           return (
-            <Tooltip key={addon.kind} title={addonButton.label}>
+            <Tooltip key={addon.kind} title={addonTrigger.label}>
               <button
                 type="button"
                 id={`layerInteractionButton-${group.id}-${addon.kind}`}
@@ -169,8 +169,8 @@ const GeoportalGroupedLayerButton = ({
                   e.preventDefault();
                   e.stopPropagation();
                   // action kinds run straight away and open nothing
-                  if (addonButton.onClick) {
-                    addonButton.onClick();
+                  if (addonTrigger.onClick) {
+                    addonTrigger.onClick();
                     return;
                   }
                   // opening one tool closes the previous one, since both ids
@@ -182,11 +182,11 @@ const GeoportalGroupedLayerButton = ({
                     setActiveInteractionButtonID(isAddonActive ? null : buttonId)
                   );
                 }}
-                aria-label={addonButton.label}
+                aria-label={addonTrigger.label}
               >
-                <Badge count={addonButton.badge} size="small" color="#4b5563">
+                <Badge count={addonTrigger.badge} size="small" color="#4b5563">
                   <FontAwesomeIcon
-                    icon={addonButton.icon}
+                    icon={addonTrigger.icon}
                     className={cn(
                       "text-sm",
                       isAddonActive

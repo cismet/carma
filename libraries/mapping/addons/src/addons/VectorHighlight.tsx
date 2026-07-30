@@ -7,7 +7,7 @@ import {
   useLassoHighlight,
 } from "@carma-mapping/engines/maplibre";
 
-import type { AddonComponentProps } from "./registry";
+import type { AddonComponentProps } from "../lib/registry";
 
 /**
  * Highlight/dim addon for the MapLibre map (`featureFlagLibreMap`, alias `ng`).
@@ -153,7 +153,7 @@ const createDimController = (
   };
 };
 
-export const VectorHighlightAddon = ({
+export const VectorHighlight = ({
   config,
   libreMap,
 }: AddonComponentProps<"vectorHighlight">) => {

@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-import type { AddonComponentProps } from "./registry";
+import type { AddonComponentProps } from "../lib/registry";
 
-export const GazetteerModeAddon = ({
+export const GazetteerMode = ({
   config,
   carma,
 }: AddonComponentProps<"gazetteerMode">) => {

@@ -2,7 +2,7 @@ import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import {
   resolveAddonEntries,
-  resolveAddonLayerButton,
+  resolveAddonTrigger,
   type AddonEntry,
   type AddonKind,
   type ResolvedAddon,
@@ -14,17 +14,17 @@ import {
  */
 export const toAddonButtonId = (kind: AddonKind): string => `addon_${kind}`;
 
-/** The entries of `target` that have an applicable trigger button. */
-export const getTargetAddonsWithButton = (
+/** The entries of `target` that have an applicable trigger. */
+export const getTargetAddonsWithTrigger = (
   target?: LayerStackEntry | null
 ): ResolvedAddon[] =>
   resolveAddonEntries(
     (target as { tools?: AddonEntry[] } | null | undefined)?.tools
-  ).filter((entry) => Boolean(resolveAddonLayerButton(entry, target ?? null)));
+  ).filter((entry) => Boolean(resolveAddonTrigger(entry, target ?? null)));
 
-export const hasTargetAddonsWithButton = (
+export const hasTargetAddonsWithTrigger = (
   target?: LayerStackEntry | null
-): boolean => getTargetAddonsWithButton(target).length > 0;
+): boolean => getTargetAddonsWithTrigger(target).length > 0;
 
 /** The addon of `target` whose trigger is currently active, if any. */
 export const resolveActiveTargetAddon = (
@@ -32,7 +32,7 @@ export const resolveActiveTargetAddon = (
   activeButtonId?: string | null
 ): ResolvedAddon | undefined =>
   activeButtonId
-    ? getTargetAddonsWithButton(target).find(
+    ? getTargetAddonsWithTrigger(target).find(
         (entry) => toAddonButtonId(entry.kind) === activeButtonId
       )
     : undefined;

@@ -10,22 +10,25 @@ uniform pair:
 
 The `kind` selects a component registered in
 [`registry.ts`](./src/lib/registry.ts); the `config` is the typed payload for
-that kind. All addon wiring lives in `src/lib`:
+that kind. The wiring lives in `src/lib`, the addons themselves in `src/addons`,
+so the second folder is the list of what actually exists:
 
-| File                        | Role                                                          |
-| --------------------------- | ------------------------------------------------------------- |
-| `registry.ts`               | Kind and config types plus the kind -> entry lookup           |
-| `AddonHost.tsx`             | Mounts the active route's addons                              |
-| `TargetAddonHost.tsx`       | Mounts one addon declared on a stack entry                    |
-| `target-addons.ts`          | Trigger ids and the entry lookups the layer button needs      |
-| `GazetteerSourceAddon.tsx`  | Built-in kind: extra source for the default gazetteer search  |
-| `GazetteerModeAddon.tsx`    | Built-in kind: extra mode in the gazetteer mode dropdown      |
-| `LayerVisibilityAddon.tsx`  | Built-in kind: per-member visibility toggles for a group      |
+| File                   | Role                                                     |
+| ---------------------- | -------------------------------------------------------- |
+| `lib/registry.ts`      | Kind and config types plus the kind -> entry lookup      |
+| `lib/AddonHost.tsx`    | Mounts the active route's addons                         |
+| `lib/TargetAddonHost.tsx` | Mounts one addon declared on a stack entry            |
+| `lib/target-addons.ts` | Trigger ids and the entry lookups the layer button needs |
 
-The library expects the host app to provide the carma api adapters
-(`CarmaMapProviderWrapper`), the react-cismap `TopicMapContext` and a
-react-redux provider; `AddonHost` reads the store from that provider via
-`useStore()`, so it stays independent of any app's store type.
+| Addon                       | Kind                                                     |
+| --------------------------- | -------------------------------------------------------- |
+| `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
+| `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
+| `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
+| `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
+
+An addon that needs more than one file gets its own folder there
+(`addons/CameraTour/index.tsx` plus its parts).
 
 ## The two declaration sites
 
@@ -72,11 +75,11 @@ two libraries circular. Declaration sites keep full kind checking by narrowing t
 There is no `surface` field. An addon renders whatever it wants, and one optional
 registry field decides where that lands:
 
-| Entry                            | Clicking the trigger      | Renders                                    |
-| -------------------------------- | ------------------------- | ------------------------------------------ |
-| `layerButton` with `onClick`     | runs the action at once   | nothing; the kind needs no `Component`     |
-| `layerButton` without `onClick`  | toggles the kind's panel  | `Component`, in the interaction view       |
-| no `layerButton`                 | (no trigger)              | `Component`, mounted by the addon host, wherever it renders, including `<Control>` |
+| Entry                        | Clicking the trigger     | Renders                                |
+| ---------------------------- | ------------------------ | -------------------------------------- |
+| `trigger` with `onClick`     | runs the action at once  | nothing; the kind needs no `Component` |
+| `trigger` without `onClick`  | toggles the kind's panel | `Component`, in the interaction view   |
+| no `trigger`                 | (nothing to click)       | `Component`, mounted by the addon host, wherever it renders, including `<Control>` |
 
 Because each entry has exactly one mount point, a tool with a trigger is never also
 mounted headlessly.
@@ -86,7 +89,7 @@ mounted headlessly.
 than rendering them in place, so any addon may position itself on the map:
 
 ```tsx
-export const SomeAddon = ({ config }: AddonComponentProps<"someKind">) => (
+export const SomeKind = ({ config }: AddonComponentProps<"someKind">) => (
   <Control position="topright" order={10}>
     <SomePanel {...config} />
   </Control>
@@ -120,15 +123,16 @@ until the new kind has a component.
 
 ### 2. Write the component
 
-Create the component in `src/lib` (one file per kind) and export it from
-`src/index.ts`. It receives `AddonComponentProps<"yourKind">` and typically
-renders `null`; it interacts with the app through its props:
+Create the component in `src/addons` (one file per kind, or a folder per kind if
+it needs several) and export it from `src/index.ts`. It receives
+`AddonComponentProps<"yourKind">` and typically renders `null`; it interacts
+with the app through its props:
 
 ```tsx
 import { useEffect } from "react";
-import type { AddonComponentProps } from "./registry";
+import type { AddonComponentProps } from "../lib/registry";
 
-export const CameraTourAddon = ({
+export const CameraTour = ({
   config,
   carma,
   leafletMap,
@@ -179,12 +183,12 @@ route's `addons` acts route-wide and receives `null`; the same kind declared in 
 stack entry's `tools` receives that entry. A kind that needs a target should guard on
 it rather than assume one.
 
-`GazetteerModeAddon` is the canonical example of an addon that extends the
+`GazetteerMode` is the canonical example of an addon that extends the
 app through the carma api; `addMode`/`addSource` return their remover,
 so the registration is exactly one effect:
 
 ```tsx
-export const GazetteerModeAddon = ({
+export const GazetteerMode = ({
   config,
   carma,
 }: AddonComponentProps<"gazetteerMode">) => {
@@ -202,27 +206,28 @@ internals.
 ### 3. Register the component
 
 ```ts
-import { CameraTourAddon } from "./CameraTourAddon";
+import { CameraTour } from "../addons/CameraTour";
 
 export const addonRegistry: {
   [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
-  gazetteerSource: { Component: GazetteerSourceAddon },
-  gazetteerMode: { Component: GazetteerModeAddon },
-  cameraTour: { Component: CameraTourAddon },
+  gazetteerSource: { Component: GazetteerSource },
+  gazetteerMode: { Component: GazetteerMode },
+  cameraTour: { Component: CameraTour },
 };
 ```
 
 The entry is a record rather than the component alone so a kind can declare metadata
 the host needs before the component renders.
 
-### 4. Optionally, opt in to a layer-button trigger
+### 4. Optionally, opt in to a trigger
 
-A kind that should be opened from a stack entry's layer button adds `layerButton`.
-The component then renders as that trigger's panel:
+A kind that should be opened from a stack entry adds `trigger`: an icon the
+entry's layer button renders next to its title. The component then renders as
+that trigger's panel:
 
 ```ts
-export const cameraTourLayerButton: AddonLayerButton<"cameraTour"> = {
+export const cameraTourTrigger: AddonTrigger<"cameraTour"> = {
   icon: faVideo,
   label: ({ config }) => config?.buttonLabel ?? "Kameratour",
   // optional count on the trigger
@@ -232,17 +237,17 @@ export const cameraTourLayerButton: AddonLayerButton<"cameraTour"> = {
 };
 ```
 
-`label`, `badge` and `isApplicable` receive `{ config, target }`, so the button can
+`label`, `badge` and `isApplicable` receive `{ config, target }`, so the trigger can
 reflect the entry it belongs to. `isApplicable` returning false hides the trigger
 entirely, which is also what makes a target-dependent kind harmless if it is ever
 declared on a route, where `target` is `null`.
 
 **Action kinds: do the thing on click, open nothing.** Add `onClick` and the trigger
 behaves like the measurement layer's layerbar actions rather than a panel toggle. The
-kind then needs no `Component`, and its entry is just the button:
+kind then needs no `Component`, and its entry is just the trigger:
 
 ```ts
-export const zoomToLayerButton: AddonLayerButton<"zoomTo"> = {
+export const zoomToTrigger: AddonTrigger<"zoomTo"> = {
   icon: faSearchLocation,
   label: ({ config }) => config?.buttonLabel ?? "Auf die Gruppe zoomen",
   isApplicable: ({ target }) => Boolean(unionExtent(target)),
@@ -256,7 +261,7 @@ export const zoomToLayerButton: AddonLayerButton<"zoomTo"> = {
 
 export const addonRegistry = {
   // ...
-  zoomTo: { layerButton: zoomToLayerButton },
+  zoomTo: { trigger: zoomToTrigger },
 };
 ```
 
@@ -307,7 +312,7 @@ workflows: [
 ],
 ```
 
-Each declared tool with a `layerButton` gets its own trigger in the group's layer
+Each declared tool with a `trigger` gets its own icon in the group's layer
 button, in declaration order. Opening one closes the others.
 
 That is all; there is no further wiring.
@@ -315,7 +320,8 @@ That is all; there is no further wiring.
 
 ## Guidelines
 
-- One component per addon kind, in its own file in `src/lib`.
+- One component per addon kind, in its own file (or folder) in `src/addons`,
+  named after the kind and without an `Addon` suffix.
 - Addon components must render `null` or self-contained UI; they must not
   assume anything about the surrounding layout.
 - Register api-based extensions (gazetteer modes, layers, ...) in `useEffect`

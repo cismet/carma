@@ -12,17 +12,17 @@ import type {
 } from "@carma-mapping/fuzzy-search";
 import type { LayerStackEntry } from "@carma-mapping/layers";
 
-import { GazetteerModeAddon } from "./GazetteerModeAddon";
-import { GazetteerSourceAddon } from "./GazetteerSourceAddon";
+import { GazetteerMode } from "../addons/GazetteerMode";
+import { GazetteerSource } from "../addons/GazetteerSource";
 import {
-  VectorHighlightAddon,
+  VectorHighlight,
   type VectorHighlightConfig,
-} from "./VectorHighlightAddon";
+} from "../addons/VectorHighlight";
 import {
-  LayerVisibilityAddon,
-  layerVisibilityLayerButton,
+  LayerVisibility,
+  layerVisibilityTrigger,
   type LayerVisibilityConfig,
-} from "./LayerVisibilityAddon";
+} from "../addons/LayerVisibility";
 
 export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
@@ -71,12 +71,13 @@ export type AddonActionContext<K extends AddonKind = AddonKind> =
   AddonContext<K> & { carma: typeof carma };
 
 /**
- * Opt in to a trigger button in the layer button. Declaring this also decides
- * where the addon is mounted: entries with a `layerButton` are rendered into
- * the interaction view while their button is active, entries without one are
- * mounted by `AddonHost` and render wherever they like, including `<Control>`.
+ * Opt in to a trigger inside the target's layer button: an icon the layer
+ * button renders next to its title. Declaring this also decides where the
+ * addon is mounted: entries with a `trigger` are rendered into the interaction
+ * view while their trigger is active, entries without one are mounted by
+ * `AddonHost` and render wherever they like, including `<Control>`.
  */
-export type AddonLayerButton<K extends AddonKind = AddonKind> = {
+export type AddonTrigger<K extends AddonKind = AddonKind> = {
   icon: IconDefinition;
   label: (ctx: AddonContext<K>) => string;
   badge?: (ctx: AddonContext<K>) => number;
@@ -86,19 +87,19 @@ export type AddonLayerButton<K extends AddonKind = AddonKind> = {
 
 export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
   Component?: ComponentType<AddonComponentProps<K>>;
-  layerButton?: AddonLayerButton<K>;
+  trigger?: AddonTrigger<K>;
 };
 
 /** kind -> entry lookup used by the hosts */
 export const addonRegistry: {
   [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
-  gazetteerSource: { Component: GazetteerSourceAddon },
-  gazetteerMode: { Component: GazetteerModeAddon },
-  vectorHighlight: { Component: VectorHighlightAddon },
+  gazetteerSource: { Component: GazetteerSource },
+  gazetteerMode: { Component: GazetteerMode },
+  vectorHighlight: { Component: VectorHighlight },
   layerVisibility: {
-    Component: LayerVisibilityAddon,
-    layerButton: layerVisibilityLayerButton,
+    Component: LayerVisibility,
+    trigger: layerVisibilityTrigger,
   },
 };
 
@@ -106,11 +107,11 @@ const isKnownKind = (kind: string): kind is AddonKind =>
   Object.prototype.hasOwnProperty.call(addonRegistry, kind);
 
 /**
- * Resolve an entry's trigger button against its target, or `undefined` when
- * the kind has no button or is not applicable to this target. Keeps the
- * per-kind generics contained; callers see plain values.
+ * Resolve an entry's trigger against its target, or `undefined` when the kind
+ * has no trigger or is not applicable to this target. Keeps the per-kind
+ * generics contained; callers see plain values.
  */
-export const resolveAddonLayerButton = (
+export const resolveAddonTrigger = (
   addon: ResolvedAddon,
   target: LayerStackEntry | null
 ):
@@ -121,21 +122,21 @@ export const resolveAddonLayerButton = (
       onClick?: () => void;
     }
   | undefined => {
-  const layerButton = addonRegistry[addon.kind].layerButton as
-    | AddonLayerButton<AddonKind>
+  const trigger = addonRegistry[addon.kind].trigger as
+    | AddonTrigger<AddonKind>
     | undefined;
-  if (!layerButton) {
+  if (!trigger) {
     return undefined;
   }
   const ctx: AddonContext<AddonKind> = { config: addon.config, target };
-  if (layerButton.isApplicable?.(ctx) === false) {
+  if (trigger.isApplicable?.(ctx) === false) {
     return undefined;
   }
-  const { onClick } = layerButton;
+  const { onClick } = trigger;
   return {
-    icon: layerButton.icon,
-    label: layerButton.label(ctx),
-    badge: layerButton.badge?.(ctx) ?? 0,
+    icon: trigger.icon,
+    label: trigger.label(ctx),
+    badge: trigger.badge?.(ctx) ?? 0,
     ...(onClick ? { onClick: () => onClick({ ...ctx, carma }) } : {}),
   };
 };

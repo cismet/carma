@@ -1,8 +1,8 @@
 export { AddonHost } from "./lib/AddonHost";
 export { TargetAddonHost } from "./lib/TargetAddonHost";
 export {
-  getTargetAddonsWithButton,
-  hasTargetAddonsWithButton,
+  getTargetAddonsWithTrigger,
+  hasTargetAddonsWithTrigger,
   resolveActiveTargetAddon,
   toAddonButtonId,
 } from "./lib/target-addons";
@@ -10,7 +10,7 @@ export {
   addonRegistry,
   normalizeAddonEntries,
   resolveAddonEntries,
-  resolveAddonLayerButton,
+  resolveAddonTrigger,
 } from "./lib/registry";
 export type {
   Addon,
@@ -19,16 +19,16 @@ export type {
   AddonContext,
   AddonEntry,
   AddonKind,
-  AddonLayerButton,
   AddonRegistryEntry,
+  AddonTrigger,
   ResolvedAddon,
 } from "./lib/registry";
 
-export { GazetteerModeAddon } from "./lib/GazetteerModeAddon";
-export { GazetteerSourceAddon } from "./lib/GazetteerSourceAddon";
-export { VectorHighlightAddon } from "./lib/VectorHighlightAddon";
-export type { VectorHighlightConfig } from "./lib/VectorHighlightAddon";
+export { GazetteerMode } from "./addons/GazetteerMode";
+export { GazetteerSource } from "./addons/GazetteerSource";
+export { VectorHighlight } from "./addons/VectorHighlight";
+export type { VectorHighlightConfig } from "./addons/VectorHighlight";
 export {
-  LayerVisibilityAddon,
+  LayerVisibility,
   type LayerVisibilityConfig,
-} from "./lib/LayerVisibilityAddon";
+} from "./addons/LayerVisibility";
