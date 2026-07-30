@@ -85,6 +85,7 @@ const DEFAULT_PANEL_MAX_ROWS = 8;
 const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
 const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
 
+/** module-level so the identity is stable across renders */
 const excludeDebugBox = (feature: { source?: string; layer?: { id: string } }) =>
   feature.source !== DEBUG_SOURCE_ID && feature.layer?.id !== DEBUG_LAYER_ID;
 
@@ -326,8 +327,8 @@ export const VisibleFeatureStatsAddon = ({
       // the addon draws its own inset box above, the hook's would be clipped
       showDebugBounds: false,
       layerFilterExpressions: layerFilters,
-      // the debug box is a geojson source on the same map, so it comes back
-      // from queryRenderedFeatures and would count itself as a visible feature
+      // the debug box is a rendered feature like any other, so without this it
+      // counts itself and shows up as its own row in the panel
       filter: excludeDebugBox,
     });
 
