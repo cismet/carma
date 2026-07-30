@@ -1247,6 +1247,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const visibleControls = useSelector(getUIVisibleControls);
+  const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
@@ -1445,7 +1446,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           modalMenuControl={showHamburgerMenu}
           libreLayers={libreLayers}
           disableInternalSelection={true}
-          selectionEnabled={!isModeMeasurement}
+          interactive={mapInteractionEnabled}
+          selectionEnabled={mapInteractionEnabled && !isModeMeasurement}
           onSelectionChanged={handleLibreSelectionChanged}
           selectFromHits={handleLibreSelectFromHits}
           modalMenu={<GeoportalModalMenu />}
