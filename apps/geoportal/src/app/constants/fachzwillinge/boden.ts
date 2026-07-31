@@ -53,7 +53,9 @@ export const bodenFachzwilling: FachzwillingRoute = {
     // showDebugBounds draws the queried rectangle (yellow border) so the
     // measured area can be checked against what is actually on screen.
     // the map container starts at y=0 behind the top navbar, so the box needs a
-    // larger top inset than the other sides to be visible at all
+    // larger top inset than the other sides to be visible at all.
+    // while the highlight mode above runs, the panel counts only the
+    // highlighted features (filterByHighlight, on by default)
     {
       kind: "visibleFeatureStats",
       config: {
