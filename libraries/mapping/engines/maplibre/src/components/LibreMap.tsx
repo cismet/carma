@@ -222,6 +222,12 @@ export interface LibreMapProps {
   logErrors?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */
   exposeMapToWindow?: boolean;
+  /** Re-request tiles once the server's Cache-Control/Expires marks them stale
+   * (default: true, MapLibre's own default). Each refresh repaints the tile
+   * through the raster fade, so a window that is being screen-captured or
+   * projected wants this off; it must be set at construction, since the option
+   * is what decides whether expiry data is recorded at all. */
+  refreshExpiredTiles?: boolean;
   /** Write lat/lng/zoom to the url hash on every moveend (default: true).
    * Set false for a map whose view is driven externally and must not push
    * history entries or seed the next reload's initial view. */
@@ -334,6 +340,7 @@ export const LibreMap = ({
   debugLog = false,
   logErrors = false,
   exposeMapToWindow = false,
+  refreshExpiredTiles = true,
   hashWriteEnabled = true,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
@@ -764,6 +771,7 @@ export const LibreMap = ({
         maxPitch,
         attributionControl: false,
         interactive,
+        refreshExpiredTiles,
         canvasContextAttributes: preserveDrawingBuffer
           ? { preserveDrawingBuffer: true }
           : undefined,

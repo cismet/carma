@@ -389,6 +389,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 logErrors={props.logErrors}
                 exposeMapToWindow={props.exposeMapToWindow}
                 hashWriteEnabled={props.hashWriteEnabled}
+                refreshExpiredTiles={props.refreshExpiredTiles}
                 selectFromHits={miniMap ? undefined : props.selectFromHits}
                 overrideSelectedFeature={
                   miniMap ? undefined : props.overrideSelectedFeature

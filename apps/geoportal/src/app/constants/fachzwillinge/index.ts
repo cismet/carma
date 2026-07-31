@@ -80,6 +80,12 @@ type FachzwillingRouteBase = {
    */
   disableHashWrite?: boolean;
   /**
+   * Stop the map from re-requesting tiles when the server marks them stale.
+   * Every such refresh repaints the tile through the raster fade, which is
+   * visible in a window that is being screen-captured or projected.
+   */
+  disableExpiredTileRefresh?: boolean;
+  /**
    * workflow perspectives shown in the "Workflows" catalog category while the
    * route is open; the category is omitted on routes without perspectives
    * (including the default geoportal route)

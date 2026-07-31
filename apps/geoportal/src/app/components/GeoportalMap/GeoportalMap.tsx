@@ -10,6 +10,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 import {
   BoundingSphere,
   Cartesian3,
@@ -148,6 +149,7 @@ import {
   getUIHashWriteEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
+import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
 import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
@@ -1256,6 +1258,14 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const visibleControls = useSelector(getUIVisibleControls);
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
   const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
+  const { pathname } = useLocation();
+  // resolved from the route, not from the store: the map is constructed on
+  // mount and refreshExpiredTiles only takes effect at construction, so it
+  // cannot wait for RoutedApp to dispatch
+  const refreshExpiredTiles = useMemo(
+    () => !findFachzwillingByPathname(pathname)?.disableExpiredTileRefresh,
+    [pathname]
+  );
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
@@ -1455,6 +1465,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           libreLayers={libreLayers}
           disableInternalSelection={true}
           hashWriteEnabled={hashWriteEnabled}
+          refreshExpiredTiles={refreshExpiredTiles}
           interactive={mapInteractionEnabled}
           selectionEnabled={mapInteractionEnabled && !isModeMeasurement}
           onSelectionChanged={handleLibreSelectionChanged}

@@ -8,6 +8,9 @@ export const outletFachzwilling: FachzwillingRoute = {
   // the addon owns the view; hash writes would only push history entries and
   // seed the next reload with a view that then has to be fitted away again
   disableHashWrite: true,
+  // every expired-tile refresh repaints through the raster fade, which the
+  // projector shows as a flicker
+  disableExpiredTileRefresh: true,
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },
