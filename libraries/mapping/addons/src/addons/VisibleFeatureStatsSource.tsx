@@ -574,7 +574,7 @@ export const VisibleFeatureStatsSource = ({
   // read once per mount: the geoportal hash state rewrites the hash as the user
   // pans, so a live read would lose the param the moment it is dropped
   const showBorderParam = useMemo(readShowBorderParam, []);
-  const showBorder = showBorderParam ?? (showDebugBounds && isLocalhost());
+  const showBorder = showBorderParam ?? (showDebugBounds || isLocalhost());
 
   const { width, height } = useMapCanvasSize(libreMap);
   useDebugBoundsBox(libreMap, showBorder, inset);
