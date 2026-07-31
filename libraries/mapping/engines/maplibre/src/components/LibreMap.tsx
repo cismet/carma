@@ -1679,15 +1679,14 @@ export const LibreMap = ({
     applyVisualSelection,
   ]);
 
-  // Wait for vector sources to be ready, with timeout
   const waitForVectorSources = (
-    maxAttempts = 50,
+    maxAttempts = 150,
     interval = 20
   ): Promise<boolean> => {
     return new Promise((resolve) => {
       let attempts = 0;
       const check = () => {
-        if (vectorSourcesReadyRef.current) {
+        if (vectorSourcesReadyRef.current || isIdleRef.current) {
           resolve(true);
         } else if (attempts < maxAttempts) {
           attempts++;
@@ -1734,6 +1733,15 @@ export const LibreMap = ({
       // the click handler above).
       for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
       enrichHitsWithCarmaInfo(mapInstance, filteredHits);
+
+      if (disableInternalSelectionRef.current) {
+        onSelectionChangedRef.current?.({
+          hits: filteredHits,
+          hit: filteredHits[0],
+          latlng: new maplibregl.LngLat(selectedPos[0], selectedPos[1]),
+        });
+        return;
+      }
 
       if (filteredHits.length > 0) {
         const selectedVectorFeature = selectFromHitsRef.current
