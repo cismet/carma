@@ -21,49 +21,24 @@ import { useAddonState } from "../lib/AddonStateContext";
 import type { AddonComponentProps } from "../lib/registry";
 
 /**
- * Highlight/dim addon for the MapLibre map (`featureFlagLibreMap`, alias `ng`).
+ * Highlight/dim addon for the MapLibre map.
  *
- * Modifier+click a feature -> it stays at its normal paint, everything else is
- * dimmed; clicking it again removes it. With `lasso: true`, an alt+drag does
- * the same for every feature it covers. Removing the last highlight does *not*
- * turn the mode off — the map stays dimmed until the route unmounts, which is
- * where the untouched paint is restored. `useMapHighlighting` owns the
- * `highlighted` feature-state (including re-applying it to features from newly
- * loaded tiles), `useLassoHighlight` owns the drawing; this addon only adds the
- * dim half, the control and the lifecycle.
+ * Modifier+click, or a lasso drag with `lasso: true`, toggles features:
+ * highlighted ones keep their paint, everything else is dimmed. The mode stays
+ * on until the button, Escape or a route switch ends it.
  *
- * THE CONTROL (`showControl`, on by default): one button in the host's control
- * column, on the geoportal button surface (white `ControlButtonStyler`, blue
- * `#1677ff` icon while on), wearing BELIS' lasso icon:
+ * `useMapHighlighting` owns the `highlighted` feature-state, `useLassoHighlight`
+ * the drawing; this addon adds the dim expression, the control and the mode
+ * lifecycle.
  *
- *   off -> lasso icon. Click starts the highlighting mode, in which the lasso
- *          draws on a plain drag (crosshair cursor, no Alt) — the modifier is
- *          only needed outside the mode.
- *   on  -> cross icon in the same spot. Click (or Escape) ends the whole thing:
- *          highlights cleared, paint restored, mode off.
+ * Catalog styles carry no dim branch, so it is installed while the mode is on:
  *
- * The mode is not only the button's: an Alt+click or an Alt+drag switches
- * `highlightingActive` on, and that counts as the mode being on too — so the
- * usual way in is to Alt+click one feature and keep going without the modifier.
- * The `highlightMode` channel covers the one case the context cannot express,
- * the mode started before anything is highlighted; it is temporary by design
- * and dies with the route. It is a channel and not local state so the host can
- * end the mode by writing `{ isOn: false }`.
+ *   on  -> ["case", ["boolean", ["feature-state", stateKey], false],
+ *            <original>, dimOpacity]
+ *   off -> the original paint property
  *
- * WHY THE PAINT WRAPPING: BELIS ships the dim expression in its own style
- * config and gates it with `["global-state", "highlightingEnabled"]`. Styles
- * that come from the layer catalog at runtime have no such branch, so we gate
- * by *installing* the expression while the mode is on:
- *
- *   off -> the layer's original paint properties (untouched)
- *   on  -> ["case", ["boolean", ["feature-state","highlighted"], false],
- *            <original>,   // highlighted -> normal
- *            dimOpacity]   // everything else -> dimmed
- *
- * Originals are captured on first sight per "<layerId>::<prop>", so toggling
- * off restores the true original and toggling on never wraps a wrapper. Set
- * `dimOpacity: null` for styles that already dim via `global-state`, otherwise
- * both would apply.
+ * Originals are cached per "<layerId>::<prop>". Use `dimOpacity: null` for
+ * styles that already dim themselves via `global-state`.
  */
 
 export type HighlightModeState = { isOn: boolean };
@@ -89,9 +64,8 @@ export type VectorHighlightConfig = {
   /** Sort order within that corner. Default: 70 */
   controlOrder?: number;
   /**
-   * Highlight a catalog layer's source layers together: one object drawn as
-   * icon *and* shape (Vorhabenkarte: `vorhabenPoints` + `vorhabenComplexGeoms`)
-   * highlights as a whole instead of only the part that was hit. Default: true.
+   * Highlight all source layers of a catalog layer together, so an object drawn
+   * as icon and shape highlights as a whole. Default: true.
    */
   combineLayerGeometries?: boolean;
   /** Catalog layer ids (substring, case-insensitive) never combined. */
@@ -100,15 +74,15 @@ export type VectorHighlightConfig = {
 
 const DEFAULT_DIM_OPACITY = 0.25;
 const DEFAULT_STATE_KEY = "highlighted";
-// cismap's selection border and the basemap must keep their paint.
+/** cismap's selection border and the basemap keep their paint */
 const DEFAULT_EXCLUDED = ["selection", "background"];
-// geoportal's topleft column: measurement is 60, terrain 80.
+/** geoportal's topleft column: measurement is 60, terrain 80 */
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 const DEFAULT_CONTROL_ORDER = 70;
-/** the blue geoportal marks an active control with (feature info, terrain) */
+/** active-control blue, as used by the other geoportal controls */
 const ACTIVE_COLOR = "#1677ff";
 
-// Opacity paint props per MapLibre layer type.
+/** opacity paint properties per MapLibre layer type */
 const OPACITY_PROPS: Record<string, string[]> = {
   fill: ["fill-opacity"],
   line: ["line-opacity"],
@@ -162,8 +136,7 @@ const createDimController = (
         const original = originals.get(key);
         const desired = active ? dimBranch(original) : original;
         try {
-          // Skip if already applied — avoids a setPaintProperty -> styledata
-          // -> apply feedback loop.
+          // skip no-op writes; they would trigger styledata -> apply
           if (
             JSON.stringify(map.getPaintProperty(layer.id, prop)) !==
             JSON.stringify(desired)
@@ -175,13 +148,13 @@ const createDimController = (
             );
           }
         } catch {
-          // layer went away between getStyle() and the write
+          // layer removed between getStyle() and the write
         }
       }
     }
   };
 
-  // Style rebuilds (a layer added/removed) drop our expression — reinstall.
+  // a style rebuild drops the expression; reinstall it
   const onStyleData = () => {
     if (active) apply();
   };
@@ -210,10 +183,9 @@ const siblingKey = (source: string, sourceLayer: string) =>
   `${source}::${sourceLayer}`;
 
 /**
- * Source layers that belong to the same catalog layer, read off the style:
- * `styleComposer` stamps `metadata["layer-id"]` on every layer it builds, so
- * `vorhabenPoints` and `vorhabenComplexGeoms` both carry `vorhabenkarte` and
- * become siblings. Catalog layers drawing a single source layer are skipped.
+ * Source layers grouped by the catalog layer that draws them, read from
+ * `metadata["layer-id"]` (stamped by `styleComposer`). Catalog layers with a
+ * single source layer are skipped.
  */
 const buildSiblingIndex = (
   map: MaplibreMap,
@@ -263,21 +235,16 @@ const buildSiblingIndex = (
 };
 
 /**
- * Keeps a catalog layer's geometries highlighted as one object.
+ * Highlights all geometries of one object together.
  *
- * MapLibre stores feature-state per `source + sourceLayer + id`, so a single
- * write can never cover both rows of a Vorhaben — the shape lights up while the
- * icon stays dimmed. This mirrors the toggle instead: whatever lands in
- * `toggledFeatures` is applied to the same id in the sibling source layers, and
- * `useMapHighlighting` paints them from that set on its own, tiles loaded later
- * included. Nothing outside this addon changes.
+ * Feature-state is stored per `source + sourceLayer + id`, so highlighting the
+ * shape of a feature leaves its icon dimmed. Each change in `toggledFeatures`
+ * is mirrored onto the same id in the sibling source layers;
+ * `useMapHighlighting` applies the state from there, later tiles included.
  *
- * The *delta* is mirrored, not the whole set: removing the icon must remove the
- * shape, which a "any member on -> all on" rule would immediately undo.
- *
- * Assumes the siblings share the feature id, which is what the vector tiles of
- * one catalog layer do. `excludeCombinedLayers` is the way out for a layer that
- * bundles unrelated tables with ids of their own.
+ * The delta is mirrored, not the whole set, so removing one geometry removes
+ * its siblings instead of being restored by them. Siblings are assumed to share
+ * the feature id; `excludeCombinedLayers` covers layers where that fails.
  */
 const useCombinedGeometryHighlight = (
   map: MaplibreMap | null,
@@ -306,13 +273,15 @@ const useCombinedGeometryHighlight = (
 
   useEffect(() => {
     if (!enabled) return;
-    // mutated in place by the provider, so the snapshot has to be a copy
+    // the provider mutates this map in place, so the snapshot must be a copy
     const current = criteria.toggledFeatures;
     const seen = seenRef.current;
 
     const siblingsOf = (feature: ToggledFeature): ToggledFeature[] =>
-      (indexRef.current.get(siblingKey(feature.source, feature.sourceLayer)) ??
-        []).map((sourceLayer) => ({ ...feature, sourceLayer }));
+      (
+        indexRef.current.get(siblingKey(feature.source, feature.sourceLayer)) ??
+        []
+      ).map((sourceLayer) => ({ ...feature, sourceLayer }));
 
     const added: ToggledFeature[] = [];
     const removed: ToggledFeature[] = [];
@@ -325,21 +294,18 @@ const useCombinedGeometryHighlight = (
 
     if (added.length > 0) ensureToggledFeatures(added, true);
     if (removed.length > 0) ensureToggledFeatures(removed, false);
-    // after the writes, so the bump they cause finds nothing left to do
+    // after the writes: the bump they cause then finds no delta
     seenRef.current = new Map(current);
-    // `criteria` is a stable object the provider mutates; the version is the signal
+    // the version is the signal; `criteria` is mutated in place
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlightVersion, enabled, ensureToggledFeatures]);
 };
 
 /**
- * The one button, presentational: props in, markup out. Off it wears BELIS'
- * lasso icon, on it becomes a plain cross — same button, so the way in and the
- * way out are the same place in the column.
+ * Presentational: lasso icon while off, cross while on.
  *
- * Deliberately stateless — `Control` re-registers its children on every render
- * (its effect deps are `[children]`, and JSX children are a fresh object each
- * time), so state kept here would be dropped. The mode lives in the addon.
+ * Stateless by design — `Control` re-registers its children on every render, so
+ * state kept here would be dropped. The mode lives in the addon.
  */
 const HighlightModeButton = ({
   isOn,
@@ -386,21 +352,15 @@ export const VectorHighlight = ({
   const { highlightingActive, setHighlightingActive, clearHighlights } =
     useMapHighlight();
 
-  // the control's own, temporary state: it is meant to be gone once the route
-  // unmounts. Only needed for the one state the context cannot express — the
-  // mode started from the button, before anything is highlighted.
+  // covers the one state the context cannot express: the mode started from the
+  // button, before anything is highlighted. Temporary, dies with the route.
   const [mode, setMode] = useAddonState("highlightMode");
   const modeActive = mode?.isOn ?? false;
 
-  /**
-   * The mode, from every direction: the button switches it on, and so does an
-   * Alt+click on a feature or an Alt+drag lasso, because both set
-   * `highlightingActive`. So whoever started it, the button shows the cross and
-   * the lasso draws without the modifier from that point on.
-   */
+  /** on when the button, an Alt+click or an Alt+drag started it */
   const isOn = modeActive || highlightingActive;
 
-  /** the cross, and Escape: back to an untouched map */
+  /** cross button and Escape: clear the highlights, restore the paint */
   const endMode = useCallback(() => {
     setMode({ isOn: false });
     clearHighlights();
@@ -410,7 +370,7 @@ export const VectorHighlight = ({
   // owns the `highlighted` feature-state and the click-to-toggle
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
-  // same "fresh array per render" treatment as `excluded` below
+  // key on the content: route configs pass a fresh array per render
   const excludedCombinedKey = (excludeCombinedLayers ?? [])
     .map((pattern) => pattern.toLowerCase())
     .join(" ");
@@ -424,8 +384,7 @@ export const VectorHighlight = ({
     excludedCombined
   );
 
-  // route configs pass a fresh array on every render; key the effect on the
-  // content instead of the identity
+  // key on the content: route configs pass a fresh array per render
   const excludedKey = (excludedLayerPatterns ?? DEFAULT_EXCLUDED)
     .map((pattern) => pattern.toLowerCase())
     .join(" ");
@@ -434,28 +393,10 @@ export const VectorHighlight = ({
     [excludedKey]
   );
 
-  // Lasso: `active` picks which of the hook's two managers has the map. While
-  // the mode is off its passive manager waits for an Alt+drag; while the mode is
-  // on the explicit one takes over, drawing on a plain drag with a crosshair
-  // cursor. Either way it toggles what the stroke covers and switches
-  // highlighting on if it was off, matching the modifier+click semantics above;
-  // a stationary Alt+click never becomes a lasso (minPoints guard) and a real
-  // Alt+drag never becomes a click (MapLibre drops clicks past its
-  // clickTolerance), so the two coexist on the same modifier. Hooks can't be
-  // called conditionally, so the feature is gated by handing over a null map.
-  //
-  // Driven by `isOn`, not by the button alone: the first Alt+click or Alt+drag
-  // *is* the way most people start the mode, and from there the modifier should
-  // no longer be needed.
-  //
-  // `onDeactivate` is the hook's Escape route. It ends the mode outright rather
-  // than only leaving the drawing part — with the highlights themselves keeping
-  // the mode on, "drawing off but mode on" is not a state this control has.
-  //
-  // No `sources` filter: same as the click path above, every source the style
-  // exposes is fair game. Raster basemaps yield no features at all and the
-  // geojson overlays carry no feature ids (no `generateId`), so both are
-  // skipped anyway.
+  // `active` switches between the passive Alt+drag manager and the explicit one
+  // that draws on a plain drag while the mode is on. Gated by a null map, since
+  // hooks cannot be called conditionally. `onDeactivate` (Escape) ends the whole
+  // mode, not only the drawing.
   useLassoHighlight({
     map: lasso ? libreMap : null,
     active: lasso && isOn,
@@ -463,8 +404,8 @@ export const VectorHighlight = ({
   });
 
   const controllerRef = useRef<DimController | null>(null);
-  // read inside the create effect, so a controller built after the mode was
-  // already switched on installs the expression right away
+  // so a controller created while the mode is already on installs the
+  // expression right away
   const activeRef = useRef(highlightingActive);
   activeRef.current = highlightingActive;
 
@@ -489,9 +430,8 @@ export const VectorHighlight = ({
     controllerRef.current?.setActive(highlightingActive);
   }, [highlightingActive]);
 
-  // an Alt+click starts the mode without the button, so publish it — otherwise
-  // the host sees the mode as off. Rising edge: level-triggered would switch it
-  // back on during the teardown below.
+  // publish the mode when an Alt+click started it. Rising edge only, so the
+  // teardown below cannot switch it back on.
   const previousHighlightingActive = useRef(highlightingActive);
   useEffect(() => {
     const started = !previousHighlightingActive.current && highlightingActive;
@@ -510,7 +450,7 @@ export const VectorHighlight = ({
     }
   }, [modeActive, highlightingActive, endMode]);
 
-  // Route switch unmounts the addon: leave the map in its untouched state.
+  // route switch: leave the map in its untouched state
   useEffect(
     () => () => {
       setMode({ isOn: false });
@@ -520,15 +460,13 @@ export const VectorHighlight = ({
     [setMode, clearHighlights, setHighlightingActive]
   );
 
-  // everything here acts on the MapLibre map, so without one there is nothing
-  // the button could do (leaflet-only hosts, or before the map is created)
+  // no MapLibre map, no button (leaflet-only hosts, or before the map exists)
   if (!libreMap || !showControl || (!lasso && !isOn)) {
     return null;
   }
 
-  // `Control` renders nothing here — it registers the button into the
-  // surrounding `ControlLayout` (AddonHost sits inside it) and the layout draws
-  // it in that corner, sorted by `order`.
+  // registers the button into the surrounding `ControlLayout`, which draws it
+  // in that corner; nothing is rendered here
   return (
     <Control position={controlPosition} order={controlOrder}>
       <HighlightModeButton
