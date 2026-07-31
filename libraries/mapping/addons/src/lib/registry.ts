@@ -14,6 +14,7 @@ import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
+import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
   type VectorHighlightConfig,
@@ -29,6 +30,7 @@ export type AddonConfigMap = {
   gazetteerMode: GazDataAdditionalModeConfig;
   vectorHighlight: VectorHighlightConfig;
   layerVisibility: LayerVisibilityConfig;
+  outlet: OutletConfig;
 };
 
 export type AddonKind = keyof AddonConfigMap;
@@ -108,6 +110,7 @@ export const addonRegistry: {
   [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
   gazetteerSource: { Component: GazetteerSource },
+  outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
   vectorHighlight: { Component: VectorHighlight },
   layerVisibility: {

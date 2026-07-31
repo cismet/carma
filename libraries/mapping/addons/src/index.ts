@@ -40,3 +40,4 @@ export {
   LayerVisibility,
   type LayerVisibilityConfig,
 } from "./addons/LayerVisibility";
+export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
