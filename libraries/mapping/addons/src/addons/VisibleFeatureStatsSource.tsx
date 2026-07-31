@@ -1,26 +1,29 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import type { Store } from "redux";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
 import type { LayerStackEntry } from "@carma-mapping/layers";
-import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import {
   buildFeatureStateTarget,
   useVisibleMapFeatures,
 } from "@carma-mapping/utils";
 
+import { useAddonState } from "../lib/AddonStateContext";
 import type { AddonComponentProps } from "../lib/registry";
 
 /**
- * Statistics over the features currently visible on the MapLibre map
- * (`featureFlagLibreMap`, alias `ng`).
+ * Headless producer of statistics over the features currently visible on the
+ * MapLibre map (`featureFlagLibreMap`, alias `ng`). Renders nothing: it
+ * publishes a finished breakdown on the `visibleFeatureStats` addon-state
+ * channel, and `VisibleFeatureStatsPanel` is what draws it. A route wanting the
+ * readout declares both kinds; a route wanting only the console log declares
+ * this one.
+ *
+ * The split runs along the map boundary: grouping needs `layer.metadata`, the
+ * vector tile source and the host's layer stack, so it happens here and the
+ * channel carries `LayerStatsGroup[]` rather than thousands of
+ * `MapGeoJSONFeature` objects. The panel needs neither a map nor a store.
  *
  * Same mechanism BELIS uses to fill its sidebar: `useVisibleMapFeatures`
  * listens on the map's `idle` event, recomputes the *true* visible rectangle
@@ -52,7 +55,7 @@ export type DebugInset = {
   left?: number;
 };
 
-export type VisibleFeatureStatsConfig = {
+export type VisibleFeatureStatsSourceConfig = {
   /** Debounce after `idle` before querying. Default: 300 */
   debounceMs?: number;
   /**
@@ -87,76 +90,38 @@ export type VisibleFeatureStatsConfig = {
   logFeatures?: boolean;
   /** Log every settled viewport to the console. Default: true */
   logToConsole?: boolean;
-  /** Render the stats panel on the map. Default: true */
-  showPanel?: boolean;
-  /** Corner the panel is registered in. Default: "topright" */
-  panelPosition?: Positions;
-  /** Sort order within that corner. Default: 10 */
-  panelOrder?: number;
-  /** Layer rows shown before the rest is folded into a "+n" line. Default: 8 */
-  panelMaxRows?: number;
+};
+
+/**
+ * What travels the `visibleFeatureStats` channel: the finished breakdown, ready
+ * to render. No map objects and no colours — the palette is the panel's, so a
+ * second consumer could draw the same numbers its own way.
+ */
+export type VisibleFeatureStatsState = {
+  /** the number the rows add up to — highlighted only while `isFiltered` */
+  totalCount: number;
+  /** everything on screen; the denominator while `isFiltered` */
+  visibleCount: number;
+  groups: LayerStatsGroup[];
+  /** a viewport is being queried; the last result is still the one in `groups` */
+  isLoading: boolean;
+  /** narrowed to the highlighted features */
+  isFiltered: boolean;
 };
 
 /**
  * The nested breakdown is built from the feature list, and the hook empties that
  * list once the count passes `maxFeatures` (its "overview mode", which exists
- * because BELIS renders one sidebar row per feature). This panel only counts, so
+ * because BELIS renders one sidebar row per feature). This addon only counts, so
  * it opts out: no cap, no overview mode, always a full breakdown.
  */
 const NO_FEATURE_CAP = Number.MAX_SAFE_INTEGER;
 const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_DEBUG_INSET_PX = 0;
-const DEFAULT_PANEL_POSITION: Positions = "topright";
-const DEFAULT_PANEL_ORDER = 10;
-const DEFAULT_PANEL_MAX_ROWS = 8;
 /** `useMapHighlighting`'s own default, and `VectorHighlight`'s */
 const DEFAULT_HIGHLIGHT_STATE_KEY = "highlighted";
 const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
 const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
-
-/**
- * The geoportal body stack (`apps/geoportal/src/app/index.css`). Set explicitly
- * instead of relying on inheritance so the panel reads the same in a story, in
- * BELIS, or in any host that ships a different body font.
- */
-const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif';
-
-/**
- * Categorical slots, validated against a white surface: every adjacent pair
- * keeps ΔE ≥ 8 (OKLab ×100) under protanopia/deuteranopia/tritanopia, so
- * neighbouring rows and neighbouring bar segments stay tellable apart. Three of
- * them sit below 3:1 contrast on white, which is why every swatch is paired
- * with a written label and a number — colour never carries a value alone.
- *
- * Assigned per group key in first-seen order (`useStableSeriesColors`), never
- * by rank: rows are sorted by count, and panning reorders them, so a rank-based
- * palette would repaint a group the reader has already learned.
- */
-const SERIES_COLORS = [
-  "#2a78d6", // blue
-  "#eb6834", // orange
-  "#1baf7a", // aqua
-  "#eda100", // yellow
-  "#e87ba4", // magenta
-  "#008300", // green
-  "#4a3aa7", // violet
-  "#e34948", // red
-];
-
-/** folded-away sources, and any group past the eighth slot */
-const REST_COLOR = "#c3c2b7";
-
-const INK = {
-  /** heading — the deepest step of the same blue ramp slot 1 comes from */
-  title: "#0d366b",
-  primary: "#0b0b0b",
-  secondary: "#52514e",
-  /** empty proportion bar */
-  track: "#e1e0d9",
-};
-
-const formatCount = new Intl.NumberFormat("de-DE").format;
 
 /** module-level so the identity is stable across renders */
 const excludeDebugBox = (feature: {
@@ -201,9 +166,6 @@ export type LayerStatsGroup = LayerStatsRow & {
   shape: MarkShape;
   children: LayerStatsRow[];
 };
-
-/** a group with its swatch colour resolved, see `useStableSeriesColors` */
-export type ColoredStatsGroup = LayerStatsGroup & { color: string };
 
 const shapeOfGeometry = (type: string): MarkShape => {
   if (type.includes("Polygon")) return "area";
@@ -587,243 +549,13 @@ const useSettledHighlightVersion = (highlightVersion: number): number => {
   return settled;
 };
 
-/**
- * Legend mark. The shape repeats the geometry the group is drawn with, so it is
- * a second, non-colour channel for identity: filled square for areas, dot for
- * points, short rule for lines.
- */
-const Swatch = ({ shape, color }: { shape: MarkShape; color: string }) => (
-  <span
-    aria-hidden
-    className={
-      shape === "line"
-        ? "h-[3px] w-[10px] shrink-0 rounded-full"
-        : `h-[9px] w-[9px] shrink-0 ${
-            shape === "point" ? "rounded-full" : "rounded-[2px]"
-          }`
-    }
-    style={{ backgroundColor: color }}
-  />
-);
-
-/** swatch width + row gap, so child rows line up under their parent's label */
-const CHILD_INDENT_PX = 19;
-
-/**
- * Presentational half: props in, markup out. No map, no hooks — so it can be
- * rendered from a story or a test without a MapLibre instance, and restyled
- * without touching the query logic above.
- *
- * Deliberately stateless: `Control` re-registers its children on every render
- * (its effect deps are `[children]`, and JSX children are a fresh object each
- * time), so anything held in local state here would be reset on every pan.
- */
-export const VisibleFeatureStatsPanel = ({
-  totalCount,
-  groups,
-  isLoading,
-  maxRows,
-  isFiltered = false,
-  visibleCount,
-}: {
-  /** the number the rows add up to — highlighted only while `isFiltered` */
-  totalCount: number;
-  groups: ColoredStatsGroup[];
-  isLoading: boolean;
-  maxRows: number;
-  /** narrowed to the highlighted features; changes heading and readout */
-  isFiltered?: boolean;
-  /** everything on screen, shown as the denominator while `isFiltered` */
-  visibleCount?: number;
-}) => {
-  const shown = groups.slice(0, maxRows);
-  const folded = groups.slice(maxRows);
-  const foldedCount = folded.reduce((sum, group) => sum + group.count, 0);
-
-  // the bar is drawn from the rows themselves rather than from `totalCount`, so
-  // the segments always add up to exactly what the list below shows
-  const segments = [
-    ...shown,
-    ...(folded.length > 0
-      ? [
-          {
-            key: "__rest__",
-            label: `${folded.length} weitere Quellen`,
-            count: foldedCount,
-            color: REST_COLOR,
-          },
-        ]
-      : []),
-  ].filter((segment) => segment.count > 0);
-  const barTotal = segments.reduce((sum, segment) => sum + segment.count, 0);
-
-  // a settled viewport stays on screen while the next one is queried — dimmed
-  // rather than replaced by a skeleton, so nothing jumps on every pan
-  const staleness = { opacity: isLoading ? 0.45 : 1 };
-
-  return (
-    <div
-      className="pointer-events-auto w-[280px] rounded-lg bg-white/95 px-3.5 py-3 shadow-lg ring-1 ring-black/10"
-      style={{ fontFamily: FONT_STACK }}
-    >
-      <div className="flex items-baseline justify-between gap-3">
-        {/* the filtered heading is the longer of the two and sits next to a
-            two-part number, so it shrinks rather than wrapping the header */}
-        <span
-          className="min-w-0 truncate text-[11px] font-semibold uppercase leading-none tracking-[0.09em]"
-          style={{ color: INK.title }}
-        >
-          {isFiltered ? "Hervorgehobene Objekte" : "Sichtbare Objekte"}
-        </span>
-        <span
-          className="whitespace-nowrap text-[17px] font-semibold leading-none transition-opacity"
-          style={{ color: INK.primary, ...staleness }}
-        >
-          {formatCount(totalCount)}
-          {/* the denominator says what the panel is a share *of*, so a small
-              highlight among thousands does not read as an empty map */}
-          {isFiltered && visibleCount !== undefined && (
-            <span
-              className="text-[12px] font-normal"
-              style={{ color: INK.secondary }}
-            >
-              {" / "}
-              {formatCount(visibleCount)}
-            </span>
-          )}
-        </span>
-      </div>
-
-      <div className="transition-opacity" style={staleness}>
-        <div className="mt-2.5 flex h-[5px] gap-[2px]">
-          {segments.length === 0 ? (
-            <span
-              className="flex-1 rounded-full"
-              style={{ backgroundColor: INK.track }}
-            />
-          ) : (
-            segments.map((segment) => (
-              <span
-                key={segment.key}
-                className="rounded-full"
-                title={`${segment.label}: ${formatCount(segment.count)} (${(
-                  (segment.count / barTotal) *
-                  100
-                ).toFixed(1)} %)`}
-                // grow by count, but never thinner than a visible sliver — a
-                // handful of features among thousands still gets a mark
-                style={{
-                  flex: `${segment.count} 1 0`,
-                  minWidth: 3,
-                  backgroundColor: segment.color,
-                }}
-              />
-            ))
-          )}
-        </div>
-
-        {groups.length === 0 ? (
-          <p className="mt-3 text-[12px]" style={{ color: INK.secondary }}>
-            {isLoading
-              ? "wird ermittelt …"
-              : isFiltered
-              ? // an empty *filter* is not an empty map — say which one it is
-                "keine hervorgehobenen Objekte"
-              : "keine Objekte im Ausschnitt"}
-          </p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-2.5">
-            {shown.map((group) => (
-              <li key={group.key}>
-                <div className="flex items-center gap-2.5">
-                  <Swatch shape={group.shape} color={group.color} />
-                  <span
-                    className="flex-1 truncate text-[13px] font-medium"
-                    style={{ color: INK.primary }}
-                    title={group.key}
-                  >
-                    {group.label}
-                  </span>
-                  <span
-                    className="text-[13px] font-medium tabular-nums"
-                    style={{ color: INK.primary }}
-                  >
-                    {formatCount(group.count)}
-                  </span>
-                </div>
-                {group.children.length > 0 && (
-                  <ul
-                    className="mt-1 flex flex-col gap-1"
-                    style={{ paddingLeft: CHILD_INDENT_PX }}
-                  >
-                    {group.children.slice(0, maxRows).map((child) => (
-                      <li
-                        key={child.key}
-                        className="flex items-center gap-2.5 text-[12px]"
-                        style={{ color: INK.secondary }}
-                      >
-                        <span className="flex-1 truncate" title={child.key}>
-                          {child.label}
-                        </span>
-                        <span className="tabular-nums">
-                          {formatCount(child.count)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-            {folded.length > 0 && (
-              <li
-                className="flex items-center gap-2.5 text-[12px]"
-                style={{ color: INK.secondary }}
-              >
-                <Swatch shape="area" color={REST_COLOR} />
-                <span className="flex-1 truncate">
-                  {folded.length} weitere Quellen
-                </span>
-                <span className="tabular-nums">{formatCount(foldedCount)}</span>
-              </li>
-            )}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/**
- * Group key -> palette slot, in the order the keys were first seen and kept for
- * the life of the addon. Rows are sorted by count and panning reorders them, so
- * indexing the palette by row position would repaint every group on every pan;
- * this way "Wohngebäude is blue" holds for the whole session. Slots run out
- * after eight — anything later shares the neutral, which is also what the
- * folded tail wears.
- */
-const useStableSeriesColors = (
-  groups: LayerStatsGroup[]
-): ColoredStatsGroup[] => {
-  const slots = useRef<Map<string, number>>(new Map());
-
-  return useMemo(() => {
-    const assigned = slots.current;
-    return groups.map((group) => {
-      let slot = assigned.get(group.key);
-      if (slot === undefined) {
-        slot = assigned.size;
-        assigned.set(group.key, slot);
-      }
-      return { ...group, color: SERIES_COLORS[slot] ?? REST_COLOR };
-    });
-  }, [groups]);
-};
-
-export const VisibleFeatureStats = ({
-  config,
+export const VisibleFeatureStatsSource = ({
+  // `config` is optional on every addon, and this one is usable on defaults
+  // alone — destructuring `undefined` would throw before the first render
+  config = {},
   libreMap,
   store,
-}: AddonComponentProps<"visibleFeatureStats">) => {
+}: AddonComponentProps<"visibleFeatureStatsSource">) => {
   const {
     debounceMs = DEFAULT_DEBOUNCE_MS,
     showDebugBounds = false,
@@ -833,10 +565,6 @@ export const VisibleFeatureStats = ({
     highlightStateKey = DEFAULT_HIGHLIGHT_STATE_KEY,
     logFeatures = true,
     logToConsole = true,
-    showPanel = true,
-    panelPosition = DEFAULT_PANEL_POSITION,
-    panelOrder = DEFAULT_PANEL_ORDER,
-    panelMaxRows = DEFAULT_PANEL_MAX_ROWS,
   } = config;
 
   // no memo needed: the drawing hook keys its effect on the four numbers, so a
@@ -874,8 +602,9 @@ export const VisibleFeatureStats = ({
     filter: excludeDebugBox,
   });
 
-  // no addon-state channel between the two addons: `VectorHighlight` owns the
-  // mode, this one only observes it. `highlightingActive` is the mode, not the
+  // no addon-state channel towards `VectorHighlight`: it owns the mode, this one
+  // only observes it, and it does so through `MapHighlightContext` because that
+  // is where the mode already lives. `highlightingActive` is the mode, not the
   // presence of highlights — it stays on after the last one is removed, which
   // is what keeps the panel filtered (and honestly at 0) instead of flipping
   // back to the full count mid-session.
@@ -900,7 +629,38 @@ export const VisibleFeatureStats = ({
     () => buildGroups(shownFeatures, layerIndex),
     [shownFeatures, layerIndex]
   );
-  const coloredGroups = useStableSeriesColors(groups);
+
+  // Memoized because the provider bails out on `Object.is`-equal writes only:
+  // a fresh object per render would commit every time and re-render every
+  // consumer, even for a viewport that did not change.
+  const stats = useMemo<VisibleFeatureStatsState>(
+    () => ({
+      totalCount: shownCount,
+      visibleCount: totalCount,
+      groups,
+      isLoading,
+      isFiltered,
+    }),
+    [shownCount, totalCount, groups, isLoading, isFiltered]
+  );
+
+  // write-only; the published value comes back through the panel, not here.
+  // Reading the channel does subscribe this addon to it, so its own write
+  // re-renders it once — harmless, since `stats` is memoized and the effect
+  // below then sees an unchanged value.
+  const [, publish] = useAddonState("visibleFeatureStats");
+
+  // From an effect, not during render: the setter updates the provider above
+  // us, which React must not be told about while a descendant is rendering.
+  // Costs the consumers one commit — invisible for a readout, and the same
+  // frame of delay the highlight pass already takes.
+  //
+  // No teardown that clears the channel: `AddonProvider` drops the whole state
+  // when the route's addon list changes, which is the only way this addon ever
+  // unmounts.
+  useEffect(() => {
+    publish(stats);
+  }, [publish, stats]);
 
   useEffect(() => {
     // `isLoading` is true from `movestart` until the query settles — skip the
@@ -925,23 +685,5 @@ export const VisibleFeatureStats = ({
     logToConsole,
   ]);
 
-  if (!showPanel) {
-    return null;
-  }
-
-  // `Control` renders nothing here — it registers the panel into the surrounding
-  // `ControlLayout` (AddonHost sits inside it) and the layout draws it in that
-  // corner, sorted by `order`.
-  return (
-    <Control position={panelPosition} order={panelOrder}>
-      <VisibleFeatureStatsPanel
-        totalCount={shownCount}
-        groups={coloredGroups}
-        isLoading={isLoading}
-        maxRows={panelMaxRows}
-        isFiltered={isFiltered}
-        visibleCount={totalCount}
-      />
-    </Control>
-  );
+  return null;
 };

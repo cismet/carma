@@ -54,14 +54,18 @@ export const bodenFachzwilling: FachzwillingRoute = {
     // measured area can be checked against what is actually on screen.
     // the map container starts at y=0 behind the top navbar, so the box needs a
     // larger top inset than the other sides to be visible at all.
-    // while the highlight mode above runs, the panel counts only the
-    // highlighted features (filterByHighlight, on by default)
+    // while the highlight mode above runs, it counts only the highlighted
+    // features (filterByHighlight, on by default)
     {
-      kind: "visibleFeatureStats",
+      kind: "visibleFeatureStatsSource",
       config: {
         showDebugBounds: true,
         debugInsetPx: { top: 56, left: 1, right: 0, bottom: 4 },
       },
     },
+    // draws what the source publishes. Drop this entry to keep the console log
+    // alone; drop the source and the panel stays empty (and says so in the dev
+    // console, off the requires/provides declarations in the registry).
+    { kind: "visibleFeatureStatsPanel", config: {} },
   ],
 };

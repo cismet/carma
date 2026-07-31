@@ -26,10 +26,7 @@ export type {
   ResolvedAddon,
 } from "./lib/registry";
 
-export {
-  useAddonState,
-  useAddonStateSnapshot,
-} from "./lib/AddonStateContext";
+export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
 
 export { GazetteerMode } from "./addons/GazetteerMode";
@@ -42,8 +39,16 @@ export {
 } from "./addons/LayerVisibility";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
-  VisibleFeatureStats,
+  VisibleFeatureStatsSource,
+  type LayerStatsGroup,
+  type LayerStatsRow,
+  type MarkShape,
+  type VisibleFeatureStatsSourceConfig,
+  type VisibleFeatureStatsState,
+} from "./addons/VisibleFeatureStatsSource";
+export {
+  StatsReadout,
   VisibleFeatureStatsPanel,
   type ColoredStatsGroup,
-  type VisibleFeatureStatsConfig,
-} from "./addons/VisibleFeatureStats";
+  type VisibleFeatureStatsPanelConfig,
+} from "./addons/VisibleFeatureStatsPanel";
