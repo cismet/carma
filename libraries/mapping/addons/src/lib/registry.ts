@@ -25,9 +25,14 @@ import {
   type LayerVisibilityConfig,
 } from "../addons/LayerVisibility";
 import {
-  VisibleFeatureStats,
-  type VisibleFeatureStatsConfig,
-} from "../addons/VisibleFeatureStats";
+  VisibleFeatureStatsPanel,
+  type VisibleFeatureStatsPanelConfig,
+} from "../addons/VisibleFeatureStatsPanel";
+import {
+  VisibleFeatureStatsSource,
+  type VisibleFeatureStatsSourceConfig,
+  type VisibleFeatureStatsState,
+} from "../addons/VisibleFeatureStatsSource";
 
 export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
@@ -35,13 +40,21 @@ export type AddonConfigMap = {
   vectorHighlight: VectorHighlightConfig;
   layerVisibility: LayerVisibilityConfig;
   outlet: OutletConfig;
-  visibleFeatureStats: VisibleFeatureStatsConfig;
+  visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
+  visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
 };
 
 export type AddonKind = keyof AddonConfigMap;
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type AddonStateMap = {};
+/**
+ * The channels addons share within one route. A channel is not a kind: several
+ * kinds may read one channel, and the name says what the value *is*, not who
+ * produces it.
+ */
+export type AddonStateMap = {
+  /** what is on screen, grouped and counted; see `VisibleFeatureStatsSource` */
+  visibleFeatureStats: VisibleFeatureStatsState;
+};
 
 export type AddonStateKey = keyof AddonStateMap;
 
@@ -122,7 +135,14 @@ export const addonRegistry: {
     Component: LayerVisibility,
     trigger: layerVisibilityTrigger,
   },
-  visibleFeatureStats: { Component: VisibleFeatureStats },
+  visibleFeatureStatsSource: {
+    Component: VisibleFeatureStatsSource,
+    provides: ["visibleFeatureStats"],
+  },
+  visibleFeatureStatsPanel: {
+    Component: VisibleFeatureStatsPanel,
+    requires: ["visibleFeatureStats"],
+  },
 };
 
 const isKnownKind = (kind: string): kind is AddonKind =>
