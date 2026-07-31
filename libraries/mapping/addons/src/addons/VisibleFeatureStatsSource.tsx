@@ -300,6 +300,23 @@ const buildGroups = (
     .sort((a, b) => b.count - a.count);
 };
 
+const dedupeByObject = (features: MapGeoJSONFeature[]): MapGeoJSONFeature[] => {
+  const seen = new Set<string>();
+  const unique: MapGeoJSONFeature[] = [];
+  for (const feature of features) {
+    if (feature.id == null) {
+      unique.push(feature);
+      continue;
+    }
+    const scope = catalogLayerIdOf(feature) ?? feature.source ?? "";
+    const key = `${scope}-${String(feature.id)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(feature);
+  }
+  return unique;
+};
+
 type LayerStackState = { mapping?: { layers?: LayerStackEntry[] } };
 
 /** what the layer stack knows about one layer id */
@@ -587,7 +604,7 @@ export const VisibleFeatureStatsSource = ({
     [filterKey]
   );
 
-  const { features, totalCount, isLoading } = useVisibleMapFeatures({
+  const { features: renderedFeatures, isLoading } = useVisibleMapFeatures({
     // the hook only needs a size once the map exists; 0/0 yields no features
     maplibreMap: width > 0 && height > 0 ? libreMap : null,
     visibleMapWidth: width,
@@ -601,6 +618,12 @@ export const VisibleFeatureStatsSource = ({
     // counts itself and shows up as its own row in the panel
     filter: excludeDebugBox,
   });
+
+  const features = useMemo(
+    () => dedupeByObject(renderedFeatures),
+    [renderedFeatures]
+  );
+  const totalCount = features.length;
 
   // no addon-state channel towards `VectorHighlight`: it owns the mode, this one
   // only observes it, and it does so through `MapHighlightContext` because that
