@@ -10,6 +10,16 @@ export { MapLibrePrintPreview } from "./MapLibrePrintPreview";
 export type { MapLibrePrintPreviewProps } from "./MapLibrePrintPreview";
 
 export {
+  buildInlineVectorStyle,
+  layerHasActiveFilter,
+} from "./inlineVectorPrint";
+export type {
+  Bbox,
+  InlineVectorStyleOptions,
+  StyleLayerLike,
+} from "./inlineVectorPrint";
+
+export {
   PREVIEW_SOURCE_ID,
   PREVIEW_FILL_LAYER_ID,
   PREVIEW_LINE_LAYER_ID,
