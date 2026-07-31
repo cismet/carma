@@ -1,5 +1,6 @@
 import * as L from "leaflet";
 import { CSSProperties, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   deleteRectangleById,
@@ -57,6 +58,16 @@ const PrintPreview = ({
 }) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const map = routedMapRef?.leafletMap?.leafletElement;
+  // Host node for the print controls, rendered as a sibling of the Leaflet
+  // container (never a descendant). react-cismap attaches a map-level click
+  // listener that deselects the highlighted feature on *every* map click. If
+  // the "Drucken" button lived inside the container, its click would bubble to
+  // Leaflet and clear the selection before printMap() captures it. Portalling
+  // the overlay out of the container keeps those clicks off the map, while
+  // React portals still deliver them to the buttons' onClick. The node is
+  // inset:0 over the container's parent so the existing container-point
+  // coordinates (top/left) keep aligning with the map's top-left.
+  const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null);
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const [isHideContent, setIsHideContent] = useState(false);
@@ -68,6 +79,31 @@ const PrintPreview = ({
     fontSize: "0px",
     isSmallMode: false,
   });
+
+  useEffect(() => {
+    if (!map) return;
+    const mapContainer: HTMLElement = map.getContainer();
+    const parent = mapContainer.parentElement;
+    if (!parent) return;
+    if (getComputedStyle(parent).position === "static") {
+      parent.style.position = "relative";
+    }
+    const el = document.createElement("div");
+    el.id = "carma-print-overlay-root";
+    el.style.position = "absolute";
+    el.style.inset = "0";
+    el.style.zIndex = "1000";
+    // Only the buttons (pointer-events: auto) capture clicks; everything else
+    // stays transparent so map drag/zoom and the draggable preview rectangle
+    // underneath keep working.
+    el.style.pointerEvents = "none";
+    parent.appendChild(el);
+    setOverlayEl(el);
+    return () => {
+      el.remove();
+      setOverlayEl(null);
+    };
+  }, [map]);
 
   const changePreviewSizes = (map, orientation) => {
     const polygon = getPolygonByLeafletId(map);
@@ -231,68 +267,69 @@ const PrintPreview = ({
     pointerEvents: "none",
   };
 
-  return (
-    <>
-      {mode === "print" && (
-        <div
-          id="preview"
-          style={{
-            width: previewSizes.width,
-            height: previewSizes.height,
-            top: previewSizes.top,
-            left: previewSizes.left,
-            fontSize: previewSizes.fontSize,
-          }}
-        >
-          <div
-            id="btn-wrapper-print"
-            style={previewSizes.isSmallMode ? smallWrapperStyle : wrapperStyle}
-          >
-            <div style={{ display: "flex", width: "100%" }}>
-              <UpdateScalePrintButton
-                hide={isHideContent}
-                smallMode={previewSizes.isSmallMode}
-                previewWidth={previewSizes.width}
-                previewHight={previewSizes.height}
-                redrawPrev={redrawPrev}
-                setIfMapPrinted={setIfMapPrinted}
-                setRedrawPreview={setRedrawPreview}
-              />
-              <ClosePrintButton
-                closePrintMode={() => setUIMode("default")}
-                hide={isHideContent}
-                smallMode={previewSizes.isSmallMode}
-              />
-            </div>
-            <PrintPrevTexts
-              scale={scale}
-              dpi={dpi}
-              format={orientation}
-              hide={isHideContent}
-              smallMode={previewSizes.isSmallMode}
-            />
-            <div className="flex items-center justify-end gap-4">
-              <PrintButton
-                hide={isHideContent}
-                smallMode={previewSizes.isSmallMode}
-                map={map}
-                orientation={orientation}
-                dpi={dpi}
-                printName={printName}
-                bgLayer={bgLayer}
-                layers={layers}
-                loading={loading}
-                scale={scale}
-                maplibreMaps={maplibreMaps}
-                setIfMapPrinted={setIfMapPrinted}
-                handleIsLoading={handleIsLoading}
-                handleIsError={handleIsError}
-              />
-            </div>
-          </div>
+  if (mode !== "print" || !overlayEl) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      id="preview"
+      style={{
+        width: previewSizes.width,
+        height: previewSizes.height,
+        top: previewSizes.top,
+        left: previewSizes.left,
+        fontSize: previewSizes.fontSize,
+      }}
+    >
+      <div
+        id="btn-wrapper-print"
+        style={previewSizes.isSmallMode ? smallWrapperStyle : wrapperStyle}
+      >
+        <div style={{ display: "flex", width: "100%" }}>
+          <UpdateScalePrintButton
+            hide={isHideContent}
+            smallMode={previewSizes.isSmallMode}
+            previewWidth={previewSizes.width}
+            previewHight={previewSizes.height}
+            redrawPrev={redrawPrev}
+            setIfMapPrinted={setIfMapPrinted}
+            setRedrawPreview={setRedrawPreview}
+          />
+          <ClosePrintButton
+            closePrintMode={() => setUIMode("default")}
+            hide={isHideContent}
+            smallMode={previewSizes.isSmallMode}
+          />
         </div>
-      )}
-    </>
+        <PrintPrevTexts
+          scale={scale}
+          dpi={dpi}
+          format={orientation}
+          hide={isHideContent}
+          smallMode={previewSizes.isSmallMode}
+        />
+        <div className="flex items-center justify-end gap-4">
+          <PrintButton
+            hide={isHideContent}
+            smallMode={previewSizes.isSmallMode}
+            map={map}
+            orientation={orientation}
+            dpi={dpi}
+            printName={printName}
+            bgLayer={bgLayer}
+            layers={layers}
+            loading={loading}
+            scale={scale}
+            maplibreMaps={maplibreMaps}
+            setIfMapPrinted={setIfMapPrinted}
+            handleIsLoading={handleIsLoading}
+            handleIsError={handleIsError}
+          />
+        </div>
+      </div>
+    </div>,
+    overlayEl
   );
 };
 
