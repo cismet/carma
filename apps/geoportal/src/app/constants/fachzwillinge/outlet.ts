@@ -1,5 +1,14 @@
 import type { FachzwillingRoute } from ".";
 
+/**
+ * The relay the source window takes its remote commands from. Deployments set
+ * it in `deployment-config.json`; the local dev server sets nothing, so it
+ * falls back to a relay on the developer's own machine, which is what
+ * `npx nx run map-relay:serve` starts.
+ */
+const RELAY_BASE_URL =
+  import.meta.env.VITE_RELAY_BASE_URL || "http://localhost:8099";
+
 export const outletFachzwilling: FachzwillingRoute = {
   path: "outlet",
   hideFromCatalog: true,
@@ -28,6 +37,8 @@ export const outletFachzwilling: FachzwillingRoute = {
           799889.651999282, 6669297.559285149, 802976.986756942,
           6671027.711313527,
         ],
+        // remote control is off until a session code is passed as ?relay=
+        relayBaseUrl: RELAY_BASE_URL,
       },
     },
   ],

@@ -5,6 +5,7 @@ import { getHashParams } from "@carma-commons/utils";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import { subscribe, type RelaySubscription } from "./relay";
 
 /**
  * Projection-mapping source window.
@@ -25,6 +26,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 const LOG_PREFIX = "[OUTLET]";
 const DIAGNOSTICS_KEY = "__CARMA_OUTLET";
 const BOUNDS_PARAM = "bounds";
+const RELAY_PARAM = "relay";
 const LOG_LIMIT = 200;
 
 // EPSG:3857 validity, used only to reject nonsense before it reaches the map
@@ -59,7 +61,30 @@ export type OutletConfig = {
   aspectTolerance?: number;
   /** draw a box on the requested bounds, so they are visible on any window (default true) */
   showBounds?: boolean;
+  /** map-relay base url; the session code comes from ?relay= */
+  relayBaseUrl?: string;
 };
+
+/**
+ * What the remote may ask the source window to show, as a desired state rather
+ * than as commands: the whole document is applied on every change, so a reload
+ * or a reconnect lands in the right place with nothing to replay.
+ *
+ * `bounds` is deliberately absent. It is the georeference of the printed model,
+ * so letting a remote move it would break projector registration, which is the
+ * one thing the source contract demands. It stays in the url.
+ */
+export type OutletRemoteState = {
+  /** id of a shared configuration, the same value `?usedConfig=` takes */
+  config?: string;
+  /** id of a background layer, as `carma.mapping2D.getBackgroundLayers()` reports it */
+  backgroundLayer?: string;
+};
+
+const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
+  "config",
+  "backgroundLayer",
+];
 
 /** where the requested rectangle sits on screen, in css pixels */
 type BoundsBox = { left: number; top: number; width: number; height: number };
@@ -246,6 +271,12 @@ export const OutletAddon = ({
   const boundsKey = resolved?.bounds3857.join(",") ?? "";
   const [box, setBox] = useState<BoundsBox | null>(null);
 
+  /** what the remote last asked for and got, so an unchanged field is not re-applied */
+  const appliedRemoteRef = useRef<OutletRemoteState>({});
+  const relayRef = useRef<RelaySubscription | null>(null);
+  const relayCode = getHashParams()[RELAY_PARAM];
+  const relayBaseUrl = config?.relayBaseUrl;
+
   useEffect(() => {
     if (!resolved) {
       console.error(
@@ -282,6 +313,9 @@ export const OutletAddon = ({
       refit: () => {
         applyFit("manual");
       },
+      /** null when this window is not remote-controlled, see ?relay= */
+      relay: () => relayRef.current?.status() ?? null,
+      remoteState: () => ({ ...appliedRemoteRef.current }),
     };
 
     const record = (reason: string, report: VerifyReport) => {
@@ -362,6 +396,104 @@ export const OutletAddon = ({
     // resolved is memoized on config; boundsKey keeps the identity check honest
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libreMap, leafletMap, boundsKey, lockView, aspectTolerance, carma]);
+
+  /**
+   * Remote control. Nobody is sitting at the machine that renders the source
+   * window, so what it shows is steered from elsewhere through the relay
+   * (`services/map-relay`). Deliberately independent of the map: applying a
+   * configuration does not need one, so a relay-driven window keeps working
+   * even while the map is still coming up.
+   */
+  useEffect(() => {
+    if (!relayCode) {
+      return;
+    }
+    if (!relayBaseUrl) {
+      console.error(
+        `${LOG_PREFIX} ?${RELAY_PARAM}=${relayCode} was given but no relayBaseUrl is configured for this route; remote control is off.`
+      );
+      return;
+    }
+
+    const applyRemoteState = async (raw: unknown) => {
+      if (typeof raw !== "object" || raw === null) {
+        console.warn(`${LOG_PREFIX} ignoring a non-object remote state`, raw);
+        return;
+      }
+      const next = raw as OutletRemoteState;
+
+      const unsupported = Object.keys(next).filter(
+        (key) => !REMOTE_STATE_KEYS.includes(key as keyof OutletRemoteState)
+      );
+      if (unsupported.length > 0) {
+        console.warn(
+          `${LOG_PREFIX} ignoring unsupported remote state keys`,
+          unsupported
+        );
+      }
+
+      // Each field is compared against what was last applied successfully, so
+      // re-delivering the same document (a reconnect, a late join) does nothing.
+      if (
+        typeof next.config === "string" &&
+        next.config !== appliedRemoteRef.current.config
+      ) {
+        const applied = await carma.config.applyById(next.config);
+        if (applied) {
+          appliedRemoteRef.current = {
+            ...appliedRemoteRef.current,
+            config: next.config,
+          };
+          console.debug(`${LOG_PREFIX} applied config ${next.config}`);
+        } else {
+          // Also the normal outcome when a newer document overtook this one.
+          console.warn(
+            `${LOG_PREFIX} config ${next.config} was not applied; it may be unknown, or a newer state superseded it`
+          );
+        }
+      }
+
+      if (
+        typeof next.backgroundLayer === "string" &&
+        next.backgroundLayer !== appliedRemoteRef.current.backgroundLayer
+      ) {
+        const applied = carma.mapping2D.setBackgroundLayer(
+          next.backgroundLayer
+        );
+        if (applied) {
+          appliedRemoteRef.current = {
+            ...appliedRemoteRef.current,
+            backgroundLayer: next.backgroundLayer,
+          };
+          console.debug(
+            `${LOG_PREFIX} applied background layer ${next.backgroundLayer}`
+          );
+        } else {
+          console.warn(
+            `${LOG_PREFIX} unknown background layer ${next.backgroundLayer}`
+          );
+        }
+      }
+    };
+
+    const subscription = subscribe({
+      base: relayBaseUrl,
+      code: relayCode,
+      onState: (state, meta) => {
+        console.debug(`${LOG_PREFIX} remote state v${meta.v}`, state, meta);
+        void applyRemoteState(state);
+      },
+    });
+    relayRef.current = subscription;
+    console.info(
+      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}`
+    );
+
+    return () => {
+      subscription.stop();
+      relayRef.current = null;
+    };
+  }, [relayCode, relayBaseUrl, carma]);
 
   if (!showBounds || !box) {
     return null;

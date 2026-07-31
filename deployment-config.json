@@ -371,7 +371,10 @@
             "pages": {
               "org": "carma-dev-deployments",
               "prj": "geoportal",
-              "envs": ["VITE_MATOMO_SITE_ID=3"]
+              "envs": [
+                "VITE_MATOMO_SITE_ID=3",
+                "VITE_RELAY_BASE_URL=https://wupptwinoutletrelay.cismet.de"
+              ]
             }
           },
           "live": {
@@ -390,7 +393,10 @@
             "pages": {
               "org": "carma-dev-deployments",
               "prj": "geoportal",
-              "envs": ["VITE_MATOMO_SITE_ID=3"]
+              "envs": [
+                "VITE_MATOMO_SITE_ID=3",
+                "VITE_RELAY_BASE_URL=https://wupptwinoutletrelay.cismet.de"
+              ]
             }
           }
         }
