@@ -225,9 +225,11 @@ function App({
 
   const { initialMapFramework } = geoportalInitialHashState;
 
-  if (isLoadingConfig === null) {
-    // wait for the loading state to be determined to prevent re-rendering
-    console.debug("[CONFIG] APP - Waiting for config loading state...");
+  if (isLoadingConfig !== false) {
+    // null: the loading state is not determined yet, waiting prevents a
+    // re-render. true: a ?config= is being fetched, and rendering now would
+    // show the persisted layers first and swap them out once it lands.
+    console.debug("[CONFIG] APP - Waiting for config...", { isLoadingConfig });
     return null;
   }
 
