@@ -34,3 +34,12 @@ export const geoportalAppSearchParamsOptions = {
   },
   resolveCustomHashState: resolveGeoportalCustomHashState,
 } satisfies UseAppSearchParamsOptions<GeoportalCustomHashState>;
+
+/**
+ * For routes whose view is driven externally ({@link FachzwillingRoute.disableHashWrite}):
+ * same options without the initial default-view write, which would otherwise put
+ * a lat/lng/zoom into the hash on every load and seed the next reload with it.
+ */
+export const geoportalAppSearchParamsOptionsWithoutDefaultView = {
+  resolveCustomHashState: resolveGeoportalCustomHashState,
+} satisfies UseAppSearchParamsOptions<GeoportalCustomHashState>;

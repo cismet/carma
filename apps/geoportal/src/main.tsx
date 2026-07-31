@@ -20,6 +20,7 @@ import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
 import {
+  setUIHashWriteEnabled,
   setUIMapInteractionEnabled,
   setUIVisibleControls,
 } from "./app/store/slices/ui";
@@ -52,6 +53,7 @@ const RoutedApp = () => {
     dispatch(
       setUIMapInteractionEnabled(!fachzwilling?.disableMapInteraction)
     );
+    dispatch(setUIHashWriteEnabled(!fachzwilling?.disableHashWrite));
   }, [dispatch, fachzwilling]);
 
   const catalogConfig = useMemo(

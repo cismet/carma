@@ -5,6 +5,9 @@ export const outletFachzwilling: FachzwillingRoute = {
   hideFromCatalog: true,
   ui: { hideAll: true },
   disableMapInteraction: true,
+  // the addon owns the view; hash writes would only push history entries and
+  // seed the next reload with a view that then has to be fitted away again
+  disableHashWrite: true,
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },

@@ -74,6 +74,12 @@ type FachzwillingRouteBase = {
   ui?: FachzwillingUiOptions;
   disableMapInteraction?: boolean;
   /**
+   * Stop the map from writing lat/lng/zoom to the url hash on every view
+   * change. For routes whose view is driven externally, where those writes
+   * would push history entries and seed the next reload's initial view.
+   */
+  disableHashWrite?: boolean;
+  /**
    * workflow perspectives shown in the "Workflows" catalog category while the
    * route is open; the category is omitted on routes without perspectives
    * (including the default geoportal route)

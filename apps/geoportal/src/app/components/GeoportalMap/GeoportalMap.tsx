@@ -145,6 +145,7 @@ import {
   UIMode,
   getTriggerFeatureInfoUpdate,
   getUIMapInteractionEnabled,
+  getUIHashWriteEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
 import { getLibreDrawMode } from "../../store/slices/measurements.ts";
@@ -395,6 +396,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const layersIdle = useSelector(getLayersIdle);
   const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
+  const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
   const visibleControls = useSelector(getUIVisibleControls);
 
   useEffect(() => {
@@ -513,6 +515,10 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       getLeafletMap,
       getLeafletZoom,
       isHashWriteEnabled: () => {
+        if (!hashWriteEnabled) {
+          return false;
+        }
+
         if (getIsTransitioning()) {
           return false;
         }
@@ -534,6 +540,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       getLeafletZoom,
       getIsTransitioning,
       getIsCesium,
+      hashWriteEnabled,
       initialViewApplied,
       isInitialCameraResolved,
     ]
@@ -1248,6 +1255,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const visibleControls = useSelector(getUIVisibleControls);
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
+  const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
@@ -1446,6 +1454,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           modalMenuControl={showHamburgerMenu}
           libreLayers={libreLayers}
           disableInternalSelection={true}
+          hashWriteEnabled={hashWriteEnabled}
           interactive={mapInteractionEnabled}
           selectionEnabled={mapInteractionEnabled && !isModeMeasurement}
           onSelectionChanged={handleLibreSelectionChanged}

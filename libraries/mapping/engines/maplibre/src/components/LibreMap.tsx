@@ -222,6 +222,10 @@ export interface LibreMapProps {
   logErrors?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */
   exposeMapToWindow?: boolean;
+  /** Write lat/lng/zoom to the url hash on every moveend (default: true).
+   * Set false for a map whose view is driven externally and must not push
+   * history entries or seed the next reload's initial view. */
+  hashWriteEnabled?: boolean;
   /** Override selected feature for the infobox when internal selection is null
    * (e.g. programmatic selection of a feature not present on the map) */
   overrideSelectedFeature?: Record<string, unknown> | null;
@@ -330,6 +334,7 @@ export const LibreMap = ({
   debugLog = false,
   logErrors = false,
   exposeMapToWindow = false,
+  hashWriteEnabled = true,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
   disableInternalSelection = false,
@@ -1581,10 +1586,17 @@ export const LibreMap = ({
     []
   );
 
+  // read through a ref so toggling the flag does not re-create the routing
+  // callback and with it the moveend subscription below
+  const hashWriteEnabledRef = useRef(hashWriteEnabled);
+  hashWriteEnabledRef.current = hashWriteEnabled;
+  const isHashWriteEnabled = useCallback(() => hashWriteEnabledRef.current, []);
+
   const { handleTopicMapLocationChange } = useMapHashRouting({
     getLeafletMap,
     getLeafletZoom,
     labels: hashRoutingLabels,
+    isHashWriteEnabled,
   });
 
   useEffect(() => {

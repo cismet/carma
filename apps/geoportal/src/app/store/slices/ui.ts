@@ -49,6 +49,7 @@ export interface UIState {
   activeTabKey: string;
   visibleControls: UIVisibleControls;
   mapInteractionEnabled: boolean;
+  hashWriteEnabled: boolean;
   allowChanges: boolean;
   showInfo: boolean;
   showInfoText: boolean;
@@ -65,6 +66,7 @@ export const initialUIState: UIState = {
   activeTabKey: "1",
   visibleControls: defaultVisibleControls,
   mapInteractionEnabled: true,
+  hashWriteEnabled: true,
   allowChanges: true,
   showInfo: true,
   showInfoText: true,
@@ -104,6 +106,9 @@ const slice = createSlice({
     setUIMapInteractionEnabled(state, action: PayloadAction<boolean>) {
       state.mapInteractionEnabled = action.payload;
     },
+    setUIHashWriteEnabled(state, action: PayloadAction<boolean>) {
+      state.hashWriteEnabled = action.payload;
+    },
     setUIAllowChanges(state, action: PayloadAction<boolean>) {
       state.allowChanges = action.payload;
     },
@@ -141,6 +146,7 @@ export const {
   setUIActiveTabKey,
   setUIVisibleControls,
   setUIMapInteractionEnabled,
+  setUIHashWriteEnabled,
   setUIAllowChanges,
   setUIShowInfo,
   setUIShowInfoText,
@@ -158,6 +164,8 @@ export const getUIVisibleControls = (state: RootState) =>
   state.ui.visibleControls;
 export const getUIMapInteractionEnabled = (state: RootState) =>
   state.ui.mapInteractionEnabled;
+export const getUIHashWriteEnabled = (state: RootState) =>
+  state.ui.hashWriteEnabled;
 export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
 export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;
 export const getUIShowInfo = (state: RootState) => state.ui.showInfo;
