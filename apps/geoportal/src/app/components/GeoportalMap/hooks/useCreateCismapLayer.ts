@@ -211,7 +211,14 @@ export const useCreateCismapLayers = (
   }, [layers]);
 
   useEffect(() => {
-    if (modeRef.current !== mode) {
+    // Keep the current selection when entering or leaving print mode: the print
+    // preview renders on the same live map, so clearing here would drop the blue
+    // selection border. Only reset selection on other mode changes.
+    if (
+      modeRef.current !== mode &&
+      mode !== UIMode.PRINT &&
+      modeRef.current !== UIMode.PRINT
+    ) {
       updateGlobalHits();
       Object.keys(globalHits).forEach((key) => {
         const hits = globalHits[key];
