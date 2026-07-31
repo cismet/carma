@@ -104,6 +104,7 @@ import {
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
+import LibrePrintPreview from "../map-print/LibrePrintPreview.tsx";
 import AnnotationInfoBox from "../annotations/AnnotationInfoBox.tsx";
 
 import versionData from "../../../version.json";
@@ -1479,6 +1480,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           ) : (
             <FeatureInfoBox pos={pos ?? undefined} />
           ))}
+        {!isCesium && <LibrePrintPreview />}
       </div>
       {allow3d && isInitialCameraResolved && shouldMountCesium && (
         <CesiumHost

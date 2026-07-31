@@ -1,4 +1,7 @@
-// Inline-vector print support for the Leaflet print path.
+// Inline-vector print support. Used by BOTH print paths: the Leaflet one
+// (each vector layer runs in its own dedicated MapLibre map via
+// maplibre-gl-leaflet) and the MapLibre one (a single composite map renders
+// every layer — scope it via `styleLayerFilter`, see below).
 //
 // PROBLEM
 // Geoportal prints a vector layer as a static, server-hosted style reference
@@ -219,13 +222,26 @@ const rewriteFeatureStateToGet = (value: unknown): unknown => {
 // D. Build the inline print style from the live map.
 // ---------------------------------------------------------------------------
 
-interface StyleLayerLike {
+export interface StyleLayerLike {
   id: string;
   type: string;
   source?: string;
   "source-layer"?: string;
   filter?: unknown;
+  metadata?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+export interface InlineVectorStyleOptions {
+  /**
+   * Restrict which of the map's style layers are cloned/harvested. Required on
+   * a COMPOSITE map (one MapLibre map rendering many app layers, e.g. the
+   * geoportal libre map): pass a predicate matching only the target app
+   * layer's style layers — the style builder stamps each with
+   * metadata["layer-id"]. Omit for a dedicated per-layer map, where every
+   * source-drawing style layer belongs to the printed layer.
+   */
+  styleLayerFilter?: (styleLayer: StyleLayerLike) => boolean;
 }
 
 /**
@@ -252,7 +268,8 @@ export const buildInlineVectorStyle = (
   map: MaplibreMap,
   layer: PrintLayerLike,
   bbox?: Bbox,
-  forceInline = false
+  forceInline = false,
+  options?: InlineVectorStyleOptions
 ): Record<string, unknown> | null => {
   const style = map.getStyle() as unknown as {
     version?: number;
@@ -263,8 +280,12 @@ export const buildInlineVectorStyle = (
   } | null;
   if (!style) return null;
 
+  const styleLayerFilter = options?.styleLayerFilter;
   const sourceLayers = (style.layers ?? []).filter(
-    (l) => typeof l.source === "string" && l.type !== "background"
+    (l) =>
+      typeof l.source === "string" &&
+      l.type !== "background" &&
+      (!styleLayerFilter || styleLayerFilter(l))
   );
   if (sourceLayers.length === 0) return null;
 

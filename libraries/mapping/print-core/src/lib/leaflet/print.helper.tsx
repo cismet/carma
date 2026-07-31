@@ -24,7 +24,7 @@ import {
   buildInlineVectorStyle,
   layerHasActiveFilter,
   type Bbox,
-} from "./inlineVectorPrint";
+} from "../maplibre/inlineVectorPrint";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;
