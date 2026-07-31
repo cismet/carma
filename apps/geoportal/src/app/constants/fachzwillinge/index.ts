@@ -86,6 +86,13 @@ type FachzwillingRouteBase = {
    */
   disableExpiredTileRefresh?: boolean;
   /**
+   * Hash key this route reads its shared layer config from, instead of the
+   * app-wide `config`. That key is reserved geoportal-wide (it is stripped
+   * after loading and omitted from generated share links), so a route that
+   * needs its config to stay in the url must use a name of its own.
+   */
+  configHashKey?: string;
+  /**
    * workflow perspectives shown in the "Workflows" catalog category while the
    * route is open; the category is omitted on routes without perspectives
    * (including the default geoportal route)

@@ -101,30 +101,35 @@ export const useAppConfig = (
   const dispatch = useDispatch();
   const { pathname } = useLocation();
   const { setSelectedFeatureById } = useAdhocFeatureDisplay();
+  const fachzwilling = findFachzwillingByPathname(pathname);
+  // a route may hold its config under a key of its own, see configHashKey
+  const effectiveConfigKey = fachzwilling?.configHashKey ?? configKey;
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
   const [configId, setConfigId] = useState<string | undefined>(
-    () => getHashParams()[configKey]
+    () => getHashParams()[effectiveConfigKey]
   );
   /** the config whose layers are currently applied, so a rewritten hash that
    * leaves the key untouched does not re-fetch and re-dispatch it */
   const appliedConfigRef = useRef<string | undefined>(undefined);
   const initialLoadDoneRef = useRef(false);
 
-  // Editing ?config= in the address bar must take effect without a reload.
-  // The app's own hash writes go through pushState or location.replace, so they
-  // land here too; the applied-config check below makes those a no-op.
+  // Editing the config key in the address bar must take effect without a
+  // reload. The app's own hash writes go through pushState or location.replace,
+  // so they land here too; the applied-config check below makes those a no-op.
   useEffect(() => {
     const readConfigFromHash = () => {
-      const next = getHashParams()[configKey];
+      const next = getHashParams()[effectiveConfigKey];
       setConfigId((current) => (current === next ? current : next));
     };
+    // also on mount, so switching to a route with its own key re-reads it
+    readConfigFromHash();
     window.addEventListener("hashchange", readConfigFromHash);
     window.addEventListener("popstate", readConfigFromHash);
     return () => {
       window.removeEventListener("hashchange", readConfigFromHash);
       window.removeEventListener("popstate", readConfigFromHash);
     };
-  }, [configKey]);
+  }, [effectiveConfigKey]);
 
   useEffect(() => {
     const config = configId;
@@ -140,13 +145,13 @@ export const useAppConfig = (
     // Dropping the parameter is itself a hash write, so routes that own their
     // url keep it. They need it: without it a reload falls back to whatever
     // redux-persist happens to hold instead of the configured layers.
-    if (!findFachzwillingByPathname(pathname)?.disableHashWrite) {
+    if (!fachzwilling?.disableHashWrite) {
       // TODO use HashStateProvider Here since its toplevel now
       // can't use HashStateProvider here
       // because it's not yet available
       // and needs to be configured by the config itself
       // use direct history state update instead
-      updateHashHistoryState({ [configKey]: undefined }, pathname, {
+      updateHashHistoryState({ [effectiveConfigKey]: undefined }, pathname, {
         label: "remove config search parameter",
         replace: true,
       });
