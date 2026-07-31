@@ -52,7 +52,7 @@ const ActionButtons = () => {
   const dispatch = useDispatch();
   const layerState = useSelector(getLayerState);
   const { selection } = useSelection();
-  const { copyShareUrl, contextHolder } = useShareUrl();
+  const { copyShareUrl, copyShareId, contextHolder } = useShareUrl();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayerStack);
@@ -79,6 +79,30 @@ const ActionButtons = () => {
       return () => clearTimeout(timer);
     }
   }, [printError]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) {
+        return;
+      }
+      const isAltShiftCombo =
+        (event.key === "Shift" && event.altKey) ||
+        (event.key === "Alt" && event.shiftKey);
+      if (isAltShiftCombo) {
+        event.preventDefault();
+        copyShareId({
+          layerState,
+          gazetteerSelection: selection,
+          selectedFeature,
+        });
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [copyShareId, layerState, selection, selectedFeature]);
 
   return (
     <div

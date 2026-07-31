@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { message } from "antd";
 import { encodeHashParams } from "@carma-providers/hash-state";
@@ -9,86 +10,130 @@ import { normalizeShareHashParams } from "./shareHash";
 export const SHORTENER_URL =
   "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
+interface ShareStateArgs {
+  layerState: LayerState;
+  closePopover?: () => void;
+  gazetteerSelection?: SelectionItem;
+  selectedFeature?: SelectedObject;
+}
+
+const createShareKey = async ({
+  layerState,
+  gazetteerSelection,
+  selectedFeature,
+}: ShareStateArgs): Promise<string> => {
+  const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
+    layerState;
+  const currentParams = getHashParams();
+  const lat = currentParams.lat || 51.27256992259917;
+  const lng = currentParams.lng || 7.199920713901521;
+  const zoom = currentParams.zoom || 18;
+
+  const view = {
+    center: [lat, lng],
+    zoom: zoom,
+  };
+  const newConfig = {
+    backgroundLayer: {
+      ...backgroundLayer,
+      selectedLayerId:
+        backgroundLayer.id === "luftbild"
+          ? selectedLuftbildLayer.id
+          : selectedMapLayer.id,
+    },
+    layers,
+    view,
+    gazetteerSelection,
+    selectedFeature,
+  };
+
+  const response = await fetch(SHORTENER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(newConfig),
+  });
+  const data = await response.json();
+  return data.key;
+};
+
 export const useShareUrl = () => {
   const [, copyToClipboard] = useCopyToClipboard();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const copyShareUrl = async ({
-    layerState,
-    closePopover = () => {},
-    gazetteerSelection,
-    selectedFeature,
-  }: {
-    layerState: LayerState;
-    closePopover?: () => void;
-    gazetteerSelection?: SelectionItem;
-    selectedFeature?: SelectedObject;
-  }) => {
-    try {
-      const {
-        layers,
-        backgroundLayer,
-        selectedLuftbildLayer,
-        selectedMapLayer,
-      } = layerState;
-      const currentParams = getHashParams();
-      const lat = currentParams.lat || 51.27256992259917;
-      const lng = currentParams.lng || 7.199920713901521;
-      const zoom = currentParams.zoom || 18;
+  const copyShareUrl = useCallback(
+    async ({
+      layerState,
+      closePopover = () => {},
+      gazetteerSelection,
+      selectedFeature,
+    }: ShareStateArgs) => {
+      try {
+        const currentParams = getHashParams();
+        const newSearchParams = new URLSearchParams(currentParams);
+        const baseUrl = window.location.origin + window.location.pathname;
+        const hashRoute =
+          window.location.hash.split("?")[0].replace(/^#/, "") || "/";
+        const combinedHash = encodeHashParams(
+          normalizeShareHashParams(Object.fromEntries(newSearchParams))
+        );
 
-      const newSearchParams = new URLSearchParams(currentParams);
+        const key = await createShareKey({
+          layerState,
+          gazetteerSelection,
+          selectedFeature,
+        });
+        const prefixedHash = combinedHash.length > 0 ? `${combinedHash}&` : "";
+        const url = `${baseUrl}#${hashRoute}?${prefixedHash}config=${key}&appKey=sharedurl`;
+        copyToClipboard(url);
+        messageApi.open({
+          type: "success",
+          content: `Link wurde in die Zwischenablage kopiert.`,
+          duration: 0.8,
+        });
+      } catch {
+        messageApi.open({
+          type: "error",
+          content: `Es gab einen Fehler beim erstellen des Links`,
+          duration: 0.8,
+        });
+      }
+      closePopover?.();
+    },
+    [copyToClipboard, messageApi]
+  );
 
-      const view = {
-        center: [lat, lng],
-        zoom: zoom,
-      };
-      const newConfig = {
-        backgroundLayer: {
-          ...backgroundLayer,
-          selectedLayerId:
-            backgroundLayer.id === "luftbild"
-              ? selectedLuftbildLayer.id
-              : selectedMapLayer.id,
-        },
-        layers,
-        view,
-        gazetteerSelection,
-        selectedFeature,
-      };
-      const jsonString = JSON.stringify(newConfig);
-      const baseUrl = window.location.origin + window.location.pathname;
-      const hashRoute =
-        window.location.hash.split("?")[0].replace(/^#/, "") || "/";
-      const combinedHash = encodeHashParams(
-        normalizeShareHashParams(Object.fromEntries(newSearchParams))
-      );
+  const copyShareId = useCallback(
+    async ({
+      layerState,
+      closePopover = () => {},
+      gazetteerSelection,
+      selectedFeature,
+    }: ShareStateArgs) => {
+      try {
+        const key = await createShareKey({
+          layerState,
+          gazetteerSelection,
+          selectedFeature,
+        });
+        copyToClipboard(key);
+        messageApi.open({
+          type: "success",
+          content: `Share-ID wurde in die Zwischenablage kopiert.`,
+          duration: 0.8,
+        });
+      } catch {
+        messageApi.open({
+          type: "error",
+          content: `Es gab einen Fehler beim Erstellen der Share-ID`,
+          duration: 0.8,
+        });
+      }
+      closePopover?.();
+    },
+    [copyToClipboard, messageApi]
+  );
 
-      const response = await fetch(SHORTENER_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonString,
-      });
-      const data = await response.json();
-      const key = data.key;
-      const prefixedHash = combinedHash.length > 0 ? `${combinedHash}&` : "";
-      const url = `${baseUrl}#${hashRoute}?${prefixedHash}config=${key}&appKey=sharedurl`;
-      copyToClipboard(url);
-      messageApi.open({
-        type: "success",
-        content: `Link wurde in die Zwischenablage kopiert.`,
-        duration: 0.8,
-      });
-    } catch {
-      messageApi.open({
-        type: "error",
-        content: `Es gab einen Fehler beim erstellen des Links`,
-        duration: 0.8,
-      });
-    }
-    closePopover?.();
-  };
-
-  return { copyShareUrl, contextHolder, messageApi };
+  return { copyShareUrl, copyShareId, contextHolder, messageApi };
 };
