@@ -231,6 +231,61 @@ export const BELIS_SOURCE_LAYERS = [
   "abzweigdosen",
 ] as const;
 
+/**
+ * Per-category print styles (belis4print). Unlike the on-screen styles — which
+ * draw white for the dark map and combine every Fachobjekt into one style — the
+ * print server hosts one colored, print-ready style *per category* so the print
+ * can mirror the on-map filter toggles (print only the categories that are
+ * visible). Two source flavours exist:
+ *   - regular  : vector-tile backed  -> belis4print/<cat>.style.json
+ *   - brandnew : same-day GeoJSON    -> belis4print/brand.new.features.<cat>.style.json
+ * Leitungen is special: it has one combined style plus one style per Leitungstyp
+ * (filtered by `bezeichnung`), so it can mirror the Leitungstyp sub-toggles.
+ */
+export const BELIS_PRINT_STYLE_BASE = "https://tiles.cismet.de/belis4print";
+
+/** Build the print style URL for a category basename and source flavour. */
+export const printCategoryStyleUrl = (
+  basename: string,
+  brandnew: boolean
+): string =>
+  brandnew
+    ? `${BELIS_PRINT_STYLE_BASE}/brand.new.features.${basename}.style.json`
+    : `${BELIS_PRINT_STYLE_BASE}/${basename}.style.json`;
+
+/**
+ * Filter-category key -> print style basename. Leitungen is omitted: it is
+ * resolved per Leitungstyp in printLayers.ts (see resolveLeitungenBasenames).
+ */
+export const BELIS_PRINT_CATEGORY_BASENAMES: Record<string, string> = {
+  leuchten: "leuchten",
+  standorte: "standorte",
+  schaltstellen: "schaltstellen",
+  abzweigdosen: "abzweigdosen",
+  mauerlaschen: "mauerlaschen",
+};
+
+/**
+ * Draw order of the printed Fachobjekt layers, bottom -> top. Each category is a
+ * separate WMS GetMap composited in this order, so lines/areas go below and the
+ * icon-heavy Leuchten on top — matching the on-screen z-order.
+ */
+export const BELIS_PRINT_CATEGORY_ORDER = [
+  "leitungen",
+  "mauerlaschen",
+  "abzweigdosen",
+  "schaltstellen",
+  "standorte",
+  "leuchten",
+] as const;
+
+/**
+ * Leitungstyp bezeichnung -> sub-variant slug (the part after "leitungen." in
+ * the style filename, e.g. "Tragseil mit Freileitung" -> tragseil-mit-freileitung).
+ */
+export const leitungstypSlug = (bezeichnung: string): string =>
+  bezeichnung.trim().toLowerCase().replace(/\s+/g, "-");
+
 export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
   {
     key: "leuchten",
