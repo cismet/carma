@@ -1,0 +1,22 @@
+services:
+  map-relay:
+    build: .
+    container_name: map-relay
+    restart: unless-stopped
+    # Bind to localhost only — your existing nginx does TLS and is the only
+    # thing that should be able to reach this.
+    ports:
+      - "127.0.0.1:8099:8080"
+    environment:
+      # Lock this down to your GitHub Pages origin once you know it.
+      # Scheme + host, no trailing slash, no path.
+      ALLOW_ORIGIN: "https://cismet.github.io"
+      FAST_POLL_MS: "250"
+      SLOW_POLL_MS: "2000"
+      MAX_WAIT_MS: "25000"
+      HOT_MS: "60000"
+      SESSION_TTL_MS: "21600000"
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
