@@ -5,13 +5,11 @@
 //   - wms / wmts  -> WMS GetMap against `url` with `layers`
 //   - vector      -> tgl4printing WMS keyed by getStyleName(style)
 //
-// NOTE: the tgl4printing service must actually host a style matching
-// getStyleName() for a vector layer to print. The Leuchten layer's on-screen
-// styleY draws features white (for the dark map) and is therefore invisible on
-// the white print page, so we print via conf.printingStyle = style.json, which
-// getStyleName maps to the colored "belis-style" registered on tgl4printing.
-// Those endpoints are not verified here — this is the documented best-effort
-// pass; layers the service does not know about simply come back blank.
+// The Fachobjekt data layers (Leuchten, Standorte, …) are NOT printed via the
+// on-screen styleY/brand.new styles: those draw white for the dark map and are
+// invisible on the white page. Instead each *visible* category is printed via
+// its own colored belis4print style, so the print mirrors the on-map filter
+// toggles (category + Leitungstyp sub-type + regular/brandnew source).
 
 import type { PrintInputLayer } from "@carma-mapping/print-core";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
@@ -19,22 +17,11 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import {
   additionalLayerConfigs,
   backgroundLayerConfigs,
-  BELIS_BRAND_NEW_STYLE_URL,
-  BELIS_PRINT_STYLE_URL,
-  BELIS_BRAND_NEW_PRINT_STYLE_URL,
-  BELIS_STYLE_URL,
-  brandNewDataLayer,
-  leuchtenDataLayer,
+  BELIS_PRINT_CATEGORY_BASENAMES,
+  BELIS_PRINT_CATEGORY_ORDER,
+  leitungstypSlug,
+  printCategoryStyleUrl,
 } from "../config/mapLayerConfigs";
-
-// On-screen style URL → its print-server variant. The on-screen styles draw
-// features for the dark map and/or use feature-state expressions the print
-// WMS cannot evaluate; the *.print.* variants are the colored, server-renderable
-// counterparts registered on tsgl4printing-wms.
-const PRINT_STYLE_OVERRIDES: Record<string, string> = {
-  [BELIS_STYLE_URL]: BELIS_PRINT_STYLE_URL,
-  [BELIS_BRAND_NEW_STYLE_URL]: BELIS_BRAND_NEW_PRINT_STYLE_URL,
-};
 
 const toInputLayer = (
   layer: LibreLayer,
@@ -56,16 +43,12 @@ const toInputLayer = (
       if (typeof layer.style !== "string") {
         return null;
       }
-      const printingStyle = PRINT_STYLE_OVERRIDES[layer.style];
       return {
         visible: true,
         layerType: "vector",
         style: layer.style,
         props: { style: layer.style },
         opacity: layer.opacity ?? fallbackOpacity,
-        // getPrintLayers prefers conf.printingStyle over the on-screen style.
-        // See PRINT_STYLE_OVERRIDES above for the mapping rationale.
-        conf: printingStyle ? { printingStyle } : undefined,
       };
     }
     // geojson / cog layers have no MapFish equivalent here.
@@ -77,23 +60,93 @@ const toInputLayer = (
 const expand = (entry: LibreLayer | LibreLayer[]): LibreLayer[] =>
   Array.isArray(entry) ? entry : [entry];
 
+interface Leitungstyp {
+  id: number;
+  bezeichnung?: string;
+}
+
 /**
- * Build the printable layer stack in draw order (bottom → top):
- * active background, then active additional overlays, then the always-on
- * Leuchten data layer on top. getPrintLayers reverses via unshift, so this
- * order yields the Leuchten on top of the overlays on top of the background.
+ * Resolve which Leitungen print-style basenames to use, mirroring the on-map
+ * Leitungstyp filter (applyLeitungenFilter):
+ *   - all types enabled (or none explicitly set) -> the combined "leitungen"
+ *   - a subset enabled -> one "leitungen.<slug>" per enabled Leitungstyp
+ *   - key table not loaded yet -> fall back to the combined style
+ */
+const resolveLeitungenBasenames = (
+  enabledLeitungstypen: Record<number, boolean>,
+  leitungstypen: Leitungstyp[]
+): string[] => {
+  if (!leitungstypen || leitungstypen.length === 0) return ["leitungen"];
+
+  const noneExplicitlySet = Object.keys(enabledLeitungstypen).length === 0;
+  const allEnabled = leitungstypen.every(
+    (t) => enabledLeitungstypen[t.id] !== false
+  );
+  if (allEnabled || noneExplicitlySet) return ["leitungen"];
+
+  return leitungstypen
+    .filter((t) => enabledLeitungstypen[t.id] !== false && t.bezeichnung)
+    .map((t) => `leitungen.${leitungstypSlug(t.bezeichnung as string)}`);
+};
+
+/**
+ * Build the print-style basenames for every visible Fachobjekt category, in
+ * bottom -> top draw order. A category contributes only when its filter toggle
+ * is on (missing/true = on, matching the on-map behaviour).
+ */
+const buildVisibleCategoryBasenames = (params: {
+  enabledCategoryFilters: Record<string, boolean>;
+  enabledLeitungstypen: Record<number, boolean>;
+  leitungstypen: Leitungstyp[];
+}): string[] => {
+  const { enabledCategoryFilters, enabledLeitungstypen, leitungstypen } =
+    params;
+
+  const out: string[] = [];
+  for (const key of BELIS_PRINT_CATEGORY_ORDER) {
+    if (enabledCategoryFilters[key] === false) continue;
+    if (key === "leitungen") {
+      out.push(...resolveLeitungenBasenames(enabledLeitungstypen, leitungstypen));
+    } else {
+      const basename = BELIS_PRINT_CATEGORY_BASENAMES[key];
+      if (basename) out.push(basename);
+    }
+  }
+  return out;
+};
+
+/**
+ * Build the printable layer stack in draw order (bottom -> top):
+ * active background, then active additional overlays, then the visible
+ * Fachobjekt data layers (one colored belis4print style per visible category /
+ * Leitungstyp / source). getPrintLayers reverses via unshift, so this order
+ * yields the Fachobjekte on top of the overlays on top of the background.
  */
 export const buildBelisPrintLayers = (params: {
   activeBackgroundLayer: string;
   backgroundLayerOpacities: Record<string, number>;
   activeAdditionalLayers: string[];
   additionalLayerOpacities: Record<string, number>;
+  /** On-map category filter (missing/true = visible). */
+  enabledCategoryFilters: Record<string, boolean>;
+  /** On-map Leitungstyp sub-filter (id -> enabled, missing/true = visible). */
+  enabledLeitungstypen: Record<number, boolean>;
+  /** Leitungstyp key table (id -> bezeichnung) for sub-variant style lookup. */
+  leitungstypen: Leitungstyp[];
+  /** Source flavours visible on the map (default both on). */
+  regularEnabled: boolean;
+  brandnewEnabled: boolean;
 }): PrintInputLayer[] => {
   const {
     activeBackgroundLayer,
     backgroundLayerOpacities,
     activeAdditionalLayers,
     additionalLayerOpacities,
+    enabledCategoryFilters,
+    enabledLeitungstypen,
+    leitungstypen,
+    regularEnabled,
+    brandnewEnabled,
   } = params;
 
   const out: PrintInputLayer[] = [];
@@ -121,12 +174,27 @@ export const buildBelisPrintLayers = (params: {
     );
   }
 
-  // Brand-new features draw under Leuchten (matches the on-screen z-order:
-  // the brandnew layer is attached below the leuchten-selection layer).
-  pushEntry(brandNewDataLayer, 1);
-
-  // Always-on Leuchten data layer (vector styleY) renders on top.
-  pushEntry(leuchtenDataLayer, 1);
+  // Visible Fachobjekt categories, one colored print style per category /
+  // Leitungstyp. Regular sits below its brandnew counterpart so same-day edits
+  // stay visible; both only when the corresponding source is shown on the map.
+  const basenames = buildVisibleCategoryBasenames({
+    enabledCategoryFilters,
+    enabledLeitungstypen,
+    leitungstypen,
+  });
+  const pushPrintStyle = (url: string) => {
+    out.push({
+      visible: true,
+      layerType: "vector",
+      style: url,
+      props: { style: url },
+      opacity: 1,
+    });
+  };
+  for (const basename of basenames) {
+    if (regularEnabled) pushPrintStyle(printCategoryStyleUrl(basename, false));
+    if (brandnewEnabled) pushPrintStyle(printCategoryStyleUrl(basename, true));
+  }
 
   return out;
 };
