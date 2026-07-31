@@ -32,7 +32,10 @@ export type { AddonStateAction } from "./lib/AddonStateContext";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
 export { VectorHighlight } from "./addons/VectorHighlight";
-export type { VectorHighlightConfig } from "./addons/VectorHighlight";
+export type {
+  HighlightModeState,
+  VectorHighlightConfig,
+} from "./addons/VectorHighlight";
 export {
   LayerVisibility,
   type LayerVisibilityConfig,

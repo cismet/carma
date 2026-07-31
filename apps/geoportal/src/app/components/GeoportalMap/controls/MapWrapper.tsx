@@ -62,6 +62,7 @@ import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControl
 import { useLibreTerrain } from "../../../hooks/libre/useLibreTerrain.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
@@ -253,6 +254,7 @@ const MapWrapper = () => {
 
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
+  useHighlightModeSync();
 
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
