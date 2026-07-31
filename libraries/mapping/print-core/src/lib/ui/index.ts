@@ -3,3 +3,5 @@
 
 export { PrintSettings } from "./PrintSettings";
 export type { PrintSettingsProps } from "./PrintSettings";
+export { PrintPreviewControls } from "./PrintPreviewControls";
+export type { PrintPreviewControlsProps } from "./PrintPreviewControls";

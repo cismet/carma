@@ -5,6 +5,8 @@ export type PrintOrientation = "landscape" | "portrait";
 export type DPI = "72" | "100" | "200" | "300";
 
 export type PrintState = {
+  /** Whether the print preview rectangle is currently shown on the map. */
+  active: boolean;
   orientation: PrintOrientation;
   dpi: DPI;
   name: string;
@@ -17,6 +19,7 @@ export type PrintState = {
 };
 
 const initialState: PrintState = {
+  active: false,
   orientation: "portrait",
   dpi: "72",
   name: "Druck_BelIS",
@@ -32,6 +35,9 @@ const slice = createSlice({
   name: "print",
   initialState,
   reducers: {
+    changePrintActive(state, action: PayloadAction<boolean>) {
+      state.active = action.payload;
+    },
     changeOrientation(state, action: PayloadAction<PrintOrientation>) {
       state.orientation = action.payload;
     },
@@ -63,6 +69,7 @@ const slice = createSlice({
 });
 
 export const {
+  changePrintActive,
   changeOrientation,
   changeDPI,
   changePrintName,
@@ -74,6 +81,7 @@ export const {
   changeIfPopupOpend,
 } = slice.actions;
 
+export const getPrintActive = (state: RootState) => state.print.active;
 export const getOrientation = (state: RootState) => state.print.orientation;
 export const getDPI = (state: RootState) => state.print.dpi;
 export const getPrintName = (state: RootState) => state.print.name;

@@ -59,6 +59,39 @@ export function calculateBBox(
   };
 }
 
+/**
+ * Font size for the preview overlay text, by orientation and current pixel
+ * width of the preview rectangle. Ported verbatim from the geoportal Leaflet
+ * helper so both engines size the overlay identically.
+ */
+export const getPreviewFontSize = (
+  orientation: Orientation,
+  width: number
+): string => {
+  if (orientation === "portrait") {
+    if (width >= 154 && width <= 278) return "16px";
+    if (width >= 103 && width < 154) return "10px";
+    if (width >= 80 && width < 103) return "7px";
+    if (width < 80) return "0px";
+    return "24px";
+  }
+  // landscape
+  if (width >= 118 && width < 236) return "7px";
+  if (width >= 236 && width < 474) return "16px";
+  if (width >= 474) return "24px";
+  return "0px";
+};
+
+/**
+ * Whether the preview is small enough that the overlay collapses to its
+ * compact ("small") layout. Thresholds match the geoportal helper.
+ */
+export const getPreviewIsSmallMode = (
+  orientation: Orientation,
+  width: number
+): boolean =>
+  orientation === "portrait" ? width <= 154 : width <= 278;
+
 /** GeoJSON-ish polygon (EPSG:3857) from a bbox — used to seed the preview rect. */
 export function createFeatureFromBBox(bbox: BBox) {
   return {

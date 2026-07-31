@@ -8,6 +8,7 @@ import {
   changeDPI,
   changeIfMapPrinted,
   changeOrientation,
+  changePrintActive,
   changeRedrawPreview,
   changeScale,
   getDPI,
@@ -58,6 +59,7 @@ const PrintControl = () => {
           onPreview={() => {
             dispatch(changeRedrawPreview(!redrawPreview));
             dispatch(changeIfMapPrinted(false));
+            dispatch(changePrintActive(true));
             setOpen(false);
           }}
         />
