@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 
+import { registerConfig } from "@carma-api";
 import {
   type SelectedObject,
   useAdhocFeatureDisplay,
@@ -116,6 +117,101 @@ export const useAppConfig = (
    * would otherwise read the key as gone and drop the config mid-fetch. */
   const strippedConfigRef = useRef<string | undefined>(undefined);
   const initialLoadDoneRef = useRef(false);
+  /** the load currently running, aborted when a newer one starts */
+  const inFlightRef = useRef<AbortController | null>(null);
+
+  /** Read through a ref so applyConfigById can stay identity-stable: it is
+   * registered as an adapter, and re-registering on every render of a hook this
+   * central would be churn for nothing. */
+  const depsRef = useRef({
+    configBaseUrl,
+    layerMap,
+    dispatch,
+    setSelectedFeatureById,
+  });
+  depsRef.current = {
+    configBaseUrl,
+    layerMap,
+    dispatch,
+    setSelectedFeatureById,
+  };
+
+  /**
+   * Load a shared configuration and apply its content. This is the one place
+   * that does it: the hash effect below calls it, and so does anything reaching
+   * the app through `carma.config.applyById`, which is how the outlet's remote
+   * control switches what the projection-mapping source window shows without
+   * touching the url.
+   */
+  const applyConfigById = useCallback(async (id: string): Promise<boolean> => {
+    if (!id) {
+      console.info("[CONFIG] ignoring an empty config id.");
+      return false;
+    }
+    if (id === appliedConfigRef.current) {
+      setIsLoadingConfig(false);
+      return true;
+    }
+
+    // A switch arriving while an earlier one is still loading must win, or the
+    // slower response would land last and the app would show the wrong config.
+    inFlightRef.current?.abort();
+    const controller = new AbortController();
+    inFlightRef.current = controller;
+
+    // Only the first load blanks the app (isLoadingConfig stays null until it
+    // resolves). A later switch keeps the map mounted and just swaps the
+    // content, so the outlet's fitted view survives it.
+    if (!initialLoadDoneRef.current) {
+      setIsLoadingConfig(true);
+    }
+
+    const { configBaseUrl: baseUrl, ...rest } = depsRef.current;
+    try {
+      const response = await fetch(baseUrl + id, { signal: controller.signal });
+      const newConfig = (await response.json()) as Config;
+      onLoadedConfig(
+        newConfig,
+        rest.layerMap,
+        rest.dispatch,
+        rest.setSelectedFeatureById
+      );
+      appliedConfigRef.current = id;
+      initialLoadDoneRef.current = true;
+      setIsLoadingConfig(false);
+      return true;
+    } catch (error) {
+      // An abort means a newer load took over and owns the state from here.
+      if (error instanceof Error && error.name === "AbortError") {
+        return false;
+      }
+      initialLoadDoneRef.current = true;
+      setIsLoadingConfig(false);
+      console.error("Error loading config:", error);
+      return false;
+    } finally {
+      if (inFlightRef.current === controller) {
+        inFlightRef.current = null;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    registerConfig({
+      applyById: applyConfigById,
+      getAppliedId: () => appliedConfigRef.current ?? null,
+    });
+    return () => {
+      registerConfig(null);
+    };
+  }, [applyConfigById]);
+
+  useEffect(
+    () => () => {
+      inFlightRef.current?.abort();
+    },
+    []
+  );
 
   // Editing the config key in the address bar must take effect without a
   // reload. The app's own hash writes go through pushState or location.replace,
@@ -180,32 +276,7 @@ export const useAppConfig = (
 
     console.info("[CONFIG] config  provided in hash parameters.", { config });
 
-    // Only the first load blanks the app (isLoadingConfig stays null until it
-    // resolves). A later switch keeps the map mounted and just swaps the
-    // layers, so the outlet's fitted view survives it.
-    if (!initialLoadDoneRef.current) {
-      setIsLoadingConfig(true);
-    }
-    const controller = new AbortController();
-
-    fetch(configBaseUrl + config, { signal: controller.signal })
-      .then((response) => response.json())
-      .then((newConfig: Config) => {
-        onLoadedConfig(newConfig, layerMap, dispatch, setSelectedFeatureById);
-        appliedConfigRef.current = config;
-        initialLoadDoneRef.current = true;
-        setIsLoadingConfig(false);
-      })
-      .catch((error) => {
-        if (error.name === "AbortError") return;
-        initialLoadDoneRef.current = true;
-        setIsLoadingConfig(false);
-        console.error("Error loading config:", error);
-      });
-
-    return () => {
-      controller.abort();
-    };
+    void applyConfigById(config);
     // re-runs whenever the config key in the hash changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configId]);

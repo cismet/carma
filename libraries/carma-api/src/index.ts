@@ -1,9 +1,20 @@
 /// <reference path="./global.d.ts" />
+import { config } from "./lib/config";
 import { gazetteer } from "./lib/gazetteer";
 import { mapping, mapping2D, mapping3D } from "./lib/mapping";
 import { ui } from "./lib/ui";
 
-export const carma = { gazetteer, mapping, mapping2D, mapping3D, ui } as const;
+export const carma = {
+  config,
+  gazetteer,
+  mapping,
+  mapping2D,
+  mapping3D,
+  ui,
+} as const;
+
+export { registerConfig } from "./lib/config";
+export type { ConfigAdapter, ConfigFacade } from "./lib/config";
 
 export { registerMapping } from "./lib/mapping";
 export type {
