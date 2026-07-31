@@ -208,7 +208,7 @@ const HighlightModeButton = ({
 }) => (
   <Tooltip
     title={
-      isOn ? "Hervorhebungsmodus beenden" : "Objekte per Lasso hervorheben"
+      isOn ? "Highlightingmodus ausschalten" : "Highlightingmodus einschalten"
     }
     placement="right"
   >

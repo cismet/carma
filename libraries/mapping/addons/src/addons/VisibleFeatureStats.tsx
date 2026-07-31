@@ -8,9 +8,13 @@ import {
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import type { Store } from "redux";
 
+import { useMapHighlight } from "@carma-mapping/contexts";
 import type { LayerStackEntry } from "@carma-mapping/layers";
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
-import { useVisibleMapFeatures } from "@carma-mapping/utils";
+import {
+  buildFeatureStateTarget,
+  useVisibleMapFeatures,
+} from "@carma-mapping/utils";
 
 import type { AddonComponentProps } from "../lib/registry";
 
@@ -28,6 +32,17 @@ import type { AddonComponentProps } from "../lib/registry";
  * that has not loaded yet is not counted. That is the right input for "stats
  * about what is on screen", the wrong one for "stats about all data in the
  * bbox".
+ *
+ * WITH `VectorHighlight` ON THE SAME ROUTE (`filterByHighlight`, on by
+ * default): while its highlight mode runs, the panel narrows to the highlighted
+ * features and its heading says so. The two addons do not talk to each other —
+ * both read `MapHighlightContext`, and the highlight itself is read off the map
+ * as the `highlighted` feature-state `useMapHighlighting` writes. That state is
+ * where *every* highlight path lands (modifier+click, lasso, `highlightByIds`,
+ * `highlightByProperty`), which the context's `toggledFeatures` map is not, and
+ * it is a flag on the rendered feature, so grouping keeps working on the same
+ * full `MapGeoJSONFeature` objects: same categories, same layer rows, same
+ * colours, only fewer of them.
  */
 
 export type DebugInset = {
@@ -57,6 +72,17 @@ export type VisibleFeatureStatsConfig = {
    * e.g. `["alkis.*-fill"]`. Omit to query every layer the style renders.
    */
   layerFilterExpressions?: string[];
+  /**
+   * While a highlight mode is running, count only the highlighted features.
+   * Off, the panel always counts everything on screen. Default: true.
+   */
+  filterByHighlight?: boolean;
+  /**
+   * Feature-state key the highlight is read from. Must match the `stateKey` of
+   * whoever writes it — `VectorHighlight`'s config, and BELIS' own style, both
+   * default to the same. Default: "highlighted"
+   */
+  highlightStateKey?: string;
   /** Also log the feature array, not just the counts. Default: true */
   logFeatures?: boolean;
   /** Log every settled viewport to the console. Default: true */
@@ -83,6 +109,8 @@ const DEFAULT_DEBUG_INSET_PX = 0;
 const DEFAULT_PANEL_POSITION: Positions = "topright";
 const DEFAULT_PANEL_ORDER = 10;
 const DEFAULT_PANEL_MAX_ROWS = 8;
+/** `useMapHighlighting`'s own default, and `VectorHighlight`'s */
+const DEFAULT_HIGHLIGHT_STATE_KEY = "highlighted";
 const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
 const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
 
@@ -478,6 +506,88 @@ const useDebugBoundsBox = (
 };
 
 /**
+ * The highlighted subset of the visible features, read live off the map.
+ *
+ * `useMapHighlighting` marks a highlight by writing the `highlighted`
+ * feature-state, so the mark sits on the feature itself and every path that can
+ * highlight something lands there — modifier+click, lasso, `highlightByIds`,
+ * `highlightByProperty`. Reading it back keeps the full `MapGeoJSONFeature`, so
+ * `buildGroups` still sees `layer.metadata`, `source`/`sourceLayer` and the
+ * geometry type and groups exactly as it does unfiltered. The context's
+ * `toggledFeatures` map would not do: it holds `{source, sourceLayer, id}`
+ * triples, and grouping those would collapse every catalog category into the
+ * source-layer fallback.
+ *
+ * Asked of the map rather than read from `feature.state`: that snapshot is
+ * taken when the features are queried, and `useVisibleMapFeatures` only
+ * requeries on the map's debounced `idle` — toggling a highlight moves nothing,
+ * so the snapshot would lag a click behind. `getFeatureState` hits the same
+ * store the renderer reads, and `version` (see `useSettledHighlightVersion`) is
+ * what makes React redo the pass.
+ *
+ * Features without an `id` can hold no feature-state at all, so they are never
+ * highlighted and are dropped before the lookup.
+ *
+ * `enabled` is what keeps this free while no highlight mode runs — a viewport
+ * is thousands of features, and without the guard every settled pan would walk
+ * all of them for a result nothing reads.
+ */
+const useHighlightedFeatures = (
+  map: MaplibreMap | null,
+  features: MapGeoJSONFeature[],
+  stateKey: string,
+  version: number,
+  enabled: boolean
+): MapGeoJSONFeature[] =>
+  useMemo(() => {
+    if (!map || !enabled) return [];
+    return features.filter((feature) => {
+      if (feature.id == null || !feature.source) return false;
+      try {
+        const state = map.getFeatureState(
+          buildFeatureStateTarget(map, {
+            source: feature.source,
+            sourceLayer: feature.sourceLayer,
+            id: feature.id,
+          })
+        );
+        return state[stateKey] === true;
+      } catch {
+        // the source went away between the query and this read
+        return false;
+      }
+    });
+    // `version` is the signal, not an input: the criteria behind it are a ref
+    // that mutates in place, so they can never be a dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, features, stateKey, version, enabled]);
+
+/**
+ * `highlightVersion`, delayed to the frame after the highlight was applied.
+ *
+ * `useMapHighlighting` writes the feature-state from an effect keyed on that
+ * same version (`useMapHighlighting.ts:307`), i.e. in the commit phase, while
+ * the read above happens while rendering. Reacting to the raw version would
+ * therefore always show the state from before the toggle. Doing our read in an
+ * effect instead would only trade that for a dependency on which of the two
+ * addons React commits first — declaration order in the route config, which is
+ * no basis for correctness. A frame later both have run, whoever went first.
+ *
+ * Features from tiles that load afterwards are highlighted by that hook's own
+ * debounced re-apply, and are picked up here without any of this: a tile load
+ * settles the map, `useVisibleMapFeatures` requeries, and the new feature list
+ * re-runs the pass.
+ */
+const useSettledHighlightVersion = (highlightVersion: number): number => {
+  const [settled, setSettled] = useState(highlightVersion);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setSettled(highlightVersion));
+    return () => cancelAnimationFrame(frame);
+  }, [highlightVersion]);
+  return settled;
+};
+
+/**
  * Legend mark. The shape repeats the geometry the group is drawn with, so it is
  * a second, non-colour channel for identity: filled square for areas, dot for
  * points, short rule for lines.
@@ -513,11 +623,18 @@ export const VisibleFeatureStatsPanel = ({
   groups,
   isLoading,
   maxRows,
+  isFiltered = false,
+  visibleCount,
 }: {
+  /** the number the rows add up to — highlighted only while `isFiltered` */
   totalCount: number;
   groups: ColoredStatsGroup[];
   isLoading: boolean;
   maxRows: number;
+  /** narrowed to the highlighted features; changes heading and readout */
+  isFiltered?: boolean;
+  /** everything on screen, shown as the denominator while `isFiltered` */
+  visibleCount?: number;
 }) => {
   const shown = groups.slice(0, maxRows);
   const folded = groups.slice(maxRows);
@@ -550,17 +667,30 @@ export const VisibleFeatureStatsPanel = ({
       style={{ fontFamily: FONT_STACK }}
     >
       <div className="flex items-baseline justify-between gap-3">
+        {/* the filtered heading is the longer of the two and sits next to a
+            two-part number, so it shrinks rather than wrapping the header */}
         <span
-          className="text-[11px] font-semibold uppercase leading-none tracking-[0.09em]"
+          className="min-w-0 truncate text-[11px] font-semibold uppercase leading-none tracking-[0.09em]"
           style={{ color: INK.title }}
         >
-          Sichtbare Objekte
+          {isFiltered ? "Hervorgehobene Objekte" : "Sichtbare Objekte"}
         </span>
         <span
-          className="text-[17px] font-semibold leading-none transition-opacity"
+          className="whitespace-nowrap text-[17px] font-semibold leading-none transition-opacity"
           style={{ color: INK.primary, ...staleness }}
         >
           {formatCount(totalCount)}
+          {/* the denominator says what the panel is a share *of*, so a small
+              highlight among thousands does not read as an empty map */}
+          {isFiltered && visibleCount !== undefined && (
+            <span
+              className="text-[12px] font-normal"
+              style={{ color: INK.secondary }}
+            >
+              {" / "}
+              {formatCount(visibleCount)}
+            </span>
+          )}
         </span>
       </div>
 
@@ -594,7 +724,12 @@ export const VisibleFeatureStatsPanel = ({
 
         {groups.length === 0 ? (
           <p className="mt-3 text-[12px]" style={{ color: INK.secondary }}>
-            {isLoading ? "wird ermittelt …" : "keine Objekte im Ausschnitt"}
+            {isLoading
+              ? "wird ermittelt …"
+              : isFiltered
+              ? // an empty *filter* is not an empty map — say which one it is
+                "keine hervorgehobenen Objekte"
+              : "keine Objekte im Ausschnitt"}
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2.5">
@@ -694,6 +829,8 @@ export const VisibleFeatureStats = ({
     showDebugBounds = false,
     debugInsetPx = DEFAULT_DEBUG_INSET_PX,
     layerFilterExpressions,
+    filterByHighlight = true,
+    highlightStateKey = DEFAULT_HIGHLIGHT_STATE_KEY,
     logFeatures = true,
     logToConsole = true,
     showPanel = true,
@@ -737,10 +874,31 @@ export const VisibleFeatureStats = ({
     filter: excludeDebugBox,
   });
 
+  // no addon-state channel between the two addons: `VectorHighlight` owns the
+  // mode, this one only observes it. `highlightingActive` is the mode, not the
+  // presence of highlights — it stays on after the last one is removed, which
+  // is what keeps the panel filtered (and honestly at 0) instead of flipping
+  // back to the full count mid-session.
+  const { highlightingActive, highlightVersion } = useMapHighlight();
+  const isFiltered = filterByHighlight && highlightingActive;
+  const settledVersion = useSettledHighlightVersion(highlightVersion);
+
+  const highlighted = useHighlightedFeatures(
+    libreMap,
+    features,
+    highlightStateKey,
+    settledVersion,
+    isFiltered
+  );
+  const shownFeatures = isFiltered ? highlighted : features;
+  // a highlighted feature panned off screen leaves the query, so this counts
+  // "highlighted *and* visible" — the same rule the unfiltered panel follows
+  const shownCount = isFiltered ? shownFeatures.length : totalCount;
+
   const layerIndex = useLayerIndex(store);
   const groups = useMemo(
-    () => buildGroups(features, layerIndex),
-    [features, layerIndex]
+    () => buildGroups(shownFeatures, layerIndex),
+    [shownFeatures, layerIndex]
   );
   const coloredGroups = useStableSeriesColors(groups);
 
@@ -749,11 +907,23 @@ export const VisibleFeatureStats = ({
     // stale intermediate render so every log line is a finished viewport
     if (isLoading || !logToConsole) return;
     console.info("[VISIBLE_FEATURE_STATS]", {
-      totalCount,
+      totalCount: shownCount,
+      ...(isFiltered
+        ? { visibleCount: totalCount, filter: "highlighted" }
+        : {}),
       groups,
-      ...(logFeatures ? { features } : {}),
+      ...(logFeatures ? { features: shownFeatures } : {}),
     });
-  }, [features, totalCount, groups, isLoading, logFeatures, logToConsole]);
+  }, [
+    shownFeatures,
+    shownCount,
+    totalCount,
+    isFiltered,
+    groups,
+    isLoading,
+    logFeatures,
+    logToConsole,
+  ]);
 
   if (!showPanel) {
     return null;
@@ -765,10 +935,12 @@ export const VisibleFeatureStats = ({
   return (
     <Control position={panelPosition} order={panelOrder}>
       <VisibleFeatureStatsPanel
-        totalCount={totalCount}
+        totalCount={shownCount}
         groups={coloredGroups}
         isLoading={isLoading}
         maxRows={panelMaxRows}
+        isFiltered={isFiltered}
+        visibleCount={totalCount}
       />
     </Control>
   );
