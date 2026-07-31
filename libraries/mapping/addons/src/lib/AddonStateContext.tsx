@@ -21,7 +21,7 @@ export const useAddonState = <K extends AddonStateKey>(
     (action: AddonStateAction<K>) => set(key, action),
     [set, key]
   );
-  return [state[key], setValue];
+  return [state[key] as AddonStateMap[K] | undefined, setValue];
 };
 
 export const useAddonStateSnapshot = (): Partial<AddonStateMap> =>

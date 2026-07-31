@@ -17,6 +17,7 @@ import { GazetteerSource } from "../addons/GazetteerSource";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
+  type HighlightModeState,
   type VectorHighlightConfig,
 } from "../addons/VectorHighlight";
 import {
@@ -54,6 +55,8 @@ export type AddonKind = keyof AddonConfigMap;
 export type AddonStateMap = {
   /** what is on screen, grouped and counted; see `VisibleFeatureStatsSource` */
   visibleFeatureStats: VisibleFeatureStatsState;
+  /** whether the highlighting mode is running; see `VectorHighlight` */
+  highlightMode: HighlightModeState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -130,7 +133,10 @@ export const addonRegistry: {
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
-  vectorHighlight: { Component: VectorHighlight },
+  vectorHighlight: {
+    Component: VectorHighlight,
+    provides: ["highlightMode"],
+  },
   layerVisibility: {
     Component: LayerVisibility,
     trigger: layerVisibilityTrigger,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { faDrawPolygon, faXmark } from "@fortawesome/free-solid-svg-icons";
@@ -16,6 +16,7 @@ import {
   type Positions,
 } from "@carma-mapping/map-controls-layout";
 
+import { useAddonState } from "../lib/AddonStateContext";
 import type { AddonComponentProps } from "../lib/registry";
 
 /**
@@ -43,9 +44,10 @@ import type { AddonComponentProps } from "../lib/registry";
  * The mode is not only the button's: an Alt+click or an Alt+drag switches
  * `highlightingActive` on, and that counts as the mode being on too — so the
  * usual way in is to Alt+click one feature and keep going without the modifier.
- * The button's own `useState` covers the one case the context cannot express,
+ * The `highlightMode` channel covers the one case the context cannot express,
  * the mode started before anything is highlighted; it is temporary by design
- * and dies with the route.
+ * and dies with the route. It is a channel and not local state so the host can
+ * end the mode by writing `{ isOn: false }`.
  *
  * WHY THE PAINT WRAPPING: BELIS ships the dim expression in its own style
  * config and gates it with `["global-state", "highlightingEnabled"]`. Styles
@@ -62,6 +64,8 @@ import type { AddonComponentProps } from "../lib/registry";
  * `dimOpacity: null` for styles that already dim via `global-state`, otherwise
  * both would apply.
  */
+
+export type HighlightModeState = { isOn: boolean };
 
 export type VectorHighlightConfig = {
   /** Modifier for click-to-toggle; `null` disables it. Default: "alt" */
@@ -242,11 +246,11 @@ export const VectorHighlight = ({
   const { highlightingActive, setHighlightingActive, clearHighlights } =
     useMapHighlight();
 
-  // the control's own, temporary state: nothing outside the addon reads it, and
-  // it is meant to be gone once the route unmounts. Only needed for the one
-  // state the context cannot express — the mode started from the button, before
-  // anything is highlighted.
-  const [modeActive, setModeActive] = useState(false);
+  // the control's own, temporary state: it is meant to be gone once the route
+  // unmounts. Only needed for the one state the context cannot express — the
+  // mode started from the button, before anything is highlighted.
+  const [mode, setMode] = useAddonState("highlightMode");
+  const modeActive = mode?.isOn ?? false;
 
   /**
    * The mode, from every direction: the button switches it on, and so does an
@@ -258,10 +262,10 @@ export const VectorHighlight = ({
 
   /** the cross, and Escape: back to an untouched map */
   const endMode = useCallback(() => {
-    setModeActive(false);
+    setMode({ isOn: false });
     clearHighlights();
     setHighlightingActive(false);
-  }, [clearHighlights, setHighlightingActive]);
+  }, [setMode, clearHighlights, setHighlightingActive]);
 
   // owns the `highlighted` feature-state and the click-to-toggle
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
@@ -331,13 +335,35 @@ export const VectorHighlight = ({
     controllerRef.current?.setActive(highlightingActive);
   }, [highlightingActive]);
 
+  // an Alt+click starts the mode without the button, so publish it — otherwise
+  // the host sees the mode as off. Rising edge: level-triggered would switch it
+  // back on during the teardown below.
+  const previousHighlightingActive = useRef(highlightingActive);
+  useEffect(() => {
+    const started = !previousHighlightingActive.current && highlightingActive;
+    previousHighlightingActive.current = highlightingActive;
+    if (started) {
+      setMode({ isOn: true });
+    }
+  }, [highlightingActive, setMode]);
+
+  const previousModeActive = useRef(modeActive);
+  useEffect(() => {
+    const ended = previousModeActive.current && !modeActive;
+    previousModeActive.current = modeActive;
+    if (ended && highlightingActive) {
+      endMode();
+    }
+  }, [modeActive, highlightingActive, endMode]);
+
   // Route switch unmounts the addon: leave the map in its untouched state.
   useEffect(
     () => () => {
+      setMode({ isOn: false });
       clearHighlights();
       setHighlightingActive(false);
     },
-    [clearHighlights, setHighlightingActive]
+    [setMode, clearHighlights, setHighlightingActive]
   );
 
   // everything here acts on the MapLibre map, so without one there is nothing
@@ -353,7 +379,7 @@ export const VectorHighlight = ({
     <Control position={controlPosition} order={controlOrder}>
       <HighlightModeButton
         isOn={isOn}
-        onClick={isOn ? endMode : () => setModeActive(true)}
+        onClick={isOn ? endMode : () => setMode({ isOn: true })}
       />
     </Control>
   );
