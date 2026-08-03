@@ -1,5 +1,6 @@
 import type { Dispatch } from "redux";
 import { createElement, type ReactNode } from "react";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   BackgroundLayer,
   Item,
@@ -29,7 +30,10 @@ import { removeMeasurement } from "../../store/slices/measurements";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
-import { zoomToStyleFeatures } from "../../helper/gisHelper";
+import {
+  zoomToLibreStyleFeatures,
+  zoomToStyleFeatures,
+} from "../../helper/gisHelper";
 import {
   addAdhocFeatureFromLayer,
   type AddFeatureFn,
@@ -85,6 +89,7 @@ type ResourceLayerUpdaterDeps = {
   toggleFramework: ToggleFrameworkFn;
   getFrameworkMode: GetFrameworkModeFn;
   routedMap: RoutedMapRef;
+  libreMap?: MaplibreMap | null;
   setCurrentStyle: SetCurrentStyleFn;
   messageApi: MessageApiLike;
   maxLayers?: number;
@@ -316,6 +321,7 @@ const addAdhocFeatureIfApplicable = async ({
   addFeature,
   getFrameworkMode,
   routedMap,
+  libreMap,
   setSelectedFeatureById,
   setShouldFocusSelected,
   dispatch,
@@ -326,6 +332,7 @@ const addAdhocFeatureIfApplicable = async ({
   addFeature: AddFeatureFn;
   getFrameworkMode: GetFrameworkModeFn;
   routedMap: RoutedMapRef;
+  libreMap?: MaplibreMap | null;
   setSelectedFeatureById: SetSelectedFeatureByIdFn;
   setShouldFocusSelected: SetShouldFocusSelectedFn;
   dispatch: Dispatch;
@@ -375,7 +382,11 @@ const addAdhocFeatureIfApplicable = async ({
     style: addedFeature.styleData,
   };
 
-  await zoomToStyleFeatures(addedFeature.styleData, routedMap);
+  if (libreMap) {
+    zoomToLibreStyleFeatures(addedFeature.styleData, libreMap);
+  } else {
+    await zoomToStyleFeatures(addedFeature.styleData, routedMap);
+  }
 
   const modeAfterAdd = getFrameworkMode();
   const shouldAutoSelectIn3D = shouldSelectIn3D(layer, modeAfterAdd);
@@ -516,6 +527,7 @@ export const createResourceLayerUpdater = ({
   toggleFramework,
   getFrameworkMode,
   routedMap,
+  libreMap,
   setCurrentStyle,
   messageApi,
   maxLayers = DEFAULT_MAX_LAYERS,
@@ -592,6 +604,7 @@ export const createResourceLayerUpdater = ({
       addFeature,
       getFrameworkMode,
       routedMap,
+      libreMap,
       setSelectedFeatureById,
       setShouldFocusSelected,
       dispatch,

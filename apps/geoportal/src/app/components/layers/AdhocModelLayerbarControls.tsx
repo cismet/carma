@@ -19,6 +19,7 @@ import {
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
+import maplibregl from "maplibre-gl";
 import { Radio, Slider, Tooltip, type SliderSingleProps } from "antd";
 import Icon from "react-cismap/commons/Icon";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -40,6 +41,7 @@ import {
   useDevelopmentUiEnabled,
   useAdhocFeatureDisplay,
   type AdhocFeature,
+  type AdhocMapLibreStyleData,
   type AdhocUnselectedRenderStyle,
   type AdhocUnselectedRenderStyleMetadata,
 } from "@carma-appframeworks/portals";
@@ -47,6 +49,7 @@ import {
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { cn } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useLibreContext } from "@carma-mapping/contexts";
 
 import {
   getActiveInteractionButtonID,
@@ -68,7 +71,10 @@ import {
   type AdhocModelPositionField,
   type AdhocModelPositionInputs,
 } from "../../helper/adhoc-model-style-utils";
-import { zoomToStyleFeatures } from "../../helper/gisHelper";
+import {
+  zoomToLibreStyleFeatures,
+  zoomToStyleFeatures,
+} from "../../helper/gisHelper";
 import { CESIUM_CONFIG } from "../../config/app.config";
 import {
   ColorSwatchGroup,
@@ -576,6 +582,23 @@ const AdhocInteractionPanelCloseButton = () => {
   );
 };
 
+const findFirstStyleFeatureWithGeometry = (
+  styleData: AdhocMapLibreStyleData
+): GeoJSON.Feature | undefined => {
+  for (const sourceKey in styleData.sources) {
+    const source = styleData.sources[sourceKey] as any;
+    if (source?.data?.type === "FeatureCollection" && source.data.features) {
+      const clickFeature = source.data.features.find(
+        (feature: GeoJSON.Feature) => feature.geometry
+      );
+      if (clickFeature) {
+        return clickFeature;
+      }
+    }
+  }
+  return undefined;
+};
+
 export const AdhocModelFlyToLayerbarAction = ({
   layer,
 }: {
@@ -586,6 +609,7 @@ export const AdhocModelFlyToLayerbarAction = ({
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { map: libreMap } = useLibreContext();
   const focusObjectLabel =
     resolveAdhocFocusObjectLabel(layer) ?? adhocModel.actions.focusObject;
   const {
@@ -601,27 +625,49 @@ export const AdhocModelFlyToLayerbarAction = ({
   }
 
   const handleFlyTo = async () => {
+    if (libreMap && !isCesium) {
+      const styleData = await resolveAdhocStyleData(layer.props?.style);
+      if (!styleData) {
+        return;
+      }
+
+      const clickFeature = findFirstStyleFeatureWithGeometry(styleData);
+      if (clickFeature?.geometry) {
+        const clickPoint = pointOnFeature(
+          clickFeature as GeoJSON.Feature<GeoJSON.Geometry>
+        );
+        const [lng, lat] = clickPoint.geometry.coordinates;
+
+        const fireClick = () => {
+          const lngLat = new maplibregl.LngLat(lng, lat);
+          libreMap.fire("click", { lngLat, point: libreMap.project(lngLat) });
+        };
+
+        let fired = false;
+        const onMoveEnd = () => {
+          if (fired) {
+            return;
+          }
+          fired = true;
+          libreMap.off("moveend", onMoveEnd);
+          setTimeout(fireClick, 300);
+        };
+
+        libreMap.on("moveend", onMoveEnd);
+        // Fallback: if fitBounds snaps without animation, moveend may already have fired.
+        setTimeout(onMoveEnd, 500);
+      }
+
+      zoomToLibreStyleFeatures(styleData, libreMap);
+      return;
+    }
+
     if (isLeaflet) {
       const styleData = await resolveAdhocStyleData(layer.props?.style);
       const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
       if (styleData && leafletMap) {
-        let clickFeature: GeoJSON.Feature | undefined;
-        for (const sourceKey in styleData.sources) {
-          const source = styleData.sources[sourceKey] as any;
-          if (
-            source?.data?.type === "FeatureCollection" &&
-            source.data.features
-          ) {
-            clickFeature = source.data.features.find(
-              (feature: GeoJSON.Feature) => feature.geometry
-            );
-            if (clickFeature) {
-              break;
-            }
-          }
-        }
-
+        const clickFeature = findFirstStyleFeatureWithGeometry(styleData);
         if (clickFeature?.geometry) {
           const clickPoint = pointOnFeature(
             clickFeature as GeoJSON.Feature<GeoJSON.Geometry>

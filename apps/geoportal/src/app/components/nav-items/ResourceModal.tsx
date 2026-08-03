@@ -11,6 +11,7 @@ import {
 import { LayerCatalog } from "@carma-mapping/layers";
 import type { CustomCategoryDefinition, Item } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useLibreContext } from "@carma-mapping/contexts";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import {
   appendSavedLayerConfig,
@@ -49,6 +50,7 @@ const ResourceModal = () => {
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
+  const { map: libreMap } = useLibreContext();
 
   const {
     addFeature,
@@ -96,6 +98,7 @@ const ResourceModal = () => {
       toggleFramework: toggle,
       getFrameworkMode,
       routedMap,
+      libreMap,
       setCurrentStyle,
       messageApi,
       addLayerById,

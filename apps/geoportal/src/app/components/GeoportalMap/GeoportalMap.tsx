@@ -120,6 +120,7 @@ import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
 import { useLibreMapSelectionHandler } from "../../hooks/libre/useLibreMapClickHandler.ts";
+import { useLibreTriggerSelectionSync } from "../../hooks/libre/useLibreTriggerSelectionSync.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
 import { useGeoportalCesiumNavigationRestore } from "./hooks/useGeoportalCesiumNavigationRestore.ts";
@@ -1283,6 +1284,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     onSelectionChanged: handleLibreSelectionChanged,
     selectFromHits: handleLibreSelectFromHits,
   } = useLibreMapSelectionHandler(libreMap);
+  useLibreTriggerSelectionSync(libreMap);
 
   const { isCesium, getIsCesium } = useMapFrameworkSwitcherContext();
   const {

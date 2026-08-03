@@ -194,45 +194,69 @@ export const createFlatbushIndex = (polygons) => {
   }
 };
 
-export const zoomToStyleFeatures = async (styleData, routedMap) => {
+const collectStyleSourceFeatures = (styleData) => {
   if (
-    typeof styleData === "object" &&
-    styleData !== null &&
-    "sources" in styleData
+    typeof styleData !== "object" ||
+    styleData === null ||
+    !("sources" in styleData)
   ) {
-    const allFeatures = [];
+    return [];
+  }
 
-    for (const sourceKey in styleData.sources) {
-      const source = styleData.sources[sourceKey];
-      if (source?.data && source.data.type === "FeatureCollection") {
-        const featureCollection = source.data;
-        if (featureCollection.features) {
-          allFeatures.push(...featureCollection.features);
-        }
+  const allFeatures = [];
+  for (const sourceKey in styleData.sources) {
+    const source = styleData.sources[sourceKey];
+    if (source?.data && source.data.type === "FeatureCollection") {
+      const featureCollection = source.data;
+      if (featureCollection.features) {
+        allFeatures.push(...featureCollection.features);
       }
     }
+  }
+  return allFeatures;
+};
 
-    if (allFeatures.length > 0) {
-      const combinedCollection = {
-        type: "FeatureCollection",
-        features: allFeatures,
-      };
+const getStyleFeaturesBBox = (styleData) => {
+  const allFeatures = collectStyleSourceFeatures(styleData);
+  if (allFeatures.length === 0) {
+    return null;
+  }
 
-      const bbox = envelope(combinedCollection).bbox;
-      if (bbox) {
-        const map = routedMap?.leafletMap?.leafletElement;
-        if (map) {
-          map.fitBounds(
-            [
-              [bbox[1], bbox[0]],
-              [bbox[3], bbox[2]],
-            ],
-            {
-              padding: selectionPadding,
-            }
-          );
-        }
+  return (
+    envelope({
+      type: "FeatureCollection",
+      features: allFeatures,
+    }).bbox ?? null
+  );
+};
+
+export const zoomToStyleFeatures = async (styleData, routedMap) => {
+  const bbox = getStyleFeaturesBBox(styleData);
+  const map = routedMap?.leafletMap?.leafletElement;
+  if (bbox && map) {
+    map.fitBounds(
+      [
+        [bbox[1], bbox[0]],
+        [bbox[3], bbox[2]],
+      ],
+      {
+        padding: selectionPadding,
       }
-    }
+    );
+  }
+};
+
+export const zoomToLibreStyleFeatures = (styleData, libreMap) => {
+  const bbox = getStyleFeaturesBBox(styleData);
+  if (bbox && libreMap) {
+    libreMap.fitBounds(
+      [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]],
+      ],
+      {
+        padding: selectionPadding[0],
+      }
+    );
   }
 };
