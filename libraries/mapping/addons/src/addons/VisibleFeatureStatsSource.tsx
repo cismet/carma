@@ -32,7 +32,7 @@ import type { AddonComponentProps } from "../lib/registry";
  * `highlighted` feature-state.
  */
 
-export type DebugInset = {
+export type MapChromeInset = {
   top?: number;
   right?: number;
   bottom?: number;
@@ -48,11 +48,13 @@ export type VisibleFeatureStatsSourceConfig = {
    */
   showDebugBounds?: boolean;
   /**
-   * Pixels the debug box is pulled inside the canvas, as one value for all sides
-   * or per side. The top edge needs a larger inset because the map container
-   * starts behind the navbar. Default: 0
+   * Pixels the counted area is pulled inside the canvas, as one value for all
+   * sides or per side. The map container starts behind the navbar and the
+   * panels float over it, so features are rendered there that the user cannot
+   * see; without an inset they are counted. The debug box draws this same
+   * rectangle. Default: 0
    */
-  debugInsetPx?: number | DebugInset;
+  insetPx?: number | MapChromeInset;
   /**
    * Regexes matched against MapLibre style layer ids to restrict the query,
    * e.g. `["alkis.*-fill"]`. Omit to query every layer the style renders.
@@ -96,7 +98,7 @@ export type VisibleFeatureStatsState = {
  */
 const NO_FEATURE_CAP = Number.MAX_SAFE_INTEGER;
 const DEFAULT_DEBOUNCE_MS = 300;
-const DEFAULT_DEBUG_INSET_PX = 0;
+const DEFAULT_INSET_PX = 0;
 /** `useMapHighlighting`'s own default, and `VectorHighlight`'s */
 const DEFAULT_HIGHLIGHT_STATE_KEY = "highlighted";
 const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
@@ -124,9 +126,9 @@ const readShowBorderParam = (): boolean | undefined => {
 };
 
 const resolveInset = (
-  inset: number | DebugInset | undefined
-): Required<DebugInset> => {
-  const fallback = typeof inset === "number" ? inset : DEFAULT_DEBUG_INSET_PX;
+  inset: number | MapChromeInset | undefined
+): Required<MapChromeInset> => {
+  const fallback = typeof inset === "number" ? inset : DEFAULT_INSET_PX;
   const sides = typeof inset === "object" ? inset : {};
   return {
     top: sides.top ?? fallback,
@@ -379,79 +381,6 @@ const useMapCanvasSize = (map: MaplibreMap | null) => {
 };
 
 /**
- * Draws the queried rectangle, inset by a few pixels: the hook's own
- * `showDebugBounds` draws flush with the canvas border, where the line is
- * half-clipped and the top edge hides under the map chrome.
- */
-const useDebugBoundsBox = (
-  map: MaplibreMap | null,
-  enabled: boolean,
-  inset: Required<DebugInset>
-) => {
-  const { top, right: insetRight, bottom: insetBottom, left } = inset;
-
-  useEffect(() => {
-    if (!map || !enabled) return;
-
-    const toGeoJSON = (): GeoJSON.Feature => {
-      const canvas = map.getCanvas();
-      const right = canvas.clientWidth - insetRight;
-      const bottom = canvas.clientHeight - insetBottom;
-      const corners = [
-        map.unproject([left, top]),
-        map.unproject([right, top]),
-        map.unproject([right, bottom]),
-        map.unproject([left, bottom]),
-      ];
-      return {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "Polygon",
-          coordinates: [
-            [...corners, corners[0]].map(({ lng, lat }) => [lng, lat]),
-          ],
-        },
-      };
-    };
-
-    const draw = () => {
-      const source = map.getSource(DEBUG_SOURCE_ID);
-      if (source) {
-        (source as maplibregl.GeoJSONSource).setData(toGeoJSON());
-        return;
-      }
-      map.addSource(DEBUG_SOURCE_ID, { type: "geojson", data: toGeoJSON() });
-      map.addLayer({
-        id: DEBUG_LAYER_ID,
-        type: "line",
-        source: DEBUG_SOURCE_ID,
-        paint: { "line-color": "yellow", "line-width": 4 },
-      });
-    };
-
-    // follow the camera, and re-add after a style rebuild
-    const redraw = () => {
-      try {
-        draw();
-      } catch {
-        // style is mid-swap; the next event redraws
-      }
-    };
-    redraw();
-    map.on("move", redraw);
-    map.on("styledata", redraw);
-
-    return () => {
-      map.off("move", redraw);
-      map.off("styledata", redraw);
-      if (map.getLayer(DEBUG_LAYER_ID)) map.removeLayer(DEBUG_LAYER_ID);
-      if (map.getSource(DEBUG_SOURCE_ID)) map.removeSource(DEBUG_SOURCE_ID);
-    };
-  }, [map, enabled, top, insetRight, insetBottom, left]);
-};
-
-/**
  * The highlighted subset of the visible features, read from the map.
  *
  * Every highlight path — modifier+click, lasso, `highlightByIds`,
@@ -518,7 +447,7 @@ export const VisibleFeatureStatsSource = ({
   const {
     debounceMs = DEFAULT_DEBOUNCE_MS,
     showDebugBounds = false,
-    debugInsetPx = DEFAULT_DEBUG_INSET_PX,
+    insetPx = DEFAULT_INSET_PX,
     layerFilterExpressions,
     filterByHighlight = true,
     highlightStateKey = DEFAULT_HIGHLIGHT_STATE_KEY,
@@ -526,16 +455,16 @@ export const VisibleFeatureStatsSource = ({
     logToConsole = true,
   } = config;
 
-  // the drawing hook keys its effect on the four numbers, so a fresh object per
-  // render costs nothing
-  const inset = resolveInset(debugInsetPx);
+  // the drawing hook keys its effect on the four numbers and the query hook
+  // holds it in a ref, so a fresh object per render costs nothing
+  const inset = resolveInset(insetPx);
 
   // read once per mount: the hash state rewrites the URL while the user pans
   const showBorderParam = useMemo(readShowBorderParam, []);
   const showBorder = showBorderParam ?? (showDebugBounds || isLocalhost());
 
   const { width, height } = useMapCanvasSize(libreMap);
-  useDebugBoundsBox(libreMap, showBorder, inset);
+  // useDebugBoundsBox(libreMap, showBorder, inset);
 
   // key on the content: route configs pass a fresh array per render
   const filterKey = (layerFilterExpressions ?? []).join("|");
@@ -551,8 +480,11 @@ export const VisibleFeatureStatsSource = ({
     visibleMapHeight: height,
     maxFeatures: NO_FEATURE_CAP,
     debounceMs,
+    // the navbar and the panels cover the canvas: without this, the features
+    // rendered behind them are counted although nobody can see them
+    insetPx: inset,
     // the addon draws its own inset box; the hook's would be clipped
-    showDebugBounds: false,
+    showDebugBounds: showBorder,
     layerFilterExpressions: layerFilters,
     // the debug box is a rendered feature, so without this it counts itself
     filter: excludeDebugBox,

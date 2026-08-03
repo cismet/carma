@@ -10,6 +10,7 @@ export type {
   UseVisibleMapFeaturesOptions,
   UseVisibleMapFeaturesResult,
   MapGeoJSONFeatureWithOriginal,
+  MapQueryInsetPx,
 } from "./lib/hooks/useVisibleMapFeatures";
 
 // Feature utils (sandboxed eval)

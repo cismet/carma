@@ -48,7 +48,7 @@ export const bodenFachzwilling: FachzwillingRoute = {
       kind: "visibleFeatureStatsSource",
       config: {
         showDebugBounds: true,
-        debugInsetPx: { top: 56, left: 1, right: 0, bottom: 4 },
+        insetPx: { top: 56, left: 1, right: 0, bottom: 4 },
       },
     },
     { kind: "visibleFeatureStatsPanel", config: {} },
