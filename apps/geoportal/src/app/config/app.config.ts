@@ -38,6 +38,8 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 export const RESTRICT_LIBRE_CAMERA = true;
 
+export const SHOW_LIBRE_TERRAIN_CONTROL = false;
+
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 export const CESIUM_TILESET_IDS = {

@@ -53,6 +53,7 @@ import { useImperativeStyle } from "../hooks/useImperativeStyle";
 import {
   WUPPERTAL_DEFAULT_STYLE,
   WUPPERTAL_CONFIG,
+  createTerrainSources,
 } from "../constants/wuppertalDefaultStyle";
 
 // Import from portals temporarily until these are migrated
@@ -596,27 +597,23 @@ export const LibreMap = ({
       return { style: WUPPERTAL_DEFAULT_STYLE, vectorBackgroundLayers: [] };
     }
     if (backgroundLayers === null || backgroundLayers === "") {
-      // Explicitly null or empty: no background layer
+      // Explicitly null or empty: no background layer. The terrain source is
+      // still included so the terrain toggle works without a background style.
       return {
-        style: { version: 8 as const, sources: {}, layers: [] },
+        style: {
+          version: 8 as const,
+          sources: createTerrainSources(WUPPERTAL_CONFIG),
+          layers: [],
+        },
         vectorBackgroundLayers: [],
       };
     }
 
     const layerSpecs = backgroundLayers.split("|");
-    const sources: Record<string, any> = {};
+    const sources: Record<string, any> = {
+      ...createTerrainSources(WUPPERTAL_CONFIG),
+    };
     const vectorBgLayers: LibreLayer[] = [];
-
-    // Add terrain source from config (slugified URL as ID)
-    if (WUPPERTAL_CONFIG.terrain) {
-      const terrainId = slugifyUrl(WUPPERTAL_CONFIG.terrain.url);
-      sources[terrainId] = {
-        type: "raster-dem",
-        tiles: [WUPPERTAL_CONFIG.terrain.url],
-        tileSize: WUPPERTAL_CONFIG.terrain.tileSize ?? 512,
-        maxzoom: WUPPERTAL_CONFIG.terrain.maxzoom ?? 15,
-      };
-    }
     const styleLayers: any[] = [];
 
     layerSpecs.forEach((spec, index) => {

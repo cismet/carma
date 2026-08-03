@@ -9,7 +9,6 @@ import {
   faHouseChimney,
   faInfo,
   faMinus,
-  faMountainCity,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -39,6 +38,7 @@ import {
   MapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
+  LibreTerrainControl,
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
@@ -54,13 +54,15 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
-import { RESTRICT_LIBRE_CAMERA } from "../../../config/app.config";
+import {
+  RESTRICT_LIBRE_CAMERA,
+  SHOW_LIBRE_TERRAIN_CONTROL,
+} from "../../../config/app.config";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
-import { useLibreTerrain } from "../../../hooks/libre/useLibreTerrain.ts";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
@@ -223,8 +225,6 @@ const MapWrapper = () => {
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
-
-  const { isTerrainEnabled, toggleTerrain } = useLibreTerrain(libreMap);
 
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
@@ -527,21 +527,12 @@ const MapWrapper = () => {
             </Control>
           )}
 
-          {!isObliquePreviewVisible &&
+          {SHOW_LIBRE_TERRAIN_CONTROL &&
+            !isObliquePreviewVisible &&
             showLibreMap &&
             visibleControls.terrain && (
               <Control position="topleft" order={80}>
-                <Tooltip title={"Terrain"} placement="right">
-                  <ControlButtonStyler
-                    onClick={toggleTerrain}
-                    className="font-semibold"
-                  >
-                    <FontAwesomeIcon
-                      icon={faMountainCity}
-                      className={isTerrainEnabled ? "text-[#1677ff]" : ""}
-                    />
-                  </ControlButtonStyler>
-                </Tooltip>
+                <LibreTerrainControl map={libreMap} appKey="geoportal" />
               </Control>
             )}
           {!isObliquePreviewVisible && visibleControls.layerButtons && (

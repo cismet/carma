@@ -9,6 +9,7 @@ import {
   FullscreenControl,
   LibreMapLocateControl,
   LibrePitchingCompass,
+  LibreTerrainControl,
   MapFrameworkSwitcherProvider,
   RoutedMapLocateControl,
   ZoomControl,
@@ -19,7 +20,7 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faMountainCity } from "@fortawesome/free-solid-svg-icons";
+import { faBars } from "@fortawesome/free-solid-svg-icons";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
@@ -29,7 +30,6 @@ import {
   useInRouterContext,
 } from "react-router-dom";
 import { HashStateProvider } from "@carma-providers/hash-state";
-import { Tooltip } from "antd";
 import maplibregl from "maplibre-gl";
 
 // Import from the new maplibre engine library
@@ -38,8 +38,6 @@ import {
   LibreMapProps,
   LibreLayer,
   VectorStyle,
-  slugifyUrl,
-  WUPPERTAL_CONFIG,
   RASTER_PAINT_PRESETS,
 } from "@carma-mapping/engines/maplibre";
 import type { RasterPaintOverrides } from "@carma-mapping/engines/maplibre";
@@ -89,8 +87,6 @@ interface CarmaMapProps extends LibreMapProps {
   maxPitch?: number;
 }
 
-const TERRAIN_STORAGE_KEY = "carma-map-terrain";
-
 const CarmaMapContent = (props: CarmaMapProps) => {
   const {
     mapEngine = "leaflet",
@@ -112,10 +108,6 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     extraControls,
     embedded = false,
   } = props;
-
-  const terrainStorageKey = appKey
-    ? `${appKey}:${TERRAIN_STORAGE_KEY}`
-    : TERRAIN_STORAGE_KEY;
 
   // Warn once if appKey is missing (settings leak across apps on the same origin)
   useState(() => {
@@ -144,13 +136,6 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const { selectedBackground, backgroundConfigurations, namedMapStyle } =
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
-  const [showTerrain, setShowTerrain] = useState(() => {
-    try {
-      return localStorage.getItem(terrainStorageKey) === "true";
-    } catch {
-      return false;
-    }
-  });
   // Crosshair debug: store geographic position so the crosshair tracks
   // correctly when terrain is toggled or camera moves
   const [crosshairLngLat, setCrosshairLngLat] = useState<{
@@ -192,25 +177,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     (map: maplibregl.Map) => {
       setLibreMap(map);
       props.setLibreMap?.(map);
-
-      // Restore terrain if it was persisted as enabled
-      if (showTerrain && !map.terrain) {
-        const source = WUPPERTAL_CONFIG.terrain
-          ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-          : "terrainSource";
-        const apply = () => {
-          if (map.getSource(source)) {
-            map.setTerrain({ source, exaggeration: 1 });
-          }
-        };
-        if (map.isStyleLoaded()) {
-          apply();
-        } else {
-          map.once("styledata", apply);
-        }
-      }
     },
-    [props.setLibreMap, showTerrain]
+    [props.setLibreMap]
   );
 
   // Compute background layers - either from props or from context.
@@ -261,32 +229,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
 
             {mapEngine === "maplibre" && terrainControl && (
               <Control position="topleft" order={30}>
-                <Tooltip title={"Terrain"} placement="right">
-                  <ControlButtonStyler
-                    onClick={() => {
-                      if (libreMap?.terrain) {
-                        libreMap.setTerrain(null);
-                        setShowTerrain(false);
-                        localStorage.setItem(terrainStorageKey, "false");
-                      } else if (libreMap) {
-                        libreMap.setTerrain({
-                          source: WUPPERTAL_CONFIG.terrain
-                            ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-                            : "terrainSource",
-                          exaggeration: 1,
-                        });
-                        setShowTerrain(true);
-                        localStorage.setItem(terrainStorageKey, "true");
-                      }
-                    }}
-                    className="font-semibold"
-                  >
-                    <FontAwesomeIcon
-                      icon={faMountainCity}
-                      className={showTerrain ? "text-[#1677ff]" : ""}
-                    />
-                  </ControlButtonStyler>
-                </Tooltip>
+                <LibreTerrainControl map={libreMap} appKey={appKey} />
               </Control>
             )}
 

@@ -41,6 +41,10 @@ export {
   AnnotationsToolbarSeparator,
 } from "./lib/components/AnnotationsToolbar";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
+export {
+  LibreTerrainControl,
+  type LibreTerrainControlProps,
+} from "./lib/components/LibreTerrainControl";
 export { CompassNeedleSVG } from "./lib/components/PitchingControl/CompassNeedleSVG";
 export {
   SceneNavigationControls,

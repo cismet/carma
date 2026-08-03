@@ -33,19 +33,30 @@ export interface CityMapConfig {
  * };
  * const COLOGNE_DEFAULT_STYLE = createDefaultStyle(COLOGNE_CONFIG);
  */
-export function createDefaultStyle(config: CityMapConfig): StyleSpecification {
-  const sources: StyleSpecification["sources"] = {};
-  const layers: StyleSpecification["layers"] = [];
-
-  // Add terrain source if configured (slugified URL as ID)
-  if (config.terrain) {
-    sources[slugifyUrl(config.terrain.url)] = {
+/** Terrain DEM sources for a city config (slugified URL as ID), empty when the
+ * city has no terrain data. Renders nothing on its own; it only feeds
+ * map.setTerrain, so it is safe to include in any style. */
+export function createTerrainSources(
+  config: CityMapConfig
+): StyleSpecification["sources"] {
+  if (!config.terrain) {
+    return {};
+  }
+  return {
+    [slugifyUrl(config.terrain.url)]: {
       type: "raster-dem",
       tiles: [config.terrain.url],
       tileSize: config.terrain.tileSize ?? 512,
       maxzoom: config.terrain.maxzoom ?? 15,
-    };
-  }
+    },
+  };
+}
+
+export function createDefaultStyle(config: CityMapConfig): StyleSpecification {
+  const sources: StyleSpecification["sources"] = {
+    ...createTerrainSources(config),
+  };
+  const layers: StyleSpecification["layers"] = [];
 
   // Add base map source
   sources["source-basemap"] = {
