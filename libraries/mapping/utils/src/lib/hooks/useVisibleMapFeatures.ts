@@ -5,6 +5,16 @@ import { stampSourceLayerFromProperty } from "../sourceLayerStamp";
 
 const DEFAULT_MAX_FEATURES = 2000;
 const DEFAULT_DEBOUNCE_MS = 300;
+const DEFAULT_SIDEBAR_WIDTH = 300;
+
+/** Pixels per side, so an asymmetric overlay can be described exactly. */
+export interface MapQueryInsetPx {
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+}
+
 export interface UseVisibleMapFeaturesOptions {
   maplibreMap: MaplibreMap | null;
   visibleMapWidth: number;
@@ -21,6 +31,15 @@ export interface UseVisibleMapFeaturesOptions {
   highlightedOnly?: boolean;
   /** External trigger to force re-query (e.g. highlightVersion from context) */
   refreshTrigger?: number;
+  /** Pixels the query rectangle is pulled inside the visible map area, per side.
+   *  For chrome drawn over the map — navbar, side panels — whose features are
+   *  rendered on the canvas but hidden from the user. Unlike `visibleMapWidth`
+   *  and `visibleMapHeight`, which are sizes and trim both opposite sides
+   *  equally, this describes each side on its own. Default: 0 */
+  insetPx?: MapQueryInsetPx;
+  /** Width of the host layout's sidebar, which the canvas is not centered on.
+   *  Only used when the canvas is oversized. Default: 300 */
+  sidebarWidth?: number;
 }
 
 export interface MapGeoJSONFeatureWithOriginal extends MapGeoJSONFeature {
@@ -98,6 +117,8 @@ export const useVisibleMapFeatures = ({
   filter,
   highlightedOnly = false,
   refreshTrigger,
+  insetPx,
+  sidebarWidth = DEFAULT_SIDEBAR_WIDTH,
 }: UseVisibleMapFeaturesOptions): UseVisibleMapFeaturesResult => {
   const [features, setFeatures] = useState<MapGeoJSONFeatureWithOriginal[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -112,6 +133,10 @@ export const useVisibleMapFeatures = ({
   filterRef.current = filter;
   const highlightedOnlyRef = useRef(highlightedOnly);
   highlightedOnlyRef.current = highlightedOnly;
+  // Ref, like filter: callers build the inset inline, so a fresh object every
+  // render must not rebuild updateFeatures and re-bind the map listeners.
+  const insetPxRef = useRef(insetPx);
+  insetPxRef.current = insetPx;
   // Cached resolved layer IDs from layerFilterExpressions
   const resolvedLayerIdsRef = useRef<string[] | undefined>(undefined);
   const layerFilterExpressionsRef = useRef(layerFilterExpressions);
@@ -219,23 +244,33 @@ export const useVisibleMapFeatures = ({
         let verticalOffset = 0;
 
         if (isOversized) {
-          const sidebarWidth = 300;
           const fullWindowWidth = visibleMapWidth + sidebarWidth;
           horizontalOffset = (canvasWidth - fullWindowWidth) / 2;
           verticalOffset = (canvasHeight - visibleMapHeight) / 2;
         }
 
-        // Visible bounds with offset
-        const visibleWest =
-          fullWest + lngRange * (horizontalOffset / canvasWidth);
-        const visibleEast =
-          fullWest +
-          lngRange * ((horizontalOffset + visibleMapWidth) / canvasWidth);
-        const visibleNorth =
-          fullNorth - latRange * (verticalOffset / canvasHeight);
-        const visibleSouth =
-          fullNorth -
-          latRange * ((verticalOffset + visibleMapHeight) / canvasHeight);
+        // Chrome drawn over the map (navbar, side panels) hides features that
+        // are still rendered on the canvas underneath it. The offsets above are
+        // centered and cannot express that: they always trim both opposite
+        // sides by the same amount. The inset trims each side on its own.
+        const {
+          top: insetTop = 0,
+          right: insetRight = 0,
+          bottom: insetBottom = 0,
+          left: insetLeft = 0,
+        } = insetPxRef.current ?? {};
+
+        // The queried rectangle in canvas pixels
+        const rectLeft = horizontalOffset + insetLeft;
+        const rectTop = verticalOffset + insetTop;
+        const rectRight = horizontalOffset + visibleMapWidth - insetRight;
+        const rectBottom = verticalOffset + visibleMapHeight - insetBottom;
+
+        // Visible bounds with offset and inset
+        const visibleWest = fullWest + lngRange * (rectLeft / canvasWidth);
+        const visibleEast = fullWest + lngRange * (rectRight / canvasWidth);
+        const visibleNorth = fullNorth - latRange * (rectTop / canvasHeight);
+        const visibleSouth = fullNorth - latRange * (rectBottom / canvasHeight);
 
         // Draw debug bbox using the VISIBLE bounds (if enabled)
         const debugSourceId = "debug-bbox-source";
@@ -455,6 +490,7 @@ export const useVisibleMapFeatures = ({
     maxFeatures,
     debounceMs,
     refreshTrigger,
+    sidebarWidth,
   ]);
 
   useEffect(() => {
