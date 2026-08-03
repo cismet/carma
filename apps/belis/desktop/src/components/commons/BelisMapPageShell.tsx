@@ -34,7 +34,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
 import { getFeatureCollection } from "../../store/slices/featureCollection";
-// Both are only used by the temporarily hidden toolbar buttons below.
 import ExportCsvButton from "../ui/ExportCsvButton";
 import PrintControl from "../ui/PrintControl";
 
@@ -335,10 +334,8 @@ const BelisMapPageShell = () => {
                   >
                     <FontAwesomeIcon icon={faDrawPolygon} />
                   </button>
-                  {/* temporarily hidden for the merge — re-enable to expose CSV export + print
                   <ExportCsvButton features={exportableFeatures} />
                   <PrintControl />
-                  */}
                 </div>
               )}
 

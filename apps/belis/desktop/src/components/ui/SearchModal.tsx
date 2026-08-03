@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-// Switch is only used by the temporarily hidden Expertensuche toggle below.
 import { Modal, Button, Switch } from "antd";
 import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
@@ -201,14 +200,12 @@ const SearchModalHeader = ({
         </h2>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* temporarily hidden for the merge — re-enable to expose the expert search
         <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5">
           <span className="text-sm font-medium text-gray-700">
             Expertensuche
           </span>
           <Switch checked={isExpertSearch} onChange={onExpertSearchChange} />
         </div>
-        */}
         <button
           type="button"
           onClick={onClose}
