@@ -50,6 +50,7 @@ import {
   ControlLayout,
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
+import { WUPPERTAL_TERRAIN_SOURCE_ID } from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
@@ -532,7 +533,11 @@ const MapWrapper = () => {
             showLibreMap &&
             visibleControls.terrain && (
               <Control position="topleft" order={80}>
-                <LibreTerrainControl map={libreMap} appKey="geoportal" />
+                <LibreTerrainControl
+                  map={libreMap}
+                  appKey="geoportal"
+                  source={WUPPERTAL_TERRAIN_SOURCE_ID}
+                />
               </Control>
             )}
           {!isObliquePreviewVisible && visibleControls.layerButtons && (

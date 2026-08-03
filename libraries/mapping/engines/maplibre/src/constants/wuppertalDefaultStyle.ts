@@ -125,6 +125,10 @@ export const WUPPERTAL_CONFIG: CityMapConfig = {
   },
 };
 
+export const WUPPERTAL_TERRAIN_SOURCE_ID = slugifyUrl(
+  WUPPERTAL_CONFIG.terrain!.url
+);
+
 /** Default MapLibre style for Wuppertal (includes terrain source) */
 export const WUPPERTAL_DEFAULT_STYLE = createDefaultStyle(WUPPERTAL_CONFIG);
 

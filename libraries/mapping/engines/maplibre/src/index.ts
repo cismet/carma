@@ -165,6 +165,7 @@ export {
   createDefaultStyle,
   createPreviewStyle,
   WUPPERTAL_CONFIG,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
   WUPPERTAL_DEFAULT_STYLE,
   WUPPERTAL_PREVIEW_STYLE,
   type CityMapConfig,

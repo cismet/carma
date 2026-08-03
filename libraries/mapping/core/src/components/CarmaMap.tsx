@@ -39,6 +39,7 @@ import {
   LibreLayer,
   VectorStyle,
   RASTER_PAINT_PRESETS,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
 } from "@carma-mapping/engines/maplibre";
 import type { RasterPaintOverrides } from "@carma-mapping/engines/maplibre";
 
@@ -229,7 +230,11 @@ const CarmaMapContent = (props: CarmaMapProps) => {
 
             {mapEngine === "maplibre" && terrainControl && (
               <Control position="topleft" order={30}>
-                <LibreTerrainControl map={libreMap} appKey={appKey} />
+                <LibreTerrainControl
+                  map={libreMap}
+                  appKey={appKey}
+                  source={WUPPERTAL_TERRAIN_SOURCE_ID}
+                />
               </Control>
             )}
 

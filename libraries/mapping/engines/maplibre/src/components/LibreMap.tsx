@@ -53,6 +53,7 @@ import { useImperativeStyle } from "../hooks/useImperativeStyle";
 import {
   WUPPERTAL_DEFAULT_STYLE,
   WUPPERTAL_CONFIG,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
   createTerrainSources,
 } from "../constants/wuppertalDefaultStyle";
 
@@ -1477,9 +1478,7 @@ export const LibreMap = ({
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
-              const terrainSrcId = WUPPERTAL_CONFIG.terrain
-                ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-                : "";
+              const terrainSrcId = WUPPERTAL_TERRAIN_SOURCE_ID;
               if (terrainSrcId && map.current?.getSource(terrainSrcId)) {
                 map.current.setTerrain(currentTerrain);
               }

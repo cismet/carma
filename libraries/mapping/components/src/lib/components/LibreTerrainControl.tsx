@@ -4,15 +4,10 @@ import { Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMountainCity } from "@fortawesome/free-solid-svg-icons";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import { slugifyUrl, WUPPERTAL_CONFIG } from "@carma-mapping/engines/maplibre";
 
 const TERRAIN_STORAGE_BASE_KEY = "carma-map-terrain";
 const DEFAULT_EXAGGERATION = 1;
-
-const getDefaultTerrainSource = () =>
-  WUPPERTAL_CONFIG.terrain
-    ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
-    : "terrainSource";
+const DEFAULT_TERRAIN_SOURCE = "terrainSource";
 
 const persistTerrainState = (storageKey: string, enabled: boolean) => {
   try {
@@ -27,8 +22,8 @@ export interface LibreTerrainControlProps {
   /** Scopes the localStorage persistence per app (same scoping as CarmaMap's
    * appKey). Without it the setting is shared across apps on the origin. */
   appKey?: string;
-  /** Terrain source id in the map style. Defaults to the Wuppertal terrain
-   * source when configured, "terrainSource" otherwise. */
+  /** Terrain source id in the map style (e.g. WUPPERTAL_TERRAIN_SOURCE_ID from
+   * the maplibre engine). Defaults to "terrainSource". */
   source?: string;
   exaggeration?: number;
 }
@@ -45,7 +40,7 @@ export const LibreTerrainControl = ({
   const storageKey = appKey
     ? `${appKey}:${TERRAIN_STORAGE_BASE_KEY}`
     : TERRAIN_STORAGE_BASE_KEY;
-  const terrainSource = source ?? getDefaultTerrainSource();
+  const terrainSource = source ?? DEFAULT_TERRAIN_SOURCE;
 
   const [showTerrain, setShowTerrain] = useState(() => {
     try {
