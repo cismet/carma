@@ -36,6 +36,8 @@ export const CONFIG_BASE_URL =
 export const MIN_MOBILE_WIDTH = 600;
 export const DEFAULT_CAMERA_FOV_DEG = 60;
 
+export const RESTRICT_LIBRE_CAMERA = true;
+
 const CESIUM_PATHNAME = "__cesium__";
 const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
 export const CESIUM_TILESET_IDS = {

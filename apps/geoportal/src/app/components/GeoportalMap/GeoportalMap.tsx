@@ -156,7 +156,11 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
-import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+import {
+  CESIUM_CONFIG,
+  LEAFLET_CONFIG,
+  RESTRICT_LIBRE_CAMERA,
+} from "../../config/app.config";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -1271,6 +1275,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const libreLayers = useLibreLayers();
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const isModePrint = uiMode === UIMode.PRINT;
   const libreDrawMode = useSelector(getLibreDrawMode);
   const { selectedFeature: selectedMeasurement } = useMeasurements();
   const {
@@ -1468,7 +1473,10 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           hashWriteEnabled={hashWriteEnabled}
           refreshExpiredTiles={refreshExpiredTiles}
           interactive={mapInteractionEnabled}
-          selectionEnabled={mapInteractionEnabled && !isModeMeasurement}
+          restrictCamera={RESTRICT_LIBRE_CAMERA || isModePrint}
+          selectionEnabled={
+            mapInteractionEnabled && !isModeMeasurement && !isModePrint
+          }
           onSelectionChanged={handleLibreSelectionChanged}
           selectFromHits={handleLibreSelectFromHits}
           modalMenu={<GeoportalModalMenu />}

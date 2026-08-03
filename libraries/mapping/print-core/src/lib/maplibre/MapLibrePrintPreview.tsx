@@ -201,6 +201,7 @@ export const MapLibrePrintPreview = ({
     let startX = 0;
     let startY = 0;
     let startBox: RectScreenBox | null = null;
+    let dragPanWasEnabled = false;
 
     const onMouseDown = (e: MapMouseEvent) => {
       if (loadingRef.current) return;
@@ -212,6 +213,7 @@ export const MapLibrePrintPreview = ({
       startX = e.point.x;
       startY = e.point.y;
       startBox = box;
+      dragPanWasEnabled = map.dragPan.isEnabled();
       map.dragPan.disable();
       canvas.style.cursor = "grabbing";
       // Promote the rectangle to its own compositor layer so the per-frame
@@ -239,7 +241,9 @@ export const MapLibrePrintPreview = ({
     const onMouseUp = (e: MapMouseEvent) => {
       if (!dragging || !startBox) return;
       dragging = false;
-      map.dragPan.enable();
+      if (dragPanWasEnabled) {
+        map.dragPan.enable();
+      }
       canvas.style.cursor = "";
 
       const dx = e.point.x - startX;
@@ -280,7 +284,9 @@ export const MapLibrePrintPreview = ({
       map.off("mousemove", onMouseMove);
       map.off("mouseup", onMouseUp);
       if (dragging) {
-        map.dragPan.enable();
+        if (dragPanWasEnabled) {
+          map.dragPan.enable();
+        }
         canvas.style.cursor = "";
       }
     });
@@ -376,7 +382,15 @@ export const MapLibrePrintPreview = ({
       map.off("load", seed);
     };
     // `redrawTrigger` is intentionally a dependency: changing it re-seeds.
-  }, [map, active, orientation, scale, keepRectangle, redrawTrigger, recomputeBox]);
+  }, [
+    map,
+    active,
+    orientation,
+    scale,
+    keepRectangle,
+    redrawTrigger,
+    recomputeBox,
+  ]);
 
   if (!map || !active || !screenBox) return null;
 

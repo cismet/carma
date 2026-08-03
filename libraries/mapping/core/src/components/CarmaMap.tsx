@@ -252,6 +252,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 <ControlButtonStyler
                   useDisabledStyle={false}
                   dataTestId="compass-control"
+                  disabled={props.restrictCamera}
                 >
                   <LibrePitchingCompass map={libreMap} />
                 </ControlButtonStyler>
@@ -404,6 +405,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 threeRuntimeParams={props.threeRuntimeParams}
                 threePerfRef={props.threePerfRef}
                 maxPitch={props.maxPitch}
+                restrictCamera={props.restrictCamera}
               />
             )}
             {modalMenu}

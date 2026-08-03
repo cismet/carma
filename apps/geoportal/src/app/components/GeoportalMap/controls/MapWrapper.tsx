@@ -54,6 +54,7 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
+import { RESTRICT_LIBRE_CAMERA } from "../../../config/app.config";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
@@ -154,6 +155,7 @@ const MapWrapper = () => {
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+  const isRotationLockedForPrint = uiMode === UIMode.PRINT && showLibreMap;
   const libreDrawMode = useSelector(getLibreDrawMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
@@ -398,7 +400,9 @@ const MapWrapper = () => {
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
                     disabled={
-                      (isLeaflet && !showLibreMap) || isObliquePreviewVisible
+                      (isLeaflet && (!showLibreMap || RESTRICT_LIBRE_CAMERA)) ||
+                      isRotationLockedForPrint ||
+                      isObliquePreviewVisible
                     }
                   >
                     {showLibreMap ? (
@@ -523,21 +527,23 @@ const MapWrapper = () => {
             </Control>
           )}
 
-          {!isObliquePreviewVisible && showLibreMap && visibleControls.terrain && (
-            <Control position="topleft" order={80}>
-              <Tooltip title={"Terrain"} placement="right">
-                <ControlButtonStyler
-                  onClick={toggleTerrain}
-                  className="font-semibold"
-                >
-                  <FontAwesomeIcon
-                    icon={faMountainCity}
-                    className={isTerrainEnabled ? "text-[#1677ff]" : ""}
-                  />
-                </ControlButtonStyler>
-              </Tooltip>
-            </Control>
-          )}
+          {!isObliquePreviewVisible &&
+            showLibreMap &&
+            visibleControls.terrain && (
+              <Control position="topleft" order={80}>
+                <Tooltip title={"Terrain"} placement="right">
+                  <ControlButtonStyler
+                    onClick={toggleTerrain}
+                    className="font-semibold"
+                  >
+                    <FontAwesomeIcon
+                      icon={faMountainCity}
+                      className={isTerrainEnabled ? "text-[#1677ff]" : ""}
+                    />
+                  </ControlButtonStyler>
+                </Tooltip>
+              </Control>
+            )}
           {!isObliquePreviewVisible && visibleControls.layerButtons && (
             <Control position="topcenter" order={10}>
               <LayerWrapper />

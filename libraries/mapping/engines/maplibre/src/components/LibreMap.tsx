@@ -259,6 +259,31 @@ export interface LibreMapProps {
   >;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
   maxPitch?: number;
+  restrictCamera?: boolean;
+}
+
+function applyCameraRestriction(
+  map: maplibregl.Map,
+  restricted: boolean,
+  interactive: boolean,
+  maxPitch: number
+) {
+  if (restricted) {
+    map.dragRotate.disable();
+    map.touchPitch.disable();
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    map.setMaxPitch(0);
+    map.setBearing(0);
+  } else {
+    if (interactive) {
+      map.dragRotate.enable();
+      map.touchPitch.enable();
+      map.touchZoomRotate.enableRotation();
+      map.keyboard.enableRotation();
+    }
+    map.setMaxPitch(maxPitch);
+  }
 }
 
 /**
@@ -355,6 +380,7 @@ export const LibreMap = ({
   threeRuntimeParams,
   threePerfRef,
   maxPitch = 60,
+  restrictCamera = false,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -502,7 +528,8 @@ export const LibreMap = ({
     mapInstance
       .getCanvasContainer()
       .classList.toggle("maplibregl-interactive", interactive);
-  }, [interactive]);
+    applyCameraRestriction(mapInstance, restrictCamera, interactive, maxPitch);
+  }, [interactive, restrictCamera, maxPitch]);
 
   // Helper: apply visual selection highlighting for a feature
   const applyVisualSelection = useCallback(
@@ -774,7 +801,7 @@ export const LibreMap = ({
         center: [lng, lat],
         zoom: zoom,
         maxZoom: 21.9999,
-        maxPitch,
+        maxPitch: restrictCamera ? 0 : maxPitch,
         attributionControl: false,
         interactive,
         refreshExpiredTiles,
@@ -783,6 +810,12 @@ export const LibreMap = ({
           : undefined,
       });
       map.current = mapInstance;
+      // The restriction effect above ran before the map existed on mount,
+      // so the initial state must be applied here (later prop changes go
+      // through the effect).
+      if (restrictCamera) {
+        applyCameraRestriction(mapInstance, true, interactive, maxPitch);
+      }
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       if (exposeMapToWindow) {
