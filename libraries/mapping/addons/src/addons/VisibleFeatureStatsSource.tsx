@@ -101,15 +101,6 @@ const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_INSET_PX = 0;
 /** `useMapHighlighting`'s own default, and `VectorHighlight`'s */
 const DEFAULT_HIGHLIGHT_STATE_KEY = "highlighted";
-const DEBUG_SOURCE_ID = "visible-feature-stats-bbox-source";
-const DEBUG_LAYER_ID = "visible-feature-stats-bbox-layer";
-
-/** module-level so the identity is stable across renders */
-const excludeDebugBox = (feature: {
-  source?: string;
-  layer?: { id: string };
-}) =>
-  feature.source !== DEBUG_SOURCE_ID && feature.layer?.id !== DEBUG_LAYER_ID;
 
 const SHOW_BORDER_PARAM = "showBr";
 
@@ -464,7 +455,6 @@ export const VisibleFeatureStatsSource = ({
   const showBorder = showBorderParam ?? (showDebugBounds || isLocalhost());
 
   const { width, height } = useMapCanvasSize(libreMap);
-  // useDebugBoundsBox(libreMap, showBorder, inset);
 
   // key on the content: route configs pass a fresh array per render
   const filterKey = (layerFilterExpressions ?? []).join("|");
@@ -483,11 +473,10 @@ export const VisibleFeatureStatsSource = ({
     // the navbar and the panels cover the canvas: without this, the features
     // rendered behind them are counted although nobody can see them
     insetPx: inset,
-    // the addon draws its own inset box; the hook's would be clipped
+    // the same rectangle the query uses, so the yellow line is the counted area
+    // rather than an illustration of it; the hook keeps it out of its results
     showDebugBounds: showBorder,
     layerFilterExpressions: layerFilters,
-    // the debug box is a rendered feature, so without this it counts itself
-    filter: excludeDebugBox,
   });
 
   const features = useMemo(
