@@ -5,7 +5,11 @@ export * from "./lib/contracts/results/results.d";
 export { useLeafletZoomControls } from "./lib/hooks/useLeafletZoomControls";
 export { useLayerLoading } from "./lib/hooks/useLayerLoading";
 export { useLibreZoomControls } from "./lib/hooks/useLibreZoomControls";
-export { useVisibleMapFeatures } from "./lib/hooks/useVisibleMapFeatures";
+export {
+  useVisibleMapFeatures,
+  DEBUG_BBOX_SOURCE_ID,
+  DEBUG_BBOX_LAYER_ID,
+} from "./lib/hooks/useVisibleMapFeatures";
 export type {
   UseVisibleMapFeaturesOptions,
   UseVisibleMapFeaturesResult,

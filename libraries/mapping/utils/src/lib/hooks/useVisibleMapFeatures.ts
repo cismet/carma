@@ -7,6 +7,11 @@ const DEFAULT_MAX_FEATURES = 2000;
 const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_SIDEBAR_WIDTH = 300;
 
+/** The yellow rectangle drawn while `showDebugBounds` is on. Exported so hosts
+ *  can recognise it; the hook keeps it out of its own results. */
+export const DEBUG_BBOX_SOURCE_ID = "debug-bbox-source";
+export const DEBUG_BBOX_LAYER_ID = "debug-bbox-layer";
+
 /** Pixels per side, so an asymmetric overlay can be described exactly. */
 export interface MapQueryInsetPx {
   top?: number;
@@ -273,8 +278,8 @@ export const useVisibleMapFeatures = ({
         const visibleSouth = fullNorth - latRange * (rectBottom / canvasHeight);
 
         // Draw debug bbox using the VISIBLE bounds (if enabled)
-        const debugSourceId = "debug-bbox-source";
-        const debugLayerId = "debug-bbox-layer";
+        const debugSourceId = DEBUG_BBOX_SOURCE_ID;
+        const debugLayerId = DEBUG_BBOX_LAYER_ID;
 
         if (showDebugBounds) {
           // Create a key to track if bounds have changed (avoid infinite loop from setData triggering idle)
@@ -434,6 +439,16 @@ export const useVisibleMapFeatures = ({
         const boundsToUse = visibleBounds;
 
         for (const f of renderedFeatures) {
+          // The debug rectangle is drawn above, before the query runs, so it is
+          // a rendered feature like any other and would count itself. The hook
+          // owns that layer, so it drops it here rather than leaving every
+          // caller to remember a filter.
+          if (
+            f.source === DEBUG_BBOX_SOURCE_ID ||
+            f.layer?.id === DEBUG_BBOX_LAYER_ID
+          ) {
+            continue;
+          }
           if (filterRef.current && !filterRef.current(f)) continue;
           stampSourceLayerFromProperty(f);
           const key = `${f.source}-${f.sourceLayer}-${f.id}`;
