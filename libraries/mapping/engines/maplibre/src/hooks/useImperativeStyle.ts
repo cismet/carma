@@ -51,7 +51,9 @@ function layerKey(layer: LibreLayer, index: number): string {
       return `geojson::${layer.name}::${layer.data}`;
     case "wms":
     case "wmts":
-      return `${layer.type}::${layer.url}::${layer.layers}`;
+      return `${layer.type}::${layer.url}::${layer.layers}::${
+        layer.nonTiled ? "nt" : "tiled"
+      }`;
     case "tiles":
       return `tiles::${layer.name}::${layer.url}`;
     case "cog":

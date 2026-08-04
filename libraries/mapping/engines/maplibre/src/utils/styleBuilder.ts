@@ -16,6 +16,10 @@ import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
 import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
 import { LibreLayer } from "../components/LibreMap";
+import {
+  createNonTiledImageSource,
+  createNonTiledMetadata,
+} from "./nonTiledWms";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -884,6 +888,33 @@ export const vectorStylesToMapLibreStyle = async ({
         const version = layer.version || "1.1.1";
         const crsParam = version >= "1.3.0" ? "crs" : "srs";
         const isWmts = layer.type === "wmts";
+
+        if (layer.nonTiled) {
+          style.sources[sourceId] = createNonTiledImageSource();
+          style.layers.push({
+            id: id,
+            type: "raster",
+            source: sourceId,
+            paint: {
+              "raster-opacity": layer.opacity ?? 1,
+              ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+            },
+            metadata: {
+              "z-index": index,
+              "layer-id": id,
+              ...createNonTiledMetadata({
+                url: layer.url,
+                layers: layer.layers,
+                styles: layer.styles,
+                version: layer.version,
+                format: layer.format,
+                transparent: layer.transparent,
+                isWmts,
+              }),
+            },
+          });
+          continue;
+        }
 
         const querySep = layer.url.endsWith("?")
           ? ""

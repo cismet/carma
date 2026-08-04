@@ -32,7 +32,9 @@ const buildDynamicStylingTransform = (
     config,
     selection: selections[idx] ?? config.default,
   }));
-  if (effective.every(({ config, selection }) => selection === config.default)) {
+  if (
+    effective.every(({ config, selection }) => selection === config.default)
+  ) {
     return null;
   }
   const transform = (style: any) => {
@@ -79,6 +81,7 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         layers: name,
         transparent: true,
         opacity: layer.opacity ?? 1,
+        ...(layer.layerType === "wmts-nt" ? { nonTiled: true } : {}),
       });
     } else if (layer.layerType === "vector") {
       const { style } = layer.props as {

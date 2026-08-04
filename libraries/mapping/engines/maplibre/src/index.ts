@@ -124,6 +124,16 @@ export {
   type LayerMappingEntry,
 } from "./utils/featureUtils";
 
+export {
+  NON_TILED_METADATA_KEY,
+  buildNonTiledWmsUrl,
+  createNonTiledImageSource,
+  createNonTiledMetadata,
+  updateNonTiledSources,
+  attachNonTiledWmsUpdater,
+} from "./utils/nonTiledWms";
+export type { NonTiledWmsRequest } from "./utils/nonTiledWms";
+
 // Zoom utilities
 export { zoom512as256, zoom256as512 } from "./utils/zoomUtils";
 

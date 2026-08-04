@@ -66,6 +66,7 @@ export const geoportalBackgroundToLibreLayers = (
           layers: cfg.layers,
           opacity,
           transparent: isTransparent(cfg.transparent),
+          ...(cfg.type === "wmts-nt" ? { nonTiled: true } : {}),
         });
         break;
       }
@@ -79,6 +80,7 @@ export const geoportalBackgroundToLibreLayers = (
           version: cfg.version,
           opacity,
           transparent: isTransparent(cfg.transparent),
+          ...(cfg.type === "wms-nt" ? { nonTiled: true } : {}),
         });
         break;
       }

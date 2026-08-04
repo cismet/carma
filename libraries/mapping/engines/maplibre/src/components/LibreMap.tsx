@@ -24,6 +24,11 @@ import {
   vectorStylesToMapLibreStyle,
 } from "../utils/styleBuilder";
 import { slugifyUrl } from "../utils/styleComposer";
+import {
+  attachNonTiledWmsUpdater,
+  createNonTiledImageSource,
+  createNonTiledMetadata,
+} from "../utils/nonTiledWms";
 import { createFeature } from "../utils/featureUtils";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
@@ -154,6 +159,7 @@ export type LibreLayer =
       opacity?: number;
       transparent?: boolean;
       rasterPaint?: RasterPaintOverrides;
+      nonTiled?: boolean;
     }
   | {
       type: "tiles";
@@ -388,6 +394,7 @@ export const LibreMap = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const hidingManagerRef = useRef<HidingForwardingManager | null>(null);
+  const detachNonTiledRef = useRef<(() => void) | null>(null);
   const selectedFeaturesRef = useRef<
     Set<{
       source: string;
@@ -643,27 +650,39 @@ export const LibreMap = ({
       const layerId = `layer-${layerName}-${index}`;
 
       // Build source based on layer type
+      let nonTiledMetadata: Record<string, unknown> | undefined;
       if (layerConfig.type === "tiles") {
         sources[sourceId] = {
           type: "raster",
           tiles: [layerConfig.url],
           tileSize: 256,
         };
-      } else if (
-        layerConfig.type === "wmts" ||
-        layerConfig.type === "wmts-nt"
-      ) {
+      } else if (layerConfig.type === "wmts") {
         sources[sourceId] = {
           type: "raster",
           tiles: [buildWMTSTileUrl(layerConfig)],
           tileSize: 256,
         };
-      } else if (layerConfig.type === "wms" || layerConfig.type === "wms-nt") {
+      } else if (layerConfig.type === "wms") {
         sources[sourceId] = {
           type: "raster",
           tiles: [buildWMSTileUrl(layerConfig)],
           tileSize: 256,
         };
+      } else if (
+        layerConfig.type === "wms-nt" ||
+        layerConfig.type === "wmts-nt"
+      ) {
+        // One GetMap per viewport, like Leaflet's NonTiledWMSLayer.
+        sources[sourceId] = createNonTiledImageSource();
+        nonTiledMetadata = createNonTiledMetadata({
+          url: layerConfig.url,
+          layers: layerConfig.layers,
+          version: layerConfig.version,
+          format: layerConfig.format,
+          transparent: true,
+          isWmts: layerConfig.type === "wmts-nt",
+        });
       } else {
         console.warn(
           `Layer type "${layerConfig.type}" not supported for MapLibre`
@@ -677,6 +696,7 @@ export const LibreMap = ({
         type: "raster",
         source: sourceId,
         paint: { "raster-opacity": opacity },
+        ...(nonTiledMetadata ? { metadata: nonTiledMetadata } : {}),
       });
     });
 
@@ -1274,6 +1294,8 @@ export const LibreMap = ({
       // Initialize HidingForwardingManager for collision-based visibility sync
       hidingManagerRef.current = new HidingForwardingManager(mapInstance);
 
+      detachNonTiledRef.current = attachNonTiledWmsUpdater(mapInstance);
+
       mapInstance.on("move", () => {
         if (layers?.find((layer) => layer.type === "vector")) {
           vectorSourcesReadyRef.current = false;
@@ -1287,6 +1309,8 @@ export const LibreMap = ({
     return () => {
       hidingManagerRef.current?.destroy();
       hidingManagerRef.current = null;
+      detachNonTiledRef.current?.();
+      detachNonTiledRef.current = null;
       if (map.current) {
         map.current.remove();
         map.current = null;

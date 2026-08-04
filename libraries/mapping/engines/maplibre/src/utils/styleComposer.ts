@@ -23,6 +23,10 @@ import {
   scaleStopsObject,
 } from "./styleBuilder";
 import type { LibreLayer, RasterPaintOverrides } from "../components/LibreMap";
+import {
+  createNonTiledImageSource,
+  createNonTiledMetadata,
+} from "./nonTiledWms";
 
 /**
  * Slugify a URL into a compact ID: strips protocol and .json extension,
@@ -288,7 +292,9 @@ export class StyleComposer {
           // feature id so `feature-state` keys by the stable DB pk instead of
           // the tile-local MVT id, which is only unique within one tile.
           const withPromote =
-            vectorLayer.promoteId && "type" in srcDef && srcDef.type === "vector"
+            vectorLayer.promoteId &&
+            "type" in srcDef &&
+            srcDef.type === "vector"
               ? { ...srcDef, promoteId: vectorLayer.promoteId }
               : srcDef;
           this.map.addSource(namespacedSrc, withPromote);
@@ -627,6 +633,45 @@ export class StyleComposer {
     const version = layer.version || "1.1.1";
     const crsParam = version >= "1.3.0" ? "crs" : "srs";
     const isWmts = layer.type === "wmts";
+
+    if (layer.nonTiled) {
+      this.map.addSource(sourceId, createNonTiledImageSource());
+      const nonTiledLayerId = `${id}-raster`;
+      this.map.addLayer(
+        {
+          id: nonTiledLayerId,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": layer.opacity ?? 1,
+            ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+          },
+          metadata: {
+            "z-index": opts.zIndex,
+            "layer-id": id,
+            ...createNonTiledMetadata({
+              url: layer.url,
+              layers: layer.layers,
+              styles: layer.styles,
+              version: layer.version,
+              format: layer.format,
+              transparent: layer.transparent,
+              isWmts,
+            }),
+          },
+        } as LayerSpecification,
+        lastId
+      );
+
+      this.managed.set(id, {
+        sourceIds: [sourceId],
+        layerIds: [nonTiledLayerId],
+        spriteId: null,
+        firstId,
+        lastId,
+      });
+      return;
+    }
 
     const querySep = layer.url.endsWith("?")
       ? ""
