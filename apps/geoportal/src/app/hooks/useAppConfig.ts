@@ -111,6 +111,10 @@ export const useAppConfig = (
   /** the config whose layers are currently applied, so a rewritten hash that
    * leaves the key untouched does not re-fetch and re-dispatch it */
   const appliedConfigRef = useRef<string | undefined>(undefined);
+  /** the key this hook stripped from the hash itself. Removing it goes through
+   * window.location.replace, which does fire a hashchange, so the listener below
+   * would otherwise read the key as gone and drop the config mid-fetch. */
+  const strippedConfigRef = useRef<string | undefined>(undefined);
   const initialLoadDoneRef = useRef(false);
 
   // Editing the config key in the address bar must take effect without a
@@ -119,7 +123,16 @@ export const useAppConfig = (
   useEffect(() => {
     const readConfigFromHash = () => {
       const next = getHashParams()[effectiveConfigKey];
-      setConfigId((current) => (current === next ? current : next));
+      setConfigId((current) => {
+        if (current === next) {
+          return current;
+        }
+        if (next === undefined && current === strippedConfigRef.current) {
+          // our own removal of the key, keep the config that is being loaded
+          return current;
+        }
+        return next;
+      });
     };
     // also on mount, so switching to a route with its own key re-reads it
     readConfigFromHash();
@@ -146,6 +159,7 @@ export const useAppConfig = (
     // url keep it. They need it: without it a reload falls back to whatever
     // redux-persist happens to hold instead of the configured layers.
     if (!fachzwilling?.disableHashWrite) {
+      strippedConfigRef.current = config;
       // TODO use HashStateProvider Here since its toplevel now
       // can't use HashStateProvider here
       // because it's not yet available
