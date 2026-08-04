@@ -216,6 +216,7 @@ export interface LibreMapProps {
     hits: maplibregl.MapGeoJSONFeature[];
     hit: maplibregl.MapGeoJSONFeature | undefined;
     latlng: maplibregl.LngLat;
+    semanticIdentifier?: string;
   }) => void;
   /** Pick which feature to select from all click hits.
    * Receives filtered hits (no selection/cluster layers).
@@ -1794,6 +1795,7 @@ export const LibreMap = ({
           hits: filteredHits,
           hit: filteredHits[0],
           latlng: new maplibregl.LngLat(selectedPos[0], selectedPos[1]),
+          semanticIdentifier: selection.semanticIdentifier ?? undefined,
         });
         return;
       }

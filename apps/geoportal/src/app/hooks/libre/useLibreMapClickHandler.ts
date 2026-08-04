@@ -40,6 +40,55 @@ type SelectionEvent = {
   hits: maplibregl.MapGeoJSONFeature[];
   hit: maplibregl.MapGeoJSONFeature | undefined;
   latlng: maplibregl.LngLat;
+  semanticIdentifier?: string;
+};
+
+const getStyleLayerIdCandidates = (hit: maplibregl.MapGeoJSONFeature) => {
+  const styleLayerId = hit.layer?.id;
+  if (!styleLayerId) {
+    return [];
+  }
+  const candidates = [styleLayerId];
+  const layerId = hit.layer?.metadata?.["layer-id"];
+  if (typeof layerId === "string") {
+    for (const separator of ["::", "-"]) {
+      const prefix = `${layerId}${separator}`;
+      if (styleLayerId.startsWith(prefix)) {
+        candidates.push(styleLayerId.slice(prefix.length));
+        break;
+      }
+    }
+  }
+  return candidates;
+};
+
+/**
+ * Mirrors resolveHit/getSemanticMatch of the Leaflet path: a gazetteer hit that
+ * carries a semantic identifier (e.g. a land parcel) selects the hit belonging
+ * to the matching layer instead of the topmost one. Hits are already ordered
+ * topmost first, so the first match wins.
+ */
+const resolveSemanticHit = (
+  hits: maplibregl.MapGeoJSONFeature[],
+  layers: ReturnType<typeof getLayers>,
+  semanticIdentifier: string | undefined
+) => {
+  if (!semanticIdentifier) {
+    return undefined;
+  }
+  return hits.find((hit) => {
+    const layerId = hit.layer?.metadata?.["layer-id"];
+    const layer = layers.find((l) => l.id === layerId);
+    const semanticInfo = layer?.conf?.semanticInfo as
+      | Record<string, { layers: string[] }>
+      | undefined;
+    const semanticEntry = semanticInfo?.[semanticIdentifier];
+    if (!semanticEntry) {
+      return false;
+    }
+    const candidates = getStyleLayerIdCandidates(hit);
+    return candidates.some((id) => semanticEntry.layers?.includes(id));
+  });
 };
 
 /**
@@ -248,9 +297,11 @@ export const useLibreMapSelectionHandler = (
           return;
         }
 
-        const selectedVectorFeature = e.hits[0];
-        const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
         const currentLayers = getLayers(store.getState());
+        const selectedVectorFeature =
+          resolveSemanticHit(e.hits, currentLayers, e.semanticIdentifier) ??
+          e.hits[0];
+        const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
         const layer = currentLayers.find((l) => l.id === layerId);
         if (!layer) {
           dispatch(setSelectedFeature(null));
