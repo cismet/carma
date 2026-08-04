@@ -172,6 +172,7 @@ const catalogLayerIdOf = (feature: MapGeoJSONFeature): string | undefined => {
   const stamped = fromMetadata?.["layer-id"];
   if (typeof stamped === "string" && stamped) return stamped;
   const layerId = feature.layer?.id;
+
   return layerId?.includes("::") ? layerId.split("::")[0] : undefined;
 };
 
