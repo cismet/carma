@@ -548,6 +548,40 @@ export const createVectorFeature = async (
   return feature;
 };
 
+export const PLACEHOLDER_FEATURE_ID = "information";
+
+export const createPlaceholderVectorFeature = (
+  layer: Layer,
+  selectedVectorFeature: any,
+  id: string = PLACEHOLDER_FEATURE_ID
+) => {
+  const coordinates = getCoordinates(selectedVectorFeature.geometry);
+  let headerColor = "#0078a8";
+  if (layer.layerInfo?.accentColor) {
+    headerColor = layer.layerInfo.accentColor;
+  }
+  let header = layer.title || "Information";
+  if (layer.layerInfo?.header) {
+    header = layer.layerInfo.header;
+  }
+  return {
+    properties: {
+      _header: header,
+      accentColor: headerColor,
+      title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
+      additionalInfo: `Position: ${coordinates[1].toFixed(
+        5
+      )}, ${coordinates[0].toFixed(5)}`,
+      subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+      sourceProps: selectedVectorFeature.properties,
+    },
+    geometry: selectedVectorFeature.geometry,
+    id,
+    vectorId: selectedVectorFeature.id,
+    sourceFeature: selectedVectorFeature,
+  };
+};
+
 export const resolveHit = (
   hits: any[],
   semanticInfo: Record<string, { layers: string[] }> | undefined,
@@ -610,32 +644,10 @@ export const implicitVectorSelection = async (
       return;
     }
 
-    //make sure to get a point from any geometry type
-    const coordinates = getCoordinates(selectedVectorFeature.geometry);
-    let headerColor = "#0078a8";
-    if (layer.layerInfo?.accentColor) {
-      headerColor = layer.layerInfo.accentColor;
-    }
-    let header = layer.title || "Information";
-    if (layer.layerInfo?.header) {
-      header = layer.layerInfo.header;
-    }
-    const feature = {
-      properties: {
-        _header: header,
-        accentColor: headerColor,
-        title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-        additionalInfo: `Position: ${coordinates[1].toFixed(
-          5
-        )}, ${coordinates[0].toFixed(5)}`,
-        subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-        sourceProps: selectedVectorFeature.properties,
-      },
-      geometry: selectedVectorFeature.geometry,
-      id: "information",
-    };
-
-    featureHandler(feature, layer);
+    featureHandler(
+      createPlaceholderVectorFeature(layer, selectedVectorFeature),
+      layer
+    );
   }
 
   if (e.hits && layer.queryable) {
@@ -711,31 +723,7 @@ export const onSelectionChangedVector = async (
       e.hit &&
       e.hit.selectionLayerExists
     ) {
-      const selectedVectorFeature = e.hit;
-
-      const coordinates = getCoordinates(selectedVectorFeature.geometry);
-      let headerColor = "#0078a8";
-      if (layer.layerInfo?.accentColor) {
-        headerColor = layer.layerInfo.accentColor;
-      }
-      let header = layer.title || "Information";
-      if (layer.layerInfo?.header) {
-        header = layer.layerInfo.header;
-      }
-      const feature = {
-        properties: {
-          _header: header,
-          accentColor: headerColor,
-          title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-          additionalInfo: `Position: ${coordinates[1].toFixed(
-            5
-          )}, ${coordinates[0].toFixed(5)}`,
-          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-          sourceProps: selectedVectorFeature.properties,
-        },
-        geometry: selectedVectorFeature.geometry,
-        id: layer.id,
-      };
+      const feature = createPlaceholderVectorFeature(layer, e.hit, layer.id);
 
       dispatch(addVectorInfo(feature));
       dispatch(removeNothingFoundID(layer.id));

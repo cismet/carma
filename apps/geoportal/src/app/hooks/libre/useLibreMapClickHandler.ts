@@ -24,6 +24,8 @@ import {
 
 import store from "../../store";
 import {
+  PLACEHOLDER_FEATURE_ID,
+  createPlaceholderVectorFeature,
   createVectorFeature,
   onClickTopicMap,
   onSelectionChangedVector,
@@ -314,8 +316,24 @@ export const useLibreMapSelectionHandler = (
         } | null;
         const isReclick =
           selectedVectorFeature.id != null &&
-          currentSelected?.id === layer.id &&
+          (currentSelected?.id === layer.id ||
+            currentSelected?.id === PLACEHOLDER_FEATURE_ID) &&
           currentSelected?.vectorId === selectedVectorFeature.id;
+
+        if (!layer.queryable) {
+          const placeholder = createPlaceholderVectorFeature(
+            layer,
+            selectedVectorFeature
+          );
+          dispatch(setSelectedFeature(placeholder));
+          if (isReclick && map) {
+            utils.zoomToFeature({
+              selectedFeature: placeholder,
+              libreMap: map,
+            });
+          }
+          return;
+        }
 
         const feature = await createVectorFeature(
           layer,
