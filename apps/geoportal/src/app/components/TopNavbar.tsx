@@ -139,13 +139,15 @@ const TopNavbar = () => {
   const [bannerVisible, setBannerVisible] = useState(false);
   const bannerRef = useRef<HTMLDivElement | null>(null);
 
+  const bannerHidden = navbarHidden || !bannerVisible;
+
   useEffect(() => {
     const root = document.documentElement;
     const setHeight = (px: number) => {
       root.style.setProperty("--system-message-banner-height", `${px}px`);
     };
 
-    if (!bannerVisible || !bannerRef.current) {
+    if (bannerHidden || !bannerRef.current) {
       setHeight(0);
       return;
     }
@@ -163,7 +165,7 @@ const TopNavbar = () => {
       observer.disconnect();
       setHeight(0);
     };
-  }, [bannerVisible]);
+  }, [bannerHidden]);
 
   const mainStyle = useMemo((): CSSProperties => {
     return {
@@ -176,11 +178,11 @@ const TopNavbar = () => {
 
   const bannerStyle = useMemo((): CSSProperties => {
     return {
-      visibility: zenMode || !bannerVisible ? "hidden" : undefined,
-      display: zenMode || !bannerVisible ? "none" : "block",
+      visibility: bannerHidden ? "hidden" : undefined,
+      display: bannerHidden ? "none" : "block",
       zIndex: 10000,
     };
-  }, [zenMode, bannerVisible]);
+  }, [bannerHidden]);
 
   console.debug("RENDER: TopNavbar");
 
