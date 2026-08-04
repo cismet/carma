@@ -312,6 +312,65 @@ export function LibFuzzySearch({
     }
   };
 
+  const handleParcelSearch = (
+    value: string,
+    parcelData: LandParcelDataStructure
+  ) => {
+    if (value.includes(LAND_PARCEL_SEPARATOR)) {
+      const directMatch = tryDirectLandParcelMatch(value, parcelData);
+      if (directMatch) {
+        setSearchResult(directMatch);
+        setOptions([]);
+        return;
+      }
+
+      const parseState = parseLandParcelInput(value, parcelData);
+      if (parseState.stage !== "none") {
+        const parcelOptions = generateLandParcelOptions(parseState, parcelData);
+        const hasResults = parcelOptions.some((g) => g.options.length > 0);
+        if (
+          !hasResults &&
+          parseState.stage === "flur_matched" &&
+          parseState.fstckFilter !== ""
+        ) {
+          message.warning("Kein Flurstück gefunden");
+        }
+        setSearchResult(parcelOptions);
+        setOptions([]);
+      } else {
+        const segments = value.split(LAND_PARCEL_SEPARATOR);
+        if (segments.length >= 3 && segments[2].trim() !== "") {
+          message.warning("Kein Flurstück gefunden");
+        }
+        setSearchResult([]);
+        setOptions([]);
+      }
+      return;
+    }
+
+    const compactMatch = tryDirectLandParcelMatch(value, parcelData);
+    if (compactMatch) {
+      setSearchResult(compactMatch);
+      setOptions([]);
+    } else if (normalizeLandParcelInput(value) !== null) {
+      message.warning("Kein Flurstück gefunden");
+      setSearchResult([]);
+      setOptions([]);
+    } else {
+      const gemarkungOpts = generateGemarkungOptions(value, parcelData);
+      setSearchResult(gemarkungOpts);
+      setOptions([]);
+    }
+  };
+
+  const handleSearchInput = (value: string) => {
+    if (searchMode === PARCEL_MODE && landParcelData) {
+      handleParcelSearch(value, landParcelData);
+    } else {
+      handleSearchAutoComplete(value);
+    }
+  };
+
   useEffect(() => {
     if (autoCompleteRef.current) {
       const childNodes = autoCompleteRef.current;
@@ -323,7 +382,7 @@ export function LibFuzzySearch({
     if (option.isLandParcel) {
       if (option.parcelStage === "gemarkung" || option.parcelStage === "flur") {
         setValue(option.value);
-        handleSearchAutoComplete(option.value);
+        handleSearchInput(option.value);
         setTimeout(() => {
           setAutoCompleteOpen(true);
           autoCompleteRef.current?.focus();
@@ -666,72 +725,7 @@ export function LibFuzzySearch({
               : options
           }
           style={{ width: "100%", borderTopLeftRadius: 0 }}
-          onSearch={(value) => {
-            if (searchMode === PARCEL_MODE && landParcelData) {
-              if (value.includes(LAND_PARCEL_SEPARATOR)) {
-                const directMatch = tryDirectLandParcelMatch(
-                  value,
-                  landParcelData
-                );
-                if (directMatch) {
-                  setSearchResult(directMatch);
-                  setOptions([]);
-                } else {
-                  const parseState = parseLandParcelInput(
-                    value,
-                    landParcelData
-                  );
-                  if (parseState.stage !== "none") {
-                    const parcelOptions = generateLandParcelOptions(
-                      parseState,
-                      landParcelData
-                    );
-                    const hasResults = parcelOptions.some(
-                      (g) => g.options.length > 0
-                    );
-                    if (
-                      !hasResults &&
-                      parseState.stage === "flur_matched" &&
-                      parseState.fstckFilter !== ""
-                    ) {
-                      message.warning("Kein Flurstück gefunden");
-                    }
-                    setSearchResult(parcelOptions);
-                    setOptions([]);
-                  } else {
-                    const segments = value.split(LAND_PARCEL_SEPARATOR);
-                    if (segments.length >= 3 && segments[2].trim() !== "") {
-                      message.warning("Kein Flurstück gefunden");
-                    }
-                    setSearchResult([]);
-                    setOptions([]);
-                  }
-                }
-              } else {
-                const compactMatch = tryDirectLandParcelMatch(
-                  value,
-                  landParcelData
-                );
-                if (compactMatch) {
-                  setSearchResult(compactMatch);
-                  setOptions([]);
-                } else if (normalizeLandParcelInput(value) !== null) {
-                  message.warning("Kein Flurstück gefunden");
-                  setSearchResult([]);
-                  setOptions([]);
-                } else {
-                  const gemarkungOpts = generateGemarkungOptions(
-                    value,
-                    landParcelData
-                  );
-                  setSearchResult(gemarkungOpts);
-                  setOptions([]);
-                }
-              }
-            } else {
-              handleSearchAutoComplete(value);
-            }
-          }}
+          onSearch={handleSearchInput}
           onChange={(value) => {
             if (autoCompleteRef?.current) {
               autoCompleteRef.current.scrollTo(0);
