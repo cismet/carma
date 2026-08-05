@@ -1,5 +1,22 @@
 import { isValidScene } from "@carma-mapping/engines/cesium/core";
-import { LeafletMap, isLeafletMap } from "@carma-mapping/engines/leaflet";
+import { LeafletMap } from "@carma-mapping/engines/leaflet";
+
+// Structural instead of `instanceof L.Map`: the 2D side of the transition is
+// only ever used through this handful of methods, so any engine that provides
+// them (leaflet itself, or a maplibre facade) can drive it.
+const isTransitionCapable2dMap = (map: unknown): boolean => {
+  if (!map || typeof map !== "object") {
+    return false;
+  }
+  const candidate = map as Record<string, unknown>;
+  return (
+    typeof candidate.getCenter === "function" &&
+    typeof candidate.getZoom === "function" &&
+    typeof candidate.setView === "function" &&
+    typeof candidate.flyTo === "function" &&
+    typeof candidate.stop === "function"
+  );
+};
 
 const isValidContainer = (container: unknown): boolean => {
   const isValidElement =
@@ -52,9 +69,9 @@ export const validateRequirements = (
     return false;
   }
 
-  if (!isLeafletMap(leaflet)) {
+  if (!isTransitionCapable2dMap(leaflet)) {
     console.warn(
-      "[CESIUM|LEAFLET|TRANSITION] leaflet map instance is not valid, cannot transition"
+      "[CESIUM|LEAFLET|TRANSITION] 2d map instance is not valid, cannot transition"
     );
     return false;
   }
