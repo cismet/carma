@@ -51,6 +51,7 @@ import GeoportalLayerButton, {
   type GeoportalLayerButtonProps,
 } from "./GeoportalLayerButton";
 import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
+import { LayerAddonTriggerButtons } from "./LayerAddonTriggerButtons";
 import {
   normalizeAnnotationsRuntimeGeoJsonFeatureCollection,
   parseStyleObject,
@@ -451,6 +452,7 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
           {isAdhocModelLayer && (
             <AdhocModelFlyToLayerbarAction layer={props.layer} />
           )}
+          <LayerAddonTriggerButtons target={props.layer} />
           {props.actionSlot}
           {isAdhocModelLayer && !isSavedMeasurementLayer && (
             <AdhocModelLayerbarActions layer={props.layer} />

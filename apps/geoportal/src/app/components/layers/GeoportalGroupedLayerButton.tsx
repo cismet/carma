@@ -6,8 +6,6 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Badge, Tooltip } from "antd";
-
 import type { LayerGroup } from "@carma-mapping/layers";
 import { layerGroupHasInfoView } from "@carma-mapping/layers";
 import { LayerButton } from "@carma-mapping/components";
@@ -17,7 +15,6 @@ import type { AppDispatch } from "../../store";
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
   changeVisibility,
-  getActiveInteractionButtonID,
   getActiveInteractionLayerID,
   getClickFromInfoView,
   getSelectedLayerIndex,
@@ -30,16 +27,9 @@ import {
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import { getUIShowLayerHideButtons } from "../../store/slices/ui";
-import {
-  getTargetAddonsWithTrigger,
-  resolveAddonTrigger,
-  toAddonButtonId,
-} from "@carma-mapping/addons";
 import { resolveGeoportalLayerButtonCloseIcon } from "../../hooks/use-geoportal-layer-button-actions";
-import {
-  getGeoportalLayerButtonBackgroundClassName,
-  getGeoportalLayerToolActionButtonClassName,
-} from "./layer-tool-action-button-style";
+import { getGeoportalLayerButtonBackgroundClassName } from "./layer-tool-action-button-style";
+import { LayerAddonTriggerButtons } from "./LayerAddonTriggerButtons";
 
 export interface GeoportalGroupedLayerButtonProps {
   group: LayerGroup;
@@ -69,10 +59,8 @@ const GeoportalGroupedLayerButton = ({
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const clickFromInfoView = useSelector(getClickFromInfoView);
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
-  const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const hasInfoView = layerGroupHasInfoView(group);
   const isSelected = selectedLayerIndex === index;
-  const groupAddons = getTargetAddonsWithTrigger(group);
   const isInteractionActive = activeInteractionLayerID === group.id;
 
   const { attributes, listeners, setNodeRef, transform } = useSortable({
@@ -148,57 +136,7 @@ const GeoportalGroupedLayerButton = ({
       >
         <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
         <span className="text-base ml-1">{group.title}</span>
-        {groupAddons.map((addon) => {
-          const addonTrigger = resolveAddonTrigger(addon, group);
-          if (!addonTrigger) {
-            return null;
-          }
-          const buttonId = toAddonButtonId(addon.kind);
-          const isAddonActive =
-            isInteractionActive && activeInteractionButtonID === buttonId;
-          return (
-            <Tooltip key={addon.kind} title={addonTrigger.label}>
-              <button
-                type="button"
-                id={`layerInteractionButton-${group.id}-${addon.kind}`}
-                className={cn(
-                  "group",
-                  getGeoportalLayerToolActionButtonClassName(isAddonActive)
-                )}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // action kinds run straight away and open nothing
-                  if (addonTrigger.onClick) {
-                    addonTrigger.onClick();
-                    return;
-                  }
-                  // opening one tool closes the previous one, since both ids
-                  // are set together
-                  dispatch(
-                    setActiveInteractionLayerID(isAddonActive ? null : group.id)
-                  );
-                  dispatch(
-                    setActiveInteractionButtonID(isAddonActive ? null : buttonId)
-                  );
-                }}
-                aria-label={addonTrigger.label}
-              >
-                <Badge count={addonTrigger.badge} size="small" color="#4b5563">
-                  <FontAwesomeIcon
-                    icon={addonTrigger.icon}
-                    className={cn(
-                      "text-sm",
-                      isAddonActive
-                        ? "!text-[#1677ff]"
-                        : "!text-gray-600 group-hover:!text-gray-500"
-                    )}
-                  />
-                </Badge>
-              </button>
-            </Tooltip>
-          );
-        })}
+        <LayerAddonTriggerButtons target={group} />
         <button
           type="button"
           id={`removeLayerButton-${group.id}`}
