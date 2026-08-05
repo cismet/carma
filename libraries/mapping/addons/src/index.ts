@@ -50,6 +50,10 @@ export {
   type VisibleFeatureStatsState,
 } from "./addons/VisibleFeatureStatsSource";
 export {
+  zoomToExtentTrigger,
+  type ZoomToExtentConfig,
+} from "./addons/ZoomToExtent";
+export {
   StatsReadout,
   VisibleFeatureStatsPanel,
   type ColoredStatsGroup,

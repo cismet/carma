@@ -34,6 +34,10 @@ import {
   type VisibleFeatureStatsSourceConfig,
   type VisibleFeatureStatsState,
 } from "../addons/VisibleFeatureStatsSource";
+import {
+  zoomToExtentTrigger,
+  type ZoomToExtentConfig,
+} from "../addons/ZoomToExtent";
 
 export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
@@ -43,6 +47,7 @@ export type AddonConfigMap = {
   outlet: OutletConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
+  zoomToExtent: ZoomToExtentConfig;
 };
 
 export type AddonKind = keyof AddonConfigMap;
@@ -149,6 +154,7 @@ export const addonRegistry: {
     Component: VisibleFeatureStatsPanel,
     requires: ["visibleFeatureStats"],
   },
+  zoomToExtent: { trigger: zoomToExtentTrigger },
 };
 
 const isKnownKind = (kind: string): kind is AddonKind =>
