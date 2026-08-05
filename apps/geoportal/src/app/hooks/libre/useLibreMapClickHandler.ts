@@ -31,6 +31,7 @@ import {
   onSelectionChangedVector,
 } from "../../components/GeoportalMap/topicmap.utils";
 import { addFeatureInfoCrosshair } from "../../components/feature-info/featureInfoMarker";
+import { useSelectionForwarding } from "./useSelectionForwarding";
 
 const MAX_SELECTION_COUNT = 10;
 
@@ -160,6 +161,10 @@ export const useLibreMapSelectionHandler = (
       sourceFeature
     );
   }, [selectedFeature, selectMapFeature, clearMapSelection]);
+
+  // styles that draw one object from several source-layers need `selected` on
+  // every one of them; this runs after LibreMap has applied it to the primary
+  useSelectionForwarding(libreMap);
 
   const layers = useSelector(getLayers);
   const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
