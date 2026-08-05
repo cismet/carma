@@ -178,6 +178,8 @@ type BaseLayer = {
   };
   skipSelection?: boolean;
   interactionButtons?: InteractionButton | InteractionButton[];
+  tools?: ToolEntry[];
+  featureBounds?: [number, number, number, number];
   other?: OtherLayerProps;
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
