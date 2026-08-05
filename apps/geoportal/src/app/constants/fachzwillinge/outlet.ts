@@ -12,6 +12,9 @@ const RELAY_BASE_URL =
 export const outletFachzwilling: FachzwillingRoute = {
   path: "outlet",
   hideFromCatalog: true,
+  // its layers are whatever the remote last pushed, so they must not land in
+  // the storage the plain geoportal rehydrates from
+  appKey: "outlet",
   ui: { hideAll: true },
   disableMapInteraction: true,
   // the addon owns the view; hash writes would only push history entries and

@@ -22,9 +22,7 @@ import {
 } from "../../store/slices/ui";
 
 import { layerCatalogConfig } from "../discover";
-import { gesundheitFachzwilling } from "./gesundheit";
-import { bodenFachzwilling } from "./boden";
-import { outletFachzwilling } from "./outlet";
+import { allFachzwillingRoutes } from "./routes";
 import { getFeatureFlagConfig } from "../../config/featureFlags";
 
 const currentDeployment = resolveDeployment();
@@ -93,6 +91,16 @@ type FachzwillingRouteBase = {
    */
   configHashKey?: string;
   /**
+   * Storage namespace for the persisted mapping and ui state, instead of the
+   * app-wide one. Same purpose as the `appKey` hash parameter: a route whose
+   * layers are driven from outside would otherwise overwrite the settings of
+   * the plain geoportal on the same origin. An explicit `?appKey=` still wins.
+   *
+   * Read at store construction time (store/index.ts), which is why the route
+   * list lives in its own module and not in this barrel.
+   */
+  appKey?: string;
+  /**
    * workflow perspectives shown in the "Workflows" catalog category while the
    * route is open; the category is omitted on routes without perspectives
    * (including the default geoportal route)
@@ -128,12 +136,6 @@ export type HiddenFachzwillingRoute = FachzwillingRouteBase & {
 export type FachzwillingRoute =
   | CatalogFachzwillingRoute
   | HiddenFachzwillingRoute;
-
-const allFachzwillingRoutes: FachzwillingRoute[] = [
-  gesundheitFachzwilling,
-  bodenFachzwilling,
-  outletFachzwilling,
-];
 
 export const routeFeatureFlagConfig: FeatureFlagConfig = Object.fromEntries(
   allFachzwillingRoutes
