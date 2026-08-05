@@ -101,6 +101,11 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         getLeafletMap()?.zoomOut();
       },
       flyTo2D: (lat, lng, zoom) => {
+        // `zoom` is on the Leaflet scale, which MapLibre trails by one
+        if (libreMap) {
+          libreMap.flyTo({ center: [lng, lat], zoom: (zoom ?? 18) - 1 });
+          return;
+        }
         const map = getLeafletMap();
         if (!map) return;
         map.flyTo([lat, lng], zoom ?? 18);
