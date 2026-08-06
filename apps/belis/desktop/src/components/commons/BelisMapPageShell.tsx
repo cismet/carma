@@ -84,6 +84,15 @@ const BelisMapPageShell = () => {
   );
   const [lassoActive, setLassoActive] = useState(false);
 
+  // Route switch (Fachobjekte ↔ Arbeitsaufträge) disarms the lasso. The shell is
+  // always mounted (Layout only toggles display), so local state survives the
+  // change — and the toggle button lives behind `showSearch`, i.e. it is gone on
+  // Arbeitsaufträge. Without this reset the lasso keeps swallowing map drags
+  // there with no visible way to turn it off.
+  useEffect(() => {
+    setLassoActive(false);
+  }, [sidebarVariant]);
+
   // Filter-aware highlight list (mirrors the Highlights sidebar tab): the CSV
   // export uses this so it exports exactly the visible selection. The unfiltered
   // `activeHighlights` channel is left untouched for the Arbeitsauftrag actions.
