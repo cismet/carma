@@ -15,6 +15,10 @@ import type {
 } from "maplibre-gl";
 import slugify from "slugify";
 import {
+  ensureLayerLoadingTracker,
+  type LayerLoadingTracker,
+} from "@carma-mapping/utils";
+import {
   getPaintProperty,
   prefixPatternExpression,
   extractGeoJson,
@@ -44,6 +48,7 @@ interface ManagedSubStyle {
   spriteId: string | null;
   firstId: string;
   lastId: string;
+  carmaLayerId?: string;
   /** Original paint opacity values per layer, keyed by "layerId::property". */
   baseOpacities?: Map<string, number>;
 }
@@ -69,6 +74,7 @@ export interface AddGeoJsonSubStyleOptions {
   zIndex: number;
   clusteringEnabled?: boolean;
   beforeId?: string;
+  carmaLayerId?: string;
 }
 
 export interface AddRasterSubStyleOptions {
@@ -181,10 +187,12 @@ export class StyleComposer {
    * sprite URL don't tear it down for each other on removal. */
   private spriteRefs: Map<string, number> = new Map();
   private debugLog: boolean;
+  private loadingTracker: LayerLoadingTracker;
 
   constructor(map: MaplibreMap, debugLog = false) {
     this.map = map;
     this.debugLog = debugLog;
+    this.loadingTracker = ensureLayerLoadingTracker(map);
   }
 
   /** Sync the bidirectional map to the map instance so other hooks can read it. */
@@ -232,10 +240,22 @@ export class StyleComposer {
     // Idempotency: skip if already managed
     if (this.managed.has(layerId)) return;
 
-    const styleJson =
-      typeof vectorLayer.style === "string"
-        ? await (await fetch(vectorLayer.style)).json()
-        : JSON.parse(JSON.stringify(vectorLayer.style));
+    if (vectorLayer.carmaLayerId) {
+      this.loadingTracker.markPreparing(vectorLayer.carmaLayerId);
+    }
+
+    let styleJson;
+    try {
+      styleJson =
+        typeof vectorLayer.style === "string"
+          ? await (await fetch(vectorLayer.style)).json()
+          : JSON.parse(JSON.stringify(vectorLayer.style));
+    } catch (err) {
+      if (vectorLayer.carmaLayerId) {
+        this.loadingTracker.markFailed(vectorLayer.carmaLayerId);
+      }
+      throw err;
+    }
     let spriteId = layerId;
     if (styleJson.sprite) {
       spriteId = slugify(styleJson.sprite, {
@@ -399,7 +419,11 @@ export class StyleComposer {
       firstId,
       lastId,
       baseOpacities,
+      carmaLayerId: vectorLayer.carmaLayerId,
     });
+    if (vectorLayer.carmaLayerId) {
+      this.loadingTracker.registerSources(vectorLayer.carmaLayerId, sourceIds);
+    }
     this.syncToMapInstance();
     if (this.debugLog)
       console.log(
@@ -592,7 +616,11 @@ export class StyleComposer {
       spriteId: null,
       firstId,
       lastId,
+      carmaLayerId: opts.carmaLayerId,
     });
+    if (opts.carmaLayerId) {
+      this.loadingTracker.registerSources(opts.carmaLayerId, sourceIds);
+    }
     return { sourceId, uniqueColors };
   }
 
@@ -669,7 +697,11 @@ export class StyleComposer {
         spriteId: null,
         firstId,
         lastId,
+        carmaLayerId: layer.carmaLayerId,
       });
+      if (layer.carmaLayerId) {
+        this.loadingTracker.registerSources(layer.carmaLayerId, [sourceId]);
+      }
       return;
     }
 
@@ -682,7 +714,7 @@ export class StyleComposer {
       layer.url
     }${querySep}service=WMS&version=${version}&request=GetMap&layers=${
       layer.layers
-    }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
+    }&styles=${layer.styles || ""}&format=${
       layer.format || "image/png"
     }&transparent=${layer.transparent ? "true" : "false"}${
       isWmts ? "&type=wmts" : ""
@@ -717,7 +749,11 @@ export class StyleComposer {
       spriteId: null,
       firstId,
       lastId,
+      carmaLayerId: layer.carmaLayerId,
     });
+    if (layer.carmaLayerId) {
+      this.loadingTracker.registerSources(layer.carmaLayerId, [sourceId]);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -781,7 +817,11 @@ export class StyleComposer {
       spriteId: null,
       firstId,
       lastId,
+      carmaLayerId: layer.carmaLayerId,
     });
+    if (layer.carmaLayerId) {
+      this.loadingTracker.registerSources(layer.carmaLayerId, [sourceId]);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -844,7 +884,11 @@ export class StyleComposer {
       spriteId: null,
       firstId,
       lastId,
+      carmaLayerId: layer.carmaLayerId,
     });
+    if (layer.carmaLayerId) {
+      this.loadingTracker.registerSources(layer.carmaLayerId, [sourceId]);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -916,6 +960,13 @@ export class StyleComposer {
   removeSubStyle(id: string): void {
     const entry = this.managed.get(id);
     if (!entry) return;
+
+    if (entry.carmaLayerId) {
+      this.loadingTracker.unregisterSources(
+        entry.carmaLayerId,
+        entry.sourceIds
+      );
+    }
 
     // Remove layers in reverse order (top to bottom) and clean up ID mappings
     for (let i = entry.layerIds.length - 1; i >= 0; i--) {

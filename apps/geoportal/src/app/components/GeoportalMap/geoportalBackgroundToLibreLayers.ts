@@ -31,6 +31,9 @@ export const geoportalBackgroundToLibreLayers = (
     defaultLayerConf as { namedLayers: Record<string, NamedLayerConfig> }
   ).namedLayers;
   const layerOpacity = backgroundLayer.opacity ?? 1;
+  // All named layers of a background spec belong to the single background
+  // button, so they share one id and their loading states aggregate.
+  const carmaLayerId = backgroundLayer.id;
 
   for (const spec of backgroundLayer.layers.split("|")) {
     const [name, opacityStr] = spec.split("@");
@@ -52,6 +55,7 @@ export const geoportalBackgroundToLibreLayers = (
           type: "tiles",
           name,
           url: cfg.url,
+          carmaLayerId,
           opacity,
           maxZoom: cfg.maxZoom ?? cfg.maxNativeZoom,
         });
@@ -64,6 +68,7 @@ export const geoportalBackgroundToLibreLayers = (
           type: "wmts",
           url: cfg.url,
           layers: cfg.layers,
+          carmaLayerId,
           opacity,
           transparent: isTransparent(cfg.transparent),
           ...(cfg.type === "wmts-nt" ? { nonTiled: true } : {}),
@@ -77,6 +82,7 @@ export const geoportalBackgroundToLibreLayers = (
           type: "wms",
           url: cfg.url,
           layers: cfg.layers,
+          carmaLayerId,
           version: cfg.version,
           opacity,
           transparent: isTransparent(cfg.transparent),
@@ -89,6 +95,7 @@ export const geoportalBackgroundToLibreLayers = (
         result.push({
           type: "vector",
           name: `bg-${name}`,
+          carmaLayerId,
           style: cfg.style,
           opacity,
         });

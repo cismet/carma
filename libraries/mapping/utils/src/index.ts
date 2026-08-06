@@ -4,12 +4,23 @@ export * from "./lib/contracts/feature-info/feature-info.d";
 export * from "./lib/contracts/results/results.d";
 export { useLeafletZoomControls } from "./lib/hooks/useLeafletZoomControls";
 export { useLayerLoading } from "./lib/hooks/useLayerLoading";
+export { useLibreLayerLoading } from "./lib/hooks/useLibreLayerLoading";
 export { useLibreZoomControls } from "./lib/hooks/useLibreZoomControls";
 export {
   useVisibleMapFeatures,
   DEBUG_BBOX_SOURCE_ID,
   DEBUG_BBOX_LAYER_ID,
 } from "./lib/hooks/useVisibleMapFeatures";
+export {
+  ensureLayerLoadingTracker,
+  getLayerLoadingTracker,
+  EMPTY_LAYER_LOADING_STATE,
+} from "./lib/layerLoadingTracker";
+export type {
+  LayerLoadingState,
+  LayerLoadingSnapshot,
+  LayerLoadingTracker,
+} from "./lib/layerLoadingTracker";
 export type {
   UseVisibleMapFeaturesOptions,
   UseVisibleMapFeaturesResult,

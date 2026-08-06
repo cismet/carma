@@ -79,6 +79,7 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         type: "wmts",
         url,
         layers: name,
+        carmaLayerId: layer.id,
         transparent: true,
         opacity: layer.opacity ?? 1,
         ...(layer.layerType === "wmts-nt" ? { nonTiled: true } : {}),
@@ -98,6 +99,7 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
       result.push({
         type: "vector",
         name: layer.id,
+        carmaLayerId: layer.id,
         style,
         opacity: layer.opacity ?? 1,
         ...(userFilter ? { userFilter } : {}),

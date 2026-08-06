@@ -70,7 +70,8 @@ import {
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useLayerLoading } from "@carma-mapping/utils";
+import { useLayerLoading, useLibreLayerLoading } from "@carma-mapping/utils";
+import { useLibreContext } from "@carma-mapping/contexts";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
 import { useCurrentMapZoom } from "../../hooks/useCurrentMapZoom";
@@ -128,10 +129,14 @@ const GeoportalLayerButton = ({
   const isLibreMap = Boolean(flags.featureFlagLibreMap);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { loading, error } = useLayerLoading({
+  const { map: libreMap } = useLibreContext();
+  const leafletLoading = useLayerLoading({
     map: routedMapRef?.leafletMap?.leafletElement as L.Map,
     layer,
   });
+  const libreLoading = useLibreLayerLoading({ map: libreMap, layerId: id });
+  const loading = leafletLoading.loading || libreLoading.loading;
+  const error = leafletLoading.error || libreLoading.error;
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);

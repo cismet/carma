@@ -477,9 +477,16 @@ export interface VectorStylesToMapLibreStyleOptions {
   overrideGlyphs?: string;
 }
 
+/** Which MapLibre sources a host app layer (`carmaLayerId`) ended up owning. */
+export interface LayerSourceRegistration {
+  carmaLayerId: string;
+  sourceIds: string[];
+}
+
 export interface VectorStylesToMapLibreStyleResult {
   style: StyleSpecification;
   geoJsonMetadata: GeoJsonStyleMetadata[];
+  layerSources: LayerSourceRegistration[];
 }
 
 /**
@@ -494,6 +501,7 @@ export const vectorStylesToMapLibreStyle = async ({
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
+  const layerSources: LayerSourceRegistration[] = [];
 
   // Build stable, position-independent source/layer ids. Deriving ids from the
   // layer's content (WMS layers / name) instead of its array index means a
@@ -576,6 +584,12 @@ export const vectorStylesToMapLibreStyle = async ({
       const layer = layers[index];
       const fetched = prefetched[index];
       if (!fetched) continue;
+
+      const recordSources = (sourceIds: string[]) => {
+        if (layer.carmaLayerId && sourceIds.length > 0) {
+          layerSources.push({ carmaLayerId: layer.carmaLayerId, sourceIds });
+        }
+      };
 
       if (layer.type === "vector") {
         const additionalStyle = fetched.data;
@@ -721,6 +735,7 @@ export const vectorStylesToMapLibreStyle = async ({
 
         style.sources = { ...style.sources, ...namespacedSources };
         style.layers = [...style.layers!, ...additionalStyle.layers];
+        recordSources(Object.keys(namespacedSources));
 
         // Adopt glyphs from the first vector style that provides them
         // (unless explicitly set via the glyphs option)
@@ -881,6 +896,7 @@ export const vectorStylesToMapLibreStyle = async ({
         });
 
         style.layers = [...style.layers!, ...geoJsonLayers];
+        recordSources([sourceId]);
       } else if (layer.type === "wms" || layer.type === "wmts") {
         const sanitized = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
         const id = makeUniqueId(sanitized);
@@ -913,6 +929,7 @@ export const vectorStylesToMapLibreStyle = async ({
               }),
             },
           });
+          recordSources([sourceId]);
           continue;
         }
 
@@ -952,6 +969,7 @@ export const vectorStylesToMapLibreStyle = async ({
             "layer-id": id,
           },
         });
+        recordSources([sourceId]);
       } else if (layer.type === "tiles") {
         const sanitized = layer.name.replace(/[^a-zA-Z0-9]/g, "-");
         const id = makeUniqueId(sanitized);
@@ -977,6 +995,7 @@ export const vectorStylesToMapLibreStyle = async ({
             "layer-id": id,
           },
         });
+        recordSources([sourceId]);
       }
       // COG layers are handled separately via map.addSource/addLayer after setStyle
     }
@@ -986,5 +1005,5 @@ export const vectorStylesToMapLibreStyle = async ({
     style.sprite = customSprites;
   }
 
-  return { style, geoJsonMetadata };
+  return { style, geoJsonMetadata, layerSources };
 };

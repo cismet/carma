@@ -95,10 +95,10 @@ export const buildNonTiledWmsUrl = (
     request.url
   )}service=WMS&version=${version}&request=GetMap&layers=${
     request.layers
-  }&styles=${request.styles || (request.isWmts ? "default" : "")}&format=${
+  }&styles=${request.styles || ""}&format=${
     request.format || "image/png"
   }&transparent=${request.transparent ? "true" : "false"}${
-    request.isWmts ? "&type=wmts" : ""
+    request.isWmts ? "&type=wmts-nt" : ""
   }&width=${width}&height=${height}&${crsParam}=EPSG:3857&bbox=${minX},${minY},${maxX},${maxY}`;
 };
 

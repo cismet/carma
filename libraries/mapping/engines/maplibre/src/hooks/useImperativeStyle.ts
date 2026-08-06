@@ -143,6 +143,7 @@ export function useImperativeStyle({
             const meta = await composer.addGeoJsonSubStyle(id, layer.data!, {
               zIndex: i,
               clusteringEnabled,
+              carmaLayerId: layer.carmaLayerId,
             });
             geoMeta.push(meta);
           } else if (layer.type === "wms" || layer.type === "wmts") {
@@ -392,6 +393,7 @@ export function useImperativeStyle({
               zIndex: i,
               clusteringEnabled,
               beforeId,
+              carmaLayerId: layer.carmaLayerId,
             });
             geoMeta.push(meta);
           } else if (layer.type === "wms" || layer.type === "wmts") {

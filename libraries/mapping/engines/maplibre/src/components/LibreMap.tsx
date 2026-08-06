@@ -45,6 +45,7 @@ import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
 import {
+  ensureLayerLoadingTracker,
   proj4crs3857def,
   proj4crs4326def,
   stampSourceLayerFromProperty,
@@ -95,6 +96,10 @@ export interface VectorStyle {
   name: string;
   style: string | StyleSpecification;
   layer?: string;
+  /** Host app layer id this sub-style belongs to, used to report loading and
+   *  error state back per layer (see LayerLoadingTracker). Several LibreLayers
+   *  may share one id, e.g. a background spec expanding into named layers. */
+  carmaLayerId?: string;
   opacity?: number;
   infoboxMapping?: string[];
   /** Promote a feature property to the source's feature id (MapLibre source
@@ -139,6 +144,7 @@ export type LibreLayer =
       type: "geojson";
       name: string;
       data: string;
+      carmaLayerId?: string;
       infoboxMapping?: string[];
       /** Feature property used to color cluster pie chart slices.
        * Defaults to "schrift" (Stadtplan POI schema). */
@@ -151,6 +157,7 @@ export type LibreLayer =
       type: "wms" | "wmts";
       url: string;
       layers: string;
+      carmaLayerId?: string;
       styles?: string;
       version?: string;
       tileSize?: number;
@@ -165,6 +172,7 @@ export type LibreLayer =
       type: "tiles";
       name: string;
       url: string;
+      carmaLayerId?: string;
       opacity?: number;
       tileSize?: number;
       maxZoom?: number;
@@ -174,6 +182,7 @@ export type LibreLayer =
       type: "cog";
       name: string;
       url: string;
+      carmaLayerId?: string;
       opacity?: number;
       rasterPaint?: RasterPaintOverrides;
     };
@@ -582,9 +591,10 @@ export const LibreMap = ({
       layers,
       version = "1.1.1",
       format = "image/png",
+      styles = "",
     } = layerConfig;
     const baseUrl = url.endsWith("?") ? url : url + "?";
-    return `${baseUrl}SERVICE=WMS&REQUEST=GetMap&VERSION=${version}&LAYERS=${layers}&FORMAT=${format}&styles=default&TRANSPARENT=true&WIDTH=256&HEIGHT=256&crs=EPSG:3857&&srs=EPSG:3857&BBOX={bbox-epsg-3857}`;
+    return `${baseUrl}SERVICE=WMS&REQUEST=GetMap&VERSION=${version}&LAYERS=${layers}&FORMAT=${format}&styles=${styles}&TRANSPARENT=true&WIDTH=256&HEIGHT=256&crs=EPSG:3857&&srs=EPSG:3857&BBOX={bbox-epsg-3857}`;
   };
 
   // Helper function to build WMTS tile URL from layer config
@@ -1342,6 +1352,17 @@ export const LibreMap = ({
             : layers;
 
         if (effectiveLayers) {
+          // The style (re)build below refetches vector styles before any source
+          // exists, so flag the affected layers as busy for that window.
+          const loadingTracker = map.current
+            ? ensureLayerLoadingTracker(map.current)
+            : null;
+          for (const layer of effectiveLayers) {
+            if (layer.carmaLayerId) {
+              loadingTracker?.markPreparing(layer.carmaLayerId);
+            }
+          }
+
           // Show initial progress only on first load or when layers change
           const geoJsonLayers = effectiveLayers.filter(
             (layer) => layer.type === "geojson"
@@ -1364,13 +1385,16 @@ export const LibreMap = ({
           }
 
           // Update with vector styles and background layers
-          const { style: baseStyle, geoJsonMetadata } =
-            await vectorStylesToMapLibreStyle({
-              layers: effectiveLayers,
-              backgroundStyle,
-              clusteringEnabled,
-              overrideGlyphs,
-            });
+          const {
+            style: baseStyle,
+            geoJsonMetadata,
+            layerSources,
+          } = await vectorStylesToMapLibreStyle({
+            layers: effectiveLayers,
+            backgroundStyle,
+            clusteringEnabled,
+            overrideGlyphs,
+          });
 
           // Bail out if effect was cleaned up during async work (StrictMode double-fire)
           if (aborted) return;
@@ -1388,6 +1412,14 @@ export const LibreMap = ({
           map.current?.setStyle(style);
           if (debugLog)
             console.log("[LAYER_MODE] merged: derived style", style);
+
+          loadingTracker?.reset();
+          for (const registration of layerSources) {
+            loadingTracker?.registerSources(
+              registration.carmaLayerId,
+              registration.sourceIds
+            );
+          }
 
           // Update context with the full map style
           setMapStyle(style);
