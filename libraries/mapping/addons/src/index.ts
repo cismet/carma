@@ -42,6 +42,12 @@ export {
 } from "./addons/LayerVisibility";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
+  InfoBoxZoomImage,
+  resolveInfoBoxImageUrl,
+  type InfoBoxImageState,
+  type InfoBoxZoomImageConfig,
+} from "./addons/InfoBoxZoomImage";
+export {
   VisibleFeatureStatsSource,
   type LayerStatsGroup,
   type LayerStatsRow,

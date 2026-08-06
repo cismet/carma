@@ -14,6 +14,11 @@ import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
+import {
+  InfoBoxZoomImage,
+  type InfoBoxImageState,
+  type InfoBoxZoomImageConfig,
+} from "../addons/InfoBoxZoomImage";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
@@ -44,6 +49,7 @@ export type AddonConfigMap = {
   gazetteerMode: GazDataAdditionalModeConfig;
   vectorHighlight: VectorHighlightConfig;
   layerVisibility: LayerVisibilityConfig;
+  infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
@@ -62,6 +68,11 @@ export type AddonStateMap = {
   visibleFeatureStats: VisibleFeatureStatsState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
+  /**
+   * image the info box shows instead of the feature photo at the current zoom;
+   * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
+   */
+  infoBoxImage: InfoBoxImageState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -145,6 +156,10 @@ export const addonRegistry: {
   layerVisibility: {
     Component: LayerVisibility,
     trigger: layerVisibilityTrigger,
+  },
+  infoBoxZoomImage: {
+    Component: InfoBoxZoomImage,
+    provides: ["infoBoxImage"],
   },
   visibleFeatureStatsSource: {
     Component: VisibleFeatureStatsSource,

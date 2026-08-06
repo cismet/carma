@@ -6,6 +6,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { useLibreContext } from "@carma-mapping/contexts";
+import { resolveInfoBoxImageUrl, useAddonState } from "@carma-mapping/addons";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
@@ -83,6 +84,8 @@ const FeatureInfoBox = ({
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();
+  // zoom-dependent replacement image, published by the infoBoxZoomImage addon
+  const [infoBoxImage] = useAddonState("infoBoxImage");
 
   if (secondaryInfoBoxElements.length > 4) {
     dispatch(setSecondaryInfoBoxElements([]));
@@ -297,8 +300,12 @@ const FeatureInfoBox = ({
     return <></>;
   }
 
+  const zoomImageUrl = resolveInfoBoxImageUrl(infoBoxImage, selectedFeature);
+
   const visibleSecondaryInfoBoxElements =
-    selectedFeature.properties.foto || selectedFeature.properties.fotos
+    selectedFeature.properties.foto ||
+    selectedFeature.properties.fotos ||
+    zoomImageUrl
       ? [
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
@@ -306,6 +313,7 @@ const FeatureInfoBox = ({
             currentFeature={selectedFeature}
             lightBoxDispatchContext={lightBoxDispatchContext}
             urlManipulation={updateUrl}
+            {...(zoomImageUrl ? { getPhotoUrl: () => zoomImageUrl } : {})}
           />,
         ]
       : [...additionalSecondaryInfoBoxElements, ...featureHeaders];
