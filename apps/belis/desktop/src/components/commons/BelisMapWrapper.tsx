@@ -1152,9 +1152,14 @@ const BelisMapLibWrapper = ({
     onHighlightsApplied: handleHighlightsApplied,
   });
 
-  // Lasso freehand selection
+  // Lasso freehand selection — Fachobjekte only. Handing the hook a null map on
+  // Arbeitsaufträge is what switches it off: every effect inside bails on
+  // `!map`, so neither the explicit manager nor the always-on Alt+drag one is
+  // created there. Going back to Fachobjekte re-supplies the map and both come
+  // back; the transition to null runs the hooks' cleanup (destroy → deactivate),
+  // which clears any leftover lasso outline. Keeps the shared hook untouched.
   useLassoHighlight({
-    map,
+    map: sidebarVariant === "arbeitsauftraege" ? null : map,
     active: lassoActive,
     sources: highlightSources,
     onDeactivate: onLassoDeactivate,
