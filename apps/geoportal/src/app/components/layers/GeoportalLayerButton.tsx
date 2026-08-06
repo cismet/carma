@@ -22,7 +22,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { getInteractionButtons } from "@carma-mapping/layers";
-import { cn, getHashParams } from "@carma-commons/utils";
+import { cn } from "@carma-commons/utils";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 import {
@@ -73,6 +73,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
+import { useCurrentMapZoom } from "../../hooks/useCurrentMapZoom";
 import {
   getGeoportalLayerButtonBackgroundClassName,
   getGeoportalLayerToolActionButtonClassName,
@@ -170,9 +171,7 @@ const GeoportalLayerButton = ({
     },
     [ref]
   );
-  const hashParams = getHashParams();
-  const zoom =
-    routedMapRef?.leafletMap?.leafletElement.getZoom() || hashParams.zoom;
+  const zoom = useCurrentMapZoom();
   const queryable =
     (layer?.queryable ||
       layer?.layerInfo?.accentColor ||
