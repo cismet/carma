@@ -52,5 +52,17 @@ export const bodenFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "visibleFeatureStatsPanel", config: {} },
+    {
+      // experiment: while zoomed out, the Trinkwasserbrunnen photo in the info
+      // box is replaced by a placeholder image; from zoom 16 on the real photo
+      // is shown again
+      kind: "infoBoxZoomImage",
+      config: {
+        layers: ["trinkwasser"],
+        imageUrl:
+          "https://tiles.cismet.de/alkis/assets/alkis_flurstuecke_str_hnr_schwarz.png",
+        maxZoom: 16,
+      },
+    },
   ],
 };
