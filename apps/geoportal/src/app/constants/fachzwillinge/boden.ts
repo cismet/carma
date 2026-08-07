@@ -13,7 +13,7 @@ import tower01 from "../../../assets/temp-demo/tower-01.png";
 import tower02 from "../../../assets/temp-demo/tower-02.png";
 import tower03 from "../../../assets/temp-demo/tower-03.png";
 import tower04 from "../../../assets/temp-demo/tower-04.png";
-import tower05 from "../../../assets/temp-demo/tower-05.png";
+import tower06 from "../../../assets/temp-demo/tower-06.png";
 
 import type { FachzwillingRoute } from ".";
 
@@ -79,7 +79,7 @@ export const bodenFachzwilling: FachzwillingRoute = {
           // the last step has no upper bound, so it covers every deeper zoom
           poi_gebaeude: [
             // { maxZoom: 12, imageUrl: tower06 },
-            { maxZoom: 14, imageUrl: tower05 },
+            { maxZoom: 14, imageUrl: tower06 },
             { maxZoom: 16, imageUrl: tower04 },
             { maxZoom: 18, imageUrl: tower03 },
             { maxZoom: 20, imageUrl: tower02 },
