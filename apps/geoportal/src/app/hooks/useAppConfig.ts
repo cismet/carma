@@ -13,6 +13,10 @@ import {
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
+import {
+  DEFAULT_BACKGROUND_LAYER_ID,
+  DEFAULT_BACKGROUND_SELECTED_LAYER_ID,
+} from "../config";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 
 import {
@@ -54,45 +58,59 @@ const onLoadedConfig = (
 ) => {
   dispatch(setLayers(config.layers));
 
-  // A configuration may leave the base map out entirely, which is what a
-  // display projecting layers onto a physical model wants. The descriptive
-  // texts always come from layerMap, so the configuration only ever carries
-  // the choice, never the content.
-  const selectedMapLayerId = config.backgroundLayer?.selectedLayerId;
-  const mapLayerEntry = selectedMapLayerId
-    ? layerMap[selectedMapLayerId]
-    : undefined;
-  if (config.backgroundLayer && mapLayerEntry) {
-    const selectedBackgroundLayer: BackgroundLayer = {
-      title: mapLayerEntry.title,
-      id: selectedMapLayerId as string,
-      opacity: config.backgroundLayer.opacity,
-      description: mapLayerEntry.description,
-      inhalt: mapLayerEntry.inhalt,
-      eignung: mapLayerEntry.eignung,
-      visible: config.backgroundLayer.visible,
-      layerType: "wmts",
-      layers: mapLayerEntry.layers,
-    };
-    dispatch(
-      setBackgroundLayer({
-        ...selectedBackgroundLayer,
-        id: config.backgroundLayer.id,
-      })
-    );
-    if (config.backgroundLayer.id === "luftbild") {
-      dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
-    } else {
-      dispatch(setSelectedMapLayer(selectedBackgroundLayer));
+  // A configuration may leave the base map out entirely, and then the current
+  // one stays: this call sets what it names, it does not reset what it omits.
+  //
+  // Naming one without saying which map it is falls back to the default pair,
+  // so a configuration can ask for no base map without first having to pick
+  // one: `"backgroundLayer": { "visible": false }`. The descriptive texts come
+  // from layerMap either way, a configuration only ever carries the choice.
+  if (config.backgroundLayer) {
+    const { id: givenId, selectedLayerId: givenSelectedLayerId } =
+      config.backgroundLayer;
+    if ((givenId === undefined) !== (givenSelectedLayerId === undefined)) {
+      // They belong together, so half a pair is a mistake worth saying out loud
+      // rather than silently combining a group with another group's map.
+      console.warn(
+        "[CONFIG] backgroundLayer gives only one of id and selectedLayerId; the missing one falls back to the default.",
+        { id: givenId, selectedLayerId: givenSelectedLayerId }
+      );
     }
-  } else if (config.backgroundLayer) {
-    // named a base map the app does not have: keep the current one rather than
-    // reading through an undefined entry
-    console.warn(
-      `[CONFIG] unknown backgroundLayer.selectedLayerId "${String(
-        selectedMapLayerId
-      )}", keeping the current base map.`
-    );
+    const backgroundLayerId = givenId ?? DEFAULT_BACKGROUND_LAYER_ID;
+    const selectedMapLayerId =
+      givenSelectedLayerId ?? DEFAULT_BACKGROUND_SELECTED_LAYER_ID;
+    const mapLayerEntry = layerMap[selectedMapLayerId];
+
+    if (mapLayerEntry) {
+      const selectedBackgroundLayer: BackgroundLayer = {
+        title: mapLayerEntry.title,
+        id: selectedMapLayerId,
+        opacity: config.backgroundLayer.opacity,
+        description: mapLayerEntry.description,
+        inhalt: mapLayerEntry.inhalt,
+        eignung: mapLayerEntry.eignung,
+        visible: config.backgroundLayer.visible,
+        layerType: "wmts",
+        layers: mapLayerEntry.layers,
+      };
+      dispatch(
+        setBackgroundLayer({
+          ...selectedBackgroundLayer,
+          id: backgroundLayerId,
+        })
+      );
+      if (backgroundLayerId === "luftbild") {
+        dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
+      } else {
+        dispatch(setSelectedMapLayer(selectedBackgroundLayer));
+      }
+    } else {
+      // named a base map the app does not have: keep the current one rather
+      // than reading through an undefined entry
+      console.warn(
+        `[CONFIG] unknown backgroundLayer.selectedLayerId "${selectedMapLayerId}", keeping the current base map.`
+      );
+    }
   }
 
   if (config.gazetteerSelection) {

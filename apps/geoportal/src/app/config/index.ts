@@ -140,6 +140,19 @@ export const defaultLayerConfig: DefaultLayerConfig = {
   },
 };
 
+/**
+ * Which base map a configuration means when it names none. Only reached through
+ * a `backgroundLayer` that says whether it is visible but not which map it is,
+ * so a configuration can ask for no base map without having to pick one first:
+ *
+ *     "backgroundLayer": { "visible": false }
+ *
+ * The two belong together: `id` is the group the map switch shows as selected,
+ * `selectedLayerId` the entry of `layerMap` actually drawn.
+ */
+export const DEFAULT_BACKGROUND_LAYER_ID = "karte";
+export const DEFAULT_BACKGROUND_SELECTED_LAYER_ID = "stadtplan";
+
 export const layerMap: LayerMap = {
   luftbild: {
     title: "Luftbildkarte 03/24",
