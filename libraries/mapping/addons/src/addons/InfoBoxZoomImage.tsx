@@ -4,53 +4,79 @@ import { useAddonState } from "../lib/AddonStateContext";
 import type { AddonComponentProps } from "../lib/registry";
 
 /**
- * Swaps the photo of the feature info box for a configured image while the
- * MapLibre map is inside a zoom range.
+ * Swaps the photo of the feature info box for a configured image, depending on
+ * the layer the selected feature comes from and on the MapLibre zoom.
  *
- * Headless: it only watches the map zoom and publishes the url that applies on
- * the `infoBoxImage` channel. The info box of the host app reads that channel
- * through `resolveInfoBoxImageUrl`, which decides whether the selected feature
- * belongs to one of the configured layers — so the addon needs neither the
- * selection nor the store.
+ * Headless: it only watches the map zoom and publishes, for the current zoom,
+ * which layer shows which image (`infoBoxImage` channel). The info box of the
+ * host app reads that channel through `resolveInfoBoxImageUrl`, which looks up
+ * the selected feature's layer — so the addon needs neither the selection nor
+ * the store.
+ *
+ * By default it replaces a photo and does not add one: a feature without a photo
+ * of its own keeps its info box without image. `showOnFeaturesWithoutPhoto`
+ * lifts that restriction for demos.
  *
  * Zooms are maplibre zoom levels (`map.getZoom()`), which are one level lower
  * than the leaflet zooms used elsewhere in the geoportal.
  */
 
-export type InfoBoxZoomImageConfig = {
-  /**
-   * The layers the replacement applies to, one entry per layer. An entry is
-   * either
-   * - the layer name as in the layer catalog, e.g. `"poi_trinkwasser"`
-   *   (`config.ts`), or
-   * - the full layer id `"<serviceName>:<layerName>"`, e.g.
-   *   `"wuppPOI:poi_trinkwasser"`, needed only when two services carry the same
-   *   layer name.
-   *
-   * Both are compared exactly (only upper/lower case is ignored), so a part of
-   * a name such as `"trinkwasser"` or `"poi"` matches nothing.
-   *
-   * An empty list replaces nothing.
-   */
-  layerIds: readonly string[];
-  /** shown instead of the feature's own photo while the zoom range matches */
+/** one image with the zoom range it is shown in */
+export type InfoBoxImageStep = {
+  /** shown instead of the feature's own photo while this step matches */
   imageUrl: string;
-  /** lowest zoom the replacement is shown at; omitted means no lower bound */
+  /** lowest zoom this step covers; omitted means no lower bound */
   minZoom?: number;
-  /** highest zoom the replacement is shown at; omitted means no upper bound */
+  /** highest zoom this step covers; omitted means no upper bound */
   maxZoom?: number;
 };
 
-/** payload of the `infoBoxImage` channel */
+export type InfoBoxZoomImageConfig = {
+  /**
+   * The zoom steps per layer:
+   *
+   * ```ts
+   * rules: {
+   *   poi_trinkwasser: [
+   *     { maxZoom: 13, imageUrl: far },
+   *     { maxZoom: 16, imageUrl: mid },
+   *   ],
+   *   poi_gebaeude: [{ maxZoom: 13, imageUrl: far }],
+   * }
+   * ```
+   *
+   * A key is either the layer name as in the layer catalog, e.g.
+   * `"poi_trinkwasser"` (`config.ts`), or the full layer id
+   * `"<serviceName>:<layerName>"`, e.g. `"wuppPOI:poi_trinkwasser"`, needed only
+   * when two services carry the same layer name. Keys are compared as a whole
+   * (only upper/lower case is ignored), so a part of a name such as
+   * `"trinkwasser"` or `"poi"` matches nothing.
+   *
+   * Within a layer the first step whose zoom range contains the current zoom
+   * wins; when no step matches, the feature keeps its own photo. Layers that are
+   * not listed are never touched.
+   */
+  rules: Record<string, readonly InfoBoxImageStep[]>;
+  /**
+   * Demo switch: also give features that have no photo of their own an image.
+   * Off (the default) the addon only replaces an existing photo, so an info box
+   * that showed no image before never gains one.
+   */
+  showOnFeaturesWithoutPhoto?: boolean;
+};
+
+/**
+ * payload of the `infoBoxImage` channel: the image every configured layer shows
+ * at the current zoom, keyed by the lower-cased config key
+ */
 export type InfoBoxImageState = {
-  /** the replacement url, or null while the feature's own photo applies */
-  url: string | null;
-  /** the layer ids the url applies to; see `InfoBoxZoomImageConfig` */
-  layerIds: readonly string[];
+  urlByLayer: Record<string, string>;
+  /** see `showOnFeaturesWithoutPhoto` */
+  allowWithoutPhoto: boolean;
 };
 
 /** nothing is replaced: published when the addon unmounts */
-const IDLE: InfoBoxImageState = { url: null, layerIds: [] };
+const IDLE: InfoBoxImageState = { urlByLayer: {}, allowWithoutPhoto: false };
 
 /** the feature fields the layer id is read from */
 export type SelectedFeatureLike = {
@@ -86,29 +112,48 @@ const getLayerName = (layerId: string): string =>
 
 /**
  * The url the info box should show for this feature, or null when the feature's
- * own photo applies — because the zoom is outside the range, the feature is not
- * from a configured layer, or the addon is not part of the route at all.
+ * own photo applies — because no step covers the current zoom, the feature's
+ * layer is not configured, or the addon is not part of the route at all.
+ *
+ * `hasOwnPhoto` says whether the feature shows a photo without this addon; a
+ * feature without one is only given an image when the route asked for it with
+ * `showOnFeaturesWithoutPhoto`.
  */
 export const resolveInfoBoxImageUrl = (
   state: InfoBoxImageState | undefined,
-  feature: SelectedFeatureLike
+  feature: SelectedFeatureLike,
+  hasOwnPhoto: boolean
 ): string | null => {
-  if (!state?.url || !state.layerIds.length) {
-    return null;
-  }
   const layerId = getFeatureLayerId(feature)?.toLowerCase();
-  if (!layerId) {
+  if (!state || !layerId) {
     return null;
   }
-  const layerName = getLayerName(layerId);
-  const matches = state.layerIds.some((entry) => {
-    const configured = entry.trim().toLowerCase();
-    // a configured full id must equal the id, a configured name the name
-    return configured.includes(":")
-      ? configured === layerId
-      : configured === layerName;
-  });
-  return matches ? state.url : null;
+  if (!hasOwnPhoto && !state.allowWithoutPhoto) {
+    return null;
+  }
+  // a key given as a full id matches the first, one given as a name the second
+  return (
+    state.urlByLayer[layerId] ?? state.urlByLayer[getLayerName(layerId)] ?? null
+  );
+};
+
+/** what every configured layer shows at this zoom; layers without a step drop out */
+const urlByLayerAtZoom = (
+  rules: Record<string, readonly InfoBoxImageStep[]>,
+  zoom: number
+): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const [layer, steps] of Object.entries(rules)) {
+    const step = steps.find(
+      (candidate) =>
+        zoom >= (candidate.minZoom ?? Number.NEGATIVE_INFINITY) &&
+        zoom <= (candidate.maxZoom ?? Number.POSITIVE_INFINITY)
+    );
+    if (step) {
+      result[layer.trim().toLowerCase()] = step.imageUrl;
+    }
+  }
+  return result;
 };
 
 export const InfoBoxZoomImage = ({
@@ -117,28 +162,34 @@ export const InfoBoxZoomImage = ({
 }: AddonComponentProps<"infoBoxZoomImage">) => {
   const [, setImage] = useAddonState("infoBoxImage");
 
-  const imageUrl = config?.imageUrl;
-  const minZoom = config?.minZoom ?? Number.NEGATIVE_INFINITY;
-  const maxZoom = config?.maxZoom ?? Number.POSITIVE_INFINITY;
-  // a stable dependency for the configured list, which is a new array per render
-  const layerKey = (config?.layerIds ?? []).join("|");
+  const rules = config?.rules;
+  const allowWithoutPhoto = config?.showOnFeaturesWithoutPhoto === true;
+  // a stable dependency for the configured rules, which are new objects per render
+  const rulesKey = JSON.stringify(rules ?? {});
 
   useEffect(() => {
-    if (!libreMap || !imageUrl) {
+    if (!libreMap || !rules || !Object.keys(rules).length) {
       return;
     }
-    const layerIds = layerKey ? layerKey.split("|") : [];
-    // only publish when the rule flips, so zooming does not re-render the
+    // the steps are known upfront, so the images are in the browser cache
+    // before a zoom step makes one of them visible
+    for (const steps of Object.values(rules)) {
+      for (const step of steps) {
+        new Image().src = step.imageUrl;
+      }
+    }
+
+    // only publish when the outcome changes, so zooming does not re-render the
     // info box on every frame
-    let inRange: boolean | null = null;
+    let published: string | null = null;
     const publish = () => {
-      const zoom = libreMap.getZoom();
-      const next = zoom >= minZoom && zoom <= maxZoom;
-      if (next === inRange) {
+      const urlByLayer = urlByLayerAtZoom(rules, libreMap.getZoom());
+      const signature = JSON.stringify(urlByLayer);
+      if (signature === published) {
         return;
       }
-      inRange = next;
-      setImage({ url: next ? imageUrl : null, layerIds });
+      published = signature;
+      setImage({ urlByLayer, allowWithoutPhoto });
     };
     publish();
     libreMap.on("zoom", publish);
@@ -146,7 +197,9 @@ export const InfoBoxZoomImage = ({
       libreMap.off("zoom", publish);
       setImage(IDLE);
     };
-  }, [libreMap, imageUrl, layerKey, minZoom, maxZoom, setImage]);
+    // rulesKey stands for rules: the object identity changes on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libreMap, rulesKey, allowWithoutPhoto, setImage]);
 
   return null;
 };
