@@ -42,18 +42,31 @@ npx nx run map-relay:test      # 15 checks against a real server on an ephemeral
 | `MAX_WAIT_MS` | `25000` | Long-poll hold. Keep below nginx's `proxy_read_timeout`. |
 | `SESSION_TTL_MS` | `21600000` | Idle sessions are dropped after 6 h. |
 
+## Publish the image
+
+The image is `cismet/carma-map-relay`, built from the workspace root, and registered in `deployment-config.json` like every other containerised project here. CI publishes it: the "Deployment" workflow with `project-name=map-relay` and `target=live` tags `<md5short>`, `latest` and the version from `src/version.json`; a push to `dev` tags `dev-latest`.
+
+By hand, when you want to check something before it goes out:
+
+```bash
+docker login                          # needs push rights on the cismet org
+npx nx run map-relay:container        # builds from the workspace root and pushes :latest
+```
+
+Add `INPUT_PUSH=false` to build without pushing. The Dockerfile expects the workspace root as its build context, so `docker build` inside this directory will not work; use `docker build -f services/map-relay/Dockerfile .` from the repository root if you want to bypass nx.
+
 ## Deploy
 
 ```bash
-scp -r services/map-relay/ you@server:/opt/map-relay
+scp services/map-relay/docker-compose.yml you@server:/opt/map-relay/
 ssh you@server
 cd /opt/map-relay
 # set ALLOW_ORIGIN to the display origin first, and leave AUTO_CREATE off
-docker compose up -d --build
+docker compose pull && docker compose up -d
 curl localhost:8099/healthz
 ```
 
-Then paste `nginx-relay.conf` into the existing TLS vhost and reload. The three settings that matter are `proxy_read_timeout 75s` (must exceed the 25 s hold), `proxy_buffering off`, and `proxy_http_version 1.1` with `Connection ""` for upstream keep-alive.
+Then take `nginx-relay.conf`: variant A is a `location /relay/` for an existing TLS vhost, variant B a standalone vhost for a hostname of its own. The three settings that matter either way are `proxy_read_timeout 75s` (must exceed the 25 s hold), `proxy_buffering off`, and `proxy_http_version 1.1` with `Connection ""` for upstream keep-alive.
 
 ## Limits worth knowing
 

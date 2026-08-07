@@ -1,14 +1,14 @@
 {
   "name": "map-relay",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "services/map-relay",
+  "sourceRoot": "services/map-relay/src",
   "projectType": "application",
   "tags": [],
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node server.js",
+        "command": "node src/server.js",
         "cwd": "services/map-relay",
         "env": {
           "PORT": "8099",
@@ -24,13 +24,21 @@
         "cwd": "services/map-relay"
       }
     },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/services/map-relay"],
+      "options": {
+        "command": "bash -c 'mkdir -p ../../dist/services/map-relay && cp src/version.json ../../dist/services/map-relay/version.json'",
+        "cwd": "services/map-relay"
+      }
+    },
     "container": {
       "executor": "@nx-tools/nx-container:build",
       "options": {
         "engine": "docker",
         "platforms": ["linux/amd64"],
         "push": true,
-        "tags": ["cismet/map-relay:latest"]
+        "tags": ["cismet/carma-map-relay:latest"]
       }
     }
   }

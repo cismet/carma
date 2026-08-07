@@ -373,7 +373,7 @@
               "prj": "geoportal",
               "envs": [
                 "VITE_MATOMO_SITE_ID=3",
-                "VITE_RELAY_BASE_URL=https://wupptwinoutletrelay.cismet.de"
+                "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de"
               ]
             }
           },
@@ -395,7 +395,7 @@
               "prj": "geoportal",
               "envs": [
                 "VITE_MATOMO_SITE_ID=3",
-                "VITE_RELAY_BASE_URL=https://wupptwinoutletrelay.cismet.de"
+                "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de"
               ]
             }
           }
@@ -1680,6 +1680,30 @@
         }
       },
       "projectPath": "./dist/services/cidsDataBridge"
+    },
+    "map-relay": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "container": {
+              "image": "cismet/carma-map-relay:"
+            }
+          },
+          "live": {
+            "container": {
+              "image": "cismet/carma-map-relay:"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "container": {
+              "image": "cismet/carma-map-relay:"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/services/map-relay"
     }
   }
 }

@@ -1,6 +1,8 @@
 services:
   map-relay:
-    build: .
+    # Published by CI (or by `npx nx run map-relay:container`). Use dev-latest
+    # to track the dev branch instead.
+    image: cismet/carma-map-relay:latest
     container_name: map-relay
     restart: unless-stopped
     # Bind to localhost only — your existing nginx does TLS and is the only
@@ -8,9 +10,12 @@ services:
     ports:
       - "127.0.0.1:8099:8080"
     environment:
-      # Lock this down to your GitHub Pages origin once you know it.
-      # Scheme + host, no trailing slash, no path.
+      # Scheme + host, no trailing slash, no path. This is the origin the
+      # geoportal is served from, not the relay's own hostname. Exactly one
+      # value; the server echoes it verbatim.
       ALLOW_ORIGIN: "https://cismet.github.io"
+      # AUTO_CREATE stays off here. With it on, any well-formed code an
+      # attacker invents becomes a live session.
       FAST_POLL_MS: "250"
       SLOW_POLL_MS: "2000"
       MAX_WAIT_MS: "25000"

@@ -38,7 +38,7 @@ async function newCode() {
 }
 
 (async () => {
-  const srv = spawn(process.execPath, [`${__dirname}/server.js`], {
+  const srv = spawn(process.execPath, [`${__dirname}/src/server.js`], {
     env: { ...process.env, PORT: String(PORT), ALLOW_ORIGIN: 'https://cismet.github.io', HOT_MS: String(HOT_MS) },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
@@ -199,7 +199,7 @@ async function newCode() {
   // the checks above is that the default build does NOT behave this way.
   const AUTO_PORT = PORT + 1;
   const AUTO_BASE = `http://127.0.0.1:${AUTO_PORT}`;
-  const auto = spawn(process.execPath, [`${__dirname}/server.js`], {
+  const auto = spawn(process.execPath, [`${__dirname}/src/server.js`], {
     env: { ...process.env, PORT: String(AUTO_PORT), AUTO_CREATE: '1' },
     stdio: ['ignore', 'pipe', 'inherit'],
   });

@@ -1,7 +1,10 @@
 FROM node:22-alpine
 
 WORKDIR /app
-COPY server.js .
+# The build context is the workspace root, not this directory — that is what
+# the nx container executor passes and what every other service here assumes.
+COPY services/map-relay/src/server.js .
+COPY services/map-relay/src/version.json .
 
 ENV PORT=8080 \
     ALLOW_ORIGIN=* \
