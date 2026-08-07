@@ -58,7 +58,8 @@ export const bodenFachzwilling: FachzwillingRoute = {
       // is shown again
       kind: "infoBoxZoomImage",
       config: {
-        layers: ["trinkwasser"],
+        // the layer name from the catalog config, or the full
+        layerIds: ["poi_trinkwasser"],
         imageUrl:
           "https://tiles.cismet.de/alkis/assets/alkis_flurstuecke_str_hnr_schwarz.png",
         maxZoom: 16,

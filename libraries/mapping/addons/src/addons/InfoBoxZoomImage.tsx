@@ -9,9 +9,9 @@ import type { AddonComponentProps } from "../lib/registry";
  *
  * Headless: it only watches the map zoom and publishes the url that applies on
  * the `infoBoxImage` channel. The info box of the host app reads that channel
- * through `resolveInfoBoxImageUrl`, which decides whether the currently
- * selected feature belongs to one of the configured layers — so the addon needs
- * neither the selection nor the store.
+ * through `resolveInfoBoxImageUrl`, which decides whether the selected feature
+ * belongs to one of the configured layers — so the addon needs neither the
+ * selection nor the store.
  *
  * Zooms are maplibre zoom levels (`map.getZoom()`), which are one level lower
  * than the leaflet zooms used elsewhere in the geoportal.
@@ -19,14 +19,20 @@ import type { AddonComponentProps } from "../lib/registry";
 
 export type InfoBoxZoomImageConfig = {
   /**
-   * Layers the replacement applies to. Each entry is matched
-   * case-insensitively as a substring against the catalog layer id, the vector
-   * source, the vector tile's source layer and the style layer id of the
-   * selected feature, so `"trinkwasser"` covers `poi:poi_trinkwasser` as well
-   * as a `trinkwasserbrunnen` source layer. Without an entry nothing is
-   * replaced.
+   * The layers the replacement applies to, one entry per layer. An entry is
+   * either
+   * - the layer name as in the layer catalog, e.g. `"poi_trinkwasser"`
+   *   (`config.ts`), or
+   * - the full layer id `"<serviceName>:<layerName>"`, e.g.
+   *   `"wuppPOI:poi_trinkwasser"`, needed only when two services carry the same
+   *   layer name.
+   *
+   * Both are compared exactly (only upper/lower case is ignored), so a part of
+   * a name such as `"trinkwasser"` or `"poi"` matches nothing.
+   *
+   * An empty list replaces nothing.
    */
-  layers: readonly string[];
+  layerIds: readonly string[];
   /** shown instead of the feature's own photo while the zoom range matches */
   imageUrl: string;
   /** lowest zoom the replacement is shown at; omitted means no lower bound */
@@ -39,38 +45,44 @@ export type InfoBoxZoomImageConfig = {
 export type InfoBoxImageState = {
   /** the replacement url, or null while the feature's own photo applies */
   url: string | null;
-  /** the layer patterns the url applies to; see `InfoBoxZoomImageConfig` */
-  layers: readonly string[];
+  /** the layer ids the url applies to; see `InfoBoxZoomImageConfig` */
+  layerIds: readonly string[];
 };
 
 /** nothing is replaced: published when the addon unmounts */
-const IDLE: InfoBoxImageState = { url: null, layers: [] };
+const IDLE: InfoBoxImageState = { url: null, layerIds: [] };
 
-/** the feature fields a layer pattern is matched against */
+/** the feature fields the layer id is read from */
 export type SelectedFeatureLike = {
   id?: unknown;
   sourceFeature?: {
-    source?: unknown;
-    sourceLayer?: unknown;
-    layer?: { id?: unknown; metadata?: unknown };
+    layer?: { metadata?: unknown };
   } | null;
 } | null;
 
-const layerNamesOf = (feature: SelectedFeatureLike): string[] => {
-  const source = feature?.sourceFeature;
-  const metadata = source?.layer?.metadata as
+/**
+ * The catalog layer id of a selected feature, e.g. `"wuppPOI:poi_trinkwasser"`.
+ * Primary source is the `metadata["layer-id"]` stamp `styleComposer` writes on
+ * every style layer; for features built by the geoportal's feature-info flow the
+ * feature id is that same layer id.
+ */
+const getFeatureLayerId = (feature: SelectedFeatureLike): string | null => {
+  const metadata = feature?.sourceFeature?.layer?.metadata as
     | Record<string, unknown>
     | undefined;
-  return [
-    feature?.id,
-    source?.source,
-    source?.sourceLayer,
-    source?.layer?.id,
-    metadata?.["layer-id"],
-  ]
-    .filter((value): value is string => typeof value === "string" && !!value)
-    .map((value) => value.toLowerCase());
+  const stamped = metadata?.["layer-id"];
+  if (typeof stamped === "string" && stamped) {
+    return stamped;
+  }
+  return typeof feature?.id === "string" && feature.id ? feature.id : null;
 };
+
+/**
+ * The layer name of a layer id: `"wuppPOI:poi_trinkwasser"` -> `"poi_trinkwasser"`.
+ * Ids without a service prefix are returned unchanged.
+ */
+const getLayerName = (layerId: string): string =>
+  layerId.slice(layerId.indexOf(":") + 1);
 
 /**
  * The url the info box should show for this feature, or null when the feature's
@@ -81,13 +93,20 @@ export const resolveInfoBoxImageUrl = (
   state: InfoBoxImageState | undefined,
   feature: SelectedFeatureLike
 ): string | null => {
-  if (!state?.url || !state.layers.length || !feature) {
+  if (!state?.url || !state.layerIds.length) {
     return null;
   }
-  const names = layerNamesOf(feature);
-  const matches = state.layers.some((pattern) => {
-    const needle = pattern.toLowerCase();
-    return !!needle && names.some((name) => name.includes(needle));
+  const layerId = getFeatureLayerId(feature)?.toLowerCase();
+  if (!layerId) {
+    return null;
+  }
+  const layerName = getLayerName(layerId);
+  const matches = state.layerIds.some((entry) => {
+    const configured = entry.trim().toLowerCase();
+    // a configured full id must equal the id, a configured name the name
+    return configured.includes(":")
+      ? configured === layerId
+      : configured === layerName;
   });
   return matches ? state.url : null;
 };
@@ -102,13 +121,13 @@ export const InfoBoxZoomImage = ({
   const minZoom = config?.minZoom ?? Number.NEGATIVE_INFINITY;
   const maxZoom = config?.maxZoom ?? Number.POSITIVE_INFINITY;
   // a stable dependency for the configured list, which is a new array per render
-  const layerKey = (config?.layers ?? []).join("|");
+  const layerKey = (config?.layerIds ?? []).join("|");
 
   useEffect(() => {
     if (!libreMap || !imageUrl) {
       return;
     }
-    const layers = layerKey ? layerKey.split("|") : [];
+    const layerIds = layerKey ? layerKey.split("|") : [];
     // only publish when the rule flips, so zooming does not re-render the
     // info box on every frame
     let inRange: boolean | null = null;
@@ -119,7 +138,7 @@ export const InfoBoxZoomImage = ({
         return;
       }
       inRange = next;
-      setImage({ url: next ? imageUrl : null, layers });
+      setImage({ url: next ? imageUrl : null, layerIds });
     };
     publish();
     libreMap.on("zoom", publish);
