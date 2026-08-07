@@ -31,6 +31,13 @@ export type UseCesiumMapFrameworkHostOptions = {
   allow3d?: boolean;
   /** ANDed into the nav-bridge commit gate (e.g. !isTransitioning). Default true. */
   isCommitEnabled?: boolean;
+  /**
+   * ANDed into the nav-bridge sync gate. Default true, i.e. sync as soon as a
+   * scene exists. Set this when a sibling 2D runtime is subscribed to the same
+   * view state (maplibre), otherwise Cesium keeps publishing while the 2D map
+   * is active and the two engines fight over the camera.
+   */
+  isSyncEnabled?: boolean;
   /** App staging awaited before 2D->3D (memoize). Default undefined = no-op. */
   onBeforeTransitionToCesium?: () => void | Promise<void>;
   /** App teardown awaited before 3D->2D (memoize). Default undefined = no-op. */
@@ -55,6 +62,7 @@ export const useCesiumMapFrameworkHost = ({
   getCesiumTerrainProviders,
   allow3d = true,
   isCommitEnabled = true,
+  isSyncEnabled = true,
   onBeforeTransitionToCesium,
   onBeforeTransitionToLeaflet,
 }: UseCesiumMapFrameworkHostOptions): CesiumMapFrameworkHost => {
@@ -135,7 +143,7 @@ export const useCesiumMapFrameworkHost = ({
   const bridge = useCesiumNavigationBridge({
     id: viewAdapterId,
     scene: cesiumScene,
-    isSyncEnabled: Boolean(cesiumScene),
+    isSyncEnabled: Boolean(cesiumScene) && isSyncEnabled,
     isCommitEnabled: isCesium && initialViewApplied && isCommitEnabled,
   });
   const { commitCurrentSceneState, reduceToTopDownView } = bridge;

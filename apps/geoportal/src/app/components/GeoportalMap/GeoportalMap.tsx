@@ -14,19 +14,17 @@ import { useLocation } from "react-router-dom";
 import {
   BoundingSphere,
   Cartesian3,
-  Cartographic,
   Color,
   type CesiumTerrainProvider,
 } from "@carma-cesium";
 import {
   flyToBoundingSphereExtent,
-  isValidCesiumTerrainProvider,
-  sampleTerrainMostDetailedGuardedAsync,
   type CesiumModelFlashConfig,
   type CesiumModelConfig,
   type CesiumModelStyleConfig,
 } from "@carma-mapping/engines/cesium/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as LeafletMap } from "leaflet";
 
 import { Button, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -73,23 +71,14 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CesiumHost,
-  type CesiumHostState,
   type CesiumOptions,
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium/react/runtime";
-import {
-  readFromMaplibre,
-  readInitialCameraViewFromViewState,
-  useCesiumNavigationBridge,
-  useMaplibreRuntimeBridge,
-} from "@carma-mapping/engines-interop/view-state";
-import {
-  useMapFrameworkSwitcherContext,
-  useRegisterMapFramework,
-} from "@carma-mapping/components";
+import { useMaplibreRuntimeBridge } from "@carma-mapping/engines-interop/view-state";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -119,6 +108,7 @@ import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
+import { useMaplibreTransitionShim } from "../../hooks/libre/useMaplibreTransitionShim.ts";
 import { useLibreMapSelectionHandler } from "../../hooks/libre/useLibreMapClickHandler.ts";
 import { useLibreTriggerSelectionSync } from "../../hooks/libre/useLibreTriggerSelectionSync.ts";
 
@@ -180,9 +170,6 @@ const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
 const DEFAULT_MARKER_ANCHOR_HEIGHT = 10;
 const FLY_TO_BOUNDING_SPHERE_PADDING_FACTOR = 1.1;
-// Fallback ground height (m) used when the surface/terrain provider cannot be
-// sampled for the 2D->3D switch. Matches the leaflet transition default.
-const SWITCH_SURFACE_FALLBACK_HEIGHT_M = 350;
 
 const MAP_CONTAINER_STYLE: CSSProperties = {
   position: "absolute",
@@ -1286,12 +1273,12 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   } = useLibreMapSelectionHandler(libreMap);
   useLibreTriggerSelectionSync(libreMap);
 
-  const { isCesium, getIsCesium } = useMapFrameworkSwitcherContext();
+  const { isCesium, isTransitioning, getIsCesium, getIsTransitioning } =
+    useMapFrameworkSwitcherContext();
   const {
     getScene,
     getTerrainProvider,
     getSurfaceProvider,
-    isRuntimeReady,
     withTerrainProvider,
     withSurfaceProvider,
     initialViewApplied,
@@ -1307,113 +1294,22 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     initialCameraView: cesiumInitialCameraView,
     isInitialCameraResolved,
   } = useGeoportalInitialValues();
-  // CesiumHost owns its container element and reports it via onHostChange;
-  // keep it in state so getCesiumContainer can hand it to the framework switcher.
-  const [cesiumContainerElement, setCesiumContainerElement] =
-    useState<HTMLElement | null>(null);
-  const [shouldMountCesium, setShouldMountCesium] = useState(false);
-  const [switchInitialCameraView, setSwitchInitialCameraView] =
-    useState<ReturnType<typeof readInitialCameraViewFromViewState>>(undefined);
-  const wasCesiumRef = useRef(isCesium);
-  const coldSurfaceAnchorStartedRef = useRef(false);
 
-  const maplibreBridge = useMaplibreRuntimeBridge({
+  useMaplibreRuntimeBridge({
     id: "geoportal-maplibre",
     map: libreMap,
-    enabled: !isCesium,
+    enabled: !isCesium && !isTransitioning,
     claimOnInteraction: true,
   });
 
-  useEffect(() => {
-    const wasCesium = wasCesiumRef.current;
-    wasCesiumRef.current = isCesium;
-
-    if (!allow3d || !isCesium) {
-      return;
-    }
-
-    if (!libreMap) {
-      if (!shouldMountCesium) {
-        setShouldMountCesium(true);
-      }
-      return;
-    }
-    if (!coldSurfaceAnchorStartedRef.current && !shouldMountCesium) {
-      coldSurfaceAnchorStartedRef.current = true;
-
-      (async () => {
-        const surfaceProvider = getSurfaceProvider();
-        const terrainProvider = getTerrainProvider();
-        const provider = isValidCesiumTerrainProvider(surfaceProvider)
-          ? surfaceProvider
-          : terrainProvider;
-
-        const center = libreMap.getCenter();
-        let groundHeightM = SWITCH_SURFACE_FALLBACK_HEIGHT_M;
-        if (isValidCesiumTerrainProvider(provider)) {
-          const [sampled] = await sampleTerrainMostDetailedGuardedAsync(
-            provider,
-            [
-              Cartographic.fromDegrees(
-                center.lng,
-                center.lat,
-                SWITCH_SURFACE_FALLBACK_HEIGHT_M
-              ),
-            ]
-          );
-          if (sampled && Number.isFinite(sampled.height)) {
-            groundHeightM = sampled.height;
-          }
-        }
-
-        const correctedViewState = readFromMaplibre(
-          libreMap,
-          "geoportal-maplibre",
-          { altitudeM: groundHeightM }
-        );
-        if (correctedViewState) {
-          maplibreBridge.pushState(correctedViewState, "sync");
-          setSwitchInitialCameraView(
-            readInitialCameraViewFromViewState(correctedViewState)
-          );
-        }
-
-        setShouldMountCesium(true);
-      })();
-      return;
-    }
-
-    if (!wasCesium) {
-      const maplibreViewState = readFromMaplibre(
-        libreMap,
-        "geoportal-maplibre"
-      );
-      if (maplibreViewState) {
-        setSwitchInitialCameraView(
-          readInitialCameraViewFromViewState(maplibreViewState)
-        );
-      }
-    }
-  }, [
-    allow3d,
-    isCesium,
-    libreMap,
-    shouldMountCesium,
-    getSurfaceProvider,
-    getTerrainProvider,
-    maplibreBridge,
-  ]);
-
-  const handleCesiumHostChange = useCallback(({ element }: CesiumHostState) => {
-    setCesiumContainerElement((previous) =>
-      previous === element ? previous : element
-    );
-  }, []);
-
-  const getCesiumContainer = useCallback(
-    () => cesiumContainerElement,
-    [cesiumContainerElement]
+  // SPIKE: drive the existing leaflet<->cesium transition with a leaflet-shaped
+  // facade over the maplibre map.
+  const transitionShim = useMaplibreTransitionShim(libreMap);
+  const getTransitionMap = useCallback(
+    () => transitionShim as unknown as LeafletMap | null,
+    [transitionShim]
   );
+
   const getCesiumTerrainProviders = useCallback(
     () => ({
       TERRAIN: getTerrainProvider() ?? null,
@@ -1422,20 +1318,15 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     [getSurfaceProvider, getTerrainProvider]
   );
 
-  useRegisterMapFramework({
-    getLeafletMap: () => null,
-    getCesiumScene: getScene,
-    getCesiumContainer,
-    getCesiumTerrainProviders,
-  });
-
-  const cesiumScene = getScene();
-  useCesiumNavigationBridge({
-    id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
-    scene: cesiumScene,
-    isSyncEnabled: isCesium && isRuntimeReady && Boolean(cesiumScene),
-    isCommitEnabled: isCesium && initialViewApplied,
-  });
+  const { shouldMountCesium, handleCesiumHostChange } =
+    useCesiumMapFrameworkHost({
+      viewAdapterId: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
+      getLeafletMap: getTransitionMap,
+      getCesiumTerrainProviders,
+      allow3d,
+      isCommitEnabled: !getIsTransitioning(),
+      isSyncEnabled: isCesium || isTransitioning,
+    });
 
   const selectionCesiumOptions = useMemo<CesiumOptions>(
     () => ({
@@ -1456,9 +1347,11 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   );
   useSelectionCesium(getIsCesium, selectionCesiumOptions);
 
+  const show2dContainer = !(isCesium && !initialViewApplied);
+
   return (
     <>
-      <div style={{ visibility: isCesium ? "hidden" : "visible" }}>
+      <div style={{ visibility: show2dContainer ? "visible" : "hidden" }}>
         <CarmaMap
           appKey="geoportal"
           mapEngine="maplibre"
@@ -1496,16 +1389,11 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
         <CesiumHost
           id={GEOPORTAL_CESIUM_CONTAINER_ID}
           className={"map-container-3d"}
-          style={{
-            ...MAP_CONTAINER_STYLE,
-            visibility: isCesium ? "visible" : "hidden",
-            opacity: isCesium ? 1 : 0,
-            pointerEvents: isCesium ? "auto" : "none",
-          }}
+          style={MAP_CONTAINER_STYLE}
           onHostChange={handleCesiumHostChange}
           cameraLimiterOptions={CESIUM_CONFIG.camera}
           homeValidationCenter={homeValidationCenter}
-          initialCameraView={switchInitialCameraView ?? cesiumInitialCameraView}
+          initialCameraView={cesiumInitialCameraView}
         />
       )}
     </>
