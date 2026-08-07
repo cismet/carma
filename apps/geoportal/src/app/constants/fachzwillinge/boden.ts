@@ -7,6 +7,15 @@ import {
   ENDPOINT,
 } from "@carma-commons/resources";
 
+// temporary demo images for the infoBoxZoomImage experiment,
+// tower-01 is the closest view, tower-06 the widest
+import tower01 from "../../../assets/temp-demo/tower-01.png";
+import tower02 from "../../../assets/temp-demo/tower-02.png";
+import tower03 from "../../../assets/temp-demo/tower-03.png";
+import tower04 from "../../../assets/temp-demo/tower-04.png";
+import tower05 from "../../../assets/temp-demo/tower-05.png";
+import tower06 from "../../../assets/temp-demo/tower-06.png";
+
 import type { FachzwillingRoute } from ".";
 
 export const bodenFachzwilling: FachzwillingRoute = {
@@ -53,16 +62,33 @@ export const bodenFachzwilling: FachzwillingRoute = {
     },
     { kind: "visibleFeatureStatsPanel", config: {} },
     {
-      // experiment: while zoomed out, the Trinkwasserbrunnen photo in the info
-      // box is replaced by a placeholder image; from zoom 16 on the real photo
-      // is shown again
+      /**
+       * experiment: the image in the info box changes with the zoom.
+       *
+       * One entry per layer, each with its own zoom steps — the steps of one
+       * layer say nothing about the other. Within a layer the first step whose
+       * range contains the current zoom wins; when no step matches, the feature
+       * shows its own photo again.
+       *
+       * A key is the layer name from the catalog config, or the full
+       * "<serviceName>:<layerName>" id when the name is ambiguous.
+       */
       kind: "infoBoxZoomImage",
       config: {
-        // the layer name from the catalog config, or the full
-        layerIds: ["poi_trinkwasser"],
-        imageUrl:
-          "https://tiles.cismet.de/alkis/assets/alkis_flurstuecke_str_hnr_schwarz.png",
-        maxZoom: 16,
+        rules: {
+          // one image per zoom step, from the widest view to the closest;
+          // the last step has no upper bound, so it covers every deeper zoom
+          poi_gebaeude: [
+            // { maxZoom: 12, imageUrl: tower06 },
+            { maxZoom: 14, imageUrl: tower05 },
+            { maxZoom: 16, imageUrl: tower04 },
+            { maxZoom: 18, imageUrl: tower03 },
+            { maxZoom: 20, imageUrl: tower02 },
+            { imageUrl: tower01 },
+          ],
+        },
+        // demo only: features that carry no photo also get the test image
+        showOnFeaturesWithoutPhoto: true,
       },
     },
   ],

@@ -300,7 +300,13 @@ const FeatureInfoBox = ({
     return <></>;
   }
 
-  const zoomImageUrl = resolveInfoBoxImageUrl(infoBoxImage, selectedFeature);
+  // a feature without a photo of its own only gets one when the route's
+  // infoBoxZoomImage addon sets showOnFeaturesWithoutPhoto
+  const zoomImageUrl = resolveInfoBoxImageUrl(
+    infoBoxImage,
+    selectedFeature,
+    !!selectedFeature.properties.foto
+  );
 
   const visibleSecondaryInfoBoxElements =
     selectedFeature.properties.foto ||

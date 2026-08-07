@@ -45,6 +45,7 @@ export {
   InfoBoxZoomImage,
   resolveInfoBoxImageUrl,
   type InfoBoxImageState,
+  type InfoBoxImageStep,
   type InfoBoxZoomImageConfig,
 } from "./addons/InfoBoxZoomImage";
 export {
