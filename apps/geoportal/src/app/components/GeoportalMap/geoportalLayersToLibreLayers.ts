@@ -82,6 +82,9 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         carmaLayerId: layer.id,
         transparent: true,
         opacity: layer.opacity ?? 1,
+        ...(layer.opacityTransition !== undefined
+          ? { opacityTransition: layer.opacityTransition }
+          : {}),
         ...(layer.layerType === "wmts-nt" ? { nonTiled: true } : {}),
       });
     } else if (layer.layerType === "vector") {
@@ -102,6 +105,9 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         carmaLayerId: layer.id,
         style,
         opacity: layer.opacity ?? 1,
+        ...(layer.opacityTransition !== undefined
+          ? { opacityTransition: layer.opacityTransition }
+          : {}),
         ...(userFilter ? { userFilter } : {}),
         ...(dynamicTransform
           ? {

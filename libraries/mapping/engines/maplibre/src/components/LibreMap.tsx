@@ -101,6 +101,8 @@ export interface VectorStyle {
    *  may share one id, e.g. a background spec expanding into named layers. */
   carmaLayerId?: string;
   opacity?: number;
+  /** animate opacity changes, see OpacityTransition; omitted keeps the default */
+  opacityTransition?: OpacityTransition;
   infoboxMapping?: string[];
   /** Promote a feature property to the source's feature id (MapLibre source
    *  option). Without it, `feature-state` is keyed by the tile-local MVT id,
@@ -125,6 +127,16 @@ export interface VectorStyle {
    *  detect transform changes (functions are stripped by JSON.stringify). */
   userStyleTransformKey?: string;
 }
+
+/**
+ * How an opacity change should be animated, as milliseconds or as MapLibre's
+ * own `{duration, delay}`. Omitted leaves MapLibre's default in place, which
+ * is a 300ms linear fade; there is no easing, the spec has no curve.
+ *
+ * Meant for displays whose opacity is driven from outside, where a change is a
+ * deliberate visual step rather than someone dragging a slider.
+ */
+export type OpacityTransition = number | { duration: number; delay?: number };
 
 /**
  * Additional raster paint properties for image manipulation (night mode, etc.).
@@ -164,6 +176,8 @@ export type LibreLayer =
       maxZoom?: number;
       format?: string;
       opacity?: number;
+      /** animate opacity changes, see OpacityTransition */
+      opacityTransition?: OpacityTransition;
       transparent?: boolean;
       rasterPaint?: RasterPaintOverrides;
       nonTiled?: boolean;
@@ -174,6 +188,8 @@ export type LibreLayer =
       url: string;
       carmaLayerId?: string;
       opacity?: number;
+      /** animate opacity changes, see OpacityTransition */
+      opacityTransition?: OpacityTransition;
       tileSize?: number;
       maxZoom?: number;
       rasterPaint?: RasterPaintOverrides;
@@ -184,6 +200,8 @@ export type LibreLayer =
       url: string;
       carmaLayerId?: string;
       opacity?: number;
+      /** animate opacity changes, see OpacityTransition */
+      opacityTransition?: OpacityTransition;
       rasterPaint?: RasterPaintOverrides;
     };
 

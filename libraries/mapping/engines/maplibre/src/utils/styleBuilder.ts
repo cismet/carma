@@ -15,7 +15,7 @@ import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
 import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
-import { LibreLayer } from "../components/LibreMap";
+import { LibreLayer, type OpacityTransition } from "../components/LibreMap";
 import {
   createNonTiledImageSource,
   createNonTiledMetadata,
@@ -103,6 +103,17 @@ export const getPaintProperty = (
       // hillshade and other types have no simple opacity property
       return null;
   }
+};
+
+/**
+ * Normalise a layer's requested opacity animation into MapLibre's transition
+ * shape, or null when it wants none and MapLibre's default should stand.
+ */
+export const toOpacityTransitionSpec = (
+  transition: OpacityTransition | undefined
+): { duration: number; delay?: number } | null => {
+  if (transition === undefined) return null;
+  return typeof transition === "number" ? { duration: transition } : transition;
 };
 
 /** Legacy MapLibre/Mapbox "stops function" object, e.g. { stops: [[9, 0.32], [24, 1]] }. */
@@ -678,6 +689,14 @@ export const vectorStylesToMapLibreStyle = async ({
                         ) as string[]);
                   if (props.length === 0) return {};
                   const layerOpacity = layer.opacity ?? 1;
+                  // A layer may ask for its opacity changes to be animated. The
+                  // whole style is rebuilt and diffed on every change here, so
+                  // the duration has to travel with the layer as a paint
+                  // property; MapLibre picks it up when the diff moves the
+                  // opacity. Absent, its own default applies.
+                  const transitionSpec = toOpacityTransitionSpec(
+                    layer.opacityTransition
+                  );
                   const result: Record<string, unknown> = {};
                   for (const prop of props) {
                     const baseOpacity =
@@ -689,6 +708,9 @@ export const vectorStylesToMapLibreStyle = async ({
                         : layerOpacity < 1
                         ? layerOpacity
                         : baseOpacity;
+                    if (transitionSpec) {
+                      result[`${prop}-transition`] = transitionSpec;
+                    }
                   }
                   return result;
                 })(),
@@ -913,6 +935,19 @@ export const vectorStylesToMapLibreStyle = async ({
             source: sourceId,
             paint: {
               "raster-opacity": layer.opacity ?? 1,
+              ...(toOpacityTransitionSpec(
+                "opacityTransition" in layer
+                  ? layer.opacityTransition
+                  : undefined
+              )
+                ? {
+                    "raster-opacity-transition": toOpacityTransitionSpec(
+                      "opacityTransition" in layer
+                        ? layer.opacityTransition
+                        : undefined
+                    ),
+                  }
+                : {}),
               ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
             },
             metadata: {
@@ -962,6 +997,17 @@ export const vectorStylesToMapLibreStyle = async ({
           source: sourceId,
           paint: {
             "raster-opacity": layer.opacity ?? 1,
+            ...(toOpacityTransitionSpec(
+              "opacityTransition" in layer ? layer.opacityTransition : undefined
+            )
+              ? {
+                  "raster-opacity-transition": toOpacityTransitionSpec(
+                    "opacityTransition" in layer
+                      ? layer.opacityTransition
+                      : undefined
+                  ),
+                }
+              : {}),
             ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
           },
           metadata: {
@@ -988,6 +1034,17 @@ export const vectorStylesToMapLibreStyle = async ({
           source: sourceId,
           paint: {
             "raster-opacity": layer.opacity ?? 1,
+            ...(toOpacityTransitionSpec(
+              "opacityTransition" in layer ? layer.opacityTransition : undefined
+            )
+              ? {
+                  "raster-opacity-transition": toOpacityTransitionSpec(
+                    "opacityTransition" in layer
+                      ? layer.opacityTransition
+                      : undefined
+                  ),
+                }
+              : {}),
             ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
           },
           metadata: {

@@ -26,7 +26,14 @@ import {
   isStopsObject,
   scaleStopsObject,
 } from "./styleBuilder";
-import type { LibreLayer, RasterPaintOverrides } from "../components/LibreMap";
+import type {
+  LibreLayer,
+  OpacityTransition,
+  RasterPaintOverrides,
+} from "../components/LibreMap";
+
+/** what MapLibre transitions a paint property over when nothing says otherwise */
+const MAPLIBRE_DEFAULT_TRANSITION_MS = 300;
 import {
   createNonTiledImageSource,
   createNonTiledMetadata,
@@ -186,6 +193,14 @@ export class StyleComposer {
   /** Refcount sprites by spriteId so multiple sub-styles sharing the same
    * sprite URL don't tear it down for each other on removal. */
   private spriteRefs: Map<string, number> = new Map();
+  /**
+   * "layerId::property" for every opacity whose transition we overrode. Only
+   * used to put MapLibre's default back once a layer stops asking for one: the
+   * transition is a paint property that outlives the write that set it, so a
+   * declared duration would otherwise also apply to whoever changes that
+   * opacity next, an opacity slider included.
+   */
+  private overriddenOpacityTransitions: Set<string> = new Set();
   private debugLog: boolean;
   private loadingTracker: LayerLoadingTracker;
 
@@ -895,12 +910,43 @@ export class StyleComposer {
   // In-place opacity updates (no layer rebuild)
   // -------------------------------------------------------------------------
 
-  updateVectorOpacity(id: string, opacity: number): void {
+  /**
+   * Put the requested transition on an opacity property, or MapLibre's default
+   * back if this property carried an override and no longer asks for one.
+   * Writes on every declared update rather than memoizing the value: a rebuilt
+   * layer starts without the paint property, and a memo that survived the
+   * rebuild would silently swallow the transition it is supposed to apply.
+   */
+  private applyOpacityTransition(
+    namespacedId: string,
+    prop: string,
+    transition?: OpacityTransition
+  ): void {
+    const key = `${namespacedId}::${prop}`;
+    if (transition === undefined) {
+      if (!this.overriddenOpacityTransitions.delete(key)) return;
+      this.map.setPaintProperty(namespacedId, `${prop}-transition`, {
+        duration: MAPLIBRE_DEFAULT_TRANSITION_MS,
+      });
+      return;
+    }
+    const spec =
+      typeof transition === "number" ? { duration: transition } : transition;
+    this.map.setPaintProperty(namespacedId, `${prop}-transition`, spec);
+    this.overriddenOpacityTransitions.add(key);
+  }
+
+  updateVectorOpacity(
+    id: string,
+    opacity: number,
+    transition?: OpacityTransition
+  ): void {
     const entry = this.managed.get(id);
     if (!entry) return;
     const bases = entry.baseOpacities;
 
     const applyProp = (namespacedId: string, prop: string) => {
+      this.applyOpacityTransition(namespacedId, prop, transition);
       const base = bases?.get(`${namespacedId}::${prop}`) ?? 1;
       this.map.setPaintProperty(namespacedId, prop, base * opacity);
     };
@@ -932,11 +978,16 @@ export class StyleComposer {
     }
   }
 
-  updateRasterOpacity(id: string, opacity: number): void {
+  updateRasterOpacity(
+    id: string,
+    opacity: number,
+    transition?: OpacityTransition
+  ): void {
     const entry = this.managed.get(id);
     if (!entry) return;
     for (const layerId of entry.layerIds) {
       if (this.map.getLayer(layerId)) {
+        this.applyOpacityTransition(layerId, "raster-opacity", transition);
         this.map.setPaintProperty(layerId, "raster-opacity", opacity);
       }
     }
@@ -1019,6 +1070,14 @@ export class StyleComposer {
         }
       } else {
         this.spriteRefs.set(entry.spriteId, remaining);
+      }
+    }
+
+    for (const layerId of entry.layerIds) {
+      for (const key of [...this.overriddenOpacityTransitions]) {
+        if (key.startsWith(`${layerId}::`)) {
+          this.overriddenOpacityTransitions.delete(key);
+        }
       }
     }
 

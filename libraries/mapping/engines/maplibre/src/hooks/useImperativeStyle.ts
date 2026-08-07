@@ -330,17 +330,19 @@ export function useImperativeStyle({
           const id = newIds[i];
           const newOpacity =
             ("opacity" in layer ? layer.opacity : undefined) ?? 1;
+          const transition =
+            "opacityTransition" in layer ? layer.opacityTransition : undefined;
           const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
           if (newOpacity !== prevOpacity) {
             if (layer.type === "vector") {
-              composer.updateVectorOpacity(id, newOpacity);
+              composer.updateVectorOpacity(id, newOpacity, transition);
             } else if (
               layer.type === "wms" ||
               layer.type === "wmts" ||
               layer.type === "tiles" ||
               layer.type === "cog"
             ) {
-              composer.updateRasterOpacity(id, newOpacity);
+              composer.updateRasterOpacity(id, newOpacity, transition);
             }
             prevOpacitiesRef.current.set(id, newOpacity);
           }

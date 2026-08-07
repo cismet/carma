@@ -163,6 +163,15 @@ type BaseLayer = {
   title: string;
   id: string;
   opacity?: number;
+  /**
+   * Animate opacity changes on this layer, in milliseconds or as MapLibre's
+   * own `{duration, delay}`. Left out, MapLibre's default applies.
+   *
+   * For layers whose opacity is driven from outside the app, where a change is
+   * a deliberate visual step. Note it also applies when a person changes that
+   * same layer's opacity by hand afterwards.
+   */
+  opacityTransition?: number | { duration: number; delay?: number };
   description?: string;
   visible: boolean;
   queryable?: boolean;
