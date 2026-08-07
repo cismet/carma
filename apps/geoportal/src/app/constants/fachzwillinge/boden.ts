@@ -14,7 +14,6 @@ import tower02 from "../../../assets/temp-demo/tower-02.png";
 import tower03 from "../../../assets/temp-demo/tower-03.png";
 import tower04 from "../../../assets/temp-demo/tower-04.png";
 import tower05 from "../../../assets/temp-demo/tower-05.png";
-import tower06 from "../../../assets/temp-demo/tower-06.png";
 
 import type { FachzwillingRoute } from ".";
 
