@@ -14,7 +14,13 @@ export const carma = {
 } as const;
 
 export { registerConfig } from "./lib/config";
-export type { ConfigAdapter, ConfigFacade } from "./lib/config";
+export type {
+  ConfigAdapter,
+  ConfigFacade,
+  MappingConfig,
+  MappingConfigBackgroundLayer,
+  MappingConfigLayer,
+} from "./lib/config";
 
 export { registerMapping } from "./lib/mapping";
 export type {

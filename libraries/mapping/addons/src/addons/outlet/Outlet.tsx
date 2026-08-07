@@ -4,6 +4,8 @@ import type { Map as LibreMap } from "maplibre-gl";
 import { getHashParams } from "@carma-commons/utils";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 
+import type { MappingConfig } from "@carma-api";
+
 import type { AddonComponentProps } from "../../lib/registry";
 import { subscribe, type RelaySubscription } from "./relay";
 
@@ -75,11 +77,20 @@ export type OutletConfig = {
  * one thing the source contract demands. It stays in the url.
  */
 export type OutletRemoteState = {
-  /** id of a shared configuration, the same value `?usedConfig=` takes */
-  config?: string;
+  /**
+   * What to show: either the id of a shared configuration, the same value
+   * `?usedConfig=` takes, or the configuration itself. The second form needs
+   * nothing to be stored anywhere and costs the display no round trip, so a
+   * remote composing what to project can just say it.
+   */
+  config?: string | MappingConfig;
   /** id of a background layer, as `carma.mapping2D.getBackgroundLayers()` reports it */
   backgroundLayer?: string;
 };
+
+/** what a config field was applied as, so re-delivering it changes nothing */
+const configIdentity = (value: string | MappingConfig): string =>
+  typeof value === "string" ? `id:${value}` : `doc:${JSON.stringify(value)}`;
 
 const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "config",
@@ -167,7 +178,11 @@ const toWgs84 = (bounds: Bounds3857): BoundsWgs84 => {
 const resolveBounds = (config?: OutletConfig): ResolvedBounds | null => {
   const fromQuery = parseBoundsParam(getHashParams()[BOUNDS_PARAM]);
   if (fromQuery) {
-    return { bounds3857: fromQuery, wgs84: toWgs84(fromQuery), source: "query" };
+    return {
+      bounds3857: fromQuery,
+      wgs84: toWgs84(fromQuery),
+      source: "query",
+    };
   }
   const fromConfig = config?.bounds3857;
   if (fromConfig && isValidBounds(fromConfig)) {
@@ -218,7 +233,9 @@ const verify = (
 
   const problems: string[] = [];
   if (bearing !== 0 || pitch !== 0) {
-    problems.push(`map is rotated or tilted (bearing ${bearing}, pitch ${pitch})`);
+    problems.push(
+      `map is rotated or tilted (bearing ${bearing}, pitch ${pitch})`
+    );
   }
   if (widthPx !== window.innerWidth || heightPx !== window.innerHeight) {
     problems.push(
@@ -227,7 +244,9 @@ const verify = (
   }
   if (Math.abs(aspectRel) > aspectTolerance) {
     problems.push(
-      `window aspect ${canvasAspect.toFixed(6)} differs from the required ${requiredAspect.toFixed(
+      `window aspect ${canvasAspect.toFixed(
+        6
+      )} differs from the required ${requiredAspect.toFixed(
         6
       )}; size the source window to that aspect`
     );
@@ -273,6 +292,8 @@ export const OutletAddon = ({
 
   /** what the remote last asked for and got, so an unchanged field is not re-applied */
   const appliedRemoteRef = useRef<OutletRemoteState>({});
+  /** the config field's identity, since a whole configuration cannot be compared by value */
+  const appliedConfigIdentityRef = useRef<string | undefined>(undefined);
   const relayRef = useRef<RelaySubscription | null>(null);
   const relayCode = getHashParams()[RELAY_PARAM];
   const relayBaseUrl = config?.relayBaseUrl;
@@ -434,23 +455,40 @@ export const OutletAddon = ({
 
       // Each field is compared against what was last applied successfully, so
       // re-delivering the same document (a reconnect, a late join) does nothing.
-      if (
-        typeof next.config === "string" &&
-        next.config !== appliedRemoteRef.current.config
-      ) {
-        const applied = await carma.config.applyById(next.config);
-        if (applied) {
-          appliedRemoteRef.current = {
-            ...appliedRemoteRef.current,
-            config: next.config,
-          };
-          console.debug(`${LOG_PREFIX} applied config ${next.config}`);
-        } else {
-          // Also the normal outcome when a newer document overtook this one.
-          console.warn(
-            `${LOG_PREFIX} config ${next.config} was not applied; it may be unknown, or a newer state superseded it`
-          );
+      const wantsConfig =
+        typeof next.config === "string" ||
+        (typeof next.config === "object" && next.config !== null);
+      if (wantsConfig) {
+        const wanted = next.config as string | MappingConfig;
+        const identity = configIdentity(wanted);
+        if (identity !== appliedConfigIdentityRef.current) {
+          const applied =
+            typeof wanted === "string"
+              ? await carma.config.applyById(wanted)
+              : await carma.config.setMappingConfig(wanted);
+          const label =
+            typeof wanted === "string"
+              ? wanted
+              : `a configuration with ${wanted.layers?.length ?? 0} layer(s)`;
+          if (applied) {
+            appliedConfigIdentityRef.current = identity;
+            appliedRemoteRef.current = {
+              ...appliedRemoteRef.current,
+              config: wanted,
+            };
+            console.debug(`${LOG_PREFIX} applied ${label}`);
+          } else {
+            // Also the normal outcome when a newer document overtook this one.
+            console.warn(
+              `${LOG_PREFIX} ${label} was not applied; it may be unusable, or a newer state superseded it`
+            );
+          }
         }
+      } else if (next.config !== undefined) {
+        console.warn(
+          `${LOG_PREFIX} ignoring a config that is neither an id nor a configuration`,
+          next.config
+        );
       }
 
       if (

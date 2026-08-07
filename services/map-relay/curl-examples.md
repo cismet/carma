@@ -34,6 +34,32 @@ curl -sS -X POST http://localhost:8099/s/ooc0eeQu \
 
 Both answer `{"v":<n>,"ts":<epoch ms>}`. The version counter increments per write; the display uses it to notice changes.
 
+### Send the configuration instead of its id
+
+`config` also takes the configuration itself. Nothing has to be stored for it and the display does not fetch anything, so a remote that composes what to project can just say it:
+
+```bash
+curl -sS -X POST http://localhost:8099/s/ooc0eeQu \
+  -H 'Content-Type: text/plain' \
+  -d '{"state":{"config":{
+        "backgroundLayer":{"id":"karte","selectedLayerId":"stadtplan","visible":false,"opacity":1,"title":"","layers":"","layerType":"wmts"},
+        "layers":[
+          {"id":"custom:https://tiles.cismet.de/alkis/style.json","title":"","layerType":"vector","visible":true,"opacity":1,
+           "props":{"style":"https://tiles.cismet.de/alkis/style.json"}},
+          {"id":"custom:https://tiles.cismet.de/pm_trees/style.json","title":"","layerType":"vector","visible":true,"opacity":1,
+           "props":{"style":"https://tiles.cismet.de/pm_trees/style.json"}}
+        ]}}}'
+```
+
+A whole stored configuration works unchanged as well: keys the map does not need (`view`, `gazetteerSelection`, `selectedFeature`, and everything descriptive inside a layer) may be present and are ignored. The example above is what is left after dropping them, 526 bytes against the ~6 KB the same setup takes as stored.
+
+What the display actually reads:
+
+- **layers** (required, array): per entry `id`, `layerType`, `visible`, `props.style` for vector layers, `opacity` (defaults to 1). `id` becomes the map's source name, so keep it stable across writes: a changed id rebuilds the layer instead of updating it, which is visible on the projection. Array order is the draw order.
+- **backgroundLayer** (optional): only `selectedLayerId`, `visible`, `opacity` and `id` are read. `selectedLayerId` names an entry of the app's own base-map table, which is where the title and the description texts come from. Leave the whole block out for layers over nothing, or send `visible: false` to keep a base map selected but dark.
+
+Re-sending an identical configuration changes nothing on screen; the display compares content, not just ids.
+
 `Content-Type: text/plain` is not cosmetic. The browser client sends its writes the same way, because `application/json` would make the request non-simple and fire a CORS preflight on every single one. The relay `JSON.parse`s the body regardless of the header.
 
 ## Inspect

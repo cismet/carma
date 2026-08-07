@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 
-import { registerConfig } from "@carma-api";
+import { registerConfig, type MappingConfig } from "@carma-api";
 import {
   type SelectedObject,
   useAdhocFeatureDisplay,
@@ -32,7 +32,8 @@ type View = {
 
 type Config = {
   layers: Layer[];
-  backgroundLayer: BackgroundLayer & { selectedLayerId: string };
+  /** optional: a display that wants layers over nothing sends no base map */
+  backgroundLayer?: BackgroundLayer & { selectedLayerId: string };
   settings?: Settings;
   view?: View;
   gazetteerSelection?: SelectionItem;
@@ -52,29 +53,48 @@ const onLoadedConfig = (
   ) => void
 ) => {
   dispatch(setLayers(config.layers));
-  const selectedMapLayerId = config.backgroundLayer.selectedLayerId;
-  const selectedBackgroundLayer: BackgroundLayer = {
-    title: layerMap[selectedMapLayerId].title,
-    id: selectedMapLayerId,
-    opacity: config.backgroundLayer.opacity,
-    description: layerMap[selectedMapLayerId].description,
-    inhalt: layerMap[selectedMapLayerId].inhalt,
-    eignung: layerMap[selectedMapLayerId].eignung,
-    visible: config.backgroundLayer.visible,
-    layerType: "wmts",
-    layers: layerMap[selectedMapLayerId].layers,
-  };
-  dispatch(
-    setBackgroundLayer({
-      ...selectedBackgroundLayer,
-      id: config.backgroundLayer.id,
-    })
-  );
-  if (config.backgroundLayer.id === "luftbild") {
-    dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
-  } else {
-    dispatch(setSelectedMapLayer(selectedBackgroundLayer));
+
+  // A configuration may leave the base map out entirely, which is what a
+  // display projecting layers onto a physical model wants. The descriptive
+  // texts always come from layerMap, so the configuration only ever carries
+  // the choice, never the content.
+  const selectedMapLayerId = config.backgroundLayer?.selectedLayerId;
+  const mapLayerEntry = selectedMapLayerId
+    ? layerMap[selectedMapLayerId]
+    : undefined;
+  if (config.backgroundLayer && mapLayerEntry) {
+    const selectedBackgroundLayer: BackgroundLayer = {
+      title: mapLayerEntry.title,
+      id: selectedMapLayerId as string,
+      opacity: config.backgroundLayer.opacity,
+      description: mapLayerEntry.description,
+      inhalt: mapLayerEntry.inhalt,
+      eignung: mapLayerEntry.eignung,
+      visible: config.backgroundLayer.visible,
+      layerType: "wmts",
+      layers: mapLayerEntry.layers,
+    };
+    dispatch(
+      setBackgroundLayer({
+        ...selectedBackgroundLayer,
+        id: config.backgroundLayer.id,
+      })
+    );
+    if (config.backgroundLayer.id === "luftbild") {
+      dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
+    } else {
+      dispatch(setSelectedMapLayer(selectedBackgroundLayer));
+    }
+  } else if (config.backgroundLayer) {
+    // named a base map the app does not have: keep the current one rather than
+    // reading through an undefined entry
+    console.warn(
+      `[CONFIG] unknown backgroundLayer.selectedLayerId "${String(
+        selectedMapLayerId
+      )}", keeping the current base map.`
+    );
   }
+
   if (config.gazetteerSelection) {
     dispatch(setConfigSelection(config.gazetteerSelection));
   }
@@ -137,11 +157,58 @@ export const useAppConfig = (
   };
 
   /**
-   * Load a shared configuration and apply its content. This is the one place
-   * that does it: the hash effect below calls it, and so does anything reaching
-   * the app through `carma.config.applyById`, which is how the outlet's remote
-   * control switches what the projection-mapping source window shows without
-   * touching the url.
+   * Apply a configuration the caller already holds. Same effect as loading a
+   * stored one with this content: both end in `onLoadedConfig`, this one
+   * without the fetch in front of it.
+   *
+   * Reaching the app through `carma.config.setMappingConfig`, this is how a
+   * remote hands a display exactly what to show, without a stored configuration
+   * having to exist for it and without a round trip to fetch one.
+   */
+  const applyMappingConfig = useCallback(
+    async (incoming: MappingConfig): Promise<boolean> => {
+      if (!incoming || !Array.isArray(incoming.layers)) {
+        console.warn(
+          "[CONFIG] ignoring a configuration without a layers array.",
+          incoming
+        );
+        return false;
+      }
+
+      // A configuration handed over directly is newer than any load still in
+      // flight, which would otherwise land afterwards and overwrite it.
+      inFlightRef.current?.abort();
+
+      const {
+        layerMap: map,
+        dispatch: d,
+        setSelectedFeatureById,
+      } = depsRef.current;
+      try {
+        onLoadedConfig(
+          incoming as unknown as Config,
+          map,
+          d,
+          setSelectedFeatureById
+        );
+      } catch (error) {
+        console.error("[CONFIG] applying a configuration failed:", error);
+        return false;
+      }
+      // Content that no stored configuration backs, so no id describes what is
+      // on screen now. Tracking that is the caller's own business.
+      appliedConfigRef.current = undefined;
+      initialLoadDoneRef.current = true;
+      setIsLoadingConfig(false);
+      return true;
+    },
+    []
+  );
+
+  /**
+   * Load a shared configuration by its id and apply its content. The hash
+   * effect below calls it, and so does anything reaching the app through
+   * `carma.config.applyById`.
    */
   const applyConfigById = useCallback(async (id: string): Promise<boolean> => {
     if (!id) {
@@ -199,12 +266,13 @@ export const useAppConfig = (
   useEffect(() => {
     registerConfig({
       applyById: applyConfigById,
+      setMappingConfig: applyMappingConfig,
       getAppliedId: () => appliedConfigRef.current ?? null,
     });
     return () => {
       registerConfig(null);
     };
-  }, [applyConfigById]);
+  }, [applyConfigById, applyMappingConfig]);
 
   useEffect(
     () => () => {
