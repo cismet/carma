@@ -1376,7 +1376,13 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           selectFromHits={handleLibreSelectFromHits}
           modalMenu={<GeoportalModalMenu />}
         />
-        {isModeMeasurement && <MeasurementHost mode={libreDrawMode} snapping />}
+        {isModeMeasurement && (
+          <MeasurementHost
+            mode={libreDrawMode}
+            snapping
+            styleVariant="carma"
+          />
+        )}
         {visibleControls.infoBox &&
           (isModeMeasurement || selectedMeasurement ? (
             <MeasurementInfoBox selectionPadding={selectionPadding} />

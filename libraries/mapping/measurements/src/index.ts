@@ -8,6 +8,7 @@ export type {
   MeasurementHostProps,
   MeasurementHostHandle,
 } from "./lib/MeasurementHost";
+export type { MeasurementStyleVariant } from "./lib/measurementStyles";
 export {
   removeMeasurements,
   addMeasurements,

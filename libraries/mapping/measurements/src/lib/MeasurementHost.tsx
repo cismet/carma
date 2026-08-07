@@ -24,6 +24,10 @@ import {
   setActiveAddFeatures,
 } from "./measurementHostHandle";
 import { useMeasurementsRegistry } from "./MeasurementsContext";
+import {
+  buildMeasurementStyles,
+  type MeasurementStyleVariant,
+} from "./measurementStyles";
 
 const DEFAULT_SNAP_RADIUS_PX = 20;
 const SNAP_PREVIEW_SOURCE_ID = "carma-measurements-snap-preview";
@@ -163,6 +167,13 @@ export interface MeasurementHostProps {
    *  is read via a ref, so a late-arriving value (redux rehydration tick)
    *  is picked up as long as it lands before terra-draw's initial attach. */
   initialFeatures?: Feature[];
+  /** Visual language for the drawn geometry and its handles. Defaults to
+   *  `"terra-draw"` (terra-draw's own look with bumped selection sizes) so
+   *  existing hosts are unaffected. The geoportal passes `"carma"` to get
+   *  the leaflet-parity palette plus per-vertex handles while drawing.
+   *  Read at terra-draw construction time — a change applies on the next
+   *  attach (basemap swap / remount), not live. */
+  styleVariant?: MeasurementStyleVariant;
 }
 
 /** Imperative handle returned via ref. Lets the host invoke terra-draw
@@ -222,6 +233,7 @@ export const MeasurementHost = forwardRef<
     radiusDebugVisible = false,
     onSelectionChange,
     initialFeatures,
+    styleVariant = "terra-draw",
   },
   ref
 ) {
@@ -307,6 +319,32 @@ export const MeasurementHost = forwardRef<
   // swap) so numbering doesn't restart.
   const pointCounterRef = useRef(0);
   const lineCounterRef = useRef(0);
+
+  const isVertexOfDrawingFeature = (feature: GeoJSONStoreFeatures): boolean => {
+    const parentId = feature.properties?.coordinatePointFeatureId;
+    if (parentId === undefined || parentId === null) {
+      return false;
+    }
+    const draw = drawRef.current;
+    if (!draw) {
+      return false;
+    }
+    try {
+      const parent = draw.getSnapshotFeature(parentId as string | number);
+      return parent?.properties?.currentlyDrawing === true;
+    } catch {
+      // Parent already gone (deleted / finished mid-frame) — no dot.
+      return false;
+    }
+  };
+
+  const stylesRef = useRef(
+    buildMeasurementStyles(styleVariant, isVertexOfDrawingFeature)
+  );
+  stylesRef.current = buildMeasurementStyles(
+    styleVariant,
+    isVertexOfDrawingFeature
+  );
 
   useEffect(() => {
     if (!map) return;
@@ -657,10 +695,11 @@ export const MeasurementHost = forwardRef<
     };
 
     const createDraw = () => {
+      const styles = stylesRef.current;
       const draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map }),
         modes: [
-          new TerraDrawPointMode(),
+          new TerraDrawPointMode({ styles: styles.point }),
           new TerraDrawLineStringMode({
             // Host-tunable click-to-finish tolerance. Omitted entirely when the
             // host doesn't set it, so terra-draw keeps its native default (40);
@@ -669,6 +708,7 @@ export const MeasurementHost = forwardRef<
             ...(closePointerDistancePxRef.current !== undefined && {
               pointerDistance: closePointerDistancePxRef.current,
             }),
+            showCoordinatePoints: styles.showCoordinatePoints,
             // toLine + toCoordinate snap to terra-draw's OWN draft features
             // (e.g. the in-progress line itself); toCustom snaps to layers
             // outside terra-draw's store via `snapToCustom`.
@@ -677,16 +717,19 @@ export const MeasurementHost = forwardRef<
               toCoordinate: true,
               toCustom: snapToCustom,
             },
+            styles: styles.lineString,
           }),
           new TerraDrawPolygonMode({
             ...(closePointerDistancePxRef.current !== undefined && {
               pointerDistance: closePointerDistancePxRef.current,
             }),
+            showCoordinatePoints: styles.showCoordinatePoints,
             snapping: {
               toLine: true,
               toCoordinate: true,
               toCustom: snapToCustom,
             },
+            styles: styles.polygon,
           }),
           new TerraDrawSelectMode({
             // Fully editable: drag features, drag/delete vertices, insert
@@ -732,15 +775,7 @@ export const MeasurementHost = forwardRef<
                 },
               },
             },
-            // Make the selected feature actually pop — defaults are too
-            // subtle to read at a glance. Only the SIZE is bumped (~2×
-            // terra-draw's defaults); colors are left at terra-draw's
-            // own defaults.
-            styles: {
-              selectedLineStringWidth: 8,
-              selectedPointWidth: 12,
-              selectionPointWidth: 12,
-            },
+            styles: styles.select,
           }),
         ],
       });
