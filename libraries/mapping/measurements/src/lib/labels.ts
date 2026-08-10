@@ -50,15 +50,15 @@ function segmentLengthMeters(a: Position, b: Position): number {
 
 // Derive label points for every drawn feature. Three kinds emitted:
 //
-// - kind: "title"   — per-feature P1/L1 markers for points + lines (anchored
-//                     near the geometric middle of a line, on a real vertex).
+// - kind: "title"   — per-feature P1/L1/F1 markers (anchored near the
+//                     geometric middle of a line and on the first vertex of a
+//                     polygon's outer ring, always on a real vertex).
 // - kind: "segment" — segment-midpoint length labels for line segments and
 //                     polygon outer-ring edges.
 // - kind: "area"    — centroid-anchored area label for each polygon.
 //
-// Polygons get segment + area labels but no title (matches the playground's
-// historical behaviour). MultiPolygon and polygon holes are out of scope —
-// no consumer draws them today.
+// MultiPolygon and polygon holes are out of scope — no consumer draws them
+// today.
 export function buildLabelFeatures(
   drawnFeatures: ReadonlyArray<Feature>
 ): FeatureCollection<Point> {
@@ -117,6 +117,18 @@ export function buildLabelFeatures(
             },
           });
         }
+      }
+      // Anchor the title on the ring's FIRST vertex (the one the user clicked
+      // first), not on the centroid: the centroid already carries the area
+      // label, and with `text-allow-overlap: false` the two would compete for
+      // the same spot and one would silently drop out. A real vertex also
+      // keeps the label attached while the polygon is edited.
+      if (title && ring && ring.length > 0) {
+        labelFeatures.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: ring[0] },
+          properties: { kind: "title", label: title },
+        });
       }
       continue;
     }

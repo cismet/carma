@@ -172,6 +172,12 @@ export const MeasurementInfoBox = ({
   }
   const baseTitle = customTitle || defaultBaseTitle;
 
+  const titleNumberMatch =
+    typeof selectedFeature.properties?.title === "string"
+      ? /^[PLF](\d+)$/.exec(selectedFeature.properties.title)
+      : null;
+  const titleNumber = titleNumberMatch ? titleNumberMatch[1] : "";
+
   const handleTitleBlur = (e: React.FocusEvent<HTMLSpanElement>) => {
     if (selectedId === null) {
       return;
@@ -275,7 +281,14 @@ export const MeasurementInfoBox = ({
             >
               {capitalizeFirstLetter(baseTitle)}
             </span>
-            {order > 0 && <span className="text-[14px] mr-2">#{order}</span>}
+            {titleNumber && (
+              <span
+                className="text-[14px] mr-2"
+                data-test-id="measurement-title-number"
+              >
+                #{titleNumber}
+              </span>
+            )}
           </span>
           {isDrafting ? (
             <Tooltip title="Aktuelle Messung abbrechen">

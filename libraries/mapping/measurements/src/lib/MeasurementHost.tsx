@@ -322,16 +322,41 @@ export const MeasurementHost = forwardRef<
   // mutate the geometry afterwards.
   const lastSnapTargetRef = useRef<[number, number] | null>(null);
   // Monotonic counters used to mint per-feature titles (P1, P2, ... for
-  // points; L1, L2, ... for lines). Titles are assigned once at finish-
-  // time and stored in `feature.properties.title` (terra-draw reserves
-  // `mode`, `id`, etc., so we use `title`) — the symbol layer renders
-  // them and consumers can pick them up via getSnapshot. Counters are
-  // re-seeded from the snapshot whenever terra-draw is rebuilt (basemap
+  // points; L1, L2, ... for lines; F1, F2, ... for areas/Flächen). Titles
+  // are assigned once at finish-time and stored in
+  // `feature.properties.title` (terra-draw reserves `mode`, `id`, etc., so
+  // we use `title`) — the symbol layer renders them, the InfoBox shows the
+  // same string, and consumers can pick them up via getSnapshot. Counters
+  // are re-seeded from the snapshot whenever terra-draw is rebuilt (basemap
   // swap) so numbering doesn't restart.
   const pointCounterRef = useRef(0);
   const lineCounterRef = useRef(0);
+  const polygonCounterRef = useRef(0);
   const pseudoSelectedIdRef = useRef<string | null>(null);
   const suspendedPseudoIdRef = useRef<string | null>(null);
+
+  const seedTitleCounters = (
+    features: ReadonlyArray<Feature | GeoJSONStoreFeatures>
+  ) => {
+    for (const feature of features) {
+      const title = feature.properties?.title;
+      if (typeof title !== "string") {
+        continue;
+      }
+      const match = /^([PLF])(\d+)$/.exec(title);
+      if (!match) {
+        continue;
+      }
+      const n = Number(match[2]);
+      if (match[1] === "P") {
+        pointCounterRef.current = Math.max(pointCounterRef.current, n);
+      } else if (match[1] === "L") {
+        lineCounterRef.current = Math.max(lineCounterRef.current, n);
+      } else {
+        polygonCounterRef.current = Math.max(polygonCounterRef.current, n);
+      }
+    }
+  };
 
   const isVertexOfDrawingFeature = (feature: GeoJSONStoreFeatures): boolean => {
     const parentId = feature.properties?.coordinatePointFeatureId;
@@ -760,20 +785,7 @@ export const MeasurementHost = forwardRef<
         console.warn("[carma-measurements] hydrate addFeatures failed", e);
         return;
       }
-      // Re-seed P/L counters from restored titles so the next finish
-      // doesn't emit a duplicate "P1" / "L1".
-      for (const feature of stored as GeoJSONStoreFeatures[]) {
-        const title = feature.properties?.title;
-        if (typeof title !== "string") continue;
-        const match = /^([PL])(\d+)$/.exec(title);
-        if (!match) continue;
-        const n = Number(match[2]);
-        if (match[1] === "P") {
-          pointCounterRef.current = Math.max(pointCounterRef.current, n);
-        } else {
-          lineCounterRef.current = Math.max(lineCounterRef.current, n);
-        }
-      }
+      seedTitleCounters(stored);
       refreshLabels();
       publishSnapshot();
     };
@@ -909,6 +921,9 @@ export const MeasurementHost = forwardRef<
               } else if (snap.geometry.type === "LineString") {
                 lineCounterRef.current += 1;
                 nextTitle = `L${lineCounterRef.current}`;
+              } else if (snap.geometry.type === "Polygon") {
+                polygonCounterRef.current += 1;
+                nextTitle = `F${polygonCounterRef.current}`;
               }
               if (nextTitle) {
                 draw.updateFeatureProperties(id, { title: nextTitle });
@@ -1069,21 +1084,9 @@ export const MeasurementHost = forwardRef<
               e
             );
           }
-          // Re-seed title counters so the next P/L number continues past
-          // any restored feature's title. Without this, the second run
-          // would emit duplicate "P1" / "L1" after a basemap swap.
-          for (const feature of snapshot) {
-            const title = feature.properties?.title;
-            if (typeof title !== "string") continue;
-            const match = /^([PL])(\d+)$/.exec(title);
-            if (!match) continue;
-            const n = Number(match[2]);
-            if (match[1] === "P") {
-              pointCounterRef.current = Math.max(pointCounterRef.current, n);
-            } else {
-              lineCounterRef.current = Math.max(lineCounterRef.current, n);
-            }
-          }
+          // Without this, the second run would emit duplicate "P1" / "L1" /
+          // "F1" after a basemap swap.
+          seedTitleCounters(snapshot);
         }
       } else {
         drawRef.current = createDraw();
@@ -1109,20 +1112,9 @@ export const MeasurementHost = forwardRef<
               );
             }
             // Mirror the title-counter re-seed from the basemap-swap branch
-            // so the next finish-created P/L number continues past the
+            // so the next finish-created P/L/F number continues past the
             // restored set.
-            for (const feature of seed) {
-              const title = feature.properties?.title;
-              if (typeof title !== "string") continue;
-              const match = /^([PL])(\d+)$/.exec(title);
-              if (!match) continue;
-              const n = Number(match[2]);
-              if (match[1] === "P") {
-                pointCounterRef.current = Math.max(pointCounterRef.current, n);
-              } else {
-                lineCounterRef.current = Math.max(lineCounterRef.current, n);
-              }
-            }
+            seedTitleCounters(seed);
           }
         }
       }
@@ -1163,12 +1155,13 @@ export const MeasurementHost = forwardRef<
             console.warn("[carma-measurements] clearAll failed", e);
             return;
           }
-          // Reset title counters so the next P/L numbering starts at 1
-          // again — a user "delete all" is the right moment to wipe the
+          // Reset title counters so the next P/L/F numbering starts at 1
+          // again. A user "delete all" is the right moment to wipe the
           // monotonic sequence, otherwise the next point lands as e.g.
           // P7 with no peers in sight.
           pointCounterRef.current = 0;
           lineCounterRef.current = 0;
+          polygonCounterRef.current = 0;
           pseudoSelectedIdRef.current = null;
           // Push the empty snapshot to context synchronously. The provider
           // writes the empty array back to localforage on the resulting
