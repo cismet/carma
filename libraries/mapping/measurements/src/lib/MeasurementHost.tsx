@@ -859,7 +859,7 @@ export const MeasurementHost = forwardRef<
                   draggable: true,
                   coordinates: {
                     snappable: { toCustom: snapToCustom },
-                    midpoints: true,
+                    midpoints: { draggable: true },
                     draggable: true,
                     deletable: true,
                   },
@@ -870,7 +870,7 @@ export const MeasurementHost = forwardRef<
                   draggable: true,
                   coordinates: {
                     snappable: { toCustom: snapToCustom },
-                    midpoints: true,
+                    midpoints: { draggable: true },
                     draggable: true,
                     deletable: true,
                   },
