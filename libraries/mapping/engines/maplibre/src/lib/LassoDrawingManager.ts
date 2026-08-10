@@ -261,6 +261,12 @@ export class LassoDrawingManager {
     return this.drawing;
   }
 
+  /** Change the excluded combination at runtime — used to hand a modifier over
+   *  to another manager only while that one is armed. */
+  setSkipWhenModifiers(modifiers: ModifierKey[]): void {
+    this.skipWhenModifiers = modifiers;
+  }
+
   // ---------------------------------------------------------------------------
   // Drawing lifecycle
   // ---------------------------------------------------------------------------
