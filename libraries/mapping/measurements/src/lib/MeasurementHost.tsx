@@ -509,8 +509,11 @@ export const MeasurementHost = forwardRef<
             //   - "title"   → matches the belis fachobjekte label style
             //                 (Open Sans Bold, zoom-interpolated size, left
             //                 anchor with radial offset).
-            //   - "segment" → stays compact (Noto Sans Regular, 12px,
-            //                 centered above the segment).
+            //   - everything else ("segment", "total", "area") → compact
+            //                 (Noto Sans Regular, 12px, centered above its
+            //                 anchor point). "total" deliberately looks like a
+            //                 segment label; only its position at the line's
+            //                 end vertex distinguishes it.
             // Both fonts must be served by the cismet glyph server, which
             // every CARMA app sets via `overrideGlyphs` at the CarmaMap
             // level.
@@ -541,7 +544,10 @@ export const MeasurementHost = forwardRef<
             // much larger and centered; ours doesn't need it.
             "text-offset": [
               "case",
-              ["==", ["get", "kind"], "segment"],
+              // "total" shares the segment offset on purpose: same lift above
+              // its anchor, so the end-of-line total sits at the same visual
+              // distance from the geometry as every segment length.
+              ["in", ["get", "kind"], ["literal", ["segment", "total"]]],
               ["literal", [0, -0.8]],
               ["==", ["get", "kind"], "title"],
               ["literal", [1.2, -0.6]],

@@ -4,6 +4,7 @@ import length from "@turf/length";
 import type {
   Feature,
   FeatureCollection,
+  LineString,
   Point,
   Polygon,
   Position,
@@ -55,6 +56,8 @@ function segmentLengthMeters(a: Position, b: Position): number {
 //                     polygon's outer ring, always on a real vertex).
 // - kind: "segment" — segment-midpoint length labels for line segments and
 //                     polygon outer-ring edges.
+// - kind: "total"   — total line length, anchored on the last vertex. Same
+//                     number the InfoBox shows as "Strecke".
 // - kind: "area"    — centroid-anchored area label for each polygon.
 //
 // MultiPolygon and polygon holes are out of scope — no consumer draws them
@@ -149,6 +152,25 @@ export function buildLabelFeatures(
           label: formatMeters(meters),
         },
       });
+    }
+
+    if (coords.length >= 3 && feature.properties?.currentlyDrawing !== true) {
+      const totalMeters = length(feature as Feature<LineString>, {
+        units: "meters",
+      });
+      if (totalMeters > 0) {
+        labelFeatures.push({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: coords[coords.length - 1],
+          },
+          properties: {
+            kind: "total",
+            label: formatMeters(totalMeters),
+          },
+        });
+      }
     }
     if (title && coords.length > 0) {
       // Anchor the title at a "middle-ish" vertex: floor(N/2) - 1, clamped
