@@ -708,10 +708,12 @@ const BelisMapLibWrapper = ({
   // Highlight context: need ensureToggledFeatures + criteria before handleHighlightToggle
   const {
     highlightingActive,
+    setHighlightingActive,
     highlightVersion,
     ensureToggledFeatures,
     ensureSuppressedFeatures,
     toggleFeatureHighlight,
+    clearHighlights,
     criteria,
   } = useMapHighlight();
 
@@ -1031,6 +1033,43 @@ const BelisMapLibWrapper = ({
     ]
   );
 
+  // Orange lasso (Alt+Shift) → narrow the current highlight set. The hook hands
+  // over exactly the features that were highlighted AND inside the polygon; we
+  // freeze them into an explicit selection.
+  //
+  // clearHighlights first, on purpose: it drops the street-search matchers /
+  // expert-search queryIds that produced the selection, so the highlights
+  // outside the polygon can never come back when their tiles reload on pan or
+  // zoom. From here on the selection is just this list of features — which is
+  // also what makes the gesture repeatable (each orange lasso narrows further).
+  const handleLassoRefine = useCallback(
+    (survivors: maplibregl.MapGeoJSONFeature[]) => {
+      if (!map || survivors.length === 0) return;
+
+      clearHighlights();
+      setHighlightingActive(true);
+      ensureToggledFeatures(
+        survivors.map((f) => ({
+          source: f.source,
+          sourceLayer: f.sourceLayer ?? "",
+          id: f.id!,
+        })),
+        true
+      );
+
+      const keep = new Set(
+        survivors.map((f) => buildFeatureKey(f as unknown as SidebarFeature))
+      );
+      setUnfilteredHighlights((prev) => {
+        if (!prev) return prev;
+        const next = prev.filter((f) => keep.has(buildFeatureKey(f)));
+        // null (not []) is the "nothing highlighted" signal the tab gate reads.
+        return next.length > 0 ? next : null;
+      });
+    },
+    [map, clearHighlights, setHighlightingActive, ensureToggledFeatures]
+  );
+
   // Sidebar dismiss: remove a single feature from highlights.
   //
   // Uniform across origination paths (lasso → toggledFeatures, modal search →
@@ -1168,6 +1207,10 @@ const BelisMapLibWrapper = ({
     // each call rescans the whole source. `onMatched` fires once with every hit,
     // so handleLassoMatched builds the cluster index a single time.
     onMatched: handleLassoMatched,
+    // Alt+Shift refine lasso: only useful while something is highlighted, so it
+    // is armed exactly for the duration of a highlight session.
+    refineActive: highlightingActive,
+    onRefine: handleLassoRefine,
   });
 
   // Brandnew FC poll-and-reload: short cadence in localhost (yellow-border
