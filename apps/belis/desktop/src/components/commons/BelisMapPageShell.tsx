@@ -4,7 +4,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { CustomCard } from "./CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
 import type { AppDispatch } from "../../store";
-import { useDatasheet } from "@carma-mapping/engines/maplibre";
+import {
+  useDatasheet,
+  useMapHighlight,
+} from "@carma-mapping/engines/maplibre";
 import { Badge, Button, Spin, Switch, Tooltip } from "antd";
 import { EditOutlined, LockOutlined, SaveOutlined } from "@ant-design/icons";
 import {
@@ -92,6 +95,38 @@ const BelisMapPageShell = () => {
   useEffect(() => {
     setLassoActive(false);
   }, [sidebarVariant]);
+
+  // Shift switches the armed lasso to "refine" mode (keep only the highlighted
+  // features inside the shape). Mirror the key state so the button can show it,
+  // and only while the lasso is armed — no global key listener otherwise.
+  // Refining needs an existing selection, so the mode is real only while
+  // highlighting is on; the button must not promise it otherwise.
+  const { highlightingActive } = useMapHighlight();
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const refineMode = lassoActive && shiftHeld && highlightingActive;
+  useEffect(() => {
+    if (!lassoActive) {
+      setShiftHeld(false);
+      return;
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setShiftHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setShiftHeld(false);
+    };
+    // Releasing Shift while the window is unfocused never reaches us, so the
+    // state would stick — reset whenever focus leaves.
+    const onBlur = () => setShiftHeld(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [lassoActive]);
 
   // Filter-aware highlight list (mirrors the Highlights sidebar tab): the CSV
   // export uses this so it exports exactly the visible selection. The unfiltered
@@ -331,12 +366,16 @@ const BelisMapPageShell = () => {
                   <button
                     onClick={() => setLassoActive((prev) => !prev)}
                     title={
-                      lassoActive
-                        ? "Lasso-Auswahl beenden"
+                      refineMode
+                        ? "Umgrenzung zeichnen: nur markierte Objekte darin bleiben markiert"
+                        : lassoActive
+                        ? "Lasso-Auswahl beenden (Shift: Markierung eingrenzen)"
                         : "Lasso-Auswahl starten"
                     }
                     className={`flex items-center justify-center w-8 h-8 rounded border ${
-                      lassoActive
+                      refineMode
+                        ? "border-orange-500 bg-orange-50 text-orange-500"
+                        : lassoActive
                         ? "border-blue-500 bg-blue-50 text-blue-600"
                         : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
                     }`}
