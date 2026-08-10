@@ -1,8 +1,9 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 
-import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { faBan, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import bbox from "@turf/bbox";
+import { Tooltip } from "antd";
 import type { FeatureCollection } from "geojson";
 
 import Icon from "react-cismap/commons/Icon";
@@ -51,10 +52,12 @@ export const MeasurementInfoBox = ({
     mode,
     selectedFeature,
     selectedId,
+    isDrafting,
     deleteById,
     deselectFeature,
     selectFeature,
     updateTitle,
+    cancelDraft,
   } = useMeasurements();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();
@@ -274,20 +277,37 @@ export const MeasurementInfoBox = ({
             </span>
             {order > 0 && <span className="text-[14px] mr-2">#{order}</span>}
           </span>
-          <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
-            <Icon
-              name="search-location"
-              onClick={handleZoom}
-              className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
-              data-test-id="zoom-measurement-btn"
-            />
-            <FontAwesomeIcon
-              onClick={handleDelete}
-              className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
-              icon={faTrashCan}
-              data-test-id="delete-measurement-btn"
-            />
-          </div>
+          {isDrafting ? (
+            <Tooltip title="Aktuelle Messung abbrechen">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelDraft();
+                }}
+              >
+                <FontAwesomeIcon
+                  icon={faBan}
+                  className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                  data-test-id="cancel-measurement-btn"
+                />
+              </div>
+            </Tooltip>
+          ) : (
+            <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
+              <Icon
+                name="search-location"
+                onClick={handleZoom}
+                className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                data-test-id="zoom-measurement-btn"
+              />
+              <FontAwesomeIcon
+                onClick={handleDelete}
+                className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                icon={faTrashCan}
+                data-test-id="delete-measurement-btn"
+              />
+            </div>
+          )}
         </div>
       }
       collapsibleDiv={

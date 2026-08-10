@@ -23,6 +23,7 @@ type MeasurementsCommands = {
   selectFeature: (id: string) => void;
   deselectAll: () => void;
   updateTitle: (id: MeasurementId, customTitle: string) => void;
+  cancelDraft: () => void;
 };
 
 // Internal bridge between MeasurementHost (publisher) and consumer hooks.
@@ -37,6 +38,7 @@ type MeasurementsRegistry = {
    *  (the consumer already updated `selectedId` locally — see
    *  `selectFeature` / `deselectFeature` below). */
   publishSelection: (id: string | null) => void;
+  publishDraft: (feature: Feature | null) => void;
   setCommands: (commands: MeasurementsCommands | null) => void;
   /** Resolves with the features that should seed terra-draw at host mount.
    * Returns the provider's LIVE `features` state (via ref), not a one-time
@@ -56,11 +58,14 @@ type MeasurementsContextValue = {
   mode: DrawMode;
   selectedId: string | null;
   selectedFeature: Feature | null;
+  draftFeature: Feature | null;
+  isDrafting: boolean;
   clearAll: () => void;
   deleteById: (id: MeasurementId) => void;
   selectFeature: (id: string) => void;
   deselectFeature: () => void;
   updateTitle: (id: MeasurementId, customTitle: string) => void;
+  cancelDraft: () => void;
   __registry: MeasurementsRegistry;
 };
 
@@ -93,6 +98,7 @@ export function MeasurementsProvider({
   // public `selectFeature` / `deselectFeature` (consumer-driven). Cleared
   // automatically when the host unmounts via `setCommands(null)`.
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draftFeature, setDraftFeature] = useState<Feature | null>(null);
   // commandsRef instead of state so the host's setCommands call inside its
   // mount effect doesn't trigger a re-render of every consumer; the
   // public clearAll/deleteById close over the ref and read it lazily.
@@ -132,13 +138,16 @@ export function MeasurementsProvider({
       publishFeatures: (next) => setFeatures(next),
       publishMode: (next) => setMode(next),
       publishSelection: (id) => setSelectedId(id),
+      publishDraft: (feature) => setDraftFeature(feature),
       setCommands: (cmds) => {
         commandsRef.current = cmds;
         // Host unmount drops any selection it was tracking — keep context in
         // sync so a lingering selectedId doesn't leave a stale infobox on
-        // screen after exiting measurement mode.
+        // screen after exiting measurement mode. Same for a draft that was
+        // abandoned mid-draw by leaving measurement mode.
         if (cmds === null) {
           setSelectedId(null);
+          setDraftFeature(null);
         }
       },
       requestInitialFeatures: async () => {
@@ -217,17 +226,26 @@ export function MeasurementsProvider({
     setSelectedId(null);
   }, []);
 
-  const updateTitle = useCallback(
-    (id: MeasurementId, customTitle: string) => {
-      commandsRef.current?.updateTitle(id, customTitle);
-    },
-    []
-  );
+  const updateTitle = useCallback((id: MeasurementId, customTitle: string) => {
+    commandsRef.current?.updateTitle(id, customTitle);
+  }, []);
+
+  const cancelDraft = useCallback(() => {
+    commandsRef.current?.cancelDraft();
+  }, []);
 
   const selectedFeature = useMemo<Feature | null>(() => {
+    if (draftFeature !== null) return draftFeature;
     if (selectedId === null) return null;
     return features.find((f) => String(f.id) === selectedId) ?? null;
-  }, [selectedId, features]);
+  }, [draftFeature, selectedId, features]);
+
+  const effectiveSelectedId = useMemo<string | null>(() => {
+    if (draftFeature !== null) {
+      return draftFeature.id != null ? String(draftFeature.id) : null;
+    }
+    return selectedId;
+  }, [draftFeature, selectedId]);
 
   const value = useMemo<MeasurementsContextValue>(
     () => ({
@@ -235,25 +253,30 @@ export function MeasurementsProvider({
       count: features.length,
       isEmpty: features.length === 0,
       mode,
-      selectedId,
+      selectedId: effectiveSelectedId,
       selectedFeature,
+      draftFeature,
+      isDrafting: draftFeature !== null,
       clearAll,
       deleteById,
       selectFeature,
       deselectFeature,
       updateTitle,
+      cancelDraft,
       __registry: registry,
     }),
     [
       features,
       mode,
-      selectedId,
+      effectiveSelectedId,
       selectedFeature,
+      draftFeature,
       clearAll,
       deleteById,
       selectFeature,
       deselectFeature,
       updateTitle,
+      cancelDraft,
       registry,
     ]
   );
@@ -272,11 +295,14 @@ export type UseMeasurementsResult = {
   mode: DrawMode;
   selectedId: string | null;
   selectedFeature: Feature | null;
+  draftFeature: Feature | null;
+  isDrafting: boolean;
   clearAll: () => void;
   deleteById: (id: MeasurementId) => void;
   selectFeature: (id: string) => void;
   deselectFeature: () => void;
   updateTitle: (id: MeasurementId, customTitle: string) => void;
+  cancelDraft: () => void;
 };
 
 export function useMeasurements(): UseMeasurementsResult {
@@ -293,11 +319,14 @@ export function useMeasurements(): UseMeasurementsResult {
     mode: ctx.mode,
     selectedId: ctx.selectedId,
     selectedFeature: ctx.selectedFeature,
+    draftFeature: ctx.draftFeature,
+    isDrafting: ctx.isDrafting,
     clearAll: ctx.clearAll,
     deleteById: ctx.deleteById,
     selectFeature: ctx.selectFeature,
     deselectFeature: ctx.deselectFeature,
     updateTitle: ctx.updateTitle,
+    cancelDraft: ctx.cancelDraft,
   };
 }
 

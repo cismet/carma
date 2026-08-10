@@ -26,6 +26,7 @@ import {
 import { useMeasurementsRegistry } from "./MeasurementsContext";
 import {
   buildMeasurementStyles,
+  MEASUREMENT_SELECTED_PROPERTY,
   type MeasurementStyleVariant,
 } from "./measurementStyles";
 
@@ -83,6 +84,16 @@ function isGuidanceFeature(feature: Feature): boolean {
 
 function stripGuidanceFeatures<T extends Feature>(features: T[]): T[] {
   return features.filter((f) => !isGuidanceFeature(f));
+}
+
+function stripPseudoSelection<T extends Feature>(features: T[]): T[] {
+  return features.map((f) => {
+    if (!f.properties || !(MEASUREMENT_SELECTED_PROPERTY in f.properties)) {
+      return f;
+    }
+    const { [MEASUREMENT_SELECTED_PROPERTY]: _dropped, ...rest } = f.properties;
+    return { ...f, properties: rest };
+  });
 }
 
 // Back-compat predicate for callers that .filter(isUserFeature) — keeps the
@@ -319,6 +330,8 @@ export const MeasurementHost = forwardRef<
   // swap) so numbering doesn't restart.
   const pointCounterRef = useRef(0);
   const lineCounterRef = useRef(0);
+  const pseudoSelectedIdRef = useRef<string | null>(null);
+  const suspendedPseudoIdRef = useRef<string | null>(null);
 
   const isVertexOfDrawingFeature = (feature: GeoJSONStoreFeatures): boolean => {
     const parentId = feature.properties?.coordinatePointFeatureId;
@@ -564,7 +577,9 @@ export const MeasurementHost = forwardRef<
         console.warn("[carma-measurements] snapshot for publish failed", e);
         return;
       }
-      const userFeatures = stripGuidanceFeatures(snapshot);
+      const userFeatures = stripPseudoSelection(
+        stripGuidanceFeatures(snapshot)
+      );
       // Legacy onChange callback (belis still consumes it). Wrapped in
       // try/catch so a host-side throw doesn't skip the registry publish.
       const cb = onChangeRef.current;
@@ -579,6 +594,72 @@ export const MeasurementHost = forwardRef<
       // see the new snapshot. The registry is non-null by construction —
       // useMeasurementsRegistry() throws if no provider is mounted above.
       registryRef.current.publishFeatures(userFeatures);
+    };
+
+    let draftFrame: number | null = null;
+    let lastDraftId: string | null = null;
+    const publishDraft = () => {
+      if (draftFrame !== null) return;
+      draftFrame = requestAnimationFrame(() => {
+        draftFrame = null;
+        const draw = drawRef.current;
+        if (!draw) return;
+        let snapshot: Feature[];
+        try {
+          snapshot = draw.getSnapshot() as Feature[];
+        } catch {
+          return;
+        }
+        const draft =
+          snapshot.find((f) => f.properties?.currentlyDrawing === true) ?? null;
+
+        if (draft === null && lastDraftId === null) return;
+        lastDraftId = draft?.id != null ? String(draft.id) : null;
+
+        if (draft !== null && pseudoSelectedIdRef.current !== lastDraftId) {
+          if (pseudoSelectedIdRef.current !== null) {
+            suspendedPseudoIdRef.current = pseudoSelectedIdRef.current;
+          }
+          setPseudoSelected(null);
+        }
+        registryRef.current.publishDraft(draft);
+      });
+    };
+
+    const clearDraft = () => {
+      if (draftFrame !== null) {
+        cancelAnimationFrame(draftFrame);
+        draftFrame = null;
+      }
+      if (lastDraftId === null) return;
+      lastDraftId = null;
+      registryRef.current.publishDraft(null);
+    };
+
+    const setPseudoSelected = (id: string | null) => {
+      const draw = drawRef.current;
+      if (!draw) return;
+      const previous = pseudoSelectedIdRef.current;
+      if (previous === id) return;
+      if (previous !== null) {
+        try {
+          draw.updateFeatureProperties(previous, {
+            [MEASUREMENT_SELECTED_PROPERTY]: false,
+          });
+        } catch {
+          // Feature already removed — nothing left to un-highlight.
+        }
+      }
+      pseudoSelectedIdRef.current = id;
+      if (id === null) return;
+      try {
+        draw.updateFeatureProperties(id, {
+          [MEASUREMENT_SELECTED_PROPERTY]: true,
+        });
+      } catch (e) {
+        console.warn("[carma-measurements] pseudo-select failed for id", id, e);
+        pseudoSelectedIdRef.current = null;
+      }
     };
 
     // Lazy cache reader: rebuild only when the styledata listener (or a
@@ -666,7 +747,10 @@ export const MeasurementHost = forwardRef<
       // Defend against localforage data written by an earlier build that
       // persisted terra-draw's selection/midpoint helpers — never re-add
       // them to the store as if they were user geometry.
-      stored = stripGuidanceFeatures(stored);
+      // Also drop a pseudo-selection flag written by an earlier build (or by
+      // a publish that predates the strip above) so a restored measurement
+      // doesn't come back blue without being selected.
+      stored = stripPseudoSelection(stripGuidanceFeatures(stored));
       if (stored.length === 0) return;
       const draw = drawRef.current;
       if (!draw) return;
@@ -789,6 +873,7 @@ export const MeasurementHost = forwardRef<
       // drags coalesce into `finish` at drag-end and are covered there.
       draw.on("change", (_ids, type) => {
         refreshLabels();
+        publishDraft();
         if (type === "delete") {
           publishSnapshot();
         }
@@ -890,6 +975,17 @@ export const MeasurementHost = forwardRef<
         }
         refreshLabels();
         publishSnapshot();
+
+        const finishedByDrawing =
+          modeRef.current === "point" ||
+          modeRef.current === "line" ||
+          modeRef.current === "polygon";
+        if (finishedByDrawing) {
+          clearDraft();
+          suspendedPseudoIdRef.current = null;
+          registryRef.current.publishSelection(String(id));
+          setPseudoSelected(String(id));
+        }
         // Hide the snap preview dot at the moment of commit so it doesn't
         // sit on top of the just-placed feature (the dot and the new point
         // overlap by design — they share the same coord). The next
@@ -902,6 +998,8 @@ export const MeasurementHost = forwardRef<
       // from the dot too, not just new-line drawing.
       draw.on("select", (id) => {
         hasSelectionRef.current = true;
+        suspendedPseudoIdRef.current = null;
+        setPseudoSelected(null);
         const next = id != null ? String(id) : null;
         selectedIdRef.current = next;
         if (!suppressSelectionCallbackRef.current) {
@@ -997,7 +1095,10 @@ export const MeasurementHost = forwardRef<
         // snapshot, see the `if (previousDraw)` branch above).
         if (!initialFeaturesConsumedRef.current) {
           initialFeaturesConsumedRef.current = true;
-          const seed = initialFeaturesRef.current;
+
+          const seed = initialFeaturesRef.current
+            ? stripPseudoSelection(initialFeaturesRef.current)
+            : undefined;
           if (seed && seed.length > 0) {
             try {
               drawRef.current.addFeatures(seed as GeoJSONStoreFeatures[]);
@@ -1068,6 +1169,7 @@ export const MeasurementHost = forwardRef<
           // P7 with no peers in sight.
           pointCounterRef.current = 0;
           lineCounterRef.current = 0;
+          pseudoSelectedIdRef.current = null;
           // Push the empty snapshot to context synchronously. The provider
           // writes the empty array back to localforage on the resulting
           // features state change; the `change` event also fires here and
@@ -1133,6 +1235,32 @@ export const MeasurementHost = forwardRef<
             );
           } finally {
             suppressSelectionCallbackRef.current = false;
+          }
+        },
+        cancelDraft: () => {
+          const draw = drawRef.current;
+          if (!draw) return;
+          // terra-draw has no explicit "abort drawing" call, but leaving a
+          // mode runs its cleanUp, which drops the in-progress feature (the
+          // same path the Escape key takes). Bouncing through the built-in
+          // `static` mode and straight back leaves the user in the mode they
+          // were drawing in, ready for the next measurement. The resulting
+          // `change("delete")` publishes the (unchanged) feature list.
+          const target = toTerraDrawMode(modeRef.current);
+          try {
+            draw.setMode("static");
+            draw.setMode(target);
+          } catch (e) {
+            console.warn("[carma-measurements] cancelDraft failed", e);
+          }
+          clearDraft();
+          // Give the highlight back to the measurement the aborted draft
+          // displaced — the context never stopped selecting it, so map and
+          // infobox would otherwise disagree.
+          const suspended = suspendedPseudoIdRef.current;
+          suspendedPseudoIdRef.current = null;
+          if (suspended !== null) {
+            setPseudoSelected(suspended);
           }
         },
         updateTitle: (id, customTitle) => {
@@ -1314,6 +1442,7 @@ export const MeasurementHost = forwardRef<
         drawRef.current = null;
       }
       map.getCanvas()?.style.removeProperty("cursor");
+      clearDraft();
       // Unregister from the provider so consumers don't invoke callbacks
       // over a stopped terra-draw instance.
       registryRef.current.setCommands(null);
@@ -1368,7 +1497,20 @@ export const MeasurementHost = forwardRef<
     registryRef.current.publishMode(mode);
     const draw = drawRef.current;
     if (!draw) return;
-    draw.setMode(toTerraDrawMode(mode));
+    const terraDrawMode = toTerraDrawMode(mode);
+    draw.setMode(terraDrawMode);
+    const pending = pseudoSelectedIdRef.current;
+    if (terraDrawMode !== "select" || pending === null) return;
+    if (selectedIdRef.current === pending) return;
+    try {
+      draw.selectFeature(pending);
+    } catch (e) {
+      console.warn(
+        "[carma-measurements] could not promote pseudo-selection for id",
+        pending,
+        e
+      );
+    }
   }, [mode]);
 
   // Clear the snap-preview dot the instant snapping is toggled off OR the
@@ -1496,8 +1638,8 @@ export const MeasurementHost = forwardRef<
           // calling publishSnapshot — that function lives in the [map]
           // effect's closure and isn't reachable from this useImperativeHandle.
           try {
-            const userFeatures = stripGuidanceFeatures(
-              draw.getSnapshot() as Feature[]
+            const userFeatures = stripPseudoSelection(
+              stripGuidanceFeatures(draw.getSnapshot() as Feature[])
             );
             onChangeRef.current?.(userFeatures);
             registryRef.current.publishFeatures(userFeatures);

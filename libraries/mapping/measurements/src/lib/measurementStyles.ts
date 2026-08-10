@@ -70,10 +70,23 @@ const HANDLE_FILL_OPACITY = 0.5;
 const HANDLE_OUTLINE_COLOR = "#000000";
 const HANDLE_OUTLINE_WIDTH = 1;
 
-const whileDrawing = <T,>(drawingValue: T, idleValue: T) => {
+/** Custom property the host stamps on a feature that should PAINT as
+ *  selected without terra-draw's select mode actually owning it. Needed
+ *  right after `finish`, where the instance is still in a draw mode and
+ *  `selectFeature()` is not callable, but the just-drawn measurement should
+ *  already read as the active one. Not a terra-draw reserved key. */
+export const MEASUREMENT_SELECTED_PROPERTY = "carmaSelected";
+
+const isPseudoSelected = (feature: GeoJSONStoreFeatures): boolean =>
+  feature.properties?.[MEASUREMENT_SELECTED_PROPERTY] === true;
+
+/** Picks the "active" value while the feature is being drawn OR is flagged
+ *  as pseudo-selected, the idle value otherwise. */
+const whileActive = <T,>(activeValue: T, idleValue: T) => {
   return (feature: GeoJSONStoreFeatures): T => {
-    return feature.properties?.currentlyDrawing === true
-      ? drawingValue
+    return feature.properties?.currentlyDrawing === true ||
+      isPseudoSelected(feature)
+      ? activeValue
       : idleValue;
   };
 };
@@ -135,24 +148,24 @@ const buildCarmaStyles = (
 
   return {
     point: {
-      pointWidth: HANDLE_RADIUS + 1,
-      pointColor: IDLE_COLOR,
+      pointWidth: whileActive(HANDLE_RADIUS + 2, HANDLE_RADIUS + 1),
+      pointColor: whileActive(SELECTED_COLOR, IDLE_COLOR),
       pointOutlineColor: "#ffffff",
       pointOutlineWidth: HANDLE_OUTLINE_WIDTH,
     },
     lineString: {
-      lineStringWidth: whileDrawing(SELECTED_LINE_WIDTH, IDLE_LINE_WIDTH),
-      lineStringColor: whileDrawing(SELECTED_COLOR, IDLE_COLOR),
-      lineStringOpacity: whileDrawing(SELECTED_OPACITY, 1),
+      lineStringWidth: whileActive(SELECTED_LINE_WIDTH, IDLE_LINE_WIDTH),
+      lineStringColor: whileActive(SELECTED_COLOR, IDLE_COLOR),
+      lineStringOpacity: whileActive(SELECTED_OPACITY, 1),
       ...drawAidStyles,
       ...vertexStyles,
     },
     polygon: {
-      outlineWidth: whileDrawing(SELECTED_LINE_WIDTH, IDLE_LINE_WIDTH),
-      outlineColor: whileDrawing(SELECTED_COLOR, IDLE_COLOR),
-      outlineOpacity: whileDrawing(SELECTED_OPACITY, 1),
-      fillColor: whileDrawing(SELECTED_COLOR, IDLE_COLOR),
-      fillOpacity: whileDrawing(FILL_OPACITY, IDLE_FILL_OPACITY),
+      outlineWidth: whileActive(SELECTED_LINE_WIDTH, IDLE_LINE_WIDTH),
+      outlineColor: whileActive(SELECTED_COLOR, IDLE_COLOR),
+      outlineOpacity: whileActive(SELECTED_OPACITY, 1),
+      fillColor: whileActive(SELECTED_COLOR, IDLE_COLOR),
+      fillOpacity: whileActive(FILL_OPACITY, IDLE_FILL_OPACITY),
       ...drawAidStyles,
       ...vertexStyles,
     },
