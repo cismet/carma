@@ -17,7 +17,11 @@ import {
   polygon as turfPolygon,
 } from "@turf/turf";
 import { LassoDrawingManager } from "../lib/LassoDrawingManager";
-import type { DrawShape, RectSize } from "../lib/LassoDrawingManager";
+import type {
+  DrawShape,
+  ModifierKey,
+  RectSize,
+} from "../lib/LassoDrawingManager";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 
@@ -197,6 +201,14 @@ export const useLassoHighlight = ({
   const managerRef = useRef<LassoDrawingManager | null>(null);
   const passiveManagerRef = useRef<LassoDrawingManager | null>(null);
   const refineManagerRef = useRef<LassoDrawingManager | null>(null);
+  const shiftRefineManagerRef = useRef<LassoDrawingManager | null>(null);
+  // Shift alone refines while the toolbar lasso is on and something is
+  // highlighted — the window in which the toolbar manager must let Shift pass.
+  const shiftRefineArmed = active && refineActive;
+  const shiftRefineArmedRef = useRef(shiftRefineArmed);
+  shiftRefineArmedRef.current = shiftRefineArmed;
+  const skipForToolbar = (armed: boolean): ModifierKey[] =>
+    armed ? ["shift"] : ["alt", "shift"];
   const {
     setHighlightingActive,
     ensureToggledFeatures,
@@ -368,9 +380,9 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
-      // Starts on any plain mousedown, so it must stand back for the Alt+Shift
-      // refine lasso — otherwise both would draw at once.
-      skipWhenModifiers: ["alt", "shift"],
+      // Starts on any plain mousedown, so it must stand back for whichever
+      // refine combination is armed — otherwise both would draw at once.
+      skipWhenModifiers: skipForToolbar(shiftRefineArmedRef.current),
     });
     managerRef.current = manager;
 
@@ -466,6 +478,41 @@ export const useLassoHighlight = ({
     if (refineActive) refine?.activate();
     else refine?.deactivate();
   }, [refineActive]);
+
+  // Shift-only refine, for when the toolbar lasso is switched on: there the
+  // plain drag already draws, so Shift alone is the free gesture for "keep only
+  // what's inside". Alt+Shift stays available for the same thing without the
+  // toolbar, hence two managers rather than one.
+  useEffect(() => {
+    if (!map) return;
+
+    const shiftRefine = new LassoDrawingManager({
+      map,
+      onDrawComplete: handleRefineComplete,
+      onDrawCancel: handleDrawCancel,
+      requireModifier: ["shift"],
+      color: REFINE_COLOR,
+    });
+    shiftRefineManagerRef.current = shiftRefine;
+    if (activeRef.current && refineActiveRef.current) shiftRefine.activate();
+
+    return () => {
+      shiftRefine.destroy();
+      shiftRefineManagerRef.current = null;
+    };
+  }, [map, handleRefineComplete, handleDrawCancel]);
+
+  // The toolbar manager starts on any plain mousedown, so it has to stand back
+  // from Shift for exactly the window in which shift-refine is armed —
+  // otherwise Shift would either draw two lassos or, once refine is off again,
+  // fall through to MapLibre's box zoom instead of the normal blue lasso.
+  useEffect(() => {
+    const shiftRefine = shiftRefineManagerRef.current;
+    if (shiftRefineArmed) shiftRefine?.activate();
+    else shiftRefine?.deactivate();
+    managerRef.current?.setSkipWhenModifiers(skipForToolbar(shiftRefineArmed));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shiftRefineArmed]);
 
   // Activate/deactivate when active prop changes.
   // When explicit lasso is on, deactivate the passive manager (avoid conflict).
