@@ -25,16 +25,16 @@ const MEASUREMENT_HELP_TEXT: Record<Exclude<DrawMode, "none">, string[]> = {
     "Stützpunkte können per Drag-and-Drop verschoben werden.",
   ],
   point: [
-    "Klick auf eine Position in der Karte setzt dort eine Punktmessung.",
+    "Eine Position in der Karte anklicken, um dort einen Messpunkt zu setzen.",
     "Jeder weitere Klick erstellt sofort eine neue Punktmessung.",
   ],
   line: [
-    "Punkte nacheinander setzen, um eine Linienmessung zu erstellen.",
+    "Eine Folge von Positionen in der Karte anklicken, um einen Linienzug zu messen.",
     "Doppelklick schließt die Messung ab.",
   ],
   polygon: [
-    "Punkte nacheinander setzen, um eine Flächenmessung zu erstellen.",
-    "Doppelklick schließt die Fläche ab.",
+    "Eine Folge von Positionen in der Karte anklicken, um eine Fläche zu messen.",
+    "Doppelklick oder erneutes Anklicken des Startpunktes schließt die Flächenmessung ab.",
   ],
 };
 
