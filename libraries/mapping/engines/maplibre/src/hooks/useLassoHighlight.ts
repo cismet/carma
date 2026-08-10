@@ -19,6 +19,110 @@ import {
 import { LassoDrawingManager } from "../lib/LassoDrawingManager";
 import type { DrawShape, RectSize } from "../lib/LassoDrawingManager";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
+import { buildFeatureStateTarget } from "../utils/featureStateTarget";
+
+type LassoSources = Array<{ source: string; sourceLayers: string[] }>;
+
+/** Orange, to tell the refine lasso apart from the blue additive one. */
+const REFINE_COLOR = "#f97316";
+
+/**
+ * Every feature of the configured sources whose geometry falls inside the
+ * lasso, deduplicated by sourceLayer + database id. Geojson hits get their
+ * `sourceLayer` stamped from properties._sourceLayer (the CARMA convention).
+ */
+function collectFeaturesInPolygon(
+  map: MaplibreMap,
+  lassoPolygon: Polygon,
+  configuredSources: LassoSources | undefined
+): MapGeoJSONFeature[] {
+  // 1. Compute pixel bounding box from polygon vertices
+  const ring = lassoPolygon.coordinates[0];
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const coord of ring) {
+    const px = map.project([coord[0], coord[1]]);
+    if (px.x < minX) minX = px.x;
+    if (px.y < minY) minY = px.y;
+    if (px.x > maxX) maxX = px.x;
+    if (px.y > maxY) maxY = px.y;
+  }
+  // Pad by 1px to catch edge features
+  const bboxSW: [number, number] = [minX - 1, minY - 1];
+  const bboxNE: [number, number] = [maxX + 1, maxY + 1];
+
+  // 2. Query rendered features in bounding box
+  const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
+
+  // 3. Build a turf polygon for spatial tests
+  const turfLasso = turfPolygon(lassoPolygon.coordinates);
+
+  // 4. Filter and spatial test
+  const seen = new Set<string>();
+  const matched: MapGeoJSONFeature[] = [];
+
+  for (const f of candidates) {
+    // Skip features without id (setFeatureState requires it)
+    if (f.id == null) continue;
+    // Skip lasso's own visual layer
+    if (f.source === "__carma-lasso-source") continue;
+    // Skip features without geometry
+    if (!f.geometry) continue;
+
+    const featureSource = f.source;
+    // Geojson features carry no native sourceLayer; the convention
+    // is to stamp it into properties._sourceLayer.
+    const isGeojson = map.getSource(featureSource)?.type === "geojson";
+    const featureSourceLayer = isGeojson
+      ? String(
+          (f.properties as Record<string, unknown>)?._sourceLayer ??
+            f.sourceLayer ??
+            ""
+        )
+      : f.sourceLayer ?? "";
+    if (isGeojson && !f.sourceLayer) {
+      (f as MapGeoJSONFeature & { sourceLayer?: string }).sourceLayer =
+        featureSourceLayer;
+    }
+
+    // Source filter: only keep features from configured sources
+    if (configuredSources) {
+      const match = configuredSources.some(
+        (s) =>
+          s.source === featureSource &&
+          s.sourceLayers.includes(featureSourceLayer)
+      );
+      if (!match) continue;
+    }
+
+    // Spatial test
+    let inside = false;
+    try {
+      if (f.geometry.type === "Point") {
+        inside = booleanPointInPolygon(f.geometry as Point, turfLasso);
+      } else {
+        inside = booleanIntersects(f.geometry, turfLasso);
+      }
+    } catch {
+      // If turf can't handle the geometry, skip
+      continue;
+    }
+
+    if (!inside) continue;
+
+    // Dedup by sourceLayer::databasePK (same pattern as useMapHighlighting)
+    const dbId = String((f.properties as Record<string, unknown>)?.id ?? f.id);
+    const dedupKey = `${featureSourceLayer}::${dbId}`;
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
+
+    matched.push(f);
+  }
+
+  return matched;
+}
 
 export interface UseLassoHighlightOptions {
   map: MaplibreMap | null;
@@ -40,7 +144,21 @@ export interface UseLassoHighlightOptions {
   /** Reports the size a rectangle drag settled on. */
   onRectSizeChange?: (size: RectSize) => void;
   /** Filter results to specific sources. If omitted, all rendered features are candidates. */
-  sources?: Array<{ source: string; sourceLayers: string[] }>;
+  sources?: LassoSources;
+  /**
+   * Arms the Alt+Shift "refine" lasso (orange): it narrows the CURRENT
+   * highlight set instead of adding to it — highlighted features inside the
+   * polygon stay, all other highlights are dropped. Meant to be on whenever a
+   * highlight session is running (search, alt+click, previous lasso).
+   */
+  refineActive?: boolean;
+  /**
+   * Called after a refine lasso with the features that were highlighted AND
+   * inside the polygon. Taking this callback means taking full ownership of
+   * highlight state (same contract as `onMatched`); without it the hook freezes
+   * the survivors itself via clearHighlights + ensureToggledFeatures.
+   */
+  onRefine?: (survivors: MapGeoJSONFeature[]) => void;
   /** Called when the user presses Escape to exit lasso mode. */
   onDeactivate?: () => void;
   /** Called after lasso completes with the toggled features (for sidebar updates). */
@@ -69,15 +187,22 @@ export const useLassoHighlight = ({
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
+  refineActive = false,
   onDeactivate,
   onToggle,
   onMatched,
+  onRefine,
 }: UseLassoHighlightOptions): UseLassoHighlightResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const managerRef = useRef<LassoDrawingManager | null>(null);
   const passiveManagerRef = useRef<LassoDrawingManager | null>(null);
-  const { setHighlightingActive, ensureToggledFeatures, criteria } =
-    useMapHighlight();
+  const refineManagerRef = useRef<LassoDrawingManager | null>(null);
+  const {
+    setHighlightingActive,
+    ensureToggledFeatures,
+    clearHighlights,
+    criteria,
+  } = useMapHighlight();
 
   // Stable refs for the callback so we don't recreate the manager on every render
   const sourcesRef = useRef(sources);
@@ -96,99 +221,21 @@ export const useLassoHighlight = ({
   onCircleRadiusChangeRef.current = onCircleRadiusChange;
   const onRectSizeChangeRef = useRef(onRectSizeChange);
   onRectSizeChangeRef.current = onRectSizeChange;
+  const onRefineRef = useRef(onRefine);
+  onRefineRef.current = onRefine;
+  const clearRef = useRef(clearHighlights);
+  clearRef.current = clearHighlights;
 
   const handleDrawComplete = useCallback(
     (lassoPolygon: Polygon) => {
       setIsDrawing(false);
       if (!map) return;
 
-      // 1. Compute pixel bounding box from polygon vertices
-      const ring = lassoPolygon.coordinates[0];
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (const coord of ring) {
-        const px = map.project([coord[0], coord[1]]);
-        if (px.x < minX) minX = px.x;
-        if (px.y < minY) minY = px.y;
-        if (px.x > maxX) maxX = px.x;
-        if (px.y > maxY) maxY = px.y;
-      }
-      // Pad by 1px to catch edge features
-      const bboxSW: [number, number] = [minX - 1, minY - 1];
-      const bboxNE: [number, number] = [maxX + 1, maxY + 1];
-
-      // 2. Query rendered features in bounding box
-      const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
-
-      // 3. Build a turf polygon for spatial tests
-      const turfLasso = turfPolygon(lassoPolygon.coordinates);
-
-      // 4. Filter and spatial test
-      const configuredSources = sourcesRef.current;
-      const seen = new Set<string>();
-      const matched: MapGeoJSONFeature[] = [];
-
-      for (const f of candidates) {
-        // Skip features without id (setFeatureState requires it)
-        if (f.id == null) continue;
-        // Skip lasso's own visual layer
-        if (f.source === "__carma-lasso-source") continue;
-        // Skip features without geometry
-        if (!f.geometry) continue;
-
-        const featureSource = f.source;
-        // Geojson features carry no native sourceLayer; the convention
-        // is to stamp it into properties._sourceLayer.
-        const isGeojson = map.getSource(featureSource)?.type === "geojson";
-        const featureSourceLayer = isGeojson
-          ? String(
-              (f.properties as Record<string, unknown>)?._sourceLayer ??
-                f.sourceLayer ??
-                ""
-            )
-          : f.sourceLayer ?? "";
-        if (isGeojson && !f.sourceLayer) {
-          (f as MapGeoJSONFeature & { sourceLayer?: string }).sourceLayer =
-            featureSourceLayer;
-        }
-
-        // Source filter: only keep features from configured sources
-        if (configuredSources) {
-          const match = configuredSources.some(
-            (s) =>
-              s.source === featureSource &&
-              s.sourceLayers.includes(featureSourceLayer)
-          );
-          if (!match) continue;
-        }
-
-        // Spatial test
-        let inside = false;
-        try {
-          if (f.geometry.type === "Point") {
-            inside = booleanPointInPolygon(f.geometry as Point, turfLasso);
-          } else {
-            inside = booleanIntersects(f.geometry, turfLasso);
-          }
-        } catch {
-          // If turf can't handle the geometry, skip
-          continue;
-        }
-
-        if (!inside) continue;
-
-        // Dedup by sourceLayer::databasePK (same pattern as useMapHighlighting)
-        const dbId = String(
-          (f.properties as Record<string, unknown>)?.id ?? f.id
-        );
-        const dedupKey = `${featureSourceLayer}::${dbId}`;
-        if (seen.has(dedupKey)) continue;
-        seen.add(dedupKey);
-
-        matched.push(f);
-      }
+      const matched = collectFeaturesInPolygon(
+        map,
+        lassoPolygon,
+        sourcesRef.current
+      );
 
       if (matched.length === 0) return;
 
@@ -236,6 +283,62 @@ export const useLassoHighlight = ({
     [map]
   );
 
+  /**
+   * Refine (Alt+Shift): narrow the current highlight set to the part inside the
+   * polygon. "Currently highlighted" is read from the map's own feature-state —
+   * the single truth across every origin (street search via propertyMatchers,
+   * expert search via queryIds, alt+click / lasso via toggledFeatures), so the
+   * gesture behaves identically no matter how the selection was made.
+   */
+  const handleRefineComplete = useCallback(
+    (lassoPolygon: Polygon) => {
+      setIsDrawing(false);
+      if (!map) return;
+
+      const inside = collectFeaturesInPolygon(
+        map,
+        lassoPolygon,
+        sourcesRef.current
+      );
+      const survivors = inside.filter((f) =>
+        Boolean(
+          map.getFeatureState(
+            buildFeatureStateTarget(map, {
+              source: f.source,
+              sourceLayer: f.sourceLayer ?? "",
+              id: f.id!,
+            })
+          ).highlighted
+        )
+      );
+
+      // Nothing highlighted inside: treat as a stray gesture and keep the
+      // current selection rather than wiping it.
+      if (survivors.length === 0) return;
+
+      if (onRefineRef.current) {
+        onRefineRef.current(survivors);
+        return;
+      }
+
+      // Standalone path: freeze the survivors into an explicit set. Clearing
+      // first drops the matchers/queryIds that produced the original selection,
+      // so features outside the polygon can no longer re-light when their tiles
+      // reload on pan or zoom.
+      clearRef.current();
+      setActiveRef.current(true);
+      ensureRef.current(
+        survivors.map((f) => ({
+          source: f.source,
+          sourceLayer: f.sourceLayer ?? "",
+          id: f.id!,
+        })),
+        true
+      );
+    },
+    [map]
+  );
+
   const handleDrawCancel = useCallback(() => {
     setIsDrawing(false);
   }, []);
@@ -265,6 +368,9 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
+      // Starts on any plain mousedown, so it must stand back for the Alt+Shift
+      // refine lasso — otherwise both would draw at once.
+      skipWhenModifiers: ["alt", "shift"],
     });
     managerRef.current = manager;
 
@@ -330,6 +436,37 @@ export const useLassoHighlight = ({
     };
   }, [map, handleDrawComplete, handleDrawCancel]);
 
+  // Alt+Shift refine manager. Armed by `refineActive` and independent of the
+  // other two: the exact-modifier match keeps Alt-only and Alt+Shift apart.
+  const refineActiveRef = useRef(refineActive);
+  refineActiveRef.current = refineActive;
+  useEffect(() => {
+    if (!map) return;
+
+    const refine = new LassoDrawingManager({
+      map,
+      onDrawComplete: handleRefineComplete,
+      onDrawCancel: handleDrawCancel,
+      requireModifier: ["alt", "shift"],
+      color: REFINE_COLOR,
+    });
+    refineManagerRef.current = refine;
+    // Recreated on map change: honor the current arming right away, the
+    // effect below only fires on `refineActive` transitions.
+    if (refineActiveRef.current) refine.activate();
+
+    return () => {
+      refine.destroy();
+      refineManagerRef.current = null;
+    };
+  }, [map, handleRefineComplete, handleDrawCancel]);
+
+  useEffect(() => {
+    const refine = refineManagerRef.current;
+    if (refineActive) refine?.activate();
+    else refine?.deactivate();
+  }, [refineActive]);
+
   // Activate/deactivate when active prop changes.
   // When explicit lasso is on, deactivate the passive manager (avoid conflict).
   // When explicit lasso is off, activate the passive manager.
@@ -368,7 +505,8 @@ export const useLassoHighlight = ({
     const updateDrawing = () => {
       const drawing =
         (managerRef.current?.isDrawing() ?? false) ||
-        (passiveManagerRef.current?.isDrawing() ?? false);
+        (passiveManagerRef.current?.isDrawing() ?? false) ||
+        (refineManagerRef.current?.isDrawing() ?? false);
       setIsDrawing((prev) => (prev !== drawing ? drawing : prev));
     };
 

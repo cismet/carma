@@ -66,6 +66,10 @@ export const DEFAULT_RECT_HEIGHT = 250;
 
 export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
 
+const ALL_MODIFIERS: ModifierKey[] = ["alt", "ctrl", "shift", "meta"];
+
+const DEFAULT_COLOR = "#3388ff";
+
 /** How the selection area is drawn. */
 export type DrawShape = "lasso" | "circle" | "rect";
 
@@ -81,8 +85,22 @@ export interface LassoDrawingManagerOptions {
   onDrawCancel: () => void;
   /** Minimum points required to form a polygon. Default: 3 */
   minPoints?: number;
-  /** When set, only start drawing if this modifier key is held. No cursor change. */
-  requireModifier?: ModifierKey | null;
+  /**
+   * When set, only start drawing while exactly these modifier keys are held —
+   * every listed key down AND every other modifier up. The "others up" half
+   * matters as soon as two managers coexist: an "alt" manager must not fire on
+   * Alt+Shift, or it would draw alongside the Alt+Shift manager.
+   * No cursor change.
+   */
+  requireModifier?: ModifierKey | ModifierKey[] | null;
+  /**
+   * Skip the mousedown while ALL of these modifiers are held. For the
+   * no-modifier (toolbar) manager, which otherwise starts on any mousedown and
+   * would collide with a modifier-driven manager.
+   */
+  skipWhenModifiers?: ModifierKey[];
+  /** Outline + fill color of the drawn shape. Default: blue. */
+  color?: string;
   /** Shape drawn on a drag. Default: "lasso" */
   shape?: DrawShape;
   /** Radius in metres used when the circle is placed by a click. Default: 250 */
@@ -102,7 +120,9 @@ export class LassoDrawingManager {
   private onDrawComplete: (polygon: Polygon) => void;
   private onDrawCancel: () => void;
   private minPoints: number;
-  private requireModifier: ModifierKey | null;
+  private requireModifiers: ModifierKey[];
+  private skipWhenModifiers: ModifierKey[];
+  private color: string;
 
   private shape: DrawShape;
   private circleRadius: number;
@@ -116,6 +136,7 @@ export class LassoDrawingManager {
   private coords: Position[] = [];
   private lastScreenX = 0;
   private lastScreenY = 0;
+  private boxZoomSuspended = false;
 
   /** circle and rect: the mousedown point, whether the drag left the click
    *  tolerance, and the measurements the gesture currently describes. The
@@ -138,13 +159,19 @@ export class LassoDrawingManager {
   private handleMouseDown = (e: MapMouseEvent) => this.onMouseDown(e);
   private handleMouseMove = (e: MapMouseEvent) => this.onMouseMove(e);
   private handleDocumentMouseUp = () => this.onMouseUp();
+  private handleCaptureMouseDown = (e: MouseEvent) =>
+    this.onCaptureMouseDown(e);
+  private handleRestoreBoxZoom = () => this.restoreBoxZoom();
 
   constructor(options: LassoDrawingManagerOptions) {
     this.map = options.map;
     this.onDrawComplete = options.onDrawComplete;
     this.onDrawCancel = options.onDrawCancel;
     this.minPoints = options.minPoints ?? 3;
-    this.requireModifier = options.requireModifier ?? null;
+    const req = options.requireModifier ?? null;
+    this.requireModifiers = req == null ? [] : Array.isArray(req) ? req : [req];
+    this.skipWhenModifiers = options.skipWhenModifiers ?? [];
+    this.color = options.color ?? DEFAULT_COLOR;
     this.shape = options.shape ?? "lasso";
     this.circleRadius = options.circleRadius ?? DEFAULT_CIRCLE_RADIUS;
     this.rectSize = options.rectSize ?? {
@@ -180,10 +207,20 @@ export class LassoDrawingManager {
 
     // Always register the mousedown handler immediately so drawing works
     // even if the style/source is still loading (e.g. after clearVisual).
-    if (!this.requireModifier) {
+    if (this.requireModifiers.length === 0) {
       this.map.getCanvas().style.cursor = "crosshair";
     }
     this.map.on("mousedown", this.handleMouseDown);
+
+    // Shift+drag is MapLibre's own box zoom, and it ignores the other modifier
+    // keys — so an Alt+Shift lasso would zoom as well. Suspend box zoom for the
+    // duration of exactly our combination, in the capture phase so we run
+    // before MapLibre's handler on the canvas container.
+    if (this.requireModifiers.includes("shift")) {
+      this.map
+        .getCanvasContainer()
+        .addEventListener("mousedown", this.handleCaptureMouseDown, true);
+    }
 
     if (this.map.isStyleLoaded()) {
       this.ensureSourceAndLayers();
@@ -201,10 +238,16 @@ export class LassoDrawingManager {
       this.cancelDraw();
     }
     this.active = false;
-    if (!this.requireModifier) {
+    if (this.requireModifiers.length === 0) {
       this.map.getCanvas().style.cursor = "";
     }
     this.map.off("mousedown", this.handleMouseDown);
+    if (this.requireModifiers.includes("shift")) {
+      this.map
+        .getCanvasContainer()
+        .removeEventListener("mousedown", this.handleCaptureMouseDown, true);
+    }
+    this.restoreBoxZoom();
     this.clearVisual();
   }
 
@@ -222,24 +265,66 @@ export class LassoDrawingManager {
   // Drawing lifecycle
   // ---------------------------------------------------------------------------
 
+  /** Is `key` held in this mouse event? */
+  private static isHeld(e: MouseEvent, key: ModifierKey): boolean {
+    return key === "alt"
+      ? e.altKey
+      : key === "ctrl"
+      ? e.ctrlKey
+      : key === "shift"
+      ? e.shiftKey
+      : e.metaKey;
+  }
+
+  /** Exact modifier match: every required key down, every other one up. */
+  private modifiersMatch(e: MouseEvent): boolean {
+    if (this.requireModifiers.length === 0) {
+      // No requirement: any modifier state goes, except an explicitly excluded
+      // combination owned by another manager.
+      return (
+        this.skipWhenModifiers.length === 0 ||
+        !this.skipWhenModifiers.every((k) => LassoDrawingManager.isHeld(e, k))
+      );
+    }
+    return ALL_MODIFIERS.every(
+      (k) =>
+        LassoDrawingManager.isHeld(e, k) === this.requireModifiers.includes(k)
+    );
+  }
+
+  /** Capture-phase mousedown: suspend box zoom while our combination is held. */
+  private onCaptureMouseDown(e: MouseEvent): void {
+    if (!this.active || e.button !== 0) return;
+    if (!this.modifiersMatch(e)) return;
+    if (this.boxZoomSuspended || !this.map.boxZoom.isEnabled()) return;
+    this.boxZoomSuspended = true;
+    this.map.boxZoom.disable();
+    // Restore even when no draw happens (too few points, click without drag).
+    document.addEventListener("mouseup", this.handleRestoreBoxZoom, {
+      once: true,
+      capture: true,
+    });
+  }
+
+  private restoreBoxZoom(): void {
+    if (!this.boxZoomSuspended) return;
+    this.boxZoomSuspended = false;
+    document.removeEventListener("mouseup", this.handleRestoreBoxZoom, true);
+    this.map.boxZoom.enable();
+  }
+
   private onMouseDown(e: MapMouseEvent): void {
     // Only left button
     if (e.originalEvent.button !== 0) return;
 
-    // If a modifier key is required, check it before starting the draw
-    if (this.requireModifier) {
-      const orig = e.originalEvent;
-      const held =
-        (this.requireModifier === "alt" && orig.altKey) ||
-        (this.requireModifier === "ctrl" && orig.ctrlKey) ||
-        (this.requireModifier === "shift" && orig.shiftKey) ||
-        (this.requireModifier === "meta" && orig.metaKey);
-      if (!held) return;
-    }
+    if (!this.modifiersMatch(e.originalEvent)) return;
 
     e.preventDefault();
     // Lazy-init source/layers in case activate() deferred them
     this.ensureSourceAndLayers();
+    // Source and layers are shared by all managers on this map, so the color
+    // belongs to whoever is drawing right now (only one ever is).
+    this.applyColor();
     // Ensure lasso layers render on top of all other layers (imperative
     // background/data layers may have been added after the lasso layers).
     this.moveLayersToTop();
@@ -360,7 +445,7 @@ export class LassoDrawingManager {
       // modifier click already toggles the feature under the cursor. Placing a
       // configured circle on top of it would select its whole neighbourhood as
       // well. Only a real drag counts there.
-      if (!this.dragged && this.requireModifier) {
+      if (!this.dragged && this.requireModifiers.length > 0) {
         this.cancelDraw();
         return;
       }
@@ -552,7 +637,7 @@ export class LassoDrawingManager {
       source: SOURCE_ID,
       filter: ["==", "$type", "Polygon"],
       paint: {
-        "fill-color": "#3388ff",
+        "fill-color": this.color,
         "fill-opacity": 0.1,
       },
     });
@@ -562,10 +647,23 @@ export class LassoDrawingManager {
       type: "line",
       source: SOURCE_ID,
       paint: {
-        "line-color": "#3388ff",
+        "line-color": this.color,
         "line-width": 1.5,
       },
     });
+  }
+
+  private applyColor(): void {
+    try {
+      if (this.map.getLayer(FILL_LAYER_ID)) {
+        this.map.setPaintProperty(FILL_LAYER_ID, "fill-color", this.color);
+      }
+      if (this.map.getLayer(LINE_LAYER_ID)) {
+        this.map.setPaintProperty(LINE_LAYER_ID, "line-color", this.color);
+      }
+    } catch {
+      // Layers may not exist yet; they are created with the right color anyway.
+    }
   }
 
   /** Fix self-intersecting polygon by splitting into simple parts and merging. */
