@@ -12,6 +12,8 @@ import type {
 
 export const LABEL_SOURCE_ID = "carma-measurements-labels";
 export const LABEL_LAYER_ID = "carma-measurements-labels-symbols";
+export const LABEL_ROTATED_LAYER_ID =
+  "carma-measurements-labels-rotated-symbols";
 
 const numberFormatInteger = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 0,
@@ -42,6 +44,32 @@ export function formatAreaSquareMeters(squareMeters: number): string {
 
 function midpoint([ax, ay]: Position, [bx, by]: Position): Position {
   return [(ax + bx) / 2, (ay + by) / 2];
+}
+
+const DEG_TO_RAD = Math.PI / 180;
+const MERCATOR_MAX_LAT = 85.051129;
+
+function mercatorY(lat: number): number {
+  const clamped = Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, lat));
+  return Math.log(Math.tan(Math.PI / 4 + (clamped * DEG_TO_RAD) / 2));
+}
+
+function segmentRotationDegrees(a: Position, b: Position): number {
+  const dx = (b[0] - a[0]) * DEG_TO_RAD;
+  const dy = mercatorY(b[1]) - mercatorY(a[1]);
+  if (dx === 0 && dy === 0) {
+    return 0;
+  }
+  // atan2 is counter-clockwise from east and mercator y grows northwards,
+  // while text-rotate turns clockwise on screen — hence the sign flip.
+  let degrees = -Math.atan2(dy, dx) / DEG_TO_RAD;
+  while (degrees > 90) {
+    degrees -= 180;
+  }
+  while (degrees <= -90) {
+    degrees += 180;
+  }
+  return Math.round(degrees * 10) / 10;
 }
 
 function segmentLengthMeters(a: Position, b: Position): number {
@@ -106,7 +134,11 @@ export function buildLabelFeatures(
               type: "Point",
               coordinates: midpoint(ring[i], ring[i + 1]),
             },
-            properties: { kind: "segment", label: formatMeters(meters) },
+            properties: {
+              kind: "segment",
+              label: formatMeters(meters),
+              rotation: segmentRotationDegrees(ring[i], ring[i + 1]),
+            },
           });
         }
       }
@@ -156,6 +188,7 @@ export function buildLabelFeatures(
         properties: {
           kind: "segment",
           label: formatMeters(meters),
+          rotation: segmentRotationDegrees(coords[i], coords[i + 1]),
         },
       });
     }
@@ -174,6 +207,12 @@ export function buildLabelFeatures(
           properties: {
             kind: "total",
             label: formatMeters(totalMeters),
+            // Aligned with the LAST segment: the total sits on the line's
+            // end vertex, so that is the edge it visually belongs to.
+            rotation: segmentRotationDegrees(
+              coords[coords.length - 2],
+              coords[coords.length - 1]
+            ),
           },
         });
       }

@@ -13,7 +13,12 @@ import type { Feature } from "geojson";
 import type { GeoJSONSource } from "maplibre-gl";
 
 import type { DrawMode } from "./MeasurementControls";
-import { LABEL_LAYER_ID, LABEL_SOURCE_ID, buildLabelFeatures } from "./labels";
+import {
+  LABEL_LAYER_ID,
+  LABEL_ROTATED_LAYER_ID,
+  LABEL_SOURCE_ID,
+  buildLabelFeatures,
+} from "./labels";
 import {
   findSnapTarget,
   getSnappableLayerIds,
@@ -35,6 +40,10 @@ const SNAP_PREVIEW_SOURCE_ID = "carma-measurements-snap-preview";
 const SNAP_PREVIEW_LAYER_ID = "carma-measurements-snap-preview-circle";
 const SNAP_RADIUS_SOURCE_ID = "carma-measurements-snap-radius";
 const SNAP_RADIUS_LAYER_ID = "carma-measurements-snap-radius-circle";
+
+// Both label layers share LABEL_SOURCE_ID and are always created, shown,
+// re-stacked and torn down together; only their alignment differs.
+const ALL_LABEL_LAYER_IDS = [LABEL_LAYER_ID, LABEL_ROTATED_LAYER_ID];
 
 const EMPTY_FC = { type: "FeatureCollection" as const, features: [] };
 const EMPTY_OPTED_IN: ReadonlySet<string> = new Set();
@@ -503,17 +512,22 @@ export const MeasurementHost = forwardRef<
           id: LABEL_LAYER_ID,
           type: "symbol",
           source: LABEL_SOURCE_ID,
+          // Length labels are drawn by LABEL_ROTATED_LAYER_ID instead —
+          // they need map-aligned rotation, which is layout-only and
+          // therefore not expressible per feature (see labels.ts).
+          filter: [
+            "!",
+            ["in", ["get", "kind"], ["literal", ["segment", "total"]]],
+          ],
           layout: {
             "text-field": ["get", "label"],
             // Two visual styles in one layer driven by `kind`:
             //   - "title"   → matches the belis fachobjekte label style
             //                 (Open Sans Bold, zoom-interpolated size, left
             //                 anchor with radial offset).
-            //   - everything else ("segment", "total", "area") → compact
-            //                 (Noto Sans Regular, 12px, centered above its
-            //                 anchor point). "total" deliberately looks like a
-            //                 segment label; only its position at the line's
-            //                 end vertex distinguishes it.
+            //   - "area"    → compact (Noto Sans Regular, 12px, centered on
+            //                 its anchor point), matching the length labels
+            //                 drawn by LABEL_ROTATED_LAYER_ID.
             // Both fonts must be served by the cismet glyph server, which
             // every CARMA app sets via `overrideGlyphs` at the CarmaMap
             // level.
@@ -573,6 +587,31 @@ export const MeasurementHost = forwardRef<
           },
         });
       }
+      if (!map.getLayer(LABEL_ROTATED_LAYER_ID)) {
+        map.addLayer({
+          id: LABEL_ROTATED_LAYER_ID,
+          type: "symbol",
+          source: LABEL_SOURCE_ID,
+          filter: ["in", ["get", "kind"], ["literal", ["segment", "total"]]],
+          layout: {
+            "text-field": ["get", "label"],
+            "text-font": ["literal", ["Noto Sans Regular"]],
+            "text-size": 12,
+            "text-anchor": "center",
+            "text-rotation-alignment": "map",
+            "text-rotate": ["get", "rotation"],
+            "text-pitch-alignment": "viewport",
+            "text-offset": [0, -0.8],
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+          },
+          paint: {
+            "text-color": "#111",
+            "text-halo-color": "#FFFFFF",
+            "text-halo-width": 2,
+          },
+        });
+      }
     };
 
     const refreshLabels = () => {
@@ -590,8 +629,10 @@ export const MeasurementHost = forwardRef<
         // yet), which means line strokes end up obscuring the labels.
         // Re-asserting the label layer to the top on every refresh fixes
         // the order; moveLayer on an already-top layer is a near-no-op.
-        if (map.getLayer(LABEL_LAYER_ID)) {
-          map.moveLayer(LABEL_LAYER_ID);
+        for (const layerId of ALL_LABEL_LAYER_IDS) {
+          if (map.getLayer(layerId)) {
+            map.moveLayer(layerId);
+          }
         }
       } catch (e) {
         console.warn("[carma-measurements] label rebuild failed", e);
@@ -1131,12 +1172,14 @@ export const MeasurementHost = forwardRef<
       // Apply current label visibility — the layer is created with maplibre's
       // default ("visible"), so this only matters when the host has the
       // labels-off prop set at attach time (initial mount or basemap swap).
-      if (map.getLayer(LABEL_LAYER_ID)) {
-        map.setLayoutProperty(
-          LABEL_LAYER_ID,
-          "visibility",
-          labelsVisible ? "visible" : "none"
-        );
+      for (const layerId of ALL_LABEL_LAYER_IDS) {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(
+            layerId,
+            "visibility",
+            labelsVisible ? "visible" : "none"
+          );
+        }
       }
       // Wipe any stale dot / radius left over from the previous style; the
       // next mousemove will paint them back if appropriate.
@@ -1453,7 +1496,7 @@ export const MeasurementHost = forwardRef<
       // cleans up its own `td-*` layers/sources inside stop() above,
       // so we only handle our own ids here.
       for (const layerId of [
-        LABEL_LAYER_ID,
+        ...ALL_LABEL_LAYER_IDS,
         SNAP_PREVIEW_LAYER_ID,
         SNAP_RADIUS_LAYER_ID,
       ]) {
@@ -1536,12 +1579,14 @@ export const MeasurementHost = forwardRef<
   // (refreshLabels still runs); only the symbol layer's visibility flips.
   useEffect(() => {
     if (!map) return;
-    if (!map.getLayer(LABEL_LAYER_ID)) return;
-    map.setLayoutProperty(
-      LABEL_LAYER_ID,
-      "visibility",
-      labelsVisible ? "visible" : "none"
-    );
+    for (const layerId of ALL_LABEL_LAYER_IDS) {
+      if (!map.getLayer(layerId)) continue;
+      map.setLayoutProperty(
+        layerId,
+        "visibility",
+        labelsVisible ? "visible" : "none"
+      );
+    }
   }, [map, labelsVisible]);
 
   // React to the snap-radius slider: update the rendered debug circle's

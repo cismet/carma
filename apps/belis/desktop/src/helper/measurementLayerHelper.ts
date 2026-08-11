@@ -1,5 +1,13 @@
 import type maplibregl from "maplibre-gl";
-import { LABEL_LAYER_ID as MEASUREMENT_LABEL_LAYER_ID } from "@carma-mapping/measurements";
+import {
+  LABEL_LAYER_ID,
+  LABEL_ROTATED_LAYER_ID,
+} from "@carma-mapping/measurements";
+
+const MEASUREMENT_LABEL_LAYER_IDS: readonly string[] = [
+  LABEL_LAYER_ID,
+  LABEL_ROTATED_LAYER_ID,
+];
 
 // Measurement features are an annotation overlay that must sit on top of
 // everything — including the background raster. terra-draw renders the
@@ -42,8 +50,8 @@ export const attachMeasurementsOnTop = (map: maplibregl.Map): (() => void) => {
     const ids = allLayers.map((l) => l.id).filter(isMeasurementLayerId);
     ids.sort(
       (a, b) =>
-        Number(a === MEASUREMENT_LABEL_LAYER_ID) -
-        Number(b === MEASUREMENT_LABEL_LAYER_ID)
+        Number(MEASUREMENT_LABEL_LAYER_IDS.includes(a)) -
+        Number(MEASUREMENT_LABEL_LAYER_IDS.includes(b))
     );
     for (const id of ids) {
       try {

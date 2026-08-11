@@ -36,6 +36,7 @@ export {
   formatAreaSquareMeters,
   formatMeters,
   LABEL_LAYER_ID,
+  LABEL_ROTATED_LAYER_ID,
   LABEL_SOURCE_ID,
 } from "./lib/labels";
 export { featuresToFeatureCollection } from "./lib/feature-collection-export";
