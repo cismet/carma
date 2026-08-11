@@ -69,7 +69,4 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 .claude/
 
-# Cage closed-source monorepo (added as submodule in feature branch)
-cage/
-
 .cup
