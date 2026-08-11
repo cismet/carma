@@ -57,9 +57,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive"
-      - name: Update Submodules
-        run: git submodule update --remote --recursive
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "true"
       - name: Print Collaboration Version numbers
         run: |
           echo "-------------------------------"
@@ -268,9 +271,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive"
-      - name: Update Submodules
-        run: git submodule update --remote --recursive
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "true"
       - name: Print Collaboration Version numbers
         run: |
           echo "-------------------------------"
@@ -494,7 +500,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive"
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "false"
 
       - uses: actions/setup-node@v4
         with:
@@ -569,9 +580,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive" # Fetch all submodules recursively
-      - name: Update Submodules
-        run: git submodule update --remote --recursive
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "true"
       - name: Print Collaboration Version numbers
         run: |
           echo "-------------------------------"
@@ -825,7 +839,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive"
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "false"
 
       - name: Get all projects from deployment configuration
         id: get_all_projects
@@ -845,10 +864,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive" # Fetch all submodules recursively
-
-      - name: Update Submodules
-        run: git submodule update --remote --recursive
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "true"
       - name: Print Collaboration Version numbers
         run: |
           echo "-------------------------------"
