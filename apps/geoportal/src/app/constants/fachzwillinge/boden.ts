@@ -64,7 +64,7 @@ export const bodenFachzwilling: FachzwillingRoute = {
       config: {
         sharpness: 0.5,
         crossLayer: "prefer-current",
-        explain: "brief",
+        explain: "hold",
       },
     },
     {

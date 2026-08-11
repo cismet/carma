@@ -104,13 +104,10 @@ export const ExplainOverlay = ({
   map,
   snapshot,
   faded,
-  degraded = false,
 }: {
   map: MaplibreMap | null;
   snapshot: ExplainSnapshot | null;
   faded: boolean;
-  /** the candidate set was truncated or a query failed; said, not hidden */
-  degraded?: boolean;
 }) => {
   useMapFrame(map);
 
@@ -292,31 +289,56 @@ export const ExplainOverlay = ({
           );
         })}
       </svg>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 8,
-          bottom: 8,
-          padding: "4px 8px",
-          borderRadius: 6,
-          background: "rgba(255,255,255,0.9)",
-          font: "11px/1.4 monospace",
-          color: "#333",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-        }}
-      >
-        {explanation.strategyUsed} · θmax {format(explanation.coneAngleDeg)}° ·
-        w {format(explanation.angleWeight)} · p {format(explanation.anglePower)}{" "}
-        · {explanation.evaluations.length} Kandidaten
-        {degraded && (
-          <span style={{ color: COLORS.rejected }}>
-            {" "}
-            · Kandidatenmenge unvollständig
-          </span>
-        )}
-      </div>
     </div>,
     container
+  );
+};
+
+/**
+ * The constants that were in force, as a readout.
+ *
+ * Separate from the drawing because it belongs somewhere else on screen: the
+ * picture is anchored to the geometry, this is a caption. The host puts it in
+ * the control layout, where it lines up with the other map chrome instead of
+ * landing on top of the gazetteer search box in the bottom-left corner.
+ */
+export const ExplainLegend = ({
+  snapshot,
+  faded,
+  degraded = false,
+}: {
+  snapshot: ExplainSnapshot | null;
+  faded: boolean;
+  degraded?: boolean;
+}) => {
+  if (!snapshot) return null;
+  const { explanation } = snapshot;
+
+  return (
+    <div
+      style={{
+        padding: "4px 10px",
+        borderRadius: 6,
+        background: "rgba(255,255,255,0.9)",
+        font: "11px/1.4 monospace",
+        color: "#333",
+        whiteSpace: "nowrap",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+        pointerEvents: "none",
+        opacity: faded ? 0 : 1,
+        transition: `opacity ${FADE_MS}ms linear`,
+      }}
+      data-test-id="feature-keyboard-nav-explain-legend"
+    >
+      {explanation.strategyUsed} · θmax {format(explanation.coneAngleDeg)}° · w{" "}
+      {format(explanation.angleWeight)} · p {format(explanation.anglePower)} ·{" "}
+      {explanation.evaluations.length} Kandidaten
+      {degraded && (
+        <span style={{ color: COLORS.rejected }}>
+          {" "}
+          · Kandidatenmenge unvollständig
+        </span>
+      )}
+    </div>
   );
 };

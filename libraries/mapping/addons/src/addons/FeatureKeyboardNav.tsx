@@ -44,6 +44,7 @@ import {
   SHIFT_PAN_PX,
 } from "./feature-keyboard-nav/constants";
 import {
+  ExplainLegend,
   ExplainOverlay,
   toExplainSnapshot,
   type ExplainSnapshot,
@@ -106,6 +107,8 @@ export type FeatureNavigationModeState = {
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 /** geoportal's topleft column: measurement 60, vector highlight 70, terrain 80 */
 const DEFAULT_CONTROL_ORDER = 75;
+/** nothing else uses the bottom-center column, so the order only has to exist */
+const LEGEND_CONTROL_ORDER = 10;
 const ACTIVE_COLOR = "#1677ff";
 const WARNING_COLOR = "#d4380d";
 const FADE_MS = 400;
@@ -634,13 +637,21 @@ export const FeatureKeyboardNav = ({
     [setMode]
   );
 
+  // the drawing follows the geometry, the readout is a caption and belongs with
+  // the rest of the map chrome: bottom-center, clear of the gazetteer search box
   const overlay = (
-    <ExplainOverlay
-      map={libreMap}
-      snapshot={snapshot}
-      faded={faded}
-      degraded={degraded}
-    />
+    <>
+      <ExplainOverlay map={libreMap} snapshot={snapshot} faded={faded} />
+      {snapshot && (
+        <Control position="bottomcenter" order={LEGEND_CONTROL_ORDER}>
+          <ExplainLegend
+            snapshot={snapshot}
+            faded={faded}
+            degraded={degraded}
+          />
+        </Control>
+      )}
+    </>
   );
 
   if (!libreMap) return null;
