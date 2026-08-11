@@ -118,7 +118,7 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
 
-import { LEAFLET_CONFIG, RESTRICT_LIBRE_CAMERA } from "../../config/app.config";
+import { LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -900,7 +900,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           hashWriteEnabled={hashWriteEnabled}
           refreshExpiredTiles={refreshExpiredTiles}
           interactive={mapInteractionEnabled}
-          restrictCamera={RESTRICT_LIBRE_CAMERA || isModePrint}
+          // the restriction itself comes from the `cameraRestriction` addon,
+          // which every route gets; print stays forced, so no addon can lift it
+          forceRestrictCamera={isModePrint}
           selectionEnabled={
             mapInteractionEnabled && !isModeMeasurement && !isModePrint
           }

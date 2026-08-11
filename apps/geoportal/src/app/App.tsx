@@ -79,6 +79,7 @@ import {
   CESIUM_CONFIG,
   CONFIG_BASE_URL,
   DEFAULT_CAMERA_FOV_DEG,
+  withDefaultAddons,
 } from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
 import { getFeatureFlagConfig } from "./config/featureFlags";
@@ -223,6 +224,8 @@ function App({
     [deployment, customFeatureFlags]
   );
 
+  const mergedAddons = useMemo(() => withDefaultAddons(addons), [addons]);
+
   const { initialMapFramework } = geoportalInitialHashState;
 
   if (isLoadingConfig !== false) {
@@ -255,7 +258,7 @@ function App({
                 store={store}
                 defaultRuntimeState={defaultCesiumState}
                 topicMapConfig={{ appKey: APP_KEY }}
-                addons={addons}
+                addons={mergedAddons}
               >
                 <ObliqueProvider
                   config={OBLIQUE_CONFIG}
