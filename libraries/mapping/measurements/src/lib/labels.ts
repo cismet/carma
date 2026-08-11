@@ -16,11 +16,17 @@ export const LABEL_LAYER_ID = "carma-measurements-labels-symbols";
 const numberFormatInteger = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 0,
 });
+const numberFormatOneDecimal = new Intl.NumberFormat("de-DE", {
+  maximumFractionDigits: 1,
+});
 const numberFormatTwoDecimals = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 2,
 });
 
 export function formatMeters(meters: number): string {
+  if (meters < 100) {
+    return `${numberFormatOneDecimal.format(meters)} m`;
+  }
   if (meters < 1000) {
     return `${numberFormatInteger.format(Math.round(meters))} m`;
   }
