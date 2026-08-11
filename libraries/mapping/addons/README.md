@@ -10,7 +10,9 @@ uniform pair:
 
 The `kind` selects a component registered in
 [`registry.ts`](./src/lib/registry.ts); the `config` is the typed payload for
-that kind. The wiring lives in `src/lib`, the addons themselves in `src/addons`,
+that kind. A kind whose config is entirely optional may be declared as
+`{ kind: "<addon kind>" }` alone, which is how a route asks for the addon's own
+defaults (`cameraRestriction` without a config restricts the camera always). The wiring lives in `src/lib`, the addons themselves in `src/addons`,
 so the second folder is the list of what actually exists:
 
 | File                   | Role                                                     |
@@ -23,6 +25,7 @@ so the second folder is the list of what actually exists:
 
 | Addon                       | Kind                                                     |
 | --------------------------- | -------------------------------------------------------- |
+| `addons/CameraRestriction.tsx` | whether the maplibre camera stays north-up and flat    |
 | `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
@@ -105,6 +108,37 @@ Every addon is a component; there is no separate config-derivation path. The
 gazetteer kinds work by registering their sources/modes through
 `carma.gazetteer` at runtime (see below); the `GazDataProvider` merges them
 into its config and reloads.
+
+## Taking a decision over from the app
+
+An addon that should change how the app's own map behaves does not ask the app
+for a hook. It overrides the decision where the map engine keeps it, and the
+app keeps passing its own props unchanged.
+
+`cameraRestriction` is the worked example. `@carma-mapping/engines/maplibre`
+keeps the camera restriction per map instance, with the app's props as the base
+and `setCameraRestrictionOverride(map, value | null)` as an override on top:
+
+```tsx
+useEffect(() => {
+  if (!libreMap) {
+    return;
+  }
+  setCameraRestrictionOverride(libreMap, { restricted, maxPitch });
+  return () => {
+    setCameraRestrictionOverride(libreMap, null);
+  };
+}, [libreMap, restricted, maxPitch]);
+```
+
+The engine applies the effective value and publishes it, so map controls read
+what is true (`useCameraRestriction(map)`) instead of re-deriving it from the
+app's config, and the unmount cleanup hands the decision back on a route switch.
+A base the app marked as forced cannot be overridden, which is how app modes
+that depend on a locked camera (print) stay safe from route configuration.
+
+Use this shape rather than an addon-state channel whenever the consumer is the
+app or the engine; channels are for addons talking to each other.
 
 ## Shared addon state
 
