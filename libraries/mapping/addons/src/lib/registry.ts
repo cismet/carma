@@ -55,6 +55,10 @@ import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
+import {
+  CageVersionBadge,
+  type CageVersionBadgeConfig,
+} from "./caged-addons";
 
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
@@ -70,6 +74,8 @@ export type AddonConfigMap = {
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
   zoomToExtent: ZoomToExtentConfig;
+  /** implemented in cage; renders nothing when cage is absent */
+  cageVersionBadge: CageVersionBadgeConfig;
 };
 
 export type AddonKind = keyof AddonConfigMap;
@@ -225,6 +231,8 @@ export const addonRegistry: {
     requires: ["visibleFeatureStats"],
   },
   zoomToExtent: { trigger: zoomToExtentTrigger },
+  // Component is undefined when cage is absent; AddonHost renders nothing then.
+  cageVersionBadge: { Component: CageVersionBadge },
 };
 
 const isKnownKind = (kind: string): kind is AddonKind =>
