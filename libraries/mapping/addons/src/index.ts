@@ -35,6 +35,34 @@ export {
   CameraRestriction,
   type CameraRestrictionConfig,
 } from "./addons/CameraRestriction";
+export {
+  FeatureKeyboardNav,
+  featureKeyboardNavTrigger,
+  type FeatureNavigationModeState,
+} from "./addons/FeatureKeyboardNav";
+export {
+  NAV_AXES,
+  type CandidateEvaluation,
+  type FeatureKeyboardNavConfig,
+  type PickExplanation,
+  type ProjectedCandidate,
+  type ResolvedNavConstants,
+} from "./addons/feature-keyboard-nav/types";
+export {
+  constantsForSharpness,
+  resolveNavConstants,
+} from "./addons/feature-keyboard-nav/constants";
+export {
+  costOf,
+  pickInDirection,
+  rankedKeys,
+} from "./addons/feature-keyboard-nav/pick";
+export {
+  NAV_KEYMAP,
+  navHintRows,
+  resolveNavBinding,
+} from "./addons/feature-keyboard-nav/keymap";
+
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
 export { VectorHighlight } from "./addons/VectorHighlight";

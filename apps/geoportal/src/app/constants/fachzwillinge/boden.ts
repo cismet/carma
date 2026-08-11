@@ -53,6 +53,21 @@ export const bodenFachzwilling: FachzwillingRoute = {
     },
     { kind: "vectorHighlight", config: { modifierClick: "alt", lasso: true } },
     {
+      /**
+       * Arrow-key navigation, global shape: every navigable layer on the map,
+       * toggled from the control column. The identical config object is
+       * declared on a workflow's `tools` in the Gesundheit Fachzwilling, where
+       * the same addon is scoped to that workflow's layer group instead —
+       * nothing but the place of declaration differs.
+       */
+      kind: "featureKeyboardNav",
+      config: {
+        sharpness: 0.5,
+        crossLayer: "prefer-current",
+        explain: "brief",
+      },
+    },
+    {
       kind: "visibleFeatureStatsSource",
       config: {
         showDebugBounds: true,
