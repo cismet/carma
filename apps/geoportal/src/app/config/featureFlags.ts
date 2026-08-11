@@ -23,6 +23,10 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "ng",
   },
+  featureFlagLeafletMap: {
+    default: false,
+    alias: "leaflet",
+  },
   extendedSharing: {
     default: false,
     alias: "extendedSharing",

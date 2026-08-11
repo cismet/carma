@@ -25,7 +25,7 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
@@ -181,13 +181,14 @@ const useMeasurementLayerbarActions = (
 ) => {
   const { layerbar } = geoportalAnnotationModeText;
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
-  const flags = useFeatureFlags();
-  const isLibreMap = Boolean(flags.featureFlagLibreMap);
+  const isLibreMap = useLibreMapEnabled();
   const { clearAll: clearLibreMeasurements, count: libreCount } =
     useMeasurements();
 
   const measurementCount = isLibreMap ? libreCount : shapes.length;
-  const clearMeasurements = isLibreMap ? clearLibreMeasurements : clearAllShapes;
+  const clearMeasurements = isLibreMap
+    ? clearLibreMeasurements
+    : clearAllShapes;
 
   const actions: LayerbarAction[] = [
     {

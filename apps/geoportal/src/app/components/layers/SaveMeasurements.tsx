@@ -24,7 +24,7 @@ import {
 } from "@carma-mapping/measurements";
 import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
 import MeasurementSavePanel from "./MeasurementSavePanel";
 import {
@@ -39,8 +39,7 @@ import {
 function SaveMeasurements({ layer }: { layer: Layer }) {
   const dispatch = useDispatch();
   const measurements = useSelector(getMeasurements);
-  const flags = useFeatureFlags();
-  const isLibreMap = Boolean(flags.featureFlagLibreMap);
+  const isLibreMap = useLibreMapEnabled();
   const { shapes, clearAllShapes } = useMapMeasurementsContext();
   const { features: libreFeatures, clearAll: clearAllLibreFeatures } =
     useMeasurements();

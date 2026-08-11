@@ -53,7 +53,7 @@ import { useMaplibreRuntimeBridge } from "@carma-mapping/engines-interop/view-st
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 import { getLayers as getBackgroundLayers } from "@carma-appframeworks/portals";
 import { CarmaMap } from "@carma-mapping/core";
 import { useLibreContext } from "@carma-mapping/contexts";
@@ -911,11 +911,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
         {/* the 2D draw host and its info box stay out of the way in 3D, where
             the cesium annotation runtime owns measurements */}
         {isModeMeasurement && !isCesium && (
-          <MeasurementHost
-            mode={libreDrawMode}
-            snapping
-            styleVariant="carma"
-          />
+          <MeasurementHost mode={libreDrawMode} snapping styleVariant="carma" />
         )}
         {visibleControls.infoBox &&
           (isCesium ? (
@@ -940,8 +936,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 };
 
 export const GeoportalMap = (props: MapProps) => {
-  const flags = useFeatureFlags();
-  const useLibreMap = flags.featureFlagLibreMap;
+  const useLibreMap = useLibreMapEnabled();
 
   return useLibreMap ? (
     <LibreGeoportalMap {...props} />

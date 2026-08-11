@@ -72,7 +72,7 @@ import { Badge, Spin, Tooltip } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading, useLibreLayerLoading } from "@carma-mapping/utils";
 import { useLibreContext } from "@carma-mapping/contexts";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 import { useGeoportalLayerButtonActions } from "../../hooks/use-geoportal-layer-button-actions";
 import { useCurrentMapZoom } from "../../hooks/useCurrentMapZoom";
 import {
@@ -125,8 +125,7 @@ const GeoportalLayerButton = ({
     },
   });
   const dispatch = useDispatch();
-  const flags = useFeatureFlags();
-  const isLibreMap = Boolean(flags.featureFlagLibreMap);
+  const isLibreMap = useLibreMapEnabled();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { map: libreMap } = useLibreContext();

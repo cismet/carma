@@ -52,6 +52,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { WUPPERTAL_TERRAIN_SOURCE_ID } from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
@@ -135,7 +136,7 @@ const MapWrapper = () => {
     ) ||
     "ontouchstart" in window;
 
-  const showLibreMap = flags.featureFlagLibreMap;
+  const showLibreMap = useLibreMapEnabled();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 

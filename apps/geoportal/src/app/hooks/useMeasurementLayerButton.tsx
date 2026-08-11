@@ -12,7 +12,7 @@ import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMeasurements } from "@carma-mapping/measurements";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useLibreMapEnabled } from "./useLibreMapEnabled";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
@@ -51,8 +51,7 @@ export function useMeasurementLayerButton() {
   const layers = useSelector(getLayers);
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
-  const flags = useFeatureFlags();
-  const isLibreMap = Boolean(flags.featureFlagLibreMap);
+  const isLibreMap = useLibreMapEnabled();
   const { shapes, setShowAll } = useMapMeasurementsContext();
   const { isLeaflet } = useMapFrameworkSwitcherContext();
   // libreMap path: terra-draw measurements live in the new
