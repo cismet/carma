@@ -1,0 +1,67 @@
+name: Initialise submodules
+description: >
+  Initialises carma's submodules, including the private cage submodule.
+
+  actions/checkout cannot fetch cage itself: it rewrites SSH submodule URLs to
+  HTTPS and authenticates with GITHUB_TOKEN, which has no access to cismet/cage.
+  So callers check out with "submodules: false" and use this action instead.
+
+  When no key is supplied (pull requests from forks never receive secrets), the
+  public submodules are initialised and cage is skipped, so the job still runs.
+
+inputs:
+  cage-deploy-key:
+    description: SSH private key with read access to cismet/cage. Empty on fork PRs.
+    required: false
+  remote:
+    description: >
+      Advance submodules to the tip of their configured branch after init,
+      matching the previous "git submodule update --remote --recursive" steps.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Load cage deploy key
+      shell: bash
+      env:
+        CAGE_DEPLOY_KEY: ${{ inputs.cage-deploy-key }}
+      run: |
+        if [ -z "$CAGE_DEPLOY_KEY" ]; then
+          echo "::notice::No cage deploy key available, the private cage submodule will be skipped"
+          echo "CAGE_KEY_AVAILABLE=false" >> "$GITHUB_ENV"
+          exit 0
+        fi
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        printf '%s\n' "$CAGE_DEPLOY_KEY" > ~/.ssh/cage_ci
+        chmod 600 ~/.ssh/cage_ci
+        # github.com is NOT in the runner's known_hosts, verified on a real runner
+        ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+        git config --global core.sshCommand "ssh -i ~/.ssh/cage_ci -o IdentitiesOnly=yes"
+        echo "CAGE_KEY_AVAILABLE=true" >> "$GITHUB_ENV"
+
+    - name: Initialise submodules
+      shell: bash
+      run: |
+        if [ "$CAGE_KEY_AVAILABLE" = "true" ]; then
+          git submodule update --init --recursive
+        else
+          git -c submodule."cage/cage-submodule".update=none \
+              submodule update --init --recursive
+        fi
+
+    - name: Advance submodules to their branch tips
+      if: inputs.remote == 'true'
+      shell: bash
+      run: |
+        if [ "$CAGE_KEY_AVAILABLE" = "true" ]; then
+          git submodule update --remote --recursive
+        else
+          git -c submodule."cage/cage-submodule".update=none \
+              submodule update --remote --recursive
+        fi
+
+    - name: Report submodule state
+      shell: bash
+      run: git submodule status

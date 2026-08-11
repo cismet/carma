@@ -37,9 +37,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: "recursive"
-      - name: Update Submodules
-        run: git submodule update --remote --recursive
+          submodules: false
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
+          remote: "true"
       - name: Print Collaboration Version numbers
         run: |
           echo "-------------------------------"
