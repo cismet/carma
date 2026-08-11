@@ -1,0 +1,86 @@
+name: Cage Submodule Probe
+
+# TEMPORARY. Validates that carma CI can fetch the private cage submodule with
+# the CAGE_DEPLOY_KEY deploy key, before the real workflows are touched.
+# Triggers only on this feature branch. Delete before merging (issue #750).
+
+on:
+  push:
+    branches:
+      - feature/00750-mount-cage-submodule-with-ci-credentials
+
+jobs:
+  with_key:
+    name: With deploy key (the real path)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout without submodules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: What git config did checkout leave behind?
+        run: |
+          echo "--- local: url rewrites / extraheader ---"
+          git config --local --list | grep -iE 'insteadof|extraheader|^url\.' || echo "(none)"
+          echo "--- global: url rewrites ---"
+          git config --global --list | grep -iE 'insteadof|sshcommand' || echo "(none)"
+
+      - name: Is github.com already a known host?
+        run: |
+          if [ -f ~/.ssh/known_hosts ] && grep -q github.com ~/.ssh/known_hosts; then
+            echo "PRESENT in known_hosts"
+          else
+            echo "ABSENT from known_hosts, ssh-keyscan needed"
+          fi
+
+      - name: Load cage deploy key
+        env:
+          CAGE_DEPLOY_KEY: ${{ secrets.CAGE_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$CAGE_DEPLOY_KEY" > ~/.ssh/cage_ci
+          chmod 600 ~/.ssh/cage_ci
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git config --global core.sshCommand "ssh -i ~/.ssh/cage_ci -o IdentitiesOnly=yes"
+
+      - name: Can the key reach cage at all?
+        run: git ls-remote git@github.com:cismet/cage.git HEAD
+
+      - name: Init submodules
+        run: git submodule update --init --recursive
+
+      - name: Update submodules (the pattern the real workflows use)
+        run: git submodule update --remote --recursive
+
+      - name: Verify all three submodules are populated
+        run: |
+          git submodule status
+          echo "--- cage content ---"
+          ls -la cage/cage-submodule | head
+          test -f cage/cage-submodule/package.json && echo "OK cage populated" || (echo "FAIL cage empty" && exit 1)
+
+  without_key:
+    name: Without deploy key (simulates a fork PR)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout without submodules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Init only the public submodules, skipping cage
+        run: |
+          git -c submodule."cage/cage-submodule".update=none \
+              submodule update --init --recursive
+          echo "--- status ---"
+          git submodule status
+          echo "--- cage should be empty ---"
+          ls -A cage/cage-submodule 2>/dev/null | head || echo "(cage dir absent or empty, as expected)"
+
+      - name: Public submodules must still be populated
+        run: |
+          test -f libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule/package.json \
+            && echo "OK wuppertal collab populated" || (echo "FAIL collab missing" && exit 1)
