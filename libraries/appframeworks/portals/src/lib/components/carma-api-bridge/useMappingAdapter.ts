@@ -22,7 +22,7 @@ const RAD_TO_DEG = 180 / Math.PI;
 export interface MappingPortalState {
   /** The layers currently on the map. */
   mapping?: {
-    layers?: Array<{ id: string }>;
+    layers?: Array<{ id: string; visible?: boolean }>;
     backgroundLayers?: BackgroundLayerCatalogEntry[];
   };
   [key: string]: unknown;
@@ -31,6 +31,14 @@ export interface MappingPortalState {
 /** True when a layer with the given id is currently on the map. */
 export const hasLayerById = (state: MappingPortalState, id: string): boolean =>
   state.mapping?.layers?.some((layer) => layer.id === id) ?? false;
+
+export const selectLayerVisibility = (
+  state: MappingPortalState,
+  id: string
+): boolean | null => {
+  const layer = state.mapping?.layers?.find((candidate) => candidate.id === id);
+  return layer ? layer.visible !== false : null;
+};
 
 /** IDs of the layers currently on the map, in order. */
 export const selectLayerIDs = (state: MappingPortalState): string[] =>
@@ -168,6 +176,8 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
       ...(store && {
         hasLayer: (id: string): boolean => hasLayerById(store.getState(), id),
         getLayerIDs: (): string[] => selectLayerIDs(store.getState()),
+        getLayerVisibility: (id: string): boolean | null =>
+          selectLayerVisibility(store.getState(), id),
         removeLayer: (id: string): boolean => {
           if (!hasLayerById(store.getState(), id)) {
             return false;

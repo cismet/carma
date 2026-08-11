@@ -14,6 +14,14 @@ export type {
   RasterPaintOverrides,
 } from "./components/LibreMap";
 export { RASTER_PAINT_PRESETS } from "./utils/rasterPaintPresets";
+export {
+  DEFAULT_MAX_PITCH,
+  getCameraRestriction,
+  setCameraRestrictionOverride,
+  subscribeCameraRestriction,
+  useCameraRestriction,
+} from "./utils/cameraRestriction";
+export type { CameraRestriction } from "./utils/cameraRestriction";
 export { LibreMapSelectionContent } from "./components/LibreMapSelectionContent";
 export { PreviewLibreMap } from "./components/PreviewLibreMap";
 export { DatasheetMiniMap } from "./components/DatasheetMiniMap";

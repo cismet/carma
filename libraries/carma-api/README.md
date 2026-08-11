@@ -24,6 +24,7 @@ carma.mapping2D.hasLayer(id);
 carma.mapping2D.addLayer(id);                // Promise<boolean>
 carma.mapping2D.removeLayer(id);
 carma.mapping2D.getLayerIDs();
+carma.mapping2D.getLayerVisibility(id);      // boolean | null (null = not on the map)
 carma.mapping2D.getBackgroundLayers();        // [{ id, title, group }] — possible base maps
 carma.mapping2D.setBackgroundLayer(id);      // switch base map, e.g. "stadtplan"
 

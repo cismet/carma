@@ -10,6 +10,7 @@ import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
+import type { Addon } from "@carma-mapping/addons";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
@@ -36,7 +37,24 @@ export const CONFIG_BASE_URL =
 export const MIN_MOBILE_WIDTH = 600;
 export const DEFAULT_CAMERA_FOV_DEG = 60;
 
-export const RESTRICT_LIBRE_CAMERA = true;
+/**
+ * Addons every route gets. A route declaring the same kind replaces the entry
+ * here, see `withDefaultAddons`.
+ *
+ * `cameraRestriction` without a config keeps the MapLibre camera north-up and
+ * flat everywhere, which is the app's long-standing behaviour; a route that
+ * wants tilt and rotation declares the kind itself with a config of its own.
+ */
+export const DEFAULT_ADDONS: Addon[] = [{ kind: "cameraRestriction" }];
+
+/** the app's defaults, with the route's own declarations taking precedence */
+export const withDefaultAddons = (addons?: Addon[]): Addon[] => {
+  const declared = new Set((addons ?? []).map((addon) => addon.kind));
+  return [
+    ...DEFAULT_ADDONS.filter((addon) => !declared.has(addon.kind)),
+    ...(addons ?? []),
+  ];
+};
 
 export const SHOW_LIBRE_TERRAIN_CONTROL = false;
 

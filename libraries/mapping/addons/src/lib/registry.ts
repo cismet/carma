@@ -12,6 +12,10 @@ import type {
 } from "@carma-mapping/fuzzy-search";
 import type { LayerStackEntry } from "@carma-mapping/layers";
 
+import {
+  CameraRestriction,
+  type CameraRestrictionConfig,
+} from "../addons/CameraRestriction";
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
 import {
@@ -45,6 +49,7 @@ import {
 } from "../addons/ZoomToExtent";
 
 export type AddonConfigMap = {
+  cameraRestriction: CameraRestrictionConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
   vectorHighlight: VectorHighlightConfig;
@@ -77,9 +82,16 @@ export type AddonStateMap = {
 
 export type AddonStateKey = keyof AddonStateMap;
 
-/** A full declaration: the kind plus its config. */
+/**
+ * A full declaration: the kind plus its config. Kinds whose config is entirely
+ * optional may be declared as `{ kind }` alone, so a route that just wants the
+ * addon's defaults does not have to pass an empty config object.
+ */
 export type Addon = {
-  [K in AddonKind]: { kind: K; config: AddonConfigMap[K] };
+  // `Partial<C> extends C` holds exactly when every field of C is optional
+  [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
+    ? { kind: K; config?: AddonConfigMap[K] }
+    : { kind: K; config: AddonConfigMap[K] };
 }[AddonKind];
 
 export type AddonEntry = AddonKind | Addon;
@@ -146,6 +158,7 @@ export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
 export const addonRegistry: {
   [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
+  cameraRestriction: { Component: CameraRestriction },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },

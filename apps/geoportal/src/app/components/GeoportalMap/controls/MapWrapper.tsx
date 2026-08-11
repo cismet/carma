@@ -50,16 +50,16 @@ import {
   ControlLayout,
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
-import { WUPPERTAL_TERRAIN_SOURCE_ID } from "@carma-mapping/engines/maplibre";
+import {
+  WUPPERTAL_TERRAIN_SOURCE_ID,
+  useCameraRestriction,
+} from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
-import {
-  RESTRICT_LIBRE_CAMERA,
-  SHOW_LIBRE_TERRAIN_CONTROL,
-} from "../../../config/app.config";
+import { SHOW_LIBRE_TERRAIN_CONTROL } from "../../../config/app.config";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
@@ -158,6 +158,8 @@ const MapWrapper = () => {
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const isRotationLockedForPrint = uiMode === UIMode.PRINT && showLibreMap;
+
+  const cameraRestricted = useCameraRestriction(libreMap)?.restricted ?? true;
   const libreDrawMode = useSelector(getLibreDrawMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
@@ -400,7 +402,7 @@ const MapWrapper = () => {
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
                     disabled={
-                      (isLeaflet && (!showLibreMap || RESTRICT_LIBRE_CAMERA)) ||
+                      (isLeaflet && (!showLibreMap || cameraRestricted)) ||
                       isRotationLockedForPrint ||
                       isObliquePreviewVisible
                     }

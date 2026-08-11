@@ -40,6 +40,7 @@ import {
   VectorStyle,
   RASTER_PAINT_PRESETS,
   WUPPERTAL_TERRAIN_SOURCE_ID,
+  useCameraRestriction,
 } from "@carma-mapping/engines/maplibre";
 import type { RasterPaintOverrides } from "@carma-mapping/engines/maplibre";
 
@@ -137,6 +138,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const { selectedBackground, backgroundConfigurations, namedMapStyle } =
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
+
+  const cameraRestricted =
+    useCameraRestriction(libreMap)?.restricted ?? props.restrictCamera;
   // Crosshair debug: store geographic position so the crosshair tracks
   // correctly when terrain is toggled or camera moves
   const [crosshairLngLat, setCrosshairLngLat] = useState<{
@@ -221,7 +225,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 <ControlButtonStyler
                   useDisabledStyle={false}
                   dataTestId="compass-control"
-                  disabled={props.restrictCamera}
+                  disabled={cameraRestricted}
                 >
                   <LibrePitchingCompass map={libreMap} />
                 </ControlButtonStyler>
@@ -354,6 +358,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 threePerfRef={props.threePerfRef}
                 maxPitch={props.maxPitch}
                 restrictCamera={props.restrictCamera}
+                forceRestrictCamera={props.forceRestrictCamera}
               />
             )}
             {modalMenu}

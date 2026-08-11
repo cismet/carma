@@ -29,6 +29,10 @@ export type {
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
 
+export {
+  CameraRestriction,
+  type CameraRestrictionConfig,
+} from "./addons/CameraRestriction";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
 export { VectorHighlight } from "./addons/VectorHighlight";
