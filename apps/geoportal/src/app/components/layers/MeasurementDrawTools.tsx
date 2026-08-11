@@ -23,10 +23,10 @@ type DrawButton = {
 };
 
 const DRAW_BUTTONS: DrawButton[] = [
-  { mode: "select", label: "Auswählen / bearbeiten", icon: faArrowPointer },
-  { mode: "point", label: "Punkt zeichnen", icon: faLocationDot },
-  { mode: "line", label: "Linie zeichnen", icon: faRuler },
-  { mode: "polygon", label: "Polygon zeichnen", icon: faDrawPolygon },
+  { mode: "select", label: "Messung auswählen", icon: faArrowPointer },
+  { mode: "point", label: "Punkt messen", icon: faLocationDot },
+  { mode: "line", label: "Linienzug messen", icon: faRuler },
+  { mode: "polygon", label: "Fläche messen", icon: faDrawPolygon },
 ];
 
 // Pill styling mirrors the 3D-measurement layerbar's AnnotationsToolbar so the
