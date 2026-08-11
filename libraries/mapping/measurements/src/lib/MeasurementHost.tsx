@@ -512,22 +512,21 @@ export const MeasurementHost = forwardRef<
           id: LABEL_LAYER_ID,
           type: "symbol",
           source: LABEL_SOURCE_ID,
-          // Length labels are drawn by LABEL_ROTATED_LAYER_ID instead —
+          // Segment lengths are drawn by LABEL_ROTATED_LAYER_ID instead —
           // they need map-aligned rotation, which is layout-only and
-          // therefore not expressible per feature (see labels.ts).
-          filter: [
-            "!",
-            ["in", ["get", "kind"], ["literal", ["segment", "total"]]],
-          ],
+          // therefore not expressible per feature (see labels.ts). The line
+          // total stays here: it belongs to the whole line, so it reads
+          // left-to-right like the title and area labels.
+          filter: ["!=", ["get", "kind"], "segment"],
           layout: {
             "text-field": ["get", "label"],
             // Two visual styles in one layer driven by `kind`:
-            //   - "title"   → matches the belis fachobjekte label style
+            //   - "title"          → matches the belis fachobjekte label style
             //                 (Open Sans Bold, zoom-interpolated size, left
             //                 anchor with radial offset).
-            //   - "area"    → compact (Noto Sans Regular, 12px, centered on
-            //                 its anchor point), matching the length labels
-            //                 drawn by LABEL_ROTATED_LAYER_ID.
+            //   - "area"/"total"   → compact (Noto Sans Regular, 12px,
+            //                 centered on its anchor point), matching the
+            //                 segment labels drawn by LABEL_ROTATED_LAYER_ID.
             // Both fonts must be served by the cismet glyph server, which
             // every CARMA app sets via `overrideGlyphs` at the CarmaMap
             // level.
@@ -592,7 +591,7 @@ export const MeasurementHost = forwardRef<
           id: LABEL_ROTATED_LAYER_ID,
           type: "symbol",
           source: LABEL_SOURCE_ID,
-          filter: ["in", ["get", "kind"], ["literal", ["segment", "total"]]],
+          filter: ["==", ["get", "kind"], "segment"],
           layout: {
             "text-field": ["get", "label"],
             "text-font": ["literal", ["Noto Sans Regular"]],

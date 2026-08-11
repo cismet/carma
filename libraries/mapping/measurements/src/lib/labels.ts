@@ -207,12 +207,6 @@ export function buildLabelFeatures(
           properties: {
             kind: "total",
             label: formatMeters(totalMeters),
-            // Aligned with the LAST segment: the total sits on the line's
-            // end vertex, so that is the edge it visually belongs to.
-            rotation: segmentRotationDegrees(
-              coords[coords.length - 2],
-              coords[coords.length - 1]
-            ),
           },
         });
       }
