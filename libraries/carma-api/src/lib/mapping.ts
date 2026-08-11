@@ -52,6 +52,7 @@ export interface MapAdapter {
   addLayer?: (id: string) => Promise<boolean>;
   removeLayer?: (id: string) => boolean;
   setLayerVisibility?: (id: string, visible: boolean) => boolean;
+  getLayerVisibility?: (id: string) => boolean | null;
   getLayerIDs?: () => string[];
   setBackgroundLayer?: (id: string) => boolean;
   getBackgroundLayers?: () => BackgroundLayerInfo[];
@@ -85,6 +86,8 @@ export interface Mapping2DFacade {
   addLayer: (id: string) => Promise<boolean>;
   removeLayer: (id: string) => boolean;
   setLayerVisibility: (id: string, visible: boolean) => boolean;
+  /** Whether a layer on the map is shown; `null` when it is not on the map. */
+  getLayerVisibility: (id: string) => boolean | null;
   getLayerIDs: () => string[];
   setBackgroundLayer: (id: string) => boolean;
   /**
@@ -130,6 +133,7 @@ export const mapping2D: Mapping2DFacade = {
   removeLayer: (id) => getAdapter()?.removeLayer?.(id) ?? false,
   setLayerVisibility: (id, visible) =>
     getAdapter()?.setLayerVisibility?.(id, visible) ?? false,
+  getLayerVisibility: (id) => getAdapter()?.getLayerVisibility?.(id) ?? null,
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
   setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
   getBackgroundLayers: () => getAdapter()?.getBackgroundLayers?.() ?? [],
