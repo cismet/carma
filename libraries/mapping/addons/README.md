@@ -10,9 +10,17 @@ uniform pair:
 
 The `kind` selects a component registered in
 [`registry.ts`](./src/lib/registry.ts); the `config` is the typed payload for
-that kind. A kind whose config is entirely optional may be declared as
-`{ kind: "<addon kind>" }` alone, which is how a route asks for the addon's own
-defaults (`cameraRestriction` without a config restricts the camera always). The wiring lives in `src/lib`, the addons themselves in `src/addons`,
+that kind. A kind whose config is entirely optional may be declared as the bare
+kind instead, which is how a route asks for the addon's own defaults:
+
+```ts
+addons: ["cameraRestriction"]; // same as { kind: "cameraRestriction" }
+```
+
+The shorthand is typed (`BareAddonKind`): only kinds whose config is fully
+optional accept it, so it can never drop a config a kind needs. Both forms may
+be mixed in one list, and both declaration sites (`addons` and `tools`) take
+`AddonEntry`, which is the union of the two. The wiring lives in `src/lib`, the addons themselves in `src/addons`,
 so the second folder is the list of what actually exists:
 
 | File                   | Role                                                     |
@@ -41,7 +49,7 @@ mounted and what it acts on; there is no `scope` field.
 
 | Declared on                             | Mounted by         | `target` | Lifetime                        |
 | --------------------------------------- | ------------------ | -------- | ------------------------------- |
-| a route's `addons: Addon[]`             | `AddonHost`        | `null`   | the whole route                 |
+| a route's `addons: AddonEntry[]`        | `AddonHost`        | `null`   | the whole route                 |
 | a stack entry's `tools: AddonEntry[]`   | `TargetAddonHost`  | that entry | while the entry is in the stack |
 
 A kind that needs a target guards on it rather than assuming one, which is also what
@@ -49,7 +57,7 @@ lets one kind serve both sites.
 
 ### Route addons
 
-1. A route config declares `addons: Addon[]`. In the geoportal that is
+1. A route config declares `addons: AddonEntry[]`. In the geoportal that is
    `FachzwillingRoute` (see
    `apps/geoportal/src/app/constants/fachzwillinge/index.ts`).
 2. `main.tsx` resolves the active route and passes its addons to `App`, which
@@ -412,12 +420,13 @@ export const bodenFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "cameraTour", config: { start: { lat: 51.256, lng: 7.15 }, zoom: 16 } },
+    // kinds whose config is optional: the bare kind asks for their defaults
+    "vectorHighlight",
   ],
 };
 ```
 
-On a workflow, in the same route file's `perspectives`, where the bare-kind shorthand
-is available for kinds whose config can be omitted:
+On a workflow, in the same route file's `perspectives`, with the same two forms:
 
 ```ts
 workflows: [

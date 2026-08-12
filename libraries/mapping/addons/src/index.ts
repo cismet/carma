@@ -8,6 +8,7 @@ export {
 } from "./lib/target-addons";
 export {
   addonRegistry,
+  getAddonKind,
   normalizeAddonEntries,
   resolveAddonEntries,
   resolveAddonTrigger,
@@ -23,6 +24,7 @@ export type {
   AddonStateKey,
   AddonStateMap,
   AddonTrigger,
+  BareAddonKind,
   ResolvedAddon,
 } from "./lib/registry";
 

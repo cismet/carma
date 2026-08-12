@@ -12,7 +12,7 @@ import {
   resolveFeatureFlags,
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
-import type { Addon, AddonEntry } from "@carma-mapping/addons";
+import type { AddonEntry } from "@carma-mapping/addons";
 import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
 
 import {
@@ -106,7 +106,7 @@ type FachzwillingRouteBase = {
    * (including the default geoportal route)
    */
   perspectives?: WorkflowPerspective<AddonEntry>[];
-  addons?: Addon[];
+  addons?: AddonEntry[];
 };
 
 /** route reachable through the catalog, so it needs a card and its filters */

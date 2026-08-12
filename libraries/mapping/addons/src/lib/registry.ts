@@ -94,17 +94,36 @@ export type Addon = {
     : { kind: K; config: AddonConfigMap[K] };
 }[AddonKind];
 
-export type AddonEntry = AddonKind | Addon;
+/**
+ * Kinds that may be declared as a bare string. Same condition as the optional
+ * `config` in `Addon`: a kind whose config is required still has to be written
+ * as `{ kind, config }`, so the shorthand can never drop a needed config.
+ */
+export type BareAddonKind = {
+  [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
+    ? K
+    : never;
+}[AddonKind];
+
+/**
+ * How an addon is declared: the bare kind (`"cameraRestriction"`) for the
+ * addon's own defaults, or the `{ kind, config }` form.
+ */
+export type AddonEntry = BareAddonKind | Addon;
 
 export type ResolvedAddon = {
   [K in AddonKind]: { kind: K; config?: AddonConfigMap[K] };
 }[AddonKind];
 
+/** the kind of an entry, whichever of the two forms it was written in */
+export const getAddonKind = (entry: AddonEntry): AddonKind =>
+  typeof entry === "string" ? entry : entry.kind;
+
 export const normalizeAddonEntries = (
   entries?: readonly AddonEntry[]
 ): ResolvedAddon[] =>
   (entries ?? []).map((entry) =>
-    typeof entry === "string" ? { kind: entry } : entry
+    typeof entry === "string" ? ({ kind: entry } as ResolvedAddon) : entry
   );
 
 export type AddonComponentProps<K extends AddonKind = AddonKind> = {

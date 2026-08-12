@@ -48,7 +48,7 @@ import {
 } from "@carma-commons/measurements";
 import { MeasurementsProvider as LibreMeasurementsProvider } from "@carma-mapping/measurements";
 
-import { type Addon } from "@carma-mapping/addons";
+import { type AddonEntry } from "@carma-mapping/addons";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -190,7 +190,7 @@ function App({
   catalogConfig?: LayerCatalogConfig;
   /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
   categories?: CategoryDefinition[];
-  addons?: Addon[];
+  addons?: AddonEntry[];
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
