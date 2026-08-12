@@ -118,6 +118,23 @@ const FADE_MS = 400;
 /** half-size of the box `verifyWithRenderer` asks about, in pixels */
 const VERIFY_PROBE_PX = 3;
 
+/** the direction that undoes a step */
+const OPPOSITE_DIRECTION: Readonly<Record<NavDirection, NavDirection>> = {
+  up: "down",
+  down: "up",
+  left: "right",
+  right: "left",
+};
+/** steps the trail remembers; older ones are dropped from the far end */
+const MAX_NAV_TRAIL = 100;
+
+/** One taken step, kept so the opposite key can undo it. */
+type NavTrailEntry = {
+  direction: NavDirection;
+  /** the feature the step started from, as it was queried */
+  from: MapGeoJSONFeature;
+};
+
 export const featureKeyboardNavTrigger: AddonTrigger<"featureKeyboardNav"> = {
   icon: faArrowsUpDownLeftRight,
   label: () => "Mit Pfeiltasten durch die Objekte navigieren",
@@ -381,6 +398,47 @@ export const FeatureKeyboardNav = ({
   const [faded, setFaded] = useState(false);
   const explainIdRef = useRef(0);
 
+  /** The key the last step published, so the selection it causes can be told
+   *  apart from one the user made. Consumed on arrival: selecting the same
+   *  feature again by hand is a new selection and clears the picture too. */
+  const navSelectedKeyRef = useRef<string | undefined>(undefined);
+
+  /**
+   * The steps taken so far, newest last.
+   *
+   * Up and then down has to land on the feature it started from, and picking
+   * cannot guarantee that: the reverse step measures from a different origin
+   * through a different cone, so a neighbour that was second on the way out can
+   * win on the way back. The trail makes the return exact rather than merely
+   * likely, and it is also the cheaper path, since walking back costs no
+   * projection of the candidate set at all.
+   */
+  const trailRef = useRef<NavTrailEntry[]>([]);
+
+  /**
+   * A selection the addon did not make erases the picture at once.
+   *
+   * The explanation describes one step: which candidates were considered, from
+   * where, and why one of them won. The moment the user picks a feature by
+   * hand, it describes a decision that no longer led to what is selected, and a
+   * held picture (`explain: "hold"`) would otherwise stay on screen indefinitely
+   * next to the wrong feature.
+   *
+   * The trail goes with it: the walk it recorded started somewhere the user has
+   * now left, so stepping back into it would jump across the map.
+   */
+  useEffect(() => {
+    const selectedKey = rawFeature ? candidateKeyOf(rawFeature) : undefined;
+    if (selectedKey !== undefined && selectedKey === navSelectedKeyRef.current) {
+      navSelectedKeyRef.current = undefined;
+      return;
+    }
+    navSelectedKeyRef.current = undefined;
+    trailRef.current = [];
+    setSnapshot(null);
+    setFaded(false);
+  }, [rawFeature, selectionVersion]);
+
   const publishExplanation = useCallback(
     (map: MaplibreMap, explanation: PickExplanation) => {
       if (explain === "off") return;
@@ -428,6 +486,7 @@ export const FeatureKeyboardNav = ({
 
   useEffect(() => {
     if (isActive) return;
+    trailRef.current = [];
     setSnapshot(null);
   }, [isActive]);
 
@@ -465,6 +524,30 @@ export const FeatureKeyboardNav = ({
     async (direction: NavDirection): Promise<void> => {
       const map = libreMap;
       if (!map) return;
+
+      // walking the trail back: the opposite of the last step returns to the
+      // feature that step came from, exactly, without asking the picker
+      const trail = trailRef.current;
+      const lastStep = trail[trail.length - 1];
+      if (lastStep && direction === OPPOSITE_DIRECTION[lastStep.direction]) {
+        trail.pop();
+        const previous = lastStep.from;
+        originFeatureRef.current = previous;
+        navSelectedKeyRef.current = candidateKeyOf(previous);
+        // a back-step is not a decision, so it leaves no picture behind
+        setSnapshot(null);
+        selectFeature(
+          {
+            source: previous.source,
+            sourceLayer: previous.sourceLayer,
+            id: previous.id,
+          },
+          previous
+        );
+        const restored = resolveOrigin(map, previous);
+        if (restored) keepInView(map, restored.point, panDurationMs);
+        return;
+      }
 
       const axis = NAV_AXES[direction];
       const constants = resolveNavConstants(config);
@@ -511,7 +594,17 @@ export const FeatureKeyboardNav = ({
           winnerKey === undefined ? undefined : byKey.get(winnerKey);
 
         if (winner) {
+          const cameFrom = originFeatureRef.current;
+          // no entry for the bootstrap step: it started from the middle of the
+          // screen, and there is no feature to go back to
+          if (cameFrom) {
+            trail.push({ direction, from: cameFrom });
+            if (trail.length > MAX_NAV_TRAIL) trail.shift();
+          }
           originFeatureRef.current = winner.feature;
+          // claims the selection about to arrive, so the picture just published
+          // survives it while a hand-made selection still wipes it
+          navSelectedKeyRef.current = winnerKey;
           // through the application's normal selection path; navigation never
           // writes selection styling itself
           selectFeature(
