@@ -75,6 +75,13 @@ export type FeatureKeyboardNavConfig = {
   /** Fade delay for "brief", in ms. Default: 1200 */
   explainMs?: number;
   /**
+   * Enter the mode as soon as the addon mounts, instead of waiting for the
+   * control to be switched on. Only the global shape has a control to switch,
+   * so this does nothing for the tool shapes, which are active while mounted.
+   * Default: false
+   */
+  startActive?: boolean;
+  /**
    * Mark the interior point of the selected feature with a blue dot: the point
    * navigation measures from, which is what makes a surprising step readable.
    * Under `first-crossed` a parcel whose interior point falls inside the

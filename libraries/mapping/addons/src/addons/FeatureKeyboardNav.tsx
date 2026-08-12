@@ -358,6 +358,7 @@ export const FeatureKeyboardNav = ({
     originDotColor = DEFAULT_ORIGIN_DOT_COLOR,
     originDotOpacity = DEFAULT_ORIGIN_DOT_OPACITY,
     autoActivateOnSelect = false,
+    startActive = false,
     showControl = true,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -373,7 +374,15 @@ export const FeatureKeyboardNav = ({
    * mode suspends navigation until the button is toggled off and on again.
    */
   const [suspended, setSuspended] = useState(false);
-  const isActive = isToolShape ? !suspended : mode?.isOn ?? false;
+  /**
+   * `startActive` is what the channel falls back to, not something written into
+   * it on mount. The addon state provider drops every channel when its scope
+   * identity changes, and a route rebuilding its `addons` array on a render is
+   * exactly that, so a value written once is lost again. Read as a fallback the
+   * mode is on from the first render and survives every reset, while switching
+   * off by hand stores `isOn: false`, a value, which wins over the fallback.
+   */
+  const isActive = isToolShape ? !suspended : mode?.isOn ?? startActive;
 
   const { selectFeature, clearSelection, rawFeature, selectionVersion } =
     useMapSelection();

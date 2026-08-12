@@ -65,6 +65,9 @@ export const bodenFachzwilling: FachzwillingRoute = {
         sharpness: 0.5,
         crossLayer: "prefer-current",
         explain: "hold",
+        // the mode is what this Fachzwilling is being built around right now,
+        // so it starts switched on rather than one click away
+        startActive: true,
         // blue dot on every visible shape at the point a step from it would
         // start; makes a parcel whose interior point falls inside its building
         // readable at a glance
