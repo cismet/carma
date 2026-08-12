@@ -59,6 +59,18 @@ export type FeatureKeyboardNavConfig = {
   crossLayer?: NavCrossLayer;
   /** Cost multiplier for candidates in the current layer under "prefer-current". Default: 0.6 */
   currentLayerBonus?: number;
+  /**
+   * Cost multiplier for a `first-crossed` hit on the ray of the pressed
+   * direction, against the two fan rays beside it.
+   *
+   * The fan is there so a neighbour that meets the origin at a corner is still
+   * reachable, but ranking all three rays by raw distance lets a parcel the
+   * outer ray merely clips beat the one lying straight ahead. Below 1 the fan
+   * has to be that much closer to win: at 0.85 a fan crossing needs to be about
+   * 15% nearer. 1 ranks all three alike, which is how this behaved before.
+   * Default: 0.85
+   */
+  centerRayBonus?: number;
 
   /** Confirm the winner against what is actually drawn. Default: false */
   verifyWithRenderer?: boolean;
@@ -208,6 +220,8 @@ export type PickInput = {
   strategy: NavStrategy;
   crossLayer: NavCrossLayer;
   currentLayerBonus: number;
+  /** cost multiplier for the centre ray of `first-crossed`; 1 ranks all alike */
+  centerRayBonus: number;
   minStepPx: number;
   fanDeg: number;
   /** how far the rays of `first-crossed` reach; the viewport diagonal in practice */

@@ -34,6 +34,8 @@ export const DEFAULT_FAN_DEG = 8;
 export const DEFAULT_MIN_STEP_PX = 2;
 export const DEFAULT_CROSS_LAYER = "prefer-current";
 export const DEFAULT_CURRENT_LAYER_BONUS = 0.6;
+/** the pressed direction outranks its fan unless the fan is clearly nearer */
+export const DEFAULT_CENTER_RAY_BONUS = 0.85;
 export const DEFAULT_VERIFY_MAX_RETRIES = 3;
 export const DEFAULT_EDGE_BEHAVIOR = "pan";
 export const DEFAULT_PAN_STEP_FRACTION = 0.5;

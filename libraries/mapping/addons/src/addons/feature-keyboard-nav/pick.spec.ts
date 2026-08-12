@@ -51,6 +51,7 @@ const inputFor = (
   strategy: "nearest-in-cone",
   crossLayer: "free",
   currentLayerBonus: 0.6,
+  centerRayBonus: 0.85,
   minStepPx: 2,
   fanDeg: 8,
   rayLengthPx: 4000,
@@ -216,5 +217,57 @@ describe("first-crossed on gap-free coverage (A5)", () => {
     expect(result.explanation.strategyUsed).toBe("nearest-in-cone");
     expect(result.explanation.rays).toHaveLength(3);
     expect(result.winnerKey).toBe("scattered-point");
+  });
+});
+
+/**
+ * The pressed direction outranks the fan around it.
+ *
+ * Measured in the geoportal: a step to the left picked the parcel diagonally
+ * below, whose corner the lower fan ray clipped 132 px out, over the parcel
+ * lying straight ahead whose edge the centre ray met at 141 px. Ranking all
+ * three rays by raw distance makes the corner win; discounting the centre ray
+ * makes the obvious neighbour win while the corner case stays reachable.
+ */
+describe("centre ray preference in first-crossed", () => {
+  /** straight ahead, spanning the axis, its near edge 141 px up */
+  const ahead = polygon("ahead", [
+    [-40, -141],
+    [40, -141],
+    [40, -400],
+    [-40, -400],
+  ]);
+  /**
+   * Beside the axis, so the centre ray misses it entirely and only the fan
+   * reaches it, entering about 126 px out — nearer than `ahead`, which is what
+   * makes it win on raw distance.
+   */
+  const clipped = polygon("clipped", [
+    [-60, -125],
+    [-10, -125],
+    [-10, -300],
+    [-60, -300],
+  ]);
+
+  it("keeps the nearer fan crossing when the rays rank alike", () => {
+    const result = pickInDirection(
+      inputFor([ahead, clipped], {
+        strategy: "first-crossed",
+        originIsArea: true,
+        centerRayBonus: 1,
+      })
+    );
+    expect(result.winnerKey).toBe("clipped");
+  });
+
+  it("prefers the feature straight ahead once the centre ray is favoured", () => {
+    const result = pickInDirection(
+      inputFor([ahead, clipped], {
+        strategy: "first-crossed",
+        originIsArea: true,
+        centerRayBonus: 0.85,
+      })
+    );
+    expect(result.winnerKey).toBe("ahead");
   });
 });

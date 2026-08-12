@@ -187,10 +187,26 @@ export const evaluateFirstCrossed = (input: PickInput): FirstCrossedResult => {
   );
   const nearestTPerRay: number[] = rayAngles.map(() => Infinity);
 
+  /**
+   * The pressed direction counts for more than the fan around it.
+   *
+   * The fan exists so that a neighbour meeting the origin at a corner is still
+   * reachable, but ranking all three rays by raw distance lets a parcel the
+   * outer ray only clips beat the one lying straight ahead. Discounting the
+   * centre ray means a fan crossing has to be that much closer to win, which
+   * leaves the corner case working while the obvious neighbour stays the
+   * obvious answer. A bonus of 1 is the old behaviour.
+   */
+  const centerRayBonus = input.centerRayBonus ?? 1;
+  const costOfCrossing = (t: number, rayIndex: number) =>
+    rayIndex === 0 ? t * centerRayBonus : t;
+
   for (const candidate of input.candidates) {
     if (isOutOfScope(candidate, input)) continue;
 
-    let best: { t: number; point: ScreenPoint; rayIndex: number } | undefined;
+    let best:
+      | { t: number; point: ScreenPoint; rayIndex: number; cost: number }
+      | undefined;
     for (let rayIndex = 0; rayIndex < directions.length; rayIndex++) {
       const crossing = firstCrossing(
         origin,
@@ -203,9 +219,10 @@ export const evaluateFirstCrossed = (input: PickInput): FirstCrossedResult => {
         nearestTPerRay[rayIndex] = crossing.t;
         nearestPerRay[rayIndex] = crossing.point;
       }
+      const cost = costOfCrossing(crossing.t, rayIndex);
       // rayAngles starts with the centre ray, so a strict `<` lets it keep ties
-      if (!best || crossing.t < best.t) {
-        best = { ...crossing, rayIndex };
+      if (!best || cost < best.cost) {
+        best = { ...crossing, rayIndex, cost };
       }
     }
 
@@ -217,7 +234,7 @@ export const evaluateFirstCrossed = (input: PickInput): FirstCrossedResult => {
       distancePx: best.t,
       // the crossing lies on its ray, so the ray's own angle is its θ
       angleDeg: Math.abs(rayAngles[best.rayIndex]),
-      cost: best.t,
+      cost: best.cost,
     });
   }
 

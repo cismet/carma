@@ -57,6 +57,7 @@ const inputFor = (
   strategy: "nearest-in-cone",
   crossLayer: "free",
   currentLayerBonus: 0.6,
+  centerRayBonus: 0.85,
   minStepPx: 0.001,
   fanDeg: 8,
   rayLengthPx: 100,
