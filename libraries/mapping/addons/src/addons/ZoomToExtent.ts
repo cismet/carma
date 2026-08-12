@@ -17,7 +17,7 @@ export type ZoomToExtentConfig = {
   pointZoom?: number;
 };
 
-const DEFAULT_LABEL = "Auf Ebene zoomen";
+const DEFAULT_LABEL = "optimale Ansicht";
 const DEFAULT_POINT_ZOOM = 20;
 
 const searchLocationIcon: IconDefinition = nameMap["search-location"];
