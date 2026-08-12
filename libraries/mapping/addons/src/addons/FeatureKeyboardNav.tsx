@@ -459,9 +459,19 @@ export const FeatureKeyboardNav = ({
   const [faded, setFaded] = useState(false);
   const explainIdRef = useRef(0);
 
-  /** The key the last step published, so the selection it causes can be told
-   *  apart from one the user made. Consumed on arrival: selecting the same
-   *  feature again by hand is a new selection and clears the picture too. */
+  /**
+   * The key the last step published, so the selection it causes can be told
+   * apart from one the user made.
+   *
+   * Held until a different feature is selected rather than consumed on arrival.
+   * A host may republish the addon's own selection: the geoportal builds its
+   * infobox feature from what the addon selected and pushes that back into the
+   * selection context, so the same key arrives a second time. Consuming the
+   * claim made that echo look hand-made, which erased the picture a keypress
+   * had just drawn and dropped the walk with it. The price is that re-selecting
+   * the already selected feature by hand no longer clears anything, which is
+   * fine: the picture still describes the selection on screen.
+   */
   const navSelectedKeyRef = useRef<string | undefined>(undefined);
 
   /**
@@ -502,7 +512,6 @@ export const FeatureKeyboardNav = ({
   useEffect(() => {
     const selectedKey = rawFeature ? candidateKeyOf(rawFeature) : undefined;
     if (selectedKey !== undefined && selectedKey === navSelectedKeyRef.current) {
-      navSelectedKeyRef.current = undefined;
       return;
     }
     navSelectedKeyRef.current = undefined;
