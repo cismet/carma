@@ -74,6 +74,31 @@ export type FeatureKeyboardNavConfig = {
   explain?: NavExplainMode;
   /** Fade delay for "brief", in ms. Default: 1200 */
   explainMs?: number;
+  /**
+   * Draw the interior point of every visible shape as a blue dot, not only the
+   * origin of the selected one. These are the points navigation would measure
+   * from, which is what makes a surprising step readable: under `first-crossed`
+   * a parcel whose interior point falls inside the building standing on it will
+   * cross that building's wall before its own border.
+   *
+   * Shown for as long as the mode is on, not only after a keypress, so the
+   * picture is there before the first arrow. Needs `explain` on. Default: false
+   */
+  showOrigins?: boolean;
+  /**
+   * Upper bound on those dots; beyond it the rest are left undrawn. They are
+   * re-projected on every map frame, so a high value costs redraw time while
+   * panning. Default: 300
+   */
+  maxOriginDots?: number;
+  /**
+   * Fill colour of those dots, as any CSS colour. Keep it clearly apart from
+   * the blue of the selected feature's own origin, which is not configurable
+   * for that reason. Default: "#8a94a6"
+   */
+  originDotColor?: string;
+  /** Opacity of the whole dot layer, 0 to 1. Default: 0.7 */
+  originDotOpacity?: number;
 
   /** Enter navigation mode as soon as a feature is selected. Default: false */
   autoActivateOnSelect?: boolean;

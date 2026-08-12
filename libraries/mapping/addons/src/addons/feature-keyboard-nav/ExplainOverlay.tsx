@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import {
+  DEFAULT_ORIGIN_DOT_COLOR,
+  DEFAULT_ORIGIN_DOT_OPACITY,
+} from "./constants";
 import { rotate } from "./geometry";
 import type { PickExplanation, ScreenPoint } from "./types";
 
@@ -26,6 +30,11 @@ const MAX_DRAWN = 24;
 const MAX_LABELLED = 8;
 const AXIS_LENGTH_PX = 90;
 const FADE_MS = 400;
+/** the origin dot, drawn at the same size for the selected feature and for the
+ *  interior points of the others: they are the same kind of point */
+const ORIGIN_DOT_RADIUS = 5;
+/** softens the possible origins so the actual one stays the sharp one */
+const ORIGIN_DOT_BLUR_PX = 1;
 
 export type ExplainSnapshot = {
   /** bumped per keypress; restarts the fade and replaces a held picture */
@@ -232,7 +241,7 @@ export const ExplainOverlay = ({
         <circle
           cx={origin.x}
           cy={origin.y}
-          r={5}
+          r={ORIGIN_DOT_RADIUS}
           fill={COLORS.origin}
           stroke="#fff"
           strokeWidth={2}
@@ -291,6 +300,76 @@ export const ExplainOverlay = ({
       </svg>
     </div>,
     container
+  );
+};
+
+/**
+ * The interior point of every visible shape, as a blue dot.
+ *
+ * Its own overlay, not part of the per-keypress picture: these answer "where
+ * would a step from that shape start?", which is a property of the map as it
+ * stands, not of one decision. They therefore appear as soon as the mode is
+ * switched on, before any key is pressed, and stay while the user pans.
+ *
+ * Same size as the origin dot of the selected feature, because it is the same
+ * kind of point, but softened and in its own colour: these are origins a step
+ * *could* start from, and only one of them is the one it did start from. The
+ * blur is a CSS filter on the whole layer rather than an SVG `feGaussianBlur`
+ * per dot — the layer is composited once, which matters when it is re-projected
+ * on every map frame.
+ *
+ * Colour and opacity are config, since what reads as "clearly not the selected
+ * one" depends on the basemap under it. Opacity sits on the layer rather than on
+ * each circle, so overlapping dots do not darken each other.
+ *
+ * The set is the whole candidate set, not the evaluated candidates: the shapes
+ * a step skipped are exactly the ones whose interior point explains why.
+ */
+export const FeatureOriginDots = ({
+  map,
+  origins,
+  color = DEFAULT_ORIGIN_DOT_COLOR,
+  opacity = DEFAULT_ORIGIN_DOT_OPACITY,
+}: {
+  map: MaplibreMap | null;
+  origins: Array<[number, number]>;
+  color?: string;
+  opacity?: number;
+}) => {
+  useMapFrame(map);
+
+  if (!map || origins.length === 0) return null;
+
+  return createPortal(
+    <svg
+      width="100%"
+      height="100%"
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 599,
+        opacity,
+        filter: `blur(${ORIGIN_DOT_BLUR_PX}px)`,
+      }}
+      data-test-id="feature-keyboard-nav-origins"
+    >
+      {origins.map((lngLat, index) => {
+        const point = map.project(lngLat);
+        return (
+          <circle
+            key={`feature-origin-${index}`}
+            cx={point.x}
+            cy={point.y}
+            r={ORIGIN_DOT_RADIUS}
+            fill={color}
+            stroke="#fff"
+            strokeWidth={1.5}
+          />
+        );
+      })}
+    </svg>,
+    map.getContainer()
   );
 };
 

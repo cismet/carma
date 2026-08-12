@@ -65,6 +65,10 @@ export const bodenFachzwilling: FachzwillingRoute = {
         sharpness: 0.5,
         crossLayer: "prefer-current",
         explain: "hold",
+        // blue dot on every visible shape at the point a step from it would
+        // start; makes a parcel whose interior point falls inside its building
+        // readable at a glance
+        showOrigins: true,
       },
     },
     {

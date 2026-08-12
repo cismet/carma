@@ -33,7 +33,10 @@ import {
   DEFAULT_EXPLAIN_MS,
   DEFAULT_FAN_DEG,
   DEFAULT_MAX_CANDIDATES,
+  DEFAULT_MAX_ORIGIN_DOTS,
   DEFAULT_MIN_STEP_PX,
+  DEFAULT_ORIGIN_DOT_COLOR,
+  DEFAULT_ORIGIN_DOT_OPACITY,
   DEFAULT_PAN_DURATION_MS,
   DEFAULT_PAN_STEP_FRACTION,
   DEFAULT_STRATEGY,
@@ -46,6 +49,7 @@ import {
 import {
   ExplainLegend,
   ExplainOverlay,
+  FeatureOriginDots,
   toExplainSnapshot,
   type ExplainSnapshot,
 } from "./feature-keyboard-nav/ExplainOverlay";
@@ -320,6 +324,10 @@ export const FeatureKeyboardNav = ({
     panDurationMs = DEFAULT_PAN_DURATION_MS,
     explain = DEFAULT_EXPLAIN,
     explainMs = DEFAULT_EXPLAIN_MS,
+    showOrigins = false,
+    maxOriginDots = DEFAULT_MAX_ORIGIN_DOTS,
+    originDotColor = DEFAULT_ORIGIN_DOT_COLOR,
+    originDotOpacity = DEFAULT_ORIGIN_DOT_OPACITY,
     autoActivateOnSelect = false,
     showControl = true,
     controlPosition = DEFAULT_CONTROL_POSITION,
@@ -353,12 +361,17 @@ export const FeatureKeyboardNav = ({
   );
   const scope = useNavScope(libreMap, target, layerPatterns);
 
+  // the dots are the only reason to compute an interior point per visible
+  // feature, so the flag reaches all the way down to the candidate build
+  const originsUpTo = showOrigins && explain !== "off" ? maxOriginDots : 0;
+
   const { candidateSet, version } = useNavCandidates({
     map: libreMap,
     scope,
     enabled: isActive,
     maxCandidates,
     debounceMs: candidateDebounceMs,
+    originsUpTo,
   });
 
   const candidateSetRef = useRef<CandidateSet>(candidateSet);
@@ -383,6 +396,24 @@ export const FeatureKeyboardNav = ({
       setSnapshot(toExplainSnapshot(map, explanation, explainIdRef.current));
     },
     [explain]
+  );
+
+  /**
+   * The interior points drawn while the mode runs. Not part of the keypress
+   * snapshot: they describe the map as it stands, so they appear the moment the
+   * mode is switched on and survive every pan, rather than arriving with the
+   * first arrow and fading with it.
+   */
+  const featureOrigins = useMemo(
+    () =>
+      originsUpTo === 0
+        ? []
+        : candidateSet.candidates
+            .map((candidate) => candidate.origin)
+            .filter(
+              (origin): origin is [number, number] => origin !== undefined
+            ),
+    [candidateSet, originsUpTo]
   );
 
   useEffect(() => {
@@ -641,6 +672,15 @@ export const FeatureKeyboardNav = ({
   // the rest of the map chrome: bottom-center, clear of the gazetteer search box
   const overlay = (
     <>
+      {/* on while the mode is, independent of any keypress */}
+      {isActive && (
+        <FeatureOriginDots
+          map={libreMap}
+          origins={featureOrigins}
+          color={originDotColor}
+          opacity={originDotOpacity}
+        />
+      )}
       <ExplainOverlay map={libreMap} snapshot={snapshot} faded={faded} />
       {snapshot && (
         <Control position="bottomcenter" order={LEGEND_CONTROL_ORDER}>

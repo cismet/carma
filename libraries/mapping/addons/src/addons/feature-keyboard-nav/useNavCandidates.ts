@@ -39,12 +39,15 @@ export const useNavCandidates = ({
   enabled,
   maxCandidates,
   debounceMs,
+  originsUpTo = 0,
 }: {
   map: MaplibreMap | null;
   scope: NavScope;
   enabled: boolean;
   maxCandidates: number;
   debounceMs: number;
+  /** interior points to precompute for the explain overlay; 0 for none */
+  originsUpTo?: number;
 }): NavCandidateState => {
   const [state, setState] = useState<NavCandidateState>({
     candidateSet: EMPTY_CANDIDATE_SET,
@@ -57,6 +60,8 @@ export const useNavCandidates = ({
   scopeRef.current = scope;
   const maxCandidatesRef = useRef(maxCandidates);
   maxCandidatesRef.current = maxCandidates;
+  const originsUpToRef = useRef(originsUpTo);
+  originsUpToRef.current = originsUpTo;
 
   const query = useCallback((mapInstance: MaplibreMap) => {
     const { styleLayerIds, catalogLayerIds, requireCatalogLayer } =
@@ -103,6 +108,7 @@ export const useNavCandidates = ({
       catalogLayerIds,
       requireCatalogLayer,
       maxCandidates: maxCandidatesRef.current,
+      originsUpTo: originsUpToRef.current,
     });
     setState((previous) => ({
       candidateSet,

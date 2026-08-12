@@ -12,7 +12,7 @@ import type { Feature, Geometry, Position } from "geojson";
  */
 export const interiorPointOf = (
   geometry: Geometry | null | undefined
-): Position | undefined => {
+): [number, number] | undefined => {
   if (!geometry) return undefined;
   try {
     const feature: Feature = { type: "Feature", properties: {}, geometry };
