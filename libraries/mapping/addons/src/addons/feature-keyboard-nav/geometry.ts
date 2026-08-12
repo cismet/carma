@@ -150,6 +150,57 @@ export const firstCrossing = (
   };
 };
 
+/**
+ * The middle of the first stretch the ray spends *inside* a candidate.
+ *
+ * Crossings along a ray alternate outside/inside, so the segment between the
+ * first and the second one lies within the candidate — holes included, since a
+ * hole's ring is crossed like any other boundary. Its midpoint is therefore
+ * strictly inside, and it is inside *where the walk arrived*, which a pole of
+ * inaccessibility is not: entering a long street from the south, the pole can
+ * sit hundreds of metres down the road, and the next step then measures from
+ * there instead of from the place the user is looking at.
+ *
+ * `undefined` when the ray does not pass through the candidate at all, which
+ * leaves the caller with its pole as the origin.
+ */
+export const chordMidpoint = (
+  origin: ScreenPoint,
+  direction: ScreenPoint,
+  candidate: ProjectedCandidate,
+  maxDistance: number
+): ScreenPoint | undefined => {
+  let firstT = Infinity;
+  let secondT = Infinity;
+
+  for (const part of candidate.parts) {
+    for (let index = 1; index < part.length; index++) {
+      const a = part[index - 1];
+      const b = part[index];
+      const segment = subtract(b, a);
+      const denominator = cross(direction, segment);
+      if (Math.abs(denominator) < EPSILON) continue;
+      const toA = subtract(a, origin);
+      const t = cross(toA, segment) / denominator;
+      const s = cross(toA, direction) / denominator;
+      if (t <= EPSILON || t > maxDistance || s < 0 || s > 1) continue;
+      if (t < firstT) {
+        secondT = firstT;
+        firstT = t;
+      } else if (t < secondT && t > firstT + EPSILON) {
+        secondT = t;
+      }
+    }
+  }
+
+  if (firstT === Infinity || secondT === Infinity) return undefined;
+  const middle = (firstT + secondT) / 2;
+  return {
+    x: origin.x + direction.x * middle,
+    y: origin.y + direction.y * middle,
+  };
+};
+
 /** An axis-aligned rectangle in screen pixels. */
 export type ScreenBox = {
   minX: number;

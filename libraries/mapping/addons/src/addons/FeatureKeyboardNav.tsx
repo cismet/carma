@@ -52,6 +52,7 @@ import {
   toExplainSnapshot,
   type ExplainSnapshot,
 } from "./feature-keyboard-nav/ExplainOverlay";
+import { chordMidpoint } from "./feature-keyboard-nav/geometry";
 import {
   isTypingTarget,
   navHintRows,
@@ -114,6 +115,8 @@ const DEFAULT_CONTROL_ORDER = 75;
 const LEGEND_CONTROL_ORDER = 10;
 const ACTIVE_COLOR = "#1677ff";
 const WARNING_COLOR = "#d4380d";
+/** the origin a step arrived at, as opposed to the feature's own pole */
+const ARRIVAL_ORIGIN_COLOR = "#e8323c";
 const FADE_MS = 400;
 /** half-size of the box `verifyWithRenderer` asks about, in pixels */
 const VERIFY_PROBE_PX = 3;
@@ -153,13 +156,24 @@ type NavOrigin = {
 
 const resolveOrigin = (
   map: MaplibreMap,
-  feature: MapGeoJSONFeature | null
+  feature: MapGeoJSONFeature | null,
+  candidates: CandidateSet,
+  arrivals: Map<string, [number, number]>
 ): NavOrigin | undefined => {
   if (feature) {
-    const interior = interiorPointOf(feature.geometry);
+    const key = candidateKeyOf(feature);
+    // where the walk actually entered this feature, when it was walked into:
+    // the middle of the stretch the step's ray spent inside it. Closer to what
+    // the user is looking at than the pole, which on a long street can sit far
+    // down the road and send the next step off from there
+    const arrival = key ? arrivals.get(key) : undefined;
+    // the candidate holds every tile piece of this feature merged into one
+    // geometry; `feature.geometry` is whichever piece the query returned first,
+    // and on a feature that spans tiles its interior point is not the feature's
+    const merged = key ? candidates.byKey.get(key)?.geometry : undefined;
+    const interior = arrival ?? interiorPointOf(merged ?? feature.geometry);
     if (interior) {
       const projected = map.project([interior[0], interior[1]]);
-      const key = candidateKeyOf(feature);
       const layerId = catalogLayerIdOfFeature(feature);
       return {
         point: { x: projected.x, y: projected.y },
@@ -416,6 +430,17 @@ export const FeatureKeyboardNav = ({
   const trailRef = useRef<NavTrailEntry[]>([]);
 
   /**
+   * Where a step entered each feature it walked into, in lng/lat.
+   *
+   * Kept per feature rather than for the selection alone, so walking back along
+   * the trail returns to the same origin the walk had there. Cleared whenever
+   * the walk itself is dropped: a hand-made selection or leaving the mode.
+   */
+  const arrivalsRef = useRef(new Map<string, [number, number]>());
+  /** the key whose arrival origin is currently drawn, for the dot's colour */
+  const [arrivalKey, setArrivalKey] = useState<string | undefined>(undefined);
+
+  /**
    * A selection the addon did not make erases the picture at once.
    *
    * The explanation describes one step: which candidates were considered, from
@@ -435,6 +460,8 @@ export const FeatureKeyboardNav = ({
     }
     navSelectedKeyRef.current = undefined;
     trailRef.current = [];
+    arrivalsRef.current.clear();
+    setArrivalKey(undefined);
     setSnapshot(null);
     setFaded(false);
   }, [rawFeature, selectionVersion]);
@@ -465,13 +492,25 @@ export const FeatureKeyboardNav = ({
   const featureOrigins = useMemo(
     () => {
       if (!showOrigins || explain === "off" || !rawFeature) return [];
-      const origin = interiorPointOf(rawFeature.geometry);
+      // the merged geometry, for the same reason `resolveOrigin` uses it: the
+      // dot has to mark the point a step actually measures from
+      const key = candidateKeyOf(rawFeature);
+      const arrival = key ? arrivalsRef.current.get(key) : undefined;
+      if (arrival) return [arrival];
+      const merged = key ? candidateSet.byKey.get(key)?.geometry : undefined;
+      const origin = interiorPointOf(merged ?? rawFeature.geometry);
       return origin ? [origin] : [];
     },
-    // `selectionVersion` stands for a reselection of the same feature object
+    // `selectionVersion` stands for a reselection of the same feature object,
+    // `arrivalKey` for a fresh arrival point written into the ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showOrigins, explain, rawFeature, selectionVersion]
+    [showOrigins, explain, rawFeature, selectionVersion, candidateSet, arrivalKey]
   );
+
+  /** Red where the walk arrived, the configured colour where it is the pole. */
+  const originIsArrival =
+    rawFeature !== null &&
+    arrivalsRef.current.has(candidateKeyOf(rawFeature) ?? "");
 
   useEffect(() => {
     if (explain !== "brief" || !snapshot) return;
@@ -487,6 +526,8 @@ export const FeatureKeyboardNav = ({
   useEffect(() => {
     if (isActive) return;
     trailRef.current = [];
+    arrivalsRef.current.clear();
+    setArrivalKey(undefined);
     setSnapshot(null);
   }, [isActive]);
 
@@ -544,7 +585,12 @@ export const FeatureKeyboardNav = ({
           },
           previous
         );
-        const restored = resolveOrigin(map, previous);
+        const restored = resolveOrigin(
+          map,
+          previous,
+          candidateSetRef.current,
+          arrivalsRef.current
+        );
         if (restored) keepInView(map, restored.point, panDurationMs);
         return;
       }
@@ -554,10 +600,16 @@ export const FeatureKeyboardNav = ({
       const maxAttempts = edgeBehavior === "pan" ? 2 : 1;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const origin = resolveOrigin(map, originFeatureRef.current);
+        const candidateSetNow = candidateSetRef.current;
+        const origin = resolveOrigin(
+          map,
+          originFeatureRef.current,
+          candidateSetNow,
+          arrivalsRef.current
+        );
         if (!origin) return;
 
-        const { candidates, byKey, degraded } = candidateSetRef.current;
+        const { candidates, byKey, degraded } = candidateSetNow;
 
         const projected = projectCandidates({
           map,
@@ -594,6 +646,29 @@ export const FeatureKeyboardNav = ({
           winnerKey === undefined ? undefined : byKey.get(winnerKey);
 
         if (winner) {
+          // half the stretch the axis ray spends inside the feature it just
+          // entered, which is where the walk arrived rather than where the
+          // feature happens to be widest
+          const winnerOutline = projected.find(
+            (entry) => entry.key === winnerKey
+          );
+          const arrival = winnerOutline
+            ? chordMidpoint(
+                origin.point,
+                axis,
+                winnerOutline,
+                viewportDiagonalPx(map)
+              )
+            : undefined;
+          if (arrival && winnerKey) {
+            const lngLat = map.unproject([arrival.x, arrival.y]);
+            arrivalsRef.current.set(winnerKey, [lngLat.lng, lngLat.lat]);
+            setArrivalKey(winnerKey);
+          } else if (winnerKey) {
+            arrivalsRef.current.delete(winnerKey);
+            setArrivalKey(undefined);
+          }
+
           const cameFrom = originFeatureRef.current;
           // no entry for the bootstrap step: it started from the middle of the
           // screen, and there is no feature to go back to
@@ -672,6 +747,9 @@ export const FeatureKeyboardNav = ({
     else setMode({ isOn: false, degraded: false });
   }, [clearSelection, isToolShape, setMode]);
 
+  /** A step is running; further step keys are dropped until it finishes. */
+  const steppingRef = useRef(false);
+
   /** The action table, behind a ref so the key listener binds once per mode. */
   const runActionRef = useRef<(binding: NavKeyBinding) => void>(
     () => undefined
@@ -681,11 +759,23 @@ export const FeatureKeyboardNav = ({
     switch (binding.action) {
       case "step":
         if (binding.direction) {
+          // One step at a time. A held arrow repeats at the OS rate, and a step
+          // spans an awaited edge pan, so without this every repeat started
+          // another one: the steps overlapped, each measuring from a selection
+          // its predecessor had already replaced, and the selection ran behind
+          // the key by as much as a second. Dropped rather than queued, since a
+          // queue would keep moving after the key is released.
+          if (steppingRef.current) return;
+          steppingRef.current = true;
           // a step spans an awaited edge pan, so it is a promise; a failing key
           // must stay a failing key and not an unhandled rejection
-          step(binding.direction).catch((error: unknown) => {
-            console.warn("[FEATURE_KEYBOARD_NAV] step failed", error);
-          });
+          step(binding.direction)
+            .catch((error: unknown) => {
+              console.warn("[FEATURE_KEYBOARD_NAV] step failed", error);
+            })
+            .finally(() => {
+              steppingRef.current = false;
+            });
         }
         return;
       case "pan": {
@@ -769,7 +859,7 @@ export const FeatureKeyboardNav = ({
         <FeatureOriginDots
           map={libreMap}
           origins={featureOrigins}
-          color={originDotColor}
+          color={originIsArrival ? ARRIVAL_ORIGIN_COLOR : originDotColor}
           opacity={originDotOpacity}
         />
       )}
