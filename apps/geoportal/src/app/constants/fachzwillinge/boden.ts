@@ -70,7 +70,7 @@ export const bodenFachzwilling: FachzwillingRoute = {
         // behaved before the option existed; below 1 the fan has to be that
         // much nearer to win (0.85: about 15%); 0 makes anything the centre ray
         // touches win outright, however far away it is
-        centerRayBonus: 0.85,
+        centerRayBonus: 0.9,
         // the mode is what this Fachzwilling is being built around right now,
         // so it starts switched on rather than one click away
         startActive: true,

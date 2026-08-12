@@ -3,6 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import maplibregl from "maplibre-gl";
 
 import { useMapSelection } from "@carma-mapping/contexts";
+import {
+  getCarmaConf,
+  resolvePropertyTarget,
+} from "@carma-mapping/engines/maplibre";
 import { utils } from "@carma-appframeworks/portals";
 
 import {
@@ -36,6 +40,88 @@ import { useSelectionForwarding } from "./useSelectionForwarding";
 const MAX_SELECTION_COUNT = 10;
 
 const RECLICK_DELAY_MS = 250;
+
+/** The identity a feature keeps across tiles and queries. */
+const featureKeyOf = (
+  feature:
+    | { source?: string; sourceLayer?: string; id?: string | number }
+    | null
+    | undefined
+) =>
+  feature?.id === undefined || feature?.id === null || !feature.source
+    ? undefined
+    : `${feature.source}|${feature.sourceLayer ?? ""}|${String(feature.id)}`;
+
+/**
+ * What a click adds to a hit before the infobox mapping ever sees it.
+ *
+ * `SelectionManager.enrichHits` attaches `carmaInfo` to every hit it returns,
+ * and `targetProperties` where the layer configures a property target. A
+ * feature published by an addon comes straight from `queryRenderedFeatures` and
+ * has neither, and the mapping functions read them: without `carmaInfo` the
+ * ALKIS mapping returns null, `createVectorFeature` then returns undefined, and
+ * nothing is dispatched — the feature is drawn as selected and the infobox
+ * keeps showing whatever was clicked last.
+ */
+const enrichSelectedFeature = (
+  feature: maplibregl.MapGeoJSONFeature,
+  map: maplibregl.Map | null | undefined
+): maplibregl.MapGeoJSONFeature => {
+  const carmaConf = getCarmaConf(feature);
+  const properties: Record<string, unknown> = {
+    ...feature.properties,
+    carmaInfo: {
+      source: feature.source,
+      sourceLayer: feature.sourceLayer,
+      layerId: feature.layer?.id,
+    },
+  };
+
+  if (map && carmaConf?.propertyTarget) {
+    const targetProps = resolvePropertyTarget(
+      map,
+      feature.id,
+      carmaConf.propertyTarget
+    );
+    if (targetProps) properties.targetProperties = targetProps;
+  }
+
+  // a copy: the queried feature belongs to the addon that published it
+  return { ...feature, properties } as maplibregl.MapGeoJSONFeature;
+};
+
+/**
+ * A point inside the feature's extent, standing in for the click position.
+ *
+ * `createVectorFeature` takes the click's lng/lat, which a selection published
+ * by an addon does not have. It is only used for the legacy GetFeatureInfo URL
+ * and the position readout, so the centre of the geometry's extent is a fair
+ * stand-in for "where the user is looking".
+ */
+const extentCentreOf = (
+  geometry: GeoJSON.Geometry | undefined
+): maplibregl.LngLat | undefined => {
+  if (!geometry || geometry.type === "GeometryCollection") return undefined;
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  const visit = (value: unknown) => {
+    if (!Array.isArray(value)) return;
+    if (typeof value[0] === "number" && typeof value[1] === "number") {
+      const [lng, lat] = value as [number, number];
+      if (lng < minLng) minLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lng > maxLng) maxLng = lng;
+      if (lat > maxLat) maxLat = lat;
+      return;
+    }
+    for (const entry of value) visit(entry);
+  };
+  visit(geometry.coordinates);
+  if (minLng === Infinity) return undefined;
+  return new maplibregl.LngLat((minLng + maxLng) / 2, (minLat + maxLat) / 2);
+};
 
 type ClickPos = [number, number] | null;
 
@@ -140,8 +226,12 @@ export const useLibreMapSelectionHandler = (
 
   useEffect(() => removeFeatureInfoMarker, [removeFeatureInfoMarker]);
 
-  const { selectFeature: selectMapFeature, clearSelection: clearMapSelection } =
-    useMapSelection();
+  const {
+    selectFeature: selectMapFeature,
+    clearSelection: clearMapSelection,
+    rawFeature: contextRawFeature,
+    selectionVersion,
+  } = useMapSelection();
   const selectedFeature = useSelector(getSelectedFeature);
   useEffect(() => {
     const feature = selectedFeature as {
@@ -358,6 +448,64 @@ export const useLibreMapSelectionHandler = (
     },
     [dispatch]
   );
+
+  /**
+   * The other direction: a selection published into the map selection context
+   * becomes the app's selected feature.
+   *
+   * Everything above flows one way, from the store into the context, because
+   * clicking was the only way this app selected anything. An addon that
+   * publishes a selection — arrow-key navigation does — was therefore drawn as
+   * selected and nothing else: the infobox kept showing the feature clicked
+   * before it, and the store still held that one, so clicking it again counted
+   * as a re-click and zoomed to it.
+   *
+   * It goes through `handleSelectionChanged` rather than beside it, as the hit a
+   * click would have produced, so the infobox is built by exactly the code a
+   * click runs. The store's feature carries the `sourceFeature` it was built
+   * from, so comparing identities tells an addon's selection from the echo of
+   * this app's own and ends the round trip.
+   */
+  useEffect(() => {
+    if (!contextRawFeature) return;
+
+    const current = getSelectedFeature(store.getState()) as {
+      sourceFeature?: maplibregl.MapGeoJSONFeature;
+    } | null;
+    if (
+      featureKeyOf(contextRawFeature) === featureKeyOf(current?.sourceFeature)
+    ) {
+      return;
+    }
+
+    const map = libreMapRef.current;
+    const latlng = extentCentreOf(contextRawFeature.geometry);
+    if (!map || !latlng) return;
+
+    // `SelectionManager` enriches real hits before the app ever sees them;
+    // a feature from `queryRenderedFeatures` needs the same treatment
+    const hit = enrichSelectedFeature(contextRawFeature, map);
+    const layerId = hit.layer?.metadata?.["layer-id"];
+    const layer = getLayers(store.getState()).find(
+      (entry) => entry.id === layerId
+    );
+    console.info("[SELECTION_SYNC] building infobox feature", {
+      layerId,
+      layerFound: !!layer,
+      propertyKeys: Object.keys(hit.properties ?? {}),
+      infoboxMapping: Array.isArray(layer?.conf?.infoboxMapping)
+        ? (layer.conf.infoboxMapping as string[]).join("\n")
+        : layer?.conf?.infoboxMapping,
+    });
+    if (!layer) return;
+
+    void createVectorFeature(layer, hit, map, latlng).then((feature) => {
+      console.info("[SELECTION_SYNC] built", { hasFeature: !!feature });
+      if (feature) dispatch(setSelectedFeature(feature));
+    });
+    // `selectionVersion` stands for a reselection of the same feature object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextRawFeature, selectionVersion, dispatch]);
 
   // Pre-select the preferred hit (sticky layer from the infobox thumbnail
   // switcher) before CarmaMap applies its default visual selection on the
