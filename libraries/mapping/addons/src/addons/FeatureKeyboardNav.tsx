@@ -34,7 +34,6 @@ import {
   DEFAULT_FAN_DEG,
   DEFAULT_MAX_CANDIDATES,
   DEFAULT_MIN_STEP_PX,
-  DEFAULT_ORIGIN_DOT_COLOR,
   DEFAULT_ORIGIN_DOT_OPACITY,
   DEFAULT_PAN_DURATION_MS,
   DEFAULT_PAN_STEP_FRACTION,
@@ -51,6 +50,7 @@ import {
   FeatureOriginDots,
   toExplainSnapshot,
   type ExplainSnapshot,
+  type OriginDot,
 } from "./feature-keyboard-nav/ExplainOverlay";
 import { chordMidpoint } from "./feature-keyboard-nav/geometry";
 import {
@@ -59,7 +59,12 @@ import {
   resolveNavBinding,
   type NavKeyBinding,
 } from "./feature-keyboard-nav/keymap";
-import { interiorPointOf, isAreaGeometry } from "./feature-keyboard-nav/origin";
+import {
+  interiorPointOf,
+  isAreaGeometry,
+  originCandidatesOf,
+  type OriginStrategy,
+} from "./feature-keyboard-nav/origin";
 import { pickInDirection, rankedKeys } from "./feature-keyboard-nav/pick";
 import {
   projectCandidates,
@@ -115,8 +120,21 @@ const DEFAULT_CONTROL_ORDER = 75;
 const LEGEND_CONTROL_ORDER = 10;
 const ACTIVE_COLOR = "#1677ff";
 const WARNING_COLOR = "#d4380d";
-/** the origin a step arrived at, as opposed to the feature's own pole */
-const ARRIVAL_ORIGIN_COLOR = "#e8323c";
+/**
+ * One colour per way of placing the origin, so all of them can be read at once
+ * while the strategy is still being chosen by hand. A filled dot is usable, a
+ * hollow one fell outside the feature and is why the pole is used instead.
+ */
+const ORIGIN_COLORS: Readonly<Record<OriginStrategy | "arrival", string>> = {
+  /** where a walk entered the feature */
+  arrival: "#e8323c",
+  /** furthest from any edge */
+  pole: "#1677ff",
+  /** half way along the shape */
+  spine: "#13a10e",
+  /** the area centroid */
+  centroid: "#b37feb",
+};
 const FADE_MS = 400;
 /** half-size of the box `verifyWithRenderer` asks about, in pixels */
 const VERIFY_PROBE_PX = 3;
@@ -128,15 +146,29 @@ const OPPOSITE_DIRECTION: Readonly<Record<NavDirection, NavDirection>> = {
   left: "right",
   right: "left",
 };
-/** steps the trail remembers; older ones are dropped from the far end */
+/** features the path remembers; older ones are dropped from the far end */
 const MAX_NAV_TRAIL = 100;
 
-/** One taken step, kept so the opposite key can undo it. */
-type NavTrailEntry = {
-  direction: NavDirection;
-  /** the feature the step started from, as it was queried */
-  from: MapGeoJSONFeature;
+/** One visited feature, with the direction that led into it. */
+type NavPathEntry = {
+  /** the feature as queried, so re-selecting it needs no new query */
+  feature: MapGeoJSONFeature;
+  /** `undefined` on the feature the walk started from */
+  direction?: NavDirection;
 };
+
+/**
+ * The walk as a path with a position on it, rather than a stack.
+ *
+ * A stack only replays backwards: stepping back pops the entry, which throws
+ * the way forward away, so up-up-up-down-down-up runs the picker again for that
+ * last up although the answer was known. With a cursor, both directions replay
+ * — back while the pressed key undoes the step that led here, forward while it
+ * repeats the step that was taken from here — and only a step that leaves the
+ * remembered path asks the picker. Stepping off the middle of the path drops
+ * what lay ahead, the way an edit after an undo does.
+ */
+type NavPath = { entries: NavPathEntry[]; cursor: number };
 
 export const featureKeyboardNavTrigger: AddonTrigger<"featureKeyboardNav"> = {
   icon: faArrowsUpDownLeftRight,
@@ -158,7 +190,9 @@ const resolveOrigin = (
   map: MaplibreMap,
   feature: MapGeoJSONFeature | null,
   candidates: CandidateSet,
-  arrivals: Map<string, [number, number]>
+  arrivals: Map<string, [number, number]>,
+  strategy: OriginStrategy,
+  mode: "dynamic" | "static"
 ): NavOrigin | undefined => {
   if (feature) {
     const key = candidateKeyOf(feature);
@@ -166,12 +200,13 @@ const resolveOrigin = (
     // the middle of the stretch the step's ray spent inside it. Closer to what
     // the user is looking at than the pole, which on a long street can sit far
     // down the road and send the next step off from there
-    const arrival = key ? arrivals.get(key) : undefined;
+    const arrival = mode === "static" || !key ? undefined : arrivals.get(key);
     // the candidate holds every tile piece of this feature merged into one
     // geometry; `feature.geometry` is whichever piece the query returned first,
     // and on a feature that spans tiles its interior point is not the feature's
     const merged = key ? candidates.byKey.get(key)?.geometry : undefined;
-    const interior = arrival ?? interiorPointOf(merged ?? feature.geometry);
+    const interior =
+      arrival ?? interiorPointOf(merged ?? feature.geometry, strategy);
     if (interior) {
       const projected = map.project([interior[0], interior[1]]);
       const layerId = catalogLayerIdOfFeature(feature);
@@ -355,8 +390,9 @@ export const FeatureKeyboardNav = ({
     explain = DEFAULT_EXPLAIN,
     explainMs = DEFAULT_EXPLAIN_MS,
     showOrigins = false,
-    originDotColor = DEFAULT_ORIGIN_DOT_COLOR,
     originDotOpacity = DEFAULT_ORIGIN_DOT_OPACITY,
+    originStrategy = "pole",
+    originMode = "dynamic",
     autoActivateOnSelect = false,
     startActive = false,
     showControl = true,
@@ -427,16 +463,16 @@ export const FeatureKeyboardNav = ({
   const navSelectedKeyRef = useRef<string | undefined>(undefined);
 
   /**
-   * The steps taken so far, newest last.
+   * The features walked so far, and where on that path the walk stands.
    *
    * Up and then down has to land on the feature it started from, and picking
    * cannot guarantee that: the reverse step measures from a different origin
-   * through a different cone, so a neighbour that was second on the way out can
-   * win on the way back. The trail makes the return exact rather than merely
-   * likely, and it is also the cheaper path, since walking back costs no
-   * projection of the candidate set at all.
+   * through a different cone, so a neighbour that came second on the way out
+   * can win on the way back. Replaying the path makes the return exact rather
+   * than merely likely, and it is also the cheaper path, since it projects no
+   * candidates at all.
    */
-  const trailRef = useRef<NavTrailEntry[]>([]);
+  const pathRef = useRef<NavPath>({ entries: [], cursor: -1 });
 
   /**
    * Where a step entered each feature it walked into, in lng/lat.
@@ -468,7 +504,7 @@ export const FeatureKeyboardNav = ({
       return;
     }
     navSelectedKeyRef.current = undefined;
-    trailRef.current = [];
+    pathRef.current = { entries: [], cursor: -1 };
     arrivalsRef.current.clear();
     setArrivalKey(undefined);
     setSnapshot(null);
@@ -504,22 +540,70 @@ export const FeatureKeyboardNav = ({
       // the merged geometry, for the same reason `resolveOrigin` uses it: the
       // dot has to mark the point a step actually measures from
       const key = candidateKeyOf(rawFeature);
-      const arrival = key ? arrivalsRef.current.get(key) : undefined;
-      if (arrival) return [arrival];
+      const arrival =
+        originMode === "static" || !key
+          ? undefined
+          : arrivalsRef.current.get(key);
       const merged = key ? candidateSet.byKey.get(key)?.geometry : undefined;
-      const origin = interiorPointOf(merged ?? rawFeature.geometry);
-      return origin ? [origin] : [];
+      const geometry = merged ?? rawFeature.geometry;
+
+      // every strategy at once, so they can be compared on real features while
+      // the choice is still being made. The one in force is drawn larger
+      const candidates = originCandidatesOf(geometry);
+      const dots: OriginDot[] = (
+        ["pole", "spine", "centroid"] as const
+      ).flatMap((name) => {
+        const candidate = candidates[name];
+        if (!candidate) return [];
+        // a strategy that fell outside is drawn hollow and never counts as the
+        // one in force, since the origin then falls back to the pole
+        const usable = candidate.inside;
+        const inForce =
+          !arrival &&
+          (originStrategy === name ||
+            (name === "pole" && !candidates[originStrategy]?.inside));
+        return [
+          {
+            lngLat: candidate.point,
+            color: ORIGIN_COLORS[name],
+            filled: usable,
+            active: inForce,
+          },
+        ];
+      });
+
+      if (arrival) {
+        dots.push({
+          lngLat: arrival,
+          color: ORIGIN_COLORS.arrival,
+          filled: true,
+          active: true,
+        });
+      }
+
+      if (dots.length > 0) return dots;
+
+      // points and lines have no strategy to compare
+      const origin = interiorPointOf(geometry, originStrategy);
+      return origin
+        ? [{ lngLat: origin, color: ORIGIN_COLORS.pole, active: true }]
+        : [];
     },
     // `selectionVersion` stands for a reselection of the same feature object,
     // `arrivalKey` for a fresh arrival point written into the ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showOrigins, explain, rawFeature, selectionVersion, candidateSet, arrivalKey]
+    [
+      showOrigins,
+      explain,
+      rawFeature,
+      selectionVersion,
+      candidateSet,
+      arrivalKey,
+      originStrategy,
+      originMode,
+    ]
   );
 
-  /** Red where the walk arrived, the configured colour where it is the pole. */
-  const originIsArrival =
-    rawFeature !== null &&
-    arrivalsRef.current.has(candidateKeyOf(rawFeature) ?? "");
 
   useEffect(() => {
     if (explain !== "brief" || !snapshot) return;
@@ -534,7 +618,7 @@ export const FeatureKeyboardNav = ({
 
   useEffect(() => {
     if (isActive) return;
-    trailRef.current = [];
+    pathRef.current = { entries: [], cursor: -1 };
     arrivalsRef.current.clear();
     setArrivalKey(undefined);
     setSnapshot(null);
@@ -575,30 +659,45 @@ export const FeatureKeyboardNav = ({
       const map = libreMap;
       if (!map) return;
 
-      // walking the trail back: the opposite of the last step returns to the
-      // feature that step came from, exactly, without asking the picker
-      const trail = trailRef.current;
-      const lastStep = trail[trail.length - 1];
-      if (lastStep && direction === OPPOSITE_DIRECTION[lastStep.direction]) {
-        trail.pop();
-        const previous = lastStep.from;
-        originFeatureRef.current = previous;
-        navSelectedKeyRef.current = candidateKeyOf(previous);
-        // a back-step is not a decision, so it leaves no picture behind
+      /**
+       * Replaying the path, in either direction.
+       *
+       * Backwards while the pressed key undoes the step that led to where the
+       * walk stands, forwards while it repeats the step that was taken from
+       * there. Either way the feature is already known, so nothing is projected
+       * and nothing is picked, and the walk returns exactly where it was.
+       */
+      const path = pathRef.current;
+      const here = path.entries[path.cursor];
+      const ahead = path.entries[path.cursor + 1];
+      const goesBack =
+        path.cursor > 0 &&
+        here?.direction !== undefined &&
+        direction === OPPOSITE_DIRECTION[here.direction];
+      const goesForward = !goesBack && ahead?.direction === direction;
+
+      if (goesBack || goesForward) {
+        path.cursor += goesBack ? -1 : 1;
+        const remembered = path.entries[path.cursor].feature;
+        originFeatureRef.current = remembered;
+        navSelectedKeyRef.current = candidateKeyOf(remembered);
+        // replaying is not a decision, so it leaves no picture behind
         setSnapshot(null);
         selectFeature(
           {
-            source: previous.source,
-            sourceLayer: previous.sourceLayer,
-            id: previous.id,
+            source: remembered.source,
+            sourceLayer: remembered.sourceLayer,
+            id: remembered.id,
           },
-          previous
+          remembered
         );
         const restored = resolveOrigin(
           map,
-          previous,
+          remembered,
           candidateSetRef.current,
-          arrivalsRef.current
+          arrivalsRef.current,
+          originStrategy,
+          originMode
         );
         if (restored) keepInView(map, restored.point, panDurationMs);
         return;
@@ -614,7 +713,9 @@ export const FeatureKeyboardNav = ({
           map,
           originFeatureRef.current,
           candidateSetNow,
-          arrivalsRef.current
+          arrivalsRef.current,
+          originStrategy,
+          originMode
         );
         if (!origin) return;
 
@@ -658,9 +759,10 @@ export const FeatureKeyboardNav = ({
           // half the stretch the axis ray spends inside the feature it just
           // entered, which is where the walk arrived rather than where the
           // feature happens to be widest
-          const winnerOutline = projected.find(
-            (entry) => entry.key === winnerKey
-          );
+          const winnerOutline =
+            originMode === "static"
+              ? undefined
+              : projected.find((entry) => entry.key === winnerKey);
           const arrival = winnerOutline
             ? chordMidpoint(
                 origin.point,
@@ -679,12 +781,20 @@ export const FeatureKeyboardNav = ({
           }
 
           const cameFrom = originFeatureRef.current;
-          // no entry for the bootstrap step: it started from the middle of the
-          // screen, and there is no feature to go back to
-          if (cameFrom) {
-            trail.push({ direction, from: cameFrom });
-            if (trail.length > MAX_NAV_TRAIL) trail.shift();
+          // the walk started somewhere: seed the path with that feature so the
+          // first step can be undone. A bootstrap step has none, since it
+          // started from the middle of the screen
+          if (path.entries.length === 0 && cameFrom) {
+            path.entries.push({ feature: cameFrom });
+            path.cursor = 0;
           }
+          // a step off the middle of the path drops what lay ahead of it, the
+          // way an edit after an undo does
+          path.entries.length = path.cursor + 1;
+          path.entries.push({ feature: winner.feature, direction });
+          if (path.entries.length > MAX_NAV_TRAIL) path.entries.shift();
+          path.cursor = path.entries.length - 1;
+
           originFeatureRef.current = winner.feature;
           // claims the selection about to arrive, so the picture just published
           // survives it while a hand-made selection still wipes it
@@ -732,6 +842,8 @@ export const FeatureKeyboardNav = ({
       libreMap,
       config,
       strategy,
+      originStrategy,
+      originMode,
       crossLayer,
       currentLayerBonus,
       minStepPx,
@@ -868,7 +980,6 @@ export const FeatureKeyboardNav = ({
         <FeatureOriginDots
           map={libreMap}
           origins={featureOrigins}
-          color={originIsArrival ? ARRIVAL_ORIGIN_COLOR : originDotColor}
           opacity={originDotOpacity}
         />
       )}

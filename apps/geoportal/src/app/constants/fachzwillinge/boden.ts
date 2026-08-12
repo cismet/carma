@@ -68,6 +68,13 @@ export const bodenFachzwilling: FachzwillingRoute = {
         // the mode is what this Fachzwilling is being built around right now,
         // so it starts switched on rather than one click away
         startActive: true,
+        // to compare by hand: "pole" is furthest from any edge, "spine" the
+        // middle along the shape, "centroid" the area centroid. The last two
+        // fall back to the pole where their point lands outside the feature
+        originStrategy: "spine",
+        // "dynamic": a feature walked into measures from where the walk
+        // arrived, drawn red. "static": always the computed origin above
+        originMode: "dynamic",
         // blue dot on every visible shape at the point a step from it would
         // start; makes a parcel whose interior point falls inside its building
         // readable at a glance

@@ -62,6 +62,78 @@ const inputFor = (
   rayLengthPx: 100,
 });
 
+/** a corridor: 40 long, 2 wide, with a bulge near its left end */
+const corridor: Feature<Polygon> = {
+  type: "Feature",
+  properties: {},
+  geometry: {
+    type: "Polygon",
+    coordinates: [
+      [
+        [0, 0],
+        [5, 0],
+        [5, -3],
+        [8, -3],
+        [8, 0],
+        [40, 0],
+        [40, 2],
+        [0, 2],
+        [0, 0],
+      ],
+    ],
+  },
+};
+
+describe("origin strategies", () => {
+  it("puts the spine half way along a corridor, not in its bulge", () => {
+    const pole = interiorPointOf(corridor.geometry, "pole") as number[];
+    const spine = interiorPointOf(corridor.geometry, "spine") as number[];
+
+    // the bulge is the roomiest place, so that is where the pole sits
+    expect(pole[0]).toBeLessThan(10);
+    // the spine follows the length instead, so it lands near the middle
+    expect(spine[0]).toBeGreaterThan(15);
+    expect(spine[0]).toBeLessThan(25);
+    expect(booleanPointInPolygon(spine, corridor, { ignoreBoundary: true })).toBe(
+      true
+    );
+  });
+
+  it("falls back to the pole where the centroid lies outside", () => {
+    // the C-shape has its centroid in its own concavity
+    expect(booleanPointInPolygon(centroid(cShape), cShape)).toBe(false);
+
+    const fromCentroid = interiorPointOf(cShape.geometry, "centroid") as number[];
+    const pole = interiorPointOf(cShape.geometry, "pole") as number[];
+
+    expect(fromCentroid).toEqual(pole);
+    expect(
+      booleanPointInPolygon(fromCentroid, cShape, { ignoreBoundary: true })
+    ).toBe(true);
+  });
+
+  it("uses the centroid where it lies inside", () => {
+    const square: Feature<Polygon> = {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [4, 0],
+            [4, 4],
+            [0, 4],
+            [0, 0],
+          ],
+        ],
+      },
+    };
+
+    expect(interiorPointOf(square.geometry, "centroid")).toEqual([2, 2]);
+  });
+});
+
 describe("interior origin", () => {
   it("returns a point on the feature where the centroid is outside it", () => {
     const interior = interiorPointOf(cShape.geometry);

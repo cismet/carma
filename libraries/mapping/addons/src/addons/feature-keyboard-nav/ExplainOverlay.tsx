@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import {
-  DEFAULT_ORIGIN_DOT_COLOR,
   DEFAULT_ORIGIN_DOT_OPACITY,
 } from "./constants";
 import { rotate } from "./geometry";
@@ -318,15 +317,29 @@ export const ExplainOverlay = ({
  * depends on the basemap under it; opacity sits on the layer rather than on the
  * circle so both paths look identical.
  */
+/**
+ * One drawn origin.
+ *
+ * `filled` separates a point that may be used from one that fell outside the
+ * feature: the strategies other than the pole have no containment guarantee,
+ * and a hollow dot is where one of them went wrong.
+ */
+export type OriginDot = {
+  lngLat: [number, number];
+  color: string;
+  /** the point the navigation actually measures from, drawn larger */
+  active?: boolean;
+  /** inside the feature, so usable; hollow when not */
+  filled?: boolean;
+};
+
 export const FeatureOriginDots = ({
   map,
   origins,
-  color = DEFAULT_ORIGIN_DOT_COLOR,
   opacity = DEFAULT_ORIGIN_DOT_OPACITY,
 }: {
   map: MaplibreMap | null;
-  origins: Array<[number, number]>;
-  color?: string;
+  origins: OriginDot[];
   opacity?: number;
 }) => {
   useMapFrame(map);
@@ -346,16 +359,17 @@ export const FeatureOriginDots = ({
       }}
       data-test-id="feature-keyboard-nav-origins"
     >
-      {origins.map((lngLat, index) => {
-        const point = map.project(lngLat);
+      {origins.map((dot, index) => {
+        const point = map.project(dot.lngLat);
+        const filled = dot.filled ?? true;
         return (
           <circle
             key={`feature-origin-${index}`}
             cx={point.x}
             cy={point.y}
-            r={ORIGIN_DOT_RADIUS}
-            fill={color}
-            stroke="#fff"
+            r={dot.active ? ORIGIN_DOT_RADIUS : ORIGIN_DOT_RADIUS - 1.5}
+            fill={filled ? dot.color : "none"}
+            stroke={filled ? "#fff" : dot.color}
             strokeWidth={1.5}
           />
         );

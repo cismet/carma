@@ -1,5 +1,7 @@
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
+import type { OriginStrategy } from "./origin";
+
 /**
  * Types of the keyboard navigation addon.
  *
@@ -74,6 +76,31 @@ export type FeatureKeyboardNavConfig = {
   explain?: NavExplainMode;
   /** Fade delay for "brief", in ms. Default: 1200 */
   explainMs?: number;
+  /**
+   * Which point inside a feature a step measures from.
+   *
+   * - `pole` (default): furthest from any edge. The only one that is guaranteed
+   *   to lie inside, and arbitrary on a corridor, where the widest spot is
+   *   wherever a junction bulges rather than anywhere meaningful.
+   * - `spine`: the middle along the shape, so half way down a street.
+   * - `centroid`: the area centroid, which is right for compact shapes.
+   *
+   * `spine` and `centroid` fall back to `pole` whenever their point lands
+   * outside the feature, which a bent shape will do. No automatic choice yet:
+   * set one, look at real parcels, then decide.
+   */
+  originStrategy?: OriginStrategy;
+  /**
+   * Whether walking into a feature moves its origin.
+   *
+   * - `dynamic` (default): a feature walked into measures from where the walk
+   *   arrived, the middle of the stretch the step's ray spent inside it, drawn
+   *   in red. Entering a long street from the south then continues from there
+   *   rather than from a point far down the road.
+   * - `static`: always the point `originStrategy` computes, whether the feature
+   *   was walked into or clicked.
+   */
+  originMode?: "dynamic" | "static";
   /**
    * Enter the mode as soon as the addon mounts, instead of waiting for the
    * control to be switched on. Only the global shape has a control to switch,
