@@ -86,8 +86,11 @@ const enrichSelectedFeature = (
     if (targetProps) properties.targetProperties = targetProps;
   }
 
-  // a copy: the queried feature belongs to the addon that published it
-  return { ...feature, properties } as maplibregl.MapGeoJSONFeature;
+  return {
+    ...feature,
+    geometry: feature.geometry,
+    properties,
+  } as maplibregl.MapGeoJSONFeature;
 };
 
 /**
