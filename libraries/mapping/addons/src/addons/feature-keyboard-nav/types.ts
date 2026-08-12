@@ -75,29 +75,25 @@ export type FeatureKeyboardNavConfig = {
   /** Fade delay for "brief", in ms. Default: 1200 */
   explainMs?: number;
   /**
-   * Draw the interior point of every visible shape as a blue dot, not only the
-   * origin of the selected one. These are the points navigation would measure
-   * from, which is what makes a surprising step readable: under `first-crossed`
-   * a parcel whose interior point falls inside the building standing on it will
-   * cross that building's wall before its own border.
+   * Mark the interior point of the selected feature with a blue dot: the point
+   * navigation measures from, which is what makes a surprising step readable.
+   * Under `first-crossed` a parcel whose interior point falls inside the
+   * building standing on it will cross that building's wall before its own
+   * border, and the dot is where that becomes visible.
    *
-   * Shown for as long as the mode is on, not only after a keypress, so the
-   * picture is there before the first arrow. Needs `explain` on. Default: false
+   * Shown for the selected feature only, from a click as well as from an arrow
+   * key, and only while something is selected. One dot per visible shape was
+   * what this used to draw, and a viewport of ALKIS parcels then re-projected
+   * thousands of them on every map frame. Needs `explain` on. Default: false
    */
   showOrigins?: boolean;
   /**
-   * Upper bound on those dots; beyond it the rest are left undrawn. They are
-   * re-projected on every map frame, so a high value costs redraw time while
-   * panning. Default: 300
-   */
-  maxOriginDots?: number;
-  /**
-   * Fill colour of those dots, as any CSS colour. Keep it clearly apart from
-   * the blue of the selected feature's own origin, which is not configurable
-   * for that reason. Default: "#8a94a6"
+   * Fill colour of that dot, as any CSS colour. Defaults to the blue the
+   * selection itself is drawn in, since it marks the selection. Default:
+   * "#1677ff"
    */
   originDotColor?: string;
-  /** Opacity of the whole dot layer, 0 to 1. Default: 0.7 */
+  /** Opacity of the dot layer, 0 to 1. Default: 1 */
   originDotOpacity?: number;
 
   /** Enter navigation mode as soon as a feature is selected. Default: false */

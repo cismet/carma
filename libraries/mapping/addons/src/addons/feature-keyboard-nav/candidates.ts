@@ -3,12 +3,7 @@ import type { Position } from "geojson";
 
 import { stampSourceLayerFromProperty } from "@carma-mapping/utils";
 
-import {
-  bboxOfParts,
-  interiorPointOf,
-  isAreaGeometry,
-  partsOfGeometry,
-} from "./origin";
+import { bboxOfParts, isAreaGeometry, partsOfGeometry } from "./origin";
 import { catalogLayerIdOfFeature } from "./scope";
 
 /**
@@ -36,13 +31,6 @@ export type NavCandidate = {
   isArea: boolean;
   /** geographic bounding box, for the cheap per-keypress prune */
   bbox: [number, number, number, number];
-  /**
-   * The interior point this feature would measure from if it were selected —
-   * the same `pointOnFeature` the origin uses. Only filled while the explain
-   * overlay asks for it, since navigation itself needs the origin of exactly
-   * one feature and computing it for every visible one is wasted work.
-   */
-  origin?: [number, number];
 };
 
 export const candidateKeyOf = (feature: {
@@ -82,13 +70,10 @@ export const buildCandidates = (
     catalogLayerIds,
     requireCatalogLayer = false,
     maxCandidates,
-    originsUpTo = 0,
   }: {
     catalogLayerIds?: string[];
     requireCatalogLayer?: boolean;
     maxCandidates: number;
-    /** compute `origin` for at most this many candidates; 0 for none */
-    originsUpTo?: number;
   }
 ): CandidateSet => {
   const allowed = catalogLayerIds ? new Set(catalogLayerIds) : undefined;
@@ -139,22 +124,8 @@ export const buildCandidates = (
     });
   }
 
-  const candidates = [...byKey.values()];
-
-  // after the merge, so a feature split across tiles gets the origin of the
-  // geometry that is actually handed to the selection path. Bounded: this is a
-  // drawing aid, and `pointOnFeature` per visible feature adds up.
-  for (
-    let index = 0;
-    index < Math.min(originsUpTo, candidates.length);
-    index++
-  ) {
-    const origin = interiorPointOf(candidates[index].feature.geometry);
-    if (origin) candidates[index].origin = origin;
-  }
-
   return {
-    candidates,
+    candidates: [...byKey.values()],
     byKey,
     degraded: truncated,
   };

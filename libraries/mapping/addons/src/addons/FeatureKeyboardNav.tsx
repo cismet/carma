@@ -33,7 +33,6 @@ import {
   DEFAULT_EXPLAIN_MS,
   DEFAULT_FAN_DEG,
   DEFAULT_MAX_CANDIDATES,
-  DEFAULT_MAX_ORIGIN_DOTS,
   DEFAULT_MIN_STEP_PX,
   DEFAULT_ORIGIN_DOT_COLOR,
   DEFAULT_ORIGIN_DOT_OPACITY,
@@ -325,7 +324,6 @@ export const FeatureKeyboardNav = ({
     explain = DEFAULT_EXPLAIN,
     explainMs = DEFAULT_EXPLAIN_MS,
     showOrigins = false,
-    maxOriginDots = DEFAULT_MAX_ORIGIN_DOTS,
     originDotColor = DEFAULT_ORIGIN_DOT_COLOR,
     originDotOpacity = DEFAULT_ORIGIN_DOT_OPACITY,
     autoActivateOnSelect = false,
@@ -361,17 +359,12 @@ export const FeatureKeyboardNav = ({
   );
   const scope = useNavScope(libreMap, target, layerPatterns);
 
-  // the dots are the only reason to compute an interior point per visible
-  // feature, so the flag reaches all the way down to the candidate build
-  const originsUpTo = showOrigins && explain !== "off" ? maxOriginDots : 0;
-
   const { candidateSet, version } = useNavCandidates({
     map: libreMap,
     scope,
     enabled: isActive,
     maxCandidates,
     debounceMs: candidateDebounceMs,
-    originsUpTo,
   });
 
   const candidateSetRef = useRef<CandidateSet>(candidateSet);
@@ -399,21 +392,27 @@ export const FeatureKeyboardNav = ({
   );
 
   /**
-   * The interior points drawn while the mode runs. Not part of the keypress
-   * snapshot: they describe the map as it stands, so they appear the moment the
-   * mode is switched on and survive every pan, rather than arriving with the
-   * first arrow and fading with it.
+   * The interior point drawn while the mode runs: the one of the selected
+   * feature, whether the selection came from a click or from an arrow key.
+   *
+   * One dot, not one per visible shape. The dots are re-projected on every map
+   * frame, and a viewport of ALKIS parcels holds thousands of them, so drawing
+   * the whole candidate set stalled the main thread while panning. The point
+   * that explains a step is the origin the step measured from; the others were
+   * never the question.
+   *
+   * Not part of the keypress snapshot: it describes the selection as it stands,
+   * so it survives every pan rather than fading with the last arrow.
    */
   const featureOrigins = useMemo(
-    () =>
-      originsUpTo === 0
-        ? []
-        : candidateSet.candidates
-            .map((candidate) => candidate.origin)
-            .filter(
-              (origin): origin is [number, number] => origin !== undefined
-            ),
-    [candidateSet, originsUpTo]
+    () => {
+      if (!showOrigins || explain === "off" || !rawFeature) return [];
+      const origin = interiorPointOf(rawFeature.geometry);
+      return origin ? [origin] : [];
+    },
+    // `selectionVersion` stands for a reselection of the same feature object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showOrigins, explain, rawFeature, selectionVersion]
   );
 
   useEffect(() => {

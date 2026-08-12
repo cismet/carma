@@ -40,11 +40,9 @@ export const DEFAULT_PAN_STEP_FRACTION = 0.5;
 export const DEFAULT_PAN_DURATION_MS = 300;
 export const DEFAULT_EXPLAIN = "brief";
 export const DEFAULT_EXPLAIN_MS = 1200;
-/** how many interior-point dots `showOrigins` draws before it stops */
-export const DEFAULT_MAX_ORIGIN_DOTS = 300;
-/** grey-blue, so a possible origin never reads as the actual one */
-export const DEFAULT_ORIGIN_DOT_COLOR = "#8a94a6";
-export const DEFAULT_ORIGIN_DOT_OPACITY = 0.7;
+/** the blue the selection itself is drawn in, since it marks the selection */
+export const DEFAULT_ORIGIN_DOT_COLOR = "#1677ff";
+export const DEFAULT_ORIGIN_DOT_OPACITY = 1;
 export const DEFAULT_MAX_CANDIDATES = 4000;
 export const DEFAULT_CANDIDATE_DEBOUNCE_MS = 200;
 

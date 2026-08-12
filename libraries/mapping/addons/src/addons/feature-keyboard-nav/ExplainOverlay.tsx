@@ -30,11 +30,9 @@ const MAX_DRAWN = 24;
 const MAX_LABELLED = 8;
 const AXIS_LENGTH_PX = 90;
 const FADE_MS = 400;
-/** the origin dot, drawn at the same size for the selected feature and for the
- *  interior points of the others: they are the same kind of point */
+/** the origin dot, drawn at the same size in the keypress picture and as the
+ *  standing mark on the selected feature: they are the same kind of point */
 const ORIGIN_DOT_RADIUS = 5;
-/** softens the possible origins so the actual one stays the sharp one */
-const ORIGIN_DOT_BLUR_PX = 1;
 
 export type ExplainSnapshot = {
   /** bumped per keypress; restarts the fade and replaces a held picture */
@@ -304,26 +302,21 @@ export const ExplainOverlay = ({
 };
 
 /**
- * The interior point of every visible shape, as a blue dot.
+ * The interior point of the selected feature, as a blue dot.
  *
- * Its own overlay, not part of the per-keypress picture: these answer "where
- * would a step from that shape start?", which is a property of the map as it
- * stands, not of one decision. They therefore appear as soon as the mode is
- * switched on, before any key is pressed, and stay while the user pans.
+ * Its own overlay, not part of the per-keypress picture: it answers "where does
+ * a step from here start?", which is a property of the selection rather than of
+ * one decision. It therefore appears with the selection, whether that came from
+ * a click or from an arrow key, and stays while the user pans.
  *
- * Same size as the origin dot of the selected feature, because it is the same
- * kind of point, but softened and in its own colour: these are origins a step
- * *could* start from, and only one of them is the one it did start from. The
- * blur is a CSS filter on the whole layer rather than an SVG `feGaussianBlur`
- * per dot — the layer is composited once, which matters when it is re-projected
- * on every map frame.
+ * One dot, not one per visible shape. The layer is re-projected on every map
+ * frame, and a viewport of ALKIS parcels holds thousands of them, so drawing an
+ * interior point per candidate stalled the main thread while panning.
  *
- * Colour and opacity are config, since what reads as "clearly not the selected
- * one" depends on the basemap under it. Opacity sits on the layer rather than on
- * each circle, so overlapping dots do not darken each other.
- *
- * The set is the whole candidate set, not the evaluated candidates: the shapes
- * a step skipped are exactly the ones whose interior point explains why.
+ * Same size and same blue as the origin dot in the keypress picture, because it
+ * is the same point. Colour and opacity stay config, since what reads as clear
+ * depends on the basemap under it; opacity sits on the layer rather than on the
+ * circle so both paths look identical.
  */
 export const FeatureOriginDots = ({
   map,
@@ -350,7 +343,6 @@ export const FeatureOriginDots = ({
         pointerEvents: "none",
         zIndex: 599,
         opacity,
-        filter: `blur(${ORIGIN_DOT_BLUR_PX}px)`,
       }}
       data-test-id="feature-keyboard-nav-origins"
     >
