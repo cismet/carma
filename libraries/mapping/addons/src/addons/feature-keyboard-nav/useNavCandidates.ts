@@ -33,6 +33,30 @@ export type NavCandidateState = {
   version: number;
 };
 
+/**
+ * What the candidate set depends on, as a string.
+ *
+ * `idle` is a firehose: it fires after tile loads, after fades, and after every
+ * `keepInView` pan, so a held arrow key would otherwise re-query the whole
+ * viewport between steps, and on a dense ALKIS view one query walks thousands
+ * of rendered features. The centre is rounded to about a metre, which is finer
+ * than any move a user can make without changing what is on screen.
+ */
+const viewSignature = (map: MaplibreMap, scopeKey: string): string => {
+  const { lng, lat } = map.getCenter();
+  return [
+    scopeKey,
+    lng.toFixed(5),
+    lat.toFixed(5),
+    map.getZoom().toFixed(3),
+    map.getBearing().toFixed(1),
+    map.getPitch().toFixed(1),
+    // a view that has not moved still gains features while its tiles arrive,
+    // so the last idle of a load is a different signature from the ones before
+    map.areTilesLoaded() ? "loaded" : "loading",
+  ].join("|");
+};
+
 export const useNavCandidates = ({
   map,
   scope,
@@ -57,6 +81,8 @@ export const useNavCandidates = ({
   scopeRef.current = scope;
   const maxCandidatesRef = useRef(maxCandidates);
   maxCandidatesRef.current = maxCandidates;
+  /** the view the current set was built for; `undefined` forces a rebuild */
+  const signatureRef = useRef<string | undefined>(undefined);
 
   const query = useCallback((mapInstance: MaplibreMap) => {
     const { styleLayerIds, catalogLayerIds, requireCatalogLayer } =
@@ -82,6 +108,10 @@ export const useNavCandidates = ({
       }
     }
 
+    const signature = viewSignature(mapInstance, navScopeKey(scopeRef.current));
+    if (signature === signatureRef.current) return;
+    signatureRef.current = signature;
+
     let features: MapGeoJSONFeature[];
     try {
       features = mapInstance.queryRenderedFeatures(
@@ -96,6 +126,8 @@ export const useNavCandidates = ({
         candidateSet: { ...previous.candidateSet, degraded: true },
         version: previous.version + 1,
       }));
+      // a failed query says nothing about the view, so the next idle retries
+      signatureRef.current = undefined;
       return;
     }
 
@@ -138,6 +170,9 @@ export const useNavCandidates = ({
   // viewport the user has since moved away from
   useEffect(() => {
     if (enabled) return;
+    // the set is dropped, so the next activation has to query again even if the
+    // map never moved in between
+    signatureRef.current = undefined;
     setState((previous) =>
       previous.candidateSet === EMPTY_CANDIDATE_SET && previous.version === 0
         ? previous
