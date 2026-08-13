@@ -236,6 +236,12 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     apiClassName: "material_mauerlasche",
     displayName: "Material - Mauerlasche",
   },
+  sensorbetreiber: {
+    template: "{name}",
+    sortMode: "alphabetical",
+    displayName: "Sensorbetreiber",
+    readOnly: true,
+  },
   // straßenschlüssel: {
   //   template: "{pk} - {strasse}",
   //   readOnly: true,
