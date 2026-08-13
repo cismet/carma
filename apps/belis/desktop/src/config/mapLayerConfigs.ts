@@ -156,6 +156,14 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
       style: "https://tiles.cismet.de/alkis/streets.style.json",
     },
   },
+  esaveDaten: {
+    title: "Esave Daten",
+    layer: {
+      type: "vector",
+      name: "Esave Daten",
+      style: "https://tiles.cismet.de/belis_sensoren/style.json",
+    },
+  },
   // alkisBlack: {
   //   title: "Alkis Vektorlayer",
   //   layer: {
