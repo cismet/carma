@@ -1,5 +1,4 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
 import {
   Button,
   Checkbox,
@@ -28,7 +27,6 @@ import {
 import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
-  ESAVE_LAYER_KEY,
 } from "../../config/mapLayerConfigs";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -108,11 +106,6 @@ const AdditionalLayerRow = ({
 
 const Settings = () => {
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
-  // The esave layer is only drawn on the Fachobjekte map (see libreLayers in
-  // BelisMapWrapper), so its toggle is hidden on the Arbeitsaufträge page
-
-  const onArbeitsauftraege = pathname.startsWith("/arbeitsauftraege");
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
@@ -138,9 +131,6 @@ const Settings = () => {
           <h4 className="text-lg font-medium">Optionale Layer</h4>
           <div className="flex flex-col gap-2 p-1">
             {Object.keys(additionalLayerConfigs).map((layerConfKey) => {
-              if (layerConfKey === ESAVE_LAYER_KEY && onArbeitsauftraege) {
-                return null;
-              }
               const layerConf = additionalLayerConfigs[layerConfKey];
               return (
                 <AdditionalLayerRow
