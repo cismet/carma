@@ -526,7 +526,9 @@ const KeyTablesPage = () => {
                 onItemSelect={handleItemClick}
                 onAddItem={handleAddItem}
                 onRemoveItem={handleRemoveItem}
-                readOnly={isReadOnly}
+                readOnly={
+                  isReadOnly || keyTableDisplayConfig[selectedTable]?.readOnly
+                }
                 sortMode={keyTableDisplayConfig[selectedTable]?.sortMode}
                 isFirstColumnCollapsed={isFirstColumnCollapsed}
                 onExpandFirstColumn={() => setIsFirstColumnCollapsed(false)}
