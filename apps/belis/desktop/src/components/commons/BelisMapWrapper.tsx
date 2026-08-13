@@ -663,7 +663,7 @@ const BelisMapLibWrapper = ({
   const brandnewSource = `${slugifyUrl(
     BELIS_BRAND_NEW_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
-  // Optional "Esave Daten" layer (Smart-Lighting-Controller sensor points).
+  // Optional "esave Daten" layer (Smart-Lighting-Controller sensor points).
   const esaveSource = `${slugifyUrl(
     ESAVE_STYLE_URL
   )}::${ESAVE_ORIGINAL_SOURCE}`;
@@ -4292,7 +4292,7 @@ const BelisMapLibWrapper = ({
           (BELIS_SOURCE_LAYERS as readonly string[]).includes(h.sourceLayer)
       );
       if (belisHits.length === 0) {
-        // Exception to the rule above: the optional "Esave Daten" layer
+        // Exception to the rule above: the optional "esave Daten" layer
         // (Smart-Lighting-Controller) is a genuine data layer, not basemap
         // decoration. Its style ships a `carmaconf://infoBoxMapping` function,
         // so returning the hit lets LibreMap run its generic mapping flow and
