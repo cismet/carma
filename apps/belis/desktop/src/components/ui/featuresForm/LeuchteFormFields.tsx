@@ -118,6 +118,17 @@ interface LeuchtmittelItem {
   hersteller?: string;
 }
 
+interface SensorbetreiberItem {
+  id: number;
+  key?: string;
+  name?: string;
+  beschreibung?: string;
+}
+
+/** Option label for the Sensorbetreiber select: the Beschreibung of the row. */
+const formatSensorbetreiber = (item: SensorbetreiberItem) =>
+  item.beschreibung ?? item.name ?? String(item.id);
+
 // Helper type for nested objects with common properties
 interface NestedObject {
   id?: number;
@@ -220,6 +231,31 @@ const LeuchteFormFields = ({
   // Helper to create field name with optional prefix
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
 
+  const sensorbetreiberOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData.sensorbetreiber || []) as SensorbetreiberItem[],
+        formatSensorbetreiber,
+        "alphabetical"
+      ),
+    [keyTablesData.sensorbetreiber]
+  );
+
+  // esave is currently the only Sensorbetreiber. Resolved by key/name rather
+  // than a hardcoded id so the lookup survives differing ids per environment;
+  // a single-row table is taken as-is.
+  const esaveId = useMemo(() => {
+    const match = sensorbetreiberOptions.find((item) =>
+      [item.key, item.name].some(
+        (value) => typeof value === "string" && value.trim().toLowerCase() === "esave"
+      )
+    );
+    if (match) return match.id;
+    return sensorbetreiberOptions.length === 1
+      ? sensorbetreiberOptions[0].id
+      : undefined;
+  }, [sensorbetreiberOptions]);
+
   useEffect(() => {
     if (externalForm) return;
     if (!leuchte) return;
@@ -260,8 +296,8 @@ const LeuchteFormFields = ({
       const leuchtmittelObj = leuchte.leuchtmittelObject as
         | NestedObject
         | undefined;
-      // esave sensor link. Shown read-only for now (see the fields below), so
-      // only the human-readable operator name is put into the form.
+      // esave sensor link. The Betreiber is edited as a raw FK id (no Select
+      // yet), so the form carries the id — the name is resolved for display.
       const sensorbetreiber = leuchte.sensorbetreiberObject as
         | { id?: number; name?: string; beschreibung?: string }
         | undefined;
@@ -300,10 +336,9 @@ const LeuchteFormFields = ({
         fk_dk1: dk1Object?.id ?? leuchte.fk_dk1,
         anzahl_1dk: leuchte.anzahl_1dk,
         anschlussleistung_1dk: leuchte.anschlussleistung_1dk,
-        // Sensor (esave) — display only, both stripped in LeuchteForm.handleSave
+        // Sensor (esave) — editable; saved with the rest of the Leuchte
         sensorid: leuchte.sensorid,
-        sensorbetreiber_name:
-          sensorbetreiber?.name ?? sensorbetreiber?.beschreibung ?? null,
+        sensorbetreiber: sensorbetreiber?.id ?? leuchte.sensorbetreiber ?? null,
         // Doppelkommando 2 - use id for Select value
         fk_dk2: dk2Object?.id ?? leuchte.fk_dk2,
         anzahl_2dk: leuchte.anzahl_2dk,
@@ -459,6 +494,30 @@ const LeuchteFormFields = ({
       form.getFieldsValue()
     );
   }, [mastLfdNummer, isCreation, form]);
+
+  // Sensor-ID → Sensorbetreiber. Entering a Sensor-ID picks esave for the user
+  // (the server sets it as a fallback, but this way the link is visible right
+  // away); clearing the Sensor-ID drops the Betreiber again so the pair stays
+  // consistent. Driven by the input's own onChange, not by a value watcher, so
+  // loading a record that has a Sensor-ID but no Betreiber does not silently
+  // dirty the form on open.
+  const handleSensorIdChange = (value: string) => {
+    const hasSensorId = value.trim() !== "";
+    const current = form.getFieldValue(fieldName("sensorbetreiber"));
+    if (hasSensorId && current == null && esaveId != null) {
+      form.setFieldValue(fieldName("sensorbetreiber"), esaveId);
+      onValuesChangeRef.current?.(
+        { sensorbetreiber: esaveId },
+        form.getFieldsValue()
+      );
+    } else if (!hasSensorId && current != null) {
+      form.setFieldValue(fieldName("sensorbetreiber"), null);
+      onValuesChangeRef.current?.(
+        { sensorbetreiber: null },
+        form.getFieldsValue()
+      );
+    }
+  };
 
   return (
     <Form
@@ -726,10 +785,7 @@ const LeuchteFormFields = ({
         />
       </FormItem>
 
-      {/* Sensor (esave). Read-only first step: `sensorid` is a plain column but
-          `sensorbetreiber` is a key-table FK that needs a Select to be edited,
-          and neither has a verified write path on the cids class yet. Both are
-          removed from the save payload in LeuchteForm.handleSave. */}
+      {/* Sensor (esave) */}
       <Row gutter={16}>
         <Col span={8}>
           <FormItem
@@ -737,16 +793,33 @@ const LeuchteFormFields = ({
             label={<FormLabel>Sensor-ID</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" disabled />
+            <Input
+              size="large"
+              placeholder={getPlaceholder(readOnly, "Sensor-ID eingeben")}
+              onChange={(e) => handleSensorIdChange(e.target.value)}
+            />
           </FormItem>
         </Col>
         <Col span={16}>
           <FormItem
-            name={fieldName("sensorbetreiber_name")}
+            name={fieldName("sensorbetreiber")}
             label={<FormLabel>Sensorbetreiber</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" disabled />
+            <Select
+              placeholder={getPlaceholder(readOnly, "Sensorbetreiber auswählen")}
+              className="w-full"
+              size="large"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+            >
+              {sensorbetreiberOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {formatSensorbetreiber(item)}
+                </Select.Option>
+              ))}
+            </Select>
           </FormItem>
         </Col>
       </Row>

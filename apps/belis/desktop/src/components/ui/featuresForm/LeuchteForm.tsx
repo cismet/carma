@@ -333,11 +333,6 @@ const LeuchteForm = ({
         strassenschluessel_pk,
         strassenschluessel_strasse,
         sonderturnus,
-        // esave sensor fields are read-only for now: `sensorbetreiber_name`
-        // holds a label (not the FK id) and the cids class has no verified
-        // write path for either. Drop both instead of sending them back.
-        sensorid,
-        sensorbetreiber_name,
         ...rest
       } = formValues;
 
@@ -368,6 +363,13 @@ const LeuchteForm = ({
           ? { dokumenteArray: finalDokumenteArray }
           : {}),
       });
+
+      // Temporary while the sensor fields are being wired up with the server:
+      // the exact JSON handed to the cids saveObject action.
+      console.log(
+        "xxx [LEUCHTE SAVE] tdta_leuchten payload",
+        JSON.stringify(dataToSave, null, 2)
+      );
 
       await updateDataByClassName(jwt, "tdta_leuchten", dataToSave);
 
