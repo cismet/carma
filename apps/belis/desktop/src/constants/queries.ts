@@ -383,6 +383,15 @@ query MyQuery($id: Int!) {
       rs_typ
     }
     schaltstelle
+    sensorid
+    sensorbetreiber
+    sensorbetreiberObject {
+      id
+      beschreibung
+      key
+      name
+      url
+    }
     zaehler
     wechselvorschaltgeraet
     wechseldatum
@@ -749,6 +758,15 @@ query MyQuery($id: Int!) {
         }
       }
       schaltstelle
+      sensorid
+      sensorbetreiber
+      sensorbetreiberObject {
+        id
+        beschreibung
+        key
+        name
+        url
+      }
       vorschaltgeraet
       wartungszyklus
       wechseldatum
@@ -1484,6 +1502,17 @@ query MyQuery {
     beschreibung
     id
     kennziffer
+  }
+}`;
+
+queries.sensorbetreiber = `
+query MyQuery {
+  sensorbetreiber {
+    id
+    beschreibung
+    key
+    name
+    url
   }
 }`;
 

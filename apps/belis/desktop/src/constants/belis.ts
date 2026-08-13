@@ -150,6 +150,10 @@ export const rundsteuerempfaengerQuery = gql`
   ${queries.rundsteuerempfaenger}
 `;
 
+export const sensorbetreiberQuery = gql`
+  ${queries.sensorbetreiber}
+`;
+
 export const infobausteinTemplateQuery = gql`
   ${queries.infobaustein_template}
 `;
