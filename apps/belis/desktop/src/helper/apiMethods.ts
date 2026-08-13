@@ -1145,6 +1145,7 @@ export const keyTableFetchers: Record<
   masttyp: fetchAllMasttyp,
   leuchtentyp: fetchAllLeuchtentyp,
   rundsteuerempfänger: fetchAllRundsteuerempfaenger,
+  sensorbetreiber: fetchAllSensorbetreiber,
   infobausteinTemplate: fetchAllInfobausteinTemplate,
 };
 

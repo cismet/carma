@@ -51,6 +51,7 @@ export const apiClassNameToTableName: Record<string, string> = {
   arbeitsprotokollstatus: "arbeitsprotokollstatus",
   veranlassungsart: "veranlassungsart",
   leitungstyp: "leitungstyp",
+  sensorbetreiber: "sensorbetreiber",
 };
 
 export const keyTableDisplayConfig: KeyTableDisplayConfig = {
@@ -240,7 +241,11 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{name}",
     sortMode: "alphabetical",
     displayName: "Sensorbetreiber",
-    readOnly: true,
+    fieldOrder: ["name", "key", "beschreibung", "url"],
+    fieldLabels: {
+      key: "Schlüssel",
+      url: "URL",
+    },
   },
   // straßenschlüssel: {
   //   template: "{pk} - {strasse}",
