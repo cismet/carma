@@ -43,6 +43,7 @@ export {
   getEffectiveLayerType,
   getItemMapModes,
   type CatalogFilter,
+  type CatalogFilterExemptions,
   type CatalogFilterField,
   type CatalogFilterGroup,
   type CatalogFilters,

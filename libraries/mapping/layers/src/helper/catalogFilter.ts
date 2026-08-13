@@ -99,14 +99,10 @@ const filterMatchesItem = (
       return !!item.type && filter.values.includes(item.type);
     case "layerType": {
       const effectiveLayerType = getEffectiveLayerType(item);
-      return (
-        !!effectiveLayerType && filter.values.includes(effectiveLayerType)
-      );
+      return !!effectiveLayerType && filter.values.includes(effectiveLayerType);
     }
     case "mapMode":
-      return getItemMapModes(item).some((mode) =>
-        filter.values.includes(mode)
-      );
+      return getItemMapModes(item).some((mode) => filter.values.includes(mode));
     case "keywords": {
       const itemKeywords = [...(item.keywords ?? []), ...(item.tags ?? [])];
       return filter.values.some((value) =>
@@ -150,16 +146,22 @@ export const itemMatchesFilters = (
   );
 };
 
+export type CatalogFilterExemptions = {
+  categoryIds?: ReadonlySet<string>;
+  itemIds?: ReadonlySet<string>;
+};
+
 export const filterCategoriesByFilters = (
   categories: CatalogMainCategory[],
   filters: CatalogFilters,
-  /** main category ids that pass through unfiltered (e.g. "Workflows") */
-  exemptCategoryIds?: ReadonlySet<string>
+  exemptions?: CatalogFilterExemptions
 ): CatalogMainCategory[] => {
   const groups = toCatalogFilterGroups(filters);
   if (groups.length === 0) {
     return categories;
   }
+  const { categoryIds: exemptCategoryIds, itemIds: exemptItemIds } =
+    exemptions ?? {};
   return categories.map((mainCategory) =>
     exemptCategoryIds?.has(mainCategory.id)
       ? mainCategory
@@ -168,11 +170,13 @@ export const filterCategoriesByFilters = (
           categories: mainCategory.categories.map(
             (subCategory): CatalogSubCategory => ({
               ...subCategory,
-              layers: subCategory.layers.filter((layer) =>
-                itemMatchesFilters(layer, groups, {
-                  mainCategoryId: mainCategory.id,
-                  subCategoryId: subCategory.id,
-                })
+              layers: subCategory.layers.filter(
+                (layer) =>
+                  (!!layer?.id && !!exemptItemIds?.has(layer.id)) ||
+                  itemMatchesFilters(layer, groups, {
+                    mainCategoryId: mainCategory.id,
+                    subCategoryId: subCategory.id,
+                  })
               ),
             })
           ),

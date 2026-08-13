@@ -50,6 +50,7 @@ import {
   applyCatalogDrop,
   buildCatalog,
   EMPTY_DROPPED_CATALOG,
+  getDroppedItemIds,
 } from "../helper/buildCatalog";
 import { fetchDiscoverItems } from "../helper/discover";
 import {
@@ -329,16 +330,17 @@ const LayerCatalogView = ({
       ),
     [categoryDefinitions]
   );
+  // layers the user dropped in are never hidden by a curated filter config
+  const droppedItemIds = useMemo(() => getDroppedItemIds(dropped), [dropped]);
   const filteredCategories = useMemo(
     () =>
       catalogFilters?.length
-        ? filterCategoriesByFilters(
-            searchedCategories,
-            catalogFilters,
-            filterExemptCategoryIds
-          )
+        ? filterCategoriesByFilters(searchedCategories, catalogFilters, {
+            categoryIds: filterExemptCategoryIds,
+            itemIds: droppedItemIds,
+          })
         : searchedCategories,
-    [searchedCategories, catalogFilters, filterExemptCategoryIds]
+    [searchedCategories, catalogFilters, filterExemptCategoryIds, droppedItemIds]
   );
   // active filters hide empty categories entirely instead of showing them
   // grayed out

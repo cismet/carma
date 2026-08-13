@@ -191,6 +191,27 @@ describe("filterCategoriesByFilters", () => {
     expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
   });
 
+  it("keeps exempt item ids (dropped layers) regardless of the filters", () => {
+    const result = filterCategoriesByFilters(
+      categories,
+      [{ field: "id", values: ["vectorLayer"] }],
+      { itemIds: new Set(["rasterWmsLayer"]) }
+    );
+    expect(layerIds(result, "mapLayers")).toEqual([
+      "rasterWmsLayer",
+      "vectorLayer",
+    ]);
+  });
+
+  it("keeps exempt main categories unfiltered", () => {
+    const result = filterCategoriesByFilters(
+      categories,
+      [{ field: "id", values: ["vectorLayer"] }],
+      { categoryIds: new Set(["favorites"]) }
+    );
+    expect(layerIds(result, "favorites")).toEqual(["savedCollection"]);
+  });
+
   it("does not mutate the unfiltered tree, so removing filters restores it", () => {
     filterCategoriesByFilters(categories, [
       { field: "entityType", values: ["link"] },

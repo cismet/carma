@@ -121,6 +121,35 @@ export const applyCatalogDrop = (
   }
 };
 
+// Ids of everything the user dropped, from all three drop kinds. Catalog
+// filters (fachzwillinge configs) are curated for the fetched sources and
+// cannot know these ids, so they are exempted from filtering.
+export const getDroppedItemIds = (
+  dropped: DroppedCatalogState
+): Set<string> => {
+  const ids = new Set<string>();
+  const addConfigLayers = (configs: CatalogConfigEntry[]) =>
+    configs.forEach((config) =>
+      (config.layers ?? []).forEach((layer) => {
+        if (layer.id) {
+          ids.add(layer.id);
+        }
+      })
+    );
+
+  dropped.customLayers.forEach((layer) => {
+    if (layer.id) {
+      ids.add(layer.id);
+    }
+  });
+  addConfigLayers(dropped.layerConfigs);
+  Object.values(dropped.categoryConfigs).forEach((configs) =>
+    addConfigLayers(configs ?? [])
+  );
+
+  return ids;
+};
+
 // Turns parsed WMS capabilities (dropped file or URL) into catalog items for
 // the "Externe Dienste" subcategory.
 export const wmsCapabilitiesToCustomItems = (
