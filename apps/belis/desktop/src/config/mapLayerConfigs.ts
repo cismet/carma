@@ -146,6 +146,12 @@ export const ESAVE_STYLE_URL =
   "https://tiles.cismet.de/belis_sensoren/style.json";
 /** Inner source id of ESAVE_STYLE_URL; namespaced by the style URL on the map. */
 export const ESAVE_ORIGINAL_SOURCE = "belis-sensoren-source";
+/**
+ * Key of the esave entry in `additionalLayerConfigs`. The layer is Fachobjekte-
+ * only — the Arbeitsaufträge map filters it out by this key, and Settings hides
+ * its toggle there.
+ */
+export const ESAVE_LAYER_KEY = "esaveDaten";
 
 export const additionalLayerConfigs: Record<string, LayerEntry> = {
   stadtFstck: {
@@ -168,7 +174,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
       style: "https://tiles.cismet.de/alkis/streets.style.json",
     },
   },
-  esaveDaten: {
+  [ESAVE_LAYER_KEY]: {
     title: "esave Daten",
     layer: {
       type: "vector",
