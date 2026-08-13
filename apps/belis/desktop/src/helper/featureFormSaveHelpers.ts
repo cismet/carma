@@ -394,6 +394,13 @@ export const saveFeatureDraft = async (
     };
 
     // 5. Send to API
+    // Temporary while the sensor fields are being wired up with the server.
+    console.log(
+      `xxx [SAVE] ${config.className} (edit) payload`,
+      JSON.stringify(dataToSave, null, 2),
+      "\nxxx draft.values:",
+      JSON.stringify(draft.values ?? {}, null, 2)
+    );
     await updateDataByClassName(jwt, config.className, dataToSave);
 
     return { ...base, success: true };
@@ -548,6 +555,14 @@ const saveCreationDraft = async (
         { featureId, featureType, geometryKey: draft.geometryKey, geometry: draft.geometry }
       );
     }
+
+    // Temporary while the sensor fields are being wired up with the server.
+    console.log(
+      `xxx [SAVE] ${config.className} (creation) payload`,
+      JSON.stringify(payload, null, 2),
+      "\nxxx draft.values:",
+      JSON.stringify(draft.values ?? {}, null, 2)
+    );
 
     const result = await updateDataByClassName(
       jwt,
