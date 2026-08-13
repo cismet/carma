@@ -135,6 +135,18 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
   },
 };
 
+/**
+ * "Esave Daten" — Smart-Lighting-Controller (SLC) sensor points, a GeoJSON
+ * source hosted behind a MapLibre style. The style carries its own
+ * `carmaconf://infoBoxMapping` function, so a click on a sensor is rendered by
+ * the generic CARMA info-box flow (see the esave branch in
+ * BelisMapWrapper's handleSelectFromHits).
+ */
+export const ESAVE_STYLE_URL =
+  "https://tiles.cismet.de/belis_sensoren/style.json";
+/** Inner source id of ESAVE_STYLE_URL; namespaced by the style URL on the map. */
+export const ESAVE_ORIGINAL_SOURCE = "belis-sensoren-source";
+
 export const additionalLayerConfigs: Record<string, LayerEntry> = {
   stadtFstck: {
     title: "Städtische Flurstücke",
@@ -161,7 +173,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
     layer: {
       type: "vector",
       name: "Esave Daten",
-      style: "https://tiles.cismet.de/belis_sensoren/style.json",
+      style: ESAVE_STYLE_URL,
     },
   },
   // alkisBlack: {
