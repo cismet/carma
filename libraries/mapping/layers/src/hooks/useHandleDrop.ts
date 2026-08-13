@@ -11,6 +11,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { wmsCapabilitiesToCustomItems } from "../helper/buildCatalog";
 import type { CatalogDrop } from "../helper/buildCatalog";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { useLiveDeployment } from "@carma-commons/utils";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -45,6 +46,7 @@ export const useHandleDrop = ({
   vectorTileServerUrl,
 }: UseHandleDropProps) => {
   const { isCesium } = useMapFrameworkSwitcherContext();
+  const isLiveDeployment = useLiveDeployment();
   const openModal = (index?: number) => {
     if (!isCesium) {
       setOpen(true);
@@ -75,16 +77,21 @@ export const useHandleDrop = ({
       return;
     }
 
+    // every dropped item joins the catalog; instant ones additionally go
+    // straight onto the map instead of opening the catalog
+    onDrop({ kind: "layers", items: [newItem] });
     if (instant) {
       setAdditionalLayers(newItem, false, false, false, true);
     } else {
       openModal();
-      onDrop({ kind: "layers", items: [newItem] });
     }
   };
 
+  // outside the live deployment a dropped vector style always goes onto the map
+  // directly (and into the catalog) without opening the modal; on live only an
+  // explicit carmaConf.instant does that
   const handleJsonStyle = async (file: File | null, url: string | null) => {
-    let instant = false;
+    let instant = !isLiveDeployment;
     if (file) {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -118,7 +125,7 @@ export const useHandleDrop = ({
                   ...(carmaConf?.layerInfo?.keywords || []),
                 ],
               };
-              instant = carmaConf?.instant ?? false;
+              instant = instant || (carmaConf?.instant ?? false);
             }
 
             await handleAddToMap(newItem, instant);
@@ -149,7 +156,7 @@ export const useHandleDrop = ({
         .then((data) => {
           if (data.metadata && data.metadata.carmaConf.layerInfo) {
             const layerInfo = data.metadata.carmaConf.layerInfo;
-            instant = data.metaData?.carmaConf?.instant ?? false;
+            instant = instant || (data.metaData?.carmaConf?.instant ?? false);
             newItem = {
               ...newItem,
               id: importedId,
@@ -357,6 +364,7 @@ export const useHandleDrop = ({
     updateActiveLayer,
     setAdditionalLayers,
     isCesium,
+    isLiveDeployment,
   ]);
 };
 
