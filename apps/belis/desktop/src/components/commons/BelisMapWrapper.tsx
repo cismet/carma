@@ -37,7 +37,6 @@ import {
   BELIS_SOURCE_LAYERS,
   ESAVE_STYLE_URL,
   ESAVE_ORIGINAL_SOURCE,
-  ESAVE_LAYER_KEY,
   AA_LAYER_STYLES,
   BELIS_MARKER_SYMBOL_SIZE,
 } from "../../config/mapLayerConfigs";
@@ -2714,12 +2713,6 @@ const BelisMapLibWrapper = ({
 
     // Additional layers (multiple can be active)
     for (const key of activeAdditionalLayers) {
-      // The esave sensor layer belongs to the Fachobjekte map only. On the
-      // Arbeitsaufträge page it would draw sensor points over the protokolle
-      // of the selected AA, so it is skipped there even when toggled on.
-      if (key === ESAVE_LAYER_KEY && sidebarVariant === "arbeitsauftraege") {
-        continue;
-      }
       const addConfig = additionalLayerConfigs[key];
       if (addConfig) {
         const addOpacity = additionalLayerOpacities[key] ?? 1;
@@ -2750,7 +2743,6 @@ const BelisMapLibWrapper = ({
     inPaleMode,
     regularLayerEnabled,
     brandnewLayerEnabled,
-    sidebarVariant,
   ]);
 
   // Hide Fachobjekte layers when entering Arbeitsaufträge mode.
