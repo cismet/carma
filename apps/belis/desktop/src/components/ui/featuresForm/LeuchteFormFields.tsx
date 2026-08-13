@@ -260,6 +260,11 @@ const LeuchteFormFields = ({
       const leuchtmittelObj = leuchte.leuchtmittelObject as
         | NestedObject
         | undefined;
+      // esave sensor link. Shown read-only for now (see the fields below), so
+      // only the human-readable operator name is put into the form.
+      const sensorbetreiber = leuchte.sensorbetreiberObject as
+        | { id?: number; name?: string; beschreibung?: string }
+        | undefined;
 
       const serverValues = {
         // Straßenschlüssel
@@ -295,6 +300,10 @@ const LeuchteFormFields = ({
         fk_dk1: dk1Object?.id ?? leuchte.fk_dk1,
         anzahl_1dk: leuchte.anzahl_1dk,
         anschlussleistung_1dk: leuchte.anschlussleistung_1dk,
+        // Sensor (esave) — display only, both stripped in LeuchteForm.handleSave
+        sensorid: leuchte.sensorid,
+        sensorbetreiber_name:
+          sensorbetreiber?.name ?? sensorbetreiber?.beschreibung ?? null,
         // Doppelkommando 2 - use id for Select value
         fk_dk2: dk2Object?.id ?? leuchte.fk_dk2,
         anzahl_2dk: leuchte.anzahl_2dk,
@@ -716,6 +725,31 @@ const LeuchteFormFields = ({
           placeholder={getPlaceholder(readOnly, "Leistung eingeben")}
         />
       </FormItem>
+
+      {/* Sensor (esave). Read-only first step: `sensorid` is a plain column but
+          `sensorbetreiber` is a key-table FK that needs a Select to be edited,
+          and neither has a verified write path on the cids class yet. Both are
+          removed from the save payload in LeuchteForm.handleSave. */}
+      <Row gutter={16}>
+        <Col span={8}>
+          <FormItem
+            name={fieldName("sensorid")}
+            label={<FormLabel>Sensor-ID</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" disabled />
+          </FormItem>
+        </Col>
+        <Col span={16}>
+          <FormItem
+            name={fieldName("sensorbetreiber_name")}
+            label={<FormLabel>Sensorbetreiber</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" disabled />
+          </FormItem>
+        </Col>
+      </Row>
 
       {/* Doppelkommando 2 */}
       <Row gutter={16}>
