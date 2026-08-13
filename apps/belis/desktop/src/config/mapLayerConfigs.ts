@@ -136,7 +136,7 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
 };
 
 /**
- * "Esave Daten" — Smart-Lighting-Controller (SLC) sensor points, a GeoJSON
+ * "esave Daten" — Smart-Lighting-Controller (SLC) sensor points, a GeoJSON
  * source hosted behind a MapLibre style. The style carries its own
  * `carmaconf://infoBoxMapping` function, so a click on a sensor is rendered by
  * the generic CARMA info-box flow (see the esave branch in
@@ -169,10 +169,10 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
     },
   },
   esaveDaten: {
-    title: "Esave Daten",
+    title: "esave Daten",
     layer: {
       type: "vector",
-      name: "Esave Daten",
+      name: "esave Daten",
       style: ESAVE_STYLE_URL,
     },
   },
