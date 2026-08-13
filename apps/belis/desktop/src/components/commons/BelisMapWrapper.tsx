@@ -35,6 +35,8 @@ import {
   BELIS_BRAND_NEW_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
+  ESAVE_STYLE_URL,
+  ESAVE_ORIGINAL_SOURCE,
   AA_LAYER_STYLES,
   BELIS_MARKER_SYMBOL_SIZE,
 } from "../../config/mapLayerConfigs";
@@ -661,6 +663,10 @@ const BelisMapLibWrapper = ({
   const brandnewSource = `${slugifyUrl(
     BELIS_BRAND_NEW_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
+  // Optional "Esave Daten" layer (Smart-Lighting-Controller sensor points).
+  const esaveSource = `${slugifyUrl(
+    ESAVE_STYLE_URL
+  )}::${ESAVE_ORIGINAL_SOURCE}`;
 
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
@@ -4286,6 +4292,18 @@ const BelisMapLibWrapper = ({
           (BELIS_SOURCE_LAYERS as readonly string[]).includes(h.sourceLayer)
       );
       if (belisHits.length === 0) {
+        // Exception to the rule above: the optional "Esave Daten" layer
+        // (Smart-Lighting-Controller) is a genuine data layer, not basemap
+        // decoration. Its style ships a `carmaconf://infoBoxMapping` function,
+        // so returning the hit lets LibreMap run its generic mapping flow and
+        // render the sensor's info box (and the style's own
+        // `belis-sensoren-selection` layer paints the selection halo).
+        // Fachobjekte keep priority: a sensor sits on top of its Standort /
+        // Leuchte and must not shadow it, hence only when no BelIS hit exists.
+        const esaveHit = hits.find((h) => h.source === esaveSource);
+        if (esaveHit) {
+          return esaveHit;
+        }
         return undefined;
       }
 
@@ -4340,6 +4358,7 @@ const BelisMapLibWrapper = ({
       allDraftFeatures,
       store,
       namespacedSource,
+      esaveSource,
       selectFeature,
       openDraftDbKeys,
     ]
