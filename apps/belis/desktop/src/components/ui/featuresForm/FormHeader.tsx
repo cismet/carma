@@ -233,20 +233,6 @@ const FormHeader = ({
               <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
                 {title}
               </h2>
-              {hasDraft && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
-                  <ExclamationCircleOutlined className="text-[11px]" />
-                  nicht gespeicherte Änderungen
-                  {/* How many fields carry those changes. Omitted at 0 — a
-                      draft can also exist without any field edit (a removed
-                      document, a changed geometry, a brand-new feature whose
-                      baseline is empty), and "(0)" would read as a
-                      contradiction next to the label. */}
-                  {editedCount > 0 && (
-                    <span className="text-gray-700">({editedCount})</span>
-                  )}
-                </span>
-              )}
               {!readOnly && onCreateRelatedDraft && (
                 <Tooltip
                   title={
@@ -348,6 +334,22 @@ const FormHeader = ({
                     <CloseOutlined style={{ fontSize: 12 }} />
                   </button>
                 </>
+              )}
+              {/* Draft indicator, placed after the icon group so the title and
+                  its actions read as one block and the badge closes the row. */}
+              {hasDraft && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
+                  <ExclamationCircleOutlined className="text-[11px]" />
+                  nicht gespeicherte Änderungen
+                  {/* How many fields carry those changes. Omitted at 0 — a
+                      draft can also exist without any field edit (a removed
+                      document, a changed geometry, a brand-new feature whose
+                      baseline is empty), and "(0)" would read as a
+                      contradiction next to the label. */}
+                  {editedCount > 0 && (
+                    <span className="text-gray-700">({editedCount})</span>
+                  )}
+                </span>
               )}
               {!readOnly && onCopyValues && isAltPressed && (
                 <Tooltip title="Werte merken">
