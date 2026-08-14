@@ -30,6 +30,7 @@ import { useSingleSave } from "./FeaturesFormsWrapper";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import SendOrDiscardAllDraftsButton from "../SendOrDiscardAllDraftsButton";
 import { useEditedFields } from "./editedFieldsContext";
+import { countEditedFields } from "./formDiffUtils";
 
 interface FormHeaderProps {
   title: string;
@@ -77,7 +78,12 @@ const FormHeader = ({
   // gray highlight, which also folds in allowlisted creation-default
   // divergences; see editedFieldsContext for why.
   const editedFields = useEditedFields();
-  const editedCount = editedFields.size;
+  // Not `editedFields.size` — several form keys can back one visible field
+  // (the Strassenschlüssel trio), and the badge counts what the user sees.
+  const editedCount = useMemo(
+    () => countEditedFields(editedFields),
+    [editedFields]
+  );
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
   const drafts = useSelector(getAllDrafts);
   const jwt = useSelector(getJWT);
