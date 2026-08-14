@@ -6,7 +6,12 @@ import {
   DEFAULT_ORIGIN_DOT_OPACITY,
 } from "./constants";
 import { rotate } from "./geometry";
-import type { PickExplanation, ScreenPoint } from "./types";
+import type {
+  NavStrategy,
+  PickExplanation,
+  ResolvedNavConstants,
+  ScreenPoint,
+} from "./types";
 
 /**
  * The helper geometry behind one decision, drawn on the map for about a second.
@@ -391,13 +396,24 @@ export const ExplainLegend = ({
   snapshot,
   faded,
   degraded = false,
+  strategy,
+  constants,
+  candidateCount,
 }: {
   snapshot: ExplainSnapshot | null;
   faded: boolean;
   degraded?: boolean;
+  /** the configured strategy, shown while no decision is on screen */
+  strategy: NavStrategy;
+  /** the constants in force, likewise */
+  constants: ResolvedNavConstants;
+  /** navigable features in the viewport, likewise */
+  candidateCount: number;
 }) => {
-  if (!snapshot) return null;
-  const { explanation } = snapshot;
+  // a decision replaces the standing numbers with the ones it actually used,
+  // and hands them back when it fades: the readout describes the mode either
+  // way, so it never leaves the screen while the mode runs
+  const explanation = snapshot && !faded ? snapshot.explanation : undefined;
 
   return (
     <div
@@ -410,14 +426,16 @@ export const ExplainLegend = ({
         whiteSpace: "nowrap",
         boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
         pointerEvents: "none",
-        opacity: faded ? 0 : 1,
-        transition: `opacity ${FADE_MS}ms linear`,
       }}
       data-test-id="feature-keyboard-nav-explain-legend"
     >
-      {explanation.strategyUsed} · θmax {format(explanation.coneAngleDeg)}° · w{" "}
-      {format(explanation.angleWeight)} · p {format(explanation.anglePower)} ·{" "}
-      {explanation.evaluations.length} Kandidaten
+      {explanation?.strategyUsed ?? strategy} · θmax{" "}
+      {format(explanation?.coneAngleDeg ?? constants.coneAngleDeg)}° · w{" "}
+      {format(explanation?.angleWeight ?? constants.angleWeight)} · p{" "}
+      {format(explanation?.anglePower ?? constants.anglePower)} ·{" "}
+      {explanation
+        ? `${explanation.evaluations.length} Kandidaten`
+        : `${candidateCount} navigierbar`}
       {degraded && (
         <span style={{ color: COLORS.rejected }}>
           {" "}

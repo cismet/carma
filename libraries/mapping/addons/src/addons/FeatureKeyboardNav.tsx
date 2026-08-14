@@ -997,12 +997,17 @@ export const FeatureKeyboardNav = ({
         />
       )}
       <ExplainOverlay map={libreMap} snapshot={snapshot} faded={faded} />
-      {snapshot && (
+      {/* the readout belongs to the mode, not to a keypress: on for as long as
+          the mode runs with `explain` on, and gone entirely when it is off */}
+      {isActive && explain !== "off" && (
         <Control position="bottomcenter" order={LEGEND_CONTROL_ORDER}>
           <ExplainLegend
             snapshot={snapshot}
             faded={faded}
             degraded={degraded}
+            strategy={strategy}
+            constants={resolveNavConstants(config)}
+            candidateCount={candidateSet.candidates.length}
           />
         </Control>
       )}
