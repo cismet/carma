@@ -12,6 +12,8 @@ import type {
 } from "@carma-mapping/fuzzy-search";
 import type { LayerStackEntry } from "@carma-mapping/layers";
 
+import { AddonManager, type AddonManagerConfig } from "../addons/AddonManager";
+import type { AddonOverridesState } from "./addon-overrides";
 import {
   CameraRestriction,
   type CameraRestrictionConfig,
@@ -49,6 +51,7 @@ import {
 } from "../addons/ZoomToExtent";
 
 export type AddonConfigMap = {
+  addonManager: AddonManagerConfig;
   cameraRestriction: CameraRestrictionConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
@@ -78,6 +81,12 @@ export type AddonStateMap = {
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
    */
   infoBoxImage: InfoBoxImageState;
+  /**
+   * which addons the user switched on or off for this session; see
+   * `AddonManager`. Read by `AddonHost` rather than by a sibling addon, which
+   * is why it has no consumer among the registry's `requires`.
+   */
+  addonOverrides: AddonOverridesState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -177,6 +186,7 @@ export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
 export const addonRegistry: {
   [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
+  addonManager: { Component: AddonManager, provides: ["addonOverrides"] },
   cameraRestriction: { Component: CameraRestriction },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },

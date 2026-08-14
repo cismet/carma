@@ -12,7 +12,8 @@ import {
   type AddonComponentProps,
   type AddonEntry,
 } from "./registry";
-import { useRouteAddons } from "./AddonStateContext";
+import { applyAddonOverrides } from "./addon-overrides";
+import { useAddonState, useRouteAddons } from "./AddonStateContext";
 
 /**
  * Dev-time wiring check: every channel a configured addon `requires` must be
@@ -56,6 +57,9 @@ const warnOnUnmetRequirements = (addons?: readonly AddonEntry[]) => {
  */
 export const AddonHost = () => {
   const addons = useRouteAddons();
+  // what the `addonManager` switched on or off for this session; undefined
+  // until it writes for the first time, which is the plain route list
+  const [overrides] = useAddonState("addonOverrides");
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();
   const store = useStore();
@@ -69,7 +73,7 @@ export const AddonHost = () => {
     }
   }, [addons]);
 
-  const entries = resolveAddonEntries(addons);
+  const entries = applyAddonOverrides(resolveAddonEntries(addons), overrides);
   if (!entries.length) {
     return null;
   }
