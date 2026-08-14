@@ -1,7 +1,15 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { Form } from "antd";
 import type { FormItemProps } from "antd";
-import { getChangedPaths, getPrefilledPaths } from "./formDiffUtils";
+import {
+  getChangedPaths,
+  getManagedChangedPaths,
+  getPrefilledPaths,
+} from "./formDiffUtils";
+// The genuine-edit subset of the changed paths below. Defined in its own
+// module so this one keeps exporting components only; see that file for why
+// the two sets differ.
+import { EditedFieldsContext } from "./editedFieldsContext";
 
 // Holds the full set of changed field paths (e.g. "leuchte.wechseldatum")
 const ChangedFieldsContext = createContext<Set<string>>(new Set());
@@ -49,6 +57,14 @@ export const ChangedFieldsProvider = ({
     () => getPrefilledPaths(draftValues, allowlistedPaths, currentDefaults),
     [draftValues, allowlistedPaths, currentDefaults]
   );
+  // Scoped to the slices the draft manages, so a baseline-only slice (a
+  // view-mode Leuchte's parent `mast`) cannot report its untouched fields as
+  // edits. Kept separate from `changedFields` below rather than folded into
+  // it: the gray highlight's behaviour is deliberately left as it was.
+  const editedFields = useMemo(
+    () => getManagedChangedPaths(originalValues, draftValues),
+    [originalValues, draftValues]
+  );
   const changedFields = useMemo(() => {
     const paths = getChangedPaths(originalValues, draftValues);
     // An allowlisted field that diverges from its remembered default counts
@@ -65,9 +81,11 @@ export const ChangedFieldsProvider = ({
   }, [originalValues, draftValues, allowlistedPaths, prefilledFields]);
   return (
     <ChangedFieldsContext.Provider value={changedFields}>
-      <PrefilledFieldsContext.Provider value={prefilledFields}>
-        {children}
-      </PrefilledFieldsContext.Provider>
+      <EditedFieldsContext.Provider value={editedFields}>
+        <PrefilledFieldsContext.Provider value={prefilledFields}>
+          {children}
+        </PrefilledFieldsContext.Provider>
+      </EditedFieldsContext.Provider>
     </ChangedFieldsContext.Provider>
   );
 };

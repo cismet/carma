@@ -143,6 +143,33 @@ export const getChangedPaths = (
   return changed;
 };
 
+/**
+ * Like {@link getChangedPaths}, but restricted to the top-level slices the
+ * draft actually carries — the path-level counterpart of
+ * {@link isFormDirtyManaged}, and for the same reason.
+ *
+ * The baseline may hold slices the open form cannot edit: a view-mode Leuchte
+ * seeds its parent `mast` into `originalValues` so the "remember" memory can
+ * capture it (#645), while its draft only ever carries `leuchte`. Plain
+ * `getChangedPaths` walks the union of keys, so that baseline-only `mast`
+ * recurses to "original has it, draft doesn't" and every populated Mast field
+ * is reported as changed — one edited field would read as ~19.
+ *
+ * Slices the draft carries but the baseline lacks stay in: those are genuinely
+ * new data, and their leaves are collected as before.
+ */
+export const getManagedChangedPaths = (
+  original: Record<string, unknown> | undefined,
+  draft: Record<string, unknown> | undefined
+): Set<string> => {
+  if (!original || !draft) return new Set();
+  const scopedOriginal: Record<string, unknown> = {};
+  for (const key of Object.keys(draft)) {
+    scopedOriginal[key] = original[key];
+  }
+  return getChangedPaths(scopedOriginal, draft);
+};
+
 const walkPath = (
   obj: Record<string, unknown> | undefined,
   path: string
