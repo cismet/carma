@@ -91,6 +91,15 @@ interface FeatureFormLayoutProps {
   createDraftButtonVariant?: "green" | "white";
   /** Optional Alt-gated header "copy values" button handler. */
   onCopyValues?: () => void;
+  /** Show the Wiederholfelder copy/paste icon pair next to the header "+".
+   * Leuchte opts in; the other forms leave it off. */
+  showRepeatableChangesButtons?: boolean;
+  /** Capture this form's changed fields into the Wiederholfelder clipboard. */
+  onCopyRepeatableChanges?: () => void;
+  /** Stamp the stored Wiederholfelder onto this form. */
+  onPasteRepeatableChanges?: () => void;
+  /** Field count in the clipboard, shown as a badge on the paste button. */
+  repeatableChangesCount?: number;
   /** Label for the main/general tab. Defaults to "Allgemein". Accepts a
    * ReactNode so callers (e.g. LeuchteForm) can embed an inline close icon. */
   generalTabLabel?: ReactNode;
@@ -145,6 +154,10 @@ const FeatureFormLayout = ({
   onCreateRelatedDraft,
   createDraftButtonVariant,
   onCopyValues,
+  showRepeatableChangesButtons,
+  onCopyRepeatableChanges,
+  onPasteRepeatableChanges,
+  repeatableChangesCount,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
   loading,
@@ -678,6 +691,10 @@ const FeatureFormLayout = ({
           onCreateRelatedDraft={onCreateRelatedDraft}
           createDraftButtonVariant={createDraftButtonVariant}
           onCopyValues={onCopyValues}
+          showRepeatableChangesButtons={showRepeatableChangesButtons}
+          onCopyRepeatableChanges={onCopyRepeatableChanges}
+          onPasteRepeatableChanges={onPasteRepeatableChanges}
+          repeatableChangesCount={repeatableChangesCount}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
@@ -740,6 +757,10 @@ const FeatureFormLayout = ({
         onCreateRelatedDraft={onCreateRelatedDraft}
         createDraftButtonVariant={createDraftButtonVariant}
         onCopyValues={onCopyValues}
+        showRepeatableChangesButtons={showRepeatableChangesButtons}
+        onCopyRepeatableChanges={onCopyRepeatableChanges}
+        onPasteRepeatableChanges={onPasteRepeatableChanges}
+        repeatableChangesCount={repeatableChangesCount}
       />
       <div
         className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${

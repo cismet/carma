@@ -14,6 +14,7 @@ import featuresFormsSlice from "./slices/featuresForms";
 import arbeitsauftraegeDraftsSlice from "./slices/arbeitsauftraegeDrafts";
 import measurementsSlice from "./slices/measurements";
 import creationDefaultsSlice from "./slices/creationDefaults";
+import repeatableChangesSlice from "./slices/repeatableChanges";
 import printSlice from "./slices/print";
 import expertSearchSlice from "./slices/expertSearch";
 
@@ -100,6 +101,15 @@ const creationDefaultsConfig = {
   whitelist: ["defaults", "draftIdToType"],
 };
 
+// The copied field set outlives a reload. Its values are stored already
+// serialized (dayjs → tagged string, same as the featuresForms drafts), so
+// plain JSON persistence is enough — no transform needed here.
+const repeatableChangesConfig = {
+  key: "@belis-desktop.repeatableChanges",
+  storage: localForage,
+  whitelist: ["byType"],
+};
+
 const measurementsConfig = {
   key: "@belis-desktop.measurements",
   storage: localForage,
@@ -156,6 +166,10 @@ const store = configureStore({
     creationDefaults: persistReducer(
       creationDefaultsConfig,
       creationDefaultsSlice.reducer
+    ),
+    repeatableChanges: persistReducer(
+      repeatableChangesConfig,
+      repeatableChangesSlice.reducer
     ),
     measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
   },

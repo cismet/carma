@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   ArrowLeftOutlined,
   CopyOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
   PlusOutlined,
+  SnippetsOutlined,
 } from "@ant-design/icons";
 import { Badge, Button, Spin, Tooltip } from "antd";
 import { useSelector, useDispatch } from "react-redux";
@@ -50,7 +51,41 @@ interface FormHeaderProps {
   onCreateRelatedDraft?: () => void;
   createDraftButtonVariant?: "green" | "white";
   onCopyValues?: () => void;
+  /** Show the Wiederholfelder copy/paste pair next to the "+" button. Leuchte
+   * sets it; the other forms leave it off. */
+  showRepeatableChangesButtons?: boolean;
+  /** Capture the form's changed fields into the Wiederholfelder clipboard. */
+  onCopyRepeatableChanges?: () => void;
+  /** Stamp the stored Wiederholfelder onto the form. */
+  onPasteRepeatableChanges?: () => void;
+  /** Field count in the clipboard, shown as a badge on the paste button. */
+  repeatableChangesCount?: number;
 }
+
+// Same 24×24 square as the header's "+" button so the three sit on one line,
+// in the neutral palette the "white" variant of that button already uses.
+const REPEATABLE_CHANGES_BUTTON_STYLE: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 24,
+  height: 24,
+  padding: 0,
+  border: "1px solid #d9d9d9",
+  borderRadius: 4,
+  backgroundColor: "#ffffff",
+  color: "#8c8c8c",
+  cursor: "pointer",
+};
+
+// Copy wears the changed-field gray, so it reads as "take the gray fields".
+// Kept in sync by hand with the `.draft-changed-field` background in
+// DraftFieldHighlight.tsx — that stylesheet is built inside a component module
+// and cannot export the value without tripping react-refresh.
+const REPEATABLE_CHANGES_COPY_STYLE: CSSProperties = {
+  ...REPEATABLE_CHANGES_BUTTON_STYLE,
+  backgroundColor: "#f5f5f5",
+};
 
 const FormHeader = ({
   title,
@@ -70,6 +105,10 @@ const FormHeader = ({
   onCreateRelatedDraft,
   createDraftButtonVariant = "green",
   onCopyValues,
+  showRepeatableChangesButtons,
+  onCopyRepeatableChanges,
+  onPasteRepeatableChanges,
+  repeatableChangesCount = 0,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
   // Fields the user actually changed in this Datenblatt — the plain diff of
@@ -246,6 +285,49 @@ const FormHeader = ({
                     <PlusOutlined style={{ fontSize: 12 }} />
                   </button>
                 </Tooltip>
+              )}
+              {/* Wiederholfelder copy/paste. Neutral gray rather than the
+                  green of the "+" beside them: these do not create a record.
+                  Icon-only by request; the aria-labels are for screen readers
+                  and never painted.
+
+                  Paste carries a badge with the clipboard's field count, and
+                  is inert while that count is 0 — with nothing stored there is
+                  nothing to stamp on. Copy stays live either way: it reports
+                  "nothing changed" itself, which is more useful than a button
+                  that looks broken. */}
+              {!readOnly && showRepeatableChangesButtons && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Felder kopieren"
+                    onClick={onCopyRepeatableChanges}
+                    style={REPEATABLE_CHANGES_COPY_STYLE}
+                  >
+                    <CopyOutlined style={{ fontSize: 12 }} />
+                  </button>
+                  <Badge
+                    count={repeatableChangesCount}
+                    size="small"
+                    offset={[-2, 2]}
+                    style={{ backgroundColor: "#fa8c16" }}
+                  >
+                    <button
+                      type="button"
+                      aria-label="Felder einfügen"
+                      onClick={onPasteRepeatableChanges}
+                      disabled={repeatableChangesCount === 0}
+                      style={{
+                        ...REPEATABLE_CHANGES_BUTTON_STYLE,
+                        ...(repeatableChangesCount === 0
+                          ? { color: "#d9d9d9", cursor: "not-allowed" }
+                          : null),
+                      }}
+                    >
+                      <SnippetsOutlined style={{ fontSize: 12 }} />
+                    </button>
+                  </Badge>
+                </>
               )}
               {!readOnly && onCopyValues && isAltPressed && (
                 <Tooltip title="Werte merken">
