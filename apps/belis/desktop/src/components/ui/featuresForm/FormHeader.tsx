@@ -29,6 +29,7 @@ import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useSingleSave } from "./FeaturesFormsWrapper";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import SendOrDiscardAllDraftsButton from "../SendOrDiscardAllDraftsButton";
+import { useEditedFields } from "./editedFieldsContext";
 
 interface FormHeaderProps {
   title: string;
@@ -70,6 +71,13 @@ const FormHeader = ({
   onCopyValues,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
+  // Fields the user actually changed in this Datenblatt — the plain diff of
+  // the draft against the saved values, across every slice the form manages
+  // (Leuchte plus its Standort/Mast tab). Narrower than the set behind the
+  // gray highlight, which also folds in allowlisted creation-default
+  // divergences; see editedFieldsContext for why.
+  const editedFields = useEditedFields();
+  const editedCount = editedFields.size;
   const featureDraftsCount = useSelector(getDraftFeaturesCount);
   const drafts = useSelector(getAllDrafts);
   const jwt = useSelector(getJWT);
@@ -180,6 +188,14 @@ const FormHeader = ({
                 <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
                   <ExclamationCircleOutlined className="text-[11px]" />
                   nicht gespeicherte Änderungen
+                  {/* How many fields carry those changes. Omitted at 0 — a
+                      draft can also exist without any field edit (a removed
+                      document, a changed geometry, a brand-new feature whose
+                      baseline is empty), and "(0)" would read as a
+                      contradiction next to the label. */}
+                  {editedCount > 0 && (
+                    <span className="text-gray-700">({editedCount})</span>
+                  )}
                 </span>
               )}
               {!readOnly && onCreateRelatedDraft && (
