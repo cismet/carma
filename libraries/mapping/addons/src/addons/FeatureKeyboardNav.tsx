@@ -42,6 +42,7 @@ import {
   DEFAULT_VERIFY_MAX_RETRIES,
   EDGE_PAN_SETTLE_TIMEOUT_MS,
   KEEP_IN_VIEW_INSET_FRACTION,
+  nextExplainMode,
   resolveNavConstants,
   SHIFT_PAN_PX,
 } from "./feature-keyboard-nav/constants";
@@ -78,6 +79,7 @@ import {
   NAV_AXES,
   type FeatureKeyboardNavConfig,
   type NavDirection,
+  type NavExplainMode,
   type PickExplanation,
   type ScreenPoint,
 } from "./feature-keyboard-nav/types";
@@ -460,6 +462,30 @@ export const FeatureKeyboardNav = ({
   const explainIdRef = useRef(0);
 
   /**
+   * The picture mode as it stands.
+   *
+   * `config.explain` seeds it and decides whether the readout exists at all;
+   * from there the switch on the readout owns it, so the picture can be dropped
+   * while walking a dataset and brought back to explain a single step, without
+   * a config change and without leaving the mode. A config that changed under
+   * us wins again, since it is the deployment talking.
+   */
+  const [explainMode, setExplainMode] = useState<NavExplainMode>(explain);
+  useEffect(() => {
+    setExplainMode(explain);
+  }, [explain]);
+  const cycleExplain = useCallback(() => {
+    setExplainMode(nextExplainMode);
+  }, []);
+
+  // switching the picture off takes the one on screen with it, held or not
+  useEffect(() => {
+    if (explainMode !== "off") return;
+    setSnapshot(null);
+    setFaded(false);
+  }, [explainMode]);
+
+  /**
    * The key the last step published, so the selection it causes can be told
    * apart from one the user made.
    *
@@ -524,12 +550,12 @@ export const FeatureKeyboardNav = ({
 
   const publishExplanation = useCallback(
     (map: MaplibreMap, explanation: PickExplanation) => {
-      if (explain === "off") return;
+      if (explainMode === "off") return;
       explainIdRef.current += 1;
       setFaded(false);
       setSnapshot(toExplainSnapshot(map, explanation, explainIdRef.current));
     },
-    [explain]
+    [explainMode]
   );
 
   /**
@@ -547,7 +573,7 @@ export const FeatureKeyboardNav = ({
    */
   const featureOrigins = useMemo(
     () => {
-      if (!showOrigins || explain === "off" || !rawFeature) return [];
+      if (!showOrigins || explainMode === "off" || !rawFeature) return [];
       // the merged geometry, for the same reason `resolveOrigin` uses it: the
       // dot has to mark the point a step actually measures from
       const key = candidateKeyOf(rawFeature);
@@ -605,7 +631,7 @@ export const FeatureKeyboardNav = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       showOrigins,
-      explain,
+      explainMode,
       rawFeature,
       selectionVersion,
       candidateSet,
@@ -617,7 +643,7 @@ export const FeatureKeyboardNav = ({
 
 
   useEffect(() => {
-    if (explain !== "brief" || !snapshot) return;
+    if (explainMode !== "brief" || !snapshot) return;
     const fade = setTimeout(() => setFaded(true), explainMs);
     const clear = setTimeout(() => setSnapshot(null), explainMs + FADE_MS);
     return () => {
@@ -625,7 +651,7 @@ export const FeatureKeyboardNav = ({
       clearTimeout(clear);
     };
     // a new decision replaces the picture and restarts both timers
-  }, [snapshot, explain, explainMs]);
+  }, [snapshot, explainMode, explainMs]);
 
   useEffect(() => {
     if (isActive) return;
@@ -998,7 +1024,9 @@ export const FeatureKeyboardNav = ({
       )}
       <ExplainOverlay map={libreMap} snapshot={snapshot} faded={faded} />
       {/* the readout belongs to the mode, not to a keypress: on for as long as
-          the mode runs with `explain` on, and gone entirely when it is off */}
+          the mode runs, and carrying the switch that turns the picture itself
+          off. `config.explain: "off"` keeps both away, so a deployment that
+          wants no debug chrome gets none */}
       {isActive && explain !== "off" && (
         <Control position="bottomcenter" order={LEGEND_CONTROL_ORDER}>
           <ExplainLegend
@@ -1008,6 +1036,8 @@ export const FeatureKeyboardNav = ({
             strategy={strategy}
             constants={resolveNavConstants(config)}
             candidateCount={candidateSet.candidates.length}
+            explainMode={explainMode}
+            onCycleExplain={cycleExplain}
           />
         </Control>
       )}

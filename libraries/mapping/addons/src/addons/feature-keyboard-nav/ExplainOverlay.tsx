@@ -7,6 +7,7 @@ import {
 } from "./constants";
 import { rotate } from "./geometry";
 import type {
+  NavExplainMode,
   NavStrategy,
   PickExplanation,
   ResolvedNavConstants,
@@ -110,6 +111,13 @@ const COLORS = {
 
 const format = (value: number) =>
   value >= 100 ? value.toFixed(0) : value.toFixed(1);
+
+/** what each picture mode is called on the switch */
+const EXPLAIN_LABELS: Readonly<Record<NavExplainMode, string>> = {
+  brief: "kurz",
+  hold: "halten",
+  off: "aus",
+};
 
 export const ExplainOverlay = ({
   map,
@@ -399,6 +407,8 @@ export const ExplainLegend = ({
   strategy,
   constants,
   candidateCount,
+  explainMode,
+  onCycleExplain,
 }: {
   snapshot: ExplainSnapshot | null;
   faded: boolean;
@@ -409,6 +419,9 @@ export const ExplainLegend = ({
   constants: ResolvedNavConstants;
   /** navigable features in the viewport, likewise */
   candidateCount: number;
+  /** the picture mode as it stands, which the switch steps through */
+  explainMode: NavExplainMode;
+  onCycleExplain: () => void;
 }) => {
   // a decision replaces the standing numbers with the ones it actually used,
   // and hands them back when it fades: the readout describes the mode either
@@ -442,6 +455,27 @@ export const ExplainLegend = ({
           · Kandidatenmenge unvollständig
         </span>
       )}
+      {/* the one thing on the readout that takes a click, so the caption stays
+          out of the way of the map everywhere else */}
+      <span
+        role="button"
+        title="Erklärbild: kurz, halten, aus"
+        onClick={onCycleExplain}
+        style={{
+          marginLeft: 8,
+          padding: "1px 6px",
+          borderRadius: 4,
+          background:
+            explainMode === "off" ? "rgba(0,0,0,0.08)" : "rgba(22,119,255,0.14)",
+          color: explainMode === "off" ? "#888" : COLORS.origin,
+          cursor: "pointer",
+          pointerEvents: "auto",
+          userSelect: "none",
+        }}
+        data-test-id="feature-keyboard-nav-explain-toggle"
+      >
+        Bild: {EXPLAIN_LABELS[explainMode]}
+      </span>
     </div>
   );
 };

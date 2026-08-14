@@ -1,4 +1,8 @@
-import type { FeatureKeyboardNavConfig, ResolvedNavConstants } from "./types";
+import type {
+  FeatureKeyboardNavConfig,
+  NavExplainMode,
+  ResolvedNavConstants,
+} from "./types";
 
 /**
  * The one knob and the three constants behind it.
@@ -42,6 +46,25 @@ export const DEFAULT_PAN_STEP_FRACTION = 0.5;
 export const DEFAULT_PAN_DURATION_MS = 300;
 export const DEFAULT_EXPLAIN = "brief";
 export const DEFAULT_EXPLAIN_MS = 1200;
+
+/**
+ * What the switch on the legend steps through, in order.
+ *
+ * `config.explain` decides whether the readout and its switch exist at all;
+ * this decides what the switch offers once they do. "off" is part of the cycle
+ * and not an exit: it drops the picture and keeps the readout, because the
+ * numbers describe the mode that is running rather than the last keypress.
+ */
+export const EXPLAIN_MODE_CYCLE = [
+  "brief",
+  "hold",
+  "off",
+] as const satisfies readonly NavExplainMode[];
+
+export const nextExplainMode = (mode: NavExplainMode): NavExplainMode =>
+  EXPLAIN_MODE_CYCLE[
+    (EXPLAIN_MODE_CYCLE.indexOf(mode) + 1) % EXPLAIN_MODE_CYCLE.length
+  ];
 /** the blue the selection itself is drawn in, since it marks the selection */
 export const DEFAULT_ORIGIN_DOT_COLOR = "#1677ff";
 export const DEFAULT_ORIGIN_DOT_OPACITY = 1;

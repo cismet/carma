@@ -84,7 +84,14 @@ export type FeatureKeyboardNavConfig = {
   /** Duration of keep-in-view and edge pans, in ms. Default: 300 */
   panDurationMs?: number;
 
-  /** Helper geometry overlay. Default: "brief" */
+  /**
+   * Helper geometry overlay. Default: "brief"
+   *
+   * The starting value, not a fixed one: with anything but "off" the readout
+   * carries a switch that steps the picture through "brief", "hold" and "off"
+   * while the mode runs. "off" here keeps the readout and the switch away
+   * altogether.
+   */
   explain?: NavExplainMode;
   /** Fade delay for "brief", in ms. Default: 1200 */
   explainMs?: number;
