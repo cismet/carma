@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   ArrowLeftOutlined,
+  CloseOutlined,
   CopyOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
@@ -58,6 +59,8 @@ interface FormHeaderProps {
   onCopyRepeatableChanges?: () => void;
   /** Stamp the stored Wiederholfelder onto the form. */
   onPasteRepeatableChanges?: () => void;
+  /** Empty the Wiederholfelder clipboard for this feature type. */
+  onClearRepeatableChanges?: () => void;
   /** Field count in the clipboard, shown as a badge on the paste button. */
   repeatableChangesCount?: number;
 }
@@ -108,6 +111,7 @@ const FormHeader = ({
   showRepeatableChangesButtons,
   onCopyRepeatableChanges,
   onPasteRepeatableChanges,
+  onClearRepeatableChanges,
   repeatableChangesCount = 0,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
@@ -300,7 +304,7 @@ const FormHeader = ({
                 <>
                   <button
                     type="button"
-                    aria-label="Felder kopieren"
+                    aria-label="Änderungen kopieren"
                     onClick={onCopyRepeatableChanges}
                     style={REPEATABLE_CHANGES_COPY_STYLE}
                   >
@@ -314,7 +318,7 @@ const FormHeader = ({
                   >
                     <button
                       type="button"
-                      aria-label="Felder einfügen"
+                      aria-label="Änderungen einfügen"
                       onClick={onPasteRepeatableChanges}
                       disabled={repeatableChangesCount === 0}
                       style={{
@@ -327,6 +331,22 @@ const FormHeader = ({
                       <SnippetsOutlined style={{ fontSize: 12 }} />
                     </button>
                   </Badge>
+                  {/* Empties the clipboard for this feature type. Inert at 0
+                      for the same reason as paste — nothing to throw away. */}
+                  <button
+                    type="button"
+                    aria-label="Kopierte Änderungen verwerfen"
+                    onClick={onClearRepeatableChanges}
+                    disabled={repeatableChangesCount === 0}
+                    style={{
+                      ...REPEATABLE_CHANGES_BUTTON_STYLE,
+                      ...(repeatableChangesCount === 0
+                        ? { color: "#d9d9d9", cursor: "not-allowed" }
+                        : null),
+                    }}
+                  >
+                    <CloseOutlined style={{ fontSize: 12 }} />
+                  </button>
                 </>
               )}
               {!readOnly && onCopyValues && isAltPressed && (

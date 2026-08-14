@@ -98,6 +98,8 @@ interface FeatureFormLayoutProps {
   onCopyRepeatableChanges?: () => void;
   /** Stamp the stored Wiederholfelder onto this form. */
   onPasteRepeatableChanges?: () => void;
+  /** Empty the Wiederholfelder clipboard for this feature type. */
+  onClearRepeatableChanges?: () => void;
   /** Field count in the clipboard, shown as a badge on the paste button. */
   repeatableChangesCount?: number;
   /** Label for the main/general tab. Defaults to "Allgemein". Accepts a
@@ -157,6 +159,7 @@ const FeatureFormLayout = ({
   showRepeatableChangesButtons,
   onCopyRepeatableChanges,
   onPasteRepeatableChanges,
+  onClearRepeatableChanges,
   repeatableChangesCount,
   generalTabLabel = "Allgemein",
   additionalTabsPosition = "after",
@@ -694,6 +697,7 @@ const FeatureFormLayout = ({
           showRepeatableChangesButtons={showRepeatableChangesButtons}
           onCopyRepeatableChanges={onCopyRepeatableChanges}
           onPasteRepeatableChanges={onPasteRepeatableChanges}
+          onClearRepeatableChanges={onClearRepeatableChanges}
           repeatableChangesCount={repeatableChangesCount}
         />
         <div className="flex flex-1 overflow-hidden">
@@ -760,6 +764,7 @@ const FeatureFormLayout = ({
         showRepeatableChangesButtons={showRepeatableChangesButtons}
         onCopyRepeatableChanges={onCopyRepeatableChanges}
         onPasteRepeatableChanges={onPasteRepeatableChanges}
+        onClearRepeatableChanges={onClearRepeatableChanges}
         repeatableChangesCount={repeatableChangesCount}
       />
       <div

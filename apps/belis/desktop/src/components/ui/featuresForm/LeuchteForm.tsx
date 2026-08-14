@@ -48,6 +48,7 @@ import {
 import { useEditedFields } from "./editedFieldsContext";
 import { pickPathValues } from "./formDiffUtils";
 import {
+  clearRepeatableChanges,
   getRepeatableChanges,
   setRepeatableChanges,
 } from "../../../store/slices/repeatableChanges";
@@ -345,12 +346,14 @@ const LeuchteForm = ({
       (values.leuchte ?? {}) as Record<string, unknown>
     ).map((field) => `leuchte.${field}`);
     if (paths.length === 0) {
-      message.warning("Keine geänderten Felder zum Kopieren");
+      message.warning("Keine Änderungen zum Kopieren");
       return;
     }
     dispatch(setRepeatableChanges({ featureType: "leuchte", values, paths }));
     message.success(
-      paths.length === 1 ? "1 Feld kopiert" : `${paths.length} Felder kopiert`
+      paths.length === 1
+        ? "1 Änderung kopiert"
+        : `${paths.length} Änderungen kopiert`
     );
   }, [dispatch, editedLeuchtePaths]);
 
@@ -370,9 +373,19 @@ const LeuchteForm = ({
     editedDraftIdRef.current = featureId;
     onDraftChange?.({ ...draftValues, leuchte: form.getFieldsValue() });
     message.success(
-      count === 1 ? "1 Feld eingefügt" : `${count} Felder eingefügt`
+      count === 1 ? "1 Änderung eingefügt" : `${count} Änderungen eingefügt`
     );
   }, [storedRepeatableChanges, onDraftChange, draftValues, featureId]);
+
+  const handleClearRepeatableChanges = useCallback(() => {
+    // Drops the whole slot for this type, which also empties the persisted
+    // copy — the reducer deletes the entry rather than blanking it, so the
+    // badge count falls to 0 and paste goes inert. Only the clipboard is
+    // touched: values already pasted into a form stay in their draft, since
+    // they are the user's edits now and not a copy any more.
+    dispatch(clearRepeatableChanges("leuchte"));
+    message.success("Kopierte Änderungen verworfen");
+  }, [dispatch]);
 
   const handleSave = async () => {
     if (!jwt) {
@@ -1303,6 +1316,7 @@ const LeuchteForm = ({
       showRepeatableChangesButtons
       onCopyRepeatableChanges={handleCopyRepeatableChanges}
       onPasteRepeatableChanges={handlePasteRepeatableChanges}
+      onClearRepeatableChanges={handleClearRepeatableChanges}
       repeatableChangesCount={storedRepeatableChanges?.paths.length ?? 0}
       onAddTab={showCreationStandortTab ? handleAddLeuchteTab : undefined}
       onActiveTabChange={setActiveFormTabKey}
