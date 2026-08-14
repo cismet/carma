@@ -24,7 +24,7 @@ import type {
   Layer,
   LayerStackEntry,
 } from "../lib/contracts/carma-layers.d";
-import { parseDescription } from "../helper/layerHelper";
+import { HINT_TITLE, parseDescription } from "../helper/layerHelper";
 import { isLayerGroup } from "../helper/layerStack";
 import { saveDiscoverItem } from "../helper/discover";
 import {
@@ -81,6 +81,9 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
   const [useNewLayers, setUseNewLayers] = useState(false);
 
   const parsedDescriptions = parseDescription(layer.description);
+  const hasHintSection = parsedDescriptions.some(
+    (section) => section.title === HINT_TITLE
+  );
 
   // rebuild the stored description format from the edited sections
   const reconstructDescription = () => {
@@ -93,8 +96,17 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
         editedDescriptions[section.title] !== undefined
           ? editedDescriptions[section.title]
           : section.description;
+      // a cleared Hinweis is dropped instead of leaving an empty section behind
+      if (section.title === HINT_TITLE && !content.trim()) {
+        return;
+      }
       newDescription += `${section.title}: ${content}\n\n`;
     });
+    // the optional Hinweis may not exist yet in the stored description
+    const addedHint = !hasHintSection && editedDescriptions[HINT_TITLE]?.trim();
+    if (addedHint) {
+      newDescription += `${HINT_TITLE}: ${addedHint}\n\n`;
+    }
     return newDescription.trim();
   };
 
@@ -266,7 +278,9 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
                     className="font-semibold text-lg mb-1 pt-2"
                   >
                     {description.title}
-                    <span className="text-red-500"> *</span>
+                    {description.title !== HINT_TITLE && (
+                      <span className="text-red-500"> *</span>
+                    )}
                   </label>
                   <Input.TextArea
                     id={description.title}
@@ -286,6 +300,27 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
                 </Fragment>
               );
             })}
+            {!hasHintSection && (
+              <>
+                <label
+                  htmlFor={HINT_TITLE}
+                  className="font-semibold text-lg mb-1 pt-2"
+                >
+                  {HINT_TITLE}
+                </label>
+                <Input.TextArea
+                  id={HINT_TITLE}
+                  value={editedDescriptions[HINT_TITLE] ?? ""}
+                  onChange={(e) => {
+                    setEditedDescriptions((prev) => ({
+                      ...prev,
+                      [HINT_TITLE]: e.target.value,
+                    }));
+                  }}
+                  className="bg-white"
+                />
+              </>
+            )}
             <div className="flex gap-6 items-center">
               <div>
                 <h5 className="font-semibold text-lg pt-2 mb-1">

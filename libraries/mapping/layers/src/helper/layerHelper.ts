@@ -92,6 +92,8 @@ export const reorderLayersByInsertRules = <T extends { id: string }>(
   return result;
 };
 
+export const HINT_TITLE = "Hinweis";
+
 export const parseDescription = (description: string) => {
   if (!description) {
     return [];
@@ -106,6 +108,7 @@ export const parseDescription = (description: string) => {
     "Sichtbarkeit",
     "Nutzung",
     "Verwendungszweck",
+    HINT_TITLE,
     "Implementierung",
   ];
 
@@ -157,6 +160,10 @@ export const parseDescription = (description: string) => {
     const descriptionText = description
       .substring(titleStartPos + currentTitle.length, nextTitleStartPos)
       .trim();
+
+    if (titleWithoutColon === HINT_TITLE && !descriptionText) {
+      continue;
+    }
 
     results.push({
       title: titleWithoutColon,

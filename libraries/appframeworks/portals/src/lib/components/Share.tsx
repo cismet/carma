@@ -42,6 +42,7 @@ export const Share = ({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [usage, setUsage] = useState("");
+  const [hint, setHint] = useState("");
   const [service, setService] = useState("discoverPoi");
   const [thumbUrl, setThumbUrl] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -59,6 +60,7 @@ export const Share = ({
     setTitle("");
     setContent("");
     setUsage("");
+    setHint("");
     setService("discoverPoi");
     setThumbUrl("");
     setFile(null);
@@ -138,8 +140,12 @@ export const Share = ({
       if (!fileUrl) return;
     }
 
+    // Hinweis is optional, only add the section when it has content
+    const trimmedHint = hint.trim();
     const newConfig = {
-      description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
+      description: `Inhalt: ${content} Verwendungszweck: ${usage}${
+        trimmedHint ? ` Hinweis: ${trimmedHint}` : ""
+      }`,
       title: title ? title : "Unbenannte Karte",
       type: "collection",
       thumbnail: fileUrl || thumbUrl,
@@ -252,6 +258,16 @@ export const Share = ({
                 className="bg-white"
                 placeholder="Für welche Zielgruppe und/oder welchen spezifischen Informationsbedarf ist die Karte bestimmt?"
                 required
+              />
+              <label htmlFor="hint" className="-mb-1 font-semibold">
+                Hinweis
+              </label>
+              <Input.TextArea
+                id="hint"
+                onChange={(e) => setHint(e.target.value)}
+                value={hint}
+                className="bg-white"
+                placeholder="Was sollten Nutzerinnen und Nutzer zusätzlich zur Karte wissen?"
               />
               <label htmlFor="keywords" className="-mb-1 font-semibold">
                 Schlüsselwörter
