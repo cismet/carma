@@ -29,6 +29,7 @@ export const projectCandidates = ({
   axis,
   coneAngleDeg,
   excludeKey,
+  excludeKeys,
 }: {
   map: MaplibreMap;
   candidates: NavCandidate[];
@@ -37,11 +38,20 @@ export const projectCandidates = ({
   coneAngleDeg: number;
   /** the origin's own feature, which must not be a candidate for itself */
   excludeKey?: string;
+  /**
+   * Anything else the caller wants kept out of this one pick, currently the
+   * feature the walk stood on one step ago. Two features sharing a long
+   * diagonal border each lie in the pressed direction from the other, so
+   * repeating the key bounces between them forever unless the step before is
+   * remembered.
+   */
+  excludeKeys?: ReadonlySet<string>;
 }): ProjectedCandidate[] => {
   const projected: ProjectedCandidate[] = [];
 
   for (const candidate of candidates) {
     if (candidate.key === excludeKey) continue;
+    if (excludeKeys?.has(candidate.key)) continue;
 
     const [west, south, east, north] = candidate.bbox;
     const box = boxOfPoints([

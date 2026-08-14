@@ -742,9 +742,57 @@ export const FeatureKeyboardNav = ({
 
       const axis = NAV_AXES[direction];
       const constants = resolveNavConstants(config);
-      const maxAttempts = edgeBehavior === "pan" ? 2 : 1;
 
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      /**
+       * The feature the walk stood on one step ago, while the same direction is
+       * pressed again.
+       *
+       * Two parcels sharing a long diagonal border each lie in the pressed
+       * direction from the other: the ray leaving A crosses into B, and the ray
+       * leaving B crosses back into A a little further along the same seam.
+       * Both answers are right for a single keypress, so nothing about the
+       * geometry breaks the tie and the walk bounces between the pair forever.
+       * One remembered step is enough to stop it, and remembering only one is
+       * what keeps a feature the walk legitimately comes back to reachable: a
+       * ring-shaped parcel wrapping around three others is re-entered on its far
+       * side after those three, where it is no longer the step before.
+       */
+      const cameFrom =
+        here?.direction === direction
+          ? path.entries[path.cursor - 1]?.feature
+          : undefined;
+      const blocked = cameFrom
+        ? new Set([candidateKeyOf(cameFrom)])
+        : undefined;
+
+      /**
+       * What each pass of this keypress looks at.
+       *
+       * The exclusion first, then the edge pan under the same rule, and only
+       * then the same view without it. A genuine dead end, where the feature
+       * behind is all there is, still selects rather than swallowing the key.
+       */
+      const passes: Array<{
+        exclude?: ReadonlySet<string>;
+        panFirst: boolean;
+      }> = [{ exclude: blocked, panFirst: false }];
+      if (edgeBehavior === "pan") {
+        passes.push({ exclude: blocked, panFirst: true });
+      }
+      if (blocked) passes.push({ panFirst: false });
+
+      for (const pass of passes) {
+        if (pass.panFirst) {
+          const canvas = map.getCanvas();
+          map.panBy(
+            [
+              axis.x * canvas.clientWidth * panStepFraction,
+              axis.y * canvas.clientHeight * panStepFraction,
+            ],
+            { duration: panDurationMs }
+          );
+          await waitForCandidates();
+        }
         const candidateSetNow = candidateSetRef.current;
         const origin = resolveOrigin(
           map,
@@ -765,6 +813,7 @@ export const FeatureKeyboardNav = ({
           axis,
           coneAngleDeg: constants.coneAngleDeg,
           excludeKey: origin.key,
+          excludeKeys: pass.exclude,
         });
 
         const { explanation } = pickInDirection({
@@ -863,17 +912,6 @@ export const FeatureKeyboardNav = ({
           }
           return;
         }
-
-        if (attempt + 1 >= maxAttempts) return;
-        const canvas = map.getCanvas();
-        map.panBy(
-          [
-            axis.x * canvas.clientWidth * panStepFraction,
-            axis.y * canvas.clientHeight * panStepFraction,
-          ],
-          { duration: panDurationMs }
-        );
-        await waitForCandidates();
       }
     },
     [
