@@ -113,6 +113,61 @@ describe("buildCatalog", () => {
     expect(mapLayers?.categories[0].id).toBe("featured");
   });
 
+  it("features a layer the additional config contributes on its own", () => {
+    const additionalConfig: CatalogConfigEntry[] = [
+      {
+        Title: "Umwelt",
+        serviceName: "wuppUmwelt",
+        layers: [
+          item("wuppUmwelt:neu", "Nur in der Zusatzkonfiguration", {
+            keywords: ["carmaconf://featuredUntil:2999.12.31"],
+          }),
+        ],
+      },
+    ];
+    const catalog = buildCatalog(
+      { ...emptySources, serviceCategories, additionalConfig },
+      { featureFlags: {} }
+    );
+    const mapLayers = catalog.find((category) => category.id === "mapLayers");
+    expect(mapLayers?.categories[0].id).toBe("featured");
+    expect(mapLayers?.categories[0].layers.map((layer) => layer.id)).toEqual([
+      "wuppUmwelt:neu",
+    ]);
+  });
+
+  it("lists a layer featured in both sources only once", () => {
+    const keywords = ["carmaconf://featuredUntil:2999.12.31"];
+    const featuredCategories: ServiceCategory[] = [
+      {
+        Title: "Umwelt",
+        id: "wuppUmwelt",
+        layers: [item("wuppUmwelt:neu", "Aus dem Dienst", { keywords })],
+      },
+    ];
+    const additionalConfig: CatalogConfigEntry[] = [
+      {
+        Title: "Umwelt",
+        serviceName: "wuppUmwelt",
+        layers: [
+          item("wuppUmwelt:neu", "Aus der Zusatzkonfiguration", {
+            keywords,
+          }),
+        ],
+      },
+    ];
+    const catalog = buildCatalog(
+      {
+        ...emptySources,
+        serviceCategories: featuredCategories,
+        additionalConfig,
+      },
+      { featureFlags: {} }
+    );
+    const mapLayers = catalog.find((category) => category.id === "mapLayers");
+    expect(mapLayers?.categories[0].layers).toHaveLength(1);
+  });
+
   it("gives custom categories the favorites section and lets them override by id", () => {
     const catalog = buildCatalog(
       { ...emptySources, serviceCategories },

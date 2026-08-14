@@ -30,6 +30,14 @@ export type CatalogConfigEntry = Omit<Config, "Title"> & { Title?: string };
 // One entry of the derived service structure (redux `allLayers`).
 export type ServiceCategory = { Title: string; id: string; layers: Item[] };
 
+/**
+ * A subcategory whose layers are still catalog items, i.e. before they are
+ * widened to the `SavedLayerConfig` view the UI consumes. Keeping the item type
+ * lets item-only fields (`keywords`, `path`) stay readable, which the featured
+ * derivation below needs.
+ */
+export type ItemSubCategory = { id?: string; Title: string; layers: Item[] };
+
 export type FeatureFlags = Record<string, boolean>;
 
 const CUSTOM_CATEGORY = { id: "custom", Title: "Externe Dienste" } as const;
@@ -244,8 +252,8 @@ export const extractReplaceLayers = (
 export const deriveAdditionalConfigFragments = (
   configs: CatalogConfigEntry[],
   featureFlags: FeatureFlags
-): CatalogSubCategory[] => {
-  const fragments: CatalogSubCategory[] = [];
+): ItemSubCategory[] => {
+  const fragments: ItemSubCategory[] = [];
   const upsert = (id: string | undefined, Title: string, layers: Item[]) => {
     const existing = fragments.find((fragment) => fragment.id === id);
     if (existing) {
@@ -328,10 +336,10 @@ export const deriveDiscoverCategories = (
 };
 
 export const deriveFeaturedSubcategory = (
-  serviceCategories: ServiceCategory[]
+  categories: { layers: Item[] }[]
 ): CatalogSubCategory | null => {
-  const featuredLayers = serviceCategories
-    .flatMap((category) =>
+  const featuredLayers = dedupeById(
+    categories.flatMap((category) =>
       category.layers.filter((layer) =>
         layer.keywords?.some(
           (keyword) =>
@@ -339,6 +347,7 @@ export const deriveFeaturedSubcategory = (
         )
       )
     )
+  )
     .filter((layer) => {
       const featuredFrom = layer.keywords
         ?.find((keyword) => keyword.includes(FEATURED_FROM))
@@ -376,22 +385,31 @@ export const buildMapLayerSubcategories = (
     })
   );
 
-  deriveAdditionalConfigFragments(additionalConfig, featureFlags).forEach(
-    (fragment) => {
-      const existing = subCategories.find(
-        (subCategory) => subCategory.id === fragment.id
-      );
-      if (existing) {
-        existing.layers = reorderLayersByInsertRules(
-          dedupeById([...existing.layers, ...fragment.layers])
-        );
-      } else {
-        subCategories.push(fragment);
-      }
-    }
+  const fragments = deriveAdditionalConfigFragments(
+    additionalConfig,
+    featureFlags
   );
+  fragments.forEach((fragment) => {
+    const existing = subCategories.find(
+      (subCategory) => subCategory.id === fragment.id
+    );
+    if (existing) {
+      existing.layers = reorderLayersByInsertRules(
+        dedupeById([...existing.layers, ...fragment.layers])
+      );
+    } else {
+      subCategories.push(fragment);
+    }
+  });
 
-  const featured = deriveFeaturedSubcategory(serviceCategories);
+  // The fragments belong in the featured window too: a layer the additional
+  // config contributes on its own (no replaceId/mergeId, so nothing folds it
+  // into the service structure) is absent from serviceCategories and would
+  // otherwise never reach "Neu", even though its other fields do show up.
+  const featured = deriveFeaturedSubcategory([
+    ...serviceCategories,
+    ...fragments,
+  ]);
   if (featured) {
     subCategories.unshift(featured);
   }
