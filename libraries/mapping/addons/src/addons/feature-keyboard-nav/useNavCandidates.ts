@@ -83,6 +83,8 @@ export const useNavCandidates = ({
   maxCandidatesRef.current = maxCandidates;
   /** the view the current set was built for; `undefined` forces a rebuild */
   const signatureRef = useRef<string | undefined>(undefined);
+  /** how many candidates that set holds, so an empty one keeps retrying */
+  const lastCountRef = useRef(0);
 
   const query = useCallback((mapInstance: MaplibreMap) => {
     const { styleLayerIds, catalogLayerIds, requireCatalogLayer } =
@@ -109,7 +111,11 @@ export const useNavCandidates = ({
     }
 
     const signature = viewSignature(mapInstance, navScopeKey(scopeRef.current));
-    if (signature === signatureRef.current) return;
+    // an empty set is never a settled answer: the first query of a fresh map
+    // runs before the renderer has anything to report, and the view it recorded
+    // does not change afterwards, so the guard would keep the set empty until
+    // the user happened to pan
+    if (signature === signatureRef.current && lastCountRef.current > 0) return;
     signatureRef.current = signature;
 
     let features: MapGeoJSONFeature[];
@@ -136,6 +142,7 @@ export const useNavCandidates = ({
       requireCatalogLayer,
       maxCandidates: maxCandidatesRef.current,
     });
+    lastCountRef.current = candidateSet.candidates.length;
     setState((previous) => ({
       candidateSet,
       version: previous.version + 1,
@@ -173,6 +180,7 @@ export const useNavCandidates = ({
     // the set is dropped, so the next activation has to query again even if the
     // map never moved in between
     signatureRef.current = undefined;
+    lastCountRef.current = 0;
     setState((previous) =>
       previous.candidateSet === EMPTY_CANDIDATE_SET && previous.version === 0
         ? previous
