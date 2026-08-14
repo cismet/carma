@@ -126,10 +126,15 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   const showFilter = hasLayerFilterControl(layer);
 
   const groupAddon = resolveActiveTargetAddon(group, activeInteractionButtonID);
+  // the same lookup for a single layer entry: a tool declared on one layer is
+  // mounted here while its trigger is active, exactly as a group's tool is
+  const layerAddon = resolveActiveTargetAddon(layer, activeInteractionButtonID);
 
   const content =
     group && groupAddon ? (
       <TargetAddonHost addon={groupAddon} target={group} />
+    ) : layer && layerAddon ? (
+      <TargetAddonHost addon={layerAddon} target={layer} />
     ) : layer && (hasInteractionComponent || showFilter) ? (
       <InteractionContent layer={layer} />
     ) : null;

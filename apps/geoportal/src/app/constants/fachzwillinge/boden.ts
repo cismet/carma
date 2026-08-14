@@ -53,6 +53,41 @@ export const bodenFachzwilling: FachzwillingRoute = {
     },
     { kind: "vectorHighlight", config: { modifierClick: "alt", lasso: true } },
     {
+      /**
+       * Arrow-key navigation, global shape: every navigable layer on the map,
+       * toggled from the control column. The identical config object is
+       * declared on a workflow's `tools` in the Gesundheit Fachzwilling, where
+       * the same addon is scoped to that workflow's layer group instead —
+       * nothing but the place of declaration differs.
+       */
+      kind: "featureKeyboardNav",
+      config: {
+        sharpness: 0.5,
+        crossLayer: "prefer-current",
+        explain: "hold",
+        // cost multiplier for a hit on the ray of the pressed direction against
+        // the two fan rays beside it. 1 ranks all three alike and is how this
+        // behaved before the option existed; below 1 the fan has to be that
+        // much nearer to win (0.85: about 15%); 0 makes anything the centre ray
+        // touches win outright, however far away it is
+        centerRayBonus: 0.9,
+        // the mode is what this Fachzwilling is being built around right now,
+        // so it starts switched on rather than one click away
+        startActive: true,
+        // to compare by hand: "pole" is furthest from any edge, "spine" the
+        // middle along the shape, "centroid" the area centroid. The last two
+        // fall back to the pole where their point lands outside the feature
+        originStrategy: "spine",
+        // "dynamic": a feature walked into measures from where the walk
+        // arrived, drawn red. "static": always the computed origin above
+        originMode: "dynamic",
+        // blue dot on every visible shape at the point a step from it would
+        // start; makes a parcel whose interior point falls inside its building
+        // readable at a glance
+        showOrigins: true,
+      },
+    },
+    {
       kind: "visibleFeatureStatsSource",
       config: {
         showDebugBounds: true,

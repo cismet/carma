@@ -16,6 +16,12 @@ import {
   CameraRestriction,
   type CameraRestrictionConfig,
 } from "../addons/CameraRestriction";
+import {
+  FeatureKeyboardNav,
+  featureKeyboardNavTrigger,
+  type FeatureNavigationModeState,
+} from "../addons/FeatureKeyboardNav";
+import type { FeatureKeyboardNavConfig } from "../addons/feature-keyboard-nav/types";
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
 import {
@@ -59,6 +65,7 @@ export type AddonConfigMap = {
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
   zoomToExtent: ZoomToExtentConfig;
+  featureKeyboardNav: FeatureKeyboardNavConfig;
 };
 
 export type AddonKind = keyof AddonConfigMap;
@@ -73,6 +80,11 @@ export type AddonStateMap = {
   visibleFeatureStats: VisibleFeatureStatsState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
+  /**
+   * whether arrow-key navigation is running and whether its candidate set is
+   * complete; see `FeatureKeyboardNav`
+   */
+  featureNavigationMode: FeatureNavigationModeState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -202,6 +214,14 @@ export const addonRegistry: {
     requires: ["visibleFeatureStats"],
   },
   zoomToExtent: { trigger: zoomToExtentTrigger },
+  // one kind, three deployment shapes: `AddonHost` mounts it from a route's
+  // addon list and it draws its own control, while the trigger puts it on a
+  // workflow group's or a single layer's button
+  featureKeyboardNav: {
+    Component: FeatureKeyboardNav,
+    trigger: featureKeyboardNavTrigger,
+    provides: ["featureNavigationMode"],
+  },
 };
 
 const isKnownKind = (kind: string): kind is AddonKind =>

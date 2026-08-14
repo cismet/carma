@@ -38,6 +38,7 @@ so the second folder is the list of what actually exists:
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
+| `addons/FeatureKeyboardNav.tsx` | arrow-key navigation over vector features (`feature-keyboard-nav/` holds its parts) |
 
 An addon that needs more than one file gets its own folder there
 (`addons/CameraTour/index.tsx` plus its parts).
@@ -83,6 +84,16 @@ on the group the workflow creates. Entries may be a bare kind or the full
 two libraries circular. Declaration sites keep full kind checking by narrowing the
 `WorkflowPerspective<TTool>` type parameter, as the geoportal does with
 `WorkflowPerspective<AddonEntry>`.
+
+### Layer tools
+
+A single layer entry carries `tools` the same way, from its catalog item or from
+the `carmaConf` of its vector style (`parseToMapLayer` in
+`@carma-mapping/utils`). The geoportal mounts those through the same
+`TargetAddonHost`, with the layer as the target, so one kind can be declared on a
+route, on a workflow's group and on a single layer without knowing the
+difference. `FeatureKeyboardNav` is written that way: its scope is whatever its
+declaration site gives it, and its picking core never learns which one that was.
 
 ## Where an addon's UI ends up
 
