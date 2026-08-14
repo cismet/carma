@@ -191,9 +191,26 @@ const controlRendererStyles = {
     ...bottomControlGroupStyle,
     alignItems: "flex-end",
   },
+  /**
+   * Centred on the map, not centred among its siblings.
+   *
+   * As a flex child of the bottom row it moved whenever a neighbour appeared or
+   * grew — the infobox showing up in the bottom right slid the "centre" to the
+   * left. Taking it out of the flow keeps it where the name promises, and the
+   * left and right groups lay out as if it were not there.
+   */
   bottomCenter: {
     ...bottomControlGroupStyle,
     alignItems: "center",
+    // the group is as tall as the bottom row (`height: 100%`), and the row
+    // grows with the tallest thing in it — the infobox. Without this the
+    // content sits at the top of that stretched box and rides up as the infobox
+    // appears; anchored to the end it stays on the bottom edge where it belongs
+    justifyContent: "flex-end",
+    position: "absolute",
+    bottom: 0,
+    left: "50%",
+    transform: "translateX(-50%)",
   },
   bottomRight: {
     ...bottomControlGroupStyle,
