@@ -46,7 +46,7 @@ import {
   LockedFields,
 } from "./DraftFieldHighlight";
 import { useEditedFields } from "./editedFieldsContext";
-import { pickPathValues } from "./formDiffUtils";
+import { countEditedFields, pickPathValues } from "./formDiffUtils";
 import {
   clearRepeatableChanges,
   getRepeatableChanges,
@@ -329,6 +329,14 @@ const LeuchteForm = ({
   const storedRepeatableChanges = useSelector((state: RootState) =>
     getRepeatableChanges(state, "leuchte")
   );
+  // What the badge shows, and what the toasts report. Counts *visible* fields,
+  // not stored keys: the Strassenschlüssel trio is three paths but one input,
+  // so a single street change must read as 1 — the same collapsing the header's
+  // "nicht gespeicherte Änderungen (n)" already does.
+  const repeatableChangesCount = useMemo(
+    () => countEditedFields(storedRepeatableChanges?.paths ?? []),
+    [storedRepeatableChanges]
+  );
 
   const handleCopyRepeatableChanges = useCallback(() => {
     // Read straight from the live form rather than from `draftValues`: both
@@ -350,10 +358,9 @@ const LeuchteForm = ({
       return;
     }
     dispatch(setRepeatableChanges({ featureType: "leuchte", values, paths }));
+    const copied = countEditedFields(paths);
     message.success(
-      paths.length === 1
-        ? "1 Änderung kopiert"
-        : `${paths.length} Änderungen kopiert`
+      copied === 1 ? "1 Änderung kopiert" : `${copied} Änderungen kopiert`
     );
   }, [dispatch, editedLeuchtePaths]);
 
@@ -363,8 +370,8 @@ const LeuchteForm = ({
     const slice = deserializeValues(
       (storedRepeatableChanges.values.leuchte ?? {}) as Record<string, unknown>
     );
-    const count = Object.keys(slice).length;
-    if (count === 0) return;
+    // Guard on the raw key count — `slice` is what actually gets written.
+    if (Object.keys(slice).length === 0) return;
     form.setFieldsValue(slice);
     // `setFieldsValue` bypasses antd's `onValuesChange`, so push the whole
     // slice into the Redux draft here. Without it the pasted values would
@@ -372,10 +379,19 @@ const LeuchteForm = ({
     // gray highlight, and to the save payload.
     editedDraftIdRef.current = featureId;
     onDraftChange?.({ ...draftValues, leuchte: form.getFieldsValue() });
+    // Reported in visible fields, like the badge — not in written keys.
     message.success(
-      count === 1 ? "1 Änderung eingefügt" : `${count} Änderungen eingefügt`
+      repeatableChangesCount === 1
+        ? "1 Änderung eingefügt"
+        : `${repeatableChangesCount} Änderungen eingefügt`
     );
-  }, [storedRepeatableChanges, onDraftChange, draftValues, featureId]);
+  }, [
+    storedRepeatableChanges,
+    repeatableChangesCount,
+    onDraftChange,
+    draftValues,
+    featureId,
+  ]);
 
   const handleClearRepeatableChanges = useCallback(() => {
     // Drops the whole slot for this type, which also empties the persisted
@@ -1317,7 +1333,7 @@ const LeuchteForm = ({
       onCopyRepeatableChanges={handleCopyRepeatableChanges}
       onPasteRepeatableChanges={handlePasteRepeatableChanges}
       onClearRepeatableChanges={handleClearRepeatableChanges}
-      repeatableChangesCount={storedRepeatableChanges?.paths.length ?? 0}
+      repeatableChangesCount={repeatableChangesCount}
       onAddTab={showCreationStandortTab ? handleAddLeuchteTab : undefined}
       onActiveTabChange={setActiveFormTabKey}
       onCreateRelatedDraft={() => {
