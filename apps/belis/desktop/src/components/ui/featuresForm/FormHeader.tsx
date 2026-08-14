@@ -233,22 +233,17 @@ const FormHeader = ({
               <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
                 {title}
               </h2>
-              {!readOnly && onCreateRelatedDraft && (
-                <Tooltip
-                  title={
-                    createDraftButtonVariant === "white"
-                      ? "Neuen Datensatz anlegen"
-                      : "Neuen Datensatz mit diesen Werten anlegen"
-                  }
-                >
+              {/* First slot in the icon row. Holding Alt swaps the green "+"
+                  for the green "Werte merken" copy, so the two never sit side
+                  by side sharing a look — they did nothing alike. The swap only
+                  happens where `onCopyValues` is wired (Leuchte today); every
+                  other form keeps the "+" whether Alt is down or not. */}
+              {!readOnly && isAltPressed && onCopyValues && (
+                <Tooltip title="Werte merken">
                   <button
                     type="button"
-                    aria-label={
-                      createDraftButtonVariant === "white"
-                        ? "Neuen Datensatz anlegen"
-                        : "Neuen Datensatz mit diesen Werten anlegen"
-                    }
-                    onClick={onCreateRelatedDraft}
+                    aria-label="Werte merken"
+                    onClick={onCopyValues}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -256,26 +251,62 @@ const FormHeader = ({
                       width: 24,
                       height: 24,
                       padding: 0,
-                      border:
-                        createDraftButtonVariant === "white"
-                          ? "1px solid #d9d9d9"
-                          : "1px solid #b7eb8f",
+                      border: "1px solid #b7eb8f",
                       borderRadius: 4,
-                      backgroundColor:
-                        createDraftButtonVariant === "white"
-                          ? "#ffffff"
-                          : "#f6ffed",
-                      color:
-                        createDraftButtonVariant === "white"
-                          ? "#8c8c8c"
-                          : "#52c41a",
+                      backgroundColor: "#f6ffed",
+                      color: "#52c41a",
                       cursor: "pointer",
                     }}
                   >
-                    <PlusOutlined style={{ fontSize: 12 }} />
+                    <CopyOutlined style={{ fontSize: 12 }} />
                   </button>
                 </Tooltip>
               )}
+              {!readOnly &&
+                onCreateRelatedDraft &&
+                !(isAltPressed && onCopyValues) && (
+                  <Tooltip
+                    title={
+                      createDraftButtonVariant === "white"
+                        ? "Neuen Datensatz anlegen"
+                        : "Neuen Datensatz mit diesen Werten anlegen"
+                    }
+                  >
+                    <button
+                      type="button"
+                      aria-label={
+                        createDraftButtonVariant === "white"
+                          ? "Neuen Datensatz anlegen"
+                          : "Neuen Datensatz mit diesen Werten anlegen"
+                      }
+                      onClick={onCreateRelatedDraft}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        padding: 0,
+                        border:
+                          createDraftButtonVariant === "white"
+                            ? "1px solid #d9d9d9"
+                            : "1px solid #b7eb8f",
+                        borderRadius: 4,
+                        backgroundColor:
+                          createDraftButtonVariant === "white"
+                            ? "#ffffff"
+                            : "#f6ffed",
+                        color:
+                          createDraftButtonVariant === "white"
+                            ? "#8c8c8c"
+                            : "#52c41a",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <PlusOutlined style={{ fontSize: 12 }} />
+                    </button>
+                  </Tooltip>
+                )}
               {/* Wiederholfelder copy/paste. Neutral gray rather than the
                   green of the "+" beside them: these do not create a record.
                   Icon-only by request; the aria-labels are for screen readers
@@ -350,30 +381,6 @@ const FormHeader = ({
                     <span className="text-gray-700">({editedCount})</span>
                   )}
                 </span>
-              )}
-              {!readOnly && onCopyValues && isAltPressed && (
-                <Tooltip title="Werte merken">
-                  <button
-                    type="button"
-                    aria-label="Werte merken"
-                    onClick={onCopyValues}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 24,
-                      height: 24,
-                      padding: 0,
-                      border: "1px solid #b7eb8f",
-                      borderRadius: 4,
-                      backgroundColor: "#f6ffed",
-                      color: "#52c41a",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <CopyOutlined style={{ fontSize: 12 }} />
-                  </button>
-                </Tooltip>
               )}
             </div>
             <p className="text-sm text-gray-500">{subtitle}</p>
