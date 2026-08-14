@@ -357,11 +357,9 @@ const LeuchteForm = ({
       message.warning("Keine Änderungen zum Kopieren");
       return;
     }
+    // No success toast: the badge on the paste button jumping to the new count
+    // is the confirmation, and it stays on screen instead of flashing past.
     dispatch(setRepeatableChanges({ featureType: "leuchte", values, paths }));
-    const copied = countEditedFields(paths);
-    message.success(
-      copied === 1 ? "1 Änderung kopiert" : `${copied} Änderungen kopiert`
-    );
   }, [dispatch, editedLeuchtePaths]);
 
   const handlePasteRepeatableChanges = useCallback(() => {
@@ -377,21 +375,11 @@ const LeuchteForm = ({
     // slice into the Redux draft here. Without it the pasted values would
     // live in the DOM only — invisible to the header's change count, to the
     // gray highlight, and to the save payload.
+    // No success toast: the pasted fields turn gray and the header's change
+    // count goes up, which shows what landed and where.
     editedDraftIdRef.current = featureId;
     onDraftChange?.({ ...draftValues, leuchte: form.getFieldsValue() });
-    // Reported in visible fields, like the badge — not in written keys.
-    message.success(
-      repeatableChangesCount === 1
-        ? "1 Änderung eingefügt"
-        : `${repeatableChangesCount} Änderungen eingefügt`
-    );
-  }, [
-    storedRepeatableChanges,
-    repeatableChangesCount,
-    onDraftChange,
-    draftValues,
-    featureId,
-  ]);
+  }, [storedRepeatableChanges, onDraftChange, draftValues, featureId]);
 
   const handleClearRepeatableChanges = useCallback(() => {
     // Drops the whole slot for this type, which also empties the persisted
