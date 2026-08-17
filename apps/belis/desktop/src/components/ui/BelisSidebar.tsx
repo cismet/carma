@@ -338,8 +338,11 @@ const BelisSidebar = ({
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
     return features.filter((f) => {
-      const sl = f.sourceLayer || "";
-      return activeSourceLayers.has(sl);
+      const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+      // A row whose layer can't be resolved is kept — the category toggles have
+      // nothing to say about it. (Such rows used to survive because the host
+      // unioned every layer present in the list into `activeSourceLayers`.)
+      return sl === "" || activeSourceLayers.has(sl);
     });
   }, [features, activeSourceLayers]);
 

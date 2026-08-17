@@ -2115,21 +2115,30 @@ const BelisMapLibWrapper = ({
       list: typeof features,
       overrides?: { isLoading?: boolean; isOverviewMode?: boolean }
     ) => {
+      // The category toggles apply to every row, synthetic draft rows included:
+      // a layer the user switched off must not come back through the sidebar.
+      // (This used to union the layers present in `list` into the active set,
+      // which meant the Standort parent of a Leuchten creation draft silently
+      // re-enabled `standorte` for the whole list — flipping the group header
+      // from "Leuchten" to "Standorte / Leuchten" with the toggle still off.)
+      // Rows whose layer can't be resolved are kept — the toggles have nothing
+      // to say about them.
+      const visible = list.filter((f) => {
+        const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+        return sl === "" || activeSourceLayers.has(sl);
+      });
       const counts: Record<string, number> = {};
-      for (const f of list) {
+      for (const f of visible) {
         const sl = f.sourceLayer || "";
         counts[sl] = (counts[sl] || 0) + 1;
       }
       return {
-        features: list,
+        features: visible,
         countsByLayer: counts,
-        totalCount: list.length,
+        totalCount: visible.length,
         isLoading: overrides?.isLoading ?? false,
         isOverviewMode: overrides?.isOverviewMode ?? false,
-        activeSourceLayers: new Set([
-          ...activeSourceLayers,
-          ...Object.keys(counts),
-        ]),
+        activeSourceLayers,
       };
     };
 
