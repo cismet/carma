@@ -90,6 +90,22 @@ const REPEATABLE_CHANGES_COPY_STYLE: CSSProperties = {
   backgroundColor: "#f5f5f5",
 };
 
+// A disabled <button> emits no mouse events, so a Tooltip wrapped straight
+// around one never opens — exactly when the user most wants to know why the
+// button is dead. Kill its pointer events and let the hover land on the span
+// the Tooltip is attached to instead; the same trick the header's Cancel
+// button already uses.
+const DISABLED_ICON_BUTTON_STYLE: CSSProperties = {
+  color: "#d9d9d9",
+  cursor: "not-allowed",
+  pointerEvents: "none",
+};
+
+const DISABLED_HOVER_WRAPPER_STYLE: CSSProperties = {
+  display: "inline-flex",
+  cursor: "not-allowed",
+};
+
 const FormHeader = ({
   title,
   subtitle,
@@ -322,51 +338,61 @@ const FormHeader = ({
                   that looks broken. */}
               {!readOnly && showRepeatableChangesButtons && editedCount > 0 && (
                 <>
-                  <button
-                    type="button"
-                    aria-label="Änderungen kopieren"
-                    onClick={onCopyRepeatableChanges}
-                    style={REPEATABLE_CHANGES_COPY_STYLE}
-                  >
-                    <CopyOutlined style={{ fontSize: 12 }} />
-                  </button>
-                  <Badge
-                    count={repeatableChangesCount}
-                    size="small"
-                    offset={[-2, 2]}
-                    style={{ backgroundColor: "#fa8c16" }}
-                  >
+                  <Tooltip title="Änderungen kopieren">
                     <button
                       type="button"
-                      aria-label="Änderungen einfügen"
-                      onClick={onPasteRepeatableChanges}
-                      disabled={repeatableChangesCount === 0}
-                      style={{
-                        ...REPEATABLE_CHANGES_BUTTON_STYLE,
-                        ...(repeatableChangesCount === 0
-                          ? { color: "#d9d9d9", cursor: "not-allowed" }
-                          : null),
-                      }}
+                      aria-label="Änderungen kopieren"
+                      onClick={onCopyRepeatableChanges}
+                      style={REPEATABLE_CHANGES_COPY_STYLE}
                     >
-                      <SnippetsOutlined style={{ fontSize: 12 }} />
+                      <CopyOutlined style={{ fontSize: 12 }} />
                     </button>
-                  </Badge>
+                  </Tooltip>
+                  <Tooltip title="Änderungen einfügen">
+                    <span style={DISABLED_HOVER_WRAPPER_STYLE}>
+                      <Badge
+                        count={repeatableChangesCount}
+                        size="small"
+                        offset={[-2, 2]}
+                        style={{ backgroundColor: "#fa8c16" }}
+                      >
+                        <button
+                          type="button"
+                          aria-label="Änderungen einfügen"
+                          onClick={onPasteRepeatableChanges}
+                          disabled={repeatableChangesCount === 0}
+                          style={{
+                            ...REPEATABLE_CHANGES_BUTTON_STYLE,
+                            ...(repeatableChangesCount === 0
+                              ? DISABLED_ICON_BUTTON_STYLE
+                              : null),
+                          }}
+                        >
+                          <SnippetsOutlined style={{ fontSize: 12 }} />
+                        </button>
+                      </Badge>
+                    </span>
+                  </Tooltip>
                   {/* Empties the clipboard for this feature type. Inert at 0
                       for the same reason as paste — nothing to throw away. */}
-                  <button
-                    type="button"
-                    aria-label="Kopierte Änderungen verwerfen"
-                    onClick={onClearRepeatableChanges}
-                    disabled={repeatableChangesCount === 0}
-                    style={{
-                      ...REPEATABLE_CHANGES_BUTTON_STYLE,
-                      ...(repeatableChangesCount === 0
-                        ? { color: "#d9d9d9", cursor: "not-allowed" }
-                        : null),
-                    }}
-                  >
-                    <CloseOutlined style={{ fontSize: 12 }} />
-                  </button>
+                  <Tooltip title="Änderungsspeicher zurücksetzen">
+                    <span style={DISABLED_HOVER_WRAPPER_STYLE}>
+                      <button
+                        type="button"
+                        aria-label="Änderungsspeicher zurücksetzen"
+                        onClick={onClearRepeatableChanges}
+                        disabled={repeatableChangesCount === 0}
+                        style={{
+                          ...REPEATABLE_CHANGES_BUTTON_STYLE,
+                          ...(repeatableChangesCount === 0
+                            ? DISABLED_ICON_BUTTON_STYLE
+                            : null),
+                        }}
+                      >
+                        <CloseOutlined style={{ fontSize: 12 }} />
+                      </button>
+                    </span>
+                  </Tooltip>
                 </>
               )}
               {/* Draft indicator, placed after the icon group so the title and
