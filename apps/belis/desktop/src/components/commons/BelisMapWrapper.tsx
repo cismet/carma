@@ -2175,8 +2175,8 @@ const BelisMapLibWrapper = ({
   // into the highlighted selection) spliced every one of those drafts back into
   // Fachobjekte, so the tab showed the whole selection instead of the handful
   // of rows actually on screen.
-  // Skipped in overview mode, where `features` is blanked and viewport identity
-  // is unknown — there the old splice-everything behaviour is the honest one.
+  // Skipped in overview mode: the Fachobjekte list splices no draft rows at all
+  // there (see `fachobjekteSidebarData`), so there is nothing to classify.
   const offscreenDraftKeys = useMemo(() => {
     const keys = new Set<string>();
     if (isOverviewMode) return keys;
@@ -2228,6 +2228,23 @@ const BelisMapLibWrapper = ({
   // The Fachobjekte list, derived independently of the active tab so its
   // badge count stays correct while another tab is open.
   const fachobjekteSidebarData = useMemo(() => {
+    // Overview mode is a pure count summary: `useVisibleMapFeatures` blanks its
+    // feature list past OVERVIEW_FEATURE_LIMIT and the sidebar derives its group
+    // rows from `countsByLayer` alone. Splicing draft rows into that empty list
+    // would rebuild the counts from the drafts — the whole city collapsing to
+    // "Leuchten (142)" instead of the real per-layer totals. Nothing is lost:
+    // no individual row is rendered in overview mode anyway, and the drafts
+    // keep their own Entwürfe tab.
+    if (isOverviewMode) {
+      return {
+        features,
+        countsByLayer,
+        totalCount,
+        isLoading,
+        isOverviewMode,
+        activeSourceLayers,
+      };
+    }
     // Fachobjekte mode with drafts present: splice the expanded draft rows
     // (Standort parent + Leuchten children, same shape used by the Entwürfe
     // tab) in next to the regular viewport features. The viewport list
