@@ -270,12 +270,12 @@ const BelisMapPageShell = () => {
                 {editModeButton}
                 {/* Batch "Wiederholfelder einfügen" — shows itself only when
                     something was copied AND matching features are highlighted,
-                    so it stays out of the header the rest of the time.
-                    Not while a Datenblatt is open: that form owns its own
-                    paste button, and a batch write into the draft behind it
-                    would not reach the mounted AntD form — the next keystroke
-                    there would push the pre-paste values back over it. */}
-                {sidebarVariant === "fachobjekte" && !isDatasheetOpen && (
+                    so it stays out of the header the rest of the time. It stays
+                    reachable with a Datenblatt open; the feature shown there is
+                    excluded from the batch (its mounted AntD form owns the
+                    draft and would push pre-paste values back on the next
+                    keystroke) and is served by that form's own paste button. */}
+                {sidebarVariant === "fachobjekte" && (
                   <PasteChangesToHighlightsButton />
                 )}
                 {!isReadOnly &&

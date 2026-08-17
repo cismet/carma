@@ -76,16 +76,36 @@ interface HighlightFeature {
 const featureSourceLayer = (feature: HighlightFeature): string =>
   feature.sourceLayer ?? String(feature.properties?._sourceLayer ?? "");
 
-/** The highlighted features the stored change set can be pasted onto. */
+/** The highlighted features the stored change set can be pasted onto.
+ *
+ *  `exclude` drops one feature from the batch — used for the Fachobjekt whose
+ *  Datenblatt is currently open. That form holds the draft in its own mounted
+ *  AntD fields and only adopts external draft changes into fields that are
+ *  still empty, so a batch write behind it would neither show up nor survive
+ *  the next keystroke. The open Datenblatt has its own paste button for that
+ *  one feature; the batch action covers all the others. */
 export const filterPasteTargets = (
   features: readonly HighlightFeature[] | null | undefined,
-  featureType: string
+  featureType: string,
+  exclude?: HighlightFeature | null
 ): HighlightFeature[] => {
   const target = BATCH_PASTE_TARGETS[featureType];
   if (!target || !features) return [];
-  return features.filter(
-    (f) => featureSourceLayer(f) === target.sourceLayer && getDbId(f) != null
-  );
+  const excludedDbId = exclude ? getDbId(exclude) : undefined;
+  const excludedLayer = exclude ? featureSourceLayer(exclude) : "";
+  return features.filter((f) => {
+    if (featureSourceLayer(f) !== target.sourceLayer) return false;
+    const dbId = getDbId(f);
+    if (dbId == null) return false;
+    if (
+      excludedDbId != null &&
+      dbId === excludedDbId &&
+      excludedLayer === target.sourceLayer
+    ) {
+      return false;
+    }
+    return true;
+  });
 };
 
 const getDbId = (feature: HighlightFeature): number | undefined => {
