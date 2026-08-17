@@ -33,6 +33,11 @@ import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import SendOrDiscardAllDraftsButton from "../SendOrDiscardAllDraftsButton";
 import { useEditedFields } from "./editedFieldsContext";
 import { countEditedFields } from "./formDiffUtils";
+import {
+  REPEATABLE_CHANGES_BADGE_COLOR,
+  REPEATABLE_CHANGES_BUTTON_STYLE,
+  REPEATABLE_CHANGES_COPY_STYLE,
+} from "./repeatableChangesStyles";
 
 interface FormHeaderProps {
   title: string;
@@ -64,31 +69,6 @@ interface FormHeaderProps {
   /** Field count in the clipboard, shown as a badge on the paste button. */
   repeatableChangesCount?: number;
 }
-
-// Same 24×24 square as the header's "+" button so the three sit on one line,
-// in the neutral palette the "white" variant of that button already uses.
-const REPEATABLE_CHANGES_BUTTON_STYLE: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 24,
-  height: 24,
-  padding: 0,
-  border: "1px solid #d9d9d9",
-  borderRadius: 4,
-  backgroundColor: "#ffffff",
-  color: "#8c8c8c",
-  cursor: "pointer",
-};
-
-// Copy wears the changed-field gray, so it reads as "take the gray fields".
-// Kept in sync by hand with the `.draft-changed-field` background in
-// DraftFieldHighlight.tsx — that stylesheet is built inside a component module
-// and cannot export the value without tripping react-refresh.
-const REPEATABLE_CHANGES_COPY_STYLE: CSSProperties = {
-  ...REPEATABLE_CHANGES_BUTTON_STYLE,
-  backgroundColor: "#f5f5f5",
-};
 
 // A disabled <button> emits no mouse events, so a Tooltip wrapped straight
 // around one never opens — exactly when the user most wants to know why the
@@ -367,7 +347,9 @@ const FormHeader = ({
                           count={repeatableChangesCount}
                           size="small"
                           offset={[-2, 2]}
-                          style={{ backgroundColor: "#fa8c16" }}
+                          style={{
+                            backgroundColor: REPEATABLE_CHANGES_BADGE_COLOR,
+                          }}
                         >
                           <button
                             type="button"
