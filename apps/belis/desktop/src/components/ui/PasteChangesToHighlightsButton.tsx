@@ -37,7 +37,8 @@ const PasteChangesToHighlightsButton = () => {
   const isReadOnly = useSelector(getIsReadOnly) as boolean;
   const repeatableChanges = useSelector(getAllRepeatableChanges);
   const drafts = useSelector(getAllDrafts);
-  const { activeHighlights } = useMapPage();
+  const { activeHighlights, config } = useMapPage();
+  const activeSourceLayers = config.activeSourceLayers;
   const { isDatasheetOpen } = useDatasheet();
   const selectedFeature = useSelector(getSelectedFeature) as {
     id?: string | number;
@@ -58,6 +59,11 @@ const PasteChangesToHighlightsButton = () => {
     for (const [featureType, changeSet] of Object.entries(repeatableChanges)) {
       const target = getBatchPasteTarget(featureType);
       if (!target) continue;
+      // `activeHighlights` is the unfiltered selection — it keeps every
+      // highlighted feature even for categories the user switched off on the
+      // map. Pasting into objects that are neither drawn nor listed anywhere
+      // would be invisible work, so the action goes away with its layer.
+      if (!activeSourceLayers.has(target.sourceLayer)) continue;
       const features = filterPasteTargets(
         activeHighlights,
         featureType,
@@ -67,7 +73,12 @@ const PasteChangesToHighlightsButton = () => {
       return { featureType, changeSet, features, label: target.label };
     }
     return null;
-  }, [repeatableChanges, activeHighlights, openInDatasheet]);
+  }, [
+    repeatableChanges,
+    activeHighlights,
+    openInDatasheet,
+    activeSourceLayers,
+  ]);
 
   if (isReadOnly || !jwt || !job) return null;
 
