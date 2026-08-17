@@ -2051,10 +2051,18 @@ const BelisMapLibWrapper = ({
     }
   }, [highlightingActive]);
 
+  const hasHighlights =
+    highlightingActive ||
+    (unfilteredHighlights != null && unfilteredHighlights.length > 0);
+
   // The Entwürfe tab disappears once all drafts are saved/discarded, but
   // `sidebarMode` would otherwise stay "drafts" — gating out the Messungen
   // group (and anything else fachobjekte-only) until the user toggles modes
-  // by some other route. Fall back to fachobjekte automatically.
+  // by some other route. Fall back automatically.
+  // The landing tab is Highlights whenever there is a highlight selection: the
+  // drafts were made from that selection (batch paste over the highlighted
+  // objects), so it — not the viewport list — is the context the user was
+  // working in. Without a selection there is no Highlights tab, so fachobjekte.
   // Read-only ("Gast") users have no draft workflow at all, so the Entwürfe
   // tab is hidden — never leave them stranded on it.
   useEffect(() => {
@@ -2062,9 +2070,9 @@ const BelisMapLibWrapper = ({
       sidebarMode === "drafts" &&
       (draftSidebarFeatures.length === 0 || isReadOnly)
     ) {
-      setSidebarMode("fachobjekte");
+      setSidebarMode(hasHighlights ? "highlights" : "fachobjekte");
     }
-  }, [sidebarMode, draftSidebarFeatures.length, isReadOnly]);
+  }, [sidebarMode, draftSidebarFeatures.length, isReadOnly, hasHighlights]);
 
   // Drop the captured parent selection (and the highlighted Entwürfe row) once
   // the active selection is no longer a creation draft — covers draft save
@@ -2084,10 +2092,6 @@ const BelisMapLibWrapper = ({
       }
     }
   }, [selectedFeatureId, parentFachobjektSelection, activeDraftRow]);
-
-  const hasHighlights =
-    highlightingActive ||
-    (unfilteredHighlights != null && unfilteredHighlights.length > 0);
 
   // Mirror the map's layer-filter toggles onto the highlight list: when a
   // category (Leuchten / Standorte / … / Mauerlaschen) is toggled off — or a
