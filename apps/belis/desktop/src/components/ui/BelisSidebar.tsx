@@ -268,6 +268,12 @@ export interface BelisSidebarProps {
   highlightCount?: number;
   draftsCount?: number;
   onFeatureDismiss?: (feature: SidebarFeature) => void;
+  /** Filled with the rendered row order (groups sorted, collapsed groups and
+   *  overview mode excluded) after every list change. A ref, not a callback,
+   *  so publishing the order costs the host no re-render. Child effects run
+   *  before the parent's, so a host effect in the same commit sees the fresh
+   *  list — used to auto-select the first row when nothing is selected. */
+  orderedFeaturesRef?: React.MutableRefObject<SidebarFeature[]>;
   /** Optional custom extractors that take priority over the built-in ones.
    *  Used by the drafts tab to display features with database PKs instead of MVT tile IDs. */
   listItemExtractors?: Record<
@@ -324,6 +330,7 @@ const BelisSidebar = ({
   highlightCount,
   draftsCount,
   onFeatureDismiss,
+  orderedFeaturesRef,
   listItemExtractors,
   auswahlActiveSourceLayers,
   namespacedSource,
@@ -742,6 +749,11 @@ const BelisSidebar = ({
     }
     return flat;
   }, [sortedGroupEntries, isOverviewMode, collapsedGroups]);
+
+  // Publish the render order to the host (see `orderedFeaturesRef` docs).
+  useEffect(() => {
+    if (orderedFeaturesRef) orderedFeaturesRef.current = flatFeatures;
+  }, [flatFeatures, orderedFeaturesRef]);
 
   const isFeatureSelected = useCallback(
     (feature: SidebarFeature): boolean => {

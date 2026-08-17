@@ -450,7 +450,8 @@ const BelisMapLibWrapper = ({
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
-  const { setOnSelectNextDraft, setOnOpenCreationDraft } = useMapPage();
+  const { setOnSelectNextDraft, setOnOpenCreationDraft, setOnDraftsCleared } =
+    useMapPage();
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
@@ -559,7 +560,14 @@ const BelisMapLibWrapper = ({
     selectFeature,
     clearSelection: clearMapSelection,
   } = useMapSelection();
-  const { closeDatasheet, openDatasheet } = useDatasheet();
+  const { closeDatasheet, openDatasheet, isDatasheetOpen } = useDatasheet();
+  // Rendered row order of the Fachobjekte/Entwürfe list, published by the
+  // sidebar. Used to auto-select the first row after the last draft was
+  // removed, so the Datenblatt stays open instead of falling back to the map.
+  const sidebarOrderedFeaturesRef = useRef<SidebarFeature[]>([]);
+  // Armed when a draft removal leaves nothing selected: keep the Datenblatt
+  // open and select the first list row as soon as the list has one.
+  const [selectFirstAfterDrafts, setSelectFirstAfterDrafts] = useState(false);
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
   const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(
@@ -2406,12 +2414,23 @@ const BelisMapLibWrapper = ({
     sidebarVariant,
   ]);
 
-  // Close the datasheet when the selection is cleared in fachobjekte mode
+  // Close the datasheet when the selection is cleared in fachobjekte mode.
+  // Suppressed while `selectFirstAfterDrafts` is armed — there the empty
+  // selection is a transient step towards selecting the first list row.
   useEffect(() => {
-    if (sidebarVariant === "fachobjekte" && !selectedFeatureId) {
+    if (
+      sidebarVariant === "fachobjekte" &&
+      !selectedFeatureId &&
+      !selectFirstAfterDrafts
+    ) {
       closeDatasheet();
     }
-  }, [selectedFeatureId, sidebarVariant, closeDatasheet]);
+  }, [
+    selectedFeatureId,
+    sidebarVariant,
+    closeDatasheet,
+    selectFirstAfterDrafts,
+  ]);
 
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
@@ -4966,12 +4985,15 @@ const BelisMapLibWrapper = ({
   );
 
   // After a draft is cancelled/removed, select the next remaining draft.
-  // If no drafts remain, clear the selection and close the datasheet.
+  // If no drafts remain, stay in the Datenblatt and fall back to the first row
+  // of the list (armed via `selectFirstAfterDrafts`, resolved once the list has
+  // re-rendered without the removed draft).
   const handleSelectNextDraft = useCallback(
     (removedFeatureId: string) => {
       if (sidebarMode !== "drafts") {
         clearMapSelection();
-        closeDatasheet();
+        openDatasheet();
+        setSelectFirstAfterDrafts(true);
         return;
       }
       // allDraftFeatures still contains the removed draft at this point
@@ -4988,7 +5010,8 @@ const BelisMapLibWrapper = ({
       });
       if (remaining.length === 0) {
         clearMapSelection();
-        closeDatasheet();
+        openDatasheet();
+        setSelectFirstAfterDrafts(true);
         return;
       }
       const next = remaining[0];
@@ -5003,14 +5026,70 @@ const BelisMapLibWrapper = ({
       allDraftFeatures,
       handleSidebarFeatureSelect,
       clearMapSelection,
-      closeDatasheet,
+      openDatasheet,
     ]
   );
+
+  // Resolve the armed "select the first row" request from a draft removal.
+  // Waits for the sidebar to leave the Entwürfe tab (the effect above flips it
+  // back to Fachobjekte once the last draft is gone) and for the list to carry
+  // a row — until then the Datenblatt shows the "kein Objekt selektiert" hint
+  // rather than dropping back to the map.
+  useEffect(() => {
+    if (!selectFirstAfterDrafts) return;
+    // The user left the Datenblatt or picked something themselves — disarm.
+    if (!isDatasheetOpen || selectedFeatureId) {
+      setSelectFirstAfterDrafts(false);
+      return;
+    }
+    if (sidebarMode === "drafts") return;
+    const first = sidebarOrderedFeaturesRef.current[0];
+    if (!first) return;
+    setSelectFirstAfterDrafts(false);
+    handleSidebarFeatureSelect(
+      {
+        source: first.source ?? "",
+        sourceLayer: first.sourceLayer ?? "",
+        id: first.id,
+      },
+      first
+    );
+  }, [
+    selectFirstAfterDrafts,
+    isDatasheetOpen,
+    selectedFeatureId,
+    sidebarMode,
+    // Re-run when the rendered list changes; the row order itself is read from
+    // the ref the sidebar keeps in sync.
+    effectiveSidebarData,
+    handleSidebarFeatureSelect,
+  ]);
 
   useEffect(() => {
     setOnSelectNextDraft(() => handleSelectNextDraft);
     return () => setOnSelectNextDraft(undefined);
   }, [handleSelectNextDraft, setOnSelectNextDraft]);
+
+  // Bulk draft actions ("Alle verwerfen" / "Alle speichern") drop every draft
+  // in one go, so there is no "next draft" to walk to — they used to close the
+  // Datenblatt instead. Stay in it: a creation draft's selection dies with the
+  // draft (clear it and fall back to the first list row), while an ordinary
+  // feature keeps its selection and just re-reads the server values.
+  const handleDraftsCleared = useCallback(() => {
+    openDatasheet();
+    const selectionWasCreationDraft =
+      selectedFeatureId?.id != null &&
+      isCreationDraftKey(String(selectedFeatureId.id));
+    if (selectionWasCreationDraft) {
+      clearMapSelection();
+      setSelectFirstAfterDrafts(true);
+    }
+  }, [selectedFeatureId, clearMapSelection, openDatasheet]);
+
+  useEffect(() => {
+    setOnDraftsCleared(() => handleDraftsCleared);
+    return () => setOnDraftsCleared(undefined);
+  }, [handleDraftsCleared, setOnDraftsCleared]);
 
   const handleOpenCreationDraft = useCallback(
     (featureType: string, draftKey: string) => {
@@ -5135,6 +5214,7 @@ const BelisMapLibWrapper = ({
           highlightCount={highlightsForSidebar?.length ?? undefined}
           draftsCount={draftFeaturesCount}
           onFeatureDismiss={handleSidebarDismiss}
+          orderedFeaturesRef={sidebarOrderedFeaturesRef}
           auswahlActiveSourceLayers={activeSourceLayers}
           namespacedSource={namespacedSource}
           brandnewSource={brandnewSource}
