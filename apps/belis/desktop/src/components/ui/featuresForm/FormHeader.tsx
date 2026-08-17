@@ -106,6 +106,14 @@ const DISABLED_HOVER_WRAPPER_STYLE: CSSProperties = {
   cursor: "not-allowed",
 };
 
+// Whether the draft badge spells out how many fields changed, as
+// "nicht gespeicherte Änderungen (3)". Off for now; flip to true to bring it
+// back. The count itself stays wired either way — it also decides whether the
+// Wiederholfelder button group is shown — so this only gates the text.
+// Annotated `boolean` on purpose: without it TS narrows to the literal `false`
+// and the guarded JSX reads as dead code to the linter.
+const SHOW_EDITED_COUNT_IN_DRAFT_BADGE: boolean = false;
+
 const FormHeader = ({
   title,
   subtitle,
@@ -406,12 +414,13 @@ const FormHeader = ({
                 <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
                   <ExclamationCircleOutlined className="text-[11px]" />
                   nicht gespeicherte Änderungen
-                  {/* How many fields carry those changes. Omitted at 0 — a
-                      draft can also exist without any field edit (a removed
-                      document, a changed geometry, a brand-new feature whose
-                      baseline is empty), and "(0)" would read as a
+                  {/* How many fields carry those changes. Currently switched
+                      off — see SHOW_EDITED_COUNT_IN_DRAFT_BADGE. Omitted at 0
+                      when on: a draft can also exist without any field edit (a
+                      removed document, a changed geometry, a brand-new feature
+                      whose baseline is empty), and "(0)" would read as a
                       contradiction next to the label. */}
-                  {editedCount > 0 && (
+                  {SHOW_EDITED_COUNT_IN_DRAFT_BADGE && editedCount > 0 && (
                     <span className="text-gray-700">({editedCount})</span>
                   )}
                 </span>
