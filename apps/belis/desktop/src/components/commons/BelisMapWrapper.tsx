@@ -2114,13 +2114,12 @@ const BelisMapLibWrapper = ({
     onFilteredHighlightsChange?.(highlightsForSidebar);
   }, [highlightsForSidebar, onFilteredHighlightsChange]);
 
-  // Compute effective sidebar data based on mode
-  const effectiveSidebarData = useMemo(() => {
-    // Shared derivation: counts per sourceLayer + merged activeSourceLayers.
-    // Used by every branch that doesn't get pre-computed counts straight from
-    // `useVisibleMapFeatures` (i.e. anything that builds a synthetic list).
-    const buildFromFeatures = (
-      list: typeof features,
+  // Shared derivation: counts per sourceLayer + merged activeSourceLayers.
+  // Used by every branch that doesn't get pre-computed counts straight from
+  // `useVisibleMapFeatures` (i.e. anything that builds a synthetic list).
+  const buildFromFeatures = useCallback(
+    (
+      list: SidebarFeature[],
       overrides?: { isLoading?: boolean; isOverviewMode?: boolean }
     ) => {
       // The category toggles apply to every row, synthetic draft rows included:
@@ -2148,34 +2147,13 @@ const BelisMapLibWrapper = ({
         isOverviewMode: overrides?.isOverviewMode ?? false,
         activeSourceLayers,
       };
-    };
+    },
+    [activeSourceLayers]
+  );
 
-    if (
-      sidebarMode === "highlights" &&
-      unfilteredHighlights &&
-      unfilteredHighlights.length > 0
-    ) {
-      // Build from the filter-aware copy so toggled-off categories drop out of
-      // the Highlights tab. Gate availability on the raw `unfilteredHighlights`
-      // above (the tab stays open even if everything is currently filtered out).
-      const highlightsList = highlightsForSidebar ?? unfilteredHighlights;
-      // Above the limit, fall back to grouped counts only (overview mode) —
-      // same threshold the Fachobjekte viewport list uses. Blank the feature
-      // list (keeping counts + totalCount) so the sidebar derives its groups
-      // purely from countsByLayer, matching the viewport overview exactly —
-      // otherwise the distribution loop would also build a stray merged
-      // "Standorte / Leuchten" group with a 0 total.
-      if (highlightsList.length > OVERVIEW_FEATURE_LIMIT) {
-        const base = buildFromFeatures(highlightsList, {
-          isOverviewMode: true,
-        });
-        return { ...base, features: [] };
-      }
-      return buildFromFeatures(highlightsList);
-    }
-    if (sidebarMode === "drafts" && draftSidebarFeatures.length > 0) {
-      return buildFromFeatures(draftSidebarFeatures);
-    }
+  // The Fachobjekte list, derived independently of the active tab so its
+  // badge count stays correct while another tab is open.
+  const fachobjekteSidebarData = useMemo(() => {
     // Fachobjekte mode with drafts present: splice the expanded draft rows
     // (Standort parent + Leuchten children, same shape used by the Entwürfe
     // tab) in next to the regular viewport features. The viewport list
@@ -2258,9 +2236,6 @@ const BelisMapLibWrapper = ({
       activeSourceLayers,
     };
   }, [
-    sidebarMode,
-    unfilteredHighlights,
-    highlightsForSidebar,
     draftSidebarFeatures,
     openDraftDbKeys,
     cascadeDeletionStandortIds,
@@ -2271,7 +2246,65 @@ const BelisMapLibWrapper = ({
     isLoading,
     isOverviewMode,
     activeSourceLayers,
+    buildFromFeatures,
   ]);
+
+  // Compute effective sidebar data based on mode
+  const effectiveSidebarData = useMemo(() => {
+    if (
+      sidebarMode === "highlights" &&
+      unfilteredHighlights &&
+      unfilteredHighlights.length > 0
+    ) {
+      // Build from the filter-aware copy so toggled-off categories drop out of
+      // the Highlights tab. Gate availability on the raw `unfilteredHighlights`
+      // above (the tab stays open even if everything is currently filtered out).
+      const highlightsList = highlightsForSidebar ?? unfilteredHighlights;
+      // Above the limit, fall back to grouped counts only (overview mode) —
+      // same threshold the Fachobjekte viewport list uses. Blank the feature
+      // list (keeping counts + totalCount) so the sidebar derives its groups
+      // purely from countsByLayer, matching the viewport overview exactly —
+      // otherwise the distribution loop would also build a stray merged
+      // "Standorte / Leuchten" group with a 0 total.
+      if (highlightsList.length > OVERVIEW_FEATURE_LIMIT) {
+        const base = buildFromFeatures(highlightsList, {
+          isOverviewMode: true,
+        });
+        return { ...base, features: [] };
+      }
+      return buildFromFeatures(highlightsList);
+    }
+    if (sidebarMode === "drafts" && draftSidebarFeatures.length > 0) {
+      return buildFromFeatures(draftSidebarFeatures);
+    }
+    return fachobjekteSidebarData;
+  }, [
+    sidebarMode,
+    unfilteredHighlights,
+    highlightsForSidebar,
+    draftSidebarFeatures,
+    buildFromFeatures,
+    fachobjekteSidebarData,
+  ]);
+
+  // Count for the "Fachobjekte" tab badge. It used to be the raw
+  // `useVisibleMapFeatures` total, which ignores the category toggles: a layer
+  // still rendered on the map (or returned by the query for a layer the toggle
+  // only visually hid) kept counting even though no row for it appears in the
+  // list — e.g. switching Leitungen on brought the Standorte back into the
+  // number while the list and the Highlights tab stayed without them.
+  // Summing the toggle-gated `countsByLayer` is exactly what the group headers
+  // in the list do, and it also survives overview mode (where the feature list
+  // is blanked but the counts remain).
+  const fachobjekteCount = useMemo(() => {
+    let sum = 0;
+    for (const [layerKey, count] of Object.entries(
+      fachobjekteSidebarData.countsByLayer
+    )) {
+      if (activeSourceLayers.has(layerKey)) sum += count;
+    }
+    return sum;
+  }, [fachobjekteSidebarData, activeSourceLayers]);
 
   // Neighborhood: mark leuchten sharing the same Standort as the selected feature
   useSelectionNeighborhood({
@@ -5210,7 +5243,7 @@ const BelisMapLibWrapper = ({
           }
           hasHighlights={hasHighlights}
           hasDrafts={!isReadOnly && draftFeaturesCount > 0}
-          fachobjekteCount={totalCount}
+          fachobjekteCount={fachobjekteCount}
           highlightCount={highlightsForSidebar?.length ?? undefined}
           draftsCount={draftFeaturesCount}
           onFeatureDismiss={handleSidebarDismiss}
