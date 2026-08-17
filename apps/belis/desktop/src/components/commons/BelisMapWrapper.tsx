@@ -2151,6 +2151,76 @@ const BelisMapLibWrapper = ({
     [activeSourceLayers]
   );
 
+  // Identity keys ("<sourceLayer>:<dbId>") of everything the viewport query
+  // actually returned, before any draft-related filtering. The Fachobjekte tab
+  // is a viewport list; a draft row may only stand in for a feature that is
+  // genuinely on screen.
+  const viewportDbKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const f of features) {
+      const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+      const dbId = Number(f.properties?.id ?? f.id);
+      if (sl && Number.isFinite(dbId)) keys.add(`${sl}:${dbId}`);
+    }
+    return keys;
+  }, [features]);
+
+  // Draft keys of open non-creation drafts whose feature is NOT in the current
+  // viewport. Their rows must stay out of the Fachobjekte list — they live in
+  // the Entwürfe tab. Without this, editing many features at once (batch paste
+  // into the highlighted selection) spliced every one of those drafts back into
+  // Fachobjekte, so the tab showed the whole selection instead of the handful
+  // of rows actually on screen.
+  // Skipped in overview mode, where `features` is blanked and viewport identity
+  // is unknown — there the old splice-everything behaviour is the honest one.
+  const offscreenDraftKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (isOverviewMode) return keys;
+    for (const [draftKey, draft] of Object.entries(
+      allDraftsForMeasurementLink
+    )) {
+      if (draft.isCreation) continue;
+      const sl =
+        featureTypeToSourceLayer[draft.featureType] ?? draft.featureType;
+      const dbId = draft.featureDbId ?? Number(draftKey.split(":")[1]);
+      if (!Number.isFinite(dbId)) continue;
+      const dbKey = `${sl}:${Number(dbId)}`;
+      if (viewportDbKeys.has(dbKey)) continue;
+      // Both identities: the redux draft key (what the expanded rows carry as
+      // `_draftKey` / row-id prefix) and the DB key (what the draft's own row
+      // resolves to). They differ when a draft was opened through the brandnew
+      // GeoJSON source, which keys on that source name instead of the layer.
+      keys.add(draftKey);
+      keys.add(dbKey);
+    }
+    return keys;
+  }, [allDraftsForMeasurementLink, viewportDbKeys, isOverviewMode]);
+
+  // `draftSidebarFeatures` restricted to the drafts the Fachobjekte tab may
+  // show. A draft contributes several rows (a deletion draft adds one
+  // display-only row per cascade-deleted Leuchte, keyed "<draftKey>::…"), so an
+  // off-viewport draft is dropped whole — never a parent without its children
+  // or the other way round. The Entwürfe tab keeps using the unrestricted list.
+  const fachobjekteDraftFeatures = useMemo(() => {
+    if (offscreenDraftKeys.size === 0) return draftSidebarFeatures;
+    return draftSidebarFeatures.filter((f) => {
+      const draftKey = String(f.properties?._draftKey ?? "");
+      if (draftKey) return !offscreenDraftKeys.has(draftKey);
+      // Rows without `_draftKey`: the draft's own feature (keyed by DB
+      // identity, which is exactly the draft key) and the synthetic cascade
+      // rows (row id prefixed with the draft key).
+      const sl = f.sourceLayer || String(f.properties?._sourceLayer ?? "");
+      const dbId = Number(f.properties?.id ?? f.id);
+      if (Number.isFinite(dbId) && offscreenDraftKeys.has(`${sl}:${dbId}`)) {
+        return false;
+      }
+      const rowId = String(f.id ?? "");
+      const sep = rowId.indexOf("::");
+      if (sep > 0 && offscreenDraftKeys.has(rowId.slice(0, sep))) return false;
+      return true;
+    });
+  }, [draftSidebarFeatures, offscreenDraftKeys]);
+
   // The Fachobjekte list, derived independently of the active tab so its
   // badge count stays correct while another tab is open.
   const fachobjekteSidebarData = useMemo(() => {
@@ -2206,11 +2276,11 @@ const BelisMapLibWrapper = ({
         }
         return true;
       });
-    if (draftSidebarFeatures.length > 0) {
+    if (fachobjekteDraftFeatures.length > 0) {
       return buildFromFeatures(
         [
           ...filterViewport(features),
-          ...draftSidebarFeatures,
+          ...fachobjekteDraftFeatures,
           ...retainedDeletionFeatures,
         ],
         { isLoading, isOverviewMode }
@@ -2236,7 +2306,7 @@ const BelisMapLibWrapper = ({
       activeSourceLayers,
     };
   }, [
-    draftSidebarFeatures,
+    fachobjekteDraftFeatures,
     openDraftDbKeys,
     cascadeDeletionStandortIds,
     retainedDeletionFeatures,
