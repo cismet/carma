@@ -7,5 +7,5 @@ export const addonFachzwilling: FachzwillingRoute = {
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },
-  addons: [{ kind: "addonManager", config: { showControl: true } }],
+  addons: [],
 };
