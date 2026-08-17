@@ -1,20 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef } from "react";
-import { isEqual } from "lodash";
+import { useEffect, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import WMSCapabilities from "wms-capabilities";
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
-import type { Layer, LayerConfig } from "../lib/contracts/carma-layers.d";
+import type { LayerConfig } from "../lib/contracts/carma-layers.d";
 
 import { useCatalogData } from "../context/LayerCatalogProvider";
 import { baseConfig as config } from "../helper/config";
-import {
-  getLayerStructure,
-  mergeStructures,
-  normalizeObject,
-} from "../helper/layerHelper";
-import type { ActiveLayers } from "../lib/contracts/carma-layers.d";
-import { parseToMapLayer } from "@carma-mapping/utils";
+import { getLayerStructure, mergeStructures } from "../helper/layerHelper";
 import { FALLBACK_CAPABILITIES_BASE_URL } from "../helper/assetUrls";
 import {
   CAPABILITIES_QUERY_KEY,
@@ -66,15 +59,11 @@ const fetchCapabilities = async (url: string): Promise<WMSCapabilitiesJSON> => {
 
 interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
-  activeLayers: ActiveLayers;
-  updateActiveLayer?: (layer: Layer) => void;
   services: Record<string, LayerConfig>;
 }
 
 export const useLoadCapabilities = ({
   loadingAdditionalConfig,
-  activeLayers,
-  updateActiveLayer,
   services,
 }: UseLoadCapabilitiesProps) => {
   const { replaceLayers, setCapabilitiesLoading, setServiceCategories } =
@@ -124,14 +113,6 @@ export const useLoadCapabilities = ({
     setCapabilitiesLoading,
   ]);
 
-  // the active layers are only read when a rebuild runs; going through a ref
-  // avoids re-deriving the whole structure on every active layer change
-  const activeLayersRef = useRef(activeLayers);
-  activeLayersRef.current = activeLayers;
-
-  const syncedCapabilitiesRef = useRef<unknown[]>([]);
-  const syncedReplaceLayersRef = useRef<unknown>(undefined);
-
   // Derive allLayers from all capabilities present so far. Runs again when
   // late replace layers arrive, so the result no longer depends on response
   // order.
@@ -140,58 +121,7 @@ export const useLoadCapabilities = ({
       return;
     }
 
-    const syncActiveLayers = (
-      layerStructure: { Title: string; layers: any[] }[]
-    ) => {
-      layerStructure.forEach((category) => {
-        if (category.layers.length > 0) {
-          activeLayersRef.current.forEach(async (activeLayer) => {
-            const foundLayer = category.layers.find(
-              (layer) => layer.id === activeLayer.id
-            );
-            if (foundLayer) {
-              if (activeLayer.dynamicStyling) {
-                return;
-              }
-
-              const updatedLayer = await parseToMapLayer(
-                foundLayer,
-                false,
-                activeLayer.visible,
-                activeLayer.opacity
-              );
-
-              // carry over app-owned annotations that capabilities cannot
-              // produce (e.g. layer-group membership); otherwise the re-parsed
-              // layer never matches and this sync dispatches updateLayer forever
-              const mergedLayer: Layer = {
-                ...updatedLayer,
-                ...(activeLayer.group ? { group: activeLayer.group } : {}),
-                ...(activeLayer.skipSelection
-                  ? { skipSelection: activeLayer.skipSelection }
-                  : {}),
-              };
-
-              if (
-                !isEqual(
-                  normalizeObject(activeLayer),
-                  normalizeObject(mergedLayer)
-                ) &&
-                updateActiveLayer
-              ) {
-                updateActiveLayer(mergedLayer);
-              }
-            }
-          });
-        }
-      });
-    };
-
     let newLayers: any[] = [];
-
-    const replaceLayersChanged =
-      syncedReplaceLayersRef.current !== replaceLayers;
-    syncedReplaceLayersRef.current = replaceLayers;
 
     wmsServices.forEach((service, index) => {
       const wms = capabilities.data[index];
@@ -205,13 +135,6 @@ export const useLoadCapabilities = ({
         skipTopicMaps: true,
         replaceLayers,
       });
-      if (
-        replaceLayersChanged ||
-        syncedCapabilitiesRef.current[index] !== wms
-      ) {
-        syncedCapabilitiesRef.current[index] = wms;
-        syncActiveLayers(layerStructure);
-      }
       newLayers = mergeStructures(layerStructure, newLayers);
     });
 

@@ -729,7 +729,6 @@ const ServiceListContent = ({
 
   useLoadCapabilities({
     loadingAdditionalConfig,
-    activeLayers: [] as any,
     services: wuppLayerCatalogConfig.services,
   });
 

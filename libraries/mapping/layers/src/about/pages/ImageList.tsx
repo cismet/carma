@@ -119,7 +119,6 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
 
   useLoadCapabilities({
     loadingAdditionalConfig,
-    activeLayers: [] as any,
     services: wuppLayerCatalogConfig.services,
   });
 

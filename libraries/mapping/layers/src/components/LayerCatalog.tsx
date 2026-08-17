@@ -65,6 +65,7 @@ import {
 import { filterCategoriesByFilters } from "../helper/catalogFilter";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
+import { useSyncActiveLayers } from "../hooks/useSyncActiveLayers";
 import { useHandleDrop } from "../hooks/useHandleDrop";
 import { useScrollSpy } from "../hooks/useScrollSpy";
 
@@ -228,8 +229,6 @@ const LayerCatalogView = ({
 
   useLoadCapabilities({
     loadingAdditionalConfig,
-    activeLayers,
-    updateActiveLayer,
     services: catalogConfig.services,
   });
 
@@ -282,6 +281,38 @@ const LayerCatalogView = ({
     );
     return index;
   }, [allCategories]);
+
+  // The custom categories carry host-owned items (favorites, collections, the
+  // measurements of the app); those are no catalog definitions, so they must
+  // not drive the active-layer sync below.
+  const customCategoryItemIds = useMemo(
+    () =>
+      new Set(
+        resolvedCustomCategories.flatMap((category) =>
+          category.layers.map((layer) => layer.id)
+        )
+      ),
+    [resolvedCustomCategories]
+  );
+
+  const catalogItemsById = useMemo(() => {
+    const index = new Map<string, Item>();
+    itemsById.forEach((item, id) => {
+      if (!customCategoryItemIds.has(id)) {
+        index.set(id, item);
+      }
+    });
+    return index;
+  }, [itemsById, customCategoryItemIds]);
+
+  // waiting for the capabilities keeps a layer whose service is still loading
+  // out of the "not in the catalog" branch of the sync
+  useSyncActiveLayers({
+    catalogItems: catalogItemsById,
+    activeLayers,
+    updateActiveLayer,
+    enabled: !loadingAdditionalConfig && !loadingCapabilities,
+  });
 
   const resolveWorkflowLayers = useCallback(
     (ids: string[]): Item[] =>
