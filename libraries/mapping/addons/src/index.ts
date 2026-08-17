@@ -28,9 +28,18 @@ export type {
   ResolvedAddon,
 } from "./lib/registry";
 
+export {
+  applyAddonOverrides,
+  isHostMountedKind,
+  isSwitchableKind,
+  SWITCHABLE_KINDS,
+} from "./lib/addon-overrides";
+export type { AddonOverridesState } from "./lib/addon-overrides";
+
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
 
+export { AddonManager, type AddonManagerConfig } from "./addons/AddonManager";
 export {
   CameraRestriction,
   type CameraRestrictionConfig,

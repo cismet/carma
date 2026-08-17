@@ -30,9 +30,11 @@ so the second folder is the list of what actually exists:
 | `lib/TargetAddonHost.tsx` | Mounts one addon declared on a stack entry            |
 | `lib/target-addons.ts` | Trigger ids and the entry lookups the layer button needs |
 | `lib/AddonStateContext.tsx` | Typed hooks over the shared addon state (see below) |
+| `lib/addon-overrides.ts` | What the `addonManager` may switch on or off, applied by the host |
 
 | Addon                       | Kind                                                     |
 | --------------------------- | -------------------------------------------------------- |
+| `addons/AddonManager/`      | switchboard for the addon system (see below)             |
 | `addons/CameraRestriction.tsx` | whether the maplibre camera stays north-up and flat    |
 | `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
@@ -195,6 +197,33 @@ export const addonRegistry = {
 `AddonHost` checks the route's list in dev and warns when a `requires` is not
 covered by any sibling's `provides`, so a consumer configured without its
 producer surfaces in the console instead of as a silently empty panel.
+
+## The addon manager
+
+`addonManager` lists every kind in the registry with a switch per row, so a
+route's setup can be inspected and changed while the map is running. Open it
+with `Ctrl+Alt+A` (`Cmd+Alt+A` on mac) or, where the route enables the button
+(`showControl`), with the puzzle piece in the map's control column. The
+geoportal declares it in `DEFAULT_ADDONS` with the button off, so it is there in
+every route without showing a debug button to visitors.
+
+**The switches really mount and unmount.** They write the `addonOverrides`
+channel, and `AddonHost` subtracts the suspended kinds from the route's list and
+appends the switched-on ones before mounting. It is the one channel the host
+itself reads rather than a sibling addon.
+
+**Nothing of it survives a reload.** The overrides live in the addon state map,
+which is scoped to the route and written nowhere, so every reload is back to
+what the route declares. That is deliberate: the manager is a tool for looking
+at a route, not a second configuration source.
+
+Three kinds of row cannot be switched, each with a tooltip saying why: the
+manager itself (there would be no way back), trigger addons such as
+`zoomToExtent`, which are mounted per layer by `TargetAddonHost` and not per
+route, and undeclared kinds whose config is required, since there is nothing to
+mount them with. The last set is `SWITCHABLE_KINDS` in `lib/addon-overrides.ts`,
+typed `readonly BareAddonKind[]`, so listing a kind that needs a config there is
+a compile error.
 
 A minimal producer is an effect that publishes, a minimal consumer a component
 that reads:
