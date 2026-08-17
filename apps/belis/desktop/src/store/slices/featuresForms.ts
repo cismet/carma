@@ -176,6 +176,18 @@ interface FeaturesFormsState {
   // it, never auto-cleared within a session (the deletion has no replacement to
   // wait for).
   standortLeuchtenOverrides: Record<string, StandortLeuchtenOverride>;
+  // Bumped whenever the user throws a draft away — the single "zurücksetzen"
+  // or "Alle verwerfen" — and never on save. The open Datenblatt keys its form
+  // on this, so a discard remounts it and it re-initialises from the server
+  // data. Without that the form keeps showing the discarded values: its init
+  // effect is guarded on the feature *changing*, and discarding leaves both the
+  // featureId and the cached record identical, so it never runs again — which
+  // also means the originalValues baseline is never re-reported and later edits
+  // stop highlighting. Saves do not need it: they either re-seed the baseline
+  // themselves (handleSaveComplete) or trigger a refetch that changes the
+  // record's identity and re-runs the effect anyway. Not persisted — a reload
+  // remounts everything regardless.
+  discardVersion: number;
 }
 
 const initialState: FeaturesFormsState = {
@@ -189,6 +201,7 @@ const initialState: FeaturesFormsState = {
   brandnewSuppressedEditIds: {},
   deletedFeatureIds: {},
   standortLeuchtenOverrides: {},
+  discardVersion: 0,
 };
 
 const featuresFormsSlice = createSlice({
@@ -317,6 +330,16 @@ const featuresFormsSlice = createSlice({
     },
     removeDraft(state, action: PayloadAction<string>) {
       delete state.drafts[action.payload];
+    },
+    // Same as removeDraft, but for the user throwing the draft away rather
+    // than saving it. Bumps `discardVersion` so the open form remounts and
+    // re-reads the server values instead of leaving the discarded ones on
+    // screen. Save flows must keep using removeDraft — remounting there would
+    // undo the deliberate "keep the DOM intact after a save" behaviour in the
+    // *FormFields init effect (scroll position and focus).
+    discardDraft(state, action: PayloadAction<string>) {
+      delete state.drafts[action.payload];
+      state.discardVersion += 1;
     },
     // Mark/unmark an existing Fachobjekt for deletion. Creates a draft to hold
     // the intent when none exists; on unmark drops a deletion-only draft but
@@ -504,6 +527,7 @@ const featuresFormsSlice = createSlice({
     clearAllDrafts(state) {
       state.drafts = {};
       state.originalValues = {};
+      state.discardVersion += 1;
     },
     // Move a draft's `hiddenOriginalIds` into the persistent
     // `permanentlyHiddenOriginalIds` set. Dispatched right before removeDraft
@@ -773,6 +797,7 @@ export default featuresFormsSlice;
 export const {
   setDraft,
   removeDraft,
+  discardDraft,
   setPendingDeletion,
   markFeatureDeleted,
   recordLeuchteDeletionForStandort,
@@ -818,6 +843,10 @@ export const getOriginalValues = (
   featureId: string | undefined
 ): Record<string, unknown> | undefined =>
   featureId ? state.featuresForms?.originalValues[featureId] : undefined;
+
+/** Counter bumped on every user discard; the open form remounts when it moves. */
+export const getDiscardVersion = (state: RootState): number =>
+  state.featuresForms?.discardVersion ?? 0;
 
 export const getDraftFiles = (
   state: RootState,

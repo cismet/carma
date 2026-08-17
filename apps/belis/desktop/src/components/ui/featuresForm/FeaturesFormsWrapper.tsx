@@ -30,6 +30,8 @@ import {
   clearDraftGeometry,
   setOriginalValues,
   getOriginalValues,
+  discardDraft,
+  getDiscardVersion,
   hasDraftChanges,
   getGlobalEditMode,
   isCreationDraftKey,
@@ -262,6 +264,13 @@ const FeaturesFormsWrapper = ({
   const originalValues = useSelector((state: RootState) =>
     getOriginalValues(state, featureId)
   );
+  // Remount key for the form below. `FormComponent` is deliberately NOT keyed
+  // on featureId — switching features reuses the instance and the *FormFields
+  // init effect re-runs off its own `appliedForFeatureRef` guard. A discard
+  // changes neither the featureId nor the fetched record, so that effect never
+  // fires and the thrown-away values stay in the DOM; bumping this key is what
+  // forces the re-initialisation.
+  const discardVersion = useSelector(getDiscardVersion);
   const removedDocKeys = useSelector((state: RootState) =>
     getRemovedDocumentKeys(state, featureId)
   );
@@ -596,7 +605,10 @@ const FeaturesFormsWrapper = ({
       // draft goes away — discarding the draft must not silently destroy
       // the user's measurement work.
       restoreAttachedMeasurement(draft?.geometryKey);
-      dispatch(removeDraft(featureId));
+      // `discardDraft`, not `removeDraft`: this is the user throwing the edit
+      // away, so the form must remount and re-read the server values instead
+      // of leaving the discarded ones on screen.
+      dispatch(discardDraft(featureId));
       onSelectNextDraft?.(featureId);
     }
     setIsEditing(false);
@@ -1337,6 +1349,7 @@ const FeaturesFormsWrapper = ({
         >
           <div className="h-full">
             <FormComponent
+              key={discardVersion}
               data={data}
               rawFeature={rawFeature}
               readOnly={effectiveReadOnly}
