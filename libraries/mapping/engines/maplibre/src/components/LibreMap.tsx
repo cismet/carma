@@ -91,6 +91,10 @@ const buildGazetteerRouteInfobox = (pos: number[], label: string) => ({
   },
 });
 
+/** Default upper zoom bound in Leaflet-like 256px zoom (21.9999 in MapLibre's
+ *  512px scale), kept for hosts that do not pass their own maxZoom. */
+const DEFAULT_MAX_ZOOM_256 = 22.9999;
+
 export interface GeoJsonData {
   sourceId: string;
   data: GeoJSON.FeatureCollection;
@@ -299,6 +303,8 @@ export interface LibreMapProps {
   >;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
   maxPitch?: number;
+  minZoom?: number;
+  maxZoom?: number;
   restrictCamera?: boolean;
   forceRestrictCamera?: boolean;
 }
@@ -397,6 +403,8 @@ export const LibreMap = ({
   threeRuntimeParams,
   threePerfRef,
   maxPitch = DEFAULT_MAX_PITCH,
+  minZoom,
+  maxZoom = DEFAULT_MAX_ZOOM_256,
   restrictCamera = false,
   forceRestrictCamera = false,
 }: LibreMapProps) => {
@@ -555,6 +563,18 @@ export const LibreMap = ({
       interactive,
     });
   }, [interactive, restrictCamera, forceRestrictCamera, maxPitch]);
+
+  // Keep the zoom bounds in sync when a host changes them after construction.
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) {
+      return;
+    }
+    mapInstance.setMinZoom(
+      minZoom !== undefined ? zoom256as512(minZoom) : null
+    );
+    mapInstance.setMaxZoom(zoom256as512(maxZoom));
+  }, [minZoom, maxZoom]);
 
   // Helper: apply visual selection highlighting for a feature
   const applyVisualSelection = useCallback(
@@ -835,7 +855,8 @@ export const LibreMap = ({
         style: backgroundStyle,
         center: [lng, lat],
         zoom: zoom,
-        maxZoom: 21.9999,
+        minZoom: minZoom !== undefined ? zoom256as512(minZoom) : undefined,
+        maxZoom: zoom256as512(maxZoom),
         maxPitch: restrictCamera || forceRestrictCamera ? 0 : maxPitch,
         attributionControl: false,
         interactive,

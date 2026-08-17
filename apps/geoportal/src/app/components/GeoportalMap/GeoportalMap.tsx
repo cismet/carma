@@ -133,6 +133,9 @@ interface MapProps {
 
 const CLICK_DELAY_MS = 200;
 
+const MAP_MIN_ZOOM = 10;
+const MAP_MAX_ZOOM = 22;
+
 // position-based help entries shared by the leaflet and maplibre map variants
 const useGeoportalHelpOverlays = () => {
   const infoBoxOverlay = addCssToOverlayHelperItem(
@@ -610,7 +613,8 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
             ...(mapInteractionEnabled ? {} : { pointerEvents: "none" }),
           }}
           leafletMapProps={{ editable: true }}
-          minZoom={10}
+          minZoom={MAP_MIN_ZOOM}
+          maxZoom={MAP_MAX_ZOOM}
           backgroundlayers="empty"
           mappingBoundsChanged={() => {
             // intentionally no-op
@@ -896,6 +900,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           gazetteerSearchControl={false}
           modalMenuControl={showHamburgerMenu}
           libreLayers={libreLayers}
+          minZoom={MAP_MIN_ZOOM}
+          maxZoom={MAP_MAX_ZOOM}
           disableInternalSelection={true}
           hashWriteEnabled={hashWriteEnabled}
           refreshExpiredTiles={refreshExpiredTiles}

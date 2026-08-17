@@ -357,6 +357,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 threeRuntimeParams={props.threeRuntimeParams}
                 threePerfRef={props.threePerfRef}
                 maxPitch={props.maxPitch}
+                minZoom={props.minZoom}
+                maxZoom={props.maxZoom}
                 restrictCamera={props.restrictCamera}
                 forceRestrictCamera={props.forceRestrictCamera}
               />
