@@ -9,6 +9,7 @@ import {
   getDraftFeaturesCount,
 } from "../../store/slices/featuresForms";
 import { getMeasurements } from "../../store/slices/measurements";
+import { useMapPage } from "../../contexts/MapPageContext";
 
 const SendOrDiscardAllDraftsButton = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -16,6 +17,7 @@ const SendOrDiscardAllDraftsButton = () => {
   const drafts = useSelector(getAllDrafts);
   const measurements = useSelector(getMeasurements);
   const { closeDatasheet } = useDatasheet();
+  const { onDraftsCleared } = useMapPage();
 
   const hasDrafts = draftCount > 0;
 
@@ -37,7 +39,14 @@ const SendOrDiscardAllDraftsButton = () => {
     }
     if (toRestore.length > 0) addMeasurements(toRestore);
     dispatch(clearAllDrafts());
-    closeDatasheet();
+    // Stay in the Datenblatt (the host re-points it at the first list row when
+    // the open form belonged to a creation draft). Only when no host published
+    // a handler is there nothing left to show — fall back to the map.
+    if (onDraftsCleared) {
+      onDraftsCleared();
+    } else {
+      closeDatasheet();
+    }
   };
 
   return (

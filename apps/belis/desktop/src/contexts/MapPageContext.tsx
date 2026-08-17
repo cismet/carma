@@ -60,6 +60,12 @@ interface MapPageContextValue {
   setOnOpenCreationDraft: (
     fn: ((featureType: string, draftKey: string) => void) | undefined
   ) => void;
+  // Fired by the bulk draft actions ("Alle verwerfen" / "Alle speichern"),
+  // which wipe every draft at once instead of going through
+  // `onSelectNextDraft`. Keeps the Datenblatt open and re-points it at the
+  // first list row when the open form was bound to a draft that just died.
+  onDraftsCleared?: () => void;
+  setOnDraftsCleared: (fn: (() => void) | undefined) => void;
   // Live MapLibre instance for the main map. Published by BelisMapWrapper when
   // the map becomes ready, consumed by form components that need to query the
   // vector-tile sources (e.g. the Leuchte creation form lists the parent
@@ -87,6 +93,8 @@ const MapPageContext = createContext<MapPageContextValue>({
   setOnSelectNextDraft: () => undefined,
   onOpenCreationDraft: undefined,
   setOnOpenCreationDraft: () => undefined,
+  onDraftsCleared: undefined,
+  setOnDraftsCleared: () => undefined,
   mainMap: null,
   setMainMap: () => undefined,
   mainMapSourceTick: 0,
@@ -106,6 +114,9 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
   >(undefined);
   const [onOpenCreationDraft, setOnOpenCreationDraft] = useState<
     ((featureType: string, draftKey: string) => void) | undefined
+  >(undefined);
+  const [onDraftsCleared, setOnDraftsCleared] = useState<
+    (() => void) | undefined
   >(undefined);
   const [mainMap, setMainMap] = useState<maplibregl.Map | null>(null);
   const [mainMapSourceTick, setMainMapSourceTick] = useState(0);
@@ -133,6 +144,8 @@ export const MapPageProvider = ({ children }: { children: ReactNode }) => {
         setOnSelectNextDraft,
         onOpenCreationDraft,
         setOnOpenCreationDraft,
+        onDraftsCleared,
+        setOnDraftsCleared,
         mainMap,
         setMainMap,
         mainMapSourceTick,

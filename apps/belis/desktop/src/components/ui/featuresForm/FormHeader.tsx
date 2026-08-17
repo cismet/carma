@@ -31,6 +31,7 @@ import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { useSingleSave } from "./FeaturesFormsWrapper";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import SendOrDiscardAllDraftsButton from "../SendOrDiscardAllDraftsButton";
+import { useMapPage } from "../../../contexts/MapPageContext";
 import { useEditedFields } from "./editedFieldsContext";
 import { countEditedFields } from "./formDiffUtils";
 import {
@@ -148,6 +149,7 @@ const FormHeader = ({
   const [savingAll, setSavingAll] = useState(false);
   const { onSaveSingle, savingSingle } = useSingleSave();
   const { closeDatasheet } = useDatasheet();
+  const { onDraftsCleared } = useMapPage();
 
   // The copy button is "hidden" until the user holds Alt — keeps the header
   // uncluttered while exposing the power-user copy action on demand.
@@ -191,9 +193,11 @@ const FormHeader = ({
       incrementFeatureDataVersion,
       measurements,
       setMeasurements,
-      // After at least one draft saved, the form on the right pane is
-      // bound to a draft that no longer exists — return to the map.
-      onSuccess: closeDatasheet,
+      // After at least one draft saved, the form on the right pane is bound to
+      // a draft that no longer exists. Stay in the Datenblatt and let the host
+      // re-point it (first list row when the draft was a creation); only
+      // without a host handler fall back to the map.
+      onSuccess: onDraftsCleared ?? closeDatasheet,
       strassenschluesselByPk,
     });
   };
