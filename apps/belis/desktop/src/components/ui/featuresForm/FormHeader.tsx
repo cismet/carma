@@ -328,38 +328,64 @@ const FormHeader = ({
                   Icon-only by request; the aria-labels are for screen readers
                   and never painted.
 
-                  The whole group is hidden while the form has no field change,
-                  so it appears together with the draft badge next to it.
+                  The group shows when there is something to do with it: either
+                  this form has a change worth copying, or the clipboard holds
+                  one. The second half is what makes paste reachable — you copy
+                  on one Leuchte and the group then follows you to every other
+                  Leuchte, which is untouched and would otherwise hide it.
 
                   Paste carries a badge with the clipboard's field count, and
                   is inert while that count is 0 — with nothing stored there is
                   nothing to stamp on. Copy stays live either way: it reports
                   "nothing changed" itself, which is more useful than a button
                   that looks broken. */}
-              {!readOnly && showRepeatableChangesButtons && editedCount > 0 && (
-                <>
-                  <Tooltip title="Änderungen kopieren">
-                    <button
-                      type="button"
-                      aria-label="Änderungen kopieren"
-                      onClick={onCopyRepeatableChanges}
-                      style={REPEATABLE_CHANGES_COPY_STYLE}
-                    >
-                      <CopyOutlined style={{ fontSize: 12 }} />
-                    </button>
-                  </Tooltip>
-                  <Tooltip title="Änderungen einfügen">
-                    <span style={DISABLED_HOVER_WRAPPER_STYLE}>
-                      <Badge
-                        count={repeatableChangesCount}
-                        size="small"
-                        offset={[-2, 2]}
-                        style={{ backgroundColor: "#fa8c16" }}
+              {!readOnly &&
+                showRepeatableChangesButtons &&
+                (editedCount > 0 || repeatableChangesCount > 0) && (
+                  <>
+                    <Tooltip title="Änderungen kopieren">
+                      <button
+                        type="button"
+                        aria-label="Änderungen kopieren"
+                        onClick={onCopyRepeatableChanges}
+                        style={REPEATABLE_CHANGES_COPY_STYLE}
                       >
+                        <CopyOutlined style={{ fontSize: 12 }} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip title="Änderungen einfügen">
+                      <span style={DISABLED_HOVER_WRAPPER_STYLE}>
+                        <Badge
+                          count={repeatableChangesCount}
+                          size="small"
+                          offset={[-2, 2]}
+                          style={{ backgroundColor: "#fa8c16" }}
+                        >
+                          <button
+                            type="button"
+                            aria-label="Änderungen einfügen"
+                            onClick={onPasteRepeatableChanges}
+                            disabled={repeatableChangesCount === 0}
+                            style={{
+                              ...REPEATABLE_CHANGES_BUTTON_STYLE,
+                              ...(repeatableChangesCount === 0
+                                ? DISABLED_ICON_BUTTON_STYLE
+                                : null),
+                            }}
+                          >
+                            <SnippetsOutlined style={{ fontSize: 12 }} />
+                          </button>
+                        </Badge>
+                      </span>
+                    </Tooltip>
+                    {/* Empties the clipboard for this feature type. Inert at 0
+                      for the same reason as paste — nothing to throw away. */}
+                    <Tooltip title="Änderungsspeicher zurücksetzen">
+                      <span style={DISABLED_HOVER_WRAPPER_STYLE}>
                         <button
                           type="button"
-                          aria-label="Änderungen einfügen"
-                          onClick={onPasteRepeatableChanges}
+                          aria-label="Änderungsspeicher zurücksetzen"
+                          onClick={onClearRepeatableChanges}
                           disabled={repeatableChangesCount === 0}
                           style={{
                             ...REPEATABLE_CHANGES_BUTTON_STYLE,
@@ -368,33 +394,12 @@ const FormHeader = ({
                               : null),
                           }}
                         >
-                          <SnippetsOutlined style={{ fontSize: 12 }} />
+                          <CloseOutlined style={{ fontSize: 12 }} />
                         </button>
-                      </Badge>
-                    </span>
-                  </Tooltip>
-                  {/* Empties the clipboard for this feature type. Inert at 0
-                      for the same reason as paste — nothing to throw away. */}
-                  <Tooltip title="Änderungsspeicher zurücksetzen">
-                    <span style={DISABLED_HOVER_WRAPPER_STYLE}>
-                      <button
-                        type="button"
-                        aria-label="Änderungsspeicher zurücksetzen"
-                        onClick={onClearRepeatableChanges}
-                        disabled={repeatableChangesCount === 0}
-                        style={{
-                          ...REPEATABLE_CHANGES_BUTTON_STYLE,
-                          ...(repeatableChangesCount === 0
-                            ? DISABLED_ICON_BUTTON_STYLE
-                            : null),
-                        }}
-                      >
-                        <CloseOutlined style={{ fontSize: 12 }} />
-                      </button>
-                    </span>
-                  </Tooltip>
-                </>
-              )}
+                      </span>
+                    </Tooltip>
+                  </>
+                )}
               {/* Draft indicator, placed after the icon group so the title and
                   its actions read as one block and the badge closes the row. */}
               {hasDraft && (
