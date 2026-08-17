@@ -77,3 +77,12 @@ export const getRepeatableChanges = (
   featureType: string
 ): RepeatableChangeSet | undefined =>
   state.repeatableChanges?.byType[featureType];
+
+const EMPTY_BY_TYPE: Record<string, RepeatableChangeSet> = {};
+
+/** Every captured change set, keyed by feature type. Used by the batch paste,
+ *  which has no single form — and therefore no single type — to key off. */
+export const getAllRepeatableChanges = (
+  state: RootState
+): Record<string, RepeatableChangeSet> =>
+  state.repeatableChanges?.byType ?? EMPTY_BY_TYPE;

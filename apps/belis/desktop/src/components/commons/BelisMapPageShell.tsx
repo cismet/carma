@@ -39,6 +39,7 @@ import { useMapPage } from "../../contexts/MapPageContext";
 import { getFeatureCollection } from "../../store/slices/featureCollection";
 import ExportCsvButton from "../ui/ExportCsvButton";
 import PrintControl from "../ui/PrintControl";
+import PasteChangesToHighlightsButton from "../ui/PasteChangesToHighlightsButton";
 
 interface BelisStreet {
   s: string;
@@ -267,6 +268,16 @@ const BelisMapPageShell = () => {
               <div className="flex items-center gap-2 my-1">
                 <span>{isDatasheetOpen ? "Datenblatt" : title}</span>
                 {editModeButton}
+                {/* Batch "Wiederholfelder einfügen" — shows itself only when
+                    something was copied AND matching features are highlighted,
+                    so it stays out of the header the rest of the time.
+                    Not while a Datenblatt is open: that form owns its own
+                    paste button, and a batch write into the draft behind it
+                    would not reach the mounted AntD form — the next keystroke
+                    there would push the pre-paste values back over it. */}
+                {sidebarVariant === "fachobjekte" && !isDatasheetOpen && (
+                  <PasteChangesToHighlightsButton />
+                )}
                 {!isReadOnly &&
                   sidebarVariant === "arbeitsauftraege" &&
                   totalDraftCount > 0 && (

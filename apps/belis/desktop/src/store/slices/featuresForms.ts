@@ -217,6 +217,7 @@ const featuresFormsSlice = createSlice({
         feature?: any;
         fetchedData?: Record<string, unknown>;
         isCreation?: boolean;
+        featureDbId?: number;
         featureGeomId?: number;
         geometry?: GeoJSON.Geometry;
         geometryKey?: string;
@@ -235,6 +236,7 @@ const featuresFormsSlice = createSlice({
         feature,
         fetchedData,
         isCreation,
+        featureDbId,
         featureGeomId,
         geometry,
         geometryKey,
@@ -290,6 +292,11 @@ const featuresFormsSlice = createSlice({
         feature: feature ?? existing?.feature,
         fetchedData: fetchedData ?? existing?.fetchedData,
         isCreation: creationDraft,
+        // Preserved like the geom id below. The datasheet path fills it in
+        // from the fetched record (setDraftExistingDocuments); the batch
+        // "Wiederholfelder einfügen" path passes it straight in, since no
+        // Datenblatt is ever opened for those drafts and the save needs it.
+        featureDbId: existing?.featureDbId ?? featureDbId,
         // Captured once at draft-open and frozen — later setDraft calls (form
         // edits) must not clear the geom-row id the in-place save needs.
         featureGeomId: existing?.featureGeomId ?? featureGeomId,
