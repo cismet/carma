@@ -6,6 +6,8 @@ import type { RootState } from "../../store";
 import { getJWT, getIsReadOnly } from "../../store/slices/auth";
 import { getAllRepeatableChanges } from "../../store/slices/repeatableChanges";
 import { getAllDrafts } from "../../store/slices/featuresForms";
+import { getSelectedFeature } from "../../store/slices/featureCollection";
+import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import { useMapPage } from "../../contexts/MapPageContext";
 import { countEditedFields } from "./featuresForm/formDiffUtils";
 import {
@@ -36,7 +38,18 @@ const PasteChangesToHighlightsButton = () => {
   const repeatableChanges = useSelector(getAllRepeatableChanges);
   const drafts = useSelector(getAllDrafts);
   const { activeHighlights } = useMapPage();
+  const { isDatasheetOpen } = useDatasheet();
+  const selectedFeature = useSelector(getSelectedFeature) as {
+    id?: string | number;
+    sourceLayer?: string;
+    properties?: Record<string, unknown> | null;
+  } | null;
   const [pasting, setPasting] = useState(false);
+
+  // The Fachobjekt whose Datenblatt is open, if any. It is kept out of the
+  // batch: its mounted form owns the draft and would not pick the pasted
+  // values up — see `filterPasteTargets`. Its own header paste button covers it.
+  const openInDatasheet = isDatasheetOpen ? selectedFeature : null;
 
   // The one stored change set that has somewhere to go. Only Leuchte offers
   // copy/paste today, so this resolves to that type or to nothing at all; the
@@ -45,12 +58,16 @@ const PasteChangesToHighlightsButton = () => {
     for (const [featureType, changeSet] of Object.entries(repeatableChanges)) {
       const target = getBatchPasteTarget(featureType);
       if (!target) continue;
-      const features = filterPasteTargets(activeHighlights, featureType);
+      const features = filterPasteTargets(
+        activeHighlights,
+        featureType,
+        openInDatasheet
+      );
       if (features.length === 0) continue;
       return { featureType, changeSet, features, label: target.label };
     }
     return null;
-  }, [repeatableChanges, activeHighlights]);
+  }, [repeatableChanges, activeHighlights, openInDatasheet]);
 
   if (isReadOnly || !jwt || !job) return null;
 
