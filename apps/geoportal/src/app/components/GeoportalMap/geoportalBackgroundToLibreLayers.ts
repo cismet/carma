@@ -20,16 +20,19 @@ const isTransparent = (value: unknown): boolean => {
 };
 
 export const geoportalBackgroundToLibreLayers = (
-  backgroundLayer: BackgroundLayer | null | undefined
+  backgroundLayer: BackgroundLayer | null | undefined,
+  extraNamedLayers?: Record<string, NamedLayerConfig>
 ): LibreLayer[] => {
   if (!backgroundLayer || !backgroundLayer.visible) {
     return [];
   }
 
   const result: LibreLayer[] = [];
-  const namedLayers = (
-    defaultLayerConf as { namedLayers: Record<string, NamedLayerConfig> }
-  ).namedLayers;
+  const namedLayers = {
+    ...(defaultLayerConf as { namedLayers: Record<string, NamedLayerConfig> })
+      .namedLayers,
+    ...extraNamedLayers,
+  };
   const layerOpacity = backgroundLayer.opacity ?? 1;
   // All named layers of a background spec belong to the single background
   // button, so they share one id and their loading states aggregate.

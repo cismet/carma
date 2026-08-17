@@ -5,18 +5,19 @@ import type { LibreLayer } from "@carma-mapping/core";
 
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
 import { geoportalLayersToLibreLayers } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
-import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { getLayers } from "../../store/slices/mapping";
+import { useRouteBackground } from "../useRouteBackground";
 
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
-  const backgroundLayer = useSelector(getBackgroundLayer);
+  const { backgroundLayer, namedLayers } = useRouteBackground();
 
   const computedLibreLayers = useMemo(
     () => [
-      ...geoportalBackgroundToLibreLayers(backgroundLayer),
+      ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers),
       ...geoportalLayersToLibreLayers(geoportalLayers),
     ],
-    [backgroundLayer, geoportalLayers]
+    [backgroundLayer, namedLayers, geoportalLayers]
   );
 
   const libreLayersRef = useRef(computedLibreLayers);

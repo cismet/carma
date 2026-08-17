@@ -54,7 +54,10 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
-import { getLayers as getBackgroundLayers } from "@carma-appframeworks/portals";
+import {
+  defaultLayerConf,
+  getLayers as getBackgroundLayers,
+} from "@carma-appframeworks/portals";
 import { CarmaMap } from "@carma-mapping/core";
 import { useLibreContext } from "@carma-mapping/contexts";
 import {
@@ -75,6 +78,7 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
+import { useRouteBackground } from "../../hooks/useRouteBackground.ts";
 import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
 import { useMaplibreTransitionShim } from "../../hooks/libre/useMaplibreTransitionShim.ts";
 import { useLibreMapSelectionHandler } from "../../hooks/libre/useLibreMapClickHandler.ts";
@@ -98,7 +102,6 @@ import {
   setSelectedFeature,
 } from "../../store/slices/features.ts";
 import {
-  getBackgroundLayer,
   getLayers,
   getLayersIdle,
   getShowHamburgerMenu,
@@ -175,7 +178,8 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const selectionSemanticIdentifierRef = useRef<string | undefined>(undefined);
 
   // State and Selectors
-  const backgroundLayer = useSelector(getBackgroundLayer);
+  const { backgroundLayer, namedLayers: routeNamedLayers } =
+    useRouteBackground();
   const {
     //activeFramework: currentFramework, trigger re-renders on framework change
     // State values that trigger re-renders when framework changes
@@ -747,7 +751,20 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
             backgroundLayer.visible &&
             getBackgroundLayers(
               backgroundLayer.layers,
-              backgroundLayer.opacity
+              backgroundLayer.opacity,
+              "default",
+              { layerSeparator: "|" },
+              // only routes with their own base maps bring named services of
+              // their own; without them the shared config resolves the names
+              routeNamedLayers
+                ? {
+                    ...defaultLayerConf,
+                    namedLayers: {
+                      ...defaultLayerConf.namedLayers,
+                      ...routeNamedLayers,
+                    },
+                  }
+                : undefined
             )}
 
           {useCreateCismapLayers(layers, createLayerOptions)}

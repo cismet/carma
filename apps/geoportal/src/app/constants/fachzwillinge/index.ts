@@ -13,6 +13,7 @@ import {
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
 import type { AddonEntry } from "@carma-mapping/addons";
+import type { NamedLayers } from "@carma-appframeworks/portals";
 import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
 
 import {
@@ -65,6 +66,18 @@ export type FachzwillingAvailability = {
   featureFlag?: string;
 };
 
+/**
+ * Route-scoped base map overrides. They are applied where the background is
+ * turned into map layers (useRouteBackground) and never dispatched, so the
+ * store keeps saying what the app-wide catalog says. That matters because the
+ * background is persisted: a route that wrote its own layer string into the
+ * store would still be showing it after navigating back to the plain geoportal.
+ */
+export type FachzwillingBackgroundConfig = {
+  namedLayers?: NamedLayers;
+  layerMap?: Record<string, { layers: string }>;
+};
+
 type FachzwillingRouteBase = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
@@ -107,6 +120,7 @@ type FachzwillingRouteBase = {
    */
   perspectives?: WorkflowPerspective<AddonEntry>[];
   addons?: AddonEntry[];
+  background?: FachzwillingBackgroundConfig;
 };
 
 /** route reachable through the catalog, so it needs a card and its filters */

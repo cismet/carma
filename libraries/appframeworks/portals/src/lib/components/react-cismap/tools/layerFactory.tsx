@@ -455,18 +455,19 @@ export const defaultLayerConf = {
     },
     our_basemap_grey: {
       type: "vector",
-      style:
-        "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
+      style: "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
     },
     our_basemap_color: {
       type: "vector",
-      style:
-        "https://tiles.cismet.de/basemap_de/basemap_color.style.json",
+      style: "https://tiles.cismet.de/basemap_de/basemap_color.style.json",
     },
     our_basemap_relief: {
       type: "vector",
-      style:
-        "https://tiles.cismet.de/basemap_de/basemap_relief.style.json",
+      style: "https://tiles.cismet.de/basemap_de/basemap_relief.style.json",
+    },
+    bergisches_staedtedreieck: {
+      type: "vector",
+      style: "https://tiles.cismet.de/bergisches_staedtedreieck/style.json",
     },
     amtlich: {
       type: "tiles",

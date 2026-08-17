@@ -2,6 +2,7 @@ import { gesundheitFachzwilling } from "./gesundheit";
 import { bodenFachzwilling } from "./boden";
 import { outletFachzwilling } from "./outlet";
 import { addonFachzwilling } from "./addon";
+import { kommunalePlanungFachzwilling } from "./kommunalePlanung";
 
 import type { FachzwillingRoute } from ".";
 
@@ -18,4 +19,5 @@ export const allFachzwillingRoutes: FachzwillingRoute[] = [
   bodenFachzwilling,
   outletFachzwilling,
   addonFachzwilling,
+  kommunalePlanungFachzwilling,
 ];

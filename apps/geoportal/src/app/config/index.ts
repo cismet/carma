@@ -128,6 +128,10 @@ export const defaultLayerConfig: DefaultLayerConfig = {
       style:
         "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
     },
+    bergisches_staedtedreieck: {
+      type: "vector",
+      style: "https://tiles.cismet.de/bergisches_staedtedreieck/style.json",
+    },
     amtlichBasiskarte: {
       type: "wmts",
       // url: "https://maps.wuppertal.de/karten",
