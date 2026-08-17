@@ -312,12 +312,15 @@ const FormHeader = ({
                   Icon-only by request; the aria-labels are for screen readers
                   and never painted.
 
+                  The whole group is hidden while the form has no field change,
+                  so it appears together with the draft badge next to it.
+
                   Paste carries a badge with the clipboard's field count, and
                   is inert while that count is 0 — with nothing stored there is
                   nothing to stamp on. Copy stays live either way: it reports
                   "nothing changed" itself, which is more useful than a button
                   that looks broken. */}
-              {!readOnly && showRepeatableChangesButtons && (
+              {!readOnly && showRepeatableChangesButtons && editedCount > 0 && (
                 <>
                   <button
                     type="button"
