@@ -17,7 +17,7 @@ import {
   polygon as turfPolygon,
 } from "@turf/turf";
 import { LassoDrawingManager } from "../lib/LassoDrawingManager";
-import type { DrawShape } from "../lib/LassoDrawingManager";
+import type { DrawShape, RectSize } from "../lib/LassoDrawingManager";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 
 export interface UseLassoHighlightOptions {
@@ -31,10 +31,14 @@ export interface UseLassoHighlightOptions {
   shape?: DrawShape;
   /** Radius in metres a clicked circle gets. */
   circleRadius?: number;
-  /** Dragged radii snap to a multiple of this, in metres. */
+  /** Ground size in metres a clicked rectangle gets. */
+  rectSize?: RectSize;
+  /** Dragged radii and edge lengths snap to a multiple of this, in metres. */
   radiusStep?: number;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
+  /** Reports the size a rectangle drag settled on. */
+  onRectSizeChange?: (size: RectSize) => void;
   /** Filter results to specific sources. If omitted, all rendered features are candidates. */
   sources?: Array<{ source: string; sourceLayers: string[] }>;
   /** Called when the user presses Escape to exit lasso mode. */
@@ -60,8 +64,10 @@ export const useLassoHighlight = ({
   active,
   shape = "lasso",
   circleRadius,
+  rectSize,
   radiusStep,
   onCircleRadiusChange,
+  onRectSizeChange,
   sources,
   onDeactivate,
   onToggle,
@@ -88,6 +94,8 @@ export const useLassoHighlight = ({
   onMatchedRef.current = onMatched;
   const onCircleRadiusChangeRef = useRef(onCircleRadiusChange);
   onCircleRadiusChangeRef.current = onCircleRadiusChange;
+  const onRectSizeChangeRef = useRef(onRectSizeChange);
+  onRectSizeChangeRef.current = onRectSizeChange;
 
   const handleDrawComplete = useCallback(
     (lassoPolygon: Polygon) => {
@@ -239,6 +247,8 @@ export const useLassoHighlight = ({
   shapeRef.current = shape;
   const circleRadiusRef = useRef(circleRadius);
   circleRadiusRef.current = circleRadius;
+  const rectSizeRef = useRef(rectSize);
+  rectSizeRef.current = rectSize;
   const radiusStepRef = useRef(radiusStep);
   radiusStepRef.current = radiusStep;
 
@@ -251,8 +261,10 @@ export const useLassoHighlight = ({
       onDrawCancel: handleDrawCancel,
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,
+      rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
+      onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
     managerRef.current = manager;
 
@@ -271,6 +283,14 @@ export const useLassoHighlight = ({
       managerRef.current?.setCircleRadius(circleRadius);
     }
   }, [circleRadius]);
+
+  const rectWidth = rectSize?.width;
+  const rectHeight = rectSize?.height;
+  useEffect(() => {
+    if (rectWidth != null && rectHeight != null) {
+      managerRef.current?.setRectSize({ width: rectWidth, height: rectHeight });
+    }
+  }, [rectWidth, rectHeight]);
 
   // Create/destroy passive Alt+drag manager (always-on when map exists).
   // Activate immediately unless explicit lasso mode is already on.

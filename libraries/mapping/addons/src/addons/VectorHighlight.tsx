@@ -5,8 +5,10 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   faCircleNotch,
   faDrawPolygon,
+  faSquare,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { InputNumber, Popover, Radio } from "antd";
 
@@ -17,8 +19,10 @@ import {
   useLassoHighlight,
   DEFAULT_CIRCLE_RADIUS,
   DEFAULT_CIRCLE_RADIUS_STEP,
+  DEFAULT_RECT_WIDTH,
+  DEFAULT_RECT_HEIGHT,
 } from "@carma-mapping/engines/maplibre";
-import type { DrawShape } from "@carma-mapping/engines/maplibre";
+import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
 import {
   Control,
   ControlButtonStyler,
@@ -55,6 +59,8 @@ export type HighlightModeState = {
   shape?: DrawShape;
   /** radius in metres a clicked circle gets */
   circleRadius?: number;
+  /** ground size in metres a clicked rectangle gets */
+  rectSize?: RectSize;
 };
 
 export type VectorHighlightConfig = {
@@ -73,15 +79,17 @@ export type VectorHighlightConfig = {
   lasso?: boolean;
   /**
    * Shapes the hover panel offers. The first one is preselected.
-   * Default: ["lasso", "circle"].
+   * Default: ["lasso", "circle", "rect"].
    *
-   * A circle differs from the lasso in being exact and repeatable: a 250 m
-   * circle can be placed again, identically, anywhere else.
+   * Circle and rectangle differ from the lasso in being exact and repeatable:
+   * a 250 m circle can be placed again, identically, anywhere else.
    */
   shapes?: DrawShape[];
   /** Radius in metres a clicked circle starts with. Default: 250 */
   defaultRadius?: number;
-  /** Dragged radii snap to a multiple of this, in metres. Default: 5 */
+  /** Ground size in metres a clicked rectangle starts with. Default: 250 x 250 */
+  defaultRectSize?: RectSize;
+  /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
   /** Render the start/stop buttons in the control column. Default: true */
   showControl?: boolean;
@@ -103,7 +111,7 @@ const DEFAULT_STATE_KEY = "highlighted";
 /** cismap's selection border and the basemap keep their paint */
 const DEFAULT_EXCLUDED = ["selection", "background"];
 /** lasso first: the freehand shape stays the default it has always been */
-const DEFAULT_SHAPES: DrawShape[] = ["lasso", "circle"];
+const DEFAULT_SHAPES: DrawShape[] = ["lasso", "circle", "rect"];
 /** geoportal's topleft column: measurement is 60, terrain 80 */
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 const DEFAULT_CONTROL_ORDER = 70;
@@ -409,6 +417,13 @@ const useCombinedGeometryHighlight = (
 const SHAPE_LABELS: Record<DrawShape, string> = {
   lasso: "Lasso",
   circle: "Kreis",
+  rect: "Rechteck",
+};
+
+const SHAPE_ICONS: Record<DrawShape, IconDefinition> = {
+  lasso: faDrawPolygon,
+  circle: faCircleNotch,
+  rect: faSquare,
 };
 
 /**
@@ -416,22 +431,55 @@ const SHAPE_LABELS: Record<DrawShape, string> = {
  * circle uses. Typing a radius is what makes the circle repeatable — the same
  * number places the same area again anywhere on the map.
  */
+const SizeField = ({
+  label,
+  value,
+  step,
+  onChange,
+  testId,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  onChange: (value: number) => void;
+  testId: string;
+}) => (
+  <div className="flex items-center gap-2 text-xs">
+    <span className="shrink-0 w-12">{label}</span>
+    <InputNumber
+      size="small"
+      min={step}
+      step={step}
+      value={value}
+      onChange={(next) => {
+        if (typeof next === "number" && next > 0) onChange(next);
+      }}
+      addonAfter="m"
+      data-test-id={testId}
+    />
+  </div>
+);
+
 const ShapePanel = ({
   isOn,
   shapes,
   shape,
   radius,
+  rectSize,
   radiusStep,
   onShapeChange,
   onRadiusChange,
+  onRectSizeChange,
 }: {
   isOn: boolean;
   shapes: DrawShape[];
   shape: DrawShape;
   radius: number;
+  rectSize: RectSize;
   radiusStep: number;
   onShapeChange: (shape: DrawShape) => void;
   onRadiusChange: (radius: number) => void;
+  onRectSizeChange: (size: RectSize) => void;
 }) => (
   <div className="flex flex-col gap-2 min-w-[180px]">
     <span className="text-xs text-gray-500">
@@ -453,20 +501,31 @@ const ShapePanel = ({
       </div>
     </Radio.Group>
     {shape === "circle" && (
-      <div className="flex items-center gap-2 text-xs">
-        <span className="shrink-0">Radius</span>
-        <InputNumber
-          size="small"
-          min={radiusStep}
+      <SizeField
+        label="Radius"
+        value={radius}
+        step={radiusStep}
+        onChange={onRadiusChange}
+        testId="vector-highlight-radius"
+      />
+    )}
+    {shape === "rect" && (
+      <>
+        <SizeField
+          label="Breite"
+          value={rectSize.width}
           step={radiusStep}
-          value={radius}
-          onChange={(value) => {
-            if (typeof value === "number" && value > 0) onRadiusChange(value);
-          }}
-          addonAfter="m"
-          data-test-id="vector-highlight-radius"
+          onChange={(width) => onRectSizeChange({ ...rectSize, width })}
+          testId="vector-highlight-rect-width"
         />
-      </div>
+        <SizeField
+          label="Höhe"
+          value={rectSize.height}
+          step={radiusStep}
+          onChange={(height) => onRectSizeChange({ ...rectSize, height })}
+          testId="vector-highlight-rect-height"
+        />
+      </>
     )}
   </div>
 );
@@ -503,9 +562,7 @@ const HighlightModeButton = ({
       dataTestId="vector-highlight-control"
     >
       <FontAwesomeIcon
-        icon={
-          isOn ? faXmark : shape === "circle" ? faCircleNotch : faDrawPolygon
-        }
+        icon={isOn ? faXmark : SHAPE_ICONS[shape]}
         style={isOn ? { color: ACTIVE_COLOR } : undefined}
       />
     </ControlButtonStyler>
@@ -529,6 +586,7 @@ export const VectorHighlight = ({
     excludeCombinedLayers,
     shapes,
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
+    defaultRectSize,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
   } = config;
 
@@ -551,6 +609,18 @@ export const VectorHighlight = ({
   // restart within the route and die with it, like the mode itself
   const shape = mode?.shape ?? availableShapes[0] ?? "lasso";
   const circleRadius = mode?.circleRadius ?? defaultRadius;
+  // key on the numbers: route configs pass a fresh object per render
+  const configuredWidth = defaultRectSize?.width ?? DEFAULT_RECT_WIDTH;
+  const configuredHeight = defaultRectSize?.height ?? DEFAULT_RECT_HEIGHT;
+  const stateWidth = mode?.rectSize?.width;
+  const stateHeight = mode?.rectSize?.height;
+  const rectSize = useMemo(
+    () => ({
+      width: stateWidth ?? configuredWidth,
+      height: stateHeight ?? configuredHeight,
+    }),
+    [stateWidth, stateHeight, configuredWidth, configuredHeight]
+  );
 
   const setShape = useCallback(
     (next: DrawShape) =>
@@ -565,6 +635,14 @@ export const VectorHighlight = ({
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         circleRadius: next,
+      })),
+    [setMode]
+  );
+  const setRectSize = useCallback(
+    (next: RectSize) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        rectSize: next,
       })),
     [setMode]
   );
@@ -614,8 +692,10 @@ export const VectorHighlight = ({
     active: lasso && isOn,
     shape,
     circleRadius,
+    rectSize,
     radiusStep,
     onCircleRadiusChange: setCircleRadius,
+    onRectSizeChange: setRectSize,
     onDeactivate: endMode,
   });
 
@@ -699,9 +779,11 @@ export const VectorHighlight = ({
             shapes={availableShapes}
             shape={shape}
             radius={circleRadius}
+            rectSize={rectSize}
             radiusStep={radiusStep}
             onShapeChange={setShape}
             onRadiusChange={setCircleRadius}
+            onRectSizeChange={setRectSize}
           />
         }
       />

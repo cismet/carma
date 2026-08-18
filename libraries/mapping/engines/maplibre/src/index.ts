@@ -160,10 +160,13 @@ export { LassoDrawingManager } from "./lib/LassoDrawingManager";
 export type {
   LassoDrawingManagerOptions,
   DrawShape,
+  RectSize,
 } from "./lib/LassoDrawingManager";
 export {
   DEFAULT_CIRCLE_RADIUS,
   DEFAULT_CIRCLE_RADIUS_STEP,
+  DEFAULT_RECT_WIDTH,
+  DEFAULT_RECT_HEIGHT,
 } from "./lib/LassoDrawingManager";
 
 // Selection management
