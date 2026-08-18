@@ -38,7 +38,7 @@ so the second folder is the list of what actually exists:
 | `addons/CameraRestriction.tsx` | whether the maplibre camera stays north-up and flat    |
 | `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
-| `addons/HomeOverride.tsx`   | moves the home button's target for this route            |
+| `addons/HomeOverride.tsx`   | moves the home button's target and tooltip for this route |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 
@@ -158,11 +158,11 @@ public api instead of importing the store:
 
 ```tsx
 useEffect(() => {
-  carma.mapping.setHomeOverride({ lat, lng, zoom });
+  carma.mapping.setHomeOverride({ lat, lng, zoom, tooltip });
   return () => {
     carma.mapping.setHomeOverride(null);
   };
-}, [carma, lat, lng, zoom]);
+}, [carma, lat, lng, zoom, tooltip]);
 ```
 
 The bridge in `@carma-mapping/portals` implements `setHomeOverride` by writing

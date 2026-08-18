@@ -26,13 +26,14 @@ export type HomeOverrideConfig = {
   pitch?: number;
   /** camera bearing in degrees, 3d only */
   bearing?: number;
+  tooltip?: string;
 };
 
 export const HomeOverride = ({
   config,
   carma,
 }: AddonComponentProps<"homeOverride">) => {
-  const { lat, lng, zoom, altitude, pitch, bearing } = config ?? {};
+  const { lat, lng, zoom, altitude, pitch, bearing, tooltip } = config ?? {};
 
   useEffect(() => {
     if (lat === undefined || lng === undefined) {
@@ -45,11 +46,12 @@ export const HomeOverride = ({
       ...(altitude === undefined ? {} : { altitude }),
       ...(pitch === undefined ? {} : { pitch }),
       ...(bearing === undefined ? {} : { bearing }),
+      ...(tooltip === undefined ? {} : { tooltip }),
     });
     return () => {
       carma.mapping.setHomeOverride(null);
     };
-  }, [carma, lat, lng, zoom, altitude, pitch, bearing]);
+  }, [carma, lat, lng, zoom, altitude, pitch, bearing, tooltip]);
 
   return null;
 };

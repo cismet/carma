@@ -189,6 +189,7 @@ const MapWrapper = () => {
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,
+    homeTooltip,
   } = useGeoportalHomeValues();
   const handleCesiumHomeClick = useCallback(() => {
     if (!isCesium) return;
@@ -442,7 +443,7 @@ const MapWrapper = () => {
           {!isObliquePreviewVisible && visibleControls.home && (
             <Control position="topleft" order={40}>
               <Tooltip
-                title="Auf Rathaus Barmen positionieren"
+                title={homeTooltip ?? "Auf Rathaus Barmen positionieren"}
                 placement="right"
               >
                 <ControlButtonStyler

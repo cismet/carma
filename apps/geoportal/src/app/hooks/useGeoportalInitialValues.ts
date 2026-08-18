@@ -34,16 +34,14 @@ export const useGeoportalHomeValues = () => {
   // someone may take the home position over via `carma.mapping.setHomeOverride`
   const homeOverride = useHomeViewOverride();
 
-  const homeViewRef = useMemo(
-    () =>
-      homeOverride
-        ? ({
-            ...DEFAULT_HOME_VIEW_REF,
-            ...homeOverride,
-          } satisfies ShareableViewState)
-        : DEFAULT_HOME_VIEW_REF,
-    [homeOverride]
-  );
+  const homeViewRef = useMemo((): ShareableViewState => {
+    if (!homeOverride) {
+      return DEFAULT_HOME_VIEW_REF;
+    }
+    // the tooltip travels with the override but is not part of the view
+    const { tooltip: _tooltip, ...view } = homeOverride;
+    return { ...DEFAULT_HOME_VIEW_REF, ...view };
+  }, [homeOverride]);
 
   const homeCenter = useMemo(
     () => [homeViewRef.lat, homeViewRef.lng] as [number, number],
@@ -79,6 +77,8 @@ export const useGeoportalHomeValues = () => {
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,
+    /** an override's tooltip, undefined while the app's own home applies */
+    homeTooltip: homeOverride?.tooltip,
     homeValidationCenter,
   };
 };

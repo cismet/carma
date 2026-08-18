@@ -3,7 +3,9 @@ import { useSyncExternalStore } from "react";
 import type { ShareableViewState } from "../../types";
 
 export type HomeViewOverride = Partial<ShareableViewState> &
-  Pick<ShareableViewState, "lat" | "lng">;
+  Pick<ShareableViewState, "lat" | "lng"> & {
+    tooltip?: string;
+  };
 
 let current: HomeViewOverride | null = null;
 const listeners = new Set<() => void>();
