@@ -26,7 +26,12 @@ export const kommunalePlanungFachzwilling: FachzwillingRoute = {
       values: planungKeywords,
     },
   ],
-  addons: [],
+  addons: [
+    {
+      kind: "homeOverride",
+      config: { lat: 51.2178674, lng: 7.178007, zoom: 12.281 },
+    },
+  ],
   background: {
     layerMap: {
       stadtplan: { layers: "amtlich@90|bergisches_staedtedreieck@100" },

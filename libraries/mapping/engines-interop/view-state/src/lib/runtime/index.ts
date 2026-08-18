@@ -100,6 +100,13 @@ export {
 // Cesium initial camera (pure functions, no React)
 export { readInitialCameraViewFromViewState } from "../adapters/cesium-initial-camera";
 
+export {
+  getHomeViewOverride,
+  setHomeViewOverride,
+  useHomeViewOverride,
+  type HomeViewOverride,
+} from "./overrides/homeViewOverride";
+
 // Runtime integrations (engine side-effects / orchestration)
 export { flyViewStateInCesium } from "./integrations/flyViewStateInCesium";
 export { useInitialCesiumCameraView } from "./integrations/useInitialCesiumCameraView";

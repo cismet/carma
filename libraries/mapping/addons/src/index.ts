@@ -46,6 +46,10 @@ export {
 } from "./addons/CameraRestriction";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
+export {
+  HomeOverride,
+  type HomeOverrideConfig,
+} from "./addons/HomeOverride";
 export { VectorHighlight } from "./addons/VectorHighlight";
 export type {
   HighlightModeState,

@@ -21,6 +21,10 @@ import {
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
 import {
+  HomeOverride,
+  type HomeOverrideConfig,
+} from "../addons/HomeOverride";
+import {
   InfoBoxZoomImage,
   type InfoBoxImageState,
   type InfoBoxZoomImageConfig,
@@ -55,6 +59,7 @@ export type AddonConfigMap = {
   cameraRestriction: CameraRestrictionConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
+  homeOverride: HomeOverrideConfig;
   vectorHighlight: VectorHighlightConfig;
   layerVisibility: LayerVisibilityConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
@@ -191,6 +196,7 @@ export const addonRegistry: {
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
+  homeOverride: { Component: HomeOverride },
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],

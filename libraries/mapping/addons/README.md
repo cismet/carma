@@ -38,6 +38,7 @@ so the second folder is the list of what actually exists:
 | `addons/CameraRestriction.tsx` | whether the maplibre camera stays north-up and flat    |
 | `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
+| `addons/HomeOverride.tsx`   | moves the home button's target for this route            |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 
@@ -149,6 +150,25 @@ that depend on a locked camera (print) stay safe from route configuration.
 
 Use this shape rather than an addon-state channel whenever the consumer is the
 app or the engine; channels are for addons talking to each other.
+
+`homeOverride` is the same shape one level up: the decision (where the home
+button leads) is not the engine's but the app's, so the override lives in
+`@carma-mapping/engines-interop/view-state` and the addon sets it through the
+public api instead of importing the store:
+
+```tsx
+useEffect(() => {
+  carma.mapping.setHomeOverride({ lat, lng, zoom });
+  return () => {
+    carma.mapping.setHomeOverride(null);
+  };
+}, [carma, lat, lng, zoom]);
+```
+
+The bridge in `@carma-mapping/portals` implements `setHomeOverride` by writing
+the override store; the app's home button reads it with `useHomeViewOverride()`
+and merges it over its own home view, so fields the caller omits stay the app's.
+That keeps the addon free of app imports and the app free of addon imports.
 
 ## Shared addon state
 
