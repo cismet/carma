@@ -10,6 +10,7 @@ import {
   type CatalogServiceCategory,
   type Item,
 } from "@carma-mapping/layers";
+import { setHomeViewOverride } from "@carma-mapping/engines-interop/view-state";
 import { registerMapping, type MapAdapter } from "@carma-api";
 
 import { useMapStyle } from "../../contexts/MapStyleProvider";
@@ -94,6 +95,9 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         if (mode === "3d") void requestTransitionToCesium();
         else void requestTransitionToLeaflet();
       },
+      // the app's home button reads this override with `useHomeViewOverride`
+      // and merges it over its own home view
+      setHomeOverride: (view) => setHomeViewOverride(view),
 
       // 2d (leaflet) ---------------------------------------------------------
       getPosition2D: () => {

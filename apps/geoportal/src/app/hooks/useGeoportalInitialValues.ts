@@ -4,7 +4,9 @@ import { Cartesian3 } from "@carma-cesium";
 
 import {
   readLeafletHomeViewState,
+  useHomeViewOverride,
   useInitialCesiumCameraView,
+  type ShareableViewState,
 } from "@carma-mapping/engines-interop/view-state";
 
 import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
@@ -29,30 +31,51 @@ export const useGeoportalInitialValues = () => {
 };
 
 export const useGeoportalHomeValues = () => {
-  const homeCenter = useMemo(
+  // someone may take the home position over via `carma.mapping.setHomeOverride`
+  const homeOverride = useHomeViewOverride();
+
+  const homeViewRef = useMemo(
     () =>
-      [DEFAULT_HOME_VIEW_REF.lat, DEFAULT_HOME_VIEW_REF.lng] as [
-        number,
-        number
-      ],
-    []
+      homeOverride
+        ? ({
+            ...DEFAULT_HOME_VIEW_REF,
+            ...homeOverride,
+          } satisfies ShareableViewState)
+        : DEFAULT_HOME_VIEW_REF,
+    [homeOverride]
   );
 
-  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
+  const homeCenter = useMemo(
+    () => [homeViewRef.lat, homeViewRef.lng] as [number, number],
+    [homeViewRef]
+  );
+
+  const homeLeafletZoom = homeViewRef.zoom ?? 18;
   const homeMaplibreZoom = homeLeafletZoom - 1;
 
   const homeValidationCenter = useMemo(
     () =>
       Cartesian3.fromDegrees(
-        DEFAULT_HOME_VIEW_REF.lng,
-        DEFAULT_HOME_VIEW_REF.lat,
-        DEFAULT_HOME_VIEW_REF.altitude
+        homeViewRef.lng,
+        homeViewRef.lat,
+        homeViewRef.altitude
       ),
-    []
+    [homeViewRef]
+  );
+
+  const homeViewState = useMemo(
+    () =>
+      homeViewRef === DEFAULT_HOME_VIEW_REF
+        ? DEFAULT_HOME_VIEW_STATE
+        : readLeafletHomeViewState(homeViewRef, {
+            sourceId: "geoportal/home-override",
+            defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+          }),
+    [homeViewRef]
   );
 
   return {
-    defaultHomeViewState: DEFAULT_HOME_VIEW_STATE,
+    defaultHomeViewState: homeViewState,
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,

@@ -29,6 +29,7 @@ export type {
   Mapping2DFacade,
   Mapping3DFacade,
   MapMode,
+  HomeView,
   Position2D,
   CameraPosition3D,
   BackgroundLayerInfo,

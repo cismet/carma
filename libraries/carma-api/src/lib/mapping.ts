@@ -15,6 +15,18 @@ export type CameraPosition3D = {
   roll: number;
 };
 
+export type HomeView = {
+  lat: number;
+  lng: number;
+  zoom?: number;
+  /** ground altitude in meters at that position, for the 3d camera */
+  altitude?: number;
+  /** camera pitch in degrees, 3d only */
+  pitch?: number;
+  /** camera bearing in degrees, 3d only */
+  bearing?: number;
+};
+
 /**
  * A switchable base map, as returned by `getBackgroundLayers`. `id` is what you
  * pass to `setBackgroundLayer`; `group` is the base-map group it belongs to
@@ -36,6 +48,7 @@ export interface MapAdapter {
   // mode (cross-cutting) ---------------------------------------------------
   getMode: () => MapMode | null;
   setMode: (mode: MapMode) => void;
+  setHomeOverride?: (view: HomeView | null) => void;
 
   // 2d (leaflet) -----------------------------------------------------------
   getPosition2D: () => Position2D | null;
@@ -67,6 +80,7 @@ export interface MapAdapter {
 /** Public shape seen by callers of `carma.mapping`. */
 export interface MappingFacade {
   getMode: () => MapMode | null;
+  setHomeOverride: (view: HomeView | null) => void;
 }
 
 /** Public shape seen by callers of `carma.mapping2D`. */
@@ -118,6 +132,7 @@ export const registerMapping = (adapter: MapAdapter | null): void => {
 
 export const mapping: MappingFacade = {
   getMode: () => getAdapter()?.getMode() ?? null,
+  setHomeOverride: (view) => getAdapter()?.setHomeOverride?.(view),
 };
 
 export const mapping2D: Mapping2DFacade = {

@@ -13,6 +13,8 @@ the facades delegate every call into the registered adapter.
 import { carma } from "@carma-api";
 
 carma.mapping.getMode();                     // "2d" | "3d" | null
+carma.mapping.setHomeOverride({ lat, lng, zoom }); // move the home button's target
+carma.mapping.setHomeOverride(null);         // hand the home position back to the app
 
 // 2D (leaflet)
 carma.mapping2D.activate();
