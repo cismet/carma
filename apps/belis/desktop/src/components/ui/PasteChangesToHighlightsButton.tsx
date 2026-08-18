@@ -99,12 +99,21 @@ const PasteChangesToHighlightsButton = () => {
         dispatch,
         getDrafts: () => store.getState().featuresForms?.drafts ?? {},
       });
-      // One message for both outcomes — a feature that got a draft and one that
-      // already carried the values are the same thing to the user: the copied
-      // changes are now in place. Emitted once, not once per bucket, so the
-      // same sentence never stacks twice.
-      if (result.applied > 0 || result.unchanged > 0) {
-        void message.success("Änderungen wurden angewendet");
+      // One message per run, but the two outcomes are not interchangeable: a
+      // feature that already carried the values got no draft (setDraft discards
+      // a draft that matches its baseline), so counting it as "angelegt" would
+      // report work that did not happen — the reason a paste onto an already
+      // saved selection looked successful while the Entwürfe tab stayed away.
+      // Drafts win the sentence when there are any; a run that changed nothing
+      // says so in neutral info style rather than success.
+      if (result.applied > 0) {
+        void message.success(
+          `${result.applied} ${
+            result.applied === 1 ? "Entwurf" : "Entwürfe"
+          } angelegt`
+        );
+      } else if (result.unchanged > 0) {
+        void message.info("Keine Änderungen nötig");
       }
       if (result.failed > 0) {
         void message.error(
