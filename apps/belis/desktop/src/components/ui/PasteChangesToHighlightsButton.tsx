@@ -99,15 +99,12 @@ const PasteChangesToHighlightsButton = () => {
         dispatch,
         getDrafts: () => store.getState().featuresForms?.drafts ?? {},
       });
-      if (result.applied > 0) {
-        void message.success(
-          `${result.applied} Entwürfe mit den kopierten Werten angelegt`
-        );
-      }
-      if (result.unchanged > 0) {
-        void message.info(
-          `${result.unchanged} ${job.label} trugen die Werte bereits`
-        );
+      // One message for both outcomes — a feature that got a draft and one that
+      // already carried the values are the same thing to the user: the copied
+      // changes are now in place. Emitted once, not once per bucket, so the
+      // same sentence never stacks twice.
+      if (result.applied > 0 || result.unchanged > 0) {
+        void message.success("Änderungen wurden angewendet");
       }
       if (result.failed > 0) {
         void message.error(
