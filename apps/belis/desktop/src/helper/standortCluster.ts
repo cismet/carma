@@ -18,6 +18,10 @@ import type { SidebarFeature } from "../components/ui/BelisSidebar";
  * can straddle two sources: a tile Standort with a brandnew Leuchte, or the
  * reverse. Always query the ids from `clusterSourceIds`, never just the clicked
  * feature's own source.
+ *
+ * When a feature exists in BOTH sources, the brandnew copy is the one that
+ * matters — see `clusterSourceIds` for why. Every lookup here dedupes by DB pk
+ * in `sourceIds` order, so that order decides which copy a cluster carries.
  */
 
 /**
@@ -42,13 +46,30 @@ export const toSidebarFeature = (
   } as unknown as SidebarFeature;
 };
 
-/** Every source a cluster member may live in, tiles first. */
+/**
+ * Every source a cluster member may live in, BRANDNEW FIRST.
+ *
+ * The order is the dedup preference: a feature present in both sources is taken
+ * from whichever source comes first. That must be the brandnew one, because a
+ * feature only reaches the brandnew FC by being created or edited today — and
+ * whenever that happens its vector-tile copy is *hidden* on the map
+ * (`hiddenOriginalIds`: a brandnew Standort by id, the parent Standort of a
+ * brandnew Leuchte by id, and — via the leuchten cascade — every tile Leuchte
+ * under such a Standort). `querySourceFeatures` reads the tile cache and ignores
+ * layer filters, so the hidden copy is still returned here.
+ *
+ * Preferring it produced a cluster of invisible members: highlight feature-state
+ * was written onto tile features that draw nothing, so a lassoed brandnew
+ * Fachobjekt filled the Highlights tab but left the map fully dimmed and the
+ * Fachobjekte tab (which counts *rendered* highlighted features) at 0. It only
+ * looked right with the "regular" dev toggle off, where no tiles load at all.
+ */
 export const clusterSourceIds = (
   namespacedSource: string,
   brandnewSource?: string
 ): string[] =>
   brandnewSource && brandnewSource !== namespacedSource
-    ? [namespacedSource, brandnewSource]
+    ? [brandnewSource, namespacedSource]
     : [namespacedSource];
 
 /**
