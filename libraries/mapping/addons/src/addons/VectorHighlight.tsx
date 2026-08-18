@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { ReactNode } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { faDrawPolygon, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCircleNotch,
+  faDrawPolygon,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Tooltip } from "antd";
+import { InputNumber, Popover, Radio } from "antd";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
 import type { ToggledFeature } from "@carma-mapping/contexts";
 import {
   useMapHighlighting,
   useLassoHighlight,
+  DEFAULT_CIRCLE_RADIUS,
+  DEFAULT_CIRCLE_RADIUS_STEP,
 } from "@carma-mapping/engines/maplibre";
+import type { DrawShape } from "@carma-mapping/engines/maplibre";
 import {
   Control,
   ControlButtonStyler,
@@ -41,7 +49,13 @@ import type { AddonComponentProps } from "../lib/registry";
  * styles that already dim themselves via `global-state`.
  */
 
-export type HighlightModeState = { isOn: boolean };
+export type HighlightModeState = {
+  isOn: boolean;
+  /** shape the toolbar draws with; the Alt+drag shortcut stays a lasso */
+  shape?: DrawShape;
+  /** radius in metres a clicked circle gets */
+  circleRadius?: number;
+};
 
 export type VectorHighlightConfig = {
   /** Modifier for click-to-toggle; `null` disables it. Default: "alt" */
@@ -57,6 +71,18 @@ export type VectorHighlightConfig = {
    * same way a modifier+click would toggle it. Default: false.
    */
   lasso?: boolean;
+  /**
+   * Shapes the hover panel offers. The first one is preselected.
+   * Default: ["lasso", "circle"].
+   *
+   * A circle differs from the lasso in being exact and repeatable: a 250 m
+   * circle can be placed again, identically, anywhere else.
+   */
+  shapes?: DrawShape[];
+  /** Radius in metres a clicked circle starts with. Default: 250 */
+  defaultRadius?: number;
+  /** Dragged radii snap to a multiple of this, in metres. Default: 5 */
+  radiusStep?: number;
   /** Render the start/stop buttons in the control column. Default: true */
   showControl?: boolean;
   /** Corner the buttons are registered in. Default: "topleft" */
@@ -76,6 +102,8 @@ const DEFAULT_DIM_OPACITY = 0.25;
 const DEFAULT_STATE_KEY = "highlighted";
 /** cismap's selection border and the basemap keep their paint */
 const DEFAULT_EXCLUDED = ["selection", "background"];
+/** lasso first: the freehand shape stays the default it has always been */
+const DEFAULT_SHAPES: DrawShape[] = ["lasso", "circle"];
 /** geoportal's topleft column: measurement is 60, terrain 80 */
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 const DEFAULT_CONTROL_ORDER = 70;
@@ -378,35 +406,110 @@ const useCombinedGeometryHighlight = (
   }, [highlightVersion, enabled, ensureToggledFeatures]);
 };
 
+const SHAPE_LABELS: Record<DrawShape, string> = {
+  lasso: "Lasso",
+  circle: "Kreis",
+};
+
 /**
- * Presentational: lasso icon while off, cross while on.
+ * The panel that opens on hover: which shape a drag draws, plus the radius the
+ * circle uses. Typing a radius is what makes the circle repeatable — the same
+ * number places the same area again anywhere on the map.
+ */
+const ShapePanel = ({
+  isOn,
+  shapes,
+  shape,
+  radius,
+  radiusStep,
+  onShapeChange,
+  onRadiusChange,
+}: {
+  isOn: boolean;
+  shapes: DrawShape[];
+  shape: DrawShape;
+  radius: number;
+  radiusStep: number;
+  onShapeChange: (shape: DrawShape) => void;
+  onRadiusChange: (radius: number) => void;
+}) => (
+  <div className="flex flex-col gap-2 min-w-[180px]">
+    <span className="text-xs text-gray-500">
+      {isOn
+        ? "Klicken zum Ausschalten"
+        : "Klicken zum Einschalten des Highlightingmodus"}
+    </span>
+    <Radio.Group
+      value={shape}
+      onChange={(e) => onShapeChange(e.target.value as DrawShape)}
+      size="small"
+    >
+      <div className="flex flex-col gap-1">
+        {shapes.map((entry) => (
+          <Radio key={entry} value={entry} data-test-id={`shape-${entry}`}>
+            {SHAPE_LABELS[entry]}
+          </Radio>
+        ))}
+      </div>
+    </Radio.Group>
+    {shape === "circle" && (
+      <div className="flex items-center gap-2 text-xs">
+        <span className="shrink-0">Radius</span>
+        <InputNumber
+          size="small"
+          min={radiusStep}
+          step={radiusStep}
+          value={radius}
+          onChange={(value) => {
+            if (typeof value === "number" && value > 0) onRadiusChange(value);
+          }}
+          addonAfter="m"
+          data-test-id="vector-highlight-radius"
+        />
+      </div>
+    )}
+  </div>
+);
+
+/**
+ * Presentational: shape icon while off, cross while on. Hovering opens the
+ * shape panel; the click itself keeps toggling the mode as before.
  *
  * Stateless by design — `Control` re-registers its children on every render, so
  * state kept here would be dropped. The mode lives in the addon.
  */
 const HighlightModeButton = ({
   isOn,
+  shape,
   onClick,
+  panel,
 }: {
   isOn: boolean;
+  shape: DrawShape;
   onClick: () => void;
+  panel: ReactNode;
 }) => (
-  <Tooltip
+  <Popover
+    content={panel}
     title={
       isOn ? "Highlightingmodus ausschalten" : "Highlightingmodus einschalten"
     }
+    trigger="hover"
     placement="right"
+    mouseEnterDelay={0.2}
   >
     <ControlButtonStyler
       onClick={onClick}
       dataTestId="vector-highlight-control"
     >
       <FontAwesomeIcon
-        icon={isOn ? faXmark : faDrawPolygon}
+        icon={
+          isOn ? faXmark : shape === "circle" ? faCircleNotch : faDrawPolygon
+        }
         style={isOn ? { color: ACTIVE_COLOR } : undefined}
       />
     </ControlButtonStyler>
-  </Tooltip>
+  </Popover>
 );
 
 export const VectorHighlight = ({
@@ -424,7 +527,17 @@ export const VectorHighlight = ({
     controlOrder = DEFAULT_CONTROL_ORDER,
     combineLayerGeometries = true,
     excludeCombinedLayers,
+    shapes,
+    defaultRadius = DEFAULT_CIRCLE_RADIUS,
+    radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
   } = config;
+
+  // key on the content: route configs pass a fresh array per render
+  const shapesKey = (shapes ?? DEFAULT_SHAPES).join(" ");
+  const availableShapes = useMemo(
+    () => shapesKey.split(" ") as DrawShape[],
+    [shapesKey]
+  );
 
   const { highlightingActive, setHighlightingActive, clearHighlights } =
     useMapHighlight();
@@ -434,12 +547,34 @@ export const VectorHighlight = ({
   const [mode, setMode] = useAddonState("highlightMode");
   const modeActive = mode?.isOn ?? false;
 
+  // shape and radius are session state, not config: they survive a mode
+  // restart within the route and die with it, like the mode itself
+  const shape = mode?.shape ?? availableShapes[0] ?? "lasso";
+  const circleRadius = mode?.circleRadius ?? defaultRadius;
+
+  const setShape = useCallback(
+    (next: DrawShape) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        shape: next,
+      })),
+    [setMode]
+  );
+  const setCircleRadius = useCallback(
+    (next: number) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        circleRadius: next,
+      })),
+    [setMode]
+  );
+
   /** on when the button, an Alt+click or an Alt+drag started it */
   const isOn = modeActive || highlightingActive;
 
   /** cross button and Escape: clear the highlights, restore the paint */
   const endMode = useCallback(() => {
-    setMode({ isOn: false });
+    setMode((previous) => ({ ...(previous ?? {}), isOn: false }));
     clearHighlights();
     setHighlightingActive(false);
   }, [setMode, clearHighlights, setHighlightingActive]);
@@ -477,6 +612,10 @@ export const VectorHighlight = ({
   useLassoHighlight({
     map: lasso ? libreMap : null,
     active: lasso && isOn,
+    shape,
+    circleRadius,
+    radiusStep,
+    onCircleRadiusChange: setCircleRadius,
     onDeactivate: endMode,
   });
 
@@ -514,7 +653,7 @@ export const VectorHighlight = ({
     const started = !previousHighlightingActive.current && highlightingActive;
     previousHighlightingActive.current = highlightingActive;
     if (started) {
-      setMode({ isOn: true });
+      setMode((previous) => ({ ...(previous ?? {}), isOn: true }));
     }
   }, [highlightingActive, setMode]);
 
@@ -530,7 +669,7 @@ export const VectorHighlight = ({
   // route switch: leave the map in its untouched state
   useEffect(
     () => () => {
-      setMode({ isOn: false });
+      setMode((previous) => ({ ...(previous ?? {}), isOn: false }));
       clearHighlights();
       setHighlightingActive(false);
     },
@@ -548,7 +687,23 @@ export const VectorHighlight = ({
     <Control position={controlPosition} order={controlOrder}>
       <HighlightModeButton
         isOn={isOn}
-        onClick={isOn ? endMode : () => setMode({ isOn: true })}
+        shape={shape}
+        onClick={
+          isOn
+            ? endMode
+            : () => setMode((previous) => ({ ...(previous ?? {}), isOn: true }))
+        }
+        panel={
+          <ShapePanel
+            isOn={isOn}
+            shapes={availableShapes}
+            shape={shape}
+            radius={circleRadius}
+            radiusStep={radiusStep}
+            onShapeChange={setShape}
+            onRadiusChange={setCircleRadius}
+          />
+        }
       />
     </Control>
   );

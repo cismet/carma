@@ -157,7 +157,14 @@ export { stampSourceLayerFromProperty } from "@carma-mapping/utils";
 
 // Lasso drawing
 export { LassoDrawingManager } from "./lib/LassoDrawingManager";
-export type { LassoDrawingManagerOptions } from "./lib/LassoDrawingManager";
+export type {
+  LassoDrawingManagerOptions,
+  DrawShape,
+} from "./lib/LassoDrawingManager";
+export {
+  DEFAULT_CIRCLE_RADIUS,
+  DEFAULT_CIRCLE_RADIUS_STEP,
+} from "./lib/LassoDrawingManager";
 
 // Selection management
 export { SelectionManager } from "./lib/SelectionManager";
