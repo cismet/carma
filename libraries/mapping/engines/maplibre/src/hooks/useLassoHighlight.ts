@@ -17,12 +17,24 @@ import {
   polygon as turfPolygon,
 } from "@turf/turf";
 import { LassoDrawingManager } from "../lib/LassoDrawingManager";
+import type { DrawShape } from "../lib/LassoDrawingManager";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 
 export interface UseLassoHighlightOptions {
   map: MaplibreMap | null;
   /** Whether lasso mode is currently active (controlled by toolbar toggle). */
   active: boolean;
+  /**
+   * Shape the explicit (toolbar-driven) manager draws. The passive Alt+drag
+   * manager always stays a freehand lasso. Default: "lasso"
+   */
+  shape?: DrawShape;
+  /** Radius in metres a clicked circle gets. */
+  circleRadius?: number;
+  /** Dragged radii snap to a multiple of this, in metres. */
+  radiusStep?: number;
+  /** Reports the radius a drag settled on, so the UI can show the new value. */
+  onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Filter results to specific sources. If omitted, all rendered features are candidates. */
   sources?: Array<{ source: string; sourceLayers: string[] }>;
   /** Called when the user presses Escape to exit lasso mode. */
@@ -46,6 +58,10 @@ export interface UseLassoHighlightResult {
 export const useLassoHighlight = ({
   map,
   active,
+  shape = "lasso",
+  circleRadius,
+  radiusStep,
+  onCircleRadiusChange,
   sources,
   onDeactivate,
   onToggle,
@@ -70,6 +86,8 @@ export const useLassoHighlight = ({
   onToggleRef.current = onToggle;
   const onMatchedRef = useRef(onMatched);
   onMatchedRef.current = onMatched;
+  const onCircleRadiusChangeRef = useRef(onCircleRadiusChange);
+  onCircleRadiusChangeRef.current = onCircleRadiusChange;
 
   const handleDrawComplete = useCallback(
     (lassoPolygon: Polygon) => {
@@ -214,7 +232,16 @@ export const useLassoHighlight = ({
     setIsDrawing(false);
   }, []);
 
-  // Create/destroy manager when map changes
+  // Create/destroy manager when map changes. Shape and radius are handed over
+  // as initial values only and updated through setters below, so switching the
+  // shape in the toolbar does not tear the source and its layers down.
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
+  const circleRadiusRef = useRef(circleRadius);
+  circleRadiusRef.current = circleRadius;
+  const radiusStepRef = useRef(radiusStep);
+  radiusStepRef.current = radiusStep;
+
   useEffect(() => {
     if (!map) return;
 
@@ -222,6 +249,10 @@ export const useLassoHighlight = ({
       map,
       onDrawComplete: handleDrawComplete,
       onDrawCancel: handleDrawCancel,
+      shape: shapeRef.current,
+      circleRadius: circleRadiusRef.current,
+      radiusStep: radiusStepRef.current,
+      onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
     });
     managerRef.current = manager;
 
@@ -230,6 +261,16 @@ export const useLassoHighlight = ({
       managerRef.current = null;
     };
   }, [map, handleDrawComplete, handleDrawCancel]);
+
+  useEffect(() => {
+    managerRef.current?.setShape(shape);
+  }, [shape]);
+
+  useEffect(() => {
+    if (circleRadius != null) {
+      managerRef.current?.setCircleRadius(circleRadius);
+    }
+  }, [circleRadius]);
 
   // Create/destroy passive Alt+drag manager (always-on when map exists).
   // Activate immediately unless explicit lasso mode is already on.
