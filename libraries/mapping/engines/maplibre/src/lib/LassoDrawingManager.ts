@@ -1,19 +1,25 @@
 /**
  * LassoDrawingManager - React-agnostic selection-shape drawing on a MapLibre map.
  *
- * Two shapes, both ending in the same `onDrawComplete(polygon)`:
+ * Three shapes, all ending in the same `onDrawComplete(polygon)`:
  *
  * - `"lasso"`: the user holds the mouse button and draws freely (like a pen).
  *   On mouseup the shape auto-closes (first point connected to last).
  * - `"circle"`: mousedown places the centre, the drag sets the radius in real
- *   ground metres. A plain click (no drag) uses the configured radius, so the
- *   very same circle can be placed again somewhere else — that repeatability is
- *   the whole point of the shape.
+ *   ground metres.
+ * - `"rect"`: the drag spans corner to corner, width and height again in real
+ *   ground metres. The edges follow parallels and meridians, so the rectangle
+ *   covers the same ground area wherever it is placed; a screen-aligned one
+ *   would change with the map's rotation and stop being repeatable.
+ *
+ * For circle and rect a plain click (no drag) places the configured size,
+ * centred on the clicked point, so the very same area can be placed again
+ * somewhere else — that repeatability is the whole point of the two shapes.
  *
  * Visual feedback: dashed blue outline + translucent blue fill updated in
- * real-time via a GeoJSON source while the user draws. The circle additionally
- * shows its radius in a small label at the cursor, drawn as plain DOM so a drag
- * never re-renders the React tree around the map.
+ * real-time via a GeoJSON source while the user draws. Circle and rect
+ * additionally show their measurements in a small label at the cursor, drawn as
+ * plain DOM so a drag never re-renders the React tree around the map.
  */
 
 import type {
@@ -28,6 +34,7 @@ import {
   featureCollection,
   circle as turfCircle,
   distance as turfDistance,
+  destination as turfDestination,
 } from "@turf/turf";
 
 const SOURCE_ID = "__carma-lasso-source";
@@ -44,11 +51,19 @@ const CLICK_PX_TOLERANCE = 4;
 
 export const DEFAULT_CIRCLE_RADIUS = 250;
 export const DEFAULT_CIRCLE_RADIUS_STEP = 5;
+export const DEFAULT_RECT_WIDTH = 250;
+export const DEFAULT_RECT_HEIGHT = 250;
 
 export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
 
 /** How the selection area is drawn. */
-export type DrawShape = "lasso" | "circle";
+export type DrawShape = "lasso" | "circle" | "rect";
+
+/** Ground size of the rectangle, in metres. */
+export interface RectSize {
+  width: number;
+  height: number;
+}
 
 export interface LassoDrawingManagerOptions {
   map: MaplibreMap;
@@ -62,10 +77,14 @@ export interface LassoDrawingManagerOptions {
   shape?: DrawShape;
   /** Radius in metres used when the circle is placed by a click. Default: 250 */
   circleRadius?: number;
-  /** Dragged radii snap to a multiple of this, in metres. Default: 5 */
+  /** Ground size in metres used when the rectangle is placed by a click. */
+  rectSize?: RectSize;
+  /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
+  /** Reports the size a rectangle drag settled on. */
+  onRectSizeChange?: (size: RectSize) => void;
 }
 
 export class LassoDrawingManager {
@@ -77,8 +96,10 @@ export class LassoDrawingManager {
 
   private shape: DrawShape;
   private circleRadius: number;
+  private rectSize: RectSize;
   private radiusStep: number;
   private onRadiusChange?: (radiusMeters: number) => void;
+  private onRectSizeChange?: (size: RectSize) => void;
 
   private active = false;
   private drawing = false;
@@ -86,10 +107,19 @@ export class LassoDrawingManager {
   private lastScreenX = 0;
   private lastScreenY = 0;
 
-  /** circle only: centre, whether the drag left the click tolerance, current radius */
-  private center: Position | null = null;
+  /** circle and rect: the mousedown point, whether the drag left the click
+   *  tolerance, and the measurements the gesture currently describes. The
+   *  anchor is the centre for a circle and the first corner for a rectangle. */
+  private anchor: Position | null = null;
   private dragged = false;
   private currentRadius = 0;
+  private currentRect: RectSize = {
+    width: DEFAULT_RECT_WIDTH,
+    height: DEFAULT_RECT_HEIGHT,
+  };
+  /** rect only: which way the drag went from the anchor */
+  private rectSignX = 1;
+  private rectSignY = 1;
   private startScreenX = 0;
   private startScreenY = 0;
   private labelEl: HTMLDivElement | null = null;
@@ -107,8 +137,13 @@ export class LassoDrawingManager {
     this.requireModifier = options.requireModifier ?? null;
     this.shape = options.shape ?? "lasso";
     this.circleRadius = options.circleRadius ?? DEFAULT_CIRCLE_RADIUS;
+    this.rectSize = options.rectSize ?? {
+      width: DEFAULT_RECT_WIDTH,
+      height: DEFAULT_RECT_HEIGHT,
+    };
     this.radiusStep = options.radiusStep ?? DEFAULT_CIRCLE_RADIUS_STEP;
     this.onRadiusChange = options.onRadiusChange;
+    this.onRectSizeChange = options.onRectSizeChange;
   }
 
   /**
@@ -123,6 +158,10 @@ export class LassoDrawingManager {
 
   setCircleRadius(radiusMeters: number): void {
     this.circleRadius = radiusMeters;
+  }
+
+  setRectSize(size: RectSize): void {
+    this.rectSize = size;
   }
 
   activate(): void {
@@ -201,13 +240,15 @@ export class LassoDrawingManager {
     this.startScreenX = e.originalEvent.clientX;
     this.startScreenY = e.originalEvent.clientY;
 
-    if (this.shape === "circle") {
-      // mousedown places the centre; until the pointer leaves the click
-      // tolerance the configured radius is previewed, so a plain click drops
-      // exactly that circle
-      this.center = [e.lngLat.lng, e.lngLat.lat];
+    if (this.shape !== "lasso") {
+      // mousedown sets the anchor; until the pointer leaves the click tolerance
+      // the configured size is previewed, so a plain click drops exactly that
+      this.anchor = [e.lngLat.lng, e.lngLat.lat];
       this.dragged = false;
       this.currentRadius = this.circleRadius;
+      this.currentRect = this.rectSize;
+      this.rectSignX = 1;
+      this.rectSignY = 1;
       this.showLabel(e);
     }
 
@@ -226,8 +267,8 @@ export class LassoDrawingManager {
   private onMouseMove(e: MapMouseEvent): void {
     if (!this.drawing) return;
 
-    if (this.shape === "circle") {
-      this.onCircleMouseMove(e);
+    if (this.shape === "circle" || this.shape === "rect") {
+      this.onSizedShapeMouseMove(e);
       return;
     }
 
@@ -244,29 +285,47 @@ export class LassoDrawingManager {
   }
 
   /** Radius from the ground distance centre -> cursor, snapped to `radiusStep`. */
-  private onCircleMouseMove(e: MapMouseEvent): void {
-    if (!this.center) return;
+  /** Circle radius, or rectangle width and height, from the drag in real metres. */
+  private onSizedShapeMouseMove(e: MapMouseEvent): void {
+    const anchor = this.anchor;
+    if (!anchor) return;
 
     const dx = e.originalEvent.clientX - this.startScreenX;
     const dy = e.originalEvent.clientY - this.startScreenY;
     if (dx * dx + dy * dy < CLICK_PX_TOLERANCE * CLICK_PX_TOLERANCE) {
-      // still within the click tolerance: keep previewing the configured radius
+      // still within the click tolerance: keep previewing the configured size
       this.updateLabel(e);
       this.updateVisual();
       return;
     }
 
     this.dragged = true;
-    const meters = turfDistance(this.center, [e.lngLat.lng, e.lngLat.lat], {
-      units: "meters",
-    });
-    this.currentRadius = this.snapRadius(meters);
+    const cursor: Position = [e.lngLat.lng, e.lngLat.lat];
+
+    if (this.shape === "circle") {
+      this.currentRadius = this.snapMeters(
+        turfDistance(anchor, cursor, { units: "meters" })
+      );
+    } else {
+      // measured along the anchor's parallel and meridian, so width and height
+      // are the real ground lengths of the rectangle's own edges
+      this.currentRect = {
+        width: this.snapMeters(
+          turfDistance(anchor, [cursor[0], anchor[1]], { units: "meters" })
+        ),
+        height: this.snapMeters(
+          turfDistance(anchor, [anchor[0], cursor[1]], { units: "meters" })
+        ),
+      };
+      this.rectSignX = cursor[0] >= anchor[0] ? 1 : -1;
+      this.rectSignY = cursor[1] >= anchor[1] ? 1 : -1;
+    }
 
     this.updateLabel(e);
     this.updateVisual();
   }
 
-  private snapRadius(meters: number): number {
+  private snapMeters(meters: number): number {
     const step = this.radiusStep > 0 ? this.radiusStep : 1;
     return Math.max(step, Math.round(meters / step) * step);
   }
@@ -280,20 +339,24 @@ export class LassoDrawingManager {
     this.map.dragPan.enable();
     this.hideLabel();
 
-    if (this.shape === "circle") {
-      const center = this.center;
-      this.center = null;
-      if (!center) {
+    if (this.shape !== "lasso") {
+      const anchor = this.anchor;
+      this.anchor = null;
+      if (!anchor) {
         this.cancelDraw();
         return;
       }
-      const radius = this.dragged ? this.currentRadius : this.circleRadius;
-      const polygon = this.buildCircle(center, radius);
+      const polygon = this.buildSizedShape(anchor);
       this.clearVisual();
-      // a drag defines the new working radius; the next click repeats it
+      // a drag defines the new working size; the next click repeats it
       if (this.dragged) {
-        this.circleRadius = radius;
-        this.onRadiusChange?.(radius);
+        if (this.shape === "circle") {
+          this.circleRadius = this.currentRadius;
+          this.onRadiusChange?.(this.currentRadius);
+        } else {
+          this.rectSize = this.currentRect;
+          this.onRectSizeChange?.(this.currentRect);
+        }
       }
       this.onDrawComplete(polygon);
       return;
@@ -317,7 +380,7 @@ export class LassoDrawingManager {
   private cancelDraw(): void {
     this.drawing = false;
     this.coords = [];
-    this.center = null;
+    this.anchor = null;
     this.dragged = false;
     this.map.off("mousemove", this.handleMouseMove);
     document.removeEventListener("mouseup", this.handleDocumentMouseUp);
@@ -328,10 +391,30 @@ export class LassoDrawingManager {
   }
 
   /**
-   * A circle of `radius` ground metres. Real metres rather than screen pixels:
-   * the same number has to describe the same area anywhere on the map, which is
-   * what makes the shape repeatable.
+   * The circle or rectangle the current gesture describes, in real ground
+   * metres rather than screen pixels: the same numbers have to describe the
+   * same area anywhere on the map, which is what makes the shapes repeatable.
+   *
+   * A drag runs from the anchor outwards (centre for the circle, first corner
+   * for the rectangle); a click has no direction, so the configured size is
+   * centred on the clicked point instead.
    */
+  private buildSizedShape(anchor: Position): Polygon {
+    if (this.shape === "circle") {
+      return this.buildCircle(
+        anchor,
+        this.dragged ? this.currentRadius : this.circleRadius
+      );
+    }
+    const size = this.dragged ? this.currentRect : this.rectSize;
+    if (!this.dragged) {
+      // centre the configured rectangle on the click
+      const corner = this.offset(anchor, -size.width / 2, -size.height / 2);
+      return this.buildRect(corner, size, 1, 1);
+    }
+    return this.buildRect(anchor, size, this.rectSignX, this.rectSignY);
+  }
+
   private buildCircle(center: Position, radius: number): Polygon {
     return turfCircle(center, radius, {
       steps: CIRCLE_STEPS,
@@ -339,8 +422,58 @@ export class LassoDrawingManager {
     }).geometry;
   }
 
+  /** `east`/`north` metres from `origin`, along its parallel and meridian. */
+  private offset(origin: Position, east: number, north: number): Position {
+    const alongParallel = turfDestination(
+      origin,
+      Math.abs(east),
+      east >= 0 ? 90 : -90,
+      {
+        units: "meters",
+      }
+    );
+    const corner = turfDestination(
+      alongParallel,
+      Math.abs(north),
+      north >= 0 ? 0 : 180,
+      { units: "meters" }
+    );
+    return corner.geometry.coordinates;
+  }
+
+  /**
+   * Axis-aligned in geographic space: the edges follow parallels and meridians,
+   * so `width` x `height` metres cover the same ground area wherever the
+   * rectangle is placed. A screen-aligned one would turn with the map and stop
+   * being repeatable.
+   */
+  private buildRect(
+    corner: Position,
+    size: RectSize,
+    signX: number,
+    signY: number
+  ): Polygon {
+    const opposite = this.offset(
+      corner,
+      signX * size.width,
+      signY * size.height
+    );
+    return {
+      type: "Polygon",
+      coordinates: [
+        [
+          corner,
+          [opposite[0], corner[1]],
+          opposite,
+          [corner[0], opposite[1]],
+          corner,
+        ],
+      ],
+    };
+  }
+
   // ---------------------------------------------------------------------------
-  // Radius label (plain DOM: a drag must not re-render the React tree)
+  // Measurement label (plain DOM: a drag must not re-render the React tree)
   // ---------------------------------------------------------------------------
 
   private showLabel(e: MapMouseEvent): void {
@@ -370,7 +503,12 @@ export class LassoDrawingManager {
     if (!el) return;
     el.style.left = `${e.point.x + 12}px`;
     el.style.top = `${e.point.y + 12}px`;
-    el.textContent = `r = ${Math.round(this.currentRadius)} m`;
+    el.textContent =
+      this.shape === "circle"
+        ? `r = ${Math.round(this.currentRadius)} m`
+        : `${Math.round(this.currentRect.width)} \u00d7 ${Math.round(
+            this.currentRect.height
+          )} m`;
   }
 
   private hideLabel(): void {
@@ -443,8 +581,8 @@ export class LassoDrawingManager {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
 
-    if (this.shape === "circle") {
-      if (!this.center) {
+    if (this.shape !== "lasso") {
+      if (!this.anchor) {
         source.setData({ type: "FeatureCollection", features: [] });
         return;
       }
@@ -454,7 +592,7 @@ export class LassoDrawingManager {
           {
             type: "Feature",
             properties: {},
-            geometry: this.buildCircle(this.center, this.currentRadius),
+            geometry: this.buildSizedShape(this.anchor),
           },
         ],
       });
