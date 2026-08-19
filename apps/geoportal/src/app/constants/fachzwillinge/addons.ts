@@ -1,7 +1,7 @@
 import type { FachzwillingRoute } from ".";
 
-export const addonFachzwilling: FachzwillingRoute = {
-  path: "addon",
+export const addonsFachzwilling: FachzwillingRoute = {
+  path: "addons",
   hideFromCatalog: true,
   title: "Addons",
   availability: {
