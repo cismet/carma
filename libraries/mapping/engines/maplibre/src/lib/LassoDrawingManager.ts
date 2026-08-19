@@ -15,6 +15,8 @@
  * For circle and rect a plain click (no drag) places the configured size,
  * centred on the clicked point, so the very same area can be placed again
  * somewhere else — that repeatability is the whole point of the two shapes.
+ * The exception is a manager with `requireModifier`, where the modifier click
+ * already means "toggle this feature"; there only a drag draws.
  *
  * Visual feedback: dashed blue outline + translucent blue fill updated in
  * real-time via a GeoJSON source while the user draws. Circle and rect
@@ -351,6 +353,14 @@ export class LassoDrawingManager {
       const anchor = this.anchor;
       this.anchor = null;
       if (!anchor) {
+        this.cancelDraw();
+        return;
+      }
+      // On the modifier-driven manager a plain click is not ours: the same
+      // modifier click already toggles the feature under the cursor. Placing a
+      // configured circle on top of it would select its whole neighbourhood as
+      // well. Only a real drag counts there.
+      if (!this.dragged && this.requireModifier) {
         this.cancelDraw();
         return;
       }
