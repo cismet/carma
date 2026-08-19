@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { ReactNode } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import {
-  faCircleNotch,
-  faDrawPolygon,
-  faSquare,
-  faXmark,
-} from "@fortawesome/free-solid-svg-icons";
+import { faDrawPolygon, faXmark } from "@fortawesome/free-solid-svg-icons";
+// outlines, so the three tools read as shapes rather than as filled blobs
+import { faCircle, faSquare } from "@fortawesome/free-regular-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { InputNumber, Popover, Radio } from "antd";
+import { Tooltip } from "antd";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
 import type { ToggledFeature } from "@carma-mapping/contexts";
@@ -61,6 +57,8 @@ export type HighlightModeState = {
   circleRadius?: number;
   /** ground size in metres a clicked rectangle gets */
   rectSize?: RectSize;
+  /** shapes the route configured, published for the toolbar the app places */
+  availableShapes?: DrawShape[];
 };
 
 export type VectorHighlightConfig = {
@@ -422,117 +420,168 @@ const SHAPE_LABELS: Record<DrawShape, string> = {
 
 const SHAPE_ICONS: Record<DrawShape, IconDefinition> = {
   lasso: faDrawPolygon,
-  circle: faCircleNotch,
+  circle: faCircle,
   rect: faSquare,
 };
 
-/**
- * The panel that opens on hover: which shape a drag draws, plus the radius the
- * circle uses. Typing a radius is what makes the circle repeatable — the same
- * number places the same area again anywhere on the map.
+/*
+ * Numeric size entry for circle radius and rectangle width/height. Parked while
+ * the toolbar UI settles; the plumbing behind it (`onRadiusChange`,
+ * `onRectSizeChange`, the manager's `setCircleRadius`/`setRectSize`) is still in
+ * place, so this only has to be uncommented to come back.
+ *
+ * const SizeField = ({
+ *   label,
+ *   value,
+ *   step,
+ *   onChange,
+ *   testId,
+ * }: {
+ *   label: string;
+ *   value: number;
+ *   step: number;
+ *   onChange: (value: number) => void;
+ *   testId: string;
+ * }) => (
+ *   <div className="flex items-center gap-2 text-xs">
+ *     <span className="shrink-0 w-12">{label}</span>
+ *     <InputNumber
+ *       size="small"
+ *       min={step}
+ *       step={step}
+ *       value={value}
+ *       onChange={(next) => {
+ *         if (typeof next === "number" && next > 0) onChange(next);
+ *       }}
+ *       addonAfter="m"
+ *       data-test-id={testId}
+ *     />
+ *   </div>
+ * );
+ *
+ * and inside the toolbar:
+ *
+ * {shape === "circle" && (
+ *   <SizeField label="Radius" value={radius} step={radiusStep}
+ *     onChange={onRadiusChange} testId="vector-highlight-radius" />
+ * )}
+ * {shape === "rect" && (
+ *   <>
+ *     <SizeField label="Breite" value={rectSize.width} step={radiusStep}
+ *       onChange={(width) => onRectSizeChange({ ...rectSize, width })}
+ *       testId="vector-highlight-rect-width" />
+ *     <SizeField label="Höhe" value={rectSize.height} step={radiusStep}
+ *       onChange={(height) => onRectSizeChange({ ...rectSize, height })}
+ *       testId="vector-highlight-rect-height" />
+ *   </>
+ * )}
  */
-const SizeField = ({
-  label,
-  value,
-  step,
-  onChange,
-  testId,
-}: {
-  label: string;
-  value: number;
-  step: number;
-  onChange: (value: number) => void;
-  testId: string;
-}) => (
-  <div className="flex items-center gap-2 text-xs">
-    <span className="shrink-0 w-12">{label}</span>
-    <InputNumber
-      size="small"
-      min={step}
-      step={step}
-      value={value}
-      onChange={(next) => {
-        if (typeof next === "number" && next > 0) onChange(next);
-      }}
-      addonAfter="m"
-      data-test-id={testId}
-    />
-  </div>
-);
 
-const ShapePanel = ({
-  isOn,
+/**
+ * Shape picker, styled like geoportal's `MeasurementDrawTools`: one rounded
+ * white pill per tool rather than a panel with buttons inside, so the highlight
+ * mode and the measurement mode read as the same kind of tool. It appears with
+ * the mode and disappears with it.
+ *
+ * Unlike the measurement toolbar the active pill keeps its shadow: that one
+ * sits inside a layer button which supplies the surface, this one floats free
+ * over the map, and dropping the shadow on one of three pills makes the row
+ * look broken.
+ *
+ * The control slot it lands in stretches the full map width and is click-through
+ * (`pointerEvents: "none"` in `control-styles.ts`), so the outer row must stay
+ * transparent to clicks and only the button strip may take them back.
+ */
+const TOOL_BUTTON_BASE =
+  "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors text-base button-shadow [&_svg]:text-current";
+const TOOL_BUTTON_ACTIVE = "!text-[#1677ff] hover:!text-[#1677ff]";
+const TOOL_BUTTON_INACTIVE = "text-gray-600 hover:!text-[#1677ff]";
+
+const ShapeToolbar = ({
   shapes,
   shape,
-  radius,
-  rectSize,
-  radiusStep,
   onShapeChange,
-  onRadiusChange,
-  onRectSizeChange,
 }: {
-  isOn: boolean;
   shapes: DrawShape[];
   shape: DrawShape;
-  radius: number;
-  rectSize: RectSize;
-  radiusStep: number;
   onShapeChange: (shape: DrawShape) => void;
-  onRadiusChange: (radius: number) => void;
-  onRectSizeChange: (size: RectSize) => void;
 }) => (
-  <div className="flex flex-col gap-2 min-w-[180px]">
-    <span className="text-xs text-gray-500">
-      {isOn
-        ? "Klicken zum Ausschalten"
-        : "Klicken zum Einschalten des Highlightingmodus"}
-    </span>
-    <Radio.Group
-      value={shape}
-      onChange={(e) => onShapeChange(e.target.value as DrawShape)}
-      size="small"
-    >
-      <div className="flex flex-col gap-1">
-        {shapes.map((entry) => (
-          <Radio key={entry} value={entry} data-test-id={`shape-${entry}`}>
-            {SHAPE_LABELS[entry]}
-          </Radio>
-        ))}
-      </div>
-    </Radio.Group>
-    {shape === "circle" && (
-      <SizeField
-        label="Radius"
-        value={radius}
-        step={radiusStep}
-        onChange={onRadiusChange}
-        testId="vector-highlight-radius"
-      />
-    )}
-    {shape === "rect" && (
-      <>
-        <SizeField
-          label="Breite"
-          value={rectSize.width}
-          step={radiusStep}
-          onChange={(width) => onRectSizeChange({ ...rectSize, width })}
-          testId="vector-highlight-rect-width"
-        />
-        <SizeField
-          label="Höhe"
-          value={rectSize.height}
-          step={radiusStep}
-          onChange={(height) => onRectSizeChange({ ...rectSize, height })}
-          testId="vector-highlight-rect-height"
-        />
-      </>
-    )}
+  <div className="w-fit max-w-full flex items-center gap-2 overflow-visible">
+    {shapes.map((entry) => {
+      const isActive = entry === shape;
+      return (
+        <Tooltip key={entry} title={SHAPE_LABELS[entry]} placement="top">
+          <button
+            type="button"
+            onClick={(event) => {
+              // the toolbar floats over the map; the click is the toolbar's
+              event.stopPropagation();
+              onShapeChange(entry);
+            }}
+            aria-pressed={isActive}
+            aria-label={SHAPE_LABELS[entry]}
+            data-test-id={`vector-highlight-shape-${entry}`}
+            className={[
+              TOOL_BUTTON_BASE,
+              isActive ? TOOL_BUTTON_ACTIVE : TOOL_BUTTON_INACTIVE,
+            ].join(" ")}
+          >
+            <FontAwesomeIcon icon={SHAPE_ICONS[entry]} />
+          </button>
+        </Tooltip>
+      );
+    })}
   </div>
 );
 
 /**
- * Presentational: shape icon while off, cross while on. Hovering opens the
- * shape panel; the click itself keeps toggling the mode as before.
+ * The shape toolbar as the host app mounts it, mirroring geoportal's
+ * `MeasurementDrawTools`: the pills belong under the layer bar, in the strip
+ * `InteractionView` uses, not in a map-control corner. The control layout's
+ * `topcenter` slot is the layer bar's own, and a second item there splits the
+ * row in half, which puts the toolbar visibly off-centre.
+ *
+ * It reads everything from the shared `highlightMode` state, so the app only
+ * has to render it next to `InteractionView`; it draws nothing while the mode
+ * is off. The outer wrapper repeats `InteractionView`'s container so both
+ * strips line up.
+ */
+export const VectorHighlightShapeTools = () => {
+  const [mode, setMode] = useAddonState("highlightMode");
+  const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
+  const shape = mode?.shape ?? shapes[0] ?? "lasso";
+
+  const setShape = useCallback(
+    (next: DrawShape) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        shape: next,
+      })),
+    [setMode]
+  );
+
+  if (!mode?.isOn || shapes.length < 2) {
+    return null;
+  }
+
+  return (
+    <div className="relative z-[998] pointer-events-none">
+      <div className="pt-3 w-full flex items-center justify-center">
+        <div className="relative z-10 pointer-events-auto">
+          <ShapeToolbar
+            shapes={shapes}
+            shape={shape}
+            onShapeChange={setShape}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Presentational: shape icon while off, cross while on. The button does one
+ * thing — switch the mode on and off; the shape is picked in `ShapeToolbar`.
  *
  * Stateless by design — `Control` re-registers its children on every render, so
  * state kept here would be dropped. The mode lives in the addon.
@@ -541,21 +590,16 @@ const HighlightModeButton = ({
   isOn,
   shape,
   onClick,
-  panel,
 }: {
   isOn: boolean;
   shape: DrawShape;
   onClick: () => void;
-  panel: ReactNode;
 }) => (
-  <Popover
-    content={panel}
+  <Tooltip
     title={
       isOn ? "Highlightingmodus ausschalten" : "Highlightingmodus einschalten"
     }
-    trigger="hover"
     placement="right"
-    mouseEnterDelay={0.2}
   >
     <ControlButtonStyler
       onClick={onClick}
@@ -566,7 +610,7 @@ const HighlightModeButton = ({
         style={isOn ? { color: ACTIVE_COLOR } : undefined}
       />
     </ControlButtonStyler>
-  </Popover>
+  </Tooltip>
 );
 
 export const VectorHighlight = ({
@@ -622,14 +666,6 @@ export const VectorHighlight = ({
     [stateWidth, stateHeight, configuredWidth, configuredHeight]
   );
 
-  const setShape = useCallback(
-    (next: DrawShape) =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        shape: next,
-      })),
-    [setMode]
-  );
   const setCircleRadius = useCallback(
     (next: number) =>
       setMode((previous) => ({
@@ -656,6 +692,15 @@ export const VectorHighlight = ({
     clearHighlights();
     setHighlightingActive(false);
   }, [setMode, clearHighlights, setHighlightingActive]);
+
+  // the toolbar the app mounts is not inside this component; the shape list
+  // lives in config, so it has to travel through the shared state to reach it
+  useEffect(() => {
+    setMode((previous) => ({
+      ...(previous ?? { isOn: false }),
+      availableShapes,
+    }));
+  }, [availableShapes, setMode]);
 
   // owns the `highlighted` feature-state and the click-to-toggle
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
@@ -762,31 +807,23 @@ export const VectorHighlight = ({
   }
 
   // registers the button into the surrounding `ControlLayout`, which draws it
-  // in that corner; nothing is rendered here
+  // in that corner; nothing is rendered here. The shape toolbar is not a
+  // control: it belongs under the layer bar, so the host app places it with
+  // `VectorHighlightShapeTools`.
   return (
-    <Control position={controlPosition} order={controlOrder}>
-      <HighlightModeButton
-        isOn={isOn}
-        shape={shape}
-        onClick={
-          isOn
-            ? endMode
-            : () => setMode((previous) => ({ ...(previous ?? {}), isOn: true }))
-        }
-        panel={
-          <ShapePanel
-            isOn={isOn}
-            shapes={availableShapes}
-            shape={shape}
-            radius={circleRadius}
-            rectSize={rectSize}
-            radiusStep={radiusStep}
-            onShapeChange={setShape}
-            onRadiusChange={setCircleRadius}
-            onRectSizeChange={setRectSize}
-          />
-        }
-      />
-    </Control>
+    <>
+      <Control position={controlPosition} order={controlOrder}>
+        <HighlightModeButton
+          isOn={isOn}
+          shape={shape}
+          onClick={
+            isOn
+              ? endMode
+              : () =>
+                  setMode((previous) => ({ ...(previous ?? {}), isOn: true }))
+          }
+        />
+      </Control>
+    </>
   );
 };

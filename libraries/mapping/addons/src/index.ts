@@ -50,7 +50,10 @@ export {
   HomeOverride,
   type HomeOverrideConfig,
 } from "./addons/HomeOverride";
-export { VectorHighlight } from "./addons/VectorHighlight";
+export {
+  VectorHighlight,
+  VectorHighlightShapeTools,
+} from "./addons/VectorHighlight";
 export type {
   HighlightModeState,
   VectorHighlightConfig,
