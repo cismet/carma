@@ -3,6 +3,7 @@ import { Modal, Button, Switch } from "antd";
 import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
+import { SHOW_EXPERT_SEARCH_TOGGLE } from "../../constants/uiVisibility";
 import { useSelector, useDispatch } from "react-redux";
 import {
   LeuchteSearch,
@@ -200,12 +201,14 @@ const SearchModalHeader = ({
         </h2>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5">
-          <span className="text-sm font-medium text-gray-700">
-            Expertensuche
-          </span>
-          <Switch checked={isExpertSearch} onChange={onExpertSearchChange} />
-        </div>
+        {SHOW_EXPERT_SEARCH_TOGGLE && (
+          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5">
+            <span className="text-sm font-medium text-gray-700">
+              Expertensuche
+            </span>
+            <Switch checked={isExpertSearch} onChange={onExpertSearchChange} />
+          </div>
+        )}
         <button
           type="button"
           onClick={onClose}

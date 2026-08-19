@@ -39,6 +39,7 @@ import {
   REPEATABLE_CHANGES_BUTTON_STYLE,
   REPEATABLE_CHANGES_COPY_STYLE,
 } from "./repeatableChangesStyles";
+import { SHOW_REPEATABLE_CHANGES_UI } from "../../../constants/uiVisibility";
 
 interface FormHeaderProps {
   title: string;
@@ -331,7 +332,8 @@ const FormHeader = ({
                   nothing to stamp on. Copy stays live either way: it reports
                   "nothing changed" itself, which is more useful than a button
                   that looks broken. */}
-              {!readOnly &&
+              {SHOW_REPEATABLE_CHANGES_UI &&
+                !readOnly &&
                 showRepeatableChangesButtons &&
                 (editedCount > 0 || repeatableChangesCount > 0) && (
                   <>

@@ -40,6 +40,10 @@ import { getFeatureCollection } from "../../store/slices/featureCollection";
 import ExportCsvButton from "../ui/ExportCsvButton";
 import PrintControl from "../ui/PrintControl";
 import PasteChangesToHighlightsButton from "../ui/PasteChangesToHighlightsButton";
+import {
+  SHOW_MAP_EXPORT_AND_PRINT,
+  SHOW_REPEATABLE_CHANGES_UI,
+} from "../../constants/uiVisibility";
 
 interface BelisStreet {
   s: string;
@@ -275,9 +279,10 @@ const BelisMapPageShell = () => {
                     excluded from the batch (its mounted AntD form owns the
                     draft and would push pre-paste values back on the next
                     keystroke) and is served by that form's own paste button. */}
-                {sidebarVariant === "fachobjekte" && (
-                  <PasteChangesToHighlightsButton />
-                )}
+                {SHOW_REPEATABLE_CHANGES_UI &&
+                  sidebarVariant === "fachobjekte" && (
+                    <PasteChangesToHighlightsButton />
+                  )}
                 {!isReadOnly &&
                   sidebarVariant === "arbeitsauftraege" &&
                   totalDraftCount > 0 && (
@@ -393,8 +398,12 @@ const BelisMapPageShell = () => {
                   >
                     <FontAwesomeIcon icon={faDrawPolygon} />
                   </button>
-                  <ExportCsvButton features={exportableFeatures} />
-                  <PrintControl />
+                  {SHOW_MAP_EXPORT_AND_PRINT && (
+                    <>
+                      <ExportCsvButton features={exportableFeatures} />
+                      <PrintControl />
+                    </>
+                  )}
                 </div>
               )}
 
