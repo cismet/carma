@@ -514,10 +514,14 @@ const ShapeToolbar = ({
   shapes,
   shape,
   onShapeChange,
+  onClear,
+  canClear,
 }: {
   shapes: DrawShape[];
   shape: DrawShape;
   onShapeChange: (shape: DrawShape) => void;
+  onClear: () => void;
+  canClear: boolean;
 }) => (
   <div className="w-fit max-w-full flex items-center gap-2 overflow-visible">
     {shapes.map((entry) => {
@@ -544,6 +548,29 @@ const ShapeToolbar = ({
         </Tooltip>
       );
     })}
+    <Tooltip title="Highlights zurücksetzen" placement="bottom">
+      {/* a disabled button swallows its own events, so the tooltip needs a host */}
+      <span>
+        <button
+          type="button"
+          disabled={!canClear}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClear();
+          }}
+          aria-label="Highlights zurücksetzen"
+          data-test-id="vector-highlight-clear"
+          className={[
+            TOOL_BUTTON_BASE,
+            canClear
+              ? TOOL_BUTTON_INACTIVE
+              : "text-gray-600 opacity-45 cursor-not-allowed",
+          ].join(" ")}
+        >
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
+      </span>
+    </Tooltip>
   </div>
 );
 
@@ -561,8 +588,18 @@ const ShapeToolbar = ({
  */
 export const VectorHighlightShapeTools = () => {
   const [mode, setMode] = useAddonState("highlightMode");
+  const { highlightingActive, setHighlightingActive, clearHighlights } =
+    useMapHighlight();
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
   const shape = mode?.shape ?? shapes[0] ?? "lasso";
+
+  /** empties the selection but stays in the mode, so the next shape can be
+   *  drawn right away. Dropping `highlightingActive` too is what lifts the dim;
+   *  leaving it on would dim the whole map with nothing highlighted. */
+  const clear = useCallback(() => {
+    clearHighlights();
+    setHighlightingActive(false);
+  }, [clearHighlights, setHighlightingActive]);
 
   const setShape = useCallback(
     (next: DrawShape) =>
@@ -585,6 +622,8 @@ export const VectorHighlightShapeTools = () => {
             shapes={shapes}
             shape={shape}
             onShapeChange={setShape}
+            onClear={clear}
+            canClear={highlightingActive}
           />
         </div>
       </div>
@@ -593,8 +632,10 @@ export const VectorHighlightShapeTools = () => {
 };
 
 /**
- * Presentational: shape icon while off, cross while on. The button does one
- * thing — switch the mode on and off; the shape is picked in `ShapeToolbar`.
+ * Presentational: the active shape's icon, blue while the mode runs. The button
+ * does one thing — switch the mode on and off. The shape is picked in
+ * `ShapeToolbar`, and so is clearing the highlights, which used to be this
+ * button's second meaning.
  *
  * Stateless by design — `Control` re-registers its children on every render, so
  * state kept here would be dropped. The mode lives in the addon.
@@ -619,7 +660,7 @@ const HighlightModeButton = ({
       dataTestId="vector-highlight-control"
     >
       <FontAwesomeIcon
-        icon={isOn ? faXmark : SHAPE_ICONS[shape]}
+        icon={SHAPE_ICONS[shape]}
         style={isOn ? { color: ACTIVE_COLOR } : undefined}
       />
     </ControlButtonStyler>
