@@ -52,11 +52,22 @@ export {
 } from "./addons/HomeOverride";
 export {
   VectorHighlight,
+  VectorHighlightControl,
   VectorHighlightShapeTools,
+  ShapeToolbar,
+  HighlightModeButton,
+  DEFAULT_SHAPES,
+  SHAPE_ICONS,
+  SHAPE_LABELS,
 } from "./addons/VectorHighlight";
 export type {
   HighlightModeState,
   VectorHighlightConfig,
+  VectorHighlightControlConfig,
+  VectorHighlightShapeToolsProps,
+  ShapeToolbarProps,
+  ShapeToolbarClassNames,
+  HighlightModeButtonProps,
 } from "./addons/VectorHighlight";
 export {
   LayerVisibility,

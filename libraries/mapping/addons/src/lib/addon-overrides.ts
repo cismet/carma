@@ -39,6 +39,7 @@ export const UNSUSPENDABLE_KIND: AddonKind = "addonManager";
 export const SWITCHABLE_KINDS = [
   "cameraRestriction",
   "vectorHighlight",
+  "vectorHighlightControl",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
 ] as const satisfies readonly BareAddonKind[];
