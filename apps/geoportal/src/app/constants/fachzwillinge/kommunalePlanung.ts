@@ -34,6 +34,8 @@ export const kommunalePlanungFachzwilling: FachzwillingRoute = {
         lng: 7.178007,
         zoom: 12.281,
         tooltip: "Auf das Stadtgebiet positionieren",
+        overlayLabel: "Zum Stadtgebiet",
+        overlayDestination: "auf das Stadtgebiet",
       },
     },
   ],

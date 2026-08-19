@@ -26,6 +26,8 @@ export type HomeView = {
   /** camera bearing in degrees, 3d only */
   bearing?: number;
   tooltip?: string;
+  overlayLabel?: string;
+  overlayDestination?: string;
 };
 
 /**

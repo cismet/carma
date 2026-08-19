@@ -69,7 +69,7 @@ import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdate
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
-import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
+import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.tsx";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 import { useGeoportalCesiumNavigationShortcuts } from "../../../hooks/useGeoportalCesiumNavigationShortcuts.ts";
 import { useGeoportalHomeValues } from "../../../hooks/useGeoportalInitialValues.ts";

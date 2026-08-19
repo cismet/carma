@@ -38,8 +38,13 @@ export const useGeoportalHomeValues = () => {
     if (!homeOverride) {
       return DEFAULT_HOME_VIEW_REF;
     }
-    // the tooltip travels with the override but is not part of the view
-    const { tooltip: _tooltip, ...view } = homeOverride;
+    // the texts travel with the override but are not part of the view
+    const {
+      tooltip: _tooltip,
+      overlayLabel: _overlayLabel,
+      overlayDestination: _overlayDestination,
+      ...view
+    } = homeOverride;
     return { ...DEFAULT_HOME_VIEW_REF, ...view };
   }, [homeOverride]);
 

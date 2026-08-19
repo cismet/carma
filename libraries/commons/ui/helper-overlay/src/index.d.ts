@@ -67,6 +67,12 @@ export type OptionsOverlayHelper = {
     position?: React.CSSProperties;
     minWindowSize?: number;
     content: JSX.Element | string;
+    /**
+     * Signature of `content`, for callers whose content can change while the
+     * element stays mounted: the helper re-registers when this string changes.
+     * Content that is fixed for the element's lifetime needs it not.
+     */
+    contentKey?: string;
   };
   secondary?: Secondary;
 };

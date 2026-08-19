@@ -27,13 +27,30 @@ export type HomeOverrideConfig = {
   /** camera bearing in degrees, 3d only */
   bearing?: number;
   tooltip?: string;
+  /** label of the help overlay's home entry; omitted falls back to the tooltip */
+  overlayLabel?: string;
+  /**
+   * phrase naming the home target with its preposition, for the help
+   * overlay's home entry ("auf das Stadtgebiet")
+   */
+  overlayDestination?: string;
 };
 
 export const HomeOverride = ({
   config,
   carma,
 }: AddonComponentProps<"homeOverride">) => {
-  const { lat, lng, zoom, altitude, pitch, bearing, tooltip } = config ?? {};
+  const {
+    lat,
+    lng,
+    zoom,
+    altitude,
+    pitch,
+    bearing,
+    tooltip,
+    overlayLabel,
+    overlayDestination,
+  } = config ?? {};
 
   useEffect(() => {
     if (lat === undefined || lng === undefined) {
@@ -47,11 +64,24 @@ export const HomeOverride = ({
       ...(pitch === undefined ? {} : { pitch }),
       ...(bearing === undefined ? {} : { bearing }),
       ...(tooltip === undefined ? {} : { tooltip }),
+      ...(overlayLabel === undefined ? {} : { overlayLabel }),
+      ...(overlayDestination === undefined ? {} : { overlayDestination }),
     });
     return () => {
       carma.mapping.setHomeOverride(null);
     };
-  }, [carma, lat, lng, zoom, altitude, pitch, bearing, tooltip]);
+  }, [
+    carma,
+    lat,
+    lng,
+    zoom,
+    altitude,
+    pitch,
+    bearing,
+    tooltip,
+    overlayLabel,
+    overlayDestination,
+  ]);
 
   return null;
 };

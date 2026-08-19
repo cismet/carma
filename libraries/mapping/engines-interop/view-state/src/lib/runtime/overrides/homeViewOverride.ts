@@ -5,6 +5,8 @@ import type { ShareableViewState } from "../../types";
 export type HomeViewOverride = Partial<ShareableViewState> &
   Pick<ShareableViewState, "lat" | "lng"> & {
     tooltip?: string;
+    overlayLabel?: string;
+    overlayDestination?: string;
   };
 
 let current: HomeViewOverride | null = null;

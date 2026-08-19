@@ -20,6 +20,7 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
     contentPos,
     contentWidth,
     content,
+    contentKey,
     position,
     key,
     minWindowSize,
@@ -85,7 +86,9 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
     return () => {
       removeConfig(config);
     };
-  }, [ref, isVisible, size.width, size.height]);
+    // contentKey, not content: the content itself is a new element on every
+    // render for callers that build it inline, which would loop here
+  }, [ref, isVisible, size.width, size.height, contentKey]);
 
   return setRef;
 };
