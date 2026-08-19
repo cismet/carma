@@ -17,6 +17,7 @@ import {
   DEFAULT_CIRCLE_RADIUS_STEP,
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
+  LASSO_LAYER_ID_PREFIX,
 } from "@carma-mapping/engines/maplibre";
 import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
 import {
@@ -108,6 +109,14 @@ const DEFAULT_DIM_OPACITY = 0.25;
 const DEFAULT_STATE_KEY = "highlighted";
 /** cismap's selection border and the basemap keep their paint */
 const DEFAULT_EXCLUDED = ["selection", "background"];
+/**
+ * The drawing tool's own preview layers, excluded whatever a route configures:
+ * they are the tool, not map content. Dimming them fades the very shape the
+ * user is pulling (fill 0.1 -> 0.025, and the outline, which sets no
+ * `line-opacity`, is read as 1 and falls to 0.25). It only showed up once
+ * something was highlighted, since that is when the dim switches on.
+ */
+const ALWAYS_EXCLUDED = [LASSO_LAYER_ID_PREFIX];
 /** lasso first: the freehand shape stays the default it has always been */
 const DEFAULT_SHAPES: DrawShape[] = ["lasso", "circle", "rect"];
 /** geoportal's topleft column: measurement is 60, terrain 80 */
@@ -145,7 +154,9 @@ const createDimController = (
 
   const isExcluded = (layerId: string) => {
     const id = layerId.toLowerCase();
-    return excluded.some((pattern) => id.includes(pattern));
+    return [...ALWAYS_EXCLUDED, ...excluded].some((pattern) =>
+      id.includes(pattern)
+    );
   };
 
   /** does this paint value read the zoom anywhere? */

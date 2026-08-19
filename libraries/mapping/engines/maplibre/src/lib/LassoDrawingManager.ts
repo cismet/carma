@@ -37,9 +37,17 @@ import {
   destination as turfDestination,
 } from "@turf/turf";
 
-const SOURCE_ID = "__carma-lasso-source";
-const LINE_LAYER_ID = "__carma-lasso-line";
-const FILL_LAYER_ID = "__carma-lasso-fill";
+/**
+ * Shared prefix of the drawing tool's own source and layers. Exported so
+ * consumers that walk the style can tell this chrome apart from map content —
+ * the highlight addon's dim pass has to skip it, or the shape being drawn is
+ * dimmed along with the map it selects from.
+ */
+export const LASSO_LAYER_ID_PREFIX = "__carma-lasso";
+
+const SOURCE_ID = `${LASSO_LAYER_ID_PREFIX}-source`;
+const LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-line`;
+const FILL_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-fill`;
 
 /** Minimum screen-pixel distance between consecutive recorded points. */
 const MIN_PX_DISTANCE = 3;

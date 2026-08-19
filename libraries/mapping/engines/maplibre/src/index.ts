@@ -167,6 +167,7 @@ export {
   DEFAULT_CIRCLE_RADIUS_STEP,
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
+  LASSO_LAYER_ID_PREFIX,
 } from "./lib/LassoDrawingManager";
 
 // Selection management
