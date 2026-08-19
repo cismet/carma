@@ -52,7 +52,7 @@ import type { AddonComponentProps } from "../lib/registry";
 
 export type HighlightModeState = {
   isOn: boolean;
-  /** shape the toolbar draws with; the Alt+drag shortcut stays a lasso */
+  /** shape a drag draws, in the mode and via the Alt+drag shortcut alike */
   shape?: DrawShape;
   /** radius in metres a clicked circle gets */
   circleRadius?: number;
@@ -72,8 +72,10 @@ export type VectorHighlightConfig = {
   /** Layer ids containing one of these (lowercased) are never dimmed. */
   excludedLayerPatterns?: string[];
   /**
-   * Alt+drag draws a freehand lasso; every feature it covers is toggled the
-   * same way a modifier+click would toggle it. Default: false.
+   * Alt+drag draws a selection shape without entering the mode first; every
+   * feature it covers is toggled the same way a modifier+click would toggle it.
+   * It draws whatever shape the toolbar has selected, so the last used one is
+   * always a modifier away. Default: false.
    */
   lasso?: boolean;
   /**

@@ -25,8 +25,8 @@ export interface UseLassoHighlightOptions {
   /** Whether lasso mode is currently active (controlled by toolbar toggle). */
   active: boolean;
   /**
-   * Shape the explicit (toolbar-driven) manager draws. The passive Alt+drag
-   * manager always stays a freehand lasso. Default: "lasso"
+   * Shape a drag draws, for the toolbar-driven manager and the passive Alt+drag
+   * shortcut alike. Default: "lasso"
    */
   shape?: DrawShape;
   /** Radius in metres a clicked circle gets. */
@@ -274,13 +274,17 @@ export const useLassoHighlight = ({
     };
   }, [map, handleDrawComplete, handleDrawCancel]);
 
+  // both managers, so the Alt+drag shortcut draws whatever the toolbar has
+  // selected instead of always falling back to the freehand lasso
   useEffect(() => {
     managerRef.current?.setShape(shape);
+    passiveManagerRef.current?.setShape(shape);
   }, [shape]);
 
   useEffect(() => {
     if (circleRadius != null) {
       managerRef.current?.setCircleRadius(circleRadius);
+      passiveManagerRef.current?.setCircleRadius(circleRadius);
     }
   }, [circleRadius]);
 
@@ -288,12 +292,16 @@ export const useLassoHighlight = ({
   const rectHeight = rectSize?.height;
   useEffect(() => {
     if (rectWidth != null && rectHeight != null) {
-      managerRef.current?.setRectSize({ width: rectWidth, height: rectHeight });
+      const size = { width: rectWidth, height: rectHeight };
+      managerRef.current?.setRectSize(size);
+      passiveManagerRef.current?.setRectSize(size);
     }
   }, [rectWidth, rectHeight]);
 
   // Create/destroy passive Alt+drag manager (always-on when map exists).
-  // Activate immediately unless explicit lasso mode is already on.
+  // Activate immediately unless explicit lasso mode is already on. It draws the
+  // same shape as the toolbar; a plain Alt+click stays the feature toggle,
+  // which the manager itself guards via `requireModifier`.
   const activeRef = useRef(active);
   activeRef.current = active;
   useEffect(() => {
@@ -304,6 +312,12 @@ export const useLassoHighlight = ({
       onDrawComplete: handleDrawComplete,
       onDrawCancel: handleDrawCancel,
       requireModifier: "alt",
+      shape: shapeRef.current,
+      circleRadius: circleRadiusRef.current,
+      rectSize: rectSizeRef.current,
+      radiusStep: radiusStepRef.current,
+      onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
+      onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
     passiveManagerRef.current = passive;
     if (!activeRef.current) {
