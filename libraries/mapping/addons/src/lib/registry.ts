@@ -32,8 +32,10 @@ import {
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
+  VectorHighlightControl,
   type HighlightModeState,
   type VectorHighlightConfig,
+  type VectorHighlightControlConfig,
 } from "../addons/VectorHighlight";
 import {
   LayerVisibility,
@@ -61,6 +63,7 @@ export type AddonConfigMap = {
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
   vectorHighlight: VectorHighlightConfig;
+  vectorHighlightControl: VectorHighlightControlConfig;
   layerVisibility: LayerVisibilityConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
@@ -200,6 +203,10 @@ export const addonRegistry: {
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],
+  },
+  vectorHighlightControl: {
+    Component: VectorHighlightControl,
+    requires: ["highlightMode"],
   },
   layerVisibility: {
     Component: LayerVisibility,
