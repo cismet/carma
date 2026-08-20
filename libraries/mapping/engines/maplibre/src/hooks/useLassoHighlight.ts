@@ -16,7 +16,7 @@ import {
   booleanIntersects,
   polygon as turfPolygon,
 } from "@turf/turf";
-import { LassoDrawingManager } from "../lib/LassoDrawingManager";
+import { LassoDrawingManager, DEFAULT_COLOR } from "../lib/LassoDrawingManager";
 import type {
   DrawShape,
   ModifierKey,
@@ -150,6 +150,12 @@ export interface UseLassoHighlightOptions {
   /** Filter results to specific sources. If omitted, all rendered features are candidates. */
   sources?: LassoSources;
   /**
+   * What a plain drag does: add the covered features to the selection ("add",
+   * blue) or narrow the selection to them ("refine", orange). The modifier
+   * gestures are unaffected. Default: "add"
+   */
+  operation?: "add" | "refine";
+  /**
    * Arms the Alt+Shift "refine" lasso (orange): it narrows the CURRENT
    * highlight set instead of adding to it — highlighted features inside the
    * polygon stay, all other highlights are dropped. Meant to be on whenever a
@@ -191,6 +197,7 @@ export const useLassoHighlight = ({
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
+  operation = "add",
   refineActive = false,
   onDeactivate,
   onToggle,
@@ -355,6 +362,21 @@ export const useLassoHighlight = ({
     setIsDrawing(false);
   }, []);
 
+  // the plain drag serves both operations, so which one runs is read from a ref
+  // instead of swapping the manager's callback
+  const operationRef = useRef(operation);
+  operationRef.current = operation;
+  const handleGestureComplete = useCallback(
+    (lassoPolygon: Polygon) => {
+      if (operationRef.current === "refine") {
+        handleRefineComplete(lassoPolygon);
+        return;
+      }
+      handleDrawComplete(lassoPolygon);
+    },
+    [handleDrawComplete, handleRefineComplete]
+  );
+
   // Create/destroy manager when map changes. Shape and radius are handed over
   // as initial values only and updated through setters below, so switching the
   // shape in the toolbar does not tear the source and its layers down.
@@ -372,8 +394,9 @@ export const useLassoHighlight = ({
 
     const manager = new LassoDrawingManager({
       map,
-      onDrawComplete: handleDrawComplete,
+      onDrawComplete: handleGestureComplete,
       onDrawCancel: handleDrawCancel,
+      color: operationRef.current === "refine" ? REFINE_COLOR : DEFAULT_COLOR,
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
@@ -390,7 +413,7 @@ export const useLassoHighlight = ({
       manager.destroy();
       managerRef.current = null;
     };
-  }, [map, handleDrawComplete, handleDrawCancel]);
+  }, [map, handleGestureComplete, handleDrawCancel]);
 
   // both managers, so the Alt+drag shortcut draws whatever the toolbar has
   // selected instead of always falling back to the freehand lasso
@@ -422,6 +445,12 @@ export const useLassoHighlight = ({
     }
   }, [rectWidth, rectHeight]);
 
+  useEffect(() => {
+    const color = operation === "refine" ? REFINE_COLOR : DEFAULT_COLOR;
+    managerRef.current?.setColor(color);
+    passiveManagerRef.current?.setColor(color);
+  }, [operation]);
+
   // Create/destroy passive Alt+drag manager (always-on when map exists).
   // Activate immediately unless explicit lasso mode is already on. It draws the
   // same shape as the toolbar; a plain Alt+click stays the feature toggle,
@@ -433,8 +462,9 @@ export const useLassoHighlight = ({
 
     const passive = new LassoDrawingManager({
       map,
-      onDrawComplete: handleDrawComplete,
+      onDrawComplete: handleGestureComplete,
       onDrawCancel: handleDrawCancel,
+      color: operationRef.current === "refine" ? REFINE_COLOR : DEFAULT_COLOR,
       requireModifier: "alt",
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,
@@ -452,7 +482,7 @@ export const useLassoHighlight = ({
       passive.destroy();
       passiveManagerRef.current = null;
     };
-  }, [map, handleDrawComplete, handleDrawCancel]);
+  }, [map, handleGestureComplete, handleDrawCancel]);
 
   // Alt+Shift refine manager. Armed by `refineActive` and independent of the
   // other two: the exact-modifier match keeps Alt-only and Alt+Shift apart.

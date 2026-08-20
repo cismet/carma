@@ -55,6 +55,7 @@ export const VectorHighlight = ({
     shape,
     modeActive,
     highlightingActive,
+    operation,
     endMode,
     setCircleRadius,
     setRectSize,
@@ -125,6 +126,7 @@ export const VectorHighlight = ({
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,
+    operation: operation === "intersect" ? "refine" : "add",
     // orange refine: narrows the current selection instead of adding to it
     refineActive: lasso && highlightingActive,
   });
