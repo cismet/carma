@@ -18,6 +18,9 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "visibleFeatureStatsPanel", config: {} },
+    // caged: renders cage's build identity, and nothing at all when the
+    // cage submodule is absent
+    { kind: "cageVersionBadge" },
     // {
     //   /**
     //    * experiment: the image in the info box changes with the zoom.
