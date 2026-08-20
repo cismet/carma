@@ -10,14 +10,14 @@
  */
 
 /** "Expertensuche" toggle in the Erweiterte-Suche modal header. */
-export const SHOW_EXPERT_SEARCH_TOGGLE: boolean = false;
+export const SHOW_EXPERT_SEARCH_TOGGLE: boolean = true;
 
 /** CSV export + print buttons in the map toolbar. */
-export const SHOW_MAP_EXPORT_AND_PRINT: boolean = false;
+export const SHOW_MAP_EXPORT_AND_PRINT: boolean = true;
 
 /**
  * Wiederholfelder ("repeatable changes") clipboard controls: the copy / paste /
  * reset group in the Datenblatt header and the batch paste button in the map
  * card header. Gated together — a paste button with no way to copy is useless.
  */
-export const SHOW_REPEATABLE_CHANGES_UI: boolean = false;
+export const SHOW_REPEATABLE_CHANGES_UI: boolean = true;
