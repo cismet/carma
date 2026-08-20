@@ -656,6 +656,9 @@ export class LassoDrawingManager {
       filter: ["==", "$type", "Polygon"],
       paint: {
         "fill-color": this.color,
+        // maplibre cross-fades paint colors over 300ms by default, so the
+        // shared layers would still look orange at the start of a blue draw
+        "fill-color-transition": { duration: 0 },
         "fill-opacity": 0.1,
       },
     });
@@ -666,6 +669,7 @@ export class LassoDrawingManager {
       source: SOURCE_ID,
       paint: {
         "line-color": this.color,
+        "line-color-transition": { duration: 0 },
         "line-width": 1.5,
       },
     });
