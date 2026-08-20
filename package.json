@@ -3,8 +3,10 @@
   "version": "0.9.3",
   "license": "MIT",
   "scripts": {
-    "update": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npm install",
-    "update-force": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npx nx reset && npm ci"
+    "update": "git fetch --all && git submodule update --init --recursive --remote --checkout --force -- libraries/collaboration && npm install",
+    "update-with-cage": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npm install",
+    "update-force": "git fetch --all && git submodule update --init --recursive --remote --checkout --force -- libraries/collaboration && npx nx reset && npm ci",
+    "update-force-with-cage": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npx nx reset && npm ci"
   },
   "private": true,
   "dependencies": {

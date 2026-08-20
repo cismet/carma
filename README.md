@@ -33,9 +33,9 @@ Welcome to CARMA, a monolithic repository (monorepo) powered by Nx, designed to 
 
 3. on dev branch you can also run the custom script
 
-   `npm run update-all`
+   `npm run update`
 
-to refresh the repo and update all submodules
+to refresh the repo and update the public submodules
 
 ## Development Guidelines
 
@@ -69,13 +69,26 @@ Some possible additional Checks:
 
 If build errors occur due to submodules run:
 
-`npm run update-all`
+`npm run update`
 
 again, or just
 
-`git submodule update --init --recursive --remote --checkout --force`
+`git submodule update --init --recursive --remote --checkout --force -- libraries/collaboration`
 
-to force update to current remote state of all submodules in the repository.
+to force update to current remote state of the public submodules in the repository.
+
+#### The cage submodule
+
+`cage/cage-submodule` points at the private repository `cismet/cage`, so `npm run update` leaves it alone and the
+directory stays empty for everyone without access. carma builds fine that way: caged addons resolve to nothing and
+the components that would render them render nothing.
+
+With access to `cismet/cage`, use
+
+`npm run update-with-cage`
+
+which updates every submodule including cage. `update-force` and `update-force-with-cage` are the same split for the
+variant that also runs `nx reset` and `npm ci`.
 
 ### Typescript configuration
 
