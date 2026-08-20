@@ -29,6 +29,17 @@ type LassoSources = Array<{ source: string; sourceLayers: string[] }>;
 
 /** Orange, to tell the refine lasso apart from the blue additive one. */
 const REFINE_COLOR = "#f97316";
+const ADD_COLOR = "#22c55e";
+const SUBTRACT_COLOR = "#ec4899";
+
+export type LassoOperation = "toggle" | "add" | "subtract" | "refine";
+
+const OPERATION_COLORS: Record<LassoOperation, string> = {
+  toggle: DEFAULT_COLOR,
+  add: ADD_COLOR,
+  subtract: SUBTRACT_COLOR,
+  refine: REFINE_COLOR,
+};
 
 /**
  * Every feature of the configured sources whose geometry falls inside the
@@ -150,11 +161,12 @@ export interface UseLassoHighlightOptions {
   /** Filter results to specific sources. If omitted, all rendered features are candidates. */
   sources?: LassoSources;
   /**
-   * What a plain drag does: add the covered features to the selection ("add",
-   * blue) or narrow the selection to them ("refine", orange). The modifier
-   * gestures are unaffected. Default: "add"
+   * What a plain drag does with the features it covers: flip each one
+   * ("toggle"), always select them ("add"), always deselect them ("subtract")
+   * or keep only the selected ones among them ("refine"). Each draws in its own
+   * colour. The modifier gestures are unaffected. Default: "toggle"
    */
-  operation?: "add" | "refine";
+  operation?: LassoOperation;
   /**
    * Arms the Alt+Shift "refine" lasso (orange): it narrows the CURRENT
    * highlight set instead of adding to it — highlighted features inside the
@@ -197,7 +209,7 @@ export const useLassoHighlight = ({
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
-  operation = "add",
+  operation = "toggle",
   refineActive = false,
   onDeactivate,
   onToggle,
@@ -219,6 +231,7 @@ export const useLassoHighlight = ({
   const {
     setHighlightingActive,
     ensureToggledFeatures,
+    ensureSuppressedFeatures,
     clearHighlights,
     criteria,
   } = useMapHighlight();
@@ -226,8 +239,14 @@ export const useLassoHighlight = ({
   // Stable refs for the callback so we don't recreate the manager on every render
   const sourcesRef = useRef(sources);
   sourcesRef.current = sources;
+  // the plain drag serves every operation, so which one runs is read from a ref
+  // instead of swapping the managers' callbacks
+  const operationRef = useRef(operation);
+  operationRef.current = operation;
   const ensureRef = useRef(ensureToggledFeatures);
   ensureRef.current = ensureToggledFeatures;
+  const suppressRef = useRef(ensureSuppressedFeatures);
+  suppressRef.current = ensureSuppressedFeatures;
   const criteriaRef = useRef(criteria);
   criteriaRef.current = criteria;
   const setActiveRef = useRef(setHighlightingActive);
@@ -271,8 +290,8 @@ export const useLassoHighlight = ({
         return;
       }
 
-      // 5. Standalone path (no cluster-aware consumer): toggle each matched
-      //    feature ourselves. Uses ensureToggledFeatures (idempotent) to avoid
+      // 5. Standalone path (no cluster-aware consumer): apply the operation
+      //    ourselves. Uses ensureToggledFeatures (idempotent) to avoid
       //    double-toggle across overlapping lassos.
       const currentToggled = criteriaRef.current.toggledFeatures;
       const toId = (f: MapGeoJSONFeature) => ({
@@ -280,6 +299,25 @@ export const useLassoHighlight = ({
         sourceLayer: f.sourceLayer ?? "",
         id: f.id!,
       });
+
+      if (operationRef.current === "add") {
+        ensureRef.current(matched.map(toId), true);
+        for (const feat of matched) {
+          onToggleRef.current?.(feat);
+        }
+        return;
+      }
+
+      // suppression on top of the un-toggle, so a feature lit by a matcher or a
+      // search hit disappears too instead of surviving the subtraction
+      if (operationRef.current === "subtract") {
+        ensureRef.current(matched.map(toId), false);
+        suppressRef.current(matched.map(toId), true);
+        for (const feat of matched) {
+          onToggleRef.current?.(feat);
+        }
+        return;
+      }
       const toAdd = matched.filter((f) => {
         const key = `${f.source}::${f.sourceLayer ?? ""}::${f.id}`;
         return !currentToggled.has(key);
@@ -362,10 +400,6 @@ export const useLassoHighlight = ({
     setIsDrawing(false);
   }, []);
 
-  // the plain drag serves both operations, so which one runs is read from a ref
-  // instead of swapping the manager's callback
-  const operationRef = useRef(operation);
-  operationRef.current = operation;
   const handleGestureComplete = useCallback(
     (lassoPolygon: Polygon) => {
       if (operationRef.current === "refine") {
@@ -396,7 +430,7 @@ export const useLassoHighlight = ({
       map,
       onDrawComplete: handleGestureComplete,
       onDrawCancel: handleDrawCancel,
-      color: operationRef.current === "refine" ? REFINE_COLOR : DEFAULT_COLOR,
+      color: OPERATION_COLORS[operationRef.current],
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
@@ -446,7 +480,7 @@ export const useLassoHighlight = ({
   }, [rectWidth, rectHeight]);
 
   useEffect(() => {
-    const color = operation === "refine" ? REFINE_COLOR : DEFAULT_COLOR;
+    const color = OPERATION_COLORS[operation];
     managerRef.current?.setColor(color);
     passiveManagerRef.current?.setColor(color);
   }, [operation]);
@@ -464,7 +498,7 @@ export const useLassoHighlight = ({
       map,
       onDrawComplete: handleGestureComplete,
       onDrawCancel: handleDrawCancel,
-      color: operationRef.current === "refine" ? REFINE_COLOR : DEFAULT_COLOR,
+      color: OPERATION_COLORS[operationRef.current],
       requireModifier: "alt",
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,

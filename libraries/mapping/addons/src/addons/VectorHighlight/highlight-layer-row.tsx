@@ -25,8 +25,12 @@ const OPERATION_BUTTON_IDS: Record<HighlightOperation, string> = {
   intersect: HIGHLIGHT_INTERSECT_BUTTON_ID,
 };
 
-/** operations a click already switches to; the others stay decoration */
-const WIRED_OPERATIONS: HighlightOperation[] = ["invert", "intersect"];
+const WIRED_OPERATIONS: HighlightOperation[] = [
+  "add",
+  "subtract",
+  "invert",
+  "intersect",
+];
 
 const buildInteractionButtons = (
   setOperation: (operation: HighlightOperation) => void,

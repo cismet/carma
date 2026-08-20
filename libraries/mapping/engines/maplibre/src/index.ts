@@ -90,6 +90,7 @@ export type {
   UseSelectionNeighborhoodOptions,
 } from "./hooks/useSelectionNeighborhood";
 export { useLassoHighlight } from "./hooks/useLassoHighlight";
+export type { LassoOperation } from "./hooks/useLassoHighlight";
 export type {
   UseLassoHighlightOptions,
   UseLassoHighlightResult,
