@@ -18,9 +18,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "visibleFeatureStatsPanel", config: {} },
-    // caged: renders cage's build identity, and nothing at all when the
-    // cage submodule is absent
-    { kind: "cageVersionBadge" },
+    // caged: shows that cage is present, and renders nothing at all when the
+    // cage submodule is absent. Default is topright order 100, which puts it
+    // under the stats panel (topright order 10).
+    { kind: "cageIndicatorBadge" },
     // {
     //   /**
     //    * experiment: the image in the info box changes with the zoom.

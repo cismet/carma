@@ -37,7 +37,7 @@ export {
 export type { AddonOverridesState } from "./lib/addon-overrides";
 
 export { isCagedAvailable } from "./lib/caged-addons";
-export type { CageVersionBadgeConfig } from "./lib/caged-addons";
+export type { CageIndicatorBadgeConfig } from "./lib/caged-addons";
 
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
