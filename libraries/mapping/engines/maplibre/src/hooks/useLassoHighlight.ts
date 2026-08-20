@@ -397,12 +397,16 @@ export const useLassoHighlight = ({
   useEffect(() => {
     managerRef.current?.setShape(shape);
     passiveManagerRef.current?.setShape(shape);
+    refineManagerRef.current?.setShape(shape);
+    shiftRefineManagerRef.current?.setShape(shape);
   }, [shape]);
 
   useEffect(() => {
     if (circleRadius != null) {
       managerRef.current?.setCircleRadius(circleRadius);
       passiveManagerRef.current?.setCircleRadius(circleRadius);
+      refineManagerRef.current?.setCircleRadius(circleRadius);
+      shiftRefineManagerRef.current?.setCircleRadius(circleRadius);
     }
   }, [circleRadius]);
 
@@ -413,6 +417,8 @@ export const useLassoHighlight = ({
       const size = { width: rectWidth, height: rectHeight };
       managerRef.current?.setRectSize(size);
       passiveManagerRef.current?.setRectSize(size);
+      refineManagerRef.current?.setRectSize(size);
+      shiftRefineManagerRef.current?.setRectSize(size);
     }
   }, [rectWidth, rectHeight]);
 
@@ -461,6 +467,13 @@ export const useLassoHighlight = ({
       onDrawCancel: handleDrawCancel,
       requireModifier: ["alt", "shift"],
       color: REFINE_COLOR,
+      allowClickPlacement: true,
+      shape: shapeRef.current,
+      circleRadius: circleRadiusRef.current,
+      rectSize: rectSizeRef.current,
+      radiusStep: radiusStepRef.current,
+      onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
+      onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
     refineManagerRef.current = refine;
     // Recreated on map change: honor the current arming right away, the
@@ -492,6 +505,13 @@ export const useLassoHighlight = ({
       onDrawCancel: handleDrawCancel,
       requireModifier: ["shift"],
       color: REFINE_COLOR,
+      allowClickPlacement: true,
+      shape: shapeRef.current,
+      circleRadius: circleRadiusRef.current,
+      rectSize: rectSizeRef.current,
+      radiusStep: radiusStepRef.current,
+      onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
+      onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
     shiftRefineManagerRef.current = shiftRefine;
     if (activeRef.current && refineActiveRef.current) shiftRefine.activate();

@@ -125,6 +125,8 @@ export const VectorHighlight = ({
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,
+    // orange refine: narrows the current selection instead of adding to it
+    refineActive: lasso && highlightingActive,
   });
 
   const controllerRef = useRef<DimController | null>(null);

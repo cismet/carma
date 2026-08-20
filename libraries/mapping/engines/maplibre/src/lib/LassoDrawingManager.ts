@@ -99,6 +99,12 @@ export interface LassoDrawingManagerOptions {
    * would collide with a modifier-driven manager.
    */
   skipWhenModifiers?: ModifierKey[];
+  /**
+   * Let a plain click place the configured circle or rectangle even on a
+   * modifier-driven manager. Only safe where the modifier click has no other
+   * meaning. Default: false.
+   */
+  allowClickPlacement?: boolean;
   /** Outline + fill color of the drawn shape. Default: blue. */
   color?: string;
   /** Shape drawn on a drag. Default: "lasso" */
@@ -122,6 +128,7 @@ export class LassoDrawingManager {
   private minPoints: number;
   private requireModifiers: ModifierKey[];
   private skipWhenModifiers: ModifierKey[];
+  private allowClickPlacement: boolean;
   private color: string;
 
   private shape: DrawShape;
@@ -171,6 +178,7 @@ export class LassoDrawingManager {
     const req = options.requireModifier ?? null;
     this.requireModifiers = req == null ? [] : Array.isArray(req) ? req : [req];
     this.skipWhenModifiers = options.skipWhenModifiers ?? [];
+    this.allowClickPlacement = options.allowClickPlacement ?? false;
     this.color = options.color ?? DEFAULT_COLOR;
     this.shape = options.shape ?? "lasso";
     this.circleRadius = options.circleRadius ?? DEFAULT_CIRCLE_RADIUS;
@@ -451,7 +459,11 @@ export class LassoDrawingManager {
       // modifier click already toggles the feature under the cursor. Placing a
       // configured circle on top of it would select its whole neighbourhood as
       // well. Only a real drag counts there.
-      if (!this.dragged && this.requireModifiers.length > 0) {
+      if (
+        !this.dragged &&
+        this.requireModifiers.length > 0 &&
+        !this.allowClickPlacement
+      ) {
         this.cancelDraw();
         return;
       }
