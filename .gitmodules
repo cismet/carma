@@ -11,5 +11,5 @@
 [submodule "cage/cage-submodule"]
 	path = cage/cage-submodule
 	url = git@github.com:cismet/cage.git
-	branch = dev
+	branch = main
 	ignore = all
