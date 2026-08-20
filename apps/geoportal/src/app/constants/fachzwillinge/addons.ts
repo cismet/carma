@@ -9,7 +9,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
   },
   addons: [
     { kind: "addonManager", config: { showControl: true } },
-    { kind: "vectorHighlight", config: { modifierClick: "alt", lasso: true } },
+    {
+      kind: "vectorHighlight",
+      config: { modifierClick: "alt", lasso: true, monochrome: false },
+    },
     { kind: "vectorHighlightControl" },
     {
       kind: "visibleFeatureStatsSource",

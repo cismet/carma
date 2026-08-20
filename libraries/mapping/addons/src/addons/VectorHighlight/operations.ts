@@ -30,3 +30,6 @@ export const OPERATION_COLORS: Record<HighlightOperation, string> = {
   intersect: "#f97316",
   invert: "#3388ff",
 };
+
+/** the blue every operation falls back to when colours are switched off */
+export const MONOCHROME_COLOR = "#3388ff";

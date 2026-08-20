@@ -5,7 +5,6 @@ import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useHighlightModeActions } from "./highlight-actions";
 import {
-  OPERATION_COLORS,
   OPERATION_ICONS,
   OPERATION_LABELS,
   type HighlightOperation,
@@ -38,7 +37,8 @@ const WIRED_OPERATIONS: HighlightOperation[] = [
 
 const buildInteractionButtons = (
   setOperation: (operation: HighlightOperation) => void,
-  activeOperation: HighlightOperation
+  activeOperation: HighlightOperation,
+  colorForOperation: (operation: HighlightOperation) => string
 ): InteractionButton[] =>
   (Object.keys(OPERATION_BUTTON_IDS) as HighlightOperation[]).map(
     (operation) => {
@@ -50,7 +50,7 @@ const buildInteractionButtons = (
           <FontAwesomeIcon
             icon={OPERATION_ICONS[operation]}
             style={
-              isActive ? { color: OPERATION_COLORS[operation] } : undefined
+              isActive ? { color: colorForOperation(operation) } : undefined
             }
           />
         ),
@@ -91,16 +91,21 @@ export const useHighlightLayerRow = ({
   onRemove,
   onUpdate,
 }: UseHighlightLayerRowOptions) => {
-  const { isOn, endMode, operation, setOperation } = useHighlightModeActions();
+  const { isOn, endMode, operation, setOperation, colorForOperation } =
+    useHighlightModeActions();
 
   // the host stores a snapshot of the layer, so the handlers have to travel
   // with it rather than being read from here later
   const layer = useMemo(
     () => ({
       ...HIGHLIGHT_LAYER,
-      interactionButtons: buildInteractionButtons(setOperation, operation),
+      interactionButtons: buildInteractionButtons(
+        setOperation,
+        operation,
+        colorForOperation
+      ),
     }),
-    [setOperation, operation]
+    [setOperation, operation, colorForOperation]
   );
   const layerRef = useRef(layer);
   layerRef.current = layer;

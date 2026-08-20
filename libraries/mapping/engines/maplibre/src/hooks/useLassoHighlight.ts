@@ -167,6 +167,8 @@ export interface UseLassoHighlightOptions {
    * colour. The modifier gestures are unaffected. Default: "toggle"
    */
   operation?: LassoOperation;
+  /** One colour for every operation, instead of the per-operation defaults. */
+  color?: string;
   /**
    * Arms the Alt+Shift "refine" lasso (orange): it narrows the CURRENT
    * highlight set instead of adding to it — highlighted features inside the
@@ -210,6 +212,7 @@ export const useLassoHighlight = ({
   onRectSizeChange,
   sources,
   operation = "toggle",
+  color,
   refineActive = false,
   onDeactivate,
   onToggle,
@@ -243,6 +246,8 @@ export const useLassoHighlight = ({
   // instead of swapping the managers' callbacks
   const operationRef = useRef(operation);
   operationRef.current = operation;
+  const colorRef = useRef(color);
+  colorRef.current = color;
   const ensureRef = useRef(ensureToggledFeatures);
   ensureRef.current = ensureToggledFeatures;
   const suppressRef = useRef(ensureSuppressedFeatures);
@@ -430,7 +435,7 @@ export const useLassoHighlight = ({
       map,
       onDrawComplete: handleGestureComplete,
       onDrawCancel: handleDrawCancel,
-      color: OPERATION_COLORS[operationRef.current],
+      color: colorRef.current ?? OPERATION_COLORS[operationRef.current],
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
@@ -480,10 +485,10 @@ export const useLassoHighlight = ({
   }, [rectWidth, rectHeight]);
 
   useEffect(() => {
-    const color = OPERATION_COLORS[operation];
-    managerRef.current?.setColor(color);
-    passiveManagerRef.current?.setColor(color);
-  }, [operation]);
+    const next = color ?? OPERATION_COLORS[operation];
+    managerRef.current?.setColor(next);
+    passiveManagerRef.current?.setColor(next);
+  }, [operation, color]);
 
   // Create/destroy passive Alt+drag manager (always-on when map exists).
   // Activate immediately unless explicit lasso mode is already on. It draws the
@@ -498,7 +503,7 @@ export const useLassoHighlight = ({
       map,
       onDrawComplete: handleGestureComplete,
       onDrawCancel: handleDrawCancel,
-      color: OPERATION_COLORS[operationRef.current],
+      color: colorRef.current ?? OPERATION_COLORS[operationRef.current],
       requireModifier: "alt",
       shape: shapeRef.current,
       circleRadius: circleRadiusRef.current,

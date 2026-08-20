@@ -12,6 +12,8 @@ export type HighlightModeState = {
   rectSize?: RectSize;
   /** what a drag does; only "intersect" draws orange today */
   operation?: HighlightOperation;
+  /** published from the config so UI outside the addon picks the same colours */
+  monochrome?: boolean;
   /** published by the addon so UI outside it knows what to offer */
   availableShapes?: DrawShape[];
 };
@@ -30,6 +32,11 @@ export type VectorHighlightConfig = {
    * feature it covers is toggled the same way a modifier+click would. Default: false.
    */
   lasso?: boolean;
+  /**
+   * Draw and mark every operation in the default blue instead of giving each
+   * one its own colour. The operations themselves are unchanged. Default: false
+   */
+  monochrome?: boolean;
   /** Shapes the UI offers, first one preselected. Default: ["lasso", "circle", "rect"] */
   shapes?: DrawShape[];
   /** Radius in metres a clicked circle starts with. Default: 250 */

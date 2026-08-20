@@ -19,7 +19,7 @@ import { useCombinedGeometryHighlight } from "./combined-geometry";
 import { useHighlightModeActions } from "./highlight-actions";
 import { DEFAULT_SHAPES } from "./shapes";
 
-import type { HighlightOperation } from "./operations";
+import { MONOCHROME_COLOR, type HighlightOperation } from "./operations";
 
 /** invert is the flip the standalone lasso already does, so it maps to toggle */
 const LASSO_OPERATIONS: Record<HighlightOperation, LassoOperation> = {
@@ -54,6 +54,7 @@ export const VectorHighlight = ({
     stateKey = DEFAULT_STATE_KEY,
     excludedLayerPatterns,
     lasso = false,
+    monochrome = false,
     combineLayerGeometries = true,
     excludeCombinedLayers,
     shapes,
@@ -100,8 +101,9 @@ export const VectorHighlight = ({
     setMode((previous) => ({
       ...(previous ?? { isOn: false }),
       availableShapes,
+      monochrome,
     }));
-  }, [availableShapes, setMode]);
+  }, [availableShapes, monochrome, setMode]);
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
@@ -142,6 +144,7 @@ export const VectorHighlight = ({
     // the operation is picked in the layer row, so the Shift and Alt+Shift
     // refine gestures stay disarmed here
     operation: LASSO_OPERATIONS[operation],
+    color: monochrome ? MONOCHROME_COLOR : undefined,
   });
 
   const controllerRef = useRef<DimController | null>(null);

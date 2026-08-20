@@ -1,5 +1,4 @@
 import { useHighlightModeActions } from "./highlight-actions";
-import { OPERATION_COLORS } from "./operations";
 import { ShapeToolbar } from "./ShapeToolbar";
 
 /**
@@ -7,8 +6,15 @@ import { ShapeToolbar } from "./ShapeToolbar";
  * so it gets the same backdrop the measurement tools have.
  */
 export const HighlightInteractionPanel = () => {
-  const { shapes, shape, setShape, clear, canClear, operation } =
-    useHighlightModeActions();
+  const {
+    shapes,
+    shape,
+    setShape,
+    clear,
+    canClear,
+    operation,
+    colorForOperation,
+  } = useHighlightModeActions();
 
   if (shapes.length < 2) {
     return null;
@@ -21,7 +27,7 @@ export const HighlightInteractionPanel = () => {
       onShapeChange={setShape}
       onClear={clear}
       canClear={canClear}
-      activeColor={OPERATION_COLORS[operation]}
+      activeColor={colorForOperation(operation)}
     />
   );
 };

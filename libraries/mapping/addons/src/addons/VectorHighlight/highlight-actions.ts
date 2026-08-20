@@ -5,7 +5,11 @@ import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { DEFAULT_SHAPES } from "./shapes";
-import type { HighlightOperation } from "./operations";
+import {
+  MONOCHROME_COLOR,
+  OPERATION_COLORS,
+  type HighlightOperation,
+} from "./operations";
 
 /**
  * Shared by the headless addon and every piece of UI, so "end the mode" and
@@ -44,6 +48,13 @@ export const useHighlightModeActions = () => {
         shape: next,
       })),
     [setMode]
+  );
+
+  const monochrome = mode?.monochrome ?? false;
+  const colorForOperation = useCallback(
+    (next: HighlightOperation) =>
+      monochrome ? MONOCHROME_COLOR : OPERATION_COLORS[next],
+    [monochrome]
   );
 
   const setOperation = useCallback(
@@ -89,6 +100,8 @@ export const useHighlightModeActions = () => {
     setShape,
     operation: mode?.operation ?? "add",
     setOperation,
+    monochrome,
+    colorForOperation,
     setCircleRadius,
     setRectSize,
   };
