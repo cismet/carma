@@ -18,11 +18,11 @@ import type { Positions } from "@carma-mapping/map-controls-layout";
  *
  * The config types live here, in the open, on purpose: `AddonConfigMap` is part
  * of carma's public surface and has to typecheck without cage present. Only the
- * implementations are caged. `CageVersionBadgeConfig` is mirrored in cage's
- * `src/mapping-addons/CageVersionBadge.tsx`; the two are matched structurally.
+ * implementations are caged. `CageIndicatorBadgeConfig` is mirrored in cage's
+ * `src/mapping-addons/CageIndicatorBadge.tsx`; the two are matched structurally.
  */
 
-export type CageVersionBadgeConfig = {
+export type CageIndicatorBadgeConfig = {
   /** Corner the badge is registered in. Default: "bottomleft" */
   position?: Positions;
   /** Sort order within that corner. Default: 100 */
@@ -34,7 +34,7 @@ export type CageVersionBadgeConfig = {
 // `config` would not satisfy `ComponentType<AddonComponentProps<K>>` in the
 // registry. Function props are contravariant, so the narrower shape is fine.
 type CagedMappingAddons = {
-  CageVersionBadge?: FunctionComponent<{ config?: CageVersionBadgeConfig }>;
+  CageIndicatorBadge?: FunctionComponent<{ config?: CageIndicatorBadgeConfig }>;
 };
 
 // Exact path rather than a wildcard: this is a single known entry point, and an
@@ -46,7 +46,7 @@ const modules = import.meta.glob<CagedMappingAddons>(
 
 const caged: CagedMappingAddons = Object.values(modules)[0] ?? {};
 
-export const CageVersionBadge = caged.CageVersionBadge;
+export const CageIndicatorBadge = caged.CageIndicatorBadge;
 
 /** Whether the caged implementations were present in this build. */
-export const isCagedAvailable = Boolean(CageVersionBadge);
+export const isCagedAvailable = Boolean(CageIndicatorBadge);
