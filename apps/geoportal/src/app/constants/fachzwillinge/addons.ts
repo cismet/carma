@@ -63,6 +63,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "vectorHighlightDebug",
       config: { limit: 20, property: "id", hidden: true },
     },
+    "nearestFeature",
     {
       kind: "visibleFeatureStatsSource",
       config: {

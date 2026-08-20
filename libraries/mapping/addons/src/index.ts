@@ -109,6 +109,10 @@ export {
   OPERATION_ICONS,
   OPERATION_LABELS,
 } from "./addons/VectorHighlight";
+export {
+  NearestFeature,
+  type NearestFeatureConfig,
+} from "./addons/NearestFeature";
 export type {
   OperationColors,
   HighlightModeState,

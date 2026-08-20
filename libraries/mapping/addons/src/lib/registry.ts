@@ -26,6 +26,10 @@ import {
   type InfoBoxImageState,
   type InfoBoxZoomImageConfig,
 } from "../addons/InfoBoxZoomImage";
+import {
+  NearestFeature,
+  type NearestFeatureConfig,
+} from "../addons/NearestFeature";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
@@ -93,6 +97,7 @@ export type AddonConfigMap = {
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
+  nearestFeature: NearestFeatureConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -255,6 +260,7 @@ export const addonRegistry: {
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
+  nearestFeature: { Component: NearestFeature },
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],

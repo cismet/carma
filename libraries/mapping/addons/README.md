@@ -40,6 +40,7 @@ so the second folder is the list of what actually exists:
 | `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
 | `addons/HomeOverride.tsx`   | moves the home button's target and tooltip for this route |
+| `addons/NearestFeature.tsx` | click mode that lists the features nearest to the click |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain toggle button for the maplibre map              |
