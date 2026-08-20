@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  HIGHLIGHT_INVERT_BUTTON_ID,
+  HIGHLIGHT_TOOLS_INTERACTION_ID,
   HIGHLIGHT_LAYER_ID,
   useHighlightLayerRow,
 } from "@carma-mapping/addons";
@@ -27,7 +27,7 @@ export function useHighlightLayerButton() {
       dispatch(appendLayer(layer));
       // open the panel right away, the way the measurement row does
       dispatch(setActiveInteractionLayerID(layer.id));
-      dispatch(setActiveInteractionButtonID(HIGHLIGHT_INVERT_BUTTON_ID));
+      dispatch(setActiveInteractionButtonID(HIGHLIGHT_TOOLS_INTERACTION_ID));
     },
     onUpdate: (layer) => dispatch(updateLayer(layer)),
     onRemove: (id) => {

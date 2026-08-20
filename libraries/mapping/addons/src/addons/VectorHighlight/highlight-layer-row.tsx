@@ -13,6 +13,10 @@ import {
 
 export const HIGHLIGHT_LAYER_ID = "__highlight__";
 
+/** the panel the row click opens; deliberately none of the operation buttons,
+ *  whose host-side "active" styling would override their own colour */
+export const HIGHLIGHT_TOOLS_INTERACTION_ID = "highlight-tools";
+
 export const HIGHLIGHT_ADD_BUTTON_ID = "highlight-add";
 export const HIGHLIGHT_SUBTRACT_BUTTON_ID = "highlight-subtract";
 export const HIGHLIGHT_INVERT_BUTTON_ID = "highlight-invert";
@@ -64,7 +68,7 @@ export const HIGHLIGHT_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
-  toggleInteractionOnRowClick: true,
+  rowClickInteractionId: HIGHLIGHT_TOOLS_INTERACTION_ID,
 };
 
 export type UseHighlightLayerRowOptions = {
