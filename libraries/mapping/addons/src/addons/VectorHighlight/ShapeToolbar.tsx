@@ -30,6 +30,8 @@ export type ShapeToolbarProps = {
   onShapeChange: (shape: DrawShape) => void;
   onClear: () => void;
   canClear: boolean;
+  /** colour of the selected shape; falls back to the control blue of the class */
+  activeColor?: string;
   labels?: Partial<Record<DrawShape, string>>;
   clearLabel?: string;
   classNames?: Partial<ShapeToolbarClassNames>;
@@ -42,6 +44,7 @@ export const ShapeToolbar = ({
   onShapeChange,
   onClear,
   canClear,
+  activeColor,
   labels,
   clearLabel = "Highlights zurücksetzen",
   classNames,
@@ -54,6 +57,13 @@ export const ShapeToolbar = ({
       {shapes.map((entry) => {
         const label = labels?.[entry] ?? SHAPE_LABELS[entry];
         const isActive = entry === shape;
+        // an inline colour cannot win against the `!text-` of the active class,
+        // so with a colour given the class is left out entirely
+        const colorClass = isActive
+          ? activeColor
+            ? ""
+            : css.buttonActive
+          : css.buttonInactive;
         return (
           <Tooltip key={entry} title={label} placement={tooltipPlacement}>
             <button
@@ -65,10 +75,10 @@ export const ShapeToolbar = ({
               aria-pressed={isActive}
               aria-label={label}
               data-test-id={`vector-highlight-shape-${entry}`}
-              className={[
-                css.button,
-                isActive ? css.buttonActive : css.buttonInactive,
-              ].join(" ")}
+              className={[css.button, colorClass].join(" ")}
+              style={
+                isActive && activeColor ? { color: activeColor } : undefined
+              }
             >
               <FontAwesomeIcon icon={SHAPE_ICONS[entry]} />
             </button>

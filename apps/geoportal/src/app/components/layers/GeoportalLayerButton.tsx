@@ -263,6 +263,23 @@ const GeoportalLayerButton = ({
             );
             return;
           }
+          if (
+            layer.toggleInteractionOnRowClick &&
+            interactionButtons.length > 0
+          ) {
+            const isPanelOpen =
+              activeInteractionLayerID === id &&
+              interactionButtons.some(
+                (btn) => btn.id === activeInteractionButtonID
+              );
+            dispatch(setActiveInteractionLayerID(isPanelOpen ? null : id));
+            dispatch(
+              setActiveInteractionButtonID(
+                isPanelOpen ? null : interactionButtons[0].id
+              )
+            );
+            return;
+          }
           if (interactionButtons.length > 0) {
             if (interactionActivationMode === "button") {
               const primaryInteractionButton = interactionButtons[0];
