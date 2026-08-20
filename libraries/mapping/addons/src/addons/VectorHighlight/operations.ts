@@ -21,3 +21,12 @@ export const OPERATION_ICONS: Record<HighlightOperation, IconDefinition> = {
   intersect: faCrop,
   invert: faCircleHalfStroke,
 };
+
+/** colour a button gets while its operation is the active one; matches the
+ *  colour the lasso itself draws in */
+export const OPERATION_COLORS: Record<HighlightOperation, string> = {
+  add: "#3388ff",
+  subtract: "#3388ff",
+  intersect: "#f97316",
+  invert: "#3388ff",
+};

@@ -186,6 +186,8 @@ type BaseLayer = {
     icon?: string;
   };
   skipSelection?: boolean;
+  /** Clicking the row toggles the panel of its first interaction button. */
+  toggleInteractionOnRowClick?: boolean;
   interactionButtons?: InteractionButton | InteractionButton[];
   tools?: ToolEntry[];
   featureBounds?: [number, number, number, number];

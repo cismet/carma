@@ -10,6 +10,7 @@ import {
   appendLayer,
   getLayers,
   removeLayer,
+  updateLayer,
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
 } from "../store/slices/mapping";
@@ -28,6 +29,7 @@ export function useHighlightLayerButton() {
       dispatch(setActiveInteractionLayerID(layer.id));
       dispatch(setActiveInteractionButtonID(HIGHLIGHT_INVERT_BUTTON_ID));
     },
+    onUpdate: (layer) => dispatch(updateLayer(layer)),
     onRemove: (id) => {
       dispatch(removeLayer(id));
       dispatch(setActiveInteractionLayerID(null));

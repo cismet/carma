@@ -5,6 +5,7 @@ import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useHighlightModeActions } from "./highlight-actions";
 import {
+  OPERATION_COLORS,
   OPERATION_ICONS,
   OPERATION_LABELS,
   type HighlightOperation,
@@ -28,17 +29,27 @@ const OPERATION_BUTTON_IDS: Record<HighlightOperation, string> = {
 const WIRED_OPERATIONS: HighlightOperation[] = ["invert", "intersect"];
 
 const buildInteractionButtons = (
-  setOperation: (operation: HighlightOperation) => void
+  setOperation: (operation: HighlightOperation) => void,
+  activeOperation: HighlightOperation
 ): InteractionButton[] =>
   (Object.keys(OPERATION_BUTTON_IDS) as HighlightOperation[]).map(
-    (operation) => ({
-      id: OPERATION_BUTTON_IDS[operation],
-      icon: <FontAwesomeIcon icon={OPERATION_ICONS[operation]} />,
-      tooltip: OPERATION_LABELS[operation],
-      onClick: WIRED_OPERATIONS.includes(operation)
-        ? () => setOperation(operation)
-        : undefined,
-    })
+    (operation) => {
+      const wired = WIRED_OPERATIONS.includes(operation);
+      const isActive = wired && operation === activeOperation;
+      return {
+        id: OPERATION_BUTTON_IDS[operation],
+        icon: (
+          <FontAwesomeIcon
+            icon={OPERATION_ICONS[operation]}
+            style={
+              isActive ? { color: OPERATION_COLORS[operation] } : undefined
+            }
+          />
+        ),
+        tooltip: OPERATION_LABELS[operation],
+        onClick: wired ? () => setOperation(operation) : undefined,
+      };
+    }
   );
 
 export const HIGHLIGHT_LAYER: Layer = {
@@ -49,6 +60,7 @@ export const HIGHLIGHT_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
+  toggleInteractionOnRowClick: true,
 };
 
 export type UseHighlightLayerRowOptions = {
@@ -56,6 +68,8 @@ export type UseHighlightLayerRowOptions = {
   hasRow: boolean;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
+  /** the host keeps a snapshot, so a changed row has to be handed over again */
+  onUpdate?: (layer: Layer) => void;
 };
 
 /**
@@ -67,17 +81,18 @@ export const useHighlightLayerRow = ({
   hasRow,
   onAdd,
   onRemove,
+  onUpdate,
 }: UseHighlightLayerRowOptions) => {
-  const { isOn, endMode, setOperation } = useHighlightModeActions();
+  const { isOn, endMode, operation, setOperation } = useHighlightModeActions();
 
   // the host stores a snapshot of the layer, so the handlers have to travel
   // with it rather than being read from here later
   const layer = useMemo(
     () => ({
       ...HIGHLIGHT_LAYER,
-      interactionButtons: buildInteractionButtons(setOperation),
+      interactionButtons: buildInteractionButtons(setOperation, operation),
     }),
-    [setOperation]
+    [setOperation, operation]
   );
   const layerRef = useRef(layer);
   layerRef.current = layer;
@@ -86,6 +101,16 @@ export const useHighlightLayerRow = ({
   onAddRef.current = onAdd;
   const onRemoveRef = useRef(onRemove);
   onRemoveRef.current = onRemove;
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+
+  // the buttons carry the active operation, so the row on screen goes stale
+  // whenever it changes
+  useEffect(() => {
+    if (hasRow) {
+      onUpdateRef.current?.(layer);
+    }
+  }, [hasRow, layer]);
 
   const prevRef = useRef({ isOn, hasRow });
   /** what we last asked the host for, so a re-render before the host's state
