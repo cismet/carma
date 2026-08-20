@@ -4,8 +4,10 @@ import type { Layer } from "@carma-mapping/layers";
 
 import {
   HighlightInteractionPanel,
+  HIGHLIGHT_ADD_BUTTON_ID,
   HIGHLIGHT_INTERSECT_BUTTON_ID,
   HIGHLIGHT_INVERT_BUTTON_ID,
+  HIGHLIGHT_SUBTRACT_BUTTON_ID,
 } from "../addons/VectorHighlight";
 
 /**
@@ -17,6 +19,8 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   string,
   ComponentType<{ layer: Layer }>
 > = {
+  [HIGHLIGHT_ADD_BUTTON_ID]: HighlightInteractionPanel,
+  [HIGHLIGHT_SUBTRACT_BUTTON_ID]: HighlightInteractionPanel,
   [HIGHLIGHT_INVERT_BUTTON_ID]: HighlightInteractionPanel,
   [HIGHLIGHT_INTERSECT_BUTTON_ID]: HighlightInteractionPanel,
 };

@@ -65,6 +65,8 @@ export {
   useHighlightLayerRow,
   HIGHLIGHT_LAYER,
   HIGHLIGHT_LAYER_ID,
+  HIGHLIGHT_ADD_BUTTON_ID,
+  HIGHLIGHT_SUBTRACT_BUTTON_ID,
   HIGHLIGHT_INVERT_BUTTON_ID,
   HIGHLIGHT_INTERSECT_BUTTON_ID,
   HighlightInteractionPanel,
@@ -73,6 +75,8 @@ export {
   DEFAULT_SHAPES,
   SHAPE_ICONS,
   SHAPE_LABELS,
+  OPERATION_ICONS,
+  OPERATION_LABELS,
 } from "./addons/VectorHighlight";
 export type {
   HighlightModeState,
@@ -82,6 +86,7 @@ export type {
   UseHighlightLayerRowOptions,
   ShapeToolbarProps,
   ShapeToolbarClassNames,
+  HighlightOperation,
   HighlightModeButtonProps,
 } from "./addons/VectorHighlight";
 export {

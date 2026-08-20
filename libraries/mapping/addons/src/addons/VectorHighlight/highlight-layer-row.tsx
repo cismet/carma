@@ -1,17 +1,39 @@
 import { useEffect, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useHighlightModeActions } from "./highlight-actions";
+import { OPERATION_ICONS, OPERATION_LABELS } from "./operations";
 
 export const HIGHLIGHT_LAYER_ID = "__highlight__";
 
+export const HIGHLIGHT_ADD_BUTTON_ID = "highlight-add";
+export const HIGHLIGHT_SUBTRACT_BUTTON_ID = "highlight-subtract";
 export const HIGHLIGHT_INVERT_BUTTON_ID = "highlight-invert";
 export const HIGHLIGHT_INTERSECT_BUTTON_ID = "highlight-intersect";
 
 const INTERACTION_BUTTONS: InteractionButton[] = [
-  { id: HIGHLIGHT_INVERT_BUTTON_ID, icon: "Invertieren" },
-  { id: HIGHLIGHT_INTERSECT_BUTTON_ID, icon: "Schneiden" },
+  {
+    id: HIGHLIGHT_ADD_BUTTON_ID,
+    icon: <FontAwesomeIcon icon={OPERATION_ICONS.add} />,
+    tooltip: OPERATION_LABELS.add,
+  },
+  {
+    id: HIGHLIGHT_SUBTRACT_BUTTON_ID,
+    icon: <FontAwesomeIcon icon={OPERATION_ICONS.subtract} />,
+    tooltip: OPERATION_LABELS.subtract,
+  },
+  {
+    id: HIGHLIGHT_INVERT_BUTTON_ID,
+    icon: <FontAwesomeIcon icon={OPERATION_ICONS.invert} />,
+    tooltip: OPERATION_LABELS.invert,
+  },
+  {
+    id: HIGHLIGHT_INTERSECT_BUTTON_ID,
+    icon: <FontAwesomeIcon icon={OPERATION_ICONS.intersect} />,
+    tooltip: OPERATION_LABELS.intersect,
+  },
 ];
 
 export const HIGHLIGHT_LAYER: Layer = {
