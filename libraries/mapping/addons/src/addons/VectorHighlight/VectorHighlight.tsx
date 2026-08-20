@@ -139,9 +139,9 @@ export const VectorHighlight = ({
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,
+    // the operation is picked in the layer row, so the Shift and Alt+Shift
+    // refine gestures stay disarmed here
     operation: LASSO_OPERATIONS[operation],
-    // orange refine: narrows the current selection instead of adding to it
-    refineActive: lasso && highlightingActive,
   });
 
   const controllerRef = useRef<DimController | null>(null);
