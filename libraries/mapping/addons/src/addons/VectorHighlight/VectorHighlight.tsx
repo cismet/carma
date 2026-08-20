@@ -8,13 +8,26 @@ import {
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
 } from "@carma-mapping/engines/maplibre";
-import type { DrawShape } from "@carma-mapping/engines/maplibre";
+import type {
+  DrawShape,
+  LassoOperation,
+} from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { createDimController, type DimController } from "./dim-controller";
 import { useCombinedGeometryHighlight } from "./combined-geometry";
 import { useHighlightModeActions } from "./highlight-actions";
 import { DEFAULT_SHAPES } from "./shapes";
+
+import type { HighlightOperation } from "./operations";
+
+/** invert is the flip the standalone lasso already does, so it maps to toggle */
+const LASSO_OPERATIONS: Record<HighlightOperation, LassoOperation> = {
+  add: "add",
+  subtract: "subtract",
+  intersect: "refine",
+  invert: "toggle",
+};
 
 const DEFAULT_DIM_OPACITY = 0.25;
 const DEFAULT_STATE_KEY = "highlighted";
@@ -126,7 +139,7 @@ export const VectorHighlight = ({
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,
-    operation: operation === "intersect" ? "refine" : "add",
+    operation: LASSO_OPERATIONS[operation],
     // orange refine: narrows the current selection instead of adding to it
     refineActive: lasso && highlightingActive,
   });
