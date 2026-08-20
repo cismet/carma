@@ -28,6 +28,7 @@ import {
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import {
+  ADDON_INTERACTION_COMPONENTS,
   TargetAddonHost,
   resolveActiveTargetAddon,
 } from "@carma-mapping/addons";
@@ -70,6 +71,7 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
 };
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
+  ...ADDON_INTERACTION_COMPONENTS,
   [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
   [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
   [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,

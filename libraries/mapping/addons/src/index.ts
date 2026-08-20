@@ -56,14 +56,18 @@ export {
 } from "./addons/CameraRestriction";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
-export {
-  HomeOverride,
-  type HomeOverrideConfig,
-} from "./addons/HomeOverride";
+export { HomeOverride, type HomeOverrideConfig } from "./addons/HomeOverride";
 export {
   VectorHighlight,
   VectorHighlightControl,
   VectorHighlightShapeTools,
+  useHighlightModeActions,
+  useHighlightLayerRow,
+  HIGHLIGHT_LAYER,
+  HIGHLIGHT_LAYER_ID,
+  HIGHLIGHT_INVERT_BUTTON_ID,
+  HIGHLIGHT_INTERSECT_BUTTON_ID,
+  HighlightInteractionPanel,
   ShapeToolbar,
   HighlightModeButton,
   DEFAULT_SHAPES,
@@ -75,6 +79,7 @@ export type {
   VectorHighlightConfig,
   VectorHighlightControlConfig,
   VectorHighlightShapeToolsProps,
+  UseHighlightLayerRowOptions,
   ShapeToolbarProps,
   ShapeToolbarClassNames,
   HighlightModeButtonProps,
@@ -109,3 +114,5 @@ export {
   type ColoredStatsGroup,
   type VisibleFeatureStatsPanelConfig,
 } from "./addons/VisibleFeatureStatsPanel";
+
+export { ADDON_INTERACTION_COMPONENTS } from "./lib/interaction-components";

@@ -56,10 +56,10 @@ import SecondaryView from "./SecondaryView";
 
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { VectorHighlightShapeTools } from "@carma-mapping/addons";
 import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
+import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -71,6 +71,7 @@ const scrollLayerBarBy = (left: number) => {
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
   useDynamicStylingSync();
+  useHighlightLayerButton();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
@@ -280,9 +281,6 @@ const LayerWrapper = () => {
       </DndContext>
 
       {size.width >= 640 && <InteractionView isDragging={isDragging} />}
-      {/* the highlight addon's shape picker, in the same strip under the layer
-          bar the measurement tools use; it draws nothing while the mode is off */}
-      {size.width >= 640 && <VectorHighlightShapeTools />}
       {isSecondaryViewOpen && <SecondaryView />}
     </>
   );
