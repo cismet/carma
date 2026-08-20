@@ -68,7 +68,7 @@ export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
 
 const ALL_MODIFIERS: ModifierKey[] = ["alt", "ctrl", "shift", "meta"];
 
-const DEFAULT_COLOR = "#3388ff";
+export const DEFAULT_COLOR = "#3388ff";
 
 /** How the selection area is drawn. */
 export type DrawShape = "lasso" | "circle" | "rect";
@@ -199,6 +199,13 @@ export class LassoDrawingManager {
     if (shape === this.shape) return;
     if (this.drawing) this.cancelDraw();
     this.shape = shape;
+  }
+
+  /** Repaints the shared layers, so one manager can serve several operations. */
+  setColor(color: string): void {
+    if (color === this.color) return;
+    this.color = color;
+    this.applyColor();
   }
 
   setCircleRadius(radiusMeters: number): void {

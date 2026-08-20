@@ -1,10 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useHighlightModeActions } from "./highlight-actions";
-import { OPERATION_ICONS, OPERATION_LABELS } from "./operations";
+import {
+  OPERATION_ICONS,
+  OPERATION_LABELS,
+  type HighlightOperation,
+} from "./operations";
 
 export const HIGHLIGHT_LAYER_ID = "__highlight__";
 
@@ -13,28 +17,29 @@ export const HIGHLIGHT_SUBTRACT_BUTTON_ID = "highlight-subtract";
 export const HIGHLIGHT_INVERT_BUTTON_ID = "highlight-invert";
 export const HIGHLIGHT_INTERSECT_BUTTON_ID = "highlight-intersect";
 
-const INTERACTION_BUTTONS: InteractionButton[] = [
-  {
-    id: HIGHLIGHT_ADD_BUTTON_ID,
-    icon: <FontAwesomeIcon icon={OPERATION_ICONS.add} />,
-    tooltip: OPERATION_LABELS.add,
-  },
-  {
-    id: HIGHLIGHT_SUBTRACT_BUTTON_ID,
-    icon: <FontAwesomeIcon icon={OPERATION_ICONS.subtract} />,
-    tooltip: OPERATION_LABELS.subtract,
-  },
-  {
-    id: HIGHLIGHT_INVERT_BUTTON_ID,
-    icon: <FontAwesomeIcon icon={OPERATION_ICONS.invert} />,
-    tooltip: OPERATION_LABELS.invert,
-  },
-  {
-    id: HIGHLIGHT_INTERSECT_BUTTON_ID,
-    icon: <FontAwesomeIcon icon={OPERATION_ICONS.intersect} />,
-    tooltip: OPERATION_LABELS.intersect,
-  },
-];
+const OPERATION_BUTTON_IDS: Record<HighlightOperation, string> = {
+  add: HIGHLIGHT_ADD_BUTTON_ID,
+  subtract: HIGHLIGHT_SUBTRACT_BUTTON_ID,
+  invert: HIGHLIGHT_INVERT_BUTTON_ID,
+  intersect: HIGHLIGHT_INTERSECT_BUTTON_ID,
+};
+
+/** operations a click already switches to; the others stay decoration */
+const WIRED_OPERATIONS: HighlightOperation[] = ["invert", "intersect"];
+
+const buildInteractionButtons = (
+  setOperation: (operation: HighlightOperation) => void
+): InteractionButton[] =>
+  (Object.keys(OPERATION_BUTTON_IDS) as HighlightOperation[]).map(
+    (operation) => ({
+      id: OPERATION_BUTTON_IDS[operation],
+      icon: <FontAwesomeIcon icon={OPERATION_ICONS[operation]} />,
+      tooltip: OPERATION_LABELS[operation],
+      onClick: WIRED_OPERATIONS.includes(operation)
+        ? () => setOperation(operation)
+        : undefined,
+    })
+  );
 
 export const HIGHLIGHT_LAYER: Layer = {
   id: HIGHLIGHT_LAYER_ID,
@@ -44,7 +49,6 @@ export const HIGHLIGHT_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
-  interactionButtons: INTERACTION_BUTTONS,
 };
 
 export type UseHighlightLayerRowOptions = {
@@ -64,7 +68,19 @@ export const useHighlightLayerRow = ({
   onAdd,
   onRemove,
 }: UseHighlightLayerRowOptions) => {
-  const { isOn, endMode } = useHighlightModeActions();
+  const { isOn, endMode, setOperation } = useHighlightModeActions();
+
+  // the host stores a snapshot of the layer, so the handlers have to travel
+  // with it rather than being read from here later
+  const layer = useMemo(
+    () => ({
+      ...HIGHLIGHT_LAYER,
+      interactionButtons: buildInteractionButtons(setOperation),
+    }),
+    [setOperation]
+  );
+  const layerRef = useRef(layer);
+  layerRef.current = layer;
 
   const onAddRef = useRef(onAdd);
   onAddRef.current = onAdd;
@@ -94,7 +110,7 @@ export const useHighlightLayerRow = ({
 
     if (isOn && requestedRef.current !== "add") {
       requestedRef.current = "add";
-      onAddRef.current(HIGHLIGHT_LAYER);
+      onAddRef.current(layerRef.current);
       return;
     }
 

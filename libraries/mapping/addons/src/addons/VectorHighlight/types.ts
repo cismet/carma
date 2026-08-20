@@ -1,6 +1,8 @@
 import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
+import type { HighlightOperation } from "./operations";
+
 export type HighlightModeState = {
   isOn: boolean;
   shape?: DrawShape;
@@ -8,6 +10,8 @@ export type HighlightModeState = {
   circleRadius?: number;
   /** metres, used when a rectangle is placed by a click instead of a drag */
   rectSize?: RectSize;
+  /** what a drag does; only "intersect" draws orange today */
+  operation?: HighlightOperation;
   /** published by the addon so UI outside it knows what to offer */
   availableShapes?: DrawShape[];
 };

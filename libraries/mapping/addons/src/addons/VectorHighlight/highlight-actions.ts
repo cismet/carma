@@ -5,6 +5,7 @@ import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { DEFAULT_SHAPES } from "./shapes";
+import type { HighlightOperation } from "./operations";
 
 /**
  * Shared by the headless addon and every piece of UI, so "end the mode" and
@@ -45,6 +46,15 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
+  const setOperation = useCallback(
+    (next: HighlightOperation) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        operation: next,
+      })),
+    [setMode]
+  );
+
   const setCircleRadius = useCallback(
     (next: number) =>
       setMode((previous) => ({
@@ -77,6 +87,8 @@ export const useHighlightModeActions = () => {
     endMode,
     clear,
     setShape,
+    operation: mode?.operation ?? "add",
+    setOperation,
     setCircleRadius,
     setRectSize,
   };
