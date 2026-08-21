@@ -160,28 +160,10 @@ export interface UseLassoHighlightOptions {
   onRectSizeChange?: (size: RectSize) => void;
   /** Filter results to specific sources. If omitted, all rendered features are candidates. */
   sources?: LassoSources;
-  /**
-   * What a plain drag does with the features it covers: flip each one
-   * ("toggle"), always select them ("add"), always deselect them ("subtract")
-   * or keep only the selected ones among them ("refine"). Each draws in its own
-   * colour. The modifier gestures are unaffected. Default: "toggle"
-   */
   operation?: LassoOperation;
   /** One colour for every operation, instead of the per-operation defaults. */
   color?: string;
-  /**
-   * Arms the Alt+Shift "refine" lasso (orange): it narrows the CURRENT
-   * highlight set instead of adding to it — highlighted features inside the
-   * polygon stay, all other highlights are dropped. Meant to be on whenever a
-   * highlight session is running (search, alt+click, previous lasso).
-   */
   refineActive?: boolean;
-  /**
-   * Called after a refine lasso with the features that were highlighted AND
-   * inside the polygon. Taking this callback means taking full ownership of
-   * highlight state (same contract as `onMatched`); without it the hook freezes
-   * the survivors itself via clearHighlights + ensureToggledFeatures.
-   */
   onRefine?: (survivors: MapGeoJSONFeature[]) => void;
   /** Called when the user presses Escape to exit lasso mode. */
   onDeactivate?: () => void;
