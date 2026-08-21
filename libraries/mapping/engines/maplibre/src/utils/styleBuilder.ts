@@ -265,7 +265,7 @@ export const getVectorMapping = async (
       try {
         const styleJson: any =
           typeof vectorStyle.style === "string"
-            ? await (await fetch(vectorStyle.style)).json()
+            ? await fetchJson(vectorStyle.style)
             : vectorStyle.style;
         fetchedStyleJson = styleJson;
 
@@ -320,28 +320,38 @@ export const getVectorMapping = async (
         capabilitiesLayer = vectorStyle.layer.substring(0, atIdx);
         capabilitiesUrl = vectorStyle.layer.substring(atIdx + 1);
         if (capabilitiesUrl && !vectorStyle.infoboxMapping) {
-          const capabilitiesText = await fetch(capabilitiesUrl).then(
-            (response) => response.text()
-          );
-          const fetchedCapabilities = parser.toJSON(capabilitiesText);
-          if (!fetchedCapabilities) {
-            return;
-          }
-
-          const allLayers = getAllLeafLayers(fetchedCapabilities);
-          const targetLayer = allLayers.find(
-            (l) => l.Name === capabilitiesLayer
-          );
-
-          if (targetLayer) {
-            const extractedCarmaConf = extractCarmaConfig(
-              targetLayer.KeywordList
+          // An unreachable capabilities service must not reject this promise:
+          // it would abort the mapping for every other layer as well.
+          try {
+            const capabilitiesText = await fetch(capabilitiesUrl).then(
+              (response) => response.text()
             );
-            const rawMapping = extractedCarmaConf?.infoboxMapping;
-            infoboxMapping =
-              Array.isArray(rawMapping) || typeof rawMapping === "string"
-                ? rawMapping
-                : [];
+            const fetchedCapabilities = parser.toJSON(capabilitiesText);
+            if (!fetchedCapabilities) {
+              return;
+            }
+
+            const allLayers = getAllLeafLayers(fetchedCapabilities);
+            const targetLayer = allLayers.find(
+              (l) => l.Name === capabilitiesLayer
+            );
+
+            if (targetLayer) {
+              const extractedCarmaConf = extractCarmaConfig(
+                targetLayer.KeywordList
+              );
+              const rawMapping = extractedCarmaConf?.infoboxMapping;
+              infoboxMapping =
+                Array.isArray(rawMapping) || typeof rawMapping === "string"
+                  ? rawMapping
+                  : [];
+            }
+          } catch (error) {
+            console.warn(
+              "[styleBuilder] WMS capabilities unreachable — no infobox mapping",
+              { url: capabilitiesUrl, error }
+            );
+            return;
           }
         }
       }
@@ -498,7 +508,16 @@ export interface VectorStylesToMapLibreStyleResult {
   style: StyleSpecification;
   geoJsonMetadata: GeoJsonStyleMetadata[];
   layerSources: LayerSourceRegistration[];
+  failedLayerIds: string[];
 }
+
+const fetchJson = async (url: string): Promise<any> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText} for ${url}`);
+  }
+  return response.json();
+};
 
 /**
  * Convert vector styles and GeoJSON layers to a MapLibre style specification
@@ -513,6 +532,7 @@ export const vectorStylesToMapLibreStyle = async ({
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
   const layerSources: LayerSourceRegistration[] = [];
+  const failedLayerIds: string[] = [];
 
   // Build stable, position-independent source/layer ids. Deriving ids from the
   // layer's content (WMS layers / name) instead of its array index means a
@@ -549,45 +569,62 @@ export const vectorStylesToMapLibreStyle = async ({
 
   // Process layers array if provided
   if (layers && layers.length > 0) {
-    // Fetch all remote data in parallel, then merge sequentially
+    // Fetch all remote data in parallel, then merge sequentially.
+    // A layer whose remote data is unreachable resolves to null and is skipped:
+    // rejecting here would abort the whole style build, leaving the map blank
+    // and every layer stuck in "preparing" because setStyle never runs.
     const prefetched = await Promise.all(
       layers.map(async (layer) => {
-        if (layer.type === "vector") {
-          if (!layer.style) {
-            console.warn(
-              "[styleBuilder] vector layer has no style — skipping",
-              { name: layer.name }
-            );
-            return null;
-          }
-          if (typeof layer.style === "string") {
-            const response = await fetch(layer.style);
-            const fetched = await response.json();
+        try {
+          if (layer.type === "vector") {
+            if (!layer.style) {
+              console.warn(
+                "[styleBuilder] vector layer has no style — skipping",
+                { name: layer.name }
+              );
+              return null;
+            }
+            if (typeof layer.style === "string") {
+              const fetched = await fetchJson(layer.style);
+              const transformed = layer.userStyleTransform
+                ? layer.userStyleTransform(fetched) ?? fetched
+                : fetched;
+              return { type: "vector" as const, data: transformed };
+            }
+            // Deep-clone the inline spec so the per-render prefixing below
+            // doesn't mutate the caller's object (which would compound IDs
+            // on every rerender).
+            const cloned = JSON.parse(JSON.stringify(layer.style));
             const transformed = layer.userStyleTransform
-              ? layer.userStyleTransform(fetched) ?? fetched
-              : fetched;
-            return { type: "vector" as const, data: transformed };
+              ? layer.userStyleTransform(cloned) ?? cloned
+              : cloned;
+            return {
+              type: "vector" as const,
+              data: transformed,
+            };
+          } else if (layer.type === "geojson") {
+            const result = await extractGeoJson(layer.data!);
+            return { type: "geojson" as const, data: transformedPois(result) };
+          } else if (layer.type === "wms" || layer.type === "wmts") {
+            return { type: "wms" as const, data: layer };
+          } else if (layer.type === "tiles") {
+            return { type: "tiles" as const, data: layer };
           }
-          // Deep-clone the inline spec so the per-render prefixing below
-          // doesn't mutate the caller's object (which would compound IDs
-          // on every rerender).
-          const cloned = JSON.parse(JSON.stringify(layer.style));
-          const transformed = layer.userStyleTransform
-            ? layer.userStyleTransform(cloned) ?? cloned
-            : cloned;
-          return {
-            type: "vector" as const,
-            data: transformed,
-          };
-        } else if (layer.type === "geojson") {
-          const result = await extractGeoJson(layer.data!);
-          return { type: "geojson" as const, data: transformedPois(result) };
-        } else if (layer.type === "wms" || layer.type === "wmts") {
-          return { type: "wms" as const, data: layer };
-        } else if (layer.type === "tiles") {
-          return { type: "tiles" as const, data: layer };
+          return null;
+        } catch (error) {
+          console.warn(
+            "[styleBuilder] layer data unreachable — skipping layer",
+            {
+              name: (layer as { name?: string }).name,
+              type: layer.type,
+              error,
+            }
+          );
+          if (layer.carmaLayerId) {
+            failedLayerIds.push(layer.carmaLayerId);
+          }
+          return null;
         }
-        return null;
       })
     );
 
@@ -1062,5 +1099,5 @@ export const vectorStylesToMapLibreStyle = async ({
     style.sprite = customSprites;
   }
 
-  return { style, geoJsonMetadata, layerSources };
+  return { style, geoJsonMetadata, layerSources, failedLayerIds };
 };

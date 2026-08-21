@@ -1370,6 +1370,13 @@ export const LibreMap = ({
     if (debugLog) console.log("[LAYER_MODE] merged-mode effect RUNNING");
 
     let aborted = false;
+    // Layers flagged busy for the style rebuild. Kept outside the try so the
+    // catch below can release them; otherwise an unexpected throw leaves every
+    // layer button spinning forever.
+    let preparedLayerIds: string[] = [];
+    const trackerRef = { current: null as ReturnType<
+      typeof ensureLayerLoadingTracker
+    > | null };
 
     const updateMapStyle = async () => {
       try {
@@ -1385,10 +1392,12 @@ export const LibreMap = ({
           const loadingTracker = map.current
             ? ensureLayerLoadingTracker(map.current)
             : null;
-          for (const layer of effectiveLayers) {
-            if (layer.carmaLayerId) {
-              loadingTracker?.markPreparing(layer.carmaLayerId);
-            }
+          trackerRef.current = loadingTracker;
+          preparedLayerIds = effectiveLayers
+            .map((layer) => layer.carmaLayerId)
+            .filter((id): id is string => Boolean(id));
+          for (const carmaLayerId of preparedLayerIds) {
+            loadingTracker?.markPreparing(carmaLayerId);
           }
 
           // Show initial progress only on first load or when layers change
@@ -1417,6 +1426,7 @@ export const LibreMap = ({
             style: baseStyle,
             geoJsonMetadata,
             layerSources,
+            failedLayerIds,
           } = await vectorStylesToMapLibreStyle({
             layers: effectiveLayers,
             backgroundStyle,
@@ -1442,11 +1452,17 @@ export const LibreMap = ({
             console.log("[LAYER_MODE] merged: derived style", style);
 
           loadingTracker?.reset();
+          preparedLayerIds = [];
           for (const registration of layerSources) {
             loadingTracker?.registerSources(
               registration.carmaLayerId,
               registration.sourceIds
             );
+          }
+          // Layers whose data could not be fetched contributed no sources, so
+          // they need an explicit failed state instead of looking idle.
+          for (const carmaLayerId of failedLayerIds) {
+            loadingTracker?.markFailed(carmaLayerId);
           }
 
           // Update context with the full map style
@@ -1666,6 +1682,12 @@ export const LibreMap = ({
         }
       } catch (error) {
         console.error("Error updating map style:", error);
+        // Release anything still flagged busy, so a failed rebuild shows the
+        // layers as failed rather than permanently loading.
+        for (const carmaLayerId of preparedLayerIds) {
+          trackerRef.current?.markFailed(carmaLayerId);
+        }
+        preparedLayerIds = [];
       }
     };
 
