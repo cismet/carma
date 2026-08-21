@@ -11,12 +11,13 @@ export {
   HIGHLIGHT_LAYER,
   HIGHLIGHT_LAYER_ID,
   HIGHLIGHT_TOOLS_INTERACTION_ID,
-  HIGHLIGHT_ADD_BUTTON_ID,
-  HIGHLIGHT_SUBTRACT_BUTTON_ID,
-  HIGHLIGHT_INVERT_BUTTON_ID,
-  HIGHLIGHT_INTERSECT_BUTTON_ID,
+  HIGHLIGHT_OPERATIONS_TOGGLE_ID,
+  HIGHLIGHT_SHAPES_TOGGLE_ID,
 } from "./highlight-layer-row";
 export { HighlightInteractionPanel } from "./HighlightInteractionPanel";
+export { OperationToolbar } from "./OperationToolbar";
+export type { OperationToolbarProps } from "./OperationToolbar";
+export { OPERATIONS } from "./operations";
 export type { UseHighlightLayerRowOptions } from "./highlight-layer-row";
 export type { HighlightModeButtonProps } from "./HighlightModeButton";
 export { DEFAULT_SHAPES, SHAPE_ICONS, SHAPE_LABELS } from "./shapes";

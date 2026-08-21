@@ -14,6 +14,9 @@ export type HighlightModeState = {
   rectSize?: RectSize;
   /** what a drag does; only "intersect" draws orange today */
   operation?: HighlightOperation;
+  /** panel sections; both open until the row toggles one off */
+  showOperations?: boolean;
+  showShapes?: boolean;
   /** published from the config so UI outside the addon picks the same colours */
   monochrome?: boolean;
   /** published from the config, same reason */
