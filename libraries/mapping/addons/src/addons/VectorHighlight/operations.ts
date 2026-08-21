@@ -33,3 +33,12 @@ export const OPERATION_COLORS: Record<HighlightOperation, string> = {
 
 /** the blue every operation falls back to when colours are switched off */
 export const MONOCHROME_COLOR = "#3388ff";
+
+/** size per glyph, so the thin plus and minus do not read smaller than the
+ *  filled circle and the crop frame */
+export const OPERATION_ICON_SIZES: Record<HighlightOperation, string> = {
+  add: "0.875rem",
+  subtract: "0.875rem",
+  intersect: "0.8125rem",
+  invert: "0.8125rem",
+};
