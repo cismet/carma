@@ -80,6 +80,7 @@ export {
   OPERATION_LABELS,
 } from "./addons/VectorHighlight";
 export type {
+  OperationColors,
   HighlightModeState,
   VectorHighlightConfig,
   VectorHighlightControlConfig,

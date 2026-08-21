@@ -11,7 +11,23 @@ export const addonsFachzwilling: FachzwillingRoute = {
     { kind: "addonManager", config: { showControl: true } },
     {
       kind: "vectorHighlight",
-      config: { modifierClick: "alt", lasso: true, monochrome: false },
+      config: {
+        modifierClick: "alt",
+        lasso: true,
+        monochrome: false,
+        // operationColors: {
+        //   add: "#22c55e",
+        //   subtract: "#ec4899",
+        //   intersect: "#f97316",
+        //   invert: "#3388ff",
+        // },
+        operationColors: {
+          add: "#22c55e",
+          subtract: "#ca61c3",
+          intersect: "#f97316",
+          invert: "#3388ff",
+        },
+      },
     },
     { kind: "vectorHighlightControl" },
     {

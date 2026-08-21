@@ -3,6 +3,8 @@ import type { Positions } from "@carma-mapping/map-controls-layout";
 
 import type { HighlightOperation } from "./operations";
 
+export type OperationColors = Partial<Record<HighlightOperation, string>>;
+
 export type HighlightModeState = {
   isOn: boolean;
   shape?: DrawShape;
@@ -14,6 +16,8 @@ export type HighlightModeState = {
   operation?: HighlightOperation;
   /** published from the config so UI outside the addon picks the same colours */
   monochrome?: boolean;
+  /** published from the config, same reason */
+  operationColors?: OperationColors;
   /** published by the addon so UI outside it knows what to offer */
   availableShapes?: DrawShape[];
 };
@@ -37,6 +41,11 @@ export type VectorHighlightConfig = {
    * one its own colour. The operations themselves are unchanged. Default: false
    */
   monochrome?: boolean;
+  /**
+   * Colour per operation, for the drawn shape and every button that marks it.
+   * Only the given ones are overridden; `monochrome` wins over this.
+   */
+  operationColors?: OperationColors;
   /** Shapes the UI offers, first one preselected. Default: ["lasso", "circle", "rect"] */
   shapes?: DrawShape[];
   /** Radius in metres a clicked circle starts with. Default: 250 */

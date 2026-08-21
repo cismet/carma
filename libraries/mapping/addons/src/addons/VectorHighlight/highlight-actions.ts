@@ -51,10 +51,13 @@ export const useHighlightModeActions = () => {
   );
 
   const monochrome = mode?.monochrome ?? false;
+  const operationColors = mode?.operationColors;
   const colorForOperation = useCallback(
     (next: HighlightOperation) =>
-      monochrome ? MONOCHROME_COLOR : OPERATION_COLORS[next],
-    [monochrome]
+      monochrome
+        ? MONOCHROME_COLOR
+        : operationColors?.[next] ?? OPERATION_COLORS[next],
+    [monochrome, operationColors]
   );
 
   const setOperation = useCallback(
