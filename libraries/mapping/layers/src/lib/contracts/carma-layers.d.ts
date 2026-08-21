@@ -178,6 +178,10 @@ type BaseLayer = {
   useInFeatureInfo?: boolean;
   conf?: CarmaConfig;
   icon?: string;
+  /** Colour of the row icon; overrides the entry in `iconColorMap`. */
+  iconColor?: string;
+  /** Size of the row icon as a CSS length, e.g. "1.25rem". Default: 1rem */
+  iconSize?: string;
   pinned?: "first" | "last";
   group?: {
     id: string;

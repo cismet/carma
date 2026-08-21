@@ -18,6 +18,10 @@ interface LayerIconProps {
   isBaseLayer?: boolean;
   id?: string;
   className?: string;
+  /** Overrides the colour `iconColorMap` would give the icon. */
+  color?: string;
+  /** CSS length for the icon; FontAwesome scales with the font size. */
+  size?: string;
   displayUrl?: boolean;
   onError?: (title: string, url: string) => void;
 }
@@ -40,6 +44,8 @@ export const LayerIcon = ({
   isBaseLayer,
   id,
   className,
+  color,
+  size,
   displayUrl = false,
   onError,
 }: LayerIconProps) => {
@@ -83,9 +89,13 @@ export const LayerIcon = ({
     : isBaseLayer
     ? faLayerGroup
     : faMap;
-  const faColor = mappedKey
-    ? iconColorMap[mappedKey as keyof typeof iconColorMap]
-    : undefined;
+  const faColor =
+    layer.iconColor ??
+    color ??
+    (mappedKey
+      ? iconColorMap[mappedKey as keyof typeof iconColorMap]
+      : undefined);
+  const fontSize = layer.iconSize ?? size;
 
   if (emoji) {
     return (
@@ -106,13 +116,14 @@ export const LayerIcon = ({
           src={iconSrc}
           alt="Layer Icon"
           className={className + " text-base"}
+          style={fontSize ? { fontSize } : undefined}
           id={id}
         />
       ) : (
         <FontAwesomeIcon
           icon={faIcon}
           className={className + " text-base"}
-          style={{ color: faColor || "" }}
+          style={{ color: faColor || "", ...(fontSize ? { fontSize } : {}) }}
           id={id}
         />
       )}
