@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { faTriangleExclamation, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { LoadingOutlined } from "@ant-design/icons";
-import { Button, Spin } from "antd";
+import { Button, Spin, type InputRef } from "antd";
 
 import { useAuth } from "@carma-providers/auth";
 import { useDeployment } from "@carma-commons/utils";
@@ -371,7 +371,12 @@ const LayerCatalogView = ({
             itemIds: droppedItemIds,
           })
         : searchedCategories,
-    [searchedCategories, catalogFilters, filterExemptCategoryIds, droppedItemIds]
+    [
+      searchedCategories,
+      catalogFilters,
+      filterExemptCategoryIds,
+      droppedItemIds,
+    ]
   );
   // active filters hide empty categories entirely instead of showing them
   // grayed out
@@ -601,6 +606,13 @@ const LayerCatalogView = ({
     [sidebarElements]
   );
 
+  const searchInputRef = useRef<InputRef>(null);
+  const focusSearchOnOpen = useCallback((isOpen: boolean) => {
+    if (isOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, []);
+
   const closeCatalog = () => {
     setOpen(false);
     setPreview(false);
@@ -633,6 +645,7 @@ const LayerCatalogView = ({
     <ModalShell
       open={open}
       preview={preview}
+      afterOpenChange={focusSearchOnOpen}
       onCancel={() => {
         if (preview) {
           setPreview(false);
@@ -711,6 +724,7 @@ const LayerCatalogView = ({
                   </Button>
                 </div>
                 <CatalogSearch
+                  inputRef={searchInputRef}
                   onChange={handleSearchChange}
                   onSubmit={handleSearchSubmit}
                   isSearching={isSearching}

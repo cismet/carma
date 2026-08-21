@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Input } from "antd";
+import { memo, type Ref } from "react";
+import { Input, type InputRef } from "antd";
 
 const { Search } = Input;
 
@@ -9,12 +9,14 @@ interface CatalogSearchProps {
   /** fires on enter / the search button */
   onSubmit: (value: string) => void;
   isSearching: boolean;
+  inputRef?: Ref<InputRef>;
 }
 
 /** the catalog search input; term state lives in useCatalogSearch */
 const CatalogSearch = memo(
-  ({ onChange, onSubmit, isSearching }: CatalogSearchProps) => (
+  ({ onChange, onSubmit, isSearching, inputRef }: CatalogSearchProps) => (
     <Search
+      ref={inputRef}
       placeholder="Suchbegriff eingeben"
       className="w-full sm:w-[76%]"
       allowClear

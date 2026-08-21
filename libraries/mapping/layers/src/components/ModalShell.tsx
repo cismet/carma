@@ -9,13 +9,21 @@ interface ModalShellProps {
   /** preview mode parks the modal at the lower screen edge without a mask */
   preview: boolean;
   onCancel: () => void;
+  afterOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }
 
 /** the outer antd modal of the layer catalog, including the preview parking */
-const ModalShell = ({ open, preview, onCancel, children }: ModalShellProps) => (
+const ModalShell = ({
+  open,
+  preview,
+  onCancel,
+  afterOpenChange,
+  children,
+}: ModalShellProps) => (
   <Modal
     open={open}
+    afterOpenChange={afterOpenChange}
     classNames={{
       content: "modal-content",
     }}
