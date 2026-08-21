@@ -32,6 +32,8 @@ so the second folder is the list of what actually exists:
 | `lib/AddonStateContext.tsx` | Typed hooks over the shared addon state (see below) |
 | `lib/addon-overrides.ts` | What the `addonManager` may switch on or off, applied by the host |
 | `lib/addon-overrides-storage.ts` | Keeps those switch positions in `localStorage`, per route |
+| `lib/stackedSources.ts` | Finds the layer stack's sources and where each one's tile set lives |
+| `lib/featureIndex.ts` | Ranks features against the tilesets' `features.json` (see below) |
 
 | Addon                       | Kind                                                     |
 | --------------------------- | -------------------------------------------------------- |
@@ -530,6 +532,43 @@ The flag is a simulation, not the real thing: the registry still holds the caged
 components, so the addon manager keeps listing them as implemented, and cage's
 own code is still in the bundle. For the ground truth, run
 `099-cage/unlinkingHotlinkForDeveloping.sh` and restart the dev server.
+## How "what is nearest" is answered
+
+`nearestFeature` ranks against `lib/featureIndex.ts`: no tiles are read, no
+geometry is compared, and a click costs no requests at all.
+
+| | `lib/featureIndex.ts` |
+| --- | --- |
+| reads | the tileset's `features.json`, once per tileset |
+| ranks by | the feature's bounding box |
+| completeness | the whole layer, always |
+| cost per click | none |
+| needs | the pipeline's `FEATURE_INDEX=true` for that layer |
+
+`features.json` is what the tiling pipeline's `buildFeatureIndex.js` writes next
+to `metadata.json`: one id, one source-layer and one bounding box per feature,
+about 25 bytes each, columnar. One request per tileset, none per click.
+
+It carries no properties, so the panel can only show the source layer and the
+distance; showing a hit's attributes needs the pipeline to write properties into
+`features.json`, see `docs/features-json-generic.md`. Tiles that MapLibre
+fetches to *draw* the layer are unrelated and unaffected by any of this.
+
+The panel rows are clickable. A row calls `selectFeature()` on
+`MapSelectionContext` with `{ source, sourceLayer, id }`, which is what a result
+list would do: `LibreMap` writes the `selected` feature state and the host's
+`useSelectionForwarding` fans it out to the companion source-layers a style
+lists in `carmaConf.selectionForwardingTo`. Feature state is kept per source and
+re-applied as tiles arrive, so selecting an off-screen feature works and shows
+once you pan there. No raw feature is passed, so nothing opens the info box.
+
+The box is why this scales to a source that could never be read as tiles, such
+as ALKIS with its 512k features and tens of megabytes per low-zoom tile: it is an
+exact answer for a point layer and a lower bound for everything else, so a
+feature can be ranked slightly too high but never too low, and a click inside a
+parcel still scores zero. A source whose tileset publishes no index drops out of
+the ranking entirely and is listed under `withoutIndex` in the
+`[NEAREST FEATURE INDEX]` console log.
 
 ## Guidelines
 

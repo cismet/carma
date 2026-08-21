@@ -1,20 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
-  GeoJSONFeature,
   GeoJSONSource,
   MapMouseEvent,
   Map as MaplibreMap,
 } from "maplibre-gl";
 
-import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
-import distance from "@turf/distance";
-import { lineString, point as turfPoint } from "@turf/helpers";
-import pointToLineDistance from "@turf/point-to-line-distance";
-
 import { faCrosshairs } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
+import { useMapSelection } from "@carma-mapping/contexts";
 import {
   Control,
   ControlButtonStyler,
@@ -22,6 +17,10 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../lib/registry";
+import {
+  collectNearestFromIndex,
+  primeFeatureIndexes,
+} from "../lib/featureIndex";
 
 /**
  * Nearest-feature addon for the MapLibre map.
@@ -31,17 +30,24 @@ import type { AddonComponentProps } from "../lib/registry";
  * so there is never more than one. Turning the mode off, or a route switch,
  * removes the point.
  *
- * Each placed point ranks the `nearestCount` features closest to it, logs
- * them to the console (`[NEAREST FEATURE]`) and lists them in a panel in the
- * top right corner, with their distance in meters: direct distance for points,
- * perpendicular distance for lines, and zero for a polygon the point lies in
- * (its boundary distance otherwise). Features are read from the sources of
- * the layer stack's style layers (recognized by the `metadata["layer-id"]`
- * stamp `styleComposer` writes), so ad-hoc layers like debug overlays or the
- * click marker itself never show up, and the style's current visibility does
- * not matter: features hidden by a filter, a zoom range or symbol collision
- * are still ranked. Loaded tiles remain the limit — features whose tiles are
- * not loaded (far outside the viewport) are not seen.
+ * Each placed point ranks the `nearestCount` features closest to it, logs them
+ * to the console (`[NEAREST FEATURE INDEX]`) and lists them in a panel in the
+ * top right corner with their distance in meters.
+ *
+ * The ranking comes from `featureIndex`: the tilesets' own `features.json`, one
+ * id and one bounding box per feature, fetched once per tileset. Camera
+ * position, zoom and layer visibility therefore play no role, a feature hidden
+ * by a filter or simply off screen is ranked like any other, and a click costs
+ * no requests at all. Only the layer stack's own sources take part (recognized
+ * by the `metadata["layer-id"]` stamp `styleComposer` writes), so debug
+ * overlays and the click marker itself never show up; a source whose tileset
+ * publishes no index drops out of the ranking and is listed under
+ * `withoutIndex` in the console log.
+ *
+ * A row in the panel is clickable: it selects that feature on the map through
+ * `MapSelectionContext`, which is the same channel a result list uses. Only the
+ * identifier is sent, so the feature is highlighted but the info box stays
+ * closed; opening that needs the raw feature, which the index does not carry.
  *
  * MapLibre only: without a MapLibre map neither the button nor the point
  * appears.
@@ -60,6 +66,11 @@ export type NearestFeatureConfig = {
   pointRadius?: number;
   /** How many nearest features are logged and listed per click. Default: 5 */
   nearestCount?: number;
+  /**
+   * Fetch the tilesets' feature indexes as soon as their sources appear in the
+   * style, rather than on the first click. Default: true.
+   */
+  preloadSources?: boolean;
   /** Render the result panel while the mode is on. Default: true */
   showPanel?: boolean;
   /** Corner the panel is registered in. Default: "topright" */
@@ -89,187 +100,6 @@ const toFeature = (point: ClickPoint): GeoJSON.Feature => ({
 });
 
 const DEFAULT_NEAREST_COUNT = 5;
-
-const METERS = { units: "meters" } as const;
-
-/** min distance from the click to one ring/line, in meters; short parts skipped */
-const distanceToLine = (
-  click: GeoJSON.Feature<GeoJSON.Point>,
-  coordinates: GeoJSON.Position[]
-): number =>
-  coordinates.length < 2
-    ? Infinity
-    : pointToLineDistance(click, lineString(coordinates), METERS);
-
-/**
- * Distance from the click to a geometry, in meters. Points measure directly,
- * lines perpendicular, polygons are zero when the click lies inside and the
- * boundary distance otherwise. Queried geometries are tile-clipped, so the
- * result reflects the loaded pieces, not the full source geometry.
- */
-const distanceToGeometry = (
-  click: GeoJSON.Feature<GeoJSON.Point>,
-  geometry: GeoJSON.Geometry
-): number => {
-  switch (geometry.type) {
-    case "Point":
-      return distance(click, turfPoint(geometry.coordinates), METERS);
-    case "MultiPoint":
-      return Math.min(
-        Infinity,
-        ...geometry.coordinates.map((position) =>
-          distance(click, turfPoint(position), METERS)
-        )
-      );
-    case "LineString":
-      return distanceToLine(click, geometry.coordinates);
-    case "MultiLineString":
-      return Math.min(
-        Infinity,
-        ...geometry.coordinates.map((line) => distanceToLine(click, line))
-      );
-    case "Polygon":
-      if (booleanPointInPolygon(click, geometry)) {
-        return 0;
-      }
-      return Math.min(
-        Infinity,
-        ...geometry.coordinates.map((ring) => distanceToLine(click, ring))
-      );
-    case "MultiPolygon":
-      return Math.min(
-        Infinity,
-        ...geometry.coordinates.map((polygon) =>
-          distanceToGeometry(click, { type: "Polygon", coordinates: polygon })
-        )
-      );
-    case "GeometryCollection":
-      return Math.min(
-        Infinity,
-        ...geometry.geometries.map((member) =>
-          distanceToGeometry(click, member)
-        )
-      );
-    default:
-      return Infinity;
-  }
-};
-
-/** one `querySourceFeatures` call: a source (or one of its source-layers) */
-type QueryTarget = {
-  sourceId: string;
-  sourceLayer?: string;
-  /** the layer-stack entry the source belongs to, from the metadata stamp */
-  catalogLayerId: string;
-};
-
-/**
- * The distinct source/source-layer pairs behind the style layers that belong
- * to the map's layer stack, recognized by the `metadata["layer-id"]` stamp
- * `styleComposer` writes on every layer it installs. Layers added outside the
- * composer (debug overlays, drawing tools, the click marker) carry no stamp
- * and are excluded. Sources are namespaced per stack entry, so each pair maps
- * to exactly one catalog layer. Raster sources hold no queryable features and
- * are skipped.
- */
-const stackedQueryTargets = (map: MaplibreMap): QueryTarget[] => {
-  const targets = new Map<string, QueryTarget>();
-  for (const layer of map.getStyle()?.layers ?? []) {
-    const metadata = (layer as { metadata?: Record<string, unknown> }).metadata;
-    const stamped = metadata?.["layer-id"];
-    if (typeof stamped !== "string" || stamped === "") {
-      continue;
-    }
-    if (!("source" in layer) || typeof layer.source !== "string") {
-      continue;
-    }
-    const sourceType = map.getSource(layer.source)?.type;
-    if (sourceType !== "vector" && sourceType !== "geojson") {
-      continue;
-    }
-    const sourceLayer =
-      "source-layer" in layer ? layer["source-layer"] : undefined;
-    const key = `${layer.source}|${sourceLayer ?? ""}`;
-    if (!targets.has(key)) {
-      targets.set(key, {
-        sourceId: layer.source,
-        sourceLayer,
-        catalogLayerId: stamped,
-      });
-    }
-  }
-  return [...targets.values()];
-};
-
-/** one ranked result: what the console log shows and the panel lists */
-export type NearestFeatureEntry = {
-  distanceInMeters: number;
-  layerId: string;
-  sourceLayer?: string;
-  id?: string | number;
-  properties: GeoJSONFeature["properties"];
-  feature: GeoJSONFeature;
-};
-
-/**
- * The `count` source features closest to the click, ranked by distance over
- * everything the loaded tiles hold. Queried per source rather than per
- * rendered layer, so the current style visibility plays no role, and
- * unstamped ad-hoc sources (the click marker included) are never ranked.
- * The catalog layer is carried from the query target: source-query results
- * have no `feature.layer` to read the stamp from.
- */
-const computeNearestFeatures = (
-  map: MaplibreMap,
-  point: ClickPoint,
-  count: number
-): NearestFeatureEntry[] => {
-  const click = turfPoint([point.lng, point.lat]);
-
-  const candidates = stackedQueryTargets(map).flatMap((target) =>
-    map
-      .querySourceFeatures(
-        target.sourceId,
-        target.sourceLayer ? { sourceLayer: target.sourceLayer } : undefined
-      )
-      .map((feature) => ({
-        feature,
-        target,
-        distanceInMeters: distanceToGeometry(click, feature.geometry),
-      }))
-  );
-
-  const ranked = candidates
-    .filter(({ distanceInMeters }) => Number.isFinite(distanceInMeters))
-    .sort((a, b) => a.distanceInMeters - b.distanceInMeters);
-
-  // one entry per map object: tiles split a geometry into several pieces and
-  // a source may repeat a feature id across them. Deduped on the sorted list,
-  // so the nearest piece speaks for the object; id-less features all pass.
-  const seen = new Set<string>();
-  const nearest: NearestFeatureEntry[] = [];
-  for (const { feature, target, distanceInMeters } of ranked) {
-    if (feature.id != null) {
-      const key = `${target.catalogLayerId}-${String(feature.id)}`;
-      if (seen.has(key)) {
-        continue;
-      }
-      seen.add(key);
-    }
-    nearest.push({
-      distanceInMeters: Math.round(distanceInMeters * 100) / 100,
-      layerId: target.catalogLayerId,
-      sourceLayer: target.sourceLayer,
-      id: feature.id,
-      properties: feature.properties,
-      feature,
-    });
-    if (nearest.length === count) {
-      break;
-    }
-  }
-  return nearest;
-};
 
 /**
  * Presentational: crosshair icon, blue while the mode is on.
@@ -318,6 +148,24 @@ const formatMeters = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 1,
 }).format;
 
+/** what the panel needs of a ranked hit, and all it needs */
+type PanelRow = {
+  distanceInMeters: number;
+  layerId: string;
+  /** the style source the feature came from; what selection is keyed on */
+  sourceId: string;
+  sourceLayer?: string;
+  id?: string | number;
+};
+
+/**
+ * Identity of one row for selection purposes. `id` alone is not enough: the
+ * pipeline's ids are unique per source-layer, not across a tileset, so ALKIS
+ * repeats them between `landparcel` and `building`.
+ */
+const rowKey = (row: PanelRow) =>
+  `${row.sourceId}::${row.sourceLayer ?? ""}::${String(row.id)}`;
+
 /**
  * Readout for the last click: one row per ranked feature, its catalog layer as
  * the primary label, source layer and feature id below, distance on the right.
@@ -327,21 +175,37 @@ const formatMeters = new Intl.NumberFormat("de-DE", {
  */
 const NearestFeaturePanel = ({
   entries,
+  isLoading,
+  onSelect,
+  selectedKey,
 }: {
   /** `null` while no point is placed yet */
-  entries: NearestFeatureEntry[] | null;
+  entries: PanelRow[] | null;
+  /** the ranking for the last click is still being computed */
+  isLoading: boolean;
+  /** select the row's feature on the map; rows without an id are not clickable */
+  onSelect: (row: PanelRow) => void;
+  /** `rowKey` of what is selected on the map right now, or `null` */
+  selectedKey: string | null;
 }) => (
   <div
     className="pointer-events-auto w-[280px] rounded-lg bg-white/95 px-3.5 py-3 shadow-lg ring-1 ring-black/10"
     style={{ fontFamily: FONT_STACK }}
     data-test-id="nearest-feature-panel"
   >
-    <span
-      className="text-[11px] font-semibold uppercase leading-none tracking-[0.09em]"
-      style={{ color: PANEL_INK.title }}
-    >
-      Nächste Features
-    </span>
+    <div className="flex items-baseline justify-between gap-2">
+      <span
+        className="text-[11px] font-semibold uppercase leading-none tracking-[0.09em]"
+        style={{ color: PANEL_INK.title }}
+      >
+        Nächste Features
+      </span>
+      {isLoading && (
+        <span className="text-[11px]" style={{ color: PANEL_INK.secondary }}>
+          lädt …
+        </span>
+      )}
+    </div>
 
     {entries === null ? (
       <p className="mt-2 text-[12px]" style={{ color: PANEL_INK.secondary }}>
@@ -352,25 +216,50 @@ const NearestFeaturePanel = ({
         keine Objekte im Ausschnitt
       </p>
     ) : (
-      <ol className="mt-2.5 flex flex-col gap-2">
+      <ol className="mt-2.5 flex flex-col gap-1">
         {entries.map((entry, index) => {
+          // a feature with no id cannot be addressed by `setFeatureState`, so
+          // its row stays inert rather than pretending to be clickable
+          const isSelectable = entry.id != null;
+          const isSelected = isSelectable && rowKey(entry) === selectedKey;
           return (
             <li key={`${entry.layerId}-${entry.id ?? index}`}>
-              <div className="flex items-baseline gap-2.5">
+              <button
+                type="button"
+                disabled={!isSelectable}
+                onClick={() => onSelect(entry)}
+                title={
+                  isSelectable
+                    ? `${entry.layerId} · ${entry.id}`
+                    : `${entry.layerId} · ohne Id, nicht auswählbar`
+                }
+                data-test-id="nearest-feature-row"
+                className={[
+                  "-mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline gap-2.5",
+                  "rounded px-1.5 py-1 text-left transition-colors",
+                  isSelectable
+                    ? "cursor-pointer hover:bg-black/[0.06]"
+                    : "cursor-default",
+                ].join(" ")}
+                style={isSelected ? { backgroundColor: "#e6f0ff" } : undefined}
+              >
                 <span
                   className="flex-1 truncate text-[13px] font-medium"
-                  style={{ color: PANEL_INK.primary }}
-                  title={entry.layerId}
+                  style={{
+                    color: isSelected ? ACTIVE_COLOR : PANEL_INK.primary,
+                  }}
                 >
                   {entry.sourceLayer}
                 </span>
                 <span
                   className="whitespace-nowrap text-[13px] font-medium tabular-nums"
-                  style={{ color: PANEL_INK.primary }}
+                  style={{
+                    color: isSelected ? ACTIVE_COLOR : PANEL_INK.primary,
+                  }}
                 >
                   {formatMeters(entry.distanceInMeters)} m
                 </span>
-              </div>
+              </button>
             </li>
           );
         })}
@@ -390,20 +279,84 @@ export const NearestFeature = ({
     pointColor = ACTIVE_COLOR,
     pointRadius = 7,
     nearestCount = DEFAULT_NEAREST_COUNT,
+    preloadSources = true,
     showPanel = true,
     panelPosition = DEFAULT_PANEL_POSITION,
     panelOrder = DEFAULT_PANEL_ORDER,
   } = config ?? {};
 
+  // the geoportal's programmatic selection channel. `LibreMap` watches
+  // `selectedFeatureId` and writes the `selected` feature state, and the host's
+  // `useSelectionForwarding` fans it out to the companion source-layers a style
+  // lists in `carmaConf.selectionForwardingTo` (ALKIS: parcel + label + arrows).
+  // Outside a `MapSelectionProvider` this is the context's inert default, so the
+  // rows simply do nothing rather than throwing.
+  const { selectFeature, selectedFeatureId } = useMapSelection();
+
   const [isOn, setIsOn] = useState(false);
   const [point, setPoint] = useState<ClickPoint | null>(null);
-  const [nearest, setNearest] = useState<NearestFeatureEntry[] | null>(null);
+  const [nearest, setNearest] = useState<PanelRow[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * Select the row's feature on the map. Only the identifier is passed: the
+   * index knows a feature's id, not its properties, so `LibreMap` applies the
+   * highlight but runs no `createFeature` and the info box stays closed. That
+   * needs the raw feature, which is the next step and not this one.
+   */
+  const selectRow = useCallback(
+    (row: PanelRow) => {
+      if (row.id == null) {
+        return;
+      }
+      console.log("[NEAREST FEATURE] selecting", {
+        source: row.sourceId,
+        sourceLayer: row.sourceLayer,
+        id: row.id,
+      });
+      selectFeature({
+        source: row.sourceId,
+        sourceLayer: row.sourceLayer,
+        id: row.id,
+      });
+    },
+    [selectFeature]
+  );
+
+  // what the map has selected right now, in the panel's own row key, so the
+  // marked row follows the map rather than the last click in here
+  const selectedKey = useMemo(
+    () =>
+      selectedFeatureId?.id == null
+        ? null
+        : `${selectedFeatureId.source}::${
+            selectedFeatureId.sourceLayer ?? ""
+          }::${String(selectedFeatureId.id)}`,
+    [selectedFeatureId]
+  );
 
   const endMode = useCallback(() => {
     setIsOn(false);
     setPoint(null);
     setNearest(null);
+    setIsLoading(false);
   }, []);
+
+  // fetch the indexes as soon as their sources are in the style, so a click has
+  // nothing left to fetch. `styledata` fires constantly; priming is a no-op
+  // while the set of sources is unchanged, and each index is fetched once for
+  // the whole session, so the repeated calls cost nothing.
+  useEffect(() => {
+    if (!libreMap || !preloadSources) {
+      return;
+    }
+    const prime = () => primeFeatureIndexes(libreMap);
+    prime();
+    libreMap.on("styledata", prime);
+    return () => {
+      libreMap.off("styledata", prime);
+    };
+  }, [libreMap, preloadSources]);
 
   // click-to-place while the mode is on, with a crosshair cursor as feedback
   useEffect(() => {
@@ -423,19 +376,46 @@ export const NearestFeature = ({
     };
   }, [libreMap, isOn]);
 
-  // rank the rendered features by distance to the placed point, log the
-  // closest ones and keep them for the panel. Before the draw effect below, so
-  // the marker is not rendered yet; its layer is unstamped and skipped anyway.
+  // rank the features by distance to the placed point, log the closest ones and
+  // keep them for the panel. One linear scan over the loaded indexes, so this
+  // resolves in the same tick once they are there; only the first click after a
+  // style change waits, and a click that lands while it does discards it.
   useEffect(() => {
     if (!libreMap || !point) {
       return;
     }
-    const entries = computeNearestFeatures(libreMap, point, nearestCount);
-    console.log("[NEAREST FEATURE]", {
-      click: { lng: point.lng, lat: point.lat },
-      nearest: entries,
-    });
-    setNearest(entries);
+    let isPending = true;
+    setIsLoading(true);
+    collectNearestFromIndex(libreMap, {
+      lng: point.lng,
+      lat: point.lat,
+      count: nearestCount,
+    })
+      .then(({ entries, statuses }) => {
+        if (!isPending) {
+          return;
+        }
+        console.log("[NEAREST FEATURE INDEX]", {
+          click: { lng: point.lng, lat: point.lat },
+          indexed: statuses.filter((one) => one.featureCount !== null),
+          withoutIndex: statuses
+            .filter((one) => one.featureCount === null)
+            .map((one) => one.layerId),
+          nearest: entries,
+        });
+        setNearest(entries);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        if (!isPending) {
+          return;
+        }
+        console.warn("[NEAREST FEATURE INDEX] ranking failed:", error);
+        setIsLoading(false);
+      });
+    return () => {
+      isPending = false;
+    };
   }, [libreMap, point, nearestCount]);
 
   // draw the point: one source, one circle layer, replaced on every click.
@@ -509,7 +489,12 @@ export const NearestFeature = ({
       )}
       {showPanel && isOn && (
         <Control position={panelPosition} order={panelOrder}>
-          <NearestFeaturePanel entries={nearest} />
+          <NearestFeaturePanel
+            entries={nearest}
+            isLoading={isLoading}
+            onSelect={selectRow}
+            selectedKey={selectedKey}
+          />
         </Control>
       )}
     </>

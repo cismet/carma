@@ -113,6 +113,19 @@ export {
   NearestFeature,
   type NearestFeatureConfig,
 } from "./addons/NearestFeature";
+export {
+  collectNearestFromIndex,
+  primeFeatureIndexes,
+  type FeatureIndex,
+  type FeatureIndexStatus,
+  type IndexedFeatureEntry,
+  type NearestFromIndexOptions,
+  type NearestFromIndexResult,
+} from "./lib/featureIndex";
+export {
+  resolveStackedSources,
+  type StackedSource,
+} from "./lib/stackedSources";
 export type {
   OperationColors,
   HighlightModeState,
