@@ -42,3 +42,11 @@ export const OPERATION_ICON_SIZES: Record<HighlightOperation, string> = {
   intersect: "0.8125rem",
   invert: "0.8125rem",
 };
+
+/** order the operation toolbar offers them in */
+export const OPERATIONS: HighlightOperation[] = [
+  "add",
+  "subtract",
+  "invert",
+  "intersect",
+];

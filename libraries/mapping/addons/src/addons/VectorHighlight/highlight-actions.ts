@@ -60,6 +60,27 @@ export const useHighlightModeActions = () => {
     [monochrome, operationColors]
   );
 
+  const showOperations = mode?.showOperations ?? true;
+  const showShapes = mode?.showShapes ?? true;
+
+  const toggleOperations = useCallback(
+    () =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        showOperations: !(previous?.showOperations ?? true),
+      })),
+    [setMode]
+  );
+
+  const toggleShapes = useCallback(
+    () =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        showShapes: !(previous?.showShapes ?? true),
+      })),
+    [setMode]
+  );
+
   const setOperation = useCallback(
     (next: HighlightOperation) =>
       setMode((previous) => ({
@@ -105,6 +126,10 @@ export const useHighlightModeActions = () => {
     setOperation,
     monochrome,
     colorForOperation,
+    showOperations,
+    showShapes,
+    toggleOperations,
+    toggleShapes,
     setCircleRadius,
     setRectSize,
   };

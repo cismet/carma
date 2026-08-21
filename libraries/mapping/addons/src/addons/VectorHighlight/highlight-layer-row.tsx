@@ -1,84 +1,88 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+import type { DrawShape } from "@carma-mapping/engines/maplibre";
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useHighlightModeActions } from "./highlight-actions";
 import {
-  OPERATION_ICON_SIZES,
   OPERATION_ICONS,
   OPERATION_LABELS,
   type HighlightOperation,
 } from "./operations";
+import { SHAPE_ICONS, SHAPE_LABELS } from "./shapes";
 
 export const HIGHLIGHT_LAYER_ID = "__highlight__";
 
-/** the panel the row click opens; deliberately none of the operation buttons,
+/** the panel the row click opens; deliberately none of the toggle buttons,
  *  whose host-side "active" styling would override their own colour */
 export const HIGHLIGHT_TOOLS_INTERACTION_ID = "highlight-tools";
 
-export const HIGHLIGHT_ADD_BUTTON_ID = "highlight-add";
-export const HIGHLIGHT_SUBTRACT_BUTTON_ID = "highlight-subtract";
-export const HIGHLIGHT_INVERT_BUTTON_ID = "highlight-invert";
-export const HIGHLIGHT_INTERSECT_BUTTON_ID = "highlight-intersect";
+export const HIGHLIGHT_OPERATIONS_TOGGLE_ID = "highlight-operations-toggle";
+export const HIGHLIGHT_SHAPES_TOGGLE_ID = "highlight-shapes-toggle";
 
-const OPERATION_BUTTON_IDS: Record<HighlightOperation, string> = {
-  add: HIGHLIGHT_ADD_BUTTON_ID,
-  subtract: HIGHLIGHT_SUBTRACT_BUTTON_ID,
-  invert: HIGHLIGHT_INVERT_BUTTON_ID,
-  intersect: HIGHLIGHT_INTERSECT_BUTTON_ID,
-};
-
-/** pulls the operation buttons closer than the pill's own gap + padding would */
+/** pulls the toggles closer than the pill's own gap + padding would */
 const BUTTON_SPACING: CSSProperties = { margin: "0 -2px" };
 
-/** room between the title and the operation group */
+/** room between the title and the toggles */
 const GROUP_GAP_START = "6px";
-/** room between the operation group and the close button */
-const GROUP_GAP_END = "3px";
+/** room between the toggles and the close button */
+const GROUP_GAP_END = "-2px";
 
-const WIRED_OPERATIONS: HighlightOperation[] = [
-  "add",
-  "subtract",
-  "invert",
-  "intersect",
-];
+type ToggleOptions = {
+  operation: HighlightOperation;
+  shape: DrawShape;
+  showOperations: boolean;
+  showShapes: boolean;
+  toggleOperations: () => void;
+  toggleShapes: () => void;
+  colorForOperation: (operation: HighlightOperation) => string;
+};
 
-const buildInteractionButtons = (
-  setOperation: (operation: HighlightOperation) => void,
-  activeOperation: HighlightOperation,
-  colorForOperation: (operation: HighlightOperation) => string
-): InteractionButton[] =>
-  (Object.keys(OPERATION_BUTTON_IDS) as HighlightOperation[]).map(
-    (operation, index, all) => {
-      const wired = WIRED_OPERATIONS.includes(operation);
-      const isActive = wired && operation === activeOperation;
-      return {
-        id: OPERATION_BUTTON_IDS[operation],
-        icon: (
-          <span
-            style={{
-              ...BUTTON_SPACING,
-              fontSize: OPERATION_ICON_SIZES[operation],
-              ...(index === 0 ? { marginLeft: GROUP_GAP_START } : {}),
-              ...(index === all.length - 1
-                ? { marginRight: GROUP_GAP_END }
-                : {}),
-            }}
-          >
-            <FontAwesomeIcon
-              icon={OPERATION_ICONS[operation]}
-              style={
-                isActive ? { color: colorForOperation(operation) } : undefined
-              }
-            />
-          </span>
-        ),
-        tooltip: OPERATION_LABELS[operation],
-        onClick: wired ? () => setOperation(operation) : undefined,
-      };
-    }
-  );
+/** two buttons, each showing what its section currently has selected */
+const buildInteractionButtons = ({
+  operation,
+  shape,
+  showOperations,
+  showShapes,
+  toggleOperations,
+  toggleShapes,
+  colorForOperation,
+}: ToggleOptions): InteractionButton[] => {
+  const activeColor = colorForOperation(operation);
+  return [
+    {
+      id: HIGHLIGHT_OPERATIONS_TOGGLE_ID,
+      icon: (
+        <span style={{ ...BUTTON_SPACING, marginLeft: GROUP_GAP_START }}>
+          <FontAwesomeIcon
+            icon={OPERATION_ICONS[operation]}
+            style={showOperations ? { color: activeColor } : undefined}
+          />
+        </span>
+      ),
+      tooltip: `${OPERATION_LABELS[operation]} – Operationen ${
+        showOperations ? "ausblenden" : "einblenden"
+      }`,
+      onClick: toggleOperations,
+    },
+    {
+      id: HIGHLIGHT_SHAPES_TOGGLE_ID,
+      icon: (
+        <span style={{ ...BUTTON_SPACING, marginRight: GROUP_GAP_END }}>
+          <FontAwesomeIcon
+            icon={SHAPE_ICONS[shape]}
+            style={showShapes ? { color: activeColor } : undefined}
+          />
+        </span>
+      ),
+      tooltip: `${SHAPE_LABELS[shape]} – Formen ${
+        showShapes ? "ausblenden" : "einblenden"
+      }`,
+      onClick: toggleShapes,
+    },
+  ];
+};
 
 export const HIGHLIGHT_LAYER: Layer = {
   id: HIGHLIGHT_LAYER_ID,
@@ -113,21 +117,42 @@ export const useHighlightLayerRow = ({
   onRemove,
   onUpdate,
 }: UseHighlightLayerRowOptions) => {
-  const { isOn, endMode, operation, setOperation, colorForOperation } =
-    useHighlightModeActions();
+  const {
+    isOn,
+    endMode,
+    operation,
+    shape,
+    colorForOperation,
+    showOperations,
+    showShapes,
+    toggleOperations,
+    toggleShapes,
+  } = useHighlightModeActions();
 
   // the host stores a snapshot of the layer, so the handlers have to travel
   // with it rather than being read from here later
   const layer = useMemo(
     () => ({
       ...HIGHLIGHT_LAYER,
-      interactionButtons: buildInteractionButtons(
-        setOperation,
+      interactionButtons: buildInteractionButtons({
         operation,
-        colorForOperation
-      ),
+        shape,
+        showOperations,
+        showShapes,
+        toggleOperations,
+        toggleShapes,
+        colorForOperation,
+      }),
     }),
-    [setOperation, operation, colorForOperation]
+    [
+      operation,
+      shape,
+      showOperations,
+      showShapes,
+      toggleOperations,
+      toggleShapes,
+      colorForOperation,
+    ]
   );
   const layerRef = useRef(layer);
   layerRef.current = layer;
