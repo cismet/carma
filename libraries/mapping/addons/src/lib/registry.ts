@@ -59,10 +59,21 @@ import {
   CageIndicatorBadge,
   type CageIndicatorBadgeConfig,
 } from "./caged-addons";
+import {
+  CompareSwipe,
+  type CompareSwipeConfig,
+} from "../addons/comparing/CompareSwipe";
+import {
+  ComparingControl,
+  type ComparingControlConfig,
+} from "../addons/comparing/ComparingControl";
+import type { CompareState } from "../addons/comparing/comparing-actions";
 
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
   cameraRestriction: CameraRestrictionConfig;
+  comparingControl: ComparingControlConfig;
+  compareSwipe: CompareSwipeConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
@@ -93,6 +104,8 @@ export type AddonStateMap = {
   visibleFeatureStats: VisibleFeatureStatsState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
+  /** whether the comparison is running; see `ComparingControl` */
+  compareState: CompareState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -205,6 +218,11 @@ export const addonRegistry: {
 } = {
   addonManager: { Component: AddonManager, provides: ["addonOverrides"] },
   cameraRestriction: { Component: CameraRestriction },
+  comparingControl: {
+    Component: ComparingControl,
+    provides: ["compareState"],
+  },
+  compareSwipe: { Component: CompareSwipe, requires: ["compareState"] },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },

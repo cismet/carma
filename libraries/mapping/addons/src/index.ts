@@ -97,6 +97,18 @@ export {
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
+  CompareSwipe,
+  type CompareSwipeConfig,
+} from "./addons/comparing/CompareSwipe";
+export {
+  ComparingControl,
+  type ComparingControlConfig,
+} from "./addons/comparing/ComparingControl";
+export {
+  useComparingActions,
+  type CompareState,
+} from "./addons/comparing/comparing-actions";
+export {
   InfoBoxZoomImage,
   resolveInfoBoxImageUrl,
   type InfoBoxImageState,

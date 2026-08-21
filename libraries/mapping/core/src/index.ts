@@ -12,6 +12,10 @@ export type { DatasheetLayoutProps } from "./components/DatasheetLayout";
 export { CarmaMapCompare } from "./components/compare/CarmaMapCompare";
 export type { CarmaMapCompareProps, CompareMode } from "./components/compare/CarmaMapCompare";
 export type { CompareMapConfig } from "./components/compare/ComparePanel";
+// the two overlays are pure pointer handling over a container and know nothing
+// about maps, so anything laying panels out can drive them
+export { SwipeOverlay } from "./components/compare/SwipeOverlay";
+export { SpyglassOverlay } from "./components/compare/SpyglassOverlay";
 
 // Re-export types from maplibre engine for convenience
 export type { VectorStyle, LibreLayer } from "@carma-mapping/engines/maplibre";

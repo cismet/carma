@@ -9,6 +9,12 @@ export const addonsFachzwilling: FachzwillingRoute = {
   },
   addons: [
     { kind: "addonManager", config: { showControl: true } },
+    // Compares the layers already on the map by splitting the window between
+    // two panels. The button switches the mode; which layer goes to which side
+    // is not selectable yet, the topmost two go one each and whatever is below
+    // them stays under both.
+    { kind: "comparingControl" },
+    { kind: "compareSwipe", config: {} },
     {
       kind: "vectorHighlight",
       config: {
