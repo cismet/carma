@@ -490,6 +490,9 @@ export const defaultLayerConf = {
       layers: "GIS-102:trueortho2024",
       maxNativeZoom: 22,
       transparent: true,
+      // geoserver-cloud rejects `styles=default` for this cascaded layer;
+      // empty string means "server default style" per WMS spec.
+      styles: "",
     },
     trueOrtho2021: {
       type: "wms",
