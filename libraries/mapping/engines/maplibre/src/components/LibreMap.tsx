@@ -33,6 +33,7 @@ import {
   DEFAULT_MAX_PITCH,
   setCameraRestrictionBase,
 } from "../utils/cameraRestriction";
+import { publishMapLayers } from "../utils/mapLayers";
 import { createFeature } from "../utils/featureUtils";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
@@ -564,6 +565,16 @@ export const LibreMap = ({
     });
   }, [interactive, restrictCamera, forceRestrictCamera, maxPitch]);
 
+  // Mirror the layer list onto the instance for consumers that hold the map
+  // but not this component's props. See utils/mapLayers.
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) {
+      return;
+    }
+    publishMapLayers(mapInstance, layers);
+  }, [layers]);
+
   // Keep the zoom bounds in sync when a host changes them after construction.
   useEffect(() => {
     const mapInstance = map.current;
@@ -887,6 +898,10 @@ export const LibreMap = ({
         maxPitch,
         interactive,
       });
+      // published here as well as in the effect below, so a consumer that gets
+      // the instance through setLibreMap can read the layers straight away
+      // instead of waiting a render for the effect
+      publishMapLayers(mapInstance, layers);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       if (exposeMapToWindow) {
