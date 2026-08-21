@@ -19,7 +19,8 @@ import { useCombinedGeometryHighlight } from "./combined-geometry";
 import { useHighlightModeActions } from "./highlight-actions";
 import { DEFAULT_SHAPES } from "./shapes";
 
-import { MONOCHROME_COLOR, type HighlightOperation } from "./operations";
+import type { HighlightOperation } from "./operations";
+import type { OperationColors } from "./types";
 
 /** invert is the flip the standalone lasso already does, so it maps to toggle */
 const LASSO_OPERATIONS: Record<HighlightOperation, LassoOperation> = {
@@ -55,6 +56,7 @@ export const VectorHighlight = ({
     excludedLayerPatterns,
     lasso = false,
     monochrome = false,
+    operationColors,
     combineLayerGeometries = true,
     excludeCombinedLayers,
     shapes,
@@ -70,6 +72,7 @@ export const VectorHighlight = ({
     modeActive,
     highlightingActive,
     operation,
+    colorForOperation,
     endMode,
     setCircleRadius,
     setRectSize,
@@ -97,13 +100,21 @@ export const VectorHighlight = ({
 
   // the shape list lives in config, so it has to travel through the shared
   // state to reach UI rendered outside this addon
+  // key on the content: route configs pass a fresh object per render
+  const operationColorsKey = JSON.stringify(operationColors ?? {});
+  const publishedColors = useMemo(
+    () => JSON.parse(operationColorsKey) as OperationColors,
+    [operationColorsKey]
+  );
+
   useEffect(() => {
     setMode((previous) => ({
       ...(previous ?? { isOn: false }),
       availableShapes,
       monochrome,
+      operationColors: publishedColors,
     }));
-  }, [availableShapes, monochrome, setMode]);
+  }, [availableShapes, monochrome, publishedColors, setMode]);
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
@@ -144,7 +155,8 @@ export const VectorHighlight = ({
     // the operation is picked in the layer row, so the Shift and Alt+Shift
     // refine gestures stay disarmed here
     operation: LASSO_OPERATIONS[operation],
-    color: monochrome ? MONOCHROME_COLOR : undefined,
+    // resolved here, so config overrides and monochrome reach the drawn shape
+    color: colorForOperation(operation),
   });
 
   const controllerRef = useRef<DimController | null>(null);

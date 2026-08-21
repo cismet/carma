@@ -23,6 +23,7 @@ export { DEFAULT_SHAPES, SHAPE_ICONS, SHAPE_LABELS } from "./shapes";
 export { OPERATION_ICONS, OPERATION_LABELS } from "./operations";
 export type { HighlightOperation } from "./operations";
 export type {
+  OperationColors,
   HighlightModeState,
   VectorHighlightConfig,
   VectorHighlightControlConfig,
