@@ -65,6 +65,8 @@ export const HIGHLIGHT_LAYER: Layer = {
   title: "Auswahl",
   type: "object",
   icon: "highlight",
+  iconColor: "#6b7280",
+  iconSize: "0.75rem",
   visible: true,
   pinned: "last",
   skipSelection: true,
