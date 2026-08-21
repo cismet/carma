@@ -13,6 +13,8 @@ export type HighlightModeButtonProps = {
   isOn: boolean;
   shape: DrawShape;
   onToggle: () => void;
+  /** colour while the mode runs; defaults to the control blue */
+  activeColor?: string;
   label?: string;
   activeLabel?: string;
 };
@@ -21,6 +23,7 @@ export const HighlightModeButton = ({
   isOn,
   shape,
   onToggle,
+  activeColor = ACTIVE_COLOR,
   label = "Highlightingmodus einschalten",
   activeLabel = "Highlightingmodus ausschalten",
 }: HighlightModeButtonProps) => (
@@ -31,7 +34,7 @@ export const HighlightModeButton = ({
     >
       <FontAwesomeIcon
         icon={SHAPE_ICONS[shape]}
-        style={isOn ? { color: ACTIVE_COLOR } : undefined}
+        style={isOn ? { color: activeColor } : undefined}
       />
     </ControlButtonStyler>
   </Tooltip>

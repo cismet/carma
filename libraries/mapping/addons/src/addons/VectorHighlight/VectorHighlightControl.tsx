@@ -22,7 +22,8 @@ export const VectorHighlightControl = ({
     controlOrder = DEFAULT_CONTROL_ORDER,
   } = config ?? {};
 
-  const { isOn, shape, startMode, endMode } = useHighlightModeActions();
+  const { isOn, shape, startMode, endMode, operation, colorForOperation } =
+    useHighlightModeActions();
 
   if (!libreMap) {
     return null;
@@ -34,6 +35,7 @@ export const VectorHighlightControl = ({
         isOn={isOn}
         shape={shape}
         onToggle={isOn ? endMode : startMode}
+        activeColor={colorForOperation(operation)}
       />
     </Control>
   );
