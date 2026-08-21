@@ -7,11 +7,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   applyAddonOverrides,
   isHostMountedKind,
+  isImplementedKind,
   isSwitchableKind,
   UNSUSPENDABLE_KIND,
   type AddonOverridesState,
 } from "../../lib/addon-overrides";
-import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
+import { usePersistedAddonOverrides } from "../../lib/addon-overrides-storage";
+import { useRouteAddons } from "../../lib/AddonStateContext";
 import {
   addonRegistry,
   normalizeAddonEntries,
@@ -130,6 +132,14 @@ const AddonRowView = ({
       {!isHostMountedKind(kind) && (
         <span className="text-xs text-gray-500 shrink-0">pro Layer</span>
       )}
+      {!isImplementedKind(kind) && (
+        <Tooltip
+          title="in diesem Build nicht enthalten, der Schalter mountet nichts"
+          placement="left"
+        >
+          <span className="text-xs text-gray-400 shrink-0">nicht im Build</span>
+        </Tooltip>
+      )}
       <span className="w-4 shrink-0 text-center">
         {config !== undefined && <ConfigPopover config={config} />}
       </span>
@@ -146,7 +156,7 @@ const AddonRowView = ({
 };
 
 export const AddonPanel = () => {
-  const [overrides, setOverrides] = useAddonState("addonOverrides");
+  const [overrides, updateOverrides] = usePersistedAddonOverrides();
   const rows = useAddonRows(overrides);
   const [search, setSearch] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
@@ -163,12 +173,13 @@ export const AddonPanel = () => {
    * Both lists are written on every toggle: switching a declared addon off
    * suspends it, switching it on again only has to drop that suspension, and
    * the same in reverse for an undeclared kind. Keeping both in one update
-   * avoids a row that is suspended and enabled at once.
+   * avoids a row that is suspended and enabled at once. The update also stores
+   * the result, so the same set of addons comes back after a reload.
    */
   const toggle = (kind: AddonKind, on: boolean) =>
-    setOverrides((previous) => {
-      const suspended = new Set(previous?.suspended ?? []);
-      const enabled = new Set(previous?.enabled ?? []);
+    updateOverrides((previous) => {
+      const suspended = new Set(previous.suspended);
+      const enabled = new Set(previous.enabled);
       if (on) {
         suspended.delete(kind);
         enabled.add(kind);

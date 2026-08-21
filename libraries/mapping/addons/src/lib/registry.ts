@@ -96,9 +96,9 @@ export type AddonStateMap = {
    */
   infoBoxImage: InfoBoxImageState;
   /**
-   * which addons the user switched on or off for this session; see
-   * `AddonManager`. Read by `AddonHost` rather than by a sibling addon, which
-   * is why it has no consumer among the registry's `requires`.
+   * which addons the user switched on or off; see `AddonManager`, which also
+   * persists them per route. Read by `AddonHost` rather than by a sibling
+   * addon, which is why it has no consumer among the registry's `requires`.
    */
   addonOverrides: AddonOverridesState;
 };

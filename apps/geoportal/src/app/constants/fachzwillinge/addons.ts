@@ -8,6 +8,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
     deployments: ["localDev", "dev", "pr"],
   },
   addons: [
+    { kind: "addonManager", config: { showControl: true } },
     { kind: "vectorHighlight", config: { modifierClick: "alt", lasso: true } },
     { kind: "vectorHighlightControl" },
     {

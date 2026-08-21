@@ -31,10 +31,17 @@ export type {
 export {
   applyAddonOverrides,
   isHostMountedKind,
+  isImplementedKind,
   isSwitchableKind,
   SWITCHABLE_KINDS,
 } from "./lib/addon-overrides";
 export type { AddonOverridesState } from "./lib/addon-overrides";
+export {
+  addonOverridesStorageKey,
+  loadAddonOverrides,
+  saveAddonOverrides,
+  usePersistedAddonOverrides,
+} from "./lib/addon-overrides-storage";
 
 export { isCagedAvailable } from "./lib/caged-addons";
 export type { CageIndicatorBadgeConfig } from "./lib/caged-addons";

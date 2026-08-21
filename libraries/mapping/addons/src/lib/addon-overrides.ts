@@ -7,9 +7,11 @@ import {
 
 /**
  * What the `addonManager` may change about the route's addon list at runtime,
- * and what `AddonHost` applies before mounting. Session-only by design: it
- * lives in the addon state map, which `AddonProvider` resets on route switch
- * and writes nowhere, so a reload is always back to what the route declares.
+ * and what `AddonHost` applies before mounting. Only the on/off decision, never
+ * a config: a suspended addon that is switched back on is mounted from its
+ * route entry again, with the config the route declares. The state lives in the
+ * addon state map, which `AddonProvider` resets on route switch, and survives a
+ * reload through `addon-overrides-storage`.
  */
 export type AddonOverridesState = {
   /** declared kinds the user switched off */
@@ -42,6 +44,7 @@ export const SWITCHABLE_KINDS = [
   "vectorHighlightControl",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
+  "cageIndicatorBadge",
 ] as const satisfies readonly BareAddonKind[];
 
 export const isSwitchableKind = (kind: AddonKind): boolean =>
@@ -50,11 +53,23 @@ export const isSwitchableKind = (kind: AddonKind): boolean =>
 /**
  * Whether `AddonHost` is the one mounting this kind. Kinds with a trigger are
  * declared on a layer stack entry and mounted per layer by `TargetAddonHost`,
- * so the route-wide switch has nothing to act on.
+ * so the route-wide switch has nothing to act on. Decided by the trigger alone,
+ * not by whether the kind has a `Component`: a caged kind resolves to no
+ * component in a build without the cage submodule, and it is still a route-wide
+ * addon there, just one that renders nothing.
  */
-export const isHostMountedKind = (kind: AddonKind): boolean => {
+export const isHostMountedKind = (kind: AddonKind): boolean =>
+  !addonRegistry[kind].trigger;
+
+/**
+ * Whether this build actually carries the kind's implementation. False only for
+ * caged kinds in a checkout without cage; the switch still works, there is just
+ * nothing behind it, so the manager says so rather than pretending the kind is
+ * something else.
+ */
+export const isImplementedKind = (kind: AddonKind): boolean => {
   const entry = addonRegistry[kind];
-  return !entry.trigger && !!entry.Component;
+  return !!entry.trigger || !!entry.Component;
 };
 
 /** the route's entries as the host should mount them, overrides applied */

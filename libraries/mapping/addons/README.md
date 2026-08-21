@@ -31,6 +31,7 @@ so the second folder is the list of what actually exists:
 | `lib/target-addons.ts` | Trigger ids and the entry lookups the layer button needs |
 | `lib/AddonStateContext.tsx` | Typed hooks over the shared addon state (see below) |
 | `lib/addon-overrides.ts` | What the `addonManager` may switch on or off, applied by the host |
+| `lib/addon-overrides-storage.ts` | Keeps those switch positions in `localStorage`, per route |
 
 | Addon                       | Kind                                                     |
 | --------------------------- | -------------------------------------------------------- |
@@ -232,16 +233,22 @@ channel, and `AddonHost` subtracts the suspended kinds from the route's list and
 appends the switched-on ones before mounting. It is the one channel the host
 itself reads rather than a sibling addon.
 
-**Nothing of it survives a reload.** The overrides live in the addon state map,
-which is scoped to the route and written nowhere, so every reload is back to
-what the route declares. That is deliberate: the manager is a tool for looking
-at a route, not a second configuration source.
+**The switch positions survive a reload.** The addon state map itself is
+session-only, so the manager mirrors the channel into `localStorage`
+(`lib/addon-overrides-storage.ts`) and seeds from there on the next load. One
+entry per route, keyed by the sorted kinds the route declares, so a changed
+route list starts from its own defaults instead of inheriting decisions about a
+different set of addons. Only the on/off decision is stored, never a config: a
+declared addon switched back on is mounted from its route entry again, with
+exactly the config the route declares.
 
 Three kinds of row cannot be switched, each with a tooltip saying why: the
 manager itself (there would be no way back), trigger addons such as
 `zoomToExtent`, which are mounted per layer by `TargetAddonHost` and not per
 route, and undeclared kinds whose config is required, since there is nothing to
-mount them with. The last set is `SWITCHABLE_KINDS` in `lib/addon-overrides.ts`,
+mount them with. A caged kind in a build without cage is none of those: it is a
+route addon like any other and stays switchable, the row just says "nicht im
+Build" because there is no component behind the switch. The last set is `SWITCHABLE_KINDS` in `lib/addon-overrides.ts`,
 typed `readonly BareAddonKind[]`, so listing a kind that needs a config there is
 a compile error.
 
