@@ -30,6 +30,10 @@ export function useHighlightLayerButton() {
       dispatch(setActiveInteractionButtonID(HIGHLIGHT_TOOLS_INTERACTION_ID));
     },
     onUpdate: (layer) => dispatch(updateLayer(layer)),
+    onOpenPanel: (layer) => {
+      dispatch(setActiveInteractionLayerID(layer.id));
+      dispatch(setActiveInteractionButtonID(HIGHLIGHT_TOOLS_INTERACTION_ID));
+    },
     onRemove: (id) => {
       dispatch(removeLayer(id));
       dispatch(setActiveInteractionLayerID(null));

@@ -45,6 +45,13 @@ export function useFilterBackground(
     const bRect = buttonEl.getBoundingClientRect();
     const fRect = filterRef.current.getBoundingClientRect();
 
+    // an interaction component can render nothing; without this the connector
+    // would still be drawn, as a stray white sliver under the layer bar
+    if (fRect.width === 0 || fRect.height === 0) {
+      setBgData(null);
+      return;
+    }
+
     setBgData({
       layerId: activeLayerId,
       button: {

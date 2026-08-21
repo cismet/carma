@@ -104,6 +104,8 @@ export type UseHighlightLayerRowOptions = {
   onRemove: (id: string) => void;
   /** the host keeps a snapshot, so a changed row has to be handed over again */
   onUpdate?: (layer: Layer) => void;
+  /** a section was switched back on and needs the panel open to be seen */
+  onOpenPanel?: (layer: Layer) => void;
 };
 
 /**
@@ -116,6 +118,7 @@ export const useHighlightLayerRow = ({
   onAdd,
   onRemove,
   onUpdate,
+  onOpenPanel,
 }: UseHighlightLayerRowOptions) => {
   const {
     isOn,
@@ -163,6 +166,22 @@ export const useHighlightLayerRow = ({
   onRemoveRef.current = onRemove;
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
+  const onOpenPanelRef = useRef(onOpenPanel);
+  onOpenPanelRef.current = onOpenPanel;
+
+  // the toggles only flip the section flags; the panel itself may be closed, so
+  // switching a section back on has to bring it up again
+  const previousSections = useRef({ showOperations, showShapes });
+  useEffect(() => {
+    const previous = previousSections.current;
+    previousSections.current = { showOperations, showShapes };
+    const opened =
+      (showOperations && !previous.showOperations) ||
+      (showShapes && !previous.showShapes);
+    if (opened && hasRow) {
+      onOpenPanelRef.current?.(layerRef.current);
+    }
+  }, [hasRow, showOperations, showShapes]);
 
   // the buttons carry the active operation, so the row on screen goes stale
   // whenever it changes
