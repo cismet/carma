@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useHighlightModeActions } from "./highlight-actions";
 import {
+  OPERATION_ICON_SIZES,
   OPERATION_ICONS,
   OPERATION_LABELS,
   type HighlightOperation,
@@ -28,6 +29,14 @@ const OPERATION_BUTTON_IDS: Record<HighlightOperation, string> = {
   intersect: HIGHLIGHT_INTERSECT_BUTTON_ID,
 };
 
+/** pulls the operation buttons closer than the pill's own gap + padding would */
+const BUTTON_SPACING: CSSProperties = { margin: "0 -2px" };
+
+/** room between the title and the operation group */
+const GROUP_GAP_START = "6px";
+/** room between the operation group and the close button */
+const GROUP_GAP_END = "3px";
+
 const WIRED_OPERATIONS: HighlightOperation[] = [
   "add",
   "subtract",
@@ -41,18 +50,29 @@ const buildInteractionButtons = (
   colorForOperation: (operation: HighlightOperation) => string
 ): InteractionButton[] =>
   (Object.keys(OPERATION_BUTTON_IDS) as HighlightOperation[]).map(
-    (operation) => {
+    (operation, index, all) => {
       const wired = WIRED_OPERATIONS.includes(operation);
       const isActive = wired && operation === activeOperation;
       return {
         id: OPERATION_BUTTON_IDS[operation],
         icon: (
-          <FontAwesomeIcon
-            icon={OPERATION_ICONS[operation]}
-            style={
-              isActive ? { color: colorForOperation(operation) } : undefined
-            }
-          />
+          <span
+            style={{
+              ...BUTTON_SPACING,
+              fontSize: OPERATION_ICON_SIZES[operation],
+              ...(index === 0 ? { marginLeft: GROUP_GAP_START } : {}),
+              ...(index === all.length - 1
+                ? { marginRight: GROUP_GAP_END }
+                : {}),
+            }}
+          >
+            <FontAwesomeIcon
+              icon={OPERATION_ICONS[operation]}
+              style={
+                isActive ? { color: colorForOperation(operation) } : undefined
+              }
+            />
+          </span>
         ),
         tooltip: OPERATION_LABELS[operation],
         onClick: wired ? () => setOperation(operation) : undefined,
