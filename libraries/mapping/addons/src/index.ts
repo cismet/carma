@@ -109,6 +109,12 @@ export {
   type CompareState,
 } from "./addons/comparing/comparing-actions";
 export {
+  useComparingLayerRow,
+  COMPARING_LAYER,
+  COMPARING_LAYER_ID,
+  type UseComparingLayerRowOptions,
+} from "./addons/comparing/comparing-layer-row";
+export {
   InfoBoxZoomImage,
   resolveInfoBoxImageUrl,
   type InfoBoxImageState,

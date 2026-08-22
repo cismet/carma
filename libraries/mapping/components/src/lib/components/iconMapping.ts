@@ -5,11 +5,13 @@ import {
   faObjectGroup,
   faRuler,
   faSquare,
+  faTableColumns,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const iconMap = {
   measurement: faRuler,
   highlight: faObjectGroup,
+  comparing: faTableColumns,
   background: faLayerGroup,
   ortho: faGlobe,
 };

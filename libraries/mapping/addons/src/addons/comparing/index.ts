@@ -10,6 +10,12 @@ export {
 } from "./comparing-actions";
 export { CompareStage } from "./stage/CompareStage";
 export {
+  useComparingLayerRow,
+  COMPARING_LAYER,
+  COMPARING_LAYER_ID,
+  type UseComparingLayerRowOptions,
+} from "./comparing-layer-row";
+export {
   deriveImplicitRoles,
   groupLayers,
   layersForPanel,

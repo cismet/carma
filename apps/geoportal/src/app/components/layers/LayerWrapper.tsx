@@ -60,6 +60,7 @@ import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
+import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -72,6 +73,7 @@ const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
   useDynamicStylingSync();
   useHighlightLayerButton();
+  useComparingLayerButton();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
