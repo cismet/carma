@@ -127,10 +127,12 @@ const PanelTile = ({
     draggable
     onDragStart={onDragStart}
     title={`${entry.title} – ziehen, um sie in eine andere Karte zu legen`}
-    className="group relative w-8 h-8 rounded-md border border-solid border-gray-300 bg-white shadow-sm flex items-center justify-center cursor-grab"
+    className="group relative w-11 h-11 rounded-md border border-solid border-gray-300 bg-white shadow-sm flex items-center justify-center cursor-grab"
     data-test-id={`comparing-tile-${panel}-${entry.key}`}
   >
-    <LayerGlyph entry={entry} size={18} />
+    {/* the icons are 32px images, so the preview shows them at their own size
+        rather than shrinking them the way a layer row does */}
+    <LayerGlyph entry={entry} size={32} />
     <Badge>{number}</Badge>
     <button
       type="button"
@@ -178,9 +180,17 @@ export const ComparingPanel = ({
     setMode,
     assignments,
     setAssigned,
+    setAssignedEverywhere,
   } = useComparingActions();
   const entries = useCompareLayerEntries();
   const [dragOver, setDragOver] = useState<number | null>(null);
+
+  // the boxes are the panels, so they have to sit the way the mode draws them:
+  // stacked bands for "Übereinander", columns for "Nebeneinander", 2x2 for the
+  // grid. A band is wide and low, so its stack is turned a quarter turn to the
+  // right, which puts the topmost layer at the right end instead of the top.
+  const isGrid = panelCount === 4;
+  const isBanded = mode === "swipe-v" && !isGrid;
 
   // comparing more panels than there are layers to put in them leaves panels
   // with nothing to show, so the choice stops at what is on the map
@@ -188,6 +198,16 @@ export const ComparingPanel = ({
     (entry) => !entry.isBackground && entry.visible
   ).length;
   const maxPanels = Math.min(MAX_PANELS, Math.max(assignableCount, 2));
+
+  const inEveryPanel = (key: string) => {
+    const panels = assignments?.[key] ?? [];
+    return (
+      panelCount > 0 &&
+      Array.from({ length: panelCount }, (_, panel) => panel).every((panel) =>
+        panels.includes(panel)
+      )
+    );
+  };
 
   const numbered = entries.map((entry, index) => ({
     entry,
@@ -266,6 +286,24 @@ export const ComparingPanel = ({
                 >
                   {entry.title}
                 </span>
+                {/* the background belongs under every panel or under none, and
+                    dragging it into each one in turn is busywork */}
+                {entry.isBackground && (
+                  <label
+                    className="shrink-0 flex items-center justify-center w-6 h-6 m-0 cursor-pointer"
+                    title="In allen Karten"
+                    onDragStart={(event) => event.preventDefault()}
+                  >
+                    <input
+                      type="checkbox"
+                      className="cursor-pointer w-4 h-4"
+                      checked={inEveryPanel(entry.key)}
+                      onChange={(event) =>
+                        setAssignedEverywhere(entry.key, event.target.checked)
+                      }
+                    />
+                  </label>
+                )}
               </div>
             ))
           )}
@@ -274,9 +312,9 @@ export const ComparingPanel = ({
         <div
           className="grid gap-2 min-w-0"
           style={{
-            gridTemplateColumns: `repeat(${
-              panelCount === 4 ? 2 : panelCount
-            }, minmax(0, 1fr))`,
+            gridTemplateColumns: isBanded
+              ? "minmax(0, 1fr)"
+              : `repeat(${isGrid ? 2 : panelCount}, minmax(0, 1fr))`,
           }}
         >
           {Array.from({ length: panelCount }, (_, panel) => {
@@ -293,19 +331,28 @@ export const ComparingPanel = ({
                 onDragLeave={() => setDragOver((it) => (it === panel ? null : it))}
                 onDrop={drop(panel)}
                 data-test-id={`comparing-view-${panel}`}
-                className={`rounded-lg border border-solid p-2 flex flex-col gap-1 min-h-[7rem] ${
+                className={`relative rounded-lg border border-solid p-2 flex ${
+                  isBanded ? "min-h-[4.75rem]" : "min-h-[7rem]"
+                } ${
                   dragOver === panel
                     ? "border-[#1677ff] bg-[#1677ff]/5"
                     : "border-gray-200 bg-gray-50"
                 }`}
               >
-                <span className="text-sm text-gray-500 truncate">
+                {/* out of flow, so the pile centres in the whole box rather
+                    than in what the caption leaves over */}
+                <span className="absolute left-2 top-1.5 text-sm text-gray-500 truncate pointer-events-none max-w-[calc(100%-1rem)]">
                   {panelLabels[panel] ?? `Ansicht ${panel + 1}`}
                 </span>
                 {/* the entries are already topmost-first, so plain column order
                     puts the layer drawn last at the top of the pile and the
-                    background at the bottom, as the map has it */}
-                <div className="grow flex flex-col items-center justify-center gap-1.5">
+                    background at the bottom, as the map has it. Turned on its
+                    side in a band, the same order runs to the right. */}
+                <div
+                  className={`grow flex items-center justify-center gap-1.5 ${
+                    isBanded ? "flex-row-reverse" : "flex-col"
+                  }`}
+                >
                   {inPanel.length === 0 ? (
                     <span className="text-sm text-gray-300">leer</span>
                   ) : (

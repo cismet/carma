@@ -157,6 +157,24 @@ export const useComparingActions = () => {
     [setState]
   );
 
+  /** the same block in or out of every panel at once, for the background */
+  const setAssignedEverywhere = useCallback(
+    (key: string, assigned: boolean) => {
+      setState((previous) => {
+        const current = previous ?? COMPARE_STATE_DEFAULT;
+        const next = assigned
+          ? Array.from({ length: current.panelCount }, (_, panel) => panel)
+          : [];
+        return {
+          ...current,
+          assignments: { ...(current.assignments ?? {}), [key]: next },
+          layoutTouched: true,
+        };
+      });
+    },
+    [setState]
+  );
+
   return {
     isOn,
     setOn,
@@ -172,5 +190,6 @@ export const useComparingActions = () => {
     assignmentsPanelCount: state?.assignmentsPanelCount,
     setAssignments,
     setAssigned,
+    setAssignedEverywhere,
   };
 };
