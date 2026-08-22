@@ -49,6 +49,13 @@ export const useCameraSync = () => {
           bearing,
           pitch,
         });
+        // `jumpTo` only asks for a repaint, and `triggerRepaint` schedules it
+        // through `requestAnimationFrame`. We are running inside the source
+        // map's own frame, so that request lands in the next one and every
+        // target trails the source by a frame, which is visible as the panels
+        // lagging behind the one being dragged. `redraw` cancels the pending
+        // request and renders here, in the frame the camera changed in.
+        target.redraw();
       } catch {
         /* disposed */
       }
