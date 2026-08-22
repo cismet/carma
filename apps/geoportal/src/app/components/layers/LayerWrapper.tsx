@@ -61,6 +61,7 @@ import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-util
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
+import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -74,6 +75,7 @@ const LayerWrapper = () => {
   useDynamicStylingSync();
   useHighlightLayerButton();
   useComparingLayerButton();
+  useComparingSelectionReset();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
