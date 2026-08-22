@@ -2,8 +2,9 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Store } from "redux";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import type { LayerStackEntry } from "@carma-mapping/layers";
+import type { Layer, LayerStackEntry } from "@carma-mapping/layers";
 import { useMapLayers } from "@carma-mapping/engines/maplibre";
+import { resolveLayerIconUrl } from "@carma-mapping/utils";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { useComparingActions, type CompareAssignments } from "./comparing-actions";
@@ -28,6 +29,8 @@ export type CompareLayerEntry = {
   isBackground: boolean;
   /** whether the layer bar has this one switched on */
   visible: boolean;
+  /** the layer's own icon, the same image the layer bar shows */
+  iconUrl?: string;
 };
 
 type LayerStackState = {
@@ -38,7 +41,12 @@ type LayerStackState = {
 };
 
 /** one assignable layer as the host's layer stack has it, in stack order */
-type StackLayer = { id: string; title: string; visible: boolean };
+type StackLayer = {
+  id: string;
+  title: string;
+  visible: boolean;
+  iconUrl?: string;
+};
 
 /**
  * The layers in stack order, bottom-most first, which is also the order they
@@ -63,6 +71,7 @@ const collectLayers = (
         id: entry.id,
         title: entry.title,
         visible: entry.visible !== false,
+        iconUrl: resolveLayerIconUrl(entry as Layer),
       });
     }
   }
@@ -151,6 +160,7 @@ export const usePublishCompareLayers = (
         title: layer.title,
         isBackground: false,
         visible: layer.visible,
+        iconUrl: layer.iconUrl,
       });
     });
     return result;

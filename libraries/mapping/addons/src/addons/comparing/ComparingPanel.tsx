@@ -1,12 +1,14 @@
-import type { ReactNode } from "react";
+import { useState, type DragEvent, type ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faGripVertical,
   faLayerGroup,
   faLeftRight,
   faMagnifyingGlass,
   faMap,
   faTableCells,
   faUpDown,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
@@ -64,119 +66,106 @@ const MODES: {
   },
 ];
 
+/** what a drag carries: the block, and the panel it came from if it was in one */
+const DRAG_KEY = "application/x-carma-compare-layer";
+const DRAG_FROM = "application/x-carma-compare-panel";
+
+/** the number a block is known by, since layers of one kind share an icon */
+const numberOf = (entry: CompareLayerEntry, indexFromTop: number) =>
+  entry.isBackground ? "H" : `${indexFromTop + 1}`;
+
+const LayerGlyph = ({
+  entry,
+  size,
+}: {
+  entry: CompareLayerEntry;
+  size: number;
+}) =>
+  entry.iconUrl ? (
+    <img
+      src={entry.iconUrl}
+      alt=""
+      // the layer bar's own icon treatment: contained, multiplied onto the row
+      style={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+        mixBlendMode: "multiply",
+      }}
+    />
+  ) : (
+    <FontAwesomeIcon
+      icon={entry.isBackground ? faLayerGroup : faMap}
+      style={{ fontSize: size, color: entry.visible ? "#374151" : "#9ca3af" }}
+    />
+  );
+
+const Badge = ({ children }: { children: string }) => (
+  <span className="absolute -right-1.5 -top-1.5 w-4 h-4 rounded-full bg-gray-900 text-white text-[10px] leading-none flex items-center justify-center border-2 border-solid border-white">
+    {children}
+  </span>
+);
+
+/**
+ * One block inside a panel. Tiles stack upwards without covering each other, so
+ * every number stays readable; the topmost tile is the layer drawn last.
+ */
+const PanelTile = ({
+  entry,
+  number,
+  panel,
+  onRemove,
+  onDragStart,
+}: {
+  entry: CompareLayerEntry;
+  number: string;
+  panel: number;
+  onRemove: () => void;
+  onDragStart: (event: DragEvent) => void;
+}) => (
+  <div
+    draggable
+    onDragStart={onDragStart}
+    title={`${entry.title} – ziehen, um sie in eine andere Karte zu legen`}
+    className="group relative w-8 h-8 rounded-md border border-solid border-gray-300 bg-white shadow-sm flex items-center justify-center cursor-grab"
+    data-test-id={`comparing-tile-${panel}-${entry.key}`}
+  >
+    <LayerGlyph entry={entry} size={18} />
+    <Badge>{number}</Badge>
+    <button
+      type="button"
+      onClick={onRemove}
+      title="Aus dieser Karte entfernen"
+      className="hidden group-hover:flex absolute -left-1.5 -top-1.5 w-4 h-4 rounded-full bg-white text-gray-500 hover:text-gray-800 border border-solid border-gray-300 p-0 items-center justify-center cursor-pointer"
+    >
+      <FontAwesomeIcon icon={faXmark} className="text-[9px]" />
+    </button>
+  </div>
+);
+
 export type ComparingPanelProps = {
   layer: Layer;
   /**
    * Switches a layer on or off in the host's layer bar.
    *
-   * Ticking a layer that is switched off has to switch it on, or the tick does
-   * nothing visible; unticking its last panel switches it off again. The pane
-   * cannot dispatch that itself, so the host passes it in.
+   * Dragging a layer that is switched off into a panel has to switch it on, or
+   * the panel stays empty. The pane cannot dispatch that, so the host passes it
+   * in.
    */
   onLayerVisibilityChange?: (id: string, visible: boolean) => void;
 };
-
-/** the playground's compact pill group: one bar, the active choice raised */
-const Segment = ({ children }: { children: ReactNode }) => (
-  <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 gap-1">
-    {children}
-  </div>
-);
-
-const SegmentButton = ({
-  active,
-  disabled,
-  title,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  title?: string;
-  onClick: () => void;
-  children: ReactNode;
-}) => (
-  <button
-    type="button"
-    disabled={disabled}
-    title={title}
-    onClick={onClick}
-    className={`text-base rounded-md px-3 py-1 border-0 whitespace-nowrap ${
-      active
-        ? "bg-white text-gray-900 shadow-sm"
-        : disabled
-        ? "bg-transparent text-gray-300 cursor-not-allowed"
-        : "bg-transparent text-gray-500 cursor-pointer hover:text-gray-800"
-    }`}
-  >
-    {children}
-  </button>
-);
-
-const MatrixRow = ({
-  entry,
-  panelCount,
-  panels,
-  onToggle,
-}: {
-  entry: CompareLayerEntry;
-  panelCount: number;
-  panels: number[];
-  onToggle: (panel: number, assigned: boolean) => void;
-}) => (
-  <div
-    className="flex items-center gap-2 py-1 min-w-0"
-    data-test-id="comparing-panel-layer-row"
-  >
-    <FontAwesomeIcon
-      icon={entry.isBackground ? faLayerGroup : faMap}
-      className={entry.visible ? "text-gray-700" : "text-gray-300"}
-    />
-    <span
-      className={`text-base truncate grow ${
-        entry.visible ? "text-gray-800" : "text-gray-400"
-      }`}
-      title={
-        entry.visible
-          ? entry.title
-          : `${entry.title} (in der Kartenebenen-Leiste ausgeschaltet)`
-      }
-    >
-      {entry.title}
-      {entry.isBackground && (
-        <span className="text-sm text-gray-400"> (Hintergrund)</span>
-      )}
-    </span>
-    {Array.from({ length: panelCount }, (_, panel) => (
-      <label
-        key={panel}
-        className="w-16 shrink-0 flex items-center justify-center cursor-pointer m-0 self-stretch rounded hover:bg-gray-100"
-      >
-        <input
-          type="checkbox"
-          className="cursor-pointer w-4 h-4"
-          checked={panels.includes(panel)}
-          onChange={(event) => onToggle(panel, event.target.checked)}
-        />
-      </label>
-    ))}
-  </div>
-);
 
 /**
  * The comparison's control pane, opened from the button on the `__comparing__`
  * layer row and rendered in the host's interaction slot.
  *
- * Upper half: one row per assignable block, one column per panel, a tick where
- * that panel shows that block. A block ticked in several panels is one row with
- * several ticks, which is the question the pane exists to answer; a panel with
- * nothing ticked renders blank, which is what the assignment says.
+ * Left: the layers, each with the icon the layer bar shows and a number, since
+ * layers of one kind share an icon and only the number tells them apart. Right:
+ * the map's own division, one box per panel, holding the blocks that panel
+ * shows as a stack that covers nothing.
  *
- * Lower half: the modes.
- *
- * The pane is as tall as its content up to a cap, rather than the fixed height
- * of the layer-info panel it borrows its width from: it hangs over the very
- * comparison it describes, so every unused row is in the way.
+ * Dragging out of the list copies, dragging a tile from one box to another
+ * moves, and the same block cannot land twice in one box.
  */
 export const ComparingPanel = ({
   onLayerVisibilityChange,
@@ -191,54 +180,151 @@ export const ComparingPanel = ({
     setAssigned,
   } = useComparingActions();
   const entries = useCompareLayerEntries();
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   // comparing more panels than there are layers to put in them leaves panels
   // with nothing to show, so the choice stops at what is on the map
-  const assignableCount = entries.filter((entry) => !entry.isBackground).length;
+  const assignableCount = entries.filter(
+    (entry) => !entry.isBackground && entry.visible
+  ).length;
   const maxPanels = Math.min(MAX_PANELS, Math.max(assignableCount, 2));
 
-  const toggle = (entry: CompareLayerEntry, panel: number, next: boolean) => {
-    setAssigned(entry.key, panel, next);
-    // Ticking a layer that is switched off has to switch it on, or the tick
-    // does nothing visible. Unticking never switches anything off: a layer
-    // shown in no panel keeps its row here, ready to be put back.
-    if (next && !entry.visible) {
-      onLayerVisibilityChange?.(entry.key, true);
+  const numbered = entries.map((entry, index) => ({
+    entry,
+    number: numberOf(entry, index),
+  }));
+
+  const startDrag = (key: string, from?: number) => (event: DragEvent) => {
+    event.dataTransfer.setData(DRAG_KEY, key);
+    event.dataTransfer.setData(DRAG_FROM, from === undefined ? "" : `${from}`);
+    event.dataTransfer.effectAllowed = from === undefined ? "copy" : "move";
+  };
+
+  const drop = (panel: number) => (event: DragEvent) => {
+    event.preventDefault();
+    setDragOver(null);
+    const key = event.dataTransfer.getData(DRAG_KEY);
+    if (!key) {
+      return;
+    }
+    const raw = event.dataTransfer.getData(DRAG_FROM);
+    const from = raw === "" ? undefined : Number(raw);
+    if (from === panel) {
+      return;
+    }
+    if (from !== undefined) {
+      // inside the preview a tile changes places rather than multiplying
+      setAssigned(key, from, false);
+    }
+    setAssigned(key, panel, true);
+    const entry = entries.find((candidate) => candidate.key === key);
+    if (entry && !entry.visible) {
+      onLayerVisibilityChange?.(key, true);
     }
   };
 
   return (
     <div
       data-test-id="comparing-panel"
-      className="carma-comparing-pane w-[100vw] sm:w-[75vw] sm:max-w-[560px] md:max-w-[720px] max-h-[60vh] sm:max-h-[45vh] shrink-0 bg-white rounded-[10px] flex flex-col relative gap-2 px-4 py-3"
+      className="carma-comparing-pane w-[100vw] sm:w-[86vw] sm:max-w-[680px] md:max-w-[860px] max-h-[70vh] sm:max-h-[60vh] shrink-0 bg-white rounded-[10px] flex flex-col relative gap-2 px-4 py-3"
     >
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-baseline gap-2 shrink-0">
         <h5 className="m-0 text-lg font-semibold grow">Karteninhalte</h5>
-        {Array.from({ length: panelCount }, (_, panel) => (
-          <span
-            key={panel}
-            className="w-16 shrink-0 text-center text-sm text-gray-500 truncate"
-            title={panelLabels[panel]}
-          >
-            {panelLabels[panel] ?? `Ansicht ${panel + 1}`}
-          </span>
-        ))}
+        <span className="text-sm text-gray-400">
+          Aus der Liste in eine Karte ziehen
+        </span>
       </div>
 
-      <div className="grow overflow-auto min-h-0 divide-y divide-solid divide-gray-100 border-0">
-        {entries.length === 0 ? (
-          <div className="text-base text-gray-400 py-2">Keine Karteninhalte</div>
-        ) : (
-          entries.map((entry) => (
-            <MatrixRow
-              key={entry.key}
-              entry={entry}
-              panelCount={panelCount}
-              panels={assignments?.[entry.key] ?? []}
-              onToggle={(panel, next) => toggle(entry, panel, next)}
-            />
-          ))
-        )}
+      <div className="grow min-h-0 overflow-auto grid grid-cols-1 sm:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-4">
+        <div className="flex flex-col min-w-0">
+          {numbered.length === 0 ? (
+            <div className="text-base text-gray-400 py-2">
+              Keine Karteninhalte
+            </div>
+          ) : (
+            numbered.map(({ entry, number }) => (
+              <div
+                key={entry.key}
+                draggable
+                onDragStart={startDrag(entry.key)}
+                title={entry.title}
+                data-test-id="comparing-panel-layer-row"
+                className="flex items-center gap-2 py-1 px-1 min-w-0 rounded hover:bg-gray-50 cursor-grab"
+              >
+                <FontAwesomeIcon
+                  icon={faGripVertical}
+                  className="text-gray-300 text-xs"
+                />
+                <span className="w-5 h-5 shrink-0 rounded-full bg-gray-900 text-white text-[11px] leading-none flex items-center justify-center">
+                  {number}
+                </span>
+                <LayerGlyph entry={entry} size={16} />
+                <span
+                  className={`text-base truncate grow ${
+                    entry.visible ? "text-gray-800" : "text-gray-400"
+                  }`}
+                >
+                  {entry.title}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div
+          className="grid gap-2 min-w-0"
+          style={{
+            gridTemplateColumns: `repeat(${
+              panelCount === 4 ? 2 : panelCount
+            }, minmax(0, 1fr))`,
+          }}
+        >
+          {Array.from({ length: panelCount }, (_, panel) => {
+            const inPanel = numbered.filter(({ entry }) =>
+              (assignments?.[entry.key] ?? []).includes(panel)
+            );
+            return (
+              <div
+                key={panel}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOver(panel);
+                }}
+                onDragLeave={() => setDragOver((it) => (it === panel ? null : it))}
+                onDrop={drop(panel)}
+                data-test-id={`comparing-view-${panel}`}
+                className={`rounded-lg border border-solid p-2 flex flex-col gap-1 min-h-[7rem] ${
+                  dragOver === panel
+                    ? "border-[#1677ff] bg-[#1677ff]/5"
+                    : "border-gray-200 bg-gray-50"
+                }`}
+              >
+                <span className="text-sm text-gray-500 truncate">
+                  {panelLabels[panel] ?? `Ansicht ${panel + 1}`}
+                </span>
+                {/* the entries are already topmost-first, so plain column order
+                    puts the layer drawn last at the top of the pile and the
+                    background at the bottom, as the map has it */}
+                <div className="grow flex flex-col items-center justify-center gap-1.5">
+                  {inPanel.length === 0 ? (
+                    <span className="text-sm text-gray-300">leer</span>
+                  ) : (
+                    inPanel.map(({ entry, number }) => (
+                      <PanelTile
+                        key={entry.key}
+                        entry={entry}
+                        number={number}
+                        panel={panel}
+                        onRemove={() => setAssigned(entry.key, panel, false)}
+                        onDragStart={startDrag(entry.key, panel)}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="shrink-0 border-0 border-t border-solid border-gray-200 pt-2 flex flex-wrap items-center gap-2">
@@ -289,3 +375,40 @@ export const ComparingPanel = ({
     </div>
   );
 };
+
+/** the playground's compact pill group: one bar, the active choice raised */
+const Segment = ({ children }: { children: ReactNode }) => (
+  <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 gap-1">
+    {children}
+  </div>
+);
+
+const SegmentButton = ({
+  active,
+  disabled,
+  title,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  title?: string;
+  onClick: () => void;
+  children: ReactNode;
+}) => (
+  <button
+    type="button"
+    disabled={disabled}
+    title={title}
+    onClick={onClick}
+    className={`text-base rounded-md px-3 py-1 border-0 whitespace-nowrap ${
+      active
+        ? "bg-white text-gray-900 shadow-sm"
+        : disabled
+        ? "bg-transparent text-gray-300 cursor-not-allowed"
+        : "bg-transparent text-gray-500 cursor-pointer hover:text-gray-800"
+    }`}
+  >
+    {children}
+  </button>
+);
