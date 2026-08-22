@@ -16,6 +16,18 @@ type CompareStageProps = {
   /** drawn over the panels, e.g. a splitter */
   children?: ReactNode;
   overrideGlyphs?: string;
+  /**
+   * When the hidden app map follows the panels: on every frame like a panel, or
+   * only once the movement comes to rest.
+   *
+   * Nobody sees that map while comparing, but it renders a full pass per frame
+   * either way, on the same thread as the panels that are being watched.
+   * Holding it back buys that pass back and costs only that the url hash and
+   * `carma.mapping2D` lag behind a drag until it ends, which is when the hash
+   * is written anyway. `live` is here for a route where something reads the app
+   * map's camera continuously.
+   */
+  appMapSync?: "live" | "settled";
 };
 
 /**
@@ -28,6 +40,12 @@ type CompareStageProps = {
  * panels, so none of them need to know comparing is on. It also keeps writing
  * the url hash, and leaving the mode reveals a map already at the compared
  * view.
+ *
+ * The app map follows the panels like any other registered map, but by default
+ * only once a movement settles: it is invisible, yet it would otherwise cost a
+ * render pass per frame competing with the panels on screen. The camera it owes
+ * is handed over on `moveend` and again when this component goes away, so the
+ * map revealed on the way out sits where the comparison left it.
  *
  * `visibility` rather than `display`: `display: none` collapses the canvas to
  * zero size, which makes MapLibre lose its dimensions and forces a resize dance
@@ -49,6 +67,7 @@ export const CompareStage = ({
   clipPaths,
   children,
   overrideGlyphs,
+  appMapSync = "settled",
 }: CompareStageProps) => {
   const { register, syncFrom } = useCameraSync();
 
@@ -62,11 +81,11 @@ export const CompareStage = ({
   }, [appMap]);
 
   useEffect(() => {
-    register("app", appMap);
+    register("app", appMap, { deferred: appMapSync === "settled" });
     return () => {
       register("app", null);
     };
-  }, [appMap, register]);
+  }, [appMap, appMapSync, register]);
 
   const handlePanelReady = useCallback(
     (index: number, map: MaplibreMap) => {

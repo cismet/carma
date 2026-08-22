@@ -13,6 +13,13 @@ export type CompareSwipeConfig = {
   orientation?: "horizontal" | "vertical";
   /** glyph endpoint for the panels' own maps, when the app overrides the default */
   overrideGlyphs?: string;
+  /**
+   * Whether the hidden app map follows every frame (`live`) or only once a
+   * movement settles (`settled`, the default). Holding it back saves a render
+   * pass per frame that nobody sees; the cost is that the url hash and
+   * `carma.mapping2D` only catch up when the movement ends.
+   */
+  appMapSync?: "live" | "settled";
 };
 
 /**
@@ -59,6 +66,7 @@ export const CompareSwipe = ({
       roles={roles}
       clipPaths={clipPaths}
       overrideGlyphs={config?.overrideGlyphs}
+      appMapSync={config?.appMapSync}
     >
       <SwipeOverlay
         orientation={orientation}
