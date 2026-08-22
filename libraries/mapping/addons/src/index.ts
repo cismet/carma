@@ -112,8 +112,14 @@ export {
   useComparingLayerRow,
   COMPARING_LAYER,
   COMPARING_LAYER_ID,
+  COMPARING_TOOLS_INTERACTION_ID,
   type UseComparingLayerRowOptions,
 } from "./addons/comparing/comparing-layer-row";
+export { ComparingPanel } from "./addons/comparing/ComparingPanel";
+export {
+  useCompareLayerEntries,
+  type CompareLayerEntry,
+} from "./addons/comparing/comparing-layers";
 export {
   InfoBoxZoomImage,
   resolveInfoBoxImageUrl,

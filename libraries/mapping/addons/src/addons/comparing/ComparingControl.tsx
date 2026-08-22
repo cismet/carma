@@ -10,6 +10,7 @@ import {
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { useComparingActions } from "./comparing-actions";
+import { usePublishCompareLayers } from "./comparing-layers";
 
 /** geoportal's topleft column: measurement 60, highlighting 70, terrain 80 */
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
@@ -35,6 +36,7 @@ export type ComparingControlConfig = {
 export const ComparingControl = ({
   config,
   libreMap,
+  store,
 }: AddonComponentProps<"comparingControl">) => {
   const {
     controlPosition = DEFAULT_CONTROL_POSITION,
@@ -44,6 +46,9 @@ export const ComparingControl = ({
   } = config ?? {};
 
   const { isOn, toggle } = useComparingActions();
+  // the control is the one addon that has both the map and the host store, so
+  // it is where the pane's layer list is assembled
+  usePublishCompareLayers(store, libreMap, isOn);
 
   if (!libreMap) {
     return null;

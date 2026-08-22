@@ -68,6 +68,7 @@ import {
   type ComparingControlConfig,
 } from "../addons/comparing/ComparingControl";
 import type { CompareState } from "../addons/comparing/comparing-actions";
+import type { CompareLayerEntry } from "../addons/comparing/comparing-layers";
 
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
@@ -106,6 +107,8 @@ export type AddonStateMap = {
   highlightMode: HighlightModeState;
   /** whether the comparison is running; see `ComparingControl` */
   compareState: CompareState;
+  /** the assignable layer blocks, with the titles the layer bar shows */
+  compareLayers: CompareLayerEntry[];
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -220,7 +223,7 @@ export const addonRegistry: {
   cameraRestriction: { Component: CameraRestriction },
   comparingControl: {
     Component: ComparingControl,
-    provides: ["compareState"],
+    provides: ["compareState", "compareLayers"],
   },
   compareSwipe: { Component: CompareSwipe, requires: ["compareState"] },
   gazetteerSource: { Component: GazetteerSource },

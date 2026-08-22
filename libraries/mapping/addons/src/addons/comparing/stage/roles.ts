@@ -74,6 +74,33 @@ export const deriveImplicitRoles = (layers: readonly LibreLayer[]): Roles => {
   return { shared, panels: [left.layers, right.layers] };
 };
 
+/**
+ * What each panel shows once the assignment is explicit: every block ticked for
+ * that panel, in the map's draw order, so the stacking inside a panel is the
+ * one the layer bar shows.
+ *
+ * A panel with nothing ticked gets an empty list and renders a blank map, which
+ * is what the assignment says and takes one tick to undo.
+ */
+export const rolesFromAssignments = (
+  layers: readonly LibreLayer[],
+  assignments: Record<string, number[]>,
+  panelCount: number
+): Roles => {
+  const groups = groupLayers(layers);
+  const panels: LibreLayer[][] = Array.from({ length: panelCount }, () => []);
+  groups.forEach((group) => {
+    (assignments[group.key] ?? []).forEach((panel) => {
+      if (panel >= 0 && panel < panelCount) {
+        panels[panel].push(...group.layers);
+      }
+    });
+  });
+  // everything a panel shows is in its own list now, so there is no shared
+  // block left to draw underneath
+  return { shared: [], panels };
+};
+
 /** Shared context first, so a panel's own layers draw over it. */
 export const layersForPanel = (roles: Roles, index: number): LibreLayer[] => [
   ...roles.shared,

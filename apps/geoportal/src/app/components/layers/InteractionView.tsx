@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { DevelopmentOnlyUiBackdrop } from "@carma-commons/ui/components";
 import {
@@ -11,6 +11,7 @@ import type { Layer, LayerGroup } from "@carma-mapping/layers";
 import { isLayerGroup } from "@carma-mapping/layers";
 
 import {
+  changeVisibility,
   getActiveInteractionButtonID,
   getActiveInteractionLayerID,
   getLayerStack,
@@ -29,6 +30,8 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import {
   ADDON_INTERACTION_COMPONENTS,
+  COMPARING_TOOLS_INTERACTION_ID,
+  ComparingPanel,
   TargetAddonHost,
   resolveActiveTargetAddon,
 } from "@carma-mapping/addons";
@@ -70,6 +73,23 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   );
 };
 
+/**
+ * The comparison's control pane with the one thing it cannot do itself: a tick
+ * in the matrix switches a layer on when it was off, and unticking its last
+ * panel switches it off again, which is a dispatch into this app's layer stack.
+ */
+const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
+  const dispatch = useDispatch();
+  return (
+    <ComparingPanel
+      layer={layer}
+      onLayerVisibilityChange={(id, visible) =>
+        dispatch(changeVisibility({ id, visible }))
+      }
+    />
+  );
+};
+
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   ...ADDON_INTERACTION_COMPONENTS,
   [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
@@ -78,6 +98,7 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
   "save-measurements": SaveMeasurements,
   "measurement-draw-tools": MeasurementDrawTools,
+  [COMPARING_TOOLS_INTERACTION_ID]: ComparingInteractionPanel,
 };
 
 export const InteractionContent: FC<{

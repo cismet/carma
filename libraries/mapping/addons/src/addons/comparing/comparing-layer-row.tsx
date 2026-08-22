@@ -1,17 +1,31 @@
 import { useEffect, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSliders } from "@fortawesome/free-solid-svg-icons";
 
-import type { Layer } from "@carma-mapping/layers";
+import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useComparingActions } from "./comparing-actions";
 
 export const COMPARING_LAYER_ID = "__comparing__";
 
+/** the pane the row's button opens, registered by the host */
+export const COMPARING_TOOLS_INTERACTION_ID = "comparing-tools";
+
+const interactionButtons: InteractionButton[] = [
+  {
+    id: COMPARING_TOOLS_INTERACTION_ID,
+    icon: <FontAwesomeIcon icon={faSliders} />,
+    tooltip: "Vergleich einstellen",
+  },
+];
+
 /**
  * The layer-bar row for the comparison, the way measurement mode has one: it
  * exists exactly while the mode runs, and closing it leaves the mode.
  *
- * Only a marker for now. The mode picker and the role table that the row will
- * open are not built yet, so the row carries no interaction buttons.
+ * Its one button opens the control pane. The host decides what that button id
+ * resolves to, so the addon can bring a pane without the app knowing what is
+ * in it.
  */
 export const COMPARING_LAYER: Layer = {
   id: COMPARING_LAYER_ID,
@@ -21,6 +35,7 @@ export const COMPARING_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
+  interactionButtons,
 };
 
 export type UseComparingLayerRowOptions = {
