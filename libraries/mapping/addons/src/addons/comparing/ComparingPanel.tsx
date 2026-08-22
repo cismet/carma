@@ -198,16 +198,12 @@ export const ComparingPanel = ({
   const maxPanels = Math.min(MAX_PANELS, Math.max(assignableCount, 2));
 
   const toggle = (entry: CompareLayerEntry, panel: number, next: boolean) => {
-    const panels = assignments?.[entry.key] ?? [];
     setAssigned(entry.key, panel, next);
+    // Ticking a layer that is switched off has to switch it on, or the tick
+    // does nothing visible. Unticking never switches anything off: a layer
+    // shown in no panel keeps its row here, ready to be put back.
     if (next && !entry.visible) {
       onLayerVisibilityChange?.(entry.key, true);
-      return;
-    }
-    // the tick that empties the last panel takes the layer off the map too, so
-    // the layer bar keeps telling the truth about what is being shown
-    if (!next && entry.visible && panels.length === 1 && panels[0] === panel) {
-      onLayerVisibilityChange?.(entry.key, false);
     }
   };
 

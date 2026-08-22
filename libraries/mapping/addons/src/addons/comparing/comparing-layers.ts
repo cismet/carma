@@ -37,20 +37,34 @@ type LayerStackState = {
   };
 };
 
-/** what the layer stack knows about one block */
-type LayerMeta = { title: string; visible: boolean };
+/** one assignable layer as the host's layer stack has it, in stack order */
+type StackLayer = { id: string; title: string; visible: boolean };
 
-const collectMeta = (
+/**
+ * The layers in stack order, bottom-most first, which is also the order they
+ * are drawn in. Groups contribute their members, since that is the level the
+ * map's own layers are keyed at. Ids beginning with `__` are the host's own
+ * rows for modes like measurement and the comparison itself, which are not map
+ * content and have nothing to assign.
+ */
+const collectLayers = (
   entries: LayerStackEntry[] | undefined,
-  into: Map<string, LayerMeta>
+  into: StackLayer[]
 ) => {
   for (const entry of entries ?? []) {
-    if (entry.id && entry.title) {
-      into.set(entry.id, { title: entry.title, visible: entry.visible !== false });
-    }
     // groups carry their members in `layers`
     const nested = (entry as { layers?: LayerStackEntry[] }).layers;
-    if (nested) collectMeta(nested, into);
+    if (nested) {
+      collectLayers(nested, into);
+      continue;
+    }
+    if (entry.id && entry.title && !entry.id.startsWith("__")) {
+      into.push({
+        id: entry.id,
+        title: entry.title,
+        visible: entry.visible !== false,
+      });
+    }
   }
   return into;
 };
@@ -60,7 +74,7 @@ const collectMeta = (
  * must not depend on react-redux. Both snapshots return the stored references,
  * so unrelated actions do not re-render.
  */
-const useLayerMeta = (store: Store) => {
+const useStackLayers = (store: Store) => {
   const layerStack = useSyncExternalStore(
     store.subscribe,
     () => (store.getState() as LayerStackState).mapping?.layers
@@ -69,16 +83,19 @@ const useLayerMeta = (store: Store) => {
     store.subscribe,
     () => (store.getState() as LayerStackState).mapping?.backgroundLayer
   );
-  return useMemo(() => {
-    const meta = collectMeta(layerStack, new Map<string, LayerMeta>());
-    if (background?.id && background.title) {
-      meta.set(background.id, {
-        title: background.title,
-        visible: background.visible !== false,
-      });
-    }
-    return meta;
-  }, [layerStack, background]);
+  return useMemo(
+    () => ({
+      layers: collectLayers(layerStack, []),
+      background: background?.id
+        ? {
+            id: background.id,
+            title: background.title ?? background.id,
+            visible: background.visible !== false,
+          }
+        : undefined,
+    }),
+    [layerStack, background]
+  );
 };
 
 /**
@@ -96,7 +113,7 @@ export const usePublishCompareLayers = (
 ) => {
   const [, setEntries] = useAddonState("compareLayers");
   const layers = useMapLayers(libreMap);
-  const meta = useLayerMeta(store);
+  const stack = useStackLayers(store);
   const {
     panelCount,
     suggestPanelCount,
@@ -109,16 +126,35 @@ export const usePublishCompareLayers = (
     if (!active) {
       return [];
     }
-    const groups = groupLayers(layers);
-    return groups.map((group, index) => ({
-      key: group.key,
-      title: meta.get(group.key)?.title ?? group.key,
-      // the background expands into several named layers sharing its id and is
-      // always the bottom block, so it is the first group and only that one
-      isBackground: index === 0,
-      visible: meta.get(group.key)?.visible ?? true,
-    }));
-  }, [active, layers, meta]);
+    // The keys come from the map, whose grouping is what a panel's content is
+    // filtered by, but the list itself follows the layer stack: a layer that is
+    // switched off is not on the map at all (the host's converter skips it), and
+    // dropping its row would take it out of reach of the pane that switched it
+    // off.
+    const groupKeys = new Set(groupLayers(layers).map((group) => group.key));
+    const result: CompareLayerEntry[] = [];
+    if (stack.background) {
+      result.push({
+        key: stack.background.id,
+        title: stack.background.title,
+        isBackground: true,
+        visible: stack.background.visible,
+      });
+    }
+    stack.layers.forEach((layer) => {
+      if (!groupKeys.has(layer.id) && layer.visible) {
+        // on the stack but not on the map: nothing this comparison can show
+        return;
+      }
+      result.push({
+        key: layer.id,
+        title: layer.title,
+        isBackground: false,
+        visible: layer.visible,
+      });
+    });
+    return result;
+  }, [active, layers, stack]);
 
   useEffect(() => {
     setEntries(entries);
@@ -132,7 +168,9 @@ export const usePublishCompareLayers = (
     if (!active || entries.length === 0) {
       return;
     }
-    const foreground = entries.filter((entry) => !entry.isBackground).length;
+    const foreground = entries.filter(
+      (entry) => !entry.isBackground && entry.visible
+    ).length;
     suggestPanelCount(Math.min(MAX_PANELS, Math.max(foreground, 2)));
   }, [active, entries, suggestPanelCount]);
 

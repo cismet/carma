@@ -75,8 +75,8 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
 
 /**
  * The comparison's control pane with the one thing it cannot do itself: a tick
- * in the matrix switches a layer on when it was off, and unticking its last
- * panel switches it off again, which is a dispatch into this app's layer stack.
+ * in the matrix switches a layer on when it was off, which is a dispatch into
+ * this app's layer stack.
  */
 const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
   const dispatch = useDispatch();
