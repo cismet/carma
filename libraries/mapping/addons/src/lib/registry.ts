@@ -28,6 +28,9 @@ import {
 } from "../addons/InfoBoxZoomImage";
 import {
   NearestFeature,
+  NearestFeatureApotheken,
+  type NearestFeatureApothekenConfig,
+  type NearestFeatureCategoryState,
   type NearestFeatureConfig,
 } from "../addons/NearestFeature";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
@@ -98,6 +101,7 @@ export type AddonConfigMap = {
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
   nearestFeature: NearestFeatureConfig;
+  nearestFeatureApotheken: NearestFeatureApothekenConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -125,6 +129,12 @@ export type AddonKind = keyof AddonConfigMap;
 export type AddonStateMap = {
   /** what is on screen, grouped and counted; see `VisibleFeatureStatsSource` */
   visibleFeatureStats: VisibleFeatureStatsState;
+  /**
+   * the categories the "In der Nähe" mode offers, one entry per category addon
+   * the route declared; see `NearestFeature/categoryChannel.ts`. Several addons
+   * write this one channel, each merging its own key in.
+   */
+  nearestFeatureCategories: NearestFeatureCategoryState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the comparison is running; see `ComparingControl` */
@@ -260,7 +270,14 @@ export const addonRegistry: {
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
-  nearestFeature: { Component: NearestFeature },
+  nearestFeature: {
+    Component: NearestFeature,
+    requires: ["nearestFeatureCategories"],
+  },
+  nearestFeatureApotheken: {
+    Component: NearestFeatureApotheken,
+    provides: ["nearestFeatureCategories"],
+  },
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],

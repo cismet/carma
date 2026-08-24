@@ -111,6 +111,12 @@ export {
 } from "./addons/VectorHighlight";
 export {
   NearestFeature,
+  NearestFeatureApotheken,
+  useNearestFeatureCategory,
+  type NearestFeatureApothekenConfig,
+  type NearestFeatureCategory,
+  type NearestFeatureCategoryConfig,
+  type NearestFeatureCategoryState,
   type NearestFeatureConfig,
 } from "./addons/NearestFeature";
 export {
@@ -124,6 +130,7 @@ export {
 } from "./lib/featureIndex";
 export {
   resolveStackedSources,
+  styleLayerIdsForSource,
   type StackedSource,
 } from "./lib/stackedSources";
 export type {
