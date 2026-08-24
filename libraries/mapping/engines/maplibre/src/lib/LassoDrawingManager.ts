@@ -23,6 +23,10 @@
  * The exception is a manager with `requireModifier`, where the modifier click
  * already means "toggle this feature"; there only a drag draws.
  *
+ * The drag shapes disable panning for as long as the button is held, since the
+ * drag itself is the gesture. `setSuspended` hands the drag back to the map, so
+ * a consumer can offer a hold-to-pan key for a shape larger than the view.
+ *
  * Visual feedback: dashed blue outline + translucent blue fill updated in
  * real-time via a GeoJSON source while the user draws. Circle and rect
  * additionally show their measurements in a small label at the cursor, drawn as
@@ -158,6 +162,8 @@ export class LassoDrawingManager {
 
   private active = false;
   private drawing = false;
+  /** the map owns the drag for now; see `setSuspended` */
+  private suspended = false;
   private coords: Position[] = [];
   private lastScreenX = 0;
   private lastScreenY = 0;
@@ -243,6 +249,34 @@ export class LassoDrawingManager {
     this.shape = shape;
   }
 
+  /**
+   * While suspended the manager ignores mousedown entirely, so the drag reaches
+   * MapLibre and pans the map instead of drawing. Meant for a hold-to-pan key:
+   * a lasso along a street can easily be longer than the current view, and the
+   * drag shapes switch `dragPan` off for the whole gesture.
+   *
+   * A drag already in progress keeps the mouse — the shape half drawn on screen
+   * must not vanish under the user's hand. Placing a line is not a drag, so
+   * there the key takes over right away.
+   */
+  setSuspended(suspended: boolean): void {
+    if (suspended === this.suspended) return;
+    if (suspended && this.drawing && !this.placingLine) return;
+    this.suspended = suspended;
+    this.applyCursor();
+  }
+
+  isSuspended(): boolean {
+    return this.suspended;
+  }
+
+  /** Only the manager without a modifier owns the cursor: the others share the
+   *  map with whatever is drawn without them. */
+  private applyCursor(): void {
+    if (!this.active || this.requireModifiers.length > 0) return;
+    this.map.getCanvas().style.cursor = this.suspended ? "grab" : "crosshair";
+  }
+
   /** Repaints the shared layers, so one manager can serve several operations. */
   setColor(color: string): void {
     if (color === this.color) return;
@@ -309,9 +343,7 @@ export class LassoDrawingManager {
 
     // Always register the mousedown handler immediately so drawing works
     // even if the style/source is still loading (e.g. after clearVisual).
-    if (this.requireModifiers.length === 0) {
-      this.map.getCanvas().style.cursor = "crosshair";
-    }
+    this.applyCursor();
     this.map.on("mousedown", this.handleMouseDown);
 
     // Shift+drag is MapLibre's own box zoom, and it ignores the other modifier
@@ -425,6 +457,9 @@ export class LassoDrawingManager {
   private onMouseDown(e: MapMouseEvent): void {
     // Only left button
     if (e.originalEvent.button !== 0) return;
+
+    // hold-to-pan: the drag belongs to the map for as long as the key is down
+    if (this.suspended) return;
 
     if (!this.modifiersMatch(e.originalEvent)) return;
 

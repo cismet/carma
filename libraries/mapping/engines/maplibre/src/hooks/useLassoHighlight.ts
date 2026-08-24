@@ -36,6 +36,19 @@ type LassoSources = Array<{ source: string; sourceLayers: string[] }>;
 const passiveShape = (shape: DrawShape): DrawShape =>
   shape === "line" ? "lasso" : shape;
 
+/** Held down, the drag pans the map instead of drawing. */
+const PAN_KEY = "Space";
+
+/**
+ * Space is the page's scroll key and the activation key of whatever has focus,
+ * so the map only claims it while nothing else wants it.
+ */
+const spaceIsTaken = (target: EventTarget | null): boolean =>
+  target instanceof Element &&
+  target.closest(
+    "input, textarea, select, button, [contenteditable=''], [contenteditable='true'], [role='button'], [role='textbox']"
+  ) !== null;
+
 /** Orange, to tell the refine lasso apart from the blue additive one. */
 const REFINE_COLOR = "#f97316";
 const ADD_COLOR = "#22c55e";
@@ -632,6 +645,48 @@ export const useLassoHighlight = ({
       passive?.activate();
     }
   }, [active]);
+
+  /**
+   * Hold Space to pan. The drag shapes switch `dragPan` off for the whole
+   * gesture, so without this a lasso longer than the current view could not be
+   * finished. Every manager is suspended, not just the toolbar one: whichever
+   * modifier is held, Space means "this drag is the map's".
+   */
+  useEffect(() => {
+    if (!map) return;
+
+    const suspendAll = (suspended: boolean) => {
+      managerRef.current?.setSuspended(suspended);
+      passiveManagerRef.current?.setSuspended(suspended);
+      refineManagerRef.current?.setSuspended(suspended);
+      shiftRefineManagerRef.current?.setSuspended(suspended);
+    };
+
+    const handlePanKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== PAN_KEY || e.repeat) return;
+      if (spaceIsTaken(e.target)) return;
+      // otherwise the page scrolls under the map
+      e.preventDefault();
+      suspendAll(true);
+    };
+    const handlePanKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== PAN_KEY) return;
+      suspendAll(false);
+    };
+    // a key held while the window loses focus never sends its keyup
+    const handleBlur = () => suspendAll(false);
+
+    document.addEventListener("keydown", handlePanKeyDown);
+    document.addEventListener("keyup", handlePanKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      document.removeEventListener("keydown", handlePanKeyDown);
+      document.removeEventListener("keyup", handlePanKeyUp);
+      window.removeEventListener("blur", handleBlur);
+      suspendAll(false);
+    };
+  }, [map]);
 
   // Escape key exits lasso mode
   const onDeactivateRef = useRef(onDeactivate);
