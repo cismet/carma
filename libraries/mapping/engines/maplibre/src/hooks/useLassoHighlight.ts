@@ -178,8 +178,6 @@ export interface UseLassoHighlightOptions {
   radiusStep?: number;
   /** Corridor half-width in metres the drawn line is buffered with. */
   lineBuffer?: number;
-  /** Reports whether a finished line is waiting for its buffer to be applied. */
-  onPendingLineChange?: (pending: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -207,9 +205,7 @@ export interface UseLassoHighlightOptions {
 export interface UseLassoHighlightResult {
   /** True while the user is holding the mouse button and drawing. */
   isDrawing: boolean;
-  /** Turns the finished line into its corridor and runs the selection. */
-  applyPendingLine: () => void;
-  /** Drops a line being placed or waiting for its buffer. */
+  /** Drops the line currently being placed. */
   cancelLine: () => void;
 }
 
@@ -223,7 +219,6 @@ export const useLassoHighlight = ({
   lineBuffer,
   onCircleRadiusChange,
   onRectSizeChange,
-  onPendingLineChange,
   sources,
   operation = "toggle",
   color,
@@ -280,8 +275,6 @@ export const useLassoHighlight = ({
   onRectSizeChangeRef.current = onRectSizeChange;
   const onRefineRef = useRef(onRefine);
   onRefineRef.current = onRefine;
-  const onPendingLineChangeRef = useRef(onPendingLineChange);
-  onPendingLineChangeRef.current = onPendingLineChange;
   const clearRef = useRef(clearHighlights);
   clearRef.current = clearHighlights;
 
@@ -461,8 +454,6 @@ export const useLassoHighlight = ({
       lineBuffer: lineBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
-      onPendingLineChange: (pending) =>
-        onPendingLineChangeRef.current?.(pending),
       // Starts on any plain mousedown, so it must stand back for whichever
       // refine combination is armed — otherwise both would draw at once.
       skipWhenModifiers: skipForToolbar(shiftRefineArmedRef.current),
@@ -695,8 +686,8 @@ export const useLassoHighlight = ({
     if (!active) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      // a half-drawn or unapplied line is what Escape undoes first; only with
-      // nothing pending does it leave the mode
+      // a line being clicked together is what Escape drops first; only with
+      // nothing half-drawn does it leave the mode
       const manager = managerRef.current;
       if (manager?.hasLineInProgress()) {
         manager.cancelLine();
@@ -730,13 +721,9 @@ export const useLassoHighlight = ({
     };
   }, [map]);
 
-  const applyPendingLine = useCallback(() => {
-    managerRef.current?.applyPendingLine();
-  }, []);
-
   const cancelLine = useCallback(() => {
     managerRef.current?.cancelLine();
   }, []);
 
-  return { isDrawing, applyPendingLine, cancelLine };
+  return { isDrawing, cancelLine };
 };

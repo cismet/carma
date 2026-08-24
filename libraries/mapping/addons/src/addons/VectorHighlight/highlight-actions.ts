@@ -31,23 +31,12 @@ export const useHighlightModeActions = () => {
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
   const lineBuffer = mode?.lineBuffer ?? DEFAULT_LINE_BUFFER;
-  const hasPendingLine = mode?.hasPendingLine ?? false;
 
   const setLineBuffer = useCallback(
     (next: number) =>
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         lineBuffer: next,
-      })),
-    [setMode]
-  );
-
-  /** buffers the finished line and selects in that corridor */
-  const applyLine = useCallback(
-    () =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        applyLineVersion: (previous?.applyLineVersion ?? 0) + 1,
       })),
     [setMode]
   );
@@ -177,8 +166,7 @@ export const useHighlightModeActions = () => {
     isOn: (mode?.isOn ?? false) || highlightingActive,
     modeActive: mode?.isOn ?? false,
     highlightingActive,
-    // an unapplied line is something to take back as well
-    canClear: highlightingActive || hasPendingLine,
+    canClear: highlightingActive,
     startMode,
     endMode,
     clear,
@@ -196,8 +184,6 @@ export const useHighlightModeActions = () => {
     setRectSize,
     lineBuffer,
     setLineBuffer,
-    hasPendingLine,
-    applyLine,
     cancelLine,
   };
 };

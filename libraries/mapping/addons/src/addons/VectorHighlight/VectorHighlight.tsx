@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import {
   useMapHighlighting,
@@ -121,16 +121,6 @@ export const VectorHighlight = ({
     }));
   }, [availableShapes, monochrome, publishedColors, defaultLineBuffer, setMode]);
 
-  // the drawing manager lives in this hook, so the toolbar's "a line is
-  // waiting" flag has to be published from here
-  const handlePendingLineChange = useCallback(
-    (pending: boolean) =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        hasPendingLine: pending,
-      })),
-    [setMode]
-  );
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
@@ -158,7 +148,7 @@ export const VectorHighlight = ({
 
   // `active` switches between the passive modifier-drag manager and the
   // explicit one that draws on a plain drag while the mode is on
-  const { applyPendingLine, cancelLine } = useLassoHighlight({
+  const { cancelLine } = useLassoHighlight({
     map: lasso ? libreMap : null,
     active: lasso && (modeActive || highlightingActive),
     shape,
@@ -168,7 +158,6 @@ export const VectorHighlight = ({
     lineBuffer,
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
-    onPendingLineChange: handlePendingLineChange,
     onDeactivate: endMode,
     // the operation is picked in the layer row, so the Shift and Alt+Shift
     // refine gestures stay disarmed here
@@ -177,16 +166,8 @@ export const VectorHighlight = ({
     color: colorForOperation(operation),
   });
 
-  // the toolbar asks for the pending line to be applied or dropped by bumping
-  // a counter, so no callback has to be parked in the shared addon state
-  const applyRequest = mode?.applyLineVersion ?? 0;
-  const previousApplyRequest = useRef(applyRequest);
-  useEffect(() => {
-    if (applyRequest === previousApplyRequest.current) return;
-    previousApplyRequest.current = applyRequest;
-    applyPendingLine();
-  }, [applyRequest, applyPendingLine]);
-
+  // the toolbar asks for the line being drawn to be dropped by bumping a
+  // counter, so no callback has to be parked in the shared addon state
   const cancelRequest = mode?.cancelLineVersion ?? 0;
   const previousCancelRequest = useRef(cancelRequest);
   useEffect(() => {

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { faLeftRight, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, InputNumber, Popover, Slider, Tooltip } from "antd";
+import { InputNumber, Popover, Slider, Tooltip } from "antd";
 
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
@@ -47,13 +47,9 @@ export type ShapeToolbarProps = {
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
   /** the buffer button, behind its own splitter; for the line shape */
   showBuffer?: boolean;
-  /** corridor half-width in metres */
+  /** corridor half-width in metres, applied when the line is finished */
   bufferWidth?: number;
   onBufferWidthChange?: (meters: number) => void;
-  /** turns the drawn line into the corridor and selects in it */
-  onApplyBuffer?: () => void;
-  /** a finished line is waiting for exactly that */
-  canApplyBuffer?: boolean;
 };
 
 export const ShapeToolbar = ({
@@ -70,28 +66,11 @@ export const ShapeToolbar = ({
   showBuffer = false,
   bufferWidth = 25,
   onBufferWidthChange,
-  onApplyBuffer,
-  canApplyBuffer = false,
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
   const [bufferOpen, setBufferOpen] = useState(false);
 
-  // a finished line is the moment the width matters, so the control comes up
-  // on its own instead of asking for one more click
-  const hadPending = useRef(canApplyBuffer);
-  useEffect(() => {
-    if (canApplyBuffer && !hadPending.current) {
-      setBufferOpen(true);
-    }
-    if (!canApplyBuffer && hadPending.current) {
-      setBufferOpen(false);
-    }
-    hadPending.current = canApplyBuffer;
-  }, [canApplyBuffer]);
-
-  const bufferLabel = canApplyBuffer
-    ? `Puffer (${Math.round(bufferWidth)} m) anwenden`
-    : `Pufferbreite (${Math.round(bufferWidth)} m)`;
+  const bufferLabel = `Pufferbreite (${Math.round(bufferWidth)} m)`;
 
   const bufferContent = (
     <div
@@ -121,19 +100,9 @@ export const ShapeToolbar = ({
           onChange={(value) => value != null && onBufferWidthChange?.(value)}
         />
       </div>
-      <Button
-        type="primary"
-        size="small"
-        block
-        disabled={!canApplyBuffer}
-        data-test-id="vector-highlight-buffer-apply"
-        onClick={() => {
-          onApplyBuffer?.();
-          setBufferOpen(false);
-        }}
-      >
-        {canApplyBuffer ? "Puffer anwenden" : "Linie zeichnen"}
-      </Button>
+      <p className="m-0 text-xs text-gray-500">
+        Doppelklick beendet die Linie und wählt im Korridor aus.
+      </p>
     </div>
   );
 
@@ -189,12 +158,10 @@ export const ShapeToolbar = ({
               data-test-id="vector-highlight-buffer"
               className={[
                 css.button,
-                canApplyBuffer && activeColor ? "" : css.buttonInactive,
+                bufferOpen && activeColor ? "" : css.buttonInactive,
               ].join(" ")}
               style={
-                canApplyBuffer && activeColor
-                  ? { color: activeColor }
-                  : undefined
+                bufferOpen && activeColor ? { color: activeColor } : undefined
               }
             >
               <FontAwesomeIcon icon={faLeftRight} />

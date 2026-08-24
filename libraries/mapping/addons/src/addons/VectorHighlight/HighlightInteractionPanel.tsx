@@ -22,8 +22,6 @@ export const HighlightInteractionPanel = () => {
     showShapes,
     lineBuffer,
     setLineBuffer,
-    hasPendingLine,
-    applyLine,
   } = useHighlightModeActions();
 
   const activeColor = colorForOperation(operation);
@@ -57,8 +55,6 @@ export const HighlightInteractionPanel = () => {
           showBuffer={shape === "line"}
           bufferWidth={lineBuffer}
           onBufferWidthChange={setLineBuffer}
-          onApplyBuffer={applyLine}
-          canApplyBuffer={hasPendingLine}
         />
       )}
     </div>

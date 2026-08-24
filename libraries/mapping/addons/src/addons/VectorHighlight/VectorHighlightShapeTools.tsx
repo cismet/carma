@@ -28,8 +28,6 @@ export const VectorHighlightShapeTools = ({
     canClear,
     lineBuffer,
     setLineBuffer,
-    hasPendingLine,
-    applyLine,
   } = useHighlightModeActions();
 
   if (!isOn || shapes.length < 2) {
@@ -49,8 +47,6 @@ export const VectorHighlightShapeTools = ({
             showBuffer={shape === "line"}
             bufferWidth={lineBuffer}
             onBufferWidthChange={setLineBuffer}
-            onApplyBuffer={applyLine}
-            canApplyBuffer={hasPendingLine}
             {...toolbarProps}
           />
         </div>
