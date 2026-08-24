@@ -96,6 +96,9 @@ export const ShapeToolbar = ({
   const bufferContent = (
     <div
       className="flex w-64 flex-col gap-2"
+      // antd renders the popover in a portal, but a click still bubbles up the
+      // React tree to the layer row, which would close the panel underneath
+      role="presentation"
       onClick={(event) => event.stopPropagation()}
     >
       <div className="flex items-center gap-2">
