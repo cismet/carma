@@ -13,9 +13,8 @@
  *   would change with the map's rotation and stop being repeatable.
  * - `"line"`: click per vertex ("Linienzug"), so a path with as many points as
  *   the user wants can follow a street exactly; a drag still pans the map.
- *   Double-click or Enter finishes it. A line covers no area, so what it
- *   selects is a corridor: the finished line waits as `pendingLine` until the
- *   buffer width is applied, and only then does `onDrawComplete` fire.
+ *   Double-click or Enter finishes it. A line covers no area, so what it hands
+ *   over is the corridor `lineBuffer` metres to either side of it.
  *
  * For circle and rect a plain click (no drag) places the configured size,
  * centred on the clicked point, so the very same area can be placed again
@@ -134,11 +133,6 @@ export interface LassoDrawingManagerOptions {
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
   onRectSizeChange?: (size: RectSize) => void;
-  /**
-   * Reports whether a finished line is waiting for its buffer to be applied,
-   * so the UI can offer the width and the apply button for exactly that window.
-   */
-  onPendingLineChange?: (pending: boolean) => void;
 }
 
 export class LassoDrawingManager {
@@ -158,7 +152,6 @@ export class LassoDrawingManager {
   private lineBuffer: number;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
-  private onPendingLineChange?: (pending: boolean) => void;
 
   private active = false;
   private drawing = false;
@@ -186,11 +179,10 @@ export class LassoDrawingManager {
   private startScreenY = 0;
   private labelEl: HTMLDivElement | null = null;
 
-  /** line: the vertices placed so far, the rubber-band end following the
-   *  cursor, and the finished line waiting for its buffer to be applied */
+  /** line: the vertices placed so far and the rubber-band end following the
+   *  cursor */
   private linePoints: Position[] = [];
   private lineCursor: Position | null = null;
-  private pendingLine: Position[] | null = null;
   private placingLine = false;
   private lineDownX = 0;
   private lineDownY = 0;
@@ -234,7 +226,6 @@ export class LassoDrawingManager {
     this.lineBuffer = options.lineBuffer ?? DEFAULT_LINE_BUFFER;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
-    this.onPendingLineChange = options.onPendingLineChange;
   }
 
   /**
@@ -296,44 +287,21 @@ export class LassoDrawingManager {
   setLineBuffer(meters: number): void {
     if (meters === this.lineBuffer) return;
     this.lineBuffer = meters;
-    if (this.placingLine || this.pendingLine) this.updateVisual();
+    if (this.placingLine) this.updateVisual();
   }
 
-  /** A finished line is waiting for its buffer to be applied. */
-  hasPendingLine(): boolean {
-    return this.pendingLine !== null;
-  }
-
-  /** Either half of the line gesture is running — placing or waiting. */
+  /** A line is being clicked together right now. */
   hasLineInProgress(): boolean {
-    return this.placingLine || this.pendingLine !== null;
+    return this.placingLine;
   }
 
-  /** Turns the waiting line into its corridor and hands that over as the
-   *  selection shape. This is what the buffer button's apply does. */
-  applyPendingLine(): void {
-    const points = this.pendingLine;
-    if (!points) return;
-    const polygon = this.buildLineBuffer(points);
-    this.pendingLine = null;
-    this.clearVisual();
-    this.onPendingLineChange?.(false);
-    if (polygon) {
-      this.onDrawComplete(polygon);
-    } else {
-      this.onDrawCancel();
-    }
-  }
-
-  /** Drops a line being placed as well as one waiting for its buffer. */
+  /** Drops the line being placed. */
   cancelLine(): void {
-    if (!this.placingLine && !this.pendingLine) return;
+    if (!this.placingLine) return;
     this.endLinePlacement();
     this.linePoints = [];
     this.lineCursor = null;
-    this.pendingLine = null;
     this.clearVisual();
-    this.onPendingLineChange?.(false);
     this.onDrawCancel();
   }
 
@@ -607,12 +575,6 @@ export class LassoDrawingManager {
   }
 
   private addLineVertex(point: Position): void {
-    // a new line replaces one that was finished but never applied
-    if (this.pendingLine) {
-      this.pendingLine = null;
-      this.onPendingLineChange?.(false);
-    }
-
     // the second click of a double-click lands on the previous vertex; taking
     // it would leave a zero-length segment behind after the dblclick finishes
     const last = this.linePoints[this.linePoints.length - 1];
@@ -663,9 +625,9 @@ export class LassoDrawingManager {
   }
 
   /**
-   * Hands the line over to the buffer step rather than to `onDrawComplete`:
-   * with no area of its own it would select next to nothing, so the corridor
-   * width is set first and applied from the toolbar.
+   * The double-click is the whole gesture: what leaves here is the corridor at
+   * the width the buffer button currently holds, not the bare line — with no
+   * area of its own a line would select next to nothing.
    */
   private finishLine(): void {
     if (!this.placingLine) return;
@@ -673,14 +635,14 @@ export class LassoDrawingManager {
     this.endLinePlacement();
     this.linePoints = [];
     this.lineCursor = null;
-    if (points.length < 2) {
-      this.clearVisual();
+    this.clearVisual();
+    const corridor =
+      points.length >= 2 ? this.buildLineBuffer(points) : null;
+    if (corridor) {
+      this.onDrawComplete(corridor);
+    } else {
       this.onDrawCancel();
-      return;
     }
-    this.pendingLine = points;
-    this.updateVisual();
-    this.onPendingLineChange?.(true);
   }
 
   /** The corridor `lineBuffer` metres to either side of the drawn line. */
@@ -1065,15 +1027,12 @@ export class LassoDrawingManager {
   /** Corridor, line and one dot per placed vertex — the dots are what makes a
    *  many-point line readable while it is being clicked together. */
   private updateLineVisual(source: GeoJSONSource): void {
-    const placed = this.pendingLine ?? this.linePoints;
+    const placed = this.linePoints;
     if (placed.length === 0) {
       source.setData({ type: "FeatureCollection", features: [] });
       return;
     }
-    const path =
-      !this.pendingLine && this.lineCursor
-        ? [...placed, this.lineCursor]
-        : placed;
+    const path = this.lineCursor ? [...placed, this.lineCursor] : placed;
 
     const features: Feature[] = [];
     const corridor = this.buildLineBuffer(path);

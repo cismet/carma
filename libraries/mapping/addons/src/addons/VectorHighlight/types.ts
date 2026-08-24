@@ -14,13 +14,9 @@ export type HighlightModeState = {
   rectSize?: RectSize;
   /** metres to either side of a drawn line; the corridor it selects in */
   lineBuffer?: number;
-  /** a finished line is waiting for its buffer to be applied */
-  hasPendingLine?: boolean;
-  /** bumped by the UI to apply the pending line's buffer; the addon owns the
+  /** bumped by the UI to discard the line being drawn; the addon owns the
    *  drawing manager, so the request travels as a counter rather than a
    *  callback parked in shared state */
-  applyLineVersion?: number;
-  /** bumped by the UI to discard the pending line */
   cancelLineVersion?: number;
   /** what a drag does; only "intersect" draws orange today */
   operation?: HighlightOperation;
