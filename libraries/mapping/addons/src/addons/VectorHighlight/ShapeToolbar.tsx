@@ -56,11 +56,15 @@ export type ShapeToolbarProps = {
   /** the width panel; open, it shows the last line again */
   bufferOpen?: boolean;
   onBufferOpenChange?: (open: boolean) => void;
-  /** runs the last drawn shape again; the button is left out without it */
-  onApplyLastShape?: () => void;
-  /** there is a remembered shape to run */
-  canApplyLastShape?: boolean;
-  lastShapeLabel?: string;
+  /** first click shows the last drawn shape, second runs it; the button is
+   *  left out without this */
+  onRecallLastShape?: () => void;
+  /** there is a remembered shape to recall */
+  canRecallLastShape?: boolean;
+  /** it is on the map right now, so the next click runs it */
+  lastShapeShown?: boolean;
+  showLabel?: string;
+  applyLabel?: string;
 };
 
 export const ShapeToolbar = ({
@@ -75,13 +79,15 @@ export const ShapeToolbar = ({
   classNames,
   tooltipPlacement = "bottom",
   showBuffer = false,
-  bufferWidth = 25,
+  bufferWidth = 15,
   onBufferWidthChange,
   bufferOpen = false,
   onBufferOpenChange,
-  onApplyLastShape,
-  canApplyLastShape = false,
-  lastShapeLabel = "Letzte Form erneut anwenden",
+  onRecallLastShape,
+  canRecallLastShape = false,
+  lastShapeShown = false,
+  showLabel = "Letzte Form zeigen",
+  applyLabel = "Letzte Form anwenden",
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
@@ -154,7 +160,7 @@ export const ShapeToolbar = ({
           </Tooltip>
         );
       })}
-      {(showBuffer || onApplyLastShape) && (
+      {(showBuffer || onRecallLastShape) && (
         <span className={css.divider} aria-hidden />
       )}
       {showBuffer && (
@@ -186,23 +192,35 @@ export const ShapeToolbar = ({
           </Popover>
         </>
       )}
-      {onApplyLastShape && (
-        <Tooltip title={lastShapeLabel} placement={tooltipPlacement}>
+      {onRecallLastShape && (
+        <Tooltip
+          title={lastShapeShown ? applyLabel : showLabel}
+          placement={tooltipPlacement}
+        >
           {/* a disabled button swallows its own events, so the tooltip needs a host */}
           <span>
             <button
               type="button"
-              disabled={!canApplyLastShape}
+              disabled={!canRecallLastShape}
               onClick={(event) => {
                 event.stopPropagation();
-                onApplyLastShape();
+                onRecallLastShape();
               }}
-              aria-label={lastShapeLabel}
-              data-test-id="vector-highlight-apply-last-shape"
+              aria-label={lastShapeShown ? applyLabel : showLabel}
+              data-test-id="vector-highlight-recall-last-shape"
               className={[
                 css.button,
-                canApplyLastShape ? css.buttonInactive : css.buttonDisabled,
+                !canRecallLastShape
+                  ? css.buttonDisabled
+                  : lastShapeShown && activeColor
+                  ? ""
+                  : css.buttonInactive,
               ].join(" ")}
+              style={
+                canRecallLastShape && lastShapeShown && activeColor
+                  ? { color: activeColor }
+                  : undefined
+              }
             >
               <FontAwesomeIcon icon={faRotateLeft} />
             </button>

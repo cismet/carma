@@ -43,14 +43,26 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
-  /** runs the remembered shape again — a line at the width set now */
-  const applyLastShape = useCallback(
+  const lastShapeShown = mode?.lastShapeShown ?? false;
+
+  /**
+   * One button, two steps: the first click puts the last shape back on the map
+   * so it can be checked, the second runs it — a line at the width set now.
+   */
+  const recallLastShape = useCallback(
     () =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        applyShapeVersion: (previous?.applyShapeVersion ?? 0) + 1,
-        bufferPanelOpen: false,
-      })),
+      setMode((previous) =>
+        previous?.lastShapeShown
+          ? {
+              ...previous,
+              applyShapeVersion: (previous.applyShapeVersion ?? 0) + 1,
+              bufferPanelOpen: false,
+            }
+          : {
+              ...(previous ?? { isOn: false }),
+              showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
+            }
+      ),
     [setMode]
   );
 
@@ -214,8 +226,9 @@ export const useHighlightModeActions = () => {
     setLineBuffer,
     cancelLine,
     hasLastShape,
+    lastShapeShown,
     bufferPanelOpen,
     setBufferPanelOpen,
-    applyLastShape,
+    recallLastShape,
   };
 };

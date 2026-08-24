@@ -137,6 +137,17 @@ export const VectorHighlight = ({
     [setMode]
   );
 
+  // the manager owns whether its preview is up — a new draw or a wipe drops it
+  // without the toolbar being asked
+  const handleLastShapePreviewChange = useCallback(
+    (lastShapeShown: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        lastShapeShown,
+      })),
+    [setMode]
+  );
+
   // key on the content: route configs pass a fresh array per render
   const excludedCombinedKey = (excludeCombinedLayers ?? [])
     .map((pattern) => pattern.toLowerCase())
@@ -172,6 +183,7 @@ export const VectorHighlight = ({
     lineBuffer,
     clearDelay,
     onLastShapeChange: handleLastShapeChange,
+    onLastShapePreviewChange: handleLastShapePreviewChange,
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,
@@ -193,6 +205,14 @@ export const VectorHighlight = ({
     hideLastShape();
     return undefined;
   }, [bufferPanelOpen, showLastShape, hideLastShape]);
+
+  const showRequest = mode?.showShapeVersion ?? 0;
+  const previousShowRequest = useRef(showRequest);
+  useEffect(() => {
+    if (showRequest === previousShowRequest.current) return;
+    previousShowRequest.current = showRequest;
+    showLastShape();
+  }, [showRequest, showLastShape]);
 
   const applyRequest = mode?.applyShapeVersion ?? 0;
   const previousApplyRequest = useRef(applyRequest);
