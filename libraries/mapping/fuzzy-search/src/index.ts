@@ -3,12 +3,15 @@ import type { ReactNode } from "react";
 import type { SelectionItem } from "@carma-appframeworks/portals";
 
 import type { SearchResultItem } from "./lib/contracts/search-result-item.d";
-import type { GazDataItem } from "./lib/gazData";
+import type { DynamicSearchOption, GazDataItem } from "./lib/gazData";
 import type { LandParcelDataStructure } from "./lib/utils/landParcelSearchHelper";
 
 export * from "./lib/lib-fuzzy-search";
 export { LandParcelSearch } from "./lib/LandParcelSearch";
-export type { LandParcelSearchProps, ParcelChangeInfo } from "./lib/LandParcelSearch";
+export type {
+  LandParcelSearchProps,
+  ParcelChangeInfo,
+} from "./lib/LandParcelSearch";
 // export { EmptySearchComponent } from ''
 export { EmptySearchComponent } from "./lib/components/EmptySearchComponent";
 export { defaultTypeInference } from "./lib/utils/fuzzySearchHelper";
@@ -17,6 +20,8 @@ export {
   builtInGazetteerHitTrigger,
   getGazData,
   getGazDataFromSources,
+  type DynamicSearchGroup,
+  type DynamicSearchOption,
   type GazDataAdditionalMode,
   type GazDataAdditionalModeConfig,
   type GazDataConfig,
@@ -66,6 +71,7 @@ export interface Option {
   isLandParcel?: boolean;
   parcelStage?: "gemarkung" | "flur" | "flurstueck";
   parcelData?: Record<string, unknown>;
+  dynamicOption?: DynamicSearchOption;
 }
 
 export interface GroupedOptions {

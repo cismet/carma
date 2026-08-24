@@ -4,6 +4,8 @@ import bboxCreator from "@turf/bbox";
 import * as turfHelpers from "@turf/helpers";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
+import type { SearchResultItem } from "./contracts/search-result-item.d";
+
 import { ENDPOINT } from "@carma-commons/resources";
 import { md5FetchText } from "@carma-commons/utils";
 import { convertBBox2Bounds } from "@carma-commons/utils";
@@ -15,10 +17,45 @@ export type GazDataSourceConfig = {
   crs: string;
 };
 
+/** One row a dynamic mode offers for the current input. */
+export type DynamicSearchOption = {
+  /** written into the input when the row is picked, and its identity */
+  value: string;
+  /** primary text; falls back to `value` */
+  label?: string;
+  /** smaller second line under the label, e.g. an address */
+  detail?: string;
+  /** right-aligned secondary text, e.g. a distance */
+  hint?: string;
+  /** the row's own icon; without one the row shows the mode's icon */
+  icon?: IconDefinition;
+  /**
+   * Picking opens the next stage instead of selecting: the value is written
+   * into the input, the mode is asked again and the dropdown stays open. This
+   * is what the land-parcel mode does for a Gemarkung.
+   */
+  drilldown?: boolean;
+  /** the map hit handed to `onSelection` for a final pick */
+  item?: SearchResultItem;
+  /** side effect on a final pick, e.g. highlighting the feature on the map */
+  onPick?: () => void;
+};
+
+/** A titled group of rows, rendered like a search category. */
+export type DynamicSearchGroup = {
+  title: string;
+  options: DynamicSearchOption[];
+};
+
 /**
  * An extra search mode offered in the fuzzy-search mode dropdown next to the
- * built-in gazetteer and land-parcel modes. While active, the regular fuzzy
- * search runs over the mode's own sources instead of the default gaz data.
+ * built-in gazetteer and land-parcel modes.
+ *
+ * A mode declares either `sources`, in which case the regular fuzzy search runs
+ * over that preloaded data instead of the default gaz data, or `resolve`, in
+ * which case the mode answers every input itself. The dynamic form is for
+ * entries that cannot be preloaded because they depend on the map's own state,
+ * such as "what is nearest to me".
  */
 export type GazDataAdditionalModeConfig = {
   key: string;
@@ -28,7 +65,9 @@ export type GazDataAdditionalModeConfig = {
   iconSize?: number;
   showAllOnFocus?: boolean;
   placeholder?: string;
-  sources: GazDataSourceConfig[];
+  sources?: GazDataSourceConfig[];
+  /** asked on every input change and when the dropdown opens */
+  resolve?: (input: string) => Promise<DynamicSearchGroup[]>;
 };
 
 export type GazDataAdditionalMode = GazDataAdditionalModeConfig & {

@@ -31,7 +31,11 @@ import {
 import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import { SearchGazetteerProps, Option, GroupedOptions, SearchItem } from "..";
-import type { GazDataItem } from "./gazData";
+import type {
+  DynamicSearchGroup,
+  DynamicSearchOption,
+  GazDataItem,
+} from "./gazData";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
@@ -63,6 +67,8 @@ const defaultIcon = (
 const GAZETTEER_MODE = "gazetteer";
 const PARCEL_MODE = "parcel";
 
+const EMPTY_GAZ_DATA: GazDataItem[] = [];
+
 type SearchModeEntry = {
   key: string;
   label: string;
@@ -72,7 +78,69 @@ type SearchModeEntry = {
   placeholder?: string;
   showAllOnFocus?: boolean;
   gazData?: GazDataItem[];
+  resolve?: (input: string) => Promise<DynamicSearchGroup[]>;
 };
+
+/**
+ * One row of a dynamic mode: the label on the left, an optional second line
+ * under it, and the hint (a distance, a count) right-aligned. Modes hand in
+ * plain data, so every dynamic mode reads the same.
+ */
+const DynamicModeLabel = ({
+  option,
+  icon,
+  svgIcon,
+}: {
+  option: DynamicSearchOption;
+  icon: IconDefinition;
+  svgIcon?: string;
+}) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "0.4rem",
+      paddingLeft: "0.3rem",
+    }}
+  >
+    {/* a row may carry its own icon (a category, a kind of place); the mode's
+        icon is the fallback, and its svg variant only applies to that one */}
+    <SearchModeIcon
+      icon={option.icon ?? icon}
+      svgIcon={option.icon ? undefined : svgIcon}
+      size={14}
+    />
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {option.label ?? option.value}
+      </div>
+      {option.detail && (
+        <div
+          style={{
+            fontSize: "11px",
+            color: "#8c8c8c",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {option.detail}
+        </div>
+      )}
+    </div>
+    {option.hint && (
+      <span style={{ color: "#8c8c8c", whiteSpace: "nowrap" }}>
+        {option.hint}
+      </span>
+    )}
+  </div>
+);
 
 const builtInModes: SearchModeEntry[] = [
   { key: GAZETTEER_MODE, label: "Adressen und Orte", icon: faLocationDot },
@@ -183,7 +251,10 @@ export function LibFuzzySearch({
   const [searchMode, setSearchMode] = useState<string>(GAZETTEER_MODE);
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
+  const [dynamicLoading, setDynamicLoading] = useState(false);
   const lastEscRef = useRef(0);
+  /** newest dynamic request, so late answers of older ones are dropped */
+  const dynamicRequestRef = useRef(0);
 
   const triggerLandParcelPreload = () => {
     if (landParcelSearch && !hookedLandParcelData && !landParcelLoading) {
@@ -204,12 +275,20 @@ export function LibFuzzySearch({
       placeholder: mode.placeholder,
       showAllOnFocus: mode.showAllOnFocus,
       gazData: mode.gazData,
+      resolve: mode.resolve,
     })),
   ];
   const availableModes = searchModes.map((mode) => mode.key);
   const activeMode = searchModes.find((mode) => mode.key === searchMode);
   const isAdditionalMode = activeMode?.gazData !== undefined;
-  const activeGazData = activeMode?.gazData ?? _gazData;
+  const isDynamicMode = activeMode?.resolve !== undefined;
+  // a dynamic mode brings no preloaded data, so it must not fall back to the
+  // default gaz data, which would fuzzy search addresses under its own label.
+  // The empty set is a constant: a fresh literal here is a new dependency on
+  // every render, and the effects below would rebuild and set state forever.
+  const activeGazData = isDynamicMode
+    ? EMPTY_GAZ_DATA
+    : activeMode?.gazData ?? _gazData;
 
   // fall back when the active additional mode is removed, e.g. on route change
   const availableModeKeys = availableModes.join(",");
@@ -218,6 +297,16 @@ export function LibFuzzySearch({
       setSearchMode(GAZETTEER_MODE);
     }
   }, [availableModeKeys, searchMode]);
+
+  // a dynamic mode opens on its own first stage (the category list), so it is
+  // asked as soon as it becomes the active mode rather than on the first
+  // keystroke, which is what makes "pick a mode, pick a category" work
+  useEffect(() => {
+    if (isDynamicMode) {
+      void runDynamicSearch("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchMode, isDynamicMode]);
 
   const searchModeMenuItems: MenuProps["items"] = searchModes.map((mode) => ({
     key: mode.key,
@@ -363,8 +452,62 @@ export function LibFuzzySearch({
     }
   };
 
+  /**
+   * Ask a dynamic mode for the current input. Answers arrive out of order when
+   * a mode does real work (a ranking, a map query), so only the newest request
+   * is allowed to write; older ones are dropped rather than cancelled.
+   */
+  const runDynamicSearch = async (input: string) => {
+    const resolve = activeMode?.resolve;
+    if (!resolve) {
+      return;
+    }
+    const requestId = ++dynamicRequestRef.current;
+    const isStale = () => requestId !== dynamicRequestRef.current;
+    setDynamicLoading(true);
+    try {
+      const groups = await resolve(input);
+      if (isStale()) {
+        return;
+      }
+      setSearchResult(
+        groups.map(({ title, options: groupOptions }) => ({
+          label: <span data-title="category-title">{title}</span>,
+          titleText: title,
+          options: groupOptions.map((option, index) => ({
+            key: index,
+            label: (
+              <DynamicModeLabel
+                option={option}
+                icon={activeMode?.icon ?? faLocationDot}
+                svgIcon={activeMode?.svgIcon}
+              />
+            ),
+            value: option.value,
+            sData: null as any,
+            dynamicOption: option,
+          })),
+        }))
+      );
+      setOptions([]);
+    } catch (error) {
+      if (isStale()) {
+        return;
+      }
+      console.warn("[SEARCH] dynamic mode failed", error);
+      setSearchResult([]);
+      setOptions([]);
+    } finally {
+      if (!isStale()) {
+        setDynamicLoading(false);
+      }
+    }
+  };
+
   const handleSearchInput = (value: string) => {
-    if (searchMode === PARCEL_MODE && landParcelData) {
+    if (isDynamicMode) {
+      void runDynamicSearch(value);
+    } else if (searchMode === PARCEL_MODE && landParcelData) {
       handleParcelSearch(value, landParcelData);
     } else {
       handleSearchAutoComplete(value);
@@ -379,6 +522,30 @@ export function LibFuzzySearch({
   }, [options]);
 
   const handleOnSelect = (option, skipMapMovement = false) => {
+    const dynamicOption: DynamicSearchOption | undefined = option.dynamicOption;
+    if (dynamicOption) {
+      setValue(dynamicOption.value);
+      if (dynamicOption.drilldown) {
+        // same shape as the Gemarkung step: write the stage into the input,
+        // ask the mode again and keep the dropdown open on the next stage
+        handleSearchInput(dynamicOption.value);
+        setTimeout(() => {
+          setAutoCompleteOpen(true);
+          autoCompleteRef.current?.focus();
+        }, 0);
+        return;
+      }
+      setCleanBtnDisable(false);
+      dynamicOption.onPick?.();
+      if (dynamicOption.item) {
+        _onSelection(dynamicOption.item, skipMapMovement);
+      }
+      setTimeout(() => {
+        btnClosRef.current?.focus();
+      }, 100);
+      return;
+    }
+
     if (option.isLandParcel) {
       if (option.parcelStage === "gemarkung" || option.parcelStage === "flur") {
         setValue(option.value);
@@ -631,6 +798,14 @@ export function LibFuzzySearch({
               setValue("");
               setSearchResult([]);
               setOptions([]);
+              // a dynamic mode starts with a list to pick from rather than
+              // with something to type, so show it right away
+              if (searchModes.find((mode) => mode.key === key)?.resolve) {
+                setTimeout(() => {
+                  setAutoCompleteOpen(true);
+                  autoCompleteRef.current?.focus();
+                }, 0);
+              }
             },
           }}
           trigger={cleanBtnDisable ? ["click"] : []}
@@ -642,7 +817,8 @@ export function LibFuzzySearch({
           <Button
             ref={btnClosRef}
             icon={
-              landParcelLoading && searchMode === PARCEL_MODE ? (
+              (landParcelLoading && searchMode === PARCEL_MODE) ||
+              (isDynamicMode && dynamicLoading) ? (
                 <FontAwesomeIcon
                   icon={faSpinner}
                   spin
@@ -720,7 +896,7 @@ export function LibFuzzySearch({
           ref={autoCompleteRef}
           dropdownAlign={dropdownAlign}
           options={
-            showCategories
+            showCategories || isDynamicMode
               ? searchResult.map(({ titleText, ...rest }) => rest)
               : options
           }
@@ -733,7 +909,9 @@ export function LibFuzzySearch({
             setValue(value);
 
             if (value === "") {
-              if (isAdditionalMode && activeMode?.showAllOnFocus) {
+              if (isDynamicMode) {
+                void runDynamicSearch("");
+              } else if (isAdditionalMode && activeMode?.showAllOnFocus) {
                 showAllActiveModeEntries();
               } else {
                 setSearchResult([]);
@@ -749,7 +927,9 @@ export function LibFuzzySearch({
           open={autoCompleteOpen}
           onDropdownVisibleChange={(visible) => {
             setAutoCompleteOpen(visible);
-            if (
+            if (visible && isDynamicMode && searchResult.length === 0) {
+              void runDynamicSearch(value);
+            } else if (
               visible &&
               value === "" &&
               searchMode === PARCEL_MODE &&
