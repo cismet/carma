@@ -24,6 +24,8 @@ export type VectorHighlightDebugPanelConfig = {
   limit?: number;
   /** Property the ids are matched against. Default: "id" */
   property?: string;
+  /** Keep the addon declared but draw nothing. Default: false */
+  hidden?: boolean;
 };
 
 const DEFAULT_POSITION: Positions = "topright";
@@ -123,6 +125,7 @@ export const VectorHighlightDebugPanel = ({
     order = DEFAULT_ORDER,
     limit = DEFAULT_LIMIT,
     property = DEFAULT_PROPERTY,
+    hidden = false,
   } = config;
 
   const [layer, setLayer] = useState<string | undefined>(undefined);
@@ -228,7 +231,8 @@ export const VectorHighlightDebugPanel = ({
     clear();
   }, [clear]);
 
-  if (!libreMap) {
+  // after the hooks, so switching it off does not change their order
+  if (!libreMap || hidden) {
     return null;
   }
 
