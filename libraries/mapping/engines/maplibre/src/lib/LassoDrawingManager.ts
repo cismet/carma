@@ -1,7 +1,7 @@
 /**
  * LassoDrawingManager - React-agnostic selection-shape drawing on a MapLibre map.
  *
- * Three shapes, all ending in the same `onDrawComplete(polygon)`:
+ * Four shapes, all ending in the same `onDrawComplete(polygon)`:
  *
  * - `"lasso"`: the user holds the mouse button and draws freely (like a pen).
  *   On mouseup the shape auto-closes (first point connected to last).
@@ -11,6 +11,11 @@
  *   ground metres. The edges follow parallels and meridians, so the rectangle
  *   covers the same ground area wherever it is placed; a screen-aligned one
  *   would change with the map's rotation and stop being repeatable.
+ * - `"line"`: click per vertex ("Linienzug"), so a path with as many points as
+ *   the user wants can follow a street exactly; a drag still pans the map.
+ *   Double-click or Enter finishes it. A line covers no area, so what it
+ *   selects is a corridor: the finished line waits as `pendingLine` until the
+ *   buffer width is applied, and only then does `onDrawComplete` fire.
  *
  * For circle and rect a plain click (no drag) places the configured size,
  * centred on the clicked point, so the very same area can be placed again
@@ -37,6 +42,7 @@ import {
   circle as turfCircle,
   distance as turfDistance,
   destination as turfDestination,
+  buffer as turfBuffer,
 } from "@turf/turf";
 
 /**
@@ -50,6 +56,7 @@ export const LASSO_LAYER_ID_PREFIX = "__carma-lasso";
 const SOURCE_ID = `${LASSO_LAYER_ID_PREFIX}-source`;
 const LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-line`;
 const FILL_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-fill`;
+const POINT_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-point`;
 
 /** Minimum screen-pixel distance between consecutive recorded points. */
 const MIN_PX_DISTANCE = 3;
@@ -63,6 +70,8 @@ export const DEFAULT_CIRCLE_RADIUS = 250;
 export const DEFAULT_CIRCLE_RADIUS_STEP = 5;
 export const DEFAULT_RECT_WIDTH = 250;
 export const DEFAULT_RECT_HEIGHT = 250;
+/** Corridor half-width, in metres, a drawn line is buffered with. */
+export const DEFAULT_LINE_BUFFER = 25;
 
 export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
 
@@ -71,7 +80,7 @@ const ALL_MODIFIERS: ModifierKey[] = ["alt", "ctrl", "shift", "meta"];
 export const DEFAULT_COLOR = "#3388ff";
 
 /** How the selection area is drawn. */
-export type DrawShape = "lasso" | "circle" | "rect";
+export type DrawShape = "lasso" | "circle" | "rect" | "line";
 
 /** Ground size of the rectangle, in metres. */
 export interface RectSize {
@@ -115,10 +124,17 @@ export interface LassoDrawingManagerOptions {
   rectSize?: RectSize;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
+  /** Corridor half-width in metres the drawn line is buffered with. Default: 25 */
+  lineBuffer?: number;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
   onRectSizeChange?: (size: RectSize) => void;
+  /**
+   * Reports whether a finished line is waiting for its buffer to be applied,
+   * so the UI can offer the width and the apply button for exactly that window.
+   */
+  onPendingLineChange?: (pending: boolean) => void;
 }
 
 export class LassoDrawingManager {
@@ -135,8 +151,10 @@ export class LassoDrawingManager {
   private circleRadius: number;
   private rectSize: RectSize;
   private radiusStep: number;
+  private lineBuffer: number;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
+  private onPendingLineChange?: (pending: boolean) => void;
 
   private active = false;
   private drawing = false;
@@ -162,6 +180,17 @@ export class LassoDrawingManager {
   private startScreenY = 0;
   private labelEl: HTMLDivElement | null = null;
 
+  /** line: the vertices placed so far, the rubber-band end following the
+   *  cursor, and the finished line waiting for its buffer to be applied */
+  private linePoints: Position[] = [];
+  private lineCursor: Position | null = null;
+  private pendingLine: Position[] | null = null;
+  private placingLine = false;
+  private lineDownX = 0;
+  private lineDownY = 0;
+  private lineDownLngLat: Position | null = null;
+  private doubleClickZoomSuspended = false;
+
   // Bound handlers for clean add/remove
   private handleMouseDown = (e: MapMouseEvent) => this.onMouseDown(e);
   private handleMouseMove = (e: MapMouseEvent) => this.onMouseMove(e);
@@ -169,6 +198,15 @@ export class LassoDrawingManager {
   private handleCaptureMouseDown = (e: MouseEvent) =>
     this.onCaptureMouseDown(e);
   private handleRestoreBoxZoom = () => this.restoreBoxZoom();
+  private handleLineMouseMove = (e: MapMouseEvent) => this.onLineMouseMove(e);
+  private handleLineMouseUp = (e: MouseEvent) => this.onLineMouseUp(e);
+  private handleLineDoubleClick = (e: MapMouseEvent) => {
+    e.preventDefault();
+    this.finishLine();
+  };
+  private handleLineKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") this.finishLine();
+  };
 
   constructor(options: LassoDrawingManagerOptions) {
     this.map = options.map;
@@ -187,8 +225,10 @@ export class LassoDrawingManager {
       height: DEFAULT_RECT_HEIGHT,
     };
     this.radiusStep = options.radiusStep ?? DEFAULT_CIRCLE_RADIUS_STEP;
+    this.lineBuffer = options.lineBuffer ?? DEFAULT_LINE_BUFFER;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
+    this.onPendingLineChange = options.onPendingLineChange;
   }
 
   /**
@@ -198,6 +238,8 @@ export class LassoDrawingManager {
   setShape(shape: DrawShape): void {
     if (shape === this.shape) return;
     if (this.drawing) this.cancelDraw();
+    // a line half-placed or waiting for its buffer belongs to the line tool
+    this.cancelLine();
     this.shape = shape;
   }
 
@@ -214,6 +256,51 @@ export class LassoDrawingManager {
 
   setRectSize(size: RectSize): void {
     this.rectSize = size;
+  }
+
+  /** Redraws the corridor right away, so the width is set on what is on screen. */
+  setLineBuffer(meters: number): void {
+    if (meters === this.lineBuffer) return;
+    this.lineBuffer = meters;
+    if (this.placingLine || this.pendingLine) this.updateVisual();
+  }
+
+  /** A finished line is waiting for its buffer to be applied. */
+  hasPendingLine(): boolean {
+    return this.pendingLine !== null;
+  }
+
+  /** Either half of the line gesture is running — placing or waiting. */
+  hasLineInProgress(): boolean {
+    return this.placingLine || this.pendingLine !== null;
+  }
+
+  /** Turns the waiting line into its corridor and hands that over as the
+   *  selection shape. This is what the buffer button's apply does. */
+  applyPendingLine(): void {
+    const points = this.pendingLine;
+    if (!points) return;
+    const polygon = this.buildLineBuffer(points);
+    this.pendingLine = null;
+    this.clearVisual();
+    this.onPendingLineChange?.(false);
+    if (polygon) {
+      this.onDrawComplete(polygon);
+    } else {
+      this.onDrawCancel();
+    }
+  }
+
+  /** Drops a line being placed as well as one waiting for its buffer. */
+  cancelLine(): void {
+    if (!this.placingLine && !this.pendingLine) return;
+    this.endLinePlacement();
+    this.linePoints = [];
+    this.lineCursor = null;
+    this.pendingLine = null;
+    this.clearVisual();
+    this.onPendingLineChange?.(false);
+    this.onDrawCancel();
   }
 
   activate(): void {
@@ -252,6 +339,7 @@ export class LassoDrawingManager {
     if (this.drawing) {
       this.cancelDraw();
     }
+    this.cancelLine();
     this.active = false;
     if (this.requireModifiers.length === 0) {
       this.map.getCanvas().style.cursor = "";
@@ -339,6 +427,13 @@ export class LassoDrawingManager {
     if (e.originalEvent.button !== 0) return;
 
     if (!this.modifiersMatch(e.originalEvent)) return;
+
+    // Click-per-vertex is the toolbar's gesture only: on a modifier-driven
+    // manager the very same click already toggles the feature under it.
+    if (this.shape === "line") {
+      if (this.requireModifiers.length === 0) this.onLineMouseDown(e);
+      return;
+    }
 
     e.preventDefault();
     // Lazy-init source/layers in case activate() deferred them
@@ -444,6 +539,136 @@ export class LassoDrawingManager {
   private snapMeters(meters: number): number {
     const step = this.radiusStep > 0 ? this.radiusStep : 1;
     return Math.max(step, Math.round(meters / step) * step);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Line: click per vertex, finished by double-click or Enter
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Whether this mousedown becomes a vertex is only known on mouseup: a click
+   * places one, a drag pans the map. Panning has to keep working — a line long
+   * enough to be worth clicking rarely fits on one screen.
+   */
+  private onLineMouseDown(e: MapMouseEvent): void {
+    this.ensureSourceAndLayers();
+    this.applyColor();
+    this.moveLayersToTop();
+    this.lineDownX = e.originalEvent.clientX;
+    this.lineDownY = e.originalEvent.clientY;
+    this.lineDownLngLat = [e.lngLat.lng, e.lngLat.lat];
+    document.addEventListener("mouseup", this.handleLineMouseUp, { once: true });
+  }
+
+  private onLineMouseUp(e: MouseEvent): void {
+    const point = this.lineDownLngLat;
+    this.lineDownLngLat = null;
+    if (!point || !this.active || this.shape !== "line") return;
+    const dx = e.clientX - this.lineDownX;
+    const dy = e.clientY - this.lineDownY;
+    // moved: that was a pan, not a vertex
+    if (dx * dx + dy * dy > CLICK_PX_TOLERANCE * CLICK_PX_TOLERANCE) return;
+    this.addLineVertex(point);
+  }
+
+  private addLineVertex(point: Position): void {
+    // a new line replaces one that was finished but never applied
+    if (this.pendingLine) {
+      this.pendingLine = null;
+      this.onPendingLineChange?.(false);
+    }
+
+    // the second click of a double-click lands on the previous vertex; taking
+    // it would leave a zero-length segment behind after the dblclick finishes
+    const last = this.linePoints[this.linePoints.length - 1];
+    if (last) {
+      const a = this.map.project(last as [number, number]);
+      const b = this.map.project(point as [number, number]);
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      if (dx * dx + dy * dy < CLICK_PX_TOLERANCE * CLICK_PX_TOLERANCE) return;
+    }
+
+    if (!this.placingLine) this.startLinePlacement();
+    this.linePoints.push(point);
+    this.lineCursor = point;
+    this.updateVisual();
+  }
+
+  private startLinePlacement(): void {
+    this.placingLine = true;
+    this.drawing = true;
+    this.map.on("mousemove", this.handleLineMouseMove);
+    this.map.on("dblclick", this.handleLineDoubleClick);
+    document.addEventListener("keydown", this.handleLineKeyDown);
+    // the finishing double-click must not zoom the map as well
+    if (this.map.doubleClickZoom.isEnabled()) {
+      this.map.doubleClickZoom.disable();
+      this.doubleClickZoomSuspended = true;
+    }
+  }
+
+  private endLinePlacement(): void {
+    if (!this.placingLine) return;
+    this.placingLine = false;
+    this.drawing = false;
+    this.map.off("mousemove", this.handleLineMouseMove);
+    this.map.off("dblclick", this.handleLineDoubleClick);
+    document.removeEventListener("keydown", this.handleLineKeyDown);
+    if (this.doubleClickZoomSuspended) {
+      this.doubleClickZoomSuspended = false;
+      this.map.doubleClickZoom.enable();
+    }
+  }
+
+  private onLineMouseMove(e: MapMouseEvent): void {
+    if (!this.placingLine) return;
+    this.lineCursor = [e.lngLat.lng, e.lngLat.lat];
+    this.updateVisual();
+  }
+
+  /**
+   * Hands the line over to the buffer step rather than to `onDrawComplete`:
+   * with no area of its own it would select next to nothing, so the corridor
+   * width is set first and applied from the toolbar.
+   */
+  private finishLine(): void {
+    if (!this.placingLine) return;
+    const points = this.linePoints;
+    this.endLinePlacement();
+    this.linePoints = [];
+    this.lineCursor = null;
+    if (points.length < 2) {
+      this.clearVisual();
+      this.onDrawCancel();
+      return;
+    }
+    this.pendingLine = points;
+    this.updateVisual();
+    this.onPendingLineChange?.(true);
+  }
+
+  /** The corridor `lineBuffer` metres to either side of the drawn line. */
+  private buildLineBuffer(coords: Position[]): Polygon | null {
+    if (coords.length < 2) return null;
+    const line: Feature<LineString> = {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: coords },
+    };
+    try {
+      const buffered = turfBuffer(line, Math.max(1, this.lineBuffer), {
+        units: "meters",
+      });
+      const geometry = buffered?.geometry;
+      if (!geometry) return null;
+      if (geometry.type === "Polygon") return geometry;
+      // a buffered polyline is one piece; a MultiPolygon can only come from a
+      // degenerate input, so the first part is the corridor
+      return { type: "Polygon", coordinates: geometry.coordinates[0] };
+    } catch {
+      return null;
+    }
   }
 
   private onMouseUp(): void {
@@ -680,6 +905,21 @@ export class LassoDrawingManager {
         "line-width": 1.5,
       },
     });
+
+    // vertices of a line being clicked together
+    this.map.addLayer({
+      id: POINT_LAYER_ID,
+      type: "circle",
+      source: SOURCE_ID,
+      filter: ["==", "$type", "Point"],
+      paint: {
+        "circle-radius": 4,
+        "circle-color": "#ffffff",
+        "circle-stroke-color": this.color,
+        "circle-stroke-color-transition": { duration: 0 },
+        "circle-stroke-width": 2,
+      },
+    });
   }
 
   private applyColor(): void {
@@ -689,6 +929,13 @@ export class LassoDrawingManager {
       }
       if (this.map.getLayer(LINE_LAYER_ID)) {
         this.map.setPaintProperty(LINE_LAYER_ID, "line-color", this.color);
+      }
+      if (this.map.getLayer(POINT_LAYER_ID)) {
+        this.map.setPaintProperty(
+          POINT_LAYER_ID,
+          "circle-stroke-color",
+          this.color
+        );
       }
     } catch {
       // Layers may not exist yet; they are created with the right color anyway.
@@ -725,6 +972,11 @@ export class LassoDrawingManager {
   private updateVisual(): void {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
+
+    if (this.shape === "line") {
+      this.updateLineVisual(source);
+      return;
+    }
 
     if (this.shape !== "lasso") {
       if (!this.anchor) {
@@ -775,6 +1027,41 @@ export class LassoDrawingManager {
     source.setData({ type: "FeatureCollection", features });
   }
 
+  /** Corridor, line and one dot per placed vertex — the dots are what makes a
+   *  many-point line readable while it is being clicked together. */
+  private updateLineVisual(source: GeoJSONSource): void {
+    const placed = this.pendingLine ?? this.linePoints;
+    if (placed.length === 0) {
+      source.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+    const path =
+      !this.pendingLine && this.lineCursor
+        ? [...placed, this.lineCursor]
+        : placed;
+
+    const features: Feature[] = [];
+    const corridor = this.buildLineBuffer(path);
+    if (corridor) {
+      features.push({ type: "Feature", properties: {}, geometry: corridor });
+    }
+    if (path.length >= 2) {
+      features.push({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: path },
+      });
+    }
+    for (const vertex of placed) {
+      features.push({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Point", coordinates: vertex },
+      });
+    }
+    source.setData({ type: "FeatureCollection", features });
+  }
+
   private clearVisual(): void {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (source) {
@@ -787,6 +1074,7 @@ export class LassoDrawingManager {
     try {
       if (this.map.getLayer(FILL_LAYER_ID)) this.map.moveLayer(FILL_LAYER_ID);
       if (this.map.getLayer(LINE_LAYER_ID)) this.map.moveLayer(LINE_LAYER_ID);
+      if (this.map.getLayer(POINT_LAYER_ID)) this.map.moveLayer(POINT_LAYER_ID);
     } catch {
       // ignore if layers don't exist yet
     }
@@ -794,6 +1082,9 @@ export class LassoDrawingManager {
 
   private removeSourceAndLayers(): void {
     try {
+      if (this.map.getLayer(POINT_LAYER_ID)) {
+        this.map.removeLayer(POINT_LAYER_ID);
+      }
       if (this.map.getLayer(LINE_LAYER_ID)) {
         this.map.removeLayer(LINE_LAYER_ID);
       }

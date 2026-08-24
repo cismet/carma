@@ -1,7 +1,11 @@
 import { useCallback } from "react";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
-import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
+import {
+  DEFAULT_LINE_BUFFER,
+  type DrawShape,
+  type RectSize,
+} from "@carma-mapping/engines/maplibre";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { DEFAULT_SHAPES } from "./shapes";
@@ -26,6 +30,36 @@ export const useHighlightModeActions = () => {
   } = useMapHighlight();
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
+  const lineBuffer = mode?.lineBuffer ?? DEFAULT_LINE_BUFFER;
+  const hasPendingLine = mode?.hasPendingLine ?? false;
+
+  const setLineBuffer = useCallback(
+    (next: number) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        lineBuffer: next,
+      })),
+    [setMode]
+  );
+
+  /** buffers the finished line and selects in that corridor */
+  const applyLine = useCallback(
+    () =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        applyLineVersion: (previous?.applyLineVersion ?? 0) + 1,
+      })),
+    [setMode]
+  );
+
+  const cancelLine = useCallback(
+    () =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        cancelLineVersion: (previous?.cancelLineVersion ?? 0) + 1,
+      })),
+    [setMode]
+  );
 
   const startMode = useCallback(
     () => setMode((previous) => ({ ...(previous ?? {}), isOn: true })),
@@ -43,7 +77,8 @@ export const useHighlightModeActions = () => {
   const clear = useCallback(() => {
     clearHighlights();
     setHighlightingActive(false);
-  }, [clearHighlights, setHighlightingActive]);
+    cancelLine();
+  }, [clearHighlights, setHighlightingActive, cancelLine]);
 
   /**
    * Light the features whose `property` (default `"id"`) is one of `ids`.
@@ -142,7 +177,8 @@ export const useHighlightModeActions = () => {
     isOn: (mode?.isOn ?? false) || highlightingActive,
     modeActive: mode?.isOn ?? false,
     highlightingActive,
-    canClear: highlightingActive,
+    // an unapplied line is something to take back as well
+    canClear: highlightingActive || hasPendingLine,
     startMode,
     endMode,
     clear,
@@ -158,5 +194,10 @@ export const useHighlightModeActions = () => {
     toggleShapes,
     setCircleRadius,
     setRectSize,
+    lineBuffer,
+    setLineBuffer,
+    hasPendingLine,
+    applyLine,
+    cancelLine,
   };
 };

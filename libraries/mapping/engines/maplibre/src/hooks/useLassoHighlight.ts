@@ -27,6 +27,15 @@ import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 
 type LassoSources = Array<{ source: string; sourceLayers: string[] }>;
 
+/**
+ * The click-per-vertex line belongs to the toolbar manager alone: on the
+ * modifier-driven ones the same click already toggles a feature, and Enter /
+ * double-click would have to be shared between four managers. They draw the
+ * freehand lasso instead.
+ */
+const passiveShape = (shape: DrawShape): DrawShape =>
+  shape === "line" ? "lasso" : shape;
+
 /** Orange, to tell the refine lasso apart from the blue additive one. */
 const REFINE_COLOR = "#f97316";
 const ADD_COLOR = "#22c55e";
@@ -154,6 +163,10 @@ export interface UseLassoHighlightOptions {
   rectSize?: RectSize;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. */
   radiusStep?: number;
+  /** Corridor half-width in metres the drawn line is buffered with. */
+  lineBuffer?: number;
+  /** Reports whether a finished line is waiting for its buffer to be applied. */
+  onPendingLineChange?: (pending: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -181,6 +194,10 @@ export interface UseLassoHighlightOptions {
 export interface UseLassoHighlightResult {
   /** True while the user is holding the mouse button and drawing. */
   isDrawing: boolean;
+  /** Turns the finished line into its corridor and runs the selection. */
+  applyPendingLine: () => void;
+  /** Drops a line being placed or waiting for its buffer. */
+  cancelLine: () => void;
 }
 
 export const useLassoHighlight = ({
@@ -190,8 +207,10 @@ export const useLassoHighlight = ({
   circleRadius,
   rectSize,
   radiusStep,
+  lineBuffer,
   onCircleRadiusChange,
   onRectSizeChange,
+  onPendingLineChange,
   sources,
   operation = "toggle",
   color,
@@ -248,6 +267,8 @@ export const useLassoHighlight = ({
   onRectSizeChangeRef.current = onRectSizeChange;
   const onRefineRef = useRef(onRefine);
   onRefineRef.current = onRefine;
+  const onPendingLineChangeRef = useRef(onPendingLineChange);
+  onPendingLineChangeRef.current = onPendingLineChange;
   const clearRef = useRef(clearHighlights);
   clearRef.current = clearHighlights;
 
@@ -409,6 +430,8 @@ export const useLassoHighlight = ({
   rectSizeRef.current = rectSize;
   const radiusStepRef = useRef(radiusStep);
   radiusStepRef.current = radiusStep;
+  const lineBufferRef = useRef(lineBuffer);
+  lineBufferRef.current = lineBuffer;
 
   useEffect(() => {
     if (!map) return;
@@ -422,8 +445,11 @@ export const useLassoHighlight = ({
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
+      lineBuffer: lineBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
+      onPendingLineChange: (pending) =>
+        onPendingLineChangeRef.current?.(pending),
       // Starts on any plain mousedown, so it must stand back for whichever
       // refine combination is armed — otherwise both would draw at once.
       skipWhenModifiers: skipForToolbar(shiftRefineArmedRef.current),
@@ -440,10 +466,16 @@ export const useLassoHighlight = ({
   // selected instead of always falling back to the freehand lasso
   useEffect(() => {
     managerRef.current?.setShape(shape);
-    passiveManagerRef.current?.setShape(shape);
-    refineManagerRef.current?.setShape(shape);
-    shiftRefineManagerRef.current?.setShape(shape);
+    passiveManagerRef.current?.setShape(passiveShape(shape));
+    refineManagerRef.current?.setShape(passiveShape(shape));
+    shiftRefineManagerRef.current?.setShape(passiveShape(shape));
   }, [shape]);
+
+  useEffect(() => {
+    if (lineBuffer != null) {
+      managerRef.current?.setLineBuffer(lineBuffer);
+    }
+  }, [lineBuffer]);
 
   useEffect(() => {
     if (circleRadius != null) {
@@ -487,7 +519,7 @@ export const useLassoHighlight = ({
       onDrawCancel: handleDrawCancel,
       color: colorRef.current ?? OPERATION_COLORS[operationRef.current],
       requireModifier: "alt",
-      shape: shapeRef.current,
+      shape: passiveShape(shapeRef.current),
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
@@ -519,7 +551,7 @@ export const useLassoHighlight = ({
       requireModifier: ["alt", "shift"],
       color: REFINE_COLOR,
       allowClickPlacement: true,
-      shape: shapeRef.current,
+      shape: passiveShape(shapeRef.current),
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
@@ -557,7 +589,7 @@ export const useLassoHighlight = ({
       requireModifier: ["shift"],
       color: REFINE_COLOR,
       allowClickPlacement: true,
-      shape: shapeRef.current,
+      shape: passiveShape(shapeRef.current),
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
@@ -607,9 +639,15 @@ export const useLassoHighlight = ({
   useEffect(() => {
     if (!active) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onDeactivateRef.current?.();
+      if (e.key !== "Escape") return;
+      // a half-drawn or unapplied line is what Escape undoes first; only with
+      // nothing pending does it leave the mode
+      const manager = managerRef.current;
+      if (manager?.hasLineInProgress()) {
+        manager.cancelLine();
+        return;
       }
+      onDeactivateRef.current?.();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -637,5 +675,13 @@ export const useLassoHighlight = ({
     };
   }, [map]);
 
-  return { isDrawing };
+  const applyPendingLine = useCallback(() => {
+    managerRef.current?.applyPendingLine();
+  }, []);
+
+  const cancelLine = useCallback(() => {
+    managerRef.current?.cancelLine();
+  }, []);
+
+  return { isDrawing, applyPendingLine, cancelLine };
 };

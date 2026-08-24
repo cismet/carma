@@ -12,6 +12,16 @@ export type HighlightModeState = {
   circleRadius?: number;
   /** metres, used when a rectangle is placed by a click instead of a drag */
   rectSize?: RectSize;
+  /** metres to either side of a drawn line; the corridor it selects in */
+  lineBuffer?: number;
+  /** a finished line is waiting for its buffer to be applied */
+  hasPendingLine?: boolean;
+  /** bumped by the UI to apply the pending line's buffer; the addon owns the
+   *  drawing manager, so the request travels as a counter rather than a
+   *  callback parked in shared state */
+  applyLineVersion?: number;
+  /** bumped by the UI to discard the pending line */
+  cancelLineVersion?: number;
   /** what a drag does; only "intersect" draws orange today */
   operation?: HighlightOperation;
   /** panel sections; both open until the row toggles one off */
@@ -49,12 +59,15 @@ export type VectorHighlightConfig = {
    * Only the given ones are overridden; `monochrome` wins over this.
    */
   operationColors?: OperationColors;
-  /** Shapes the UI offers, first one preselected. Default: ["lasso", "circle", "rect"] */
+  /** Shapes the UI offers, first one preselected.
+   *  Default: ["lasso", "circle", "rect", "line"] */
   shapes?: DrawShape[];
   /** Radius in metres a clicked circle starts with. Default: 250 */
   defaultRadius?: number;
   /** Ground size in metres a clicked rectangle starts with. Default: 250 x 250 */
   defaultRectSize?: RectSize;
+  /** Corridor half-width in metres a drawn line starts with. Default: 25 */
+  defaultLineBuffer?: number;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
   /**
