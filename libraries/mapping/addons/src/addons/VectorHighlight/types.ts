@@ -18,6 +18,12 @@ export type HighlightModeState = {
    *  drawing manager, so the request travels as a counter rather than a
    *  callback parked in shared state */
   cancelLineVersion?: number;
+  /** the buffer panel is open; while it is, the last line is shown again */
+  bufferPanelOpen?: boolean;
+  /** a shape has been drawn that can be shown and run again */
+  hasLastShape?: boolean;
+  /** bumped by the UI to run the remembered shape again */
+  applyShapeVersion?: number;
   /** what a drag does; only "intersect" draws orange today */
   operation?: HighlightOperation;
   /** panel sections; both open until the row toggles one off */

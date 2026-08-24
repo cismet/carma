@@ -28,6 +28,10 @@ export const VectorHighlightShapeTools = ({
     canClear,
     lineBuffer,
     setLineBuffer,
+    hasLastShape,
+    bufferPanelOpen,
+    setBufferPanelOpen,
+    applyLastShape,
   } = useHighlightModeActions();
 
   if (!isOn || shapes.length < 2) {
@@ -47,6 +51,10 @@ export const VectorHighlightShapeTools = ({
             showBuffer={shape === "line"}
             bufferWidth={lineBuffer}
             onBufferWidthChange={setLineBuffer}
+            bufferOpen={bufferPanelOpen}
+            onBufferOpenChange={setBufferPanelOpen}
+            onApplyLastShape={applyLastShape}
+            canApplyLastShape={hasLastShape}
             {...toolbarProps}
           />
         </div>
