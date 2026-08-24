@@ -35,6 +35,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
         modifierClick: "alt",
         lasso: true,
         monochrome: false,
+        clearDelay: 500,
         // operationColors: {
         //   add: "#22c55e",
         //   subtract: "#ec4899",

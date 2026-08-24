@@ -75,6 +75,8 @@ export const DEFAULT_RECT_WIDTH = 250;
 export const DEFAULT_RECT_HEIGHT = 250;
 /** Corridor half-width, in metres, a drawn line is buffered with. */
 export const DEFAULT_LINE_BUFFER = 25;
+/** How long a finished shape stays on the map before it is wiped, in ms. */
+export const DEFAULT_CLEAR_DELAY = 1000;
 
 export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
 
@@ -129,6 +131,12 @@ export interface LassoDrawingManagerOptions {
   radiusStep?: number;
   /** Corridor half-width in metres the drawn line is buffered with. Default: 25 */
   lineBuffer?: number;
+  /**
+   * Milliseconds the finished shape stays on the map before it is wiped, so
+   * what was just selected can be seen against it. 0 wipes it at once.
+   * Default: 1000
+   */
+  clearDelay?: number;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -136,6 +144,12 @@ export interface LassoDrawingManagerOptions {
 }
 
 export class LassoDrawingManager {
+  /** see `clearVisualDelayed`: one pending wipe per map, not per manager */
+  private static pendingClears = new WeakMap<
+    MaplibreMap,
+    ReturnType<typeof setTimeout>
+  >();
+
   private map: MaplibreMap;
   private onDrawComplete: (polygon: Polygon) => void;
   private onDrawCancel: () => void;
@@ -150,6 +164,7 @@ export class LassoDrawingManager {
   private rectSize: RectSize;
   private radiusStep: number;
   private lineBuffer: number;
+  private clearDelay: number;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
 
@@ -224,6 +239,7 @@ export class LassoDrawingManager {
     };
     this.radiusStep = options.radiusStep ?? DEFAULT_CIRCLE_RADIUS_STEP;
     this.lineBuffer = options.lineBuffer ?? DEFAULT_LINE_BUFFER;
+    this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
   }
@@ -288,6 +304,10 @@ export class LassoDrawingManager {
     if (meters === this.lineBuffer) return;
     this.lineBuffer = meters;
     if (this.placingLine) this.updateVisual();
+  }
+
+  setClearDelay(ms: number): void {
+    this.clearDelay = ms;
   }
 
   /** A line is being clicked together right now. */
@@ -439,6 +459,8 @@ export class LassoDrawingManager {
     }
 
     e.preventDefault();
+    // the shape still standing from the last draw belongs to the past now
+    this.cancelPendingClear();
     // Lazy-init source/layers in case activate() deferred them
     this.ensureSourceAndLayers();
     // Source and layers are shared by all managers on this map, so the color
@@ -554,6 +576,7 @@ export class LassoDrawingManager {
    * enough to be worth clicking rarely fits on one screen.
    */
   private onLineMouseDown(e: MapMouseEvent): void {
+    this.cancelPendingClear();
     this.ensureSourceAndLayers();
     this.applyColor();
     this.moveLayersToTop();
@@ -633,14 +656,17 @@ export class LassoDrawingManager {
     if (!this.placingLine) return;
     const points = this.linePoints;
     this.endLinePlacement();
-    this.linePoints = [];
     this.lineCursor = null;
-    this.clearVisual();
-    const corridor =
-      points.length >= 2 ? this.buildLineBuffer(points) : null;
+    // one last render without the rubber band, so what stands for the delay is
+    // the line as it was finished
+    this.updateVisual();
+    this.linePoints = [];
+    const corridor = points.length >= 2 ? this.buildLineBuffer(points) : null;
     if (corridor) {
+      this.clearVisualDelayed();
       this.onDrawComplete(corridor);
     } else {
+      this.clearVisual();
       this.onDrawCancel();
     }
   }
@@ -697,7 +723,7 @@ export class LassoDrawingManager {
         return;
       }
       const polygon = this.buildSizedShape(anchor);
-      this.clearVisual();
+      this.clearVisualDelayed();
       // a drag defines the new working size; the next click repeats it
       if (this.dragged) {
         if (this.shape === "circle") {
@@ -723,7 +749,7 @@ export class LassoDrawingManager {
       return;
     }
 
-    this.clearVisual();
+    this.clearVisualDelayed();
     this.onDrawComplete(hull);
   }
 
@@ -1057,10 +1083,39 @@ export class LassoDrawingManager {
   }
 
   private clearVisual(): void {
+    this.cancelPendingClear();
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (source) {
       source.setData({ type: "FeatureCollection", features: [] });
     }
+  }
+
+  /**
+   * Leaves the finished shape standing for `clearDelay`, so it can be seen
+   * against the features it just selected.
+   *
+   * The pending wipe is shared per map, not per manager: the source and its
+   * layers are shared too, so a timer started by the toolbar manager would
+   * otherwise erase a refine shape someone began drawing meanwhile.
+   */
+  private clearVisualDelayed(): void {
+    if (this.clearDelay <= 0) {
+      this.clearVisual();
+      return;
+    }
+    this.cancelPendingClear();
+    const timer = setTimeout(() => {
+      LassoDrawingManager.pendingClears.delete(this.map);
+      this.clearVisual();
+    }, this.clearDelay);
+    LassoDrawingManager.pendingClears.set(this.map, timer);
+  }
+
+  private cancelPendingClear(): void {
+    const timer = LassoDrawingManager.pendingClears.get(this.map);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    LassoDrawingManager.pendingClears.delete(this.map);
   }
 
   /** Move lasso layers to the very top of the layer stack. */

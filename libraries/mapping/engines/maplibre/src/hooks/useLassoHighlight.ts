@@ -178,6 +178,8 @@ export interface UseLassoHighlightOptions {
   radiusStep?: number;
   /** Corridor half-width in metres the drawn line is buffered with. */
   lineBuffer?: number;
+  /** Milliseconds the finished shape stays on the map before it is wiped. */
+  clearDelay?: number;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -217,6 +219,7 @@ export const useLassoHighlight = ({
   rectSize,
   radiusStep,
   lineBuffer,
+  clearDelay,
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
@@ -438,6 +441,8 @@ export const useLassoHighlight = ({
   radiusStepRef.current = radiusStep;
   const lineBufferRef = useRef(lineBuffer);
   lineBufferRef.current = lineBuffer;
+  const clearDelayRef = useRef(clearDelay);
+  clearDelayRef.current = clearDelay;
 
   useEffect(() => {
     if (!map) return;
@@ -452,6 +457,7 @@ export const useLassoHighlight = ({
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
       lineBuffer: lineBufferRef.current,
+      clearDelay: clearDelayRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
       // Starts on any plain mousedown, so it must stand back for whichever
@@ -480,6 +486,14 @@ export const useLassoHighlight = ({
       managerRef.current?.setLineBuffer(lineBuffer);
     }
   }, [lineBuffer]);
+
+  useEffect(() => {
+    if (clearDelay == null) return;
+    managerRef.current?.setClearDelay(clearDelay);
+    passiveManagerRef.current?.setClearDelay(clearDelay);
+    refineManagerRef.current?.setClearDelay(clearDelay);
+    shiftRefineManagerRef.current?.setClearDelay(clearDelay);
+  }, [clearDelay]);
 
   useEffect(() => {
     if (circleRadius != null) {
@@ -527,6 +541,7 @@ export const useLassoHighlight = ({
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
+      clearDelay: clearDelayRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
@@ -559,6 +574,7 @@ export const useLassoHighlight = ({
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
+      clearDelay: clearDelayRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
@@ -597,6 +613,7 @@ export const useLassoHighlight = ({
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
+      clearDelay: clearDelayRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
