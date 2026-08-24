@@ -19,21 +19,8 @@ export const VectorHighlightShapeTools = ({
   containerClassName = "relative z-[998] pointer-events-none",
   ...toolbarProps
 }: VectorHighlightShapeToolsProps = {}) => {
-  const {
-    isOn,
-    shapes,
-    shape,
-    setShape,
-    clear,
-    canClear,
-    lineBuffer,
-    setLineBuffer,
-    hasLastShape,
-    lastShapeShown,
-    bufferPanelOpen,
-    setBufferPanelOpen,
-    recallLastShape,
-  } = useHighlightModeActions();
+  const { isOn, shapes, shape, setShape, clear, canClear } =
+    useHighlightModeActions();
 
   if (!isOn || shapes.length < 2) {
     return null;
@@ -49,14 +36,6 @@ export const VectorHighlightShapeTools = ({
             onShapeChange={setShape}
             onClear={clear}
             canClear={canClear}
-            showBuffer={shape === "line"}
-            bufferWidth={lineBuffer}
-            onBufferWidthChange={setLineBuffer}
-            bufferOpen={bufferPanelOpen}
-            onBufferOpenChange={setBufferPanelOpen}
-            onRecallLastShape={recallLastShape}
-            canRecallLastShape={hasLastShape}
-            lastShapeShown={lastShapeShown}
             {...toolbarProps}
           />
         </div>
