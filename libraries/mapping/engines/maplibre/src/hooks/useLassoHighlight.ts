@@ -478,6 +478,8 @@ export const useLassoHighlight = ({
   onLastShapeChangeRef.current = onLastShapeChange;
   const onLastShapePreviewChangeRef = useRef(onLastShapePreviewChange);
   onLastShapePreviewChangeRef.current = onLastShapePreviewChange;
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   useEffect(() => {
     if (!map) return;
@@ -503,6 +505,11 @@ export const useLassoHighlight = ({
       skipWhenModifiers: skipForToolbar(shiftRefineArmedRef.current),
     });
     managerRef.current = manager;
+    // Recreated on map change — a new map instance comes with a fresh style,
+    // which is exactly what selecting a feature can trigger. The effect below
+    // only fires on `active` transitions, so without this the mode would still
+    // be on while the manager that draws for it was never switched on.
+    if (activeRef.current) manager.activate();
 
     return () => {
       manager.destroy();
@@ -564,8 +571,6 @@ export const useLassoHighlight = ({
   // Activate immediately unless explicit lasso mode is already on. It draws the
   // same shape as the toolbar; a plain Alt+click stays the feature toggle,
   // which the manager itself guards via `requireModifier`.
-  const activeRef = useRef(active);
-  activeRef.current = active;
   useEffect(() => {
     if (!map) return;
 
