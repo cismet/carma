@@ -114,11 +114,30 @@ export type NearestFromIndexResult = {
   statuses: FeatureIndexStatus[];
 };
 
+export type StackedSourceFilter = {
+  carmaLayerIds?: string[];
+  sourceLayers?: string[];
+};
+
 export type NearestFromIndexOptions = {
   lng: number;
   lat: number;
   /** how many hits to return. Default: 5 */
   count?: number;
+  filter?: StackedSourceFilter;
+};
+
+const matchesFilter = (
+  source: StackedSource,
+  filter?: StackedSourceFilter
+): boolean => {
+  if (!filter?.carmaLayerIds) {
+    return true;
+  }
+  return (
+    source.carmaLayerId !== undefined &&
+    filter.carmaLayerIds.includes(source.carmaLayerId)
+  );
 };
 
 const DEFAULT_COUNT = 5;
@@ -147,7 +166,11 @@ const decodeIndex = (
     return null;
   }
   const { ids, layerIndex, bbox, origin } = document;
-  if (!Array.isArray(ids) || !isNumberArray(layerIndex) || !isNumberArray(bbox)) {
+  if (
+    !Array.isArray(ids) ||
+    !isNumberArray(layerIndex) ||
+    !isNumberArray(bbox)
+  ) {
     return null;
   }
   const count = ids.length;
@@ -267,7 +290,10 @@ const insertRanked = <T extends { distanceInMeters: number }>(
   candidate: T,
   count: number
 ): void => {
-  if (ranked.length === count && candidate.distanceInMeters >= ranked[count - 1].distanceInMeters) {
+  if (
+    ranked.length === count &&
+    candidate.distanceInMeters >= ranked[count - 1].distanceInMeters
+  ) {
     return;
   }
   let position = ranked.length;
@@ -298,13 +324,15 @@ const rankIndex = (
   source: StackedSource,
   lng: number,
   lat: number,
-  count: number
+  count: number,
+  filter?: StackedSourceFilter
 ): IndexedFeatureEntry[] => {
   const { perLng, perLat } = degreeScale(lat);
   const { bbox, quantization, originX, originY, layerIndex, layers, ids } =
     index;
-  // empty means "every source-layer the tileset has"
-  const wanted = source.sourceLayers;
+  // empty means "every source-layer the tileset has"; a caller's own list wins
+  // over the style's, which is how one source-layer of a tileset is ranked
+  const wanted = filter?.sourceLayers ?? source.sourceLayers;
   const ranked: IndexedFeatureEntry[] = [];
 
   for (let i = 0; i < index.count; i++) {
@@ -379,9 +407,11 @@ export const collectNearestFromIndex = async (
   map: MaplibreMap,
   options: NearestFromIndexOptions
 ): Promise<NearestFromIndexResult> => {
-  const { lng, lat } = options;
+  const { lng, lat, filter } = options;
   const count = options.count ?? DEFAULT_COUNT;
-  const sources = resolveStackedSources(map);
+  const sources = resolveStackedSources(map).filter((source) =>
+    matchesFilter(source, filter)
+  );
 
   const perSource = await Promise.all(
     sources.map(async (source) => {
@@ -392,7 +422,7 @@ export const collectNearestFromIndex = async (
           layerId: source.catalogLayerId,
           featureCount: index?.count ?? null,
         },
-        entries: index ? rankIndex(index, source, lng, lat, count) : [],
+        entries: index ? rankIndex(index, source, lng, lat, count, filter) : [],
       };
     })
   );
