@@ -20,13 +20,6 @@ export const HighlightInteractionPanel = () => {
     colorForOperation,
     showOperations,
     showShapes,
-    lineBuffer,
-    setLineBuffer,
-    hasLastShape,
-    lastShapeShown,
-    bufferPanelOpen,
-    setBufferPanelOpen,
-    recallLastShape,
   } = useHighlightModeActions();
 
   const activeColor = colorForOperation(operation);
@@ -57,14 +50,6 @@ export const HighlightInteractionPanel = () => {
           onClear={clear}
           canClear={canClear}
           activeColor={activeColor}
-          showBuffer={shape === "line"}
-          bufferWidth={lineBuffer}
-          onBufferWidthChange={setLineBuffer}
-          bufferOpen={bufferPanelOpen}
-          onBufferOpenChange={setBufferPanelOpen}
-          onRecallLastShape={recallLastShape}
-          canRecallLastShape={hasLastShape}
-          lastShapeShown={lastShapeShown}
         />
       )}
     </div>

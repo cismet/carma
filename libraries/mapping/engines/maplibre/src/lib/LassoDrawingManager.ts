@@ -14,7 +14,10 @@
  * - `"line"`: click per vertex ("Linienzug"), so a path with as many points as
  *   the user wants can follow a street exactly; a drag still pans the map.
  *   Double-click or Enter finishes it. A line covers no area, so what it hands
- *   over is the corridor `lineBuffer` metres to either side of it.
+ *   over is the line itself, which selects every feature it crosses — enough
+ *   for parcels, buildings and other areas. With `lineBuffer` above 0 it hands
+ *   over the corridor that many metres to either side instead, which is what
+ *   point features need, since a point never sits exactly on a line.
  *
  * Whatever shape was drawn last stays remembered, so it can be shown again and
  * run a second time without redrawing it. A remembered line keeps its points,
@@ -77,8 +80,8 @@ export const DEFAULT_CIRCLE_RADIUS = 250;
 export const DEFAULT_CIRCLE_RADIUS_STEP = 5;
 export const DEFAULT_RECT_WIDTH = 250;
 export const DEFAULT_RECT_HEIGHT = 250;
-/** Corridor half-width, in metres, a drawn line is buffered with. */
-export const DEFAULT_LINE_BUFFER = 25;
+/** Corridor half-width for a drawn line; 0 selects with the bare line. */
+export const DEFAULT_LINE_BUFFER = 0;
 /** How long a finished shape stays on the map before it is wiped, in ms. */
 export const DEFAULT_CLEAR_DELAY = 1000;
 
@@ -99,7 +102,8 @@ export interface RectSize {
 
 export interface LassoDrawingManagerOptions {
   map: MaplibreMap;
-  onDrawComplete: (polygon: Polygon) => void;
+  /** The drawn selection shape: a polygon, or the bare line of the line tool. */
+  onDrawComplete: (shape: Polygon | LineString) => void;
   onDrawCancel: () => void;
   /** Minimum points required to form a polygon. Default: 3 */
   minPoints?: number;
@@ -133,7 +137,8 @@ export interface LassoDrawingManagerOptions {
   rectSize?: RectSize;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
-  /** Corridor half-width in metres the drawn line is buffered with. Default: 25 */
+  /** Corridor half-width in metres around a drawn line. 0 selects with the
+   *  bare line, which is exact for areas but misses point features. Default: 0 */
   lineBuffer?: number;
   /**
    * Milliseconds the finished shape stays on the map before it is wiped, so
@@ -159,7 +164,7 @@ export class LassoDrawingManager {
   >();
 
   private map: MaplibreMap;
-  private onDrawComplete: (polygon: Polygon) => void;
+  private onDrawComplete: (shape: Polygon | LineString) => void;
   private onDrawCancel: () => void;
   private minPoints: number;
   private requireModifiers: ModifierKey[];
@@ -212,8 +217,10 @@ export class LassoDrawingManager {
   /** the shape last finished, kept so it can be shown and run again. `line`
    *  is set only for the line tool, whose corridor is rebuilt at the width
    *  that is current when it runs again. */
-  private lastShape: { polygon: Polygon; line: Position[] | null } | null =
-    null;
+  private lastShape: {
+    geometry: Polygon | LineString;
+    line: Position[] | null;
+  } | null = null;
   private previewingLastShape = false;
   private lineDownX = 0;
   private lineDownY = 0;
@@ -368,7 +375,7 @@ export class LassoDrawingManager {
     }
     source.setData({
       type: "FeatureCollection",
-      features: [{ type: "Feature", properties: {}, geometry: last.polygon }],
+      features: [{ type: "Feature", properties: {}, geometry: last.geometry }],
     });
   }
 
@@ -384,20 +391,23 @@ export class LassoDrawingManager {
   applyLastShape(): void {
     const last = this.lastShape;
     if (!last) return;
-    const polygon = last.line
-      ? this.buildLineBuffer(last.line) ?? last.polygon
-      : last.polygon;
+    const geometry = last.line
+      ? this.buildLineShape(last.line) ?? last.geometry
+      : last.geometry;
     // put it up for the usual moment, so running it again is visible
     this.renderLastShape();
     this.setPreviewing(false);
     this.clearVisualDelayed();
-    this.onDrawComplete(polygon);
+    this.onDrawComplete(geometry);
   }
 
   /** Every completed shape passes here, so "run the last one again" works for
    *  the lasso and the sized shapes as well as for the line. */
-  private rememberShape(polygon: Polygon, line: Position[] | null): void {
-    this.lastShape = { polygon, line };
+  private rememberShape(
+    geometry: Polygon | LineString,
+    line: Position[] | null
+  ): void {
+    this.lastShape = { geometry, line };
     // fires on every completed shape, not just the first: the UI resets what
     // it knows about the previous one on the strength of it
     this.onLastShapeChange?.(true);
@@ -677,7 +687,9 @@ export class LassoDrawingManager {
     this.lineDownX = e.originalEvent.clientX;
     this.lineDownY = e.originalEvent.clientY;
     this.lineDownLngLat = [e.lngLat.lng, e.lngLat.lat];
-    document.addEventListener("mouseup", this.handleLineMouseUp, { once: true });
+    document.addEventListener("mouseup", this.handleLineMouseUp, {
+      once: true,
+    });
   }
 
   private onLineMouseUp(e: MouseEvent): void {
@@ -757,7 +769,7 @@ export class LassoDrawingManager {
     // the line as it was finished
     this.updateVisual();
     this.linePoints = [];
-    const corridor = points.length >= 2 ? this.buildLineBuffer(points) : null;
+    const corridor = points.length >= 2 ? this.buildLineShape(points) : null;
     if (corridor) {
       this.rememberShape(corridor, points);
       this.clearVisualDelayed();
@@ -768,16 +780,22 @@ export class LassoDrawingManager {
     }
   }
 
-  /** The corridor `lineBuffer` metres to either side of the drawn line. */
-  private buildLineBuffer(coords: Position[]): Polygon | null {
+  /**
+   * What a finished line selects with: the line itself, or the corridor
+   * `lineBuffer` metres to either side of it when a width is set.
+   */
+  private(coords: Position[]): Polygon | LineString | null {
     if (coords.length < 2) return null;
+    if (this.lineBuffer <= 0) {
+      return { type: "LineString", coordinates: coords };
+    }
     const line: Feature<LineString> = {
       type: "Feature",
       properties: {},
       geometry: { type: "LineString", coordinates: coords },
     };
     try {
-      const buffered = turfBuffer(line, Math.max(1, this.lineBuffer), {
+      const buffered = turfBuffer(line, this.lineBuffer, {
         units: "meters",
       });
       const geometry = buffered?.geometry;
@@ -1167,8 +1185,9 @@ export class LassoDrawingManager {
     const path = cursor ? [...placed, cursor] : placed;
 
     const features: Feature[] = [];
-    const corridor = this.buildLineBuffer(path);
-    if (corridor) {
+    // only when a width is set; without one the shape IS the line drawn below
+    const corridor = this.buildLineShape(path);
+    if (corridor?.type === "Polygon") {
       features.push({ type: "Feature", properties: {}, geometry: corridor });
     }
     if (path.length >= 2) {

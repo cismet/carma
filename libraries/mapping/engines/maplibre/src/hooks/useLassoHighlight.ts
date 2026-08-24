@@ -10,11 +10,12 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
-import type { Polygon, Point } from "geojson";
+import type { Feature, Polygon, LineString, Point } from "geojson";
 import {
   booleanPointInPolygon,
   booleanIntersects,
   polygon as turfPolygon,
+  lineString as turfLineString,
 } from "@turf/turf";
 import { LassoDrawingManager, DEFAULT_COLOR } from "../lib/LassoDrawingManager";
 import type {
@@ -64,17 +65,24 @@ const OPERATION_COLORS: Record<LassoOperation, string> = {
 };
 
 /**
- * Every feature of the configured sources whose geometry falls inside the
- * lasso, deduplicated by sourceLayer + database id. Geojson hits get their
- * `sourceLayer` stamped from properties._sourceLayer (the CARMA convention).
+ * Every feature of the configured sources the drawn shape covers, deduplicated
+ * by sourceLayer + database id. Geojson hits get their `sourceLayer` stamped
+ * from properties._sourceLayer (the CARMA convention).
+ *
+ * The shape is a polygon for every tool but the line, which hands over its bare
+ * line when no corridor width is set: a line crosses areas just as well, and
+ * exactly, but it can never cover a point feature.
  */
 function collectFeaturesInPolygon(
   map: MaplibreMap,
-  lassoPolygon: Polygon,
+  drawnShape: Polygon | LineString,
   configuredSources: LassoSources | undefined
 ): MapGeoJSONFeature[] {
-  // 1. Compute pixel bounding box from polygon vertices
-  const ring = lassoPolygon.coordinates[0];
+  // 1. Compute pixel bounding box from the shape's vertices
+  const ring =
+    drawnShape.type === "Polygon"
+      ? drawnShape.coordinates[0]
+      : drawnShape.coordinates;
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
@@ -93,8 +101,11 @@ function collectFeaturesInPolygon(
   // 2. Query rendered features in bounding box
   const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
 
-  // 3. Build a turf polygon for spatial tests
-  const turfLasso = turfPolygon(lassoPolygon.coordinates);
+  // 3. Build the turf geometry for the spatial tests
+  const turfLasso =
+    drawnShape.type === "Polygon"
+      ? turfPolygon(drawnShape.coordinates)
+      : turfLineString(drawnShape.coordinates);
 
   // 4. Filter and spatial test
   const seen = new Set<string>();
@@ -137,9 +148,17 @@ function collectFeaturesInPolygon(
     // Spatial test
     let inside = false;
     try {
-      if (f.geometry.type === "Point") {
-        inside = booleanPointInPolygon(f.geometry as Point, turfLasso);
+      if (
+        f.geometry.type === "Point" &&
+        turfLasso.geometry.type === "Polygon"
+      ) {
+        inside = booleanPointInPolygon(
+          f.geometry as Point,
+          turfLasso as Feature<Polygon>
+        );
       } else {
+        // a point against a bare line lands here and will practically never
+        // match — that is what the corridor width is for
         inside = booleanIntersects(f.geometry, turfLasso);
       }
     } catch {
@@ -294,7 +313,7 @@ export const useLassoHighlight = ({
   clearRef.current = clearHighlights;
 
   const handleDrawComplete = useCallback(
-    (lassoPolygon: Polygon) => {
+    (lassoPolygon: Polygon | LineString) => {
       setIsDrawing(false);
       if (!map) return;
 
@@ -377,7 +396,7 @@ export const useLassoHighlight = ({
    * gesture behaves identically no matter how the selection was made.
    */
   const handleRefineComplete = useCallback(
-    (lassoPolygon: Polygon) => {
+    (lassoPolygon: Polygon | LineString) => {
       setIsDrawing(false);
       if (!map) return;
 
@@ -430,7 +449,7 @@ export const useLassoHighlight = ({
   }, []);
 
   const handleGestureComplete = useCallback(
-    (lassoPolygon: Polygon) => {
+    (lassoPolygon: Polygon | LineString) => {
       if (operationRef.current === "refine") {
         handleRefineComplete(lassoPolygon);
         return;
@@ -773,5 +792,11 @@ export const useLassoHighlight = ({
     managerRef.current?.applyLastShape();
   }, []);
 
-  return { isDrawing, cancelLine, showLastShape, hideLastShape, applyLastShape };
+  return {
+    isDrawing,
+    cancelLine,
+    showLastShape,
+    hideLastShape,
+    applyLastShape,
+  };
 };

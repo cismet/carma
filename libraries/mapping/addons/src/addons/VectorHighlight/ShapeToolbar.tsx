@@ -31,8 +31,8 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
   divider: "h-6 w-px bg-gray-300/80",
 };
 
-/** widths a corridor is worth having, in metres */
-const BUFFER_MIN = 5;
+/** widths a corridor is worth having, in metres; 0 selects with the bare line */
+const BUFFER_MIN = 0;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 5;
 
@@ -113,7 +113,7 @@ export const ShapeToolbar = ({
         <InputNumber
           size="small"
           className="w-24"
-          min={1}
+          min={0}
           max={5000}
           step={BUFFER_STEP}
           value={bufferWidth}
@@ -122,7 +122,8 @@ export const ShapeToolbar = ({
         />
       </div>
       <p className="m-0 text-xs text-gray-500">
-        Doppelklick beendet die Linie und wählt im Korridor aus.
+        Doppelklick beendet die Linie. Bei 0 m wählt die Linie genau das aus,
+        was sie kreuzt — Flächen, aber keine Punktobjekte.
       </p>
     </div>
   );
