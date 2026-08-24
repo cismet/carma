@@ -20,10 +20,7 @@ import {
 } from "../addons/CameraRestriction";
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
-import {
-  HomeOverride,
-  type HomeOverrideConfig,
-} from "../addons/HomeOverride";
+import { HomeOverride, type HomeOverrideConfig } from "../addons/HomeOverride";
 import {
   InfoBoxZoomImage,
   type InfoBoxImageState,
@@ -33,9 +30,11 @@ import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
   VectorHighlightControl,
+  VectorHighlightDebugPanel,
   type HighlightModeState,
   type VectorHighlightConfig,
   type VectorHighlightControlConfig,
+  type VectorHighlightDebugPanelConfig,
 } from "../addons/VectorHighlight";
 import {
   LayerVisibility,
@@ -68,6 +67,8 @@ export type AddonConfigMap = {
   homeOverride: HomeOverrideConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
+  /** dev only; never declare it on a shipped route */
+  vectorHighlightDebug: VectorHighlightDebugPanelConfig;
   layerVisibility: LayerVisibilityConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
@@ -212,6 +213,10 @@ export const addonRegistry: {
   },
   vectorHighlightControl: {
     Component: VectorHighlightControl,
+    requires: ["highlightMode"],
+  },
+  vectorHighlightDebug: {
+    Component: VectorHighlightDebugPanel,
     requires: ["highlightMode"],
   },
   layerVisibility: {
