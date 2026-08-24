@@ -13,13 +13,17 @@ import {
 
 /**
  * Shared by the headless addon and every piece of UI, so "end the mode" and
- * "clear" cannot drift apart between them. Internal: not part of the library's
- * public surface.
+ * "clear" cannot drift apart. The addon's entry point for highlighting: use
+ * these instead of `MapHighlightContext`.
  */
 export const useHighlightModeActions = () => {
   const [mode, setMode] = useAddonState("highlightMode");
-  const { highlightingActive, setHighlightingActive, clearHighlights } =
-    useMapHighlight();
+  const {
+    highlightingActive,
+    setHighlightingActive,
+    clearHighlights,
+    highlightByIds,
+  } = useMapHighlight();
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
 
@@ -40,6 +44,27 @@ export const useHighlightModeActions = () => {
     clearHighlights();
     setHighlightingActive(false);
   }, [clearHighlights, setHighlightingActive]);
+
+  /**
+   * Light the features whose `property` (default `"id"`) is one of `ids`.
+   *
+   * 1. `highlightByIds` only records criteria and bumps `highlightVersion`.
+   * 2. `setHighlightingActive` is what makes them visible — without it the apply
+   *    effect returns early and the dim stays off.
+   * 3. `useMapHighlighting` then scans the features and writes
+   *    `feature-state.highlighted`; `dim-controller` fades the rest.
+   *
+   * Criteria are additive, hence the clear unless `append`.
+   */
+  const highlightIds = useCallback(
+    (ids: string[], options?: { property?: string; append?: boolean }) => {
+      if (ids.length === 0) return;
+      if (!options?.append) clearHighlights();
+      highlightByIds(ids, { property: options?.property });
+      setHighlightingActive(true);
+    },
+    [clearHighlights, highlightByIds, setHighlightingActive]
+  );
 
   const setShape = useCallback(
     (next: DrawShape) =>
@@ -121,6 +146,7 @@ export const useHighlightModeActions = () => {
     startMode,
     endMode,
     clear,
+    highlightIds,
     setShape,
     operation: mode?.operation ?? "add",
     setOperation,

@@ -3,7 +3,6 @@ import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 
 import { Button, Checkbox, Select } from "antd";
 
-import { useMapHighlight } from "@carma-mapping/contexts";
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import { useVisibleMapFeatures } from "@carma-mapping/utils";
 
@@ -11,10 +10,8 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { useMapCanvasSize } from "../../lib/useMapCanvasSize";
 import { useHighlightModeActions } from "./highlight-actions";
 
-/**
- * Dev harness for `highlightByIds`: pick a layer, tick ids, Send. Drives the
- * mode `vectorHighlight` owns, so a sent id behaves like a search hit.
- */
+/** Dev harness: pick a layer, tick ids, Send. A sent id behaves like a search
+ *  hit, since it drives the mode `vectorHighlight` owns. */
 
 export type VectorHighlightDebugPanelConfig = {
   /** Corner the panel is registered in. Default: "topright" */
@@ -62,8 +59,7 @@ const labelOf = (props: Record<string, unknown>): string => {
   return "";
 };
 
-/** Catalog layers, keyed from `metadata["layer-id"]` so a layer drawn as icon
- *  and shape stays one entry instead of splitting by source layer. */
+/** keyed from `metadata["layer-id"]`, so icon and shape stay one entry */
 type LayerGroups = { byKey: Map<string, string>; all: string[] };
 
 const EMPTY_GROUPS: LayerGroups = { byKey: new Map(), all: [] };
@@ -130,9 +126,8 @@ export const VectorHighlightDebugPanel = ({
   const [layer, setLayer] = useState<string | undefined>(undefined);
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
-  const { highlightByIds, clearHighlights, setHighlightingActive } =
-    useMapHighlight();
-  const { clear } = useHighlightModeActions();
+  // the panel never touches MapHighlightContext; the addon owns that
+  const { highlightIds, clear } = useHighlightModeActions();
 
   const groups = useLayerGroups(libreMap);
   const { width, height } = useMapCanvasSize(libreMap);
@@ -144,8 +139,8 @@ export const VectorHighlightDebugPanel = ({
     maxFeatures: NO_FEATURE_CAP,
   });
 
-  /** per layer: the distinct ids in view, sorted so panning does not reorder
-   *  the rows under the checkboxes, plus the property names its features have */
+  /** per layer: the ids in view, sorted so panning does not reorder the rows,
+   *  plus the property names its features have */
   const { rowsByLayer, propsByLayer } = useMemo(() => {
     const collected = new Map<string, Map<string, Row>>();
     const seenProps = new Map<string, Set<string>>();
@@ -218,25 +213,12 @@ export const VectorHighlightDebugPanel = ({
     });
   }, []);
 
-  /** Values go bare: `highlightByIds` splits at the first colon, and catalog
-   *  source-layer names contain colons, so a prefix would parse into the wrong
-   *  pair. Bare lands in the `"*"` branch and matches on every source layer. */
+  /** Values go bare: an id splits at the first colon, and catalog source-layer
+   *  names contain colons. Bare gets `"*"` and matches on every layer. */
   const send = useCallback(() => {
     const selected = rows.filter((row) => checked.has(row.id)).map((r) => r.id);
-    if (selected.length === 0) return;
-    // highlightByIds appends, so clear to replace
-    clearHighlights();
-    highlightByIds(selected, { property });
-    // criteria alone highlight nothing; apply and dim both key on this
-    setHighlightingActive(true);
-  }, [
-    rows,
-    checked,
-    clearHighlights,
-    highlightByIds,
-    property,
-    setHighlightingActive,
-  ]);
+    highlightIds(selected, { property });
+  }, [rows, checked, highlightIds, property]);
 
   const reset = useCallback(() => {
     setChecked(new Set());
@@ -271,8 +253,8 @@ export const VectorHighlightDebugPanel = ({
         <div className="mt-2 max-h-[220px] overflow-y-auto">
           {rows.length === 0 ? (
             <div className="py-2 text-slate-400">
-              {/* names the properties the layer does have, so "no id column"
-                  and "nothing in view" tell apart */}
+              {/* naming what the layer has tells "no id column" from
+                  "nothing in view" */}
               kein „{property}“ im Ausschnitt.
               {available.length > 0 && (
                 <>
