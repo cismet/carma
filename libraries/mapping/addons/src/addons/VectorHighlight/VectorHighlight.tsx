@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   useMapHighlighting,
@@ -126,6 +126,17 @@ export const VectorHighlight = ({
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
+  // the drawing manager remembers the shape, so the toolbar learns from here
+  // whether there is one to offer again
+  const handleLastShapeChange = useCallback(
+    (hasLastShape: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        hasLastShape,
+      })),
+    [setMode]
+  );
+
   // key on the content: route configs pass a fresh array per render
   const excludedCombinedKey = (excludeCombinedLayers ?? [])
     .map((pattern) => pattern.toLowerCase())
@@ -150,7 +161,8 @@ export const VectorHighlight = ({
 
   // `active` switches between the passive modifier-drag manager and the
   // explicit one that draws on a plain drag while the mode is on
-  const { cancelLine } = useLassoHighlight({
+  const { cancelLine, showLastShape, hideLastShape, applyLastShape } =
+    useLassoHighlight({
     map: lasso ? libreMap : null,
     active: lasso && (modeActive || highlightingActive),
     shape,
@@ -159,6 +171,7 @@ export const VectorHighlight = ({
     radiusStep,
     lineBuffer,
     clearDelay,
+    onLastShapeChange: handleLastShapeChange,
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,
@@ -168,6 +181,26 @@ export const VectorHighlight = ({
     // resolved here, so config overrides and monochrome reach the drawn shape
     color: colorForOperation(operation),
   });
+
+  // open panel: the last shape goes back on the map so the width can be judged
+  // against it
+  const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
+  useEffect(() => {
+    if (bufferPanelOpen) {
+      showLastShape();
+      return () => hideLastShape();
+    }
+    hideLastShape();
+    return undefined;
+  }, [bufferPanelOpen, showLastShape, hideLastShape]);
+
+  const applyRequest = mode?.applyShapeVersion ?? 0;
+  const previousApplyRequest = useRef(applyRequest);
+  useEffect(() => {
+    if (applyRequest === previousApplyRequest.current) return;
+    previousApplyRequest.current = applyRequest;
+    applyLastShape();
+  }, [applyRequest, applyLastShape]);
 
   // the toolbar asks for the line being drawn to be dropped by bumping a
   // counter, so no callback has to be parked in the shared addon state

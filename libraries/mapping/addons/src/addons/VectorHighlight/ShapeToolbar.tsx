@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { faLeftRight, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faLeftRight,
+  faRotateLeft,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { InputNumber, Popover, Slider, Tooltip } from "antd";
 
@@ -50,6 +53,14 @@ export type ShapeToolbarProps = {
   /** corridor half-width in metres, applied when the line is finished */
   bufferWidth?: number;
   onBufferWidthChange?: (meters: number) => void;
+  /** the width panel; open, it shows the last line again */
+  bufferOpen?: boolean;
+  onBufferOpenChange?: (open: boolean) => void;
+  /** runs the last drawn shape again; the button is left out without it */
+  onApplyLastShape?: () => void;
+  /** there is a remembered shape to run */
+  canApplyLastShape?: boolean;
+  lastShapeLabel?: string;
 };
 
 export const ShapeToolbar = ({
@@ -66,9 +77,13 @@ export const ShapeToolbar = ({
   showBuffer = false,
   bufferWidth = 25,
   onBufferWidthChange,
+  bufferOpen = false,
+  onBufferOpenChange,
+  onApplyLastShape,
+  canApplyLastShape = false,
+  lastShapeLabel = "Letzte Form erneut anwenden",
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
-  const [bufferOpen, setBufferOpen] = useState(false);
 
   const bufferLabel = `Pufferbreite (${Math.round(bufferWidth)} m)`;
 
@@ -139,12 +154,14 @@ export const ShapeToolbar = ({
           </Tooltip>
         );
       })}
+      {(showBuffer || onApplyLastShape) && (
+        <span className={css.divider} aria-hidden />
+      )}
       {showBuffer && (
         <>
-          <span className={css.divider} aria-hidden />
           <Popover
             open={bufferOpen}
-            onOpenChange={setBufferOpen}
+            onOpenChange={(open) => onBufferOpenChange?.(open)}
             trigger="click"
             placement={tooltipPlacement}
             title="Puffer um die Linie"
@@ -168,6 +185,29 @@ export const ShapeToolbar = ({
             </button>
           </Popover>
         </>
+      )}
+      {onApplyLastShape && (
+        <Tooltip title={lastShapeLabel} placement={tooltipPlacement}>
+          {/* a disabled button swallows its own events, so the tooltip needs a host */}
+          <span>
+            <button
+              type="button"
+              disabled={!canApplyLastShape}
+              onClick={(event) => {
+                event.stopPropagation();
+                onApplyLastShape();
+              }}
+              aria-label={lastShapeLabel}
+              data-test-id="vector-highlight-apply-last-shape"
+              className={[
+                css.button,
+                canApplyLastShape ? css.buttonInactive : css.buttonDisabled,
+              ].join(" ")}
+            >
+              <FontAwesomeIcon icon={faRotateLeft} />
+            </button>
+          </span>
+        </Tooltip>
       )}
       <Tooltip title={clearLabel} placement={tooltipPlacement}>
         {/* a disabled button swallows its own events, so the tooltip needs a host */}

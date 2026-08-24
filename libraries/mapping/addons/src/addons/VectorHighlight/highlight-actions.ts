@@ -31,6 +31,28 @@ export const useHighlightModeActions = () => {
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
   const lineBuffer = mode?.lineBuffer ?? DEFAULT_LINE_BUFFER;
+  const hasLastShape = mode?.hasLastShape ?? false;
+  const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
+
+  const setBufferPanelOpen = useCallback(
+    (open: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        bufferPanelOpen: open,
+      })),
+    [setMode]
+  );
+
+  /** runs the remembered shape again — a line at the width set now */
+  const applyLastShape = useCallback(
+    () =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        applyShapeVersion: (previous?.applyShapeVersion ?? 0) + 1,
+        bufferPanelOpen: false,
+      })),
+    [setMode]
+  );
 
   const setLineBuffer = useCallback(
     (next: number) =>
@@ -56,7 +78,11 @@ export const useHighlightModeActions = () => {
   );
 
   const endMode = useCallback(() => {
-    setMode((previous) => ({ ...(previous ?? {}), isOn: false }));
+    setMode((previous) => ({
+      ...(previous ?? {}),
+      isOn: false,
+      bufferPanelOpen: false,
+    }));
     clearHighlights();
     setHighlightingActive(false);
   }, [setMode, clearHighlights, setHighlightingActive]);
@@ -95,6 +121,8 @@ export const useHighlightModeActions = () => {
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         shape: next,
+        // the panel belongs to the line tool, and so does its preview
+        bufferPanelOpen: false,
       })),
     [setMode]
   );
@@ -185,5 +213,9 @@ export const useHighlightModeActions = () => {
     lineBuffer,
     setLineBuffer,
     cancelLine,
+    hasLastShape,
+    bufferPanelOpen,
+    setBufferPanelOpen,
+    applyLastShape,
   };
 };

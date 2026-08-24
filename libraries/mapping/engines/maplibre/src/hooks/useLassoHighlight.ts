@@ -180,6 +180,8 @@ export interface UseLassoHighlightOptions {
   lineBuffer?: number;
   /** Milliseconds the finished shape stays on the map before it is wiped. */
   clearDelay?: number;
+  /** Reports whether a shape has been drawn that can be shown and run again. */
+  onLastShapeChange?: (hasLastShape: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -209,6 +211,12 @@ export interface UseLassoHighlightResult {
   isDrawing: boolean;
   /** Drops the line currently being placed. */
   cancelLine: () => void;
+  /** Puts the last finished shape back on the map. */
+  showLastShape: () => void;
+  /** Takes that preview back down. */
+  hideLastShape: () => void;
+  /** Runs the remembered shape again — a line at the current width. */
+  applyLastShape: () => void;
 }
 
 export const useLassoHighlight = ({
@@ -220,6 +228,7 @@ export const useLassoHighlight = ({
   radiusStep,
   lineBuffer,
   clearDelay,
+  onLastShapeChange,
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
@@ -443,6 +452,8 @@ export const useLassoHighlight = ({
   lineBufferRef.current = lineBuffer;
   const clearDelayRef = useRef(clearDelay);
   clearDelayRef.current = clearDelay;
+  const onLastShapeChangeRef = useRef(onLastShapeChange);
+  onLastShapeChangeRef.current = onLastShapeChange;
 
   useEffect(() => {
     if (!map) return;
@@ -458,6 +469,7 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       lineBuffer: lineBufferRef.current,
       clearDelay: clearDelayRef.current,
+      onLastShapeChange: (has) => onLastShapeChangeRef.current?.(has),
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
       // Starts on any plain mousedown, so it must stand back for whichever
@@ -742,5 +754,17 @@ export const useLassoHighlight = ({
     managerRef.current?.cancelLine();
   }, []);
 
-  return { isDrawing, cancelLine };
+  const showLastShape = useCallback(() => {
+    managerRef.current?.showLastShape();
+  }, []);
+
+  const hideLastShape = useCallback(() => {
+    managerRef.current?.hideLastShape();
+  }, []);
+
+  const applyLastShape = useCallback(() => {
+    managerRef.current?.applyLastShape();
+  }, []);
+
+  return { isDrawing, cancelLine, showLastShape, hideLastShape, applyLastShape };
 };

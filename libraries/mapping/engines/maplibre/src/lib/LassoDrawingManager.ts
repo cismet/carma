@@ -16,6 +16,10 @@
  *   Double-click or Enter finishes it. A line covers no area, so what it hands
  *   over is the corridor `lineBuffer` metres to either side of it.
  *
+ * Whatever shape was drawn last stays remembered, so it can be shown again and
+ * run a second time without redrawing it. A remembered line keeps its points,
+ * not just its corridor, so running it again honours the current width.
+ *
  * For circle and rect a plain click (no drag) places the configured size,
  * centred on the clicked point, so the very same area can be placed again
  * somewhere else — that repeatability is the whole point of the two shapes.
@@ -137,6 +141,8 @@ export interface LassoDrawingManagerOptions {
    * Default: 1000
    */
   clearDelay?: number;
+  /** Reports whether a shape has been drawn that can be shown and run again. */
+  onLastShapeChange?: (hasLastShape: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -165,6 +171,7 @@ export class LassoDrawingManager {
   private radiusStep: number;
   private lineBuffer: number;
   private clearDelay: number;
+  private onLastShapeChange?: (hasLastShape: boolean) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
 
@@ -199,6 +206,12 @@ export class LassoDrawingManager {
   private linePoints: Position[] = [];
   private lineCursor: Position | null = null;
   private placingLine = false;
+  /** the shape last finished, kept so it can be shown and run again. `line`
+   *  is set only for the line tool, whose corridor is rebuilt at the width
+   *  that is current when it runs again. */
+  private lastShape: { polygon: Polygon; line: Position[] | null } | null =
+    null;
+  private previewingLastShape = false;
   private lineDownX = 0;
   private lineDownY = 0;
   private lineDownLngLat: Position | null = null;
@@ -240,6 +253,7 @@ export class LassoDrawingManager {
     this.radiusStep = options.radiusStep ?? DEFAULT_CIRCLE_RADIUS_STEP;
     this.lineBuffer = options.lineBuffer ?? DEFAULT_LINE_BUFFER;
     this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
+    this.onLastShapeChange = options.onLastShapeChange;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
   }
@@ -304,10 +318,76 @@ export class LassoDrawingManager {
     if (meters === this.lineBuffer) return;
     this.lineBuffer = meters;
     if (this.placingLine) this.updateVisual();
+    else if (this.previewingLastShape) this.renderLastShape();
   }
 
   setClearDelay(ms: number): void {
     this.clearDelay = ms;
+  }
+
+  hasLastShape(): boolean {
+    return this.lastShape !== null;
+  }
+
+  /**
+   * Puts the last finished shape back on the map, so it can be judged against
+   * the features it will select. A remembered line is drawn with its vertices
+   * and the corridor at the width that is current now. Draws nothing while a
+   * new line is being placed — that one owns the screen.
+   */
+  showLastShape(): void {
+    if (!this.lastShape || this.placingLine) return;
+    this.previewingLastShape = true;
+    this.renderLastShape();
+  }
+
+  private renderLastShape(): void {
+    const last = this.lastShape;
+    if (!last) return;
+    this.cancelPendingClear();
+    this.ensureSourceAndLayers();
+    this.applyColor();
+    this.moveLayersToTop();
+    const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+    if (!source) return;
+    if (last.line) {
+      this.renderLine(source, last.line, null);
+      return;
+    }
+    source.setData({
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: last.polygon }],
+    });
+  }
+
+  /** Takes the preview back down; a line being placed is left alone. */
+  hideLastShape(): void {
+    if (!this.previewingLastShape) return;
+    this.previewingLastShape = false;
+    if (this.placingLine) return;
+    this.clearVisual();
+  }
+
+  /** Runs the remembered shape again — a line at the width current now. */
+  applyLastShape(): void {
+    const last = this.lastShape;
+    if (!last) return;
+    const polygon = last.line
+      ? this.buildLineBuffer(last.line) ?? last.polygon
+      : last.polygon;
+    // put it up for the usual moment, so running it again is visible
+    this.renderLastShape();
+    this.previewingLastShape = false;
+    this.clearVisualDelayed();
+    this.onDrawComplete(polygon);
+  }
+
+  /** Every completed shape passes here, so "run the last one again" works for
+   *  the lasso and the sized shapes as well as for the line. */
+  private rememberShape(polygon: Polygon, line: Position[] | null): void {
+    const had = this.lastShape !== null;
+    this.lastShape = { polygon, line };
+    if (!had) this.onLastShapeChange?.(true);
   }
 
   /** A line is being clicked together right now. */
@@ -616,6 +696,8 @@ export class LassoDrawingManager {
   }
 
   private startLinePlacement(): void {
+    // the new line takes the screen over from a preview of the old one
+    this.previewingLastShape = false;
     this.placingLine = true;
     this.drawing = true;
     this.map.on("mousemove", this.handleLineMouseMove);
@@ -663,6 +745,7 @@ export class LassoDrawingManager {
     this.linePoints = [];
     const corridor = points.length >= 2 ? this.buildLineBuffer(points) : null;
     if (corridor) {
+      this.rememberShape(corridor, points);
       this.clearVisualDelayed();
       this.onDrawComplete(corridor);
     } else {
@@ -723,6 +806,7 @@ export class LassoDrawingManager {
         return;
       }
       const polygon = this.buildSizedShape(anchor);
+      this.rememberShape(polygon, null);
       this.clearVisualDelayed();
       // a drag defines the new working size; the next click repeats it
       if (this.dragged) {
@@ -749,6 +833,7 @@ export class LassoDrawingManager {
       return;
     }
 
+    this.rememberShape(hull, null);
     this.clearVisualDelayed();
     this.onDrawComplete(hull);
   }
@@ -1053,12 +1138,19 @@ export class LassoDrawingManager {
   /** Corridor, line and one dot per placed vertex — the dots are what makes a
    *  many-point line readable while it is being clicked together. */
   private updateLineVisual(source: GeoJSONSource): void {
-    const placed = this.linePoints;
+    this.renderLine(source, this.linePoints, this.lineCursor);
+  }
+
+  private renderLine(
+    source: GeoJSONSource,
+    placed: Position[],
+    cursor: Position | null
+  ): void {
     if (placed.length === 0) {
       source.setData({ type: "FeatureCollection", features: [] });
       return;
     }
-    const path = this.lineCursor ? [...placed, this.lineCursor] : placed;
+    const path = cursor ? [...placed, cursor] : placed;
 
     const features: Feature[] = [];
     const corridor = this.buildLineBuffer(path);
@@ -1084,6 +1176,7 @@ export class LassoDrawingManager {
 
   private clearVisual(): void {
     this.cancelPendingClear();
+    this.previewingLastShape = false;
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (source) {
       source.setData({ type: "FeatureCollection", features: [] });
