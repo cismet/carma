@@ -33,7 +33,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {
       kind: "vectorHighlightDebug",
-      config: { limit: 20, property: "id", hidden: false },
+      config: { limit: 20, property: "id", hidden: true },
     },
     {
       kind: "visibleFeatureStatsSource",
@@ -44,13 +44,12 @@ export const addonsFachzwilling: FachzwillingRoute = {
     },
     { kind: "visibleFeatureStatsPanel", config: {} },
     // caged: shows that cage is present, and renders nothing at all when the
-    // cage submodule is absent. Default is topright order 100, which puts it
+    // cage submodule isre absent. Default is topright order 100, which puts it
     // under the stats panel (topright order 10).
     { kind: "cageIndicatorBadge" },
     // {
     //   /**
     //    * experiment: the image in the info box changes with the zoom.
-    //    *
     //    * One entry per layer, each with its own zoom steps — the steps of one
     //    * layer say nothing about the other. Within a layer the first step whose
     //    * range contains the current zoom wins; when no step matches, the feature
