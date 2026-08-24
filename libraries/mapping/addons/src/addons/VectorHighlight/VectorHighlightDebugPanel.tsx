@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 
-import { Button, Checkbox, Select } from "antd";
+import { Button, Checkbox, Select, Tooltip } from "antd";
+import { faArrowRight, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import { useVisibleMapFeatures } from "@carma-mapping/utils";
@@ -290,12 +292,23 @@ export const VectorHighlightDebugPanel = ({
         </div>
 
         <div className="mt-2 flex justify-end gap-1.5 border-t border-slate-200 pt-2">
-          <Button size="small" onClick={reset}>
-            Clear
-          </Button>
-          <Button size="small" type="primary" onClick={send}>
-            Send
-          </Button>
+          <Tooltip title="Auswahl und Hervorhebung zurücksetzen">
+            <Button
+              size="small"
+              aria-label="zurücksetzen"
+              icon={<FontAwesomeIcon icon={faXmark} />}
+              onClick={reset}
+            />
+          </Tooltip>
+          <Tooltip title="gewählte IDs hervorheben">
+            <Button
+              size="small"
+              type="primary"
+              aria-label="hervorheben"
+              icon={<FontAwesomeIcon icon={faArrowRight} />}
+              onClick={send}
+            />
+          </Tooltip>
         </div>
       </div>
     </Control>
