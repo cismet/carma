@@ -22,6 +22,10 @@ export type HighlightModeState = {
   bufferPanelOpen?: boolean;
   /** a shape has been drawn that can be shown and run again */
   hasLastShape?: boolean;
+  /** the last shape is on the map right now, so the button runs it next */
+  lastShapeShown?: boolean;
+  /** bumped by the UI to put the remembered shape on the map */
+  showShapeVersion?: number;
   /** bumped by the UI to run the remembered shape again */
   applyShapeVersion?: number;
   /** what a drag does; only "intersect" draws orange today */

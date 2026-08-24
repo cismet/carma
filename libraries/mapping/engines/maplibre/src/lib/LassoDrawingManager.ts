@@ -143,6 +143,8 @@ export interface LassoDrawingManagerOptions {
   clearDelay?: number;
   /** Reports whether a shape has been drawn that can be shown and run again. */
   onLastShapeChange?: (hasLastShape: boolean) => void;
+  /** Reports whether the last shape is currently shown on the map. */
+  onLastShapePreviewChange?: (previewing: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -172,6 +174,7 @@ export class LassoDrawingManager {
   private lineBuffer: number;
   private clearDelay: number;
   private onLastShapeChange?: (hasLastShape: boolean) => void;
+  private onLastShapePreviewChange?: (previewing: boolean) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
 
@@ -254,6 +257,7 @@ export class LassoDrawingManager {
     this.lineBuffer = options.lineBuffer ?? DEFAULT_LINE_BUFFER;
     this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
     this.onLastShapeChange = options.onLastShapeChange;
+    this.onLastShapePreviewChange = options.onLastShapePreviewChange;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
   }
@@ -337,8 +341,16 @@ export class LassoDrawingManager {
    */
   showLastShape(): void {
     if (!this.lastShape || this.placingLine) return;
-    this.previewingLastShape = true;
+    this.setPreviewing(true);
     this.renderLastShape();
+  }
+
+  /** The preview is the manager's own state, so every place that drops it —
+   *  a new draw, a wipe, running it — reports the same truth to the UI. */
+  private setPreviewing(previewing: boolean): void {
+    if (previewing === this.previewingLastShape) return;
+    this.previewingLastShape = previewing;
+    this.onLastShapePreviewChange?.(previewing);
   }
 
   private renderLastShape(): void {
@@ -363,7 +375,7 @@ export class LassoDrawingManager {
   /** Takes the preview back down; a line being placed is left alone. */
   hideLastShape(): void {
     if (!this.previewingLastShape) return;
-    this.previewingLastShape = false;
+    this.setPreviewing(false);
     if (this.placingLine) return;
     this.clearVisual();
   }
@@ -377,7 +389,7 @@ export class LassoDrawingManager {
       : last.polygon;
     // put it up for the usual moment, so running it again is visible
     this.renderLastShape();
-    this.previewingLastShape = false;
+    this.setPreviewing(false);
     this.clearVisualDelayed();
     this.onDrawComplete(polygon);
   }
@@ -385,9 +397,10 @@ export class LassoDrawingManager {
   /** Every completed shape passes here, so "run the last one again" works for
    *  the lasso and the sized shapes as well as for the line. */
   private rememberShape(polygon: Polygon, line: Position[] | null): void {
-    const had = this.lastShape !== null;
     this.lastShape = { polygon, line };
-    if (!had) this.onLastShapeChange?.(true);
+    // fires on every completed shape, not just the first: the UI resets what
+    // it knows about the previous one on the strength of it
+    this.onLastShapeChange?.(true);
   }
 
   /** A line is being clicked together right now. */
@@ -540,6 +553,7 @@ export class LassoDrawingManager {
 
     e.preventDefault();
     // the shape still standing from the last draw belongs to the past now
+    this.setPreviewing(false);
     this.cancelPendingClear();
     // Lazy-init source/layers in case activate() deferred them
     this.ensureSourceAndLayers();
@@ -697,7 +711,7 @@ export class LassoDrawingManager {
 
   private startLinePlacement(): void {
     // the new line takes the screen over from a preview of the old one
-    this.previewingLastShape = false;
+    this.setPreviewing(false);
     this.placingLine = true;
     this.drawing = true;
     this.map.on("mousemove", this.handleLineMouseMove);
@@ -1176,7 +1190,7 @@ export class LassoDrawingManager {
 
   private clearVisual(): void {
     this.cancelPendingClear();
-    this.previewingLastShape = false;
+    this.setPreviewing(false);
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (source) {
       source.setData({ type: "FeatureCollection", features: [] });
