@@ -1,4 +1,5 @@
 import type { FachzwillingRoute } from ".";
+import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
 export const addonsFachzwilling: FachzwillingRoute = {
   path: "addons",
@@ -63,7 +64,16 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "vectorHighlightDebug",
       config: { limit: 20, property: "id", hidden: true },
     },
-    "nearestFeature",
+    {
+      kind: "nearestFeature",
+      config: {
+        origin: {
+          lat: DEFAULT_HOME_VIEW_REF.lat,
+          lng: DEFAULT_HOME_VIEW_REF.lng,
+        },
+      },
+    },
+    "nearestFeatureApotheken",
     {
       kind: "visibleFeatureStatsSource",
       config: {
