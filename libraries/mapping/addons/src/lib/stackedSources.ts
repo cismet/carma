@@ -15,6 +15,13 @@ export type StackedSource = {
   sourceId: string;
   catalogLayerId: string;
   /**
+   * The catalog id the layer apis speak (`carma.mapping2D.hasLayer` and
+   * friends), from the `metadata["carma-layer-id"]` stamp. `catalogLayerId` is
+   * the slugified style URL instead, so it cannot be matched against a config.
+   * Undefined for layers a style added without one.
+   */
+  carmaLayerId?: string;
+  /**
    * source-layers referenced by the stack's style layers. Empty means "take
    * every layer the tile holds", which is what a vector source whose style
    * layer omits `source-layer` implies.
@@ -45,10 +52,14 @@ export const resolveStackedSources = (map: MaplibreMap): StackedSource[] => {
     if (type !== "vector" && type !== "geojson") {
       continue;
     }
+    const carmaLayerId = metadata?.["carma-layer-id"];
     const existing = sources.get(layer.source);
     const entry = existing ?? {
       sourceId: layer.source,
       catalogLayerId: stamped,
+      ...(typeof carmaLayerId === "string" && carmaLayerId !== ""
+        ? { carmaLayerId }
+        : {}),
       sourceLayers: [],
       type,
     };
@@ -66,6 +77,19 @@ export const resolveStackedSources = (map: MaplibreMap): StackedSource[] => {
   }
   return [...sources.values()];
 };
+
+/**
+ * The ids of the style layers drawing one source, which is what
+ * `queryRenderedFeatures` wants when it should only look at that layer. Passing
+ * ids the style no longer has throws there, so this is read fresh per query.
+ */
+export const styleLayerIdsForSource = (
+  map: MaplibreMap,
+  sourceId: string
+): string[] =>
+  (map.getStyle()?.layers ?? [])
+    .filter((layer) => "source" in layer && layer.source === sourceId)
+    .map((layer) => layer.id);
 
 /**
  * Run a URL through the map's request transform, so a source that needs an API

@@ -789,6 +789,11 @@ export const vectorStylesToMapLibreStyle = async ({
                 // layer that only carries a 3D configuration has no paint to
                 // bake it into, so it travels here as well.
                 "layer-opacity": layer.opacity ?? 1,
+                // the catalog id, which is what the layer apis speak;
+                // "layer-id" above is the style's own name for the layer
+                ...(layer.carmaLayerId
+                  ? { "carma-layer-id": layer.carmaLayerId }
+                  : {}),
                 ...(userFilter ? { originalFilter: origFilter } : {}),
               },
               paint: {
