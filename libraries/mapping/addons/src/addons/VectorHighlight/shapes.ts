@@ -3,7 +3,7 @@ import { faCircle, faSquare } from "@fortawesome/free-regular-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
-export const DEFAULT_SHAPES: DrawShape[] = ["lasso", "circle", "rect", "line"];
+export const DEFAULT_SHAPES: DrawShape[] = ["line", "lasso", "circle", "rect"];
 
 export const SHAPE_LABELS: Record<DrawShape, string> = {
   lasso: "Lasso",

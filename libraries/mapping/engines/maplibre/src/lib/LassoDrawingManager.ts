@@ -784,7 +784,7 @@ export class LassoDrawingManager {
    * What a finished line selects with: the line itself, or the corridor
    * `lineBuffer` metres to either side of it when a width is set.
    */
-  private(coords: Position[]): Polygon | LineString | null {
+  private buildLineShape(coords: Position[]): Polygon | LineString | null {
     if (coords.length < 2) return null;
     if (this.lineBuffer <= 0) {
       return { type: "LineString", coordinates: coords };
