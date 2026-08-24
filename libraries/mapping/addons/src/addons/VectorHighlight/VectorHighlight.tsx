@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   useMapHighlighting,
@@ -7,6 +7,7 @@ import {
   DEFAULT_CIRCLE_RADIUS_STEP,
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
+  DEFAULT_LINE_BUFFER,
 } from "@carma-mapping/engines/maplibre";
 import type {
   DrawShape,
@@ -62,6 +63,7 @@ export const VectorHighlight = ({
     shapes,
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
     defaultRectSize,
+    defaultLineBuffer = DEFAULT_LINE_BUFFER,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
   } = config ?? {};
 
@@ -77,6 +79,8 @@ export const VectorHighlight = ({
     setCircleRadius,
     setRectSize,
   } = useHighlightModeActions();
+
+  const lineBuffer = mode?.lineBuffer ?? defaultLineBuffer;
 
   // key on the content: route configs pass a fresh array per render
   const shapesKey = (shapes ?? DEFAULT_SHAPES).join(" ");
@@ -113,8 +117,20 @@ export const VectorHighlight = ({
       availableShapes,
       monochrome,
       operationColors: publishedColors,
+      lineBuffer: previous?.lineBuffer ?? defaultLineBuffer,
     }));
-  }, [availableShapes, monochrome, publishedColors, setMode]);
+  }, [availableShapes, monochrome, publishedColors, defaultLineBuffer, setMode]);
+
+  // the drawing manager lives in this hook, so the toolbar's "a line is
+  // waiting" flag has to be published from here
+  const handlePendingLineChange = useCallback(
+    (pending: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        hasPendingLine: pending,
+      })),
+    [setMode]
+  );
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
@@ -142,15 +158,17 @@ export const VectorHighlight = ({
 
   // `active` switches between the passive modifier-drag manager and the
   // explicit one that draws on a plain drag while the mode is on
-  useLassoHighlight({
+  const { applyPendingLine, cancelLine } = useLassoHighlight({
     map: lasso ? libreMap : null,
     active: lasso && (modeActive || highlightingActive),
     shape,
     circleRadius,
     rectSize,
     radiusStep,
+    lineBuffer,
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
+    onPendingLineChange: handlePendingLineChange,
     onDeactivate: endMode,
     // the operation is picked in the layer row, so the Shift and Alt+Shift
     // refine gestures stay disarmed here
@@ -158,6 +176,24 @@ export const VectorHighlight = ({
     // resolved here, so config overrides and monochrome reach the drawn shape
     color: colorForOperation(operation),
   });
+
+  // the toolbar asks for the pending line to be applied or dropped by bumping
+  // a counter, so no callback has to be parked in the shared addon state
+  const applyRequest = mode?.applyLineVersion ?? 0;
+  const previousApplyRequest = useRef(applyRequest);
+  useEffect(() => {
+    if (applyRequest === previousApplyRequest.current) return;
+    previousApplyRequest.current = applyRequest;
+    applyPendingLine();
+  }, [applyRequest, applyPendingLine]);
+
+  const cancelRequest = mode?.cancelLineVersion ?? 0;
+  const previousCancelRequest = useRef(cancelRequest);
+  useEffect(() => {
+    if (cancelRequest === previousCancelRequest.current) return;
+    previousCancelRequest.current = cancelRequest;
+    cancelLine();
+  }, [cancelRequest, cancelLine]);
 
   const controllerRef = useRef<DimController | null>(null);
   // so a controller created while the mode is already on installs the
