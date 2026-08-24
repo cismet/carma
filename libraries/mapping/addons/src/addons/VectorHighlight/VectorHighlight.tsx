@@ -8,6 +8,7 @@ import {
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
   DEFAULT_LINE_BUFFER,
+  DEFAULT_CLEAR_DELAY,
 } from "@carma-mapping/engines/maplibre";
 import type {
   DrawShape,
@@ -64,6 +65,7 @@ export const VectorHighlight = ({
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
     defaultRectSize,
     defaultLineBuffer = DEFAULT_LINE_BUFFER,
+    clearDelay = DEFAULT_CLEAR_DELAY,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
   } = config ?? {};
 
@@ -156,6 +158,7 @@ export const VectorHighlight = ({
     rectSize,
     radiusStep,
     lineBuffer,
+    clearDelay,
     onCircleRadiusChange: setCircleRadius,
     onRectSizeChange: setRectSize,
     onDeactivate: endMode,

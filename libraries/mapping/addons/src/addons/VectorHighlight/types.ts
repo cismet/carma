@@ -64,6 +64,12 @@ export type VectorHighlightConfig = {
   defaultRectSize?: RectSize;
   /** Corridor half-width in metres a drawn line starts with. Default: 25 */
   defaultLineBuffer?: number;
+  /**
+   * Milliseconds every drawn shape stays on the map after it is finished,
+   * before it is wiped — long enough to see what it just selected.
+   * 0 wipes it at once. Default: 1000
+   */
+  clearDelay?: number;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
   /**
