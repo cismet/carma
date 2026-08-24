@@ -1,5 +1,7 @@
 export { VectorHighlight } from "./VectorHighlight";
 export { VectorHighlightControl } from "./VectorHighlightControl";
+export { VectorHighlightDebugPanel } from "./VectorHighlightDebugPanel";
+export type { VectorHighlightDebugPanelConfig } from "./VectorHighlightDebugPanel";
 export { VectorHighlightShapeTools } from "./VectorHighlightShapeTools";
 export type { VectorHighlightShapeToolsProps } from "./VectorHighlightShapeTools";
 export { ShapeToolbar } from "./ShapeToolbar";

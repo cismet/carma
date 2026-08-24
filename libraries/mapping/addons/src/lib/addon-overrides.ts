@@ -42,6 +42,7 @@ export const SWITCHABLE_KINDS = [
   "cameraRestriction",
   "vectorHighlight",
   "vectorHighlightControl",
+  "vectorHighlightDebug",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
   "cageIndicatorBadge",
