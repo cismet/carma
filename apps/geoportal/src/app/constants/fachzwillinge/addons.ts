@@ -31,7 +31,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
     },
     { kind: "vectorHighlightControl" },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
-    { kind: "vectorHighlightDebug", config: { limit: 20, property: "id" } },
+    {
+      kind: "vectorHighlightDebug",
+      config: { limit: 20, property: "id", hidden: false },
+    },
     {
       kind: "visibleFeatureStatsSource",
       config: {
