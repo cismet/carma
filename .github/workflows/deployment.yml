@@ -456,6 +456,8 @@ jobs:
         run: npm install
 
       - name: Build project
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --output-style=stream-without-prefixes
         shell: bash
@@ -798,6 +800,8 @@ jobs:
         run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="live/" --skip-nx-cache --skipInstall --parallel=1
 
       - name: Build project
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}" --skip-nx-cache
         shell: bash
@@ -1064,6 +1068,8 @@ jobs:
         run: npm install
 
       - name: Build project
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"
         shell: bash
