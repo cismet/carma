@@ -324,8 +324,12 @@ jobs:
         run: npm install
 
       - name: Build project
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
-          npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --output-style=stream-without-prefixes
+          TIME_CMD=""
+          if [ -x /usr/bin/time ]; then TIME_CMD="/usr/bin/time -v"; fi
+          $TIME_CMD npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --output-style=stream-without-prefixes
         shell: bash
 
       - name: Deploy to PR deployment repository
