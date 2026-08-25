@@ -111,10 +111,16 @@ const findGemarkungByNameOrKey = (
   data: LandParcelDataStructure
 ): { key: string; entry: GemarkungEntry } | null => {
   const normalized = input.trim().toLowerCase();
+  // the six digit Gemarkungsschlüssel printed on ALKIS documents is the four
+  // digit key with the "05" land prefix in front of it
+  const withoutLandPrefix =
+    /^05\d{4}$/.test(normalized) ? normalized.substring(2) : null;
+
   for (const key of Object.keys(data)) {
     if (
       data[key].gemarkung.toLowerCase() === normalized ||
-      key === normalized
+      key === normalized ||
+      key === withoutLandPrefix
     ) {
       return { key, entry: data[key] };
     }
@@ -126,7 +132,8 @@ const findFlurByInput = (
   input: string,
   flure: Record<string, FlurEntry>
 ): { key: string; entry: FlurEntry } | null => {
-  const normalized = input.trim();
+  // the input may carry the zero padding of the ALKIS id ("001" for Flur 1)
+  const normalized = removeLeadingZeros(input.trim(), true);
   for (const key of Object.keys(flure)) {
     const flurClean = removeLeadingZeros(flure[key].flur, true);
     if (flurClean === normalized) {
@@ -190,48 +197,96 @@ export const parseLandParcelInput = (
   };
 };
 
-export const normalizeLandParcelInput = (input: string): string | null => {
+const buildLandParcelInput = (
+  gem: string,
+  flur: string,
+  zaehler: string,
+  nenner?: string
+): string =>
+  `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(
+    flur,
+    true
+  )}${LAND_PARCEL_SEPARATOR}${
+    nenner === undefined ? zaehler : removeLeadingZeros(`${zaehler}/${nenner}`)
+  }`;
+
+/**
+ * The readings of a digit-only land parcel id, most likely one first. A digit
+ * count can be ambiguous between formats, so callers that have the parcel data
+ * at hand should try them in order and keep the one that resolves.
+ */
+export const landParcelInputCandidates = (input: string): string[] => {
   const cleaned = input.trim().replace(/_/g, "0");
 
   // Already in our separator format
-  if (cleaned.includes(LAND_PARCEL_SEPARATOR)) return cleaned;
+  if (cleaned.includes(LAND_PARCEL_SEPARATOR)) return [cleaned];
 
   const digitsOnly = cleaned.replace(/\D/g, "");
 
   // 20-char ALKIS format with 05 prefix: 05(2) + gem(4) + flur(3) + zähler(5) + nenner(4) + padding(2)
   if (digitsOnly.length >= 18 && digitsOnly.startsWith("05")) {
-    const gem = digitsOnly.substring(2, 6);
-    const flur = digitsOnly.substring(6, 9);
-    const zaehler = digitsOnly.substring(9, 14);
-    const nenner = digitsOnly.substring(14, 18);
-    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(
-      flur,
-      true
-    )}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
+    return [
+      buildLandParcelInput(
+        digitsOnly.substring(2, 6),
+        digitsOnly.substring(6, 9),
+        digitsOnly.substring(9, 14),
+        digitsOnly.substring(14, 18)
+      ),
+    ];
   }
 
-  // 16-char compact format: gem(4) + flur(4) + zähler(4) + nenner(4)
+  // 14-char ALKIS format without Nenner: 05(2) + gem(4) + flur(3) + zähler(5)
+  if (digitsOnly.length === 14 && digitsOnly.startsWith("05")) {
+    return [
+      buildLandParcelInput(
+        digitsOnly.substring(2, 6),
+        digitsOnly.substring(6, 9),
+        digitsOnly.substring(9, 14)
+      ),
+    ];
+  }
+
+  // 12-char ALKIS format without the 05 prefix: gem(4) + flur(3) + zähler(5)
+  if (digitsOnly.length === 12) {
+    return [
+      buildLandParcelInput(
+        digitsOnly.substring(0, 4),
+        digitsOnly.substring(4, 7),
+        digitsOnly.substring(7, 12)
+      ),
+    ];
+  }
+
+  // 16 digits is ambiguous: the ALKIS format without the 05 prefix
+  // (gem(4) + flur(3) + zähler(5) + nenner(4)) and the compact format
+  // (gem(4) + flur(4) + zähler(4) + nenner(4)) have the same length
   if (digitsOnly.length === 16) {
-    const gem = digitsOnly.substring(0, 4);
-    const flur = digitsOnly.substring(4, 8);
-    const zaehler = digitsOnly.substring(8, 12);
-    const nenner = digitsOnly.substring(12, 16);
-    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(
-      flur,
-      true
-    )}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
+    return [
+      buildLandParcelInput(
+        digitsOnly.substring(0, 4),
+        digitsOnly.substring(4, 7),
+        digitsOnly.substring(7, 12),
+        digitsOnly.substring(12, 16)
+      ),
+      buildLandParcelInput(
+        digitsOnly.substring(0, 4),
+        digitsOnly.substring(4, 8),
+        digitsOnly.substring(8, 12),
+        digitsOnly.substring(12, 16)
+      ),
+    ];
   }
 
-  return null;
+  return [];
 };
 
-export const tryDirectLandParcelMatch = (
-  value: string,
+export const normalizeLandParcelInput = (input: string): string | null =>
+  landParcelInputCandidates(input)[0] ?? null;
+
+const matchNormalizedLandParcel = (
+  normalized: string,
   data: LandParcelDataStructure
 ): GroupedOptions[] | null => {
-  const normalized = normalizeLandParcelInput(value);
-  if (!normalized) return null;
-
   const segments = normalized.split(LAND_PARCEL_SEPARATOR);
   if (segments.length < 3) return null;
 
@@ -290,6 +345,19 @@ export const tryDirectLandParcelMatch = (
       titleText: title,
     },
   ];
+};
+
+export const tryDirectLandParcelMatch = (
+  value: string,
+  data: LandParcelDataStructure
+): GroupedOptions[] | null => {
+  for (const candidate of landParcelInputCandidates(value)) {
+    const match = matchNormalizedLandParcel(candidate, data);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
 };
 
 export const generateGemarkungOptions = (
