@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMapSelection } from "@carma-mapping/contexts";
 import type {
+  DynamicModeRerun,
   DynamicSearchGroup,
   DynamicSearchOption,
 } from "@carma-mapping/fuzzy-search";
@@ -9,6 +10,7 @@ import type {
 import { useAddonState } from "../../lib/AddonStateContext";
 import { primeFeatureIndexes } from "../../lib/featureIndex";
 import type { AddonComponentProps } from "../../lib/registry";
+import { useOriginLocation, useOriginRequest } from "../OriginSearch";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
   categoryForInput,
@@ -25,6 +27,26 @@ import {
   DEFAULT_PLACEHOLDER,
 } from "./config";
 import { rankCategory } from "./rankCategory";
+
+/** identity of a starting point, for "were these rows ranked from here?" */
+const originKeyOf = (origin: { lat: number; lng: number }) =>
+  `${origin.lat},${origin.lng}`;
+
+/**
+ * One ranking of one category. Not a cache: entering a category's stage always
+ * searches again. It survives the keystrokes that filter that result, so typing
+ * does not re-rank and move the map per character, and it says which category
+ * and which starting point it belongs to, so a run from somewhere else is not
+ * mistaken for one of those keystrokes.
+ */
+type Run = {
+  category: NearestFeatureCategory;
+  rows: DynamicSearchOption[];
+  /** why it produced nothing, for the row that says so */
+  problem: string | null;
+  /** where it was ranked from; another origin makes those rows stale */
+  originKey: string;
+};
 
 /**
  * "In der Nähe": the nearest-feature ranking as a mode of the gazetteer search.
@@ -44,8 +66,11 @@ import { rankCategory } from "./rankCategory";
  * just happened are held on to, so typing a filter behind the category does not
  * re-rank and re-fit the map on every keystroke.
  *
- * The origin is the app's home view for now; a real position (the device, the
- * map centre, a pinned point) replaces one config value.
+ * "Nearby" is measured from the `originLocation` channel, which the
+ * `originSearch` addon writes: once a category has been ranked the mode asks
+ * for that input to be shown, and picking a starting point there re-ranks the
+ * category on screen through `subscribe`. Without that addon the channel stays
+ * empty and the configured `origin` is used, as before.
  *
  * MapLibre only: without a MapLibre map the mode is not registered at all.
  */
@@ -56,7 +81,7 @@ export const NearestFeature = ({
 }: AddonComponentProps<"nearestFeature">) => {
   // the geoportal's programmatic selection channel, the same one a result list
   // uses; outside a provider this is an inert default
-  const { selectFeature } = useMapSelection();
+  const { selectFeature, clearSelection } = useMapSelection();
 
   const {
     key = DEFAULT_KEY,
@@ -75,6 +100,8 @@ export const NearestFeature = ({
   mapRef.current = libreMap;
   const selectFeatureRef = useRef(selectFeature);
   selectFeatureRef.current = selectFeature;
+  const clearSelectionRef = useRef(clearSelection);
+  clearSelectionRef.current = clearSelection;
 
   // the categories the route's category addons published, read through a ref
   // for the same reason: one mounting later must not re-register the mode
@@ -82,17 +109,53 @@ export const NearestFeature = ({
   const categoriesRef = useRef<NearestFeatureCategory[]>([]);
   categoriesRef.current = Object.values(publishedCategories ?? {});
 
+  // the starting point, read the same way and for the same reason: the origin
+  // search publishing another one must not re-register the mode, which would
+  // refetch the whole gazetteer
+  const [publishedOrigin] = useOriginLocation();
+  const effectiveOrigin = publishedOrigin ?? origin;
+  const originRef = useRef(effectiveOrigin);
+  originRef.current = effectiveOrigin;
+
+  /** the run that just happened; see `Run` */
+  const lastRunRef = useRef<Run | null>(null);
+
   /**
-   * The rows of the run that just happened, not a cache: entering a category's
-   * stage always searches again. This only survives the keystrokes that filter
-   * that result, so typing does not re-rank and move the map per character.
+   * A run the origin change already did, waiting for the search to ask. Without
+   * it the rerun below would rank the very same category a second time, because
+   * entering a stage always searches again.
    */
-  const lastRunRef = useRef<{
-    category: string;
-    rows: DynamicSearchOption[];
-    /** why it produced nothing, for the row that says so */
-    problem: string | null;
-  } | null>(null);
+  const pendingRunRef = useRef<Run | null>(null);
+
+  // a category has been ranked, so a starting point is now worth offering
+  const [hasRanked, setHasRanked] = useState(false);
+  useOriginRequest("nearestFeature", "In der Nähe: Startpunkt", hasRanked);
+
+  /** rank a category from wherever the origin is now, and keep the rows */
+  const runRanking = useCallback(
+    async (category: NearestFeatureCategory): Promise<Run> => {
+      const map = mapRef.current;
+      const currentOrigin = originRef.current;
+      const originKey = originKeyOf(currentOrigin);
+      if (!map) {
+        // not kept: there is nothing to filter and nothing to re-rank
+        return { category, rows: [], problem: "Keine MapLibre-Karte", originKey };
+      }
+      const { rows, problem } = await rankCategory({
+        map,
+        carma,
+        category,
+        origin: currentOrigin,
+        count,
+        selectFeature: (id) => selectFeatureRef.current(id),
+      });
+      const run: Run = { category, rows, problem, originKey };
+      lastRunRef.current = run;
+      setHasRanked(true);
+      return run;
+    },
+    [carma, count]
+  );
 
   const resolve = useCallback(
     async (input: string): Promise<DynamicSearchGroup[]> => {
@@ -102,31 +165,33 @@ export const NearestFeature = ({
         return [categoryGroup(input, categories)];
       }
 
-      const map = mapRef.current;
       const query = (queryForCategory(input, category) ?? "").toLowerCase();
       const lastRun = lastRunRef.current;
+      const pendingRun = pendingRunRef.current;
+      const originKey = originKeyOf(originRef.current);
+      // the run a new origin already did for this category: take it rather than
+      // rank the same thing again
+      const isPendingRun =
+        pendingRun?.category.key === category.key &&
+        pendingRun.originKey === originKey;
       // an empty query is the stage being entered, which always searches again;
-      // a query only reuses the rows of the run it is filtering
+      // a query only reuses the rows of the run it is filtering, and only while
+      // they were ranked from the origin that is current now
       const isFilteringLastRun =
-        query !== "" && lastRun?.category === category.label;
-      let rows: DynamicSearchOption[];
-      let problem: string | null;
-      if (isFilteringLastRun && lastRun) {
-        ({ rows, problem } = lastRun);
-      } else if (!map) {
-        rows = [];
-        problem = "Keine MapLibre-Karte";
+        query !== "" &&
+        lastRun?.category.key === category.key &&
+        lastRun.originKey === originKey;
+
+      let run: Run;
+      if (isPendingRun && pendingRun) {
+        pendingRunRef.current = null;
+        run = pendingRun;
+      } else if (isFilteringLastRun && lastRun) {
+        run = lastRun;
       } else {
-        ({ rows, problem } = await rankCategory({
-          map,
-          carma,
-          category,
-          origin,
-          count,
-          selectFeature: (id) => selectFeatureRef.current(id),
-        }));
-        lastRunRef.current = { category: category.label, rows, problem };
+        run = await runRanking(category);
       }
+      const { rows, problem } = run;
 
       const filtered =
         query === ""
@@ -161,8 +226,66 @@ export const NearestFeature = ({
       }
       return [{ title, options: filtered }];
     },
-    [carma, count, origin]
+    [runRanking]
   );
+
+  /**
+   * The search pulls, so a new origin cannot push rows into it. The mode hands
+   * the search a rerun callback instead, which it calls once it has ranked the
+   * category again, so an open dropdown picks the fresh rows up. The callback
+   * is kept in a ref so `subscribe` stays the same function and the mode is
+   * never re-registered.
+   */
+  const rerunRef = useRef<DynamicModeRerun | null>(null);
+  const subscribe = useCallback((rerun: DynamicModeRerun) => {
+    rerunRef.current = rerun;
+    return () => {
+      if (rerunRef.current === rerun) {
+        rerunRef.current = null;
+      }
+    };
+  }, []);
+
+  /**
+   * A new starting point re-ranks the category that is on screen, whether or
+   * not the dropdown is open: picking an address in the origin search moves the
+   * focus there, so waiting for the search to ask again would leave the map
+   * fitted around the old point. The ranking runs here, and the search is only
+   * told afterwards, through the rerun above.
+   *
+   * What was picked before belongs to the old starting point, so the selection
+   * goes first: the map ends up on the category's stage again, fitted around
+   * the new point, with the fresh hits in the dropdown.
+   */
+  const originKey = originKeyOf(effectiveOrigin);
+  useEffect(() => {
+    const lastRun = lastRunRef.current;
+    // nothing ranked yet, or ranked from exactly this point: the origin search
+    // publishing its default on mount must not re-rank and move the map
+    if (!lastRun || lastRun.originKey === originKey) {
+      return;
+    }
+    const { category } = lastRun;
+    lastRunRef.current = null;
+    pendingRunRef.current = null;
+    clearSelectionRef.current();
+    let cancelled = false;
+    void (async () => {
+      const run = await runRanking(category);
+      // another origin arrived while this one was ranking: that run owns the
+      // map and the rows now
+      if (cancelled) {
+        return;
+      }
+      pendingRunRef.current = run;
+      // back to the category itself, off whatever hit was picked in it, and
+      // show the new ones rather than leave the user to open the dropdown
+      rerunRef.current?.({ input: categoryInputValue(category), open: true });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [originKey, runRanking]);
 
   // fetch the indexes as soon as their sources are in the style, so a search
   // has nothing left to fetch. `styledata` fires constantly; priming is a no-op
@@ -181,8 +304,8 @@ export const NearestFeature = ({
   }, [libreMap, preloadIndexes]);
 
   const mode = useMemo(
-    () => ({ key, label, icon, placeholder, resolve }),
-    [key, label, icon, placeholder, resolve]
+    () => ({ key, label, icon, placeholder, resolve, subscribe }),
+    [key, label, icon, placeholder, resolve, subscribe]
   );
 
   useEffect(() => {
