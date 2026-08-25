@@ -237,6 +237,8 @@ const SpyglassLayer = ({
     };
   }, [onSize]);
 
+  useLensAnchoredZoom(boxRef, position);
+
   return (
     <div
       ref={boxRef}
@@ -255,4 +257,91 @@ const SpyglassLayer = ({
       />
     </div>
   );
+};
+
+/**
+ * Wheeling anywhere but on the ring zooms about the middle of the lens.
+ *
+ * A map zooms about the pointer, which is the wrong place here: the lens is
+ * what the user is reading, and zooming beside it slides its content out from
+ * under it, so the thing being looked at is the one thing that moves. Anchoring
+ * on the middle of the circle keeps what is in the lens in the lens, and the
+ * surroundings move around it instead.
+ *
+ * Rather than zoom the maps directly, the wheel is stopped before it reaches
+ * one and sent again at the lens's middle. MapLibre reads the anchor off the
+ * event's own coordinates, so everything else about the gesture stays theirs:
+ * the trackpad's fine steps, the wheel's coarse ones, momentum, ctrl-to-pinch.
+ * Zooming a panel syncs the rest, as any other movement of a panel does.
+ *
+ * The listener sits on the stage, which is the box's parent, since a wheel over
+ * a panel is aimed at that panel's canvas and never at the overlay beside it.
+ * The same reason the box is here at all: only something inside the stage can
+ * reach the stage.
+ */
+const useLensAnchoredZoom = (
+  boxRef: React.MutableRefObject<HTMLDivElement | null>,
+  position: Point | null
+) => {
+  // read at event time, so dragging the lens does not re-attach a listener per
+  // frame just to move the anchor a few pixels
+  const positionRef = useRef(position);
+  positionRef.current = position;
+
+  useEffect(() => {
+    const box = boxRef.current;
+    const stage = box?.parentElement;
+    if (!box || !stage) {
+      return;
+    }
+    // the one we sent ourselves, which must reach the map rather than us
+    let redispatching = false;
+
+    const onWheel = (event: WheelEvent) => {
+      if (redispatching) {
+        return;
+      }
+      const point = positionRef.current;
+      if (!point) {
+        return;
+      }
+      // the ring has its own use for the wheel: over it, wheeling resizes the
+      // lens. Asking the element rather than the geometry keeps the hit area in
+      // one place, the overlay's.
+      if (event.target instanceof Node && box.contains(event.target)) {
+        return;
+      }
+      const stageRect = stage.getBoundingClientRect();
+      event.preventDefault();
+      event.stopPropagation();
+      const aimed = new WheelEvent("wheel", {
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        deltaZ: event.deltaZ,
+        deltaMode: event.deltaMode,
+        clientX: stageRect.left + point.x,
+        clientY: stageRect.top + point.y,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+      redispatching = true;
+      try {
+        (event.target ?? stage).dispatchEvent(aimed);
+      } finally {
+        redispatching = false;
+      }
+    };
+
+    // capture, so the map's own handler further down never runs; not passive,
+    // so the page does not scroll behind the comparison
+    stage.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => {
+      stage.removeEventListener("wheel", onWheel, { capture: true });
+    };
+  }, [boxRef]);
 };
