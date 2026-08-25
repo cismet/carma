@@ -34,6 +34,7 @@ import {
   setCameraRestrictionBase,
 } from "../utils/cameraRestriction";
 import { publishMapLayers } from "../utils/mapLayers";
+import { publishMapThreeRuntimeParams } from "../utils/mapThreeParams";
 import { createFeature } from "../utils/featureUtils";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
@@ -575,6 +576,17 @@ export const LibreMap = ({
     publishMapLayers(mapInstance, layers);
   }, [layers]);
 
+  // Same for the three.js switch: a consumer building a second view of this
+  // map's content has to know whether the original draws its 3D layers as
+  // geometry, or the copy silently comes out flat. See utils/mapThreeParams.
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) {
+      return;
+    }
+    publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
+  }, [threeRuntimeParams]);
+
   // Keep the zoom bounds in sync when a host changes them after construction.
   useEffect(() => {
     const mapInstance = map.current;
@@ -902,6 +914,7 @@ export const LibreMap = ({
       // the instance through setLibreMap can read the layers straight away
       // instead of waiting a render for the effect
       publishMapLayers(mapInstance, layers);
+      publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       if (exposeMapToWindow) {

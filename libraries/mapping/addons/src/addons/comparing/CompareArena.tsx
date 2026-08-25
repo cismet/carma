@@ -1,6 +1,9 @@
 import { useEffect, useMemo, type CSSProperties } from "react";
 
-import { useMapLayers } from "@carma-mapping/engines/maplibre";
+import {
+  useMapLayers,
+  useMapThreeRuntimeParams,
+} from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { CompareStage } from "./stage/CompareStage";
@@ -97,6 +100,9 @@ export const CompareArena = ({
   const isActive = isOn && mode === COMPARE_MODE.arena;
 
   const layers = useMapLayers(libreMap);
+  // the panels show the app map's content, so they draw it the way that map
+  // does: a layer built as three.js geometry there is geometry here as well
+  const threeRuntimeParams = useMapThreeRuntimeParams(libreMap);
   const roles = useMemo(
     () => rolesFromAssignments(layers, assignments ?? {}, panelCount),
     [assignments, layers, panelCount]
@@ -173,6 +179,7 @@ export const CompareArena = ({
       containerStyle={containerStyle}
       overrideGlyphs={config?.overrideGlyphs}
       appMapSync={config?.appMapSync}
+      threeRuntimeParams={threeRuntimeParams}
     />
   );
 };

@@ -7,7 +7,10 @@ import {
 } from "react";
 
 import { SwipeOverlay } from "@carma-mapping/core";
-import { useMapLayers } from "@carma-mapping/engines/maplibre";
+import {
+  useMapLayers,
+  useMapThreeRuntimeParams,
+} from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { CompareStage } from "./stage/CompareStage";
@@ -96,6 +99,9 @@ export const CompareSwipe = ({
   // importantly, leaves the layout alone while it is not the one on screen
   const isActive = isOn && mode === COMPARE_MODE.swipe;
   const layers = useMapLayers(libreMap);
+  // the panels show the app map's content, so they draw it the way that map
+  // does: a layer built as three.js geometry there is geometry here as well
+  const threeRuntimeParams = useMapThreeRuntimeParams(libreMap);
   const roles = useMemo(
     () => rolesFromAssignments(layers, assignments ?? {}, panelCount),
     [assignments, layers, panelCount]
@@ -169,6 +175,7 @@ export const CompareSwipe = ({
       panelStyles={panelStyles}
       overrideGlyphs={config?.overrideGlyphs}
       appMapSync={config?.appMapSync}
+      threeRuntimeParams={threeRuntimeParams}
     >
       {isGrid ? (
         <>

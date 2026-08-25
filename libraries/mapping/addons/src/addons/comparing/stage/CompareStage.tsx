@@ -7,6 +7,8 @@ import {
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import type { ThreeRuntimeParams } from "@carma-mapping/engines/maplibre";
+
 import { ComparePanel } from "./ComparePanel";
 import { stageHostOf } from "./stage-host";
 import { useCameraSync } from "./useCameraSync";
@@ -43,6 +45,13 @@ type CompareStageProps = {
    * map's camera continuously.
    */
   appMapSync?: "live" | "settled";
+  /**
+   * The app map's three.js switch, handed to every panel so a 3D layer is 3D
+   * in the comparison as well. Read off the app map by the mode rather than
+   * configured on the route: the panels show that map's content, so they draw
+   * it the way that map does.
+   */
+  threeRuntimeParams?: ThreeRuntimeParams;
 };
 
 /**
@@ -84,6 +93,7 @@ export const CompareStage = ({
   children,
   overrideGlyphs,
   appMapSync = "settled",
+  threeRuntimeParams,
 }: CompareStageProps) => {
   const { register, syncFrom } = useCameraSync();
 
@@ -129,6 +139,7 @@ export const CompareStage = ({
             layers={layersForPanel(roles, index)}
             onMapReady={(map) => handlePanelReady(index, map)}
             overrideGlyphs={overrideGlyphs}
+            threeRuntimeParams={threeRuntimeParams}
           />
         </div>
       ))}

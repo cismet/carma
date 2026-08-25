@@ -2,12 +2,22 @@ import { useCallback } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { LibreContextProvider } from "@carma-mapping/contexts";
-import { LibreMap, type LibreLayer } from "@carma-mapping/engines/maplibre";
+import {
+  LibreMap,
+  type LibreLayer,
+  type ThreeRuntimeParams,
+} from "@carma-mapping/engines/maplibre";
 
 type ComparePanelProps = {
   layers: LibreLayer[];
   onMapReady: (map: MaplibreMap) => void;
   overrideGlyphs?: string;
+  /**
+   * The app map's own three.js switch, carried over so a layer that declares
+   * itself 3D is built as geometry here too. Undefined means the app map draws
+   * no 3D either, and the panel mounts nothing.
+   */
+  threeRuntimeParams?: ThreeRuntimeParams;
 };
 
 /**
@@ -29,6 +39,7 @@ export const ComparePanel = ({
   layers,
   onMapReady,
   overrideGlyphs,
+  threeRuntimeParams,
 }: ComparePanelProps) => {
   const handleMapReady = useCallback(
     (map: MaplibreMap) => {
@@ -45,6 +56,7 @@ export const ComparePanel = ({
           layers={layers}
           setLibreMap={handleMapReady}
           overrideGlyphs={overrideGlyphs}
+          threeRuntimeParams={threeRuntimeParams}
           selectionEnabled={false}
           hashWriteEnabled={false}
         />
