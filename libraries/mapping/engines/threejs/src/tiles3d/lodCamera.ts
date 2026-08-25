@@ -19,6 +19,8 @@ export interface LodCameraFrame {
   meterScale: number;
   /** Drawing buffer size in pixels. */
   viewport: THREE.Vector2;
+  /** Optional elevation for the map centre when terrain lives outside MapLibre. */
+  centerElevationMeters?: number;
 }
 
 /**
@@ -68,7 +70,7 @@ export function synthesizeLodCamera(
   const centerLngLat = map.getCenter();
   const centerMerc = MercatorCoordinate.fromLngLat(
     centerLngLat,
-    map.queryTerrainElevation(centerLngLat) ?? 0
+    frame.centerElevationMeters ?? map.queryTerrainElevation(centerLngLat) ?? 0
   );
   lookTarget.set(
     (centerMerc.x - originMerc.x) / meterScale,

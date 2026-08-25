@@ -105,6 +105,7 @@ export {
   ShadowSimulation,
   type ShadowSimulationConfig,
 } from "./addons/ShadowSimulation";
+export { getShadowSimulationSolarPosition } from "./addons/ShadowSimulation/solar-position";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
   CompareSwipe,

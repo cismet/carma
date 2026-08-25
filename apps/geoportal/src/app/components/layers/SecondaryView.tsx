@@ -18,6 +18,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import {
+  getShadowSimulationSolarPosition,
   resolveSecondaryViewTargetAddon,
   TargetAddonHost,
   useAddonState,
@@ -73,22 +74,6 @@ type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
-const formatShadowSelection = (selection: {
-  year: number;
-  dayOfYear: number;
-  minutes: number;
-}) => {
-  const date = new Intl.DateTimeFormat("de-DE", {
-    day: "2-digit",
-    month: "short",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(selection.year, 0, selection.dayOfYear)));
-  const roundedMinutes = Math.round(selection.minutes);
-  const hours = String(Math.floor(roundedMinutes / 60)).padStart(2, "0");
-  const minutes = String(roundedMinutes % 60).padStart(2, "0");
-  return `${date} · ${hours}:${minutes}`;
-};
-
 const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -143,6 +128,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const isShadowSimulationLayer =
     entry.id === SHADOW_SIMULATION_LAYER_ID &&
     secondaryViewAddon?.kind === "shadowSimulation";
+  const shadowSolarPosition =
+    isShadowSimulationLayer && shadowState
+      ? getShadowSimulationSolarPosition(
+          shadowState.selection,
+          secondaryViewAddon.config
+        )
+      : null;
 
   const isInteractionActive = activeInteractionLayerID === entry.id;
   const canFilter =
@@ -426,9 +418,20 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 </div>
               </div>
             )}
-            {isShadowSimulationLayer && shadowState && (
-              <div className="hidden min-w-0 flex-1 whitespace-nowrap text-sm tabular-nums text-neutral-500 sm:block">
-                {formatShadowSelection(shadowState.selection)}
+            {shadowSolarPosition && (
+              <div
+                className="hidden min-w-0 flex-1 whitespace-nowrap text-base tabular-nums text-neutral-500 sm:block"
+                aria-label={`Sonne: Azimut ${shadowSolarPosition.azimuthDegrees.toFixed(
+                  0
+                )} Grad, Höhe ${shadowSolarPosition.elevationDegrees.toFixed(
+                  1
+                )} Grad`}
+                title={`Azimut ${shadowSolarPosition.azimuthDegrees.toFixed(
+                  0
+                )}° · Höhe ${shadowSolarPosition.elevationDegrees.toFixed(1)}°`}
+              >
+                Sonne {shadowSolarPosition.azimuthDegrees.toFixed(0)}° /{" "}
+                {shadowSolarPosition.elevationDegrees.toFixed(1)}°
               </div>
             )}
             {canFilter && (

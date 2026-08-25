@@ -18,21 +18,31 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import { SolarDayTimeControl } from "./SolarDayTimeControl";
 import { buildShadowSimulationScene } from "./shadow-scene";
-import type { ShadowSimulationScene } from "./shadow-scene";
+import type {
+  ShadowSimulationScene,
+  ShadowTerrainOptions,
+} from "./shadow-scene";
 import {
   clampSelectionToDaylight,
+  DEFAULT_SHADOW_SIMULATION_LOCATION,
   getSolarPosition,
   getSolarSelectionForInstant,
   type SolarLocation,
   type SolarSelection,
 } from "./solar-position";
 
-const DEFAULT_LOCATION: SolarLocation = {
-  latitude: 51.256,
-  longitude: 7.15,
-  timeZone: "Europe/Berlin",
-};
 const ACTIVE_CONTROL_COLOR = "#1677ff";
+const DEFAULT_TERRAIN_COLOR = "#d8d1c4";
+
+const resolveTerrainColor = (value: unknown) => {
+  if (typeof value === "string" && /^#[\da-f]{6}$/i.test(value)) return value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `#${Math.max(0, Math.min(0xffffff, Math.round(value)))
+      .toString(16)
+      .padStart(6, "0")}`;
+  }
+  return DEFAULT_TERRAIN_COLOR;
+};
 
 export type ShadowSimulationConfig = {
   year?: number;
@@ -42,6 +52,7 @@ export type ShadowSimulationConfig = {
   longitude?: number;
   timeZone?: string;
   shadowAreaMeters?: number;
+  terrain?: ShadowTerrainOptions;
   controlPosition?: Positions;
   controlOrder?: number;
 };
@@ -49,17 +60,21 @@ export type ShadowSimulationConfig = {
 export type ShadowSimulationState = {
   enabled: boolean;
   selection: SolarSelection;
+  terrainColor: string;
 };
 
 const ShadowSimulationSettings = ({
   location,
   state,
   setState,
+  showTerrainColor,
 }: {
   location: SolarLocation;
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
+  showTerrainColor: boolean;
 }) => {
+  const terrainColor = state.terrainColor ?? DEFAULT_TERRAIN_COLOR;
   const solarPosition = useMemo(
     () => getSolarPosition(state.selection, location),
     [location, state.selection]
@@ -72,8 +87,31 @@ const ShadowSimulationSettings = ({
         location={location}
         selection={state.selection}
         position={solarPosition}
-        onChange={(selection) => setState({ ...state, selection })}
+        onChange={(selection) =>
+          setState({ ...state, selection, terrainColor })
+        }
       />
+      {showTerrainColor && (
+        <label className="mt-1 flex items-center gap-2 px-1 text-sm text-slate-700">
+          <span>Terrainfarbe</span>
+          <input
+            type="color"
+            value={terrainColor}
+            onChange={(event) =>
+              setState({
+                ...state,
+                terrainColor: event.currentTarget.value,
+              })
+            }
+            className="h-7 w-10 cursor-pointer rounded border border-slate-300 bg-transparent p-0.5"
+            aria-label="Terrainfarbe"
+            data-test-id="shadow-simulation-terrain-color"
+          />
+          <span className="tabular-nums text-slate-500">
+            {terrainColor.toUpperCase()}
+          </span>
+        </label>
+      )}
     </div>
   );
 };
@@ -81,12 +119,14 @@ const ShadowSimulationSettings = ({
 const ShadowSimulationRuntime = ({
   libreMap,
   shadowAreaMeters,
+  terrain,
   location,
   state,
   available,
 }: {
   libreMap: AddonComponentProps<"shadowSimulation">["libreMap"];
   shadowAreaMeters?: number;
+  terrain?: ShadowTerrainOptions;
   location: SolarLocation;
   state: ShadowSimulationState;
   available: boolean;
@@ -99,17 +139,26 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!libreMap || !state.enabled || !available) return;
-    const scene = buildShadowSimulationScene(libreMap, { shadowAreaMeters });
+    const scene = buildShadowSimulationScene(libreMap, {
+      shadowAreaMeters,
+      terrain,
+    });
     shadowScene.current = scene;
     return () => {
       shadowScene.current = null;
       scene.dispose();
     };
-  }, [available, libreMap, shadowAreaMeters, state.enabled]);
+  }, [available, libreMap, shadowAreaMeters, state.enabled, terrain]);
 
   useEffect(() => {
     shadowScene.current?.updateSolarPosition(solarPosition);
   }, [solarPosition]);
+
+  useEffect(() => {
+    shadowScene.current?.updateTerrainColor(
+      state.terrainColor ?? DEFAULT_TERRAIN_COLOR
+    );
+  }, [state.terrainColor]);
 
   return null;
 };
@@ -123,10 +172,11 @@ export const ShadowSimulation = ({
     year,
     initialDayOfYear,
     initialMinutes,
-    latitude = DEFAULT_LOCATION.latitude,
-    longitude = DEFAULT_LOCATION.longitude,
-    timeZone = DEFAULT_LOCATION.timeZone,
+    latitude = DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
+    longitude = DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
+    timeZone = DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
     shadowAreaMeters,
+    terrain,
     controlPosition = "topleft",
     controlOrder = 70,
   } = config ?? {};
@@ -143,12 +193,13 @@ export const ShadowSimulation = ({
     };
     return {
       enabled: false,
+      terrainColor: resolveTerrainColor(terrain?.material?.color),
       selection: clampSelectionToDaylight(candidate, location) ?? {
         ...candidate,
         minutes: 12 * 60,
       },
     };
-  }, [initialDayOfYear, initialMinutes, location, timeZone, year]);
+  }, [initialDayOfYear, initialMinutes, location, terrain, timeZone, year]);
   const [sharedState, setSharedState] = useAddonState("shadowSimulation");
   const state = sharedState ?? initialState;
   const shadowAvailable = useSyncExternalStore(
@@ -173,6 +224,7 @@ export const ShadowSimulation = ({
         location={location}
         state={state}
         setState={setSharedState}
+        showTerrainColor={!!terrain}
       />
     );
   }
@@ -220,6 +272,7 @@ export const ShadowSimulation = ({
       <ShadowSimulationRuntime
         libreMap={libreMap}
         shadowAreaMeters={shadowAreaMeters}
+        terrain={terrain}
         location={location}
         state={state}
         available={shadowAvailable}
