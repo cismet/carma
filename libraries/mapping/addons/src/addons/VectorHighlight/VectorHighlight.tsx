@@ -18,7 +18,11 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { createDimController, type DimController } from "./dim-controller";
 import { useCombinedGeometryHighlight } from "./combined-geometry";
 import { useHighlightModeActions } from "./highlight-actions";
-import { DEFAULT_BUFFER_WIDTH, DEFAULT_SHAPES } from "./shapes";
+import {
+  DEFAULT_BUFFER_WIDTH,
+  DEFAULT_SHAPES,
+  MAX_BUFFER_WIDTH,
+} from "./shapes";
 
 import type { HighlightOperation } from "./operations";
 import type { OperationColors } from "./types";
@@ -64,6 +68,7 @@ export const VectorHighlight = ({
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
     defaultRectSize,
     defaultBuffer = DEFAULT_BUFFER_WIDTH,
+    bufferGrowth = 1,
     bufferOnByDefault = false,
     clearDelay = DEFAULT_CLEAR_DELAY,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
@@ -141,17 +146,31 @@ export const VectorHighlight = ({
   // the drawing manager remembers the shape, so the toolbar learns from here
   // whether there is one to offer again
   const handleLastShapeChange = useCallback(
-    (hasLastShape: boolean) =>
+    (hasLastShape: boolean, replayed: boolean) =>
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         hasLastShape,
         // the buffer is a one-off: it belongs to the shape it was opened for,
         // so the next drawing starts from the route's default again — plain,
-        // unless the route asked otherwise. The width itself is kept, ready
-        // for the next time the panel is opened.
+        // unless the route asked otherwise.
         bufferEnabled: bufferOnByDefault,
+        // With growth configured, the width belongs to the shape rather than to
+        // the session: buffering the same shape again picks up where the last
+        // step left off, a newly drawn one starts over. Growing here rather
+        // than when the panel opens is what puts the next step in front of the
+        // user, in the panel, before it runs.
+        ...(bufferGrowth === 1
+          ? null
+          : {
+              shapeBuffer: replayed
+                ? Math.min(
+                    (previous?.shapeBuffer ?? defaultBuffer) * bufferGrowth,
+                    MAX_BUFFER_WIDTH
+                  )
+                : defaultBuffer,
+            }),
       })),
-    [setMode, bufferOnByDefault]
+    [setMode, bufferOnByDefault, bufferGrowth, defaultBuffer]
   );
 
   // the manager owns whether its preview is up — a new draw or a wipe drops it

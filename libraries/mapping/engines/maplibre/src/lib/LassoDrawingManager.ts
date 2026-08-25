@@ -160,8 +160,13 @@ export interface LassoDrawingManagerOptions {
    * Default: 1000
    */
   clearDelay?: number;
-  /** Reports whether a shape has been drawn that can be shown and run again. */
-  onLastShapeChange?: (hasLastShape: boolean) => void;
+  /**
+   * Reports whether a shape has been drawn that can be shown and run again.
+   * `replayed` tells a fresh drawing apart from the remembered shape being run
+   * again, which is the difference between "a new shape" and "the same shape
+   * once more" — the width may well depend on it.
+   */
+  onLastShapeChange?: (hasLastShape: boolean, replayed: boolean) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
@@ -192,7 +197,10 @@ export class LassoDrawingManager {
   private radiusStep: number;
   private shapeBuffer: number;
   private clearDelay: number;
-  private onLastShapeChange?: (hasLastShape: boolean) => void;
+  private onLastShapeChange?: (
+    hasLastShape: boolean,
+    replayed: boolean
+  ) => void;
   private onLastShapePreviewChange?: (previewing: boolean) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
@@ -399,7 +407,7 @@ export class LassoDrawingManager {
   applyLastShape(): void {
     if (!this.lastShape) return;
     this.setPreviewing(false);
-    this.completeShape(this.lastShape);
+    this.completeShape(this.lastShape, true);
   }
 
   /**
@@ -407,10 +415,10 @@ export class LassoDrawingManager {
    * later width change grows it from the original rather than from an already
    * grown one; what is handed over and drawn is the grown version.
    */
-  private completeShape(drawn: Polygon | LineString): void {
+  private completeShape(drawn: Polygon | LineString, replayed = false): void {
     const geometry = this.withBuffer(drawn);
     this.lastShape = drawn;
-    this.onLastShapeChange?.(true);
+    this.onLastShapeChange?.(true, replayed);
     this.renderShape(drawn, geometry);
     this.clearVisualDelayed();
     this.onDrawComplete(geometry);

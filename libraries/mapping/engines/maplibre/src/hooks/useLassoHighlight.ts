@@ -199,8 +199,10 @@ export interface UseLassoHighlightOptions {
   shapeBuffer?: number;
   /** Milliseconds the finished shape stays on the map before it is wiped. */
   clearDelay?: number;
-  /** Reports whether a shape has been drawn that can be shown and run again. */
-  onLastShapeChange?: (hasLastShape: boolean) => void;
+  /** Reports whether a shape has been drawn that can be shown and run again;
+   *  `replayed` is true when it is the remembered shape being run again rather
+   *  than a new drawing. */
+  onLastShapeChange?: (hasLastShape: boolean, replayed: boolean) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
@@ -495,7 +497,8 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       shapeBuffer: shapeBufferRef.current,
       clearDelay: clearDelayRef.current,
-      onLastShapeChange: (has) => onLastShapeChangeRef.current?.(has),
+      onLastShapeChange: (has, replayed) =>
+        onLastShapeChangeRef.current?.(has, replayed),
       onLastShapePreviewChange: (previewing) =>
         onLastShapePreviewChangeRef.current?.(previewing),
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
@@ -507,7 +510,7 @@ export const useLassoHighlight = ({
     managerRef.current = manager;
     // A fresh manager remembers no shape, so say so: the UI would otherwise
     // keep offering the one the destroyed manager held.
-    onLastShapeChangeRef.current?.(manager.hasLastShape());
+    onLastShapeChangeRef.current?.(manager.hasLastShape(), false);
     // Recreated on map change — a new map instance comes with a fresh style,
     // which is exactly what selecting a feature can trigger. The effect below
     // only fires on `active` transitions, so without this the mode would still

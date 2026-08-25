@@ -16,6 +16,9 @@ export const addonsFachzwilling: FachzwillingRoute = {
         lasso: true,
         monochrome: false,
         clearDelay: 1000,
+        // buffering the same shape again doubles the width each time: 25, 50,
+        // 100 … until a new shape is drawn
+        bufferGrowth: 2,
         // operationColors: {
         //   add: "#22c55e",
         //   subtract: "#ec4899",

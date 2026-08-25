@@ -4,7 +4,7 @@ import { Button, InputNumber, Popover, Slider, Tooltip } from "antd";
 
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
-import { SHAPE_ICONS, SHAPE_LABELS } from "./shapes";
+import { MAX_BUFFER_WIDTH, SHAPE_ICONS, SHAPE_LABELS } from "./shapes";
 
 export type ShapeToolbarClassNames = {
   wrapper: string;
@@ -83,6 +83,10 @@ export const ShapeToolbar = ({
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
+  // repeated buffering can carry the width past the range the slider was drawn
+  // for, and a handle pinned to the end would misreport it
+  const sliderMax = Math.max(BUFFER_MAX, bufferWidth);
+
   const bufferLabel = canBuffer
     ? `Puffer um die letzte Form: ${Math.round(bufferWidth)} m`
     : "Puffer: erst eine Form zeichnen";
@@ -99,7 +103,7 @@ export const ShapeToolbar = ({
         <Slider
           className="flex-1"
           min={BUFFER_MIN}
-          max={BUFFER_MAX}
+          max={sliderMax}
           step={BUFFER_STEP}
           value={bufferWidth}
           onChange={(value) => onBufferWidthChange?.(value)}
@@ -108,7 +112,7 @@ export const ShapeToolbar = ({
           size="small"
           className="w-24"
           min={1}
-          max={5000}
+          max={MAX_BUFFER_WIDTH}
           step={BUFFER_STEP}
           value={bufferWidth}
           addonAfter="m"
