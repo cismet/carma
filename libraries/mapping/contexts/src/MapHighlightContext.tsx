@@ -80,6 +80,13 @@ export interface MapHighlightContextType {
   clearHighlights: () => void;
   /** Version counter bumped on every mutation */
   highlightVersion: number;
+  /**
+   * Bumped by `clearHighlights` alone. A clear followed by a fresh set in the
+   * same tick reaches consumers as one `highlightVersion` step, so a consumer
+   * diffing the criteria against its own snapshot cannot tell "these keys were
+   * removed" from "everything was replaced". This says which it was.
+   */
+  clearVersion: number;
 }
 
 const EMPTY_CRITERIA: HighlightCriteria = {
@@ -100,6 +107,7 @@ const defaultContext: MapHighlightContextType = {
   ensureSuppressedFeatures: () => {},
   clearHighlights: () => {},
   highlightVersion: 0,
+  clearVersion: 0,
 };
 
 export const MapHighlightContext =
@@ -116,6 +124,7 @@ export const MapHighlightProvider = ({
 }: MapHighlightProviderProps) => {
   const [highlightingActive, setHighlightingActive] = useState(false);
   const [highlightVersion, setHighlightVersion] = useState(0);
+  const [clearVersion, setClearVersion] = useState(0);
 
   // Use ref + state bump pattern: criteria is mutable (avoids re-creating objects),
   // and highlightVersion triggers consumers to re-read.
@@ -278,6 +287,7 @@ export const MapHighlightProvider = ({
       toggledFeatures: new Map(),
       suppressedFeatures: new Map(),
     };
+    setClearVersion((v) => v + 1);
     bump();
   }, [debug, bump]);
 
@@ -293,6 +303,7 @@ export const MapHighlightProvider = ({
       ensureSuppressedFeatures,
       clearHighlights,
       highlightVersion,
+      clearVersion,
     }),
     [
       highlightingActive,
@@ -303,6 +314,7 @@ export const MapHighlightProvider = ({
       ensureSuppressedFeatures,
       clearHighlights,
       highlightVersion,
+      clearVersion,
     ]
   );
 

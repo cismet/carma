@@ -74,16 +74,28 @@ const buildSiblingIndex = (
  * The delta is mirrored, not the whole set, so removing one geometry removes
  * its siblings instead of being restored by them. Siblings are assumed to share
  * the feature id; `excludeCombinedLayers` covers layers where that fails.
+ *
+ * A wholesale clear is the exception. `clearHighlights` followed by a fresh set
+ * in the same tick arrives as a single version step, and the keys the new set
+ * happens to share with the old one look untouched — so the geometries the new
+ * set does *not* carry read as removals and take their still-selected siblings
+ * down with them. That is what emptied a refine down to nothing on layers whose
+ * object is drawn by several source layers: whatever the refine could not see —
+ * a label the collision detection dropped, a sibling outside the drawn shape —
+ * mirrored its own absence onto the geometries that did survive. After a clear
+ * there is nothing to remove, so the diff runs against an empty snapshot and
+ * only adds.
  */
 export const useCombinedGeometryHighlight = (
   map: MaplibreMap | null,
   enabled: boolean,
   excluded: string[]
 ) => {
-  const { criteria, ensureToggledFeatures, highlightVersion } =
+  const { criteria, ensureToggledFeatures, highlightVersion, clearVersion } =
     useMapHighlight();
   const indexRef = useRef<SiblingIndex>(new Map());
   const seenRef = useRef(new Map<string, ToggledFeature>());
+  const clearedRef = useRef(clearVersion);
 
   useEffect(() => {
     if (!map || !enabled) {
@@ -104,7 +116,10 @@ export const useCombinedGeometryHighlight = (
     if (!enabled) return;
     // the provider mutates this map in place, so the snapshot must be a copy
     const current = criteria.toggledFeatures;
-    const seen = seenRef.current;
+    // everything the snapshot holds was cleared, whatever the new set kept
+    const cleared = clearVersion !== clearedRef.current;
+    clearedRef.current = clearVersion;
+    const seen = cleared ? new Map<string, ToggledFeature>() : seenRef.current;
 
     const siblingsOf = (feature: ToggledFeature): ToggledFeature[] =>
       (
@@ -126,5 +141,5 @@ export const useCombinedGeometryHighlight = (
     seenRef.current = new Map(current);
     // the version is the signal; `criteria` is mutated in place
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlightVersion, enabled, ensureToggledFeatures]);
+  }, [highlightVersion, clearVersion, enabled, ensureToggledFeatures]);
 };
