@@ -82,11 +82,12 @@ export const VectorHighlight = ({
     setRectSize,
   } = useHighlightModeActions();
 
-  // the width only counts while the panel's toggle is on; off means every
+  // the width only counts while the buffer panel is open; closed means every
   // shape selects exactly as drawn
-  const shapeBuffer = (mode?.bufferEnabled ?? bufferOnByDefault)
-    ? mode?.shapeBuffer ?? defaultBuffer
-    : 0;
+  const shapeBuffer =
+    mode?.bufferEnabled ?? bufferOnByDefault
+      ? mode?.shapeBuffer ?? defaultBuffer
+      : 0;
 
   // key on the content: route configs pass a fresh array per render
   const shapesKey = (shapes ?? DEFAULT_SHAPES).join(" ");
@@ -135,7 +136,6 @@ export const VectorHighlight = ({
     setMode,
   ]);
 
-
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
 
   // the drawing manager remembers the shape, so the toolbar learns from here
@@ -145,23 +145,29 @@ export const VectorHighlight = ({
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         hasLastShape,
-        // the buffer is a one-off: it belongs to the shape it was switched on
-        // for, so the next one starts from the route's default again. The
-        // width itself is kept, ready to be switched back on.
+        // the buffer is a one-off: it belongs to the shape it was opened for,
+        // so the next drawing starts from the route's default again — plain,
+        // unless the route asked otherwise. The width itself is kept, ready
+        // for the next time the panel is opened.
         bufferEnabled: bufferOnByDefault,
       })),
     [setMode, bufferOnByDefault]
   );
 
   // the manager owns whether its preview is up — a new draw or a wipe drops it
-  // without the toolbar being asked
+  // without the toolbar being asked. The preview *is* the buffer step, so
+  // whatever drops it ends that step: the panel closes and the next shape is
+  // drawn plain again.
   const handleLastShapePreviewChange = useCallback(
     (lastShapeShown: boolean) =>
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         lastShapeShown,
+        ...(lastShapeShown
+          ? null
+          : { bufferPanelOpen: false, bufferEnabled: bufferOnByDefault }),
       })),
-    [setMode]
+    [setMode, bufferOnByDefault]
   );
 
   // key on the content: route configs pass a fresh array per render
@@ -188,26 +194,27 @@ export const VectorHighlight = ({
 
   // `active` switches between the passive modifier-drag manager and the
   // explicit one that draws on a plain drag while the mode is on
-  const { cancelLine, showLastShape, applyLastShape } = useLassoHighlight({
-    map: lasso ? libreMap : null,
-    active: lasso && (modeActive || highlightingActive),
-    shape,
-    circleRadius,
-    rectSize,
-    radiusStep,
-    shapeBuffer,
-    clearDelay,
-    onLastShapeChange: handleLastShapeChange,
-    onLastShapePreviewChange: handleLastShapePreviewChange,
-    onCircleRadiusChange: setCircleRadius,
-    onRectSizeChange: setRectSize,
-    onDeactivate: endMode,
-    // the operation is picked in the layer row, so the Shift and Alt+Shift
-    // refine gestures stay disarmed here
-    operation: LASSO_OPERATIONS[operation],
-    // resolved here, so config overrides and monochrome reach the drawn shape
-    color: colorForOperation(operation),
-  });
+  const { cancelLine, showLastShape, hideLastShape, applyLastShape } =
+    useLassoHighlight({
+      map: lasso ? libreMap : null,
+      active: lasso && (modeActive || highlightingActive),
+      shape,
+      circleRadius,
+      rectSize,
+      radiusStep,
+      shapeBuffer,
+      clearDelay,
+      onLastShapeChange: handleLastShapeChange,
+      onLastShapePreviewChange: handleLastShapePreviewChange,
+      onCircleRadiusChange: setCircleRadius,
+      onRectSizeChange: setRectSize,
+      onDeactivate: endMode,
+      // the operation is picked in the layer row, so the Shift and Alt+Shift
+      // refine gestures stay disarmed here
+      operation: LASSO_OPERATIONS[operation],
+      // resolved here, so config overrides and monochrome reach the drawn shape
+      color: colorForOperation(operation),
+    });
 
   const showRequest = mode?.showShapeVersion ?? 0;
   const previousShowRequest = useRef(showRequest);
@@ -216,6 +223,14 @@ export const VectorHighlight = ({
     previousShowRequest.current = showRequest;
     showLastShape();
   }, [showRequest, showLastShape]);
+
+  const hideRequest = mode?.hideShapeVersion ?? 0;
+  const previousHideRequest = useRef(hideRequest);
+  useEffect(() => {
+    if (hideRequest === previousHideRequest.current) return;
+    previousHideRequest.current = hideRequest;
+    hideLastShape();
+  }, [hideRequest, hideLastShape]);
 
   const applyRequest = mode?.applyShapeVersion ?? 0;
   const previousApplyRequest = useRef(applyRequest);
