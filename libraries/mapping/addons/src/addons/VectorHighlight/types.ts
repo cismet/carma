@@ -80,7 +80,11 @@ export type VectorHighlightConfig = {
    * exactly as drawn. Default: 25
    */
   defaultBuffer?: number;
-  /** Start with the buffer already switched on. Default: false */
+  /**
+   * Start with the buffer switched on, and switch it back on after every
+   * shape. Without it the buffer is a one-off: on for the shape it was set
+   * for, off again afterwards. Default: false
+   */
   bufferOnByDefault?: boolean;
   /**
    * Milliseconds every drawn shape stays on the map after it is finished,

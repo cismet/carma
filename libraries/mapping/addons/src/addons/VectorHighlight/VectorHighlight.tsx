@@ -145,8 +145,12 @@ export const VectorHighlight = ({
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         hasLastShape,
+        // the buffer is a one-off: it belongs to the shape it was switched on
+        // for, so the next one starts from the route's default again. The
+        // width itself is kept, ready to be switched back on.
+        bufferEnabled: bufferOnByDefault,
       })),
-    [setMode]
+    [setMode, bufferOnByDefault]
   );
 
   // the manager owns whether its preview is up — a new draw or a wipe drops it
