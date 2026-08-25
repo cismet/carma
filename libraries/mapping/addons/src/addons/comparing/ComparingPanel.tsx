@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useRef,
   useState,
   type DragEvent,
   type ReactNode,
@@ -180,18 +179,9 @@ export type ComparingPanelProps = {
   /**
    * Closes the pane, which the pane cannot do itself: it is shown by the host
    * for whichever layer row's button is active, and only the host can make that
-   * button inactive again. Bound to Escape and to a click outside here.
+   * button inactive again. Bound to Escape here.
    */
   onClose?: () => void;
-  /**
-   * CSS selector for what a click outside must not count as outside, e.g. the
-   * layer bar the pane hangs off.
-   *
-   * The button that opened the pane is one of those: closing on the press and
-   * letting the host's own toggle run on the release would reopen the pane in
-   * the same gesture, and that button could never close it again.
-   */
-  keepOpenSelector?: string;
 };
 
 /**
@@ -209,7 +199,6 @@ export type ComparingPanelProps = {
 export const ComparingPanel = ({
   onLayerVisibilityChange,
   onClose,
-  keepOpenSelector,
 }: ComparingPanelProps) => {
   const {
     panelCount,
@@ -225,8 +214,6 @@ export const ComparingPanel = ({
   } = useComparingActions();
   const entries = useCompareLayerEntries();
   const [dragOver, setDragOver] = useState<number | null>(null);
-
-  const paneRef = useRef<HTMLDivElement>(null);
 
   // on the window rather than on the pane: the pane holds no focus of its own,
   // so a keystroke never reaches it, and Escape is expected to work wherever
@@ -245,33 +232,6 @@ export const ComparingPanel = ({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [onClose]);
-
-  // the press rather than the click, so a drag that starts on the map closes
-  // the pane before it moves anything
-  useEffect(() => {
-    if (!onClose) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-      if (paneRef.current?.contains(target)) {
-        return;
-      }
-      const element =
-        target instanceof Element ? target : target.parentElement;
-      if (keepOpenSelector && element?.closest(keepOpenSelector)) {
-        return;
-      }
-      onClose();
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [keepOpenSelector, onClose]);
 
   // the boxes are the panels, so they have to sit the way the mode draws them:
   // stacked bands for "Übereinander", columns for "Nebeneinander", 2x2 for the
@@ -333,7 +293,6 @@ export const ComparingPanel = ({
 
   return (
     <div
-      ref={paneRef}
       data-test-id="comparing-panel"
       className="carma-comparing-pane w-[100vw] sm:w-[86vw] sm:max-w-[680px] md:max-w-[860px] max-h-[70vh] sm:max-h-[60vh] shrink-0 bg-white rounded-[10px] flex flex-col relative gap-2 px-4 py-3"
     >

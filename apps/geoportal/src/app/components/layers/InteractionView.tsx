@@ -77,11 +77,8 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
 
 /**
  * The comparison's control pane with the things it cannot do itself: dragging a
- * layer into a window switches it on when it was off, and Escape or a click
- * outside closes the pane. Both are dispatches into this app's state.
- *
- * `#buttonWrapper` is the layer bar. A press there is not "outside": the button
- * that opened the pane sits in it and does its own toggling.
+ * layer into a window switches it on when it was off, and Escape closes the
+ * pane. Both are dispatches into this app's state.
  */
 const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
   const dispatch = useDispatch();
@@ -95,7 +92,6 @@ const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
         dispatch(setActiveInteractionButtonID(null));
         dispatch(setActiveInteractionLayerID(null));
       }}
-      keepOpenSelector="#buttonWrapper"
     />
   );
 };
