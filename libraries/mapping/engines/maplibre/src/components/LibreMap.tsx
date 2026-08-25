@@ -1547,6 +1547,28 @@ export const LibreMap = ({
               [];
             const sourceToIdx = new Map<string, number>();
 
+            // What opacity the host asked of each source's layer. A three.js
+            // layer has no paint properties, so the layer bar's slider cannot
+            // reach it the way it reaches a 2D layer; carrying the number here
+            // is what lets the 3D layer honour the same slider. `layerSources`
+            // already maps a host layer id to the sources it produced, so this
+            // only has to turn that around.
+            const opacityBySource = new Map<string, number>();
+            for (const registration of layerSources) {
+              const owner = (effectiveLayers ?? []).find(
+                (candidate) =>
+                  candidate.carmaLayerId === registration.carmaLayerId
+              );
+              const opacity =
+                owner && "opacity" in owner ? owner.opacity : undefined;
+              if (typeof opacity !== "number") {
+                continue;
+              }
+              for (const sourceId of registration.sourceIds) {
+                opacityBySource.set(sourceId, opacity);
+              }
+            }
+
             for (const layer of style.layers ?? []) {
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta) continue;
@@ -1561,6 +1583,7 @@ export const LibreMap = ({
                   ...meta,
                   sourceId,
                   sourceLayer,
+                  layerOpacity: opacityBySource.get(sourceId) ?? 1,
                   skipIn2DLayerIds: [],
                 });
               }

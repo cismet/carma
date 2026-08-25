@@ -43,6 +43,7 @@ export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
 export {
   buildExtrusionMeshes,
+  DEFAULT_BUILDING_OPACITY,
   defaultBuildingColors,
   featureBuildingColors,
   type BuildingColors,

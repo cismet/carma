@@ -56,6 +56,14 @@ function buildSourceIndexMap(ranges: VertexRange[]): Map<number, VertexRange[]> 
 const COLOR_DEFAULT = new THREE.Color("#888888");
 const COLOR_PUBLIC = new THREE.Color("#dca894");
 
+/**
+ * How opaque a building is when nothing says otherwise.
+ *
+ * Shared rather than only baked into the materials below, because the layer's
+ * own opacity is applied on top of it and the multiplication needs both halves.
+ */
+export const DEFAULT_BUILDING_OPACITY = 0.65;
+
 /** walls a shade darker than their roof, so the two read apart under flat light */
 const WALL_DARKEN = 0.85;
 const COLOR_DEFAULT_WALL = COLOR_DEFAULT.clone().multiplyScalar(WALL_DARKEN);
@@ -483,7 +491,7 @@ export function buildExtrusionMeshes(
     vertexColors: true,
     flatShading: true,
     transparent: true,
-    opacity: 0.65,
+    opacity: DEFAULT_BUILDING_OPACITY,
     depthWrite: true,
     side: THREE.DoubleSide,
   });
@@ -492,7 +500,7 @@ export function buildExtrusionMeshes(
     vertexColors: true,
     flatShading: true,
     transparent: true,
-    opacity: 0.65,
+    opacity: DEFAULT_BUILDING_OPACITY,
     depthWrite: true,
     side: THREE.DoubleSide,
   });

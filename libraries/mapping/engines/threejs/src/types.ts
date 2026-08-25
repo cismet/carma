@@ -119,6 +119,16 @@ export interface Carma3dConfig {
   wallAngleThreshold?: number;
   /** When true, the original 2D layer is hidden (opacity near-zero) while the 3D layer is active. */
   skipIn2D?: boolean;
+  /**
+   * The opacity the host asked of the layer this config belongs to, 0 to 1.
+   * Populated during config detection, not from metadata.
+   *
+   * A layer's opacity reaches a 2D layer as paint properties, which a three.js
+   * layer has none of, so the layer bar's slider would otherwise do nothing to
+   * it. Multiplied with `buildingOpacity`, the same way the 2D side multiplies
+   * the slider with the style's own opacity.
+   */
+  layerOpacity?: number;
   /** Layer IDs to hide when skipIn2D is active. Populated during config detection, not from metadata. */
   skipIn2DLayerIds?: string[];
 }

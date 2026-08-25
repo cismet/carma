@@ -12,6 +12,7 @@ import {
   buildLatheInstances,
   buildLoftMeshes,
   buildExtrusionMeshes,
+  DEFAULT_BUILDING_OPACITY,
   featureBuildingColors,
   ensureProfiles,
   resolveOrigin,
@@ -736,11 +737,21 @@ export function ThreeLayerManager({
 
   // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
   const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
-  // the host's own prop wins, the style sets the layer's default
-  const buildingOpacity =
+  // How opaque the buildings end up: what the layer is worth on its own, times
+  // what the host has asked of the layer as a whole.
+  //
+  // The multiplication is the same one the 2D side does, where the layer bar's
+  // slider scales each paint property against the value the style gave it. So a
+  // layer drawn at 0.65 sits at 0.325 when the slider is halfway, and a slider
+  // at the top leaves the style's own number alone. Without this the slider
+  // moves nothing at all on a three.js layer, since it has no paint properties
+  // for the usual path to scale.
+  const baseBuildingOpacity =
     typeof runtimeParams.buildingOpacity === "number"
       ? runtimeParams.buildingOpacity
-      : config.buildingOpacity;
+      : config.buildingOpacity ?? DEFAULT_BUILDING_OPACITY;
+  const buildingOpacity =
+    baseBuildingOpacity * (config.layerOpacity ?? 1);
 
   // Where the buildings take their colours from.
   //
