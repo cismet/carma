@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { MercatorCoordinate } from "maplibre-gl";
+import { LngLat, MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import type { Scene } from "three";
@@ -444,6 +444,36 @@ export function ThreeLayerManager({
       if (!heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
 
       const hasTerrain = map.getTerrain() != null;
+
+      // How the ground under a building is read.
+      //
+      // `map.queryTerrainElevation` decides which zoom to read the DEM at by
+      // running `coveringTiles` over the whole viewport, and it does that on
+      // every call before reading its one pixel. Asked once per building that
+      // is about 0.3 ms of tile arithmetic against a few microseconds of
+      // lookup, so a rebuild of several thousand buildings spends around a
+      // second of the main thread in there and the map stands still while the
+      // geometry is put together. Every tile that arrives asks for another one.
+      //
+      // The zoom it arrives at belongs to the camera, not to the point, so it
+      // is the same for every building in one rebuild. Worked out once and
+      // handed to the per-point entry point, the same lookup costs about a
+      // hundred and fiftieth of that and returns the same elevation.
+      const terrain = map.terrain;
+      const terrainZoom = Math.floor(map.getZoom());
+      const elevationAt = (lng: number, lat: number): number => {
+        if (!hasTerrain) {
+          return 0;
+        }
+        if (terrain) {
+          return terrain.getElevationForLngLatZoom(
+            new LngLat(lng, lat),
+            terrainZoom
+          );
+        }
+        return map.queryTerrainElevation({ lng, lat }) ?? 0;
+      };
+
       const raw = map.querySourceFeatures(config.sourceId, {
         sourceLayer: config.sourceLayer,
       });
@@ -542,9 +572,7 @@ export function ThreeLayerManager({
           for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
           cLng /= ring.length;
           cLat /= ring.length;
-          const elevation = hasTerrain
-            ? (map.queryTerrainElevation({ lng: cLng, lat: cLat }) ?? 0)
-            : 0;
+          const elevation = elevationAt(cLng, cLat);
           buildings.push({
             ring,
             height: g.height,
