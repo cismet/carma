@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -97,6 +98,33 @@ export const CompareStage = ({
 }: CompareStageProps) => {
   const { register, syncFrom } = useCameraSync();
 
+  // An element of our own inside the map's wrapper, rather than the wrapper
+  // itself.
+  //
+  // The wrapper is rendered by `LibreMap`, so React already keeps a record of
+  // what is in it. Portalling into it adds a child that record does not have,
+  // and the two disagree as soon as that tree re-renders or is replaced, which
+  // a module reload does both of: React goes to remove a node from a parent
+  // that no longer holds it and the app comes down with "The node to be removed
+  // is not a child of this node".
+  //
+  // The element is created here and taken away again on the way out, so no
+  // other tree ever has an opinion about it. Positioned like the stage was, so
+  // the panels sit in the same box as before.
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const element = document.createElement("div");
+    element.className = "carma-comparing-host";
+    element.style.position = "absolute";
+    element.style.inset = "0";
+    stageHostOf(appMap).appendChild(element);
+    setHost(element);
+    return () => {
+      element.remove();
+      setHost(null);
+    };
+  }, [appMap]);
+
   useEffect(() => {
     const container = appMap.getContainer();
     const previous = container.style.visibility;
@@ -123,6 +151,10 @@ export const CompareStage = ({
     [appMap, register, syncFrom]
   );
 
+  if (!host) {
+    return null;
+  }
+
   return createPortal(
     <div
       className="carma-comparing"
@@ -145,6 +177,6 @@ export const CompareStage = ({
       ))}
       {children}
     </div>,
-    stageHostOf(appMap)
+    host
   );
 };
