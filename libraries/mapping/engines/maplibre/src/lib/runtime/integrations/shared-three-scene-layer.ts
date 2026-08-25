@@ -21,8 +21,6 @@ export interface SharedThreeSceneRuntime {
   id: string;
   originLngLat: [number, number];
   root: THREE.Object3D;
-  /** Runtime contains visible geometry that can cast or receive shadows. */
-  supportsShadows?: boolean;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;
   dispose: () => void;
@@ -32,7 +30,6 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   addRuntime: (runtime: SharedThreeSceneRuntime) => void;
   removeRuntime: (runtimeId: string) => void;
   hasRuntime: (runtimeId: string) => boolean;
-  hasShadeableContent: () => boolean;
   getScene: () => THREE.Scene;
   projectLngLatToScene: (
     lngLat: [number, number],
@@ -46,8 +43,55 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
 
 export interface SharedThreeSceneLayerOptions {
   ambientLightIntensity?: number;
-  onContentChange?: () => void;
 }
+
+type DepthRange = readonly [near: number, far: number];
+
+type RenderTargetDepthRangeBridge = {
+  render: (depthRange: DepthRange, callback: () => void) => void;
+  dispose: () => void;
+};
+
+/**
+ * Three.js does not track `gl.depthRange`. MapLibre intentionally compresses
+ * the main 3D depth range to leave room for later style layers, but that range
+ * must not leak into Three's offscreen shadow maps: their lookup coordinates
+ * are always normalized to [0, 1]. Route offscreen targets to the canonical
+ * range while preserving MapLibre's range for the shared main framebuffer.
+ */
+export const installRenderTargetDepthRangeBridge = (
+  renderer: Pick<THREE.WebGLRenderer, "setRenderTarget">,
+  gl: Pick<WebGLRenderingContext, "depthRange">
+): RenderTargetDepthRangeBridge => {
+  const originalSetRenderTarget = renderer.setRenderTarget;
+  let activeDepthRange: DepthRange | null = null;
+
+  renderer.setRenderTarget = function (...args) {
+    originalSetRenderTarget.apply(renderer, args);
+    if (!activeDepthRange) return;
+    if (args[0] === null) {
+      gl.depthRange(activeDepthRange[0], activeDepthRange[1]);
+    } else {
+      gl.depthRange(0, 1);
+    }
+  };
+
+  return {
+    render(depthRange, callback) {
+      activeDepthRange = depthRange;
+      try {
+        callback();
+      } finally {
+        activeDepthRange = null;
+        gl.depthRange(depthRange[0], depthRange[1]);
+      }
+    },
+    dispose() {
+      activeDepthRange = null;
+      renderer.setRenderTarget = originalSetRenderTarget;
+    },
+  };
+};
 
 const rotationX = new THREE.Matrix4().makeRotationAxis(
   new THREE.Vector3(1, 0, 0),
@@ -74,6 +118,7 @@ export const buildSharedThreeSceneLayer = (
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
+  let depthRangeBridge: RenderTargetDepthRangeBridge | null = null;
   let originMerc: MercatorCoordinate | null = null;
   let meterScale = 0;
   let disposed = false;
@@ -108,7 +153,6 @@ export const buildSharedThreeSceneLayer = (
       scene.add(runtime.root);
       placeRuntime(runtime);
       if (map) runtime.onAdd?.(map);
-      options.onContentChange?.();
       map?.triggerRepaint();
     },
 
@@ -118,18 +162,11 @@ export const buildSharedThreeSceneLayer = (
       runtimes.delete(runtimeId);
       scene.remove(runtime.root);
       runtime.dispose();
-      options.onContentChange?.();
       map?.triggerRepaint();
     },
 
     hasRuntime(runtimeId) {
       return runtimes.has(runtimeId);
-    },
-
-    hasShadeableContent() {
-      return [...runtimes.values()].some(
-        (runtime) => runtime.supportsShadows && runtime.root.visible
-      );
     },
 
     getScene() {
@@ -152,6 +189,8 @@ export const buildSharedThreeSceneLayer = (
 
     detach() {
       for (const runtime of runtimes.values()) scene.remove(runtime.root);
+      depthRangeBridge?.dispose();
+      depthRangeBridge = null;
       renderer?.dispose();
       renderer = null;
       map = null;
@@ -168,15 +207,15 @@ export const buildSharedThreeSceneLayer = (
         canvas: mapInstance.getCanvas(),
         context: gl,
       });
+      depthRangeBridge = installRenderTargetDepthRangeBridge(renderer, gl);
       renderer.autoClear = false;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
       for (const runtime of runtimes.values()) {
         if (runtime.root.parent !== scene) scene.add(runtime.root);
         placeRuntime(runtime);
         runtime.onAdd?.(mapInstance);
       }
-      options.onContentChange?.();
     },
 
     render(gl, options: CustomRenderMethodInput) {
@@ -232,17 +271,24 @@ export const buildSharedThreeSceneLayer = (
       for (const runtime of runtimes.values()) runtime.update(frame);
       scene.updateMatrixWorld(true);
 
-      const savedDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
+      const currentDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
+      const savedDepthRange: DepthRange = [
+        currentDepthRange[0],
+        currentDepthRange[1],
+      ];
       renderer.resetState();
-      renderer.render(scene, renderCamera);
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
+      depthRangeBridge?.render(savedDepthRange, () => {
+        renderer?.render(scene, renderCamera);
+      });
     },
 
     onRemove() {
+      depthRangeBridge?.dispose();
+      depthRangeBridge = null;
       renderer?.dispose();
       renderer = null;
       map = null;
-      options.onContentChange?.();
     },
 
     dispose() {
@@ -251,10 +297,11 @@ export const buildSharedThreeSceneLayer = (
       for (const runtime of runtimes.values()) runtime.dispose();
       runtimes.clear();
       scene.clear();
+      depthRangeBridge?.dispose();
+      depthRangeBridge = null;
       renderer?.dispose();
       renderer = null;
       map = null;
-      options.onContentChange?.();
     },
   };
 

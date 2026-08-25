@@ -456,7 +456,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     id: layerId,
     originLngLat,
     root: orientationGroup,
-    supportsShadows: true,
     originMerc,
     mScale,
 

@@ -118,4 +118,22 @@ describe("Cesium terrain tile source", () => {
     expect(source.sampleHeight(10, 10)).toBe(151.5);
     expect(terrainData.interpolateHeight).toHaveBeenCalledOnce();
   });
+
+  it("exposes the complete tile grid separately from source availability", async () => {
+    const { provider } = buildProvider();
+    provider.getTileDataAvailable.mockImplementation(
+      (x: number) => x % 2 === 0
+    );
+    fromUrl.mockResolvedValueOnce(provider);
+    const source = await acquireCesiumTerrainTileSource(
+      "https://example.test/terrain-grid"
+    );
+    const bounds = { west: -10, south: 0, east: 50, north: 20 };
+
+    const gridIds = source.getTileGridIdsForBounds(bounds, 2);
+    const availableIds = source.getTileIdsForBounds(bounds, 2);
+
+    expect(gridIds.length).toBeGreaterThan(availableIds.length);
+    expect(availableIds.every(({ x }) => x % 2 === 0)).toBe(true);
+  });
 });

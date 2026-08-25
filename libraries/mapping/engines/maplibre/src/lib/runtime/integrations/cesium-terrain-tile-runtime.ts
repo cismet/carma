@@ -2,9 +2,11 @@ import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   Camera,
+  FrontSide,
   Group,
   Matrix4,
   Mesh,
+  MeshDepthMaterial,
   MeshStandardMaterial,
   Vector3,
   type ColorRepresentation,
@@ -37,6 +39,9 @@ const DEFAULT_MAXIMUM_LEVEL = 17;
 const DEFAULT_MAX_SELECTION_TILES = 192;
 const DEFAULT_REQUEST_CONCURRENCY = 6;
 const DEFAULT_MAX_CACHED_MESHES = 256;
+const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
+const TERRAIN_SHADOW_POLYGON_OFFSET_FACTOR = 2;
+const TERRAIN_SHADOW_POLYGON_OFFSET_UNITS = 4;
 
 export type CesiumTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
@@ -68,18 +73,36 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
 type TerrainMeshRecord = {
   mesh: Mesh;
   boundaryIndices: Uint32Array;
+  hasRelief: boolean;
   lastUsed: number;
 };
 
 type TerrainSelection = {
-  ids: CesiumTerrainTileId[];
+  entries: TerrainSelectionEntry[];
   signature: string;
 };
 
-type TerrainCandidate = {
+type TerrainSelectionEntry = {
   id: CesiumTerrainTileId;
+  kind: "source" | "flat";
+};
+
+type TerrainCandidate = {
+  entry: TerrainSelectionEntry;
   errorRatio: number;
 };
+
+const FLAT_TERRAIN_U = new Float32Array([0, 0, 1, 1]);
+const FLAT_TERRAIN_V = new Float32Array([0, 1, 0, 1]);
+const FLAT_TERRAIN_HEIGHTS = new Float32Array(4);
+const FLAT_TERRAIN_INDICES = new Uint32Array([0, 3, 1, 0, 2, 3]);
+const FLAT_TERRAIN_WEST_INDICES = new Uint32Array([0, 1]);
+const FLAT_TERRAIN_SOUTH_INDICES = new Uint32Array([0, 2]);
+const FLAT_TERRAIN_EAST_INDICES = new Uint32Array([2, 3]);
+const FLAT_TERRAIN_NORTH_INDICES = new Uint32Array([1, 3]);
+
+const terrainSelectionKey = ({ id, kind }: TerrainSelectionEntry) =>
+  `${kind}:${cesiumTerrainTileKey(id)}`;
 
 const clampInteger = (
   value: number | undefined,
@@ -225,7 +248,18 @@ export const buildCesiumTerrainRuntime = (
     color: options.material?.color ?? DEFAULT_TERRAIN_COLOR,
     roughness: options.material?.roughness ?? 0.96,
     metalness: options.material?.metalness ?? 0,
+    side: FrontSide,
+    // The terrain is an open upward-wound surface, unlike closed building
+    // extrusions. Cast its visible top faces directly instead of Three.js's
+    // default opposite-side pass, which requires a closed volume.
+    shadowSide: FrontSide,
   });
+  const shadowDepthMaterial = new MeshDepthMaterial({
+    polygonOffset: true,
+    polygonOffsetFactor: TERRAIN_SHADOW_POLYGON_OFFSET_FACTOR,
+    polygonOffsetUnits: TERRAIN_SHADOW_POLYGON_OFFSET_UNITS,
+  });
+  shadowDepthMaterial.name = `${runtimeId}-shadow-depth`;
   const sourcePromise = acquireCesiumTerrainTileSource(terrainUrl, {
     maxCacheBytes: options.maxCacheBytes,
   });
@@ -267,6 +301,25 @@ export const buildCesiumTerrainRuntime = (
     );
   };
 
+  const createFlatTerrainTile = (
+    terrainSource: CesiumTerrainTileSource,
+    id: CesiumTerrainTileId
+  ): CesiumTerrainTile => ({
+    id,
+    bounds: terrainSource.getTileBounds(id),
+    u: FLAT_TERRAIN_U,
+    v: FLAT_TERRAIN_V,
+    heightMeters: FLAT_TERRAIN_HEIGHTS,
+    indices: FLAT_TERRAIN_INDICES,
+    westIndices: FLAT_TERRAIN_WEST_INDICES,
+    southIndices: FLAT_TERRAIN_SOUTH_INDICES,
+    eastIndices: FLAT_TERRAIN_EAST_INDICES,
+    northIndices: FLAT_TERRAIN_NORTH_INDICES,
+    childTileMask: 0,
+    geometricErrorMeters: 0,
+    byteLength: 0,
+  });
+
   const getScreenSpaceError = (
     terrainSource: CesiumTerrainTileSource,
     frame: SharedThreeSceneFrame,
@@ -301,35 +354,41 @@ export const buildCesiumTerrainRuntime = (
 
   const getRelevantChildren = (
     terrainSource: CesiumTerrainTileSource,
-    parentId: CesiumTerrainTileId,
+    parent: TerrainSelectionEntry,
     viewportBounds: CesiumTerrainTileBounds,
     shadowBounds: CesiumTerrainTileBounds | null
   ) => {
-    const childLevel = parentId.level + 1;
-    const children: CesiumTerrainTileId[] = [];
+    if (parent.kind === "flat") return [];
+    const childLevel = parent.id.level + 1;
+    const children: TerrainSelectionEntry[] = [];
     for (let yOffset = 0; yOffset < 2; yOffset += 1) {
       for (let xOffset = 0; xOffset < 2; xOffset += 1) {
         const id = {
           level: childLevel,
-          x: parentId.x * 2 + xOffset,
-          y: parentId.y * 2 + yOffset,
+          x: parent.id.x * 2 + xOffset,
+          y: parent.id.y * 2 + yOffset,
         };
         const bounds = terrainSource.getTileBounds(id);
-        if (
-          !boundsIntersect(bounds, viewportBounds) &&
-          (!shadowBounds || !boundsIntersect(bounds, shadowBounds))
-        ) {
-          continue;
-        }
-        if (terrainSource.getTileDataAvailable(id) === false) return null;
-        children.push(id);
+        const intersectsViewport = boundsIntersect(bounds, viewportBounds);
+        const intersectsShadow =
+          !!shadowBounds && boundsIntersect(bounds, shadowBounds);
+        if (!intersectsViewport && !intersectsShadow) continue;
+        const kind =
+          terrainSource.getTileDataAvailable(id) === false ? "flat" : "source";
+        // A flat 0 m tile cannot occlude elevated terrain from outside the
+        // viewport, so only real terrain consumes the sun-frustum budget.
+        if (kind === "flat" && !intersectsViewport) continue;
+        children.push({ id, kind });
       }
     }
     return children;
   };
 
-  const ensureMesh = (tile: CesiumTerrainTile) => {
-    const key = cesiumTerrainTileKey(tile.id);
+  const ensureMesh = (
+    tile: CesiumTerrainTile,
+    entry: TerrainSelectionEntry
+  ) => {
+    const key = terrainSelectionKey(entry);
     const cached = meshes.get(key);
     if (cached) {
       cached.lastUsed = ++meshUseClock;
@@ -341,8 +400,14 @@ export const buildCesiumTerrainRuntime = (
     });
     const mesh = new Mesh(geometry, material);
     mesh.name = `${runtimeId}-${key}`;
-    mesh.castShadow = true;
+    const hasRelief =
+      entry.kind === "source" &&
+      tile.heightMeters.some(
+        (height) => Math.abs(height) > ZERO_ELEVATION_EPSILON_METERS
+      );
+    mesh.castShadow = hasRelief;
     mesh.receiveShadow = true;
+    if (mesh.castShadow) mesh.customDepthMaterial = shadowDepthMaterial;
     mesh.visible = false;
     root.add(mesh);
     const boundaryIndices = Uint32Array.from(
@@ -356,6 +421,7 @@ export const buildCesiumTerrainRuntime = (
     meshes.set(key, {
       mesh,
       boundaryIndices,
+      hasRelief,
       lastUsed: ++meshUseClock,
     });
     return mesh;
@@ -372,6 +438,11 @@ export const buildCesiumTerrainRuntime = (
     for (const [key, record] of meshes) {
       if (!activeKeys.has(key)) continue;
       record.mesh.geometry.computeVertexNormals();
+      // Synthetic fallback quads and completely flat source tiles must keep
+      // their geometric up normal. Blending one of their corner normals with
+      // a sloped source-tile edge creates a kilometre-wide Gouraud-shaded
+      // triangle (a visible bright/dark wedge) across the otherwise flat tile.
+      if (!record.hasRelief) continue;
       const position = record.mesh.geometry.getAttribute("position");
       const normal = record.mesh.geometry.getAttribute("normal");
       for (const index of record.boundaryIndices) {
@@ -430,52 +501,71 @@ export const buildCesiumTerrainRuntime = (
     const coverageBounds = shadowBounds
       ? unionBounds(viewportBounds, shadowBounds)
       : viewportBounds;
+    const getRootEntries = (level: number): TerrainSelectionEntry[] =>
+      terrainSource
+        .getTileGridIdsForBounds(coverageBounds, level)
+        .flatMap((id) => {
+          const kind =
+            terrainSource.getTileDataAvailable(id) === false
+              ? "flat"
+              : "source";
+          if (
+            kind === "flat" &&
+            !boundsIntersect(terrainSource.getTileBounds(id), viewportBounds)
+          ) {
+            return [];
+          }
+          return [{ id, kind }];
+        });
     let rootLevel = minimumLevel;
-    let rootIds = terrainSource.getTileIdsForBounds(coverageBounds, rootLevel);
-    while (rootIds.length > maxSelectionTiles && rootLevel > 0) {
+    let rootEntries = getRootEntries(rootLevel);
+    while (rootEntries.length > maxSelectionTiles && rootLevel > 0) {
       rootLevel -= 1;
-      rootIds = terrainSource.getTileIdsForBounds(coverageBounds, rootLevel);
+      rootEntries = getRootEntries(rootLevel);
     }
 
     const selected = new Map(
-      rootIds.map((id) => [cesiumTerrainTileKey(id), id])
+      rootEntries.map((entry) => [terrainSelectionKey(entry), entry])
     );
-    const toCandidate = (id: CesiumTerrainTileId): TerrainCandidate => {
-      const bounds = terrainSource.getTileBounds(id);
+    const toCandidate = (entry: TerrainSelectionEntry): TerrainCandidate => {
+      const bounds = terrainSource.getTileBounds(entry.id);
       const targetPixels = boundsIntersect(bounds, viewportBounds)
         ? errorTargetPixels
         : errorTargetPixels * 2 ** shadowLevelOffset;
       return {
-        id,
+        entry,
         errorRatio:
-          getScreenSpaceError(terrainSource, frame, id) / targetPixels,
+          entry.kind === "flat"
+            ? 0
+            : getScreenSpaceError(terrainSource, frame, entry.id) /
+              targetPixels,
       };
     };
-    const candidates = rootIds.map(toCandidate);
+    const candidates = rootEntries.map(toCandidate);
     while (candidates.length > 0) {
       candidates.sort((left, right) => left.errorRatio - right.errorRatio);
       const candidate = candidates.pop()!;
       if (candidate.errorRatio <= 1) break;
-      if (candidate.id.level >= maximumLevel) continue;
+      if (candidate.entry.id.level >= maximumLevel) continue;
       const children = getRelevantChildren(
         terrainSource,
-        candidate.id,
+        candidate.entry,
         viewportBounds,
         shadowBounds
       );
-      if (!children?.length) continue;
+      if (!children.length) continue;
       if (selected.size + children.length - 1 > maxSelectionTiles) continue;
-      selected.delete(cesiumTerrainTileKey(candidate.id));
+      selected.delete(terrainSelectionKey(candidate.entry));
       for (const child of children) {
-        selected.set(cesiumTerrainTileKey(child), child);
+        selected.set(terrainSelectionKey(child), child);
         candidates.push(toCandidate(child));
       }
     }
 
-    const ids = [...selected.values()];
+    const entries = [...selected.values()];
     return {
-      ids,
-      signature: ids.map(cesiumTerrainTileKey).sort().join("|"),
+      entries,
+      signature: entries.map(terrainSelectionKey).sort().join("|"),
     };
   };
 
@@ -484,22 +574,31 @@ export const buildCesiumTerrainRuntime = (
     selection: TerrainSelection
   ) => {
     const generation = ++selectionGeneration;
-    void loadWithConcurrency(selection.ids, requestConcurrency, (id) =>
-      terrainSource.requestTile(id)
+    void loadWithConcurrency(selection.entries, requestConcurrency, (entry) =>
+      entry.kind === "flat"
+        ? Promise.resolve({
+            entry,
+            tile: createFlatTerrainTile(terrainSource, entry.id),
+          })
+        : terrainSource.requestTile(entry.id).then((tile) => ({ entry, tile }))
     )
-      .then((tiles) => {
+      .then((loadedEntries) => {
         if (disposed || generation !== selectionGeneration) return;
         const activeKeys = new Set<string>();
-        for (const tile of tiles) {
-          const key = cesiumTerrainTileKey(tile.id);
+        const retainedSourceKeys = new Set<string>();
+        for (const { entry, tile } of loadedEntries) {
+          const key = terrainSelectionKey(entry);
           activeKeys.add(key);
-          ensureMesh(tile).visible = root.visible;
+          if (entry.kind === "source") {
+            retainedSourceKeys.add(cesiumTerrainTileKey(entry.id));
+          }
+          ensureMesh(tile, entry).visible = root.visible;
         }
         smoothActiveBoundaryNormals(activeKeys);
         for (const [key, record] of meshes) {
           record.mesh.visible = root.visible && activeKeys.has(key);
         }
-        terrainSource.trimCache(activeKeys);
+        terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
         settleReady(true);
         if (map) notifySharedThreeTerrainChanged(map);
@@ -535,7 +634,6 @@ export const buildCesiumTerrainRuntime = (
     id: runtimeId,
     originLngLat,
     root,
-    supportsShadows: true,
     ready,
     onAdd(mapInstance) {
       map = mapInstance;
@@ -551,7 +649,7 @@ export const buildCesiumTerrainRuntime = (
     update(frame) {
       if (!source || disposed || !root.visible) return;
       const selection = buildSelection(source, frame);
-      if (!selection.ids.length || selection.signature === requestedSignature) {
+      if (selection.signature === requestedSignature) {
         return;
       }
       requestedSignature = selection.signature;
@@ -586,6 +684,7 @@ export const buildCesiumTerrainRuntime = (
       for (const record of meshes.values()) record.mesh.geometry.dispose();
       meshes.clear();
       material.dispose();
+      shadowDepthMaterial.dispose();
       root.clear();
       map = null;
       settleReady(false);

@@ -238,28 +238,15 @@ export type {
   SharedThreeSceneLayerOptions,
   SharedThreeSceneRuntime,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
+export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
+export type { SharedThreeSceneLease } from "./lib/runtime/integrations/shared-three-scene-registry";
 export {
-  acquireSharedThreeScene,
-  getSharedThreeSceneStatus,
-  subscribeSharedThreeSceneStatus,
-} from "./lib/runtime/integrations/shared-three-scene-registry";
-export type {
-  SharedThreeSceneLease,
-  SharedThreeSceneStatus,
-} from "./lib/runtime/integrations/shared-three-scene-registry";
-export {
-  genericThreeLayerHasShadeableContent,
   getGenericThreeLayers,
   notifyGenericThreeLayerContentChanged,
   registerGenericThreeLayer,
   subscribeGenericThreeLayers,
   unregisterGenericThreeLayer,
 } from "./lib/runtime/integrations/generic-three-layer-registry";
-export {
-  getShadowSimulationContentStatus,
-  subscribeShadowSimulationContentStatus,
-} from "./lib/runtime/integrations/shadow-simulation-content-status";
-export type { ShadowSimulationContentStatus } from "./lib/runtime/integrations/shadow-simulation-content-status";
 export type {
   ThreeTilesClayShader,
   ThreeTilesLayer,

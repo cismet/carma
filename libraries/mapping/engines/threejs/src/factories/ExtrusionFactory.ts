@@ -41,7 +41,7 @@ export interface VertexRange {
 
 /** Group vertex ranges by sourceIndex for O(1) highlight lookup. */
 export function buildSourceIndexMap(
-  ranges: VertexRange[],
+  ranges: VertexRange[]
 ): Map<number, VertexRange[]> {
   const map = new Map<number, VertexRange[]>();
   for (const r of ranges) {
@@ -329,7 +329,7 @@ export function buildExtrusionMeshes(
   originMerc: MercatorCoordinate,
   mScale: number,
   colors: BuildingColors = defaultBuildingColors,
-  wallAngleThreshold: number = DEFAULT_WALL_ANGLE,
+  wallAngleThreshold: number = DEFAULT_WALL_ANGLE
 ): FactoryStats {
   removeBuildingMeshes(scene);
 
@@ -364,9 +364,9 @@ export function buildExtrusionMeshes(
     // Walls: 4 verts per edge, 6 indices per edge
     totalWallVerts += n * 4;
     totalWallIdx += n * 6;
-    // Roof: n perimeter verts, earcut produces at most (n-2) triangles
-    totalRoofVerts += n;
-    totalRoofIdx += (n - 2) * 3;
+    // Top and bottom caps: n perimeter verts and at most (n-2) triangles each
+    totalRoofVerts += n * 2;
+    totalRoofIdx += (n - 2) * 6;
   }
 
   // Allocate typed arrays
@@ -419,6 +419,7 @@ export function buildExtrusionMeshes(
     // Pre-compute scene-space positions for each vertex at ground and roof height
     const roofBaseIdx = rv;
     const flatXZ: number[] = []; // flat [x, z, x, z, ...] for 2D triangulation
+    const groundPositions: number[] = [];
 
     for (let i = 0; i < n; i++) {
       const [lng, lat] = ring[i];
@@ -467,6 +468,7 @@ export function buildExtrusionMeshes(
       const ax = (m0.x - originMerc.x) / mScale;
       const ay = (m0.z - originMerc.z) / mScale;
       const az = (m0.y - originMerc.y) / mScale;
+      groundPositions.push(ax, ay, az);
 
       const bx = (m1.x - originMerc.x) / mScale;
       const by = (m1.z - originMerc.z) / mScale;
@@ -547,15 +549,34 @@ export function buildExtrusionMeshes(
       wI[wi++] = wallBase + 2;
     }
 
-    // Roof triangulation via earcut (handles concave polygons, winding-insensitive)
+    const bottomBaseIdx = rv;
+    for (let i = 0; i < n; i++) {
+      const source = i * 3;
+      const target = rv * 3;
+      rP[target] = groundPositions[source];
+      rP[target + 1] = groundPositions[source + 1];
+      rP[target + 2] = groundPositions[source + 2];
+      rN[target] = 0;
+      rN[target + 1] = -1;
+      rN[target + 2] = 0;
+      rC[target] = cr;
+      rC[target + 1] = cg;
+      rC[target + 2] = cb;
+      rv++;
+    }
+
+    // Cap triangulation via earcut (handles concave polygons). In Three's
+    // X/Z plane Earcut's winding faces down, so only the roof is reversed.
     const roofIndices = Earcut.triangulate(flatXZ, undefined, 2);
-    // Earcut faces down when its 2D X/Z output is interpreted in Three's
-    // Y-up space. Reverse every triangle so its face winding agrees with the
-    // explicit +Y roof normals and FrontSide material below.
     for (let index = 0; index < roofIndices.length; index += 3) {
       rI[ri++] = roofBaseIdx + roofIndices[index];
       rI[ri++] = roofBaseIdx + roofIndices[index + 2];
       rI[ri++] = roofBaseIdx + roofIndices[index + 1];
+    }
+    for (let index = 0; index < roofIndices.length; index += 3) {
+      rI[ri++] = bottomBaseIdx + roofIndices[index];
+      rI[ri++] = bottomBaseIdx + roofIndices[index + 1];
+      rI[ri++] = bottomBaseIdx + roofIndices[index + 2];
     }
 
     // Record face/vertex ranges for this building (selection metadata)
