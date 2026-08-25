@@ -110,3 +110,8 @@ export {
 // Runtime integrations (engine side-effects / orchestration)
 export { flyViewStateInCesium } from "./integrations/flyViewStateInCesium";
 export { useInitialCesiumCameraView } from "./integrations/useInitialCesiumCameraView";
+export {
+  useDirectCameraHandover,
+  type DirectCameraHandover,
+  type UseDirectCameraHandoverOptions,
+} from "./integrations/useDirectCameraHandover";

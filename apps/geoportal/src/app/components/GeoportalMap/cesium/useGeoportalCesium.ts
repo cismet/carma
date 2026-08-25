@@ -20,6 +20,7 @@ import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { useAnnotationsRuntime } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
+import type { DirectCameraHandover } from "@carma-mapping/engines-interop/view-state";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
@@ -71,6 +72,12 @@ export type UseGeoportalCesiumOptions = {
    * leaflet.
    */
   isSyncEnabled?: boolean;
+  /**
+   * Un-animated camera handover, for a 2D engine that can hold the same camera
+   * as Cesium. Only the maplibre variant supplies this; leaflet cannot rotate or
+   * tilt, so it always takes the animated transition.
+   */
+  directHandover?: DirectCameraHandover;
 };
 
 /**
@@ -83,6 +90,7 @@ export const useGeoportalCesium = ({
   allow3d,
   get2dMap,
   isSyncEnabled,
+  directHandover,
 }: UseGeoportalCesiumOptions) => {
   const dispatch = useDispatch();
   const { activeToolType, selectedAnnotationId, setSelectedAnnotationId } =
@@ -221,6 +229,10 @@ export const useGeoportalCesium = ({
     isSyncEnabled,
     onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
     onBeforeTransitionToLeaflet: leaveObliqueMode,
+    tryDirectTransitionToCesium: directHandover?.tryDirectTransitionToCesium,
+    tryDirectTransitionToLeaflet: directHandover?.tryDirectTransitionToLeaflet,
+    willPreserveOrientationOnHandover:
+      directHandover?.willPreserveOrientationOnHandover,
   });
 
   const cesiumScene = getScene();

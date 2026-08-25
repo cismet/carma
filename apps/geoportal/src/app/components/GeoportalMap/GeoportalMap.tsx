@@ -49,7 +49,11 @@ import {
 import { getApplicationVersion } from "@carma-commons/utils";
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
-import { useMaplibreRuntimeBridge } from "@carma-mapping/engines-interop/view-state";
+import {
+  useDirectCameraHandover,
+  useMaplibreRuntimeBridge,
+} from "@carma-mapping/engines-interop/view-state";
+import { useCameraRestriction } from "@carma-mapping/engines/maplibre";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
@@ -865,9 +869,10 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   useLibreTriggerSelectionSync(libreMap);
 
   const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
-  const { initialViewApplied } = useCesiumContext();
+  const { initialViewApplied, getScene, getSurfaceProvider, getTerrainProvider } =
+    useCesiumContext();
 
-  useMaplibreRuntimeBridge({
+  const maplibreBridge = useMaplibreRuntimeBridge({
     id: "geoportal-maplibre",
     map: libreMap,
     enabled: !isCesium && !isTransitioning,
@@ -882,6 +887,23 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     [transitionShim]
   );
 
+  // The effective restriction (addon override on top of the app base), so print
+  // mode — which forces it — keeps the animated top-down handover.
+  const isTwoDCameraFree = !(useCameraRestriction(libreMap)?.restricted ?? true);
+
+  // Both engines subscribe to the same view state and both adapters carry
+  // bearing/pitch, so when the 2D map may rotate the switch is a read plus an
+  // apply. The animated transition stays the fallback for everything else.
+  const directHandover = useDirectCameraHandover({
+    id: "geoportal-maplibre",
+    map: libreMap,
+    getScene,
+    getSurfaceProvider,
+    getTerrainProvider,
+    maplibreBridge,
+    isTwoDCameraFree,
+  });
+
   const {
     handleCesiumHostChange,
     handleZoomToFeature,
@@ -892,6 +914,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     allow3d,
     get2dMap: getTransitionMap,
     isSyncEnabled: isCesium || isTransitioning,
+    directHandover,
   });
 
   const cesiumInfoBox = useGeoportalCesiumInfoBox({
