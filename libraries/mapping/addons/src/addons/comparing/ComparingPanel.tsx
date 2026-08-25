@@ -89,6 +89,15 @@ const ORIENTATIONS: {
 const DRAG_KEY = "application/x-carma-compare-layer";
 const DRAG_FROM = "application/x-carma-compare-panel";
 
+/**
+ * How wide one panel box is.
+ *
+ * The floor carries the caption ("Unten rechts" is the longest); above that a
+ * box takes an even share of whatever the list has not claimed, so the boxes
+ * fill their side instead of huddling against the edge of it.
+ */
+const PANEL_TRACK = "minmax(8rem, 1fr)";
+
 /** the number a block is known by, since layers of one kind share an icon */
 const numberOf = (entry: CompareLayerEntry, indexFromTop: number) =>
   entry.isBackground ? "H" : `${indexFromTop + 1}`;
@@ -302,7 +311,11 @@ export const ComparingPanel = ({
         </span>
       </div>
 
-      <div className="grow min-h-0 overflow-auto grid grid-cols-1 sm:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] gap-4">
+      {/* The list is capped at what a full layer title comes to, which is all
+          the width it can use; the boxes take the rest. Sized the other way
+          round the titles were cut off, and left uncapped the list stretched
+          into a field of nothing with its checkbox out at the far edge. */}
+      <div className="grow min-h-0 overflow-auto grid grid-cols-1 sm:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] gap-4">
         <div className="flex flex-col min-w-0">
           {numbered.length === 0 ? (
             <div className="text-base text-gray-400 py-2">
@@ -359,9 +372,12 @@ export const ComparingPanel = ({
         <div
           className="grid gap-2 min-w-0"
           style={{
+            // wide enough for the caption, then as wide as the pile of tiles
+            // happens to be. A band lays its tiles out in a row, so it asks for
+            // more than an upright box and gets it from the same rule.
             gridTemplateColumns: isBanded
-              ? "minmax(0, 1fr)"
-              : `repeat(${isGrid ? 2 : panelCount}, minmax(0, 1fr))`,
+              ? PANEL_TRACK
+              : `repeat(${isGrid ? 2 : panelCount}, ${PANEL_TRACK})`,
           }}
         >
           {Array.from({ length: panelCount }, (_, panel) => {
@@ -378,7 +394,7 @@ export const ComparingPanel = ({
                 onDragLeave={() => setDragOver((it) => (it === panel ? null : it))}
                 onDrop={drop(panel)}
                 data-test-id={`comparing-view-${panel}`}
-                className={`relative rounded-lg border border-solid p-2 flex ${
+                className={`relative rounded-lg border border-solid p-2 flex flex-col gap-1 ${
                   isBanded ? "min-h-[4.75rem]" : "min-h-[7rem]"
                 } ${
                   dragOver === panel
@@ -386,9 +402,9 @@ export const ComparingPanel = ({
                     : "border-gray-200 bg-gray-50"
                 }`}
               >
-                {/* out of flow, so the pile centres in the whole box rather
-                    than in what the caption leaves over */}
-                <span className="absolute left-2 top-1.5 text-sm text-gray-500 truncate pointer-events-none max-w-[calc(100%-1rem)]">
+                {/* on its own line: a box is only as wide as its tiles, so a
+                    caption floating over them would land on top of them */}
+                <span className="block text-sm text-gray-500 truncate pointer-events-none">
                   {panelLabels[panel] ?? `Ansicht ${panel + 1}`}
                 </span>
                 {/* the entries are already topmost-first, so plain column order
