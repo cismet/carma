@@ -32,6 +32,7 @@ import { type SearchResultItem } from "@carma-mapping/fuzzy-search";
 
 import { SearchGazetteerProps, Option, GroupedOptions, SearchItem } from "..";
 import type {
+  DynamicModeRerun,
   DynamicSearchGroup,
   DynamicSearchOption,
   GazDataItem,
@@ -79,6 +80,7 @@ type SearchModeEntry = {
   showAllOnFocus?: boolean;
   gazData?: GazDataItem[];
   resolve?: (input: string) => Promise<DynamicSearchGroup[]>;
+  subscribe?: (rerun: DynamicModeRerun) => () => void;
 };
 
 /**
@@ -199,6 +201,7 @@ export function LibFuzzySearch({
   selection,
   showDropdownBelow = false,
   landParcelSearch = false,
+  disableAdditionalModes = false,
 }: SearchGazetteerProps) {
   const [options, setOptions] = useState<Option[]>([]);
   const [showCategories, setShowCategories] = useState(standardSearch);
@@ -266,7 +269,7 @@ export function LibFuzzySearch({
     ...builtInModes.filter((mode) =>
       mode.key === PARCEL_MODE ? landParcelSearch : true
     ),
-    ...additionalModes.map((mode) => ({
+    ...(disableAdditionalModes ? [] : additionalModes).map((mode) => ({
       key: mode.key,
       label: mode.label,
       icon: mode.icon ?? faLocationDot,
@@ -276,6 +279,7 @@ export function LibFuzzySearch({
       showAllOnFocus: mode.showAllOnFocus,
       gazData: mode.gazData,
       resolve: mode.resolve,
+      subscribe: mode.subscribe,
     })),
   ];
   const availableModes = searchModes.map((mode) => mode.key);
@@ -457,7 +461,10 @@ export function LibFuzzySearch({
    * a mode does real work (a ranking, a map query), so only the newest request
    * is allowed to write; older ones are dropped rather than cancelled.
    */
-  const runDynamicSearch = async (input: string) => {
+  const runDynamicSearch = async (
+    input: string,
+    { openWhenDone = false }: { openWhenDone?: boolean } = {}
+  ) => {
     const resolve = activeMode?.resolve;
     if (!resolve) {
       return;
@@ -465,6 +472,9 @@ export function LibFuzzySearch({
     const requestId = ++dynamicRequestRef.current;
     const isStale = () => requestId !== dynamicRequestRef.current;
     setDynamicLoading(true);
+    if (openWhenDone) {
+      setAutoCompleteOpen(false);
+    }
     try {
       const groups = await resolve(input);
       if (isStale()) {
@@ -490,6 +500,12 @@ export function LibFuzzySearch({
         }))
       );
       setOptions([]);
+      if (openWhenDone) {
+        setTimeout(() => {
+          setAutoCompleteOpen(true);
+          autoCompleteRef.current?.focus();
+        }, 0);
+      }
     } catch (error) {
       if (isStale()) {
         return;
@@ -503,6 +519,27 @@ export function LibFuzzySearch({
       }
     }
   };
+
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const runDynamicSearchRef = useRef(runDynamicSearch);
+  runDynamicSearchRef.current = runDynamicSearch;
+
+  const activeModeSubscribe = activeMode?.subscribe;
+  useEffect(() => {
+    if (!isDynamicMode || !activeModeSubscribe) {
+      return;
+    }
+    return activeModeSubscribe((options) => {
+      const nextInput = options?.input ?? valueRef.current;
+      if (options?.input !== undefined) {
+        setValue(options.input);
+      }
+      void runDynamicSearchRef.current(nextInput, {
+        openWhenDone: options?.open,
+      });
+    });
+  }, [isDynamicMode, activeModeSubscribe]);
 
   const handleSearchInput = (value: string) => {
     if (isDynamicMode) {
@@ -526,13 +563,11 @@ export function LibFuzzySearch({
     if (dynamicOption) {
       setValue(dynamicOption.value);
       if (dynamicOption.drilldown) {
-        // same shape as the Gemarkung step: write the stage into the input,
-        // ask the mode again and keep the dropdown open on the next stage
-        handleSearchInput(dynamicOption.value);
-        setTimeout(() => {
-          setAutoCompleteOpen(true);
-          autoCompleteRef.current?.focus();
-        }, 0);
+        // same shape as the Gemarkung step, but the next stage may take a
+        // while (a ranking, a map query): the dropdown would sit there showing
+        // the stage that was just picked, so it is closed while the mode works
+        // and opened again on the answer
+        void runDynamicSearch(dynamicOption.value, { openWhenDone: true });
         return;
       }
       setCleanBtnDisable(false);
