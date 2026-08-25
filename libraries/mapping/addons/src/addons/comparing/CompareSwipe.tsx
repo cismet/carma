@@ -13,7 +13,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { CompareStage } from "./stage/CompareStage";
 import { groupLayers, rolesFromAssignments } from "./stage/roles";
 import { useComparingActions } from "./comparing-actions";
-import { COMPARE_MODE, SWIPE_MODES } from "./compare-modes";
+import { COMPARE_MODE } from "./compare-modes";
 import { panelLabelsFor } from "./panel-labels";
 
 export type CompareSwipeConfig = {
@@ -79,13 +79,22 @@ export const CompareSwipe = ({
   config,
   libreMap,
 }: AddonComponentProps<"compareSwipe">) => {
-  const { hasState, isOn, mode, setMode, panelCount, setLayout, assignments } =
-    useComparingActions();
+  const {
+    hasState,
+    isOn,
+    mode,
+    setMode,
+    orientation,
+    setOrientation,
+    panelCount,
+    setLayout,
+    assignments,
+  } = useComparingActions();
+  // four clipped panels are the 2x2, whichever axis the orientation names
   const isGrid = panelCount === 4;
   // another mode is drawing the comparison; this one draws nothing and, more
   // importantly, leaves the layout alone while it is not the one on screen
-  const isActive = isOn && SWIPE_MODES.includes(mode);
-  const orientation = mode === COMPARE_MODE.swipeV ? "vertical" : "horizontal";
+  const isActive = isOn && mode === COMPARE_MODE.swipe;
   const layers = useMapLayers(libreMap);
   const roles = useMemo(
     () => rolesFromAssignments(layers, assignments ?? {}, panelCount),
@@ -96,45 +105,26 @@ export const CompareSwipe = ({
   const [splits, setSplits] = useState<number[]>(() => evenSplits(2));
   const [gridSplit, setGridSplit] = useState({ x: 0.5, y: 0.5 });
 
-  // the route's config decides which way the divider starts; from then on the
-  // mode lives in the shared state, where the control pane can reach it.
-  // Only when there is no state to start from: a mode restored from a previous
-  // session is a choice that was already made, and seeding over it would send
-  // every reload back to swipe.
+  // the route's config decides which way the divider starts; from then on both
+  // axes live in the shared state, where the control pane can reach them.
+  // Only when there is no state to start from: what a previous session left
+  // behind is a choice that was already made, and seeding over it would send
+  // every reload back to the swipe.
   const seededMode = useRef(hasState);
   useEffect(() => {
     if (seededMode.current) {
       return;
     }
     seededMode.current = true;
-    setMode(
-      config?.orientation === "vertical"
-        ? COMPARE_MODE.swipeV
-        : COMPARE_MODE.swipeH
-    );
-  }, [config?.orientation, setMode]);
+    setMode(COMPARE_MODE.swipe);
+    setOrientation(config?.orientation === "vertical" ? "vertical" : "horizontal");
+  }, [config?.orientation, setMode, setOrientation]);
 
   // a changed panel count means different dividers, and the old positions were
   // about a different number of them
   useEffect(() => {
     setSplits(evenSplits(panelCount));
   }, [panelCount]);
-
-  // Within the swipe modes the panel count decides the geometry: four clipped
-  // panels are the 2x2, which has no orientation left to choose, and dropping
-  // back below four has to land on one again. Only within them, though: arena
-  // draws all four counts itself and must not be corrected into the grid.
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-    if (isGrid && mode !== COMPARE_MODE.grid) {
-      setMode(COMPARE_MODE.grid);
-    }
-    if (!isGrid && mode === COMPARE_MODE.grid) {
-      setMode(COMPARE_MODE.swipeH);
-    }
-  }, [isActive, isGrid, mode, setMode]);
 
   useEffect(() => {
     if (!isActive) {

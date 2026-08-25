@@ -1,6 +1,11 @@
 export { CompareSwipe, type CompareSwipeConfig } from "./CompareSwipe";
 export { CompareArena, type CompareArenaConfig } from "./CompareArena";
-export { COMPARE_MODE, SWIPE_MODES } from "./compare-modes";
+export {
+  COMPARE_MODE,
+  orientationApplies,
+  type CompareMode,
+  type CompareOrientation,
+} from "./compare-modes";
 export {
   ComparingControl,
   type ComparingControlConfig,

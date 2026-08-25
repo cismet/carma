@@ -104,7 +104,12 @@ export {
   CompareArena,
   type CompareArenaConfig,
 } from "./addons/comparing/CompareArena";
-export { COMPARE_MODE, SWIPE_MODES } from "./addons/comparing/compare-modes";
+export {
+  COMPARE_MODE,
+  orientationApplies,
+  type CompareMode,
+  type CompareOrientation,
+} from "./addons/comparing/compare-modes";
 export {
   ComparingControl,
   type ComparingControlConfig,

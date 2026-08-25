@@ -2,6 +2,11 @@ import { useCallback, useMemo } from "react";
 
 import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
 import {
+  COMPARE_MODE,
+  type CompareMode,
+  type CompareOrientation,
+} from "./compare-modes";
+import {
   compareStateStorageKey,
   loadCompareState,
   saveCompareState,
@@ -24,8 +29,14 @@ export type CompareState = {
   panelCount: number;
   /** panel headings from the running mode, so they cannot disagree with the screen */
   panelLabels: string[];
-  /** the running mode, picked in the control pane */
-  mode: string;
+  /** who draws the panels, picked in the control pane */
+  mode: CompareMode;
+  /**
+   * Which way the panels are laid out. Independent of the mode: both of them
+   * draw two or three panels along either axis, and four as the 2x2, where the
+   * orientation is carried but says nothing.
+   */
+  orientation: CompareOrientation;
   /**
    * The assignment. Undefined until the layers are known, which is when it is
    * seeded from the implicit rule; the pane edits it from there.
@@ -49,7 +60,8 @@ export const COMPARE_STATE_DEFAULT: CompareState = {
   isOn: false,
   panelCount: 2,
   panelLabels: [],
-  mode: "swipe-h",
+  mode: COMPARE_MODE.swipe,
+  orientation: "horizontal",
 };
 
 /**
@@ -97,6 +109,7 @@ export const useComparingActions = () => {
   const panelCount = state?.panelCount ?? COMPARE_STATE_DEFAULT.panelCount;
   const panelLabels = state?.panelLabels ?? COMPARE_STATE_DEFAULT.panelLabels;
   const mode = state?.mode ?? COMPARE_STATE_DEFAULT.mode;
+  const orientation = state?.orientation ?? COMPARE_STATE_DEFAULT.orientation;
   const assignments = state?.assignments;
 
   /** the running mode describing its own layout, so the pane's headings match */
@@ -118,8 +131,16 @@ export const useComparingActions = () => {
   );
 
   const setMode = useCallback(
-    (next: string) => {
+    (next: CompareMode) => {
       setState((previous) => ({ ...previous, mode: next }));
+    },
+    [setState]
+  );
+
+  /** the other axis, which leaves the mode where it is */
+  const setOrientation = useCallback(
+    (next: CompareOrientation) => {
+      setState((previous) => ({ ...previous, orientation: next }));
     },
     [setState]
   );
@@ -217,6 +238,8 @@ export const useComparingActions = () => {
     panelLabels,
     mode,
     setMode,
+    orientation,
+    setOrientation,
     setLayout,
     assignments,
     assignmentsPanelCount: state?.assignmentsPanelCount,

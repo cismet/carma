@@ -8,7 +8,7 @@ import { stageHostOf } from "./stage/stage-host";
 import { useToolbarInset } from "./stage/useToolbarInset";
 import { groupLayers, rolesFromAssignments } from "./stage/roles";
 import { useComparingActions } from "./comparing-actions";
-import { COMPARE_MODE } from "./compare-modes";
+import { COMPARE_MODE, type CompareOrientation } from "./compare-modes";
 import { panelLabelsFor } from "./panel-labels";
 
 export type CompareArenaConfig = {
@@ -55,11 +55,21 @@ const DEFAULT_GAP = 6;
 /** the frame the windows sit in, dark so the gutters read as gaps, not as map */
 const FRAME_COLOR = "#111827";
 
-/** two and three windows in a row, four as the 2x2 block */
-const arenaShape = (panelCount: number) =>
-  panelCount === 4
-    ? { columns: 2, rows: 2 }
-    : { columns: Math.max(panelCount, 1), rows: 1 };
+/**
+ * Two and three windows along the chosen axis, four as the 2x2 block.
+ *
+ * The 2x2 is as wide as it is high, so the orientation has nothing left to say
+ * about it and is carried past rather than applied.
+ */
+const arenaShape = (panelCount: number, orientation: CompareOrientation) => {
+  if (panelCount === 4) {
+    return { columns: 2, rows: 2 };
+  }
+  const count = Math.max(panelCount, 1);
+  return orientation === "vertical"
+    ? { columns: 1, rows: count }
+    : { columns: count, rows: 1 };
+};
 
 /**
  * Compares the layers on the map in windows of their own: up to four maps laid
@@ -82,7 +92,7 @@ export const CompareArena = ({
   config,
   libreMap,
 }: AddonComponentProps<"compareArena">) => {
-  const { isOn, mode, panelCount, setLayout, assignments } =
+  const { isOn, mode, orientation, panelCount, setLayout, assignments } =
     useComparingActions();
   const isActive = isOn && mode === COMPARE_MODE.arena;
 
@@ -94,10 +104,10 @@ export const CompareArena = ({
   const groupCount = useMemo(() => groupLayers(layers).length, [layers]);
 
   const labels = useMemo(
-    // the windows sit in reading order whatever their number, so the names are
-    // the horizontal ones; four names itself by its corners either way
-    () => panelLabelsFor(panelCount, "horizontal"),
-    [panelCount]
+    // the windows sit in reading order along the axis they are laid out on, so
+    // the names follow it; four names itself by its corners either way
+    () => panelLabelsFor(panelCount, orientation),
+    [orientation, panelCount]
   );
 
   // only the running mode describes the layout, or the pane's headings would be
@@ -110,7 +120,7 @@ export const CompareArena = ({
   }, [isActive, labels, panelCount, setLayout]);
 
   const gap = config?.gap ?? DEFAULT_GAP;
-  const { columns, rows } = arenaShape(panelCount);
+  const { columns, rows } = arenaShape(panelCount, orientation);
 
   const toolbarInset = useToolbarInset(
     libreMap ? stageHostOf(libreMap) : null,

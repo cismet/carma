@@ -7,13 +7,13 @@ import {
 } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faClone,
+  faGripLinesVertical,
   faGripVertical,
   faLayerGroup,
   faLeftRight,
   faMagnifyingGlass,
   faMap,
-  faTableCells,
-  faTableCellsLarge,
   faUpDown,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
@@ -22,7 +22,12 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { Layer } from "@carma-mapping/layers";
 
 import { useComparingActions } from "./comparing-actions";
-import { COMPARE_MODE } from "./compare-modes";
+import {
+  COMPARE_MODE,
+  orientationApplies,
+  type CompareMode,
+  type CompareOrientation,
+} from "./compare-modes";
 import {
   MAX_PANELS,
   useCompareLayerEntries,
@@ -31,45 +36,31 @@ import {
 import "./stage/comparing.css";
 
 /**
- * The modes, with the panel counts each one means anything at: stripes work
- * along one axis for two or three, four is the grid and has no orientation
- * left to choose, and a lens shows one map under it, so it is a two-panel mode.
- * Separate windows are the exception, since a real layout divides the screen
- * for any count from two to four. `built` is what exists; the rest are listed
- * so the pane shows where the comparison is going.
+ * Who draws the panels, with the panel counts each one means anything at.
+ *
+ * Both built modes take any count from two to four, so this list says nothing
+ * about the layout; the orientation beside it does. A lens shows one map under
+ * it, which is what makes it a two-panel mode. `built` is what exists; the rest
+ * are listed so the pane shows where the comparison is going.
  */
 const MODES: {
-  key: string;
+  key: CompareMode | string;
   label: string;
   icon: IconDefinition;
   panelCounts: number[];
   built: boolean;
 }[] = [
   {
-    key: COMPARE_MODE.swipeH,
-    label: "Nebeneinander",
-    icon: faLeftRight,
-    panelCounts: [2, 3],
-    built: true,
-  },
-  {
-    key: COMPARE_MODE.swipeV,
-    label: "Übereinander",
-    icon: faUpDown,
-    panelCounts: [2, 3],
-    built: true,
-  },
-  {
-    key: COMPARE_MODE.grid,
-    label: "Raster",
-    icon: faTableCells,
-    panelCounts: [4],
+    key: COMPARE_MODE.swipe,
+    label: "Schieber",
+    icon: faGripLinesVertical,
+    panelCounts: [2, 3, 4],
     built: true,
   },
   {
     key: COMPARE_MODE.arena,
-    label: "Einzelkarten",
-    icon: faTableCellsLarge,
+    label: "Arena",
+    icon: faClone,
     panelCounts: [2, 3, 4],
     built: true,
   },
@@ -80,6 +71,21 @@ const MODES: {
     panelCounts: [2],
     built: false,
   },
+];
+
+/**
+ * Which way the panels are laid out, whichever mode is drawing them.
+ *
+ * Four panels are the 2x2 in both modes, so at that count there is no axis left
+ * to choose and the pair is offered but inert.
+ */
+const ORIENTATIONS: {
+  key: CompareOrientation;
+  label: string;
+  icon: IconDefinition;
+}[] = [
+  { key: "horizontal", label: "Nebeneinander", icon: faLeftRight },
+  { key: "vertical", label: "\u00dcbereinander", icon: faUpDown },
 ];
 
 /** what a drag carries: the block, and the panel it came from if it was in one */
@@ -211,6 +217,8 @@ export const ComparingPanel = ({
     panelLabels,
     mode,
     setMode,
+    orientation,
+    setOrientation,
     assignments,
     setAssigned,
     setAssignedEverywhere,
@@ -270,7 +278,7 @@ export const ComparingPanel = ({
   // grid. A band is wide and low, so its stack is turned a quarter turn to the
   // right, which puts the topmost layer at the right end instead of the top.
   const isGrid = panelCount === 4;
-  const isBanded = mode === COMPARE_MODE.swipeV && !isGrid;
+  const isBanded = orientation === "vertical" && !isGrid;
 
   // comparing more panels than there are layers to put in them leaves panels
   // with nothing to show, so the choice stops at what is on the map
@@ -491,13 +499,32 @@ export const ComparingPanel = ({
                       : `${entry.label}: nicht bei ${panelCount} Karten`
                     : `${entry.label}: noch nicht gebaut`
                 }
-                onClick={() => setMode(entry.key)}
+                onClick={() => setMode(entry.key as CompareMode)}
               >
                 <FontAwesomeIcon icon={entry.icon} className="mr-2" />
                 {entry.label}
               </SegmentButton>
             );
           })}
+        </Segment>
+
+        <Segment>
+          {ORIENTATIONS.map((entry) => (
+            <SegmentButton
+              key={entry.key}
+              active={entry.key === orientation}
+              disabled={!orientationApplies(panelCount)}
+              title={
+                orientationApplies(panelCount)
+                  ? entry.label
+                  : `${entry.label}: bei ${panelCount} Karten ist es das Raster`
+              }
+              onClick={() => setOrientation(entry.key)}
+            >
+              <FontAwesomeIcon icon={entry.icon} className="mr-2" />
+              {entry.label}
+            </SegmentButton>
+          ))}
         </Segment>
       </div>
     </div>

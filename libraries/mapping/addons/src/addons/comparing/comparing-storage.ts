@@ -1,6 +1,6 @@
 import type { AddonEntry } from "../../lib/registry";
 import { routeStorageKey } from "../../lib/storage-scope";
-import { BUILT_COMPARE_MODES, COMPARE_MODE, MAX_PANELS } from "./compare-modes";
+import { MAX_PANELS, readModeAndOrientation } from "./compare-modes";
 import type { CompareAssignments, CompareState } from "./comparing-actions";
 
 /**
@@ -61,11 +61,6 @@ const readPanelCount = (value: unknown): number =>
     ? Math.min(MAX_PANELS, Math.max(2, value))
     : 2;
 
-const readMode = (value: unknown): string =>
-  typeof value === "string" && BUILT_COMPARE_MODES.includes(value)
-    ? value
-    : COMPARE_MODE.swipeH;
-
 export const loadCompareState = (
   storageKey: string
 ): CompareState | undefined => {
@@ -79,6 +74,12 @@ export const loadCompareState = (
       return undefined;
     }
     const panelCount = readPanelCount(parsed.panelCount);
+    // one key carried both of these once, so what is stored decides which of
+    // the two axes it can still speak for
+    const { mode, orientation } = readModeAndOrientation(
+      parsed.mode,
+      parsed.orientation
+    );
     return {
       isOn: parsed.isOn === true,
       panelCount,
@@ -89,7 +90,8 @@ export const loadCompareState = (
             (label): label is string => typeof label === "string"
           )
         : [],
-      mode: readMode(parsed.mode),
+      mode,
+      orientation,
       assignments: readAssignments(parsed.assignments, panelCount),
       // only meaningful together with the assignment it was made for
       assignmentsPanelCount:
