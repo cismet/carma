@@ -47,7 +47,8 @@ so the second folder is the list of what actually exists:
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
-| `addons/LibreTerrain.tsx`   | terrain toggle button for the maplibre map              |
+| `addons/LibreTerrain.tsx`    | terrain toggle button for the maplibre map                       |
+| `addons/ShadowSimulation/`   | daylight-clamped sun control for MapLibre and Three.js content   |
 
 An addon that needs more than one file gets its own folder there
 (`addons/CameraTour/index.tsx` plus its parts).

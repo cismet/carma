@@ -78,6 +78,11 @@ import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
 import { Tiles3dLayerManager } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
+import { SharedThreeTilesLayerManager } from "./SharedThreeTilesLayerManager";
+import {
+  THREE_TILES_LAYER_TYPE,
+  type ThreeTilesLayer,
+} from "../lib/runtime/integrations/three-tiles-layer";
 
 const buildGazetteerRouteInfobox = (pos: number[], label: string) => ({
   properties: {
@@ -165,6 +170,7 @@ export interface RasterPaintOverrides {
 
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
+  | ThreeTilesLayer
   | {
       type: "geojson";
       name: string;
@@ -417,6 +423,18 @@ export const LibreMap = ({
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const mapStyleLayers = useMemo(
+    () => layers?.filter((layer) => layer.type !== THREE_TILES_LAYER_TYPE),
+    [layers]
+  );
+  const threeTilesLayers = useMemo(
+    () =>
+      (layers ?? []).filter(
+        (layer): layer is ThreeTilesLayer =>
+          layer.type === THREE_TILES_LAYER_TYPE
+      ),
+    [layers]
+  );
   const hidingManagerRef = useRef<HidingForwardingManager | null>(null);
   const detachNonTiledRef = useRef<(() => void) | null>(null);
   const selectedFeaturesRef = useRef<
@@ -847,7 +865,7 @@ export const LibreMap = ({
   useImperativeStyle({
     enabled: layerMode === "imperative",
     map: map.current,
-    layers,
+    layers: mapStyleLayers,
     backgroundStyle,
     vectorBackgroundLayers,
     clusteringEnabled,
@@ -1461,17 +1479,17 @@ export const LibreMap = ({
     // catch below can release them; otherwise an unexpected throw leaves every
     // layer button spinning forever.
     let preparedLayerIds: string[] = [];
-    const trackerRef = { current: null as ReturnType<
-      typeof ensureLayerLoadingTracker
-    > | null };
+    const trackerRef = {
+      current: null as ReturnType<typeof ensureLayerLoadingTracker> | null,
+    };
 
     const updateMapStyle = async () => {
       try {
         // Prepend vector background layers before data layers
         const effectiveLayers =
           vectorBackgroundLayers.length > 0
-            ? [...vectorBackgroundLayers, ...(layers || [])]
-            : layers;
+            ? [...vectorBackgroundLayers, ...(mapStyleLayers || [])]
+            : mapStyleLayers;
 
         if (effectiveLayers) {
           // The style (re)build below refetches vector styles before any source
@@ -1773,7 +1791,7 @@ export const LibreMap = ({
           }
 
           // Get mapping for vector layers (only from user-provided layers, not backgrounds)
-          const vectorLayers = (layers || []).filter(
+          const vectorLayers = (mapStyleLayers || []).filter(
             (layer) => layer.type === "vector"
           );
           let mapping = {};
@@ -1805,7 +1823,7 @@ export const LibreMap = ({
           if (filterFunction && map.current) {
             const applyFilter = () => {
               if (map.current) {
-                filterFunction(map.current, layers);
+                filterFunction(map.current, mapStyleLayers);
               }
             };
 
@@ -1879,7 +1897,7 @@ export const LibreMap = ({
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
-    layers,
+    mapStyleLayers,
     clusteringEnabled,
     markerSymbolSize,
     filterFunction,
@@ -2214,7 +2232,6 @@ export const LibreMap = ({
             perfRef={threePerfRef}
           />
         ))}
-
       {/* Tilesets named by a style's own metadata, see Tiles3dLayerManager */}
       {detectedTiles3dConfigs.map((config) => (
         <Tiles3dLayerManager
@@ -2223,6 +2240,7 @@ export const LibreMap = ({
           layerOpacity={config.layerOpacity}
         />
       ))}
+      <SharedThreeTilesLayerManager layers={threeTilesLayers} />
     </>
   );
 };

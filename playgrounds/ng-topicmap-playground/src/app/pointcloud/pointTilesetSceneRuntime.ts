@@ -9,9 +9,9 @@ import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 import type {
-  PointcloudSceneFrame,
-  PointcloudSceneRuntime,
-} from "./pointcloudSceneLayer";
+  SharedThreeSceneFrame,
+  SharedThreeSceneRuntime,
+} from "@carma-mapping/engines/maplibre";
 
 /**
  * Renders a point cloud delivered as a 3D Tiles 1.1 tileset (glTF POINTS
@@ -39,7 +39,7 @@ export const createPointTilesetSceneRuntime = ({
   pointSize: initialPointSize = 2,
   errorTarget = 8,
   requestRender = () => undefined,
-}: PointTilesetSceneRuntimeOptions): PointcloudSceneRuntime & {
+}: PointTilesetSceneRuntimeOptions): SharedThreeSceneRuntime & {
   setPointSize: (size: number) => void;
   /** WGS84 extent of the loaded tileset, or null before its root arrives. */
   getGeographicBounds: () => {
@@ -118,7 +118,7 @@ export const createPointTilesetSceneRuntime = ({
     id,
     originLngLat,
     root,
-    update: (frame: PointcloudSceneFrame) => {
+    update: (frame: SharedThreeSceneFrame) => {
       if (disposed) return;
       tiles.setCamera(frame.lodCamera);
       // setResolutionFromRenderer would call renderer.getSize(); this layer

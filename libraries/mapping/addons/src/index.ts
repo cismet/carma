@@ -4,6 +4,7 @@ export {
   getTargetAddonsWithTrigger,
   hasTargetAddonsWithTrigger,
   resolveActiveTargetAddon,
+  resolveSecondaryViewTargetAddon,
   toAddonButtonId,
 } from "./lib/target-addons";
 export {
@@ -78,7 +79,11 @@ export {
 } from "./addons/TimeSlider";
 
 export { useHasAddonStateProducer } from "./lib/addon-channels";
-export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
+export {
+  useAddonState,
+  useAddonStateSnapshot,
+  useRouteAddons,
+} from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
 
 export { AddonManager, type AddonManagerConfig } from "./addons/AddonManager";
@@ -166,6 +171,10 @@ export {
   type LayerVisibilityConfig,
 } from "./addons/LayerVisibility";
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
+export {
+  ShadowSimulation,
+  type ShadowSimulationConfig,
+} from "./addons/ShadowSimulation";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
   CompareSwipe,

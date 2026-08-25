@@ -25,6 +25,7 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
+import { useAddonState } from "@carma-mapping/addons";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
@@ -43,6 +44,7 @@ import {
 } from "../annotations/cesium-annotations.constants";
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
+import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
 import {
   AdhocModelFlyToLayerbarAction,
   AdhocModelLayerbarActions,
@@ -388,6 +390,29 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
   );
 };
 
+const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+
+  const handleClose = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (shadowState) {
+        setShadowState({ ...shadowState, enabled: false });
+      }
+      dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
+    },
+    [dispatch, setShadowState, shadowState]
+  );
+
+  return (
+    <GeoportalLayerButton
+      {...props}
+      closeButton={{ icon: faTimes, onClick: handleClose }}
+    />
+  );
+};
+
 const SavedCesiumMeasurementLayerButton = (
   props: GeoportalLayerButtonProps & {
     annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection;
@@ -422,6 +447,10 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
 
   if (props.id === MEASUREMENT_LAYER_ID) {
     return <MeasurementLayerButton {...props} />;
+  }
+
+  if (props.id === SHADOW_SIMULATION_LAYER_ID) {
+    return <ShadowSimulationLayerButton {...props} />;
   }
 
   const isAdhocModelLayer =
