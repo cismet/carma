@@ -684,6 +684,17 @@ export function ThreeLayerManager({
           sourceFeatures.length, "sourceFeatures,",
           grid.size, "grid cells");
       }
+
+      // Ask for the frame this rebuild is meant to be seen in.
+      //
+      // What a custom layer holds is not part of MapLibre's own state, so
+      // replacing the geometry in the scene tells it nothing: it draws when it
+      // has a reason to, and new buildings are not one. Most rebuilds get away
+      // with it because what triggered them was a movement, which is drawing
+      // anyway. Switching terrain on is not: the camera stands still, the
+      // rebuild finishes, and the canvas keeps showing the frame from before it
+      // until the user nudges the map.
+      map.triggerRepaint();
     };
 
     /** Sync trees: queries source features and rebuilds tree geometry. */
