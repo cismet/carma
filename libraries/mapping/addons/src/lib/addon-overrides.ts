@@ -51,6 +51,7 @@ export const SWITCHABLE_KINDS = [
   "libreTerrain",
   "annotationOverlay",
   "annotationControl",
+  "shadowSimulation",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
   "timeSlider",

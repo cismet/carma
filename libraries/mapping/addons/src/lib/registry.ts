@@ -66,6 +66,11 @@ import {
 } from "../addons/VectorHighlight";
 import { LibreTerrain, type LibreTerrainConfig } from "../addons/LibreTerrain";
 import {
+  ShadowSimulation,
+  type ShadowSimulationConfig,
+  type ShadowSimulationState,
+} from "../addons/ShadowSimulation";
+import {
   LayerVisibility,
   layerVisibilityTrigger,
   type LayerVisibilityConfig,
@@ -150,6 +155,7 @@ export type AddonConfigMap = {
   vectorHighlightDebug: VectorHighlightDebugPanelConfig;
   layerVisibility: LayerVisibilityConfig;
   libreTerrain: LibreTerrainConfig;
+  shadowSimulation: ShadowSimulationConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
@@ -248,6 +254,8 @@ export type AddonStateMap = {
    * addon, which is why it has no consumer among the registry's `requires`.
    */
   addonOverrides: AddonOverridesState;
+  /** enabled state and daylight selection shared by the control and layer pane */
+  shadowSimulation: ShadowSimulationState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -356,6 +364,13 @@ export type AddonComponentProps<K extends AddonKind = AddonKind> = {
   target: LayerStackEntry | null;
 };
 
+export const ADDON_TARGET_PLACEMENT = {
+  SECONDARY_VIEW: "secondary-view",
+} as const;
+
+export type AddonTargetPlacement =
+  (typeof ADDON_TARGET_PLACEMENT)[keyof typeof ADDON_TARGET_PLACEMENT];
+
 export type AddonContext<K extends AddonKind = AddonKind> = {
   config?: AddonConfigMap[K];
   target: LayerStackEntry | null;
@@ -389,6 +404,8 @@ export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
    * kind out of the route-wide addon switching.
    */
   perTarget?: boolean;
+  /** Render this target-bound component inside the host's secondary view. */
+  targetPlacement?: AddonTargetPlacement;
   /** state channels this addon writes (headless producers declare these) */
   provides?: readonly AddonStateKey[];
   /**
@@ -464,6 +481,11 @@ export const addonRegistry: {
     trigger: layerVisibilityTrigger,
   },
   libreTerrain: { Component: LibreTerrain },
+  shadowSimulation: {
+    Component: ShadowSimulation,
+    targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
+    provides: ["shadowSimulation"],
+  },
   infoBoxZoomImage: {
     Component: InfoBoxZoomImage,
     provides: ["infoBoxImage"],

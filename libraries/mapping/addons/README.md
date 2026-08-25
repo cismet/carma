@@ -48,6 +48,7 @@ so the second folder is the list of what actually exists:
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain for the maplibre map: a toggle button, or on whenever the camera is free |
+| `addons/ShadowSimulation/`   | daylight-clamped sun control for MapLibre and Three.js content   |
 
 An addon that needs more than one file gets its own folder there
 (`addons/CameraTour/index.tsx` plus its parts).

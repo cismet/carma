@@ -32,7 +32,12 @@ import type {
 } from "@carma-mapping/engines/threejs";
 
 import { useLibreContext } from "../contexts/LibreContext";
-import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
+import {
+  getGenericThreeLayers,
+  notifyGenericThreeLayerContentChanged,
+  registerGenericThreeLayer,
+  unregisterGenericThreeLayer,
+} from "../lib/runtime/integrations/generic-three-layer-registry";
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────
@@ -63,35 +68,6 @@ export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
   runtimeParams: Record<string, number | string>;
   perfRef?: React.MutableRefObject<ThreePerfData>;
-}
-
-// ─────────────────────────────────────────────────────────────
-//  Registry: expose 3D layers on the map instance for click handling
-// ─────────────────────────────────────────────────────────────
-
-const LAYER_REGISTRY_KEY = "__carma3dLayers";
-
-function register3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
-  const registry =
-    ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
-  if (!registry.includes(layer)) {
-    registry.push(layer);
-  }
-  (map as any)[LAYER_REGISTRY_KEY] = registry;
-  add3dPresence(map, layer.id);
-  // console.log("[3D-SELECT] registered layer:", layer.id, "total:", registry.length);
-}
-
-function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
-  const registry =
-    ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
-  const idx = registry.indexOf(layer);
-  remove3dPresence(map, layer.id);
-  if (idx >= 0) {
-    registry.splice(idx, 1);
-    // console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
-  }
-  (map as any)[LAYER_REGISTRY_KEY] = registry;
 }
 
 /**
@@ -129,9 +105,7 @@ function resolveFeatureColor(
 }
 
 /** Get all registered 3D layers from a map instance. */
-export function get3dLayers(map: MaplibreMap): GenericCustomLayer[] {
-  return ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
-}
+export const get3dLayers = getGenericThreeLayers;
 
 /** Apply building color/opacity overrides to existing building meshes in-place. */
 function applyBuildingAppearance(
@@ -219,7 +193,7 @@ export function ThreeLayerManager({
         }
         if (layerRef.current) {
           layerRef.current.unhighlight();
-          unregister3dLayer(map, layerRef.current);
+          unregisterGenericThreeLayer(map, layerRef.current);
           const layerId = layerRef.current.id;
           if (map.getLayer(layerId)) {
             map.removeLayer(layerId);
@@ -300,7 +274,7 @@ export function ThreeLayerManager({
         }
         if (layerRef.current) {
           layerRef.current.unhighlight();
-          unregister3dLayer(map, layerRef.current);
+          unregisterGenericThreeLayer(map, layerRef.current);
           if (map.getLayer(layerRef.current.id)) {
             map.removeLayer(layerRef.current.id);
           }
@@ -402,7 +376,7 @@ export function ThreeLayerManager({
         console.log("[3D-ZORDER] addLayer", layerId, "beforeId:", initialBeforeId,
           "source:", config.sourceId);
         map.addLayer(customLayer, initialBeforeId);
-        register3dLayer(map, customLayer);
+        registerGenericThreeLayer(map, customLayer);
 
         const oId = layerId + "-overlay";
         const overlay = buildOverlayLayer(customLayer, oId);
@@ -800,6 +774,7 @@ export function ThreeLayerManager({
       if (color || opacity != null) {
         applyBuildingAppearance(layer, color, opacity);
       }
+      notifyGenericThreeLayerContentChanged(map);
 
       // Build the spatial grid for raycast pre-filtering (reuse rebuild() logic)
       // We call rebuild() which rebuilds the grid from _features, but for extrusion
@@ -870,6 +845,7 @@ export function ThreeLayerManager({
         layerRef.current,
         radiusMix
       );
+      if (result) notifyGenericThreeLayerContentChanged(map);
       if (result && perfRef) {
         perfRef.current = {
           ...result,
@@ -924,7 +900,7 @@ export function ThreeLayerManager({
     // Also re-checks visibility so toggling a layer back on re-creates the 3D layer
     const handleStyleData = () => {
       if (layerRef.current && !map.getLayer(layerRef.current.id)) {
-        unregister3dLayer(map, layerRef.current);
+        unregisterGenericThreeLayer(map, layerRef.current);
         overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
@@ -998,6 +974,7 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map || (config.renderMode !== "extrusion" && config.renderMode !== "lod2")) return;
     applyBuildingAppearance(layerRef.current, buildingColor, buildingOpacity);
+    notifyGenericThreeLayerContentChanged(map);
     map.triggerRepaint();
   }, [map, config.renderMode, buildingColor, buildingOpacity]);
 

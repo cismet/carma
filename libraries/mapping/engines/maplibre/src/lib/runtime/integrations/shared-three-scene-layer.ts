@@ -7,29 +7,38 @@ import type {
 } from "maplibre-gl";
 import * as THREE from "three";
 
-export interface PointcloudSceneFrame {
+export interface SharedThreeSceneFrame {
   map: MaplibreMap;
   renderCamera: THREE.Camera;
   lodCamera: THREE.PerspectiveCamera;
   viewport: THREE.Vector2;
 }
 
-export interface PointcloudSceneRuntime {
+export interface SharedThreeSceneRuntime {
   id: string;
   originLngLat: [number, number];
   root: THREE.Object3D;
+  /** Runtime contains visible geometry that can cast or receive shadows. */
+  supportsShadows?: boolean;
   onAdd?: (map: MaplibreMap) => void;
-  update: (frame: PointcloudSceneFrame) => void;
+  update: (frame: SharedThreeSceneFrame) => void;
   dispose: () => void;
 }
 
-export interface PointcloudSceneLayer extends CustomLayerInterface {
-  addRuntime: (runtime: PointcloudSceneRuntime) => void;
+export interface SharedThreeSceneLayer extends CustomLayerInterface {
+  addRuntime: (runtime: SharedThreeSceneRuntime) => void;
   removeRuntime: (runtimeId: string) => void;
   hasRuntime: (runtimeId: string) => boolean;
+  hasShadeableContent: () => boolean;
+  getScene: () => THREE.Scene;
   /** Detach the custom layer without destroying runtimes preserved across HMR. */
   detach: () => void;
   dispose: () => void;
+}
+
+export interface SharedThreeSceneLayerOptions {
+  ambientLightIntensity?: number;
+  onContentChange?: () => void;
 }
 
 const rotationX = new THREE.Matrix4().makeRotationAxis(
@@ -42,23 +51,26 @@ const rotationX = new THREE.Matrix4().makeRotationAxis(
  * mesh content. Opaque meshes and transparent splats therefore share Three's
  * render ordering and MapLibre's existing depth buffer in a single draw.
  */
-export const buildPointcloudSceneLayer = (
-  layerId: string
-): PointcloudSceneLayer => {
+export const buildSharedThreeSceneLayer = (
+  layerId: string,
+  options: SharedThreeSceneLayerOptions = {}
+): SharedThreeSceneLayer => {
   const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, 2.4));
+  scene.add(
+    new THREE.AmbientLight(0xffffff, options.ambientLightIntensity ?? 2.4)
+  );
   const renderCamera = new THREE.Camera();
   const lodCamera = new THREE.PerspectiveCamera();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
-  const runtimes = new Map<string, PointcloudSceneRuntime>();
+  const runtimes = new Map<string, SharedThreeSceneRuntime>();
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
   let originMerc: MercatorCoordinate | null = null;
   let meterScale = 0;
   let disposed = false;
 
-  const placeRuntime = (runtime: PointcloudSceneRuntime) => {
+  const placeRuntime = (runtime: SharedThreeSceneRuntime) => {
     if (!originMerc || meterScale <= 0) return;
     const runtimeOrigin = MercatorCoordinate.fromLngLat(
       runtime.originLngLat,
@@ -74,7 +86,7 @@ export const buildPointcloudSceneLayer = (
     runtime.root.updateMatrixWorld(true);
   };
 
-  const layer: PointcloudSceneLayer = {
+  const layer: SharedThreeSceneLayer = {
     id: layerId,
     type: "custom",
     renderingMode: "3d",
@@ -88,6 +100,7 @@ export const buildPointcloudSceneLayer = (
       scene.add(runtime.root);
       placeRuntime(runtime);
       if (map) runtime.onAdd?.(map);
+      options.onContentChange?.();
       map?.triggerRepaint();
     },
 
@@ -97,11 +110,22 @@ export const buildPointcloudSceneLayer = (
       runtimes.delete(runtimeId);
       scene.remove(runtime.root);
       runtime.dispose();
+      options.onContentChange?.();
       map?.triggerRepaint();
     },
 
     hasRuntime(runtimeId) {
       return runtimes.has(runtimeId);
+    },
+
+    hasShadeableContent() {
+      return [...runtimes.values()].some(
+        (runtime) => runtime.supportsShadows && runtime.root.visible
+      );
+    },
+
+    getScene() {
+      return scene;
     },
 
     detach() {
@@ -123,10 +147,14 @@ export const buildPointcloudSceneLayer = (
         context: gl,
       });
       renderer.autoClear = false;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       for (const runtime of runtimes.values()) {
+        if (runtime.root.parent !== scene) scene.add(runtime.root);
         placeRuntime(runtime);
         runtime.onAdd?.(mapInstance);
       }
+      options.onContentChange?.();
     },
 
     render(gl, options: CustomRenderMethodInput) {
@@ -158,7 +186,7 @@ export const buildPointcloudSceneLayer = (
         return;
       }
 
-      const frame: PointcloudSceneFrame = {
+      const frame: SharedThreeSceneFrame = {
         map,
         renderCamera,
         lodCamera,
@@ -178,6 +206,7 @@ export const buildPointcloudSceneLayer = (
       renderer?.dispose();
       renderer = null;
       map = null;
+      options.onContentChange?.();
     },
 
     dispose() {
@@ -189,6 +218,7 @@ export const buildPointcloudSceneLayer = (
       renderer?.dispose();
       renderer = null;
       map = null;
+      options.onContentChange?.();
     },
   };
 

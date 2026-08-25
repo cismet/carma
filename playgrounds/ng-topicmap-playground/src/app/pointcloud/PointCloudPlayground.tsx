@@ -29,9 +29,18 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { CarmaMap } from "@carma-mapping/core";
 import { useHashState } from "@carma-providers/hash-state";
 import {
+  buildSharedThreeSceneLayer,
+  buildThreeTilesRuntime,
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_ERROR_TARGET_MAX_PIXELS,
+  TILES_ERROR_TARGET_MIN_PIXELS,
   useLibreContext,
   WUPPERTAL_CONFIG,
   WUPPERTAL_TERRAIN_SOURCE_ID,
+} from "@carma-mapping/engines/maplibre";
+import type {
+  ImageProjector,
+  ThreeTilesRuntime,
 } from "@carma-mapping/engines/maplibre";
 
 import {
@@ -55,13 +64,6 @@ import {
   utmToScene,
 } from "./orientedImagery";
 import type { OrientedImageryLayer } from "./orientedImagery";
-import {
-  buildTiles3dLayer,
-  TILES_ERROR_TARGET_DEFAULT_PIXELS,
-  TILES_ERROR_TARGET_MAX_PIXELS,
-  TILES_ERROR_TARGET_MIN_PIXELS,
-} from "./tiles3dLayer";
-import type { ImageProjector, Tiles3dLayer } from "./tiles3dLayer";
 import * as THREE from "three";
 import { buildCloudFieldInfos, openCopcPointSource } from "./copcLoader";
 import type {
@@ -117,7 +119,6 @@ import {
   parsePointCloudMicroCorrections,
 } from "./pointCloudMicroCorrections";
 import type { PointCloudMicroCorrection } from "./pointCloudMicroCorrections";
-import { buildPointcloudSceneLayer } from "./pointcloudSceneLayer";
 import {
   mergePersistedSettings,
   readPointcloudViewState,
@@ -815,10 +816,10 @@ const SceneManager = memo(function SceneManager({
 }) {
   const { map } = useLibreContext();
   const cloudSlotsRef = useRef<Map<string, CloudSlot>>(new Map());
-  const meshLayersRef = useRef<Map<string, Tiles3dLayer>>(new Map());
+  const meshLayersRef = useRef<Map<string, ThreeTilesRuntime>>(new Map());
   const terrainActiveRef = useRef(false);
   const sharedSceneLayer = useMemo(
-    () => (map ? buildPointcloudSceneLayer("pointcloud-three-scene") : null),
+    () => (map ? buildSharedThreeSceneLayer("pointcloud-three-scene") : null),
     [map]
   );
   const onApiRef = useRef(onApi);
@@ -1857,7 +1858,7 @@ const SceneManager = memo(function SceneManager({
       for (const def of MESH_ASSETS) {
         if (!active.has(def.id) || layers.has(def.id)) continue;
         const center = map.getCenter();
-        const tilesLayer = buildTiles3dLayer(
+        const tilesLayer = buildThreeTilesRuntime(
           `tiles3d-${def.id}`,
           def.url,
           [center.lng, center.lat],

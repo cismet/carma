@@ -11,13 +11,13 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
-import { Gltf1UpgradePlugin } from "./gltf1UpgradePlugin";
+import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { createTilesCameraSet } from "./tiles-camera-set";
 import type { TilesCameraSet } from "./tiles-camera-set";
 import type {
-  PointcloudSceneFrame,
-  PointcloudSceneRuntime,
-} from "./pointcloudSceneLayer";
+  SharedThreeSceneFrame,
+  SharedThreeSceneRuntime,
+} from "./shared-three-scene-layer";
 
 // Match the direct screen-space-error control used by the official
 // 3DTilesRendererJS kitchen-sink demo. Lower values request more detail.
@@ -33,8 +33,8 @@ const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 const CLAY_COLOR = 0xd6d2ca;
 
 // ─────────────────────────────────────────────────────────────
-//  Cesium 3D Tiles (b3dm meshes) inside the shared MapLibre
-//  pointcloudSceneLayer, using NASA-AMMOS 3d-tiles-renderer (Apache-2.0).
+//  Cesium 3D Tiles (b3dm meshes) inside the shared MapLibre Three.js scene,
+//  using NASA-AMMOS 3d-tiles-renderer (Apache-2.0).
 //
 //  The tilesets are georeferenced in ECEF; the ReorientationPlugin
 //  maps them into the same local scene frame the point cloud
@@ -62,14 +62,15 @@ export type ImageProjector =
       opacity: number;
     };
 
-export interface Tiles3dLayer extends PointcloudSceneRuntime {
+export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
   /** Pause/resume traversal and drawing without destroying the tileset cache. */
   setVisible: (visible: boolean) => void;
   /** Vertical offset in meters (datum corrections included by caller) */
   setHeightOffset: (offsetMeters: number) => void;
   setErrorTarget: (errorTarget: number) => void;
-  /** Override textures with flat white shading (reversible) */
+  /** Override textures with physically lit clay shading (reversible). */
   setWhiteShading: (white: boolean) => void;
+  setClayMaterial: (options: ClayMaterialOptions) => void;
   setClayColor: (color: string) => void;
   setOpacity: (opacity: number) => void;
   setWireframe: (enabled: boolean) => void;
@@ -83,18 +84,24 @@ export interface Tiles3dLayer extends PointcloudSceneRuntime {
   mScale: number;
 }
 
-export interface Tiles3dLayerOptions {
+export interface ClayMaterialOptions {
+  color?: string;
+  roughness?: number;
+  metalness?: number;
+}
+
+export interface ThreeTilesRuntimeOptions {
   cacheBudgetBytes?: number;
   requestConcurrency?: number;
   onRequestStateChange?: () => void;
 }
 
-export function buildTiles3dLayer(
+export function buildThreeTilesRuntime(
   layerId: string,
   tilesetUrl: string,
   originLngLat: [number, number],
-  options: Tiles3dLayerOptions = {}
-): Tiles3dLayer {
+  options: ThreeTilesRuntimeOptions = {}
+): ThreeTilesRuntime {
   const originMerc = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const mScale = originMerc.meterInMercatorCoordinateUnits();
 
@@ -123,7 +130,9 @@ export function buildTiles3dLayer(
   const offsetGroup = new THREE.Group();
   orientationGroup.add(offsetGroup);
   let whiteShading = false;
-    let clayColor = new THREE.Color(CLAY_COLOR);
+  let clayColor = new THREE.Color(CLAY_COLOR);
+  let clayRoughness = 0.92;
+  let clayMetalness = 0;
   let opacity = 1;
   let wireframe = false;
   let tileBoundsVisible = false;
@@ -142,8 +151,6 @@ export function buildTiles3dLayer(
     uProjHeading: { value: 0 },
     uProjMatrix: { value: new THREE.Matrix4() },
     tProj: { value: null as THREE.Texture | null },
-    uClayEnabled: { value: 0 },
-    uClayColor: { value: clayColor.clone() },
   };
 
   const patchMaterialForProjection = (material: THREE.Material) => {
@@ -170,38 +177,7 @@ uniform float uProjOpacity;
 uniform vec3 uProjPos;
 uniform float uProjHeading;
 uniform mat4 uProjMatrix;
-uniform sampler2D tProj;
-uniform float uClayEnabled;
-uniform vec3 uClayColor;`
-        )
-        .replace(
-          "#include <opaque_fragment>",
-          `if (uClayEnabled > 0.5) {
-  // The source tiles are intentionally unlit because illumination is baked
-  // into their photographs. For the textureless clay view, reconstruct a
-  // stable face normal from world-position derivatives so the same relief
-  // lighting also works for those MeshBasicMaterial payloads.
-  vec3 clayGradient = cross(dFdx(vProjWorld), dFdy(vProjWorld));
-  float clayGradientLength = max(length(clayGradient), 1e-5);
-  vec3 clayNormal = clayGradient / clayGradientLength;
-  if (!gl_FrontFacing) clayNormal = -clayNormal;
-
-  float claySky = clamp(clayNormal.y * 0.5 + 0.5, 0.0, 1.0);
-  float clayHemisphere = mix(0.38, 0.72, claySky);
-  float clayKey = max(
-    dot(clayNormal, normalize(vec3(-0.45, 0.82, -0.35))),
-    0.0
-  ) * 0.36;
-  float clayFill = max(
-    dot(clayNormal, normalize(vec3(0.55, 0.35, 0.75))),
-    0.0
-  ) * 0.16;
-  // Replace either unlit or PBR output with the same predictable clay
-  // response. This keeps glTF 1 and glTF 2 tiles visually consistent.
-  outgoingLight = uClayColor *
-    clamp(clayHemisphere + clayKey + clayFill, 0.3, 1.08);
-}
-#include <opaque_fragment>`
+uniform sampler2D tProj;`
         )
         .replace(
           "#include <dithering_fragment>",
@@ -233,13 +209,67 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     material.needsUpdate = true;
   };
 
+  type ClayMaterialState = {
+    original: THREE.Material | THREE.Material[];
+    clay: THREE.Material | THREE.Material[];
+  };
+
+  const clayMaterialStates = new Map<THREE.Mesh, ClayMaterialState>();
+  const asMaterialArray = (
+    material: THREE.Material | THREE.Material[]
+  ): THREE.Material[] => (Array.isArray(material) ? material : [material]);
+
+  const buildClayMaterial = (source: THREE.Material) => {
+    const material = new THREE.MeshStandardMaterial({
+      color: clayColor,
+      roughness: clayRoughness,
+      metalness: clayMetalness,
+      side: source.side,
+      opacity: source.opacity,
+      transparent: source.transparent,
+      depthTest: true,
+      depthWrite: source.depthWrite,
+      alphaTest: source.alphaTest,
+    });
+    material.name = source.name ? `${source.name} · clay` : "tileset-clay";
+    return material;
+  };
+
+  const disposeClayState = (mesh: THREE.Mesh, state: ClayMaterialState) => {
+    mesh.material = state.original;
+    for (const material of asMaterialArray(state.clay)) material.dispose();
+    clayMaterialStates.delete(mesh);
+  };
+
+  const restoreClayMaterials = (root: THREE.Object3D) => {
+    root.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      const state = mesh.isMesh ? clayMaterialStates.get(mesh) : undefined;
+      if (state) disposeClayState(mesh, state);
+    });
+  };
+
   const applyMaterialFlags = (root: THREE.Object3D) => {
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material];
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      let clayState = clayMaterialStates.get(mesh);
+      if (whiteShading && !clayState) {
+        const original = mesh.material;
+        const clay = Array.isArray(original)
+          ? original.map(buildClayMaterial)
+          : buildClayMaterial(original);
+        clayState = { original, clay };
+        clayMaterialStates.set(mesh, clayState);
+        mesh.material = clay;
+      } else if (!whiteShading && clayState) {
+        disposeClayState(mesh, clayState);
+        clayState = undefined;
+      }
+
+      const materials = asMaterialArray(mesh.material);
       for (const material of materials) {
         // The reorientation parent keeps tile coordinates in the same local
         // meter frame and projection as the point layers. Write that shared
@@ -261,27 +291,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           (material as THREE.Material & { wireframe: boolean }).wireframe =
             wireframe;
         }
-        const textured = material as THREE.MeshStandardMaterial;
-        if (whiteShading) {
-          if (textured.map) {
-            textured.userData.__originalMap = textured.map;
-            textured.map = null;
-          }
-          if (textured.color && !textured.userData.__originalColor) {
-            textured.userData.__originalColor = textured.color.clone();
-          }
-          textured.color?.set(CLAY_COLOR);
-        } else {
-          if (textured.userData.__originalMap) {
-            textured.map = textured.userData.__originalMap as THREE.Texture;
-            delete textured.userData.__originalMap;
-          }
-          if (textured.color && textured.userData.__originalColor) {
-            textured.color.copy(
-              textured.userData.__originalColor as THREE.Color
-            );
-            delete textured.userData.__originalColor;
-          }
+        if (whiteShading && "color" in material) {
+          (material as THREE.Material & { color: THREE.Color }).color.copy(
+            clayColor
+          );
         }
         material.needsUpdate = true;
         patchMaterialForProjection(material);
@@ -304,6 +317,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     );
   };
   const notifyRequestStateChange = () => options.onRequestStateChange?.();
+  const handleModelLoad = (event: { scene?: THREE.Object3D }) => {
+    if (event.scene) applyMaterialFlags(event.scene);
+    notifyRequestStateChange();
+    requestRender();
+  };
+  const handleModelDispose = (event: { scene?: THREE.Object3D }) => {
+    if (event.scene) restoreClayMaterials(event.scene);
+  };
   const syncProjector = () => {
     const projector = activeProjector;
     if (!projector) {
@@ -431,10 +452,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     });
   };
 
-  const layer: Tiles3dLayer = {
+  const layer: ThreeTilesRuntime = {
     id: layerId,
     originLngLat,
     root: orientationGroup,
+    supportsShadows: true,
     originMerc,
     mScale,
 
@@ -507,12 +529,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles.addEventListener("needs-update", requestRender);
       tiles.addEventListener("load-tile-set", requestRender);
       tiles.addEventListener("update-after", handleUpdateAfter);
-      tiles.addEventListener("load-model", (event) => {
-        const modelScene = (event as { scene?: THREE.Object3D }).scene;
-        if (modelScene) applyMaterialFlags(modelScene);
-        notifyRequestStateChange();
-        requestRender();
-      });
+      tiles.addEventListener("load-model", handleModelLoad);
+      tiles.addEventListener("dispose-model", handleModelDispose);
       tiles.addEventListener("load-error", notifyRequestStateChange);
       tiles.addEventListener("tiles-load-end", notifyRequestStateChange);
       map.on("movestart", handleViewStart);
@@ -520,7 +538,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map.on("resize", handleViewEnd);
     },
 
-    update(frame: PointcloudSceneFrame) {
+    update(frame: SharedThreeSceneFrame) {
       if (!runtimeVisible || !tiles || !map) return;
       syncProjector();
       try {
@@ -605,16 +623,33 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     setWhiteShading(white: boolean) {
       whiteShading = white;
-      projUniforms.uClayEnabled.value = white ? 1 : 0;
+      applyMaterialFlags(orientationGroup);
+      map?.triggerRepaint();
+    },
+
+    setClayMaterial(options: ClayMaterialOptions) {
+      if (options.color !== undefined) clayColor.set(options.color);
+      if (options.roughness !== undefined) {
+        clayRoughness = THREE.MathUtils.clamp(options.roughness, 0, 1);
+      }
+      if (options.metalness !== undefined) {
+        clayMetalness = THREE.MathUtils.clamp(options.metalness, 0, 1);
+      }
+      for (const state of clayMaterialStates.values()) {
+        for (const material of asMaterialArray(state.clay)) {
+          if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+          material.color.copy(clayColor);
+          material.roughness = clayRoughness;
+          material.metalness = clayMetalness;
+          material.needsUpdate = true;
+        }
+      }
       applyMaterialFlags(orientationGroup);
       map?.triggerRepaint();
     },
 
     setClayColor(color: string) {
-      clayColor.set(color);
-      projUniforms.uClayColor.value.copy(clayColor);
-      applyMaterialFlags(orientationGroup);
-      map?.triggerRepaint();
+      layer.setClayMaterial({ color });
     },
 
     setOpacity(nextOpacity: number) {
@@ -672,8 +707,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles?.removeEventListener("needs-update", requestRender);
       tiles?.removeEventListener("load-tile-set", requestRender);
       tiles?.removeEventListener("update-after", handleUpdateAfter);
+      tiles?.removeEventListener("load-model", handleModelLoad);
+      tiles?.removeEventListener("dispose-model", handleModelDispose);
       cameraSet?.dispose();
       cameraSet = null;
+      restoreClayMaterials(orientationGroup);
       tiles?.dispose();
       tiles = null;
       debugTilesPlugin = null;

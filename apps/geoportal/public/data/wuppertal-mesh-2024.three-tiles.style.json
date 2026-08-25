@@ -1,0 +1,28 @@
+{
+  "version": 8,
+  "name": "Wuppertal Mesh 2024",
+  "sources": {},
+  "layers": [],
+  "metadata": {
+    "carmaConf": {
+      "instant": true,
+      "layerInfo": {
+        "title": "Wuppertal Mesh 2024",
+        "description": "3D-Tiles-Mesh mit Clay-Material für die gemeinsame Three.js-Szene",
+        "keywords": []
+      },
+      "threeTiles": {
+        "url": "https://wupp-3d-data.cismet.de/mesh2024/tileset.json",
+        "origin": [7.15, 51.256],
+        "shader": {
+          "kind": "clay",
+          "color": "#d8d1c4",
+          "roughness": 0.92,
+          "metalness": 0
+        },
+        "errorTarget": 8,
+        "requestConcurrency": 2
+      }
+    }
+  }
+}
