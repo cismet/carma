@@ -194,15 +194,7 @@ export const ShapeToolbar = ({
               aria-label={bufferLabel}
               aria-expanded={bufferOpen}
               data-test-id="vector-highlight-buffer"
-              className={[
-                css.button,
-                bufferEnabled && activeColor ? "" : css.buttonInactive,
-              ].join(" ")}
-              style={
-                bufferEnabled && activeColor
-                  ? { color: activeColor }
-                  : undefined
-              }
+              className={[css.button, css.buttonInactive].join(" ")}
             >
               <FontAwesomeIcon icon={faLeftRight} />
             </button>
