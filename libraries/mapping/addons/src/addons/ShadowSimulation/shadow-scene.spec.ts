@@ -145,9 +145,15 @@ describe("shadow scene lighting integration", () => {
       "shadow-simulation-sun"
     ) as THREE.DirectionalLight;
     expect(sun.castShadow).toBe(true);
+    expect(sun.shadow.mapSize.toArray()).toEqual([2_048, 2_048]);
     expect(sun.position.clone().normalize().x).toBeCloseTo(0.5);
     expect(sun.position.clone().normalize().y).toBeCloseTo(Math.SQRT1_2);
     expect(sun.position.clone().normalize().z).toBeCloseTo(0.5);
+
+    controller.updateShadowQuality(4);
+    expect(sun.shadow.mapSize.toArray()).toEqual([4_096, 4_096]);
+    controller.updateShadowQuality(16);
+    expect(sun.shadow.mapSize.toArray()).toEqual([8_192, 8_192]);
 
     controller.dispose();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
@@ -162,11 +168,18 @@ describe("shadow scene lighting integration", () => {
     terrain.name = "terrain";
     scene.add(terrain);
     const alkisScene = new THREE.Scene();
+    const sourceBuildingMaterial = new THREE.MeshLambertMaterial({
+      color: 0xffffff,
+      opacity: 0.45,
+      transparent: true,
+      vertexColors: true,
+    });
     const building = new THREE.Mesh(
       new THREE.BoxGeometry(10, 20, 10),
-      new THREE.MeshLambertMaterial()
+      sourceBuildingMaterial
     );
     building.name = "alkis-building";
+    building.userData.isBuilding = true;
     alkisScene.add(building);
     vi.mocked(getGenericThreeLayers).mockReturnValue([
       {
@@ -198,14 +211,42 @@ describe("shadow scene lighting integration", () => {
     expect(building.visible).toBe(false);
     expect(buildingCopy.castShadow).toBe(true);
     expect(buildingCopy.receiveShadow).toBe(true);
+    expect(buildingCopy.material).not.toBe(sourceBuildingMaterial);
+    expect((buildingCopy.material as THREE.Material).opacity).toBe(1);
+    expect((buildingCopy.material as THREE.Material).transparent).toBe(false);
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
     expect(buildingCopy.parent?.parent).toBe(scene);
     expect(terrain.parent).toBe(scene);
 
+    controller.updateBuildingAppearance({
+      fullOpacity: true,
+      uniformColor: "#8c7a66",
+    });
+    const uniformCopy = scene.getObjectByName(
+      "alkis-building-shadow-simulation-copy"
+    ) as THREE.Mesh;
+    const uniformMaterial = uniformCopy.material as THREE.MeshLambertMaterial;
+    expect(uniformMaterial.color.getHexString()).toBe("8c7a66");
+    expect(uniformMaterial.vertexColors).toBe(false);
+
+    controller.updateBuildingAppearance({
+      fullOpacity: false,
+      uniformColor: null,
+    });
+    const styledCopy = scene.getObjectByName(
+      "alkis-building-shadow-simulation-copy"
+    ) as THREE.Mesh;
+    const styledMaterial = styledCopy.material as THREE.MeshLambertMaterial;
+    expect(styledMaterial.opacity).toBe(0.45);
+    expect(styledMaterial.transparent).toBe(true);
+    expect(styledMaterial.vertexColors).toBe(true);
+
     controller.dispose();
     expect(building.visible).toBe(true);
-    expect(scene.getObjectByName(buildingCopy.name)).toBeUndefined();
+    expect(
+      scene.getObjectByName("alkis-building-shadow-simulation-copy")
+    ).toBeUndefined();
   });
 
   it("keeps the full map viewport inside the shadow camera", () => {
