@@ -12,6 +12,13 @@ const DEFAULT_SIDEBAR_WIDTH = 300;
 export const DEBUG_BBOX_SOURCE_ID = "debug-bbox-source";
 export const DEBUG_BBOX_LAYER_ID = "debug-bbox-layer";
 
+/**
+ * Sources a CARMA tool adds to draw itself — the lasso being drawn, and
+ * anything else that follows the convention. They render like any other source
+ * and would be queried and counted as map objects, which they never are.
+ */
+const INTERNAL_SOURCE_PREFIX = "__carma-";
+
 /** Pixels per side, so an asymmetric overlay can be described exactly. */
 export interface MapQueryInsetPx {
   top?: number;
@@ -442,10 +449,13 @@ export const useVisibleMapFeatures = ({
           // The debug rectangle is drawn above, before the query runs, so it is
           // a rendered feature like any other and would count itself. The hook
           // owns that layer, so it drops it here rather than leaving every
-          // caller to remember a filter.
+          // caller to remember a filter — and the same goes for the scratch
+          // layers other CARMA tools draw themselves with.
           if (
             f.source === DEBUG_BBOX_SOURCE_ID ||
-            f.layer?.id === DEBUG_BBOX_LAYER_ID
+            f.layer?.id === DEBUG_BBOX_LAYER_ID ||
+            f.source?.startsWith(INTERNAL_SOURCE_PREFIX) ||
+            f.layer?.id?.startsWith(INTERNAL_SOURCE_PREFIX)
           ) {
             continue;
           }
