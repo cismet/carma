@@ -86,6 +86,15 @@ export type VectorHighlightConfig = {
    */
   defaultBuffer?: number;
   /**
+   * What the width is multiplied by each time the *same* remembered shape is
+   * buffered again — 2 doubles it on every repeat, so the same shape can be
+   * widened step by step without touching the slider. The width then belongs to
+   * that shape: a newly drawn one starts from `defaultBuffer` again. 1 keeps
+   * the width as it is, and with it the width a user set carries over to the
+   * next shape. Capped at 5000 m. Default: 1
+   */
+  bufferGrowth?: number;
+  /**
    * Start with the buffer switched on, and switch it back on after every
    * shape. Without it the buffer is a one-off: on for the shape the panel was
    * opened for, off again once that shape has run. Default: false
