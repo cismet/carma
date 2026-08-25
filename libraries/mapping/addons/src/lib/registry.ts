@@ -33,6 +33,11 @@ import {
   type NearestFeatureCategoryState,
   type NearestFeatureConfig,
 } from "../addons/NearestFeature";
+import {
+  OriginSearch,
+  type OriginLocationState,
+  type OriginSearchConfig,
+} from "../addons/OriginSearch";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   VectorHighlight,
@@ -102,6 +107,7 @@ export type AddonConfigMap = {
   homeOverride: HomeOverrideConfig;
   nearestFeature: NearestFeatureConfig;
   nearestFeatureApotheken: NearestFeatureApothekenConfig;
+  originSearch: OriginSearchConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -135,6 +141,13 @@ export type AddonStateMap = {
    * write this one channel, each merging its own key in.
    */
   nearestFeatureCategories: NearestFeatureCategoryState;
+  /**
+   * where the user starts from, and who currently wants that input on screen;
+   * see `OriginSearch/originChannel.ts`. The "wohin?" of the app's own search
+   * has its counterpart here, so "In der Nähe" and, later, a routing UI read
+   * one starting point rather than each keeping their own.
+   */
+  originLocation: OriginLocationState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the comparison is running; see `ComparingControl` */
@@ -271,12 +284,19 @@ export const addonRegistry: {
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
   nearestFeature: {
+    // it writes `originLocation` (its request for the input) and reads the
+    // origin from it, but does not require it: without `originSearch` the
+    // channel stays empty and the configured origin is used
     Component: NearestFeature,
     requires: ["nearestFeatureCategories"],
   },
   nearestFeatureApotheken: {
     Component: NearestFeatureApotheken,
     provides: ["nearestFeatureCategories"],
+  },
+  originSearch: {
+    Component: OriginSearch,
+    provides: ["originLocation"],
   },
   vectorHighlight: {
     Component: VectorHighlight,

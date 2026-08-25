@@ -42,6 +42,7 @@ export const SWITCHABLE_KINDS = [
   "cameraRestriction",
   "nearestFeature",
   "nearestFeatureApotheken",
+  "originSearch",
   "vectorHighlight",
   "vectorHighlightControl",
   "vectorHighlightDebug",

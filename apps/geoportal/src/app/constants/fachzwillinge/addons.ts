@@ -74,6 +74,9 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     "nearestFeatureApotheken",
+    // the "von wo?" input: appears once a category has been ranked, and any
+    // address picked in it becomes the point "In der Nähe" measures from
+    "originSearch",
     {
       kind: "visibleFeatureStatsSource",
       config: {

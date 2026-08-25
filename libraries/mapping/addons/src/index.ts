@@ -120,6 +120,16 @@ export {
   type NearestFeatureConfig,
 } from "./addons/NearestFeature";
 export {
+  OriginSearch,
+  useOriginLocation,
+  useOriginLocationState,
+  useOriginRequest,
+  DEFAULT_ORIGIN_LOCATION,
+  type OriginLocation,
+  type OriginLocationState,
+  type OriginSearchConfig,
+} from "./addons/OriginSearch";
+export {
   collectNearestFromIndex,
   primeFeatureIndexes,
   type FeatureIndex,
