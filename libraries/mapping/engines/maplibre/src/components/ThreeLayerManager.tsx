@@ -12,12 +12,15 @@ import {
   buildLatheInstances,
   buildLoftMeshes,
   buildExtrusionMeshes,
+  featureBuildingColors,
   ensureProfiles,
   resolveOrigin,
 } from "@carma-mapping/engines/threejs";
 import type {
+  BuildingColors,
   BuildingFeature,
   Carma3dConfig,
+  ColorMapping,
   ThreePerfData,
   MappedFeature,
   FactoryStats,
@@ -71,6 +74,40 @@ function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
     // console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
   }
   (map as any)[LAYER_REGISTRY_KEY] = registry;
+}
+
+/**
+ * The colour a feature gets: a colour it carries wins, then a colour its
+ * category is mapped to.
+ *
+ * A colour in the data is more specific than one derived from a class, so the
+ * field is asked first and the mapping only fills in behind it. The mapping's
+ * `default` also answers for a feature that has no such property at all, which
+ * is what makes a half-filled table colour what it knows and leave the rest
+ * uniform rather than blank.
+ */
+function resolveFeatureColor(
+  properties: Record<string, unknown> | undefined,
+  field: string | undefined,
+  mapping: ColorMapping | undefined,
+): string | null {
+  if (field) {
+    const carried = properties?.[field];
+    if (typeof carried === "string" && carried !== "") {
+      return carried;
+    }
+  }
+  if (mapping?.field) {
+    const key = properties?.[mapping.field];
+    if (key != null) {
+      const mapped = mapping.values?.[String(key)];
+      if (mapped) {
+        return mapped;
+      }
+    }
+    return mapping.default ?? null;
+  }
+  return null;
 }
 
 /** Get all registered 3D layers from a map instance. */
@@ -138,6 +175,8 @@ export function ThreeLayerManager({
   const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
   /** Current building appearance overrides (kept in ref so syncBuildings can access) */
   const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>({});
+  /** Where building colours come from this render (same ref reason) */
+  const buildingColorsRef = useRef<BuildingColors | undefined>(undefined);
   /** Last logged building count to suppress repeated log lines */
   const lastLoggedCountRef = useRef(-1);
 
@@ -379,6 +418,10 @@ export function ThreeLayerManager({
 
       const heightField = config.fields?.heightField;
       const publicField = config.fields?.publicField;
+      const roofColorField = config.fields?.roofColorField;
+      const wallColorField = config.fields?.wallColorField;
+      const roofColorMap = config.roofColorMap;
+      const wallColorMap = config.wallColorMap;
       if (!heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
 
       const hasTerrain = map.getTerrain() != null;
@@ -393,6 +436,9 @@ export function ThreeLayerManager({
         fragments: number[][][];
         height: number;
         isPublic: boolean;
+        /** hex strings straight off the feature; the factory parses them */
+        roofColor: string | null;
+        wallColor: string | null;
         /** First raw feature for this group (used for _sourceFeatures snapshot) */
         rawFeature: (typeof raw)[0];
       }
@@ -421,7 +467,22 @@ export function ThreeLayerManager({
           if (g) {
             g.fragments.push(ring);
           } else {
-            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.[publicField] === "1", rawFeature: f });
+            groups.set(fid, {
+              fragments: [ring],
+              height,
+              isPublic: f.properties?.[publicField] === "1",
+              roofColor: resolveFeatureColor(
+                f.properties,
+                roofColorField,
+                roofColorMap,
+              ),
+              wallColor: resolveFeatureColor(
+                f.properties,
+                wallColorField,
+                wallColorMap,
+              ),
+              rawFeature: f,
+            });
           }
         }
       }
@@ -465,7 +526,15 @@ export function ThreeLayerManager({
           const elevation = hasTerrain
             ? (map.queryTerrainElevation({ lng: cLng, lat: cLat }) ?? 0)
             : 0;
-          buildings.push({ ring, height: g.height, elevation, isPublic: g.isPublic, sourceIndex });
+          buildings.push({
+            ring,
+            height: g.height,
+            elevation,
+            isPublic: g.isPublic,
+            roofColor: g.roofColor,
+            wallColor: g.wallColor,
+            sourceIndex,
+          });
 
           // Approximate footprint radius: max distance from centroid to any vertex
           let maxR = 0;
@@ -503,7 +572,17 @@ export function ThreeLayerManager({
       layer._sourceFeatures = sourceFeatures;
       layer._features = mappedFeatures;
 
-      buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
+      // colours the features carry when the layer names the fields for them,
+      // and the public/default pair when it does not; `buildingColor` below
+      // overrides either
+      buildExtrusionMeshes(
+        buildings,
+        layer.scene,
+        layer._originMerc,
+        layer._mScale,
+        buildingColorsRef.current,
+        config.wallAngleThreshold,
+      );
 
       // Re-apply building appearance overrides after geometry rebuild
       const { color, opacity } = buildingAppearanceRef.current;
@@ -657,10 +736,32 @@ export function ThreeLayerManager({
 
   // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
   const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
-  const buildingOpacity = typeof runtimeParams.buildingOpacity === "number" ? runtimeParams.buildingOpacity : undefined;
+  // the host's own prop wins, the style sets the layer's default
+  const buildingOpacity =
+    typeof runtimeParams.buildingOpacity === "number"
+      ? runtimeParams.buildingOpacity
+      : config.buildingOpacity;
 
-  // Keep ref in sync so syncBuildings can re-apply after geometry rebuild
+  // Where the buildings take their colours from.
+  //
+  // Naming any of the four says the features decide, whether they carry a
+  // colour outright or a category that is mapped to one. None of them: a
+  // building keeps the colour it gets from being public or not, which is what
+  // it has always had.
+  //
+  // `buildingColor` overrides either, since it repaints every vertex uniformly
+  // after the rebuild.
+  const buildingColors: BuildingColors | undefined =
+    config.fields?.roofColorField ||
+    config.fields?.wallColorField ||
+    config.roofColorMap ||
+    config.wallColorMap
+      ? featureBuildingColors
+      : undefined;
+
+  // Keep refs in sync so syncBuildings can re-apply after geometry rebuild
   buildingAppearanceRef.current = { color: buildingColor, opacity: buildingOpacity };
+  buildingColorsRef.current = buildingColors;
 
   useEffect(() => {
     if (!map || config.renderMode !== "extrusion") return;
