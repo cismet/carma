@@ -44,6 +44,17 @@ const OPACITY_PROPS: Record<string, string[]> = {
   heatmap: ["heatmap-opacity"],
 };
 
+/** Whether the map can still be asked about its layers.
+ *
+ *  A panel that goes away destroys its map, and React tears a deleted subtree
+ *  down from the top, so this component's cleanup runs after that. `remove()`
+ *  drops the style on its way out, which leaves every `getLayer` call reading
+ *  a property of nothing. There is also nothing left worth removing at that
+ *  point: the map took its layers with it. */
+function mapIsUsable(map: MaplibreMap | null | undefined): map is MaplibreMap {
+  return !!map && !map._removed && !!map.style;
+}
+
 export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
   runtimeParams: Record<string, number | string>;
@@ -196,19 +207,21 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
     return () => {
-      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
-        map.removeLayer(overlayIdRef.current);
+      if (mapIsUsable(map)) {
+        if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+          map.removeLayer(overlayIdRef.current);
+        }
+        if (layerRef.current) {
+          layerRef.current.unhighlight();
+          unregister3dLayer(map, layerRef.current);
+          const layerId = layerRef.current.id;
+          if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+          }
+          map.triggerRepaint();
+        }
       }
       overlayIdRef.current = null;
-      if (layerRef.current) {
-        layerRef.current.unhighlight();
-        unregister3dLayer(map, layerRef.current);
-        const layerId = layerRef.current.id;
-        if (map.getLayer(layerId)) {
-          map.removeLayer(layerId);
-        }
-        map.triggerRepaint();
-      }
       layerRef.current = null;
       addingRef.current = false;
     };
@@ -218,11 +231,14 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
     return () => {
-      // Restore any saved 2D layer opacity on unmount
-      for (const [layerId, originals] of savedOpacityRef.current) {
-        if (!map.getLayer(layerId)) continue;
-        for (const [prop, value] of originals) {
-          map.setPaintProperty(layerId, prop, (value as number) ?? 1);
+      // Restore any saved 2D layer opacity on unmount. A map that has gone
+      // has taken those layers with it, so there is nothing to put back.
+      if (mapIsUsable(map)) {
+        for (const [layerId, originals] of savedOpacityRef.current) {
+          if (!map.getLayer(layerId)) continue;
+          for (const [prop, value] of originals) {
+            map.setPaintProperty(layerId, prop, (value as number) ?? 1);
+          }
         }
       }
       savedOpacityRef.current.clear();
@@ -268,28 +284,30 @@ export function ThreeLayerManager({
 
     /** Tear down the 3D custom layer and overlay (without unmounting the component). */
     const removeLayer = () => {
-      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
-        map.removeLayer(overlayIdRef.current);
+      if (mapIsUsable(map)) {
+        if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+          map.removeLayer(overlayIdRef.current);
+        }
+        if (layerRef.current) {
+          layerRef.current.unhighlight();
+          unregister3dLayer(map, layerRef.current);
+          if (map.getLayer(layerRef.current.id)) {
+            map.removeLayer(layerRef.current.id);
+          }
+          map.triggerRepaint();
+        }
+
+        // Restore 2D layer opacity
+        for (const [lid, originals] of savedOpacityRef.current) {
+          if (!map.getLayer(lid)) continue;
+          for (const [prop, value] of originals) {
+            map.setPaintProperty(lid, prop, (value as number) ?? 1);
+          }
+        }
       }
       overlayIdRef.current = null;
-      if (layerRef.current) {
-        layerRef.current.unhighlight();
-        unregister3dLayer(map, layerRef.current);
-        if (map.getLayer(layerRef.current.id)) {
-          map.removeLayer(layerRef.current.id);
-        }
-        map.triggerRepaint();
-      }
       layerRef.current = null;
       addingRef.current = false;
-
-      // Restore 2D layer opacity
-      for (const [lid, originals] of savedOpacityRef.current) {
-        if (!map.getLayer(lid)) continue;
-        for (const [prop, value] of originals) {
-          map.setPaintProperty(lid, prop, (value as number) ?? 1);
-        }
-      }
       savedOpacityRef.current.clear();
     };
 
