@@ -343,6 +343,14 @@ export const MeasurementHost = forwardRef<
   const polygonCounterRef = useRef(0);
   const pseudoSelectedIdRef = useRef<string | null>(null);
   const suspendedPseudoIdRef = useRef<string | null>(null);
+  // Bridge to helpers that live inside the `[map]` effect closure
+  // (setPseudoSelected / clearDraft). Assigned while terra-draw is attached
+  // and nulled on teardown, so the mode-change effect below can reset the
+  // highlight and any in-progress draft without duplicating that logic.
+  const drawOpsRef = useRef<{
+    setPseudoSelected: (id: string | null) => void;
+    clearDraft: () => void;
+  } | null>(null);
 
   const seedTitleCounters = (
     features: ReadonlyArray<Feature | GeoJSONStoreFeatures>
@@ -732,6 +740,8 @@ export const MeasurementHost = forwardRef<
         pseudoSelectedIdRef.current = null;
       }
     };
+
+    drawOpsRef.current = { setPseudoSelected, clearDraft };
 
     // Lazy cache reader: rebuild only when the styledata listener (or a
     // snap-config prop change) has marked the cache dirty. The walk itself
@@ -1484,6 +1494,7 @@ export const MeasurementHost = forwardRef<
       }
       map.getCanvas()?.style.removeProperty("cursor");
       clearDraft();
+      drawOpsRef.current = null;
       // Unregister from the provider so consumers don't invoke callbacks
       // over a stopped terra-draw instance.
       registryRef.current.setCommands(null);
@@ -1534,24 +1545,48 @@ export const MeasurementHost = forwardRef<
   // Forward mode changes to the running terra-draw instance after init,
   // and mirror the prop into the provider so consumers can `useMeasurements()`
   // and react to the current draw mode without threading the prop separately.
+  //
+  // A mode switch also RESETS the selection — same behaviour as the cesium
+  // measurement tools: picking a different tool drops whatever was selected
+  // (including the highlight a just-finished draw leaves behind) so the
+  // InfoBox falls back to the new mode's help text instead of still
+  // describing the previous measurement.
+  const previousModeRef = useRef<DrawMode | null>(null);
   useEffect(() => {
     registryRef.current.publishMode(mode);
+    const modeChanged =
+      previousModeRef.current !== null && previousModeRef.current !== mode;
+    previousModeRef.current = mode;
     const draw = drawRef.current;
     if (!draw) return;
-    const terraDrawMode = toTerraDrawMode(mode);
-    draw.setMode(terraDrawMode);
-    const pending = pseudoSelectedIdRef.current;
-    if (terraDrawMode !== "select" || pending === null) return;
-    if (selectedIdRef.current === pending) return;
-    try {
-      draw.selectFeature(pending);
-    } catch (e) {
-      console.warn(
-        "[carma-measurements] could not promote pseudo-selection for id",
-        pending,
-        e
-      );
+    draw.setMode(toTerraDrawMode(mode));
+    if (!modeChanged) return;
+    // Drop the post-finish highlight and any draft the mode switch aborted.
+    suspendedPseudoIdRef.current = null;
+    drawOpsRef.current?.setPseudoSelected(null);
+    drawOpsRef.current?.clearDraft();
+    // Drop terra-draw's own selection. The callback is suppressed because we
+    // publish the cleared selection ourselves right after — no need for the
+    // `deselect` listener to fire a second, identical update.
+    const selected = selectedIdRef.current;
+    if (selected !== null) {
+      suppressSelectionCallbackRef.current = true;
+      try {
+        draw.deselectFeature(selected);
+      } catch (e) {
+        console.warn(
+          "[carma-measurements] deselect on mode change failed for id",
+          selected,
+          e
+        );
+      } finally {
+        suppressSelectionCallbackRef.current = false;
+      }
+      selectedIdRef.current = null;
+      hasSelectionRef.current = false;
     }
+    onSelectionChangeRef.current?.(null);
+    registryRef.current.publishSelection(null);
   }, [mode]);
 
   // Clear the snap-preview dot the instant snapping is toggled off OR the
