@@ -80,12 +80,8 @@ export interface MapHighlightContextType {
   clearHighlights: () => void;
   /** Version counter bumped on every mutation */
   highlightVersion: number;
-  /**
-   * Bumped by `clearHighlights` alone. A clear followed by a fresh set in the
-   * same tick reaches consumers as one `highlightVersion` step, so a consumer
-   * diffing the criteria against its own snapshot cannot tell "these keys were
-   * removed" from "everything was replaced". This says which it was.
-   */
+  /** Bumped by `clearHighlights` only, so a consumer diffing the criteria can
+   *  tell a full reset from removed keys. */
   clearVersion: number;
 }
 

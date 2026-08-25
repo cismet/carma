@@ -27,8 +27,7 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
   divider: "h-6 w-px bg-gray-300/80",
 };
 
-/** widths a buffer is worth having, in metres; there is no "off" here — the
- *  panel being closed is what switches the buffer off */
+/** slider range in metres; closing the panel is what switches the buffer off */
 const BUFFER_MIN = 5;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 5;
@@ -50,11 +49,10 @@ export type ShapeToolbarProps = {
   /** metres the remembered shape grows by while the panel is open */
   bufferWidth?: number;
   onBufferWidthChange?: (meters: number) => void;
-  /** the width panel; opening it puts the remembered shape back on the map,
-   *  grown by the width, closing it takes that preview down again */
+  /** the width panel; open shows the remembered shape with its buffer */
   bufferOpen?: boolean;
   onBufferOpenChange?: (open: boolean) => void;
-  /** there is a remembered shape to grow; without one the button is dead */
+  /** there is a remembered shape to grow */
   canBuffer?: boolean;
   /** runs the previewed shape at the width set now */
   onApplyBuffer?: () => void;
@@ -83,8 +81,8 @@ export const ShapeToolbar = ({
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
-  // repeated buffering can carry the width past the range the slider was drawn
-  // for, and a handle pinned to the end would misreport it
+  // growth can carry the width past the slider range, and a handle pinned to
+  // the end would misreport it
   const sliderMax = Math.max(BUFFER_MAX, bufferWidth);
 
   const bufferLabel = canBuffer
@@ -177,9 +175,8 @@ export const ShapeToolbar = ({
           title="Puffer um die Form"
           content={bufferContent}
         >
-          {/* a disabled button swallows its own events, so the popover needs a
-              host — and the host is where the click is stopped: stopping it on
-              the button would keep it from ever reaching the popover trigger */}
+          {/* host for the popover trigger: a disabled button swallows its own
+              events, and a click stopped on the button never reaches it */}
           <span
             onClick={(event) => event.stopPropagation()}
             role="presentation"

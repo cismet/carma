@@ -14,16 +14,13 @@ export type HighlightModeState = {
   rectSize?: RectSize;
   /** metres every drawn shape grows by before it selects */
   shapeBuffer?: number;
-  /** whether that width applies at all; off means the shapes are used as drawn.
-   *  Tied to the buffer panel: it is on exactly while the panel previews the
-   *  remembered shape, and off again once the buffered shape has run */
+  /** whether the width applies; on while the buffer panel previews the shape */
   bufferEnabled?: boolean;
   /** bumped by the UI to discard the line being drawn; the addon owns the
    *  drawing manager, so the request travels as a counter rather than a
    *  callback parked in shared state */
   cancelLineVersion?: number;
-  /** the buffer panel is open; while it is, the last shape is shown grown by
-   *  the width, waiting to be applied */
+  /** the buffer panel is open; the last shape is shown with its buffer */
   bufferPanelOpen?: boolean;
   /** a shape has been drawn that can be shown and run again */
   hasLastShape?: boolean;
@@ -86,12 +83,10 @@ export type VectorHighlightConfig = {
    */
   defaultBuffer?: number;
   /**
-   * What the width is multiplied by each time the *same* remembered shape is
-   * buffered again — 2 doubles it on every repeat, so the same shape can be
-   * widened step by step without touching the slider. The width then belongs to
-   * that shape: a newly drawn one starts from `defaultBuffer` again. 1 keeps
-   * the width as it is, and with it the width a user set carries over to the
-   * next shape. Capped at 5000 m. Default: 1
+   * Factor the width grows by each time the same shape is buffered again; 2
+   * doubles it. A newly drawn shape starts at `defaultBuffer` again. 1 keeps
+   * the width and carries it over to the next shape. Capped at 5000 m.
+   * Default: 1
    */
   bufferGrowth?: number;
   /**
@@ -103,7 +98,7 @@ export type VectorHighlightConfig = {
   /**
    * Milliseconds every drawn shape stays on the map after it is finished,
    * before it is wiped — long enough to see what it just selected.
-   * 0 wipes it at once. Default: 1000
+   * 0 wipes it at once. Default: 0
    */
   clearDelay?: number;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
