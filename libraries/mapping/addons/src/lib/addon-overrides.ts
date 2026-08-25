@@ -29,7 +29,7 @@ export const EMPTY_ADDON_OVERRIDES: AddonOverridesState = {
  * The kind that does the switching, and therefore the one kind that must not be
  * switched off: without it there is no way back.
  */
-export const UNSUSPENDABLE_KIND: AddonKind = "addonManager";
+export const UNSUSPENDABLE_KIND = "addonManager" satisfies AddonKind;
 
 /**
  * Kinds the manager may switch on in a route that did not declare them. The

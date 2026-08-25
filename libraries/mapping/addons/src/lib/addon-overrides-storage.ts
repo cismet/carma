@@ -22,25 +22,36 @@ import {
  *
  * Only the on/off decision is stored, never a config: a declared addon that is
  * switched back on is mounted from the route entry again, with exactly the
- * config the route declares.
+ * config the route declares. One shared entry by default, so a route that adds
+ * an addon to its list adds it to what is already switched on instead of
+ * resetting the set; `addonManager`'s `storageKey` opts a route out.
  */
 
-const STORAGE_PREFIX = "carma::addonOverrides::";
+/**
+ * Default entry, shared by every route. The stored state names kinds, not
+ * positions in a list, so it stays meaningful when a route's declared addons
+ * change: a kind that was switched off stays off, and a newly declared kind is
+ * in neither list and therefore mounts. Deriving the key from the declared
+ * kinds instead would orphan the whole state on every config edit, which reads
+ * as "the manager forgot everything" rather than as a fresh scope.
+ */
+export const ADDON_OVERRIDES_STORAGE_KEY = "carma::addonOverrides";
 
 /**
- * Scope of one stored entry: the kinds the route declares, sorted, so two
- * routes with different addon lists do not share a state. Deriving the key from
- * the list rather than from a route id keeps this library free of the host's
- * routing, and lets a changed route list start from its own defaults instead of
- * inheriting decisions that were made about a different set of addons.
+ * The key this route stores under: its own, when the `addonManager` entry names
+ * one, and the shared default otherwise. Taking it off the manager's config
+ * rather than off a route id keeps this library free of the host's routing, and
+ * puts the decision where the rest of the manager's setup already lives.
  */
 export const addonOverridesStorageKey = (
   addons?: readonly AddonEntry[]
 ): string => {
-  const kinds = [
-    ...new Set(normalizeAddonEntries(addons).map(({ kind }) => kind)),
-  ].sort();
-  return `${STORAGE_PREFIX}${kinds.join(",")}`;
+  const manager = normalizeAddonEntries(addons).find(
+    ({ kind }) => kind === UNSUSPENDABLE_KIND
+  );
+  const configured =
+    manager?.kind === UNSUSPENDABLE_KIND ? manager.config?.storageKey : undefined;
+  return configured || ADDON_OVERRIDES_STORAGE_KEY;
 };
 
 const isKnownKind = (value: unknown): value is AddonKind =>
@@ -61,7 +72,7 @@ const readKinds = (
     : [];
 
 export const loadAddonOverrides = (
-  storageKey: string
+  storageKey: string = ADDON_OVERRIDES_STORAGE_KEY
 ): AddonOverridesState | undefined => {
   try {
     const raw = window.localStorage.getItem(storageKey);
@@ -85,8 +96,8 @@ export const loadAddonOverrides = (
 };
 
 export const saveAddonOverrides = (
-  storageKey: string,
-  overrides: AddonOverridesState
+  overrides: AddonOverridesState,
+  storageKey: string = ADDON_OVERRIDES_STORAGE_KEY
 ) => {
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(overrides));
@@ -125,7 +136,7 @@ export const usePersistedAddonOverrides = (): [
         const next = updater(
           previous ?? loadAddonOverrides(storageKey) ?? EMPTY_ADDON_OVERRIDES
         );
-        saveAddonOverrides(storageKey, next);
+        saveAddonOverrides(next, storageKey);
         return next;
       }),
     [setOverrides, storageKey]

@@ -37,6 +37,7 @@ export {
 } from "./lib/addon-overrides";
 export type { AddonOverridesState } from "./lib/addon-overrides";
 export {
+  ADDON_OVERRIDES_STORAGE_KEY,
   addonOverridesStorageKey,
   loadAddonOverrides,
   saveAddonOverrides,

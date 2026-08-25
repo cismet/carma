@@ -17,6 +17,7 @@ export type AddonManagerConfig = {
   showControl?: boolean;
   controlPosition?: Positions;
   controlOrder?: number;
+  storageKey?: string;
 };
 
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";

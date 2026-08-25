@@ -237,11 +237,14 @@ itself reads rather than a sibling addon.
 **The switch positions survive a reload.** The addon state map itself is
 session-only, so the manager mirrors the channel into `localStorage`
 (`lib/addon-overrides-storage.ts`) and seeds from there on the next load. One
-entry per route, keyed by the sorted kinds the route declares, so a changed
-route list starts from its own defaults instead of inheriting decisions about a
-different set of addons. Only the on/off decision is stored, never a config: a
-declared addon switched back on is mounted from its route entry again, with
-exactly the config the route declares.
+shared entry (`ADDON_OVERRIDES_STORAGE_KEY`), because the stored state names
+kinds rather than positions in a list: editing a route's addons keeps every
+switch position, and a newly declared kind is in neither list and therefore
+mounts. A route that wants its own set names it on the manager entry,
+`{ kind: "addonManager", config: { storageKey: "carma::addonOverrides::demo" } }`.
+Only the on/off decision is stored, never a config: a declared addon switched
+back on is mounted from its route entry again, with exactly the config the route
+declares.
 
 Three kinds of row cannot be switched, each with a tooltip saying why: the
 manager itself (there would be no way back), trigger addons such as
