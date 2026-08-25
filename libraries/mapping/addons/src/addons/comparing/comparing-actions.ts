@@ -246,6 +246,24 @@ export const useComparingActions = () => {
     [setState]
   );
 
+  /**
+   * Back to the layout the layers imply.
+   *
+   * Three things have to go for the seed to run again: the assignment itself,
+   * the count it was made for, and the mark that says the user took the layout
+   * over. With all three gone the count follows the number of blocks on the map
+   * once more and every block lands in the panel the implicit rule gives it,
+   * which is the state a comparison starts in.
+   */
+  const resetLayout = useCallback(() => {
+    setState((previous) => ({
+      ...previous,
+      assignments: undefined,
+      assignmentsPanelCount: undefined,
+      layoutTouched: false,
+    }));
+  }, [setState]);
+
   /** the same block in or out of every panel at once, for the background */
   const setAssignedEverywhere = useCallback(
     (key: string, assigned: boolean) => {
@@ -291,5 +309,6 @@ export const useComparingActions = () => {
     setAssignments,
     setAssigned,
     setAssignedEverywhere,
+    resetLayout,
   };
 };

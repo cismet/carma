@@ -12,6 +12,7 @@ import {
   faLeftRight,
   faMagnifyingGlass,
   faMap,
+  faRotateLeft,
   faTableCellsLarge,
   faUpDown,
   faXmark,
@@ -218,6 +219,7 @@ export const ComparingPanel = ({
     assignments,
     setAssigned,
     setAssignedEverywhere,
+    resetLayout,
   } = useComparingActions();
   const entries = useCompareLayerEntries();
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -304,11 +306,21 @@ export const ComparingPanel = ({
       data-test-id="comparing-panel"
       className="carma-comparing-pane w-[100vw] sm:w-[86vw] sm:max-w-[680px] md:max-w-[860px] max-h-[70vh] sm:max-h-[60vh] shrink-0 bg-white rounded-[10px] flex flex-col relative gap-2 px-4 py-3"
     >
-      <div className="flex items-baseline gap-2 shrink-0">
+      <div className="flex items-baseline gap-3 shrink-0">
         <h5 className="m-0 text-lg font-semibold grow">Karteninhalte</h5>
         <span className="text-sm text-gray-400">
           Aus der Liste in eine Karte ziehen
         </span>
+        <button
+          type="button"
+          onClick={resetLayout}
+          title="Aufteilung zurücksetzen: so viele Karten wie Inhalte, jeder Inhalt in einer davon"
+          data-test-id="comparing-reset"
+          className="shrink-0 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 bg-transparent border-0 p-0 cursor-pointer"
+        >
+          <FontAwesomeIcon icon={faRotateLeft} />
+          Zurücksetzen
+        </button>
       </div>
 
       {/* The list is capped at what a full layer title comes to, which is all
