@@ -15,6 +15,10 @@ export const HighlightInteractionPanel = () => {
     setShape,
     clear,
     canClear,
+    shapeBuffer,
+    setShapeBuffer,
+    bufferPanelOpen,
+    setBufferPanelOpen,
     operation,
     setOperation,
     colorForOperation,
@@ -50,6 +54,11 @@ export const HighlightInteractionPanel = () => {
           onClear={clear}
           canClear={canClear}
           activeColor={activeColor}
+          showBuffer
+          bufferWidth={shapeBuffer}
+          onBufferWidthChange={setShapeBuffer}
+          bufferOpen={bufferPanelOpen}
+          onBufferOpenChange={setBufferPanelOpen}
         />
       )}
     </div>

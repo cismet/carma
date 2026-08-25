@@ -195,8 +195,8 @@ export interface UseLassoHighlightOptions {
   rectSize?: RectSize;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. */
   radiusStep?: number;
-  /** Corridor half-width in metres the drawn line is buffered with. */
-  lineBuffer?: number;
+  /** Metres every drawn shape grows by before it selects. */
+  shapeBuffer?: number;
   /** Milliseconds the finished shape stays on the map before it is wiped. */
   clearDelay?: number;
   /** Reports whether a shape has been drawn that can be shown and run again. */
@@ -247,7 +247,7 @@ export const useLassoHighlight = ({
   circleRadius,
   rectSize,
   radiusStep,
-  lineBuffer,
+  shapeBuffer,
   clearDelay,
   onLastShapeChange,
   onLastShapePreviewChange,
@@ -470,8 +470,8 @@ export const useLassoHighlight = ({
   rectSizeRef.current = rectSize;
   const radiusStepRef = useRef(radiusStep);
   radiusStepRef.current = radiusStep;
-  const lineBufferRef = useRef(lineBuffer);
-  lineBufferRef.current = lineBuffer;
+  const shapeBufferRef = useRef(shapeBuffer);
+  shapeBufferRef.current = shapeBuffer;
   const clearDelayRef = useRef(clearDelay);
   clearDelayRef.current = clearDelay;
   const onLastShapeChangeRef = useRef(onLastShapeChange);
@@ -493,7 +493,7 @@ export const useLassoHighlight = ({
       circleRadius: circleRadiusRef.current,
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
-      lineBuffer: lineBufferRef.current,
+      shapeBuffer: shapeBufferRef.current,
       clearDelay: clearDelayRef.current,
       onLastShapeChange: (has) => onLastShapeChangeRef.current?.(has),
       onLastShapePreviewChange: (previewing) =>
@@ -526,11 +526,14 @@ export const useLassoHighlight = ({
     shiftRefineManagerRef.current?.setShape(passiveShape(shape));
   }, [shape]);
 
+  // every manager, so the width holds for the modifier gestures as well
   useEffect(() => {
-    if (lineBuffer != null) {
-      managerRef.current?.setLineBuffer(lineBuffer);
-    }
-  }, [lineBuffer]);
+    if (shapeBuffer == null) return;
+    managerRef.current?.setShapeBuffer(shapeBuffer);
+    passiveManagerRef.current?.setShapeBuffer(shapeBuffer);
+    refineManagerRef.current?.setShapeBuffer(shapeBuffer);
+    shiftRefineManagerRef.current?.setShapeBuffer(shapeBuffer);
+  }, [shapeBuffer]);
 
   useEffect(() => {
     if (clearDelay == null) return;
@@ -585,6 +588,7 @@ export const useLassoHighlight = ({
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
       clearDelay: clearDelayRef.current,
+      shapeBuffer: shapeBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
@@ -618,6 +622,7 @@ export const useLassoHighlight = ({
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
       clearDelay: clearDelayRef.current,
+      shapeBuffer: shapeBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
@@ -657,6 +662,7 @@ export const useLassoHighlight = ({
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
       clearDelay: clearDelayRef.current,
+      shapeBuffer: shapeBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });

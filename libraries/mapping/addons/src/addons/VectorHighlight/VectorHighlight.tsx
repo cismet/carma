@@ -7,7 +7,7 @@ import {
   DEFAULT_CIRCLE_RADIUS_STEP,
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
-  DEFAULT_LINE_BUFFER,
+  DEFAULT_SHAPE_BUFFER,
   DEFAULT_CLEAR_DELAY,
 } from "@carma-mapping/engines/maplibre";
 import type {
@@ -64,7 +64,7 @@ export const VectorHighlight = ({
     shapes,
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
     defaultRectSize,
-    defaultLineBuffer = DEFAULT_LINE_BUFFER,
+    defaultBuffer = DEFAULT_SHAPE_BUFFER,
     clearDelay = DEFAULT_CLEAR_DELAY,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
   } = config ?? {};
@@ -82,7 +82,7 @@ export const VectorHighlight = ({
     setRectSize,
   } = useHighlightModeActions();
 
-  const lineBuffer = mode?.lineBuffer ?? defaultLineBuffer;
+  const shapeBuffer = mode?.shapeBuffer ?? defaultBuffer;
 
   // key on the content: route configs pass a fresh array per render
   const shapesKey = (shapes ?? DEFAULT_SHAPES).join(" ");
@@ -119,9 +119,9 @@ export const VectorHighlight = ({
       availableShapes,
       monochrome,
       operationColors: publishedColors,
-      lineBuffer: previous?.lineBuffer ?? defaultLineBuffer,
+      shapeBuffer: previous?.shapeBuffer ?? defaultBuffer,
     }));
-  }, [availableShapes, monochrome, publishedColors, defaultLineBuffer, setMode]);
+  }, [availableShapes, monochrome, publishedColors, defaultBuffer, setMode]);
 
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });
@@ -172,15 +172,14 @@ export const VectorHighlight = ({
 
   // `active` switches between the passive modifier-drag manager and the
   // explicit one that draws on a plain drag while the mode is on
-  const { cancelLine, showLastShape, hideLastShape, applyLastShape } =
-    useLassoHighlight({
+  const { cancelLine, showLastShape, applyLastShape } = useLassoHighlight({
     map: lasso ? libreMap : null,
     active: lasso && (modeActive || highlightingActive),
     shape,
     circleRadius,
     rectSize,
     radiusStep,
-    lineBuffer,
+    shapeBuffer,
     clearDelay,
     onLastShapeChange: handleLastShapeChange,
     onLastShapePreviewChange: handleLastShapePreviewChange,
@@ -193,18 +192,6 @@ export const VectorHighlight = ({
     // resolved here, so config overrides and monochrome reach the drawn shape
     color: colorForOperation(operation),
   });
-
-  // open panel: the last shape goes back on the map so the width can be judged
-  // against it
-  const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
-  useEffect(() => {
-    if (bufferPanelOpen) {
-      showLastShape();
-      return () => hideLastShape();
-    }
-    hideLastShape();
-    return undefined;
-  }, [bufferPanelOpen, showLastShape, hideLastShape]);
 
   const showRequest = mode?.showShapeVersion ?? 0;
   const previousShowRequest = useRef(showRequest);

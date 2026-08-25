@@ -48,12 +48,12 @@ export type ShapeToolbarProps = {
   clearLabel?: string;
   classNames?: Partial<ShapeToolbarClassNames>;
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
-  /** the buffer button, behind its own splitter; for the line shape */
+  /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
-  /** corridor half-width in metres, applied when the line is finished */
+  /** metres every drawn shape grows by before it selects; 0 = as drawn */
   bufferWidth?: number;
   onBufferWidthChange?: (meters: number) => void;
-  /** the width panel; open, it shows the last line again */
+  /** the width panel */
   bufferOpen?: boolean;
   onBufferOpenChange?: (open: boolean) => void;
   /** first click shows the last drawn shape, second runs it; the button is
@@ -79,7 +79,7 @@ export const ShapeToolbar = ({
   classNames,
   tooltipPlacement = "bottom",
   showBuffer = false,
-  bufferWidth = 15,
+  bufferWidth = 0,
   onBufferWidthChange,
   bufferOpen = false,
   onBufferOpenChange,
@@ -91,7 +91,10 @@ export const ShapeToolbar = ({
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
-  const bufferLabel = `Pufferbreite (${Math.round(bufferWidth)} m)`;
+  const bufferLabel =
+    bufferWidth > 0
+      ? `Puffer: ${Math.round(bufferWidth)} m`
+      : "Puffer: aus (Form wie gezeichnet)";
 
   const bufferContent = (
     <div
@@ -122,8 +125,8 @@ export const ShapeToolbar = ({
         />
       </div>
       <p className="m-0 text-xs text-gray-500">
-        Doppelklick beendet die Linie. Bei 0 m wählt die Linie genau das aus,
-        was sie kreuzt — Flächen, aber keine Punktobjekte.
+        Gilt für alle Formen. Bei 0 m wählt die Form genau das aus, was sie
+        abdeckt — die Linie also nur, was sie kreuzt.
       </p>
     </div>
   );
@@ -171,7 +174,7 @@ export const ShapeToolbar = ({
             onOpenChange={(open) => onBufferOpenChange?.(open)}
             trigger="click"
             placement={tooltipPlacement}
-            title="Puffer um die Linie"
+            title="Puffer um die Form"
             content={bufferContent}
           >
             <button

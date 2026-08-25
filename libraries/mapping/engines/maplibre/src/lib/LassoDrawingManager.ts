@@ -80,8 +80,9 @@ export const DEFAULT_CIRCLE_RADIUS = 250;
 export const DEFAULT_CIRCLE_RADIUS_STEP = 5;
 export const DEFAULT_RECT_WIDTH = 250;
 export const DEFAULT_RECT_HEIGHT = 250;
-/** Corridor half-width for a drawn line; 0 selects with the bare line. */
-export const DEFAULT_LINE_BUFFER = 0;
+/** Metres every drawn shape grows by before it selects; 0 selects with the
+ *  shape exactly as it was drawn. */
+export const DEFAULT_SHAPE_BUFFER = 0;
 /** How long a finished shape stays on the map before it is wiped, in ms. */
 export const DEFAULT_CLEAR_DELAY = 1000;
 
@@ -137,9 +138,12 @@ export interface LassoDrawingManagerOptions {
   rectSize?: RectSize;
   /** Dragged radii and edge lengths snap to a multiple of this, in metres. Default: 5 */
   radiusStep?: number;
-  /** Corridor half-width in metres around a drawn line. 0 selects with the
-   *  bare line, which is exact for areas but misses point features. Default: 0 */
-  lineBuffer?: number;
+  /**
+   * Metres every drawn shape grows by before it selects. 0 hands the shape over
+   * exactly as drawn, which for the line means the bare line: exact for areas,
+   * but it misses point features, which is what a width is for. Default: 0
+   */
+  shapeBuffer?: number;
   /**
    * Milliseconds the finished shape stays on the map before it is wiped, so
    * what was just selected can be seen against it. 0 wipes it at once.
@@ -176,7 +180,7 @@ export class LassoDrawingManager {
   private circleRadius: number;
   private rectSize: RectSize;
   private radiusStep: number;
-  private lineBuffer: number;
+  private shapeBuffer: number;
   private clearDelay: number;
   private onLastShapeChange?: (hasLastShape: boolean) => void;
   private onLastShapePreviewChange?: (previewing: boolean) => void;
@@ -217,10 +221,7 @@ export class LassoDrawingManager {
   /** the shape last finished, kept so it can be shown and run again. `line`
    *  is set only for the line tool, whose corridor is rebuilt at the width
    *  that is current when it runs again. */
-  private lastShape: {
-    geometry: Polygon | LineString;
-    line: Position[] | null;
-  } | null = null;
+  private lastShape: Polygon | LineString | null = null;
   private previewingLastShape = false;
   private lineDownX = 0;
   private lineDownY = 0;
@@ -261,7 +262,7 @@ export class LassoDrawingManager {
       height: DEFAULT_RECT_HEIGHT,
     };
     this.radiusStep = options.radiusStep ?? DEFAULT_CIRCLE_RADIUS_STEP;
-    this.lineBuffer = options.lineBuffer ?? DEFAULT_LINE_BUFFER;
+    this.shapeBuffer = options.shapeBuffer ?? DEFAULT_SHAPE_BUFFER;
     this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
     this.onLastShapeChange = options.onLastShapeChange;
     this.onLastShapePreviewChange = options.onLastShapePreviewChange;
@@ -324,10 +325,10 @@ export class LassoDrawingManager {
     this.rectSize = size;
   }
 
-  /** Redraws the corridor right away, so the width is set on what is on screen. */
-  setLineBuffer(meters: number): void {
-    if (meters === this.lineBuffer) return;
-    this.lineBuffer = meters;
+  /** Redraws what is on screen, so the width is seen where it will apply. */
+  setShapeBuffer(meters: number): void {
+    if (meters === this.shapeBuffer) return;
+    this.shapeBuffer = meters;
     if (this.placingLine) this.updateVisual();
     else if (this.previewingLastShape) this.renderLastShape();
   }
@@ -369,13 +370,15 @@ export class LassoDrawingManager {
     this.moveLayersToTop();
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
-    if (last.line) {
-      this.renderLine(source, last.line, null);
+    if (last.type === "LineString") {
+      this.renderLine(source, last.coordinates, null);
       return;
     }
     source.setData({
       type: "FeatureCollection",
-      features: [{ type: "Feature", properties: {}, geometry: last.geometry }],
+      features: [
+        { type: "Feature", properties: {}, geometry: this.withBuffer(last) },
+      ],
     });
   }
 
@@ -387,30 +390,55 @@ export class LassoDrawingManager {
     this.clearVisual();
   }
 
-  /** Runs the remembered shape again — a line at the width current now. */
+  /** Runs the remembered shape again, at the width current now. */
   applyLastShape(): void {
-    const last = this.lastShape;
-    if (!last) return;
-    const geometry = last.line
-      ? this.buildLineShape(last.line) ?? last.geometry
-      : last.geometry;
-    // put it up for the usual moment, so running it again is visible
-    this.renderLastShape();
+    if (!this.lastShape) return;
     this.setPreviewing(false);
+    this.completeShape(this.lastShape);
+  }
+
+  /**
+   * One exit for every tool. What is remembered is the shape as drawn, so a
+   * later width change grows it from the original rather than from an already
+   * grown one; what is handed over and drawn is the grown version.
+   */
+  private completeShape(drawn: Polygon | LineString): void {
+    const geometry = this.withBuffer(drawn);
+    this.lastShape = drawn;
+    this.onLastShapeChange?.(true);
+    this.renderShape(geometry);
     this.clearVisualDelayed();
     this.onDrawComplete(geometry);
   }
 
-  /** Every completed shape passes here, so "run the last one again" works for
-   *  the lasso and the sized shapes as well as for the line. */
-  private rememberShape(
-    geometry: Polygon | LineString,
-    line: Position[] | null
-  ): void {
-    this.lastShape = { geometry, line };
-    // fires on every completed shape, not just the first: the UI resets what
-    // it knows about the previous one on the strength of it
-    this.onLastShapeChange?.(true);
+  /** The drawn shape grown by `shapeBuffer` metres — the same step for every
+   *  tool, so a width set once applies to all of them. */
+  private withBuffer(drawn: Polygon | LineString): Polygon | LineString {
+    if (this.shapeBuffer <= 0) return drawn;
+    try {
+      const buffered = turfBuffer(
+        { type: "Feature", properties: {}, geometry: drawn },
+        this.shapeBuffer,
+        { units: "meters" }
+      );
+      const geometry = buffered?.geometry;
+      if (!geometry) return drawn;
+      if (geometry.type === "Polygon") return geometry;
+      // one piece for any shape we draw; a MultiPolygon means a degenerate
+      // input, so the first part is the one that matters
+      return { type: "Polygon", coordinates: geometry.coordinates[0] };
+    } catch {
+      return drawn;
+    }
+  }
+
+  private renderShape(geometry: Polygon | LineString): void {
+    const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData({
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry }],
+    });
   }
 
   /** A line is being clicked together right now. */
@@ -769,44 +797,12 @@ export class LassoDrawingManager {
     // the line as it was finished
     this.updateVisual();
     this.linePoints = [];
-    const corridor = points.length >= 2 ? this.buildLineShape(points) : null;
-    if (corridor) {
-      this.rememberShape(corridor, points);
-      this.clearVisualDelayed();
-      this.onDrawComplete(corridor);
-    } else {
+    if (points.length < 2) {
       this.clearVisual();
       this.onDrawCancel();
+      return;
     }
-  }
-
-  /**
-   * What a finished line selects with: the line itself, or the corridor
-   * `lineBuffer` metres to either side of it when a width is set.
-   */
-  private buildLineShape(coords: Position[]): Polygon | LineString | null {
-    if (coords.length < 2) return null;
-    if (this.lineBuffer <= 0) {
-      return { type: "LineString", coordinates: coords };
-    }
-    const line: Feature<LineString> = {
-      type: "Feature",
-      properties: {},
-      geometry: { type: "LineString", coordinates: coords },
-    };
-    try {
-      const buffered = turfBuffer(line, this.lineBuffer, {
-        units: "meters",
-      });
-      const geometry = buffered?.geometry;
-      if (!geometry) return null;
-      if (geometry.type === "Polygon") return geometry;
-      // a buffered polyline is one piece; a MultiPolygon can only come from a
-      // degenerate input, so the first part is the corridor
-      return { type: "Polygon", coordinates: geometry.coordinates[0] };
-    } catch {
-      return null;
-    }
+    this.completeShape({ type: "LineString", coordinates: points });
   }
 
   private onMouseUp(): void {
@@ -838,8 +834,7 @@ export class LassoDrawingManager {
         return;
       }
       const polygon = this.buildSizedShape(anchor);
-      this.rememberShape(polygon, null);
-      this.clearVisualDelayed();
+
       // a drag defines the new working size; the next click repeats it
       if (this.dragged) {
         if (this.shape === "circle") {
@@ -850,7 +845,7 @@ export class LassoDrawingManager {
           this.onRectSizeChange?.(this.currentRect);
         }
       }
-      this.onDrawComplete(polygon);
+      this.completeShape(polygon);
       return;
     }
 
@@ -865,9 +860,7 @@ export class LassoDrawingManager {
       return;
     }
 
-    this.rememberShape(hull, null);
-    this.clearVisualDelayed();
-    this.onDrawComplete(hull);
+    this.completeShape(hull);
   }
 
   private cancelDraw(): void {
@@ -1186,7 +1179,10 @@ export class LassoDrawingManager {
 
     const features: Feature[] = [];
     // only when a width is set; without one the shape IS the line drawn below
-    const corridor = this.buildLineShape(path);
+    const corridor =
+      path.length >= 2
+        ? this.withBuffer({ type: "LineString", coordinates: path })
+        : null;
     if (corridor?.type === "Polygon") {
       features.push({ type: "Feature", properties: {}, geometry: corridor });
     }
