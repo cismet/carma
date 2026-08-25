@@ -505,6 +505,9 @@ export const useLassoHighlight = ({
       skipWhenModifiers: skipForToolbar(shiftRefineArmedRef.current),
     });
     managerRef.current = manager;
+    // A fresh manager remembers no shape, so say so: the UI would otherwise
+    // keep offering the one the destroyed manager held.
+    onLastShapeChangeRef.current?.(manager.hasLastShape());
     // Recreated on map change — a new map instance comes with a fresh style,
     // which is exactly what selecting a feature can trigger. The effect below
     // only fires on `active` transitions, so without this the mode would still

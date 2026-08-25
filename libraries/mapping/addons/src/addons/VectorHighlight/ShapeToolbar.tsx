@@ -1,10 +1,6 @@
-import {
-  faLeftRight,
-  faRotateLeft,
-  faXmark,
-} from "@fortawesome/free-solid-svg-icons";
+import { faLeftRight, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { InputNumber, Popover, Slider, Switch, Tooltip } from "antd";
+import { Button, InputNumber, Popover, Slider, Tooltip } from "antd";
 
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
@@ -31,7 +27,8 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
   divider: "h-6 w-px bg-gray-300/80",
 };
 
-/** widths a buffer is worth having, in metres; "none" is the toggle, not 0 */
+/** widths a buffer is worth having, in metres; there is no "off" here — the
+ *  panel being closed is what switches the buffer off */
 const BUFFER_MIN = 5;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 5;
@@ -50,24 +47,18 @@ export type ShapeToolbarProps = {
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
-  /** metres every drawn shape grows by, once the buffer is switched on */
+  /** metres the remembered shape grows by while the panel is open */
   bufferWidth?: number;
   onBufferWidthChange?: (meters: number) => void;
-  /** whether the width applies at all; off means the shapes are used as drawn */
-  bufferEnabled?: boolean;
-  onBufferEnabledChange?: (enabled: boolean) => void;
-  /** the width panel */
+  /** the width panel; opening it puts the remembered shape back on the map,
+   *  grown by the width, closing it takes that preview down again */
   bufferOpen?: boolean;
   onBufferOpenChange?: (open: boolean) => void;
-  /** first click shows the last drawn shape, second runs it; the button is
-   *  left out without this */
-  onRecallLastShape?: () => void;
-  /** there is a remembered shape to recall */
-  canRecallLastShape?: boolean;
-  /** it is on the map right now, so the next click runs it */
-  lastShapeShown?: boolean;
-  showLabel?: string;
-  applyLabel?: string;
+  /** there is a remembered shape to grow; without one the button is dead */
+  canBuffer?: boolean;
+  /** runs the previewed shape at the width set now */
+  onApplyBuffer?: () => void;
+  bufferApplyLabel?: string;
 };
 
 export const ShapeToolbar = ({
@@ -84,21 +75,17 @@ export const ShapeToolbar = ({
   showBuffer = false,
   bufferWidth = 25,
   onBufferWidthChange,
-  bufferEnabled = false,
-  onBufferEnabledChange,
   bufferOpen = false,
   onBufferOpenChange,
-  onRecallLastShape,
-  canRecallLastShape = false,
-  lastShapeShown = false,
-  showLabel = "Letzte Form zeigen",
-  applyLabel = "Letzte Form anwenden",
+  canBuffer = false,
+  onApplyBuffer,
+  bufferApplyLabel = "Anwenden",
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
-  const bufferLabel = bufferEnabled
-    ? `Puffer: ${Math.round(bufferWidth)} m`
-    : "Puffer: aus (Formen wie gezeichnet)";
+  const bufferLabel = canBuffer
+    ? `Puffer um die letzte Form: ${Math.round(bufferWidth)} m`
+    : "Puffer: erst eine Form zeichnen";
 
   const bufferContent = (
     <div
@@ -108,19 +95,9 @@ export const ShapeToolbar = ({
       role="presentation"
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-600">Puffer anwenden</span>
-        <Switch
-          size="small"
-          checked={bufferEnabled}
-          onChange={(checked) => onBufferEnabledChange?.(checked)}
-          data-test-id="vector-highlight-buffer-toggle"
-        />
-      </div>
       <div className="flex items-center gap-2">
         <Slider
           className="flex-1"
-          disabled={!bufferEnabled}
           min={BUFFER_MIN}
           max={BUFFER_MAX}
           step={BUFFER_STEP}
@@ -130,7 +107,6 @@ export const ShapeToolbar = ({
         <InputNumber
           size="small"
           className="w-24"
-          disabled={!bufferEnabled}
           min={1}
           max={5000}
           step={BUFFER_STEP}
@@ -139,6 +115,15 @@ export const ShapeToolbar = ({
           onChange={(value) => value != null && onBufferWidthChange?.(value)}
         />
       </div>
+      <Button
+        type="primary"
+        size="small"
+        block
+        onClick={() => onApplyBuffer?.()}
+        data-test-id="vector-highlight-buffer-apply"
+      >
+        {bufferApplyLabel}
+      </Button>
     </div>
   );
 
@@ -175,66 +160,50 @@ export const ShapeToolbar = ({
           </Tooltip>
         );
       })}
-      {(showBuffer || onRecallLastShape) && (
-        <span className={css.divider} aria-hidden />
-      )}
+      {showBuffer && <span className={css.divider} aria-hidden />}
       {showBuffer && (
-        <>
-          <Popover
-            open={bufferOpen}
-            onOpenChange={(open) => onBufferOpenChange?.(open)}
-            trigger="click"
-            placement={tooltipPlacement}
-            title="Puffer um die Form"
-            content={bufferContent}
+        <Popover
+          open={bufferOpen && canBuffer}
+          onOpenChange={(open) => {
+            if (open && !canBuffer) return;
+            onBufferOpenChange?.(open);
+          }}
+          trigger="click"
+          placement={tooltipPlacement}
+          title="Puffer um die Form"
+          content={bufferContent}
+        >
+          {/* a disabled button swallows its own events, so the popover needs a
+              host — and the host is where the click is stopped: stopping it on
+              the button would keep it from ever reaching the popover trigger */}
+          <span
+            onClick={(event) => event.stopPropagation()}
+            role="presentation"
           >
             <button
               type="button"
-              onClick={(event) => event.stopPropagation()}
+              disabled={!canBuffer}
               aria-label={bufferLabel}
-              aria-expanded={bufferOpen}
+              aria-expanded={bufferOpen && canBuffer}
               data-test-id="vector-highlight-buffer"
-              className={[css.button, css.buttonInactive].join(" ")}
-            >
-              <FontAwesomeIcon icon={faLeftRight} />
-            </button>
-          </Popover>
-        </>
-      )}
-      {onRecallLastShape && (
-        <Tooltip
-          title={lastShapeShown ? applyLabel : showLabel}
-          placement={tooltipPlacement}
-        >
-          {/* a disabled button swallows its own events, so the tooltip needs a host */}
-          <span>
-            <button
-              type="button"
-              disabled={!canRecallLastShape}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRecallLastShape();
-              }}
-              aria-label={lastShapeShown ? applyLabel : showLabel}
-              data-test-id="vector-highlight-recall-last-shape"
               className={[
                 css.button,
-                !canRecallLastShape
+                !canBuffer
                   ? css.buttonDisabled
-                  : lastShapeShown && activeColor
+                  : bufferOpen && activeColor
                   ? ""
                   : css.buttonInactive,
               ].join(" ")}
               style={
-                canRecallLastShape && lastShapeShown && activeColor
+                canBuffer && bufferOpen && activeColor
                   ? { color: activeColor }
                   : undefined
               }
             >
-              <FontAwesomeIcon icon={faRotateLeft} />
+              <FontAwesomeIcon icon={faLeftRight} />
             </button>
           </span>
-        </Tooltip>
+        </Popover>
       )}
       <Tooltip title={clearLabel} placement={tooltipPlacement}>
         {/* a disabled button swallows its own events, so the tooltip needs a host */}

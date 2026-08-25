@@ -14,13 +14,16 @@ export type HighlightModeState = {
   rectSize?: RectSize;
   /** metres every drawn shape grows by before it selects */
   shapeBuffer?: number;
-  /** whether that width applies at all; off means the shapes are used as drawn */
+  /** whether that width applies at all; off means the shapes are used as drawn.
+   *  Tied to the buffer panel: it is on exactly while the panel previews the
+   *  remembered shape, and off again once the buffered shape has run */
   bufferEnabled?: boolean;
   /** bumped by the UI to discard the line being drawn; the addon owns the
    *  drawing manager, so the request travels as a counter rather than a
    *  callback parked in shared state */
   cancelLineVersion?: number;
-  /** the buffer panel is open; while it is, the last line is shown again */
+  /** the buffer panel is open; while it is, the last shape is shown grown by
+   *  the width, waiting to be applied */
   bufferPanelOpen?: boolean;
   /** a shape has been drawn that can be shown and run again */
   hasLastShape?: boolean;
@@ -28,6 +31,8 @@ export type HighlightModeState = {
   lastShapeShown?: boolean;
   /** bumped by the UI to put the remembered shape on the map */
   showShapeVersion?: number;
+  /** bumped by the UI to take that preview back down */
+  hideShapeVersion?: number;
   /** bumped by the UI to run the remembered shape again */
   applyShapeVersion?: number;
   /** what a drag does; only "intersect" draws orange today */
@@ -82,8 +87,8 @@ export type VectorHighlightConfig = {
   defaultBuffer?: number;
   /**
    * Start with the buffer switched on, and switch it back on after every
-   * shape. Without it the buffer is a one-off: on for the shape it was set
-   * for, off again afterwards. Default: false
+   * shape. Without it the buffer is a one-off: on for the shape the panel was
+   * opened for, off again once that shape has run. Default: false
    */
   bufferOnByDefault?: boolean;
   /**

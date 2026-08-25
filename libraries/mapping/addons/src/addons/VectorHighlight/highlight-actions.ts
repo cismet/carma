@@ -42,47 +42,49 @@ export const useHighlightModeActions = () => {
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
   const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH;
   const bufferEnabled = mode?.bufferEnabled ?? false;
-
-  const setBufferEnabled = useCallback(
-    (enabled: boolean) =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        bufferEnabled: enabled,
-      })),
-    [setMode]
-  );
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
-
-  const setBufferPanelOpen = useCallback(
-    (open: boolean) =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        bufferPanelOpen: open,
-      })),
-    [setMode]
-  );
-
   const lastShapeShown = mode?.lastShapeShown ?? false;
 
   /**
-   * One button, two steps: the first click puts the last shape back on the map
-   * so it can be checked, the second runs it — a line at the width set now.
+   * The buffer is the second step of a two-step gesture: a shape is drawn
+   * plain, the button then puts that remembered shape back on the map grown by
+   * the width, to be judged before it is run again. Open therefore *is* "buffer
+   * on", and closing switches it off and takes the preview down again.
    */
-  const recallLastShape = useCallback(
-    () =>
+  const setBufferPanelOpen = useCallback(
+    (open: boolean) =>
       setMode((previous) =>
-        previous?.lastShapeShown
+        open
           ? {
-              ...previous,
-              applyShapeVersion: (previous.applyShapeVersion ?? 0) + 1,
-              bufferPanelOpen: false,
+              ...(previous ?? { isOn: false }),
+              bufferPanelOpen: true,
+              bufferEnabled: true,
+              showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
             }
           : {
               ...(previous ?? { isOn: false }),
-              showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
+              bufferPanelOpen: false,
+              bufferEnabled: false,
+              hideShapeVersion: (previous?.hideShapeVersion ?? 0) + 1,
             }
       ),
+    [setMode]
+  );
+
+  /**
+   * Runs the previewed shape at the width set now. `bufferEnabled` is left
+   * standing on purpose — the width has to still apply while the shape runs;
+   * the addon switches it off once the manager reports the shape finished, so
+   * the next drawing starts plain again.
+   */
+  const applyBufferedShape = useCallback(
+    () =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        bufferPanelOpen: false,
+        applyShapeVersion: (previous?.applyShapeVersion ?? 0) + 1,
+      })),
     [setMode]
   );
 
@@ -114,6 +116,7 @@ export const useHighlightModeActions = () => {
       ...(previous ?? {}),
       isOn: false,
       bufferPanelOpen: false,
+      bufferEnabled: false,
     }));
     clearHighlights();
     setHighlightingActive(false);
@@ -125,7 +128,8 @@ export const useHighlightModeActions = () => {
     clearHighlights();
     setHighlightingActive(false);
     cancelLine();
-  }, [clearHighlights, setHighlightingActive, cancelLine]);
+    setBufferPanelOpen(false);
+  }, [clearHighlights, setHighlightingActive, cancelLine, setBufferPanelOpen]);
 
   /**
    * Light the features whose `property` (default `"id"`) is one of `ids`.
@@ -153,8 +157,10 @@ export const useHighlightModeActions = () => {
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         shape: next,
-        // the panel belongs to the line tool, and so does its preview
+        // the buffer step belongs to the shape it was opened for
         bufferPanelOpen: false,
+        bufferEnabled: false,
+        hideShapeVersion: (previous?.hideShapeVersion ?? 0) + 1,
       })),
     [setMode]
   );
@@ -245,12 +251,11 @@ export const useHighlightModeActions = () => {
     shapeBuffer,
     setShapeBuffer,
     bufferEnabled,
-    setBufferEnabled,
     cancelLine,
     hasLastShape,
     lastShapeShown,
     bufferPanelOpen,
     setBufferPanelOpen,
-    recallLastShape,
+    applyBufferedShape,
   };
 };
