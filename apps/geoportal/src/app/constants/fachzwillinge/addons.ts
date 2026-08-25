@@ -9,6 +9,26 @@ export const addonsFachzwilling: FachzwillingRoute = {
   },
   addons: [
     { kind: "addonManager", config: { showControl: true } },
+    // Compares the layers already on the map by splitting the window between
+    // two panels. The button switches the mode; which layer goes to which side
+    // is not selectable yet, the topmost two go one each and whatever is below
+    // them stays under both.
+    { kind: "comparingControl" },
+    { kind: "compareSwipe", config: {} },
+    // the same comparison as separate windows: up to four real maps in a
+    // layout, one per assigned set of layers, all on one camera.
+    // `ignoreToolbar: false` keeps the top row clear of the navbar instead of
+    // running up behind it, at the price of every window resizing whenever the
+    // chrome comes or goes. The layer buttons keep floating over the maps;
+    // `#buttonWrapper` instead of `#topNavbar` would clear those as well.
+    {
+      kind: "compareArena",
+      config: { toolbarSelector: "#topNavbar", ignoreToolbar: false },
+    },
+    // the same two panels as a lens: one map everywhere, the other inside a
+    // circle that is dragged over it, and wheeled larger or smaller. Two panels
+    // and no more, which the shared state holds the layout to.
+    { kind: "compareSpyglass", config: {} },
     {
       kind: "vectorHighlight",
       config: {

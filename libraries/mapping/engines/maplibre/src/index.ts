@@ -22,6 +22,19 @@ export {
   useCameraRestriction,
 } from "./utils/cameraRestriction";
 export type { CameraRestriction } from "./utils/cameraRestriction";
+export {
+  getMapLayers,
+  publishMapLayers,
+  subscribeMapLayers,
+  useMapLayers,
+} from "./utils/mapLayers";
+export {
+  getMapThreeRuntimeParams,
+  publishMapThreeRuntimeParams,
+  subscribeMapThreeRuntimeParams,
+  useMapThreeRuntimeParams,
+  type ThreeRuntimeParams,
+} from "./utils/mapThreeParams";
 export { LibreMapSelectionContent } from "./components/LibreMapSelectionContent";
 export { PreviewLibreMap } from "./components/PreviewLibreMap";
 export { DatasheetMiniMap } from "./components/DatasheetMiniMap";

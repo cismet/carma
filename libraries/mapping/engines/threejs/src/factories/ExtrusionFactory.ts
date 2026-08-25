@@ -19,6 +19,10 @@ export interface BuildingFeature {
   elevation: number;
   /** Whether this is a public building */
   isPublic: boolean;
+  /** Roof colour as a hex string, from the layer's `roofColorField`, if it has one */
+  roofColor?: string | null;
+  /** Wall colour as a hex string, from the layer's `wallColorField`, if it has one */
+  wallColor?: string | null;
   /** Index into the layer's _sourceFeatures array (for selection) */
   sourceIndex: number;
 }
@@ -53,6 +57,200 @@ const COLOR_DEFAULT = new THREE.Color("#888888");
 const COLOR_PUBLIC = new THREE.Color("#dca894");
 
 /**
+ * How opaque a building is when nothing says otherwise.
+ *
+ * Shared rather than only baked into the materials below, because the layer's
+ * own opacity is applied on top of it and the multiplication needs both halves.
+ */
+export const DEFAULT_BUILDING_OPACITY = 0.65;
+
+/** walls a shade darker than their roof, so the two read apart under flat light */
+const WALL_DARKEN = 0.85;
+const COLOR_DEFAULT_WALL = COLOR_DEFAULT.clone().multiplyScalar(WALL_DARKEN);
+const COLOR_PUBLIC_WALL = COLOR_PUBLIC.clone().multiplyScalar(WALL_DARKEN);
+
+/**
+ * Where a building's colours come from.
+ *
+ * A seam rather than a constant: the roof is asked for once per building and a
+ * wall once per quad, which is the finest either can be given the geometry
+ * below (walls carry four vertices of their own per edge, the roof cap n per
+ * building). Real colours, whenever they arrive, are another implementation of
+ * this and need no change to the geometry.
+ */
+export type BuildingColors = {
+  /**
+   * Whether `wall` gives different answers for different walls of one building.
+   *
+   * Working out which edges form which wall costs a pass over the ring, and a
+   * resolver that returns one colour for the whole building has no use for the
+   * answer. Left off, that pass is skipped and every quad is asked for wall 0.
+   */
+  perWall?: boolean;
+  roof: (feature: BuildingFeature, buildingIndex: number) => THREE.Color;
+  wall: (
+    feature: BuildingFeature,
+    buildingIndex: number,
+    /**
+     * Which wall of the building this quad belongs to.
+     *
+     * A wall, not a ring edge: consecutive edges that carry on in roughly the
+     * same direction share an index, so a curved facade built out of many short
+     * segments is one wall and a corner starts the next. See `wallRunsForRing`.
+     */
+    wallIndex: number
+  ) => THREE.Color;
+};
+
+/** what the buildings looked like before there was anything to choose */
+export const defaultBuildingColors: BuildingColors = {
+  roof: (f) => (f.isPublic ? COLOR_PUBLIC : COLOR_DEFAULT),
+  wall: (f) => (f.isPublic ? COLOR_PUBLIC_WALL : COLOR_DEFAULT_WALL),
+};
+
+/**
+ * A hex string as a colour, or null when it is not one.
+ *
+ * `#rrggbb` and `#rgb`, with the `#` optional because a column of bare hex is
+ * common. Anything else is a miss: `THREE.Color` would take an unknown string
+ * as a warning and a black building, and one bad value in a property is a bad
+ * value in tens of thousands of features.
+ */
+const HEX = /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * Parsed colours, keyed by the raw string.
+ *
+ * Two reasons, both about the size of the input: a rebuild runs this once per
+ * building, so an uncached parse allocates a `THREE.Color` per building per
+ * rebuild; and a miss is cached as null as well, so an unreadable value is
+ * complained about once instead of once per building per rebuild.
+ */
+const colorCache = new Map<string, THREE.Color | null>();
+
+const parseHexColor = (value: string | null | undefined): THREE.Color | null => {
+  if (!value) {
+    return null;
+  }
+  const cached = colorCache.get(value);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const trimmed = value.trim();
+  let parsed: THREE.Color | null = null;
+  if (HEX.test(trimmed)) {
+    parsed = new THREE.Color(
+      trimmed.startsWith("#") ? trimmed : `#${trimmed}`
+    );
+  } else {
+    console.warn(
+      `[3D-BUILDINGS] not a hex colour, falling back: ${JSON.stringify(value)}`
+    );
+  }
+  colorCache.set(value, parsed);
+  return parsed;
+};
+
+/**
+ * The colours the features themselves carry, for a layer that names a
+ * `roofColorField`.
+ *
+ * A feature with nothing usable falls back to what it would have been given
+ * anyway, so a half-filled colour column shows the buildings that have one and
+ * leaves the rest alone rather than blacking them out. Walls with no colour of
+ * their own stay a shade of their roof, which is what they have always been.
+ */
+export const featureBuildingColors: BuildingColors = {
+  roof: (f) => parseHexColor(f.roofColor) ?? defaultBuildingColors.roof(f, 0),
+  wall: (f) => {
+    const own = parseHexColor(f.wallColor);
+    if (own) {
+      return own;
+    }
+    const roof = parseHexColor(f.roofColor);
+    return roof
+      ? roof.clone().multiplyScalar(WALL_DARKEN)
+      : defaultBuildingColors.wall(f, 0, 0);
+  },
+};
+
+/**
+ * How sharp a turn has to be to count as a corner, in degrees.
+ *
+ * Below it, the next edge is taken as more of the same wall. Twenty keeps a
+ * curved facade in one piece (its segments turn a few degrees each) while every
+ * real corner of a building is well past it.
+ */
+const DEFAULT_WALL_ANGLE = 20;
+
+/**
+ * Which wall each edge of a ring belongs to.
+ *
+ * The polygon has one edge per vertex, but a wall in the sense anyone means it
+ * is a run of edges that carry on straight: a curved front is dozens of short
+ * segments and is still one wall. So this walks the ring, opens a new wall only
+ * where the direction turns by more than `angleThreshold`, and returns the wall
+ * index for every edge.
+ *
+ * The ring is closed, so the run holding edge 0 may have begun before it. When
+ * the seam is not itself a corner the last run is merged back into the first,
+ * or a building whose ring happens to start in the middle of a facade would
+ * have that facade cut in two.
+ *
+ * Longitude is scaled by the cosine of the latitude before the angles are
+ * taken. Degrees are not square that far north, and without it every wall
+ * running east would look bent.
+ */
+export const wallRunsForRing = (
+  ring: number[][],
+  angleThreshold = DEFAULT_WALL_ANGLE
+): number[] => {
+  const n = ring.length;
+  if (n < 2) {
+    return new Array<number>(n).fill(0);
+  }
+
+  const latScale = Math.cos((ring[0][1] * Math.PI) / 180) || 1;
+  const headings = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const [lng, lat] = ring[i];
+    const [lng1, lat1] = ring[(i + 1) % n];
+    headings[i] = Math.atan2(lat1 - lat, (lng1 - lng) * latScale);
+  }
+
+  const maxTurn = (angleThreshold * Math.PI) / 180;
+  /** the smaller angle between two headings, so the wrap at pi is not a corner */
+  const turnAt = (i: number) => {
+    let delta = Math.abs(headings[i] - headings[(i - 1 + n) % n]);
+    if (delta > Math.PI) {
+      delta = 2 * Math.PI - delta;
+    }
+    return delta;
+  };
+
+  const walls = new Array<number>(n);
+  let wall = 0;
+  walls[0] = 0;
+  for (let i = 1; i < n; i++) {
+    if (turnAt(i) > maxTurn) {
+      wall++;
+    }
+    walls[i] = wall;
+  }
+
+  // the seam: edge 0 continues the last run, so they are one wall
+  if (wall > 0 && turnAt(0) <= maxTurn) {
+    const last = wall;
+    for (let i = n - 1; i >= 0 && walls[i] === last; i--) {
+      walls[i] = 0;
+    }
+  }
+
+  return walls;
+};
+
+
+/**
  * Build merged extruded building geometry for all features.
  * Walls: 2 triangles per polygon edge (vertical quad).
  * Roof: earcut triangulation of the polygon at height.
@@ -64,6 +262,8 @@ export function buildExtrusionMeshes(
   scene: THREE.Scene,
   originMerc: MercatorCoordinate,
   mScale: number,
+  colors: BuildingColors = defaultBuildingColors,
+  wallAngleThreshold: number = DEFAULT_WALL_ANGLE,
 ): FactoryStats {
   // Remove old building meshes (keep trees and lights)
   const toRemove = scene.children.filter(
@@ -139,17 +339,22 @@ export function buildExtrusionMeshes(
   const roofVertexRanges: VertexRange[] = [];
 
   // Pass 2: build geometry
-  for (const { f, ring } of validFeatures) {
+  for (let bIdx = 0; bIdx < validFeatures.length; bIdx++) {
+    const { f, ring } = validFeatures[bIdx];
     const n = ring.length;
-    const color = f.isPublic ? COLOR_PUBLIC : COLOR_DEFAULT;
-    const cr = color.r;
-    const cg = color.g;
-    const cb = color.b;
+    // the cap is one colour for the whole building; the walls are asked for
+    // again per quad further down
+    const roofColor = colors.roof(f, bIdx);
+    const cr = roofColor.r;
+    const cg = roofColor.g;
+    const cb = roofColor.b;
 
-    // Slightly darken walls vs roof for visual separation
-    const wcr = cr * 0.85;
-    const wcg = cg * 0.85;
-    const wcb = cb * 0.85;
+    // Edges that carry on straight are one wall, so a per-wall resolver never
+    // colours a curved facade segment by segment. Only worked out when the
+    // resolver says it distinguishes walls; otherwise every quad is wall 0.
+    const wallOfEdge = colors.perWall
+      ? wallRunsForRing(ring, wallAngleThreshold)
+      : null;
 
     // Track range starts for this building (face index = index cursor / 3)
     const wallVertStart = wv;
@@ -182,6 +387,13 @@ export function buildExtrusionMeshes(
       // Wall quad for edge i -> (i+1)%n
       const j = (i + 1) % n;
       const [lng1, lat1] = ring[j];
+
+      // the colour of the wall this quad is part of, which is not the same as
+      // the ring edge: a curve's segments all report the same wall
+      const wallColor = colors.wall(f, bIdx, wallOfEdge ? wallOfEdge[i] : 0);
+      const wcr = wallColor.r;
+      const wcg = wallColor.g;
+      const wcb = wallColor.b;
 
       const m0 = MercatorCoordinate.fromLngLat([lng, lat], f.elevation);
       const m1 = MercatorCoordinate.fromLngLat([lng1, lat1], f.elevation);
@@ -279,7 +491,7 @@ export function buildExtrusionMeshes(
     vertexColors: true,
     flatShading: true,
     transparent: true,
-    opacity: 0.65,
+    opacity: DEFAULT_BUILDING_OPACITY,
     depthWrite: true,
     side: THREE.DoubleSide,
   });
@@ -288,7 +500,7 @@ export function buildExtrusionMeshes(
     vertexColors: true,
     flatShading: true,
     transparent: true,
-    opacity: 0.65,
+    opacity: DEFAULT_BUILDING_OPACITY,
     depthWrite: true,
     side: THREE.DoubleSide,
   });

@@ -33,6 +33,8 @@ import {
   DEFAULT_MAX_PITCH,
   setCameraRestrictionBase,
 } from "../utils/cameraRestriction";
+import { publishMapLayers } from "../utils/mapLayers";
+import { publishMapThreeRuntimeParams } from "../utils/mapThreeParams";
 import { createFeature } from "../utils/featureUtils";
 import { buildFeatureStateTarget } from "../utils/featureStateTarget";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
@@ -564,6 +566,27 @@ export const LibreMap = ({
     });
   }, [interactive, restrictCamera, forceRestrictCamera, maxPitch]);
 
+  // Mirror the layer list onto the instance for consumers that hold the map
+  // but not this component's props. See utils/mapLayers.
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) {
+      return;
+    }
+    publishMapLayers(mapInstance, layers);
+  }, [layers]);
+
+  // Same for the three.js switch: a consumer building a second view of this
+  // map's content has to know whether the original draws its 3D layers as
+  // geometry, or the copy silently comes out flat. See utils/mapThreeParams.
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) {
+      return;
+    }
+    publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
+  }, [threeRuntimeParams]);
+
   // Keep the zoom bounds in sync when a host changes them after construction.
   useEffect(() => {
     const mapInstance = map.current;
@@ -887,6 +910,11 @@ export const LibreMap = ({
         maxPitch,
         interactive,
       });
+      // published here as well as in the effect below, so a consumer that gets
+      // the instance through setLibreMap can read the layers straight away
+      // instead of waiting a render for the effect
+      publishMapLayers(mapInstance, layers);
+      publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       if (exposeMapToWindow) {
@@ -1519,6 +1547,28 @@ export const LibreMap = ({
               [];
             const sourceToIdx = new Map<string, number>();
 
+            // What opacity the host asked of each source's layer. A three.js
+            // layer has no paint properties, so the layer bar's slider cannot
+            // reach it the way it reaches a 2D layer; carrying the number here
+            // is what lets the 3D layer honour the same slider. `layerSources`
+            // already maps a host layer id to the sources it produced, so this
+            // only has to turn that around.
+            const opacityBySource = new Map<string, number>();
+            for (const registration of layerSources) {
+              const owner = (effectiveLayers ?? []).find(
+                (candidate) =>
+                  candidate.carmaLayerId === registration.carmaLayerId
+              );
+              const opacity =
+                owner && "opacity" in owner ? owner.opacity : undefined;
+              if (typeof opacity !== "number") {
+                continue;
+              }
+              for (const sourceId of registration.sourceIds) {
+                opacityBySource.set(sourceId, opacity);
+              }
+            }
+
             for (const layer of style.layers ?? []) {
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta) continue;
@@ -1533,6 +1583,7 @@ export const LibreMap = ({
                   ...meta,
                   sourceId,
                   sourceLayer,
+                  layerOpacity: opacityBySource.get(sourceId) ?? 1,
                   skipIn2DLayerIds: [],
                 });
               }

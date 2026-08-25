@@ -200,6 +200,10 @@ const TopNavbar = () => {
         />
       </div>
       <div
+        // named so a map addon can measure how far the chrome reaches down over
+        // the map area; the bar is `display: none` while it is hidden, which
+        // measures as nothing covered
+        id="topNavbar"
         className={`bg-white h-16 fixed left-0 right-0 items-center justify-between gap-2 xs:gap-3 sm:gap-6 py-2 pt-safe-top pb-safe-bottom pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs`}
         style={mainStyle}
       >

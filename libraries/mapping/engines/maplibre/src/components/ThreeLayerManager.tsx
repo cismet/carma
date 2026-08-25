@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { MercatorCoordinate } from "maplibre-gl";
+import { LngLat, MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import type { Scene } from "three";
@@ -12,12 +12,16 @@ import {
   buildLatheInstances,
   buildLoftMeshes,
   buildExtrusionMeshes,
+  DEFAULT_BUILDING_OPACITY,
+  featureBuildingColors,
   ensureProfiles,
   resolveOrigin,
 } from "@carma-mapping/engines/threejs";
 import type {
+  BuildingColors,
   BuildingFeature,
   Carma3dConfig,
+  ColorMapping,
   ThreePerfData,
   MappedFeature,
   FactoryStats,
@@ -39,6 +43,17 @@ const OPACITY_PROPS: Record<string, string[]> = {
   raster: ["raster-opacity"],
   heatmap: ["heatmap-opacity"],
 };
+
+/** Whether the map can still be asked about its layers.
+ *
+ *  A panel that goes away destroys its map, and React tears a deleted subtree
+ *  down from the top, so this component's cleanup runs after that. `remove()`
+ *  drops the style on its way out, which leaves every `getLayer` call reading
+ *  a property of nothing. There is also nothing left worth removing at that
+ *  point: the map took its layers with it. */
+function mapIsUsable(map: MaplibreMap | null | undefined): map is MaplibreMap {
+  return !!map && !map._removed && !!map.style;
+}
 
 export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
@@ -71,6 +86,40 @@ function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
     // console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
   }
   (map as any)[LAYER_REGISTRY_KEY] = registry;
+}
+
+/**
+ * The colour a feature gets: a colour it carries wins, then a colour its
+ * category is mapped to.
+ *
+ * A colour in the data is more specific than one derived from a class, so the
+ * field is asked first and the mapping only fills in behind it. The mapping's
+ * `default` also answers for a feature that has no such property at all, which
+ * is what makes a half-filled table colour what it knows and leave the rest
+ * uniform rather than blank.
+ */
+function resolveFeatureColor(
+  properties: Record<string, unknown> | undefined,
+  field: string | undefined,
+  mapping: ColorMapping | undefined,
+): string | null {
+  if (field) {
+    const carried = properties?.[field];
+    if (typeof carried === "string" && carried !== "") {
+      return carried;
+    }
+  }
+  if (mapping?.field) {
+    const key = properties?.[mapping.field];
+    if (key != null) {
+      const mapped = mapping.values?.[String(key)];
+      if (mapped) {
+        return mapped;
+      }
+    }
+    return mapping.default ?? null;
+  }
+  return null;
 }
 
 /** Get all registered 3D layers from a map instance. */
@@ -138,6 +187,8 @@ export function ThreeLayerManager({
   const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
   /** Current building appearance overrides (kept in ref so syncBuildings can access) */
   const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>({});
+  /** Where building colours come from this render (same ref reason) */
+  const buildingColorsRef = useRef<BuildingColors | undefined>(undefined);
   /** Last logged building count to suppress repeated log lines */
   const lastLoggedCountRef = useRef(-1);
 
@@ -156,19 +207,21 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
     return () => {
-      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
-        map.removeLayer(overlayIdRef.current);
+      if (mapIsUsable(map)) {
+        if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+          map.removeLayer(overlayIdRef.current);
+        }
+        if (layerRef.current) {
+          layerRef.current.unhighlight();
+          unregister3dLayer(map, layerRef.current);
+          const layerId = layerRef.current.id;
+          if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+          }
+          map.triggerRepaint();
+        }
       }
       overlayIdRef.current = null;
-      if (layerRef.current) {
-        layerRef.current.unhighlight();
-        unregister3dLayer(map, layerRef.current);
-        const layerId = layerRef.current.id;
-        if (map.getLayer(layerId)) {
-          map.removeLayer(layerId);
-        }
-        map.triggerRepaint();
-      }
       layerRef.current = null;
       addingRef.current = false;
     };
@@ -178,11 +231,14 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
     return () => {
-      // Restore any saved 2D layer opacity on unmount
-      for (const [layerId, originals] of savedOpacityRef.current) {
-        if (!map.getLayer(layerId)) continue;
-        for (const [prop, value] of originals) {
-          map.setPaintProperty(layerId, prop, (value as number) ?? 1);
+      // Restore any saved 2D layer opacity on unmount. A map that has gone
+      // has taken those layers with it, so there is nothing to put back.
+      if (mapIsUsable(map)) {
+        for (const [layerId, originals] of savedOpacityRef.current) {
+          if (!map.getLayer(layerId)) continue;
+          for (const [prop, value] of originals) {
+            map.setPaintProperty(layerId, prop, (value as number) ?? 1);
+          }
         }
       }
       savedOpacityRef.current.clear();
@@ -228,28 +284,30 @@ export function ThreeLayerManager({
 
     /** Tear down the 3D custom layer and overlay (without unmounting the component). */
     const removeLayer = () => {
-      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
-        map.removeLayer(overlayIdRef.current);
+      if (mapIsUsable(map)) {
+        if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+          map.removeLayer(overlayIdRef.current);
+        }
+        if (layerRef.current) {
+          layerRef.current.unhighlight();
+          unregister3dLayer(map, layerRef.current);
+          if (map.getLayer(layerRef.current.id)) {
+            map.removeLayer(layerRef.current.id);
+          }
+          map.triggerRepaint();
+        }
+
+        // Restore 2D layer opacity
+        for (const [lid, originals] of savedOpacityRef.current) {
+          if (!map.getLayer(lid)) continue;
+          for (const [prop, value] of originals) {
+            map.setPaintProperty(lid, prop, (value as number) ?? 1);
+          }
+        }
       }
       overlayIdRef.current = null;
-      if (layerRef.current) {
-        layerRef.current.unhighlight();
-        unregister3dLayer(map, layerRef.current);
-        if (map.getLayer(layerRef.current.id)) {
-          map.removeLayer(layerRef.current.id);
-        }
-        map.triggerRepaint();
-      }
       layerRef.current = null;
       addingRef.current = false;
-
-      // Restore 2D layer opacity
-      for (const [lid, originals] of savedOpacityRef.current) {
-        if (!map.getLayer(lid)) continue;
-        for (const [prop, value] of originals) {
-          map.setPaintProperty(lid, prop, (value as number) ?? 1);
-        }
-      }
       savedOpacityRef.current.clear();
     };
 
@@ -379,9 +437,43 @@ export function ThreeLayerManager({
 
       const heightField = config.fields?.heightField;
       const publicField = config.fields?.publicField;
+      const roofColorField = config.fields?.roofColorField;
+      const wallColorField = config.fields?.wallColorField;
+      const roofColorMap = config.roofColorMap;
+      const wallColorMap = config.wallColorMap;
       if (!heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
 
       const hasTerrain = map.getTerrain() != null;
+
+      // How the ground under a building is read.
+      //
+      // `map.queryTerrainElevation` decides which zoom to read the DEM at by
+      // running `coveringTiles` over the whole viewport, and it does that on
+      // every call before reading its one pixel. Asked once per building that
+      // is about 0.3 ms of tile arithmetic against a few microseconds of
+      // lookup, so a rebuild of several thousand buildings spends around a
+      // second of the main thread in there and the map stands still while the
+      // geometry is put together. Every tile that arrives asks for another one.
+      //
+      // The zoom it arrives at belongs to the camera, not to the point, so it
+      // is the same for every building in one rebuild. Worked out once and
+      // handed to the per-point entry point, the same lookup costs about a
+      // hundred and fiftieth of that and returns the same elevation.
+      const terrain = map.terrain;
+      const terrainZoom = Math.floor(map.getZoom());
+      const elevationAt = (lng: number, lat: number): number => {
+        if (!hasTerrain) {
+          return 0;
+        }
+        if (terrain) {
+          return terrain.getElevationForLngLatZoom(
+            new LngLat(lng, lat),
+            terrainZoom
+          );
+        }
+        return map.queryTerrainElevation({ lng, lat }) ?? 0;
+      };
+
       const raw = map.querySourceFeatures(config.sourceId, {
         sourceLayer: config.sourceLayer,
       });
@@ -393,6 +485,9 @@ export function ThreeLayerManager({
         fragments: number[][][];
         height: number;
         isPublic: boolean;
+        /** hex strings straight off the feature; the factory parses them */
+        roofColor: string | null;
+        wallColor: string | null;
         /** First raw feature for this group (used for _sourceFeatures snapshot) */
         rawFeature: (typeof raw)[0];
       }
@@ -421,7 +516,22 @@ export function ThreeLayerManager({
           if (g) {
             g.fragments.push(ring);
           } else {
-            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.[publicField] === "1", rawFeature: f });
+            groups.set(fid, {
+              fragments: [ring],
+              height,
+              isPublic: f.properties?.[publicField] === "1",
+              roofColor: resolveFeatureColor(
+                f.properties,
+                roofColorField,
+                roofColorMap,
+              ),
+              wallColor: resolveFeatureColor(
+                f.properties,
+                wallColorField,
+                wallColorMap,
+              ),
+              rawFeature: f,
+            });
           }
         }
       }
@@ -462,10 +572,16 @@ export function ThreeLayerManager({
           for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
           cLng /= ring.length;
           cLat /= ring.length;
-          const elevation = hasTerrain
-            ? (map.queryTerrainElevation({ lng: cLng, lat: cLat }) ?? 0)
-            : 0;
-          buildings.push({ ring, height: g.height, elevation, isPublic: g.isPublic, sourceIndex });
+          const elevation = elevationAt(cLng, cLat);
+          buildings.push({
+            ring,
+            height: g.height,
+            elevation,
+            isPublic: g.isPublic,
+            roofColor: g.roofColor,
+            wallColor: g.wallColor,
+            sourceIndex,
+          });
 
           // Approximate footprint radius: max distance from centroid to any vertex
           let maxR = 0;
@@ -503,7 +619,17 @@ export function ThreeLayerManager({
       layer._sourceFeatures = sourceFeatures;
       layer._features = mappedFeatures;
 
-      buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
+      // colours the features carry when the layer names the fields for them,
+      // and the public/default pair when it does not; `buildingColor` below
+      // overrides either
+      buildExtrusionMeshes(
+        buildings,
+        layer.scene,
+        layer._originMerc,
+        layer._mScale,
+        buildingColorsRef.current,
+        config.wallAngleThreshold,
+      );
 
       // Re-apply building appearance overrides after geometry rebuild
       const { color, opacity } = buildingAppearanceRef.current;
@@ -558,6 +684,17 @@ export function ThreeLayerManager({
           sourceFeatures.length, "sourceFeatures,",
           grid.size, "grid cells");
       }
+
+      // Ask for the frame this rebuild is meant to be seen in.
+      //
+      // What a custom layer holds is not part of MapLibre's own state, so
+      // replacing the geometry in the scene tells it nothing: it draws when it
+      // has a reason to, and new buildings are not one. Most rebuilds get away
+      // with it because what triggered them was a movement, which is drawing
+      // anyway. Switching terrain on is not: the camera stands still, the
+      // rebuild finishes, and the canvas keeps showing the frame from before it
+      // until the user nudges the map.
+      map.triggerRepaint();
     };
 
     /** Sync trees: queries source features and rebuilds tree geometry. */
@@ -657,10 +794,42 @@ export function ThreeLayerManager({
 
   // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
   const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
-  const buildingOpacity = typeof runtimeParams.buildingOpacity === "number" ? runtimeParams.buildingOpacity : undefined;
+  // How opaque the buildings end up: what the layer is worth on its own, times
+  // what the host has asked of the layer as a whole.
+  //
+  // The multiplication is the same one the 2D side does, where the layer bar's
+  // slider scales each paint property against the value the style gave it. So a
+  // layer drawn at 0.65 sits at 0.325 when the slider is halfway, and a slider
+  // at the top leaves the style's own number alone. Without this the slider
+  // moves nothing at all on a three.js layer, since it has no paint properties
+  // for the usual path to scale.
+  const baseBuildingOpacity =
+    typeof runtimeParams.buildingOpacity === "number"
+      ? runtimeParams.buildingOpacity
+      : config.buildingOpacity ?? DEFAULT_BUILDING_OPACITY;
+  const buildingOpacity =
+    baseBuildingOpacity * (config.layerOpacity ?? 1);
 
-  // Keep ref in sync so syncBuildings can re-apply after geometry rebuild
+  // Where the buildings take their colours from.
+  //
+  // Naming any of the four says the features decide, whether they carry a
+  // colour outright or a category that is mapped to one. None of them: a
+  // building keeps the colour it gets from being public or not, which is what
+  // it has always had.
+  //
+  // `buildingColor` overrides either, since it repaints every vertex uniformly
+  // after the rebuild.
+  const buildingColors: BuildingColors | undefined =
+    config.fields?.roofColorField ||
+    config.fields?.wallColorField ||
+    config.roofColorMap ||
+    config.wallColorMap
+      ? featureBuildingColors
+      : undefined;
+
+  // Keep refs in sync so syncBuildings can re-apply after geometry rebuild
   buildingAppearanceRef.current = { color: buildingColor, opacity: buildingOpacity };
+  buildingColorsRef.current = buildingColors;
 
   useEffect(() => {
     if (!map || config.renderMode !== "extrusion") return;

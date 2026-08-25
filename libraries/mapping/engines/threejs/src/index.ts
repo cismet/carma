@@ -4,6 +4,7 @@
 // Types
 export type {
   Carma3dConfig,
+  ColorMapping,
   FieldMapping,
   TypeMapEntry,
   MappedFeature,
@@ -40,5 +41,11 @@ export type {
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
-export { buildExtrusionMeshes } from "./factories/ExtrusionFactory";
+export {
+  buildExtrusionMeshes,
+  DEFAULT_BUILDING_OPACITY,
+  defaultBuildingColors,
+  featureBuildingColors,
+  type BuildingColors,
+} from "./factories/ExtrusionFactory";
 export type { BuildingFeature } from "./factories/ExtrusionFactory";

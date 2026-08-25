@@ -97,6 +97,40 @@ export {
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
+  CompareSwipe,
+  type CompareSwipeConfig,
+} from "./addons/comparing/CompareSwipe";
+export {
+  CompareArena,
+  type CompareArenaConfig,
+} from "./addons/comparing/CompareArena";
+export {
+  COMPARE_MODE,
+  orientationApplies,
+  type CompareMode,
+  type CompareOrientation,
+} from "./addons/comparing/compare-modes";
+export {
+  ComparingControl,
+  type ComparingControlConfig,
+} from "./addons/comparing/ComparingControl";
+export {
+  useComparingActions,
+  type CompareState,
+} from "./addons/comparing/comparing-actions";
+export {
+  useComparingLayerRow,
+  COMPARING_LAYER,
+  COMPARING_LAYER_ID,
+  COMPARING_TOOLS_INTERACTION_ID,
+  type UseComparingLayerRowOptions,
+} from "./addons/comparing/comparing-layer-row";
+export { ComparingPanel } from "./addons/comparing/ComparingPanel";
+export {
+  useCompareLayerEntries,
+  type CompareLayerEntry,
+} from "./addons/comparing/comparing-layers";
+export {
   InfoBoxZoomImage,
   resolveInfoBoxImageUrl,
   type InfoBoxImageState,

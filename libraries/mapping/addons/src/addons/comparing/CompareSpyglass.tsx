@@ -1,0 +1,347 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+
+import { SpyglassOverlay } from "@carma-mapping/core";
+import {
+  useMapLayers,
+  useMapThreeRuntimeParams,
+} from "@carma-mapping/engines/maplibre";
+
+import type { AddonComponentProps } from "../../lib/registry";
+import { CompareStage } from "./stage/CompareStage";
+import { groupLayers, rolesFromAssignments } from "./stage/roles";
+import { useComparingActions } from "./comparing-actions";
+import { COMPARE_MODE } from "./compare-modes";
+import { panelLabelsFor } from "./panel-labels";
+
+export type CompareSpyglassConfig = {
+  /** glyph endpoint for the panels' own maps, when the app overrides the default */
+  overrideGlyphs?: string;
+  /**
+   * Whether the hidden app map follows every frame (`live`) or only once a
+   * movement settles (`settled`, the default). See `CompareSwipe`.
+   */
+  appMapSync?: "live" | "settled";
+  /**
+   * How wide the lens starts, in px, when nothing has been stored yet. Held to
+   * the range the lens can be wheeled through.
+   */
+  radius?: number;
+};
+
+/**
+ * Which panel is the circle. The other one is everything around it, so the two
+ * are not interchangeable and the pane names them accordingly.
+ */
+const LENS_PANEL = 1;
+
+type Size = { width: number; height: number };
+type Point = { x: number; y: number };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+/**
+ * Compares two layers by cutting a circle of one into the other and letting the
+ * user drag it around.
+ *
+ * The panels are the ones every other mode uses: two full-size maps on one
+ * camera, stacked, differing only in what they were given to draw. The lens is
+ * a `clip-path` circle on the upper of the two, so nothing is rendered twice
+ * and the ring can be moved without a map ever resizing. `SpyglassOverlay` from
+ * the mapping core draws that ring and owns the drag and the wheel, which is
+ * the same component the compare playground uses, so both places behave alike.
+ *
+ * Two panels and no more: a circle shows one map under it, which leaves a third
+ * nowhere to go. The shared state holds the mode and the panel count to that,
+ * so this never mounts against a layout it cannot draw.
+ */
+export const CompareSpyglass = ({
+  config,
+  libreMap,
+}: AddonComponentProps<"compareSpyglass">) => {
+  const {
+    hasState,
+    isOn,
+    mode,
+    orientation,
+    panelCount,
+    setLayout,
+    assignments,
+    spyglassRadius,
+    setSpyglassRadius,
+  } = useComparingActions();
+  const isActive = isOn && mode === COMPARE_MODE.spyglass;
+
+  const layers = useMapLayers(libreMap);
+  // the panels show the app map's content, so they draw it the way that map
+  // does: a layer built as three.js geometry there is geometry here as well
+  const threeRuntimeParams = useMapThreeRuntimeParams(libreMap);
+  const roles = useMemo(
+    () => rolesFromAssignments(layers, assignments ?? {}, panelCount),
+    [assignments, layers, panelCount]
+  );
+  const groupCount = useMemo(() => groupLayers(layers).length, [layers]);
+
+  // the route's config decides how wide the lens starts, and only while there
+  // is nothing to start from: a stored radius is a size the user already
+  // wheeled to, and seeding over it would undo that on every reload. The same
+  // rule the swipe applies to its orientation.
+  const seededRadius = useRef(hasState);
+  useEffect(() => {
+    if (seededRadius.current) {
+      return;
+    }
+    seededRadius.current = true;
+    if (config?.radius !== undefined) {
+      setSpyglassRadius(config.radius);
+    }
+  }, [config?.radius, setSpyglassRadius]);
+
+  // the box the panels are drawn in, measured rather than taken from the map:
+  // the ring's position is in that box's coordinates and the clip-path is read
+  // against the same origin, so both have to come from the same element
+  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  const handleSize = useCallback((next: Size) => {
+    setSize((previous) =>
+      previous.width === next.width && previous.height === next.height
+        ? previous
+        : next
+    );
+  }, []);
+
+  const [position, setPosition] = useState<Point | null>(null);
+
+  // the lens starts in the middle and is kept inside the box when the window
+  // changes shape. Leaving the mode drops the position, so coming back puts the
+  // lens where it can be found rather than wherever it was left off-screen.
+  useEffect(() => {
+    if (!isActive) {
+      setPosition(null);
+      return;
+    }
+    const { width, height } = size;
+    if (width === 0 || height === 0) {
+      return;
+    }
+    setPosition((previous) => {
+      if (!previous) {
+        return { x: width / 2, y: height / 2 };
+      }
+      const x = clamp(previous.x, 0, width);
+      const y = clamp(previous.y, 0, height);
+      return x === previous.x && y === previous.y ? previous : { x, y };
+    });
+  }, [isActive, size]);
+
+  // only the running mode describes the layout, or the pane's headings would be
+  // whichever mode addon rendered last
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+    setLayout(
+      panelCount,
+      panelLabelsFor(panelCount, orientation, COMPARE_MODE.spyglass)
+    );
+  }, [isActive, orientation, panelCount, setLayout]);
+
+  const panelStyles = useMemo<CSSProperties[]>(() => {
+    // before the box has been measured the lens has no place to be, and a
+    // circle of nothing keeps the upper panel out of the way until it does
+    const clipPath = position
+      ? `circle(${spyglassRadius}px at ${position.x}px ${position.y}px)`
+      : "circle(0px at 0 0)";
+    return Array.from({ length: panelCount }, (_, index) =>
+      index === LENS_PANEL
+        ? {
+            position: "absolute" as const,
+            inset: 0,
+            clipPath,
+            WebkitClipPath: clipPath,
+            zIndex: 1,
+          }
+        : { position: "absolute" as const, inset: 0, zIndex: 0 }
+    );
+  }, [panelCount, position, spyglassRadius]);
+
+  // nothing is mounted while another mode runs. Fewer than two blocks on the
+  // map means there is nothing to hold against each other, whatever the
+  // assignment says.
+  if (!isActive || !libreMap || groupCount < 2 || roles.panels.length < 2) {
+    return null;
+  }
+
+  return (
+    <CompareStage
+      appMap={libreMap}
+      roles={roles}
+      panelStyles={panelStyles}
+      overrideGlyphs={config?.overrideGlyphs}
+      appMapSync={config?.appMapSync}
+      threeRuntimeParams={threeRuntimeParams}
+    >
+      <SpyglassLayer
+        position={position}
+        radius={spyglassRadius}
+        onPositionChange={setPosition}
+        onRadiusChange={setSpyglassRadius}
+        onSize={handleSize}
+      />
+    </CompareStage>
+  );
+};
+
+/**
+ * The ring, over the panels and inside the same box they fill.
+ *
+ * It exists to be measured: the stage owns the container, so the only way to
+ * get its size is from something rendered into it. `pointer-events: none` here
+ * keeps the map draggable everywhere the ring is not; the overlay's own hit
+ * circle opts back in for the part that is the handle.
+ */
+const SpyglassLayer = ({
+  position,
+  radius,
+  onPositionChange,
+  onRadiusChange,
+  onSize,
+}: {
+  position: Point | null;
+  radius: number;
+  onPositionChange: (position: Point) => void;
+  onRadiusChange: (radius: number) => void;
+  onSize: (size: Size) => void;
+}) => {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) {
+      return;
+    }
+    const measure = () => {
+      onSize({ width: box.clientWidth, height: box.clientHeight });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => {
+      observer.disconnect();
+    };
+  }, [onSize]);
+
+  useLensAnchoredZoom(boxRef, position);
+
+  return (
+    <div
+      ref={boxRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 2,
+      }}
+    >
+      <SpyglassOverlay
+        position={position}
+        radius={radius}
+        onPositionChange={onPositionChange}
+        onRadiusChange={onRadiusChange}
+      />
+    </div>
+  );
+};
+
+/**
+ * Wheeling anywhere but on the ring zooms about the middle of the lens.
+ *
+ * A map zooms about the pointer, which is the wrong place here: the lens is
+ * what the user is reading, and zooming beside it slides its content out from
+ * under it, so the thing being looked at is the one thing that moves. Anchoring
+ * on the middle of the circle keeps what is in the lens in the lens, and the
+ * surroundings move around it instead.
+ *
+ * Rather than zoom the maps directly, the wheel is stopped before it reaches
+ * one and sent again at the lens's middle. MapLibre reads the anchor off the
+ * event's own coordinates, so everything else about the gesture stays theirs:
+ * the trackpad's fine steps, the wheel's coarse ones, momentum, ctrl-to-pinch.
+ * Zooming a panel syncs the rest, as any other movement of a panel does.
+ *
+ * The listener sits on the stage, which is the box's parent, since a wheel over
+ * a panel is aimed at that panel's canvas and never at the overlay beside it.
+ * The same reason the box is here at all: only something inside the stage can
+ * reach the stage.
+ */
+const useLensAnchoredZoom = (
+  boxRef: React.MutableRefObject<HTMLDivElement | null>,
+  position: Point | null
+) => {
+  // read at event time, so dragging the lens does not re-attach a listener per
+  // frame just to move the anchor a few pixels
+  const positionRef = useRef(position);
+  positionRef.current = position;
+
+  useEffect(() => {
+    const box = boxRef.current;
+    const stage = box?.parentElement;
+    if (!box || !stage) {
+      return;
+    }
+    // the one we sent ourselves, which must reach the map rather than us
+    let redispatching = false;
+
+    const onWheel = (event: WheelEvent) => {
+      if (redispatching) {
+        return;
+      }
+      const point = positionRef.current;
+      if (!point) {
+        return;
+      }
+      // the ring has its own use for the wheel: over it, wheeling resizes the
+      // lens. Asking the element rather than the geometry keeps the hit area in
+      // one place, the overlay's.
+      if (event.target instanceof Node && box.contains(event.target)) {
+        return;
+      }
+      const stageRect = stage.getBoundingClientRect();
+      event.preventDefault();
+      event.stopPropagation();
+      const aimed = new WheelEvent("wheel", {
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        deltaZ: event.deltaZ,
+        deltaMode: event.deltaMode,
+        clientX: stageRect.left + point.x,
+        clientY: stageRect.top + point.y,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+      redispatching = true;
+      try {
+        (event.target ?? stage).dispatchEvent(aimed);
+      } finally {
+        redispatching = false;
+      }
+    };
+
+    // capture, so the map's own handler further down never runs; not passive,
+    // so the page does not scroll behind the comparison
+    stage.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => {
+      stage.removeEventListener("wheel", onWheel, { capture: true });
+    };
+  }, [boxRef]);
+};

@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { DevelopmentOnlyUiBackdrop } from "@carma-commons/ui/components";
 import {
@@ -11,10 +11,13 @@ import type { Layer, LayerGroup } from "@carma-mapping/layers";
 import { isLayerGroup } from "@carma-mapping/layers";
 
 import {
+  changeVisibility,
   getActiveInteractionButtonID,
   getActiveInteractionLayerID,
   getLayerStack,
   getLayers,
+  setActiveInteractionButtonID,
+  setActiveInteractionLayerID,
 } from "../../store/slices/mapping";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
 import {
@@ -29,6 +32,8 @@ import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import {
   ADDON_INTERACTION_COMPONENTS,
+  COMPARING_TOOLS_INTERACTION_ID,
+  ComparingPanel,
   TargetAddonHost,
   resolveActiveTargetAddon,
 } from "@carma-mapping/addons";
@@ -70,6 +75,27 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   );
 };
 
+/**
+ * The comparison's control pane with the things it cannot do itself: dragging a
+ * layer into a window switches it on when it was off, and Escape closes the
+ * pane. Both are dispatches into this app's state.
+ */
+const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
+  const dispatch = useDispatch();
+  return (
+    <ComparingPanel
+      layer={layer}
+      onLayerVisibilityChange={(id, visible) =>
+        dispatch(changeVisibility({ id, visible }))
+      }
+      onClose={() => {
+        dispatch(setActiveInteractionButtonID(null));
+        dispatch(setActiveInteractionLayerID(null));
+      }}
+    />
+  );
+};
+
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   ...ADDON_INTERACTION_COMPONENTS,
   [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
@@ -78,6 +104,7 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
   "save-measurements": SaveMeasurements,
   "measurement-draw-tools": MeasurementDrawTools,
+  [COMPARING_TOOLS_INTERACTION_ID]: ComparingInteractionPanel,
 };
 
 export const InteractionContent: FC<{
