@@ -1047,9 +1047,40 @@ export const LibreMap = ({
                   mappingRef.current[sf.sourceLayer ?? ""];
 
                 if (disableInternalSelectionRef.current) {
-                  // Host owns selection; skip engine-side feature creation
-                  // and context push. Visual highlight via setFeatureState
-                  // already happened upstream.
+                  // Host owns selection, so the engine builds no feature and
+                  // pushes no context. The hit still has to reach the host, or
+                  // clicking a 3D object stays silent while the same click on
+                  // the flat footprint opens an info box: hand it over in the
+                  // shape a 2D hit arrives in, carrying the style layer id the
+                  // host resolves its layer mapping from.
+                  const hostLayerId = layerId3d ?? fallbackLayerId;
+                  const hostFeature = {
+                    ...syntheticFeature,
+                    layer: {
+                      ...syntheticFeature.layer,
+                      metadata: {
+                        ...((syntheticFeature.layer.metadata ?? {}) as Record<
+                          string,
+                          unknown
+                        >),
+                        ...(hostLayerId ? { "layer-id": hostLayerId } : {}),
+                      },
+                    },
+                  } as maplibregl.MapGeoJSONFeature;
+                  // The click cleared the shared selection context further up,
+                  // and the watcher on that context reacts to the cleared
+                  // version by wiping the visual selection this handler has
+                  // just applied. Claiming the version keeps the highlight:
+                  // the host's own selection push bumps it again afterwards,
+                  // which is what the 2D path relies on too.
+                  lastHandledVersionRef.current =
+                    mapSelectionCtxRef.current.selectionVersion + 1;
+                  enrichHitsWithCarmaInfo(mapInstance, [hostFeature]);
+                  onSelectionChangedRef.current?.({
+                    hits: [hostFeature],
+                    hit: hostFeature,
+                    latlng: e.lngLat,
+                  });
                 } else if (layerMapping3d) {
                   const feature = await createFeature(
                     syntheticFeature,
