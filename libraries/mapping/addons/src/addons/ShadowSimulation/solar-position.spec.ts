@@ -61,4 +61,16 @@ describe("solar position", () => {
     expect(position.elevationDegrees).toBeGreaterThan(60);
     expect(position.elevationDegrees).toBeLessThan(64);
   });
+
+  it("keeps a March late morning selection above the local horizon", () => {
+    const position = getSolarPosition(
+      { year: 2026, dayOfYear: 71, minutes: 11 * 60 + 3 },
+      WUPPERTAL
+    );
+
+    expect(position.azimuthDegrees).toBeGreaterThan(140);
+    expect(position.azimuthDegrees).toBeLessThan(160);
+    expect(position.elevationDegrees).toBeGreaterThan(25);
+    expect(position.elevationDegrees).toBeLessThan(35);
+  });
 });

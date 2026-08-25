@@ -38,4 +38,32 @@ describe("createProjectedTerrainTileGeometry", () => {
     expect(geometry.getAttribute("position").count).toBe(4);
     expect(geometry.getIndex()?.count).toBe(6);
   });
+
+  it("drops zero-area faces and corrects downward winding", () => {
+    const geometry = createProjectedTerrainTileGeometry({
+      tile: {
+        ...tile,
+        // First triangle is clockwise in projected X/Z. The second has the
+        // same horizontal vertex three times and must not reach the GPU.
+        indices: [0, 1, 3, 0, 0, 0],
+      },
+      projectToWorld: (longitude, latitude, height, target) =>
+        target.set(longitude, height, -latitude),
+    });
+
+    expect([...(geometry.getIndex()?.array ?? [])]).toEqual([0, 3, 1]);
+    for (const index of [0, 1, 3]) {
+      expect(geometry.getAttribute("normal").getY(index)).toBeGreaterThan(0);
+    }
+  });
+
+  it("rejects out-of-range indices before creating GPU buffers", () => {
+    expect(() =>
+      createProjectedTerrainTileGeometry({
+        tile: { ...tile, indices: [0, 1, 4] },
+        projectToWorld: (longitude, latitude, height, target) =>
+          target.set(longitude, height, -latitude),
+      })
+    ).toThrow("outside the vertex array");
+  });
 });

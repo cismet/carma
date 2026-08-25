@@ -17,19 +17,47 @@ import type {
 import type { SolarPosition } from "./solar-position";
 
 const DEFAULT_SHADOW_AREA_METERS = 900;
-const DEFAULT_LIGHT_DISTANCE_METERS = 2_500;
+const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
+const SHADOW_CAMERA_DEPTH_PADDING_METERS = 1_000;
 const DEFAULT_SHADOW_MAP_SIZE = 2_048;
+const SHADOW_DEPTH_BIAS_TEXELS = 0.5;
+const SHADOW_NORMAL_BIAS_TEXELS = 0.5;
+const MIN_SHADOW_DEPTH_BIAS_METERS = 0.05;
+const MAX_SHADOW_DEPTH_BIAS_METERS = 0.5;
+const MIN_SHADOW_NORMAL_BIAS_METERS = 0.1;
+const MAX_SHADOW_NORMAL_BIAS_METERS = 0.75;
 const SHADOW_SIMULATION_SUN_NAME = "shadow-simulation-sun";
+const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
 const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-cesium-terrain";
+const SUN_VECTOR_COLOR = 0xf59e0b;
+const SUN_VECTOR_HEAD_LENGTH_FACTOR = 0.18;
+const SUN_VECTOR_HEAD_WIDTH_FACTOR = 0.07;
+const SUN_VECTOR_VIEWPORT_LENGTH_FACTOR = 0.5;
+const SUN_VECTOR_ANGLE_RADIUS_FACTOR = 0.22;
+const SUN_VECTOR_ANGLE_SEGMENTS = 24;
+const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
 
 type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
+
+type SunVectorGizmo = {
+  root: THREE.ArrowHelper;
+  shaft: THREE.Mesh;
+  origin: THREE.Mesh;
+  groundRay: THREE.Line;
+  elevationArc: THREE.Line;
+  dispose: () => void;
+};
 
 type ShadowLightBinding = {
   scene: THREE.Scene;
   sunLight: THREE.DirectionalLight;
   lightTarget: THREE.Object3D;
+  sunVector: SunVectorGizmo;
   center: THREE.Vector3;
-  lightDistanceMeters: number;
+  shadowCameraOffsetMeters: number;
+  shadowAreaMeters: number;
+  sunVectorLengthMeters: number;
+  sunVectorVisible: boolean;
   shadowQuality: ShadowQualityMultiplier;
 };
 
@@ -54,11 +82,14 @@ export type ShadowBuildingAppearance = Readonly<{
 
 export type ShadowQualityMultiplier = 1 | 4 | 16;
 
+export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 4;
+
 export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
+  updateSunDebugVectorVisibility: (visible: boolean) => void;
   dispose: () => void;
 };
 
@@ -96,31 +127,131 @@ const configureShadowCamera = (
 ) => {
   light.castShadow = true;
   configureShadowMapQuality(light, quality);
-  light.shadow.bias = -0.00008;
-  light.shadow.normalBias = 0.45;
-  light.shadow.radius = 2;
+  light.shadow.radius = 0;
   const halfShadowArea = shadowAreaMeters / 2;
   const shadowCamera = light.shadow.camera;
   shadowCamera.left = -halfShadowArea;
   shadowCamera.right = halfShadowArea;
   shadowCamera.top = halfShadowArea;
   shadowCamera.bottom = -halfShadowArea;
-  const lightDistanceMeters = Math.max(
-    DEFAULT_LIGHT_DISTANCE_METERS,
+  // DirectionalLight rays are parallel. This offset only positions its
+  // orthographic depth camera; it is not a finite light-source distance.
+  const shadowCameraOffsetMeters = Math.max(
+    DEFAULT_SHADOW_CAMERA_OFFSET_METERS,
     shadowAreaMeters * 1.5
   );
   shadowCamera.near = 1;
-  shadowCamera.far = lightDistanceMeters * 2 + shadowAreaMeters;
+  shadowCamera.far =
+    shadowCameraOffsetMeters +
+    halfShadowArea +
+    SHADOW_CAMERA_DEPTH_PADDING_METERS;
+  const shadowTexelMeters =
+    shadowAreaMeters / Math.max(1, light.shadow.mapSize.x);
+  light.shadow.normalBias = THREE.MathUtils.clamp(
+    shadowTexelMeters * SHADOW_NORMAL_BIAS_TEXELS,
+    MIN_SHADOW_NORMAL_BIAS_METERS,
+    MAX_SHADOW_NORMAL_BIAS_METERS
+  );
+  const depthBiasMeters = THREE.MathUtils.clamp(
+    shadowTexelMeters * SHADOW_DEPTH_BIAS_TEXELS,
+    MIN_SHADOW_DEPTH_BIAS_METERS,
+    MAX_SHADOW_DEPTH_BIAS_METERS
+  );
+  light.shadow.bias = -depthBiasMeters / (shadowCamera.far - shadowCamera.near);
   shadowCamera.updateProjectionMatrix();
-  return lightDistanceMeters;
+  return shadowCameraOffsetMeters;
+};
+
+const makeMeshShadeable = (mesh: THREE.Mesh) => {
+  if (mesh.userData[SHADOW_OVERLAY_MARKER]) return;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+};
+
+const buildSunVector = () => {
+  const helper = new THREE.ArrowHelper(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(),
+    1,
+    SUN_VECTOR_COLOR
+  );
+  helper.name = SHADOW_SIMULATION_SUN_VECTOR_NAME;
+  helper.visible = false;
+  helper.frustumCulled = false;
+  helper.line.visible = false;
+  const overlayMaterial = new THREE.MeshBasicMaterial({
+    color: SUN_VECTOR_COLOR,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    transparent: true,
+  });
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(1, 1, 1, 12),
+    overlayMaterial
+  );
+  shaft.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-shaft`;
+  shaft.matrixAutoUpdate = false;
+  const origin = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 16, 8),
+    overlayMaterial
+  );
+  origin.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-origin`;
+  origin.matrixAutoUpdate = false;
+  const lineMaterial = new THREE.LineBasicMaterial({
+    color: SUN_VECTOR_COLOR,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    transparent: true,
+  });
+  const groundRay = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
+  groundRay.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-ground-ray`;
+  const elevationArc = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
+  elevationArc.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-elevation-arc`;
+  helper.add(shaft, origin, groundRay, elevationArc);
+  for (const part of [
+    helper.line,
+    helper.cone,
+    shaft,
+    origin,
+    groundRay,
+    elevationArc,
+  ]) {
+    part.userData[SHADOW_OVERLAY_MARKER] = true;
+    part.castShadow = false;
+    part.receiveShadow = false;
+    part.frustumCulled = false;
+    part.renderOrder = 10_000;
+    const material = part.material as THREE.Material;
+    material.depthTest = false;
+    material.depthWrite = false;
+    material.toneMapped = false;
+    material.transparent = true;
+  }
+  return {
+    root: helper,
+    shaft,
+    origin,
+    groundRay,
+    elevationArc,
+    dispose: () => {
+      helper.dispose();
+      shaft.geometry.dispose();
+      origin.geometry.dispose();
+      overlayMaterial.dispose();
+      groundRay.geometry.dispose();
+      elevationArc.geometry.dispose();
+      lineMaterial.dispose();
+    },
+  };
 };
 
 const makeSceneMeshesShadeable = (scene: THREE.Scene) => {
   scene.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    makeMeshShadeable(mesh);
   });
 };
 
@@ -219,8 +350,7 @@ const buildGenericThreeShadowBridge = (
     for (const source of sourceMeshes) {
       const copy = source.clone(false) as THREE.Mesh;
       copy.name = `${source.name || "mesh"}-shadow-simulation-copy`;
-      copy.castShadow = true;
-      copy.receiveShadow = true;
+      makeMeshShadeable(copy);
       copy.visible = true;
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(source.matrixWorld);
@@ -239,7 +369,6 @@ const buildGenericThreeShadowBridge = (
     id: `shadow-simulation-generic-${layer.id}`,
     originLngLat: [origin.lng, origin.lat],
     root,
-    supportsShadows: true,
     update: () => undefined,
     dispose: () => {
       if (disposed) return;
@@ -277,19 +406,29 @@ const buildShadowLightBinding = (
 ): ShadowLightBinding => {
   const lightTarget = new THREE.Object3D();
   const sunLight = new THREE.DirectionalLight(0xfff2d8, 2.5);
+  const sunVector = buildSunVector();
   sunLight.name = SHADOW_SIMULATION_SUN_NAME;
   sunLight.target = lightTarget;
   const binding: ShadowLightBinding = {
     scene,
     sunLight,
     lightTarget,
+    sunVector,
     center: new THREE.Vector3(),
-    lightDistanceMeters: configureShadowCamera(sunLight, shadowAreaMeters, 1),
-    shadowQuality: 1,
+    shadowCameraOffsetMeters: configureShadowCamera(
+      sunLight,
+      shadowAreaMeters,
+      DEFAULT_SHADOW_QUALITY
+    ),
+    shadowAreaMeters,
+    sunVectorLengthMeters: shadowAreaMeters * SUN_VECTOR_VIEWPORT_LENGTH_FACTOR,
+    sunVectorVisible: false,
+    shadowQuality: DEFAULT_SHADOW_QUALITY,
   };
   scene.add(lightTarget, sunLight);
   makeSceneMeshesShadeable(scene);
   updateBindingCenter(binding);
+  scene.add(sunVector.root);
   return binding;
 };
 
@@ -297,12 +436,68 @@ const applySolarPositionToBinding = (
   binding: ShadowLightBinding,
   direction: THREE.Vector3
 ) => {
+  const normalizedDirection = direction.clone().normalize();
   binding.lightTarget.position.copy(binding.center);
   binding.sunLight.position
-    .copy(direction)
-    .multiplyScalar(binding.lightDistanceMeters)
+    .copy(normalizedDirection)
+    .multiplyScalar(binding.shadowCameraOffsetMeters)
     .add(binding.center);
-  const daylightStrength = THREE.MathUtils.clamp(direction.y, 0, 1);
+  const vectorLength = binding.sunVectorLengthMeters;
+  const headLength = vectorLength * SUN_VECTOR_HEAD_LENGTH_FACTOR;
+  const shaftLength = vectorLength - headLength;
+  binding.sunVector.root.position.copy(binding.center);
+  binding.sunVector.root.setDirection(normalizedDirection);
+  binding.sunVector.root.setLength(
+    vectorLength,
+    headLength,
+    vectorLength * SUN_VECTOR_HEAD_WIDTH_FACTOR
+  );
+  binding.sunVector.shaft.position.set(0, shaftLength / 2, 0);
+  binding.sunVector.shaft.scale.set(
+    vectorLength * 0.006,
+    shaftLength,
+    vectorLength * 0.006
+  );
+  binding.sunVector.shaft.updateMatrix();
+  binding.sunVector.origin.scale.setScalar(vectorLength * 0.012);
+  binding.sunVector.origin.updateMatrix();
+  const horizontalDirection = new THREE.Vector3(
+    normalizedDirection.x,
+    0,
+    normalizedDirection.z
+  );
+  if (horizontalDirection.lengthSq() < Number.EPSILON) {
+    horizontalDirection.set(0, 0, -1);
+  } else {
+    horizontalDirection.normalize();
+  }
+  const angleRadius = vectorLength * SUN_VECTOR_ANGLE_RADIUS_FACTOR;
+  const inverseArrowRotation = binding.sunVector.root.quaternion
+    .clone()
+    .invert();
+  binding.sunVector.groundRay.geometry.setFromPoints([
+    new THREE.Vector3(),
+    horizontalDirection
+      .clone()
+      .multiplyScalar(angleRadius)
+      .applyQuaternion(inverseArrowRotation),
+  ]);
+  const elevationRadians = Math.asin(
+    THREE.MathUtils.clamp(normalizedDirection.y, -1, 1)
+  );
+  binding.sunVector.elevationArc.geometry.setFromPoints(
+    Array.from({ length: SUN_VECTOR_ANGLE_SEGMENTS + 1 }, (_, index) => {
+      const angle = (elevationRadians * index) / SUN_VECTOR_ANGLE_SEGMENTS;
+      return horizontalDirection
+        .clone()
+        .multiplyScalar(Math.cos(angle) * angleRadius)
+        .add(new THREE.Vector3(0, Math.sin(angle) * angleRadius, 0))
+        .applyQuaternion(inverseArrowRotation);
+    })
+  );
+  binding.sunVector.root.visible = binding.sunVectorVisible;
+  binding.sunVector.root.updateMatrixWorld(true);
+  const daylightStrength = THREE.MathUtils.clamp(normalizedDirection.y, 0, 1);
   binding.sunLight.intensity = 1.2 + Math.sqrt(daylightStrength) * 2.2;
   binding.lightTarget.updateMatrixWorld(true);
   binding.sunLight.updateMatrixWorld(true);
@@ -311,7 +506,12 @@ const applySolarPositionToBinding = (
 };
 
 const disposeShadowLightBinding = (binding: ShadowLightBinding) => {
-  binding.scene.remove(binding.sunLight, binding.lightTarget);
+  binding.scene.remove(
+    binding.sunLight,
+    binding.lightTarget,
+    binding.sunVector.root
+  );
+  binding.sunVector.dispose();
 };
 
 export const buildShadowSimulationScene = (
@@ -360,6 +560,7 @@ export const buildShadowSimulationScene = (
     sharedBinding.center.copy(center);
     const bounds = map.getBounds();
     let radiusMeters = 0;
+    const projectedCorners: THREE.Vector3[] = [];
     for (const lngLat of [
       [bounds.getWest(), bounds.getSouth()],
       [bounds.getWest(), bounds.getNorth()],
@@ -367,12 +568,28 @@ export const buildShadowSimulationScene = (
       [bounds.getEast(), bounds.getNorth()],
     ] as [number, number][]) {
       const corner = sceneLease.layer.projectLngLatToScene?.(lngLat);
-      if (corner)
+      if (corner) {
+        projectedCorners.push(corner);
         radiusMeters = Math.max(radiusMeters, corner.distanceTo(center));
+      }
     }
-    sharedBinding.lightDistanceMeters = configureShadowCamera(
+    if (projectedCorners.length === 4) {
+      const [southWest, northWest, southEast, northEast] = projectedCorners;
+      const viewportWidthMeters =
+        (southWest.distanceTo(southEast) + northWest.distanceTo(northEast)) / 2;
+      const viewportHeightMeters =
+        (southWest.distanceTo(northWest) + southEast.distanceTo(northEast)) / 2;
+      sharedBinding.sunVectorLengthMeters =
+        Math.min(viewportWidthMeters, viewportHeightMeters) *
+        SUN_VECTOR_VIEWPORT_LENGTH_FACTOR;
+    }
+    sharedBinding.shadowAreaMeters = Math.max(
+      shadowAreaMeters,
+      radiusMeters * 2.4
+    );
+    sharedBinding.shadowCameraOffsetMeters = configureShadowCamera(
       sharedBinding.sunLight,
-      Math.max(shadowAreaMeters, radiusMeters * 2.4),
+      sharedBinding.shadowAreaMeters,
       sharedBinding.shadowQuality
     );
     if (latestSolarPosition) {
@@ -475,8 +692,24 @@ export const buildShadowSimulationScene = (
     },
     updateShadowQuality(quality) {
       sharedBinding.shadowQuality = quality;
-      configureShadowMapQuality(sharedBinding.sunLight, quality);
-      sharedBinding.sunLight.shadow.needsUpdate = true;
+      sharedBinding.shadowCameraOffsetMeters = configureShadowCamera(
+        sharedBinding.sunLight,
+        sharedBinding.shadowAreaMeters,
+        quality
+      );
+      if (latestSolarPosition) {
+        applySolarPositionToBinding(
+          sharedBinding,
+          solarPositionToSceneDirection(latestSolarPosition)
+        );
+      } else {
+        sharedBinding.sunLight.shadow.needsUpdate = true;
+      }
+      map.triggerRepaint();
+    },
+    updateSunDebugVectorVisibility(visible) {
+      sharedBinding.sunVectorVisible = visible;
+      sharedBinding.sunVector.root.visible = visible && !!latestSolarPosition;
       map.triggerRepaint();
     },
     dispose() {

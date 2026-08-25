@@ -18,52 +18,6 @@ export type SharedThreeSceneLease = {
 };
 
 const entries = new WeakMap<MaplibreMap, SharedSceneEntry>();
-const listeners = new WeakMap<MaplibreMap, Set<() => void>>();
-
-const emitStatusChange = (map: MaplibreMap) => {
-  for (const listener of listeners.get(map) ?? []) listener();
-};
-
-export type SharedThreeSceneStatus = {
-  layerVisible: boolean;
-  hasShadeableContent: boolean;
-};
-
-export const getSharedThreeSceneStatus = (
-  map: MaplibreMap
-): SharedThreeSceneStatus => {
-  const entry = entries.get(map);
-  if (!entry || entry.disposed) {
-    return { layerVisible: false, hasShadeableContent: false };
-  }
-  let layerVisible = false;
-  try {
-    layerVisible = Boolean(map.getLayer(entry.layer.id));
-    if (layerVisible && map.getLayoutProperty) {
-      layerVisible =
-        map.getLayoutProperty(entry.layer.id, "visibility") !== "none";
-    }
-  } catch {
-    layerVisible = false;
-  }
-  return {
-    layerVisible,
-    hasShadeableContent: entry.layer.hasShadeableContent(),
-  };
-};
-
-export const subscribeSharedThreeSceneStatus = (
-  map: MaplibreMap,
-  listener: () => void
-): (() => void) => {
-  const mapListeners = listeners.get(map) ?? new Set<() => void>();
-  mapListeners.add(listener);
-  listeners.set(map, mapListeners);
-  return () => {
-    mapListeners.delete(listener);
-    if (mapListeners.size === 0) listeners.delete(map);
-  };
-};
 
 const getFirstSymbolLayerId = (map: MaplibreMap): string | undefined =>
   map.getStyle().layers?.find(({ type }) => type === "symbol")?.id;
@@ -80,7 +34,6 @@ export const acquireSharedThreeScene = (
   if (!entry) {
     const layer = buildSharedThreeSceneLayer(SHARED_SCENE_LAYER_ID, {
       ambientLightIntensity: 0.58,
-      onContentChange: () => emitStatusChange(map),
     });
     const nextEntry: SharedSceneEntry = {
       layer,
@@ -97,7 +50,6 @@ export const acquireSharedThreeScene = (
       } catch {
         // A style replacement or map teardown can race this callback.
       }
-      emitStatusChange(map);
     };
     entries.set(map, nextEntry);
     map.on("styledata", nextEntry.ensureLayer);
@@ -127,7 +79,6 @@ export const acquireSharedThreeScene = (
       }
       current.layer.dispose();
       entries.delete(map);
-      emitStatusChange(map);
     },
   };
 };

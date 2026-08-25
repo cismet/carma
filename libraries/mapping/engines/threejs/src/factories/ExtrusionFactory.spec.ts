@@ -70,9 +70,17 @@ describe("buildExtrusionMeshes", () => {
 
     const roofIndex = roof.geometry.getIndex();
     expect(roofIndex).not.toBeNull();
-    for (let face = 0; face < (roofIndex?.count ?? 0) / 3; face += 1) {
+    const capFaceCount = (roofIndex?.count ?? 0) / 3;
+    expect(capFaceCount).toBe(4);
+    for (let face = 0; face < capFaceCount / 2; face += 1) {
       expect(getFaceNormal(roof.geometry, face).y).toBeGreaterThan(0.999);
     }
+    for (let face = capFaceCount / 2; face < capFaceCount; face += 1) {
+      expect(getFaceNormal(roof.geometry, face).y).toBeLessThan(-0.999);
+    }
+    const roofNormals = roof.geometry.getAttribute("normal");
+    expect(roofNormals.getY(0)).toBe(1);
+    expect(roofNormals.getY(roofNormals.count - 1)).toBe(-1);
 
     const wallPositions = wall.geometry.getAttribute("position");
     const center = new THREE.Vector3();

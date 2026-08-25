@@ -144,19 +144,86 @@ describe("shadow scene lighting integration", () => {
     const sun = scene.getObjectByName(
       "shadow-simulation-sun"
     ) as THREE.DirectionalLight;
+    const sunVector = scene.getObjectByName(
+      "shadow-simulation-sun-vector"
+    ) as THREE.ArrowHelper;
+    expect(sun.isDirectionalLight).toBe(true);
+    expect(sun.shadow.camera).toBeInstanceOf(THREE.OrthographicCamera);
+    expect(sun.shadow.camera.projectionMatrix.elements[11]).toBe(0);
+    expect(sun.shadow.camera.projectionMatrix.elements[15]).toBe(1);
+    expect(sun.shadow.camera.near).toBe(1);
+    expect(sun.shadow.camera.far).toBe(3_950);
     expect(sun.castShadow).toBe(true);
-    expect(sun.shadow.mapSize.toArray()).toEqual([2_048, 2_048]);
+    expect(sun.shadow.mapSize.toArray()).toEqual([4_096, 4_096]);
+    expect(sun.shadow.radius).toBe(0);
+    const shadowTexelMeters = 900 / 4_096;
+    expect(sun.shadow.bias).toBeCloseTo(
+      -(shadowTexelMeters * 0.5) /
+        (sun.shadow.camera.far - sun.shadow.camera.near),
+      10
+    );
+    expect(sun.shadow.normalBias).toBeCloseTo(0.10986, 5);
     expect(sun.position.clone().normalize().x).toBeCloseTo(0.5);
     expect(sun.position.clone().normalize().y).toBeCloseTo(Math.SQRT1_2);
     expect(sun.position.clone().normalize().z).toBeCloseTo(0.5);
+    const vectorDirection = new THREE.Vector3(0, 1, 0)
+      .applyQuaternion(sunVector.quaternion)
+      .normalize();
+    const lightDirection = sun.position
+      .clone()
+      .sub(sun.target.position)
+      .normalize();
+    const translatedRay = sun.position
+      .clone()
+      .add(new THREE.Vector3(1_000, -300, 500))
+      .sub(sun.target.position.clone().add(new THREE.Vector3(1_000, -300, 500)))
+      .normalize();
+    expect(translatedRay.dot(lightDirection)).toBeCloseTo(1);
+    const shadowRayDirections = [
+      [-1, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 1],
+    ].map(([x, y]) => {
+      const near = new THREE.Vector3(x, y, -1).unproject(sun.shadow.camera);
+      const far = new THREE.Vector3(x, y, 1).unproject(sun.shadow.camera);
+      return far.sub(near).normalize();
+    });
+    for (const shadowRayDirection of shadowRayDirections.slice(1)) {
+      expect(shadowRayDirection.dot(shadowRayDirections[0])).toBeCloseTo(1);
+    }
+    expect(sunVector.visible).toBe(false);
+    controller.updateSunDebugVectorVisibility(true);
+    expect(sunVector.visible).toBe(true);
+    expect(sunVector.position).toEqual(sun.target.position);
+    expect(vectorDirection.dot(lightDirection)).toBeCloseTo(1);
+    expect(sunVector.cone.castShadow).toBe(false);
+    expect(sunVector.cone.receiveShadow).toBe(false);
+    expect((sunVector.cone.material as THREE.Material).depthTest).toBe(false);
+    expect((sunVector.cone.material as THREE.Material).depthWrite).toBe(false);
+    expect((sunVector.cone.material as THREE.Material).transparent).toBe(true);
+    expect(
+      scene.getObjectByName("shadow-simulation-sun-vector-shaft")
+    ).toBeDefined();
+    expect(
+      scene.getObjectByName("shadow-simulation-sun-vector-ground-ray")
+    ).toBeDefined();
+    expect(
+      scene.getObjectByName("shadow-simulation-sun-vector-elevation-arc")
+    ).toBeDefined();
 
-    controller.updateShadowQuality(4);
-    expect(sun.shadow.mapSize.toArray()).toEqual([4_096, 4_096]);
+    controller.updateShadowQuality(1);
+    expect(sun.shadow.mapSize.toArray()).toEqual([2_048, 2_048]);
+    expect(sun.shadow.normalBias).toBeCloseTo(0.21973, 5);
     controller.updateShadowQuality(16);
     expect(sun.shadow.mapSize.toArray()).toEqual([8_192, 8_192]);
+    expect(sun.shadow.normalBias).toBeCloseTo(0.1, 5);
 
     controller.dispose();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
+    expect(
+      scene.getObjectByName("shadow-simulation-sun-vector")
+    ).toBeUndefined();
     expect(releaseScene).toHaveBeenCalledOnce();
   });
 
@@ -204,6 +271,7 @@ describe("shadow scene lighting integration", () => {
       azimuthDegrees: 135,
       elevationDegrees: 45,
     });
+    controller.updateSunDebugVectorVisibility(true);
 
     const buildingCopy = scene.getObjectByName(
       "alkis-building-shadow-simulation-copy"
@@ -214,8 +282,10 @@ describe("shadow scene lighting integration", () => {
     expect(buildingCopy.material).not.toBe(sourceBuildingMaterial);
     expect((buildingCopy.material as THREE.Material).opacity).toBe(1);
     expect((buildingCopy.material as THREE.Material).transparent).toBe(false);
+    expect((buildingCopy.material as THREE.Material).shadowSide).toBeNull();
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
+    expect((terrain.material as THREE.Material).shadowSide).toBeNull();
     expect(buildingCopy.parent?.parent).toBe(scene);
     expect(terrain.parent).toBe(scene);
 
@@ -252,8 +322,9 @@ describe("shadow scene lighting integration", () => {
   it("keeps the full map viewport inside the shadow camera", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    let mapCenter = { lng: 0, lat: 0 };
     const map = {
-      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getCenter: vi.fn(() => mapCenter),
       getBounds: vi.fn(() => ({
         getWest: () => -1,
         getSouth: () => -2,
@@ -272,11 +343,30 @@ describe("shadow scene lighting integration", () => {
     const sun = scene.getObjectByName(
       "shadow-simulation-sun"
     ) as THREE.DirectionalLight;
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const sunVector = scene.getObjectByName(
+      "shadow-simulation-sun-vector"
+    ) as THREE.ArrowHelper;
     const cornerRadius = Math.hypot(1_000, 2_000);
 
     expect(sun.shadow.camera.right).toBeGreaterThan(cornerRadius);
     expect(sun.shadow.camera.top).toBeGreaterThan(cornerRadius);
+    expect(sunVector.position.toArray()).toEqual([0, 0, 0]);
+    expect(sunVector.cone.position.y).toBeCloseTo(1_000);
     expect(map.on).toHaveBeenCalledWith("move", expect.any(Function));
+
+    mapCenter = { lng: 0.5, lat: 1 };
+    const moveHandler = map.on.mock.calls.find(
+      ([eventName]) => eventName === "move"
+    )?.[1] as () => void;
+    moveHandler();
+
+    expect(sunVector.position.toArray()).toEqual([500, 0, 1_000]);
+    expect(sun.target.position.toArray()).toEqual([500, 0, 1_000]);
 
     controller.dispose();
   });
@@ -289,7 +379,6 @@ describe("shadow scene lighting integration", () => {
       id: "terrain",
       originLngLat: [7.15, 51.256] as [number, number],
       root: terrainRoot,
-      supportsShadows: true,
       ready: Promise.resolve(true),
       update: vi.fn(),
       setVisible: vi.fn(),
