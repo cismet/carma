@@ -60,6 +60,10 @@ import {
   type CageIndicatorBadgeConfig,
 } from "./caged-addons";
 import {
+  CompareArena,
+  type CompareArenaConfig,
+} from "../addons/comparing/CompareArena";
+import {
   CompareSwipe,
   type CompareSwipeConfig,
 } from "../addons/comparing/CompareSwipe";
@@ -75,6 +79,7 @@ export type AddonConfigMap = {
   cameraRestriction: CameraRestrictionConfig;
   comparingControl: ComparingControlConfig;
   compareSwipe: CompareSwipeConfig;
+  compareArena: CompareArenaConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
@@ -226,6 +231,7 @@ export const addonRegistry: {
     provides: ["compareState", "compareLayers"],
   },
   compareSwipe: { Component: CompareSwipe, requires: ["compareState"] },
+  compareArena: { Component: CompareArena, requires: ["compareState"] },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },

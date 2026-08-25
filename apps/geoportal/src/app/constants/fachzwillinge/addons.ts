@@ -15,6 +15,16 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // them stays under both.
     { kind: "comparingControl" },
     { kind: "compareSwipe", config: {} },
+    // the same comparison as separate windows: up to four real maps in a
+    // layout, one per assigned set of layers, all on one camera.
+    // `ignoreToolbar: false` keeps the top row clear of the navbar instead of
+    // running up behind it, at the price of every window resizing whenever the
+    // chrome comes or goes. The layer buttons keep floating over the maps;
+    // `#buttonWrapper` instead of `#topNavbar` would clear those as well.
+    {
+      kind: "compareArena",
+      config: { toolbarSelector: "#topNavbar", ignoreToolbar: false },
+    },
     {
       kind: "vectorHighlight",
       config: {

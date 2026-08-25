@@ -1,8 +1,14 @@
-import { useCallback, useEffect, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { ComparePanel } from "./ComparePanel";
+import { stageHostOf } from "./stage-host";
 import { useCameraSync } from "./useCameraSync";
 import { layersForPanel, type Roles } from "./roles";
 import "./comparing.css";
@@ -11,9 +17,18 @@ type CompareStageProps = {
   /** the app's own map, hidden while this is mounted and driving the panels */
   appMap: MaplibreMap;
   roles: Roles;
-  /** one clip-path per panel, `"none"` for an unclipped panel */
-  clipPaths: string[];
-  /** drawn over the panels, e.g. a splitter */
+  /**
+   * One wrapper style per panel: where that panel sits over the map.
+   *
+   * A mode places its panels rather than being placed: swipe stacks them
+   * full-size and clips each to its stripe, arena gives each one a real box in
+   * a grid. Both are the same set of panels on the same camera, so only the
+   * wrapper differs and the stage stays out of it.
+   */
+  panelStyles: CSSProperties[];
+  /** the box the panels are placed in, for a mode that needs a real layout */
+  containerStyle?: CSSProperties;
+  /** drawn over all the panels, e.g. a splitter */
   children?: ReactNode;
   overrideGlyphs?: string;
   /**
@@ -64,7 +79,8 @@ type CompareStageProps = {
 export const CompareStage = ({
   appMap,
   roles,
-  clipPaths,
+  panelStyles,
+  containerStyle,
   children,
   overrideGlyphs,
   appMapSync = "settled",
@@ -97,9 +113,6 @@ export const CompareStage = ({
     [appMap, register, syncFrom]
   );
 
-  const container = appMap.getContainer();
-  const host = container.parentElement ?? container;
-
   return createPortal(
     <div
       className="carma-comparing"
@@ -107,19 +120,11 @@ export const CompareStage = ({
         position: "absolute",
         inset: 0,
         overflow: "hidden",
+        ...containerStyle,
       }}
     >
       {roles.panels.map((_, index) => (
-        <div
-          key={index}
-          style={{
-            position: "absolute",
-            inset: 0,
-            overflow: "hidden",
-            clipPath: clipPaths[index],
-            WebkitClipPath: clipPaths[index],
-          }}
-        >
+        <div key={index} style={{ overflow: "hidden", ...panelStyles[index] }}>
           <ComparePanel
             layers={layersForPanel(roles, index)}
             onMapReady={(map) => handlePanelReady(index, map)}
@@ -129,6 +134,6 @@ export const CompareStage = ({
       ))}
       {children}
     </div>,
-    host
+    stageHostOf(appMap)
   );
 };

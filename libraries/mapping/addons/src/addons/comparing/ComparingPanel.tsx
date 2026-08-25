@@ -7,6 +7,7 @@ import {
   faMagnifyingGlass,
   faMap,
   faTableCells,
+  faTableCellsLarge,
   faUpDown,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
@@ -15,6 +16,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { Layer } from "@carma-mapping/layers";
 
 import { useComparingActions } from "./comparing-actions";
+import { COMPARE_MODE } from "./compare-modes";
 import {
   MAX_PANELS,
   useCompareLayerEntries,
@@ -26,8 +28,9 @@ import "./stage/comparing.css";
  * The modes, with the panel counts each one means anything at: stripes work
  * along one axis for two or three, four is the grid and has no orientation
  * left to choose, and a lens shows one map under it, so it is a two-panel mode.
- * `built` is what exists; the rest are listed so the pane shows where the
- * comparison is going.
+ * Separate windows are the exception, since a real layout divides the screen
+ * for any count from two to four. `built` is what exists; the rest are listed
+ * so the pane shows where the comparison is going.
  */
 const MODES: {
   key: string;
@@ -37,24 +40,31 @@ const MODES: {
   built: boolean;
 }[] = [
   {
-    key: "swipe-h",
+    key: COMPARE_MODE.swipeH,
     label: "Nebeneinander",
     icon: faLeftRight,
     panelCounts: [2, 3],
     built: true,
   },
   {
-    key: "swipe-v",
+    key: COMPARE_MODE.swipeV,
     label: "Übereinander",
     icon: faUpDown,
     panelCounts: [2, 3],
     built: true,
   },
   {
-    key: "grid",
+    key: COMPARE_MODE.grid,
     label: "Raster",
     icon: faTableCells,
     panelCounts: [4],
+    built: true,
+  },
+  {
+    key: COMPARE_MODE.arena,
+    label: "Einzelkarten",
+    icon: faTableCellsLarge,
+    panelCounts: [2, 3, 4],
     built: true,
   },
   {
@@ -190,7 +200,7 @@ export const ComparingPanel = ({
   // grid. A band is wide and low, so its stack is turned a quarter turn to the
   // right, which puts the topmost layer at the right end instead of the top.
   const isGrid = panelCount === 4;
-  const isBanded = mode === "swipe-v" && !isGrid;
+  const isBanded = mode === COMPARE_MODE.swipeV && !isGrid;
 
   // comparing more panels than there are layers to put in them leaves panels
   // with nothing to show, so the choice stops at what is on the map

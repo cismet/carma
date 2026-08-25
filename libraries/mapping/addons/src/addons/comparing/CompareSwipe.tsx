@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import { SwipeOverlay } from "@carma-mapping/core";
 import { useMapLayers } from "@carma-mapping/engines/maplibre";
@@ -7,6 +13,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { CompareStage } from "./stage/CompareStage";
 import { groupLayers, rolesFromAssignments } from "./stage/roles";
 import { useComparingActions } from "./comparing-actions";
+import { COMPARE_MODE, SWIPE_MODES } from "./compare-modes";
 import { panelLabelsFor } from "./panel-labels";
 
 export type CompareSwipeConfig = {
@@ -75,7 +82,10 @@ export const CompareSwipe = ({
   const { isOn, mode, setMode, panelCount, setLayout, assignments } =
     useComparingActions();
   const isGrid = panelCount === 4;
-  const orientation = mode === "swipe-v" ? "vertical" : "horizontal";
+  // another mode is drawing the comparison; this one draws nothing and, more
+  // importantly, leaves the layout alone while it is not the one on screen
+  const isActive = isOn && SWIPE_MODES.includes(mode);
+  const orientation = mode === COMPARE_MODE.swipeV ? "vertical" : "horizontal";
   const layers = useMapLayers(libreMap);
   const roles = useMemo(
     () => rolesFromAssignments(layers, assignments ?? {}, panelCount),
@@ -94,7 +104,11 @@ export const CompareSwipe = ({
       return;
     }
     seededMode.current = true;
-    setMode(config?.orientation === "vertical" ? "swipe-v" : "swipe-h");
+    setMode(
+      config?.orientation === "vertical"
+        ? COMPARE_MODE.swipeV
+        : COMPARE_MODE.swipeH
+    );
   }, [config?.orientation, setMode]);
 
   // a changed panel count means different dividers, and the old positions were
@@ -103,19 +117,28 @@ export const CompareSwipe = ({
     setSplits(evenSplits(panelCount));
   }, [panelCount]);
 
-  // the grid has no orientation, so leaving four panels has to land on one
+  // Within the swipe modes the panel count decides the geometry: four clipped
+  // panels are the 2x2, which has no orientation left to choose, and dropping
+  // back below four has to land on one again. Only within them, though: arena
+  // draws all four counts itself and must not be corrected into the grid.
   useEffect(() => {
-    if (isGrid && mode !== "grid") {
-      setMode("grid");
+    if (!isActive) {
+      return;
     }
-    if (!isGrid && mode === "grid") {
-      setMode("swipe-h");
+    if (isGrid && mode !== COMPARE_MODE.grid) {
+      setMode(COMPARE_MODE.grid);
     }
-  }, [isGrid, mode, setMode]);
+    if (!isGrid && mode === COMPARE_MODE.grid) {
+      setMode(COMPARE_MODE.swipeH);
+    }
+  }, [isActive, isGrid, mode, setMode]);
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
     setLayout(panelCount, panelLabelsFor(panelCount, orientation));
-  }, [orientation, panelCount, setLayout]);
+  }, [isActive, orientation, panelCount, setLayout]);
 
   const clipPaths = useMemo(
     () =>
@@ -125,11 +148,24 @@ export const CompareSwipe = ({
     [gridSplit.x, gridSplit.y, isGrid, orientation, panelCount, splits]
   );
 
+  // every panel is full-size and stacked; the clip is the only thing that makes
+  // one of them a stripe
+  const panelStyles = useMemo<CSSProperties[]>(
+    () =>
+      clipPaths.map((clipPath) => ({
+        position: "absolute" as const,
+        inset: 0,
+        clipPath,
+        WebkitClipPath: clipPath,
+      })),
+    [clipPaths]
+  );
+
   // nothing is mounted while the mode is off, so the app map is untouched and
   // no second map exists until the user actually asks for the comparison.
   // Fewer than two blocks on the map means there is nothing to hold against
   // each other, whatever the assignment says.
-  if (!isOn || !libreMap || groupCount < 2 || roles.panels.length < 2) {
+  if (!isActive || !libreMap || groupCount < 2 || roles.panels.length < 2) {
     return null;
   }
 
@@ -137,7 +173,7 @@ export const CompareSwipe = ({
     <CompareStage
       appMap={libreMap}
       roles={roles}
-      clipPaths={clipPaths}
+      panelStyles={panelStyles}
       overrideGlyphs={config?.overrideGlyphs}
       appMapSync={config?.appMapSync}
     >

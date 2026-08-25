@@ -8,7 +8,11 @@ import { resolveLayerIconUrl } from "@carma-mapping/utils";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { useComparingActions, type CompareAssignments } from "./comparing-actions";
+import { MAX_PANELS } from "./compare-modes";
 import { groupLayers } from "./stage/roles";
+
+// where the pane and the panel-count heuristic both read it from
+export { MAX_PANELS };
 
 /**
  * One assignable block in the control pane: what `roles.ts` groups by
@@ -19,9 +23,6 @@ import { groupLayers } from "./stage/roles";
  * the control reads them from the host store and publishes them, and the pane
  * stays a plain consumer of the channel.
  */
-/** the most panels the built modes split into: four is the 2x2 grid */
-export const MAX_PANELS = 4;
-
 export type CompareLayerEntry = {
   /** `carmaLayerId`, the key roles are assigned against */
   key: string;
