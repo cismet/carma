@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { LngLat, MercatorCoordinate } from "maplibre-gl";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import * as THREE from "three";
 
 import {
@@ -86,7 +86,7 @@ export interface ThreeLayerManagerProps {
 function resolveFeatureColor(
   properties: Record<string, unknown> | undefined,
   field: string | undefined,
-  mapping: ColorMapping | undefined,
+  mapping: ColorMapping | undefined
 ): string | null {
   if (field) {
     const carried = properties?.[field];
@@ -107,6 +107,120 @@ function resolveFeatureColor(
   return null;
 }
 
+type GeographicBounds = Readonly<{
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}>;
+
+type BuildingSourceSnapshot = Readonly<{
+  id: string | number | undefined;
+  properties: Record<string, unknown>;
+  source: string;
+  sourceLayer: string;
+}>;
+
+export type CachedBuildingGroup = {
+  fragments: number[][][];
+  height: number;
+  /** Survey ground height above sea level; used by LoD2 geometry. */
+  zGround: number;
+  /** Surveyed roof planes retained with the footprint across tile churn. */
+  roofFaces?: Lod2RoofFace[];
+  isPublic: boolean;
+  roofColor: string | null;
+  wallColor: string | null;
+  sourceFeature: BuildingSourceSnapshot;
+  bounds: GeographicBounds;
+};
+
+const BUILDING_CACHE_VIEWPORT_PADDING = 0.1;
+
+const getRingBounds = (ring: number[][]): GeographicBounds => {
+  let west = Number.POSITIVE_INFINITY;
+  let south = Number.POSITIVE_INFINITY;
+  let east = Number.NEGATIVE_INFINITY;
+  let north = Number.NEGATIVE_INFINITY;
+  for (const [longitude, latitude] of ring) {
+    west = Math.min(west, longitude);
+    south = Math.min(south, latitude);
+    east = Math.max(east, longitude);
+    north = Math.max(north, latitude);
+  }
+  return { west, south, east, north };
+};
+
+const mergeBounds = (
+  left: GeographicBounds,
+  right: GeographicBounds
+): GeographicBounds => ({
+  west: Math.min(left.west, right.west),
+  south: Math.min(left.south, right.south),
+  east: Math.max(left.east, right.east),
+  north: Math.max(left.north, right.north),
+});
+
+const boundsIntersect = (
+  left: GeographicBounds,
+  right: GeographicBounds
+): boolean =>
+  left.west <= right.east &&
+  left.east >= right.west &&
+  left.south <= right.north &&
+  left.north >= right.south;
+
+const padBounds = (
+  bounds: GeographicBounds,
+  padding: number
+): GeographicBounds => {
+  const longitudePadding = Math.max(0, bounds.east - bounds.west) * padding;
+  const latitudePadding = Math.max(0, bounds.north - bounds.south) * padding;
+  return {
+    west: bounds.west - longitudePadding,
+    south: bounds.south - latitudePadding,
+    east: bounds.east + longitudePadding,
+    north: bounds.north + latitudePadding,
+  };
+};
+
+/** Retain complete, previously loaded footprints while any part remains visible. */
+export const retainBuildingGroupsInView = (
+  cache: Map<string | number, CachedBuildingGroup>,
+  queried: ReadonlyMap<string | number, CachedBuildingGroup>,
+  viewportBounds: GeographicBounds,
+  padding = BUILDING_CACHE_VIEWPORT_PADDING
+): void => {
+  for (const [id, next] of queried) {
+    const previous = cache.get(id);
+    if (!previous) {
+      cache.set(id, next);
+      continue;
+    }
+    const fragmentKeys = new Set(
+      previous.fragments.map((fragment) => JSON.stringify(fragment))
+    );
+    const fragments = [...previous.fragments];
+    for (const fragment of next.fragments) {
+      const key = JSON.stringify(fragment);
+      if (fragmentKeys.has(key)) continue;
+      fragmentKeys.add(key);
+      fragments.push(fragment);
+    }
+    cache.set(id, {
+      ...next,
+      fragments,
+      bounds: mergeBounds(previous.bounds, next.bounds),
+      roofFaces: next.roofFaces?.length ? next.roofFaces : previous.roofFaces,
+    });
+  }
+
+  const retainedBounds = padBounds(viewportBounds, Math.max(0, padding));
+  for (const [id, group] of cache) {
+    if (!boundsIntersect(group.bounds, retainedBounds)) cache.delete(id);
+  }
+};
+
 /** Get all registered 3D layers from a map instance. */
 export const get3dLayers = getGenericThreeLayers;
 
@@ -114,7 +228,7 @@ export const get3dLayers = getGenericThreeLayers;
 function applyBuildingAppearance(
   layer: GenericCustomLayer | null,
   color: string | undefined,
-  opacity: number | undefined,
+  opacity: number | undefined
 ): void {
   if (!layer) return;
   for (const child of layer.scene.children) {
@@ -129,7 +243,9 @@ function applyBuildingAppearance(
     }
 
     // Update vertex colors
-    const colorAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+    const colorAttr = mesh.geometry.getAttribute("color") as
+      | THREE.BufferAttribute
+      | undefined;
     if (!colorAttr) continue;
     const colorArray = colorAttr.array as Float32Array;
     const origColors = mesh.userData.originalColors as Float32Array | undefined;
@@ -167,9 +283,13 @@ export function ThreeLayerManager({
   const profilesEnsuredRef = useRef(false);
   const addingRef = useRef(false);
   /** Saved 2D layer opacity values for restore when 3D layer is removed */
-  const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
+  const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(
+    new Map()
+  );
   /** Current building appearance overrides (kept in ref so syncBuildings can access) */
-  const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>({});
+  const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>(
+    {}
+  );
   /** Where building colours come from this render (same ref reason) */
   const buildingColorsRef = useRef<BuildingColors | undefined>(undefined);
   /** Last logged building count to suppress repeated log lines */
@@ -177,12 +297,14 @@ export function ThreeLayerManager({
 
   const useLoft = (Number(runtimeParams.useLoft) || 0) > 0;
   const radiusMix = Number(runtimeParams.radiusMix) || 0;
-  const viewportPadding = typeof runtimeParams.viewportPadding === "number" ? runtimeParams.viewportPadding : undefined;
+  const viewportPadding =
+    typeof runtimeParams.viewportPadding === "number"
+      ? runtimeParams.viewportPadding
+      : undefined;
 
   // Merge runtime viewportPadding override into config
   const effectiveConfig = useMemo(
-    () =>
-      viewportPadding != null ? { ...config, viewportPadding } : config,
+    () => (viewportPadding != null ? { ...config, viewportPadding } : config),
     [config, viewportPadding]
   );
 
@@ -247,6 +369,8 @@ export function ThreeLayerManager({
     // plumbing. What the roof is built from is decided inside syncBuildings.
     const isExtrusion = config.renderMode === "extrusion" || isLod2;
     const buildingElevationCache = new Map<string, number>();
+    const buildingGroupCache = new Map<string | number, CachedBuildingGroup>();
+    let buildingGroupCacheZoom: number | null = null;
 
     const rebuildFn = useLoft
       ? (
@@ -297,6 +421,8 @@ export function ThreeLayerManager({
       layerRef.current = null;
       addingRef.current = false;
       savedOpacityRef.current.clear();
+      buildingGroupCache.clear();
+      buildingGroupCacheZoom = null;
     };
 
     // The 3D custom layers should render above fill/line layers but below
@@ -318,7 +444,8 @@ export function ThreeLayerManager({
 
       // If the last source is our own, nothing to insert before
       const srcId = config.sourceId;
-      if (lastSource === srcId || lastSource.endsWith(`::${srcId}`)) return undefined;
+      if (lastSource === srcId || lastSource.endsWith(`::${srcId}`))
+        return undefined;
 
       // Find the first layer from that last source
       for (const sl of layers) {
@@ -371,14 +498,26 @@ export function ThreeLayerManager({
 
       const layerId = isExtrusion
         ? `3d-${isLod2 ? "lod2" : "extrusion"}-${config.sourceId}`
-        : useLoft ? "3d-generic-loft" : "3d-generic";
-      const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
+        : useLoft
+        ? "3d-generic-loft"
+        : "3d-generic";
+      const customLayer = buildGenericLayer(
+        effectiveConfig,
+        rebuildFn,
+        layerId
+      );
       layerRef.current = customLayer;
 
       try {
         const initialBeforeId = findInsertBefore();
-        console.log("[3D-ZORDER] addLayer", layerId, "beforeId:", initialBeforeId,
-          "source:", config.sourceId);
+        console.log(
+          "[3D-ZORDER] addLayer",
+          layerId,
+          "beforeId:",
+          initialBeforeId,
+          "source:",
+          config.sourceId
+        );
         map.addLayer(customLayer, initialBeforeId);
         registerGenericThreeLayer(map, customLayer);
 
@@ -418,7 +557,10 @@ export function ThreeLayerManager({
 
       // Initialize origin if not yet set (extrusion layers skip the tree rebuild() path)
       if (!layer._originMerc) {
-        const originMerc = MercatorCoordinate.fromLngLat(resolveOrigin(config), 0);
+        const originMerc = MercatorCoordinate.fromLngLat(
+          resolveOrigin(config),
+          0
+        );
         layer._originMerc = originMerc;
         layer._mScale = originMerc.meterInMercatorCoordinateUnits();
       }
@@ -440,7 +582,10 @@ export function ThreeLayerManager({
       // In lod2 mode the height decides nothing about the shape, which comes
       // from the roof surfaces. It is still read where it is configured,
       // because the raycast grid needs a rough height per building.
-      if (!isLod2 && !heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
+      if (!isLod2 && !heightField) {
+        console.warn("[3D-BUILDINGS] no heightField configured");
+        return;
+      }
 
       const hasTerrain = map.getTerrain() != null;
 
@@ -509,7 +654,11 @@ export function ThreeLayerManager({
           const gradE = Number(rf.properties?.[gradEField]);
           const gradN = Number(rf.properties?.[gradNField]);
           const zRef = Number(rf.properties?.[zRefField]);
-          if (!Number.isFinite(gradE) || !Number.isFinite(gradN) || !Number.isFinite(zRef)) {
+          if (
+            !Number.isFinite(gradE) ||
+            !Number.isFinite(gradN) ||
+            !Number.isFinite(zRef)
+          ) {
             continue;
           }
 
@@ -540,24 +689,14 @@ export function ThreeLayerManager({
         }
       }
 
-      // Group tile fragments by feature ID, keeping raw feature refs for _sourceFeatures
-      interface BldgGroup {
-        fragments: number[][][];
-        height: number;
-        /** the footprint's ground height above sea level; lod2 mode only */
-        zGround: number;
-        isPublic: boolean;
-        /** hex strings straight off the feature; the factory parses them */
-        roofColor: string | null;
-        wallColor: string | null;
-        /** First raw feature for this group (used for _sourceFeatures snapshot) */
-        rawFeature: (typeof raw)[0];
-      }
-      const groups = new Map<string | number, BldgGroup>();
+      // Source tiles may disappear while their building still crosses the
+      // viewport. Group the current fragments, then merge them into the
+      // zoom-local retention cache below.
+      const queriedGroups = new Map<string | number, CachedBuildingGroup>();
 
       for (const f of raw) {
         const height = heightField
-          ? ((f.properties?.[heightField] as number) ?? 0)
+          ? (f.properties?.[heightField] as number) ?? 0
           : 0;
         // In lod2 mode the height is only used for the raycast grid, so a
         // building without one is still worth drawing.
@@ -577,31 +716,63 @@ export function ThreeLayerManager({
 
         for (const ring of polyRings) {
           if (!ring || ring.length < 3) continue;
-          const fid = f.id ?? `${f.properties?.gml_id ?? ""}`;
-          const g = groups.get(fid);
+          const fragment = ring.map(([longitude, latitude]) => [
+            longitude,
+            latitude,
+          ]);
+          const fid =
+            f.id ?? `${f.properties?.gml_id ?? JSON.stringify(fragment)}`;
+          const fragmentBounds = getRingBounds(fragment);
+          const mapFeature = f as MapGeoJSONFeature & {
+            sourceLayer?: string;
+          };
+          const g = queriedGroups.get(fid);
           if (g) {
-            g.fragments.push(ring);
+            g.fragments.push(fragment);
+            g.bounds = mergeBounds(g.bounds, fragmentBounds);
           } else {
-            groups.set(fid, {
-              fragments: [ring],
+            queriedGroups.set(fid, {
+              fragments: [fragment],
               height,
               zGround: Number(f.properties?.[groundField]) || 0,
+              roofFaces:
+                facesByParent.get(String(f.properties?.fid ?? fid)) ??
+                facesByParent.get(String(fid)),
               isPublic: f.properties?.[publicField] === "1",
               roofColor: resolveFeatureColor(
                 f.properties,
                 roofColorField,
-                roofColorMap,
+                roofColorMap
               ),
               wallColor: resolveFeatureColor(
                 f.properties,
                 wallColorField,
-                wallColorMap,
+                wallColorMap
               ),
-              rawFeature: f,
+              sourceFeature: {
+                id: f.id,
+                properties: { ...(f.properties ?? {}) },
+                source: mapFeature.source ?? config.sourceId,
+                sourceLayer: mapFeature.sourceLayer ?? config.sourceLayer,
+              },
+              bounds: fragmentBounds,
             });
           }
         }
       }
+
+      const currentZoom = Math.floor(map.getZoom());
+      if (buildingGroupCacheZoom !== currentZoom) {
+        buildingGroupCache.clear();
+        buildingGroupCacheZoom = currentZoom;
+      }
+      const viewport = map.getBounds();
+      retainBuildingGroupsInView(buildingGroupCache, queriedGroups, {
+        west: viewport.getWest(),
+        south: viewport.getSouth(),
+        east: viewport.getEast(),
+        north: viewport.getNorth(),
+      });
 
       // Build _sourceFeatures snapshot (parallel array, one entry per building group)
       // and assign sourceIndex to each building feature
@@ -612,15 +783,21 @@ export function ThreeLayerManager({
         sourceLayer: string;
         geometry: GeoJSON.Geometry | null;
       }> = [];
-      const groupEntries = Array.from(groups.entries());
+      const groupEntries = Array.from(buildingGroupCache.entries());
       for (const [, g] of groupEntries) {
-        const rf = g.rawFeature;
+        const sourceFeature = g.sourceFeature;
         sourceFeatures.push({
-          id: rf.id,
-          properties: { ...(rf.properties ?? {}) },
-          source: (rf as any).source ?? config.sourceId,
-          sourceLayer: (rf as any).sourceLayer ?? config.sourceLayer,
-          geometry: rf.geometry ?? null,
+          id: sourceFeature.id,
+          properties: { ...sourceFeature.properties },
+          source: sourceFeature.source,
+          sourceLayer: sourceFeature.sourceLayer,
+          geometry:
+            g.fragments.length === 1
+              ? { type: "Polygon", coordinates: [g.fragments[0]] }
+              : {
+                  type: "MultiPolygon",
+                  coordinates: g.fragments.map((ring) => [[...ring]]),
+                },
         });
       }
 
@@ -637,14 +814,15 @@ export function ThreeLayerManager({
         if (isLod2) {
           // One entry per building, not per fragment: the roof surfaces are the
           // geometry, and they are already gathered for the whole footprint.
-          const faces =
-            facesByParent.get(String(g.rawFeature.properties?.fid ?? groupEntries[gi][0])) ??
-            facesByParent.get(String(groupEntries[gi][0]));
+          const faces = g.roofFaces;
           if (faces && faces.length > 0) {
             const ring = ringsToExtrude[0];
             let cLng = 0;
             let cLat = 0;
-            for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
+            for (const pt of ring) {
+              cLng += pt[0];
+              cLat += pt[1];
+            }
             cLng /= ring.length;
             cLat /= ring.length;
             const elevation = elevationAt(cLng, cLat);
@@ -677,7 +855,8 @@ export function ThreeLayerManager({
 
             let maxR = 0;
             for (const pt of ring) {
-              const dLng = (pt[0] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
+              const dLng =
+                (pt[0] - cLng) * 111320 * Math.cos((cLat * Math.PI) / 180);
               const dLat = (pt[1] - cLat) * 110540;
               const r = Math.sqrt(dLng * dLng + dLat * dLat);
               if (r > maxR) maxR = r;
@@ -707,7 +886,10 @@ export function ThreeLayerManager({
         for (const ring of ringsToExtrude) {
           let cLng = 0;
           let cLat = 0;
-          for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
+          for (const pt of ring) {
+            cLng += pt[0];
+            cLat += pt[1];
+          }
           cLng /= ring.length;
           cLat /= ring.length;
           const elevation = elevationAt(cLng, cLat);
@@ -724,7 +906,8 @@ export function ThreeLayerManager({
           // Approximate footprint radius: max distance from centroid to any vertex
           let maxR = 0;
           for (const pt of ring) {
-            const dLng = (pt[0] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
+            const dLng =
+              (pt[0] - cLng) * 111320 * Math.cos((cLat * Math.PI) / 180);
             const dLat = (pt[1] - cLat) * 110540;
             const r = Math.sqrt(dLng * dLng + dLat * dLat);
             if (r > maxR) maxR = r;
@@ -767,7 +950,7 @@ export function ThreeLayerManager({
           layer.scene,
           layer._originMerc,
           layer._mScale,
-          buildingColorsRef.current,
+          buildingColorsRef.current
         );
       } else {
         buildExtrusionMeshes(
@@ -776,7 +959,7 @@ export function ThreeLayerManager({
           layer._originMerc,
           layer._mScale,
           buildingColorsRef.current,
-          config.wallAngleThreshold,
+          config.wallAngleThreshold
         );
       }
 
@@ -794,7 +977,17 @@ export function ThreeLayerManager({
       // Instead, build the grid inline to avoid double geometry creation.
       const originMerc = layer._originMerc;
       const mScale = layer._mScale;
-      const grid = new Map<string, Array<{ sourceIndex: number; x: number; z: number; yBase: number; height: number; radius: number }>>();
+      const grid = new Map<
+        string,
+        Array<{
+          sourceIndex: number;
+          x: number;
+          z: number;
+          yBase: number;
+          height: number;
+          radius: number;
+        }>
+      >();
       for (const f of mappedFeatures) {
         const mrc = MercatorCoordinate.fromLngLat([f.lng, f.lat], f.elevation);
         const x = (mrc.x - originMerc.x) / mScale;
@@ -804,7 +997,14 @@ export function ThreeLayerManager({
         const cellX = Math.floor(x / GRID_CELL_SIZE);
         const cellZ = Math.floor(z / GRID_CELL_SIZE);
         const key = `${cellX},${cellZ}`;
-        const entry = { sourceIndex: f._sourceIndex, x, z, yBase, height: f.heightMax, radius: f.radiusMax };
+        const entry = {
+          sourceIndex: f._sourceIndex,
+          x,
+          z,
+          yBase,
+          height: f.heightMax,
+          radius: f.radiusMax,
+        };
         const bucket = grid.get(key);
         if (bucket) bucket.push(entry);
         else grid.set(key, [entry]);
@@ -830,9 +1030,15 @@ export function ThreeLayerManager({
 
       if (builtCount !== lastLoggedCountRef.current) {
         lastLoggedCountRef.current = builtCount;
-        console.log("[3D-BUILDINGS]", builtCount, "buildings,",
-          sourceFeatures.length, "sourceFeatures,",
-          grid.size, "grid cells");
+        console.log(
+          "[3D-BUILDINGS]",
+          builtCount,
+          "buildings,",
+          sourceFeatures.length,
+          "sourceFeatures,",
+          grid.size,
+          "grid cells"
+        );
       }
 
       // Ask for the frame this rebuild is meant to be seen in.
@@ -888,7 +1094,11 @@ export function ThreeLayerManager({
     map.on("moveend", trySync);
 
     // For extrusion layers, also sync after idle (all tiles loaded)
-    const handleIdle = isExtrusion ? () => { trySync(); } : undefined;
+    const handleIdle = isExtrusion
+      ? () => {
+          trySync();
+        }
+      : undefined;
     if (handleIdle) map.on("idle", handleIdle);
 
     const handleSourceData = (e: {
@@ -946,7 +1156,10 @@ export function ThreeLayerManager({
   }, [map, useLoft, radiusMix, config, effectiveConfig, perfRef]);
 
   // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
-  const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
+  const buildingColor =
+    typeof runtimeParams.buildingColor === "string"
+      ? runtimeParams.buildingColor
+      : undefined;
   // How opaque the buildings end up: what the layer is worth on its own, times
   // what the host has asked of the layer as a whole.
   //
@@ -960,8 +1173,7 @@ export function ThreeLayerManager({
     typeof runtimeParams.buildingOpacity === "number"
       ? runtimeParams.buildingOpacity
       : config.buildingOpacity ?? DEFAULT_BUILDING_OPACITY;
-  const buildingOpacity =
-    baseBuildingOpacity * (config.layerOpacity ?? 1);
+  const buildingOpacity = baseBuildingOpacity * (config.layerOpacity ?? 1);
 
   // Where the buildings take their colours from.
   //
@@ -981,11 +1193,18 @@ export function ThreeLayerManager({
       : undefined;
 
   // Keep refs in sync so syncBuildings can re-apply after geometry rebuild
-  buildingAppearanceRef.current = { color: buildingColor, opacity: buildingOpacity };
+  buildingAppearanceRef.current = {
+    color: buildingColor,
+    opacity: buildingOpacity,
+  };
   buildingColorsRef.current = buildingColors;
 
   useEffect(() => {
-    if (!map || (config.renderMode !== "extrusion" && config.renderMode !== "lod2")) return;
+    if (
+      !map ||
+      (config.renderMode !== "extrusion" && config.renderMode !== "lod2")
+    )
+      return;
     applyBuildingAppearance(layerRef.current, buildingColor, buildingOpacity);
     notifyGenericThreeLayerContentChanged(map);
     map.triggerRepaint();

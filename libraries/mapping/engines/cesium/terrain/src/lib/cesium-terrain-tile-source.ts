@@ -46,6 +46,10 @@ export interface CesiumTerrainTileSource {
     bounds: CesiumTerrainTileBounds,
     level: number
   ) => CesiumTerrainTileId[];
+  getTileGridIdsForBounds: (
+    bounds: CesiumTerrainTileBounds,
+    level: number
+  ) => CesiumTerrainTileId[];
   getTileBounds: (id: CesiumTerrainTileId) => CesiumTerrainTileBounds;
   getLevelMaximumGeometricError: (level: number) => number;
   getTileDataAvailable: (id: CesiumTerrainTileId) => boolean | undefined;
@@ -249,7 +253,7 @@ const buildSource = async (
     }
   };
 
-  const getTileIdsForBounds = (
+  const getTileGridIdsForBounds = (
     bounds: CesiumTerrainTileBounds,
     level: number
   ) => {
@@ -269,18 +273,25 @@ const buildSource = async (
     const result: CesiumTerrainTileId[] = [];
     for (let y = northWest.y; y <= southEast.y; y += 1) {
       for (let x = northWest.x; x <= southEast.x; x += 1) {
-        const id = { level, x, y };
-        if (provider.getTileDataAvailable(x, y, level) !== false)
-          result.push(id);
+        result.push({ level, x, y });
       }
     }
     return result;
   };
 
+  const getTileIdsForBounds = (
+    bounds: CesiumTerrainTileBounds,
+    level: number
+  ) =>
+    getTileGridIdsForBounds(bounds, level).filter(
+      ({ x, y }) => provider.getTileDataAvailable(x, y, level) !== false
+    );
+
   return {
     terrainUrl,
     requestTile,
     getTileIdsForBounds,
+    getTileGridIdsForBounds,
     getTileBounds(id) {
       assertTileId(id);
       const rectangle = provider.tilingScheme.tileXYToRectangle(

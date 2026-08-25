@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
-import {
-  getShadowSimulationContentStatus,
-  subscribeShadowSimulationContentStatus,
-} from "@carma-mapping/engines/maplibre";
 import {
   Control,
   ControlButtonStyler,
@@ -17,7 +13,10 @@ import {
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import { SolarDayTimeControl } from "./SolarDayTimeControl";
-import { buildShadowSimulationScene } from "./shadow-scene";
+import {
+  buildShadowSimulationScene,
+  DEFAULT_SHADOW_QUALITY,
+} from "./shadow-scene";
 import type {
   ShadowQualityMultiplier,
   ShadowSimulationScene,
@@ -67,6 +66,63 @@ export type ShadowSimulationState = {
   useUniformBuildingColor: boolean;
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
+  showSunDebugVector: boolean;
+};
+
+const getMapCenterSolarLocation = (
+  libreMap: AddonComponentProps<"shadowSimulation">["libreMap"],
+  fallbackLatitude: number,
+  fallbackLongitude: number,
+  timeZone: string
+): SolarLocation => {
+  const center = libreMap?.getCenter();
+  return {
+    latitude: center?.lat ?? fallbackLatitude,
+    longitude: center?.lng ?? fallbackLongitude,
+    timeZone,
+  };
+};
+
+const useMapCenterSolarLocation = (
+  libreMap: AddonComponentProps<"shadowSimulation">["libreMap"],
+  fallbackLatitude: number,
+  fallbackLongitude: number,
+  timeZone: string
+): SolarLocation => {
+  const [location, setLocation] = useState<SolarLocation>(() =>
+    getMapCenterSolarLocation(
+      libreMap,
+      fallbackLatitude,
+      fallbackLongitude,
+      timeZone
+    )
+  );
+
+  useEffect(() => {
+    const updateLocation = () => {
+      const next = getMapCenterSolarLocation(
+        libreMap,
+        fallbackLatitude,
+        fallbackLongitude,
+        timeZone
+      );
+      setLocation((current) =>
+        current.latitude === next.latitude &&
+        current.longitude === next.longitude &&
+        current.timeZone === next.timeZone
+          ? current
+          : next
+      );
+    };
+    updateLocation();
+    if (!libreMap) return;
+    libreMap.on("moveend", updateLocation);
+    return () => {
+      libreMap.off("moveend", updateLocation);
+    };
+  }, [fallbackLatitude, fallbackLongitude, libreMap, timeZone]);
+
+  return location;
 };
 
 const ShadowSimulationSettings = ({
@@ -82,9 +138,10 @@ const ShadowSimulationSettings = ({
 }) => {
   const terrainColor = state.terrainColor ?? DEFAULT_TERRAIN_COLOR;
   const buildingsFullOpacity = state.buildingsFullOpacity ?? true;
-  const useUniformBuildingColor = state.useUniformBuildingColor ?? false;
+  const useUniformBuildingColor = state.useUniformBuildingColor ?? true;
   const buildingColor = state.buildingColor ?? DEFAULT_BUILDING_COLOR;
-  const shadowQuality = state.shadowQuality ?? 1;
+  const shadowQuality = state.shadowQuality ?? DEFAULT_SHADOW_QUALITY;
+  const showSunDebugVector = state.showSunDebugVector ?? false;
   const solarPosition = useMemo(
     () => getSolarPosition(state.selection, location),
     [location, state.selection]
@@ -101,27 +158,43 @@ const ShadowSimulationSettings = ({
           setState({ ...state, selection, terrainColor })
         }
       />
-      <label className="mt-1 flex items-center gap-2 px-1 text-sm text-slate-700">
-        <span>Schattenqualität</span>
-        <select
-          value={shadowQuality}
-          onChange={(event) =>
-            setState({
-              ...state,
-              shadowQuality: Number(
-                event.currentTarget.value
-              ) as ShadowQualityMultiplier,
-            })
-          }
-          className="rounded border border-slate-300 bg-white px-2 py-1"
-          aria-label="Schattenqualität"
-          data-test-id="shadow-simulation-quality"
-        >
-          <option value={1}>1× · 2048²</option>
-          <option value={4}>4× · 4096²</option>
-          <option value={16}>16× · 8192²</option>
-        </select>
-      </label>
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-slate-700">
+        <label className="flex items-center gap-2">
+          <span>Schattenqualität</span>
+          <select
+            value={shadowQuality}
+            onChange={(event) =>
+              setState({
+                ...state,
+                shadowQuality: Number(
+                  event.currentTarget.value
+                ) as ShadowQualityMultiplier,
+              })
+            }
+            className="rounded border border-slate-300 bg-white px-2 py-1"
+            aria-label="Schattenqualität"
+            data-test-id="shadow-simulation-quality"
+          >
+            <option value={1}>1× · 2048²</option>
+            <option value={4}>4× · 4096²</option>
+            <option value={16}>16× · 8192²</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={showSunDebugVector}
+            onChange={(event) =>
+              setState({
+                ...state,
+                showSunDebugVector: event.currentTarget.checked,
+              })
+            }
+            data-test-id="shadow-simulation-sun-debug-vector"
+          />
+          <span>Sonnenvektor</span>
+        </label>
+      </div>
       {showTerrainColor && (
         <label className="mt-1 flex items-center gap-2 px-1 text-sm text-slate-700">
           <span>Terrainfarbe</span>
@@ -204,14 +277,12 @@ const ShadowSimulationRuntime = ({
   terrain,
   location,
   state,
-  available,
 }: {
   libreMap: AddonComponentProps<"shadowSimulation">["libreMap"];
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
   location: SolarLocation;
   state: ShadowSimulationState;
-  available: boolean;
 }) => {
   const shadowScene = useRef<ShadowSimulationScene | null>(null);
   const solarPosition = useMemo(
@@ -220,7 +291,7 @@ const ShadowSimulationRuntime = ({
   );
 
   useEffect(() => {
-    if (!libreMap || !state.enabled || !available) return;
+    if (!libreMap || !state.enabled) return;
     const scene = buildShadowSimulationScene(libreMap, {
       shadowAreaMeters,
       terrain,
@@ -230,33 +301,47 @@ const ShadowSimulationRuntime = ({
       shadowScene.current = null;
       scene.dispose();
     };
-  }, [available, libreMap, shadowAreaMeters, state.enabled, terrain]);
+  }, [libreMap, shadowAreaMeters, state.enabled, terrain]);
 
   useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateSolarPosition(solarPosition);
-  }, [solarPosition]);
+  }, [solarPosition, state.enabled]);
 
   useEffect(() => {
-    shadowScene.current?.updateShadowQuality(state.shadowQuality ?? 1);
-  }, [state.shadowQuality]);
+    if (!state.enabled) return;
+    shadowScene.current?.updateShadowQuality(
+      state.shadowQuality ?? DEFAULT_SHADOW_QUALITY
+    );
+  }, [state.enabled, state.shadowQuality]);
 
   useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateSunDebugVectorVisibility(
+      state.showSunDebugVector ?? false
+    );
+  }, [state.enabled, state.showSunDebugVector]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateTerrainColor(
       state.terrainColor ?? DEFAULT_TERRAIN_COLOR
     );
-  }, [state.terrainColor]);
+  }, [state.enabled, state.terrainColor]);
 
   useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateBuildingAppearance({
       fullOpacity: state.buildingsFullOpacity ?? true,
       uniformColor:
-        state.useUniformBuildingColor ?? false
+        state.useUniformBuildingColor ?? true
           ? state.buildingColor ?? DEFAULT_BUILDING_COLOR
           : null,
     });
   }, [
     state.buildingColor,
     state.buildingsFullOpacity,
+    state.enabled,
     state.useUniformBuildingColor,
   ]);
 
@@ -280,9 +365,11 @@ export const ShadowSimulation = ({
     controlPosition = "topleft",
     controlOrder = 70,
   } = config ?? {};
-  const location = useMemo(
-    () => ({ latitude, longitude, timeZone }),
-    [latitude, longitude, timeZone]
+  const location = useMapCenterSolarLocation(
+    libreMap,
+    latitude,
+    longitude,
+    timeZone
   );
   const initialState = useMemo<ShadowSimulationState>(() => {
     const now = getSolarSelectionForInstant(new Date(), timeZone);
@@ -295,9 +382,10 @@ export const ShadowSimulation = ({
       enabled: false,
       terrainColor: resolveTerrainColor(terrain?.material?.color),
       buildingsFullOpacity: true,
-      useUniformBuildingColor: false,
+      useUniformBuildingColor: true,
       buildingColor: DEFAULT_BUILDING_COLOR,
-      shadowQuality: 1,
+      shadowQuality: DEFAULT_SHADOW_QUALITY,
+      showSunDebugVector: false,
       selection: clampSelectionToDaylight(candidate, location) ?? {
         ...candidate,
         minutes: 12 * 60,
@@ -306,18 +394,6 @@ export const ShadowSimulation = ({
   }, [initialDayOfYear, initialMinutes, location, terrain, timeZone, year]);
   const [sharedState, setSharedState] = useAddonState("shadowSimulation");
   const state = sharedState ?? initialState;
-  const shadowAvailable = useSyncExternalStore(
-    (listener) =>
-      libreMap
-        ? subscribeShadowSimulationContentStatus(libreMap, listener)
-        : () => undefined,
-    () => {
-      if (!libreMap) return false;
-      return getShadowSimulationContentStatus(libreMap).available;
-    },
-    () => false
-  );
-
   useEffect(() => {
     if (!sharedState) setSharedState(initialState);
   }, [initialState, setSharedState, sharedState]);
@@ -339,9 +415,7 @@ export const ShadowSimulation = ({
         <Control position={controlPosition} order={controlOrder}>
           <Tooltip
             title={
-              !shadowAvailable
-                ? "Kein sichtbarer 3D-Inhalt"
-                : state.enabled
+              state.enabled
                 ? "Schattensimulation ausschalten"
                 : "Schattensimulation einschalten"
             }
@@ -349,24 +423,26 @@ export const ShadowSimulation = ({
           >
             <ControlButtonStyler
               onClick={() =>
-                setSharedState({ ...state, enabled: !state.enabled })
+                setSharedState({
+                  ...state,
+                  enabled: !state.enabled,
+                  useUniformBuildingColor: state.enabled
+                    ? state.useUniformBuildingColor
+                    : true,
+                })
               }
               dataTestId="shadow-simulation-control-button"
-              disabled={!shadowAvailable}
-              useDisabledStyle
               aria-label={
                 state.enabled
                   ? "Schattensimulation ausschalten"
                   : "Schattensimulation einschalten"
               }
-              aria-pressed={state.enabled && shadowAvailable}
+              aria-pressed={state.enabled}
             >
               <FontAwesomeIcon
                 icon={faSun}
                 style={
-                  state.enabled && shadowAvailable
-                    ? { color: ACTIVE_CONTROL_COLOR }
-                    : undefined
+                  state.enabled ? { color: ACTIVE_CONTROL_COLOR } : undefined
                 }
               />
             </ControlButtonStyler>
@@ -379,7 +455,6 @@ export const ShadowSimulation = ({
         terrain={terrain}
         location={location}
         state={state}
-        available={shadowAvailable}
       />
     </>
   );

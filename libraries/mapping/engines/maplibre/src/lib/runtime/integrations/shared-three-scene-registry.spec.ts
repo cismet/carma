@@ -7,18 +7,13 @@ vi.mock("./shared-three-scene-layer", () => ({
 }));
 
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
-import {
-  acquireSharedThreeScene,
-  getSharedThreeSceneStatus,
-  subscribeSharedThreeSceneStatus,
-} from "./shared-three-scene-registry";
+import { acquireSharedThreeScene } from "./shared-three-scene-registry";
 
 describe("shared Three.js scene registry", () => {
   const dispose = vi.fn();
   const sharedLayer = {
     id: "carma-shared-three-scene",
     dispose,
-    hasShadeableContent: vi.fn(() => true),
   };
 
   beforeEach(() => {
@@ -30,7 +25,6 @@ describe("shared Three.js scene registry", () => {
     const listeners = new Map<string, () => void>();
     const addLayer = vi.fn();
     const removeLayer = vi.fn();
-    const getLayoutProperty = vi.fn(() => "visible");
     let attached = false;
     addLayer.mockImplementation(() => {
       attached = true;
@@ -42,7 +36,6 @@ describe("shared Three.js scene registry", () => {
       isStyleLoaded: vi.fn(() => true),
       getStyle: vi.fn(() => ({ layers: [{ id: "labels", type: "symbol" }] })),
       getLayer: vi.fn(() => (attached ? sharedLayer : undefined)),
-      getLayoutProperty,
       addLayer,
       removeLayer,
       on: vi.fn((event: string, handler: () => void) => {
@@ -59,24 +52,6 @@ describe("shared Three.js scene registry", () => {
     expect(first.layer).toBe(second.layer);
     expect(buildSharedThreeSceneLayer).toHaveBeenCalledOnce();
     expect(addLayer).toHaveBeenCalledWith(sharedLayer, "labels");
-    expect(getSharedThreeSceneStatus(map as never)).toEqual({
-      layerVisible: true,
-      hasShadeableContent: true,
-    });
-    getLayoutProperty.mockReturnValue("none");
-    expect(getSharedThreeSceneStatus(map as never).layerVisible).toBe(false);
-    getLayoutProperty.mockReturnValue("visible");
-
-    const statusListener = vi.fn();
-    const unsubscribe = subscribeSharedThreeSceneStatus(
-      map as never,
-      statusListener
-    );
-    const onContentChange = vi.mocked(buildSharedThreeSceneLayer).mock
-      .calls[0]?.[1]?.onContentChange;
-    onContentChange?.();
-    expect(statusListener).toHaveBeenCalledOnce();
-    unsubscribe();
 
     first.release();
     expect(dispose).not.toHaveBeenCalled();
