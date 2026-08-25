@@ -23,7 +23,9 @@ import type { Layer } from "@carma-mapping/layers";
 import { useComparingActions } from "./comparing-actions";
 import {
   COMPARE_MODE,
+  MODE_PANEL_COUNTS,
   orientationApplies,
+  panelCountApplies,
   type CompareMode,
   type CompareOrientation,
 } from "./compare-modes";
@@ -35,42 +37,38 @@ import {
 import "./stage/comparing.css";
 
 /**
- * Who draws the panels, with the panel counts each one means anything at.
+ * Who draws the panels.
  *
- * Both built modes take any count from two to four, so this list says nothing
- * about the layout; the orientation beside it does. A lens shows one map under
- * it, which is what makes it a two-panel mode. `built` is what exists; the rest
- * are listed so the pane shows where the comparison is going.
+ * The counts each one can draw are in `MODE_PANEL_COUNTS`, where the state
+ * enforces them; this list is only the picker's labels and icons. Picking a
+ * mode that cannot draw the current count moves the count rather than being
+ * refused, so none of these is ever unreachable.
  */
 const MODES: {
-  key: CompareMode | string;
+  key: CompareMode;
   label: string;
   icon: IconDefinition;
-  panelCounts: number[];
-  built: boolean;
 }[] = [
   {
     key: COMPARE_MODE.swipe,
     label: "Schieber",
     icon: faGripLinesVertical,
-    panelCounts: [2, 3, 4],
-    built: true,
   },
   {
     key: COMPARE_MODE.arena,
     label: "Arena",
     icon: faTableCellsLarge,
-    panelCounts: [2, 3, 4],
-    built: true,
   },
   {
-    key: "spyglass",
+    key: COMPARE_MODE.spyglass,
     label: "Lupe",
     icon: faMagnifyingGlass,
-    panelCounts: [2],
-    built: false,
   },
 ];
+
+/** what a mode is called, for a sentence about what it can and cannot do */
+const labelOfMode = (mode: CompareMode) =>
+  MODES.find((entry) => entry.key === mode)?.label ?? mode;
 
 /**
  * Which way the panels are laid out, whichever mode is drawing them.
@@ -238,7 +236,8 @@ export const ComparingPanel = ({
   // grid. A band is wide and low, so its stack is turned a quarter turn to the
   // right, which puts the topmost layer at the right end instead of the top.
   const isGrid = panelCount === 4;
-  const isBanded = orientation === "vertical" && !isGrid;
+  const isLens = mode === COMPARE_MODE.spyglass;
+  const isBanded = !isLens && orientation === "vertical" && !isGrid;
 
   // comparing more panels than there are layers to put in them leaves panels
   // with nothing to show, so the choice stops at what is on the map
@@ -425,40 +424,49 @@ export const ComparingPanel = ({
       <div className="shrink-0 border-0 border-t border-solid border-gray-200 pt-2 flex flex-wrap items-center gap-2">
         <Segment>
           {Array.from({ length: MAX_PANELS - 1 }, (_, i) => i + 2).map(
-            (count) => (
-              <SegmentButton
-                key={count}
-                active={count === panelCount}
-                disabled={count > maxPanels}
-                title={
-                  count > maxPanels
-                    ? "Dafür liegen zu wenige Karteninhalte auf der Karte"
-                    : undefined
-                }
-                onClick={() => setPanelCount(count)}
-              >
-                {`${count} Karten`}
-              </SegmentButton>
-            )
+            (count) => {
+              // two reasons a count can be out: the map does not carry enough
+              // to fill that many panels, or the running mode cannot draw them
+              const tooFewLayers = count > maxPanels;
+              const modeRulesOut = !panelCountApplies(mode, count);
+              return (
+                <SegmentButton
+                  key={count}
+                  active={count === panelCount}
+                  disabled={tooFewLayers || modeRulesOut}
+                  title={
+                    modeRulesOut
+                      ? `${labelOfMode(mode)}: nur ${MODE_PANEL_COUNTS[
+                          mode
+                        ].join(" oder ")} Karten`
+                      : tooFewLayers
+                      ? "Dafür liegen zu wenige Karteninhalte auf der Karte"
+                      : undefined
+                  }
+                  onClick={() => setPanelCount(count)}
+                >
+                  {`${count} Karten`}
+                </SegmentButton>
+              );
+            }
           )}
         </Segment>
 
         <Segment>
           {MODES.map((entry) => {
-            const fits = entry.panelCounts.includes(panelCount);
+            const fits = panelCountApplies(entry.key, panelCount);
             return (
               <SegmentButton
                 key={entry.key}
                 active={entry.key === mode}
-                disabled={!entry.built || !fits}
                 title={
-                  entry.built
-                    ? fits
-                      ? entry.label
-                      : `${entry.label}: nicht bei ${panelCount} Karten`
-                    : `${entry.label}: noch nicht gebaut`
+                  fits
+                    ? entry.label
+                    : `${entry.label}: zeigt ${MODE_PANEL_COUNTS[entry.key].join(
+                        " oder "
+                      )} Karten`
                 }
-                onClick={() => setMode(entry.key as CompareMode)}
+                onClick={() => setMode(entry.key)}
               >
                 <FontAwesomeIcon icon={entry.icon} className="mr-2" />
                 {entry.label}
@@ -472,10 +480,12 @@ export const ComparingPanel = ({
             <SegmentButton
               key={entry.key}
               active={entry.key === orientation}
-              disabled={!orientationApplies(panelCount)}
+              disabled={!orientationApplies(panelCount, mode)}
               title={
-                orientationApplies(panelCount)
+                orientationApplies(panelCount, mode)
                   ? entry.label
+                  : mode === COMPARE_MODE.spyglass
+                  ? `${entry.label}: die Lupe wird gezogen, nicht ausgerichtet`
                   : `${entry.label}: bei ${panelCount} Karten ist es das Raster`
               }
               onClick={() => setOrientation(entry.key)}

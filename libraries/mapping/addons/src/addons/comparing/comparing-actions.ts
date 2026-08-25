@@ -2,7 +2,10 @@ import { useCallback, useMemo } from "react";
 
 import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
 import {
+  clampPanelCount,
+  clampSpyglassRadius,
   COMPARE_MODE,
+  SPYGLASS_RADIUS_DEFAULT,
   type CompareMode,
   type CompareOrientation,
 } from "./compare-modes";
@@ -54,6 +57,12 @@ export type CompareState = {
    * number of layers on the map; afterwards it stays where it was put.
    */
   layoutTouched?: boolean;
+  /**
+   * How wide the lens is, in px. Only the spyglass mode reads it, but it is
+   * kept here with the rest so wheeling the lens larger survives a switch to
+   * another mode and back, and a reload.
+   */
+  spyglassRadius?: number;
 };
 
 export const COMPARE_STATE_DEFAULT: CompareState = {
@@ -62,6 +71,7 @@ export const COMPARE_STATE_DEFAULT: CompareState = {
   panelLabels: [],
   mode: COMPARE_MODE.swipe,
   orientation: "horizontal",
+  spyglassRadius: SPYGLASS_RADIUS_DEFAULT,
 };
 
 /**
@@ -111,6 +121,7 @@ export const useComparingActions = () => {
   const mode = state?.mode ?? COMPARE_STATE_DEFAULT.mode;
   const orientation = state?.orientation ?? COMPARE_STATE_DEFAULT.orientation;
   const assignments = state?.assignments;
+  const spyglassRadius = state?.spyglassRadius ?? SPYGLASS_RADIUS_DEFAULT;
 
   /** the running mode describing its own layout, so the pane's headings match */
   const setLayout = useCallback(
@@ -130,9 +141,21 @@ export const useComparingActions = () => {
     [setState]
   );
 
+  /**
+   * The mode, and with it the panel count when the new mode cannot draw the
+   * one that is set.
+   *
+   * Moving the count rather than refusing the mode is what keeps the picker
+   * free of dead ends: the lens is a two-panel mode, and a user sitting at
+   * three panels would otherwise have to know to reduce the count first.
+   */
   const setMode = useCallback(
     (next: CompareMode) => {
-      setState((previous) => ({ ...previous, mode: next }));
+      setState((previous) => ({
+        ...previous,
+        mode: next,
+        panelCount: clampPanelCount(next, previous.panelCount),
+      }));
     },
     [setState]
   );
@@ -141,6 +164,19 @@ export const useComparingActions = () => {
   const setOrientation = useCallback(
     (next: CompareOrientation) => {
       setState((previous) => ({ ...previous, orientation: next }));
+    },
+    [setState]
+  );
+
+  /** the lens's size, written by wheeling over it */
+  const setSpyglassRadius = useCallback(
+    (next: number) => {
+      setState((previous) => {
+        const radius = clampSpyglassRadius(next);
+        return previous.spyglassRadius === radius
+          ? previous
+          : { ...previous, spyglassRadius: radius };
+      });
     },
     [setState]
   );
@@ -156,12 +192,18 @@ export const useComparingActions = () => {
     [setState]
   );
 
-  /** how many panels the comparison splits into, picked in the control pane */
+  /**
+   * How many panels the comparison splits into, picked in the control pane.
+   *
+   * Held to what the running mode can draw, so the pair stays possible from
+   * this side as well. The pane disables the counts the mode rules out, so this
+   * only catches a count arriving from somewhere else.
+   */
   const setPanelCount = useCallback(
     (next: number) => {
       setState((previous) => ({
         ...previous,
-        panelCount: next,
+        panelCount: clampPanelCount(previous.mode, next),
         layoutTouched: true,
       }));
     },
@@ -173,10 +215,11 @@ export const useComparingActions = () => {
     (next: number) => {
       setState((previous) => {
         const current = previous;
-        if (current.layoutTouched || current.panelCount === next) {
+        const wanted = clampPanelCount(current.mode, next);
+        if (current.layoutTouched || current.panelCount === wanted) {
           return current;
         }
-        return { ...current, panelCount: next };
+        return { ...current, panelCount: wanted };
       });
     },
     [setState]
@@ -240,6 +283,8 @@ export const useComparingActions = () => {
     setMode,
     orientation,
     setOrientation,
+    spyglassRadius,
+    setSpyglassRadius,
     setLayout,
     assignments,
     assignmentsPanelCount: state?.assignmentsPanelCount,

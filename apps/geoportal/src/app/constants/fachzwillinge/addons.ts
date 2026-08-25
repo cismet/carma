@@ -25,6 +25,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "compareArena",
       config: { toolbarSelector: "#topNavbar", ignoreToolbar: false },
     },
+    // the same two panels as a lens: one map everywhere, the other inside a
+    // circle that is dragged over it, and wheeled larger or smaller. Two panels
+    // and no more, which the shared state holds the layout to.
+    { kind: "compareSpyglass", config: {} },
     {
       kind: "vectorHighlight",
       config: {

@@ -1,8 +1,14 @@
 export { CompareSwipe, type CompareSwipeConfig } from "./CompareSwipe";
 export { CompareArena, type CompareArenaConfig } from "./CompareArena";
 export {
+  CompareSpyglass,
+  type CompareSpyglassConfig,
+} from "./CompareSpyglass";
+export {
   COMPARE_MODE,
+  MODE_PANEL_COUNTS,
   orientationApplies,
+  panelCountApplies,
   type CompareMode,
   type CompareOrientation,
 } from "./compare-modes";

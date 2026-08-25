@@ -1,6 +1,12 @@
 import type { AddonEntry } from "../../lib/registry";
 import { routeStorageKey } from "../../lib/storage-scope";
-import { MAX_PANELS, readModeAndOrientation } from "./compare-modes";
+import {
+  clampPanelCount,
+  clampSpyglassRadius,
+  MAX_PANELS,
+  readModeAndOrientation,
+  SPYGLASS_RADIUS_DEFAULT,
+} from "./compare-modes";
 import type { CompareAssignments, CompareState } from "./comparing-actions";
 
 /**
@@ -73,13 +79,15 @@ export const loadCompareState = (
     if (!parsed) {
       return undefined;
     }
-    const panelCount = readPanelCount(parsed.panelCount);
     // one key carried both of these once, so what is stored decides which of
     // the two axes it can still speak for
     const { mode, orientation } = readModeAndOrientation(
       parsed.mode,
       parsed.orientation
     );
+    // a count the stored mode cannot draw is a pair this build never writes,
+    // and the assignment below is read against whichever of the two wins
+    const panelCount = clampPanelCount(mode, readPanelCount(parsed.panelCount));
     return {
       isOn: parsed.isOn === true,
       panelCount,
@@ -97,6 +105,11 @@ export const loadCompareState = (
       assignmentsPanelCount:
         parsed.assignments === undefined ? undefined : panelCount,
       layoutTouched: parsed.layoutTouched === true,
+      spyglassRadius:
+        typeof parsed.spyglassRadius === "number" &&
+        Number.isFinite(parsed.spyglassRadius)
+          ? clampSpyglassRadius(parsed.spyglassRadius)
+          : SPYGLASS_RADIUS_DEFAULT,
     };
   } catch (error) {
     console.warn("[ADDON STATE] the stored comparison is unusable", error);

@@ -64,6 +64,10 @@ import {
   type CompareArenaConfig,
 } from "../addons/comparing/CompareArena";
 import {
+  CompareSpyglass,
+  type CompareSpyglassConfig,
+} from "../addons/comparing/CompareSpyglass";
+import {
   CompareSwipe,
   type CompareSwipeConfig,
 } from "../addons/comparing/CompareSwipe";
@@ -80,6 +84,7 @@ export type AddonConfigMap = {
   comparingControl: ComparingControlConfig;
   compareSwipe: CompareSwipeConfig;
   compareArena: CompareArenaConfig;
+  compareSpyglass: CompareSpyglassConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
@@ -232,6 +237,7 @@ export const addonRegistry: {
   },
   compareSwipe: { Component: CompareSwipe, requires: ["compareState"] },
   compareArena: { Component: CompareArena, requires: ["compareState"] },
+  compareSpyglass: { Component: CompareSpyglass, requires: ["compareState"] },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
