@@ -18,6 +18,7 @@ import type { SolarPosition } from "./solar-position";
 
 const DEFAULT_SHADOW_AREA_METERS = 900;
 const DEFAULT_LIGHT_DISTANCE_METERS = 2_500;
+const DEFAULT_SHADOW_MAP_SIZE = 2_048;
 const SHADOW_SIMULATION_SUN_NAME = "shadow-simulation-sun";
 const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-cesium-terrain";
 
@@ -29,11 +30,13 @@ type ShadowLightBinding = {
   lightTarget: THREE.Object3D;
   center: THREE.Vector3;
   lightDistanceMeters: number;
+  shadowQuality: ShadowQualityMultiplier;
 };
 
 type GenericThreeShadowBridge = {
   runtime: SharedThreeSceneRuntime;
   sync: () => void;
+  updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
 };
 
 export type ShadowSceneOptions = {
@@ -44,9 +47,18 @@ export type ShadowSceneOptions = {
 export type ShadowTerrainOptions = Readonly<{ url: string }> &
   Omit<CesiumTerrainRuntimeOptions, "onError">;
 
+export type ShadowBuildingAppearance = Readonly<{
+  fullOpacity: boolean;
+  uniformColor: string | null;
+}>;
+
+export type ShadowQualityMultiplier = 1 | 4 | 16;
+
 export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
+  updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
+  updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
   dispose: () => void;
 };
 
@@ -65,12 +77,25 @@ export const solarPositionToSceneDirection = ({
   ).normalize();
 };
 
+const configureShadowMapQuality = (
+  light: THREE.DirectionalLight,
+  quality: ShadowQualityMultiplier
+) => {
+  const size = DEFAULT_SHADOW_MAP_SIZE * Math.sqrt(quality);
+  if (light.shadow.mapSize.x === size && light.shadow.mapSize.y === size)
+    return;
+  light.shadow.map?.dispose();
+  light.shadow.map = null;
+  light.shadow.mapSize.set(size, size);
+};
+
 const configureShadowCamera = (
   light: THREE.DirectionalLight,
-  shadowAreaMeters: number
+  shadowAreaMeters: number,
+  quality: ShadowQualityMultiplier
 ) => {
   light.castShadow = true;
-  light.shadow.mapSize.set(2_048, 2_048);
+  configureShadowMapQuality(light, quality);
   light.shadow.bias = -0.00008;
   light.shadow.normalBias = 0.45;
   light.shadow.radius = 2;
@@ -114,9 +139,50 @@ const meshIsVisible = (mesh: THREE.Mesh, scene: THREE.Scene): boolean => {
   return materials.some(materialIsVisible);
 };
 
+const disposeCopiedMaterials = (root: THREE.Object3D) => {
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) return;
+    const materials = Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material];
+    for (const material of materials) material.dispose();
+  });
+};
+
+const applyBuildingAppearance = (
+  root: THREE.Object3D,
+  appearance: ShadowBuildingAppearance
+) => {
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.userData.isBuilding) return;
+    const materials = Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material];
+    for (const material of materials) {
+      if (appearance.fullOpacity) {
+        material.opacity = 1;
+        material.transparent = false;
+        material.depthWrite = true;
+      }
+      const colorMaterial = material as THREE.Material & {
+        color?: THREE.Color;
+        vertexColors?: boolean;
+      };
+      if (appearance.uniformColor && colorMaterial.color) {
+        colorMaterial.color.set(appearance.uniformColor);
+        colorMaterial.vertexColors = false;
+      }
+      material.needsUpdate = true;
+    }
+  });
+};
+
 const buildGenericThreeShadowBridge = (
   sharedLayer: SharedThreeSceneLayer,
-  layer: GenericThreeLayer
+  layer: GenericThreeLayer,
+  initialBuildingAppearance: ShadowBuildingAppearance
 ): GenericThreeShadowBridge | null => {
   const origin = layer._originMerc?.toLngLat();
   if (!origin) return null;
@@ -124,6 +190,7 @@ const buildGenericThreeShadowBridge = (
   const root = new THREE.Group();
   root.name = `shadow-simulation-copy-${layer.id}`;
   const originalVisibility = new Map<THREE.Object3D, boolean>();
+  let buildingAppearance = initialBuildingAppearance;
   let disposed = false;
 
   const restoreOriginals = () => {
@@ -136,6 +203,7 @@ const buildGenericThreeShadowBridge = (
   const sync = () => {
     if (disposed) return;
     restoreOriginals();
+    disposeCopiedMaterials(root);
     root.clear();
     layer.scene.updateMatrixWorld(true);
     const sourceMeshes: THREE.Mesh[] = [];
@@ -156,11 +224,15 @@ const buildGenericThreeShadowBridge = (
       copy.visible = true;
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(source.matrixWorld);
+      copy.material = Array.isArray(source.material)
+        ? source.material.map((material) => material.clone())
+        : source.material.clone();
       originalVisibility.set(source, source.visible);
       source.visible = false;
       root.add(copy);
     }
     root.visible = root.children.length > 0;
+    applyBuildingAppearance(root, buildingAppearance);
   };
 
   const runtime: SharedThreeSceneRuntime = {
@@ -173,6 +245,7 @@ const buildGenericThreeShadowBridge = (
       if (disposed) return;
       disposed = true;
       restoreOriginals();
+      disposeCopiedMaterials(root);
       root.clear();
     },
   };
@@ -182,7 +255,14 @@ const buildGenericThreeShadowBridge = (
     return null;
   }
   sharedLayer.addRuntime(runtime);
-  return { runtime, sync };
+  return {
+    runtime,
+    sync,
+    updateBuildingAppearance(appearance) {
+      buildingAppearance = appearance;
+      sync();
+    },
+  };
 };
 
 const updateBindingCenter = (binding: ShadowLightBinding) => {
@@ -204,7 +284,8 @@ const buildShadowLightBinding = (
     sunLight,
     lightTarget,
     center: new THREE.Vector3(),
-    lightDistanceMeters: configureShadowCamera(sunLight, shadowAreaMeters),
+    lightDistanceMeters: configureShadowCamera(sunLight, shadowAreaMeters, 1),
+    shadowQuality: 1,
   };
   scene.add(lightTarget, sunLight);
   makeSceneMeshesShadeable(scene);
@@ -240,6 +321,10 @@ export const buildShadowSimulationScene = (
   const { shadowAreaMeters = DEFAULT_SHADOW_AREA_METERS, terrain } = options;
   const previousLight = map.getLight();
   let latestSolarPosition: SolarPosition | null = null;
+  let latestBuildingAppearance: ShadowBuildingAppearance = {
+    fullOpacity: true,
+    uniformColor: null,
+  };
   let disposed = false;
   let restoreMapLibreTerrain: (() => void) | null = null;
   const sceneLease = acquireSharedThreeScene(map);
@@ -287,7 +372,8 @@ export const buildShadowSimulationScene = (
     }
     sharedBinding.lightDistanceMeters = configureShadowCamera(
       sharedBinding.sunLight,
-      Math.max(shadowAreaMeters, radiusMeters * 2.4)
+      Math.max(shadowAreaMeters, radiusMeters * 2.4),
+      sharedBinding.shadowQuality
     );
     if (latestSolarPosition) {
       applySolarPositionToBinding(
@@ -326,7 +412,11 @@ export const buildShadowSimulationScene = (
         continue;
       }
       if (!layer.scene) continue;
-      const nextBridge = buildGenericThreeShadowBridge(sceneLease.layer, layer);
+      const nextBridge = buildGenericThreeShadowBridge(
+        sceneLease.layer,
+        layer,
+        latestBuildingAppearance
+      );
       if (nextBridge) genericBridges.set(layer, nextBridge);
     }
     makeSceneMeshesShadeable(sceneLease.layer.getScene());
@@ -375,6 +465,19 @@ export const buildShadowSimulationScene = (
     updateSolarPosition,
     updateTerrainColor(color) {
       terrainRuntime?.setMaterialColor(color);
+    },
+    updateBuildingAppearance(appearance) {
+      latestBuildingAppearance = appearance;
+      for (const bridge of genericBridges.values()) {
+        bridge.updateBuildingAppearance(appearance);
+      }
+      map.triggerRepaint();
+    },
+    updateShadowQuality(quality) {
+      sharedBinding.shadowQuality = quality;
+      configureShadowMapQuality(sharedBinding.sunLight, quality);
+      sharedBinding.sunLight.shadow.needsUpdate = true;
+      map.triggerRepaint();
     },
     dispose() {
       if (disposed) return;

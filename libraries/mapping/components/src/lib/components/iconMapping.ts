@@ -8,6 +8,7 @@ import {
   faPencil,
   faRuler,
   faSquare,
+  faSun,
   faTableColumns,
   faWater,
   faTrain,
@@ -22,6 +23,7 @@ export const iconMap = {
   flowField: faWater,
   vehicleAnimation: faTrain,
   flood: faHouseFloodWater,
+  "shadow-simulation": faSun,
   background: faLayerGroup,
   ortho: faGlobe,
 };
@@ -30,4 +32,5 @@ export const iconColorMap = {
   bäume: "green",
   gärten: "purple",
   ortho: "black",
+  "shadow-simulation": "#d97706",
 };
