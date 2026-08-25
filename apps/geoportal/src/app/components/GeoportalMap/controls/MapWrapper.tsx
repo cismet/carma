@@ -38,7 +38,6 @@ import {
   MapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
-  LibreTerrainControl,
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
@@ -50,16 +49,12 @@ import {
   ControlLayout,
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
-import {
-  WUPPERTAL_TERRAIN_SOURCE_ID,
-  useCameraRestriction,
-} from "@carma-mapping/engines/maplibre";
+import { useCameraRestriction } from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
-import { SHOW_LIBRE_TERRAIN_CONTROL } from "../../../config/app.config";
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
@@ -523,18 +518,6 @@ const MapWrapper = () => {
             </Control>
           )}
 
-          {SHOW_LIBRE_TERRAIN_CONTROL &&
-            !isObliquePreviewVisible &&
-            showLibreMap &&
-            visibleControls.terrain && (
-              <Control position="topleft" order={80}>
-                <LibreTerrainControl
-                  map={libreMap}
-                  appKey="geoportal"
-                  source={WUPPERTAL_TERRAIN_SOURCE_ID}
-                />
-              </Control>
-            )}
           {!isObliquePreviewVisible && visibleControls.layerButtons && (
             <Control position="topcenter" order={10}>
               <LayerWrapper />

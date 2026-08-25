@@ -36,6 +36,7 @@ import {
   type VectorHighlightControlConfig,
   type VectorHighlightDebugPanelConfig,
 } from "../addons/VectorHighlight";
+import { LibreTerrain, type LibreTerrainConfig } from "../addons/LibreTerrain";
 import {
   LayerVisibility,
   layerVisibilityTrigger,
@@ -70,6 +71,7 @@ export type AddonConfigMap = {
   /** dev only; never declare it on a shipped route */
   vectorHighlightDebug: VectorHighlightDebugPanelConfig;
   layerVisibility: LayerVisibilityConfig;
+  libreTerrain: LibreTerrainConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
@@ -223,6 +225,7 @@ export const addonRegistry: {
     Component: LayerVisibility,
     trigger: layerVisibilityTrigger,
   },
+  libreTerrain: { Component: LibreTerrain },
   infoBoxZoomImage: {
     Component: InfoBoxZoomImage,
     provides: ["infoBoxImage"],
