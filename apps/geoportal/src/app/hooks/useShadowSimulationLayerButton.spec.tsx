@@ -33,6 +33,7 @@ vi.mock("@carma-mapping/addons", () => ({
 import mappingReducer from "../store/slices/mapping";
 import uiReducer from "../store/slices/ui";
 import {
+  formatShadowSelection,
   SHADOW_SIMULATION_LAYER_ID,
   useShadowSimulationLayerButton,
 } from "./useShadowSimulationLayerButton";
@@ -58,6 +59,12 @@ const findShadowLayer = (store: TestStore) =>
     .mapping.layers.find((layer) => layer.id === SHADOW_SIMULATION_LAYER_ID);
 
 describe("useShadowSimulationLayerButton", () => {
+  it("formats the local selection for layerbar text", () => {
+    expect(
+      formatShadowSelection({ year: 2026, dayOfYear: 237, minutes: 900 })
+    ).toBe("25. Aug. · 15:00");
+  });
+
   beforeEach(() => {
     addonStateMock.overrides = undefined;
     addonStateMock.setShadowState.mockReset();

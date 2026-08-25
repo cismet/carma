@@ -100,8 +100,9 @@ export const LibreTerrainControl = ({
         return;
       }
       map.setTerrain({ source: terrainSource, exaggeration });
-      setShowTerrain(true);
-      persistTerrainState(storageKey, true);
+      const enabled = map.getTerrain() != null;
+      setShowTerrain(enabled);
+      persistTerrainState(storageKey, enabled);
     }
   }, [map, terrainSource, exaggeration, storageKey]);
 

@@ -8,6 +8,12 @@ export type SolarLocation = {
   timeZone: string;
 };
 
+export const DEFAULT_SHADOW_SIMULATION_LOCATION: SolarLocation = {
+  latitude: 51.256,
+  longitude: 7.15,
+  timeZone: "Europe/Berlin",
+};
+
 export type SolarSelection = {
   year: number;
   dayOfYear: number;
@@ -302,3 +308,14 @@ export const getSolarPosition = (
 
   return { instant, azimuthDegrees, elevationDegrees };
 };
+
+export const getShadowSimulationSolarPosition = (
+  selection: SolarSelection,
+  location: Partial<SolarLocation> = {}
+): SolarPosition =>
+  getSolarPosition(selection, {
+    latitude: location.latitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
+    longitude:
+      location.longitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
+    timeZone: location.timeZone ?? DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
+  });

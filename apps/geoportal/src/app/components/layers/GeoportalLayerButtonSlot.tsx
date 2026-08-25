@@ -44,7 +44,10 @@ import {
 } from "../annotations/cesium-annotations.constants";
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
-import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import {
+  formatShadowSelection,
+  SHADOW_SIMULATION_LAYER_ID,
+} from "../../hooks/useShadowSimulationLayerButton";
 import {
   AdhocModelFlyToLayerbarAction,
   AdhocModelLayerbarActions,
@@ -408,6 +411,11 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   return (
     <GeoportalLayerButton
       {...props}
+      title={
+        shadowState
+          ? `${props.title} · ${formatShadowSelection(shadowState.selection)}`
+          : props.title
+      }
       closeButton={{ icon: faTimes, onClick: handleClose }}
     />
   );
