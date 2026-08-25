@@ -230,5 +230,55 @@ export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";
 export { has3dLayers } from "./utils/threeDPresence";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
+export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
+export type {
+  SharedThreeSceneFrame,
+  SharedThreeSceneLayer,
+  SharedThreeSceneLayerOptions,
+  SharedThreeSceneRuntime,
+} from "./lib/runtime/integrations/shared-three-scene-layer";
+export {
+  acquireSharedThreeScene,
+  getSharedThreeSceneStatus,
+  subscribeSharedThreeSceneStatus,
+} from "./lib/runtime/integrations/shared-three-scene-registry";
+export type {
+  SharedThreeSceneLease,
+  SharedThreeSceneStatus,
+} from "./lib/runtime/integrations/shared-three-scene-registry";
+export {
+  genericThreeLayerHasShadeableContent,
+  getGenericThreeLayers,
+  notifyGenericThreeLayerContentChanged,
+  registerGenericThreeLayer,
+  subscribeGenericThreeLayers,
+  unregisterGenericThreeLayer,
+} from "./lib/runtime/integrations/generic-three-layer-registry";
+export {
+  getShadowSimulationContentStatus,
+  subscribeShadowSimulationContentStatus,
+} from "./lib/runtime/integrations/shadow-simulation-content-status";
+export type { ShadowSimulationContentStatus } from "./lib/runtime/integrations/shadow-simulation-content-status";
+export type {
+  ThreeTilesClayShader,
+  ThreeTilesLayer,
+} from "./lib/runtime/integrations/three-tiles-layer";
+export {
+  THREE_TILES_LAYER_TYPE,
+  THREE_TILES_SHADER_KIND,
+} from "./lib/runtime/integrations/three-tiles-layer";
+export {
+  buildThreeTilesRuntime,
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_ERROR_TARGET_MAX_PIXELS,
+  TILES_ERROR_TARGET_MIN_PIXELS,
+} from "./lib/runtime/integrations/three-tiles-runtime";
+export type {
+  ClayMaterialOptions,
+  ImageProjector,
+  ThreeTilesRuntime,
+  ThreeTilesRuntimeOptions,
+} from "./lib/runtime/integrations/three-tiles-runtime";
+
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

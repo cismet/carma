@@ -29,6 +29,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // circle that is dragged over it, and wheeled larger or smaller. Two panels
     // and no more, which the shared state holds the layout to.
     { kind: "compareSpyglass", config: {} },
+    { kind: "cameraRestriction", config: { mode: "never" } },
     {
       kind: "vectorHighlight",
       config: {
@@ -57,6 +58,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
     {
       kind: "libreTerrain",
       config: { appKey: "geoportal", show: "while3dLayersActive" },
+    },
+    {
+      kind: "shadowSimulation",
+      config: { initialMinutes: 15 * 60 },
     },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {

@@ -66,6 +66,7 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
+import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
@@ -174,6 +175,11 @@ function MeasurementLayerSyncInner() {
   return null;
 }
 
+function ShadowSimulationLayerSyncInner() {
+  useShadowSimulationLayerButton();
+  return null;
+}
+
 function GeoportalAppSearchParamsIntegration() {
   useGeoportalAppSearchParams();
   return null;
@@ -272,6 +278,7 @@ function App({
                   >
                     <AnnotationProvider>
                       <MeasurementLayerSyncInner />
+                      <ShadowSimulationLayerSyncInner />
                       <ErrorBoundary FallbackComponent={AppErrorFallback}>
                         <AdhocFeatureRehydration />
                         <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>

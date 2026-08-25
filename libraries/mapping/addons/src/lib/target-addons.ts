@@ -1,6 +1,8 @@
 import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import {
+  ADDON_TARGET_PLACEMENT,
+  addonRegistry,
   resolveAddonEntries,
   resolveAddonTrigger,
   type AddonEntry,
@@ -36,3 +38,15 @@ export const resolveActiveTargetAddon = (
         (entry) => toAddonButtonId(entry.kind) === activeButtonId
       )
     : undefined;
+
+/** The first addon a target asks the host to place in its secondary view. */
+export const resolveSecondaryViewTargetAddon = (
+  target?: LayerStackEntry | null
+): ResolvedAddon | undefined =>
+  resolveAddonEntries(
+    (target as { tools?: AddonEntry[] } | null | undefined)?.tools
+  ).find(
+    (entry) =>
+      addonRegistry[entry.kind].targetPlacement ===
+      ADDON_TARGET_PLACEMENT.SECONDARY_VIEW
+  );

@@ -3,6 +3,7 @@ import {
   faGlobe,
   faLayerGroup,
   faSquare,
+  faSun,
 } from "@fortawesome/free-solid-svg-icons";
 import { Layer } from "@carma-mapping/layers";
 
@@ -79,10 +80,12 @@ export const iconMap = {
   gärten: faSquare,
   ortho: faGlobe,
   background: faLayerGroup,
+  "shadow-simulation": faSun,
 };
 
 export const iconColorMap = {
   bäume: "green",
   gärten: "purple",
   ortho: "black",
+  "shadow-simulation": "#d97706",
 };

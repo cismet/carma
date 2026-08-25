@@ -44,6 +44,7 @@ export const SWITCHABLE_KINDS = [
   "vectorHighlightControl",
   "vectorHighlightDebug",
   "libreTerrain",
+  "shadowSimulation",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
   "cageIndicatorBadge",

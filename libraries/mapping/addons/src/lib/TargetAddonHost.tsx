@@ -16,7 +16,7 @@ import {
 /**
  * Renders one addon declared on a stack entry, with the same interaction
  * inputs `AddonHost` hands route addons. Placement is the caller's business:
- * the interaction view supplies the slot.
+ * interaction and secondary views can each supply a slot.
  */
 export const TargetAddonHost = ({
   addon,
