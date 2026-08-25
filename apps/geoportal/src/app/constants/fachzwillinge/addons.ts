@@ -35,7 +35,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
         modifierClick: "alt",
         lasso: true,
         monochrome: false,
-        clearDelay: 1000,
+        clearDelay: 10000,
         // buffering the same shape again doubles the width each time: 25, 50,
         // 100 … until a new shape is drawn
         bufferGrowth: 2,
