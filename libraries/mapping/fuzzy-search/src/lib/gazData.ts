@@ -41,6 +41,17 @@ export type DynamicSearchOption = {
   onPick?: () => void;
 };
 
+/**
+ * What a dynamic mode calls to have the search ask it again; see `subscribe`.
+ * Without options it resolves whatever is in the input, silently.
+ */
+export type DynamicModeRerun = (options?: {
+  /** write this into the input first, e.g. back to the mode's own stage */
+  input?: string;
+  /** show the answer right away instead of waiting for the input to be opened */
+  open?: boolean;
+}) => void;
+
 /** A titled group of rows, rendered like a search category. */
 export type DynamicSearchGroup = {
   title: string;
@@ -68,6 +79,7 @@ export type GazDataAdditionalModeConfig = {
   sources?: GazDataSourceConfig[];
   /** asked on every input change and when the dropdown opens */
   resolve?: (input: string) => Promise<DynamicSearchGroup[]>;
+  subscribe?: (rerun: DynamicModeRerun) => () => void;
 };
 
 export type GazDataAdditionalMode = GazDataAdditionalModeConfig & {

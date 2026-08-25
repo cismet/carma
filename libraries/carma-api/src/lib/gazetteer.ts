@@ -27,6 +27,14 @@ export type GazetteerMode = {
   placeholder?: string;
   sources?: GazetteerSource[];
   resolve?: (input: string) => Promise<unknown>;
+  /**
+   * Ask the search to resolve an input again; returns an unsubscribe. The
+   * options let the mode put its own stage back into the input and have the
+   * answer shown, for a rerun the user did not type.
+   */
+  subscribe?: (
+    rerun: (options?: { input?: string; open?: boolean }) => void
+  ) => () => void;
 };
 
 export type GazetteerContribution = {

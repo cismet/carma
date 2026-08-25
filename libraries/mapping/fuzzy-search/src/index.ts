@@ -20,6 +20,7 @@ export {
   builtInGazetteerHitTrigger,
   getGazData,
   getGazDataFromSources,
+  type DynamicModeRerun,
   type DynamicSearchGroup,
   type DynamicSearchOption,
   type GazDataAdditionalMode,
@@ -48,6 +49,7 @@ export type SearchGazetteerProps = {
   selection?: SelectionItem;
   showDropdownBelow?: boolean;
   landParcelSearch?: boolean;
+  disableAdditionalModes?: boolean;
 };
 
 export interface SearchResultItemWithScore {
