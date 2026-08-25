@@ -180,11 +180,6 @@ export const SolarDayTimeControl = ({
       data-test-id="shadow-simulation-control"
     >
       <div className="relative">
-        <div className="pointer-events-none absolute right-2 top-1 z-10 text-sm font-medium tabular-nums text-amber-700">
-          Sonne {position.azimuthDegrees.toFixed(0)}° /{" "}
-          {position.elevationDegrees.toFixed(1)}°
-        </div>
-
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="block w-full select-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
@@ -194,7 +189,11 @@ export const SolarDayTimeControl = ({
           aria-label={`Tag und Tageszeit für die Schattensimulation: ${formatDay(
             selection.year,
             selection.dayOfYear
-          )}, ${formatMinutes(selection.minutes)} Uhr`}
+          )}, ${formatMinutes(
+            selection.minutes
+          )} Uhr; Sonne: Azimut ${position.azimuthDegrees.toFixed(
+            0
+          )} Grad, Höhe ${position.elevationDegrees.toFixed(1)} Grad`}
           onKeyDown={handleKeyDown}
           onPointerDown={(event) => {
             event.stopPropagation();

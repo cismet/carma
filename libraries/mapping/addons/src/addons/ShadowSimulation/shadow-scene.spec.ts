@@ -5,20 +5,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: vi.fn(),
+  buildCesiumTerrainRuntime: vi.fn(),
   getGenericThreeLayers: vi.fn(() => []),
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
+  suppressMapLibreTerrainRendering: vi.fn(() => vi.fn()),
 }));
 
 import {
   acquireSharedThreeScene,
+  buildCesiumTerrainRuntime,
   getGenericThreeLayers,
   subscribeGenericThreeLayers,
+  suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
 
 import {
   buildShadowSimulationScene,
   solarPositionToSceneDirection,
 } from "./shadow-scene";
+import { getDaylightWindow, getSolarPosition } from "./solar-position";
 
 describe("shadow scene sun direction", () => {
   const position = (azimuthDegrees: number, elevationDegrees: number) => ({
@@ -39,19 +44,72 @@ describe("shadow scene sun direction", () => {
     expect(solarPositionToSceneDirection(position(90, 0)).x).toBeCloseTo(1);
     expect(solarPositionToSceneDirection(position(180, 90)).y).toBeCloseTo(1);
   });
+
+  it("maps Berlin civil time at Wuppertal into the local tangent plane", () => {
+    const location = {
+      latitude: 51.256,
+      longitude: 7.15,
+      timeZone: "Europe/Berlin",
+    };
+    const daylight = getDaylightWindow(2026, 172, location);
+    const solarPosition = getSolarPosition(
+      {
+        year: 2026,
+        dayOfYear: 172,
+        minutes: daylight.solarNoonMinutes,
+      },
+      location
+    );
+    const direction = solarPositionToSceneDirection(solarPosition);
+
+    expect(solarPosition.instant.toISOString()).toContain("T11:");
+    expect(direction.y).toBeGreaterThan(0.85);
+    expect(direction.z).toBeGreaterThan(0);
+    expect(Math.abs(direction.x)).toBeLessThan(0.05);
+  });
 });
 
 describe("shadow scene lighting integration", () => {
   const releaseScene = vi.fn();
   let scene: THREE.Scene;
+  let sharedRuntimes: Map<
+    string,
+    { root: THREE.Object3D; dispose: () => void }
+  >;
+  let sharedLayer: {
+    getScene: () => THREE.Scene;
+    addRuntime: ReturnType<typeof vi.fn>;
+    hasRuntime: ReturnType<typeof vi.fn>;
+    removeRuntime: ReturnType<typeof vi.fn>;
+    projectLngLatToScene?: (
+      lngLat: [number, number],
+      altitude?: number
+    ) => THREE.Vector3;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
     scene = new THREE.Scene();
+    sharedRuntimes = new Map();
+    sharedLayer = {
+      getScene: () => scene,
+      addRuntime: vi.fn((runtime) => {
+        sharedRuntimes.set(runtime.id, runtime);
+        scene.add(runtime.root);
+      }),
+      hasRuntime: vi.fn((runtimeId) => sharedRuntimes.has(runtimeId)),
+      removeRuntime: vi.fn((runtimeId) => {
+        const runtime = sharedRuntimes.get(runtimeId);
+        if (!runtime) return;
+        scene.remove(runtime.root);
+        runtime.dispose();
+        sharedRuntimes.delete(runtimeId);
+      }),
+    };
     vi.mocked(getGenericThreeLayers).mockReturnValue([]);
     vi.mocked(subscribeGenericThreeLayers).mockReturnValue(vi.fn());
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
-      layer: { getScene: () => scene } as never,
+      layer: sharedLayer as never,
       release: releaseScene,
     });
   });
@@ -59,6 +117,7 @@ describe("shadow scene lighting integration", () => {
   it("drives MapLibre and the Three.js sun from the same solar position", () => {
     const setLight = vi.fn();
     const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight,
@@ -95,20 +154,29 @@ describe("shadow scene lighting integration", () => {
     expect(releaseScene).toHaveBeenCalledOnce();
   });
 
-  it("enables and restores shadows for registered ALKIS Three.js layers", () => {
+  it("moves ALKIS buildings into the shared terrain shadow scene", () => {
+    const terrain = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      new THREE.MeshLambertMaterial()
+    );
+    terrain.name = "terrain";
+    scene.add(terrain);
     const alkisScene = new THREE.Scene();
     const building = new THREE.Mesh(
       new THREE.BoxGeometry(10, 20, 10),
       new THREE.MeshLambertMaterial()
     );
+    building.name = "alkis-building";
     alkisScene.add(building);
-    const renderer = {
-      shadowMap: { enabled: false, type: THREE.BasicShadowMap },
-    };
     vi.mocked(getGenericThreeLayers).mockReturnValue([
-      { scene: alkisScene, renderer } as never,
+      {
+        id: "3d-extrusion-alkis",
+        scene: alkisScene,
+        _originMerc: { toLngLat: () => ({ lng: 7.15, lat: 51.256 }) },
+      } as never,
     ]);
     const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight: vi.fn(),
@@ -124,15 +192,117 @@ describe("shadow scene lighting integration", () => {
       elevationDegrees: 45,
     });
 
-    expect(renderer.shadowMap.enabled).toBe(true);
-    expect(renderer.shadowMap.type).toBe(THREE.PCFSoftShadowMap);
-    expect(building.castShadow).toBe(true);
-    expect(building.receiveShadow).toBe(true);
-    expect(alkisScene.getObjectByName("shadow-simulation-sun")).toBeDefined();
+    const buildingCopy = scene.getObjectByName(
+      "alkis-building-shadow-simulation-copy"
+    ) as THREE.Mesh;
+    expect(building.visible).toBe(false);
+    expect(buildingCopy.castShadow).toBe(true);
+    expect(buildingCopy.receiveShadow).toBe(true);
+    expect(terrain.castShadow).toBe(true);
+    expect(terrain.receiveShadow).toBe(true);
+    expect(buildingCopy.parent?.parent).toBe(scene);
+    expect(terrain.parent).toBe(scene);
 
     controller.dispose();
-    expect(renderer.shadowMap.enabled).toBe(false);
-    expect(renderer.shadowMap.type).toBe(THREE.BasicShadowMap);
-    expect(alkisScene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
+    expect(building.visible).toBe(true);
+    expect(scene.getObjectByName(buildingCopy.name)).toBeUndefined();
+  });
+
+  it("keeps the full map viewport inside the shadow camera", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getBounds: vi.fn(() => ({
+        getWest: () => -1,
+        getSouth: () => -2,
+        getEast: () => 1,
+        getNorth: () => 2,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+
+    const controller = buildShadowSimulationScene(map as never);
+    const sun = scene.getObjectByName(
+      "shadow-simulation-sun"
+    ) as THREE.DirectionalLight;
+    const cornerRadius = Math.hypot(1_000, 2_000);
+
+    expect(sun.shadow.camera.right).toBeGreaterThan(cornerRadius);
+    expect(sun.shadow.camera.top).toBeGreaterThan(cornerRadius);
+    expect(map.on).toHaveBeenCalledWith("move", expect.any(Function));
+
+    controller.dispose();
+  });
+
+  it("adds configured Cesium terrain to the shared scene", async () => {
+    const restoreTerrain = vi.fn();
+    vi.mocked(suppressMapLibreTerrainRendering).mockReturnValue(restoreTerrain);
+    const terrainRoot = new THREE.Group();
+    const terrainRuntime = {
+      id: "terrain",
+      originLngLat: [7.15, 51.256] as [number, number],
+      root: terrainRoot,
+      supportsShadows: true,
+      ready: Promise.resolve(true),
+      update: vi.fn(),
+      setVisible: vi.fn(),
+      setShadowCamera: vi.fn(),
+      setMaterialColor: vi.fn(),
+      getElevation: vi.fn(() => 150),
+      dispose: vi.fn(),
+    };
+    vi.mocked(buildCesiumTerrainRuntime).mockReturnValue(terrainRuntime);
+    const addRuntime = vi.fn();
+    const removeRuntime = vi.fn();
+    vi.mocked(acquireSharedThreeScene).mockReturnValue({
+      layer: {
+        getScene: () => scene,
+        addRuntime,
+        hasRuntime: vi.fn(() => true),
+        removeRuntime,
+      } as never,
+      release: releaseScene,
+    });
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+
+    const controller = buildShadowSimulationScene(map as never, {
+      shadowAreaMeters: 600,
+      terrain: {
+        url: "https://example.test/terrain",
+        minimumLevel: 10,
+        maximumLevel: 16,
+      },
+    });
+    await terrainRuntime.ready;
+
+    expect(buildCesiumTerrainRuntime).toHaveBeenCalledWith(
+      "shadow-simulation-cesium-terrain",
+      "https://example.test/terrain",
+      [7.15, 51.256],
+      expect.objectContaining({ minimumLevel: 10, maximumLevel: 16 })
+    );
+    expect(addRuntime).toHaveBeenCalledWith(terrainRuntime);
+    expect(suppressMapLibreTerrainRendering).toHaveBeenCalledWith(map);
+
+    controller.updateTerrainColor("#8c7a66");
+    expect(terrainRuntime.setMaterialColor).toHaveBeenCalledWith("#8c7a66");
+
+    controller.dispose();
+    expect(restoreTerrain).toHaveBeenCalledOnce();
+    expect(removeRuntime).toHaveBeenCalledWith("terrain");
   });
 });

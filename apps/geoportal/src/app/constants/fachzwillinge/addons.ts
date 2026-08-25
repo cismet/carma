@@ -1,6 +1,8 @@
 import type { FachzwillingRoute } from ".";
 import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
+import { WUPP_TERRAIN_PROVIDER } from "@carma-commons/resources";
+
 export const addonsFachzwilling: FachzwillingRoute = {
   path: "addons",
   hideFromCatalog: true,
@@ -62,7 +64,25 @@ export const addonsFachzwilling: FachzwillingRoute = {
     },
     {
       kind: "shadowSimulation",
-      config: { initialMinutes: 15 * 60 },
+      config: {
+        initialMinutes: 15 * 60,
+        terrain: {
+          url: WUPP_TERRAIN_PROVIDER.url,
+          errorTargetPixels: 2.5,
+          shadowLevelOffset: 2,
+          minimumLevel: 8,
+          maximumLevel: 17,
+          maxSelectionTiles: 192,
+          requestConcurrency: 6,
+          maxCacheBytes: 100_663_296,
+          maxCachedMeshes: 256,
+          material: {
+            color: "#d8d1c4",
+            roughness: 0.96,
+            metalness: 0,
+          },
+        },
+      },
     },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {

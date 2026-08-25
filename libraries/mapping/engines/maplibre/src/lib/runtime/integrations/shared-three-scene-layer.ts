@@ -7,10 +7,13 @@ import type {
 } from "maplibre-gl";
 import * as THREE from "three";
 
+import { getSharedThreeTerrainElevation } from "./shared-three-terrain-registry";
+
 export interface SharedThreeSceneFrame {
   map: MaplibreMap;
   renderCamera: THREE.Camera;
   lodCamera: THREE.PerspectiveCamera;
+  lookTarget: THREE.Vector3;
   viewport: THREE.Vector2;
 }
 
@@ -31,6 +34,11 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   hasRuntime: (runtimeId: string) => boolean;
   hasShadeableContent: () => boolean;
   getScene: () => THREE.Scene;
+  projectLngLatToScene: (
+    lngLat: [number, number],
+    altitudeMeters?: number,
+    target?: THREE.Vector3
+  ) => THREE.Vector3 | null;
   /** Detach the custom layer without destroying runtimes preserved across HMR. */
   detach: () => void;
   dispose: () => void;
@@ -128,6 +136,20 @@ export const buildSharedThreeSceneLayer = (
       return scene;
     },
 
+    projectLngLatToScene(
+      lngLat,
+      altitudeMeters = 0,
+      target = new THREE.Vector3()
+    ) {
+      if (!originMerc || meterScale <= 0) return null;
+      const coordinate = MercatorCoordinate.fromLngLat(lngLat, altitudeMeters);
+      return target.set(
+        (coordinate.x - originMerc.x) / meterScale,
+        (coordinate.z - originMerc.z) / meterScale,
+        (coordinate.y - originMerc.y) / meterScale
+      );
+    },
+
     detach() {
       for (const runtime of runtimes.values()) scene.remove(runtime.root);
       renderer?.dispose();
@@ -175,11 +197,24 @@ export const buildSharedThreeSceneLayer = (
       renderer.getDrawingBufferSize(viewport);
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
       // lives in the engine rather than here, see synthesizeLodCamera.
+      const centerLngLat = map.getCenter();
       if (
         !synthesizeLodCamera(
           lodCamera,
           map,
-          { originMerc, meterScale, viewport },
+          {
+            originMerc,
+            meterScale,
+            viewport,
+            centerElevationMeters:
+              map.queryTerrainElevation(centerLngLat) ??
+              getSharedThreeTerrainElevation(
+                map,
+                centerLngLat.lng,
+                centerLngLat.lat
+              ) ??
+              0,
+          },
           lookTarget
         )
       ) {
@@ -190,6 +225,7 @@ export const buildSharedThreeSceneLayer = (
         map,
         renderCamera,
         lodCamera,
+        lookTarget,
         viewport,
       };
       scene.updateMatrixWorld(true);

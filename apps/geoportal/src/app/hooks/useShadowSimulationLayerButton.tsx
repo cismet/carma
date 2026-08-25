@@ -21,6 +21,22 @@ import { setUIShowInfo, setUIShowInfoText } from "../store/slices/ui";
 
 export const SHADOW_SIMULATION_LAYER_ID = "__shadow_simulation__";
 
+export const formatShadowSelection = (selection: {
+  year: number;
+  dayOfYear: number;
+  minutes: number;
+}) => {
+  const date = new Intl.DateTimeFormat("de-DE", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(selection.year, 0, selection.dayOfYear)));
+  const roundedMinutes = Math.round(selection.minutes);
+  const hours = String(Math.floor(roundedMinutes / 60)).padStart(2, "0");
+  const minutes = String(roundedMinutes % 60).padStart(2, "0");
+  return `${date} · ${hours}:${minutes}`;
+};
+
 export const useShadowSimulationLayerButton = () => {
   const dispatch = useDispatch();
   const layerStack = useSelector(getLayerStack);

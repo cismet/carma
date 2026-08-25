@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { LngLat, MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
-import type { Scene } from "three";
 
 import {
   buildGenericLayer,
@@ -38,6 +37,10 @@ import {
   registerGenericThreeLayer,
   unregisterGenericThreeLayer,
 } from "../lib/runtime/integrations/generic-three-layer-registry";
+import {
+  getSharedThreeTerrainElevation,
+  subscribeSharedThreeTerrain,
+} from "../lib/runtime/integrations/shared-three-terrain-registry";
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────
@@ -243,6 +246,7 @@ export function ThreeLayerManager({
     // read from the terrain, and the same layer, selection and idle-sync
     // plumbing. What the roof is built from is decided inside syncBuildings.
     const isExtrusion = config.renderMode === "extrusion" || isLod2;
+    const buildingElevationCache = new Map<string, number>();
 
     const rebuildFn = useLoft
       ? (
@@ -457,16 +461,23 @@ export function ThreeLayerManager({
       const terrain = map.terrain;
       const terrainZoom = Math.floor(map.getZoom());
       const elevationAt = (lng: number, lat: number): number => {
-        if (!hasTerrain) {
-          return 0;
-        }
-        if (terrain) {
-          return terrain.getElevationForLngLatZoom(
+        const cacheKey = `${lng.toFixed(7)}/${lat.toFixed(7)}`;
+        let elevation: number | undefined;
+        if (hasTerrain && terrain) {
+          elevation = terrain.getElevationForLngLatZoom(
             new LngLat(lng, lat),
             terrainZoom
           );
+        } else if (hasTerrain) {
+          elevation = map.queryTerrainElevation({ lng, lat }) ?? undefined;
+        } else {
+          elevation = getSharedThreeTerrainElevation(map, lng, lat);
         }
-        return map.queryTerrainElevation({ lng, lat }) ?? 0;
+        if (Number.isFinite(elevation)) {
+          buildingElevationCache.set(cacheKey, elevation!);
+          return elevation!;
+        }
+        return buildingElevationCache.get(cacheKey) ?? 0;
       };
 
       const raw = map.querySourceFeatures(config.sourceId, {
@@ -895,6 +906,7 @@ export function ThreeLayerManager({
       trySync();
     };
     map.on("terrain", handleTerrain);
+    const unsubscribeSharedTerrain = subscribeSharedThreeTerrain(map, trySync);
 
     // Re-add layer after background style change (style swap removes custom layers)
     // Also re-checks visibility so toggling a layer back on re-creates the 3D layer
@@ -925,6 +937,7 @@ export function ThreeLayerManager({
       if (handleIdle) map.off("idle", handleIdle);
       map.off("sourcedata", handleSourceData);
       map.off("terrain", handleTerrain);
+      unsubscribeSharedTerrain();
       map.off("styledata", handleStyleData);
       if (perfRef) {
         perfRef.current = EMPTY_PERF;

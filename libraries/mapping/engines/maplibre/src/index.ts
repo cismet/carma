@@ -280,6 +280,13 @@ export type {
   ThreeTilesRuntime,
   ThreeTilesRuntimeOptions,
 } from "./lib/runtime/integrations/three-tiles-runtime";
+export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export type {
+  CesiumTerrainMaterialOptions,
+  CesiumTerrainRuntime,
+  CesiumTerrainRuntimeOptions,
+} from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export { suppressMapLibreTerrainRendering } from "./lib/runtime/integrations/shared-three-terrain-registry";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';
