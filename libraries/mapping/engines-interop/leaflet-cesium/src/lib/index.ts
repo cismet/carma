@@ -8,6 +8,9 @@ export {
 export { transitionToCesium } from "./transition-to-cesium";
 export { transitionToLeaflet } from "./transition-to-leaflet";
 
+export { fadeInContainer, fadeOutContainer } from "./utils/dom-utils";
+export { serializeCesiumCameraState } from "./utils/cesium/serialize-camera-state";
+
 export {
   calculateDistanceFromZoom,
   calculateZoomFromDistance,

@@ -2,14 +2,12 @@ import type { Map as LeafletMap } from "leaflet";
 
 import {
   HeadingPitchRange,
-  PerspectiveFrustum,
   type Scene,
   type CesiumTerrainProvider,
 } from "@carma-cesium";
 import {
   animateInterpolateHeadingPitchRange,
   ensureSceneReady,
-  readPerspectiveFrustumVerticalFov,
   type SerializedCameraStateHeadingPitchRoll,
 } from "@carma-mapping/engines/cesium/core";
 import { radToDegNumeric } from "@carma-units";
@@ -24,6 +22,7 @@ import { applyZoomSnapToView } from "./utils/cesium/adjust-for-zoom-snap";
 import { calculateAnimationDuration } from "./utils/cesium/calculate-animation-duration";
 import { getGroundPosition } from "./utils/cesium/get-ground-position";
 import { handleToLeafletTransitionError } from "./utils/cesium/handle-to-leaflet-transition-error";
+import { serializeCesiumCameraState } from "./utils/cesium/serialize-camera-state";
 import { fadeOutContainer } from "./utils/dom-utils";
 import { calculateZoomFromDistance } from "./zoom-distance-converter";
 
@@ -56,40 +55,7 @@ export const transitionToLeaflet = async (
     await ensureSceneReady(scene, 2);
 
     const { camera } = scene;
-    const cameraCartographic = camera.positionCartographic;
-    const lastCameraState =
-      cameraCartographic &&
-      Number.isFinite(cameraCartographic.longitude) &&
-      Number.isFinite(cameraCartographic.latitude) &&
-      Number.isFinite(cameraCartographic.height) &&
-      Number.isFinite(camera.heading) &&
-      Number.isFinite(camera.pitch)
-        ? {
-            longitude:
-              cameraCartographic.longitude as SerializedCameraStateHeadingPitchRoll["longitude"],
-            latitude:
-              cameraCartographic.latitude as SerializedCameraStateHeadingPitchRoll["latitude"],
-            altitude:
-              cameraCartographic.height as SerializedCameraStateHeadingPitchRoll["altitude"],
-            heading:
-              camera.heading as SerializedCameraStateHeadingPitchRoll["heading"],
-            pitch:
-              camera.pitch as SerializedCameraStateHeadingPitchRoll["pitch"],
-            ...(Number.isFinite(camera.roll)
-              ? {
-                  roll: camera.roll as SerializedCameraStateHeadingPitchRoll["roll"],
-                }
-              : {}),
-            ...(camera.frustum instanceof PerspectiveFrustum &&
-            Number.isFinite(readPerspectiveFrustumVerticalFov(camera.frustum))
-              ? {
-                  fov: readPerspectiveFrustumVerticalFov(
-                    camera.frustum
-                  ) as SerializedCameraStateHeadingPitchRoll["fov"],
-                }
-              : {}),
-          }
-        : undefined;
+    const lastCameraState = serializeCesiumCameraState(scene);
 
     // onStageChange(TransitionStage.ANIMATE_CAMERA, "Animating camera to top-down view");
 
