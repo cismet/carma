@@ -28,6 +28,8 @@ export const VectorHighlightShapeTools = ({
     canClear,
     shapeBuffer,
     setShapeBuffer,
+    bufferEnabled,
+    setBufferEnabled,
     bufferPanelOpen,
     setBufferPanelOpen,
   } = useHighlightModeActions();
@@ -49,6 +51,8 @@ export const VectorHighlightShapeTools = ({
             showBuffer
             bufferWidth={shapeBuffer}
             onBufferWidthChange={setShapeBuffer}
+            bufferEnabled={bufferEnabled}
+            onBufferEnabledChange={setBufferEnabled}
             bufferOpen={bufferPanelOpen}
             onBufferOpenChange={setBufferPanelOpen}
             {...toolbarProps}

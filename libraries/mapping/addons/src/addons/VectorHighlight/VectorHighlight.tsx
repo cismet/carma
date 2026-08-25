@@ -7,7 +7,6 @@ import {
   DEFAULT_CIRCLE_RADIUS_STEP,
   DEFAULT_RECT_WIDTH,
   DEFAULT_RECT_HEIGHT,
-  DEFAULT_SHAPE_BUFFER,
   DEFAULT_CLEAR_DELAY,
 } from "@carma-mapping/engines/maplibre";
 import type {
@@ -19,7 +18,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { createDimController, type DimController } from "./dim-controller";
 import { useCombinedGeometryHighlight } from "./combined-geometry";
 import { useHighlightModeActions } from "./highlight-actions";
-import { DEFAULT_SHAPES } from "./shapes";
+import { DEFAULT_BUFFER_WIDTH, DEFAULT_SHAPES } from "./shapes";
 
 import type { HighlightOperation } from "./operations";
 import type { OperationColors } from "./types";
@@ -64,7 +63,8 @@ export const VectorHighlight = ({
     shapes,
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
     defaultRectSize,
-    defaultBuffer = DEFAULT_SHAPE_BUFFER,
+    defaultBuffer = DEFAULT_BUFFER_WIDTH,
+    bufferOnByDefault = false,
     clearDelay = DEFAULT_CLEAR_DELAY,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
   } = config ?? {};
@@ -82,7 +82,11 @@ export const VectorHighlight = ({
     setRectSize,
   } = useHighlightModeActions();
 
-  const shapeBuffer = mode?.shapeBuffer ?? defaultBuffer;
+  // the width only counts while the panel's toggle is on; off means every
+  // shape selects exactly as drawn
+  const shapeBuffer = (mode?.bufferEnabled ?? bufferOnByDefault)
+    ? mode?.shapeBuffer ?? defaultBuffer
+    : 0;
 
   // key on the content: route configs pass a fresh array per render
   const shapesKey = (shapes ?? DEFAULT_SHAPES).join(" ");
@@ -120,8 +124,16 @@ export const VectorHighlight = ({
       monochrome,
       operationColors: publishedColors,
       shapeBuffer: previous?.shapeBuffer ?? defaultBuffer,
+      bufferEnabled: previous?.bufferEnabled ?? bufferOnByDefault,
     }));
-  }, [availableShapes, monochrome, publishedColors, defaultBuffer, setMode]);
+  }, [
+    availableShapes,
+    monochrome,
+    publishedColors,
+    defaultBuffer,
+    bufferOnByDefault,
+    setMode,
+  ]);
 
 
   useMapHighlighting({ map: libreMap, modifierClick, stateKey });

@@ -12,8 +12,10 @@ export type HighlightModeState = {
   circleRadius?: number;
   /** metres, used when a rectangle is placed by a click instead of a drag */
   rectSize?: RectSize;
-  /** metres every drawn shape grows by before it selects; 0 = as drawn */
+  /** metres every drawn shape grows by before it selects */
   shapeBuffer?: number;
+  /** whether that width applies at all; off means the shapes are used as drawn */
+  bufferEnabled?: boolean;
   /** bumped by the UI to discard the line being drawn; the addon owns the
    *  drawing manager, so the request travels as a counter rather than a
    *  callback parked in shared state */
@@ -73,10 +75,13 @@ export type VectorHighlightConfig = {
   /** Ground size in metres a clicked rectangle starts with. Default: 250 x 250 */
   defaultRectSize?: RectSize;
   /**
-   * Metres every drawn shape grows by before it selects, for every tool alike.
-   * 0 selects with the shape exactly as drawn. Default: 0
+   * Width in metres the buffer panel starts with, for every tool alike. It only
+   * applies once the panel's toggle is on; until then every shape selects
+   * exactly as drawn. Default: 25
    */
   defaultBuffer?: number;
+  /** Start with the buffer already switched on. Default: false */
+  bufferOnByDefault?: boolean;
   /**
    * Milliseconds every drawn shape stays on the map after it is finished,
    * before it is wiped — long enough to see what it just selected.

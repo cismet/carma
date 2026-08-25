@@ -1,14 +1,10 @@
 import { useCallback } from "react";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
-import {
-  DEFAULT_SHAPE_BUFFER,
-  type DrawShape,
-  type RectSize,
-} from "@carma-mapping/engines/maplibre";
+import type { DrawShape, RectSize } from "@carma-mapping/engines/maplibre";
 
 import { useAddonState } from "../../lib/AddonStateContext";
-import { DEFAULT_SHAPES } from "./shapes";
+import { DEFAULT_BUFFER_WIDTH, DEFAULT_SHAPES } from "./shapes";
 import {
   MONOCHROME_COLOR,
   OPERATION_COLORS,
@@ -44,7 +40,17 @@ export const useHighlightModeActions = () => {
   } = useMapHighlight();
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
-  const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_SHAPE_BUFFER;
+  const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH;
+  const bufferEnabled = mode?.bufferEnabled ?? false;
+
+  const setBufferEnabled = useCallback(
+    (enabled: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        bufferEnabled: enabled,
+      })),
+    [setMode]
+  );
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
 
@@ -238,6 +244,8 @@ export const useHighlightModeActions = () => {
     setRectSize,
     shapeBuffer,
     setShapeBuffer,
+    bufferEnabled,
+    setBufferEnabled,
     cancelLine,
     hasLastShape,
     lastShapeShown,
