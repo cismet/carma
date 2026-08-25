@@ -535,6 +535,23 @@ export function ThreeLayerManager({
       }
       layer._spatialGrid = grid;
 
+      // The rebuild above replaced the meshes the highlight was painted into,
+      // and the source indices it was addressed by. Without restoring it, a
+      // tile arriving after a click drops the selection colour on its own.
+      const highlightedId = layer._highlightedFeatureId;
+      if (highlightedId != null) {
+        // stale: its vertex ranges point into the geometry that is now gone
+        layer._highlightState = null;
+        const restoredIndex = sourceFeatures.findIndex(
+          (f) => f.id === highlightedId
+        );
+        if (restoredIndex >= 0) {
+          layer.highlight(restoredIndex);
+        } else {
+          layer._highlightedFeatureId = null;
+        }
+      }
+
       if (buildings.length !== lastLoggedCountRef.current) {
         lastLoggedCountRef.current = buildings.length;
         console.log("[3D-BUILDINGS]", buildings.length, "buildings,",

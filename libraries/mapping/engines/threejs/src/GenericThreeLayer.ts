@@ -282,6 +282,9 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _sourceFeatures: SourceFeatureData[];
   /** Current highlight state (for restoring colors on unhighlight) */
   _highlightState: HighlightState | null;
+  /** Which feature the highlight belongs to. Source indices are positional and
+   *  a rebuild reshuffles them, so restoring a highlight needs the id. */
+  _highlightedFeatureId: string | number | null;
   /** 2D spatial grid for fast tree selection by ray-axis distance */
   _spatialGrid: SpatialGrid;
   rebuild(): void;
@@ -335,6 +338,7 @@ export function buildGenericLayer(
     _hasRendered: false,
     _sourceFeatures: [],
     _highlightState: null,
+    _highlightedFeatureId: null,
     _spatialGrid: new Map(),
 
     onAdd(
@@ -595,6 +599,8 @@ export function buildGenericLayer(
 
     highlight(sourceIndex: number) {
       this.unhighlight();
+      this._highlightedFeatureId =
+        this._sourceFeatures?.[sourceIndex]?.id ?? null;
 
       const instancedMeshes: THREE.InstancedMesh[] = [];
       const instanceSavedColors: THREE.Color[] = [];
@@ -676,6 +682,7 @@ export function buildGenericLayer(
     },
 
     unhighlight() {
+      this._highlightedFeatureId = null;
       if (!this._highlightState) return;
 
       const { instancedMeshes, instanceId, instanceSavedColors, vertexEntries } =
