@@ -132,9 +132,9 @@ export const usePublishCompareLayers = (
     setAssignments,
   } = useComparingActions();
 
-  const entries = useMemo<CompareLayerEntry[]>(() => {
+  const { entries, mapHasCaughtUp } = useMemo(() => {
     if (!active) {
-      return [];
+      return { entries: [] as CompareLayerEntry[], mapHasCaughtUp: false };
     }
     // The keys come from the map, whose grouping is what a panel's content is
     // filtered by, but the list itself follows the layer stack: a layer that is
@@ -151,9 +151,15 @@ export const usePublishCompareLayers = (
         visible: stack.background.visible,
       });
     }
+    // A layer the stack has switched on but the map has not built yet. The map
+    // trails the store by a few frames whenever a route settles or the module
+    // reloads, and during those frames the list is short of the layers that are
+    // on their way.
+    let waiting = false;
     stack.layers.forEach((layer) => {
       if (!groupKeys.has(layer.id) && layer.visible) {
         // on the stack but not on the map: nothing this comparison can show
+        waiting = true;
         return;
       }
       result.push({
@@ -164,7 +170,7 @@ export const usePublishCompareLayers = (
         iconUrl: layer.iconUrl,
       });
     });
-    return result;
+    return { entries: result, mapHasCaughtUp: !waiting };
   }, [active, layers, stack]);
 
   useEffect(() => {
@@ -176,17 +182,20 @@ export const usePublishCompareLayers = (
   // modes can split into. It stops following as soon as the user picks a count
   // or ticks a cell, since from then on the layout is theirs.
   useEffect(() => {
-    if (!active || entries.length === 0) {
+    if (!active || !mapHasCaughtUp || entries.length === 0) {
       return;
     }
     const foreground = entries.filter(
       (entry) => !entry.isBackground && entry.visible
     ).length;
     suggestPanelCount(Math.min(MAX_PANELS, Math.max(foreground, 2)));
-  }, [active, entries, suggestPanelCount]);
+  }, [active, mapHasCaughtUp, entries, suggestPanelCount]);
 
   useEffect(() => {
-    if (!active || entries.length === 0) {
+    // Waiting on the map is not the same as being told the layers are gone. A
+    // list that is still filling would otherwise be written down as the whole
+    // truth, and the layers arriving after it would each count as newly added.
+    if (!active || !mapHasCaughtUp || entries.length === 0) {
       return;
     }
     // a changed panel count starts over: the old ticks were made about panels
@@ -202,6 +211,7 @@ export const usePublishCompareLayers = (
     assignments,
     assignmentsPanelCount,
     entries,
+    mapHasCaughtUp,
     panelCount,
     setAssignments,
   ]);
@@ -230,10 +240,19 @@ const implicitPanelsFor = (
 
 /**
  * Keeps the assignment in step with the layers on the map: seeds it from the
- * implicit rule when the mode starts, gives a layer added while comparing every
- * panel so that adding it visibly does something, and drops keys whose layer is
- * gone. Returns the previous object unchanged when nothing moved, so it can run
- * on every entry change without looping.
+ * implicit rule when the mode starts, and gives a layer added while comparing
+ * every panel so that adding it visibly does something. Returns the previous
+ * object unchanged when nothing moved, so it can run on every entry change
+ * without looping.
+ *
+ * A key the list does not mention is left where it is rather than dropped. The
+ * list is built from the layers the map has, and a layer can be missing from it
+ * for a moment without being gone: while a route settles, while a style is
+ * swapped, while the module reloads. Dropping it there would cost the user the
+ * arrangement they made, and the layer would come back counting as newly added,
+ * which is what puts it in every panel. What it costs to keep is an entry for a
+ * layer nobody can see, which nothing reads and which the next assignment for
+ * that key overwrites.
  */
 const reconcileAssignments = (
   entries: CompareLayerEntry[],
@@ -242,29 +261,42 @@ const reconcileAssignments = (
 ): CompareAssignments => {
   const everyPanel = Array.from({ length: panelCount }, (_, panel) => panel);
   const next: CompareAssignments = {};
-  let changed = false;
 
-  // entries are in draw order, bottom first; the rule is stated from the top
-  const topIndexOf = (index: number) => entries.length - 1 - index;
+  // what the assignment already says, held to the panels that exist
+  if (previous) {
+    Object.keys(previous).forEach((key) => {
+      next[key] = previous[key].filter((panel) => panel < panelCount);
+    });
+  }
 
   entries.forEach((entry, index) => {
-    const seeded = previous
-      ? previous[entry.key] ?? everyPanel
-      : implicitPanelsFor(topIndexOf(index), panelCount);
-    const bounded = seeded.filter((panel) => panel < panelCount);
-    next[entry.key] = bounded;
-    const before = previous?.[entry.key];
-    if (
-      !before ||
-      before.length !== bounded.length ||
-      before.some((panel, i) => panel !== bounded[i])
-    ) {
-      changed = true;
+    if (!previous) {
+      // entries are in draw order, bottom first; the rule is stated from the top
+      next[entry.key] = implicitPanelsFor(
+        entries.length - 1 - index,
+        panelCount
+      );
+      return;
+    }
+    if (!(entry.key in previous)) {
+      next[entry.key] = everyPanel;
     }
   });
 
-  if (previous && Object.keys(previous).length !== entries.length) {
-    changed = true;
+  if (!previous) {
+    return next;
   }
-  return changed || !previous ? next : previous;
+  const keys = Object.keys(next);
+  const unchanged =
+    keys.length === Object.keys(previous).length &&
+    keys.every((key) => {
+      const before = previous[key];
+      const after = next[key];
+      return (
+        before !== undefined &&
+        before.length === after.length &&
+        before.every((panel, i) => panel === after[i])
+      );
+    });
+  return unchanged ? previous : next;
 };
