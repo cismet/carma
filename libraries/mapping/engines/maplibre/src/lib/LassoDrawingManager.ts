@@ -67,6 +67,16 @@ const SOURCE_ID = `${LASSO_LAYER_ID_PREFIX}-source`;
 const LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-line`;
 const FILL_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-fill`;
 const POINT_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-point`;
+const BUFFER_LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-buffer-line`;
+
+/**
+ * Which half of a buffered shape a feature is. With a width set, both are on
+ * the map: the shape as drawn keeps the solid outline it always had, and the
+ * area it grew to is drawn dashed around it, so the two never read as one.
+ * Features without a role are an ordinary unbuffered shape.
+ */
+const ROLE_BASE = "base";
+const ROLE_BUFFER = "buffer";
 
 /** Minimum screen-pixel distance between consecutive recorded points. */
 const MIN_PX_DISTANCE = 3;
@@ -374,12 +384,7 @@ export class LassoDrawingManager {
       this.renderLine(source, last.coordinates, null);
       return;
     }
-    source.setData({
-      type: "FeatureCollection",
-      features: [
-        { type: "Feature", properties: {}, geometry: this.withBuffer(last) },
-      ],
-    });
+    this.renderShape(last, this.withBuffer(last));
   }
 
   /** Takes the preview back down; a line being placed is left alone. */
@@ -406,7 +411,7 @@ export class LassoDrawingManager {
     const geometry = this.withBuffer(drawn);
     this.lastShape = drawn;
     this.onLastShapeChange?.(true);
-    this.renderShape(geometry);
+    this.renderShape(drawn, geometry);
     this.clearVisualDelayed();
     this.onDrawComplete(geometry);
   }
@@ -432,12 +437,30 @@ export class LassoDrawingManager {
     }
   }
 
-  private renderShape(geometry: Polygon | LineString): void {
+  /** Both halves when a width grew the shape, the shape alone when it did not. */
+  private renderShape(
+    drawn: Polygon | LineString,
+    buffered: Polygon | LineString
+  ): void {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
+    if (buffered === drawn) {
+      source.setData({
+        type: "FeatureCollection",
+        features: [{ type: "Feature", properties: {}, geometry: drawn }],
+      });
+      return;
+    }
     source.setData({
       type: "FeatureCollection",
-      features: [{ type: "Feature", properties: {}, geometry }],
+      features: [
+        {
+          type: "Feature",
+          properties: { role: ROLE_BUFFER },
+          geometry: buffered,
+        },
+        { type: "Feature", properties: { role: ROLE_BASE }, geometry: drawn },
+      ],
     });
   }
 
@@ -1018,7 +1041,13 @@ export class LassoDrawingManager {
       id: FILL_LAYER_ID,
       type: "fill",
       source: SOURCE_ID,
-      filter: ["==", "$type", "Polygon"],
+      // the drawn shape inside a buffer stays unfilled, or the middle would
+      // darken where the two overlap
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        ["!=", ["get", "role"], ROLE_BASE],
+      ],
       paint: {
         "fill-color": this.color,
         // maplibre cross-fades paint colors over 300ms by default, so the
@@ -1028,10 +1057,27 @@ export class LassoDrawingManager {
       },
     });
 
+    // the grown area, dashed
+    this.map.addLayer({
+      id: BUFFER_LINE_LAYER_ID,
+      type: "line",
+      source: SOURCE_ID,
+      filter: ["==", ["get", "role"], ROLE_BUFFER],
+      paint: {
+        "line-color": this.color,
+        "line-color-transition": { duration: 0 },
+        "line-width": 1.5,
+        "line-dasharray": [3, 2],
+        "line-opacity": 0.9,
+      },
+    });
+
+    // the shape as drawn, solid
     this.map.addLayer({
       id: LINE_LAYER_ID,
       type: "line",
       source: SOURCE_ID,
+      filter: ["!=", ["get", "role"], ROLE_BUFFER],
       paint: {
         "line-color": this.color,
         "line-color-transition": { duration: 0 },
@@ -1044,7 +1090,7 @@ export class LassoDrawingManager {
       id: POINT_LAYER_ID,
       type: "circle",
       source: SOURCE_ID,
-      filter: ["==", "$type", "Point"],
+      filter: ["==", ["geometry-type"], "Point"],
       paint: {
         "circle-radius": 4,
         "circle-color": "#ffffff",
@@ -1062,6 +1108,13 @@ export class LassoDrawingManager {
       }
       if (this.map.getLayer(LINE_LAYER_ID)) {
         this.map.setPaintProperty(LINE_LAYER_ID, "line-color", this.color);
+      }
+      if (this.map.getLayer(BUFFER_LINE_LAYER_ID)) {
+        this.map.setPaintProperty(
+          BUFFER_LINE_LAYER_ID,
+          "line-color",
+          this.color
+        );
       }
       if (this.map.getLayer(POINT_LAYER_ID)) {
         this.map.setPaintProperty(
@@ -1116,16 +1169,10 @@ export class LassoDrawingManager {
         source.setData({ type: "FeatureCollection", features: [] });
         return;
       }
-      source.setData({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {},
-            geometry: this.buildSizedShape(this.anchor),
-          },
-        ],
-      });
+      // buffered while the drag runs, not only once it is let go: the grown
+      // area is what selects, so it has to be visible while it is being aimed
+      const polygon = this.buildSizedShape(this.anchor);
+      this.renderShape(polygon, this.withBuffer(polygon));
       return;
     }
 
@@ -1147,14 +1194,24 @@ export class LassoDrawingManager {
     };
     features.push(line);
 
-    // Show cleaned polygon fill preview
+    // Show cleaned polygon fill preview, grown by the buffer if one is set
     const hull = this.cleanPolygon(this.coords);
     if (hull) {
-      features.push({
-        type: "Feature",
-        properties: {},
-        geometry: hull,
-      });
+      const buffered = this.withBuffer(hull);
+      if (buffered === hull) {
+        features.push({ type: "Feature", properties: {}, geometry: hull });
+      } else {
+        features.push({
+          type: "Feature",
+          properties: { role: ROLE_BUFFER },
+          geometry: buffered,
+        });
+        features.push({
+          type: "Feature",
+          properties: { role: ROLE_BASE },
+          geometry: hull,
+        });
+      }
     }
 
     source.setData({ type: "FeatureCollection", features });
@@ -1184,7 +1241,11 @@ export class LassoDrawingManager {
         ? this.withBuffer({ type: "LineString", coordinates: path })
         : null;
     if (corridor?.type === "Polygon") {
-      features.push({ type: "Feature", properties: {}, geometry: corridor });
+      features.push({
+        type: "Feature",
+        properties: { role: ROLE_BUFFER },
+        geometry: corridor,
+      });
     }
     if (path.length >= 2) {
       features.push({
@@ -1244,6 +1305,9 @@ export class LassoDrawingManager {
   private moveLayersToTop(): void {
     try {
       if (this.map.getLayer(FILL_LAYER_ID)) this.map.moveLayer(FILL_LAYER_ID);
+      if (this.map.getLayer(BUFFER_LINE_LAYER_ID)) {
+        this.map.moveLayer(BUFFER_LINE_LAYER_ID);
+      }
       if (this.map.getLayer(LINE_LAYER_ID)) this.map.moveLayer(LINE_LAYER_ID);
       if (this.map.getLayer(POINT_LAYER_ID)) this.map.moveLayer(POINT_LAYER_ID);
     } catch {
@@ -1258,6 +1322,9 @@ export class LassoDrawingManager {
       }
       if (this.map.getLayer(LINE_LAYER_ID)) {
         this.map.removeLayer(LINE_LAYER_ID);
+      }
+      if (this.map.getLayer(BUFFER_LINE_LAYER_ID)) {
+        this.map.removeLayer(BUFFER_LINE_LAYER_ID);
       }
       if (this.map.getLayer(FILL_LAYER_ID)) {
         this.map.removeLayer(FILL_LAYER_ID);
