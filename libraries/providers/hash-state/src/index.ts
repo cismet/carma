@@ -26,4 +26,5 @@ export {
 export {
   SCENE_VIEW_STATE_ALTITUDE_HASH_KEYS,
   SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS,
+  SCENE_VIEW_STATE_TWO_D_UNSUPPORTED_HASH_PARAMS,
 } from "./lib/scene-state-hash/hashParamNames";

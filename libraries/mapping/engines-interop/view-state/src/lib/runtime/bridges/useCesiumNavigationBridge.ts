@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { type Scene } from "@carma-cesium";
 import {
   SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS,
+  SCENE_VIEW_STATE_TWO_D_UNSUPPORTED_HASH_PARAMS,
   useHashState,
 } from "@carma-providers/hash-state";
 
@@ -50,7 +51,7 @@ export type CesiumNavigationBridgeHandle = SubscribedRuntimeBridgeHandle & {
     options?: { replace?: boolean; force?: boolean }
   ) => boolean;
   suppressCommitsUntilInteraction: () => void;
-  reduceToTopDownView: () => void;
+  reduceToTopDownView: (options?: { keepOrientation?: boolean }) => void;
 };
 
 export const useCesiumNavigationBridge = ({
@@ -108,16 +109,27 @@ export const useCesiumNavigationBridge = ({
 
   // Handover to 2D: drop this writer's 3D-only hash keys (altitude/bearing/pitch/
   // roll/fov), leaving the shared lat/lng/zoom — a plain top-down view.
-  const reduceToTopDownView = useCallback(() => {
-    updateHashState(
-      {},
-      {
-        clearStateKeys: SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS,
-        label: `${id}:reduceToTopDownView`,
-        replace: true,
-      }
-    );
-  }, [updateHashState, id]);
+  //
+  // `keepOrientation` is for a direct handover to a rotatable 2D map, which is
+  // about to hold this very bearing and pitch: only the keys 2D has no concept of
+  // are dropped, and the 2D writer re-asserts b/p on its next moveend.
+  const reduceToTopDownView = useCallback(
+    (options?: { keepOrientation?: boolean }) => {
+      const clearStateKeys = options?.keepOrientation
+        ? SCENE_VIEW_STATE_TWO_D_UNSUPPORTED_HASH_PARAMS
+        : SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS;
+
+      updateHashState(
+        {},
+        {
+          clearStateKeys,
+          label: `${id}:reduceToTopDownView`,
+          replace: true,
+        }
+      );
+    },
+    [updateHashState, id]
+  );
 
   useEffect(() => {
     if (!scene || !isSyncEnabled) {

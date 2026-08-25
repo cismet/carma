@@ -24,12 +24,23 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import {
+  fadeInContainer,
+  fadeOutContainer,
+  serializeCesiumCameraState,
   transitionToCesium,
   transitionToLeaflet,
   TransitionStage,
   type TransitionOptions,
 } from "@carma-mapping/engines-interop/leaflet-cesium";
 import { validateRequirements } from "./utils/validate-requirements";
+
+/**
+ * Crossfade for a direct handover. Long enough to hide the one-frame difference
+ * in tile and terrain shading between the engines, short enough not to read as
+ * an animation. The outgoing engine stays visible underneath, so fading the
+ * Cesium container alone is the whole crossfade.
+ */
+const DIRECT_HANDOVER_CROSSFADE_MS = 150;
 
 export const CARMA_MAP_FRAMEWORKS = {
   LEAFLET: "leaflet",
@@ -68,6 +79,17 @@ export interface MapFrameworkSwitcherCallbacks {
   onBeforeTransitionToCesium?: () => Promise<void> | void;
   onBeforeTransitionToLeaflet?: () => Promise<void> | void;
   onAfterTransitionToCesium?: () => void;
+  /**
+   * Fast path for engines that can hold the same camera (a rotatable 2D map):
+   * place the target engine's camera and return true to skip the animated
+   * transition, leaving only a short crossfade. Returning false runs the
+   * animated transition unchanged, so this is always safe to decline.
+   *
+   * Called after the target runtime is mounted and staged — "direct" means no
+   * animation, not no preparation.
+   */
+  tryDirectTransitionToCesium?: () => boolean | Promise<boolean>;
+  tryDirectTransitionToLeaflet?: () => boolean | Promise<boolean>;
   onLeafletViewSet?: (params: {
     center: { lat: number; lng: number };
     zoom: number;
@@ -493,6 +515,31 @@ export const MapFrameworkSwitcherProvider = ({
 
       setIsTransitioning(true);
 
+      // Hide before handing over, so the first visible 3D frame is already on the
+      // target camera. The animated path forces opacity 0 at its own fade stage,
+      // so this cannot change its outcome — it only removes the flash of an
+      // opaque, freshly mounted container.
+      cesiumContainer.style.transition = "none";
+      cesiumContainer.style.opacity = "0";
+      cesiumContainer.style.pointerEvents = "none";
+
+      // Fast path: both engines can hold this camera, so hand it over directly
+      // and only crossfade. The 2D container stays visible underneath until the
+      // framework flips, which is what makes the fade a crossfade.
+      const handledDirectly =
+        await callbacksRef.current.tryDirectTransitionToCesium?.();
+      if (handledDirectly) {
+        await fadeInContainer(
+          cesiumContainer,
+          DIRECT_HANDOVER_CROSSFADE_MS,
+          "[CSS|2D3D] direct handover to 3D"
+        );
+        setActiveFrameworkCesium();
+        setIsTransitioning(false);
+        callbacksRef.current.onAfterTransitionToCesium?.();
+        return;
+      }
+
       await transitionToCesium(
         scene,
         leaflet,
@@ -591,6 +638,26 @@ export const MapFrameworkSwitcherProvider = ({
       await waitForRenderFrames(scene, 2);
 
       setIsTransitioning(true);
+
+      // Fast path, mirroring the 3D direction. The outgoing camera still has to
+      // be captured here: the animated path returns it below, and it seeds the
+      // orientation of the next 2D->3D switch.
+      const handledDirectly =
+        await callbacksRef.current.tryDirectTransitionToLeaflet?.();
+      if (handledDirectly) {
+        const directCameraState = serializeCesiumCameraState(scene);
+        if (directCameraState) {
+          lastEngineStateRef.current.cesium = directCameraState;
+        }
+        await fadeOutContainer(
+          cesiumContainer,
+          DIRECT_HANDOVER_CROSSFADE_MS,
+          "[CSS|2D3D] direct handover to 2D"
+        );
+        setActiveFrameworkLeaflet();
+        setIsTransitioning(false);
+        return;
+      }
 
       const lastCameraState = await transitionToLeaflet(
         scene,

@@ -51,6 +51,17 @@ export const SCENE_VIEW_STATE_THREE_D_ONLY_HASH_PARAMS: string[] = [
 ];
 
 /**
+ * Scene-view-state hash params a 2D map has no concept of. Clearing only these on
+ * a 3D→2D handover keeps bearing/pitch, which a rotatable 2D engine can hold and
+ * will keep writing itself.
+ */
+export const SCENE_VIEW_STATE_TWO_D_UNSUPPORTED_HASH_PARAMS: string[] = [
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.ALTITUDE,
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.ROLL,
+  SCENE_VIEW_STATE_HASH_PARAM_NAMES.FOV,
+];
+
+/**
  * Hash keys an altitude can appear under in a scene-view-state URL: the short URL
  * alias (`h`) plus the canonical name (`altitude`). The launch-mode 3D check
  * consumes this so it recognizes a 3D view from the codec's own key naming rather
