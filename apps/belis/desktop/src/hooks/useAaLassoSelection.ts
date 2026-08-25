@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { LassoDrawingManager } from "@carma-mapping/engines/maplibre";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import type { Polygon } from "geojson";
+import type { Feature, LineString, Point, Polygon } from "geojson";
 import {
   polygon as turfPolygon,
   booleanPointInPolygon,
@@ -30,11 +30,14 @@ export function useAaLassoSelection({
   onFeaturesSelectedRef.current = onFeaturesSelected;
 
   const handleDrawComplete = useCallback(
-    (lassoPolygon: Polygon) => {
+    (drawnShape: Polygon | LineString) => {
       if (!map) return;
 
-      // 1. Compute pixel bounding box from polygon vertices
-      const ring = lassoPolygon.coordinates[0];
+      // 1. Compute pixel bounding box from the shape's vertices
+      const ring =
+        drawnShape.type === "Polygon"
+          ? drawnShape.coordinates[0]
+          : drawnShape.coordinates;
       let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
@@ -52,8 +55,11 @@ export function useAaLassoSelection({
       // 2. Query rendered features in bounding box
       const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
 
-      // 3. Build turf polygon for spatial test
-      const turfLasso = turfPolygon(lassoPolygon.coordinates);
+      // 3. Build the turf geometry for the spatial test
+      const turfLasso =
+        drawnShape.type === "Polygon"
+          ? turfPolygon(drawnShape.coordinates)
+          : turfLineString(drawnShape.coordinates);
 
       // 4. Spatial test – keep every feature whose geometry falls inside the lasso
       const seen = new Set<string | number>();
@@ -65,8 +71,18 @@ export function useAaLassoSelection({
 
         let inside = false;
         try {
-          if (f.geometry.type === "Point") {
-            inside = booleanPointInPolygon(f.geometry, turfLasso);
+          if (
+            f.geometry.type === "Point" &&
+            turfLasso.geometry.type === "Polygon"
+          ) {
+            inside = booleanPointInPolygon(
+              f.geometry as Point,
+              turfLasso as Feature<Polygon>
+            );
+          } else if (f.geometry.type === "Point") {
+            // a point against a bare line practically never matches — that is
+            // what the corridor width is for
+            inside = booleanIntersects(f.geometry, turfLasso);
           } else if (f.geometry.type === "LineString") {
             const line = turfLineString(f.geometry.coordinates);
             inside = booleanIntersects(line, turfLasso);
