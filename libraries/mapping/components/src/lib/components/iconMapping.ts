@@ -5,6 +5,7 @@ import {
   faObjectGroup,
   faRuler,
   faSquare,
+  faSun,
   faTableColumns,
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -12,6 +13,7 @@ export const iconMap = {
   measurement: faRuler,
   highlight: faObjectGroup,
   comparing: faTableColumns,
+  "shadow-simulation": faSun,
   background: faLayerGroup,
   ortho: faGlobe,
 };
@@ -20,4 +22,5 @@ export const iconColorMap = {
   bäume: "green",
   gärten: "purple",
   ortho: "black",
+  "shadow-simulation": "#d97706",
 };

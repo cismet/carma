@@ -19,6 +19,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { SolarDayTimeControl } from "./SolarDayTimeControl";
 import { buildShadowSimulationScene } from "./shadow-scene";
 import type {
+  ShadowQualityMultiplier,
   ShadowSimulationScene,
   ShadowTerrainOptions,
 } from "./shadow-scene";
@@ -33,6 +34,7 @@ import {
 
 const ACTIVE_CONTROL_COLOR = "#1677ff";
 const DEFAULT_TERRAIN_COLOR = "#d8d1c4";
+const DEFAULT_BUILDING_COLOR = "#d8d1c4";
 
 const resolveTerrainColor = (value: unknown) => {
   if (typeof value === "string" && /^#[\da-f]{6}$/i.test(value)) return value;
@@ -61,6 +63,10 @@ export type ShadowSimulationState = {
   enabled: boolean;
   selection: SolarSelection;
   terrainColor: string;
+  buildingsFullOpacity: boolean;
+  useUniformBuildingColor: boolean;
+  buildingColor: string;
+  shadowQuality: ShadowQualityMultiplier;
 };
 
 const ShadowSimulationSettings = ({
@@ -75,6 +81,10 @@ const ShadowSimulationSettings = ({
   showTerrainColor: boolean;
 }) => {
   const terrainColor = state.terrainColor ?? DEFAULT_TERRAIN_COLOR;
+  const buildingsFullOpacity = state.buildingsFullOpacity ?? true;
+  const useUniformBuildingColor = state.useUniformBuildingColor ?? false;
+  const buildingColor = state.buildingColor ?? DEFAULT_BUILDING_COLOR;
+  const shadowQuality = state.shadowQuality ?? 1;
   const solarPosition = useMemo(
     () => getSolarPosition(state.selection, location),
     [location, state.selection]
@@ -91,6 +101,27 @@ const ShadowSimulationSettings = ({
           setState({ ...state, selection, terrainColor })
         }
       />
+      <label className="mt-1 flex items-center gap-2 px-1 text-sm text-slate-700">
+        <span>Schattenqualität</span>
+        <select
+          value={shadowQuality}
+          onChange={(event) =>
+            setState({
+              ...state,
+              shadowQuality: Number(
+                event.currentTarget.value
+              ) as ShadowQualityMultiplier,
+            })
+          }
+          className="rounded border border-slate-300 bg-white px-2 py-1"
+          aria-label="Schattenqualität"
+          data-test-id="shadow-simulation-quality"
+        >
+          <option value={1}>1× · 2048²</option>
+          <option value={4}>4× · 4096²</option>
+          <option value={16}>16× · 8192²</option>
+        </select>
+      </label>
       {showTerrainColor && (
         <label className="mt-1 flex items-center gap-2 px-1 text-sm text-slate-700">
           <span>Terrainfarbe</span>
@@ -112,6 +143,57 @@ const ShadowSimulationSettings = ({
           </span>
         </label>
       )}
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-slate-700">
+        <span>Gebäude</span>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={buildingsFullOpacity}
+            onChange={(event) =>
+              setState({
+                ...state,
+                buildingsFullOpacity: event.currentTarget.checked,
+              })
+            }
+            data-test-id="shadow-simulation-buildings-full-opacity"
+          />
+          <span>volle Deckkraft</span>
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={useUniformBuildingColor}
+            onChange={(event) =>
+              setState({
+                ...state,
+                useUniformBuildingColor: event.currentTarget.checked,
+              })
+            }
+            data-test-id="shadow-simulation-buildings-uniform-color"
+          />
+          <span>einheitliche Farbe</span>
+        </label>
+        {useUniformBuildingColor && (
+          <label className="flex items-center gap-2">
+            <input
+              type="color"
+              value={buildingColor}
+              onChange={(event) =>
+                setState({
+                  ...state,
+                  buildingColor: event.currentTarget.value,
+                })
+              }
+              className="h-7 w-10 cursor-pointer rounded border border-slate-300 bg-transparent p-0.5"
+              aria-label="Einheitliche Gebäudefarbe"
+              data-test-id="shadow-simulation-building-color"
+            />
+            <span className="tabular-nums text-slate-500">
+              {buildingColor.toUpperCase()}
+            </span>
+          </label>
+        )}
+      </div>
     </div>
   );
 };
@@ -155,10 +237,28 @@ const ShadowSimulationRuntime = ({
   }, [solarPosition]);
 
   useEffect(() => {
+    shadowScene.current?.updateShadowQuality(state.shadowQuality ?? 1);
+  }, [state.shadowQuality]);
+
+  useEffect(() => {
     shadowScene.current?.updateTerrainColor(
       state.terrainColor ?? DEFAULT_TERRAIN_COLOR
     );
   }, [state.terrainColor]);
+
+  useEffect(() => {
+    shadowScene.current?.updateBuildingAppearance({
+      fullOpacity: state.buildingsFullOpacity ?? true,
+      uniformColor:
+        state.useUniformBuildingColor ?? false
+          ? state.buildingColor ?? DEFAULT_BUILDING_COLOR
+          : null,
+    });
+  }, [
+    state.buildingColor,
+    state.buildingsFullOpacity,
+    state.useUniformBuildingColor,
+  ]);
 
   return null;
 };
@@ -194,6 +294,10 @@ export const ShadowSimulation = ({
     return {
       enabled: false,
       terrainColor: resolveTerrainColor(terrain?.material?.color),
+      buildingsFullOpacity: true,
+      useUniformBuildingColor: false,
+      buildingColor: DEFAULT_BUILDING_COLOR,
+      shadowQuality: 1,
       selection: clampSelectionToDaylight(candidate, location) ?? {
         ...candidate,
         minutes: 12 * 60,
