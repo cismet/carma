@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import { useMapHighlight } from "@carma-mapping/contexts";
 import {
-  DEFAULT_LINE_BUFFER,
+  DEFAULT_SHAPE_BUFFER,
   type DrawShape,
   type RectSize,
 } from "@carma-mapping/engines/maplibre";
@@ -44,7 +44,7 @@ export const useHighlightModeActions = () => {
   } = useMapHighlight();
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
-  const lineBuffer = mode?.lineBuffer ?? DEFAULT_LINE_BUFFER;
+  const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_SHAPE_BUFFER;
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
 
@@ -80,11 +80,11 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
-  const setLineBuffer = useCallback(
+  const setShapeBuffer = useCallback(
     (next: number) =>
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
-        lineBuffer: next,
+        shapeBuffer: next,
       })),
     [setMode]
   );
@@ -236,8 +236,8 @@ export const useHighlightModeActions = () => {
     toggleShapes,
     setCircleRadius,
     setRectSize,
-    lineBuffer,
-    setLineBuffer,
+    shapeBuffer,
+    setShapeBuffer,
     cancelLine,
     hasLastShape,
     lastShapeShown,

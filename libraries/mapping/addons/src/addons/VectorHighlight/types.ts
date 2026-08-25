@@ -12,8 +12,8 @@ export type HighlightModeState = {
   circleRadius?: number;
   /** metres, used when a rectangle is placed by a click instead of a drag */
   rectSize?: RectSize;
-  /** metres to either side of a drawn line; the corridor it selects in */
-  lineBuffer?: number;
+  /** metres every drawn shape grows by before it selects; 0 = as drawn */
+  shapeBuffer?: number;
   /** bumped by the UI to discard the line being drawn; the addon owns the
    *  drawing manager, so the request travels as a counter rather than a
    *  callback parked in shared state */
@@ -72,8 +72,11 @@ export type VectorHighlightConfig = {
   defaultRadius?: number;
   /** Ground size in metres a clicked rectangle starts with. Default: 250 x 250 */
   defaultRectSize?: RectSize;
-  /** Corridor half-width in metres a drawn line starts with. Default: 25 */
-  defaultLineBuffer?: number;
+  /**
+   * Metres every drawn shape grows by before it selects, for every tool alike.
+   * 0 selects with the shape exactly as drawn. Default: 0
+   */
+  defaultBuffer?: number;
   /**
    * Milliseconds every drawn shape stays on the map after it is finished,
    * before it is wiped — long enough to see what it just selected.
