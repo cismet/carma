@@ -3,6 +3,9 @@ import { faCircle, faSquare } from "@fortawesome/free-regular-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
+/** width the buffer panel starts with; switched off until the toggle is on */
+export const DEFAULT_BUFFER_WIDTH = 25;
+
 export const DEFAULT_SHAPES: DrawShape[] = ["line", "lasso", "circle", "rect"];
 
 export const SHAPE_LABELS: Record<DrawShape, string> = {

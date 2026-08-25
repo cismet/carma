@@ -4,7 +4,7 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { InputNumber, Popover, Slider, Tooltip } from "antd";
+import { InputNumber, Popover, Slider, Switch, Tooltip } from "antd";
 
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
@@ -31,8 +31,8 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
   divider: "h-6 w-px bg-gray-300/80",
 };
 
-/** widths a corridor is worth having, in metres; 0 selects with the bare line */
-const BUFFER_MIN = 0;
+/** widths a buffer is worth having, in metres; "none" is the toggle, not 0 */
+const BUFFER_MIN = 5;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 5;
 
@@ -50,9 +50,12 @@ export type ShapeToolbarProps = {
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
-  /** metres every drawn shape grows by before it selects; 0 = as drawn */
+  /** metres every drawn shape grows by, once the buffer is switched on */
   bufferWidth?: number;
   onBufferWidthChange?: (meters: number) => void;
+  /** whether the width applies at all; off means the shapes are used as drawn */
+  bufferEnabled?: boolean;
+  onBufferEnabledChange?: (enabled: boolean) => void;
   /** the width panel */
   bufferOpen?: boolean;
   onBufferOpenChange?: (open: boolean) => void;
@@ -79,8 +82,10 @@ export const ShapeToolbar = ({
   classNames,
   tooltipPlacement = "bottom",
   showBuffer = false,
-  bufferWidth = 0,
+  bufferWidth = 25,
   onBufferWidthChange,
+  bufferEnabled = false,
+  onBufferEnabledChange,
   bufferOpen = false,
   onBufferOpenChange,
   onRecallLastShape,
@@ -91,10 +96,9 @@ export const ShapeToolbar = ({
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
-  const bufferLabel =
-    bufferWidth > 0
-      ? `Puffer: ${Math.round(bufferWidth)} m`
-      : "Puffer: aus (Form wie gezeichnet)";
+  const bufferLabel = bufferEnabled
+    ? `Puffer: ${Math.round(bufferWidth)} m`
+    : "Puffer: aus (Formen wie gezeichnet)";
 
   const bufferContent = (
     <div
@@ -104,9 +108,19 @@ export const ShapeToolbar = ({
       role="presentation"
       onClick={(event) => event.stopPropagation()}
     >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-600">Puffer anwenden</span>
+        <Switch
+          size="small"
+          checked={bufferEnabled}
+          onChange={(checked) => onBufferEnabledChange?.(checked)}
+          data-test-id="vector-highlight-buffer-toggle"
+        />
+      </div>
       <div className="flex items-center gap-2">
         <Slider
           className="flex-1"
+          disabled={!bufferEnabled}
           min={BUFFER_MIN}
           max={BUFFER_MAX}
           step={BUFFER_STEP}
@@ -116,7 +130,8 @@ export const ShapeToolbar = ({
         <InputNumber
           size="small"
           className="w-24"
-          min={0}
+          disabled={!bufferEnabled}
+          min={1}
           max={5000}
           step={BUFFER_STEP}
           value={bufferWidth}
@@ -124,10 +139,6 @@ export const ShapeToolbar = ({
           onChange={(value) => value != null && onBufferWidthChange?.(value)}
         />
       </div>
-      <p className="m-0 text-xs text-gray-500">
-        Gilt für alle Formen. Bei 0 m wählt die Form genau das aus, was sie
-        abdeckt — die Linie also nur, was sie kreuzt.
-      </p>
     </div>
   );
 
@@ -185,10 +196,12 @@ export const ShapeToolbar = ({
               data-test-id="vector-highlight-buffer"
               className={[
                 css.button,
-                bufferOpen && activeColor ? "" : css.buttonInactive,
+                bufferEnabled && activeColor ? "" : css.buttonInactive,
               ].join(" ")}
               style={
-                bufferOpen && activeColor ? { color: activeColor } : undefined
+                bufferEnabled && activeColor
+                  ? { color: activeColor }
+                  : undefined
               }
             >
               <FontAwesomeIcon icon={faLeftRight} />
