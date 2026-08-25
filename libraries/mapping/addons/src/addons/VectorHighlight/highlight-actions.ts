@@ -16,6 +16,20 @@ import {
 } from "./operations";
 
 /**
+ * Whether a plain map click belongs to the highlight tool rather than to the
+ * map's own click-to-select.
+ *
+ * Only the line does this: it is placed click by click, while the other shapes
+ * are drags, and a drag never produces a click at all. Hosts pass this into
+ * whatever guards their selection, or every vertex also selects the feature
+ * underneath it.
+ */
+export const useHighlightOwnsMapClicks = (): boolean => {
+  const { isOn, shape } = useHighlightModeActions();
+  return isOn && shape === "line";
+};
+
+/**
  * Shared by the headless addon and every piece of UI, so "end the mode" and
  * "clear" cannot drift apart. The addon's entry point for highlighting: use
  * these instead of `MapHighlightContext`.

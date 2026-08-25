@@ -63,6 +63,7 @@ export {
   VectorHighlightControl,
   VectorHighlightShapeTools,
   useHighlightModeActions,
+  useHighlightOwnsMapClicks,
   useHighlightLayerRow,
   HIGHLIGHT_LAYER,
   HIGHLIGHT_LAYER_ID,

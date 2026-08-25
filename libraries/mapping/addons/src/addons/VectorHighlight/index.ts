@@ -7,7 +7,10 @@ export type { VectorHighlightShapeToolsProps } from "./VectorHighlightShapeTools
 export { ShapeToolbar } from "./ShapeToolbar";
 export type { ShapeToolbarProps, ShapeToolbarClassNames } from "./ShapeToolbar";
 export { HighlightModeButton } from "./HighlightModeButton";
-export { useHighlightModeActions } from "./highlight-actions";
+export {
+  useHighlightModeActions,
+  useHighlightOwnsMapClicks,
+} from "./highlight-actions";
 export {
   useHighlightLayerRow,
   HIGHLIGHT_LAYER,
