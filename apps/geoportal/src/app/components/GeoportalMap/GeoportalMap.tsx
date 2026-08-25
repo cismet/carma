@@ -917,6 +917,10 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           gazetteerSearchControl={false}
           modalMenuControl={showHamburgerMenu}
           libreLayers={libreLayers}
+          // mounting the three.js layer manager is the whole opt-in: a vector
+          // style whose layer metadata carries `carmaConf.3d` is then rendered
+          // as real 3D geometry instead of flat
+          threeRuntimeParams={{}}
           minZoom={MAP_MIN_ZOOM}
           maxZoom={MAP_MAX_ZOOM}
           disableInternalSelection={true}

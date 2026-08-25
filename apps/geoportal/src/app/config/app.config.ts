@@ -41,11 +41,17 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  * Addons every route gets. A route declaring the same kind replaces the entry
  * here, see `withDefaultAddons`.
  *
- * `cameraRestriction` without a config keeps the MapLibre camera north-up and
- * flat everywhere, which is the app's long-standing behaviour; a route that
- * wants tilt and rotation declares the kind itself with a config of its own.
+ * `cameraRestriction` keeps the MapLibre camera north-up and flat everywhere,
+ * which is the app's long-standing behaviour, except while a building layer is
+ * on the map: extruded buildings only show up in a tilted view. A route that
+ * wants different rules declares the kind itself with a config of its own.
  */
-export const DEFAULT_ADDONS: AddonEntry[] = ["cameraRestriction"];
+export const DEFAULT_ADDONS: AddonEntry[] = [
+  {
+    kind: "cameraRestriction",
+    config: { mode: "unlessLayersActive", layers: ["gebaeude"] },
+  },
+];
 
 /** the app's defaults, with the route's own declarations taking precedence */
 export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
