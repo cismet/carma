@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 
 import { createLogger } from "redux-logger";
-import { persistReducer } from "redux-persist";
+import { createTransform, persistReducer } from "redux-persist";
 import localForage from "localforage";
 
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
@@ -94,9 +94,35 @@ const uiConfig = {
   ],
 };
 
+/** a layer row as it comes back out of storage, before the slice types it */
+type PersistedLayer = { id?: string };
+
+/**
+ * Drops the mode rows from the restored layer stack.
+ *
+ * A row whose id starts with `__` is not map content: it is the layer bar's
+ * handle on a running mode (measurement, the comparison), put there by that
+ * mode and taken away with it. Two reasons it must not come back from storage.
+ * It carries live React elements in `interactionButtons[].icon`, and
+ * redux-persist stores JSON, which drops the `$$typeof` symbol that makes an
+ * element an element; rendering what comes back throws "Objects are not valid
+ * as a React child". And the mode it stands for is decided at startup by the
+ * mode itself, which adds its row again when it is running.
+ */
+const dropModeRows = createTransform<PersistedLayer[], PersistedLayer[]>(
+  // on the way out the stack is stored as the session has it
+  (inbound) => inbound,
+  (outbound) =>
+    Array.isArray(outbound)
+      ? outbound.filter((layer) => !layer?.id?.startsWith("__"))
+      : outbound,
+  { whitelist: ["layers"] }
+);
+
 const mappingConfig = {
   key: "@" + (customAppKey || APP_KEY) + "." + STORAGE_PREFIX + ".app.mapping",
   storage: localForage,
+  transforms: [dropModeRows],
   whitelist: [
     "layers",
     "focusMode",
