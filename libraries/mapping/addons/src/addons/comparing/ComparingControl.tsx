@@ -20,6 +20,13 @@ const DEFAULT_CONTROL_ORDER = 75;
 const ACTIVE_COLOR = "#1677ff";
 
 export type ComparingControlConfig = {
+  /**
+   * Where the comparison is stored, for a route that wants one of its own.
+   *
+   * Omitted, every route shares one entry, which is what keeps a comparison
+   * from being forgotten whenever a route's addon list is edited.
+   */
+  storageKey?: string;
   controlPosition?: Positions;
   controlOrder?: number;
   label?: string;

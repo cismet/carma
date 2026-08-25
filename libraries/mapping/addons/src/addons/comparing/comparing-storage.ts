@@ -1,5 +1,8 @@
-import type { AddonEntry } from "../../lib/registry";
-import { routeStorageKey } from "../../lib/storage-scope";
+import {
+  normalizeAddonEntries,
+  type AddonEntry,
+  type AddonKind,
+} from "../../lib/registry";
 import {
   clampPanelCount,
   clampSpyglassRadius,
@@ -15,8 +18,7 @@ import type { CompareAssignments, CompareState } from "./comparing-actions";
  *
  * The addon state map is session-only, so this channel is mirrored into
  * `localStorage` and seeded from there on the next load, the way the addon
- * manager keeps its own switches. Scoped by the route's addon list, so a route
- * without the comparison cannot inherit a comparison's layout.
+ * manager keeps its own switches.
  *
  * Whether the comparison was running is stored with the rest. The layer bar's
  * `__comparing__` row comes back from the host's own persistence anyway, and a
@@ -24,11 +26,35 @@ import type { CompareAssignments, CompareState } from "./comparing-actions";
  * on the way in; keeping both means what comes back is what was left behind.
  */
 
-const STORAGE_PREFIX = "carma::compareState::";
+/** the addon whose config may name a key of its own */
+const CONTROL_KIND: AddonKind = "comparingControl";
 
+/**
+ * Default entry, shared by every route. The stored state describes a
+ * comparison, not a route, so it stays meaningful when a route's declared
+ * addons change. Deriving the key from the declared kinds instead would orphan
+ * the whole state on every config edit: adding any addon to a route would look
+ * to the user like the comparison had been forgotten.
+ */
+export const COMPARE_STATE_STORAGE_KEY = "carma::compareState";
+
+/**
+ * The key this route stores under: its own, when the `comparingControl` entry
+ * names one, and the shared default otherwise. Taking it off that addon's
+ * config rather than off a route id keeps this library free of the host's
+ * routing, and puts the decision where the rest of the comparison's setup
+ * already lives.
+ */
 export const compareStateStorageKey = (
   addons?: readonly AddonEntry[]
-): string => routeStorageKey(STORAGE_PREFIX, addons);
+): string => {
+  const control = normalizeAddonEntries(addons).find(
+    ({ kind }) => kind === CONTROL_KIND
+  );
+  const configured =
+    control?.kind === CONTROL_KIND ? control.config?.storageKey : undefined;
+  return configured || COMPARE_STATE_STORAGE_KEY;
+};
 
 const isPanelIndex = (value: unknown, panelCount: number): value is number =>
   typeof value === "number" &&
