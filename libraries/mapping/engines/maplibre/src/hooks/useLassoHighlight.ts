@@ -197,11 +197,10 @@ export interface UseLassoHighlightOptions {
   radiusStep?: number;
   /** Metres every drawn shape grows by before it selects. */
   shapeBuffer?: number;
-  /** Milliseconds the finished shape stays on the map before it is wiped. */
+  /** Ms the finished shape stays on the map. Omitted: no delay. */
   clearDelay?: number;
-  /** Reports whether a shape has been drawn that can be shown and run again;
-   *  `replayed` is true when it is the remembered shape being run again rather
-   *  than a new drawing. */
+  /** Reports a shape that can be shown and run again. `replayed`: it ran
+   *  again, rather than a new one being drawn. */
   onLastShapeChange?: (hasLastShape: boolean, replayed: boolean) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
@@ -508,8 +507,7 @@ export const useLassoHighlight = ({
       skipWhenModifiers: skipForToolbar(shiftRefineArmedRef.current),
     });
     managerRef.current = manager;
-    // A fresh manager remembers no shape, so say so: the UI would otherwise
-    // keep offering the one the destroyed manager held.
+    // a fresh manager remembers no shape; the UI must not offer the old one
     onLastShapeChangeRef.current?.(manager.hasLastShape(), false);
     // Recreated on map change — a new map instance comes with a fresh style,
     // which is exactly what selecting a feature can trigger. The effect below

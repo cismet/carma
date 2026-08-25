@@ -75,16 +75,10 @@ const buildSiblingIndex = (
  * its siblings instead of being restored by them. Siblings are assumed to share
  * the feature id; `excludeCombinedLayers` covers layers where that fails.
  *
- * A wholesale clear is the exception. `clearHighlights` followed by a fresh set
- * in the same tick arrives as a single version step, and the keys the new set
- * happens to share with the old one look untouched — so the geometries the new
- * set does *not* carry read as removals and take their still-selected siblings
- * down with them. That is what emptied a refine down to nothing on layers whose
- * object is drawn by several source layers: whatever the refine could not see —
- * a label the collision detection dropped, a sibling outside the drawn shape —
- * mirrored its own absence onto the geometries that did survive. After a clear
- * there is nothing to remove, so the diff runs against an empty snapshot and
- * only adds.
+ * A clear is the exception. It arrives together with the new set as one version
+ * step, so the geometries the new set lacks would read as removals and take
+ * their still-selected siblings with them. After a clear there is nothing to
+ * remove: the diff runs against an empty snapshot and only adds.
  */
 export const useCombinedGeometryHighlight = (
   map: MaplibreMap | null,
@@ -116,7 +110,7 @@ export const useCombinedGeometryHighlight = (
     if (!enabled) return;
     // the provider mutates this map in place, so the snapshot must be a copy
     const current = criteria.toggledFeatures;
-    // everything the snapshot holds was cleared, whatever the new set kept
+    // the snapshot is gone: nothing to remove, only siblings to add
     const cleared = clearVersion !== clearedRef.current;
     clearedRef.current = clearVersion;
     const seen = cleared ? new Map<string, ToggledFeature>() : seenRef.current;

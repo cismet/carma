@@ -3,10 +3,10 @@ import { faCircle, faSquare } from "@fortawesome/free-regular-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
-/** width the buffer panel starts with; it applies while the panel is open */
+/** width the buffer panel starts with */
 export const DEFAULT_BUFFER_WIDTH = 25;
 
-/** as far as repeated buffering may carry the width, in metres */
+/** ceiling for the grown width, in metres */
 export const MAX_BUFFER_WIDTH = 5000;
 
 export const DEFAULT_SHAPES: DrawShape[] = ["lasso", "line", "circle", "rect"];

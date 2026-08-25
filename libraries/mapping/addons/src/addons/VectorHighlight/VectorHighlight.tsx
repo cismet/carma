@@ -87,8 +87,7 @@ export const VectorHighlight = ({
     setRectSize,
   } = useHighlightModeActions();
 
-  // the width only counts while the buffer panel is open; closed means every
-  // shape selects exactly as drawn
+  // the width applies only while the buffer panel is open
   const shapeBuffer =
     mode?.bufferEnabled ?? bufferOnByDefault
       ? mode?.shapeBuffer ?? defaultBuffer
@@ -150,15 +149,11 @@ export const VectorHighlight = ({
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         hasLastShape,
-        // the buffer is a one-off: it belongs to the shape it was opened for,
-        // so the next drawing starts from the route's default again — plain,
-        // unless the route asked otherwise.
+        // the buffer is a one-off: the next drawing starts plain again
         bufferEnabled: bufferOnByDefault,
-        // With growth configured, the width belongs to the shape rather than to
-        // the session: buffering the same shape again picks up where the last
-        // step left off, a newly drawn one starts over. Growing here rather
-        // than when the panel opens is what puts the next step in front of the
-        // user, in the panel, before it runs.
+        // with growth on, the width belongs to the shape: the same shape grows
+        // on every replay, a new one starts at the default. Growing here, not
+        // on open, puts the next step in the panel before it runs.
         ...(bufferGrowth === 1
           ? null
           : {
@@ -174,9 +169,8 @@ export const VectorHighlight = ({
   );
 
   // the manager owns whether its preview is up — a new draw or a wipe drops it
-  // without the toolbar being asked. The preview *is* the buffer step, so
-  // whatever drops it ends that step: the panel closes and the next shape is
-  // drawn plain again.
+  // without the toolbar being asked. The preview is the buffer step, so
+  // dropping it closes the panel and the next shape is drawn plain.
   const handleLastShapePreviewChange = useCallback(
     (lastShapeShown: boolean) =>
       setMode((previous) => ({

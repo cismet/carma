@@ -93,8 +93,8 @@ export const DEFAULT_RECT_HEIGHT = 250;
 /** Metres every drawn shape grows by before it selects; 0 selects with the
  *  shape exactly as it was drawn. */
 export const DEFAULT_SHAPE_BUFFER = 0;
-/** How long a finished shape stays on the map before it is wiped, in ms. */
-export const DEFAULT_CLEAR_DELAY = 1000;
+/** How long a finished shape stays on the map, in ms. 0: wiped at once. */
+export const DEFAULT_CLEAR_DELAY = 0;
 
 export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
 
@@ -157,15 +157,11 @@ export interface LassoDrawingManagerOptions {
   /**
    * Milliseconds the finished shape stays on the map before it is wiped, so
    * what was just selected can be seen against it. 0 wipes it at once.
-   * Default: 1000
+   * Default: 0
    */
   clearDelay?: number;
-  /**
-   * Reports whether a shape has been drawn that can be shown and run again.
-   * `replayed` tells a fresh drawing apart from the remembered shape being run
-   * again, which is the difference between "a new shape" and "the same shape
-   * once more" — the width may well depend on it.
-   */
+  /** Reports a shape that can be shown and run again. `replayed`: the
+   *  remembered shape ran again, rather than a new one being drawn. */
   onLastShapeChange?: (hasLastShape: boolean, replayed: boolean) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;

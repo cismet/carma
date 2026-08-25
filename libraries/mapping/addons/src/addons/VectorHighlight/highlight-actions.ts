@@ -47,10 +47,9 @@ export const useHighlightModeActions = () => {
   const lastShapeShown = mode?.lastShapeShown ?? false;
 
   /**
-   * The buffer is the second step of a two-step gesture: a shape is drawn
-   * plain, the button then puts that remembered shape back on the map grown by
-   * the width, to be judged before it is run again. Open therefore *is* "buffer
-   * on", and closing switches it off and takes the preview down again.
+   * Open is "buffer on": it puts the remembered shape back on the map, grown by
+   * the width, to be judged before it runs. Closing switches the buffer off and
+   * takes the preview down.
    */
   const setBufferPanelOpen = useCallback(
     (open: boolean) =>
@@ -73,10 +72,9 @@ export const useHighlightModeActions = () => {
   );
 
   /**
-   * Runs the previewed shape at the width set now. `bufferEnabled` is left
-   * standing on purpose — the width has to still apply while the shape runs;
-   * the addon switches it off once the manager reports the shape finished, so
-   * the next drawing starts plain again.
+   * Runs the previewed shape at the current width. `bufferEnabled` stays on —
+   * the width must still apply while the shape runs; the addon switches it off
+   * once the manager reports the shape finished.
    */
   const applyBufferedShape = useCallback(
     () =>
