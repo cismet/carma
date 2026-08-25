@@ -850,11 +850,25 @@ export const LibreMap = ({
           ? zoom256as512(parseFloat(hashParams["zoom"])) // -1: hash stores 256px tile zoom, MapLibre uses 512px
           : defaultZoom;
 
+      // orientation is written under the short url aliases (b/p); the canonical
+      // names are accepted too. Absent means flat, and the camera restriction
+      // (when active) clamps whatever comes in anyway.
+      const readHashAngle = (alias: string, name: string) => {
+        const raw = hashParams[alias] ?? hashParams[name];
+        if (raw === undefined) return 0;
+        const parsed = parseFloat(raw);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const bearing = readHashAngle("b", "bearing");
+      const pitch = readHashAngle("p", "pitch");
+
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,
         center: [lng, lat],
         zoom: zoom,
+        bearing,
+        pitch,
         minZoom: minZoom !== undefined ? zoom256as512(minZoom) : undefined,
         maxZoom: zoom256as512(maxZoom),
         maxPitch: restrictCamera || forceRestrictCamera ? 0 : maxPitch,
@@ -1749,6 +1763,10 @@ export const LibreMap = ({
         m.panTo([center.lng, center.lat]),
       setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
       getCenter: () => m.getCenter(),
+      getBearing: () => m.getBearing(),
+      getPitch: () => m.getPitch(),
+      setBearing: (bearing: number) => m.setBearing(bearing),
+      setPitch: (pitch: number) => m.setPitch(pitch),
       once: (type: string, fn: (...args: unknown[]) => void) =>
         m.once(type, fn),
     };
@@ -1786,7 +1804,13 @@ export const LibreMap = ({
     const handleMoveEnd = () => {
       const center = mapInstance.getCenter();
       const zoom = zoom512as256(mapInstance.getZoom());
-      handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
+      handleTopicMapLocationChange({
+        lat: center.lat,
+        lng: center.lng,
+        zoom,
+        bearing: mapInstance.getBearing(),
+        pitch: mapInstance.getPitch(),
+      });
     };
     mapInstance.on("moveend", handleMoveEnd);
     return () => {

@@ -25,6 +25,94 @@ import { useRegisterDefaultMapHashClearStateKeySets } from "./useRegisterDefault
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 
+/**
+ * Camera orientation of a rotatable 2D engine (MapLibre). Leaflet cannot rotate
+ * and reports `undefined`, which leaves the bearing/pitch hash keys untouched
+ * instead of clearing them.
+ */
+export type MapOrientation = { bearing?: number; pitch?: number };
+
+export type Map2DView = LatLngZoom & MapOrientation;
+
+// Same thresholds the 3D writer uses for its near-zero drop (see the shareable
+// view state adapter), so a bearing/pitch counts as "flat" in both engines alike.
+const BEARING_ZERO_EPSILON_DEG = 0.01;
+const PITCH_ZERO_EPSILON_DEG = 0.01;
+const ORIENTATION_ROUNDING = 100;
+
+/**
+ * The hash carries a bearing in 0..360, which is what the 3D writer normalizes to.
+ * MapLibre's `getBearing()` reports -180..180, so a 2D write has to be brought onto
+ * the same convention or the very same camera would encode differently per engine.
+ */
+const normalizeDegrees360 = (degrees: number) => {
+  const normalized = degrees % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+};
+
+/** Signed distance from north, so 359.99 is as close to zero as 0.01 is. */
+const normalizeDegrees180 = (degrees: number) => {
+  const normalized = normalizeDegrees360(degrees);
+  return normalized > 180 ? normalized - 360 : normalized;
+};
+
+/** `undefined` means "drop this key from the hash" (flat, or not reportable). */
+const normalizeBearing = (bearing: number | undefined) => {
+  if (typeof bearing !== "number" || !Number.isFinite(bearing)) {
+    return undefined;
+  }
+  return Math.abs(normalizeDegrees180(bearing)) <= BEARING_ZERO_EPSILON_DEG
+    ? undefined
+    : normalizeDegrees360(bearing);
+};
+
+const normalizePitch = (pitch: number | undefined) => {
+  if (typeof pitch !== "number" || !Number.isFinite(pitch)) {
+    return undefined;
+  }
+  return Math.abs(pitch) <= PITCH_ZERO_EPSILON_DEG ? undefined : pitch;
+};
+
+const normalizeOrientation = ({ bearing, pitch }: MapOrientation) => ({
+  bearing: normalizeBearing(bearing),
+  pitch: normalizePitch(pitch),
+});
+
+/** Only engines that actually report an orientation may write those keys. */
+const reportsOrientation = ({ bearing, pitch }: MapOrientation) =>
+  typeof bearing === "number" || typeof pitch === "number";
+
+const isOrientationEquivalent = (a: MapOrientation, b: MapOrientation) => {
+  const round = (value: number) =>
+    Math.round(value * ORIENTATION_ROUNDING) / ORIENTATION_ROUNDING;
+  // compare signed headings so 0 and 360 match, and pin the ±180 seam to one side
+  const roundBearing = (bearing: number | undefined) => {
+    const rounded = round(normalizeDegrees180(bearing ?? 0));
+    return rounded === -180 ? 180 : rounded;
+  };
+  return (
+    roundBearing(a.bearing) === roundBearing(b.bearing) &&
+    round(a.pitch ?? 0) === round(b.pitch ?? 0)
+  );
+};
+
+const readNumber = (values: Record<string, unknown>, key: string) => {
+  const value = Number(values[key]);
+  return Number.isFinite(value) ? value : undefined;
+};
+
+/**
+ * lat/lng/zoom always, orientation only when the engine reports it. Normalized
+ * orientation values of `undefined` clear their hash key, so untilting the map
+ * leaves no stale `p`/`b` behind.
+ */
+const buildViewHashParams = (view: Map2DView): Record<string, unknown> => {
+  const { lat, lng, zoom } = view;
+  return reportsOrientation(view)
+    ? { lat, lng, zoom, ...normalizeOrientation(view) }
+    : { lat, lng, zoom };
+};
+
 // Verbose hash-routing logs; enable at runtime via
 // globalThis.__CARMA_DEBUG_HASH_ROUTING__ = true
 const hashRoutingDebug = (...args: unknown[]) => {
@@ -48,6 +136,11 @@ type LeafletLikeMap = {
   setZoom?: (zoom: number) => void;
   getCenter?: () => { lat: number; lng: number };
   once?: (type: string, fn: (...args: unknown[]) => void) => void;
+  // rotatable engines (MapLibre) only; Leaflet leaves these out
+  getBearing?: () => number;
+  getPitch?: () => number;
+  setBearing?: (bearing: number) => void;
+  setPitch?: (pitch: number) => void;
 };
 
 export interface UseMapHashRoutingOptions {
@@ -72,15 +165,18 @@ export function useMapHashRouting({
   // Skip leaflet writes when the map move was initiated by a navigation (popstate)
   const navMoveInProgressRef = useRef(false);
   // Remember the popstate target to avoid immediate re-pushing nearly identical coords
-  const popstateTargetRef = useRef<LatLngZoom | null>(null);
+  const popstateTargetRef = useRef<Map2DView | null>(null);
   // Debounce timer for framework switch hash updates
   const frameworkSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
 
   const handleTopicMapLocationChange = useCallback(
-    ({ lat, lng, zoom }: LatLngZoom) => {
-      hashRoutingDebug("[Routing][hash]", lat, lng, zoom);
+    (view: Map2DView) => {
+      const { lat, lng, zoom } = view;
+      const orientation = normalizeOrientation(view);
+      const hasOrientation = reportsOrientation(view);
+      hashRoutingDebug("[Routing][hash]", lat, lng, zoom, orientation);
       if (isHashWriteEnabled && !isHashWriteEnabled()) {
         hashRoutingDebug(
           "[Routing][hash] (Leaflet) suppress push: hash writes disabled by guard"
@@ -121,10 +217,10 @@ export function useMapHashRouting({
             zoom: target.zoom,
           }
         );
-        if (eq) {
+        if (eq && (!hasOrientation || isOrientationEquivalent(orientation, target))) {
           hashRoutingDebug(
             "[Routing][hash] (Leaflet) skip push: equals popstate target within tolerance",
-            { lat, lng, zoom, target }
+            { lat, lng, zoom, orientation, target }
           );
           popstateTargetRef.current = null;
           return;
@@ -151,17 +247,25 @@ export function useMapHashRouting({
               zoom: hZoom,
             }
           );
-          if (eq) {
+          const hashOrientation = {
+            bearing: readNumber(vals as Record<string, unknown>, "bearing"),
+            pitch: readNumber(vals as Record<string, unknown>, "pitch"),
+          };
+          if (
+            eq &&
+            (!hasOrientation ||
+              isOrientationEquivalent(orientation, hashOrientation))
+          ) {
             hashRoutingDebug(
               "[Routing][hash] (LeafletLike) skip push: equals current hash within tolerance",
-              { lat, lng, zoom, hLat, hLng, hZoom }
+              { lat, lng, zoom, orientation, hLat, hLng, hZoom, hashOrientation }
             );
             return;
           }
         }
       } catch {}
       updateHashState(
-        { lat, lng, zoom },
+        buildViewHashParams(view),
         {
           clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE],
           label: labels?.topicMapLocation ?? "Map:2D:location",
@@ -179,6 +283,25 @@ export function useMapHashRouting({
     ]
   );
 
+  const readCurrent2DView = useCallback((): Map2DView | null => {
+    const map = getLeafletMap?.();
+    if (
+      !map ||
+      typeof map.getCenter !== "function" ||
+      typeof getLeafletZoom !== "function"
+    ) {
+      return null;
+    }
+    const center = map.getCenter();
+    return {
+      lat: center.lat,
+      lng: center.lng,
+      zoom: getLeafletZoom(),
+      bearing: map.getBearing?.(),
+      pitch: map.getPitch?.(),
+    };
+  }, [getLeafletMap, getLeafletZoom]);
+
   const prevIsModeLeafletLikeRef = useRef<boolean>(getIsLeaflet());
   useEffect(() => {
     const wasLeafletLike = prevIsModeLeafletLikeRef.current;
@@ -191,22 +314,11 @@ export function useMapHashRouting({
       }
       // Write the current 2D location. The cesium writer drops its own 3D-only
       // keys on handover (neutralize), so the routing leaves them alone here.
-      const map = getLeafletMap?.();
-      if (
-        map &&
-        typeof map.getCenter === "function" &&
-        typeof getLeafletZoom === "function"
-      ) {
-        const center = map.getCenter();
-        const zoom = getLeafletZoom();
-        updateHashState(
-          {
-            lat: center.lat,
-            lng: center.lng,
-            zoom,
-          },
-          { label: labels?.writeLeafletLike ?? "Map:2D:writeLocation" }
-        );
+      const view = readCurrent2DView();
+      if (view) {
+        updateHashState(buildViewHashParams(view), {
+          label: labels?.writeLeafletLike ?? "Map:2D:writeLocation",
+        });
       }
     }
     prevIsModeLeafletLikeRef.current = isLeafletLike;
@@ -214,8 +326,7 @@ export function useMapHashRouting({
     getIsLeaflet,
     getIsTransitioning,
     updateHashState,
-    getLeafletMap,
-    getLeafletZoom,
+    readCurrent2DView,
     labels?.writeLeafletLike,
     isHashWriteEnabled,
   ]);
@@ -234,19 +345,9 @@ export function useMapHashRouting({
     // Debounce hash update by 200ms to ensure map has settled
     frameworkSwitchTimerRef.current = setTimeout(() => {
       if (getIsLeaflet()) {
-        const map = getLeafletMap?.();
-        if (
-          map &&
-          typeof map.getCenter === "function" &&
-          typeof getLeafletZoom === "function"
-        ) {
-          const center = map.getCenter();
-          const zoom = getLeafletZoom();
-          handleTopicMapLocationChange({
-            lat: center.lat,
-            lng: center.lng,
-            zoom,
-          });
+        const view = readCurrent2DView();
+        if (view) {
+          handleTopicMapLocationChange(view);
         }
       }
       // Note: Cesium updates should be handled via setting camera position already
@@ -261,8 +362,7 @@ export function useMapHashRouting({
     activeFramework,
     getIsTransitioning,
     getIsLeaflet,
-    getLeafletMap,
-    getLeafletZoom,
+    readCurrent2DView,
     handleTopicMapLocationChange,
   ]);
 
@@ -282,8 +382,13 @@ export function useMapHashRouting({
       if (lat == null || lng == null || zoom == null) return;
       const map = getLeafletMap?.();
       if (!map) return;
+      // absent orientation params mean "flat", so a rotatable engine is reset
+      // rather than left at whatever the previous entry had
+      const bearing = (e.stateValues.bearing as number | undefined) ?? 0;
+      const pitch = (e.stateValues.pitch as number | undefined) ?? 0;
+
       navMoveInProgressRef.current = true;
-      popstateTargetRef.current = { lat, lng, zoom };
+      popstateTargetRef.current = { lat, lng, zoom, bearing, pitch };
       const scheduleClear = (evt: string) => {
         if (typeof map.once === "function") {
           map.once(evt, () => {
@@ -295,6 +400,8 @@ export function useMapHashRouting({
       };
       scheduleClear("moveend");
       scheduleClear("zoomend");
+      map.setBearing?.(bearing);
+      map.setPitch?.(pitch);
       if (typeof map.setView === "function") {
         map.setView({ lat, lng }, zoom);
       } else if (typeof map.panTo === "function") {

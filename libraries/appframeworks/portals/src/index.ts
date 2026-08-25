@@ -180,6 +180,8 @@ export { useRegisterDefaultMapHashClearStateKeySets } from "./lib/hooks/useRegis
 export {
   useMapHashRouting,
   type LatLngZoom,
+  type Map2DView,
+  type MapOrientation,
 } from "./lib/hooks/useMapHashRouting";
 export {
   defaultBackgroundConfigurations,
