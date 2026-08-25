@@ -6,13 +6,13 @@ import {
 } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faClone,
   faGripLinesVertical,
   faGripVertical,
   faLayerGroup,
   faLeftRight,
   faMagnifyingGlass,
   faMap,
+  faTableCellsLarge,
   faUpDown,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
@@ -59,7 +59,7 @@ const MODES: {
   {
     key: COMPARE_MODE.arena,
     label: "Arena",
-    icon: faClone,
+    icon: faTableCellsLarge,
     panelCounts: [2, 3, 4],
     built: true,
   },
