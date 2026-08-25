@@ -172,7 +172,7 @@ export const ShapeToolbar = ({
           }}
           trigger="click"
           placement={tooltipPlacement}
-          title="Puffer um die Form"
+          title="Puffer um die letzte Form"
           content={bufferContent}
         >
           {/* host for the popover trigger: a disabled button swallows its own
