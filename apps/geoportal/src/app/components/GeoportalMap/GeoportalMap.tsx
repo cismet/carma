@@ -116,6 +116,8 @@ import {
   getUIHashWriteEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
+import { useHighlightOwnsMapClicks } from "@carma-mapping/addons";
+
 import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
 import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
@@ -855,6 +857,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModePrint = uiMode === UIMode.PRINT;
+  // the highlight line is placed click by click, so those clicks must not also
+  // select the feature they land on
+  const highlightOwnsClicks = useHighlightOwnsMapClicks();
   const libreDrawMode = useSelector(getLibreDrawMode);
   const { selectedFeature: selectedMeasurement } = useMeasurements();
   const {
@@ -927,7 +932,10 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           // which every route gets; print stays forced, so no addon can lift it
           forceRestrictCamera={isModePrint}
           selectionEnabled={
-            mapInteractionEnabled && !isModeMeasurement && !isModePrint
+            mapInteractionEnabled &&
+            !isModeMeasurement &&
+            !isModePrint &&
+            !highlightOwnsClicks
           }
           onSelectionChanged={handleLibreSelectionChanged}
           selectFromHits={handleLibreSelectFromHits}
