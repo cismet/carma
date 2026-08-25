@@ -79,9 +79,19 @@ export const AddonHost = () => {
     return null;
   }
 
+  /**
+   * Keys are counted per kind, not by position in the list: switching one addon
+   * off shifts the index of every later one, and a shifted key remounts an
+   * addon that did not change. That cost the `addonManager` its open modal
+   * whenever a kind declared before it was switched.
+   */
+  const seenPerKind = new Map<string, number>();
+
   return (
     <>
-      {entries.map((addon, index) => {
+      {entries.map((addon) => {
+        const ordinal = seenPerKind.get(addon.kind) ?? 0;
+        seenPerKind.set(addon.kind, ordinal + 1);
         // the registry entry is typed per kind; the host renders the erased union
         const Component = addonRegistry[addon.kind].Component as
           | ComponentType<AddonComponentProps>
@@ -91,7 +101,7 @@ export const AddonHost = () => {
         }
         return (
           <Component
-            key={`${addon.kind}_${index}`}
+            key={`${addon.kind}_${ordinal}`}
             config={addon.config}
             carma={carma}
             leafletMap={leafletMap}
