@@ -1,6 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
-import { useAddonState } from "../../lib/AddonStateContext";
+import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
+import {
+  compareStateStorageKey,
+  loadCompareState,
+  saveCompareState,
+} from "./comparing-storage";
 
 /**
  * Whether the comparison is running, shared between the button that switches it
@@ -47,23 +52,46 @@ export const COMPARE_STATE_DEFAULT: CompareState = {
   mode: "swipe-h",
 };
 
-/** One entry point for both writers, so the button and the modes cannot drift. */
+/**
+ * One entry point for both writers, so the button and the modes cannot drift.
+ *
+ * The channel itself is session-only, so the stored state stands in front of it
+ * until something is written in this session, and every write goes to
+ * `localStorage` as well. Reading the store synchronously rather than hydrating
+ * it in an effect matters here: an effect would let the comparison start from
+ * its defaults for one render, which is long enough to build the panels twice.
+ */
 export const useComparingActions = () => {
-  const [state, setState] = useAddonState("compareState");
+  const [sessionState, setSessionState] = useAddonState("compareState");
+  const addons = useRouteAddons();
+
+  const storageKey = useMemo(() => compareStateStorageKey(addons), [addons]);
+  const storedState = useMemo(() => loadCompareState(storageKey), [storageKey]);
+  const state = sessionState ?? storedState;
+
+  const setState = useCallback(
+    (updater: (previous: CompareState) => CompareState) =>
+      setSessionState((previous) => {
+        const next = updater(
+          previous ?? loadCompareState(storageKey) ?? COMPARE_STATE_DEFAULT
+        );
+        saveCompareState(storageKey, next);
+        return next;
+      }),
+    [setSessionState, storageKey]
+  );
+
   const isOn = state?.isOn ?? false;
 
   const setOn = useCallback(
     (next: boolean) => {
-      setState((previous) => ({ ...(previous ?? COMPARE_STATE_DEFAULT), isOn: next }));
+      setState((previous) => ({ ...previous, isOn: next }));
     },
     [setState]
   );
 
   const toggle = useCallback(() => {
-    setState((previous) => {
-      const current = previous ?? COMPARE_STATE_DEFAULT;
-      return { ...current, isOn: !current.isOn };
-    });
+    setState((previous) => ({ ...previous, isOn: !previous.isOn }));
   }, [setState]);
 
   const panelCount = state?.panelCount ?? COMPARE_STATE_DEFAULT.panelCount;
@@ -75,7 +103,7 @@ export const useComparingActions = () => {
   const setLayout = useCallback(
     (count: number, labels: string[]) => {
       setState((previous) => {
-        const current = previous ?? COMPARE_STATE_DEFAULT;
+        const current = previous;
         if (
           current.panelCount === count &&
           current.panelLabels.length === labels.length &&
@@ -91,10 +119,7 @@ export const useComparingActions = () => {
 
   const setMode = useCallback(
     (next: string) => {
-      setState((previous) => ({
-        ...(previous ?? COMPARE_STATE_DEFAULT),
-        mode: next,
-      }));
+      setState((previous) => ({ ...previous, mode: next }));
     },
     [setState]
   );
@@ -102,7 +127,7 @@ export const useComparingActions = () => {
   const setAssignments = useCallback(
     (next: CompareAssignments, forPanelCount: number) => {
       setState((previous) => ({
-        ...(previous ?? COMPARE_STATE_DEFAULT),
+        ...previous,
         assignments: next,
         assignmentsPanelCount: forPanelCount,
       }));
@@ -114,7 +139,7 @@ export const useComparingActions = () => {
   const setPanelCount = useCallback(
     (next: number) => {
       setState((previous) => ({
-        ...(previous ?? COMPARE_STATE_DEFAULT),
+        ...previous,
         panelCount: next,
         layoutTouched: true,
       }));
@@ -126,7 +151,7 @@ export const useComparingActions = () => {
   const suggestPanelCount = useCallback(
     (next: number) => {
       setState((previous) => {
-        const current = previous ?? COMPARE_STATE_DEFAULT;
+        const current = previous;
         if (current.layoutTouched || current.panelCount === next) {
           return current;
         }
@@ -140,7 +165,7 @@ export const useComparingActions = () => {
   const setAssigned = useCallback(
     (key: string, panel: number, assigned: boolean) => {
       setState((previous) => {
-        const current = previous ?? COMPARE_STATE_DEFAULT;
+        const current = previous;
         const panels = current.assignments?.[key] ?? [];
         const next = assigned
           ? panels.includes(panel)
@@ -161,7 +186,7 @@ export const useComparingActions = () => {
   const setAssignedEverywhere = useCallback(
     (key: string, assigned: boolean) => {
       setState((previous) => {
-        const current = previous ?? COMPARE_STATE_DEFAULT;
+        const current = previous;
         const next = assigned
           ? Array.from({ length: current.panelCount }, (_, panel) => panel)
           : [];
@@ -176,6 +201,13 @@ export const useComparingActions = () => {
   );
 
   return {
+    /**
+     * Whether anything is known about the comparison yet, from this session or
+     * from storage. What it answers is whether a mode may still seed a default:
+     * once there is a state, its mode was either chosen or restored, and either
+     * way it is not a mode addon's to overwrite on mount.
+     */
+    hasState: state !== undefined,
     isOn,
     setOn,
     toggle,

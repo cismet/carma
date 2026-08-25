@@ -89,8 +89,9 @@ export const useComparingLayerRow = ({
       return;
     }
 
-    // also catches a row restored from a persisted session: the mode itself is
-    // never persisted, so a row without a running mode is always stale
+    // also catches a row restored from a persisted session whose comparison did
+    // not come back with it: the row and the mode are kept in two different
+    // stores, so either can outlive the other, and the row is the one to drop
     if (!isOn && requestedRef.current !== "remove") {
       requestedRef.current = "remove";
       onRemoveRef.current(COMPARING_LAYER_ID);

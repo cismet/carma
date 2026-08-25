@@ -79,7 +79,7 @@ export const CompareSwipe = ({
   config,
   libreMap,
 }: AddonComponentProps<"compareSwipe">) => {
-  const { isOn, mode, setMode, panelCount, setLayout, assignments } =
+  const { hasState, isOn, mode, setMode, panelCount, setLayout, assignments } =
     useComparingActions();
   const isGrid = panelCount === 4;
   // another mode is drawing the comparison; this one draws nothing and, more
@@ -97,8 +97,11 @@ export const CompareSwipe = ({
   const [gridSplit, setGridSplit] = useState({ x: 0.5, y: 0.5 });
 
   // the route's config decides which way the divider starts; from then on the
-  // mode lives in the shared state, where the control pane can reach it
-  const seededMode = useRef(false);
+  // mode lives in the shared state, where the control pane can reach it.
+  // Only when there is no state to start from: a mode restored from a previous
+  // session is a choice that was already made, and seeding over it would send
+  // every reload back to swipe.
+  const seededMode = useRef(hasState);
   useEffect(() => {
     if (seededMode.current) {
       return;
