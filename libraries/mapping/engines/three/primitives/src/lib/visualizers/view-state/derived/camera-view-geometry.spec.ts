@@ -1,11 +1,15 @@
-import { OrthographicCamera, type Matrix4, Vector3 } from "three";
+import { OrthographicCamera, Quaternion, type Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
   buildOrthographicScale,
   CAMERA_TYPE,
 } from "@carma-commons/camera/model";
-import { buildViewState } from "@carma-mapping/engines-interop/view-state";
+import {
+  buildViewState,
+  buildViewStateFromEcef,
+  deriveOrbitAngles,
+} from "@carma-mapping/engines-interop/view-state";
 import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import { degToRadNumeric } from "@carma-units";
 
@@ -44,7 +48,10 @@ const rotateAroundUp = (point: Vector3, angleRad: number): Vector3 =>
   point.clone().applyAxisAngle(WORLD_UP, angleRad);
 
 const expectVectorClose = (actual: Vector3, expected: Vector3) => {
-  expect(actual.distanceTo(expected)).toBeLessThan(1e-8);
+  expect(
+    actual.distanceTo(expected),
+    `${actual.toArray().join(",")} != ${expected.toArray().join(",")}`
+  ).toBeLessThan(1e-8);
 };
 
 const buildOptionalFrustum = ({
@@ -154,12 +161,16 @@ const buildOrthographicViewState = ({
     },
   });
 
-const buildGeometry = (viewState: ViewState) =>
+const buildGeometry = (
+  viewState: ViewState,
+  { useCameraPosition = false }: { useCameraPosition?: boolean } = {}
+) =>
   buildImagePlaneGeometry({
     viewState,
     visualized: {
       maxPitch: null,
       imagePlaneDistance: null,
+      useCameraPosition,
     },
     hemisphereRadius: SPEC_HEMISPHERE_RADIUS,
     imagePlaneDefaults: SPEC_GEOMETRY_DEFAULTS,
@@ -170,6 +181,40 @@ const buildProjectionPolygon = (viewState: ViewState) =>
   buildGeometry(viewState).projectionPlanePolygon;
 
 describe("camera-view-geometry ground projection", () => {
+  it("uses the stored camera position independently of its orientation", () => {
+    const base = buildPerspectiveViewState({ bearingDeg: 0, pitchDeg: 0 });
+    const { longitude, latitude } = base.anchorCartographic;
+    const east = new Vector3(-Math.sin(longitude), Math.cos(longitude), 0);
+    const north = new Vector3(
+      -Math.sin(latitude) * Math.cos(longitude),
+      -Math.sin(latitude) * Math.sin(longitude),
+      Math.cos(latitude)
+    );
+    const localUp = new Vector3(
+      Math.cos(latitude) * Math.cos(longitude),
+      Math.cos(latitude) * Math.sin(longitude),
+      Math.sin(latitude)
+    );
+    const cameraPosition = base.anchor
+      .clone()
+      .addScaledVector(east, 3)
+      .addScaledVector(north, 4)
+      .addScaledVector(localUp, 12);
+    const viewState = buildViewStateFromEcef({
+      anchor: base.anchor,
+      cameraPosition,
+      orientation: new Quaternion(),
+      intrinsics: base.intrinsics,
+      metadata: base.metadata,
+    });
+
+    const geometry = buildGeometry(viewState, { useCameraPosition: true });
+    expectVectorClose(
+      geometry.cameraPosition,
+      new Vector3(3, 12, -4).normalize()
+    );
+  });
+
   it("derives the visible camera form in a local bearing-zero frame before rotating it back out", () => {
     const baseGeometry = buildGeometry(
       buildPerspectiveViewState({
@@ -177,34 +222,33 @@ describe("camera-view-geometry ground projection", () => {
         pitchDeg: 63,
       })
     );
-    const bearingRad = degToRadNumeric(62);
-    const rotatedGeometry = buildGeometry(
-      buildPerspectiveViewState({
-        bearingDeg: 62,
-        pitchDeg: 63,
-      })
-    );
+    const rotatedViewState = buildPerspectiveViewState({
+      bearingDeg: 62,
+      pitchDeg: 63,
+    });
+    const bearingRad = deriveOrbitAngles(rotatedViewState).bearing;
+    const rotatedGeometry = buildGeometry(rotatedViewState);
 
     expectVectorClose(
-      rotateAroundUp(rotatedGeometry.cameraPosition, -bearingRad),
+      rotateAroundUp(rotatedGeometry.cameraPosition, bearingRad),
       baseGeometry.cameraPosition
     );
     expectVectorClose(
-      rotateAroundUp(rotatedGeometry.forward, -bearingRad),
+      rotateAroundUp(rotatedGeometry.forward, bearingRad),
       baseGeometry.forward
     );
     expectVectorClose(
-      rotateAroundUp(rotatedGeometry.right, -bearingRad),
+      rotateAroundUp(rotatedGeometry.right, bearingRad),
       baseGeometry.right
     );
     expectVectorClose(
-      rotateAroundUp(rotatedGeometry.up, -bearingRad),
+      rotateAroundUp(rotatedGeometry.up, bearingRad),
       baseGeometry.up
     );
 
     baseGeometry.imagePlaneCorners.forEach((corner, index) => {
       expectVectorClose(
-        rotateAroundUp(rotatedGeometry.imagePlaneCorners[index]!, -bearingRad),
+        rotateAroundUp(rotatedGeometry.imagePlaneCorners[index]!, bearingRad),
         corner
       );
     });
@@ -360,7 +404,7 @@ describe("camera-view-geometry ground projection", () => {
         pitchDeg: 63,
         rangeM: 500,
         nearM: 50,
-        farM: 250,
+        farM: 1_000,
       })
     );
     const polygonLongRange = buildProjectionPolygon(
@@ -369,7 +413,7 @@ describe("camera-view-geometry ground projection", () => {
         pitchDeg: 63,
         rangeM: 1000,
         nearM: 100,
-        farM: 500,
+        farM: 2_000,
       })
     );
 

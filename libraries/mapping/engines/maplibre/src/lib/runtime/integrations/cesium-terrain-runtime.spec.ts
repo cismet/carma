@@ -1,3 +1,4 @@
+import { MercatorCoordinate } from "maplibre-gl";
 import {
   BufferGeometry,
   Camera,
@@ -328,6 +329,188 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(runtime.root.children).toHaveLength(0);
   });
 
+  it("selects terrain from the union of all shadow-camera frusta", async () => {
+    const westId = { level: 10, x: 531, y: 218 };
+    const viewportId = { level: 10, x: 532, y: 218 };
+    const eastId = { level: 10, x: 533, y: 218 };
+    const source = {
+      requestTile: vi.fn(async (id) => ({
+        id,
+        heightMeters: new Float32Array([100]),
+        westIndices: new Uint32Array(),
+        southIndices: new Uint32Array(),
+        eastIndices: new Uint32Array(),
+        northIndices: new Uint32Array(),
+      })),
+      getTileIdsForBounds: vi.fn(() => [viewportId]),
+      getTileGridIdsForBounds: vi.fn((bounds) => {
+        const ids = [viewportId];
+        if (bounds.west < 7.05) ids.unshift(westId);
+        if (bounds.east > 7.25) ids.push(eastId);
+        return ids;
+      }),
+      getTileBounds: vi.fn((id) =>
+        id.x === westId.x
+          ? { west: 6.8, south: 51.2, east: 7, north: 51.3 }
+          : id.x === eastId.x
+          ? { west: 7.4, south: 51.2, east: 7.5, north: 51.3 }
+          : { west: 7.1, south: 51.2, east: 7.2, north: 51.3 }
+      ),
+      getLevelMaximumGeometricError: vi.fn(() => 0.01),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const originLngLat: [number, number] = [7.15, 51.256];
+    const runtime = buildCesiumTerrainRuntime(
+      "multi-shadow-terrain",
+      "https://example.test/multi-shadow-terrain",
+      originLngLat,
+      { minimumLevel: 10, maximumLevel: 10 }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7.1,
+        getSouth: () => 51.2,
+        getEast: () => 7.2,
+        getNorth: () => 51.3,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
+    lodCamera.position.set(0, 1_000, 0);
+    const frame = {
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      viewport: new Vector2(1_000, 1_000),
+    };
+    runtime.update(frame);
+    await expect(runtime.ready).resolves.toBe(true);
+
+    const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
+    const meterScale = origin.meterInMercatorCoordinateUnits();
+    const makeShadowCamera = (longitude: number) => {
+      const coordinate = MercatorCoordinate.fromLngLat(
+        [longitude, originLngLat[1]],
+        0
+      );
+      const x = (coordinate.x - origin.x) / meterScale;
+      const z = (coordinate.y - origin.y) / meterScale;
+      const camera = new OrthographicCamera(-500, 500, 500, -500, 1, 5_000);
+      camera.position.set(x, 1_000, z);
+      camera.lookAt(x, 0, z);
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
+      return camera;
+    };
+    runtime.setShadowCameras([makeShadowCamera(6.9), makeShadowCamera(7.45)]);
+    runtime.update(frame);
+
+    await vi.waitFor(() => {
+      expect(source.requestTile).toHaveBeenCalledWith(westId);
+      expect(source.requestTile).toHaveBeenCalledWith(eastId);
+    });
+    runtime.dispose();
+  });
+
+  it("uses orthographic shadow resolution to refine offscreen occluders", async () => {
+    const parentId = { level: 10, x: 532, y: 218 };
+    const source = {
+      requestTile: vi.fn(async (id) => ({
+        id,
+        heightMeters: new Float32Array([100]),
+        westIndices: new Uint32Array(),
+        southIndices: new Uint32Array(),
+        eastIndices: new Uint32Array(),
+        northIndices: new Uint32Array(),
+      })),
+      getTileIdsForBounds: vi.fn(() => [parentId]),
+      getTileGridIdsForBounds: vi.fn(() => [parentId]),
+      getTileBounds: vi.fn((id) => {
+        if (id.level === parentId.level) {
+          return { west: 7.4, south: 51.24, east: 7.46, north: 51.27 };
+        }
+        const west = id.x % 2 === 0 ? 7.4 : 7.43;
+        const north = id.y % 2 === 0 ? 51.27 : 51.255;
+        return { west, south: north - 0.015, east: west + 0.03, north };
+      }),
+      getLevelMaximumGeometricError: vi.fn(() => 100),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const originLngLat: [number, number] = [7.15, 51.256];
+    const runtime = buildCesiumTerrainRuntime(
+      "orthographic-shadow-terrain",
+      "https://example.test/orthographic-shadow-terrain",
+      originLngLat,
+      {
+        minimumLevel: 10,
+        maximumLevel: 11,
+        errorTargetPixels: 2.5,
+        shadowLevelOffset: 2,
+      }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7.1,
+        getSouth: () => 51.24,
+        getEast: () => 7.2,
+        getNorth: () => 51.27,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
+    const coordinate = MercatorCoordinate.fromLngLat(
+      [7.43, originLngLat[1]],
+      0
+    );
+    const meterScale = origin.meterInMercatorCoordinateUnits();
+    const x = (coordinate.x - origin.x) / meterScale;
+    const z = (coordinate.y - origin.y) / meterScale;
+    const shadowCamera = new OrthographicCamera(-500, 500, 500, -500, 1, 5_000);
+    shadowCamera.position.set(x, 1_000, z);
+    shadowCamera.lookAt(x, 0, z);
+    shadowCamera.updateProjectionMatrix();
+    shadowCamera.updateMatrixWorld(true);
+    runtime.setShadowCameras([
+      {
+        camera: shadowCamera,
+        shadowMapSize: { width: 1_000, height: 1_000 },
+      },
+    ]);
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
+    lodCamera.position.set(0, 1_000, 0);
+    runtime.update({
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      // Deliberately unrelated to the 1,000 px shadow map: terrain shadow LOD
+      // must follow the raster it is rendered into, not the browser viewport.
+      viewport: new Vector2(1, 1),
+    });
+
+    await expect(runtime.ready).resolves.toBe(true);
+    expect(source.requestTile.mock.calls.some(([id]) => id.level === 11)).toBe(
+      true
+    );
+    expect(source.requestTile).not.toHaveBeenCalledWith(parentId);
+    runtime.dispose();
+  });
+
   it("fills unavailable viewport cells with zero-elevation receiver tiles", async () => {
     const zeroSourceId = { level: 10, x: 531, y: 218 };
     const sourceId = { level: 10, x: 532, y: 218 };
@@ -507,6 +690,19 @@ describe("buildCesiumTerrainRuntime", () => {
     });
     const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
     lodCamera.position.set(0, 1_000, 0);
+    const lowResolutionShadowCamera = new OrthographicCamera(
+      -50_000,
+      50_000,
+      50_000,
+      -50_000,
+      1,
+      5_000
+    );
+    lowResolutionShadowCamera.position.set(0, 1_000, 0);
+    lowResolutionShadowCamera.lookAt(0, 0, 0);
+    lowResolutionShadowCamera.updateProjectionMatrix();
+    lowResolutionShadowCamera.updateMatrixWorld(true);
+    runtime.setShadowCameras([lowResolutionShadowCamera]);
     runtime.update({
       map: map as never,
       renderCamera: new Camera(),

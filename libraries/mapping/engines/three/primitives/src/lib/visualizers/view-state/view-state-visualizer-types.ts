@@ -41,6 +41,8 @@ export type ViewStateVisualizerOverviewOptions = {
 export type ViewStateVisualizerVisualizedOptions = {
   maxPitch?: Radians;
   imagePlaneDistance?: number;
+  /** Place the marker from the stored ECEF camera position, not orbit angles. */
+  useCameraPosition?: boolean;
 };
 
 export type ViewStateVisualizerSurfaceDisplayOptions = {
@@ -140,6 +142,7 @@ export type ResolvedViewStateVisualizerOverviewOptions = {
 export type ResolvedViewStateVisualizerVisualizedOptions = {
   maxPitch: Radians | null;
   imagePlaneDistance: number | null;
+  useCameraPosition: boolean;
 };
 
 export type ResolvedViewStateVisualizerSurfaceDisplayOptions = {

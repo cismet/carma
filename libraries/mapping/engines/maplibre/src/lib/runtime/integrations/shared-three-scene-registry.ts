@@ -36,7 +36,8 @@ const isSharedThreeSceneLayer = (
     candidate.id === SHARED_SCENE_LAYER_ID &&
     typeof candidate.addRuntime === "function" &&
     typeof candidate.removeRuntime === "function" &&
-    typeof candidate.getScene === "function"
+    typeof candidate.getScene === "function" &&
+    typeof candidate.getRenderer === "function"
   );
 };
 

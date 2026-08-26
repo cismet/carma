@@ -3,11 +3,58 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildSharedThreeSceneLayer,
+  configureSharedRenderCamera,
   installRenderTargetDepthRangeBridge,
   syncSharedCanvasViewport,
 } from "./shared-three-scene-layer";
 
+const expectMatrixToBeCloseTo = (
+  actual: THREE.Matrix4,
+  expected: THREE.Matrix4
+): void => {
+  actual.elements.forEach((value, index) => {
+    expect(value).toBeCloseTo(expected.elements[index], 10);
+  });
+};
+
 describe("shared Three.js scene layer", () => {
+  it("uses a real camera view without changing MapLibre's scene-to-clip matrix", () => {
+    const lodCamera = new THREE.PerspectiveCamera(52, 16 / 9, 2, 1_000_000);
+    lodCamera.position.set(1_250, 840, -430);
+    lodCamera.up.set(0, 1, 0);
+    lodCamera.lookAt(new THREE.Vector3(140, 210, 380));
+    lodCamera.updateMatrixWorld(true);
+
+    const sceneToClipMatrix = new THREE.Matrix4()
+      .makePerspective(-0.7, 0.9, 0.6, -0.5, 0.5, 2_000)
+      .multiply(new THREE.Matrix4().makeTranslation(0.15, -0.25, 0.4));
+    const renderCamera = new THREE.PerspectiveCamera();
+
+    configureSharedRenderCamera(renderCamera, lodCamera, sceneToClipMatrix);
+
+    expectMatrixToBeCloseTo(renderCamera.matrixWorld, lodCamera.matrixWorld);
+    expectMatrixToBeCloseTo(
+      renderCamera.matrixWorldInverse,
+      lodCamera.matrixWorldInverse
+    );
+    expectMatrixToBeCloseTo(
+      new THREE.Matrix4().multiplyMatrices(
+        renderCamera.projectionMatrix,
+        renderCamera.matrixWorldInverse
+      ),
+      sceneToClipMatrix
+    );
+
+    renderCamera.updateMatrixWorld(true);
+    expectMatrixToBeCloseTo(
+      new THREE.Matrix4().multiplyMatrices(
+        renderCamera.projectionMatrix,
+        renderCamera.matrixWorldInverse
+      ),
+      sceneToClipMatrix
+    );
+  });
+
   it("tracks MapLibre canvas resizes in Three's main framebuffer viewport", () => {
     const renderer = {
       setViewport: vi.fn(),

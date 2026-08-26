@@ -39,6 +39,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   removeRuntime: (runtimeId: string) => void;
   hasRuntime: (runtimeId: string) => boolean;
   getScene: () => THREE.Scene;
+  /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
+  getRenderer: () => THREE.WebGLRenderer | null;
   projectLngLatToScene: (
     lngLat: [number, number],
     altitudeMeters?: number,
@@ -61,6 +63,43 @@ type RenderTargetDepthRangeBridge = {
 };
 
 type SharedCanvasViewportRenderer = Pick<THREE.WebGLRenderer, "setViewport">;
+
+/**
+ * Give the render camera the real local-scene pose while retaining MapLibre's
+ * exact scene-to-clip transform.
+ *
+ * MapLibre supplies the complete scene-to-clip matrix, whereas Three expects
+ * separate projection and view matrices. Compensating the projection by the
+ * camera world matrix keeps `projection * view` unchanged and makes Three's
+ * view-space shader inputs describe the synthesized map camera correctly.
+ */
+export const configureSharedRenderCamera = (
+  renderCamera: THREE.PerspectiveCamera,
+  lodCamera: THREE.PerspectiveCamera,
+  sceneToClipMatrix: THREE.Matrix4
+): void => {
+  renderCamera.position.copy(lodCamera.position);
+  renderCamera.quaternion.copy(lodCamera.quaternion);
+  renderCamera.scale.copy(lodCamera.scale);
+  renderCamera.up.copy(lodCamera.up);
+  renderCamera.fov = lodCamera.fov;
+  renderCamera.aspect = lodCamera.aspect;
+  renderCamera.near = lodCamera.near;
+  renderCamera.far = lodCamera.far;
+  renderCamera.zoom = lodCamera.zoom;
+  renderCamera.focus = lodCamera.focus;
+  renderCamera.filmGauge = lodCamera.filmGauge;
+  renderCamera.filmOffset = lodCamera.filmOffset;
+  renderCamera.matrix.copy(lodCamera.matrix);
+  renderCamera.matrixWorld.copy(lodCamera.matrixWorld);
+  renderCamera.matrixWorldInverse.copy(lodCamera.matrixWorldInverse);
+  renderCamera.projectionMatrix
+    .copy(sceneToClipMatrix)
+    .multiply(renderCamera.matrixWorld);
+  renderCamera.projectionMatrixInverse
+    .copy(renderCamera.projectionMatrix)
+    .invert();
+};
 
 /**
  * Keep Three's main-framebuffer viewport in sync with the canvas MapLibre owns.
@@ -143,7 +182,7 @@ export const buildSharedThreeSceneLayer = (
   scene.add(
     new THREE.AmbientLight(0xffffff, options.ambientLightIntensity ?? 2.4)
   );
-  const renderCamera = new THREE.Camera();
+  const renderCamera = new THREE.PerspectiveCamera();
   const lodCamera = new THREE.PerspectiveCamera();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
@@ -205,6 +244,10 @@ export const buildSharedThreeSceneLayer = (
       return scene;
     },
 
+    getRenderer() {
+      return renderer;
+    },
+
     projectLngLatToScene(
       lngLat,
       altitudeMeters = 0,
@@ -242,7 +285,7 @@ export const buildSharedThreeSceneLayer = (
       depthRangeBridge = installRenderTargetDepthRangeBridge(renderer, gl);
       renderer.autoClear = false;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
       for (const runtime of runtimes.values()) {
         if (runtime.root.parent !== scene) scene.add(runtime.root);
         placeRuntime(runtime);
@@ -260,10 +303,7 @@ export const buildSharedThreeSceneLayer = (
         .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
         .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
         .multiply(rotationX);
-      renderCamera.projectionMatrix = mainMatrix.multiply(localFromScene);
-      renderCamera.projectionMatrixInverse
-        .copy(renderCamera.projectionMatrix)
-        .invert();
+      const sceneToClipMatrix = mainMatrix.multiply(localFromScene);
 
       syncSharedCanvasViewport(renderer, map.getCanvas(), viewport);
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
@@ -291,6 +331,7 @@ export const buildSharedThreeSceneLayer = (
       ) {
         return;
       }
+      configureSharedRenderCamera(renderCamera, lodCamera, sceneToClipMatrix);
 
       const frame: SharedThreeSceneFrame = {
         map,

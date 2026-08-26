@@ -34,9 +34,12 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { SolarDayTimeControl } from "./SolarDayTimeControl";
 import {
   buildShadowSimulationScene,
+  DEFAULT_SHADOW_MODE,
   DEFAULT_SHADOW_QUALITY,
+  DEFAULT_SHADOW_SURFACE_COLOR,
 } from "./shadow-scene";
 import type {
+  ShadowMode,
   ShadowQualityMultiplier,
   ShadowSimulationScene,
   ShadowTerrainOptions,
@@ -57,8 +60,6 @@ import "dayjs/locale/de";
 import "./shadow-simulation.css";
 
 const ACTIVE_CONTROL_COLOR = "#1677ff";
-const DEFAULT_TERRAIN_COLOR = "#d8d1c4";
-const DEFAULT_BUILDING_COLOR = "#d8d1c4";
 const SHADOW_ANIMATION_INTERVAL_MS = 1000 / 30;
 
 const getRangeProgressStyle = (
@@ -102,7 +103,7 @@ const resolveTerrainColor = (value: unknown) => {
       .toString(16)
       .padStart(6, "0")}`;
   }
-  return DEFAULT_TERRAIN_COLOR;
+  return DEFAULT_SHADOW_SURFACE_COLOR;
 };
 
 export type ShadowSimulationConfig = {
@@ -126,14 +127,17 @@ export type ShadowSimulationState = {
   useUniformBuildingColor: boolean;
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
+  shadowMode?: ShadowMode;
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;
+  showShadowBuffers?: boolean;
+  useTransmittanceLut?: boolean;
+  useSkyIrradianceLut?: boolean;
   controlStyle?: ShadowControlStyle;
   animationMode?: ShadowAnimationMode;
   animationSpeed?: ShadowAnimationSpeed;
   isAnimating?: boolean;
   shadowIntensity?: number;
-  showShadowDuration?: boolean;
 };
 
 const getMapCenterSolarLocation = (
@@ -196,19 +200,11 @@ export const ShadowSimulationSettings = ({
   location,
   state,
   setState,
-  showTerrainColor,
 }: {
   location: SolarLocation;
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
-  showTerrainColor: boolean;
 }) => {
-  const terrainColor = state.terrainColor ?? DEFAULT_TERRAIN_COLOR;
-  const buildingsFullOpacity = state.buildingsFullOpacity ?? true;
-  const useUniformBuildingColor = state.useUniformBuildingColor ?? true;
-  const buildingColor = state.buildingColor ?? DEFAULT_BUILDING_COLOR;
-  const shadowQuality = state.shadowQuality ?? DEFAULT_SHADOW_QUALITY;
-  const showSunDebugVector = state.showSunDebugVector ?? false;
   const solarPosition = useMemo(
     () => getSolarPosition(state.selection, location),
     [location, state.selection]
@@ -221,119 +217,8 @@ export const ShadowSimulationSettings = ({
         location={location}
         selection={state.selection}
         position={solarPosition}
-        onChange={(selection) =>
-          setState({ ...state, selection, terrainColor })
-        }
+        onChange={(selection) => setState({ ...state, selection })}
       />
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-slate-700">
-        <label className="flex items-center gap-2">
-          <span>Schattenqualität</span>
-          <select
-            value={shadowQuality}
-            onChange={(event) =>
-              setState({
-                ...state,
-                shadowQuality: Number(
-                  event.currentTarget.value
-                ) as ShadowQualityMultiplier,
-              })
-            }
-            className="rounded border border-slate-300 bg-white px-2 py-1"
-            aria-label="Schattenqualität"
-            data-test-id="shadow-simulation-quality"
-          >
-            <option value={1}>1× · 2048²</option>
-            <option value={4}>4× · 4096²</option>
-            <option value={16}>16× · 8192²</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={showSunDebugVector}
-            onChange={(event) =>
-              setState({
-                ...state,
-                showSunDebugVector: event.currentTarget.checked,
-              })
-            }
-            data-test-id="shadow-simulation-sun-debug-vector"
-          />
-          <span>Sonnenvektor</span>
-        </label>
-      </div>
-      {showTerrainColor && (
-        <label className="mt-1 flex items-center gap-2 px-1 text-sm text-slate-700">
-          <span>Terrainfarbe</span>
-          <input
-            type="color"
-            value={terrainColor}
-            onChange={(event) =>
-              setState({
-                ...state,
-                terrainColor: event.currentTarget.value,
-              })
-            }
-            className="h-7 w-10 cursor-pointer rounded border border-slate-300 bg-transparent p-0.5"
-            aria-label="Terrainfarbe"
-            data-test-id="shadow-simulation-terrain-color"
-          />
-          <span className="tabular-nums text-slate-500">
-            {terrainColor.toUpperCase()}
-          </span>
-        </label>
-      )}
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-slate-700">
-        <span>Gebäude</span>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={buildingsFullOpacity}
-            onChange={(event) =>
-              setState({
-                ...state,
-                buildingsFullOpacity: event.currentTarget.checked,
-              })
-            }
-            data-test-id="shadow-simulation-buildings-full-opacity"
-          />
-          <span>volle Deckkraft</span>
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={useUniformBuildingColor}
-            onChange={(event) =>
-              setState({
-                ...state,
-                useUniformBuildingColor: event.currentTarget.checked,
-              })
-            }
-            data-test-id="shadow-simulation-buildings-uniform-color"
-          />
-          <span>einheitliche Farbe</span>
-        </label>
-        {useUniformBuildingColor && (
-          <label className="flex items-center gap-2">
-            <input
-              type="color"
-              value={buildingColor}
-              onChange={(event) =>
-                setState({
-                  ...state,
-                  buildingColor: event.currentTarget.value,
-                })
-              }
-              className="h-7 w-10 cursor-pointer rounded border border-slate-300 bg-transparent p-0.5"
-              aria-label="Einheitliche Gebäudefarbe"
-              data-test-id="shadow-simulation-building-color"
-            />
-            <span className="tabular-nums text-slate-500">
-              {buildingColor.toUpperCase()}
-            </span>
-          </label>
-        )}
-      </div>
     </div>
   );
 };
@@ -723,34 +608,6 @@ const ShadowQuickSettings = ({
               {Math.round(intensity * 100)}%
             </span>
           </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={state.showSunDebugVector ?? false}
-              onChange={(event) =>
-                setState({
-                  ...state,
-                  showSunDebugVector: event.currentTarget.checked,
-                })
-              }
-              className="h-4 w-4 accent-amber-600"
-            />
-            <span>Sonnenstand einblenden</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={state.showShadowDuration ?? false}
-              onChange={(event) =>
-                setState({
-                  ...state,
-                  showShadowDuration: event.currentTarget.checked,
-                })
-              }
-              className="h-4 w-4 accent-amber-600"
-            />
-            <span>Verschattungsdauer (Stunden/Tag)</span>
-          </label>
         </div>
       </section>
     </div>
@@ -765,7 +622,6 @@ export const ShadowSimulationControlSurface = ({
     latitude = DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
     longitude = DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
     timeZone = DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
-    terrain,
   } = config ?? {};
   const location = useMapCenterSolarLocation(
     libreMap,
@@ -847,8 +703,10 @@ export const ShadowSimulationControlSurface = ({
                   isAnimating: false,
                   shadowIntensity: 0.45,
                   showSunDebugVector: false,
+                  showShadowBuffers: false,
                   showProjectionDebugView: false,
-                  showShadowDuration: false,
+                  useTransmittanceLut: true,
+                  useSkyIrradianceLut: true,
                 });
               }}
             >
@@ -868,7 +726,6 @@ export const ShadowSimulationControlSurface = ({
             location={location}
             state={state}
             setState={setState}
-            showTerrainColor={!!terrain}
           />
         )}
       </div>
@@ -922,6 +779,13 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
+    shadowScene.current?.updateShadowMode(
+      state.shadowMode ?? DEFAULT_SHADOW_MODE
+    );
+  }, [state.enabled, state.shadowMode]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateShadowIntensity(state.shadowIntensity ?? 0.45);
   }, [state.enabled, state.shadowIntensity]);
 
@@ -934,8 +798,23 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
+    shadowScene.current?.updateShadowBufferDebugVisibility(
+      state.showShadowBuffers ?? false
+    );
+  }, [state.enabled, state.showShadowBuffers]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateAtmosphericLutUsage({
+      useTransmittanceLut: state.useTransmittanceLut ?? true,
+      useIrradianceLut: state.useSkyIrradianceLut ?? true,
+    });
+  }, [state.enabled, state.useSkyIrradianceLut, state.useTransmittanceLut]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateTerrainColor(
-      state.terrainColor ?? DEFAULT_TERRAIN_COLOR
+      state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR
     );
   }, [state.enabled, state.terrainColor]);
 
@@ -945,7 +824,7 @@ const ShadowSimulationRuntime = ({
       fullOpacity: state.buildingsFullOpacity ?? true,
       uniformColor:
         state.useUniformBuildingColor ?? true
-          ? state.buildingColor ?? DEFAULT_BUILDING_COLOR
+          ? state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR
           : null,
     });
   }, [
@@ -993,16 +872,19 @@ export const ShadowSimulation = ({
       terrainColor: resolveTerrainColor(terrain?.material?.color),
       buildingsFullOpacity: true,
       useUniformBuildingColor: true,
-      buildingColor: DEFAULT_BUILDING_COLOR,
+      buildingColor: DEFAULT_SHADOW_SURFACE_COLOR,
       shadowQuality: DEFAULT_SHADOW_QUALITY,
+      shadowMode: DEFAULT_SHADOW_MODE,
       showSunDebugVector: false,
+      showShadowBuffers: false,
       showProjectionDebugView: false,
+      useTransmittanceLut: true,
+      useSkyIrradianceLut: true,
       controlStyle: SHADOW_CONTROL_STYLE.QUICK,
       animationMode: SHADOW_ANIMATION_MODE.DAY,
       animationSpeed: 4,
       isAnimating: false,
       shadowIntensity: 0.45,
-      showShadowDuration: false,
       selection: clampSelectionToDaylight(candidate, location) ?? {
         ...candidate,
         minutes: 12 * 60,
@@ -1082,7 +964,6 @@ export const ShadowSimulation = ({
         location={location}
         state={state}
         setState={setSharedState}
-        showTerrainColor={!!terrain}
       />
     );
   }
@@ -1138,6 +1019,19 @@ export const ShadowSimulation = ({
         <ShadowProjectionDebugView
           map={libreMap}
           solarPosition={getSolarPosition(state.selection, location)}
+          settings={{
+            shadowMode: state.shadowMode ?? DEFAULT_SHADOW_MODE,
+            shadowQuality: state.shadowQuality ?? DEFAULT_SHADOW_QUALITY,
+            terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
+            buildingsFullOpacity: state.buildingsFullOpacity ?? true,
+            useUniformBuildingColor: state.useUniformBuildingColor ?? true,
+            buildingColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
+            showSunDebugVector: state.showSunDebugVector ?? false,
+            showShadowBuffers: state.showShadowBuffers ?? false,
+            useTransmittanceLut: state.useTransmittanceLut ?? true,
+            useSkyIrradianceLut: state.useSkyIrradianceLut ?? true,
+          }}
+          onSettingsChange={(patch) => setSharedState({ ...state, ...patch })}
         />
       )}
     </>

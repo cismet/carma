@@ -317,8 +317,8 @@ const GeoportalLayerButton = ({
           userSelect: "none",
           touchAction: "none",
         }}
-        {...listeners}
-        {...attributes}
+        {...(isPinned ? {} : listeners)}
+        {...(isPinned ? {} : attributes)}
         classNames={[
           getGeoportalLayerButtonBackgroundClassName({
             showsNoSelection,
