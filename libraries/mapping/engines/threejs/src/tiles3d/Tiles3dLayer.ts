@@ -115,12 +115,17 @@ export interface Tiles3dCustomLayer extends CustomLayerInterface {
  * @param originLngLat  where the local metre frame is anchored, normally the
  *                      map centre at the time the layer is created
  */
+/** Counts layer objects built, so two on one tileset are told apart in the log. */
+let instanceCounter = 0;
+
 export function buildTiles3dLayer(
   layerId: string,
   tilesetUrl: string,
   originLngLat: [number, number],
   options: Tiles3dLayerOptions = {}
 ): Tiles3dCustomLayer {
+  /** Distinguishes two layers on one tileset, e.g. an app map and a compare panel. */
+  const instanceTag = `${layerId.split("/").slice(-2, -1)[0] ?? layerId}#${++instanceCounter}`;
   const originMerc = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const meterScale = originMerc.meterInMercatorCoordinateUnits();
 
@@ -133,6 +138,7 @@ export function buildTiles3dLayer(
     null;
   let tiles: TilesRenderer | null = null;
   let kickstartTimer = 0;
+  let progressTimer = 0;
   let visible = true;
   let opacity = options.opacity ?? 1;
   let outlineVisible = options.outline ?? true;
@@ -198,6 +204,65 @@ export function buildTiles3dLayer(
         object.visible = outlineVisible;
       }
     });
+  };
+
+  // What the renderer is busy with, so waiting or not waiting is a decision.
+  // Only prints when something changed: an unchanged line says nothing a
+  // previous one did not, and a quiet console means the view is finished.
+  let lastReport = "";
+  let ceilingMB = 0;
+  const reportProgress = () => {
+    if (!tiles) return;
+    // Neither counter is in the published typings, both are on the instance.
+    const stats = (tiles as unknown as { stats: Record<string, number> }).stats;
+    const cache = tiles.lruCache as unknown as { cachedBytes: number };
+    const outstanding = stats.queued + stats.downloading + stats.parsing;
+    const cachedMB = Math.round(cache.cachedBytes / 1024 ** 2);
+    const line = [
+      outstanding === 0 ? "idle" : "loading",
+      activeErrorTarget,
+      stats.queued,
+      stats.downloading,
+      stats.parsing,
+      stats.failed,
+      stats.visible,
+      cachedMB,
+    ].join("|");
+    if (line === lastReport) return;
+    lastReport = line;
+    console.log(
+      "[3D-TILES]",
+      instanceTag,
+      outstanding === 0 ? "idle, nothing left to load" : "loading",
+      {
+        errorTarget: activeErrorTarget,
+        queued: stats.queued,
+        downloading: stats.downloading,
+        parsing: stats.parsing,
+        failed: stats.failed,
+        visible: stats.visible,
+        cachedMB,
+        cacheCeilingMB: ceilingMB,
+      }
+    );
+  };
+
+  const stopProgressReports = () => {
+    if (progressTimer) {
+      window.clearInterval(progressTimer);
+      progressTimer = 0;
+    }
+  };
+
+  const startProgressReports = () => {
+    if (progressTimer) return;
+    progressTimer = window.setInterval(() => {
+      if (!tiles || !map) {
+        stopProgressReports();
+        return;
+      }
+      reportProgress();
+    }, 1000);
   };
 
   const stopKickstart = () => {
@@ -342,12 +407,14 @@ export function buildTiles3dLayer(
           0,
           Math.floor(options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES)
         );
+      ceilingMB = Math.round(ceilingBytes / 1024 ** 2);
       lruCache.isFull = () =>
         lruCache.itemSet.size >= lruCache.maxSize ||
         lruCache.cachedBytes >= ceilingBytes;
       orientationGroup.add(tiles.group);
 
       startKickstart();
+      startProgressReports();
     },
 
     render(
@@ -409,6 +476,7 @@ export function buildTiles3dLayer(
     // of those. `dispose` ends the layer, and only the manager calls it.
     onRemove() {
       stopKickstart();
+      stopProgressReports();
       map = null;
     },
 
@@ -440,6 +508,7 @@ export function buildTiles3dLayer(
 
     dispose() {
       stopKickstart();
+      stopProgressReports();
       if (tiles) {
         orientationGroup.remove(tiles.group);
         tiles.dispose();
