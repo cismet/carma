@@ -43,14 +43,11 @@ export const useHighlightModeActions = () => {
   const appliedBuffer = mode?.appliedBuffer ?? 0;
   const shrinkLimit = mode?.shrinkLimit ?? 0;
   /** How far down the step may go: the limit is for the total, and part of it
-   *  is already applied, so the rest is what the next step may still take. */
+   *  is already applied, so the rest is what the next step may still take.
+   *  Enforced where the step is written, never on the way out — a value shown
+   *  here that the addon does not use would be a lie about what apply does. */
   const bufferFloor = shrinkLimit - appliedBuffer;
-  // a step set before a shrink was applied can end up below the floor that
-  // apply left behind
-  const shapeBuffer = Math.max(
-    mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH,
-    bufferFloor
-  );
+  const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH;
   const bufferEnabled = mode?.bufferEnabled ?? false;
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;

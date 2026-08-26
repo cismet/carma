@@ -150,17 +150,24 @@ export const VectorHighlight = ({
   // whether there is one to offer again
   const handleLastShapeChange = useCallback(
     (hasLastShape: boolean, replayed: boolean, bufferMeters: number) =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        hasLastShape,
-        // the buffer is a one-off: the next drawing starts plain again
-        bufferEnabled: bufferOnByDefault,
+      setMode((previous) => {
         // the width the replay actually ran with, taken from the manager: by
         // now the preview is down and `bufferEnabled` is already back off
-        appliedBuffer:
-          cumulativeBuffer && replayed ? clampBufferWidth(bufferMeters) : 0,
-        ...(replayed ? null : { shapeBuffer: defaultBuffer }),
-      })),
+        const applied =
+          cumulativeBuffer && replayed ? clampBufferWidth(bufferMeters) : 0;
+        // an apply eats into the room the next shrink has, so a step that no
+        // longer fits is dropped rather than left pinned to the floor
+        const floor = (previous?.shrinkLimit ?? 0) - applied;
+        const step = previous?.shapeBuffer ?? defaultBuffer;
+        return {
+          ...(previous ?? { isOn: false }),
+          hasLastShape,
+          // the buffer is a one-off: the next drawing starts plain again
+          bufferEnabled: bufferOnByDefault,
+          appliedBuffer: applied,
+          shapeBuffer: replayed && step >= floor ? step : defaultBuffer,
+        };
+      }),
     [setMode, bufferOnByDefault, cumulativeBuffer, defaultBuffer]
   );
 
