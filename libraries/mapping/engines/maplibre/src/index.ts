@@ -236,9 +236,16 @@ export type {
   SharedThreeSceneLayer,
   SharedThreeSceneLayerOptions,
   SharedThreeSceneRuntime,
+  SharedThreeSceneShadowStyle,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
 export type { SharedThreeSceneLease } from "./lib/runtime/integrations/shared-three-scene-registry";
+export {
+  getSharedThreeSceneRuntimes,
+  notifySharedThreeSceneContentChanged,
+  registerSharedThreeSceneRuntime,
+  subscribeSharedThreeSceneContent,
+} from "./lib/runtime/integrations/shared-three-scene-content-registry";
 export {
   getGenericThreeLayers,
   notifyGenericThreeLayerContentChanged,

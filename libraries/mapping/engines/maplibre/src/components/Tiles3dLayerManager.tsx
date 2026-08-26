@@ -1,11 +1,17 @@
 import { useEffect, useRef } from "react";
 
-import { buildTiles3dLayer } from "@carma-mapping/engines/threejs";
-import type { Tiles3dCustomLayer } from "@carma-mapping/engines/threejs";
-
 import { useLibreContext } from "../contexts/LibreContext";
 import { WUPPERTAL_TERRAIN_SOURCE_ID } from "../constants/wuppertalDefaultStyle";
 import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
+import {
+  notifySharedThreeSceneContentChanged,
+  registerSharedThreeSceneRuntime,
+} from "../lib/runtime/integrations/shared-three-scene-content-registry";
+import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
+import {
+  buildThreeTilesRuntime,
+  type ThreeTilesRuntime,
+} from "../lib/runtime/integrations/three-tiles-runtime";
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -78,7 +84,7 @@ export function Tiles3dLayerManager({
   layerOpacity,
 }: Tiles3dLayerManagerProps) {
   const { map } = useLibreContext();
-  const layerRef = useRef<Tiles3dCustomLayer | null>(null);
+  const runtimeRef = useRef<ThreeTilesRuntime | null>(null);
   // Whether the terrain demand has been answered for this mount, see below.
   const terrainSettledRef = useRef(false);
   // Read while building a layer, which happens outside the effect that follows
@@ -87,74 +93,59 @@ export function Tiles3dLayerManager({
   const layerOpacityRef = useRef<number | undefined>(layerOpacity);
   layerOpacityRef.current = layerOpacity;
 
-  // The origin is fixed when the layer is built, so it is deliberately not a
-  // dependency: re-anchoring it on every pan would tear the tileset down and
-  // load it again. A local metre frame is good enough across a city.
+  // Native style-declared tilesets use the shared Three.js scene as well. This
+  // is what lets the shadow add-on's directional light and shadow map reach
+  // them; without the add-on, the shared scene keeps its regular ambient-only
+  // rendering and no shadow light exists.
   useEffect(() => {
     if (!map || !config.tilesetUrl) return;
 
-    const layerId = `3d-tiles-${config.tilesetUrl}`;
     const center = map.getCenter();
     const origin: [number, number] = [center.lng, center.lat];
-
-    // Adding the layer is a repeated affair, not a one-off. MapLibre cannot
-    // diff a style while a custom layer is attached, so every change to the
-    // layer list rebuilds the style from scratch and takes this layer off
-    // again. The style can also still be loading when the config first
-    // arrives, and `addLayer` refuses outright while it is. Both are answered
-    // by trying again on the events that mark the style usable; the layer
-    // object survives in between, so a re-attach costs no downloads.
-    const attach = () => {
-      if (!mapIsUsable(map) || !map.isStyleLoaded()) return;
-      if (map.getLayer(layerId)) return;
-
-      const layer =
-        layerRef.current ??
-        buildTiles3dLayer(layerId, config.tilesetUrl, origin, {
-          errorTarget: config.errorTarget,
-          cacheBudgetBytes: config.cacheBudgetBytes,
-          cacheOverflowBytes: config.cacheOverflowBytes,
-          opacity: (config.opacity ?? 1) * (layerOpacityRef.current ?? 1),
-          outline: config.outline,
-          outlineColor: config.outlineColor,
-          outlineOpacity: config.outlineOpacity,
-        });
-      layerRef.current = layer;
-
-      try {
-        map.addLayer(layer);
-        // What lets the camera restriction know the map has become three
-        // dimensional. A tileset stays out of the raycast registry, which
-        // holds layers that answer `raycast`, and this one does not.
-        add3dPresence(map, layerId);
-      } catch (err) {
-        // The layer is kept: the next styledata or idle tries again.
-        console.warn("[3D-TILES] addLayer failed:", err);
+    const runtimeId = `three-tiles-${config.tilesetUrl.replace(
+      /[^a-zA-Z0-9_-]+/g,
+      "-"
+    )}`;
+    const lease = acquireSharedThreeScene(map);
+    const runtime = buildThreeTilesRuntime(
+      runtimeId,
+      config.tilesetUrl,
+      origin,
+      {
+        requestConcurrency: 6,
+        cacheBudgetBytes: config.cacheBudgetBytes,
+        outline: config.outline,
+        outlineColor: config.outlineColor,
+        outlineOpacity: config.outlineOpacity,
+        shadowBuildingStyle: true,
+        onContentChanged: () => notifySharedThreeSceneContentChanged(map),
       }
-    };
-
-    attach();
-    map.on("styledata", attach);
-    map.on("idle", attach);
+    );
+    runtime.setErrorTarget(config.errorTarget ?? 6);
+    runtime.setOpacity((config.opacity ?? 1) * (layerOpacityRef.current ?? 1));
+    runtime.setOutlineVisible(config.outline ?? true);
+    runtimeRef.current = runtime;
+    lease.layer.addRuntime(runtime);
+    // What lets the camera restriction know the map has become three
+    // dimensional. A tileset stays out of the raycast registry, which
+    // holds layers that answer `raycast`, and this one does not.
+    add3dPresence(map, runtimeId);
+    const unregisterRuntime = registerSharedThreeSceneRuntime(map, runtime);
 
     return () => {
-      map.off("styledata", attach);
-      map.off("idle", attach);
-      const layer = layerRef.current;
-      layerRef.current = null;
-      if (!layer) return;
-      remove3dPresence(map, layerId);
-      // A panel that goes away destroys its map before this runs, and it took
-      // its layers with it.
-      if (mapIsUsable(map) && map.getLayer(layerId)) {
-        map.removeLayer(layerId);
+      runtimeRef.current = null;
+      remove3dPresence(map, runtimeId);
+      unregisterRuntime();
+      if (lease.layer.hasRuntime(runtime.id)) {
+        lease.layer.removeRuntime(runtime.id);
       }
-      layer.dispose();
+      lease.release();
     };
   }, [
     map,
     config.tilesetUrl,
     config.errorTarget,
+    config.cacheBudgetBytes,
     config.opacity,
     config.outline,
     config.outlineColor,
@@ -195,16 +186,16 @@ export function Tiles3dLayerManager({
   }, [map, config.terrainMandatory]);
 
   useEffect(() => {
-    layerRef.current?.setOutlineVisible(config.outline ?? true);
+    runtimeRef.current?.setOutlineVisible(config.outline ?? true);
   }, [config.outline]);
 
   // The layer bar's slider reaches a 2D layer as paint properties, which a
   // custom layer has none of, so it is multiplied in here the way the three.js
   // building layers do it.
   useEffect(() => {
-    const layer = layerRef.current;
-    if (!layer) return;
-    layer.setOpacity((config.opacity ?? 1) * (layerOpacity ?? 1));
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    runtime.setOpacity((config.opacity ?? 1) * (layerOpacity ?? 1));
   }, [config.opacity, layerOpacity]);
 
   return null;
