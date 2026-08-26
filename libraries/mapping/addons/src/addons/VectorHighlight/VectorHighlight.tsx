@@ -68,7 +68,7 @@ export const VectorHighlight = ({
     defaultRadius = DEFAULT_CIRCLE_RADIUS,
     defaultRectSize,
     defaultBuffer = DEFAULT_BUFFER_WIDTH,
-    bufferGrowth = 1,
+    cumulativeBuffer = true,
     bufferOnByDefault = false,
     clearDelay = DEFAULT_CLEAR_DELAY,
     radiusStep = DEFAULT_CIRCLE_RADIUS_STEP,
@@ -87,10 +87,17 @@ export const VectorHighlight = ({
     setRectSize,
   } = useHighlightModeActions();
 
-  // the width applies only while the buffer panel is open
+  // With `cumulativeBuffer` the panel holds a step, not a total: what it shows
+  // is added to what the shape has already grown by, so 10 applied plus 1 typed
+  // previews 11. Without it the panel is the whole width, and nothing is ever
+  // banked. The total applies only while the buffer panel is open.
+  const appliedBuffer = cumulativeBuffer ? mode?.appliedBuffer ?? 0 : 0;
   const shapeBuffer =
     mode?.bufferEnabled ?? bufferOnByDefault
-      ? mode?.shapeBuffer ?? defaultBuffer
+      ? Math.min(
+          appliedBuffer + (mode?.shapeBuffer ?? defaultBuffer),
+          MAX_BUFFER_WIDTH
+        )
       : 0;
 
   // key on the content: route configs pass a fresh array per render
@@ -145,27 +152,24 @@ export const VectorHighlight = ({
   // the drawing manager remembers the shape, so the toolbar learns from here
   // whether there is one to offer again
   const handleLastShapeChange = useCallback(
-    (hasLastShape: boolean, replayed: boolean) =>
+    (hasLastShape: boolean, replayed: boolean, bufferMeters: number) =>
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         hasLastShape,
         // the buffer is a one-off: the next drawing starts plain again
         bufferEnabled: bufferOnByDefault,
-        // with growth on, the width belongs to the shape: the same shape grows
-        // on every replay, a new one starts at the default. Growing here, not
-        // on open, puts the next step in the panel before it runs.
-        ...(bufferGrowth === 1
-          ? null
-          : {
-              shapeBuffer: replayed
-                ? Math.min(
-                    (previous?.shapeBuffer ?? defaultBuffer) * bufferGrowth,
-                    MAX_BUFFER_WIDTH
-                  )
-                : defaultBuffer,
-            }),
+        // The width belongs to the shape: a replay banks the width it actually
+        // ran with, so the next step grows from that total. Taken from the
+        // manager rather than recomputed here — by now the preview is down and
+        // `bufferEnabled` is already back off. A newly drawn shape starts over,
+        // at the default step and unbuffered.
+        appliedBuffer:
+          cumulativeBuffer && replayed
+            ? Math.min(bufferMeters, MAX_BUFFER_WIDTH)
+            : 0,
+        ...(replayed ? null : { shapeBuffer: defaultBuffer }),
       })),
-    [setMode, bufferOnByDefault, bufferGrowth, defaultBuffer]
+    [setMode, bufferOnByDefault, cumulativeBuffer, defaultBuffer]
   );
 
   // the manager owns whether its preview is up — a new draw or a wipe drops it

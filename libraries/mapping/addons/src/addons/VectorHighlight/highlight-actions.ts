@@ -41,6 +41,7 @@ export const useHighlightModeActions = () => {
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
   const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH;
+  const appliedBuffer = mode?.appliedBuffer ?? 0;
   const bufferEnabled = mode?.bufferEnabled ?? false;
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
@@ -247,6 +248,7 @@ export const useHighlightModeActions = () => {
     setCircleRadius,
     setRectSize,
     shapeBuffer,
+    appliedBuffer,
     setShapeBuffer,
     bufferEnabled,
     cancelLine,

@@ -12,8 +12,10 @@ export type HighlightModeState = {
   circleRadius?: number;
   /** metres, used when a rectangle is placed by a click instead of a drag */
   rectSize?: RectSize;
-  /** metres every drawn shape grows by before it selects */
+  /** metres the next apply adds on top of `appliedBuffer` */
   shapeBuffer?: number;
+  /** metres the remembered shape has already grown by; a new shape resets it */
+  appliedBuffer?: number;
   /** whether the width applies; on while the buffer panel previews the shape */
   bufferEnabled?: boolean;
   /** bumped by the UI to discard the line being drawn; the addon owns the
@@ -77,18 +79,19 @@ export type VectorHighlightConfig = {
   /** Ground size in metres a clicked rectangle starts with. Default: 250 x 250 */
   defaultRectSize?: RectSize;
   /**
-   * Width in metres the buffer panel starts with, for every tool alike. It only
-   * applies once the panel's toggle is on; until then every shape selects
-   * exactly as drawn. Default: 25
+   * Metres the buffer panel starts at, for every tool alike. A newly drawn
+   * shape starts over at this value with nothing applied yet. It only applies
+   * once the panel's toggle is on; until then every shape selects exactly as
+   * drawn. Capped at 5000 m. Default: 5
    */
   defaultBuffer?: number;
   /**
-   * Factor the width grows by each time the same shape is buffered again; 2
-   * doubles it. A newly drawn shape starts at `defaultBuffer` again. 1 keeps
-   * the width and carries it over to the next shape. Capped at 5000 m.
-   * Default: 1
+   * The panel holds a step, not a total: every apply adds it to what the shape
+   * has already grown by, so 10 applied and 1 typed selects at 11 m. Off, the
+   * panel holds the whole width and the shape is re-buffered from the geometry
+   * as drawn, so applying 5 m twice still selects at 5 m. Default: true
    */
-  bufferGrowth?: number;
+  cumulativeBuffer?: boolean;
   /**
    * Start with the buffer switched on, and switch it back on after every
    * shape. Without it the buffer is a one-off: on for the shape the panel was
