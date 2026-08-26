@@ -213,6 +213,9 @@ export interface UseLassoHighlightOptions {
   onLastShapePreviewChange?: (previewing: boolean) => void;
   /** Reports a previewed shape a negative width has shrunk to nothing. */
   onShapeEmptyChange?: (empty: boolean) => void;
+  /** Reports the deepest shrink the remembered shape survives, as a negative
+   *  width; 0 when there is none. */
+  onShrinkLimitChange?: (meters: number) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -263,6 +266,7 @@ export const useLassoHighlight = ({
   onLastShapeChange,
   onLastShapePreviewChange,
   onShapeEmptyChange,
+  onShrinkLimitChange,
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
@@ -494,6 +498,8 @@ export const useLassoHighlight = ({
   onLastShapePreviewChangeRef.current = onLastShapePreviewChange;
   const onShapeEmptyChangeRef = useRef(onShapeEmptyChange);
   onShapeEmptyChangeRef.current = onShapeEmptyChange;
+  const onShrinkLimitChangeRef = useRef(onShrinkLimitChange);
+  onShrinkLimitChangeRef.current = onShrinkLimitChange;
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -517,6 +523,7 @@ export const useLassoHighlight = ({
       onLastShapePreviewChange: (previewing) =>
         onLastShapePreviewChangeRef.current?.(previewing),
       onShapeEmptyChange: (empty) => onShapeEmptyChangeRef.current?.(empty),
+      onShrinkLimitChange: (meters) => onShrinkLimitChangeRef.current?.(meters),
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
       // Starts on any plain mousedown, so it must stand back for whichever

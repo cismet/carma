@@ -40,8 +40,17 @@ export const useHighlightModeActions = () => {
   } = useMapHighlight();
 
   const shapes = mode?.availableShapes ?? DEFAULT_SHAPES;
-  const shapeBuffer = mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH;
   const appliedBuffer = mode?.appliedBuffer ?? 0;
+  const shrinkLimit = mode?.shrinkLimit ?? 0;
+  /** How far down the step may go: the limit is for the total, and part of it
+   *  is already applied, so the rest is what the next step may still take. */
+  const bufferFloor = shrinkLimit - appliedBuffer;
+  // a step set before a shrink was applied can end up below the floor that
+  // apply left behind
+  const shapeBuffer = Math.max(
+    mode?.shapeBuffer ?? DEFAULT_BUFFER_WIDTH,
+    bufferFloor
+  );
   const bufferEnabled = mode?.bufferEnabled ?? false;
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
@@ -92,7 +101,10 @@ export const useHighlightModeActions = () => {
     (next: number) =>
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
-        shapeBuffer: next,
+        shapeBuffer: Math.max(
+          next,
+          (previous?.shrinkLimit ?? 0) - (previous?.appliedBuffer ?? 0)
+        ),
       })),
     [setMode]
   );
@@ -256,6 +268,8 @@ export const useHighlightModeActions = () => {
     hasLastShape,
     lastShapeShown,
     shapeEmpty,
+    shrinkLimit,
+    bufferFloor,
     bufferPanelOpen,
     setBufferPanelOpen,
     applyBufferedShape,
