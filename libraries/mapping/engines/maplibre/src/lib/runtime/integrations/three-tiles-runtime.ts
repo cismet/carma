@@ -17,6 +17,7 @@ import type { TilesCameraSet } from "./tiles-camera-set";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneRuntime,
+  SharedThreeSceneShadowStyle,
 } from "./shared-three-scene-layer";
 
 // Match the direct screen-space-error control used by the official
@@ -31,6 +32,26 @@ const REFINEMENT_FACTOR = 2;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 const CLAY_COLOR = 0xd6d2ca;
+const TILE_OUTLINE_FLAG = "isTileOutline";
+
+const buildLazyPrimitiveOutlinePlugin = (
+  parser: unknown,
+  options: {
+    color: THREE.ColorRepresentation;
+    opacity: number;
+  }
+) => ({
+  name: "CARMA_lazy_primitive_outline",
+  async afterRoot(result: { scene: THREE.Object3D }) {
+    const { GLTFPrimitiveOutlineExtension } = await import(
+      "@carma-mapping/engines/threejs"
+    );
+    await new GLTFPrimitiveOutlineExtension(
+      parser as ConstructorParameters<typeof GLTFPrimitiveOutlineExtension>[0],
+      options
+    ).afterRoot(result);
+  },
+});
 
 // ─────────────────────────────────────────────────────────────
 //  Cesium 3D Tiles (b3dm meshes) inside the shared MapLibre Three.js scene,
@@ -74,6 +95,7 @@ export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
   setClayColor: (color: string) => void;
   setOpacity: (opacity: number) => void;
   setWireframe: (enabled: boolean) => void;
+  setOutlineVisible: (visible: boolean) => void;
   setTileBoundsVisible: (enabled: boolean) => void;
   setCacheBudget: (bytes: number) => void;
   setRequestConcurrency: (jobs: number) => void;
@@ -94,6 +116,12 @@ export interface ThreeTilesRuntimeOptions {
   cacheBudgetBytes?: number;
   requestConcurrency?: number;
   onRequestStateChange?: () => void;
+  onContentChanged?: () => void;
+  outline?: boolean;
+  outlineColor?: THREE.ColorRepresentation;
+  outlineOpacity?: number;
+  /** Restyle this tileset like a building layer while shadow mode is active. */
+  shadowBuildingStyle?: boolean;
 }
 
 export function buildThreeTilesRuntime(
@@ -135,6 +163,9 @@ export function buildThreeTilesRuntime(
   let clayMetalness = 0;
   let opacity = 1;
   let wireframe = false;
+  let outlineVisible = options.outline ?? true;
+  let shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
+  const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
   let activeProjector: ImageProjector | null = null;
@@ -221,7 +252,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
   const buildClayMaterial = (source: THREE.Material) => {
     const material = new THREE.MeshStandardMaterial({
-      color: clayColor,
+      color: shadowSimulationStyle?.uniformColor ? shadowClayColor : clayColor,
       roughness: clayRoughness,
       metalness: clayMetalness,
       side: source.side,
@@ -250,13 +281,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
 
   const applyMaterialFlags = (root: THREE.Object3D) => {
+    const useClayShading =
+      whiteShading || !!shadowSimulationStyle?.uniformColor;
+    const effectiveClayColor = shadowSimulationStyle?.uniformColor
+      ? shadowClayColor
+      : clayColor;
+    const forceOpaque = shadowSimulationStyle?.fullOpacity === true;
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       let clayState = clayMaterialStates.get(mesh);
-      if (whiteShading && !clayState) {
+      if (useClayShading && !clayState) {
         const original = mesh.material;
         const clay = Array.isArray(original)
           ? original.map(buildClayMaterial)
@@ -264,7 +301,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         clayState = { original, clay };
         clayMaterialStates.set(mesh, clayState);
         mesh.material = clay;
-      } else if (!whiteShading && clayState) {
+      } else if (!useClayShading && clayState) {
         disposeClayState(mesh, clayState);
         clayState = undefined;
       }
@@ -281,23 +318,34 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           material.userData.__baseDepthWrite = material.depthWrite;
         }
         const translucent = opacity < 0.999;
-        material.opacity =
-          (material.userData.__baseOpacity as number) * opacity;
-        material.transparent =
-          (material.userData.__baseTransparent as boolean) || translucent;
-        material.depthWrite =
-          (material.userData.__baseDepthWrite as boolean) && !translucent;
+        material.opacity = forceOpaque
+          ? 1
+          : (material.userData.__baseOpacity as number) * opacity;
+        material.transparent = forceOpaque
+          ? false
+          : (material.userData.__baseTransparent as boolean) || translucent;
+        material.depthWrite = forceOpaque
+          ? true
+          : (material.userData.__baseDepthWrite as boolean) && !translucent;
         if ("wireframe" in material) {
           (material as THREE.Material & { wireframe: boolean }).wireframe =
             wireframe;
         }
-        if (whiteShading && "color" in material) {
+        if (useClayShading && "color" in material) {
           (material as THREE.Material & { color: THREE.Color }).color.copy(
-            clayColor
+            effectiveClayColor
           );
         }
         material.needsUpdate = true;
         patchMaterialForProjection(material);
+      }
+    });
+  };
+
+  const applyOutlineVisibility = (root: THREE.Object3D) => {
+    root.traverse((object) => {
+      if (object.userData[TILE_OUTLINE_FLAG]) {
+        object.visible = shadowSimulationStyle ? false : outlineVisible;
       }
     });
   };
@@ -318,12 +366,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const notifyRequestStateChange = () => options.onRequestStateChange?.();
   const handleModelLoad = (event: { scene?: THREE.Object3D }) => {
-    if (event.scene) applyMaterialFlags(event.scene);
+    if (event.scene) {
+      applyMaterialFlags(event.scene);
+      applyOutlineVisibility(event.scene);
+    }
+    options.onContentChanged?.();
     notifyRequestStateChange();
     requestRender();
   };
   const handleModelDispose = (event: { scene?: THREE.Object3D }) => {
     if (event.scene) restoreClayMaterials(event.scene);
+    options.onContentChanged?.();
   };
   const syncProjector = () => {
     const projector = activeProjector;
@@ -474,7 +527,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       dracoLoader.setDecoderPath(
         "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
       );
-      tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
+      tiles.registerPlugin(
+        new GLTFExtensionsPlugin({
+          dracoLoader,
+          plugins: [
+            (parser: unknown) =>
+              buildLazyPrimitiveOutlinePlugin(parser, {
+                color: options.outlineColor ?? 0x000000,
+                opacity: options.outlineOpacity ?? 1,
+              }),
+          ],
+        })
+      );
       debugTilesPlugin = new DebugTilesPlugin({
         displayBoxBounds: tileBoundsVisible,
       });
@@ -620,6 +684,15 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.triggerRepaint();
     },
 
+    setShadowSimulationStyle(style) {
+      if (!options.shadowBuildingStyle) return;
+      shadowSimulationStyle = style;
+      if (style?.uniformColor) shadowClayColor.set(style.uniformColor);
+      applyMaterialFlags(orientationGroup);
+      applyOutlineVisibility(orientationGroup);
+      map?.triggerRepaint();
+    },
+
     setWhiteShading(white: boolean) {
       whiteShading = white;
       applyMaterialFlags(orientationGroup);
@@ -660,6 +733,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setWireframe(enabled: boolean) {
       wireframe = enabled;
       applyMaterialFlags(orientationGroup);
+      map?.triggerRepaint();
+    },
+
+    setOutlineVisible(visible: boolean) {
+      outlineVisible = visible;
+      applyOutlineVisibility(orientationGroup);
       map?.triggerRepaint();
     },
 
