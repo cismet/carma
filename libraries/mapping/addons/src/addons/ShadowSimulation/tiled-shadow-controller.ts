@@ -69,6 +69,12 @@ export type TiledShadowUpdate = Readonly<{
   intensity: number;
   shadowIntensity: number;
   quality: ShadowQualityMultiplier;
+  /**
+   * True while a camera gesture is in flight. The shadow buffer then drops to
+   * half resolution, which quarters the texels the depth pass writes per
+   * frame; the moveend update restores the full-quality buffer.
+   */
+  interactive?: boolean;
 }>;
 
 type MaterialState = Readonly<{
@@ -433,6 +439,7 @@ export class TiledShadowController {
     intensity,
     shadowIntensity,
     quality,
+    interactive = false,
   }: TiledShadowUpdate): TiledShadowSnapshot | null {
     if (this.disposed) return null;
     if (receiverWorldPoints.length === 0) {
@@ -468,10 +475,11 @@ export class TiledShadowController {
     );
     const lightMargin =
       casterReachMeters + reliefMeters + LIGHT_CAMERA_SAFETY_METERS;
+    const motionScale = interactive ? 0.5 : 1;
     const mapSize =
-      this.mode === "single"
+      (this.mode === "single"
         ? BASE_SINGLE_SHADOW_MAP_SIZE * Math.sqrt(quality)
-        : getShadowTileMapSize(quality);
+        : getShadowTileMapSize(quality)) * motionScale;
 
     this.csm.camera = camera;
     this.csm.lightMargin = lightMargin;

@@ -943,7 +943,9 @@ export const LibreMap = ({
       publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
-      if (exposeMapToWindow) {
+      if (exposeMapToWindow || import.meta.env?.DEV) {
+        // Always exposed in dev builds: the perf and shadow debugging flows
+        // drive the map from the console.
         (window as unknown as Record<string, unknown>).__carmaMap = mapInstance;
       }
 

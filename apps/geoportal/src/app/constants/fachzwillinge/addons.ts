@@ -69,7 +69,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
         terrain: {
           url: WUPP_TERRAIN_PROVIDER.url,
           errorTargetPixels: 0.5,
-          shadowLevelOffset: 0,
+          // 0 asks for full-resolution terrain across the entire shadow
+          // frustum, which explodes the tile selection (hundreds of ms per
+          // frame). 3 is the value the fast state used.
+          shadowLevelOffset: 3,
           minimumLevel: 15,
           maximumLevel: 17,
           noDataHeightMeters: 0,

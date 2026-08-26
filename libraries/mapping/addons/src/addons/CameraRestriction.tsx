@@ -2,10 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { carma as carmaApi } from "@carma-api";
-import {
-  DEFAULT_MAX_PITCH,
-  setCameraRestrictionOverride,
-} from "@carma-mapping/engines/maplibre";
+import { setCameraRestrictionOverride } from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../lib/registry";
 import { use3dLayers } from "../lib/use3dLayers";
@@ -120,6 +117,13 @@ const useZoom = (map: MaplibreMap | null, enabled: boolean): number | null => {
   return zoom;
 };
 
+/**
+ * How far the addon lets the camera tilt once it decides the view is free:
+ * 5 degrees above the horizon. MapLibre's stock cap of 60 stays the base for
+ * maps without this addon; a config `maxPitch` still overrides.
+ */
+const ADDON_UNRESTRICTED_MAX_PITCH = 85;
+
 export const CameraRestriction = ({
   carma,
   config,
@@ -131,7 +135,7 @@ export const CameraRestriction = ({
     requireVisible = true,
     restrictBelowZoom,
     restrictAboveZoom,
-    maxPitch = DEFAULT_MAX_PITCH,
+    maxPitch = ADDON_UNRESTRICTED_MAX_PITCH,
   } = config ?? {};
 
   const usesLayers =
