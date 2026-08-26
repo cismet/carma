@@ -124,9 +124,10 @@ export {
   useOriginLocation,
   useOriginLocationState,
   useOriginRequest,
-  DEFAULT_ORIGIN_LOCATION,
+  useReportOriginResolution,
   type OriginLocation,
   type OriginLocationState,
+  type OriginResolution,
   type OriginSearchConfig,
 } from "./addons/OriginSearch";
 export {

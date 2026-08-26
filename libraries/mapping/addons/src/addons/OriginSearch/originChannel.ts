@@ -24,14 +24,21 @@ export type OriginLocation = {
   label: string;
 };
 
+export type OriginResolution = "absent" | "pending" | "settled";
+
 export type OriginLocationState = {
   /** the current starting point; null until something publishes one */
   origin: OriginLocation | null;
+  resolution: OriginResolution;
   /** who wants the origin input on screen right now: key -> why */
   requests: Record<string, string>;
 };
 
-const EMPTY_STATE: OriginLocationState = { origin: null, requests: {} };
+const EMPTY_STATE: OriginLocationState = {
+  origin: null,
+  resolution: "absent",
+  requests: {},
+};
 
 /** the current origin, and the setter the origin search writes it with */
 export const useOriginLocation = (): [
@@ -45,6 +52,27 @@ export const useOriginLocation = (): [
     [publish]
   );
   return [state?.origin ?? null, setOrigin];
+};
+
+/**
+ * Say how far the origin search has got, for as long as it is mounted.
+ *
+ * Back to `absent` when it unmounts, so a consumer on a route that dropped the
+ * input does not wait for an answer nobody is going to give.
+ */
+export const useReportOriginResolution = (resolution: OriginResolution) => {
+  const [, publish] = useAddonState("originLocation");
+  useEffect(() => {
+    publish((previous) => ({ ...(previous ?? EMPTY_STATE), resolution }));
+  }, [publish, resolution]);
+  useEffect(() => {
+    return () => {
+      publish((previous) => ({
+        ...(previous ?? EMPTY_STATE),
+        resolution: "absent",
+      }));
+    };
+  }, [publish]);
 };
 
 /** the whole channel, for the addon that renders on a request */

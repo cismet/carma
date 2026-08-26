@@ -710,6 +710,12 @@ knows can be the starting point, with two differences from the app's own:
   view stays where the destination search put it. The hit's coordinates are
   converted to WGS84 by its own crs before they go on the channel.
 
+Its width is `100%` rather than a number of pixels, which is what makes it as
+wide as that search on every screen: the bottom-left control column is as wide
+as its widest child and aligns them to its **right** edge (`control-styles.ts`),
+so a fixed 300px sat indented under a search that spans the whole width of a
+phone. `pixelwidth` still overrides it for a route that wants its own.
+
 It also sits apart from that search rather than flush under it: a gap above it,
 and a fixed "Von:" label inside the field (`inputPrefix`, a new `LibFuzzySearch`
 prop) in front of whatever is typed there, so the input says on its own that it
@@ -722,12 +728,86 @@ the current origin's name alone;
 `placeholderPrefix` puts something in front of it again for a route that wants
 it.
 
-While the input is there it owns the origin: on mount it publishes its
-configured default (Rathaus Wuppertal) if the channel carries none, so a
-consumer reads one value instead of falling back to a default of its own. It
+While the input is there it owns the origin, so a consumer reads one value
+instead of falling back to a default of its own. It
 also carries the origin's marker (`originMarker.ts`), a MapLibre marker of its
 own rather than the gazetteer's, added while the input is on screen and moved
 with every new starting point, so the point everything measures from is visible.
+
+### Where it starts: the user's own position
+
+The starting point the input publishes on its own is **where the user is**, and
+it does not ask the device for that itself: it switches on **the map's own
+location mode**, the one behind the mobile locate button, and takes its
+position as „Mein Standort“.
+
+That mode used to be a hook each caller ran for itself
+(`useLibreMapLocateControl`), which meant a `watchPosition` and a blue dot per
+caller, and a button showing as off while another caller had it running. It is
+now `LocateContext` in `@carma-mapping/contexts`, rendered by
+`LibreContextProvider` with its own map, so the button, `FeatureInfobox`'s
+routing and this input share one instance and no app mounts anything:
+
+```ts
+const { currentPosition, problem, activate } = useLocate();
+activate({ fly: false }); // on, without moving the map
+```
+
+- **on demand, not at mount**, so a route where nothing asks for an origin never
+  puts a permission prompt in front of the user. "In der Nähe" asks for the
+  input when a ranking *starts*, so the prompt lands right after the user picked
+  "Apotheken in der Nähe", which is a moment they understand.
+- **`fly: false`.** The mode normally flies to the position at zoom 16, which is
+  right for the button and wrong here: the ranking fits the map to its hits a
+  moment later, and two moves read as the map being yanked about. The flag
+  belongs to the activation, not to the mode.
+- **the first fix, then held.** The mode keeps watching, but the origin is only
+  published while the channel carries none, so "In der Nähe" does not re-rank
+  and re-fit every few meters the user walks. Clearing the input is what takes
+  a fresh fix.
+- **a pin is a place, the dot is you.** While the origin is the user,
+  `originMarker` stays off the map, because the location mode already draws them
+  there; a picked address gets MapLibre's default pin, the same one the
+  gazetteer drops on a selection (`LibreMapSelectionContent`), rather than the
+  blue dot it used to draw, which was a second way of reading the same thing.
+- **something switched on has to be switchable off**: `LibreMapLocateControl`
+  shows on a phone as before, and now also wherever the mode is running,
+  whoever started it. The geoportal mounts it whenever the MapLibre map is on;
+  it used to mount the Leaflet `RoutedMapLocateControl` there, which drives
+  Leaflet's own locate and could not show this mode's state at all.
+- **declined or unavailable publishes nothing, and says so.** The channel stays
+  empty, the user says where to start rather than being measured from a point
+  they never chose, and they are told why: an antd `message.warning` plus
+  „Standort unbekannt: Startpunkt suchen“ in the placeholder, which is what is
+  still there once the toast has faded. The wording follows what went wrong
+  (`LocateProblem`: `denied`, `unavailable`, `unsupported`), because a declined
+  permission is the one the user can undo. The browser's own „User denied
+  Geolocation“ goes to the console, where nobody is looking. What "In der Nähe"
+  does meanwhile is its own `origin` config (Rathaus Wuppertal by default), so a
+  ranking still works; it is the input that stays honest about not knowing.
+- **`defaultOrigin` opts out**: a route that measures from a fixed point
+  configures it, and the device is not asked at all. It has no built-in value
+  any more, so leaving it unset is what asks for the own position.
+
+### Waiting for the origin instead of ranking twice
+
+Getting a position takes as long as the permission prompt is on screen, and a
+ranking that does not wait for it runs from the fallback first and from the user
+a moment later: the map flies to the Rathaus, fits itself around the pharmacies
+there, and then does the whole thing again around the user. So the channel also
+carries how far the question has got:
+
+```ts
+type OriginResolution = "absent" | "pending" | "settled";
+```
+
+`absent` is a route without the origin search, where a consumer uses its own
+configured origin and waits for nothing. The input reports `pending` from mount
+("there will be an origin") and `settled` once it has a position, a configured
+origin, or a definitive no. `runRanking` awaits `settled` before it ranks, so
+there is one ranking and one map fit. The waiters are released from an effect
+rather than by polling, and again when the mode unmounts; a 15s backstop keeps
+a search from hanging on an answer that never comes.
 
 ### Re-ranking on a new origin
 
@@ -762,10 +842,11 @@ filter typed behind the same run".
 
 | File | |
 | --- | --- |
-| `OriginSearch/originChannel.ts` | the channel, its type, the origin and request hooks |
-| `OriginSearch/OriginSearch.tsx` | the input in its `<Control>`, and the hit conversion |
-| `OriginSearch/originMarker.ts` | the marker that shows where the origin is |
-| `OriginSearch/config.ts` | position, default origin, placeholder, `alwaysVisible` |
+| `OriginSearch/originChannel.ts` | the channel, its type, the origin, request and resolution hooks |
+| `OriginSearch/OriginSearch.tsx` | the input in its `<Control>`, the location mode, the hit conversion |
+| `OriginSearch/originMarker.ts` | the gazetteer's own pin, for an origin that is a picked place |
+| `OriginSearch/config.ts` | position, `defaultOrigin`, placeholders, warnings, `alwaysVisible` |
+| `contexts/LocateContext.tsx` | the map's one location mode, shared with the locate button |
 
 ## Guidelines
 

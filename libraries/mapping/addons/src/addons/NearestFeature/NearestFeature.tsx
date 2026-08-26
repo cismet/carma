@@ -10,7 +10,7 @@ import type {
 import { useAddonState } from "../../lib/AddonStateContext";
 import { primeFeatureIndexes } from "../../lib/featureIndex";
 import type { AddonComponentProps } from "../../lib/registry";
-import { useOriginLocation, useOriginRequest } from "../OriginSearch";
+import { useOriginLocationState, useOriginRequest } from "../OriginSearch";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
   categoryForInput,
@@ -27,6 +27,9 @@ import {
   DEFAULT_PLACEHOLDER,
 } from "./config";
 import { rankCategory } from "./rankCategory";
+
+/** how long a ranking waits for the origin search before it gives up on it */
+const ORIGIN_WAIT_TIMEOUT = 15000;
 
 /** identity of a starting point, for "were these rows ranked from here?" */
 const originKeyOf = (origin: { lat: number; lng: number }) =>
@@ -112,10 +115,46 @@ export const NearestFeature = ({
   // the starting point, read the same way and for the same reason: the origin
   // search publishing another one must not re-register the mode, which would
   // refetch the whole gazetteer
-  const [publishedOrigin] = useOriginLocation();
+  const { origin: publishedOrigin, resolution } = useOriginLocationState();
   const effectiveOrigin = publishedOrigin ?? origin;
   const originRef = useRef(effectiveOrigin);
   originRef.current = effectiveOrigin;
+
+  /**
+   * Ranking waits while the origin search is still working out where the user
+   * starts. Without it the first ranking runs from the configured fallback and
+   * the real origin re-ranks it a moment later, so the map flies to one point
+   * and back, and the same category is searched twice.
+   *
+   * The waiters are resolved from an effect rather than by polling, and again
+   * when the mode unmounts, so nothing is left waiting on an answer that is not
+   * coming any more.
+   */
+  const resolutionRef = useRef(resolution);
+  resolutionRef.current = resolution;
+  const originWaitersRef = useRef<Array<() => void>>([]);
+  const releaseOriginWaiters = () => {
+    originWaitersRef.current.splice(0).forEach((resolve) => resolve());
+  };
+  useEffect(() => {
+    if (resolution !== "pending") {
+      releaseOriginWaiters();
+    }
+  }, [resolution]);
+  useEffect(() => releaseOriginWaiters, []);
+  const awaitOrigin = useCallback(
+    () =>
+      resolutionRef.current === "pending"
+        ? new Promise<void>((resolve) => {
+            originWaitersRef.current.push(resolve);
+            // a backstop, not the normal path: the device's own timeout is ten
+            // seconds, so an answer that has not come by now is not coming, and
+            // a search that hangs on it is worse than one from the fallback
+            setTimeout(resolve, ORIGIN_WAIT_TIMEOUT);
+          })
+        : Promise.resolve(),
+    []
+  );
 
   /** the run that just happened; see `Run` */
   const lastRunRef = useRef<Run | null>(null);
@@ -127,13 +166,19 @@ export const NearestFeature = ({
    */
   const pendingRunRef = useRef<Run | null>(null);
 
-  // a category has been ranked, so a starting point is now worth offering
-  const [hasRanked, setHasRanked] = useState(false);
-  useOriginRequest("nearestFeature", "In der Nähe: Startpunkt", hasRanked);
+  // a category is being ranked, so a starting point is now worth having and
+  // worth offering. Asked for when the ranking starts rather than when it is
+  // done, because the ranking is what needs the answer: it is also what puts
+  // the device's permission prompt on screen at a moment the user understands,
+  // right after picking "Apotheken in der Nähe".
+  const [wantsOrigin, setWantsOrigin] = useState(false);
+  useOriginRequest("nearestFeature", "In der Nähe: Startpunkt", wantsOrigin);
 
   /** rank a category from wherever the origin is now, and keep the rows */
   const runRanking = useCallback(
     async (category: NearestFeatureCategory): Promise<Run> => {
+      setWantsOrigin(true);
+      await awaitOrigin();
       const map = mapRef.current;
       const currentOrigin = originRef.current;
       const originKey = originKeyOf(currentOrigin);
@@ -151,10 +196,9 @@ export const NearestFeature = ({
       });
       const run: Run = { category, rows, problem, originKey };
       lastRunRef.current = run;
-      setHasRanked(true);
       return run;
     },
-    [carma, count]
+    [awaitOrigin, carma, count]
   );
 
   const resolve = useCallback(
