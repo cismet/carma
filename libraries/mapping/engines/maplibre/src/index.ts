@@ -274,6 +274,7 @@ export type {
   CesiumTerrainRuntimeOptions,
 } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
 export { suppressMapLibreTerrainRendering } from "./lib/runtime/integrations/shared-three-terrain-registry";
+export { suppressMapLibreRegularStyleLayers } from "./lib/runtime/integrations/map-style-layer-suppression";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

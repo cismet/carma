@@ -6,15 +6,14 @@ import { useAppSearchParams } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useHashState } from "@carma-providers/hash-state";
 
-import {
-  buildGeoportalMeasurementModeHashUpdate,
-} from "../helper/geoportal-custom-hash-state";
+import { buildGeoportalMeasurementModeHashUpdate } from "../helper/geoportal-custom-hash-state";
 import {
   geoportalAppSearchParamsOptions,
   geoportalAppSearchParamsOptionsWithoutDefaultView,
 } from "../config/app-search-params";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { getUIMode, UIMode } from "../store/slices/ui";
+import { useGeoportalShadowSimulationHash } from "./use-geoportal-shadow-simulation-hash";
 
 export const useGeoportalAppSearchParams = () => {
   const uiMode = useSelector(getUIMode);
@@ -26,11 +25,12 @@ export const useGeoportalAppSearchParams = () => {
     () => findFachzwillingByPathname(pathname)?.disableHashWrite ?? false,
     [pathname]
   );
-  useAppSearchParams(
+  const { customHashState } = useAppSearchParams(
     disableHashWrite
       ? geoportalAppSearchParamsOptionsWithoutDefaultView
       : geoportalAppSearchParamsOptions
   );
+  useGeoportalShadowSimulationHash({ customHashState });
   const { isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
