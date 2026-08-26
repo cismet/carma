@@ -86,6 +86,9 @@ const MIN_PX_DISTANCE = 3;
 const CIRCLE_STEPS = 64;
 /** Below this drag distance the gesture counts as a click, not as a resize. */
 const CLICK_PX_TOLERANCE = 4;
+/** Halvings spent narrowing down how far a shape can shrink; eight land within
+ *  a percent of it, for eight turf calls. */
+const SHRINK_LIMIT_STEPS = 8;
 
 export const DEFAULT_CIRCLE_RADIUS = 250;
 export const DEFAULT_CIRCLE_RADIUS_STEP = 5;
@@ -156,11 +159,9 @@ export interface LassoDrawingManagerOptions {
    */
   shapeBuffer?: number;
   /**
-   * Metres of `shapeBuffer` that the remembered shape has already been run
-   * with. Drawn as the solid inner outline, so what a replay adds reads as a
-   * ring around what is already selected rather than around the bare shape.
-   * Only affects what is drawn; the width that selects is `shapeBuffer`.
-   * Default: 0
+   * Metres of `shapeBuffer` the remembered shape has already been run with,
+   * drawn as the solid inner outline. Only affects what is drawn; the width
+   * that selects is `shapeBuffer`. Default: 0
    */
   baseBuffer?: number;
   /**
@@ -184,6 +185,9 @@ export interface LassoDrawingManagerOptions {
   /** Reports a previewed shape that a negative width has shrunk to nothing.
    *  It would select nothing, so the UI can refuse to run it. */
   onShapeEmptyChange?: (empty: boolean) => void;
+  /** Reports the deepest shrink the remembered shape survives, as a negative
+   *  width. 0 when there is no shape, or when it is a line. */
+  onShrinkLimitChange?: (meters: number) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -213,6 +217,7 @@ export class LassoDrawingManager {
   private shapeBuffer: number;
   private baseBuffer: number;
   private shapeEmpty = false;
+  private shrinkLimit = 0;
   private clearDelay: number;
   private onLastShapeChange?: (
     hasLastShape: boolean,
@@ -221,6 +226,7 @@ export class LassoDrawingManager {
   ) => void;
   private onLastShapePreviewChange?: (previewing: boolean) => void;
   private onShapeEmptyChange?: (empty: boolean) => void;
+  private onShrinkLimitChange?: (meters: number) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
 
@@ -305,6 +311,7 @@ export class LassoDrawingManager {
     this.onLastShapeChange = options.onLastShapeChange;
     this.onLastShapePreviewChange = options.onLastShapePreviewChange;
     this.onShapeEmptyChange = options.onShapeEmptyChange;
+    this.onShrinkLimitChange = options.onShrinkLimitChange;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
   }
@@ -372,8 +379,7 @@ export class LassoDrawingManager {
     else if (this.previewingLastShape) this.renderLastShape();
   }
 
-  /** The share of the width the remembered shape already ran with; drawing
-   *  only, so it redraws the same way a width change does. */
+  /** Drawing only, so it redraws the same way a width change does. */
   setBaseBuffer(meters: number): void {
     if (meters === this.baseBuffer) return;
     this.baseBuffer = meters;
@@ -381,21 +387,71 @@ export class LassoDrawingManager {
     else if (this.previewingLastShape) this.renderLastShape();
   }
 
-  /** What the solid inner outline is drawn at. With no width in play there is
-   *  nothing to set it apart from, so the shape is drawn as it is. It is not
-   *  clamped to `shapeBuffer`: a shrink puts the dashed outline inside the
-   *  solid one, which is what "this is what it would lose" looks like. */
+  /** What the solid inner outline is drawn at. Deliberately not clamped to
+   *  `shapeBuffer`: a shrink puts the dashed outline inside the solid one. */
   private baseWidth(): number {
     if (this.shapeBuffer === 0) return 0;
     return this.baseBuffer;
   }
 
-  /** Reports a preview that a shrink has consumed, so the UI can refuse to run
-   *  a shape that would select nothing. */
   private setShapeEmpty(empty: boolean): void {
     if (empty === this.shapeEmpty) return;
     this.shapeEmpty = empty;
     this.onShapeEmptyChange?.(empty);
+  }
+
+  private setShrinkLimit(meters: number): void {
+    if (meters === this.shrinkLimit) return;
+    this.shrinkLimit = meters;
+    this.onShrinkLimitChange?.(meters);
+  }
+
+  /**
+   * The deepest shrink the shape survives, as a negative width.
+   *
+   * There is no formula for it, so it is searched for by halving. The search
+   * starts at half the shorter side of the bounding box: a shape fits inside
+   * its box and can never survive more than that.
+   */
+  private computeShrinkLimit(shape: Polygon | LineString): number {
+    if (shape.type === "LineString") return 0;
+    const ring = shape.coordinates[0];
+    if (!ring || ring.length < 3) return 0;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [x, y] of ring) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+    const midX = (minX + maxX) / 2;
+    const midY = (minY + maxY) / 2;
+    let span = 0;
+    try {
+      span = Math.min(
+        turfDistance([minX, midY], [maxX, midY], { units: "meters" }),
+        turfDistance([midX, minY], [midX, maxY], { units: "meters" })
+      );
+    } catch {
+      return 0;
+    }
+    if (!Number.isFinite(span) || span <= 0) return 0;
+
+    let dead = -span / 2;
+    if (this.withBuffer(shape, dead) !== null) return Math.ceil(dead);
+    let alive = 0;
+    for (let step = 0; step < SHRINK_LIMIT_STEPS; step++) {
+      const mid = (alive + dead) / 2;
+      if (this.withBuffer(shape, mid) === null) dead = mid;
+      else alive = mid;
+    }
+    // ceil on a negative rounds towards zero, so the width handed out is one
+    // that was tested and works
+    return Math.ceil(alive);
   }
 
   setClearDelay(ms: number): void {
@@ -423,7 +479,6 @@ export class LassoDrawingManager {
   private setPreviewing(previewing: boolean): void {
     if (previewing === this.previewingLastShape) return;
     this.previewingLastShape = previewing;
-    // "empty" is a statement about the preview, so it goes down with it
     if (!previewing) this.setShapeEmpty(false);
     this.onLastShapePreviewChange?.(previewing);
   }
@@ -470,25 +525,26 @@ export class LassoDrawingManager {
    */
   private completeShape(drawn: Polygon | LineString, replayed = false): void {
     const geometry = this.withBuffer(drawn);
+    // the limit belongs to the shape, and a replay hands back the same one
+    if (drawn !== this.lastShape) {
+      this.setShrinkLimit(this.computeShrinkLimit(drawn));
+    }
     this.lastShape = drawn;
     this.onLastShapeChange?.(true, replayed, this.shapeBuffer);
     this.renderShape(drawn, geometry);
     this.clearVisualDelayed();
     // a shrink consumed the shape: it covers nothing, so it selects nothing.
-    // Handing over the shape as drawn instead would select everything, and an
-    // empty geometry would clear the selection a refine is meant to narrow.
+    // An empty geometry would instead clear the selection a refine narrows.
     if (geometry) this.onDrawComplete(geometry);
   }
 
   /**
-   * The drawn shape grown by `meters`, `shapeBuffer` by default — the same step
-   * for every tool, so a width set once applies to all of them. Always measured
-   * from the shape as drawn, so repeated buffering cannot drift.
+   * The drawn shape grown by `meters`, `shapeBuffer` by default. Always
+   * measured from the shape as drawn, so repeated buffering cannot drift.
    *
-   * A negative width shrinks instead, which only an area can do: for the line
-   * it is ignored and the bare line is handed back. Shrinking far enough leaves
-   * nothing at all, and `null` says exactly that — the caller must not fall
-   * back to the shape as drawn, or asking for -100 m would select everything.
+   * A negative width shrinks instead. `null` means the shrink left nothing —
+   * the caller must not fall back to the shape as drawn, or asking for -100 m
+   * would select everything.
    */
   private withBuffer(
     drawn: Polygon | LineString,
@@ -504,19 +560,14 @@ export class LassoDrawingManager {
         { units: "meters" }
       );
       const geometry = buffered?.geometry;
-      // turf answers a shrink that consumed the shape with no geometry at all
       if (!geometry) return meters < 0 ? null : drawn;
       if (geometry.type === "Polygon") {
-        // an empty ring is the other shape of "nothing left"
         return geometry.coordinates.length > 0 ? geometry : null;
       }
-      // a shrink can pinch a shape into several parts; the largest is the one
-      // that carries what was drawn. Growing never splits, so a MultiPolygon
-      // there means a degenerate input and the largest part still fits.
+      // a shrink can pinch a shape into several parts; the largest carries
+      // what was drawn
       return this.largestPart(geometry.coordinates);
     } catch {
-      // an invalid ring throws rather than answering; for a shrink that is the
-      // same "nothing usable" as an empty result
       return meters < 0 ? null : drawn;
     }
   }
@@ -546,9 +597,9 @@ export class LassoDrawingManager {
     return best;
   }
 
-  /** Both halves when a width grew the shape, the shape alone when it did not.
-   *  The solid half is the shape at the width it already ran with, so the
-   *  dashed half around it is exactly what a replay would add. */
+  /** The solid half is the shape at the width it already ran with, so the
+   *  dashed half is exactly what an apply would change — outside it when the
+   *  width grows, inside it when it shrinks, gone when nothing is left. */
   private renderShape(
     drawn: Polygon | LineString,
     buffered: Polygon | LineString | null
@@ -564,8 +615,6 @@ export class LassoDrawingManager {
       return;
     }
     const features: Feature[] = [];
-    // the dashed half is what an apply would leave: inside the solid one when
-    // the width shrinks, gone entirely when it shrank the shape away
     if (buffered) {
       features.push({
         type: "Feature",
@@ -732,8 +781,7 @@ export class LassoDrawingManager {
     }
 
     e.preventDefault();
-    // the shape still standing from the last draw belongs to the past now, and
-    // so does the width it had grown to
+    // the shape still standing from the last draw belongs to the past now
     this.setPreviewing(false);
     this.baseBuffer = 0;
     this.cancelPendingClear();
@@ -1324,7 +1372,6 @@ export class LassoDrawingManager {
       if (buffered === hull && base === hull) {
         features.push({ type: "Feature", properties: {}, geometry: hull });
       } else {
-        // a shrink can leave nothing at all while the drag is still running
         if (buffered) {
           features.push({
             type: "Feature",

@@ -28,9 +28,11 @@ export type HighlightModeState = {
   hasLastShape?: boolean;
   /** the last shape is on the map right now, so the button runs it next */
   lastShapeShown?: boolean;
-  /** a negative width has shrunk the previewed shape to nothing; running it
-   *  would select nothing, so the apply button stays off */
+  /** the previewed shape has been shrunk to nothing, so the apply button is
+   *  off: running it would select nothing */
   shapeEmpty?: boolean;
+  /** the deepest shrink the remembered shape survives, as a negative width */
+  shrinkLimit?: number;
   /** bumped by the UI to put the remembered shape on the map */
   showShapeVersion?: number;
   /** bumped by the UI to take that preview back down */

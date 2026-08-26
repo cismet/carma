@@ -34,14 +34,12 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
 
 /** slider range in metres; closing the panel is what switches the buffer off.
  *  Single metres, since the value is the step added on top of what is already
- *  applied and 1 m more is a normal thing to ask for. Below zero the step
- *  shrinks the shape instead — the far smaller range, since taking away is a
- *  correction and growing is the job. */
+ *  applied and 1 m more is a normal thing to ask for. `bufferMin` normally
+ *  ends the slider at the shape's own limit; this is the fallback without it. */
 const BUFFER_MIN = -100;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 1;
-/** without it zero is a place on the slider like any other, and the width the
- *  shape was drawn at cannot be found again by hand */
+/** without it the width the shape was drawn at cannot be found again by hand */
 const BUFFER_MARKS = { 0: "0" };
 
 export type ShapeToolbarProps = {
@@ -71,10 +69,12 @@ export type ShapeToolbarProps = {
   /** runs the previewed shape at the width set now */
   onApplyBuffer?: () => void;
   bufferApplyLabel?: string;
-  /** a negative width has shrunk the previewed shape away; there is nothing
-   *  left to run */
+  /** the previewed shape has been shrunk away; there is nothing left to run */
   bufferEmpty?: boolean;
   bufferEmptyLabel?: string;
+  /** the deepest step the shape survives, as a negative width; slider and
+   *  input both stop there. Omitted: a fixed fallback range. */
+  bufferMin?: number;
 };
 
 export const ShapeToolbar = ({
@@ -99,13 +99,16 @@ export const ShapeToolbar = ({
   bufferApplyLabel = "Anwenden",
   bufferEmpty = false,
   bufferEmptyLabel = "Puffer verkleinert die Form auf nichts",
+  bufferMin,
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
+  // never above 0: growing is always allowed
+  const floor = Math.min(0, bufferMin ?? BUFFER_MIN);
   // growth can carry the width past the slider range, and a handle pinned to
   // an end would misreport it
   const sliderMax = Math.max(BUFFER_MAX, bufferWidth);
-  const sliderMin = Math.min(BUFFER_MIN, bufferWidth);
+  const sliderMin = Math.min(floor, bufferWidth);
 
   // what an apply would select at: the step on top of what is already applied
   const bufferTotal = bufferApplied + bufferWidth;
@@ -134,7 +137,7 @@ export const ShapeToolbar = ({
         <InputNumber
           size="small"
           className="w-24"
-          min={MIN_BUFFER_WIDTH}
+          min={Math.max(floor, MIN_BUFFER_WIDTH)}
           max={MAX_BUFFER_WIDTH}
           step={BUFFER_STEP}
           value={bufferWidth}

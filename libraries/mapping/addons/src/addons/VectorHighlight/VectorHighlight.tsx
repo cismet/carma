@@ -87,17 +87,14 @@ export const VectorHighlight = ({
     setRectSize,
   } = useHighlightModeActions();
 
-  // With `cumulativeBuffer` the panel holds a step, not a total: what it shows
-  // is added to what the shape has already grown by, so 10 applied plus 1 typed
-  // previews 11. Without it the panel is the whole width, and nothing is ever
-  // banked. The total applies only while the buffer panel is open.
+  // with `cumulativeBuffer` the panel holds a step: 10 applied plus 1 typed
+  // previews 11. Without it the panel is the whole width, nothing is banked.
   const appliedBuffer = cumulativeBuffer ? mode?.appliedBuffer ?? 0 : 0;
   const bufferEnabled = mode?.bufferEnabled ?? bufferOnByDefault;
   const shapeBuffer = bufferEnabled
     ? clampBufferWidth(appliedBuffer + (mode?.shapeBuffer ?? defaultBuffer))
     : 0;
-  // the preview draws the shape at the width it already ran with, so the dashed
-  // ring around it is the step and not the whole width
+  // the preview's solid outline, so the dashed one shows the step alone
   const baseBuffer = bufferEnabled ? appliedBuffer : 0;
 
   // key on the content: route configs pass a fresh array per render
@@ -158,11 +155,8 @@ export const VectorHighlight = ({
         hasLastShape,
         // the buffer is a one-off: the next drawing starts plain again
         bufferEnabled: bufferOnByDefault,
-        // The width belongs to the shape: a replay banks the width it actually
-        // ran with, so the next step grows from that total. Taken from the
-        // manager rather than recomputed here — by now the preview is down and
-        // `bufferEnabled` is already back off. A newly drawn shape starts over,
-        // at the default step and unbuffered.
+        // the width the replay actually ran with, taken from the manager: by
+        // now the preview is down and `bufferEnabled` is already back off
         appliedBuffer:
           cumulativeBuffer && replayed ? clampBufferWidth(bufferMeters) : 0,
         ...(replayed ? null : { shapeBuffer: defaultBuffer }),
@@ -188,6 +182,15 @@ export const VectorHighlight = ({
   const handleShapeEmptyChange = useCallback(
     (shapeEmpty: boolean) =>
       setMode((previous) => ({ ...(previous ?? { isOn: false }), shapeEmpty })),
+    [setMode]
+  );
+
+  const handleShrinkLimitChange = useCallback(
+    (shrinkLimit: number) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        shrinkLimit,
+      })),
     [setMode]
   );
 
@@ -229,6 +232,7 @@ export const VectorHighlight = ({
       onLastShapeChange: handleLastShapeChange,
       onLastShapePreviewChange: handleLastShapePreviewChange,
       onShapeEmptyChange: handleShapeEmptyChange,
+      onShrinkLimitChange: handleShrinkLimitChange,
       onCircleRadiusChange: setCircleRadius,
       onRectSizeChange: setRectSize,
       onDeactivate: endMode,
