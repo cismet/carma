@@ -7,10 +7,6 @@ import {
   readLocalCameraBasis,
 } from "@carma-commons/camera/model";
 import {
-  deriveOrbitAngles,
-  type ViewState,
-} from "@carma-mapping/engines-interop/view-state";
-import {
   clamp,
   intersectRayWithPlane,
   isFiniteNumber,
@@ -18,6 +14,10 @@ import {
   PI_OVER_THREE,
   PI_OVER_TWO,
 } from "@carma-commons/math";
+import {
+  deriveOrbitAngles,
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-state";
 import { zeroToTwoPi } from "@carma-units";
 import type { Radians } from "@carma-units";
 
@@ -527,16 +527,42 @@ export const computeUnitHemisphereCameraPosition = ({
 const resolveCameraBasis = ({
   viewState,
   hemisphereRadius,
+  useCameraPosition,
 }: {
   viewState: ViewState;
   hemisphereRadius: number;
+  useCameraPosition: boolean;
 }) => {
   const { bearing, pitch } = deriveOrbitAngles(viewState);
-  const cameraPosition = viewingBearingPitchToCameraSpherePosition({
-    viewingBearing: bearing,
-    pitch,
-    hemisphereRadius,
-  });
+  const exactCameraPosition = (() => {
+    if (!useCameraPosition) return null;
+    const { longitude, latitude } = viewState.anchorCartographic;
+    const delta = viewState.cameraPosition.clone().sub(viewState.anchor);
+    const sinLongitude = Math.sin(longitude);
+    const cosLongitude = Math.cos(longitude);
+    const sinLatitude = Math.sin(latitude);
+    const cosLatitude = Math.cos(latitude);
+    const east = new Vector3(-sinLongitude, cosLongitude, 0);
+    const north = new Vector3(
+      -sinLatitude * cosLongitude,
+      -sinLatitude * sinLongitude,
+      cosLatitude
+    );
+    const localUp = new Vector3(
+      cosLatitude * cosLongitude,
+      cosLatitude * sinLongitude,
+      sinLatitude
+    );
+    return new Vector3(delta.dot(east), delta.dot(localUp), -delta.dot(north));
+  })();
+  const cameraPosition =
+    exactCameraPosition && exactCameraPosition.lengthSq() > Number.EPSILON
+      ? exactCameraPosition.normalize().multiplyScalar(hemisphereRadius)
+      : viewingBearingPitchToCameraSpherePosition({
+          viewingBearing: bearing,
+          pitch,
+          hemisphereRadius,
+        });
   const { forward, right, up } = readLocalCameraBasis(viewState.orientation);
 
   return {
@@ -1123,6 +1149,7 @@ export const buildImagePlaneGeometry = ({
   const { bearing, cameraPosition, forward, right, up } = resolveCameraBasis({
     viewState,
     hemisphereRadius,
+    useCameraPosition: visualized.useCameraPosition,
   });
   const inverseBearingRotation =
     CAMERA_GEOMETRY_SCRATCH.inverseBearingRotation.setFromAxisAngle(
