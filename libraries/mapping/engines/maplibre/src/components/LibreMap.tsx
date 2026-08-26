@@ -1625,6 +1625,17 @@ export const LibreMap = ({
                 continue;
               }
 
+              // A layer that says nothing but `skipIn2D` asks to be hidden
+              // while the 3D layer is up; it does not describe one. Letting it
+              // define the config would hand the whole source a configuration
+              // with no render mode, and the layer that really carries one
+              // would be passed over as already known. The markers are
+              // collected in a second pass below, which also frees a style
+              // from having to list its configuration layer first.
+              if (!Object.keys(meta).some((key) => key !== "skipIn2D")) {
+                continue;
+              }
+
               const sourceId = meta.sourceId ?? (layer as any).source;
               const sourceLayer =
                 meta.sourceLayer ?? (layer as any)["source-layer"];
@@ -1640,12 +1651,18 @@ export const LibreMap = ({
                   skipIn2DLayerIds: [],
                 });
               }
+            }
 
-              // Collect layer IDs that should be hidden in 2D
-              if (meta.skipIn2D) {
-                const idx = sourceToIdx.get(sourceId)!;
-                configs[idx].skipIn2DLayerIds!.push((layer as any).id);
-              }
+            // Which layers step aside while the 3D layer draws. Separate from
+            // the pass above so a marker counts wherever it sits in the style,
+            // before its source's configuration as well as after it.
+            for (const layer of style.layers ?? []) {
+              const meta = (layer as any).metadata?.carmaConf?.["3d"];
+              if (!meta?.skipIn2D) continue;
+              const sourceId = meta.sourceId ?? (layer as any).source;
+              const idx = sourceId === undefined ? undefined : sourceToIdx.get(sourceId);
+              if (idx === undefined) continue;
+              configs[idx].skipIn2DLayerIds!.push((layer as any).id);
             }
 
             for (const l of effectiveLayers ?? []) {
