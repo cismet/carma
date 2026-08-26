@@ -299,6 +299,71 @@ const readOrthographicFallbackHalfExtents = ({
       };
 };
 
+const readOrthographicBoundsFromProjectionMatrix = ({
+  viewState,
+  rangeMeters,
+  hemisphereRadius,
+  epsilon,
+}: {
+  viewState: ViewState;
+  rangeMeters: number;
+  hemisphereRadius: number;
+  epsilon: number;
+}): {
+  left: number;
+  right: number;
+  bottom: number;
+  top: number;
+} | null => {
+  const projectionMatrix = viewState.intrinsics?.projectionMatrix;
+  if (
+    !projectionMatrix ||
+    !projectionMatrix.elements.every(isFiniteNumber) ||
+    !isFiniteNumber(rangeMeters) ||
+    rangeMeters <= epsilon
+  ) {
+    return null;
+  }
+
+  const horizontalScale = projectionMatrix.elements[0];
+  const verticalScale = projectionMatrix.elements[5];
+  const horizontalOffset = projectionMatrix.elements[12];
+  const verticalOffset = projectionMatrix.elements[13];
+  if (
+    !isFiniteNumber(horizontalScale) ||
+    Math.abs(horizontalScale) <= Number.EPSILON ||
+    !isFiniteNumber(verticalScale) ||
+    Math.abs(verticalScale) <= Number.EPSILON ||
+    !isFiniteNumber(horizontalOffset) ||
+    !isFiniteNumber(verticalOffset)
+  ) {
+    return null;
+  }
+
+  // Orthographic X/Y projection is independent of near/far. Decode its two
+  // NDC endpoints directly; a determinant threshold would reject perfectly
+  // valid large-area shadow cameras because their depth scale is very small.
+  const horizontalEndpoints = [
+    (-1 - horizontalOffset) / horizontalScale,
+    (1 - horizontalOffset) / horizontalScale,
+  ];
+  const verticalEndpoints = [
+    (-1 - verticalOffset) / verticalScale,
+    (1 - verticalOffset) / verticalScale,
+  ];
+  const normalize = (value: number) => (value / rangeMeters) * hemisphereRadius;
+  const left = normalize(Math.min(...horizontalEndpoints));
+  const right = normalize(Math.max(...horizontalEndpoints));
+  const bottom = normalize(Math.min(...verticalEndpoints));
+  const top = normalize(Math.max(...verticalEndpoints));
+
+  return [left, right, bottom, top].every(isFiniteNumber) &&
+    right - left > epsilon &&
+    top - bottom > epsilon
+    ? { left, right, bottom, top }
+    : null;
+};
+
 const intersectForwardRayWithGroundPlane = ({
   origin,
   direction,
@@ -651,19 +716,30 @@ const buildImagePlaneGeometryInResolvedFrame = ({
       ? Math.abs(projectionMatrix.elements[5])
       : null;
   const aspect = readAspectRatio(viewState);
-  const orthographicHalfExtents =
+  const orthographicProjectionBounds =
     type === CAMERA_TYPE.ORTHOGRAPHIC
-      ? readOrthographicHalfExtentsFromScale({
+      ? readOrthographicBoundsFromProjectionMatrix({
           viewState,
           rangeMeters: range,
           hemisphereRadius,
           epsilon,
-        }) ??
-        readOrthographicFallbackHalfExtents({
-          aspect,
-          hemisphereRadius,
-          epsilon,
         })
+      : null;
+  const orthographicHalfExtents =
+    type === CAMERA_TYPE.ORTHOGRAPHIC
+      ? orthographicProjectionBounds
+        ? null
+        : readOrthographicHalfExtentsFromScale({
+            viewState,
+            rangeMeters: range,
+            hemisphereRadius,
+            epsilon,
+          }) ??
+          readOrthographicFallbackHalfExtents({
+            aspect,
+            hemisphereRadius,
+            epsilon,
+          })
       : null;
 
   const croppedHalfHeight = orthographicHalfExtents
@@ -782,24 +858,37 @@ const buildImagePlaneGeometryInResolvedFrame = ({
               .multiplyScalar(offsetPlaneHeightRatio)
           )
       : null;
-  const frustumBackCorners: [Vector3, Vector3, Vector3, Vector3] = [
+  const buildOrthographicCorner = (horizontal: number, vertical: number) =>
     cameraPosition
       .clone()
-      .add(right.clone().multiplyScalar(fullHalfWidth))
-      .add(up.clone().multiplyScalar(fullHalfHeight)),
-    cameraPosition
-      .clone()
-      .add(right.clone().multiplyScalar(-fullHalfWidth))
-      .add(up.clone().multiplyScalar(fullHalfHeight)),
-    cameraPosition
-      .clone()
-      .add(right.clone().multiplyScalar(-fullHalfWidth))
-      .add(up.clone().multiplyScalar(-fullHalfHeight)),
-    cameraPosition
-      .clone()
-      .add(right.clone().multiplyScalar(fullHalfWidth))
-      .add(up.clone().multiplyScalar(-fullHalfHeight)),
-  ];
+      .add(right.clone().multiplyScalar(horizontal))
+      .add(up.clone().multiplyScalar(vertical));
+  const frustumBackCorners: [Vector3, Vector3, Vector3, Vector3] =
+    orthographicProjectionBounds
+      ? [
+          buildOrthographicCorner(
+            orthographicProjectionBounds.right,
+            orthographicProjectionBounds.top
+          ),
+          buildOrthographicCorner(
+            orthographicProjectionBounds.left,
+            orthographicProjectionBounds.top
+          ),
+          buildOrthographicCorner(
+            orthographicProjectionBounds.left,
+            orthographicProjectionBounds.bottom
+          ),
+          buildOrthographicCorner(
+            orthographicProjectionBounds.right,
+            orthographicProjectionBounds.bottom
+          ),
+        ]
+      : [
+          buildOrthographicCorner(fullHalfWidth, fullHalfHeight),
+          buildOrthographicCorner(-fullHalfWidth, fullHalfHeight),
+          buildOrthographicCorner(-fullHalfWidth, -fullHalfHeight),
+          buildOrthographicCorner(fullHalfWidth, -fullHalfHeight),
+        ];
   const perspectiveImagePlaneCorners: [Vector3, Vector3, Vector3, Vector3] = [
     perspectiveTopRight,
     perspectiveTopLeft,
@@ -818,11 +907,17 @@ const buildImagePlaneGeometryInResolvedFrame = ({
       : perspectiveImagePlaneCorners;
   const imagePlaneCenterResolved =
     type === CAMERA_TYPE.ORTHOGRAPHIC
-      ? cameraPosition.clone()
+      ? orthographicProjectionBounds
+        ? buildOrthographicCorner(
+            (orthographicProjectionBounds.left +
+              orthographicProjectionBounds.right) /
+              2,
+            (orthographicProjectionBounds.bottom +
+              orthographicProjectionBounds.top) /
+              2
+          )
+        : cameraPosition.clone()
       : perspectiveImagePlaneCenter;
-  const imagePlaneWidthVector = imagePlaneCorners[0]
-    .clone()
-    .sub(imagePlaneCorners[1]);
   const imagePlaneHeightVector = imagePlaneCorners[2]
     .clone()
     .sub(imagePlaneCorners[1]);

@@ -18,6 +18,10 @@ import type {
 } from "@carma-mapping/engines/maplibre";
 
 import type { SolarPosition } from "./solar-position";
+import {
+  clearShadowProjectionDebugSnapshot,
+  publishShadowProjectionDebugSnapshot,
+} from "./shadow-projection-debug-store";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
@@ -90,6 +94,9 @@ export type ShadowQualityMultiplier = 1 | 4 | 16;
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 4;
 
+export const getShadowMapSize = (quality: ShadowQualityMultiplier) =>
+  DEFAULT_SHADOW_MAP_SIZE * Math.sqrt(quality);
+
 const DEFAULT_TERRAIN_COLOR = "#d8d1c4";
 const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
 
@@ -122,7 +129,7 @@ const configureShadowMapQuality = (
   light: THREE.DirectionalLight,
   quality: ShadowQualityMultiplier
 ) => {
-  const size = DEFAULT_SHADOW_MAP_SIZE * Math.sqrt(quality);
+  const size = getShadowMapSize(quality);
   if (light.shadow.mapSize.x === size && light.shadow.mapSize.y === size)
     return;
   light.shadow.map?.dispose();
@@ -828,6 +835,23 @@ export const buildShadowSimulationScene = (
         configuredShadowAreaMeters ?? MIN_VIEWPORT_SHADOW_AREA_METERS,
         sharedBinding.shadowQuality
       );
+      const shadowCamera = sharedBinding.sunLight.shadow.camera;
+      publishShadowProjectionDebugSnapshot(map, {
+        cameraRangeMeters: shadowCamera.position.distanceTo(
+          sharedBinding.lightTarget.position
+        ),
+        leftMeters: shadowCamera.left,
+        rightMeters: shadowCamera.right,
+        bottomMeters: shadowCamera.bottom,
+        topMeters: shadowCamera.top,
+        nearMeters: shadowCamera.near,
+        farMeters: shadowCamera.far,
+        projectionMatrixElements: [...shadowCamera.projectionMatrix.elements],
+        shadowMapWidth: sharedBinding.sunLight.shadow.mapSize.x,
+        shadowMapHeight: sharedBinding.sunLight.shadow.mapSize.y,
+        minimumElevationMeters: minimumElevation,
+        maximumElevationMeters: maximumElevation,
+      });
     }
     terrainRuntime?.setShadowCamera(sharedBinding.sunLight.shadow.camera);
     map.triggerRepaint();
@@ -1003,6 +1027,7 @@ export const buildShadowSimulationScene = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      clearShadowProjectionDebugSnapshot(map);
       map.off("style.load", restoreLighting);
       map.off("styledata", ensureShadowBackground);
       map.off("move", updateSharedShadowCoverage);
