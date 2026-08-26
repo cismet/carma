@@ -207,11 +207,17 @@ describe("buildCesiumTerrainRuntime", () => {
       trimCache: vi.fn(),
     };
     acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const onContentChanged = vi.fn();
     const runtime = buildCesiumTerrainRuntime(
       "terrain",
       "https://example.test/terrain",
       [7.15, 51.256],
-      { minimumLevel: 10, maximumLevel: 10, shadowLevelOffset: 0 }
+      {
+        minimumLevel: 10,
+        maximumLevel: 10,
+        shadowLevelOffset: 0,
+        onContentChanged,
+      }
     );
     const map = {
       getBounds: vi.fn(() => ({
@@ -274,6 +280,7 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(source.requestTile).toHaveBeenCalledWith(tileId);
     expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
     expect(notifySharedThreeTerrainChanged).toHaveBeenCalledWith(map);
+    expect(onContentChanged).toHaveBeenCalledOnce();
 
     const shadowCamera = new OrthographicCamera(
       -1_000,
@@ -299,6 +306,7 @@ describe("buildCesiumTerrainRuntime", () => {
       expect(source.requestTile).toHaveBeenCalledWith(sunTileId);
       expect(runtime.root.children).toHaveLength(3);
     });
+    expect(onContentChanged).toHaveBeenCalledTimes(2);
     const viewportNormal = (
       (
         runtime.root.children.find((child) =>

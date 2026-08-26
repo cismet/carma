@@ -60,5 +60,61 @@ describe("shared Three.js scene registry", () => {
     expect(removeLayer).toHaveBeenCalledWith(sharedLayer.id);
     expect(dispose).toHaveBeenCalledOnce();
     expect(listeners.has("styledata")).toBe(false);
+    expect(listeners.has("style.load")).toBe(false);
+    expect(listeners.has("idle")).toBe(false);
+  });
+
+  it("adds the layer while sources keep the style in a loading state", () => {
+    const addLayer = vi.fn();
+    let attached = false;
+    addLayer.mockImplementation(() => {
+      attached = true;
+    });
+    const map = {
+      isStyleLoaded: vi.fn(() => false),
+      getStyle: vi.fn(() => ({ layers: [] })),
+      getLayer: vi.fn(() => (attached ? sharedLayer : undefined)),
+      addLayer,
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    lease.release();
+  });
+
+  it("retries after the host style becomes writable", () => {
+    const listeners = new Map<string, () => void>();
+    let attached = false;
+    const addLayer = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error("Style is not done loading");
+      })
+      .mockImplementation(() => {
+        attached = true;
+      });
+    const map = {
+      getStyle: vi.fn(() => ({ layers: [] })),
+      getLayer: vi.fn(() => (attached ? sharedLayer : undefined)),
+      addLayer,
+      removeLayer: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        listeners.set(event, handler);
+      }),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+    expect(attached).toBe(false);
+
+    listeners.get("style.load")?.();
+
+    expect(attached).toBe(true);
+    expect(addLayer).toHaveBeenCalledTimes(2);
+    lease.release();
   });
 });

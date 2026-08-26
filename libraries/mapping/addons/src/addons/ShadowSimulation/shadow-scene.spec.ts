@@ -158,6 +158,7 @@ describe("shadow scene lighting integration", () => {
     expect(sun.shadow.camera.near).toBe(1);
     expect(sun.shadow.camera.far).toBe(3_950);
     expect(sun.castShadow).toBe(true);
+    expect(sun.shadow.autoUpdate).toBe(false);
     expect(sun.shadow.mapSize.toArray()).toEqual([4_096, 4_096]);
     expect(sun.shadow.radius).toBe(0);
     const shadowTexelMeters = 900 / 4_096;
@@ -197,6 +198,7 @@ describe("shadow scene lighting integration", () => {
       expect(shadowRayDirection.dot(shadowRayDirections[0])).toBeCloseTo(1);
     }
     expect(sunVector.visible).toBe(false);
+    expect(map.on).toHaveBeenCalledWith("style.load", expect.any(Function));
     controller.updateSunDebugVectorVisibility(true);
     expect(sunVector.visible).toBe(true);
     expect(sunVector.position).toEqual(sun.target.position);
