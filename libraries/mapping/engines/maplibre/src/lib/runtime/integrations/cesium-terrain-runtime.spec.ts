@@ -43,8 +43,11 @@ vi.mock("./shared-three-terrain-registry", () => ({
 import { buildCesiumTerrainRuntime } from "./cesium-terrain-tile-runtime";
 
 describe("buildCesiumTerrainRuntime", () => {
+  let fineBoundaryNormalBeforeSmoothing: Vector3 | null;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    fineBoundaryNormalBeforeSmoothing = null;
     createProjectedTerrainTileGeometry.mockImplementation(({ tile }) => {
       const geometry = new BufferGeometry();
       const isSyntheticFlat =
@@ -54,6 +57,26 @@ describe("buildCesiumTerrainRuntime", () => {
       const west = tileX === 531 ? -1 : tileX === 533 ? 1 : 0;
       const nearHeight = tile.heightMeters[0] === 123 ? 1 : 0;
       const farHeight = !isSyntheticFlat && tileX === 533 ? 1 : 0;
+      if (tile.heightMeters[0] === 456) {
+        geometry.setAttribute(
+          "position",
+          new Float32BufferAttribute(
+            new Float32Array([
+              1, 0, 0, 1, 0, -0.5, 1, 0, -1, 2, 1, 0, 2, 1, -0.5, 2, 1, -1,
+            ]),
+            3
+          )
+        );
+        geometry.setIndex([0, 3, 1, 1, 3, 4, 1, 4, 2, 2, 4, 5]);
+        geometry.computeVertexNormals();
+        const normal = geometry.getAttribute("normal");
+        fineBoundaryNormalBeforeSmoothing = new Vector3(
+          normal.getX(1),
+          normal.getY(1),
+          normal.getZ(1)
+        );
+        return geometry;
+      }
       geometry.setAttribute(
         "position",
         new Float32BufferAttribute(
@@ -78,6 +101,79 @@ describe("buildCesiumTerrainRuntime", () => {
       geometry.computeVertexNormals();
       return geometry;
     });
+  });
+
+  it("interpolates coarse neighbor normals for finer LOD edge vertices", async () => {
+    const coarseId = { level: 10, x: 532, y: 218 };
+    const fineId = { level: 11, x: 533, y: 218 };
+    const source = {
+      requestTile: vi.fn(async (id) => ({
+        id,
+        heightMeters:
+          id === fineId ? new Float32Array([456]) : new Float32Array([100]),
+        westIndices:
+          id === fineId ? new Uint32Array([0, 1, 2]) : new Uint32Array(),
+        southIndices: new Uint32Array(),
+        eastIndices:
+          id === coarseId ? new Uint32Array([2, 3]) : new Uint32Array(),
+        northIndices: new Uint32Array(),
+      })),
+      getTileIdsForBounds: vi.fn(() => [coarseId, fineId]),
+      getTileGridIdsForBounds: vi.fn(() => [coarseId, fineId]),
+      getTileBounds: vi.fn((id) =>
+        id === fineId
+          ? { west: 7.2, south: 51, east: 7.4, north: 51.3 }
+          : { west: 7, south: 51, east: 7.2, north: 51.3 }
+      ),
+      getLevelMaximumGeometricError: vi.fn(() => 0.00001),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(() => 150),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const runtime = buildCesiumTerrainRuntime(
+      "mixed-lod-terrain",
+      "https://example.test/mixed-lod-terrain",
+      [7.15, 51.256],
+      { minimumLevel: 10, maximumLevel: 11 }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7,
+        getSouth: () => 51,
+        getEast: () => 7.4,
+        getNorth: () => 51.3,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 10_000);
+    lodCamera.position.set(0, 1_000, 0);
+    runtime.update({
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      viewport: new Vector2(1_000, 1_000),
+    });
+
+    await expect(runtime.ready).resolves.toBe(true);
+    const fineMesh = (
+      runtime.root.children.find((child) =>
+        child.name.endsWith("11/533/218")
+      ) as Group
+    ).children[0] as Mesh;
+    const smoothedNormal = fineMesh.geometry.getAttribute("normal");
+
+    expect(fineBoundaryNormalBeforeSmoothing).not.toBeNull();
+    expect(smoothedNormal.getY(1)).toBeGreaterThan(
+      fineBoundaryNormalBeforeSmoothing!.y + 0.1
+    );
+
+    runtime.dispose();
   });
 
   it("adds a shadeable terrain mesh in the shared local-meter frame", async () => {
@@ -141,8 +237,19 @@ describe("buildCesiumTerrainRuntime", () => {
     });
 
     await expect(runtime.ready).resolves.toBe(true);
-    expect(runtime.root.children).toHaveLength(1);
-    const tileNode = runtime.root.children[0] as Group;
+    expect(runtime.root.children).toHaveLength(2);
+    const coverageMesh = runtime.root.children.find((child) =>
+      child.name.endsWith("-viewport-coverage")
+    ) as Mesh;
+    expect(coverageMesh.castShadow).toBe(false);
+    expect(coverageMesh.receiveShadow).toBe(true);
+    expect(coverageMesh.userData.disableShadowCasting).toBe(true);
+    expect((coverageMesh.material as MeshLambertMaterial).polygonOffset).toBe(
+      true
+    );
+    const tileNode = runtime.root.children.find((child) =>
+      child.name.includes("source:")
+    ) as Group;
     expect(tileNode.children).toHaveLength(1);
     const mesh = tileNode.children[0] as Mesh & {
       castShadow: boolean;
@@ -190,7 +297,7 @@ describe("buildCesiumTerrainRuntime", () => {
     });
     await vi.waitFor(() => {
       expect(source.requestTile).toHaveBeenCalledWith(sunTileId);
-      expect(runtime.root.children).toHaveLength(2);
+      expect(runtime.root.children).toHaveLength(3);
     });
     const viewportNormal = (
       (
@@ -285,7 +392,7 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(source.requestTile).toHaveBeenCalledTimes(2);
     expect(source.requestTile).toHaveBeenCalledWith(zeroSourceId);
     expect(source.requestTile).toHaveBeenCalledWith(sourceId);
-    expect(runtime.root.children).toHaveLength(3);
+    expect(runtime.root.children).toHaveLength(4);
     const flatNode = runtime.root.children.find((child) =>
       child.name.includes("flat:10/533/218")
     ) as Group;
@@ -414,7 +521,7 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(
       runtime.root.children.filter((child) => child.name.includes("flat:11/"))
     ).toHaveLength(2);
-    expect(runtime.root.children).toHaveLength(4);
+    expect(runtime.root.children).toHaveLength(5);
 
     runtime.dispose();
   });
