@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -98,6 +99,52 @@ export const CompareStage = ({
 }: CompareStageProps) => {
   const { register, syncFrom } = useCameraSync();
 
+  // Panel maps that are up, so the app map's terrain can be handed to all of
+  // them at once when it is switched.
+  const panelMapsRef = useRef(new Set<MaplibreMap>());
+
+  /**
+   * Gives a panel the terrain the app map has.
+   *
+   * `LibreTerrainControl` lives in the app's control layout and only ever
+   * talks to that map, so a panel starts flat while the app map is draped over
+   * the terrain. That is not only a difference in relief: a 3D Tiles layer
+   * draws the tileset at its own absolute heights, and on a flat map the
+   * buildings therefore hang as far above the ground as that ground is above
+   * sea level, which around Wuppertal is some 200 m and puts them out of the
+   * frame entirely. The panels show the app map's content, so they get the
+   * ground it stands on as well.
+   */
+  const syncTerrain = useCallback(
+    (map: MaplibreMap) => {
+      const wanted = appMap.getTerrain();
+      const current = map.getTerrain();
+      if (wanted) {
+        // The source comes with the panel's own background style; until it is
+        // there, the styledata below asks again.
+        if (!current && map.getSource(wanted.source)) {
+          map.setTerrain(wanted);
+        }
+      } else if (current) {
+        map.setTerrain(null);
+      }
+    },
+    [appMap]
+  );
+
+  useEffect(() => {
+    const panelMaps = panelMapsRef.current;
+    const handleTerrain = () => {
+      panelMaps.forEach((map) => {
+        syncTerrain(map);
+      });
+    };
+    appMap.on("terrain", handleTerrain);
+    return () => {
+      appMap.off("terrain", handleTerrain);
+    };
+  }, [appMap, syncTerrain]);
+
   // An element of our own inside the map's wrapper, rather than the wrapper
   // itself.
   //
@@ -147,8 +194,21 @@ export const CompareStage = ({
       // a fresh panel starts at LibreMap's own default view, so pull it onto
       // the camera the app is already showing
       syncFrom(appMap);
+
+      if (!panelMapsRef.current.has(map)) {
+        panelMapsRef.current.add(map);
+        // Every rebuild of the panel's style drops its terrain, so this stays
+        // on for as long as the map does; it goes away with the map itself.
+        map.on("styledata", () => {
+          syncTerrain(map);
+        });
+        map.once("remove", () => {
+          panelMapsRef.current.delete(map);
+        });
+      }
+      syncTerrain(map);
     },
-    [appMap, register, syncFrom]
+    [appMap, register, syncFrom, syncTerrain]
   );
 
   if (!host) {
