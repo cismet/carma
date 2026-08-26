@@ -27,20 +27,22 @@ export interface BuildingFeature {
   sourceIndex: number;
 }
 
-interface FaceRange {
+export interface FaceRange {
   faceStart: number;
   faceEnd: number;
   sourceIndex: number;
 }
 
-interface VertexRange {
+export interface VertexRange {
   vertexStart: number;
   vertexEnd: number;
   sourceIndex: number;
 }
 
 /** Group vertex ranges by sourceIndex for O(1) highlight lookup. */
-function buildSourceIndexMap(ranges: VertexRange[]): Map<number, VertexRange[]> {
+export function buildSourceIndexMap(
+  ranges: VertexRange[],
+): Map<number, VertexRange[]> {
   const map = new Map<number, VertexRange[]>();
   for (const r of ranges) {
     const existing = map.get(r.sourceIndex);
@@ -70,6 +72,19 @@ const COLOR_DEFAULT_WALL = COLOR_DEFAULT.clone().multiplyScalar(WALL_DARKEN);
 const COLOR_PUBLIC_WALL = COLOR_PUBLIC.clone().multiplyScalar(WALL_DARKEN);
 
 /**
+ * What a colour resolver is actually allowed to look at.
+ *
+ * Narrower than `BuildingFeature` on purpose: the resolvers below read nothing
+ * but these three, and a factory whose features have a different shape (LoD2
+ * roof surfaces rather than a footprint and a height) can then hand its own
+ * buildings to the very same resolvers.
+ */
+export type BuildingColorSource = Pick<
+  BuildingFeature,
+  "isPublic" | "roofColor" | "wallColor"
+>;
+
+/**
  * Where a building's colours come from.
  *
  * A seam rather than a constant: the roof is asked for once per building and a
@@ -87,9 +102,9 @@ export type BuildingColors = {
    * answer. Left off, that pass is skipped and every quad is asked for wall 0.
    */
   perWall?: boolean;
-  roof: (feature: BuildingFeature, buildingIndex: number) => THREE.Color;
+  roof: (feature: BuildingColorSource, buildingIndex: number) => THREE.Color;
   wall: (
-    feature: BuildingFeature,
+    feature: BuildingColorSource,
     buildingIndex: number,
     /**
      * Which wall of the building this quad belongs to.
@@ -251,21 +266,28 @@ export const wallRunsForRing = (
 
 
 /**
- * Build merged extruded building geometry for all features.
- * Walls: 2 triangles per polygon edge (vertical quad).
- * Roof: earcut triangulation of the polygon at height.
+ * The material both building meshes are made of.
  *
- * All meshes are tagged with `userData.isBuilding = true`.
+ * One function rather than two literals, and shared with the other building
+ * factories: walls and roof have to agree on transparency and shading, or the
+ * two halves of one building read as two objects.
  */
-export function buildExtrusionMeshes(
-  features: BuildingFeature[],
-  scene: THREE.Scene,
-  originMerc: MercatorCoordinate,
-  mScale: number,
-  colors: BuildingColors = defaultBuildingColors,
-  wallAngleThreshold: number = DEFAULT_WALL_ANGLE,
-): FactoryStats {
-  // Remove old building meshes (keep trees and lights)
+export function createBuildingMaterial(): THREE.MeshLambertMaterial {
+  return new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    flatShading: true,
+    transparent: true,
+    opacity: DEFAULT_BUILDING_OPACITY,
+    depthWrite: true,
+    side: THREE.DoubleSide,
+  });
+}
+
+/**
+ * Drop the building meshes a rebuild is about to replace, leaving trees and
+ * lights where they are.
+ */
+export function removeBuildingMeshes(scene: THREE.Scene): void {
   const toRemove = scene.children.filter(
     (c): c is THREE.Mesh =>
       (c as THREE.Mesh).isMesh === true &&
@@ -280,6 +302,24 @@ export function buildExtrusionMeshes(
     }
     scene.remove(m);
   }
+}
+
+/**
+ * Build merged extruded building geometry for all features.
+ * Walls: 2 triangles per polygon edge (vertical quad).
+ * Roof: earcut triangulation of the polygon at height.
+ *
+ * All meshes are tagged with `userData.isBuilding = true`.
+ */
+export function buildExtrusionMeshes(
+  features: BuildingFeature[],
+  scene: THREE.Scene,
+  originMerc: MercatorCoordinate,
+  mScale: number,
+  colors: BuildingColors = defaultBuildingColors,
+  wallAngleThreshold: number = DEFAULT_WALL_ANGLE,
+): FactoryStats {
+  removeBuildingMeshes(scene);
 
   // Pre-filter valid features and strip closing vertex if ring is closed
   const validFeatures: Array<{ f: BuildingFeature; ring: number[][] }> = [];
@@ -487,23 +527,8 @@ export function buildExtrusionMeshes(
   roofGeo.setAttribute("color", new THREE.BufferAttribute(rC.subarray(0, rv * 3), 3));
   roofGeo.setIndex(new THREE.BufferAttribute(rI.subarray(0, ri), 1));
 
-  const wallMat = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    flatShading: true,
-    transparent: true,
-    opacity: DEFAULT_BUILDING_OPACITY,
-    depthWrite: true,
-    side: THREE.DoubleSide,
-  });
-
-  const roofMat = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    flatShading: true,
-    transparent: true,
-    opacity: DEFAULT_BUILDING_OPACITY,
-    depthWrite: true,
-    side: THREE.DoubleSide,
-  });
+  const wallMat = createBuildingMaterial();
+  const roofMat = createBuildingMaterial();
 
   const wallMesh = new THREE.Mesh(wallGeo, wallMat);
   wallMesh.userData.isBuilding = true;
