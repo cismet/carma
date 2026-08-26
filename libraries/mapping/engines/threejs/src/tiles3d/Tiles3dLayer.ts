@@ -233,19 +233,13 @@ export function buildTiles3dLayer(
     if (line === lastReport) return;
     lastReport = line;
     console.log(
-      "[3D-TILES]",
-      instanceTag,
-      outstanding === 0 ? "idle, nothing left to load" : "loading",
-      {
-        errorTarget: activeErrorTarget,
-        queued: stats.queued,
-        downloading: stats.downloading,
-        parsing: stats.parsing,
-        failed: stats.failed,
-        visible: stats.visible,
-        cachedMB,
-        cacheCeilingMB: ceilingMB,
-      }
+      `[3D-TILES] ${instanceTag} ${
+        outstanding === 0 ? "idle" : "loading"
+      } errorTarget=${activeErrorTarget} queued=${stats.queued} downloading=${
+        stats.downloading
+      } parsing=${stats.parsing} failed=${stats.failed} visible=${
+        stats.visible
+      } cachedMB=${cachedMB} ceilingMB=${ceilingMB}`
     );
   };
 
