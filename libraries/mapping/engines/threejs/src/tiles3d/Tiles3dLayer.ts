@@ -47,20 +47,22 @@ const COVERAGE_ERROR_TARGET_PIXELS = 64;
  * download size: a city mesh leaf tile carries a 1024x1024 texture, roughly 1 MB
  * on the wire and about 5 MB in memory once decoded with its mipmaps.
  */
-const DEFAULT_CACHE_BYTES = 512 * 1024 ** 2;
+const DEFAULT_CACHE_BYTES = 2048 * 1024 ** 2;
 
 /**
  * How far the cache may run past its budget before downloading is refused.
+ * Unbounded by default, which means it never refuses.
  *
  * Eviction only releases tiles that went unused for a frame, so it can reclaim
  * what a camera move left behind but cannot shrink the view being looked at. A
- * view whose own tiles fill the cache has nothing unused in it, and without room
- * to overrun the renderer refuses every further download: `queueTileForDownload`
- * returns early whenever the cache reports itself full, and the far half of the
- * view simply stays coarse. Cesium keeps the same two numbers apart for the same
- * reason, `cacheBytes` against `maximumCacheOverflowBytes`.
+ * close view of a city mesh needs more tiles than any budget worth setting,
+ * every one of them used every frame, so a finite ceiling there does not trade
+ * memory for quality: `queueTileForDownload` returns early whenever the cache
+ * reports itself full, the finest level is never queued, and the view sits at a
+ * coarse level reporting nothing left to load. Memory stays bounded by eviction
+ * once tiles leave the view, and past that by the machine.
  */
-const DEFAULT_CACHE_OVERFLOW_BYTES = 512 * 1024 ** 2;
+const DEFAULT_CACHE_OVERFLOW_BYTES = Number.POSITIVE_INFINITY;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 /** What the cache keeps after an eviction pass, as a share of the budget. */
 const CACHE_RETAIN_FRACTION = 0.75;
@@ -407,12 +409,11 @@ export function buildTiles3dLayer(
       // larger than the budget stops loading instead of trading memory for it.
       // Below the ceiling the budget still does its work: eviction is triggered
       // from `maxBytesSize`, which is untouched.
-      const ceilingBytes =
-        cacheBytes +
-        Math.max(
-          0,
-          Math.floor(options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES)
-        );
+      const overflowBytes =
+        options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES;
+      const ceilingBytes = Number.isFinite(overflowBytes)
+        ? cacheBytes + Math.max(0, Math.floor(overflowBytes))
+        : Number.POSITIVE_INFINITY;
       ceilingMB = Math.round(ceilingBytes / 1024 ** 2);
       lruCache.isFull = () =>
         lruCache.itemSet.size >= lruCache.maxSize ||
