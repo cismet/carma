@@ -197,6 +197,9 @@ export interface UseLassoHighlightOptions {
   radiusStep?: number;
   /** Metres every drawn shape grows by before it selects. */
   shapeBuffer?: number;
+  /** The share of `shapeBuffer` the remembered shape already ran with. Drawing
+   *  only: it is the solid inner outline of the preview. */
+  baseBuffer?: number;
   /** Ms the finished shape stays on the map. Omitted: no delay. */
   clearDelay?: number;
   /** Reports a shape that can be shown and run again. `replayed`: it ran
@@ -253,6 +256,7 @@ export const useLassoHighlight = ({
   rectSize,
   radiusStep,
   shapeBuffer,
+  baseBuffer,
   clearDelay,
   onLastShapeChange,
   onLastShapePreviewChange,
@@ -477,6 +481,8 @@ export const useLassoHighlight = ({
   radiusStepRef.current = radiusStep;
   const shapeBufferRef = useRef(shapeBuffer);
   shapeBufferRef.current = shapeBuffer;
+  const baseBufferRef = useRef(baseBuffer);
+  baseBufferRef.current = baseBuffer;
   const clearDelayRef = useRef(clearDelay);
   clearDelayRef.current = clearDelay;
   const onLastShapeChangeRef = useRef(onLastShapeChange);
@@ -499,6 +505,7 @@ export const useLassoHighlight = ({
       rectSize: rectSizeRef.current,
       radiusStep: radiusStepRef.current,
       shapeBuffer: shapeBufferRef.current,
+      baseBuffer: baseBufferRef.current,
       clearDelay: clearDelayRef.current,
       onLastShapeChange: (has, replayed, bufferMeters) =>
         onLastShapeChangeRef.current?.(has, replayed, bufferMeters),
@@ -542,6 +549,14 @@ export const useLassoHighlight = ({
     refineManagerRef.current?.setShapeBuffer(shapeBuffer);
     shiftRefineManagerRef.current?.setShapeBuffer(shapeBuffer);
   }, [shapeBuffer]);
+
+  useEffect(() => {
+    if (baseBuffer == null) return;
+    managerRef.current?.setBaseBuffer(baseBuffer);
+    passiveManagerRef.current?.setBaseBuffer(baseBuffer);
+    refineManagerRef.current?.setBaseBuffer(baseBuffer);
+    shiftRefineManagerRef.current?.setBaseBuffer(baseBuffer);
+  }, [baseBuffer]);
 
   useEffect(() => {
     if (clearDelay == null) return;
@@ -597,6 +612,7 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       clearDelay: clearDelayRef.current,
       shapeBuffer: shapeBufferRef.current,
+      baseBuffer: baseBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
@@ -631,6 +647,7 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       clearDelay: clearDelayRef.current,
       shapeBuffer: shapeBufferRef.current,
+      baseBuffer: baseBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });
@@ -671,6 +688,7 @@ export const useLassoHighlight = ({
       radiusStep: radiusStepRef.current,
       clearDelay: clearDelayRef.current,
       shapeBuffer: shapeBufferRef.current,
+      baseBuffer: baseBufferRef.current,
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
     });

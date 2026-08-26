@@ -155,6 +155,14 @@ export interface LassoDrawingManagerOptions {
    */
   shapeBuffer?: number;
   /**
+   * Metres of `shapeBuffer` that the remembered shape has already been run
+   * with. Drawn as the solid inner outline, so what a replay adds reads as a
+   * ring around what is already selected rather than around the bare shape.
+   * Only affects what is drawn; the width that selects is `shapeBuffer`.
+   * Default: 0
+   */
+  baseBuffer?: number;
+  /**
    * Milliseconds the finished shape stays on the map before it is wiped, so
    * what was just selected can be seen against it. 0 wipes it at once.
    * Default: 0
@@ -199,6 +207,7 @@ export class LassoDrawingManager {
   private rectSize: RectSize;
   private radiusStep: number;
   private shapeBuffer: number;
+  private baseBuffer: number;
   private clearDelay: number;
   private onLastShapeChange?: (
     hasLastShape: boolean,
@@ -285,6 +294,7 @@ export class LassoDrawingManager {
     };
     this.radiusStep = options.radiusStep ?? DEFAULT_CIRCLE_RADIUS_STEP;
     this.shapeBuffer = options.shapeBuffer ?? DEFAULT_SHAPE_BUFFER;
+    this.baseBuffer = options.baseBuffer ?? 0;
     this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
     this.onLastShapeChange = options.onLastShapeChange;
     this.onLastShapePreviewChange = options.onLastShapePreviewChange;
@@ -353,6 +363,23 @@ export class LassoDrawingManager {
     this.shapeBuffer = meters;
     if (this.placingLine) this.updateVisual();
     else if (this.previewingLastShape) this.renderLastShape();
+  }
+
+  /** The share of the width the remembered shape already ran with; drawing
+   *  only, so it redraws the same way a width change does. */
+  setBaseBuffer(meters: number): void {
+    if (meters === this.baseBuffer) return;
+    this.baseBuffer = meters;
+    if (this.placingLine) this.updateVisual();
+    else if (this.previewingLastShape) this.renderLastShape();
+  }
+
+  /** What the inner outline is drawn at. Never wider than the width that
+   *  selects: a value left over from a shape that is gone would otherwise draw
+   *  a ring around nothing. */
+  private baseWidth(): number {
+    if (this.shapeBuffer <= 0) return 0;
+    return Math.min(this.baseBuffer, this.shapeBuffer);
   }
 
   setClearDelay(ms: number): void {
@@ -428,14 +455,18 @@ export class LassoDrawingManager {
     this.onDrawComplete(geometry);
   }
 
-  /** The drawn shape grown by `shapeBuffer` metres — the same step for every
-   *  tool, so a width set once applies to all of them. */
-  private withBuffer(drawn: Polygon | LineString): Polygon | LineString {
-    if (this.shapeBuffer <= 0) return drawn;
+  /** The drawn shape grown by `meters`, `shapeBuffer` by default — the same
+   *  step for every tool, so a width set once applies to all of them. Always
+   *  measured from the shape as drawn, so repeated buffering cannot drift. */
+  private withBuffer(
+    drawn: Polygon | LineString,
+    meters: number = this.shapeBuffer
+  ): Polygon | LineString {
+    if (meters <= 0) return drawn;
     try {
       const buffered = turfBuffer(
         { type: "Feature", properties: {}, geometry: drawn },
-        this.shapeBuffer,
+        meters,
         { units: "meters" }
       );
       const geometry = buffered?.geometry;
@@ -449,7 +480,9 @@ export class LassoDrawingManager {
     }
   }
 
-  /** Both halves when a width grew the shape, the shape alone when it did not. */
+  /** Both halves when a width grew the shape, the shape alone when it did not.
+   *  The solid half is the shape at the width it already ran with, so the
+   *  dashed half around it is exactly what a replay would add. */
   private renderShape(
     drawn: Polygon | LineString,
     buffered: Polygon | LineString
@@ -471,7 +504,11 @@ export class LassoDrawingManager {
           properties: { role: ROLE_BUFFER },
           geometry: buffered,
         },
-        { type: "Feature", properties: { role: ROLE_BASE }, geometry: drawn },
+        {
+          type: "Feature",
+          properties: { role: ROLE_BASE },
+          geometry: this.withBuffer(drawn, this.baseWidth()),
+        },
       ],
     });
   }
@@ -625,8 +662,10 @@ export class LassoDrawingManager {
     }
 
     e.preventDefault();
-    // the shape still standing from the last draw belongs to the past now
+    // the shape still standing from the last draw belongs to the past now, and
+    // so does the width it had grown to
     this.setPreviewing(false);
+    this.baseBuffer = 0;
     this.cancelPendingClear();
     // Lazy-init source/layers in case activate() deferred them
     this.ensureSourceAndLayers();
@@ -787,6 +826,7 @@ export class LassoDrawingManager {
   private startLinePlacement(): void {
     // the new line takes the screen over from a preview of the old one
     this.setPreviewing(false);
+    this.baseBuffer = 0;
     this.placingLine = true;
     this.drawing = true;
     this.map.on("mousemove", this.handleLineMouseMove);
@@ -1221,7 +1261,7 @@ export class LassoDrawingManager {
         features.push({
           type: "Feature",
           properties: { role: ROLE_BASE },
-          geometry: hull,
+          geometry: this.withBuffer(hull, this.baseWidth()),
         });
       }
     }
@@ -1258,6 +1298,22 @@ export class LassoDrawingManager {
         properties: { role: ROLE_BUFFER },
         geometry: corridor,
       });
+      // the corridor it already ran with, so the dashed one reads as the step
+      // a replay adds; the line and its vertices are drawn on top either way
+      const applied =
+        this.baseWidth() > 0
+          ? this.withBuffer(
+              { type: "LineString", coordinates: path },
+              this.baseWidth()
+            )
+          : null;
+      if (applied?.type === "Polygon") {
+        features.push({
+          type: "Feature",
+          properties: { role: ROLE_BASE },
+          geometry: applied,
+        });
+      }
     }
     if (path.length >= 2) {
       features.push({
