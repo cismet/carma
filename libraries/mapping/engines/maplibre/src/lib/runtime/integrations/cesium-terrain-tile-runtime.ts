@@ -64,6 +64,8 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   /** Source-specific height that denotes missing terrain coverage. */
   noDataHeightMeters?: number;
   material?: CesiumTerrainMaterialOptions;
+  /** Called after the active terrain meshes or their normals changed. */
+  onContentChanged?: () => void;
   onError?: (error: unknown) => void;
 }>;
 
@@ -110,6 +112,7 @@ type TerrainBoundaryEdge = {
 type TerrainSelection = {
   entries: TerrainSelectionEntry[];
   signature: string;
+  viewportElevationSignature: string;
 };
 
 type TerrainSelectionEntry = {
@@ -464,6 +467,7 @@ export const buildCesiumTerrainRuntime = (
   let meshUseClock = 0;
   let selectionGeneration = 0;
   let requestedSignature = "";
+  let activeViewportElevationSignature = "";
   let resolveReady: (loaded: boolean) => void = () => undefined;
   let readySettled = false;
   const ready = new Promise<boolean>((resolve) => {
@@ -874,6 +878,18 @@ export const buildCesiumTerrainRuntime = (
     return {
       entries,
       signature: entries.map(terrainSelectionKey).sort().join("|"),
+      viewportElevationSignature: entries
+        .filter(
+          (entry) =>
+            entry.kind === "source" &&
+            boundsIntersect(
+              terrainSource.getTileBounds(entry.id),
+              viewportBounds
+            )
+        )
+        .map(terrainSelectionKey)
+        .sort()
+        .join("|"),
     };
   };
 
@@ -931,7 +947,16 @@ export const buildCesiumTerrainRuntime = (
         terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
         settleReady(true);
-        if (map) notifySharedThreeTerrainChanged(map);
+        options.onContentChanged?.();
+        if (
+          map &&
+          selection.viewportElevationSignature !==
+            activeViewportElevationSignature
+        ) {
+          activeViewportElevationSignature =
+            selection.viewportElevationSignature;
+          notifySharedThreeTerrainChanged(map);
+        }
         map?.triggerRepaint();
       })
       .catch((error) => {
@@ -998,7 +1023,6 @@ export const buildCesiumTerrainRuntime = (
     },
     setShadowCamera(camera) {
       shadowCamera = camera;
-      map?.triggerRepaint();
     },
     setMaterialColor(color) {
       material.color.set(color);
