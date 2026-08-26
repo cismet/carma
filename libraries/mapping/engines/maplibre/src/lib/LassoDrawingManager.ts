@@ -161,8 +161,15 @@ export interface LassoDrawingManagerOptions {
    */
   clearDelay?: number;
   /** Reports a shape that can be shown and run again. `replayed`: the
-   *  remembered shape ran again, rather than a new one being drawn. */
-  onLastShapeChange?: (hasLastShape: boolean, replayed: boolean) => void;
+   *  remembered shape ran again, rather than a new one being drawn.
+   *  `bufferMeters`: the width the run just used, which only the manager can
+   *  say for sure — a consumer reading it back off its own state would race
+   *  with the preview being taken down. */
+  onLastShapeChange?: (
+    hasLastShape: boolean,
+    replayed: boolean,
+    bufferMeters: number
+  ) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
@@ -195,7 +202,8 @@ export class LassoDrawingManager {
   private clearDelay: number;
   private onLastShapeChange?: (
     hasLastShape: boolean,
-    replayed: boolean
+    replayed: boolean,
+    bufferMeters: number
   ) => void;
   private onLastShapePreviewChange?: (previewing: boolean) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
@@ -414,7 +422,7 @@ export class LassoDrawingManager {
   private completeShape(drawn: Polygon | LineString, replayed = false): void {
     const geometry = this.withBuffer(drawn);
     this.lastShape = drawn;
-    this.onLastShapeChange?.(true, replayed);
+    this.onLastShapeChange?.(true, replayed, this.shapeBuffer);
     this.renderShape(drawn, geometry);
     this.clearVisualDelayed();
     this.onDrawComplete(geometry);

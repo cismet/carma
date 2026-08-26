@@ -27,10 +27,12 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
   divider: "h-6 w-px bg-gray-300/80",
 };
 
-/** slider range in metres; closing the panel is what switches the buffer off */
-const BUFFER_MIN = 5;
+/** slider range in metres; closing the panel is what switches the buffer off.
+ *  Single metres, since the value is the step added on top of what is already
+ *  applied and 1 m more is a normal thing to ask for. */
+const BUFFER_MIN = 1;
 const BUFFER_MAX = 500;
-const BUFFER_STEP = 5;
+const BUFFER_STEP = 1;
 
 export type ShapeToolbarProps = {
   shapes: DrawShape[];
@@ -46,8 +48,10 @@ export type ShapeToolbarProps = {
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
-  /** metres the remembered shape grows by while the panel is open */
+  /** metres the next apply adds on top of `bufferApplied` */
   bufferWidth?: number;
+  /** metres the remembered shape has already grown by */
+  bufferApplied?: number;
   onBufferWidthChange?: (meters: number) => void;
   /** the width panel; open shows the remembered shape with its buffer */
   bufferOpen?: boolean;
@@ -71,7 +75,8 @@ export const ShapeToolbar = ({
   classNames,
   tooltipPlacement = "bottom",
   showBuffer = false,
-  bufferWidth = 25,
+  bufferWidth = 5,
+  bufferApplied = 0,
   onBufferWidthChange,
   bufferOpen = false,
   onBufferOpenChange,
@@ -85,8 +90,10 @@ export const ShapeToolbar = ({
   // the end would misreport it
   const sliderMax = Math.max(BUFFER_MAX, bufferWidth);
 
+  // what an apply would select at: the step on top of what is already applied
+  const bufferTotal = bufferApplied + bufferWidth;
   const bufferLabel = canBuffer
-    ? `Puffer um die letzte Form: ${Math.round(bufferWidth)} m`
+    ? `Puffer um die letzte Form: ${Math.round(bufferTotal)} m`
     : "Puffer: erst eine Form zeichnen";
 
   const bufferContent = (

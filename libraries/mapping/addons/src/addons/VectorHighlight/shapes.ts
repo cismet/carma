@@ -3,8 +3,8 @@ import { faCircle, faSquare } from "@fortawesome/free-regular-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
-/** width the buffer panel starts with */
-export const DEFAULT_BUFFER_WIDTH = 25;
+/** metres the buffer panel's step starts at */
+export const DEFAULT_BUFFER_WIDTH = 5;
 
 /** ceiling for the grown width, in metres */
 export const MAX_BUFFER_WIDTH = 5000;
