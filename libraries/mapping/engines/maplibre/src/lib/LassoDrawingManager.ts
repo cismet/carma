@@ -53,6 +53,7 @@ import {
   distance as turfDistance,
   destination as turfDestination,
   buffer as turfBuffer,
+  area as turfArea,
 } from "@turf/turf";
 
 /**
@@ -180,6 +181,9 @@ export interface LassoDrawingManagerOptions {
   ) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
+  /** Reports a previewed shape that a negative width has shrunk to nothing.
+   *  It would select nothing, so the UI can refuse to run it. */
+  onShapeEmptyChange?: (empty: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -208,6 +212,7 @@ export class LassoDrawingManager {
   private radiusStep: number;
   private shapeBuffer: number;
   private baseBuffer: number;
+  private shapeEmpty = false;
   private clearDelay: number;
   private onLastShapeChange?: (
     hasLastShape: boolean,
@@ -215,6 +220,7 @@ export class LassoDrawingManager {
     bufferMeters: number
   ) => void;
   private onLastShapePreviewChange?: (previewing: boolean) => void;
+  private onShapeEmptyChange?: (empty: boolean) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
   private onRectSizeChange?: (size: RectSize) => void;
 
@@ -298,6 +304,7 @@ export class LassoDrawingManager {
     this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
     this.onLastShapeChange = options.onLastShapeChange;
     this.onLastShapePreviewChange = options.onLastShapePreviewChange;
+    this.onShapeEmptyChange = options.onShapeEmptyChange;
     this.onRadiusChange = options.onRadiusChange;
     this.onRectSizeChange = options.onRectSizeChange;
   }
@@ -374,12 +381,21 @@ export class LassoDrawingManager {
     else if (this.previewingLastShape) this.renderLastShape();
   }
 
-  /** What the inner outline is drawn at. Never wider than the width that
-   *  selects: a value left over from a shape that is gone would otherwise draw
-   *  a ring around nothing. */
+  /** What the solid inner outline is drawn at. With no width in play there is
+   *  nothing to set it apart from, so the shape is drawn as it is. It is not
+   *  clamped to `shapeBuffer`: a shrink puts the dashed outline inside the
+   *  solid one, which is what "this is what it would lose" looks like. */
   private baseWidth(): number {
-    if (this.shapeBuffer <= 0) return 0;
-    return Math.min(this.baseBuffer, this.shapeBuffer);
+    if (this.shapeBuffer === 0) return 0;
+    return this.baseBuffer;
+  }
+
+  /** Reports a preview that a shrink has consumed, so the UI can refuse to run
+   *  a shape that would select nothing. */
+  private setShapeEmpty(empty: boolean): void {
+    if (empty === this.shapeEmpty) return;
+    this.shapeEmpty = empty;
+    this.onShapeEmptyChange?.(empty);
   }
 
   setClearDelay(ms: number): void {
@@ -407,6 +423,8 @@ export class LassoDrawingManager {
   private setPreviewing(previewing: boolean): void {
     if (previewing === this.previewingLastShape) return;
     this.previewingLastShape = previewing;
+    // "empty" is a statement about the preview, so it goes down with it
+    if (!previewing) this.setShapeEmpty(false);
     this.onLastShapePreviewChange?.(previewing);
   }
 
@@ -420,10 +438,14 @@ export class LassoDrawingManager {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
     if (last.type === "LineString") {
+      // a line can only grow, so a preview of one is never empty
+      this.setShapeEmpty(false);
       this.renderLine(source, last.coordinates, null);
       return;
     }
-    this.renderShape(last, this.withBuffer(last));
+    const buffered = this.withBuffer(last);
+    this.setShapeEmpty(buffered === null);
+    this.renderShape(last, buffered);
   }
 
   /** Takes the preview back down; a line being placed is left alone. */
@@ -452,17 +474,29 @@ export class LassoDrawingManager {
     this.onLastShapeChange?.(true, replayed, this.shapeBuffer);
     this.renderShape(drawn, geometry);
     this.clearVisualDelayed();
-    this.onDrawComplete(geometry);
+    // a shrink consumed the shape: it covers nothing, so it selects nothing.
+    // Handing over the shape as drawn instead would select everything, and an
+    // empty geometry would clear the selection a refine is meant to narrow.
+    if (geometry) this.onDrawComplete(geometry);
   }
 
-  /** The drawn shape grown by `meters`, `shapeBuffer` by default — the same
-   *  step for every tool, so a width set once applies to all of them. Always
-   *  measured from the shape as drawn, so repeated buffering cannot drift. */
+  /**
+   * The drawn shape grown by `meters`, `shapeBuffer` by default — the same step
+   * for every tool, so a width set once applies to all of them. Always measured
+   * from the shape as drawn, so repeated buffering cannot drift.
+   *
+   * A negative width shrinks instead, which only an area can do: for the line
+   * it is ignored and the bare line is handed back. Shrinking far enough leaves
+   * nothing at all, and `null` says exactly that — the caller must not fall
+   * back to the shape as drawn, or asking for -100 m would select everything.
+   */
   private withBuffer(
     drawn: Polygon | LineString,
     meters: number = this.shapeBuffer
-  ): Polygon | LineString {
-    if (meters <= 0) return drawn;
+  ): Polygon | LineString | null {
+    if (meters === 0) return drawn;
+    // a line has no inside to take away
+    if (meters < 0 && drawn.type === "LineString") return drawn;
     try {
       const buffered = turfBuffer(
         { type: "Feature", properties: {}, geometry: drawn },
@@ -470,14 +504,46 @@ export class LassoDrawingManager {
         { units: "meters" }
       );
       const geometry = buffered?.geometry;
-      if (!geometry) return drawn;
-      if (geometry.type === "Polygon") return geometry;
-      // one piece for any shape we draw; a MultiPolygon means a degenerate
-      // input, so the first part is the one that matters
-      return { type: "Polygon", coordinates: geometry.coordinates[0] };
+      // turf answers a shrink that consumed the shape with no geometry at all
+      if (!geometry) return meters < 0 ? null : drawn;
+      if (geometry.type === "Polygon") {
+        // an empty ring is the other shape of "nothing left"
+        return geometry.coordinates.length > 0 ? geometry : null;
+      }
+      // a shrink can pinch a shape into several parts; the largest is the one
+      // that carries what was drawn. Growing never splits, so a MultiPolygon
+      // there means a degenerate input and the largest part still fits.
+      return this.largestPart(geometry.coordinates);
     } catch {
-      return drawn;
+      // an invalid ring throws rather than answering; for a shrink that is the
+      // same "nothing usable" as an empty result
+      return meters < 0 ? null : drawn;
     }
+  }
+
+  /** The widest of several polygons, by area. */
+  private largestPart(parts: Position[][][]): Polygon | null {
+    let best: Polygon | null = null;
+    let bestArea = -Infinity;
+    for (const coordinates of parts) {
+      if (coordinates.length === 0) continue;
+      const candidate: Polygon = { type: "Polygon", coordinates };
+      let size = 0;
+      try {
+        size = turfArea({
+          type: "Feature",
+          properties: {},
+          geometry: candidate,
+        });
+      } catch {
+        continue;
+      }
+      if (size > bestArea) {
+        bestArea = size;
+        best = candidate;
+      }
+    }
+    return best;
   }
 
   /** Both halves when a width grew the shape, the shape alone when it did not.
@@ -485,32 +551,36 @@ export class LassoDrawingManager {
    *  dashed half around it is exactly what a replay would add. */
   private renderShape(
     drawn: Polygon | LineString,
-    buffered: Polygon | LineString
+    buffered: Polygon | LineString | null
   ): void {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
-    if (buffered === drawn) {
+    const base = this.withBuffer(drawn, this.baseWidth());
+    if (buffered === drawn && base === drawn) {
       source.setData({
         type: "FeatureCollection",
         features: [{ type: "Feature", properties: {}, geometry: drawn }],
       });
       return;
     }
-    source.setData({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          properties: { role: ROLE_BUFFER },
-          geometry: buffered,
-        },
-        {
-          type: "Feature",
-          properties: { role: ROLE_BASE },
-          geometry: this.withBuffer(drawn, this.baseWidth()),
-        },
-      ],
-    });
+    const features: Feature[] = [];
+    // the dashed half is what an apply would leave: inside the solid one when
+    // the width shrinks, gone entirely when it shrank the shape away
+    if (buffered) {
+      features.push({
+        type: "Feature",
+        properties: { role: ROLE_BUFFER },
+        geometry: buffered,
+      });
+    }
+    if (base) {
+      features.push({
+        type: "Feature",
+        properties: { role: ROLE_BASE },
+        geometry: base,
+      });
+    }
+    source.setData({ type: "FeatureCollection", features });
   }
 
   /** A line is being clicked together right now. */
@@ -1250,19 +1320,25 @@ export class LassoDrawingManager {
     const hull = this.cleanPolygon(this.coords);
     if (hull) {
       const buffered = this.withBuffer(hull);
-      if (buffered === hull) {
+      const base = this.withBuffer(hull, this.baseWidth());
+      if (buffered === hull && base === hull) {
         features.push({ type: "Feature", properties: {}, geometry: hull });
       } else {
-        features.push({
-          type: "Feature",
-          properties: { role: ROLE_BUFFER },
-          geometry: buffered,
-        });
-        features.push({
-          type: "Feature",
-          properties: { role: ROLE_BASE },
-          geometry: this.withBuffer(hull, this.baseWidth()),
-        });
+        // a shrink can leave nothing at all while the drag is still running
+        if (buffered) {
+          features.push({
+            type: "Feature",
+            properties: { role: ROLE_BUFFER },
+            geometry: buffered,
+          });
+        }
+        if (base) {
+          features.push({
+            type: "Feature",
+            properties: { role: ROLE_BASE },
+            geometry: base,
+          });
+        }
       }
     }
 

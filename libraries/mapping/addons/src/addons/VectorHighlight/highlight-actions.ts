@@ -46,6 +46,7 @@ export const useHighlightModeActions = () => {
   const hasLastShape = mode?.hasLastShape ?? false;
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
   const lastShapeShown = mode?.lastShapeShown ?? false;
+  const shapeEmpty = mode?.shapeEmpty ?? false;
 
   /**
    * Open is "buffer on": it puts the remembered shape back on the map, grown by
@@ -254,6 +255,7 @@ export const useHighlightModeActions = () => {
     cancelLine,
     hasLastShape,
     lastShapeShown,
+    shapeEmpty,
     bufferPanelOpen,
     setBufferPanelOpen,
     applyBufferedShape,

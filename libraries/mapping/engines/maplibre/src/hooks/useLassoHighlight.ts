@@ -211,6 +211,8 @@ export interface UseLassoHighlightOptions {
   ) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
+  /** Reports a previewed shape a negative width has shrunk to nothing. */
+  onShapeEmptyChange?: (empty: boolean) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onCircleRadiusChange?: (radiusMeters: number) => void;
   /** Reports the size a rectangle drag settled on. */
@@ -260,6 +262,7 @@ export const useLassoHighlight = ({
   clearDelay,
   onLastShapeChange,
   onLastShapePreviewChange,
+  onShapeEmptyChange,
   onCircleRadiusChange,
   onRectSizeChange,
   sources,
@@ -489,6 +492,8 @@ export const useLassoHighlight = ({
   onLastShapeChangeRef.current = onLastShapeChange;
   const onLastShapePreviewChangeRef = useRef(onLastShapePreviewChange);
   onLastShapePreviewChangeRef.current = onLastShapePreviewChange;
+  const onShapeEmptyChangeRef = useRef(onShapeEmptyChange);
+  onShapeEmptyChangeRef.current = onShapeEmptyChange;
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -511,6 +516,7 @@ export const useLassoHighlight = ({
         onLastShapeChangeRef.current?.(has, replayed, bufferMeters),
       onLastShapePreviewChange: (previewing) =>
         onLastShapePreviewChangeRef.current?.(previewing),
+      onShapeEmptyChange: (empty) => onShapeEmptyChangeRef.current?.(empty),
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
       onRectSizeChange: (size) => onRectSizeChangeRef.current?.(size),
       // Starts on any plain mousedown, so it must stand back for whichever

@@ -4,7 +4,12 @@ import { Button, InputNumber, Popover, Slider, Tooltip } from "antd";
 
 import type { DrawShape } from "@carma-mapping/engines/maplibre";
 
-import { MAX_BUFFER_WIDTH, SHAPE_ICONS, SHAPE_LABELS } from "./shapes";
+import {
+  MAX_BUFFER_WIDTH,
+  MIN_BUFFER_WIDTH,
+  SHAPE_ICONS,
+  SHAPE_LABELS,
+} from "./shapes";
 
 export type ShapeToolbarClassNames = {
   wrapper: string;
@@ -29,10 +34,15 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
 
 /** slider range in metres; closing the panel is what switches the buffer off.
  *  Single metres, since the value is the step added on top of what is already
- *  applied and 1 m more is a normal thing to ask for. */
-const BUFFER_MIN = 1;
+ *  applied and 1 m more is a normal thing to ask for. Below zero the step
+ *  shrinks the shape instead — the far smaller range, since taking away is a
+ *  correction and growing is the job. */
+const BUFFER_MIN = -100;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 1;
+/** without it zero is a place on the slider like any other, and the width the
+ *  shape was drawn at cannot be found again by hand */
+const BUFFER_MARKS = { 0: "0" };
 
 export type ShapeToolbarProps = {
   shapes: DrawShape[];
@@ -61,6 +71,10 @@ export type ShapeToolbarProps = {
   /** runs the previewed shape at the width set now */
   onApplyBuffer?: () => void;
   bufferApplyLabel?: string;
+  /** a negative width has shrunk the previewed shape away; there is nothing
+   *  left to run */
+  bufferEmpty?: boolean;
+  bufferEmptyLabel?: string;
 };
 
 export const ShapeToolbar = ({
@@ -83,12 +97,15 @@ export const ShapeToolbar = ({
   canBuffer = false,
   onApplyBuffer,
   bufferApplyLabel = "Anwenden",
+  bufferEmpty = false,
+  bufferEmptyLabel = "Puffer verkleinert die Form auf nichts",
 }: ShapeToolbarProps) => {
   const css = { ...DEFAULT_CLASS_NAMES, ...classNames };
 
   // growth can carry the width past the slider range, and a handle pinned to
-  // the end would misreport it
+  // an end would misreport it
   const sliderMax = Math.max(BUFFER_MAX, bufferWidth);
+  const sliderMin = Math.min(BUFFER_MIN, bufferWidth);
 
   // what an apply would select at: the step on top of what is already applied
   const bufferTotal = bufferApplied + bufferWidth;
@@ -107,16 +124,17 @@ export const ShapeToolbar = ({
       <div className="flex items-center gap-2">
         <Slider
           className="flex-1"
-          min={BUFFER_MIN}
+          min={sliderMin}
           max={sliderMax}
           step={BUFFER_STEP}
+          marks={BUFFER_MARKS}
           value={bufferWidth}
           onChange={(value) => onBufferWidthChange?.(value)}
         />
         <InputNumber
           size="small"
           className="w-24"
-          min={1}
+          min={MIN_BUFFER_WIDTH}
           max={MAX_BUFFER_WIDTH}
           step={BUFFER_STEP}
           value={bufferWidth}
@@ -124,10 +142,14 @@ export const ShapeToolbar = ({
           onChange={(value) => value != null && onBufferWidthChange?.(value)}
         />
       </div>
+      {bufferEmpty && (
+        <span className="text-xs text-gray-500">{bufferEmptyLabel}</span>
+      )}
       <Button
         type="primary"
         size="small"
         block
+        disabled={bufferEmpty}
         onClick={() => onApplyBuffer?.()}
         data-test-id="vector-highlight-buffer-apply"
       >
