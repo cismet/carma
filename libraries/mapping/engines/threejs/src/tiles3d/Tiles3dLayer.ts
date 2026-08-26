@@ -42,7 +42,25 @@ export const DEFAULT_ERROR_TARGET_PIXELS = 6;
 /** A coarse target used for the first frames, so something is on screen quickly. */
 const COVERAGE_ERROR_TARGET_PIXELS = 64;
 
-const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
+/**
+ * The fill at which the renderer starts evicting. Counted in decoded bytes, not
+ * download size: a city mesh leaf tile carries a 1024x1024 texture, roughly 1 MB
+ * on the wire and about 5 MB in memory once decoded with its mipmaps.
+ */
+const DEFAULT_CACHE_BYTES = 512 * 1024 ** 2;
+
+/**
+ * How far the cache may run past its budget before downloading is refused.
+ *
+ * Eviction only releases tiles that went unused for a frame, so it can reclaim
+ * what a camera move left behind but cannot shrink the view being looked at. A
+ * view whose own tiles fill the cache has nothing unused in it, and without room
+ * to overrun the renderer refuses every further download: `queueTileForDownload`
+ * returns early whenever the cache reports itself full, and the far half of the
+ * view simply stays coarse. Cesium keeps the same two numbers apart for the same
+ * reason, `cacheBytes` against `maximumCacheOverflowBytes`.
+ */
+const DEFAULT_CACHE_OVERFLOW_BYTES = 512 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 /** What the cache keeps after an eviction pass, as a share of the budget. */
 const CACHE_RETAIN_FRACTION = 0.75;
@@ -60,6 +78,11 @@ export interface Tiles3dLayerOptions {
   /** Pixels of allowed error, see DEFAULT_ERROR_TARGET_PIXELS. */
   errorTarget?: number;
   cacheBudgetBytes?: number;
+  /**
+   * How far past the budget the cache may grow before downloading is refused.
+   * See DEFAULT_CACHE_OVERFLOW_BYTES.
+   */
+  cacheOverflowBytes?: number;
   /** Parallel tile downloads. */
   requestConcurrency?: number;
   /** 0 to 1, applied to every tile material. */
@@ -295,13 +318,33 @@ export function buildTiles3dLayer(
         MINIMUM_CACHE_BYTES,
         Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
       );
-      tiles.lruCache.maxBytesSize = cacheBytes;
+      // `itemSet` and `cachedBytes` are what the cache's own `isFull` reads; the
+      // published typings stop at the configurable fields.
+      const lruCache = tiles.lruCache as typeof tiles.lruCache & {
+        itemSet: { size: number };
+        cachedBytes: number;
+      };
+      lruCache.maxBytesSize = cacheBytes;
       // Both ends have to move together. Downloading stops once the cache
       // reports itself full, which is the ceiling, while eviction only releases
       // unused tiles above the floor. Lowering the ceiling alone leaves it under
       // the floor, and then nothing is downloaded or evicted again. The library
       // ships the two at this ratio, 0.3 GB kept of a 0.4 GB ceiling.
-      tiles.lruCache.minBytesSize = Math.floor(cacheBytes * CACHE_RETAIN_FRACTION);
+      lruCache.minBytesSize = Math.floor(cacheBytes * CACHE_RETAIN_FRACTION);
+
+      // Full has to mean the hard ceiling rather than the budget, or a view
+      // larger than the budget stops loading instead of trading memory for it.
+      // Below the ceiling the budget still does its work: eviction is triggered
+      // from `maxBytesSize`, which is untouched.
+      const ceilingBytes =
+        cacheBytes +
+        Math.max(
+          0,
+          Math.floor(options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES)
+        );
+      lruCache.isFull = () =>
+        lruCache.itemSet.size >= lruCache.maxSize ||
+        lruCache.cachedBytes >= ceilingBytes;
       orientationGroup.add(tiles.group);
 
       startKickstart();
