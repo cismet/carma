@@ -40,6 +40,17 @@ const BUFFER_MIN = -100;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 1;
 
+/**
+ * Steps the slider has on either side of zero.
+ *
+ * The two halves cover very different distances — a shape may only shrink 20 m
+ * but grow 500 — so the handle carries a position rather than a width, and the
+ * width is mapped out of it. That puts zero in the middle whatever the shape
+ * allows, and gives the shrink half the whole left track instead of the sliver
+ * its share of a straight range would be.
+ */
+const SLIDER_HALF = 100;
+
 export type ShapeToolbarProps = {
   shapes: DrawShape[];
   shape: DrawShape;
@@ -103,10 +114,19 @@ export const ShapeToolbar = ({
 
   // never above 0: growing is always allowed
   const floor = Math.min(0, bufferMin ?? BUFFER_MIN);
-  // growth can carry the width past the slider range, and a handle pinned to
+  // a width can be carried past the range it was set in, and a handle pinned to
   // an end would misreport it
-  const sliderMax = Math.max(BUFFER_MAX, bufferWidth);
-  const sliderMin = Math.min(floor, bufferWidth);
+  const maxMeters = Math.max(BUFFER_MAX, bufferWidth);
+  const minMeters = Math.min(floor, bufferWidth);
+
+  const toPosition = (meters: number) =>
+    meters >= 0
+      ? Math.round((meters / maxMeters) * SLIDER_HALF)
+      : -Math.round((meters / minMeters) * SLIDER_HALF);
+  const toMeters = (position: number) =>
+    position >= 0
+      ? Math.round((position / SLIDER_HALF) * maxMeters)
+      : -Math.round((position / SLIDER_HALF) * minMeters);
 
   // what an apply would select at: the step on top of what is already applied
   const bufferTotal = bufferApplied + bufferWidth;
@@ -125,11 +145,12 @@ export const ShapeToolbar = ({
       <div className="flex items-center gap-2">
         <Slider
           className="flex-1"
-          min={sliderMin}
-          max={sliderMax}
-          step={BUFFER_STEP}
-          value={bufferWidth}
-          onChange={(value) => onBufferWidthChange?.(value)}
+          min={minMeters < 0 ? -SLIDER_HALF : 0}
+          max={SLIDER_HALF}
+          step={1}
+          value={toPosition(bufferWidth)}
+          tooltip={{ formatter: (value) => `${toMeters(value ?? 0)} m` }}
+          onChange={(value) => onBufferWidthChange?.(toMeters(value))}
         />
         <InputNumber
           size="small"
