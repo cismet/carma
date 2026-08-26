@@ -1061,32 +1061,69 @@ export function ThreeLayerManager({
       }
     };
 
+    let extrusionSyncPending = isExtrusion;
+    let syncInFlight = false;
+    let rerunRequested = false;
+    let sourceSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
     const trySync = async () => {
-      // If the source's 2D layers are hidden, tear down the 3D layer
-      if (!isSourceVisible()) {
-        if (layerRef.current) {
-          // console.log("[3D-LAYER] hiding 3D layer (source layers not visible):", config.sourceId);
-          removeLayer();
-        }
+      if (syncInFlight) {
+        rerunRequested = true;
         return;
       }
+      syncInFlight = true;
+      rerunRequested = false;
+      try {
+        // If the source's 2D layers are hidden, tear down the 3D layer
+        if (!isSourceVisible()) {
+          if (layerRef.current) {
+            // console.log("[3D-LAYER] hiding 3D layer (source layers not visible):", config.sourceId);
+            removeLayer();
+          }
+          return;
+        }
 
-      await addLayerIfReady();
-      if (!layerRef.current || !map.getSource(config.sourceId)) return;
+        await addLayerIfReady();
+        if (!layerRef.current || !map.getSource(config.sourceId)) return;
 
-      if (isExtrusion) {
-        syncBuildings();
-      } else {
-        syncTrees();
+        if (isExtrusion) {
+          if (!extrusionSyncPending) return;
+          extrusionSyncPending = false;
+          syncBuildings();
+        } else {
+          syncTrees();
+        }
+      } finally {
+        syncInFlight = false;
+        if (rerunRequested) void trySync();
       }
     };
 
-    map.on("moveend", trySync);
+    const requestSync = () => {
+      if (isExtrusion) extrusionSyncPending = true;
+      void trySync();
+    };
 
-    // For extrusion layers, also sync after idle (all tiles loaded)
+    const scheduleSourceSync = () => {
+      if (!isExtrusion) {
+        void trySync();
+        return;
+      }
+      extrusionSyncPending = true;
+      if (sourceSyncTimer) clearTimeout(sourceSyncTimer);
+      sourceSyncTimer = setTimeout(() => {
+        sourceSyncTimer = null;
+        void trySync();
+      }, 500);
+    };
+
+    map.on("moveend", requestSync);
+
+    // Idle also follows unrelated style/light changes. Use it only to flush
+    // source work that was explicitly marked dirty.
     const handleIdle = isExtrusion
       ? () => {
-          trySync();
+          if (extrusionSyncPending && !sourceSyncTimer) void trySync();
         }
       : undefined;
     if (handleIdle) map.on("idle", handleIdle);
@@ -1095,45 +1132,58 @@ export function ThreeLayerManager({
       sourceId: string;
       isSourceLoaded: boolean;
     }) => {
-      if (e.sourceId === config.sourceId && e.isSourceLoaded) {
-        trySync();
-      }
+      if (e.sourceId !== config.sourceId) return;
+      // A vector source emits this once per arriving tile. Rebuilding here
+      // repeatedly triangulates progressively larger partial snapshots. Mark
+      // the batch dirty and consume it once the tile burst has settled.
+      scheduleSourceSync();
     };
     map.on("sourcedata", handleSourceData);
 
     // Force rebuild when terrain is toggled so elevation is applied/removed
-    const handleTerrain = () => {
-      trySync();
-    };
+    const handleTerrain = requestSync;
     map.on("terrain", handleTerrain);
-    const unsubscribeSharedTerrain = subscribeSharedThreeTerrain(map, trySync);
+    const unsubscribeSharedTerrain = subscribeSharedThreeTerrain(
+      map,
+      requestSync
+    );
 
     // Re-add layer after background style change (style swap removes custom layers)
     // Also re-checks visibility so toggling a layer back on re-creates the 3D layer
     const handleStyleData = () => {
+      let layerWasRemoved = false;
       if (layerRef.current && !map.getLayer(layerRef.current.id)) {
         unregisterGenericThreeLayer(map, layerRef.current);
         overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
         zOrderTarget = undefined;
+        layerWasRemoved = true;
       }
       // A later sub-style (e.g. POI) may have loaded after the 3D layer was
       // added, pushing it behind. Re-position if needed.
       ensureZOrder();
-      trySync();
+      // Paint and light changes emit styledata too. Source data and terrain
+      // have dedicated handlers, so rebuilding the complete extrusion here
+      // only turns a static sun adjustment into needless retriangulation.
+      if (!isSourceVisible()) {
+        if (layerRef.current) removeLayer();
+      } else if (layerWasRemoved || !layerRef.current) {
+        requestSync();
+      }
     };
     map.on("styledata", handleStyleData);
 
     // Sync immediately if the map is already idle
     if (map.isStyleLoaded()) {
-      trySync();
+      requestSync();
     } else {
-      map.once("idle", trySync);
+      map.once("idle", requestSync);
     }
 
     return () => {
-      map.off("moveend", trySync);
+      if (sourceSyncTimer) clearTimeout(sourceSyncTimer);
+      map.off("moveend", requestSync);
       if (handleIdle) map.off("idle", handleIdle);
       map.off("sourcedata", handleSourceData);
       map.off("terrain", handleTerrain);

@@ -76,7 +76,7 @@ export type ShadowSceneOptions = {
 };
 
 export type ShadowTerrainOptions = Readonly<{ url: string }> &
-  Omit<CesiumTerrainRuntimeOptions, "onError">;
+  Omit<CesiumTerrainRuntimeOptions, "onError" | "onContentChanged">;
 
 export type ShadowBuildingAppearance = Readonly<{
   fullOpacity: boolean;
@@ -495,6 +495,10 @@ const buildShadowLightBinding = (
   const sunLight = new THREE.DirectionalLight(0xfff2d8, 2.5);
   const sunVector = buildSunVector();
   sunLight.name = SHADOW_SIMULATION_SUN_NAME;
+  // MapLibre can repaint this shared canvas for unrelated style, UI, or tile
+  // activity. Only actual caster, camera, and sun changes below should pay for
+  // regenerating the (normally 4096 square) shadow map.
+  sunLight.shadow.autoUpdate = false;
   sunLight.target = lightTarget;
   const binding: ShadowLightBinding = {
     scene,
@@ -670,6 +674,7 @@ export const buildShadowSimulationScene = (
   ensureShadowBackground();
   let restoreMapLibreTerrain: (() => void) | null = null;
   const sceneLease = acquireSharedThreeScene(map);
+  let invalidateShadowMap = () => undefined;
   const terrainRuntime = terrain
     ? (() => {
         const mapCenter = map.getCenter();
@@ -678,7 +683,10 @@ export const buildShadowSimulationScene = (
           SHADOW_SIMULATION_TERRAIN_RUNTIME_ID,
           url,
           [mapCenter.lng, mapCenter.lat],
-          runtimeOptions
+          {
+            ...runtimeOptions,
+            onContentChanged: () => invalidateShadowMap(),
+          }
         );
       })()
     : null;
@@ -687,6 +695,10 @@ export const buildShadowSimulationScene = (
     sceneLease.layer.getScene(),
     initialShadowAreaMeters
   );
+  invalidateShadowMap = () => {
+    if (disposed) return;
+    sharedBinding.sunLight.shadow.needsUpdate = true;
+  };
   const genericBridges = new Map<GenericThreeLayer, GenericThreeShadowBridge>();
   let cachedElevationRange: readonly [number, number] | null = null;
 
@@ -699,7 +711,14 @@ export const buildShadowSimulationScene = (
       centerElevation
     );
     if (!center) {
+      if (latestSolarPosition) {
+        applySolarPositionToBinding(
+          sharedBinding,
+          solarPositionToSceneDirection(latestSolarPosition)
+        );
+      }
       terrainRuntime?.setShadowCamera(sharedBinding.sunLight.shadow.camera);
+      map.triggerRepaint();
       return;
     }
     sharedBinding.center.copy(center);
@@ -849,27 +868,36 @@ export const buildShadowSimulationScene = (
       0,
       1
     );
+    const nextPosition: [number, number, number] = [
+      1.5,
+      position.azimuthDegrees,
+      90 - position.elevationDegrees,
+    ];
+    const nextIntensity = 0.35 + daylightStrength * 0.55;
+    const currentLight = map.getLight();
+    const currentPosition = currentLight.position;
+    if (
+      currentLight.anchor === "map" &&
+      Array.isArray(currentPosition) &&
+      currentPosition.length === nextPosition.length &&
+      currentPosition.every((value, index) => value === nextPosition[index]) &&
+      currentLight.color === "#fff3df" &&
+      currentLight.intensity === nextIntensity
+    ) {
+      return;
+    }
     map.setLight({
       anchor: "map",
-      position: [1.5, position.azimuthDegrees, 90 - position.elevationDegrees],
+      position: nextPosition,
       color: "#fff3df",
-      intensity: 0.35 + daylightStrength * 0.55,
+      intensity: nextIntensity,
     });
   };
 
   const updateSolarPosition = (position: SolarPosition) => {
     latestSolarPosition = position;
     updateSharedShadowCoverage();
-    // Projection is not available until the shared custom layer has been
-    // added. Still apply the sun immediately; a later move/render refits the
-    // already-oriented shadow camera once viewport points can be projected.
-    applySolarPositionToBinding(
-      sharedBinding,
-      solarPositionToSceneDirection(position)
-    );
-    terrainRuntime?.setShadowCamera(sharedBinding.sunLight.shadow.camera);
     applyMapLibreLight(position);
-    map.triggerRepaint();
   };
 
   const restoreLighting = () => {
@@ -877,7 +905,10 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition) applyMapLibreLight(latestSolarPosition);
   };
 
-  map.on("styledata", restoreLighting);
+  // `setLight` itself emits styledata. Listening there feeds every UI change
+  // back into another style mutation. Only a completed style replacement can
+  // have discarded the configured light.
+  map.on("style.load", restoreLighting);
 
   return {
     updateSolarPosition,
@@ -918,7 +949,7 @@ export const buildShadowSimulationScene = (
     dispose() {
       if (disposed) return;
       disposed = true;
-      map.off("styledata", restoreLighting);
+      map.off("style.load", restoreLighting);
       map.off("styledata", ensureShadowBackground);
       map.off("move", updateSharedShadowCoverage);
       map.off("moveend", refreshSharedShadowCoverage);

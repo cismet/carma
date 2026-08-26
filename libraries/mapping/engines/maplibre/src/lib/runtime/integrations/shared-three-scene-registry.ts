@@ -42,7 +42,7 @@ export const acquireSharedThreeScene = (
       ensureLayer: () => undefined,
     };
     nextEntry.ensureLayer = () => {
-      if (nextEntry.disposed || !map.isStyleLoaded()) return;
+      if (nextEntry.disposed) return;
       try {
         if (!map.getLayer(layer.id)) {
           map.addLayer(layer, getFirstSymbolLayerId(map));
@@ -53,6 +53,8 @@ export const acquireSharedThreeScene = (
     };
     entries.set(map, nextEntry);
     map.on("styledata", nextEntry.ensureLayer);
+    map.on("style.load", nextEntry.ensureLayer);
+    map.on("idle", nextEntry.ensureLayer);
     nextEntry.ensureLayer();
     entry = nextEntry;
   }
@@ -72,6 +74,8 @@ export const acquireSharedThreeScene = (
 
       current.disposed = true;
       map.off("styledata", current.ensureLayer);
+      map.off("style.load", current.ensureLayer);
+      map.off("idle", current.ensureLayer);
       try {
         if (map.getLayer(current.layer.id)) map.removeLayer(current.layer.id);
       } catch {
