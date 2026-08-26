@@ -1,0 +1,52 @@
+.shadow-simulation-range {
+  --shadow-range-progress: 0%;
+
+  height: 18px;
+  appearance: none;
+  background: transparent;
+}
+
+.shadow-simulation-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #d97706 0 var(--shadow-range-progress),
+    #e5e7eb var(--shadow-range-progress) 100%
+  );
+}
+
+.shadow-simulation-range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  appearance: none;
+  border: 2px solid #d97706;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+}
+
+.shadow-simulation-range::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #d97706 0 var(--shadow-range-progress),
+    #e5e7eb var(--shadow-range-progress) 100%
+  );
+}
+
+.shadow-simulation-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d97706;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+}
+
+.shadow-simulation-range:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 3px;
+}

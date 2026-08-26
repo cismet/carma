@@ -246,6 +246,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
 
   const clayMaterialStates = new Map<THREE.Mesh, ClayMaterialState>();
+  const originalShadowSides = new Map<THREE.Material, THREE.Side | null>();
   const asMaterialArray = (
     material: THREE.Material | THREE.Material[]
   ): THREE.Material[] => (Array.isArray(material) ? material : [material]);
@@ -255,13 +256,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       color: shadowSimulationStyle?.uniformColor ? shadowClayColor : clayColor,
       roughness: clayRoughness,
       metalness: clayMetalness,
-      side: source.side,
+      // LoD2 building tiles are closed solids. Some source glTF materials are
+      // marked double-sided, which makes the visible roof faces write the
+      // shadow map and self-occlude. Render the clay shell from the outside and
+      // cast from the opposite, interior-facing side, matching the stable ALKIS
+      // extrusion path.
+      side: THREE.FrontSide,
       opacity: source.opacity,
       transparent: source.transparent,
       depthTest: true,
       depthWrite: source.depthWrite,
       alphaTest: source.alphaTest,
     });
+    material.shadowSide = THREE.BackSide;
     material.name = source.name ? `${source.name} · clay` : "tileset-clay";
     return material;
   };
@@ -278,6 +285,29 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       const state = mesh.isMesh ? clayMaterialStates.get(mesh) : undefined;
       if (state) disposeClayState(mesh, state);
     });
+  };
+
+  const applyClosedSolidShadowSide = (material: THREE.Material) => {
+    if (shadowSimulationStyle) {
+      if (!originalShadowSides.has(material)) {
+        originalShadowSides.set(material, material.shadowSide);
+      }
+      material.shadowSide = THREE.BackSide;
+      return;
+    }
+
+    if (originalShadowSides.has(material)) {
+      material.shadowSide = originalShadowSides.get(material) ?? null;
+      originalShadowSides.delete(material);
+    }
+  };
+
+  const restoreShadowSides = () => {
+    for (const [material, shadowSide] of originalShadowSides) {
+      material.shadowSide = shadowSide;
+      material.needsUpdate = true;
+    }
+    originalShadowSides.clear();
   };
 
   const applyMaterialFlags = (root: THREE.Object3D) => {
@@ -308,6 +338,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
       const materials = asMaterialArray(mesh.material);
       for (const material of materials) {
+        // Clay materials already enforce the closed-solid shadow convention.
+        // Preserve the same convention for original textured materials when
+        // uniform color is disabled, and restore their source setting when
+        // shadow simulation ends.
+        if (!clayState) applyClosedSolidShadowSide(material);
         // The reorientation parent keeps tile coordinates in the same local
         // meter frame and projection as the point layers. Write that shared
         // depth so later point-cloud layers are hidden by nearer mesh faces.
@@ -790,6 +825,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       cameraSet?.dispose();
       cameraSet = null;
       restoreClayMaterials(orientationGroup);
+      restoreShadowSides();
       tiles?.dispose();
       tiles = null;
       debugTilesPlugin = null;

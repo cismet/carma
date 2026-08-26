@@ -21,7 +21,7 @@ import type { SolarPosition } from "./solar-position";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
-const VIEWPORT_SHADOW_PADDING_FACTOR = 1.2;
+const VIEWPORT_SHADOW_PADDING_TEXELS = 2;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_CAMERA_DEPTH_PADDING_METERS = 1_000;
 const DEFAULT_SHADOW_MAP_SIZE = 2_048;
@@ -64,6 +64,7 @@ type ShadowLightBinding = {
   sunVectorLengthMeters: number;
   sunVectorVisible: boolean;
   shadowQuality: ShadowQualityMultiplier;
+  shadowIntensity: number;
 };
 
 type GenericThreeShadowBridge = {
@@ -97,6 +98,7 @@ export type ShadowSimulationScene = {
   updateTerrainColor: (color: string) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
+  updateShadowIntensity: (intensity: number) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
   dispose: () => void;
 };
@@ -194,13 +196,20 @@ const fitShadowCameraToPoints = (
   }
   const width = right - left;
   const height = top - bottom;
-  const padding =
-    Math.max(width, height, MIN_VIEWPORT_SHADOW_AREA_METERS) *
-    (VIEWPORT_SHADOW_PADDING_FACTOR - 1);
-  const centerX = (left + right) / 2;
-  const centerY = (bottom + top) / 2;
-  const fittedWidth = Math.max(width + padding, minimumAreaMeters);
-  const fittedHeight = Math.max(height + padding, minimumAreaMeters);
+  const baseWidth = Math.max(width, minimumAreaMeters);
+  const baseHeight = Math.max(height, minimumAreaMeters);
+  const mapWidth = Math.max(1, light.shadow.mapSize.x);
+  const mapHeight = Math.max(1, light.shadow.mapSize.y);
+  const fittedWidth =
+    baseWidth + (baseWidth / mapWidth) * VIEWPORT_SHADOW_PADDING_TEXELS * 2;
+  const fittedHeight =
+    baseHeight + (baseHeight / mapHeight) * VIEWPORT_SHADOW_PADDING_TEXELS * 2;
+  const texelWidth = fittedWidth / mapWidth;
+  const texelHeight = fittedHeight / mapHeight;
+  // Keep only a filtering-sized guard outside the real screen footprint and
+  // snap the light-space center to texels so camera motion does not shimmer.
+  const centerX = Math.round((left + right) / 2 / texelWidth) * texelWidth;
+  const centerY = Math.round((bottom + top) / 2 / texelHeight) * texelHeight;
   camera.left = centerX - fittedWidth / 2;
   camera.right = centerX + fittedWidth / 2;
   camera.bottom = centerY - fittedHeight / 2;
@@ -517,6 +526,7 @@ const buildShadowLightBinding = (
     sunVectorLengthMeters: shadowAreaMeters * SUN_VECTOR_VIEWPORT_LENGTH_FACTOR,
     sunVectorVisible: false,
     shadowQuality: DEFAULT_SHADOW_QUALITY,
+    shadowIntensity: 0.45,
   };
   scene.add(lightTarget, sunLight);
   makeSceneMeshesShadeable(scene);
@@ -591,7 +601,9 @@ const applySolarPositionToBinding = (
   binding.sunVector.root.visible = binding.sunVectorVisible;
   binding.sunVector.root.updateMatrixWorld(true);
   const daylightStrength = THREE.MathUtils.clamp(normalizedDirection.y, 0, 1);
-  binding.sunLight.intensity = 1.2 + Math.sqrt(daylightStrength) * 2.2;
+  const intensityScale = 0.55 + binding.shadowIntensity;
+  binding.sunLight.intensity =
+    (1.2 + Math.sqrt(daylightStrength) * 2.2) * intensityScale;
   binding.lightTarget.updateMatrixWorld(true);
   binding.sunLight.updateMatrixWorld(true);
   binding.sunLight.shadow.updateMatrices(binding.sunLight);
@@ -620,6 +632,7 @@ export const buildShadowSimulationScene = (
     fullOpacity: true,
     uniformColor: null,
   };
+  let latestShadowIntensity = 0.45;
   let disposed = false;
   const restoreMapLibreStyleLayers = suppressMapLibreRegularStyleLayers(map);
   let terrainColor = new THREE.Color(
@@ -724,15 +737,23 @@ export const buildShadowSimulationScene = (
       return;
     }
     sharedBinding.center.copy(center);
-    const bounds = map.getBounds();
+    const canvas = map.getCanvas();
+    const viewportWidth = canvas.clientWidth || canvas.width;
+    const viewportHeight = canvas.clientHeight || canvas.height;
     let radiusMeters = 0;
     const projectedCorners: THREE.Vector3[] = [];
+    // Map#getBounds is the geographic AABB around the rotated and pitched
+    // viewport. Its unused corners can waste most shadow texels. Unproject the
+    // actual four screen corners instead and fit those in light space.
     const viewportLngLats = [
-      [bounds.getWest(), bounds.getSouth()],
-      [bounds.getWest(), bounds.getNorth()],
-      [bounds.getEast(), bounds.getSouth()],
-      [bounds.getEast(), bounds.getNorth()],
-    ] as [number, number][];
+      [0, viewportHeight],
+      [0, 0],
+      [viewportWidth, viewportHeight],
+      [viewportWidth, 0],
+    ].map((point) => {
+      const lngLat = map.unproject(point as [number, number]);
+      return [lngLat.lng, lngLat.lat] as [number, number];
+    });
     for (const lngLat of viewportLngLats) {
       const corner = sceneLease.layer.projectLngLatToScene?.(
         lngLat,
@@ -779,7 +800,7 @@ export const buildShadowSimulationScene = (
       sharedBinding.shadowAreaMeters = Math.max(
         configuredShadowAreaMeters ?? 0,
         MIN_VIEWPORT_SHADOW_AREA_METERS,
-        viewportRadiusMeters * 2 * VIEWPORT_SHADOW_PADDING_FACTOR
+        viewportRadiusMeters * 2
       );
     }
     sharedBinding.shadowCameraOffsetMeters = configureShadowCamera(
@@ -890,7 +911,8 @@ export const buildShadowSimulationScene = (
       position.azimuthDegrees,
       90 - position.elevationDegrees,
     ];
-    const nextIntensity = 0.35 + daylightStrength * 0.55;
+    const nextIntensity =
+      (0.35 + daylightStrength * 0.55) * (0.55 + latestShadowIntensity);
     const currentLight = map.getLight();
     const currentPosition = currentLight.position;
     if (
@@ -960,6 +982,18 @@ export const buildShadowSimulationScene = (
       } else {
         sharedBinding.sunLight.shadow.needsUpdate = true;
       }
+    },
+    updateShadowIntensity(intensity) {
+      latestShadowIntensity = THREE.MathUtils.clamp(intensity, 0, 1);
+      sharedBinding.shadowIntensity = latestShadowIntensity;
+      if (latestSolarPosition) {
+        applySolarPositionToBinding(
+          sharedBinding,
+          solarPositionToSceneDirection(latestSolarPosition)
+        );
+        applyMapLibreLight(latestSolarPosition);
+      }
+      map.triggerRepaint();
     },
     updateSunDebugVectorVisibility(visible) {
       sharedBinding.sunVectorVisible = visible;
