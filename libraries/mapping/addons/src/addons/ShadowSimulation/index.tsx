@@ -288,7 +288,7 @@ const ShadowSimulationRibbon = ({
     () => getSolarPosition(state.selection, location),
     [location, state.selection]
   );
-  const intensity = state.shadowIntensity ?? 0.45;
+  const intensity = state.shadowIntensity ?? 1;
   const minimumMinutes = Math.ceil(daylight.sunriseMinutes);
   const maximumMinutes = Math.floor(daylight.sunsetMinutes);
   const selectedDate = useMemo(
@@ -451,7 +451,7 @@ const ShadowQuickSettings = ({
 }) => {
   const animationMode = state.animationMode ?? SHADOW_ANIMATION_MODE.DAY;
   const animationSpeed = state.animationSpeed ?? 4;
-  const intensity = state.shadowIntensity ?? 0.45;
+  const intensity = state.shadowIntensity ?? 1;
 
   const publishSelection = (candidate: SolarSelection) => {
     const selection = clampSelectionToDaylight(candidate, location);
@@ -701,7 +701,7 @@ export const ShadowSimulationControlSurface = ({
                   animationMode: SHADOW_ANIMATION_MODE.DAY,
                   animationSpeed: 4,
                   isAnimating: false,
-                  shadowIntensity: 0.45,
+                  shadowIntensity: 1,
                   showSunDebugVector: false,
                   showShadowBuffers: false,
                   showProjectionDebugView: false,
@@ -812,7 +812,7 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
-    shadowScene.current?.updateShadowIntensity(state.shadowIntensity ?? 0.45);
+    shadowScene.current?.updateShadowIntensity(state.shadowIntensity ?? 1);
   }, [state.enabled, state.shadowIntensity, sceneRevision]);
 
   useEffect(() => {
@@ -911,7 +911,7 @@ export const ShadowSimulation = ({
       animationMode: SHADOW_ANIMATION_MODE.DAY,
       animationSpeed: 4,
       isAnimating: false,
-      shadowIntensity: 0.45,
+      shadowIntensity: 1,
       selection: clampSelectionToDaylight(candidate, location) ?? {
         ...candidate,
         minutes: 12 * 60,
