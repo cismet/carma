@@ -184,7 +184,12 @@ export const NearestFeature = ({
       const originKey = originKeyOf(currentOrigin);
       if (!map) {
         // not kept: there is nothing to filter and nothing to re-rank
-        return { category, rows: [], problem: "Keine MapLibre-Karte", originKey };
+        return {
+          category,
+          rows: [],
+          problem: "Keine MapLibre-Karte",
+          originKey,
+        };
       }
       const { rows, problem } = await rankCategory({
         map,
@@ -287,6 +292,9 @@ export const NearestFeature = ({
       if (rerunRef.current === rerun) {
         rerunRef.current = null;
       }
+      setWantsOrigin(false);
+      lastRunRef.current = null;
+      pendingRunRef.current = null;
     };
   }, []);
 
