@@ -46,6 +46,7 @@ const DEFAULT_MAX_CACHED_MESHES = 256;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
 const TERRAIN_SHADOW_POLYGON_OFFSET_FACTOR = 2;
 const TERRAIN_SHADOW_POLYGON_OFFSET_UNITS = 4;
+const VIEWPORT_COVERAGE_PADDING_FACTOR = 0.25;
 
 export type CesiumTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
@@ -78,8 +79,32 @@ type TerrainMeshRecord = {
   node: Group;
   reliefMesh: Mesh | null;
   baseMesh: Mesh | null;
-  boundaryIndices: Uint32Array;
+  boundaryEdges: TerrainBoundaryEdges;
   lastUsed: number;
+};
+
+type TerrainBoundarySide = "west" | "south" | "east" | "north";
+
+type TerrainBoundaryEdges = Record<TerrainBoundarySide, Uint32Array>;
+
+type TerrainBoundaryVertex = {
+  accumulator: TerrainBoundaryNormalAccumulator;
+  parameter: number;
+  normal: Vector3;
+};
+
+type TerrainBoundaryNormalAccumulator = {
+  record: TerrainMeshRecord;
+  index: number;
+  normalSum: Vector3;
+  contributorCount: number;
+};
+
+type TerrainBoundaryEdge = {
+  side: TerrainBoundarySide;
+  vertices: TerrainBoundaryVertex[];
+  minimum: number;
+  maximum: number;
 };
 
 type TerrainSelection = {
@@ -105,6 +130,60 @@ const FLAT_TERRAIN_WEST_INDICES = new Uint32Array([0, 1]);
 const FLAT_TERRAIN_SOUTH_INDICES = new Uint32Array([0, 2]);
 const FLAT_TERRAIN_EAST_INDICES = new Uint32Array([2, 3]);
 const FLAT_TERRAIN_NORTH_INDICES = new Uint32Array([1, 3]);
+const TERRAIN_BOUNDARY_KEY_PRECISION = 1_000;
+const TERRAIN_BOUNDARY_OVERLAP_EPSILON = 1e-3;
+
+const oppositeTerrainBoundarySide = (
+  side: TerrainBoundarySide
+): TerrainBoundarySide => {
+  switch (side) {
+    case "west":
+      return "east";
+    case "east":
+      return "west";
+    case "south":
+      return "north";
+    case "north":
+      return "south";
+  }
+};
+
+const terrainBoundaryAxis = (side: TerrainBoundarySide) =>
+  side === "west" || side === "east" ? "x" : "z";
+
+const interpolateTerrainBoundaryNormal = (
+  edge: TerrainBoundaryEdge,
+  parameter: number
+): Vector3 | null => {
+  const { vertices } = edge;
+  if (vertices.length === 0) return null;
+  if (vertices.length === 1) return vertices[0].normal.clone();
+  if (
+    parameter < edge.minimum - TERRAIN_BOUNDARY_OVERLAP_EPSILON ||
+    parameter > edge.maximum + TERRAIN_BOUNDARY_OVERLAP_EPSILON
+  ) {
+    return null;
+  }
+  for (let index = 1; index < vertices.length; index += 1) {
+    const before = vertices[index - 1];
+    const after = vertices[index];
+    if (parameter > after.parameter + TERRAIN_BOUNDARY_OVERLAP_EPSILON) {
+      continue;
+    }
+    const span = after.parameter - before.parameter;
+    if (Math.abs(span) <= TERRAIN_BOUNDARY_OVERLAP_EPSILON) {
+      return before.normal.clone();
+    }
+    return before.normal
+      .clone()
+      .lerp(
+        after.normal,
+        Math.max(0, Math.min(1, (parameter - before.parameter) / span))
+      )
+      .normalize();
+  }
+  return vertices[vertices.length - 1].normal.clone();
+};
 
 const partitionNoDataTerrainGeometry = (
   geometry: BufferGeometry,
@@ -196,6 +275,30 @@ const boundsIntersect = (
   left.east >= right.west &&
   left.south <= right.north &&
   left.north >= right.south;
+
+const boundsContain = (
+  outer: CesiumTerrainTileBounds,
+  inner: CesiumTerrainTileBounds
+) =>
+  outer.west <= inner.west &&
+  outer.south <= inner.south &&
+  outer.east >= inner.east &&
+  outer.north >= inner.north;
+
+const padBounds = (
+  bounds: CesiumTerrainTileBounds
+): CesiumTerrainTileBounds => {
+  const longitudePadding =
+    (bounds.east - bounds.west) * VIEWPORT_COVERAGE_PADDING_FACTOR;
+  const latitudePadding =
+    (bounds.north - bounds.south) * VIEWPORT_COVERAGE_PADDING_FACTOR;
+  return {
+    west: bounds.west - longitudePadding,
+    south: Math.max(-90, bounds.south - latitudePadding),
+    east: bounds.east + longitudePadding,
+    north: Math.min(90, bounds.north + latitudePadding),
+  };
+};
 
 const unionBounds = (
   left: CesiumTerrainTileBounds,
@@ -337,6 +440,10 @@ export const buildCesiumTerrainRuntime = (
     // default opposite-side pass, which requires a closed volume.
     shadowSide: FrontSide,
   });
+  const coverageMaterial = material.clone();
+  coverageMaterial.polygonOffset = true;
+  coverageMaterial.polygonOffsetFactor = 1;
+  coverageMaterial.polygonOffsetUnits = 1;
   const shadowDepthMaterial = new MeshDepthMaterial({
     polygonOffset: true,
     polygonOffsetFactor: TERRAIN_SHADOW_POLYGON_OFFSET_FACTOR,
@@ -347,6 +454,8 @@ export const buildCesiumTerrainRuntime = (
     maxCacheBytes: options.maxCacheBytes,
   });
   const meshes = new Map<string, TerrainMeshRecord>();
+  let coverageMesh: Mesh | null = null;
+  let coverageBounds: CesiumTerrainTileBounds | null = null;
   let source: CesiumTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
   let shadowCamera: Camera | null = null;
@@ -515,6 +624,7 @@ export const buildCesiumTerrainRuntime = (
       baseMesh.name = `${node.name}-base`;
       baseMesh.castShadow = false;
       baseMesh.receiveShadow = true;
+      baseMesh.userData.disableShadowCasting = true;
       node.add(baseMesh);
     }
     let reliefMesh: Mesh | null = null;
@@ -528,33 +638,31 @@ export const buildCesiumTerrainRuntime = (
     }
     node.visible = false;
     root.add(node);
-    const boundaryIndices = Uint32Array.from(
-      new Set(
-        [
-          ...(tile.westIndices ?? []),
-          ...(tile.southIndices ?? []),
-          ...(tile.eastIndices ?? []),
-          ...(tile.northIndices ?? []),
-        ].filter((index) => reliefVertexMask[index] === 1)
-      )
-    );
+    const filterReliefBoundary = (indices: Uint32Array | undefined) =>
+      Uint32Array.from(
+        [...(indices ?? [])].filter((index) => reliefVertexMask[index] === 1)
+      );
+    const boundaryEdges: TerrainBoundaryEdges = {
+      west: filterReliefBoundary(tile.westIndices),
+      south: filterReliefBoundary(tile.southIndices),
+      east: filterReliefBoundary(tile.eastIndices),
+      north: filterReliefBoundary(tile.northIndices),
+    };
     meshes.set(key, {
       node,
       reliefMesh,
       baseMesh,
-      boundaryIndices,
+      boundaryEdges,
       lastUsed: ++meshUseClock,
     });
     return node;
   };
 
   const smoothActiveBoundaryNormals = (activeKeys: ReadonlySet<string>) => {
-    const boundaries = new Map<
+    const boundaries = new Map<string, TerrainBoundaryEdge[]>();
+    const normalAccumulators = new Map<
       string,
-      {
-        normal: Vector3;
-        vertices: Array<{ record: TerrainMeshRecord; index: number }>;
-      }
+      TerrainBoundaryNormalAccumulator
     >();
     for (const [key, record] of meshes) {
       if (!activeKeys.has(key)) continue;
@@ -563,34 +671,117 @@ export const buildCesiumTerrainRuntime = (
       reliefMesh.geometry.computeVertexNormals();
       const normal = reliefMesh.geometry.getAttribute("normal");
       const position = reliefMesh.geometry.getAttribute("position");
-      for (const index of record.boundaryIndices) {
-        const nx = normal.getX(index);
-        const ny = normal.getY(index);
-        const nz = normal.getZ(index);
-        if (nx * nx + ny * ny + nz * nz <= Number.EPSILON) continue;
-        const positionKey = `${Math.round(
-          position.getX(index) * 1_000
-        )}/${Math.round(position.getY(index) * 1_000)}/${Math.round(
-          position.getZ(index) * 1_000
+      for (const side of ["west", "south", "east", "north"] as const) {
+        const indices = record.boundaryEdges[side];
+        const axis = terrainBoundaryAxis(side);
+        const edgeVertices: TerrainBoundaryVertex[] = [];
+        for (const index of indices) {
+          const vertexNormal = new Vector3(
+            normal.getX(index),
+            normal.getY(index),
+            normal.getZ(index)
+          );
+          if (vertexNormal.lengthSq() <= Number.EPSILON) continue;
+          const vertexKey = `${key}/${index}`;
+          const accumulator =
+            normalAccumulators.get(vertexKey) ??
+            ({
+              record,
+              index,
+              normalSum: vertexNormal.clone(),
+              contributorCount: 0,
+            } satisfies TerrainBoundaryNormalAccumulator);
+          normalAccumulators.set(vertexKey, accumulator);
+          edgeVertices.push({
+            accumulator,
+            parameter:
+              axis === "x" ? position.getZ(index) : position.getX(index),
+            normal: vertexNormal,
+          });
+        }
+        edgeVertices.sort((left, right) => left.parameter - right.parameter);
+        if (edgeVertices.length === 0) continue;
+        const lineCoordinate =
+          axis === "x"
+            ? position.getX(edgeVertices[0].accumulator.index)
+            : position.getZ(edgeVertices[0].accumulator.index);
+        const lineKey = `${axis}/${Math.round(
+          lineCoordinate * TERRAIN_BOUNDARY_KEY_PRECISION
         )}`;
-        const entry = boundaries.get(positionKey) ?? {
-          normal: new Vector3(),
-          vertices: [],
+        const edge: TerrainBoundaryEdge = {
+          side,
+          vertices: edgeVertices,
+          minimum: edgeVertices[0].parameter,
+          maximum: edgeVertices[edgeVertices.length - 1].parameter,
         };
-        entry.normal.add(new Vector3(nx, ny, nz));
-        entry.vertices.push({ record, index });
-        boundaries.set(positionKey, entry);
+        const lineEdges = boundaries.get(lineKey) ?? [];
+        lineEdges.push(edge);
+        boundaries.set(lineKey, lineEdges);
       }
     }
-    for (const { normal, vertices } of boundaries.values()) {
-      if (vertices.length < 2 || normal.lengthSq() === 0) continue;
-      normal.normalize();
-      for (const { record, index } of vertices) {
-        const attribute = record.reliefMesh!.geometry.getAttribute("normal");
-        attribute.setXYZ(index, normal.x, normal.y, normal.z);
-        attribute.needsUpdate = true;
+
+    for (const edges of boundaries.values()) {
+      for (let leftIndex = 0; leftIndex < edges.length; leftIndex += 1) {
+        const left = edges[leftIndex];
+        for (
+          let rightIndex = leftIndex + 1;
+          rightIndex < edges.length;
+          rightIndex += 1
+        ) {
+          const right = edges[rightIndex];
+          if (oppositeTerrainBoundarySide(left.side) !== right.side) continue;
+          const overlapMinimum = Math.max(left.minimum, right.minimum);
+          const overlapMaximum = Math.min(left.maximum, right.maximum);
+          if (
+            overlapMaximum - overlapMinimum <=
+            TERRAIN_BOUNDARY_OVERLAP_EPSILON
+          ) {
+            continue;
+          }
+          for (const vertex of left.vertices) {
+            const neighborNormal = interpolateTerrainBoundaryNormal(
+              right,
+              vertex.parameter
+            );
+            if (!neighborNormal) continue;
+            vertex.accumulator.normalSum.add(neighborNormal);
+            vertex.accumulator.contributorCount += 1;
+          }
+          for (const vertex of right.vertices) {
+            const neighborNormal = interpolateTerrainBoundaryNormal(
+              left,
+              vertex.parameter
+            );
+            if (!neighborNormal) continue;
+            vertex.accumulator.normalSum.add(neighborNormal);
+            vertex.accumulator.contributorCount += 1;
+          }
+        }
       }
     }
+
+    const updatedAttributes = new Set<
+      ReturnType<BufferGeometry["getAttribute"]>
+    >();
+    for (const accumulator of normalAccumulators.values()) {
+      if (
+        accumulator.contributorCount === 0 ||
+        accumulator.normalSum.lengthSq() === 0
+      ) {
+        continue;
+      }
+      accumulator.normalSum.normalize();
+      const attribute =
+        accumulator.record.reliefMesh!.geometry.getAttribute("normal");
+      attribute.setXYZ(
+        accumulator.index,
+        accumulator.normalSum.x,
+        accumulator.normalSum.y,
+        accumulator.normalSum.z
+      );
+      updatedAttributes.add(attribute);
+    }
+    for (const attribute of updatedAttributes) attribute.needsUpdate = true;
   };
 
   const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
@@ -686,6 +877,28 @@ export const buildCesiumTerrainRuntime = (
     };
   };
 
+  const updateViewportCoverage = (frame: SharedThreeSceneFrame) => {
+    const viewportBounds = getViewportBounds(frame.map);
+    if (coverageBounds && boundsContain(coverageBounds, viewportBounds)) return;
+    coverageBounds = padBounds(viewportBounds);
+    const geometry = createFlatTerrainGeometry(
+      coverageBounds,
+      noDataHeightMeters ?? 0,
+      projectToLocalWorld
+    );
+    if (!coverageMesh) {
+      coverageMesh = new Mesh(geometry, coverageMaterial);
+      coverageMesh.name = `${runtimeId}-viewport-coverage`;
+      coverageMesh.castShadow = false;
+      coverageMesh.receiveShadow = true;
+      coverageMesh.userData.disableShadowCasting = true;
+      root.add(coverageMesh);
+      return;
+    }
+    coverageMesh.geometry.dispose();
+    coverageMesh.geometry = geometry;
+  };
+
   const loadSelection = (
     terrainSource: CesiumTerrainTileSource,
     selection: TerrainSelection
@@ -764,7 +977,9 @@ export const buildCesiumTerrainRuntime = (
       map.triggerRepaint();
     },
     update(frame) {
-      if (!source || disposed || !root.visible) return;
+      if (disposed || !root.visible) return;
+      updateViewportCoverage(frame);
+      if (!source) return;
       const selection = buildSelection(source, frame);
       if (selection.signature === requestedSignature) {
         return;
@@ -787,6 +1002,7 @@ export const buildCesiumTerrainRuntime = (
     },
     setMaterialColor(color) {
       material.color.set(color);
+      coverageMaterial.color.set(color);
       map?.triggerRepaint();
     },
     getElevation(longitude, latitude) {
@@ -804,6 +1020,8 @@ export const buildCesiumTerrainRuntime = (
       }
       meshes.clear();
       material.dispose();
+      coverageMesh?.geometry.dispose();
+      coverageMaterial.dispose();
       shadowDepthMaterial.dispose();
       root.clear();
       map = null;

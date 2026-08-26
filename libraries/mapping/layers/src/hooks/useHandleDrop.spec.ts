@@ -39,6 +39,17 @@ describe("resolveDroppedUrl", () => {
     );
   });
 
+  it("reads an HTML-only dragged link", () => {
+    const dataTransfer = createDataTransfer({
+      "text/html":
+        '<a href="https://tiles.cismet.de/alkis/gebaeude-only.style.json">ALKIS</a>',
+    });
+
+    expect(resolveDroppedUrl(dataTransfer)).toBe(
+      "https://tiles.cismet.de/alkis/gebaeude-only.style.json"
+    );
+  });
+
   it("rejects non-http transfer values", () => {
     const dataTransfer = createDataTransfer({
       "text/plain": "javascript:alert(1)",

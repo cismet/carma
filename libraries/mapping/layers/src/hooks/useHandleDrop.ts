@@ -25,7 +25,12 @@ const parser = new WMSCapabilities();
 
 const TWININDICATOR = ".twin.";
 
-const DROP_URL_TYPES = ["URL", "text/uri-list", "text/plain"] as const;
+const DROP_URL_TYPES = [
+  "URL",
+  "text/uri-list",
+  "text/plain",
+  "text/html",
+] as const;
 
 const parseHttpUrl = (candidate: string): string | null => {
   try {
@@ -36,6 +41,14 @@ const parseHttpUrl = (candidate: string): string | null => {
   } catch {
     return null;
   }
+};
+
+const resolveHtmlUrl = (html: string): string | null => {
+  const href = new DOMParser()
+    .parseFromString(html, "text/html")
+    .querySelector<HTMLAnchorElement>("a[href]")?.href;
+
+  return href ? parseHttpUrl(href) : null;
 };
 
 export const resolveDroppedUrl = (
@@ -55,6 +68,11 @@ export const resolveDroppedUrl = (
       const candidate = line.trim();
       if (!candidate || candidate.startsWith("#")) continue;
       const url = parseHttpUrl(candidate);
+      if (url) return url;
+    }
+
+    if (type === "text/html") {
+      const url = resolveHtmlUrl(value);
       if (url) return url;
     }
   }
@@ -316,12 +334,12 @@ export const useHandleDrop = ({
       event.preventDefault();
     };
 
-    window.addEventListener("drop", handleDrop);
-    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("drop", handleDrop, true);
+    window.addEventListener("dragover", handleDragOver, true);
 
     return () => {
-      window.removeEventListener("drop", handleDrop);
-      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("drop", handleDrop, true);
+      window.removeEventListener("dragover", handleDragOver, true);
     };
   }, [
     setOpen,

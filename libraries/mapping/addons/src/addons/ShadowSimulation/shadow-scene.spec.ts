@@ -331,13 +331,15 @@ describe("shadow scene lighting integration", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     let mapCenter = { lng: 0, lat: 0 };
+    let viewportHalfWidth = 1;
+    let viewportHalfHeight = 2;
     const map = {
       getCenter: vi.fn(() => mapCenter),
       getBounds: vi.fn(() => ({
-        getWest: () => -1,
-        getSouth: () => -2,
-        getEast: () => 1,
-        getNorth: () => 2,
+        getWest: () => mapCenter.lng - viewportHalfWidth,
+        getSouth: () => mapCenter.lat - viewportHalfHeight,
+        getEast: () => mapCenter.lng + viewportHalfWidth,
+        getNorth: () => mapCenter.lat + viewportHalfHeight,
       })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
@@ -359,10 +361,29 @@ describe("shadow scene lighting integration", () => {
     const sunVector = scene.getObjectByName(
       "shadow-simulation-sun-vector"
     ) as THREE.ArrowHelper;
-    const cornerRadius = Math.hypot(1_000, 2_000);
+    const expectCurrentViewportInsideShadowCamera = () => {
+      sun.shadow.updateMatrices(sun);
+      for (const [lng, lat] of [
+        [mapCenter.lng - viewportHalfWidth, mapCenter.lat - viewportHalfHeight],
+        [mapCenter.lng - viewportHalfWidth, mapCenter.lat + viewportHalfHeight],
+        [mapCenter.lng + viewportHalfWidth, mapCenter.lat - viewportHalfHeight],
+        [mapCenter.lng + viewportHalfWidth, mapCenter.lat + viewportHalfHeight],
+      ]) {
+        const cameraPoint = new THREE.Vector3(
+          lng * 1_000,
+          0,
+          lat * 1_000
+        ).applyMatrix4(sun.shadow.camera.matrixWorldInverse);
+        expect(cameraPoint.x).toBeGreaterThanOrEqual(sun.shadow.camera.left);
+        expect(cameraPoint.x).toBeLessThanOrEqual(sun.shadow.camera.right);
+        expect(cameraPoint.y).toBeGreaterThanOrEqual(sun.shadow.camera.bottom);
+        expect(cameraPoint.y).toBeLessThanOrEqual(sun.shadow.camera.top);
+      }
+    };
+    const wideViewportCameraWidth =
+      sun.shadow.camera.right - sun.shadow.camera.left;
 
-    expect(sun.shadow.camera.right).toBeGreaterThan(cornerRadius);
-    expect(sun.shadow.camera.top).toBeGreaterThan(cornerRadius);
+    expectCurrentViewportInsideShadowCamera();
     expect(sunVector.position.toArray()).toEqual([0, 0, 0]);
     expect(sunVector.cone.position.y).toBeCloseTo(1_000);
     expect(map.on).toHaveBeenCalledWith("move", expect.any(Function));
@@ -375,8 +396,55 @@ describe("shadow scene lighting integration", () => {
 
     expect(sunVector.position.toArray()).toEqual([500, 0, 1_000]);
     expect(sun.target.position.toArray()).toEqual([500, 0, 1_000]);
+    expectCurrentViewportInsideShadowCamera();
+
+    viewportHalfWidth = 0.05;
+    viewportHalfHeight = 0.1;
+    moveHandler();
+
+    const zoomedViewportCameraWidth =
+      sun.shadow.camera.right - sun.shadow.camera.left;
+    expectCurrentViewportInsideShadowCamera();
+    expect(zoomedViewportCameraWidth).toBeLessThan(wideViewportCameraWidth);
 
     controller.dispose();
+  });
+
+  it("includes visible elevation relief when fitting the viewport", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    const elevatedReceiver = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 300, 1),
+      new THREE.MeshLambertMaterial()
+    );
+    elevatedReceiver.position.y = 150;
+    scene.add(elevatedReceiver);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getBounds: vi.fn(() => ({
+        getWest: () => -0.05,
+        getSouth: () => -0.1,
+        getEast: () => 0.05,
+        getNorth: () => 0.1,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+
+    const controller = buildShadowSimulationScene(map as never);
+    const sun = scene.getObjectByName(
+      "shadow-simulation-sun"
+    ) as THREE.DirectionalLight;
+
+    expect(sun.shadow.camera.right).toBeGreaterThan(300);
+
+    controller.dispose();
+    elevatedReceiver.geometry.dispose();
+    (elevatedReceiver.material as THREE.Material).dispose();
   });
 
   it("adds configured Cesium terrain to the shared scene", async () => {
@@ -407,8 +475,33 @@ describe("shadow scene lighting integration", () => {
       } as never,
       release: releaseScene,
     });
+    let backgroundLayerPresent = false;
+    const backgroundPaint = new Map<string, unknown>();
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getLayer: vi.fn(() =>
+        backgroundLayerPresent
+          ? { id: "__shadow-simulation-background", type: "background" }
+          : undefined
+      ),
+      getStyle: vi.fn(() => ({ layers: [{ id: "amtlich" }] })),
+      addLayer: vi.fn((layer: { paint?: Record<string, unknown> }) => {
+        backgroundLayerPresent = true;
+        for (const [property, value] of Object.entries(layer.paint ?? {})) {
+          backgroundPaint.set(property, value);
+        }
+      }),
+      removeLayer: vi.fn(() => {
+        backgroundLayerPresent = false;
+      }),
+      getPaintProperty: vi.fn((_layerId: string, property: string) =>
+        backgroundPaint.get(property)
+      ),
+      setPaintProperty: vi.fn(
+        (_layerId: string, property: string, value: unknown) => {
+          backgroundPaint.set(property, value);
+        }
+      ),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight: vi.fn(),
@@ -435,12 +528,31 @@ describe("shadow scene lighting integration", () => {
     );
     expect(addRuntime).toHaveBeenCalledWith(terrainRuntime);
     expect(suppressMapLibreTerrainRendering).toHaveBeenCalledWith(map);
+    expect(map.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "__shadow-simulation-background",
+        type: "background",
+        paint: expect.objectContaining({
+          "background-color": "#d8d1c4",
+          "background-opacity": 1,
+        }),
+      }),
+      "amtlich"
+    );
 
     controller.updateTerrainColor("#8c7a66");
     expect(terrainRuntime.setMaterialColor).toHaveBeenCalledWith("#8c7a66");
+    expect(map.setPaintProperty).toHaveBeenCalledWith(
+      "__shadow-simulation-background",
+      "background-color",
+      "#8c7a66"
+    );
 
     controller.dispose();
     expect(restoreTerrain).toHaveBeenCalledOnce();
     expect(removeRuntime).toHaveBeenCalledWith("terrain");
+    expect(map.removeLayer).toHaveBeenCalledWith(
+      "__shadow-simulation-background"
+    );
   });
 });

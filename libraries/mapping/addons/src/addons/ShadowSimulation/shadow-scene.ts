@@ -17,7 +17,9 @@ import type {
 
 import type { SolarPosition } from "./solar-position";
 
-const DEFAULT_SHADOW_AREA_METERS = 900;
+const FALLBACK_SHADOW_AREA_METERS = 900;
+const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
+const VIEWPORT_SHADOW_PADDING_FACTOR = 1.2;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_CAMERA_DEPTH_PADDING_METERS = 1_000;
 const DEFAULT_SHADOW_MAP_SIZE = 2_048;
@@ -84,6 +86,9 @@ export type ShadowBuildingAppearance = Readonly<{
 export type ShadowQualityMultiplier = 1 | 4 | 16;
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 4;
+
+const DEFAULT_TERRAIN_COLOR = "#d8d1c4";
+const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
 
 export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
@@ -163,9 +168,64 @@ const configureShadowCamera = (
   return shadowCameraOffsetMeters;
 };
 
+const fitShadowCameraToPoints = (
+  light: THREE.DirectionalLight,
+  points: readonly THREE.Vector3[],
+  minimumAreaMeters: number,
+  quality: ShadowQualityMultiplier
+) => {
+  if (points.length === 0) return;
+  configureShadowMapQuality(light, quality);
+  light.shadow.updateMatrices(light);
+  const camera = light.shadow.camera;
+  camera.updateMatrixWorld(true);
+  let left = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.POSITIVE_INFINITY;
+  let top = Number.NEGATIVE_INFINITY;
+  for (const point of points) {
+    const cameraPoint = point.clone().applyMatrix4(camera.matrixWorldInverse);
+    left = Math.min(left, cameraPoint.x);
+    right = Math.max(right, cameraPoint.x);
+    bottom = Math.min(bottom, cameraPoint.y);
+    top = Math.max(top, cameraPoint.y);
+  }
+  const width = right - left;
+  const height = top - bottom;
+  const padding =
+    Math.max(width, height, MIN_VIEWPORT_SHADOW_AREA_METERS) *
+    (VIEWPORT_SHADOW_PADDING_FACTOR - 1);
+  const centerX = (left + right) / 2;
+  const centerY = (bottom + top) / 2;
+  const fittedWidth = Math.max(width + padding, minimumAreaMeters);
+  const fittedHeight = Math.max(height + padding, minimumAreaMeters);
+  camera.left = centerX - fittedWidth / 2;
+  camera.right = centerX + fittedWidth / 2;
+  camera.bottom = centerY - fittedHeight / 2;
+  camera.top = centerY + fittedHeight / 2;
+  const shadowTexelMeters = Math.max(
+    fittedWidth / Math.max(1, light.shadow.mapSize.x),
+    fittedHeight / Math.max(1, light.shadow.mapSize.y)
+  );
+  light.shadow.normalBias = THREE.MathUtils.clamp(
+    shadowTexelMeters * SHADOW_NORMAL_BIAS_TEXELS,
+    MIN_SHADOW_NORMAL_BIAS_METERS,
+    MAX_SHADOW_NORMAL_BIAS_METERS
+  );
+  const depthBiasMeters = THREE.MathUtils.clamp(
+    shadowTexelMeters * SHADOW_DEPTH_BIAS_TEXELS,
+    MIN_SHADOW_DEPTH_BIAS_METERS,
+    MAX_SHADOW_DEPTH_BIAS_METERS
+  );
+  light.shadow.bias = -depthBiasMeters / (camera.far - camera.near);
+  camera.updateProjectionMatrix();
+  light.shadow.updateMatrices(light);
+  light.shadow.needsUpdate = true;
+};
+
 const makeMeshShadeable = (mesh: THREE.Mesh) => {
   if (mesh.userData[SHADOW_OVERLAY_MARKER]) return;
-  mesh.castShadow = true;
+  mesh.castShadow = mesh.userData.disableShadowCasting !== true;
   mesh.receiveShadow = true;
 };
 
@@ -280,6 +340,32 @@ const disposeCopiedMaterials = (root: THREE.Object3D) => {
       : [mesh.material];
     for (const material of materials) material.dispose();
   });
+};
+
+const getVisibleSceneElevationRange = (
+  scene: THREE.Scene,
+  fallbackElevation: number
+): readonly [number, number] => {
+  scene.updateMatrixWorld(true);
+  let minimum = fallbackElevation;
+  let maximum = fallbackElevation;
+  const worldBounds = new THREE.Box3();
+  scene.traverseVisible((object) => {
+    const mesh = object as THREE.Mesh;
+    if (
+      mesh.userData[SHADOW_OVERLAY_MARKER] ||
+      (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) ||
+      !mesh.geometry?.getAttribute("position")?.count
+    ) {
+      return;
+    }
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    if (!mesh.geometry.boundingBox) return;
+    worldBounds.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
+    minimum = Math.min(minimum, worldBounds.min.y);
+    maximum = Math.max(maximum, worldBounds.max.y);
+  });
+  return [minimum, maximum];
 };
 
 const applyBuildingAppearance = (
@@ -519,7 +605,9 @@ export const buildShadowSimulationScene = (
   map: MaplibreMap,
   options: ShadowSceneOptions = {}
 ): ShadowSimulationScene => {
-  const { shadowAreaMeters = DEFAULT_SHADOW_AREA_METERS, terrain } = options;
+  const { shadowAreaMeters: configuredShadowAreaMeters, terrain } = options;
+  const initialShadowAreaMeters =
+    configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
   const previousLight = map.getLight();
   let latestSolarPosition: SolarPosition | null = null;
   let latestBuildingAppearance: ShadowBuildingAppearance = {
@@ -528,6 +616,58 @@ export const buildShadowSimulationScene = (
   };
   let disposed = false;
   const restoreMapLibreStyleLayers = suppressMapLibreRegularStyleLayers(map);
+  let terrainColor = new THREE.Color(
+    terrain?.material?.color ?? DEFAULT_TERRAIN_COLOR
+  );
+  const ensureShadowBackground = () => {
+    if (disposed || !map.isStyleLoaded()) return;
+    const color = `#${terrainColor.getHexString()}`;
+    try {
+      if (!map.getLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID)) {
+        const firstLayerId = map.getStyle().layers?.[0]?.id;
+        map.addLayer(
+          {
+            id: SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
+            type: "background",
+            paint: {
+              "background-color": color,
+              "background-opacity": 1,
+            },
+          },
+          firstLayerId
+        );
+        return;
+      }
+      if (
+        map.getPaintProperty(
+          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
+          "background-color"
+        ) !== color
+      ) {
+        map.setPaintProperty(
+          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
+          "background-color",
+          color
+        );
+      }
+      if (
+        map.getPaintProperty(
+          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
+          "background-opacity"
+        ) !== 1
+      ) {
+        map.setPaintProperty(
+          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
+          "background-opacity",
+          1
+        );
+      }
+    } catch {
+      // A style replacement or map teardown can race this callback.
+    }
+  };
+  map.on("styledata", ensureShadowBackground);
+  ensureShadowBackground();
   let restoreMapLibreTerrain: (() => void) | null = null;
   const sceneLease = acquireSharedThreeScene(map);
   const terrainRuntime = terrain
@@ -545,15 +685,18 @@ export const buildShadowSimulationScene = (
   if (terrainRuntime) sceneLease.layer.addRuntime(terrainRuntime);
   const sharedBinding = buildShadowLightBinding(
     sceneLease.layer.getScene(),
-    shadowAreaMeters
+    initialShadowAreaMeters
   );
   const genericBridges = new Map<GenericThreeLayer, GenericThreeShadowBridge>();
+  let cachedElevationRange: readonly [number, number] | null = null;
 
   const updateSharedShadowCoverage = () => {
     const mapCenter = map.getCenter();
+    const centerElevation =
+      terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0;
     const center = sceneLease.layer.projectLngLatToScene?.(
       [mapCenter.lng, mapCenter.lat],
-      terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0
+      centerElevation
     );
     if (!center) {
       terrainRuntime?.setShadowCamera(sharedBinding.sunLight.shadow.camera);
@@ -563,13 +706,17 @@ export const buildShadowSimulationScene = (
     const bounds = map.getBounds();
     let radiusMeters = 0;
     const projectedCorners: THREE.Vector3[] = [];
-    for (const lngLat of [
+    const viewportLngLats = [
       [bounds.getWest(), bounds.getSouth()],
       [bounds.getWest(), bounds.getNorth()],
       [bounds.getEast(), bounds.getSouth()],
       [bounds.getEast(), bounds.getNorth()],
-    ] as [number, number][]) {
-      const corner = sceneLease.layer.projectLngLatToScene?.(lngLat);
+    ] as [number, number][];
+    for (const lngLat of viewportLngLats) {
+      const corner = sceneLease.layer.projectLngLatToScene?.(
+        lngLat,
+        terrainRuntime?.getElevation(lngLat[0], lngLat[1]) ?? centerElevation
+      );
       if (corner) {
         projectedCorners.push(corner);
         radiusMeters = Math.max(radiusMeters, corner.distanceTo(center));
@@ -585,10 +732,35 @@ export const buildShadowSimulationScene = (
         Math.min(viewportWidthMeters, viewportHeightMeters) *
         SUN_VECTOR_VIEWPORT_LENGTH_FACTOR;
     }
-    sharedBinding.shadowAreaMeters = Math.max(
-      shadowAreaMeters,
-      radiusMeters * 2.4
-    );
+    // Fit the shadow map to the current viewport on every map movement. The
+    // fallback size is only needed before projection is available; retaining
+    // it as a minimum would waste most shadow texels after zooming in.
+    let minimumElevation = center.y;
+    let maximumElevation = center.y;
+    if (projectedCorners.length > 0) {
+      cachedElevationRange ??= getVisibleSceneElevationRange(
+        sharedBinding.scene,
+        center.y
+      );
+      [minimumElevation, maximumElevation] = cachedElevationRange;
+      const elevationRadiusMeters = Math.max(
+        Math.abs(minimumElevation - center.y),
+        Math.abs(maximumElevation - center.y)
+      );
+      // A sphere around the viewport footprint remains inside the shadow
+      // camera for every sun direction. Include the visible scene's vertical
+      // span so low-angle light cannot move elevated terrain beyond the flat
+      // corner fit.
+      const viewportRadiusMeters = Math.hypot(
+        radiusMeters,
+        elevationRadiusMeters
+      );
+      sharedBinding.shadowAreaMeters = Math.max(
+        configuredShadowAreaMeters ?? 0,
+        MIN_VIEWPORT_SHADOW_AREA_METERS,
+        viewportRadiusMeters * 2 * VIEWPORT_SHADOW_PADDING_FACTOR
+      );
+    }
     sharedBinding.shadowCameraOffsetMeters = configureShadowCamera(
       sharedBinding.sunLight,
       sharedBinding.shadowAreaMeters,
@@ -599,12 +771,33 @@ export const buildShadowSimulationScene = (
         sharedBinding,
         solarPositionToSceneDirection(latestSolarPosition)
       );
+      const coveragePoints = viewportLngLats.flatMap((lngLat) =>
+        [minimumElevation, maximumElevation].flatMap((elevation) => {
+          const point = sceneLease.layer.projectLngLatToScene?.(
+            lngLat,
+            elevation
+          );
+          return point ? [point] : [];
+        })
+      );
+      fitShadowCameraToPoints(
+        sharedBinding.sunLight,
+        coveragePoints,
+        configuredShadowAreaMeters ?? MIN_VIEWPORT_SHADOW_AREA_METERS,
+        sharedBinding.shadowQuality
+      );
     }
     terrainRuntime?.setShadowCamera(sharedBinding.sunLight.shadow.camera);
     map.triggerRepaint();
   };
 
+  const refreshSharedShadowCoverage = () => {
+    cachedElevationRange = null;
+    updateSharedShadowCoverage();
+  };
+
   map.on("move", updateSharedShadowCoverage);
+  map.on("moveend", refreshSharedShadowCoverage);
   map.on("resize", updateSharedShadowCoverage);
   updateSharedShadowCoverage();
 
@@ -612,7 +805,7 @@ export const buildShadowSimulationScene = (
     void terrainRuntime.ready.then((loaded) => {
       if (!loaded || disposed) return;
       restoreMapLibreTerrain = suppressMapLibreTerrainRendering(map);
-      updateSharedShadowCoverage();
+      refreshSharedShadowCoverage();
     });
   }
 
@@ -639,7 +832,7 @@ export const buildShadowSimulationScene = (
       if (nextBridge) genericBridges.set(layer, nextBridge);
     }
     makeSceneMeshesShadeable(sceneLease.layer.getScene());
-    updateSharedShadowCoverage();
+    refreshSharedShadowCoverage();
     map.triggerRepaint();
   };
 
@@ -666,8 +859,14 @@ export const buildShadowSimulationScene = (
 
   const updateSolarPosition = (position: SolarPosition) => {
     latestSolarPosition = position;
-    const direction = solarPositionToSceneDirection(position);
-    applySolarPositionToBinding(sharedBinding, direction);
+    updateSharedShadowCoverage();
+    // Projection is not available until the shared custom layer has been
+    // added. Still apply the sun immediately; a later move/render refits the
+    // already-oriented shadow camera once viewport points can be projected.
+    applySolarPositionToBinding(
+      sharedBinding,
+      solarPositionToSceneDirection(position)
+    );
     terrainRuntime?.setShadowCamera(sharedBinding.sunLight.shadow.camera);
     applyMapLibreLight(position);
     map.triggerRepaint();
@@ -684,6 +883,8 @@ export const buildShadowSimulationScene = (
     updateSolarPosition,
     updateTerrainColor(color) {
       terrainRuntime?.setMaterialColor(color);
+      terrainColor = new THREE.Color(color);
+      ensureShadowBackground();
     },
     updateBuildingAppearance(appearance) {
       latestBuildingAppearance = appearance;
@@ -699,6 +900,7 @@ export const buildShadowSimulationScene = (
         sharedBinding.shadowAreaMeters,
         quality
       );
+      updateSharedShadowCoverage();
       if (latestSolarPosition) {
         applySolarPositionToBinding(
           sharedBinding,
@@ -707,7 +909,6 @@ export const buildShadowSimulationScene = (
       } else {
         sharedBinding.sunLight.shadow.needsUpdate = true;
       }
-      map.triggerRepaint();
     },
     updateSunDebugVectorVisibility(visible) {
       sharedBinding.sunVectorVisible = visible;
@@ -718,7 +919,9 @@ export const buildShadowSimulationScene = (
       if (disposed) return;
       disposed = true;
       map.off("styledata", restoreLighting);
+      map.off("styledata", ensureShadowBackground);
       map.off("move", updateSharedShadowCoverage);
+      map.off("moveend", refreshSharedShadowCoverage);
       map.off("resize", updateSharedShadowCoverage);
       unsubscribeGenericLayers();
       for (const bridge of genericBridges.values()) {
@@ -727,6 +930,13 @@ export const buildShadowSimulationScene = (
         }
       }
       genericBridges.clear();
+      try {
+        if (map.getLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID)) {
+          map.removeLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID);
+        }
+      } catch {
+        // The style may already be gone during map teardown.
+      }
       try {
         restoreMapLibreStyleLayers();
       } catch {
