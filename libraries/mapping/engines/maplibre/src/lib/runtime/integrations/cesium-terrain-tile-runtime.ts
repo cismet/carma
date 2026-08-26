@@ -69,10 +69,24 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
+export type CesiumTerrainShadowView = Readonly<{
+  camera: Camera;
+  shadowMapSize: Readonly<{
+    width: number;
+    height: number;
+  }>;
+}>;
+
 export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
   setVisible: (visible: boolean) => void;
-  setShadowCamera: (camera: Camera | null) => void;
+  setShadowCameras: (
+    cameras: readonly (Camera | CesiumTerrainShadowView)[]
+  ) => void;
+  setShadowCamera: (
+    camera: Camera | null,
+    shadowMapSize?: CesiumTerrainShadowView["shadowMapSize"]
+  ) => void;
   setMaterialColor: (color: ColorRepresentation) => void;
   getElevation: (longitude: number, latitude: number) => number | undefined;
 }
@@ -124,6 +138,11 @@ type TerrainCandidate = {
   entry: TerrainSelectionEntry;
   errorRatio: number;
 };
+
+type TerrainShadowView = Readonly<{
+  camera: Camera;
+  shadowMapSize: CesiumTerrainShadowView["shadowMapSize"] | null;
+}>;
 
 const FLAT_TERRAIN_U = new Float32Array([0, 0, 1, 1]);
 const FLAT_TERRAIN_V = new Float32Array([0, 1, 0, 1]);
@@ -269,6 +288,19 @@ const clampInteger = (
   fallback: number,
   minimum: number
 ) => Math.max(minimum, Math.floor(value ?? fallback));
+
+const normalizeShadowMapSize = (
+  shadowMapSize: CesiumTerrainShadowView["shadowMapSize"]
+): CesiumTerrainShadowView["shadowMapSize"] => ({
+  width:
+    Number.isFinite(shadowMapSize.width) && shadowMapSize.width > 0
+      ? shadowMapSize.width
+      : 1,
+  height:
+    Number.isFinite(shadowMapSize.height) && shadowMapSize.height > 0
+      ? shadowMapSize.height
+      : 1,
+});
 
 const boundsIntersect = (
   left: CesiumTerrainTileBounds,
@@ -461,7 +493,7 @@ export const buildCesiumTerrainRuntime = (
   let coverageBounds: CesiumTerrainTileBounds | null = null;
   let source: CesiumTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
-  let shadowCamera: Camera | null = null;
+  let shadowViews: readonly TerrainShadowView[] = [];
   let unregisterSampler: (() => void) | null = null;
   let disposed = false;
   let meshUseClock = 0;
@@ -548,11 +580,45 @@ export const buildCesiumTerrainRuntime = (
     );
   };
 
+  const getOrthographicShadowScreenSpaceError = (
+    terrainSource: CesiumTerrainTileSource,
+    camera: Camera,
+    pixelWidth: number,
+    pixelHeight: number,
+    id: CesiumTerrainTileId
+  ) => {
+    if (
+      !(camera as Camera & { isOrthographicCamera?: boolean })
+        .isOrthographicCamera
+    ) {
+      return 0;
+    }
+    camera.updateMatrixWorld(true);
+    root.updateMatrixWorld(true);
+    const clipFromRoot = new Matrix4()
+      .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+      .multiply(root.matrixWorld);
+    const elements = clipFromRoot.elements;
+    const pixelsPerMeterForAxis = (offset: number) =>
+      Math.hypot(
+        (elements[offset] * pixelWidth) / 2,
+        (elements[offset + 1] * pixelHeight) / 2
+      );
+    const pixelsPerMeter = Math.max(
+      pixelsPerMeterForAxis(0),
+      pixelsPerMeterForAxis(4),
+      pixelsPerMeterForAxis(8)
+    );
+    return (
+      terrainSource.getLevelMaximumGeometricError(id.level) * pixelsPerMeter
+    );
+  };
+
   const getRelevantChildren = (
     terrainSource: CesiumTerrainTileSource,
     parent: TerrainSelectionEntry,
     viewportBounds: CesiumTerrainTileBounds,
-    shadowBounds: CesiumTerrainTileBounds | null
+    shadowBounds: readonly CesiumTerrainTileBounds[]
   ) => {
     if (parent.kind === "flat") return [];
     const childLevel = parent.id.level + 1;
@@ -566,8 +632,9 @@ export const buildCesiumTerrainRuntime = (
         };
         const bounds = terrainSource.getTileBounds(id);
         const intersectsViewport = boundsIntersect(bounds, viewportBounds);
-        const intersectsShadow =
-          !!shadowBounds && boundsIntersect(bounds, shadowBounds);
+        const intersectsShadow = shadowBounds.some((candidateBounds) =>
+          boundsIntersect(bounds, candidateBounds)
+        );
         if (!intersectsViewport && !intersectsShadow) continue;
         const kind =
           terrainSource.getTileDataAvailable(id) === false ? "flat" : "source";
@@ -807,24 +874,30 @@ export const buildCesiumTerrainRuntime = (
     frame: SharedThreeSceneFrame
   ): TerrainSelection => {
     const viewportBounds = getViewportBounds(frame.map);
-    const shadowBounds = shadowCamera
-      ? cameraFrustumBounds(shadowCamera, root, origin, meterScale)
-      : null;
-    const coverageBounds = shadowBounds
-      ? unionBounds(viewportBounds, shadowBounds)
-      : viewportBounds;
+    const shadowCoverages = shadowViews.flatMap((view) => {
+      const bounds = cameraFrustumBounds(view.camera, root, origin, meterScale);
+      return bounds ? [{ ...view, bounds }] : [];
+    });
+    const shadowBounds = shadowCoverages.map(({ bounds }) => bounds);
+    const coverageBounds = shadowBounds.reduce(
+      (combined, bounds) => unionBounds(combined, bounds),
+      viewportBounds
+    );
     const getRootEntries = (level: number): TerrainSelectionEntry[] =>
       terrainSource
         .getTileGridIdsForBounds(coverageBounds, level)
         .flatMap((id) => {
+          const bounds = terrainSource.getTileBounds(id);
+          const intersectsViewport = boundsIntersect(bounds, viewportBounds);
+          const intersectsShadow = shadowBounds.some((candidateBounds) =>
+            boundsIntersect(bounds, candidateBounds)
+          );
+          if (!intersectsViewport && !intersectsShadow) return [];
           const kind =
             terrainSource.getTileDataAvailable(id) === false
               ? "flat"
               : "source";
-          if (
-            kind === "flat" &&
-            !boundsIntersect(terrainSource.getTileBounds(id), viewportBounds)
-          ) {
+          if (kind === "flat" && !intersectsViewport) {
             return [];
           }
           return [{ id, kind }];
@@ -841,16 +914,34 @@ export const buildCesiumTerrainRuntime = (
     );
     const toCandidate = (entry: TerrainSelectionEntry): TerrainCandidate => {
       const bounds = terrainSource.getTileBounds(entry.id);
-      const targetPixels = boundsIntersect(bounds, viewportBounds)
-        ? errorTargetPixels
-        : errorTargetPixels * 2 ** shadowLevelOffset;
+      const intersectsViewport = boundsIntersect(bounds, viewportBounds);
+      const viewportErrorRatio = intersectsViewport
+        ? getScreenSpaceError(terrainSource, frame, entry.id) /
+          errorTargetPixels
+        : 0;
+      const shadowTargetPixels = errorTargetPixels * 2 ** shadowLevelOffset;
+      const shadowErrorRatio = shadowCoverages.reduce(
+        (maximum, coverage) =>
+          boundsIntersect(bounds, coverage.bounds)
+            ? Math.max(
+                maximum,
+                getOrthographicShadowScreenSpaceError(
+                  terrainSource,
+                  coverage.camera,
+                  coverage.shadowMapSize?.width ?? frame.viewport.x,
+                  coverage.shadowMapSize?.height ?? frame.viewport.y,
+                  entry.id
+                ) / shadowTargetPixels
+              )
+            : maximum,
+        0
+      );
       return {
         entry,
         errorRatio:
           entry.kind === "flat"
             ? 0
-            : getScreenSpaceError(terrainSource, frame, entry.id) /
-              targetPixels,
+            : Math.max(viewportErrorRatio, shadowErrorRatio),
       };
     };
     const candidates = rootEntries.map(toCandidate);
@@ -1021,8 +1112,29 @@ export const buildCesiumTerrainRuntime = (
       }
       map?.triggerRepaint();
     },
-    setShadowCamera(camera) {
-      shadowCamera = camera;
+    setShadowCameras(cameras) {
+      shadowViews = cameras.map((entry) =>
+        (entry as Camera & { isCamera?: boolean }).isCamera
+          ? { camera: entry as Camera, shadowMapSize: null }
+          : {
+              camera: (entry as CesiumTerrainShadowView).camera,
+              shadowMapSize: normalizeShadowMapSize(
+                (entry as CesiumTerrainShadowView).shadowMapSize
+              ),
+            }
+      );
+    },
+    setShadowCamera(camera, shadowMapSize) {
+      shadowViews = camera
+        ? [
+            {
+              camera,
+              shadowMapSize: shadowMapSize
+                ? normalizeShadowMapSize(shadowMapSize)
+                : null,
+            },
+          ]
+        : [];
     },
     setMaterialColor(color) {
       material.color.set(color);

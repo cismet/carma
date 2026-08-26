@@ -35,6 +35,7 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_INTERACTIVE = false;
 export const DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS = Object.freeze({
   maxPitch: null,
   imagePlaneDistance: null,
+  useCameraPosition: false,
 }) satisfies Readonly<ResolvedViewStateVisualizerVisualizedOptions>;
 
 export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
@@ -142,6 +143,9 @@ export const mergeViewStateVisualizerVisualizedOptions = (
       Number.isFinite(merged.imagePlaneDistance)
         ? merged.imagePlaneDistance
         : DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.imagePlaneDistance,
+    useCameraPosition:
+      merged.useCameraPosition ??
+      DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.useCameraPosition,
   };
 };
 

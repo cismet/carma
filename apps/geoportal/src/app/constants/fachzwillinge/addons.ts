@@ -68,7 +68,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
         terrain: {
           url: WUPP_TERRAIN_PROVIDER.url,
           errorTargetPixels: 0.5,
-          shadowLevelOffset: 3,
+          shadowLevelOffset: 0,
           minimumLevel: 15,
           maximumLevel: 17,
           noDataHeightMeters: 0,
@@ -77,7 +77,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
           maxCacheBytes: 268_435_456,
           maxCachedMeshes: 2_048,
           material: {
-            color: "#d8d1c4",
+            color: "#d3d3d3",
           },
         },
       },

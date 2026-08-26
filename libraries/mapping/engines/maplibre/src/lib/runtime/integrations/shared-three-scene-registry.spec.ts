@@ -16,6 +16,7 @@ describe("shared Three.js scene registry", () => {
     addRuntime: vi.fn(),
     removeRuntime: vi.fn(),
     getScene: vi.fn(),
+    getRenderer: vi.fn(),
     dispose,
   };
 
