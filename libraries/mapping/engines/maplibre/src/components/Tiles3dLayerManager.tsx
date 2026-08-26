@@ -27,16 +27,6 @@ export interface Tiles3dConfig {
   /** 0 to 1. */
   opacity?: number;
   /**
-   * Decoded tile data the renderer may hold, in bytes. Raise it for a tileset
-   * with large textures; a full cache stops all further downloads.
-   */
-  cacheBudgetBytes?: number;
-  /**
-   * How far past the budget the cache may grow before downloading stops. Left
-   * unset it never stops, which is what keeps a large view filling in.
-   */
-  cacheOverflowBytes?: number;
-  /**
    * Draw the edges the tileset marks with `CESIUM_primitive_outline`. Defaults
    * to on, matching what Cesium does with the same tileset.
    */
@@ -108,8 +98,6 @@ export function Tiles3dLayerManager({
         layerRef.current ??
         buildTiles3dLayer(layerId, config.tilesetUrl, origin, {
           errorTarget: config.errorTarget,
-          cacheBudgetBytes: config.cacheBudgetBytes,
-          cacheOverflowBytes: config.cacheOverflowBytes,
           opacity: (config.opacity ?? 1) * (layerOpacityRef.current ?? 1),
           outline: config.outline,
           outlineColor: config.outlineColor,
