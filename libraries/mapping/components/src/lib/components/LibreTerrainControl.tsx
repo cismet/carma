@@ -68,6 +68,24 @@ export const LibreTerrainControl = ({
     };
   }, [map, showTerrain, terrainSource, exaggeration]);
 
+  // The map is the truth about terrain, not this button. A layer can ask for
+  // terrain of its own accord (`terrainMandatory` on a 3D tileset), and the
+  // button has to say so rather than stay dark over a map that has it.
+  //
+  // Deliberately without an initial read: on mount the persisted setting is
+  // still waiting to be applied by the effect above, and reading the map at
+  // that point would report false and take the restore with it.
+  useEffect(() => {
+    if (!map) return;
+    const syncFromMap = () => {
+      setShowTerrain(!!map.terrain);
+    };
+    map.on("terrain", syncFromMap);
+    return () => {
+      map.off("terrain", syncFromMap);
+    };
+  }, [map]);
+
   const toggleTerrain = useCallback(() => {
     if (!map) return;
     if (map.terrain) {
