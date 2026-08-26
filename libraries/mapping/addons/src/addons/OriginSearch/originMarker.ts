@@ -3,38 +3,28 @@ import maplibregl from "maplibre-gl";
 import type { OriginLocation } from "./originChannel";
 
 /**
- * The dot that says where "von wo?" currently points.
+ * The pin that says where "von wo?" currently points.
  *
- * Its own marker rather than the gazetteer's: the origin search does not hand
- * its hit to the app's `onSelection`, so no selection marker is dropped and the
- * map is not moved. The styling is inline instead of in a stylesheet, so the
- * addon carries its own look into whatever app mounts it.
+ * MapLibre's default marker, the same one the gazetteer drops on a selection
+ * (`LibreMapSelectionContent`), because that is what a picked place looks like
+ * in this app. Deliberately not a dot of its own any more: the location mode
+ * draws the user as a blue dot, and a second blue dot for a picked address was
+ * two ways of reading the same thing. A pin is a place, the dot is you.
+ *
+ * Its own marker rather than the gazetteer's, though: the origin search does not
+ * hand its hit to the app's `onSelection`, so no selection is set and the map is
+ * not moved.
  */
-
-const createOriginElement = (label: string): HTMLDivElement => {
-  const element = document.createElement("div");
-  element.className = "origin-location-marker";
-  element.title = label;
-  element.style.cssText = [
-    "width:18px",
-    "height:18px",
-    "border-radius:50%",
-    "background:#1677ff",
-    "border:3px solid #ffffff",
-    "box-shadow:0 1px 4px rgba(0,0,0,0.45)",
-    "box-sizing:border-box",
-    "cursor:default",
-  ].join(";");
-  return element;
-};
 
 export const addOriginMarker = (
   map: maplibregl.Map,
   origin: OriginLocation
-): maplibregl.Marker =>
-  new maplibregl.Marker({
-    element: createOriginElement(origin.label),
-    draggable: false,
-  })
+): maplibregl.Marker => {
+  const marker = new maplibregl.Marker()
     .setLngLat([origin.lng, origin.lat])
     .addTo(map);
+  // the name is worth having on hover, and the default marker has no slot for
+  // it, so it goes on the element the marker made
+  marker.getElement().title = origin.label;
+  return marker;
+};

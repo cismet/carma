@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+import { message } from "antd";
 import type maplibregl from "maplibre-gl";
 
 import {
   getFromUTM32ToWGS84,
   getFromWebMercatorToWGS84,
 } from "@carma-geo/proj";
+import { useLocate } from "@carma-mapping/contexts";
 import {
   LibFuzzySearch,
   type SearchResultItem,
@@ -16,13 +18,18 @@ import {
   DEFAULT_CONTROL_ORDER,
   DEFAULT_CONTROL_POSITION,
   DEFAULT_INPUT_PREFIX,
-  DEFAULT_ORIGIN,
   DEFAULT_PIXELWIDTH,
   DEFAULT_PLACEHOLDER_PREFIX,
+  LOCATING_PLACEHOLDER,
+  NO_ORIGIN_PLACEHOLDER,
+  NO_POSITION_PLACEHOLDER,
+  NO_POSITION_WARNINGS,
+  OWN_POSITION_LABEL,
 } from "./config";
 import {
   useOriginLocation,
   useOriginLocationState,
+  useReportOriginResolution,
   type OriginLocation,
 } from "./originChannel";
 import { addOriginMarker } from "./originMarker";
@@ -30,6 +37,14 @@ import { addOriginMarker } from "./originMarker";
 /**
  * The "von wo?" input: a second gazetteer search that says where the user
  * starts from, next to the app's own search, which says where to go.
+ *
+ * It starts at the user's own position: the input asks the device for a fix
+ * once, as soon as some consumer puts it on screen, and publishes it as "Mein
+ * Standort". A route that measures from a fixed point instead configures
+ * `defaultOrigin`, which skips the ask altogether. When the fix is declined or
+ * unavailable nothing is published at all, so the input stands empty and the
+ * user says where to start rather than being measured from a point they never
+ * chose.
  *
  * It is an ordinary address search, so any address, POI or place the gazetteer
  * knows can be the starting point. What it produces goes on the
@@ -56,7 +71,7 @@ export const OriginSearch = ({
   const {
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
-    defaultOrigin = DEFAULT_ORIGIN,
+    defaultOrigin,
     placeholderPrefix = DEFAULT_PLACEHOLDER_PREFIX,
     inputPrefix = DEFAULT_INPUT_PREFIX,
     pixelwidth = DEFAULT_PIXELWIDTH,
@@ -66,48 +81,104 @@ export const OriginSearch = ({
   const { origin, requests } = useOriginLocationState();
   const [, setOrigin] = useOriginLocation();
 
-  // while the input is there it owns the origin, so a consumer reads one value
-  // rather than falling back to a default of its own
+  const visible = alwaysVisible || Object.keys(requests).length > 0;
+
+  const { currentPosition, problem, activate } = useLocate();
+  const wantsOwnPosition = visible && !defaultOrigin;
+
   useEffect(() => {
-    if (!origin) {
-      setOrigin(defaultOrigin);
+    if (wantsOwnPosition) {
+      activate({ fly: false });
     }
-  }, [origin, defaultOrigin, setOrigin]);
+  }, [wantsOwnPosition, activate]);
+
+  useReportOriginResolution(
+    defaultOrigin || currentPosition || problem ? "settled" : "pending"
+  );
+
+  useEffect(() => {
+    if (!problem) {
+      return;
+    }
+    void message.warning(NO_POSITION_WARNINGS[problem]);
+  }, [problem]);
+
+  // while the input is there it owns the origin, so a consumer reads one value
+  // rather than falling back to a default of its own. Without a fix and without
+  // a configured starting point there is nothing honest to publish, so the
+  // channel stays empty and the input asks the user where to start.
+  //
+  // Only while nothing is published: the location mode keeps watching, and
+  // taking every tick would re-rank "In der Nähe" and re-fit the map every few
+  // meters the user walks. Clearing the input is what takes a fresh fix.
+  useEffect(() => {
+    if (origin || !visible) {
+      return;
+    }
+    if (defaultOrigin) {
+      setOrigin(defaultOrigin);
+      return;
+    }
+    if (currentPosition) {
+      setOrigin({
+        lat: currentPosition.coords.latitude,
+        lng: currentPosition.coords.longitude,
+        label: OWN_POSITION_LABEL,
+      });
+    }
+  }, [origin, visible, defaultOrigin, currentPosition, setOrigin]);
 
   const handleSelection = (hit: SearchResultItem | null) => {
-    // the clear button: back to where the route says "nearby" starts
-    setOrigin(hit ? toOrigin(hit) : defaultOrigin);
+    // the clear button: back to where the route says "nearby" starts, which is
+    // the user's own position unless the route named a point of its own, and
+    // the effect above republishes it from the mode's latest fix
+    setOrigin(hit ? toOrigin(hit) : defaultOrigin ?? null);
   };
-
-  const visible = alwaysVisible || Object.keys(requests).length > 0;
-  const { lat, lng, label } = origin ?? defaultOrigin;
 
   // the marker follows the origin for as long as the input is on screen: it is
   // this addon's own, so it is taken off the map again when nothing asks for a
-  // starting point any more
+  // starting point any more. Not while the origin is the user: the location
+  // mode already draws them, and a second dot on the same spot is just a dot
+  // with a shadow.
+  const { lat, lng, label } = origin ?? {};
+  const drawMarker = visible && label !== OWN_POSITION_LABEL;
   const markerRef = useRef<maplibregl.Marker | null>(null);
   useEffect(() => {
-    if (!libreMap || !visible) {
+    if (!libreMap || !drawMarker || lat === undefined || lng === undefined) {
       return;
     }
-    markerRef.current = addOriginMarker(libreMap, { lat, lng, label });
+    markerRef.current = addOriginMarker(libreMap, {
+      lat,
+      lng,
+      label: label ?? "",
+    });
     return () => {
       markerRef.current?.remove();
       markerRef.current = null;
     };
-  }, [libreMap, visible, lat, lng, label]);
+  }, [libreMap, drawMarker, lat, lng, label]);
 
   if (!visible) {
     return null;
   }
 
+  // the current origin's name, or what is standing in for it while there is
+  // none: the browser is still asking, or it has answered that it will not say
+  const placeholder = label
+    ? [placeholderPrefix, label].filter(Boolean).join(" ")
+    : problem
+    ? NO_POSITION_PLACEHOLDER
+    : wantsOwnPosition
+    ? LOCATING_PLACEHOLDER
+    : NO_ORIGIN_PLACEHOLDER;
+
   return (
     <Control position={controlPosition} order={controlOrder}>
-      <div style={GAP_STYLE}>
+      <div style={WRAPPER_STYLE}>
         <LibFuzzySearch
           onSelection={handleSelection}
           inputPrefix={inputPrefix}
-          placeholder={[placeholderPrefix, label].filter(Boolean).join(" ")}
+          placeholder={placeholder}
           pixelwidth={pixelwidth}
           disableAdditionalModes={true}
         />
@@ -116,7 +187,13 @@ export const OriginSearch = ({
   );
 };
 
-const GAP_STYLE = { marginTop: "8px" } as const;
+/**
+ * The gap that keeps the input off the app's own search, and the width that
+ * makes it match that search: the bottom-left control column is as wide as its
+ * widest child and aligns them to its right edge, so a fixed width would sit
+ * indented under the search on a phone, where the search spans the screen.
+ */
+const WRAPPER_STYLE = { marginTop: "8px", width: "100%" } as const;
 
 /**
  * A gazetteer hit as a starting point. The hit's coordinates are in the crs the
