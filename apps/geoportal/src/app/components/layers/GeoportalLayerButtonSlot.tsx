@@ -9,6 +9,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   faFloppyDisk,
+  faPause,
+  faPlay,
+  faSliders,
   faTimes,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
@@ -46,6 +49,7 @@ import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDe
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
 import {
   formatShadowSelection,
+  SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
   SHADOW_SIMULATION_LAYER_ID,
 } from "../../hooks/useShadowSimulationLayerButton";
 import {
@@ -396,13 +400,29 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
 const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const controlsInteraction = useLayerbarInteractionToggle({
+    layerId: SHADOW_SIMULATION_LAYER_ID,
+    buttonId: SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
+  });
 
   const handleClose = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       if (shadowState) {
-        setShadowState({ ...shadowState, enabled: false });
+        setShadowState({
+          ...shadowState,
+          enabled: false,
+          isAnimating: false,
+        });
       }
+      setLayerbarInteractionActive(
+        dispatch,
+        {
+          layerId: SHADOW_SIMULATION_LAYER_ID,
+          buttonId: SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
+        },
+        false
+      );
       dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
     },
     [dispatch, setShadowState, shadowState]
@@ -411,12 +431,50 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   return (
     <GeoportalLayerButton
       {...props}
-      title={
-        shadowState
-          ? `${props.title} · ${formatShadowSelection(shadowState.selection)}`
-          : props.title
+      title={props.title}
+      actionSlot={
+        shadowState ? (
+          <div className="flex items-center">
+            <span className="mx-1.5 h-5 w-px bg-neutral-200" />
+            <span className="whitespace-nowrap px-1.5 text-sm tabular-nums text-neutral-600">
+              {formatShadowSelection(shadowState.selection)}
+            </span>
+            <LayerbarActionGroup
+              actions={[
+                {
+                  id: "toggle-animation",
+                  title: shadowState.isAnimating
+                    ? "Animation pausieren"
+                    : "Animation starten",
+                  icon: (
+                    <FontAwesomeIcon
+                      icon={shadowState.isAnimating ? faPause : faPlay}
+                      className="text-amber-600"
+                    />
+                  ),
+                  active: shadowState.isAnimating ?? false,
+                  onClick: () =>
+                    setShadowState({
+                      ...shadowState,
+                      isAnimating: !shadowState.isAnimating,
+                    }),
+                },
+                {
+                  id: "open-controls",
+                  title: "Schatteneinstellungen",
+                  icon: <FontAwesomeIcon icon={faSliders} />,
+                  active: controlsInteraction.active,
+                  onClick: controlsInteraction.onToggle,
+                },
+              ]}
+            />
+          </div>
+        ) : null
       }
       closeButton={{ icon: faTimes, onClick: handleClose }}
+      closeButtonVariant="compact"
+      interactionActivationMode="button"
+      overflowVisible
     />
   );
 };

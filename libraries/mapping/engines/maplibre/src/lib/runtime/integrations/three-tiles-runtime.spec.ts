@@ -109,6 +109,7 @@ describe("tiles3d layer visibility", () => {
       opacity: 0.4,
       transparent: true,
       depthWrite: false,
+      side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), sourceMaterial);
     const outline = new THREE.LineSegments();
@@ -127,6 +128,8 @@ describe("tiles3d layer visibility", () => {
     expect(clayMaterial.opacity).toBe(1);
     expect(clayMaterial.transparent).toBe(false);
     expect(clayMaterial.depthWrite).toBe(true);
+    expect(clayMaterial.side).toBe(THREE.FrontSide);
+    expect(clayMaterial.shadowSide).toBe(THREE.BackSide);
     expect(outline.visible).toBe(false);
 
     layer.setShadowSimulationStyle?.(null);
@@ -134,7 +137,19 @@ describe("tiles3d layer visibility", () => {
     expect(sourceMaterial.opacity).toBe(0.4);
     expect(sourceMaterial.transparent).toBe(true);
     expect(sourceMaterial.depthWrite).toBe(false);
+    expect(sourceMaterial.side).toBe(THREE.DoubleSide);
+    expect(sourceMaterial.shadowSide).toBeNull();
     expect(outline.visible).toBe(true);
+
+    layer.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: null,
+    });
+    expect(mesh.material).toBe(sourceMaterial);
+    expect(sourceMaterial.shadowSide).toBe(THREE.BackSide);
+
+    layer.setShadowSimulationStyle?.(null);
+    expect(sourceMaterial.shadowSide).toBeNull();
 
     layer.dispose();
   });

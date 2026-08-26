@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { faSliders } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   applyAddonOverrides,
   resolveAddonEntries,
@@ -8,18 +11,30 @@ import {
   usePersistedAddonOverrides,
   useRouteAddons,
 } from "@carma-mapping/addons";
-import type { Layer } from "@carma-mapping/layers";
+import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import {
   appendLayer,
+  getActiveInteractionLayerID,
   getLayerStack,
   removeLayer,
-  setSelectedLayerIndex,
+  setActiveInteractionButtonID,
+  setActiveInteractionLayerID,
+  setSelectedLayerIndexNoSelection,
   updateLayer,
 } from "../store/slices/mapping";
-import { setUIShowInfo, setUIShowInfoText } from "../store/slices/ui";
 
 export const SHADOW_SIMULATION_LAYER_ID = "__shadow_simulation__";
+export const SHADOW_SIMULATION_CONTROLS_INTERACTION_ID =
+  "shadow-simulation-controls";
+
+const SHADOW_SIMULATION_INTERACTION_BUTTONS: InteractionButton[] = [
+  {
+    id: SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
+    icon: <FontAwesomeIcon icon={faSliders} />,
+    tooltip: "Schatteneinstellungen",
+  },
+];
 
 export const formatShadowSelection = (selection: {
   year: number;
@@ -40,6 +55,7 @@ export const formatShadowSelection = (selection: {
 export const useShadowSimulationLayerButton = () => {
   const dispatch = useDispatch();
   const layerStack = useSelector(getLayerStack);
+  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const routeAddons = useRouteAddons();
   const [addonOverrides] = usePersistedAddonOverrides();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
@@ -58,7 +74,7 @@ export const useShadowSimulationLayerButton = () => {
       shadowAddon
         ? {
             id: SHADOW_SIMULATION_LAYER_ID,
-            title: "Schattensimulation",
+            title: "Schatten",
             description:
               "Sonnenstand und Schattenwurf in der gemeinsamen Three.js-Szene.",
             type: "object",
@@ -66,6 +82,8 @@ export const useShadowSimulationLayerButton = () => {
             iconColor: "#d97706",
             visible: shadowState?.enabled ?? false,
             pinned: "last",
+            skipSelection: true,
+            interactionButtons: SHADOW_SIMULATION_INTERACTION_BUTTONS,
             tools: [shadowAddon],
           }
         : null,
@@ -93,9 +111,11 @@ export const useShadowSimulationLayerButton = () => {
 
     if (enabled && !currentLayer) {
       dispatch(appendLayer(shadowLayer));
-      dispatch(setSelectedLayerIndex(layerStack.length));
-      dispatch(setUIShowInfo(true));
-      dispatch(setUIShowInfoText(false));
+      dispatch(setSelectedLayerIndexNoSelection());
+      dispatch(setActiveInteractionLayerID(SHADOW_SIMULATION_LAYER_ID));
+      dispatch(
+        setActiveInteractionButtonID(SHADOW_SIMULATION_CONTROLS_INTERACTION_ID)
+      );
       return;
     }
 
@@ -108,11 +128,19 @@ export const useShadowSimulationLayerButton = () => {
     }
 
     if (justEnabled) {
-      dispatch(setSelectedLayerIndex(layerIndex));
-      dispatch(setUIShowInfo(true));
-      dispatch(setUIShowInfoText(false));
+      dispatch(setSelectedLayerIndexNoSelection());
+      dispatch(setActiveInteractionLayerID(SHADOW_SIMULATION_LAYER_ID));
+      dispatch(
+        setActiveInteractionButtonID(SHADOW_SIMULATION_CONTROLS_INTERACTION_ID)
+      );
+    }
+
+    if (!enabled && activeInteractionLayerID === SHADOW_SIMULATION_LAYER_ID) {
+      dispatch(setActiveInteractionButtonID(null));
+      dispatch(setActiveInteractionLayerID(null));
     }
   }, [
+    activeInteractionLayerID,
     dispatch,
     layerStack,
     setShadowState,

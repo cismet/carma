@@ -103,7 +103,9 @@ export {
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
 export {
   ShadowSimulation,
+  ShadowSimulationControlSurface,
   type ShadowSimulationConfig,
+  type ShadowSimulationState,
 } from "./addons/ShadowSimulation";
 export {
   clampShadowSimulationSelectionToDaylight,
