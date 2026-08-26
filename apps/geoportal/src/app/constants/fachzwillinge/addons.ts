@@ -50,7 +50,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "vectorHighlightControl" },
-    { kind: "libreTerrain", config: { appKey: "geoportal" } },
+    {
+      kind: "libreTerrain",
+      config: { appKey: "geoportal", show: "while3dLayersActive" },
+    },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {
       kind: "vectorHighlightDebug",

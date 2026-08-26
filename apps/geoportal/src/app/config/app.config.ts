@@ -42,14 +42,25 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  * here, see `withDefaultAddons`.
  *
  * `cameraRestriction` keeps the MapLibre camera north-up and flat everywhere,
- * which is the app's long-standing behaviour, except while a building layer is
- * on the map: extruded buildings only show up in a tilted view. A route that
- * wants different rules declares the kind itself with a config of its own.
+ * which is the app's long-standing behaviour, except while a 3D layer is on the
+ * map: buildings, trees and tilesets only show up in a tilted view. The mode
+ * asks the map what it is drawing rather than matching layer names, so a new 3D
+ * style is covered the day it is published. A route that wants different rules
+ * declares the kind itself with a config of its own.
+ *
+ * `libreTerrain` rides along on the same condition. The app switches CarmaMap's
+ * own terrain button off (`terrainControl={false}`), so this is the only one,
+ * and it is only worth offering once the map draws something three dimensional
+ * for the relief to show under.
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
     kind: "cameraRestriction",
-    config: { mode: "unlessLayersActive", layers: ["gebaeude"] },
+    config: { mode: "unless3dLayersActive" },
+  },
+  {
+    kind: "libreTerrain",
+    config: { appKey: "geoportal", show: "while3dLayersActive" },
   },
 ];
 

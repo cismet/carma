@@ -32,6 +32,7 @@ import type {
 } from "@carma-mapping/engines/threejs";
 
 import { useLibreContext } from "../contexts/LibreContext";
+import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ function register3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
     registry.push(layer);
   }
   (map as any)[LAYER_REGISTRY_KEY] = registry;
+  add3dPresence(map, layer.id);
   // console.log("[3D-SELECT] registered layer:", layer.id, "total:", registry.length);
 }
 
@@ -84,6 +86,7 @@ function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
   const registry =
     ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
   const idx = registry.indexOf(layer);
+  remove3dPresence(map, layer.id);
   if (idx >= 0) {
     registry.splice(idx, 1);
     // console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);

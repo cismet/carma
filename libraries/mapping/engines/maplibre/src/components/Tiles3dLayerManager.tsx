@@ -4,6 +4,8 @@ import { buildTiles3dLayer } from "@carma-mapping/engines/threejs";
 import type { Tiles3dCustomLayer } from "@carma-mapping/engines/threejs";
 
 import { useLibreContext } from "../contexts/LibreContext";
+import { WUPPERTAL_TERRAIN_SOURCE_ID } from "../constants/wuppertalDefaultStyle";
+import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -33,6 +35,16 @@ export interface Tiles3dConfig {
   outlineColor?: string;
   /** 0 to 1 for the edges alone. */
   outlineOpacity?: number;
+  /**
+   * Switch the map's terrain on when this layer arrives.
+   *
+   * A tileset carries absolute heights. Without terrain the reorientation is
+   * given a ground height of zero, so the whole set hangs as far above the map
+   * as the ground lies above sea level: around 200 m in Wuppertal, out of
+   * frame. A style that cannot be read without terrain says so here instead of
+   * being drawn wrong.
+   */
+  terrainMandatory?: boolean;
 }
 
 export interface Tiles3dLayerManagerProps {
@@ -53,6 +65,8 @@ export function Tiles3dLayerManager({
 }: Tiles3dLayerManagerProps) {
   const { map } = useLibreContext();
   const layerRef = useRef<Tiles3dCustomLayer | null>(null);
+  // Whether the terrain demand has been answered for this mount, see below.
+  const terrainSettledRef = useRef(false);
   // Read while building a layer, which happens outside the effect that follows
   // the slider, so the first frame after a rebuild is already at the right
   // opacity instead of flashing opaque.
@@ -93,6 +107,10 @@ export function Tiles3dLayerManager({
 
       try {
         map.addLayer(layer);
+        // What lets the camera restriction know the map has become three
+        // dimensional. A tileset stays out of the raycast registry, which
+        // holds layers that answer `raycast`, and this one does not.
+        add3dPresence(map, layerId);
       } catch (err) {
         // The layer is kept: the next styledata or idle tries again.
         console.warn("[3D-TILES] addLayer failed:", err);
@@ -109,6 +127,7 @@ export function Tiles3dLayerManager({
       const layer = layerRef.current;
       layerRef.current = null;
       if (!layer) return;
+      remove3dPresence(map, layerId);
       // A panel that goes away destroys its map before this runs, and it took
       // its layers with it.
       if (mapIsUsable(map) && map.getLayer(layerId)) {
@@ -125,6 +144,39 @@ export function Tiles3dLayerManager({
     config.outlineColor,
     config.outlineOpacity,
   ]);
+
+  // Terrain is only ever switched on here, never off again: the way back
+  // belongs to the terrain control, and so does the setting it persists.
+  //
+  // It is answered once per mount. The style can still be loading when the
+  // config arrives, which is why this listens on `styledata` at all, but
+  // `LibreMap` already carries terrain across a `setStyle`, so a later style
+  // change is never a reason to switch it on a second time. Without that guard
+  // the next change to the layer list would undo a deliberate switch-off.
+  useEffect(() => {
+    if (!map || !config.terrainMandatory) return;
+
+    terrainSettledRef.current = false;
+
+    const demandTerrain = () => {
+      if (terrainSettledRef.current || !mapIsUsable(map)) return;
+      if (map.getTerrain()) {
+        terrainSettledRef.current = true;
+        return;
+      }
+      // Still loading: the next styledata gets another go.
+      if (!map.getSource(WUPPERTAL_TERRAIN_SOURCE_ID)) return;
+      map.setTerrain({ source: WUPPERTAL_TERRAIN_SOURCE_ID, exaggeration: 1 });
+      terrainSettledRef.current = true;
+    };
+
+    demandTerrain();
+    map.on("styledata", demandTerrain);
+
+    return () => {
+      map.off("styledata", demandTerrain);
+    };
+  }, [map, config.terrainMandatory]);
 
   useEffect(() => {
     layerRef.current?.setOutlineVisible(config.outline ?? true);

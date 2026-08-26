@@ -8,6 +8,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../lib/registry";
+import { use3dLayers } from "../lib/use3dLayers";
 
 /**
  * Decides whether the MapLibre camera is locked north-up and flat, and takes
@@ -27,14 +28,25 @@ import type { AddonComponentProps } from "../lib/registry";
  *
  * Layers are read through the carma api (`carma.mapping2D`), so the addon knows
  * nothing about the host's store or its state shape.
+ *
+ * `unless3dLayersActive` needs no `layers` at all: it asks the map whether it
+ * is drawing anything three dimensional, which covers vector buildings, trees
+ * and tilesets alike and does not go stale when a new 3D style appears under a
+ * name nobody thought to list.
  */
 
 export type CameraRestrictionConfig = {
   /**
    * The baseline. "always" locks the camera for the whole route, "never" leaves
-   * it free, the layer modes follow the layer stack. Default: "always".
+   * it free, the layer modes follow the layer stack, and "unless3dLayersActive"
+   * follows the 3D layers actually on the map. Default: "always".
    */
-  mode?: "always" | "never" | "whileLayersActive" | "unlessLayersActive";
+  mode?:
+    | "always"
+    | "never"
+    | "whileLayersActive"
+    | "unlessLayersActive"
+    | "unless3dLayersActive";
   layers?: string[];
   requireVisible?: boolean;
   restrictBelowZoom?: number;
@@ -144,6 +156,8 @@ export const CameraRestriction = ({
     requireVisible
   );
 
+  const threeDActive = use3dLayers(libreMap, mode === "unless3dLayersActive");
+
   let restricted: boolean;
   switch (mode) {
     case "never":
@@ -154,6 +168,9 @@ export const CameraRestriction = ({
       break;
     case "unlessLayersActive":
       restricted = !layerActive;
+      break;
+    case "unless3dLayersActive":
+      restricted = !threeDActive;
       break;
     default:
       restricted = true;
