@@ -8,6 +8,7 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   buildCesiumTerrainRuntime: vi.fn(),
   getGenericThreeLayers: vi.fn(() => []),
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
+  suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
   suppressMapLibreTerrainRendering: vi.fn(() => vi.fn()),
 }));
 
@@ -16,6 +17,7 @@ import {
   buildCesiumTerrainRuntime,
   getGenericThreeLayers,
   subscribeGenericThreeLayers,
+  suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
 
@@ -72,15 +74,17 @@ describe("shadow scene sun direction", () => {
 describe("shadow scene lighting integration", () => {
   const releaseScene = vi.fn();
   let scene: THREE.Scene;
-  let sharedRuntimes: Map<
-    string,
-    { root: THREE.Object3D; dispose: () => void }
-  >;
+  type SharedRuntimeFixture = {
+    id: string;
+    root: THREE.Object3D;
+    dispose: () => void;
+  };
+  let sharedRuntimes: Map<string, SharedRuntimeFixture>;
   let sharedLayer: {
     getScene: () => THREE.Scene;
-    addRuntime: ReturnType<typeof vi.fn>;
-    hasRuntime: ReturnType<typeof vi.fn>;
-    removeRuntime: ReturnType<typeof vi.fn>;
+    addRuntime: (runtime: SharedRuntimeFixture) => void;
+    hasRuntime: (runtimeId: string) => boolean;
+    removeRuntime: (runtimeId: string) => void;
     projectLngLatToScene?: (
       lngLat: [number, number],
       altitude?: number
@@ -220,6 +224,10 @@ describe("shadow scene lighting integration", () => {
     expect(sun.shadow.normalBias).toBeCloseTo(0.1, 5);
 
     controller.dispose();
+    expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);
+    expect(
+      vi.mocked(suppressMapLibreRegularStyleLayers).mock.results[0]?.value
+    ).toHaveBeenCalledOnce();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
     expect(
       scene.getObjectByName("shadow-simulation-sun-vector")

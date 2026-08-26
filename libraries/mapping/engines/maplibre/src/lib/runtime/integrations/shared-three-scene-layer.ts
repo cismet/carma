@@ -52,6 +52,30 @@ type RenderTargetDepthRangeBridge = {
   dispose: () => void;
 };
 
+type SharedCanvasViewportRenderer = Pick<THREE.WebGLRenderer, "setViewport">;
+
+/**
+ * Keep Three's main-framebuffer viewport in sync with the canvas MapLibre owns.
+ *
+ * WebGLRenderer snapshots the canvas dimensions when it is constructed. A
+ * later MapLibre resize changes the shared canvas drawing buffer without
+ * updating Three's private main viewport. After rendering a shadow map, Three
+ * would therefore restore that stale viewport and stretch or clip the scene.
+ * Updating only the viewport avoids calling `setSize`, which would write back
+ * to a canvas whose size lifecycle belongs to MapLibre.
+ */
+export const syncSharedCanvasViewport = (
+  renderer: SharedCanvasViewportRenderer,
+  canvas: Pick<HTMLCanvasElement, "width" | "height">,
+  viewport: THREE.Vector2
+): void => {
+  const width = Math.max(1, canvas.width);
+  const height = Math.max(1, canvas.height);
+  if (viewport.x === width && viewport.y === height) return;
+  viewport.set(width, height);
+  renderer.setViewport(0, 0, width, height);
+};
+
 /**
  * Three.js does not track `gl.depthRange`. MapLibre intentionally compresses
  * the main 3D depth range to leave room for later style layers, but that range
@@ -233,7 +257,7 @@ export const buildSharedThreeSceneLayer = (
         .copy(renderCamera.projectionMatrix)
         .invert();
 
-      renderer.getDrawingBufferSize(viewport);
+      syncSharedCanvasViewport(renderer, map.getCanvas(), viewport);
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
       // lives in the engine rather than here, see synthesizeLodCamera.
       const centerLngLat = map.getCenter();

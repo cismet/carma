@@ -6,6 +6,7 @@ import {
   buildCesiumTerrainRuntime,
   getGenericThreeLayers,
   subscribeGenericThreeLayers,
+  suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
 import type {
@@ -526,6 +527,7 @@ export const buildShadowSimulationScene = (
     uniformColor: null,
   };
   let disposed = false;
+  const restoreMapLibreStyleLayers = suppressMapLibreRegularStyleLayers(map);
   let restoreMapLibreTerrain: (() => void) | null = null;
   const sceneLease = acquireSharedThreeScene(map);
   const terrainRuntime = terrain
@@ -725,6 +727,11 @@ export const buildShadowSimulationScene = (
         }
       }
       genericBridges.clear();
+      try {
+        restoreMapLibreStyleLayers();
+      } catch {
+        // The style may already be gone during map teardown.
+      }
       try {
         restoreMapLibreTerrain?.();
       } catch {

@@ -7,8 +7,9 @@ import {
   Matrix4,
   Mesh,
   MeshDepthMaterial,
-  MeshStandardMaterial,
+  MeshLambertMaterial,
   Vector3,
+  type BufferGeometry,
   type ColorRepresentation,
 } from "three";
 
@@ -20,7 +21,10 @@ import {
   type CesiumTerrainTileId,
   type CesiumTerrainTileSource,
 } from "@carma-mapping/engines/cesium/terrain";
-import { createProjectedTerrainTileGeometry } from "@carma-mapping/engines/three/primitives";
+import {
+  createProjectedTerrainTileGeometry,
+  type TerrainTileProjector,
+} from "@carma-mapping/engines/three/primitives";
 
 import {
   notifySharedThreeTerrainChanged,
@@ -45,8 +49,6 @@ const TERRAIN_SHADOW_POLYGON_OFFSET_UNITS = 4;
 
 export type CesiumTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
-  roughness?: number;
-  metalness?: number;
 }>;
 
 export type CesiumTerrainRuntimeOptions = Readonly<{
@@ -58,6 +60,8 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   requestConcurrency?: number;
   maxCacheBytes?: number;
   maxCachedMeshes?: number;
+  /** Source-specific height that denotes missing terrain coverage. */
+  noDataHeightMeters?: number;
   material?: CesiumTerrainMaterialOptions;
   onError?: (error: unknown) => void;
 }>;
@@ -71,9 +75,10 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
 }
 
 type TerrainMeshRecord = {
-  mesh: Mesh;
+  node: Group;
+  reliefMesh: Mesh | null;
+  baseMesh: Mesh | null;
   boundaryIndices: Uint32Array;
-  hasRelief: boolean;
   lastUsed: number;
 };
 
@@ -100,6 +105,79 @@ const FLAT_TERRAIN_WEST_INDICES = new Uint32Array([0, 1]);
 const FLAT_TERRAIN_SOUTH_INDICES = new Uint32Array([0, 2]);
 const FLAT_TERRAIN_EAST_INDICES = new Uint32Array([2, 3]);
 const FLAT_TERRAIN_NORTH_INDICES = new Uint32Array([1, 3]);
+
+const partitionNoDataTerrainGeometry = (
+  geometry: BufferGeometry,
+  tile: CesiumTerrainTile,
+  noDataHeightMeters: number
+) => {
+  const noDataMask = Uint8Array.from(tile.heightMeters, (height) =>
+    Math.abs(height - noDataHeightMeters) <= ZERO_ELEVATION_EPSILON_METERS
+      ? 1
+      : 0
+  );
+  const hasNoData = noDataMask.some((value) => value === 1);
+  if (!hasNoData) {
+    return {
+      reliefGeometry: geometry,
+      reliefVertexMask: new Uint8Array(
+        geometry.getAttribute("position").count
+      ).fill(1),
+      hasNoData,
+    };
+  }
+
+  const sourceIndex = geometry.getIndex();
+  if (!sourceIndex) {
+    throw new TypeError("Projected terrain geometry must be indexed");
+  }
+  const reliefIndices: number[] = [];
+  const reliefVertexMask = new Uint8Array(tile.heightMeters.length);
+  for (let offset = 0; offset < sourceIndex.count; offset += 3) {
+    const a = sourceIndex.getX(offset);
+    const b = sourceIndex.getX(offset + 1);
+    const c = sourceIndex.getX(offset + 2);
+    // A configured no-data vertex marks missing coverage. Keeping a mixed
+    // triangle would create a kilometre-scale ramp whose interpolated normals
+    // show up as a light-dependent wedge. Render only complete relief faces;
+    // an independently triangulated base fills the gap.
+    if (noDataMask[a] === 1 || noDataMask[b] === 1 || noDataMask[c] === 1) {
+      continue;
+    }
+    reliefIndices.push(a, b, c);
+    reliefVertexMask[a] = 1;
+    reliefVertexMask[b] = 1;
+    reliefVertexMask[c] = 1;
+  }
+  if (reliefIndices.length === 0) {
+    geometry.dispose();
+    return { reliefGeometry: null, reliefVertexMask, hasNoData };
+  }
+  geometry.setIndex(reliefIndices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return { reliefGeometry: geometry, reliefVertexMask, hasNoData };
+};
+
+const createFlatTerrainGeometry = (
+  bounds: CesiumTerrainTileBounds,
+  heightMeters: number,
+  projectToWorld: TerrainTileProjector
+) =>
+  createProjectedTerrainTileGeometry({
+    tile: {
+      bounds,
+      u: FLAT_TERRAIN_U,
+      v: FLAT_TERRAIN_V,
+      heightMeters:
+        heightMeters === 0
+          ? FLAT_TERRAIN_HEIGHTS
+          : new Float32Array(4).fill(heightMeters),
+      indices: FLAT_TERRAIN_INDICES,
+    },
+    projectToWorld,
+  });
 
 const terrainSelectionKey = ({ id, kind }: TerrainSelectionEntry) =>
   `${kind}:${cesiumTerrainTileKey(id)}`;
@@ -240,14 +318,19 @@ export const buildCesiumTerrainRuntime = (
     DEFAULT_MAX_CACHED_MESHES,
     1
   );
+  if (
+    options.noDataHeightMeters !== undefined &&
+    !Number.isFinite(options.noDataHeightMeters)
+  ) {
+    throw new RangeError("Terrain no-data height must be finite");
+  }
+  const noDataHeightMeters = options.noDataHeightMeters;
   const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const meterScale = origin.meterInMercatorCoordinateUnits();
   const root = new Group();
   root.name = `${runtimeId}-root`;
-  const material = new MeshStandardMaterial({
+  const material = new MeshLambertMaterial({
     color: options.material?.color ?? DEFAULT_TERRAIN_COLOR,
-    roughness: options.material?.roughness ?? 0.96,
-    metalness: options.material?.metalness ?? 0,
     side: FrontSide,
     // The terrain is an open upward-wound surface, unlike closed building
     // extrusions. Cast its visible top faces directly instead of Three.js's
@@ -392,39 +475,77 @@ export const buildCesiumTerrainRuntime = (
     const cached = meshes.get(key);
     if (cached) {
       cached.lastUsed = ++meshUseClock;
-      return cached.mesh;
+      return cached.node;
     }
-    const geometry = createProjectedTerrainTileGeometry({
-      tile,
-      projectToWorld: projectToLocalWorld,
-    });
-    const mesh = new Mesh(geometry, material);
-    mesh.name = `${runtimeId}-${key}`;
-    const hasRelief =
-      entry.kind === "source" &&
-      tile.heightMeters.some(
-        (height) => Math.abs(height) > ZERO_ELEVATION_EPSILON_METERS
+    let reliefGeometry: BufferGeometry | null =
+      createProjectedTerrainTileGeometry({
+        tile,
+        projectToWorld: projectToLocalWorld,
+      });
+    let reliefVertexMask = new Uint8Array(
+      reliefGeometry.getAttribute("position").count
+    ).fill(1);
+    let baseGeometry: BufferGeometry | null = null;
+    if (entry.kind === "flat") {
+      baseGeometry = reliefGeometry;
+      reliefGeometry = null;
+      reliefVertexMask.fill(0);
+    } else if (noDataHeightMeters !== undefined) {
+      const partition = partitionNoDataTerrainGeometry(
+        reliefGeometry,
+        tile,
+        noDataHeightMeters
       );
-    mesh.castShadow = hasRelief;
-    mesh.receiveShadow = true;
-    if (mesh.castShadow) mesh.customDepthMaterial = shadowDepthMaterial;
-    mesh.visible = false;
-    root.add(mesh);
+      reliefGeometry = partition.reliefGeometry;
+      reliefVertexMask = partition.reliefVertexMask;
+      if (partition.hasNoData) {
+        baseGeometry = createFlatTerrainGeometry(
+          tile.bounds,
+          noDataHeightMeters,
+          projectToLocalWorld
+        );
+      }
+    }
+
+    const node = new Group();
+    node.name = `${runtimeId}-${key}`;
+    let baseMesh: Mesh | null = null;
+    if (baseGeometry) {
+      baseMesh = new Mesh(baseGeometry, material);
+      baseMesh.name = `${node.name}-base`;
+      baseMesh.castShadow = false;
+      baseMesh.receiveShadow = true;
+      node.add(baseMesh);
+    }
+    let reliefMesh: Mesh | null = null;
+    if (reliefGeometry) {
+      reliefMesh = new Mesh(reliefGeometry, material);
+      reliefMesh.name = `${node.name}-relief`;
+      reliefMesh.castShadow = true;
+      reliefMesh.receiveShadow = true;
+      reliefMesh.customDepthMaterial = shadowDepthMaterial;
+      node.add(reliefMesh);
+    }
+    node.visible = false;
+    root.add(node);
     const boundaryIndices = Uint32Array.from(
-      new Set([
-        ...(tile.westIndices ?? []),
-        ...(tile.southIndices ?? []),
-        ...(tile.eastIndices ?? []),
-        ...(tile.northIndices ?? []),
-      ])
+      new Set(
+        [
+          ...(tile.westIndices ?? []),
+          ...(tile.southIndices ?? []),
+          ...(tile.eastIndices ?? []),
+          ...(tile.northIndices ?? []),
+        ].filter((index) => reliefVertexMask[index] === 1)
+      )
     );
     meshes.set(key, {
-      mesh,
+      node,
+      reliefMesh,
+      baseMesh,
       boundaryIndices,
-      hasRelief,
       lastUsed: ++meshUseClock,
     });
-    return mesh;
+    return node;
   };
 
   const smoothActiveBoundaryNormals = (activeKeys: ReadonlySet<string>) => {
@@ -437,15 +558,16 @@ export const buildCesiumTerrainRuntime = (
     >();
     for (const [key, record] of meshes) {
       if (!activeKeys.has(key)) continue;
-      record.mesh.geometry.computeVertexNormals();
-      // Synthetic fallback quads and completely flat source tiles must keep
-      // their geometric up normal. Blending one of their corner normals with
-      // a sloped source-tile edge creates a kilometre-wide Gouraud-shaded
-      // triangle (a visible bright/dark wedge) across the otherwise flat tile.
-      if (!record.hasRelief) continue;
-      const position = record.mesh.geometry.getAttribute("position");
-      const normal = record.mesh.geometry.getAttribute("normal");
+      const { reliefMesh } = record;
+      if (!reliefMesh) continue;
+      reliefMesh.geometry.computeVertexNormals();
+      const normal = reliefMesh.geometry.getAttribute("normal");
+      const position = reliefMesh.geometry.getAttribute("position");
       for (const index of record.boundaryIndices) {
+        const nx = normal.getX(index);
+        const ny = normal.getY(index);
+        const nz = normal.getZ(index);
+        if (nx * nx + ny * ny + nz * nz <= Number.EPSILON) continue;
         const positionKey = `${Math.round(
           position.getX(index) * 1_000
         )}/${Math.round(position.getY(index) * 1_000)}/${Math.round(
@@ -455,13 +577,7 @@ export const buildCesiumTerrainRuntime = (
           normal: new Vector3(),
           vertices: [],
         };
-        entry.normal.add(
-          new Vector3(
-            normal.getX(index),
-            normal.getY(index),
-            normal.getZ(index)
-          )
-        );
+        entry.normal.add(new Vector3(nx, ny, nz));
         entry.vertices.push({ record, index });
         boundaries.set(positionKey, entry);
       }
@@ -470,7 +586,7 @@ export const buildCesiumTerrainRuntime = (
       if (vertices.length < 2 || normal.lengthSq() === 0) continue;
       normal.normalize();
       for (const { record, index } of vertices) {
-        const attribute = record.mesh.geometry.getAttribute("normal");
+        const attribute = record.reliefMesh!.geometry.getAttribute("normal");
         attribute.setXYZ(index, normal.x, normal.y, normal.z);
         attribute.needsUpdate = true;
       }
@@ -483,8 +599,9 @@ export const buildCesiumTerrainRuntime = (
       .filter(([key]) => !activeKeys.has(key))
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
-      root.remove(record.mesh);
-      record.mesh.geometry.dispose();
+      root.remove(record.node);
+      record.reliefMesh?.geometry.dispose();
+      record.baseMesh?.geometry.dispose();
       meshes.delete(key);
       if (meshes.size <= maxCachedMeshes) break;
     }
@@ -596,7 +713,7 @@ export const buildCesiumTerrainRuntime = (
         }
         smoothActiveBoundaryNormals(activeKeys);
         for (const [key, record] of meshes) {
-          record.mesh.visible = root.visible && activeKeys.has(key);
+          record.node.visible = root.visible && activeKeys.has(key);
         }
         terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
@@ -658,7 +775,7 @@ export const buildCesiumTerrainRuntime = (
     setVisible(visible) {
       root.visible = visible;
       if (!visible) {
-        for (const record of meshes.values()) record.mesh.visible = false;
+        for (const record of meshes.values()) record.node.visible = false;
       } else {
         requestedSignature = "";
       }
@@ -681,7 +798,10 @@ export const buildCesiumTerrainRuntime = (
       selectionGeneration += 1;
       unregisterSampler?.();
       unregisterSampler = null;
-      for (const record of meshes.values()) record.mesh.geometry.dispose();
+      for (const record of meshes.values()) {
+        record.reliefMesh?.geometry.dispose();
+        record.baseMesh?.geometry.dispose();
+      }
       meshes.clear();
       material.dispose();
       shadowDepthMaterial.dispose();

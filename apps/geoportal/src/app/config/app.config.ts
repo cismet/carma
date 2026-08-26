@@ -264,4 +264,5 @@ export const LEAFLET_CONFIG: LeafletConfig = {
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
   measurements: "mm",
+  shadowSimulation: "shadow",
 } as const;

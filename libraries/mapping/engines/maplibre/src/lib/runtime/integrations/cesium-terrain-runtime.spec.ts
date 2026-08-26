@@ -2,9 +2,12 @@ import {
   BufferGeometry,
   Camera,
   Float32BufferAttribute,
+  Group,
+  Mesh,
   OrthographicCamera,
   PerspectiveCamera,
   FrontSide,
+  MeshLambertMaterial,
   Vector2,
   Vector3,
 } from "three";
@@ -47,9 +50,10 @@ describe("buildCesiumTerrainRuntime", () => {
       const isSyntheticFlat =
         tile.heightMeters.length === 4 &&
         tile.heightMeters.every((height) => height === 0);
-      const west = tile.id.x === 531 ? -1 : tile.id.x === 533 ? 1 : 0;
+      const tileX = tile.id?.x;
+      const west = tileX === 531 ? -1 : tileX === 533 ? 1 : 0;
       const nearHeight = tile.heightMeters[0] === 123 ? 1 : 0;
-      const farHeight = !isSyntheticFlat && tile.id.x === 533 ? 1 : 0;
+      const farHeight = !isSyntheticFlat && tileX === 533 ? 1 : 0;
       geometry.setAttribute(
         "position",
         new Float32BufferAttribute(
@@ -138,7 +142,9 @@ describe("buildCesiumTerrainRuntime", () => {
 
     await expect(runtime.ready).resolves.toBe(true);
     expect(runtime.root.children).toHaveLength(1);
-    const mesh = runtime.root.children[0] as {
+    const tileNode = runtime.root.children[0] as Group;
+    expect(tileNode.children).toHaveLength(1);
+    const mesh = tileNode.children[0] as Mesh & {
       castShadow: boolean;
       receiveShadow: boolean;
       material: { side: number; shadowSide: number | null };
@@ -151,6 +157,7 @@ describe("buildCesiumTerrainRuntime", () => {
     };
     expect(mesh.castShadow).toBe(true);
     expect(mesh.receiveShadow).toBe(true);
+    expect(mesh.material).toBeInstanceOf(MeshLambertMaterial);
     expect(mesh.material.side).toBe(FrontSide);
     expect(mesh.material.shadowSide).toBe(FrontSide);
     expect(mesh.customDepthMaterial.polygonOffset).toBe(true);
@@ -186,18 +193,18 @@ describe("buildCesiumTerrainRuntime", () => {
       expect(runtime.root.children).toHaveLength(2);
     });
     const viewportNormal = (
-      runtime.root.children.find((child) =>
-        child.name.endsWith("10/532/218")
-      ) as {
-        geometry: BufferGeometry;
-      }
+      (
+        runtime.root.children.find((child) =>
+          child.name.endsWith("10/532/218")
+        ) as Group
+      ).children[0] as Mesh
     ).geometry.getAttribute("normal");
     const occluderNormal = (
-      runtime.root.children.find((child) =>
-        child.name.endsWith("10/533/218")
-      ) as {
-        geometry: BufferGeometry;
-      }
+      (
+        runtime.root.children.find((child) =>
+          child.name.endsWith("10/533/218")
+        ) as Group
+      ).children[0] as Mesh
     ).geometry.getAttribute("normal");
     expect(viewportNormal.getX(2)).toBeCloseTo(occluderNormal.getX(0));
     expect(viewportNormal.getY(2)).toBeCloseTo(occluderNormal.getY(0));
@@ -213,7 +220,17 @@ describe("buildCesiumTerrainRuntime", () => {
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
-        heightMeters: new Float32Array([id.x === zeroSourceId.x ? 0 : 123]),
+        bounds:
+          id.x === zeroSourceId.x
+            ? { west: 6.8, south: 51, east: 7, north: 51.3 }
+            : { west: 7, south: 51, east: 7.2, north: 51.3 },
+        u: new Float32Array([0, 0, 1, 1]),
+        v: new Float32Array([0, 1, 0, 1]),
+        heightMeters:
+          id.x === zeroSourceId.x
+            ? new Float32Array([0, 0, 0, 0])
+            : new Float32Array([123, 123, 123, 0]),
+        indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
         westIndices: new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices:
@@ -239,7 +256,7 @@ describe("buildCesiumTerrainRuntime", () => {
       "terrain-with-flat-coverage",
       "https://example.test/terrain-with-flat-coverage",
       [7.15, 51.256],
-      { minimumLevel: 10, maximumLevel: 10 }
+      { minimumLevel: 10, maximumLevel: 10, noDataHeightMeters: 0 }
     );
     const map = {
       getBounds: vi.fn(() => ({
@@ -269,13 +286,11 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(source.requestTile).toHaveBeenCalledWith(zeroSourceId);
     expect(source.requestTile).toHaveBeenCalledWith(sourceId);
     expect(runtime.root.children).toHaveLength(3);
-    const flatMesh = runtime.root.children.find((child) =>
+    const flatNode = runtime.root.children.find((child) =>
       child.name.includes("flat:10/533/218")
-    ) as {
-      castShadow: boolean;
-      receiveShadow: boolean;
-      geometry: BufferGeometry;
-    };
+    ) as Group;
+    expect(flatNode.children).toHaveLength(1);
+    const flatMesh = flatNode.children[0] as Mesh;
     expect(flatMesh.castShadow).toBe(false);
     expect(flatMesh.receiveShadow).toBe(true);
     const flatNormals = flatMesh.geometry.getAttribute("normal");
@@ -284,18 +299,41 @@ describe("buildCesiumTerrainRuntime", () => {
       expect(flatNormals.getY(index)).toBeCloseTo(1);
       expect(flatNormals.getZ(index)).toBeCloseTo(0);
     }
-    const zeroSourceMesh = runtime.root.children.find((child) =>
+    const zeroSourceNode = runtime.root.children.find((child) =>
       child.name.includes("source:10/531/218")
-    ) as { castShadow: boolean; receiveShadow: boolean };
+    ) as Group;
+    expect(zeroSourceNode.children).toHaveLength(1);
+    const zeroSourceMesh = zeroSourceNode.children[0] as Mesh;
     expect(zeroSourceMesh.castShadow).toBe(false);
     expect(zeroSourceMesh.receiveShadow).toBe(true);
-    const reliefSourceMesh = runtime.root.children.find((child) =>
+    const mixedSourceNode = runtime.root.children.find((child) =>
       child.name.includes("source:10/532/218")
-    ) as { castShadow: boolean; receiveShadow: boolean };
+    ) as Group;
+    expect(mixedSourceNode.children).toHaveLength(2);
+    const mixedBaseMesh = mixedSourceNode.children.find((child) =>
+      child.name.endsWith("-base")
+    ) as Mesh;
+    const reliefSourceMesh = mixedSourceNode.children.find((child) =>
+      child.name.endsWith("-relief")
+    ) as Mesh;
+    expect(mixedBaseMesh.castShadow).toBe(false);
+    expect(mixedBaseMesh.receiveShadow).toBe(true);
+    expect(mixedBaseMesh.geometry.getAttribute("position").count).toBe(4);
+    const mixedBaseNormals = mixedBaseMesh.geometry.getAttribute("normal");
+    for (let index = 0; index < mixedBaseNormals.count; index += 1) {
+      expect(mixedBaseNormals.getX(index)).toBeCloseTo(0);
+      expect(mixedBaseNormals.getY(index)).toBeCloseTo(1);
+      expect(mixedBaseNormals.getZ(index)).toBeCloseTo(0);
+    }
     expect(reliefSourceMesh.castShadow).toBe(true);
     expect(reliefSourceMesh.receiveShadow).toBe(true);
+    expect(reliefSourceMesh.customDepthMaterial).toBeDefined();
+    expect(reliefSourceMesh.geometry.getAttribute("position").count).toBe(4);
+    expect(Array.from(reliefSourceMesh.geometry.getIndex()!.array)).toEqual([
+      0, 2, 1,
+    ]);
     const flatGeometryCall = createProjectedTerrainTileGeometry.mock.calls.find(
-      ([{ tile }]) => tile.id.x === flatId.x
+      ([{ tile }]) => tile.id?.x === flatId.x
     );
     expect(flatGeometryCall).toBeDefined();
     expect([...flatGeometryCall![0].tile.heightMeters]).toEqual([0, 0, 0, 0]);
