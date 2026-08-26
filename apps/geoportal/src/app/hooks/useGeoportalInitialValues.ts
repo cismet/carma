@@ -10,7 +10,10 @@ import {
 } from "@carma-mapping/engines-interop/view-state";
 
 import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
-import { DEFAULT_HOME_VIEW_REF } from "../config/view.config";
+import {
+  DEFAULT_HOME_VIEW_2D,
+  DEFAULT_HOME_VIEW_REF,
+} from "../config/view.config";
 
 const DEFAULT_HOME_VIEW_STATE = readLeafletHomeViewState(
   DEFAULT_HOME_VIEW_REF,
@@ -38,11 +41,14 @@ export const useGeoportalHomeValues = () => {
     if (!homeOverride) {
       return DEFAULT_HOME_VIEW_REF;
     }
-    // the texts travel with the override but are not part of the view
+    // the texts and the 2d pose travel with the override but are not part of
+    // the view, which describes the 3d camera
     const {
       tooltip: _tooltip,
       overlayLabel: _overlayLabel,
       overlayDestination: _overlayDestination,
+      pitch2D: _pitch2D,
+      bearing2D: _bearing2D,
       ...view
     } = homeOverride;
     return { ...DEFAULT_HOME_VIEW_REF, ...view };
@@ -82,6 +88,8 @@ export const useGeoportalHomeValues = () => {
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,
+    homeMaplibrePitch: homeOverride?.pitch2D ?? DEFAULT_HOME_VIEW_2D.pitch,
+    homeMaplibreBearing: homeOverride?.bearing2D ?? DEFAULT_HOME_VIEW_2D.bearing,
     /** an override's tooltip, undefined while the app's own home applies */
     homeTooltip: homeOverride?.tooltip,
     homeValidationCenter,

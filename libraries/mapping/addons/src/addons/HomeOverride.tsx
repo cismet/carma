@@ -26,6 +26,8 @@ export type HomeOverrideConfig = {
   pitch?: number;
   /** camera bearing in degrees, 3d only */
   bearing?: number;
+  pitch2D?: number;
+  bearing2D?: number;
   tooltip?: string;
   /** label of the help overlay's home entry; omitted falls back to the tooltip */
   overlayLabel?: string;
@@ -47,6 +49,8 @@ export const HomeOverride = ({
     altitude,
     pitch,
     bearing,
+    pitch2D,
+    bearing2D,
     tooltip,
     overlayLabel,
     overlayDestination,
@@ -63,6 +67,8 @@ export const HomeOverride = ({
       ...(altitude === undefined ? {} : { altitude }),
       ...(pitch === undefined ? {} : { pitch }),
       ...(bearing === undefined ? {} : { bearing }),
+      ...(pitch2D === undefined ? {} : { pitch2D }),
+      ...(bearing2D === undefined ? {} : { bearing2D }),
       ...(tooltip === undefined ? {} : { tooltip }),
       ...(overlayLabel === undefined ? {} : { overlayLabel }),
       ...(overlayDestination === undefined ? {} : { overlayDestination }),
@@ -78,6 +84,8 @@ export const HomeOverride = ({
     altitude,
     pitch,
     bearing,
+    pitch2D,
+    bearing2D,
     tooltip,
     overlayLabel,
     overlayDestination,

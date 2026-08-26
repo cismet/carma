@@ -184,6 +184,8 @@ const MapWrapper = () => {
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,
+    homeMaplibrePitch,
+    homeMaplibreBearing,
     homeTooltip,
   } = useGeoportalHomeValues();
   const handleCesiumHomeClick = useCallback(() => {
@@ -451,6 +453,8 @@ const MapWrapper = () => {
                         libreMap?.flyTo({
                           center: [homeCenter[1], homeCenter[0]],
                           zoom: homeMaplibreZoom,
+                          pitch: homeMaplibrePitch,
+                          bearing: homeMaplibreBearing,
                           essential: true,
                         });
                       }

@@ -14,3 +14,8 @@ export const DEFAULT_HOME_VIEW_REF = {
   altitude: 157,
   pitch: 45,
 } satisfies ShareableViewState;
+
+export const DEFAULT_HOME_VIEW_2D = {
+  pitch: 0,
+  bearing: 0,
+} as const;

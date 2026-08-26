@@ -4,6 +4,8 @@ import type { ShareableViewState } from "../../types";
 
 export type HomeViewOverride = Partial<ShareableViewState> &
   Pick<ShareableViewState, "lat" | "lng"> & {
+    pitch2D?: number;
+    bearing2D?: number;
     tooltip?: string;
     overlayLabel?: string;
     overlayDestination?: string;
