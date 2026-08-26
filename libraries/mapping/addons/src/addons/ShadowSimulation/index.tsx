@@ -9,6 +9,7 @@ import {
 import {
   faArrowRotateLeft,
   faCalendarDays,
+  faBug,
   faChevronLeft,
   faChevronRight,
   faClock,
@@ -40,6 +41,7 @@ import type {
   ShadowSimulationScene,
   ShadowTerrainOptions,
 } from "./shadow-scene";
+import { ShadowProjectionDebugView } from "./ShadowProjectionDebugView";
 import {
   clampSelectionToDaylight,
   DEFAULT_SHADOW_SIMULATION_LOCATION,
@@ -125,6 +127,7 @@ export type ShadowSimulationState = {
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   showSunDebugVector: boolean;
+  showProjectionDebugView?: boolean;
   controlStyle?: ShadowControlStyle;
   animationMode?: ShadowAnimationMode;
   animationSpeed?: ShadowAnimationSpeed;
@@ -811,6 +814,23 @@ export const ShadowSimulationControlSurface = ({
             </button>
             <button
               type="button"
+              className={`flex items-center gap-2 whitespace-nowrap hover:text-amber-700 ${
+                state.showProjectionDebugView ? "text-amber-700" : ""
+              }`}
+              aria-pressed={state.showProjectionDebugView ?? false}
+              onClick={() =>
+                setState({
+                  ...state,
+                  showProjectionDebugView: !state.showProjectionDebugView,
+                })
+              }
+              data-test-id="shadow-simulation-projection-debug"
+            >
+              <FontAwesomeIcon icon={faBug} />
+              Debug
+            </button>
+            <button
+              type="button"
               className="flex items-center gap-2 whitespace-nowrap hover:text-amber-700"
               onClick={() => {
                 const now = getSolarSelectionForInstant(
@@ -827,6 +847,7 @@ export const ShadowSimulationControlSurface = ({
                   isAnimating: false,
                   shadowIntensity: 0.45,
                   showSunDebugVector: false,
+                  showProjectionDebugView: false,
                   showShadowDuration: false,
                 });
               }}
@@ -975,6 +996,7 @@ export const ShadowSimulation = ({
       buildingColor: DEFAULT_BUILDING_COLOR,
       shadowQuality: DEFAULT_SHADOW_QUALITY,
       showSunDebugVector: false,
+      showProjectionDebugView: false,
       controlStyle: SHADOW_CONTROL_STYLE.QUICK,
       animationMode: SHADOW_ANIMATION_MODE.DAY,
       animationSpeed: 4,
@@ -1112,6 +1134,12 @@ export const ShadowSimulation = ({
         location={location}
         state={state}
       />
+      {state.showProjectionDebugView && libreMap && (
+        <ShadowProjectionDebugView
+          map={libreMap}
+          solarPosition={getSolarPosition(state.selection, location)}
+        />
+      )}
     </>
   );
 };
