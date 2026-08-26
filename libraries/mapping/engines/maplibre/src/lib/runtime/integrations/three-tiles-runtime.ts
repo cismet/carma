@@ -501,7 +501,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       window.clearTimeout(refinementTimer);
       refinementTimer = 0;
     }
-    restartProgressiveLod();
+    // Deliberately no error-target reset here: raising it mid-gesture told
+    // the traversal that the fine tiles already on screen were no longer
+    // needed, and they visibly unloaded the moment a pan began. Loaded detail
+    // stays; only the refinement timer restarts once the camera rests.
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {

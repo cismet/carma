@@ -23,7 +23,11 @@ import {
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
 } from "./atmospheric-sunlight";
-import { TiledShadowController } from "./tiled-shadow-controller";
+import {
+  CASTER_RELIEF_MARGIN_METERS,
+  restingShadowMapSize,
+  TiledShadowController,
+} from "./tiled-shadow-controller";
 import {
   clearShadowProjectionDebugSnapshot,
   hasShadowProjectionDebugListeners,
@@ -31,6 +35,14 @@ import {
 } from "./shadow-projection-debug-store";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
+/**
+ * How far from the view anchor the single shadow buffer still resolves
+ * shadows. Screen corners near the horizon unproject kilometres away; letting
+ * them stretch the fit spreads the buffer's texels over the whole valley and
+ * every shadow turns to mush. Beyond this radius the ground keeps its sun
+ * term but receives no mapped shadow.
+ */
+const MAX_RECEIVER_DISTANCE_METERS = 4_000;
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
@@ -153,6 +165,19 @@ export const solarPositionToSceneDirection = ({
   ).normalize();
 };
 
+/**
+ * Slope-scaled depth bias for the terrain's shadow pass. GL polygon offset
+ * grows with the surface's depth slope, which is exactly where heightfield
+ * acne comes from, so the open terrain needs no large constant bias.
+ */
+const buildTerrainDepthMaterial = () =>
+  new THREE.MeshDepthMaterial({
+    depthPacking: THREE.RGBADepthPacking,
+    polygonOffset: true,
+    polygonOffsetFactor: 2,
+    polygonOffsetUnits: 4,
+  });
+
 const makeMeshShadeable = (
   mesh: THREE.Mesh,
   shadowController?: TiledShadowController
@@ -160,10 +185,22 @@ const makeMeshShadeable = (
   if (mesh.userData[SHADOW_OVERLAY_MARKER]) return;
   mesh.castShadow = mesh.userData.disableShadowCasting !== true;
   mesh.receiveShadow = true;
+  const materials = Array.isArray(mesh.material)
+    ? mesh.material
+    : [mesh.material];
+  if (mesh.userData.isShadowTerrainSurface) {
+    if (!mesh.customDepthMaterial) {
+      mesh.customDepthMaterial = buildTerrainDepthMaterial();
+    }
+  } else {
+    // Closed solids write their far walls into the depth map. The stored
+    // depth then sits behind the lit wall, which removes both self-shadow
+    // acne and the bright leak line along the building's base in one go.
+    for (const material of materials) {
+      material.shadowSide = THREE.BackSide;
+    }
+  }
   if (shadowController) {
-    const materials = Array.isArray(mesh.material)
-      ? mesh.material
-      : [mesh.material];
     for (const material of materials) {
       shadowController.setupMaterial(material);
     }
@@ -502,7 +539,7 @@ const buildShadowLightBinding = (
     activeShadowTileCount: 0,
     shadowQuality: DEFAULT_SHADOW_QUALITY,
     shadowMode: DEFAULT_SHADOW_MODE,
-    shadowIntensity: 0.45,
+    shadowIntensity: 1,
     directionToSun: new THREE.Vector3(0, 1, 0),
     sunColor: new THREE.Color(0xfff2d8),
     sunIntensity: ATMOSPHERIC_LIGHT_EXPOSURE,
@@ -702,7 +739,7 @@ export const buildShadowSimulationScene = (
     fullOpacity: true,
     uniformColor: null,
   };
-  let latestShadowIntensity = 0.45;
+  let latestShadowIntensity = 1;
   let latestAtmosphericSunlight: AtmosphericSunlightSample | null = null;
   let atmosphericSunlightOptions: AtmosphericSunlightOptions = {
     useTransmittanceLut: true,
@@ -851,6 +888,93 @@ export const buildShadowSimulationScene = (
   };
   const genericBridges = new Map<GenericThreeLayer, GenericThreeShadowBridge>();
   let cachedElevationRange: readonly [number, number] | null = null;
+
+  // ── Terrain shadow coverage ────────────────────────────────────────────
+  //
+  // Which ground has to be loaded for shadows is a question about the view
+  // and the sun, nothing else: sweep the visible extent toward the sun and
+  // everything inside that volume can cast into it. Deriving the coverage
+  // from the *fitted* render camera instead — as this used to work — couples
+  // the tile selection to a camera that follows every fit, vanishes on failed
+  // fits and rests during gestures, which is what unloaded sun-side tiles
+  // mid-view. This camera is analytic, always defined, and only ever moves
+  // when the view or the sun does.
+  const terrainCoverageCamera = new THREE.OrthographicCamera();
+  terrainCoverageCamera.name = "shadow-simulation-terrain-coverage";
+  const coverageBasisX = new THREE.Vector3();
+  const coverageBasisY = new THREE.Vector3();
+  const coverageBasisZ = new THREE.Vector3();
+  const coverageRotation = new THREE.Matrix4();
+  const updateTerrainShadowCoverage = () => {
+    if (!terrainRuntime) return;
+    const points = sharedBinding.receiverWorldPoints;
+    const toSun = sharedBinding.directionToSun;
+    if (points.length === 0 || toSun.lengthSq() < 1e-6) return;
+
+    coverageBasisZ.copy(toSun).normalize();
+    if (Math.abs(coverageBasisZ.y) > 0.99) {
+      coverageBasisX.set(1, 0, 0);
+    } else {
+      coverageBasisX.crossVectors(new THREE.Vector3(0, 1, 0), coverageBasisZ);
+      coverageBasisX.normalize();
+    }
+    coverageBasisY.crossVectors(coverageBasisZ, coverageBasisX);
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    for (const point of points) {
+      const x = point.dot(coverageBasisX);
+      const y = point.dot(coverageBasisY);
+      const z = point.dot(coverageBasisZ);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    const reliefMeters = Math.max(
+      0,
+      sharedBinding.maximumElevationMeters - sharedBinding.minimumElevationMeters
+    );
+    const elevationSine = Math.max(0.04, coverageBasisZ.y);
+    const casterReachMeters = THREE.MathUtils.clamp(
+      (reliefMeters + CASTER_RELIEF_MARGIN_METERS) / elevationSine + 50,
+      50,
+      10_000
+    );
+    maxZ += casterReachMeters;
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    terrainCoverageCamera.position
+      .set(0, 0, 0)
+      .addScaledVector(coverageBasisX, centerX)
+      .addScaledVector(coverageBasisY, centerY)
+      .addScaledVector(coverageBasisZ, maxZ);
+    coverageRotation.makeBasis(coverageBasisX, coverageBasisY, coverageBasisZ);
+    terrainCoverageCamera.quaternion.setFromRotationMatrix(coverageRotation);
+    terrainCoverageCamera.left = -(maxX - minX) / 2;
+    terrainCoverageCamera.right = (maxX - minX) / 2;
+    terrainCoverageCamera.bottom = -(maxY - minY) / 2;
+    terrainCoverageCamera.top = (maxY - minY) / 2;
+    terrainCoverageCamera.near = 0;
+    terrainCoverageCamera.far = Math.max(1, maxZ - minZ);
+    terrainCoverageCamera.updateProjectionMatrix();
+    terrainCoverageCamera.updateMatrixWorld(true);
+
+    const mapSize = restingShadowMapSize(
+      sharedBinding.shadowMode,
+      sharedBinding.shadowQuality
+    );
+    terrainRuntime.setShadowCameras([
+      {
+        camera: terrainCoverageCamera,
+        shadowMapSize: { width: mapSize, height: mapSize },
+      },
+    ]);
+  };
   // Whether a camera gesture is in flight. While it is, the shadow buffer is
   // rendered at half resolution so the pan stays fluid; moveend restores it.
   let mapInMotion = false;
@@ -892,14 +1016,27 @@ export const buildShadowSimulationScene = (
       const lngLat = map.unproject(point as [number, number]);
       return [lngLat.lng, lngLat.lat] as [number, number];
     });
+    // A screen corner near the horizon unprojects kilometres out. Pulling it
+    // back onto the receiver radius keeps the shadow buffer's texels where
+    // the viewer actually looks.
+    const clampToReceiverRadius = (point: THREE.Vector3) => {
+      const offset = point.clone().sub(center);
+      const horizontal = Math.hypot(offset.x, offset.z);
+      if (horizontal <= MAX_RECEIVER_DISTANCE_METERS) return point;
+      const scale = MAX_RECEIVER_DISTANCE_METERS / horizontal;
+      offset.x *= scale;
+      offset.z *= scale;
+      return offset.add(center);
+    };
     for (const lngLat of viewportLngLats) {
       const corner = sceneLease.layer.projectLngLatToScene?.(
         lngLat,
         terrainRuntime?.getElevation(lngLat[0], lngLat[1]) ?? centerElevation
       );
       if (corner) {
-        projectedCorners.push(corner);
-        radiusMeters = Math.max(radiusMeters, corner.distanceTo(center));
+        const clamped = clampToReceiverRadius(corner);
+        projectedCorners.push(clamped);
+        radiusMeters = Math.max(radiusMeters, clamped.distanceTo(center));
       }
     }
     if (projectedCorners.length === 4) {
@@ -951,13 +1088,14 @@ export const buildShadowSimulationScene = (
           lngLat,
           elevation
         );
-        return point ? [point] : [];
+        return point ? [clampToReceiverRadius(point)] : [];
       })
     );
     sharedBinding.receiverWorldPoints = coveragePoints;
     sharedBinding.minimumElevationMeters = minimumElevation;
     sharedBinding.maximumElevationMeters = maximumElevation;
     sharedBinding.dirty = true;
+    updateTerrainShadowCoverage();
     // Re-sampling the atmosphere and rebuilding the sun gizmo is only due
     // when the sun itself may have changed: a new time, or a viewport that
     // came to rest somewhere else. A frame-by-frame pan reuses the sample and
@@ -988,7 +1126,6 @@ export const buildShadowSimulationScene = (
       ) {
         clearShadowProjectionDebugSnapshot(map);
         updateShadowBufferBorders(sharedBinding, 0);
-        terrainRuntime?.setShadowCameras([]);
         return;
       }
       if (sceneMaterialsDirty) {
@@ -1011,7 +1148,6 @@ export const buildShadowSimulationScene = (
       if (!snapshot) {
         clearShadowProjectionDebugSnapshot(map);
         updateShadowBufferBorders(sharedBinding, 0);
-        terrainRuntime?.setShadowCameras([]);
         return;
       }
       updateShadowBufferBorders(sharedBinding, snapshot.tileCount);
@@ -1058,22 +1194,6 @@ export const buildShadowSimulationScene = (
               }
             : null,
         });
-      }
-      // While a gesture is in flight the fit follows the viewport frame by
-      // frame, and every hand-over would re-trigger the terrain's shadow
-      // refinement. The moveend refresh hands over the settled fit.
-      if (!mapInMotion) {
-        terrainRuntime?.setShadowCameras(
-          sharedBinding.controller.lights
-            .slice(0, snapshot.tileCount)
-            .map(({ shadow }) => ({
-              camera: shadow.camera,
-              shadowMapSize: {
-                width: shadow.mapSize.x,
-                height: shadow.mapSize.y,
-              },
-            }))
-        );
       }
     },
     dispose: () => undefined,
