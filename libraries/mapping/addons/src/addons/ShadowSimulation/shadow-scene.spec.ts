@@ -204,7 +204,7 @@ describe("shadow scene lighting integration", () => {
     expect(sun.shadow.camera.projectionMatrix.elements[15]).toBe(1);
     expect(sun.castShadow).toBe(true);
     expect(sun.shadow.autoUpdate).toBe(false);
-    expect(sun.shadow.radius).toBe(0);
+    expect(sun.shadow.radius).toBe(1);
     const tileLights = scene.children.filter(
       (object): object is THREE.DirectionalLight =>
         (object as THREE.DirectionalLight).isDirectionalLight &&
@@ -289,6 +289,8 @@ describe("shadow scene lighting integration", () => {
       new THREE.MeshLambertMaterial()
     );
     terrain.name = "terrain";
+    // What the cesium terrain runtime stamps on every surface it builds.
+    terrain.userData.isShadowTerrainSurface = true;
     scene.add(terrain);
     const alkisScene = new THREE.Scene();
     const sourceBuildingMaterial = new THREE.MeshLambertMaterial({
@@ -338,7 +340,11 @@ describe("shadow scene lighting integration", () => {
     expect(buildingCopy.material).not.toBe(sourceBuildingMaterial);
     expect((buildingCopy.material as THREE.Material).opacity).toBe(1);
     expect((buildingCopy.material as THREE.Material).transparent).toBe(false);
-    expect((buildingCopy.material as THREE.Material).shadowSide).toBeNull();
+    // Closed buildings write their far walls into the depth map, which is
+    // what keeps their bases free of leak lines and their walls of acne.
+    expect((buildingCopy.material as THREE.Material).shadowSide).toBe(
+      THREE.BackSide
+    );
     expect((buildingCopy.material as THREE.Material).defines).toMatchObject({
       USE_CSM: 1,
       CSM_CASCADES: 4,
@@ -347,6 +353,10 @@ describe("shadow scene lighting integration", () => {
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
     expect((terrain.material as THREE.Material).shadowSide).toBeNull();
+    // Terrain acne is answered with a slope-scaled offset in its depth pass.
+    expect(
+      (terrain.customDepthMaterial as THREE.MeshDepthMaterial).polygonOffset
+    ).toBe(true);
     expect(buildingCopy.parent?.parent).toBe(scene);
     expect(terrain.parent).toBe(scene);
 
@@ -834,22 +844,18 @@ describe("shadow scene lighting integration", () => {
       lookTarget: new THREE.Vector3(7_150, 150, 51_256),
       viewport: new THREE.Vector2(800, 600),
     });
+    // Terrain coverage no longer follows the fitted render cameras: it is
+    // one analytic volume swept from the visible extent toward the sun, so
+    // the selection never loses sun-side tiles to a resting or failed fit.
     const shadowViews = terrainRuntime.setShadowCameras.mock.lastCall?.[0];
-    const tileLights = scene.children.filter(
-      (object): object is THREE.DirectionalLight =>
-        (object as THREE.DirectionalLight).isDirectionalLight &&
-        object.name.startsWith("shadow-simulation-sun")
+    expect(shadowViews).toHaveLength(1);
+    expect(shadowViews[0].camera.name).toBe(
+      "shadow-simulation-terrain-coverage"
     );
-    expect(shadowViews).toHaveLength(tileLights.length);
-    for (let index = 0; index < tileLights.length; index += 1) {
-      expect(shadowViews[index]).toEqual({
-        camera: tileLights[index].shadow.camera,
-        shadowMapSize: {
-          width: tileLights[index].shadow.mapSize.x,
-          height: tileLights[index].shadow.mapSize.y,
-        },
-      });
-    }
+    expect(
+      (shadowViews[0].camera as THREE.OrthographicCamera).isOrthographicCamera
+    ).toBe(true);
+    expect(shadowViews[0].shadowMapSize.width).toBeGreaterThan(0);
     expect(shadowViews[0].shadowMapSize.width).not.toBe(800);
 
     controller.dispose();

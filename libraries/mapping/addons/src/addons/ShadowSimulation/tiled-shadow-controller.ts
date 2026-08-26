@@ -19,12 +19,22 @@ const MIN_CASTER_REACH_METERS = 50;
 const MAX_CASTER_REACH_METERS = 10_000;
 const CASTER_REACH_ELEVATION_EPSILON = 0.04;
 const LIGHT_CAMERA_SAFETY_METERS = 25;
-const SHADOW_NORMAL_BIAS_TEXELS = 0.5;
-const SHADOW_DEPTH_BIAS_TEXELS = 0.5;
-const MIN_SHADOW_DEPTH_BIAS_METERS = 0.01;
-const MAX_SHADOW_DEPTH_BIAS_METERS = 0.35;
-const MIN_SHADOW_NORMAL_BIAS_METERS = 0.02;
-const MAX_SHADOW_NORMAL_BIAS_METERS = 0.5;
+/**
+ * Ground that can shade the view is not limited to the relief visible in it:
+ * at a low sun, a ridge beyond the viewport throws its shadow in. The margin
+ * stands in for how much higher the surroundings may be than what is on
+ * screen.
+ */
+export const CASTER_RELIEF_MARGIN_METERS = 150;
+/**
+ * One fixed normal bias instead of the former per-texel battery. Acne is
+ * handled where it comes from: buildings render their far walls into the
+ * depth map (`shadowSide: BackSide`), terrain gets a slope-scaled polygon
+ * offset in its depth pass. What remains is a small constant to absorb
+ * filter-kernel wobble.
+ */
+const SHADOW_NORMAL_BIAS_METERS = 0.1;
+const SHADOW_FILTER_RADIUS = 1;
 
 export type TiledShadowTileSnapshot = Readonly<{
   id: string;
@@ -279,6 +289,14 @@ const getReceiverBoundsInLightCamera = (
 const copyDefines = (defines: Record<string, unknown> | undefined) =>
   defines ? { ...defines } : undefined;
 
+/** The buffer edge a mode/quality pair settles on once the camera rests. */
+export const restingShadowMapSize = (
+  mode: ShadowMode,
+  quality: ShadowQualityMultiplier
+): number =>
+  (mode === "single" ? BASE_SINGLE_SHADOW_MAP_SIZE : BASE_SHADOW_TILE_MAP_SIZE) *
+  Math.sqrt(quality);
+
 export class TiledShadowController {
   readonly csm: CSM;
   readonly lights: readonly THREE.DirectionalLight[];
@@ -322,7 +340,9 @@ export class TiledShadowController {
       // would invalidate every shaded draw. The first shadow pass allocates the
       // pool; inactive entries stay at zero intensity afterwards.
       light.shadow.needsUpdate = true;
-      light.shadow.radius = 0;
+      light.shadow.radius = SHADOW_FILTER_RADIUS;
+      light.shadow.bias = 0;
+      light.shadow.normalBias = SHADOW_NORMAL_BIAS_METERS;
     }
   }
 
@@ -469,7 +489,8 @@ export class TiledShadowController {
       normalizedDirectionToSun.y
     );
     const casterReachMeters = THREE.MathUtils.clamp(
-      reliefMeters / elevationSine + MIN_CASTER_REACH_METERS,
+      (reliefMeters + CASTER_RELIEF_MARGIN_METERS) / elevationSine +
+        MIN_CASTER_REACH_METERS,
       MIN_CASTER_REACH_METERS,
       MAX_CASTER_REACH_METERS
     );
@@ -570,18 +591,6 @@ export class TiledShadowController {
         shadowCamera.near + 1,
         receiverBounds.far + casterReachMeters + reliefMeters
       );
-      light.shadow.normalBias = THREE.MathUtils.clamp(
-        texelMeters * SHADOW_NORMAL_BIAS_TEXELS,
-        MIN_SHADOW_NORMAL_BIAS_METERS,
-        MAX_SHADOW_NORMAL_BIAS_METERS
-      );
-      const depthBiasMeters = THREE.MathUtils.clamp(
-        texelMeters * SHADOW_DEPTH_BIAS_TEXELS,
-        MIN_SHADOW_DEPTH_BIAS_METERS,
-        MAX_SHADOW_DEPTH_BIAS_METERS
-      );
-      light.shadow.bias =
-        -depthBiasMeters / (shadowCamera.far - shadowCamera.near);
       shadowCamera.updateProjectionMatrix();
       light.shadow.updateMatrices(light);
       light.shadow.needsUpdate = true;
@@ -669,19 +678,6 @@ export class TiledShadowController {
       shadowCamera.top = tile.top;
       shadowCamera.near = Math.max(0.01, tile.near);
       shadowCamera.far = Math.max(shadowCamera.near + 1, tile.far);
-      const texelMeters = layout.statistics.effectiveMetersPerTexel;
-      light.shadow.normalBias = THREE.MathUtils.clamp(
-        texelMeters * SHADOW_NORMAL_BIAS_TEXELS,
-        MIN_SHADOW_NORMAL_BIAS_METERS,
-        MAX_SHADOW_NORMAL_BIAS_METERS
-      );
-      const depthBiasMeters = THREE.MathUtils.clamp(
-        texelMeters * SHADOW_DEPTH_BIAS_TEXELS,
-        MIN_SHADOW_DEPTH_BIAS_METERS,
-        MAX_SHADOW_DEPTH_BIAS_METERS
-      );
-      light.shadow.bias =
-        -depthBiasMeters / (shadowCamera.far - shadowCamera.near);
       shadowCamera.updateProjectionMatrix();
       light.shadow.updateMatrices(light);
       light.shadow.needsUpdate = true;

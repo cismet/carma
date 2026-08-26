@@ -711,6 +711,7 @@ export const buildCesiumTerrainRuntime = (
     let baseMesh: Mesh | null = null;
     if (baseGeometry) {
       baseMesh = new Mesh(baseGeometry, material);
+      baseMesh.userData.isShadowTerrainSurface = true;
       baseMesh.name = `${node.name}-base`;
       baseMesh.castShadow = false;
       baseMesh.receiveShadow = true;
@@ -720,6 +721,7 @@ export const buildCesiumTerrainRuntime = (
     let reliefMesh: Mesh | null = null;
     if (reliefGeometry) {
       reliefMesh = new Mesh(reliefGeometry, material);
+      reliefMesh.userData.isShadowTerrainSurface = true;
       reliefMesh.name = `${node.name}-relief`;
       reliefMesh.castShadow = true;
       reliefMesh.receiveShadow = true;
@@ -1154,6 +1156,7 @@ export const buildCesiumTerrainRuntime = (
     );
     if (!coverageMesh) {
       coverageMesh = new Mesh(geometry, coverageMaterial);
+      coverageMesh.userData.isShadowTerrainSurface = true;
       coverageMesh.name = `${runtimeId}-viewport-coverage`;
       coverageMesh.castShadow = false;
       coverageMesh.receiveShadow = true;
