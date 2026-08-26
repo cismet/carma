@@ -92,13 +92,16 @@ export const VectorHighlight = ({
   // previews 11. Without it the panel is the whole width, and nothing is ever
   // banked. The total applies only while the buffer panel is open.
   const appliedBuffer = cumulativeBuffer ? mode?.appliedBuffer ?? 0 : 0;
-  const shapeBuffer =
-    mode?.bufferEnabled ?? bufferOnByDefault
-      ? Math.min(
-          appliedBuffer + (mode?.shapeBuffer ?? defaultBuffer),
-          MAX_BUFFER_WIDTH
-        )
-      : 0;
+  const bufferEnabled = mode?.bufferEnabled ?? bufferOnByDefault;
+  const shapeBuffer = bufferEnabled
+    ? Math.min(
+        appliedBuffer + (mode?.shapeBuffer ?? defaultBuffer),
+        MAX_BUFFER_WIDTH
+      )
+    : 0;
+  // the preview draws the shape at the width it already ran with, so the dashed
+  // ring around it is the step and not the whole width
+  const baseBuffer = bufferEnabled ? appliedBuffer : 0;
 
   // key on the content: route configs pass a fresh array per render
   const shapesKey = (shapes ?? DEFAULT_SHAPES).join(" ");
@@ -220,6 +223,7 @@ export const VectorHighlight = ({
       rectSize,
       radiusStep,
       shapeBuffer,
+      baseBuffer,
       clearDelay,
       onLastShapeChange: handleLastShapeChange,
       onLastShapePreviewChange: handleLastShapePreviewChange,
