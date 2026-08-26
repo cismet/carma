@@ -23,9 +23,13 @@ const LIGHT_CAMERA_SAFETY_METERS = 25;
  * Ground that can shade the view is not limited to the relief visible in it:
  * at a low sun, a ridge beyond the viewport throws its shadow in. The margin
  * stands in for how much higher the surroundings may be than what is on
- * screen.
+ * screen — a regional relief bound, not a view-relative one. Wuppertal spans
+ * roughly 100 m valley floor to 350 m ridge, and the visible slice of that is
+ * often just the valley, so the margin has to carry most of it: at 10 degrees
+ * of sun elevation every 100 m of unseen ridge is another kilometre of
+ * caster reach.
  */
-export const CASTER_RELIEF_MARGIN_METERS = 150;
+export const CASTER_RELIEF_MARGIN_METERS = 300;
 /**
  * One fixed normal bias instead of the former per-texel battery. Acne is
  * handled where it comes from: buildings render their far walls into the

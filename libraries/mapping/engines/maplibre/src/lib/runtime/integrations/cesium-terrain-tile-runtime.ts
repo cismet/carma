@@ -655,12 +655,13 @@ export const buildCesiumTerrainRuntime = (
           boundsIntersect(bounds, candidateBounds)
         );
         if (!intersectsViewport && !intersectsShadow) continue;
-        const kind =
-          terrainSource.getTileDataAvailable(id) === false ? "flat" : "source";
-        // A flat 0 m tile cannot occlude elevated terrain from outside the
-        // viewport, so only real terrain consumes the sun-frustum budget.
-        if (kind === "flat" && !intersectsViewport) continue;
-        children.push({ id, kind });
+        // The parent has data - it is selected - but this child quadrant does
+        // not. Splitting anyway would swap real coarse ground for a sea-level
+        // plate: a hole in the view, and up-sun a hole in the shadow. The
+        // parent stays whole instead; refinement simply ends at the
+        // availability boundary.
+        if (terrainSource.getTileDataAvailable(id) === false) return [];
+        children.push({ id, kind: "source" });
       }
     }
     return children;
@@ -1182,7 +1183,16 @@ export const buildCesiumTerrainRuntime = (
         : terrainSource.requestTile(entry.id).then((tile) => ({ entry, tile }))
     )
       .then((loadedEntries) => {
-        if (disposed || generation !== selectionGeneration) return;
+        if (disposed) return;
+        if (generation !== selectionGeneration) {
+          // A newer selection superseded this batch while it loaded. The
+          // fetched tiles still become meshes - hidden - so the successor
+          // activates them instantly instead of fetching them again.
+          for (const { entry, tile } of loadedEntries) {
+            ensureMesh(tile, entry).visible = false;
+          }
+          return;
+        }
         const activeKeys = new Set<string>();
         const retainedSourceKeys = new Set<string>();
         for (const { entry, tile } of loadedEntries) {

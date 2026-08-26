@@ -639,7 +639,7 @@ describe("buildCesiumTerrainRuntime", () => {
     runtime.dispose();
   });
 
-  it("replaces a coarse parent with mixed source and flat children", async () => {
+  it("keeps a coarse parent whole when a child quadrant has no data", async () => {
     const parentId = { level: 10, x: 532, y: 218 };
     const sourceChildId = { level: 11, x: 1_064, y: 436 };
     const source = {
@@ -712,20 +712,18 @@ describe("buildCesiumTerrainRuntime", () => {
     });
 
     await expect(runtime.ready).resolves.toBe(true);
-    expect(source.requestTile).toHaveBeenCalledTimes(2);
-    expect(source.requestTile).toHaveBeenCalledWith(sourceChildId);
-    expect(source.requestTile).toHaveBeenCalledWith({
-      level: 11,
-      x: 1_064,
-      y: 437,
-    });
+    // Splitting would trade the parent's real ground for sea-level plates in
+    // the quadrants without data - a hole in the view, and up-sun a hole in
+    // the shadow. The parent stays whole; refinement ends at the
+    // availability boundary.
+    expect(source.requestTile).toHaveBeenCalledTimes(1);
+    expect(source.requestTile).toHaveBeenCalledWith(parentId);
     expect(
       runtime.root.children.some((child) => child.name.includes("source:10/"))
-    ).toBe(false);
+    ).toBe(true);
     expect(
-      runtime.root.children.filter((child) => child.name.includes("flat:11/"))
-    ).toHaveLength(2);
-    expect(runtime.root.children).toHaveLength(5);
+      runtime.root.children.some((child) => child.name.includes("flat:11/"))
+    ).toBe(false);
 
     runtime.dispose();
   });

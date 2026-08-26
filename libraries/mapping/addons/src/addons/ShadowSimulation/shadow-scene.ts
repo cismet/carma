@@ -43,6 +43,13 @@ const FALLBACK_SHADOW_AREA_METERS = 900;
  * term but receives no mapped shadow.
  */
 const MAX_RECEIVER_DISTANCE_METERS = 4_000;
+/**
+ * The absolute elevation band the terrain shadow coverage sweeps, metres
+ * above sea level. A regional constant on purpose, see
+ * updateTerrainShadowCoverage: Wuppertal's ground lies between roughly 100
+ * and 350 m, with headroom on both sides.
+ */
+const COVERAGE_ELEVATION_BAND_METERS: readonly [number, number] = [0, 500];
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
@@ -905,6 +912,7 @@ export const buildShadowSimulationScene = (
   const coverageBasisY = new THREE.Vector3();
   const coverageBasisZ = new THREE.Vector3();
   const coverageRotation = new THREE.Matrix4();
+  const coverageProbe = new THREE.Vector3();
   const updateTerrainShadowCoverage = () => {
     if (!terrainRuntime) return;
     const points = sharedBinding.receiverWorldPoints;
@@ -920,32 +928,55 @@ export const buildShadowSimulationScene = (
     }
     coverageBasisY.crossVectors(coverageBasisZ, coverageBasisX);
 
+    // The sweep deliberately spans a fixed regional elevation band instead of
+    // the elevation range of the currently visible tiles. The visible range
+    // depends on which tiles are loaded, and a sweep built from it would
+    // reshape with every arriving batch, superseding the selection that
+    // requested them - the tile set never settles. A static band keeps the
+    // sweep a pure function of view and sun.
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     for (const point of points) {
-      const x = point.dot(coverageBasisX);
-      const y = point.dot(coverageBasisY);
-      const z = point.dot(coverageBasisZ);
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      if (z < minZ) minZ = z;
-      if (z > maxZ) maxZ = z;
+      for (const elevation of COVERAGE_ELEVATION_BAND_METERS) {
+        coverageProbe.set(point.x, elevation, point.z);
+        const x = coverageProbe.dot(coverageBasisX);
+        const y = coverageProbe.dot(coverageBasisY);
+        const z = coverageProbe.dot(coverageBasisZ);
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        if (z < minZ) minZ = z;
+        if (z > maxZ) maxZ = z;
+      }
     }
-    const reliefMeters = Math.max(
-      0,
-      sharedBinding.maximumElevationMeters - sharedBinding.minimumElevationMeters
-    );
     const elevationSine = Math.max(0.04, coverageBasisZ.y);
     const casterReachMeters = THREE.MathUtils.clamp(
-      (reliefMeters + CASTER_RELIEF_MARGIN_METERS) / elevationSine + 50,
+      (COVERAGE_ELEVATION_BAND_METERS[1] -
+        COVERAGE_ELEVATION_BAND_METERS[0] +
+        CASTER_RELIEF_MARGIN_METERS) /
+        elevationSine +
+        50,
       50,
       10_000
     );
     maxZ += casterReachMeters;
 
+    // Coarsely quantized on purpose. Streaming tiles widen the visible
+    // elevation range, the range feeds this box, and an unquantized box would
+    // supersede the terrain's in-flight tile batch on every arrival - a
+    // livelock in which no batch ever finishes. On a 50 m grid the box only
+    // moves for changes that matter at coverage scale.
+    const gridStep = 50;
+    const snapDown = (value: number) => Math.floor(value / gridStep) * gridStep;
+    const snapUp = (value: number) => Math.ceil(value / gridStep) * gridStep;
+    minX = snapDown(minX);
+    maxX = snapUp(maxX);
+    minY = snapDown(minY);
+    maxY = snapUp(maxY);
+    minZ = snapDown(minZ);
+    maxZ = snapUp(maxZ);
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
     terrainCoverageCamera.position
@@ -968,6 +999,14 @@ export const buildShadowSimulationScene = (
       sharedBinding.shadowMode,
       sharedBinding.shadowQuality
     );
+    if (import.meta.env?.DEV && typeof window !== "undefined") {
+      // Console handle for checking what the sweep actually covers.
+      (window as unknown as Record<string, unknown>).__carmaShadowCoverage = {
+        camera: terrainCoverageCamera,
+        casterReachMeters,
+        mapSize,
+      };
+    }
     terrainRuntime.setShadowCameras([
       {
         camera: terrainCoverageCamera,
