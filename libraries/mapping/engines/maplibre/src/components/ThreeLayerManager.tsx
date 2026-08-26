@@ -12,6 +12,7 @@ import {
   buildLatheInstances,
   buildLoftMeshes,
   buildExtrusionMeshes,
+  buildLod2Meshes,
   DEFAULT_BUILDING_OPACITY,
   featureBuildingColors,
   ensureProfiles,
@@ -22,6 +23,8 @@ import type {
   BuildingFeature,
   Carma3dConfig,
   ColorMapping,
+  Lod2Building,
+  Lod2RoofFace,
   ThreePerfData,
   MappedFeature,
   FactoryStats,
@@ -258,7 +261,11 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
 
-    const isExtrusion = config.renderMode === "extrusion";
+    const isLod2 = config.renderMode === "lod2";
+    // Both building modes want the same surroundings: a footprint layer, ground
+    // read from the terrain, and the same layer, selection and idle-sync
+    // plumbing. What the roof is built from is decided inside syncBuildings.
+    const isExtrusion = config.renderMode === "extrusion" || isLod2;
 
     const rebuildFn = useLoft
       ? (
@@ -382,7 +389,7 @@ export function ThreeLayerManager({
       }
 
       const layerId = isExtrusion
-        ? `3d-extrusion-${config.sourceId}`
+        ? `3d-${isLod2 ? "lod2" : "extrusion"}-${config.sourceId}`
         : useLoft ? "3d-generic-loft" : "3d-generic";
       const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
@@ -441,7 +448,18 @@ export function ThreeLayerManager({
       const wallColorField = config.fields?.wallColorField;
       const roofColorMap = config.roofColorMap;
       const wallColorMap = config.wallColorMap;
-      if (!heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
+      // Where the roof surfaces live and what they call the plane they lie in.
+      // Defaults are the names the LoD2 tileset uses.
+      const roofSourceLayer = config.roofSourceLayer ?? "roof";
+      const parentField = config.fields?.roofParentField ?? "parent_fid";
+      const groundField = config.fields?.groundField ?? "z_ground";
+      const gradEField = config.fields?.planeGradEField ?? "grad_e";
+      const gradNField = config.fields?.planeGradNField ?? "grad_n";
+      const zRefField = config.fields?.planeZRefField ?? "z_ref";
+      // In lod2 mode the height decides nothing about the shape, which comes
+      // from the roof surfaces. It is still read where it is configured,
+      // because the raycast grid needs a rough height per building.
+      if (!isLod2 && !heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
 
       const hasTerrain = map.getTerrain() != null;
 
@@ -480,10 +498,66 @@ export function ThreeLayerManager({
 
       // Logging moved to end-of-sync summary (only on change)
 
+      // The roof surfaces, gathered per footprint.
+      //
+      // Deduplicated by feature id first. The tileset is cut without clipping,
+      // so a surface that straddles a tile boundary comes back once per tile it
+      // touches; left in, every one of its edges would be counted twice and the
+      // outline hashing in the factory would take the outside for the inside
+      // and leave the walls off.
+      const facesByParent = new Map<string, Lod2RoofFace[]>();
+      if (isLod2) {
+        const seenRoofIds = new Set<string | number>();
+        const rawRoofs = map.querySourceFeatures(config.sourceId, {
+          sourceLayer: roofSourceLayer,
+        });
+        for (const rf of rawRoofs) {
+          if (rf.id != null) {
+            if (seenRoofIds.has(rf.id)) continue;
+            seenRoofIds.add(rf.id);
+          }
+          const parent = rf.properties?.[parentField];
+          if (parent == null) continue;
+          const gradE = Number(rf.properties?.[gradEField]);
+          const gradN = Number(rf.properties?.[gradNField]);
+          const zRef = Number(rf.properties?.[zRefField]);
+          if (!Number.isFinite(gradE) || !Number.isFinite(gradN) || !Number.isFinite(zRef)) {
+            continue;
+          }
+
+          const geom = rf.geometry;
+          const rings: number[][][] = [];
+          if (geom?.type === "Polygon") {
+            rings.push(geom.coordinates[0] as number[][]);
+          } else if (geom?.type === "MultiPolygon") {
+            for (const poly of geom.coordinates) {
+              rings.push(poly[0] as number[][]);
+            }
+          } else {
+            continue;
+          }
+
+          const key = String(parent);
+          let list = facesByParent.get(key);
+          if (!list) {
+            list = [];
+            facesByParent.set(key, list);
+          }
+          // Only the outer ring: a hole in a roof surface is a light well or a
+          // courtyard, and the surfaces around it already bound it.
+          for (const ring of rings) {
+            if (!ring || ring.length < 4) continue;
+            list.push({ ring, gradE, gradN, zRef });
+          }
+        }
+      }
+
       // Group tile fragments by feature ID, keeping raw feature refs for _sourceFeatures
       interface BldgGroup {
         fragments: number[][][];
         height: number;
+        /** the footprint's ground height above sea level; lod2 mode only */
+        zGround: number;
         isPublic: boolean;
         /** hex strings straight off the feature; the factory parses them */
         roofColor: string | null;
@@ -494,8 +568,12 @@ export function ThreeLayerManager({
       const groups = new Map<string | number, BldgGroup>();
 
       for (const f of raw) {
-        const height = (f.properties?.[heightField] as number) ?? 0;
-        if (height <= 0) continue;
+        const height = heightField
+          ? ((f.properties?.[heightField] as number) ?? 0)
+          : 0;
+        // In lod2 mode the height is only used for the raycast grid, so a
+        // building without one is still worth drawing.
+        if (!isLod2 && height <= 0) continue;
 
         const geom = f.geometry;
         const polyRings: number[][][] = [];
@@ -519,6 +597,7 @@ export function ThreeLayerManager({
             groups.set(fid, {
               fragments: [ring],
               height,
+              zGround: Number(f.properties?.[groundField]) || 0,
               isPublic: f.properties?.[publicField] === "1",
               roofColor: resolveFeatureColor(
                 f.properties,
@@ -559,12 +638,63 @@ export function ThreeLayerManager({
 
       // Build features: union multi-fragment buildings, pass single-fragment ones through
       const buildings: BuildingFeature[] = [];
+      const lod2Buildings: Lod2Building[] = [];
       // MappedFeature entries for the spatial grid
       const mappedFeatures: MappedFeature[] = [];
       for (let gi = 0; gi < groupEntries.length; gi++) {
         const [, g] = groupEntries[gi];
         const sourceIndex = gi;
         const ringsToExtrude = g.fragments;
+
+        if (isLod2) {
+          // One entry per building, not per fragment: the roof surfaces are the
+          // geometry, and they are already gathered for the whole footprint.
+          const faces =
+            facesByParent.get(String(g.rawFeature.properties?.fid ?? groupEntries[gi][0])) ??
+            facesByParent.get(String(groupEntries[gi][0]));
+          if (faces && faces.length > 0) {
+            const ring = ringsToExtrude[0];
+            let cLng = 0;
+            let cLat = 0;
+            for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
+            cLng /= ring.length;
+            cLat /= ring.length;
+            const elevation = elevationAt(cLng, cLat);
+
+            lod2Buildings.push({
+              faces,
+              zGround: g.zGround,
+              elevation,
+              isPublic: g.isPublic,
+              roofColor: g.roofColor,
+              wallColor: g.wallColor,
+              sourceIndex,
+            });
+
+            let maxR = 0;
+            for (const pt of ring) {
+              const dLng = (pt[0] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
+              const dLat = (pt[1] - cLat) * 110540;
+              const r = Math.sqrt(dLng * dLng + dLat * dLat);
+              if (r > maxR) maxR = r;
+            }
+            mappedFeatures.push({
+              type: "building",
+              lng: cLng,
+              lat: cLat,
+              elevation,
+              heightVar: 0,
+              diameterVar: 0,
+              rotation: 0,
+              color: null,
+              ring: null,
+              heightMax: Math.max(g.height, 3),
+              radiusMax: Math.max(maxR, 5),
+              _sourceIndex: sourceIndex,
+            });
+          }
+          continue;
+        }
 
         for (const ring of ringsToExtrude) {
           let cLng = 0;
@@ -611,7 +741,8 @@ export function ThreeLayerManager({
 
       // Skip rebuild if no buildings found and we're above building minzoom
       // (tiles still loading). Below minzoom 14, clear buildings explicitly.
-      if (buildings.length === 0) {
+      const builtCount = isLod2 ? lod2Buildings.length : buildings.length;
+      if (builtCount === 0) {
         if (map.getZoom() >= 14) return;
       }
 
@@ -622,14 +753,24 @@ export function ThreeLayerManager({
       // colours the features carry when the layer names the fields for them,
       // and the public/default pair when it does not; `buildingColor` below
       // overrides either
-      buildExtrusionMeshes(
-        buildings,
-        layer.scene,
-        layer._originMerc,
-        layer._mScale,
-        buildingColorsRef.current,
-        config.wallAngleThreshold,
-      );
+      if (isLod2) {
+        buildLod2Meshes(
+          lod2Buildings,
+          layer.scene,
+          layer._originMerc,
+          layer._mScale,
+          buildingColorsRef.current,
+        );
+      } else {
+        buildExtrusionMeshes(
+          buildings,
+          layer.scene,
+          layer._originMerc,
+          layer._mScale,
+          buildingColorsRef.current,
+          config.wallAngleThreshold,
+        );
+      }
 
       // Re-apply building appearance overrides after geometry rebuild
       const { color, opacity } = buildingAppearanceRef.current;
@@ -678,9 +819,9 @@ export function ThreeLayerManager({
         }
       }
 
-      if (buildings.length !== lastLoggedCountRef.current) {
-        lastLoggedCountRef.current = buildings.length;
-        console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
+      if (builtCount !== lastLoggedCountRef.current) {
+        lastLoggedCountRef.current = builtCount;
+        console.log("[3D-BUILDINGS]", builtCount, "buildings,",
           sourceFeatures.length, "sourceFeatures,",
           grid.size, "grid cells");
       }
@@ -832,7 +973,7 @@ export function ThreeLayerManager({
   buildingColorsRef.current = buildingColors;
 
   useEffect(() => {
-    if (!map || config.renderMode !== "extrusion") return;
+    if (!map || (config.renderMode !== "extrusion" && config.renderMode !== "lod2")) return;
     applyBuildingAppearance(layerRef.current, buildingColor, buildingOpacity);
     map.triggerRepaint();
   }, [map, config.renderMode, buildingColor, buildingOpacity]);

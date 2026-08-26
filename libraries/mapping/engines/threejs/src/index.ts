@@ -41,11 +41,14 @@ export type {
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
+export { buildLod2Meshes } from "./factories/Lod2Factory";
+export type { Lod2Building, Lod2RoofFace } from "./factories/Lod2Factory";
 export {
   buildExtrusionMeshes,
   DEFAULT_BUILDING_OPACITY,
   defaultBuildingColors,
   featureBuildingColors,
   type BuildingColors,
+  type BuildingColorSource,
 } from "./factories/ExtrusionFactory";
 export type { BuildingFeature } from "./factories/ExtrusionFactory";

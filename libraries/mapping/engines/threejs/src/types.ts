@@ -15,6 +15,33 @@ export interface FieldMapping {
   /** Property name for the public-building flag (e.g. "oeffentl"). Buildings only. */
   publicField?: string;
   /**
+   * Property on the footprint carrying its ground height above sea level.
+   * `renderMode: "lod2"` only; defaults to `"z_ground"`.
+   *
+   * The roof surfaces are given in heights above sea level, and the building is
+   * placed on the terrain by this one, so the two have to come from the same
+   * datum.
+   */
+  groundField?: string;
+  /**
+   * Property on a roof surface naming the footprint it belongs to, matched
+   * against the footprint's own feature id. `renderMode: "lod2"` only; defaults
+   * to `"parent_fid"`.
+   */
+  roofParentField?: string;
+  /**
+   * Properties carrying the plane a roof surface lies in: rise per metre east,
+   * rise per metre north, and the height at the surface outline's first vertex.
+   * `renderMode: "lod2"` only; default to `"grad_e"`, `"grad_n"` and `"z_ref"`.
+   *
+   * Naming them is not what switches the mode on, the way `heightField` is for
+   * extrusion; `renderMode` is. They are here so a tileset that calls them
+   * something else can still be read.
+   */
+  planeGradEField?: string;
+  planeGradNField?: string;
+  planeZRefField?: string;
+  /**
    * Property carrying the roof colour as a hex string, `"#rrggbb"` or
    * `"#rgb"`. A leading `#` is optional, since a column of bare hex is common.
    * Buildings only.
@@ -69,8 +96,20 @@ export interface Carma3dConfig {
   sourceLayer: string;
   /** Origin for the Three.js coordinate system. Falls back to VITE_THREEJS_ORIGIN env var, then Wuppertal. */
   mapCenter?: [number, number];
-  /** Rendering strategy: "extrusion" for buildings, "lathe"/"loft"/undefined for trees. */
-  renderMode?: "extrusion" | "lathe" | "loft";
+  /**
+   * Rendering strategy: "extrusion" for buildings, "lod2" for buildings whose
+   * real roof shapes are in the tiles, "lathe"/"loft"/undefined for trees.
+   */
+  renderMode?: "extrusion" | "lathe" | "loft" | "lod2";
+  /**
+   * Source layer holding the roof surfaces. `renderMode: "lod2"` only; defaults
+   * to `"roof"`.
+   *
+   * `sourceLayer` stays the footprints: that is what a click selects and what
+   * the info box describes. The roof surfaces are a second layer of the same
+   * source, joined to it by `fields.roofParentField`.
+   */
+  roofSourceLayer?: string;
   defaultType?: string;
   fields?: FieldMapping;
   trunkColors?: string[];
