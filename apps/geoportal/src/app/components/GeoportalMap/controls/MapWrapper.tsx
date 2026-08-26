@@ -37,6 +37,7 @@ import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state"
 import {
   MapFrameworkSwitcher,
   FullscreenControl,
+  LibreMapLocateControl,
   LibrePitchingCompass,
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
@@ -428,15 +429,23 @@ const MapWrapper = () => {
               <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
             </Control>
           )}
-          {!isObliquePreviewVisible && showLocatorButton && isMobile && (
+          {!isObliquePreviewVisible && showLocatorButton && showLibreMap && (
             <Control position="topleft" order={30}>
-              <RoutedMapLocateControl
-                tourRefLabels={tourRefLabels}
-                disabled={false}
-                nativeTooltip={true}
-              />
+              <LibreMapLocateControl disabled={false} nativeTooltip={true} />
             </Control>
           )}
+          {!isObliquePreviewVisible &&
+            showLocatorButton &&
+            !showLibreMap &&
+            isMobile && (
+              <Control position="topleft" order={30}>
+                <RoutedMapLocateControl
+                  tourRefLabels={tourRefLabels}
+                  disabled={false}
+                  nativeTooltip={true}
+                />
+              </Control>
+            )}
           {!isObliquePreviewVisible && visibleControls.home && (
             <Control position="topleft" order={40}>
               <Tooltip

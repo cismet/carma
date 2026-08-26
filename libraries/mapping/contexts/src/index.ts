@@ -10,6 +10,10 @@ export {
 
 export type { LibreContextType, GeoJsonMetadata } from "./LibreContext";
 
+export { LocateContext, LocateProvider, useLocate } from "./LocateContext";
+
+export type { LocateContextType, LocateProblem } from "./LocateContext";
+
 export {
   MapSelectionContext,
   MapSelectionProvider,

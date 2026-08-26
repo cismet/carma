@@ -23,7 +23,7 @@ import {
   InlineRouteOptions,
   type RouteOption,
 } from "@carma-mapping/routing";
-import { useLibreMapLocateControl } from "@carma-mapping/components";
+import { useLocate } from "@carma-mapping/contexts";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -56,9 +56,7 @@ export const FeatureInfobox = ({
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
-  const { currentPosition, setIsLocationActive } = useLibreMapLocateControl({
-    map: libreMap ?? null,
-  });
+  const { currentPosition, activate: activateLocation } = useLocate();
 
   const fetchRoutesWithLocation = useCallback(
     async (
@@ -102,16 +100,11 @@ export const FeatureInfobox = ({
       if (fromLocation) {
         fetchRoutesWithLocation(fromLocation, routeParams.to);
       } else {
-        setIsLocationActive(true);
+        activateLocation();
         pendingDestinationRef.current = routeParams.to;
       }
     },
-    [
-      currentPosition,
-      setIsLocationActive,
-      fetchRoutesWithLocation,
-      routeModalOpen,
-    ]
+    [currentPosition, activateLocation, fetchRoutesWithLocation, routeModalOpen]
   );
 
   const handleSelectRoute = (route: RouteOption) => {
