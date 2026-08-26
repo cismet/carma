@@ -39,8 +39,6 @@ const DEFAULT_CLASS_NAMES: ShapeToolbarClassNames = {
 const BUFFER_MIN = -100;
 const BUFFER_MAX = 500;
 const BUFFER_STEP = 1;
-/** without it the width the shape was drawn at cannot be found again by hand */
-const BUFFER_MARKS = { 0: "0" };
 
 export type ShapeToolbarProps = {
   shapes: DrawShape[];
@@ -130,13 +128,12 @@ export const ShapeToolbar = ({
           min={sliderMin}
           max={sliderMax}
           step={BUFFER_STEP}
-          marks={BUFFER_MARKS}
           value={bufferWidth}
           onChange={(value) => onBufferWidthChange?.(value)}
         />
         <InputNumber
           size="small"
-          className="w-24"
+          className="w-24 [&_input]:text-center"
           min={Math.max(floor, MIN_BUFFER_WIDTH)}
           max={MAX_BUFFER_WIDTH}
           step={BUFFER_STEP}
