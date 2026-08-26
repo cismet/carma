@@ -1520,7 +1520,26 @@ export const LibreMap = ({
           // Save terrain state before setting style
           const currentTerrain = map.current?.getTerrain();
 
-          map.current?.setStyle(style);
+          // Terrain must not show up as a change in the style diff. MapLibre
+          // 5.18.0 applies that one operation with the Style as `this` instead
+          // of the Map (`Style._getOperationsToPerform`, case 'setTerrain'),
+          // so it throws on `this.style._checkLoaded()`, `setState` gives up,
+          // and `setStyle` falls back to rebuilding the whole style: every
+          // source reloaded, the map repainted from nothing, for what would
+          // otherwise be a single `setPaintProperty`. The styles built here
+          // never name a terrain while the map may well have one on, which put
+          // that command into every single diff. The map's terrain is what
+          // counts anyway, restored further down, so the style is handed
+          // exactly what the map already has.
+          let styleForMap = style;
+          if (currentTerrain) {
+            styleForMap = { ...style, terrain: currentTerrain };
+          } else if (style.terrain) {
+            const { terrain: _unusedTerrain, ...withoutTerrain } = style;
+            styleForMap = withoutTerrain as StyleSpecification;
+          }
+
+          map.current?.setStyle(styleForMap);
           if (debugLog)
             console.log("[LAYER_MODE] merged: derived style", style);
 
@@ -1675,6 +1694,10 @@ export const LibreMap = ({
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
+              // Only when it was actually lost. Setting the same terrain again
+              // builds a new Terrain and RenderToTexture and fires `terrain`,
+              // which every 3D layer takes as a reason to rebuild.
+              if (map.current?.getTerrain()) return;
               const terrainSrcId = WUPPERTAL_TERRAIN_SOURCE_ID;
               if (terrainSrcId && map.current?.getSource(terrainSrcId)) {
                 map.current.setTerrain(currentTerrain);
