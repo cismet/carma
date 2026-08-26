@@ -661,10 +661,26 @@ export function ThreeLayerManager({
             cLat /= ring.length;
             const elevation = elevationAt(cLng, cLat);
 
+            // What the building is measured against.
+            //
+            // With terrain on, the survey's own heights are the ones that
+            // count: the 3D tileset of the same model is drawn at absolute
+            // heights, and so is the Cesium view, while anchoring a building
+            // to the DEM instead shifts it against both by however much the
+            // terrain model and the survey disagree about the ground under it.
+            // Handing `zGround` in as the elevation makes `elevation + (z -
+            // zGround)` come out at plain `z`, so the two draw the same
+            // building in the same place.
+            //
+            // Without terrain there is no ground to be absolute against: the
+            // map is flat at zero and the building is dropped onto it, which
+            // is what `elevationAt` returns there.
+            const groundReference = hasTerrain ? g.zGround : elevation;
+
             lod2Buildings.push({
               faces,
               zGround: g.zGround,
-              elevation,
+              elevation: groundReference,
               isPublic: g.isPublic,
               roofColor: g.roofColor,
               wallColor: g.wallColor,
