@@ -80,6 +80,11 @@ export type CesiumTerrainShadowView = Readonly<{
 export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
   setVisible: (visible: boolean) => void;
+  /**
+   * Freeze tile selection while a camera gesture is in flight. The loaded
+   * meshes keep drawing; the next update after the freeze lifts re-selects.
+   */
+  setInteractive: (active: boolean) => void;
   setShadowCameras: (
     cameras: readonly (Camera | CesiumTerrainShadowView)[]
   ) => void;
@@ -500,6 +505,17 @@ export const buildCesiumTerrainRuntime = (
   let selectionGeneration = 0;
   let requestedSignature = "";
   let activeViewportElevationSignature = "";
+  // What the last full LoD selection was computed from. `buildSelection` walks
+  // and sorts every candidate tile, which is far too expensive to repeat on
+  // every rendered frame while nothing moved; this cheap signature of its
+  // inputs decides whether it runs at all.
+  let selectionInputSignature = "";
+  let interactive = false;
+  // Quantized fingerprint of the shadow cameras. The shadow fit follows the
+  // terrain it shades, so an unquantized feedback (camera -> selection ->
+  // tiles -> elevation range -> camera ...) would never settle; rounding to a
+  // couple of metres makes it converge.
+  let shadowViewsSignature = "";
   let resolveReady: (loaded: boolean) => void = () => undefined;
   let readySettled = false;
   const ready = new Promise<boolean>((resolve) => {
@@ -580,12 +596,18 @@ export const buildCesiumTerrainRuntime = (
     );
   };
 
-  const getOrthographicShadowScreenSpaceError = (
-    terrainSource: CesiumTerrainTileSource,
+  /**
+   * Pixels one metre covers in the given orthographic shadow buffer.
+   *
+   * Tile-independent by construction, so it is computed once per selection
+   * and multiplied with each tile's level error. Doing the matrix work per
+   * candidate used to dominate the whole selection: `updateMatrixWorld(true)`
+   * on the root recursed over every loaded terrain mesh, per tile.
+   */
+  const getOrthographicPixelsPerMeter = (
     camera: Camera,
     pixelWidth: number,
-    pixelHeight: number,
-    id: CesiumTerrainTileId
+    pixelHeight: number
   ) => {
     if (
       !(camera as Camera & { isOrthographicCamera?: boolean })
@@ -604,13 +626,10 @@ export const buildCesiumTerrainRuntime = (
         (elements[offset] * pixelWidth) / 2,
         (elements[offset + 1] * pixelHeight) / 2
       );
-    const pixelsPerMeter = Math.max(
+    return Math.max(
       pixelsPerMeterForAxis(0),
       pixelsPerMeterForAxis(4),
       pixelsPerMeterForAxis(8)
-    );
-    return (
-      terrainSource.getLevelMaximumGeometricError(id.level) * pixelsPerMeter
     );
   };
 
@@ -876,7 +895,13 @@ export const buildCesiumTerrainRuntime = (
     const viewportBounds = getViewportBounds(frame.map);
     const shadowCoverages = shadowViews.flatMap((view) => {
       const bounds = cameraFrustumBounds(view.camera, root, origin, meterScale);
-      return bounds ? [{ ...view, bounds }] : [];
+      if (!bounds) return [];
+      const pixelsPerMeter = getOrthographicPixelsPerMeter(
+        view.camera,
+        view.shadowMapSize?.width ?? frame.viewport.x,
+        view.shadowMapSize?.height ?? frame.viewport.y
+      );
+      return [{ ...view, bounds, pixelsPerMeter }];
     });
     const shadowBounds = shadowCoverages.map(({ bounds }) => bounds);
     const coverageBounds = shadowBounds.reduce(
@@ -902,12 +927,18 @@ export const buildCesiumTerrainRuntime = (
           }
           return [{ id, kind }];
         });
+    const selPerf = (globalThis as unknown as Record<string, unknown>)
+      .__carmaTerrainSelPerf as
+      | { runs: number; rootMs: number; refineMs: number; roots: number; picked: number }
+      | undefined;
+    const selT0 = performance.now();
     let rootLevel = minimumLevel;
     let rootEntries = getRootEntries(rootLevel);
     while (rootEntries.length > maxSelectionTiles && rootLevel > 0) {
       rootLevel -= 1;
       rootEntries = getRootEntries(rootLevel);
     }
+    const selT1 = performance.now();
 
     const selected = new Map(
       rootEntries.map((entry) => [terrainSelectionKey(entry), entry])
@@ -920,18 +951,16 @@ export const buildCesiumTerrainRuntime = (
           errorTargetPixels
         : 0;
       const shadowTargetPixels = errorTargetPixels * 2 ** shadowLevelOffset;
+      const levelErrorMeters = terrainSource.getLevelMaximumGeometricError(
+        entry.id.level
+      );
       const shadowErrorRatio = shadowCoverages.reduce(
         (maximum, coverage) =>
           boundsIntersect(bounds, coverage.bounds)
             ? Math.max(
                 maximum,
-                getOrthographicShadowScreenSpaceError(
-                  terrainSource,
-                  coverage.camera,
-                  coverage.shadowMapSize?.width ?? frame.viewport.x,
-                  coverage.shadowMapSize?.height ?? frame.viewport.y,
-                  entry.id
-                ) / shadowTargetPixels
+                (levelErrorMeters * coverage.pixelsPerMeter) /
+                  shadowTargetPixels
               )
             : maximum,
         0
@@ -944,10 +973,81 @@ export const buildCesiumTerrainRuntime = (
             : Math.max(viewportErrorRatio, shadowErrorRatio),
       };
     };
-    const candidates = rootEntries.map(toCandidate);
-    while (candidates.length > 0) {
-      candidates.sort((left, right) => left.errorRatio - right.errorRatio);
-      const candidate = candidates.pop()!;
+    // A binary max-heap on errorRatio. The refinement loop pops the worst
+    // tile, splits it and pushes its children; re-sorting the whole array on
+    // every iteration made the selection quadratic and cost hundreds of
+    // milliseconds once a shadow camera joined the coverage.
+    const heap = rootEntries.map(toCandidate);
+    const heapSwap = (a: number, b: number) => {
+      const held = heap[a];
+      heap[a] = heap[b];
+      heap[b] = held;
+    };
+    const heapPush = (candidate: TerrainCandidate) => {
+      heap.push(candidate);
+      let index = heap.length - 1;
+      while (index > 0) {
+        const parent = (index - 1) >> 1;
+        if (heap[parent].errorRatio >= heap[index].errorRatio) break;
+        heapSwap(parent, index);
+        index = parent;
+      }
+    };
+    const heapPop = (): TerrainCandidate => {
+      const top = heap[0];
+      const last = heap.pop()!;
+      if (heap.length > 0) {
+        heap[0] = last;
+        let index = 0;
+        for (;;) {
+          const left = 2 * index + 1;
+          const right = left + 1;
+          let largest = index;
+          if (
+            left < heap.length &&
+            heap[left].errorRatio > heap[largest].errorRatio
+          ) {
+            largest = left;
+          }
+          if (
+            right < heap.length &&
+            heap[right].errorRatio > heap[largest].errorRatio
+          ) {
+            largest = right;
+          }
+          if (largest === index) break;
+          heapSwap(largest, index);
+          index = largest;
+        }
+      }
+      return top;
+    };
+    for (let index = (heap.length >> 1) - 1; index >= 0; index -= 1) {
+      // heapify the roots in place
+      let current = index;
+      for (;;) {
+        const left = 2 * current + 1;
+        const right = left + 1;
+        let largest = current;
+        if (
+          left < heap.length &&
+          heap[left].errorRatio > heap[largest].errorRatio
+        ) {
+          largest = left;
+        }
+        if (
+          right < heap.length &&
+          heap[right].errorRatio > heap[largest].errorRatio
+        ) {
+          largest = right;
+        }
+        if (largest === current) break;
+        heapSwap(largest, current);
+        current = largest;
+      }
+    }
+    while (heap.length > 0) {
+      const candidate = heapPop();
       if (candidate.errorRatio <= 1) break;
       if (candidate.entry.id.level >= maximumLevel) continue;
       const children = getRelevantChildren(
@@ -961,10 +1061,17 @@ export const buildCesiumTerrainRuntime = (
       selected.delete(terrainSelectionKey(candidate.entry));
       for (const child of children) {
         selected.set(terrainSelectionKey(child), child);
-        candidates.push(toCandidate(child));
+        heapPush(toCandidate(child));
       }
     }
 
+    if (selPerf) {
+      selPerf.runs += 1;
+      selPerf.rootMs += selT1 - selT0;
+      selPerf.refineMs += performance.now() - selT1;
+      selPerf.roots += rootEntries.length;
+      selPerf.picked += selected.size;
+    }
     const entries = [...selected.values()];
     return {
       entries,
@@ -982,6 +1089,58 @@ export const buildCesiumTerrainRuntime = (
         .sort()
         .join("|"),
     };
+  };
+
+  const quantize = (value: number, step: number) =>
+    Math.round(value / step) * step;
+
+  const computeShadowViewsSignature = (
+    views: readonly TerrainShadowView[]
+  ): string =>
+    views
+      .map(({ camera, shadowMapSize }) => {
+        const ortho = camera as unknown as {
+          left?: number;
+          right?: number;
+          top?: number;
+          bottom?: number;
+          near?: number;
+          far?: number;
+        };
+        const position = camera.position;
+        return [
+          quantize(position.x, 2),
+          quantize(position.y, 2),
+          quantize(position.z, 2),
+          quantize(ortho.left ?? 0, 2),
+          quantize(ortho.right ?? 0, 2),
+          quantize(ortho.top ?? 0, 2),
+          quantize(ortho.bottom ?? 0, 2),
+          quantize(ortho.near ?? 0, 4),
+          quantize(ortho.far ?? 0, 4),
+          shadowMapSize ? `${shadowMapSize.width}x${shadowMapSize.height}` : "v",
+        ].join(",");
+      })
+      .join("|");
+
+  const computeSelectionInputSignature = (
+    frame: SharedThreeSceneFrame
+  ): string => {
+    // The synthesized LoD camera already encodes centre, zoom, bearing and
+    // pitch; quantizing its pose keeps a slow pan from re-selecting on every
+    // frame while staying independent of the host map's API surface.
+    const { position, quaternion } = frame.lodCamera;
+    return [
+      quantize(position.x, 5),
+      quantize(position.y, 5),
+      quantize(position.z, 5),
+      quantize(quaternion.x, 0.005),
+      quantize(quaternion.y, 0.005),
+      quantize(quaternion.z, 0.005),
+      quantize(quaternion.w, 0.005),
+      `${frame.viewport.x}x${frame.viewport.y}`,
+      shadowViewsSignature,
+    ].join(";");
   };
 
   const updateViewportCoverage = (frame: SharedThreeSceneFrame) => {
@@ -1096,12 +1255,27 @@ export const buildCesiumTerrainRuntime = (
       if (disposed || !root.visible) return;
       updateViewportCoverage(frame);
       if (!source) return;
+      // The full selection walk is only worth its cost when something it
+      // depends on has moved: the map camera (quantized so a slow pan
+      // re-selects in steps rather than per frame) or the shadow fit.
+      if (interactive) return;
+      const inputSignature = computeSelectionInputSignature(frame);
+      if (inputSignature === selectionInputSignature) return;
       const selection = buildSelection(source, frame);
+      selectionInputSignature = inputSignature;
       if (selection.signature === requestedSignature) {
         return;
       }
       requestedSignature = selection.signature;
       loadSelection(source, selection);
+    },
+    setInteractive(active) {
+      if (interactive === active) return;
+      interactive = active;
+      if (!active) {
+        selectionInputSignature = "";
+        map?.triggerRepaint();
+      }
     },
     setVisible(visible) {
       root.visible = visible;
@@ -1109,6 +1283,7 @@ export const buildCesiumTerrainRuntime = (
         for (const record of meshes.values()) record.node.visible = false;
       } else {
         requestedSignature = "";
+        selectionInputSignature = "";
       }
       map?.triggerRepaint();
     },
@@ -1123,6 +1298,11 @@ export const buildCesiumTerrainRuntime = (
               ),
             }
       );
+      const nextSignature = computeShadowViewsSignature(shadowViews);
+      if (nextSignature !== shadowViewsSignature) {
+        shadowViewsSignature = nextSignature;
+        selectionInputSignature = "";
+      }
     },
     setShadowCamera(camera, shadowMapSize) {
       shadowViews = camera
@@ -1135,6 +1315,11 @@ export const buildCesiumTerrainRuntime = (
             },
           ]
         : [];
+      const nextSignature = computeShadowViewsSignature(shadowViews);
+      if (nextSignature !== shadowViewsSignature) {
+        shadowViewsSignature = nextSignature;
+        selectionInputSignature = "";
+      }
     },
     setMaterialColor(color) {
       material.color.set(color);

@@ -747,6 +747,10 @@ const ShadowSimulationRuntime = ({
   state: ShadowSimulationState;
 }) => {
   const shadowScene = useRef<ShadowSimulationScene | null>(null);
+  // Bumped when the scene is (re)built. The build can be deferred until the
+  // map's style has loaded, and by then the update effects below have already
+  // run against a null ref; the revision runs them again for the new scene.
+  const [sceneRevision, setSceneRevision] = useState(0);
   const solarPosition = useMemo(
     () => getSolarPosition(state.selection, location),
     [location, state.selection]
@@ -754,54 +758,76 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!libreMap || !state.enabled) return;
-    const scene = buildShadowSimulationScene(libreMap, {
-      shadowAreaMeters,
-      terrain,
-    });
-    shadowScene.current = scene;
+    // The simulation can be switched on before the map's style has loaded
+    // (URL param or persisted state hydrating at startup). `map.getLight()`
+    // throws until the style's light exists, so wait for the style instead of
+    // crashing the tree, and build the moment it is there.
+    let scene: ShadowSimulationScene | null = null;
+    const styleReady = () =>
+      (libreMap as unknown as { style?: { light?: unknown } | null }).style
+        ?.light != null;
+    const tryBuild = () => {
+      if (scene || !styleReady()) return;
+      libreMap.off("styledata", tryBuild);
+      console.debug("[SHADOW] building shadow scene");
+      scene = buildShadowSimulationScene(libreMap, {
+        shadowAreaMeters,
+        terrain,
+      });
+      shadowScene.current = scene;
+      setSceneRevision((revision) => revision + 1);
+    };
+    tryBuild();
+    if (!scene) {
+      console.debug("[SHADOW] style not ready, waiting for styledata");
+      libreMap.on("styledata", tryBuild);
+    }
     return () => {
+      libreMap.off("styledata", tryBuild);
       shadowScene.current = null;
-      scene.dispose();
+      if (scene) console.debug("[SHADOW] disposing shadow scene");
+      scene?.dispose();
+      scene = null;
     };
   }, [libreMap, shadowAreaMeters, state.enabled, terrain]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateSolarPosition(solarPosition);
-  }, [solarPosition, state.enabled]);
+  }, [solarPosition, state.enabled, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateShadowQuality(
       state.shadowQuality ?? DEFAULT_SHADOW_QUALITY
     );
-  }, [state.enabled, state.shadowQuality]);
+  }, [state.enabled, state.shadowQuality, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateShadowMode(
       state.shadowMode ?? DEFAULT_SHADOW_MODE
     );
-  }, [state.enabled, state.shadowMode]);
+  }, [state.enabled, state.shadowMode, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateShadowIntensity(state.shadowIntensity ?? 0.45);
-  }, [state.enabled, state.shadowIntensity]);
+  }, [state.enabled, state.shadowIntensity, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateSunDebugVectorVisibility(
       state.showSunDebugVector ?? false
     );
-  }, [state.enabled, state.showSunDebugVector]);
+  }, [state.enabled, state.showSunDebugVector, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateShadowBufferDebugVisibility(
       state.showShadowBuffers ?? false
     );
-  }, [state.enabled, state.showShadowBuffers]);
+  }, [state.enabled, state.showShadowBuffers, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -809,14 +835,14 @@ const ShadowSimulationRuntime = ({
       useTransmittanceLut: state.useTransmittanceLut ?? true,
       useIrradianceLut: state.useSkyIrradianceLut ?? true,
     });
-  }, [state.enabled, state.useSkyIrradianceLut, state.useTransmittanceLut]);
+  }, [state.enabled, state.useSkyIrradianceLut, state.useTransmittanceLut, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateTerrainColor(
       state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR
     );
-  }, [state.enabled, state.terrainColor]);
+  }, [state.enabled, state.terrainColor, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -832,6 +858,7 @@ const ShadowSimulationRuntime = ({
     state.buildingsFullOpacity,
     state.enabled,
     state.useUniformBuildingColor,
+    sceneRevision,
   ]);
 
   return null;

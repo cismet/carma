@@ -26,6 +26,7 @@ import {
 import { TiledShadowController } from "./tiled-shadow-controller";
 import {
   clearShadowProjectionDebugSnapshot,
+  hasShadowProjectionDebugListeners,
   publishShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 
@@ -850,8 +851,15 @@ export const buildShadowSimulationScene = (
   };
   const genericBridges = new Map<GenericThreeLayer, GenericThreeShadowBridge>();
   let cachedElevationRange: readonly [number, number] | null = null;
+  // Whether a camera gesture is in flight. While it is, the shadow buffer is
+  // rendered at half resolution so the pan stays fluid; moveend restores it.
+  let mapInMotion = false;
+  // Set when meshes or materials may have appeared or vanished; the material
+  // sync walks the whole scene, which is not per-frame work.
+  let sceneMaterialsDirty = true;
+  let lastDebugPublishMs = 0;
 
-  const updateSharedShadowCoverage = () => {
+  const updateSharedShadowCoverage = (reevaluateSun = true) => {
     const mapCenter = map.getCenter();
     const centerElevation =
       terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0;
@@ -950,8 +958,20 @@ export const buildShadowSimulationScene = (
     sharedBinding.minimumElevationMeters = minimumElevation;
     sharedBinding.maximumElevationMeters = maximumElevation;
     sharedBinding.dirty = true;
-    if (latestSolarPosition) {
+    // Re-sampling the atmosphere and rebuilding the sun gizmo is only due
+    // when the sun itself may have changed: a new time, or a viewport that
+    // came to rest somewhere else. A frame-by-frame pan reuses the sample and
+    // only carries the anchor along, which is a handful of vector copies.
+    if (latestSolarPosition && (reevaluateSun || !latestAtmosphericSunlight)) {
       evaluateAtmosphericSunlightForMap(latestSolarPosition);
+    } else {
+      sharedBinding.lightTarget.position.copy(sharedBinding.center);
+      for (const sunLight of sharedBinding.controller.lights) {
+        sunLight.target.position.copy(sharedBinding.center);
+        sunLight.target.updateMatrixWorld(true);
+      }
+      sharedBinding.sunVector.root.position.copy(sharedBinding.center);
+      sharedBinding.sunVector.root.updateMatrixWorld(true);
     }
     map.triggerRepaint();
   };
@@ -971,7 +991,10 @@ export const buildShadowSimulationScene = (
         terrainRuntime?.setShadowCameras([]);
         return;
       }
-      sharedBinding.controller.syncSceneMaterials(sharedBinding.scene);
+      if (sceneMaterialsDirty) {
+        sceneMaterialsDirty = false;
+        sharedBinding.controller.syncSceneMaterials(sharedBinding.scene);
+      }
       const snapshot = sharedBinding.controller.update({
         camera: frame.lodCamera,
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
@@ -982,6 +1005,7 @@ export const buildShadowSimulationScene = (
         intensity: sharedBinding.sunIntensity,
         shadowIntensity: sharedBinding.shadowIntensity,
         quality: sharedBinding.shadowQuality,
+        interactive: mapInMotion,
       });
       sharedBinding.dirty = false;
       if (!snapshot) {
@@ -993,7 +1017,17 @@ export const buildShadowSimulationScene = (
       updateShadowBufferBorders(sharedBinding, snapshot.tileCount);
       const primary = snapshot?.tiles[0];
       const primaryCamera = sharedBinding.controller.lights[0].shadow.camera;
-      if (primary) {
+      // Publishing re-renders the debug panel's React tree; while nothing
+      // subscribes the snapshot has no reader and building it is pure
+      // overhead, and during a gesture 10 Hz is plenty for numbers meant for
+      // a human.
+      const nowMs = performance.now();
+      const publishDue = !mapInMotion || nowMs - lastDebugPublishMs >= 100;
+      const publishWanted =
+        sharedBinding.projectionDebugVisible ||
+        hasShadowProjectionDebugListeners(map);
+      if (primary && publishWanted && publishDue) {
+        lastDebugPublishMs = nowMs;
         publishShadowProjectionDebugSnapshot(map, {
           cameraRangeMeters: primaryCamera.position.distanceTo(
             sharedBinding.controller.lights[0].target.position
@@ -1025,18 +1059,22 @@ export const buildShadowSimulationScene = (
             : null,
         });
       }
-      terrainRuntime?.setShadowCameras(
-        sharedBinding.controller.lights
-          .slice(0, snapshot.tileCount)
-          .map(({ shadow }) => ({
-            camera: shadow.camera,
-            shadowMapSize: {
-              width: shadow.mapSize.x,
-              height: shadow.mapSize.y,
-            },
-          }))
-      );
-      map.triggerRepaint();
+      // While a gesture is in flight the fit follows the viewport frame by
+      // frame, and every hand-over would re-trigger the terrain's shadow
+      // refinement. The moveend refresh hands over the settled fit.
+      if (!mapInMotion) {
+        terrainRuntime?.setShadowCameras(
+          sharedBinding.controller.lights
+            .slice(0, snapshot.tileCount)
+            .map(({ shadow }) => ({
+              camera: shadow.camera,
+              shadowMapSize: {
+                width: shadow.mapSize.x,
+                height: shadow.mapSize.y,
+              },
+            }))
+        );
+      }
     },
     dispose: () => undefined,
   };
@@ -1051,9 +1089,20 @@ export const buildShadowSimulationScene = (
     refreshSharedShadowCoverage();
   };
 
-  map.on("move", updateSharedShadowCoverage);
-  map.on("moveend", refreshSharedShadowCoverage);
-  map.on("resize", updateSharedShadowCoverage);
+  const handleMoveStart = () => {
+    mapInMotion = true;
+    terrainRuntime?.setInteractive(true);
+  };
+  const handleMove = () => updateSharedShadowCoverage(false);
+  const handleMoveEnd = () => {
+    mapInMotion = false;
+    terrainRuntime?.setInteractive(false);
+    refreshSharedShadowCoverage();
+  };
+  map.on("movestart", handleMoveStart);
+  map.on("move", handleMove);
+  map.on("moveend", handleMoveEnd);
+  map.on("resize", handleMove);
   updateSharedShadowCoverage();
 
   if (terrainRuntime) {
@@ -1110,13 +1159,26 @@ export const buildShadowSimulationScene = (
       sceneLease.layer.getScene(),
       sharedBinding.controller
     );
+    sceneMaterialsDirty = true;
     sharedBinding.controller.invalidate();
     sharedBinding.dirty = true;
     refreshSharedShadowCoverage();
   };
+  // Tiles stream in one model at a time and every arrival announces itself.
+  // The handler walks the whole scene and refits the shadow coverage, so it
+  // runs once per lull rather than once per tile.
+  let contentChangeTimer = 0;
+  const scheduleSharedSceneContentChanged = () => {
+    if (disposed) return;
+    if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
+    contentChangeTimer = window.setTimeout(() => {
+      contentChangeTimer = 0;
+      handleSharedSceneContentChanged();
+    }, 120);
+  };
   const unsubscribeSharedSceneContent = subscribeSharedThreeSceneContent(
     map,
-    handleSharedSceneContentChanged
+    scheduleSharedSceneContentChanged
   );
   handleSharedSceneContentChanged();
 
@@ -1193,6 +1255,7 @@ export const buildShadowSimulationScene = (
     },
     updateShadowBufferDebugVisibility(visible) {
       sharedBinding.projectionDebugVisible = visible;
+      if (visible) sharedBinding.dirty = true;
       updateShadowBufferBorders(sharedBinding);
       map.triggerRepaint();
     },
@@ -1208,12 +1271,14 @@ export const buildShadowSimulationScene = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
       clearShadowProjectionDebugSnapshot(map);
       map.off("style.load", restoreLighting);
       map.off("styledata", ensureShadowBackground);
-      map.off("move", updateSharedShadowCoverage);
-      map.off("moveend", refreshSharedShadowCoverage);
-      map.off("resize", updateSharedShadowCoverage);
+      map.off("movestart", handleMoveStart);
+      map.off("move", handleMove);
+      map.off("moveend", handleMoveEnd);
+      map.off("resize", handleMove);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
       for (const runtime of getSharedThreeSceneRuntimes(map)) {

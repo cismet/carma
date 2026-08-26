@@ -340,9 +340,33 @@ export const buildSharedThreeSceneLayer = (
         lookTarget,
         viewport,
       };
+      // Dev-only frame profiling: window.__carmaSharedScenePerf accumulates
+      // per-phase millisecond totals, so a slow frame can be attributed from
+      // the console without a profiler.
+      const perf = import.meta.env?.DEV
+        ? ((window as unknown as Record<string, unknown>).__carmaSharedScenePerf ??=
+            { frames: 0, phases: {} as Record<string, number> })
+        : null;
+      const mark = perf
+        ? (() => {
+            let last = performance.now();
+            return (name: string) => {
+              const now = performance.now();
+              const phases = (perf as { phases: Record<string, number> }).phases;
+              phases[name] = (phases[name] ?? 0) + (now - last);
+              last = now;
+            };
+          })()
+        : null;
+      if (perf) (perf as { frames: number }).frames += 1;
       scene.updateMatrixWorld(true);
-      for (const runtime of runtimes.values()) runtime.update(frame);
+      mark?.("updateMatrixWorld1");
+      for (const runtime of runtimes.values()) {
+        runtime.update(frame);
+        mark?.(`runtime:${runtime.id}`);
+      }
       scene.updateMatrixWorld(true);
+      mark?.("updateMatrixWorld2");
 
       const currentDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
       const savedDepthRange: DepthRange = [
@@ -354,6 +378,7 @@ export const buildSharedThreeSceneLayer = (
       depthRangeBridge?.render(savedDepthRange, () => {
         renderer?.render(scene, renderCamera);
       });
+      mark?.("threeRender");
     },
 
     onRemove() {

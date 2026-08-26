@@ -30,7 +30,10 @@ import {
   solarPositionToSceneDirection,
 } from "./shadow-scene";
 import { evaluateAtmosphericSunlight } from "./atmospheric-sunlight";
-import { readShadowProjectionDebugSnapshot } from "./shadow-projection-debug-store";
+import {
+  readShadowProjectionDebugSnapshot,
+  subscribeShadowProjectionDebugSnapshot,
+} from "./shadow-projection-debug-store";
 import { getDaylightWindow, getSolarPosition } from "./solar-position";
 
 describe("shadow scene sun direction", () => {
@@ -506,6 +509,8 @@ describe("shadow scene lighting integration", () => {
     };
 
     const controller = buildShadowSimulationScene(map as never);
+    // Snapshots publish only while something listens, as the debug panel does.
+    subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
     controller.updateSolarPosition({
       instant: new Date("2026-06-21T10:00:00Z"),
       azimuthDegrees: 135,
@@ -673,6 +678,8 @@ describe("shadow scene lighting integration", () => {
     };
 
     const controller = buildShadowSimulationScene(map as never);
+    // Snapshots publish only while something listens, as the debug panel does.
+    subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
     controller.updateSolarPosition({
       instant: new Date("2026-06-21T10:00:00Z"),
       azimuthDegrees: 135,

@@ -57,6 +57,10 @@ export const subscribeShadowProjectionDebugSnapshot = (
   };
 };
 
+/** Whether anything is listening; publishing without a reader is waste. */
+export const hasShadowProjectionDebugListeners = (map: MaplibreMap): boolean =>
+  (entries.get(map)?.listeners.size ?? 0) > 0;
+
 export const publishShadowProjectionDebugSnapshot = (
   map: MaplibreMap,
   snapshot: ShadowProjectionDebugSnapshot
