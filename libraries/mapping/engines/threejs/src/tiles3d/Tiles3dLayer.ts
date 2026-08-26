@@ -44,6 +44,8 @@ const COVERAGE_ERROR_TARGET_PIXELS = 64;
 
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
+/** What the cache keeps after an eviction pass, as a share of the budget. */
+const CACHE_RETAIN_FRACTION = 0.75;
 
 /**
  * Where Draco-compressed payloads get their decoder.
@@ -289,10 +291,17 @@ export function buildTiles3dLayer(
         Math.floor(options.requestConcurrency ?? 6)
       );
       tiles.parseQueue.maxJobs = 4;
-      tiles.lruCache.maxBytesSize = Math.max(
+      const cacheBytes = Math.max(
         MINIMUM_CACHE_BYTES,
         Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
       );
+      tiles.lruCache.maxBytesSize = cacheBytes;
+      // Both ends have to move together. Downloading stops once the cache
+      // reports itself full, which is the ceiling, while eviction only releases
+      // unused tiles above the floor. Lowering the ceiling alone leaves it under
+      // the floor, and then nothing is downloaded or evicted again. The library
+      // ships the two at this ratio, 0.3 GB kept of a 0.4 GB ceiling.
+      tiles.lruCache.minBytesSize = Math.floor(cacheBytes * CACHE_RETAIN_FRACTION);
       orientationGroup.add(tiles.group);
 
       startKickstart();
