@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useState,
   useRef,
   type CSSProperties,
@@ -192,6 +193,7 @@ export function LibFuzzySearch({
   placeholder = "Wohin?",
   inputPrefix,
   priorityTypes,
+  excludeTypes,
   typeInference,
   onCLose = () => {},
   icon = defaultIcon,
@@ -310,6 +312,18 @@ export function LibFuzzySearch({
   const activeGazData = isDynamicMode
     ? EMPTY_GAZ_DATA
     : activeMode?.gazData ?? _gazData;
+
+  // what the search is actually run over: everything the active mode brings,
+  // minus the topics the consumer left out. Kept as one memoised array because
+  // it is what the fuse index below is built from, and a fresh array on every
+  // render would rebuild that index on every render.
+  const excludeTypesKey = excludeTypes?.join(",") ?? "";
+  const searchableGazData = useMemo(() => {
+    const excluded = excludeTypesKey === "" ? [] : excludeTypesKey.split(",");
+    return excluded.length === 0
+      ? activeGazData
+      : activeGazData?.filter((item) => !excluded.includes(item.type));
+  }, [activeGazData, excludeTypesKey]);
 
   // fall back when the active additional mode is removed, e.g. on route change
   const availableModeKeys = availableModes.join(",");
@@ -637,9 +651,9 @@ export function LibFuzzySearch({
   };
 
   useEffect(() => {
-    if (activeGazData) {
+    if (searchableGazData) {
       const allModifiedData = prepareGazData(
-        activeGazData,
+        searchableGazData,
         prepoHandling,
         typeInference
       );
@@ -665,7 +679,7 @@ export function LibFuzzySearch({
       });
       setAllGazeteerData([...allModifiedData, ...modifyAdressen]);
     }
-  }, [activeGazData, prepoHandling]);
+  }, [searchableGazData, prepoHandling]);
 
   useEffect(() => {
     if (allGazeteerData.length > 0) {

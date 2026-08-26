@@ -47,6 +47,7 @@ export type SearchGazetteerProps = {
   inputPrefix?: string;
   config?: SearchConfig;
   priorityTypes?: string[];
+  excludeTypes?: string[];
   selection?: SelectionItem;
   showDropdownBelow?: boolean;
   landParcelSearch?: boolean;

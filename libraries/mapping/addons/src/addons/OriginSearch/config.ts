@@ -1,3 +1,4 @@
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
 import type { OriginLocation } from "./originChannel";
@@ -40,6 +41,13 @@ export const DEFAULT_INPUT_PREFIX = "Von:";
  * route that wants a width of its own configures `pixelwidth`.
  */
 export const DEFAULT_PIXELWIDTH = "100%";
+/**
+ * The gaz topics the origin search does not offer: a starting point is a point,
+ * and a district is a shape whose one coordinate is a centroid nobody starts a
+ * walk at. What everything reads from the channel is a lat/lng, so an area
+ * would silently become its middle.
+ */
+export const EXCLUDED_TYPES = Object.values(ENDPOINT).filter(isAreaType);
 /** what the input calls the origin while it is the device's own position */
 export const OWN_POSITION_LABEL = "Mein Standort";
 /** while the browser is asking, the permission prompt included */

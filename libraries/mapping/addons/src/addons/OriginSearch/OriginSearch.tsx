@@ -20,6 +20,7 @@ import {
   DEFAULT_INPUT_PREFIX,
   DEFAULT_PIXELWIDTH,
   DEFAULT_PLACEHOLDER_PREFIX,
+  EXCLUDED_TYPES,
   LOCATING_PLACEHOLDER,
   NO_ORIGIN_PLACEHOLDER,
   NO_POSITION_PLACEHOLDER,
@@ -47,7 +48,8 @@ import { addOriginMarker } from "./originMarker";
  * chose.
  *
  * It is an ordinary address search, so any address, POI or place the gazetteer
- * knows can be the starting point. What it produces goes on the
+ * knows can be the starting point, minus the areas it knows (see
+ * `EXCLUDED_TYPES`). What it produces goes on the
  * `originLocation` channel and nowhere else: "In der Nähe" ranks from it today,
  * a routing UI will draw its route from it, and neither knows about this
  * component.
@@ -180,6 +182,7 @@ export const OriginSearch = ({
           inputPrefix={inputPrefix}
           placeholder={placeholder}
           pixelwidth={pixelwidth}
+          excludeTypes={EXCLUDED_TYPES}
           disableAdditionalModes={true}
         />
       </div>
