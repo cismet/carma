@@ -75,6 +75,8 @@ import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
+import { Tiles3dLayerManager } from "./Tiles3dLayerManager";
+import type { Tiles3dConfig } from "./Tiles3dLayerManager";
 
 const buildGazetteerRouteInfobox = (pos: number[], label: string) => ({
   properties: {
@@ -439,6 +441,9 @@ export const LibreMap = ({
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [detectedCarma3dConfigs, setDetectedCarma3dConfigs] = useState<
     import("@carma-mapping/engines/threejs").Carma3dConfig[]
+  >([]);
+  const [detectedTiles3dConfigs, setDetectedTiles3dConfigs] = useState<
+    Array<Tiles3dConfig & { layerOpacity: number }>
   >([]);
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
@@ -1566,6 +1571,15 @@ export const LibreMap = ({
               [];
             const sourceToIdx = new Map<string, number>();
 
+            // Tilesets are collected in the same pass over the layers below.
+            // They carry their own geometry and their own level of detail, so
+            // unlike the three.js configs they name no source, and the layer
+            // they hang on exists only to carry them through the style merge,
+            // which keeps layers and sources and drops everything else.
+            const tiles3dConfigs: Array<
+              Tiles3dConfig & { layerOpacity: number }
+            > = [];
+
             // What opacity the host asked of each source's layer. A three.js
             // layer has no paint properties, so the layer bar's slider cannot
             // reach it the way it reaches a 2D layer; carrying the number here
@@ -1591,6 +1605,26 @@ export const LibreMap = ({
             for (const layer of style.layers ?? []) {
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta) continue;
+
+              if (meta.renderMode === "tiles3d") {
+                if (
+                  meta.tilesetUrl &&
+                  !tiles3dConfigs.some(
+                    (existing) => existing.tilesetUrl === meta.tilesetUrl
+                  )
+                ) {
+                  // A tileset names no source, so the opacity cannot be looked
+                  // up the way the three.js configs look theirs up. The style
+                  // merge writes it onto every layer it produces.
+                  const carried = (layer as any).metadata?.["layer-opacity"];
+                  tiles3dConfigs.push({
+                    ...(meta as Tiles3dConfig),
+                    layerOpacity: typeof carried === "number" ? carried : 1,
+                  });
+                }
+                continue;
+              }
+
               const sourceId = meta.sourceId ?? (layer as any).source;
               const sourceLayer =
                 meta.sourceLayer ?? (layer as any)["source-layer"];
@@ -1626,6 +1660,7 @@ export const LibreMap = ({
             }
 
             setDetectedCarma3dConfigs(configs);
+            setDetectedTiles3dConfigs(tiles3dConfigs);
           }
 
           // Refresh hiding forwarding manager with new style (after style is fully loaded)
@@ -2152,6 +2187,15 @@ export const LibreMap = ({
             perfRef={threePerfRef}
           />
         ))}
+
+      {/* Tilesets named by a style's own metadata, see Tiles3dLayerManager */}
+      {detectedTiles3dConfigs.map((config) => (
+        <Tiles3dLayerManager
+          key={config.tilesetUrl}
+          config={config}
+          layerOpacity={config.layerOpacity}
+        />
+      ))}
     </>
   );
 };

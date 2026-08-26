@@ -41,6 +41,22 @@ export type {
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
+// 3D Tiles
+export {
+  buildTiles3dLayer,
+  DEFAULT_ERROR_TARGET_PIXELS,
+} from "./tiles3d/Tiles3dLayer";
+export type {
+  Tiles3dCustomLayer,
+  Tiles3dLayerOptions,
+} from "./tiles3d/Tiles3dLayer";
+export {
+  GLTFPrimitiveOutlineExtension,
+  TILE_OUTLINE_FLAG,
+} from "./tiles3d/primitiveOutline";
+export { synthesizeLodCamera } from "./tiles3d/lodCamera";
+export type { LodCameraFrame } from "./tiles3d/lodCamera";
+
 export { buildLod2Meshes } from "./factories/Lod2Factory";
 export type { Lod2Building, Lod2RoofFace } from "./factories/Lod2Factory";
 export {

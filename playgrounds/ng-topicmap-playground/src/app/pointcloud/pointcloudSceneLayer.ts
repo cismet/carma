@@ -1,3 +1,4 @@
+import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
 import { MercatorCoordinate } from "maplibre-gl";
 import type {
   CustomLayerInterface,
@@ -144,49 +145,18 @@ export const buildPointcloudSceneLayer = (
         .invert();
 
       renderer.getDrawingBufferSize(viewport);
-      const transform = (
-        map as unknown as {
-          transform: {
-            _fov?: number;
-            cameraToCenterDistance?: number;
-            worldSize?: number;
-          };
-        }
-      ).transform;
-      const fovRad = transform._fov ?? 0.6435011087932844;
-      const distancePx = transform.cameraToCenterDistance ?? 0;
-      const worldSize = transform.worldSize ?? 1;
-      if (!distancePx || !worldSize) return;
-      const distanceMeters = distancePx / worldSize / meterScale;
-      const centerLngLat = map.getCenter();
-      const centerMerc = MercatorCoordinate.fromLngLat(
-        centerLngLat,
-        map.queryTerrainElevation(centerLngLat) ?? 0
-      );
-      lookTarget.set(
-        (centerMerc.x - originMerc.x) / meterScale,
-        (centerMerc.z - originMerc.z) / meterScale,
-        (centerMerc.y - originMerc.y) / meterScale
-      );
-      const pitch = THREE.MathUtils.degToRad(map.getPitch());
-      const bearing = THREE.MathUtils.degToRad(map.getBearing());
-      lodCamera.position.set(
-        lookTarget.x - Math.sin(bearing) * Math.sin(pitch) * distanceMeters,
-        lookTarget.y + Math.cos(pitch) * distanceMeters,
-        lookTarget.z + Math.cos(bearing) * Math.sin(pitch) * distanceMeters
-      );
-      if (map.getPitch() < 5) {
-        lodCamera.up.set(-Math.sin(bearing), 0, -Math.cos(bearing));
-      } else {
-        lodCamera.up.set(0, 1, 0);
+      // Same pose the MapLibre 3D Tiles layer works out for itself, so it
+      // lives in the engine rather than here, see synthesizeLodCamera.
+      if (
+        !synthesizeLodCamera(
+          lodCamera,
+          map,
+          { originMerc, meterScale, viewport },
+          lookTarget
+        )
+      ) {
+        return;
       }
-      lodCamera.lookAt(lookTarget);
-      lodCamera.fov = THREE.MathUtils.radToDeg(fovRad);
-      lodCamera.aspect = viewport.x / Math.max(1, viewport.y);
-      lodCamera.near = 2;
-      lodCamera.far = 1_000_000;
-      lodCamera.updateProjectionMatrix();
-      lodCamera.updateMatrixWorld(true);
 
       const frame: PointcloudSceneFrame = {
         map,

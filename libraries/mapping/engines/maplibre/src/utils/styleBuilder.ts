@@ -710,6 +710,11 @@ export const vectorStylesToMapLibreStyle = async ({
                 ).metadata,
                 "z-index": index,
                 "layer-id": layerId,
+                // What the layer bar's slider asks of this layer. A 2D layer
+                // gets it baked into its paint properties just below, but a
+                // layer that only carries a 3D configuration has no paint to
+                // bake it into, so it travels here as well.
+                "layer-opacity": layer.opacity ?? 1,
                 ...(userFilter ? { originalFilter: origFilter } : {}),
               },
               paint: {
