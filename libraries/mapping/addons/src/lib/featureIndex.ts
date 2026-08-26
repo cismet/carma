@@ -125,6 +125,7 @@ export type NearestFromIndexOptions = {
   /** how many hits to return. Default: 5 */
   count?: number;
   filter?: StackedSourceFilter;
+  indexUrl?: string;
 };
 
 const matchesFilter = (
@@ -195,19 +196,18 @@ const decodeIndex = (
 };
 
 /**
- * One index per tileset directory, kept for the session and keyed by that
- * directory rather than by source id: the id is namespaced per stack entry and
- * changes with the style, the directory identifies the data. A `null` result is
- * cached too, so a source without an index is asked for one exactly once.
+ * One index per index file, kept for the session and keyed by its URL rather
+ * than by source id: the id is namespaced per stack entry and changes with the
+ * style, the file identifies the data. A `null` result is cached too, so a file
+ * that is not there is asked for exactly once.
  */
 const indexStore = new Map<string, Promise<FeatureIndex | null>>();
 
-const fetchFeatureIndex = (baseUrl: string): Promise<FeatureIndex | null> => {
-  const cached = indexStore.get(baseUrl);
+const fetchFeatureIndex = (url: string): Promise<FeatureIndex | null> => {
+  const cached = indexStore.get(url);
   if (cached) {
     return cached;
   }
-  const url = `${baseUrl}features.json`;
   const pending = fetch(url)
     .then(async (response) => {
       if (!response.ok) {
@@ -233,24 +233,29 @@ const fetchFeatureIndex = (baseUrl: string): Promise<FeatureIndex | null> => {
       return index;
     })
     .catch(() => null);
-  indexStore.set(baseUrl, pending);
+  indexStore.set(url, pending);
   return pending;
 };
 
 /** the index of one stacked source, or `null` when the tileset publishes none */
 const indexForSource = async (
   map: MaplibreMap,
-  source: StackedSource
+  source: StackedSource,
+  /** an index of the caller's choosing; see `NearestFromIndexOptions.indexUrl` */
+  indexUrl?: string
 ): Promise<FeatureIndex | null> => {
   if (source.type !== "vector") {
     return null;
+  }
+  if (indexUrl) {
+    return fetchFeatureIndex(transformUrl(map, indexUrl, "Source"));
   }
   const templates = await resolveTileTemplates(map, source.sourceId);
   const base = templates ? tileSetBaseUrl(templates[0]) : null;
   if (!base) {
     return null;
   }
-  return fetchFeatureIndex(transformUrl(map, base, "Source"));
+  return fetchFeatureIndex(`${transformUrl(map, base, "Source")}features.json`);
 };
 
 /* -------------------------------------------------------------------------- */
@@ -407,7 +412,7 @@ export const collectNearestFromIndex = async (
   map: MaplibreMap,
   options: NearestFromIndexOptions
 ): Promise<NearestFromIndexResult> => {
-  const { lng, lat, filter } = options;
+  const { lng, lat, filter, indexUrl } = options;
   const count = options.count ?? DEFAULT_COUNT;
   const sources = resolveStackedSources(map).filter((source) =>
     matchesFilter(source, filter)
@@ -415,7 +420,7 @@ export const collectNearestFromIndex = async (
 
   const perSource = await Promise.all(
     sources.map(async (source) => {
-      const index = await indexForSource(map, source);
+      const index = await indexForSource(map, source, indexUrl);
       return {
         status: {
           sourceId: source.sourceId,

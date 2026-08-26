@@ -113,6 +113,7 @@ export const rankCategory = async ({
       carmaLayerIds: [category.layerId],
       ...(category.sourceLayer ? { sourceLayers: [category.sourceLayer] } : {}),
     },
+    ...(category.featureIndexUrl ? { indexUrl: category.featureIndexUrl } : {}),
   });
   console.debug("[NEAREST FEATURE]", {
     category: category.label,

@@ -28,6 +28,7 @@ export type NearestFeatureCategory = {
   layerId: string;
   /** one source-layer of that tileset; default: every one the style draws */
   sourceLayer?: string;
+  featureIndexUrl?: string;
   /** properties tried in order for a row's title; first non-empty wins */
   labelProperties?: string[];
   /** properties tried in order for the smaller second line */
@@ -35,7 +36,10 @@ export type NearestFeatureCategory = {
 };
 
 /** key -> category, in the order the producers mounted */
-export type NearestFeatureCategoryState = Record<string, NearestFeatureCategory>;
+export type NearestFeatureCategoryState = Record<
+  string,
+  NearestFeatureCategory
+>;
 
 /**
  * What a category addon lets its route override of its own definition: all of
