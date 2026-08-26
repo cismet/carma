@@ -42,6 +42,8 @@ export const SWITCHABLE_KINDS = [
   "cameraRestriction",
   "nearestFeature",
   "nearestFeatureApotheken",
+  "nearestFeatureBahnhoefe",
+  "nearestFeatureKrankenhaeuser",
   "originSearch",
   "vectorHighlight",
   "vectorHighlightControl",

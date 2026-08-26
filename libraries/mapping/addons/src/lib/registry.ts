@@ -29,7 +29,11 @@ import {
 import {
   NearestFeature,
   NearestFeatureApotheken,
+  NearestFeatureBahnhoefe,
+  NearestFeatureKrankenhaeuser,
   type NearestFeatureApothekenConfig,
+  type NearestFeatureBahnhoefeConfig,
+  type NearestFeatureKrankenhaeuserConfig,
   type NearestFeatureCategoryState,
   type NearestFeatureConfig,
 } from "../addons/NearestFeature";
@@ -107,6 +111,8 @@ export type AddonConfigMap = {
   homeOverride: HomeOverrideConfig;
   nearestFeature: NearestFeatureConfig;
   nearestFeatureApotheken: NearestFeatureApothekenConfig;
+  nearestFeatureBahnhoefe: NearestFeatureBahnhoefeConfig;
+  nearestFeatureKrankenhaeuser: NearestFeatureKrankenhaeuserConfig;
   originSearch: OriginSearchConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
@@ -292,6 +298,14 @@ export const addonRegistry: {
   },
   nearestFeatureApotheken: {
     Component: NearestFeatureApotheken,
+    provides: ["nearestFeatureCategories"],
+  },
+  nearestFeatureBahnhoefe: {
+    Component: NearestFeatureBahnhoefe,
+    provides: ["nearestFeatureCategories"],
+  },
+  nearestFeatureKrankenhaeuser: {
+    Component: NearestFeatureKrankenhaeuser,
     provides: ["nearestFeatureCategories"],
   },
   originSearch: {

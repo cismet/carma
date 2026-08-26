@@ -636,13 +636,22 @@ renders nothing:
 addons: [
   { kind: "nearestFeature", config: { origin } },
   "nearestFeatureApotheken",
+  "nearestFeatureBahnhoefe",
+  "nearestFeatureKrankenhaeuser",
 ]
 ```
 
 So a route mixes and matches the categories it wants, the addon manager can
 switch one off without touching the mode, and a new category is a copy of
 `categories/Apotheken.tsx` with another definition, plus its kind in the
-registry. The channel is a **record keyed per category** rather than a list,
+registry.
+
+A category whose layer does **not** own its tileset names its own index with
+`featureIndexUrl`. The ranking otherwise reads the `features.json` of the
+directory the tiles come from, which is the whole tileset: right for a layer
+tiled on its own (`Apotheken`), wrong for the POI tiles, where every kind of
+place is drawn from one tileset and one source-layer by a filter, and each kind
+has its own index file next to the tiles (`Bahnhöfe`). The channel is a **record keyed per category** rather than a list,
 because several producers write it side by side: `useNearestFeatureCategory`
 merges its own key in and takes it out again when it unmounts, so nobody
 overwrites a sibling. The mode reads the channel through a ref, so a category
@@ -659,6 +668,8 @@ The addon's folder is split along those steps:
 | `config.ts` | the mode's own config type and every default |
 | `categoryChannel.ts` | the category type, the channel and the publishing hook |
 | `categories/Apotheken.tsx` | one category: name, icon, layer, label properties |
+| `categories/Bahnhoefe.tsx` | the same, for a layer sharing the POI tileset: it names its own index |
+| `categories/Krankenhaeuser.tsx` | another POI category, same shape as `Bahnhoefe` |
 | `categoryInput.ts` | the `"Apotheken: "` input grammar and the first stage |
 | `rankCategory.ts` | the second stage: add layer, rank, fit, build the rows |
 | `mapReady.ts` | waiting for the style to carry the layer, and for `idle` |

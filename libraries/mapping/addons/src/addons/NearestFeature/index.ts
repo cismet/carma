@@ -10,3 +10,11 @@ export {
   NearestFeatureApotheken,
   type NearestFeatureApothekenConfig,
 } from "./categories/Apotheken";
+export {
+  NearestFeatureBahnhoefe,
+  type NearestFeatureBahnhoefeConfig,
+} from "./categories/Bahnhoefe";
+export {
+  NearestFeatureKrankenhaeuser,
+  type NearestFeatureKrankenhaeuserConfig,
+} from "./categories/Krankenhaeuser";

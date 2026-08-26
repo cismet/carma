@@ -112,8 +112,12 @@ export {
 export {
   NearestFeature,
   NearestFeatureApotheken,
+  NearestFeatureBahnhoefe,
+  NearestFeatureKrankenhaeuser,
   useNearestFeatureCategory,
   type NearestFeatureApothekenConfig,
+  type NearestFeatureBahnhoefeConfig,
+  type NearestFeatureKrankenhaeuserConfig,
   type NearestFeatureCategory,
   type NearestFeatureCategoryConfig,
   type NearestFeatureCategoryState,
