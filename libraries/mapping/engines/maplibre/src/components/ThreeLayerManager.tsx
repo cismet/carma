@@ -37,6 +37,7 @@ import {
   registerGenericThreeLayer,
   unregisterGenericThreeLayer,
 } from "../lib/runtime/integrations/generic-three-layer-registry";
+import { getMapLibreLayerOpacityProperties } from "../lib/runtime/integrations/map-style-layer-suppression";
 import {
   getSharedThreeTerrainElevation,
   subscribeSharedThreeTerrain,
@@ -44,17 +45,6 @@ import {
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────
-
-/** MapLibre paint properties that control opacity, keyed by layer type. */
-const OPACITY_PROPS: Record<string, string[]> = {
-  circle: ["circle-opacity", "circle-stroke-opacity"],
-  fill: ["fill-opacity"],
-  line: ["line-opacity"],
-  symbol: ["icon-opacity", "text-opacity"],
-  "fill-extrusion": ["fill-extrusion-opacity"],
-  raster: ["raster-opacity"],
-  heatmap: ["heatmap-opacity"],
-};
 
 /** Whether the map can still be asked about its layers.
  *
@@ -531,8 +521,8 @@ export function ThreeLayerManager({
           for (const lid of config.skipIn2DLayerIds) {
             const layer2d = map.getLayer(lid);
             if (!layer2d) continue;
-            const props = OPACITY_PROPS[layer2d.type];
-            if (!props) continue;
+            const props = getMapLibreLayerOpacityProperties(layer2d.type);
+            if (props.length === 0) continue;
             const originals: Array<[string, unknown]> = [];
             for (const prop of props) {
               originals.push([prop, map.getPaintProperty(lid, prop)]);

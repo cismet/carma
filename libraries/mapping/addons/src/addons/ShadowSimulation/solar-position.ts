@@ -2,6 +2,8 @@ const MINUTES_PER_DAY = 24 * 60;
 const DEGREES_TO_RADIANS = Math.PI / 180;
 const RADIANS_TO_DEGREES = 180 / Math.PI;
 
+export const MEAN_SOLAR_ANGULAR_RADIUS_DEGREES = 0.2666;
+
 export type SolarLocation = {
   latitude: number;
   longitude: number;
@@ -179,6 +181,50 @@ const getSolarTerms = (year: number, dayOfYear: number, minutes: number) => {
   return { equationOfTimeMinutes, declinationRadians };
 };
 
+const getSelectableHourAngleCosine = (
+  latitudeRadians: number,
+  declinationRadians: number
+) =>
+  (Math.sin(MEAN_SOLAR_ANGULAR_RADIUS_DEGREES * DEGREES_TO_RADIANS) -
+    Math.sin(latitudeRadians) * Math.sin(declinationRadians)) /
+  (Math.cos(latitudeRadians) * Math.cos(declinationRadians));
+
+const resolveDaylightBoundaryMinutes = (
+  year: number,
+  dayOfYear: number,
+  location: SolarLocation,
+  timeZoneOffsetHours: number,
+  initialMinutes: number,
+  direction: -1 | 1
+) => {
+  let boundaryMinutes = initialMinutes;
+  const latitudeRadians = location.latitude * DEGREES_TO_RADIANS;
+
+  for (let iteration = 0; iteration < 4; iteration += 1) {
+    const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
+      year,
+      dayOfYear,
+      boundaryMinutes
+    );
+    const hourAngleDegrees =
+      Math.acos(
+        clamp(
+          getSelectableHourAngleCosine(latitudeRadians, declinationRadians),
+          -1,
+          1
+        )
+      ) * RADIANS_TO_DEGREES;
+    const solarNoonMinutes =
+      720 -
+      4 * location.longitude -
+      equationOfTimeMinutes +
+      60 * timeZoneOffsetHours;
+    boundaryMinutes = solarNoonMinutes + direction * 4 * hourAngleDegrees;
+  }
+
+  return boundaryMinutes;
+};
+
 export const getDaylightWindow = (
   year: number,
   dayOfYear: number,
@@ -197,8 +243,10 @@ export const getDaylightWindow = (
   const timeZoneOffsetHours =
     getTimeZoneOffsetMinutes(noonInstant, location.timeZone) / 60;
   const latitudeRadians = location.latitude * DEGREES_TO_RADIANS;
-  const hourAngleCosine =
-    -Math.tan(latitudeRadians) * Math.tan(declinationRadians);
+  const hourAngleCosine = getSelectableHourAngleCosine(
+    latitudeRadians,
+    declinationRadians
+  );
   const solarNoonMinutes =
     720 -
     4 * location.longitude -
@@ -225,15 +273,31 @@ export const getDaylightWindow = (
   }
 
   const hourAngleDegrees = Math.acos(hourAngleCosine) * RADIANS_TO_DEGREES;
+  const initialSunriseMinutes = solarNoonMinutes - 4 * hourAngleDegrees;
+  const initialSunsetMinutes = solarNoonMinutes + 4 * hourAngleDegrees;
   return {
     sunriseMinutes: clamp(
-      solarNoonMinutes - 4 * hourAngleDegrees,
+      resolveDaylightBoundaryMinutes(
+        year,
+        safeDay,
+        location,
+        timeZoneOffsetHours,
+        initialSunriseMinutes,
+        -1
+      ),
       0,
       MINUTES_PER_DAY
     ),
     solarNoonMinutes,
     sunsetMinutes: clamp(
-      solarNoonMinutes + 4 * hourAngleDegrees,
+      resolveDaylightBoundaryMinutes(
+        year,
+        safeDay,
+        location,
+        timeZoneOffsetHours,
+        initialSunsetMinutes,
+        1
+      ),
       0,
       MINUTES_PER_DAY
     ),
@@ -244,8 +308,7 @@ export const getDaylightWindow = (
 
 export const clampSelectionToDaylight = (
   selection: SolarSelection,
-  location: SolarLocation,
-  edgePaddingMinutes = 1
+  location: SolarLocation
 ): SolarSelection | null => {
   const dayOfYear = clamp(
     Math.round(selection.dayOfYear),
@@ -254,12 +317,11 @@ export const clampSelectionToDaylight = (
   );
   const daylight = getDaylightWindow(selection.year, dayOfYear, location);
   if (daylight.polarNight) return null;
-  const minimum = daylight.polarDay
-    ? 0
-    : daylight.sunriseMinutes + edgePaddingMinutes;
+  const minimum = daylight.polarDay ? 0 : Math.ceil(daylight.sunriseMinutes);
   const maximum = daylight.polarDay
     ? MINUTES_PER_DAY - 1
-    : daylight.sunsetMinutes - edgePaddingMinutes;
+    : Math.floor(daylight.sunsetMinutes);
+  if (minimum > maximum) return null;
   return {
     year: selection.year,
     dayOfYear,
@@ -309,13 +371,25 @@ export const getSolarPosition = (
   return { instant, azimuthDegrees, elevationDegrees };
 };
 
+const resolveShadowSimulationLocation = (
+  location: Partial<SolarLocation>
+): SolarLocation => ({
+  latitude: location.latitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
+  longitude: location.longitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
+  timeZone: location.timeZone ?? DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
+});
+
 export const getShadowSimulationSolarPosition = (
   selection: SolarSelection,
   location: Partial<SolarLocation> = {}
 ): SolarPosition =>
-  getSolarPosition(selection, {
-    latitude: location.latitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
-    longitude:
-      location.longitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
-    timeZone: location.timeZone ?? DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
-  });
+  getSolarPosition(selection, resolveShadowSimulationLocation(location));
+
+export const clampShadowSimulationSelectionToDaylight = (
+  selection: SolarSelection,
+  location: Partial<SolarLocation> = {}
+): SolarSelection | null =>
+  clampSelectionToDaylight(
+    selection,
+    resolveShadowSimulationLocation(location)
+  );

@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   clampSelectionToDaylight,
   getDaylightWindow,
+  getDaysInYear,
   getSolarPosition,
+  MEAN_SOLAR_ANGULAR_RADIUS_DEGREES,
   solarSelectionToInstant,
   type SolarLocation,
 } from "./solar-position";
@@ -32,8 +34,92 @@ describe("solar position", () => {
     const daylight = getDaylightWindow(2026, 172, WUPPERTAL);
 
     expect(selection).not.toBeNull();
-    expect(selection?.minutes).toBeGreaterThan(daylight.sunriseMinutes);
-    expect(selection?.minutes).toBeLessThan(daylight.sunsetMinutes);
+    expect(selection?.minutes).toBe(Math.ceil(daylight.sunriseMinutes));
+  });
+
+  it("limits selection to the lower solar limb touching the horizon", () => {
+    const daylight = getDaylightWindow(2026, 64, WUPPERTAL);
+    const sunrisePosition = getSolarPosition(
+      {
+        year: 2026,
+        dayOfYear: 64,
+        minutes: daylight.sunriseMinutes,
+      },
+      WUPPERTAL
+    );
+    const sunsetPosition = getSolarPosition(
+      {
+        year: 2026,
+        dayOfYear: 64,
+        minutes: daylight.sunsetMinutes,
+      },
+      WUPPERTAL
+    );
+
+    expect(sunrisePosition.elevationDegrees).toBeCloseTo(
+      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES,
+      3
+    );
+    expect(sunsetPosition.elevationDegrees).toBeCloseTo(
+      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES,
+      3
+    );
+
+    const earliestSelection = clampSelectionToDaylight(
+      { year: 2026, dayOfYear: 64, minutes: 0 },
+      WUPPERTAL
+    );
+    const latestSelection = clampSelectionToDaylight(
+      { year: 2026, dayOfYear: 64, minutes: 24 * 60 - 1 },
+      WUPPERTAL
+    );
+
+    expect(earliestSelection?.minutes).toBe(Math.ceil(daylight.sunriseMinutes));
+    expect(latestSelection?.minutes).toBe(Math.floor(daylight.sunsetMinutes));
+    expect(
+      getSolarPosition(earliestSelection!, WUPPERTAL).elevationDegrees
+    ).toBeGreaterThanOrEqual(MEAN_SOLAR_ANGULAR_RADIUS_DEGREES);
+    expect(
+      getSolarPosition(latestSelection!, WUPPERTAL).elevationDegrees
+    ).toBeGreaterThanOrEqual(MEAN_SOLAR_ANGULAR_RADIUS_DEGREES);
+  });
+
+  it("keeps every selectable whole-minute edge above the horizon", () => {
+    const selectedEdgeElevations: number[] = [];
+    const excludedEdgeElevations: number[] = [];
+
+    for (let dayOfYear = 1; dayOfYear <= getDaysInYear(2026); dayOfYear += 1) {
+      const daylight = getDaylightWindow(2026, dayOfYear, WUPPERTAL);
+      const earliestMinutes = Math.ceil(daylight.sunriseMinutes);
+      const latestMinutes = Math.floor(daylight.sunsetMinutes);
+      selectedEdgeElevations.push(
+        getSolarPosition(
+          { year: 2026, dayOfYear, minutes: earliestMinutes },
+          WUPPERTAL
+        ).elevationDegrees,
+        getSolarPosition(
+          { year: 2026, dayOfYear, minutes: latestMinutes },
+          WUPPERTAL
+        ).elevationDegrees
+      );
+      excludedEdgeElevations.push(
+        getSolarPosition(
+          { year: 2026, dayOfYear, minutes: earliestMinutes - 1 },
+          WUPPERTAL
+        ).elevationDegrees,
+        getSolarPosition(
+          { year: 2026, dayOfYear, minutes: latestMinutes + 1 },
+          WUPPERTAL
+        ).elevationDegrees
+      );
+    }
+
+    expect(Math.min(...selectedEdgeElevations)).toBeGreaterThanOrEqual(
+      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES
+    );
+    expect(Math.max(...excludedEdgeElevations)).toBeLessThan(
+      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES
+    );
   });
 
   it("keeps local wall-clock time stable across the named time zone", () => {

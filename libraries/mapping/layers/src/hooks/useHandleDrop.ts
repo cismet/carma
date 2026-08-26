@@ -18,6 +18,46 @@ const parser = new WMSCapabilities();
 
 const TWININDICATOR = ".twin.";
 
+const DROP_URL_TYPES = ["URL", "text/uri-list", "text/plain"] as const;
+
+const parseHttpUrl = (candidate: string): string | null => {
+  try {
+    const url = new URL(candidate.trim());
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+export const resolveDroppedUrl = (
+  dataTransfer: Pick<DataTransfer, "getData"> | null | undefined
+): string | null => {
+  if (!dataTransfer) return null;
+
+  for (const type of DROP_URL_TYPES) {
+    let value = "";
+    try {
+      value = dataTransfer.getData(type);
+    } catch {
+      continue;
+    }
+
+    for (const line of value.split(/\r?\n/)) {
+      const candidate = line.trim();
+      if (!candidate || candidate.startsWith("#")) continue;
+      const url = parseHttpUrl(candidate);
+      if (url) return url;
+    }
+  }
+
+  return null;
+};
+
+const isJsonUrl = (url: string) =>
+  new URL(url).pathname.toLowerCase().endsWith(".json");
+
 const CONFIG_FILE_LOOKUP: Record<
   string,
   { index: number; categoryId: string }
@@ -270,7 +310,7 @@ export const useHandleDrop = ({
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
-      const url = event.dataTransfer?.getData("URL");
+      const url = resolveDroppedUrl(event.dataTransfer);
 
       const file = event?.dataTransfer?.files[0];
 
@@ -280,7 +320,7 @@ export const useHandleDrop = ({
       ) {
         handleTwinFile(file ?? null, url ?? null);
       } else {
-        if (url && url.endsWith(".json")) {
+        if (url && isJsonUrl(url)) {
           handleJsonStyle(null, url);
         } else if (url) {
           fetch(url)
