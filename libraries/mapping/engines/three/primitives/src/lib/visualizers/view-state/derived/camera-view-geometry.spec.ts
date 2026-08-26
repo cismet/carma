@@ -1,4 +1,4 @@
-import { Vector3 } from "three";
+import { OrthographicCamera, type Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -106,6 +106,7 @@ const buildOrthographicViewState = ({
   orthographicMetersPerCssPixel,
   viewportWidthPx,
   viewportHeightPx,
+  projectionMatrix,
 }: {
   bearingDeg: number;
   pitchDeg: number;
@@ -115,6 +116,7 @@ const buildOrthographicViewState = ({
   orthographicMetersPerCssPixel?: number;
   viewportWidthPx?: number;
   viewportHeightPx?: number;
+  projectionMatrix?: Matrix4;
 }): ViewState =>
   buildViewState({
     longitude: SPEC_LONGITUDE_RAD,
@@ -125,6 +127,7 @@ const buildOrthographicViewState = ({
     range: rangeM,
     intrinsics: {
       type: CAMERA_TYPE.ORTHOGRAPHIC,
+      projectionMatrix,
       ...(typeof orthographicMetersPerCssPixel === "number"
         ? {
             orthographicScale: buildOrthographicScale(
@@ -296,6 +299,29 @@ describe("camera-view-geometry ground projection", () => {
 
     expect(tangentPlaneWidth).toBeCloseTo(0.8, 8);
     expect(tangentPlaneHeight).toBeCloseTo(0.4, 8);
+  });
+
+  it("preserves rectangular off-center bounds from an orthographic projection matrix", () => {
+    const camera = new OrthographicCamera(-80, 120, 60, -40, 1, 4_000);
+    camera.updateProjectionMatrix();
+    const geometry = buildGeometry(
+      buildOrthographicViewState({
+        bearingDeg: 0,
+        pitchDeg: 0,
+        rangeM: 2_500,
+        projectionMatrix: camera.projectionMatrix.clone(),
+      })
+    );
+
+    const corners = geometry.orthographicTangentPlaneCorners!;
+    expect(corners[0]!.distanceTo(corners[1]!)).toBeCloseTo(200 / 2_500, 8);
+    expect(corners[1]!.distanceTo(corners[2]!)).toBeCloseTo(100 / 2_500, 8);
+    const center = corners
+      .reduce((sum, corner) => sum.add(corner), new Vector3())
+      .multiplyScalar(0.25);
+    const centerOffset = center.sub(geometry.cameraPosition);
+    expect(centerOffset.dot(geometry.right)).toBeCloseTo(20 / 2_500, 8);
+    expect(centerOffset.dot(geometry.up)).toBeCloseTo(10 / 2_500, 8);
   });
 
   it("normalizes orthographic near and far distances from meters into hemisphere units", () => {
