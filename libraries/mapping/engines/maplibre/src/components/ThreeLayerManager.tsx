@@ -701,7 +701,11 @@ export function ThreeLayerManager({
               type: "building",
               lng: cLng,
               lat: cLat,
-              elevation,
+              // Same base the geometry is drawn on. The grid is what the
+              // raycast pre-filter walks, and a proxy sitting on the DEM
+              // while the building stands on the survey's ground can drop
+              // it out of the cells the ray is traced through.
+              elevation: groundReference,
               heightVar: 0,
               diameterVar: 0,
               rotation: 0,
