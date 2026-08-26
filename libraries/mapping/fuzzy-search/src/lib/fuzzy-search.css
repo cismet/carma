@@ -144,6 +144,38 @@
   fill: currentColor;
 }
 
+/* the fixed label inside the input ("Von:"), drawn over the field itself, at
+   the very place ant would have started the text; the offset the text moves by
+   is measured in lib-fuzzy-search.tsx */
+.fuzzy-input-prefix {
+  position: absolute;
+  left: 11px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  color: #a6a6a6;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.fuzzy-search-container--with-prefix .ant-select-selector {
+  padding-left: var(--fuzzy-input-prefix-offset, 11px);
+}
+
+/* the typed value and the caret are positioned by ant itself, not by the
+   padding above, so they are moved past the label as well. Ant's own rules for
+   these are more specific than a class of ours, hence !important: without it
+   the text keeps sitting under the label. The placeholder is not in here: an
+   empty input shows no label, it has the label in its placeholder text. */
+.fuzzy-search-container--with-prefix .ant-select-selection-search,
+.fuzzy-search-container--with-prefix .ant-select-selection-item {
+  inset-inline-start: var(--fuzzy-input-prefix-offset, 11px) !important;
+}
+
 .parcel-input-overlay {
   position: absolute;
   left: 0;

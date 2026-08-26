@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
 import type maplibregl from "maplibre-gl";
 
-import { getFromUTM32ToWGS84, getFromWebMercatorToWGS84 } from "@carma-geo/proj";
+import {
+  getFromUTM32ToWGS84,
+  getFromWebMercatorToWGS84,
+} from "@carma-geo/proj";
 import {
   LibFuzzySearch,
   type SearchResultItem,
@@ -12,6 +15,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 import {
   DEFAULT_CONTROL_ORDER,
   DEFAULT_CONTROL_POSITION,
+  DEFAULT_INPUT_PREFIX,
   DEFAULT_ORIGIN,
   DEFAULT_PIXELWIDTH,
   DEFAULT_PLACEHOLDER_PREFIX,
@@ -54,6 +58,7 @@ export const OriginSearch = ({
     controlOrder = DEFAULT_CONTROL_ORDER,
     defaultOrigin = DEFAULT_ORIGIN,
     placeholderPrefix = DEFAULT_PLACEHOLDER_PREFIX,
+    inputPrefix = DEFAULT_INPUT_PREFIX,
     pixelwidth = DEFAULT_PIXELWIDTH,
     alwaysVisible = false,
   } = config ?? {};
@@ -98,15 +103,20 @@ export const OriginSearch = ({
 
   return (
     <Control position={controlPosition} order={controlOrder}>
-      <LibFuzzySearch
-        onSelection={handleSelection}
-        placeholder={`${placeholderPrefix} ${label}`}
-        pixelwidth={pixelwidth}
-        disableAdditionalModes={true}
-      />
+      <div style={GAP_STYLE}>
+        <LibFuzzySearch
+          onSelection={handleSelection}
+          inputPrefix={inputPrefix}
+          placeholder={[placeholderPrefix, label].filter(Boolean).join(" ")}
+          pixelwidth={pixelwidth}
+          disableAdditionalModes={true}
+        />
+      </div>
     </Control>
   );
 };
+
+const GAP_STYLE = { marginTop: "8px" } as const;
 
 /**
  * A gazetteer hit as a starting point. The hit's coordinates are in the crs the

@@ -44,6 +44,7 @@ export type SearchGazetteerProps = {
   pixelwidth?: number | string;
   ifShowCategories?: boolean;
   placeholder?: string;
+  inputPrefix?: string;
   config?: SearchConfig;
   priorityTypes?: string[];
   selection?: SelectionItem;

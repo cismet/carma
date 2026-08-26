@@ -1,4 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useRef,
+  type CSSProperties,
+} from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
 import { AutoComplete, Button, Dropdown, message } from "antd";
@@ -184,6 +190,7 @@ export function LibFuzzySearch({
   pixelwidth = 300,
   ifShowCategories: standardSearch = true,
   placeholder = "Wohin?",
+  inputPrefix,
   priorityTypes,
   typeInference,
   onCLose = () => {},
@@ -240,6 +247,16 @@ export function LibFuzzySearch({
     borderTopLeftRadius: 0,
     // fontSize: "14px",
   };
+  // the fixed label inside the input is measured rather than guessed, because
+  // what the input has to leave free for it is its width in the font it ends up
+  // rendered in. It stays in the tree while it is not shown, so the width is
+  // known before it is, and the input does not shift a frame late.
+  const inputPrefixRef = useRef<HTMLSpanElement>(null);
+  const [inputPrefixWidth, setInputPrefixWidth] = useState(0);
+  useLayoutEffect(() => {
+    setInputPrefixWidth(inputPrefixRef.current?.offsetWidth ?? 0);
+  }, [inputPrefix]);
+
   const btnClosRef = useRef<HTMLButtonElement>(null);
   const autoCompleteRef = useRef<BaseSelectRef | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement>(null);
@@ -793,17 +810,39 @@ export function LibFuzzySearch({
     }
   }, [selection]);
 
+  /**
+   * The label is drawn over the input only while something is in it. An empty
+   * input has ant's placeholder in it, which ant positions itself, so the label
+   * carries into the placeholder text instead of being laid over it: both are
+   * the same grey, so it reads the same, and the two states line up because ant
+   * lays the empty one out on its own.
+   */
+  const showInputPrefix = Boolean(inputPrefix) && value !== "";
+  const withInputPrefix = (text: string) =>
+    inputPrefix && !showInputPrefix ? `${inputPrefix} ${text}` : text;
+
   return (
     <div
       // ref={divWrapperRef}
       data-test-id="fuzzy-search"
-      style={{
-        width: pixelwidth,
-        display: "flex",
-      }}
+      style={
+        {
+          width: pixelwidth,
+          display: "flex",
+          // what the input keeps free on its left: where ant puts its text
+          // (11px), plus the label, plus the space between the two
+          ...(inputPrefixWidth
+            ? {
+                "--fuzzy-input-prefix-offset": `${
+                  11 + inputPrefixWidth + 4
+                }px`,
+              }
+            : {}),
+        } as CSSProperties
+      }
       className={`fuzzy-search-container${
         hideIcon ? " fuzzy-search-container--no-icon" : ""
-      }`}
+      }${showInputPrefix ? " fuzzy-search-container--with-prefix" : ""}`}
       onKeyDownCapture={(e) => {
         if (e.key === "Escape") {
           const now = Date.now();
@@ -907,6 +946,16 @@ export function LibFuzzySearch({
         )
       )}
       <div style={{ position: "relative", width: "calc(100% - 32px)" }}>
+        {inputPrefix && (
+          <span
+            ref={inputPrefixRef}
+            aria-hidden="true"
+            className="fuzzy-input-prefix"
+            style={{ visibility: showInputPrefix ? "visible" : "hidden" }}
+          >
+            {inputPrefix}
+          </span>
+        )}
         {(() => {
           // Colored Overlay
           const sepIdx = value.lastIndexOf(LAND_PARCEL_SEPARATOR);
@@ -953,11 +1002,11 @@ export function LibFuzzySearch({
               }
             }
           }}
-          placeholder={
+          placeholder={withInputPrefix(
             searchMode === PARCEL_MODE && landParcelSearch
               ? `Gemarkung${LAND_PARCEL_SEPARATOR}Flur${LAND_PARCEL_SEPARATOR}Flurstück`
               : activeMode?.placeholder ?? placeholder
-          }
+          )}
           value={value}
           open={autoCompleteOpen}
           onDropdownVisibleChange={(visible) => {

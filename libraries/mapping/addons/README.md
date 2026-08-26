@@ -710,6 +710,18 @@ knows can be the starting point, with two differences from the app's own:
   view stays where the destination search put it. The hit's coordinates are
   converted to WGS84 by its own crs before they go on the channel.
 
+It also sits apart from that search rather than flush under it: a gap above it,
+and a fixed "Von:" label inside the field (`inputPrefix`, a new `LibFuzzySearch`
+prop) in front of whatever is typed there, so the input says on its own that it
+is where the search starts rather than a second place to go to. With something
+in the input the label is drawn over the field and the value and caret are moved
+past its measured width; with nothing in it the label goes into the placeholder
+text instead, which ant lays out itself, so the two states line up rather than
+fight ant's own positioning. The label carries the "Von", so the placeholder is
+the current origin's name alone;
+`placeholderPrefix` puts something in front of it again for a route that wants
+it.
+
 While the input is there it owns the origin: on mount it publishes its
 configured default (Rathaus Wuppertal) if the channel carries none, so a
 consumer reads one value instead of falling back to a default of its own. It

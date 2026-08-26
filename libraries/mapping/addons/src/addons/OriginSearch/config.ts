@@ -14,6 +14,8 @@ export type OriginSearchConfig = {
   defaultOrigin?: OriginLocation;
   /** what stands in front of the current origin in the placeholder */
   placeholderPrefix?: string;
+  /** the fixed label inside the input that says the search starts here */
+  inputPrefix?: string;
   pixelwidth?: number | string;
   /**
    * Render the input even when nothing asked for an origin. Default: false,
@@ -25,7 +27,9 @@ export type OriginSearchConfig = {
 /** the geoportal's own search is `bottomleft` order 10, so this sits above it */
 export const DEFAULT_CONTROL_POSITION: Positions = "bottomleft";
 export const DEFAULT_CONTROL_ORDER = 20;
-export const DEFAULT_PLACEHOLDER_PREFIX = "Von:";
+/** empty by default: the input already says "Von:", the placeholder need not */
+export const DEFAULT_PLACEHOLDER_PREFIX = "";
+export const DEFAULT_INPUT_PREFIX = "Von:";
 export const DEFAULT_PIXELWIDTH = "300px";
 /** Rathaus Wuppertal, the point "In der Nähe" has always measured from */
 export const DEFAULT_ORIGIN: OriginLocation = {
