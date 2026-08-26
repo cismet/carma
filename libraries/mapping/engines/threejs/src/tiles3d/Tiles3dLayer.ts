@@ -372,8 +372,14 @@ export function buildTiles3dLayer(
       });
 
       tiles.errorTarget = activeErrorTarget;
-      tiles.loadSiblings = false;
-      tiles.loadAncestors = false;
+      // The coarse surface that covers a gap has to be in memory to be drawn,
+      // and `loadAncestors` is what puts it there: it queues the levels above
+      // the one being refined and draws them until their children arrive. With
+      // it off, a `refine: "REPLACE"` tileset has nothing to fall back on and an
+      // unfinished area is simply empty. `loadSiblings` covers what a pan is
+      // about to reach; the library treats it as implied here anyway.
+      tiles.loadSiblings = true;
+      tiles.loadAncestors = true;
       tiles.downloadQueue.maxJobs = Math.max(
         1,
         Math.floor(options.requestConcurrency ?? 6)
