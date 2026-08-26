@@ -16,6 +16,7 @@ import {
   categoryForInput,
   categoryGroup,
   categoryInputValue,
+  categoryPrefix,
   queryForCategory,
 } from "./categoryInput";
 import {
@@ -355,9 +356,29 @@ export const NearestFeature = ({
     };
   }, [libreMap, preloadIndexes]);
 
+  const inputPrefixOf = useCallback((input: string) => {
+    const category = categoryForInput(input, categoriesRef.current);
+    if (!category || input !== input.trimStart()) {
+      return null;
+    }
+    const withSeparator = categoryInputValue(category);
+    const length = input.startsWith(withSeparator)
+      ? withSeparator.length
+      : categoryPrefix(category).length;
+    return input.slice(0, length);
+  }, []);
+
   const mode = useMemo(
-    () => ({ key, label, icon, placeholder, resolve, subscribe }),
-    [key, label, icon, placeholder, resolve, subscribe]
+    () => ({
+      key,
+      label,
+      icon,
+      placeholder,
+      resolve,
+      subscribe,
+      inputPrefixOf,
+    }),
+    [key, label, icon, placeholder, resolve, subscribe, inputPrefixOf]
   );
 
   useEffect(() => {

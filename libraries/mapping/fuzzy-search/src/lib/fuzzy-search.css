@@ -126,7 +126,9 @@
   color: black !important;
 }
 
-.parcel-input-transparent .ant-select-selection-search-input {
+/* the input whose text is drawn by an overlay instead (see
+   `.fuzzy-input-overlay`); the caret stays, it is the text that goes */
+.fuzzy-input-transparent .ant-select-selection-search-input {
   color: transparent !important;
   caret-color: #495057 !important;
 }
@@ -161,7 +163,7 @@
 }
 
 .fuzzy-input-prefix,
-.parcel-input-overlay {
+.fuzzy-input-overlay {
   font-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif;
@@ -184,7 +186,7 @@
   inset-inline-start: var(--fuzzy-input-prefix-offset, 11px) !important;
 }
 
-.parcel-input-overlay {
+.fuzzy-input-overlay {
   position: absolute;
   left: 0;
   top: 0;
@@ -198,4 +200,12 @@
   display: flex;
   align-items: center;
   box-sizing: border-box;
+}
+
+.fuzzy-input-overlay__lead {
+  color: #a6a6a6;
+}
+
+.fuzzy-input-overlay__value {
+  color: #495057;
 }

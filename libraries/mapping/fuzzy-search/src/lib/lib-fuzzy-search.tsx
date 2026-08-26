@@ -88,6 +88,7 @@ type SearchModeEntry = {
   gazData?: GazDataItem[];
   resolve?: (input: string) => Promise<DynamicSearchGroup[]>;
   subscribe?: (rerun: DynamicModeRerun) => () => void;
+  inputPrefixOf?: (input: string) => string | null;
 };
 
 /**
@@ -148,6 +149,24 @@ const DynamicModeLabel = ({
         {option.hint}
       </span>
     )}
+  </div>
+);
+
+/**
+ * The value drawn over the input in place of the input's own text: the lead
+ * that is a fixed label (the picked Gemarkung, the picked category) in grey,
+ * what the user typed behind it in the colour the input writes in.
+ */
+const InputValueOverlay = ({
+  lead,
+  value,
+}: {
+  lead: string;
+  value: string;
+}) => (
+  <div aria-hidden="true" className="fuzzy-input-overlay">
+    <span className="fuzzy-input-overlay__lead">{lead}</span>
+    <span className="fuzzy-input-overlay__value">{value}</span>
   </div>
 );
 
@@ -299,6 +318,7 @@ export function LibFuzzySearch({
       gazData: mode.gazData,
       resolve: mode.resolve,
       subscribe: mode.subscribe,
+      inputPrefixOf: mode.inputPrefixOf,
     })),
   ];
   const availableModes = searchModes.map((mode) => mode.key);
@@ -835,6 +855,10 @@ export function LibFuzzySearch({
   const withInputPrefix = (text: string) =>
     inputPrefix && !showInputPrefix ? `${inputPrefix} ${text}` : text;
 
+  const modeInputPrefix = activeMode?.inputPrefixOf?.(value) ?? null;
+  const showModeInputPrefix =
+    modeInputPrefix !== null && value.startsWith(modeInputPrefix);
+
   return (
     <div
       // ref={divWrapperRef}
@@ -847,9 +871,7 @@ export function LibFuzzySearch({
           // (11px), plus the label, plus the space between the two
           ...(inputPrefixWidth
             ? {
-                "--fuzzy-input-prefix-offset": `${
-                  11 + inputPrefixWidth + 4
-                }px`,
+                "--fuzzy-input-prefix-offset": `${11 + inputPrefixWidth + 4}px`,
               }
             : {}),
         } as CSSProperties
@@ -971,6 +993,14 @@ export function LibFuzzySearch({
           </span>
         )}
         {(() => {
+          if (showModeInputPrefix && modeInputPrefix !== null) {
+            return (
+              <InputValueOverlay
+                lead={modeInputPrefix}
+                value={value.slice(modeInputPrefix.length)}
+              />
+            );
+          }
           // Colored Overlay
           const sepIdx = value.lastIndexOf(LAND_PARCEL_SEPARATOR);
           if (
@@ -979,13 +1009,11 @@ export function LibFuzzySearch({
             sepIdx > 0 &&
             cleanBtnDisable
           ) {
-            const prefix = value.substring(0, sepIdx + 1);
-            const active = value.substring(sepIdx + 1);
             return (
-              <div aria-hidden="true" className="parcel-input-overlay">
-                <span style={{ color: "#aaa" }}>{prefix}</span>
-                <span style={{ color: "#495057" }}>{active}</span>
-              </div>
+              <InputValueOverlay
+                lead={value.substring(0, sepIdx + 1)}
+                value={value.substring(sepIdx + 1)}
+              />
             );
           }
           return null;
@@ -1051,11 +1079,12 @@ export function LibFuzzySearch({
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           className={
-            !isAdditionalMode &&
-            value.includes(LAND_PARCEL_SEPARATOR) &&
-            landParcelData &&
-            cleanBtnDisable
-              ? "parcel-input-transparent"
+            showModeInputPrefix ||
+            (!isAdditionalMode &&
+              value.includes(LAND_PARCEL_SEPARATOR) &&
+              landParcelData &&
+              cleanBtnDisable)
+              ? "fuzzy-input-transparent"
               : ""
           }
           dropdownRender={(item) => {

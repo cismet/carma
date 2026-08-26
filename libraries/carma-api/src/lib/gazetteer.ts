@@ -28,6 +28,12 @@ export type GazetteerMode = {
   sources?: GazetteerSource[];
   resolve?: (input: string) => Promise<unknown>;
   /**
+   * The leading part of the input that is a fixed label rather than something
+   * the user typed, e.g. the category picked in a first stage; the search draws
+   * it in the grey it draws its own fixed labels in.
+   */
+  inputPrefixOf?: (input: string) => string | null;
+  /**
    * Ask the search to resolve an input again; returns an unsubscribe. The
    * options let the mode put its own stage back into the input and have the
    * answer shown, for a rerun the user did not type.

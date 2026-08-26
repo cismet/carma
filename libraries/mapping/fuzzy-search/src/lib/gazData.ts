@@ -79,6 +79,7 @@ export type GazDataAdditionalModeConfig = {
   sources?: GazDataSourceConfig[];
   /** asked on every input change and when the dropdown opens */
   resolve?: (input: string) => Promise<DynamicSearchGroup[]>;
+  inputPrefixOf?: (input: string) => string | null;
   subscribe?: (rerun: DynamicModeRerun) => () => void;
 };
 
