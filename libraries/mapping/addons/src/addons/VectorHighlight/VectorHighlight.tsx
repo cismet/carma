@@ -19,9 +19,9 @@ import { createDimController, type DimController } from "./dim-controller";
 import { useCombinedGeometryHighlight } from "./combined-geometry";
 import { useHighlightModeActions } from "./highlight-actions";
 import {
+  clampBufferWidth,
   DEFAULT_BUFFER_WIDTH,
   DEFAULT_SHAPES,
-  MAX_BUFFER_WIDTH,
 } from "./shapes";
 
 import type { HighlightOperation } from "./operations";
@@ -94,10 +94,7 @@ export const VectorHighlight = ({
   const appliedBuffer = cumulativeBuffer ? mode?.appliedBuffer ?? 0 : 0;
   const bufferEnabled = mode?.bufferEnabled ?? bufferOnByDefault;
   const shapeBuffer = bufferEnabled
-    ? Math.min(
-        appliedBuffer + (mode?.shapeBuffer ?? defaultBuffer),
-        MAX_BUFFER_WIDTH
-      )
+    ? clampBufferWidth(appliedBuffer + (mode?.shapeBuffer ?? defaultBuffer))
     : 0;
   // the preview draws the shape at the width it already ran with, so the dashed
   // ring around it is the step and not the whole width
@@ -167,9 +164,7 @@ export const VectorHighlight = ({
         // `bufferEnabled` is already back off. A newly drawn shape starts over,
         // at the default step and unbuffered.
         appliedBuffer:
-          cumulativeBuffer && replayed
-            ? Math.min(bufferMeters, MAX_BUFFER_WIDTH)
-            : 0,
+          cumulativeBuffer && replayed ? clampBufferWidth(bufferMeters) : 0,
         ...(replayed ? null : { shapeBuffer: defaultBuffer }),
       })),
     [setMode, bufferOnByDefault, cumulativeBuffer, defaultBuffer]
@@ -188,6 +183,12 @@ export const VectorHighlight = ({
           : { bufferPanelOpen: false, bufferEnabled: bufferOnByDefault }),
       })),
     [setMode, bufferOnByDefault]
+  );
+
+  const handleShapeEmptyChange = useCallback(
+    (shapeEmpty: boolean) =>
+      setMode((previous) => ({ ...(previous ?? { isOn: false }), shapeEmpty })),
+    [setMode]
   );
 
   // key on the content: route configs pass a fresh array per render
@@ -227,6 +228,7 @@ export const VectorHighlight = ({
       clearDelay,
       onLastShapeChange: handleLastShapeChange,
       onLastShapePreviewChange: handleLastShapePreviewChange,
+      onShapeEmptyChange: handleShapeEmptyChange,
       onCircleRadiusChange: setCircleRadius,
       onRectSizeChange: setRectSize,
       onDeactivate: endMode,
