@@ -157,6 +157,13 @@ describe("shadow scene lighting integration", () => {
     const sunVector = scene.getObjectByName(
       "shadow-simulation-sun-vector"
     ) as THREE.ArrowHelper;
+    const defaultSunIntensity = sun.intensity;
+    const defaultMapIntensity = setLight.mock.lastCall?.[0].intensity as number;
+    controller.updateShadowIntensity(1);
+    expect(sun.intensity).toBeGreaterThan(defaultSunIntensity);
+    expect(setLight.mock.lastCall?.[0].intensity).toBeGreaterThan(
+      defaultMapIntensity
+    );
     expect(sun.isDirectionalLight).toBe(true);
     expect(sun.shadow.camera).toBeInstanceOf(THREE.OrthographicCamera);
     expect(sun.shadow.camera.projectionMatrix.elements[11]).toBe(0);
@@ -375,13 +382,25 @@ describe("shadow scene lighting integration", () => {
     let mapCenter = { lng: 0, lat: 0 };
     let viewportHalfWidth = 1;
     let viewportHalfHeight = 2;
+    const viewportWidth = 800;
+    const viewportHeight = 600;
+    const getBounds = vi.fn(() => ({
+      getWest: () => mapCenter.lng - viewportHalfWidth * 4,
+      getSouth: () => mapCenter.lat - viewportHalfHeight * 4,
+      getEast: () => mapCenter.lng + viewportHalfWidth * 4,
+      getNorth: () => mapCenter.lat + viewportHalfHeight * 4,
+    }));
     const map = {
       getCenter: vi.fn(() => mapCenter),
-      getBounds: vi.fn(() => ({
-        getWest: () => mapCenter.lng - viewportHalfWidth,
-        getSouth: () => mapCenter.lat - viewportHalfHeight,
-        getEast: () => mapCenter.lng + viewportHalfWidth,
-        getNorth: () => mapCenter.lat + viewportHalfHeight,
+      getBounds,
+      getCanvas: vi.fn(() => ({
+        clientWidth: viewportWidth,
+        clientHeight: viewportHeight,
+      })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: mapCenter.lng + (x / viewportWidth - 0.5) * viewportHalfWidth * 2,
+        lat:
+          mapCenter.lat + (0.5 - y / viewportHeight) * viewportHalfHeight * 2,
       })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
@@ -426,6 +445,7 @@ describe("shadow scene lighting integration", () => {
       sun.shadow.camera.right - sun.shadow.camera.left;
 
     expectCurrentViewportInsideShadowCamera();
+    expect(getBounds).not.toHaveBeenCalled();
     expect(sunVector.position.toArray()).toEqual([0, 0, 0]);
     expect(sunVector.cone.position.y).toBeCloseTo(1_000);
     expect(map.on).toHaveBeenCalledWith("move", expect.any(Function));
@@ -463,11 +483,10 @@ describe("shadow scene lighting integration", () => {
     scene.add(elevatedReceiver);
     const map = {
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
-      getBounds: vi.fn(() => ({
-        getWest: () => -0.05,
-        getSouth: () => -0.1,
-        getEast: () => 0.05,
-        getNorth: () => 0.1,
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: (x / 800 - 0.5) * 0.1,
+        lat: (0.5 - y / 600) * 0.2,
       })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),

@@ -34,6 +34,7 @@ import mappingReducer from "../store/slices/mapping";
 import uiReducer from "../store/slices/ui";
 import {
   formatShadowSelection,
+  SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
   SHADOW_SIMULATION_LAYER_ID,
   useShadowSimulationLayerButton,
 } from "./useShadowSimulationLayerButton";
@@ -77,7 +78,7 @@ describe("useShadowSimulationLayerButton", () => {
     };
   });
 
-  it("adds the top-level layer and opens its options when enabled", async () => {
+  it("adds the top-level layer and opens its interaction controls when enabled", async () => {
     const store = createTestStore();
     const { rerender } = renderHook(() => useShadowSimulationLayerButton(), {
       wrapper: createWrapper(store),
@@ -97,6 +98,13 @@ describe("useShadowSimulationLayerButton", () => {
           id: SHADOW_SIMULATION_LAYER_ID,
           pinned: "last",
           visible: true,
+          skipSelection: true,
+          interactionButtons: [
+            expect.objectContaining({
+              id: SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
+              tooltip: "Schatteneinstellungen",
+            }),
+          ],
           tools: [
             expect.objectContaining({
               kind: "shadowSimulation",
@@ -105,9 +113,13 @@ describe("useShadowSimulationLayerButton", () => {
           ],
         })
       );
-      expect(store.getState().mapping.selectedLayerIndex).toBe(0);
-      expect(store.getState().ui.showInfo).toBe(true);
-      expect(store.getState().ui.showInfoText).toBe(false);
+      expect(store.getState().mapping.selectedLayerIndex).toBe(-2);
+      expect(store.getState().mapping.activeInteractionLayerID).toBe(
+        SHADOW_SIMULATION_LAYER_ID
+      );
+      expect(store.getState().mapping.activeInteractionButtonID).toBe(
+        SHADOW_SIMULATION_CONTROLS_INTERACTION_ID
+      );
     });
   });
 

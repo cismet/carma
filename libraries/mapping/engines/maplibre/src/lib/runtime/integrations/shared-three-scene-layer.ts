@@ -242,7 +242,7 @@ export const buildSharedThreeSceneLayer = (
       depthRangeBridge = installRenderTargetDepthRangeBridge(renderer, gl);
       renderer.autoClear = false;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       for (const runtime of runtimes.values()) {
         if (runtime.root.parent !== scene) scene.add(runtime.root);
         placeRuntime(runtime);
