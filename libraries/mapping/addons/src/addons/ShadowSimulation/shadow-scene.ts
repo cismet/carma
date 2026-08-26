@@ -5,6 +5,8 @@ import {
   acquireSharedThreeScene,
   buildCesiumTerrainRuntime,
   getGenericThreeLayers,
+  getSharedThreeSceneRuntimes,
+  subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
@@ -861,6 +863,21 @@ export const buildShadowSimulationScene = (
   );
   syncGenericBridges();
 
+  const handleSharedSceneContentChanged = () => {
+    if (disposed) return;
+    for (const runtime of getSharedThreeSceneRuntimes(map)) {
+      runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
+    }
+    makeSceneMeshesShadeable(sceneLease.layer.getScene());
+    sharedBinding.sunLight.shadow.needsUpdate = true;
+    refreshSharedShadowCoverage();
+  };
+  const unsubscribeSharedSceneContent = subscribeSharedThreeSceneContent(
+    map,
+    handleSharedSceneContentChanged
+  );
+  handleSharedSceneContentChanged();
+
   const applyMapLibreLight = (position: SolarPosition) => {
     if (!map.isStyleLoaded()) return;
     const daylightStrength = THREE.MathUtils.clamp(
@@ -922,6 +939,9 @@ export const buildShadowSimulationScene = (
       for (const bridge of genericBridges.values()) {
         bridge.updateBuildingAppearance(appearance);
       }
+      for (const runtime of getSharedThreeSceneRuntimes(map)) {
+        runtime.setShadowSimulationStyle?.(appearance);
+      }
       map.triggerRepaint();
     },
     updateShadowQuality(quality) {
@@ -955,6 +975,10 @@ export const buildShadowSimulationScene = (
       map.off("moveend", refreshSharedShadowCoverage);
       map.off("resize", updateSharedShadowCoverage);
       unsubscribeGenericLayers();
+      unsubscribeSharedSceneContent();
+      for (const runtime of getSharedThreeSceneRuntimes(map)) {
+        runtime.setShadowSimulationStyle?.(null);
+      }
       for (const bridge of genericBridges.values()) {
         if (sceneLease.layer.hasRuntime(bridge.runtime.id)) {
           sceneLease.layer.removeRuntime(bridge.runtime.id);

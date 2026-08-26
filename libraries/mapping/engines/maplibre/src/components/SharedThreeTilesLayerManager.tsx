@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 
 import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime";
+import {
+  notifySharedThreeSceneContentChanged,
+  registerSharedThreeSceneRuntime,
+} from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
 import type { ThreeTilesLayer } from "../lib/runtime/integrations/three-tiles-layer";
 import { useLibreContext } from "../contexts/LibreContext";
@@ -20,14 +24,17 @@ export const SharedThreeTilesLayerManager = ({
     if (!map || layers.length === 0) return;
 
     const lease = acquireSharedThreeScene(map);
-    const runtimes = layers.map((layer) => {
+    const runtimeRegistrations = layers.map((layer) => {
       const center = map.getCenter();
       const origin = layer.origin ?? [center.lng, center.lat];
       const runtime = buildThreeTilesRuntime(
         runtimeId(layer.carmaLayerId ?? layer.name),
         layer.url,
         origin,
-        { requestConcurrency: layer.requestConcurrency ?? 2 }
+        {
+          requestConcurrency: layer.requestConcurrency ?? 2,
+          onContentChanged: () => notifySharedThreeSceneContentChanged(map),
+        }
       );
       runtime.setClayMaterial({
         color: layer.shader.color,
@@ -38,11 +45,15 @@ export const SharedThreeTilesLayerManager = ({
       runtime.setOpacity(layer.opacity ?? 1);
       runtime.setErrorTarget(layer.errorTarget ?? 8);
       lease.layer.addRuntime(runtime);
-      return runtime;
+      return {
+        runtime,
+        unregister: registerSharedThreeSceneRuntime(map, runtime),
+      };
     });
 
     return () => {
-      for (const runtime of runtimes) {
+      for (const { runtime, unregister } of runtimeRegistrations) {
+        unregister();
         lease.layer.removeRuntime(runtime.id);
       }
       lease.release();

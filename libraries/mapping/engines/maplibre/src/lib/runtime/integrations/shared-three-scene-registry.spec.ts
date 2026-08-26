@@ -13,6 +13,9 @@ describe("shared Three.js scene registry", () => {
   const dispose = vi.fn();
   const sharedLayer = {
     id: "carma-shared-three-scene",
+    addRuntime: vi.fn(),
+    removeRuntime: vi.fn(),
+    getScene: vi.fn(),
     dispose,
   };
 
@@ -116,5 +119,60 @@ describe("shared Three.js scene registry", () => {
     expect(attached).toBe(true);
     expect(addLayer).toHaveBeenCalledTimes(2);
     lease.release();
+  });
+
+  it("reuses a mounted shared layer after the module registry was replaced", () => {
+    const mountedLayer = {
+      ...sharedLayer,
+      addRuntime: vi.fn(),
+      removeRuntime: vi.fn(),
+      getScene: vi.fn(),
+    };
+    const addLayer = vi.fn();
+    const removeLayer = vi.fn();
+    const map = {
+      getStyle: vi.fn(() => ({ layers: [] })),
+      getLayer: vi.fn(() => ({ implementation: mountedLayer })),
+      addLayer,
+      removeLayer,
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(lease.layer).toBe(mountedLayer);
+    expect(buildSharedThreeSceneLayer).not.toHaveBeenCalled();
+    expect(addLayer).not.toHaveBeenCalled();
+
+    lease.release();
+    expect(removeLayer).toHaveBeenCalledWith(mountedLayer.id);
+    expect(mountedLayer.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("does not remove a newer shared layer when an old lease releases", () => {
+    const replacementLayer = {
+      ...sharedLayer,
+      addRuntime: vi.fn(),
+      removeRuntime: vi.fn(),
+      getScene: vi.fn(),
+    };
+    const removeLayer = vi.fn();
+    let mountedLayer: unknown = sharedLayer;
+    const map = {
+      getStyle: vi.fn(() => ({ layers: [] })),
+      getLayer: vi.fn(() => ({ implementation: mountedLayer })),
+      addLayer: vi.fn(),
+      removeLayer,
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+    mountedLayer = replacementLayer;
+    lease.release();
+
+    expect(removeLayer).not.toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledOnce();
   });
 });

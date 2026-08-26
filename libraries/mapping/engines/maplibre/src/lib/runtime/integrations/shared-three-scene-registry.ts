@@ -12,12 +12,46 @@ type SharedSceneEntry = {
   ensureLayer: () => void;
 };
 
+type SharedSceneHotData = {
+  sharedThreeSceneEntries?: WeakMap<MaplibreMap, SharedSceneEntry>;
+};
+
 export type SharedThreeSceneLease = {
   layer: SharedThreeSceneLayer;
   release: () => void;
 };
 
-const entries = new WeakMap<MaplibreMap, SharedSceneEntry>();
+const hotData = import.meta.hot?.data as SharedSceneHotData | undefined;
+const entries =
+  hotData?.sharedThreeSceneEntries ??
+  new WeakMap<MaplibreMap, SharedSceneEntry>();
+if (hotData) hotData.sharedThreeSceneEntries = entries;
+
+const isSharedThreeSceneLayer = (
+  value: unknown
+): value is SharedThreeSceneLayer => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<SharedThreeSceneLayer>;
+  return (
+    candidate.id === SHARED_SCENE_LAYER_ID &&
+    typeof candidate.addRuntime === "function" &&
+    typeof candidate.removeRuntime === "function" &&
+    typeof candidate.getScene === "function"
+  );
+};
+
+const getMountedSharedThreeSceneLayer = (
+  map: MaplibreMap
+): SharedThreeSceneLayer | undefined => {
+  const styleLayer = map.getLayer(SHARED_SCENE_LAYER_ID) as
+    | { implementation?: unknown }
+    | SharedThreeSceneLayer
+    | undefined;
+  if (isSharedThreeSceneLayer(styleLayer)) return styleLayer;
+  return isSharedThreeSceneLayer(styleLayer?.implementation)
+    ? styleLayer.implementation
+    : undefined;
+};
 
 const getFirstSymbolLayerId = (map: MaplibreMap): string | undefined =>
   map.getStyle().layers?.find(({ type }) => type === "symbol")?.id;
@@ -32,9 +66,14 @@ export const acquireSharedThreeScene = (
 ): SharedThreeSceneLease => {
   let entry = entries.get(map);
   if (!entry) {
-    const layer = buildSharedThreeSceneLayer(SHARED_SCENE_LAYER_ID, {
-      ambientLightIntensity: 0.58,
-    });
+    // Vite may reload this registry while MapLibre keeps the existing custom
+    // layer alive. Reuse that mounted implementation so new runtimes are not
+    // attached to a fresh, unmounted Three.js scene.
+    const layer =
+      getMountedSharedThreeSceneLayer(map) ??
+      buildSharedThreeSceneLayer(SHARED_SCENE_LAYER_ID, {
+        ambientLightIntensity: 0.58,
+      });
     const nextEntry: SharedSceneEntry = {
       layer,
       references: 0,
@@ -44,7 +83,7 @@ export const acquireSharedThreeScene = (
     nextEntry.ensureLayer = () => {
       if (nextEntry.disposed) return;
       try {
-        if (!map.getLayer(layer.id)) {
+        if (!getMountedSharedThreeSceneLayer(map)) {
           map.addLayer(layer, getFirstSymbolLayerId(map));
         }
       } catch {
@@ -77,7 +116,9 @@ export const acquireSharedThreeScene = (
       map.off("style.load", current.ensureLayer);
       map.off("idle", current.ensureLayer);
       try {
-        if (map.getLayer(current.layer.id)) map.removeLayer(current.layer.id);
+        if (getMountedSharedThreeSceneLayer(map) === current.layer) {
+          map.removeLayer(current.layer.id);
+        }
       } catch {
         // The host may already have disposed or replaced its style.
       }

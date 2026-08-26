@@ -7,7 +7,9 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: vi.fn(),
   buildCesiumTerrainRuntime: vi.fn(),
   getGenericThreeLayers: vi.fn(() => []),
+  getSharedThreeSceneRuntimes: vi.fn(() => []),
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
+  subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
   suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
   suppressMapLibreTerrainRendering: vi.fn(() => vi.fn()),
 }));
@@ -16,7 +18,9 @@ import {
   acquireSharedThreeScene,
   buildCesiumTerrainRuntime,
   getGenericThreeLayers,
+  getSharedThreeSceneRuntimes,
   subscribeGenericThreeLayers,
+  subscribeSharedThreeSceneContent,
   suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
@@ -111,7 +115,9 @@ describe("shadow scene lighting integration", () => {
       }),
     };
     vi.mocked(getGenericThreeLayers).mockReturnValue([]);
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([]);
     vi.mocked(subscribeGenericThreeLayers).mockReturnValue(vi.fn());
+    vi.mocked(subscribeSharedThreeSceneContent).mockReturnValue(vi.fn());
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
       layer: sharedLayer as never,
       release: releaseScene,
@@ -327,6 +333,40 @@ describe("shadow scene lighting integration", () => {
     expect(
       scene.getObjectByName("alkis-building-shadow-simulation-copy")
     ).toBeUndefined();
+  });
+
+  it("restyles registered building tiles only while shadow mode is active", () => {
+    const setShadowSimulationStyle = vi.fn();
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      { setShadowSimulationStyle } as never,
+    ]);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+
+    const controller = buildShadowSimulationScene(map as never);
+    expect(setShadowSimulationStyle).toHaveBeenLastCalledWith({
+      fullOpacity: true,
+      uniformColor: null,
+    });
+
+    controller.updateBuildingAppearance({
+      fullOpacity: true,
+      uniformColor: "#d8d1c4",
+    });
+    expect(setShadowSimulationStyle).toHaveBeenLastCalledWith({
+      fullOpacity: true,
+      uniformColor: "#d8d1c4",
+    });
+
+    controller.dispose();
+    expect(setShadowSimulationStyle).toHaveBeenLastCalledWith(null);
   });
 
   it("keeps the full map viewport inside the shadow camera", () => {

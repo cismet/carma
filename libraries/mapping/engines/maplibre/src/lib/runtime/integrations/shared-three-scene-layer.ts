@@ -23,8 +23,16 @@ export interface SharedThreeSceneRuntime {
   root: THREE.Object3D;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;
+  setShadowSimulationStyle?: (
+    style: SharedThreeSceneShadowStyle | null
+  ) => void;
   dispose: () => void;
 }
+
+export type SharedThreeSceneShadowStyle = Readonly<{
+  fullOpacity: boolean;
+  uniformColor: string | null;
+}>;
 
 export interface SharedThreeSceneLayer extends CustomLayerInterface {
   addRuntime: (runtime: SharedThreeSceneRuntime) => void;
