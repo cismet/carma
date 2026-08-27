@@ -145,7 +145,7 @@ export type ShadowBuildingAppearance = Readonly<{
 export type ShadowQualityMultiplier = 4 | 16 | 64;
 export type ShadowMode = "single" | "advanced";
 
-export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 4;
+export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 64;
 export const DEFAULT_SHADOW_MODE: ShadowMode = "single";
 export const DEFAULT_SHADOW_SURFACE_COLOR = "#d3d3d3";
 
@@ -1252,7 +1252,11 @@ export const buildShadowSimulationScene = (
   // sub-pixel jitter supersamples the whole image on top. Only while the
   // camera and the shadow state hold still; any change restarts the average.
   sceneLease.layer.setAccumulationController?.({
-    rounds: 4,
+    // The top quality level cannot buy larger sample buffers (memory), so it
+    // buys time: eight rounds average 64 sun directions instead of 32.
+    get rounds() {
+      return sharedBinding.shadowQuality === 64 ? 8 : 4;
+    },
     epoch: () => shadowStateEpoch,
     active: () =>
       softSunShadowsEnabled &&
