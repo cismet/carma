@@ -216,7 +216,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     };
 
     const handleOutsideClick = (event: PointerEvent) => {
-      if ((event.target as Element)?.closest?.(".ant-dropdown")) {
+      // antd portals (dropdowns, date pickers) live on document.body but
+      // belong to controls inside this view - clicking them must not close it.
+      if (
+        (event.target as Element)?.closest?.(
+          ".ant-dropdown, .ant-picker-dropdown"
+        )
+      ) {
         return;
       }
       let newLayerIndex = -2;
@@ -370,8 +376,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           </button>
           <div
             className={cn(
-              "flex items-center w-full h-8 shrink-0 gap-2 px-6",
-              secondaryViewAddon ? "sm:px-8 sm:gap-3" : "sm:px-0 sm:gap-6"
+              "flex items-center w-full h-8 shrink-0 gap-2 px-6 sm:px-0",
+              secondaryViewAddon ? "sm:gap-3" : "sm:gap-6"
             )}
           >
             <div

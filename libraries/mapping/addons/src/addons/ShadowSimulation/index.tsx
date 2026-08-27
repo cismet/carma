@@ -228,7 +228,7 @@ export const ShadowSimulationSettings = ({
 };
 
 const QUICK_BUTTON_CLASS_NAME =
-  "flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-neutral-300 bg-white px-2 text-center text-sm text-neutral-800 transition-colors hover:border-amber-500 hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40";
+  "flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-neutral-300 bg-white px-1 text-center text-sm text-neutral-800 transition-colors hover:border-amber-500 hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40";
 const SEGMENT_BUTTON_CLASS_NAME =
   "h-8 whitespace-nowrap border-r border-neutral-300 px-3 text-sm text-neutral-700 transition-colors last:border-r-0 hover:text-amber-700";
 
@@ -348,7 +348,7 @@ export const ShadowSimulationHeaderControls = ({
     >
       {/* Fixed date column on purpose: '9. Mai' and '22. September' must not
           move the chevrons or anything right of them. */}
-      <div className="grid shrink-0 grid-cols-[28px_124px_28px] items-center">
+      <div className="grid shrink-0 grid-cols-[28px_118px_28px] items-center">
         <button
           type="button"
           className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
@@ -382,6 +382,7 @@ export const ShadowSimulationHeaderControls = ({
             format="D. MMMM YYYY"
             allowClear={false}
             inputReadOnly
+            getPopupContainer={(trigger) => trigger.parentElement ?? trigger}
             onOpenChange={setDatePickerOpen}
             onChange={(date) => {
               if (!date) return;
@@ -512,7 +513,7 @@ const ShadowQuickSettings = ({
           Datum
         </h3>
         <div
-          className="grid grid-cols-4 gap-2"
+          className="grid grid-cols-2 gap-2"
           data-test-id="shadow-date-shortcuts"
         >
           <button
