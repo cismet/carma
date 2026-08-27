@@ -44,12 +44,13 @@ export const CASTER_RELIEF_MARGIN_METERS = 300;
  */
 const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
 /**
- * Total soft-shadow texel budget of roughly 300 MB of depth textures: eight
- * samples at this edge. Contact sharpness scales with the per-sample edge,
- * penumbra smoothness with the sample count; this splits the budget between
- * them.
+ * Ceiling for one disc sample's buffer edge: eight of them exist at once,
+ * and 8 x 4096 squared is already half a gigabyte of depth textures. Below
+ * the ceiling the edge follows the quality level (half the single-buffer
+ * edge), so the quality switch stays meaningful with soft shadows on; the
+ * top level spends its surplus on extra accumulation rounds instead.
  */
-const MAX_SOFT_SAMPLE_EDGE = 3_072;
+const MAX_SOFT_SAMPLE_EDGE = 4_096;
 /**
  * The sun is a disc of about 0.53 degrees, not a point. Sampling that disc
  * with several jittered shadow passes and summing quarter-intensity lights is
@@ -720,7 +721,7 @@ export class TiledShadowController {
       const sampleLights = this.sampleLights;
       const sampleCount = softSampling ? SUN_DISC_SAMPLE_PATTERN.length : 1;
       const sampleMapSize = softSampling
-        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_EDGE, mapSize))
+        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_EDGE, mapSize / 2))
         : mapSize;
       const light = this.lights[0];
       const shadowCamera = light.shadow.camera;

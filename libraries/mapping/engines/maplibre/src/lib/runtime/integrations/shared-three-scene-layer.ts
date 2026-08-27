@@ -210,6 +210,7 @@ export const buildSharedThreeSceneLayer = (
   const lodCamera = new THREE.PerspectiveCamera();
   let accumulationController: SharedSceneAccumulationController | null = null;
   let accumulator: SharedSceneAccumulator | null = null;
+  let accumulatorRounds = 0;
   const jitterMatrix = new THREE.Matrix4();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
@@ -413,7 +414,14 @@ export const buildSharedThreeSceneLayer = (
 
       const accumulation = accumulationController;
       if (accumulation?.active() && renderer && !accumulator?.broken) {
-        accumulator ??= buildSharedSceneAccumulator(accumulation.rounds);
+        if (accumulator && accumulatorRounds !== accumulation.rounds) {
+          accumulator.dispose();
+          accumulator = null;
+        }
+        if (!accumulator) {
+          accumulator = buildSharedSceneAccumulator(accumulation.rounds);
+          accumulatorRounds = accumulation.rounds;
+        }
         // The rounds sample one fixed state: the shadow controller's epoch
         // and the camera pose. Either moving restarts the average.
         const poseKey = [
