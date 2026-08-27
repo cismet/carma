@@ -105,36 +105,45 @@ export const OriginSearch = ({
     void message.warning(NO_POSITION_WARNINGS[problem]);
   }, [problem]);
 
+  // where the input stands when nobody has typed anything into it: the point
+  // the route named, or the user themselves. The location mode keeps watching,
+  // so this is its latest fix; it is read at the moments below and not followed
+  // tick by tick, which would re-rank "In der Nähe" and re-fit the map every few
+  // meters the user walks.
+  const defaultLocation = (): OriginLocation | null =>
+    defaultOrigin ??
+    (currentPosition
+      ? {
+          lat: currentPosition.coords.latitude,
+          lng: currentPosition.coords.longitude,
+          label: OWN_POSITION_LABEL,
+        }
+      : null);
+
   // while the input is there it owns the origin, so a consumer reads one value
   // rather than falling back to a default of its own. Without a fix and without
   // a configured starting point there is nothing honest to publish, so the
-  // channel stays empty and the input asks the user where to start.
-  //
-  // Only while nothing is published: the location mode keeps watching, and
-  // taking every tick would re-rank "In der Nähe" and re-fit the map every few
-  // meters the user walks. Clearing the input is what takes a fresh fix.
+  // channel stays empty and the input asks the user where to start; this is
+  // also what publishes the fix that arrives after the input is already up.
   useEffect(() => {
     if (origin || !visible) {
       return;
     }
-    if (defaultOrigin) {
-      setOrigin(defaultOrigin);
-      return;
+    const location = defaultLocation();
+    if (location) {
+      setOrigin(location);
     }
-    if (currentPosition) {
-      setOrigin({
-        lat: currentPosition.coords.latitude,
-        lng: currentPosition.coords.longitude,
-        label: OWN_POSITION_LABEL,
-      });
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origin, visible, defaultOrigin, currentPosition, setOrigin]);
 
   const handleSelection = (hit: SearchResultItem | null) => {
     // the clear button: back to where the route says "nearby" starts, which is
-    // the user's own position unless the route named a point of its own, and
-    // the effect above republishes it from the mode's latest fix
-    setOrigin(hit ? toOrigin(hit) : defaultOrigin ?? null);
+    // the user's own position unless the route named a point of its own. The
+    // point itself, not an empty channel for the effect above to fill in a
+    // render's time: a consumer reading the channel in between would see no
+    // origin at all and measure from its own fallback, which is neither the
+    // address that was cleared nor the position it is going back to.
+    setOrigin(hit ? toOrigin(hit) : defaultLocation());
   };
 
   // the marker follows the origin for as long as the input is on screen: it is

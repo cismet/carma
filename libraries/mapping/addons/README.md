@@ -685,6 +685,18 @@ falls back to its `origin` config when nothing published one (the geoportal
 route passes its own `DEFAULT_HOME_VIEW_REF` there, so the app's config stays
 the source of truth for a route without that addon).
 
+A new starting point re-ranks the category on screen: the routes and the
+selection go with the point they were measured from, and the fresh rows are
+pushed into the open dropdown. That re-rank hangs on the stage itself
+(`stageCategoryRef`, `rankedOriginKeyRef`), not on the last run, because a
+starting point can change twice in a row: clearing the origin input publishes
+the user's own position, so the second change has to find a stage to re-rank
+while the first one's ranking is still in flight. The fallback above is why the
+origin input hands the fix back itself rather than publishing nothing and
+letting an effect fill it in a render later: for that render the channel is
+empty, and a consumer reading it measures from its own default instead, which
+is neither the address that was cleared nor the position it is going back to.
+
 ### A category is an addon of its own
 
 The mode declares no categories. Each one is a headless addon that publishes

@@ -195,6 +195,16 @@ export const NearestFeature = ({
    */
   const pendingRunRef = useRef<Run | null>(null);
 
+  /**
+   * The category whose stage is on screen, and the starting point it was last
+   * ranked from. A new origin re-ranks against these two rather than against
+   * `lastRunRef`, which is dropped the moment a re-rank starts: an origin
+   * arriving while one is still running would find nothing there to re-rank and
+   * leave the map on the run before it, routes and all.
+   */
+  const stageCategoryRef = useRef<NearestFeatureCategory | null>(null);
+  const rankedOriginKeyRef = useRef<string | null>(null);
+
   // a category is being ranked, so a starting point is now worth having and
   // worth offering. Asked for when the ranking starts rather than when it is
   // done, because the ranking is what needs the answer: it is also what puts
@@ -249,9 +259,11 @@ export const NearestFeature = ({
    * from clearing a selection the user made somewhere else.
    */
   const resetRun = useCallback(() => {
-    if (!lastRunRef.current && !pendingRunRef.current) {
+    if (!stageCategoryRef.current) {
       return;
     }
+    stageCategoryRef.current = null;
+    rankedOriginKeyRef.current = null;
     lastRunRef.current = null;
     pendingRunRef.current = null;
     setDrawnRoutes([]);
@@ -266,6 +278,12 @@ export const NearestFeature = ({
       const map = mapRef.current;
       const currentOrigin = originRef.current;
       const originKey = originKeyOf(currentOrigin);
+      // this category's stage is the one on screen from here on, ranked from
+      // the point that is current now and not from the one the caller set out
+      // with: a starting point that arrived while this was waiting is the one
+      // that counts, and the effect below then has nothing left to redo
+      stageCategoryRef.current = category;
+      rankedOriginKeyRef.current = originKey;
       if (!map) {
         // not kept: there is nothing to filter and nothing to re-rank
         return {
@@ -449,28 +467,38 @@ export const NearestFeature = ({
    * fitted around the old point. The ranking runs here, and the search is only
    * told afterwards, through the rerun above.
    *
-   * What was picked before belongs to the old starting point, so the selection
-   * goes first: the map ends up on the category's stage again, fitted around
-   * the new point, with the fresh hits in the dropdown.
+   * What was drawn and picked before belongs to the old starting point, so the
+   * routes and the selection go first: the map ends up on the category's stage
+   * again, fitted around the new point, with the fresh hits in the dropdown.
+   *
+   * It re-ranks against the stage's own refs, not against the run: a starting
+   * point can change twice in a row (clearing the origin search hands back the
+   * user's own position), and the second change must still find a stage to
+   * re-rank while the first one's ranking is in flight.
    */
   const originKey = originKeyOf(effectiveOrigin);
   useEffect(() => {
-    const lastRun = lastRunRef.current;
-    // nothing ranked yet, or ranked from exactly this point: the origin search
-    // publishing its default on mount must not re-rank and move the map
-    if (!lastRun || lastRun.originKey === originKey) {
+    const category = stageCategoryRef.current;
+    // no stage on screen, or it is already ranked from exactly this point: the
+    // origin search publishing its default on mount must not re-rank and move
+    // the map
+    if (!category || rankedOriginKeyRef.current === originKey) {
       return;
     }
-    const { category } = lastRun;
     lastRunRef.current = null;
     pendingRunRef.current = null;
+    // the lines were driven from a point that is not the starting point any
+    // more, so they go now rather than when their replacements arrive: a
+    // ranking takes seconds, and a route from nowhere is worse than none
+    setDrawnRoutes([]);
     clearSelectionRef.current();
     let cancelled = false;
     void (async () => {
       const run = await runRanking(category);
-      // another origin arrived while this one was ranking: that run owns the
-      // map and the rows now
-      if (cancelled) {
+      // another origin arrived while this one was ranking, or the stage was
+      // left altogether: that run owns the map and the rows now, or nothing
+      // does and the input is not to be written back into
+      if (cancelled || stageCategoryRef.current !== category) {
         return;
       }
       pendingRunRef.current = run;
