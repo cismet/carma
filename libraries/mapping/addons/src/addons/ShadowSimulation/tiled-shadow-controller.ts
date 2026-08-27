@@ -617,10 +617,12 @@ export class TiledShadowController {
       // soft penumbra hides the halved per-buffer resolution.
       const softSampling = this.softSun && !interactive;
       const sampleCount = softSampling ? SUN_DISC_SAMPLE_PATTERN.length : 1;
-      // Four buffers exist at once in soft mode; the per-sample ceiling keeps
-      // the top quality level from allocating a gigabyte of depth textures.
+      // Soft samples use the level's own buffer size. Four of them exist at
+      // once, so a ceiling keeps the upper levels from allocating a gigabyte
+      // of depth textures: 4 x 4096 squared is a quarter of that, and the
+      // disc jitter makes texels beyond it indistinguishable anyway.
       const sampleMapSize = softSampling
-        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_MAP_SIZE, mapSize / 2))
+        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_MAP_SIZE, mapSize))
         : mapSize;
       const light = this.lights[0];
       const shadowCamera = light.shadow.camera;
