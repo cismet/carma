@@ -8,6 +8,10 @@ import type {
 import * as THREE from "three";
 
 import { getSharedThreeTerrainElevation } from "./shared-three-terrain-registry";
+import {
+  buildSharedSceneAccumulator,
+  type SharedSceneAccumulator,
+} from "./shared-scene-accumulator";
 
 export interface SharedThreeSceneFrame {
   map: MaplibreMap;
@@ -34,6 +38,16 @@ export type SharedThreeSceneShadowStyle = Readonly<{
   uniformColor: string | null;
 }>;
 
+export type SharedSceneAccumulationController = {
+  /** Changes whenever the shadow/lighting state the rounds sample changed. */
+  epoch: () => number;
+  /** Whether accumulating is worthwhile right now (soft sun, camera at rest). */
+  active: () => boolean;
+  /** Re-aim the scene's lights for the given accumulation round. */
+  prepareRound: (round: number) => void;
+  rounds: number;
+};
+
 export interface SharedThreeSceneLayer extends CustomLayerInterface {
   addRuntime: (runtime: SharedThreeSceneRuntime) => void;
   removeRuntime: (runtimeId: string) => void;
@@ -41,6 +55,16 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   getScene: () => THREE.Scene;
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
+  /**
+   * Progressive refinement at rest: while the controller reports itself
+   * active and its epoch and the camera hold still, the layer renders one
+   * jittered round per frame into an accumulation buffer and composites the
+   * running average; after the configured rounds, frames become a blit.
+   * Pass null to return to direct rendering.
+   */
+  setAccumulationController: (
+    controller: SharedSceneAccumulationController | null
+  ) => void;
   projectLngLatToScene: (
     lngLat: [number, number],
     altitudeMeters?: number,
@@ -184,6 +208,9 @@ export const buildSharedThreeSceneLayer = (
   );
   const renderCamera = new THREE.PerspectiveCamera();
   const lodCamera = new THREE.PerspectiveCamera();
+  let accumulationController: SharedSceneAccumulationController | null = null;
+  let accumulator: SharedSceneAccumulator | null = null;
+  const jitterMatrix = new THREE.Matrix4();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
@@ -246,6 +273,14 @@ export const buildSharedThreeSceneLayer = (
 
     getRenderer() {
       return renderer;
+    },
+
+    setAccumulationController(controller) {
+      accumulationController = controller;
+      if (!controller) {
+        accumulator?.dispose();
+        accumulator = null;
+      }
     },
 
     projectLngLatToScene(
@@ -375,9 +410,52 @@ export const buildSharedThreeSceneLayer = (
       ];
       renderer.resetState();
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
-      depthRangeBridge?.render(savedDepthRange, () => {
-        renderer?.render(scene, renderCamera);
-      });
+
+      const accumulation = accumulationController;
+      if (accumulation?.active() && renderer && !accumulator?.broken) {
+        accumulator ??= buildSharedSceneAccumulator(accumulation.rounds);
+        // The rounds sample one fixed state: the shadow controller's epoch
+        // and the camera pose. Either moving restarts the average.
+        const poseKey = [
+          ...renderCamera.matrixWorld.elements,
+          ...renderCamera.projectionMatrix.elements,
+        ]
+          .map((value) => value.toPrecision(6))
+          .join(",");
+        accumulator.ensureState(`${accumulation.epoch()}|${poseKey}`);
+        const drawingBuffer = renderer.getDrawingBufferSize(
+          new THREE.Vector2()
+        );
+        if (!accumulator.converged) {
+          const round = accumulator.nextRound;
+          accumulation.prepareRound(round);
+          // Sub-pixel camera jitter per round: with the geometry at rest the
+          // average is straight supersampling, which also wins back the
+          // antialiasing the offscreen target lacks.
+          const jitter = accumulator.jitterFor(round);
+          jitterMatrix.makeTranslation(
+            (jitter.x * 2) / drawingBuffer.x,
+            (jitter.y * 2) / drawingBuffer.y,
+            0
+          );
+          const activeRenderer = renderer;
+          renderCamera.projectionMatrix.premultiply(jitterMatrix);
+          accumulator.renderRound(
+            activeRenderer,
+            drawingBuffer.x,
+            drawingBuffer.y,
+            () => activeRenderer.render(scene, renderCamera)
+          );
+        }
+        depthRangeBridge?.render(savedDepthRange, () => {
+          if (renderer) accumulator?.composite(renderer);
+        });
+        if (!accumulator.converged) map.triggerRepaint();
+      } else {
+        depthRangeBridge?.render(savedDepthRange, () => {
+          renderer?.render(scene, renderCamera);
+        });
+      }
       mark?.("threeRender");
     },
 
@@ -392,6 +470,8 @@ export const buildSharedThreeSceneLayer = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      accumulator?.dispose();
+      accumulator = null;
       for (const runtime of runtimes.values()) runtime.dispose();
       runtimes.clear();
       scene.clear();

@@ -14,7 +14,6 @@ const BASE_SHADOW_TILE_MAP_SIZE = 1_024;
 const BASE_SINGLE_SHADOW_MAP_SIZE = 2_048;
 /** Conservative fallback until the renderer reports its real texture limit. */
 const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
-const MAX_SOFT_SAMPLE_MAP_SIZE = 4_096;
 const SHADOW_TILE_PROGRAM_CACHE_KEY = "carma-light-space-tiles-v1";
 const SHADOW_FILTER_GUARD_TEXELS = 3;
 const MIN_SHADOW_TILE_AREA_METERS = 2;
@@ -45,6 +44,13 @@ export const CASTER_RELIEF_MARGIN_METERS = 300;
  */
 const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
 /**
+ * Total soft-shadow texel budget of roughly 300 MB of depth textures: eight
+ * samples at this edge. Contact sharpness scales with the per-sample edge,
+ * penumbra smoothness with the sample count; this splits the budget between
+ * them.
+ */
+const MAX_SOFT_SAMPLE_EDGE = 3_072;
+/**
  * The sun is a disc of about 0.53 degrees, not a point. Sampling that disc
  * with several jittered shadow passes and summing quarter-intensity lights is
  * the classic area-light method: the penumbra widens with distance from the
@@ -53,16 +59,25 @@ const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
  * smoothed by hardware PCF, come out at roughly three dozen effective taps.
  */
 const SUN_ANGULAR_RADIUS_RAD = THREE.MathUtils.degToRad(0.53 / 2);
-const SUN_DISC_SAMPLE_PATTERN: ReadonlyArray<readonly [number, number]> = (
-  [45, 135, 225, 315] as const
-).map((degrees) => {
-  const radians = THREE.MathUtils.degToRad(degrees + 22.5);
-  const radius = SUN_ANGULAR_RADIUS_RAD * Math.SQRT1_2;
-  return [Math.cos(radians) * radius, Math.sin(radians) * radius] as const;
-});
+/**
+ * Eight samples on a Vogel spiral across the solar disc. Every sample is a
+ * live shadow-casting light - a depth buffer in memory and a lookup per
+ * fragment per frame - and common GPUs expose around sixteen fragment
+ * texture units in total, so eight is where a real-time budget tops out;
+ * anything like true 32-sample sampling needs temporal accumulation instead.
+ */
+const SUN_DISC_SAMPLE_COUNT = 8;
+const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));
+const SUN_DISC_SAMPLE_PATTERN: ReadonlyArray<readonly [number, number]> =
+  Array.from({ length: SUN_DISC_SAMPLE_COUNT }, (_, index) => {
+    const radius =
+      SUN_ANGULAR_RADIUS_RAD *
+      Math.sqrt((index + 0.5) / SUN_DISC_SAMPLE_COUNT);
+    const angle = index * GOLDEN_ANGLE_RAD;
+    return [Math.cos(angle) * radius, Math.sin(angle) * radius] as const;
+  });
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
-const SHADOW_FILTER_RADIUS = 1;
 
 export type TiledShadowTileSnapshot = Readonly<{
   id: string;
@@ -333,6 +348,13 @@ export const restingShadowMapSize = (
 export class TiledShadowController {
   readonly csm: CSM;
   readonly lights: readonly THREE.DirectionalLight[];
+  /**
+   * The disc samples beyond the four CSM lights. Plain directional lights:
+   * single mode leaves materials unpatched, so nothing ties the sample count
+   * to the CSM cascade count.
+   */
+  private readonly auxiliarySunLights: THREE.DirectionalLight[] = [];
+  private readonly hostScene: THREE.Scene;
 
   private readonly materialStates = new Map<THREE.Material, MaterialState>();
   private readonly tileReceiverUvs = Array.from(
@@ -342,10 +364,21 @@ export class TiledShadowController {
   private activeTileCount = 0;
   private mode: ShadowMode = "advanced";
   private softSun = false;
+  private discRotationRad = 0;
+  /** What the last single-mode fit stood on; lets a round re-aim cheaply. */
+  private lastSoftFit: {
+    directionToSun: THREE.Vector3;
+    tangentA: THREE.Vector3;
+    tangentB: THREE.Vector3;
+    targetPosition: THREE.Vector3;
+    lightDistance: number;
+    sampleCount: number;
+  } | null = null;
   private maxShadowMapSize = DEFAULT_MAX_SHADOW_MAP_SIZE;
   private disposed = false;
 
   constructor(scene: THREE.Scene, camera = new THREE.PerspectiveCamera()) {
+    this.hostScene = scene;
     this.csm = new CSM({
       camera,
       parent: scene,
@@ -375,10 +408,32 @@ export class TiledShadowController {
       // would invalidate every shaded draw. The first shadow pass allocates the
       // pool; inactive entries stay at zero intensity afterwards.
       light.shadow.needsUpdate = true;
-      light.shadow.radius = SHADOW_FILTER_RADIUS;
+      light.shadow.radius = 0;
       light.shadow.bias = 0;
       light.shadow.normalBias = MIN_SHADOW_NORMAL_BIAS_METERS;
     }
+    for (
+      let index = this.lights.length;
+      index < SUN_DISC_SAMPLE_COUNT;
+      index += 1
+    ) {
+      const light = new THREE.DirectionalLight(0xffffff, 0);
+      light.name = `shadow-simulation-sun-sample-${index}`;
+      light.visible = false;
+      light.castShadow = false;
+      light.shadow.autoUpdate = false;
+      light.shadow.radius = 0;
+      light.shadow.bias = 0;
+      light.shadow.normalBias = MIN_SHADOW_NORMAL_BIAS_METERS;
+      scene.add(light);
+      scene.add(light.target);
+      this.auxiliarySunLights.push(light);
+    }
+  }
+
+  /** Every light that can serve as a disc sample, CSM ones first. */
+  private get sampleLights(): THREE.DirectionalLight[] {
+    return [...this.lights, ...this.auxiliarySunLights];
   }
 
   setupMaterial(material: THREE.Material): void {
@@ -470,15 +525,52 @@ export class TiledShadowController {
   setSoftSun(enabled: boolean): void {
     if (this.disposed || this.softSun === enabled) return;
     this.softSun = enabled;
-    if (!enabled && this.mode === "single") {
-      for (let index = 1; index < this.lights.length; index += 1) {
-        const light = this.lights[index];
+    if (!enabled) {
+      const sampleLights = this.sampleLights;
+      for (let index = 1; index < sampleLights.length; index += 1) {
+        const light = sampleLights[index];
         light.visible = false;
         light.castShadow = false;
         light.intensity = 0;
         light.shadow.map?.dispose();
         light.shadow.map = null;
       }
+    }
+  }
+
+  /**
+   * Re-aim the disc samples for an accumulation round: same fit, the sample
+   * pattern rotated. Each round therefore contributes a fresh set of sun
+   * directions, and four rounds of eight samples average 32 of them.
+   */
+  applyDiscRotation(round: number): void {
+    if (this.disposed) return;
+    this.discRotationRad = round * GOLDEN_ANGLE_RAD;
+    const fit = this.lastSoftFit;
+    if (!fit) return;
+    const sampleLights = this.sampleLights;
+    for (let index = 0; index < fit.sampleCount; index += 1) {
+      const sampleLight = sampleLights[index];
+      const [offsetA, offsetB] = SUN_DISC_SAMPLE_PATTERN[index];
+      const rotatedA =
+        offsetA * Math.cos(this.discRotationRad) -
+        offsetB * Math.sin(this.discRotationRad);
+      const rotatedB =
+        offsetA * Math.sin(this.discRotationRad) +
+        offsetB * Math.cos(this.discRotationRad);
+      const direction = fit.directionToSun
+        .clone()
+        .addScaledVector(fit.tangentA, rotatedA)
+        .addScaledVector(fit.tangentB, rotatedB)
+        .normalize();
+      sampleLight.position
+        .copy(direction)
+        .multiplyScalar(fit.lightDistance)
+        .add(fit.targetPosition);
+      sampleLight.updateMatrixWorld(true);
+      sampleLight.target.updateMatrixWorld(true);
+      sampleLight.shadow.updateMatrices(sampleLight);
+      sampleLight.shadow.needsUpdate = true;
     }
   }
 
@@ -495,6 +587,13 @@ export class TiledShadowController {
       for (const material of [...this.materialStates.keys()]) {
         this.releaseMaterial(material);
       }
+    }
+    for (const light of this.auxiliarySunLights) {
+      light.visible = false;
+      light.castShadow = false;
+      light.intensity = 0;
+      light.shadow.map?.dispose();
+      light.shadow.map = null;
     }
     this.lights.forEach((light, index) => {
       const active = mode === "advanced" || index === 0;
@@ -525,6 +624,10 @@ export class TiledShadowController {
     if (this.disposed) return null;
     if (receiverWorldPoints.length === 0) {
       this.activeTileCount = 0;
+      for (const light of this.auxiliarySunLights) {
+        light.intensity = 0;
+        light.shadow.needsUpdate = false;
+      }
       for (let index = 0; index < this.lights.length; index += 1) {
         const active = this.mode === "advanced" || index === 0;
         this.tileReceiverUvs[index].set(2, 2, -1, -1);
@@ -613,21 +716,16 @@ export class TiledShadowController {
     );
     if (!receiverBounds) return null;
     if (this.mode === "single") {
-      // Disc sampling spreads the texel budget over several buffers; the
-      // soft penumbra hides the halved per-buffer resolution.
       const softSampling = this.softSun && !interactive;
+      const sampleLights = this.sampleLights;
       const sampleCount = softSampling ? SUN_DISC_SAMPLE_PATTERN.length : 1;
-      // Soft samples use the level's own buffer size. Four of them exist at
-      // once, so a ceiling keeps the upper levels from allocating a gigabyte
-      // of depth textures: 4 x 4096 squared is a quarter of that, and the
-      // disc jitter makes texels beyond it indistinguishable anyway.
       const sampleMapSize = softSampling
-        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_MAP_SIZE, mapSize))
+        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_EDGE, mapSize))
         : mapSize;
       const light = this.lights[0];
       const shadowCamera = light.shadow.camera;
-      for (let index = 0; index < this.lights.length; index += 1) {
-        const sampleLight = this.lights[index];
+      for (let index = 0; index < sampleLights.length; index += 1) {
+        const sampleLight = sampleLights[index];
         const active = index < sampleCount;
         sampleLight.visible = active;
         sampleLight.castShadow = active;
@@ -709,20 +807,23 @@ export class TiledShadowController {
       discTangentB.crossVectors(normalizedDirectionToSun, discTangentA);
       const lightDistance = receiverSphere.radius + lightMargin;
       for (let index = 0; index < sampleCount; index += 1) {
-        const sampleLight = this.lights[index];
-        // Each disc sample stays as sharp as the buffer allows: the penumbra
-        // must come only from the samples' angular divergence, which grows
-        // with caster distance exactly as a real sun's does. A filter radius
-        // on top blurred every sample by a constant width, so shadows were
-        // already soft right at their casters. Without disc sampling the
-        // single buffer keeps the small radius as its only softness.
-        sampleLight.shadow.radius = softSampling ? 0 : SHADOW_FILTER_RADIUS;
+        const sampleLight = sampleLights[index];
+        // Each disc sample stays as sharp as its buffer allows: the penumbra
+        // comes only from the samples' angular divergence, which grows with
+        // caster distance exactly as a real sun's does. No filter radius
+        // anywhere - a constant blur would soften shadows right at their
+        // casters.
         const sampleDirection = normalizedDirectionToSun.clone();
         if (softSampling) {
           const [offsetA, offsetB] = SUN_DISC_SAMPLE_PATTERN[index];
+          const rotation = this.discRotationRad;
+          const rotatedA =
+            offsetA * Math.cos(rotation) - offsetB * Math.sin(rotation);
+          const rotatedB =
+            offsetA * Math.sin(rotation) + offsetB * Math.cos(rotation);
           sampleDirection
-            .addScaledVector(discTangentA, offsetA)
-            .addScaledVector(discTangentB, offsetB)
+            .addScaledVector(discTangentA, rotatedA)
+            .addScaledVector(discTangentB, rotatedB)
             .normalize();
         }
         sampleLight.position
@@ -730,7 +831,13 @@ export class TiledShadowController {
           .multiplyScalar(lightDistance)
           .add(lightTargetPosition);
         sampleLight.target.position.copy(lightTargetPosition);
+        sampleLight.color.copy(resolvedColor);
         sampleLight.intensity = intensity / sampleCount;
+        sampleLight.shadow.intensity = THREE.MathUtils.clamp(
+          shadowIntensity,
+          0,
+          1
+        );
         sampleLight.shadow.normalBias = normalBias;
         const sampleCamera = sampleLight.shadow.camera;
         sampleCamera.left = shadowCamera.left;
@@ -744,13 +851,28 @@ export class TiledShadowController {
         sampleLight.target.updateMatrixWorld(true);
         sampleLight.shadow.updateMatrices(sampleLight);
         sampleLight.shadow.needsUpdate = true;
-        this.tileReceiverUvs[index].set(0, 0, 1, 1);
+        if (index < this.tileReceiverUvs.length) {
+          this.tileReceiverUvs[index].set(0, 0, 1, 1);
+        }
       }
-      this.activeTileCount = sampleCount;
-      for (let index = sampleCount; index < this.lights.length; index += 1) {
-        this.tileReceiverUvs[index].set(2, 2, -1, -1);
-        this.lights[index].intensity = 0;
-        this.lights[index].shadow.needsUpdate = false;
+      this.lastSoftFit = softSampling
+        ? {
+            directionToSun: normalizedDirectionToSun.clone(),
+            tangentA: discTangentA.clone(),
+            tangentB: discTangentB.clone(),
+            targetPosition: lightTargetPosition.clone(),
+            lightDistance,
+            sampleCount,
+          }
+        : null;
+      this.activeTileCount = Math.min(sampleCount, this.lights.length);
+      for (let index = sampleCount; index < sampleLights.length; index += 1) {
+        const idleLight = sampleLights[index];
+        if (index < this.tileReceiverUvs.length) {
+          this.tileReceiverUvs[index].set(2, 2, -1, -1);
+        }
+        idleLight.intensity = 0;
+        idleLight.shadow.needsUpdate = false;
       }
       return {
         strategy: "single-viewport",
@@ -886,6 +1008,12 @@ export class TiledShadowController {
     }
     this.csm.dispose();
     for (const light of this.lights) light.shadow.map?.dispose();
+    for (const light of this.auxiliarySunLights) {
+      light.shadow.map?.dispose();
+      this.hostScene.remove(light.target);
+      this.hostScene.remove(light);
+    }
+    this.auxiliarySunLights.length = 0;
     this.csm.remove();
   }
 }
