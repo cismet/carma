@@ -150,6 +150,10 @@ export type ShadowSimulationScene = {
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
   updateShadowMode: (mode: ShadowMode) => void;
+  /** Sample the sun as a disc for distance-widening penumbras (single mode). */
+  updateSoftSunShadows: (enabled: boolean) => void;
+  /** Ask for a fresh projection-debug snapshot, e.g. when the panel opens. */
+  refreshProjectionDebug: () => void;
   updateShadowIntensity: (intensity: number) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
   updateShadowBufferDebugVisibility: (visible: boolean) => void;
@@ -1236,6 +1240,9 @@ export const buildShadowSimulationScene = (
   const handleMoveStart = () => {
     mapInMotion = true;
     terrainRuntime?.setInteractive(true);
+    // The next dirty update runs with interactive=true and folds the disc
+    // samples back into one light for the duration of the gesture.
+    sharedBinding.dirty = true;
   };
   const handleMove = () => updateSharedShadowCoverage(false);
   const handleMoveEnd = () => {
@@ -1383,6 +1390,17 @@ export const buildShadowSimulationScene = (
       sharedBinding.dirty = true;
       updateSharedShadowCoverage();
       sharedBinding.controller.invalidate();
+    },
+    updateSoftSunShadows(enabled) {
+      sharedBinding.controller.setSoftSun(enabled);
+      sharedBinding.controller.invalidate();
+      sharedBinding.dirty = true;
+      map.triggerRepaint();
+    },
+    refreshProjectionDebug() {
+      lastDebugPublishMs = 0;
+      sharedBinding.dirty = true;
+      map.triggerRepaint();
     },
     updateShadowIntensity(intensity) {
       latestShadowIntensity = THREE.MathUtils.clamp(intensity, 0, 1);

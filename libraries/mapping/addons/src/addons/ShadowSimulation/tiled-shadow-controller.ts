@@ -41,6 +41,22 @@ export const CASTER_RELIEF_MARGIN_METERS = 300;
  * keeps their bases free of leak lines at any bias.
  */
 const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
+/**
+ * The sun is a disc of about 0.53 degrees, not a point. Sampling that disc
+ * with several jittered shadow passes and summing quarter-intensity lights is
+ * the classic area-light method: the penumbra widens with distance from the
+ * caster, exactly as a chimney's shadow does in reality. Four samples on a
+ * fixed rotated-square pattern at the disc's RMS radius, each additionally
+ * smoothed by hardware PCF, come out at roughly three dozen effective taps.
+ */
+const SUN_ANGULAR_RADIUS_RAD = THREE.MathUtils.degToRad(0.53 / 2);
+const SUN_DISC_SAMPLE_PATTERN: ReadonlyArray<readonly [number, number]> = (
+  [45, 135, 225, 315] as const
+).map((degrees) => {
+  const radians = THREE.MathUtils.degToRad(degrees + 22.5);
+  const radius = SUN_ANGULAR_RADIUS_RAD * Math.SQRT1_2;
+  return [Math.cos(radians) * radius, Math.sin(radians) * radius] as const;
+});
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
 const SHADOW_FILTER_RADIUS = 1;
@@ -317,6 +333,7 @@ export class TiledShadowController {
   );
   private activeTileCount = 0;
   private mode: ShadowMode = "advanced";
+  private softSun = false;
   private disposed = false;
 
   constructor(scene: THREE.Scene, camera = new THREE.PerspectiveCamera()) {
@@ -427,6 +444,25 @@ export class TiledShadowController {
     });
     for (const material of [...this.materialStates.keys()]) {
       if (!retainedMaterials.has(material)) this.releaseMaterial(material);
+    }
+  }
+
+  /**
+   * Sample the sun as a disc (single mode only). Expensive - one depth pass
+   * per sample - so the caller keeps it off while the camera moves.
+   */
+  setSoftSun(enabled: boolean): void {
+    if (this.disposed || this.softSun === enabled) return;
+    this.softSun = enabled;
+    if (!enabled && this.mode === "single") {
+      for (let index = 1; index < this.lights.length; index += 1) {
+        const light = this.lights[index];
+        light.visible = false;
+        light.castShadow = false;
+        light.intensity = 0;
+        light.shadow.map?.dispose();
+        light.shadow.map = null;
+      }
     }
   }
 
@@ -558,15 +594,35 @@ export class TiledShadowController {
     );
     if (!receiverBounds) return null;
     if (this.mode === "single") {
+      // Disc sampling spreads the texel budget over several buffers; the
+      // soft penumbra hides the halved per-buffer resolution.
+      const softSampling = this.softSun && !interactive;
+      const sampleCount = softSampling ? SUN_DISC_SAMPLE_PATTERN.length : 1;
+      const sampleMapSize = softSampling ? Math.max(256, mapSize / 2) : mapSize;
       const light = this.lights[0];
       const shadowCamera = light.shadow.camera;
+      for (let index = 0; index < this.lights.length; index += 1) {
+        const sampleLight = this.lights[index];
+        const active = index < sampleCount;
+        sampleLight.visible = active;
+        sampleLight.castShadow = active;
+        if (
+          active &&
+          (sampleLight.shadow.mapSize.x !== sampleMapSize ||
+            sampleLight.shadow.mapSize.y !== sampleMapSize)
+        ) {
+          sampleLight.shadow.map?.dispose();
+          sampleLight.shadow.map = null;
+          sampleLight.shadow.mapSize.set(sampleMapSize, sampleMapSize);
+        }
+      }
       const usableMapWidth = Math.max(
         1,
-        light.shadow.mapSize.x - SHADOW_FILTER_GUARD_TEXELS * 2
+        sampleMapSize - SHADOW_FILTER_GUARD_TEXELS * 2
       );
       const usableMapHeight = Math.max(
         1,
-        light.shadow.mapSize.y - SHADOW_FILTER_GUARD_TEXELS * 2
+        sampleMapSize - SHADOW_FILTER_GUARD_TEXELS * 2
       );
       const receiverWidth = receiverBounds.right - receiverBounds.left;
       const receiverHeight = receiverBounds.top - receiverBounds.bottom;
@@ -578,8 +634,8 @@ export class TiledShadowController {
       const guardMeters = texelMeters * SHADOW_FILTER_GUARD_TEXELS;
       // Preserve square world-space texels. The orthographic camera therefore
       // has exactly the same aspect ratio as its actual shadow-map buffer.
-      const fittedWidth = texelMeters * light.shadow.mapSize.x;
-      const fittedHeight = texelMeters * light.shadow.mapSize.y;
+      const fittedWidth = texelMeters * sampleMapSize;
+      const fittedHeight = texelMeters * sampleMapSize;
       const centerX =
         Math.round(
           (receiverBounds.left + receiverBounds.right) / 2 / texelMeters
@@ -608,25 +664,66 @@ export class TiledShadowController {
         shadowCamera.near + 1,
         receiverBounds.far + reliefMeters + LIGHT_CAMERA_SAFETY_METERS
       );
-      light.shadow.normalBias = THREE.MathUtils.clamp(
+      const normalBias = THREE.MathUtils.clamp(
         texelMeters * SHADOW_NORMAL_BIAS_TEXELS,
         MIN_SHADOW_NORMAL_BIAS_METERS,
         MAX_SHADOW_NORMAL_BIAS_METERS
       );
       shadowCamera.updateProjectionMatrix();
       light.shadow.updateMatrices(light);
-      light.shadow.needsUpdate = true;
-      this.activeTileCount = 1;
-      this.tileReceiverUvs[0].set(0, 0, 1, 1);
-      for (let index = 1; index < this.lights.length; index += 1) {
+      // A basis across the sun direction to place the disc samples in.
+      const discTangentA = new THREE.Vector3();
+      const discTangentB = new THREE.Vector3();
+      if (Math.abs(normalizedDirectionToSun.y) > 0.99) {
+        discTangentA.set(1, 0, 0);
+      } else {
+        discTangentA
+          .crossVectors(new THREE.Vector3(0, 1, 0), normalizedDirectionToSun)
+          .normalize();
+      }
+      discTangentB.crossVectors(normalizedDirectionToSun, discTangentA);
+      const lightDistance = receiverSphere.radius + lightMargin;
+      for (let index = 0; index < sampleCount; index += 1) {
+        const sampleLight = this.lights[index];
+        const sampleDirection = normalizedDirectionToSun.clone();
+        if (softSampling) {
+          const [offsetA, offsetB] = SUN_DISC_SAMPLE_PATTERN[index];
+          sampleDirection
+            .addScaledVector(discTangentA, offsetA)
+            .addScaledVector(discTangentB, offsetB)
+            .normalize();
+        }
+        sampleLight.position
+          .copy(sampleDirection)
+          .multiplyScalar(lightDistance)
+          .add(lightTargetPosition);
+        sampleLight.target.position.copy(lightTargetPosition);
+        sampleLight.intensity = intensity / sampleCount;
+        sampleLight.shadow.normalBias = normalBias;
+        const sampleCamera = sampleLight.shadow.camera;
+        sampleCamera.left = shadowCamera.left;
+        sampleCamera.right = shadowCamera.right;
+        sampleCamera.bottom = shadowCamera.bottom;
+        sampleCamera.top = shadowCamera.top;
+        sampleCamera.near = shadowCamera.near;
+        sampleCamera.far = shadowCamera.far;
+        sampleCamera.updateProjectionMatrix();
+        sampleLight.updateMatrixWorld(true);
+        sampleLight.target.updateMatrixWorld(true);
+        sampleLight.shadow.updateMatrices(sampleLight);
+        sampleLight.shadow.needsUpdate = true;
+        this.tileReceiverUvs[index].set(0, 0, 1, 1);
+      }
+      this.activeTileCount = sampleCount;
+      for (let index = sampleCount; index < this.lights.length; index += 1) {
         this.tileReceiverUvs[index].set(2, 2, -1, -1);
         this.lights[index].intensity = 0;
         this.lights[index].shadow.needsUpdate = false;
       }
       return {
         strategy: "single-viewport",
-        tileCount: 1,
-        totalShadowTexels: mapSize * mapSize,
+        tileCount: sampleCount,
+        totalShadowTexels: sampleCount * sampleMapSize * sampleMapSize,
         casterReachMeters,
         tiles: [
           {
@@ -644,8 +741,8 @@ export class TiledShadowController {
             topMeters: shadowCamera.top,
             nearMeters: shadowCamera.near,
             farMeters: shadowCamera.far,
-            shadowMapWidth: light.shadow.mapSize.x,
-            shadowMapHeight: light.shadow.mapSize.y,
+            shadowMapWidth: sampleMapSize,
+            shadowMapHeight: sampleMapSize,
             viewMatrixElements: [...shadowCamera.matrixWorldInverse.elements],
             projectionMatrixElements: [
               ...shadowCamera.projectionMatrix.elements,
