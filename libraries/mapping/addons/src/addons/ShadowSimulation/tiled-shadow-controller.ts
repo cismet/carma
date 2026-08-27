@@ -710,6 +710,13 @@ export class TiledShadowController {
       const lightDistance = receiverSphere.radius + lightMargin;
       for (let index = 0; index < sampleCount; index += 1) {
         const sampleLight = this.lights[index];
+        // Each disc sample stays as sharp as the buffer allows: the penumbra
+        // must come only from the samples' angular divergence, which grows
+        // with caster distance exactly as a real sun's does. A filter radius
+        // on top blurred every sample by a constant width, so shadows were
+        // already soft right at their casters. Without disc sampling the
+        // single buffer keeps the small radius as its only softness.
+        sampleLight.shadow.radius = softSampling ? 0 : SHADOW_FILTER_RADIUS;
         const sampleDirection = normalizedDirectionToSun.clone();
         if (softSampling) {
           const [offsetA, offsetB] = SUN_DISC_SAMPLE_PATTERN[index];
