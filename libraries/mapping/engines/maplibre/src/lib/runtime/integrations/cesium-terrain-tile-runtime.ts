@@ -44,11 +44,14 @@ const DEFAULT_REQUEST_CONCURRENCY = 6;
 const DEFAULT_MAX_CACHED_MESHES = 256;
 const MAX_PERSISTENT_BASE_TILES = 4_096;
 /**
- * Backfill sits a hair below the true surface so an active finer tile that
- * partially overlaps its persistent parent wins the depth test cleanly
- * instead of z-fighting. Invisible at terrain scale.
+ * Backfill sits below the true surface so an active finer tile that overlaps
+ * its persistent parent wins the depth test cleanly. One metre was not
+ * enough: a coarse level-15 surface deviates from the fine one by its
+ * geometric error - metres on rough ground - and wherever it ended up higher
+ * it poked through as bright patches. Deep enough to clear that deviation,
+ * still invisible where backfill is all there is.
  */
-const PERSISTENT_BACKFILL_LOWERING_METERS = 1;
+const PERSISTENT_BACKFILL_LOWERING_METERS = 8;
 const PERSISTENT_BASE_PREFETCH_CONCURRENCY = 2;
 const PERSISTENT_BASE_REPAINT_BATCH = 64;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
