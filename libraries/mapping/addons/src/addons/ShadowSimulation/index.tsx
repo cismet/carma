@@ -19,7 +19,7 @@ import {
   faSun,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { DatePicker, Tooltip } from "antd";
+import { DatePicker, TimePicker, Tooltip } from "antd";
 import deDE from "antd/locale/de_DE";
 import dayjs from "dayjs";
 
@@ -299,6 +299,7 @@ const ShadowSimulationRibbon = ({
   setState: (state: ShadowSimulationState) => void;
 }) => {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const daylight = useMemo(
     () =>
       getDaylightWindow(
@@ -329,10 +330,12 @@ const ShadowSimulationRibbon = ({
 
   return (
     <div
-      className="flex h-14 w-[min(1040px,calc(100vw-2rem))] items-center gap-3 rounded-full bg-white px-4 text-sm text-neutral-700 button-shadow"
+      className="flex h-14 w-fit max-w-[calc(100vw-2rem)] items-center gap-2.5 rounded-full bg-white px-3.5 text-sm text-neutral-700 button-shadow"
       data-test-id="shadow-simulation-ribbon"
     >
-      <div className="grid w-[290px] shrink-0 grid-cols-[32px_minmax(0,1fr)_32px] items-center gap-2">
+      {/* Fixed column widths on purpose: '9. Mai' and '22. September' must
+          not move the chevrons or anything right of them. */}
+      <div className="grid shrink-0 grid-cols-[32px_178px_32px] items-center gap-1">
         <button
           type="button"
           className="flex h-9 w-8 items-center justify-center rounded-full hover:bg-neutral-100"
@@ -343,7 +346,7 @@ const ShadowSimulationRibbon = ({
         >
           <FontAwesomeIcon icon={faChevronLeft} />
         </button>
-        <div className="relative min-w-0 justify-self-start">
+        <div className="relative min-w-0 justify-self-center">
           <button
             type="button"
             className="flex h-9 max-w-full items-center gap-2 whitespace-nowrap rounded-md px-1.5 tabular-nums hover:bg-neutral-100"
@@ -392,9 +395,49 @@ const ShadowSimulationRibbon = ({
         </button>
       </div>
       <span className="h-7 w-px shrink-0 bg-neutral-200" />
-      <div className="flex w-[74px] shrink-0 items-center gap-2 whitespace-nowrap font-medium tabular-nums text-neutral-800">
-        <FontAwesomeIcon icon={faClock} className="text-neutral-500" />
-        <span>{formatMinutes(state.selection.minutes)}</span>
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          className="flex h-9 w-[74px] items-center gap-2 whitespace-nowrap rounded-md px-1.5 font-medium tabular-nums text-neutral-800 hover:bg-neutral-100"
+          aria-label="Uhrzeit auswählen"
+          aria-expanded={timePickerOpen}
+          onClick={() => setTimePickerOpen(true)}
+        >
+          <FontAwesomeIcon icon={faClock} className="text-neutral-500" />
+          <span>{formatMinutes(state.selection.minutes)}</span>
+        </button>
+        <TimePicker
+          open={timePickerOpen}
+          value={dayjs()
+            .startOf("day")
+            .add(state.selection.minutes, "minute")}
+          locale={deDE.DatePicker}
+          format="HH:mm"
+          minuteStep={1}
+          allowClear={false}
+          inputReadOnly
+          needConfirm={false}
+          showNow={false}
+          onOpenChange={setTimePickerOpen}
+          // Applies on every column click; without confirm, antd's onChange
+          // only fires when the panel closes.
+          onCalendarChange={(time) => {
+            if (!time || Array.isArray(time)) return;
+            publishSelection({
+              ...state.selection,
+              minutes: time.hour() * 60 + time.minute(),
+            });
+          }}
+          onChange={(time) => {
+            if (!time) return;
+            publishSelection({
+              ...state.selection,
+              minutes: time.hour() * 60 + time.minute(),
+            });
+          }}
+          className="pointer-events-none absolute left-0 top-full h-0 w-0 overflow-hidden p-0 opacity-0"
+          aria-label="Uhrzeit auswählen"
+        />
       </div>
       <input
         type="range"
@@ -408,7 +451,7 @@ const ShadowSimulationRibbon = ({
             minutes: Number(event.currentTarget.value),
           })
         }
-        className="shadow-simulation-range w-[clamp(180px,24vw,340px)] shrink-0 cursor-pointer"
+        className="shadow-simulation-range w-[clamp(150px,17vw,240px)] shrink-0 cursor-pointer"
         style={getRangeProgressStyle(
           state.selection.minutes,
           minimumMinutes,
@@ -429,10 +472,10 @@ const ShadowSimulationRibbon = ({
         <FontAwesomeIcon icon={state.isAnimating ? faPause : faPlay} />
       </button>
       <span className="h-7 w-px shrink-0 bg-neutral-200" />
-      <span className="whitespace-nowrap tabular-nums">
+      <span className="w-[4.4rem] shrink-0 whitespace-nowrap tabular-nums">
         Höhe {position.elevationDegrees.toFixed(0)}°
       </span>
-      <span className="hidden whitespace-nowrap tabular-nums text-neutral-500 lg:inline">
+      <span className="hidden w-[5.9rem] shrink-0 whitespace-nowrap tabular-nums text-neutral-500 lg:inline">
         Azimut {position.azimuthDegrees.toFixed(0)}°
       </span>
     </div>
