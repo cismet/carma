@@ -58,6 +58,9 @@ export const useHighlightModeActions = () => {
    * Open is "buffer on": it puts the remembered shape back on the map, grown by
    * the width, to be judged before it runs. Closing switches the buffer off and
    * takes the preview down.
+   *
+   * The step starts at 0 every time the panel is opened, so what first appears
+   * is the shape as it stands — the width is dialled in from there.
    */
   const setBufferPanelOpen = useCallback(
     (open: boolean) =>
@@ -67,6 +70,7 @@ export const useHighlightModeActions = () => {
               ...(previous ?? { isOn: false }),
               bufferPanelOpen: true,
               bufferEnabled: true,
+              shapeBuffer: 0,
               showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
             }
           : {
