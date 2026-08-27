@@ -44,9 +44,16 @@
 import type {
   Map as MaplibreMap,
   GeoJSONSource,
+  MapGeoJSONFeature,
   MapMouseEvent,
 } from "maplibre-gl";
-import type { Position, Polygon, Feature, LineString } from "geojson";
+import type {
+  Position,
+  Polygon,
+  MultiPolygon,
+  Feature,
+  LineString,
+} from "geojson";
 import {
   unkinkPolygon,
   union,
@@ -75,6 +82,20 @@ const BUFFER_LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-buffer-line`;
 /** pixels of slack when testing whether a press landed on the previewed shape;
  *  a bare line is barely hittable without it */
 const MOVE_HIT_TOLERANCE = 6;
+
+/** pixels of slack when picking a feature's geometry */
+const PICK_HIT_TOLERANCE = 6;
+
+/** The longest of several lines, by vertex count. Tile-clipped parts cannot be
+ *  stitched back together, so the largest part stands for the object. */
+const longestLine = (parts: Position[][]): LineString | null => {
+  let best: Position[] | null = null;
+  for (const part of parts) {
+    if (part.length < 2) continue;
+    if (!best || part.length > best.length) best = part;
+  }
+  return best ? { type: "LineString", coordinates: best } : null;
+};
 
 /** Offsets a shape in degrees. That keeps a rectangle's edges on their
  *  parallels and meridians; the ground size shifts only in the last decimals
@@ -203,6 +224,9 @@ export interface LassoDrawingManagerOptions {
   ) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
+  /** Reports the pick mode being armed or disarmed; the manager disarms it
+   *  itself on the first hit. */
+  onPickFeatureChange?: (picking: boolean) => void;
   /** Reports a previewed shape that a negative width has shrunk to nothing.
    *  It would select nothing, so the UI can refuse to run it. */
   onShapeEmptyChange?: (empty: boolean) => void;
@@ -247,6 +271,7 @@ export class LassoDrawingManager {
     bufferMeters: number
   ) => void;
   private onLastShapePreviewChange?: (previewing: boolean) => void;
+  private onPickFeatureChange?: (picking: boolean) => void;
   private onShapeEmptyChange?: (empty: boolean) => void;
   private onShrinkLimitChange?: (meters: number) => void;
   private onRadiusChange?: (radiusMeters: number) => void;
@@ -288,6 +313,7 @@ export class LassoDrawingManager {
    *  that is current when it runs again. */
   private lastShape: Polygon | LineString | null = null;
   private previewingLastShape = false;
+  private pickingFeature = false;
   /** the previewed shape is being dragged: the press point and the shape as it
    *  stood then, so every move offsets the original rather than the last frame */
   private movingShape = false;
@@ -312,6 +338,7 @@ export class LassoDrawingManager {
   private handleMoveMouseMove = (e: MapMouseEvent) => this.onMoveMouseMove(e);
   private handleMoveMouseUp = () => this.endShapeMove();
   private handlePreviewHover = (e: MapMouseEvent) => this.onPreviewHover(e);
+  private handlePickClick = (e: MapMouseEvent) => this.onPickClick(e);
   private handleLineMouseMove = (e: MapMouseEvent) => this.onLineMouseMove(e);
   private handleLineMouseUp = (e: MouseEvent) => this.onLineMouseUp(e);
   private handleLineDoubleClick = (e: MapMouseEvent) => {
@@ -344,6 +371,7 @@ export class LassoDrawingManager {
     this.clearDelay = options.clearDelay ?? DEFAULT_CLEAR_DELAY;
     this.onLastShapeChange = options.onLastShapeChange;
     this.onLastShapePreviewChange = options.onLastShapePreviewChange;
+    this.onPickFeatureChange = options.onPickFeatureChange;
     this.onShapeEmptyChange = options.onShapeEmptyChange;
     this.onShrinkLimitChange = options.onShrinkLimitChange;
     this.onRadiusChange = options.onRadiusChange;
@@ -356,6 +384,8 @@ export class LassoDrawingManager {
    */
   setShape(shape: DrawShape): void {
     if (shape === this.shape) return;
+    // reaching for a drawing tool ends the pick
+    this.setPickingFeature(false);
     if (this.drawing) this.cancelDraw();
     // a line half-placed or waiting for its buffer belongs to the line tool
     this.cancelLine();
@@ -387,7 +417,11 @@ export class LassoDrawingManager {
    *  map with whatever is drawn without them. */
   private applyCursor(): void {
     if (!this.active || this.requireModifiers.length > 0) return;
-    this.map.getCanvas().style.cursor = this.suspended ? "grab" : "crosshair";
+    this.map.getCanvas().style.cursor = this.suspended
+      ? "grab"
+      : this.pickingFeature
+      ? "pointer"
+      : "crosshair";
   }
 
   /** Repaints the shared layers, so one manager can serve several operations. */
@@ -553,6 +587,8 @@ export class LassoDrawingManager {
   /** The shape can be picked up, so the cursor says so over it. */
   private onPreviewHover(e: MapMouseEvent): void {
     if (this.movingShape || this.drawing || this.suspended) return;
+    // while picking, a press on the preview is a pick and not a grab
+    if (this.pickingFeature) return;
     if (this.hitsPreview(e)) this.map.getCanvas().style.cursor = "move";
     else this.applyCursor();
   }
@@ -646,6 +682,155 @@ export class LassoDrawingManager {
     if (!this.lastShape) return;
     this.setPreviewing(false);
     this.completeShape(this.lastShape, true);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Picking a feature's geometry instead of drawing one
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Arms taking the next clicked feature's geometry as the remembered shape,
+   * which is then previewed like a drawn one: movable, bufferable, run by a
+   * click on it. The pick itself selects nothing.
+   *
+   * Only the toolbar manager: on the modifier-driven ones the click already
+   * means "toggle this feature".
+   */
+  setPickingFeature(picking: boolean): void {
+    if (this.requireModifiers.length > 0) return;
+    if (picking === this.pickingFeature) return;
+    this.pickingFeature = picking;
+    if (picking) {
+      // what is half-drawn belongs to the tool being left
+      if (this.drawing && !this.placingLine) this.cancelDraw();
+      this.cancelLine();
+      this.map.on("click", this.handlePickClick);
+    } else {
+      this.map.off("click", this.handlePickClick);
+    }
+    this.applyCursor();
+    this.onPickFeatureChange?.(picking);
+  }
+
+  isPickingFeature(): boolean {
+    return this.pickingFeature;
+  }
+
+  /** A miss leaves the mode armed, so aiming again costs no extra click. */
+  private onPickClick(e: MapMouseEvent): void {
+    if (!this.active || this.suspended) return;
+    const picked = this.featureShapeAt(e);
+    if (!picked) return;
+    this.setPickingFeature(false);
+    this.setShrinkLimit(this.computeShrinkLimit(picked));
+    this.lastShape = picked;
+    // a picked shape has never run: nothing is applied to it yet
+    this.onLastShapeChange?.(true, false, this.shapeBuffer);
+    this.showLastShape();
+  }
+
+  private featureShapeAt(e: MapMouseEvent): Polygon | LineString | null {
+    const { x, y } = e.point;
+    let hits: MapGeoJSONFeature[] = [];
+    try {
+      hits = this.map.queryRenderedFeatures([
+        [x - PICK_HIT_TOLERANCE, y - PICK_HIT_TOLERANCE],
+        [x + PICK_HIT_TOLERANCE, y + PICK_HIT_TOLERANCE],
+      ]);
+    } catch {
+      return null;
+    }
+    for (const hit of hits) {
+      // the previewed shape itself is drawn from this source
+      if (hit.source === SOURCE_ID) continue;
+      const shape = this.featureShape(hit);
+      if (shape) return shape;
+    }
+    return null;
+  }
+
+  /** A point has no area to select with, so it is taken as the circle the
+   *  circle tool would place there. */
+  private featureShape(hit: MapGeoJSONFeature): Polygon | LineString | null {
+    const geometry = hit.geometry;
+    switch (geometry.type) {
+      case "Polygon":
+      case "MultiPolygon":
+        return this.wholePolygon(hit);
+      case "LineString":
+        return geometry;
+      case "MultiLineString":
+        return longestLine(geometry.coordinates);
+      case "Point":
+        return this.circleAround(geometry.coordinates);
+      case "MultiPoint":
+        return geometry.coordinates[0]
+          ? this.circleAround(geometry.coordinates[0])
+          : null;
+      default:
+        return null;
+    }
+  }
+
+  private circleAround(center: Position): Polygon | null {
+    try {
+      return this.buildCircle(center, this.circleRadius);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Vector tiles clip each polygon to its tile, so one large object arrives as
+   * several features. The rendered pieces are merged back into one shape; a
+   * piece from a tile that was never loaded cannot be recovered.
+   */
+  private wholePolygon(hit: MapGeoJSONFeature): Polygon | null {
+    const parts: Feature<Polygon | MultiPolygon>[] = [];
+    for (const part of this.sameFeatureParts(hit)) {
+      if (
+        part.geometry.type === "Polygon" ||
+        part.geometry.type === "MultiPolygon"
+      ) {
+        parts.push({
+          type: "Feature",
+          properties: {},
+          geometry: part.geometry,
+        });
+      }
+    }
+    if (parts.length === 0) return null;
+    let geometry: Polygon | MultiPolygon = parts[0].geometry;
+    if (parts.length > 1) {
+      try {
+        geometry = union(featureCollection(parts))?.geometry ?? geometry;
+      } catch {
+        // pieces would not merge; the clicked one still stands
+      }
+    }
+    return geometry.type === "Polygon"
+      ? geometry
+      : this.largestPart(geometry.coordinates);
+  }
+
+  /** Every rendered piece of the clicked object, matched by id within its own
+   *  layer; without an id there is nothing to match on. */
+  private sameFeatureParts(hit: MapGeoJSONFeature): MapGeoJSONFeature[] {
+    if (hit.id == null) return [hit];
+    try {
+      const rendered = this.map.queryRenderedFeatures({
+        layers: [hit.layer.id],
+      });
+      const parts = rendered.filter(
+        (feature) =>
+          feature.id === hit.id &&
+          feature.source === hit.source &&
+          (feature.sourceLayer ?? "") === (hit.sourceLayer ?? "")
+      );
+      return parts.length > 0 ? parts : [hit];
+    } catch {
+      return [hit];
+    }
   }
 
   /**
@@ -812,6 +997,9 @@ export class LassoDrawingManager {
       this.cancelDraw();
     }
     this.cancelLine();
+    // reported, so the button cannot stay lit for a manager that has stopped
+    // listening
+    this.setPickingFeature(false);
     this.active = false;
     if (this.requireModifiers.length === 0) {
       this.map.getCanvas().style.cursor = "";
@@ -902,6 +1090,10 @@ export class LassoDrawingManager {
     if (this.suspended) return;
 
     if (!this.modifiersMatch(e.originalEvent)) return;
+
+    // the click is `handlePickClick`'s; leaving the mousedown alone keeps the
+    // drag panning the map
+    if (this.pickingFeature) return;
 
     // a press on the previewed shape picks it up instead of replacing it
     if (this.previewingLastShape && this.lastShape && this.hitsPreview(e)) {

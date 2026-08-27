@@ -134,6 +134,8 @@ export const VectorHighlight = ({
       operationColors: publishedColors,
       shapeBuffer: previous?.shapeBuffer ?? defaultBuffer,
       bufferEnabled: previous?.bufferEnabled ?? bufferOnByDefault,
+      // picking runs through the drawing manager, which `lasso` creates
+      canPickFeature: lasso,
     }));
   }, [
     availableShapes,
@@ -141,6 +143,7 @@ export const VectorHighlight = ({
     publishedColors,
     defaultBuffer,
     bufferOnByDefault,
+    lasso,
     setMode,
   ]);
 
@@ -184,6 +187,17 @@ export const VectorHighlight = ({
           : { bufferPanelOpen: false, bufferEnabled: bufferOnByDefault }),
       })),
     [setMode, bufferOnByDefault]
+  );
+
+  // the manager disarms the pick itself once a feature has been taken, so the
+  // button follows it rather than the other way round
+  const handlePickFeatureChange = useCallback(
+    (pickFeatureActive: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        pickFeatureActive,
+      })),
+    [setMode]
   );
 
   const handleShapeEmptyChange = useCallback(
@@ -238,6 +252,8 @@ export const VectorHighlight = ({
       clearDelay,
       onLastShapeChange: handleLastShapeChange,
       onLastShapePreviewChange: handleLastShapePreviewChange,
+      pickFeature: mode?.pickFeatureActive ?? false,
+      onPickFeatureChange: handlePickFeatureChange,
       onShapeEmptyChange: handleShapeEmptyChange,
       onShrinkLimitChange: handleShrinkLimitChange,
       onCircleRadiusChange: setCircleRadius,

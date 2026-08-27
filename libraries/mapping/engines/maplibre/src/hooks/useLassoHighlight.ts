@@ -211,6 +211,12 @@ export interface UseLassoHighlightOptions {
   ) => void;
   /** Reports whether the last shape is currently shown on the map. */
   onLastShapePreviewChange?: (previewing: boolean) => void;
+  /** Arms taking the next clicked feature's geometry as the remembered shape,
+   *  instead of drawing one. */
+  pickFeature?: boolean;
+  /** Reports the pick mode being armed or disarmed; the manager disarms it
+   *  itself on the first hit and when the mode ends. */
+  onPickFeatureChange?: (picking: boolean) => void;
   /** Reports a previewed shape a negative width has shrunk to nothing. */
   onShapeEmptyChange?: (empty: boolean) => void;
   /** Reports the deepest shrink the remembered shape survives, as a negative
@@ -265,6 +271,8 @@ export const useLassoHighlight = ({
   clearDelay,
   onLastShapeChange,
   onLastShapePreviewChange,
+  pickFeature = false,
+  onPickFeatureChange,
   onShapeEmptyChange,
   onShrinkLimitChange,
   onCircleRadiusChange,
@@ -496,6 +504,10 @@ export const useLassoHighlight = ({
   onLastShapeChangeRef.current = onLastShapeChange;
   const onLastShapePreviewChangeRef = useRef(onLastShapePreviewChange);
   onLastShapePreviewChangeRef.current = onLastShapePreviewChange;
+  const onPickFeatureChangeRef = useRef(onPickFeatureChange);
+  onPickFeatureChangeRef.current = onPickFeatureChange;
+  const pickFeatureRef = useRef(pickFeature);
+  pickFeatureRef.current = pickFeature;
   const onShapeEmptyChangeRef = useRef(onShapeEmptyChange);
   onShapeEmptyChangeRef.current = onShapeEmptyChange;
   const onShrinkLimitChangeRef = useRef(onShrinkLimitChange);
@@ -522,6 +534,8 @@ export const useLassoHighlight = ({
         onLastShapeChangeRef.current?.(has, replayed, bufferMeters),
       onLastShapePreviewChange: (previewing) =>
         onLastShapePreviewChangeRef.current?.(previewing),
+      onPickFeatureChange: (picking) =>
+        onPickFeatureChangeRef.current?.(picking),
       onShapeEmptyChange: (empty) => onShapeEmptyChangeRef.current?.(empty),
       onShrinkLimitChange: (meters) => onShrinkLimitChangeRef.current?.(meters),
       onRadiusChange: (radius) => onCircleRadiusChangeRef.current?.(radius),
@@ -538,6 +552,8 @@ export const useLassoHighlight = ({
     // only fires on `active` transitions, so without this the mode would still
     // be on while the manager that draws for it was never switched on.
     if (activeRef.current) manager.activate();
+    // same reason: an armed pick must reach the manager that listens now
+    if (pickFeatureRef.current) manager.setPickingFeature(true);
 
     return () => {
       manager.destroy();
@@ -742,6 +758,12 @@ export const useLassoHighlight = ({
     }
   }, [active]);
 
+  // after the effect above: deactivating disarms the pick, so arming it in the
+  // same render has to be the later word
+  useEffect(() => {
+    managerRef.current?.setPickingFeature(pickFeature);
+  }, [pickFeature]);
+
   /**
    * Hold Space to pan. The drag shapes switch `dragPan` off for the whole
    * gesture, so without this a lasso longer than the current view could not be
@@ -796,6 +818,11 @@ export const useLassoHighlight = ({
       const manager = managerRef.current;
       if (manager?.hasLineInProgress()) {
         manager.cancelLine();
+        return;
+      }
+      // an armed pick is dropped first too, leaving the mode standing
+      if (manager?.isPickingFeature()) {
+        manager.setPickingFeature(false);
         return;
       }
       onDeactivateRef.current?.();

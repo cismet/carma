@@ -861,8 +861,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModePrint = uiMode === UIMode.PRINT;
-  // the highlight line is placed click by click, so those clicks must not also
-  // select the feature they land on
+  // the highlight line is placed click by click and the pick takes the clicked
+  // feature's geometry, so those clicks must not also select it
   const highlightOwnsClicks = useHighlightOwnsMapClicks();
   const libreDrawMode = useSelector(getLibreDrawMode);
   const { selectedFeature: selectedMeasurement } = useMeasurements();

@@ -28,6 +28,12 @@ export type HighlightModeState = {
   hasLastShape?: boolean;
   /** the last shape is on the map right now, so the button runs it next */
   lastShapeShown?: boolean;
+  /** the next map click takes the clicked feature's geometry as the remembered
+   *  shape instead of drawing one */
+  pickFeatureActive?: boolean;
+  /** published by the addon: picking runs through the drawing manager, which
+   *  only exists with `lasso` on */
+  canPickFeature?: boolean;
   /** the previewed shape has been shrunk to nothing, so the apply button is
    *  off: running it would select nothing */
   shapeEmpty?: boolean;
