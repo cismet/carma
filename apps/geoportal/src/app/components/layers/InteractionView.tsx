@@ -9,7 +9,6 @@ import {
 import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import type { Layer, LayerGroup } from "@carma-mapping/layers";
 import { isLayerGroup } from "@carma-mapping/layers";
-import { useLibreContext } from "@carma-mapping/contexts";
 
 import {
   changeVisibility,
@@ -35,10 +34,8 @@ import {
   ADDON_INTERACTION_COMPONENTS,
   COMPARING_TOOLS_INTERACTION_ID,
   ComparingPanel,
-  ShadowSimulationControlSurface,
   TargetAddonHost,
   resolveActiveTargetAddon,
-  resolveSecondaryViewTargetAddon,
 } from "@carma-mapping/addons";
 import LayerFilterControl, {
   hasLayerFilterControl,
@@ -53,7 +50,6 @@ import {
   AdhocRenderStyleInteractionPanel,
 } from "./AdhocModelLayerbarControls";
 import MeasurementDrawTools from "./MeasurementDrawTools";
-import { SHADOW_SIMULATION_CONTROLS_INTERACTION_ID } from "../../hooks/useShadowSimulationLayerButton";
 
 const renderGeoportalAnnotationToolButtonBackdrop = (
   tool: AnnotationToolbarTool
@@ -100,15 +96,6 @@ const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
   );
 };
 
-const ShadowSimulationInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
-  const { map } = useLibreContext();
-  const addon = resolveSecondaryViewTargetAddon(layer);
-  if (addon?.kind !== "shadowSimulation") return null;
-  return (
-    <ShadowSimulationControlSurface config={addon.config} libreMap={map} />
-  );
-};
-
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   ...ADDON_INTERACTION_COMPONENTS,
   [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
@@ -118,7 +105,6 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   "save-measurements": SaveMeasurements,
   "measurement-draw-tools": MeasurementDrawTools,
   [COMPARING_TOOLS_INTERACTION_ID]: ComparingInteractionPanel,
-  [SHADOW_SIMULATION_CONTROLS_INTERACTION_ID]: ShadowSimulationInteractionPanel,
 };
 
 export const InteractionContent: FC<{
@@ -166,8 +152,6 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   const hasInteractionComponent = activeInteractionButtonID
     ? Boolean(INTERACTION_COMPONENTS[activeInteractionButtonID])
     : false;
-  const hasSelfContainedSurface =
-    activeInteractionButtonID === SHADOW_SIMULATION_CONTROLS_INTERACTION_ID;
   const showFilter = hasLayerFilterControl(layer);
 
   const groupAddon = resolveActiveTargetAddon(group, activeInteractionButtonID);
@@ -185,9 +169,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
 
   return (
     <div ref={wrapperRef} className="relative z-[998] pointer-events-none">
-      {validBg && !isDragging && !hasSelfContainedSurface && (
-        <FilterBackdrop bgData={validBg} />
-      )}
+      {validBg && !isDragging && <FilterBackdrop bgData={validBg} />}
       <div className="pt-3 w-full flex items-center justify-center">
         <div ref={filterRef} className="relative z-10 pointer-events-auto">
           {content}

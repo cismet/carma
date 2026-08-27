@@ -30,6 +30,8 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import { useAddonState } from "../../lib/AddonStateContext";
+import { useLibreContext } from "@carma-mapping/contexts";
+
 import type { AddonComponentProps } from "../../lib/registry";
 import { SolarDayTimeControl } from "./SolarDayTimeControl";
 import {
@@ -289,58 +291,70 @@ const getSelectionForDayOffset = (
   };
 };
 
-const ShadowSimulationRibbon = ({
-  location,
-  state,
-  setState,
+/**
+ * The single-row time controls, sized for the header of the layer info view:
+ * day stepper with date picker, native time input, daylight slider, play.
+ * Self-contained so the host app only passes the addon config through.
+ */
+export const ShadowSimulationHeaderControls = ({
+  config,
 }: {
-  location: SolarLocation;
-  state: ShadowSimulationState;
-  setState: (state: ShadowSimulationState) => void;
+  config?: ShadowSimulationConfig;
 }) => {
+  const {
+    latitude = DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
+    longitude = DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
+    timeZone = DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
+  } = config ?? {};
+  const { map: libreMap } = useLibreContext();
+  const location = useMapCenterSolarLocation(
+    libreMap,
+    latitude,
+    longitude,
+    timeZone
+  );
+  const [state, setState] = useAddonState("shadowSimulation");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const selection = state?.selection;
   const daylight = useMemo(
     () =>
-      getDaylightWindow(
-        state.selection.year,
-        state.selection.dayOfYear,
-        location
-      ),
-    [location, state.selection.dayOfYear, state.selection.year]
+      selection
+        ? getDaylightWindow(selection.year, selection.dayOfYear, location)
+        : null,
+    [location, selection]
   );
-  const position = useMemo(
-    () => getSolarPosition(state.selection, location),
-    [location, state.selection]
-  );
-  const minimumMinutes = Math.ceil(daylight.sunriseMinutes);
-  const maximumMinutes = Math.floor(daylight.sunsetMinutes);
   const selectedDate = useMemo(
     () =>
-      dayjs(
-        new Date(Date.UTC(state.selection.year, 0, state.selection.dayOfYear))
-      ).locale("de"),
-    [state.selection.dayOfYear, state.selection.year]
+      selection
+        ? dayjs(
+            new Date(Date.UTC(selection.year, 0, selection.dayOfYear))
+          ).locale("de")
+        : null,
+    [selection]
   );
+  if (!state || !selection || !daylight || !selectedDate) return null;
+  const minimumMinutes = Math.ceil(daylight.sunriseMinutes);
+  const maximumMinutes = Math.floor(daylight.sunsetMinutes);
 
   const publishSelection = (candidate: SolarSelection) => {
-    const selection = clampSelectionToDaylight(candidate, location);
-    if (selection) setState({ ...state, selection });
+    const next = clampSelectionToDaylight(candidate, location);
+    if (next) setState({ ...state, selection: next });
   };
 
   return (
     <div
-      className="flex h-14 w-fit max-w-[calc(100vw-2rem)] items-center gap-2.5 rounded-full bg-white px-3.5 text-sm text-neutral-700 button-shadow"
-      data-test-id="shadow-simulation-ribbon"
+      className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-neutral-700"
+      data-test-id="shadow-simulation-header-controls"
     >
-      {/* Fixed column widths on purpose: '9. Mai' and '22. September' must
-          not move the chevrons or anything right of them. */}
-      <div className="grid shrink-0 grid-cols-[32px_178px_32px] items-center gap-1">
+      {/* Fixed date column on purpose: '9. Mai' and '22. September' must not
+          move the chevrons or anything right of them. */}
+      <div className="grid shrink-0 grid-cols-[28px_124px_28px] items-center">
         <button
           type="button"
-          className="flex h-9 w-8 items-center justify-center rounded-full hover:bg-neutral-100"
+          className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
           aria-label="Vorheriger Tag"
           onClick={() =>
-            publishSelection(getSelectionForDayOffset(state.selection, -1))
+            publishSelection(getSelectionForDayOffset(selection, -1))
           }
         >
           <FontAwesomeIcon icon={faChevronLeft} />
@@ -348,7 +362,7 @@ const ShadowSimulationRibbon = ({
         <div className="relative min-w-0 justify-self-center">
           <button
             type="button"
-            className="flex h-9 max-w-full items-center gap-2 whitespace-nowrap rounded-md px-1.5 tabular-nums hover:bg-neutral-100"
+            className="flex h-9 max-w-full items-center gap-1.5 whitespace-nowrap rounded-md px-1 tabular-nums hover:bg-neutral-100"
             aria-label="Datum auswählen"
             aria-expanded={datePickerOpen}
             onClick={() => setDatePickerOpen(true)}
@@ -358,7 +372,7 @@ const ShadowSimulationRibbon = ({
               className="shrink-0 text-neutral-500"
             />
             <span className="truncate">
-              {formatSelectionDate(state.selection)}
+              {formatSelectionDate(selection, false)}
             </span>
           </button>
           <DatePicker
@@ -372,7 +386,7 @@ const ShadowSimulationRibbon = ({
             onChange={(date) => {
               if (!date) return;
               publishSelection({
-                ...state.selection,
+                ...selection,
                 year: date.year(),
                 dayOfYear: getDayOfYear(date.year(), date.month(), date.date()),
               });
@@ -384,10 +398,10 @@ const ShadowSimulationRibbon = ({
         </div>
         <button
           type="button"
-          className="flex h-9 w-8 items-center justify-center rounded-full hover:bg-neutral-100"
+          className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
           aria-label="Nächster Tag"
           onClick={() =>
-            publishSelection(getSelectionForDayOffset(state.selection, 1))
+            publishSelection(getSelectionForDayOffset(selection, 1))
           }
         >
           <FontAwesomeIcon icon={faChevronRight} />
@@ -398,11 +412,11 @@ const ShadowSimulationRibbon = ({
           wheel on mobile, keyboard-editable - fronted by the Font Awesome
           clock in place of the browser's own indicator. Clicking icon or
           digits opens the picker: the label forwards its clicks. */}
-      <label className="m-0 flex h-9 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 hover:bg-neutral-100">
+      <label className="m-0 flex h-9 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 hover:bg-neutral-100">
         <FontAwesomeIcon icon={faClock} className="shrink-0 text-neutral-500" />
         <input
           type="time"
-          value={formatMinutes(state.selection.minutes)}
+          value={formatMinutes(selection.minutes)}
           min={formatMinutes(minimumMinutes)}
           max={formatMinutes(maximumMinutes)}
           step={60}
@@ -419,7 +433,7 @@ const ShadowSimulationRibbon = ({
               .map(Number);
             if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
             publishSelection({
-              ...state.selection,
+              ...selection,
               minutes: hours * 60 + minutes,
             });
           }}
@@ -433,16 +447,16 @@ const ShadowSimulationRibbon = ({
         min={minimumMinutes}
         max={maximumMinutes}
         step={1}
-        value={state.selection.minutes}
+        value={selection.minutes}
         onChange={(event) =>
           publishSelection({
-            ...state.selection,
+            ...selection,
             minutes: Number(event.currentTarget.value),
           })
         }
-        className="shadow-simulation-range w-[clamp(150px,17vw,240px)] shrink-0 cursor-pointer"
+        className="shadow-simulation-range min-w-[80px] flex-1 cursor-pointer"
         style={getRangeProgressStyle(
-          state.selection.minutes,
+          selection.minutes,
           minimumMinutes,
           maximumMinutes
         )}
@@ -451,7 +465,7 @@ const ShadowSimulationRibbon = ({
       />
       <button
         type="button"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100"
         aria-label={
           state.isAnimating ? "Animation pausieren" : "Animation starten"
         }
@@ -460,13 +474,6 @@ const ShadowSimulationRibbon = ({
       >
         <FontAwesomeIcon icon={state.isAnimating ? faPause : faPlay} />
       </button>
-      <span className="h-7 w-px shrink-0 bg-neutral-200" />
-      <span className="w-[4.4rem] shrink-0 whitespace-nowrap tabular-nums">
-        Höhe {position.elevationDegrees.toFixed(0)}°
-      </span>
-      <span className="hidden w-[5.9rem] shrink-0 whitespace-nowrap tabular-nums text-neutral-500 lg:inline">
-        Azimut {position.azimuthDegrees.toFixed(0)}°
-      </span>
     </div>
   );
 };
@@ -563,8 +570,8 @@ const ShadowQuickSettings = ({
         <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-500">
           Animation
         </h3>
-        <div className="flex items-center gap-3">
-          <div className="flex overflow-hidden rounded-md border border-neutral-300">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-neutral-300">
             {[
               [SHADOW_ANIMATION_MODE.DAY, "Tagesverlauf"],
               [SHADOW_ANIMATION_MODE.YEAR, "Jahresverlauf"],
@@ -592,7 +599,7 @@ const ShadowQuickSettings = ({
               </button>
             ))}
           </div>
-          <div className="flex overflow-hidden rounded-md border border-neutral-300">
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-neutral-300">
             {([1, 4, 12] as const).map((speed) => (
               <button
                 key={speed}
@@ -685,130 +692,122 @@ const ShadowQuickSettings = ({
   );
 };
 
-export const ShadowSimulationControlSurface = ({
-  config,
-  libreMap,
-}: Pick<AddonComponentProps<"shadowSimulation">, "config" | "libreMap">) => {
-  const {
-    latitude = DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
-    longitude = DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
-    timeZone = DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
-  } = config ?? {};
-  const location = useMapCenterSolarLocation(
-    libreMap,
-    latitude,
-    longitude,
-    timeZone
-  );
-  const [state, setState] = useAddonState("shadowSimulation");
-  if (!state) return null;
+/**
+ * The body of the layer info view: live sun position, the quiet dev toggles,
+ * reset, and the quick or curve settings underneath. The surrounding card,
+ * title, and close/navigation chrome come from the host's info view.
+ */
+const ShadowSimulationSecondaryPanel = ({
+  location,
+  state,
+  setState,
+}: {
+  location: SolarLocation;
+  state: ShadowSimulationState;
+  setState: (state: ShadowSimulationState) => void;
+}) => {
   const controlStyle = state.controlStyle ?? SHADOW_CONTROL_STYLE.QUICK;
+  const position = useMemo(
+    () => getSolarPosition(state.selection, location),
+    [location, state.selection]
+  );
 
   return (
-    <div
-      className="flex w-full flex-col items-center gap-3"
-      data-test-id="shadow-simulation-control-surface"
-    >
-      <ShadowSimulationRibbon
-        location={location}
-        state={state}
-        setState={setState}
-      />
-      <div className="w-[min(930px,calc(100vw-2rem))] rounded-[14px] bg-white px-7 py-4 button-shadow">
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <h2 className="m-0 text-xl font-semibold text-neutral-900">
-            Schattensimulation
-          </h2>
-          <div className="flex items-center gap-5 text-sm text-neutral-600">
-            {/* TODO(pre-merge): the Kurvenansicht and Debug controls ship
-                stealthed (visible on hover only) for development - remove
-                them or decide on their productized form before merging. */}
-            <button
-              type="button"
-              className={`flex items-center gap-2 whitespace-nowrap transition-opacity hover:text-amber-700 hover:opacity-100 focus-visible:opacity-100 ${
-                controlStyle === SHADOW_CONTROL_STYLE.CURVE
-                  ? "opacity-100"
-                  : "opacity-0"
-              }`}
-              onClick={() =>
-                setState({
-                  ...state,
-                  controlStyle:
-                    controlStyle === SHADOW_CONTROL_STYLE.QUICK
-                      ? SHADOW_CONTROL_STYLE.CURVE
-                      : SHADOW_CONTROL_STYLE.QUICK,
-                })
-              }
-              data-test-id="shadow-simulation-style-toggle"
-            >
-              <FontAwesomeIcon icon={faSliders} />
-              {controlStyle === SHADOW_CONTROL_STYLE.QUICK
-                ? "Kurvenansicht"
-                : "Schnellauswahl"}
-            </button>
-            <button
-              type="button"
-              className={`flex items-center gap-2 whitespace-nowrap transition-opacity hover:text-amber-700 hover:opacity-100 focus-visible:opacity-100 ${
-                state.showProjectionDebugView
-                  ? "text-amber-700 opacity-100"
-                  : "opacity-0"
-              }`}
-              aria-pressed={state.showProjectionDebugView ?? false}
-              onClick={() =>
-                setState({
-                  ...state,
-                  showProjectionDebugView: !state.showProjectionDebugView,
-                })
-              }
-              data-test-id="shadow-simulation-projection-debug"
-            >
-              <FontAwesomeIcon icon={faBug} />
-              Debug
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 whitespace-nowrap hover:text-amber-700"
-              onClick={() => {
-                const now = getSolarSelectionForInstant(
-                  new Date(),
-                  location.timeZone
-                );
-                const selection = clampSelectionToDaylight(now, location);
-                if (!selection) return;
-                setState({
-                  ...state,
-                  selection,
-                  animationMode: SHADOW_ANIMATION_MODE.DAY,
-                  animationSpeed: 4,
-                  isAnimating: false,
-                  shadowIntensity: 1,
-                  showSunDebugVector: false,
-                  showShadowBuffers: false,
-                  showProjectionDebugView: false,
-                  useTransmittanceLut: true,
-                  useSkyIrradianceLut: true,
-                });
-              }}
-            >
-              <FontAwesomeIcon icon={faArrowRotateLeft} />
-              Zurücksetzen
-            </button>
-          </div>
+    <div className="w-full" data-test-id="shadow-simulation-secondary-panel">
+      <div className="mb-2 flex items-center justify-between gap-4">
+        <span className="whitespace-nowrap text-sm tabular-nums text-neutral-500">
+          Höhe {position.elevationDegrees.toFixed(0)}° · Azimut{" "}
+          {position.azimuthDegrees.toFixed(0)}°
+        </span>
+        <div className="flex items-center gap-5 text-sm text-neutral-600">
+          {/* TODO(pre-merge): the Kurvenansicht and Debug controls ship
+              stealthed (visible on hover only) for development - remove
+              them or decide on their productized form before merging. */}
+          <button
+            type="button"
+            className={`flex items-center gap-2 whitespace-nowrap transition-opacity hover:text-amber-700 hover:opacity-100 focus-visible:opacity-100 ${
+              controlStyle === SHADOW_CONTROL_STYLE.CURVE
+                ? "opacity-100"
+                : "opacity-0"
+            }`}
+            onClick={() =>
+              setState({
+                ...state,
+                controlStyle:
+                  controlStyle === SHADOW_CONTROL_STYLE.QUICK
+                    ? SHADOW_CONTROL_STYLE.CURVE
+                    : SHADOW_CONTROL_STYLE.QUICK,
+              })
+            }
+            data-test-id="shadow-simulation-style-toggle"
+          >
+            <FontAwesomeIcon icon={faSliders} />
+            {controlStyle === SHADOW_CONTROL_STYLE.QUICK
+              ? "Kurvenansicht"
+              : "Schnellauswahl"}
+          </button>
+          <button
+            type="button"
+            className={`flex items-center gap-2 whitespace-nowrap transition-opacity hover:text-amber-700 hover:opacity-100 focus-visible:opacity-100 ${
+              state.showProjectionDebugView
+                ? "text-amber-700 opacity-100"
+                : "opacity-0"
+            }`}
+            aria-pressed={state.showProjectionDebugView ?? false}
+            onClick={() =>
+              setState({
+                ...state,
+                showProjectionDebugView: !state.showProjectionDebugView,
+              })
+            }
+            data-test-id="shadow-simulation-projection-debug"
+          >
+            <FontAwesomeIcon icon={faBug} />
+            Debug
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-2 whitespace-nowrap hover:text-amber-700"
+            onClick={() => {
+              const now = getSolarSelectionForInstant(
+                new Date(),
+                location.timeZone
+              );
+              const selection = clampSelectionToDaylight(now, location);
+              if (!selection) return;
+              setState({
+                ...state,
+                selection,
+                animationMode: SHADOW_ANIMATION_MODE.DAY,
+                animationSpeed: 4,
+                isAnimating: false,
+                shadowIntensity: 1,
+                showSunDebugVector: false,
+                showShadowBuffers: false,
+                showProjectionDebugView: false,
+                useTransmittanceLut: true,
+                useSkyIrradianceLut: true,
+              });
+            }}
+          >
+            <FontAwesomeIcon icon={faArrowRotateLeft} />
+            Zurücksetzen
+          </button>
         </div>
-        {controlStyle === SHADOW_CONTROL_STYLE.QUICK ? (
-          <ShadowQuickSettings
-            location={location}
-            state={state}
-            setState={setState}
-          />
-        ) : (
-          <ShadowSimulationSettings
-            location={location}
-            state={state}
-            setState={setState}
-          />
-        )}
       </div>
+      {controlStyle === SHADOW_CONTROL_STYLE.QUICK ? (
+        <ShadowQuickSettings
+          location={location}
+          state={state}
+          setState={setState}
+        />
+      ) : (
+        <ShadowSimulationSettings
+          location={location}
+          state={state}
+          setState={setState}
+        />
+      )}
     </div>
   );
 };
@@ -1089,7 +1088,7 @@ export const ShadowSimulation = ({
 
   if (target) {
     return (
-      <ShadowSimulationSettings
+      <ShadowSimulationSecondaryPanel
         location={location}
         state={state}
         setState={setSharedState}
