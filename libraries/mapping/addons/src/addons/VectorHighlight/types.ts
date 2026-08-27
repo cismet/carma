@@ -31,7 +31,8 @@ export type HighlightModeState = {
   /** the previewed shape has been shrunk to nothing, so the apply button is
    *  off: running it would select nothing */
   shapeEmpty?: boolean;
-  /** the deepest shrink the remembered shape survives, as a negative width */
+  /** the narrowest total width the remembered shape survives at: negative for
+   *  a polygon, 0 for a line, which shrinks back to the line as drawn */
   shrinkLimit?: number;
   /** bumped by the UI to put the remembered shape on the map */
   showShapeVersion?: number;
