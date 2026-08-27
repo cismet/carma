@@ -102,12 +102,22 @@ export const useHighlightModeActions = () => {
    *  takes it down again. Clicking the shape itself is what runs it. */
   const toggleLastShape = useCallback(
     () =>
-      setMode((previous) => ({
-        ...(previous ?? { isOn: false }),
-        ...(previous?.lastShapeShown
-          ? { hideShapeVersion: (previous.hideShapeVersion ?? 0) + 1 }
-          : { showShapeVersion: (previous?.showShapeVersion ?? 0) + 1 }),
-      })),
+      setMode((previous) => {
+        if (previous?.lastShapeShown) {
+          return {
+            ...previous,
+            hideShapeVersion: (previous.hideShapeVersion ?? 0) + 1,
+          };
+        }
+        // shown the way it last ran: an applied width belongs to the shape, so
+        // it is previewed with that width and no step on top of it
+        const applied = previous?.appliedBuffer ?? 0;
+        return {
+          ...(previous ?? { isOn: false }),
+          showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
+          ...(applied !== 0 ? { bufferEnabled: true, shapeBuffer: 0 } : null),
+        };
+      }),
     [setMode]
   );
 
