@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faFilter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -30,6 +30,7 @@ import {
   setSelectedFeature as setSelectedFeatureAction,
 } from "../../store/slices/features";
 import {
+  changeBackgroundVisibility,
   getClickFromInfoView,
   getLayerStack,
   getSelectedLayerIndex,
@@ -320,13 +321,36 @@ const GeoportalLayerButton = ({
           "pl-3",
         ]}
       >
-        <DynamicStylingLayerIcon
-          layer={layer}
-          id={id}
-          fallbackIcon={layer.icon}
-          isBackgroundLayer={background}
-          iconClassName={loading && isCurrentlyVisible() ? "icon" : ""}
-        />
+        {background && showLayerHideButtons ? (
+          <button
+            type="button"
+            id={`backgroundLayerVisibilityButton-${id}`}
+            className="hover:text-gray-500 text-gray-600 flex items-center justify-center w-6"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              dispatch(changeBackgroundVisibility(!layer.visible));
+            }}
+            aria-label={
+              layer.visible
+                ? "Hintergrundkarte ausblenden"
+                : "Hintergrundkarte einblenden"
+            }
+          >
+            <FontAwesomeIcon
+              icon={layer.visible ? faEye : faEyeSlash}
+              className="text-base leading-none"
+            />
+          </button>
+        ) : (
+          <DynamicStylingLayerIcon
+            layer={layer}
+            id={id}
+            fallbackIcon={layer.icon}
+            isBackgroundLayer={background}
+            iconClassName={loading && isCurrentlyVisible() ? "icon" : ""}
+          />
+        )}
 
         {layersLength > 0 && (
           <span className="text-base sm:hidden">{layersLength} Layer</span>
