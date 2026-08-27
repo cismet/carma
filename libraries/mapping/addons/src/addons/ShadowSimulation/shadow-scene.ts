@@ -159,6 +159,8 @@ export type ShadowSimulationScene = {
   updateShadowMode: (mode: ShadowMode) => void;
   /** Sample the sun as a disc for distance-widening penumbras (single mode). */
   updateSoftSunShadows: (enabled: boolean) => void;
+  /** While the time animation runs, static accumulation stays off. */
+  updateTimeAnimating: (animating: boolean) => void;
   /** Ask for a fresh projection-debug snapshot, e.g. when the panel opens. */
   refreshProjectionDebug: () => void;
   updateShadowIntensity: (intensity: number) => void;
@@ -1019,6 +1021,7 @@ export const buildShadowSimulationScene = (
   let sceneMaterialsDirty = true;
   let lastDebugPublishMs = 0;
   let softSunShadowsEnabled = true;
+  let timeAnimating = false;
   // Bumped whenever the controller consumed a dirty update: the lighting
   // state the accumulation rounds sample from has changed.
   let shadowStateEpoch = 0;
@@ -1251,7 +1254,7 @@ export const buildShadowSimulationScene = (
   // samples each average 32 distinct sun directions - and the per-round
   // sub-pixel jitter supersamples the whole image on top. Only while the
   // camera and the shadow state hold still; any change restarts the average.
-  sceneLease.layer.setAccumulationController?.({
+  const accumulationController = {
     // The top quality level cannot buy larger sample buffers (memory), so it
     // buys time: eight rounds average 64 sun directions instead of 32.
     get rounds() {
@@ -1262,13 +1265,20 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       sharedBinding.shadowMode === "single" &&
       !mapInMotion &&
+      !timeAnimating &&
       !sharedBinding.dirty &&
       latestSolarPosition !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
-    prepareRound: (round) => {
+    prepareRound: (round: number) => {
       sharedBinding.controller.applyDiscRotation(round);
     },
-  });
+  };
+  sceneLease.layer.setAccumulationController?.(accumulationController);
+  if (import.meta.env?.DEV && typeof window !== "undefined") {
+    // Console handle for checking whether static accumulation may run.
+    (window as unknown as Record<string, unknown>).__carmaShadowAccumulation =
+      accumulationController;
+  }
 
   const refreshSharedShadowCoverage = () => {
     cachedElevationRange = null;
@@ -1437,6 +1447,11 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled = enabled;
       sharedBinding.controller.setSoftSun(enabled);
       sharedBinding.controller.invalidate();
+      sharedBinding.dirty = true;
+      map.triggerRepaint();
+    },
+    updateTimeAnimating(animating) {
+      timeAnimating = animating;
       sharedBinding.dirty = true;
       map.triggerRepaint();
     },
