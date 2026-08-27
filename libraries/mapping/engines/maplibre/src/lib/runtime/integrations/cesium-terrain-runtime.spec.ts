@@ -723,4 +723,138 @@ describe("buildCesiumTerrainRuntime", () => {
 
     runtime.dispose();
   });
+
+  it("refines the viewport to its error target before the sun coverage", async () => {
+    // One viewport tile and three sun-coverage tiles west of it compete for a
+    // budget that only fits the viewport split. The view must reach its own
+    // pixel-error target regardless of how demanding the sun coverage is, and
+    // its tiles must be first in the download order.
+    const viewportId = { level: 10, x: 532, y: 218 };
+    // A one-tile gap to the viewport keeps edge-touching out of the picture.
+    const westIds = [
+      { level: 10, x: 528, y: 218 },
+      { level: 10, x: 529, y: 218 },
+      { level: 10, x: 530, y: 218 },
+    ];
+    const boundsOf = (id: { level: number; x: number; y: number }) => {
+      const scale = 2 ** (id.level - 10);
+      const width = 0.1 / scale;
+      const west = 7.1 + (id.x - 532 * scale) * width;
+      const north = 51.3 - (id.y - 218 * scale) * width;
+      return { west, south: north - width, east: west + width, north };
+    };
+    const intersects = (
+      a: { west: number; south: number; east: number; north: number },
+      b: { west: number; south: number; east: number; north: number }
+    ) => a.west < b.east && a.east > b.west && a.south < b.north && a.north > b.south;
+    const source = {
+      requestTile: vi.fn(async (id) => ({
+        id,
+        heightMeters: new Float32Array([100]),
+        westIndices: new Uint32Array(),
+        southIndices: new Uint32Array(),
+        eastIndices: new Uint32Array(),
+        northIndices: new Uint32Array(),
+      })),
+      getTileIdsForBounds: vi.fn(() => [viewportId]),
+      getTileGridIdsForBounds: vi.fn((bounds) =>
+        [...westIds, viewportId].filter((id) => intersects(boundsOf(id), bounds))
+      ),
+      getTileBounds: vi.fn(boundsOf),
+      getLevelMaximumGeometricError: vi.fn((level) => 200 / 2 ** (level - 10)),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const originLngLat: [number, number] = [7.15, 51.25];
+    const runtime = buildCesiumTerrainRuntime(
+      "viewport-priority-terrain",
+      "https://example.test/viewport-priority-terrain",
+      originLngLat,
+      {
+        minimumLevel: 10,
+        maximumLevel: 11,
+        errorTargetPixels: 0.1,
+        shadowLevelOffset: 0,
+        // Roots (4) plus the viewport split (net +3) fit; the sun-coverage
+        // split (net +3 more) must not.
+        maxSelectionTiles: 7,
+      }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7.1,
+        getSouth: () => 51.2,
+        getEast: () => 7.2,
+        getNorth: () => 51.3,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
+    const meterScale = origin.meterInMercatorCoordinateUnits();
+    const westCenter = MercatorCoordinate.fromLngLat([6.85, 51.25], 0);
+    const shadowCamera = new OrthographicCamera(
+      -12_000,
+      12_000,
+      12_000,
+      -12_000,
+      1,
+      20_000
+    );
+    shadowCamera.position.set(
+      (westCenter.x - origin.x) / meterScale,
+      2_000,
+      (westCenter.y - origin.y) / meterScale
+    );
+    shadowCamera.lookAt(
+      (westCenter.x - origin.x) / meterScale,
+      0,
+      (westCenter.y - origin.y) / meterScale
+    );
+    shadowCamera.updateProjectionMatrix();
+    shadowCamera.updateMatrixWorld(true);
+    runtime.setShadowCameras([shadowCamera]);
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
+    lodCamera.position.set(0, 500, 0);
+    runtime.update({
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      viewport: new Vector2(1_000, 1_000),
+    });
+    await expect(runtime.ready).resolves.toBe(true);
+
+    const requestedIds = source.requestTile.mock.calls.map(([id]) => id);
+    // The viewport root split into its level-11 children ...
+    expect(
+      requestedIds.filter((id) => id.level === 11 && id.x >> 1 === 532)
+    ).toHaveLength(4);
+    // ... while the sun coverage stayed at its root level: the leftover
+    // budget cannot fit another split.
+    expect(requestedIds.filter((id) => id.level === 11 && id.x >> 1 !== 532))
+      .toHaveLength(0);
+    for (const westId of westIds) {
+      expect(requestedIds).toContainEqual(westId);
+    }
+    // Download order: everything in view comes before the sun coverage.
+    const viewportIndices = requestedIds
+      .map((id, index) => ({ id, index }))
+      .filter(({ id }) => id.level === 11 || (id.level === 10 && id.x === 532))
+      .map(({ index }) => index);
+    const coverageIndices = requestedIds
+      .map((id, index) => ({ id, index }))
+      .filter(({ id }) => id.level === 10 && id.x !== 532)
+      .map(({ index }) => index);
+    expect(Math.max(...viewportIndices)).toBeLessThan(
+      Math.min(...coverageIndices)
+    );
+
+    runtime.dispose();
+  });
 });

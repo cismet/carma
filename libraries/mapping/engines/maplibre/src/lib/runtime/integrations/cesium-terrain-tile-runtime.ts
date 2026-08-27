@@ -161,7 +161,11 @@ type TerrainSelectionEntry = {
 
 type TerrainCandidate = {
   entry: TerrainSelectionEntry;
-  errorRatio: number;
+  /** Error against the view's own pixel target; 0 outside the viewport. */
+  viewportErrorRatio: number;
+  /** Error against the coarser shadow target; 0 outside the sun coverage. */
+  shadowErrorRatio: number;
+  intersectsViewport: boolean;
 };
 
 type TerrainShadowView = Readonly<{
@@ -1073,103 +1077,115 @@ export const buildCesiumTerrainRuntime = (
       );
       return {
         entry,
-        errorRatio:
-          entry.kind === "flat"
-            ? 0
-            : Math.max(viewportErrorRatio, shadowErrorRatio),
+        viewportErrorRatio: entry.kind === "flat" ? 0 : viewportErrorRatio,
+        shadowErrorRatio: entry.kind === "flat" ? 0 : shadowErrorRatio,
+        intersectsViewport,
       };
     };
-    // A binary max-heap on errorRatio. The refinement loop pops the worst
-    // tile, splits it and pushes its children; re-sorting the whole array on
-    // every iteration made the selection quadratic and cost hundreds of
-    // milliseconds once a shadow camera joined the coverage.
-    const heap = rootEntries.map(toCandidate);
-    const heapSwap = (a: number, b: number) => {
-      const held = heap[a];
-      heap[a] = heap[b];
-      heap[b] = held;
-    };
-    const heapPush = (candidate: TerrainCandidate) => {
-      heap.push(candidate);
-      let index = heap.length - 1;
-      while (index > 0) {
-        const parent = (index - 1) >> 1;
-        if (heap[parent].errorRatio >= heap[index].errorRatio) break;
-        heapSwap(parent, index);
-        index = parent;
-      }
-    };
-    const heapPop = (): TerrainCandidate => {
-      const top = heap[0];
-      const last = heap.pop()!;
-      if (heap.length > 0) {
-        heap[0] = last;
-        let index = 0;
+    // Refinement runs in two phases over one shared tile budget, each phase a
+    // binary max-heap on its own error measure (re-sorting per split was
+    // quadratic and cost hundreds of milliseconds).
+    //
+    // Phase one refines everything the viewer actually looks at, against the
+    // view's own pixel-error target. Phase two spends whatever budget is left
+    // on the sun's coverage. Ordering them - rather than mixing both errors
+    // in one heap - is what guarantees a tile in view never sits below its
+    // target quality just because it also intersects the sun frustum, or
+    // because thousands of up-sun caster tiles drained the budget first.
+    const makeHeap = (ratioOf: (candidate: TerrainCandidate) => number) => {
+      const heap: TerrainCandidate[] = [];
+      const swap = (a: number, b: number) => {
+        const held = heap[a];
+        heap[a] = heap[b];
+        heap[b] = held;
+      };
+      const siftDown = (from: number) => {
+        let index = from;
         for (;;) {
           const left = 2 * index + 1;
           const right = left + 1;
           let largest = index;
-          if (
-            left < heap.length &&
-            heap[left].errorRatio > heap[largest].errorRatio
-          ) {
+          if (left < heap.length && ratioOf(heap[left]) > ratioOf(heap[largest])) {
             largest = left;
           }
           if (
             right < heap.length &&
-            heap[right].errorRatio > heap[largest].errorRatio
+            ratioOf(heap[right]) > ratioOf(heap[largest])
           ) {
             largest = right;
           }
           if (largest === index) break;
-          heapSwap(largest, index);
+          swap(largest, index);
           index = largest;
         }
-      }
-      return top;
+      };
+      return {
+        get size() {
+          return heap.length;
+        },
+        push(candidate: TerrainCandidate) {
+          heap.push(candidate);
+          let index = heap.length - 1;
+          while (index > 0) {
+            const parent = (index - 1) >> 1;
+            if (ratioOf(heap[parent]) >= ratioOf(heap[index])) break;
+            swap(parent, index);
+            index = parent;
+          }
+        },
+        pop(): TerrainCandidate {
+          const top = heap[0];
+          const last = heap.pop()!;
+          if (heap.length > 0) {
+            heap[0] = last;
+            siftDown(0);
+          }
+          return top;
+        },
+      };
     };
-    for (let index = (heap.length >> 1) - 1; index >= 0; index -= 1) {
-      // heapify the roots in place
-      let current = index;
-      for (;;) {
-        const left = 2 * current + 1;
-        const right = left + 1;
-        let largest = current;
-        if (
-          left < heap.length &&
-          heap[left].errorRatio > heap[largest].errorRatio
-        ) {
-          largest = left;
-        }
-        if (
-          right < heap.length &&
-          heap[right].errorRatio > heap[largest].errorRatio
-        ) {
-          largest = right;
-        }
-        if (largest === current) break;
-        heapSwap(largest, current);
-        current = largest;
-      }
+
+    const viewportHeap = makeHeap((candidate) => candidate.viewportErrorRatio);
+    const shadowHeap = makeHeap((candidate) => candidate.shadowErrorRatio);
+    for (const entry of rootEntries) {
+      const candidate = toCandidate(entry);
+      if (candidate.intersectsViewport) viewportHeap.push(candidate);
+      else shadowHeap.push(candidate);
     }
-    while (heap.length > 0) {
-      const candidate = heapPop();
-      if (candidate.errorRatio <= 1) break;
-      if (candidate.entry.id.level >= maximumLevel) continue;
-      const children = getRelevantChildren(
-        terrainSource,
-        candidate.entry,
-        viewportBounds,
-        shadowBounds
-      );
-      if (!children.length) continue;
-      if (selected.size + children.length - 1 > maxSelectionTiles) continue;
-      selected.delete(terrainSelectionKey(candidate.entry));
-      for (const child of children) {
-        selected.set(terrainSelectionKey(child), child);
-        heapPush(toCandidate(child));
+
+    const refine = (
+      heap: ReturnType<typeof makeHeap>,
+      ratioOf: (candidate: TerrainCandidate) => number
+    ) => {
+      while (heap.size > 0) {
+        const candidate = heap.pop();
+        if (ratioOf(candidate) <= 1) break;
+        if (candidate.entry.id.level >= maximumLevel) continue;
+        const children = getRelevantChildren(
+          terrainSource,
+          candidate.entry,
+          viewportBounds,
+          shadowBounds
+        );
+        if (!children.length) continue;
+        if (selected.size + children.length - 1 > maxSelectionTiles) continue;
+        selected.delete(terrainSelectionKey(candidate.entry));
+        for (const child of children) {
+          selected.set(terrainSelectionKey(child), child);
+          const childCandidate = toCandidate(child);
+          // A child that falls outside the viewport (its parent straddled the
+          // edge) still belongs to the sun coverage and queues for phase two.
+          if (childCandidate.intersectsViewport) {
+            viewportHeap.push(childCandidate);
+          } else {
+            shadowHeap.push(childCandidate);
+          }
+        }
       }
-    }
+    };
+
+    refine(viewportHeap, (candidate) => candidate.viewportErrorRatio);
+    refine(shadowHeap, (candidate) => candidate.shadowErrorRatio);
 
     if (selPerf) {
       selPerf.runs += 1;
@@ -1178,7 +1194,23 @@ export const buildCesiumTerrainRuntime = (
       selPerf.roots += rootEntries.length;
       selPerf.picked += selected.size;
     }
-    const entries = [...selected.values()];
+    // What the viewer looks at downloads first: the sweep can queue hundreds
+    // of up-sun tiles, and they must never sit in front of the view's own.
+    const entries = [...selected.values()].sort((left, right) => {
+      const leftInView = boundsIntersect(
+        terrainSource.getTileBounds(left.id),
+        viewportBounds
+      )
+        ? 0
+        : 1;
+      const rightInView = boundsIntersect(
+        terrainSource.getTileBounds(right.id),
+        viewportBounds
+      )
+        ? 0
+        : 1;
+      return leftInView - rightInView;
+    });
     return {
       entries,
       signature: entries.map(terrainSelectionKey).sort().join("|"),
