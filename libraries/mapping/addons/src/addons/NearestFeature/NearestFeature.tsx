@@ -86,6 +86,11 @@ type Run = {
  * say it meet: picking a row selects the feature and the map paints its route,
  * clicking a route selects the same feature and the row is the selected one.
  *
+ * Coming back off a category, by the search's cancel button or by the input
+ * being emptied by hand, undoes what the stage put on the map: the routes go
+ * and the selection with them (`resetRun`), so picking another category starts
+ * from a map that says nothing about the last one.
+ *
  * Entering a category's stage runs `rankCategory` (see there for the sequence),
  * every time; nothing is kept between searches. Only the rows of the run that
  * just happened are held on to, so typing a filter behind the category does not
@@ -234,6 +239,25 @@ export const NearestFeature = ({
     selectFeatureRef.current(hit);
   }, []);
 
+  /**
+   * Coming off a category's stage: the routes and whatever was picked in it
+   * belong to that stage, so they go with it. Every way back runs this, so they
+   * cannot end differently: the cancel button, the input emptied by hand, and
+   * the mode being left altogether.
+   *
+   * Nothing ranked means nothing to undo, which is what keeps entering the mode
+   * from clearing a selection the user made somewhere else.
+   */
+  const resetRun = useCallback(() => {
+    if (!lastRunRef.current && !pendingRunRef.current) {
+      return;
+    }
+    lastRunRef.current = null;
+    pendingRunRef.current = null;
+    setDrawnRoutes([]);
+    clearSelectionRef.current();
+  }, []);
+
   /** rank a category from wherever the origin is now, and keep the rows */
   const runRanking = useCallback(
     async (category: NearestFeatureCategory): Promise<Run> => {
@@ -273,9 +297,10 @@ export const NearestFeature = ({
       const categories = categoriesRef.current;
       const category = categoryForInput(input, categories);
       if (!category) {
-        // back at the category list: the routes belonged to the category that
-        // was left, so they go with it
-        setDrawnRoutes([]);
+        // back at the category list, by the cancel button or by the input being
+        // emptied by hand: either way the stage that was left takes its routes
+        // and its pick with it
+        resetRun();
         return [categoryGroup(input, categories)];
       }
 
@@ -343,7 +368,7 @@ export const NearestFeature = ({
       }
       return [{ title, options: filtered }];
     },
-    [runRanking]
+    [runRanking, resetRun]
   );
 
   /**
@@ -361,11 +386,9 @@ export const NearestFeature = ({
         rerunRef.current = null;
       }
       setWantsOrigin(false);
-      setDrawnRoutes([]);
-      lastRunRef.current = null;
-      pendingRunRef.current = null;
+      resetRun();
     };
-  }, []);
+  }, [resetRun]);
 
   /**
    * The run's routes on the map, and back on it after a style rebuild: adding a

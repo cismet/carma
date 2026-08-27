@@ -804,6 +804,24 @@ export function LibFuzzySearch({
     }
   }, [dropdownContainerRef, options, searchResult, fireScrollEvent, value]);
 
+  /**
+   * Cancelling a dynamic mode: back to its first stage, not out of the search.
+   * A dynamic mode's stages live in the input ("Apotheken: ..."), so leaving one
+   * means emptying it, and the mode is asked again with nothing in it, which is
+   * what it answers the list of categories to. The dropdown opens on that list,
+   * so switching from one category to another is one click and a pick.
+   *
+   * The mode's own doing is left to the mode: it is asked with an empty input
+   * either way round, whether the input was emptied here or by hand, so
+   * whatever it put on the map it takes back there and not from here.
+   */
+  const handleDynamicCancel = () => {
+    setValue("");
+    setOptions([]);
+    setCleanBtnDisable(true);
+    void runDynamicSearch("", { openWhenDone: true });
+  };
+
   const handleOnClickClear = () => {
     {
       setValue("");
@@ -837,6 +855,15 @@ export function LibFuzzySearch({
   const showInputPrefix = Boolean(inputPrefix) && value !== "";
   const withInputPrefix = (text: string) =>
     inputPrefix && !showInputPrefix ? `${inputPrefix} ${text}` : text;
+
+  /**
+   * A dynamic mode with something in its input is inside one of its stages, and
+   * the way out of a stage is back to the mode's first one, not out of the
+   * search: switching from one category to another is what this is for. The
+   * button takes the mode picker's place while it is shown, so the picker is
+   * one cancel away rather than gone.
+   */
+  const showDynamicCancel = isDynamicMode && value !== "";
 
   const modeInputPrefix = activeMode?.inputPrefixOf?.(value) ?? null;
   const showModeInputPrefix =
@@ -901,7 +928,9 @@ export function LibFuzzySearch({
               }
             },
           }}
-          trigger={cleanBtnDisable ? ["click"] : []}
+          // while the button cancels a stage it is not the mode picker, or one
+          // click would both cancel and open the menu over the answer
+          trigger={cleanBtnDisable && !showDynamicCancel ? ["click"] : []}
           onOpenChange={(open) => {
             setModeDropdownOpen(open);
             if (open) triggerLandParcelPreload();
@@ -917,7 +946,7 @@ export function LibFuzzySearch({
                   spin
                   style={{ fontSize: "16px" }}
                 />
-              ) : cleanBtnDisable ? (
+              ) : cleanBtnDisable && !showDynamicCancel ? (
                 <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <SearchModeIcon
                     icon={activeMode?.icon ?? faLocationDot}
@@ -933,8 +962,15 @@ export function LibFuzzySearch({
                 <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
               )
             }
+            title={showDynamicCancel ? "Zurück zur Auswahl" : undefined}
             className="clear-fuzzy-button clear-fuzzy-button__active"
-            onClick={cleanBtnDisable ? undefined : handleOnClickClear}
+            onClick={
+              showDynamicCancel
+                ? handleDynamicCancel
+                : cleanBtnDisable
+                ? undefined
+                : handleOnClickClear
+            }
           />
         </Dropdown>
       ) : (

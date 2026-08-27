@@ -590,6 +590,17 @@ hits, and the index carries a bounding box rather than the position a gazetteer
 marker would need. A dynamic mode that does want the map to travel sets `item`
 instead.
 
+Getting back out of a stage is the button left of the input, which is the mode
+picker while the input is empty and a **✕** while a dynamic mode has anything in
+it: it empties the input, asks the mode again with nothing in it and opens the
+dropdown on the answer, so going from "Apotheken" to "Krankenhäuser" is one
+click and a pick. The search does no more than that; a mode is asked with an
+empty input whether the ✕ did it or the user did, so what a mode put on the map
+it takes back on its own. `NearestFeature` does it in `resetRun`: the drawn
+routes go, the selection is cleared and the run is forgotten, by the ✕, by the
+input being emptied by hand and by the mode being left, so no way back leaves
+the map in a different state than another.
+
 Picking a category runs one sequence, every time the stage is entered; nothing
 is cached between searches. Only the rows of the run that just happened are held
 on to, so typing after that filters what is already there instead of re-ranking
