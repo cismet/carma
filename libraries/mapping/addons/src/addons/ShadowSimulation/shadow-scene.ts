@@ -137,12 +137,12 @@ export type ShadowBuildingAppearance = Readonly<{
 
 /**
  * Texel-budget multiplier behind the quality levels: buffer edges scale with
- * its square root. In single mode 1 - 2048, 4 - 4096, 16 - 8192, 64 - 16384,
- * every size clamped to what the device's textures actually allow, so the
- * top level settles on the hardware maximum. Advanced-mode tiles and soft
- * disc samples run at half the edge.
+ * its square root. In single mode 4 - 4096, 16 - 8192, 64 - 16384, every
+ * size clamped to what the device's textures actually allow, so the top
+ * level settles on the hardware maximum. Advanced-mode tiles run at half the
+ * edge; soft disc samples use the full edge up to their memory ceiling.
  */
-export type ShadowQualityMultiplier = 1 | 4 | 16 | 64;
+export type ShadowQualityMultiplier = 4 | 16 | 64;
 export type ShadowMode = "single" | "advanced";
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 4;
