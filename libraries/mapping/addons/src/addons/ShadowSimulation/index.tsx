@@ -720,9 +720,16 @@ export const ShadowSimulationControlSurface = ({
             Schattensimulation
           </h2>
           <div className="flex items-center gap-5 text-sm text-neutral-600">
+            {/* TODO(pre-merge): the Kurvenansicht and Debug controls ship
+                stealthed (visible on hover only) for development - remove
+                them or decide on their productized form before merging. */}
             <button
               type="button"
-              className="flex items-center gap-2 whitespace-nowrap hover:text-amber-700"
+              className={`flex items-center gap-2 whitespace-nowrap transition-opacity hover:text-amber-700 hover:opacity-100 focus-visible:opacity-100 ${
+                controlStyle === SHADOW_CONTROL_STYLE.CURVE
+                  ? "opacity-100"
+                  : "opacity-0"
+              }`}
               onClick={() =>
                 setState({
                   ...state,
@@ -741,8 +748,10 @@ export const ShadowSimulationControlSurface = ({
             </button>
             <button
               type="button"
-              className={`flex items-center gap-2 whitespace-nowrap hover:text-amber-700 ${
-                state.showProjectionDebugView ? "text-amber-700" : ""
+              className={`flex items-center gap-2 whitespace-nowrap transition-opacity hover:text-amber-700 hover:opacity-100 focus-visible:opacity-100 ${
+                state.showProjectionDebugView
+                  ? "text-amber-700 opacity-100"
+                  : "opacity-0"
               }`}
               aria-pressed={state.showProjectionDebugView ?? false}
               onClick={() =>
