@@ -158,28 +158,47 @@ const fetchTileTemplates = (url: string): Promise<string[] | null> => {
 
 /**
  * The `{z}/{x}/{y}` templates a vector source serves its tiles from, which is
- * what says where its tile set directory is. Read off the live source object
- * rather than the serialized style: a source declared by TileJSON `url` only
- * gets its `tiles` array once the document has loaded, and the serialized form
- * still shows the `url`.
+ * what says where its tile set directory is.
+ *
+ * Both the live source object and the serialized style are read, because
+ * neither alone answers this right after a layer was added. MapLibre's vector
+ * source only copies `url` onto itself when it is constructed; its `tiles`
+ * array is filled in when the TileJSON resolves, which happens a frame later
+ * even for a source that declares its tiles inline. The style spec carries the
+ * declaration from the moment the source is in the style, and the live object
+ * is the one that knows the templates a TileJSON `url` resolved to, so the live
+ * object wins where it has an answer and the spec fills the gap before it does.
+ *
+ * Without the spec fallback the first ranking of a layer the addon just added
+ * finds no tileset, reports "no feature index", and only the next click works.
  */
 export const resolveTileTemplates = async (
   map: MaplibreMap,
   sourceId: string
 ): Promise<string[] | null> => {
-  const source = map.getSource(sourceId) as
+  const live = map.getSource(sourceId) as
     | { tiles?: string[]; url?: string }
     | undefined;
-  if (!source) {
+  if (!live) {
     return null;
   }
-  if (Array.isArray(source.tiles) && source.tiles.length > 0) {
-    return source.tiles;
+  const declared = map.getStyle()?.sources?.[sourceId] as
+    | { tiles?: string[]; url?: string }
+    | undefined;
+
+  const tiles =
+    Array.isArray(live.tiles) && live.tiles.length > 0
+      ? live.tiles
+      : declared?.tiles;
+  if (Array.isArray(tiles) && tiles.length > 0) {
+    return tiles;
   }
+
+  const url = typeof live.url === "string" ? live.url : declared?.url;
   // only plain http(s) TileJSON is resolvable here; `pmtiles://` and friends
   // are served by a protocol handler we cannot replay with a bare fetch
-  if (typeof source.url === "string" && /^https?:\/\//.test(source.url)) {
-    return fetchTileTemplates(transformUrl(map, source.url, "Source"));
+  if (typeof url === "string" && /^https?:\/\//.test(url)) {
+    return fetchTileTemplates(transformUrl(map, url, "Source"));
   }
   return null;
 };
