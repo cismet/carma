@@ -1,12 +1,14 @@
 /**
- * Car travel time and distance between two points, from the same MOTIS service
- * the route display uses.
+ * Car travel time, distance and line between two points, from the same MOTIS
+ * service the route display uses.
  *
- * This is the summary alone, no geometry and nothing drawn: it answers "how far
- * is that by car, really", which is what a ranking of candidates needs. Asking
- * for `CAR` as the only direct mode keeps walking and cycling itineraries out of
- * the answer, so the fastest result is a car result.
+ * This is the summary alone, nothing drawn: it answers "how far is that by car,
+ * really", which is what a ranking of candidates needs, and hands back the line
+ * it drove so a caller that wants to show the route has it without asking
+ * again. Asking for `CAR` as the only direct mode keeps walking and cycling
+ * itineraries out of the answer, so the fastest result is a car result.
  */
+import { decodePolyline } from "./routeDisplay";
 import { planRoute } from "../services/motisService";
 
 export interface CarRouteSummary {
@@ -14,6 +16,8 @@ export interface CarRouteSummary {
   durationInSeconds: number;
   /** driven distance in meters */
   distanceInMeters: number;
+  /** the driven line as `[lng, lat]` in WGS84; empty when it carried none */
+  coordinates: [number, number][];
 }
 
 export interface FetchCarRouteParams {
@@ -25,8 +29,18 @@ export interface FetchCarRouteParams {
 /** what this reads off a direct itinerary; the rest of it is not needed here */
 type DirectItinerary = {
   duration?: number;
-  legs?: Array<{ distance?: number }>;
+  legs?: Array<{
+    distance?: number;
+    legGeometry?: { points?: string; precision?: number };
+  }>;
 };
+
+/** the itinerary's line, its legs decoded and laid end to end */
+const coordinatesOf = (itinerary: DirectItinerary): [number, number][] =>
+  (itinerary.legs ?? []).flatMap((leg) => {
+    const points = leg?.legGeometry?.points;
+    return points ? decodePolyline(points, leg.legGeometry?.precision ?? 6) : [];
+  });
 
 /**
  * The fastest car route between two points, or `null` when the service answers
@@ -60,7 +74,11 @@ export async function fetchCarRoute(
         0
       );
       if (!best || durationInSeconds < best.durationInSeconds) {
-        best = { durationInSeconds, distanceInMeters };
+        best = {
+          durationInSeconds,
+          distanceInMeters,
+          coordinates: coordinatesOf(itinerary),
+        };
       }
     }
     return best;
