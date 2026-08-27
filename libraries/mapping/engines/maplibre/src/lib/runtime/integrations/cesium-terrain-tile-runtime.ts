@@ -1336,9 +1336,15 @@ export const buildCesiumTerrainRuntime = (
         if (generation !== selectionGeneration) {
           // A newer selection superseded this batch while it loaded. The
           // fetched tiles still become meshes - hidden - so the successor
-          // activates them instantly instead of fetching them again.
+          // activates them instantly instead of fetching them again. Only
+          // meshes that do not exist yet: the batch also carries every tile
+          // of the current view (each selection re-lists them), and blindly
+          // hiding those blanked visible ground whenever the sun animation
+          // superseded batch after batch.
           for (const { entry, tile } of loadedEntries) {
-            ensureMesh(tile, entry).visible = false;
+            if (!meshes.has(terrainSelectionKey(entry))) {
+              ensureMesh(tile, entry).visible = false;
+            }
           }
           return;
         }
