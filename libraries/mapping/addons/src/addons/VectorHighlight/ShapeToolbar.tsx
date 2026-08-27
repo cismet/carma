@@ -84,11 +84,11 @@ export type ShapeToolbarProps = {
   showLastShape?: boolean;
   /** there is a remembered shape */
   canLastShape?: boolean;
-  /** it is on the map, so the next press runs it */
+  /** it is on the map; clicking the shape itself is what runs it */
   lastShapeShown?: boolean;
   onLastShapeToggle?: () => void;
   lastShapeShowLabel?: string;
-  lastShapeApplyLabel?: string;
+  lastShapeHideLabel?: string;
   lastShapeMissingLabel?: string;
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
@@ -129,7 +129,7 @@ export const ShapeToolbar = ({
   lastShapeShown = false,
   onLastShapeToggle,
   lastShapeShowLabel = "Letzte Form anzeigen",
-  lastShapeApplyLabel = "Letzte Form anwenden",
+  lastShapeHideLabel = "Letzte Form ausblenden",
   lastShapeMissingLabel = "Letzte Form: erst eine Form zeichnen",
   showBuffer = false,
   bufferWidth = 5,
@@ -171,10 +171,8 @@ export const ShapeToolbar = ({
   const lastShapeLabel = !canLastShape
     ? lastShapeMissingLabel
     : lastShapeShown
-    ? lastShapeApplyLabel
+    ? lastShapeHideLabel
     : lastShapeShowLabel;
-  // shrunk to nothing: there is nothing left to run
-  const lastShapeDisabled = !canLastShape || (lastShapeShown && bufferEmpty);
 
   const bufferContent = (
     <div
@@ -306,7 +304,7 @@ export const ShapeToolbar = ({
           <span>
             <button
               type="button"
-              disabled={lastShapeDisabled}
+              disabled={!canLastShape}
               onClick={(event) => {
                 event.stopPropagation();
                 onLastShapeToggle?.();
@@ -316,7 +314,7 @@ export const ShapeToolbar = ({
               data-test-id="vector-highlight-last-shape"
               className={[
                 css.button,
-                lastShapeDisabled
+                !canLastShape
                   ? css.buttonDisabled
                   : lastShapeShown
                   ? activeColor
@@ -325,7 +323,7 @@ export const ShapeToolbar = ({
                   : css.buttonInactive,
               ].join(" ")}
               style={
-                !lastShapeDisabled && lastShapeShown && activeColor
+                canLastShape && lastShapeShown && activeColor
                   ? { color: activeColor }
                   : undefined
               }
