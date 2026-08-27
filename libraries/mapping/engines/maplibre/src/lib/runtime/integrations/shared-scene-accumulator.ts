@@ -51,15 +51,16 @@ const COMPOSITE_VERTEX = /* glsl */ `
   }
 `;
 
-// Three's GLSL3 materials declare the fragment output themselves
-// (pc_fragColor); declaring another one fails to compile.
+// Three injects a pc_fragColor output only for shaders it upgrades itself;
+// an explicitly GLSL3 ShaderMaterial declares its own fragment output.
 const BLEND_FRAGMENT = /* glsl */ `
+  layout(location = 0) out highp vec4 outColor;
   in vec2 vUv;
   uniform sampler2D tPrevious;
   uniform sampler2D tRound;
   uniform float uRoundWeight;
   void main() {
-    pc_fragColor = mix(
+    outColor = mix(
       texture(tPrevious, vUv),
       texture(tRound, vUv),
       uRoundWeight
@@ -68,13 +69,14 @@ const BLEND_FRAGMENT = /* glsl */ `
 `;
 
 const COMPOSITE_FRAGMENT = /* glsl */ `
+  layout(location = 0) out highp vec4 outColor;
   in vec2 vUv;
   uniform sampler2D tColor;
   uniform sampler2D tDepth;
   void main() {
     vec4 color = texture(tColor, vUv);
     if (color.a < 0.004) discard;
-    pc_fragColor = color;
+    outColor = color;
     gl_FragDepth = texture(tDepth, vUv).r;
   }
 `;
