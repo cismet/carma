@@ -6,6 +6,7 @@ import type { DynamicSearchOption } from "@carma-mapping/fuzzy-search";
 
 import { collectNearestFromIndex } from "../../lib/featureIndex";
 import { resolveStackedSources } from "../../lib/stackedSources";
+import { rankByCarRoute, type CarRoutesByFeature } from "./carRanking";
 import { CATEGORY_SEPARATOR } from "./categoryInput";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
@@ -23,11 +24,13 @@ import { waitForIdle, waitForStyleLayer } from "./mapReady";
  *    the ranking reads the tilesets of the sources the style actually has;
  * 2. `collectNearestFromIndex` ranks that layer's `features.json`, which costs
  *    no requests and is complete for the whole layer, on or off screen;
- * 3. the map is fitted to the origin and every hit, so all of them are drawn;
- * 4. `queryRenderedFeatures` reads the hits' properties off those drawn
+ * 3. `rankByCarRoute` routes those candidates and reorders them by driving
+ *    time, so the straight-line ranking only picks who is worth routing;
+ * 4. the map is fitted to the origin and every hit, so all of them are drawn;
+ * 5. `queryRenderedFeatures` reads the hits' properties off those drawn
  *    features, which is where the names come from.
  *
- * Step 4 is why step 3 exists, and why the names are configured per category:
+ * Step 5 is why step 4 exists, and why the names are configured per category:
  * every layer calls its name something else.
  */
 
@@ -37,6 +40,11 @@ export type RankCategoryOptions = {
   category: NearestFeatureCategory;
   origin: { lat: number; lng: number };
   count: number;
+  /**
+   * Route the candidates by car and order them by driving time instead of by
+   * straight-line distance; see `carRanking.ts`.
+   */
+  carRouteRanking: boolean;
   /** select a hit on the map; a row's pick does this and nothing else */
   selectFeature: (id: SelectedFeatureIdentifier) => void;
 };
@@ -55,6 +63,20 @@ const formatDistance = (meters: number): string =>
     : `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(
         meters / 1000
       )} km`;
+
+/**
+ * A driving time, rounded to whole minutes. Never "0 Min": a hit around the
+ * corner takes a moment, and a zero would read as "no route".
+ */
+const formatDuration = (seconds: number): string => {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) {
+    return `${minutes} Min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} Std` : `${hours} Std ${rest} Min`;
+};
 
 /**
  * A row's value is what the input shows and what the dropdown keys on, so two
@@ -79,6 +101,7 @@ export const rankCategory = async ({
   category,
   origin,
   count,
+  carRouteRanking,
   selectFeature,
 }: RankCategoryOptions): Promise<RankCategoryResult> => {
   if (!carma.mapping2D.hasLayer(category.layerId)) {
@@ -130,21 +153,29 @@ export const rankCategory = async ({
     };
   }
 
+  // the straight-line hits are the shortlist; the order the user sees is the
+  // one the routing service gives them
+  const { entries: ranked, routes } = carRouteRanking
+    ? await rankByCarRoute(origin, entries)
+    : { entries, routes: new Map() as CarRoutesByFeature };
+
   // fit the origin and every hit, so all of them are drawn and can be read
   // back; the bounding boxes are already in WGS84
   carma.mapping2D.fitBounds(
-    Math.min(origin.lng, ...entries.map((one) => one.bbox[0])),
-    Math.min(origin.lat, ...entries.map((one) => one.bbox[1])),
-    Math.max(origin.lng, ...entries.map((one) => one.bbox[2])),
-    Math.max(origin.lat, ...entries.map((one) => one.bbox[3]))
+    Math.min(origin.lng, ...ranked.map((one) => one.bbox[0])),
+    Math.min(origin.lat, ...ranked.map((one) => one.bbox[1])),
+    Math.max(origin.lng, ...ranked.map((one) => one.bbox[2])),
+    Math.max(origin.lat, ...ranked.map((one) => one.bbox[3]))
   );
   await waitForIdle(map);
 
-  const properties = collectRenderedProperties(map, entries);
+  const properties = collectRenderedProperties(map, ranked);
   const uniqueValue = uniqueValues();
 
-  const rows = entries.map((entry) => {
-    const props = properties.get(featureKey(entry));
+  const rows = ranked.map((entry) => {
+    const key = featureKey(entry);
+    const props = properties.get(key);
+    const route = routes.get(key);
     const title =
       pickProperty(props, category.labelProperties) ??
       `${category.label} #${String(entry.id)}`;
@@ -155,7 +186,13 @@ export const rankCategory = async ({
       // the category's own icon, so a hit row reads as that kind of place
       ...(category.icon ? { icon: category.icon } : {}),
       ...(detail ? { detail } : {}),
-      hint: formatDistance(entry.distanceInMeters),
+      // what it takes to get there by car; the straight-line distance is what
+      // is left when the routing service could not answer for this one
+      hint: route
+        ? `${formatDuration(route.durationInSeconds)} · ${formatDistance(
+            route.distanceInMeters
+          )}`
+        : formatDistance(entry.distanceInMeters),
       // no `item`: a pick selects the feature on the map and nothing else.
       // Handing a hit to the search's `onSelection` would move the map and
       // drop a gazetteer marker, and the index knows a bounding box, not

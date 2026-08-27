@@ -28,6 +28,13 @@ export {
   type RouteOption,
 } from "./utils/routeDisplay";
 
+// Car route summary (travel time / driven distance, no geometry)
+export {
+  fetchCarRoute,
+  type CarRouteSummary,
+  type FetchCarRouteParams,
+} from "./utils/carRoute";
+
 // UI Components
 export { RouteOptionsDrawer } from "./components/RouteOptionsDrawer";
 export { InlineRouteOptions } from "./components/InlineRouteOptions";

@@ -20,6 +20,7 @@ import {
   queryForCategory,
 } from "./categoryInput";
 import {
+  DEFAULT_CAR_ROUTE_RANKING,
   DEFAULT_COUNT,
   DEFAULT_ICON,
   DEFAULT_KEY,
@@ -59,7 +60,9 @@ type Run = {
  * categories the route's category addons published on the
  * `nearestFeatureCategories` channel ("Apotheken", see `categoryChannel.ts`);
  * the mode itself declares none. Picking one drills down and the second
- * lists the `count` nearest features of that category, each with its distance.
+ * lists the `count` nearest features of that category, each with what it takes
+ * to drive there: the straight-line ranking only picks the candidates, the
+ * routing service puts them in order (see `carRanking.ts`).
  * Picking a result selects that feature on the map through
  * `MapSelectionContext` and does nothing else: the map has already been moved
  * so every hit is visible, and the index knows a bounding box rather than the
@@ -95,6 +98,7 @@ export const NearestFeature = ({
     count = DEFAULT_COUNT,
     origin = DEFAULT_ORIGIN,
     preloadIndexes = true,
+    carRouteRanking = DEFAULT_CAR_ROUTE_RANKING,
   } = config ?? {};
 
   // the mode is registered once and then asked for years of keystrokes, so
@@ -198,13 +202,14 @@ export const NearestFeature = ({
         category,
         origin: currentOrigin,
         count,
+        carRouteRanking,
         selectFeature: (id) => selectFeatureRef.current(id),
       });
       const run: Run = { category, rows, problem, originKey };
       lastRunRef.current = run;
       return run;
     },
-    [awaitOrigin, carma, count]
+    [awaitOrigin, carma, count, carRouteRanking]
   );
 
   const resolve = useCallback(

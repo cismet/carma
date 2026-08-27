@@ -31,6 +31,16 @@ export type NearestFeatureConfig = {
    * style, rather than on the first search. Default: true.
    */
   preloadIndexes?: boolean;
+  /**
+   * Route the `count` straight-line candidates by car and list them by driving
+   * time instead of by straight-line distance. Default: true.
+   *
+   * Costs `count` requests to the routing service per ranking. Switch it off
+   * for a route that has no routing service reachable, or where "as the crow
+   * flies" is the answer that is wanted; the rows then show the straight-line
+   * distance again, as they did before.
+   */
+  carRouteRanking?: boolean;
 };
 
 /**
@@ -45,6 +55,8 @@ export const DEFAULT_ORIGIN = {
   lng: 7.1999207,
 };
 export const DEFAULT_COUNT = 5;
+/** rank by car by default; the straight-line order is only the shortlist */
+export const DEFAULT_CAR_ROUTE_RANKING = true;
 /** the mode's key in the dropdown, which is about "nearby", not about the kind */
 export const DEFAULT_KEY = "nearby";
 export const DEFAULT_LABEL = "In der Nähe";
