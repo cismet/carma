@@ -239,7 +239,6 @@ const SHADOW_QUALITY_LEVELS: ReadonlyArray<{
   label: string;
   value: ShadowQualityMultiplier;
 }> = [
-  { label: "Niedrig", value: 1 },
   { label: "Mittel", value: 4 },
   { label: "Hoch", value: 16 },
   { label: "Max", value: 64 },
@@ -249,7 +248,7 @@ const SHADOW_QUALITY_LEVELS: ReadonlyArray<{
 const resolveShadowQuality = (
   quality: number | undefined
 ): ShadowQualityMultiplier =>
-  quality === 1 || quality === 4 || quality === 16 || quality === 64
+  quality === 4 || quality === 16 || quality === 64
     ? quality
     : DEFAULT_SHADOW_QUALITY;
 

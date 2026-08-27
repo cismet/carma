@@ -69,7 +69,6 @@ const SHADOW_QUALITIES: ReadonlyArray<{
   label: string;
   value: ShadowQualityMultiplier;
 }> = [
-  { label: "Niedrig", value: 1 },
   { label: "Mittel", value: 4 },
   { label: "Hoch", value: 16 },
   { label: "Max", value: 64 },
