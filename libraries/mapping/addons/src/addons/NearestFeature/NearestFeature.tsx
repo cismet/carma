@@ -28,7 +28,17 @@ import {
   DEFAULT_ORIGIN,
   DEFAULT_PLACEHOLDER,
 } from "./config";
+import { featureKey } from "./featureProperties";
+import { clickHit, type PickableHit } from "./pickHit";
 import { rankCategory } from "./rankCategory";
+import {
+  clearRoutes,
+  drawRoutes,
+  highlightRoute,
+  onRouteClick,
+  routesAreDrawn,
+  type NearestFeatureRoute,
+} from "./routeLayer";
 
 /** how long a ranking waits for the origin search before it gives up on it */
 const ORIGIN_WAIT_TIMEOUT = 15000;
@@ -47,6 +57,8 @@ const originKeyOf = (origin: { lat: number; lng: number }) =>
 type Run = {
   category: NearestFeatureCategory;
   rows: DynamicSearchOption[];
+  /** the driven line of every row that could be routed, to draw on the map */
+  routes: NearestFeatureRoute[];
   /** why it produced nothing, for the row that says so */
   problem: string | null;
   /** where it was ranked from; another origin makes those rows stale */
@@ -68,6 +80,12 @@ type Run = {
  * so every hit is visible, and the index knows a bounding box rather than the
  * position a gazetteer marker would be dropped at.
  *
+ * The routes the ranking drove are drawn on the map with the hits (see
+ * `routeLayer.ts`), and the one that leads to the selected feature is the blue
+ * one. Selection is the only thing that says which that is, so the two ways to
+ * say it meet: picking a row selects the feature and the map paints its route,
+ * clicking a route selects the same feature and the row is the selected one.
+ *
  * Entering a category's stage runs `rankCategory` (see there for the sequence),
  * every time; nothing is kept between searches. Only the rows of the run that
  * just happened are held on to, so typing a filter behind the category does not
@@ -88,7 +106,8 @@ export const NearestFeature = ({
 }: AddonComponentProps<"nearestFeature">) => {
   // the geoportal's programmatic selection channel, the same one a result list
   // uses; outside a provider this is an inert default
-  const { selectFeature, clearSelection } = useMapSelection();
+  const { selectFeature, clearSelection, selectedFeatureId } =
+    useMapSelection();
 
   const {
     key = DEFAULT_KEY,
@@ -179,6 +198,42 @@ export const NearestFeature = ({
   const [wantsOrigin, setWantsOrigin] = useState(false);
   useOriginRequest("nearestFeature", "In der Nähe: Startpunkt", wantsOrigin);
 
+  /**
+   * The routes on the map right now. They belong to the run whose rows the
+   * dropdown is showing, so they are set where that run is settled on and
+   * dropped when the mode is left or the user is back at the category list.
+   */
+  const [drawnRoutes, setDrawnRoutes] = useState<NearestFeatureRoute[]>([]);
+
+  /** which route is the picked one; the selection is all that says so */
+  const selectedRouteKey =
+    selectedFeatureId && selectedFeatureId.id != null
+      ? featureKey({
+          sourceId: selectedFeatureId.source,
+          sourceLayer: selectedFeatureId.sourceLayer,
+          id: selectedFeatureId.id,
+        })
+      : null;
+  // read by the drawing below, which must not redraw every time the selection
+  // moves: repainting the picked line is the highlight's job
+  const selectedRouteKeyRef = useRef(selectedRouteKey);
+  selectedRouteKeyRef.current = selectedRouteKey;
+
+  /**
+   * What picking a hit does, from a row and from its route alike: click it
+   * where the map draws it, so the host app shows the info box it shows for
+   * any other click on that feature (see `pickHit.ts`). A hit that is not on
+   * screen cannot be clicked, and is selected as it was before: highlighted,
+   * without an info box, which is better than nothing happening at all.
+   */
+  const pickHit = useCallback((hit: PickableHit) => {
+    const map = mapRef.current;
+    if (map && clickHit(map, hit)) {
+      return;
+    }
+    selectFeatureRef.current(hit);
+  }, []);
+
   /** rank a category from wherever the origin is now, and keep the rows */
   const runRanking = useCallback(
     async (category: NearestFeatureCategory): Promise<Run> => {
@@ -192,24 +247,25 @@ export const NearestFeature = ({
         return {
           category,
           rows: [],
+          routes: [],
           problem: "Keine MapLibre-Karte",
           originKey,
         };
       }
-      const { rows, problem } = await rankCategory({
+      const { rows, routes, problem } = await rankCategory({
         map,
         carma,
         category,
         origin: currentOrigin,
         count,
         carRouteRanking,
-        selectFeature: (id) => selectFeatureRef.current(id),
+        pickHit,
       });
-      const run: Run = { category, rows, problem, originKey };
+      const run: Run = { category, rows, routes, problem, originKey };
       lastRunRef.current = run;
       return run;
     },
-    [awaitOrigin, carma, count, carRouteRanking]
+    [awaitOrigin, carma, count, carRouteRanking, pickHit]
   );
 
   const resolve = useCallback(
@@ -217,6 +273,9 @@ export const NearestFeature = ({
       const categories = categoriesRef.current;
       const category = categoryForInput(input, categories);
       if (!category) {
+        // back at the category list: the routes belonged to the category that
+        // was left, so they go with it
+        setDrawnRoutes([]);
         return [categoryGroup(input, categories)];
       }
 
@@ -247,6 +306,9 @@ export const NearestFeature = ({
         run = await runRanking(category);
       }
       const { rows, problem } = run;
+      // the same run's rows keep the same lines, so a keystroke that only
+      // filters them hands back the very array that is drawn and nothing moves
+      setDrawnRoutes(run.routes);
 
       const filtered =
         query === ""
@@ -299,10 +361,63 @@ export const NearestFeature = ({
         rerunRef.current = null;
       }
       setWantsOrigin(false);
+      setDrawnRoutes([]);
       lastRunRef.current = null;
       pendingRunRef.current = null;
     };
   }, []);
+
+  /**
+   * The run's routes on the map, and back on it after a style rebuild: adding a
+   * category's layer replaces the style, which takes the source and the layers
+   * with it, and the lines would be gone without a word.
+   */
+  useEffect(() => {
+    if (!libreMap) {
+      return;
+    }
+    if (drawnRoutes.length === 0) {
+      clearRoutes(libreMap);
+      return;
+    }
+    const draw = () =>
+      drawRoutes(libreMap, drawnRoutes, selectedRouteKeyRef.current);
+    draw();
+    const redraw = () => {
+      if (!routesAreDrawn(libreMap)) {
+        draw();
+      }
+    };
+    libreMap.on("styledata", redraw);
+    return () => {
+      libreMap.off("styledata", redraw);
+      clearRoutes(libreMap);
+    };
+  }, [libreMap, drawnRoutes]);
+
+  /** the picked route is the one that leads to the selected feature */
+  useEffect(() => {
+    if (libreMap) {
+      highlightRoute(libreMap, selectedRouteKey);
+    }
+  }, [libreMap, selectedRouteKey, drawnRoutes]);
+
+  /**
+   * Clicking a route is picking its hit: the same click on the same feature
+   * the hit's row makes, so the map and the list say the same thing either way
+   * round, info box included.
+   */
+  useEffect(() => {
+    if (!libreMap || drawnRoutes.length === 0) {
+      return;
+    }
+    return onRouteClick(libreMap, (key) => {
+      const route = drawnRoutes.find((one) => one.key === key);
+      if (route) {
+        pickHit(route.hit);
+      }
+    });
+  }, [libreMap, drawnRoutes, pickHit]);
 
   /**
    * A new starting point re-ranks the category that is on screen, whether or

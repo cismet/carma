@@ -556,13 +556,9 @@ features (see below); writing a hit's attributes into the index itself is
 `docs/features-json-generic.md`. Tiles that MapLibre fetches to *draw* the layer
 are unrelated and unaffected by any of this.
 
-Picking a row calls `selectFeature()` on `MapSelectionContext` with
-`{ source, sourceLayer, id }`, which is what a result list would do: `LibreMap`
-writes the `selected` feature state and the host's `useSelectionForwarding` fans
-it out to the companion source-layers a style lists in
-`carmaConf.selectionForwardingTo`. Feature state is kept per source and
-re-applied as tiles arrive, so selecting an off-screen feature works and shows
-once you pan there. No raw feature is passed, so nothing opens the info box.
+Picking a row **clicks the hit on the map**, where it is drawn, so the host app
+answers with the info box it shows for any other click on that feature; see
+"Picking a hit" below.
 
 The box is why this scales to a source that could never be read as tiles, such
 as ALKIS with its 512k features and tens of megabytes per low-zoom tile: it is an
@@ -584,15 +580,15 @@ so every dynamic mode reads the same in the dropdown.
 
 The mode has two stages, like the land-parcel search. The first lists the
 published categories; picking one drills down into the nearest features of that
-category, with their distance on the right. A dynamic drilldown closes the
+category, with what it takes to drive there on the right. A dynamic drilldown closes the
 dropdown while the next stage is being resolved: it may take a while, and a
 dropdown still showing the stage that was just picked reads as if nothing
 happened, so the input's spinner is the only thing running and the answer opens
-it again. Picking a result runs its `onPick`,
-which selects that feature through `MapSelectionContext`, and nothing else: the
-map has already been fitted to all hits, and the index carries a bounding box
-rather than the position a gazetteer marker would need. A dynamic mode that does
-want the map to travel sets `item` instead.
+it again. Picking a result runs its `onPick`, which clicks that feature on the
+map rather than handing it to the search: the map has already been fitted to all
+hits, and the index carries a bounding box rather than the position a gazetteer
+marker would need. A dynamic mode that does want the map to travel sets `item`
+instead.
 
 Picking a category runs one sequence, every time the stage is entered; nothing
 is cached between searches. Only the rows of the run that just happened are held
@@ -604,14 +600,66 @@ and moving the map per keystroke:
    because the ranking only sees sources the style actually has;
 2. **the ranking** (`collectNearestFromIndex`, narrowed to that layer through
    its new `filter` option);
-3. **the map is fitted** to the origin and every hit;
-4. **the names are read off the drawn features** with `queryRenderedFeatures`.
+3. **the candidates are driven to** (`carRanking.ts`), which is what puts them
+   in the order the user sees;
+4. **the map is fitted** to the origin and every hit;
+5. **the names are read off the drawn features** with `queryRenderedFeatures`;
+6. **the map is fitted again**, now around the driven lines as well.
 
-Step 4 is why step 3 exists: `features.json` carries no properties, so the names
+Step 5 is why step 4 exists: `features.json` carries no properties, so the names
 have to come from the tiles, and a feature is only queryable once it is drawn.
+It is also why step 6 is a second fit rather than a wider first one: a route
+that swings out of town would zoom the map far enough out for the hits to stop
+being drawn, and their names would go with them.
 Which properties make a label is configured per category (`labelProperties`,
 `detailProperties`), because every layer names things differently;
 `"<Kategorie> #<id>"` is the fallback.
+
+### Nearest by car, and the routes on the map
+
+`features.json` can only measure as the crow flies, which is what makes it free.
+That is a good *candidate* set and a poor order: a river or a valley puts the
+nearest pharmacy on the map twenty minutes away by car. So the straight-line
+hits stay the shortlist and each one is driven to once, in parallel, through
+`fetchCarRoute` of `@carma-mapping/routing` (MOTIS, `CAR` as the only direct
+mode). That is `count` requests per ranking, and the reason it is not done over
+the whole layer. A hit the service cannot answer for keeps its place at the end
+of the list with its straight-line distance: it is still one of the nearest, it
+is only unknown how long it takes to get there. `carRouteRanking: false` turns
+all of it off, and the rows read as they did before.
+
+The driven lines are then drawn (`routeLayer.ts`), which is what makes "twelve
+minutes" mean something: one geojson source, a white casing, the routes in grey,
+and the picked one in blue on top. Which one is picked is not state of its own,
+it is read from the selection: a click on a line picks the hit at its end,
+exactly as picking that hit's row does, so the list and the map cannot disagree.
+The lines are marked `carmaConf.nonSelectable`, so every click path in the
+engine walks past them and what lies under a line stays clickable through it.
+
+### Picking a hit
+
+Selecting a feature through `MapSelectionContext` highlights it and no more. The
+info box belongs to the host app, and every host builds it from its own click
+handling: the geoportal runs `onSelectionChanged` over the hits of a click and
+queries its WMS layers at the clicked position (it runs `LibreMap` with
+`disableInternalSelection`). None of that can be reached by naming a feature, so
+`pickHit.ts` clicks the feature where the map draws it and the host answers as
+it does for any other click, with the right info box for the right layer.
+
+The click is not fired blind at the middle of the bounding box: the middle of a
+bent street is not on it, and a symbol sits above its own coordinate. The point
+is searched for instead, over a small ring around the middle, and the click goes
+to the first one at which the map actually draws this feature. When there is
+none the hit is off screen, and picking falls back to `selectFeature()` on
+`MapSelectionContext`: highlighted, without an info box, which is what picking a
+row did before.
+
+A click on a route line is taken off the DOM on its way down to the map, and not
+from the map. A click on a route means "pick the hit at its end", so the map
+must not also handle it as a click on the spot the line happens to run through:
+the host would put its info box, its marker and its queries there, and the pick
+that follows a moment later would race it. Only a click that lands on a line is
+taken this way; every other one reaches the map untouched.
 
 Matching a hit back to a catalog layer needs the engine's second stamp:
 `metadata["layer-id"]` is the style's own name for the layer (the slugified
@@ -657,8 +705,12 @@ merges its own key in and takes it out again when it unmounts, so nobody
 overwrites a sibling. The mode reads the channel through a ref, so a category
 mounting later does not re-register the mode.
 
-A row may carry its own icon (`DynamicSearchOption.icon`), which is how the
-category's icon reaches both stages; without one a row shows the mode's icon.
+A row may carry its own icon (`DynamicSearchOption.icon`), which is how a
+category's icon reaches the first stage; without one a row shows the mode's
+icon. The hits of the second stage pass `icon: null` and show none at all: they
+are all the same kind of place, which the stage's title already says, so the
+column would be that one icon five times over and the names are short of the
+width it takes.
 
 The addon's folder is split along those steps:
 
@@ -671,7 +723,10 @@ The addon's folder is split along those steps:
 | `categories/Bahnhoefe.tsx` | the same, for a layer sharing the POI tileset: it names its own index |
 | `categories/Krankenhaeuser.tsx` | another POI category, same shape as `Bahnhoefe` |
 | `categoryInput.ts` | the `"Apotheken: "` input grammar and the first stage |
-| `rankCategory.ts` | the second stage: add layer, rank, fit, build the rows |
+| `rankCategory.ts` | the second stage: add layer, rank, drive, fit, build the rows |
+| `carRanking.ts` | driving to the candidates and ordering them by how long it takes |
+| `routeLayer.ts` | the routes on the map: drawing them, the blue one, clicking one |
+| `pickHit.ts` | picking a hit by clicking it where the map draws it |
 | `mapReady.ts` | waiting for the style to carry the layer, and for `idle` |
 | `featureProperties.ts` | reading the hits' names off the drawn features |
 
