@@ -131,6 +131,8 @@ export type ShadowSimulationState = {
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;
   showShadowBuffers?: boolean;
+  /** Sample the sun as a disc for realistic, distance-widening penumbras. */
+  softSunShadows?: boolean;
   useTransmittanceLut?: boolean;
   useSkyIrradianceLut?: boolean;
   controlStyle?: ShadowControlStyle;
@@ -608,6 +610,21 @@ const ShadowQuickSettings = ({
               {Math.round(intensity * 100)}%
             </span>
           </label>
+          <label className="grid grid-cols-[140px_1fr] items-center gap-3">
+            <span>Weiche Schatten</span>
+            <input
+              type="checkbox"
+              checked={state.softSunShadows ?? true}
+              onChange={(event) =>
+                setState({
+                  ...state,
+                  softSunShadows: event.currentTarget.checked,
+                })
+              }
+              className="h-4 w-4 cursor-pointer justify-self-start accent-amber-600"
+              data-test-id="shadow-simulation-soft-sun"
+            />
+          </label>
         </div>
       </section>
     </div>
@@ -812,6 +829,18 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
+    shadowScene.current?.updateSoftSunShadows(state.softSunShadows ?? true);
+  }, [state.enabled, state.softSunShadows, sceneRevision]);
+
+  // The projection debug panel only renders once a snapshot arrives, and at
+  // rest nothing publishes one; opening the panel therefore asks for one.
+  useEffect(() => {
+    if (!state.enabled || !state.showProjectionDebugView) return;
+    shadowScene.current?.refreshProjectionDebug();
+  }, [state.enabled, state.showProjectionDebugView, sceneRevision]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateShadowIntensity(state.shadowIntensity ?? 1);
   }, [state.enabled, state.shadowIntensity, sceneRevision]);
 
@@ -905,6 +934,7 @@ export const ShadowSimulation = ({
       showSunDebugVector: false,
       showShadowBuffers: false,
       showProjectionDebugView: false,
+      softSunShadows: true,
       useTransmittanceLut: true,
       useSkyIrradianceLut: true,
       controlStyle: SHADOW_CONTROL_STYLE.QUICK,
