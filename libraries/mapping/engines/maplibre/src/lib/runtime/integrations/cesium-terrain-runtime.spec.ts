@@ -262,11 +262,7 @@ describe("buildCesiumTerrainRuntime", () => {
       castShadow: boolean;
       receiveShadow: boolean;
       material: { side: number; shadowSide: number | null };
-      customDepthMaterial: {
-        polygonOffset: boolean;
-        polygonOffsetFactor: number;
-        polygonOffsetUnits: number;
-      };
+      customDepthMaterial?: unknown;
       geometry: { getAttribute: (name: string) => { count: number } };
     };
     expect(mesh.castShadow).toBe(true);
@@ -274,9 +270,9 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(mesh.material).toBeInstanceOf(MeshLambertMaterial);
     expect(mesh.material.side).toBe(FrontSide);
     expect(mesh.material.shadowSide).toBe(FrontSide);
-    expect(mesh.customDepthMaterial.polygonOffset).toBe(true);
-    expect(mesh.customDepthMaterial.polygonOffsetFactor).toBe(2);
-    expect(mesh.customDepthMaterial.polygonOffsetUnits).toBe(4);
+    // Standard depth pass: acne control lives in the light's texel-scaled
+    // normal bias, not in a per-mesh depth material.
+    expect(mesh.customDepthMaterial).toBeUndefined();
     expect(mesh.geometry.getAttribute("position").count).toBe(4);
     expect(source.requestTile).toHaveBeenCalledWith(tileId);
     expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
@@ -625,7 +621,7 @@ describe("buildCesiumTerrainRuntime", () => {
     }
     expect(reliefSourceMesh.castShadow).toBe(true);
     expect(reliefSourceMesh.receiveShadow).toBe(true);
-    expect(reliefSourceMesh.customDepthMaterial).toBeDefined();
+    expect(reliefSourceMesh.customDepthMaterial).toBeUndefined();
     expect(reliefSourceMesh.geometry.getAttribute("position").count).toBe(4);
     expect(Array.from(reliefSourceMesh.geometry.getIndex()!.array)).toEqual([
       0, 2, 1,

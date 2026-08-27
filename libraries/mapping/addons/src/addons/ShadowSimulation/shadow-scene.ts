@@ -172,19 +172,6 @@ export const solarPositionToSceneDirection = ({
   ).normalize();
 };
 
-/**
- * Slope-scaled depth bias for the terrain's shadow pass. GL polygon offset
- * grows with the surface's depth slope, which is exactly where heightfield
- * acne comes from, so the open terrain needs no large constant bias.
- */
-const buildTerrainDepthMaterial = () =>
-  new THREE.MeshDepthMaterial({
-    depthPacking: THREE.RGBADepthPacking,
-    polygonOffset: true,
-    polygonOffsetFactor: 2,
-    polygonOffsetUnits: 4,
-  });
-
 const makeMeshShadeable = (
   mesh: THREE.Mesh,
   shadowController?: TiledShadowController
@@ -195,14 +182,12 @@ const makeMeshShadeable = (
   const materials = Array.isArray(mesh.material)
     ? mesh.material
     : [mesh.material];
-  if (mesh.userData.isShadowTerrainSurface) {
-    if (!mesh.customDepthMaterial) {
-      mesh.customDepthMaterial = buildTerrainDepthMaterial();
-    }
-  } else {
-    // Closed solids write their far walls into the depth map. The stored
-    // depth then sits behind the lit wall, which removes both self-shadow
-    // acne and the bright leak line along the building's base in one go.
+  // Closed solids write their far walls into the depth map. The stored depth
+  // then sits behind the lit wall, which removes both self-shadow acne and
+  // the bright leak line along the building's base in one go. The terrain is
+  // an open heightfield and keeps its front faces; the texel-scaled normal
+  // bias absorbs its acne.
+  if (!mesh.userData.isShadowTerrainSurface) {
     for (const material of materials) {
       material.shadowSide = THREE.BackSide;
     }
