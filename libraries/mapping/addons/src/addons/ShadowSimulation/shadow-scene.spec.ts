@@ -353,10 +353,9 @@ describe("shadow scene lighting integration", () => {
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
     expect((terrain.material as THREE.Material).shadowSide).toBeNull();
-    // Terrain acne is answered with a slope-scaled offset in its depth pass.
-    expect(
-      (terrain.customDepthMaterial as THREE.MeshDepthMaterial).polygonOffset
-    ).toBe(true);
+    // The open heightfield keeps the standard depth pass; acne is absorbed by
+    // the texel-scaled receiver normal bias, not a custom depth material.
+    expect(terrain.customDepthMaterial).toBeUndefined();
     expect(buildingCopy.parent?.parent).toBe(scene);
     expect(terrain.parent).toBe(scene);
 

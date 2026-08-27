@@ -31,13 +31,18 @@ const LIGHT_CAMERA_SAFETY_METERS = 25;
  */
 export const CASTER_RELIEF_MARGIN_METERS = 300;
 /**
- * One fixed normal bias instead of the former per-texel battery. Acne is
- * handled where it comes from: buildings render their far walls into the
- * depth map (`shadowSide: BackSide`), terrain gets a slope-scaled polygon
- * offset in its depth pass. What remains is a small constant to absorb
- * filter-kernel wobble.
+ * Acne control, the standard way: a receiver-side normal offset proportional
+ * to the world size of one shadow texel. One texel is exactly the sampling
+ * error the depth comparison has to absorb; scaling with it stays correct
+ * whether the buffer spans a courtyard or a valley. Unlike a slope-scaled
+ * depth offset it cannot blow up at grazing sun angles - that is what
+ * punched lit holes into self-shadowed hillsides. Buildings additionally
+ * render their far walls into the depth map (`shadowSide: BackSide`), which
+ * keeps their bases free of leak lines at any bias.
  */
-const SHADOW_NORMAL_BIAS_METERS = 0.1;
+const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
+const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
+const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
 const SHADOW_FILTER_RADIUS = 1;
 
 export type TiledShadowTileSnapshot = Readonly<{
@@ -346,7 +351,7 @@ export class TiledShadowController {
       light.shadow.needsUpdate = true;
       light.shadow.radius = SHADOW_FILTER_RADIUS;
       light.shadow.bias = 0;
-      light.shadow.normalBias = SHADOW_NORMAL_BIAS_METERS;
+      light.shadow.normalBias = MIN_SHADOW_NORMAL_BIAS_METERS;
     }
   }
 
@@ -587,13 +592,26 @@ export class TiledShadowController {
       shadowCamera.right = centerX + fittedWidth / 2;
       shadowCamera.bottom = centerY - fittedHeight / 2;
       shadowCamera.top = centerY + fittedHeight / 2;
+      // Casters that shade the view stand between it and the sun, which in
+      // light space means at SMALLER depth than the receivers. The reach
+      // therefore extends the near plane; extending far - as this used to -
+      // clipped every up-sun ridge out of the depth buffer and punched lit
+      // holes into the shadow. (The tiled layout always had this right.)
       shadowCamera.near = Math.max(
         0.01,
-        receiverBounds.near - LIGHT_CAMERA_SAFETY_METERS
+        receiverBounds.near -
+          casterReachMeters -
+          reliefMeters -
+          LIGHT_CAMERA_SAFETY_METERS
       );
       shadowCamera.far = Math.max(
         shadowCamera.near + 1,
-        receiverBounds.far + casterReachMeters + reliefMeters
+        receiverBounds.far + reliefMeters + LIGHT_CAMERA_SAFETY_METERS
+      );
+      light.shadow.normalBias = THREE.MathUtils.clamp(
+        texelMeters * SHADOW_NORMAL_BIAS_TEXELS,
+        MIN_SHADOW_NORMAL_BIAS_METERS,
+        MAX_SHADOW_NORMAL_BIAS_METERS
       );
       shadowCamera.updateProjectionMatrix();
       light.shadow.updateMatrices(light);
@@ -682,6 +700,11 @@ export class TiledShadowController {
       shadowCamera.top = tile.top;
       shadowCamera.near = Math.max(0.01, tile.near);
       shadowCamera.far = Math.max(shadowCamera.near + 1, tile.far);
+      light.shadow.normalBias = THREE.MathUtils.clamp(
+        layout.statistics.effectiveMetersPerTexel * SHADOW_NORMAL_BIAS_TEXELS,
+        MIN_SHADOW_NORMAL_BIAS_METERS,
+        MAX_SHADOW_NORMAL_BIAS_METERS
+      );
       shadowCamera.updateProjectionMatrix();
       light.shadow.updateMatrices(light);
       light.shadow.needsUpdate = true;
