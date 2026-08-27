@@ -50,3 +50,23 @@
   outline: 2px solid #f59e0b;
   outline-offset: 3px;
 }
+
+/* The native time input inherits the ribbon's type instead of the browser's
+   control styling; its picker indicator gives way to the Font Awesome clock
+   in front of it. */
+.shadow-simulation-time-input {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.shadow-simulation-time-input::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+}
+.shadow-simulation-time-input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.shadow-simulation-time-input::-webkit-datetime-edit {
+  padding: 0;
+}
