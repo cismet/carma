@@ -1018,6 +1018,10 @@ export const buildShadowSimulationScene = (
   // sync walks the whole scene, which is not per-frame work.
   let sceneMaterialsDirty = true;
   let lastDebugPublishMs = 0;
+  let softSunShadowsEnabled = true;
+  // Bumped whenever the controller consumed a dirty update: the lighting
+  // state the accumulation rounds sample from has changed.
+  let shadowStateEpoch = 0;
 
   const updateSharedShadowCoverage = (reevaluateSun = true) => {
     const mapCenter = map.getCenter();
@@ -1156,6 +1160,7 @@ export const buildShadowSimulationScene = (
     root: new THREE.Group(),
     update(frame) {
       if (!sharedBinding.dirty) return;
+      shadowStateEpoch += 1;
       if (
         sharedBinding.receiverWorldPoints.length === 0 ||
         !latestSolarPosition
@@ -1241,6 +1246,25 @@ export const buildShadowSimulationScene = (
     dispose: () => undefined,
   };
   sceneLease.layer.addRuntime(shadowControllerRuntime);
+
+  // Progressive refinement at rest: four accumulation rounds of eight disc
+  // samples each average 32 distinct sun directions - and the per-round
+  // sub-pixel jitter supersamples the whole image on top. Only while the
+  // camera and the shadow state hold still; any change restarts the average.
+  sceneLease.layer.setAccumulationController?.({
+    rounds: 4,
+    epoch: () => shadowStateEpoch,
+    active: () =>
+      softSunShadowsEnabled &&
+      sharedBinding.shadowMode === "single" &&
+      !mapInMotion &&
+      !sharedBinding.dirty &&
+      latestSolarPosition !== null &&
+      sharedBinding.receiverWorldPoints.length > 0,
+    prepareRound: (round) => {
+      sharedBinding.controller.applyDiscRotation(round);
+    },
+  });
 
   const refreshSharedShadowCoverage = () => {
     cachedElevationRange = null;
@@ -1406,6 +1430,7 @@ export const buildShadowSimulationScene = (
       sharedBinding.controller.invalidate();
     },
     updateSoftSunShadows(enabled) {
+      softSunShadowsEnabled = enabled;
       sharedBinding.controller.setSoftSun(enabled);
       sharedBinding.controller.invalidate();
       sharedBinding.dirty = true;
@@ -1492,6 +1517,7 @@ export const buildShadowSimulationScene = (
       }
       atmosphericSunlight.dispose();
       disposeShadowLightBinding(sharedBinding);
+      sceneLease.layer.setAccumulationController?.(null);
       sceneLease.release();
       try {
         if (map.isStyleLoaded()) map.setLight(previousLight);
