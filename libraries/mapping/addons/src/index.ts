@@ -173,7 +173,7 @@ export {
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
 export {
   ShadowSimulation,
-  ShadowSimulationControlSurface,
+  ShadowSimulationHeaderControls,
   type ShadowSimulationConfig,
   type ShadowSimulationState,
 } from "./addons/ShadowSimulation";

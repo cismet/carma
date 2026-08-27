@@ -18,8 +18,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import {
-  getShadowSimulationSolarPosition,
   resolveSecondaryViewTargetAddon,
+  ShadowSimulationHeaderControls,
   TargetAddonHost,
   useAddonState,
 } from "@carma-mapping/addons";
@@ -128,13 +128,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const isShadowSimulationLayer =
     entry.id === SHADOW_SIMULATION_LAYER_ID &&
     secondaryViewAddon?.kind === "shadowSimulation";
-  const shadowSolarPosition =
-    isShadowSimulationLayer && shadowState
-      ? getShadowSimulationSolarPosition(
-          shadowState.selection,
-          secondaryViewAddon.config
-        )
-      : null;
 
   const isInteractionActive = activeInteractionLayerID === entry.id;
   const canFilter =
@@ -375,8 +368,18 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
-          <div className="flex items-center w-full h-8 shrink-0 gap-2 px-6 sm:px-0 sm:gap-6">
-            <div className="flex-1 sm:flex-none sm:w-1/4 min-w-0 flex items-center gap-2">
+          <div
+            className={cn(
+              "flex items-center w-full h-8 shrink-0 gap-2 px-6",
+              secondaryViewAddon ? "sm:px-8 sm:gap-3" : "sm:px-0 sm:gap-6"
+            )}
+          >
+            <div
+              className={cn(
+                "flex-1 sm:flex-none min-w-0 flex items-center gap-2",
+                secondaryViewAddon ? "sm:w-auto sm:shrink-0" : "sm:w-1/4"
+              )}
+            >
               {group ? (
                 <FontAwesomeIcon
                   icon={faLayerGroup}
@@ -418,20 +421,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 </div>
               </div>
             )}
-            {shadowSolarPosition && (
-              <div
-                className="hidden min-w-0 flex-1 whitespace-nowrap text-base tabular-nums text-neutral-500 sm:block"
-                aria-label={`Sonne: Azimut ${shadowSolarPosition.azimuthDegrees.toFixed(
-                  0
-                )} Grad, Höhe ${shadowSolarPosition.elevationDegrees.toFixed(
-                  1
-                )} Grad`}
-                title={`Azimut ${shadowSolarPosition.azimuthDegrees.toFixed(
-                  0
-                )}° · Höhe ${shadowSolarPosition.elevationDegrees.toFixed(1)}°`}
-              >
-                Sonne {shadowSolarPosition.azimuthDegrees.toFixed(0)}° /{" "}
-                {shadowSolarPosition.elevationDegrees.toFixed(1)}°
+            {isShadowSimulationLayer && (
+              <div className="hidden min-w-0 flex-1 sm:flex">
+                <ShadowSimulationHeaderControls
+                  config={secondaryViewAddon?.config}
+                />
               </div>
             )}
             {canFilter && (
