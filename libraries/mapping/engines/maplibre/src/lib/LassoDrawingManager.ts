@@ -185,8 +185,9 @@ export interface LassoDrawingManagerOptions {
   /** Reports a previewed shape that a negative width has shrunk to nothing.
    *  It would select nothing, so the UI can refuse to run it. */
   onShapeEmptyChange?: (empty: boolean) => void;
-  /** Reports the deepest shrink the remembered shape survives, as a negative
-   *  width. 0 when there is no shape, or when it is a line. */
+  /** Reports the narrowest total width the remembered shape survives at:
+   *  negative for a polygon, which has area to give away, 0 for a line, which
+   *  a shrink takes back to the bare line it was drawn as. */
   onShrinkLimitChange?: (meters: number) => void;
   /** Reports the radius a drag settled on, so the UI can show the new value. */
   onRadiusChange?: (radiusMeters: number) => void;
@@ -407,7 +408,9 @@ export class LassoDrawingManager {
   }
 
   /**
-   * The deepest shrink the shape survives, as a negative width.
+   * The narrowest total width the shape survives at. Negative for a polygon,
+   * which shrinks into itself; 0 for a line, whose corridor shrinks back to
+   * the line as drawn and no further — there is no area under it to take away.
    *
    * There is no formula for it, so it is searched for by halving. The search
    * starts at half the shorter side of the bounding box: a shape fits inside
@@ -464,9 +467,9 @@ export class LassoDrawingManager {
 
   /**
    * Puts the last finished shape back on the map, so it can be judged against
-   * the features it will select. A remembered line is drawn with its vertices
-   * and the corridor at the width that is current now. Draws nothing while a
-   * new line is being placed — that one owns the screen.
+   * the features it will select. A remembered line is drawn as the corridor at
+   * the width that is current now. Draws nothing while a new line is being
+   * placed — that one owns the screen.
    */
   showLastShape(): void {
     if (!this.lastShape || this.placingLine) return;
@@ -495,7 +498,7 @@ export class LassoDrawingManager {
     if (last.type === "LineString") {
       // a line can only grow, so a preview of one is never empty
       this.setShapeEmpty(false);
-      this.renderLine(source, last.coordinates, null);
+      this.renderLine(source, last.coordinates, null, false);
       return;
     }
     const buffered = this.withBuffer(last);
@@ -1395,13 +1398,16 @@ export class LassoDrawingManager {
   /** Corridor, line and one dot per placed vertex — the dots are what makes a
    *  many-point line readable while it is being clicked together. */
   private updateLineVisual(source: GeoJSONSource): void {
-    this.renderLine(source, this.linePoints, this.lineCursor);
+    this.renderLine(source, this.linePoints, this.lineCursor, true);
   }
 
+  /** `withVertices` belongs to the drawing gesture: the dots guide the clicks
+   *  that build the line, and have nothing left to say once it is finished. */
   private renderLine(
     source: GeoJSONSource,
     placed: Position[],
-    cursor: Position | null
+    cursor: Position | null,
+    withVertices: boolean
   ): void {
     if (placed.length === 0) {
       source.setData({ type: "FeatureCollection", features: [] });
@@ -1415,14 +1421,17 @@ export class LassoDrawingManager {
       path.length >= 2
         ? this.withBuffer({ type: "LineString", coordinates: path })
         : null;
-    if (corridor?.type === "Polygon") {
+    // a shrink can take the width back to 0, and then the line is the shape
+    const hasCorridor = corridor?.type === "Polygon";
+    if (hasCorridor) {
       features.push({
         type: "Feature",
         properties: { role: ROLE_BUFFER },
         geometry: corridor,
       });
       // the corridor it already ran with, so the dashed one reads as the step
-      // a replay adds; the line and its vertices are drawn on top either way
+      // a replay adds; once it has run the corridor stands for the line, which
+      // is why the bare line below is only drawn while there is no corridor
       const applied =
         this.baseWidth() > 0
           ? this.withBuffer(
@@ -1438,19 +1447,21 @@ export class LassoDrawingManager {
         });
       }
     }
-    if (path.length >= 2) {
+    if ((this.baseBuffer === 0 || !hasCorridor) && path.length >= 2) {
       features.push({
         type: "Feature",
         properties: {},
         geometry: { type: "LineString", coordinates: path },
       });
     }
-    for (const vertex of placed) {
-      features.push({
-        type: "Feature",
-        properties: {},
-        geometry: { type: "Point", coordinates: vertex },
-      });
+    if (withVertices) {
+      for (const vertex of placed) {
+        features.push({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Point", coordinates: vertex },
+        });
+      }
     }
     source.setData({ type: "FeatureCollection", features });
   }
