@@ -12,14 +12,13 @@ import {
   faBug,
   faChevronLeft,
   faChevronRight,
-  faClock,
   faPause,
   faPlay,
   faSliders,
   faSun,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { DatePicker, TimePicker, Tooltip } from "antd";
+import { DatePicker, Tooltip } from "antd";
 import deDE from "antd/locale/de_DE";
 import dayjs from "dayjs";
 
@@ -299,7 +298,6 @@ const ShadowSimulationRibbon = ({
   setState: (state: ShadowSimulationState) => void;
 }) => {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const daylight = useMemo(
     () =>
       getDaylightWindow(
@@ -395,50 +393,28 @@ const ShadowSimulationRibbon = ({
         </button>
       </div>
       <span className="h-7 w-px shrink-0 bg-neutral-200" />
-      <div className="relative shrink-0">
-        <button
-          type="button"
-          className="flex h-9 w-[74px] items-center gap-2 whitespace-nowrap rounded-md px-1.5 font-medium tabular-nums text-neutral-800 hover:bg-neutral-100"
-          aria-label="Uhrzeit auswählen"
-          aria-expanded={timePickerOpen}
-          onClick={() => setTimePickerOpen(true)}
-        >
-          <FontAwesomeIcon icon={faClock} className="text-neutral-500" />
-          <span>{formatMinutes(state.selection.minutes)}</span>
-        </button>
-        <TimePicker
-          open={timePickerOpen}
-          value={dayjs()
-            .startOf("day")
-            .add(state.selection.minutes, "minute")}
-          locale={deDE.DatePicker}
-          format="HH:mm"
-          minuteStep={1}
-          allowClear={false}
-          inputReadOnly
-          needConfirm={false}
-          showNow={false}
-          onOpenChange={setTimePickerOpen}
-          // Applies on every column click; without confirm, antd's onChange
-          // only fires when the panel closes.
-          onCalendarChange={(time) => {
-            if (!time || Array.isArray(time)) return;
-            publishSelection({
-              ...state.selection,
-              minutes: time.hour() * 60 + time.minute(),
-            });
-          }}
-          onChange={(time) => {
-            if (!time) return;
-            publishSelection({
-              ...state.selection,
-              minutes: time.hour() * 60 + time.minute(),
-            });
-          }}
-          className="pointer-events-none absolute left-0 top-full h-0 w-0 overflow-hidden p-0 opacity-0"
-          aria-label="Uhrzeit auswählen"
-        />
-      </div>
+      {/* The browser's own time control: native dropdown on desktop, native
+          wheel on mobile, keyboard-editable, no dependencies. */}
+      <input
+        type="time"
+        value={formatMinutes(state.selection.minutes)}
+        min={formatMinutes(minimumMinutes)}
+        max={formatMinutes(maximumMinutes)}
+        step={60}
+        onChange={(event) => {
+          const [hours, minutes] = event.currentTarget.value
+            .split(":")
+            .map(Number);
+          if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+          publishSelection({
+            ...state.selection,
+            minutes: hours * 60 + minutes,
+          });
+        }}
+        className="h-9 w-[92px] shrink-0 cursor-pointer rounded-md bg-transparent px-1.5 font-medium tabular-nums text-neutral-800 hover:bg-neutral-100"
+        aria-label="Uhrzeit auswählen"
+        data-test-id="shadow-simulation-time-input"
+      />
       <input
         type="range"
         min={minimumMinutes}
