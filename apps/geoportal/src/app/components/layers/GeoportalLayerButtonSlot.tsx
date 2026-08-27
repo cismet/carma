@@ -36,9 +36,12 @@ import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import {
   getActiveInteractionButtonID,
   getActiveInteractionLayerID,
+  getSelectedLayerIndex,
   removeLayer,
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
+  setSelectedLayerIndex,
+  setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import type { AppDispatch } from "../../store";
 import {
@@ -49,7 +52,6 @@ import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDe
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
 import {
   formatShadowSelection,
-  SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
   SHADOW_SIMULATION_LAYER_ID,
 } from "../../hooks/useShadowSimulationLayerButton";
 import {
@@ -367,7 +369,6 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
       actionSlot={<LayerbarActionGroup actions={actions} />}
       closeButton={{ icon: faTimes, onClick: handleClose }}
       closeButtonVariant="compact"
-      interactionActivationMode="button"
       overflowVisible
     />
   );
@@ -400,10 +401,8 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
 const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
-  const controlsInteraction = useLayerbarInteractionToggle({
-    layerId: SHADOW_SIMULATION_LAYER_ID,
-    buttonId: SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
-  });
+  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
+  const infoViewOpen = selectedLayerIndex === props.index;
 
   const handleClose = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -415,17 +414,12 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
           isAnimating: false,
         });
       }
-      setLayerbarInteractionActive(
-        dispatch,
-        {
-          layerId: SHADOW_SIMULATION_LAYER_ID,
-          buttonId: SHADOW_SIMULATION_CONTROLS_INTERACTION_ID,
-        },
-        false
-      );
+      if (infoViewOpen) {
+        dispatch(setSelectedLayerIndexNoSelection());
+      }
       dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
     },
-    [dispatch, setShadowState, shadowState]
+    [dispatch, infoViewOpen, setShadowState, shadowState]
   );
 
   return (
@@ -463,8 +457,13 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
                   id: "open-controls",
                   title: "Schatteneinstellungen",
                   icon: <FontAwesomeIcon icon={faSliders} />,
-                  active: controlsInteraction.active,
-                  onClick: controlsInteraction.onToggle,
+                  active: infoViewOpen,
+                  onClick: () =>
+                    dispatch(
+                      infoViewOpen
+                        ? setSelectedLayerIndexNoSelection()
+                        : setSelectedLayerIndex(props.index)
+                    ),
                 },
               ]}
             />
@@ -473,7 +472,6 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
       }
       closeButton={{ icon: faTimes, onClick: handleClose }}
       closeButtonVariant="compact"
-      interactionActivationMode="button"
       overflowVisible
     />
   );
