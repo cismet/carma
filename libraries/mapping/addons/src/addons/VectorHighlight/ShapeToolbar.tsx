@@ -48,8 +48,21 @@ const BUFFER_STEP = 1;
  * width is mapped out of it. That puts zero in the middle whatever the shape
  * allows, and gives the shrink half the whole left track instead of the sliver
  * its share of a straight range would be.
+ *
+ * One position per metre of the grow half, so dragging right lands on every
+ * single metre; the shrink half divides its shorter distance over the same
+ * count, which only makes it finer than the whole metres it rounds to.
  */
-const SLIDER_HALF = 100;
+const SLIDER_HALF = BUFFER_MAX;
+
+/**
+ * How the grow half spends its track. The panel gives that half some 70 px for
+ * 500 m, so a straight mapping moves in jumps of eight no matter how fine the
+ * steps are — the pixels run out, not the positions. Squaring the position
+ * spends the pixels where the widths are asked for: the metres come one per
+ * pixel around zero, and the far end coarsens to reach 500 m all the same.
+ */
+const GROW_CURVE = 2;
 
 export type ShapeToolbarProps = {
   shapes: DrawShape[];
@@ -121,11 +134,11 @@ export const ShapeToolbar = ({
 
   const toPosition = (meters: number) =>
     meters >= 0
-      ? Math.round((meters / maxMeters) * SLIDER_HALF)
+      ? Math.round((meters / maxMeters) ** (1 / GROW_CURVE) * SLIDER_HALF)
       : -Math.round((meters / minMeters) * SLIDER_HALF);
   const toMeters = (position: number) =>
     position >= 0
-      ? Math.round((position / SLIDER_HALF) * maxMeters)
+      ? Math.round((position / SLIDER_HALF) ** GROW_CURVE * maxMeters)
       : -Math.round((position / SLIDER_HALF) * minMeters);
 
   // what an apply would select at: the step on top of what is already applied
