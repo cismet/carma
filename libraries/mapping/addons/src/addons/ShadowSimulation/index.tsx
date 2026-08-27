@@ -11,6 +11,7 @@ import {
   faCalendarDays,
   faBug,
   faChevronLeft,
+  faClock,
   faChevronRight,
   faPause,
   faPlay,
@@ -227,7 +228,7 @@ export const ShadowSimulationSettings = ({
 const QUICK_BUTTON_CLASS_NAME =
   "flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-neutral-300 bg-white px-2 text-center text-sm text-neutral-800 transition-colors hover:border-amber-500 hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40";
 const SEGMENT_BUTTON_CLASS_NAME =
-  "h-9 whitespace-nowrap border-r border-neutral-300 px-4 text-sm text-neutral-700 transition-colors last:border-r-0 hover:text-amber-700";
+  "h-8 whitespace-nowrap border-r border-neutral-300 px-3 text-sm text-neutral-700 transition-colors last:border-r-0 hover:text-amber-700";
 
 /**
  * The quality ladder: single-buffer edges 2048 / 4096 / 8192 / device limit
@@ -393,28 +394,40 @@ const ShadowSimulationRibbon = ({
         </button>
       </div>
       <span className="h-7 w-px shrink-0 bg-neutral-200" />
-      {/* The browser's own time control: native dropdown on desktop, native
-          wheel on mobile, keyboard-editable, no dependencies. */}
-      <input
-        type="time"
-        value={formatMinutes(state.selection.minutes)}
-        min={formatMinutes(minimumMinutes)}
-        max={formatMinutes(maximumMinutes)}
-        step={60}
-        onChange={(event) => {
-          const [hours, minutes] = event.currentTarget.value
-            .split(":")
-            .map(Number);
-          if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
-          publishSelection({
-            ...state.selection,
-            minutes: hours * 60 + minutes,
-          });
-        }}
-        className="h-9 w-[92px] shrink-0 cursor-pointer rounded-md bg-transparent px-1.5 font-medium tabular-nums text-neutral-800 hover:bg-neutral-100"
-        aria-label="Uhrzeit auswählen"
-        data-test-id="shadow-simulation-time-input"
-      />
+      {/* The browser's own time control - native dropdown on desktop, native
+          wheel on mobile, keyboard-editable - fronted by the Font Awesome
+          clock in place of the browser's own indicator. Clicking icon or
+          digits opens the picker: the label forwards its clicks. */}
+      <label className="flex h-9 w-[92px] shrink-0 cursor-pointer items-center gap-2 rounded-md px-1.5 hover:bg-neutral-100">
+        <FontAwesomeIcon icon={faClock} className="shrink-0 text-neutral-500" />
+        <input
+          type="time"
+          value={formatMinutes(state.selection.minutes)}
+          min={formatMinutes(minimumMinutes)}
+          max={formatMinutes(maximumMinutes)}
+          step={60}
+          onClick={(event) => {
+            try {
+              event.currentTarget.showPicker();
+            } catch {
+              // Browsers without showPicker leave keyboard editing.
+            }
+          }}
+          onChange={(event) => {
+            const [hours, minutes] = event.currentTarget.value
+              .split(":")
+              .map(Number);
+            if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+            publishSelection({
+              ...state.selection,
+              minutes: hours * 60 + minutes,
+            });
+          }}
+          className="w-full cursor-pointer bg-transparent font-medium tabular-nums text-neutral-800 outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+          aria-label="Uhrzeit auswählen"
+          data-test-id="shadow-simulation-time-input"
+        />
+      </label>
       <input
         type="range"
         min={minimumMinutes}
@@ -622,7 +635,7 @@ const ShadowQuickSettings = ({
               style={getRangeProgressStyle(intensity, 0, 1)}
               data-test-id="shadow-simulation-intensity"
             />
-            <span className="text-right tabular-nums">
+            <span className="text-right text-sm text-neutral-700 tabular-nums">
               {Math.round(intensity * 100)}%
             </span>
           </label>
@@ -651,9 +664,9 @@ const ShadowQuickSettings = ({
                 <button
                   key={label}
                   type="button"
-                  className={`${SEGMENT_BUTTON_CLASS_NAME} px-2 ${
+                  className={`${SEGMENT_BUTTON_CLASS_NAME} px-2.5 ${
                     resolveShadowQuality(state.shadowQuality) === value
-                      ? "bg-amber-50 font-medium text-amber-700"
+                      ? "bg-amber-50"
                       : "bg-white"
                   }`}
                   aria-pressed={
