@@ -231,18 +231,27 @@ const SEGMENT_BUTTON_CLASS_NAME =
   "h-9 whitespace-nowrap border-r border-neutral-300 px-4 text-sm text-neutral-700 transition-colors last:border-r-0 hover:text-amber-700";
 
 /**
- * The quality ladder: buffer edges 1024 / 2048 / 4096 / up to the device's
- * texture limit (8192 on typical desktops).
+ * The quality ladder: single-buffer edges 2048 / 4096 / 8192 / device limit
+ * (16384 on a typical desktop). The default sits two power-of-two steps below
+ * that desktop maximum.
  */
 const SHADOW_QUALITY_LEVELS: ReadonlyArray<{
   label: string;
   value: ShadowQualityMultiplier;
 }> = [
-  { label: "Niedrig", value: 0.25 },
-  { label: "Mittel", value: 1 },
-  { label: "Hoch", value: 4 },
-  { label: "Max", value: 16 },
+  { label: "Niedrig", value: 1 },
+  { label: "Mittel", value: 4 },
+  { label: "Hoch", value: 16 },
+  { label: "Max", value: 64 },
 ];
+
+/** Persisted states may carry values from older ladders; fold them in. */
+const resolveShadowQuality = (
+  quality: number | undefined
+): ShadowQualityMultiplier =>
+  quality === 1 || quality === 4 || quality === 16 || quality === 64
+    ? quality
+    : DEFAULT_SHADOW_QUALITY;
 
 const pad2 = (value: number) => String(value).padStart(2, "0");
 
@@ -577,7 +586,7 @@ const ShadowQuickSettings = ({
           Darstellung
         </h3>
         <div className="space-y-1.5 text-sm text-neutral-700">
-          <label className="grid grid-cols-[140px_1fr_42px] items-center gap-3">
+          <label className="grid grid-cols-[110px_1fr_42px] items-center gap-3">
             <span>Intensität</span>
             <input
               type="range"
@@ -599,7 +608,7 @@ const ShadowQuickSettings = ({
               {Math.round(intensity * 100)}%
             </span>
           </label>
-          <label className="grid grid-cols-[140px_1fr] items-center gap-3">
+          <label className="grid grid-cols-[110px_1fr] items-center gap-3">
             <span>Weiche Schatten</span>
             <input
               type="checkbox"
@@ -614,23 +623,23 @@ const ShadowQuickSettings = ({
               data-test-id="shadow-simulation-soft-sun"
             />
           </label>
-          <div className="grid grid-cols-[140px_1fr] items-center gap-3">
+          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
             <span>Qualität</span>
             <div
-              className="inline-flex justify-self-start overflow-hidden rounded-md border border-neutral-300"
+              className="inline-flex w-fit max-w-full overflow-hidden whitespace-nowrap rounded-md border border-neutral-300"
               data-test-id="shadow-simulation-quality"
             >
               {SHADOW_QUALITY_LEVELS.map(({ label, value }) => (
                 <button
                   key={label}
                   type="button"
-                  className={`${SEGMENT_BUTTON_CLASS_NAME} px-3 ${
-                    (state.shadowQuality ?? DEFAULT_SHADOW_QUALITY) === value
+                  className={`${SEGMENT_BUTTON_CLASS_NAME} px-2 ${
+                    resolveShadowQuality(state.shadowQuality) === value
                       ? "bg-amber-50 font-medium text-amber-700"
                       : "bg-white"
                   }`}
                   aria-pressed={
-                    (state.shadowQuality ?? DEFAULT_SHADOW_QUALITY) === value
+                    resolveShadowQuality(state.shadowQuality) === value
                   }
                   onClick={() => setState({ ...state, shadowQuality: value })}
                 >
@@ -830,7 +839,7 @@ const ShadowSimulationRuntime = ({
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateShadowQuality(
-      state.shadowQuality ?? DEFAULT_SHADOW_QUALITY
+      resolveShadowQuality(state.shadowQuality)
     );
   }, [state.enabled, state.shadowQuality, sceneRevision]);
 
@@ -1092,7 +1101,7 @@ export const ShadowSimulation = ({
           solarPosition={getSolarPosition(state.selection, location)}
           settings={{
             shadowMode: state.shadowMode ?? DEFAULT_SHADOW_MODE,
-            shadowQuality: state.shadowQuality ?? DEFAULT_SHADOW_QUALITY,
+            shadowQuality: resolveShadowQuality(state.shadowQuality),
             terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
             buildingsFullOpacity: state.buildingsFullOpacity ?? true,
             useUniformBuildingColor: state.useUniformBuildingColor ?? true,

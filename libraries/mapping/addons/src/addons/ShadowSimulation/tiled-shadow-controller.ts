@@ -14,6 +14,7 @@ const BASE_SHADOW_TILE_MAP_SIZE = 1_024;
 const BASE_SINGLE_SHADOW_MAP_SIZE = 2_048;
 /** Conservative fallback until the renderer reports its real texture limit. */
 const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
+const MAX_SOFT_SAMPLE_MAP_SIZE = 4_096;
 const SHADOW_TILE_PROGRAM_CACHE_KEY = "carma-light-space-tiles-v1";
 const SHADOW_FILTER_GUARD_TEXELS = 3;
 const MIN_SHADOW_TILE_AREA_METERS = 2;
@@ -616,7 +617,11 @@ export class TiledShadowController {
       // soft penumbra hides the halved per-buffer resolution.
       const softSampling = this.softSun && !interactive;
       const sampleCount = softSampling ? SUN_DISC_SAMPLE_PATTERN.length : 1;
-      const sampleMapSize = softSampling ? Math.max(256, mapSize / 2) : mapSize;
+      // Four buffers exist at once in soft mode; the per-sample ceiling keeps
+      // the top quality level from allocating a gigabyte of depth textures.
+      const sampleMapSize = softSampling
+        ? Math.max(256, Math.min(MAX_SOFT_SAMPLE_MAP_SIZE, mapSize / 2))
+        : mapSize;
       const light = this.lights[0];
       const shadowCamera = light.shadow.camera;
       for (let index = 0; index < this.lights.length; index += 1) {
