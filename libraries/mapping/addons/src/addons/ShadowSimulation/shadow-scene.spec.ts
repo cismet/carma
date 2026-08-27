@@ -204,13 +204,15 @@ describe("shadow scene lighting integration", () => {
     expect(sun.shadow.camera.projectionMatrix.elements[15]).toBe(1);
     expect(sun.castShadow).toBe(true);
     expect(sun.shadow.autoUpdate).toBe(false);
-    expect(sun.shadow.radius).toBe(1);
+    // No generic filter blur anywhere: softness comes from disc sampling.
+    expect(sun.shadow.radius).toBe(0);
     const tileLights = scene.children.filter(
       (object): object is THREE.DirectionalLight =>
         (object as THREE.DirectionalLight).isDirectionalLight &&
         object.name.startsWith("shadow-simulation-sun")
     );
-    expect(tileLights).toHaveLength(4);
+    // Four CSM lights plus four auxiliary disc samples: eight in total.
+    expect(tileLights).toHaveLength(8);
     expect(tileLights.every((light) => light.shadow.intensity === 1)).toBe(
       true
     );
