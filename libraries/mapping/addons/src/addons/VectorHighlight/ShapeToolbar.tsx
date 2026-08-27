@@ -1,5 +1,6 @@
 import {
   faClockRotateLeft,
+  faEyeDropper,
   faLeftRight,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
@@ -90,6 +91,13 @@ export type ShapeToolbarProps = {
   lastShapeShowLabel?: string;
   lastShapeHideLabel?: string;
   lastShapeMissingLabel?: string;
+  /** the pick button, in front of the buffer one */
+  showPickFeature?: boolean;
+  /** armed: the next map click takes the clicked feature's geometry */
+  pickFeatureActive?: boolean;
+  onPickFeatureToggle?: () => void;
+  pickFeatureLabel?: string;
+  pickFeatureActiveLabel?: string;
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
   /** metres the next apply adds on top of `bufferApplied` */
@@ -131,6 +139,11 @@ export const ShapeToolbar = ({
   lastShapeShowLabel = "Letzte Form anzeigen",
   lastShapeHideLabel = "Letzte Form ausblenden",
   lastShapeMissingLabel = "Letzte Form: erst eine Form zeichnen",
+  showPickFeature = false,
+  pickFeatureActive = false,
+  onPickFeatureToggle,
+  pickFeatureLabel = "Geometrie eines Objekts als Form übernehmen",
+  pickFeatureActiveLabel = "Objekt anklicken; erneut klicken bricht ab",
   showBuffer = false,
   bufferWidth = 5,
   bufferApplied = 0,
@@ -252,8 +265,42 @@ export const ShapeToolbar = ({
           </Tooltip>
         );
       })}
-      {(showLastShape || showBuffer) && (
+      {(showLastShape || showBuffer || showPickFeature) && (
         <span className={css.divider} aria-hidden />
+      )}
+      {showPickFeature && (
+        <Tooltip
+          title={pickFeatureActive ? pickFeatureActiveLabel : pickFeatureLabel}
+          placement={tooltipPlacement}
+        >
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onPickFeatureToggle?.();
+            }}
+            aria-pressed={pickFeatureActive}
+            aria-label={
+              pickFeatureActive ? pickFeatureActiveLabel : pickFeatureLabel
+            }
+            data-test-id="vector-highlight-pick-feature"
+            className={[
+              css.button,
+              pickFeatureActive
+                ? activeColor
+                  ? ""
+                  : css.buttonActive
+                : css.buttonInactive,
+            ].join(" ")}
+            style={
+              pickFeatureActive && activeColor
+                ? { color: activeColor }
+                : undefined
+            }
+          >
+            <FontAwesomeIcon icon={faEyeDropper} />
+          </button>
+        </Tooltip>
       )}
       {showBuffer && (
         <Popover

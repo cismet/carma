@@ -35,6 +35,9 @@ export const VectorHighlightShapeTools = ({
     toggleLastShape,
     shapeEmpty,
     applyBufferedShape,
+    pickFeatureActive,
+    canPickFeature,
+    togglePickFeature,
   } = useHighlightModeActions();
 
   if (!isOn || shapes.length < 2) {
@@ -55,6 +58,9 @@ export const VectorHighlightShapeTools = ({
             canLastShape={hasLastShape}
             lastShapeShown={lastShapeShown}
             onLastShapeToggle={toggleLastShape}
+            showPickFeature={canPickFeature}
+            pickFeatureActive={pickFeatureActive}
+            onPickFeatureToggle={togglePickFeature}
             bufferEmpty={shapeEmpty}
             showBuffer
             bufferWidth={shapeBuffer}

@@ -15,14 +15,14 @@ import {
  * Whether a plain map click belongs to the highlight tool rather than to the
  * map's own click-to-select.
  *
- * Only the line does this: it is placed click by click, while the other shapes
- * are drags, and a drag never produces a click at all. Hosts pass this into
- * whatever guards their selection, or every vertex also selects the feature
- * underneath it.
+ * The line is placed click by click and the pick takes the clicked feature's
+ * geometry; the other shapes are drags, and a drag never produces a click at
+ * all. Hosts pass this into whatever guards their selection, or every vertex
+ * also selects the feature underneath it.
  */
 export const useHighlightOwnsMapClicks = (): boolean => {
-  const { isOn, shape } = useHighlightModeActions();
-  return isOn && shape === "line";
+  const { isOn, shape, pickFeatureActive } = useHighlightModeActions();
+  return isOn && (shape === "line" || pickFeatureActive);
 };
 
 /**
@@ -53,6 +53,8 @@ export const useHighlightModeActions = () => {
   const bufferPanelOpen = mode?.bufferPanelOpen ?? false;
   const lastShapeShown = mode?.lastShapeShown ?? false;
   const shapeEmpty = mode?.shapeEmpty ?? false;
+  const pickFeatureActive = mode?.pickFeatureActive ?? false;
+  const canPickFeature = mode?.canPickFeature ?? false;
 
   /**
    * Open is "buffer on": it puts the remembered shape back on the map, grown by
@@ -121,6 +123,36 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
+  /**
+   * The pick button. The manager disarms the mode on the first hit and reports
+   * it back through `setPickFeatureActive`, so the button is lit for exactly as
+   * long as the next click really picks.
+   *
+   * The buffer step belongs to the shape it was opened for, hence the close.
+   */
+  const setPickFeatureActive = useCallback(
+    (next: boolean) =>
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        pickFeatureActive: next,
+        ...(next ? { bufferPanelOpen: false } : null),
+      })),
+    [setMode]
+  );
+
+  const togglePickFeature = useCallback(
+    () =>
+      setMode((previous) => {
+        const next = !(previous?.pickFeatureActive ?? false);
+        return {
+          ...(previous ?? { isOn: false }),
+          pickFeatureActive: next,
+          ...(next ? { bufferPanelOpen: false } : null),
+        };
+      }),
+    [setMode]
+  );
+
   const setShapeBuffer = useCallback(
     (next: number) =>
       setMode((previous) => ({
@@ -153,6 +185,7 @@ export const useHighlightModeActions = () => {
       isOn: false,
       bufferPanelOpen: false,
       bufferEnabled: false,
+      pickFeatureActive: false,
     }));
     clearHighlights();
     setHighlightingActive(false);
@@ -193,6 +226,8 @@ export const useHighlightModeActions = () => {
       setMode((previous) => ({
         ...(previous ?? { isOn: false }),
         shape: next,
+        // reaching for a drawing tool ends the pick
+        pickFeatureActive: false,
         // the buffer step belongs to the shape it was opened for
         bufferPanelOpen: false,
         bufferEnabled: false,
@@ -298,5 +333,9 @@ export const useHighlightModeActions = () => {
     setBufferPanelOpen,
     applyBufferedShape,
     toggleLastShape,
+    pickFeatureActive,
+    canPickFeature,
+    setPickFeatureActive,
+    togglePickFeature,
   };
 };

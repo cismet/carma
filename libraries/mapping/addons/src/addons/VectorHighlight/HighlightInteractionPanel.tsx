@@ -26,6 +26,9 @@ export const HighlightInteractionPanel = () => {
     shapeEmpty,
     bufferFloor,
     applyBufferedShape,
+    pickFeatureActive,
+    canPickFeature,
+    togglePickFeature,
     operation,
     setOperation,
     colorForOperation,
@@ -65,6 +68,9 @@ export const HighlightInteractionPanel = () => {
           canLastShape={hasLastShape}
           lastShapeShown={lastShapeShown}
           onLastShapeToggle={toggleLastShape}
+          showPickFeature={canPickFeature}
+          pickFeatureActive={pickFeatureActive}
+          onPickFeatureToggle={togglePickFeature}
           showBuffer
           bufferWidth={shapeBuffer}
           bufferApplied={appliedBuffer}
