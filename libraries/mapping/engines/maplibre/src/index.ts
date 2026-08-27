@@ -195,6 +195,7 @@ export { HidingForwardingManager } from "./lib/HidingForwardingManager";
 export {
   getCarmaConf,
   getCarmaConfFromStyle,
+  isNonSelectable,
   applySelectionForwarding,
   resolvePropertyTarget,
   enrichHitsWithCarmaInfo,
