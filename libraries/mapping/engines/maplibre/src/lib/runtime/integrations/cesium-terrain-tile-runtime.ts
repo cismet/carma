@@ -6,7 +6,6 @@ import {
   Group,
   Matrix4,
   Mesh,
-  MeshDepthMaterial,
   MeshLambertMaterial,
   Vector3,
   type BufferGeometry,
@@ -43,9 +42,16 @@ const DEFAULT_MAXIMUM_LEVEL = 17;
 const DEFAULT_MAX_SELECTION_TILES = 192;
 const DEFAULT_REQUEST_CONCURRENCY = 6;
 const DEFAULT_MAX_CACHED_MESHES = 256;
+const MAX_PERSISTENT_BASE_TILES = 4_096;
+/**
+ * Backfill sits a hair below the true surface so an active finer tile that
+ * partially overlaps its persistent parent wins the depth test cleanly
+ * instead of z-fighting. Invisible at terrain scale.
+ */
+const PERSISTENT_BACKFILL_LOWERING_METERS = 1;
+const PERSISTENT_BASE_PREFETCH_CONCURRENCY = 2;
+const PERSISTENT_BASE_REPAINT_BATCH = 64;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
-const TERRAIN_SHADOW_POLYGON_OFFSET_FACTOR = 2;
-const TERRAIN_SHADOW_POLYGON_OFFSET_UNITS = 4;
 const VIEWPORT_COVERAGE_PADDING_FACTOR = 0.25;
 
 export type CesiumTerrainMaterialOptions = Readonly<{
@@ -61,6 +67,17 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   requestConcurrency?: number;
   maxCacheBytes?: number;
   maxCachedMeshes?: number;
+  /**
+   * Tiles at or below this level stay in the scene once downloaded: they are
+   * never trimmed and keep drawing as backfill wherever no finer tile is
+   * active, so ground the camera or the sun once reached never vanishes
+   * again. On becoming ready the runtime also prefetches this level across
+   * the whole dataset extent in the background (bounded by an enumeration
+   * cap for sources without a finite extent). Off unless configured; for the
+   * Wuppertal DEM level 15 blankets the dataset in ~1,600 tiles, in the tens
+   * of megabytes.
+   */
+  persistentBaseLevel?: number | false;
   /** Source-specific height that denotes missing terrain coverage. */
   noDataHeightMeters?: number;
   material?: CesiumTerrainMaterialOptions;
@@ -102,6 +119,9 @@ type TerrainMeshRecord = {
   baseMesh: Mesh | null;
   boundaryEdges: TerrainBoundaryEdges;
   lastUsed: number;
+  id: CesiumTerrainTileId;
+  /** Never trimmed; keeps drawing as backfill where nothing finer is active. */
+  persistent: boolean;
 };
 
 type TerrainBoundarySide = "west" | "south" | "east" | "north";
@@ -461,6 +481,11 @@ export const buildCesiumTerrainRuntime = (
     DEFAULT_MAX_CACHED_MESHES,
     1
   );
+  const persistentBaseLevel =
+    options.persistentBaseLevel === undefined ||
+    options.persistentBaseLevel === false
+      ? null
+      : clampInteger(options.persistentBaseLevel, minimumLevel, 0);
   if (
     options.noDataHeightMeters !== undefined &&
     !Number.isFinite(options.noDataHeightMeters)
@@ -484,12 +509,6 @@ export const buildCesiumTerrainRuntime = (
   coverageMaterial.polygonOffset = true;
   coverageMaterial.polygonOffsetFactor = 1;
   coverageMaterial.polygonOffsetUnits = 1;
-  const shadowDepthMaterial = new MeshDepthMaterial({
-    polygonOffset: true,
-    polygonOffsetFactor: TERRAIN_SHADOW_POLYGON_OFFSET_FACTOR,
-    polygonOffsetUnits: TERRAIN_SHADOW_POLYGON_OFFSET_UNITS,
-  });
-  shadowDepthMaterial.name = `${runtimeId}-shadow-depth`;
   const sourcePromise = acquireCesiumTerrainTileSource(terrainUrl, {
     maxCacheBytes: options.maxCacheBytes,
   });
@@ -726,7 +745,6 @@ export const buildCesiumTerrainRuntime = (
       reliefMesh.name = `${node.name}-relief`;
       reliefMesh.castShadow = true;
       reliefMesh.receiveShadow = true;
-      reliefMesh.customDepthMaterial = shadowDepthMaterial;
       node.add(reliefMesh);
     }
     node.visible = false;
@@ -747,6 +765,11 @@ export const buildCesiumTerrainRuntime = (
       baseMesh,
       boundaryEdges,
       lastUsed: ++meshUseClock,
+      id: entry.id,
+      persistent:
+        entry.kind === "source" &&
+        persistentBaseLevel !== null &&
+        entry.id.level <= persistentBaseLevel,
     });
     return node;
   };
@@ -877,17 +900,97 @@ export const buildCesiumTerrainRuntime = (
     for (const attribute of updatedAttributes) attribute.needsUpdate = true;
   };
 
+  let activeMeshKeys: ReadonlySet<string> = new Set();
+
+  /**
+   * Which persistent base tiles the active selection covers completely.
+   * Counted in exact integer units of the deepest level, so a base tile only
+   * steps aside when every one of its quadrants is refined; a partially
+   * refined one keeps drawing as backfill underneath (slightly lowered, so
+   * the finer tiles win the depth test).
+   */
+  const fullyCoveredBaseKeys = (): Set<string> => {
+    const covered = new Set<string>();
+    if (persistentBaseLevel === null) return covered;
+    const units = new Map<string, number>();
+    let deepestLevel = persistentBaseLevel;
+    for (const key of activeMeshKeys) {
+      const record = meshes.get(key);
+      if (record && record.id.level > deepestLevel) {
+        deepestLevel = record.id.level;
+      }
+    }
+    const fullUnits = 4 ** (deepestLevel - persistentBaseLevel);
+    for (const key of activeMeshKeys) {
+      const record = meshes.get(key);
+      if (!record) continue;
+      const { level, x, y } = record.id;
+      if (level < persistentBaseLevel) {
+        // Coarser than the base: it stands in for all its base descendants.
+        const span = 2 ** (persistentBaseLevel - level);
+        for (let dy = 0; dy < span; dy += 1) {
+          for (let dx = 0; dx < span; dx += 1) {
+            covered.add(
+              cesiumTerrainTileKey({
+                level: persistentBaseLevel,
+                x: x * span + dx,
+                y: y * span + dy,
+              })
+            );
+          }
+        }
+        continue;
+      }
+      const shift = level - persistentBaseLevel;
+      const baseKey = cesiumTerrainTileKey({
+        level: persistentBaseLevel,
+        x: x >> shift,
+        y: y >> shift,
+      });
+      units.set(
+        baseKey,
+        (units.get(baseKey) ?? 0) + 4 ** (deepestLevel - level)
+      );
+    }
+    for (const [baseKey, sum] of units) {
+      if (sum >= fullUnits) covered.add(baseKey);
+    }
+    return covered;
+  };
+
+  const applyMeshVisibility = () => {
+    const covered = fullyCoveredBaseKeys();
+    for (const [key, record] of meshes) {
+      const active = activeMeshKeys.has(key);
+      const backfill =
+        !active &&
+        record.persistent &&
+        !covered.has(cesiumTerrainTileKey(record.id));
+      record.node.visible = root.visible && (active || backfill);
+      record.node.position.y = backfill
+        ? -PERSISTENT_BACKFILL_LOWERING_METERS
+        : 0;
+      record.node.updateMatrixWorld();
+    }
+  };
+
   const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
-    if (meshes.size <= maxCachedMeshes) return;
+    let persistentCount = 0;
+    for (const record of meshes.values()) {
+      if (record.persistent) persistentCount += 1;
+    }
+    let excess = meshes.size - persistentCount - maxCachedMeshes;
+    if (excess <= 0) return;
     const candidates = [...meshes.entries()]
-      .filter(([key]) => !activeKeys.has(key))
+      .filter(([key, record]) => !record.persistent && !activeKeys.has(key))
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
+      if (excess <= 0) break;
       root.remove(record.node);
       record.reliefMesh?.geometry.dispose();
       record.baseMesh?.geometry.dispose();
       meshes.delete(key);
-      if (meshes.size <= maxCachedMeshes) break;
+      excess -= 1;
     }
   };
 
@@ -1204,8 +1307,12 @@ export const buildCesiumTerrainRuntime = (
           ensureMesh(tile, entry).visible = root.visible;
         }
         smoothActiveBoundaryNormals(activeKeys);
-        for (const [key, record] of meshes) {
-          record.node.visible = root.visible && activeKeys.has(key);
+        activeMeshKeys = activeKeys;
+        applyMeshVisibility();
+        for (const record of meshes.values()) {
+          if (record.persistent) {
+            retainedSourceKeys.add(cesiumTerrainTileKey(record.id));
+          }
         }
         terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
@@ -1229,6 +1336,74 @@ export const buildCesiumTerrainRuntime = (
       });
   };
 
+  /**
+   * Walk the availability tree down from the two level-0 roots and collect
+   * every available tile of the requested level: the dataset's own extent,
+   * without needing bounds metadata (the layer.json bounds of this DEM claim
+   * half the globe).
+   */
+  const enumerateAvailableTiles = (
+    terrainSource: CesiumTerrainTileSource,
+    level: number
+  ): CesiumTerrainTileId[] => {
+    let frontier: CesiumTerrainTileId[] = [
+      { level: 0, x: 0, y: 0 },
+      { level: 0, x: 1, y: 0 },
+    ].filter((id) => terrainSource.getTileDataAvailable(id) === true);
+    for (let current = 0; current < level; current += 1) {
+      const next: CesiumTerrainTileId[] = [];
+      // A source claiming availability everywhere would make this walk the
+      // whole planet; a dataset that big has no meaningful blanket anyway.
+      if (frontier.length > MAX_PERSISTENT_BASE_TILES) return [];
+      for (const parent of frontier) {
+        for (let dy = 0; dy < 2; dy += 1) {
+          for (let dx = 0; dx < 2; dx += 1) {
+            const child = {
+              level: parent.level + 1,
+              x: parent.x * 2 + dx,
+              y: parent.y * 2 + dy,
+            };
+            if (terrainSource.getTileDataAvailable(child) === true) {
+              next.push(child);
+            }
+          }
+        }
+      }
+      frontier = next;
+    }
+    return frontier;
+  };
+
+  const prefetchPersistentBase = (terrainSource: CesiumTerrainTileSource) => {
+    if (persistentBaseLevel === null) return;
+    const ids = enumerateAvailableTiles(terrainSource, persistentBaseLevel);
+    if (ids.length === 0 || ids.length > MAX_PERSISTENT_BASE_TILES) return;
+    let sinceRepaint = 0;
+    void loadWithConcurrency(ids, PERSISTENT_BASE_PREFETCH_CONCURRENCY, (id) =>
+      terrainSource
+        .requestTile(id)
+        .then((tile) => {
+          if (disposed) return;
+          ensureMesh(tile, { id, kind: "source" }).visible = false;
+          sinceRepaint += 1;
+          if (sinceRepaint >= PERSISTENT_BASE_REPAINT_BATCH) {
+            sinceRepaint = 0;
+            applyMeshVisibility();
+            options.onContentChanged?.();
+            map?.triggerRepaint();
+          }
+        })
+        .catch(() => {
+          // A missing base tile only means no backfill there.
+        })
+    ).then(() => {
+      if (disposed) return;
+      applyMeshVisibility();
+      options.onContentChanged?.();
+      map?.triggerRepaint();
+    });
+  };
+
   void sourcePromise
     .then((terrainSource) => {
       if (disposed) return;
@@ -1241,6 +1416,7 @@ export const buildCesiumTerrainRuntime = (
         );
         map.triggerRepaint();
       }
+      prefetchPersistentBase(terrainSource);
     })
     .catch((error) => {
       if (disposed) return;
@@ -1297,6 +1473,7 @@ export const buildCesiumTerrainRuntime = (
       } else {
         requestedSignature = "";
         selectionInputSignature = "";
+        applyMeshVisibility();
       }
       map?.triggerRepaint();
     },
@@ -1356,7 +1533,6 @@ export const buildCesiumTerrainRuntime = (
       material.dispose();
       coverageMesh?.geometry.dispose();
       coverageMaterial.dispose();
-      shadowDepthMaterial.dispose();
       root.clear();
       map = null;
       settleReady(false);

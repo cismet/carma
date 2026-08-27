@@ -74,7 +74,13 @@ export const addonsFachzwilling: FachzwillingRoute = {
           // frame). 3 is the value the fast state used.
           shadowLevelOffset: 3,
           minimumLevel: 15,
-          maximumLevel: 17,
+          // The level-15 blanket of the whole DEM (~1,600 tiles, tens of MB)
+          // stays resident once loaded, so ground between the view and the
+          // sun never unloads again.
+          persistentBaseLevel: 15,
+          // The dataset publishes availability down to level 18 (~48 m tiles
+          // with sub-metre sampling); let refinement use all of it.
+          maximumLevel: 18,
           noDataHeightMeters: 0,
           maxSelectionTiles: 1_536,
           requestConcurrency: 12,
