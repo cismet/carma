@@ -27,8 +27,12 @@ export type DynamicSearchOption = {
   detail?: string;
   /** right-aligned secondary text, e.g. a distance */
   hint?: string;
-  /** the row's own icon; without one the row shows the mode's icon */
-  icon?: IconDefinition;
+  /**
+   * The row's own icon; without one the row shows the mode's icon. `null` is
+   * none at all, not even the mode's, for rows that are all of one kind: the
+   * same icon five times over says nothing and costs the names their width.
+   */
+  icon?: IconDefinition | null;
   /**
    * Picking opens the next stage instead of selecting: the value is written
    * into the input, the mode is asked again and the dropdown stays open. This

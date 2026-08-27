@@ -101,6 +101,56 @@
   overflow: visible !important;
 }
 
+.fuzzy-dynamic-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.fuzzy-dynamic-option > .fuzzy-mode-svg-icon,
+.fuzzy-dynamic-option > svg {
+  flex: 0 0 auto;
+}
+
+.fuzzy-dynamic-option__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fuzzy-dynamic-option__label,
+.fuzzy-dynamic-option__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fuzzy-dynamic-option__detail {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.fuzzy-dynamic-option__hint {
+  flex: 0 0 auto;
+  color: #8c8c8c;
+  white-space: nowrap;
+}
+
+/* ant indents every option of a group by 24px, which is width the names of a
+   narrow field cannot spare; the rows carry their own icon column anyway. The
+   dropdown scrolls up and down only: a row that clips itself has nothing to
+   scroll sideways to. */
+.fuzzy-dropdownwrapper--dynamic,
+.fuzzy-dropdownwrapper--dynamic .rc-virtual-list-holder {
+  overflow-x: hidden;
+}
+
+.fuzzy-dropdownwrapper--dynamic .ant-select-item-option-grouped {
+  padding-inline-start: 8px;
+}
+
 .ant-btn-icon {
   margin-right: 0% !important;
 }

@@ -93,8 +93,13 @@ type SearchModeEntry = {
 
 /**
  * One row of a dynamic mode: the label on the left, an optional second line
- * under it, and the hint (a distance, a count) right-aligned. Modes hand in
- * plain data, so every dynamic mode reads the same.
+ * under it, and the hint (a distance, a driving time) right-aligned. Modes hand
+ * in plain data, so every dynamic mode reads the same.
+ *
+ * The row keeps to the width of the field and clips itself (see
+ * `.fuzzy-dynamic-option` in `fuzzy-search.css`): the name gives way with an
+ * ellipsis, the hint stays whole, because a name half read still says which
+ * place it is while "4 Min · 2" cut in half says nothing.
  */
 const DynamicModeLabel = ({
   option,
@@ -105,49 +110,27 @@ const DynamicModeLabel = ({
   icon: IconDefinition;
   svgIcon?: string;
 }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "0.4rem",
-      paddingLeft: "0.3rem",
-    }}
-  >
+  <div className="fuzzy-dynamic-option">
     {/* a row may carry its own icon (a category, a kind of place); the mode's
-        icon is the fallback, and its svg variant only applies to that one */}
-    <SearchModeIcon
-      icon={option.icon ?? icon}
-      svgIcon={option.icon ? undefined : svgIcon}
-      size={14}
-    />
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div
-        style={{
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
+        icon is the fallback, and its svg variant only applies to that one.
+        `icon: null` is a row that wants none, and gives the width to its name */}
+    {option.icon !== null && (
+      <SearchModeIcon
+        icon={option.icon ?? icon}
+        svgIcon={option.icon ? undefined : svgIcon}
+        size={14}
+      />
+    )}
+    <div className="fuzzy-dynamic-option__text">
+      <div className="fuzzy-dynamic-option__label">
         {option.label ?? option.value}
       </div>
       {option.detail && (
-        <div
-          style={{
-            fontSize: "11px",
-            color: "#8c8c8c",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {option.detail}
-        </div>
+        <div className="fuzzy-dynamic-option__detail">{option.detail}</div>
       )}
     </div>
     {option.hint && (
-      <span style={{ color: "#8c8c8c", whiteSpace: "nowrap" }}>
-        {option.hint}
-      </span>
+      <span className="fuzzy-dynamic-option__hint">{option.hint}</span>
     )}
   </div>
 );
@@ -1089,7 +1072,14 @@ export function LibFuzzySearch({
           }
           dropdownRender={(item) => {
             return (
-              <div className="fuzzy-dropdownwrapper" ref={dropdownContainerRef}>
+              <div
+                // a dynamic mode's rows are laid out for a narrow field, and
+                // ant's indent for a grouped option is given back to them
+                className={`fuzzy-dropdownwrapper${
+                  isDynamicMode ? " fuzzy-dropdownwrapper--dynamic" : ""
+                }`}
+                ref={dropdownContainerRef}
+              >
                 {item}
               </div>
             );
