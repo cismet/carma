@@ -12,6 +12,8 @@ import {
 export const SHADOW_TILE_COUNT = 4;
 const BASE_SHADOW_TILE_MAP_SIZE = 1_024;
 const BASE_SINGLE_SHADOW_MAP_SIZE = 2_048;
+/** Conservative fallback until the renderer reports its real texture limit. */
+const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
 const SHADOW_TILE_PROGRAM_CACHE_KEY = "carma-light-space-tiles-v1";
 const SHADOW_FILTER_GUARD_TEXELS = 3;
 const MIN_SHADOW_TILE_AREA_METERS = 2;
@@ -317,10 +319,15 @@ const copyDefines = (defines: Record<string, unknown> | undefined) =>
 /** The buffer edge a mode/quality pair settles on once the camera rests. */
 export const restingShadowMapSize = (
   mode: ShadowMode,
-  quality: ShadowQualityMultiplier
+  quality: ShadowQualityMultiplier,
+  maxShadowMapSize = DEFAULT_MAX_SHADOW_MAP_SIZE
 ): number =>
-  (mode === "single" ? BASE_SINGLE_SHADOW_MAP_SIZE : BASE_SHADOW_TILE_MAP_SIZE) *
-  Math.sqrt(quality);
+  Math.min(
+    maxShadowMapSize,
+    (mode === "single"
+      ? BASE_SINGLE_SHADOW_MAP_SIZE
+      : BASE_SHADOW_TILE_MAP_SIZE) * Math.sqrt(quality)
+  );
 
 export class TiledShadowController {
   readonly csm: CSM;
@@ -334,6 +341,7 @@ export class TiledShadowController {
   private activeTileCount = 0;
   private mode: ShadowMode = "advanced";
   private softSun = false;
+  private maxShadowMapSize = DEFAULT_MAX_SHADOW_MAP_SIZE;
   private disposed = false;
 
   constructor(scene: THREE.Scene, camera = new THREE.PerspectiveCamera()) {
@@ -447,6 +455,13 @@ export class TiledShadowController {
     }
   }
 
+  /** What the device's textures allow; 'max' quality settles here. */
+  setMaxShadowMapSize(size: number): void {
+    const next = Math.max(256, Math.floor(size));
+    if (this.disposed || this.maxShadowMapSize === next) return;
+    this.maxShadowMapSize = next;
+  }
+
   /**
    * Sample the sun as a disc (single mode only). Expensive - one depth pass
    * per sample - so the caller keeps it off while the camera moves.
@@ -543,9 +558,12 @@ export class TiledShadowController {
       casterReachMeters + reliefMeters + LIGHT_CAMERA_SAFETY_METERS;
     const motionScale = interactive ? 0.5 : 1;
     const mapSize =
-      (this.mode === "single"
-        ? BASE_SINGLE_SHADOW_MAP_SIZE * Math.sqrt(quality)
-        : getShadowTileMapSize(quality)) * motionScale;
+      Math.min(
+        this.maxShadowMapSize,
+        this.mode === "single"
+          ? BASE_SINGLE_SHADOW_MAP_SIZE * Math.sqrt(quality)
+          : getShadowTileMapSize(quality)
+      ) * motionScale;
 
     this.csm.camera = camera;
     this.csm.lightMargin = lightMargin;
