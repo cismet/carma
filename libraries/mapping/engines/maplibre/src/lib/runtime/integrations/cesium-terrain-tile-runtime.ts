@@ -593,18 +593,29 @@ export const buildCesiumTerrainRuntime = (
     id: CesiumTerrainTileId
   ) => {
     const bounds = terrainSource.getTileBounds(id);
+    const centerLongitude = (bounds.west + bounds.east) / 2;
+    const centerLatitude = (bounds.south + bounds.north) / 2;
+    // Measure against the actual surface, not sea level. The camera stands
+    // hundreds of metres above y=0 here, so a sea-level anchor inflated the
+    // distance to the tiles right under it - the foreground at the lower
+    // frustum edge - by several times, and their error came out that many
+    // times too small: coarse ground exactly where the viewer is closest.
+    const centerElevation =
+      terrainSource.sampleHeight(centerLongitude, centerLatitude) ?? 0;
     const center = projectToLocalWorld(
-      (bounds.west + bounds.east) / 2,
-      (bounds.south + bounds.north) / 2,
-      0,
+      centerLongitude,
+      centerLatitude,
+      centerElevation,
       new Vector3()
     );
     const corner = projectToLocalWorld(
       bounds.east,
       bounds.north,
-      0,
+      centerElevation,
       new Vector3()
     );
+    // Closest point of the tile's bounding sphere, so a tile only partly in
+    // the foreground is judged by its near edge, not its centre.
     const radius = center.distanceTo(corner);
     const distance = Math.max(
       1,
@@ -1358,6 +1369,11 @@ export const buildCesiumTerrainRuntime = (
           activeViewportElevationSignature =
             selection.viewportElevationSignature;
           notifySharedThreeTerrainChanged(map);
+          // Newly learned heights sharpen the screen-space error - the first
+          // pass had to anchor unknown tiles at sea level. One more selection
+          // round lets the foreground refine against the real surface; once
+          // the heights stop changing, this stops re-arming.
+          selectionInputSignature = "";
         }
         map?.triggerRepaint();
       })
