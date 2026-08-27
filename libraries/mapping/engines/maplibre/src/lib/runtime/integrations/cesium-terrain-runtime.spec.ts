@@ -857,4 +857,120 @@ describe("buildCesiumTerrainRuntime", () => {
 
     runtime.dispose();
   });
+
+  it("keeps visible ground untouched when a superseded batch lands", async () => {
+    // The sun animation supersedes selection after selection. A superseded
+    // batch caches its tiles for the successor - but it also lists every
+    // tile of the current view, and it must never blank the meshes that are
+    // already on screen.
+    // 0.125 is binary-exact; 0.1 is not, and the resulting wobble once let a
+    // neighbouring tile leak into the first selection.
+    const boundsOf = (id: { level: number; x: number; y: number }) => {
+      const width = 0.125;
+      const west = 7.125 + (id.x - 532) * width;
+      return { west, south: 51.2, east: west + width, north: 51.3 };
+    };
+    const intersects = (
+      a: { west: number; south: number; east: number; north: number },
+      b: { west: number; south: number; east: number; north: number }
+    ) => a.west < b.east && a.east > b.west && a.south < b.north && a.north > b.south;
+    const allIds = [
+      { level: 10, x: 532, y: 218 },
+      { level: 10, x: 533, y: 218 },
+      { level: 10, x: 534, y: 218 },
+    ];
+    const pendingResolvers: Array<() => void> = [];
+    const source = {
+      requestTile: vi.fn(
+        (id) =>
+          new Promise((resolve) => {
+            pendingResolvers.push(() =>
+              resolve({
+                id,
+                heightMeters: new Float32Array([100]),
+                westIndices: new Uint32Array(),
+                southIndices: new Uint32Array(),
+                eastIndices: new Uint32Array(),
+                northIndices: new Uint32Array(),
+              })
+            );
+          })
+      ),
+      getTileIdsForBounds: vi.fn(() => [allIds[0]]),
+      getTileGridIdsForBounds: vi.fn((bounds) =>
+        allIds.filter((id) => intersects(boundsOf(id), bounds))
+      ),
+      getTileBounds: vi.fn(boundsOf),
+      getLevelMaximumGeometricError: vi.fn(() => 0.0001),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const runtime = buildCesiumTerrainRuntime(
+      "superseded-batch-terrain",
+      "https://example.test/superseded-batch-terrain",
+      [7.15, 51.25],
+      { minimumLevel: 10, maximumLevel: 10 }
+    );
+    let viewEast = 7.2;
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7.125,
+        getSouth: () => 51.2,
+        getEast: () => viewEast,
+        getNorth: () => 51.3,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const renderAt = (x: number) => {
+      const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
+      lodCamera.position.set(x, 1_000, 0);
+      lodCamera.updateMatrixWorld(true);
+      runtime.update({
+        map: map as never,
+        renderCamera: new Camera(),
+        lodCamera,
+        lookTarget: new Vector3(),
+        viewport: new Vector2(1_000, 1_000),
+      });
+    };
+
+    // Generation 1: one tile, loads and applies.
+    renderAt(0);
+    pendingResolvers.splice(0).forEach((resolve) => resolve());
+    await flush();
+    const visibleNode = () =>
+      runtime.root.children.find((child) =>
+        child.name.includes("source:10/532/")
+      );
+    expect(visibleNode()?.visible).toBe(true);
+
+    // Generation 2 widens the view, then generation 3 supersedes it before
+    // its fetches resolve.
+    viewEast = 7.3;
+    renderAt(100);
+    await flush();
+    expect(pendingResolvers).toHaveLength(2);
+    viewEast = 7.45;
+    renderAt(200);
+    await flush();
+    expect(pendingResolvers).toHaveLength(5);
+    // The winner lands first ...
+    pendingResolvers.splice(2).forEach((resolve) => resolve());
+    await flush();
+    expect(visibleNode()?.visible).toBe(true);
+    // ... and only then the superseded batch completes. It lists the tile
+    // that is on screen; finishing late must not blank it.
+    pendingResolvers.splice(0).forEach((resolve) => resolve());
+    await flush();
+    expect(visibleNode()?.visible).toBe(true);
+
+    runtime.dispose();
+  });
 });
