@@ -98,6 +98,25 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
+  /** The last-shape button: the first press shows the remembered shape, the
+   *  next runs it. The buffer is left as it stands — only the panel arms it. */
+  const toggleLastShape = useCallback(
+    () =>
+      setMode((previous) =>
+        previous?.lastShapeShown
+          ? {
+              ...previous,
+              bufferPanelOpen: false,
+              applyShapeVersion: (previous.applyShapeVersion ?? 0) + 1,
+            }
+          : {
+              ...(previous ?? { isOn: false }),
+              showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
+            }
+      ),
+    [setMode]
+  );
+
   const setShapeBuffer = useCallback(
     (next: number) =>
       setMode((previous) => ({
@@ -274,5 +293,6 @@ export const useHighlightModeActions = () => {
     bufferPanelOpen,
     setBufferPanelOpen,
     applyBufferedShape,
+    toggleLastShape,
   };
 };

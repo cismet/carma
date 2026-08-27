@@ -1,4 +1,8 @@
-import { faLeftRight, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faClockRotateLeft,
+  faLeftRight,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, InputNumber, Popover, Slider, Tooltip } from "antd";
 
@@ -76,6 +80,16 @@ export type ShapeToolbarProps = {
   clearLabel?: string;
   classNames?: Partial<ShapeToolbarClassNames>;
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
+  /** the last-shape button, behind the buffer one */
+  showLastShape?: boolean;
+  /** there is a remembered shape */
+  canLastShape?: boolean;
+  /** it is on the map, so the next press runs it */
+  lastShapeShown?: boolean;
+  onLastShapeToggle?: () => void;
+  lastShapeShowLabel?: string;
+  lastShapeApplyLabel?: string;
+  lastShapeMissingLabel?: string;
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
   /** metres the next apply adds on top of `bufferApplied` */
@@ -110,6 +124,13 @@ export const ShapeToolbar = ({
   clearLabel = "Highlights zurücksetzen",
   classNames,
   tooltipPlacement = "bottom",
+  showLastShape = false,
+  canLastShape = false,
+  lastShapeShown = false,
+  onLastShapeToggle,
+  lastShapeShowLabel = "Letzte Form anzeigen",
+  lastShapeApplyLabel = "Letzte Form anwenden",
+  lastShapeMissingLabel = "Letzte Form: erst eine Form zeichnen",
   showBuffer = false,
   bufferWidth = 5,
   bufferApplied = 0,
@@ -146,6 +167,14 @@ export const ShapeToolbar = ({
   const bufferLabel = canBuffer
     ? `Puffer um die letzte Form: ${Math.round(bufferTotal)} m`
     : "Puffer: erst eine Form zeichnen";
+
+  const lastShapeLabel = !canLastShape
+    ? lastShapeMissingLabel
+    : lastShapeShown
+    ? lastShapeApplyLabel
+    : lastShapeShowLabel;
+  // shrunk to nothing: there is nothing left to run
+  const lastShapeDisabled = !canLastShape || (lastShapeShown && bufferEmpty);
 
   const bufferContent = (
     <div
@@ -225,7 +254,9 @@ export const ShapeToolbar = ({
           </Tooltip>
         );
       })}
-      {showBuffer && <span className={css.divider} aria-hidden />}
+      {(showLastShape || showBuffer) && (
+        <span className={css.divider} aria-hidden />
+      )}
       {showBuffer && (
         <Popover
           open={bufferOpen && canBuffer}
@@ -268,6 +299,41 @@ export const ShapeToolbar = ({
             </button>
           </span>
         </Popover>
+      )}
+      {showLastShape && (
+        <Tooltip title={lastShapeLabel} placement={tooltipPlacement}>
+          {/* a disabled button swallows its own events, so the tooltip needs a host */}
+          <span>
+            <button
+              type="button"
+              disabled={lastShapeDisabled}
+              onClick={(event) => {
+                event.stopPropagation();
+                onLastShapeToggle?.();
+              }}
+              aria-pressed={lastShapeShown}
+              aria-label={lastShapeLabel}
+              data-test-id="vector-highlight-last-shape"
+              className={[
+                css.button,
+                lastShapeDisabled
+                  ? css.buttonDisabled
+                  : lastShapeShown
+                  ? activeColor
+                    ? ""
+                    : css.buttonActive
+                  : css.buttonInactive,
+              ].join(" ")}
+              style={
+                !lastShapeDisabled && lastShapeShown && activeColor
+                  ? { color: activeColor }
+                  : undefined
+              }
+            >
+              <FontAwesomeIcon icon={faClockRotateLeft} />
+            </button>
+          </span>
+        </Tooltip>
       )}
       <Tooltip title={clearLabel} placement={tooltipPlacement}>
         {/* a disabled button swallows its own events, so the tooltip needs a host */}

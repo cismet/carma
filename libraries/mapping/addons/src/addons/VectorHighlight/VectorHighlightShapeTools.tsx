@@ -31,6 +31,9 @@ export const VectorHighlightShapeTools = ({
     bufferPanelOpen,
     setBufferPanelOpen,
     hasLastShape,
+    lastShapeShown,
+    toggleLastShape,
+    shapeEmpty,
     applyBufferedShape,
   } = useHighlightModeActions();
 
@@ -48,6 +51,11 @@ export const VectorHighlightShapeTools = ({
             onShapeChange={setShape}
             onClear={clear}
             canClear={canClear}
+            showLastShape
+            canLastShape={hasLastShape}
+            lastShapeShown={lastShapeShown}
+            onLastShapeToggle={toggleLastShape}
+            bufferEmpty={shapeEmpty}
             showBuffer
             bufferWidth={shapeBuffer}
             onBufferWidthChange={setShapeBuffer}
