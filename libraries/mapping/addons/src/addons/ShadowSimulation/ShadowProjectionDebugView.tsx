@@ -65,7 +65,15 @@ const SHADOW_MODES: readonly {
   { value: "single", label: "Single Buffer" },
   { value: "advanced", label: "Advanced Tiles" },
 ];
-const SHADOW_QUALITIES: readonly ShadowQualityMultiplier[] = [1, 4, 16];
+const SHADOW_QUALITIES: ReadonlyArray<{
+  label: string;
+  value: ShadowQualityMultiplier;
+}> = [
+  { label: "Niedrig", value: 0.25 },
+  { label: "Mittel", value: 1 },
+  { label: "Hoch", value: 4 },
+  { label: "Max", value: 16 },
+];
 
 export type ShadowProjectionDebugSettings = Readonly<{
   shadowMode: ShadowMode;
@@ -270,15 +278,15 @@ const ShadowDebugControls = ({
             Qualität
           </span>
           <div className="inline-flex" data-test-id="shadow-debug-quality">
-            {SHADOW_QUALITIES.map((quality) => (
+            {SHADOW_QUALITIES.map(({ label, value }) => (
               <button
-                key={quality}
+                key={label}
                 type="button"
-                className={buttonClass(settings.shadowQuality === quality)}
-                aria-pressed={settings.shadowQuality === quality}
-                onClick={() => onChange({ shadowQuality: quality })}
+                className={buttonClass(settings.shadowQuality === value)}
+                aria-pressed={settings.shadowQuality === value}
+                onClick={() => onChange({ shadowQuality: value })}
               >
-                {quality}×
+                {label}
               </button>
             ))}
           </div>

@@ -135,7 +135,13 @@ export type ShadowBuildingAppearance = Readonly<{
   uniformColor: string | null;
 }>;
 
-export type ShadowQualityMultiplier = 1 | 4 | 16;
+/**
+ * Texel-budget multiplier behind the quality levels: buffer edges scale with
+ * its square root. 0.25 low - 1024, 1 medium - 2048, 4 high - 4096, 16 max -
+ * 8192 in single mode (halved per tile in advanced mode and per disc sample),
+ * always capped by what the device's textures actually allow.
+ */
+export type ShadowQualityMultiplier = 0.25 | 1 | 4 | 16;
 export type ShadowMode = "single" | "advanced";
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 4;
@@ -986,7 +992,8 @@ export const buildShadowSimulationScene = (
 
     const mapSize = restingShadowMapSize(
       sharedBinding.shadowMode,
-      sharedBinding.shadowQuality
+      sharedBinding.shadowQuality,
+      sceneLease.layer.getRenderer?.()?.capabilities?.maxTextureSize
     );
     if (import.meta.env?.DEV && typeof window !== "undefined") {
       // Console handle for checking what the sweep actually covers.
@@ -1159,6 +1166,12 @@ export const buildShadowSimulationScene = (
       if (sceneMaterialsDirty) {
         sceneMaterialsDirty = false;
         sharedBinding.controller.syncSceneMaterials(sharedBinding.scene);
+      }
+      const rendererCaps = sceneLease.layer.getRenderer?.()?.capabilities;
+      if (rendererCaps?.maxTextureSize) {
+        sharedBinding.controller.setMaxShadowMapSize(
+          rendererCaps.maxTextureSize
+        );
       }
       const snapshot = sharedBinding.controller.update({
         camera: frame.lodCamera,
