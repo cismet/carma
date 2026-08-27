@@ -69,10 +69,10 @@ const SHADOW_QUALITIES: ReadonlyArray<{
   label: string;
   value: ShadowQualityMultiplier;
 }> = [
-  { label: "Niedrig", value: 0.25 },
-  { label: "Mittel", value: 1 },
-  { label: "Hoch", value: 4 },
-  { label: "Max", value: 16 },
+  { label: "Niedrig", value: 1 },
+  { label: "Mittel", value: 4 },
+  { label: "Hoch", value: 16 },
+  { label: "Max", value: 64 },
 ];
 
 export type ShadowProjectionDebugSettings = Readonly<{
