@@ -398,7 +398,7 @@ const ShadowSimulationRibbon = ({
           wheel on mobile, keyboard-editable - fronted by the Font Awesome
           clock in place of the browser's own indicator. Clicking icon or
           digits opens the picker: the label forwards its clicks. */}
-      <label className="flex h-9 w-[92px] shrink-0 cursor-pointer items-center gap-2 rounded-md px-1.5 hover:bg-neutral-100">
+      <label className="m-0 flex h-9 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 hover:bg-neutral-100">
         <FontAwesomeIcon icon={faClock} className="shrink-0 text-neutral-500" />
         <input
           type="time"
@@ -423,7 +423,7 @@ const ShadowSimulationRibbon = ({
               minutes: hours * 60 + minutes,
             });
           }}
-          className="w-full cursor-pointer bg-transparent font-medium tabular-nums text-neutral-800 outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+          className="shadow-simulation-time-input w-[46px] cursor-pointer bg-transparent p-0 text-sm font-medium leading-none tabular-nums text-neutral-800 outline-none"
           aria-label="Uhrzeit auswählen"
           data-test-id="shadow-simulation-time-input"
         />
@@ -885,6 +885,15 @@ const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateSoftSunShadows(state.softSunShadows ?? true);
   }, [state.enabled, state.softSunShadows, sceneRevision]);
+
+  // While the day or year animation runs, every tick restarts the static
+  // accumulation, and frames flip between the accumulated composite and the
+  // direct render - a visible per-tick shimmer. The scene keeps accumulation
+  // off for the duration.
+  useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateTimeAnimating(state.isAnimating ?? false);
+  }, [state.enabled, state.isAnimating, sceneRevision]);
 
   // The projection debug panel only renders once a snapshot arrives, and at
   // rest nothing publishes one; opening the panel therefore asks for one.
