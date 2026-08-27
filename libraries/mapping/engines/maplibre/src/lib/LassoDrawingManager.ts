@@ -22,7 +22,8 @@
  * Whatever shape was drawn last stays remembered, so it can be shown again and
  * run a second time without redrawing it. A remembered line keeps its points,
  * not just its corridor, so running it again honours the current width. While
- * it is shown, dragging it moves it, so the same shape can select elsewhere.
+ * it is shown, dragging it moves it and clicking it runs it, so the same shape
+ * can select somewhere else.
  *
  * For circle and rect a plain click (no drag) places the configured size,
  * centred on the clicked point, so the very same area can be placed again
@@ -292,6 +293,10 @@ export class LassoDrawingManager {
   private movingShape = false;
   private moveOrigin: Position | null = null;
   private moveStart: Polygon | LineString | null = null;
+  /** the press left the click tolerance, so it was a move and not a run */
+  private moveDragged = false;
+  private moveDownX = 0;
+  private moveDownY = 0;
   private lineDownX = 0;
   private lineDownY = 0;
   private lineDownLngLat: Position | null = null;
@@ -556,6 +561,9 @@ export class LassoDrawingManager {
     e.preventDefault();
     this.cancelPendingClear();
     this.movingShape = true;
+    this.moveDragged = false;
+    this.moveDownX = e.originalEvent.clientX;
+    this.moveDownY = e.originalEvent.clientY;
     this.moveOrigin = [e.lngLat.lng, e.lngLat.lat];
     this.moveStart = this.lastShape;
     this.map.dragPan.disable();
@@ -570,6 +578,12 @@ export class LassoDrawingManager {
     const origin = this.moveOrigin;
     const start = this.moveStart;
     if (!origin || !start) return;
+    const dx = e.originalEvent.clientX - this.moveDownX;
+    const dy = e.originalEvent.clientY - this.moveDownY;
+    // inside the tolerance the press is still a click, and a click runs the
+    // shape where it stands rather than nudging it
+    if (dx * dx + dy * dy < CLICK_PX_TOLERANCE * CLICK_PX_TOLERANCE) return;
+    this.moveDragged = true;
     this.lastShape = translateShape(
       start,
       e.lngLat.lng - origin[0],
@@ -578,10 +592,12 @@ export class LassoDrawingManager {
     this.renderLastShape(false);
   }
 
-  /** The moved shape is the remembered one, so running it selects where it now
-   *  sits. Its outline is unchanged, hence no new shrink limit. */
+  /** A drag leaves the moved shape as the remembered one, so it selects where
+   *  it now sits; its outline is unchanged, hence no new shrink limit. A click
+   *  runs it instead — the whole point of putting it back on the map. */
   private endShapeMove(): void {
     if (!this.movingShape) return;
+    const clicked = !this.moveDragged;
     this.movingShape = false;
     this.moveOrigin = null;
     this.moveStart = null;
@@ -589,6 +605,8 @@ export class LassoDrawingManager {
     document.removeEventListener("mouseup", this.handleMoveMouseUp);
     this.map.dragPan.enable();
     this.applyCursor();
+    // never on an empty one: a shrink has eaten it, so it would select nothing
+    if (clicked && !this.shapeEmpty) this.applyLastShape();
   }
 
   /** `restack` off during a drag: re-stacking the layers per frame walks the

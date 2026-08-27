@@ -98,22 +98,16 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
-  /** The last-shape button: the first press shows the remembered shape, the
-   *  next runs it. The buffer is left as it stands — only the panel arms it. */
+  /** The last-shape button: puts the remembered shape back on the map, and
+   *  takes it down again. Clicking the shape itself is what runs it. */
   const toggleLastShape = useCallback(
     () =>
-      setMode((previous) =>
-        previous?.lastShapeShown
-          ? {
-              ...previous,
-              bufferPanelOpen: false,
-              applyShapeVersion: (previous.applyShapeVersion ?? 0) + 1,
-            }
-          : {
-              ...(previous ?? { isOn: false }),
-              showShapeVersion: (previous?.showShapeVersion ?? 0) + 1,
-            }
-      ),
+      setMode((previous) => ({
+        ...(previous ?? { isOn: false }),
+        ...(previous?.lastShapeShown
+          ? { hideShapeVersion: (previous.hideShapeVersion ?? 0) + 1 }
+          : { showShapeVersion: (previous?.showShapeVersion ?? 0) + 1 }),
+      })),
     [setMode]
   );
 
