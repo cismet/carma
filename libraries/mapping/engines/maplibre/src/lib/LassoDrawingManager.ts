@@ -21,7 +21,8 @@
  *
  * Whatever shape was drawn last stays remembered, so it can be shown again and
  * run a second time without redrawing it. A remembered line keeps its points,
- * not just its corridor, so running it again honours the current width.
+ * not just its corridor, so running it again honours the current width. While
+ * it is shown, dragging it moves it, so the same shape can select elsewhere.
  *
  * For circle and rect a plain click (no drag) places the configured size,
  * centred on the clicked point, so the very same area can be placed again
@@ -69,6 +70,25 @@ const LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-line`;
 const FILL_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-fill`;
 const POINT_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-point`;
 const BUFFER_LINE_LAYER_ID = `${LASSO_LAYER_ID_PREFIX}-buffer-line`;
+
+/** pixels of slack when testing whether a press landed on the previewed shape;
+ *  a bare line is barely hittable without it */
+const MOVE_HIT_TOLERANCE = 6;
+
+/** Offsets a shape in degrees. That keeps a rectangle's edges on their
+ *  parallels and meridians; the ground size shifts only in the last decimals
+ *  over a drag within one town. */
+const translateShape = <T extends Polygon | LineString>(
+  shape: T,
+  dLng: number,
+  dLat: number
+): T => {
+  const move = (ring: Position[]): Position[] =>
+    ring.map((position) => [position[0] + dLng, position[1] + dLat]);
+  return shape.type === "LineString"
+    ? { ...shape, coordinates: move(shape.coordinates) }
+    : { ...shape, coordinates: shape.coordinates.map(move) };
+};
 
 /**
  * Which half of a buffered shape a feature is. With a width set, both are on
@@ -267,6 +287,11 @@ export class LassoDrawingManager {
    *  that is current when it runs again. */
   private lastShape: Polygon | LineString | null = null;
   private previewingLastShape = false;
+  /** the previewed shape is being dragged: the press point and the shape as it
+   *  stood then, so every move offsets the original rather than the last frame */
+  private movingShape = false;
+  private moveOrigin: Position | null = null;
+  private moveStart: Polygon | LineString | null = null;
   private lineDownX = 0;
   private lineDownY = 0;
   private lineDownLngLat: Position | null = null;
@@ -279,6 +304,9 @@ export class LassoDrawingManager {
   private handleCaptureMouseDown = (e: MouseEvent) =>
     this.onCaptureMouseDown(e);
   private handleRestoreBoxZoom = () => this.restoreBoxZoom();
+  private handleMoveMouseMove = (e: MapMouseEvent) => this.onMoveMouseMove(e);
+  private handleMoveMouseUp = () => this.endShapeMove();
+  private handlePreviewHover = (e: MapMouseEvent) => this.onPreviewHover(e);
   private handleLineMouseMove = (e: MapMouseEvent) => this.onLineMouseMove(e);
   private handleLineMouseUp = (e: MouseEvent) => this.onLineMouseUp(e);
   private handleLineDoubleClick = (e: MapMouseEvent) => {
@@ -483,16 +511,97 @@ export class LassoDrawingManager {
     if (previewing === this.previewingLastShape) return;
     this.previewingLastShape = previewing;
     if (!previewing) this.setShapeEmpty(false);
+    // only the toolbar manager previews, and only there is a plain drag free
+    // to mean "move this"
+    if (this.requireModifiers.length === 0) {
+      if (previewing) this.map.on("mousemove", this.handlePreviewHover);
+      else {
+        this.map.off("mousemove", this.handlePreviewHover);
+        this.endShapeMove();
+        this.applyCursor();
+      }
+    }
     this.onLastShapePreviewChange?.(previewing);
   }
 
-  private renderLastShape(): void {
+  /** Did the pointer land on the previewed shape? */
+  private hitsPreview(e: MapMouseEvent): boolean {
+    const layers = [
+      FILL_LAYER_ID,
+      BUFFER_LINE_LAYER_ID,
+      LINE_LAYER_ID,
+      POINT_LAYER_ID,
+    ].filter((id) => this.map.getLayer(id));
+    if (layers.length === 0) return false;
+    const { x, y } = e.point;
+    return (
+      this.map.queryRenderedFeatures(
+        [
+          [x - MOVE_HIT_TOLERANCE, y - MOVE_HIT_TOLERANCE],
+          [x + MOVE_HIT_TOLERANCE, y + MOVE_HIT_TOLERANCE],
+        ],
+        { layers }
+      ).length > 0
+    );
+  }
+
+  /** The shape can be picked up, so the cursor says so over it. */
+  private onPreviewHover(e: MapMouseEvent): void {
+    if (this.movingShape || this.drawing || this.suspended) return;
+    if (this.hitsPreview(e)) this.map.getCanvas().style.cursor = "move";
+    else this.applyCursor();
+  }
+
+  private startShapeMove(e: MapMouseEvent): void {
+    e.preventDefault();
+    this.cancelPendingClear();
+    this.movingShape = true;
+    this.moveOrigin = [e.lngLat.lng, e.lngLat.lat];
+    this.moveStart = this.lastShape;
+    this.map.dragPan.disable();
+    this.map.getCanvas().style.cursor = "grabbing";
+    this.map.on("mousemove", this.handleMoveMouseMove);
+    document.addEventListener("mouseup", this.handleMoveMouseUp, {
+      once: true,
+    });
+  }
+
+  private onMoveMouseMove(e: MapMouseEvent): void {
+    const origin = this.moveOrigin;
+    const start = this.moveStart;
+    if (!origin || !start) return;
+    this.lastShape = translateShape(
+      start,
+      e.lngLat.lng - origin[0],
+      e.lngLat.lat - origin[1]
+    );
+    this.renderLastShape(false);
+  }
+
+  /** The moved shape is the remembered one, so running it selects where it now
+   *  sits. Its outline is unchanged, hence no new shrink limit. */
+  private endShapeMove(): void {
+    if (!this.movingShape) return;
+    this.movingShape = false;
+    this.moveOrigin = null;
+    this.moveStart = null;
+    this.map.off("mousemove", this.handleMoveMouseMove);
+    document.removeEventListener("mouseup", this.handleMoveMouseUp);
+    this.map.dragPan.enable();
+    this.applyCursor();
+  }
+
+  /** `restack` off during a drag: re-stacking the layers per frame walks the
+   *  whole style, and nothing can slip above them mid-gesture anyway. */
+  private renderLastShape(restack = true): void {
     const last = this.lastShape;
     if (!last) return;
     this.cancelPendingClear();
     this.ensureSourceAndLayers();
-    this.applyColor();
-    this.moveLayersToTop();
+    if (restack) {
+      this.applyColor();
+      this.moveLayersToTop();
+    }
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
     if (last.type === "LineString") {
@@ -775,6 +884,12 @@ export class LassoDrawingManager {
     if (this.suspended) return;
 
     if (!this.modifiersMatch(e.originalEvent)) return;
+
+    // a press on the previewed shape picks it up instead of replacing it
+    if (this.previewingLastShape && this.lastShape && this.hitsPreview(e)) {
+      this.startShapeMove(e);
+      return;
+    }
 
     // Click-per-vertex is the toolbar's gesture only: on a modifier-driven
     // manager the very same click already toggles the feature under it.
