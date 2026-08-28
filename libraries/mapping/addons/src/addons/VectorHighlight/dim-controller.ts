@@ -1,6 +1,9 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { LASSO_LAYER_ID_PREFIX } from "@carma-mapping/engines/maplibre";
+import {
+  buildDimExpression,
+  LASSO_LAYER_ID_PREFIX,
+} from "@carma-mapping/engines/maplibre";
 
 /**
  * The drawing tool's own preview layers, excluded whatever a route configures:
@@ -42,71 +45,11 @@ export const createDimController = (
     );
   };
 
-  /** does this paint value read the zoom anywhere? */
-  const readsZoom = (value: unknown): boolean =>
-    Array.isArray(value) && (value[0] === "zoom" || value.some(readsZoom));
+  /** what counts as highlighted: this controller dims by feature-state */
+  const predicate = ["boolean", ["feature-state", stateKey], false];
 
-  /** `<original>` while highlighted, `<original> * dimOpacity` otherwise. The
-   *  original is scaled rather than replaced, so a value the style had already
-   *  faded out stays faded out instead of reappearing at `dimOpacity`. */
-  const dimBranch = (original: unknown) => {
-    const value = original == null ? 1 : original;
-    return [
-      "case",
-      ["boolean", ["feature-state", stateKey], false],
-      value,
-      typeof value === "number" ? value * dimOpacity : ["*", value, dimOpacity],
-    ];
-  };
-
-  /**
-   * The dim expression for one paint value, or `null` when it cannot be built.
-   *
-   * A zoom-driven original must not be wrapped: MapLibre accepts `["zoom"]`
-   * only as the direct input of a top-level `step` / `interpolate`, so a `case`
-   * around it fails validation ("zoom expression may only be used as input to a
-   * top-level step or interpolate expression"). The write is then refused, the
-   * property keeps its old value, the no-op guard in `apply` never settles and
-   * the whole thing is rewritten on every `styledata` — an error per layer per
-   * event. B-Plan's `text-opacity` fades in by zoom and hit exactly that.
-   *
-   * The curve therefore stays on top and the branch moves into its outputs,
-   * which is equivalent and legal. Zoom in any other position is left alone
-   * rather than guessed at.
-   */
-  const dimmed = (original: unknown): unknown => {
-    if (!readsZoom(original)) return dimBranch(original);
-
-    const expr = original as unknown[];
-    const inputOf = (index: number) =>
-      Array.isArray(expr[index]) && (expr[index] as unknown[])[0] === "zoom";
-
-    // ["interpolate", <type>, ["zoom"], stop, output, ...]
-    if (
-      expr[0] === "interpolate" ||
-      expr[0] === "interpolate-hcl" ||
-      expr[0] === "interpolate-lab"
-    ) {
-      if (!inputOf(2)) return null;
-      const out = expr.slice(0, 3);
-      for (let i = 3; i < expr.length; i += 2) {
-        out.push(expr[i], dimBranch(expr[i + 1]));
-      }
-      return out;
-    }
-
-    // ["step", ["zoom"], <default>, stop, output, ...]
-    if (expr[0] === "step") {
-      if (!inputOf(1)) return null;
-      const out: unknown[] = [expr[0], expr[1], dimBranch(expr[2])];
-      for (let i = 3; i < expr.length; i += 2) {
-        out.push(expr[i], dimBranch(expr[i + 1]));
-      }
-      return out;
-    }
-
-    return null;
-  };
+  const dimmed = (original: unknown): unknown | null =>
+    buildDimExpression(original, predicate, dimOpacity);
 
   const apply = () => {
     for (const layer of map.getStyle()?.layers ?? []) {

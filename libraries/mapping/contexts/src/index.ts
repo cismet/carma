@@ -8,7 +8,11 @@ export {
   useLibreContext,
 } from "./LibreContext";
 
-export type { LibreContextType, GeoJsonMetadata } from "./LibreContext";
+export type {
+  LibreContextType,
+  GeoJsonMetadata,
+  FilterPresentation,
+} from "./LibreContext";
 
 export {
   MapSelectionContext,

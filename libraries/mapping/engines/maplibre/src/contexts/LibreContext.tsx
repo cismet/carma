@@ -10,4 +10,5 @@ export {
   useLibreContext,
   type LibreContextType,
   type GeoJsonMetadata,
+  type FilterPresentation,
 } from "@carma-mapping/contexts";
