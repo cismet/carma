@@ -56,11 +56,6 @@ const DEFAULT_MAX_SELECTION_TILES = 192;
 const DEFAULT_REQUEST_CONCURRENCY = 6;
 const DEFAULT_MAX_CACHED_MESHES = 256;
 const TERRAIN_UPDATE_PRIORITY = 100;
-const MAX_PERSISTENT_BASE_TILES = 4_096;
-/** Keeps persistent parents below overlapping refined terrain. */
-const PERSISTENT_BACKFILL_LOWERING_METERS = 8;
-const PERSISTENT_BASE_PREFETCH_CONCURRENCY = 2;
-const PERSISTENT_BASE_REPAINT_BATCH = 64;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
 const VIEWPORT_COVERAGE_PADDING_FACTOR = 0.25;
 const UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS = [-1_000, 10_000] as const;
@@ -78,8 +73,6 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   requestConcurrency?: number;
   maxCacheBytes?: number;
   maxCachedMeshes?: number;
-  /** Optional dataset-wide level retained as a coarse backfill. */
-  persistentBaseLevel?: number | false;
   /** Source-specific height that denotes missing terrain coverage. */
   noDataHeightMeters?: number;
   material?: CesiumTerrainMaterialOptions;
@@ -107,8 +100,6 @@ type TerrainMeshRecord = {
   id: CesiumTerrainTileId;
   minimumHeightMeters: number;
   maximumHeightMeters: number;
-  /** Never trimmed; keeps drawing as backfill where nothing finer is active. */
-  persistent: boolean;
 };
 
 type TerrainBoundarySide = "west" | "south" | "east" | "north";
@@ -438,11 +429,6 @@ export const buildCesiumTerrainRuntime = (
     DEFAULT_MAX_CACHED_MESHES,
     1
   );
-  const persistentBaseLevel =
-    options.persistentBaseLevel === undefined ||
-    options.persistentBaseLevel === false
-      ? null
-      : clampInteger(options.persistentBaseLevel, minimumLevel, 0);
   if (
     options.noDataHeightMeters !== undefined &&
     !Number.isFinite(options.noDataHeightMeters)
@@ -482,7 +468,6 @@ export const buildCesiumTerrainRuntime = (
   let unregisterSampler: (() => void) | null = null;
   let disposed = false;
   let terrainLoading = true;
-  let persistentPrefetchStarted = false;
   let meshUseClock = 0;
   let selectionGeneration = 0;
   let requestedSignature = "";
@@ -633,15 +618,23 @@ export const buildCesiumTerrainRuntime = (
       projectToWorld: projectToLocalWorld,
     });
 
-  const loadProjectedGeometry = (
-    tile: CesiumTerrainTile,
+  const loadTerrainEntry = async (
+    terrainSource: CesiumTerrainTileSource,
     entry: TerrainSelectionEntry
-  ) =>
-    entry.kind === "flat"
-      ? Promise.resolve(createProjectedGeometry(tile))
-      : projectedGeometryCache.getOrCreate(tile, () =>
-          createProjectedGeometry(tile)
-        );
+  ) => {
+    if (entry.kind === "flat") {
+      const tile = createFlatTerrainTile(terrainSource, entry.id);
+      return { tile, projectedGeometry: createProjectedGeometry(tile) };
+    }
+    const cached = await projectedGeometryCache.get(entry.id);
+    if (cached) {
+      return { tile: cached.tile, projectedGeometry: cached.geometry };
+    }
+    const tile = await terrainSource.requestTile(entry.id);
+    const projectedGeometry = createProjectedGeometry(tile);
+    projectedGeometryCache.set(tile, projectedGeometry);
+    return { tile, projectedGeometry };
+  };
 
   const ensureMesh = (
     tile: CesiumTerrainTile,
@@ -733,10 +726,6 @@ export const buildCesiumTerrainRuntime = (
       id: entry.id,
       minimumHeightMeters,
       maximumHeightMeters,
-      persistent:
-        entry.kind === "source" &&
-        persistentBaseLevel !== null &&
-        entry.id.level <= persistentBaseLevel,
     });
     return node;
   };
@@ -926,80 +915,19 @@ export const buildCesiumTerrainRuntime = (
       : null;
   };
 
-  /** Persistent base tiles completely covered by the active refinement. */
-  const fullyCoveredBaseKeys = (): Set<string> => {
-    const covered = new Set<string>();
-    if (persistentBaseLevel === null) return covered;
-    const units = new Map<string, number>();
-    let deepestLevel = persistentBaseLevel;
-    for (const key of activeMeshKeys) {
-      const record = meshes.get(key);
-      if (record && record.id.level > deepestLevel) {
-        deepestLevel = record.id.level;
-      }
-    }
-    const fullUnits = 4 ** (deepestLevel - persistentBaseLevel);
-    for (const key of activeMeshKeys) {
-      const record = meshes.get(key);
-      if (!record) continue;
-      const { level, x, y } = record.id;
-      if (level < persistentBaseLevel) {
-        const span = 2 ** (persistentBaseLevel - level);
-        for (let dy = 0; dy < span; dy += 1) {
-          for (let dx = 0; dx < span; dx += 1) {
-            covered.add(
-              cesiumTerrainTileKey({
-                level: persistentBaseLevel,
-                x: x * span + dx,
-                y: y * span + dy,
-              })
-            );
-          }
-        }
-        continue;
-      }
-      const shift = level - persistentBaseLevel;
-      const baseKey = cesiumTerrainTileKey({
-        level: persistentBaseLevel,
-        x: x >> shift,
-        y: y >> shift,
-      });
-      units.set(
-        baseKey,
-        (units.get(baseKey) ?? 0) + 4 ** (deepestLevel - level)
-      );
-    }
-    for (const [baseKey, sum] of units) {
-      if (sum >= fullUnits) covered.add(baseKey);
-    }
-    return covered;
-  };
-
   const applyMeshVisibility = () => {
-    const covered = fullyCoveredBaseKeys();
     for (const [key, record] of meshes) {
-      const active = activeMeshKeys.has(key);
-      const backfill =
-        !active &&
-        record.persistent &&
-        !covered.has(cesiumTerrainTileKey(record.id));
-      record.node.visible = root.visible && (active || backfill);
-      record.node.position.y = backfill
-        ? -PERSISTENT_BACKFILL_LOWERING_METERS
-        : 0;
+      record.node.visible = root.visible && activeMeshKeys.has(key);
+      record.node.position.y = 0;
       record.node.updateMatrixWorld();
     }
   };
 
   const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
-    let persistentCount = 0;
-    for (const record of meshes.values()) {
-      if (record.persistent) persistentCount += 1;
-    }
-    let excess = meshes.size - persistentCount - maxCachedMeshes;
+    let excess = meshes.size - maxCachedMeshes;
     if (excess <= 0) return;
     const candidates = [...meshes.entries()]
-      .filter(([key, record]) => !record.persistent && !activeKeys.has(key))
+      .filter(([key]) => !activeKeys.has(key))
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
       if (excess <= 0) break;
@@ -1391,14 +1319,10 @@ export const buildCesiumTerrainRuntime = (
         if (disposed || generation !== selectionGeneration) {
           throw new Error("Stale terrain selection");
         }
-        const tile =
-          entry.kind === "flat"
-            ? createFlatTerrainTile(terrainSource, entry.id)
-            : await terrainSource.requestTile(entry.id);
-        if (disposed || generation !== selectionGeneration) {
-          throw new Error("Stale terrain selection");
-        }
-        const projectedGeometry = await loadProjectedGeometry(tile, entry);
+        const { tile, projectedGeometry } = await loadTerrainEntry(
+          terrainSource,
+          entry
+        );
         if (disposed || generation !== selectionGeneration) {
           projectedGeometry.dispose();
           throw new Error("Stale terrain selection");
@@ -1437,19 +1361,10 @@ export const buildCesiumTerrainRuntime = (
         smoothActiveBoundaryNormals(activeKeys);
         activeMeshKeys = activeKeys;
         applyMeshVisibility();
-        for (const record of meshes.values()) {
-          if (record.persistent) {
-            retainedSourceKeys.add(cesiumTerrainTileKey(record.id));
-          }
-        }
         terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
         settleReady(true);
         setTerrainLoading(false);
-        if (!persistentPrefetchStarted) {
-          persistentPrefetchStarted = true;
-          prefetchPersistentBase(terrainSource);
-        }
         options.onContentChanged?.();
         if (
           map &&
@@ -1470,73 +1385,6 @@ export const buildCesiumTerrainRuntime = (
         options.onError?.(error);
         settleReady(false);
       });
-  };
-
-  /** Enumerate an available dataset level from the quantized-mesh roots. */
-  const enumerateAvailableTiles = (
-    terrainSource: CesiumTerrainTileSource,
-    level: number
-  ): CesiumTerrainTileId[] => {
-    let frontier: CesiumTerrainTileId[] = [
-      { level: 0, x: 0, y: 0 },
-      { level: 0, x: 1, y: 0 },
-    ].filter((id) => terrainSource.getTileDataAvailable(id) === true);
-    for (let current = 0; current < level; current += 1) {
-      const next: CesiumTerrainTileId[] = [];
-      if (frontier.length > MAX_PERSISTENT_BASE_TILES) return [];
-      for (const parent of frontier) {
-        for (let dy = 0; dy < 2; dy += 1) {
-          for (let dx = 0; dx < 2; dx += 1) {
-            const child = {
-              level: parent.level + 1,
-              x: parent.x * 2 + dx,
-              y: parent.y * 2 + dy,
-            };
-            if (terrainSource.getTileDataAvailable(child) === true) {
-              next.push(child);
-            }
-          }
-        }
-      }
-      frontier = next;
-    }
-    return frontier;
-  };
-
-  const prefetchPersistentBase = (terrainSource: CesiumTerrainTileSource) => {
-    if (persistentBaseLevel === null) return;
-    const ids = enumerateAvailableTiles(terrainSource, persistentBaseLevel);
-    if (ids.length === 0 || ids.length > MAX_PERSISTENT_BASE_TILES) return;
-    let sinceRepaint = 0;
-    void loadWithConcurrency(ids, PERSISTENT_BASE_PREFETCH_CONCURRENCY, (id) =>
-      terrainSource
-        .requestTile(id)
-        .then(async (tile) => {
-          const projectedGeometry = await loadProjectedGeometry(tile, {
-            id,
-            kind: "source",
-          });
-          if (disposed) {
-            projectedGeometry.dispose();
-            return;
-          }
-          ensureMesh(tile, { id, kind: "source" }, projectedGeometry).visible =
-            false;
-          sinceRepaint += 1;
-          if (sinceRepaint >= PERSISTENT_BASE_REPAINT_BATCH) {
-            sinceRepaint = 0;
-            applyMeshVisibility();
-            map?.triggerRepaint();
-          }
-        })
-        .catch(() => {
-          // Missing source tiles do not contribute to the backfill.
-        })
-    ).then(() => {
-      if (disposed) return;
-      applyMeshVisibility();
-      map?.triggerRepaint();
-    });
   };
 
   void sourcePromise

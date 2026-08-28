@@ -60,39 +60,41 @@ describe("projected terrain geometry cache", () => {
     vi.clearAllMocks();
   });
 
-  it("restores matching source tiles and invalidates an older conversion", async () => {
+  it("restores a transformed tile before its source must be requested", async () => {
     stored.set("__conversion_revision__", "older-conversion");
     stored.set("stale-tile", { positions: new Float32Array() });
     const cache = createProjectedTerrainGeometryCache(
       "https://example.test/terrain",
       [7.15, 51.25]
     );
-    const create = vi.fn(createGeometry);
+    const geometry = createGeometry();
 
-    const first = await cache.getOrCreate(tile, create);
-    const second = await cache.getOrCreate(tile, create);
+    expect(await cache.get(tile.id)).toBeNull();
+    cache.set(tile, geometry);
+    const restored = await cache.get(tile.id);
 
-    expect(create).toHaveBeenCalledOnce();
     expect(storage.clear).toHaveBeenCalledOnce();
     expect(stored.get("__conversion_revision__")).toBe(
       PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
     );
     expect(stored.has("stale-tile")).toBe(false);
-    expect(second).not.toBe(first);
+    expect(restored?.tile).not.toBe(tile);
+    expect(restored?.tile.id).toEqual(tile.id);
+    expect(restored?.tile.heightMeters).toEqual(tile.heightMeters);
     expect(
-      new Vector3().fromBufferAttribute(second.getAttribute("normal"), 0).y
+      new Vector3().fromBufferAttribute(
+        restored!.geometry.getAttribute("normal"),
+        0
+      ).y
     ).toBeGreaterThan(0);
 
-    const changedTile = {
-      ...tile,
-      heightMeters: new Float32Array([100, 110, 121]),
-      maximumHeightMeters: 121,
-    };
-    const changed = await cache.getOrCreate(changedTile, create);
-    expect(create).toHaveBeenCalledTimes(2);
+    const otherSource = createProjectedTerrainGeometryCache(
+      "https://example.test/other-terrain",
+      [7.15, 51.25]
+    );
+    expect(await otherSource.get(tile.id)).toBeNull();
 
-    first.dispose();
-    second.dispose();
-    changed.dispose();
+    geometry.dispose();
+    restored?.geometry.dispose();
   });
 });
