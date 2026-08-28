@@ -5,6 +5,7 @@ import { WUPPERTAL_TERRAIN_SOURCE_ID } from "../constants/wuppertalDefaultStyle"
 import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
 import {
   notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
@@ -119,6 +120,8 @@ export function Tiles3dLayerManager({
         outlineOpacity: config.outlineOpacity,
         shadowBuildingStyle: true,
         onContentChanged: () => notifySharedThreeSceneContentChanged(map),
+        onRequestStateChange: () =>
+          notifySharedThreeSceneRequestStateChanged(map),
       }
     );
     runtime.setErrorTarget(config.errorTarget ?? 6);

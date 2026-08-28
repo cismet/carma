@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   getSharedThreeSceneRuntimes,
   notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
   registerSharedThreeSceneRuntime,
   subscribeSharedThreeSceneContent,
+  subscribeSharedThreeSceneRequestState,
 } from "./shared-three-scene-content-registry";
 
 describe("shared Three.js scene content registry", () => {
@@ -26,6 +28,25 @@ describe("shared Three.js scene content registry", () => {
     unsubscribe();
     notifySharedThreeSceneContentChanged(firstMap);
     expect(firstListener).toHaveBeenCalledOnce();
+  });
+
+  it("keeps request-state notifications separate from content changes", () => {
+    const map = {} as never;
+    const contentListener = vi.fn();
+    const requestListener = vi.fn();
+    subscribeSharedThreeSceneContent(map, contentListener);
+    const unsubscribe = subscribeSharedThreeSceneRequestState(
+      map,
+      requestListener
+    );
+
+    notifySharedThreeSceneRequestStateChanged(map);
+    expect(requestListener).toHaveBeenCalledOnce();
+    expect(contentListener).not.toHaveBeenCalled();
+
+    unsubscribe();
+    notifySharedThreeSceneRequestStateChanged(map);
+    expect(requestListener).toHaveBeenCalledOnce();
   });
 
   it("registers runtimes for shadow-mode styling and unregisters them", () => {

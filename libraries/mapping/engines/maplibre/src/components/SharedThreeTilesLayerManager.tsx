@@ -6,6 +6,7 @@ import {
 } from "../lib/runtime/integrations/three-tiles-runtime";
 import {
   notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
@@ -38,6 +39,8 @@ export const SharedThreeTilesLayerManager = ({
           requestConcurrency:
             layer.requestConcurrency ?? THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
           onContentChanged: () => notifySharedThreeSceneContentChanged(map),
+          onRequestStateChange: () =>
+            notifySharedThreeSceneRequestStateChanged(map),
         }
       );
       runtime.setClayMaterial({
