@@ -246,8 +246,10 @@ export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three
 export {
   getSharedThreeSceneRuntimes,
   notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
   registerSharedThreeSceneRuntime,
   subscribeSharedThreeSceneContent,
+  subscribeSharedThreeSceneRequestState,
 } from "./lib/runtime/integrations/shared-three-scene-content-registry";
 export {
   getGenericThreeLayers,
