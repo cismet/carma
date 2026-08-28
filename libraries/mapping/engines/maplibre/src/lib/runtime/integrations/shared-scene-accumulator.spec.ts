@@ -40,21 +40,27 @@ describe("buildSharedSceneAccumulator", () => {
     expect(accumulator.jitterFor(0).x).toBeGreaterThanOrEqual(-0.5);
     accumulator.renderRound(renderer, 8, 4, renderScene);
     accumulator.renderRound(renderer, 8, 4, renderScene);
-    accumulator.composite(renderer);
+    expect(accumulator.composite(renderer)).toBe(true);
 
     expect(renderScene).toHaveBeenCalledTimes(2);
     expect(
       vi.mocked(renderer.readRenderTargetPixels).mock.calls[1]?.[5]
     ).toBeInstanceOf(Uint16Array);
     expect(accumulator.converged).toBe(true);
+    expect(accumulator.hasSettledFrame).toBe(true);
     expect(accumulator.nextRound).toBe(2);
     accumulator.ensureState("second");
     expect(accumulator.nextRound).toBe(0);
+    expect(accumulator.hasSettledFrame).toBe(true);
+    expect(accumulator.composite(renderer, true)).toBe(true);
+    expect(accumulator.composite(renderer)).toBe(false);
     accumulator.dispose();
   });
 
   it("marks an unusable blend pipeline as broken", () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const accumulator = buildSharedSceneAccumulator(1);
 
     accumulator.renderRound(buildRenderer(true), 4, 4, () => undefined);

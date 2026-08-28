@@ -49,6 +49,7 @@ import { createAngleCues } from "./parts/cues/angle-cues";
 import { createMaxPitchRing } from "./parts/cues/max-pitch-ring";
 import { createHemisphereSurface } from "./parts/sphere/hemisphere-surface";
 import { createWorldAxes } from "./parts/world-axes/world-axes";
+import { createVolumeBoxes } from "./parts/volume-boxes/volume-boxes";
 import {
   createPointToCanvasProjector,
   projectOrthogonalLineLabelAnchor,
@@ -76,6 +77,7 @@ import type {
   ViewStateVisualizerOverviewOptions,
   ViewStateVisualizerOptions,
   ViewStateVisualizerPrimitive,
+  ViewStateVisualizerVolumeBoxesOptions,
   ViewStateVisualizerVisualizedOptions,
   ViewStateVisualizerSize,
 } from "./view-state-visualizer-types";
@@ -405,6 +407,23 @@ export const createViewStateVisualizerPrimitive = (
   const getActiveCamera = (): Camera =>
     useOrthographic ? orthographicCamera : perspectiveCamera;
 
+  const syncOrthographicProjection = (
+    overview: ResolvedViewStateVisualizerOverviewOptions
+  ) => {
+    const aspect = size.widthPx / size.heightPx;
+    const halfWidth = overview.fitOrthographicWidth
+      ? baseTangentProduct
+      : baseTangentProduct * aspect;
+    const halfHeight = overview.fitOrthographicWidth
+      ? baseTangentProduct / aspect
+      : baseTangentProduct;
+    orthographicCamera.left = -halfWidth;
+    orthographicCamera.right = halfWidth;
+    orthographicCamera.top = halfHeight;
+    orthographicCamera.bottom = -halfHeight;
+    orthographicCamera.updateProjectionMatrix();
+  };
+
   const orbitPositionScratch = new Vector3();
 
   const writeOrbitPosition = ({
@@ -558,6 +577,20 @@ export const createViewStateVisualizerPrimitive = (
     },
     opacity: MATERIALS.axes.opacity,
   });
+  const volumeBoxes = createVolumeBoxes(scene);
+  let currentVolumeBoxes: ViewStateVisualizerVolumeBoxesOptions =
+    options.volumeBoxes ?? { boxes: [] };
+  const applyVolumeBoxes = () => {
+    volumeBoxes.update(currentVolumeBoxes.boxes);
+    volumeBoxes.setDisplay({
+      visible:
+        (currentVolumeBoxes.visible ?? true) &&
+        currentVolumeBoxes.boxes.length > 0,
+      color: currentVolumeBoxes.color ?? "#0f766e",
+      opacity: currentVolumeBoxes.opacity ?? 0.55,
+    });
+  };
+  applyVolumeBoxes();
 
   const cameraViews: CameraViewPartInstance[] = [];
 
@@ -618,6 +651,7 @@ export const createViewStateVisualizerPrimitive = (
 
     worldAxes.setDisplay({
       visible: visibility.showWorldAxes,
+      showUp: display.worldAxes.showUp,
       lineWidthPx: lineWidths.worldAxesLineWidthPx,
       cueColors: {
         east: cueColors.east,
@@ -691,12 +725,7 @@ export const createViewStateVisualizerPrimitive = (
     currentFovDeg = clampedFovDeg;
     perspectiveCamera.fov = clampedFovDeg;
     perspectiveCamera.updateProjectionMatrix();
-    const aspect = size.widthPx / size.heightPx;
-    orthographicCamera.left = -baseTangentProduct * aspect;
-    orthographicCamera.right = baseTangentProduct * aspect;
-    orthographicCamera.top = baseTangentProduct;
-    orthographicCamera.bottom = -baseTangentProduct;
-    orthographicCamera.updateProjectionMatrix();
+    syncOrthographicProjection(overview);
     syncCamerasToOrbit();
   };
 
@@ -1212,12 +1241,7 @@ export const createViewStateVisualizerPrimitive = (
     maxPitchRing.resize(size);
     altitude.resize(size);
     cameraViews.forEach((cameraView) => cameraView.resize(size));
-    const aspect = size.widthPx / size.heightPx;
-    orthographicCamera.left = -baseTangentProduct * aspect;
-    orthographicCamera.right = baseTangentProduct * aspect;
-    orthographicCamera.top = baseTangentProduct;
-    orthographicCamera.bottom = -baseTangentProduct;
-    orthographicCamera.updateProjectionMatrix();
+    syncOrthographicProjection(currentOverview);
     orthographicCamera.updateMatrixWorld();
 
     currentLabelAnchors = update(lastViewStates);
@@ -1288,6 +1312,15 @@ export const createViewStateVisualizerPrimitive = (
     }
   };
 
+  const setVolumeBoxes = (
+    nextVolumeBoxes: ViewStateVisualizerVolumeBoxesOptions
+  ) => {
+    currentVolumeBoxes = nextVolumeBoxes;
+    applyVolumeBoxes();
+    currentLabelAnchors = update(lastViewStates);
+    return currentLabelAnchors;
+  };
+
   // --- Dispose ---
   const dispose = () => {
     if (isCameraPoseDragging) {
@@ -1309,6 +1342,7 @@ export const createViewStateVisualizerPrimitive = (
     altitude.dispose();
     angleCues.dispose();
     worldAxes.dispose();
+    volumeBoxes.dispose();
     cameraViews.forEach((cameraView) => cameraView.dispose());
   };
 
@@ -1319,6 +1353,7 @@ export const createViewStateVisualizerPrimitive = (
     setOverview,
     setVisualized,
     setDisplay,
+    setVolumeBoxes,
     setInteractive,
     readLabelAnchors: () => currentLabelAnchors,
     dispose,

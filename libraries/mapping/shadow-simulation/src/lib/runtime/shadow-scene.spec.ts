@@ -100,7 +100,12 @@ describe("shadow scene lighting integration", () => {
     dispose: () => void;
   };
   let sharedRuntimes: Map<string, SharedRuntimeFixture>;
-  let accumulationController: { active: () => boolean } | null;
+  let accumulationController: {
+    active: () => boolean;
+    retainSettledFrame: () => boolean;
+    prepareRound: (round: number) => void;
+    rounds: number;
+  } | null;
   let sharedLayer: {
     getScene: () => THREE.Scene;
     addRuntime: (runtime: SharedRuntimeFixture) => void;
@@ -108,7 +113,12 @@ describe("shadow scene lighting integration", () => {
     removeRuntime: (runtimeId: string) => void;
     getRenderer: () => THREE.WebGLRenderer | null;
     setAccumulationController: (
-      controller: { active: () => boolean } | null
+      controller: {
+        active: () => boolean;
+        retainSettledFrame: () => boolean;
+        prepareRound: (round: number) => void;
+        rounds: number;
+      } | null
     ) => void;
     projectLngLatToScene?: (
       lngLat: [number, number],
@@ -295,6 +305,9 @@ describe("shadow scene lighting integration", () => {
     expect(
       scene.getObjectByName("shadow-simulation-sun-vector-elevation-arc")
     ).toBeDefined();
+    const centeredSunPosition = sun.position.clone();
+    accumulationController?.prepareRound(1);
+    expect(sun.position.equals(centeredSunPosition)).toBe(false);
 
     controller.dispose();
     expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);
@@ -358,13 +371,13 @@ describe("shadow scene lighting integration", () => {
     expect(
       sharedRuntimes.get("shadow-simulation-controller")?.updatePriority
     ).toBe(200);
-    const accumulation = accumulationController as {
-      active: () => boolean;
-    };
+    const accumulation = accumulationController!;
     expect(accumulation.active()).toBe(false);
+    expect(accumulation.retainSettledFrame()).toBe(true);
 
     requestDemand = 0;
     expect(accumulation.active()).toBe(true);
+    expect(accumulation.retainSettledFrame()).toBe(false);
 
     controller.updateTimeAnimating(true);
     expect(accumulation.active()).toBe(false);

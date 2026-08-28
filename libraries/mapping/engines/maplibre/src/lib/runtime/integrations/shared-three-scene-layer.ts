@@ -30,6 +30,13 @@ export type SharedThreeSceneShadowView = Readonly<{
   }>;
 }>;
 
+export type SharedThreeSceneDebugVolume = Readonly<{
+  id: string;
+  kind: string;
+  minimum: readonly [number, number, number];
+  maximum: readonly [number, number, number];
+}>;
+
 export interface SharedThreeSceneRuntime {
   id: string;
   originLngLat: [number, number];
@@ -45,6 +52,8 @@ export interface SharedThreeSceneRuntime {
   getViewElevationRange?: (
     camera: THREE.Camera
   ) => readonly [minimum: number, maximum: number] | null;
+  /** World-space bounds of currently active runtime content for diagnostics. */
+  getDebugVolumes?: () => readonly SharedThreeSceneDebugVolume[];
   /** Outstanding work required before a fixed-state render can converge. */
   getRequestDemand?: () => number;
   dispose: () => void;
@@ -77,8 +86,12 @@ export type SharedThreeSceneShadowStyle = Readonly<{
 export type SharedSceneAccumulationController = {
   /** Changes whenever the shadow/lighting state the rounds sample changed. */
   epoch: () => number;
+  /** Changes only when an already displayed result is visually obsolete. */
+  visualEpoch: () => number;
   /** Whether accumulating is worthwhile right now (soft sun, camera at rest). */
   active: () => boolean;
+  /** Whether a settled result may cover a temporary content-loading gap. */
+  retainSettledFrame: () => boolean;
   /** Re-aim the scene's lights for the given accumulation round. */
   prepareRound: (round: number) => void;
   rounds: number;
@@ -247,6 +260,7 @@ export const buildSharedThreeSceneLayer = (
   let accumulationController: SharedSceneAccumulationController | null = null;
   let accumulator: SharedSceneAccumulator | null = null;
   let accumulatorRounds = 0;
+  let settledAccumulatorVisualKey = "";
   const jitterMatrix = new THREE.Matrix4();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
@@ -434,24 +448,29 @@ export const buildSharedThreeSceneLayer = (
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
 
       const accumulation = accumulationController;
+      const poseKey = [
+        ...renderCamera.matrixWorld.elements,
+        ...renderCamera.projectionMatrix.elements,
+      ]
+        .map((value) => value.toPrecision(6))
+        .join(",");
+      const visualKey = accumulation
+        ? `${accumulation.visualEpoch()}|${poseKey}`
+        : "";
       if (accumulation?.active() && renderer && !accumulator?.broken) {
         if (accumulator && accumulatorRounds !== accumulation.rounds) {
           accumulator.dispose();
           accumulator = null;
+          settledAccumulatorVisualKey = "";
         }
         if (!accumulator) {
           accumulator = buildSharedSceneAccumulator(accumulation.rounds);
           accumulatorRounds = accumulation.rounds;
         }
-        // The rounds sample one fixed state: the shadow controller's epoch
-        // and the camera pose. Either moving restarts the average.
-        const poseKey = [
-          ...renderCamera.matrixWorld.elements,
-          ...renderCamera.projectionMatrix.elements,
-        ]
-          .map((value) => value.toPrecision(6))
-          .join(",");
         accumulator.ensureState(`${accumulation.epoch()}|${poseKey}`);
+        const retainSettled =
+          accumulator.hasSettledFrame &&
+          settledAccumulatorVisualKey === visualKey;
         const drawingBuffer = renderer.getDrawingBufferSize(
           new THREE.Vector2()
         );
@@ -477,15 +496,39 @@ export const buildSharedThreeSceneLayer = (
               () => activeRenderer.render(scene, renderCamera)
             );
           });
+          if (accumulator.converged) {
+            settledAccumulatorVisualKey = visualKey;
+          }
         }
+        let composited = false;
         depthRangeBridge?.render(savedDepthRange, () => {
-          if (renderer) accumulator?.composite(renderer);
+          if (renderer) {
+            composited =
+              accumulator?.composite(renderer, retainSettled) ?? false;
+          }
         });
+        if (!composited) {
+          depthRangeBridge?.render(savedDepthRange, () => {
+            renderer?.render(scene, renderCamera);
+          });
+        }
         if (!accumulator.converged) map.triggerRepaint();
       } else {
+        const retainSettled =
+          accumulation?.retainSettledFrame() === true &&
+          accumulator?.hasSettledFrame === true &&
+          settledAccumulatorVisualKey === visualKey;
+        let composited = false;
         depthRangeBridge?.render(savedDepthRange, () => {
-          renderer?.render(scene, renderCamera);
+          if (retainSettled && renderer) {
+            composited = accumulator?.composite(renderer, true) ?? false;
+          }
         });
+        if (!composited) {
+          depthRangeBridge?.render(savedDepthRange, () => {
+            renderer?.render(scene, renderCamera);
+          });
+        }
       }
     },
 
