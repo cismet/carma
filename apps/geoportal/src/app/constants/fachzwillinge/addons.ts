@@ -71,7 +71,6 @@ export const addonsFachzwilling: FachzwillingRoute = {
           errorTargetPixels: 0.5,
           shadowLevelOffset: 3,
           minimumLevel: 15,
-          persistentBaseLevel: 15,
           maximumLevel: 18,
           noDataHeightMeters: 0,
           maxSelectionTiles: 1_536,

@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
@@ -101,6 +101,10 @@ describe("useGeoportalShadowSimulationHash", () => {
     libreContextMock.getCenter.mockReturnValue({ lat: 51.256, lng: 7.15 });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("waits for addon initialization before restoring and writing shadow state", async () => {
     const customHashState = createCustomHashState({
       selection: { minutes: 660, dayOfYear: 140 },
@@ -175,6 +179,94 @@ describe("useGeoportalShadowSimulationHash", () => {
       );
     });
     expect(addonStateMock.setShadowState).not.toHaveBeenCalled();
+  });
+
+  it("throttles rapid selection changes and writes the latest value", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-28T12:00:00Z"));
+    const customHashState = createCustomHashState({
+      selection: { minutes: 660, dayOfYear: 140 },
+    });
+    addonStateMock.shadowState = createShadowState({
+      enabled: true,
+      selection: { year: 2026, minutes: 660, dayOfYear: 140 },
+    });
+    const { rerender } = renderHook(() =>
+      useGeoportalShadowSimulationHash({ customHashState })
+    );
+
+    expect(hashStateMock.updateHashState).toHaveBeenCalledTimes(1);
+    hashStateMock.updateHashState.mockClear();
+
+    act(() => {
+      addonStateMock.shadowState = createShadowState({
+        enabled: true,
+        selection: { year: 2026, minutes: 661, dayOfYear: 140 },
+      });
+      rerender();
+      addonStateMock.shadowState = createShadowState({
+        enabled: true,
+        selection: { year: 2026, minutes: 662, dayOfYear: 141 },
+      });
+      rerender();
+    });
+
+    expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(hashStateMock.updateHashState).toHaveBeenCalledTimes(1);
+    expect(hashStateMock.updateHashState).toHaveBeenCalledWith(
+      { shadow: "662;141" },
+      { label: "geoportal:sync-shadow-simulation", replace: true }
+    );
+  });
+
+  it("cancels a pending local write when history navigation wins", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-28T12:00:00Z"));
+    let customHashState = createCustomHashState({
+      selection: { minutes: 660, dayOfYear: 140 },
+    });
+    addonStateMock.shadowState = createShadowState({
+      enabled: true,
+      selection: { year: 2026, minutes: 660, dayOfYear: 140 },
+    });
+    const { rerender } = renderHook(() =>
+      useGeoportalShadowSimulationHash({ customHashState })
+    );
+
+    expect(hashStateMock.updateHashState).toHaveBeenCalledTimes(1);
+    hashStateMock.updateHashState.mockClear();
+
+    act(() => {
+      addonStateMock.shadowState = createShadowState({
+        enabled: true,
+        selection: { year: 2026, minutes: 720, dayOfYear: 141 },
+      });
+      rerender();
+    });
+    expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
+
+    act(() => {
+      customHashState = createCustomHashState({
+        selection: null,
+        source: "popstate",
+        version: 1,
+      });
+      rerender();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
+    expect(addonStateMock.setShadowState).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
   });
 
   it("disables the simulation when history navigation removes the hash state", async () => {
