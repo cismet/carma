@@ -49,6 +49,8 @@ export const SWITCHABLE_KINDS = [
   "vectorHighlightControl",
   "vectorHighlightDebug",
   "libreTerrain",
+  "excalidrawOverlay",
+  "excalidrawControl",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
   "timeSlider",
