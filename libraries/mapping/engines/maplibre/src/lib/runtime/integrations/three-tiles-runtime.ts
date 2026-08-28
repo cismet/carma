@@ -1,4 +1,5 @@
 import { TilesRenderer } from "3d-tiles-renderer";
+import type { Tile } from "3d-tiles-renderer/core";
 import {
   DebugTilesPlugin,
   GLTFExtensionsPlugin,
@@ -15,8 +16,19 @@ import { clamp } from "@carma-commons/math";
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 import { degToRadNumeric } from "@carma-units";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
-import { createTilesCameraSet } from "./tiles-camera-set";
+import {
+  createTilesCameraSet,
+  resolveTilesViewCamera,
+} from "./tiles-camera-set";
 import type { TilesCameraSet } from "./tiles-camera-set";
+import {
+  createThreeTilesRetryController,
+  type RetryableTilesRenderer,
+} from "./three-tiles-retry-controller";
+import {
+  isSharedThreeTerrainLoading,
+  subscribeSharedThreeTerrainLoading,
+} from "./shared-three-terrain-registry";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneRuntime,
@@ -35,6 +47,7 @@ const COVERAGE_ERROR_TARGET_PIXELS = 64;
 const REFINEMENT_FACTOR = 2;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
+const MAX_SHADOW_REQUEST_CONCURRENCY = 2;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
 
@@ -125,6 +138,7 @@ export function buildThreeTilesRuntime(
   let cameraSet: TilesCameraSet | null = null;
   let kickstartTimer = 0;
   let refinementTimer = 0;
+  let unsubscribeTerrainLoading: (() => void) | null = null;
   let requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
   let activeErrorTarget = COVERAGE_ERROR_TARGET_PIXELS;
   let cacheBudgetBytes = Math.max(
@@ -152,12 +166,17 @@ export function buildThreeTilesRuntime(
   let outlineVisible = options.outline ?? true;
   let shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
   let shadowView: SharedThreeSceneShadowView | null = null;
+  let shadowSelectionEnabled = false;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
   let activeProjector: ImageProjector | null = null;
   const placementMatrix = new THREE.Matrix4();
   const inversePlacementMatrix = new THREE.Matrix4();
+  const tileViewProjection = new THREE.Matrix4();
+  const tileViewFrustum = new THREE.Frustum();
+  const tileBoundingSphere = new THREE.Sphere();
+  const tileProjectedCenter = new THREE.Vector3();
   const identityRotation = new THREE.Quaternion();
   const projectorUniforms = {
     uProjKind: { value: 0 },
@@ -370,6 +389,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
 
   const requestRender = () => map?.triggerRepaint();
+  const tileRetries = createThreeTilesRetryController(
+    () => tiles as (TilesRenderer & RetryableTilesRenderer) | null,
+    requestRender
+  );
   const getRequestDemand = () => {
     if (!runtimeVisible) return 0;
     if (!tiles) return 1;
@@ -384,8 +407,42 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     );
   };
   const notifyRequestStateChange = () => options.onRequestStateChange?.();
-  const handleModelLoad = (event: { scene?: THREE.Object3D }) => {
+  const setShadowSelectionEnabled = (enabled: boolean) => {
+    const nextEnabled = enabled && shadowView !== null;
+    if (shadowSelectionEnabled === nextEnabled) return;
+    shadowSelectionEnabled = nextEnabled;
+    cameraSet?.setShadowView(nextEnabled ? shadowView : null);
+  };
+  const maybeEnableShadowSelection = () => {
+    if (
+      shadowSelectionEnabled ||
+      !shadowView ||
+      !tiles ||
+      !cameraSet ||
+      (map && isSharedThreeTerrainLoading(map)) ||
+      tileRetries.hasPendingRetries()
+    ) {
+      return;
+    }
+    const stats = tiles as TilesRenderer & {
+      stats: { queued: number; downloading: number; parsing: number };
+    };
+    if (
+      stats.stats.queued + stats.stats.downloading + stats.stats.parsing >
+      0
+    ) {
+      return;
+    }
+    setShadowSelectionEnabled(true);
+    tiles.dispatchEvent({ type: "needs-update" });
+    requestRender();
+  };
+  const handleModelLoad = (event: { scene?: THREE.Object3D; tile?: Tile }) => {
+    if (event.tile) tileRetries.handleSuccess(event.tile);
     if (event.scene) {
+      event.scene.traverse((object) => {
+        object.frustumCulled = false;
+      });
       applyMaterialFlags(event.scene);
       applyOutlineVisibility(event.scene);
     }
@@ -396,6 +453,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const handleModelDispose = (event: { scene?: THREE.Object3D }) => {
     if (event.scene) restoreClayMaterials(event.scene);
     options.onContentChanged?.();
+  };
+  const handleLoadError = (event: { tile?: Tile | null }) => {
+    tileRetries.handleFailure(event.tile ?? null);
+    notifyRequestStateChange();
+  };
+  const handleTilesLoadEnd = () => {
+    notifyRequestStateChange();
+    maybeEnableShadowSelection();
   };
   const syncProjector = () => {
     const projector = activeProjector;
@@ -431,6 +496,15 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     tiles.lruCache.maxBytesSize = cacheBudgetBytes;
     tiles.lruCache.unloadPercent = 0.5;
     tiles.lruCache.scheduleUnload();
+  };
+  const applyRequestConcurrency = () => {
+    if (!tiles) return;
+    tiles.downloadQueue.maxJobs =
+      map && isSharedThreeTerrainLoading(map)
+        ? 0
+        : shadowView
+        ? Math.min(requestConcurrency, MAX_SHADOW_REQUEST_CONCURRENCY)
+        : requestConcurrency;
   };
   const restartProgressiveLod = () => {
     activeErrorTarget = Math.max(
@@ -482,6 +556,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       window.clearTimeout(refinementTimer);
       refinementTimer = 0;
     }
+    setShadowSelectionEnabled(false);
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
@@ -491,15 +566,60 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const pruneStaleQueuedRequests = () => {
     if (!tiles) return;
     const queue = tiles.downloadQueue as typeof tiles.downloadQueue & {
-      items: Array<{ inFrustum?: boolean; used?: boolean }>;
+      items: Array<{
+        traversal?: { inFrustum?: boolean; used?: boolean };
+      }>;
       remove: (item: unknown) => void;
     };
-    // `used` covers every registered view and shadow camera.
     for (const tile of [...queue.items]) {
-      if (tile.inFrustum === false && tile.used === false) {
+      if (
+        tile.traversal?.inFrustum === false &&
+        tile.traversal.used === false
+      ) {
         queue.remove(tile);
       }
     }
+  };
+  const prioritizeQueuedTiles = (viewCamera: THREE.Camera) => {
+    if (!tiles) return;
+    tileViewProjection
+      .multiplyMatrices(
+        viewCamera.projectionMatrix,
+        viewCamera.matrixWorldInverse
+      )
+      .multiply(tiles.group.matrixWorld);
+    tileViewFrustum.setFromProjectionMatrix(
+      tileViewProjection,
+      viewCamera.coordinateSystem,
+      viewCamera.reversedDepth
+    );
+    const queue = tiles.downloadQueue as typeof tiles.downloadQueue & {
+      items: Array<
+        Tile & {
+          priority?: number;
+          engineData?: {
+            boundingVolume?: {
+              intersectsFrustum: (frustum: THREE.Frustum) => boolean;
+              getSphere: (target: THREE.Sphere) => void;
+            };
+          };
+        }
+      >;
+    };
+    for (const tile of queue.items) {
+      const bounds = tile.engineData?.boundingVolume;
+      if (!bounds) continue;
+      const inViewport = bounds.intersectsFrustum(tileViewFrustum);
+      bounds.getSphere(tileBoundingSphere);
+      tileProjectedCenter
+        .copy(tileBoundingSphere.center)
+        .applyMatrix4(tiles.group.matrixWorld)
+        .project(viewCamera);
+      const distanceSquared =
+        tileProjectedCenter.x ** 2 + tileProjectedCenter.y ** 2;
+      tile.priority = (inViewport ? 2 : 0) + 1 / (1 + distanceSquared);
+    }
+    queue.sort();
   };
   const handleUpdateAfter = () => {
     scheduleProgressiveRefinement();
@@ -568,7 +688,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
       tiles.loadSiblings = false;
       tiles.loadAncestors = false;
-      tiles.downloadQueue.maxJobs = requestConcurrency;
+      applyRequestConcurrency();
       tiles.parseQueue.maxJobs = 4;
       tiles.processNodeQueue.maxJobs = 48;
       tiles.maxTilesProcessed = 1_000;
@@ -598,12 +718,23 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         requestRender();
       }, 400);
       tiles.addEventListener("needs-update", requestRender);
-      tiles.addEventListener("load-tile-set", requestRender);
+      tiles.addEventListener("load-tileset", requestRender);
       tiles.addEventListener("update-after", handleUpdateAfter);
       tiles.addEventListener("load-model", handleModelLoad);
       tiles.addEventListener("dispose-model", handleModelDispose);
-      tiles.addEventListener("load-error", notifyRequestStateChange);
-      tiles.addEventListener("tiles-load-end", notifyRequestStateChange);
+      tiles.addEventListener("load-error", handleLoadError);
+      tiles.addEventListener("tiles-load-end", handleTilesLoadEnd);
+      unsubscribeTerrainLoading = subscribeSharedThreeTerrainLoading(
+        map,
+        () => {
+          applyRequestConcurrency();
+          if (tiles && tiles.downloadQueue.maxJobs > 0) {
+            tiles.downloadQueue.tryRunJobs();
+          }
+          tiles?.dispatchEvent({ type: "needs-update" });
+          requestRender();
+        }
+      );
       map.on("movestart", handleViewStart);
       map.on("moveend", handleViewEnd);
       map.on("resize", handleViewEnd);
@@ -613,13 +744,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       if (!runtimeVisible || !tiles || !map) return;
       syncProjector();
       try {
+        const viewCamera = resolveTilesViewCamera(
+          frame.renderCamera,
+          frame.lodCamera
+        );
         if (!cameraSet) {
-          cameraSet = createTilesCameraSet(tiles, frame.lodCamera);
-          cameraSet.setShadowView(shadowView);
+          cameraSet = createTilesCameraSet(tiles, viewCamera);
+          cameraSet.setShadowView(shadowSelectionEnabled ? shadowView : null);
         }
-        cameraSet.update(frame.lodCamera, frame.viewport.x, frame.viewport.y);
+        cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         tiles.update();
+        prioritizeQueuedTiles(viewCamera);
         pruneStaleQueuedRequests();
+        maybeEnableShadowSelection();
       } catch (error) {
         console.error("[tiles3d] update failed:", error);
       }
@@ -641,12 +778,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       ) {
         map.triggerRepaint();
       }
-
-      // TilesRenderer performs the shared-camera culling. Three's second
-      // sphere cull is incompatible with MapLibre's matrix-only draw camera.
-      orientationGroup.traverse((object) => {
-        object.frustumCulled = false;
-      });
     },
 
     setVisible(visible: boolean) {
@@ -700,8 +831,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     setShadowView(view) {
+      const hadShadowView = shadowView !== null;
       shadowView = view;
-      cameraSet?.setShadowView(view);
+      if (!view || !hadShadowView) setShadowSelectionEnabled(false);
+      applyRequestConcurrency();
+      if (shadowSelectionEnabled) cameraSet?.setShadowView(view);
       tiles?.dispatchEvent({ type: "needs-update" });
     },
 
@@ -775,8 +909,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       const changed = nextConcurrency !== requestConcurrency;
       requestConcurrency = nextConcurrency;
       if (!tiles) return;
-      tiles.downloadQueue.maxJobs = requestConcurrency;
-      if (requestConcurrency > 0) tiles.downloadQueue.tryRunJobs();
+      applyRequestConcurrency();
+      if (tiles.downloadQueue.maxJobs > 0) {
+        tiles.downloadQueue.tryRunJobs();
+      }
       if (changed) tiles.dispatchEvent({ type: "needs-update" });
     },
 
@@ -794,15 +930,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.off("movestart", handleViewStart);
       map?.off("moveend", handleViewEnd);
       map?.off("resize", handleViewEnd);
+      unsubscribeTerrainLoading?.();
+      unsubscribeTerrainLoading = null;
       tiles?.removeEventListener("needs-update", requestRender);
-      tiles?.removeEventListener("load-tile-set", requestRender);
+      tiles?.removeEventListener("load-tileset", requestRender);
       tiles?.removeEventListener("update-after", handleUpdateAfter);
       tiles?.removeEventListener("load-model", handleModelLoad);
       tiles?.removeEventListener("dispose-model", handleModelDispose);
-      tiles?.removeEventListener("load-error", notifyRequestStateChange);
-      tiles?.removeEventListener("tiles-load-end", notifyRequestStateChange);
+      tiles?.removeEventListener("load-error", handleLoadError);
+      tiles?.removeEventListener("tiles-load-end", handleTilesLoadEnd);
       cameraSet?.dispose();
       cameraSet = null;
+      tileRetries.dispose();
       restoreClayMaterials(orientationGroup);
       restoreShadowSides();
       tiles?.dispose();

@@ -9,9 +9,11 @@ const receiverWorldPoints = [
   new THREE.Vector3(50, 140, 25),
   new THREE.Vector3(-50, 140, 25),
 ];
+const SUN_DISC_TEST_RADIUS_RAD = ((0.53 / 2) * Math.PI) / 180 + 1e-12;
 
 const buildUpdate = (overrides: Partial<ShadowUpdate> = {}): ShadowUpdate => ({
   receiverWorldPoints,
+  receiverAnchorWorldPosition: new THREE.Vector3(0, 100, 0),
   minimumElevationMeters: 100,
   maximumElevationMeters: 140,
   directionToSun: new THREE.Vector3(0.5, 0.7, -0.5).normalize(),
@@ -19,7 +21,6 @@ const buildUpdate = (overrides: Partial<ShadowUpdate> = {}): ShadowUpdate => ({
   intensity: 2,
   shadowIntensity: 0.8,
   quality: 4,
-  interactive: false,
   ...overrides,
 });
 
@@ -69,6 +70,48 @@ describe("ShadowController", () => {
     expect(controller.lights[0].shadow.needsUpdate).toBe(true);
   });
 
+  it("rotates the sun direction around the terrain anchor", () => {
+    const controller = new ShadowController(new THREE.Scene());
+    const anchor = new THREE.Vector3(20, 123, -40);
+    controller.setSoftSun(true);
+    controller.update(buildUpdate({ receiverAnchorWorldPosition: anchor }));
+
+    controller.applySunDiscSample(3);
+
+    expect(controller.lights[0].target.position.equals(anchor)).toBe(true);
+    const sampledDirection = controller.lights[0].position
+      .clone()
+      .sub(anchor)
+      .normalize();
+    expect(
+      sampledDirection.angleTo(buildUpdate().directionToSun)
+    ).toBeLessThanOrEqual(SUN_DISC_TEST_RADIUS_RAD);
+  });
+
+  it("keeps every receiver inside the shadow map for every sun-disc sample", () => {
+    const controller = new ShadowController(new THREE.Scene());
+    controller.setSoftSun(true);
+    controller.update(
+      buildUpdate({
+        directionToSun: new THREE.Vector3(0.8, 0.05, -0.6).normalize(),
+      })
+    );
+
+    for (let round = 0; round < 8; round += 1) {
+      controller.applySunDiscSample(round);
+      const camera = controller.lights[0].shadow.camera;
+      for (const point of receiverWorldPoints) {
+        const clip = point
+          .clone()
+          .applyMatrix4(camera.matrixWorldInverse)
+          .applyMatrix4(camera.projectionMatrix);
+        expect(Math.abs(clip.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(clip.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(clip.z)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
   it.each([16, 64] as const)(
     "uses the renderer texture limit at quality %i",
     (quality) => {
@@ -80,18 +123,6 @@ describe("ShadowController", () => {
       expect(snapshot?.camera.shadowMapWidth).toBe(32_768);
     }
   );
-
-  it("uses a reduced shadow buffer while the map is moving", () => {
-    const controller = new ShadowController(new THREE.Scene());
-    controller.setMaxShadowMapSize(32_768);
-
-    const snapshot = controller.update(
-      buildUpdate({ quality: 64, interactive: true })
-    );
-
-    expect(snapshot?.camera.shadowMapWidth).toBe(2_048);
-    expect(snapshot?.camera.shadowMapHeight).toBe(2_048);
-  });
 
   it("disables lights without receivers and removes them on disposal", () => {
     const scene = new THREE.Scene();

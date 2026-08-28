@@ -235,13 +235,10 @@ export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-th
 export type {
   SharedThreeSceneFrame,
   SharedThreeSceneLayer,
-  SharedThreeSceneLayerOptions,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
-  SharedThreeSceneShadowStyle,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
-export type { SharedThreeSceneLease } from "./lib/runtime/integrations/shared-three-scene-registry";
 export {
   getSharedThreeSceneRuntimes,
   notifySharedThreeSceneContentChanged,
@@ -255,10 +252,7 @@ export {
   subscribeGenericThreeLayers,
   unregisterGenericThreeLayer,
 } from "./lib/runtime/integrations/generic-three-layer-registry";
-export type {
-  ThreeTilesClayShader,
-  ThreeTilesLayer,
-} from "./lib/runtime/integrations/three-tiles-layer";
+export type { ThreeTilesLayer } from "./lib/runtime/integrations/three-tiles-layer";
 export {
   THREE_TILES_LAYER_TYPE,
   THREE_TILES_SHADER_KIND,
@@ -270,17 +264,11 @@ export {
   TILES_ERROR_TARGET_MIN_PIXELS,
 } from "./lib/runtime/integrations/three-tiles-runtime";
 export type {
-  ClayMaterialOptions,
   ImageProjector,
   ThreeTilesRuntime,
-  ThreeTilesRuntimeOptions,
 } from "./lib/runtime/integrations/three-tiles-runtime";
 export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
-export type {
-  CesiumTerrainMaterialOptions,
-  CesiumTerrainRuntime,
-  CesiumTerrainRuntimeOptions,
-} from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
 export { suppressMapLibreTerrainRendering } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export { suppressMapLibreRegularStyleLayers } from "./lib/runtime/integrations/map-style-layer-suppression";
 

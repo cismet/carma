@@ -1,8 +1,10 @@
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
+  Box3,
   Camera,
   FrontSide,
+  Frustum,
   Group,
   Matrix4,
   Mesh,
@@ -35,7 +37,9 @@ import {
 import {
   notifySharedThreeTerrainChanged,
   registerSharedThreeTerrainSampler,
+  setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
+import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneRuntime,
@@ -50,6 +54,7 @@ const DEFAULT_MAXIMUM_LEVEL = 17;
 const DEFAULT_MAX_SELECTION_TILES = 192;
 const DEFAULT_REQUEST_CONCURRENCY = 6;
 const DEFAULT_MAX_CACHED_MESHES = 256;
+const TERRAIN_UPDATE_PRIORITY = 100;
 const MAX_PERSISTENT_BASE_TILES = 4_096;
 /** Keeps persistent parents below overlapping refined terrain. */
 const PERSISTENT_BACKFILL_LOWERING_METERS = 8;
@@ -57,6 +62,7 @@ const PERSISTENT_BASE_PREFETCH_CONCURRENCY = 2;
 const PERSISTENT_BASE_REPAINT_BATCH = 64;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
 const VIEWPORT_COVERAGE_PADDING_FACTOR = 0.25;
+const UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS = [-1_000, 10_000] as const;
 
 export type CesiumTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
@@ -95,6 +101,8 @@ type TerrainMeshRecord = {
   boundaryEdges: TerrainBoundaryEdges;
   lastUsed: number;
   id: CesiumTerrainTileId;
+  minimumHeightMeters: number;
+  maximumHeightMeters: number;
   /** Never trimmed; keeps drawing as backfill where nothing finer is active. */
   persistent: boolean;
 };
@@ -141,6 +149,7 @@ type TerrainCandidate = {
   /** Error against the coarser shadow target; 0 outside the sun coverage. */
   shadowErrorRatio: number;
   intersectsViewport: boolean;
+  viewportCenterDistanceSquared: number;
 };
 
 const FLAT_TERRAIN_U = new Float32Array([0, 0, 1, 1]);
@@ -298,6 +307,22 @@ const normalizeShadowMapSize = (
       : 1,
 });
 
+const getFiniteHeightRange = (
+  heights: ArrayLike<number>
+): readonly [minimum: number, maximum: number] | null => {
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  for (let index = 0; index < heights.length; index += 1) {
+    const height = heights[index];
+    if (!Number.isFinite(height)) continue;
+    minimum = Math.min(minimum, height);
+    maximum = Math.max(maximum, height);
+  }
+  return Number.isFinite(minimum) && Number.isFinite(maximum)
+    ? [minimum, maximum]
+    : null;
+};
+
 const getViewportBounds = (map: MaplibreMap): CesiumTerrainTileBounds => {
   const bounds = map.getBounds();
   return {
@@ -423,6 +448,10 @@ export const buildCesiumTerrainRuntime = (
   const noDataHeightMeters = options.noDataHeightMeters;
   const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const meterScale = origin.meterInMercatorCoordinateUnits();
+  const projectedGeometryCache = createProjectedTerrainGeometryCache(
+    terrainUrl,
+    originLngLat
+  );
   const root = new Group();
   root.name = `${runtimeId}-root`;
   const material = new MeshLambertMaterial({
@@ -448,6 +477,8 @@ export const buildCesiumTerrainRuntime = (
   let shadowView: SharedThreeSceneShadowView | null = null;
   let unregisterSampler: (() => void) | null = null;
   let disposed = false;
+  let terrainLoading = true;
+  let persistentPrefetchStarted = false;
   let meshUseClock = 0;
   let selectionGeneration = 0;
   let requestedSignature = "";
@@ -466,6 +497,11 @@ export const buildCesiumTerrainRuntime = (
     if (readySettled) return;
     readySettled = true;
     resolveReady(loaded);
+  };
+
+  const setTerrainLoading = (loading: boolean) => {
+    terrainLoading = loading;
+    if (map) setSharedThreeTerrainLoading(map, runtimeId, loading);
   };
 
   const projectToLocalWorld = (
@@ -494,6 +530,8 @@ export const buildCesiumTerrainRuntime = (
     u: FLAT_TERRAIN_U,
     v: FLAT_TERRAIN_V,
     heightMeters: FLAT_TERRAIN_HEIGHTS,
+    minimumHeightMeters: 0,
+    maximumHeightMeters: 0,
     indices: FLAT_TERRAIN_INDICES,
     westIndices: FLAT_TERRAIN_WEST_INDICES,
     southIndices: FLAT_TERRAIN_SOUTH_INDICES,
@@ -507,31 +545,13 @@ export const buildCesiumTerrainRuntime = (
   const getScreenSpaceError = (
     terrainSource: CesiumTerrainTileSource,
     frame: SharedThreeSceneFrame,
-    id: CesiumTerrainTileId
+    id: CesiumTerrainTileId,
+    localBoundingBox: Box3,
+    localCameraPosition: Vector3
   ) => {
-    const bounds = terrainSource.getTileBounds(id);
-    const centerLongitude = (bounds.west + bounds.east) / 2;
-    const centerLatitude = (bounds.south + bounds.north) / 2;
-    // Anchor screen-space error at the sampled surface elevation.
-    const centerElevation =
-      terrainSource.sampleHeight(centerLongitude, centerLatitude) ?? 0;
-    const center = projectToLocalWorld(
-      centerLongitude,
-      centerLatitude,
-      centerElevation,
-      new Vector3()
-    );
-    const corner = projectToLocalWorld(
-      bounds.east,
-      bounds.north,
-      centerElevation,
-      new Vector3()
-    );
-    // Judge partially visible tiles by the sphere's closest point.
-    const radius = center.distanceTo(corner);
     const distance = Math.max(
       1,
-      frame.lodCamera.position.distanceTo(center) - radius
+      localBoundingBox.distanceToPoint(localCameraPosition)
     );
     const focalLengthPixels =
       frame.viewport.y / (2 * Math.tan((frame.lodCamera.fov * Math.PI) / 360));
@@ -575,7 +595,7 @@ export const buildCesiumTerrainRuntime = (
   const getRelevantChildren = (
     terrainSource: CesiumTerrainTileSource,
     parent: TerrainSelectionEntry,
-    viewportBounds: CesiumTerrainTileBounds,
+    intersectsViewport: (entry: TerrainSelectionEntry) => boolean,
     shadowBounds: CesiumTerrainTileBounds | null
   ) => {
     if (parent.kind === "flat") return [];
@@ -589,37 +609,50 @@ export const buildCesiumTerrainRuntime = (
           y: parent.id.y * 2 + yOffset,
         };
         const bounds = terrainSource.getTileBounds(id);
-        const intersectsViewport = geographicBoundsIntersect(
-          bounds,
-          viewportBounds
-        );
+        const entry = { id, kind: "source" } as const;
+        const childIntersectsViewport = intersectsViewport(entry);
         const intersectsShadow =
           shadowBounds !== null &&
           geographicBoundsIntersect(bounds, shadowBounds);
-        if (!intersectsViewport && !intersectsShadow) continue;
+        if (!childIntersectsViewport && !intersectsShadow) continue;
         // Keep the parent whole when any relevant child lacks source data.
         if (terrainSource.getTileDataAvailable(id) === false) return [];
-        children.push({ id, kind: "source" });
+        children.push(entry);
       }
     }
     return children;
   };
 
-  const ensureMesh = (
+  const createProjectedGeometry = (tile: CesiumTerrainTile) =>
+    createProjectedTerrainTileGeometry({
+      tile,
+      projectToWorld: projectToLocalWorld,
+    });
+
+  const loadProjectedGeometry = (
     tile: CesiumTerrainTile,
     entry: TerrainSelectionEntry
+  ) =>
+    entry.kind === "flat"
+      ? Promise.resolve(createProjectedGeometry(tile))
+      : projectedGeometryCache.getOrCreate(tile, () =>
+          createProjectedGeometry(tile)
+        );
+
+  const ensureMesh = (
+    tile: CesiumTerrainTile,
+    entry: TerrainSelectionEntry,
+    projectedGeometry?: BufferGeometry
   ) => {
     const key = terrainSelectionKey(entry);
     const cached = meshes.get(key);
     if (cached) {
+      projectedGeometry?.dispose();
       cached.lastUsed = ++meshUseClock;
       return cached.node;
     }
     let reliefGeometry: BufferGeometry | null =
-      createProjectedTerrainTileGeometry({
-        tile,
-        projectToWorld: projectToLocalWorld,
-      });
+      projectedGeometry ?? createProjectedGeometry(tile);
     let reliefVertexMask = new Uint8Array(
       reliefGeometry.getAttribute("position").count
     ).fill(1);
@@ -678,6 +711,15 @@ export const buildCesiumTerrainRuntime = (
       east: filterReliefBoundary(tile.eastIndices),
       north: filterReliefBoundary(tile.northIndices),
     };
+    const decodedHeightRange = getFiniteHeightRange(tile.heightMeters) ?? [
+      0, 0,
+    ];
+    const minimumHeightMeters = Number.isFinite(tile.minimumHeightMeters)
+      ? tile.minimumHeightMeters
+      : decodedHeightRange[0];
+    const maximumHeightMeters = Number.isFinite(tile.maximumHeightMeters)
+      ? tile.maximumHeightMeters
+      : decodedHeightRange[1];
     meshes.set(key, {
       node,
       reliefMesh,
@@ -685,6 +727,8 @@ export const buildCesiumTerrainRuntime = (
       boundaryEdges,
       lastUsed: ++meshUseClock,
       id: entry.id,
+      minimumHeightMeters,
+      maximumHeightMeters,
       persistent:
         entry.kind === "source" &&
         persistentBaseLevel !== null &&
@@ -925,27 +969,149 @@ export const buildCesiumTerrainRuntime = (
     const coverageBounds = shadowBounds
       ? unionGeographicBounds(viewportBounds, shadowBounds)
       : viewportBounds;
+    frame.renderCamera.updateMatrixWorld(true);
+    root.updateWorldMatrix(true, false);
+    const clipFromWorld = new Matrix4().multiplyMatrices(
+      frame.renderCamera.projectionMatrix,
+      frame.renderCamera.matrixWorldInverse
+    );
+    const viewportFrustum = new Frustum().setFromProjectionMatrix(
+      clipFromWorld
+    );
+    const localFromWorld = new Matrix4().copy(root.matrixWorld).invert();
+    const localCameraPosition = frame.lodCamera.position
+      .clone()
+      .applyMatrix4(localFromWorld);
+    const viewMetrics = new Map<
+      string,
+      Readonly<{
+        intersectsViewport: boolean;
+        localBoundingBox: Box3;
+        viewportCenterDistanceSquared: number;
+      }>
+    >();
+    const getKnownHeightRange = (
+      entry: TerrainSelectionEntry
+    ): readonly [minimum: number, maximum: number] => {
+      if (entry.kind === "flat") {
+        const height = noDataHeightMeters ?? 0;
+        return [height, height];
+      }
+      let ancestor = entry.id;
+      while (ancestor.level >= 0) {
+        const record = meshes.get(
+          terrainSelectionKey({ id: ancestor, kind: "source" })
+        );
+        if (record) {
+          const uncertainty =
+            ancestor.level === entry.id.level
+              ? 0
+              : terrainSource.getLevelMaximumGeometricError(ancestor.level);
+          return [
+            record.minimumHeightMeters - uncertainty,
+            record.maximumHeightMeters + uncertainty,
+          ];
+        }
+        if (ancestor.level === 0) break;
+        ancestor = {
+          level: ancestor.level - 1,
+          x: ancestor.x >> 1,
+          y: ancestor.y >> 1,
+        };
+      }
+      return UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS;
+    };
+    const getViewMetrics = (entry: TerrainSelectionEntry) => {
+      const key = terrainSelectionKey(entry);
+      const cached = viewMetrics.get(key);
+      if (cached) return cached;
+      const bounds = terrainSource.getTileBounds(entry.id);
+      const [minimumHeight, maximumHeight] = getKnownHeightRange(entry);
+      const localBoundingBox = new Box3();
+      for (const longitude of [bounds.west, bounds.east]) {
+        for (const latitude of [bounds.south, bounds.north]) {
+          localBoundingBox.expandByPoint(
+            projectToLocalWorld(
+              longitude,
+              latitude,
+              minimumHeight,
+              new Vector3()
+            )
+          );
+          localBoundingBox.expandByPoint(
+            projectToLocalWorld(
+              longitude,
+              latitude,
+              maximumHeight,
+              new Vector3()
+            )
+          );
+        }
+      }
+      const worldBoundingBox = localBoundingBox
+        .clone()
+        .applyMatrix4(root.matrixWorld);
+      const projectedCenter = worldBoundingBox
+        .getCenter(new Vector3())
+        .project(frame.renderCamera);
+      const metrics = {
+        intersectsViewport:
+          geographicBoundsIntersect(bounds, viewportBounds) ||
+          viewportFrustum.intersectsBox(worldBoundingBox),
+        localBoundingBox,
+        viewportCenterDistanceSquared:
+          projectedCenter.x ** 2 + projectedCenter.y ** 2,
+      };
+      viewMetrics.set(key, metrics);
+      return metrics;
+    };
+    const intersectsViewport = (entry: TerrainSelectionEntry) =>
+      getViewMetrics(entry).intersectsViewport;
+    const getRootSearchBounds = (level: number) => {
+      const viewportIds = terrainSource.getTileGridIdsForBounds(
+        viewportBounds,
+        level
+      );
+      let longitudePadding = 0;
+      let latitudePadding = 0;
+      for (const id of viewportIds) {
+        const bounds = terrainSource.getTileBounds(id);
+        longitudePadding = Math.max(
+          longitudePadding,
+          bounds.east - bounds.west
+        );
+        latitudePadding = Math.max(
+          latitudePadding,
+          bounds.north - bounds.south
+        );
+      }
+      const viewportAndNeighbors = {
+        west: viewportBounds.west - longitudePadding,
+        south: Math.max(-90, viewportBounds.south - latitudePadding),
+        east: viewportBounds.east + longitudePadding,
+        north: Math.min(90, viewportBounds.north + latitudePadding),
+      };
+      return unionGeographicBounds(coverageBounds, viewportAndNeighbors);
+    };
     const getRootEntries = (level: number): TerrainSelectionEntry[] =>
       terrainSource
-        .getTileGridIdsForBounds(coverageBounds, level)
+        .getTileGridIdsForBounds(getRootSearchBounds(level), level)
         .flatMap((id) => {
           const bounds = terrainSource.getTileBounds(id);
-          const intersectsViewport = geographicBoundsIntersect(
-            bounds,
-            viewportBounds
-          );
-          const intersectsShadow =
-            shadowBounds !== null &&
-            geographicBoundsIntersect(bounds, shadowBounds);
-          if (!intersectsViewport && !intersectsShadow) return [];
           const kind =
             terrainSource.getTileDataAvailable(id) === false
               ? "flat"
               : "source";
-          if (kind === "flat" && !intersectsViewport) {
+          const entry = { id, kind } as TerrainSelectionEntry;
+          const rootIntersectsViewport = intersectsViewport(entry);
+          const intersectsShadow =
+            shadowBounds !== null &&
+            geographicBoundsIntersect(bounds, shadowBounds);
+          if (!rootIntersectsViewport && !intersectsShadow) return [];
+          if (kind === "flat" && !rootIntersectsViewport) {
             return [];
           }
-          return [{ id, kind }];
+          return [entry];
         });
     let rootLevel = minimumLevel;
     let rootEntries = getRootEntries(rootLevel);
@@ -958,13 +1124,15 @@ export const buildCesiumTerrainRuntime = (
     );
     const toCandidate = (entry: TerrainSelectionEntry): TerrainCandidate => {
       const bounds = terrainSource.getTileBounds(entry.id);
-      const intersectsViewport = geographicBoundsIntersect(
-        bounds,
-        viewportBounds
-      );
-      const viewportErrorRatio = intersectsViewport
-        ? getScreenSpaceError(terrainSource, frame, entry.id) /
-          errorTargetPixels
+      const metrics = getViewMetrics(entry);
+      const viewportErrorRatio = metrics.intersectsViewport
+        ? getScreenSpaceError(
+            terrainSource,
+            frame,
+            entry.id,
+            metrics.localBoundingBox,
+            localCameraPosition
+          ) / errorTargetPixels
         : 0;
       const shadowTargetPixels = errorTargetPixels * 2 ** shadowLevelOffset;
       const levelErrorMeters = terrainSource.getLevelMaximumGeometricError(
@@ -978,7 +1146,8 @@ export const buildCesiumTerrainRuntime = (
         entry,
         viewportErrorRatio: entry.kind === "flat" ? 0 : viewportErrorRatio,
         shadowErrorRatio: entry.kind === "flat" ? 0 : shadowErrorRatio,
-        intersectsViewport,
+        intersectsViewport: metrics.intersectsViewport,
+        viewportCenterDistanceSquared: metrics.viewportCenterDistanceSquared,
       };
     };
     // Refine the viewport before spending the shared budget on sun coverage.
@@ -1057,7 +1226,7 @@ export const buildCesiumTerrainRuntime = (
         const children = getRelevantChildren(
           terrainSource,
           candidate.entry,
-          viewportBounds,
+          intersectsViewport,
           shadowBounds
         );
         if (!children.length) continue;
@@ -1080,32 +1249,19 @@ export const buildCesiumTerrainRuntime = (
 
     // Viewport tiles download before offscreen shadow casters.
     const entries = [...selected.values()].sort((left, right) => {
-      const leftInView = geographicBoundsIntersect(
-        terrainSource.getTileBounds(left.id),
-        viewportBounds
-      )
-        ? 0
-        : 1;
-      const rightInView = geographicBoundsIntersect(
-        terrainSource.getTileBounds(right.id),
-        viewportBounds
-      )
-        ? 0
-        : 1;
-      return leftInView - rightInView;
+      const leftInView = intersectsViewport(left) ? 0 : 1;
+      const rightInView = intersectsViewport(right) ? 0 : 1;
+      if (leftInView !== rightInView) return leftInView - rightInView;
+      return (
+        getViewMetrics(left).viewportCenterDistanceSquared -
+        getViewMetrics(right).viewportCenterDistanceSquared
+      );
     });
     return {
       entries,
       signature: entries.map(terrainSelectionKey).sort().join("|"),
       viewportElevationSignature: entries
-        .filter(
-          (entry) =>
-            entry.kind === "source" &&
-            geographicBoundsIntersect(
-              terrainSource.getTileBounds(entry.id),
-              viewportBounds
-            )
-        )
+        .filter((entry) => entry.kind === "source" && intersectsViewport(entry))
         .map(terrainSelectionKey)
         .sort()
         .join("|"),
@@ -1193,35 +1349,47 @@ export const buildCesiumTerrainRuntime = (
     terrainSource: CesiumTerrainTileSource,
     selection: TerrainSelection
   ) => {
+    setTerrainLoading(true);
     const generation = ++selectionGeneration;
-    void loadWithConcurrency(selection.entries, requestConcurrency, (entry) =>
-      entry.kind === "flat"
-        ? Promise.resolve({
-            entry,
-            tile: createFlatTerrainTile(terrainSource, entry.id),
-          })
-        : terrainSource.requestTile(entry.id).then((tile) => ({ entry, tile }))
+    void loadWithConcurrency(
+      selection.entries,
+      requestConcurrency,
+      async (entry) => {
+        const tile =
+          entry.kind === "flat"
+            ? createFlatTerrainTile(terrainSource, entry.id)
+            : await terrainSource.requestTile(entry.id);
+        const projectedGeometry = await loadProjectedGeometry(tile, entry);
+        return { entry, tile, projectedGeometry };
+      }
     )
       .then((loadedEntries) => {
-        if (disposed) return;
+        if (disposed) {
+          for (const { projectedGeometry } of loadedEntries) {
+            projectedGeometry.dispose();
+          }
+          return;
+        }
         if (generation !== selectionGeneration) {
           // Cache newly fetched meshes without changing the active generation.
-          for (const { entry, tile } of loadedEntries) {
+          for (const { entry, tile, projectedGeometry } of loadedEntries) {
             if (!meshes.has(terrainSelectionKey(entry))) {
-              ensureMesh(tile, entry).visible = false;
+              ensureMesh(tile, entry, projectedGeometry).visible = false;
+            } else {
+              projectedGeometry.dispose();
             }
           }
           return;
         }
         const activeKeys = new Set<string>();
         const retainedSourceKeys = new Set<string>();
-        for (const { entry, tile } of loadedEntries) {
+        for (const { entry, tile, projectedGeometry } of loadedEntries) {
           const key = terrainSelectionKey(entry);
           activeKeys.add(key);
           if (entry.kind === "source") {
             retainedSourceKeys.add(cesiumTerrainTileKey(entry.id));
           }
-          ensureMesh(tile, entry).visible = root.visible;
+          ensureMesh(tile, entry, projectedGeometry).visible = root.visible;
         }
         smoothActiveBoundaryNormals(activeKeys);
         activeMeshKeys = activeKeys;
@@ -1234,6 +1402,11 @@ export const buildCesiumTerrainRuntime = (
         terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
         settleReady(true);
+        setTerrainLoading(false);
+        if (!persistentPrefetchStarted) {
+          persistentPrefetchStarted = true;
+          prefetchPersistentBase(terrainSource);
+        }
         options.onContentChanged?.();
         if (
           map &&
@@ -1250,6 +1423,7 @@ export const buildCesiumTerrainRuntime = (
       })
       .catch((error) => {
         if (disposed || generation !== selectionGeneration) return;
+        setTerrainLoading(false);
         options.onError?.(error);
         settleReady(false);
       });
@@ -1294,9 +1468,17 @@ export const buildCesiumTerrainRuntime = (
     void loadWithConcurrency(ids, PERSISTENT_BASE_PREFETCH_CONCURRENCY, (id) =>
       terrainSource
         .requestTile(id)
-        .then((tile) => {
-          if (disposed) return;
-          ensureMesh(tile, { id, kind: "source" }).visible = false;
+        .then(async (tile) => {
+          const projectedGeometry = await loadProjectedGeometry(tile, {
+            id,
+            kind: "source",
+          });
+          if (disposed) {
+            projectedGeometry.dispose();
+            return;
+          }
+          ensureMesh(tile, { id, kind: "source" }, projectedGeometry).visible =
+            false;
           sinceRepaint += 1;
           if (sinceRepaint >= PERSISTENT_BASE_REPAINT_BATCH) {
             sinceRepaint = 0;
@@ -1328,10 +1510,10 @@ export const buildCesiumTerrainRuntime = (
         );
         map.triggerRepaint();
       }
-      prefetchPersistentBase(terrainSource);
     })
     .catch((error) => {
       if (disposed) return;
+      setTerrainLoading(false);
       options.onError?.(error);
       settleReady(false);
     });
@@ -1340,9 +1522,11 @@ export const buildCesiumTerrainRuntime = (
     id: runtimeId,
     originLngLat,
     root,
+    updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
     onAdd(mapInstance) {
       map = mapInstance;
+      setSharedThreeTerrainLoading(mapInstance, runtimeId, terrainLoading);
       if (source && !unregisterSampler) {
         unregisterSampler = registerSharedThreeTerrainSampler(
           mapInstance,
@@ -1361,6 +1545,10 @@ export const buildCesiumTerrainRuntime = (
       const selection = buildSelection(source, frame);
       selectionInputSignature = inputSignature;
       if (selection.signature === requestedSignature) {
+        if (selectionGeneration === 0) {
+          setTerrainLoading(false);
+          settleReady(true);
+        }
         return;
       }
       requestedSignature = selection.signature;
@@ -1393,6 +1581,7 @@ export const buildCesiumTerrainRuntime = (
       selectionGeneration += 1;
       unregisterSampler?.();
       unregisterSampler = null;
+      if (map) setSharedThreeTerrainLoading(map, runtimeId, false);
       for (const record of meshes.values()) {
         record.reliefMesh?.geometry.dispose();
         record.baseMesh?.geometry.dispose();

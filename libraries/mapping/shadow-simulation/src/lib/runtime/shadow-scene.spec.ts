@@ -466,10 +466,12 @@ describe("shadow scene lighting integration", () => {
     ) as THREE.ArrowHelper;
     const updateAndExpectViewportInsideBuffer = () => {
       const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+      const cameraRange =
+        Math.max(viewportHalfWidth, viewportHalfHeight) * 2_000;
       camera.position.set(
         mapCenter.lng * 1_000,
-        4_000,
-        mapCenter.lat * 1_000 + 4_000
+        cameraRange,
+        mapCenter.lat * 1_000 + cameraRange
       );
       camera.lookAt(mapCenter.lng * 1_000, 0, mapCenter.lat * 1_000);
       camera.updateProjectionMatrix();
@@ -582,6 +584,75 @@ describe("shadow scene lighting integration", () => {
     expect(
       scene.getObjectByName("shadow-simulation-shadow-buffer-0")
     ).toBeUndefined();
+  });
+
+  it("fits the render-camera rays at both terrain elevation limits", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const terrain = new THREE.Mesh(
+      new THREE.BoxGeometry(1_000, 200, 1_000),
+      new THREE.MeshLambertMaterial()
+    );
+    terrain.position.y = 100;
+    scene.add(terrain);
+
+    const controller = buildShadowSimulationScene(map as never);
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const camera = new THREE.PerspectiveCamera(55, 4 / 3, 1, 20_000);
+    camera.position.set(0, 500, 500);
+    camera.lookAt(0, 100, 0);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+
+    updateShadows(map, camera);
+
+    const shadowCamera = (
+      scene.getObjectByName("shadow-simulation-sun") as THREE.DirectionalLight
+    ).shadow.camera;
+    for (const [x, y] of [
+      [-1, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 1],
+    ] as const) {
+      const nearPoint = new THREE.Vector3(x, y, -1).unproject(camera);
+      const rayDirection = new THREE.Vector3(x, y, 1)
+        .unproject(camera)
+        .sub(nearPoint);
+      for (const elevation of [0, 200]) {
+        const receiver = nearPoint
+          .clone()
+          .addScaledVector(
+            rayDirection,
+            (elevation - nearPoint.y) / rayDirection.y
+          );
+        const clip = receiver
+          .applyMatrix4(shadowCamera.matrixWorldInverse)
+          .applyMatrix4(shadowCamera.projectionMatrix);
+        expect(Math.abs(clip.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(clip.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(clip.z)).toBeLessThanOrEqual(1);
+      }
+    }
+
+    controller.dispose();
+    terrain.geometry.dispose();
+    (terrain.material as THREE.Material).dispose();
   });
 
   it("includes visible elevation relief when fitting the viewport", () => {
