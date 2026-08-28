@@ -64,7 +64,7 @@ const COMPOSITE_FRAGMENT = /* glsl */ `
   void main() {
     vec4 color = texture(tColor, vUv);
     if (color.a < 0.004) discard;
-    outColor = color;
+    outColor = linearToOutputTexel(color);
     gl_FragDepth = texture(tDepth, vUv).r;
   }
 `;
@@ -219,7 +219,7 @@ export const buildSharedSceneAccumulator = (
           1,
           scenePixel
         );
-        const accumPixel = new Float32Array(4);
+        const accumPixel = new Uint16Array(4);
         renderer.readRenderTargetPixels(
           accumWrite,
           Math.floor(width / 2),

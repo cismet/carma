@@ -17,18 +17,9 @@ const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
 const SUN_ANGULAR_RADIUS_RAD = degToRadNumeric(0.53 / 2);
-const SUN_DISC_SAMPLE_COUNT = 8;
 const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));
 
 export const CASTER_RELIEF_MARGIN_METERS = 300;
-
-const SUN_DISC_SAMPLE_PATTERN: ReadonlyArray<readonly [number, number]> =
-  Array.from({ length: SUN_DISC_SAMPLE_COUNT }, (_, index) => {
-    const radius =
-      SUN_ANGULAR_RADIUS_RAD * Math.sqrt((index + 0.5) / SUN_DISC_SAMPLE_COUNT);
-    const angle = index * GOLDEN_ANGLE_RAD;
-    return [Math.cos(angle) * radius, Math.sin(angle) * radius] as const;
-  });
 
 type LightSpaceBounds = Readonly<{
   left: number;
@@ -158,23 +149,21 @@ export class ShadowController {
     if (!enabled) this.lastSoftFit = null;
   }
 
-  applySunDiscSample(round: number): void {
+  applySunDiscSample(round: number, sampleCount: number): void {
     if (this.disposed) return;
     const fit = this.lastSoftFit;
     if (!fit) return;
-    const sampleIndex = round % SUN_DISC_SAMPLE_COUNT;
-    const rotation =
-      Math.floor(round / SUN_DISC_SAMPLE_COUNT) * GOLDEN_ANGLE_RAD;
-    const [offsetA, offsetB] = SUN_DISC_SAMPLE_PATTERN[sampleIndex];
-    const rotatedA =
-      offsetA * Math.cos(rotation) - offsetB * Math.sin(rotation);
-    const rotatedB =
-      offsetA * Math.sin(rotation) + offsetB * Math.cos(rotation);
-    const angularOffset = Math.hypot(rotatedA, rotatedB);
+    const count = Math.max(1, Math.floor(sampleCount));
+    const sampleIndex = ((Math.floor(round) % count) + count) % count;
+    const angularOffset =
+      SUN_ANGULAR_RADIUS_RAD * Math.sqrt((sampleIndex + 0.5) / count);
+    const sampleAngle = sampleIndex * GOLDEN_ANGLE_RAD;
+    const offsetA = Math.cos(sampleAngle) * angularOffset;
+    const offsetB = Math.sin(sampleAngle) * angularOffset;
     const tangentDirection = fit.tangentA
       .clone()
-      .multiplyScalar(rotatedA)
-      .addScaledVector(fit.tangentB, rotatedB)
+      .multiplyScalar(offsetA)
+      .addScaledVector(fit.tangentB, offsetB)
       .normalize();
     const direction = fit.directionToSun
       .clone()
