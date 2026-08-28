@@ -19,6 +19,10 @@ import {
   type CameraRestrictionConfig,
 } from "../addons/CameraRestriction";
 import { GazetteerMode } from "../addons/GazetteerMode";
+import {
+  HighlightFromFilter,
+  type HighlightFromFilterConfig,
+} from "../addons/HighlightFromFilter";
 import { GazetteerSource } from "../addons/GazetteerSource";
 import { HomeOverride, type HomeOverrideConfig } from "../addons/HomeOverride";
 import {
@@ -87,6 +91,7 @@ export type AddonConfigMap = {
   compareSpyglass: CompareSpyglassConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
+  highlightFromFilter: HighlightFromFilterConfig;
   homeOverride: HomeOverrideConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
@@ -239,6 +244,8 @@ export const addonRegistry: {
   compareArena: { Component: CompareArena, requires: ["compareState"] },
   compareSpyglass: { Component: CompareSpyglass, requires: ["compareState"] },
   gazetteerSource: { Component: GazetteerSource },
+  // no channel: it sets the map's filter presentation directly
+  highlightFromFilter: { Component: HighlightFromFilter },
   outlet: { Component: OutletAddon },
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
