@@ -11,6 +11,7 @@ import type {
   GeoJSONSourceSpecification,
   SourceSpecification,
 } from "maplibre-gl";
+import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
@@ -510,6 +511,79 @@ export interface VectorStylesToMapLibreStyleResult {
   layerSources: LayerSourceRegistration[];
   failedLayerIds: string[];
 }
+
+/**
+ * A layer with several invalid properties can report them one at a time, so the
+ * style is re-validated after a drop. Bounded because a validator that keeps
+ * reporting an error we cannot attribute to a layer must not spin forever.
+ */
+const MAX_VALIDATION_PASSES = 3;
+
+/** `layers[2].paint.line-opacity: …` -> 2 */
+const layerIndexFromMessage = (message: string): number | null => {
+  const match = /^layers\[(\d+)\]/.exec(message);
+  return match ? Number(match[1]) : null;
+};
+
+const dropInvalidLayers = (
+  style: StyleSpecification,
+  layerSources: LayerSourceRegistration[]
+): string[] => {
+  const ownerBySource = new Map<string, string>();
+  for (const { carmaLayerId, sourceIds } of layerSources) {
+    for (const sourceId of sourceIds) {
+      ownerBySource.set(sourceId, carmaLayerId);
+    }
+  }
+
+  const failed = new Set<string>();
+
+  for (let pass = 0; pass < MAX_VALIDATION_PASSES; pass++) {
+    const errors = validateStyleMin(style);
+    if (errors.length === 0) {
+      break;
+    }
+
+    const messagesByIndex = new Map<number, string[]>();
+    for (const error of errors) {
+      const index = layerIndexFromMessage(error.message);
+      if (index === null) {
+        // Not a layer problem (a source, the sprite, the glyphs): there is
+        // nothing to drop, and MapLibre will refuse the style. Say so loudly.
+        console.error(
+          "[styleBuilder] invalid style outside of a layer, MapLibre will reject it:",
+          error.message
+        );
+        continue;
+      }
+      const messages = messagesByIndex.get(index) ?? [];
+      messages.push(error.message);
+      messagesByIndex.set(index, messages);
+    }
+    if (messagesByIndex.size === 0) {
+      break;
+    }
+
+    style.layers = style.layers.filter((styleLayer, index) => {
+      const messages = messagesByIndex.get(index);
+      if (!messages) {
+        return true;
+      }
+      const source = (styleLayer as { source?: string }).source;
+      const carmaLayerId = source ? ownerBySource.get(source) : undefined;
+      if (carmaLayerId) {
+        failed.add(carmaLayerId);
+      }
+      console.warn(
+        "[styleBuilder] dropping layer MapLibre would reject — the rest of the style is kept",
+        { layer: styleLayer.id, carmaLayerId, errors: messages }
+      );
+      return false;
+    });
+  }
+
+  return [...failed];
+};
 
 const fetchJson = async (url: string): Promise<any> => {
   const response = await fetch(url);
@@ -1103,6 +1177,8 @@ export const vectorStylesToMapLibreStyle = async ({
   if ((customSprites as Array<{ id: string; url: string }>).length > 0) {
     style.sprite = customSprites;
   }
+
+  failedLayerIds.push(...dropInvalidLayers(style, layerSources));
 
   return { style, geoJsonMetadata, layerSources, failedLayerIds };
 };
