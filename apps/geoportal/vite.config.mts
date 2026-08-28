@@ -10,6 +10,11 @@ export default defineConfig({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/apps/geoportal",
 
+  // @excalidraw/excalidraw's entry reads process.env, which the browser has not
+  define: {
+    "process.env.IS_PREACT": JSON.stringify("true"),
+  },
+
   server: {
     port: 4200,
     host: true,
