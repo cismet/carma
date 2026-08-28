@@ -1,6 +1,7 @@
 import {
   useCallback,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -8,7 +9,10 @@ import { createPortal } from "react-dom";
 
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
+import {
+  CarmaResponsiveInfoBox,
+  useHostElementSizeRef,
+} from "@carma-commons/ui/components";
 import { ViewStateVisualizer } from "@carma-mapping/components";
 
 import type { SolarPosition } from "../core/solar-position";
@@ -30,31 +34,56 @@ const SHADOW_PROJECTION_DEBUG_CUE_OPTIONS = {
 
 const SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS = {
   orthographic: true,
+  fitOrthographicWidth: true,
 } as const;
 
 const SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS = {
   useCameraPosition: true,
 } as const;
 
-const SHADOW_PROJECTION_DEBUG_DISPLAY_OPTIONS = {
-  surface: { show: true, showGraticule: false, sphereOpacity: 0.08 },
-  worldAxes: { show: true, lineWidthPx: 1.5 },
-  angleCues: { show: true, lineWidthPx: 1.5 },
-  cameraView: {
-    imagePlane: { show: true, showOffset: true },
-    axes: { show: true, showInactive: true },
-    frustum: { show: true, showInactive: true, lineWidthPx: 1 },
-    projectionPlane: { show: true },
-    marker: { show: true },
-  },
-  altitude: { show: false },
-  labels: {
-    showAxes: true,
-    showAngles: true,
-    showImagePlane: false,
-    fontSizePx: 11,
-  },
-} as const;
+type VisualizerContentGroup =
+  | "worldAxes"
+  | "angleCues"
+  | "imagePlanes"
+  | "cameraAxes"
+  | "frustums"
+  | "projectionPlanes"
+  | "markers"
+  | "altitude"
+  | "labels"
+  | "terrainTiles";
+
+const VISUALIZER_CONTENT_GROUPS: ReadonlyArray<{
+  key: VisualizerContentGroup;
+  label: string;
+}> = [
+  { key: "worldAxes", label: "Weltachsen" },
+  { key: "angleCues", label: "Winkel" },
+  { key: "imagePlanes", label: "Bildflächen" },
+  { key: "cameraAxes", label: "Kameraachsen" },
+  { key: "frustums", label: "Frusta" },
+  { key: "projectionPlanes", label: "Projektionsebenen" },
+  { key: "markers", label: "Marker" },
+  { key: "altitude", label: "Höhenbezug" },
+  { key: "labels", label: "Beschriftung" },
+  { key: "terrainTiles", label: "Terrain-Tiles" },
+];
+
+const DEFAULT_VISUALIZER_CONTENT_VISIBILITY: Record<
+  VisualizerContentGroup,
+  boolean
+> = {
+  worldAxes: true,
+  angleCues: true,
+  imagePlanes: true,
+  cameraAxes: true,
+  frustums: true,
+  projectionPlanes: true,
+  markers: true,
+  altitude: false,
+  labels: true,
+  terrainTiles: true,
+};
 
 const SHADOW_QUALITIES: ReadonlyArray<{
   label: string;
@@ -78,7 +107,7 @@ export type ShadowProjectionDebugSettings = Readonly<{
 }>;
 
 const ValueRow = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="grid grid-cols-[max-content_1fr] gap-3">
+  <div className="grid grid-cols-[max-content_1fr] gap-2 leading-5">
     <span className="text-neutral-500">{label}</span>
     <span className="text-right tabular-nums text-neutral-800">{value}</span>
   </div>
@@ -104,8 +133,9 @@ const ShadowBufferStatistics = ({
   const resolution = `${model.shadowBuffer.shadowMapWidth} × ${model.shadowBuffer.shadowMapHeight}`;
 
   return (
-    <div className="grid grid-cols-4 gap-x-5 gap-y-2 text-xs">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
       <StatCell label="Sonnen-Samples" value={model.shadowSampleCount} />
+      <StatCell label="Terrain-Tiles" value={model.terrainTileVolumes.length} />
       <StatCell label="Buffer-Auflösung" value={resolution} />
       <StatCell
         label="Kernabdeckung"
@@ -142,6 +172,107 @@ const ShadowBufferStatistics = ({
   );
 };
 
+const ShadowDebugVisualizer = ({
+  model,
+  visibility,
+}: {
+  model: ShadowProjectionDebugModel;
+  visibility: Record<VisualizerContentGroup, boolean>;
+}) => {
+  const host = useHostElementSizeRef<HTMLDivElement>();
+  const width = Math.max(1, host.size?.width ?? 1);
+  const height = Math.max(190, Math.min(245, Math.round(width * 0.36)));
+  const displayOptions = useMemo(
+    () => ({
+      surface: { show: false },
+      worldAxes: {
+        show: visibility.worldAxes,
+        showUp: false,
+        lineWidthPx: 1.5,
+      },
+      angleCues: { show: visibility.angleCues, lineWidthPx: 1.5 },
+      cameraView: {
+        imagePlane: { show: visibility.imagePlanes, showOffset: true },
+        axes: { show: visibility.cameraAxes, showInactive: true },
+        frustum: {
+          show: visibility.frustums,
+          showInactive: true,
+          lineWidthPx: 1,
+        },
+        projectionPlane: { show: visibility.projectionPlanes },
+        marker: { show: visibility.markers },
+      },
+      altitude: { show: visibility.altitude },
+      labels: {
+        showAxes: visibility.labels,
+        showAngles: visibility.labels,
+        showImagePlane: false,
+        fontSizePx: 11,
+      },
+    }),
+    [visibility]
+  );
+  const volumeBoxes = useMemo(
+    () => ({
+      boxes: model.terrainTileVolumes,
+      visible: visibility.terrainTiles,
+      color: "#0f766e",
+      opacity: 0.58,
+    }),
+    [model.terrainTileVolumes, visibility.terrainTiles]
+  );
+
+  return (
+    <div
+      ref={host.ref}
+      className="w-full overflow-hidden rounded-lg bg-neutral-100"
+      style={{ height }}
+    >
+      {host.isReady && (
+        <ViewStateVisualizer
+          viewState={model.viewStates}
+          activeCameraIndex={1}
+          width={width}
+          height={height}
+          bearingLabel="Schattenrichtung"
+          pitchLabel="Höhe"
+          northLabel="N"
+          upLabel={null}
+          cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
+          overviewOptions={SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS}
+          visualizedOptions={SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS}
+          displayOptions={displayOptions}
+          volumeBoxes={volumeBoxes}
+        />
+      )}
+    </div>
+  );
+};
+
+const VisualizerContentToggles = ({
+  visibility,
+  onToggle,
+}: {
+  visibility: Record<VisualizerContentGroup, boolean>;
+  onToggle: (group: VisualizerContentGroup) => void;
+}) => (
+  <fieldset className="flex content-start flex-wrap gap-x-3 gap-y-1 text-xs">
+    <legend className="mb-0.5 font-semibold uppercase tracking-wide text-neutral-500">
+      Visualisierung
+    </legend>
+    {VISUALIZER_CONTENT_GROUPS.map(({ key, label }) => (
+      <label key={key} className="flex items-center gap-1.5">
+        <input
+          type="checkbox"
+          checked={visibility[key]}
+          onChange={() => onToggle(key)}
+        />
+        {label}
+      </label>
+    ))}
+  </fieldset>
+);
+
 const ShadowDebugControls = ({
   settings,
   transmittanceReady,
@@ -161,8 +292,8 @@ const ShadowDebugControls = ({
     }`;
 
   return (
-    <div className="grid gap-3 border-t border-neutral-200 pt-3 text-xs">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+    <div className="grid content-start gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
         <div className="flex items-center gap-2">
           <span className="font-semibold uppercase tracking-wide text-neutral-500">
             Qualität
@@ -182,7 +313,7 @@ const ShadowDebugControls = ({
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <label className="flex items-center gap-2">
           <span className="font-semibold uppercase tracking-wide text-neutral-500">
             Terrain
@@ -237,7 +368,7 @@ const ShadowDebugControls = ({
           </label>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
@@ -322,6 +453,8 @@ export const ShadowProjectionDebugView = ({
     [map]
   );
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const [visualizerContentVisibility, setVisualizerContentVisibility] =
+    useState(DEFAULT_VISUALIZER_CONTENT_VISIBILITY);
   const model = useMemo(
     () =>
       snapshot
@@ -339,72 +472,78 @@ export const ShadowProjectionDebugView = ({
 
   const content = (
     <div
-      className="grid max-h-[calc(100vh-140px)] grid-cols-1 items-start gap-4 overflow-y-auto p-2 sm:grid-cols-[260px_minmax(0,1fr)]"
+      className="grid max-h-[calc(100vh-140px)] grid-cols-1 items-start gap-2 overflow-y-auto p-1"
       data-test-id="shadow-simulation-projection-debug-view"
     >
-      <div className="w-full overflow-hidden rounded-lg bg-neutral-100">
-        <ViewStateVisualizer
-          viewState={model.viewStates}
-          activeCameraIndex={1}
-          width={260}
-          height={200}
-          bearingLabel="Schattenrichtung"
-          pitchLabel="Höhe"
-          northLabel="N"
-          cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
-          overviewOptions={SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS}
-          visualizedOptions={SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS}
-          displayOptions={SHADOW_PROJECTION_DEBUG_DISPLAY_OPTIONS}
+      <ShadowDebugVisualizer
+        model={model}
+        visibility={visualizerContentVisibility}
+      />
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <VisualizerContentToggles
+          visibility={visualizerContentVisibility}
+          onToggle={(group) =>
+            setVisualizerContentVisibility((current) => ({
+              ...current,
+              [group]: !current[group],
+            }))
+          }
         />
-      </div>
-      <div className="grid min-w-0 content-start gap-3 text-sm">
-        <div>
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Sonne
+        <div className="grid content-start gap-1.5 text-xs">
+          <div>
+            <div className="font-semibold uppercase tracking-wide text-neutral-500">
+              Sonne
+            </div>
+            <ValueRow
+              label="Azimut"
+              value={`${displayedAzimuth.toFixed(1)}°`}
+            />
+            <ValueRow
+              label="Höhe"
+              value={`${displayedElevation.toFixed(1)}°`}
+            />
+            {snapshot.atmosphericSunlight && (
+              <>
+                <ValueRow
+                  label="Takram-Radiance"
+                  value={`${(
+                    snapshot.atmosphericSunlight.relativeIntensity * 100
+                  ).toFixed(1)} %`}
+                />
+                <ValueRow
+                  label="Lichtfarbe"
+                  value={
+                    <span className="inline-flex items-center justify-end gap-1.5">
+                      <span
+                        className="h-3 w-3 rounded-full border border-neutral-300"
+                        style={{
+                          backgroundColor: snapshot.atmosphericSunlight.color,
+                        }}
+                      />
+                      {snapshot.atmosphericSunlight.color.toUpperCase()}
+                    </span>
+                  }
+                />
+              </>
+            )}
           </div>
-          <ValueRow label="Azimut" value={`${displayedAzimuth.toFixed(1)}°`} />
-          <ValueRow label="Höhe" value={`${displayedElevation.toFixed(1)}°`} />
-          {snapshot.atmosphericSunlight && (
-            <>
-              <ValueRow
-                label="Takram-Radiance"
-                value={`${(
-                  snapshot.atmosphericSunlight.relativeIntensity * 100
-                ).toFixed(1)} %`}
-              />
-              <ValueRow
-                label="Lichtfarbe"
-                value={
-                  <span className="inline-flex items-center justify-end gap-1.5">
-                    <span
-                      className="h-3 w-3 rounded-full border border-neutral-300"
-                      style={{
-                        backgroundColor: snapshot.atmosphericSunlight.color,
-                      }}
-                    />
-                    {snapshot.atmosphericSunlight.color.toUpperCase()}
-                  </span>
-                }
-              />
-            </>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-            Kamera
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
-            Sonne
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm border-2 border-orange-600" />
-            Shadow-Buffer-Grenzen in der Karte
-          </span>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-neutral-500">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+              Kamera
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+              Sonne
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm border-2 border-orange-600" />
+              Buffer-Grenzen
+            </span>
+          </div>
         </div>
       </div>
-      <div className="sm:col-span-2">
+      <div className="grid gap-3 border-t border-neutral-200 pt-2 sm:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
         <ShadowDebugControls
           settings={settings}
           transmittanceReady={
@@ -415,8 +554,6 @@ export const ShadowProjectionDebugView = ({
           }
           onChange={onSettingsChange}
         />
-      </div>
-      <div className="grid gap-3 border-t border-neutral-200 pt-3 sm:col-span-2">
         <ShadowBufferStatistics model={model} />
       </div>
     </div>

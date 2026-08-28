@@ -277,6 +277,16 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
     expect(notifySharedThreeTerrainChanged).toHaveBeenCalledWith(map);
     expect(onContentChanged).toHaveBeenCalledOnce();
+    const debugVolumes = runtime.getDebugVolumes();
+    expect(debugVolumes).toHaveLength(1);
+    expect(debugVolumes[0]).toMatchObject({
+      id: "terrain:source:10/532/218",
+      kind: "terrain-tile",
+    });
+    expect(debugVolumes[0]?.minimum.every(Number.isFinite)).toBe(true);
+    expect(debugVolumes[0]?.maximum.every(Number.isFinite)).toBe(true);
+    expect(debugVolumes[0]?.minimum[1]).toBeGreaterThan(99);
+    expect(debugVolumes[0]?.maximum[1]).toBeLessThan(101);
 
     const shadowCamera = new OrthographicCamera(
       -1_000,

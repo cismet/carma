@@ -16,6 +16,11 @@ export type ShadowProjectionDebugSnapshot = Readonly<{
   minimumElevationMeters: number;
   maximumElevationMeters: number;
   sceneAnchorPositionElements?: readonly [number, number, number];
+  terrainTileVolumes?: readonly Readonly<{
+    id: string;
+    minimum: readonly [number, number, number];
+    maximum: readonly [number, number, number];
+  }>[];
   shadow?: ShadowSnapshot | null;
   atmosphericSunlight?: Readonly<{
     azimuthDegrees: number;
