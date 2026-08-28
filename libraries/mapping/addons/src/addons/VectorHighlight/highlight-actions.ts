@@ -140,9 +140,19 @@ export const useHighlightModeActions = () => {
     [setMode]
   );
 
+  /** The button does the more specific of its two jobs: highlighted features
+   *  are the shape; only without them is there a single one left to aim at. */
   const togglePickFeature = useCallback(
     () =>
       setMode((previous) => {
+        if (highlightingActive) {
+          return {
+            ...(previous ?? { isOn: false }),
+            pickFeatureActive: false,
+            bufferPanelOpen: false,
+            highlightsShapeVersion: (previous?.highlightsShapeVersion ?? 0) + 1,
+          };
+        }
         const next = !(previous?.pickFeatureActive ?? false);
         return {
           ...(previous ?? { isOn: false }),
@@ -150,7 +160,7 @@ export const useHighlightModeActions = () => {
           ...(next ? { bufferPanelOpen: false } : null),
         };
       }),
-    [setMode]
+    [setMode, highlightingActive]
   );
 
   const setShapeBuffer = useCallback(
@@ -337,5 +347,7 @@ export const useHighlightModeActions = () => {
     canPickFeature,
     setPickFeatureActive,
     togglePickFeature,
+    /** the button takes the highlights instead of arming a pick */
+    pickFromHighlights: highlightingActive,
   };
 };

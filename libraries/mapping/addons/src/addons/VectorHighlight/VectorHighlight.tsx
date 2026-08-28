@@ -239,32 +239,37 @@ export const VectorHighlight = ({
 
   // `active` switches between the passive modifier-drag manager and the
   // explicit one that draws on a plain drag while the mode is on
-  const { cancelLine, showLastShape, hideLastShape, applyLastShape } =
-    useLassoHighlight({
-      map: lasso ? libreMap : null,
-      active: lasso && (modeActive || highlightingActive),
-      shape,
-      circleRadius,
-      rectSize,
-      radiusStep,
-      shapeBuffer,
-      baseBuffer,
-      clearDelay,
-      onLastShapeChange: handleLastShapeChange,
-      onLastShapePreviewChange: handleLastShapePreviewChange,
-      pickFeature: mode?.pickFeatureActive ?? false,
-      onPickFeatureChange: handlePickFeatureChange,
-      onShapeEmptyChange: handleShapeEmptyChange,
-      onShrinkLimitChange: handleShrinkLimitChange,
-      onCircleRadiusChange: setCircleRadius,
-      onRectSizeChange: setRectSize,
-      onDeactivate: endMode,
-      // the operation is picked in the layer row, so the Shift and Alt+Shift
-      // refine gestures stay disarmed here
-      operation: LASSO_OPERATIONS[operation],
-      // resolved here, so config overrides and monochrome reach the drawn shape
-      color: colorForOperation(operation),
-    });
+  const {
+    cancelLine,
+    showLastShape,
+    hideLastShape,
+    applyLastShape,
+    shapeFromHighlights,
+  } = useLassoHighlight({
+    map: lasso ? libreMap : null,
+    active: lasso && (modeActive || highlightingActive),
+    shape,
+    circleRadius,
+    rectSize,
+    radiusStep,
+    shapeBuffer,
+    baseBuffer,
+    clearDelay,
+    onLastShapeChange: handleLastShapeChange,
+    onLastShapePreviewChange: handleLastShapePreviewChange,
+    pickFeature: mode?.pickFeatureActive ?? false,
+    onPickFeatureChange: handlePickFeatureChange,
+    onShapeEmptyChange: handleShapeEmptyChange,
+    onShrinkLimitChange: handleShrinkLimitChange,
+    onCircleRadiusChange: setCircleRadius,
+    onRectSizeChange: setRectSize,
+    onDeactivate: endMode,
+    // the operation is picked in the layer row, so the Shift and Alt+Shift
+    // refine gestures stay disarmed here
+    operation: LASSO_OPERATIONS[operation],
+    // resolved here, so config overrides and monochrome reach the drawn shape
+    color: colorForOperation(operation),
+  });
 
   const showRequest = mode?.showShapeVersion ?? 0;
   const previousShowRequest = useRef(showRequest);
@@ -281,6 +286,14 @@ export const VectorHighlight = ({
     previousHideRequest.current = hideRequest;
     hideLastShape();
   }, [hideRequest, hideLastShape]);
+
+  const highlightsRequest = mode?.highlightsShapeVersion ?? 0;
+  const previousHighlightsRequest = useRef(highlightsRequest);
+  useEffect(() => {
+    if (highlightsRequest === previousHighlightsRequest.current) return;
+    previousHighlightsRequest.current = highlightsRequest;
+    shapeFromHighlights();
+  }, [highlightsRequest, shapeFromHighlights]);
 
   const applyRequest = mode?.applyShapeVersion ?? 0;
   const previousApplyRequest = useRef(applyRequest);

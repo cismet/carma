@@ -34,6 +34,8 @@ export type HighlightModeState = {
   /** published by the addon: picking runs through the drawing manager, which
    *  only exists with `lasso` on */
   canPickFeature?: boolean;
+  /** bumped by the UI to take the highlighted features as the shape */
+  highlightsShapeVersion?: number;
   /** the previewed shape has been shrunk to nothing, so the apply button is
    *  off: running it would select nothing */
   shapeEmpty?: boolean;

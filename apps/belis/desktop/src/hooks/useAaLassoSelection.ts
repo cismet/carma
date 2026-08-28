@@ -1,9 +1,13 @@
 import { useEffect, useRef, useCallback } from "react";
-import { LassoDrawingManager } from "@carma-mapping/engines/maplibre";
-import type { Map as MaplibreMap } from "maplibre-gl";
-import type { Feature, LineString, Point, Polygon } from "geojson";
 import {
-  polygon as turfPolygon,
+  LassoDrawingManager,
+  shapePositions,
+  toTurfShape,
+} from "@carma-mapping/engines/maplibre";
+import type { DrawnShape } from "@carma-mapping/engines/maplibre";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Feature, MultiPolygon, Point, Polygon } from "geojson";
+import {
   booleanPointInPolygon,
   booleanIntersects,
   lineString as turfLineString,
@@ -30,19 +34,15 @@ export function useAaLassoSelection({
   onFeaturesSelectedRef.current = onFeaturesSelected;
 
   const handleDrawComplete = useCallback(
-    (drawnShape: Polygon | LineString) => {
+    (drawnShape: DrawnShape) => {
       if (!map) return;
 
       // 1. Compute pixel bounding box from the shape's vertices
-      const ring =
-        drawnShape.type === "Polygon"
-          ? drawnShape.coordinates[0]
-          : drawnShape.coordinates;
       let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
         maxY = -Infinity;
-      for (const coord of ring) {
+      for (const coord of shapePositions(drawnShape)) {
         const px = map.project([coord[0], coord[1]]);
         if (px.x < minX) minX = px.x;
         if (px.y < minY) minY = px.y;
@@ -56,10 +56,7 @@ export function useAaLassoSelection({
       const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
 
       // 3. Build the turf geometry for the spatial test
-      const turfLasso =
-        drawnShape.type === "Polygon"
-          ? turfPolygon(drawnShape.coordinates)
-          : turfLineString(drawnShape.coordinates);
+      const turfLasso = toTurfShape(drawnShape);
 
       // 4. Spatial test – keep every feature whose geometry falls inside the lasso
       const seen = new Set<string | number>();
@@ -73,11 +70,11 @@ export function useAaLassoSelection({
         try {
           if (
             f.geometry.type === "Point" &&
-            turfLasso.geometry.type === "Polygon"
+            turfLasso.geometry.type !== "LineString"
           ) {
             inside = booleanPointInPolygon(
               f.geometry as Point,
-              turfLasso as Feature<Polygon>
+              turfLasso as Feature<Polygon | MultiPolygon>
             );
           } else if (f.geometry.type === "Point") {
             // a point against a bare line practically never matches — that is

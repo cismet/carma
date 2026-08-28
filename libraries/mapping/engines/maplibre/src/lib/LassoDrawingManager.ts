@@ -62,7 +62,6 @@ import {
   distance as turfDistance,
   destination as turfDestination,
   buffer as turfBuffer,
-  area as turfArea,
 } from "@turf/turf";
 
 /**
@@ -97,20 +96,44 @@ const longestLine = (parts: Position[][]): LineString | null => {
   return best ? { type: "LineString", coordinates: best } : null;
 };
 
+/** A selection shape. MultiPolygon carries shapes taken from the map: several
+ *  highlighted objects rarely touch, and their union keeps every part. */
+export type DrawnShape = Polygon | MultiPolygon | LineString;
+
 /** Offsets a shape in degrees. That keeps a rectangle's edges on their
  *  parallels and meridians; the ground size shifts only in the last decimals
  *  over a drag within one town. */
-const translateShape = <T extends Polygon | LineString>(
+const translateShape = <T extends DrawnShape>(
   shape: T,
   dLng: number,
   dLat: number
 ): T => {
   const move = (ring: Position[]): Position[] =>
     ring.map((position) => [position[0] + dLng, position[1] + dLat]);
-  return shape.type === "LineString"
-    ? { ...shape, coordinates: move(shape.coordinates) }
-    : { ...shape, coordinates: shape.coordinates.map(move) };
+  if (shape.type === "LineString") {
+    return { ...shape, coordinates: move(shape.coordinates) };
+  }
+  if (shape.type === "MultiPolygon") {
+    return {
+      ...shape,
+      coordinates: shape.coordinates.map((part) => part.map(move)),
+    };
+  }
+  return { ...shape, coordinates: shape.coordinates.map(move) };
 };
+
+/** Every vertex of a shape, for a bounding box over it. */
+export const shapePositions = (shape: DrawnShape): Position[] => {
+  if (shape.type === "LineString") return shape.coordinates;
+  if (shape.type === "MultiPolygon") return shape.coordinates.flat(2);
+  return shape.coordinates.flat();
+};
+
+export const toTurfShape = (shape: DrawnShape): Feature<DrawnShape> => ({
+  type: "Feature",
+  properties: {},
+  geometry: shape,
+});
 
 /**
  * Which half of a buffered shape a feature is. With a width set, both are on
@@ -160,7 +183,7 @@ export interface RectSize {
 export interface LassoDrawingManagerOptions {
   map: MaplibreMap;
   /** The drawn selection shape: a polygon, or the bare line of the line tool. */
-  onDrawComplete: (shape: Polygon | LineString) => void;
+  onDrawComplete: (shape: DrawnShape) => void;
   onDrawCancel: () => void;
   /** Minimum points required to form a polygon. Default: 3 */
   minPoints?: number;
@@ -248,7 +271,7 @@ export class LassoDrawingManager {
   >();
 
   private map: MaplibreMap;
-  private onDrawComplete: (shape: Polygon | LineString) => void;
+  private onDrawComplete: (shape: DrawnShape) => void;
   private onDrawCancel: () => void;
   private minPoints: number;
   private requireModifiers: ModifierKey[];
@@ -311,14 +334,14 @@ export class LassoDrawingManager {
   /** the shape last finished, kept so it can be shown and run again. `line`
    *  is set only for the line tool, whose corridor is rebuilt at the width
    *  that is current when it runs again. */
-  private lastShape: Polygon | LineString | null = null;
+  private lastShape: DrawnShape | null = null;
   private previewingLastShape = false;
   private pickingFeature = false;
   /** the previewed shape is being dragged: the press point and the shape as it
    *  stood then, so every move offsets the original rather than the last frame */
   private movingShape = false;
   private moveOrigin: Position | null = null;
-  private moveStart: Polygon | LineString | null = null;
+  private moveStart: DrawnShape | null = null;
   /** the press left the click tolerance, so it was a move and not a run */
   private moveDragged = false;
   private moveDownX = 0;
@@ -483,16 +506,16 @@ export class LassoDrawingManager {
    * starts at half the shorter side of the bounding box: a shape fits inside
    * its box and can never survive more than that.
    */
-  private computeShrinkLimit(shape: Polygon | LineString): number {
+  private computeShrinkLimit(shape: DrawnShape): number {
     if (shape.type === "LineString") return 0;
-    const ring = shape.coordinates[0];
-    if (!ring || ring.length < 3) return 0;
+    const positions = shapePositions(shape);
+    if (positions.length < 3) return 0;
 
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const [x, y] of ring) {
+    for (const [x, y] of positions) {
       if (x < minX) minX = x;
       if (y < minY) minY = y;
       if (x > maxX) maxX = x;
@@ -716,20 +739,58 @@ export class LassoDrawingManager {
     return this.pickingFeature;
   }
 
+  /** Takes an outside geometry as the remembered shape and previews it, so it
+   *  can be moved, buffered and run like a drawn one. */
+  adoptShape(shape: DrawnShape): void {
+    this.setShrinkLimit(this.computeShrinkLimit(shape));
+    this.lastShape = shape;
+    // an adopted shape has never run: nothing is applied to it yet
+    this.onLastShapeChange?.(true, false, this.shapeBuffer);
+    this.showLastShape();
+  }
+
+  /**
+   * The union of every highlighted feature in view, as the remembered shape.
+   * `isHighlighted` decides what counts: the manager knows geometry, not what
+   * the app means by highlighted. Only rendered features can be collected, so a
+   * selection reaching past the viewport contributes the part in view.
+   */
+  adoptHighlightedShape(
+    isHighlighted: (feature: MapGeoJSONFeature) => boolean
+  ): boolean {
+    let hits: MapGeoJSONFeature[] = [];
+    try {
+      hits = this.map.queryRenderedFeatures();
+    } catch {
+      return false;
+    }
+    const parts: Feature<Polygon | MultiPolygon>[] = [];
+    const seen = new Set<string>();
+    for (const hit of hits) {
+      if (hit.source === SOURCE_ID || hit.id == null) continue;
+      const key = `${hit.source}::${hit.sourceLayer ?? ""}::${hit.id}`;
+      // the first hit of a feature already gathers its other tile parts
+      if (seen.has(key)) continue;
+      if (!isHighlighted(hit)) continue;
+      seen.add(key);
+      const area = this.featureArea(hit);
+      if (area) parts.push({ type: "Feature", properties: {}, geometry: area });
+    }
+    const merged = this.mergeParts(parts);
+    if (!merged) return false;
+    this.adoptShape(merged);
+    return true;
+  }
+
   /** A miss leaves the mode armed, so aiming again costs no extra click. */
   private onPickClick(e: MapMouseEvent): void {
     if (!this.active || this.suspended) return;
     const picked = this.featureShapeAt(e);
     if (!picked) return;
-    this.setPickingFeature(false);
-    this.setShrinkLimit(this.computeShrinkLimit(picked));
-    this.lastShape = picked;
-    // a picked shape has never run: nothing is applied to it yet
-    this.onLastShapeChange?.(true, false, this.shapeBuffer);
-    this.showLastShape();
+    this.adoptShape(picked);
   }
 
-  private featureShapeAt(e: MapMouseEvent): Polygon | LineString | null {
+  private featureShapeAt(e: MapMouseEvent): DrawnShape | null {
     const { x, y } = e.point;
     let hits: MapGeoJSONFeature[] = [];
     try {
@@ -751,7 +812,7 @@ export class LassoDrawingManager {
 
   /** A point has no area to select with, so it is taken as the circle the
    *  circle tool would place there. */
-  private featureShape(hit: MapGeoJSONFeature): Polygon | LineString | null {
+  private featureShape(hit: MapGeoJSONFeature): DrawnShape | null {
     const geometry = hit.geometry;
     switch (geometry.type) {
       case "Polygon":
@@ -772,6 +833,16 @@ export class LassoDrawingManager {
     }
   }
 
+  /** The feature as an area. A line has none of its own, so it stands for the
+   *  corridor of the circle tool's width, as a point does for its circle. */
+  private featureArea(hit: MapGeoJSONFeature): Polygon | MultiPolygon | null {
+    const shape = this.featureShape(hit);
+    if (!shape) return null;
+    if (shape.type !== "LineString") return shape;
+    const corridor = this.withBuffer(shape, this.circleRadius);
+    return corridor && corridor.type !== "LineString" ? corridor : null;
+  }
+
   private circleAround(center: Position): Polygon | null {
     try {
       return this.buildCircle(center, this.circleRadius);
@@ -785,7 +856,7 @@ export class LassoDrawingManager {
    * several features. The rendered pieces are merged back into one shape; a
    * piece from a tile that was never loaded cannot be recovered.
    */
-  private wholePolygon(hit: MapGeoJSONFeature): Polygon | null {
+  private wholePolygon(hit: MapGeoJSONFeature): Polygon | MultiPolygon | null {
     const parts: Feature<Polygon | MultiPolygon>[] = [];
     for (const part of this.sameFeatureParts(hit)) {
       if (
@@ -799,18 +870,7 @@ export class LassoDrawingManager {
         });
       }
     }
-    if (parts.length === 0) return null;
-    let geometry: Polygon | MultiPolygon = parts[0].geometry;
-    if (parts.length > 1) {
-      try {
-        geometry = union(featureCollection(parts))?.geometry ?? geometry;
-      } catch {
-        // pieces would not merge; the clicked one still stands
-      }
-    }
-    return geometry.type === "Polygon"
-      ? geometry
-      : this.largestPart(geometry.coordinates);
+    return this.mergeParts(parts);
   }
 
   /** Every rendered piece of the clicked object, matched by id within its own
@@ -838,7 +898,7 @@ export class LassoDrawingManager {
    * later width change grows it from the original rather than from an already
    * grown one; what is handed over and drawn is the grown version.
    */
-  private completeShape(drawn: Polygon | LineString, replayed = false): void {
+  private completeShape(drawn: DrawnShape, replayed = false): void {
     const geometry = this.withBuffer(drawn);
     // the limit belongs to the shape, and a replay hands back the same one
     if (drawn !== this.lastShape) {
@@ -862,9 +922,9 @@ export class LassoDrawingManager {
    * would select everything.
    */
   private withBuffer(
-    drawn: Polygon | LineString,
+    drawn: DrawnShape,
     meters: number = this.shapeBuffer
-  ): Polygon | LineString | null {
+  ): DrawnShape | null {
     if (meters === 0) return drawn;
     // a line has no inside to take away
     if (meters < 0 && drawn.type === "LineString") return drawn;
@@ -876,49 +936,38 @@ export class LassoDrawingManager {
       );
       const geometry = buffered?.geometry;
       if (!geometry) return meters < 0 ? null : drawn;
-      if (geometry.type === "Polygon") {
-        return geometry.coordinates.length > 0 ? geometry : null;
-      }
-      // a shrink can pinch a shape into several parts; the largest carries
-      // what was drawn
-      return this.largestPart(geometry.coordinates);
+      // a shrink can pinch a shape into several parts, which are all kept
+      return geometry.coordinates.length > 0 ? geometry : null;
     } catch {
       return meters < 0 ? null : drawn;
     }
   }
 
-  /** The widest of several polygons, by area. */
-  private largestPart(parts: Position[][][]): Polygon | null {
-    let best: Polygon | null = null;
-    let bestArea = -Infinity;
-    for (const coordinates of parts) {
-      if (coordinates.length === 0) continue;
-      const candidate: Polygon = { type: "Polygon", coordinates };
-      let size = 0;
-      try {
-        size = turfArea({
-          type: "Feature",
-          properties: {},
-          geometry: candidate,
-        });
-      } catch {
-        continue;
-      }
-      if (size > bestArea) {
-        bestArea = size;
-        best = candidate;
-      }
+  private mergeParts(
+    parts: Feature<Polygon | MultiPolygon>[]
+  ): Polygon | MultiPolygon | null {
+    if (parts.length === 0) return null;
+    if (parts.length === 1) return parts[0].geometry;
+    try {
+      const merged = union(featureCollection(parts))?.geometry;
+      if (merged) return merged;
+    } catch {
+      // unmergeable: side by side covers the same ground
     }
-    return best;
+    return {
+      type: "MultiPolygon",
+      coordinates: parts.flatMap((part) =>
+        part.geometry.type === "Polygon"
+          ? [part.geometry.coordinates]
+          : part.geometry.coordinates
+      ),
+    };
   }
 
   /** The solid half is the shape at the width it already ran with, so the
    *  dashed half is exactly what an apply would change — outside it when the
    *  width grows, inside it when it shrinks, gone when nothing is left. */
-  private renderShape(
-    drawn: Polygon | LineString,
-    buffered: Polygon | LineString | null
-  ): void {
+  private renderShape(drawn: DrawnShape, buffered: DrawnShape | null): void {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
     const base = this.withBuffer(drawn, this.baseWidth());

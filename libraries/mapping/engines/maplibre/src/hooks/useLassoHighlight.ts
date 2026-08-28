@@ -10,15 +10,16 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
-import type { Feature, Polygon, LineString, Point } from "geojson";
+import type { Feature, Polygon, MultiPolygon, Point } from "geojson";
+import { booleanPointInPolygon, booleanIntersects } from "@turf/turf";
 import {
-  booleanPointInPolygon,
-  booleanIntersects,
-  polygon as turfPolygon,
-  lineString as turfLineString,
-} from "@turf/turf";
-import { LassoDrawingManager, DEFAULT_COLOR } from "../lib/LassoDrawingManager";
+  LassoDrawingManager,
+  DEFAULT_COLOR,
+  shapePositions,
+  toTurfShape,
+} from "../lib/LassoDrawingManager";
 import type {
+  DrawnShape,
   DrawShape,
   ModifierKey,
   RectSize,
@@ -75,19 +76,15 @@ const OPERATION_COLORS: Record<LassoOperation, string> = {
  */
 function collectFeaturesInPolygon(
   map: MaplibreMap,
-  drawnShape: Polygon | LineString,
+  drawnShape: DrawnShape,
   configuredSources: LassoSources | undefined
 ): MapGeoJSONFeature[] {
   // 1. Compute pixel bounding box from the shape's vertices
-  const ring =
-    drawnShape.type === "Polygon"
-      ? drawnShape.coordinates[0]
-      : drawnShape.coordinates;
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity;
-  for (const coord of ring) {
+  for (const coord of shapePositions(drawnShape)) {
     const px = map.project([coord[0], coord[1]]);
     if (px.x < minX) minX = px.x;
     if (px.y < minY) minY = px.y;
@@ -102,10 +99,7 @@ function collectFeaturesInPolygon(
   const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
 
   // 3. Build the turf geometry for the spatial tests
-  const turfLasso =
-    drawnShape.type === "Polygon"
-      ? turfPolygon(drawnShape.coordinates)
-      : turfLineString(drawnShape.coordinates);
+  const turfLasso = toTurfShape(drawnShape);
 
   // 4. Filter and spatial test
   const seen = new Set<string>();
@@ -150,11 +144,11 @@ function collectFeaturesInPolygon(
     try {
       if (
         f.geometry.type === "Point" &&
-        turfLasso.geometry.type === "Polygon"
+        turfLasso.geometry.type !== "LineString"
       ) {
         inside = booleanPointInPolygon(
           f.geometry as Point,
-          turfLasso as Feature<Polygon>
+          turfLasso as Feature<Polygon | MultiPolygon>
         );
       } else {
         // a point against a bare line lands here and will practically never
@@ -251,6 +245,9 @@ export interface UseLassoHighlightResult {
   isDrawing: boolean;
   /** Drops the line currently being placed. */
   cancelLine: () => void;
+  /** Takes the union of the highlighted features in view as the remembered
+   *  shape. False when nothing highlighted is in view. */
+  shapeFromHighlights: () => boolean;
   /** Puts the last finished shape back on the map. */
   showLastShape: () => void;
   /** Takes that preview back down. */
@@ -337,7 +334,7 @@ export const useLassoHighlight = ({
   clearRef.current = clearHighlights;
 
   const handleDrawComplete = useCallback(
-    (lassoPolygon: Polygon | LineString) => {
+    (lassoPolygon: DrawnShape) => {
       setIsDrawing(false);
       if (!map) return;
 
@@ -420,7 +417,7 @@ export const useLassoHighlight = ({
    * gesture behaves identically no matter how the selection was made.
    */
   const handleRefineComplete = useCallback(
-    (lassoPolygon: Polygon | LineString) => {
+    (lassoPolygon: DrawnShape) => {
       setIsDrawing(false);
       if (!map) return;
 
@@ -473,7 +470,7 @@ export const useLassoHighlight = ({
   }, []);
 
   const handleGestureComplete = useCallback(
-    (lassoPolygon: Polygon | LineString) => {
+    (lassoPolygon: DrawnShape) => {
       if (operationRef.current === "refine") {
         handleRefineComplete(lassoPolygon);
         return;
@@ -857,6 +854,25 @@ export const useLassoHighlight = ({
     managerRef.current?.cancelLine();
   }, []);
 
+  // feature-state is the single truth about what is highlighted, whatever lit
+  // it: matchers, a search, alt+click or an earlier shape
+  const shapeFromHighlights = useCallback(() => {
+    if (!map) return false;
+    return (
+      managerRef.current?.adoptHighlightedShape((feature) =>
+        Boolean(
+          map.getFeatureState(
+            buildFeatureStateTarget(map, {
+              source: feature.source,
+              sourceLayer: feature.sourceLayer ?? "",
+              id: feature.id!,
+            })
+          ).highlighted
+        )
+      ) ?? false
+    );
+  }, [map]);
+
   const showLastShape = useCallback(() => {
     managerRef.current?.showLastShape();
   }, []);
@@ -872,6 +888,7 @@ export const useLassoHighlight = ({
   return {
     isDrawing,
     cancelLine,
+    shapeFromHighlights,
     showLastShape,
     hideLastShape,
     applyLastShape,
