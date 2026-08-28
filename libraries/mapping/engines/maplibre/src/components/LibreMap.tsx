@@ -272,7 +272,9 @@ export interface LibreMapProps {
   ) => maplibregl.MapGeoJSONFeature | undefined;
   /** Enable debug logging for [LAYER_MODE] and [StyleComposer] messages */
   debugLog?: boolean;
-  /** Log MapLibre-internal errors (tile loading, worker failures, etc.) to the console */
+  /** Also log the raw MapLibre error event, not just its message. MapLibre
+   * errors (style validation, tile loading, worker failures, etc.) are always
+   * logged; this only adds the full event for debugging. */
   logErrors?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */
   exposeMapToWindow?: boolean;
@@ -926,17 +928,22 @@ export const LibreMap = ({
         (window as unknown as Record<string, unknown>).__carmaMap = mapInstance;
       }
 
-      // Surface MapLibre-internal errors (tile loading, worker failures, etc.)
-      // so they are never silently swallowed.
-      if (logErrors) {
-        mapInstance.on("error", (e) => {
-          console.error(
-            "[MAPLIBRE]",
-            (e as unknown as { sourceId?: string }).sourceId ?? "",
-            (e as unknown as { error?: Error }).error ?? e
-          );
-        });
-      }
+      // Surface MapLibre-internal errors (style validation, tile loading, worker
+      // failures, etc.) so they are never silently swallowed. This listener is
+      // unconditional on purpose: MapLibre only falls back to its own
+      // console.error while *nothing* listens for "error", and
+      // LayerLoadingTracker always listens (it reads sourceId off the event).
+      // Gating this on logErrors therefore made errors it does not own — a
+      // rejected style above all — vanish without a trace. logErrors now only
+      // decides how much of the event is printed.
+      mapInstance.on("error", (e) => {
+        const sourceId = (e as unknown as { sourceId?: string }).sourceId ?? "";
+        const error = (e as unknown as { error?: Error }).error;
+        console.error("[MAPLIBRE]", sourceId, error ?? e);
+        if (logErrors) {
+          console.error("[MAPLIBRE] full event", e);
+        }
+      });
 
       mapInstance.on("click", async (e) => {
         // Selection fully disabled (e.g. host app is in a custom interaction
