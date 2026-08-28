@@ -635,7 +635,7 @@ const ShadowQuickSettings = ({
             </span>
           </label>
           <label className="grid grid-cols-[110px_1fr] items-center gap-3">
-            <span>Sonnenscheibe</span>
+            <span>Weiche Schatten</span>
             <input
               type="checkbox"
               checked={state.softSunShadows ?? true}
@@ -647,7 +647,7 @@ const ShadowQuickSettings = ({
               }
               className="h-4 w-4 cursor-pointer justify-self-start accent-amber-600"
               data-test-id="shadow-simulation-soft-sun"
-              aria-label="Sonnenscheibe statt Punktquelle"
+              aria-label="Weiche Sonnenschatten durch Sonnenscheiben-Sampling"
             />
           </label>
           <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">

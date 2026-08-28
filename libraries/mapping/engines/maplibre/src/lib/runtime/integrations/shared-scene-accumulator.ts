@@ -74,6 +74,8 @@ export type SharedSceneAccumulator = {
   readonly broken: boolean;
   /** Whether every configured round has been blended in. */
   readonly converged: boolean;
+  /** Whether a complete accumulation is available for reuse. */
+  readonly hasSettledFrame: boolean;
   /** The round the next renderRound call will produce, 0-based. */
   readonly nextRound: number;
   /**
@@ -90,8 +92,11 @@ export type SharedSceneAccumulator = {
     height: number,
     renderScene: () => void
   ) => void;
-  /** Draw the accumulated average plus scene depth into the current target. */
-  composite: (renderer: WebGLRenderer) => void;
+  /**
+   * Draw an accumulated average plus scene depth into the current target.
+   * Returns false when no suitable frame exists yet.
+   */
+  composite: (renderer: WebGLRenderer, preferSettled?: boolean) => boolean;
   dispose: () => void;
 };
 
@@ -101,12 +106,14 @@ export const buildSharedSceneAccumulator = (
   let sceneTarget: WebGLRenderTarget | null = null;
   let accumRead: WebGLRenderTarget | null = null;
   let accumWrite: WebGLRenderTarget | null = null;
+  let settledAccum: WebGLRenderTarget | null = null;
   let width = 0;
   let height = 0;
   let round = 0;
   let stateKey = "";
   let selfChecked = false;
   let broken = false;
+  let hasSettledFrame = false;
 
   const fullscreenScene = new Scene();
   const fullscreenCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -147,9 +154,12 @@ export const buildSharedSceneAccumulator = (
     sceneTarget?.dispose();
     accumRead?.dispose();
     accumWrite?.dispose();
+    settledAccum?.dispose();
     sceneTarget = null;
     accumRead = null;
     accumWrite = null;
+    settledAccum = null;
+    hasSettledFrame = false;
   };
 
   const ensureTargets = (nextWidth: number, nextHeight: number) => {
@@ -171,6 +181,7 @@ export const buildSharedSceneAccumulator = (
     } as const;
     accumRead = new WebGLRenderTarget(width, height, accumOptions);
     accumWrite = new WebGLRenderTarget(width, height, accumOptions);
+    settledAccum = new WebGLRenderTarget(width, height, accumOptions);
     round = 0;
   };
 
@@ -180,6 +191,9 @@ export const buildSharedSceneAccumulator = (
     },
     get converged() {
       return round >= rounds;
+    },
+    get hasSettledFrame() {
+      return hasSettledFrame;
     },
     get nextRound() {
       return round;
@@ -245,13 +259,27 @@ export const buildSharedSceneAccumulator = (
       accumRead = accumWrite;
       accumWrite = swap;
       round += 1;
+      if (round >= rounds && settledAccum) {
+        const previousSettled = settledAccum;
+        settledAccum = accumRead;
+        accumRead = previousSettled;
+        hasSettledFrame = true;
+      }
     },
-    composite(renderer) {
-      if (!sceneTarget || !accumRead || round === 0) return;
+    composite(renderer, preferSettled = false) {
+      if (!sceneTarget) return false;
+      const colorTarget =
+        (preferSettled || round >= rounds) && hasSettledFrame
+          ? settledAccum
+          : round > 0
+          ? accumRead
+          : null;
+      if (!colorTarget) return false;
       fullscreenMesh.material = compositeMaterial;
-      compositeMaterial.uniforms.tColor.value = accumRead.texture;
+      compositeMaterial.uniforms.tColor.value = colorTarget.texture;
       compositeMaterial.uniforms.tDepth.value = sceneTarget.depthTexture;
       renderer.render(fullscreenScene, fullscreenCamera);
+      return true;
     },
     dispose() {
       disposeTargets();

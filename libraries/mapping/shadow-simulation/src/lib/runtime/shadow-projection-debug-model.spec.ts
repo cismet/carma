@@ -131,4 +131,34 @@ describe("buildShadowProjectionDebugModel", () => {
     expect(offset.north).toBeCloseTo(-expectedPosition.z, 6);
     expect(offset.up).toBeCloseTo(expectedPosition.y, 6);
   });
+
+  it("normalizes loaded terrain tile volumes around the scene anchor", () => {
+    const snapshot = {
+      ...buildSnapshot(),
+      terrainTileVolumes: [
+        {
+          id: "terrain:10/532/218",
+          minimum: [0, 10, 20] as const,
+          maximum: [20, 30, 40] as const,
+        },
+      ],
+    };
+    const model = buildShadowProjectionDebugModel(
+      buildMap(),
+      { instant, azimuthDegrees: 120, elevationDegrees: 30 },
+      snapshot
+    );
+
+    expect(model?.terrainTileVolumes).toHaveLength(1);
+    expect(model?.terrainTileVolumes[0]?.minimum).toEqual([
+      expect.closeTo(-0.82),
+      expect.closeTo(-0.82),
+      expect.closeTo(-0.82),
+    ]);
+    expect(model?.terrainTileVolumes[0]?.maximum).toEqual([
+      expect.closeTo(0.82),
+      expect.closeTo(0.82),
+      expect.closeTo(0.82),
+    ]);
+  });
 });

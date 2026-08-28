@@ -38,6 +38,10 @@ export type ShadowProjectionDebugBuffer = Readonly<{
 
 export type ShadowProjectionDebugModel = {
   viewStates: readonly ViewState[];
+  terrainTileVolumes: readonly Readonly<{
+    minimum: readonly [number, number, number];
+    maximum: readonly [number, number, number];
+  }>[];
   viewportWidthMeters: number;
   viewportHeightMeters: number;
   receiverCoverageWidthMeters: number;
@@ -174,6 +178,40 @@ const readViewportFootprint = (map: MaplibreMap) => {
   };
 };
 
+const normalizeTerrainTileVolumes = (
+  snapshot: ShadowProjectionDebugSnapshot,
+  sceneAnchorPosition: Vector3
+) => {
+  const relativeVolumes = (snapshot.terrainTileVolumes ?? []).map(
+    ({ minimum, maximum }) => ({
+      minimum: new Vector3(...minimum).sub(sceneAnchorPosition),
+      maximum: new Vector3(...maximum).sub(sceneAnchorPosition),
+    })
+  );
+  const maximumAbsoluteCoordinate = relativeVolumes.reduce(
+    (maximumValue, volume) =>
+      Math.max(
+        maximumValue,
+        ...volume.minimum.toArray().map(Math.abs),
+        ...volume.maximum.toArray().map(Math.abs)
+      ),
+    1
+  );
+  const scale = 0.82 / maximumAbsoluteCoordinate;
+  return relativeVolumes.map(({ minimum, maximum }) => ({
+    minimum: minimum.multiplyScalar(scale).toArray() as [
+      number,
+      number,
+      number
+    ],
+    maximum: maximum.multiplyScalar(scale).toArray() as [
+      number,
+      number,
+      number
+    ],
+  }));
+};
+
 export const buildShadowProjectionDebugModel = (
   map: MaplibreMap,
   solarPosition: SolarPosition,
@@ -241,6 +279,10 @@ export const buildShadowProjectionDebugModel = (
 
   return {
     viewStates: [cameraViewState, shadowViewState ?? fallbackShadowViewState],
+    terrainTileVolumes: normalizeTerrainTileVolumes(
+      snapshot,
+      sceneAnchorPosition
+    ),
     viewportWidthMeters: footprint.widthMeters,
     viewportHeightMeters: footprint.heightMeters,
     receiverCoverageWidthMeters,

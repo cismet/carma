@@ -883,6 +883,12 @@ export const buildShadowSimulationScene = (
     sceneLease.layer.getScene(),
     initialShadowAreaMeters
   );
+  let shadowStateEpoch = 0;
+  let shadowVisualEpoch = 0;
+  const invalidateShadowPresentation = () => {
+    shadowStateEpoch += 1;
+    shadowVisualEpoch += 1;
+  };
   const applyMapLibreLightSample = (sample: AtmosphericSunlightSample) => {
     if (!map.isStyleLoaded()) return;
     const nextPosition: [number, number, number] = [
@@ -917,6 +923,7 @@ export const buildShadowSimulationScene = (
       terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0;
     atmosphericSunlight.ensure(() => {
       if (disposed || !latestSolarPosition) return;
+      invalidateShadowPresentation();
       const sample = evaluateAtmosphericSunlightForMap(latestSolarPosition);
       applyMapLibreLightSample(sample);
       map.triggerRepaint();
@@ -967,11 +974,11 @@ export const buildShadowSimulationScene = (
   let mapInMotion = false;
   let lastDebugPublishMs = 0;
   let softSunShadowsEnabled = true;
-  let shadowStateEpoch = 0;
   let contentChangeTimer = 0;
   let coverageNeedsCameraReevaluation = true;
   let fallbackReceiverWorldPoints: THREE.Vector3[] = [];
   let renderCameraSignature = "";
+  sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
   const updateSharedShadowCoverage = (reevaluateSun = true) => {
     const mapCenter = map.getCenter();
@@ -1180,6 +1187,18 @@ export const buildShadowSimulationScene = (
         hasShadowProjectionDebugListeners(map);
       if (primary && publishWanted && publishDue) {
         lastDebugPublishMs = nowMs;
+        const debugRuntimes: readonly SharedThreeSceneRuntime[] = terrainRuntime
+          ? [terrainRuntime, ...getSharedThreeSceneRuntimes(map)]
+          : getSharedThreeSceneRuntimes(map);
+        const terrainTileVolumes = debugRuntimes.flatMap((runtime) =>
+          (runtime.getDebugVolumes?.() ?? [])
+            .filter((volume) => volume.kind === "terrain-tile")
+            .map(({ id, minimum, maximum }) => ({
+              id,
+              minimum,
+              maximum,
+            }))
+        );
         publishShadowProjectionDebugSnapshot(map, {
           cameraRangeMeters: primaryCamera.position.distanceTo(
             sharedBinding.controller.lights[0].target.position
@@ -1196,6 +1215,7 @@ export const buildShadowSimulationScene = (
           minimumElevationMeters: sharedBinding.minimumElevationMeters,
           maximumElevationMeters: sharedBinding.maximumElevationMeters,
           sceneAnchorPositionElements: sharedBinding.center.toArray(),
+          terrainTileVolumes,
           shadow: snapshot,
           atmosphericSunlight: latestAtmosphericSunlight
             ? {
@@ -1232,6 +1252,7 @@ export const buildShadowSimulationScene = (
       return getSunDiscAccumulationRounds();
     },
     epoch: () => shadowStateEpoch,
+    visualEpoch: () => shadowVisualEpoch,
     active: () =>
       softSunShadowsEnabled &&
       !mapInMotion &&
@@ -1240,6 +1261,14 @@ export const buildShadowSimulationScene = (
       latestSolarPosition !== null &&
       latestShadowView !== null &&
       sceneRequestsSettled() &&
+      sharedBinding.receiverWorldPoints.length > 0,
+    retainSettledFrame: () =>
+      softSunShadowsEnabled &&
+      !mapInMotion &&
+      !timeAnimating &&
+      latestSolarPosition !== null &&
+      latestShadowView !== null &&
+      (!sceneRequestsSettled() || sharedBinding.dirty) &&
       sharedBinding.receiverWorldPoints.length > 0,
     prepareRound: (round: number) => {
       sharedBinding.controller.applySunDiscSample(
@@ -1363,6 +1392,7 @@ export const buildShadowSimulationScene = (
     ) {
       return;
     }
+    invalidateShadowPresentation();
     latestSolarPosition = position;
     updateSharedShadowCoverage();
     applyMapLibreLight(position);
@@ -1378,8 +1408,11 @@ export const buildShadowSimulationScene = (
   return {
     updateSolarPosition,
     updateTerrainColor(color) {
+      const nextColor = new THREE.Color(color);
+      if (terrainColor.equals(nextColor)) return;
+      invalidateShadowPresentation();
       terrainRuntime?.setMaterialColor(color);
-      terrainColor = new THREE.Color(color);
+      terrainColor = nextColor;
       ensureShadowBackground();
     },
     updateBuildingAppearance(appearance) {
@@ -1389,6 +1422,7 @@ export const buildShadowSimulationScene = (
       ) {
         return;
       }
+      invalidateShadowPresentation();
       latestBuildingAppearance = appearance;
       for (const bridge of genericBridges.values()) {
         bridge.updateBuildingAppearance(appearance);
@@ -1403,6 +1437,7 @@ export const buildShadowSimulationScene = (
     },
     updateShadowQuality(quality) {
       if (sharedBinding.shadowQuality === quality) return;
+      invalidateShadowPresentation();
       sharedBinding.shadowQuality = quality;
       sharedBinding.dirty = true;
       updateSharedShadowCoverage();
@@ -1410,6 +1445,7 @@ export const buildShadowSimulationScene = (
     },
     updateSoftSunShadows(enabled) {
       if (softSunShadowsEnabled === enabled) return;
+      invalidateShadowPresentation();
       softSunShadowsEnabled = enabled;
       sharedBinding.controller.setSoftSun(enabled);
       sharedBinding.controller.invalidate();
@@ -1431,6 +1467,7 @@ export const buildShadowSimulationScene = (
     updateShadowIntensity(intensity) {
       const nextIntensity = clamp(intensity, 0, 1);
       if (latestShadowIntensity === nextIntensity) return;
+      invalidateShadowPresentation();
       latestShadowIntensity = nextIntensity;
       sharedBinding.shadowIntensity = latestShadowIntensity;
       for (const light of sharedBinding.controller.lights) {
@@ -1440,12 +1477,14 @@ export const buildShadowSimulationScene = (
     },
     updateSunDebugVectorVisibility(visible) {
       if (sharedBinding.sunVectorVisible === visible) return;
+      invalidateShadowPresentation();
       sharedBinding.sunVectorVisible = visible;
       sharedBinding.sunVector.root.visible = visible && !!latestSolarPosition;
       map.triggerRepaint();
     },
     updateShadowBufferDebugVisibility(visible) {
       if (sharedBinding.projectionDebugVisible === visible) return;
+      invalidateShadowPresentation();
       sharedBinding.projectionDebugVisible = visible;
       if (visible) sharedBinding.dirty = true;
       updateShadowBufferBorders(sharedBinding);
@@ -1459,6 +1498,7 @@ export const buildShadowSimulationScene = (
       ) {
         return;
       }
+      invalidateShadowPresentation();
       atmosphericSunlightOptions = options;
       latestAtmosphericSunlight = null;
       if (latestSolarPosition) {

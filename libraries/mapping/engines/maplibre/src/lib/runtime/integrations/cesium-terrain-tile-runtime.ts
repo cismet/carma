@@ -42,6 +42,7 @@ import {
 import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
 import type {
   SharedThreeSceneFrame,
+  SharedThreeSceneDebugVolume,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
 } from "./shared-three-scene-layer";
@@ -89,6 +90,7 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   getViewElevationRange: (
     camera: Camera
   ) => readonly [minimum: number, maximum: number] | null;
+  getDebugVolumes: () => readonly SharedThreeSceneDebugVolume[];
 }
 
 type TerrainMeshRecord = {
@@ -857,6 +859,36 @@ export const buildCesiumTerrainRuntime = (
   };
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
+  const terrainBoundsCorner = new Vector3();
+
+  const getTerrainMeshWorldBounds = (
+    record: TerrainMeshRecord,
+    target: Box3
+  ): Box3 => {
+    const geographicBounds = source!.getTileBounds(record.id);
+    target.makeEmpty();
+    for (const longitude of [geographicBounds.west, geographicBounds.east]) {
+      for (const latitude of [geographicBounds.south, geographicBounds.north]) {
+        target.expandByPoint(
+          projectToLocalWorld(
+            longitude,
+            latitude,
+            record.minimumHeightMeters,
+            terrainBoundsCorner
+          )
+        );
+        target.expandByPoint(
+          projectToLocalWorld(
+            longitude,
+            latitude,
+            record.maximumHeightMeters,
+            terrainBoundsCorner
+          )
+        );
+      }
+    }
+    return target.applyMatrix4(root.matrixWorld);
+  };
 
   const getViewElevationRange = (
     camera: Camera
@@ -874,38 +906,12 @@ export const buildCesiumTerrainRuntime = (
       camera.reversedDepth
     );
     const localBounds = new Box3();
-    const projectedCorner = new Vector3();
     let minimum = Number.POSITIVE_INFINITY;
     let maximum = Number.NEGATIVE_INFINITY;
     for (const key of activeMeshKeys) {
       const record = meshes.get(key);
       if (!record?.node.visible) continue;
-      const geographicBounds = source.getTileBounds(record.id);
-      localBounds.makeEmpty();
-      for (const longitude of [geographicBounds.west, geographicBounds.east]) {
-        for (const latitude of [
-          geographicBounds.south,
-          geographicBounds.north,
-        ]) {
-          localBounds.expandByPoint(
-            projectToLocalWorld(
-              longitude,
-              latitude,
-              record.minimumHeightMeters,
-              projectedCorner
-            )
-          );
-          localBounds.expandByPoint(
-            projectToLocalWorld(
-              longitude,
-              latitude,
-              record.maximumHeightMeters,
-              projectedCorner
-            )
-          );
-        }
-      }
-      localBounds.applyMatrix4(root.matrixWorld);
+      getTerrainMeshWorldBounds(record, localBounds);
       if (!viewFrustum.intersectsBox(localBounds)) continue;
       minimum = Math.min(minimum, localBounds.min.y);
       maximum = Math.max(maximum, localBounds.max.y);
@@ -913,6 +919,25 @@ export const buildCesiumTerrainRuntime = (
     return Number.isFinite(minimum) && Number.isFinite(maximum)
       ? [minimum, maximum]
       : null;
+  };
+
+  const getDebugVolumes = (): readonly SharedThreeSceneDebugVolume[] => {
+    if (!source || activeMeshKeys.size === 0) return [];
+    root.updateMatrixWorld(true);
+    const bounds = new Box3();
+    const volumes: SharedThreeSceneDebugVolume[] = [];
+    for (const key of activeMeshKeys) {
+      const record = meshes.get(key);
+      if (!record?.node.visible) continue;
+      getTerrainMeshWorldBounds(record, bounds);
+      volumes.push({
+        id: `${runtimeId}:${key}`,
+        kind: "terrain-tile",
+        minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
+        maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
+      });
+    }
+    return volumes;
   };
 
   const applyMeshVisibility = () => {
@@ -1465,6 +1490,7 @@ export const buildCesiumTerrainRuntime = (
       return source?.sampleHeight(longitude, latitude);
     },
     getViewElevationRange,
+    getDebugVolumes,
     dispose() {
       if (disposed) return;
       disposed = true;

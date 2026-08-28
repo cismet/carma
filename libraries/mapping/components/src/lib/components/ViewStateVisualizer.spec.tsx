@@ -26,6 +26,7 @@ const { primitiveMock, createPrimitiveMock } = vi.hoisted(() => {
     setOverview: vi.fn(() => null),
     setVisualized: vi.fn(() => null),
     setDisplay: vi.fn(() => null),
+    setVolumeBoxes: vi.fn(() => null),
     setInteractive: vi.fn(),
     readLabelAnchors: vi.fn(() => labelAnchors),
     dispose: vi.fn(),
@@ -89,6 +90,7 @@ describe("ViewStateVisualizer", () => {
     primitiveMock.setOverview.mockClear();
     primitiveMock.setVisualized.mockClear();
     primitiveMock.setDisplay.mockClear();
+    primitiveMock.setVolumeBoxes.mockClear();
     primitiveMock.setInteractive.mockClear();
     primitiveMock.readLabelAnchors.mockClear();
     primitiveMock.dispose.mockClear();
@@ -149,6 +151,35 @@ describe("ViewStateVisualizer", () => {
         viewStates,
         expect.any(Object)
       );
+    });
+  });
+
+  it("updates volume boxes without recreating the primitive", async () => {
+    const first = {
+      boxes: [{ minimum: [0, 0, 0], maximum: [1, 1, 1] }] as const,
+    };
+    const second = {
+      boxes: [{ minimum: [1, 1, 1], maximum: [2, 2, 2] }] as const,
+    };
+    const { rerender } = render(
+      <ViewStateVisualizer viewState={{} as ViewState} volumeBoxes={first} />
+    );
+
+    rerender(
+      <ViewStateVisualizer viewState={{} as ViewState} volumeBoxes={second} />
+    );
+
+    await waitFor(() => {
+      expect(primitiveMock.setVolumeBoxes).toHaveBeenLastCalledWith(second);
+      expect(createPrimitiveMock).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(<ViewStateVisualizer viewState={{} as ViewState} />);
+
+    await waitFor(() => {
+      expect(primitiveMock.setVolumeBoxes).toHaveBeenLastCalledWith({
+        boxes: [],
+      });
     });
   });
 

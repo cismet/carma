@@ -29,6 +29,7 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS = Object.freeze({
 export const DEFAULT_VIEW_STATE_VISUALIZER_OVERVIEW_OPTIONS = Object.freeze({
   fovDeg: 38,
   orthographic: false,
+  fitOrthographicWidth: false,
 }) satisfies Readonly<ResolvedViewStateVisualizerOverviewOptions>;
 
 export const DEFAULT_VIEW_STATE_VISUALIZER_INTERACTIVE = false;
@@ -48,6 +49,7 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
   }),
   worldAxes: Object.freeze({
     show: true,
+    showUp: true,
     lineWidthPx: 0.5,
   }),
   angleCues: Object.freeze({

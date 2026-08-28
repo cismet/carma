@@ -427,7 +427,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       (shadowView && !shadowSelectionEnabled ? 1 : 0) +
       (shadowSelectionNeedsTraversal ? 1 : 0) +
       (tileRetries.hasPendingRetries() ? 1 : 0) +
-      (tiles.group.children.length === 0 ? 1 : 0)
+      (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries()
+        ? 1
+        : 0)
     );
   };
   const getViewElevationRange = (
@@ -501,8 +503,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     tiles.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
-  const handleModelLoad = (event: { scene?: THREE.Object3D; tile?: Tile }) => {
-    if (event.tile) tileRetries.handleSuccess(event.tile);
+  const handleModelLoad = (event: {
+    scene?: THREE.Object3D;
+    tile?: Tile;
+    url?: string;
+  }) => {
+    if (event.tile) tileRetries.handleSuccess(event.tile, event.url);
     if (event.scene) {
       event.scene.traverse((object) => {
         object.frustumCulled = false;
@@ -518,8 +524,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (event.scene) restoreClayMaterials(event.scene);
     options.onContentChanged?.();
   };
-  const handleLoadError = (event: { tile?: Tile | null }) => {
-    tileRetries.handleFailure(event.tile ?? null);
+  const handleTilesetLoad = (event: { url?: string }) => {
+    tileRetries.handleSuccess(null, event.url);
+    requestRender();
+  };
+  const handleLoadError = (event: {
+    tile?: Tile | null;
+    url?: string | URL;
+  }) => {
+    tileRetries.handleFailure(event.tile ?? null, event.url);
+    if (kickstartTimer) {
+      window.clearInterval(kickstartTimer);
+      kickstartTimer = 0;
+    }
     notifyRequestStateChange();
   };
   const handleTilesLoadEnd = () => {
@@ -783,7 +800,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         requestRender();
       }, 400);
       tiles.addEventListener("needs-update", requestRender);
-      tiles.addEventListener("load-tileset", requestRender);
+      tiles.addEventListener("load-tileset", handleTilesetLoad);
       tiles.addEventListener("update-after", handleUpdateAfter);
       tiles.addEventListener("load-model", handleModelLoad);
       tiles.addEventListener("dispose-model", handleModelDispose);
@@ -1003,7 +1020,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       unsubscribeTerrainLoading?.();
       unsubscribeTerrainLoading = null;
       tiles?.removeEventListener("needs-update", requestRender);
-      tiles?.removeEventListener("load-tileset", requestRender);
+      tiles?.removeEventListener("load-tileset", handleTilesetLoad);
       tiles?.removeEventListener("update-after", handleUpdateAfter);
       tiles?.removeEventListener("load-model", handleModelLoad);
       tiles?.removeEventListener("dispose-model", handleModelDispose);
