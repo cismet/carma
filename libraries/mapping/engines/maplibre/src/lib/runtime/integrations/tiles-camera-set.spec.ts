@@ -2,9 +2,22 @@ import { TilesRenderer } from "3d-tiles-renderer";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { createTilesCameraSet } from "./tiles-camera-set";
+import {
+  createTilesCameraSet,
+  resolveTilesViewCamera,
+} from "./tiles-camera-set";
 
 describe("createTilesCameraSet", () => {
+  it("uses the exact render camera for bounding-volume selection", () => {
+    const renderCamera = new THREE.PerspectiveCamera();
+    const lodCamera = new THREE.PerspectiveCamera();
+
+    expect(resolveTilesViewCamera(renderCamera, lodCamera)).toBe(renderCamera);
+    expect(resolveTilesViewCamera(new THREE.Camera(), lodCamera)).toBe(
+      lodCamera
+    );
+  });
+
   it("selects tiles for the view and the active shadow camera", () => {
     const tiles = {
       setCamera: vi.fn(),

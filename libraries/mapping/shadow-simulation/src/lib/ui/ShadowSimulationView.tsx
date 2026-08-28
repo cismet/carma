@@ -200,7 +200,7 @@ const useMapCenterSolarLocation = (
   return location;
 };
 
-export const ShadowSimulationSettings = ({
+const ShadowSimulationSettings = ({
   location,
   state,
   setState,
@@ -285,7 +285,7 @@ const getSelectionForDayOffset = (
   };
 };
 
-export const ShadowSimulationHeaderControls = ({
+export const ShadowSimulationHeaderControlsView = ({
   config,
   libreMap,
   state,

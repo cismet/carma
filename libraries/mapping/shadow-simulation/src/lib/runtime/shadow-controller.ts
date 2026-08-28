@@ -6,7 +6,6 @@ import { degToRadNumeric } from "@carma-units";
 import type { ShadowQualityMultiplier } from "../core/shadow-types";
 
 const BASE_SHADOW_MAP_SIZE = 2_048;
-const MOVING_SHADOW_MAP_SIZE = 2_048;
 const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
 const SHADOW_FILTER_GUARD_TEXELS = 3;
 const MIN_SHADOW_AREA_METERS = 2;
@@ -69,6 +68,7 @@ export type ShadowSnapshot = Readonly<{
 
 export type ShadowUpdate = Readonly<{
   receiverWorldPoints: readonly THREE.Vector3[];
+  receiverAnchorWorldPosition: THREE.Vector3;
   minimumElevationMeters: number;
   maximumElevationMeters: number;
   directionToSun: THREE.Vector3;
@@ -76,7 +76,6 @@ export type ShadowUpdate = Readonly<{
   intensity: number;
   shadowIntensity: number;
   quality: ShadowQualityMultiplier;
-  interactive: boolean;
 }>;
 
 const getReceiverBoundsInLightCamera = (
@@ -125,7 +124,7 @@ export class ShadowController {
     directionToSun: THREE.Vector3;
     tangentA: THREE.Vector3;
     tangentB: THREE.Vector3;
-    targetPosition: THREE.Vector3;
+    anchorPosition: THREE.Vector3;
     lightDistance: number;
   } | null = null;
   private maxShadowMapSize = DEFAULT_MAX_SHADOW_MAP_SIZE;
@@ -171,16 +170,22 @@ export class ShadowController {
       offsetA * Math.cos(rotation) - offsetB * Math.sin(rotation);
     const rotatedB =
       offsetA * Math.sin(rotation) + offsetB * Math.cos(rotation);
+    const angularOffset = Math.hypot(rotatedA, rotatedB);
+    const tangentDirection = fit.tangentA
+      .clone()
+      .multiplyScalar(rotatedA)
+      .addScaledVector(fit.tangentB, rotatedB)
+      .normalize();
     const direction = fit.directionToSun
       .clone()
-      .addScaledVector(fit.tangentA, rotatedA)
-      .addScaledVector(fit.tangentB, rotatedB)
+      .multiplyScalar(Math.cos(angularOffset))
+      .addScaledVector(tangentDirection, Math.sin(angularOffset))
       .normalize();
     const light = this.lights[0];
     light.position
       .copy(direction)
       .multiplyScalar(fit.lightDistance)
-      .add(fit.targetPosition);
+      .add(fit.anchorPosition);
     light.updateMatrixWorld(true);
     light.target.updateMatrixWorld(true);
     light.shadow.updateMatrices(light);
@@ -193,6 +198,7 @@ export class ShadowController {
 
   update({
     receiverWorldPoints,
+    receiverAnchorWorldPosition,
     minimumElevationMeters,
     maximumElevationMeters,
     directionToSun,
@@ -200,7 +206,6 @@ export class ShadowController {
     intensity,
     shadowIntensity,
     quality,
-    interactive,
   }: ShadowUpdate): ShadowSnapshot | null {
     if (this.disposed) return null;
     if (receiverWorldPoints.length === 0) {
@@ -231,17 +236,15 @@ export class ShadowController {
     const lightMargin =
       casterReachMeters + reliefMeters + LIGHT_CAMERA_SAFETY_METERS;
     const restingMapSize = restingShadowMapSize(quality, this.maxShadowMapSize);
-    const mapSize = Math.floor(
-      interactive
-        ? Math.min(restingMapSize, MOVING_SHADOW_MAP_SIZE)
-        : restingMapSize
-    );
+    const mapSize = Math.floor(restingMapSize);
     const resolvedColor = new THREE.Color(color);
-    const receiverSphere = new THREE.Box3()
-      .setFromPoints([...receiverWorldPoints])
-      .getBoundingSphere(new THREE.Sphere());
-    const targetPosition = receiverSphere.center;
-    const lightDistance = receiverSphere.radius + lightMargin;
+    const targetPosition = receiverAnchorWorldPosition.clone();
+    const receiverRadius = receiverWorldPoints.reduce(
+      (radius, point) =>
+        Math.max(radius, point.distanceTo(receiverAnchorWorldPosition)),
+      0
+    );
+    const lightDistance = receiverRadius + lightMargin;
     const primaryLight = this.lights[0];
     primaryLight.position
       .copy(normalizedDirectionToSun)
@@ -259,13 +262,18 @@ export class ShadowController {
     if (!receiverBounds) return null;
 
     const sampleMapSize = mapSize;
+    const sunDiscGuardMeters = this.softSun
+      ? Math.tan(SUN_ANGULAR_RADIUS_RAD) * lightDistance
+      : 0;
     const usableMapDimension = Math.max(
       1,
       sampleMapSize - SHADOW_FILTER_GUARD_TEXELS * 2
     );
     const metersPerTexel = Math.max(
-      (receiverBounds.right - receiverBounds.left) / usableMapDimension,
-      (receiverBounds.top - receiverBounds.bottom) / usableMapDimension,
+      (receiverBounds.right - receiverBounds.left + sunDiscGuardMeters * 2) /
+        usableMapDimension,
+      (receiverBounds.top - receiverBounds.bottom + sunDiscGuardMeters * 2) /
+        usableMapDimension,
       Number.EPSILON
     );
     const guardMeters = metersPerTexel * SHADOW_FILTER_GUARD_TEXELS;
@@ -352,7 +360,7 @@ export class ShadowController {
           directionToSun: normalizedDirectionToSun.clone(),
           tangentA,
           tangentB,
-          targetPosition: targetPosition.clone(),
+          anchorPosition: targetPosition.clone(),
           lightDistance,
         }
       : null;

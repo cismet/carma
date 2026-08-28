@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getSharedThreeTerrainElevation,
+  isSharedThreeTerrainLoading,
   notifySharedThreeTerrainChanged,
   registerSharedThreeTerrainSampler,
   subscribeSharedThreeTerrain,
+  subscribeSharedThreeTerrainLoading,
   suppressMapLibreTerrainRendering,
+  setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
 
 describe("shared Three terrain registry", () => {
@@ -63,5 +66,22 @@ describe("shared Three terrain registry", () => {
     expect(terrain).toBeNull();
     releaseSecond();
     expect(terrain).toEqual(terrainSpec);
+  });
+
+  it("tracks terrain loading independently for every runtime", () => {
+    const map = {} as never;
+    const listener = vi.fn();
+    const unsubscribe = subscribeSharedThreeTerrainLoading(map, listener);
+
+    setSharedThreeTerrainLoading(map, "terrain-a", true);
+    setSharedThreeTerrainLoading(map, "terrain-b", true);
+    expect(isSharedThreeTerrainLoading(map)).toBe(true);
+
+    setSharedThreeTerrainLoading(map, "terrain-a", false);
+    expect(isSharedThreeTerrainLoading(map)).toBe(true);
+    setSharedThreeTerrainLoading(map, "terrain-b", false);
+    expect(isSharedThreeTerrainLoading(map)).toBe(false);
+    expect(listener).toHaveBeenCalledTimes(4);
+    unsubscribe();
   });
 });

@@ -291,7 +291,6 @@ export {
   type ShadowSimulationConfig,
   type ShadowSimulationState,
 } from "./addons/ShadowSimulation";
-export { clampShadowSimulationSelectionToDaylight } from "@carma-mapping/shadow-simulation";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
   CompareSwipe,

@@ -1,6 +1,6 @@
 import { useLibreContext } from "@carma-mapping/contexts";
 import {
-  ShadowSimulationHeaderControls as ShadowSimulationHeaderControlsView,
+  ShadowSimulationHeaderControlsView,
   ShadowSimulationView,
   type ShadowSimulationConfig,
   type ShadowSimulationState,

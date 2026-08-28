@@ -309,6 +309,49 @@ const getVisibleSceneElevationRange = (
   return [minimum, maximum];
 };
 
+const VIEWPORT_NDC_CORNERS = [
+  [-1, -1],
+  [-1, 1],
+  [1, -1],
+  [1, 1],
+] as const;
+
+const getViewportElevationEnvelopePoints = (
+  camera: THREE.Camera,
+  minimumElevationMeters: number,
+  maximumElevationMeters: number,
+  anchor: THREE.Vector3
+): THREE.Vector3[] => {
+  camera.updateMatrixWorld(true);
+  const points: THREE.Vector3[] = [];
+
+  for (const [x, y] of VIEWPORT_NDC_CORNERS) {
+    const nearPoint = new THREE.Vector3(x, y, -1).unproject(camera);
+    const farPoint = new THREE.Vector3(x, y, 1).unproject(camera);
+    const rayDirection = farPoint.sub(nearPoint);
+    if (Math.abs(rayDirection.y) <= Number.EPSILON) continue;
+
+    for (const elevation of [minimumElevationMeters, maximumElevationMeters]) {
+      const distanceAlongRay = (elevation - nearPoint.y) / rayDirection.y;
+      if (!Number.isFinite(distanceAlongRay) || distanceAlongRay < 0) continue;
+      const point = nearPoint
+        .clone()
+        .addScaledVector(rayDirection, distanceAlongRay);
+      const offset = point.clone().sub(anchor);
+      const horizontalDistance = Math.hypot(offset.x, offset.z);
+      if (horizontalDistance > MAX_RECEIVER_DISTANCE_METERS) {
+        const scale = MAX_RECEIVER_DISTANCE_METERS / horizontalDistance;
+        offset.x *= scale;
+        offset.z *= scale;
+        point.copy(anchor).add(offset);
+      }
+      points.push(point);
+    }
+  }
+
+  return points;
+};
+
 const applyBuildingAppearance = (
   root: THREE.Object3D,
   appearance: ShadowBuildingAppearance
@@ -973,9 +1016,18 @@ export const buildShadowSimulationScene = (
     id: "shadow-simulation-controller",
     originLngLat: [map.getCenter().lng, map.getCenter().lat],
     root: new THREE.Group(),
-    update() {
+    update(frame) {
       if (!sharedBinding.dirty) return;
       shadowStateEpoch += 1;
+      const cameraCoveragePoints = getViewportElevationEnvelopePoints(
+        frame.renderCamera,
+        sharedBinding.minimumElevationMeters,
+        sharedBinding.maximumElevationMeters,
+        sharedBinding.center
+      );
+      if (cameraCoveragePoints.length === VIEWPORT_NDC_CORNERS.length * 2) {
+        sharedBinding.receiverWorldPoints = cameraCoveragePoints;
+      }
       if (
         sharedBinding.receiverWorldPoints.length === 0 ||
         !latestSolarPosition
@@ -993,6 +1045,7 @@ export const buildShadowSimulationScene = (
       }
       const snapshot = sharedBinding.controller.update({
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
+        receiverAnchorWorldPosition: sharedBinding.center,
         minimumElevationMeters: sharedBinding.minimumElevationMeters,
         maximumElevationMeters: sharedBinding.maximumElevationMeters,
         directionToSun: sharedBinding.directionToSun,
@@ -1000,7 +1053,6 @@ export const buildShadowSimulationScene = (
         intensity: sharedBinding.sunIntensity,
         shadowIntensity: sharedBinding.shadowIntensity,
         quality: sharedBinding.shadowQuality,
-        interactive: mapInMotion,
       });
       sharedBinding.dirty = false;
       if (!snapshot) {

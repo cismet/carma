@@ -2,7 +2,6 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Quaternion, Vector3 } from "three";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import type { LatLng } from "@carma-geo/data-structures";
 import { distanceMeters, enuOffsetToEcef } from "@carma-geo/utils";
 import {
   buildViewState,
@@ -10,7 +9,7 @@ import {
   readFromMaplibre,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
-import { degToRadNumeric, type Degrees, type Meters } from "@carma-units";
+import { degToRadNumeric, type Meters } from "@carma-units";
 
 import type { SolarPosition } from "../core/solar-position";
 import type { ShadowProjectionDebugSnapshot } from "./shadow-projection-debug-store";
@@ -18,6 +17,7 @@ import type { ShadowProjectionDebugSnapshot } from "./shadow-projection-debug-st
 const DEBUG_SOURCE_ID = "shadow-simulation-projection-debug";
 
 type GeographicPoint = readonly [longitude: number, latitude: number];
+type DistancePoint = Parameters<typeof distanceMeters>[0];
 
 export type ShadowProjectionDebugBuffer = Readonly<{
   receiverLeftMeters: number;
@@ -140,13 +140,13 @@ const measureGeographicDistance = (
 ) =>
   distanceMeters(
     {
-      longitude: firstLongitude as Degrees,
-      latitude: firstLatitude as Degrees,
-    } satisfies LatLng.deg,
+      longitude: firstLongitude,
+      latitude: firstLatitude,
+    } as DistancePoint,
     {
-      longitude: secondLongitude as Degrees,
-      latitude: secondLatitude as Degrees,
-    } satisfies LatLng.deg
+      longitude: secondLongitude,
+      latitude: secondLatitude,
+    } as DistancePoint
   );
 
 const readViewportFootprint = (map: MaplibreMap) => {
