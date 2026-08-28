@@ -7,6 +7,7 @@ import type {
 } from "maplibre-gl";
 import * as THREE from "three";
 
+import { quantize } from "@carma-commons/math";
 import { getSharedThreeTerrainElevation } from "./shared-three-terrain-registry";
 import {
   buildSharedSceneAccumulator,
@@ -40,8 +41,33 @@ export interface SharedThreeSceneRuntime {
     style: SharedThreeSceneShadowStyle | null
   ) => void;
   setShadowView?: (view: SharedThreeSceneShadowView | null) => void;
+  /** World-space elevation span of loaded content intersecting this camera. */
+  getViewElevationRange?: (
+    camera: THREE.Camera
+  ) => readonly [minimum: number, maximum: number] | null;
+  /** Outstanding work required before a fixed-state render can converge. */
+  getRequestDemand?: () => number;
   dispose: () => void;
 }
+
+export const getSharedThreeShadowViewSignature = (
+  view: SharedThreeSceneShadowView | null
+): string => {
+  if (!view) return "";
+  const { camera, shadowMapSize } = view;
+  camera.updateMatrixWorld(true);
+  return [
+    quantize(camera.position.x, 0.25),
+    quantize(camera.position.y, 0.25),
+    quantize(camera.position.z, 0.25),
+    quantize(camera.quaternion.x, 0.0001),
+    quantize(camera.quaternion.y, 0.0001),
+    quantize(camera.quaternion.z, 0.0001),
+    quantize(camera.quaternion.w, 0.0001),
+    ...camera.projectionMatrix.elements.map((value) => quantize(value, 0.0001)),
+    `${shadowMapSize.width}x${shadowMapSize.height}`,
+  ].join(",");
+};
 
 export type SharedThreeSceneShadowStyle = Readonly<{
   fullOpacity: boolean;
@@ -443,12 +469,14 @@ export const buildSharedThreeSceneLayer = (
           );
           const activeRenderer = renderer;
           renderCamera.projectionMatrix.premultiply(jitterMatrix);
-          accumulator.renderRound(
-            activeRenderer,
-            drawingBuffer.x,
-            drawingBuffer.y,
-            () => activeRenderer.render(scene, renderCamera)
-          );
+          depthRangeBridge?.render(savedDepthRange, () => {
+            accumulator?.renderRound(
+              activeRenderer,
+              drawingBuffer.x,
+              drawingBuffer.y,
+              () => activeRenderer.render(scene, renderCamera)
+            );
+          });
         }
         depthRangeBridge?.render(savedDepthRange, () => {
           if (renderer) accumulator?.composite(renderer);

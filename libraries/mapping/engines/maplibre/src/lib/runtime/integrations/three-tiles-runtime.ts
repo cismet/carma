@@ -35,6 +35,7 @@ import type {
   SharedThreeSceneShadowStyle,
   SharedThreeSceneShadowView,
 } from "./shared-three-scene-layer";
+import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
 
 // Match the direct screen-space-error control used by the official
 // 3DTilesRendererJS kitchen-sink demo. Lower values request more detail.
@@ -99,6 +100,9 @@ export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
   setCacheBudget: (bytes: number) => void;
   setRequestConcurrency: (jobs: number) => void;
   getRequestDemand: () => number;
+  getViewElevationRange: (
+    camera: THREE.Camera
+  ) => readonly [minimum: number, maximum: number] | null;
   setProjector: (projector: ImageProjector | null) => void;
   setShadowView: (view: SharedThreeSceneShadowView | null) => void;
   originMerc: MercatorCoordinate;
@@ -166,7 +170,9 @@ export function buildThreeTilesRuntime(
   let outlineVisible = options.outline ?? true;
   let shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
   let shadowView: SharedThreeSceneShadowView | null = null;
+  let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
+  let shadowSelectionNeedsTraversal = false;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
@@ -176,6 +182,9 @@ export function buildThreeTilesRuntime(
   const tileViewProjection = new THREE.Matrix4();
   const tileViewFrustum = new THREE.Frustum();
   const tileBoundingSphere = new THREE.Sphere();
+  const tileBoundingBox = new THREE.Box3();
+  const tileViewElevationFrustum = new THREE.Frustum();
+  const tileViewElevationProjection = new THREE.Matrix4();
   const tileProjectedCenter = new THREE.Vector3();
   const identityRotation = new THREE.Quaternion();
   const projectorUniforms = {
@@ -400,17 +409,69 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       items: unknown[];
       currJobs: number;
     };
+    const stats = (
+      tiles as TilesRenderer & {
+        stats?: { queued?: number; downloading?: number; parsing?: number };
+      }
+    ).stats;
     return (
       queue.items.length +
       queue.currJobs +
+      (stats?.queued ?? 0) +
+      (stats?.downloading ?? 0) +
+      (stats?.parsing ?? 0) +
+      (activeErrorTarget > requestedErrorTarget || refinementTimer ? 1 : 0) +
+      (shadowView && !shadowSelectionEnabled ? 1 : 0) +
+      (shadowSelectionNeedsTraversal ? 1 : 0) +
+      (tileRetries.hasPendingRetries() ? 1 : 0) +
       (tiles.group.children.length === 0 ? 1 : 0)
     );
+  };
+  const getViewElevationRange = (
+    camera: THREE.Camera
+  ): readonly [number, number] | null => {
+    if (!tiles || !runtimeVisible) return null;
+    const currentTiles = tiles;
+    camera.updateMatrixWorld(true);
+    currentTiles.group.updateWorldMatrix(true, false);
+    tileViewElevationProjection.multiplyMatrices(
+      camera.projectionMatrix,
+      camera.matrixWorldInverse
+    );
+    tileViewElevationFrustum.setFromProjectionMatrix(
+      tileViewElevationProjection,
+      camera.coordinateSystem,
+      camera.reversedDepth
+    );
+    let minimum = Number.POSITIVE_INFINITY;
+    let maximum = Number.NEGATIVE_INFINITY;
+    currentTiles.forEachLoadedModel((_scene, tile) => {
+      const bounds = (
+        tile as Tile & {
+          engineData?: {
+            boundingVolume?: {
+              getAABB: (target: THREE.Box3) => void;
+            };
+          };
+        }
+      ).engineData?.boundingVolume;
+      if (!bounds) return;
+      bounds.getAABB(tileBoundingBox);
+      tileBoundingBox.applyMatrix4(currentTiles.group.matrixWorld);
+      if (!tileViewElevationFrustum.intersectsBox(tileBoundingBox)) return;
+      minimum = Math.min(minimum, tileBoundingBox.min.y);
+      maximum = Math.max(maximum, tileBoundingBox.max.y);
+    });
+    return Number.isFinite(minimum) && Number.isFinite(maximum)
+      ? [minimum, maximum]
+      : null;
   };
   const notifyRequestStateChange = () => options.onRequestStateChange?.();
   const setShadowSelectionEnabled = (enabled: boolean) => {
     const nextEnabled = enabled && shadowView !== null;
     if (shadowSelectionEnabled === nextEnabled) return;
     shadowSelectionEnabled = nextEnabled;
+    shadowSelectionNeedsTraversal = nextEnabled;
     cameraSet?.setShadowView(nextEnabled ? shadowView : null);
   };
   const maybeEnableShadowSelection = () => {
@@ -599,7 +660,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           priority?: number;
           engineData?: {
             boundingVolume?: {
-              intersectsFrustum: (frustum: THREE.Frustum) => boolean;
+              getAABB: (target: THREE.Box3) => void;
               getSphere: (target: THREE.Sphere) => void;
             };
           };
@@ -609,7 +670,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     for (const tile of queue.items) {
       const bounds = tile.engineData?.boundingVolume;
       if (!bounds) continue;
-      const inViewport = bounds.intersectsFrustum(tileViewFrustum);
+      bounds.getAABB(tileBoundingBox);
+      const inViewport = tileViewFrustum.intersectsBox(tileBoundingBox);
       bounds.getSphere(tileBoundingSphere);
       tileProjectedCenter
         .copy(tileBoundingSphere.center)
@@ -687,7 +749,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       );
 
       tiles.loadSiblings = false;
-      tiles.loadAncestors = false;
+      tiles.loadAncestors = true;
       applyRequestConcurrency();
       tiles.parseQueue.maxJobs = 4;
       tiles.processNodeQueue.maxJobs = 48;
@@ -753,7 +815,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           cameraSet.setShadowView(shadowSelectionEnabled ? shadowView : null);
         }
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
+        const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
+        if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         prioritizeQueuedTiles(viewCamera);
         pruneStaleQueuedRequests();
         maybeEnableShadowSelection();
@@ -831,12 +895,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     setShadowView(view) {
-      const hadShadowView = shadowView !== null;
+      const nextSignature = getSharedThreeShadowViewSignature(view);
+      if (nextSignature === shadowViewSignature) return;
+      shadowViewSignature = nextSignature;
       shadowView = view;
-      if (!view || !hadShadowView) setShadowSelectionEnabled(false);
+      setShadowSelectionEnabled(false);
       applyRequestConcurrency();
-      if (shadowSelectionEnabled) cameraSet?.setShadowView(view);
       tiles?.dispatchEvent({ type: "needs-update" });
+      notifyRequestStateChange();
     },
 
     setWhiteShading(white: boolean) {
@@ -917,6 +983,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     getRequestDemand,
+    getViewElevationRange,
 
     dispose() {
       if (kickstartTimer) {

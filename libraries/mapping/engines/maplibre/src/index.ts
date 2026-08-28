@@ -236,7 +236,10 @@ export {
 } from "./utils/threeDPresence";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
-export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
+export {
+  buildSharedThreeSceneLayer,
+  getSharedThreeShadowViewSignature,
+} from "./lib/runtime/integrations/shared-three-scene-layer";
 export type {
   SharedThreeSceneFrame,
   SharedThreeSceneLayer,
@@ -274,7 +277,10 @@ export type {
 } from "./lib/runtime/integrations/three-tiles-runtime";
 export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
 export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
-export { suppressMapLibreTerrainRendering } from "./lib/runtime/integrations/shared-three-terrain-registry";
+export {
+  isSharedThreeTerrainLoading,
+  suppressMapLibreTerrainRendering,
+} from "./lib/runtime/integrations/shared-three-terrain-registry";
 export { suppressMapLibreRegularStyleLayers } from "./lib/runtime/integrations/map-style-layer-suppression";
 
 // Styles (CSS should be imported by consumers)
