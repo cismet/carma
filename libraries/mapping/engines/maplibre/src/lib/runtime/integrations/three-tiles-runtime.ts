@@ -48,7 +48,8 @@ const COVERAGE_ERROR_TARGET_PIXELS = 64;
 const REFINEMENT_FACTOR = 2;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
-const MAX_SHADOW_REQUEST_CONCURRENCY = 2;
+export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 12;
+const MAX_SHADOW_REQUEST_CONCURRENCY = 12;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
 
@@ -151,7 +152,9 @@ export function buildThreeTilesRuntime(
   );
   let requestConcurrency = Math.max(
     0,
-    Math.floor(options.requestConcurrency ?? 4)
+    Math.floor(
+      options.requestConcurrency ?? THREE_TILES_DEFAULT_REQUEST_CONCURRENCY
+    )
   );
   // ReorientationPlugin produces X west / Z north. The MapLibre custom-layer
   // matrix below and the other pointcloud layers use X east / Z south, so keep

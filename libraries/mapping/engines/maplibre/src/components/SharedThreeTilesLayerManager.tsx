@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 
-import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime";
+import {
+  buildThreeTilesRuntime,
+  THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+} from "../lib/runtime/integrations/three-tiles-runtime";
 import {
   notifySharedThreeSceneContentChanged,
   registerSharedThreeSceneRuntime,
@@ -32,7 +35,8 @@ export const SharedThreeTilesLayerManager = ({
         layer.url,
         origin,
         {
-          requestConcurrency: layer.requestConcurrency ?? 2,
+          requestConcurrency:
+            layer.requestConcurrency ?? THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
           onContentChanged: () => notifySharedThreeSceneContentChanged(map),
         }
       );

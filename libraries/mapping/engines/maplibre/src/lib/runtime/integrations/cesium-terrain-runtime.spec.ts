@@ -1017,6 +1017,7 @@ describe("buildCesiumTerrainRuntime", () => {
     };
 
     renderAt(0);
+    await vi.waitFor(() => expect(pendingResolvers).toHaveLength(1));
     pendingResolvers.splice(0).forEach((resolve) => resolve());
     await flush();
     const visibleNode = () =>

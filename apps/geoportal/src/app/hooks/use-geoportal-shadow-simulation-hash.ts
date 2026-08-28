@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { useAddonState } from "@carma-mapping/addons";
@@ -16,6 +16,12 @@ import {
 type UseGeoportalShadowSimulationHashOptions = {
   customHashState: AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState> | null;
 };
+
+type ShadowHashUpdate = ReturnType<
+  typeof buildGeoportalShadowSimulationHashUpdate
+>;
+
+const SHADOW_HASH_WRITE_INTERVAL_MS = 500;
 
 const stateMatchesHashSelection = (
   enabled: boolean,
@@ -36,6 +42,58 @@ export const useGeoportalShadowSimulationHash = ({
   const { updateHashState } = useHashState();
   const handledHashStateVersionRef = useRef<number | null>(null);
   const pendingHashStateVersionRef = useRef<number | null>(null);
+  const pendingHashUpdateRef = useRef<ShadowHashUpdate | null>(null);
+  const hashWriteTimerRef = useRef<number | null>(null);
+  const lastHashWriteAtRef = useRef<number | null>(null);
+  const updateHashStateRef = useRef(updateHashState);
+  updateHashStateRef.current = updateHashState;
+
+  const flushPendingHashUpdate = useCallback(() => {
+    hashWriteTimerRef.current = null;
+    const update = pendingHashUpdateRef.current;
+    if (!update) {
+      return;
+    }
+
+    pendingHashUpdateRef.current = null;
+    lastHashWriteAtRef.current = Date.now();
+    updateHashStateRef.current(update, {
+      label: "geoportal:sync-shadow-simulation",
+      replace: true,
+    });
+  }, []);
+
+  const cancelPendingHashUpdate = useCallback(() => {
+    if (hashWriteTimerRef.current !== null) {
+      window.clearTimeout(hashWriteTimerRef.current);
+      hashWriteTimerRef.current = null;
+    }
+    pendingHashUpdateRef.current = null;
+  }, []);
+
+  const scheduleHashUpdate = useCallback(
+    (update: ShadowHashUpdate) => {
+      pendingHashUpdateRef.current = update;
+      if (hashWriteTimerRef.current !== null) {
+        return;
+      }
+
+      const lastWriteAt = lastHashWriteAtRef.current;
+      const elapsed =
+        lastWriteAt === null ? Infinity : Date.now() - lastWriteAt;
+      const delay = Math.max(0, SHADOW_HASH_WRITE_INTERVAL_MS - elapsed);
+      if (delay === 0) {
+        flushPendingHashUpdate();
+        return;
+      }
+
+      hashWriteTimerRef.current = window.setTimeout(
+        flushPendingHashUpdate,
+        delay
+      );
+    },
+    [flushPendingHashUpdate]
+  );
 
   const hashStateVersion = customHashState?.version;
   const decodedHashSelection =
@@ -67,10 +125,18 @@ export const useGeoportalShadowSimulationHash = ({
 
   useEffect(() => {
     if (!shadowState) {
+      cancelPendingHashUpdate();
       handledHashStateVersionRef.current = null;
       pendingHashStateVersionRef.current = null;
     }
-  }, [shadowState]);
+  }, [cancelPendingHashUpdate, shadowState]);
+
+  useEffect(
+    () => () => {
+      cancelPendingHashUpdate();
+    },
+    [cancelPendingHashUpdate]
+  );
 
   useEffect(() => {
     if (
@@ -82,6 +148,7 @@ export const useGeoportalShadowSimulationHash = ({
     }
 
     handledHashStateVersionRef.current = hashStateVersion;
+    cancelPendingHashUpdate();
 
     if (
       stateMatchesHashSelection(
@@ -107,12 +174,24 @@ export const useGeoportalShadowSimulationHash = ({
               dayOfYear: hashSelection.dayOfYear,
             },
     });
-  }, [hashSelection, hashStateVersion, setShadowState, shadowState]);
+  }, [
+    cancelPendingHashUpdate,
+    hashSelection,
+    hashStateVersion,
+    setShadowState,
+    shadowState,
+  ]);
+
+  const shadowEnabled = shadowState?.enabled;
+  const shadowMinutes = shadowState?.selection.minutes;
+  const shadowDayOfYear = shadowState?.selection.dayOfYear;
 
   useEffect(() => {
     if (
       hashStateVersion === undefined ||
-      !shadowState ||
+      shadowEnabled === undefined ||
+      shadowMinutes === undefined ||
+      shadowDayOfYear === undefined ||
       handledHashStateVersionRef.current !== hashStateVersion
     ) {
       return;
@@ -121,8 +200,8 @@ export const useGeoportalShadowSimulationHash = ({
     if (pendingHashStateVersionRef.current === hashStateVersion) {
       if (
         !stateMatchesHashSelection(
-          shadowState.enabled,
-          shadowState.selection,
+          shadowEnabled,
+          { minutes: shadowMinutes, dayOfYear: shadowDayOfYear },
           hashSelection
         )
       ) {
@@ -131,9 +210,21 @@ export const useGeoportalShadowSimulationHash = ({
       pendingHashStateVersionRef.current = null;
     }
 
-    updateHashState(buildGeoportalShadowSimulationHashUpdate(shadowState), {
-      label: "geoportal:sync-shadow-simulation",
-      replace: true,
-    });
-  }, [hashSelection, hashStateVersion, shadowState, updateHashState]);
+    scheduleHashUpdate(
+      buildGeoportalShadowSimulationHashUpdate({
+        enabled: shadowEnabled,
+        selection: {
+          minutes: shadowMinutes,
+          dayOfYear: shadowDayOfYear,
+        },
+      })
+    );
+  }, [
+    hashSelection,
+    hashStateVersion,
+    scheduleHashUpdate,
+    shadowDayOfYear,
+    shadowEnabled,
+    shadowMinutes,
+  ]);
 };
