@@ -19,11 +19,13 @@ const {
   createProjectedTerrainTileGeometry,
   notifySharedThreeTerrainChanged,
   registerSharedThreeTerrainSampler,
+  setSharedThreeTerrainLoading,
 } = vi.hoisted(() => ({
   acquireCesiumTerrainTileSource: vi.fn(),
   createProjectedTerrainTileGeometry: vi.fn(),
   notifySharedThreeTerrainChanged: vi.fn(),
   registerSharedThreeTerrainSampler: vi.fn(() => vi.fn()),
+  setSharedThreeTerrainLoading: vi.fn(),
 }));
 
 vi.mock("@carma-mapping/engines/three/primitives", () => ({
@@ -39,6 +41,7 @@ vi.mock("@carma-mapping/engines/cesium/terrain", () => ({
 vi.mock("./shared-three-terrain-registry", () => ({
   notifySharedThreeTerrainChanged,
   registerSharedThreeTerrainSampler,
+  setSharedThreeTerrainLoading,
 }));
 
 import { buildCesiumTerrainRuntime } from "./cesium-terrain-tile-runtime";
@@ -364,6 +367,11 @@ describe("buildCesiumTerrainRuntime", () => {
       triggerRepaint: vi.fn(),
     };
     runtime.onAdd?.(map as never);
+    expect(setSharedThreeTerrainLoading).toHaveBeenCalledWith(
+      map,
+      "initial-viewport-terrain",
+      true
+    );
     await vi.waitFor(() => {
       expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
     });
@@ -378,6 +386,11 @@ describe("buildCesiumTerrainRuntime", () => {
 
     await expect(runtime.ready).resolves.toBe(true);
     expect(source.requestTile).toHaveBeenCalledWith(tileId);
+    expect(setSharedThreeTerrainLoading).toHaveBeenLastCalledWith(
+      map,
+      "initial-viewport-terrain",
+      false
+    );
     runtime.dispose();
   });
 
@@ -826,6 +839,99 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(Math.max(...viewportIndices)).toBeLessThan(
       Math.min(...coverageIndices)
     );
+
+    runtime.dispose();
+  });
+
+  it("refines elevated neighbor tiles whose 3D bounds enter the camera frustum", async () => {
+    const centerId = { level: 10, x: 532, y: 218 };
+    const foregroundId = { level: 10, x: 532, y: 219 };
+    const boundsOf = (id: { level: number; x: number; y: number }) => {
+      const scale = 2 ** (id.level - 10);
+      const width = 0.02 / scale;
+      const west = 7.14 + (id.x - 532 * scale) * width;
+      const north = 51.26 - (id.y - 218 * scale) * width;
+      return { west, south: north - width, east: west + width, north };
+    };
+    const source = {
+      requestTile: vi.fn(async (id) => ({
+        id,
+        heightMeters: new Float32Array([200, 220]),
+        westIndices: new Uint32Array(),
+        southIndices: new Uint32Array(),
+        eastIndices: new Uint32Array(),
+        northIndices: new Uint32Array(),
+      })),
+      getTileGridIdsForBounds: vi.fn(() => [centerId, foregroundId]),
+      getTileBounds: vi.fn(boundsOf),
+      getLevelMaximumGeometricError: vi.fn(
+        (level) => 1_000 / 2 ** (level - 10)
+      ),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const runtime = buildCesiumTerrainRuntime(
+      "frustum-volume-terrain",
+      "https://example.test/frustum-volume-terrain",
+      [7.15, 51.25],
+      {
+        minimumLevel: 10,
+        maximumLevel: 11,
+        errorTargetPixels: 50,
+        maxSelectionTiles: 10,
+      }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7.145,
+        getSouth: () => 51.245,
+        getEast: () => 7.155,
+        getNorth: () => 51.255,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const viewport = new Vector2(1_200, 600);
+    const renderAt = (z: number) => {
+      const camera = new PerspectiveCamera(80, 2, 1, 100_000);
+      camera.position.set(0, 210, z);
+      camera.lookAt(0, 210, 0);
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
+      runtime.update({
+        map: map as never,
+        renderCamera: camera,
+        lodCamera: camera,
+        lookTarget: new Vector3(0, 210, 0),
+        viewport,
+      });
+    };
+
+    // Load both roots from a distant view. The foreground tile is outside the
+    // planar map bounds, but its height volume is visible in the real frustum.
+    renderAt(20_000);
+    await expect(runtime.ready).resolves.toBe(true);
+    expect(source.requestTile).toHaveBeenCalledWith(centerId);
+    expect(source.requestTile).toHaveBeenCalledWith(foregroundId);
+
+    source.requestTile.mockClear();
+    renderAt(5_000);
+    await vi.waitFor(() => {
+      const requestedIds = source.requestTile.mock.calls.map(([id]) => id);
+      expect(
+        requestedIds.filter(
+          (id) => id.level === 11 && id.y >> 1 === foregroundId.y
+        )
+      ).toHaveLength(4);
+      expect(
+        requestedIds.filter((id) => id.level === 11 && id.y >> 1 === centerId.y)
+      ).toHaveLength(4);
+    });
 
     runtime.dispose();
   });

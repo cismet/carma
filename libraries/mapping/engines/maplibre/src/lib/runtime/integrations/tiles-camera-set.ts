@@ -15,6 +15,11 @@ const isTilesCamera = (camera: THREE.Camera): camera is TilesCamera =>
   camera instanceof THREE.PerspectiveCamera ||
   camera instanceof THREE.OrthographicCamera;
 
+export const resolveTilesViewCamera = (
+  renderCamera: THREE.Camera,
+  lodCamera: THREE.PerspectiveCamera
+): TilesCamera => (isTilesCamera(renderCamera) ? renderCamera : lodCamera);
+
 export const createTilesCameraSet = (
   tiles: TilesRenderer,
   initialCamera: TilesCamera
@@ -30,11 +35,7 @@ export const createTilesCameraSet = (
       activeCamera = camera;
       tiles.setCamera(activeCamera);
     }
-    tiles.setResolution(
-      activeCamera,
-      Math.max(1, width),
-      Math.max(1, height)
-    );
+    tiles.setResolution(activeCamera, Math.max(1, width), Math.max(1, height));
   };
 
   const setShadowView = (view: SharedThreeSceneShadowView | null) => {

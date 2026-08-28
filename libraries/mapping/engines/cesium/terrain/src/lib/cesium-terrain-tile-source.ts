@@ -23,6 +23,8 @@ export type CesiumTerrainTile = Readonly<{
   u: Float32Array;
   v: Float32Array;
   heightMeters: Float32Array;
+  minimumHeightMeters: number;
+  maximumHeightMeters: number;
   indices: Uint32Array;
   westIndices: Uint32Array;
   southIndices: Uint32Array;
@@ -155,6 +157,8 @@ const decodeTile = (
     u,
     v,
     heightMeters,
+    minimumHeightMeters: minimumHeight!,
+    maximumHeightMeters: maximumHeight!,
     indices,
     westIndices,
     southIndices,

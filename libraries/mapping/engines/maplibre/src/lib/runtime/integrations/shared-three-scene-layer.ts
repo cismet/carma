@@ -33,6 +33,7 @@ export interface SharedThreeSceneRuntime {
   id: string;
   originLngLat: [number, number];
   root: THREE.Object3D;
+  updatePriority?: number;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;
   setShadowSimulationStyle?: (
@@ -224,6 +225,7 @@ export const buildSharedThreeSceneLayer = (
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
+  let runtimeUpdateOrder: SharedThreeSceneRuntime[] = [];
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
   let depthRangeBridge: RenderTargetDepthRangeBridge | null = null;
@@ -258,6 +260,9 @@ export const buildSharedThreeSceneLayer = (
       if (existing === runtime) return;
       if (existing) layer.removeRuntime(existing.id);
       runtimes.set(runtime.id, runtime);
+      runtimeUpdateOrder = [...runtimes.values()].sort(
+        (a, b) => (b.updatePriority ?? 0) - (a.updatePriority ?? 0)
+      );
       scene.add(runtime.root);
       placeRuntime(runtime);
       if (map) runtime.onAdd?.(map);
@@ -268,6 +273,9 @@ export const buildSharedThreeSceneLayer = (
       const runtime = runtimes.get(runtimeId);
       if (!runtime) return;
       runtimes.delete(runtimeId);
+      runtimeUpdateOrder = runtimeUpdateOrder.filter(
+        (candidate) => candidate !== runtime
+      );
       scene.remove(runtime.root);
       runtime.dispose();
       map?.triggerRepaint();
@@ -386,7 +394,7 @@ export const buildSharedThreeSceneLayer = (
         viewport,
       };
       scene.updateMatrixWorld(true);
-      for (const runtime of runtimes.values()) {
+      for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
       }
       scene.updateMatrixWorld(true);

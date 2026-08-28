@@ -13,7 +13,49 @@ type SuppressedTerrainEntry = {
 
 const samplers = new WeakMap<MaplibreMap, Map<string, TerrainHeightSampler>>();
 const listeners = new WeakMap<MaplibreMap, Set<() => void>>();
+const loadingRuntimeIds = new WeakMap<MaplibreMap, Set<string>>();
+const loadingListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 const suppressedTerrain = new WeakMap<MaplibreMap, SuppressedTerrainEntry>();
+
+const notifySharedThreeTerrainLoadingChanged = (map: MaplibreMap) => {
+  for (const listener of loadingListeners.get(map) ?? []) listener();
+};
+
+export const setSharedThreeTerrainLoading = (
+  map: MaplibreMap,
+  runtimeId: string,
+  loading: boolean
+) => {
+  const runtimeIds = loadingRuntimeIds.get(map) ?? new Set<string>();
+  const changed = loading
+    ? !runtimeIds.has(runtimeId)
+    : runtimeIds.has(runtimeId);
+  if (!changed) return;
+  if (loading) {
+    runtimeIds.add(runtimeId);
+    loadingRuntimeIds.set(map, runtimeIds);
+  } else {
+    runtimeIds.delete(runtimeId);
+    if (runtimeIds.size === 0) loadingRuntimeIds.delete(map);
+  }
+  notifySharedThreeTerrainLoadingChanged(map);
+};
+
+export const isSharedThreeTerrainLoading = (map: MaplibreMap): boolean =>
+  (loadingRuntimeIds.get(map)?.size ?? 0) > 0;
+
+export const subscribeSharedThreeTerrainLoading = (
+  map: MaplibreMap,
+  listener: () => void
+): (() => void) => {
+  const mapListeners = loadingListeners.get(map) ?? new Set<() => void>();
+  mapListeners.add(listener);
+  loadingListeners.set(map, mapListeners);
+  return () => {
+    mapListeners.delete(listener);
+    if (mapListeners.size === 0) loadingListeners.delete(map);
+  };
+};
 
 export const notifySharedThreeTerrainChanged = (map: MaplibreMap) => {
   for (const listener of listeners.get(map) ?? []) listener();

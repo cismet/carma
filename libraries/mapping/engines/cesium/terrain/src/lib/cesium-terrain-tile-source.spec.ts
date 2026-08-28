@@ -97,6 +97,8 @@ describe("Cesium terrain tile source", () => {
     expect([...first.v]).toEqual([0, 1, 0, 1]);
     expect(first.heightMeters[0]).toBeCloseTo(100);
     expect(first.heightMeters[3]).toBeCloseTo(200);
+    expect(first.minimumHeightMeters).toBe(100);
+    expect(first.maximumHeightMeters).toBe(200);
     expect([...first.indices]).toEqual([0, 3, 1, 0, 2, 3]);
     expect(first.geometricErrorMeters).toBe(16);
   });
