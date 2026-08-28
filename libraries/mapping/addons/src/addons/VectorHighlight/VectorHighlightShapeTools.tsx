@@ -38,6 +38,7 @@ export const VectorHighlightShapeTools = ({
     pickFeatureActive,
     canPickFeature,
     togglePickFeature,
+    pickFromHighlights,
   } = useHighlightModeActions();
 
   if (!isOn || shapes.length < 2) {
@@ -60,6 +61,7 @@ export const VectorHighlightShapeTools = ({
             onLastShapeToggle={toggleLastShape}
             showPickFeature={canPickFeature}
             pickFeatureActive={pickFeatureActive}
+            pickFromHighlights={pickFromHighlights}
             onPickFeatureToggle={togglePickFeature}
             bufferEmpty={shapeEmpty}
             showBuffer

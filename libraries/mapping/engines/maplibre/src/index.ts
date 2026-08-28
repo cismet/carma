@@ -173,10 +173,13 @@ export { stampSourceLayerFromProperty } from "@carma-mapping/utils";
 export { LassoDrawingManager } from "./lib/LassoDrawingManager";
 export type {
   LassoDrawingManagerOptions,
+  DrawnShape,
   DrawShape,
   RectSize,
 } from "./lib/LassoDrawingManager";
 export {
+  shapePositions,
+  toTurfShape,
   DEFAULT_CIRCLE_RADIUS,
   DEFAULT_CIRCLE_RADIUS_STEP,
   DEFAULT_RECT_WIDTH,

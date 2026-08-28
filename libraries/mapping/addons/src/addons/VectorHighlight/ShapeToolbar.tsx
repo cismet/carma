@@ -95,9 +95,12 @@ export type ShapeToolbarProps = {
   showPickFeature?: boolean;
   /** armed: the next map click takes the clicked feature's geometry */
   pickFeatureActive?: boolean;
+  /** something is highlighted, so the button takes that instead of aiming */
+  pickFromHighlights?: boolean;
   onPickFeatureToggle?: () => void;
   pickFeatureLabel?: string;
   pickFeatureActiveLabel?: string;
+  pickHighlightsLabel?: string;
   /** the buffer button, behind its own splitter */
   showBuffer?: boolean;
   /** metres the next apply adds on top of `bufferApplied` */
@@ -141,9 +144,11 @@ export const ShapeToolbar = ({
   lastShapeMissingLabel = "Letzte Form: erst eine Form zeichnen",
   showPickFeature = false,
   pickFeatureActive = false,
+  pickFromHighlights = false,
   onPickFeatureToggle,
   pickFeatureLabel = "Geometrie eines Objekts als Form übernehmen",
   pickFeatureActiveLabel = "Objekt anklicken; erneut klicken bricht ab",
+  pickHighlightsLabel = "Form aus den hervorgehobenen Objekten",
   showBuffer = false,
   bufferWidth = 5,
   bufferApplied = 0,
@@ -180,6 +185,12 @@ export const ShapeToolbar = ({
   const bufferLabel = canBuffer
     ? `Puffer um die letzte Form: ${Math.round(bufferTotal)} m`
     : "Puffer: erst eine Form zeichnen";
+
+  const pickLabel = pickFeatureActive
+    ? pickFeatureActiveLabel
+    : pickFromHighlights
+    ? pickHighlightsLabel
+    : pickFeatureLabel;
 
   const lastShapeLabel = !canLastShape
     ? lastShapeMissingLabel
@@ -269,10 +280,7 @@ export const ShapeToolbar = ({
         <span className={css.divider} aria-hidden />
       )}
       {showPickFeature && (
-        <Tooltip
-          title={pickFeatureActive ? pickFeatureActiveLabel : pickFeatureLabel}
-          placement={tooltipPlacement}
-        >
+        <Tooltip title={pickLabel} placement={tooltipPlacement}>
           <button
             type="button"
             onClick={(event) => {
@@ -280,9 +288,7 @@ export const ShapeToolbar = ({
               onPickFeatureToggle?.();
             }}
             aria-pressed={pickFeatureActive}
-            aria-label={
-              pickFeatureActive ? pickFeatureActiveLabel : pickFeatureLabel
-            }
+            aria-label={pickLabel}
             data-test-id="vector-highlight-pick-feature"
             className={[
               css.button,
