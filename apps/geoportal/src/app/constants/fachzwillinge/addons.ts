@@ -55,6 +55,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "vectorHighlightControl" },
+    // sketch layer over the map; screen-fixed, the drawing does not follow the
+    // camera. The control switches who gets the pointer.
+    { kind: "excalidrawOverlay" },
+    { kind: "excalidrawControl" },
     {
       kind: "libreTerrain",
       config: { appKey: "geoportal", show: "while3dLayersActive" },

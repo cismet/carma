@@ -1,0 +1,9 @@
+/* off: the scene stays, excalidraw's own chrome goes */
+.carma-excalidraw-overlay[data-drawing="false"] .layer-ui__wrapper {
+  display: none;
+}
+
+/* the canvas paints viewBackgroundColor; the container must not paint at all */
+.carma-excalidraw-overlay .excalidraw {
+  background: transparent;
+}

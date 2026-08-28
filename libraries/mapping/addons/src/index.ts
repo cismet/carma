@@ -86,6 +86,14 @@ export {
   CameraRestriction,
   type CameraRestrictionConfig,
 } from "./addons/CameraRestriction";
+export {
+  ExcalidrawControl,
+  ExcalidrawOverlay,
+  useExcalidrawActions,
+  type ExcalidrawControlConfig,
+  type ExcalidrawOverlayConfig,
+  type ExcalidrawState,
+} from "./addons/Excalidraw";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
 export { HomeOverride, type HomeOverrideConfig } from "./addons/HomeOverride";
