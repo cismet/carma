@@ -11,6 +11,9 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
+import { clamp } from "@carma-commons/math";
+import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
+import { degToRadNumeric } from "@carma-units";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { createTilesCameraSet } from "./tiles-camera-set";
 import type { TilesCameraSet } from "./tiles-camera-set";
@@ -18,6 +21,7 @@ import type {
   SharedThreeSceneFrame,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowStyle,
+  SharedThreeSceneShadowView,
 } from "./shared-three-scene-layer";
 
 // Match the direct screen-space-error control used by the official
@@ -34,7 +38,7 @@ const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
 
-const buildLazyPrimitiveOutlinePlugin = (
+const buildPrimitiveOutlinePlugin = (
   parser: unknown,
   options: {
     color: THREE.ColorRepresentation;
@@ -43,9 +47,6 @@ const buildLazyPrimitiveOutlinePlugin = (
 ) => ({
   name: "CARMA_lazy_primitive_outline",
   async afterRoot(result: { scene: THREE.Object3D }) {
-    const { GLTFPrimitiveOutlineExtension } = await import(
-      "@carma-mapping/engines/threejs"
-    );
     await new GLTFPrimitiveOutlineExtension(
       parser as ConstructorParameters<typeof GLTFPrimitiveOutlineExtension>[0],
       options
@@ -53,21 +54,8 @@ const buildLazyPrimitiveOutlinePlugin = (
   },
 });
 
-// ─────────────────────────────────────────────────────────────
-//  Cesium 3D Tiles (b3dm meshes) inside the shared MapLibre Three.js scene,
-//  using NASA-AMMOS 3d-tiles-renderer (Apache-2.0).
-//
-//  The tilesets are georeferenced in ECEF; the ReorientationPlugin
-//  maps them into the same local scene frame the point cloud
-//  layers use (x east, y up, z south, meters at the layer origin).
-//
-//  The shared synthesized PerspectiveCamera drives tile LOD and culling;
-//  the shared matrix camera draws meshes and points in one depth pass.
-// ─────────────────────────────────────────────────────────────
+/** Cesium 3D Tiles runtime for the shared local MapLibre Three.js scene. */
 
-/** Projective image overlay: equirect panorama around a point, or a
- *  perspective frustum (oblique photo) via its view-projection matrix.
- *  Coordinates are scene-frame meters (x east, y up, z south). */
 export type ImageProjector =
   | {
       kind: "pano";
@@ -84,9 +72,7 @@ export type ImageProjector =
     };
 
 export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
-  /** Pause/resume traversal and drawing without destroying the tileset cache. */
   setVisible: (visible: boolean) => void;
-  /** Vertical offset in meters (datum corrections included by caller) */
   setHeightOffset: (offsetMeters: number) => void;
   setErrorTarget: (errorTarget: number) => void;
   /** Override textures with physically lit clay shading (reversible). */
@@ -100,8 +86,8 @@ export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
   setCacheBudget: (bytes: number) => void;
   setRequestConcurrency: (jobs: number) => void;
   getRequestDemand: () => number;
-  /** Project an oriented image onto the mesh (null clears) */
   setProjector: (projector: ImageProjector | null) => void;
+  setShadowView: (view: SharedThreeSceneShadowView | null) => void;
   originMerc: MercatorCoordinate;
   mScale: number;
 }
@@ -165,6 +151,7 @@ export function buildThreeTilesRuntime(
   let wireframe = false;
   let outlineVisible = options.outline ?? true;
   let shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
+  let shadowView: SharedThreeSceneShadowView | null = null;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
@@ -172,11 +159,8 @@ export function buildThreeTilesRuntime(
   const placementMatrix = new THREE.Matrix4();
   const inversePlacementMatrix = new THREE.Matrix4();
   const identityRotation = new THREE.Quaternion();
-
-  // Shared projector uniforms — mutated in place, referenced by all
-  // patched tile materials (onBeforeCompile below).
-  const projUniforms = {
-    uProjKind: { value: 0 }, // 0 off, 1 pano, 2 frustum
+  const projectorUniforms = {
+    uProjKind: { value: 0 },
     uProjOpacity: { value: 0 },
     uProjPos: { value: new THREE.Vector3() },
     uProjHeading: { value: 0 },
@@ -188,7 +172,7 @@ export function buildThreeTilesRuntime(
     if ((material as { __projPatched?: boolean }).__projPatched) return;
     (material as { __projPatched?: boolean }).__projPatched = true;
     material.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, projUniforms);
+      Object.assign(shader.uniforms, projectorUniforms);
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
@@ -371,8 +355,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
             effectiveClayColor
           );
         }
-        material.needsUpdate = true;
         patchMaterialForProjection(material);
+        material.needsUpdate = true;
       }
     });
   };
@@ -416,30 +400,27 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const syncProjector = () => {
     const projector = activeProjector;
     if (!projector) {
-      projUniforms.uProjKind.value = 0;
-      projUniforms.uProjOpacity.value = 0;
-      projUniforms.tProj.value = null;
+      projectorUniforms.uProjKind.value = 0;
+      projectorUniforms.uProjOpacity.value = 0;
+      projectorUniforms.tProj.value = null;
       return;
     }
-    // Projectors are authored in the mesh's former standalone scene frame.
-    // Apply only the shared-scene placement; the root's Y-180 correction is
-    // already represented in those coordinates.
     placementMatrix.compose(
       orientationGroup.position,
       identityRotation,
       orientationGroup.scale
     );
     inversePlacementMatrix.copy(placementMatrix).invert();
-    projUniforms.uProjKind.value = projector.kind === "pano" ? 1 : 2;
-    projUniforms.uProjOpacity.value = projector.opacity;
-    projUniforms.tProj.value = projector.texture;
+    projectorUniforms.uProjKind.value = projector.kind === "pano" ? 1 : 2;
+    projectorUniforms.uProjOpacity.value = projector.opacity;
+    projectorUniforms.tProj.value = projector.texture;
     if (projector.kind === "pano") {
-      projUniforms.uProjPos.value
+      projectorUniforms.uProjPos.value
         .copy(projector.position)
         .applyMatrix4(placementMatrix);
-      projUniforms.uProjHeading.value = projector.headingRad;
+      projectorUniforms.uProjHeading.value = projector.headingRad;
     } else {
-      projUniforms.uProjMatrix.value
+      projectorUniforms.uProjMatrix.value
         .copy(projector.viewProj)
         .multiply(inversePlacementMatrix);
     }
@@ -501,10 +482,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       window.clearTimeout(refinementTimer);
       refinementTimer = 0;
     }
-    // Deliberately no error-target reset here: raising it mid-gesture told
-    // the traversal that the fine tiles already on screen were no longer
-    // needed, and they visibly unloaded the moment a pan began. Loaded detail
-    // stays; only the refinement timer restarts once the camera rests.
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
@@ -517,9 +494,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       items: Array<{ inFrustum?: boolean; used?: boolean }>;
       remove: (item: unknown) => void;
     };
-    // TilesRenderer refreshes inFrustum/used during update(). Removing only
-    // queued, no-longer-visible work keeps active/current-frustum requests and
-    // lets the following traversal enqueue newly intersecting tiles.
+    // `used` covers every registered view and shadow camera.
     for (const tile of [...queue.items]) {
       if (tile.inFrustum === false && tile.used === false) {
         queue.remove(tile);
@@ -528,7 +503,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const handleUpdateAfter = () => {
     scheduleProgressiveRefinement();
-    notifyRequestStateChange();
     const currentTiles = tiles;
     if (!currentTiles) return;
     const cache = currentTiles.lruCache as typeof currentTiles.lruCache & {
@@ -570,7 +544,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           dracoLoader,
           plugins: [
             (parser: unknown) =>
-              buildLazyPrimitiveOutlinePlugin(parser, {
+              buildPrimitiveOutlinePlugin(parser, {
                 color: options.outlineColor ?? 0x000000,
                 opacity: options.outlineOpacity ?? 1,
               }),
@@ -581,14 +555,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         displayBoxBounds: tileBoundsVisible,
       });
       tiles.registerPlugin(debugTilesPlugin);
-
       // Reorient the ECEF tileset into the local scene frame at the
       // layer origin: ENU with +Y up, north toward -Z — matching the
       // point cloud layers (x east, y up, z south).
       tiles.registerPlugin(
         new ReorientationPlugin({
-          lat: THREE.MathUtils.degToRad(originLngLat[1]),
-          lon: THREE.MathUtils.degToRad(originLngLat[0]),
+          lat: degToRadNumeric(originLngLat[1]),
+          lon: degToRadNumeric(originLngLat[0]),
           height: 0,
         })
       );
@@ -605,10 +578,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       restartProgressiveLod();
       offsetGroup.add(tiles.group);
 
-      // Kickstart: tiles.update() only runs inside render(), so nudge
-      // the map a few times until the pipeline has work — WITHOUT a
-      // permanent per-frame repaint (that keeps the map from ever
-      // reaching "idle" and stalls every whenStyleReady() wait).
+      // Request frames until the first tile work starts.
       kickstartTimer = window.setInterval(() => {
         const stats = (
           tiles as unknown as {
@@ -645,6 +615,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       try {
         if (!cameraSet) {
           cameraSet = createTilesCameraSet(tiles, frame.lodCamera);
+          cameraSet.setShadowView(shadowView);
         }
         cameraSet.update(frame.lodCamera, frame.viewport.x, frame.viewport.y);
         tiles.update();
@@ -653,9 +624,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         console.error("[tiles3d] update failed:", error);
       }
 
-      // Keep repainting while the pipeline has actual work queued —
-      // but never unconditionally (a permanent repaint loop prevents
-      // the map from reaching "idle", stalling whenStyleReady waits).
+      // Keep rendering while the tile pipeline has work.
       const stats = (
         tiles as unknown as {
           stats?: {
@@ -693,7 +662,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         map?.triggerRepaint();
         return;
       }
-
       restartProgressiveLod();
       tiles?.dispatchEvent({ type: "needs-update" });
       scheduleProgressiveRefinement();
@@ -706,7 +674,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     setErrorTarget(errorTarget: number) {
-      requestedErrorTarget = THREE.MathUtils.clamp(
+      requestedErrorTarget = clamp(
         errorTarget,
         TILES_ERROR_TARGET_MIN_PIXELS,
         TILES_ERROR_TARGET_MAX_PIXELS
@@ -714,12 +682,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       restartProgressiveLod();
       tiles?.dispatchEvent({ type: "needs-update" });
       scheduleProgressiveRefinement();
-    },
-
-    setProjector(projector) {
-      activeProjector = projector;
-      syncProjector();
-      map?.triggerRepaint();
     },
 
     setShadowSimulationStyle(style) {
@@ -731,6 +693,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.triggerRepaint();
     },
 
+    setProjector(projector) {
+      activeProjector = projector;
+      syncProjector();
+      map?.triggerRepaint();
+    },
+
+    setShadowView(view) {
+      shadowView = view;
+      cameraSet?.setShadowView(view);
+      tiles?.dispatchEvent({ type: "needs-update" });
+    },
+
     setWhiteShading(white: boolean) {
       whiteShading = white;
       applyMaterialFlags(orientationGroup);
@@ -740,10 +714,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setClayMaterial(options: ClayMaterialOptions) {
       if (options.color !== undefined) clayColor.set(options.color);
       if (options.roughness !== undefined) {
-        clayRoughness = THREE.MathUtils.clamp(options.roughness, 0, 1);
+        clayRoughness = clamp(options.roughness, 0, 1);
       }
       if (options.metalness !== undefined) {
-        clayMetalness = THREE.MathUtils.clamp(options.metalness, 0, 1);
+        clayMetalness = clamp(options.metalness, 0, 1);
       }
       for (const state of clayMaterialStates.values()) {
         for (const material of asMaterialArray(state.clay)) {
@@ -763,7 +737,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     setOpacity(nextOpacity: number) {
-      opacity = THREE.MathUtils.clamp(nextOpacity, 0, 1);
+      opacity = clamp(nextOpacity, 0, 1);
       applyMaterialFlags(orientationGroup);
       map?.triggerRepaint();
     },
@@ -825,6 +799,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles?.removeEventListener("update-after", handleUpdateAfter);
       tiles?.removeEventListener("load-model", handleModelLoad);
       tiles?.removeEventListener("dispose-model", handleModelDispose);
+      tiles?.removeEventListener("load-error", notifyRequestStateChange);
+      tiles?.removeEventListener("tiles-load-end", notifyRequestStateChange);
       cameraSet?.dispose();
       cameraSet = null;
       restoreClayMaterials(orientationGroup);
@@ -832,7 +808,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles?.dispose();
       tiles = null;
       debugTilesPlugin = null;
-      offsetGroup.clear();
+      orientationGroup.clear();
       map = null;
     },
   };

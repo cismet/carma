@@ -11,17 +11,16 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 import { ViewStateVisualizer } from "@carma-mapping/components";
 
-import type { SolarPosition } from "./solar-position";
-import type { ShadowMode, ShadowQualityMultiplier } from "./shadow-scene";
+import type { SolarPosition } from "../core/solar-position";
+import type { ShadowQualityMultiplier } from "../core/shadow-types";
 import {
   buildShadowProjectionDebugModel,
-  buildShadowTileCoreInsetsPercent,
   type ShadowProjectionDebugModel,
-} from "./shadow-projection-debug-model";
+} from "../runtime/shadow-projection-debug-model";
 import {
   readShadowProjectionDebugSnapshot,
   subscribeShadowProjectionDebugSnapshot,
-} from "./shadow-projection-debug-store";
+} from "../runtime/shadow-projection-debug-store";
 
 const SHADOW_PROJECTION_DEBUG_CUE_OPTIONS = {
   bearing: { label: "Schattenrichtung", color: "#d97706" },
@@ -57,14 +56,6 @@ const SHADOW_PROJECTION_DEBUG_DISPLAY_OPTIONS = {
   },
 } as const;
 
-const SHADOW_TILE_COLORS = ["#f59e0b", "#ea580c", "#dc2626", "#9333ea"];
-const SHADOW_MODES: readonly {
-  value: ShadowMode;
-  label: string;
-}[] = [
-  { value: "single", label: "Single Buffer" },
-  { value: "advanced", label: "Advanced Tiles" },
-];
 const SHADOW_QUALITIES: ReadonlyArray<{
   label: string;
   value: ShadowQualityMultiplier;
@@ -75,7 +66,6 @@ const SHADOW_QUALITIES: ReadonlyArray<{
 ];
 
 export type ShadowProjectionDebugSettings = Readonly<{
-  shadowMode: ShadowMode;
   shadowQuality: ShadowQualityMultiplier;
   terrainColor: string;
   buildingsFullOpacity: boolean;
@@ -106,98 +96,17 @@ const StatCell = ({ label, value }: { label: string; value: ReactNode }) => (
 const formatMeters = (value: number, fractionDigits = 0) =>
   `${value.toFixed(fractionDigits)} m`;
 
-const ShadowTilePlan = ({ model }: { model: ShadowProjectionDebugModel }) => {
-  if (model.shadowTiles.length === 0) return null;
-
-  const left = Math.min(...model.shadowTiles.map((tile) => tile.leftMeters));
-  const right = Math.max(...model.shadowTiles.map((tile) => tile.rightMeters));
-  const bottom = Math.min(
-    ...model.shadowTiles.map((tile) => tile.bottomMeters)
-  );
-  const top = Math.max(...model.shadowTiles.map((tile) => tile.topMeters));
-  const width = Math.max(Number.EPSILON, right - left);
-  const height = Math.max(Number.EPSILON, top - bottom);
-
-  return (
-    <div className="grid gap-2">
-      <div className="flex items-center justify-between gap-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Shadow-Buffer im Lichtkoordinatensystem
-        </div>
-        <div className="flex gap-3 text-[11px] text-neutral-500">
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-sm border border-neutral-500 bg-white/80" />
-            Guard-Band
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-sm bg-amber-200/80" />
-            Viewport-Kern
-          </span>
-        </div>
-      </div>
-      <div className="grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-2 text-[11px] text-neutral-500">
-        <span className="-rotate-90">Licht-Y</span>
-        <div
-          className="relative h-32 overflow-hidden rounded-md border border-neutral-300 bg-neutral-100"
-          data-test-id="shadow-simulation-buffer-plan"
-        >
-          {model.shadowTiles.map((tile, index) => {
-            const insets = buildShadowTileCoreInsetsPercent(tile);
-            const color = SHADOW_TILE_COLORS[index % SHADOW_TILE_COLORS.length];
-            return (
-              <div
-                key={tile.id}
-                className="absolute bg-white/65"
-                style={{
-                  border: `2px solid ${color}`,
-                  left: `${((tile.leftMeters - left) / width) * 100}%`,
-                  top: `${((top - tile.topMeters) / height) * 100}%`,
-                  width: `${(tile.widthMeters / width) * 100}%`,
-                  height: `${(tile.heightMeters / height) * 100}%`,
-                }}
-                title={`${tile.id}: ${formatMeters(
-                  tile.widthMeters
-                )} × ${formatMeters(tile.heightMeters)}`}
-              >
-                <div
-                  className="absolute flex items-center justify-center bg-amber-100/80 text-[10px] font-semibold text-neutral-700"
-                  style={{
-                    left: `${insets.left}%`,
-                    right: `${insets.right}%`,
-                    top: `${insets.top}%`,
-                    bottom: `${insets.bottom}%`,
-                  }}
-                >
-                  {tile.id}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <span />
-        <span className="text-center">Licht-X</span>
-      </div>
-    </div>
-  );
-};
-
 const ShadowBufferStatistics = ({
   model,
 }: {
   model: ShadowProjectionDebugModel;
 }) => {
-  const firstTile = model.shadowTiles[0];
-  const tileResolution = firstTile
-    ? `${firstTile.shadowMapWidth} × ${firstTile.shadowMapHeight}`
-    : "–";
+  const resolution = `${model.shadowBuffer.shadowMapWidth} × ${model.shadowBuffer.shadowMapHeight}`;
 
   return (
     <div className="grid grid-cols-4 gap-x-5 gap-y-2 text-xs">
-      <StatCell
-        label="Buffer"
-        value={`${model.activeShadowTileCount} / ${model.shadowTilePoolSize}`}
-      />
-      <StatCell label="Tile-Auflösung" value={tileResolution} />
+      <StatCell label="Sonnen-Samples" value={model.shadowSampleCount} />
+      <StatCell label="Buffer-Auflösung" value={resolution} />
       <StatCell
         label="Kernabdeckung"
         value={`${formatMeters(
@@ -254,24 +163,6 @@ const ShadowDebugControls = ({
   return (
     <div className="grid gap-3 border-t border-neutral-200 pt-3 text-xs">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold uppercase tracking-wide text-neutral-500">
-            Modus
-          </span>
-          <div className="inline-flex" data-test-id="shadow-debug-mode">
-            {SHADOW_MODES.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                className={buttonClass(settings.shadowMode === value)}
-                aria-pressed={settings.shadowMode === value}
-                onClick={() => onChange({ shadowMode: value })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="flex items-center gap-2">
           <span className="font-semibold uppercase tracking-wide text-neutral-500">
             Qualität
@@ -438,7 +329,7 @@ export const ShadowProjectionDebugView = ({
         : null,
     [map, snapshot, solarPosition]
   );
-  if (!model) return null;
+  if (!snapshot || !model) return null;
   const displayedAzimuth =
     snapshot.atmosphericSunlight?.azimuthDegrees ??
     solarPosition.azimuthDegrees;
@@ -526,7 +417,6 @@ export const ShadowProjectionDebugView = ({
         />
       </div>
       <div className="grid gap-3 border-t border-neutral-200 pt-3 sm:col-span-2">
-        <ShadowTilePlan model={model} />
         <ShadowBufferStatistics model={model} />
       </div>
     </div>

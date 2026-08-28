@@ -1,5 +1,13 @@
 export * from "./conversions";
 export * from "./validators";
+export {
+  geographicBoundsContain,
+  geographicBoundsIntersect,
+  getGeographicRingBounds,
+  padGeographicBounds,
+  unionGeographicBounds,
+} from "./bounds";
+export type { GeographicBounds } from "./bounds";
 
 // Re-export angle constants and helpers commonly used with geo operations
 export {

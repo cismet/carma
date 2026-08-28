@@ -32,8 +32,8 @@ vi.mock("@carma-mapping/addons", () => ({
 
 import mappingReducer from "../store/slices/mapping";
 import uiReducer from "../store/slices/ui";
+import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
 import {
-  formatShadowSelection,
   SHADOW_SIMULATION_LAYER_ID,
   useShadowSimulationLayerButton,
 } from "./useShadowSimulationLayerButton";

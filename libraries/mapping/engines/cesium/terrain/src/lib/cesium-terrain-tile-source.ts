@@ -1,4 +1,5 @@
 import { Cartographic, CesiumTerrainProvider } from "@carma-cesium";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 
 const MAX_QUANTIZED_VALUE = 32_767;
 const DEFAULT_MAX_CACHE_BYTES = 96 * 1024 ** 2;
@@ -42,10 +43,6 @@ export interface CesiumTerrainTileSource {
     id: CesiumTerrainTileId,
     signal?: AbortSignal
   ) => Promise<CesiumTerrainTile>;
-  getTileIdsForBounds: (
-    bounds: CesiumTerrainTileBounds,
-    level: number
-  ) => CesiumTerrainTileId[];
   getTileGridIdsForBounds: (
     bounds: CesiumTerrainTileBounds,
     level: number
@@ -55,9 +52,6 @@ export interface CesiumTerrainTileSource {
   getTileDataAvailable: (id: CesiumTerrainTileId) => boolean | undefined;
   sampleHeight: (longitude: number, latitude: number) => number | undefined;
   trimCache: (retainedKeys?: ReadonlySet<string>) => void;
-  clearCache: () => void;
-  readonly cachedTileCount: number;
-  readonly cachedBytes: number;
 }
 
 type QuantizedMeshTerrainData = {
@@ -88,8 +82,6 @@ const sourcePromises = new Map<string, Promise<CesiumTerrainTileSource>>();
 
 export const cesiumTerrainTileKey = ({ level, x, y }: CesiumTerrainTileId) =>
   `${level}/${x}/${y}`;
-
-const radiansToDegrees = (value: number) => (value * 180) / Math.PI;
 
 const assertTileId = ({ level, x, y }: CesiumTerrainTileId) => {
   if (![level, x, y].every(Number.isInteger) || level < 0 || x < 0 || y < 0) {
@@ -155,10 +147,10 @@ const decodeTile = (
   return {
     id,
     bounds: {
-      west: radiansToDegrees(rectangle.west),
-      south: radiansToDegrees(rectangle.south),
-      east: radiansToDegrees(rectangle.east),
-      north: radiansToDegrees(rectangle.north),
+      west: radToDegNumeric(rectangle.west),
+      south: radToDegNumeric(rectangle.south),
+      east: radToDegNumeric(rectangle.east),
+      north: radToDegNumeric(rectangle.north),
     },
     u,
     v,
@@ -279,18 +271,9 @@ const buildSource = async (
     return result;
   };
 
-  const getTileIdsForBounds = (
-    bounds: CesiumTerrainTileBounds,
-    level: number
-  ) =>
-    getTileGridIdsForBounds(bounds, level).filter(
-      ({ x, y }) => provider.getTileDataAvailable(x, y, level) !== false
-    );
-
   return {
     terrainUrl,
     requestTile,
-    getTileIdsForBounds,
     getTileGridIdsForBounds,
     getTileBounds(id) {
       assertTileId(id);
@@ -300,10 +283,10 @@ const buildSource = async (
         id.level
       );
       return {
-        west: radiansToDegrees(rectangle.west),
-        south: radiansToDegrees(rectangle.south),
-        east: radiansToDegrees(rectangle.east),
-        north: radiansToDegrees(rectangle.north),
+        west: radToDegNumeric(rectangle.west),
+        south: radToDegNumeric(rectangle.south),
+        east: radToDegNumeric(rectangle.east),
+        north: radToDegNumeric(rectangle.north),
       };
     },
     getLevelMaximumGeometricError: (level) =>
@@ -311,8 +294,8 @@ const buildSource = async (
     getTileDataAvailable: ({ x, y, level }) =>
       provider.getTileDataAvailable(x, y, level),
     sampleHeight(longitude, latitude) {
-      const longitudeRadians = (longitude * Math.PI) / 180;
-      const latitudeRadians = (latitude * Math.PI) / 180;
+      const longitudeRadians = degToRadNumeric(longitude);
+      const latitudeRadians = degToRadNumeric(latitude);
       const candidates = [...cache.values()]
         .filter(({ tile }) => {
           const { bounds } = tile;
@@ -338,16 +321,6 @@ const buildSource = async (
       return undefined;
     },
     trimCache,
-    clearCache() {
-      cache.clear();
-      cachedBytes = 0;
-    },
-    get cachedTileCount() {
-      return cache.size;
-    },
-    get cachedBytes() {
-      return cachedBytes;
-    },
   };
 };
 

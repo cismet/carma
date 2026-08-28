@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
-import {
-  clampShadowSimulationSelectionToDaylight,
-  useAddonState,
-} from "@carma-mapping/addons";
+import { useAddonState } from "@carma-mapping/addons";
+import { clampShadowSimulationSelectionToDaylight } from "@carma-mapping/shadow-simulation";
 import { useLibreContext } from "@carma-mapping/contexts";
 import { useHashState } from "@carma-providers/hash-state";
 
@@ -43,17 +41,18 @@ export const useGeoportalShadowSimulationHash = ({
   const decodedHashSelection =
     customHashState?.shadowSimulationSelection ?? null;
   const mapCenter = libreMap?.getCenter();
+  const shadowYear = shadowState?.selection.year;
   const hashSelection = useMemo(
     () =>
-      decodedHashSelection && shadowState
+      decodedHashSelection && shadowYear !== undefined
         ? isGeoportalShadowSimulationHashSelectionValidForYear(
             decodedHashSelection,
-            shadowState.selection.year
+            shadowYear
           )
           ? clampShadowSimulationSelectionToDaylight(
               {
                 ...decodedHashSelection,
-                year: shadowState.selection.year,
+                year: shadowYear,
               },
               {
                 latitude: mapCenter?.lat,
@@ -63,12 +62,7 @@ export const useGeoportalShadowSimulationHash = ({
             )
           : null
         : decodedHashSelection,
-    [
-      decodedHashSelection,
-      mapCenter?.lat,
-      mapCenter?.lng,
-      shadowState?.selection.year,
-    ]
+    [decodedHashSelection, mapCenter?.lat, mapCenter?.lng, shadowYear]
   );
 
   useEffect(() => {

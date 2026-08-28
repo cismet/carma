@@ -16,19 +16,7 @@ import {
   type WebGLRenderer,
 } from "three";
 
-// ─────────────────────────────────────────────────────────────
-//  SharedSceneAccumulator: progressive multi-pass refinement.
-//
-//  While the camera and the scene state hold still, the shared scene can be
-//  rendered several times with slightly different inputs - jittered sun-disc
-//  samples, sub-pixel camera offsets - and averaged. Depth buffers cannot be
-//  averaged (shadowing is a non-linear visibility test), so what accumulates
-//  is the shaded image: each round renders the scene into an offscreen
-//  target and blends it into a half-float accumulation buffer; the running
-//  average is composited into the map's framebuffer with the scene's depth
-//  written back so later map layers keep occluding correctly. Once all
-//  rounds are in, frames become a single full-screen blit.
-// ─────────────────────────────────────────────────────────────
+// Accumulates sun-disc samples and preserves the final scene depth.
 
 /** Halton(2,3) low-discrepancy points, centred, for sub-pixel camera jitter. */
 const halton = (index: number, base: number): number => {
@@ -219,11 +207,7 @@ export const buildSharedSceneAccumulator = (
       blendMaterial.uniforms.uRoundWeight.value = 1 / (round + 1);
       renderer.render(fullscreenScene, fullscreenCamera);
       renderer.setRenderTarget(previousTarget);
-      // One-time self-check: if the scene pass produced pixels but the blend
-      // pass did not, something in this driver/context rejects the pipeline
-      // (a shader that failed to compile, an incomplete framebuffer). Flag
-      // the accumulator as broken so the caller falls back to direct
-      // rendering instead of presenting a black map.
+      // Fall back to direct rendering if the first blend pass produces no data.
       if (!selfChecked && round === 0) {
         selfChecked = true;
         const scenePixel = new Uint8Array(4);
@@ -252,7 +236,7 @@ export const buildSharedSceneAccumulator = (
           accumPixel[3] === 0
         ) {
           broken = true;
-          console.warn(
+          console.error(
             "[shadow-simulation] accumulation self-check failed; falling back to direct rendering"
           );
         }

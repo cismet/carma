@@ -119,7 +119,6 @@ describe("buildCesiumTerrainRuntime", () => {
           id === coarseId ? new Uint32Array([2, 3]) : new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn(() => [coarseId, fineId]),
       getTileGridIdsForBounds: vi.fn(() => [coarseId, fineId]),
       getTileBounds: vi.fn((id) =>
         id === fineId
@@ -191,9 +190,6 @@ describe("buildCesiumTerrainRuntime", () => {
           id.x === tileId.x ? new Uint32Array([2, 3]) : new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn((bounds) =>
-        bounds.east > 7.25 ? [tileId, sunTileId] : [tileId]
-      ),
       getTileGridIdsForBounds: vi.fn((bounds) =>
         bounds.east > 7.25 ? [tileId, sunTileId] : [tileId]
       ),
@@ -291,7 +287,10 @@ describe("buildCesiumTerrainRuntime", () => {
     shadowCamera.lookAt(20_000, 0, 0);
     shadowCamera.updateProjectionMatrix();
     shadowCamera.updateMatrixWorld(true);
-    runtime.setShadowCamera(shadowCamera);
+    runtime.setShadowView({
+      camera: shadowCamera,
+      shadowMapSize: { width: 1_000, height: 1_000 },
+    });
     runtime.update({
       map: map as never,
       renderCamera: new Camera(),
@@ -325,10 +324,8 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(runtime.root.children).toHaveLength(0);
   });
 
-  it("selects terrain from the union of all shadow-camera frusta", async () => {
-    const westId = { level: 10, x: 531, y: 218 };
-    const viewportId = { level: 10, x: 532, y: 218 };
-    const eastId = { level: 10, x: 533, y: 218 };
+  it("loads the viewport on the first update without an interaction gate", async () => {
+    const tileId = { level: 10, x: 532, y: 218 };
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
@@ -338,37 +335,29 @@ describe("buildCesiumTerrainRuntime", () => {
         eastIndices: new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn(() => [viewportId]),
-      getTileGridIdsForBounds: vi.fn((bounds) => {
-        const ids = [viewportId];
-        if (bounds.west < 7.05) ids.unshift(westId);
-        if (bounds.east > 7.25) ids.push(eastId);
-        return ids;
-      }),
-      getTileBounds: vi.fn((id) =>
-        id.x === westId.x
-          ? { west: 6.8, south: 51.2, east: 7, north: 51.3 }
-          : id.x === eastId.x
-          ? { west: 7.4, south: 51.2, east: 7.5, north: 51.3 }
-          : { west: 7.1, south: 51.2, east: 7.2, north: 51.3 }
-      ),
+      getTileGridIdsForBounds: vi.fn(() => [tileId]),
+      getTileBounds: vi.fn(() => ({
+        west: 7,
+        south: 51,
+        east: 7.2,
+        north: 51.3,
+      })),
       getLevelMaximumGeometricError: vi.fn(() => 0.01),
       getTileDataAvailable: vi.fn(() => true),
-      sampleHeight: vi.fn(),
+      sampleHeight: vi.fn(() => 150),
       trimCache: vi.fn(),
     };
     acquireCesiumTerrainTileSource.mockResolvedValue(source);
-    const originLngLat: [number, number] = [7.15, 51.256];
     const runtime = buildCesiumTerrainRuntime(
-      "multi-shadow-terrain",
-      "https://example.test/multi-shadow-terrain",
-      originLngLat,
+      "initial-viewport-terrain",
+      "https://example.test/initial-viewport-terrain",
+      [7.15, 51.256],
       { minimumLevel: 10, maximumLevel: 10 }
     );
     const map = {
       getBounds: vi.fn(() => ({
-        getWest: () => 7.1,
-        getSouth: () => 51.2,
+        getWest: () => 7,
+        getSouth: () => 51,
         getEast: () => 7.2,
         getNorth: () => 51.3,
       })),
@@ -378,41 +367,17 @@ describe("buildCesiumTerrainRuntime", () => {
     await vi.waitFor(() => {
       expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
     });
-    const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
-    lodCamera.position.set(0, 1_000, 0);
-    const frame = {
+
+    runtime.update({
       map: map as never,
       renderCamera: new Camera(),
-      lodCamera,
+      lodCamera: new PerspectiveCamera(60, 1, 1, 10_000),
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
-    };
-    runtime.update(frame);
-    await expect(runtime.ready).resolves.toBe(true);
-
-    const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
-    const meterScale = origin.meterInMercatorCoordinateUnits();
-    const makeShadowCamera = (longitude: number) => {
-      const coordinate = MercatorCoordinate.fromLngLat(
-        [longitude, originLngLat[1]],
-        0
-      );
-      const x = (coordinate.x - origin.x) / meterScale;
-      const z = (coordinate.y - origin.y) / meterScale;
-      const camera = new OrthographicCamera(-500, 500, 500, -500, 1, 5_000);
-      camera.position.set(x, 1_000, z);
-      camera.lookAt(x, 0, z);
-      camera.updateProjectionMatrix();
-      camera.updateMatrixWorld(true);
-      return camera;
-    };
-    runtime.setShadowCameras([makeShadowCamera(6.9), makeShadowCamera(7.45)]);
-    runtime.update(frame);
-
-    await vi.waitFor(() => {
-      expect(source.requestTile).toHaveBeenCalledWith(westId);
-      expect(source.requestTile).toHaveBeenCalledWith(eastId);
     });
+
+    await expect(runtime.ready).resolves.toBe(true);
+    expect(source.requestTile).toHaveBeenCalledWith(tileId);
     runtime.dispose();
   });
 
@@ -427,7 +392,6 @@ describe("buildCesiumTerrainRuntime", () => {
         eastIndices: new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn(() => [parentId]),
       getTileGridIdsForBounds: vi.fn(() => [parentId]),
       getTileBounds: vi.fn((id) => {
         if (id.level === parentId.level) {
@@ -481,12 +445,10 @@ describe("buildCesiumTerrainRuntime", () => {
     shadowCamera.lookAt(x, 0, z);
     shadowCamera.updateProjectionMatrix();
     shadowCamera.updateMatrixWorld(true);
-    runtime.setShadowCameras([
-      {
-        camera: shadowCamera,
-        shadowMapSize: { width: 1_000, height: 1_000 },
-      },
-    ]);
+    runtime.setShadowView({
+      camera: shadowCamera,
+      shadowMapSize: { width: 1_000, height: 1_000 },
+    });
     const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
     lodCamera.position.set(0, 1_000, 0);
     runtime.update({
@@ -531,7 +493,6 @@ describe("buildCesiumTerrainRuntime", () => {
           id.x === sourceId.x ? new Uint32Array([2, 3]) : new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn(() => [zeroSourceId, sourceId]),
       getTileGridIdsForBounds: vi.fn(() => [zeroSourceId, sourceId, flatId]),
       getTileBounds: vi.fn((id) =>
         id.x === flatId.x
@@ -647,7 +608,6 @@ describe("buildCesiumTerrainRuntime", () => {
         eastIndices: new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn(() => [parentId]),
       getTileGridIdsForBounds: vi.fn(() => [parentId]),
       getTileBounds: vi.fn((id) => {
         if (id.level === parentId.level) {
@@ -698,7 +658,10 @@ describe("buildCesiumTerrainRuntime", () => {
     lowResolutionShadowCamera.lookAt(0, 0, 0);
     lowResolutionShadowCamera.updateProjectionMatrix();
     lowResolutionShadowCamera.updateMatrixWorld(true);
-    runtime.setShadowCameras([lowResolutionShadowCamera]);
+    runtime.setShadowView({
+      camera: lowResolutionShadowCamera,
+      shadowMapSize: { width: 1_000, height: 1_000 },
+    });
     runtime.update({
       map: map as never,
       renderCamera: new Camera(),
@@ -746,7 +709,11 @@ describe("buildCesiumTerrainRuntime", () => {
     const intersects = (
       a: { west: number; south: number; east: number; north: number },
       b: { west: number; south: number; east: number; north: number }
-    ) => a.west < b.east && a.east > b.west && a.south < b.north && a.north > b.south;
+    ) =>
+      a.west < b.east &&
+      a.east > b.west &&
+      a.south < b.north &&
+      a.north > b.south;
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
@@ -756,9 +723,10 @@ describe("buildCesiumTerrainRuntime", () => {
         eastIndices: new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileIdsForBounds: vi.fn(() => [viewportId]),
       getTileGridIdsForBounds: vi.fn((bounds) =>
-        [...westIds, viewportId].filter((id) => intersects(boundsOf(id), bounds))
+        [...westIds, viewportId].filter((id) =>
+          intersects(boundsOf(id), bounds)
+        )
       ),
       getTileBounds: vi.fn(boundsOf),
       getLevelMaximumGeometricError: vi.fn((level) => 200 / 2 ** (level - 10)),
@@ -818,7 +786,10 @@ describe("buildCesiumTerrainRuntime", () => {
     );
     shadowCamera.updateProjectionMatrix();
     shadowCamera.updateMatrixWorld(true);
-    runtime.setShadowCameras([shadowCamera]);
+    runtime.setShadowView({
+      camera: shadowCamera,
+      shadowMapSize: { width: 1_000, height: 1_000 },
+    });
     const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
     lodCamera.position.set(0, 500, 0);
     runtime.update({
@@ -837,8 +808,9 @@ describe("buildCesiumTerrainRuntime", () => {
     ).toHaveLength(4);
     // ... while the sun coverage stayed at its root level: the leftover
     // budget cannot fit another split.
-    expect(requestedIds.filter((id) => id.level === 11 && id.x >> 1 !== 532))
-      .toHaveLength(0);
+    expect(
+      requestedIds.filter((id) => id.level === 11 && id.x >> 1 !== 532)
+    ).toHaveLength(0);
     for (const westId of westIds) {
       expect(requestedIds).toContainEqual(westId);
     }
@@ -859,12 +831,6 @@ describe("buildCesiumTerrainRuntime", () => {
   });
 
   it("keeps visible ground untouched when a superseded batch lands", async () => {
-    // The sun animation supersedes selection after selection. A superseded
-    // batch caches its tiles for the successor - but it also lists every
-    // tile of the current view, and it must never blank the meshes that are
-    // already on screen.
-    // 0.125 is binary-exact; 0.1 is not, and the resulting wobble once let a
-    // neighbouring tile leak into the first selection.
     const boundsOf = (id: { level: number; x: number; y: number }) => {
       const width = 0.125;
       const west = 7.125 + (id.x - 532) * width;
@@ -873,7 +839,11 @@ describe("buildCesiumTerrainRuntime", () => {
     const intersects = (
       a: { west: number; south: number; east: number; north: number },
       b: { west: number; south: number; east: number; north: number }
-    ) => a.west < b.east && a.east > b.west && a.south < b.north && a.north > b.south;
+    ) =>
+      a.west < b.east &&
+      a.east > b.west &&
+      a.south < b.north &&
+      a.north > b.south;
     const allIds = [
       { level: 10, x: 532, y: 218 },
       { level: 10, x: 533, y: 218 },
@@ -896,7 +866,6 @@ describe("buildCesiumTerrainRuntime", () => {
             );
           })
       ),
-      getTileIdsForBounds: vi.fn(() => [allIds[0]]),
       getTileGridIdsForBounds: vi.fn((bounds) =>
         allIds.filter((id) => intersects(boundsOf(id), bounds))
       ),
@@ -941,7 +910,6 @@ describe("buildCesiumTerrainRuntime", () => {
       });
     };
 
-    // Generation 1: one tile, loads and applies.
     renderAt(0);
     pendingResolvers.splice(0).forEach((resolve) => resolve());
     await flush();
@@ -951,8 +919,6 @@ describe("buildCesiumTerrainRuntime", () => {
       );
     expect(visibleNode()?.visible).toBe(true);
 
-    // Generation 2 widens the view, then generation 3 supersedes it before
-    // its fetches resolve.
     viewEast = 7.3;
     renderAt(100);
     await flush();
@@ -961,12 +927,9 @@ describe("buildCesiumTerrainRuntime", () => {
     renderAt(200);
     await flush();
     expect(pendingResolvers).toHaveLength(5);
-    // The winner lands first ...
     pendingResolvers.splice(2).forEach((resolve) => resolve());
     await flush();
     expect(visibleNode()?.visible).toBe(true);
-    // ... and only then the superseded batch completes. It lists the tile
-    // that is on screen; finishing late must not blank it.
     pendingResolvers.splice(0).forEach((resolve) => resolve());
     await flush();
     expect(visibleNode()?.visible).toBe(true);
