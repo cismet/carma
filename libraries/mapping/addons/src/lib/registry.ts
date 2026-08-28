@@ -33,6 +33,10 @@ import {
   type AnnotationState,
 } from "../addons/Annotation";
 import { GazetteerMode } from "../addons/GazetteerMode";
+import {
+  HighlightFromFilter,
+  type HighlightFromFilterConfig,
+} from "../addons/HighlightFromFilter";
 import { GazetteerSource } from "../addons/GazetteerSource";
 import { HomeOverride, type HomeOverrideConfig } from "../addons/HomeOverride";
 import {
@@ -170,6 +174,7 @@ export type AddonConfigMap = {
   annotationControl: AnnotationControlConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
+  highlightFromFilter: HighlightFromFilterConfig;
   homeOverride: HomeOverrideConfig;
   nearestFeature: NearestFeatureConfig;
   nearestFeatureApotheken: NearestFeatureApothekenConfig;
@@ -512,6 +517,8 @@ export const addonRegistry: {
     requires: ["annotationMode"],
   },
   gazetteerSource: { Component: GazetteerSource },
+  // no channel: it sets the map's filter presentation directly
+  highlightFromFilter: { Component: HighlightFromFilter },
   outlet: { Component: OutletAddon },
   showScenes: { Component: ShowScenes },
   spotHighlights: { Component: SpotHighlights, provides: ["spotHighlights"] },
