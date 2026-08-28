@@ -7,7 +7,16 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: vi.fn(),
   buildCesiumTerrainRuntime: vi.fn(),
   getGenericThreeLayers: vi.fn(() => []),
+  getSharedThreeShadowViewSignature: vi.fn(({ camera, shadowMapSize }) =>
+    [
+      ...camera.matrixWorld.elements,
+      ...camera.projectionMatrix.elements,
+      shadowMapSize.width,
+      shadowMapSize.height,
+    ].join(",")
+  ),
   getSharedThreeSceneRuntimes: vi.fn(() => []),
+  isSharedThreeTerrainLoading: vi.fn(() => false),
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
   subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
   suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
@@ -86,16 +95,21 @@ describe("shadow scene lighting integration", () => {
   type SharedRuntimeFixture = {
     id: string;
     root: THREE.Object3D;
+    updatePriority?: number;
     update?: (frame: unknown) => void;
     dispose: () => void;
   };
   let sharedRuntimes: Map<string, SharedRuntimeFixture>;
+  let accumulationController: { active: () => boolean } | null;
   let sharedLayer: {
     getScene: () => THREE.Scene;
     addRuntime: (runtime: SharedRuntimeFixture) => void;
     hasRuntime: (runtimeId: string) => boolean;
     removeRuntime: (runtimeId: string) => void;
     getRenderer: () => THREE.WebGLRenderer | null;
+    setAccumulationController: (
+      controller: { active: () => boolean } | null
+    ) => void;
     projectLngLatToScene?: (
       lngLat: [number, number],
       altitude?: number
@@ -106,6 +120,7 @@ describe("shadow scene lighting integration", () => {
     vi.clearAllMocks();
     scene = new THREE.Scene();
     sharedRuntimes = new Map();
+    accumulationController = null;
     sharedLayer = {
       getScene: () => scene,
       getRenderer: () => null,
@@ -120,6 +135,9 @@ describe("shadow scene lighting integration", () => {
         scene.remove(runtime.root);
         runtime.dispose();
         sharedRuntimes.delete(runtimeId);
+      }),
+      setAccumulationController: vi.fn((controller) => {
+        accumulationController = controller;
       }),
     };
     vi.mocked(getGenericThreeLayers).mockReturnValue([]);
@@ -288,6 +306,70 @@ describe("shadow scene lighting integration", () => {
       scene.getObjectByName("shadow-simulation-sun-vector")
     ).toBeUndefined();
     expect(releaseScene).toHaveBeenCalledOnce();
+  });
+
+  it("waits for view and shadow tile demand before sun-disc accumulation", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    let requestDemand = 1;
+    const setShadowView = vi.fn();
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      {
+        id: "buildings",
+        originLngLat: [7.15, 51.256],
+        root: new THREE.Group(),
+        update: vi.fn(),
+        setShadowView,
+        getRequestDemand: () => requestDemand,
+        dispose: vi.fn(),
+      },
+    ]);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: 7.15 + (x / 800 - 0.5) * 0.02,
+        lat: 51.256 + (0.5 - y / 600) * 0.02,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never);
+    controller.updateAtmosphericLutUsage({
+      useTransmittanceLut: false,
+      useIrradianceLut: false,
+    });
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(7_150, 4_000, 51_256);
+    camera.lookAt(7_150, 0, 51_256);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera);
+
+    expect(
+      sharedRuntimes.get("shadow-simulation-controller")?.updatePriority
+    ).toBe(200);
+    const accumulation = accumulationController as {
+      active: () => boolean;
+    };
+    expect(accumulation.active()).toBe(false);
+
+    requestDemand = 0;
+    expect(accumulation.active()).toBe(true);
+
+    controller.updateTimeAnimating(true);
+    expect(accumulation.active()).toBe(false);
+    expect(setShadowView).toHaveBeenLastCalledWith(null);
+    controller.dispose();
   });
 
   it("moves ALKIS buildings into the shared terrain shadow scene", () => {
@@ -653,6 +735,134 @@ describe("shadow scene lighting integration", () => {
     controller.dispose();
     terrain.geometry.dispose();
     (terrain.material as THREE.Material).dispose();
+  });
+
+  it("keeps valid lower viewport rays when upper rays point above the terrain", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const terrain = new THREE.Mesh(
+      new THREE.BoxGeometry(5_000, 200, 5_000),
+      new THREE.MeshLambertMaterial()
+    );
+    terrain.position.y = 100;
+    scene.add(terrain);
+
+    const controller = buildShadowSimulationScene(map as never);
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(0, 500, 500);
+    camera.lookAt(0, 400, 0);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+
+    updateShadows(map, camera);
+
+    const shadowCamera = (
+      scene.getObjectByName("shadow-simulation-sun") as THREE.DirectionalLight
+    ).shadow.camera;
+    for (const x of [-1, 1]) {
+      const nearPoint = new THREE.Vector3(x, -1, -1).unproject(camera);
+      const rayDirection = new THREE.Vector3(x, -1, 1)
+        .unproject(camera)
+        .sub(nearPoint);
+      for (const elevation of [0, 200]) {
+        const receiver = nearPoint
+          .clone()
+          .addScaledVector(
+            rayDirection,
+            (elevation - nearPoint.y) / rayDirection.y
+          );
+        const clip = receiver
+          .applyMatrix4(shadowCamera.matrixWorldInverse)
+          .applyMatrix4(shadowCamera.projectionMatrix);
+        expect(Math.abs(clip.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(clip.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(clip.z)).toBeLessThanOrEqual(1);
+      }
+    }
+
+    controller.dispose();
+    terrain.geometry.dispose();
+    (terrain.material as THREE.Material).dispose();
+  });
+
+  it("refits the direct shadow pass immediately when streamed content changes", () => {
+    vi.stubGlobal("window", {
+      clearTimeout,
+      setTimeout,
+    });
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    let contentChanged = () => undefined;
+    vi.mocked(subscribeSharedThreeSceneContent).mockImplementation(
+      (_map, listener) => {
+        contentChanged = listener;
+        return vi.fn();
+      }
+    );
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: (x / 800 - 0.5) * 0.1,
+        lat: (0.5 - y / 600) * 0.1,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never);
+    subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(0, 1_000, 1_000);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera);
+    expect(
+      readShadowProjectionDebugSnapshot(map as never)?.maximumElevationMeters
+    ).toBeCloseTo(0);
+
+    const buildingVolume = new THREE.Mesh(
+      new THREE.BoxGeometry(100, 300, 100),
+      new THREE.MeshLambertMaterial()
+    );
+    buildingVolume.position.y = 150;
+    scene.add(buildingVolume);
+    contentChanged();
+    updateShadows(map, camera);
+
+    expect(
+      readShadowProjectionDebugSnapshot(map as never)?.maximumElevationMeters
+    ).toBeGreaterThanOrEqual(300);
+
+    controller.dispose();
+    buildingVolume.geometry.dispose();
+    (buildingVolume.material as THREE.Material).dispose();
+    vi.unstubAllGlobals();
   });
 
   it("includes visible elevation relief when fitting the viewport", () => {

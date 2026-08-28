@@ -43,6 +43,9 @@ describe("buildSharedSceneAccumulator", () => {
     accumulator.composite(renderer);
 
     expect(renderScene).toHaveBeenCalledTimes(2);
+    expect(
+      vi.mocked(renderer.readRenderTargetPixels).mock.calls[1]?.[5]
+    ).toBeInstanceOf(Uint16Array);
     expect(accumulator.converged).toBe(true);
     expect(accumulator.nextRound).toBe(2);
     accumulator.ensureState("second");

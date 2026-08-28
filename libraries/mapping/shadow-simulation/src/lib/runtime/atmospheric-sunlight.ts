@@ -243,13 +243,27 @@ export class AtmosphericSunlightEvaluator {
     );
   }
 
+  isLoadingFor(
+    options: AtmosphericSunlightOptions = DEFAULT_ATMOSPHERIC_SUNLIGHT_OPTIONS
+  ): boolean {
+    return (
+      (options.useTransmittanceLut && this.transmittanceLoading) ||
+      (options.useIrradianceLut && this.irradianceLoading)
+    );
+  }
+
   ensure(
     onReady: () => void,
     options: AtmosphericSunlightOptions = DEFAULT_ATMOSPHERIC_SUNLIGHT_OPTIONS
   ): void {
     if (this.disposed) return;
-    if (options.useTransmittanceLut) this.ensureTransmittance(onReady);
-    if (options.useIrradianceLut) this.ensureIrradiance(onReady);
+    const notifyWhenSettled = () => {
+      if (!this.isLoadingFor(options)) onReady();
+    };
+    if (options.useTransmittanceLut) {
+      this.ensureTransmittance(notifyWhenSettled);
+    }
+    if (options.useIrradianceLut) this.ensureIrradiance(notifyWhenSettled);
   }
 
   private ensureTransmittance(onReady: () => void): void {
@@ -282,6 +296,7 @@ export class AtmosphericSunlightEvaluator {
         if (!this.disposed) {
           this.transmittanceRetryAt = Date.now() + LUT_RETRY_DELAY_MS;
           console.error("[SHADOW] Takram transmittance LUT failed", error);
+          onReady();
         }
       }
     );
@@ -318,6 +333,7 @@ export class AtmosphericSunlightEvaluator {
         if (!this.disposed) {
           this.irradianceRetryAt = Date.now() + LUT_RETRY_DELAY_MS;
           console.error("[SHADOW] Takram irradiance LUT failed", error);
+          onReady();
         }
       }
     );

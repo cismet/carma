@@ -64,10 +64,36 @@ describe("ShadowController", () => {
     controller.update(buildUpdate());
     const before = controller.lights[0].position.clone();
 
-    controller.applySunDiscSample(1);
+    controller.applySunDiscSample(1, 32);
 
     expect(controller.lights[0].position.equals(before)).toBe(false);
     expect(controller.lights[0].shadow.needsUpdate).toBe(true);
+  });
+
+  it("uses distinct tangent-plane offsets across the whole sun disc", () => {
+    const controller = new ShadowController(new THREE.Scene());
+    const update = buildUpdate();
+    controller.setSoftSun(true);
+    controller.update(update);
+    const directionToSun = update.directionToSun.clone().normalize();
+    const tangentA = new THREE.Vector3(0, 1, 0)
+      .cross(directionToSun)
+      .normalize();
+    const tangentB = directionToSun.clone().cross(tangentA);
+    const offsets = Array.from({ length: 32 }, (_, round) => {
+      controller.applySunDiscSample(round, 32);
+      const sampledDirection = controller.lights[0].position
+        .clone()
+        .sub(update.receiverAnchorWorldPosition)
+        .normalize();
+      return [
+        sampledDirection.dot(tangentA).toFixed(12),
+        sampledDirection.dot(tangentB).toFixed(12),
+      ] as const;
+    });
+
+    expect(new Set(offsets.map(([x]) => x)).size).toBe(offsets.length);
+    expect(new Set(offsets.map(([, y]) => y)).size).toBe(offsets.length);
   });
 
   it("rotates the sun direction around the terrain anchor", () => {
@@ -76,7 +102,7 @@ describe("ShadowController", () => {
     controller.setSoftSun(true);
     controller.update(buildUpdate({ receiverAnchorWorldPosition: anchor }));
 
-    controller.applySunDiscSample(3);
+    controller.applySunDiscSample(3, 32);
 
     expect(controller.lights[0].target.position.equals(anchor)).toBe(true);
     const sampledDirection = controller.lights[0].position
@@ -98,7 +124,7 @@ describe("ShadowController", () => {
     );
 
     for (let round = 0; round < 8; round += 1) {
-      controller.applySunDiscSample(round);
+      controller.applySunDiscSample(round, 32);
       const camera = controller.lights[0].shadow.camera;
       for (const point of receiverWorldPoints) {
         const clip = point

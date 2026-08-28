@@ -45,6 +45,7 @@ import type {
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
 } from "./shared-three-scene-layer";
+import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
 
 const DEFAULT_TERRAIN_COLOR = 0xd8d1c4;
 const DEFAULT_ERROR_TARGET_PIXELS = 2.5;
@@ -92,6 +93,9 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   setShadowView: (view: SharedThreeSceneShadowView | null) => void;
   setMaterialColor: (color: ColorRepresentation) => void;
   getElevation: (longitude: number, latitude: number) => number | undefined;
+  getViewElevationRange: (
+    camera: Camera
+  ) => readonly [minimum: number, maximum: number] | null;
 }
 
 type TerrainMeshRecord = {
@@ -865,6 +869,63 @@ export const buildCesiumTerrainRuntime = (
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
 
+  const getViewElevationRange = (
+    camera: Camera
+  ): readonly [number, number] | null => {
+    if (!source || activeMeshKeys.size === 0) return null;
+    camera.updateMatrixWorld(true);
+    root.updateMatrixWorld(true);
+    const viewProjection = new Matrix4().multiplyMatrices(
+      camera.projectionMatrix,
+      camera.matrixWorldInverse
+    );
+    const viewFrustum = new Frustum().setFromProjectionMatrix(
+      viewProjection,
+      camera.coordinateSystem,
+      camera.reversedDepth
+    );
+    const localBounds = new Box3();
+    const projectedCorner = new Vector3();
+    let minimum = Number.POSITIVE_INFINITY;
+    let maximum = Number.NEGATIVE_INFINITY;
+    for (const key of activeMeshKeys) {
+      const record = meshes.get(key);
+      if (!record?.node.visible) continue;
+      const geographicBounds = source.getTileBounds(record.id);
+      localBounds.makeEmpty();
+      for (const longitude of [geographicBounds.west, geographicBounds.east]) {
+        for (const latitude of [
+          geographicBounds.south,
+          geographicBounds.north,
+        ]) {
+          localBounds.expandByPoint(
+            projectToLocalWorld(
+              longitude,
+              latitude,
+              record.minimumHeightMeters,
+              projectedCorner
+            )
+          );
+          localBounds.expandByPoint(
+            projectToLocalWorld(
+              longitude,
+              latitude,
+              record.maximumHeightMeters,
+              projectedCorner
+            )
+          );
+        }
+      }
+      localBounds.applyMatrix4(root.matrixWorld);
+      if (!viewFrustum.intersectsBox(localBounds)) continue;
+      minimum = Math.min(minimum, localBounds.min.y);
+      maximum = Math.max(maximum, localBounds.max.y);
+    }
+    return Number.isFinite(minimum) && Number.isFinite(maximum)
+      ? [minimum, maximum]
+      : null;
+  };
+
   /** Persistent base tiles completely covered by the active refinement. */
   const fullyCoveredBaseKeys = (): Set<string> => {
     const covered = new Set<string>();
@@ -1268,34 +1329,6 @@ export const buildCesiumTerrainRuntime = (
     };
   };
 
-  const computeShadowViewSignature = (
-    view: SharedThreeSceneShadowView | null
-  ): string => {
-    if (!view) return "";
-    const { camera, shadowMapSize } = view;
-    const ortho = camera as unknown as {
-      left?: number;
-      right?: number;
-      top?: number;
-      bottom?: number;
-      near?: number;
-      far?: number;
-    };
-    const position = camera.position;
-    return [
-      quantize(position.x, 2),
-      quantize(position.y, 2),
-      quantize(position.z, 2),
-      quantize(ortho.left ?? 0, 2),
-      quantize(ortho.right ?? 0, 2),
-      quantize(ortho.top ?? 0, 2),
-      quantize(ortho.bottom ?? 0, 2),
-      quantize(ortho.near ?? 0, 4),
-      quantize(ortho.far ?? 0, 4),
-      `${shadowMapSize.width}x${shadowMapSize.height}`,
-    ].join(",");
-  };
-
   const computeSelectionInputSignature = (
     frame: SharedThreeSceneFrame
   ): string => {
@@ -1355,11 +1388,21 @@ export const buildCesiumTerrainRuntime = (
       selection.entries,
       requestConcurrency,
       async (entry) => {
+        if (disposed || generation !== selectionGeneration) {
+          throw new Error("Stale terrain selection");
+        }
         const tile =
           entry.kind === "flat"
             ? createFlatTerrainTile(terrainSource, entry.id)
             : await terrainSource.requestTile(entry.id);
+        if (disposed || generation !== selectionGeneration) {
+          throw new Error("Stale terrain selection");
+        }
         const projectedGeometry = await loadProjectedGeometry(tile, entry);
+        if (disposed || generation !== selectionGeneration) {
+          projectedGeometry.dispose();
+          throw new Error("Stale terrain selection");
+        }
         return { entry, tile, projectedGeometry };
       }
     )
@@ -1483,7 +1526,6 @@ export const buildCesiumTerrainRuntime = (
           if (sinceRepaint >= PERSISTENT_BASE_REPAINT_BATCH) {
             sinceRepaint = 0;
             applyMeshVisibility();
-            options.onContentChanged?.();
             map?.triggerRepaint();
           }
         })
@@ -1493,7 +1535,6 @@ export const buildCesiumTerrainRuntime = (
     ).then(() => {
       if (disposed) return;
       applyMeshVisibility();
-      options.onContentChanged?.();
       map?.triggerRepaint();
     });
   };
@@ -1561,7 +1602,7 @@ export const buildCesiumTerrainRuntime = (
             shadowMapSize: normalizeShadowMapSize(view.shadowMapSize),
           }
         : null;
-      const nextSignature = computeShadowViewSignature(shadowView);
+      const nextSignature = getSharedThreeShadowViewSignature(shadowView);
       if (nextSignature !== shadowViewSignature) {
         shadowViewSignature = nextSignature;
         selectionInputSignature = "";
@@ -1575,6 +1616,7 @@ export const buildCesiumTerrainRuntime = (
     getElevation(longitude, latitude) {
       return source?.sampleHeight(longitude, latitude);
     },
+    getViewElevationRange,
     dispose() {
       if (disposed) return;
       disposed = true;
