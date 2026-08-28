@@ -36,7 +36,7 @@ import type {
   ColorizationConfig,
   ColorizerFieldInfo,
 } from "../../../ng-topicmap-playground/src/app/pointcloud/PointColorizer";
-import { Gltf1UpgradePlugin } from "../../../ng-topicmap-playground/src/app/pointcloud/gltf1UpgradePlugin";
+import { Gltf1UpgradePlugin } from "../../../../libraries/mapping/engines/maplibre/src/lib/runtime/integrations/gltf1-upgrade-plugin";
 import {
   openCopcPointSource,
   sceneMatrixFromSourceTransform,

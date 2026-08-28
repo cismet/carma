@@ -36,7 +36,7 @@ import {
   getRampTexture,
   type RampName,
 } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
-import { createTilesCameraSet } from "../../../ng-topicmap-playground/src/app/pointcloud/tiles-camera-set";
+import { createTilesCameraSet } from "../../../../libraries/mapping/engines/maplibre/src/lib/runtime/integrations/tiles-camera-set";
 import {
   createImageDisplayFilter,
   IMAGE_DISPLAY_DEFAULT_EDGE_ENHANCEMENT,
