@@ -14,6 +14,10 @@ import {
   useState,
 } from "react";
 import { getHashParams } from "@carma-commons/utils";
+import type {
+  Carma3dConfig,
+  ThreePerfData,
+} from "@carma-mapping/engines/threejs";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
@@ -74,7 +78,8 @@ import { FeatureInfobox } from "@carma-appframeworks/portals";
 import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
-import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
+import { ThreeLayerManager } from "./ThreeLayerManager";
+import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
 import { Tiles3dLayerManager } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
 import { SharedThreeTilesLayerManager } from "./SharedThreeTilesLayerManager";
@@ -128,7 +133,7 @@ export interface VectorStyle {
    *  e.g. "id" so selection/highlight feature-state keys by the stable DB pk. */
   promoteId?: string;
   /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
-  carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+  carma3d?: Carma3dConfig;
   /** Optional filter expression to AND into every style layer in this vector style
    *  during style construction. The original filter is preserved at
    *  metadata.originalFilter so consumers can still recover it. */
@@ -310,9 +315,7 @@ export interface LibreMapProps {
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
   threeRuntimeParams?: Record<string, number | string>;
   /** Ref for 3D layer performance data */
-  threePerfRef?: React.MutableRefObject<
-    import("@carma-mapping/engines/threejs").ThreePerfData
-  >;
+  threePerfRef?: React.MutableRefObject<ThreePerfData>;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
   maxPitch?: number;
   minZoom?: number;
@@ -460,7 +463,7 @@ export const LibreMap = ({
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [detectedCarma3dConfigs, setDetectedCarma3dConfigs] = useState<
-    import("@carma-mapping/engines/threejs").Carma3dConfig[]
+    Carma3dConfig[]
   >([]);
   const [detectedTiles3dConfigs, setDetectedTiles3dConfigs] = useState<
     Array<Tiles3dConfig & { layerOpacity: number }>
@@ -1594,8 +1597,7 @@ export const LibreMap = ({
 
           // Detect carma3d configs from style metadata and explicit layer props
           {
-            const configs: import("@carma-mapping/engines/threejs").Carma3dConfig[] =
-              [];
+            const configs: Carma3dConfig[] = [];
             const sourceToIdx = new Map<string, number>();
 
             // Tilesets are collected in the same pass over the layers below.

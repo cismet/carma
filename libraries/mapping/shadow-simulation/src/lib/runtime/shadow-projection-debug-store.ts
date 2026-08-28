@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import type { TiledShadowSnapshot } from "./tiled-shadow-controller";
+import type { ShadowSnapshot } from "./shadow-controller";
 
 export type ShadowProjectionDebugSnapshot = Readonly<{
   cameraRangeMeters: number;
@@ -16,7 +16,7 @@ export type ShadowProjectionDebugSnapshot = Readonly<{
   minimumElevationMeters: number;
   maximumElevationMeters: number;
   sceneAnchorPositionElements?: readonly [number, number, number];
-  tiledShadow?: TiledShadowSnapshot | null;
+  shadow?: ShadowSnapshot | null;
   atmosphericSunlight?: Readonly<{
     azimuthDegrees: number;
     elevationDegrees: number;

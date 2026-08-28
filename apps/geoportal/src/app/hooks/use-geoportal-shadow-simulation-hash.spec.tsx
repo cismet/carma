@@ -14,7 +14,7 @@ type ShadowStateFixture = {
   buildingsFullOpacity: boolean;
   useUniformBuildingColor: boolean;
   buildingColor: string;
-  shadowQuality: 1 | 4 | 16;
+  shadowQuality: 4 | 16 | 64;
   showSunDebugVector: boolean;
 };
 
@@ -58,7 +58,7 @@ vi.mock("@carma-mapping/contexts", () => ({
   useLibreContext: () => ({ map: { getCenter: libreContextMock.getCenter } }),
 }));
 
-import { clampShadowSimulationSelectionToDaylight } from "@carma-mapping/addons";
+import { clampShadowSimulationSelectionToDaylight } from "@carma-mapping/shadow-simulation";
 import { useGeoportalShadowSimulationHash } from "./use-geoportal-shadow-simulation-hash";
 
 const createShadowState = (

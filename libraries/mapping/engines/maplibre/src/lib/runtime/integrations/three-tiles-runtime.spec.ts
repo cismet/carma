@@ -1,35 +1,90 @@
 // @vitest-environment jsdom
 
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-describe("tiles3d layer visibility", () => {
-  it("can be hidden and shown again without disposing its scene root", async () => {
-    Object.defineProperty(window.URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:vitest-maplibre-worker",
-    });
-    const { buildThreeTilesRuntime } = await import("./three-tiles-runtime");
+import { TILE_OUTLINE_FLAG } from "@carma-mapping/engines/threejs";
+import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+
+vi.hoisted(() => {
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: () => "blob:vitest-maplibre-worker",
+  });
+});
+
+describe("three tiles runtime styling", () => {
+  it("preserves the runtime controls used by the pointcloud playground", () => {
     const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
-    const root = layer.root;
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial()
+    );
+    layer.root.add(mesh);
 
+    expect(layer.getRequestDemand()).toBe(1);
     layer.setVisible(false);
-    expect(layer.root).toBe(root);
-    expect(root.visible).toBe(false);
-
+    expect(layer.root.visible).toBe(false);
+    expect(layer.getRequestDemand()).toBe(0);
     layer.setVisible(true);
-    expect(layer.root).toBe(root);
-    expect(root.visible).toBe(true);
-
+    layer.setHeightOffset(12);
+    expect(layer.root.children[0].position.y).toBe(12);
+    layer.setClayColor("#abcdef");
+    layer.setWhiteShading(true);
+    layer.setWireframe(true);
+    expect((mesh.material as THREE.MeshStandardMaterial).wireframe).toBe(true);
+    layer.setTileBoundsVisible(true);
+    layer.setCacheBudget(1024);
+    layer.setRequestConcurrency(2);
     layer.dispose();
   });
 
-  it("applies the declared clay material to meshes in the shared scene", async () => {
-    Object.defineProperty(window.URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:vitest-maplibre-worker",
+  it("keeps the panorama and frustum projector shader path available", () => {
+    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial()
+    );
+    layer.root.add(mesh);
+    layer.setWhiteShading(true);
+    const material = mesh.material as THREE.MeshStandardMaterial;
+    const shader = {
+      uniforms: {},
+      vertexShader: "#include <common>\n#include <worldpos_vertex>",
+      fragmentShader: "#include <common>\n#include <dithering_fragment>",
+    } as Parameters<typeof material.onBeforeCompile>[0];
+
+    layer.setProjector({
+      kind: "pano",
+      position: new THREE.Vector3(1, 2, 3),
+      headingRad: 0.5,
+      texture: new THREE.Texture(),
+      opacity: 0.7,
     });
-    const { buildThreeTilesRuntime } = await import("./three-tiles-runtime");
+    material.onBeforeCompile(
+      shader,
+      {} as Parameters<typeof material.onBeforeCompile>[1]
+    );
+    const uniforms = shader.uniforms as Record<string, { value: unknown }>;
+    expect(uniforms.uProjKind.value).toBe(1);
+    expect(uniforms.uProjOpacity.value).toBe(0.7);
+    expect(shader.fragmentShader).toContain("uProjMatrix");
+
+    layer.setProjector({
+      kind: "frustum",
+      viewProj: new THREE.Matrix4(),
+      texture: new THREE.Texture(),
+      opacity: 0.8,
+    });
+    expect(uniforms.uProjKind.value).toBe(2);
+
+    layer.setProjector(null);
+    expect(uniforms.uProjKind.value).toBe(0);
+    expect(uniforms.tProj.value).toBeNull();
+    layer.dispose();
+  });
+
+  it("applies the declared clay material to meshes in the shared scene", () => {
     const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -58,15 +113,7 @@ describe("tiles3d layer visibility", () => {
     layer.dispose();
   });
 
-  it("keeps native tile meshes shadeable and controls their declared outlines", async () => {
-    Object.defineProperty(window.URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:vitest-maplibre-worker",
-    });
-    const { TILE_OUTLINE_FLAG } = await import(
-      "@carma-mapping/engines/threejs"
-    );
-    const { buildThreeTilesRuntime } = await import("./three-tiles-runtime");
+  it("keeps native tile meshes shadeable and controls their declared outlines", () => {
     const layer = buildThreeTilesRuntime("lod2", "tileset.json", [7.15, 51.25]);
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -89,15 +136,7 @@ describe("tiles3d layer visibility", () => {
     layer.dispose();
   });
 
-  it("uses opaque outline-free clay for building tiles only during shadow mode", async () => {
-    Object.defineProperty(window.URL, "createObjectURL", {
-      configurable: true,
-      value: () => "blob:vitest-maplibre-worker",
-    });
-    const { TILE_OUTLINE_FLAG } = await import(
-      "@carma-mapping/engines/threejs"
-    );
-    const { buildThreeTilesRuntime } = await import("./three-tiles-runtime");
+  it("uses opaque outline-free clay for building tiles only during shadow mode", () => {
     const layer = buildThreeTilesRuntime(
       "lod2",
       "tileset.json",

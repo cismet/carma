@@ -1,21 +1,4 @@
-// ─────────────────────────────────────────────────────────────
-//  On-the-fly glTF 1.0 → 2.0 upgrade for b3dm tiles (WUPP Mesh
-//  2020). three's GLTFLoader only parses glTF 2 — this plugin
-//  intercepts tile downloads via the 3d-tiles-renderer fetchData
-//  hook, sniffs the embedded GLB version and rewrites v1 payloads
-//  in place (pure JS, no WASM):
-//
-//  - dictionaries → arrays (ids become indices)
-//  - technique/shader materials → unlit pbr with baseColorTexture
-//  - KHR_binary_glTF images → native bufferView images
-//  - CESIUM_RTC is passed through (handled by GLTFExtensionsPlugin)
-//  - GLB1 container (20 B header) → GLB2 (JSON + BIN chunks); the
-//    binary body stays byte-identical
-//
-//  Scope: the minimal feature set the 2020 tiles actually use
-//  (one textured mesh per tile). Written from scratch against the
-//  glTF 1.0/2.0 specs — no GPL code involved.
-// ─────────────────────────────────────────────────────────────
+// Converts the glTF 1 payloads in the 2020 b3dm mesh to glTF 2 for GLTFLoader.
 
 interface Gltf1Json {
   asset?: Record<string, unknown>;
@@ -106,7 +89,6 @@ const indexMap = (record: Record<string, unknown> | undefined) => {
   return map;
 };
 
-/** Rewrite a glTF 1.0 JSON (KHR_binary_glTF flavor) as glTF 2.0 */
 const upgradeGltf1Json = (gltf1: Gltf1Json): Record<string, unknown> => {
   const bufferViewIds = indexMap(gltf1.bufferViews);
   const accessorIds = indexMap(gltf1.accessors);
@@ -261,7 +243,6 @@ const upgradeGltf1Json = (gltf1: Gltf1Json): Record<string, unknown> => {
 const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
 
-/** GLB1 (20 B header) → GLB2 (JSON + BIN chunks), body unchanged */
 const glb1ToGlb2 = (glb: Uint8Array): Uint8Array | null => {
   const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
   if (view.getUint32(0, true) !== 0x46546c67) return null; // "glTF"
@@ -301,7 +282,6 @@ const glb1ToGlb2 = (glb: Uint8Array): Uint8Array | null => {
   return out;
 };
 
-/** Rewrite the GLB inside a b3dm when it is glTF 1 (else null) */
 export const upgradeB3dmGltf1 = (buffer: ArrayBuffer): ArrayBuffer | null => {
   const bytes = new Uint8Array(buffer);
   const view = new DataView(buffer);
@@ -327,36 +307,15 @@ export const upgradeB3dmGltf1 = (buffer: ArrayBuffer): ArrayBuffer | null => {
   return out.buffer;
 };
 
-/**
- * 3d-tiles-renderer plugin: intercepts .b3dm downloads and upgrades
- * embedded glTF 1.0 payloads so three's GLTFLoader can parse them.
- */
 export class Gltf1UpgradePlugin {
   name = "GLTF1_UPGRADE_PLUGIN";
-  stats = { tiles: 0, upgraded: 0, totalMs: 0, bytesIn: 0 };
-
-  constructor() {
-    if (import.meta.env.DEV) {
-      // dev-only introspection for measuring upgrade cost
-      (window as unknown as Record<string, unknown>).__gltf1UpgradeStats =
-        this.stats;
-    }
-  }
 
   async fetchData(url: string | URL, options: RequestInit): Promise<Response> {
     const response = await fetch(url, options);
     if (!/\.b3dm(\?|$)/.test(String(url)) || !response.ok) return response;
 
     const buffer = await response.arrayBuffer();
-    this.stats.tiles++;
-    const started = performance.now();
     const upgraded = upgradeB3dmGltf1(buffer);
-    if (upgraded) {
-      this.stats.upgraded++;
-      this.stats.totalMs += performance.now() - started;
-      this.stats.bytesIn += buffer.byteLength;
-    }
-    // body was consumed either way — hand back a fresh Response
     return new Response(upgraded ?? buffer, { status: 200 });
   }
 }

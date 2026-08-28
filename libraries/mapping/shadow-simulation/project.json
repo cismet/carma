@@ -1,0 +1,28 @@
+{
+  "name": "mapping-shadow-simulation",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/shadow-simulation/src",
+  "projectType": "library",
+  "tags": ["type:library", "scope:mapping"],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "dependsOn": ["^build"],
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "buildLibsFromSource": false,
+        "outputPath": "dist/libraries/mapping/shadow-simulation"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/mapping/shadow-simulation"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
