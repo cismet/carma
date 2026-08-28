@@ -540,6 +540,7 @@ export class LassoDrawingManager {
    */
   showLastShape(): void {
     if (!this.lastShape || this.placingLine) return;
+    this.setPickingFeature(false);
     this.setPreviewing(true);
     this.renderLastShape();
   }
@@ -587,8 +588,6 @@ export class LassoDrawingManager {
   /** The shape can be picked up, so the cursor says so over it. */
   private onPreviewHover(e: MapMouseEvent): void {
     if (this.movingShape || this.drawing || this.suspended) return;
-    // while picking, a press on the preview is a pick and not a grab
-    if (this.pickingFeature) return;
     if (this.hitsPreview(e)) this.map.getCanvas().style.cursor = "move";
     else this.applyCursor();
   }
@@ -704,6 +703,7 @@ export class LassoDrawingManager {
       // what is half-drawn belongs to the tool being left
       if (this.drawing && !this.placingLine) this.cancelDraw();
       this.cancelLine();
+      this.hideLastShape();
       this.map.on("click", this.handlePickClick);
     } else {
       this.map.off("click", this.handlePickClick);
