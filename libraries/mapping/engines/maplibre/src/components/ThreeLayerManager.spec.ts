@@ -3,9 +3,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getFootprintRadiusMeters,
   retainBuildingGroupsInView,
   type CachedBuildingGroup,
-} from "./ThreeLayerManager";
+} from "./building-group-cache";
 
 const buildGroup = (
   bounds: CachedBuildingGroup["bounds"],
@@ -120,5 +121,20 @@ describe("retainBuildingGroupsInView", () => {
     );
 
     expect(cache.size).toBe(0);
+  });
+});
+
+describe("getFootprintRadiusMeters", () => {
+  it("measures a geographic ring in local metres", () => {
+    expect(
+      getFootprintRadiusMeters(
+        [
+          [7.2, 51.201],
+          [7.2, 51.199],
+        ],
+        7.2,
+        51.2
+      )
+    ).toBeCloseTo(111.5, 0);
   });
 });

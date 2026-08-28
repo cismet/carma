@@ -1,6 +1,7 @@
+import { clamp } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+
 const MINUTES_PER_DAY = 24 * 60;
-const DEGREES_TO_RADIANS = Math.PI / 180;
-const RADIANS_TO_DEGREES = 180 / Math.PI;
 
 export const MEAN_SOLAR_ANGULAR_RADIUS_DEGREES = 0.2666;
 
@@ -35,9 +36,6 @@ export type SolarPosition = {
   azimuthDegrees: number;
   elevationDegrees: number;
 };
-
-const clamp = (value: number, minimum: number, maximum: number) =>
-  Math.min(maximum, Math.max(minimum, value));
 
 const normalizeMinutes = (minutes: number) =>
   ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
@@ -185,7 +183,7 @@ const getSelectableHourAngleCosine = (
   latitudeRadians: number,
   declinationRadians: number
 ) =>
-  (Math.sin(MEAN_SOLAR_ANGULAR_RADIUS_DEGREES * DEGREES_TO_RADIANS) -
+  (Math.sin(degToRadNumeric(MEAN_SOLAR_ANGULAR_RADIUS_DEGREES)) -
     Math.sin(latitudeRadians) * Math.sin(declinationRadians)) /
   (Math.cos(latitudeRadians) * Math.cos(declinationRadians));
 
@@ -198,7 +196,7 @@ const resolveDaylightBoundaryMinutes = (
   direction: -1 | 1
 ) => {
   let boundaryMinutes = initialMinutes;
-  const latitudeRadians = location.latitude * DEGREES_TO_RADIANS;
+  const latitudeRadians = degToRadNumeric(location.latitude);
 
   for (let iteration = 0; iteration < 4; iteration += 1) {
     const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
@@ -206,14 +204,15 @@ const resolveDaylightBoundaryMinutes = (
       dayOfYear,
       boundaryMinutes
     );
-    const hourAngleDegrees =
+    const hourAngleDegrees = radToDegNumeric(
       Math.acos(
         clamp(
           getSelectableHourAngleCosine(latitudeRadians, declinationRadians),
           -1,
           1
         )
-      ) * RADIANS_TO_DEGREES;
+      )
+    );
     const solarNoonMinutes =
       720 -
       4 * location.longitude -
@@ -242,7 +241,7 @@ export const getDaylightWindow = (
   );
   const timeZoneOffsetHours =
     getTimeZoneOffsetMinutes(noonInstant, location.timeZone) / 60;
-  const latitudeRadians = location.latitude * DEGREES_TO_RADIANS;
+  const latitudeRadians = degToRadNumeric(location.latitude);
   const hourAngleCosine = getSelectableHourAngleCosine(
     latitudeRadians,
     declinationRadians
@@ -272,7 +271,7 @@ export const getDaylightWindow = (
     };
   }
 
-  const hourAngleDegrees = Math.acos(hourAngleCosine) * RADIANS_TO_DEGREES;
+  const hourAngleDegrees = radToDegNumeric(Math.acos(hourAngleCosine));
   const initialSunriseMinutes = solarNoonMinutes - 4 * hourAngleDegrees;
   const initialSunsetMinutes = solarNoonMinutes + 4 * hourAngleDegrees;
   return {
@@ -346,8 +345,8 @@ export const getSolarPosition = (
       4 * location.longitude -
       60 * offsetHours
   );
-  const hourAngleRadians = (trueSolarMinutes / 4 - 180) * DEGREES_TO_RADIANS;
-  const latitudeRadians = location.latitude * DEGREES_TO_RADIANS;
+  const hourAngleRadians = degToRadNumeric(trueSolarMinutes / 4 - 180);
+  const latitudeRadians = degToRadNumeric(location.latitude);
   const zenithCosine = clamp(
     Math.sin(latitudeRadians) * Math.sin(declinationRadians) +
       Math.cos(latitudeRadians) *
@@ -356,14 +355,15 @@ export const getSolarPosition = (
     -1,
     1
   );
-  const elevationDegrees = 90 - Math.acos(zenithCosine) * RADIANS_TO_DEGREES;
+  const elevationDegrees = 90 - radToDegNumeric(Math.acos(zenithCosine));
   const azimuthDegrees =
-    (Math.atan2(
-      Math.sin(hourAngleRadians),
-      Math.cos(hourAngleRadians) * Math.sin(latitudeRadians) -
-        Math.tan(declinationRadians) * Math.cos(latitudeRadians)
-    ) *
-      RADIANS_TO_DEGREES +
+    (radToDegNumeric(
+      Math.atan2(
+        Math.sin(hourAngleRadians),
+        Math.cos(hourAngleRadians) * Math.sin(latitudeRadians) -
+          Math.tan(declinationRadians) * Math.cos(latitudeRadians)
+      )
+    ) +
       180 +
       360) %
     360;
@@ -378,12 +378,6 @@ const resolveShadowSimulationLocation = (
   longitude: location.longitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
   timeZone: location.timeZone ?? DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
 });
-
-export const getShadowSimulationSolarPosition = (
-  selection: SolarSelection,
-  location: Partial<SolarLocation> = {}
-): SolarPosition =>
-  getSolarPosition(selection, resolveShadowSimulationLocation(location));
 
 export const clampShadowSimulationSelectionToDaylight = (
   selection: SolarSelection,

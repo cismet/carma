@@ -99,7 +99,6 @@ describe("Cesium terrain tile source", () => {
     expect(first.heightMeters[3]).toBeCloseTo(200);
     expect([...first.indices]).toEqual([0, 3, 1, 0, 2, 3]);
     expect(first.geometricErrorMeters).toBe(16);
-    expect(source.cachedTileCount).toBe(1);
   });
 
   it("maps bounds to the provider pyramid and samples cached heights", async () => {
@@ -108,7 +107,7 @@ describe("Cesium terrain tile source", () => {
     const source = await acquireCesiumTerrainTileSource(
       "https://example.test/terrain-b"
     );
-    const ids = source.getTileIdsForBounds(
+    const ids = source.getTileGridIdsForBounds(
       { west: 0, south: 0, east: 20, north: 20 },
       2
     );
@@ -117,23 +116,5 @@ describe("Cesium terrain tile source", () => {
     await source.requestTile(ids[0]);
     expect(source.sampleHeight(10, 10)).toBe(151.5);
     expect(terrainData.interpolateHeight).toHaveBeenCalledOnce();
-  });
-
-  it("exposes the complete tile grid separately from source availability", async () => {
-    const { provider } = buildProvider();
-    provider.getTileDataAvailable.mockImplementation(
-      (x: number) => x % 2 === 0
-    );
-    fromUrl.mockResolvedValueOnce(provider);
-    const source = await acquireCesiumTerrainTileSource(
-      "https://example.test/terrain-grid"
-    );
-    const bounds = { west: -10, south: 0, east: 50, north: 20 };
-
-    const gridIds = source.getTileGridIdsForBounds(bounds, 2);
-    const availableIds = source.getTileIdsForBounds(bounds, 2);
-
-    expect(gridIds.length).toBeGreaterThan(availableIds.length);
-    expect(availableIds.every(({ x }) => x % 2 === 0)).toBe(true);
   });
 });

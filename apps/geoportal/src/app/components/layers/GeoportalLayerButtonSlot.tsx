@@ -11,7 +11,6 @@ import {
   faFloppyDisk,
   faPause,
   faPlay,
-  faSliders,
   faTimes,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
@@ -50,10 +49,8 @@ import {
 } from "../annotations/cesium-annotations.constants";
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
-import {
-  formatShadowSelection,
-  SHADOW_SIMULATION_LAYER_ID,
-} from "../../hooks/useShadowSimulationLayerButton";
+import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
 import {
   AdhocModelFlyToLayerbarAction,
   AdhocModelLayerbarActions,
@@ -452,18 +449,6 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
                       ...shadowState,
                       isAnimating: !shadowState.isAnimating,
                     }),
-                },
-                {
-                  id: "open-controls",
-                  title: "Schatteneinstellungen",
-                  icon: <FontAwesomeIcon icon={faSliders} />,
-                  active: infoViewOpen,
-                  onClick: () =>
-                    dispatch(
-                      infoViewOpen
-                        ? setSelectedLayerIndexNoSelection()
-                        : setSelectedLayerIndex(props.index)
-                    ),
                 },
               ]}
             />

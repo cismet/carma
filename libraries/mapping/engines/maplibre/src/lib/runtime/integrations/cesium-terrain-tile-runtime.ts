@@ -12,6 +12,13 @@ import {
   type ColorRepresentation,
 } from "three";
 
+import { clamp, quantize } from "@carma-commons/math";
+import {
+  geographicBoundsContain,
+  geographicBoundsIntersect,
+  padGeographicBounds,
+  unionGeographicBounds,
+} from "@carma-geo/helpers";
 import {
   acquireCesiumTerrainTileSource,
   cesiumTerrainTileKey,
@@ -32,6 +39,7 @@ import {
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneRuntime,
+  SharedThreeSceneShadowView,
 } from "./shared-three-scene-layer";
 
 const DEFAULT_TERRAIN_COLOR = 0xd8d1c4;
@@ -43,14 +51,7 @@ const DEFAULT_MAX_SELECTION_TILES = 192;
 const DEFAULT_REQUEST_CONCURRENCY = 6;
 const DEFAULT_MAX_CACHED_MESHES = 256;
 const MAX_PERSISTENT_BASE_TILES = 4_096;
-/**
- * Backfill sits below the true surface so an active finer tile that overlaps
- * its persistent parent wins the depth test cleanly. One metre was not
- * enough: a coarse level-15 surface deviates from the fine one by its
- * geometric error - metres on rough ground - and wherever it ended up higher
- * it poked through as bright patches. Deep enough to clear that deviation,
- * still invisible where backfill is all there is.
- */
+/** Keeps persistent parents below overlapping refined terrain. */
 const PERSISTENT_BACKFILL_LOWERING_METERS = 8;
 const PERSISTENT_BASE_PREFETCH_CONCURRENCY = 2;
 const PERSISTENT_BASE_REPAINT_BATCH = 64;
@@ -70,16 +71,7 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   requestConcurrency?: number;
   maxCacheBytes?: number;
   maxCachedMeshes?: number;
-  /**
-   * Tiles at or below this level stay in the scene once downloaded: they are
-   * never trimmed and keep drawing as backfill wherever no finer tile is
-   * active, so ground the camera or the sun once reached never vanishes
-   * again. On becoming ready the runtime also prefetches this level across
-   * the whole dataset extent in the background (bounded by an enumeration
-   * cap for sources without a finite extent). Off unless configured; for the
-   * Wuppertal DEM level 15 blankets the dataset in ~1,600 tiles, in the tens
-   * of megabytes.
-   */
+  /** Optional dataset-wide level retained as a coarse backfill. */
   persistentBaseLevel?: number | false;
   /** Source-specific height that denotes missing terrain coverage. */
   noDataHeightMeters?: number;
@@ -89,29 +81,9 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
-export type CesiumTerrainShadowView = Readonly<{
-  camera: Camera;
-  shadowMapSize: Readonly<{
-    width: number;
-    height: number;
-  }>;
-}>;
-
 export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
-  setVisible: (visible: boolean) => void;
-  /**
-   * Freeze tile selection while a camera gesture is in flight. The loaded
-   * meshes keep drawing; the next update after the freeze lifts re-selects.
-   */
-  setInteractive: (active: boolean) => void;
-  setShadowCameras: (
-    cameras: readonly (Camera | CesiumTerrainShadowView)[]
-  ) => void;
-  setShadowCamera: (
-    camera: Camera | null,
-    shadowMapSize?: CesiumTerrainShadowView["shadowMapSize"]
-  ) => void;
+  setShadowView: (view: SharedThreeSceneShadowView | null) => void;
   setMaterialColor: (color: ColorRepresentation) => void;
   getElevation: (longitude: number, latitude: number) => number | undefined;
 }
@@ -171,11 +143,6 @@ type TerrainCandidate = {
   intersectsViewport: boolean;
 };
 
-type TerrainShadowView = Readonly<{
-  camera: Camera;
-  shadowMapSize: CesiumTerrainShadowView["shadowMapSize"] | null;
-}>;
-
 const FLAT_TERRAIN_U = new Float32Array([0, 0, 1, 1]);
 const FLAT_TERRAIN_V = new Float32Array([0, 1, 0, 1]);
 const FLAT_TERRAIN_HEIGHTS = new Float32Array(4);
@@ -230,10 +197,7 @@ const interpolateTerrainBoundaryNormal = (
     }
     return before.normal
       .clone()
-      .lerp(
-        after.normal,
-        Math.max(0, Math.min(1, (parameter - before.parameter) / span))
-      )
+      .lerp(after.normal, clamp((parameter - before.parameter) / span, 0, 1))
       .normalize();
   }
   return vertices[vertices.length - 1].normal.clone();
@@ -322,8 +286,8 @@ const clampInteger = (
 ) => Math.max(minimum, Math.floor(value ?? fallback));
 
 const normalizeShadowMapSize = (
-  shadowMapSize: CesiumTerrainShadowView["shadowMapSize"]
-): CesiumTerrainShadowView["shadowMapSize"] => ({
+  shadowMapSize: SharedThreeSceneShadowView["shadowMapSize"]
+): SharedThreeSceneShadowView["shadowMapSize"] => ({
   width:
     Number.isFinite(shadowMapSize.width) && shadowMapSize.width > 0
       ? shadowMapSize.width
@@ -332,49 +296,6 @@ const normalizeShadowMapSize = (
     Number.isFinite(shadowMapSize.height) && shadowMapSize.height > 0
       ? shadowMapSize.height
       : 1,
-});
-
-const boundsIntersect = (
-  left: CesiumTerrainTileBounds,
-  right: CesiumTerrainTileBounds
-) =>
-  left.west <= right.east &&
-  left.east >= right.west &&
-  left.south <= right.north &&
-  left.north >= right.south;
-
-const boundsContain = (
-  outer: CesiumTerrainTileBounds,
-  inner: CesiumTerrainTileBounds
-) =>
-  outer.west <= inner.west &&
-  outer.south <= inner.south &&
-  outer.east >= inner.east &&
-  outer.north >= inner.north;
-
-const padBounds = (
-  bounds: CesiumTerrainTileBounds
-): CesiumTerrainTileBounds => {
-  const longitudePadding =
-    (bounds.east - bounds.west) * VIEWPORT_COVERAGE_PADDING_FACTOR;
-  const latitudePadding =
-    (bounds.north - bounds.south) * VIEWPORT_COVERAGE_PADDING_FACTOR;
-  return {
-    west: bounds.west - longitudePadding,
-    south: Math.max(-90, bounds.south - latitudePadding),
-    east: bounds.east + longitudePadding,
-    north: Math.min(90, bounds.north + latitudePadding),
-  };
-};
-
-const unionBounds = (
-  left: CesiumTerrainTileBounds,
-  right: CesiumTerrainTileBounds
-): CesiumTerrainTileBounds => ({
-  west: Math.min(left.west, right.west),
-  south: Math.min(left.south, right.south),
-  east: Math.max(left.east, right.east),
-  north: Math.max(left.north, right.north),
 });
 
 const getViewportBounds = (map: MaplibreMap): CesiumTerrainTileBounds => {
@@ -524,24 +445,17 @@ export const buildCesiumTerrainRuntime = (
   let coverageBounds: CesiumTerrainTileBounds | null = null;
   let source: CesiumTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
-  let shadowViews: readonly TerrainShadowView[] = [];
+  let shadowView: SharedThreeSceneShadowView | null = null;
   let unregisterSampler: (() => void) | null = null;
   let disposed = false;
   let meshUseClock = 0;
   let selectionGeneration = 0;
   let requestedSignature = "";
   let activeViewportElevationSignature = "";
-  // What the last full LoD selection was computed from. `buildSelection` walks
-  // and sorts every candidate tile, which is far too expensive to repeat on
-  // every rendered frame while nothing moved; this cheap signature of its
-  // inputs decides whether it runs at all.
+  // Avoid repeating the full selection walk for an unchanged view.
   let selectionInputSignature = "";
-  let interactive = false;
-  // Quantized fingerprint of the shadow cameras. The shadow fit follows the
-  // terrain it shades, so an unquantized feedback (camera -> selection ->
-  // tiles -> elevation range -> camera ...) would never settle; rounding to a
-  // couple of metres makes it converge.
-  let shadowViewsSignature = "";
+  // Quantization prevents shadow-fit and terrain-selection feedback.
+  let shadowViewSignature = "";
   let resolveReady: (loaded: boolean) => void = () => undefined;
   let readySettled = false;
   const ready = new Promise<boolean>((resolve) => {
@@ -598,11 +512,7 @@ export const buildCesiumTerrainRuntime = (
     const bounds = terrainSource.getTileBounds(id);
     const centerLongitude = (bounds.west + bounds.east) / 2;
     const centerLatitude = (bounds.south + bounds.north) / 2;
-    // Measure against the actual surface, not sea level. The camera stands
-    // hundreds of metres above y=0 here, so a sea-level anchor inflated the
-    // distance to the tiles right under it - the foreground at the lower
-    // frustum edge - by several times, and their error came out that many
-    // times too small: coarse ground exactly where the viewer is closest.
+    // Anchor screen-space error at the sampled surface elevation.
     const centerElevation =
       terrainSource.sampleHeight(centerLongitude, centerLatitude) ?? 0;
     const center = projectToLocalWorld(
@@ -617,8 +527,7 @@ export const buildCesiumTerrainRuntime = (
       centerElevation,
       new Vector3()
     );
-    // Closest point of the tile's bounding sphere, so a tile only partly in
-    // the foreground is judged by its near edge, not its centre.
+    // Judge partially visible tiles by the sphere's closest point.
     const radius = center.distanceTo(corner);
     const distance = Math.max(
       1,
@@ -633,14 +542,7 @@ export const buildCesiumTerrainRuntime = (
     );
   };
 
-  /**
-   * Pixels one metre covers in the given orthographic shadow buffer.
-   *
-   * Tile-independent by construction, so it is computed once per selection
-   * and multiplied with each tile's level error. Doing the matrix work per
-   * candidate used to dominate the whole selection: `updateMatrixWorld(true)`
-   * on the root recursed over every loaded terrain mesh, per tile.
-   */
+  /** Pixel density of an orthographic shadow buffer in the terrain frame. */
   const getOrthographicPixelsPerMeter = (
     camera: Camera,
     pixelWidth: number,
@@ -674,7 +576,7 @@ export const buildCesiumTerrainRuntime = (
     terrainSource: CesiumTerrainTileSource,
     parent: TerrainSelectionEntry,
     viewportBounds: CesiumTerrainTileBounds,
-    shadowBounds: readonly CesiumTerrainTileBounds[]
+    shadowBounds: CesiumTerrainTileBounds | null
   ) => {
     if (parent.kind === "flat") return [];
     const childLevel = parent.id.level + 1;
@@ -687,16 +589,15 @@ export const buildCesiumTerrainRuntime = (
           y: parent.id.y * 2 + yOffset,
         };
         const bounds = terrainSource.getTileBounds(id);
-        const intersectsViewport = boundsIntersect(bounds, viewportBounds);
-        const intersectsShadow = shadowBounds.some((candidateBounds) =>
-          boundsIntersect(bounds, candidateBounds)
+        const intersectsViewport = geographicBoundsIntersect(
+          bounds,
+          viewportBounds
         );
+        const intersectsShadow =
+          shadowBounds !== null &&
+          geographicBoundsIntersect(bounds, shadowBounds);
         if (!intersectsViewport && !intersectsShadow) continue;
-        // The parent has data - it is selected - but this child quadrant does
-        // not. Splitting anyway would swap real coarse ground for a sea-level
-        // plate: a hole in the view, and up-sun a hole in the shadow. The
-        // parent stays whole instead; refinement simply ends at the
-        // availability boundary.
+        // Keep the parent whole when any relevant child lacks source data.
         if (terrainSource.getTileDataAvailable(id) === false) return [];
         children.push({ id, kind: "source" });
       }
@@ -920,13 +821,7 @@ export const buildCesiumTerrainRuntime = (
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
 
-  /**
-   * Which persistent base tiles the active selection covers completely.
-   * Counted in exact integer units of the deepest level, so a base tile only
-   * steps aside when every one of its quadrants is refined; a partially
-   * refined one keeps drawing as backfill underneath (slightly lowered, so
-   * the finer tiles win the depth test).
-   */
+  /** Persistent base tiles completely covered by the active refinement. */
   const fullyCoveredBaseKeys = (): Set<string> => {
     const covered = new Set<string>();
     if (persistentBaseLevel === null) return covered;
@@ -944,7 +839,6 @@ export const buildCesiumTerrainRuntime = (
       if (!record) continue;
       const { level, x, y } = record.id;
       if (level < persistentBaseLevel) {
-        // Coarser than the base: it stands in for all its base descendants.
         const span = 2 ** (persistentBaseLevel - level);
         for (let dy = 0; dy < span; dy += 1) {
           for (let dx = 0; dx < span; dx += 1) {
@@ -1017,30 +911,32 @@ export const buildCesiumTerrainRuntime = (
     frame: SharedThreeSceneFrame
   ): TerrainSelection => {
     const viewportBounds = getViewportBounds(frame.map);
-    const shadowCoverages = shadowViews.flatMap((view) => {
-      const bounds = cameraFrustumBounds(view.camera, root, origin, meterScale);
-      if (!bounds) return [];
-      const pixelsPerMeter = getOrthographicPixelsPerMeter(
-        view.camera,
-        view.shadowMapSize?.width ?? frame.viewport.x,
-        view.shadowMapSize?.height ?? frame.viewport.y
-      );
-      return [{ ...view, bounds, pixelsPerMeter }];
-    });
-    const shadowBounds = shadowCoverages.map(({ bounds }) => bounds);
-    const coverageBounds = shadowBounds.reduce(
-      (combined, bounds) => unionBounds(combined, bounds),
-      viewportBounds
-    );
+    const shadowBounds = shadowView
+      ? cameraFrustumBounds(shadowView.camera, root, origin, meterScale)
+      : null;
+    const shadowPixelsPerMeter =
+      shadowView && shadowBounds
+        ? getOrthographicPixelsPerMeter(
+            shadowView.camera,
+            shadowView.shadowMapSize.width,
+            shadowView.shadowMapSize.height
+          )
+        : 0;
+    const coverageBounds = shadowBounds
+      ? unionGeographicBounds(viewportBounds, shadowBounds)
+      : viewportBounds;
     const getRootEntries = (level: number): TerrainSelectionEntry[] =>
       terrainSource
         .getTileGridIdsForBounds(coverageBounds, level)
         .flatMap((id) => {
           const bounds = terrainSource.getTileBounds(id);
-          const intersectsViewport = boundsIntersect(bounds, viewportBounds);
-          const intersectsShadow = shadowBounds.some((candidateBounds) =>
-            boundsIntersect(bounds, candidateBounds)
+          const intersectsViewport = geographicBoundsIntersect(
+            bounds,
+            viewportBounds
           );
+          const intersectsShadow =
+            shadowBounds !== null &&
+            geographicBoundsIntersect(bounds, shadowBounds);
           if (!intersectsViewport && !intersectsShadow) return [];
           const kind =
             terrainSource.getTileDataAvailable(id) === false
@@ -1051,25 +947,21 @@ export const buildCesiumTerrainRuntime = (
           }
           return [{ id, kind }];
         });
-    const selPerf = (globalThis as unknown as Record<string, unknown>)
-      .__carmaTerrainSelPerf as
-      | { runs: number; rootMs: number; refineMs: number; roots: number; picked: number }
-      | undefined;
-    const selT0 = performance.now();
     let rootLevel = minimumLevel;
     let rootEntries = getRootEntries(rootLevel);
     while (rootEntries.length > maxSelectionTiles && rootLevel > 0) {
       rootLevel -= 1;
       rootEntries = getRootEntries(rootLevel);
     }
-    const selT1 = performance.now();
-
     const selected = new Map(
       rootEntries.map((entry) => [terrainSelectionKey(entry), entry])
     );
     const toCandidate = (entry: TerrainSelectionEntry): TerrainCandidate => {
       const bounds = terrainSource.getTileBounds(entry.id);
-      const intersectsViewport = boundsIntersect(bounds, viewportBounds);
+      const intersectsViewport = geographicBoundsIntersect(
+        bounds,
+        viewportBounds
+      );
       const viewportErrorRatio = intersectsViewport
         ? getScreenSpaceError(terrainSource, frame, entry.id) /
           errorTargetPixels
@@ -1078,17 +970,10 @@ export const buildCesiumTerrainRuntime = (
       const levelErrorMeters = terrainSource.getLevelMaximumGeometricError(
         entry.id.level
       );
-      const shadowErrorRatio = shadowCoverages.reduce(
-        (maximum, coverage) =>
-          boundsIntersect(bounds, coverage.bounds)
-            ? Math.max(
-                maximum,
-                (levelErrorMeters * coverage.pixelsPerMeter) /
-                  shadowTargetPixels
-              )
-            : maximum,
-        0
-      );
+      const shadowErrorRatio =
+        shadowBounds && geographicBoundsIntersect(bounds, shadowBounds)
+          ? (levelErrorMeters * shadowPixelsPerMeter) / shadowTargetPixels
+          : 0;
       return {
         entry,
         viewportErrorRatio: entry.kind === "flat" ? 0 : viewportErrorRatio,
@@ -1096,16 +981,7 @@ export const buildCesiumTerrainRuntime = (
         intersectsViewport,
       };
     };
-    // Refinement runs in two phases over one shared tile budget, each phase a
-    // binary max-heap on its own error measure (re-sorting per split was
-    // quadratic and cost hundreds of milliseconds).
-    //
-    // Phase one refines everything the viewer actually looks at, against the
-    // view's own pixel-error target. Phase two spends whatever budget is left
-    // on the sun's coverage. Ordering them - rather than mixing both errors
-    // in one heap - is what guarantees a tile in view never sits below its
-    // target quality just because it also intersects the sun frustum, or
-    // because thousands of up-sun caster tiles drained the budget first.
+    // Refine the viewport before spending the shared budget on sun coverage.
     const makeHeap = (ratioOf: (candidate: TerrainCandidate) => number) => {
       const heap: TerrainCandidate[] = [];
       const swap = (a: number, b: number) => {
@@ -1119,7 +995,10 @@ export const buildCesiumTerrainRuntime = (
           const left = 2 * index + 1;
           const right = left + 1;
           let largest = index;
-          if (left < heap.length && ratioOf(heap[left]) > ratioOf(heap[largest])) {
+          if (
+            left < heap.length &&
+            ratioOf(heap[left]) > ratioOf(heap[largest])
+          ) {
             largest = left;
           }
           if (
@@ -1187,8 +1066,6 @@ export const buildCesiumTerrainRuntime = (
         for (const child of children) {
           selected.set(terrainSelectionKey(child), child);
           const childCandidate = toCandidate(child);
-          // A child that falls outside the viewport (its parent straddled the
-          // edge) still belongs to the sun coverage and queues for phase two.
           if (childCandidate.intersectsViewport) {
             viewportHeap.push(childCandidate);
           } else {
@@ -1201,23 +1078,15 @@ export const buildCesiumTerrainRuntime = (
     refine(viewportHeap, (candidate) => candidate.viewportErrorRatio);
     refine(shadowHeap, (candidate) => candidate.shadowErrorRatio);
 
-    if (selPerf) {
-      selPerf.runs += 1;
-      selPerf.rootMs += selT1 - selT0;
-      selPerf.refineMs += performance.now() - selT1;
-      selPerf.roots += rootEntries.length;
-      selPerf.picked += selected.size;
-    }
-    // What the viewer looks at downloads first: the sweep can queue hundreds
-    // of up-sun tiles, and they must never sit in front of the view's own.
+    // Viewport tiles download before offscreen shadow casters.
     const entries = [...selected.values()].sort((left, right) => {
-      const leftInView = boundsIntersect(
+      const leftInView = geographicBoundsIntersect(
         terrainSource.getTileBounds(left.id),
         viewportBounds
       )
         ? 0
         : 1;
-      const rightInView = boundsIntersect(
+      const rightInView = geographicBoundsIntersect(
         terrainSource.getTileBounds(right.id),
         viewportBounds
       )
@@ -1232,7 +1101,7 @@ export const buildCesiumTerrainRuntime = (
         .filter(
           (entry) =>
             entry.kind === "source" &&
-            boundsIntersect(
+            geographicBoundsIntersect(
               terrainSource.getTileBounds(entry.id),
               viewportBounds
             )
@@ -1243,44 +1112,38 @@ export const buildCesiumTerrainRuntime = (
     };
   };
 
-  const quantize = (value: number, step: number) =>
-    Math.round(value / step) * step;
-
-  const computeShadowViewsSignature = (
-    views: readonly TerrainShadowView[]
-  ): string =>
-    views
-      .map(({ camera, shadowMapSize }) => {
-        const ortho = camera as unknown as {
-          left?: number;
-          right?: number;
-          top?: number;
-          bottom?: number;
-          near?: number;
-          far?: number;
-        };
-        const position = camera.position;
-        return [
-          quantize(position.x, 2),
-          quantize(position.y, 2),
-          quantize(position.z, 2),
-          quantize(ortho.left ?? 0, 2),
-          quantize(ortho.right ?? 0, 2),
-          quantize(ortho.top ?? 0, 2),
-          quantize(ortho.bottom ?? 0, 2),
-          quantize(ortho.near ?? 0, 4),
-          quantize(ortho.far ?? 0, 4),
-          shadowMapSize ? `${shadowMapSize.width}x${shadowMapSize.height}` : "v",
-        ].join(",");
-      })
-      .join("|");
+  const computeShadowViewSignature = (
+    view: SharedThreeSceneShadowView | null
+  ): string => {
+    if (!view) return "";
+    const { camera, shadowMapSize } = view;
+    const ortho = camera as unknown as {
+      left?: number;
+      right?: number;
+      top?: number;
+      bottom?: number;
+      near?: number;
+      far?: number;
+    };
+    const position = camera.position;
+    return [
+      quantize(position.x, 2),
+      quantize(position.y, 2),
+      quantize(position.z, 2),
+      quantize(ortho.left ?? 0, 2),
+      quantize(ortho.right ?? 0, 2),
+      quantize(ortho.top ?? 0, 2),
+      quantize(ortho.bottom ?? 0, 2),
+      quantize(ortho.near ?? 0, 4),
+      quantize(ortho.far ?? 0, 4),
+      `${shadowMapSize.width}x${shadowMapSize.height}`,
+    ].join(",");
+  };
 
   const computeSelectionInputSignature = (
     frame: SharedThreeSceneFrame
   ): string => {
-    // The synthesized LoD camera already encodes centre, zoom, bearing and
-    // pitch; quantizing its pose keeps a slow pan from re-selecting on every
-    // frame while staying independent of the host map's API surface.
+    // Quantize the synthesized LoD pose to limit selection churn.
     const { position, quaternion } = frame.lodCamera;
     return [
       quantize(position.x, 5),
@@ -1291,14 +1154,22 @@ export const buildCesiumTerrainRuntime = (
       quantize(quaternion.z, 0.005),
       quantize(quaternion.w, 0.005),
       `${frame.viewport.x}x${frame.viewport.y}`,
-      shadowViewsSignature,
+      shadowViewSignature,
     ].join(";");
   };
 
   const updateViewportCoverage = (frame: SharedThreeSceneFrame) => {
     const viewportBounds = getViewportBounds(frame.map);
-    if (coverageBounds && boundsContain(coverageBounds, viewportBounds)) return;
-    coverageBounds = padBounds(viewportBounds);
+    if (
+      coverageBounds &&
+      geographicBoundsContain(coverageBounds, viewportBounds)
+    ) {
+      return;
+    }
+    coverageBounds = padGeographicBounds(
+      viewportBounds,
+      VIEWPORT_COVERAGE_PADDING_FACTOR
+    );
     const geometry = createFlatTerrainGeometry(
       coverageBounds,
       noDataHeightMeters ?? 0,
@@ -1334,13 +1205,7 @@ export const buildCesiumTerrainRuntime = (
       .then((loadedEntries) => {
         if (disposed) return;
         if (generation !== selectionGeneration) {
-          // A newer selection superseded this batch while it loaded. The
-          // fetched tiles still become meshes - hidden - so the successor
-          // activates them instantly instead of fetching them again. Only
-          // meshes that do not exist yet: the batch also carries every tile
-          // of the current view (each selection re-lists them), and blindly
-          // hiding those blanked visible ground whenever the sun animation
-          // superseded batch after batch.
+          // Cache newly fetched meshes without changing the active generation.
           for (const { entry, tile } of loadedEntries) {
             if (!meshes.has(terrainSelectionKey(entry))) {
               ensureMesh(tile, entry).visible = false;
@@ -1378,10 +1243,7 @@ export const buildCesiumTerrainRuntime = (
           activeViewportElevationSignature =
             selection.viewportElevationSignature;
           notifySharedThreeTerrainChanged(map);
-          // Newly learned heights sharpen the screen-space error - the first
-          // pass had to anchor unknown tiles at sea level. One more selection
-          // round lets the foreground refine against the real surface; once
-          // the heights stop changing, this stops re-arming.
+          // Re-evaluate screen-space error after source heights become known.
           selectionInputSignature = "";
         }
         map?.triggerRepaint();
@@ -1393,12 +1255,7 @@ export const buildCesiumTerrainRuntime = (
       });
   };
 
-  /**
-   * Walk the availability tree down from the two level-0 roots and collect
-   * every available tile of the requested level: the dataset's own extent,
-   * without needing bounds metadata (the layer.json bounds of this DEM claim
-   * half the globe).
-   */
+  /** Enumerate an available dataset level from the quantized-mesh roots. */
   const enumerateAvailableTiles = (
     terrainSource: CesiumTerrainTileSource,
     level: number
@@ -1409,8 +1266,6 @@ export const buildCesiumTerrainRuntime = (
     ].filter((id) => terrainSource.getTileDataAvailable(id) === true);
     for (let current = 0; current < level; current += 1) {
       const next: CesiumTerrainTileId[] = [];
-      // A source claiming availability everywhere would make this walk the
-      // whole planet; a dataset that big has no meaningful blanket anyway.
       if (frontier.length > MAX_PERSISTENT_BASE_TILES) return [];
       for (const parent of frontier) {
         for (let dy = 0; dy < 2; dy += 1) {
@@ -1451,7 +1306,7 @@ export const buildCesiumTerrainRuntime = (
           }
         })
         .catch(() => {
-          // A missing base tile only means no backfill there.
+          // Missing source tiles do not contribute to the backfill.
         })
     ).then(() => {
       if (disposed) return;
@@ -1501,10 +1356,6 @@ export const buildCesiumTerrainRuntime = (
       if (disposed || !root.visible) return;
       updateViewportCoverage(frame);
       if (!source) return;
-      // The full selection walk is only worth its cost when something it
-      // depends on has moved: the map camera (quantized so a slow pan
-      // re-selects in steps rather than per frame) or the shadow fit.
-      if (interactive) return;
       const inputSignature = computeSelectionInputSignature(frame);
       if (inputSignature === selectionInputSignature) return;
       const selection = buildSelection(source, frame);
@@ -1515,56 +1366,16 @@ export const buildCesiumTerrainRuntime = (
       requestedSignature = selection.signature;
       loadSelection(source, selection);
     },
-    setInteractive(active) {
-      if (interactive === active) return;
-      interactive = active;
-      if (!active) {
-        selectionInputSignature = "";
-        map?.triggerRepaint();
-      }
-    },
-    setVisible(visible) {
-      root.visible = visible;
-      if (!visible) {
-        for (const record of meshes.values()) record.node.visible = false;
-      } else {
-        requestedSignature = "";
-        selectionInputSignature = "";
-        applyMeshVisibility();
-      }
-      map?.triggerRepaint();
-    },
-    setShadowCameras(cameras) {
-      shadowViews = cameras.map((entry) =>
-        (entry as Camera & { isCamera?: boolean }).isCamera
-          ? { camera: entry as Camera, shadowMapSize: null }
-          : {
-              camera: (entry as CesiumTerrainShadowView).camera,
-              shadowMapSize: normalizeShadowMapSize(
-                (entry as CesiumTerrainShadowView).shadowMapSize
-              ),
-            }
-      );
-      const nextSignature = computeShadowViewsSignature(shadowViews);
-      if (nextSignature !== shadowViewsSignature) {
-        shadowViewsSignature = nextSignature;
-        selectionInputSignature = "";
-      }
-    },
-    setShadowCamera(camera, shadowMapSize) {
-      shadowViews = camera
-        ? [
-            {
-              camera,
-              shadowMapSize: shadowMapSize
-                ? normalizeShadowMapSize(shadowMapSize)
-                : null,
-            },
-          ]
-        : [];
-      const nextSignature = computeShadowViewsSignature(shadowViews);
-      if (nextSignature !== shadowViewsSignature) {
-        shadowViewsSignature = nextSignature;
+    setShadowView(view) {
+      shadowView = view
+        ? {
+            camera: view.camera,
+            shadowMapSize: normalizeShadowMapSize(view.shadowMapSize),
+          }
+        : null;
+      const nextSignature = computeShadowViewSignature(shadowView);
+      if (nextSignature !== shadowViewSignature) {
+        shadowViewSignature = nextSignature;
         selectionInputSignature = "";
       }
     },

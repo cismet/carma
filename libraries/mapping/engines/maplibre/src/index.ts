@@ -227,7 +227,8 @@ export {
 } from "./constants/cameraDefaults";
 
 // Three.js layer management
-export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";
+export { ThreeLayerManager } from "./components/ThreeLayerManager";
+export { getGenericThreeLayers as get3dLayers } from "./lib/runtime/integrations/generic-three-layer-registry";
 export {
   add3dPresence,
   has3dLayers,
@@ -241,6 +242,7 @@ export type {
   SharedThreeSceneLayer,
   SharedThreeSceneLayerOptions,
   SharedThreeSceneRuntime,
+  SharedThreeSceneShadowView,
   SharedThreeSceneShadowStyle,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";

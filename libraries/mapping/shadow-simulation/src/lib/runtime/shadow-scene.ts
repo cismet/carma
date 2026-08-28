@@ -1,6 +1,7 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 
+import { clamp } from "@carma-commons/math";
 import {
   acquireSharedThreeScene,
   buildCesiumTerrainRuntime,
@@ -15,19 +16,22 @@ import type {
   CesiumTerrainRuntimeOptions,
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
+  SharedThreeSceneShadowView,
 } from "@carma-mapping/engines/maplibre";
+import { degToRadNumeric } from "@carma-units";
 
-import type { SolarPosition } from "./solar-position";
+import type { SolarPosition } from "../core/solar-position";
+import {
+  DEFAULT_SHADOW_QUALITY,
+  DEFAULT_SHADOW_SURFACE_COLOR,
+  type ShadowQualityMultiplier,
+} from "../core/shadow-types";
 import {
   AtmosphericSunlightEvaluator,
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
 } from "./atmospheric-sunlight";
-import {
-  CASTER_RELIEF_MARGIN_METERS,
-  restingShadowMapSize,
-  TiledShadowController,
-} from "./tiled-shadow-controller";
+import { ShadowController } from "./shadow-controller";
 import {
   clearShadowProjectionDebugSnapshot,
   hasShadowProjectionDebugListeners,
@@ -35,21 +39,8 @@ import {
 } from "./shadow-projection-debug-store";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
-/**
- * How far from the view anchor the single shadow buffer still resolves
- * shadows. Screen corners near the horizon unproject kilometres away; letting
- * them stretch the fit spreads the buffer's texels over the whole valley and
- * every shadow turns to mush. Beyond this radius the ground keeps its sun
- * term but receives no mapped shadow.
- */
+/** Maximum radius represented by the fitted shadow buffer. */
 const MAX_RECEIVER_DISTANCE_METERS = 4_000;
-/**
- * The absolute elevation band the terrain shadow coverage sweeps, metres
- * above sea level. A regional constant on purpose, see
- * updateTerrainShadowCoverage: Wuppertal's ground lies between roughly 100
- * and 350 m, with headroom on both sides.
- */
-const COVERAGE_ELEVATION_BAND_METERS: readonly [number, number] = [0, 500];
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
@@ -61,14 +52,10 @@ const SUN_VECTOR_VIEWPORT_LENGTH_FACTOR = 0.5;
 const SUN_VECTOR_ANGLE_RADIUS_FACTOR = 0.22;
 const SUN_VECTOR_ANGLE_SEGMENTS = 24;
 const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
-// Takram returns relative photometric direct radiance and sky irradiance. Keep
-// their physical ratio intact by applying one scene exposure to both, entirely
-// independent of the UI's shadow-opacity control.
+// One exposure preserves Takram's direct-radiance/sky-irradiance ratio.
 const ATMOSPHERIC_LIGHT_EXPOSURE = 2;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
-const SHADOW_BUFFER_BORDER_COLORS = [
-  0xf59e0b, 0xea580c, 0xdc2626, 0x9333ea,
-] as const;
+const SHADOW_BUFFER_BORDER_COLOR = 0xf59e0b;
 const SHADOW_BUFFER_BOX_SEGMENTS = [
   // near/far rectangles
   0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4,
@@ -91,7 +78,7 @@ type SunVectorGizmo = {
 
 type ShadowLightBinding = {
   scene: THREE.Scene;
-  controller: TiledShadowController;
+  controller: ShadowController;
   skyLight: THREE.LightProbe;
   ambientLightIntensities: Map<THREE.AmbientLight, number>;
   lightTarget: THREE.Object3D;
@@ -103,9 +90,8 @@ type ShadowLightBinding = {
   sunVectorLengthMeters: number;
   sunVectorVisible: boolean;
   projectionDebugVisible: boolean;
-  activeShadowTileCount: number;
+  activeShadowSampleCount: number;
   shadowQuality: ShadowQualityMultiplier;
-  shadowMode: ShadowMode;
   shadowIntensity: number;
   directionToSun: THREE.Vector3;
   sunColor: THREE.Color;
@@ -135,20 +121,6 @@ export type ShadowBuildingAppearance = Readonly<{
   uniformColor: string | null;
 }>;
 
-/**
- * Texel-budget multiplier behind the quality levels: buffer edges scale with
- * its square root. In single mode 4 - 4096, 16 - 8192, 64 - 16384, every
- * size clamped to what the device's textures actually allow, so the top
- * level settles on the hardware maximum. Advanced-mode tiles run at half the
- * edge; soft disc samples use the full edge up to their memory ceiling.
- */
-export type ShadowQualityMultiplier = 4 | 16 | 64;
-export type ShadowMode = "single" | "advanced";
-
-export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 64;
-export const DEFAULT_SHADOW_MODE: ShadowMode = "single";
-export const DEFAULT_SHADOW_SURFACE_COLOR = "#d3d3d3";
-
 const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
 
 export type ShadowSimulationScene = {
@@ -156,12 +128,8 @@ export type ShadowSimulationScene = {
   updateTerrainColor: (color: string) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
-  updateShadowMode: (mode: ShadowMode) => void;
-  /** Sample the sun as a disc for distance-widening penumbras (single mode). */
   updateSoftSunShadows: (enabled: boolean) => void;
-  /** While the time animation runs, static accumulation stays off. */
   updateTimeAnimating: (animating: boolean) => void;
-  /** Ask for a fresh projection-debug snapshot, e.g. when the panel opens. */
   refreshProjectionDebug: () => void;
   updateShadowIntensity: (intensity: number) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
@@ -174,8 +142,8 @@ export const solarPositionToSceneDirection = ({
   azimuthDegrees,
   elevationDegrees,
 }: SolarPosition): THREE.Vector3 => {
-  const azimuth = THREE.MathUtils.degToRad(azimuthDegrees);
-  const elevation = THREE.MathUtils.degToRad(elevationDegrees);
+  const azimuth = degToRadNumeric(azimuthDegrees);
+  const elevation = degToRadNumeric(elevationDegrees);
   const horizontal = Math.cos(elevation);
   // Shared scene axes: +X east, +Y up, -Z north.
   return new THREE.Vector3(
@@ -185,29 +153,17 @@ export const solarPositionToSceneDirection = ({
   ).normalize();
 };
 
-const makeMeshShadeable = (
-  mesh: THREE.Mesh,
-  shadowController?: TiledShadowController
-) => {
+const makeMeshShadeable = (mesh: THREE.Mesh) => {
   if (mesh.userData[SHADOW_OVERLAY_MARKER]) return;
   mesh.castShadow = mesh.userData.disableShadowCasting !== true;
   mesh.receiveShadow = true;
   const materials = Array.isArray(mesh.material)
     ? mesh.material
     : [mesh.material];
-  // Closed solids write their far walls into the depth map. The stored depth
-  // then sits behind the lit wall, which removes both self-shadow acne and
-  // the bright leak line along the building's base in one go. The terrain is
-  // an open heightfield and keeps its front faces; the texel-scaled normal
-  // bias absorbs its acne.
+  // Closed solids cast back faces; terrain is an open front-face heightfield.
   if (!mesh.userData.isShadowTerrainSurface) {
     for (const material of materials) {
       material.shadowSide = THREE.BackSide;
-    }
-  }
-  if (shadowController) {
-    for (const material of materials) {
-      shadowController.setupMaterial(material);
     }
   }
 };
@@ -291,16 +247,12 @@ const buildSunVector = () => {
   };
 };
 
-const makeSceneMeshesShadeable = (
-  scene: THREE.Scene,
-  shadowController?: TiledShadowController
-) => {
+const makeSceneMeshesShadeable = (scene: THREE.Scene) => {
   scene.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) return;
     makeMeshShadeable(mesh);
   });
-  shadowController?.syncSceneMaterials(scene);
 };
 
 const materialIsVisible = (material: THREE.Material): boolean =>
@@ -318,10 +270,7 @@ const meshIsVisible = (mesh: THREE.Mesh, scene: THREE.Scene): boolean => {
   return materials.some(materialIsVisible);
 };
 
-const disposeCopiedMaterials = (
-  root: THREE.Object3D,
-  shadowController?: TiledShadowController
-) => {
+const disposeCopiedMaterials = (root: THREE.Object3D) => {
   root.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) return;
@@ -329,7 +278,6 @@ const disposeCopiedMaterials = (
       ? mesh.material
       : [mesh.material];
     for (const material of materials) {
-      shadowController?.releaseMaterial(material);
       material.dispose();
     }
   });
@@ -393,8 +341,7 @@ const applyBuildingAppearance = (
 const buildGenericThreeShadowBridge = (
   sharedLayer: SharedThreeSceneLayer,
   layer: GenericThreeLayer,
-  initialBuildingAppearance: ShadowBuildingAppearance,
-  shadowController?: TiledShadowController
+  initialBuildingAppearance: ShadowBuildingAppearance
 ): GenericThreeShadowBridge | null => {
   const origin = layer._originMerc?.toLngLat();
   if (!origin) return null;
@@ -415,7 +362,7 @@ const buildGenericThreeShadowBridge = (
   const sync = () => {
     if (disposed) return;
     restoreOriginals();
-    disposeCopiedMaterials(root, shadowController);
+    disposeCopiedMaterials(root);
     root.clear();
     layer.scene.updateMatrixWorld(true);
     const sourceMeshes: THREE.Mesh[] = [];
@@ -437,7 +384,7 @@ const buildGenericThreeShadowBridge = (
       copy.material = Array.isArray(source.material)
         ? source.material.map((material) => material.clone())
         : source.material.clone();
-      makeMeshShadeable(copy, shadowController);
+      makeMeshShadeable(copy);
       originalVisibility.set(source, source.visible);
       source.visible = false;
       root.add(copy);
@@ -455,7 +402,7 @@ const buildGenericThreeShadowBridge = (
       if (disposed) return;
       disposed = true;
       restoreOriginals();
-      disposeCopiedMaterials(root, shadowController);
+      disposeCopiedMaterials(root);
       root.clear();
     },
   };
@@ -485,7 +432,7 @@ const buildShadowLightBinding = (
   scene: THREE.Scene,
   shadowAreaMeters: number
 ): ShadowLightBinding => {
-  const controller = new TiledShadowController(scene);
+  const controller = new ShadowController(scene);
   const sunLight = controller.lights[0];
   const lightTarget = sunLight.target;
   const sunVector = buildSunVector();
@@ -499,8 +446,7 @@ const buildShadowLightBinding = (
       )
     );
     const material = new THREE.LineBasicMaterial({
-      color:
-        SHADOW_BUFFER_BORDER_COLORS[index % SHADOW_BUFFER_BORDER_COLORS.length],
+      color: SHADOW_BUFFER_BORDER_COLOR,
       depthTest: false,
       depthWrite: false,
       transparent: true,
@@ -541,9 +487,8 @@ const buildShadowLightBinding = (
     sunVectorLengthMeters: shadowAreaMeters * SUN_VECTOR_VIEWPORT_LENGTH_FACTOR,
     sunVectorVisible: false,
     projectionDebugVisible: false,
-    activeShadowTileCount: 0,
+    activeShadowSampleCount: 0,
     shadowQuality: DEFAULT_SHADOW_QUALITY,
-    shadowMode: DEFAULT_SHADOW_MODE,
     shadowIntensity: 1,
     directionToSun: new THREE.Vector3(0, 1, 0),
     sunColor: new THREE.Color(0xfff2d8),
@@ -553,7 +498,7 @@ const buildShadowLightBinding = (
     maximumElevationMeters: 0,
     dirty: true,
   };
-  makeSceneMeshesShadeable(scene, controller);
+  makeSceneMeshesShadeable(scene);
   updateBindingCenter(binding);
   scene.add(skyLight);
   scene.add(sunVector.root);
@@ -563,11 +508,11 @@ const buildShadowLightBinding = (
 
 const updateShadowBufferBorders = (
   binding: ShadowLightBinding,
-  activeTileCount = binding.activeShadowTileCount
+  activeSampleCount = binding.activeShadowSampleCount
 ) => {
-  binding.activeShadowTileCount = activeTileCount;
+  binding.activeShadowSampleCount = activeSampleCount;
   binding.shadowBufferBoxes.forEach((box, index) => {
-    box.visible = binding.projectionDebugVisible && index < activeTileCount;
+    box.visible = binding.projectionDebugVisible && index < activeSampleCount;
     if (!box.visible) return;
 
     const light = binding.controller.lights[index];
@@ -686,9 +631,7 @@ const applySolarPositionToBinding = (
       .multiplyScalar(angleRadius)
       .applyQuaternion(inverseArrowRotation),
   ]);
-  const elevationRadians = Math.asin(
-    THREE.MathUtils.clamp(normalizedDirection.y, -1, 1)
-  );
+  const elevationRadians = Math.asin(clamp(normalizedDirection.y, -1, 1));
   binding.sunVector.elevationArc.geometry.setFromPoints(
     Array.from({ length: SUN_VECTOR_ANGLE_SEGMENTS + 1 }, (_, index) => {
       const angle = (elevationRadians * index) / SUN_VECTOR_ANGLE_SEGMENTS;
@@ -837,7 +780,7 @@ export const buildShadowSimulationScene = (
       90 - sample.elevationDegrees,
     ];
     const nextColor = `#${sample.color.getHexString()}`;
-    const nextIntensity = THREE.MathUtils.clamp(sample.relativeIntensity, 0, 1);
+    const nextIntensity = clamp(sample.relativeIntensity, 0, 1);
     const currentLight = map.getLight();
     const currentPosition = currentLight.position;
     if (
@@ -893,137 +836,20 @@ export const buildShadowSimulationScene = (
   };
   const genericBridges = new Map<GenericThreeLayer, GenericThreeShadowBridge>();
   let cachedElevationRange: readonly [number, number] | null = null;
-
-  // ── Terrain shadow coverage ────────────────────────────────────────────
-  //
-  // Which ground has to be loaded for shadows is a question about the view
-  // and the sun, nothing else: sweep the visible extent toward the sun and
-  // everything inside that volume can cast into it. Deriving the coverage
-  // from the *fitted* render camera instead — as this used to work — couples
-  // the tile selection to a camera that follows every fit, vanishes on failed
-  // fits and rests during gestures, which is what unloaded sun-side tiles
-  // mid-view. This camera is analytic, always defined, and only ever moves
-  // when the view or the sun does.
-  const terrainCoverageCamera = new THREE.OrthographicCamera();
-  terrainCoverageCamera.name = "shadow-simulation-terrain-coverage";
-  const coverageBasisX = new THREE.Vector3();
-  const coverageBasisY = new THREE.Vector3();
-  const coverageBasisZ = new THREE.Vector3();
-  const coverageRotation = new THREE.Matrix4();
-  const coverageProbe = new THREE.Vector3();
-  const updateTerrainShadowCoverage = () => {
-    if (!terrainRuntime) return;
-    const points = sharedBinding.receiverWorldPoints;
-    const toSun = sharedBinding.directionToSun;
-    if (points.length === 0 || toSun.lengthSq() < 1e-6) return;
-
-    coverageBasisZ.copy(toSun).normalize();
-    if (Math.abs(coverageBasisZ.y) > 0.99) {
-      coverageBasisX.set(1, 0, 0);
-    } else {
-      coverageBasisX.crossVectors(new THREE.Vector3(0, 1, 0), coverageBasisZ);
-      coverageBasisX.normalize();
+  let latestShadowView: SharedThreeSceneShadowView | null = null;
+  const setRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
+    latestShadowView = view;
+    terrainRuntime?.setShadowView(view);
+    for (const runtime of getSharedThreeSceneRuntimes(map)) {
+      if (runtime === terrainRuntime) continue;
+      runtime.setShadowView?.(view);
     }
-    coverageBasisY.crossVectors(coverageBasisZ, coverageBasisX);
-
-    // The sweep deliberately spans a fixed regional elevation band instead of
-    // the elevation range of the currently visible tiles. The visible range
-    // depends on which tiles are loaded, and a sweep built from it would
-    // reshape with every arriving batch, superseding the selection that
-    // requested them - the tile set never settles. A static band keeps the
-    // sweep a pure function of view and sun.
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
-    for (const point of points) {
-      for (const elevation of COVERAGE_ELEVATION_BAND_METERS) {
-        coverageProbe.set(point.x, elevation, point.z);
-        const x = coverageProbe.dot(coverageBasisX);
-        const y = coverageProbe.dot(coverageBasisY);
-        const z = coverageProbe.dot(coverageBasisZ);
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        if (z < minZ) minZ = z;
-        if (z > maxZ) maxZ = z;
-      }
-    }
-    const elevationSine = Math.max(0.04, coverageBasisZ.y);
-    const casterReachMeters = THREE.MathUtils.clamp(
-      (COVERAGE_ELEVATION_BAND_METERS[1] -
-        COVERAGE_ELEVATION_BAND_METERS[0] +
-        CASTER_RELIEF_MARGIN_METERS) /
-        elevationSine +
-        50,
-      50,
-      10_000
-    );
-    maxZ += casterReachMeters;
-
-    // Coarsely quantized on purpose. Streaming tiles widen the visible
-    // elevation range, the range feeds this box, and an unquantized box would
-    // supersede the terrain's in-flight tile batch on every arrival - a
-    // livelock in which no batch ever finishes. On a 50 m grid the box only
-    // moves for changes that matter at coverage scale.
-    const gridStep = 50;
-    const snapDown = (value: number) => Math.floor(value / gridStep) * gridStep;
-    const snapUp = (value: number) => Math.ceil(value / gridStep) * gridStep;
-    minX = snapDown(minX);
-    maxX = snapUp(maxX);
-    minY = snapDown(minY);
-    maxY = snapUp(maxY);
-    minZ = snapDown(minZ);
-    maxZ = snapUp(maxZ);
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    terrainCoverageCamera.position
-      .set(0, 0, 0)
-      .addScaledVector(coverageBasisX, centerX)
-      .addScaledVector(coverageBasisY, centerY)
-      .addScaledVector(coverageBasisZ, maxZ);
-    coverageRotation.makeBasis(coverageBasisX, coverageBasisY, coverageBasisZ);
-    terrainCoverageCamera.quaternion.setFromRotationMatrix(coverageRotation);
-    terrainCoverageCamera.left = -(maxX - minX) / 2;
-    terrainCoverageCamera.right = (maxX - minX) / 2;
-    terrainCoverageCamera.bottom = -(maxY - minY) / 2;
-    terrainCoverageCamera.top = (maxY - minY) / 2;
-    terrainCoverageCamera.near = 0;
-    terrainCoverageCamera.far = Math.max(1, maxZ - minZ);
-    terrainCoverageCamera.updateProjectionMatrix();
-    terrainCoverageCamera.updateMatrixWorld(true);
-
-    const mapSize = restingShadowMapSize(
-      sharedBinding.shadowMode,
-      sharedBinding.shadowQuality,
-      sceneLease.layer.getRenderer?.()?.capabilities?.maxTextureSize
-    );
-    if (import.meta.env?.DEV && typeof window !== "undefined") {
-      // Console handle for checking what the sweep actually covers.
-      (window as unknown as Record<string, unknown>).__carmaShadowCoverage = {
-        camera: terrainCoverageCamera,
-        casterReachMeters,
-        mapSize,
-      };
-    }
-    terrainRuntime.setShadowCameras([
-      {
-        camera: terrainCoverageCamera,
-        shadowMapSize: { width: mapSize, height: mapSize },
-      },
-    ]);
   };
-  // Whether a camera gesture is in flight. While it is, the shadow buffer is
-  // rendered at half resolution so the pan stays fluid; moveend restores it.
+
   let mapInMotion = false;
-  // Set when meshes or materials may have appeared or vanished; the material
-  // sync walks the whole scene, which is not per-frame work.
-  let sceneMaterialsDirty = true;
   let lastDebugPublishMs = 0;
   let softSunShadowsEnabled = true;
   let timeAnimating = false;
-  // Bumped whenever the controller consumed a dirty update: the lighting
-  // state the accumulation rounds sample from has changed.
   let shadowStateEpoch = 0;
 
   const updateSharedShadowCoverage = (reevaluateSun = true) => {
@@ -1047,9 +873,7 @@ export const buildShadowSimulationScene = (
     const viewportHeight = canvas.clientHeight || canvas.height;
     let radiusMeters = 0;
     const projectedCorners: THREE.Vector3[] = [];
-    // Map#getBounds is the geographic AABB around the rotated and pitched
-    // viewport. Its unused corners can waste most shadow texels. Unproject the
-    // actual four screen corners instead and fit those in light space.
+    // Fit the actual screen corners rather than their geographic AABB.
     const viewportLngLats = [
       [0, viewportHeight],
       [0, 0],
@@ -1059,9 +883,7 @@ export const buildShadowSimulationScene = (
       const lngLat = map.unproject(point as [number, number]);
       return [lngLat.lng, lngLat.lat] as [number, number];
     });
-    // A screen corner near the horizon unprojects kilometres out. Pulling it
-    // back onto the receiver radius keeps the shadow buffer's texels where
-    // the viewer actually looks.
+    // Clamp near-horizon projections to the supported receiver radius.
     const clampToReceiverRadius = (point: THREE.Vector3) => {
       const offset = point.clone().sub(center);
       const horizontal = Math.hypot(offset.x, offset.z);
@@ -1092,9 +914,6 @@ export const buildShadowSimulationScene = (
         Math.min(viewportWidthMeters, viewportHeightMeters) *
         SUN_VECTOR_VIEWPORT_LENGTH_FACTOR;
     }
-    // Fit the shadow map to the current viewport on every map movement. The
-    // fallback size is only needed before projection is available; retaining
-    // it as a minimum would waste most shadow texels after zooming in.
     let minimumElevation = center.y;
     let maximumElevation = center.y;
     if (projectedCorners.length > 0) {
@@ -1107,10 +926,7 @@ export const buildShadowSimulationScene = (
         Math.abs(minimumElevation - center.y),
         Math.abs(maximumElevation - center.y)
       );
-      // A sphere around the viewport footprint remains inside the shadow
-      // camera for every sun direction. Include the visible scene's vertical
-      // span so low-angle light cannot move elevated terrain beyond the flat
-      // corner fit.
+      // Include the scene's vertical span in the receiver radius.
       const viewportRadiusMeters = Math.hypot(
         radiusMeters,
         elevationRadiusMeters
@@ -1138,11 +954,7 @@ export const buildShadowSimulationScene = (
     sharedBinding.minimumElevationMeters = minimumElevation;
     sharedBinding.maximumElevationMeters = maximumElevation;
     sharedBinding.dirty = true;
-    updateTerrainShadowCoverage();
-    // Re-sampling the atmosphere and rebuilding the sun gizmo is only due
-    // when the sun itself may have changed: a new time, or a viewport that
-    // came to rest somewhere else. A frame-by-frame pan reuses the sample and
-    // only carries the anchor along, which is a handful of vector copies.
+    // During movement, move the anchor without resampling the atmosphere.
     if (latestSolarPosition && (reevaluateSun || !latestAtmosphericSunlight)) {
       evaluateAtmosphericSunlightForMap(latestSolarPosition);
     } else {
@@ -1158,23 +970,20 @@ export const buildShadowSimulationScene = (
   };
 
   const shadowControllerRuntime: SharedThreeSceneRuntime = {
-    id: "shadow-simulation-tiled-controller",
+    id: "shadow-simulation-controller",
     originLngLat: [map.getCenter().lng, map.getCenter().lat],
     root: new THREE.Group(),
-    update(frame) {
+    update() {
       if (!sharedBinding.dirty) return;
       shadowStateEpoch += 1;
       if (
         sharedBinding.receiverWorldPoints.length === 0 ||
         !latestSolarPosition
       ) {
+        setRuntimeShadowView(null);
         clearShadowProjectionDebugSnapshot(map);
         updateShadowBufferBorders(sharedBinding, 0);
         return;
-      }
-      if (sceneMaterialsDirty) {
-        sceneMaterialsDirty = false;
-        sharedBinding.controller.syncSceneMaterials(sharedBinding.scene);
       }
       const rendererCaps = sceneLease.layer.getRenderer?.()?.capabilities;
       if (rendererCaps?.maxTextureSize) {
@@ -1183,7 +992,6 @@ export const buildShadowSimulationScene = (
         );
       }
       const snapshot = sharedBinding.controller.update({
-        camera: frame.lodCamera,
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
         minimumElevationMeters: sharedBinding.minimumElevationMeters,
         maximumElevationMeters: sharedBinding.maximumElevationMeters,
@@ -1196,17 +1004,21 @@ export const buildShadowSimulationScene = (
       });
       sharedBinding.dirty = false;
       if (!snapshot) {
+        setRuntimeShadowView(null);
         clearShadowProjectionDebugSnapshot(map);
         updateShadowBufferBorders(sharedBinding, 0);
         return;
       }
-      updateShadowBufferBorders(sharedBinding, snapshot.tileCount);
-      const primary = snapshot?.tiles[0];
+      updateShadowBufferBorders(sharedBinding, snapshot.sampleCount);
+      const primary = snapshot.camera;
       const primaryCamera = sharedBinding.controller.lights[0].shadow.camera;
-      // Publishing re-renders the debug panel's React tree; while nothing
-      // subscribes the snapshot has no reader and building it is pure
-      // overhead, and during a gesture 10 Hz is plenty for numbers meant for
-      // a human.
+      setRuntimeShadowView({
+        camera: primaryCamera,
+        shadowMapSize: {
+          width: primary.shadowMapWidth,
+          height: primary.shadowMapHeight,
+        },
+      });
       const nowMs = performance.now();
       const publishDue = !mapInMotion || nowMs - lastDebugPublishMs >= 100;
       const publishWanted =
@@ -1230,7 +1042,7 @@ export const buildShadowSimulationScene = (
           minimumElevationMeters: sharedBinding.minimumElevationMeters,
           maximumElevationMeters: sharedBinding.maximumElevationMeters,
           sceneAnchorPositionElements: sharedBinding.center.toArray(),
-          tiledShadow: snapshot,
+          shadow: snapshot,
           atmosphericSunlight: latestAtmosphericSunlight
             ? {
                 azimuthDegrees: latestAtmosphericSunlight.azimuthDegrees,
@@ -1250,36 +1062,23 @@ export const buildShadowSimulationScene = (
   };
   sceneLease.layer.addRuntime(shadowControllerRuntime);
 
-  // Progressive refinement at rest: four accumulation rounds of eight disc
-  // samples each average 32 distinct sun directions - and the per-round
-  // sub-pixel jitter supersamples the whole image on top. Only while the
-  // camera and the shadow state hold still; any change restarts the average.
   const accumulationController = {
-    // The top quality level cannot buy larger sample buffers (memory), so it
-    // buys time: eight rounds average 64 sun directions instead of 32.
     get rounds() {
       return sharedBinding.shadowQuality === 64 ? 8 : 4;
     },
     epoch: () => shadowStateEpoch,
     active: () =>
       softSunShadowsEnabled &&
-      sharedBinding.shadowMode === "single" &&
       !mapInMotion &&
       !timeAnimating &&
       !sharedBinding.dirty &&
       latestSolarPosition !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
     prepareRound: (round: number) => {
-      sharedBinding.controller.applyDiscRotation(round);
+      sharedBinding.controller.applySunDiscSample(round);
     },
   };
   sceneLease.layer.setAccumulationController?.(accumulationController);
-  if (import.meta.env?.DEV && typeof window !== "undefined") {
-    // Console handle for checking whether static accumulation may run.
-    (window as unknown as Record<string, unknown>).__carmaShadowAccumulation =
-      accumulationController;
-  }
-
   const refreshSharedShadowCoverage = () => {
     cachedElevationRange = null;
     updateSharedShadowCoverage();
@@ -1291,15 +1090,11 @@ export const buildShadowSimulationScene = (
 
   const handleMoveStart = () => {
     mapInMotion = true;
-    terrainRuntime?.setInteractive(true);
-    // The next dirty update runs with interactive=true and folds the disc
-    // samples back into one light for the duration of the gesture.
     sharedBinding.dirty = true;
   };
   const handleMove = () => updateSharedShadowCoverage(false);
   const handleMoveEnd = () => {
     mapInMotion = false;
-    terrainRuntime?.setInteractive(false);
     refreshSharedShadowCoverage();
   };
   map.on("movestart", handleMoveStart);
@@ -1334,15 +1129,11 @@ export const buildShadowSimulationScene = (
       const nextBridge = buildGenericThreeShadowBridge(
         sceneLease.layer,
         layer,
-        latestBuildingAppearance,
-        sharedBinding.controller
+        latestBuildingAppearance
       );
       if (nextBridge) genericBridges.set(layer, nextBridge);
     }
-    makeSceneMeshesShadeable(
-      sceneLease.layer.getScene(),
-      sharedBinding.controller
-    );
+    makeSceneMeshesShadeable(sceneLease.layer.getScene());
     refreshSharedShadowCoverage();
     map.triggerRepaint();
   };
@@ -1357,19 +1148,14 @@ export const buildShadowSimulationScene = (
     if (disposed) return;
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
+      runtime.setShadowView?.(latestShadowView);
     }
-    makeSceneMeshesShadeable(
-      sceneLease.layer.getScene(),
-      sharedBinding.controller
-    );
-    sceneMaterialsDirty = true;
+    makeSceneMeshesShadeable(sceneLease.layer.getScene());
     sharedBinding.controller.invalidate();
     sharedBinding.dirty = true;
     refreshSharedShadowCoverage();
   };
-  // Tiles stream in one model at a time and every arrival announces itself.
-  // The handler walks the whole scene and refits the shadow coverage, so it
-  // runs once per lull rather than once per tile.
+  // Coalesce streamed content changes before refitting shadow coverage.
   let contentChangeTimer = 0;
   const scheduleSharedSceneContentChanged = () => {
     if (disposed) return;
@@ -1402,9 +1188,6 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition) applyMapLibreLight(latestSolarPosition);
   };
 
-  // `setLight` itself emits styledata. Listening there feeds every UI change
-  // back into another style mutation. Only a completed style replacement can
-  // have discarded the configured light.
   map.on("style.load", restoreLighting);
 
   return {
@@ -1422,23 +1205,13 @@ export const buildShadowSimulationScene = (
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(appearance);
       }
-      makeSceneMeshesShadeable(
-        sceneLease.layer.getScene(),
-        sharedBinding.controller
-      );
+      makeSceneMeshesShadeable(sceneLease.layer.getScene());
       sharedBinding.controller.invalidate();
       sharedBinding.dirty = true;
       map.triggerRepaint();
     },
     updateShadowQuality(quality) {
       sharedBinding.shadowQuality = quality;
-      sharedBinding.dirty = true;
-      updateSharedShadowCoverage();
-      sharedBinding.controller.invalidate();
-    },
-    updateShadowMode(mode) {
-      sharedBinding.shadowMode = mode;
-      sharedBinding.controller.setMode(mode);
       sharedBinding.dirty = true;
       updateSharedShadowCoverage();
       sharedBinding.controller.invalidate();
@@ -1461,7 +1234,7 @@ export const buildShadowSimulationScene = (
       map.triggerRepaint();
     },
     updateShadowIntensity(intensity) {
-      latestShadowIntensity = THREE.MathUtils.clamp(intensity, 0, 1);
+      latestShadowIntensity = clamp(intensity, 0, 1);
       sharedBinding.shadowIntensity = latestShadowIntensity;
       for (const light of sharedBinding.controller.lights) {
         light.shadow.intensity = latestShadowIntensity;
@@ -1501,6 +1274,7 @@ export const buildShadowSimulationScene = (
       map.off("resize", handleMove);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
+      setRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(null);
       }

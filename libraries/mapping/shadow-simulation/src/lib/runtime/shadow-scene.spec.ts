@@ -34,7 +34,7 @@ import {
   readShadowProjectionDebugSnapshot,
   subscribeShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
-import { getDaylightWindow, getSolarPosition } from "./solar-position";
+import { getDaylightWindow, getSolarPosition } from "../core/solar-position";
 
 describe("shadow scene sun direction", () => {
   const position = (azimuthDegrees: number, elevationDegrees: number) => ({
@@ -132,11 +132,8 @@ describe("shadow scene lighting integration", () => {
     });
   });
 
-  const updateTiledShadows = (
-    map: unknown,
-    camera: THREE.PerspectiveCamera
-  ) => {
-    const runtime = sharedRuntimes.get("shadow-simulation-tiled-controller");
+  const updateShadows = (map: unknown, camera: THREE.PerspectiveCamera) => {
+    const runtime = sharedRuntimes.get("shadow-simulation-controller");
     expect(runtime?.update).toBeTypeOf("function");
     runtime?.update?.({
       map,
@@ -148,9 +145,16 @@ describe("shadow scene lighting integration", () => {
   };
 
   it("drives MapLibre and the Three.js sun from the same solar position", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const setLight = vi.fn();
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: 7.15 + (x / 800 - 0.5) * 0.02,
+        lat: 51.256 + (0.5 - y / 600) * 0.02,
+      })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight,
@@ -166,6 +170,12 @@ describe("shadow scene lighting integration", () => {
     };
 
     controller.updateSolarPosition(solarPosition);
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(7_150, 4_000, 51_256);
+    camera.lookAt(7_150, 0, 51_256);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera);
 
     const atmosphere = evaluateAtmosphericSunlight(
       solarPosition.instant,
@@ -204,16 +214,14 @@ describe("shadow scene lighting integration", () => {
     expect(sun.shadow.camera.projectionMatrix.elements[15]).toBe(1);
     expect(sun.castShadow).toBe(true);
     expect(sun.shadow.autoUpdate).toBe(false);
-    // No generic filter blur anywhere: softness comes from disc sampling.
     expect(sun.shadow.radius).toBe(0);
-    const tileLights = scene.children.filter(
+    const shadowLights = scene.children.filter(
       (object): object is THREE.DirectionalLight =>
         (object as THREE.DirectionalLight).isDirectionalLight &&
         object.name.startsWith("shadow-simulation-sun")
     );
-    // Four CSM lights plus four auxiliary disc samples: eight in total.
-    expect(tileLights).toHaveLength(8);
-    expect(tileLights.every((light) => light.shadow.intensity === 1)).toBe(
+    expect(shadowLights).toHaveLength(1);
+    expect(shadowLights.every((light) => light.shadow.intensity === 1)).toBe(
       true
     );
     expect(
@@ -277,9 +285,6 @@ describe("shadow scene lighting integration", () => {
     ).toHaveBeenCalledOnce();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
     expect(
-      scene.getObjectByName("shadow-simulation-sun-tile-3")
-    ).toBeUndefined();
-    expect(
       scene.getObjectByName("shadow-simulation-sun-vector")
     ).toBeUndefined();
     expect(releaseScene).toHaveBeenCalledOnce();
@@ -291,7 +296,6 @@ describe("shadow scene lighting integration", () => {
       new THREE.MeshLambertMaterial()
     );
     terrain.name = "terrain";
-    // What the cesium terrain runtime stamps on every surface it builds.
     terrain.userData.isShadowTerrainSurface = true;
     scene.add(terrain);
     const alkisScene = new THREE.Scene();
@@ -342,21 +346,12 @@ describe("shadow scene lighting integration", () => {
     expect(buildingCopy.material).not.toBe(sourceBuildingMaterial);
     expect((buildingCopy.material as THREE.Material).opacity).toBe(1);
     expect((buildingCopy.material as THREE.Material).transparent).toBe(false);
-    // Closed buildings write their far walls into the depth map, which is
-    // what keeps their bases free of leak lines and their walls of acne.
     expect((buildingCopy.material as THREE.Material).shadowSide).toBe(
       THREE.BackSide
     );
-    expect((buildingCopy.material as THREE.Material).defines).toMatchObject({
-      USE_CSM: 1,
-      CSM_CASCADES: 4,
-    });
-    const firstCopiedMaterial = buildingCopy.material as THREE.Material;
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
     expect((terrain.material as THREE.Material).shadowSide).toBeNull();
-    // The open heightfield keeps the standard depth pass; acne is absorbed by
-    // the texel-scaled receiver normal bias, not a custom depth material.
     expect(terrain.customDepthMaterial).toBeUndefined();
     expect(buildingCopy.parent?.parent).toBe(scene);
     expect(terrain.parent).toBe(scene);
@@ -371,8 +366,6 @@ describe("shadow scene lighting integration", () => {
     const uniformMaterial = uniformCopy.material as THREE.MeshLambertMaterial;
     expect(uniformMaterial.color.getHexString()).toBe("8c7a66");
     expect(uniformMaterial.vertexColors).toBe(false);
-    expect(uniformMaterial.defines).toMatchObject({ USE_CSM: 1 });
-    expect(firstCopiedMaterial.defines).toBeUndefined();
 
     controller.updateBuildingAppearance({
       fullOpacity: false,
@@ -385,8 +378,6 @@ describe("shadow scene lighting integration", () => {
     expect(styledMaterial.opacity).toBe(0.45);
     expect(styledMaterial.transparent).toBe(true);
     expect(styledMaterial.vertexColors).toBe(true);
-    expect(styledMaterial.defines).toMatchObject({ USE_CSM: 1 });
-    expect(uniformMaterial.defines).toBeUndefined();
 
     controller.dispose();
     expect(building.visible).toBe(true);
@@ -429,62 +420,6 @@ describe("shadow scene lighting integration", () => {
     expect(setShadowSimulationStyle).toHaveBeenLastCalledWith(null);
   });
 
-  it("re-hooks CSM after a shared runtime replaces its materials", () => {
-    const building = new THREE.Mesh(
-      new THREE.BoxGeometry(10, 20, 10),
-      new THREE.MeshLambertMaterial()
-    );
-    building.userData.isBuilding = true;
-    scene.add(building);
-    const runtimeMaterials: Array<{
-      material: THREE.MeshLambertMaterial;
-      hook: ReturnType<typeof vi.fn>;
-    }> = [];
-    const setShadowSimulationStyle = vi.fn(() => {
-      const material = new THREE.MeshLambertMaterial();
-      const hook = vi.fn();
-      material.onBeforeCompile = hook;
-      runtimeMaterials.push({ material, hook });
-      building.material = material;
-    });
-    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
-      { setShadowSimulationStyle } as never,
-    ]);
-    const map = {
-      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
-      getLight: vi.fn(() => ({ anchor: "viewport" })),
-      isStyleLoaded: vi.fn(() => true),
-      setLight: vi.fn(),
-      on: vi.fn(),
-      off: vi.fn(),
-      triggerRepaint: vi.fn(),
-    };
-
-    const controller = buildShadowSimulationScene(map as never);
-    const initialRuntimeMaterial =
-      runtimeMaterials[runtimeMaterials.length - 1];
-    expect(initialRuntimeMaterial?.material.defines).toMatchObject({
-      USE_CSM: 1,
-    });
-
-    controller.updateBuildingAppearance({
-      fullOpacity: true,
-      uniformColor: "#d8d1c4",
-    });
-
-    const replacement = runtimeMaterials[runtimeMaterials.length - 1];
-    expect(replacement?.material).not.toBe(initialRuntimeMaterial?.material);
-    expect(replacement?.material.defines).toMatchObject({ USE_CSM: 1 });
-    expect(initialRuntimeMaterial?.material.defines).toBeUndefined();
-    expect(initialRuntimeMaterial?.material.onBeforeCompile).toBe(
-      initialRuntimeMaterial?.hook
-    );
-
-    controller.dispose();
-    building.geometry.dispose();
-    for (const { material } of runtimeMaterials) material.dispose();
-  });
-
   it("keeps the full map viewport inside the shadow camera", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
@@ -520,7 +455,6 @@ describe("shadow scene lighting integration", () => {
     };
 
     const controller = buildShadowSimulationScene(map as never);
-    // Snapshots publish only while something listens, as the debug panel does.
     subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
     controller.updateSolarPosition({
       instant: new Date("2026-06-21T10:00:00Z"),
@@ -530,7 +464,7 @@ describe("shadow scene lighting integration", () => {
     const sunVector = scene.getObjectByName(
       "shadow-simulation-sun-vector"
     ) as THREE.ArrowHelper;
-    const updateAndExpectViewportInsideTileUnion = () => {
+    const updateAndExpectViewportInsideBuffer = () => {
       const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
       camera.position.set(
         mapCenter.lng * 1_000,
@@ -540,7 +474,7 @@ describe("shadow scene lighting integration", () => {
       camera.lookAt(mapCenter.lng * 1_000, 0, mapCenter.lat * 1_000);
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld(true);
-      updateTiledShadows(map, camera);
+      updateShadows(map, camera);
       const lights = scene.children.filter(
         (object): object is THREE.DirectionalLight =>
           (object as THREE.DirectionalLight).isDirectionalLight &&
@@ -568,47 +502,45 @@ describe("shadow scene lighting integration", () => {
         expect(contained).toBe(true);
       }
       const snapshot = readShadowProjectionDebugSnapshot(map as never);
-      expect(snapshot?.tiledShadow?.tiles).toHaveLength(4);
-      return snapshot?.tiledShadow?.tiles
-        .slice()
-        .sort(
-          (left, right) => right.receiverPointCount - left.receiverPointCount
-        )[0];
+      expect(snapshot?.shadow?.sampleCount).toBe(1);
+      return snapshot?.shadow?.camera;
     };
 
-    const wideViewportTile = updateAndExpectViewportInsideTileUnion();
+    const wideViewportBuffer = updateAndExpectViewportInsideBuffer();
     const shadowBufferBoxes = scene.children.filter(
       (object): object is THREE.LineSegments =>
         object instanceof THREE.LineSegments &&
         object.name.startsWith("shadow-simulation-shadow-buffer-")
     );
-    expect(shadowBufferBoxes).toHaveLength(4);
+    expect(shadowBufferBoxes).toHaveLength(1);
     expect(shadowBufferBoxes.every(({ visible }) => !visible)).toBe(true);
     controller.updateShadowBufferDebugVisibility(true);
-    expect(shadowBufferBoxes.every(({ visible }) => visible)).toBe(true);
+    expect(shadowBufferBoxes.filter(({ visible }) => visible)).toHaveLength(1);
     const shadowLights = scene.children.filter(
       (object): object is THREE.DirectionalLight =>
         (object as THREE.DirectionalLight).isDirectionalLight &&
         object.name.startsWith("shadow-simulation-sun")
     );
-    shadowBufferBoxes.forEach((box, index) => {
-      const shadowCamera = shadowLights[index]!.shadow.camera;
-      const position = box.geometry.getAttribute("position");
-      expect(position.count).toBe(48);
-      for (
-        let cornerIndex = 0;
-        cornerIndex < position.count;
-        cornerIndex += 1
-      ) {
-        const projected = new THREE.Vector3()
-          .fromBufferAttribute(position, cornerIndex)
-          .project(shadowCamera);
-        expect(Math.abs(projected.x)).toBeCloseTo(1, 5);
-        expect(Math.abs(projected.y)).toBeCloseTo(1, 5);
-        expect(Math.abs(projected.z)).toBeCloseTo(1, 5);
-      }
-      expect((box.material as THREE.Material).depthTest).toBe(false);
-    });
+    shadowBufferBoxes
+      .filter(({ visible }) => visible)
+      .forEach((box, index) => {
+        const shadowCamera = shadowLights[index]!.shadow.camera;
+        const position = box.geometry.getAttribute("position");
+        expect(position.count).toBe(48);
+        for (
+          let cornerIndex = 0;
+          cornerIndex < position.count;
+          cornerIndex += 1
+        ) {
+          const projected = new THREE.Vector3()
+            .fromBufferAttribute(position, cornerIndex)
+            .project(shadowCamera);
+          expect(Math.abs(projected.x)).toBeCloseTo(1, 5);
+          expect(Math.abs(projected.y)).toBeCloseTo(1, 5);
+          expect(Math.abs(projected.z)).toBeCloseTo(1, 5);
+        }
+        expect((box.material as THREE.Material).depthTest).toBe(false);
+      });
     controller.updateShadowBufferDebugVisibility(false);
     expect(shadowBufferBoxes.every(({ visible }) => !visible)).toBe(true);
     expect(getBounds).not.toHaveBeenCalled();
@@ -628,33 +560,21 @@ describe("shadow scene lighting integration", () => {
         scene.getObjectByName("shadow-simulation-sun") as THREE.DirectionalLight
       ).target.position.toArray()
     ).toEqual([500, 0, 1_000]);
-    updateAndExpectViewportInsideTileUnion();
+    updateAndExpectViewportInsideBuffer();
 
     viewportHalfWidth = 0.05;
     viewportHalfHeight = 0.1;
     moveHandler();
 
-    const zoomedViewportTile = updateAndExpectViewportInsideTileUnion();
+    const zoomedViewportBuffer = updateAndExpectViewportInsideBuffer();
     expect(
-      (zoomedViewportTile?.rightMeters ?? 0) -
-        (zoomedViewportTile?.leftMeters ?? 0)
+      (zoomedViewportBuffer?.rightMeters ?? 0) -
+        (zoomedViewportBuffer?.leftMeters ?? 0)
     ).toBeLessThan(
-      (wideViewportTile?.rightMeters ?? 0) - (wideViewportTile?.leftMeters ?? 0)
+      (wideViewportBuffer?.rightMeters ?? 0) -
+        (wideViewportBuffer?.leftMeters ?? 0)
     );
 
-    controller.updateShadowMode("single");
-    const singleCamera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
-    singleCamera.position.set(500, 4_000, 5_000);
-    singleCamera.lookAt(500, 0, 1_000);
-    singleCamera.updateProjectionMatrix();
-    singleCamera.updateMatrixWorld(true);
-    updateTiledShadows(map, singleCamera);
-    expect(
-      readShadowProjectionDebugSnapshot(map as never)?.tiledShadow
-    ).toMatchObject({
-      strategy: "single-viewport",
-      tileCount: 1,
-    });
     controller.updateShadowBufferDebugVisibility(true);
     expect(shadowBufferBoxes.filter(({ visible }) => visible)).toHaveLength(1);
 
@@ -689,7 +609,6 @@ describe("shadow scene lighting integration", () => {
     };
 
     const controller = buildShadowSimulationScene(map as never);
-    // Snapshots publish only while something listens, as the debug panel does.
     subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
     controller.updateSolarPosition({
       instant: new Date("2026-06-21T10:00:00Z"),
@@ -701,12 +620,12 @@ describe("shadow scene lighting integration", () => {
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
-    updateTiledShadows(map, camera);
+    updateShadows(map, camera);
     const snapshot = readShadowProjectionDebugSnapshot(map as never);
 
     expect(snapshot?.maximumElevationMeters).toBeGreaterThanOrEqual(300);
     expect(snapshot?.minimumElevationMeters).toBeLessThanOrEqual(0);
-    expect(snapshot?.tiledShadow?.casterReachMeters).toBeGreaterThan(300);
+    expect(snapshot?.shadow?.casterReachMeters).toBeGreaterThan(300);
 
     controller.dispose();
     elevatedReceiver.geometry.dispose();
@@ -723,9 +642,7 @@ describe("shadow scene lighting integration", () => {
       root: terrainRoot,
       ready: Promise.resolve(true),
       update: vi.fn(),
-      setVisible: vi.fn(),
-      setShadowCameras: vi.fn(),
-      setShadowCamera: vi.fn(),
+      setShadowView: vi.fn(),
       setMaterialColor: vi.fn(),
       getElevation: vi.fn(() => 150),
       dispose: vi.fn(),
@@ -736,7 +653,10 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
       layer: {
         getScene: () => scene,
-        getRenderer: () => null,
+        getRenderer: () =>
+          ({
+            capabilities: { maxTextureSize: 16_384 },
+          } as THREE.WebGLRenderer),
         addRuntime,
         hasRuntime: vi.fn(() => true),
         removeRuntime,
@@ -831,7 +751,7 @@ describe("shadow scene lighting integration", () => {
       elevationDegrees: 45,
     });
     const shadowRuntime = addRuntime.mock.calls.find(
-      ([runtime]) => runtime.id === "shadow-simulation-tiled-controller"
+      ([runtime]) => runtime.id === "shadow-simulation-controller"
     )?.[0] as SharedRuntimeFixture;
     const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
     camera.position.set(7_150, 4_000, 55_256);
@@ -845,19 +765,13 @@ describe("shadow scene lighting integration", () => {
       lookTarget: new THREE.Vector3(7_150, 150, 51_256),
       viewport: new THREE.Vector2(800, 600),
     });
-    // Terrain coverage no longer follows the fitted render cameras: it is
-    // one analytic volume swept from the visible extent toward the sun, so
-    // the selection never loses sun-side tiles to a resting or failed fit.
-    const shadowViews = terrainRuntime.setShadowCameras.mock.lastCall?.[0];
-    expect(shadowViews).toHaveLength(1);
-    expect(shadowViews[0].camera.name).toBe(
-      "shadow-simulation-terrain-coverage"
-    );
+    const shadowView = terrainRuntime.setShadowView.mock.lastCall?.[0];
+    expect(shadowView.camera.name).toBe("shadow-simulation-shadow-camera");
     expect(
-      (shadowViews[0].camera as THREE.OrthographicCamera).isOrthographicCamera
+      (shadowView.camera as THREE.OrthographicCamera).isOrthographicCamera
     ).toBe(true);
-    expect(shadowViews[0].shadowMapSize.width).toBeGreaterThan(0);
-    expect(shadowViews[0].shadowMapSize.width).not.toBe(800);
+    expect(shadowView.shadowMapSize.width).toBe(16_384);
+    expect(shadowView.shadowMapSize.width).not.toBe(800);
 
     controller.dispose();
     expect(restoreTerrain).toHaveBeenCalledOnce();

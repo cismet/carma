@@ -61,9 +61,6 @@ export const getSharedThreeTerrainElevation = (
   return undefined;
 };
 
-export const isMapLibreTerrainRenderingSuppressed = (map: MaplibreMap) =>
-  suppressedTerrain.has(map);
-
 /**
  * Removes MapLibre's raster-DEM surface while retaining its specification for
  * restoration. Shared Three terrain samplers remain available to building

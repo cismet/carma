@@ -8,7 +8,7 @@ import {
   type SolarLocation,
   type SolarPosition,
   type SolarSelection,
-} from "./solar-position";
+} from "../core/solar-position";
 
 const SVG_WIDTH = 336;
 const SVG_HEIGHT = 112;

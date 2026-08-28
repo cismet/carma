@@ -17,6 +17,9 @@ import {
 } from "@takram/three-geospatial";
 import * as THREE from "three";
 
+import { clamp } from "@carma-commons/math";
+import { radToDegNumeric } from "@carma-units";
+
 const FALLBACK_SUN_COLOR = new THREE.Color("#fff2d8");
 const MIN_RADIANCE = 1e-8;
 const LUT_RETRY_DELAY_MS = 30_000;
@@ -135,12 +138,11 @@ const evaluateSkyIrradiance = (
 };
 
 const getSceneAngles = (direction: THREE.Vector3) => {
-  const elevationDegrees = THREE.MathUtils.radToDeg(
-    Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1))
+  const elevationDegrees = radToDegNumeric(
+    Math.asin(clamp(direction.y, -1, 1))
   );
   const azimuthDegrees =
-    (THREE.MathUtils.radToDeg(Math.atan2(direction.x, -direction.z)) + 360) %
-    360;
+    (radToDegNumeric(Math.atan2(direction.x, -direction.z)) + 360) % 360;
   return { azimuthDegrees, elevationDegrees };
 };
 
@@ -165,9 +167,7 @@ export const evaluateAtmosphericSunlight = (
   );
   const { azimuthDegrees, elevationDegrees } = getSceneAngles(directionToSun);
   if (!transmittanceTexture) {
-    const relativeIntensity = Math.sqrt(
-      THREE.MathUtils.clamp(directionToSun.y, 0, 1)
-    );
+    const relativeIntensity = Math.sqrt(clamp(directionToSun.y, 0, 1));
     return {
       directionToSun,
       color: FALLBACK_SUN_COLOR.clone(),
@@ -209,7 +209,7 @@ export const evaluateAtmosphericSunlight = (
   return {
     directionToSun,
     color,
-    relativeIntensity: THREE.MathUtils.clamp(radiancePeak / zenithPeak, 0, 1),
+    relativeIntensity: clamp(radiancePeak / zenithPeak, 0, 1),
     radiance,
     atmosphericTransmittanceReady: true,
     atmosphericIrradianceReady: skyIrradianceCoefficients !== null,
