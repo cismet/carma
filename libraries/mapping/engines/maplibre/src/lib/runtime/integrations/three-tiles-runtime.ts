@@ -471,7 +471,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       ? [minimum, maximum]
       : null;
   };
-  const notifyRequestStateChange = () => options.onRequestStateChange?.();
+  let lastNotifiedRequestDemand = Number.NaN;
+  const notifyRequestStateChange = () => {
+    const requestDemand = getRequestDemand();
+    if (requestDemand === lastNotifiedRequestDemand) return;
+    lastNotifiedRequestDemand = requestDemand;
+    options.onRequestStateChange?.();
+  };
   const setShadowSelectionEnabled = (enabled: boolean) => {
     const nextEnabled = enabled && shadowView !== null;
     if (shadowSelectionEnabled === nextEnabled) return;
@@ -862,6 +868,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       ) {
         map.triggerRepaint();
       }
+      notifyRequestStateChange();
     },
 
     setVisible(visible: boolean) {

@@ -10,6 +10,7 @@ import {
   getSharedThreeSceneRuntimes,
   isSharedThreeTerrainLoading,
   subscribeSharedThreeSceneContent,
+  subscribeSharedThreeSceneRequestState,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
@@ -1376,6 +1377,11 @@ export const buildShadowSimulationScene = (
     map,
     scheduleSharedSceneContentChanged
   );
+  const unsubscribeSharedSceneRequestState =
+    subscribeSharedThreeSceneRequestState(map, () => {
+      if (disposed || !sceneRequestsSettled()) return;
+      map.triggerRepaint();
+    });
   handleSharedSceneContentChanged();
 
   const applyMapLibreLight = (position: SolarPosition) => {
@@ -1520,6 +1526,7 @@ export const buildShadowSimulationScene = (
       map.off("resize", handleMove);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
+      unsubscribeSharedSceneRequestState();
       setRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(null);
