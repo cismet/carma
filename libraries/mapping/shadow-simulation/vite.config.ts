@@ -8,19 +8,6 @@ export default defineConfig({
   root: __dirname,
   cacheDir: "../../../node_modules/.vite/libraries/mapping/shadow-simulation",
   plugins: [react(), nxViteTsPaths()],
-  build: {
-    lib: {
-      entry: "src/index.ts",
-      name: "mapping-shadow-simulation",
-      formats: ["es"],
-      fileName: () => "index.js",
-    },
-    outDir: "../../../dist/libraries/mapping/shadow-simulation",
-    emptyOutDir: true,
-    rollupOptions: {
-      external: [/^react(\/.*)?$/, /^react-dom(\/.*)?$/, /^@carma.*/],
-    },
-  },
   test: {
     watch: false,
     globals: true,
