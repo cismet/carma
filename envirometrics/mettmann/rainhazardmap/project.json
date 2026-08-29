@@ -1,0 +1,78 @@
+{
+  "name": "rainhazardmap-mettmann",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "envirometrics/mettmann/rainhazardmap/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/envirometrics/mettmann/rainhazardmap"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "rainhazardmap-mettmann:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "rainhazardmap-mettmann:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "rainhazardmap-mettmann:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "rainhazardmap-mettmann:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "rainhazardmap-mettmann:build:development"
+        },
+        "production": {
+          "buildTarget": "rainhazardmap-mettmann:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/envirometrics/mettmann/rainhazardmap"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+     "container": {
+      "executor": "@nx-tools/nx-container:build",
+      "dependsOn": ["build"],
+      "options": {
+        "engine": "docker",
+        "platforms": ["linux/amd64", "linux/arm64"],
+        "push": true,
+        "tags": ["cismet/carma-ais-mettmann:latest"]
+      }
+    }
+  }
+}

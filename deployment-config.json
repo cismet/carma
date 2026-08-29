@@ -1588,6 +1588,32 @@
       },
       "projectPath": "./dist/envirometrics/paderborn/rainhazardmap"
     },
+    "rainhazardmap-mettmann": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-mettmann"
+            }
+          },
+          "live": {
+            "container": {
+              "image": "cismet/carma-ais-mettmann:"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-mettmann"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/envirometrics/mettmann/rainhazardmap"
+    },
     "rainhazardmap-werl": {
       "deployment": {
         "manual": {
