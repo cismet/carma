@@ -54,6 +54,14 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "vectorHighlightControl" },
+    // Turns the style filter into a highlight: the same buttons and the same
+    // selection, but the features that do not match are dimmed instead of
+    // removed. Covers every filtered layer, e.g. wohnlagen2026; `layerIds:
+    // ["<layer id>"]` narrows it, `dimOpacity` sets how far the rest fades
+    // (0.25 by default, same as vectorHighlight). Nothing in the app is wired
+    // to it: it sets the libre map's filter presentation itself. MapLibre only,
+    // so the Leaflet map keeps filtering.
+    { kind: "highlightFromFilter" },
     {
       kind: "libreTerrain",
       config: { appKey: "geoportal", show: "while3dLayersActive" },

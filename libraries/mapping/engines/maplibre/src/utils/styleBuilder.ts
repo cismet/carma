@@ -17,6 +17,8 @@ import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
 import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
 import { LibreLayer, type OpacityTransition } from "../components/LibreMap";
+import { buildDimExpression, presentsFilterAsDim } from "./dimExpression";
+import type { FilterPresentation } from "@carma-mapping/contexts";
 import {
   createNonTiledImageSource,
   createNonTiledMetadata,
@@ -497,6 +499,10 @@ export interface VectorStylesToMapLibreStyleOptions {
   clusteringEnabled?: boolean;
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
+  /** What a layer's `userFilter` does: hide the rest (default) or fade it.
+   *  Map-wide policy, set by whoever wants the highlight reading; the layers
+   *  themselves stay unaware of it. */
+  filterPresentation?: FilterPresentation;
 }
 
 /** Which MapLibre sources a host app layer (`carmaLayerId`) ended up owning. */
@@ -601,6 +607,7 @@ export const vectorStylesToMapLibreStyle = async ({
   backgroundStyle,
   clusteringEnabled = true,
   overrideGlyphs,
+  filterPresentation = null,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
@@ -756,8 +763,26 @@ export const vectorStylesToMapLibreStyle = async ({
             });
           }
         }
-        const userFilter = (layer as { userFilter?: unknown[] | null })
+        // The host's expression says which features are meant. Whether that
+        // means "only these" or "these, the rest faded" is the map's policy,
+        // not the layer's, so the same input serves both readings: as a filter
+        // it is ANDed into the layer's own filter, as a dim it becomes the
+        // predicate the opacity below branches on while the filter stays put.
+        const selection = (layer as { userFilter?: unknown[] | null })
           .userFilter;
+        const dimming =
+          selection &&
+          presentsFilterAsDim(
+            filterPresentation,
+            layer.carmaLayerId ?? layer.name
+          );
+        const userFilter = dimming ? null : selection;
+        const userDim = dimming
+          ? {
+              predicate: selection as unknown[],
+              dimOpacity: filterPresentation!.dimOpacity,
+            }
+          : null;
         additionalStyle.layers = additionalStyle.layers.map(
           (styleLayer: LayerSpecification) => {
             const src = (styleLayer as { source?: string }).source;
@@ -818,12 +843,24 @@ export const vectorStylesToMapLibreStyle = async ({
                     const baseOpacity =
                       (styleLayer.paint as Record<string, unknown>)?.[prop] ||
                       1;
-                    result[prop] =
+                    const baked =
                       typeof baseOpacity === "number"
                         ? baseOpacity * layerOpacity
                         : layerOpacity < 1
                         ? layerOpacity
                         : baseOpacity;
+                    // The dim wraps whatever the slider already produced, so it
+                    // composes with the layer's opacity instead of replacing it
+                    // and never makes a value less legal than it was: a curve it
+                    // cannot wrap comes back null and stays undimmed.
+                    const dimmed = userDim
+                      ? buildDimExpression(
+                          baked,
+                          userDim.predicate,
+                          userDim.dimOpacity
+                        )
+                      : null;
+                    result[prop] = dimmed ?? baked;
                     if (transitionSpec) {
                       result[`${prop}-transition`] = transitionSpec;
                     }
