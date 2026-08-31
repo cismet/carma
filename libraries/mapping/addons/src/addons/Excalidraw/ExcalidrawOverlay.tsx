@@ -74,6 +74,7 @@ export const ExcalidrawOverlay = ({
     hideMenu = false,
     hideZoom = false,
     hideTools = false,
+    hideHelp = false,
     shapeTools = false,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
@@ -110,6 +111,7 @@ export const ExcalidrawOverlay = ({
       data-hide-menu={hideMenu ? "true" : "false"}
       data-hide-zoom={hideZoom ? "true" : "false"}
       data-hide-tools={hideTools ? "true" : "false"}
+      data-hide-help={hideHelp ? "true" : "false"}
       style={{
         position: "absolute",
         top: navbarInset + top,

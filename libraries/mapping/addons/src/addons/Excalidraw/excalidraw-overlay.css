@@ -28,3 +28,7 @@
 .carma-excalidraw-overlay[data-hide-tools="true"] .HintViewer {
   visibility: hidden;
 }
+
+.carma-excalidraw-overlay[data-hide-help="true"] .help-icon {
+  display: none;
+}
