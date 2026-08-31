@@ -34,12 +34,11 @@ const withAlpha = (color: string, opacity: number) => {
     : color;
 };
 
-/** left: the control column; bottom: the gazetteer bar */
 const DEFAULT_INSET: Required<ExcalidrawInset> = {
   top: 0,
   right: 0,
-  bottom: 48,
-  left: 56,
+  bottom: 0,
+  left: 0,
 };
 
 /**
