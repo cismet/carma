@@ -1,10 +1,10 @@
-# CARMA (Cids Architecture for Reactive Mapping Applications)
+# carma (cids Architecture for Reactive Mapping Applications)
 
 ![DALL·E 2024-05-13 17 39 11 - A dynamic and modern digital artwork representing the theme of GIS (Geographic Information Systems) and software development  The image should incorpo](https://github.com/cismet/carma/assets/837211/977be510-7928-404c-92c5-091a208a2358)
 
 ## Overview
 
-Welcome to CARMA, a monolithic repository (monorepo) powered by Nx, designed to streamline the development of reactive GIS applications. This repository leverages the Vite bundler to optimize the build process and improve developer experience with efficient tooling and clear project structures.
+Welcome to carma, a monolithic repository (monorepo) powered by Nx, designed to streamline the development of reactive GIS applications. This repository leverages the Vite bundler to optimize the build process and improve developer experience with efficient tooling and clear project structures.
 
 ## Key Features
 
@@ -113,7 +113,7 @@ All configurations should allow importing `.js`
 
 #### Types
 
-Common custom CARMA types and type declarations for external libraries are defined in type-only packages. These packages use zero-build configuration: TypeScript consumes declaration files directly from source via path aliases, eliminating build steps for pure type definitions.
+Common custom carma types and type declarations for external libraries are defined in type-only packages. These packages use zero-build configuration: TypeScript consumes declaration files directly from source via path aliases, eliminating build steps for pure type definitions.
 
 **Type-only packages:**
 - `@carma-types` - Global types index ([`libraries/types/`](libraries/types/))
