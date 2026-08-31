@@ -10,6 +10,7 @@ import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { useExcalidrawActions } from "./excalidraw-actions";
 import { useMapSceneSync } from "./map-scene-sync";
+import { redoScene, undoScene } from "./excalidraw-history";
 import { ExcalidrawShapeToolbar } from "./ExcalidrawShapeToolbar";
 import {
   DEFAULT_SHAPES,
@@ -75,6 +76,7 @@ export const ExcalidrawOverlay = ({
     hideZoom = false,
     hideTools = false,
     hideHelp = false,
+    hideHistory = false,
     shapeTools = false,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
@@ -112,6 +114,7 @@ export const ExcalidrawOverlay = ({
       data-hide-zoom={hideZoom ? "true" : "false"}
       data-hide-tools={hideTools ? "true" : "false"}
       data-hide-help={hideHelp ? "true" : "false"}
+      data-hide-history={hideHistory ? "true" : "false"}
       style={{
         position: "absolute",
         top: navbarInset + top,
@@ -160,6 +163,12 @@ export const ExcalidrawOverlay = ({
               shape={shape}
               onShapeChange={(next) =>
                 api?.setActiveTool({ type: next, locked: true })
+              }
+              onUndo={() =>
+                undoScene(box?.querySelector(".excalidraw") ?? null)
+              }
+              onRedo={() =>
+                redoScene(box?.querySelector(".excalidraw") ?? null)
               }
             />
           </div>
