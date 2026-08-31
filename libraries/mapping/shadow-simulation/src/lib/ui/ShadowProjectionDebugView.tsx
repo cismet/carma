@@ -14,9 +14,16 @@ import {
   useHostElementSizeRef,
 } from "@carma-commons/ui/components";
 import { ViewStateVisualizer } from "@carma-mapping/components";
+import {
+  getSharedThreeSceneRuntimes,
+  subscribeSharedThreeSceneContent,
+} from "@carma-mapping/engines/maplibre";
 
 import type { SolarPosition } from "../core/solar-position";
-import type { ShadowQualityMultiplier } from "../core/shadow-types";
+import type {
+  MeshErrorTargetPixels,
+  ShadowQualityMultiplier,
+} from "../core/shadow-types";
 import {
   buildShadowProjectionDebugModel,
   type ShadowProjectionDebugModel,
@@ -94,11 +101,21 @@ const SHADOW_QUALITIES: ReadonlyArray<{
   { label: "Max", value: 64 },
 ];
 
+const MESH_ERROR_TARGETS: ReadonlyArray<{
+  label: string;
+  value: MeshErrorTargetPixels;
+}> = [
+  { label: "0,25 px", value: 0.25 },
+  { label: "1 px", value: 1 },
+  { label: "4 px", value: 4 },
+];
+
 export type ShadowProjectionDebugSettings = Readonly<{
   shadowQuality: ShadowQualityMultiplier;
+  meshErrorTarget: MeshErrorTargetPixels;
   terrainColor: string;
   buildingsFullOpacity: boolean;
-  useUniformBuildingColor: boolean;
+  buildingColorMix: number;
   buildingColor: string;
   showSunDebugVector: boolean;
   showShadowBuffers: boolean;
@@ -277,11 +294,13 @@ const ShadowDebugControls = ({
   settings,
   transmittanceReady,
   irradianceReady,
+  meshLoaded,
   onChange,
 }: {
   settings: ShadowProjectionDebugSettings;
   transmittanceReady: boolean;
   irradianceReady: boolean;
+  meshLoaded: boolean;
   onChange: (patch: Partial<ShadowProjectionDebugSettings>) => void;
 }) => {
   const buttonClass = (selected: boolean) =>
@@ -312,6 +331,26 @@ const ShadowDebugControls = ({
             ))}
           </div>
         </div>
+        {meshLoaded && (
+          <div className="flex items-center gap-2">
+            <span className="font-semibold uppercase tracking-wide text-neutral-500">
+              Mesh-LOD
+            </span>
+            <div className="inline-flex" data-test-id="mesh-debug-quality">
+              {MESH_ERROR_TARGETS.map(({ label, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={buttonClass(settings.meshErrorTarget === value)}
+                  aria-pressed={settings.meshErrorTarget === value}
+                  onClick={() => onChange({ meshErrorTarget: value })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <label className="flex items-center gap-2">
@@ -341,32 +380,42 @@ const ShadowDebugControls = ({
           />
           Gebäude volle Deckkraft
         </label>
-        <label className="flex items-center gap-1.5">
+        <label className="flex min-w-64 items-center gap-2">
+          <span className="font-semibold uppercase tracking-wide text-neutral-500">
+            Mesh
+          </span>
+          <span className="text-neutral-500">Textur</span>
           <input
-            type="checkbox"
-            checked={settings.useUniformBuildingColor}
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={settings.buildingColorMix}
             onChange={(event) =>
-              onChange({ useUniformBuildingColor: event.currentTarget.checked })
+              onChange({ buildingColorMix: event.currentTarget.valueAsNumber })
             }
+            className="min-w-24 flex-1 accent-amber-600"
+            aria-label="Mischung aus Meshtextur und Farbe"
           />
-          einheitliche Gebäudefarbe
+          <span className="text-neutral-500">Farbe</span>
+          <span className="w-8 text-right tabular-nums text-neutral-500">
+            {Math.round(settings.buildingColorMix * 100)}%
+          </span>
         </label>
-        {settings.useUniformBuildingColor && (
-          <label className="flex items-center gap-2">
-            <input
-              type="color"
-              value={settings.buildingColor}
-              onChange={(event) =>
-                onChange({ buildingColor: event.currentTarget.value })
-              }
-              className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-transparent p-0.5"
-              aria-label="Einheitliche Gebäudefarbe"
-            />
-            <span className="tabular-nums text-neutral-500">
-              {settings.buildingColor.toUpperCase()}
-            </span>
-          </label>
-        )}
+        <label className="flex items-center gap-2">
+          <input
+            type="color"
+            value={settings.buildingColor}
+            onChange={(event) =>
+              onChange({ buildingColor: event.currentTarget.value })
+            }
+            className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-transparent p-0.5"
+            aria-label="Meshfarbe"
+          />
+          <span className="tabular-nums text-neutral-500">
+            {settings.buildingColor.toUpperCase()}
+          </span>
+        </label>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <label className="flex items-center gap-1.5">
@@ -453,6 +502,22 @@ export const ShadowProjectionDebugView = ({
     [map]
   );
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const subscribeMeshPresence = useCallback(
+    (listener: () => void) => subscribeSharedThreeSceneContent(map, listener),
+    [map]
+  );
+  const getMeshPresence = useCallback(
+    () =>
+      getSharedThreeSceneRuntimes(map).some(
+        (runtime) => runtime.providesTerrain === true
+      ),
+    [map]
+  );
+  const meshLoaded = useSyncExternalStore(
+    subscribeMeshPresence,
+    getMeshPresence,
+    getMeshPresence
+  );
   const [visualizerContentVisibility, setVisualizerContentVisibility] =
     useState(DEFAULT_VISUALIZER_CONTENT_VISIBILITY);
   const model = useMemo(
@@ -552,6 +617,7 @@ export const ShadowProjectionDebugView = ({
           irradianceReady={
             snapshot.atmosphericSunlight?.irradianceReady ?? false
           }
+          meshLoaded={meshLoaded}
           onChange={onSettingsChange}
         />
         <ShadowBufferStatistics model={model} />

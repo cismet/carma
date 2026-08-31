@@ -12,8 +12,11 @@ import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-thre
 import {
   buildThreeTilesRuntime,
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
   type ThreeTilesRuntime,
 } from "../lib/runtime/integrations/three-tiles-runtime";
+
+const TERRAIN_MESH_ERROR_TARGET_PIXELS = 1;
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -67,6 +70,8 @@ export interface Tiles3dConfig {
    * being drawn wrong.
    */
   terrainMandatory?: boolean;
+  /** The tileset itself supplies terrain, so separate Three.js terrain is redundant. */
+  providesTerrain?: boolean;
 }
 
 export interface Tiles3dLayerManagerProps {
@@ -74,6 +79,14 @@ export interface Tiles3dLayerManagerProps {
   /** The opacity the layer bar asked of this layer, 0 to 1. */
   layerOpacity?: number;
 }
+
+export const resolveTiles3dErrorTarget = (
+  config: Pick<Tiles3dConfig, "errorTarget" | "providesTerrain">
+): number =>
+  config.errorTarget ??
+  (config.providesTerrain
+    ? TERRAIN_MESH_ERROR_TARGET_PIXELS
+    : TILES_ERROR_TARGET_DEFAULT_PIXELS);
 
 /** Whether the map can still be asked about its layers, see ThreeLayerManager. */
 function mapIsUsable(map: unknown): boolean {
@@ -120,13 +133,14 @@ export function Tiles3dLayerManager({
         outline: config.outline,
         outlineColor: config.outlineColor,
         outlineOpacity: config.outlineOpacity,
+        providesTerrain: config.providesTerrain,
         shadowBuildingStyle: true,
         onContentChanged: () => notifySharedThreeSceneContentChanged(map),
         onRequestStateChange: () =>
           notifySharedThreeSceneRequestStateChanged(map),
       }
     );
-    runtime.setErrorTarget(config.errorTarget ?? 6);
+    runtime.setErrorTarget(resolveTiles3dErrorTarget(config));
     runtime.setOpacity((config.opacity ?? 1) * (layerOpacityRef.current ?? 1));
     runtime.setOutlineVisible(config.outline ?? true);
     runtimeRef.current = runtime;
@@ -156,6 +170,7 @@ export function Tiles3dLayerManager({
     config.outline,
     config.outlineColor,
     config.outlineOpacity,
+    config.providesTerrain,
   ]);
 
   // Terrain is only ever switched on here, never off again: the way back

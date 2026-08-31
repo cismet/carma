@@ -53,6 +53,8 @@ const REFINEMENT_FACTOR = 2;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
+const DEFAULT_CACHE_MIN_ITEMS = 6_000;
+const DEFAULT_CACHE_MAX_ITEMS = 8_000;
 export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 64;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
@@ -130,6 +132,8 @@ export interface ThreeTilesRuntimeOptions {
   outline?: boolean;
   outlineColor?: THREE.ColorRepresentation;
   outlineOpacity?: number;
+  /** The tileset includes the ground surface represented by terrain. */
+  providesTerrain?: boolean;
   /** Restyle this tileset like a building layer while shadow mode is active. */
   shadowBuildingStyle?: boolean;
 }
@@ -210,12 +214,20 @@ export function buildThreeTilesRuntime(
     uProjMatrix: { value: new THREE.Matrix4() },
     tProj: { value: null as THREE.Texture | null },
   };
+  const shadowAppearanceUniforms = {
+    uShadowUniformColor: { value: shadowClayColor },
+    uShadowUniformColorMix: { value: 0 },
+  };
 
   const patchMaterialForProjection = (material: THREE.Material) => {
     if ((material as { __projPatched?: boolean }).__projPatched) return;
     (material as { __projPatched?: boolean }).__projPatched = true;
     material.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, projectorUniforms);
+      Object.assign(
+        shader.uniforms,
+        projectorUniforms,
+        shadowAppearanceUniforms
+      );
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
@@ -235,7 +247,18 @@ uniform float uProjOpacity;
 uniform vec3 uProjPos;
 uniform float uProjHeading;
 uniform mat4 uProjMatrix;
-uniform sampler2D tProj;`
+uniform sampler2D tProj;
+uniform vec3 uShadowUniformColor;
+uniform float uShadowUniformColorMix;`
+        )
+        .replace(
+          "#include <map_fragment>",
+          `#include <map_fragment>
+diffuseColor.rgb = mix(
+  diffuseColor.rgb,
+  uShadowUniformColor,
+  uShadowUniformColorMix
+);`
         )
         .replace(
           "#include <dithering_fragment>",
@@ -338,11 +361,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
 
   const applyMaterialFlags = (root: THREE.Object3D) => {
-    const useClayShading =
-      whiteShading || !!shadowSimulationStyle?.uniformColor;
-    const effectiveClayColor = shadowSimulationStyle?.uniformColor
-      ? shadowClayColor
-      : clayColor;
+    const useClayShading = whiteShading;
+    const effectiveClayColor = clayColor;
+    shadowAppearanceUniforms.uShadowUniformColorMix.value =
+      shadowSimulationStyle?.uniformColor
+        ? clamp(shadowSimulationStyle.uniformColorMix ?? 1, 0, 1)
+        : 0;
     const forceOpaque = shadowSimulationStyle?.fullOpacity === true;
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;
@@ -461,19 +485,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     );
     let minimum = Number.POSITIVE_INFINITY;
     let maximum = Number.NEGATIVE_INFINITY;
-    currentTiles.forEachLoadedModel((_scene, tile) => {
-      const bounds = (
-        tile as Tile & {
-          engineData?: {
-            boundingVolume?: {
-              getAABB: (target: THREE.Box3) => void;
-            };
-          };
-        }
-      ).engineData?.boundingVolume;
-      if (!bounds) return;
-      bounds.getAABB(tileBoundingBox);
-      tileBoundingBox.applyMatrix4(currentTiles.group.matrixWorld);
+    currentTiles.forEachLoadedModel((model) => {
+      model.updateWorldMatrix(true, true);
+      tileBoundingBox.setFromObject(model);
+      if (tileBoundingBox.isEmpty()) return;
       if (!tileViewElevationFrustum.intersectsBox(tileBoundingBox)) return;
       minimum = Math.min(minimum, tileBoundingBox.min.y);
       maximum = Math.max(maximum, tileBoundingBox.max.y);
@@ -606,12 +621,28 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       itemSet: { size: number };
       cachedBytes: number;
     };
-    cache.minBytesSize = cacheBudgetBytes * 0.45;
-    cache.maxBytesSize = cacheBudgetBytes;
-    cache.unloadPercent = 0.5;
-    const ceilingBytes = Number.isFinite(cacheOverflowBytes)
+    const configuredCeilingBytes = Number.isFinite(cacheOverflowBytes)
       ? cacheBudgetBytes + cacheOverflowBytes
       : Number.POSITIVE_INFINITY;
+    const retainTerrainMesh =
+      options.providesTerrain === true && shadowSimulationStyle !== null;
+    const ceilingBytes = retainTerrainMesh
+      ? Number.POSITIVE_INFINITY
+      : configuredCeilingBytes;
+    // Download admission and asynchronous eviction must use the same upper
+    // bound. Otherwise freshly queued tiles are aborted and requested again
+    // forever once decoded content passes the smaller eviction value.
+    cache.minSize = retainTerrainMesh
+      ? Number.POSITIVE_INFINITY
+      : DEFAULT_CACHE_MIN_ITEMS;
+    cache.maxSize = retainTerrainMesh
+      ? Number.POSITIVE_INFINITY
+      : DEFAULT_CACHE_MAX_ITEMS;
+    cache.minBytesSize = retainTerrainMesh
+      ? Number.POSITIVE_INFINITY
+      : cacheBudgetBytes;
+    cache.maxBytesSize = ceilingBytes;
+    cache.unloadPercent = 0.5;
     cache.isFull = () =>
       cache.itemSet.size >= cache.maxSize || cache.cachedBytes >= ceilingBytes;
     cache.scheduleUnload();
@@ -673,29 +704,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       window.clearTimeout(refinementTimer);
       refinementTimer = 0;
     }
-    setShadowSelectionEnabled(false);
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
     tiles?.dispatchEvent({ type: "needs-update" });
     scheduleProgressiveRefinement();
-  };
-  const pruneStaleQueuedRequests = () => {
-    if (!tiles) return;
-    const queue = tiles.downloadQueue as typeof tiles.downloadQueue & {
-      items: Array<{
-        traversal?: { inFrustum?: boolean; used?: boolean };
-      }>;
-      remove: (item: unknown) => void;
-    };
-    for (const tile of [...queue.items]) {
-      if (
-        tile.traversal?.inFrustum === false &&
-        tile.traversal.used === false
-      ) {
-        queue.remove(tile);
-      }
-    }
   };
   const prioritizeQueuedTiles = (viewCamera: THREE.Camera) => {
     if (!tiles) return;
@@ -759,6 +772,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     id: layerId,
     originLngLat,
     root: orientationGroup,
+    providesTerrain: options.providesTerrain === true,
     originMerc,
     mScale,
 
@@ -810,8 +824,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles.parseQueue.maxJobs = 4;
       tiles.processNodeQueue.maxJobs = 48;
       tiles.maxTilesProcessed = 1_000;
-      tiles.lruCache.minSize = 2_048;
-      tiles.lruCache.maxSize = 4_096;
       applyCacheBudget();
       restartProgressiveLod();
       offsetGroup.add(tiles.group);
@@ -875,7 +887,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         tiles.update();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         prioritizeQueuedTiles(viewCamera);
-        pruneStaleQueuedRequests();
         maybeEnableShadowSelection();
       } catch (error) {
         console.error("[tiles3d] update failed:", error);
@@ -939,6 +950,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setShadowSimulationStyle(style) {
       if (!options.shadowBuildingStyle) return;
       shadowSimulationStyle = style;
+      // The shadow camera deliberately keeps off-screen casters selected. Do
+      // not evict and restart those Mesh downloads while shadow mode is live;
+      // returning to the normal layer restores the bounded LRU immediately.
+      applyCacheBudget();
       if (style?.uniformColor) shadowClayColor.set(style.uniformColor);
       applyMaterialFlags(orientationGroup);
       applyOutlineVisibility(orientationGroup);
@@ -954,9 +969,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setShadowView(view) {
       const nextSignature = getSharedThreeShadowViewSignature(view);
       if (nextSignature === shadowViewSignature) return;
+      const hadShadowView = shadowView !== null;
       shadowViewSignature = nextSignature;
       shadowView = view;
-      setShadowSelectionEnabled(false);
+      if (!view || !hadShadowView) {
+        setShadowSelectionEnabled(false);
+      } else if (shadowSelectionEnabled) {
+        // The shadow controller updates the same camera object in place while
+        // coverage is refitted. Keep it registered so currently useful tiles
+        // stay marked as used instead of being evicted and fetched again on
+        // every content or camera update.
+        cameraSet?.setShadowView(view);
+        shadowSelectionNeedsTraversal = true;
+      }
       applyRequestConcurrency();
       tiles?.dispatchEvent({ type: "needs-update" });
       notifyRequestStateChange();
