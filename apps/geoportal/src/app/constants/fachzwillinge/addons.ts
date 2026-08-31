@@ -73,7 +73,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
           maximumLevel: 18,
           noDataHeightMeters: 0,
           maxSelectionTiles: 1_536,
-          requestConcurrency: 12,
+          requestConcurrency: 256,
           maxCacheBytes: 268_435_456,
           maxCachedMeshes: 2_048,
           material: {

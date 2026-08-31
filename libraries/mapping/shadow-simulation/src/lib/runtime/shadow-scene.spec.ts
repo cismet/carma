@@ -106,6 +106,7 @@ describe("shadow scene lighting integration", () => {
     active: () => boolean;
     retainSettledFrame: () => boolean;
     prepareRound: (round: number) => void;
+    finishRound?: () => void;
     rounds: number;
   } | null;
   let sharedLayer: {
@@ -119,6 +120,7 @@ describe("shadow scene lighting integration", () => {
         active: () => boolean;
         retainSettledFrame: () => boolean;
         prepareRound: (round: number) => void;
+        finishRound?: () => void;
         rounds: number;
       } | null
     ) => void;

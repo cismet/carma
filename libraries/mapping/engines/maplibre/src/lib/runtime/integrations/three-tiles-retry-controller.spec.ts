@@ -96,6 +96,27 @@ describe("createThreeTilesRetryController", () => {
     expect(replacement.internal.loadingState).toBe(-1);
   });
 
+  it("keys retries by the requested URL when tile objects change", () => {
+    vi.useFakeTimers();
+    const renderer = {
+      stats: { failed: 1 },
+      dispatchEvent: vi.fn(),
+    };
+    const retries = createThreeTilesRetryController(() => renderer, vi.fn());
+    const url = "https://example.com/tiles/stable.b3dm";
+
+    for (let attempt = 0; attempt < MAX_TILE_RETRIES; attempt += 1) {
+      const tile = failedTile(`recreated-${attempt}.b3dm`);
+      retries.handleFailure(tile, url);
+      vi.runOnlyPendingTimers();
+    }
+
+    const replacement = failedTile("another-object.b3dm");
+    retries.handleFailure(replacement, url);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(replacement.internal.loadingState).toBe(-1);
+  });
+
   it("cancels a pending retry after a successful load", () => {
     vi.useFakeTimers();
     const tile = failedTile();
