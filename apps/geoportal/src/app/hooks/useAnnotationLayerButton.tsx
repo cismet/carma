@@ -1,9 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  EXCALIDRAW_LAYER_ID,
-  EXCALIDRAW_TOOLS_INTERACTION_ID,
-  useExcalidrawLayerRow,
+  ANNOTATION_LAYER_ID,
+  ANNOTATION_TOOLS_INTERACTION_ID,
+  useAnnotationLayerRow,
 } from "@carma-mapping/addons";
 
 import {
@@ -14,18 +14,18 @@ import {
   setActiveInteractionLayerID,
 } from "../store/slices/mapping";
 
-export { EXCALIDRAW_LAYER_ID };
+export { ANNOTATION_LAYER_ID };
 
-export function useExcalidrawLayerButton() {
+export function useAnnotationLayerButton() {
   const dispatch = useDispatch();
   const layers = useSelector(getLayers);
 
-  useExcalidrawLayerRow({
-    hasRow: layers.some((layer) => layer.id === EXCALIDRAW_LAYER_ID),
+  useAnnotationLayerRow({
+    hasRow: layers.some((layer) => layer.id === ANNOTATION_LAYER_ID),
     onAdd: (layer) => {
       dispatch(appendLayer(layer));
       dispatch(setActiveInteractionLayerID(layer.id));
-      dispatch(setActiveInteractionButtonID(EXCALIDRAW_TOOLS_INTERACTION_ID));
+      dispatch(setActiveInteractionButtonID(ANNOTATION_TOOLS_INTERACTION_ID));
     },
     onRemove: (id) => {
       dispatch(removeLayer(id));
