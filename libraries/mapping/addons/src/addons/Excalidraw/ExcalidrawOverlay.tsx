@@ -1,10 +1,15 @@
 import { Suspense, lazy, useState } from "react";
 import { createPortal } from "react-dom";
+import type {
+  AppState,
+  ExcalidrawImperativeAPI,
+} from "@excalidraw/excalidraw/types/types";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { useExcalidrawActions } from "./excalidraw-actions";
+import { useMapSceneSync } from "./map-scene-sync";
 import type { ExcalidrawInset } from "./types";
 import "./excalidraw-overlay.css";
 
@@ -26,19 +31,16 @@ const DEFAULT_INSET: Required<ExcalidrawInset> = {
 };
 
 /**
- * A sketch layer over the map, painted into the map wrapper with a transparent
- * background.
- *
- * Screen-fixed, not georeferenced: the drawing stays where it was put while the
- * map moves under it. Anchoring it would mean driving Excalidraw's
- * `scrollX/scrollY/zoom` from every map move, which this does not do.
+ * A georeferenced sketch layer: excalidraw painted into the map wrapper with a
+ * transparent background, pinned to the ground by `useMapSceneSync`.
  *
  * Stays mounted whether or not it is drawing — unmounting would take the scene
- * with it. `excalidrawControl` flips the `excalidrawMode` channel; off means
- * view mode and `pointer-events: none`, so the map is usable again.
+ * with it, and the sync has to keep running while the map moves.
+ * `excalidrawControl` flips the `excalidrawMode` channel; off means view mode
+ * and `pointer-events: none`.
  *
  * The map wrapper runs the full window, behind the app's own chrome, and
- * Excalidraw pins its toolbar to the top of whatever box it gets. Hence the
+ * excalidraw pins its toolbar to the top of whatever box it gets. Hence the
  * insets, at the price of those strips not being drawable.
  */
 export const ExcalidrawOverlay = ({
@@ -55,10 +57,12 @@ export const ExcalidrawOverlay = ({
   const { isOn } = useExcalidrawActions();
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
-  // the host runs up behind the navbar, and excalidraw pins its toolbar to the
-  // top of its box; flush would file the toolbar away under the bar. Measured,
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  // flush to the host would file the toolbar away behind the navbar. Measured,
   // because zen mode takes the bar away while the addon runs
   const navbarInset = useToolbarInset(host, toolbarSelector, true);
+  const { inSync, onSceneChange } = useMapSceneSync(libreMap, api, box);
 
   const nextHost = libreMap ? stageHostOf(libreMap) : null;
   if (nextHost !== host) {
@@ -69,10 +73,13 @@ export const ExcalidrawOverlay = ({
     return null;
   }
 
+  const drawing = isOn && inSync;
+
   return createPortal(
     <div
+      ref={setBox}
       className="carma-excalidraw-overlay"
-      data-drawing={isOn ? "true" : "false"}
+      data-drawing={drawing ? "true" : "false"}
       style={{
         position: "absolute",
         top: navbarInset + top,
@@ -80,12 +87,16 @@ export const ExcalidrawOverlay = ({
         bottom,
         left,
         zIndex,
-        pointerEvents: isOn ? "auto" : "none",
+        pointerEvents: drawing ? "auto" : "none",
+        // not `display: none`: the sync measures its offset off this box
+        visibility: inSync ? "visible" : "hidden",
       }}
     >
       <Suspense fallback={null}>
         <Excalidraw
-          viewModeEnabled={!isOn}
+          excalidrawAPI={setApi}
+          onChange={(_elements, appState: AppState) => onSceneChange(appState)}
+          viewModeEnabled={!drawing}
           initialData={{ appState: { viewBackgroundColor: "transparent" } }}
         />
       </Suspense>
