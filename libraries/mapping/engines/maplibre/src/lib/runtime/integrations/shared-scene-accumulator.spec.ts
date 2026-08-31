@@ -1,7 +1,10 @@
 import type { WebGLRenderTarget, WebGLRenderer } from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { buildSharedSceneAccumulator } from "./shared-scene-accumulator";
+import {
+  buildSharedSceneAccumulator,
+  fitRenderTargetSizeToPixelBudget,
+} from "./shared-scene-accumulator";
 
 const buildRenderer = (broken = false) => {
   let target: WebGLRenderTarget | null = null;
@@ -31,6 +34,17 @@ const buildRenderer = (broken = false) => {
 };
 
 describe("buildSharedSceneAccumulator", () => {
+  it("preserves aspect ratio while fitting a pixel budget", () => {
+    const size = fitRenderTargetSizeToPixelBudget(1_170, 2_532, 1_000_000);
+
+    expect(size.width * size.height).toBeLessThanOrEqual(1_000_000);
+    expect(size.width / size.height).toBeCloseTo(1_170 / 2_532, 2);
+    expect(fitRenderTargetSizeToPixelBudget(800, 600, 1_000_000)).toEqual({
+      width: 800,
+      height: 600,
+    });
+  });
+
   it("accumulates the configured rounds and resets on state changes", () => {
     const renderer = buildRenderer();
     const accumulator = buildSharedSceneAccumulator(2);
@@ -39,6 +53,7 @@ describe("buildSharedSceneAccumulator", () => {
     accumulator.ensureState("first");
     expect(accumulator.jitterFor(0).x).toBeGreaterThanOrEqual(-0.5);
     accumulator.renderRound(renderer, 8, 4, renderScene);
+    expect(accumulator.composite(renderer)).toBe(false);
     accumulator.renderRound(renderer, 8, 4, renderScene);
     expect(accumulator.composite(renderer)).toBe(true);
 
@@ -65,6 +80,25 @@ describe("buildSharedSceneAccumulator", () => {
 
     accumulator.renderRound(buildRenderer(true), 4, 4, () => undefined);
 
+    expect(accumulator.broken).toBe(true);
+    expect(error).toHaveBeenCalledOnce();
+    accumulator.dispose();
+    error.mockRestore();
+  });
+
+  it("falls back when render target setup throws", () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const renderer = buildRenderer();
+    vi.mocked(renderer.setRenderTarget).mockImplementationOnce(() => {
+      throw new Error("allocation failed");
+    });
+    const accumulator = buildSharedSceneAccumulator(1);
+
+    expect(() =>
+      accumulator.renderRound(renderer, 4_096, 4_096, () => undefined)
+    ).not.toThrow();
     expect(accumulator.broken).toBe(true);
     expect(error).toHaveBeenCalledOnce();
     accumulator.dispose();

@@ -17,6 +17,10 @@ import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 import { degToRadNumeric } from "@carma-units";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import {
+  createPayloadAwareRequestConcurrency,
+  getResourcePayloadByteLength,
+} from "./payload-aware-request-concurrency";
+import {
   createTilesCameraSet,
   resolveTilesViewCamera,
 } from "./tiles-camera-set";
@@ -47,9 +51,9 @@ const MINIMUM_PROGRESSIVE_ERROR_TARGET_PIXELS = 0.05;
 const COVERAGE_ERROR_TARGET_PIXELS = 64;
 const REFINEMENT_FACTOR = 2;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
+const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
-export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 12;
-const MAX_SHADOW_REQUEST_CONCURRENCY = 12;
+export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 64;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
 
@@ -118,6 +122,8 @@ export interface ClayMaterialOptions {
 
 export interface ThreeTilesRuntimeOptions {
   cacheBudgetBytes?: number;
+  /** Bytes allowed beyond the eviction budget before downloads pause. */
+  cacheOverflowBytes?: number;
   requestConcurrency?: number;
   onRequestStateChange?: () => void;
   onContentChanged?: () => void;
@@ -150,12 +156,18 @@ export function buildThreeTilesRuntime(
     MINIMUM_CACHE_BYTES,
     Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
   );
+  const configuredCacheOverflowBytes =
+    options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES;
+  const cacheOverflowBytes = Number.isFinite(configuredCacheOverflowBytes)
+    ? Math.max(0, Math.floor(configuredCacheOverflowBytes))
+    : Number.POSITIVE_INFINITY;
   let requestConcurrency = Math.max(
     0,
     Math.floor(
       options.requestConcurrency ?? THREE_TILES_DEFAULT_REQUEST_CONCURRENCY
     )
   );
+  const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
   // ReorientationPlugin produces X west / Z north. The MapLibre custom-layer
   // matrix below and the other pointcloud layers use X east / Z south, so keep
   // the plugin-owned group untouched and correct the horizontal axes in a
@@ -426,7 +438,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       (activeErrorTarget > requestedErrorTarget || refinementTimer ? 1 : 0) +
       (shadowView && !shadowSelectionEnabled ? 1 : 0) +
       (shadowSelectionNeedsTraversal ? 1 : 0) +
-      (tileRetries.hasPendingRetries() ? 1 : 0) +
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries()
         ? 1
         : 0)
@@ -492,7 +503,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       !tiles ||
       !cameraSet ||
       (map && isSharedThreeTerrainLoading(map)) ||
-      tileRetries.hasPendingRetries()
+      (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries())
     ) {
       return;
     }
@@ -523,6 +534,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       applyOutlineVisibility(event.scene);
     }
     options.onContentChanged?.();
+    const payloadByteLength = getResourcePayloadByteLength(event.url);
+    if (payloadByteLength !== null) {
+      payloadAwareConcurrency.observePayload(payloadByteLength);
+    } else {
+      payloadAwareConcurrency.observeSuccess();
+    }
+    applyRequestConcurrency();
     notifyRequestStateChange();
     requestRender();
   };
@@ -532,6 +550,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const handleTilesetLoad = (event: { url?: string }) => {
     tileRetries.handleSuccess(null, event.url);
+    payloadAwareConcurrency.observeSuccess();
+    applyRequestConcurrency();
     requestRender();
   };
   const handleLoadError = (event: {
@@ -539,10 +559,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     url?: string | URL;
   }) => {
     tileRetries.handleFailure(event.tile ?? null, event.url);
+    payloadAwareConcurrency.observeFailure();
+    applyRequestConcurrency();
     if (kickstartTimer) {
       window.clearInterval(kickstartTimer);
       kickstartTimer = 0;
     }
+    maybeEnableShadowSelection();
     notifyRequestStateChange();
   };
   const handleTilesLoadEnd = () => {
@@ -579,19 +602,26 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const applyCacheBudget = () => {
     if (!tiles) return;
-    tiles.lruCache.minBytesSize = cacheBudgetBytes * 0.45;
-    tiles.lruCache.maxBytesSize = cacheBudgetBytes;
-    tiles.lruCache.unloadPercent = 0.5;
-    tiles.lruCache.scheduleUnload();
+    const cache = tiles.lruCache as typeof tiles.lruCache & {
+      itemSet: { size: number };
+      cachedBytes: number;
+    };
+    cache.minBytesSize = cacheBudgetBytes * 0.45;
+    cache.maxBytesSize = cacheBudgetBytes;
+    cache.unloadPercent = 0.5;
+    const ceilingBytes = Number.isFinite(cacheOverflowBytes)
+      ? cacheBudgetBytes + cacheOverflowBytes
+      : Number.POSITIVE_INFINITY;
+    cache.isFull = () =>
+      cache.itemSet.size >= cache.maxSize || cache.cachedBytes >= ceilingBytes;
+    cache.scheduleUnload();
   };
   const applyRequestConcurrency = () => {
     if (!tiles) return;
+    const activeConcurrency =
+      payloadAwareConcurrency.getConcurrency(requestConcurrency);
     tiles.downloadQueue.maxJobs =
-      map && isSharedThreeTerrainLoading(map)
-        ? 0
-        : shadowView
-        ? Math.min(requestConcurrency, MAX_SHADOW_REQUEST_CONCURRENCY)
-        : requestConcurrency;
+      map && isSharedThreeTerrainLoading(map) ? 0 : activeConcurrency;
   };
   const restartProgressiveLod = () => {
     activeErrorTarget = Math.max(

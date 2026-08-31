@@ -40,6 +40,10 @@ import {
   setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
 import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
+import {
+  createPayloadAwareRequestConcurrency,
+  DEFAULT_MAXIMUM_REQUEST_CONCURRENCY,
+} from "./payload-aware-request-concurrency";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneDebugVolume,
@@ -54,7 +58,7 @@ const DEFAULT_SHADOW_LEVEL_OFFSET = 2;
 const DEFAULT_MINIMUM_LEVEL = 8;
 const DEFAULT_MAXIMUM_LEVEL = 17;
 const DEFAULT_MAX_SELECTION_TILES = 192;
-const DEFAULT_REQUEST_CONCURRENCY = 6;
+const DEFAULT_REQUEST_CONCURRENCY = DEFAULT_MAXIMUM_REQUEST_CONCURRENCY;
 const DEFAULT_MAX_CACHED_MESHES = 256;
 const TERRAIN_UPDATE_PRIORITY = 100;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
@@ -444,6 +448,7 @@ export const buildCesiumTerrainRuntime = (
     terrainUrl,
     originLngLat
   );
+  const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
   const root = new Group();
   root.name = `${runtimeId}-root`;
   const material = new MeshLambertMaterial({
@@ -632,7 +637,14 @@ export const buildCesiumTerrainRuntime = (
     if (cached) {
       return { tile: cached.tile, projectedGeometry: cached.geometry };
     }
-    const tile = await terrainSource.requestTile(entry.id);
+    let tile: CesiumTerrainTile;
+    try {
+      tile = await terrainSource.requestTile(entry.id);
+      payloadAwareConcurrency.observePayload(tile.byteLength);
+    } catch (error) {
+      payloadAwareConcurrency.observeFailure();
+      throw error;
+    }
     const projectedGeometry = createProjectedGeometry(tile);
     projectedGeometryCache.set(tile, projectedGeometry);
     return { tile, projectedGeometry };
@@ -1339,7 +1351,7 @@ export const buildCesiumTerrainRuntime = (
     const generation = ++selectionGeneration;
     void loadWithConcurrency(
       selection.entries,
-      requestConcurrency,
+      payloadAwareConcurrency.getConcurrency(requestConcurrency),
       async (entry) => {
         if (disposed || generation !== selectionGeneration) {
           throw new Error("Stale terrain selection");
