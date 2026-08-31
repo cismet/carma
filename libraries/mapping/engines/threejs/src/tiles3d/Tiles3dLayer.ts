@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 import { synthesizeLodCamera } from "./lodCamera";
+import { RetryFetchPlugin } from "./retryFetch";
 import {
   GLTFPrimitiveOutlineExtension,
   TILE_OUTLINE_FLAG,
@@ -266,6 +267,10 @@ export function buildTiles3dLayer(
       }
 
       tiles = new TilesRenderer(tilesetUrl);
+      // Registered first because it takes over `fetchData`, which the library
+      // hands to a single plugin. Nothing else registered here wants it. See
+      // retryFetch.ts for what it is answering.
+      tiles.registerPlugin(new RetryFetchPlugin());
       // 3D Tiles 1.1 implicit tiling: the tileset names its content with a
       // {level}/{x}/{y} template instead of listing every child.
       tiles.registerPlugin(new ImplicitTilingPlugin());
