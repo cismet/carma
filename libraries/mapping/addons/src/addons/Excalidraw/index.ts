@@ -10,6 +10,7 @@ export {
 export type { ExcalidrawShape } from "./shape-tools";
 export { useExcalidrawActions } from "./excalidraw-actions";
 export { useMapSceneSync } from "./map-scene-sync";
+export { redoScene, undoScene } from "./excalidraw-history";
 export type {
   ExcalidrawControlConfig,
   ExcalidrawOverlayConfig,

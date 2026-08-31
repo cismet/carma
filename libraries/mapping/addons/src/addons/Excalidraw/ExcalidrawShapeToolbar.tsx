@@ -1,3 +1,4 @@
+import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
@@ -8,17 +9,22 @@ const BUTTON =
   "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors text-base button-shadow [&_svg]:text-current";
 const ACTIVE = "!text-[#1677ff] hover:!text-[#1677ff]";
 const INACTIVE = "text-gray-600 hover:!text-[#1677ff]";
+const DIVIDER = "h-6 w-px bg-gray-300/80";
 
 export type ExcalidrawShapeToolbarProps = {
   shapes: ExcalidrawShape[];
   shape: ExcalidrawShape | null;
   onShapeChange: (shape: ExcalidrawShape) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 };
 
 export const ExcalidrawShapeToolbar = ({
   shapes,
   shape,
   onShapeChange,
+  onUndo,
+  onRedo,
 }: ExcalidrawShapeToolbarProps) => (
   <div className={WRAPPER}>
     {shapes.map((entry) => {
@@ -42,5 +48,38 @@ export const ExcalidrawShapeToolbar = ({
         </Tooltip>
       );
     })}
+    {(onUndo || onRedo) && <span className={DIVIDER} aria-hidden />}
+    {onUndo && (
+      <Tooltip title="Rückgängig" placement="bottom">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onUndo();
+          }}
+          aria-label="Rückgängig"
+          data-test-id="excalidraw-undo"
+          className={[BUTTON, INACTIVE].join(" ")}
+        >
+          <FontAwesomeIcon icon={faRotateLeft} />
+        </button>
+      </Tooltip>
+    )}
+    {onRedo && (
+      <Tooltip title="Wiederholen" placement="bottom">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRedo();
+          }}
+          aria-label="Wiederholen"
+          data-test-id="excalidraw-redo"
+          className={[BUTTON, INACTIVE].join(" ")}
+        >
+          <FontAwesomeIcon icon={faRotateRight} />
+        </button>
+      </Tooltip>
+    )}
   </div>
 );
