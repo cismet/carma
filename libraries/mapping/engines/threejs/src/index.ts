@@ -54,6 +54,8 @@ export {
   GLTFPrimitiveOutlineExtension,
   TILE_OUTLINE_FLAG,
 } from "./tiles3d/primitiveOutline";
+export { RetryFetchPlugin } from "./tiles3d/retryFetch";
+export type { RetryFetchPluginOptions } from "./tiles3d/retryFetch";
 export { synthesizeLodCamera } from "./tiles3d/lodCamera";
 export type { LodCameraFrame } from "./tiles3d/lodCamera";
 

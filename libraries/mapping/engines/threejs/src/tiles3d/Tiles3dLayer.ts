@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 import { synthesizeLodCamera } from "./lodCamera";
+import { RetryFetchPlugin } from "./retryFetch";
 import {
   GLTFPrimitiveOutlineExtension,
   TILE_OUTLINE_FLAG,
@@ -42,8 +43,36 @@ export const DEFAULT_ERROR_TARGET_PIXELS = 6;
 /** A coarse target used for the first frames, so something is on screen quickly. */
 const COVERAGE_ERROR_TARGET_PIXELS = 64;
 
-const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
+/**
+ * The fill at which the renderer starts evicting. Counted in decoded bytes, not
+ * download size: a city mesh leaf tile carries a 1024x1024 texture, roughly 1 MB
+ * on the wire and about 5 MB in memory once decoded with its mipmaps.
+ */
+const DEFAULT_CACHE_BYTES = 2048 * 1024 ** 2;
+
+/**
+ * How far the cache may run past its budget before downloading is refused.
+ *
+ * The budget alone cannot be the answer. Eviction only releases tiles that went
+ * unused for a frame, so it reclaims what a camera move left behind but cannot
+ * shrink the view being looked at. Where a single view needs more than the
+ * budget, and a close view of a city mesh does, every tile in it is used every
+ * frame: `queueTileForDownload` returns early whenever the cache reports itself
+ * full, the finest level is never queued, and the view sits at a coarse level
+ * reporting nothing left to load. Headroom above the budget is what lets such a
+ * view finish.
+ *
+ * Finite, though, because this is what every tileset gets. Unbounded headroom
+ * would leave `maxSize`, 8000 tiles, as the only hard limit, and at a few
+ * megabytes of decoded texture per tile that is not a limit a machine survives.
+ * A tileset that genuinely wants more says so in its style; JSON cannot write
+ * `Infinity`, so a number large enough never to be reached is how that is
+ * asked for.
+ */
+const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
+/** What the cache keeps after an eviction pass, as a share of the budget. */
+const CACHE_RETAIN_FRACTION = 0.75;
 
 /**
  * Where Draco-compressed payloads get their decoder.
@@ -58,6 +87,11 @@ export interface Tiles3dLayerOptions {
   /** Pixels of allowed error, see DEFAULT_ERROR_TARGET_PIXELS. */
   errorTarget?: number;
   cacheBudgetBytes?: number;
+  /**
+   * How far past the budget the cache may grow before downloading is refused.
+   * See DEFAULT_CACHE_OVERFLOW_BYTES.
+   */
+  cacheOverflowBytes?: number;
   /** Parallel tile downloads. */
   requestConcurrency?: number;
   /** 0 to 1, applied to every tile material. */
@@ -239,6 +273,10 @@ export function buildTiles3dLayer(
       }
 
       tiles = new TilesRenderer(tilesetUrl);
+      // Registered first because it takes over `fetchData`, which the library
+      // hands to a single plugin. Nothing else registered here wants it. See
+      // retryFetch.ts for what it is answering.
+      tiles.registerPlugin(new RetryFetchPlugin());
       // 3D Tiles 1.1 implicit tiling: the tileset names its content with a
       // {level}/{x}/{y} template instead of listing every child.
       tiles.registerPlugin(new ImplicitTilingPlugin());
@@ -272,18 +310,59 @@ export function buildTiles3dLayer(
         })
       );
 
+      // The renderer only gets to work from `render()`, and `render()` only
+      // runs when MapLibre repaints. On an idle map the traversal never runs
+      // again, so nothing further is queued and the view stops filling in
+      // until the camera is nudged. This is the renderer asking for the next
+      // pass.
+      tiles.addEventListener("needs-update", () => {
+        map?.triggerRepaint();
+      });
+
       tiles.errorTarget = activeErrorTarget;
-      tiles.loadSiblings = false;
-      tiles.loadAncestors = false;
+      // The coarse surface that covers a gap has to be in memory to be drawn,
+      // and `loadAncestors` is what puts it there: it queues the levels above
+      // the one being refined and draws them until their children arrive. With
+      // it off, a `refine: "REPLACE"` tileset has nothing to fall back on and an
+      // unfinished area is simply empty. `loadSiblings` covers what a pan is
+      // about to reach; the library treats it as implied here anyway.
+      tiles.loadSiblings = true;
+      tiles.loadAncestors = true;
       tiles.downloadQueue.maxJobs = Math.max(
         1,
         Math.floor(options.requestConcurrency ?? 6)
       );
       tiles.parseQueue.maxJobs = 4;
-      tiles.lruCache.maxBytesSize = Math.max(
+      const cacheBytes = Math.max(
         MINIMUM_CACHE_BYTES,
         Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
       );
+      // `itemSet` and `cachedBytes` are what the cache's own `isFull` reads; the
+      // published typings stop at the configurable fields.
+      const lruCache = tiles.lruCache as typeof tiles.lruCache & {
+        itemSet: { size: number };
+        cachedBytes: number;
+      };
+      lruCache.maxBytesSize = cacheBytes;
+      // Both ends have to move together. Downloading stops once the cache
+      // reports itself full, which is the ceiling, while eviction only releases
+      // unused tiles above the floor. Lowering the ceiling alone leaves it under
+      // the floor, and then nothing is downloaded or evicted again. The library
+      // ships the two at this ratio, 0.3 GB kept of a 0.4 GB ceiling.
+      lruCache.minBytesSize = Math.floor(cacheBytes * CACHE_RETAIN_FRACTION);
+
+      // Full has to mean the hard ceiling rather than the budget, or a view
+      // larger than the budget stops loading instead of trading memory for it.
+      // Below the ceiling the budget still does its work: eviction is triggered
+      // from `maxBytesSize`, which is untouched.
+      const overflowBytes =
+        options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES;
+      const ceilingBytes = Number.isFinite(overflowBytes)
+        ? cacheBytes + Math.max(0, Math.floor(overflowBytes))
+        : Number.POSITIVE_INFINITY;
+      lruCache.isFull = () =>
+        lruCache.itemSet.size >= lruCache.maxSize ||
+        lruCache.cachedBytes >= ceilingBytes;
       orientationGroup.add(tiles.group);
 
       startKickstart();
