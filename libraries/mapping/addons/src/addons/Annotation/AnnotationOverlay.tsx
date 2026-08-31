@@ -8,11 +8,11 @@ import type {
 import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
-import { useExcalidrawActions } from "./excalidraw-actions";
+import { useAnnotationActions } from "./annotation-actions";
 import { useMapSceneSync } from "./map-scene-sync";
-import { redoScene, undoScene } from "./excalidraw-history";
-import type { ExcalidrawInset } from "./types";
-import "./excalidraw-overlay.css";
+import { redoScene, undoScene } from "./annotation-history";
+import type { AnnotationInset } from "./types";
+import "./annotation-overlay.css";
 
 const Excalidraw = lazy(() =>
   import("@excalidraw/excalidraw").then(({ Excalidraw }) => ({
@@ -36,7 +36,7 @@ const withAlpha = (color: string, opacity: number) => {
     : color;
 };
 
-const DEFAULT_INSET: Required<ExcalidrawInset> = {
+const DEFAULT_INSET: Required<AnnotationInset> = {
   top: 0,
   right: 0,
   bottom: 0,
@@ -49,17 +49,17 @@ const DEFAULT_INSET: Required<ExcalidrawInset> = {
  *
  * Stays mounted whether or not it is drawing — unmounting would take the scene
  * with it, and the sync has to keep running while the map moves.
- * `excalidrawControl` flips the `excalidrawMode` channel; off means view mode
+ * `annotationControl` flips the `annotationMode` channel; off means view mode
  * and `pointer-events: none`.
  *
  * The map wrapper runs the full window, behind the app's own chrome, and
  * excalidraw pins its toolbar to the top of whatever box it gets. Hence the
  * insets, at the price of those strips not being drawable.
  */
-export const ExcalidrawOverlay = ({
+export const AnnotationOverlay = ({
   config,
   libreMap,
-}: AddonComponentProps<"excalidrawOverlay">) => {
+}: AddonComponentProps<"annotationOverlay">) => {
   const {
     zIndex = DEFAULT_Z_INDEX,
     toolbarSelector = DEFAULT_TOOLBAR_SELECTOR,
@@ -77,7 +77,7 @@ export const ExcalidrawOverlay = ({
   } = config ?? {};
   const { top, right, bottom, left } = { ...DEFAULT_INSET, ...inset };
 
-  const { isOn, shape, undoVersion, redoVersion } = useExcalidrawActions();
+  const { isOn, shape, undoVersion, redoVersion } = useAnnotationActions();
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
@@ -120,7 +120,7 @@ export const ExcalidrawOverlay = ({
   return createPortal(
     <div
       ref={setBox}
-      className="carma-excalidraw-overlay"
+      className="carma-annotation-overlay"
       data-drawing={drawing ? "true" : "false"}
       data-hide-menu={hideMenu ? "true" : "false"}
       data-hide-zoom={hideZoom ? "true" : "false"}

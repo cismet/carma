@@ -2,14 +2,14 @@ import { useEffect, useRef } from "react";
 
 import type { Layer } from "@carma-mapping/layers";
 
-import { useExcalidrawActions } from "./excalidraw-actions";
+import { useAnnotationActions } from "./annotation-actions";
 
-export const EXCALIDRAW_LAYER_ID = "__excalidraw__";
+export const ANNOTATION_LAYER_ID = "__annotation__";
 
-export const EXCALIDRAW_TOOLS_INTERACTION_ID = "excalidraw-tools";
+export const ANNOTATION_TOOLS_INTERACTION_ID = "annotation-tools";
 
-export const EXCALIDRAW_LAYER: Layer = {
-  id: EXCALIDRAW_LAYER_ID,
+export const ANNOTATION_LAYER: Layer = {
+  id: ANNOTATION_LAYER_ID,
   title: "Zeichnen",
   type: "object",
   icon: "drawing",
@@ -18,10 +18,10 @@ export const EXCALIDRAW_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
-  rowClickInteractionId: EXCALIDRAW_TOOLS_INTERACTION_ID,
+  rowClickInteractionId: ANNOTATION_TOOLS_INTERACTION_ID,
 };
 
-export type UseExcalidrawLayerRowOptions = {
+export type UseAnnotationLayerRowOptions = {
   /** whether the host already shows the row */
   hasRow: boolean;
   onAdd: (layer: Layer) => void;
@@ -34,12 +34,12 @@ export type UseExcalidrawLayerRowOptions = {
  * mode off takes the row and its panel with it, and closing the row with its ✕
  * ends the mode.
  */
-export const useExcalidrawLayerRow = ({
+export const useAnnotationLayerRow = ({
   hasRow,
   onAdd,
   onRemove,
-}: UseExcalidrawLayerRowOptions) => {
-  const { isOn, endMode } = useExcalidrawActions();
+}: UseAnnotationLayerRowOptions) => {
+  const { isOn, endMode } = useAnnotationActions();
 
   const onAddRef = useRef(onAdd);
   onAddRef.current = onAdd;
@@ -66,13 +66,13 @@ export const useExcalidrawLayerRow = ({
 
     if (isOn && requestedRef.current !== "add") {
       requestedRef.current = "add";
-      onAddRef.current(EXCALIDRAW_LAYER);
+      onAddRef.current(ANNOTATION_LAYER);
       return;
     }
 
     if (!isOn && requestedRef.current !== "remove") {
       requestedRef.current = "remove";
-      onRemoveRef.current(EXCALIDRAW_LAYER_ID);
+      onRemoveRef.current(ANNOTATION_LAYER_ID);
     }
   }, [endMode, hasRow, isOn]);
 };

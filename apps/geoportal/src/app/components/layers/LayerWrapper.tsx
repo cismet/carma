@@ -60,7 +60,7 @@ import InteractionView from "./InteractionView";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
-import { useExcalidrawLayerButton } from "../../hooks/useExcalidrawLayerButton";
+import { useAnnotationLayerButton } from "../../hooks/useAnnotationLayerButton";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
@@ -80,7 +80,7 @@ const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
   useDynamicStylingSync();
   useHighlightLayerButton();
-  useExcalidrawLayerButton();
+  useAnnotationLayerButton();
   useComparingLayerButton();
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();

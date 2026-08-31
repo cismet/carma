@@ -9,7 +9,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../../lib/registry";
-import { useExcalidrawActions } from "./excalidraw-actions";
+import { useAnnotationActions } from "./annotation-actions";
 
 /** geoportal's topleft column: measurement is 60, highlighting 70, terrain 80 */
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
@@ -19,14 +19,14 @@ const DEFAULT_CONTROL_ORDER = 90;
 const ACTIVE_COLOR = "#1677ff";
 
 /** the sketch layer's on/off button; separate so a route can drive the mode itself */
-export const ExcalidrawControl = ({
+export const AnnotationControl = ({
   config,
   libreMap,
-}: AddonComponentProps<"excalidrawControl">) => {
+}: AddonComponentProps<"annotationControl">) => {
   const { position = DEFAULT_CONTROL_POSITION, order = DEFAULT_CONTROL_ORDER } =
     config ?? {};
 
-  const { isOn, toggle } = useExcalidrawActions();
+  const { isOn, toggle } = useAnnotationActions();
 
   if (!libreMap) {
     return null;
@@ -38,7 +38,7 @@ export const ExcalidrawControl = ({
         title={isOn ? "Zeichnen ausschalten" : "Zeichnen einschalten"}
         placement="right"
       >
-        <ControlButtonStyler onClick={toggle} dataTestId="excalidraw-control">
+        <ControlButtonStyler onClick={toggle} dataTestId="annotation-control">
           <FontAwesomeIcon
             icon={faPencil}
             style={isOn ? { color: ACTIVE_COLOR } : undefined}
