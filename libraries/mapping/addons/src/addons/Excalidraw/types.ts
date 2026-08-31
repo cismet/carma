@@ -20,6 +20,8 @@ export type ExcalidrawOverlayConfig = {
   toolbarSelector?: string;
   /** added to the measured top bar, applied as given to the other edges */
   inset?: ExcalidrawInset;
+  background?: string;
+  backgroundOpacity?: number;
 };
 
 export type ExcalidrawControlConfig = {

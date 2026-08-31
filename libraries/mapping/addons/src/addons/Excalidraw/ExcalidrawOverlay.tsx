@@ -13,7 +13,6 @@ import { useMapSceneSync } from "./map-scene-sync";
 import type { ExcalidrawInset } from "./types";
 import "./excalidraw-overlay.css";
 
-/** ~1 MB, and the geoportal build already runs near node's default heap cap */
 const Excalidraw = lazy(() =>
   import("@excalidraw/excalidraw").then(({ Excalidraw }) => ({
     default: Excalidraw,
@@ -22,6 +21,19 @@ const Excalidraw = lazy(() =>
 
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
+const DEFAULT_BACKGROUND = "#fffce8";
+const DEFAULT_BACKGROUND_OPACITY = 0.5;
+
+const withAlpha = (color: string, opacity: number) => {
+  const alpha = Math.round(Math.min(Math.max(opacity, 0), 1) * 255);
+  if (alpha === 255) {
+    return color;
+  }
+  return /^#[0-9a-f]{6}$/i.test(color)
+    ? `${color}${alpha.toString(16).padStart(2, "0")}`
+    : color;
+};
+
 /** left: the control column; bottom: the gazetteer bar */
 const DEFAULT_INSET: Required<ExcalidrawInset> = {
   top: 0,
@@ -31,8 +43,8 @@ const DEFAULT_INSET: Required<ExcalidrawInset> = {
 };
 
 /**
- * A georeferenced sketch layer: excalidraw painted into the map wrapper with a
- * transparent background, pinned to the ground by `useMapSceneSync`.
+ * A georeferenced sketch layer: excalidraw painted into the map wrapper over
+ * the map, pinned to the ground by `useMapSceneSync`.
  *
  * Stays mounted whether or not it is drawing — unmounting would take the scene
  * with it, and the sync has to keep running while the map moves.
@@ -51,6 +63,8 @@ export const ExcalidrawOverlay = ({
     zIndex = DEFAULT_Z_INDEX,
     toolbarSelector = DEFAULT_TOOLBAR_SELECTOR,
     inset,
+    background = DEFAULT_BACKGROUND,
+    backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
   const { top, right, bottom, left } = { ...DEFAULT_INSET, ...inset };
 
@@ -97,7 +111,11 @@ export const ExcalidrawOverlay = ({
           excalidrawAPI={setApi}
           onChange={(_elements, appState: AppState) => onSceneChange(appState)}
           viewModeEnabled={!drawing}
-          initialData={{ appState: { viewBackgroundColor: "transparent" } }}
+          initialData={{
+            appState: {
+              viewBackgroundColor: withAlpha(background, backgroundOpacity),
+            },
+          }}
         />
       </Suspense>
     </div>,
