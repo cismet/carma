@@ -26,6 +26,8 @@ export const createTilesCameraSet = (
 ): TilesCameraSet => {
   let activeCamera = initialCamera;
   let shadowCamera: TilesCamera | null = null;
+  let viewWidth = 1;
+  let viewHeight = 1;
 
   tiles.setCamera(activeCamera);
 
@@ -35,7 +37,15 @@ export const createTilesCameraSet = (
       activeCamera = camera;
       tiles.setCamera(activeCamera);
     }
-    tiles.setResolution(activeCamera, Math.max(1, width), Math.max(1, height));
+    viewWidth = Math.max(1, width);
+    viewHeight = Math.max(1, height);
+    tiles.setResolution(activeCamera, viewWidth, viewHeight);
+    if (shadowCamera) {
+      // The shadow camera expands selection to off-screen casters. Its render
+      // target can be much larger than the display, but using that 16K buffer
+      // as an LOD viewport would refine the mesh far beyond visible quality.
+      tiles.setResolution(shadowCamera, viewWidth, viewHeight);
+    }
   };
 
   const setShadowView = (view: SharedThreeSceneShadowView | null) => {
@@ -48,11 +58,7 @@ export const createTilesCameraSet = (
       if (shadowCamera) tiles.setCamera(shadowCamera);
     }
     if (shadowCamera && view) {
-      tiles.setResolution(
-        shadowCamera,
-        Math.max(1, Math.floor(view.shadowMapSize.width)),
-        Math.max(1, Math.floor(view.shadowMapSize.height))
-      );
+      tiles.setResolution(shadowCamera, viewWidth, viewHeight);
     }
   };
 

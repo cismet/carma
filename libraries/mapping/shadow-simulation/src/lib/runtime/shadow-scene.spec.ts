@@ -97,6 +97,7 @@ describe("shadow scene lighting integration", () => {
   type SharedRuntimeFixture = {
     id: string;
     root: THREE.Object3D;
+    providesTerrain?: boolean;
     updatePriority?: number;
     update?: (frame: unknown) => void;
     dispose: () => void;
@@ -498,8 +499,13 @@ describe("shadow scene lighting integration", () => {
 
   it("restyles registered building tiles only while shadow mode is active", () => {
     const setShadowSimulationStyle = vi.fn();
+    const setErrorTarget = vi.fn();
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
-      { setShadowSimulationStyle } as never,
+      {
+        providesTerrain: true,
+        setErrorTarget,
+        setShadowSimulationStyle,
+      } as never,
     ]);
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
@@ -515,7 +521,12 @@ describe("shadow scene lighting integration", () => {
     expect(setShadowSimulationStyle).toHaveBeenLastCalledWith({
       fullOpacity: true,
       uniformColor: null,
+      uniformColorMix: 0,
     });
+    expect(setErrorTarget).toHaveBeenLastCalledWith(1);
+
+    controller.updateMeshErrorTarget(0.25);
+    expect(setErrorTarget).toHaveBeenLastCalledWith(0.25);
 
     controller.updateBuildingAppearance({
       fullOpacity: true,
@@ -1088,5 +1099,106 @@ describe("shadow scene lighting integration", () => {
     expect(map.removeLayer).toHaveBeenCalledWith(
       "__shadow-simulation-background"
     );
+  });
+
+  it("replaces shadow terrain while a Mesh tiles runtime provides terrain", async () => {
+    vi.stubGlobal("window", { clearTimeout, setTimeout });
+    const restoreTerrain = vi.fn();
+    vi.mocked(suppressMapLibreTerrainRendering).mockReturnValue(restoreTerrain);
+    const makeTerrainRuntime = () => ({
+      id: "shadow-simulation-cesium-terrain",
+      originLngLat: [7.15, 51.256] as [number, number],
+      root: new THREE.Group(),
+      ready: Promise.resolve(true),
+      update: vi.fn(),
+      setShadowView: vi.fn(),
+      setMaterialColor: vi.fn(),
+      getElevation: vi.fn(() => 150),
+      dispose: vi.fn(),
+    });
+    const initialTerrain = makeTerrainRuntime();
+    const restoredTerrain = makeTerrainRuntime();
+    vi.mocked(buildCesiumTerrainRuntime)
+      .mockReturnValueOnce(initialTerrain)
+      .mockReturnValueOnce(restoredTerrain);
+    let contentChanged = () => undefined;
+    vi.mocked(subscribeSharedThreeSceneContent).mockImplementation(
+      (_map, listener) => {
+        contentChanged = listener;
+        return vi.fn();
+      }
+    );
+    const activeContentRuntimes: SharedRuntimeFixture[] = [];
+    vi.mocked(getSharedThreeSceneRuntimes).mockImplementation(
+      () => activeContentRuntimes as never
+    );
+    let backgroundLayerPresent = false;
+    const backgroundPaint = new Map<string, unknown>();
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: 7.15 + (x / 800 - 0.5) * 0.02,
+        lat: 51.256 + (0.5 - y / 600) * 0.02,
+      })),
+      getLayer: vi.fn(() =>
+        backgroundLayerPresent
+          ? { id: "__shadow-simulation-background", type: "background" }
+          : undefined
+      ),
+      getStyle: vi.fn(() => ({ layers: [{ id: "amtlich" }] })),
+      addLayer: vi.fn((layer: { paint?: Record<string, unknown> }) => {
+        backgroundLayerPresent = true;
+        for (const [property, value] of Object.entries(layer.paint ?? {})) {
+          backgroundPaint.set(property, value);
+        }
+      }),
+      removeLayer: vi.fn(() => {
+        backgroundLayerPresent = false;
+      }),
+      getPaintProperty: vi.fn((_layerId: string, property: string) =>
+        backgroundPaint.get(property)
+      ),
+      setPaintProperty: vi.fn(
+        (_layerId: string, property: string, value: unknown) => {
+          backgroundPaint.set(property, value);
+        }
+      ),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+
+    const controller = buildShadowSimulationScene(map as never, {
+      terrain: { url: "https://example.test/terrain" },
+    });
+    await initialTerrain.ready;
+    expect(sharedRuntimes.has(initialTerrain.id)).toBe(true);
+
+    activeContentRuntimes.push({
+      id: "mesh2024",
+      root: new THREE.Group(),
+      providesTerrain: true,
+      dispose: vi.fn(),
+    });
+    contentChanged();
+
+    expect(sharedRuntimes.has(initialTerrain.id)).toBe(false);
+    expect(initialTerrain.dispose).toHaveBeenCalledOnce();
+
+    activeContentRuntimes.length = 0;
+    contentChanged();
+    await restoredTerrain.ready;
+
+    expect(buildCesiumTerrainRuntime).toHaveBeenCalledTimes(2);
+    expect(sharedRuntimes.get(restoredTerrain.id)).toBe(restoredTerrain);
+    expect(restoredTerrain.setMaterialColor).toHaveBeenCalled();
+    expect(restoreTerrain).toHaveBeenCalledOnce();
+
+    controller.dispose();
+    vi.unstubAllGlobals();
   });
 });

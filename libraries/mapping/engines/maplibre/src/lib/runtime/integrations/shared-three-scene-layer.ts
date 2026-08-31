@@ -42,6 +42,8 @@ export interface SharedThreeSceneRuntime {
   id: string;
   originLngLat: [number, number];
   root: THREE.Object3D;
+  /** This runtime already supplies the visible ground surface. */
+  providesTerrain?: boolean;
   updatePriority?: number;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;
@@ -49,6 +51,8 @@ export interface SharedThreeSceneRuntime {
     style: SharedThreeSceneShadowStyle | null
   ) => void;
   setShadowView?: (view: SharedThreeSceneShadowView | null) => void;
+  /** Requested screen-space error in pixels; lower loads finer tiles. */
+  setErrorTarget?: (errorTarget: number) => void;
   /** World-space elevation span of loaded content intersecting this camera. */
   getViewElevationRange?: (
     camera: THREE.Camera
@@ -82,6 +86,8 @@ export const getSharedThreeShadowViewSignature = (
 export type SharedThreeSceneShadowStyle = Readonly<{
   fullOpacity: boolean;
   uniformColor: string | null;
+  /** 0 keeps the source texture, 1 shows only uniformColor. */
+  uniformColorMix?: number;
 }>;
 
 export type SharedSceneAccumulationController = {

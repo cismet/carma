@@ -12,7 +12,7 @@ type ShadowStateFixture = {
   selection: { year: number; dayOfYear: number; minutes: number };
   terrainColor: string;
   buildingsFullOpacity: boolean;
-  useUniformBuildingColor: boolean;
+  buildingColorMix: number;
   buildingColor: string;
   shadowQuality: 4 | 16 | 64;
   showSunDebugVector: boolean;
@@ -68,7 +68,7 @@ const createShadowState = (
   selection: { year: 2026, dayOfYear: 172, minutes: 900 },
   terrainColor: "#d8d1c4",
   buildingsFullOpacity: true,
-  useUniformBuildingColor: true,
+  buildingColorMix: 0,
   buildingColor: "#d8d1c4",
   shadowQuality: 4,
   showSunDebugVector: false,
