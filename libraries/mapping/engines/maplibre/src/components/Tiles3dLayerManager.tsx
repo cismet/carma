@@ -27,6 +27,20 @@ export interface Tiles3dConfig {
   /** 0 to 1. */
   opacity?: number;
   /**
+   * Decoded bytes the tileset may hold before the renderer starts evicting.
+   * Left out, the layer's own default applies.
+   */
+  cacheBudgetBytes?: number;
+  /**
+   * Decoded bytes the cache may run past that budget before downloading is
+   * refused. A tileset whose close views need more than the budget, a city
+   * mesh for instance, raises this rather than the budget: eviction still
+   * works off the budget, and only the headroom decides whether such a view
+   * can finish. JSON cannot write `Infinity`, so a number large enough never
+   * to be reached is how unbounded is asked for.
+   */
+  cacheOverflowBytes?: number;
+  /**
    * Draw the edges the tileset marks with `CESIUM_primitive_outline`. Defaults
    * to on, matching what Cesium does with the same tileset.
    */
@@ -98,6 +112,8 @@ export function Tiles3dLayerManager({
         layerRef.current ??
         buildTiles3dLayer(layerId, config.tilesetUrl, origin, {
           errorTarget: config.errorTarget,
+          cacheBudgetBytes: config.cacheBudgetBytes,
+          cacheOverflowBytes: config.cacheOverflowBytes,
           opacity: (config.opacity ?? 1) * (layerOpacityRef.current ?? 1),
           outline: config.outline,
           outlineColor: config.outlineColor,

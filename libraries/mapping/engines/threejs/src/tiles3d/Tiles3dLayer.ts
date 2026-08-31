@@ -52,18 +52,24 @@ const DEFAULT_CACHE_BYTES = 2048 * 1024 ** 2;
 
 /**
  * How far the cache may run past its budget before downloading is refused.
- * Unbounded by default, which means it never refuses.
  *
- * Eviction only releases tiles that went unused for a frame, so it can reclaim
- * what a camera move left behind but cannot shrink the view being looked at. A
- * close view of a city mesh needs more tiles than any budget worth setting,
- * every one of them used every frame, so a finite ceiling there does not trade
- * memory for quality: `queueTileForDownload` returns early whenever the cache
- * reports itself full, the finest level is never queued, and the view sits at a
- * coarse level reporting nothing left to load. Memory stays bounded by eviction
- * once tiles leave the view, and past that by the machine.
+ * The budget alone cannot be the answer. Eviction only releases tiles that went
+ * unused for a frame, so it reclaims what a camera move left behind but cannot
+ * shrink the view being looked at. Where a single view needs more than the
+ * budget, and a close view of a city mesh does, every tile in it is used every
+ * frame: `queueTileForDownload` returns early whenever the cache reports itself
+ * full, the finest level is never queued, and the view sits at a coarse level
+ * reporting nothing left to load. Headroom above the budget is what lets such a
+ * view finish.
+ *
+ * Finite, though, because this is what every tileset gets. Unbounded headroom
+ * would leave `maxSize`, 8000 tiles, as the only hard limit, and at a few
+ * megabytes of decoded texture per tile that is not a limit a machine survives.
+ * A tileset that genuinely wants more says so in its style; JSON cannot write
+ * `Infinity`, so a number large enough never to be reached is how that is
+ * asked for.
  */
-const DEFAULT_CACHE_OVERFLOW_BYTES = Number.POSITIVE_INFINITY;
+const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 /** What the cache keeps after an eviction pass, as a share of the budget. */
 const CACHE_RETAIN_FRACTION = 0.75;
