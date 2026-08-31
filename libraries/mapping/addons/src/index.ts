@@ -88,11 +88,19 @@ export {
 } from "./addons/CameraRestriction";
 export {
   ExcalidrawControl,
+  ExcalidrawInteractionPanel,
   ExcalidrawOverlay,
+  ExcalidrawShapeToolbar,
+  EXCALIDRAW_LAYER,
+  EXCALIDRAW_LAYER_ID,
+  EXCALIDRAW_TOOLS_INTERACTION_ID,
+  useExcalidrawLayerRow,
   useExcalidrawActions,
   type ExcalidrawControlConfig,
   type ExcalidrawOverlayConfig,
+  type ExcalidrawShape,
   type ExcalidrawState,
+  type UseExcalidrawLayerRowOptions,
 } from "./addons/Excalidraw";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";

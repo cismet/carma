@@ -67,7 +67,6 @@ export const addonsFachzwilling: FachzwillingRoute = {
         hideLibrary: true,
         hideHistory: true,
         hideWhenOff: true,
-        shapeTools: true,
       },
     },
     { kind: "excalidrawControl" },

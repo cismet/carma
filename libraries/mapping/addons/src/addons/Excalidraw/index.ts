@@ -1,6 +1,14 @@
 export { ExcalidrawOverlay } from "./ExcalidrawOverlay";
 export { ExcalidrawControl } from "./ExcalidrawControl";
 export { ExcalidrawShapeToolbar } from "./ExcalidrawShapeToolbar";
+export { ExcalidrawInteractionPanel } from "./ExcalidrawInteractionPanel";
+export {
+  EXCALIDRAW_LAYER,
+  EXCALIDRAW_LAYER_ID,
+  EXCALIDRAW_TOOLS_INTERACTION_ID,
+  useExcalidrawLayerRow,
+} from "./excalidraw-layer-row";
+export type { UseExcalidrawLayerRowOptions } from "./excalidraw-layer-row";
 export {
   DEFAULT_SHAPES,
   SHAPE_ICONS,

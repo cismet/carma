@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
   AppState,
@@ -11,12 +11,6 @@ import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { useExcalidrawActions } from "./excalidraw-actions";
 import { useMapSceneSync } from "./map-scene-sync";
 import { redoScene, undoScene } from "./excalidraw-history";
-import { ExcalidrawShapeToolbar } from "./ExcalidrawShapeToolbar";
-import {
-  DEFAULT_SHAPES,
-  isExcalidrawShape,
-  type ExcalidrawShape,
-} from "./shape-tools";
 import type { ExcalidrawInset } from "./types";
 import "./excalidraw-overlay.css";
 
@@ -29,7 +23,6 @@ const Excalidraw = lazy(() =>
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
 const DEFAULT_LANG_CODE = "de-DE";
-const SHAPE_TOOLBAR_TOP = 56;
 const DEFAULT_BACKGROUND = "#fffce8";
 const DEFAULT_BACKGROUND_OPACITY = 0.5;
 
@@ -79,22 +72,39 @@ export const ExcalidrawOverlay = ({
     hideLibrary = false,
     hideHistory = false,
     hideWhenOff = false,
-    shapeTools = false,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
   const { top, right, bottom, left } = { ...DEFAULT_INSET, ...inset };
 
-  const { isOn } = useExcalidrawActions();
+  const { isOn, shape, undoVersion, redoVersion } = useExcalidrawActions();
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
-  const [shape, setShape] = useState<ExcalidrawShape | null>(null);
   // flush to the host would file the toolbar away behind the navbar. Measured,
   // because zen mode takes the bar away while the addon runs
   const navbarInset = useToolbarInset(host, toolbarSelector, true);
   const { inSync, onSceneChange } = useMapSceneSync(libreMap, api, box);
+
+  useEffect(() => {
+    if (api && shape) {
+      api.setActiveTool({ type: shape, locked: true });
+    }
+  }, [api, shape]);
+
+  const historyRef = useRef({ undoVersion, redoVersion });
+  useEffect(() => {
+    const previous = historyRef.current;
+    historyRef.current = { undoVersion, redoVersion };
+    const container = box?.querySelector<HTMLElement>(".excalidraw") ?? null;
+    if (undoVersion > previous.undoVersion) {
+      undoScene(container);
+    }
+    if (redoVersion > previous.redoVersion) {
+      redoScene(container);
+    }
+  }, [box, redoVersion, undoVersion]);
 
   const nextHost = libreMap ? stageHostOf(libreMap) : null;
   if (nextHost !== host) {
@@ -133,11 +143,7 @@ export const ExcalidrawOverlay = ({
       <Suspense fallback={null}>
         <Excalidraw
           excalidrawAPI={setApi}
-          onChange={(_elements, appState: AppState) => {
-            onSceneChange(appState);
-            const { type } = appState.activeTool;
-            setShape(isExcalidrawShape(type) ? type : null);
-          }}
+          onChange={(_elements, appState: AppState) => onSceneChange(appState)}
           langCode={langCode}
           viewModeEnabled={!drawing}
           initialData={{
@@ -147,36 +153,6 @@ export const ExcalidrawOverlay = ({
           }}
         />
       </Suspense>
-      {shapeTools && drawing && (
-        <div
-          style={{
-            position: "absolute",
-            top: SHAPE_TOOLBAR_TOP,
-            left: 0,
-            right: 0,
-            display: "flex",
-            justifyContent: "center",
-            pointerEvents: "none",
-            zIndex: 5,
-          }}
-        >
-          <div style={{ pointerEvents: "auto" }}>
-            <ExcalidrawShapeToolbar
-              shapes={DEFAULT_SHAPES}
-              shape={shape}
-              onShapeChange={(next) =>
-                api?.setActiveTool({ type: next, locked: true })
-              }
-              onUndo={() =>
-                undoScene(box?.querySelector(".excalidraw") ?? null)
-              }
-              onRedo={() =>
-                redoScene(box?.querySelector(".excalidraw") ?? null)
-              }
-            />
-          </div>
-        </div>
-      )}
     </div>,
     host
   );
