@@ -18,6 +18,10 @@ import {
   FlowFieldTuningInteractionPanel,
   FLOW_FIELD_TUNING_INTERACTION_ID,
 } from "../addons/FlowField";
+import {
+  ExcalidrawInteractionPanel,
+  EXCALIDRAW_TOOLS_INTERACTION_ID,
+} from "../addons/Excalidraw";
 
 /**
  * Panels addons contribute to the host's interaction view, keyed by the id of
@@ -33,4 +37,5 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   [FLOOD_TOOLS_INTERACTION_ID]: FloodInteractionPanel,
   // the row only offers the button that opens this under `?ff=admin`
   [FLOW_FIELD_TUNING_INTERACTION_ID]: FlowFieldTuningInteractionPanel,
+  [EXCALIDRAW_TOOLS_INTERACTION_ID]: ExcalidrawInteractionPanel,
 };

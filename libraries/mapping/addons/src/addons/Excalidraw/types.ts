@@ -1,8 +1,13 @@
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
+import type { ExcalidrawShape } from "./shape-tools";
+
 /** the `excalidrawMode` channel: whether the sketch layer owns the pointer */
 export type ExcalidrawState = {
   isOn: boolean;
+  shape?: ExcalidrawShape;
+  undoVersion?: number;
+  redoVersion?: number;
 };
 
 /** how far the overlay keeps clear of each edge of the map area, in px */
