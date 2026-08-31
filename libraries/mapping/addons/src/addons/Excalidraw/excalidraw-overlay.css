@@ -9,9 +9,17 @@
 }
 
 .carma-excalidraw-overlay .App-menu_top__left {
-  transform: translateX(56px);
+  translate: 56px 0;
 }
 
 .carma-excalidraw-overlay .layer-ui__wrapper__footer-left {
-  transform: translate(56px, -52px);
+  translate: 56px -52px;
+}
+
+.carma-excalidraw-overlay[data-hide-menu="true"] .App-menu_top__left {
+  visibility: hidden;
+}
+
+.carma-excalidraw-overlay[data-hide-zoom="true"] .zoom-actions {
+  display: none;
 }
