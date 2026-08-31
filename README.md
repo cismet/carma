@@ -37,6 +37,61 @@ Welcome to carma, a monolithic repository (monorepo) powered by Nx, designed to 
 
 to refresh the repo and update the public submodules
 
+## Deployment and Operation
+
+Every application in this repository builds to plain static files. There is no server-side rendering and no application server. Any web server that can serve a directory will do, including nginx, Apache or a static hosting service. The GitHub Actions workflows in `.github/workflows/` and `deployment-config.json` are how cismet deploys to GitHub Pages; they are convenience, not a requirement, and nothing in the build depends on them.
+
+### Building an application
+
+Build one application at a time. The project name is the key in the app's `project.json`:
+
+```bash
+npx nx run geoportal:build --configuration=production
+```
+
+The result lands in `dist/apps/<app>`, for example `dist/apps/geoportal`. Copy that directory to your web server and you are done.
+
+If the application is served from a subdirectory rather than the root of a domain, pass the path through to Vite:
+
+```bash
+npx nx run geoportal:build --configuration=production --base=/geoportal/
+```
+
+### Serving the files
+
+Almost all applications use hash-based routing, so the web server never sees the in-app route and needs no rewrite rules. A minimal nginx server block is enough:
+
+```nginx
+server {
+    listen 80;
+    server_name maps.example.de;
+    root /var/www/geoportal;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+The `try_files` fallback matters only for `belis/online`, which is the one application using browser-based routing. For the others it is harmless.
+
+Serve over HTTPS. Several applications request the browser geolocation API, which modern browsers only grant on a secure origin.
+
+### Backend services
+
+An instance needs more than the static files. The applications are clients for services that are operated separately:
+
+- a cids/WuNDa server for the object and query interface (DAQ) used by the domain applications
+- gazetteer data for the search
+- WMS and WFS services for the map layers, usually operated by the municipality
+- a tile server for vector and raster tiles, and rasterfari for the raster maps, see `services/`
+- authentication against the cids server for the non-public applications
+
+Which of these a given application needs depends on the application. The public topic maps get by with map services and gazetteer data; belis, lagis, verdis and wunda additionally need the cids backend and a login. The endpoints are configured per application in its source; there is no single runtime configuration file that can be edited after the build.
+
+Without those services an instance builds and loads, but stays empty. Running carma outside of Wuppertal therefore means either connecting it to comparable services of your own or replacing the layer and data configuration of the applications you want to use.
+
 ## Development Guidelines
 
 ### Dev Environment:
