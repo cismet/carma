@@ -57,7 +57,15 @@ export const addonsFachzwilling: FachzwillingRoute = {
     { addon: "vectorHighlightControl" },
     // sketch layer over the map; screen-fixed, the drawing does not follow the
     // camera. The control switches who gets the pointer.
-    { addon: "excalidrawOverlay", config: { hideMenu: true, hideZoom: true } },
+    {
+      addon: "excalidrawOverlay",
+      config: {
+        hideMenu: true,
+        hideZoom: true,
+        hideTools: true,
+        shapeTools: true,
+      },
+    },
     { addon: "excalidrawControl" },
     {
       addon: "libreTerrain",
