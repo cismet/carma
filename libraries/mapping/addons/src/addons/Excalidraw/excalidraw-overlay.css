@@ -16,8 +16,8 @@
   translate: 56px -52px;
 }
 
-.carma-excalidraw-overlay[data-hide-menu="true"] .App-menu_top__left {
-  visibility: hidden;
+.carma-excalidraw-overlay[data-hide-menu="true"] .main-menu-trigger {
+  display: none;
 }
 
 .carma-excalidraw-overlay[data-hide-zoom="true"] .zoom-actions {
