@@ -23,3 +23,8 @@
 .carma-excalidraw-overlay[data-hide-zoom="true"] .zoom-actions {
   display: none;
 }
+
+.carma-excalidraw-overlay[data-hide-tools="true"] .shapes-section,
+.carma-excalidraw-overlay[data-hide-tools="true"] .HintViewer {
+  visibility: hidden;
+}
