@@ -62,6 +62,8 @@ export const ExcalidrawOverlay = ({
     zIndex = DEFAULT_Z_INDEX,
     toolbarSelector = DEFAULT_TOOLBAR_SELECTOR,
     inset,
+    hideMenu = false,
+    hideZoom = false,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
@@ -93,6 +95,8 @@ export const ExcalidrawOverlay = ({
       ref={setBox}
       className="carma-excalidraw-overlay"
       data-drawing={drawing ? "true" : "false"}
+      data-hide-menu={hideMenu ? "true" : "false"}
+      data-hide-zoom={hideZoom ? "true" : "false"}
       style={{
         position: "absolute",
         top: navbarInset + top,
