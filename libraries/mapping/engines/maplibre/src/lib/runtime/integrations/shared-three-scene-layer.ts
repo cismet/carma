@@ -11,6 +11,7 @@ import { quantize } from "@carma-commons/math";
 import { getSharedThreeTerrainElevation } from "./shared-three-terrain-registry";
 import {
   buildSharedSceneAccumulator,
+  fitRenderTargetSizeToPixelBudget,
   type SharedSceneAccumulator,
 } from "./shared-scene-accumulator";
 
@@ -94,7 +95,11 @@ export type SharedSceneAccumulationController = {
   retainSettledFrame: () => boolean;
   /** Re-aim the scene's lights for the given accumulation round. */
   prepareRound: (round: number) => void;
+  /** Restore the non-jittered scene state before drawing the visible frame. */
+  finishRound?: () => void;
   rounds: number;
+  /** Maximum offscreen pixels used by each accumulation target. */
+  maxRenderTargetPixels?: number;
 };
 
 export interface SharedThreeSceneLayer extends CustomLayerInterface {
@@ -262,6 +267,7 @@ export const buildSharedThreeSceneLayer = (
   let accumulatorRounds = 0;
   let settledAccumulatorVisualKey = "";
   const jitterMatrix = new THREE.Matrix4();
+  const unjitteredProjectionMatrix = new THREE.Matrix4();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
@@ -474,6 +480,11 @@ export const buildSharedThreeSceneLayer = (
         const drawingBuffer = renderer.getDrawingBufferSize(
           new THREE.Vector2()
         );
+        const accumulationSize = fitRenderTargetSizeToPixelBudget(
+          drawingBuffer.x,
+          drawingBuffer.y,
+          accumulation.maxRenderTargetPixels ?? Number.POSITIVE_INFINITY
+        );
         if (!accumulator.converged) {
           const round = accumulator.nextRound;
           accumulation.prepareRound(round);
@@ -482,20 +493,32 @@ export const buildSharedThreeSceneLayer = (
           // antialiasing the offscreen target lacks.
           const jitter = accumulator.jitterFor(round);
           jitterMatrix.makeTranslation(
-            (jitter.x * 2) / drawingBuffer.x,
-            (jitter.y * 2) / drawingBuffer.y,
+            (jitter.x * 2) / accumulationSize.width,
+            (jitter.y * 2) / accumulationSize.height,
             0
           );
           const activeRenderer = renderer;
+          unjitteredProjectionMatrix.copy(renderCamera.projectionMatrix);
           renderCamera.projectionMatrix.premultiply(jitterMatrix);
-          depthRangeBridge?.render(savedDepthRange, () => {
-            accumulator?.renderRound(
-              activeRenderer,
-              drawingBuffer.x,
-              drawingBuffer.y,
-              () => activeRenderer.render(scene, renderCamera)
-            );
-          });
+          renderCamera.projectionMatrixInverse
+            .copy(renderCamera.projectionMatrix)
+            .invert();
+          try {
+            depthRangeBridge?.render(savedDepthRange, () => {
+              accumulator?.renderRound(
+                activeRenderer,
+                accumulationSize.width,
+                accumulationSize.height,
+                () => activeRenderer.render(scene, renderCamera)
+              );
+            });
+          } finally {
+            renderCamera.projectionMatrix.copy(unjitteredProjectionMatrix);
+            renderCamera.projectionMatrixInverse
+              .copy(unjitteredProjectionMatrix)
+              .invert();
+            accumulation.finishRound?.();
+          }
           if (accumulator.converged) {
             settledAccumulatorVisualKey = visualKey;
           }

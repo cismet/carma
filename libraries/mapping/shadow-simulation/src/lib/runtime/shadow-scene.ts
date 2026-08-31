@@ -35,6 +35,7 @@ import {
   type AtmosphericSunlightOptions,
 } from "./atmospheric-sunlight";
 import { ShadowController } from "./shadow-controller";
+import { resolveShadowResourceLimits } from "./shadow-resource-limits";
 import {
   clearShadowProjectionDebugSnapshot,
   hasShadowProjectionDebugListeners,
@@ -979,6 +980,7 @@ export const buildShadowSimulationScene = (
   let coverageNeedsCameraReevaluation = true;
   let fallbackReceiverWorldPoints: THREE.Vector3[] = [];
   let renderCameraSignature = "";
+  let maxAccumulationPixels = Number.POSITIVE_INFINITY;
   sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
   const updateSharedShadowCoverage = (reevaluateSun = true) => {
@@ -1149,9 +1151,13 @@ export const buildShadowSimulationScene = (
       }
       const rendererCaps = sceneLease.layer.getRenderer?.()?.capabilities;
       if (rendererCaps?.maxTextureSize) {
-        sharedBinding.controller.setMaxShadowMapSize(
+        const resourceLimits = resolveShadowResourceLimits(
           rendererCaps.maxTextureSize
         );
+        sharedBinding.controller.setMaxShadowMapSize(
+          resourceLimits.maxShadowMapSize
+        );
+        maxAccumulationPixels = resourceLimits.maxAccumulationPixels;
       }
       const snapshot = sharedBinding.controller.update({
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
@@ -1249,6 +1255,9 @@ export const buildShadowSimulationScene = (
       (runtime) => (runtime.getRequestDemand?.() ?? 0) === 0
     );
   const accumulationController = {
+    get maxRenderTargetPixels() {
+      return maxAccumulationPixels;
+    },
     get rounds() {
       return getSunDiscAccumulationRounds();
     },
@@ -1277,6 +1286,7 @@ export const buildShadowSimulationScene = (
         getSunDiscAccumulationRounds()
       );
     },
+    finishRound: () => sharedBinding.controller.restoreSunDiscCenter(),
   };
   sceneLease.layer.setAccumulationController?.(accumulationController);
   const refreshSharedShadowCoverage = () => {

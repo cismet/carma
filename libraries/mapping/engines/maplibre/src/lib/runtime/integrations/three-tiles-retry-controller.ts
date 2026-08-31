@@ -33,12 +33,15 @@ const getTileRetryKey = (
   tile: Tile | null,
   url?: string | URL | null
 ): string | null => {
-  if (!tile?.content?.uri) return url ? String(url) : null;
+  const resourceUrl = url ? String(url) : tile?.content?.uri;
+  if (!resourceUrl) return null;
 
   try {
-    return new URL(tile.content.uri, `${tile.internal.basePath}/`).toString();
+    return tile
+      ? new URL(resourceUrl, `${tile.internal.basePath}/`).toString()
+      : new URL(resourceUrl).toString();
   } catch {
-    return `${tile.internal.basePath}/${tile.content.uri}`;
+    return resourceUrl;
   }
 };
 
@@ -61,6 +64,7 @@ export const createThreeTilesRetryController = (
   const handleFailure = (tile: Tile | null, url?: string | URL | null) => {
     const key = getTileRetryKey(tile, url);
     if (!key) return;
+    if (exhaustedRetries.has(key)) return;
 
     const pending = pendingRetries.get(key);
     if (pending) {

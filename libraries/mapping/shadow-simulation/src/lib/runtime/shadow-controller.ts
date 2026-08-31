@@ -181,6 +181,20 @@ export class ShadowController {
     light.shadow.needsUpdate = true;
   }
 
+  restoreSunDiscCenter(): void {
+    if (this.disposed || !this.lastSoftFit) return;
+    const fit = this.lastSoftFit;
+    const light = this.lights[0];
+    light.position
+      .copy(fit.directionToSun)
+      .multiplyScalar(fit.lightDistance)
+      .add(fit.anchorPosition);
+    light.updateMatrixWorld(true);
+    light.target.updateMatrixWorld(true);
+    light.shadow.updateMatrices(light);
+    light.shadow.needsUpdate = true;
+  }
+
   invalidate(): void {
     this.lights[0].shadow.needsUpdate = true;
   }

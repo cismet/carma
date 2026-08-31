@@ -100,10 +100,33 @@ export type SharedSceneAccumulator = {
   dispose: () => void;
 };
 
+export const fitRenderTargetSizeToPixelBudget = (
+  width: number,
+  height: number,
+  maxPixels: number
+): Readonly<{ width: number; height: number }> => {
+  const requestedWidth = Math.max(1, Math.floor(width));
+  const requestedHeight = Math.max(1, Math.floor(height));
+  if (
+    !Number.isFinite(maxPixels) ||
+    requestedWidth * requestedHeight <= maxPixels
+  ) {
+    return { width: requestedWidth, height: requestedHeight };
+  }
+  const scale = Math.sqrt(
+    Math.max(1, Math.floor(maxPixels)) / (requestedWidth * requestedHeight)
+  );
+  return {
+    width: Math.max(1, Math.floor(requestedWidth * scale)),
+    height: Math.max(1, Math.floor(requestedHeight * scale)),
+  };
+};
+
 export const buildSharedSceneAccumulator = (
   rounds: number
 ): SharedSceneAccumulator => {
   let sceneTarget: WebGLRenderTarget | null = null;
+  let settledSceneTarget: WebGLRenderTarget | null = null;
   let accumRead: WebGLRenderTarget | null = null;
   let accumWrite: WebGLRenderTarget | null = null;
   let settledAccum: WebGLRenderTarget | null = null;
@@ -152,10 +175,13 @@ export const buildSharedSceneAccumulator = (
   const disposeTargets = () => {
     sceneTarget?.depthTexture?.dispose();
     sceneTarget?.dispose();
+    settledSceneTarget?.depthTexture?.dispose();
+    settledSceneTarget?.dispose();
     accumRead?.dispose();
     accumWrite?.dispose();
     settledAccum?.dispose();
     sceneTarget = null;
+    settledSceneTarget = null;
     accumRead = null;
     accumWrite = null;
     settledAccum = null;
@@ -167,12 +193,14 @@ export const buildSharedSceneAccumulator = (
     disposeTargets();
     width = nextWidth;
     height = nextHeight;
-    const depthTexture = new DepthTexture(width, height);
-    sceneTarget = new WebGLRenderTarget(width, height, {
-      depthBuffer: true,
-      depthTexture,
-      samples: 0,
-    });
+    const buildSceneTarget = () =>
+      new WebGLRenderTarget(width, height, {
+        depthBuffer: true,
+        depthTexture: new DepthTexture(width, height),
+        samples: 0,
+      });
+    sceneTarget = buildSceneTarget();
+    settledSceneTarget = buildSceneTarget();
     const accumOptions = {
       type: HalfFloatType,
       minFilter: LinearFilter,
@@ -207,77 +235,94 @@ export const buildSharedSceneAccumulator = (
       return new Vector2(halton(index, 2), halton(index, 3));
     },
     renderRound(renderer, nextWidth, nextHeight, renderScene) {
-      ensureTargets(nextWidth, nextHeight);
-      if (!sceneTarget || !accumRead || !accumWrite) return;
       const previousTarget = renderer.getRenderTarget();
-      renderer.setRenderTarget(sceneTarget);
-      renderer.setClearColor(0x000000, 0);
-      renderer.clear(true, true, false);
-      renderScene();
-      renderer.setRenderTarget(accumWrite);
-      fullscreenMesh.material = blendMaterial;
-      blendMaterial.uniforms.tPrevious.value = accumRead.texture;
-      blendMaterial.uniforms.tRound.value = sceneTarget.texture;
-      blendMaterial.uniforms.uRoundWeight.value = 1 / (round + 1);
-      renderer.render(fullscreenScene, fullscreenCamera);
-      renderer.setRenderTarget(previousTarget);
-      // Fall back to direct rendering if the first blend pass produces no data.
-      if (!selfChecked && round === 0) {
-        selfChecked = true;
-        const scenePixel = new Uint8Array(4);
-        renderer.readRenderTargetPixels(
-          sceneTarget,
-          Math.floor(width / 2),
-          Math.floor(height / 2),
-          1,
-          1,
-          scenePixel
-        );
-        const accumPixel = new Uint16Array(4);
-        renderer.readRenderTargetPixels(
-          accumWrite,
-          Math.floor(width / 2),
-          Math.floor(height / 2),
-          1,
-          1,
-          accumPixel
-        );
-        if (
-          scenePixel[3] > 0 &&
-          accumPixel[0] === 0 &&
-          accumPixel[1] === 0 &&
-          accumPixel[2] === 0 &&
-          accumPixel[3] === 0
-        ) {
-          broken = true;
-          console.error(
-            "[shadow-simulation] accumulation self-check failed; falling back to direct rendering"
+      try {
+        ensureTargets(nextWidth, nextHeight);
+        if (!sceneTarget || !accumRead || !accumWrite) return;
+        renderer.setRenderTarget(sceneTarget);
+        renderer.setClearColor(0x000000, 0);
+        renderer.clear(true, true, false);
+        renderScene();
+        renderer.setRenderTarget(accumWrite);
+        fullscreenMesh.material = blendMaterial;
+        blendMaterial.uniforms.tPrevious.value = accumRead.texture;
+        blendMaterial.uniforms.tRound.value = sceneTarget.texture;
+        blendMaterial.uniforms.uRoundWeight.value = 1 / (round + 1);
+        renderer.render(fullscreenScene, fullscreenCamera);
+        renderer.setRenderTarget(previousTarget);
+        // Fall back to direct rendering if the first blend pass produces no data.
+        if (!selfChecked && round === 0) {
+          selfChecked = true;
+          const scenePixel = new Uint8Array(4);
+          renderer.readRenderTargetPixels(
+            sceneTarget,
+            Math.floor(width / 2),
+            Math.floor(height / 2),
+            1,
+            1,
+            scenePixel
           );
+          const accumPixel = new Uint16Array(4);
+          renderer.readRenderTargetPixels(
+            accumWrite,
+            Math.floor(width / 2),
+            Math.floor(height / 2),
+            1,
+            1,
+            accumPixel
+          );
+          if (
+            scenePixel[3] > 0 &&
+            accumPixel[0] === 0 &&
+            accumPixel[1] === 0 &&
+            accumPixel[2] === 0 &&
+            accumPixel[3] === 0
+          ) {
+            broken = true;
+            console.error(
+              "[shadow-simulation] accumulation self-check failed; falling back to direct rendering"
+            );
+          }
         }
-      }
-      const swap = accumRead;
-      accumRead = accumWrite;
-      accumWrite = swap;
-      round += 1;
-      if (round >= rounds && settledAccum) {
-        const previousSettled = settledAccum;
-        settledAccum = accumRead;
-        accumRead = previousSettled;
-        hasSettledFrame = true;
+        const swap = accumRead;
+        accumRead = accumWrite;
+        accumWrite = swap;
+        round += 1;
+        if (round >= rounds && settledAccum && settledSceneTarget) {
+          const previousSettled = settledAccum;
+          settledAccum = accumRead;
+          accumRead = previousSettled;
+          const previousSettledScene = settledSceneTarget;
+          settledSceneTarget = sceneTarget;
+          sceneTarget = previousSettledScene;
+          hasSettledFrame = true;
+        }
+      } catch (error) {
+        broken = true;
+        disposeTargets();
+        try {
+          renderer.setRenderTarget(previousTarget);
+        } catch {
+          // The host renderer owns WebGL context restoration.
+        }
+        console.error(
+          "[shadow-simulation] accumulation render target failed; falling back to direct rendering",
+          error
+        );
       }
     },
     composite(renderer, preferSettled = false) {
-      if (!sceneTarget) return false;
-      const colorTarget =
-        (preferSettled || round >= rounds) && hasSettledFrame
-          ? settledAccum
-          : round > 0
-          ? accumRead
-          : null;
-      if (!colorTarget) return false;
+      if (
+        !hasSettledFrame ||
+        (!preferSettled && round < rounds) ||
+        !settledAccum ||
+        !settledSceneTarget
+      ) {
+        return false;
+      }
       fullscreenMesh.material = compositeMaterial;
-      compositeMaterial.uniforms.tColor.value = colorTarget.texture;
-      compositeMaterial.uniforms.tDepth.value = sceneTarget.depthTexture;
+      compositeMaterial.uniforms.tColor.value = settledAccum.texture;
+      compositeMaterial.uniforms.tDepth.value = settledSceneTarget.depthTexture;
       renderer.render(fullscreenScene, fullscreenCamera);
       return true;
     },

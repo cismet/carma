@@ -68,6 +68,10 @@ describe("ShadowController", () => {
 
     expect(controller.lights[0].position.equals(before)).toBe(false);
     expect(controller.lights[0].shadow.needsUpdate).toBe(true);
+
+    controller.restoreSunDiscCenter();
+
+    expect(controller.lights[0].position.distanceTo(before)).toBeLessThan(1e-9);
   });
 
   it("uses distinct tangent-plane offsets across the whole sun disc", () => {

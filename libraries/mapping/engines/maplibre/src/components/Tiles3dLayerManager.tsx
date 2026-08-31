@@ -11,6 +11,7 @@ import {
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
 import {
   buildThreeTilesRuntime,
+  THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   type ThreeTilesRuntime,
 } from "../lib/runtime/integrations/three-tiles-runtime";
 
@@ -113,8 +114,9 @@ export function Tiles3dLayerManager({
       config.tilesetUrl,
       origin,
       {
-        requestConcurrency: 6,
+        requestConcurrency: THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
         cacheBudgetBytes: config.cacheBudgetBytes,
+        cacheOverflowBytes: config.cacheOverflowBytes,
         outline: config.outline,
         outlineColor: config.outlineColor,
         outlineOpacity: config.outlineOpacity,
@@ -149,6 +151,7 @@ export function Tiles3dLayerManager({
     config.tilesetUrl,
     config.errorTarget,
     config.cacheBudgetBytes,
+    config.cacheOverflowBytes,
     config.opacity,
     config.outline,
     config.outlineColor,
