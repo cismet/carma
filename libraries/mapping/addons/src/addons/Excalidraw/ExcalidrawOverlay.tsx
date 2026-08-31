@@ -21,6 +21,7 @@ const Excalidraw = lazy(() =>
 
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
+const DEFAULT_LANG_CODE = "de-DE";
 const DEFAULT_BACKGROUND = "#fffce8";
 const DEFAULT_BACKGROUND_OPACITY = 0.5;
 
@@ -62,6 +63,7 @@ export const ExcalidrawOverlay = ({
     zIndex = DEFAULT_Z_INDEX,
     toolbarSelector = DEFAULT_TOOLBAR_SELECTOR,
     inset,
+    langCode = DEFAULT_LANG_CODE,
     hideMenu = false,
     hideZoom = false,
     background = DEFAULT_BACKGROUND,
@@ -113,6 +115,7 @@ export const ExcalidrawOverlay = ({
         <Excalidraw
           excalidrawAPI={setApi}
           onChange={(_elements, appState: AppState) => onSceneChange(appState)}
+          langCode={langCode}
           viewModeEnabled={!drawing}
           initialData={{
             appState: {
