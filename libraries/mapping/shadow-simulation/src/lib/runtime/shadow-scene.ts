@@ -25,8 +25,10 @@ import { degToRadNumeric } from "@carma-units";
 
 import type { SolarPosition } from "../core/solar-position";
 import {
+  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
+  type MeshErrorTargetPixels,
   type ShadowQualityMultiplier,
 } from "../core/shadow-types";
 import {
@@ -126,6 +128,7 @@ export type ShadowTerrainOptions = Readonly<{ url: string }> &
 export type ShadowBuildingAppearance = Readonly<{
   fullOpacity: boolean;
   uniformColor: string | null;
+  uniformColorMix?: number;
 }>;
 
 const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
@@ -133,6 +136,7 @@ const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
 export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
+  updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
   updateSoftSunShadows: (enabled: boolean) => void;
@@ -426,6 +430,9 @@ const applyBuildingAppearance = (
   root: THREE.Object3D,
   appearance: ShadowBuildingAppearance
 ) => {
+  const useUniformColor =
+    appearance.uniformColor !== null &&
+    clamp(appearance.uniformColorMix ?? 1, 0, 1) >= 1;
   root.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.userData.isBuilding) return;
@@ -442,7 +449,7 @@ const applyBuildingAppearance = (
         color?: THREE.Color;
         vertexColors?: boolean;
       };
-      if (appearance.uniformColor && colorMaterial.color) {
+      if (useUniformColor && appearance.uniformColor && colorMaterial.color) {
         colorMaterial.color.set(appearance.uniformColor);
         colorMaterial.vertexColors = false;
       }
@@ -799,8 +806,10 @@ export const buildShadowSimulationScene = (
   let latestBuildingAppearance: ShadowBuildingAppearance = {
     fullOpacity: true,
     uniformColor: null,
+    uniformColorMix: 0,
   };
   let latestShadowIntensity = 1;
+  let latestMeshErrorTarget = DEFAULT_MESH_ERROR_TARGET_PIXELS;
   let latestAtmosphericSunlight: AtmosphericSunlightSample | null = null;
   let atmosphericSunlightOptions: AtmosphericSunlightOptions = {
     useTransmittanceLut: true,
@@ -865,21 +874,27 @@ export const buildShadowSimulationScene = (
   const atmosphericSunlight = new AtmosphericSunlightEvaluator();
   let invalidateShadowMap = () => undefined;
   let refreshTerrainShadowState = () => invalidateShadowMap();
-  const terrainRuntime = terrain
-    ? (() => {
-        const mapCenter = map.getCenter();
-        const { url, ...runtimeOptions } = terrain;
-        return buildCesiumTerrainRuntime(
-          SHADOW_SIMULATION_TERRAIN_RUNTIME_ID,
-          url,
-          [mapCenter.lng, mapCenter.lat],
-          {
-            ...runtimeOptions,
-            onContentChanged: () => refreshTerrainShadowState(),
-          }
-        );
-      })()
-    : null;
+  const buildTerrainRuntime = () => {
+    if (!terrain) return null;
+    const mapCenter = map.getCenter();
+    const { url, ...runtimeOptions } = terrain;
+    return buildCesiumTerrainRuntime(
+      SHADOW_SIMULATION_TERRAIN_RUNTIME_ID,
+      url,
+      [mapCenter.lng, mapCenter.lat],
+      {
+        ...runtimeOptions,
+        onContentChanged: () => refreshTerrainShadowState(),
+      }
+    );
+  };
+  const sharedSceneProvidesTerrain = () =>
+    getSharedThreeSceneRuntimes(map).some(
+      (runtime) => runtime.providesTerrain === true
+    );
+  let terrainRuntime = sharedSceneProvidesTerrain()
+    ? null
+    : buildTerrainRuntime();
   if (terrainRuntime) sceneLease.layer.addRuntime(terrainRuntime);
   const sharedBinding = buildShadowLightBinding(
     sceneLease.layer.getScene(),
@@ -1316,15 +1331,49 @@ export const buildShadowSimulationScene = (
   map.on("move", handleMove);
   map.on("moveend", handleMoveEnd);
   map.on("resize", handleMove);
-  updateSharedShadowCoverage();
-
-  if (terrainRuntime) {
-    void terrainRuntime.ready.then((loaded) => {
-      if (!loaded || disposed) return;
-      restoreMapLibreTerrain = suppressMapLibreTerrainRendering(map);
+  const suppressMapLibreTerrain = () => {
+    restoreMapLibreTerrain ??= suppressMapLibreTerrainRendering(map);
+  };
+  const watchTerrainRuntime = (runtime: NonNullable<typeof terrainRuntime>) => {
+    void runtime.ready.then((loaded) => {
+      if (!loaded || disposed || terrainRuntime !== runtime) return;
+      suppressMapLibreTerrain();
       refreshSharedShadowCoverage();
     });
+  };
+  const syncTerrainRuntime = () => {
+    if (!terrain) return;
+    if (sharedSceneProvidesTerrain()) {
+      suppressMapLibreTerrain();
+      const runtime = terrainRuntime;
+      terrainRuntime = null;
+      if (runtime && sceneLease.layer.hasRuntime(runtime.id)) {
+        sceneLease.layer.removeRuntime(runtime.id);
+      }
+      cachedElevationRange = null;
+      coverageNeedsCameraReevaluation = true;
+      return;
+    }
+    if (terrainRuntime) return;
+
+    restoreMapLibreTerrain?.();
+    restoreMapLibreTerrain = null;
+    const runtime = buildTerrainRuntime();
+    if (!runtime) return;
+    terrainRuntime = runtime;
+    runtime.setMaterialColor(`#${terrainColor.getHexString()}`);
+    runtime.setShadowView(timeAnimating ? null : latestShadowView);
+    sceneLease.layer.addRuntime(runtime);
+    watchTerrainRuntime(runtime);
+    cachedElevationRange = null;
+    coverageNeedsCameraReevaluation = true;
+  };
+  if (terrainRuntime) {
+    watchTerrainRuntime(terrainRuntime);
+  } else if (terrain && sharedSceneProvidesTerrain()) {
+    suppressMapLibreTerrain();
   }
+  updateSharedShadowCoverage();
 
   const syncGenericBridges = () => {
     if (disposed) return;
@@ -1361,7 +1410,11 @@ export const buildShadowSimulationScene = (
 
   const handleSharedSceneContentChanged = () => {
     if (disposed) return;
+    syncTerrainRuntime();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
+      if (runtime.providesTerrain) {
+        runtime.setErrorTarget?.(latestMeshErrorTarget);
+      }
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
       runtime.setShadowView?.(timeAnimating ? null : latestShadowView);
     }
@@ -1373,6 +1426,7 @@ export const buildShadowSimulationScene = (
   };
   const scheduleSharedSceneContentChanged = () => {
     if (disposed) return;
+    syncTerrainRuntime();
     cachedElevationRange = null;
     coverageNeedsCameraReevaluation = true;
     sharedBinding.controller.invalidate();
@@ -1431,10 +1485,20 @@ export const buildShadowSimulationScene = (
       terrainColor = nextColor;
       ensureShadowBackground();
     },
+    updateMeshErrorTarget(errorTarget) {
+      if (latestMeshErrorTarget === errorTarget) return;
+      latestMeshErrorTarget = errorTarget;
+      for (const runtime of getSharedThreeSceneRuntimes(map)) {
+        if (runtime.providesTerrain) runtime.setErrorTarget?.(errorTarget);
+      }
+      map.triggerRepaint();
+    },
     updateBuildingAppearance(appearance) {
       if (
         latestBuildingAppearance.fullOpacity === appearance.fullOpacity &&
-        latestBuildingAppearance.uniformColor === appearance.uniformColor
+        latestBuildingAppearance.uniformColor === appearance.uniformColor &&
+        (latestBuildingAppearance.uniformColorMix ?? 1) ===
+          (appearance.uniformColorMix ?? 1)
       ) {
         return;
       }

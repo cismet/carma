@@ -41,8 +41,10 @@ import {
   type SolarSelection,
 } from "../core/solar-position";
 import {
+  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
+  type MeshErrorTargetPixels,
   type ShadowQualityMultiplier,
 } from "../core/shadow-types";
 import {
@@ -120,9 +122,10 @@ export type ShadowSimulationState = {
   selection: SolarSelection;
   terrainColor: string;
   buildingsFullOpacity: boolean;
-  useUniformBuildingColor: boolean;
+  buildingColorMix: number;
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
+  meshErrorTarget?: MeshErrorTargetPixels;
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;
   showShadowBuffers?: boolean;
@@ -859,6 +862,13 @@ const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
+    shadowScene.current?.updateMeshErrorTarget(
+      state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS
+    );
+  }, [state.enabled, state.meshErrorTarget, sceneRevision]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateSoftSunShadows(state.softSunShadows ?? true);
   }, [state.enabled, state.softSunShadows, sceneRevision]);
 
@@ -915,16 +925,14 @@ const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateBuildingAppearance({
       fullOpacity: state.buildingsFullOpacity ?? true,
-      uniformColor:
-        state.useUniformBuildingColor ?? true
-          ? state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR
-          : null,
+      uniformColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
+      uniformColorMix: clamp(state.buildingColorMix ?? 0, 0, 1),
     });
   }, [
     state.buildingColor,
+    state.buildingColorMix,
     state.buildingsFullOpacity,
     state.enabled,
-    state.useUniformBuildingColor,
     sceneRevision,
   ]);
 
@@ -973,9 +981,10 @@ export const ShadowSimulationView = ({
       enabled: false,
       terrainColor: resolveTerrainColor(terrain?.material?.color),
       buildingsFullOpacity: true,
-      useUniformBuildingColor: true,
+      buildingColorMix: 0,
       buildingColor: DEFAULT_SHADOW_SURFACE_COLOR,
       shadowQuality: DEFAULT_SHADOW_QUALITY,
+      meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
       showSunDebugVector: false,
       showShadowBuffers: false,
       showProjectionDebugView: false,
@@ -1086,9 +1095,6 @@ export const ShadowSimulationView = ({
                 setSharedState({
                   ...state,
                   enabled: !state.enabled,
-                  useUniformBuildingColor: state.enabled
-                    ? state.useUniformBuildingColor
-                    : true,
                 })
               }
               dataTestId="shadow-simulation-control-button"
@@ -1122,9 +1128,11 @@ export const ShadowSimulationView = ({
           solarPosition={getSolarPosition(state.selection, location)}
           settings={{
             shadowQuality: resolveShadowQuality(state.shadowQuality),
+            meshErrorTarget:
+              state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS,
             terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
             buildingsFullOpacity: state.buildingsFullOpacity ?? true,
-            useUniformBuildingColor: state.useUniformBuildingColor ?? true,
+            buildingColorMix: clamp(state.buildingColorMix ?? 0, 0, 1),
             buildingColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
             showSunDebugVector: state.showSunDebugVector ?? false,
             showShadowBuffers: state.showShadowBuffers ?? false,

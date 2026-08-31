@@ -18,7 +18,7 @@ describe("createTilesCameraSet", () => {
     );
   });
 
-  it("selects tiles for the view and the active shadow camera", () => {
+  it("selects off-screen shadow casters at the visible viewport density", () => {
     const tiles = {
       setCamera: vi.fn(),
       deleteCamera: vi.fn(),
@@ -37,10 +37,13 @@ describe("createTilesCameraSet", () => {
     expect(tiles.setCamera).toHaveBeenNthCalledWith(1, viewCamera);
     expect(tiles.setCamera).toHaveBeenNthCalledWith(2, shadowCamera);
     expect(tiles.setResolution).toHaveBeenCalledWith(viewCamera, 800, 600);
-    expect(tiles.setResolution).toHaveBeenCalledWith(
+    expect(tiles.setResolution).toHaveBeenCalledWith(shadowCamera, 800, 600);
+
+    cameras.update(viewCamera, 1_024, 768);
+    expect(tiles.setResolution).toHaveBeenLastCalledWith(
       shadowCamera,
-      16_384,
-      8_192
+      1_024,
+      768
     );
 
     cameras.setShadowView(null);
