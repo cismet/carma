@@ -2,7 +2,7 @@ import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
-import { SHAPE_ICONS, SHAPE_LABELS, type ExcalidrawShape } from "./shape-tools";
+import { SHAPE_ICONS, SHAPE_LABELS, type AnnotationShape } from "./shape-tools";
 
 const WRAPPER = "w-fit max-w-full flex items-center gap-2 overflow-visible";
 const BUTTON =
@@ -11,21 +11,21 @@ const ACTIVE = "!text-[#1677ff] hover:!text-[#1677ff]";
 const INACTIVE = "text-gray-600 hover:!text-[#1677ff]";
 const DIVIDER = "h-6 w-px bg-gray-300/80";
 
-export type ExcalidrawShapeToolbarProps = {
-  shapes: ExcalidrawShape[];
-  shape: ExcalidrawShape | null;
-  onShapeChange: (shape: ExcalidrawShape) => void;
+export type AnnotationShapeToolbarProps = {
+  shapes: AnnotationShape[];
+  shape: AnnotationShape | null;
+  onShapeChange: (shape: AnnotationShape) => void;
   onUndo?: () => void;
   onRedo?: () => void;
 };
 
-export const ExcalidrawShapeToolbar = ({
+export const AnnotationShapeToolbar = ({
   shapes,
   shape,
   onShapeChange,
   onUndo,
   onRedo,
-}: ExcalidrawShapeToolbarProps) => (
+}: AnnotationShapeToolbarProps) => (
   <div className={WRAPPER}>
     {shapes.map((entry) => {
       const label = SHAPE_LABELS[entry];
@@ -40,7 +40,7 @@ export const ExcalidrawShapeToolbar = ({
             }}
             aria-pressed={isActive}
             aria-label={label}
-            data-test-id={`excalidraw-shape-${entry}`}
+            data-test-id={`annotation-shape-${entry}`}
             className={[BUTTON, isActive ? ACTIVE : INACTIVE].join(" ")}
           >
             <FontAwesomeIcon icon={SHAPE_ICONS[entry]} />
@@ -58,7 +58,7 @@ export const ExcalidrawShapeToolbar = ({
             onUndo();
           }}
           aria-label="Rückgängig"
-          data-test-id="excalidraw-undo"
+          data-test-id="annotation-undo"
           className={[BUTTON, INACTIVE].join(" ")}
         >
           <FontAwesomeIcon icon={faRotateLeft} />
@@ -74,7 +74,7 @@ export const ExcalidrawShapeToolbar = ({
             onRedo();
           }}
           aria-label="Wiederholen"
-          data-test-id="excalidraw-redo"
+          data-test-id="annotation-redo"
           className={[BUTTON, INACTIVE].join(" ")}
         >
           <FontAwesomeIcon icon={faRotateRight} />

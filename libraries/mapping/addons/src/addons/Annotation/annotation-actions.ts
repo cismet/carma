@@ -1,9 +1,9 @@
 import { useAddonState } from "../../lib/AddonStateContext";
-import type { ExcalidrawShape } from "./shape-tools";
+import type { AnnotationShape } from "./shape-tools";
 
 /** shared by the overlay and its control, so both read one answer */
-export const useExcalidrawActions = () => {
-  const [state, setState] = useAddonState("excalidrawMode");
+export const useAnnotationActions = () => {
+  const [state, setState] = useAddonState("annotationMode");
 
   return {
     isOn: state?.isOn ?? false,
@@ -17,7 +17,7 @@ export const useExcalidrawActions = () => {
       })),
     endMode: () =>
       setState((previous) => ({ ...(previous ?? {}), isOn: false })),
-    setShape: (shape: ExcalidrawShape) =>
+    setShape: (shape: AnnotationShape) =>
       setState((previous) => ({ ...(previous ?? { isOn: false }), shape })),
     undo: () =>
       setState((previous) => ({

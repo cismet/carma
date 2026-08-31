@@ -19,12 +19,12 @@ import {
   type CameraRestrictionConfig,
 } from "../addons/CameraRestriction";
 import {
-  ExcalidrawControl,
-  ExcalidrawOverlay,
-  type ExcalidrawControlConfig,
-  type ExcalidrawOverlayConfig,
-  type ExcalidrawState,
-} from "../addons/Excalidraw";
+  AnnotationControl,
+  AnnotationOverlay,
+  type AnnotationControlConfig,
+  type AnnotationOverlayConfig,
+  type AnnotationState,
+} from "../addons/Annotation";
 import { GazetteerMode } from "../addons/GazetteerMode";
 import { GazetteerSource } from "../addons/GazetteerSource";
 import { HomeOverride, type HomeOverrideConfig } from "../addons/HomeOverride";
@@ -113,8 +113,8 @@ export type AddonConfigMap = {
   compareSwipe: CompareSwipeConfig;
   compareArena: CompareArenaConfig;
   compareSpyglass: CompareSpyglassConfig;
-  excalidrawOverlay: ExcalidrawOverlayConfig;
-  excalidrawControl: ExcalidrawControlConfig;
+  annotationOverlay: AnnotationOverlayConfig;
+  annotationControl: AnnotationControlConfig;
   gazetteerSource: GazDataSourceConfig;
   gazetteerMode: GazDataAdditionalModeConfig;
   homeOverride: HomeOverrideConfig;
@@ -165,8 +165,8 @@ export type AddonStateMap = {
   originLocation: OriginLocationState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
-  /** whether the sketch layer owns the pointer; see `ExcalidrawOverlay` */
-  excalidrawMode: ExcalidrawState;
+  /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
+  annotationMode: AnnotationState;
   /** whether the comparison is running; see `ComparingControl` */
   compareState: CompareState;
   /** the assignable layer blocks, with the titles the layer bar shows */
@@ -296,13 +296,13 @@ export const addonRegistry: {
   compareSwipe: { Component: CompareSwipe, requires: ["compareState"] },
   compareArena: { Component: CompareArena, requires: ["compareState"] },
   compareSpyglass: { Component: CompareSpyglass, requires: ["compareState"] },
-  excalidrawOverlay: {
-    Component: ExcalidrawOverlay,
-    provides: ["excalidrawMode"],
+  annotationOverlay: {
+    Component: AnnotationOverlay,
+    provides: ["annotationMode"],
   },
-  excalidrawControl: {
-    Component: ExcalidrawControl,
-    requires: ["excalidrawMode"],
+  annotationControl: {
+    Component: AnnotationControl,
+    requires: ["annotationMode"],
   },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },

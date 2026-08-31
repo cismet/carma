@@ -55,10 +55,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "vectorHighlightControl" },
-    // sketch layer over the map; screen-fixed, the drawing does not follow the
-    // camera. The control switches who gets the pointer.
+    // annotation layer over the map, pinned to the ground so it pans and scales
+    // with the camera. The control switches who gets the pointer.
     {
-      kind: "excalidrawOverlay",
+      kind: "annotationOverlay",
       config: {
         hideMenu: true,
         hideZoom: false,
@@ -69,7 +69,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
         hideWhenOff: true,
       },
     },
-    { kind: "excalidrawControl" },
+    { kind: "annotationControl" },
     {
       kind: "libreTerrain",
       config: { appKey: "geoportal", show: "while3dLayersActive" },

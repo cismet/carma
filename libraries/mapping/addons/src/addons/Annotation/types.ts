@@ -1,30 +1,30 @@
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
-import type { ExcalidrawShape } from "./shape-tools";
+import type { AnnotationShape } from "./shape-tools";
 
-/** the `excalidrawMode` channel: whether the sketch layer owns the pointer */
-export type ExcalidrawState = {
+/** the `annotationMode` channel: whether the sketch layer owns the pointer */
+export type AnnotationState = {
   isOn: boolean;
-  shape?: ExcalidrawShape;
+  shape?: AnnotationShape;
   undoVersion?: number;
   redoVersion?: number;
 };
 
 /** how far the overlay keeps clear of each edge of the map area, in px */
-export type ExcalidrawInset = {
+export type AnnotationInset = {
   top?: number;
   right?: number;
   bottom?: number;
   left?: number;
 };
 
-export type ExcalidrawOverlayConfig = {
+export type AnnotationOverlayConfig = {
   /** stacking inside the map wrapper. Default: 500 */
   zIndex?: number;
   /** the app's top bar, measured. Default: "#topNavbar" */
   toolbarSelector?: string;
   /** added to the measured top bar, applied as given to the other edges */
-  inset?: ExcalidrawInset;
+  inset?: AnnotationInset;
   langCode?: string;
   hideMenu?: boolean;
   hideTools?: boolean;
@@ -38,7 +38,7 @@ export type ExcalidrawOverlayConfig = {
   backgroundOpacity?: number;
 };
 
-export type ExcalidrawControlConfig = {
+export type AnnotationControlConfig = {
   /** Corner the button is registered in. Default: "topleft" */
   position?: Positions;
   /** Sort order within that corner. Default: 90 */
