@@ -77,6 +77,7 @@ export const ExcalidrawOverlay = ({
     hideTools = false,
     hideHelp = false,
     hideHistory = false,
+    hideWhenOff = false,
     shapeTools = false,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
@@ -124,7 +125,7 @@ export const ExcalidrawOverlay = ({
         zIndex,
         pointerEvents: drawing ? "auto" : "none",
         // not `display: none`: the sync measures its offset off this box
-        visibility: inSync ? "visible" : "hidden",
+        visibility: inSync && (drawing || !hideWhenOff) ? "visible" : "hidden",
       }}
     >
       <Suspense fallback={null}>
