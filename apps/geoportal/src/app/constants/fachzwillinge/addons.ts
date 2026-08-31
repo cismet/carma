@@ -64,6 +64,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
         hideZoom: false,
         hideTools: true,
         hideHelp: true,
+        hideLibrary: true,
         hideHistory: true,
         hideWhenOff: true,
         shapeTools: true,

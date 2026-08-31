@@ -76,6 +76,7 @@ export const ExcalidrawOverlay = ({
     hideZoom = false,
     hideTools = false,
     hideHelp = false,
+    hideLibrary = false,
     hideHistory = false,
     hideWhenOff = false,
     shapeTools = false,
@@ -115,6 +116,7 @@ export const ExcalidrawOverlay = ({
       data-hide-zoom={hideZoom ? "true" : "false"}
       data-hide-tools={hideTools ? "true" : "false"}
       data-hide-help={hideHelp ? "true" : "false"}
+      data-hide-library={hideLibrary ? "true" : "false"}
       data-hide-history={hideHistory ? "true" : "false"}
       style={{
         position: "absolute",

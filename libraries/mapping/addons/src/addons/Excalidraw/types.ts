@@ -24,6 +24,7 @@ export type ExcalidrawOverlayConfig = {
   hideMenu?: boolean;
   hideTools?: boolean;
   hideHelp?: boolean;
+  hideLibrary?: boolean;
   hideHistory?: boolean;
   hideWhenOff?: boolean;
   shapeTools?: boolean;
