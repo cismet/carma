@@ -61,9 +61,10 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "excalidrawOverlay",
       config: {
         hideMenu: true,
-        hideZoom: true,
+        hideZoom: false,
         hideTools: true,
         hideHelp: true,
+        hideHistory: true,
         shapeTools: true,
       },
     },

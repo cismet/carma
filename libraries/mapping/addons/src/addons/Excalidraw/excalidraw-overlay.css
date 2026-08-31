@@ -32,3 +32,7 @@
 .carma-excalidraw-overlay[data-hide-help="true"] .help-icon {
   display: none;
 }
+
+.carma-excalidraw-overlay[data-hide-history="true"] .undo-redo-buttons {
+  display: none;
+}
