@@ -10,6 +10,12 @@ import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { useExcalidrawActions } from "./excalidraw-actions";
 import { useMapSceneSync } from "./map-scene-sync";
+import { ExcalidrawShapeToolbar } from "./ExcalidrawShapeToolbar";
+import {
+  DEFAULT_SHAPES,
+  isExcalidrawShape,
+  type ExcalidrawShape,
+} from "./shape-tools";
 import type { ExcalidrawInset } from "./types";
 import "./excalidraw-overlay.css";
 
@@ -22,6 +28,7 @@ const Excalidraw = lazy(() =>
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
 const DEFAULT_LANG_CODE = "de-DE";
+const SHAPE_TOOLBAR_TOP = 56;
 const DEFAULT_BACKGROUND = "#fffce8";
 const DEFAULT_BACKGROUND_OPACITY = 0.5;
 
@@ -66,6 +73,8 @@ export const ExcalidrawOverlay = ({
     langCode = DEFAULT_LANG_CODE,
     hideMenu = false,
     hideZoom = false,
+    hideTools = false,
+    shapeTools = false,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
@@ -76,6 +85,7 @@ export const ExcalidrawOverlay = ({
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [shape, setShape] = useState<ExcalidrawShape | null>(null);
   // flush to the host would file the toolbar away behind the navbar. Measured,
   // because zen mode takes the bar away while the addon runs
   const navbarInset = useToolbarInset(host, toolbarSelector, true);
@@ -99,6 +109,7 @@ export const ExcalidrawOverlay = ({
       data-drawing={drawing ? "true" : "false"}
       data-hide-menu={hideMenu ? "true" : "false"}
       data-hide-zoom={hideZoom ? "true" : "false"}
+      data-hide-tools={hideTools ? "true" : "false"}
       style={{
         position: "absolute",
         top: navbarInset + top,
@@ -114,7 +125,11 @@ export const ExcalidrawOverlay = ({
       <Suspense fallback={null}>
         <Excalidraw
           excalidrawAPI={setApi}
-          onChange={(_elements, appState: AppState) => onSceneChange(appState)}
+          onChange={(_elements, appState: AppState) => {
+            onSceneChange(appState);
+            const { type } = appState.activeTool;
+            setShape(isExcalidrawShape(type) ? type : null);
+          }}
           langCode={langCode}
           viewModeEnabled={!drawing}
           initialData={{
@@ -124,6 +139,30 @@ export const ExcalidrawOverlay = ({
           }}
         />
       </Suspense>
+      {shapeTools && drawing && (
+        <div
+          style={{
+            position: "absolute",
+            top: SHAPE_TOOLBAR_TOP,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        >
+          <div style={{ pointerEvents: "auto" }}>
+            <ExcalidrawShapeToolbar
+              shapes={DEFAULT_SHAPES}
+              shape={shape}
+              onShapeChange={(next) =>
+                api?.setActiveTool({ type: next, locked: true })
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>,
     host
   );
