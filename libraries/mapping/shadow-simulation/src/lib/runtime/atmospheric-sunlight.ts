@@ -229,14 +229,22 @@ export const evaluateAtmosphericSunlight = (
     observerECEF,
     sunDirectionECEF,
     new THREE.Color(),
-    { ellipsoid: Ellipsoid.WGS84, correctAltitude: true }
+    {
+      ellipsoid: Ellipsoid.WGS84,
+      correctAltitude: true,
+      photometric: true,
+    }
   );
   const zenithRadiance = getSunLightColor(
     transmittanceTexture,
     observerECEF,
     up,
     new THREE.Color(),
-    { ellipsoid: Ellipsoid.WGS84, correctAltitude: true }
+    {
+      ellipsoid: Ellipsoid.WGS84,
+      correctAltitude: true,
+      photometric: true,
+    }
   );
   const radiancePeak = Math.max(radiance.r, radiance.g, radiance.b, 0);
   const zenithPeak = Math.max(

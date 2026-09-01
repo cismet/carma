@@ -4,7 +4,10 @@ import { SKY_RENDER_ORDER } from "@takram/three-atmosphere";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { buildAtmosphericSky } from "./atmospheric-sky";
+import {
+  ATMOSPHERIC_DISPLAY_EXPOSURE,
+  buildAtmosphericSky,
+} from "./atmospheric-sky";
 
 describe("atmospheric sky", () => {
   it("renders Takram's sky and sun disc in the local tangent frame", () => {
@@ -37,7 +40,33 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.visible).toBe(true);
     expect(sky.mesh.material.sun).toBe(true);
     expect(sky.mesh.material.moon).toBe(false);
-    expect(sky.mesh.material.photometric).toBe(false);
+    expect(sky.mesh.material.photometric).toBe(true);
+    expect(sky.mesh.material.fragmentShader).toContain(
+      "outputColor = carmaLinearToSrgb(outputColor)"
+    );
+    expect(sky.mesh.material.uniforms.carmaDisplayExposure.value).toBe(
+      ATMOSPHERIC_DISPLAY_EXPOSURE
+    );
+    sky.mesh.onBeforeRender(
+      { getRenderTarget: () => null } as unknown as THREE.WebGLRenderer,
+      new THREE.Scene(),
+      new THREE.PerspectiveCamera(),
+      sky.mesh.geometry,
+      sky.mesh,
+      null
+    );
+    expect(sky.mesh.material.uniforms.carmaOutputToSrgb.value).toBe(true);
+    sky.mesh.onBeforeRender(
+      {
+        getRenderTarget: () => ({}),
+      } as unknown as THREE.WebGLRenderer,
+      new THREE.Scene(),
+      new THREE.PerspectiveCamera(),
+      sky.mesh.geometry,
+      sky.mesh,
+      null
+    );
+    expect(sky.mesh.material.uniforms.carmaOutputToSrgb.value).toBe(false);
     expect(sky.mesh.material.transmittanceTexture).toBe(transmittanceTexture);
     expect(sky.mesh.material.irradianceTexture).toBe(irradianceTexture);
     expect(sky.mesh.material.scatteringTexture).toBe(scatteringTexture);

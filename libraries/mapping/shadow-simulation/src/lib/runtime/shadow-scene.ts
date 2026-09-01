@@ -38,7 +38,10 @@ import {
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
 } from "./atmospheric-sunlight";
-import { buildAtmosphericSky } from "./atmospheric-sky";
+import {
+  ATMOSPHERIC_DISPLAY_EXPOSURE,
+  buildAtmosphericSky,
+} from "./atmospheric-sky";
 import { ShadowController } from "./shadow-controller";
 import { resolveShadowResourceLimits } from "./shadow-resource-limits";
 import {
@@ -62,8 +65,6 @@ const SUN_VECTOR_VIEWPORT_LENGTH_FACTOR = 0.5;
 const SUN_VECTOR_ANGLE_RADIUS_FACTOR = 0.22;
 const SUN_VECTOR_ANGLE_SEGMENTS = 24;
 const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
-// One exposure preserves Takram's direct-radiance/sky-irradiance ratio.
-const ATMOSPHERIC_LIGHT_EXPOSURE = 2;
 const SUN_DISC_ACCUMULATION_ROUNDS = 32;
 const MAX_SUN_DISC_ACCUMULATION_ROUNDS = 64;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
@@ -623,7 +624,7 @@ const buildShadowLightBinding = (
     shadowIntensity: 1,
     directionToSun: new THREE.Vector3(0, 1, 0),
     sunColor: new THREE.Color(0xfff2d8),
-    sunIntensity: ATMOSPHERIC_LIGHT_EXPOSURE,
+    sunIntensity: ATMOSPHERIC_DISPLAY_EXPOSURE,
     receiverWorldPoints: [],
     minimumElevationMeters: 0,
     maximumElevationMeters: 0,
@@ -692,7 +693,7 @@ const applyAtmosphericSkyLightToBinding = (
     coefficients.forEach((coefficient, index) => {
       binding.skyLight.sh.coefficients[index].copy(coefficient);
     });
-    binding.skyLight.intensity = ATMOSPHERIC_LIGHT_EXPOSURE;
+    binding.skyLight.intensity = ATMOSPHERIC_DISPLAY_EXPOSURE;
     for (const ambientLight of binding.ambientLightIntensities.keys()) {
       ambientLight.intensity = 0;
     }
@@ -776,7 +777,7 @@ const applySolarPositionToBinding = (
   );
   binding.sunVector.root.visible = binding.sunVectorVisible;
   binding.sunVector.root.updateMatrixWorld(true);
-  binding.sunIntensity = intensity ?? ATMOSPHERIC_LIGHT_EXPOSURE;
+  binding.sunIntensity = intensity ?? ATMOSPHERIC_DISPLAY_EXPOSURE;
   for (const sunLight of binding.controller.lights) {
     sunLight.intensity = binding.sunIntensity;
   }
@@ -988,7 +989,7 @@ export const buildShadowSimulationScene = (
       sharedBinding,
       sample.directionToSun,
       sample.radiance,
-      ATMOSPHERIC_LIGHT_EXPOSURE
+      ATMOSPHERIC_DISPLAY_EXPOSURE
     );
     return sample;
   };
