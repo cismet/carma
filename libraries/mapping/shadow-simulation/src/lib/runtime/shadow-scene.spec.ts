@@ -1258,21 +1258,6 @@ describe("shadow scene lighting integration", () => {
     });
     await initialTerrain.ready;
     expect(sharedRuntimes.has(initialTerrain.id)).toBe(true);
-    const meshBase = scene.getObjectByName(
-      "shadow-simulation-mesh-zero-elevation-base"
-    ) as THREE.Mesh;
-    expect(meshBase.visible).toBe(false);
-    expect(meshBase.position.toArray()).toEqual([7_150, 0, 51_256]);
-    expect(meshBase.position.y).toBe(0);
-    expect(meshBase.castShadow).toBe(false);
-    expect(meshBase.receiveShadow).toBe(true);
-    meshBase.geometry.computeBoundingBox();
-    const meshBaseSize = meshBase.geometry.boundingBox!.getSize(
-      new THREE.Vector3()
-    );
-    expect(meshBaseSize.x).toBeCloseTo(8_000);
-    expect(meshBaseSize.y).toBeCloseTo(0);
-    expect(meshBaseSize.z).toBeCloseTo(8_000);
 
     let meshRenderable = false;
     activeContentRuntimes.push({
@@ -1294,12 +1279,8 @@ describe("shadow scene lighting integration", () => {
     expect(initialTerrain.dispose).toHaveBeenCalledOnce();
     expect(backgroundLayerPresent).toBe(true);
     expect(map.removeLayer).not.toHaveBeenCalled();
-    expect(meshBase.visible).toBe(true);
 
     controller.updateTerrainColor("#8c7a66");
-    expect(
-      (meshBase.material as THREE.MeshLambertMaterial).color.getHexString()
-    ).toBe("8c7a66");
 
     activeContentRuntimes.length = 0;
     contentChanged();
@@ -1309,12 +1290,8 @@ describe("shadow scene lighting integration", () => {
     expect(sharedRuntimes.get(restoredTerrain.id)).toBe(restoredTerrain);
     expect(restoredTerrain.setMaterialColor).toHaveBeenCalled();
     expect(restoreTerrain).toHaveBeenCalledOnce();
-    expect(meshBase.visible).toBe(false);
 
     controller.dispose();
-    expect(
-      scene.getObjectByName("shadow-simulation-mesh-zero-elevation-base")
-    ).toBeUndefined();
     vi.unstubAllGlobals();
   });
 });

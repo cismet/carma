@@ -4,11 +4,15 @@ import {
   getSunLightColor,
   IRRADIANCE_TEXTURE_HEIGHT,
   IRRADIANCE_TEXTURE_WIDTH,
+  SCATTERING_TEXTURE_DEPTH,
+  SCATTERING_TEXTURE_HEIGHT,
+  SCATTERING_TEXTURE_WIDTH,
   SkyLightProbe,
   TRANSMITTANCE_TEXTURE_HEIGHT,
   TRANSMITTANCE_TEXTURE_WIDTH,
 } from "@takram/three-atmosphere";
 import {
+  createData3DTextureLoader,
   createDataTextureLoader,
   Ellipsoid,
   Geodetic,
@@ -34,6 +38,19 @@ export type AtmosphericSunlightSample = Readonly<{
   skyIrradianceCoefficients: readonly THREE.Vector3[] | null;
   azimuthDegrees: number;
   elevationDegrees: number;
+  skyFrame: AtmosphericSkyFrame;
+}>;
+
+export type AtmosphericSkyFrame = Readonly<{
+  directionToSunECEF: THREE.Vector3;
+  ecefToSceneMatrix: THREE.Matrix4;
+  observerECEF: THREE.Vector3;
+}>;
+
+export type AtmosphericSkyTextures = Readonly<{
+  irradianceTexture: THREE.DataTexture;
+  scatteringTexture: THREE.Data3DTexture;
+  transmittanceTexture: THREE.DataTexture;
 }>;
 
 export type AtmosphericObserver = Readonly<{
@@ -53,6 +70,26 @@ const DEFAULT_ATMOSPHERIC_SUNLIGHT_OPTIONS: AtmosphericSunlightOptions = {
 };
 
 type ObserverFrame = ReturnType<typeof getObserverFrame>;
+
+const getEcefToSceneMatrix = ({ east, north, up }: ObserverFrame) =>
+  new THREE.Matrix4().set(
+    east.x,
+    east.y,
+    east.z,
+    0,
+    up.x,
+    up.y,
+    up.z,
+    0,
+    -north.x,
+    -north.y,
+    -north.z,
+    0,
+    0,
+    0,
+    0,
+    1
+  );
 
 function getObserverFrame({
   longitude,
@@ -155,6 +192,11 @@ export const evaluateAtmosphericSunlight = (
   const observerFrame = getObserverFrame(observer);
   const { observerECEF, up } = observerFrame;
   const sunDirectionECEF = getSunDirectionECEF(instant, new THREE.Vector3());
+  const skyFrame: AtmosphericSkyFrame = {
+    directionToSunECEF: sunDirectionECEF.clone(),
+    ecefToSceneMatrix: getEcefToSceneMatrix(observerFrame),
+    observerECEF: observerECEF.clone(),
+  };
   const directionToSun = ecefDirectionToSceneDirectionWithFrame(
     sunDirectionECEF,
     observerFrame,
@@ -178,6 +220,7 @@ export const evaluateAtmosphericSunlight = (
       skyIrradianceCoefficients,
       azimuthDegrees,
       elevationDegrees,
+      skyFrame,
     };
   }
 
@@ -216,6 +259,7 @@ export const evaluateAtmosphericSunlight = (
     skyIrradianceCoefficients,
     azimuthDegrees,
     elevationDegrees,
+    skyFrame,
   };
 };
 
@@ -226,6 +270,7 @@ export const evaluateAtmosphericSunlight = (
 export class AtmosphericSunlightEvaluator {
   private transmittanceTexture: THREE.DataTexture | null = null;
   private irradianceTexture: THREE.DataTexture | null = null;
+  private scatteringTexture: THREE.Data3DTexture | null = null;
   private readonly skyLightProbe = new SkyLightProbe({
     ellipsoid: Ellipsoid.WGS84,
     correctAltitude: true,
@@ -233,13 +278,42 @@ export class AtmosphericSunlightEvaluator {
   });
   private transmittanceLoading = false;
   private irradianceLoading = false;
+  private scatteringLoading = false;
   private transmittanceRetryAt = 0;
   private irradianceRetryAt = 0;
+  private scatteringRetryAt = 0;
   private disposed = false;
 
   get ready(): boolean {
     return (
       this.transmittanceTexture !== null && this.irradianceTexture !== null
+    );
+  }
+
+  get skyReady(): boolean {
+    return this.skyTextures !== null;
+  }
+
+  get skyTextures(): AtmosphericSkyTextures | null {
+    if (
+      !this.transmittanceTexture ||
+      !this.irradianceTexture ||
+      !this.scatteringTexture
+    ) {
+      return null;
+    }
+    return {
+      transmittanceTexture: this.transmittanceTexture,
+      irradianceTexture: this.irradianceTexture,
+      scatteringTexture: this.scatteringTexture,
+    };
+  }
+
+  get isSkyLoading(): boolean {
+    return (
+      this.transmittanceLoading ||
+      this.irradianceLoading ||
+      this.scatteringLoading
     );
   }
 
@@ -264,6 +338,20 @@ export class AtmosphericSunlightEvaluator {
       this.ensureTransmittance(notifyWhenSettled);
     }
     if (options.useIrradianceLut) this.ensureIrradiance(notifyWhenSettled);
+  }
+
+  ensureSky(onReady: () => void): void {
+    if (this.disposed || this.skyReady) return;
+    let notified = false;
+    const notifyWhenSettled = () => {
+      if (!notified && !this.isSkyLoading) {
+        notified = true;
+        onReady();
+      }
+    };
+    this.ensureTransmittance(notifyWhenSettled);
+    this.ensureIrradiance(notifyWhenSettled);
+    this.ensureScattering(notifyWhenSettled);
   }
 
   private ensureTransmittance(onReady: () => void): void {
@@ -339,6 +427,43 @@ export class AtmosphericSunlightEvaluator {
     );
   }
 
+  private ensureScattering(onReady: () => void): void {
+    if (
+      this.scatteringTexture ||
+      this.scatteringLoading ||
+      Date.now() < this.scatteringRetryAt
+    ) {
+      return;
+    }
+    this.scatteringLoading = true;
+    createData3DTextureLoader(parseFloat16Array, {
+      width: SCATTERING_TEXTURE_WIDTH,
+      height: SCATTERING_TEXTURE_HEIGHT,
+      depth: SCATTERING_TEXTURE_DEPTH,
+    }).load(
+      `${DEFAULT_PRECOMPUTED_TEXTURES_URL}/scattering.bin`,
+      (scatteringTexture) => {
+        this.scatteringLoading = false;
+        if (this.disposed) {
+          scatteringTexture.dispose();
+          return;
+        }
+        this.scatteringRetryAt = 0;
+        this.scatteringTexture = scatteringTexture;
+        onReady();
+      },
+      undefined,
+      (error: unknown) => {
+        this.scatteringLoading = false;
+        if (!this.disposed) {
+          this.scatteringRetryAt = Date.now() + LUT_RETRY_DELAY_MS;
+          console.error("[SHADOW] Takram scattering LUT failed", error);
+          onReady();
+        }
+      }
+    );
+  }
+
   evaluate(
     instant: Date,
     observer: AtmosphericObserver,
@@ -357,12 +482,16 @@ export class AtmosphericSunlightEvaluator {
     this.disposed = true;
     this.transmittanceLoading = false;
     this.irradianceLoading = false;
+    this.scatteringLoading = false;
     this.transmittanceRetryAt = 0;
     this.irradianceRetryAt = 0;
+    this.scatteringRetryAt = 0;
     this.transmittanceTexture?.dispose();
     this.irradianceTexture?.dispose();
+    this.scatteringTexture?.dispose();
     this.transmittanceTexture = null;
     this.irradianceTexture = null;
+    this.scatteringTexture = null;
     this.skyLightProbe.irradianceTexture = null;
     this.skyLightProbe.sh.zero();
   }

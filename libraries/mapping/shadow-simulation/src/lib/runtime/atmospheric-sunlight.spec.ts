@@ -3,6 +3,9 @@
 import {
   IRRADIANCE_TEXTURE_HEIGHT,
   IRRADIANCE_TEXTURE_WIDTH,
+  SCATTERING_TEXTURE_DEPTH,
+  SCATTERING_TEXTURE_HEIGHT,
+  SCATTERING_TEXTURE_WIDTH,
   SkyLightProbe,
   TRANSMITTANCE_TEXTURE_HEIGHT,
   TRANSMITTANCE_TEXTURE_WIDTH,
@@ -22,7 +25,8 @@ type TextureRequest = Readonly<{
   url: string;
   width?: number;
   height?: number;
-  onLoad: (texture: THREE.DataTexture) => void;
+  depth?: number;
+  onLoad: (texture: THREE.Texture) => void;
   onError?: (error: unknown) => void;
 }>;
 
@@ -49,7 +53,33 @@ vi.mock("@takram/three-geospatial", async (importOriginal) => {
             url,
             width: parameters?.width,
             height: parameters?.height,
-            onLoad,
+            onLoad: onLoad as (texture: THREE.Texture) => void,
+            onError,
+          });
+        },
+      })
+    ),
+    createData3DTextureLoader: vi.fn(
+      (
+        _parser: unknown,
+        parameters?: Readonly<{
+          width?: number;
+          height?: number;
+          depth?: number;
+        }>
+      ) => ({
+        load: (
+          url: string,
+          onLoad: (texture: THREE.Data3DTexture) => void,
+          _onProgress?: (event: ProgressEvent) => void,
+          onError?: (error: unknown) => void
+        ) => {
+          textureRequests.push({
+            url,
+            width: parameters?.width,
+            height: parameters?.height,
+            depth: parameters?.depth,
+            onLoad: onLoad as (texture: THREE.Texture) => void,
             onError,
           });
         },
@@ -84,6 +114,18 @@ const createConstantTexture = (
     THREE.FloatType
   );
 };
+
+const createConstant3DTexture = (
+  width: number,
+  height: number,
+  depth: number
+): THREE.Data3DTexture =>
+  new THREE.Data3DTexture(
+    new Float32Array(width * height * depth * 4),
+    width,
+    height,
+    depth
+  );
 
 const findTextureRequests = (filename: string): TextureRequest[] =>
   textureRequests.filter(({ url }) => url.endsWith(`/${filename}`));
@@ -244,6 +286,56 @@ describe("atmospheric sunlight", () => {
     expect(transmittanceDispose).toHaveBeenCalledTimes(1);
     expect(irradianceDispose).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
+  });
+
+  it("loads and shares all three LUTs needed by the sky material", () => {
+    const evaluator = new AtmosphericSunlightEvaluator();
+    const onReady = vi.fn();
+
+    evaluator.ensureSky(onReady);
+
+    expect(textureRequests).toMatchObject([
+      {
+        width: TRANSMITTANCE_TEXTURE_WIDTH,
+        height: TRANSMITTANCE_TEXTURE_HEIGHT,
+      },
+      {
+        width: IRRADIANCE_TEXTURE_WIDTH,
+        height: IRRADIANCE_TEXTURE_HEIGHT,
+      },
+      {
+        width: SCATTERING_TEXTURE_WIDTH,
+        height: SCATTERING_TEXTURE_HEIGHT,
+        depth: SCATTERING_TEXTURE_DEPTH,
+      },
+    ]);
+    const transmittanceTexture = createConstantTexture(
+      TRANSMITTANCE_TEXTURE_WIDTH,
+      TRANSMITTANCE_TEXTURE_HEIGHT
+    );
+    const irradianceTexture = createConstantTexture(
+      IRRADIANCE_TEXTURE_WIDTH,
+      IRRADIANCE_TEXTURE_HEIGHT
+    );
+    const scatteringTexture = createConstant3DTexture(
+      SCATTERING_TEXTURE_WIDTH,
+      SCATTERING_TEXTURE_HEIGHT,
+      SCATTERING_TEXTURE_DEPTH
+    );
+    findTextureRequests("transmittance.bin")[0]?.onLoad(transmittanceTexture);
+    findTextureRequests("irradiance.bin")[0]?.onLoad(irradianceTexture);
+    expect(onReady).not.toHaveBeenCalled();
+    findTextureRequests("scattering.bin")[0]?.onLoad(scatteringTexture);
+
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(evaluator.skyReady).toBe(true);
+    expect(evaluator.skyTextures).toEqual({
+      transmittanceTexture,
+      irradianceTexture,
+      scatteringTexture,
+    });
+
+    evaluator.dispose();
   });
 
   it("retries failed irradiance without reloading transmittance", () => {
