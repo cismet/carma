@@ -1,24 +1,12 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import type {
-  AppState,
-  ExcalidrawImperativeAPI,
-} from "@excalidraw/excalidraw/types/types";
+import { useMemo, useState } from "react";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { useAnnotationActions } from "./annotation-actions";
-import { useMapSceneSync } from "./map-scene-sync";
-import { redoScene, undoScene } from "./annotation-history";
+import { AnnotationScene } from "./AnnotationScene";
+import { useDrawingPicker } from "./useDrawingPicker";
 import type { AnnotationInset } from "./types";
-import "./annotation-overlay.css";
-
-const Excalidraw = lazy(() =>
-  import("@excalidraw/excalidraw").then(({ Excalidraw }) => ({
-    default: Excalidraw,
-  }))
-);
 
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
@@ -44,17 +32,16 @@ const DEFAULT_INSET: Required<AnnotationInset> = {
 };
 
 /**
- * A georeferenced sketch layer: excalidraw painted into the map wrapper over
- * the map, pinned to the ground by `useMapSceneSync`.
+ * The georeferenced sketch layer: one excalidraw scene per drawing, portalled
+ * into the map wrapper and pinned to the ground by `useMapSceneSync`.
  *
- * Stays mounted whether or not it is drawing — unmounting would take the scene
- * with it, and the sync has to keep running while the map moves.
- * `annotationControl` flips the `annotationMode` channel; off means view mode
- * and `pointer-events: none`.
+ * Each drawing has its own anchor, so a new one starts at the current camera
+ * while the older ones stay where they were drawn. `annotationControl` flips
+ * the `annotationMode` channel; off means view mode and `pointer-events: none`.
  *
- * The map wrapper runs the full window, behind the app's own chrome, and
- * excalidraw pins its toolbar to the top of whatever box it gets. Hence the
- * insets, at the price of those strips not being drawable.
+ * The map wrapper spans the window behind the app chrome, and excalidraw pins
+ * its toolbar to the top of whatever box it gets — hence the insets, at the
+ * cost of those strips not being drawable.
  */
 export const AnnotationOverlay = ({
   config,
@@ -77,34 +64,33 @@ export const AnnotationOverlay = ({
   } = config ?? {};
   const { top, right, bottom, left } = { ...DEFAULT_INSET, ...inset };
 
-  const { isOn, shape, undoVersion, redoVersion } = useAnnotationActions();
+  const {
+    isOn,
+    isLocked,
+    groups,
+    activeId,
+    shape,
+    undoVersion,
+    redoVersion,
+    pickGroup,
+  } = useAnnotationActions();
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
-  const [box, setBox] = useState<HTMLDivElement | null>(null);
-  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   // flush to the host would file the toolbar away behind the navbar. Measured,
   // because zen mode takes the bar away while the addon runs
   const navbarInset = useToolbarInset(host, toolbarSelector, true);
-  const { inSync, onSceneChange } = useMapSceneSync(libreMap, api, box, isOn);
 
-  useEffect(() => {
-    if (api && shape) {
-      api.setActiveTool({ type: shape, locked: true });
-    }
-  }, [api, shape]);
-
-  const historyRef = useRef({ undoVersion, redoVersion });
-  useEffect(() => {
-    const previous = historyRef.current;
-    historyRef.current = { undoVersion, redoVersion };
-    const container = box?.querySelector<HTMLElement>(".excalidraw") ?? null;
-    if (undoVersion > previous.undoVersion) {
-      undoScene(container);
-    }
-    if (redoVersion > previous.redoVersion) {
-      redoScene(container);
-    }
-  }, [box, redoVersion, undoVersion]);
+  const order = useMemo(() => groups.map((group) => group.id), [groups]);
+  const registerProbe = useDrawingPicker({
+    host,
+    enabled: isOn,
+    order,
+    activeId,
+    // with a shape tool selected the click belongs to the shape; while the
+    // active drawing is locked nothing is being drawn, so any click may pick up
+    armed: isLocked || shape === "selection",
+    onPick: pickGroup,
+  });
 
   const nextHost = libreMap ? stageHostOf(libreMap) : null;
   if (nextHost !== host) {
@@ -115,45 +101,38 @@ export const AnnotationOverlay = ({
     return null;
   }
 
-  const drawing = isOn && inSync;
+  const chrome = {
+    hideMenu,
+    hideZoom,
+    hideTools,
+    hideHelp,
+    hideLibrary,
+    hideHistory,
+  };
+  const paper = withAlpha(background, backgroundOpacity);
 
-  return createPortal(
-    <div
-      ref={setBox}
-      className="carma-annotation-overlay"
-      data-drawing={drawing ? "true" : "false"}
-      data-hide-menu={hideMenu ? "true" : "false"}
-      data-hide-zoom={hideZoom ? "true" : "false"}
-      data-hide-tools={hideTools ? "true" : "false"}
-      data-hide-help={hideHelp ? "true" : "false"}
-      data-hide-library={hideLibrary ? "true" : "false"}
-      data-hide-history={hideHistory ? "true" : "false"}
-      style={{
-        position: "absolute",
-        top: navbarInset + top,
-        right,
-        bottom,
-        left,
-        zIndex,
-        pointerEvents: drawing ? "auto" : "none",
-        // not `display: none`: the sync measures its offset off this box
-        visibility: inSync && (drawing || !hideWhenOff) ? "visible" : "hidden",
-      }}
-    >
-      <Suspense fallback={null}>
-        <Excalidraw
-          excalidrawAPI={setApi}
-          onChange={(_elements, appState: AppState) => onSceneChange(appState)}
+  return (
+    <>
+      {groups.map((group, index) => (
+        <AnnotationScene
+          key={group.id}
+          id={group.id}
+          host={host}
+          libreMap={libreMap}
+          onProbe={registerProbe}
+          editable={isOn && group.id === activeId && !group.locked}
+          shown={isOn || !hideWhenOff}
           langCode={langCode}
-          viewModeEnabled={!drawing}
-          initialData={{
-            appState: {
-              viewBackgroundColor: withAlpha(background, backgroundOpacity),
-            },
-          }}
+          background={paper}
+          chrome={chrome}
+          shape={shape}
+          undoVersion={undoVersion}
+          redoVersion={redoVersion}
+          inset={{ top: navbarInset + top, right, bottom, left }}
+          // oldest first, so a newer drawing stacks over the older ones
+          zIndex={zIndex + index}
         />
-      </Suspense>
-    </div>,
-    host
+      ))}
+    </>
   );
 };

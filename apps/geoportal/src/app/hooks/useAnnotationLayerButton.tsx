@@ -10,6 +10,7 @@ import {
   appendLayer,
   getLayers,
   removeLayer,
+  updateLayer,
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
 } from "../store/slices/mapping";
@@ -27,6 +28,7 @@ export function useAnnotationLayerButton() {
       dispatch(setActiveInteractionLayerID(layer.id));
       dispatch(setActiveInteractionButtonID(ANNOTATION_TOOLS_INTERACTION_ID));
     },
+    onUpdate: (layer) => dispatch(updateLayer(layer)),
     onRemove: (id) => {
       dispatch(removeLayer(id));
       dispatch(setActiveInteractionLayerID(null));
