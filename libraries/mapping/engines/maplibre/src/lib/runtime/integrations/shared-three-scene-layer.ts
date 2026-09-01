@@ -44,8 +44,6 @@ export interface SharedThreeSceneRuntime {
   root: THREE.Object3D;
   /** This runtime already supplies the visible ground surface. */
   providesTerrain?: boolean;
-  /** Dynamic content makes multi-frame scene accumulation unsafe. */
-  blocksAccumulation?: boolean;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
   hasRenderableContent?: () => boolean;
   updatePriority?: number;
@@ -249,9 +247,9 @@ export const installRenderTargetDepthRangeBridge = (
       // MapLibre may render custom layers into an internal framebuffer. Three
       // does not know about it and setRenderTarget(null) binds the browser's
       // default framebuffer after an offscreen shadow/accumulation pass.
-      const hostFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as
-        | WebGLFramebuffer
-        | null;
+      const hostFramebuffer = gl.getParameter(
+        gl.FRAMEBUFFER_BINDING
+      ) as WebGLFramebuffer | null;
       activeDepthRange = depthRange;
       try {
         callback();
@@ -489,20 +487,7 @@ export const buildSharedThreeSceneLayer = (
       const visualKey = accumulation
         ? `${accumulation.visualEpoch()}|${poseKey}`
         : "";
-      const accumulationBlocked = runtimeUpdateOrder.some(
-        (runtime) => runtime.blocksAccumulation === true
-      );
-      if (accumulationBlocked && accumulator) {
-        accumulator.dispose();
-        accumulator = null;
-        settledAccumulatorVisualKey = "";
-      }
-      if (
-        accumulation?.active() &&
-        !accumulationBlocked &&
-        renderer &&
-        !accumulator?.broken
-      ) {
+      if (accumulation?.active() && renderer && !accumulator?.broken) {
         if (accumulator && accumulatorRounds !== accumulation.rounds) {
           accumulator.dispose();
           accumulator = null;
@@ -577,7 +562,6 @@ export const buildSharedThreeSceneLayer = (
         if (!accumulator.converged) map.triggerRepaint();
       } else {
         const retainSettled =
-          !accumulationBlocked &&
           accumulation?.retainSettledFrame() === true &&
           accumulator?.hasSettledFrame === true &&
           settledAccumulatorVisualKey === visualKey;

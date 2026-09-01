@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { TilesRenderer } from "3d-tiles-renderer";
+import { LOADING, type Tile } from "3d-tiles-renderer/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -443,12 +444,69 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 800),
     });
 
-    expect(centerTile.priority).toBe(3);
-    expect(outerVisibleTile.priority).toBe(2);
+    expect(centerTile.priority).toBeGreaterThan(outerVisibleTile.priority!);
+    expect(outerVisibleTile.priority).toBeGreaterThan(2);
     expect(shadowOnlyTile.priority).toBe(0);
     expect(queue.items.at(-1)).toBe(centerTile);
 
     queue.items.length = 0;
+    layer.dispose();
+    updateSpy.mockRestore();
+  });
+
+  it("only aborts downloads outside the current view and shadow-camera union", () => {
+    let renderer: TilesRenderer | undefined;
+    const updateSpy = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function (this: TilesRenderer) {
+        renderer = this;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    } as unknown as MaplibreMap;
+    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
+    const camera = new THREE.PerspectiveCamera();
+
+    layer.onAdd?.(map);
+    layer.update({
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    });
+    const staleTile = {
+      internal: { loadingState: LOADING },
+    } as Tile;
+    const activeTile = {
+      internal: { loadingState: LOADING },
+    } as Tile;
+    const abortDownload = vi.fn();
+    const retainDownload = vi.fn();
+    renderer!.lruCache.add(staleTile, abortDownload);
+    renderer!.lruCache.add(activeTile, retainDownload);
+    renderer!.lruCache.markUnused(staleTile);
+    renderer!.lruCache.markUsed(activeTile);
+    renderer!.loadingTiles.add(staleTile);
+    renderer!.loadingTiles.add(activeTile);
+
+    layer.update({
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    });
+
+    expect(abortDownload).toHaveBeenCalledOnce();
+    expect(renderer!.lruCache.has(staleTile)).toBe(false);
+    expect(retainDownload).not.toHaveBeenCalled();
+    expect(renderer!.lruCache.has(activeTile)).toBe(true);
+
+    renderer!.loadingTiles.delete(staleTile);
+    renderer!.loadingTiles.delete(activeTile);
     layer.dispose();
     updateSpy.mockRestore();
   });
@@ -467,7 +525,6 @@ describe("three tiles runtime styling", () => {
     layer.root.add(mesh);
 
     expect(layer.providesTerrain).toBe(true);
-    expect(layer.blocksAccumulation).toBe(true);
     expect(layer.getRequestDemand()).toBe(1);
     layer.setVisible(false);
     expect(layer.root.visible).toBe(false);

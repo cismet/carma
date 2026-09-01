@@ -1,5 +1,5 @@
 import { TilesRenderer } from "3d-tiles-renderer";
-import type { Tile } from "3d-tiles-renderer/core";
+import { LOADING, type Tile } from "3d-tiles-renderer/core";
 import {
   DebugTilesPlugin,
   GLTFExtensionsPlugin,
@@ -928,15 +928,28 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         .copy(tileBoundingSphere.center)
         .applyMatrix4(tiles.group.matrixWorld)
         .project(viewCamera);
-      const inLowerCenter =
-        inViewport &&
-        Math.abs(tileProjectedCenter.x) <= 0.7 &&
-        tileProjectedCenter.y <= 0.25;
+      const centerDistance = Math.min(
+        Math.SQRT2,
+        Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
+      );
       // PriorityQueue removes from the end of its sorted list, so larger
       // values run first. Error and camera distance remain its tie-breakers.
-      tile.priority = inLowerCenter ? 3 : inViewport ? 2 : 0;
+      tile.priority = inViewport ? 2 + (1 - centerDistance / Math.SQRT2) : 0;
     }
     queue.sort();
+  };
+  const abortDownloadsOutsideActiveCameras = () => {
+    if (!tiles) return;
+    const cache = tiles.lruCache as typeof tiles.lruCache & {
+      isUsed: (tile: Tile) => boolean;
+      remove: (tile: Tile) => boolean;
+    };
+    const loadingTiles = tiles.loadingTiles as Set<Tile>;
+    for (const tile of [...loadingTiles]) {
+      if (tile.internal.loadingState === LOADING && !cache.isUsed(tile)) {
+        cache.remove(tile);
+      }
+    }
   };
   const handleUpdateAfter = () => {
     scheduleProgressiveRefinement();
@@ -959,10 +972,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     originLngLat,
     root: orientationGroup,
     providesTerrain: options.providesTerrain === true,
-    // Photogrammetry terrain replaces tiles as its view-dependent LOD settles;
-    // combining those different geometry sets into a multi-frame average can
-    // leave holes or stale tiles in the displayed result.
-    blocksAccumulation: options.providesTerrain === true,
     originMerc,
     mScale,
 
@@ -1070,13 +1079,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         );
         if (!cameraSet) {
           cameraSet = createTilesCameraSet(tiles, viewCamera);
-          cameraSet.setShadowView(
-            shadowSelectionEnabled ? shadowView : null
-          );
+          cameraSet.setShadowView(shadowSelectionEnabled ? shadowView : null);
         }
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
+        abortDownloadsOutsideActiveCameras();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         prioritizeQueuedTiles(viewCamera);
         maybeEnableShadowSelection();
