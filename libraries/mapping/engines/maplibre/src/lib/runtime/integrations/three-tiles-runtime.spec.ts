@@ -204,7 +204,7 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
-  it("does not restart progressive refinement for an unchanged error target", () => {
+  it("does not retraverse for an unchanged error target", () => {
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
       .spyOn(TilesRenderer.prototype, "update")
@@ -240,8 +240,7 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
-  it("refines the visible terrain before registering the shadow camera", () => {
-    vi.useFakeTimers();
+  it("uses the requested error target for the persistent camera union", () => {
     const updateErrorTargets: number[] = [];
     const eventOrder: string[] = [];
     let renderer: TilesRenderer | undefined;
@@ -303,17 +302,18 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 600),
     });
 
-    expect(updateErrorTargets).toEqual([64]);
-    expect(setCameraSpy).not.toHaveBeenCalledWith(shadowCamera);
+    expect(updateErrorTargets).toEqual([0.25]);
+    expect(setCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(eventOrder.indexOf("shadow-camera")).toBeGreaterThan(
+      eventOrder.lastIndexOf("update")
+    );
     expect(
       registerPluginSpy.mock.calls.some(
         ([plugin]) => plugin.name === "UPDATE_ON_CHANGE_PLUGIN"
       )
     ).toBe(true);
 
-    renderer!.group.add(new THREE.Group());
     handlers.get("moveend")?.();
-    vi.advanceTimersByTime(8 * 180);
     layer.update({
       map,
       renderCamera: viewCamera,
@@ -322,11 +322,7 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 600),
     });
 
-    expect(updateErrorTargets).toEqual([64, 0.25]);
-    expect(eventOrder.indexOf("shadow-camera")).toBeGreaterThan(
-      eventOrder.lastIndexOf("update")
-    );
-    expect(setCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(updateErrorTargets).toEqual([0.25, 0.25]);
     deleteCameraSpy.mockClear();
     setResolutionSpy.mockClear();
 
@@ -349,7 +345,7 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 600),
     });
 
-    expect(updateErrorTargets).toEqual([64, 0.25, 0.25]);
+    expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25]);
     expect(deleteCameraSpy).not.toHaveBeenCalled();
     expect(setResolutionSpy).toHaveBeenCalledWith(shadowCamera, 800, 600);
 
@@ -362,7 +358,6 @@ describe("three tiles runtime styling", () => {
     deleteCameraSpy.mockRestore();
     setResolutionSpy.mockRestore();
     registerPluginSpy.mockRestore();
-    vi.useRealTimers();
   });
 
   it("prioritizes visible terrain refinement ahead of shadow-only tiles", () => {

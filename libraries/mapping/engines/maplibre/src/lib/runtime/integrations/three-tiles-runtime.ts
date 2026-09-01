@@ -48,9 +48,7 @@ export const TILES_ERROR_TARGET_MIN_PIXELS = 0;
 export const TILES_ERROR_TARGET_MAX_PIXELS = 50;
 export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 6;
 
-const MINIMUM_PROGRESSIVE_ERROR_TARGET_PIXELS = 0.05;
-const COVERAGE_ERROR_TARGET_PIXELS = 64;
-const REFINEMENT_FACTOR = 2;
+const VIEW_QUALITY_AUDIT_PASSES = 2;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
@@ -154,10 +152,8 @@ export function buildThreeTilesRuntime(
   let debugTilesPlugin: DebugTilesPlugin | null = null;
   let cameraSet: TilesCameraSet | null = null;
   let kickstartTimer = 0;
-  let refinementTimer = 0;
   let unsubscribeTerrainLoading: (() => void) | null = null;
   let requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
-  let activeErrorTarget = COVERAGE_ERROR_TARGET_PIXELS;
   let cacheBudgetBytes = Math.max(
     MINIMUM_CACHE_BYTES,
     Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
@@ -194,6 +190,7 @@ export function buildThreeTilesRuntime(
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
   let shadowSelectionNeedsTraversal = false;
+  let viewQualityAuditPasses = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
@@ -876,6 +873,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       items: unknown[];
       currJobs: number;
     };
+    const processNodeQueue =
+      tiles.processNodeQueue as typeof tiles.processNodeQueue & {
+        items: unknown[];
+        currJobs: number;
+      };
     const stats = (
       tiles as TilesRenderer & {
         stats?: { queued?: number; downloading?: number; parsing?: number };
@@ -884,12 +886,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     return (
       queue.items.length +
       queue.currJobs +
+      processNodeQueue.items.length +
+      processNodeQueue.currJobs +
       (stats?.queued ?? 0) +
       (stats?.downloading ?? 0) +
       (stats?.parsing ?? 0) +
-      (activeErrorTarget > requestedErrorTarget || refinementTimer ? 1 : 0) +
       (shadowView && !shadowSelectionEnabled ? 1 : 0) +
       (shadowSelectionNeedsTraversal ? 1 : 0) +
+      viewQualityAuditPasses +
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries()
         ? 1
         : 0)
@@ -971,8 +975,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       !shadowView ||
       !tiles ||
       !cameraSet ||
-      activeErrorTarget > requestedErrorTarget ||
-      refinementTimer ||
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries())
     ) {
       return;
@@ -1106,57 +1108,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         ? 0
         : activeConcurrency;
   };
-  const restartProgressiveLod = () => {
-    activeErrorTarget = Math.max(
-      requestedErrorTarget,
-      COVERAGE_ERROR_TARGET_PIXELS
-    );
-    if (tiles) tiles.errorTarget = activeErrorTarget;
-  };
-  const scheduleProgressiveRefinement = () => {
-    if (
-      !tiles ||
-      activeErrorTarget <= requestedErrorTarget ||
-      refinementTimer
-    ) {
-      return;
-    }
-    refinementTimer = window.setTimeout(() => {
-      refinementTimer = 0;
-      if (!tiles || activeErrorTarget <= requestedErrorTarget) return;
-      const stats = (
-        tiles as unknown as {
-          stats: {
-            queued?: number;
-            downloading?: number;
-            parsing?: number;
-          };
-        }
-      ).stats;
-      if (
-        (stats.queued ?? 0) + (stats.downloading ?? 0) + (stats.parsing ?? 0) >
-        0
-      ) {
-        scheduleProgressiveRefinement();
-        return;
-      }
-      const nextErrorTarget = activeErrorTarget / REFINEMENT_FACTOR;
-      activeErrorTarget =
-        nextErrorTarget <=
-        Math.max(requestedErrorTarget, MINIMUM_PROGRESSIVE_ERROR_TARGET_PIXELS)
-          ? requestedErrorTarget
-          : nextErrorTarget;
-      tiles.errorTarget = activeErrorTarget;
-      tiles.dispatchEvent({ type: "needs-update" });
-      scheduleProgressiveRefinement();
-    }, 180);
-  };
   const handleViewStart = () => {
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
-    tiles?.dispatchEvent({ type: "needs-update" });
-    scheduleProgressiveRefinement();
+    if (!tiles) return;
+    tiles.errorTarget = requestedErrorTarget;
+    viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
+    tiles.dispatchEvent({ type: "needs-update" });
   };
   const prioritizeQueuedTiles = (viewCamera: THREE.Camera) => {
     if (!tiles) return;
@@ -1205,7 +1164,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     queue.sort();
   };
   const handleUpdateAfter = () => {
-    scheduleProgressiveRefinement();
     const currentTiles = tiles;
     if (!currentTiles) return;
     const cache = currentTiles.lruCache as typeof currentTiles.lruCache & {
@@ -1277,7 +1235,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles.processNodeQueue.maxJobs = 48;
       tiles.maxTilesProcessed = 1_000;
       applyCacheBudget();
-      restartProgressiveLod();
+      tiles.errorTarget = requestedErrorTarget;
       offsetGroup.add(tiles.group);
 
       // Request frames until the first tile work starts.
@@ -1338,6 +1296,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
+        if (viewQualityAuditPasses > 0) {
+          viewQualityAuditPasses -= 1;
+          if (viewQualityAuditPasses > 0) {
+            tiles.dispatchEvent({ type: "needs-update" });
+          }
+        }
         prioritizeQueuedTiles(viewCamera);
         maybeEnableShadowSelection();
       } catch (error) {
@@ -1354,10 +1318,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           };
         }
       ).stats;
+      const processNodeQueue =
+        tiles.processNodeQueue as typeof tiles.processNodeQueue & {
+          items: unknown[];
+          currJobs: number;
+        };
       if (
         (stats?.queued ?? 0) > 0 ||
         (stats?.downloading ?? 0) > 0 ||
-        (stats?.parsing ?? 0) > 0
+        (stats?.parsing ?? 0) > 0 ||
+        processNodeQueue.items.length > 0 ||
+        processNodeQueue.currJobs > 0 ||
+        viewQualityAuditPasses > 0
       ) {
         map.triggerRepaint();
       }
@@ -1370,16 +1342,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       orientationGroup.visible = visible;
       notifyRequestStateChange();
       if (!visible) {
-        if (refinementTimer) {
-          window.clearTimeout(refinementTimer);
-          refinementTimer = 0;
-        }
+        viewQualityAuditPasses = 0;
         map?.triggerRepaint();
         return;
       }
-      restartProgressiveLod();
+      if (tiles) tiles.errorTarget = requestedErrorTarget;
+      viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
-      scheduleProgressiveRefinement();
       map?.triggerRepaint();
     },
 
@@ -1396,9 +1365,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       );
       if (requestedErrorTarget === nextErrorTarget) return;
       requestedErrorTarget = nextErrorTarget;
-      restartProgressiveLod();
+      if (tiles) tiles.errorTarget = requestedErrorTarget;
+      viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
-      scheduleProgressiveRefinement();
     },
 
     setShadowSimulationStyle(style) {
@@ -1529,10 +1498,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       if (kickstartTimer) {
         window.clearInterval(kickstartTimer);
         kickstartTimer = 0;
-      }
-      if (refinementTimer) {
-        window.clearTimeout(refinementTimer);
-        refinementTimer = 0;
       }
       map?.off("movestart", handleViewStart);
       map?.off("moveend", handleViewEnd);
