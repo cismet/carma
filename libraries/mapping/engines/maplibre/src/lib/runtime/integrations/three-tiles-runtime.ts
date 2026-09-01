@@ -38,6 +38,7 @@ import type {
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowStyle,
   SharedThreeSceneShadowView,
+  SharedThreeSceneTileVolume,
 } from "./shared-three-scene-layer";
 import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
 
@@ -146,7 +147,6 @@ export function buildThreeTilesRuntime(
 ): ThreeTilesRuntime {
   const originMerc = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const mScale = originMerc.meterInMercatorCoordinateUnits();
-  const isTerrainMesh = options.providesTerrain === true;
 
   let map: MaplibreMap | null = null;
   let tiles: TilesRenderer | null = null;
@@ -204,6 +204,7 @@ export function buildThreeTilesRuntime(
   const tileViewFrustum = new THREE.Frustum();
   const tileBoundingSphere = new THREE.Sphere();
   const tileBoundingBox = new THREE.Box3();
+  const activeTileBoundingBox = new THREE.Box3();
   const tileViewElevationFrustum = new THREE.Frustum();
   const tileViewElevationProjection = new THREE.Matrix4();
   const tileProjectedCenter = new THREE.Vector3();
@@ -658,6 +659,32 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       ? [minimum, maximum]
       : null;
   };
+  const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] => {
+    if (!tiles || !runtimeVisible) return [];
+    tiles.group.updateWorldMatrix(true, false);
+    const volumes: SharedThreeSceneTileVolume[] = [];
+    for (const tile of tiles.activeTiles) {
+      const activeTile = tile as Tile & {
+        engineData?: {
+          boundingVolume?: { getAABB?: (target: THREE.Box3) => void };
+        };
+      };
+      const boundingVolume = activeTile.engineData?.boundingVolume;
+      if (!boundingVolume?.getAABB) continue;
+      boundingVolume.getAABB(activeTileBoundingBox);
+      activeTileBoundingBox.applyMatrix4(tiles.group.matrixWorld);
+      if (activeTileBoundingBox.isEmpty()) continue;
+      volumes.push({
+        id: `${layerId}:${
+          tile.content?.uri ?? `${tile.internal.depth}:${volumes.length}`
+        }`,
+        kind: options.providesTerrain ? "terrain-tile" : "3d-tile",
+        minimum: activeTileBoundingBox.min.toArray(),
+        maximum: activeTileBoundingBox.max.toArray(),
+      });
+    }
+    return volumes;
+  };
   let lastNotifiedRequestDemand = Number.NaN;
   const notifyRequestStateChange = () => {
     const requestDemand = getRequestDemand();
@@ -859,14 +886,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }, 180);
   };
   const handleViewStart = () => {
-    if (refinementTimer) {
-      window.clearTimeout(refinementTimer);
-      refinementTimer = 0;
-    }
-    if (isTerrainMesh) {
-      setShadowSelectionEnabled(false);
-      restartProgressiveLod();
-    }
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
@@ -1237,6 +1256,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     getRequestDemand,
     getViewElevationRange,
+    getActiveTileVolumes,
     hasRenderableContent: () => {
       let renderable = false;
       tiles?.group.traverse((object) => {

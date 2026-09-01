@@ -46,7 +46,7 @@ import {
 } from "./payload-aware-request-concurrency";
 import type {
   SharedThreeSceneFrame,
-  SharedThreeSceneDebugVolume,
+  SharedThreeSceneTileVolume,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
 } from "./shared-three-scene-layer";
@@ -94,7 +94,7 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   getViewElevationRange: (
     camera: Camera
   ) => readonly [minimum: number, maximum: number] | null;
-  getDebugVolumes: () => readonly SharedThreeSceneDebugVolume[];
+  getActiveTileVolumes: () => readonly SharedThreeSceneTileVolume[];
 }
 
 type TerrainMeshRecord = {
@@ -592,7 +592,7 @@ export const buildCesiumTerrainRuntime = (
     terrainSource: CesiumTerrainTileSource,
     parent: TerrainSelectionEntry,
     intersectsViewport: (entry: TerrainSelectionEntry) => boolean,
-    shadowBounds: CesiumTerrainTileBounds | null
+    intersectsShadow: (entry: TerrainSelectionEntry) => boolean
   ) => {
     if (parent.kind === "flat") return [];
     const childLevel = parent.id.level + 1;
@@ -604,13 +604,9 @@ export const buildCesiumTerrainRuntime = (
           x: parent.id.x * 2 + xOffset,
           y: parent.id.y * 2 + yOffset,
         };
-        const bounds = terrainSource.getTileBounds(id);
         const entry = { id, kind: "source" } as const;
         const childIntersectsViewport = intersectsViewport(entry);
-        const intersectsShadow =
-          shadowBounds !== null &&
-          geographicBoundsIntersect(bounds, shadowBounds);
-        if (!childIntersectsViewport && !intersectsShadow) continue;
+        if (!childIntersectsViewport && !intersectsShadow(entry)) continue;
         // Keep the parent whole when any relevant child lacks source data.
         if (terrainSource.getTileDataAvailable(id) === false) return [];
         children.push(entry);
@@ -933,11 +929,11 @@ export const buildCesiumTerrainRuntime = (
       : null;
   };
 
-  const getDebugVolumes = (): readonly SharedThreeSceneDebugVolume[] => {
+  const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] => {
     if (!source || activeMeshKeys.size === 0) return [];
     root.updateMatrixWorld(true);
     const bounds = new Box3();
-    const volumes: SharedThreeSceneDebugVolume[] = [];
+    const volumes: SharedThreeSceneTileVolume[] = [];
     for (const key of activeMeshKeys) {
       const record = meshes.get(key);
       if (!record?.node.visible) continue;
@@ -1004,6 +1000,16 @@ export const buildCesiumTerrainRuntime = (
     const viewportFrustum = new Frustum().setFromProjectionMatrix(
       clipFromWorld
     );
+    const shadowFrustum = shadowView
+      ? new Frustum().setFromProjectionMatrix(
+          new Matrix4().multiplyMatrices(
+            shadowView.camera.projectionMatrix,
+            shadowView.camera.matrixWorldInverse
+          ),
+          shadowView.camera.coordinateSystem,
+          shadowView.camera.reversedDepth
+        )
+      : null;
     const localFromWorld = new Matrix4().copy(root.matrixWorld).invert();
     const localCameraPosition = frame.lodCamera.position
       .clone()
@@ -1012,6 +1018,7 @@ export const buildCesiumTerrainRuntime = (
       string,
       Readonly<{
         intersectsViewport: boolean;
+        intersectsShadow: boolean;
         localBoundingBox: Box3;
         viewportCenterDistanceSquared: number;
       }>
@@ -1084,6 +1091,8 @@ export const buildCesiumTerrainRuntime = (
         intersectsViewport:
           geographicBoundsIntersect(bounds, viewportBounds) ||
           viewportFrustum.intersectsBox(worldBoundingBox),
+        intersectsShadow:
+          shadowFrustum?.intersectsBox(worldBoundingBox) ?? false,
         localBoundingBox,
         viewportCenterDistanceSquared:
           projectedCenter.x ** 2 + projectedCenter.y ** 2,
@@ -1093,6 +1102,8 @@ export const buildCesiumTerrainRuntime = (
     };
     const intersectsViewport = (entry: TerrainSelectionEntry) =>
       getViewMetrics(entry).intersectsViewport;
+    const intersectsShadow = (entry: TerrainSelectionEntry) =>
+      getViewMetrics(entry).intersectsShadow;
     const getRootSearchBounds = (level: number) => {
       const viewportIds = terrainSource.getTileGridIdsForBounds(
         viewportBounds,
@@ -1123,17 +1134,14 @@ export const buildCesiumTerrainRuntime = (
       terrainSource
         .getTileGridIdsForBounds(getRootSearchBounds(level), level)
         .flatMap((id) => {
-          const bounds = terrainSource.getTileBounds(id);
           const kind =
             terrainSource.getTileDataAvailable(id) === false
               ? "flat"
               : "source";
           const entry = { id, kind } as TerrainSelectionEntry;
           const rootIntersectsViewport = intersectsViewport(entry);
-          const intersectsShadow =
-            shadowBounds !== null &&
-            geographicBoundsIntersect(bounds, shadowBounds);
-          if (!rootIntersectsViewport && !intersectsShadow) return [];
+          const rootIntersectsShadow = intersectsShadow(entry);
+          if (!rootIntersectsViewport && !rootIntersectsShadow) return [];
           if (kind === "flat" && !rootIntersectsViewport) {
             return [];
           }
@@ -1149,7 +1157,6 @@ export const buildCesiumTerrainRuntime = (
       rootEntries.map((entry) => [terrainSelectionKey(entry), entry])
     );
     const toCandidate = (entry: TerrainSelectionEntry): TerrainCandidate => {
-      const bounds = terrainSource.getTileBounds(entry.id);
       const metrics = getViewMetrics(entry);
       const viewportErrorRatio = metrics.intersectsViewport
         ? getScreenSpaceError(
@@ -1164,10 +1171,9 @@ export const buildCesiumTerrainRuntime = (
       const levelErrorMeters = terrainSource.getLevelMaximumGeometricError(
         entry.id.level
       );
-      const shadowErrorRatio =
-        shadowBounds && geographicBoundsIntersect(bounds, shadowBounds)
-          ? (levelErrorMeters * shadowPixelsPerMeter) / shadowTargetPixels
-          : 0;
+      const shadowErrorRatio = metrics.intersectsShadow
+        ? (levelErrorMeters * shadowPixelsPerMeter) / shadowTargetPixels
+        : 0;
       return {
         entry,
         viewportErrorRatio: entry.kind === "flat" ? 0 : viewportErrorRatio,
@@ -1253,7 +1259,7 @@ export const buildCesiumTerrainRuntime = (
           terrainSource,
           candidate.entry,
           intersectsViewport,
-          shadowBounds
+          intersectsShadow
         );
         if (!children.length) continue;
         if (selected.size + children.length - 1 > maxSelectionTiles) continue;
@@ -1502,7 +1508,7 @@ export const buildCesiumTerrainRuntime = (
       return source?.sampleHeight(longitude, latitude);
     },
     getViewElevationRange,
-    getDebugVolumes,
+    getActiveTileVolumes,
     dispose() {
       if (disposed) return;
       disposed = true;

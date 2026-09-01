@@ -277,7 +277,7 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
     expect(notifySharedThreeTerrainChanged).toHaveBeenCalledWith(map);
     expect(onContentChanged).toHaveBeenCalledOnce();
-    const debugVolumes = runtime.getDebugVolumes();
+    const debugVolumes = runtime.getActiveTileVolumes();
     expect(debugVolumes).toHaveLength(1);
     expect(debugVolumes[0]).toMatchObject({
       id: "terrain:source:10/532/218",

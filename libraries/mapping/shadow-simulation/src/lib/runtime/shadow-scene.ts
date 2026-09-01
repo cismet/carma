@@ -20,10 +20,12 @@ import type {
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
+  SharedThreeSceneTileVolume,
 } from "@carma-mapping/engines/maplibre";
 import { degToRadNumeric } from "@carma-units";
 
 import type { SolarPosition } from "../core/solar-position";
+import { getFrustumBoxIntersectionPoints } from "../core/frustum-box-intersection";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
@@ -994,6 +996,16 @@ export const buildShadowSimulationScene = (
     sharedBinding.dirty = true;
   };
   const genericBridges = new Map<GenericThreeLayer, GenericThreeShadowBridge>();
+  const getCoverageRuntimes = (): readonly SharedThreeSceneRuntime[] => {
+    const runtimes = getSharedThreeSceneRuntimes(map);
+    return terrainRuntime && !runtimes.includes(terrainRuntime)
+      ? [terrainRuntime, ...runtimes]
+      : runtimes;
+  };
+  const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
+    getCoverageRuntimes().flatMap(
+      (runtime) => runtime.getActiveTileVolumes?.() ?? []
+    );
   let cachedElevationRange: readonly [number, number] | null = null;
   let timeAnimating = false;
   let latestShadowView: SharedThreeSceneShadowView | null = null;
@@ -1009,7 +1021,7 @@ export const buildShadowSimulationScene = (
   };
   const setRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     latestShadowView = view;
-    applyRuntimeShadowView(timeAnimating ? null : view);
+    applyRuntimeShadowView(view);
   };
 
   let mapInMotion = false;
@@ -1177,9 +1189,20 @@ export const buildShadowSimulationScene = (
         sharedBinding.maximumElevationMeters,
         sharedBinding.center
       );
+      const visibleTileVolumePoints = getActiveTileVolumes().flatMap(
+        ({ minimum, maximum }) =>
+          getFrustumBoxIntersectionPoints(
+            frame.renderCamera,
+            new THREE.Box3(
+              new THREE.Vector3(...minimum),
+              new THREE.Vector3(...maximum)
+            )
+          )
+      );
       sharedBinding.receiverWorldPoints = [
         ...fallbackReceiverWorldPoints,
         ...cameraCoveragePoints,
+        ...visibleTileVolumePoints,
       ];
       if (
         sharedBinding.receiverWorldPoints.length === 0 ||
@@ -1235,11 +1258,8 @@ export const buildShadowSimulationScene = (
         hasShadowProjectionDebugListeners(map);
       if (primary && publishWanted && publishDue) {
         lastDebugPublishMs = nowMs;
-        const debugRuntimes: readonly SharedThreeSceneRuntime[] = terrainRuntime
-          ? [terrainRuntime, ...getSharedThreeSceneRuntimes(map)]
-          : getSharedThreeSceneRuntimes(map);
-        const terrainTileVolumes = debugRuntimes.flatMap((runtime) =>
-          (runtime.getDebugVolumes?.() ?? [])
+        const terrainTileVolumes = getCoverageRuntimes().flatMap((runtime) =>
+          (runtime.getActiveTileVolumes?.() ?? [])
             .filter((volume) => volume.kind === "terrain-tile")
             .map(({ id, minimum, maximum }) => ({
               id,
@@ -1390,7 +1410,7 @@ export const buildShadowSimulationScene = (
     if (!runtime) return;
     terrainRuntime = runtime;
     runtime.setMaterialColor(`#${terrainColor.getHexString()}`);
-    runtime.setShadowView(timeAnimating ? null : latestShadowView);
+    runtime.setShadowView(latestShadowView);
     sceneLease.layer.addRuntime(runtime);
     watchTerrainRuntime(runtime);
     cachedElevationRange = null;
@@ -1444,7 +1464,7 @@ export const buildShadowSimulationScene = (
         runtime.setErrorTarget?.(latestMeshErrorTarget);
       }
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
-      runtime.setShadowView?.(timeAnimating ? null : latestShadowView);
+      runtime.setShadowView?.(latestShadowView);
     }
     makeSceneMeshesShadeable(sceneLease.layer.getScene());
     sharedBinding.controller.invalidate();
@@ -1566,7 +1586,6 @@ export const buildShadowSimulationScene = (
     updateTimeAnimating(animating) {
       if (timeAnimating === animating) return;
       timeAnimating = animating;
-      applyRuntimeShadowView(animating ? null : latestShadowView);
       if (!animating) sharedBinding.dirty = true;
       map.triggerRepaint();
     },
