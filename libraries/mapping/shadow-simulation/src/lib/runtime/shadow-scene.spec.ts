@@ -413,6 +413,13 @@ describe("shadow scene lighting integration", () => {
     terrain.name = "terrain";
     terrain.userData.isShadowTerrainSurface = true;
     scene.add(terrain);
+    const openSurfaceMaterial = new THREE.MeshLambertMaterial();
+    openSurfaceMaterial.shadowSide = THREE.FrontSide;
+    const openSurface = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      openSurfaceMaterial
+    );
+    scene.add(openSurface);
     const alkisScene = new THREE.Scene();
     const sourceBuildingMaterial = new THREE.MeshLambertMaterial({
       color: 0xffffff,
@@ -467,6 +474,7 @@ describe("shadow scene lighting integration", () => {
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
     expect((terrain.material as THREE.Material).shadowSide).toBeNull();
+    expect(openSurfaceMaterial.shadowSide).toBe(THREE.FrontSide);
     expect(terrain.customDepthMaterial).toBeUndefined();
     expect(buildingCopy.parent?.parent).toBe(scene);
     expect(terrain.parent).toBe(scene);

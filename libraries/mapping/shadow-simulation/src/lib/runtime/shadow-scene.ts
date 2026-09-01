@@ -176,10 +176,12 @@ const makeMeshShadeable = (mesh: THREE.Mesh) => {
   const materials = Array.isArray(mesh.material)
     ? mesh.material
     : [mesh.material];
-  // Closed solids cast back faces; terrain is an open front-face heightfield.
+  // Closed solids default to back-face casting. Tile runtimes can provide a
+  // topology-derived side before they join the shared scene; keep that ground
+  // truth instead of replacing it here.
   if (!mesh.userData.isShadowTerrainSurface) {
     for (const material of materials) {
-      material.shadowSide = THREE.BackSide;
+      material.shadowSide ??= THREE.BackSide;
     }
   }
 };
