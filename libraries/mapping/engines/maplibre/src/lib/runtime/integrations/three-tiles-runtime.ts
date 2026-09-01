@@ -146,9 +146,11 @@ export function buildThreeTilesRuntime(
 ): ThreeTilesRuntime {
   const originMerc = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const mScale = originMerc.meterInMercatorCoordinateUnits();
+  const isTerrainMesh = options.providesTerrain === true;
 
   let map: MaplibreMap | null = null;
   let tiles: TilesRenderer | null = null;
+  let dracoLoader: DRACOLoader | null = null;
   let debugTilesPlugin: DebugTilesPlugin | null = null;
   let cameraSet: TilesCameraSet | null = null;
   let kickstartTimer = 0;
@@ -217,7 +219,24 @@ export function buildThreeTilesRuntime(
   const shadowAppearanceUniforms = {
     uShadowUniformColor: { value: shadowClayColor },
     uShadowUniformColorMix: { value: 0 },
+    uShadowTextureSaturation: { value: 1 },
   };
+  const flatTerrainNormalMap = options.providesTerrain
+    ? new THREE.DataTexture(
+        new Uint8Array([128, 255, 128, 255]),
+        1,
+        1,
+        THREE.RGBAFormat,
+        THREE.UnsignedByteType
+      )
+    : null;
+  if (flatTerrainNormalMap) {
+    flatTerrainNormalMap.name = `${layerId}-flat-terrain-normal`;
+    flatTerrainNormalMap.generateMipmaps = false;
+    flatTerrainNormalMap.minFilter = THREE.NearestFilter;
+    flatTerrainNormalMap.magFilter = THREE.NearestFilter;
+    flatTerrainNormalMap.needsUpdate = true;
+  }
 
   const patchMaterialForProjection = (material: THREE.Material) => {
     if ((material as { __projPatched?: boolean }).__projPatched) return;
@@ -249,11 +268,21 @@ uniform float uProjHeading;
 uniform mat4 uProjMatrix;
 uniform sampler2D tProj;
 uniform vec3 uShadowUniformColor;
-uniform float uShadowUniformColorMix;`
+uniform float uShadowUniformColorMix;
+uniform float uShadowTextureSaturation;`
         )
         .replace(
           "#include <map_fragment>",
           `#include <map_fragment>
+float shadowTextureLuma = dot(
+  diffuseColor.rgb,
+  vec3(0.2126, 0.7152, 0.0722)
+);
+diffuseColor.rgb = mix(
+  vec3(shadowTextureLuma),
+  diffuseColor.rgb,
+  uShadowTextureSaturation
+);
 diffuseColor.rgb = mix(
   diffuseColor.rgb,
   uShadowUniformColor,
@@ -295,22 +324,33 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     clay: THREE.Material | THREE.Material[];
   };
 
+  type LitTextureMaterialState = {
+    original: THREE.Material | THREE.Material[];
+    lit: THREE.Material | THREE.Material[];
+    generated: THREE.Material[];
+  };
+
   const clayMaterialStates = new Map<THREE.Mesh, ClayMaterialState>();
+  const litTextureMaterialStates = new Map<
+    THREE.Mesh,
+    LitTextureMaterialState
+  >();
   const originalShadowSides = new Map<THREE.Material, THREE.Side | null>();
+  // Closed LoD2 building solids cast from their back faces. A terrain mesh is
+  // an open upward-wound surface and follows the established Three.js terrain
+  // path: cast its front faces and use receiver-side normal bias for acne.
+  const activeShadowSide =
+    options.providesTerrain === true ? THREE.FrontSide : THREE.BackSide;
   const asMaterialArray = (
     material: THREE.Material | THREE.Material[]
   ): THREE.Material[] => (Array.isArray(material) ? material : [material]);
-
   const buildClayMaterial = (source: THREE.Material) => {
     const material = new THREE.MeshStandardMaterial({
       color: shadowSimulationStyle?.uniformColor ? shadowClayColor : clayColor,
       roughness: clayRoughness,
       metalness: clayMetalness,
-      // LoD2 building tiles are closed solids. Some source glTF materials are
-      // marked double-sided, which makes the visible roof faces write the
-      // shadow map and self-occlude. Render the clay shell from the outside and
-      // cast from the opposite, interior-facing side, matching the stable ALKIS
-      // extrusion path.
+      // Keep the visible shell outside-facing. The shadow pass uses the side
+      // appropriate for a closed building solid or an open terrain surface.
       side: THREE.FrontSide,
       opacity: source.opacity,
       transparent: source.transparent,
@@ -318,8 +358,64 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       depthWrite: source.depthWrite,
       alphaTest: source.alphaTest,
     });
-    material.shadowSide = THREE.BackSide;
+    material.shadowSide = activeShadowSide;
     material.name = source.name ? `${source.name} · clay` : "tileset-clay";
+    return material;
+  };
+
+  const buildLitTextureMaterial = (source: THREE.Material) => {
+    const basic = source as THREE.MeshBasicMaterial;
+    if (!basic.isMeshBasicMaterial) return source;
+
+    // Mesh 2024 declares KHR_materials_unlit, which GLTFLoader represents as a
+    // MeshBasicMaterial. Preserve its source texture and render state, but use
+    // the same rough non-metallic PBR path as the regular LoD tiles while
+    // shadow mode is active. No mesh-specific lighting shader is involved.
+    const material = new THREE.MeshStandardMaterial({
+      color: basic.color,
+      map: basic.map,
+      alphaMap: basic.alphaMap,
+      aoMap: basic.aoMap,
+      aoMapIntensity: basic.aoMapIntensity,
+      lightMap: basic.lightMap,
+      lightMapIntensity: basic.lightMapIntensity,
+      roughness: 1,
+      metalness: 0,
+      opacity: basic.opacity,
+      transparent: basic.transparent,
+      depthTest: basic.depthTest,
+      depthWrite: basic.depthWrite,
+      alphaTest: basic.alphaTest,
+      side: basic.side,
+      vertexColors: basic.vertexColors,
+      fog: basic.fog,
+      wireframe: basic.wireframe,
+    });
+    material.name = basic.name
+      ? `${basic.name} · shadow-lit`
+      : "tileset-shadow-lit";
+    material.blending = basic.blending;
+    material.blendSrc = basic.blendSrc;
+    material.blendDst = basic.blendDst;
+    material.blendEquation = basic.blendEquation;
+    material.colorWrite = basic.colorWrite;
+    material.depthFunc = basic.depthFunc;
+    material.polygonOffset = basic.polygonOffset;
+    material.polygonOffsetFactor = basic.polygonOffsetFactor;
+    material.polygonOffsetUnits = basic.polygonOffsetUnits;
+    material.toneMapped = basic.toneMapped;
+    material.visible = basic.visible;
+    material.userData = { ...basic.userData };
+    if (flatTerrainNormalMap) {
+      // Keep the baked texture evenly lit without replacing the geometry
+      // normals that Three.js uses for receiver-side shadow bias.
+      material.normalMap = flatTerrainNormalMap;
+      material.normalMapType = THREE.ObjectSpaceNormalMap;
+    }
+    delete material.userData.__projPatched;
+    delete material.userData.__baseOpacity;
+    delete material.userData.__baseTransparent;
+    delete material.userData.__baseDepthWrite;
     return material;
   };
 
@@ -337,12 +433,37 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     });
   };
 
-  const applyClosedSolidShadowSide = (material: THREE.Material) => {
+  const disposeLitTextureState = (
+    mesh: THREE.Mesh,
+    state: LitTextureMaterialState
+  ) => {
+    mesh.material = state.original;
+    for (const material of state.generated) {
+      if (originalShadowSides.has(material)) {
+        material.shadowSide = originalShadowSides.get(material) ?? null;
+        originalShadowSides.delete(material);
+      }
+      material.dispose();
+    }
+    litTextureMaterialStates.delete(mesh);
+  };
+
+  const restoreLitTextureMaterials = (root: THREE.Object3D) => {
+    root.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      const state = mesh.isMesh
+        ? litTextureMaterialStates.get(mesh)
+        : undefined;
+      if (state) disposeLitTextureState(mesh, state);
+    });
+  };
+
+  const applyShadowCastingSide = (material: THREE.Material) => {
     if (shadowSimulationStyle) {
       if (!originalShadowSides.has(material)) {
         originalShadowSides.set(material, material.shadowSide);
       }
-      material.shadowSide = THREE.BackSide;
+      material.shadowSide = activeShadowSide;
       return;
     }
 
@@ -367,6 +488,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       shadowSimulationStyle?.uniformColor
         ? clamp(shadowSimulationStyle.uniformColorMix ?? 1, 0, 1)
         : 0;
+    shadowAppearanceUniforms.uShadowTextureSaturation.value = clamp(
+      shadowSimulationStyle?.textureSaturation ?? 1,
+      0,
+      1
+    );
     const forceOpaque = shadowSimulationStyle?.fullOpacity === true;
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;
@@ -374,26 +500,61 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       let clayState = clayMaterialStates.get(mesh);
-      if (useClayShading && !clayState) {
-        const original = mesh.material;
-        const clay = Array.isArray(original)
-          ? original.map(buildClayMaterial)
-          : buildClayMaterial(original);
-        clayState = { original, clay };
-        clayMaterialStates.set(mesh, clayState);
-        mesh.material = clay;
-      } else if (!useClayShading && clayState) {
-        disposeClayState(mesh, clayState);
-        clayState = undefined;
+      let litTextureState = litTextureMaterialStates.get(mesh);
+      if (useClayShading) {
+        if (litTextureState) {
+          disposeLitTextureState(mesh, litTextureState);
+          litTextureState = undefined;
+        }
+        if (!clayState) {
+          const original = mesh.material;
+          const clay = Array.isArray(original)
+            ? original.map(buildClayMaterial)
+            : buildClayMaterial(original);
+          clayState = { original, clay };
+          clayMaterialStates.set(mesh, clayState);
+          mesh.material = clay;
+        }
+      } else {
+        if (clayState) {
+          disposeClayState(mesh, clayState);
+          clayState = undefined;
+        }
+        const sourceMaterials = asMaterialArray(mesh.material);
+        const needsLitTextureMaterial =
+          options.providesTerrain === true &&
+          shadowSimulationStyle !== null &&
+          (litTextureState !== undefined ||
+            sourceMaterials.some(
+              (material) =>
+                (material as THREE.MeshBasicMaterial).isMeshBasicMaterial
+            ));
+        if (needsLitTextureMaterial && !litTextureState) {
+          const original = mesh.material;
+          const generated: THREE.Material[] = [];
+          const buildMaterial = (source: THREE.Material) => {
+            const lit = buildLitTextureMaterial(source);
+            if (lit !== source) generated.push(lit);
+            return lit;
+          };
+          const lit = Array.isArray(original)
+            ? original.map(buildMaterial)
+            : buildMaterial(original);
+          litTextureState = { original, lit, generated };
+          litTextureMaterialStates.set(mesh, litTextureState);
+          mesh.material = lit;
+        } else if (!needsLitTextureMaterial && litTextureState) {
+          disposeLitTextureState(mesh, litTextureState);
+          litTextureState = undefined;
+        }
       }
 
       const materials = asMaterialArray(mesh.material);
       for (const material of materials) {
-        // Clay materials already enforce the closed-solid shadow convention.
-        // Preserve the same convention for original textured materials when
-        // uniform color is disabled, and restore their source setting when
-        // shadow simulation ends.
-        if (!clayState) applyClosedSolidShadowSide(material);
+        // Clay materials already enforce the correct casting side. Apply it to
+        // original textured PBR materials too, then restore their source
+        // setting when shadow simulation ends.
+        if (!clayState) applyShadowCastingSide(material);
         // The reorientation parent keeps tile coordinates in the same local
         // meter frame and projection as the point layers. Write that shared
         // depth so later point-cloud layers are hidden by nearer mesh faces.
@@ -517,7 +678,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       !shadowView ||
       !tiles ||
       !cameraSet ||
-      (map && isSharedThreeTerrainLoading(map)) ||
+      activeErrorTarget > requestedErrorTarget ||
+      refinementTimer ||
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries())
     ) {
       return;
@@ -560,7 +722,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     requestRender();
   };
   const handleModelDispose = (event: { scene?: THREE.Object3D }) => {
-    if (event.scene) restoreClayMaterials(event.scene);
+    if (event.scene) {
+      restoreClayMaterials(event.scene);
+      restoreLitTextureMaterials(event.scene);
+    }
     options.onContentChanged?.();
   };
   const handleTilesetLoad = (event: { url?: string }) => {
@@ -624,23 +789,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     const configuredCeilingBytes = Number.isFinite(cacheOverflowBytes)
       ? cacheBudgetBytes + cacheOverflowBytes
       : Number.POSITIVE_INFINITY;
-    const retainTerrainMesh =
-      options.providesTerrain === true && shadowSimulationStyle !== null;
-    const ceilingBytes = retainTerrainMesh
-      ? Number.POSITIVE_INFINITY
-      : configuredCeilingBytes;
+    const ceilingBytes = configuredCeilingBytes;
     // Download admission and asynchronous eviction must use the same upper
     // bound. Otherwise freshly queued tiles are aborted and requested again
     // forever once decoded content passes the smaller eviction value.
-    cache.minSize = retainTerrainMesh
-      ? Number.POSITIVE_INFINITY
-      : DEFAULT_CACHE_MIN_ITEMS;
-    cache.maxSize = retainTerrainMesh
-      ? Number.POSITIVE_INFINITY
-      : DEFAULT_CACHE_MAX_ITEMS;
-    cache.minBytesSize = retainTerrainMesh
-      ? Number.POSITIVE_INFINITY
-      : cacheBudgetBytes;
+    cache.minSize = DEFAULT_CACHE_MIN_ITEMS;
+    cache.maxSize = DEFAULT_CACHE_MAX_ITEMS;
+    cache.minBytesSize = cacheBudgetBytes;
     cache.maxBytesSize = ceilingBytes;
     cache.unloadPercent = 0.5;
     cache.isFull = () =>
@@ -652,7 +807,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     const activeConcurrency =
       payloadAwareConcurrency.getConcurrency(requestConcurrency);
     tiles.downloadQueue.maxJobs =
-      map && isSharedThreeTerrainLoading(map) ? 0 : activeConcurrency;
+      map &&
+      options.providesTerrain !== true &&
+      isSharedThreeTerrainLoading(map)
+        ? 0
+        : activeConcurrency;
   };
   const restartProgressiveLod = () => {
     activeErrorTarget = Math.max(
@@ -704,6 +863,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       window.clearTimeout(refinementTimer);
       refinementTimer = 0;
     }
+    if (isTerrainMesh) {
+      setShadowSelectionEnabled(false);
+      restartProgressiveLod();
+    }
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
@@ -746,9 +909,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         .copy(tileBoundingSphere.center)
         .applyMatrix4(tiles.group.matrixWorld)
         .project(viewCamera);
-      const distanceSquared =
-        tileProjectedCenter.x ** 2 + tileProjectedCenter.y ** 2;
-      tile.priority = (inViewport ? 2 : 0) + 1 / (1 + distanceSquared);
+      const inLowerCenter =
+        inViewport &&
+        Math.abs(tileProjectedCenter.x) <= 0.7 &&
+        tileProjectedCenter.y <= 0.25;
+      // PriorityQueue removes from the end of its sorted list, so larger
+      // values run first. Error and camera distance remain its tie-breakers.
+      tile.priority = inLowerCenter ? 3 : inViewport ? 2 : 0;
     }
     queue.sort();
   };
@@ -773,6 +940,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     originLngLat,
     root: orientationGroup,
     providesTerrain: options.providesTerrain === true,
+    // Photogrammetry terrain replaces tiles as its view-dependent LOD settles;
+    // combining those different geometry sets into a multi-frame average can
+    // leave holes or stale tiles in the displayed result.
+    blocksAccumulation: options.providesTerrain === true,
     originMerc,
     mScale,
 
@@ -787,7 +958,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly
       tiles.registerPlugin(new Gltf1UpgradePlugin());
       // Draco-compressed glTF payloads need an explicit decoder
-      const dracoLoader = new DRACOLoader();
+      dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath(
         "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
       );
@@ -880,7 +1051,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         );
         if (!cameraSet) {
           cameraSet = createTilesCameraSet(tiles, viewCamera);
-          cameraSet.setShadowView(shadowSelectionEnabled ? shadowView : null);
+          cameraSet.setShadowView(
+            shadowSelectionEnabled ? shadowView : null
+          );
         }
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
@@ -937,11 +1110,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     setErrorTarget(errorTarget: number) {
-      requestedErrorTarget = clamp(
+      const nextErrorTarget = clamp(
         errorTarget,
         TILES_ERROR_TARGET_MIN_PIXELS,
         TILES_ERROR_TARGET_MAX_PIXELS
       );
+      if (requestedErrorTarget === nextErrorTarget) return;
+      requestedErrorTarget = nextErrorTarget;
       restartProgressiveLod();
       tiles?.dispatchEvent({ type: "needs-update" });
       scheduleProgressiveRefinement();
@@ -950,9 +1125,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setShadowSimulationStyle(style) {
       if (!options.shadowBuildingStyle) return;
       shadowSimulationStyle = style;
-      // The shadow camera deliberately keeps off-screen casters selected. Do
-      // not evict and restart those Mesh downloads while shadow mode is live;
-      // returning to the normal layer restores the bounded LRU immediately.
+      // Reapply one bounded cache policy when shadow mode changes. The shadow
+      // camera may add off-screen casters, but it must not create a separate
+      // download-admission ceiling or bypass the memory limit.
       applyCacheBudget();
       if (style?.uniformColor) shadowClayColor.set(style.uniformColor);
       applyMaterialFlags(orientationGroup);
@@ -975,10 +1150,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       if (!view || !hadShadowView) {
         setShadowSelectionEnabled(false);
       } else if (shadowSelectionEnabled) {
-        // The shadow controller updates the same camera object in place while
-        // coverage is refitted. Keep it registered so currently useful tiles
-        // stay marked as used instead of being evicted and fetched again on
-        // every content or camera update.
         cameraSet?.setShadowView(view);
         shadowSelectionNeedsTraversal = true;
       }
@@ -1066,6 +1237,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     getRequestDemand,
     getViewElevationRange,
+    hasRenderableContent: () => {
+      let renderable = false;
+      tiles?.group.traverse((object) => {
+        if ((object as THREE.Mesh).isMesh && object.visible) renderable = true;
+      });
+      return renderable;
+    },
 
     dispose() {
       if (kickstartTimer) {
@@ -1092,11 +1270,15 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       cameraSet = null;
       tileRetries.dispose();
       restoreClayMaterials(orientationGroup);
+      restoreLitTextureMaterials(orientationGroup);
       restoreShadowSides();
       tiles?.dispose();
       tiles = null;
+      dracoLoader?.dispose();
+      dracoLoader = null;
       debugTilesPlugin = null;
       orientationGroup.clear();
+      flatTerrainNormalMap?.dispose();
       map = null;
     },
   };

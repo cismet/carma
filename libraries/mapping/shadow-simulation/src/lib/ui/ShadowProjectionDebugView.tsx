@@ -116,6 +116,7 @@ export type ShadowProjectionDebugSettings = Readonly<{
   terrainColor: string;
   buildingsFullOpacity: boolean;
   buildingColorMix: number;
+  meshTextureSaturation: number;
   buildingColor: string;
   showSunDebugVector: boolean;
   showShadowBuffers: boolean;
@@ -400,6 +401,26 @@ const ShadowDebugControls = ({
           <span className="text-neutral-500">Farbe</span>
           <span className="w-8 text-right tabular-nums text-neutral-500">
             {Math.round(settings.buildingColorMix * 100)}%
+          </span>
+        </label>
+        <label className="flex min-w-56 items-center gap-2">
+          <span className="text-neutral-500">Sättigung</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={settings.meshTextureSaturation}
+            onChange={(event) =>
+              onChange({
+                meshTextureSaturation: event.currentTarget.valueAsNumber,
+              })
+            }
+            className="min-w-24 flex-1 accent-amber-600"
+            aria-label="Sättigung der Meshtextur"
+          />
+          <span className="w-8 text-right tabular-nums text-neutral-500">
+            {Math.round(settings.meshTextureSaturation * 100)}%
           </span>
         </label>
         <label className="flex items-center gap-2">

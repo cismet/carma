@@ -51,6 +51,8 @@ const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
 const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-cesium-terrain";
+const SHADOW_SIMULATION_MESH_BASE_NAME =
+  "shadow-simulation-mesh-zero-elevation-base";
 const SHADOW_CONTROLLER_UPDATE_PRIORITY = 200;
 const SUN_VECTOR_COLOR = 0xf59e0b;
 const SUN_VECTOR_HEAD_LENGTH_FACTOR = 0.18;
@@ -129,6 +131,7 @@ export type ShadowBuildingAppearance = Readonly<{
   fullOpacity: boolean;
   uniformColor: string | null;
   uniformColorMix?: number;
+  textureSaturation?: number;
 }>;
 
 const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
@@ -807,6 +810,7 @@ export const buildShadowSimulationScene = (
     fullOpacity: true,
     uniformColor: null,
     uniformColorMix: 0,
+    textureSaturation: 1,
   };
   let latestShadowIntensity = 1;
   let latestMeshErrorTarget = DEFAULT_MESH_ERROR_TARGET_PIXELS;
@@ -890,8 +894,28 @@ export const buildShadowSimulationScene = (
   };
   const sharedSceneProvidesTerrain = () =>
     getSharedThreeSceneRuntimes(map).some(
-      (runtime) => runtime.providesTerrain === true
+      (runtime) =>
+        runtime.providesTerrain === true &&
+        runtime.hasRenderableContent?.() !== false
     );
+  const meshBaseMaterial = new THREE.MeshLambertMaterial({
+    color: terrainColor,
+    side: THREE.FrontSide,
+    shadowSide: THREE.FrontSide,
+  });
+  const meshBaseGeometry = new THREE.PlaneGeometry(
+    MAX_RECEIVER_DISTANCE_METERS * 2,
+    MAX_RECEIVER_DISTANCE_METERS * 2
+  );
+  meshBaseGeometry.rotateX(-Math.PI / 2);
+  const meshBase = new THREE.Mesh(meshBaseGeometry, meshBaseMaterial);
+  meshBase.name = SHADOW_SIMULATION_MESH_BASE_NAME;
+  meshBase.visible = sharedSceneProvidesTerrain();
+  meshBase.castShadow = false;
+  meshBase.receiveShadow = true;
+  meshBase.userData.isShadowTerrainSurface = true;
+  meshBase.userData.disableShadowCasting = true;
+  sceneLease.layer.getScene().add(meshBase);
   let terrainRuntime = sharedSceneProvidesTerrain()
     ? null
     : buildTerrainRuntime();
@@ -1014,6 +1038,8 @@ export const buildShadowSimulationScene = (
       return;
     }
     sharedBinding.center.copy(center);
+    meshBase.position.set(center.x, 0, center.z);
+    meshBase.updateMatrixWorld(true);
     const canvas = map.getCanvas();
     const viewportWidth = canvas.clientWidth || canvas.width;
     const viewportHeight = canvas.clientHeight || canvas.height;
@@ -1342,8 +1368,10 @@ export const buildShadowSimulationScene = (
     });
   };
   const syncTerrainRuntime = () => {
+    const meshProvidesTerrain = sharedSceneProvidesTerrain();
+    meshBase.visible = meshProvidesTerrain;
     if (!terrain) return;
-    if (sharedSceneProvidesTerrain()) {
+    if (meshProvidesTerrain) {
       suppressMapLibreTerrain();
       const runtime = terrainRuntime;
       terrainRuntime = null;
@@ -1482,6 +1510,7 @@ export const buildShadowSimulationScene = (
       if (terrainColor.equals(nextColor)) return;
       invalidateShadowPresentation();
       terrainRuntime?.setMaterialColor(color);
+      meshBaseMaterial.color.copy(nextColor);
       terrainColor = nextColor;
       ensureShadowBackground();
     },
@@ -1498,7 +1527,9 @@ export const buildShadowSimulationScene = (
         latestBuildingAppearance.fullOpacity === appearance.fullOpacity &&
         latestBuildingAppearance.uniformColor === appearance.uniformColor &&
         (latestBuildingAppearance.uniformColorMix ?? 1) ===
-          (appearance.uniformColorMix ?? 1)
+          (appearance.uniformColorMix ?? 1) &&
+        (latestBuildingAppearance.textureSaturation ?? 1) ===
+          (appearance.textureSaturation ?? 1)
       ) {
         return;
       }
@@ -1635,6 +1666,9 @@ export const buildShadowSimulationScene = (
       if (terrainRuntime && sceneLease.layer.hasRuntime(terrainRuntime.id)) {
         sceneLease.layer.removeRuntime(terrainRuntime.id);
       }
+      sceneLease.layer.getScene().remove(meshBase);
+      meshBaseGeometry.dispose();
+      meshBaseMaterial.dispose();
       atmosphericSunlight.dispose();
       disposeShadowLightBinding(sharedBinding);
       sceneLease.layer.setAccumulationController?.(null);

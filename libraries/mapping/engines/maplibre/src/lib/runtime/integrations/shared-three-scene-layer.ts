@@ -44,6 +44,10 @@ export interface SharedThreeSceneRuntime {
   root: THREE.Object3D;
   /** This runtime already supplies the visible ground surface. */
   providesTerrain?: boolean;
+  /** Dynamic content makes multi-frame scene accumulation unsafe. */
+  blocksAccumulation?: boolean;
+  /** Whether terrain-supplying content is ready to replace fallback terrain. */
+  hasRenderableContent?: () => boolean;
   updatePriority?: number;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;
@@ -88,6 +92,8 @@ export type SharedThreeSceneShadowStyle = Readonly<{
   uniformColor: string | null;
   /** 0 keeps the source texture, 1 shows only uniformColor. */
   uniformColorMix?: number;
+  /** 0 removes all source-texture saturation, 1 preserves it. */
+  textureSaturation?: number;
 }>;
 
 export type SharedSceneAccumulationController = {
@@ -216,7 +222,14 @@ export const syncSharedCanvasViewport = (
  */
 export const installRenderTargetDepthRangeBridge = (
   renderer: Pick<THREE.WebGLRenderer, "setRenderTarget">,
-  gl: Pick<WebGLRenderingContext, "depthRange">
+  gl: Pick<
+    WebGLRenderingContext,
+    | "depthRange"
+    | "getParameter"
+    | "bindFramebuffer"
+    | "FRAMEBUFFER"
+    | "FRAMEBUFFER_BINDING"
+  >
 ): RenderTargetDepthRangeBridge => {
   const originalSetRenderTarget = renderer.setRenderTarget;
   let activeDepthRange: DepthRange | null = null;
@@ -233,11 +246,18 @@ export const installRenderTargetDepthRangeBridge = (
 
   return {
     render(depthRange, callback) {
+      // MapLibre may render custom layers into an internal framebuffer. Three
+      // does not know about it and setRenderTarget(null) binds the browser's
+      // default framebuffer after an offscreen shadow/accumulation pass.
+      const hostFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as
+        | WebGLFramebuffer
+        | null;
       activeDepthRange = depthRange;
       try {
         callback();
       } finally {
         activeDepthRange = null;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, hostFramebuffer);
         gl.depthRange(depthRange[0], depthRange[1]);
       }
     },
@@ -469,7 +489,20 @@ export const buildSharedThreeSceneLayer = (
       const visualKey = accumulation
         ? `${accumulation.visualEpoch()}|${poseKey}`
         : "";
-      if (accumulation?.active() && renderer && !accumulator?.broken) {
+      const accumulationBlocked = runtimeUpdateOrder.some(
+        (runtime) => runtime.blocksAccumulation === true
+      );
+      if (accumulationBlocked && accumulator) {
+        accumulator.dispose();
+        accumulator = null;
+        settledAccumulatorVisualKey = "";
+      }
+      if (
+        accumulation?.active() &&
+        !accumulationBlocked &&
+        renderer &&
+        !accumulator?.broken
+      ) {
         if (accumulator && accumulatorRounds !== accumulation.rounds) {
           accumulator.dispose();
           accumulator = null;
@@ -544,6 +577,7 @@ export const buildSharedThreeSceneLayer = (
         if (!accumulator.converged) map.triggerRepaint();
       } else {
         const retainSettled =
+          !accumulationBlocked &&
           accumulation?.retainSettledFrame() === true &&
           accumulator?.hasSettledFrame === true &&
           settledAccumulatorVisualKey === visualKey;

@@ -44,18 +44,27 @@ const isSharedThreeSceneLayer = (
 const getMountedSharedThreeSceneLayer = (
   map: MaplibreMap
 ): SharedThreeSceneLayer | undefined => {
-  const styleLayer = map.getLayer(SHARED_SCENE_LAYER_ID) as
-    | { implementation?: unknown }
-    | SharedThreeSceneLayer
-    | undefined;
-  if (isSharedThreeSceneLayer(styleLayer)) return styleLayer;
-  return isSharedThreeSceneLayer(styleLayer?.implementation)
-    ? styleLayer.implementation
-    : undefined;
+  try {
+    const styleLayer = map.getLayer(SHARED_SCENE_LAYER_ID) as
+      | { implementation?: unknown }
+      | SharedThreeSceneLayer
+      | undefined;
+    if (isSharedThreeSceneLayer(styleLayer)) return styleLayer;
+    return isSharedThreeSceneLayer(styleLayer?.implementation)
+      ? styleLayer.implementation
+      : undefined;
+  } catch {
+    return undefined;
+  }
 };
 
-const getFirstSymbolLayerId = (map: MaplibreMap): string | undefined =>
-  map.getStyle().layers?.find(({ type }) => type === "symbol")?.id;
+const getFirstSymbolLayerId = (map: MaplibreMap): string | undefined => {
+  try {
+    return map.getStyle().layers?.find(({ type }) => type === "symbol")?.id;
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * Acquire the one shared Three.js custom layer belonging to a MapLibre map.

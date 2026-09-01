@@ -176,4 +176,29 @@ describe("shared Three.js scene registry", () => {
     expect(removeLayer).not.toHaveBeenCalled();
     expect(dispose).toHaveBeenCalledOnce();
   });
+
+  it("tolerates MapLibre style teardown during HMR", () => {
+    const addLayer = vi.fn(() => {
+      throw new Error("style is gone");
+    });
+    const map = {
+      getStyle: vi.fn(() => {
+        throw new Error("style is gone");
+      }),
+      getLayer: vi.fn(() => {
+        throw new Error("style is gone");
+      }),
+      addLayer,
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(lease.layer).toBe(sharedLayer);
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    expect(() => lease.release()).not.toThrow();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
 });
