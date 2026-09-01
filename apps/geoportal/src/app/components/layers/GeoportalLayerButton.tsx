@@ -194,9 +194,9 @@ const GeoportalLayerButton = ({
 
   useEffect(() => {
     if (!inView && selectedLayerIndex === index) {
-      document.getElementById(`layer-${id}`).scrollIntoView();
+      document.getElementById(`layer-${id}`)?.scrollIntoView();
     }
-  }, [inView, selectedLayerIndex]);
+  }, [id, inView, index, selectedLayerIndex]);
 
   useEffect(() => {
     if (index === layersLength - 1 && inView) {

@@ -31,16 +31,26 @@ describe("resolveShadowResourceLimits", () => {
     });
   });
 
-  it("keeps the renderer limit on desktop", () => {
+  it("caps oversized desktop shadow targets at a safe HQ size", () => {
     expect(
-      resolveShadowResourceLimits(8_192, {
+      resolveShadowResourceLimits(16_384, {
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
         platform: "MacIntel",
         maxTouchPoints: 0,
       })
     ).toEqual({
-      maxShadowMapSize: 8_192,
+      maxShadowMapSize: 4_096,
       maxAccumulationPixels: Number.POSITIVE_INFINITY,
     });
+  });
+
+  it("keeps a smaller renderer limit on desktop", () => {
+    expect(
+      resolveShadowResourceLimits(4_096, {
+        userAgent: "Mozilla/5.0 (X11; Linux x86_64)",
+        platform: "Linux x86_64",
+        maxTouchPoints: 0,
+      }).maxShadowMapSize
+    ).toBe(4_096);
   });
 });
