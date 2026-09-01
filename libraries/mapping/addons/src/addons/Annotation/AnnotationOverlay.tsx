@@ -85,7 +85,7 @@ export const AnnotationOverlay = ({
   // flush to the host would file the toolbar away behind the navbar. Measured,
   // because zen mode takes the bar away while the addon runs
   const navbarInset = useToolbarInset(host, toolbarSelector, true);
-  const { inSync, onSceneChange } = useMapSceneSync(libreMap, api, box);
+  const { inSync, onSceneChange } = useMapSceneSync(libreMap, api, box, isOn);
 
   useEffect(() => {
     if (api && shape) {
