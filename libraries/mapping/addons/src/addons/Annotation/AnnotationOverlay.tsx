@@ -121,6 +121,7 @@ export const AnnotationOverlay = ({
           libreMap={libreMap}
           onProbe={registerProbe}
           editable={isOn && group.id === activeId && !group.locked}
+          live={isOn}
           shown={isOn || !hideWhenOff}
           langCode={langCode}
           background={paper}
