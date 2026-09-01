@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -118,6 +119,32 @@ const MESH_ERROR_TARGETS: ReadonlyArray<{
   { label: "1 px", value: 1 },
   { label: "4 px", value: 4 },
 ];
+
+const useShadowProjectionDebugPortalHost = () => {
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = document.createElement("div");
+    element.dataset.carmaShadowProjectionDebugHost = "";
+    document.body.appendChild(element);
+    setHost(element);
+
+    return () => {
+      element.remove();
+    };
+  }, []);
+
+  return host;
+};
+
+export const ShadowProjectionDebugPortal = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
+  const host = useShadowProjectionDebugPortalHost();
+  return host ? createPortal(children, host) : null;
+};
 
 export type ShadowProjectionDebugSettings = Readonly<{
   shadowQuality: ShadowQualityMultiplier;
@@ -706,28 +733,29 @@ export const ShadowProjectionDebugView = ({
     </div>
   );
 
-  return createPortal(
-    <CarmaResponsiveInfoBox
-      useControlLayout={false}
-      draggable
-      dragGripPlacement="auto"
-      dragHandleTitle="Projektions-Debug verschieben"
-      collapsible
-      heading={
-        <span className="font-semibold text-white">Projektions-Debug</span>
-      }
-      headingColor="rgba(51, 65, 85, 0.94)"
-      width={700}
-      content={content}
-      style={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 5000,
-        maxWidth: "calc(100vw - 24px)",
-        pointerEvents: "auto",
-      }}
-    />,
-    document.body
+  return (
+    <ShadowProjectionDebugPortal>
+      <CarmaResponsiveInfoBox
+        useControlLayout={false}
+        draggable
+        dragGripPlacement="auto"
+        dragHandleTitle="Projektions-Debug verschieben"
+        collapsible
+        heading={
+          <span className="font-semibold text-white">Projektions-Debug</span>
+        }
+        headingColor="rgba(51, 65, 85, 0.94)"
+        width={700}
+        content={content}
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          zIndex: 5000,
+          maxWidth: "calc(100vw - 24px)",
+          pointerEvents: "auto",
+        }}
+      />
+    </ShadowProjectionDebugPortal>
   );
 };
