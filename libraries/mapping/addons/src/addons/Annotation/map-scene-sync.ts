@@ -27,7 +27,8 @@ const same = (a: SceneCamera, b: SceneCamera) =>
   Math.abs(a.scale - b.scale) < EPSILON;
 
 /**
- * Pins the scene to the ground at one anchor lng/lat. The rest follows because
+ * Pins the scene to the ground at one anchor lng/lat, taken from the camera
+ * while `live` and the scene is still empty. The rest follows because
  * excalidraw's `screen = (scene + scroll) * zoom` is a translate and a uniform
  * scale — the same transform as a north-up web mercator map.
  *
@@ -49,7 +50,9 @@ export const useMapSceneSync = (
   api: ExcalidrawImperativeAPI | null,
   overlay: HTMLElement | null,
   /** whether the overlay currently takes pointer events */
-  interactive: boolean
+  interactive: boolean,
+  /** whether the drawing is in use; the anchor is taken while it is */
+  live: boolean
 ) => {
   const anchorRef = useRef<Anchor | null>(null);
   const pushedRef = useRef<SceneCamera | null>(null);
@@ -169,9 +172,15 @@ export const useMapSceneSync = (
     if (!map || !api) {
       return;
     }
-    if (!anchorRef.current) {
+    // An empty scene re-anchors: the drawing fixes to the ground only once
+    // something is on it. Without this the anchor would be the camera at mount,
+    // which is wherever the map stood when the route loaded.
+    if (live && api.getSceneElements().length === 0) {
       const { lng, lat } = map.getCenter();
       anchorRef.current = { lng, lat, zoom: map.getZoom() };
+    }
+    if (!anchorRef.current) {
+      return;
     }
 
     applyMapCamera();
@@ -189,7 +198,7 @@ export const useMapSceneSync = (
       map.off("resize", applyMapCamera);
       sizes?.disconnect();
     };
-  }, [api, applyMapCamera, map, overlay]);
+  }, [api, applyMapCamera, live, map, overlay]);
 
   return { inSync, onSceneChange: applySceneCamera };
 };
