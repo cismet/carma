@@ -31,7 +31,7 @@ export type SharedThreeSceneShadowView = Readonly<{
   }>;
 }>;
 
-export type SharedThreeSceneDebugVolume = Readonly<{
+export type SharedThreeSceneTileVolume = Readonly<{
   id: string;
   kind: string;
   minimum: readonly [number, number, number];
@@ -61,8 +61,8 @@ export interface SharedThreeSceneRuntime {
   getViewElevationRange?: (
     camera: THREE.Camera
   ) => readonly [minimum: number, maximum: number] | null;
-  /** World-space bounds of currently active runtime content for diagnostics. */
-  getDebugVolumes?: () => readonly SharedThreeSceneDebugVolume[];
+  /** World-space bounds of active tiles used for coverage and diagnostics. */
+  getActiveTileVolumes?: () => readonly SharedThreeSceneTileVolume[];
   /** Outstanding work required before a fixed-state render can converge. */
   getRequestDemand?: () => number;
   dispose: () => void;

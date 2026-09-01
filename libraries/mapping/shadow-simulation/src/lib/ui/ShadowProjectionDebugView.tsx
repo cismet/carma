@@ -18,6 +18,7 @@ import {
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeSceneContent,
 } from "@carma-mapping/engines/maplibre";
+import { degToRadNumeric } from "@carma-units";
 
 import type { SolarPosition } from "../core/solar-position";
 import type {
@@ -47,6 +48,14 @@ const SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS = {
 const SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS = {
   useCameraPosition: true,
 } as const;
+
+const SHADOW_DEBUG_VIEWPOINT = {
+  OVERVIEW: "overview",
+  SUN: "sun",
+} as const;
+
+type ShadowDebugViewpoint =
+  (typeof SHADOW_DEBUG_VIEWPOINT)[keyof typeof SHADOW_DEBUG_VIEWPOINT];
 
 type VisualizerContentGroup =
   | "worldAxes"
@@ -193,13 +202,36 @@ const ShadowBufferStatistics = ({
 const ShadowDebugVisualizer = ({
   model,
   visibility,
+  viewpoint,
+  sunAzimuthDegrees,
+  sunElevationDegrees,
+  onViewpointChange,
 }: {
   model: ShadowProjectionDebugModel;
   visibility: Record<VisualizerContentGroup, boolean>;
+  viewpoint: ShadowDebugViewpoint;
+  sunAzimuthDegrees: number;
+  sunElevationDegrees: number;
+  onViewpointChange: (viewpoint: ShadowDebugViewpoint) => void;
 }) => {
   const host = useHostElementSizeRef<HTMLDivElement>();
   const width = Math.max(1, host.size?.width ?? 1);
   const height = Math.max(190, Math.min(245, Math.round(width * 0.36)));
+  const overviewOptions = useMemo(
+    () =>
+      viewpoint === SHADOW_DEBUG_VIEWPOINT.SUN
+        ? {
+            orthographic: false,
+            fitOrthographicWidth: true,
+            fovDeg: 35,
+            orbitTheta: Math.PI - degToRadNumeric(sunAzimuthDegrees),
+            orbitPhi:
+              Math.PI / 2 -
+              degToRadNumeric(Math.max(-89, Math.min(89, sunElevationDegrees))),
+          }
+        : SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS,
+    [sunAzimuthDegrees, sunElevationDegrees, viewpoint]
+  );
   const displayOptions = useMemo(
     () => ({
       surface: { show: false },
@@ -241,28 +273,50 @@ const ShadowDebugVisualizer = ({
   );
 
   return (
-    <div
-      ref={host.ref}
-      className="w-full overflow-hidden rounded-lg bg-neutral-100"
-      style={{ height }}
-    >
-      {host.isReady && (
-        <ViewStateVisualizer
-          viewState={model.viewStates}
-          activeCameraIndex={1}
-          width={width}
-          height={height}
-          bearingLabel="Schattenrichtung"
-          pitchLabel="Höhe"
-          northLabel="N"
-          upLabel={null}
-          cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
-          overviewOptions={SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS}
-          visualizedOptions={SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS}
-          displayOptions={displayOptions}
-          volumeBoxes={volumeBoxes}
-        />
-      )}
+    <div className="relative w-full">
+      <div className="absolute right-2 top-2 z-10 inline-flex rounded-md bg-white/90 shadow-sm">
+        {[
+          { label: "Übersicht", value: SHADOW_DEBUG_VIEWPOINT.OVERVIEW },
+          { label: "Sonnenansicht", value: SHADOW_DEBUG_VIEWPOINT.SUN },
+        ].map(({ label, value }) => (
+          <button
+            key={value}
+            type="button"
+            className={`h-7 border px-2 text-[11px] first:rounded-l-md last:rounded-r-md ${
+              viewpoint === value
+                ? "border-amber-600 bg-amber-50 font-semibold text-amber-800"
+                : "border-neutral-300 bg-white text-neutral-700"
+            }`}
+            aria-pressed={viewpoint === value}
+            onClick={() => onViewpointChange(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={host.ref}
+        className="w-full overflow-hidden rounded-lg bg-neutral-100"
+        style={{ height }}
+      >
+        {host.isReady && (
+          <ViewStateVisualizer
+            viewState={model.viewStates}
+            activeCameraIndex={1}
+            width={width}
+            height={height}
+            bearingLabel="Schattenrichtung"
+            pitchLabel="Höhe"
+            northLabel="N"
+            upLabel={null}
+            cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
+            overviewOptions={overviewOptions}
+            visualizedOptions={SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS}
+            displayOptions={displayOptions}
+            volumeBoxes={volumeBoxes}
+          />
+        )}
+      </div>
     </div>
   );
 };
@@ -541,6 +595,8 @@ export const ShadowProjectionDebugView = ({
   );
   const [visualizerContentVisibility, setVisualizerContentVisibility] =
     useState(DEFAULT_VISUALIZER_CONTENT_VISIBILITY);
+  const [visualizerViewpoint, setVisualizerViewpoint] =
+    useState<ShadowDebugViewpoint>(SHADOW_DEBUG_VIEWPOINT.OVERVIEW);
   const model = useMemo(
     () =>
       snapshot
@@ -564,6 +620,10 @@ export const ShadowProjectionDebugView = ({
       <ShadowDebugVisualizer
         model={model}
         visibility={visualizerContentVisibility}
+        viewpoint={visualizerViewpoint}
+        sunAzimuthDegrees={displayedAzimuth}
+        sunElevationDegrees={displayedElevation}
+        onViewpointChange={setVisualizerViewpoint}
       />
       <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
         <VisualizerContentToggles

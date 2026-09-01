@@ -148,6 +148,61 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
+  it("exposes the active 3D tile volumes in shared scene coordinates", () => {
+    let renderer: TilesRenderer | undefined;
+    const updateSpy = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function (this: TilesRenderer) {
+        renderer = this;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    } as unknown as MaplibreMap;
+    const layer = buildThreeTilesRuntime(
+      "buildings",
+      "tileset.json",
+      [7.15, 51.25]
+    );
+    const camera = new THREE.PerspectiveCamera();
+
+    layer.onAdd?.(map);
+    layer.update({
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    });
+    renderer!.activeTiles.add({
+      content: { uri: "building.b3dm" },
+      internal: { depth: 3 },
+      engineData: {
+        boundingVolume: {
+          getAABB: (target: THREE.Box3) =>
+            target.set(
+              new THREE.Vector3(-2, 10, -4),
+              new THREE.Vector3(2, 30, 4)
+            ),
+        },
+      },
+    } as never);
+
+    const volumes = layer.getActiveTileVolumes?.() ?? [];
+
+    expect(volumes).toHaveLength(1);
+    expect(volumes[0]).toMatchObject({
+      id: "buildings:building.b3dm",
+      kind: "3d-tile",
+    });
+    expect(volumes[0]?.minimum.every(Number.isFinite)).toBe(true);
+    expect(volumes[0]?.maximum.every(Number.isFinite)).toBe(true);
+
+    layer.dispose();
+    updateSpy.mockRestore();
+  });
+
   it("does not restart progressive refinement for an unchanged error target", () => {
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
@@ -273,6 +328,11 @@ describe("three tiles runtime styling", () => {
     expect(setCameraSpy).toHaveBeenCalledWith(shadowCamera);
     deleteCameraSpy.mockClear();
     setResolutionSpy.mockClear();
+
+    handlers.get("movestart")?.();
+
+    expect(renderer!.errorTarget).toBe(0.25);
+    expect(deleteCameraSpy).not.toHaveBeenCalled();
 
     shadowCamera.position.x = 2;
     shadowCamera.updateMatrixWorld(true);

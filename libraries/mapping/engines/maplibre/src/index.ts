@@ -240,6 +240,7 @@ export type {
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
+  SharedThreeSceneTileVolume,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
 export {

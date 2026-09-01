@@ -396,9 +396,12 @@ describe("shadow scene lighting integration", () => {
     expect(accumulation.active()).toBe(true);
     expect(accumulation.retainSettledFrame()).toBe(false);
 
+    const shadowViewBeforeAnimation = setShadowView.mock.lastCall?.[0];
+    const shadowViewCallCount = setShadowView.mock.calls.length;
     controller.updateTimeAnimating(true);
     expect(accumulation.active()).toBe(false);
-    expect(setShadowView).toHaveBeenLastCalledWith(null);
+    expect(shadowViewBeforeAnimation).not.toBeNull();
+    expect(setShadowView).toHaveBeenCalledTimes(shadowViewCallCount);
     controller.dispose();
   });
 
