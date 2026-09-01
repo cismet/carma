@@ -1,12 +1,51 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { faLock, faLockOpen, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { Layer } from "@carma-mapping/layers";
+import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useAnnotationActions } from "./annotation-actions";
 
 export const ANNOTATION_LAYER_ID = "__annotation__";
 
 export const ANNOTATION_TOOLS_INTERACTION_ID = "annotation-tools";
+
+export const ANNOTATION_LOCK_TOGGLE_ID = "annotation-lock-toggle";
+export const ANNOTATION_ADD_DRAWING_ID = "annotation-add-drawing";
+
+/** the host's active-button blue; these buttons carry their own state */
+const ACTIVE_COLOR = "#1677ff";
+
+type RowActions = {
+  isLocked: boolean;
+  toggleLock: () => void;
+  addGroup: () => void;
+};
+
+/** lock for the active drawing, + for a new one */
+const buildInteractionButtons = ({
+  isLocked,
+  toggleLock,
+  addGroup,
+}: RowActions): InteractionButton[] => [
+  {
+    id: ANNOTATION_LOCK_TOGGLE_ID,
+    icon: (
+      <FontAwesomeIcon
+        icon={isLocked ? faLock : faLockOpen}
+        style={isLocked ? { color: ACTIVE_COLOR } : undefined}
+      />
+    ),
+    tooltip: isLocked ? "Zeichnung entsperren" : "Zeichnung sperren",
+    onClick: toggleLock,
+  },
+  {
+    id: ANNOTATION_ADD_DRAWING_ID,
+    icon: <FontAwesomeIcon icon={faPlus} />,
+    tooltip: "Neue Zeichnung beginnen",
+    onClick: addGroup,
+  },
+];
 
 export const ANNOTATION_LAYER: Layer = {
   id: ANNOTATION_LAYER_ID,
@@ -26,25 +65,54 @@ export type UseAnnotationLayerRowOptions = {
   hasRow: boolean;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
+  /** the host keeps a snapshot, so a changed row has to be handed over again */
+  onUpdate?: (layer: Layer) => void;
 };
 
 /**
  * Layer-bar row for the sketch mode, mirroring `useHighlightLayerRow`: the row
- * is the host's, the addon only says when it should be there. Switching the
- * mode off takes the row and its panel with it, and closing the row with its ✕
- * ends the mode.
+ * belongs to the host, the addon only declares when it applies and what it
+ * carries. Switching the mode off removes the row and its panel; closing the
+ * row with its ✕ ends the mode.
  */
 export const useAnnotationLayerRow = ({
   hasRow,
   onAdd,
   onRemove,
+  onUpdate,
 }: UseAnnotationLayerRowOptions) => {
-  const { isOn, endMode } = useAnnotationActions();
+  const { isOn, isLocked, endMode, toggleLock, addGroup } =
+    useAnnotationActions();
+
+  // the host stores a snapshot of the layer, so the handlers have to travel
+  // with it rather than being read from here later
+  const layer = useMemo<Layer>(
+    () => ({
+      ...ANNOTATION_LAYER,
+      interactionButtons: buildInteractionButtons({
+        isLocked,
+        toggleLock,
+        addGroup,
+      }),
+    }),
+    [addGroup, isLocked, toggleLock]
+  );
+  const layerRef = useRef(layer);
+  layerRef.current = layer;
 
   const onAddRef = useRef(onAdd);
   onAddRef.current = onAdd;
   const onRemoveRef = useRef(onRemove);
   onRemoveRef.current = onRemove;
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+
+  // the lock button renders its own state, so the row goes stale when it flips
+  useEffect(() => {
+    if (hasRow) {
+      onUpdateRef.current?.(layer);
+    }
+  }, [hasRow, layer]);
 
   const prevRef = useRef({ isOn, hasRow });
   const requestedRef = useRef<"add" | "remove" | null>(null);
@@ -66,7 +134,7 @@ export const useAnnotationLayerRow = ({
 
     if (isOn && requestedRef.current !== "add") {
       requestedRef.current = "add";
-      onAddRef.current(ANNOTATION_LAYER);
+      onAddRef.current(layerRef.current);
       return;
     }
 
