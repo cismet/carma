@@ -40,6 +40,8 @@ export type AnnotationSceneProps = {
   onProbe: (id: string, probe: SceneProbe | null) => void;
   /** the one drawing taking the pointer; the rest only follow the camera */
   editable: boolean;
+  /** the mode is on, so an empty scene takes its anchor from the camera */
+  live: boolean;
   /** false while the mode is off and the config hides it then */
   shown: boolean;
   langCode: string;
@@ -53,9 +55,10 @@ export type AnnotationSceneProps = {
 };
 
 /**
- * One drawing. `useMapSceneSync` takes its anchor off the map on mount, so a
- * scene added later is pinned at the current camera — that is what allows
- * drawing again after zooming past an older drawing's range.
+ * One drawing. `useMapSceneSync` takes its anchor off the camera while `live`
+ * and the scene is still empty, so a scene added later is pinned where the map
+ * stands then — that is what allows drawing again after zooming past an older
+ * drawing's range.
  *
  * Stays mounted whether or not it is being drawn on: unmounting would drop the
  * scene, and the sync must keep running while the map moves.
@@ -66,6 +69,7 @@ export const AnnotationScene = ({
   libreMap,
   onProbe,
   editable,
+  live,
   shown,
   langCode,
   background,
@@ -82,7 +86,8 @@ export const AnnotationScene = ({
     libreMap,
     api,
     box,
-    editable
+    editable,
+    live
   );
 
   useEffect(() => {
