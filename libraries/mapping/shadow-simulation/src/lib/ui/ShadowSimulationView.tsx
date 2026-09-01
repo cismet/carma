@@ -59,8 +59,9 @@ import "dayjs/locale/de";
 
 const ACTIVE_CONTROL_COLOR = "#1677ff";
 const SHADOW_ANIMATION_INTERVAL_MS = 1000 / 30;
-const DEFAULT_MESH_COLOR_MIX = 0.33;
-const DEFAULT_MESH_TEXTURE_SATURATION = 0.75;
+const DEFAULT_MESH_COLOR_MIX = 0.05;
+const DEFAULT_MESH_TEXTURE_SATURATION = 1;
+const DEFAULT_MESH_MIX_COLOR = "#ffffff";
 
 const getRangeProgressStyle = (
   value: number,
@@ -928,7 +929,7 @@ const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateBuildingAppearance({
       fullOpacity: state.buildingsFullOpacity ?? true,
-      uniformColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
+      uniformColor: state.buildingColor ?? DEFAULT_MESH_MIX_COLOR,
       uniformColorMix: clamp(
         state.buildingColorMix ?? DEFAULT_MESH_COLOR_MIX,
         0,
@@ -996,7 +997,7 @@ export const ShadowSimulationView = ({
       buildingsFullOpacity: true,
       buildingColorMix: DEFAULT_MESH_COLOR_MIX,
       meshTextureSaturation: DEFAULT_MESH_TEXTURE_SATURATION,
-      buildingColor: DEFAULT_SHADOW_SURFACE_COLOR,
+      buildingColor: DEFAULT_MESH_MIX_COLOR,
       shadowQuality: DEFAULT_SHADOW_QUALITY,
       meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
       showSunDebugVector: false,
@@ -1156,7 +1157,7 @@ export const ShadowSimulationView = ({
               0,
               1
             ),
-            buildingColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
+            buildingColor: state.buildingColor ?? DEFAULT_MESH_MIX_COLOR,
             showSunDebugVector: state.showSunDebugVector ?? false,
             showShadowBuffers: state.showShadowBuffers ?? false,
             useTransmittanceLut: state.useTransmittanceLut ?? true,
