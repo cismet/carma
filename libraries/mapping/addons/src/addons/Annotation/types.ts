@@ -2,9 +2,19 @@ import type { Positions } from "@carma-mapping/map-controls-layout";
 
 import type { AnnotationShape } from "./shape-tools";
 
+/** One drawing: its own excalidraw scene, anchored where its scene mounts. */
+export type AnnotationGroup = {
+  id: string;
+  /** locked drawings still follow the camera, they just take no pointer */
+  locked: boolean;
+};
+
 /** the `annotationMode` channel: whether the sketch layer owns the pointer */
 export type AnnotationState = {
   isOn: boolean;
+  /** oldest first */
+  groups?: AnnotationGroup[];
+  activeId?: string;
   shape?: AnnotationShape;
   undoVersion?: number;
   redoVersion?: number;

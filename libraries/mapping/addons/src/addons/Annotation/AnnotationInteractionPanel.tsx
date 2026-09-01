@@ -3,9 +3,11 @@ import { AnnotationShapeToolbar } from "./AnnotationShapeToolbar";
 import { DEFAULT_SHAPES } from "./shape-tools";
 
 export const AnnotationInteractionPanel = () => {
-  const { isOn, shape, setShape, undo, redo } = useAnnotationActions();
+  const { isOn, isLocked, shape, setShape, undo, redo } =
+    useAnnotationActions();
 
-  if (!isOn) {
+  // a locked drawing accepts no tool, so the toolbar would do nothing
+  if (!isOn || isLocked) {
     return null;
   }
 
