@@ -1204,23 +1204,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }
     queue.sort();
   };
-  const abortDownloadsOutsideActiveCameras = () => {
-    if (!tiles) return;
-    const cache = tiles.lruCache as typeof tiles.lruCache & {
-      isUsed: (tile: Tile) => boolean;
-      remove: (tile: Tile) => boolean;
-    };
-    const loadingTiles = (
-      tiles as typeof tiles & {
-        loadingTiles: Set<Tile>;
-      }
-    ).loadingTiles;
-    for (const tile of [...loadingTiles]) {
-      if (!cache.isUsed(tile)) {
-        cache.remove(tile);
-      }
-    }
-  };
   const handleUpdateAfter = () => {
     scheduleProgressiveRefinement();
     const currentTiles = tiles;
@@ -1354,7 +1337,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
-        abortDownloadsOutsideActiveCameras();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         prioritizeQueuedTiles(viewCamera);
         maybeEnableShadowSelection();
