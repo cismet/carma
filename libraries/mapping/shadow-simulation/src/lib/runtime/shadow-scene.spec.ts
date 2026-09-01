@@ -99,6 +99,12 @@ describe("shadow scene lighting integration", () => {
     root: THREE.Object3D;
     providesTerrain?: boolean;
     hasRenderableContent?: () => boolean;
+    getActiveTileVolumes?: () => readonly {
+      id: string;
+      kind: "terrain-tile" | "tiles3d";
+      minimum: readonly [number, number, number];
+      maximum: readonly [number, number, number];
+    }[];
     updatePriority?: number;
     update?: (frame: unknown) => void;
     dispose: () => void;
@@ -718,6 +724,66 @@ describe("shadow scene lighting integration", () => {
     expect(
       scene.getObjectByName("shadow-simulation-shadow-buffer-0")
     ).toBeUndefined();
+  });
+
+  it("fits loaded tile volumes instead of distant fallback ground points", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      {
+        id: "mesh",
+        root: new THREE.Group(),
+        getActiveTileVolumes: () => [
+          {
+            id: "visible",
+            kind: "tiles3d",
+            minimum: [-100, 0, -100],
+            maximum: [100, 200, 100],
+          },
+        ],
+        dispose: vi.fn(),
+      },
+    ] as never);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: (x / 800 - 0.5) * 20,
+        lat: (0.5 - y / 600) * 20,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+
+    const controller = buildShadowSimulationScene(map as never);
+    subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(0, 500, 500);
+    camera.lookAt(0, 100, 0);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+
+    updateShadows(map, camera);
+
+    const shadowCamera = readShadowProjectionDebugSnapshot(map as never)?.shadow
+      ?.camera;
+    expect(
+      (shadowCamera?.rightMeters ?? 0) - (shadowCamera?.leftMeters ?? 0)
+    ).toBeLessThan(1_000);
+    expect(
+      (shadowCamera?.topMeters ?? 0) - (shadowCamera?.bottomMeters ?? 0)
+    ).toBeLessThan(1_000);
+
+    controller.dispose();
   });
 
   it("fits the render-camera rays at both terrain elevation limits", () => {

@@ -1201,11 +1201,12 @@ export const buildShadowSimulationScene = (
             )
           )
       );
-      sharedBinding.receiverWorldPoints = [
-        ...fallbackReceiverWorldPoints,
-        ...cameraCoveragePoints,
-        ...visibleTileVolumePoints,
-      ];
+      sharedBinding.receiverWorldPoints =
+        visibleTileVolumePoints.length > 0
+          ? visibleTileVolumePoints
+          : cameraCoveragePoints.length > 0
+          ? cameraCoveragePoints
+          : fallbackReceiverWorldPoints;
       if (
         sharedBinding.receiverWorldPoints.length === 0 ||
         !latestSolarPosition
