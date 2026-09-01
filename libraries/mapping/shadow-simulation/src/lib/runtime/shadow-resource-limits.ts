@@ -1,5 +1,6 @@
 const PHONE_MAX_SHADOW_MAP_SIZE = 2_048;
 const TABLET_MAX_SHADOW_MAP_SIZE = 4_096;
+const DESKTOP_MAX_SHADOW_MAP_SIZE = 4_096;
 const PHONE_MAX_ACCUMULATION_PIXELS = 1_000_000;
 const TABLET_MAX_ACCUMULATION_PIXELS = 2_000_000;
 
@@ -48,7 +49,7 @@ export const resolveShadowResourceLimits = (
     };
   }
   return {
-    maxShadowMapSize: maxTextureSize,
+    maxShadowMapSize: Math.min(maxTextureSize, DESKTOP_MAX_SHADOW_MAP_SIZE),
     maxAccumulationPixels: Number.POSITIVE_INFINITY,
   };
 };

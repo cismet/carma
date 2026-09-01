@@ -113,7 +113,7 @@ export function Tiles3dLayerManager({
   // them; without the add-on, the shared scene keeps its regular ambient-only
   // rendering and no shadow light exists.
   useEffect(() => {
-    if (!map || !config.tilesetUrl) return;
+    if (!map || !config.tilesetUrl || !mapIsUsable(map)) return;
 
     const center = map.getCenter();
     const origin: [number, number] = [center.lng, center.lat];

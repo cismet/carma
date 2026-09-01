@@ -80,13 +80,29 @@ describe("shared Three.js scene layer", () => {
 
   it("uses canonical depth for offscreen targets and MapLibre depth on main", () => {
     const events: string[] = [];
+    const hostFramebuffer = {} as WebGLFramebuffer;
+    let activeFramebuffer: WebGLFramebuffer | null = hostFramebuffer;
     const originalSetRenderTarget = vi.fn((target: unknown) => {
       events.push(target === null ? "target:main" : "target:offscreen");
+      activeFramebuffer = target === null ? null : (target as WebGLFramebuffer);
     });
     const renderer = {
       setRenderTarget: originalSetRenderTarget,
     } as unknown as Pick<THREE.WebGLRenderer, "setRenderTarget">;
     const gl = {
+      FRAMEBUFFER: 0x8d40,
+      FRAMEBUFFER_BINDING: 0x8ca6,
+      getParameter: vi.fn(() => activeFramebuffer),
+      bindFramebuffer: vi.fn(
+        (_target: number, framebuffer: WebGLFramebuffer | null) => {
+          activeFramebuffer = framebuffer;
+          events.push(
+            framebuffer === hostFramebuffer
+              ? "framebuffer:host"
+              : "framebuffer:other"
+          );
+        }
+      ),
       depthRange: vi.fn((near: number, far: number) => {
         events.push(`depth:${near}:${far}`);
       }),
@@ -103,8 +119,10 @@ describe("shared Three.js scene layer", () => {
       "depth:0:1",
       "target:main",
       "depth:0:0.985",
+      "framebuffer:host",
       "depth:0:0.985",
     ]);
+    expect(activeFramebuffer).toBe(hostFramebuffer);
 
     bridge.dispose();
     renderer.setRenderTarget(null);

@@ -59,6 +59,8 @@ import "dayjs/locale/de";
 
 const ACTIVE_CONTROL_COLOR = "#1677ff";
 const SHADOW_ANIMATION_INTERVAL_MS = 1000 / 30;
+const DEFAULT_MESH_COLOR_MIX = 0.33;
+const DEFAULT_MESH_TEXTURE_SATURATION = 0.75;
 
 const getRangeProgressStyle = (
   value: number,
@@ -123,6 +125,7 @@ export type ShadowSimulationState = {
   terrainColor: string;
   buildingsFullOpacity: boolean;
   buildingColorMix: number;
+  meshTextureSaturation?: number;
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   meshErrorTarget?: MeshErrorTargetPixels;
@@ -926,13 +929,23 @@ const ShadowSimulationRuntime = ({
     shadowScene.current?.updateBuildingAppearance({
       fullOpacity: state.buildingsFullOpacity ?? true,
       uniformColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
-      uniformColorMix: clamp(state.buildingColorMix ?? 0, 0, 1),
+      uniformColorMix: clamp(
+        state.buildingColorMix ?? DEFAULT_MESH_COLOR_MIX,
+        0,
+        1
+      ),
+      textureSaturation: clamp(
+        state.meshTextureSaturation ?? DEFAULT_MESH_TEXTURE_SATURATION,
+        0,
+        1
+      ),
     });
   }, [
     state.buildingColor,
     state.buildingColorMix,
     state.buildingsFullOpacity,
     state.enabled,
+    state.meshTextureSaturation,
     sceneRevision,
   ]);
 
@@ -981,7 +994,8 @@ export const ShadowSimulationView = ({
       enabled: false,
       terrainColor: resolveTerrainColor(terrain?.material?.color),
       buildingsFullOpacity: true,
-      buildingColorMix: 0,
+      buildingColorMix: DEFAULT_MESH_COLOR_MIX,
+      meshTextureSaturation: DEFAULT_MESH_TEXTURE_SATURATION,
       buildingColor: DEFAULT_SHADOW_SURFACE_COLOR,
       shadowQuality: DEFAULT_SHADOW_QUALITY,
       meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
@@ -1132,7 +1146,16 @@ export const ShadowSimulationView = ({
               state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS,
             terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
             buildingsFullOpacity: state.buildingsFullOpacity ?? true,
-            buildingColorMix: clamp(state.buildingColorMix ?? 0, 0, 1),
+            buildingColorMix: clamp(
+              state.buildingColorMix ?? DEFAULT_MESH_COLOR_MIX,
+              0,
+              1
+            ),
+            meshTextureSaturation: clamp(
+              state.meshTextureSaturation ?? DEFAULT_MESH_TEXTURE_SATURATION,
+              0,
+              1
+            ),
             buildingColor: state.buildingColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
             showSunDebugVector: state.showSunDebugVector ?? false,
             showShadowBuffers: state.showShadowBuffers ?? false,
