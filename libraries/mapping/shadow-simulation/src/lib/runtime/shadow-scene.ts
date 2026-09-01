@@ -38,6 +38,7 @@ import {
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
 } from "./atmospheric-sunlight";
+import { buildAtmosphericSky } from "./atmospheric-sky";
 import { ShadowController } from "./shadow-controller";
 import { resolveShadowResourceLimits } from "./shadow-resource-limits";
 import {
@@ -53,8 +54,6 @@ const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
 const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-cesium-terrain";
-const SHADOW_SIMULATION_MESH_BASE_NAME =
-  "shadow-simulation-mesh-zero-elevation-base";
 const SHADOW_CONTROLLER_UPDATE_PRIORITY = 200;
 const SUN_VECTOR_COLOR = 0xf59e0b;
 const SUN_VECTOR_HEAD_LENGTH_FACTOR = 0.18;
@@ -93,6 +92,7 @@ type ShadowLightBinding = {
   scene: THREE.Scene;
   controller: ShadowController;
   skyLight: THREE.LightProbe;
+  atmosphericSky: ReturnType<typeof buildAtmosphericSky>;
   ambientLightIntensities: Map<THREE.AmbientLight, number>;
   lightTarget: THREE.Object3D;
   sunVector: SunVectorGizmo;
@@ -557,7 +557,8 @@ const updateBindingCenter = (binding: ShadowLightBinding) => {
 
 const buildShadowLightBinding = (
   scene: THREE.Scene,
-  shadowAreaMeters: number
+  shadowAreaMeters: number,
+  groundAlbedo: THREE.Color
 ): ShadowLightBinding => {
   const controller = new ShadowController(scene);
   const sunLight = controller.lights[0];
@@ -590,6 +591,8 @@ const buildShadowLightBinding = (
   });
   const skyLight = new THREE.LightProbe(undefined, 0);
   skyLight.name = SHADOW_SIMULATION_SKY_LIGHT_NAME;
+  const atmosphericSky = buildAtmosphericSky(groundAlbedo);
+  atmosphericSky.mesh.userData[SHADOW_OVERLAY_MARKER] = true;
   const ambientLightIntensities = new Map<THREE.AmbientLight, number>();
   scene.traverse((object) => {
     const light = object as THREE.AmbientLight;
@@ -601,6 +604,7 @@ const buildShadowLightBinding = (
     scene,
     controller,
     skyLight,
+    atmosphericSky,
     ambientLightIntensities,
     lightTarget,
     sunVector,
@@ -628,6 +632,7 @@ const buildShadowLightBinding = (
   makeSceneMeshesShadeable(scene);
   updateBindingCenter(binding);
   scene.add(skyLight);
+  scene.add(atmosphericSky.mesh);
   scene.add(sunVector.root);
   scene.add(...shadowBufferBoxes);
   return binding;
@@ -788,6 +793,7 @@ const disposeShadowLightBinding = (binding: ShadowLightBinding) => {
     ambientLight.intensity = intensity;
   }
   binding.scene.remove(binding.skyLight);
+  binding.scene.remove(binding.atmosphericSky.mesh);
   binding.scene.remove(binding.sunVector.root);
   for (const box of binding.shadowBufferBoxes) {
     binding.scene.remove(box);
@@ -798,6 +804,7 @@ const disposeShadowLightBinding = (binding: ShadowLightBinding) => {
     materials.forEach((material) => material.dispose());
   }
   binding.sunVector.dispose();
+  binding.atmosphericSky.dispose();
   binding.controller.dispose();
 };
 
@@ -902,31 +909,14 @@ export const buildShadowSimulationScene = (
         runtime.providesTerrain === true &&
         runtime.hasRenderableContent?.() !== false
     );
-  const meshBaseMaterial = new THREE.MeshLambertMaterial({
-    color: terrainColor,
-    side: THREE.FrontSide,
-    shadowSide: THREE.FrontSide,
-  });
-  const meshBaseGeometry = new THREE.PlaneGeometry(
-    MAX_RECEIVER_DISTANCE_METERS * 2,
-    MAX_RECEIVER_DISTANCE_METERS * 2
-  );
-  meshBaseGeometry.rotateX(-Math.PI / 2);
-  const meshBase = new THREE.Mesh(meshBaseGeometry, meshBaseMaterial);
-  meshBase.name = SHADOW_SIMULATION_MESH_BASE_NAME;
-  meshBase.visible = sharedSceneProvidesTerrain();
-  meshBase.castShadow = false;
-  meshBase.receiveShadow = true;
-  meshBase.userData.isShadowTerrainSurface = true;
-  meshBase.userData.disableShadowCasting = true;
-  sceneLease.layer.getScene().add(meshBase);
   let terrainRuntime = sharedSceneProvidesTerrain()
     ? null
     : buildTerrainRuntime();
   if (terrainRuntime) sceneLease.layer.addRuntime(terrainRuntime);
   const sharedBinding = buildShadowLightBinding(
     sceneLease.layer.getScene(),
-    initialShadowAreaMeters
+    initialShadowAreaMeters,
+    terrainColor
   );
   let shadowStateEpoch = 0;
   let shadowVisualEpoch = 0;
@@ -973,6 +963,12 @@ export const buildShadowSimulationScene = (
       applyMapLibreLightSample(sample);
       map.triggerRepaint();
     }, atmosphericSunlightOptions);
+    atmosphericSunlight.ensureSky(() => {
+      if (disposed || !latestSolarPosition) return;
+      invalidateShadowPresentation();
+      evaluateAtmosphericSunlightForMap(latestSolarPosition);
+      map.triggerRepaint();
+    });
     const sample = atmosphericSunlight.evaluate(
       position.instant,
       {
@@ -983,6 +979,10 @@ export const buildShadowSimulationScene = (
       atmosphericSunlightOptions
     );
     latestAtmosphericSunlight = sample;
+    sharedBinding.atmosphericSky.update(
+      sample.skyFrame,
+      atmosphericSunlight.skyTextures
+    );
     applyAtmosphericSkyLightToBinding(sharedBinding, sample);
     applySolarPositionToBinding(
       sharedBinding,
@@ -1052,8 +1052,6 @@ export const buildShadowSimulationScene = (
       return;
     }
     sharedBinding.center.copy(center);
-    meshBase.position.set(center.x, 0, center.z);
-    meshBase.updateMatrixWorld(true);
     const canvas = map.getCanvas();
     const viewportWidth = canvas.clientWidth || canvas.width;
     const viewportHeight = canvas.clientHeight || canvas.height;
@@ -1392,7 +1390,6 @@ export const buildShadowSimulationScene = (
   };
   const syncTerrainRuntime = () => {
     const meshProvidesTerrain = sharedSceneProvidesTerrain();
-    meshBase.visible = meshProvidesTerrain;
     if (!terrain) return;
     if (meshProvidesTerrain) {
       suppressMapLibreTerrain();
@@ -1533,7 +1530,7 @@ export const buildShadowSimulationScene = (
       if (terrainColor.equals(nextColor)) return;
       invalidateShadowPresentation();
       terrainRuntime?.setMaterialColor(color);
-      meshBaseMaterial.color.copy(nextColor);
+      sharedBinding.atmosphericSky.updateGroundAlbedo(nextColor);
       terrainColor = nextColor;
       ensureShadowBackground();
     },
@@ -1688,9 +1685,6 @@ export const buildShadowSimulationScene = (
       if (terrainRuntime && sceneLease.layer.hasRuntime(terrainRuntime.id)) {
         sceneLease.layer.removeRuntime(terrainRuntime.id);
       }
-      sceneLease.layer.getScene().remove(meshBase);
-      meshBaseGeometry.dispose();
-      meshBaseMaterial.dispose();
       atmosphericSunlight.dispose();
       disposeShadowLightBinding(sharedBinding);
       sceneLease.layer.setAccumulationController?.(null);
