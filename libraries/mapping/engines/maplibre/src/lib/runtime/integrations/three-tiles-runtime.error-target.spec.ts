@@ -182,8 +182,23 @@ describe("three tiles runtime effective error target", () => {
   });
 
   it("treats a placeholder whose child can never load as ready for receiver traversal", () => {
-    const { layer, renderer, tick, child, requiredTile } = setup();
+    const { layer, renderer, tick, child, visibleTile, requiredTile } = setup();
     renderer.lruCache.setMemoryUsage(requiredTile, 16 * MIB);
+    const receiverBounds = new THREE.Box3(
+      new THREE.Vector3(-10, -10, -110),
+      new THREE.Vector3(10, 10, -90)
+    );
+    const boundingVolume = {
+      getAABB: (target: THREE.Box3) => target.copy(receiverBounds),
+      getSphere: (target: THREE.Sphere) =>
+        receiverBounds.getBoundingSphere(target),
+      intersectsFrustum: () => true,
+    };
+    Object.assign(visibleTile, { engineData: { boundingVolume } });
+    Object.assign(renderer, {
+      rootTileset: { root: { engineData: { boundingVolume } } },
+    });
+    renderer.group.add(new THREE.Group());
 
     // The child is missing on the server: exhausted at once, never requested.
     child.internal.loadingState = -1;

@@ -132,12 +132,13 @@ describe("buildShadowProjectionDebugModel", () => {
     expect(offset.up).toBeCloseTo(expectedPosition.y, 6);
   });
 
-  it("normalizes loaded terrain tile volumes around the scene anchor", () => {
+  it("normalizes loaded tile volumes around the scene anchor", () => {
     const snapshot = {
       ...buildSnapshot(),
-      terrainTileVolumes: [
+      tileVolumes: [
         {
           id: "terrain:10/532/218",
+          loadReason: "shadow" as const,
           minimum: [0, 10, 20] as const,
           maximum: [20, 30, 40] as const,
         },
@@ -149,16 +150,17 @@ describe("buildShadowProjectionDebugModel", () => {
       snapshot
     );
 
-    expect(model?.terrainTileVolumes).toHaveLength(1);
-    expect(model?.terrainTileVolumes[0]?.minimum).toEqual([
+    expect(model?.tileVolumes).toHaveLength(1);
+    expect(model?.tileVolumes[0]?.minimum).toEqual([
       expect.closeTo(-0.82),
       expect.closeTo(-0.82),
       expect.closeTo(-0.82),
     ]);
-    expect(model?.terrainTileVolumes[0]?.maximum).toEqual([
+    expect(model?.tileVolumes[0]?.maximum).toEqual([
       expect.closeTo(0.82),
       expect.closeTo(0.82),
       expect.closeTo(0.82),
     ]);
+    expect(model?.tileVolumes[0]?.color).toBe("#ea580c");
   });
 });

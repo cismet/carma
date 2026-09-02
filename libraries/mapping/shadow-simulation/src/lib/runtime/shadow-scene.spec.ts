@@ -633,42 +633,6 @@ describe("shadow scene lighting integration", () => {
     };
 
     const wideViewportBuffer = updateAndExpectViewportInsideBuffer();
-    const shadowBufferBoxes = scene.children.filter(
-      (object): object is THREE.LineSegments =>
-        object instanceof THREE.LineSegments &&
-        object.name.startsWith("shadow-simulation-shadow-buffer-")
-    );
-    expect(shadowBufferBoxes).toHaveLength(1);
-    expect(shadowBufferBoxes.every(({ visible }) => !visible)).toBe(true);
-    controller.updateShadowBufferDebugVisibility(true);
-    expect(shadowBufferBoxes.filter(({ visible }) => visible)).toHaveLength(1);
-    const shadowLights = scene.children.filter(
-      (object): object is THREE.DirectionalLight =>
-        (object as THREE.DirectionalLight).isDirectionalLight &&
-        object.name.startsWith("shadow-simulation-sun")
-    );
-    shadowBufferBoxes
-      .filter(({ visible }) => visible)
-      .forEach((box, index) => {
-        const shadowCamera = shadowLights[index]!.shadow.camera;
-        const position = box.geometry.getAttribute("position");
-        expect(position.count).toBe(48);
-        for (
-          let cornerIndex = 0;
-          cornerIndex < position.count;
-          cornerIndex += 1
-        ) {
-          const projected = new THREE.Vector3()
-            .fromBufferAttribute(position, cornerIndex)
-            .project(shadowCamera);
-          expect(Math.abs(projected.x)).toBeCloseTo(1, 5);
-          expect(Math.abs(projected.y)).toBeCloseTo(1, 5);
-          expect(Math.abs(projected.z)).toBeCloseTo(1, 5);
-        }
-        expect((box.material as THREE.Material).depthTest).toBe(false);
-      });
-    controller.updateShadowBufferDebugVisibility(false);
-    expect(shadowBufferBoxes.every(({ visible }) => !visible)).toBe(true);
     expect(getBounds).not.toHaveBeenCalled();
     expect(sunVector.position.toArray()).toEqual([0, 0, 0]);
     expect(sunVector.cone.position.y).toBeCloseTo(1_000);
@@ -701,13 +665,7 @@ describe("shadow scene lighting integration", () => {
         (wideViewportBuffer?.leftMeters ?? 0)
     );
 
-    controller.updateShadowBufferDebugVisibility(true);
-    expect(shadowBufferBoxes.filter(({ visible }) => visible)).toHaveLength(1);
-
     controller.dispose();
-    expect(
-      scene.getObjectByName("shadow-simulation-shadow-buffer-0")
-    ).toBeUndefined();
   });
 
   it("fits loaded tile volumes instead of distant fallback ground points", () => {

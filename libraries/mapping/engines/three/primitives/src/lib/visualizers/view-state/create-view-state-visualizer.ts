@@ -377,6 +377,7 @@ export const createViewStateVisualizerPrimitive = (
     currentOverview.orbitPhi ?? GEOMETRY.overviewCamera.orbitPhiRad;
   let orbitTheta =
     currentOverview.orbitTheta ?? GEOMETRY.overviewCamera.rotationAroundUpRad;
+  let orbitScale = 1;
 
   // --- Cameras ---
   // Keep sphere visually constant: distance adjusts with FOV so projected size stays the same.
@@ -384,7 +385,8 @@ export const createViewStateVisualizerPrimitive = (
   const baseTangentProduct = resolveDefaultFrameHalfExtent();
   let currentFovDeg = initialFovDeg;
   const getOrbitRadius = () =>
-    baseTangentProduct / Math.tan(degToRadNumeric(currentFovDeg)! * 0.5);
+    (baseTangentProduct * orbitScale) /
+    Math.tan(degToRadNumeric(currentFovDeg)! * 0.5);
 
   const perspectiveCamera = createOverviewPerspectiveCamera(initialFovDeg);
 
@@ -411,12 +413,13 @@ export const createViewStateVisualizerPrimitive = (
     overview: ResolvedViewStateVisualizerOverviewOptions
   ) => {
     const aspect = size.widthPx / size.heightPx;
+    const scaledHalfExtent = baseTangentProduct * orbitScale;
     const halfWidth = overview.fitOrthographicWidth
-      ? baseTangentProduct
-      : baseTangentProduct * aspect;
+      ? scaledHalfExtent
+      : scaledHalfExtent * aspect;
     const halfHeight = overview.fitOrthographicWidth
-      ? baseTangentProduct / aspect
-      : baseTangentProduct;
+      ? scaledHalfExtent / aspect
+      : scaledHalfExtent;
     orthographicCamera.left = -halfWidth;
     orthographicCamera.right = halfWidth;
     orthographicCamera.top = halfHeight;
@@ -1140,8 +1143,6 @@ export const createViewStateVisualizerPrimitive = (
     const ndcY = 1 - ((e.clientY - rect.top) / rect.height) * 2;
     raycaster.setFromCamera(new Vector2(ndcX, ndcY), getActiveCamera());
 
-    const sphereHits = raycaster.intersectObject(hemisphereSurface.mesh, false);
-
     const dragTarget = cameraViews
       .flatMap((cameraView, cameraIndex) => {
         const dragTargetMesh = cameraView.readDragTargetMesh();
@@ -1191,7 +1192,7 @@ export const createViewStateVisualizerPrimitive = (
       );
       return;
     }
-    if (sphereHits.length > 0 && interactive) {
+    if (interactive) {
       beginOrbitDrag(e.pointerId, e.clientX, e.clientY);
       return;
     }
@@ -1221,10 +1222,21 @@ export const createViewStateVisualizerPrimitive = (
     canvas.style.cursor = POINTER_CURSOR.IDLE;
   };
 
+  const onWheel = (event: WheelEvent) => {
+    if (!interactive) return;
+    event.preventDefault();
+    orbitScale = clamp(orbitScale * Math.exp(event.deltaY * 0.001), 0.25, 6);
+    syncOrthographicProjection(currentOverview);
+    syncCamerasToOrbit();
+    const anchors = update(lastViewStates);
+    options.onInteraction?.(anchors);
+  };
+
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
   canvas.style.cursor = POINTER_CURSOR.IDLE;
 
   currentLabelAnchors = update(viewState);
@@ -1335,6 +1347,7 @@ export const createViewStateVisualizerPrimitive = (
     canvas.removeEventListener("pointermove", onPointerMove);
     canvas.removeEventListener("pointerup", onPointerUp);
     canvas.removeEventListener("pointercancel", onPointerUp);
+    canvas.removeEventListener("wheel", onWheel);
 
     renderer.dispose();
     hemisphereSurface.dispose();

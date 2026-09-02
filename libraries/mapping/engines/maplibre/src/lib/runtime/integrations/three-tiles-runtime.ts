@@ -7,7 +7,6 @@ import {
 } from "3d-tiles-renderer/core";
 import * as TilesRendererCore from "3d-tiles-renderer/core";
 import {
-  DebugTilesPlugin,
   GLTFExtensionsPlugin,
   ImplicitTilingPlugin,
   ReorientationPlugin,
@@ -48,6 +47,7 @@ import {
   createThreeTilesRetryController,
   type RetryableTilesRenderer,
 } from "./three-tiles-retry-controller";
+import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import {
   applyShadowReceiverMask,
   createShadowReceiverMask,
@@ -366,7 +366,8 @@ export function buildThreeTilesRuntime(
   let map: MaplibreMap | null = null;
   let tiles: RuntimeTilesRenderer | null = null;
   let dracoLoader: DRACOLoader | null = null;
-  let debugTilesPlugin: DebugTilesPlugin | null = null;
+  let tileDebugOverlay: ReturnType<typeof createThreeTilesDebugOverlay> | null =
+    null;
   let cameraSet: TilesCameraSet | null = null;
   let kickstartTimer = 0;
   let requestBackoffTimer = 0;
@@ -423,11 +424,14 @@ export function buildThreeTilesRuntime(
   let shadowSelectionEnabled = false;
   let shadowSelectionNeedsTraversal = false;
   let shadowReceiverMask: ShadowReceiverMask | null = null;
+  let shadowReceiverSourceSignature = "";
   const mainViewSourceTiles = new Set<Tile>();
   let viewRefinementPending = false;
   let viewQualityAuditPasses = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
+  const tileDebugIds = new WeakMap<Tile, number>();
+  let nextTileDebugId = 1;
   let runtimeVisible = true;
   let activeProjector: ImageProjector | null = null;
   const placementMatrix = new THREE.Matrix4();
@@ -1236,10 +1240,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       activeTileBoundingBox.applyMatrix4(tiles.group.matrixWorld);
       if (activeTileBoundingBox.isEmpty()) continue;
       volumes.push({
-        id: `${layerId}:${
-          tile.content?.uri ?? `${tile.internal.depth}:${volumes.length}`
-        }`,
+        id: getTileDebugId(tile),
         kind: options.providesTerrain ? "terrain-tile" : "3d-tile",
+        loadReason: getTileLoadReason(activeTile as RuntimeTile),
         minimum: activeTileBoundingBox.min.toArray(),
         maximum: activeTileBoundingBox.max.toArray(),
       });
@@ -1255,6 +1258,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const clearShadowReceiverSources = () => {
     shadowReceiverMask = null;
+    shadowReceiverSourceSignature = "";
     mainViewSourceTiles.clear();
   };
   const setShadowSelectionEnabled = (enabled: boolean) => {
@@ -1274,7 +1278,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     payloadAwareConcurrency.getCooldownRemainingMs() <= 0;
   const isTileInMainView = (tile: RuntimeTile): boolean => {
     const bounds = tile.engineData?.boundingVolume;
-    if (!bounds || !viewFrustumsReady) {
+    if (
+      !bounds ||
+      !viewFrustumsReady ||
+      typeof bounds.intersectsFrustum !== "function"
+    ) {
       return tile.traversal?.inFrustum ?? false;
     }
     return bounds.intersectsFrustum(tileViewFrustum);
@@ -1318,8 +1326,24 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     );
     return 1 - centerDistance / Math.SQRT2;
   };
+  const getTileDebugId = (tile: Tile) => {
+    let sequence = tileDebugIds.get(tile);
+    if (sequence === undefined) {
+      sequence = nextTileDebugId++;
+      tileDebugIds.set(tile, sequence);
+    }
+    const uri = tile.content?.uri;
+    const depth = (tile as Tile & { internal?: { depth?: number } }).internal
+      ?.depth;
+    return `${layerId}:${uri ?? `d${depth ?? "?"}:t${sequence}`}`;
+  };
+  const getTileLoadReason = (
+    tile: RuntimeTile
+  ): SharedThreeSceneTileVolume["loadReason"] => {
+    if (isTileInMainView(tile)) return "viewport";
+    return tile.shadowReceiverCenterness === undefined ? undefined : "shadow";
+  };
   const captureShadowReceiverSources = () => {
-    clearShadowReceiverSources();
     const sourceCamera = shadowView?.camera;
     if (
       !tiles ||
@@ -1327,7 +1351,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       !viewFrustumsReady ||
       !tiles.getBoundingBox(rootTileBoundingBox)
     ) {
-      return;
+      return "empty" as const;
     }
 
     sourceCamera.updateMatrixWorld(true);
@@ -1341,6 +1365,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles.group.matrixWorld
     );
     const sources: ShadowReceiverSource[] = [];
+    const sourceTiles = new Set<Tile>();
+    const sourceKeys: string[] = [];
     for (const visible of tiles.visibleTiles) {
       const tile = visible as RuntimeTile;
       if (!isTileInMainView(tile)) continue;
@@ -1361,14 +1387,28 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           geometricError: tile.geometricError,
           centerness: getTileCenterness(bounds),
         });
+        sourceKeys.push(`${getTileDebugId(tile)}:${tile.geometricError}`);
       }
       let source: Tile | null = tile;
       while (source) {
-        mainViewSourceTiles.add(source);
+        sourceTiles.add(source);
         source = source.parent;
       }
     }
-    shadowReceiverMask = createShadowReceiverMask(sources, tilesToShadowView);
+    const nextSignature = sourceKeys.sort().join("|");
+    if (shadowReceiverMask && nextSignature === shadowReceiverSourceSignature) {
+      return "unchanged" as const;
+    }
+    const nextMask = createShadowReceiverMask(sources, tilesToShadowView);
+    if (!nextMask) {
+      clearShadowReceiverSources();
+      return "empty" as const;
+    }
+    shadowReceiverMask = nextMask;
+    shadowReceiverSourceSignature = nextSignature;
+    mainViewSourceTiles.clear();
+    for (const tile of sourceTiles) mainViewSourceTiles.add(tile);
+    return "updated" as const;
   };
   const measureUsedBytesMain = () => {
     if (!tiles) return;
@@ -1475,7 +1515,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const maybeEnableShadowSelection = () => {
     if (
-      shadowSelectionEnabled ||
       !shadowView ||
       !tiles ||
       !cameraSet ||
@@ -1483,15 +1522,21 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     ) {
       return;
     }
-    if (
-      !isPipelineIdle() ||
-      !mainViewWithinErrorFactor(SHADOW_SELECTION_ERROR_FACTOR)
-    ) {
+    if (!mainViewWithinErrorFactor(SHADOW_SELECTION_ERROR_FACTOR)) {
       return;
     }
-    captureShadowReceiverSources();
+    const receiverUpdate = captureShadowReceiverSources();
+    if (receiverUpdate === "empty") {
+      setShadowSelectionEnabled(false);
+      return;
+    }
+    if (receiverUpdate === "unchanged") return;
     viewRefinementPending = false;
-    setShadowSelectionEnabled(true);
+    if (shadowSelectionEnabled) {
+      shadowSelectionNeedsTraversal = true;
+    } else {
+      setShadowSelectionEnabled(true);
+    }
     tiles.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
@@ -1820,19 +1865,31 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     for (const tile of parseQueue.items)
       assignTilePriority(tile as RuntimeTile);
   };
-  /**
-   * The debug plugin does per-frame, per-tile work, so it only exists while
-   * the bounds are shown.
-   */
-  const syncDebugTilesPlugin = () => {
+  /** The overlay only exists while tile bounds are shown. */
+  const syncTileDebugOverlay = () => {
     if (!tiles) return;
-    if (tileBoundsVisible && !debugTilesPlugin) {
-      debugTilesPlugin = new DebugTilesPlugin({ displayBoxBounds: true });
-      tiles.registerPlugin(debugTilesPlugin);
-    } else if (!tileBoundsVisible && debugTilesPlugin) {
-      tiles.unregisterPlugin(debugTilesPlugin);
-      debugTilesPlugin = null;
+    if (!tileBoundsVisible) {
+      tileDebugOverlay?.dispose();
+      tileDebugOverlay = null;
+      return;
     }
+    tileDebugOverlay ??= createThreeTilesDebugOverlay(tiles.group);
+    const volumes = [...tiles.activeTiles].flatMap((tile) => {
+      const runtimeTile = tile as RuntimeTile;
+      const bounds = runtimeTile.engineData?.boundingVolume;
+      if (!bounds?.getAABB) return [];
+      const box = new THREE.Box3();
+      bounds.getAABB(box);
+      if (box.isEmpty()) return [];
+      return [
+        {
+          id: getTileDebugId(tile),
+          bounds: box,
+          loadReason: getTileLoadReason(runtimeTile),
+        },
+      ];
+    });
+    tileDebugOverlay.update(volumes);
   };
   const handleUpdateAfter = () => {
     const currentTiles = tiles;
@@ -1970,7 +2027,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           ],
         })
       );
-      syncDebugTilesPlugin();
+      syncTileDebugOverlay();
       // Reorient the ECEF tileset into the local scene frame at the
       // layer origin: ENU with +Y up, north toward -Z — matching the
       // point cloud layers (x east, y up, z south).
@@ -2043,6 +2100,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         prepareViewFrustums(viewCamera);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
+        syncTileDebugOverlay();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         if (!shadowSelectionEnabled) measureUsedBytesMain();
         lastMainViewConverged = mainViewConverged();
@@ -2212,7 +2270,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setTileBoundsVisible(enabled: boolean) {
       if (tileBoundsVisible === enabled) return;
       tileBoundsVisible = enabled;
-      syncDebugTilesPlugin();
+      syncTileDebugOverlay();
       tiles?.dispatchEvent({ type: "needs-update" });
       map?.triggerRepaint();
     },
@@ -2294,8 +2352,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         disposeLitTextureState(mesh, state);
       }
       restoreShadowSides();
-      if (tiles && debugTilesPlugin) tiles.unregisterPlugin(debugTilesPlugin);
-      debugTilesPlugin = null;
+      tileDebugOverlay?.dispose();
+      tileDebugOverlay = null;
       tiles?.dispose();
       tiles = null;
       dracoLoader?.dispose();
