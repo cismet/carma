@@ -163,7 +163,13 @@ const buildOrthographicViewState = ({
 
 const buildGeometry = (
   viewState: ViewState,
-  { useCameraPosition = false }: { useCameraPosition?: boolean } = {}
+  {
+    useCameraPosition = false,
+    worldScaleMeters = null,
+  }: {
+    useCameraPosition?: boolean;
+    worldScaleMeters?: number | null;
+  } = {}
 ) =>
   buildImagePlaneGeometry({
     viewState,
@@ -171,6 +177,7 @@ const buildGeometry = (
       maxPitch: null,
       imagePlaneDistance: null,
       useCameraPosition,
+      worldScaleMeters,
     },
     hemisphereRadius: SPEC_HEMISPHERE_RADIUS,
     imagePlaneDefaults: SPEC_GEOMETRY_DEFAULTS,
@@ -213,6 +220,26 @@ describe("camera-view-geometry ground projection", () => {
       geometry.cameraPosition,
       new Vector3(3, 12, -4).normalize()
     );
+  });
+
+  it("uses one explicit world scale for camera positions and metric frusta", () => {
+    const viewState = buildPerspectiveViewState({
+      bearingDeg: 0,
+      pitchDeg: 0,
+      rangeM: 100,
+      nearM: 1,
+      farM: 60,
+    });
+    const geometry = buildGeometry(viewState, {
+      useCameraPosition: true,
+      worldScaleMeters: 200,
+    });
+
+    expect(geometry.cameraPosition.length()).toBeCloseTo(0.5, 6);
+    geometry.frustumEdges.forEach((edge) => {
+      expect(edge).not.toBeNull();
+      expect(edge![1]!.distanceTo(geometry.cameraPosition)).toBeLessThan(1);
+    });
   });
 
   it("derives the visible camera form in a local bearing-zero frame before rotating it back out", () => {

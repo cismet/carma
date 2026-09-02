@@ -1162,6 +1162,8 @@ export const buildShadowSimulationScene = (
       const publishWanted = hasShadowProjectionDebugListeners(map);
       if (primary && publishWanted && publishDue) {
         lastDebugPublishMs = nowMs;
+        frame.lodCamera.updateMatrixWorld(true);
+        frame.lodCamera.updateProjectionMatrix();
         const tileVolumes = getCoverageRuntimes().flatMap((runtime) =>
           (runtime.getActiveTileVolumes?.() ?? []).map(
             ({ id, loadReason, minimum, maximum }) => ({
@@ -1188,6 +1190,18 @@ export const buildShadowSimulationScene = (
           minimumElevationMeters: sharedBinding.minimumElevationMeters,
           maximumElevationMeters: sharedBinding.maximumElevationMeters,
           sceneAnchorPositionElements: sharedBinding.center.toArray(),
+          mainCamera: {
+            viewMatrixElements: [
+              ...frame.lodCamera.matrixWorldInverse.elements,
+            ],
+            projectionMatrixElements: [
+              ...frame.lodCamera.projectionMatrix.elements,
+            ],
+            nearMeters: frame.lodCamera.near,
+            farMeters: frame.lodCamera.far,
+            viewportWidth: frame.viewport.x,
+            viewportHeight: frame.viewport.y,
+          },
           tileVolumes,
           shadow: snapshot,
           atmosphericSunlight: latestAtmosphericSunlight

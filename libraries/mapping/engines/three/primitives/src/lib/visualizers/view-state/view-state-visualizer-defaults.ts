@@ -37,6 +37,7 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS = Object.freeze({
   maxPitch: null,
   imagePlaneDistance: null,
   useCameraPosition: false,
+  worldScaleMeters: null,
 }) satisfies Readonly<ResolvedViewStateVisualizerVisualizedOptions>;
 
 export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
@@ -148,6 +149,12 @@ export const mergeViewStateVisualizerVisualizedOptions = (
     useCameraPosition:
       merged.useCameraPosition ??
       DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.useCameraPosition,
+    worldScaleMeters:
+      typeof merged.worldScaleMeters === "number" &&
+      Number.isFinite(merged.worldScaleMeters) &&
+      merged.worldScaleMeters > 0
+        ? merged.worldScaleMeters
+        : DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.worldScaleMeters,
   };
 };
 
