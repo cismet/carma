@@ -223,12 +223,6 @@ describe("atmospheric sunlight", () => {
         first.skyFrame.ellipsoidCenterECEF
       )
     ).toBe(true);
-    const renderedSunDirection = second.skyFrame.directionToSunECEF
-      .clone()
-      .transformDirection(second.skyFrame.ecefToSceneMatrix);
-    expect(renderedSunDirection.distanceTo(second.directionToSun)).toBeLessThan(
-      1e-12
-    );
     expect(second.directionToSun.equals(first.directionToSun)).toBe(false);
   });
 

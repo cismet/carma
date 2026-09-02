@@ -80,6 +80,8 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   maxCachedMeshes?: number;
   /** Source-specific height that denotes missing terrain coverage. */
   noDataHeightMeters?: number;
+  /** Conservative elevation range used until a tile or ancestor is loaded. */
+  heightRangeMeters?: readonly [minimum: number, maximum: number];
   material?: CesiumTerrainMaterialOptions;
   /** Called after the active terrain meshes or their normals changed. */
   onContentChanged?: () => void;
@@ -134,6 +136,8 @@ type TerrainBoundaryEdge = {
 
 type TerrainSelection = {
   entries: TerrainSelectionEntry[];
+  viewportStages: TerrainSelectionEntry[][];
+  loadEntries: TerrainSelectionEntry[];
   signature: string;
   viewportElevationSignature: string;
 };
@@ -289,6 +293,17 @@ const createFlatTerrainGeometry = (
 const terrainSelectionKey = ({ id, kind }: TerrainSelectionEntry) =>
   `${kind}:${cesiumTerrainTileKey(id)}`;
 
+const terrainTileContains = (
+  ancestor: CesiumTerrainTileId,
+  descendant: CesiumTerrainTileId
+) => {
+  if (ancestor.level > descendant.level) return false;
+  const shift = descendant.level - ancestor.level;
+  return (
+    descendant.x >> shift === ancestor.x && descendant.y >> shift === ancestor.y
+  );
+};
+
 const clampInteger = (
   value: number | undefined,
   fallback: number,
@@ -379,7 +394,8 @@ const cameraFrustumBounds = (
 const loadWithConcurrency = async <T, R>(
   values: readonly T[],
   concurrency: number,
-  load: (value: T) => Promise<R>
+  load: (value: T) => Promise<R>,
+  onLoaded?: (value: T, result: R) => void
 ): Promise<R[]> => {
   const results = new Array<R>(values.length);
   let cursor = 0;
@@ -387,7 +403,10 @@ const loadWithConcurrency = async <T, R>(
     while (cursor < values.length) {
       const index = cursor;
       cursor += 1;
-      results[index] = await load(values[index]);
+      const value = values[index];
+      const result = await load(value);
+      results[index] = result;
+      onLoaded?.(value, result);
     }
   };
   await Promise.all(
@@ -441,7 +460,17 @@ export const buildCesiumTerrainRuntime = (
   ) {
     throw new RangeError("Terrain no-data height must be finite");
   }
+  if (
+    options.heightRangeMeters &&
+    (!Number.isFinite(options.heightRangeMeters[0]) ||
+      !Number.isFinite(options.heightRangeMeters[1]) ||
+      options.heightRangeMeters[0] > options.heightRangeMeters[1])
+  ) {
+    throw new RangeError("Terrain height range must be finite and ordered");
+  }
   const noDataHeightMeters = options.noDataHeightMeters;
+  const unknownTerrainHeightRange =
+    options.heightRangeMeters ?? UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS;
   const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const meterScale = origin.meterInMercatorCoordinateUnits();
   const projectedGeometryCache = createProjectedTerrainGeometryCache(
@@ -1052,7 +1081,7 @@ export const buildCesiumTerrainRuntime = (
           y: ancestor.y >> 1,
         };
       }
-      return UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS;
+      return unknownTerrainHeightRange;
     };
     const getViewMetrics = (entry: TerrainSelectionEntry) => {
       const key = terrainSelectionKey(entry);
@@ -1289,8 +1318,60 @@ export const buildCesiumTerrainRuntime = (
         getViewMetrics(right).viewportCenterDistanceSquared
       );
     });
+    const viewportEntries = entries.filter(intersectsViewport);
+    const getAncestorEntry = (
+      entry: TerrainSelectionEntry,
+      level: number
+    ): TerrainSelectionEntry => {
+      if (level >= entry.id.level) return entry;
+      const shift = entry.id.level - level;
+      const id = {
+        level,
+        x: entry.id.x >> shift,
+        y: entry.id.y >> shift,
+      };
+      return {
+        id,
+        kind:
+          terrainSource.getTileDataAvailable(id) === false ? "flat" : "source",
+      };
+    };
+    const maximumViewportLevel = viewportEntries.reduce(
+      (maximum, entry) => Math.max(maximum, entry.id.level),
+      rootLevel
+    );
+    const viewportStages: TerrainSelectionEntry[][] = [];
+    let previousStageSignature = "";
+    for (let level = rootLevel; level <= maximumViewportLevel; level += 1) {
+      const stageByKey = new Map<string, TerrainSelectionEntry>();
+      for (const entry of viewportEntries) {
+        const stageEntry = getAncestorEntry(entry, level);
+        stageByKey.set(terrainSelectionKey(stageEntry), stageEntry);
+      }
+      const stage = [...stageByKey.values()].sort(
+        (left, right) =>
+          getViewMetrics(left).viewportCenterDistanceSquared -
+          getViewMetrics(right).viewportCenterDistanceSquared
+      );
+      const stageSignature = stage.map(terrainSelectionKey).sort().join("|");
+      if (stageSignature !== previousStageSignature) {
+        viewportStages.push(stage);
+        previousStageSignature = stageSignature;
+      }
+    }
+    const loadEntriesByKey = new Map<string, TerrainSelectionEntry>();
+    for (const stage of viewportStages) {
+      for (const entry of stage) {
+        loadEntriesByKey.set(terrainSelectionKey(entry), entry);
+      }
+    }
+    for (const entry of entries) {
+      loadEntriesByKey.set(terrainSelectionKey(entry), entry);
+    }
     return {
       entries,
+      viewportStages,
+      loadEntries: [...loadEntriesByKey.values()],
       signature: entries.map(terrainSelectionKey).sort().join("|"),
       viewportElevationSignature: entries
         .filter((entry) => entry.kind === "source" && intersectsViewport(entry))
@@ -1355,58 +1436,99 @@ export const buildCesiumTerrainRuntime = (
   ) => {
     setTerrainLoading(true);
     const generation = ++selectionGeneration;
+    let publishedViewportStage = -1;
+    const rootViewportKeys = new Set(
+      (selection.viewportStages[0] ?? []).map(terrainSelectionKey)
+    );
+    const activateEntries = (entries: readonly TerrainSelectionEntry[]) => {
+      const activeKeys = new Set(entries.map(terrainSelectionKey));
+      smoothActiveBoundaryNormals(activeKeys);
+      activeMeshKeys = activeKeys;
+      applyMeshVisibility();
+      settleReady(true);
+      map?.triggerRepaint();
+    };
+    const publishViewportRoot = (entry: TerrainSelectionEntry) => {
+      const key = terrainSelectionKey(entry);
+      if (
+        disposed ||
+        generation !== selectionGeneration ||
+        !rootViewportKeys.has(key) ||
+        activeMeshKeys.has(key)
+      ) {
+        return;
+      }
+      const overlapsActiveHierarchy = [...activeMeshKeys].some((activeKey) => {
+        const active = meshes.get(activeKey);
+        return (
+          active &&
+          (terrainTileContains(active.id, entry.id) ||
+            terrainTileContains(entry.id, active.id))
+        );
+      });
+      if (overlapsActiveHierarchy) return;
+      activeMeshKeys = new Set([...activeMeshKeys, key]);
+      applyMeshVisibility();
+      settleReady(true);
+      map?.triggerRepaint();
+    };
+    const publishReadyViewportStage = () => {
+      if (disposed || generation !== selectionGeneration) return;
+      const previousStage = publishedViewportStage;
+      let nextStage = publishedViewportStage + 1;
+      while (
+        nextStage < selection.viewportStages.length &&
+        selection.viewportStages[nextStage].every((entry) =>
+          meshes.has(terrainSelectionKey(entry))
+        )
+      ) {
+        publishedViewportStage = nextStage;
+        nextStage += 1;
+      }
+      if (publishedViewportStage > previousStage) {
+        activateEntries(selection.viewportStages[publishedViewportStage]);
+      }
+    };
+    const entriesToLoad = selection.loadEntries.filter(
+      (entry) => !meshes.has(terrainSelectionKey(entry))
+    );
+    for (const entry of selection.viewportStages[0] ?? []) {
+      if (meshes.has(terrainSelectionKey(entry))) publishViewportRoot(entry);
+    }
+    publishReadyViewportStage();
     void loadWithConcurrency(
-      selection.entries,
+      entriesToLoad,
       payloadAwareConcurrency.getConcurrency(requestConcurrency),
       async (entry) => {
         if (disposed || generation !== selectionGeneration) {
           throw new Error("Stale terrain selection");
         }
-        const { tile, projectedGeometry } = await loadTerrainEntry(
-          terrainSource,
-          entry
-        );
-        if (disposed || generation !== selectionGeneration) {
+        return loadTerrainEntry(terrainSource, entry);
+      },
+      (entry, { tile, projectedGeometry }) => {
+        if (disposed) {
           projectedGeometry.dispose();
-          throw new Error("Stale terrain selection");
+          return;
         }
-        return { entry, tile, projectedGeometry };
+        ensureMesh(tile, entry, projectedGeometry);
+        publishViewportRoot(entry);
+        publishReadyViewportStage();
       }
     )
-      .then((loadedEntries) => {
-        if (disposed) {
-          for (const { projectedGeometry } of loadedEntries) {
-            projectedGeometry.dispose();
-          }
-          return;
-        }
-        if (generation !== selectionGeneration) {
-          // Cache newly fetched meshes without changing the active generation.
-          for (const { entry, tile, projectedGeometry } of loadedEntries) {
-            if (!meshes.has(terrainSelectionKey(entry))) {
-              ensureMesh(tile, entry, projectedGeometry).visible = false;
-            } else {
-              projectedGeometry.dispose();
-            }
-          }
-          return;
-        }
+      .then(() => {
+        if (disposed || generation !== selectionGeneration) return;
         const activeKeys = new Set<string>();
         const retainedSourceKeys = new Set<string>();
-        for (const { entry, tile, projectedGeometry } of loadedEntries) {
+        for (const entry of selection.entries) {
           const key = terrainSelectionKey(entry);
           activeKeys.add(key);
           if (entry.kind === "source") {
             retainedSourceKeys.add(cesiumTerrainTileKey(entry.id));
           }
-          ensureMesh(tile, entry, projectedGeometry).visible = root.visible;
         }
-        smoothActiveBoundaryNormals(activeKeys);
-        activeMeshKeys = activeKeys;
-        applyMeshVisibility();
+        activateEntries(selection.entries);
         terrainSource.trimCache(retainedSourceKeys);
         trimMeshCache(activeKeys);
-        settleReady(true);
         setTerrainLoading(false);
         options.onContentChanged?.();
         if (
@@ -1505,7 +1627,12 @@ export const buildCesiumTerrainRuntime = (
       map?.triggerRepaint();
     },
     getElevation(longitude, latitude) {
-      return source?.sampleHeight(longitude, latitude);
+      const height = source?.sampleHeight(longitude, latitude);
+      return height !== undefined &&
+        noDataHeightMeters !== undefined &&
+        Math.abs(height - noDataHeightMeters) <= ZERO_ELEVATION_EPSILON_METERS
+        ? undefined
+        : height;
     },
     getViewElevationRange,
     getActiveTileVolumes,

@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import * as THREE from "three";
+import { SkyMaterial } from "@takram/three-atmosphere";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@carma-mapping/engines/maplibre", () => ({
@@ -41,6 +42,7 @@ import {
   AtmosphericSunlightEvaluator,
   evaluateAtmosphericSunlight,
 } from "./atmospheric-sunlight";
+import { ATMOSPHERIC_SKY_NAME } from "./atmospheric-sky";
 import {
   readShadowProjectionDebugSnapshot,
   subscribeShadowProjectionDebugSnapshot,
@@ -173,14 +175,18 @@ describe("shadow scene lighting integration", () => {
     });
   });
 
-  const updateShadows = (map: unknown, camera: THREE.PerspectiveCamera) => {
+  const updateShadows = (
+    map: unknown,
+    camera: THREE.PerspectiveCamera,
+    lookTarget = new THREE.Vector3()
+  ) => {
     const runtime = sharedRuntimes.get("shadow-simulation-controller");
     expect(runtime?.update).toBeTypeOf("function");
     runtime?.update?.({
       map,
       renderCamera: camera,
       lodCamera: camera,
-      lookTarget: new THREE.Vector3(),
+      lookTarget,
       viewport: new THREE.Vector2(800, 600),
     });
   };
@@ -223,7 +229,7 @@ describe("shadow scene lighting integration", () => {
     camera.updateMatrixWorld(true);
     updateShadows(map, camera);
 
-    expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(4_000);
+    expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(4_100);
     expect(evaluateAtmosphere.mock.lastCall?.[3]?.observer).toEqual({
       longitude: 7.15,
       latitude: 51.256,
@@ -231,11 +237,31 @@ describe("shadow scene lighting integration", () => {
     });
     expect(
       evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
-    ).toEqual([7_150, 0, 51_256]);
+    ).toEqual([7_150, 100, 51_256]);
+    const atmosphericSky = scene.getObjectByName(
+      ATMOSPHERIC_SKY_NAME
+    ) as THREE.Mesh<THREE.BufferGeometry, SkyMaterial>;
+    atmosphericSky.material.copyCameraSettings(camera);
+    expect(
+      (
+        atmosphericSky.material.uniforms.cameraPosition.value as THREE.Vector3
+      ).toArray()
+    ).toEqual([7_150, 4_100, 51_256]);
+
+    camera.position.set(9_000, 4_500, 48_000);
+    camera.lookAt(9_000, 500, 48_000);
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera, new THREE.Vector3(9_000, 500, 48_000));
+    atmosphericSky.material.copyCameraSettings(camera);
+    expect(
+      (
+        atmosphericSky.material.uniforms.cameraPosition.value as THREE.Vector3
+      ).toArray()
+    ).toEqual([7_150, 4_100, 51_256]);
 
     const atmosphere = evaluateAtmosphericSunlight(
       solarPosition.instant,
-      { longitude: 7.15, latitude: 51.256, altitudeMeters: 0 },
+      { longitude: 7.15, latitude: 51.256, altitudeMeters: 4_100 },
       null
     );
 
@@ -344,7 +370,7 @@ describe("shadow scene lighting integration", () => {
     });
     expect(
       evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
-    ).toEqual([7_150, 0, 51_256]);
+    ).toEqual([7_150, 100, 51_256]);
 
     controller.dispose();
     expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);
@@ -374,17 +400,21 @@ describe("shadow scene lighting integration", () => {
         dispose: vi.fn(),
       },
     ]);
+    const mapHandlers = new Map<string, () => void>();
+    let mapCenter = { lng: 7.15, lat: 51.256 };
     const map = {
-      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCenter: vi.fn(() => mapCenter),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
-        lng: 7.15 + (x / 800 - 0.5) * 0.02,
-        lat: 51.256 + (0.5 - y / 600) * 0.02,
+        lng: mapCenter.lng + (x / 800 - 0.5) * 0.02,
+        lat: mapCenter.lat + (0.5 - y / 600) * 0.02,
       })),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight: vi.fn(),
-      on: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        mapHandlers.set(event, handler);
+      }),
       off: vi.fn(),
       triggerRepaint: vi.fn(),
     };
@@ -411,6 +441,19 @@ describe("shadow scene lighting integration", () => {
     const accumulation = accumulationController!;
     expect(accumulation.active()).toBe(true);
     expect(accumulation.retainSettledFrame()).toBe(true);
+
+    const settledShadowViewCallCount = setShadowView.mock.calls.length;
+    mapHandlers.get("movestart")?.();
+    mapCenter = { lng: 7.16, lat: 51.256 };
+    camera.position.x += 100;
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera);
+    expect(setShadowView).toHaveBeenCalledTimes(settledShadowViewCallCount);
+    mapHandlers.get("moveend")?.();
+    updateShadows(map, camera);
+    expect(setShadowView.mock.calls.length).toBeGreaterThan(
+      settledShadowViewCallCount
+    );
 
     const shadowViewBeforeAnimation = setShadowView.mock.lastCall?.[0];
     const shadowViewCallCount = setShadowView.mock.calls.length;
@@ -671,6 +714,7 @@ describe("shadow scene lighting integration", () => {
       ([eventName]) => eventName === "move"
     )?.[1] as () => void;
     moveHandler();
+    updateAndExpectViewportInsideBuffer();
 
     expect(sunVector.position.toArray()).toEqual([500, 0, 1_000]);
     expect(
@@ -678,7 +722,6 @@ describe("shadow scene lighting integration", () => {
         scene.getObjectByName("shadow-simulation-sun") as THREE.DirectionalLight
       ).target.position.toArray()
     ).toEqual([500, 0, 1_000]);
-    updateAndExpectViewportInsideBuffer();
 
     viewportHalfWidth = 0.05;
     viewportHalfHeight = 0.1;
@@ -1114,6 +1157,10 @@ describe("shadow scene lighting integration", () => {
       "#8c7a66"
     );
 
+    const evaluateAtmosphere = vi.spyOn(
+      AtmosphericSunlightEvaluator.prototype,
+      "evaluate"
+    );
     controller.updateSolarPosition({
       instant: new Date("2026-06-21T10:00:00Z"),
       azimuthDegrees: 135,
@@ -1123,7 +1170,7 @@ describe("shadow scene lighting integration", () => {
       ([runtime]) => runtime.id === "shadow-simulation-controller"
     )?.[0] as SharedRuntimeFixture;
     const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
-    camera.position.set(7_150, 4_000, 55_256);
+    camera.position.set(7_150, 475, 55_256);
     camera.lookAt(7_150, 150, 51_256);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
@@ -1141,6 +1188,7 @@ describe("shadow scene lighting integration", () => {
     ).toBe(true);
     expect(shadowView.shadowMapSize.width).toBe(4_096);
     expect(shadowView.shadowMapSize.width).not.toBe(800);
+    expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(425);
 
     controller.dispose();
     expect(restoreTerrain).toHaveBeenCalledOnce();

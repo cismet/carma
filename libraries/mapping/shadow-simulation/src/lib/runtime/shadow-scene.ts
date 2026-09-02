@@ -33,9 +33,7 @@ import {
 } from "../core/shadow-types";
 import {
   AtmosphericSunlightEvaluator,
-  evaluateAtmosphericSkyFrame,
   getAtmosphericInputValidationError,
-  getAtmosphericSkyFrameValidationError,
   getAtmosphericSunlightSampleValidationError,
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
@@ -71,6 +69,8 @@ const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
 const SUN_DISC_ACCUMULATION_ROUNDS = 32;
 const MAX_SUN_DISC_ACCUMULATION_ROUNDS = 64;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
+const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
+const MOTION_SHADOW_UPDATE_INTERVAL_MS = 1000 / 30;
 
 type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
 
@@ -810,8 +810,8 @@ export const buildShadowSimulationScene = (
   const atmosphereSkyScenePosition =
     sceneLease.layer.projectLngLatToScene?.(
       [atmosphereReferenceCenter.lng, atmosphereReferenceCenter.lat],
-      0
-    ) ?? new THREE.Vector3();
+      LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS
+    ) ?? new THREE.Vector3(0, LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS, 0);
   const atmosphereSkyReference: AtmosphericSkyReference = {
     observer: atmosphereSkyObserver,
     scenePosition: atmosphereSkyScenePosition,
@@ -846,9 +846,11 @@ export const buildShadowSimulationScene = (
     initialShadowAreaMeters,
     terrainColor
   );
+  const atmosphereCameraPosition = new THREE.Vector3();
   let shadowStateEpoch = 0;
   let shadowVisualEpoch = 0;
-  let cameraAltitudeMeters: number | null = null;
+  let cameraAltitudeMeters = LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS;
+  let cachedElevationRange: readonly [number, number] | null = null;
   let lastAtmosphereErrorSignature = "";
   const rejectAtmosphereUpdate = (
     phase: string,
@@ -859,7 +861,7 @@ export const buildShadowSimulationScene = (
     if (signature === lastAtmosphereErrorSignature) return;
     lastAtmosphereErrorSignature = signature;
     console.error(
-      "[SHADOW] Atmospheric update rejected; retaining last valid frame",
+      `[SHADOW] Atmospheric update rejected; retaining last valid frame (${phase}: ${reason})`,
       {
         phase,
         reason,
@@ -904,14 +906,10 @@ export const buildShadowSimulationScene = (
   };
   const evaluateAtmosphericSunlightForMap = (position: SolarPosition) => {
     const mapCenter = map.getCenter();
-    const altitudeMeters =
-      cameraAltitudeMeters ??
-      terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ??
-      0;
     const observer = {
       longitude: mapCenter.lng,
       latitude: mapCenter.lat,
-      altitudeMeters,
+      altitudeMeters: cameraAltitudeMeters,
     };
     const inputError = getAtmosphericInputValidationError(
       position.instant,
@@ -976,50 +974,6 @@ export const buildShadowSimulationScene = (
     );
     return sample;
   };
-  const updateAtmosphericSkyFrameForMap = (position: SolarPosition) => {
-    const mapCenter = map.getCenter();
-    const observer = {
-      longitude: mapCenter.lng,
-      latitude: mapCenter.lat,
-      altitudeMeters: cameraAltitudeMeters ?? 0,
-    };
-    const inputError = getAtmosphericInputValidationError(
-      position.instant,
-      observer,
-      atmosphereSkyReference
-    );
-    if (inputError) {
-      rejectAtmosphereUpdate("sky input", inputError, { observer });
-      return;
-    }
-    let skyFrame;
-    try {
-      skyFrame = evaluateAtmosphericSkyFrame(
-        position.instant,
-        observer,
-        atmosphereSkyReference
-      );
-    } catch (error) {
-      rejectAtmosphereUpdate("sky generation", "generator threw", {
-        observer,
-        error,
-      });
-      return;
-    }
-    const frameError = getAtmosphericSkyFrameValidationError(skyFrame);
-    if (frameError) {
-      rejectAtmosphereUpdate("sky output", frameError, {
-        observer,
-        skyFrame,
-      });
-      return;
-    }
-    acceptAtmosphereUpdate();
-    sharedBinding.atmosphericSky.update(
-      skyFrame,
-      atmosphericSunlight.skyTextures
-    );
-  };
   invalidateShadowMap = () => {
     if (disposed) return;
     sharedBinding.controller.invalidate();
@@ -1036,8 +990,8 @@ export const buildShadowSimulationScene = (
     getCoverageRuntimes().flatMap(
       (runtime) => runtime.getActiveTileVolumes?.() ?? []
     );
-  let cachedElevationRange: readonly [number, number] | null = null;
   let timeAnimating = false;
+  let mapInMotion = false;
   let latestShadowView: SharedThreeSceneShadowView | null = null;
   let appliedRuntimeShadowView: SharedThreeSceneShadowView | null = null;
   const applyRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
@@ -1051,16 +1005,16 @@ export const buildShadowSimulationScene = (
   };
   const setRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     latestShadowView = view;
-    applyRuntimeShadowView(view);
+    if (!mapInMotion) applyRuntimeShadowView(view);
   };
 
-  let mapInMotion = false;
   let lastDebugPublishMs = 0;
   let softSunShadowsEnabled = true;
   let contentChangeTimer = 0;
   let coverageNeedsCameraReevaluation = true;
   let fallbackReceiverWorldPoints: THREE.Vector3[] = [];
   let renderCameraSignature = "";
+  let lastMotionShadowUpdateMs = Number.NEGATIVE_INFINITY;
   let maxAccumulationPixels = Number.POSITIVE_INFINITY;
   sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
@@ -1171,9 +1125,6 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition && (reevaluateSun || !latestAtmosphericSunlight)) {
       evaluateAtmosphericSunlightForMap(latestSolarPosition);
     } else {
-      if (latestSolarPosition) {
-        updateAtmosphericSkyFrameForMap(latestSolarPosition);
-      }
       sharedBinding.lightTarget.position.copy(sharedBinding.center);
       for (const sunLight of sharedBinding.controller.lights) {
         sunLight.target.position.copy(sharedBinding.center);
@@ -1191,31 +1142,49 @@ export const buildShadowSimulationScene = (
     root: new THREE.Group(),
     updatePriority: SHADOW_CONTROLLER_UPDATE_PRIORITY,
     update(frame) {
-      const nextCameraAltitudeMeters = frame.renderCamera.position.y;
-      const renderCameraMatricesValid = [
-        ...frame.renderCamera.matrixWorld.elements,
-        ...frame.renderCamera.projectionMatrix.elements,
+      const cameraHeightAboveTargetMeters = Math.max(
+        0,
+        frame.lodCamera.position.y - frame.lookTarget.y
+      );
+      const nextCameraAltitudeMeters =
+        LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS +
+        cameraHeightAboveTargetMeters;
+      const nextAtmosphereSceneHeight =
+        atmosphereSkyScenePosition.y + cameraHeightAboveTargetMeters;
+      const atmosphereCameraMatricesValid = [
+        ...frame.lodCamera.matrixWorld.elements,
+        ...frame.lodCamera.projectionMatrix.elements,
       ].every(Number.isFinite);
       if (
-        !renderCameraMatricesValid ||
-        !Number.isFinite(nextCameraAltitudeMeters)
+        !atmosphereCameraMatricesValid ||
+        !Number.isFinite(nextCameraAltitudeMeters) ||
+        !Number.isFinite(nextAtmosphereSceneHeight)
       ) {
         rejectAtmosphereUpdate(
           "render camera",
-          "camera matrix or altitude is non-finite",
+          "local Three.js camera matrix or altitude is invalid",
           {
             altitudeMeters: nextCameraAltitudeMeters,
-            matrixWorld: frame.renderCamera.matrixWorld.elements,
-            projectionMatrix: frame.renderCamera.projectionMatrix.elements,
+            cameraHeightAboveTargetMeters,
+            matrixWorld: frame.lodCamera.matrixWorld.elements,
+            projectionMatrix: frame.lodCamera.projectionMatrix.elements,
           }
         );
-      } else if (
-        cameraAltitudeMeters === null ||
-        Math.abs(nextCameraAltitudeMeters - cameraAltitudeMeters) >= 0.25
-      ) {
+      } else {
+        sharedBinding.atmosphericSky.updateViewCamera(frame.lodCamera);
+        sharedBinding.atmosphericSky.updateObserverScenePosition(
+          atmosphereCameraPosition.set(
+            atmosphereSkyScenePosition.x,
+            nextAtmosphereSceneHeight,
+            atmosphereSkyScenePosition.z
+          )
+        );
+        const altitudeChanged =
+          Math.abs(nextCameraAltitudeMeters - cameraAltitudeMeters) >= 0.25;
         cameraAltitudeMeters = nextCameraAltitudeMeters;
-        if (latestSolarPosition) {
-          evaluateAtmosphericSunlightForMap(latestSolarPosition);
+        if (altitudeChanged && latestSolarPosition) {
+          const sample = evaluateAtmosphericSunlightForMap(latestSolarPosition);
+          if (sample) applyMapLibreLightSample(sample);
         }
       }
       const nextRenderCameraSignature = getSharedThreeShadowViewSignature({
@@ -1229,13 +1198,26 @@ export const buildShadowSimulationScene = (
         coverageNeedsCameraReevaluation ||
         nextRenderCameraSignature !== renderCameraSignature
       ) {
+        const nowMs = performance.now();
+        if (
+          mapInMotion &&
+          nowMs - lastMotionShadowUpdateMs < MOTION_SHADOW_UPDATE_INTERVAL_MS
+        ) {
+          return;
+        }
+        lastMotionShadowUpdateMs = nowMs;
         renderCameraSignature = nextRenderCameraSignature;
-        cachedElevationRange = getViewElevationRange(
-          sharedBinding.scene,
-          getSharedThreeSceneRuntimes(map),
-          frame.renderCamera,
-          sharedBinding.center.y
-        );
+        cachedElevationRange = mapInMotion
+          ? cachedElevationRange ?? [
+              sharedBinding.minimumElevationMeters,
+              sharedBinding.maximumElevationMeters,
+            ]
+          : getViewElevationRange(
+              sharedBinding.scene,
+              getSharedThreeSceneRuntimes(map),
+              frame.renderCamera,
+              sharedBinding.center.y
+            );
         updateSharedShadowCoverage(false);
         coverageNeedsCameraReevaluation = false;
       }
@@ -1247,16 +1229,17 @@ export const buildShadowSimulationScene = (
         sharedBinding.maximumElevationMeters,
         sharedBinding.center
       );
-      const visibleTileVolumePoints = getActiveTileVolumes().flatMap(
-        ({ minimum, maximum }) =>
-          getFrustumBoxIntersectionPoints(
-            frame.renderCamera,
-            new THREE.Box3(
-              new THREE.Vector3(...minimum),
-              new THREE.Vector3(...maximum)
+      const visibleTileVolumePoints = mapInMotion
+        ? []
+        : getActiveTileVolumes().flatMap(({ minimum, maximum }) =>
+            getFrustumBoxIntersectionPoints(
+              frame.renderCamera,
+              new THREE.Box3(
+                new THREE.Vector3(...minimum),
+                new THREE.Vector3(...maximum)
+              )
             )
-          )
-      );
+          );
       sharedBinding.receiverWorldPoints =
         visibleTileVolumePoints.length > 0
           ? visibleTileVolumePoints
@@ -1390,6 +1373,7 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       !mapInMotion &&
       !timeAnimating &&
+      contentChangeTimer === 0 &&
       latestSolarPosition !== null &&
       latestShadowView !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
@@ -1420,20 +1404,27 @@ export const buildShadowSimulationScene = (
   const handleMoveStart = () => {
     mapInMotion = true;
     coverageNeedsCameraReevaluation = true;
-    updateSharedShadowCoverage(false);
+    sharedBinding.dirty = true;
   };
   const handleMove = () => {
     coverageNeedsCameraReevaluation = true;
-    updateSharedShadowCoverage(false);
+    sharedBinding.dirty = true;
   };
   const handleMoveEnd = () => {
     mapInMotion = false;
     refreshSharedShadowCoverage();
+    if (appliedRuntimeShadowView !== latestShadowView) {
+      applyRuntimeShadowView(latestShadowView);
+    }
+  };
+  const handleResize = () => {
+    handleMove();
+    map.triggerRepaint();
   };
   map.on("movestart", handleMoveStart);
   map.on("move", handleMove);
   map.on("moveend", handleMoveEnd);
-  map.on("resize", handleMove);
+  map.on("resize", handleResize);
   const suppressMapLibreTerrain = () => {
     restoreMapLibreTerrain ??= suppressMapLibreTerrainRendering(map);
   };
@@ -1466,7 +1457,7 @@ export const buildShadowSimulationScene = (
     if (!runtime) return;
     terrainRuntime = runtime;
     runtime.setMaterialColor(`#${terrainColor.getHexString()}`);
-    runtime.setShadowView(latestShadowView);
+    runtime.setShadowView(appliedRuntimeShadowView);
     sceneLease.layer.addRuntime(runtime);
     watchTerrainRuntime(runtime);
     cachedElevationRange = null;
@@ -1520,7 +1511,7 @@ export const buildShadowSimulationScene = (
         runtime.setErrorTarget?.(latestMeshErrorTarget);
       }
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
-      runtime.setShadowView?.(latestShadowView);
+      runtime.setShadowView?.(appliedRuntimeShadowView);
     }
     makeSceneMeshesShadeable(sceneLease.layer.getScene());
     sharedBinding.controller.invalidate();
@@ -1534,7 +1525,8 @@ export const buildShadowSimulationScene = (
     cachedElevationRange = null;
     coverageNeedsCameraReevaluation = true;
     sharedBinding.controller.invalidate();
-    updateSharedShadowCoverage(false);
+    sharedBinding.dirty = true;
+    map.triggerRepaint();
     if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
     contentChangeTimer = window.setTimeout(() => {
       contentChangeTimer = 0;
@@ -1690,10 +1682,11 @@ export const buildShadowSimulationScene = (
       map.off("movestart", handleMoveStart);
       map.off("move", handleMove);
       map.off("moveend", handleMoveEnd);
-      map.off("resize", handleMove);
+      map.off("resize", handleResize);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
-      setRuntimeShadowView(null);
+      latestShadowView = null;
+      applyRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(null);
       }

@@ -492,6 +492,173 @@ describe("buildCesiumTerrainRuntime", () => {
     runtime.dispose();
   });
 
+  it("shows a viewport parent while its children refine", async () => {
+    const parentId = { level: 10, x: 532, y: 218 };
+    let resolveChildren = () => undefined;
+    const childrenReady = new Promise<void>((resolve) => {
+      resolveChildren = resolve;
+    });
+    const createTile = (id: typeof parentId) => ({
+      id,
+      bounds: { west: 7, south: 51, east: 7.4, north: 51.4 },
+      heightMeters: new Float32Array([100]),
+      westIndices: new Uint32Array(),
+      southIndices: new Uint32Array(),
+      eastIndices: new Uint32Array(),
+      northIndices: new Uint32Array(),
+    });
+    const source = {
+      requestTile: vi.fn(async (id: typeof parentId) => {
+        if (id.level > parentId.level) await childrenReady;
+        return createTile(id);
+      }),
+      getTileGridIdsForBounds: vi.fn(() => [parentId]),
+      getTileBounds: vi.fn((id: typeof parentId) => {
+        if (id.level === parentId.level) {
+          return { west: 7, south: 51, east: 7.4, north: 51.4 };
+        }
+        const west = id.x % 2 === 0 ? 7 : 7.2;
+        const north = id.y % 2 === 0 ? 51.4 : 51.2;
+        return { west, south: north - 0.2, east: west + 0.2, north };
+      }),
+      getLevelMaximumGeometricError: vi.fn(() => 1_000_000),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const runtime = buildCesiumTerrainRuntime(
+      "progressive-terrain",
+      "https://example.test/progressive-terrain",
+      [7.2, 51.2],
+      { minimumLevel: 10, maximumLevel: 11, errorTargetPixels: 0.1 }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7,
+        getSouth: () => 51,
+        getEast: () => 7.4,
+        getNorth: () => 51.4,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
+    lodCamera.position.set(0, 1_000, 0);
+    runtime.update({
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      viewport: new Vector2(1_000, 1_000),
+    });
+
+    await expect(runtime.ready).resolves.toBe(true);
+    const parentNode = runtime.root.children.find((child) =>
+      child.name.includes("source:10/532/218")
+    );
+    expect(parentNode?.visible).toBe(true);
+
+    resolveChildren();
+    await vi.waitFor(() => {
+      expect(parentNode?.visible).toBe(false);
+      expect(
+        runtime.root.children.filter(
+          (child) => child.visible && child.name.includes("source:11/")
+        )
+      ).toHaveLength(4);
+    });
+
+    runtime.dispose();
+  });
+
+  it("publishes an independent viewport root without waiting for its neighbor", async () => {
+    const westId = { level: 10, x: 532, y: 218 };
+    const eastId = { level: 10, x: 533, y: 218 };
+    let resolveEast = () => undefined;
+    const eastReady = new Promise<void>((resolve) => {
+      resolveEast = resolve;
+    });
+    const source = {
+      requestTile: vi.fn(async (id: typeof westId) => {
+        if (id.x === eastId.x) await eastReady;
+        return {
+          id,
+          heightMeters: new Float32Array([100]),
+          westIndices: new Uint32Array(),
+          southIndices: new Uint32Array(),
+          eastIndices: new Uint32Array(),
+          northIndices: new Uint32Array(),
+        };
+      }),
+      getTileGridIdsForBounds: vi.fn(() => [westId, eastId]),
+      getTileBounds: vi.fn((id: typeof westId) => ({
+        west: id.x === westId.x ? 7 : 7.2,
+        south: 51,
+        east: id.x === westId.x ? 7.2 : 7.4,
+        north: 51.4,
+      })),
+      getLevelMaximumGeometricError: vi.fn(() => 0.01),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const runtime = buildCesiumTerrainRuntime(
+      "partial-root-terrain",
+      "https://example.test/partial-root-terrain",
+      [7.2, 51.2],
+      { minimumLevel: 10, maximumLevel: 10 }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7,
+        getSouth: () => 51,
+        getEast: () => 7.4,
+        getNorth: () => 51.4,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
+    lodCamera.position.set(0, 1_000, 0);
+    runtime.update({
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      viewport: new Vector2(1_000, 1_000),
+    });
+
+    await expect(runtime.ready).resolves.toBe(true);
+    expect(
+      runtime.root.children.find((child) =>
+        child.name.includes("source:10/532/218")
+      )?.visible
+    ).toBe(true);
+    expect(
+      runtime.root.children.find((child) =>
+        child.name.includes("source:10/533/218")
+      )
+    ).toBeUndefined();
+
+    resolveEast();
+    await vi.waitFor(() => {
+      expect(
+        runtime.root.children.find((child) =>
+          child.name.includes("source:10/533/218")
+        )?.visible
+      ).toBe(true);
+    });
+    runtime.dispose();
+  });
+
   it("fills unavailable viewport cells with zero-elevation receiver tiles", async () => {
     const zeroSourceId = { level: 10, x: 531, y: 218 };
     const sourceId = { level: 10, x: 532, y: 218 };
@@ -1039,12 +1206,12 @@ describe("buildCesiumTerrainRuntime", () => {
     viewEast = 7.3;
     renderAt(100);
     await flush();
-    expect(pendingResolvers).toHaveLength(2);
+    expect(pendingResolvers).toHaveLength(1);
     viewEast = 7.45;
     renderAt(200);
     await flush();
-    expect(pendingResolvers).toHaveLength(5);
-    pendingResolvers.splice(2).forEach((resolve) => resolve());
+    expect(pendingResolvers).toHaveLength(3);
+    pendingResolvers.splice(1).forEach((resolve) => resolve());
     await flush();
     expect(visibleNode()?.visible).toBe(true);
     pendingResolvers.splice(0).forEach((resolve) => resolve());

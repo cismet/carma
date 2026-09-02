@@ -85,6 +85,37 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.material.sunDirection.toArray()).toEqual(
       new THREE.Vector3(1, 2, 3).normalize().toArray()
     );
+    sky.updateObserverScenePosition(new THREE.Vector3(40, 475, -20));
+    const renderCamera = new THREE.PerspectiveCamera();
+    renderCamera.position.set(40, -5_000, -20);
+    renderCamera.updateMatrixWorld(true);
+    sky.mesh.material.copyCameraSettings(renderCamera);
+    expect(sky.mesh.material.uniforms.cameraPosition.value.toArray()).toEqual([
+      40, 475, -20,
+    ]);
+    const viewCamera = new THREE.PerspectiveCamera(55, 16 / 9, 2, 50_000);
+    viewCamera.position.set(10, 500, 30);
+    viewCamera.lookAt(10, 100, -500);
+    viewCamera.updateMatrixWorld(true);
+    sky.updateViewCamera(viewCamera);
+    sky.mesh.material.onBeforeRender(
+      {} as THREE.WebGLRenderer,
+      new THREE.Scene(),
+      renderCamera,
+      sky.mesh.geometry,
+      sky.mesh,
+      new THREE.Group()
+    );
+    expect(
+      sky.mesh.material.uniforms.inverseProjectionMatrix.value.equals(
+        viewCamera.projectionMatrixInverse
+      )
+    ).toBe(true);
+    expect(
+      sky.mesh.material.uniforms.inverseViewMatrix.value.equals(
+        viewCamera.matrixWorld
+      )
+    ).toBe(true);
     expect(
       sky.update(
         {
