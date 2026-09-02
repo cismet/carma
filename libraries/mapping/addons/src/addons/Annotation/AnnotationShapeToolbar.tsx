@@ -13,7 +13,7 @@ import { Tooltip } from "antd";
 import { SHAPE_ICONS, SHAPE_LABELS, type AnnotationShape } from "./shape-tools";
 
 const WRAPPER =
-  "w-fit max-w-full flex flex-col items-center gap-2 overflow-visible";
+  "w-fit max-w-full flex flex-col items-center gap-2.5 overflow-visible";
 const ROW = "flex items-center gap-2";
 const BUTTON =
   "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors text-base button-shadow [&_svg]:text-current";
