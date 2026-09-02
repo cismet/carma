@@ -38,9 +38,10 @@ export type ShadowProjectionDebugBuffer = Readonly<{
 
 export type ShadowProjectionDebugModel = {
   viewStates: readonly ViewState[];
-  terrainTileVolumes: readonly Readonly<{
+  tileVolumes: readonly Readonly<{
     minimum: readonly [number, number, number];
     maximum: readonly [number, number, number];
+    color?: string;
   }>[];
   viewportWidthMeters: number;
   viewportHeightMeters: number;
@@ -178,14 +179,20 @@ const readViewportFootprint = (map: MaplibreMap) => {
   };
 };
 
-const normalizeTerrainTileVolumes = (
+const normalizeTileVolumes = (
   snapshot: ShadowProjectionDebugSnapshot,
   sceneAnchorPosition: Vector3
 ) => {
-  const relativeVolumes = (snapshot.terrainTileVolumes ?? []).map(
-    ({ minimum, maximum }) => ({
+  const relativeVolumes = (snapshot.tileVolumes ?? []).map(
+    ({ minimum, maximum, loadReason }) => ({
       minimum: new Vector3(...minimum).sub(sceneAnchorPosition),
       maximum: new Vector3(...maximum).sub(sceneAnchorPosition),
+      color:
+        loadReason === "viewport"
+          ? "#0284c7"
+          : loadReason === "shadow"
+          ? "#ea580c"
+          : "#64748b",
     })
   );
   const maximumAbsoluteCoordinate = relativeVolumes.reduce(
@@ -198,7 +205,7 @@ const normalizeTerrainTileVolumes = (
     1
   );
   const scale = 0.82 / maximumAbsoluteCoordinate;
-  return relativeVolumes.map(({ minimum, maximum }) => ({
+  return relativeVolumes.map(({ minimum, maximum, color }) => ({
     minimum: minimum.multiplyScalar(scale).toArray() as [
       number,
       number,
@@ -209,6 +216,7 @@ const normalizeTerrainTileVolumes = (
       number,
       number
     ],
+    color,
   }));
 };
 
@@ -279,10 +287,7 @@ export const buildShadowProjectionDebugModel = (
 
   return {
     viewStates: [cameraViewState, shadowViewState ?? fallbackShadowViewState],
-    terrainTileVolumes: normalizeTerrainTileVolumes(
-      snapshot,
-      sceneAnchorPosition
-    ),
+    tileVolumes: normalizeTileVolumes(snapshot, sceneAnchorPosition),
     viewportWidthMeters: footprint.widthMeters,
     viewportHeightMeters: footprint.heightMeters,
     receiverCoverageWidthMeters,

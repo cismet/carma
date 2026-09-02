@@ -582,6 +582,169 @@ describe("three tiles runtime styling", () => {
     registerPluginSpy.mockRestore();
   });
 
+  it("starts receiver extrusion once the viewport is ready even while mesh work remains queued", () => {
+    let renderer: TilesRenderer | undefined;
+    const updateSpy = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function (this: TilesRenderer) {
+        renderer = this;
+      });
+    const viewErrorSpy = vi
+      .spyOn(TilesRenderer.prototype, "calculateTileViewErrorWithPlugin")
+      .mockImplementation((_tile, target) => {
+        target.inView = false;
+        target.error = Number.POSITIVE_INFINITY;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    } as unknown as MaplibreMap;
+    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
+    const viewCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1_000);
+    viewCamera.updateProjectionMatrix();
+    viewCamera.updateMatrixWorld(true);
+    const shadowCamera = new THREE.OrthographicCamera(
+      -100,
+      100,
+      100,
+      -100,
+      1,
+      500
+    );
+    shadowCamera.position.set(0, 0, 100);
+    shadowCamera.lookAt(0, 0, 0);
+    shadowCamera.updateMatrixWorld(true);
+    const frame = {
+      map,
+      renderCamera: viewCamera,
+      lodCamera: viewCamera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 800),
+    };
+
+    layer.onAdd?.(map);
+    layer.setErrorTarget(1);
+    layer.setShadowView({
+      camera: shadowCamera,
+      shadowMapSize: { width: 2048, height: 2048 },
+    });
+    layer.update(frame);
+
+    const boundingVolume = (bounds: THREE.Box3, inMainView: boolean) => ({
+      getAABB: (target: THREE.Box3) => target.copy(bounds),
+      getSphere: (target: THREE.Sphere) => bounds.getBoundingSphere(target),
+      intersectsFrustum: () => inMainView,
+    });
+    const rootBounds = new THREE.Box3(
+      new THREE.Vector3(-200, -200, -200),
+      new THREE.Vector3(200, 200, 200)
+    );
+    const receiverBounds = new THREE.Box3(
+      new THREE.Vector3(-10, -10, -110),
+      new THREE.Vector3(10, 10, -90)
+    );
+    const localSunward = new THREE.Vector3(0, 0, 1).transformDirection(
+      renderer!.group.matrixWorld.clone().invert()
+    );
+    const casterBounds = receiverBounds
+      .clone()
+      .translate(localSunward.multiplyScalar(50));
+    Object.assign(renderer!, {
+      rootTileset: {
+        root: {
+          engineData: { boundingVolume: boundingVolume(rootBounds, true) },
+        },
+      },
+    });
+    renderer!.group.add(new THREE.Group());
+    renderer!.visibleTiles.add({
+      geometricError: 1,
+      traversal: { error: 0.2, inFrustum: true },
+      children: [],
+      parent: null,
+      engineData: { boundingVolume: boundingVolume(receiverBounds, true) },
+    } as never);
+    const busyQueue = new PriorityQueue();
+    busyQueue.items.push({ internal: { depth: 1 } } as never);
+    renderer!.downloadQueue.originQueues.set("mesh", busyQueue);
+
+    layer.update(frame);
+
+    const target = {
+      inView: false,
+      error: Number.POSITIVE_INFINITY,
+      distanceFromCamera: Number.POSITIVE_INFINITY,
+    };
+    renderer!.calculateTileViewErrorWithPlugin(
+      {
+        geometricError: 1,
+        traversal: { error: 1, inFrustum: false },
+        children: [],
+        parent: null,
+        internal: { depth: 1 },
+        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
+      } as never,
+      target
+    );
+
+    expect(target.inView).toBe(true);
+    expect(target.error).toBeCloseTo(1);
+
+    const localLightSpaceX = new THREE.Vector3(1, 0, 0)
+      .transformDirection(renderer!.group.matrixWorld.clone().invert())
+      .multiplyScalar(100);
+    const shiftedReceiverBounds = receiverBounds
+      .clone()
+      .translate(localLightSpaceX);
+    const shiftedCasterBounds = shiftedReceiverBounds
+      .clone()
+      .translate(localSunward);
+    renderer!.visibleTiles.clear();
+    renderer!.visibleTiles.add({
+      geometricError: 1,
+      traversal: { error: 0.2, inFrustum: true },
+      children: [],
+      parent: null,
+      engineData: {
+        boundingVolume: boundingVolume(shiftedReceiverBounds, true),
+      },
+    } as never);
+
+    layer.update(frame);
+    renderer!.calculateTileViewErrorWithPlugin(
+      {
+        geometricError: 1,
+        traversal: { error: 1, inFrustum: false },
+        children: [],
+        parent: null,
+        internal: { depth: 1 },
+        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
+      } as never,
+      target
+    );
+    expect(target.inView).toBe(false);
+    renderer!.calculateTileViewErrorWithPlugin(
+      {
+        geometricError: 1,
+        traversal: { error: 1, inFrustum: false },
+        children: [],
+        parent: null,
+        internal: { depth: 1 },
+        engineData: {
+          boundingVolume: boundingVolume(shiftedCasterBounds, false),
+        },
+      } as never,
+      target
+    );
+    expect(target.inView).toBe(true);
+
+    busyQueue.items.length = 0;
+    layer.dispose();
+    viewErrorSpy.mockRestore();
+    updateSpy.mockRestore();
+  });
+
   it("relaxes the requested error only after the full, idle view stalled and keeps it across pans", () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);

@@ -66,15 +66,6 @@ const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
 const SUN_DISC_ACCUMULATION_ROUNDS = 32;
 const MAX_SUN_DISC_ACCUMULATION_ROUNDS = 64;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
-const SHADOW_BUFFER_BORDER_COLOR = 0xf59e0b;
-const SHADOW_BUFFER_BOX_SEGMENTS = [
-  // near/far rectangles
-  0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4,
-  // connecting edges
-  0, 4, 1, 5, 2, 6, 3, 7,
-  // X diagonals on all six faces
-  0, 2, 1, 3, 4, 6, 5, 7, 0, 7, 3, 4, 1, 6, 2, 5, 0, 5, 1, 4, 3, 6, 2, 7,
-] as const;
 
 type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
 
@@ -95,14 +86,11 @@ type ShadowLightBinding = {
   ambientLightIntensities: Map<THREE.AmbientLight, number>;
   lightTarget: THREE.Object3D;
   sunVector: SunVectorGizmo;
-  shadowBufferBoxes: THREE.LineSegments[];
   center: THREE.Vector3;
   shadowCameraOffsetMeters: number;
   shadowAreaMeters: number;
   sunVectorLengthMeters: number;
   sunVectorVisible: boolean;
-  projectionDebugVisible: boolean;
-  activeShadowSampleCount: number;
   shadowQuality: ShadowQualityMultiplier;
   shadowIntensity: number;
   directionToSun: THREE.Vector3;
@@ -148,7 +136,6 @@ export type ShadowSimulationScene = {
   refreshProjectionDebug: () => void;
   updateShadowIntensity: (intensity: number) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
-  updateShadowBufferDebugVisibility: (visible: boolean) => void;
   updateAtmosphericLutUsage: (options: AtmosphericSunlightOptions) => void;
   dispose: () => void;
 };
@@ -563,31 +550,6 @@ const buildShadowLightBinding = (
   const sunLight = controller.lights[0];
   const lightTarget = sunLight.target;
   const sunVector = buildSunVector();
-  const shadowBufferBoxes = controller.lights.map((_light, index) => {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(
-        new Float32Array(SHADOW_BUFFER_BOX_SEGMENTS.length * 3),
-        3
-      )
-    );
-    const material = new THREE.LineBasicMaterial({
-      color: SHADOW_BUFFER_BORDER_COLOR,
-      depthTest: false,
-      depthWrite: false,
-      transparent: true,
-      opacity: 0.9,
-      toneMapped: false,
-    });
-    const box = new THREE.LineSegments(geometry, material);
-    box.name = `shadow-simulation-shadow-buffer-${index}`;
-    box.userData[SHADOW_OVERLAY_MARKER] = true;
-    box.visible = false;
-    box.frustumCulled = false;
-    box.renderOrder = 10_000;
-    return box;
-  });
   const skyLight = new THREE.LightProbe(undefined, 0);
   skyLight.name = SHADOW_SIMULATION_SKY_LIGHT_NAME;
   const atmosphericSky = buildAtmosphericSky(groundAlbedo);
@@ -607,7 +569,6 @@ const buildShadowLightBinding = (
     ambientLightIntensities,
     lightTarget,
     sunVector,
-    shadowBufferBoxes,
     center: new THREE.Vector3(),
     shadowCameraOffsetMeters: Math.max(
       DEFAULT_SHADOW_CAMERA_OFFSET_METERS,
@@ -616,8 +577,6 @@ const buildShadowLightBinding = (
     shadowAreaMeters,
     sunVectorLengthMeters: shadowAreaMeters * SUN_VECTOR_VIEWPORT_LENGTH_FACTOR,
     sunVectorVisible: false,
-    projectionDebugVisible: false,
-    activeShadowSampleCount: 0,
     shadowQuality: DEFAULT_SHADOW_QUALITY,
     shadowIntensity: 1,
     directionToSun: new THREE.Vector3(0, 1, 0),
@@ -633,47 +592,7 @@ const buildShadowLightBinding = (
   scene.add(skyLight);
   scene.add(atmosphericSky.mesh);
   scene.add(sunVector.root);
-  scene.add(...shadowBufferBoxes);
   return binding;
-};
-
-const updateShadowBufferBorders = (
-  binding: ShadowLightBinding,
-  activeSampleCount = binding.activeShadowSampleCount
-) => {
-  binding.activeShadowSampleCount = activeSampleCount;
-  binding.shadowBufferBoxes.forEach((box, index) => {
-    box.visible = binding.projectionDebugVisible && index < activeSampleCount;
-    if (!box.visible) return;
-
-    const light = binding.controller.lights[index];
-    const shadowCamera = light?.shadow.camera;
-    if (!light || !shadowCamera) {
-      box.visible = false;
-      return;
-    }
-    light.target.updateMatrixWorld(true);
-    shadowCamera.updateMatrixWorld(true);
-    const corners = [
-      [-1, -1, -1],
-      [1, -1, -1],
-      [1, 1, -1],
-      [-1, 1, -1],
-      [-1, -1, 1],
-      [1, -1, 1],
-      [1, 1, 1],
-      [-1, 1, 1],
-    ].map(([x, y, z]) => new THREE.Vector3(x, y, z).unproject(shadowCamera));
-    const position = box.geometry.getAttribute(
-      "position"
-    ) as THREE.BufferAttribute;
-    SHADOW_BUFFER_BOX_SEGMENTS.forEach((cornerIndex, vertexIndex) => {
-      const point = corners[cornerIndex]!;
-      position.setXYZ(vertexIndex, point.x, point.y, point.z);
-    });
-    position.needsUpdate = true;
-    box.geometry.computeBoundingSphere();
-  });
 };
 
 const applyAtmosphericSkyLightToBinding = (
@@ -794,14 +713,6 @@ const disposeShadowLightBinding = (binding: ShadowLightBinding) => {
   binding.scene.remove(binding.skyLight);
   binding.scene.remove(binding.atmosphericSky.mesh);
   binding.scene.remove(binding.sunVector.root);
-  for (const box of binding.shadowBufferBoxes) {
-    binding.scene.remove(box);
-    box.geometry.dispose();
-    const materials = Array.isArray(box.material)
-      ? box.material
-      : [box.material];
-    materials.forEach((material) => material.dispose());
-  }
   binding.sunVector.dispose();
   binding.atmosphericSky.dispose();
   binding.controller.dispose();
@@ -1208,7 +1119,6 @@ export const buildShadowSimulationScene = (
       ) {
         setRuntimeShadowView(null);
         clearShadowProjectionDebugSnapshot(map);
-        updateShadowBufferBorders(sharedBinding, 0);
         return;
       }
       const rendererCaps = sceneLease.layer.getRenderer?.()?.capabilities;
@@ -1236,10 +1146,8 @@ export const buildShadowSimulationScene = (
       if (!snapshot) {
         setRuntimeShadowView(null);
         clearShadowProjectionDebugSnapshot(map);
-        updateShadowBufferBorders(sharedBinding, 0);
         return;
       }
-      updateShadowBufferBorders(sharedBinding, snapshot.sampleCount);
       const primary = snapshot.camera;
       const primaryCamera = sharedBinding.controller.lights[0].shadow.camera;
       setRuntimeShadowView({
@@ -1251,19 +1159,18 @@ export const buildShadowSimulationScene = (
       });
       const nowMs = performance.now();
       const publishDue = !mapInMotion || nowMs - lastDebugPublishMs >= 100;
-      const publishWanted =
-        sharedBinding.projectionDebugVisible ||
-        hasShadowProjectionDebugListeners(map);
+      const publishWanted = hasShadowProjectionDebugListeners(map);
       if (primary && publishWanted && publishDue) {
         lastDebugPublishMs = nowMs;
-        const terrainTileVolumes = getCoverageRuntimes().flatMap((runtime) =>
-          (runtime.getActiveTileVolumes?.() ?? [])
-            .filter((volume) => volume.kind === "terrain-tile")
-            .map(({ id, minimum, maximum }) => ({
+        const tileVolumes = getCoverageRuntimes().flatMap((runtime) =>
+          (runtime.getActiveTileVolumes?.() ?? []).map(
+            ({ id, loadReason, minimum, maximum }) => ({
               id,
+              loadReason,
               minimum,
               maximum,
-            }))
+            })
+          )
         );
         publishShadowProjectionDebugSnapshot(map, {
           cameraRangeMeters: primaryCamera.position.distanceTo(
@@ -1281,7 +1188,7 @@ export const buildShadowSimulationScene = (
           minimumElevationMeters: sharedBinding.minimumElevationMeters,
           maximumElevationMeters: sharedBinding.maximumElevationMeters,
           sceneAnchorPositionElements: sharedBinding.center.toArray(),
-          terrainTileVolumes,
+          tileVolumes,
           shadow: snapshot,
           atmosphericSunlight: latestAtmosphericSunlight
             ? {
@@ -1590,14 +1497,6 @@ export const buildShadowSimulationScene = (
       invalidateShadowPresentation();
       sharedBinding.sunVectorVisible = visible;
       sharedBinding.sunVector.root.visible = visible && !!latestSolarPosition;
-      map.triggerRepaint();
-    },
-    updateShadowBufferDebugVisibility(visible) {
-      if (sharedBinding.projectionDebugVisible === visible) return;
-      invalidateShadowPresentation();
-      sharedBinding.projectionDebugVisible = visible;
-      if (visible) sharedBinding.dirty = true;
-      updateShadowBufferBorders(sharedBinding);
       map.triggerRepaint();
     },
     updateAtmosphericLutUsage(options) {
