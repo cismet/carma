@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
+import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
 import { writeDrawings, type StoredDrawing } from "./annotation-storage";
 import type { AnnotationAnchor, AnnotationGroup } from "./types";
@@ -9,6 +10,7 @@ const DEBOUNCE_MS = 800;
 type Content = {
   anchor: AnnotationAnchor | null;
   elements: readonly ExcalidrawElement[];
+  files: BinaryFiles;
 };
 
 export type UseAnnotationStorageOptions = {
@@ -26,7 +28,11 @@ export const useAnnotationStorage = ({
     new Map<string, Content>(
       restored.map((drawing) => [
         drawing.id,
-        { anchor: drawing.anchor, elements: drawing.elements },
+        {
+          anchor: drawing.anchor,
+          elements: drawing.elements,
+          files: drawing.files ?? {},
+        },
       ])
     )
   );
@@ -52,6 +58,7 @@ export const useAnnotationStorage = ({
             locked: group.locked,
             anchor: content.anchor,
             elements: content.elements,
+            files: content.files,
           });
         }
         return kept;
@@ -75,9 +82,10 @@ export const useAnnotationStorage = ({
     (
       id: string,
       elements: readonly ExcalidrawElement[],
+      files: BinaryFiles,
       anchor: AnnotationAnchor | null
     ) => {
-      contents.current.set(id, { anchor, elements });
+      contents.current.set(id, { anchor, elements, files });
       schedule();
     },
     [schedule]
