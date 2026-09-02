@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   AppState,
+  BinaryFiles,
   ExcalidrawImperativeAPI,
 } from "@excalidraw/excalidraw/types/types";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
@@ -28,6 +29,25 @@ void import("@excalidraw/excalidraw").then((module) => {
   getSceneVersion = module.getSceneVersion;
 });
 
+const referencedFiles = (
+  elements: readonly ExcalidrawElement[],
+  files: BinaryFiles
+): BinaryFiles => {
+  const ids = new Set(
+    elements
+      .filter((element) => !element.isDeleted)
+      .map((element) => (element as { fileId?: string | null }).fileId)
+      .filter((fileId): fileId is string => Boolean(fileId))
+  );
+  const kept: BinaryFiles = {};
+  Object.keys(files).forEach((fileId) => {
+    if (ids.has(fileId)) {
+      kept[fileId] = files[fileId];
+    }
+  });
+  return kept;
+};
+
 export type AnnotationSceneChrome = {
   hideMenu: boolean;
   hideZoom: boolean;
@@ -45,9 +65,11 @@ export type AnnotationSceneProps = {
   onSceneEdit: (
     id: string,
     elements: readonly ExcalidrawElement[],
+    files: BinaryFiles,
     anchor: AnnotationAnchor | null
   ) => void;
   savedElements?: readonly ExcalidrawElement[];
+  savedFiles?: BinaryFiles;
   savedAnchor?: AnnotationAnchor;
   editable: boolean;
   live: boolean;
@@ -69,6 +91,7 @@ export const AnnotationScene = ({
   onProbe,
   onSceneEdit,
   savedElements,
+  savedFiles,
   savedAnchor,
   editable,
   live,
@@ -94,11 +117,13 @@ export const AnnotationScene = ({
   );
 
   const versionRef = useRef(-1);
+  const fileCountRef = useRef(-1);
   const settledRef = useRef(!savedElements?.length);
 
   const handleChange = (
     elements: readonly ExcalidrawElement[],
-    appState: AppState
+    appState: AppState,
+    files: BinaryFiles
   ) => {
     onSceneChange(appState);
 
@@ -110,11 +135,14 @@ export const AnnotationScene = ({
     }
 
     const version = getSceneVersion?.(elements) ?? -1;
-    if (version === versionRef.current) {
+    const used = referencedFiles(elements, files);
+    const fileCount = Object.keys(used).length;
+    if (version === versionRef.current && fileCount === fileCountRef.current) {
       return;
     }
     versionRef.current = version;
-    onSceneEdit(id, elements, getAnchor());
+    fileCountRef.current = fileCount;
+    onSceneEdit(id, elements, used, getAnchor());
   };
 
   useEffect(() => {
@@ -186,6 +214,7 @@ export const AnnotationScene = ({
           viewModeEnabled={!drawing}
           initialData={{
             elements: savedElements,
+            files: savedFiles,
             appState: {
               viewBackgroundColor: editable ? background : "transparent",
             },
