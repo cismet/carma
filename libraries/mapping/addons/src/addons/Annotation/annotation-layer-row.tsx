@@ -1,49 +1,12 @@
-import { useEffect, useMemo, useRef } from "react";
-import { faLock, faLockOpen, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useEffect, useRef } from "react";
 
-import type { InteractionButton, Layer } from "@carma-mapping/layers";
+import type { Layer } from "@carma-mapping/layers";
 
 import { useAnnotationActions } from "./annotation-actions";
 
 export const ANNOTATION_LAYER_ID = "__annotation__";
 
 export const ANNOTATION_TOOLS_INTERACTION_ID = "annotation-tools";
-
-export const ANNOTATION_LOCK_TOGGLE_ID = "annotation-lock-toggle";
-export const ANNOTATION_ADD_DRAWING_ID = "annotation-add-drawing";
-
-const ACTIVE_COLOR = "#1677ff";
-
-type RowActions = {
-  isLocked: boolean;
-  toggleLock: () => void;
-  addGroup: () => void;
-};
-
-const buildInteractionButtons = ({
-  isLocked,
-  toggleLock,
-  addGroup,
-}: RowActions): InteractionButton[] => [
-  {
-    id: ANNOTATION_LOCK_TOGGLE_ID,
-    icon: (
-      <FontAwesomeIcon
-        icon={isLocked ? faLock : faLockOpen}
-        style={isLocked ? { color: ACTIVE_COLOR } : undefined}
-      />
-    ),
-    tooltip: isLocked ? "Zeichnung entsperren" : "Zeichnung sperren",
-    onClick: toggleLock,
-  },
-  {
-    id: ANNOTATION_ADD_DRAWING_ID,
-    icon: <FontAwesomeIcon icon={faPlus} />,
-    tooltip: "Neue Zeichnung beginnen",
-    onClick: addGroup,
-  },
-];
 
 export const ANNOTATION_LAYER: Layer = {
   id: ANNOTATION_LAYER_ID,
@@ -78,20 +41,9 @@ export const useAnnotationLayerRow = ({
   onRemove,
   onUpdate,
 }: UseAnnotationLayerRowOptions) => {
-  const { isOn, isLocked, endMode, toggleLock, addGroup } =
-    useAnnotationActions();
+  const { isOn, endMode } = useAnnotationActions();
 
-  const layer = useMemo<Layer>(
-    () => ({
-      ...ANNOTATION_LAYER,
-      interactionButtons: buildInteractionButtons({
-        isLocked,
-        toggleLock,
-        addGroup,
-      }),
-    }),
-    [addGroup, isLocked, toggleLock]
-  );
+  const layer = ANNOTATION_LAYER;
   const layerRef = useRef(layer);
   layerRef.current = layer;
 

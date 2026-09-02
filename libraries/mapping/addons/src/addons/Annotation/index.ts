@@ -8,10 +8,8 @@ export { AnnotationControl } from "./AnnotationControl";
 export { AnnotationShapeToolbar } from "./AnnotationShapeToolbar";
 export { AnnotationInteractionPanel } from "./AnnotationInteractionPanel";
 export {
-  ANNOTATION_ADD_DRAWING_ID,
   ANNOTATION_LAYER,
   ANNOTATION_LAYER_ID,
-  ANNOTATION_LOCK_TOGGLE_ID,
   ANNOTATION_TOOLS_INTERACTION_ID,
   useAnnotationLayerRow,
 } from "./annotation-layer-row";

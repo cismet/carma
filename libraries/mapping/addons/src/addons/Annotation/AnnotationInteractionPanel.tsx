@@ -3,20 +3,24 @@ import { AnnotationShapeToolbar } from "./AnnotationShapeToolbar";
 import { DEFAULT_SHAPES } from "./shape-tools";
 
 export const AnnotationInteractionPanel = () => {
-  const { isOn, isLocked, shape, setShape, undo, redo } =
+  const { isOn, isLocked, shape, setShape, undo, redo, toggleLock, addGroup } =
     useAnnotationActions();
 
-  if (!isOn || isLocked) {
+  if (!isOn) {
     return null;
   }
 
+  // locked: only the lock and the new-drawing button stay reachable
   return (
     <AnnotationShapeToolbar
-      shapes={DEFAULT_SHAPES}
+      shapes={isLocked ? [] : DEFAULT_SHAPES}
       shape={shape}
       onShapeChange={setShape}
-      onUndo={undo}
-      onRedo={redo}
+      isLocked={isLocked}
+      onToggleLock={toggleLock}
+      onAddGroup={addGroup}
+      onUndo={isLocked ? undefined : undo}
+      onRedo={isLocked ? undefined : redo}
     />
   );
 };
