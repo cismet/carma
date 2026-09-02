@@ -164,7 +164,9 @@ export const AnnotationShapeToolbar = ({
         </button>
       </Tooltip>
     )}
-    {(onToggleLock || onAddGroup) && <span className={DIVIDER} aria-hidden />}
+    {(onToggleLock || onAddGroup) && shapes.length > 0 && (
+      <span className={DIVIDER} aria-hidden />
+    )}
     {shapes.map((entry) => {
       const label = SHAPE_LABELS[entry];
       const isActive = entry === shape;
