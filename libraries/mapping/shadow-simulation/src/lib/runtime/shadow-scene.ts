@@ -8,9 +8,7 @@ import {
   getGenericThreeLayers,
   getSharedThreeShadowViewSignature,
   getSharedThreeSceneRuntimes,
-  isSharedThreeTerrainLoading,
   subscribeSharedThreeSceneContent,
-  subscribeSharedThreeSceneRequestState,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
@@ -1308,13 +1306,6 @@ export const buildShadowSimulationScene = (
     sharedBinding.shadowQuality === 64
       ? MAX_SUN_DISC_ACCUMULATION_ROUNDS
       : SUN_DISC_ACCUMULATION_ROUNDS;
-  const sceneRequestsSettled = () =>
-    !isSharedThreeTerrainLoading(map) &&
-    !atmosphericSunlight.isLoadingFor(atmosphericSunlightOptions) &&
-    contentChangeTimer === 0 &&
-    getSharedThreeSceneRuntimes(map).every(
-      (runtime) => (runtime.getRequestDemand?.() ?? 0) === 0
-    );
   const accumulationController = {
     get maxRenderTargetPixels() {
       return maxAccumulationPixels;
@@ -1328,18 +1319,13 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       !mapInMotion &&
       !timeAnimating &&
-      !sharedBinding.dirty &&
       latestSolarPosition !== null &&
       latestShadowView !== null &&
-      sceneRequestsSettled() &&
       sharedBinding.receiverWorldPoints.length > 0,
     retainSettledFrame: () =>
       softSunShadowsEnabled &&
-      !mapInMotion &&
-      !timeAnimating &&
       latestSolarPosition !== null &&
       latestShadowView !== null &&
-      (!sceneRequestsSettled() || sharedBinding.dirty) &&
       sharedBinding.receiverWorldPoints.length > 0,
     prepareRound: (round: number) => {
       sharedBinding.controller.applySunDiscSample(
@@ -1488,11 +1474,6 @@ export const buildShadowSimulationScene = (
     map,
     scheduleSharedSceneContentChanged
   );
-  const unsubscribeSharedSceneRequestState =
-    subscribeSharedThreeSceneRequestState(map, () => {
-      if (disposed || !sceneRequestsSettled()) return;
-      map.triggerRepaint();
-    });
   handleSharedSceneContentChanged();
 
   const applyMapLibreLight = (position: SolarPosition) => {
@@ -1649,7 +1630,6 @@ export const buildShadowSimulationScene = (
       map.off("resize", handleMove);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
-      unsubscribeSharedSceneRequestState();
       setRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(null);
