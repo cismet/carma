@@ -47,8 +47,12 @@ export const useAnnotationActions = () => {
   );
 
   const setShape = useCallback(
-    (shape: AnnotationShape) =>
-      setState((previous) => ({ ...(previous ?? { isOn: false }), shape })),
+    (shape: AnnotationShape | null) =>
+      setState((previous) =>
+        previous?.shape === shape
+          ? previous
+          : { ...(previous ?? { isOn: false }), shape }
+      ),
     [setState]
   );
 
@@ -175,7 +179,7 @@ export const useAnnotationActions = () => {
     groups,
     activeId,
     isLocked: activeGroup?.locked ?? false,
-    shape: state?.shape ?? "selection",
+    shape: state?.shape === undefined ? "selection" : state.shape,
     undoVersion: state?.undoVersion ?? 0,
     redoVersion: state?.redoVersion ?? 0,
     zoomRequest: state?.zoomRequest,
