@@ -49,6 +49,10 @@ import {
   type RetryableTilesRenderer,
 } from "./three-tiles-retry-controller";
 import {
+  createShadowReceiverMask,
+  type ShadowReceiverMask,
+} from "./three-tiles-shadow-receiver-mask";
+import {
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
@@ -68,6 +72,7 @@ export const TILES_ERROR_TARGET_MAX_PIXELS = 50;
 export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 4;
 
 const VIEW_QUALITY_AUDIT_PASSES = 2;
+const SHADOW_SELECTION_ERROR_FACTOR = 1.25;
 const DEFAULT_CACHE_MIN_ITEMS = 6_000;
 const DEFAULT_CACHE_MAX_ITEMS = 8_000;
 export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 64;
@@ -411,6 +416,8 @@ export function buildThreeTilesRuntime(
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
   let shadowSelectionNeedsTraversal = false;
+  let shadowReceiverMask: ShadowReceiverMask | null = null;
+  const mainViewSourceTiles = new Set<Tile>();
   let viewRefinementPending = false;
   let viewQualityAuditPasses = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
@@ -431,6 +438,7 @@ export function buildThreeTilesRuntime(
   const tileViewElevationFrustum = new THREE.Frustum();
   const tileViewElevationProjection = new THREE.Matrix4();
   const tileProjectedCenter = new THREE.Vector3();
+  const tilesToShadowView = new THREE.Matrix4();
   const identityRotation = new THREE.Quaternion();
   const projectorUniforms = {
     uProjKind: { value: 0 },
@@ -1232,8 +1240,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     lastNotifiedRequestDemand = requestDemand;
     options.onRequestStateChange?.();
   };
+  const clearShadowReceiverSources = () => {
+    shadowReceiverMask = null;
+    mainViewSourceTiles.clear();
+  };
   const setShadowSelectionEnabled = (enabled: boolean) => {
     const nextEnabled = enabled && shadowView !== null;
+    if (!nextEnabled) clearShadowReceiverSources();
     if (shadowSelectionEnabled === nextEnabled) return;
     shadowSelectionEnabled = nextEnabled;
     shadowSelectionNeedsTraversal = nextEnabled;
@@ -1263,8 +1276,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
    * frustum either meets the effective target or cannot refine any further
    * because all of its children are deferred, retry-blocked or empty.
    */
-  const mainViewConverged = () => {
+  const mainViewWithinErrorFactor = (factor: number) => {
     if (!tiles || tiles.visibleTiles.size === 0) return false;
+    const acceptedError = effectiveErrorTarget * factor;
     for (const visible of tiles.visibleTiles) {
       const tile = visible as RuntimeTile;
       const children = (tile.children ?? []) as RuntimeTile[];
@@ -1272,10 +1286,47 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         continue;
       }
       if (!isTileInMainView(tile)) continue;
-      if (tile.traversal.error <= effectiveErrorTarget) continue;
+      if (tile.traversal.error <= acceptedError) continue;
       if (!children.every(isChildUnloadable)) return false;
     }
     return true;
+  };
+  const mainViewConverged = () => mainViewWithinErrorFactor(1);
+  const captureShadowReceiverSources = () => {
+    clearShadowReceiverSources();
+    const sourceCamera = shadowView?.camera;
+    if (
+      !tiles ||
+      !(sourceCamera instanceof THREE.OrthographicCamera) ||
+      !viewFrustumsReady
+    ) {
+      return;
+    }
+
+    sourceCamera.updateMatrixWorld(true);
+    tiles.group.updateWorldMatrix(true, false);
+    tilesToShadowView.multiplyMatrices(
+      sourceCamera.matrixWorldInverse,
+      tiles.group.matrixWorld
+    );
+    const sourceBoxes: THREE.Box3[] = [];
+    for (const visible of tiles.visibleTiles) {
+      const tile = visible as RuntimeTile;
+      if (!isTileInMainView(tile)) continue;
+      const bounds = tile.engineData?.boundingVolume;
+      if (!bounds?.getAABB) continue;
+      bounds.getAABB(tileBoundingBox);
+      if (!tileBoundingBox.isEmpty()) sourceBoxes.push(tileBoundingBox.clone());
+      let source: Tile | null = tile;
+      while (source) {
+        mainViewSourceTiles.add(source);
+        source = source.parent;
+      }
+    }
+    shadowReceiverMask = createShadowReceiverMask(
+      sourceBoxes,
+      tilesToShadowView
+    );
   };
   const measureUsedBytesMain = () => {
     if (!tiles) return;
@@ -1390,7 +1441,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     ) {
       return;
     }
-    if (!isPipelineIdle() || !lastMainViewConverged) return;
+    if (
+      !isPipelineIdle() ||
+      !mainViewWithinErrorFactor(SHADOW_SELECTION_ERROR_FACTOR)
+    ) {
+      return;
+    }
+    captureShadowReceiverSources();
     viewRefinementPending = false;
     setShadowSelectionEnabled(true);
     tiles.dispatchEvent({ type: "needs-update" });
@@ -1802,6 +1859,22 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         tiles.calculateTileViewErrorWithPlugin.bind(tiles);
       tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
         calculateTileViewErrorWithPlugin(tile, target);
+        const runtimeTile = tile as RuntimeTile;
+        if (
+          shadowSelectionEnabled &&
+          shadowReceiverMask &&
+          target.inView &&
+          !mainViewSourceTiles.has(tile) &&
+          !isTileInMainView(runtimeTile)
+        ) {
+          const bounds = runtimeTile.engineData?.boundingVolume;
+          if (bounds?.getAABB) {
+            bounds.getAABB(tileBoundingBox);
+            if (!shadowReceiverMask.accepts(tileBoundingBox)) {
+              target.inView = false;
+            }
+          }
+        }
         applyTileDeferral(tile, target.inView);
       };
       const queueTileForDownload = tiles.queueTileForDownload.bind(tiles);
@@ -2018,16 +2091,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     setShadowView(view) {
       const nextSignature = getSharedThreeShadowViewSignature(view);
       if (nextSignature === shadowViewSignature) return;
-      const hadShadowView = shadowView !== null;
       shadowViewSignature = nextSignature;
       shadowView = view;
-      if (!view || !hadShadowView) {
-        viewRefinementPending = view !== null;
-        setShadowSelectionEnabled(false);
-      } else if (shadowSelectionEnabled) {
-        cameraSet?.setShadowView(view);
-        shadowSelectionNeedsTraversal = true;
-      }
+      viewRefinementPending = view !== null;
+      setShadowSelectionEnabled(false);
       applyRequestConcurrency();
       tiles?.dispatchEvent({ type: "needs-update" });
       notifyRequestStateChange();
