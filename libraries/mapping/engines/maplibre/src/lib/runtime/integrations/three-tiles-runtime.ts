@@ -50,7 +50,11 @@ import {
 } from "./three-tiles-retry-controller";
 import {
   createShadowReceiverMask,
+  maximumSweepDistanceWithinBox,
+  receiverMatchedTileError,
+  type ShadowReceiverMatch,
   type ShadowReceiverMask,
+  type ShadowReceiverSource,
 } from "./three-tiles-shadow-receiver-mask";
 import {
   isSharedThreeTerrainLoading,
@@ -120,6 +124,8 @@ type TileViewErrorTarget = {
 
 type RuntimeTile = Tile & {
   priority?: number;
+  shadowLightFacing?: number;
+  shadowReceiverCenterness?: number;
   traversal: Tile["traversal"] & { unconditionallyRefine?: boolean };
   engineData?: {
     boundingVolume?: {
@@ -435,10 +441,19 @@ export function buildThreeTilesRuntime(
   const tileBoundingSphere = new THREE.Sphere();
   const tileBoundingBox = new THREE.Box3();
   const activeTileBoundingBox = new THREE.Box3();
+  const rootTileBoundingBox = new THREE.Box3();
+  const rootWorldBoundingBox = new THREE.Box3();
+  const sourceWorldBoundingBox = new THREE.Box3();
   const tileViewElevationFrustum = new THREE.Frustum();
   const tileViewElevationProjection = new THREE.Matrix4();
   const tileProjectedCenter = new THREE.Vector3();
   const tilesToShadowView = new THREE.Matrix4();
+  const sunwardDirection = new THREE.Vector3();
+  const shadowReceiverMatch: ShadowReceiverMatch = {
+    receiverGeometricError: Number.POSITIVE_INFINITY,
+    receiverCenterness: 0,
+    lightFacing: 0,
+  };
   const identityRotation = new THREE.Quaternion();
   const projectorUniforms = {
     uProjKind: { value: 0 },
@@ -1292,41 +1307,71 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     return true;
   };
   const mainViewConverged = () => mainViewWithinErrorFactor(1);
+  const getTileCenterness = (
+    bounds: NonNullable<RuntimeTile["engineData"]>["boundingVolume"]
+  ) => {
+    if (!bounds) return 0;
+    bounds.getSphere(tileBoundingSphere);
+    tileProjectedCenter
+      .copy(tileBoundingSphere.center)
+      .applyMatrix4(tileViewProjection);
+    const centerDistance = Math.min(
+      Math.SQRT2,
+      Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
+    );
+    return 1 - centerDistance / Math.SQRT2;
+  };
   const captureShadowReceiverSources = () => {
     clearShadowReceiverSources();
     const sourceCamera = shadowView?.camera;
     if (
       !tiles ||
       !(sourceCamera instanceof THREE.OrthographicCamera) ||
-      !viewFrustumsReady
+      !viewFrustumsReady ||
+      !tiles.getBoundingBox(rootTileBoundingBox)
     ) {
       return;
     }
 
     sourceCamera.updateMatrixWorld(true);
     tiles.group.updateWorldMatrix(true, false);
+    rootWorldBoundingBox
+      .copy(rootTileBoundingBox)
+      .applyMatrix4(tiles.group.matrixWorld);
+    sourceCamera.getWorldDirection(sunwardDirection).negate().normalize();
     tilesToShadowView.multiplyMatrices(
       sourceCamera.matrixWorldInverse,
       tiles.group.matrixWorld
     );
-    const sourceBoxes: THREE.Box3[] = [];
+    const sources: ShadowReceiverSource[] = [];
     for (const visible of tiles.visibleTiles) {
       const tile = visible as RuntimeTile;
       if (!isTileInMainView(tile)) continue;
       const bounds = tile.engineData?.boundingVolume;
       if (!bounds?.getAABB) continue;
       bounds.getAABB(tileBoundingBox);
-      if (!tileBoundingBox.isEmpty()) sourceBoxes.push(tileBoundingBox.clone());
+      if (!tileBoundingBox.isEmpty()) {
+        sourceWorldBoundingBox
+          .copy(tileBoundingBox)
+          .applyMatrix4(tiles.group.matrixWorld);
+        sources.push({
+          bounds: tileBoundingBox.clone(),
+          maximumCasterDistance: maximumSweepDistanceWithinBox(
+            sourceWorldBoundingBox,
+            rootWorldBoundingBox,
+            sunwardDirection
+          ),
+          geometricError: tile.geometricError,
+          centerness: getTileCenterness(bounds),
+        });
+      }
       let source: Tile | null = tile;
       while (source) {
         mainViewSourceTiles.add(source);
         source = source.parent;
       }
     }
-    shadowReceiverMask = createShadowReceiverMask(
-      sourceBoxes,
-      tilesToShadowView
-    );
+    shadowReceiverMask = createShadowReceiverMask(sources, tilesToShadowView);
   };
   const measureUsedBytesMain = () => {
     if (!tiles) return;
@@ -1753,21 +1798,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     let centerness = 0;
     if (bounds && viewFrustumsReady && tiles) {
       inMainFrustum = bounds.intersectsFrustum(tileViewFrustum);
-      bounds.getSphere(tileBoundingSphere);
-      tileProjectedCenter
-        .copy(tileBoundingSphere.center)
-        .applyMatrix4(tileViewProjection);
-      const centerDistance = Math.min(
-        Math.SQRT2,
-        Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
-      );
-      centerness = 1 - centerDistance / Math.SQRT2;
+      centerness = getTileCenterness(bounds);
     }
     tile.priority = deriveTilePriority({
       depth: tile.internal?.depth ?? 0,
       inMainFrustum,
       isExternalTileset: tile.internal?.hasUnrenderableContent ?? false,
       centerness,
+      shadowReceiverCenterness: shadowSelectionEnabled
+        ? tile.shadowReceiverCenterness
+        : undefined,
+      shadowLightFacing: shadowSelectionEnabled
+        ? tile.shadowLightFacing
+        : undefined,
     });
   };
   /** Refresh the download and parse order for the current view every frame. */
@@ -1860,6 +1903,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
         calculateTileViewErrorWithPlugin(tile, target);
         const runtimeTile = tile as RuntimeTile;
+        runtimeTile.shadowReceiverCenterness = undefined;
+        runtimeTile.shadowLightFacing = undefined;
         if (
           shadowSelectionEnabled &&
           shadowReceiverMask &&
@@ -1870,8 +1915,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           const bounds = runtimeTile.engineData?.boundingVolume;
           if (bounds?.getAABB) {
             bounds.getAABB(tileBoundingBox);
-            if (!shadowReceiverMask.accepts(tileBoundingBox)) {
+            if (
+              !shadowReceiverMask.match(tileBoundingBox, shadowReceiverMatch)
+            ) {
               target.inView = false;
+            } else {
+              target.error = receiverMatchedTileError(
+                tile.geometricError,
+                shadowReceiverMatch.receiverGeometricError,
+                effectiveErrorTarget
+              );
+              runtimeTile.shadowReceiverCenterness =
+                shadowReceiverMatch.receiverCenterness;
+              runtimeTile.shadowLightFacing = shadowReceiverMatch.lightFacing;
             }
           }
         }
