@@ -372,7 +372,7 @@ export const createMesh2024TilesRuntime = ({
   // The public Wuppertal host aborts bursts at the renderer's generic default
   // of 25 concurrent downloads with ERR_HTTP2_PROTOCOL_ERROR. Keep the built-in
   // request priority, but use a conservative transport limit for this source.
-  tiles.downloadQueue.maxJobs = 8;
+  tiles.downloadQueue.maxJobsPerOrigin = 8;
   tiles.parseQueue.maxJobs = 8;
   tiles.processNodeQueue.maxJobs = 48;
   tiles.maxTilesProcessed = 1_000;
@@ -845,7 +845,7 @@ export const createMesh2024TilesRuntime = ({
             2
           )}→${requestedErrorTarget.toFixed(2)} px · nur Sichtfeld · Timeout ${
             MESH_REQUEST_TIMEOUT_MILLISECONDS / 1_000
-          } s · Download ${tiles.downloadQueue.maxJobs} · Parse ${
+          } s · Download ${tiles.downloadQueue.maxJobsPerOrigin} · Parse ${
             tiles.parseQueue.maxJobs
           } · Traversal ${
             tiles.maxTilesProcessed

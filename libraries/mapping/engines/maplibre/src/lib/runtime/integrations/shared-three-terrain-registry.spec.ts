@@ -34,7 +34,7 @@ describe("shared Three terrain registry", () => {
     unsubscribe();
   });
 
-  it("keeps MapLibre terrain off until the final suppression is released", () => {
+  it("keeps MapLibre terrain off until the final suppression is released", async () => {
     const terrainSpec = { source: "terrain", exaggeration: 1 };
     const handlers = new Map<string, Set<() => void>>();
     let terrain: typeof terrainSpec | null = terrainSpec;
@@ -45,6 +45,8 @@ describe("shared Three terrain registry", () => {
         terrain = next;
         for (const handler of handlers.get("terrain") ?? []) handler();
       }),
+      getCenterClampedToGround: vi.fn(() => true),
+      setCenterClampedToGround: vi.fn(),
       on: vi.fn((event: string, handler: () => void) => {
         const eventHandlers = handlers.get(event) ?? new Set();
         eventHandlers.add(handler);
@@ -65,6 +67,36 @@ describe("shared Three terrain registry", () => {
     releaseFirst();
     expect(terrain).toBeNull();
     releaseSecond();
+    await Promise.resolve();
+    expect(terrain).toEqual(terrainSpec);
+    expect(map.setCenterClampedToGround).toHaveBeenNthCalledWith(1, false);
+    expect(map.setCenterClampedToGround).toHaveBeenNthCalledWith(2, true);
+  });
+
+  it("does not restore terrain between same-turn HMR replacements", async () => {
+    const terrainSpec = { source: "terrain", exaggeration: 1 };
+    let terrain: typeof terrainSpec | null = terrainSpec;
+    const map = {
+      getTerrain: vi.fn(() => terrain),
+      isStyleLoaded: vi.fn(() => true),
+      setTerrain: vi.fn((next: typeof terrainSpec | null) => {
+        terrain = next;
+      }),
+      getCenterClampedToGround: vi.fn(() => true),
+      setCenterClampedToGround: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const releasePrevious = suppressMapLibreTerrainRendering(map as never);
+    releasePrevious();
+    const releaseReplacement = suppressMapLibreTerrainRendering(map as never);
+    await Promise.resolve();
+
+    expect(terrain).toBeNull();
+    expect(map.setTerrain).toHaveBeenCalledTimes(1);
+    releaseReplacement();
+    await Promise.resolve();
     expect(terrain).toEqual(terrainSpec);
   });
 

@@ -46,6 +46,7 @@ import {
   subscribeShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 import { getDaylightWindow, getSolarPosition } from "../core/solar-position";
+import { DEFAULT_MESH_ERROR_TARGET_PIXELS } from "../core/shadow-types";
 
 describe("shadow scene sun direction", () => {
   const position = (azimuthDegrees: number, elevationDegrees: number) => ({
@@ -542,7 +543,9 @@ describe("shadow scene lighting integration", () => {
       uniformColorMix: 0,
       textureSaturation: 1,
     });
-    expect(setErrorTarget).toHaveBeenLastCalledWith(1);
+    expect(setErrorTarget).toHaveBeenLastCalledWith(
+      DEFAULT_MESH_ERROR_TARGET_PIXELS
+    );
 
     controller.updateMeshErrorTarget(0.25);
     expect(setErrorTarget).toHaveBeenLastCalledWith(0.25);
@@ -1269,8 +1272,8 @@ describe("shadow scene lighting integration", () => {
     });
     contentChanged();
 
-    expect(sharedRuntimes.has(initialTerrain.id)).toBe(true);
-    expect(initialTerrain.dispose).not.toHaveBeenCalled();
+    expect(sharedRuntimes.has(initialTerrain.id)).toBe(false);
+    expect(initialTerrain.dispose).toHaveBeenCalledOnce();
 
     meshRenderable = true;
     contentChanged();
