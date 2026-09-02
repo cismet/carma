@@ -236,6 +236,20 @@ export const AnnotationScene = ({
     }
   }, [box, editable, redoVersion, undoVersion]);
 
+  // capture, so excalidraw's canvas handler never sees the click and its
+  // context menu stays away
+  useEffect(() => {
+    if (!box) {
+      return;
+    }
+    const swallow = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    box.addEventListener("contextmenu", swallow, true);
+    return () => box.removeEventListener("contextmenu", swallow, true);
+  }, [box]);
+
   const zoomRef = useRef(zoomVersion);
   useEffect(() => {
     const previous = zoomRef.current;
