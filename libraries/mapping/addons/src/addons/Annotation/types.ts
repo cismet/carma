@@ -34,6 +34,20 @@ export type AnnotationInset = {
   left?: number;
 };
 
+/**
+ * Where the scene transform stops matching the map. Each one hides the drawing
+ * instead of showing it in the wrong place; all off by default, so the drawing
+ * stays visible and may sit off its ground position.
+ */
+export type AnnotationSyncLimits = {
+  /** hide while the map is rotated. Default: false */
+  rotated?: boolean;
+  /** hide while the map is tilted. Default: false */
+  tilted?: boolean;
+  /** hide outside excalidraw's own zoom clamp. Default: false */
+  zoom?: boolean;
+};
+
 export type AnnotationOverlayConfig = {
   /** stacking inside the map wrapper. Default: 500 */
   zIndex?: number;
@@ -50,6 +64,7 @@ export type AnnotationOverlayConfig = {
   hideHistory?: boolean;
   hideWhenOff?: boolean;
   shapeTools?: boolean;
+  syncLimits?: AnnotationSyncLimits;
   hideZoom?: boolean;
   background?: string;
   backgroundOpacity?: number;

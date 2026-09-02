@@ -6,7 +6,7 @@ import type {
   NormalizedZoomValue,
 } from "@excalidraw/excalidraw/types/types";
 
-import type { AnnotationAnchor } from "./types";
+import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
 
 /** excalidraw clamps zoom.value to this range; see its getNormalizedZoom */
 const MIN_SCENE_ZOOM = 0.1;
@@ -44,8 +44,9 @@ const same = (a: SceneCamera, b: SceneCamera) =>
  * push — and following that would drag the map half a viewport off, see
  * `applySceneCamera`.
  *
- * `inSync` is false where the shared transform does not hold — a rotated or
- * tilted map, or a zoom past excalidraw's clamp — and the overlay hides.
+ * The shared transform does not hold on a rotated or tilted map, or past
+ * excalidraw's zoom clamp. `limits` says which of those hide the overlay;
+ * with none set the drawing stays on screen, off its ground position.
  */
 export const useMapSceneSync = (
   map: MaplibreMap | null,
@@ -54,8 +55,14 @@ export const useMapSceneSync = (
   /** whether the overlay currently takes pointer events */
   interactive: boolean,
   live: boolean,
+  limits: AnnotationSyncLimits,
   savedAnchor?: AnnotationAnchor
 ) => {
+  const {
+    rotated: hideRotated = false,
+    tilted: hideTilted = false,
+    zoom: hideZoom = false,
+  } = limits;
   const anchorRef = useRef<Anchor | null>(savedAnchor ?? null);
   const restoredRef = useRef(Boolean(savedAnchor));
   const pushedRef = useRef<SceneCamera | null>(null);
@@ -82,10 +89,9 @@ export const useMapSceneSync = (
 
     const scale = 2 ** (map.getZoom() - anchor.zoom);
     const usable =
-      map.getBearing() === 0 &&
-      map.getPitch() === 0 &&
-      scale >= MIN_SCENE_ZOOM &&
-      scale <= MAX_SCENE_ZOOM;
+      (!hideRotated || map.getBearing() === 0) &&
+      (!hideTilted || map.getPitch() === 0) &&
+      (!hideZoom || (scale >= MIN_SCENE_ZOOM && scale <= MAX_SCENE_ZOOM));
     setInSync(usable);
     if (!usable) {
       return;
@@ -108,7 +114,7 @@ export const useMapSceneSync = (
         zoom: { value: scale as NormalizedZoomValue },
       },
     });
-  }, [api, map, offsetOf]);
+  }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf]);
 
   const applySceneCamera = useCallback(
     (state: Pick<AppState, "scrollX" | "scrollY" | "zoom">) => {
