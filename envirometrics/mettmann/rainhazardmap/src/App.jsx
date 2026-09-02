@@ -42,45 +42,18 @@ function App() {
 
   const ifDesktop = responsiveState === "normal";
 
-  const getGazData = async (
-    setGazData,
-    adressUrl,
-    kommunenUrl,
-    ortslagenUrl
-  ) => {
+  const getGazData = async (setGazData, adressUrl, kommunenUrl) => {
     const prefix = "GazDataForStarkregengefahrenkarteByCismet";
     const adressen = await md5FetchJSON(prefix + "addr", adressUrl);
     const kommunen = await md5FetchJSON(prefix + "komm", kommunenUrl);
-    const ortslagen = await md5FetchJSON(prefix + "komm", ortslagenUrl);
     const kommunenWithPrefix = kommunen.map((item) => {
       return {
         ...item,
         string: "KOM " + item.string,
       };
     });
-    const ortslagenWithPrefix = ortslagen.map((item) => {
-      //split the string into the part before the blank and the part inside the parenthesis
-      const splitString = item.string.split(" (");
-      //get the ortslagenname which is the part before the blank
-      const ortslagenName = splitString[0];
-      //get the kommunenname which is the part inside the parenthesis
-      const kommunenName = splitString[1].slice(0, -1);
 
-      return {
-        ...item,
-        string: kommunenName + "-" + ortslagenName,
-      };
-    });
-
-    setGazData(
-      [
-        ...kommunen,
-        ...ortslagenWithPrefix,
-        ...ortslagen,
-        ...adressen,
-        ...kommunenWithPrefix,
-      ] || []
-    );
+    setGazData([...kommunen, ...adressen, ...kommunenWithPrefix] || []);
   };
 
   const { setSelection } = useSelection();
@@ -110,8 +83,7 @@ function App() {
     getGazData(
       setGazData,
       urlPrefix + "/data/adressen_mettmann.json",
-      urlPrefix + "/data/kommunen.json",
-      urlPrefix + "/data/ortslagen.json"
+      urlPrefix + "/data/kommunen.json"
     );
   }, []);
   return (
@@ -160,7 +132,7 @@ function App() {
                       ? "300px"
                       : windowSize.width - gap
                   }
-                  placeholder="Kommune | Ortslage | Adresse"
+                  placeholder="Kommune | Adresse"
                 />
               </div>
             </div>
@@ -191,7 +163,7 @@ function App() {
         modeSwitcherTitle="AIS Starkregenvorsorge Kreis Mettmann"
         documentTitle="AIS Starkregenvorsorge Kreis Mettmann"
         // gazData={gazData}
-        // gazetteerSearchPlaceholder="Kommune | Ortslage | Adresse"
+        // gazetteerSearchPlaceholder="Kommune | Adresse"
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
         customFeatureInfoUIs={[<div></div>]}
