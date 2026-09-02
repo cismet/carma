@@ -36,7 +36,7 @@ void import("@excalidraw/excalidraw").then((module) => {
 /** keeps a zoomed-to drawing clear of the map chrome, in px */
 const ZOOM_PADDING = 80;
 
-/** how far the drawings that are not picked step back, while the mode is on */
+/** how far a drawing steps back while another one is picked */
 const INACTIVE_OPACITY = 0.45;
 
 type SceneBox = { minX: number; minY: number; maxX: number; maxY: number };
@@ -117,8 +117,8 @@ export type AnnotationSceneProps = {
   savedFiles?: BinaryFiles;
   savedAnchor?: AnnotationAnchor;
   editable: boolean;
-  /** the drawing the toolbar points at, locked or not */
-  active: boolean;
+  /** steps back so the picked drawing stands out; nothing is picked while locked */
+  dimmed: boolean;
   live: boolean;
   shown: boolean;
   langCode: string;
@@ -144,7 +144,7 @@ export const AnnotationScene = ({
   savedFiles,
   savedAnchor,
   editable,
-  active,
+  dimmed,
   live,
   shown,
   langCode,
@@ -289,9 +289,7 @@ export const AnnotationScene = ({
         bottom: inset.bottom,
         left: inset.left,
         zIndex,
-        // the picked drawing keeps its colors, the others step back. Off the
-        // mode there is nothing to pick, so they all stay as drawn
-        opacity: !live || active ? 1 : INACTIVE_OPACITY,
+        opacity: dimmed ? INACTIVE_OPACITY : 1,
         pointerEvents: drawing ? "auto" : "none",
         visibility: inSync && shown ? "visible" : "hidden",
       }}
