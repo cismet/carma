@@ -53,12 +53,14 @@ export const TILE_PRIORITY = {
   depthStep: 1_000,
   externalTilesetBonus: 500,
   centernessWeight: 100,
+  shadowLightFacingWeight: 50,
 } as const;
 
 const MAIN_FRUSTUM_PRIORITY_BONUS =
   (TILE_PRIORITY.maxDepth + 1) * TILE_PRIORITY.depthStep +
   TILE_PRIORITY.externalTilesetBonus +
-  TILE_PRIORITY.centernessWeight;
+  TILE_PRIORITY.centernessWeight +
+  TILE_PRIORITY.shadowLightFacingWeight;
 
 export const ERROR_TARGET_POLICY = {
   relaxFactor: 2,
@@ -230,13 +232,25 @@ export type TilePriorityInput = Readonly<{
   isExternalTileset: boolean;
   /** 1 at the view centre, 0 at the edge (or unknown). */
   centerness: number;
+  /** View-centre relevance of the visible receiver for a shadow-only tile. */
+  shadowReceiverCenterness?: number;
+  /** 1 at the light-facing end of the relevant receiver sweep. */
+  shadowLightFacing?: number;
 }>;
 
 /** Higher values download first (upstream pops from the end of the queue). */
 export const deriveTilePriority = (input: TilePriorityInput): number => {
   const depth = clamp(Math.floor(input.depth), 0, TILE_PRIORITY.maxDepth);
+  const requestedCenterness = input.inMainFrustum
+    ? input.centerness
+    : input.shadowReceiverCenterness ?? input.centerness;
   const centerness = clamp(
-    Number.isFinite(input.centerness) ? input.centerness : 0,
+    Number.isFinite(requestedCenterness) ? requestedCenterness : 0,
+    0,
+    1
+  );
+  const shadowLightFacing = clamp(
+    Number.isFinite(input.shadowLightFacing) ? input.shadowLightFacing ?? 0 : 0,
     0,
     1
   );
@@ -244,7 +258,10 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
     (TILE_PRIORITY.maxDepth + 1 - depth) * TILE_PRIORITY.depthStep +
     (input.isExternalTileset ? TILE_PRIORITY.externalTilesetBonus : 0) +
     (input.inMainFrustum ? MAIN_FRUSTUM_PRIORITY_BONUS : 0) +
-    centerness * TILE_PRIORITY.centernessWeight
+    centerness * TILE_PRIORITY.centernessWeight +
+    (input.inMainFrustum
+      ? 0
+      : shadowLightFacing * TILE_PRIORITY.shadowLightFacingWeight)
   );
 };
 
