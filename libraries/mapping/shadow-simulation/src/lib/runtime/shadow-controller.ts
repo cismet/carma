@@ -13,7 +13,9 @@ const MIN_CASTER_REACH_METERS = 50;
 const MAX_CASTER_REACH_METERS = 10_000;
 const CASTER_REACH_ELEVATION_EPSILON = 0.04;
 const LIGHT_CAMERA_SAFETY_METERS = 25;
+const SHADOW_DEPTH_BIAS_TEXELS = 4;
 const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
+const MIN_SHADOW_BIAS_ELEVATION_SINE = 0.2;
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
 const SUN_ANGULAR_RADIUS_RAD = degToRadNumeric(0.53 / 2);
@@ -308,9 +310,16 @@ export class ShadowController {
     };
     shadowBounds.far = Math.max(shadowBounds.near + 1, shadowBounds.far);
     const normalBias = clamp(
-      metersPerTexel * SHADOW_NORMAL_BIAS_TEXELS,
+      (metersPerTexel * SHADOW_NORMAL_BIAS_TEXELS) /
+        Math.max(MIN_SHADOW_BIAS_ELEVATION_SINE, normalizedDirectionToSun.y),
       MIN_SHADOW_NORMAL_BIAS_METERS,
       MAX_SHADOW_NORMAL_BIAS_METERS
+    );
+    const depthBias = -clamp(
+      (metersPerTexel * SHADOW_DEPTH_BIAS_TEXELS) /
+        Math.max(shadowBounds.far - shadowBounds.near, 1),
+      Number.EPSILON,
+      0.01
     );
     const tangentA = new THREE.Vector3();
     if (Math.abs(normalizedDirectionToSun.y) > 0.99) {
@@ -345,6 +354,7 @@ export class ShadowController {
       .multiplyScalar(lightDistance)
       .add(targetPosition);
     light.target.position.copy(targetPosition);
+    light.shadow.bias = depthBias;
     light.shadow.normalBias = normalBias;
     const camera = light.shadow.camera;
     camera.left = shadowBounds.left;

@@ -252,25 +252,21 @@ const buildAtmosphericSkyFrame = (
   observerFrame: ObserverFrame,
   skyReference?: AtmosphericSkyReference
 ): AtmosphericSkyFrame => {
-  const directionToSun = ecefDirectionToSceneDirectionWithFrame(
-    sunDirectionECEF,
-    observerFrame,
-    new THREE.Vector3()
-  );
   const skyReferenceFrame = skyReference
     ? getObserverFrame(skyReference.observer)
     : observerFrame;
   const ecefToSceneMatrix = getEcefToSceneMatrix(skyReferenceFrame);
   const sceneToEcefMatrix = ecefToSceneMatrix.clone().invert();
+  const ellipsoidCenterECEF = (
+    skyReference?.scenePosition ?? new THREE.Vector3()
+  )
+    .clone()
+    .applyMatrix4(sceneToEcefMatrix)
+    .sub(skyReferenceFrame.observerECEF);
   return {
-    directionToSunECEF: directionToSun
-      .clone()
-      .transformDirection(sceneToEcefMatrix),
+    directionToSunECEF: sunDirectionECEF.clone(),
     ecefToSceneMatrix,
-    ellipsoidCenterECEF: (skyReference?.scenePosition ?? new THREE.Vector3())
-      .clone()
-      .applyMatrix4(sceneToEcefMatrix)
-      .sub(skyReferenceFrame.observerECEF),
+    ellipsoidCenterECEF,
   };
 };
 

@@ -8,7 +8,6 @@ import type {
 import * as THREE from "three";
 
 import { quantize } from "@carma-commons/math";
-import { getSharedThreeTerrainElevation } from "./shared-three-terrain-registry";
 import {
   buildSharedSceneAccumulator,
   fitRenderTargetSizeToPixelBudget,
@@ -435,6 +434,10 @@ export const buildSharedThreeSceneLayer = (
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
       // lives in the engine rather than here, see synthesizeLodCamera.
       const centerLngLat = map.getCenter();
+      const mapLibreTerrainElevation = map.getTerrain()
+        ? map.queryTerrainElevation(centerLngLat) ??
+          map.getCameraTargetElevation()
+        : 0;
       if (
         !synthesizeLodCamera(
           lodCamera,
@@ -443,14 +446,7 @@ export const buildSharedThreeSceneLayer = (
             originMerc,
             meterScale,
             viewport,
-            centerElevationMeters:
-              map.queryTerrainElevation(centerLngLat) ??
-              getSharedThreeTerrainElevation(
-                map,
-                centerLngLat.lng,
-                centerLngLat.lat
-              ) ??
-              map.getCameraTargetElevation(),
+            centerElevationMeters: mapLibreTerrainElevation,
           },
           lookTarget
         )
