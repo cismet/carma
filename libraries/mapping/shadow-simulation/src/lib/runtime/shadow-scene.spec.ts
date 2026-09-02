@@ -37,7 +37,10 @@ import {
   buildShadowSimulationScene,
   solarPositionToSceneDirection,
 } from "./shadow-scene";
-import { evaluateAtmosphericSunlight } from "./atmospheric-sunlight";
+import {
+  AtmosphericSunlightEvaluator,
+  evaluateAtmosphericSunlight,
+} from "./atmospheric-sunlight";
 import {
   readShadowProjectionDebugSnapshot,
   subscribeShadowProjectionDebugSnapshot,
@@ -183,6 +186,10 @@ describe("shadow scene lighting integration", () => {
   };
 
   it("drives MapLibre and the Three.js sun from the same solar position", () => {
+    const evaluateAtmosphere = vi.spyOn(
+      AtmosphericSunlightEvaluator.prototype,
+      "evaluate"
+    );
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const setLight = vi.fn();
@@ -214,6 +221,16 @@ describe("shadow scene lighting integration", () => {
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
     updateShadows(map, camera);
+
+    expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(4_000);
+    expect(evaluateAtmosphere.mock.lastCall?.[3]?.observer).toEqual({
+      longitude: 7.15,
+      latitude: 51.256,
+      altitudeMeters: 0,
+    });
+    expect(
+      evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
+    ).toEqual([7_150, 0, 51_256]);
 
     const atmosphere = evaluateAtmosphericSunlight(
       solarPosition.instant,
@@ -329,6 +346,7 @@ describe("shadow scene lighting integration", () => {
       scene.getObjectByName("shadow-simulation-sun-vector")
     ).toBeUndefined();
     expect(releaseScene).toHaveBeenCalledOnce();
+    evaluateAtmosphere.mockRestore();
   });
 
   it("keeps sun-disc accumulation active while tiles are streaming", () => {

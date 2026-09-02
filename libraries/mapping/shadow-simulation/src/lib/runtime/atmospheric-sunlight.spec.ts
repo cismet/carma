@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AtmosphericSunlightEvaluator,
   ecefDirectionToSceneDirection,
+  evaluateAtmosphericSkyFrame,
   evaluateAtmosphericSunlight,
   type AtmosphericObserver,
 } from "./atmospheric-sunlight";
@@ -180,6 +181,83 @@ describe("atmospheric sunlight", () => {
     expect(sample.atmosphericIrradianceReady).toBe(false);
     expect(sample.skyIrradianceCoefficients).toBeNull();
     expect(sample.relativeIntensity).toBeGreaterThan(0);
+  });
+
+  it("keeps the sky ellipsoid fixed while the observer moves inside the AOI", () => {
+    const instant = new Date("2026-06-21T10:00:00.000Z");
+    const skyReference = {
+      observer: {
+        longitude: WUPPERTAL.longitude,
+        latitude: WUPPERTAL.latitude,
+        altitudeMeters: 0,
+      },
+      scenePosition: new THREE.Vector3(80, 0, -120),
+    };
+    const first = evaluateAtmosphericSunlight(
+      instant,
+      WUPPERTAL,
+      null,
+      null,
+      skyReference
+    );
+    const second = evaluateAtmosphericSunlight(
+      instant,
+      {
+        longitude: WUPPERTAL.longitude + 0.03,
+        latitude: WUPPERTAL.latitude + 0.02,
+        altitudeMeters: 420,
+      },
+      null,
+      null,
+      skyReference
+    );
+
+    expect(
+      second.skyFrame.ecefToSceneMatrix.equals(first.skyFrame.ecefToSceneMatrix)
+    ).toBe(true);
+    expect(
+      second.skyFrame.ellipsoidCenterECEF.equals(
+        first.skyFrame.ellipsoidCenterECEF
+      )
+    ).toBe(true);
+    const renderedSunDirection = second.skyFrame.directionToSunECEF
+      .clone()
+      .transformDirection(second.skyFrame.ecefToSceneMatrix);
+    expect(renderedSunDirection.distanceTo(second.directionToSun)).toBeLessThan(
+      1e-12
+    );
+    expect(second.directionToSun.equals(first.directionToSun)).toBe(false);
+  });
+
+  it("moves the local sky ellipsoid with its zero-altitude map anchor", () => {
+    const instant = new Date("2026-06-21T10:00:00.000Z");
+    const observer = {
+      ...WUPPERTAL,
+      altitudeMeters: 420,
+    };
+    const referenceObserver = {
+      ...WUPPERTAL,
+      altitudeMeters: 0,
+    };
+    const firstPosition = new THREE.Vector3(80, 0, -120);
+    const secondPosition = new THREE.Vector3(200, 0, -360);
+    const first = evaluateAtmosphericSkyFrame(instant, observer, {
+      observer: referenceObserver,
+      scenePosition: firstPosition,
+    });
+    const second = evaluateAtmosphericSkyFrame(instant, observer, {
+      observer: referenceObserver,
+      scenePosition: secondPosition,
+    });
+
+    expect(second.ecefToSceneMatrix.equals(first.ecefToSceneMatrix)).toBe(true);
+    const sceneCenterDelta = second.ellipsoidCenterECEF
+      .clone()
+      .sub(first.ellipsoidCenterECEF)
+      .applyMatrix4(second.ecefToSceneMatrix);
+    expect(
+      sceneCenterDelta.distanceTo(secondPosition.sub(firstPosition))
+    ).toBeLessThan(1e-8);
   });
 
   it("orients Takram sky irradiance in the local East/Up/South frame", () => {
