@@ -8,7 +8,7 @@ import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { AnnotationScene } from "./AnnotationScene";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
-import type { AnnotationInset } from "./types";
+import type { AnnotationInset, AnnotationSyncLimits } from "./types";
 
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
@@ -25,6 +25,9 @@ const withAlpha = (color: string, opacity: number) => {
     ? `${color}${alpha.toString(16).padStart(2, "0")}`
     : color;
 };
+
+/** nothing hides the drawing by default; see `AnnotationSyncLimits` */
+const DEFAULT_SYNC_LIMITS: AnnotationSyncLimits = {};
 
 const DEFAULT_INSET: Required<AnnotationInset> = {
   top: 0,
@@ -62,6 +65,7 @@ export const AnnotationOverlay = ({
     hideHistory = false,
     hideWhenOff = false,
     storageKey,
+    syncLimits,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
@@ -133,6 +137,7 @@ export const AnnotationOverlay = ({
     hideHistory,
   };
   const paper = withAlpha(background, backgroundOpacity);
+  const limits = syncLimits ?? DEFAULT_SYNC_LIMITS;
 
   return (
     <>
@@ -160,6 +165,7 @@ export const AnnotationOverlay = ({
             undoVersion={undoVersion}
             redoVersion={redoVersion}
             zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
+            syncLimits={limits}
             inset={{ top: navbarInset + top, right, bottom, left }}
             zIndex={zIndex + index}
           />

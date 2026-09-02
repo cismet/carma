@@ -13,7 +13,11 @@ import { sceneHasElementAt } from "./annotation-hit-test";
 import { useMapSceneSync } from "./map-scene-sync";
 import type { AnnotationShape } from "./shape-tools";
 import type { SceneProbe } from "./useDrawingPicker";
-import type { AnnotationAnchor, AnnotationInset } from "./types";
+import type {
+  AnnotationAnchor,
+  AnnotationInset,
+  AnnotationSyncLimits,
+} from "./types";
 import "./annotation-overlay.css";
 
 const Excalidraw = lazy(() =>
@@ -125,6 +129,7 @@ export type AnnotationSceneProps = {
   redoVersion: number;
   /** bumped when this drawing should be brought into view; 0 means never */
   zoomVersion: number;
+  syncLimits: AnnotationSyncLimits;
   inset: Required<AnnotationInset>;
   zIndex: number;
 };
@@ -149,6 +154,7 @@ export const AnnotationScene = ({
   undoVersion,
   redoVersion,
   zoomVersion,
+  syncLimits,
   inset,
   zIndex,
 }: AnnotationSceneProps) => {
@@ -160,6 +166,7 @@ export const AnnotationScene = ({
     box,
     editable,
     live,
+    syncLimits,
     savedAnchor
   );
 
