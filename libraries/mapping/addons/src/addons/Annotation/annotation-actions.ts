@@ -4,16 +4,18 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import type { AnnotationShape } from "./shape-tools";
 import type { AnnotationGroup, AnnotationState } from "./types";
 
-/** the drawing a session starts on */
 const FIRST_GROUPS: AnnotationGroup[] = [{ id: "annotation-1", locked: false }];
 
 let sequence = FIRST_GROUPS.length;
 const nextGroupId = () => `annotation-${(sequence += 1)}`;
 
+export const reserveIdSequence = (upTo: number) => {
+  sequence = Math.max(sequence, upTo);
+};
+
 const groupsOf = (state?: AnnotationState): AnnotationGroup[] =>
   state?.groups?.length ? state.groups : FIRST_GROUPS;
 
-/** the newest drawing, unless the state names one that still exists */
 const activeIdOf = (state?: AnnotationState): string => {
   const groups = groupsOf(state);
   const id = state?.activeId;
@@ -22,11 +24,7 @@ const activeIdOf = (state?: AnnotationState): string => {
     : groups[groups.length - 1].id;
 };
 
-/**
- * Shared by the overlay, its control and its layer row, so all three read one
- * answer. Callbacks must stay stable: the layer row puts them in the host's
- * layer snapshot, and a new identity per render would loop the update.
- */
+/** shared by the overlay and its control, so both read one answer */
 export const useAnnotationActions = () => {
   const [state, setState] = useAddonState("annotationMode");
 
@@ -72,7 +70,6 @@ export const useAnnotationActions = () => {
     [setState]
   );
 
-  /** New drawing on a fresh anchor; the others lock, only one is editable. */
   const addGroup = useCallback(
     () =>
       setState((previous) => {
@@ -89,7 +86,6 @@ export const useAnnotationActions = () => {
     [setState]
   );
 
-  /** Reactivate an older drawing: it unlocks, the others lock. */
   const pickGroup = useCallback(
     (id: string) =>
       setState((previous) => ({
@@ -100,6 +96,42 @@ export const useAnnotationActions = () => {
         })),
         activeId: id,
       })),
+    [setState]
+  );
+
+  /**
+   * Put restored drawings in place, all locked, and open a fresh one on top so
+   * the pencil is immediately usable at wherever the map now stands.
+   */
+  const hydrate = useCallback(
+    (restored: AnnotationGroup[]) =>
+      setState((previous) => {
+        const fresh: AnnotationGroup = { id: nextGroupId(), locked: false };
+        return {
+          ...(previous ?? { isOn: false }),
+          groups: [
+            ...restored.map((entry) => ({ ...entry, locked: true })),
+            fresh,
+          ],
+          activeId: fresh.id,
+        };
+      }),
+    [setState]
+  );
+
+  const deleteGroup = useCallback(
+    (id: string) =>
+      setState((previous) => {
+        const remaining = groupsOf(previous).filter((entry) => entry.id !== id);
+        const groups = remaining.length
+          ? remaining
+          : [{ id: nextGroupId(), locked: false }];
+        return {
+          ...(previous ?? { isOn: false }),
+          groups,
+          activeId: groups[groups.length - 1].id,
+        };
+      }),
     [setState]
   );
 
@@ -122,7 +154,6 @@ export const useAnnotationActions = () => {
     isOn: state?.isOn ?? false,
     groups,
     activeId,
-    /** whether the active drawing is locked */
     isLocked: activeGroup?.locked ?? false,
     shape: state?.shape ?? "selection",
     undoVersion: state?.undoVersion ?? 0,
@@ -135,5 +166,7 @@ export const useAnnotationActions = () => {
     addGroup,
     pickGroup,
     toggleLock,
+    hydrate,
+    deleteGroup,
   };
 };

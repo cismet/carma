@@ -6,7 +6,6 @@ export const AnnotationInteractionPanel = () => {
   const { isOn, isLocked, shape, setShape, undo, redo } =
     useAnnotationActions();
 
-  // a locked drawing accepts no tool, so the toolbar would do nothing
   if (!isOn || isLocked) {
     return null;
   }

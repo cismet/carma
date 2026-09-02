@@ -13,7 +13,6 @@ export const ANNOTATION_TOOLS_INTERACTION_ID = "annotation-tools";
 export const ANNOTATION_LOCK_TOGGLE_ID = "annotation-lock-toggle";
 export const ANNOTATION_ADD_DRAWING_ID = "annotation-add-drawing";
 
-/** the host's active-button blue; these buttons carry their own state */
 const ACTIVE_COLOR = "#1677ff";
 
 type RowActions = {
@@ -22,7 +21,6 @@ type RowActions = {
   addGroup: () => void;
 };
 
-/** lock for the active drawing, + for a new one */
 const buildInteractionButtons = ({
   isLocked,
   toggleLock,
@@ -65,7 +63,6 @@ export type UseAnnotationLayerRowOptions = {
   hasRow: boolean;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
-  /** the host keeps a snapshot, so a changed row has to be handed over again */
   onUpdate?: (layer: Layer) => void;
 };
 
@@ -84,8 +81,6 @@ export const useAnnotationLayerRow = ({
   const { isOn, isLocked, endMode, toggleLock, addGroup } =
     useAnnotationActions();
 
-  // the host stores a snapshot of the layer, so the handlers have to travel
-  // with it rather than being read from here later
   const layer = useMemo<Layer>(
     () => ({
       ...ANNOTATION_LAYER,
@@ -107,7 +102,6 @@ export const useAnnotationLayerRow = ({
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
-  // the lock button renders its own state, so the row goes stale when it flips
   useEffect(() => {
     if (hasRow) {
       onUpdateRef.current?.(layer);
