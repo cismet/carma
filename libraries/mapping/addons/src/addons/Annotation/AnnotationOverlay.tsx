@@ -81,6 +81,7 @@ export const AnnotationOverlay = ({
     redoVersion,
     zoomRequest,
     pickGroup,
+    setShape,
     hydrate,
   } = useAnnotationActions();
 
@@ -162,6 +163,7 @@ export const AnnotationOverlay = ({
             background={paper}
             chrome={chrome}
             shape={shape}
+            onToolChange={setShape}
             undoVersion={undoVersion}
             redoVersion={redoVersion}
             zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
