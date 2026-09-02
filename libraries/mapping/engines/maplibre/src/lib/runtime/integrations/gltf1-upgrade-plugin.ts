@@ -307,11 +307,22 @@ export const upgradeB3dmGltf1 = (buffer: ArrayBuffer): ArrayBuffer | null => {
   return out.buffer;
 };
 
+export interface Gltf1UpgradePluginOptions {
+  /** Observes every raw response before its body is consumed. */
+  onResponse?: (url: string, response: Response) => void;
+}
+
 export class Gltf1UpgradePlugin {
   name = "GLTF1_UPGRADE_PLUGIN";
+  private readonly onResponse: Gltf1UpgradePluginOptions["onResponse"];
+
+  constructor(options: Gltf1UpgradePluginOptions = {}) {
+    this.onResponse = options.onResponse;
+  }
 
   async fetchData(url: string | URL, options: RequestInit): Promise<Response> {
     const response = await fetch(url, options);
+    this.onResponse?.(String(url), response);
     if (!/\.b3dm(\?|$)/.test(String(url)) || !response.ok) return response;
 
     const buffer = await response.arrayBuffer();

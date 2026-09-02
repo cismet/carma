@@ -1,10 +1,14 @@
 import type { Tile } from "3d-tiles-renderer/core";
 
+import { isPermanentTileRequestFailure } from "./payload-aware-request-concurrency";
+
 const FAILED_LOADING_STATE = -1;
 const UNLOADED_LOADING_STATE = 0;
 
 export const MAX_TILE_RETRIES = 5;
 const TILE_RETRY_BASE_DELAY_MS = 1_000;
+/** An exhausted resource may be tried once more after this long. */
+export const EXHAUSTED_RETRY_TTL_MS = 120_000;
 
 export interface RetryableTilesRenderer {
   stats: { failed: number };
@@ -12,15 +16,22 @@ export interface RetryableTilesRenderer {
   dispatchEvent: (event: { type: string }) => void;
 }
 
+export type TileRetryState = "scheduled" | "pending" | "exhausted" | "ignored";
+
 interface ThreeTilesRetryController {
   handleFailure: (
     tile: Tile | null,
-    url?: string | URL | null
-  ) => "scheduled" | "pending" | "exhausted" | "ignored";
+    url?: string | URL | null,
+    error?: unknown
+  ) => TileRetryState;
   handleSuccess: (tile: Tile | null, url?: string | URL | null) => void;
+  /** A retry is pending or the budget is exhausted: do not request it now. */
+  isBlocked: (tile: Tile | null, url?: string | URL | null) => boolean;
   isExhausted: (tile: Tile | null, url?: string | URL | null) => boolean;
   hasPendingRetries: () => boolean;
   hasExhaustedRetries: () => boolean;
+  /** Forget every pending retry and exhausted resource. */
+  reset: () => void;
   dispose: () => void;
 }
 
@@ -67,7 +78,22 @@ export const createThreeTilesRetryController = (
 ): ThreeTilesRetryController => {
   const retryCounts = new Map<string, number>();
   const pendingRetries = new Map<string, PendingRetry>();
-  const exhaustedRetries = new Set<string>();
+  /** Resource key → time the exhausted state expires. */
+  const exhaustedRetries = new Map<string, number>();
+
+  const isKeyExhausted = (key: string): boolean => {
+    const expiresAt = exhaustedRetries.get(key);
+    if (expiresAt === undefined) return false;
+    if (Date.now() < expiresAt) return true;
+    exhaustedRetries.delete(key);
+    return false;
+  };
+  const exhaust = (key: string) => {
+    exhaustedRetries.set(key, Date.now() + EXHAUSTED_RETRY_TTL_MS);
+  };
+  const pruneExhausted = () => {
+    for (const key of [...exhaustedRetries.keys()]) isKeyExhausted(key);
+  };
 
   const handleSuccess = (tile: Tile | null, url?: string | URL | null) => {
     const key = getTileRetryKey(tile, url);
@@ -79,11 +105,12 @@ export const createThreeTilesRetryController = (
 
   const handleFailure: ThreeTilesRetryController["handleFailure"] = (
     tile,
-    url
+    url,
+    error
   ) => {
     const key = getTileRetryKey(tile, url);
     if (!key) return "ignored";
-    if (exhaustedRetries.has(key)) return "exhausted";
+    if (isKeyExhausted(key)) return "exhausted";
 
     const pending = pendingRetries.get(key);
     if (pending) {
@@ -93,8 +120,11 @@ export const createThreeTilesRetryController = (
     }
 
     const retryNumber = (retryCounts.get(key) ?? 0) + 1;
-    if (retryNumber > MAX_TILE_RETRIES) {
-      exhaustedRetries.add(key);
+    if (
+      retryNumber > MAX_TILE_RETRIES ||
+      isPermanentTileRequestFailure(error)
+    ) {
+      exhaust(key);
       return "exhausted";
     }
     retryCounts.set(key, retryNumber);
@@ -105,6 +135,9 @@ export const createThreeTilesRetryController = (
       const renderer = getRenderer();
       if (!renderer || !current) return;
 
+      // The runtime removes failed tiles from its cache, which already leaves
+      // them UNLOADED; tiles still marked FAILED are released here so the next
+      // traversal can request them.
       let resetCount = 0;
       for (const failedTile of current.tiles) {
         if (failedTile.internal.loadingState !== FAILED_LOADING_STATE) continue;
@@ -118,9 +151,9 @@ export const createThreeTilesRetryController = (
         renderer.rootLoadingState = UNLOADED_LOADING_STATE;
         resetCount += 1;
       }
-      if (resetCount === 0) return;
-
-      renderer.stats.failed = Math.max(0, renderer.stats.failed - resetCount);
+      if (resetCount > 0) {
+        renderer.stats.failed = Math.max(0, renderer.stats.failed - resetCount);
+      }
       renderer.dispatchEvent({ type: "needs-update" });
       requestRender();
     }, getTileRetryDelayMs(retryNumber, key));
@@ -132,22 +165,32 @@ export const createThreeTilesRetryController = (
     return "scheduled";
   };
 
+  const clear = () => {
+    for (const pending of pendingRetries.values()) {
+      clearTimeout(pending.timer);
+    }
+    pendingRetries.clear();
+    retryCounts.clear();
+    exhaustedRetries.clear();
+  };
+
   return {
     handleFailure,
     handleSuccess,
+    isBlocked: (tile, url) => {
+      const key = getTileRetryKey(tile, url);
+      return key !== null && (pendingRetries.has(key) || isKeyExhausted(key));
+    },
     isExhausted: (tile, url) => {
       const key = getTileRetryKey(tile, url);
-      return key !== null && exhaustedRetries.has(key);
+      return key !== null && isKeyExhausted(key);
     },
     hasPendingRetries: () => pendingRetries.size > 0,
-    hasExhaustedRetries: () => exhaustedRetries.size > 0,
-    dispose() {
-      for (const pending of pendingRetries.values()) {
-        clearTimeout(pending.timer);
-      }
-      pendingRetries.clear();
-      retryCounts.clear();
-      exhaustedRetries.clear();
+    hasExhaustedRetries: () => {
+      pruneExhausted();
+      return exhaustedRetries.size > 0;
     },
+    reset: clear,
+    dispose: clear,
   };
 };

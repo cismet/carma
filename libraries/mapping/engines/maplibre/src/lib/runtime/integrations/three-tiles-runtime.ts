@@ -22,10 +22,23 @@ import { clamp } from "@carma-commons/math";
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 import { degToRadNumeric } from "@carma-units";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
+import { createPayloadAwareRequestConcurrency } from "./payload-aware-request-concurrency";
 import {
-  createPayloadAwareRequestConcurrency,
-  getResourcePayloadByteLength,
-} from "./payload-aware-request-concurrency";
+  DEFERRED_TILE_LOADING_STATE,
+  TILES_LOAD_POLICY,
+  createEffectiveErrorTargetState,
+  createTileBytesPredictor,
+  deriveTilePriority,
+  nextEffectiveErrorTarget,
+  resolveRequestConcurrency,
+  resolveTilesCacheBounds,
+  resolveTilesCacheCeiling,
+  shouldDeferTile,
+} from "./three-tiles-load-policy";
+import type {
+  EffectiveErrorTargetState,
+  TilesDeviceProfile,
+} from "./three-tiles-load-policy";
 import {
   createTilesCameraSet,
   resolveTilesViewCamera,
@@ -55,18 +68,17 @@ export const TILES_ERROR_TARGET_MAX_PIXELS = 50;
 export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 4;
 
 const VIEW_QUALITY_AUDIT_PASSES = 2;
-const CACHE_PRESSURE_DELAY_MS = 2_500;
-const CACHE_PRESSURE_RETRY_MS = 1_000;
-const CACHE_PRESSURE_ERROR_MULTIPLIER = 1.5;
-const CACHE_PRESSURE_MAX_ERROR_MULTIPLIER = 4;
-const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
-const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
-const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 const DEFAULT_CACHE_MIN_ITEMS = 6_000;
 const DEFAULT_CACHE_MAX_ITEMS = 8_000;
 export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 64;
-const MAIN_VIEW_TILE_PRIORITY = 1_000_000;
-const TILE_DEPTH_PRIORITY_STEP = 2;
+/** Frames are requested at this interval until the root tileset arrived. */
+const KICKSTART_INTERVAL_MS = 400;
+/** A hidden tab keeps its used tiles this long before the cache is wiped. */
+export const HIDDEN_TAB_WIPE_DELAY_MS = 30_000;
+// tile.internal.loadingState values (3d-tiles-renderer core constants.js; the
+// core typings do not export them).
+const UNLOADED_LOADING_STATE = 0;
+const FAILED_LOADING_STATE = -1;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
 const tilesRendererCoreRuntime = TilesRendererCore as unknown as {
@@ -79,19 +91,162 @@ const tilesCacheUnloadPriorityCallback =
   tilesRendererCoreRuntime.DEFAULT_LRU_CACHE.unloadPriorityCallback;
 const tilesQueuePriorityCallback =
   tilesRendererCoreRuntime.unifiedPriorityCallback;
+// Mirrors upstream DEFAULT_NODE_QUEUE.priorityCallback (not exported from the
+// bundled build): children are processed in the load order of their parents.
+const tilesNodeQueuePriorityCallback = (first: Tile, second: Tile): number => {
+  const firstParent = first.parent;
+  const secondParent = second.parent;
+  if (firstParent === secondParent) return 0;
+  if (!firstParent) return 1;
+  if (!secondParent) return -1;
+  return tilesQueuePriorityCallback(firstParent, secondParent);
+};
 
 type RuntimePriorityQueue = PriorityQueue & {
   items: Tile[];
   currJobs: number;
 };
 
+type TileViewErrorTarget = {
+  inView: boolean;
+  error: number;
+  distanceFromCamera: number;
+};
+
+type RuntimeTile = Tile & {
+  priority?: number;
+  traversal: Tile["traversal"] & { unconditionallyRefine?: boolean };
+  engineData?: {
+    boundingVolume?: {
+      getAABB: (target: THREE.Box3) => void;
+      getSphere: (target: THREE.Sphere) => void;
+      intersectsFrustum: (frustum: THREE.Frustum) => boolean;
+    };
+  };
+};
+
+const frustumCornerPlanes = [
+  [0, 3, 4],
+  [1, 3, 4],
+  [0, 2, 4],
+  [1, 2, 4],
+  [0, 3, 5],
+  [1, 3, 5],
+  [0, 2, 5],
+  [1, 2, 5],
+] as const;
+const frustumCornerMatrix = new THREE.Matrix3();
+
+/**
+ * Frustum with its eight corner points, which upstream's oriented bounding
+ * box test needs (mirrors the unexported `ExtendedFrustum` of the renderer).
+ */
+class TilesViewFrustum extends THREE.Frustum {
+  readonly points = Array.from({ length: 8 }, () => new THREE.Vector3());
+
+  override setFromProjectionMatrix(
+    matrix: THREE.Matrix4,
+    coordinateSystem?: THREE.CoordinateSystem,
+    reversedDepth?: boolean
+  ): this {
+    super.setFromProjectionMatrix(matrix, coordinateSystem, reversedDepth);
+    const { planes, points } = this;
+    frustumCornerPlanes.forEach(([first, second, third], index) => {
+      const a = planes[first];
+      const b = planes[second];
+      const c = planes[third];
+      frustumCornerMatrix.set(
+        a.normal.x,
+        a.normal.y,
+        a.normal.z,
+        b.normal.x,
+        b.normal.y,
+        b.normal.z,
+        c.normal.x,
+        c.normal.y,
+        c.normal.z
+      );
+      points[index]
+        .set(-a.constant, -b.constant, -c.constant)
+        .applyMatrix3(frustumCornerMatrix.invert());
+    });
+    return this;
+  }
+}
+
 type RuntimeTilesRenderer = TilesRenderer & {
-  calculateBytesUsed: (tile: Tile, scene: THREE.Object3D) => number;
+  calculateBytesUsed: (
+    tile: Tile,
+    scene: THREE.Object3D | null
+  ) => number | null;
+  calculateTileViewErrorWithPlugin: (
+    tile: Tile,
+    target: TileViewErrorTarget
+  ) => void;
   loadingTiles: Set<Tile>;
   usedSet: Set<Tile>;
-  stats: { failed: number };
+  /** Incremented by every traversal that actually ran. */
+  frameCount: number;
+  stats: {
+    failed: number;
+    queued: number;
+    downloading: number;
+    parsing: number;
+  };
   queueTileForDownload: (tile: Tile) => void;
 };
+
+type RuntimeLruCache = TilesRenderer["lruCache"] & {
+  itemSet: Map<Tile, number>;
+  itemList: Tile[];
+  usedSet: Set<Tile>;
+  cachedBytes: number;
+};
+
+const readTilesDeviceProfile = (): TilesDeviceProfile => {
+  if (typeof navigator === "undefined") {
+    return { userAgent: "", platform: "", maxTouchPoints: 0 };
+  }
+  const deviceMemory = (navigator as Navigator & { deviceMemory?: number })
+    .deviceMemory;
+  return {
+    deviceMemoryGiB:
+      typeof deviceMemory === "number" ? deviceMemory : undefined,
+    userAgent: navigator.userAgent ?? "",
+    platform: navigator.platform ?? "",
+    maxTouchPoints: navigator.maxTouchPoints ?? 0,
+  };
+};
+
+const resolveTileContentUrl = (tile: Tile): string | null => {
+  const uri = tile.content?.uri;
+  if (!uri) return null;
+  try {
+    return new URL(uri, `${tile.internal.basePath}/`).toString();
+  } catch {
+    return uri;
+  }
+};
+
+/**
+ * Upstream computes `unconditionallyRefine` after the view error of a tile, so
+ * derive the current-frame value for the deferral decision the same way.
+ */
+const isUnconditionallyRefined = (tile: Tile): boolean => {
+  if (tile.internal.hasUnrenderableContent) return true;
+  let ancestor = tile.parent as RuntimeTile | null;
+  while (ancestor && ancestor.traversal?.unconditionallyRefine) {
+    ancestor = ancestor.parent as RuntimeTile | null;
+  }
+  return ancestor !== null && ancestor.geometricError <= tile.geometricError;
+};
+
+const readMapView = (
+  map: MaplibreMap | null
+): { zoom: number; pitch: number } =>
+  map && typeof map.getZoom === "function" && typeof map.getPitch === "function"
+    ? { zoom: map.getZoom(), pitch: map.getPitch() }
+    : { zoom: 0, pitch: 0 };
 
 const buildPrimitiveOutlinePlugin = (
   parser: unknown,
@@ -137,8 +292,14 @@ export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
   setOpacity: (opacity: number) => void;
   setWireframe: (enabled: boolean) => void;
   setOutlineVisible: (visible: boolean) => void;
+  /** Restyle loaded outlines and the ones parsed from now on. */
+  setOutlineStyle: (style: OutlineStyleOptions) => void;
   setTileBoundsVisible: (enabled: boolean) => void;
-  setCacheBudget: (bytes: number) => void;
+  /**
+   * Style cache limits; they can only lower the device ceiling. No budget
+   * restores the device ceiling.
+   */
+  setCacheBudget: (bytes?: number, options?: CacheBudgetOptions) => void;
   setRequestConcurrency: (jobs: number) => void;
   getRequestDemand: () => number;
   getViewElevationRange: (
@@ -154,6 +315,16 @@ export interface ClayMaterialOptions {
   color?: string;
   roughness?: number;
   metalness?: number;
+}
+
+export interface OutlineStyleOptions {
+  color?: THREE.ColorRepresentation;
+  opacity?: number;
+}
+
+export interface CacheBudgetOptions {
+  /** Bytes the style allows beyond its budget before downloads pause. */
+  overflowBytes?: number;
 }
 
 export interface ThreeTilesRuntimeOptions {
@@ -188,18 +359,28 @@ export function buildThreeTilesRuntime(
   let cameraSet: TilesCameraSet | null = null;
   let kickstartTimer = 0;
   let requestBackoffTimer = 0;
+  let hiddenWipeTimer = 0;
+  let disposed = false;
+  let lastTraversalFrameCount = -1;
   let unsubscribeTerrainLoading: (() => void) | null = null;
   let requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
   let effectiveErrorTarget = requestedErrorTarget;
-  let cacheBudgetBytes = Math.max(
-    MINIMUM_CACHE_BYTES,
-    Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
-  );
-  const configuredCacheOverflowBytes =
-    options.cacheOverflowBytes ?? DEFAULT_CACHE_OVERFLOW_BYTES;
-  const cacheOverflowBytes = Number.isFinite(configuredCacheOverflowBytes)
-    ? Math.max(0, Math.floor(configuredCacheOverflowBytes))
-    : Number.POSITIVE_INFINITY;
+  let errorTargetState: EffectiveErrorTargetState =
+    createEffectiveErrorTargetState(requestedErrorTarget, Date.now());
+  let errorTargetTimer = 0;
+  let lastProgressAt = 0;
+  let usedBytesMain = 0;
+  let lastMainViewConverged = false;
+  const deviceProfile = readTilesDeviceProfile();
+  let styleCacheBudgetBytes = options.cacheBudgetBytes;
+  let styleCacheOverflowBytes = options.cacheOverflowBytes;
+  let ceilingBytes = resolveTilesCacheCeiling(deviceProfile, {
+    cacheBudgetBytes: styleCacheBudgetBytes,
+    cacheOverflowBytes: styleCacheOverflowBytes,
+  });
+  const bytesPredictor = createTileBytesPredictor();
+  /** Displayable siblings outside the view and its prefetch margin (D1). */
+  const deferred = new Set<Tile>();
   let requestConcurrency = Math.max(
     0,
     Math.floor(
@@ -222,6 +403,9 @@ export function buildThreeTilesRuntime(
   let opacity = 1;
   let wireframe = false;
   let outlineVisible = options.outline ?? true;
+  let outlineColor: THREE.ColorRepresentation =
+    options.outlineColor ?? 0x000000;
+  let outlineOpacity = clamp(options.outlineOpacity ?? 1, 0, 1);
   let shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
   let shadowView: SharedThreeSceneShadowView | null = null;
   let shadowViewSignature = "";
@@ -229,9 +413,6 @@ export function buildThreeTilesRuntime(
   let shadowSelectionNeedsTraversal = false;
   let viewRefinementPending = false;
   let viewQualityAuditPasses = 0;
-  let cachePressureTimer = 0;
-  let cachePressureStartedAt = 0;
-  let lastCachePressureRecoveryAt = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
@@ -239,7 +420,11 @@ export function buildThreeTilesRuntime(
   const placementMatrix = new THREE.Matrix4();
   const inversePlacementMatrix = new THREE.Matrix4();
   const tileViewProjection = new THREE.Matrix4();
-  const tileViewFrustum = new THREE.Frustum();
+  const tileViewFrustum = new TilesViewFrustum();
+  const marginCamera = new THREE.PerspectiveCamera();
+  const marginProjection = new THREE.Matrix4();
+  const marginFrustum = new TilesViewFrustum();
+  let viewFrustumsReady = false;
   const tileBoundingSphere = new THREE.Sphere();
   const tileBoundingBox = new THREE.Box3();
   const activeTileBoundingBox = new THREE.Box3();
@@ -901,6 +1086,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       }
     });
   };
+  const applyOutlineStyle = (root: THREE.Object3D) => {
+    root.traverse((object) => {
+      if (!object.userData[TILE_OUTLINE_FLAG]) return;
+      const outline = object as THREE.LineSegments;
+      for (const material of asMaterialArray(outline.material)) {
+        if (!(material instanceof THREE.LineBasicMaterial)) continue;
+        material.color.set(outlineColor);
+        material.opacity = outlineOpacity;
+        material.transparent = outlineOpacity < 1;
+        material.needsUpdate = true;
+      }
+    });
+  };
 
   const requestRender = () => map?.triggerRepaint();
   const getDownloadQueues = (): RuntimePriorityQueue[] =>
@@ -912,20 +1110,32 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const runDownloadQueues = () => {
     for (const queue of getDownloadQueues()) queue.tryRunJobs();
   };
-  const resetCachePressureRecovery = () => {
-    if (cachePressureTimer) {
-      window.clearTimeout(cachePressureTimer);
-      cachePressureTimer = 0;
+  const clearErrorTargetTimer = () => {
+    if (errorTargetTimer) {
+      window.clearTimeout(errorTargetTimer);
+      errorTargetTimer = 0;
     }
-    cachePressureStartedAt = 0;
-    lastCachePressureRecoveryAt = 0;
   };
+  const clearKickstartTimer = () => {
+    if (kickstartTimer) {
+      window.clearInterval(kickstartTimer);
+      kickstartTimer = 0;
+    }
+  };
+  const clearHiddenWipeTimer = () => {
+    if (hiddenWipeTimer) {
+      window.clearTimeout(hiddenWipeTimer);
+      hiddenWipeTimer = 0;
+    }
+  };
+  const getRuntimeCache = (): RuntimeLruCache | null =>
+    tiles ? (tiles.lruCache as RuntimeLruCache) : null;
   const tileRetries = createThreeTilesRetryController(
     () => tiles as unknown as (TilesRenderer & RetryableTilesRenderer) | null,
     requestRender
   );
   const getRequestDemand = () => {
-    if (!runtimeVisible) return 0;
+    if (disposed || !runtimeVisible) return 0;
     if (!tiles) return 1;
     const downloadDemand = getDownloadQueues().reduce(
       (total, queue) => total + queue.items.length + queue.currJobs,
@@ -950,7 +1160,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       (stats?.parsing ?? 0) +
       (shadowView && !shadowSelectionEnabled ? 1 : 0) +
       (shadowSelectionNeedsTraversal ? 1 : 0) +
-      (cachePressureTimer ? 1 : 0) +
+      (errorTargetTimer ? 1 : 0) +
+      (tileRetries.hasPendingRetries() ? 1 : 0) +
+      (payloadAwareConcurrency.getCooldownRemainingMs() > 0 ? 1 : 0) +
       viewQualityAuditPasses +
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries()
         ? 1
@@ -1027,101 +1239,146 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     shadowSelectionNeedsTraversal = nextEnabled;
     cameraSet?.setShadowView(nextEnabled ? shadowView : null);
   };
-  const mainViewMeetsErrorTarget = () => {
+  const isPipelineIdle = () =>
+    tiles !== null &&
+    !tiles.downloadQueue.running &&
+    !tiles.parseQueue.running &&
+    !tiles.processNodeQueue.running &&
+    tiles.loadingTiles.size === 0 &&
+    !tileRetries.hasPendingRetries() &&
+    payloadAwareConcurrency.getCooldownRemainingMs() <= 0;
+  const isTileInMainView = (tile: RuntimeTile): boolean => {
+    const bounds = tile.engineData?.boundingVolume;
+    if (!bounds || !viewFrustumsReady) {
+      return tile.traversal?.inFrustum ?? false;
+    }
+    return bounds.intersectsFrustum(tileViewFrustum);
+  };
+  const isChildUnloadable = (child: RuntimeTile): boolean =>
+    deferred.has(child) ||
+    tileRetries.isBlocked(child) ||
+    (!child.internal?.hasContent && (child.children?.length ?? 0) === 0);
+  /**
+   * The main view converged when every displayed tile inside the main camera
+   * frustum either meets the effective target or cannot refine any further
+   * because all of its children are deferred, retry-blocked or empty.
+   */
+  const mainViewConverged = () => {
     if (!tiles || tiles.visibleTiles.size === 0) return false;
-    for (const tile of tiles.visibleTiles) {
-      if (
-        tile.traversal.inFrustum &&
-        (tile.children?.length ?? 0) > 0 &&
-        tile.traversal.error > effectiveErrorTarget
-      ) {
-        return false;
+    for (const visible of tiles.visibleTiles) {
+      const tile = visible as RuntimeTile;
+      const children = (tile.children ?? []) as RuntimeTile[];
+      if (children.length === 0 || tile.traversal?.unconditionallyRefine) {
+        continue;
       }
+      if (!isTileInMainView(tile)) continue;
+      if (tile.traversal.error <= effectiveErrorTarget) continue;
+      if (!children.every(isChildUnloadable)) return false;
     }
     return true;
   };
-  const resolveMainViewCachePressure = () => {
-    if (!tiles || !viewRefinementPending || mainViewMeetsErrorTarget()) {
-      resetCachePressureRecovery();
-      return;
+  const measureUsedBytesMain = () => {
+    if (!tiles) return;
+    let bytes = 0;
+    for (const tile of tiles.usedSet) {
+      bytes += tiles.lruCache.getMemoryUsage(tile);
     }
-    if (
-      !tiles.lruCache.isFull() ||
-      tiles.loadingTiles.size > 0 ||
-      tiles.downloadQueue.running ||
-      tiles.parseQueue.running ||
-      tiles.processNodeQueue.running
-    ) {
-      resetCachePressureRecovery();
-      return;
-    }
-    const cache = tiles.lruCache as typeof tiles.lruCache & {
-      itemSet: Map<Tile, number>;
-    };
-    let removed = false;
-    for (const tile of [...cache.itemSet.keys()]) {
-      if (!tiles.usedSet.has(tile)) {
-        removed = cache.remove(tile) || removed;
-      }
-    }
-    if (removed) {
-      resetCachePressureRecovery();
-      tiles.dispatchEvent({ type: "needs-update" });
-      requestRender();
-      return;
-    }
-
-    const now = Date.now();
-    if (cachePressureStartedAt === 0) cachePressureStartedAt = now;
-    const recoveryDueAt = Math.max(
-      cachePressureStartedAt + CACHE_PRESSURE_DELAY_MS,
-      lastCachePressureRecoveryAt + CACHE_PRESSURE_RETRY_MS
-    );
-    if (now < recoveryDueAt) {
-      if (!cachePressureTimer) {
-        cachePressureTimer = window.setTimeout(() => {
-          cachePressureTimer = 0;
-          tiles?.dispatchEvent({ type: "needs-update" });
-          requestRender();
-        }, recoveryDueAt - now);
-      }
-      return;
-    }
-
-    const maximumFallbackError = Math.min(
-      TILES_ERROR_TARGET_MAX_PIXELS,
-      requestedErrorTarget * CACHE_PRESSURE_MAX_ERROR_MULTIPLIER
-    );
-    const relaxedErrorTarget = Math.min(
-      maximumFallbackError,
-      effectiveErrorTarget === 0
-        ? Number.EPSILON
-        : effectiveErrorTarget * CACHE_PRESSURE_ERROR_MULTIPLIER
-    );
-    if (relaxedErrorTarget === effectiveErrorTarget) return;
-    effectiveErrorTarget = relaxedErrorTarget;
-    lastCachePressureRecoveryAt = now;
-    tiles.errorTarget = effectiveErrorTarget;
-    tiles.dispatchEvent({ type: "needs-update" });
+    usedBytesMain = bytes;
+  };
+  const applyEffectiveErrorTarget = (nextTarget: number) => {
+    if (effectiveErrorTarget === nextTarget) return;
+    effectiveErrorTarget = nextTarget;
+    if (tiles) tiles.errorTarget = effectiveErrorTarget;
+    viewRefinementPending = true;
+    setShadowSelectionEnabled(false);
+    tiles?.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
-  const clearCacheWhileHidden = () => {
+  const resetEffectiveErrorTarget = () => {
+    clearErrorTargetTimer();
+    errorTargetState = createEffectiveErrorTargetState(
+      requestedErrorTarget,
+      Date.now()
+    );
+    effectiveErrorTarget = requestedErrorTarget;
+    if (tiles) tiles.errorTarget = effectiveErrorTarget;
+  };
+  const applyErrorTargetPolicy = () => {
+    const cache = getRuntimeCache();
+    if (!tiles || !cache) return;
+    const { zoom, pitch } = readMapView(map);
+    const result = nextEffectiveErrorTarget(errorTargetState, {
+      now: Date.now(),
+      physicallyFull: cache.isFull(),
+      pipelineIdle: isPipelineIdle(),
+      mainConverged: lastMainViewConverged,
+      usedBytesMain,
+      cachedBytes: cache.cachedBytes,
+      ceiling: ceilingBytes,
+      zoom,
+      pitch,
+      unusedEvictable: cache.itemList.length > cache.usedSet.size,
+      lastProgressAt,
+    });
+    errorTargetState = result.state;
+    clearErrorTargetTimer();
+    if (result.changed) {
+      applyEffectiveErrorTarget(errorTargetState.effective);
+      return;
+    }
+    if (result.retryInMs !== null) {
+      errorTargetTimer = window.setTimeout(() => {
+        errorTargetTimer = 0;
+        tiles?.dispatchEvent({ type: "needs-update" });
+        requestRender();
+      }, Math.max(1, Math.ceil(result.retryInMs)));
+    }
+  };
+  const resetDeferredTiles = () => {
+    for (const tile of deferred) {
+      if (tile.internal.loadingState === DEFERRED_TILE_LOADING_STATE) {
+        tile.internal.loadingState = UNLOADED_LOADING_STATE;
+      }
+    }
+    deferred.clear();
+  };
+  const evictUnusedCacheItems = () => {
+    const cache = getRuntimeCache();
+    if (!cache) return;
+    for (const tile of [...cache.itemList]) {
+      if (!cache.usedSet.has(tile)) cache.remove(tile);
+    }
+  };
+  /** Full wipe of a tab that stayed hidden: memory back, state reset. */
+  const wipeCacheWhileHidden = () => {
+    hiddenWipeTimer = 0;
+    if (!tiles) return;
+    viewRefinementPending = true;
+    setShadowSelectionEnabled(false);
+    resetEffectiveErrorTarget();
+    resetDeferredTiles();
+    tileRetries.reset();
+    const cache = getRuntimeCache();
+    if (!cache) return;
+    for (const tile of [...cache.itemSet.keys()]) cache.remove(tile);
+  };
+  const handleVisibilityChange = () => {
     if (!tiles) return;
     if (document.visibilityState !== "hidden") {
+      clearHiddenWipeTimer();
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles.dispatchEvent({ type: "needs-update" });
       requestRender();
       return;
     }
-    resetCachePressureRecovery();
-    viewRefinementPending = shadowView !== null;
-    setShadowSelectionEnabled(false);
-    effectiveErrorTarget = requestedErrorTarget;
-    tiles.errorTarget = effectiveErrorTarget;
-    const cache = tiles.lruCache as typeof tiles.lruCache & {
-      itemSet: Map<Tile, number>;
-    };
-    for (const tile of [...cache.itemSet.keys()]) cache.remove(tile);
+    // Unused content goes at once; the tiles of the last view stay for a
+    // quick return before the debounced full wipe.
+    evictUnusedCacheItems();
+    clearHiddenWipeTimer();
+    hiddenWipeTimer = window.setTimeout(
+      wipeCacheWhileHidden,
+      HIDDEN_TAB_WIPE_DELAY_MS
+    );
   };
   const maybeEnableShadowSelection = () => {
     if (
@@ -1133,16 +1390,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     ) {
       return;
     }
-    const stats = tiles as unknown as TilesRenderer & {
-      stats: { queued: number; downloading: number; parsing: number };
-    };
-    if (
-      stats.stats.queued + stats.stats.downloading + stats.stats.parsing >
-      0
-    ) {
-      return;
-    }
-    if (!mainViewMeetsErrorTarget()) return;
+    if (!isPipelineIdle() || !lastMainViewConverged) return;
     viewRefinementPending = false;
     setShadowSelectionEnabled(true);
     tiles.dispatchEvent({ type: "needs-update" });
@@ -1162,12 +1410,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       applyOutlineVisibility(event.scene);
     }
     options.onContentChanged?.();
-    const payloadByteLength = getResourcePayloadByteLength(event.url);
-    if (payloadByteLength !== null) {
-      payloadAwareConcurrency.observePayload(payloadByteLength);
-    } else {
-      payloadAwareConcurrency.observeSuccess();
+    lastProgressAt = Date.now();
+    if (event.tile && tiles) {
+      const registeredBytes = tiles.lruCache.getMemoryUsage(event.tile);
+      bytesPredictor.observe(
+        {
+          url: event.url ?? resolveTileContentUrl(event.tile),
+          geometricError: event.tile.geometricError,
+        },
+        registeredBytes
+      );
+      reapplyCacheBoundsIfDrifted();
     }
+    payloadAwareConcurrency.observeSuccess();
     applyRequestConcurrency();
     notifyRequestStateChange();
     requestRender();
@@ -1178,37 +1433,58 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       restoreLitTextureMaterials(event.scene);
     }
     options.onContentChanged?.();
+    // Freed space admits waiting tiles only through a new traversal, which
+    // the change-gated update would otherwise wait for the camera to trigger.
+    if (tiles && !tiles.lruCache.isFull()) {
+      tiles.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    }
   };
   const handleTilesetLoad = (event: { url?: string }) => {
+    clearKickstartTimer();
     tileRetries.handleSuccess(null, event.url);
     payloadAwareConcurrency.observeSuccess();
     applyRequestConcurrency();
     requestRender();
   };
+  /**
+   * D8: a failed tile leaves the cache so a later retry can be admitted again;
+   * it stays UNLOADED and is skipped by `queueTileForDownload` while blocked,
+   * so its parent keeps rendering as the fallback.
+   */
   const handleLoadError = (event: {
     tile?: Tile | null;
     url?: string | URL;
     error?: unknown;
   }) => {
-    const retryState = tileRetries.handleFailure(event.tile ?? null, event.url);
-    if (retryState === "exhausted" && event.tile && tiles) {
-      const failedTile = event.tile;
-      const wasFailed = failedTile.internal.loadingState === -1;
+    const failedTile = event.tile ?? null;
+    if (failedTile && deferred.has(failedTile)) return;
+    const retryState = tileRetries.handleFailure(
+      failedTile,
+      event.url,
+      event.error
+    );
+    if (failedTile && tiles && retryState !== "ignored") {
+      const wasFailed =
+        failedTile.internal.loadingState === FAILED_LOADING_STATE;
       const removed = tiles.lruCache.remove(failedTile);
-      if (!removed && wasFailed) failedTile.internal.loadingState = 0;
+      if (!removed && wasFailed) {
+        failedTile.internal.loadingState = UNLOADED_LOADING_STATE;
+      }
       if (wasFailed) {
         tiles.stats.failed = Math.max(0, tiles.stats.failed - 1);
       }
-      tiles.dispatchEvent({ type: "needs-update" });
-      requestRender();
+      if (retryState === "exhausted") {
+        tiles.dispatchEvent({ type: "needs-update" });
+        requestRender();
+      }
     }
     payloadAwareConcurrency.observeFailure(event.error);
     applyRequestConcurrency();
     scheduleRequestBackoffRecovery();
-    if (kickstartTimer) {
-      window.clearInterval(kickstartTimer);
-      kickstartTimer = 0;
-    }
+    // A failed root is retried by the controller; tile errors keep the
+    // kickstart running until the root tileset arrives.
+    if (!failedTile) clearKickstartTimer();
     maybeEnableShadowSelection();
     notifyRequestStateChange();
   };
@@ -1245,37 +1521,61 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }
   };
   const applyCacheBudget = () => {
-    if (!tiles) return;
-    const cache = tiles.lruCache as typeof tiles.lruCache & {
-      itemSet: { size: number };
-      cachedBytes: number;
-    };
-    const configuredCeilingBytes = Number.isFinite(cacheOverflowBytes)
-      ? cacheBudgetBytes + cacheOverflowBytes
-      : Number.POSITIVE_INFINITY;
-    const ceilingBytes = configuredCeilingBytes;
-    // Download admission and asynchronous eviction must use the same upper
-    // bound. Otherwise freshly queued tiles are aborted and requested again
-    // forever once decoded content passes the smaller eviction value.
+    const cache = getRuntimeCache();
+    if (!cache) return;
+    const ceiling = ceilingBytes;
+    const bounds = resolveTilesCacheBounds({
+      ceilingBytes: ceiling,
+      estimateBytes: bytesPredictor.globalEstimate(),
+    });
+    // Admission stops at the physical ceiling (tiles register their predicted
+    // bytes on admission, so `cachedBytes` grows before downloads finish); the
+    // asynchronous eviction keeps a retention floor below it and only aborts
+    // in-flight tiles once the real bytes drift far beyond the estimates.
     cache.minSize = DEFAULT_CACHE_MIN_ITEMS;
     cache.maxSize = DEFAULT_CACHE_MAX_ITEMS;
-    cache.minBytesSize = cacheBudgetBytes;
-    cache.maxBytesSize = ceilingBytes;
-    cache.unloadPercent = 0.5;
+    cache.minBytesSize = bounds.minBytesSize;
+    cache.maxBytesSize = bounds.maxBytesSize;
+    cache.unloadPercent = TILES_LOAD_POLICY.cacheUnloadPercent;
     cache.isFull = () =>
-      cache.itemSet.size >= cache.maxSize || cache.cachedBytes >= ceilingBytes;
+      cache.itemSet.size >= cache.maxSize || cache.cachedBytes >= ceiling;
     cache.scheduleUnload();
   };
+  const reapplyCacheBoundsIfDrifted = () => {
+    const cache = getRuntimeCache();
+    if (!cache) return;
+    const bounds = resolveTilesCacheBounds({
+      ceilingBytes,
+      estimateBytes: bytesPredictor.globalEstimate(),
+    });
+    if (
+      Math.abs(bounds.maxBytesSize - cache.maxBytesSize) >
+      TILES_LOAD_POLICY.cacheBoundsReapplyBytes
+    ) {
+      applyCacheBudget();
+    }
+  };
   const applyRequestConcurrency = () => {
-    if (!tiles) return;
-    const activeConcurrency =
-      payloadAwareConcurrency.getConcurrency(requestConcurrency);
+    const cache = getRuntimeCache();
+    if (!tiles || !cache) return;
+    const activeConcurrency = resolveRequestConcurrency({
+      configured: payloadAwareConcurrency.getConcurrency(requestConcurrency),
+      ceilingBytes,
+      cachedBytes: cache.cachedBytes,
+      estimateBytes: bytesPredictor.globalEstimate(),
+    });
     tiles.downloadQueue.maxJobsPerOrigin =
       map &&
       options.providesTerrain !== true &&
       isSharedThreeTerrainLoading(map)
         ? 0
         : activeConcurrency;
+  };
+  const handleWireBytes = (_url: string, response: Response) => {
+    const contentLength = Number(response.headers.get("content-length"));
+    if (!Number.isFinite(contentLength) || contentLength <= 0) return;
+    payloadAwareConcurrency.observePayload(contentLength);
+    applyRequestConcurrency();
   };
   const scheduleRequestBackoffRecovery = () => {
     if (!tiles) return;
@@ -1296,9 +1596,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }, delay);
   };
   const handleViewStart = () => {
-    resetCachePressureRecovery();
-    effectiveErrorTarget = requestedErrorTarget;
-    if (tiles) tiles.errorTarget = effectiveErrorTarget;
     viewRefinementPending = true;
     if (shadowView) {
       setShadowSelectionEnabled(false);
@@ -1307,18 +1604,20 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const handleViewEnd = () => {
     if (!tiles) return;
-    resetCachePressureRecovery();
-    effectiveErrorTarget = requestedErrorTarget;
     viewRefinementPending = true;
     if (shadowView) {
       setShadowSelectionEnabled(false);
     }
-    tiles.errorTarget = effectiveErrorTarget;
     viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
     tiles.dispatchEvent({ type: "needs-update" });
   };
-  const prioritizeQueuedTiles = (viewCamera: THREE.Camera) => {
+  /** Main-view and prefetch-margin frustums in the tiles group frame. */
+  const prepareViewFrustums = (viewCamera: THREE.Camera) => {
     if (!tiles) return;
+    // Refresh the parents directly, then let TilesGroup recompute its own
+    // world matrix so its cached inverse (used by the traversal) stays in sync.
+    offsetGroup.updateWorldMatrix(true, false);
+    tiles.group.updateMatrixWorld(true);
     tileViewProjection
       .multiplyMatrices(
         viewCamera.projectionMatrix,
@@ -1330,48 +1629,125 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       viewCamera.coordinateSystem,
       viewCamera.reversedDepth
     );
-    for (const queue of getDownloadQueues()) {
-      for (const tile of queue.items as Array<
-        Tile & {
-          priority?: number;
-          engineData?: {
-            boundingVolume?: {
-              getAABB: (target: THREE.Box3) => void;
-              getSphere: (target: THREE.Sphere) => void;
-            };
-          };
-        }
-      >) {
-        const bounds = tile.engineData?.boundingVolume;
-        if (!bounds) continue;
-        bounds.getAABB(tileBoundingBox);
-        const inViewport = tileViewFrustum.intersectsBox(tileBoundingBox);
-        bounds.getSphere(tileBoundingSphere);
-        tileProjectedCenter
-          .copy(tileBoundingSphere.center)
-          .applyMatrix4(tiles.group.matrixWorld)
-          .project(viewCamera);
-        const centerDistance = Math.min(
-          Math.SQRT2,
-          Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
-        );
-        const centerPriority = 1 - centerDistance / Math.SQRT2;
-        const depthPriority =
-          Math.max(0, tile.internal?.depth ?? 0) * TILE_DEPTH_PRIORITY_STEP;
-        tile.priority =
-          (inViewport ? MAIN_VIEW_TILE_PRIORITY : 0) -
-          depthPriority +
-          centerPriority;
+    if (viewCamera instanceof THREE.PerspectiveCamera) {
+      marginCamera.fov =
+        viewCamera.fov * TILES_LOAD_POLICY.prefetchMarginFovFactor;
+      marginCamera.aspect = viewCamera.aspect;
+      marginCamera.near = viewCamera.near;
+      marginCamera.far = viewCamera.far;
+      marginCamera.zoom = viewCamera.zoom;
+      marginCamera.updateProjectionMatrix();
+      marginProjection
+        .multiplyMatrices(
+          marginCamera.projectionMatrix,
+          viewCamera.matrixWorldInverse
+        )
+        .multiply(tiles.group.matrixWorld);
+      marginFrustum.setFromProjectionMatrix(
+        marginProjection,
+        viewCamera.coordinateSystem,
+        viewCamera.reversedDepth
+      );
+    } else {
+      marginFrustum.copy(tileViewFrustum);
+    }
+    viewFrustumsReady = true;
+  };
+  const isTileInPrefetchMargin = (tile: RuntimeTile): boolean => {
+    const bounds = tile.engineData?.boundingVolume;
+    if (!bounds || !viewFrustumsReady) return false;
+    return bounds.intersectsFrustum(marginFrustum);
+  };
+  /**
+   * D1: displayable REPLACE siblings outside the view and its prefetch margin
+   * are parked in the FAILED state so upstream's parent gate treats them as
+   * finished without a download; they are released once they come into view.
+   */
+  const applyTileDeferral = (tile: Tile, inView: boolean) => {
+    const runtimeTile = tile as RuntimeTile;
+    const isDeferred = deferred.has(tile);
+    const displayable =
+      tile.internal.hasRenderableContent &&
+      tile.refine === "REPLACE" &&
+      !isUnconditionallyRefined(tile);
+    const decision = shouldDeferTile({
+      displayable,
+      inView,
+      inMargin:
+        !inView && (isDeferred || displayable)
+          ? isTileInPrefetchMargin(runtimeTile)
+          : false,
+      loadingState: tile.internal.loadingState,
+      isDeferred,
+    });
+    if (decision === "defer") {
+      tile.internal.loadingState = DEFERRED_TILE_LOADING_STATE;
+      deferred.add(tile);
+    } else if (decision === "undefer") {
+      deferred.delete(tile);
+      if (tile.internal.loadingState === DEFERRED_TILE_LOADING_STATE) {
+        tile.internal.loadingState = UNLOADED_LOADING_STATE;
       }
-      queue.sort();
+    }
+  };
+  const assignTilePriority = (tile: RuntimeTile) => {
+    const bounds = tile.engineData?.boundingVolume;
+    let inMainFrustum = tile.traversal?.inFrustum ?? false;
+    let centerness = 0;
+    if (bounds && viewFrustumsReady && tiles) {
+      inMainFrustum = bounds.intersectsFrustum(tileViewFrustum);
+      bounds.getSphere(tileBoundingSphere);
+      tileProjectedCenter
+        .copy(tileBoundingSphere.center)
+        .applyMatrix4(tileViewProjection);
+      const centerDistance = Math.min(
+        Math.SQRT2,
+        Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
+      );
+      centerness = 1 - centerDistance / Math.SQRT2;
+    }
+    tile.priority = deriveTilePriority({
+      depth: tile.internal?.depth ?? 0,
+      inMainFrustum,
+      isExternalTileset: tile.internal?.hasUnrenderableContent ?? false,
+      centerness,
+    });
+  };
+  /** Refresh the download and parse order for the current view every frame. */
+  const prioritizeQueuedTiles = () => {
+    if (!tiles) return;
+    for (const queue of getDownloadQueues()) {
+      for (const tile of queue.items) assignTilePriority(tile as RuntimeTile);
+    }
+    const parseQueue = tiles.parseQueue as RuntimePriorityQueue;
+    for (const tile of parseQueue.items)
+      assignTilePriority(tile as RuntimeTile);
+  };
+  /**
+   * The debug plugin does per-frame, per-tile work, so it only exists while
+   * the bounds are shown.
+   */
+  const syncDebugTilesPlugin = () => {
+    if (!tiles) return;
+    if (tileBoundsVisible && !debugTilesPlugin) {
+      debugTilesPlugin = new DebugTilesPlugin({ displayBoxBounds: true });
+      tiles.registerPlugin(debugTilesPlugin);
+    } else if (!tileBoundsVisible && debugTilesPlugin) {
+      tiles.unregisterPlugin(debugTilesPlugin);
+      debugTilesPlugin = null;
     }
   };
   const handleUpdateAfter = () => {
     const currentTiles = tiles;
     if (!currentTiles) return;
-    const cache = currentTiles.lruCache as typeof currentTiles.lruCache & {
-      itemSet: Map<unknown, number>;
-    };
+    const cache = currentTiles.lruCache as RuntimeLruCache;
+    // A traversal skipped by the change gate never schedules the eviction
+    // that would bring the cache back to its retention floor.
+    const traversalRan = currentTiles.frameCount !== lastTraversalFrameCount;
+    lastTraversalFrameCount = currentTiles.frameCount;
+    if (!traversalRan && cache.cachedBytes > cache.minBytesSize) {
+      cache.scheduleUnload();
+    }
     const entriesBeforeUnload = cache.itemSet.size;
     queueMicrotask(() => {
       if (tiles !== currentTiles) return;
@@ -1402,25 +1778,56 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       const parseQueue = new PriorityQueue();
       parseQueue.priorityCallback = tilesQueuePriorityCallback;
       const processNodeQueue = new PriorityQueue();
-      processNodeQueue.priorityCallback = tilesQueuePriorityCallback;
+      processNodeQueue.priorityCallback = tilesNodeQueuePriorityCallback;
       tiles.lruCache = tileCache;
       tiles.downloadQueue = downloadQueue;
       tiles.parseQueue = parseQueue;
       tiles.processNodeQueue = processNodeQueue;
+      // D2: admission registers a predicted size so the cache fills before
+      // downloads finish; measured content carries the resident overhead.
       const calculateBytesUsed = tiles.calculateBytesUsed.bind(tiles);
-      tiles.calculateBytesUsed = (tile, scene) =>
-        Math.round(calculateBytesUsed(tile, scene) ?? 0);
+      tiles.calculateBytesUsed = (tile, scene) => {
+        const measured = calculateBytesUsed(tile, scene);
+        if (measured !== null && measured > 0) {
+          return Math.round(measured * TILES_LOAD_POLICY.residentOverhead);
+        }
+        return bytesPredictor.predict({
+          url: resolveTileContentUrl(tile),
+          geometricError: tile.geometricError,
+          isExternalTileset: tile.internal.hasUnrenderableContent,
+        });
+      };
+      // D1: the deferral decision rides on upstream's per-frame view error.
+      const calculateTileViewErrorWithPlugin =
+        tiles.calculateTileViewErrorWithPlugin.bind(tiles);
+      tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
+        calculateTileViewErrorWithPlugin(tile, target);
+        applyTileDeferral(tile, target.inView);
+      };
       const queueTileForDownload = tiles.queueTileForDownload.bind(tiles);
       tiles.queueTileForDownload = (tile) => {
-        if (tile.traversal && !tile.traversal.inFrustum) return;
-        if (tileRetries.isExhausted(tile)) return;
+        // D8: a pending retry or an exhausted budget keeps the parent as the
+        // fallback instead of re-requesting the tile every frame.
+        if (tileRetries.isBlocked(tile)) return;
+        // D7: REPLACE content that refines unconditionally is never displayed.
+        if (
+          tile.refine === "REPLACE" &&
+          (tile as RuntimeTile).traversal?.unconditionallyRefine === true &&
+          tile.internal.hasRenderableContent
+        ) {
+          return;
+        }
+        assignTilePriority(tile as RuntimeTile);
         queueTileForDownload(tile);
       };
       // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
       tiles.registerPlugin(new ImplicitTilingPlugin());
       tiles.registerPlugin(new UpdateOnChangePlugin());
-      // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly
-      tiles.registerPlugin(new Gltf1UpgradePlugin());
+      // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly. The raw
+      // response feeds the wire-size sampling of the request concurrency.
+      tiles.registerPlugin(
+        new Gltf1UpgradePlugin({ onResponse: handleWireBytes })
+      );
       // Draco-compressed glTF payloads need an explicit decoder
       dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath(
@@ -1432,16 +1839,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           plugins: [
             (parser: unknown) =>
               buildPrimitiveOutlinePlugin(parser, {
-                color: options.outlineColor ?? 0x000000,
-                opacity: options.outlineOpacity ?? 1,
+                color: outlineColor,
+                opacity: outlineOpacity,
               }),
           ],
         })
       );
-      debugTilesPlugin = new DebugTilesPlugin({
-        displayBoxBounds: tileBoundsVisible,
-      });
-      tiles.registerPlugin(debugTilesPlugin);
+      syncDebugTilesPlugin();
       // Reorient the ECEF tileset into the local scene frame at the
       // layer origin: ENU with +Y up, north toward -Z — matching the
       // point cloud layers (x east, y up, z south).
@@ -1465,25 +1869,16 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles.errorTarget = effectiveErrorTarget;
       offsetGroup.add(tiles.group);
 
-      // Request frames until the first tile work starts.
+      // Request frames until the root tileset arrived (`load-tileset`) or
+      // tile work started; a hidden runtime does not ask for frames.
       kickstartTimer = window.setInterval(() => {
-        const stats = (
-          tiles as unknown as {
-            stats?: { downloading?: number; parsing?: number };
-          }
-        )?.stats;
-        if (
-          !tiles ||
-          (stats?.downloading ?? 0) > 0 ||
-          (stats?.parsing ?? 0) > 0 ||
-          tiles.group.children.length > 0
-        ) {
-          window.clearInterval(kickstartTimer);
-          kickstartTimer = 0;
+        if (!tiles || tiles.stats.downloading > 0 || tiles.stats.parsing > 0) {
+          clearKickstartTimer();
           return;
         }
+        if (!runtimeVisible) return;
         requestRender();
-      }, 400);
+      }, KICKSTART_INTERVAL_MS);
       tiles.addEventListener("needs-update", requestRender);
       tiles.addEventListener("load-tileset", handleTilesetLoad);
       tiles.addEventListener("update-after", handleUpdateAfter);
@@ -1505,7 +1900,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map.on("movestart", handleViewStart);
       map.on("moveend", handleViewEnd);
       map.on("resize", handleViewEnd);
-      document.addEventListener("visibilitychange", clearCacheWhileHidden);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
     },
 
     update(frame: SharedThreeSceneFrame) {
@@ -1521,41 +1916,39 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           cameraSet.setShadowView(shadowSelectionEnabled ? shadowView : null);
         }
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
+        prepareViewFrustums(viewCamera);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
-        resolveMainViewCachePressure();
+        if (!shadowSelectionEnabled) measureUsedBytesMain();
+        lastMainViewConverged = mainViewConverged();
+        applyErrorTargetPolicy();
+        applyRequestConcurrency();
         if (viewQualityAuditPasses > 0) {
           viewQualityAuditPasses -= 1;
           if (viewQualityAuditPasses > 0) {
             tiles.dispatchEvent({ type: "needs-update" });
           }
         }
-        prioritizeQueuedTiles(viewCamera);
         maybeEnableShadowSelection();
       } catch (error) {
         console.error("[tiles3d] update failed:", error);
       }
+      prioritizeQueuedTiles();
 
-      // Keep rendering while the tile pipeline has work.
-      const stats = (
-        tiles as unknown as {
-          stats?: {
-            queued?: number;
-            downloading?: number;
-            parsing?: number;
-          };
-        }
-      ).stats;
+      // Keep rendering while the tile pipeline has work. Queued downloads
+      // only count while downloads run; the backoff and terrain listeners
+      // wake the loop once they may start.
+      const { stats } = tiles;
       const processNodeQueue =
         tiles.processNodeQueue as typeof tiles.processNodeQueue & {
           items: unknown[];
           currJobs: number;
         };
       if (
-        (stats?.queued ?? 0) > 0 ||
-        (stats?.downloading ?? 0) > 0 ||
-        (stats?.parsing ?? 0) > 0 ||
+        (stats.queued > 0 && tiles.downloadQueue.maxJobsPerOrigin > 0) ||
+        stats.downloading > 0 ||
+        stats.parsing > 0 ||
         processNodeQueue.items.length > 0 ||
         processNodeQueue.currJobs > 0 ||
         viewQualityAuditPasses > 0
@@ -1571,14 +1964,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       orientationGroup.visible = visible;
       notifyRequestStateChange();
       if (!visible) {
-        resetCachePressureRecovery();
+        clearErrorTargetTimer();
         viewQualityAuditPasses = 0;
         map?.triggerRepaint();
         return;
       }
-      resetCachePressureRecovery();
-      effectiveErrorTarget = requestedErrorTarget;
-      if (tiles) tiles.errorTarget = effectiveErrorTarget;
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
       map?.triggerRepaint();
@@ -1595,18 +1985,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         TILES_ERROR_TARGET_MIN_PIXELS,
         TILES_ERROR_TARGET_MAX_PIXELS
       );
-      if (
-        requestedErrorTarget === nextErrorTarget &&
-        effectiveErrorTarget === nextErrorTarget
-      ) {
-        return;
-      }
+      // shadow-scene re-applies the same requested target on every content
+      // change; only a changed request resets a relaxed effective target.
+      if (requestedErrorTarget === nextErrorTarget) return;
       requestedErrorTarget = nextErrorTarget;
-      effectiveErrorTarget = requestedErrorTarget;
-      resetCachePressureRecovery();
+      resetEffectiveErrorTarget();
       viewRefinementPending = true;
       setShadowSelectionEnabled(false);
-      if (tiles) tiles.errorTarget = effectiveErrorTarget;
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
     },
@@ -1697,20 +2082,39 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.triggerRepaint();
     },
 
-    setTileBoundsVisible(enabled: boolean) {
-      tileBoundsVisible = enabled;
-      if (debugTilesPlugin) {
-        debugTilesPlugin.displayBoxBounds = enabled;
-        debugTilesPlugin.update();
+    setOutlineStyle(style: OutlineStyleOptions) {
+      if (style.color !== undefined) outlineColor = style.color;
+      if (style.opacity !== undefined) {
+        outlineOpacity = clamp(style.opacity, 0, 1);
       }
+      applyOutlineStyle(orientationGroup);
+      map?.triggerRepaint();
+    },
+
+    setTileBoundsVisible(enabled: boolean) {
+      if (tileBoundsVisible === enabled) return;
+      tileBoundsVisible = enabled;
+      syncDebugTilesPlugin();
       tiles?.dispatchEvent({ type: "needs-update" });
       map?.triggerRepaint();
     },
 
-    setCacheBudget(bytes: number) {
-      cacheBudgetBytes = Math.max(MINIMUM_CACHE_BYTES, Math.floor(bytes));
-      resetCachePressureRecovery();
+    setCacheBudget(bytes?: number, cacheOptions?: CacheBudgetOptions) {
+      styleCacheBudgetBytes =
+        bytes === undefined ? undefined : Math.max(0, Math.floor(bytes));
+      styleCacheOverflowBytes =
+        cacheOptions?.overflowBytes === undefined
+          ? undefined
+          : Math.max(0, Math.floor(cacheOptions.overflowBytes));
+      ceilingBytes = resolveTilesCacheCeiling(deviceProfile, {
+        cacheBudgetBytes: styleCacheBudgetBytes,
+        cacheOverflowBytes: styleCacheOverflowBytes,
+      });
+      resetEffectiveErrorTarget();
+      viewRefinementPending = true;
+      setShadowSelectionEnabled(false);
       applyCacheBudget();
+      applyRequestConcurrency();
       tiles?.dispatchEvent({ type: "needs-update" });
     },
 
@@ -1738,19 +2142,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     dispose() {
-      resetCachePressureRecovery();
+      disposed = true;
+      clearErrorTargetTimer();
+      clearHiddenWipeTimer();
+      clearKickstartTimer();
+      resetDeferredTiles();
       if (requestBackoffTimer) {
         window.clearTimeout(requestBackoffTimer);
         requestBackoffTimer = 0;
       }
-      if (kickstartTimer) {
-        window.clearInterval(kickstartTimer);
-        kickstartTimer = 0;
-      }
       map?.off("movestart", handleViewStart);
       map?.off("moveend", handleViewEnd);
       map?.off("resize", handleViewEnd);
-      document.removeEventListener("visibilitychange", clearCacheWhileHidden);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsubscribeTerrainLoading?.();
       unsubscribeTerrainLoading = null;
       tiles?.removeEventListener("needs-update", requestRender);
@@ -1763,14 +2167,21 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       cameraSet?.dispose();
       cameraSet = null;
       tileRetries.dispose();
-      restoreClayMaterials(orientationGroup);
-      restoreLitTextureMaterials(orientationGroup);
+      // The material states are keyed by mesh, so release them directly
+      // instead of searching the scene graph for their meshes.
+      for (const [mesh, state] of clayMaterialStates) {
+        disposeClayState(mesh, state);
+      }
+      for (const [mesh, state] of litTextureMaterialStates) {
+        disposeLitTextureState(mesh, state);
+      }
       restoreShadowSides();
+      if (tiles && debugTilesPlugin) tiles.unregisterPlugin(debugTilesPlugin);
+      debugTilesPlugin = null;
       tiles?.dispose();
       tiles = null;
       dracoLoader?.dispose();
       dracoLoader = null;
-      debugTilesPlugin = null;
       orientationGroup.clear();
       flatTerrainNormalMap?.dispose();
       map = null;

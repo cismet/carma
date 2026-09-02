@@ -8,7 +8,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TILE_OUTLINE_FLAG } from "@carma-mapping/engines/threejs";
 import { setSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
-import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
+import {
+  buildThreeTilesRuntime,
+  HIDDEN_TAB_WIPE_DELAY_MS,
+} from "./three-tiles-runtime";
+
+const MIB = 1024 ** 2;
+
+type BytesRenderer = {
+  calculateBytesUsed: (tile: unknown, scene: THREE.Object3D | null) => number;
+};
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -18,15 +28,19 @@ vi.hoisted(() => {
 });
 
 describe("three tiles runtime styling", () => {
-  it("isolates loader resources per tileset and rounds cache byte prices", () => {
+  it("isolates loader resources per tileset and prices measured tiles with the resident overhead", () => {
     const renderers: TilesRenderer[] = [];
     const updateSpy = vi
       .spyOn(TilesRenderer.prototype, "update")
       .mockImplementation(function (this: TilesRenderer) {
         renderers.push(this);
       });
+    // `calculateBytesUsed` is an untyped upstream plugin hook.
     const bytesSpy = vi
-      .spyOn(TilesRenderer.prototype, "calculateBytesUsed")
+      .spyOn(
+        TilesRenderer.prototype as unknown as BytesRenderer,
+        "calculateBytesUsed"
+      )
       .mockReturnValue(10.6);
     const map = {
       on: vi.fn(),
@@ -64,8 +78,11 @@ describe("three tiles runtime styling", () => {
     expect(renderers[0]?.loadSiblings).toBe(false);
     expect(renderers[0]?.displayActiveTiles).toBe(true);
     expect(
-      renderers[0]?.calculateBytesUsed({} as never, new THREE.Group())
-    ).toBe(11);
+      (renderers[0] as unknown as BytesRenderer).calculateBytesUsed(
+        {} as never,
+        new THREE.Group()
+      )
+    ).toBe(Math.round(10.6 * TILES_LOAD_POLICY.residentOverhead));
 
     first.dispose();
     second.dispose();
@@ -73,54 +90,11 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
-  it("loads ancestor fallbacks only inside the camera union", () => {
-    type TraversalRenderer = TilesRenderer & {
-      queueTileForDownload: (tile: never) => void;
-    };
-    const prototype = TilesRenderer.prototype as TraversalRenderer;
-    const queueSpy = vi
-      .spyOn(prototype, "queueTileForDownload")
-      .mockImplementation(() => undefined);
-    let tilesRenderer: TraversalRenderer | undefined;
-    const updateSpy = vi
-      .spyOn(TilesRenderer.prototype, "update")
-      .mockImplementation(function (this: TilesRenderer) {
-        tilesRenderer = this as TraversalRenderer;
-      });
-    const map = {
-      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.25 })),
-      on: vi.fn(),
-      off: vi.fn(),
-      triggerRepaint: vi.fn(),
-    } as unknown as MaplibreMap;
-    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
-    const camera = new THREE.PerspectiveCamera();
-
-    layer.onAdd?.(map);
-    layer.update({
-      map,
-      renderCamera: camera,
-      lodCamera: camera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-    const inUnion = { traversal: { inFrustum: true } } as never;
-    const outsideUnion = { traversal: { inFrustum: false } } as never;
-    tilesRenderer?.queueTileForDownload(inUnion);
-    tilesRenderer?.queueTileForDownload(outsideUnion);
-
-    expect(queueSpy).toHaveBeenCalledOnce();
-    expect(queueSpy).toHaveBeenCalledWith(inUnion);
-
-    layer.dispose();
-    updateSpy.mockRestore();
-    queueSpy.mockRestore();
-  });
-
   it("keeps the parent fallback eligible after a child exhausts its retries", () => {
     vi.useFakeTimers();
     type TraversalRenderer = TilesRenderer & {
       queueTileForDownload: (tile: unknown) => void;
+      stats: { failed: number };
     };
     const prototype = TilesRenderer.prototype as TraversalRenderer;
     const queueSpy = vi
@@ -163,11 +137,19 @@ describe("three tiles runtime styling", () => {
       renderer!.dispatchEvent({
         type: "load-error",
         tile: failedTile as never,
-        error: new Error("status 404"),
+        error: new Error("status 503"),
         url: "https://example.test/tiles/child.b3dm",
       });
-      vi.runOnlyPendingTimers();
+      // The failed tile is released at once (UNLOADED, out of the cache) but
+      // not requested again until its backoff fired: the parent keeps
+      // rendering as the fallback meanwhile.
       expect(failedTile.internal.loadingState).toBe(0);
+      expect(renderer!.stats.failed).toBe(0);
+      renderer!.queueTileForDownload(failedTile);
+      expect(queueSpy).toHaveBeenCalledTimes(attempt);
+      vi.runOnlyPendingTimers();
+      renderer!.queueTileForDownload(failedTile);
+      expect(queueSpy).toHaveBeenCalledTimes(attempt + 1);
     }
 
     failedTile.internal.loadingState = -1;
@@ -175,13 +157,32 @@ describe("three tiles runtime styling", () => {
     renderer!.dispatchEvent({
       type: "load-error",
       tile: failedTile as never,
-      error: new Error("status 404"),
+      error: new Error("status 503"),
       url: "https://example.test/tiles/child.b3dm",
     });
 
     expect(failedTile.internal.loadingState).toBe(0);
     expect(renderer!.stats.failed).toBe(0);
+    queueSpy.mockClear();
     renderer!.queueTileForDownload(failedTile);
+    expect(queueSpy).not.toHaveBeenCalled();
+
+    // A missing tile is never retried at all.
+    const missingTile = {
+      content: { uri: "missing.b3dm" },
+      internal: { basePath: "https://example.test/tiles", loadingState: -1 },
+      traversal: { inFrustum: true },
+    };
+    renderer!.stats.failed = 1;
+    renderer!.dispatchEvent({
+      type: "load-error",
+      tile: missingTile as never,
+      error: new Error("status 404"),
+      url: "https://example.test/tiles/missing.b3dm",
+    });
+    expect(missingTile.internal.loadingState).toBe(0);
+    vi.advanceTimersByTime(60_000);
+    renderer!.queueTileForDownload(missingTile);
     expect(queueSpy).not.toHaveBeenCalled();
 
     layer.dispose();
@@ -190,7 +191,7 @@ describe("three tiles runtime styling", () => {
     vi.useRealTimers();
   });
 
-  it("uses one cache ceiling for tile admission and eviction", () => {
+  it("admits at one physical ceiling below the device limit and evicts around it", () => {
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
       .spyOn(TilesRenderer.prototype, "update")
@@ -202,8 +203,9 @@ describe("three tiles runtime styling", () => {
       off: vi.fn(),
       triggerRepaint: vi.fn(),
     } as unknown as MaplibreMap;
-    const cacheBudgetBytes = 32 * 1024 ** 2;
-    const cacheOverflowBytes = 64 * 1024 ** 2;
+    const cacheBudgetBytes = 256 * MIB;
+    const cacheOverflowBytes = 256 * MIB;
+    const ceilingBytes = cacheBudgetBytes + cacheOverflowBytes;
     const layer = buildThreeTilesRuntime(
       "mesh",
       "tileset.json",
@@ -226,37 +228,35 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 600),
     });
 
-    expect(renderer?.lruCache.minBytesSize).toBe(cacheBudgetBytes);
-    expect(renderer?.lruCache.maxBytesSize).toBe(
-      cacheBudgetBytes + cacheOverflowBytes
-    );
-    expect(renderer?.lruCache.minSize).toBe(6_000);
-    expect(renderer?.lruCache.maxSize).toBe(8_000);
-
+    const expectBounds = () => {
+      expect(renderer?.lruCache.minBytesSize).toBe(
+        Math.floor(ceilingBytes * TILES_LOAD_POLICY.cacheRetentionFraction)
+      );
+      expect(renderer?.lruCache.maxBytesSize).toBe(
+        ceilingBytes + TILES_LOAD_POLICY.cacheDriftSlackMinBytes
+      );
+      expect(renderer?.lruCache.unloadPercent).toBe(
+        TILES_LOAD_POLICY.cacheUnloadPercent
+      );
+      expect(renderer?.lruCache.minSize).toBe(6_000);
+      expect(renderer?.lruCache.maxSize).toBe(8_000);
+    };
+    expectBounds();
     layer.setShadowSimulationStyle({
       fullOpacity: true,
       uniformColor: null,
     });
-    expect(renderer?.lruCache.minBytesSize).toBe(cacheBudgetBytes);
-    expect(renderer?.lruCache.maxBytesSize).toBe(
-      cacheBudgetBytes + cacheOverflowBytes
-    );
-    expect(renderer?.lruCache.minSize).toBe(6_000);
-    expect(renderer?.lruCache.maxSize).toBe(8_000);
-
+    expectBounds();
     layer.setShadowSimulationStyle(null);
-    expect(renderer?.lruCache.minBytesSize).toBe(cacheBudgetBytes);
-    expect(renderer?.lruCache.maxBytesSize).toBe(
-      cacheBudgetBytes + cacheOverflowBytes
-    );
-    expect(renderer?.lruCache.minSize).toBe(6_000);
-    expect(renderer?.lruCache.maxSize).toBe(8_000);
+    expectBounds();
 
     const cache = renderer?.lruCache as TilesRenderer["lruCache"] & {
       cachedBytes: number;
       isFull: () => boolean;
     };
-    cache.cachedBytes = cacheBudgetBytes + cacheOverflowBytes;
+    cache.cachedBytes = ceilingBytes - 1;
+    expect(cache.isFull()).toBe(false);
+    cache.cachedBytes = ceilingBytes;
     expect(cache.isFull()).toBe(true);
 
     const shadowCamera = new THREE.OrthographicCamera();
@@ -265,9 +265,14 @@ describe("three tiles runtime styling", () => {
       shadowMapSize: { width: 4_096, height: 4_096 },
     });
     expect(cache.isFull()).toBe(true);
-
     layer.setShadowView(null);
     expect(cache.isFull()).toBe(true);
+
+    // A style may only lower the ceiling; the floor still applies.
+    layer.setCacheBudget(1024);
+    expect(cache.isFull()).toBe(true);
+    cache.cachedBytes = 100 * MIB;
+    expect(cache.isFull()).toBe(false);
 
     layer.dispose();
     updateSpy.mockRestore();
@@ -460,6 +465,11 @@ describe("three tiles runtime styling", () => {
     );
     const viewCamera = new THREE.PerspectiveCamera();
     const shadowCamera = new THREE.OrthographicCamera();
+    // The runtime registers a private clone of the shadow camera.
+    const isShadowCameraCall = ([camera]: unknown[]) =>
+      camera instanceof THREE.OrthographicCamera;
+    const registeredShadowCamera = (spy: { mock: { calls: unknown[][] } }) =>
+      spy.mock.calls.some(isShadowCameraCall);
 
     layer.setErrorTarget(0.25);
     layer.onAdd?.(map);
@@ -476,10 +486,12 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(updateErrorTargets).toEqual([0.25]);
-    expect(setCameraSpy).not.toHaveBeenCalledWith(shadowCamera);
+    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
+    // Loaded content exists; the shadow camera never joins an empty scene.
+    renderer!.group.add(new THREE.Group());
     const visibleTile = {
       traversal: { error: 0.2, inFrustum: true },
-      children: [{}],
+      children: [{ internal: { hasContent: true, loadingState: 0 } }],
     };
     renderer!.visibleTiles.add(visibleTile as never);
     layer.update({
@@ -491,13 +503,15 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(updateErrorTargets).toEqual([0.25, 0.25]);
-    expect(setCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(registeredShadowCamera(setCameraSpy)).toBe(true);
+    expect(setCameraSpy).not.toHaveBeenCalledWith(shadowCamera);
     expect(eventOrder.indexOf("shadow-camera")).toBeGreaterThan(
       eventOrder.lastIndexOf("update")
     );
     expect(
       registerPluginSpy.mock.calls.some(
-        ([plugin]) => plugin.name === "UPDATE_ON_CHANGE_PLUGIN"
+        ([plugin]) =>
+          (plugin as { name?: string }).name === "UPDATE_ON_CHANGE_PLUGIN"
       )
     ).toBe(true);
 
@@ -510,7 +524,7 @@ describe("three tiles runtime styling", () => {
     renderer!.lruCache.setMemoryUsage(staleTile, 2 * 1024 ** 3);
 
     handlers.get("moveend")?.();
-    expect(deleteCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(registeredShadowCamera(deleteCameraSpy)).toBe(true);
     layer.update({
       map,
       renderCamera: viewCamera,
@@ -520,8 +534,10 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25]);
-    expect(setCameraSpy).not.toHaveBeenCalledWith(shadowCamera);
-    expect(disposeStaleTile).toHaveBeenCalledOnce();
+    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
+    // Unused content is left to the LRU's own eviction; the runtime no
+    // longer purges the cache while the view refines.
+    expect(disposeStaleTile).not.toHaveBeenCalled();
 
     visibleTile.traversal.error = 0.2;
     layer.update({
@@ -531,7 +547,7 @@ describe("three tiles runtime styling", () => {
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
     });
-    expect(setCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(registeredShadowCamera(setCameraSpy)).toBe(true);
 
     deleteCameraSpy.mockClear();
     setResolutionSpy.mockClear();
@@ -539,7 +555,7 @@ describe("three tiles runtime styling", () => {
     handlers.get("movestart")?.();
 
     expect(renderer!.errorTarget).toBe(0.25);
-    expect(deleteCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(registeredShadowCamera(deleteCameraSpy)).toBe(true);
 
     shadowCamera.position.x = 2;
     shadowCamera.updateMatrixWorld(true);
@@ -556,12 +572,17 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25, 0.25]);
-    expect(setResolutionSpy).toHaveBeenCalledWith(shadowCamera, 800, 600);
+    expect(
+      setResolutionSpy.mock.calls.some((call) => {
+        const [camera, width, height] = call as unknown[];
+        return isShadowCameraCall([camera]) && width === 800 && height === 600;
+      })
+    ).toBe(true);
 
     deleteCameraSpy.mockClear();
     layer.setShadowView(null);
     expect(deleteCameraSpy).toHaveBeenCalledOnce();
-    expect(deleteCameraSpy).toHaveBeenCalledWith(shadowCamera);
+    expect(registeredShadowCamera(deleteCameraSpy)).toBe(true);
     layer.dispose();
     updateSpy.mockRestore();
     setCameraSpy.mockRestore();
@@ -570,7 +591,7 @@ describe("three tiles runtime styling", () => {
     registerPluginSpy.mockRestore();
   });
 
-  it("relaxes the requested error only after the current view fills the cache", () => {
+  it("relaxes the requested error only after the full, idle view stalled and keeps it across pans", () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
     const updateErrorTargets: number[] = [];
@@ -581,13 +602,25 @@ describe("three tiles runtime styling", () => {
         renderer = this;
         updateErrorTargets.push(this.errorTarget);
       });
+    const handlers = new Map<string, () => void>();
     const map = {
-      on: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        handlers.set(event, handler);
+      }),
       off: vi.fn(),
       triggerRepaint: vi.fn(),
+      getZoom: () => 17,
+      getPitch: () => 45,
     } as unknown as MaplibreMap;
     const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
     const viewCamera = new THREE.PerspectiveCamera();
+    const frame = {
+      map,
+      renderCamera: viewCamera,
+      lodCamera: viewCamera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    };
 
     layer.setErrorTarget(0.25);
     layer.onAdd?.(map);
@@ -595,52 +628,62 @@ describe("three tiles runtime styling", () => {
       camera: new THREE.OrthographicCamera(),
       shadowMapSize: { width: 2048, height: 2048 },
     });
-    layer.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
+    layer.update(frame);
 
+    // A displayed placeholder above the target whose child still has to load,
+    // and one used tile that fills the whole ceiling: full, idle, unconverged.
     const visibleTile = {
       traversal: { error: 1, inFrustum: true },
-      children: [{}],
+      children: [{ internal: { hasContent: true, loadingState: 0 } }],
     } as never;
     const requiredTile = {} as never;
     const disposeRequiredTile = vi.fn();
     renderer!.visibleTiles.add(visibleTile);
-    renderer!.usedSet.add(requiredTile);
+    (renderer as TilesRenderer & { usedSet: Set<unknown> }).usedSet.add(
+      requiredTile
+    );
     renderer!.lruCache.add(requiredTile, disposeRequiredTile);
     renderer!.lruCache.setMemoryUsage(requiredTile, 2 * 1024 ** 3);
 
-    layer.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
+    layer.update(frame);
     expect(disposeRequiredTile).not.toHaveBeenCalled();
     expect(renderer!.errorTarget).toBe(0.25);
+    expect(layer.getRequestDemand()).toBeGreaterThan(0);
 
-    vi.advanceTimersByTime(2_500);
+    vi.advanceTimersByTime(999);
+    layer.update(frame);
+    expect(renderer!.errorTarget).toBe(0.25);
 
-    layer.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-    expect(renderer!.errorTarget).toBe(0.375);
-    expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25]);
+    vi.advanceTimersByTime(1);
+    layer.update(frame);
+    expect(renderer!.errorTarget).toBe(0.5);
+    expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25]);
 
+    // A pan keeps the effective target; the next stall relaxes further, up to
+    // four times the requested target.
+    handlers.get("movestart")?.();
+    handlers.get("moveend")?.();
+    expect(renderer!.errorTarget).toBe(0.5);
+    layer.update(frame);
+    vi.advanceTimersByTime(1_000);
+    layer.update(frame);
+    expect(renderer!.errorTarget).toBe(1);
+    layer.update(frame);
+    vi.advanceTimersByTime(1_000);
+    layer.update(frame);
+    expect(renderer!.errorTarget).toBe(1);
+
+    // A hidden tab keeps the used tiles and the effective target for a
+    // while; the debounced full wipe resets to the requested target.
     const visibilitySpy = vi
       .spyOn(document, "visibilityState", "get")
       .mockReturnValue("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
+    expect(disposeRequiredTile).not.toHaveBeenCalled();
+    expect(renderer!.errorTarget).toBe(1);
+    vi.advanceTimersByTime(HIDDEN_TAB_WIPE_DELAY_MS);
     expect(disposeRequiredTile).toHaveBeenCalledOnce();
+    expect(renderer!.errorTarget).toBe(0.25);
 
     visibilitySpy.mockRestore();
     layer.dispose();
@@ -648,7 +691,7 @@ describe("three tiles runtime styling", () => {
     vi.useRealTimers();
   });
 
-  it("prioritizes visible terrain refinement ahead of shadow-only tiles", () => {
+  it("prioritizes hierarchy, then the visible view centre, ahead of shadow-only tiles", () => {
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
       .spyOn(TilesRenderer.prototype, "update")
@@ -681,11 +724,12 @@ describe("three tiles runtime styling", () => {
 
     type QueuedTile = {
       priority?: number;
-      internal?: { depth: number };
+      internal?: { depth: number; hasUnrenderableContent?: boolean };
       engineData: {
         boundingVolume: {
           getAABB: (target: THREE.Box3) => void;
           getSphere: (target: THREE.Sphere) => void;
+          intersectsFrustum: (frustum: THREE.Frustum) => boolean;
         };
       };
     };
@@ -695,6 +739,7 @@ describe("three tiles runtime styling", () => {
         boundingVolume: {
           getAABB: (target) => target.copy(box),
           getSphere: (target) => box.getBoundingSphere(target),
+          intersectsFrustum: (frustum) => frustum.intersectsBox(box),
         },
       },
     });
@@ -735,6 +780,16 @@ describe("three tiles runtime styling", () => {
       shadowOnlyTile,
       shallowerVisibleTile
     );
+    const parsingTile = tileForBox(
+      new THREE.Box3(
+        new THREE.Vector3(-0.5, -0.5, -10.5),
+        new THREE.Vector3(0.5, 0.5, -9.5)
+      ),
+      6
+    );
+    (
+      renderer!.parseQueue as PriorityQueue & { items: QueuedTile[] }
+    ).items.push(parsingTile);
 
     layer.update({
       map,
@@ -744,10 +799,13 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 800),
     });
 
-    expect(centerTile.priority).toBeGreaterThan(outerVisibleTile.priority!);
+    // hierarchy first, then the view centre, then shadow-only tiles
     expect(shallowerVisibleTile.priority).toBeGreaterThan(centerTile.priority!);
-    expect(outerVisibleTile.priority).toBeGreaterThan(100_000);
-    expect(shadowOnlyTile.priority).toBeLessThan(0);
+    expect(centerTile.priority).toBeGreaterThan(outerVisibleTile.priority!);
+    expect(outerVisibleTile.priority).toBeGreaterThan(shadowOnlyTile.priority!);
+    expect(parsingTile.priority).toBeDefined();
+    expect(parsingTile.priority).toBeLessThan(shadowOnlyTile.priority!);
+    queue.sort();
     expect(queue.items.at(-1)).toBe(shallowerVisibleTile);
 
     queue.items.length = 0;
@@ -1034,7 +1092,7 @@ describe("three tiles runtime styling", () => {
       new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), shellMaterial)
     );
 
-    layer.setShadowSimulationStyle?.({ fullOpacity: true });
+    layer.setShadowSimulationStyle?.({ fullOpacity: true, uniformColor: null });
 
     expect(roofMaterial.shadowSide).toBe(THREE.FrontSide);
     expect(wallMaterial.shadowSide).toBe(THREE.FrontSide);
@@ -1120,7 +1178,7 @@ describe("three tiles runtime styling", () => {
     );
     layer.root.add(cityTile);
 
-    layer.setShadowSimulationStyle?.({ fullOpacity: true });
+    layer.setShadowSimulationStyle?.({ fullOpacity: true, uniformColor: null });
 
     const edges = new Map<string, boolean[]>();
     const signedVolumes = new Map<number, number>();
@@ -1224,7 +1282,8 @@ describe("three tiles runtime styling", () => {
 
     expect(mesh.material).not.toBe(sourceMaterial);
     expect(mesh.material).toBeInstanceOf(THREE.MeshStandardMaterial);
-    const shadowMaterial = mesh.material as THREE.MeshStandardMaterial;
+    const shadowMaterial =
+      mesh.material as unknown as THREE.MeshStandardMaterial;
     expect(shadowMaterial.map).toBe(sourceMaterial.map);
     expect(shadowMaterial.color.getHexString()).toBe("847466");
     expect(shadowMaterial.roughness).toBe(1);

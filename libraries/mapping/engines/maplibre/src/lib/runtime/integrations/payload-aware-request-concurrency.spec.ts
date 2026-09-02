@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createPayloadAwareRequestConcurrency } from "./payload-aware-request-concurrency";
+import {
+  createPayloadAwareRequestConcurrency,
+  isPermanentTileRequestFailure,
+  isTransientTileRequestFailure,
+} from "./payload-aware-request-concurrency";
 
 describe("payload-aware request concurrency", () => {
   afterEach(() => {
@@ -76,5 +80,19 @@ describe("payload-aware request concurrency", () => {
 
     expect(concurrency.observeFailure(new Error("status 404"))).toBe(0);
     expect(concurrency.getConcurrency()).toBeGreaterThan(0);
+  });
+
+  it("classifies missing or forbidden resources as permanent failures", () => {
+    expect(isPermanentTileRequestFailure(new Error("status 404"))).toBe(true);
+    expect(isPermanentTileRequestFailure({ status: 403 })).toBe(true);
+    expect(
+      isPermanentTileRequestFailure(new Error("Failed with status 410: Gone"))
+    ).toBe(true);
+    expect(isPermanentTileRequestFailure(new Error("status 503"))).toBe(false);
+    expect(isPermanentTileRequestFailure(new Error("request timed out"))).toBe(
+      false
+    );
+    expect(isPermanentTileRequestFailure(undefined)).toBe(false);
+    expect(isTransientTileRequestFailure(new Error("status 404"))).toBe(false);
   });
 });
