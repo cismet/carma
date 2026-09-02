@@ -30,6 +30,14 @@ const getHttpStatus = (error: unknown): number | null => {
   return match ? Number(match[1]) : null;
 };
 
+const PERMANENT_HTTP_STATUSES = new Set([403, 404, 410]);
+
+/** The resource is missing or forbidden; retrying cannot change that. */
+export const isPermanentTileRequestFailure = (error: unknown): boolean => {
+  const status = getHttpStatus(error);
+  return status !== null && PERMANENT_HTTP_STATUSES.has(status);
+};
+
 export const isTransientTileRequestFailure = (error: unknown): boolean => {
   const status = getHttpStatus(error);
   if (status !== null) {
@@ -101,16 +109,4 @@ export const createPayloadAwareRequestConcurrency = (
     observeSuccess,
     getCooldownRemainingMs: () => Math.max(0, cooldownUntil - Date.now()),
   };
-};
-
-export const getResourcePayloadByteLength = (
-  url: string | undefined
-): number | null => {
-  if (!url || typeof performance === "undefined") return null;
-  const entries = performance.getEntriesByName(url, "resource");
-  const entry = entries.at(-1);
-  if (!entry || !("encodedBodySize" in entry)) return null;
-  const resource = entry as PerformanceResourceTiming;
-  const byteLength = resource.encodedBodySize || resource.transferSize;
-  return Number.isFinite(byteLength) && byteLength > 0 ? byteLength : null;
 };
