@@ -12,7 +12,9 @@ import { Tooltip } from "antd";
 
 import { SHAPE_ICONS, SHAPE_LABELS, type AnnotationShape } from "./shape-tools";
 
-const WRAPPER = "w-fit max-w-full flex items-center gap-2 overflow-visible";
+const WRAPPER =
+  "w-fit max-w-full flex flex-col items-center gap-2 overflow-visible";
+const ROW = "flex items-center gap-2";
 const BUTTON =
   "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors text-base button-shadow [&_svg]:text-current";
 const ACTIVE = "!text-[#1677ff] hover:!text-[#1677ff]";
@@ -67,159 +69,164 @@ export const AnnotationShapeToolbar = ({
   onRedo,
 }: AnnotationShapeToolbarProps) => (
   <div className={WRAPPER}>
-    {drawings.map((entry) => (
-      <div
-        key={entry.id}
-        className={[DRAWING, entry.active ? DRAWING_ON : DRAWING_OFF].join(" ")}
-      >
-        <Tooltip title="Diese Zeichnung bearbeiten" placement="bottom">
+    <div className={ROW}>
+      {drawings.map((entry) => (
+        <div
+          key={entry.id}
+          className={[DRAWING, entry.active ? DRAWING_ON : DRAWING_OFF].join(
+            " "
+          )}
+        >
+          <Tooltip title="Diese Zeichnung bearbeiten" placement="bottom">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPickDrawing?.(entry.id);
+              }}
+              aria-pressed={entry.active}
+              data-test-id={`annotation-drawing-${entry.id}`}
+              className={[
+                DRAWING_LABEL,
+                entry.active ? ACTIVE : INACTIVE,
+                onPickDrawing ? "" : "cursor-default",
+              ].join(" ")}
+            >
+              {entry.label}
+            </button>
+          </Tooltip>
+          {(onZoomDrawing || onDeleteDrawing) && (
+            <span className={DRAWING_TOOLS}>
+              {onZoomDrawing && (
+                <Tooltip title="Auf Zeichnung zoomen" placement="bottom">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onZoomDrawing(entry.id);
+                    }}
+                    aria-label={`${entry.label} anzeigen`}
+                    data-test-id={`annotation-drawing-zoom-${entry.id}`}
+                    className={DRAWING_ICON}
+                  >
+                    <FontAwesomeIcon icon={faMagnifyingGlass} />
+                  </button>
+                </Tooltip>
+              )}
+              {onDeleteDrawing && (
+                <Tooltip title="Zeichnung löschen" placement="bottom">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDeleteDrawing(entry.id);
+                    }}
+                    aria-label={`${entry.label} löschen`}
+                    data-test-id={`annotation-drawing-delete-${entry.id}`}
+                    className={DRAWING_ICON_DANGER}
+                  >
+                    <FontAwesomeIcon icon={faXmark} />
+                  </button>
+                </Tooltip>
+              )}
+            </span>
+          )}
+        </div>
+      ))}
+      {onAddGroup && (
+        <Tooltip title="Neue Zeichnung beginnen" placement="bottom">
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onPickDrawing?.(entry.id);
+              onAddGroup();
             }}
-            aria-pressed={entry.active}
-            data-test-id={`annotation-drawing-${entry.id}`}
-            className={[
-              DRAWING_LABEL,
-              entry.active ? ACTIVE : INACTIVE,
-              onPickDrawing ? "" : "cursor-default",
-            ].join(" ")}
+            aria-label="Neue Zeichnung beginnen"
+            data-test-id="annotation-add-drawing"
+            className={[BUTTON, INACTIVE].join(" ")}
           >
-            {entry.label}
+            <FontAwesomeIcon icon={faPlus} />
           </button>
         </Tooltip>
-        {(onZoomDrawing || onDeleteDrawing) && (
-          <span className={DRAWING_TOOLS}>
-            {onZoomDrawing && (
-              <Tooltip title="Auf Zeichnung zoomen" placement="bottom">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onZoomDrawing(entry.id);
-                  }}
-                  aria-label={`${entry.label} anzeigen`}
-                  data-test-id={`annotation-drawing-zoom-${entry.id}`}
-                  className={DRAWING_ICON}
-                >
-                  <FontAwesomeIcon icon={faMagnifyingGlass} />
-                </button>
-              </Tooltip>
-            )}
-            {onDeleteDrawing && (
-              <Tooltip title="Zeichnung löschen" placement="bottom">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onDeleteDrawing(entry.id);
-                  }}
-                  aria-label={`${entry.label} löschen`}
-                  data-test-id={`annotation-drawing-delete-${entry.id}`}
-                  className={DRAWING_ICON_DANGER}
-                >
-                  <FontAwesomeIcon icon={faXmark} />
-                </button>
-              </Tooltip>
-            )}
-          </span>
+      )}
+      {onToggleLock && (
+        <Tooltip
+          title={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
+          placement="bottom"
+        >
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleLock();
+            }}
+            aria-pressed={isLocked}
+            aria-label={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
+            data-test-id="annotation-lock-toggle"
+            className={[BUTTON, isLocked ? ACTIVE : INACTIVE].join(" ")}
+          >
+            <FontAwesomeIcon icon={isLocked ? faLock : faLockOpen} />
+          </button>
+        </Tooltip>
+      )}
+    </div>
+    {(shapes.length > 0 || onUndo || onRedo) && (
+      <div className={ROW}>
+        {shapes.map((entry) => {
+          const label = SHAPE_LABELS[entry];
+          const isActive = entry === shape;
+          return (
+            <Tooltip key={entry} title={label} placement="bottom">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onShapeChange(entry);
+                }}
+                aria-pressed={isActive}
+                aria-label={label}
+                data-test-id={`annotation-shape-${entry}`}
+                className={[BUTTON, isActive ? ACTIVE : INACTIVE].join(" ")}
+              >
+                <FontAwesomeIcon icon={SHAPE_ICONS[entry]} />
+              </button>
+            </Tooltip>
+          );
+        })}
+        {(onUndo || onRedo) && <span className={DIVIDER} aria-hidden />}
+        {onUndo && (
+          <Tooltip title="Rückgängig" placement="bottom">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onUndo();
+              }}
+              aria-label="Rückgängig"
+              data-test-id="annotation-undo"
+              className={[BUTTON, INACTIVE].join(" ")}
+            >
+              <FontAwesomeIcon icon={faRotateLeft} />
+            </button>
+          </Tooltip>
+        )}
+        {onRedo && (
+          <Tooltip title="Wiederholen" placement="bottom">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRedo();
+              }}
+              aria-label="Wiederholen"
+              data-test-id="annotation-redo"
+              className={[BUTTON, INACTIVE].join(" ")}
+            >
+              <FontAwesomeIcon icon={faRotateRight} />
+            </button>
+          </Tooltip>
         )}
       </div>
-    ))}
-    {onAddGroup && (
-      <Tooltip title="Neue Zeichnung beginnen" placement="bottom">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddGroup();
-          }}
-          aria-label="Neue Zeichnung beginnen"
-          data-test-id="annotation-add-drawing"
-          className={[BUTTON, INACTIVE].join(" ")}
-        >
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
-      </Tooltip>
-    )}
-    {onToggleLock && (
-      <Tooltip
-        title={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
-        placement="bottom"
-      >
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleLock();
-          }}
-          aria-pressed={isLocked}
-          aria-label={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
-          data-test-id="annotation-lock-toggle"
-          className={[BUTTON, isLocked ? ACTIVE : INACTIVE].join(" ")}
-        >
-          <FontAwesomeIcon icon={isLocked ? faLock : faLockOpen} />
-        </button>
-      </Tooltip>
-    )}
-    {(onToggleLock || onAddGroup) && shapes.length > 0 && (
-      <span className={DIVIDER} aria-hidden />
-    )}
-    {shapes.map((entry) => {
-      const label = SHAPE_LABELS[entry];
-      const isActive = entry === shape;
-      return (
-        <Tooltip key={entry} title={label} placement="bottom">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onShapeChange(entry);
-            }}
-            aria-pressed={isActive}
-            aria-label={label}
-            data-test-id={`annotation-shape-${entry}`}
-            className={[BUTTON, isActive ? ACTIVE : INACTIVE].join(" ")}
-          >
-            <FontAwesomeIcon icon={SHAPE_ICONS[entry]} />
-          </button>
-        </Tooltip>
-      );
-    })}
-    {(onUndo || onRedo) && <span className={DIVIDER} aria-hidden />}
-    {onUndo && (
-      <Tooltip title="Rückgängig" placement="bottom">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onUndo();
-          }}
-          aria-label="Rückgängig"
-          data-test-id="annotation-undo"
-          className={[BUTTON, INACTIVE].join(" ")}
-        >
-          <FontAwesomeIcon icon={faRotateLeft} />
-        </button>
-      </Tooltip>
-    )}
-    {onRedo && (
-      <Tooltip title="Wiederholen" placement="bottom">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRedo();
-          }}
-          aria-label="Wiederholen"
-          data-test-id="annotation-redo"
-          className={[BUTTON, INACTIVE].join(" ")}
-        >
-          <FontAwesomeIcon icon={faRotateRight} />
-        </button>
-      </Tooltip>
     )}
   </div>
 );
