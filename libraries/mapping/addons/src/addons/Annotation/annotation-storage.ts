@@ -1,4 +1,5 @@
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
+import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
 import type { AnnotationAnchor } from "./types";
 
@@ -9,6 +10,7 @@ export type StoredDrawing = {
   locked: boolean;
   anchor: AnnotationAnchor;
   elements: readonly ExcalidrawElement[];
+  files?: BinaryFiles;
 };
 
 type StoredFile = {

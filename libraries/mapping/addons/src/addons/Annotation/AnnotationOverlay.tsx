@@ -146,6 +146,7 @@ export const AnnotationOverlay = ({
             onProbe={registerProbe}
             onSceneEdit={onSceneEdit}
             savedElements={restored?.elements}
+            savedFiles={restored?.files}
             savedAnchor={restored?.anchor}
             editable={isOn && group.id === activeId && !group.locked}
             live={isOn}
