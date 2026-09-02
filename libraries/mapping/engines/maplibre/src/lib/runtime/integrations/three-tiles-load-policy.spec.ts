@@ -185,7 +185,7 @@ describe("createTileBytesPredictor", () => {
 });
 
 describe("deriveTilePriority", () => {
-  it("orders hierarchy first, then external tilesets, main view and centre", () => {
+  it("orders the main view first, then hierarchy, external tilesets and centre", () => {
     const shallow = deriveTilePriority({
       depth: 3,
       inMainFrustum: false,
@@ -198,7 +198,7 @@ describe("deriveTilePriority", () => {
       isExternalTileset: true,
       centerness: 1,
     });
-    expect(shallow).toBeGreaterThan(deepCentre);
+    expect(deepCentre).toBeGreaterThan(shallow);
 
     const external = deriveTilePriority({
       depth: 4,
@@ -224,9 +224,9 @@ describe("deriveTilePriority", () => {
       isExternalTileset: false,
       centerness: 0,
     });
-    expect(external).toBeGreaterThan(mainCentre);
     expect(mainCentre).toBeGreaterThan(mainEdge);
-    expect(mainEdge).toBeGreaterThan(margin);
+    expect(mainEdge).toBeGreaterThan(external);
+    expect(external).toBeGreaterThan(margin);
   });
 
   it("clamps depth and centerness", () => {

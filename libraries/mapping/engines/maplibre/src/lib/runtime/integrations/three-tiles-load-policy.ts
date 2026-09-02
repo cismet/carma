@@ -52,9 +52,13 @@ export const TILE_PRIORITY = {
   maxDepth: 63,
   depthStep: 1_000,
   externalTilesetBonus: 500,
-  mainFrustumBonus: 250,
   centernessWeight: 100,
 } as const;
+
+const MAIN_FRUSTUM_PRIORITY_BONUS =
+  (TILE_PRIORITY.maxDepth + 1) * TILE_PRIORITY.depthStep +
+  TILE_PRIORITY.externalTilesetBonus +
+  TILE_PRIORITY.centernessWeight;
 
 export const ERROR_TARGET_POLICY = {
   relaxFactor: 2,
@@ -239,7 +243,7 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
   return (
     (TILE_PRIORITY.maxDepth + 1 - depth) * TILE_PRIORITY.depthStep +
     (input.isExternalTileset ? TILE_PRIORITY.externalTilesetBonus : 0) +
-    (input.inMainFrustum ? TILE_PRIORITY.mainFrustumBonus : 0) +
+    (input.inMainFrustum ? MAIN_FRUSTUM_PRIORITY_BONUS : 0) +
     centerness * TILE_PRIORITY.centernessWeight
   );
 };
