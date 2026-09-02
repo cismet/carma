@@ -418,7 +418,7 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
-  it("uses the requested error target for the persistent camera union", () => {
+  it("uses receiver extrusion without registering a shadow selection camera", () => {
     const updateErrorTargets: number[] = [];
     const eventOrder: string[] = [];
     let renderer: TilesRenderer | undefined;
@@ -465,7 +465,6 @@ describe("three tiles runtime styling", () => {
     );
     const viewCamera = new THREE.PerspectiveCamera();
     const shadowCamera = new THREE.OrthographicCamera();
-    // The runtime registers a private clone of the shadow camera.
     const isShadowCameraCall = ([camera]: unknown[]) =>
       camera instanceof THREE.OrthographicCamera;
     const registeredShadowCamera = (spy: { mock: { calls: unknown[][] } }) =>
@@ -503,11 +502,9 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(updateErrorTargets).toEqual([0.25, 0.25]);
-    expect(registeredShadowCamera(setCameraSpy)).toBe(true);
+    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
     expect(setCameraSpy).not.toHaveBeenCalledWith(shadowCamera);
-    expect(eventOrder.indexOf("shadow-camera")).toBeGreaterThan(
-      eventOrder.lastIndexOf("update")
-    );
+    expect(eventOrder).not.toContain("shadow-camera");
     expect(
       registerPluginSpy.mock.calls.some(
         ([plugin]) =>
@@ -524,7 +521,7 @@ describe("three tiles runtime styling", () => {
     renderer!.lruCache.setMemoryUsage(staleTile, 2 * 1024 ** 3);
 
     handlers.get("moveend")?.();
-    expect(registeredShadowCamera(deleteCameraSpy)).toBe(true);
+    expect(registeredShadowCamera(deleteCameraSpy)).toBe(false);
     layer.update({
       map,
       renderCamera: viewCamera,
@@ -547,7 +544,7 @@ describe("three tiles runtime styling", () => {
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
     });
-    expect(registeredShadowCamera(setCameraSpy)).toBe(true);
+    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
 
     deleteCameraSpy.mockClear();
     setResolutionSpy.mockClear();
@@ -555,7 +552,7 @@ describe("three tiles runtime styling", () => {
     handlers.get("movestart")?.();
 
     expect(renderer!.errorTarget).toBe(0.25);
-    expect(registeredShadowCamera(deleteCameraSpy)).toBe(true);
+    expect(registeredShadowCamera(deleteCameraSpy)).toBe(false);
 
     shadowCamera.position.x = 2;
     shadowCamera.updateMatrixWorld(true);
@@ -572,17 +569,11 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25, 0.25]);
-    expect(
-      setResolutionSpy.mock.calls.some((call) => {
-        const [camera, width, height] = call as unknown[];
-        return isShadowCameraCall([camera]) && width === 800 && height === 600;
-      })
-    ).toBe(true);
+    expect(registeredShadowCamera(setResolutionSpy)).toBe(false);
 
     deleteCameraSpy.mockClear();
     layer.setShadowView(null);
-    expect(deleteCameraSpy).toHaveBeenCalledOnce();
-    expect(registeredShadowCamera(deleteCameraSpy)).toBe(true);
+    expect(deleteCameraSpy).not.toHaveBeenCalled();
     layer.dispose();
     updateSpy.mockRestore();
     setCameraSpy.mockRestore();

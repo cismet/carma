@@ -135,8 +135,9 @@ describe("three tiles runtime liveness", () => {
     expect(renderer.stats.failed).toBe(0);
     renderer.queueTileForDownload(tile);
     expect(renderer.queuedTiles).toHaveLength(0);
-    // pending retry + transient-failure cooldown
-    expect(layer.getRequestDemand()).toBe(2);
+    // Only the required retry blocks a settled scene. Policy cooldowns and
+    // adaptive-error timers do not represent missing tile content.
+    expect(layer.getRequestDemand()).toBe(1);
 
     const dispatchSpy = vi.spyOn(renderer, "dispatchEvent");
     vi.advanceTimersByTime(2_000);

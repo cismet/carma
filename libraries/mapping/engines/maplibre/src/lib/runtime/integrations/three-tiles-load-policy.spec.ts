@@ -1,4 +1,3 @@
-import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,7 +12,6 @@ import {
   resolveRequestConcurrency,
   resolveTilesCacheBounds,
   resolveTilesCacheCeiling,
-  shadowFitChangedMaterially,
   shouldDeferTile,
 } from "./three-tiles-load-policy";
 import type {
@@ -510,65 +508,6 @@ describe("nextEffectiveErrorTarget", () => {
     expect(result.state.effective).toBe(
       2 * ERROR_TARGET_POLICY.minimumRelaxBase
     );
-  });
-});
-
-describe("shadowFitChangedMaterially", () => {
-  const fit = {
-    center: [0, 0, 0] as const,
-    extent: [1_000, 800, 600] as const,
-  };
-
-  it("always applies the first fit and ignores small drift", () => {
-    expect(shadowFitChangedMaterially(null, fit)).toBe(true);
-    expect(
-      shadowFitChangedMaterially(fit, {
-        center: [50, -40, 30],
-        extent: [1_050, 760, 620],
-      })
-    ).toBe(false);
-  });
-
-  it("detects a moved centre or a changed extent beyond the threshold", () => {
-    expect(
-      shadowFitChangedMaterially(fit, {
-        center: [150, 0, 0],
-        extent: fit.extent,
-      })
-    ).toBe(true);
-    expect(
-      shadowFitChangedMaterially(fit, {
-        center: fit.center,
-        extent: [1_000, 800, 480],
-      })
-    ).toBe(true);
-    expect(
-      shadowFitChangedMaterially(
-        fit,
-        { center: [150, 0, 0], extent: fit.extent },
-        0.2
-      )
-    ).toBe(false);
-  });
-
-  it("treats a rotated view direction as a material change", () => {
-    const lit = { ...fit, direction: [0, -1, 0] as const };
-    const tilted = Math.sin(THREE.MathUtils.degToRad(1));
-    expect(
-      shadowFitChangedMaterially(lit, {
-        ...fit,
-        direction: [tilted, -Math.sqrt(1 - tilted ** 2), 0],
-      })
-    ).toBe(true);
-    const nudged = Math.sin(THREE.MathUtils.degToRad(0.1));
-    expect(
-      shadowFitChangedMaterially(lit, {
-        ...fit,
-        direction: [nudged, -Math.sqrt(1 - nudged ** 2), 0],
-      })
-    ).toBe(false);
-    // Without a direction on either side only the footprint counts.
-    expect(shadowFitChangedMaterially(lit, fit)).toBe(false);
   });
 });
 

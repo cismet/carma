@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import {
+  applyShadowReceiverMask,
   createShadowReceiverMask,
   maximumSweepDistanceWithinBox,
   receiverMatchedTileError,
@@ -51,6 +52,16 @@ describe("createShadowReceiverMask", () => {
     );
 
     expect(mask?.match(box([20, 20, -95], [30, 30, -85]), match())).toBe(false);
+  });
+
+  it("tests the complete 3d cross-section including the receiver height", () => {
+    const mask = createShadowReceiverMask(
+      [source(box([-10, 20, -110], [10, 40, -100]))],
+      new THREE.Matrix4()
+    );
+
+    expect(mask?.match(box([-5, 35, -90], [5, 45, -80]), match())).toBe(true);
+    expect(mask?.match(box([-5, -5, -90], [5, 5, -80]), match())).toBe(false);
   });
 
   it("uses the finest intersected receiver error and strongest view priority", () => {
@@ -115,6 +126,49 @@ describe("receiverMatchedTileError", () => {
   it("requires a leaf when the receiver has zero geometric error", () => {
     expect(receiverMatchedTileError(1, 0, 1)).toBe(Number.POSITIVE_INFINITY);
     expect(receiverMatchedTileError(0, 0, 1)).toBe(0);
+  });
+});
+
+describe("applyShadowReceiverMask", () => {
+  it("rescues a sunward hierarchy branch rejected by the camera frustum", () => {
+    const mask = createShadowReceiverMask(
+      [source(box([-10, -10, -110], [10, 10, -100]))],
+      new THREE.Matrix4()
+    );
+    const target = { inView: false, error: 0 };
+    const result = match();
+
+    expect(
+      applyShadowReceiverMask(
+        mask!,
+        box([-5, -5, -80], [5, 5, -70]),
+        target,
+        result,
+        8,
+        1
+      )
+    ).toBe(true);
+    expect(target).toEqual({ inView: true, error: 2 });
+  });
+
+  it("removes a shadow-camera tile outside every receiver extrusion", () => {
+    const mask = createShadowReceiverMask(
+      [source(box([-10, -10, -110], [10, 10, -100]))],
+      new THREE.Matrix4()
+    );
+    const target = { inView: true, error: 10 };
+
+    expect(
+      applyShadowReceiverMask(
+        mask!,
+        box([20, 20, -80], [30, 30, -70]),
+        target,
+        match(),
+        8,
+        1
+      )
+    ).toBe(false);
+    expect(target).toEqual({ inView: false, error: 10 });
   });
 });
 

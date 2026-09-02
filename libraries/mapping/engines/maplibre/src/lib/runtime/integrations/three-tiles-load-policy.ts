@@ -492,56 +492,6 @@ export const nextEffectiveErrorTarget = (
   return { state: next, changed: false, retryInMs };
 };
 
-// D4 — shadow fit hysteresis (pure helper for the camera set)
-
-export const SHADOW_FIT_POLICY = {
-  /** Relative centre/extent change that re-poses the registered camera. */
-  relativeThreshold: 0.1,
-  /** Cosine of the view-direction change that always re-poses it (0.5°). */
-  directionCosineThreshold: Math.cos((0.5 * Math.PI) / 180),
-} as const;
-
-export type ShadowFit = Readonly<{
-  center: readonly [number, number, number];
-  extent: readonly [number, number, number];
-  /** Unit view direction; a rotated fit always applies. */
-  direction?: readonly [number, number, number];
-}>;
-
-export const shadowFitChangedMaterially = (
-  previous: ShadowFit | null,
-  next: ShadowFit,
-  threshold: number = SHADOW_FIT_POLICY.relativeThreshold
-): boolean => {
-  if (!previous) return true;
-  if (previous.direction && next.direction) {
-    const cosine =
-      previous.direction[0] * next.direction[0] +
-      previous.direction[1] * next.direction[1] +
-      previous.direction[2] * next.direction[2];
-    if (cosine < SHADOW_FIT_POLICY.directionCosineThreshold) return true;
-  }
-  for (let axis = 0; axis < 3; axis += 1) {
-    const previousExtent = Math.abs(previous.extent[axis]);
-    const nextExtent = Math.abs(next.extent[axis]);
-    const reference = Math.max(previousExtent, nextExtent);
-    if (reference === 0) {
-      if (previous.center[axis] !== next.center[axis]) return true;
-      continue;
-    }
-    if (Math.abs(nextExtent - previousExtent) > threshold * reference) {
-      return true;
-    }
-    if (
-      Math.abs(next.center[axis] - previous.center[axis]) >
-      threshold * reference
-    ) {
-      return true;
-    }
-  }
-  return false;
-};
-
 // D2 — request concurrency bounded by cache headroom
 
 export const resolveRequestConcurrency = (input: {

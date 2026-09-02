@@ -181,10 +181,9 @@ describe("three tiles runtime effective error target", () => {
     layer.dispose();
   });
 
-  it("treats a placeholder whose child can never load as converged and joins the shadow camera", () => {
+  it("treats a placeholder whose child can never load as ready for receiver traversal", () => {
     const { layer, renderer, tick, child, requiredTile } = setup();
     renderer.lruCache.setMemoryUsage(requiredTile, 16 * MIB);
-    const setCameraSpy = vi.spyOn(TilesRenderer.prototype, "setCamera");
 
     // The child is missing on the server: exhausted at once, never requested.
     child.internal.loadingState = -1;
@@ -202,11 +201,6 @@ describe("three tiles runtime effective error target", () => {
       vi.advanceTimersByTime(ERROR_TARGET_POLICY.relaxHoldMs);
     }
     expect(renderer.errorTarget).toBe(0.25);
-    expect(
-      setCameraSpy.mock.calls.some(
-        ([camera]) => camera instanceof THREE.OrthographicCamera
-      )
-    ).toBe(true);
     expect(layer.getRequestDemand()).toBe(0);
     layer.dispose();
   });

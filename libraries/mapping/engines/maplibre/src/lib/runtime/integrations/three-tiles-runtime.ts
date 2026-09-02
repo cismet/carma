@@ -49,9 +49,9 @@ import {
   type RetryableTilesRenderer,
 } from "./three-tiles-retry-controller";
 import {
+  applyShadowReceiverMask,
   createShadowReceiverMask,
   maximumSweepDistanceWithinBox,
-  receiverMatchedTileError,
   type ShadowReceiverMatch,
   type ShadowReceiverMask,
   type ShadowReceiverSource,
@@ -1183,9 +1183,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       (stats?.parsing ?? 0) +
       (shadowView && !shadowSelectionEnabled ? 1 : 0) +
       (shadowSelectionNeedsTraversal ? 1 : 0) +
-      (errorTargetTimer ? 1 : 0) +
       (tileRetries.hasPendingRetries() ? 1 : 0) +
-      (payloadAwareConcurrency.getCooldownRemainingMs() > 0 ? 1 : 0) +
       viewQualityAuditPasses +
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries()
         ? 1
@@ -1265,7 +1263,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (shadowSelectionEnabled === nextEnabled) return;
     shadowSelectionEnabled = nextEnabled;
     shadowSelectionNeedsTraversal = nextEnabled;
-    cameraSet?.setShadowView(nextEnabled ? shadowView : null);
   };
   const isPipelineIdle = () =>
     tiles !== null &&
@@ -1908,7 +1905,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         if (
           shadowSelectionEnabled &&
           shadowReceiverMask &&
-          target.inView &&
           !mainViewSourceTiles.has(tile) &&
           !isTileInMainView(runtimeTile)
         ) {
@@ -1916,15 +1912,15 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           if (bounds?.getAABB) {
             bounds.getAABB(tileBoundingBox);
             if (
-              !shadowReceiverMask.match(tileBoundingBox, shadowReceiverMatch)
-            ) {
-              target.inView = false;
-            } else {
-              target.error = receiverMatchedTileError(
+              applyShadowReceiverMask(
+                shadowReceiverMask,
+                tileBoundingBox,
+                target,
+                shadowReceiverMatch,
                 tile.geometricError,
-                shadowReceiverMatch.receiverGeometricError,
                 effectiveErrorTarget
-              );
+              )
+            ) {
               runtimeTile.shadowReceiverCenterness =
                 shadowReceiverMatch.receiverCenterness;
               runtimeTile.shadowLightFacing = shadowReceiverMatch.lightFacing;
@@ -2042,7 +2038,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         );
         if (!cameraSet) {
           cameraSet = createTilesCameraSet(tiles, viewCamera);
-          cameraSet.setShadowView(shadowSelectionEnabled ? shadowView : null);
         }
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         prepareViewFrustums(viewCamera);

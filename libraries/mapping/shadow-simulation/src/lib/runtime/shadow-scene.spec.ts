@@ -16,10 +16,8 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
     ].join(",")
   ),
   getSharedThreeSceneRuntimes: vi.fn(() => []),
-  isSharedThreeTerrainLoading: vi.fn(() => false),
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
   subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
-  subscribeSharedThreeSceneRequestState: vi.fn(() => vi.fn()),
   suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
   suppressMapLibreTerrainRendering: vi.fn(() => vi.fn()),
 }));
@@ -31,7 +29,6 @@ import {
   getSharedThreeSceneRuntimes,
   subscribeGenericThreeLayers,
   subscribeSharedThreeSceneContent,
-  subscribeSharedThreeSceneRequestState,
   suppressMapLibreRegularStyleLayers,
   suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
@@ -167,7 +164,6 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([]);
     vi.mocked(subscribeGenericThreeLayers).mockReturnValue(vi.fn());
     vi.mocked(subscribeSharedThreeSceneContent).mockReturnValue(vi.fn());
-    vi.mocked(subscribeSharedThreeSceneRequestState).mockReturnValue(vi.fn());
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
       layer: sharedLayer as never,
       release: releaseScene,
@@ -335,18 +331,10 @@ describe("shadow scene lighting integration", () => {
     expect(releaseScene).toHaveBeenCalledOnce();
   });
 
-  it("waits for view and shadow tile demand before sun-disc accumulation", () => {
+  it("keeps sun-disc accumulation active while tiles are streaming", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
-    let requestDemand = 1;
     const setShadowView = vi.fn();
-    let requestStateChanged = () => undefined;
-    vi.mocked(subscribeSharedThreeSceneRequestState).mockImplementation(
-      (_map, listener) => {
-        requestStateChanged = listener;
-        return vi.fn();
-      }
-    );
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
       {
         id: "buildings",
@@ -354,7 +342,7 @@ describe("shadow scene lighting integration", () => {
         root: new THREE.Group(),
         update: vi.fn(),
         setShadowView,
-        getRequestDemand: () => requestDemand,
+        getRequestDemand: () => 1,
         dispose: vi.fn(),
       },
     ]);
@@ -393,15 +381,8 @@ describe("shadow scene lighting integration", () => {
       sharedRuntimes.get("shadow-simulation-controller")?.updatePriority
     ).toBe(200);
     const accumulation = accumulationController!;
-    expect(accumulation.active()).toBe(false);
-    expect(accumulation.retainSettledFrame()).toBe(true);
-
-    requestDemand = 0;
-    const repaintCount = map.triggerRepaint.mock.calls.length;
-    requestStateChanged();
-    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaintCount + 1);
     expect(accumulation.active()).toBe(true);
-    expect(accumulation.retainSettledFrame()).toBe(false);
+    expect(accumulation.retainSettledFrame()).toBe(true);
 
     const shadowViewBeforeAnimation = setShadowView.mock.lastCall?.[0];
     const shadowViewCallCount = setShadowView.mock.calls.length;

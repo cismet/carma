@@ -23,6 +23,11 @@ export interface ShadowReceiverMask {
   match: (candidate: THREE.Box3, target: ShadowReceiverMatch) => boolean;
 }
 
+export interface ShadowReceiverTileTarget {
+  inView: boolean;
+  error: number;
+}
+
 export const maximumSweepDistanceWithinBox = (
   source: THREE.Box3,
   container: THREE.Box3,
@@ -209,4 +214,24 @@ export const receiverMatchedTileError = (
   return (
     errorTarget * (Math.max(0, tileGeometricError) / receiverGeometricError)
   );
+};
+
+export const applyShadowReceiverMask = (
+  mask: ShadowReceiverMask,
+  candidate: THREE.Box3,
+  target: ShadowReceiverTileTarget,
+  match: ShadowReceiverMatch,
+  tileGeometricError: number,
+  errorTarget: number
+): boolean => {
+  const matched = mask.match(candidate, match);
+  target.inView = matched;
+  if (matched) {
+    target.error = receiverMatchedTileError(
+      tileGeometricError,
+      match.receiverGeometricError,
+      errorTarget
+    );
+  }
+  return matched;
 };
