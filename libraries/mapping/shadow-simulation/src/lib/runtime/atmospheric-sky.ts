@@ -47,7 +47,7 @@ vec4 carmaLinearToSrgb(vec4 value) {
 };
 
 export type AtmosphericSky = Readonly<{
-  mesh: THREE.Mesh<THREE.PlaneGeometry, SkyMaterial>;
+  mesh: THREE.Mesh<THREE.BufferGeometry, SkyMaterial>;
   update: (
     frame: AtmosphericSkyFrame,
     textures: AtmosphericSkyTextures | null
@@ -63,15 +63,22 @@ export const buildAtmosphericSky = (
     groundAlbedo,
     moon: false,
     photometric: true,
+    side: THREE.DoubleSide,
     sun: true,
   });
   addDisplayTransform(material);
-  const geometry = new THREE.PlaneGeometry(2, 2);
+  material.depthTest = false;
+  material.depthWrite = false;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3)
+  );
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = ATMOSPHERIC_SKY_NAME;
   mesh.visible = false;
   mesh.frustumCulled = false;
-  mesh.renderOrder = SKY_RENDER_ORDER;
+  mesh.renderOrder = -SKY_RENDER_ORDER;
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   mesh.onBeforeRender = (renderer) => {
@@ -88,7 +95,7 @@ export const buildAtmosphericSky = (
       material.scatteringTexture = textures.scatteringTexture;
       material.transmittanceTexture = textures.transmittanceTexture;
       material.sunDirection.copy(frame.directionToSunECEF);
-      material.ellipsoidCenter.copy(frame.observerECEF).negate();
+      material.ellipsoidCenter.copy(frame.ellipsoidCenterECEF);
       material.ellipsoidMatrix.copy(frame.ecefToSceneMatrix);
     },
     updateGroundAlbedo(color) {

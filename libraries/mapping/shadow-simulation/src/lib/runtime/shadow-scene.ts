@@ -33,8 +33,10 @@ import {
 } from "../core/shadow-types";
 import {
   AtmosphericSunlightEvaluator,
+  evaluateAtmosphericSkyFrame,
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
+  type AtmosphericSkyReference,
 } from "./atmospheric-sunlight";
 import {
   ATMOSPHERIC_DISPLAY_EXPOSURE,
@@ -795,7 +797,27 @@ export const buildShadowSimulationScene = (
   map.on("styledata", ensureShadowBackground);
   ensureShadowBackground();
   let restoreMapLibreTerrain: (() => void) | null = null;
+  const atmosphereReferenceCenter = map.getCenter();
   const sceneLease = acquireSharedThreeScene(map);
+  const atmosphereSkyObserver: AtmosphericSkyReference["observer"] = {
+    longitude: atmosphereReferenceCenter.lng,
+    latitude: atmosphereReferenceCenter.lat,
+    altitudeMeters: 0,
+  };
+  const atmosphereFallbackScenePosition =
+    sceneLease.layer.projectLngLatToScene?.(
+      [atmosphereReferenceCenter.lng, atmosphereReferenceCenter.lat],
+      0
+    ) ?? new THREE.Vector3();
+  const getAtmosphereSkyReference = (
+    longitude: number,
+    latitude: number
+  ): AtmosphericSkyReference => ({
+    observer: atmosphereSkyObserver,
+    scenePosition:
+      sceneLease.layer.projectLngLatToScene?.([longitude, latitude], 0) ??
+      atmosphereFallbackScenePosition,
+  });
   const atmosphericSunlight = new AtmosphericSunlightEvaluator();
   let invalidateShadowMap = () => undefined;
   let refreshTerrainShadowState = () => invalidateShadowMap();
@@ -828,6 +850,7 @@ export const buildShadowSimulationScene = (
   );
   let shadowStateEpoch = 0;
   let shadowVisualEpoch = 0;
+  let cameraAltitudeMeters: number | null = null;
   const invalidateShadowPresentation = () => {
     shadowStateEpoch += 1;
     shadowVisualEpoch += 1;
@@ -863,7 +886,9 @@ export const buildShadowSimulationScene = (
   const evaluateAtmosphericSunlightForMap = (position: SolarPosition) => {
     const mapCenter = map.getCenter();
     const altitudeMeters =
-      terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0;
+      cameraAltitudeMeters ??
+      terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ??
+      0;
     atmosphericSunlight.ensure(() => {
       if (disposed || !latestSolarPosition) return;
       invalidateShadowPresentation();
@@ -884,7 +909,8 @@ export const buildShadowSimulationScene = (
         latitude: mapCenter.lat,
         altitudeMeters,
       },
-      atmosphericSunlightOptions
+      atmosphericSunlightOptions,
+      getAtmosphereSkyReference(mapCenter.lng, mapCenter.lat)
     );
     latestAtmosphericSunlight = sample;
     sharedBinding.atmosphericSky.update(
@@ -899,6 +925,22 @@ export const buildShadowSimulationScene = (
       ATMOSPHERIC_DISPLAY_EXPOSURE
     );
     return sample;
+  };
+  const updateAtmosphericSkyFrameForMap = (position: SolarPosition) => {
+    const mapCenter = map.getCenter();
+    const skyFrame = evaluateAtmosphericSkyFrame(
+      position.instant,
+      {
+        longitude: mapCenter.lng,
+        latitude: mapCenter.lat,
+        altitudeMeters: cameraAltitudeMeters ?? 0,
+      },
+      getAtmosphereSkyReference(mapCenter.lng, mapCenter.lat)
+    );
+    sharedBinding.atmosphericSky.update(
+      skyFrame,
+      atmosphericSunlight.skyTextures
+    );
   };
   invalidateShadowMap = () => {
     if (disposed) return;
@@ -1051,6 +1093,9 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition && (reevaluateSun || !latestAtmosphericSunlight)) {
       evaluateAtmosphericSunlightForMap(latestSolarPosition);
     } else {
+      if (latestSolarPosition) {
+        updateAtmosphericSkyFrameForMap(latestSolarPosition);
+      }
       sharedBinding.lightTarget.position.copy(sharedBinding.center);
       for (const sunLight of sharedBinding.controller.lights) {
         sunLight.target.position.copy(sharedBinding.center);
@@ -1068,6 +1113,17 @@ export const buildShadowSimulationScene = (
     root: new THREE.Group(),
     updatePriority: SHADOW_CONTROLLER_UPDATE_PRIORITY,
     update(frame) {
+      const nextCameraAltitudeMeters = frame.renderCamera.position.y;
+      if (
+        Number.isFinite(nextCameraAltitudeMeters) &&
+        (cameraAltitudeMeters === null ||
+          Math.abs(nextCameraAltitudeMeters - cameraAltitudeMeters) >= 0.25)
+      ) {
+        cameraAltitudeMeters = nextCameraAltitudeMeters;
+        if (latestSolarPosition) {
+          evaluateAtmosphericSunlightForMap(latestSolarPosition);
+        }
+      }
       const nextRenderCameraSignature = getSharedThreeShadowViewSignature({
         camera: frame.renderCamera,
         shadowMapSize: {

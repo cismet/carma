@@ -44,7 +44,12 @@ export type AtmosphericSunlightSample = Readonly<{
 export type AtmosphericSkyFrame = Readonly<{
   directionToSunECEF: THREE.Vector3;
   ecefToSceneMatrix: THREE.Matrix4;
-  observerECEF: THREE.Vector3;
+  ellipsoidCenterECEF: THREE.Vector3;
+}>;
+
+export type AtmosphericSkyReference = Readonly<{
+  observer: AtmosphericObserver;
+  scenePosition: THREE.Vector3;
 }>;
 
 export type AtmosphericSkyTextures = Readonly<{
@@ -121,6 +126,44 @@ const ecefDirectionToSceneDirectionWithFrame = (
     )
     .normalize();
 
+const buildAtmosphericSkyFrame = (
+  sunDirectionECEF: THREE.Vector3,
+  observerFrame: ObserverFrame,
+  skyReference?: AtmosphericSkyReference
+): AtmosphericSkyFrame => {
+  const directionToSun = ecefDirectionToSceneDirectionWithFrame(
+    sunDirectionECEF,
+    observerFrame,
+    new THREE.Vector3()
+  );
+  const skyReferenceFrame = skyReference
+    ? getObserverFrame(skyReference.observer)
+    : observerFrame;
+  const ecefToSceneMatrix = getEcefToSceneMatrix(skyReferenceFrame);
+  const sceneToEcefMatrix = ecefToSceneMatrix.clone().invert();
+  return {
+    directionToSunECEF: directionToSun
+      .clone()
+      .transformDirection(sceneToEcefMatrix),
+    ecefToSceneMatrix,
+    ellipsoidCenterECEF: (skyReference?.scenePosition ?? new THREE.Vector3())
+      .clone()
+      .applyMatrix4(sceneToEcefMatrix)
+      .sub(skyReferenceFrame.observerECEF),
+  };
+};
+
+export const evaluateAtmosphericSkyFrame = (
+  instant: Date,
+  observer: AtmosphericObserver,
+  skyReference?: AtmosphericSkyReference
+): AtmosphericSkyFrame =>
+  buildAtmosphericSkyFrame(
+    getSunDirectionECEF(instant, new THREE.Vector3()),
+    getObserverFrame(observer),
+    skyReference
+  );
+
 /** Convert a Takram ECEF direction into the shared scene's E/U/S axes. */
 export const ecefDirectionToSceneDirection = (
   directionECEF: THREE.Vector3,
@@ -187,20 +230,21 @@ export const evaluateAtmosphericSunlight = (
   instant: Date,
   observer: AtmosphericObserver,
   transmittanceTexture: THREE.DataTexture | null,
-  skyLightProbe: SkyLightProbe | null = null
+  skyLightProbe: SkyLightProbe | null = null,
+  skyReference?: AtmosphericSkyReference
 ): AtmosphericSunlightSample => {
   const observerFrame = getObserverFrame(observer);
   const { observerECEF, up } = observerFrame;
   const sunDirectionECEF = getSunDirectionECEF(instant, new THREE.Vector3());
-  const skyFrame: AtmosphericSkyFrame = {
-    directionToSunECEF: sunDirectionECEF.clone(),
-    ecefToSceneMatrix: getEcefToSceneMatrix(observerFrame),
-    observerECEF: observerECEF.clone(),
-  };
   const directionToSun = ecefDirectionToSceneDirectionWithFrame(
     sunDirectionECEF,
     observerFrame,
     new THREE.Vector3()
+  );
+  const skyFrame = buildAtmosphericSkyFrame(
+    sunDirectionECEF,
+    observerFrame,
+    skyReference
   );
   const skyIrradianceCoefficients = evaluateSkyIrradiance(
     skyLightProbe,
@@ -475,13 +519,15 @@ export class AtmosphericSunlightEvaluator {
   evaluate(
     instant: Date,
     observer: AtmosphericObserver,
-    options: AtmosphericSunlightOptions = DEFAULT_ATMOSPHERIC_SUNLIGHT_OPTIONS
+    options: AtmosphericSunlightOptions = DEFAULT_ATMOSPHERIC_SUNLIGHT_OPTIONS,
+    skyReference?: AtmosphericSkyReference
   ): AtmosphericSunlightSample {
     return evaluateAtmosphericSunlight(
       instant,
       observer,
       options.useTransmittanceLut ? this.transmittanceTexture : null,
-      options.useIrradianceLut ? this.skyLightProbe : null
+      options.useIrradianceLut ? this.skyLightProbe : null,
+      skyReference
     );
   }
 
