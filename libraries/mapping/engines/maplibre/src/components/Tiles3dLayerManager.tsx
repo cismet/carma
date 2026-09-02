@@ -97,19 +97,26 @@ export function Tiles3dLayerManager({
   const runtimeRef = useRef<ThreeTilesRuntime | null>(null);
   // Whether the terrain demand has been answered for this mount, see below.
   const terrainSettledRef = useRef(false);
-  // Read while building a layer, which happens outside the effect that follows
-  // the slider, so the first frame after a rebuild is already at the right
-  // opacity instead of flashing opaque.
+  // Read while building a layer, which happens outside the effects that follow
+  // the sliders and the style, so the first frame after a rebuild is already
+  // at the right settings instead of flashing opaque or coarse.
   const layerOpacityRef = useRef<number | undefined>(layerOpacity);
   layerOpacityRef.current = layerOpacity;
+  const configRef = useRef(config);
+  configRef.current = config;
 
   // Native style-declared tilesets use the shared Three.js scene as well. This
   // is what lets the shadow add-on's directional light and shadow map reach
   // them; without the add-on, the shared scene keeps its regular ambient-only
   // rendering and no shadow light exists.
+  //
+  // The runtime is rebuilt only for another map, tileset or terrain role;
+  // everything else reaches it through its setters below, so a slider does not
+  // drop the tile cache.
   useEffect(() => {
     if (!map || !config.tilesetUrl || !mapIsUsable(map)) return;
 
+    const initialConfig = configRef.current;
     const restoreMapLibreTerrain = config.providesTerrain
       ? suppressMapLibreTerrainRendering(map)
       : null;
@@ -126,11 +133,11 @@ export function Tiles3dLayerManager({
       origin,
       {
         requestConcurrency: THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
-        cacheBudgetBytes: config.cacheBudgetBytes,
-        cacheOverflowBytes: config.cacheOverflowBytes,
-        outline: config.outline,
-        outlineColor: config.outlineColor,
-        outlineOpacity: config.outlineOpacity,
+        cacheBudgetBytes: initialConfig.cacheBudgetBytes,
+        cacheOverflowBytes: initialConfig.cacheOverflowBytes,
+        outline: initialConfig.outline,
+        outlineColor: initialConfig.outlineColor,
+        outlineOpacity: initialConfig.outlineOpacity,
         providesTerrain: config.providesTerrain,
         shadowBuildingStyle: true,
         onContentChanged: () => notifySharedThreeSceneContentChanged(map),
@@ -138,9 +145,11 @@ export function Tiles3dLayerManager({
           notifySharedThreeSceneRequestStateChanged(map),
       }
     );
-    runtime.setErrorTarget(resolveTiles3dErrorTarget(config));
-    runtime.setOpacity((config.opacity ?? 1) * (layerOpacityRef.current ?? 1));
-    runtime.setOutlineVisible(config.outline ?? true);
+    runtime.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
+    runtime.setOpacity(
+      (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
+    );
+    runtime.setOutlineVisible(initialConfig.outline ?? true);
     runtimeRef.current = runtime;
     lease.layer.addRuntime(runtime);
     // What lets the camera restriction know the map has become three
@@ -159,18 +168,7 @@ export function Tiles3dLayerManager({
       lease.release();
       restoreMapLibreTerrain?.();
     };
-  }, [
-    map,
-    config.tilesetUrl,
-    config.errorTarget,
-    config.cacheBudgetBytes,
-    config.cacheOverflowBytes,
-    config.opacity,
-    config.outline,
-    config.outlineColor,
-    config.outlineOpacity,
-    config.providesTerrain,
-  ]);
+  }, [map, config.tilesetUrl, config.providesTerrain]);
 
   // Terrain is only ever switched on here, never off again: the way back
   // belongs to the terrain control, and so does the setting it persists.
@@ -206,8 +204,27 @@ export function Tiles3dLayerManager({
   }, [map, config.terrainMandatory, config.providesTerrain]);
 
   useEffect(() => {
+    runtimeRef.current?.setErrorTarget(
+      resolveTiles3dErrorTarget({ errorTarget: config.errorTarget })
+    );
+  }, [config.errorTarget]);
+
+  useEffect(() => {
+    runtimeRef.current?.setCacheBudget(config.cacheBudgetBytes, {
+      overflowBytes: config.cacheOverflowBytes,
+    });
+  }, [config.cacheBudgetBytes, config.cacheOverflowBytes]);
+
+  useEffect(() => {
     runtimeRef.current?.setOutlineVisible(config.outline ?? true);
   }, [config.outline]);
+
+  useEffect(() => {
+    runtimeRef.current?.setOutlineStyle({
+      color: config.outlineColor ?? 0x000000,
+      opacity: config.outlineOpacity ?? 1,
+    });
+  }, [config.outlineColor, config.outlineOpacity]);
 
   // The layer bar's slider reaches a 2D layer as paint properties, which a
   // custom layer has none of, so it is multiplied in here the way the three.js
