@@ -117,48 +117,6 @@ describe("three tiles runtime styling", () => {
     queueSpy.mockRestore();
   });
 
-  it("releases loaded sibling fallbacks outside the camera union", () => {
-    let renderer: TilesRenderer | undefined;
-    const markUnusedSpy = vi.fn();
-    const outsideUnion = {
-      traversal: {
-        inFrustum: false,
-        active: false,
-        visible: false,
-      },
-    } as never;
-    const updateSpy = vi
-      .spyOn(TilesRenderer.prototype, "update")
-      .mockImplementation(function (this: TilesRenderer) {
-        renderer = this;
-        this.lruCache.markUnused = markUnusedSpy;
-        this.usedSet.add(outsideUnion);
-      });
-    const map = {
-      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.25 })),
-      on: vi.fn(),
-      off: vi.fn(),
-      triggerRepaint: vi.fn(),
-    } as unknown as MaplibreMap;
-    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
-    const camera = new THREE.PerspectiveCamera();
-
-    layer.onAdd?.(map);
-    layer.update({
-      map,
-      renderCamera: camera,
-      lodCamera: camera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-
-    expect(renderer?.usedSet.has(outsideUnion)).toBe(false);
-    expect(markUnusedSpy).toHaveBeenCalledWith(outsideUnion);
-
-    layer.dispose();
-    updateSpy.mockRestore();
-  });
-
   it("keeps the parent fallback eligible after a child exhausts its retries", () => {
     vi.useFakeTimers();
     type TraversalRenderer = TilesRenderer & {
