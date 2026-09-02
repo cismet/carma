@@ -100,20 +100,23 @@ export const useAnnotationActions = () => {
   );
 
   /**
-   * Put restored drawings in place, all locked, and open a fresh one on top so
-   * the pencil is immediately usable at wherever the map now stands.
+   * Put the restored drawings in place and open the last one, so the pencil
+   * works right away without a fresh drawing being added on every mount.
    */
   const hydrate = useCallback(
     (restored: AnnotationGroup[]) =>
       setState((previous) => {
-        const fresh: AnnotationGroup = { id: nextGroupId(), locked: false };
+        if (restored.length === 0) {
+          return previous ?? { isOn: false };
+        }
+        const groups = restored.map((entry, index) => ({
+          ...entry,
+          locked: index !== restored.length - 1,
+        }));
         return {
           ...(previous ?? { isOn: false }),
-          groups: [
-            ...restored.map((entry) => ({ ...entry, locked: true })),
-            fresh,
-          ],
-          activeId: fresh.id,
+          groups,
+          activeId: groups[groups.length - 1].id,
         };
       }),
     [setState]
