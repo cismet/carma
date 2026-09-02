@@ -67,6 +67,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
         hideLibrary: true,
         hideHistory: true,
         hideWhenOff: true,
+        storageKey: "carma.geoportal.addons.annotations",
       },
     },
     { kind: "annotationControl" },

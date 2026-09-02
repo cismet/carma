@@ -1,0 +1,109 @@
+import { useCallback, useEffect, useRef } from "react";
+import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
+
+import { writeDrawings, type StoredDrawing } from "./annotation-storage";
+import type { AnnotationAnchor, AnnotationGroup } from "./types";
+
+const DEBOUNCE_MS = 800;
+
+type Content = {
+  anchor: AnnotationAnchor | null;
+  elements: readonly ExcalidrawElement[];
+};
+
+export type UseAnnotationStorageOptions = {
+  storageKey?: string;
+  groups: AnnotationGroup[];
+  restored: StoredDrawing[];
+};
+
+export const useAnnotationStorage = ({
+  storageKey,
+  groups,
+  restored,
+}: UseAnnotationStorageOptions) => {
+  const contents = useRef(
+    new Map<string, Content>(
+      restored.map((drawing) => [
+        drawing.id,
+        { anchor: drawing.anchor, elements: drawing.elements },
+      ])
+    )
+  );
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+
+  const flush = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (!storageKey) {
+      return;
+    }
+    const drawings = groupsRef.current.reduce<StoredDrawing[]>(
+      (kept, group) => {
+        const content = contents.current.get(group.id);
+        if (content?.anchor) {
+          kept.push({
+            id: group.id,
+            locked: group.locked,
+            anchor: content.anchor,
+            elements: content.elements,
+          });
+        }
+        return kept;
+      },
+      []
+    );
+    writeDrawings(storageKey, drawings);
+  }, [storageKey]);
+
+  const schedule = useCallback(() => {
+    if (!storageKey) {
+      return;
+    }
+    if (timer.current) {
+      clearTimeout(timer.current);
+    }
+    timer.current = setTimeout(flush, DEBOUNCE_MS);
+  }, [flush, storageKey]);
+
+  const onSceneEdit = useCallback(
+    (
+      id: string,
+      elements: readonly ExcalidrawElement[],
+      anchor: AnnotationAnchor | null
+    ) => {
+      contents.current.set(id, { anchor, elements });
+      schedule();
+    },
+    [schedule]
+  );
+
+  useEffect(() => {
+    schedule();
+  }, [groups, schedule]);
+
+  useEffect(() => {
+    if (!storageKey) {
+      return;
+    }
+    const onHide = () => {
+      if (document.visibilityState === "hidden") {
+        flush();
+      }
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [flush, storageKey]);
+
+  return onSceneEdit;
+};

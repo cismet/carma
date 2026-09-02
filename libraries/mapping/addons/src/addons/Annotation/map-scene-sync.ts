@@ -6,6 +6,8 @@ import type {
   NormalizedZoomValue,
 } from "@excalidraw/excalidraw/types/types";
 
+import type { AnnotationAnchor } from "./types";
+
 /** excalidraw clamps zoom.value to this range; see its getNormalizedZoom */
 const MIN_SCENE_ZOOM = 0.1;
 const MAX_SCENE_ZOOM = 30;
@@ -17,7 +19,7 @@ const EPSILON = 0.01;
 const REPUSH_LIMIT = 5;
 
 /** the lng/lat the scene puts at (0, 0), and the map zoom where scale is 1 */
-type Anchor = { lng: number; lat: number; zoom: number };
+type Anchor = AnnotationAnchor;
 
 type SceneCamera = { scrollX: number; scrollY: number; scale: number };
 
@@ -51,10 +53,11 @@ export const useMapSceneSync = (
   overlay: HTMLElement | null,
   /** whether the overlay currently takes pointer events */
   interactive: boolean,
-  /** whether the drawing is in use; the anchor is taken while it is */
-  live: boolean
+  live: boolean,
+  savedAnchor?: AnnotationAnchor
 ) => {
-  const anchorRef = useRef<Anchor | null>(null);
+  const anchorRef = useRef<Anchor | null>(savedAnchor ?? null);
+  const restoredRef = useRef(Boolean(savedAnchor));
   const pushedRef = useRef<SceneCamera | null>(null);
   /** false until the scene has handed a camera of ours back through onChange */
   const primedRef = useRef(false);
@@ -172,10 +175,7 @@ export const useMapSceneSync = (
     if (!map || !api) {
       return;
     }
-    // An empty scene re-anchors: the drawing fixes to the ground only once
-    // something is on it. Without this the anchor would be the camera at mount,
-    // which is wherever the map stood when the route loaded.
-    if (live && api.getSceneElements().length === 0) {
+    if (live && !restoredRef.current && api.getSceneElements().length === 0) {
       const { lng, lat } = map.getCenter();
       anchorRef.current = { lng, lat, zoom: map.getZoom() };
     }
@@ -200,5 +200,7 @@ export const useMapSceneSync = (
     };
   }, [api, applyMapCamera, live, map, overlay]);
 
-  return { inSync, onSceneChange: applySceneCamera };
+  const getAnchor = useCallback(() => anchorRef.current, []);
+
+  return { inSync, onSceneChange: applySceneCamera, getAnchor };
 };

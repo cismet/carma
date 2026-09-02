@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
-import { useAnnotationActions } from "./annotation-actions";
+import { reserveIdSequence, useAnnotationActions } from "./annotation-actions";
+import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { AnnotationScene } from "./AnnotationScene";
+import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
 import type { AnnotationInset } from "./types";
 
@@ -59,6 +61,7 @@ export const AnnotationOverlay = ({
     hideLibrary = false,
     hideHistory = false,
     hideWhenOff = false,
+    storageKey,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
@@ -73,7 +76,28 @@ export const AnnotationOverlay = ({
     undoVersion,
     redoVersion,
     pickGroup,
+    hydrate,
   } = useAnnotationActions();
+
+  const [saved] = useState(() => readDrawings(storageKey));
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) {
+      return;
+    }
+    hydratedRef.current = true;
+    if (saved.length === 0) {
+      return;
+    }
+    reserveIdSequence(highestIdSequence(saved));
+    hydrate(saved.map(({ id }) => ({ id, locked: true })));
+  }, [hydrate, saved]);
+
+  const onSceneEdit = useAnnotationStorage({
+    storageKey,
+    groups,
+    restored: saved,
+  });
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
   // flush to the host would file the toolbar away behind the navbar. Measured,
@@ -86,8 +110,6 @@ export const AnnotationOverlay = ({
     enabled: isOn,
     order,
     activeId,
-    // with a shape tool selected the click belongs to the shape; while the
-    // active drawing is locked nothing is being drawn, so any click may pick up
     armed: isLocked || shape === "selection",
     onPick: pickGroup,
   });
@@ -113,27 +135,32 @@ export const AnnotationOverlay = ({
 
   return (
     <>
-      {groups.map((group, index) => (
-        <AnnotationScene
-          key={group.id}
-          id={group.id}
-          host={host}
-          libreMap={libreMap}
-          onProbe={registerProbe}
-          editable={isOn && group.id === activeId && !group.locked}
-          live={isOn}
-          shown={isOn || !hideWhenOff}
-          langCode={langCode}
-          background={paper}
-          chrome={chrome}
-          shape={shape}
-          undoVersion={undoVersion}
-          redoVersion={redoVersion}
-          inset={{ top: navbarInset + top, right, bottom, left }}
-          // oldest first, so a newer drawing stacks over the older ones
-          zIndex={zIndex + index}
-        />
-      ))}
+      {groups.map((group, index) => {
+        const restored = saved.find((drawing) => drawing.id === group.id);
+        return (
+          <AnnotationScene
+            key={group.id}
+            id={group.id}
+            host={host}
+            libreMap={libreMap}
+            onProbe={registerProbe}
+            onSceneEdit={onSceneEdit}
+            savedElements={restored?.elements}
+            savedAnchor={restored?.anchor}
+            editable={isOn && group.id === activeId && !group.locked}
+            live={isOn}
+            shown={isOn || !hideWhenOff}
+            langCode={langCode}
+            background={paper}
+            chrome={chrome}
+            shape={shape}
+            undoVersion={undoVersion}
+            redoVersion={redoVersion}
+            inset={{ top: navbarInset + top, right, bottom, left }}
+            zIndex={zIndex + index}
+          />
+        );
+      })}
     </>
   );
 };

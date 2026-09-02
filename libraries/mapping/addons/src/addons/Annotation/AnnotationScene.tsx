@@ -5,13 +5,14 @@ import type {
   AppState,
   ExcalidrawImperativeAPI,
 } from "@excalidraw/excalidraw/types/types";
+import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 import { redoScene, undoScene } from "./annotation-history";
 import { sceneHasElementAt } from "./annotation-hit-test";
 import { useMapSceneSync } from "./map-scene-sync";
 import type { AnnotationShape } from "./shape-tools";
 import type { SceneProbe } from "./useDrawingPicker";
-import type { AnnotationInset } from "./types";
+import type { AnnotationAnchor, AnnotationInset } from "./types";
 import "./annotation-overlay.css";
 
 const Excalidraw = lazy(() =>
@@ -20,7 +21,13 @@ const Excalidraw = lazy(() =>
   }))
 );
 
-/** which parts of excalidraw's own chrome the css hides */
+let getSceneVersion:
+  | ((elements: readonly ExcalidrawElement[]) => number)
+  | null = null;
+void import("@excalidraw/excalidraw").then((module) => {
+  getSceneVersion = module.getSceneVersion;
+});
+
 export type AnnotationSceneChrome = {
   hideMenu: boolean;
   hideZoom: boolean;
@@ -31,18 +38,19 @@ export type AnnotationSceneChrome = {
 };
 
 export type AnnotationSceneProps = {
-  /** this drawing's id in the `annotationMode` channel */
   id: string;
-  /** the map wrapper the overlay is painted into */
   host: HTMLElement;
   libreMap: MaplibreMap | null;
-  /** hit test registration for `useDrawingPicker` */
   onProbe: (id: string, probe: SceneProbe | null) => void;
-  /** the one drawing taking the pointer; the rest only follow the camera */
+  onSceneEdit: (
+    id: string,
+    elements: readonly ExcalidrawElement[],
+    anchor: AnnotationAnchor | null
+  ) => void;
+  savedElements?: readonly ExcalidrawElement[];
+  savedAnchor?: AnnotationAnchor;
   editable: boolean;
-  /** the mode is on, so an empty scene takes its anchor from the camera */
   live: boolean;
-  /** false while the mode is off and the config hides it then */
   shown: boolean;
   langCode: string;
   background: string;
@@ -54,20 +62,14 @@ export type AnnotationSceneProps = {
   zIndex: number;
 };
 
-/**
- * One drawing. `useMapSceneSync` takes its anchor off the camera while `live`
- * and the scene is still empty, so a scene added later is pinned where the map
- * stands then — that is what allows drawing again after zooming past an older
- * drawing's range.
- *
- * Stays mounted whether or not it is being drawn on: unmounting would drop the
- * scene, and the sync must keep running while the map moves.
- */
 export const AnnotationScene = ({
   id,
   host,
   libreMap,
   onProbe,
+  onSceneEdit,
+  savedElements,
+  savedAnchor,
   editable,
   live,
   shown,
@@ -82,13 +84,38 @@ export const AnnotationScene = ({
 }: AnnotationSceneProps) => {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
-  const { inSync, onSceneChange } = useMapSceneSync(
+  const { inSync, onSceneChange, getAnchor } = useMapSceneSync(
     libreMap,
     api,
     box,
     editable,
-    live
+    live,
+    savedAnchor
   );
+
+  const versionRef = useRef(-1);
+  const settledRef = useRef(!savedElements?.length);
+
+  const handleChange = (
+    elements: readonly ExcalidrawElement[],
+    appState: AppState
+  ) => {
+    onSceneChange(appState);
+
+    if (!settledRef.current) {
+      if (elements.length === 0) {
+        return;
+      }
+      settledRef.current = true;
+    }
+
+    const version = getSceneVersion?.(elements) ?? -1;
+    if (version === versionRef.current) {
+      return;
+    }
+    versionRef.current = version;
+    onSceneEdit(id, elements, getAnchor());
+  };
 
   useEffect(() => {
     if (api && editable && shape) {
@@ -96,8 +123,6 @@ export const AnnotationScene = ({
     }
   }, [api, editable, shape]);
 
-  // only the editable scene paints a background; stacked ones would tint the
-  // map once per drawing
   useEffect(() => {
     api?.updateScene({
       appState: {
@@ -150,17 +175,17 @@ export const AnnotationScene = ({
         left: inset.left,
         zIndex,
         pointerEvents: drawing ? "auto" : "none",
-        // not `display: none`: the sync measures its offset off this box
         visibility: inSync && shown ? "visible" : "hidden",
       }}
     >
       <Suspense fallback={null}>
         <Excalidraw
           excalidrawAPI={setApi}
-          onChange={(_elements, appState: AppState) => onSceneChange(appState)}
+          onChange={handleChange}
           langCode={langCode}
           viewModeEnabled={!drawing}
           initialData={{
+            elements: savedElements,
             appState: {
               viewBackgroundColor: editable ? background : "transparent",
             },

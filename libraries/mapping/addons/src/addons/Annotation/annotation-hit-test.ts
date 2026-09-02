@@ -1,6 +1,5 @@
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 
-/** how far outside an element still counts as a hit, in screen px */
 const TOLERANCE = 6;
 
 type Bounds = {
@@ -11,7 +10,6 @@ type Bounds = {
   angle: number;
 };
 
-/** elements store an unrotated box plus an angle, so rotate the point back */
 const contains = (element: Bounds, x: number, y: number, pad: number) => {
   const centreX = element.x + element.width / 2;
   const centreY = element.y + element.height / 2;
@@ -29,12 +27,6 @@ const contains = (element: Bounds, x: number, y: number, pad: number) => {
   );
 };
 
-/**
- * Whether this scene has an element under the given client point.
- *
- * Bounding boxes only: excalidraw does not expose its own hit testing, and for
- * selecting a whole drawing the box is precise enough.
- */
 export const sceneHasElementAt = (
   api: ExcalidrawImperativeAPI | null,
   box: HTMLElement | null,
@@ -46,7 +38,6 @@ export const sceneHasElementAt = (
   }
   const { scrollX, scrollY, zoom } = api.getAppState();
   const rect = box.getBoundingClientRect();
-  // excalidraw's transform: screen = (scene + scroll) * zoom
   const x = (clientX - rect.left) / zoom.value - scrollX;
   const y = (clientY - rect.top) / zoom.value - scrollY;
   const pad = TOLERANCE / zoom.value;
