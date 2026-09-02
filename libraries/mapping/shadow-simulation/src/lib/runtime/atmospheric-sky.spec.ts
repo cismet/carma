@@ -20,15 +20,19 @@ describe("atmospheric sky", () => {
 
     expect(sky.mesh.visible).toBe(false);
     expect(sky.mesh.frustumCulled).toBe(false);
-    expect(sky.mesh.renderOrder).toBe(SKY_RENDER_ORDER);
+    expect(sky.mesh.renderOrder).toBe(-SKY_RENDER_ORDER);
     expect(sky.mesh.castShadow).toBe(false);
     expect(sky.mesh.receiveShadow).toBe(false);
+    expect(sky.mesh.geometry.getAttribute("position").count).toBe(3);
+    expect(sky.mesh.material.side).toBe(THREE.DoubleSide);
+    expect(sky.mesh.material.depthTest).toBe(false);
+    expect(sky.mesh.material.depthWrite).toBe(false);
 
     sky.update(
       {
         directionToSunECEF: new THREE.Vector3(1, 2, 3).normalize(),
         ecefToSceneMatrix,
-        observerECEF: new THREE.Vector3(4, 5, 6),
+        ellipsoidCenterECEF: new THREE.Vector3(-4, -5, -6),
       },
       {
         transmittanceTexture,
