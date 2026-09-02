@@ -58,6 +58,8 @@ export type ViewStateVisualizerVisualizedOptions = {
   imagePlaneDistance?: number;
   /** Place the marker from the stored ECEF camera position, not orbit angles. */
   useCameraPosition?: boolean;
+  /** Shared number of world meters represented by one visualizer unit. */
+  worldScaleMeters?: number;
 };
 
 export type ViewStateVisualizerSurfaceDisplayOptions = {
@@ -160,6 +162,7 @@ export type ResolvedViewStateVisualizerVisualizedOptions = {
   maxPitch: Radians | null;
   imagePlaneDistance: number | null;
   useCameraPosition: boolean;
+  worldScaleMeters: number | null;
 };
 
 export type ResolvedViewStateVisualizerSurfaceDisplayOptions = {

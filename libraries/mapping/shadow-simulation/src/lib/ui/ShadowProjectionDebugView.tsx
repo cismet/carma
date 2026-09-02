@@ -55,10 +55,6 @@ const SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS = {
   fitOrthographicWidth: true,
 } as const;
 
-const SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS = {
-  useCameraPosition: true,
-} as const;
-
 const SHADOW_DEBUG_VIEWPOINT = {
   OVERVIEW: "overview",
   SUN: "sun",
@@ -246,6 +242,14 @@ const ShadowDebugVisualizer = ({
   const host = useHostElementSizeRef<HTMLDivElement>();
   const width = Math.max(1, host.size?.width ?? 1);
   const height = Math.max(190, Math.min(245, Math.round(width * 0.36)));
+  const visualizedOptions = useMemo(
+    () => ({
+      useCameraPosition: true,
+      worldScaleMeters: model.visualizationWorldScaleMeters,
+      imagePlaneDistance: 0.08,
+    }),
+    [model.visualizationWorldScaleMeters]
+  );
   const overviewOptions = useMemo(
     () =>
       viewpoint === SHADOW_DEBUG_VIEWPOINT.SUN
@@ -344,7 +348,7 @@ const ShadowDebugVisualizer = ({
             upLabel={null}
             cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
             overviewOptions={overviewOptions}
-            visualizedOptions={SHADOW_PROJECTION_DEBUG_VISUALIZED_OPTIONS}
+            visualizedOptions={visualizedOptions}
             displayOptions={displayOptions}
             volumeBoxes={volumeBoxes}
           />

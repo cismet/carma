@@ -1,8 +1,12 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Quaternion, Vector3 } from "three";
 
-import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { distanceMeters, enuOffsetToEcef } from "@carma-geo/utils";
+import { CAMERA_TYPE, readLocalCameraBasis } from "@carma-commons/camera/model";
+import {
+  distanceMeters,
+  ecefToEnuOffset,
+  enuOffsetToEcef,
+} from "@carma-geo/utils";
 import {
   buildViewState,
   buildViewStateFromEcef,
@@ -55,6 +59,7 @@ export type ShadowProjectionDebugModel = {
   shadowSampleCount: number;
   totalShadowTexels: number;
   casterReachMeters: number;
+  visualizationWorldScaleMeters: number;
 };
 
 const isFiniteMatrix = (matrix: Matrix4) => {
@@ -66,9 +71,10 @@ const isFiniteMatrix = (matrix: Matrix4) => {
   );
 };
 
-const buildShadowCameraViewState = ({
+const buildExactCameraViewState = ({
   referenceViewState,
   sceneAnchorPosition,
+  cameraType,
   viewMatrixElements,
   projectionMatrixElements,
   nearMeters,
@@ -79,6 +85,7 @@ const buildShadowCameraViewState = ({
 }: {
   referenceViewState: ViewState;
   sceneAnchorPosition: Vector3;
+  cameraType: (typeof CAMERA_TYPE)[keyof typeof CAMERA_TYPE];
   viewMatrixElements: readonly number[];
   projectionMatrixElements: readonly number[];
   nearMeters: number;
@@ -119,7 +126,7 @@ const buildShadowCameraViewState = ({
     cameraPosition,
     orientation,
     intrinsics: {
-      type: CAMERA_TYPE.ORTHOGRAPHIC,
+      type: cameraType,
       projectionMatrix,
       frustum: {
         near: nearMeters as Meters,
@@ -179,33 +186,48 @@ const readViewportFootprint = (map: MaplibreMap) => {
   };
 };
 
-const normalizeTileVolumes = (
+type RelativeTileVolume = Readonly<{
+  minimum: Vector3;
+  maximum: Vector3;
+  loadReason?: "viewport" | "shadow";
+}>;
+
+const readRelativeTileVolumes = (
   snapshot: ShadowProjectionDebugSnapshot,
   sceneAnchorPosition: Vector3
+) =>
+  (snapshot.tileVolumes ?? []).map(({ minimum, maximum, loadReason }) => ({
+    minimum: new Vector3(...minimum).sub(sceneAnchorPosition),
+    maximum: new Vector3(...maximum).sub(sceneAnchorPosition),
+    loadReason,
+  }));
+
+const readLocalCameraPosition = (viewState: ViewState) => {
+  const offset = ecefToEnuOffset(viewState.cameraPosition, viewState.anchor);
+  return new Vector3(offset.east, offset.up, -offset.north);
+};
+
+const readVisualizationWorldScaleMeters = (
+  relativeVolumes: readonly RelativeTileVolume[],
+  viewStates: readonly ViewState[]
 ) => {
-  const relativeVolumes = (snapshot.tileVolumes ?? []).map(
-    ({ minimum, maximum, loadReason }) => ({
-      minimum: new Vector3(...minimum).sub(sceneAnchorPosition),
-      maximum: new Vector3(...maximum).sub(sceneAnchorPosition),
-      color:
-        loadReason === "viewport"
-          ? "#0284c7"
-          : loadReason === "shadow"
-          ? "#ea580c"
-          : "#64748b",
-    })
-  );
-  const maximumAbsoluteCoordinate = relativeVolumes.reduce(
-    (maximumValue, volume) =>
-      Math.max(
-        maximumValue,
-        ...volume.minimum.toArray().map(Math.abs),
-        ...volume.maximum.toArray().map(Math.abs)
-      ),
+  const maximumAbsoluteCoordinate = [
+    ...relativeVolumes.flatMap(({ minimum, maximum }) => [minimum, maximum]),
+    ...viewStates.map(readLocalCameraPosition),
+  ].reduce(
+    (maximumValue, point) =>
+      Math.max(maximumValue, ...point.toArray().map(Math.abs)),
     1
   );
-  const scale = 0.82 / maximumAbsoluteCoordinate;
-  return relativeVolumes.map(({ minimum, maximum, color }) => ({
+  return maximumAbsoluteCoordinate / 0.82;
+};
+
+const normalizeTileVolumes = (
+  relativeVolumes: readonly RelativeTileVolume[],
+  worldScaleMeters: number
+) => {
+  const scale = 1 / worldScaleMeters;
+  return relativeVolumes.map(({ minimum, maximum, loadReason }) => ({
     minimum: minimum.multiplyScalar(scale).toArray() as [
       number,
       number,
@@ -216,8 +238,58 @@ const normalizeTileVolumes = (
       number,
       number
     ],
-    color,
+    color:
+      loadReason === "viewport"
+        ? "#0284c7"
+        : loadReason === "shadow"
+        ? "#ea580c"
+        : "#64748b",
   }));
+};
+
+const withTileVolumeDepthRange = (
+  cameraViewState: ViewState,
+  relativeVolumes: readonly RelativeTileVolume[]
+): ViewState => {
+  const viewportVolumes = relativeVolumes.filter(
+    ({ loadReason }) => loadReason === "viewport"
+  );
+  const volumes =
+    viewportVolumes.length > 0 ? viewportVolumes : relativeVolumes;
+  if (volumes.length === 0) return cameraViewState;
+
+  const cameraPosition = readLocalCameraPosition(cameraViewState);
+  const { forward } = readLocalCameraBasis(cameraViewState.orientation);
+  const maximumDepthMeters = volumes.reduce((maximumDepth, volume) => {
+    const { minimum, maximum } = volume;
+    return Math.max(
+      maximumDepth,
+      ...[
+        new Vector3(minimum.x, minimum.y, minimum.z),
+        new Vector3(maximum.x, minimum.y, minimum.z),
+        new Vector3(minimum.x, maximum.y, minimum.z),
+        new Vector3(maximum.x, maximum.y, minimum.z),
+        new Vector3(minimum.x, minimum.y, maximum.z),
+        new Vector3(maximum.x, minimum.y, maximum.z),
+        new Vector3(minimum.x, maximum.y, maximum.z),
+        new Vector3(maximum.x, maximum.y, maximum.z),
+      ].map((corner) => corner.sub(cameraPosition).dot(forward))
+    );
+  }, 0);
+  if (!Number.isFinite(maximumDepthMeters) || maximumDepthMeters <= 0) {
+    return cameraViewState;
+  }
+
+  return {
+    ...cameraViewState,
+    intrinsics: {
+      ...cameraViewState.intrinsics,
+      frustum: {
+        near: 0.1 as Meters,
+        far: (maximumDepthMeters * 1.02) as Meters,
+      },
+    },
+  };
 };
 
 export const buildShadowProjectionDebugModel = (
@@ -225,9 +297,36 @@ export const buildShadowProjectionDebugModel = (
   solarPosition: SolarPosition,
   snapshot: ShadowProjectionDebugSnapshot
 ): ShadowProjectionDebugModel | null => {
-  const cameraViewState = readFromMaplibre(map, DEBUG_SOURCE_ID);
+  const sceneAnchorPosition = new Vector3().fromArray(
+    snapshot.sceneAnchorPositionElements ?? [0, 0, 0]
+  );
+  const initialCameraViewState = readFromMaplibre(map, DEBUG_SOURCE_ID, {
+    altitudeM: sceneAnchorPosition.y,
+  });
   const shadow = snapshot.shadow;
-  if (!cameraViewState || !shadow) return null;
+  if (!initialCameraViewState || !shadow) return null;
+  const relativeTileVolumes = readRelativeTileVolumes(
+    snapshot,
+    sceneAnchorPosition
+  );
+  const exactMainCameraViewState = snapshot.mainCamera
+    ? buildExactCameraViewState({
+        referenceViewState: initialCameraViewState,
+        sceneAnchorPosition,
+        cameraType: CAMERA_TYPE.PERSPECTIVE,
+        viewMatrixElements: snapshot.mainCamera.viewMatrixElements,
+        projectionMatrixElements: snapshot.mainCamera.projectionMatrixElements,
+        nearMeters: snapshot.mainCamera.nearMeters,
+        farMeters: snapshot.mainCamera.farMeters,
+        shadowMapWidth: snapshot.mainCamera.viewportWidth,
+        shadowMapHeight: snapshot.mainCamera.viewportHeight,
+        sourceSuffix: "main",
+      })
+    : null;
+  const cameraViewState = withTileVolumeDepthRange(
+    exactMainCameraViewState ?? initialCameraViewState,
+    relativeTileVolumes
+  );
 
   const footprint = readViewportFootprint(map);
   const camera = shadow.camera;
@@ -242,12 +341,10 @@ export const buildShadowProjectionDebugModel = (
     snapshot.atmosphericSunlight?.elevationDegrees ??
     solarPosition.elevationDegrees;
   const elevationRadians = degToRadNumeric(Math.max(0.01, elevationDegrees));
-  const sceneAnchorPosition = new Vector3().fromArray(
-    snapshot.sceneAnchorPositionElements ?? [0, 0, 0]
-  );
-  const shadowViewState = buildShadowCameraViewState({
+  const shadowViewState = buildExactCameraViewState({
     referenceViewState: cameraViewState,
     sceneAnchorPosition,
+    cameraType: CAMERA_TYPE.ORTHOGRAPHIC,
     viewMatrixElements: camera.viewMatrixElements,
     projectionMatrixElements: camera.projectionMatrixElements,
     nearMeters: camera.nearMeters,
@@ -284,10 +381,18 @@ export const buildShadowProjectionDebugModel = (
       },
     },
   });
+  const resolvedShadowViewState = shadowViewState ?? fallbackShadowViewState;
+  const visualizationWorldScaleMeters = readVisualizationWorldScaleMeters(
+    relativeTileVolumes,
+    [cameraViewState, resolvedShadowViewState]
+  );
 
   return {
-    viewStates: [cameraViewState, shadowViewState ?? fallbackShadowViewState],
-    tileVolumes: normalizeTileVolumes(snapshot, sceneAnchorPosition),
+    viewStates: [cameraViewState, resolvedShadowViewState],
+    tileVolumes: normalizeTileVolumes(
+      relativeTileVolumes,
+      visualizationWorldScaleMeters
+    ),
     viewportWidthMeters: footprint.widthMeters,
     viewportHeightMeters: footprint.heightMeters,
     receiverCoverageWidthMeters,
@@ -316,5 +421,6 @@ export const buildShadowProjectionDebugModel = (
     shadowSampleCount: shadow.sampleCount,
     totalShadowTexels: shadow.totalShadowTexels,
     casterReachMeters: shadow.casterReachMeters,
+    visualizationWorldScaleMeters,
   };
 };

@@ -441,11 +441,15 @@ const intersectForwardRayWithSphereBoundary = ({
 const resolveFrustumEdgeEndpoint = ({
   origin,
   direction,
+  forward,
+  far,
   hemisphereRadius,
   epsilon,
 }: {
   origin: Vector3;
   direction: Vector3;
+  forward?: Vector3;
+  far?: number;
   hemisphereRadius: number;
   epsilon: number;
 }): Vector3 | null => {
@@ -464,8 +468,25 @@ const resolveFrustumEdgeEndpoint = ({
     radius: hemisphereRadius,
     epsilon,
   });
+  const farIntersection = (() => {
+    if (!forward || !isFiniteNumber(far) || far <= epsilon) return null;
+    const resolvedForward = forward.clone().normalize();
+    const resolvedDirection = direction.clone().normalize();
+    const intersection = intersectRayWithPlane(
+      new Ray(origin.clone(), resolvedDirection),
+      new Plane().setFromNormalAndCoplanarPoint(
+        resolvedForward,
+        origin.clone().addScaledVector(resolvedForward, far)
+      ),
+      epsilon
+    );
+    return intersection &&
+      intersection.clone().sub(origin).dot(resolvedDirection) >= -epsilon
+      ? intersection
+      : null;
+  })();
 
-  const candidates = [groundIntersection, sphereIntersection]
+  const candidates = [groundIntersection, sphereIntersection, farIntersection]
     .filter((point): point is Vector3 => point !== null)
     .map((point) => ({
       point,
@@ -528,12 +549,14 @@ const resolveCameraBasis = ({
   viewState,
   hemisphereRadius,
   useCameraPosition,
+  worldScaleMeters,
 }: {
   viewState: ViewState;
   hemisphereRadius: number;
   useCameraPosition: boolean;
+  worldScaleMeters: number | null;
 }) => {
-  const { bearing, pitch } = deriveOrbitAngles(viewState);
+  const { bearing, pitch, range } = deriveOrbitAngles(viewState);
   const exactCameraPosition = (() => {
     if (!useCameraPosition) return null;
     const { longitude, latitude } = viewState.anchorCartographic;
@@ -557,11 +580,20 @@ const resolveCameraBasis = ({
   })();
   const cameraPosition =
     exactCameraPosition && exactCameraPosition.lengthSq() > Number.EPSILON
-      ? exactCameraPosition.normalize().multiplyScalar(hemisphereRadius)
+      ? isFiniteNumber(worldScaleMeters) && worldScaleMeters > Number.EPSILON
+        ? exactCameraPosition.multiplyScalar(
+            hemisphereRadius / worldScaleMeters
+          )
+        : exactCameraPosition.normalize().multiplyScalar(hemisphereRadius)
       : viewingBearingPitchToCameraSpherePosition({
           viewingBearing: bearing,
           pitch,
-          hemisphereRadius,
+          hemisphereRadius:
+            isFiniteNumber(worldScaleMeters) &&
+            worldScaleMeters > Number.EPSILON &&
+            isFiniteNumber(range)
+              ? (range / worldScaleMeters) * hemisphereRadius
+              : hemisphereRadius,
         });
   const { forward, right, up } = readLocalCameraBasis(viewState.orientation);
 
@@ -705,6 +737,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
   const fovVertical = readVerticalFov(viewState);
   const fovHorizontal = readHorizontalFov(viewState);
   const { range } = deriveOrbitAngles(viewState);
+  const normalizationRangeMeters = visualized.worldScaleMeters ?? range;
   const imagePlaneDistance = readImagePlaneDistance({
     viewState,
     visualized,
@@ -746,7 +779,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
     type === CAMERA_TYPE.ORTHOGRAPHIC
       ? readOrthographicBoundsFromProjectionMatrix({
           viewState,
-          rangeMeters: range,
+          rangeMeters: normalizationRangeMeters,
           hemisphereRadius,
           epsilon,
         })
@@ -757,7 +790,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
         ? null
         : readOrthographicHalfExtentsFromScale({
             viewState,
-            rangeMeters: range,
+            rangeMeters: normalizationRangeMeters,
             hemisphereRadius,
             epsilon,
           }) ??
@@ -984,7 +1017,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
               viewState.intrinsics?.frustum?.near,
               epsilon
             ),
-            rangeMeters: range,
+            rangeMeters: normalizationRangeMeters,
             hemisphereRadius,
             epsilon,
           }),
@@ -993,7 +1026,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
               viewState.intrinsics?.frustum?.far,
               epsilon
             ),
-            rangeMeters: range,
+            rangeMeters: normalizationRangeMeters,
             hemisphereRadius,
             epsilon,
           }),
@@ -1006,7 +1039,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
         viewState.intrinsics?.frustum?.near,
         epsilon
       ),
-      rangeMeters: range,
+      rangeMeters: normalizationRangeMeters,
       hemisphereRadius,
       epsilon,
     }),
@@ -1018,7 +1051,7 @@ const buildImagePlaneGeometryInResolvedFrame = ({
         viewState.intrinsics?.frustum?.far,
         epsilon
       ),
-      rangeMeters: range,
+      rangeMeters: normalizationRangeMeters,
       hemisphereRadius,
       epsilon,
     }),
@@ -1059,6 +1092,8 @@ const buildImagePlaneGeometryInResolvedFrame = ({
           const endpoint = resolveFrustumEdgeEndpoint({
             origin: corner,
             direction: forward,
+            forward,
+            far: orthographicFar,
             hemisphereRadius,
             epsilon,
           });
@@ -1069,6 +1104,16 @@ const buildImagePlaneGeometryInResolvedFrame = ({
           const endpoint = resolveFrustumEdgeEndpoint({
             origin: cameraPosition,
             direction: corner.clone().sub(cameraPosition),
+            forward,
+            far: normalizeFrustumDistanceToHemisphere({
+              distanceMeters: readPositiveFrustumDistance(
+                viewState.intrinsics?.frustum?.far,
+                epsilon
+              ),
+              rangeMeters: normalizationRangeMeters,
+              hemisphereRadius,
+              epsilon,
+            }),
             hemisphereRadius,
             epsilon,
           });
@@ -1150,6 +1195,7 @@ export const buildImagePlaneGeometry = ({
     viewState,
     hemisphereRadius,
     useCameraPosition: visualized.useCameraPosition,
+    worldScaleMeters: visualized.worldScaleMeters,
   });
   const inverseBearingRotation =
     CAMERA_GEOMETRY_SCRATCH.inverseBearingRotation.setFromAxisAngle(

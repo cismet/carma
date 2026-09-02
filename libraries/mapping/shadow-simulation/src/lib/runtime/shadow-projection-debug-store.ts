@@ -16,6 +16,14 @@ export type ShadowProjectionDebugSnapshot = Readonly<{
   minimumElevationMeters: number;
   maximumElevationMeters: number;
   sceneAnchorPositionElements?: readonly [number, number, number];
+  mainCamera?: Readonly<{
+    viewMatrixElements: readonly number[];
+    projectionMatrixElements: readonly number[];
+    nearMeters: number;
+    farMeters: number;
+    viewportWidth: number;
+    viewportHeight: number;
+  }>;
   tileVolumes?: readonly Readonly<{
     id: string;
     loadReason?: "viewport" | "shadow";

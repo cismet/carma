@@ -1,5 +1,11 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Matrix4, OrthographicCamera, Quaternion, Vector3 } from "three";
+import {
+  Matrix4,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Quaternion,
+  Vector3,
+} from "three";
 import { describe, expect, it } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
@@ -27,6 +33,11 @@ const buildMap = () =>
   } as unknown as MaplibreMap);
 
 const buildSnapshot = () => {
+  const mainCamera = new PerspectiveCamera(50, 2, 0.5, 5_000);
+  mainCamera.position.set(100, 200, -50);
+  mainCamera.lookAt(new Vector3(10, 20, 30));
+  mainCamera.updateMatrixWorld(true);
+  mainCamera.updateProjectionMatrix();
   const camera = new OrthographicCamera(-80, 120, 60, -40, 1, 4_000);
   camera.position.set(80, 240, -110);
   camera.lookAt(new Vector3(-15, 40, 0));
@@ -70,6 +81,14 @@ const buildSnapshot = () => {
     minimumElevationMeters: 120,
     maximumElevationMeters: 320,
     sceneAnchorPositionElements: [10, 20, 30] as const,
+    mainCamera: {
+      viewMatrixElements: [...mainCamera.matrixWorldInverse.elements],
+      projectionMatrixElements: [...mainCamera.projectionMatrix.elements],
+      nearMeters: mainCamera.near,
+      farMeters: mainCamera.far,
+      viewportWidth: 1_000,
+      viewportHeight: 500,
+    },
     shadow,
   };
 };
@@ -92,6 +111,7 @@ describe("buildShadowProjectionDebugModel", () => {
     expect(model?.shadowSampleCount).toBe(8);
     expect(model?.casterReachMeters).toBe(875);
     expect(model?.horizontalProjectionPerHeight).toBeCloseTo(Math.sqrt(3), 5);
+    expect(model?.viewStates[0].anchorCartographic.altitude).toBeCloseTo(20);
   });
 
   it("uses the actual shadow-camera pose independently of display angles", () => {
@@ -132,6 +152,27 @@ describe("buildShadowProjectionDebugModel", () => {
     expect(offset.up).toBeCloseTo(expectedPosition.y, 6);
   });
 
+  it("uses the exact render-camera pose in the scene-anchor frame", () => {
+    const snapshot = buildSnapshot();
+    const model = buildShadowProjectionDebugModel(
+      buildMap(),
+      { instant, azimuthDegrees: 120, elevationDegrees: 30 },
+      snapshot
+    );
+    const viewState = model!.viewStates[0]!;
+    const matrixWorld = new Matrix4()
+      .fromArray([...snapshot.mainCamera.viewMatrixElements])
+      .invert();
+    const expectedPosition = new Vector3()
+      .setFromMatrixPosition(matrixWorld)
+      .sub(new Vector3(...snapshot.sceneAnchorPositionElements));
+    const offset = ecefToEnuOffset(viewState.cameraPosition, viewState.anchor);
+
+    expect(offset.east).toBeCloseTo(expectedPosition.x, 6);
+    expect(offset.north).toBeCloseTo(-expectedPosition.z, 6);
+    expect(offset.up).toBeCloseTo(expectedPosition.y, 6);
+  });
+
   it("normalizes loaded tile volumes around the scene anchor", () => {
     const snapshot = {
       ...buildSnapshot(),
@@ -151,16 +192,18 @@ describe("buildShadowProjectionDebugModel", () => {
     );
 
     expect(model?.tileVolumes).toHaveLength(1);
+    const worldScaleMeters = model!.visualizationWorldScaleMeters;
     expect(model?.tileVolumes[0]?.minimum).toEqual([
-      expect.closeTo(-0.82),
-      expect.closeTo(-0.82),
-      expect.closeTo(-0.82),
+      expect.closeTo(-10 / worldScaleMeters),
+      expect.closeTo(-10 / worldScaleMeters),
+      expect.closeTo(-10 / worldScaleMeters),
     ]);
     expect(model?.tileVolumes[0]?.maximum).toEqual([
-      expect.closeTo(0.82),
-      expect.closeTo(0.82),
-      expect.closeTo(0.82),
+      expect.closeTo(10 / worldScaleMeters),
+      expect.closeTo(10 / worldScaleMeters),
+      expect.closeTo(10 / worldScaleMeters),
     ]);
     expect(model?.tileVolumes[0]?.color).toBe("#ea580c");
+    expect(model?.viewStates[0].intrinsics.frustum?.far).toBeGreaterThan(0);
   });
 });
