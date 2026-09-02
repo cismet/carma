@@ -906,9 +906,7 @@ export const buildShadowSimulationScene = (
   };
   const sharedSceneProvidesTerrain = () =>
     getSharedThreeSceneRuntimes(map).some(
-      (runtime) =>
-        runtime.providesTerrain === true &&
-        runtime.hasRenderableContent?.() !== false
+      (runtime) => runtime.providesTerrain === true
     );
   let terrainRuntime = sharedSceneProvidesTerrain()
     ? null

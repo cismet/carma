@@ -8,6 +8,8 @@ type TerrainHeightSampler = (
 type SuppressedTerrainEntry = {
   references: number;
   terrain: TerrainSpecification | null;
+  centerClampedToGround: boolean;
+  restoreScheduled: boolean;
   clearTerrain: () => void;
 };
 
@@ -114,6 +116,7 @@ export const suppressMapLibreTerrainRendering = (
   const existing = suppressedTerrain.get(map);
   if (existing) {
     existing.references += 1;
+    existing.restoreScheduled = false;
   } else {
     let clearingTerrain = false;
     const clearTerrain = () => {
@@ -128,9 +131,12 @@ export const suppressMapLibreTerrainRendering = (
     const entry = {
       references: 1,
       terrain: map.getTerrain() ?? null,
+      centerClampedToGround: map.getCenterClampedToGround(),
+      restoreScheduled: false,
       clearTerrain,
     };
     suppressedTerrain.set(map, entry);
+    if (entry.centerClampedToGround) map.setCenterClampedToGround(false);
     map.on("terrain", clearTerrain);
     map.on("styledata", clearTerrain);
     clearTerrain();
@@ -144,14 +150,20 @@ export const suppressMapLibreTerrainRendering = (
     const entry = suppressedTerrain.get(map);
     if (!entry) return;
     entry.references -= 1;
-    if (entry.references > 0) return;
-    map.off("terrain", entry.clearTerrain);
-    map.off("styledata", entry.clearTerrain);
-    suppressedTerrain.delete(map);
-    try {
-      if (entry.terrain && map.isStyleLoaded()) map.setTerrain(entry.terrain);
-    } finally {
-      notifySharedThreeTerrainChanged(map);
-    }
+    if (entry.references > 0 || entry.restoreScheduled) return;
+    entry.restoreScheduled = true;
+    queueMicrotask(() => {
+      entry.restoreScheduled = false;
+      if (entry.references > 0 || suppressedTerrain.get(map) !== entry) return;
+      map.off("terrain", entry.clearTerrain);
+      map.off("styledata", entry.clearTerrain);
+      suppressedTerrain.delete(map);
+      try {
+        if (entry.terrain && map.isStyleLoaded()) map.setTerrain(entry.terrain);
+        map.setCenterClampedToGround(entry.centerClampedToGround);
+      } finally {
+        notifySharedThreeTerrainChanged(map);
+      }
+    });
   };
 };

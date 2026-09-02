@@ -1,5 +1,11 @@
 import { TilesRenderer } from "3d-tiles-renderer";
-import type { Tile } from "3d-tiles-renderer/core";
+import {
+  DownloadPriorityQueue,
+  LRUCache,
+  PriorityQueue,
+  type Tile,
+} from "3d-tiles-renderer/core";
+import * as TilesRendererCore from "3d-tiles-renderer/core";
 import {
   DebugTilesPlugin,
   GLTFExtensionsPlugin,
@@ -46,17 +52,46 @@ import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
 // 3DTilesRendererJS kitchen-sink demo. Lower values request more detail.
 export const TILES_ERROR_TARGET_MIN_PIXELS = 0;
 export const TILES_ERROR_TARGET_MAX_PIXELS = 50;
-export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 6;
+export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 4;
 
 const VIEW_QUALITY_AUDIT_PASSES = 2;
+const CACHE_PRESSURE_DELAY_MS = 2_500;
+const CACHE_PRESSURE_RETRY_MS = 1_000;
+const CACHE_PRESSURE_ERROR_MULTIPLIER = 1.5;
+const CACHE_PRESSURE_MAX_ERROR_MULTIPLIER = 4;
 const DEFAULT_CACHE_BYTES = 256 * 1024 ** 2;
 const DEFAULT_CACHE_OVERFLOW_BYTES = 1024 * 1024 ** 2;
 const MINIMUM_CACHE_BYTES = 16 * 1024 ** 2;
 const DEFAULT_CACHE_MIN_ITEMS = 6_000;
 const DEFAULT_CACHE_MAX_ITEMS = 8_000;
 export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 64;
+const MAIN_VIEW_TILE_PRIORITY = 1_000_000;
+const TILE_DEPTH_PRIORITY_STEP = 2;
 const CLAY_COLOR = 0xd6d2ca;
 const TILE_OUTLINE_FLAG = "isTileOutline";
+const tilesRendererCoreRuntime = TilesRendererCore as unknown as {
+  DEFAULT_LRU_CACHE: {
+    unloadPriorityCallback: (first: unknown, second: unknown) => number;
+  };
+  unifiedPriorityCallback: (first: unknown, second: unknown) => number;
+};
+const tilesCacheUnloadPriorityCallback =
+  tilesRendererCoreRuntime.DEFAULT_LRU_CACHE.unloadPriorityCallback;
+const tilesQueuePriorityCallback =
+  tilesRendererCoreRuntime.unifiedPriorityCallback;
+
+type RuntimePriorityQueue = PriorityQueue & {
+  items: Tile[];
+  currJobs: number;
+};
+
+type RuntimeTilesRenderer = TilesRenderer & {
+  calculateBytesUsed: (tile: Tile, scene: THREE.Object3D) => number;
+  loadingTiles: Set<Tile>;
+  usedSet: Set<Tile>;
+  stats: { failed: number };
+  queueTileForDownload: (tile: Tile) => void;
+};
 
 const buildPrimitiveOutlinePlugin = (
   parser: unknown,
@@ -147,13 +182,15 @@ export function buildThreeTilesRuntime(
   const mScale = originMerc.meterInMercatorCoordinateUnits();
 
   let map: MaplibreMap | null = null;
-  let tiles: TilesRenderer | null = null;
+  let tiles: RuntimeTilesRenderer | null = null;
   let dracoLoader: DRACOLoader | null = null;
   let debugTilesPlugin: DebugTilesPlugin | null = null;
   let cameraSet: TilesCameraSet | null = null;
   let kickstartTimer = 0;
+  let requestBackoffTimer = 0;
   let unsubscribeTerrainLoading: (() => void) | null = null;
   let requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
+  let effectiveErrorTarget = requestedErrorTarget;
   let cacheBudgetBytes = Math.max(
     MINIMUM_CACHE_BYTES,
     Math.floor(options.cacheBudgetBytes ?? DEFAULT_CACHE_BYTES)
@@ -190,7 +227,11 @@ export function buildThreeTilesRuntime(
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
   let shadowSelectionNeedsTraversal = false;
+  let viewRefinementPending = false;
   let viewQualityAuditPasses = 0;
+  let cachePressureTimer = 0;
+  let cachePressureStartedAt = 0;
+  let lastCachePressureRecoveryAt = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
   let runtimeVisible = true;
@@ -862,17 +903,52 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
 
   const requestRender = () => map?.triggerRepaint();
+  const getDownloadQueues = (): RuntimePriorityQueue[] =>
+    tiles
+      ? [...tiles.downloadQueue.originQueues.values()].map(
+          (queue) => queue as RuntimePriorityQueue
+        )
+      : [];
+  const runDownloadQueues = () => {
+    for (const queue of getDownloadQueues()) queue.tryRunJobs();
+  };
+  const releaseTilesOutsideCameraUnion = () => {
+    if (!tiles) return;
+    for (const tile of [...tiles.usedSet]) {
+      const traversal = tile.traversal as
+        | (typeof tile.traversal & { active: boolean; visible: boolean })
+        | null;
+      if (
+        !traversal ||
+        traversal.inFrustum ||
+        traversal.active ||
+        traversal.visible
+      ) {
+        continue;
+      }
+      tiles.usedSet.delete(tile);
+      tiles.lruCache.markUnused(tile);
+    }
+  };
+  const resetCachePressureRecovery = () => {
+    if (cachePressureTimer) {
+      window.clearTimeout(cachePressureTimer);
+      cachePressureTimer = 0;
+    }
+    cachePressureStartedAt = 0;
+    lastCachePressureRecoveryAt = 0;
+  };
   const tileRetries = createThreeTilesRetryController(
-    () => tiles as (TilesRenderer & RetryableTilesRenderer) | null,
+    () => tiles as unknown as (TilesRenderer & RetryableTilesRenderer) | null,
     requestRender
   );
   const getRequestDemand = () => {
     if (!runtimeVisible) return 0;
     if (!tiles) return 1;
-    const queue = tiles.downloadQueue as typeof tiles.downloadQueue & {
-      items: unknown[];
-      currJobs: number;
-    };
+    const downloadDemand = getDownloadQueues().reduce(
+      (total, queue) => total + queue.items.length + queue.currJobs,
+      0
+    );
     const processNodeQueue =
       tiles.processNodeQueue as typeof tiles.processNodeQueue & {
         items: unknown[];
@@ -884,8 +960,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       }
     ).stats;
     return (
-      queue.items.length +
-      queue.currJobs +
+      downloadDemand +
       processNodeQueue.items.length +
       processNodeQueue.currJobs +
       (stats?.queued ?? 0) +
@@ -893,6 +968,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       (stats?.parsing ?? 0) +
       (shadowView && !shadowSelectionEnabled ? 1 : 0) +
       (shadowSelectionNeedsTraversal ? 1 : 0) +
+      (cachePressureTimer ? 1 : 0) +
       viewQualityAuditPasses +
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries()
         ? 1
@@ -969,6 +1045,102 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     shadowSelectionNeedsTraversal = nextEnabled;
     cameraSet?.setShadowView(nextEnabled ? shadowView : null);
   };
+  const mainViewMeetsErrorTarget = () => {
+    if (!tiles || tiles.visibleTiles.size === 0) return false;
+    for (const tile of tiles.visibleTiles) {
+      if (
+        tile.traversal.inFrustum &&
+        (tile.children?.length ?? 0) > 0 &&
+        tile.traversal.error > effectiveErrorTarget
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
+  const resolveMainViewCachePressure = () => {
+    if (!tiles || !viewRefinementPending || mainViewMeetsErrorTarget()) {
+      resetCachePressureRecovery();
+      return;
+    }
+    if (
+      !tiles.lruCache.isFull() ||
+      tiles.loadingTiles.size > 0 ||
+      tiles.downloadQueue.running ||
+      tiles.parseQueue.running ||
+      tiles.processNodeQueue.running
+    ) {
+      resetCachePressureRecovery();
+      return;
+    }
+    const cache = tiles.lruCache as typeof tiles.lruCache & {
+      itemSet: Map<Tile, number>;
+    };
+    let removed = false;
+    for (const tile of [...cache.itemSet.keys()]) {
+      if (!tiles.usedSet.has(tile)) {
+        removed = cache.remove(tile) || removed;
+      }
+    }
+    if (removed) {
+      resetCachePressureRecovery();
+      tiles.dispatchEvent({ type: "needs-update" });
+      requestRender();
+      return;
+    }
+
+    const now = Date.now();
+    if (cachePressureStartedAt === 0) cachePressureStartedAt = now;
+    const recoveryDueAt = Math.max(
+      cachePressureStartedAt + CACHE_PRESSURE_DELAY_MS,
+      lastCachePressureRecoveryAt + CACHE_PRESSURE_RETRY_MS
+    );
+    if (now < recoveryDueAt) {
+      if (!cachePressureTimer) {
+        cachePressureTimer = window.setTimeout(() => {
+          cachePressureTimer = 0;
+          tiles?.dispatchEvent({ type: "needs-update" });
+          requestRender();
+        }, recoveryDueAt - now);
+      }
+      return;
+    }
+
+    const maximumFallbackError = Math.min(
+      TILES_ERROR_TARGET_MAX_PIXELS,
+      requestedErrorTarget * CACHE_PRESSURE_MAX_ERROR_MULTIPLIER
+    );
+    const relaxedErrorTarget = Math.min(
+      maximumFallbackError,
+      effectiveErrorTarget === 0
+        ? Number.EPSILON
+        : effectiveErrorTarget * CACHE_PRESSURE_ERROR_MULTIPLIER
+    );
+    if (relaxedErrorTarget === effectiveErrorTarget) return;
+    effectiveErrorTarget = relaxedErrorTarget;
+    lastCachePressureRecoveryAt = now;
+    tiles.errorTarget = effectiveErrorTarget;
+    tiles.dispatchEvent({ type: "needs-update" });
+    requestRender();
+  };
+  const clearCacheWhileHidden = () => {
+    if (!tiles) return;
+    if (document.visibilityState !== "hidden") {
+      viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
+      tiles.dispatchEvent({ type: "needs-update" });
+      requestRender();
+      return;
+    }
+    resetCachePressureRecovery();
+    viewRefinementPending = shadowView !== null;
+    setShadowSelectionEnabled(false);
+    effectiveErrorTarget = requestedErrorTarget;
+    tiles.errorTarget = effectiveErrorTarget;
+    const cache = tiles.lruCache as typeof tiles.lruCache & {
+      itemSet: Map<Tile, number>;
+    };
+    for (const tile of [...cache.itemSet.keys()]) cache.remove(tile);
+  };
   const maybeEnableShadowSelection = () => {
     if (
       shadowSelectionEnabled ||
@@ -979,7 +1151,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     ) {
       return;
     }
-    const stats = tiles as TilesRenderer & {
+    const stats = tiles as unknown as TilesRenderer & {
       stats: { queued: number; downloading: number; parsing: number };
     };
     if (
@@ -988,6 +1160,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     ) {
       return;
     }
+    if (!mainViewMeetsErrorTarget()) return;
+    viewRefinementPending = false;
     setShadowSelectionEnabled(true);
     tiles.dispatchEvent({ type: "needs-update" });
     requestRender();
@@ -1032,10 +1206,23 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const handleLoadError = (event: {
     tile?: Tile | null;
     url?: string | URL;
+    error?: unknown;
   }) => {
-    tileRetries.handleFailure(event.tile ?? null, event.url);
-    payloadAwareConcurrency.observeFailure();
+    const retryState = tileRetries.handleFailure(event.tile ?? null, event.url);
+    if (retryState === "exhausted" && event.tile && tiles) {
+      const failedTile = event.tile;
+      const wasFailed = failedTile.internal.loadingState === -1;
+      const removed = tiles.lruCache.remove(failedTile);
+      if (!removed && wasFailed) failedTile.internal.loadingState = 0;
+      if (wasFailed) {
+        tiles.stats.failed = Math.max(0, tiles.stats.failed - 1);
+      }
+      tiles.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    }
+    payloadAwareConcurrency.observeFailure(event.error);
     applyRequestConcurrency();
+    scheduleRequestBackoffRecovery();
     if (kickstartTimer) {
       window.clearInterval(kickstartTimer);
       kickstartTimer = 0;
@@ -1101,19 +1288,50 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (!tiles) return;
     const activeConcurrency =
       payloadAwareConcurrency.getConcurrency(requestConcurrency);
-    tiles.downloadQueue.maxJobs =
+    tiles.downloadQueue.maxJobsPerOrigin =
       map &&
       options.providesTerrain !== true &&
       isSharedThreeTerrainLoading(map)
         ? 0
         : activeConcurrency;
   };
+  const scheduleRequestBackoffRecovery = () => {
+    if (!tiles) return;
+    const delay = payloadAwareConcurrency.getCooldownRemainingMs();
+    if (requestBackoffTimer) {
+      window.clearTimeout(requestBackoffTimer);
+      requestBackoffTimer = 0;
+    }
+    if (delay <= 0) return;
+    requestBackoffTimer = window.setTimeout(() => {
+      requestBackoffTimer = 0;
+      applyRequestConcurrency();
+      if (tiles && tiles.downloadQueue.maxJobsPerOrigin > 0) {
+        runDownloadQueues();
+        tiles.dispatchEvent({ type: "needs-update" });
+      }
+      requestRender();
+    }, delay);
+  };
   const handleViewStart = () => {
+    resetCachePressureRecovery();
+    effectiveErrorTarget = requestedErrorTarget;
+    if (tiles) tiles.errorTarget = effectiveErrorTarget;
+    viewRefinementPending = true;
+    if (shadowView) {
+      setShadowSelectionEnabled(false);
+    }
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
     if (!tiles) return;
-    tiles.errorTarget = requestedErrorTarget;
+    resetCachePressureRecovery();
+    effectiveErrorTarget = requestedErrorTarget;
+    viewRefinementPending = true;
+    if (shadowView) {
+      setShadowSelectionEnabled(false);
+    }
+    tiles.errorTarget = effectiveErrorTarget;
     viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
     tiles.dispatchEvent({ type: "needs-update" });
   };
@@ -1130,8 +1348,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       viewCamera.coordinateSystem,
       viewCamera.reversedDepth
     );
-    const queue = tiles.downloadQueue as typeof tiles.downloadQueue & {
-      items: Array<
+    for (const queue of getDownloadQueues()) {
+      for (const tile of queue.items as Array<
         Tile & {
           priority?: number;
           engineData?: {
@@ -1141,27 +1359,30 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
             };
           };
         }
-      >;
-    };
-    for (const tile of queue.items) {
-      const bounds = tile.engineData?.boundingVolume;
-      if (!bounds) continue;
-      bounds.getAABB(tileBoundingBox);
-      const inViewport = tileViewFrustum.intersectsBox(tileBoundingBox);
-      bounds.getSphere(tileBoundingSphere);
-      tileProjectedCenter
-        .copy(tileBoundingSphere.center)
-        .applyMatrix4(tiles.group.matrixWorld)
-        .project(viewCamera);
-      const centerDistance = Math.min(
-        Math.SQRT2,
-        Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
-      );
-      // PriorityQueue removes from the end of its sorted list, so larger
-      // values run first. Error and camera distance remain its tie-breakers.
-      tile.priority = inViewport ? 2 + (1 - centerDistance / Math.SQRT2) : 0;
+      >) {
+        const bounds = tile.engineData?.boundingVolume;
+        if (!bounds) continue;
+        bounds.getAABB(tileBoundingBox);
+        const inViewport = tileViewFrustum.intersectsBox(tileBoundingBox);
+        bounds.getSphere(tileBoundingSphere);
+        tileProjectedCenter
+          .copy(tileBoundingSphere.center)
+          .applyMatrix4(tiles.group.matrixWorld)
+          .project(viewCamera);
+        const centerDistance = Math.min(
+          Math.SQRT2,
+          Math.hypot(tileProjectedCenter.x, tileProjectedCenter.y)
+        );
+        const centerPriority = 1 - centerDistance / Math.SQRT2;
+        const depthPriority =
+          Math.max(0, tile.internal?.depth ?? 0) * TILE_DEPTH_PRIORITY_STEP;
+        tile.priority =
+          (inViewport ? MAIN_VIEW_TILE_PRIORITY : 0) -
+          depthPriority +
+          centerPriority;
+      }
+      queue.sort();
     }
-    queue.sort();
   };
   const handleUpdateAfter = () => {
     const currentTiles = tiles;
@@ -1190,7 +1411,29 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map = mapInstance;
       if (tiles) return;
 
-      tiles = new TilesRenderer(tilesetUrl);
+      tiles = new TilesRenderer(tilesetUrl) as RuntimeTilesRenderer;
+      const tileCache = new LRUCache();
+      tileCache.unloadPriorityCallback =
+        tilesCacheUnloadPriorityCallback as typeof tileCache.unloadPriorityCallback;
+      const downloadQueue = new DownloadPriorityQueue();
+      downloadQueue.priorityCallback = tilesQueuePriorityCallback;
+      const parseQueue = new PriorityQueue();
+      parseQueue.priorityCallback = tilesQueuePriorityCallback;
+      const processNodeQueue = new PriorityQueue();
+      processNodeQueue.priorityCallback = tilesQueuePriorityCallback;
+      tiles.lruCache = tileCache;
+      tiles.downloadQueue = downloadQueue;
+      tiles.parseQueue = parseQueue;
+      tiles.processNodeQueue = processNodeQueue;
+      const calculateBytesUsed = tiles.calculateBytesUsed.bind(tiles);
+      tiles.calculateBytesUsed = (tile, scene) =>
+        Math.round(calculateBytesUsed(tile, scene) ?? 0);
+      const queueTileForDownload = tiles.queueTileForDownload.bind(tiles);
+      tiles.queueTileForDownload = (tile) => {
+        if (tile.traversal && !tile.traversal.inFrustum) return;
+        if (tileRetries.isExhausted(tile)) return;
+        queueTileForDownload(tile);
+      };
       // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
       tiles.registerPlugin(new ImplicitTilingPlugin());
       tiles.registerPlugin(new UpdateOnChangePlugin());
@@ -1230,12 +1473,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
       tiles.loadSiblings = false;
       tiles.loadAncestors = true;
+      tiles.displayActiveTiles = true;
       applyRequestConcurrency();
       tiles.parseQueue.maxJobs = 4;
       tiles.processNodeQueue.maxJobs = 48;
       tiles.maxTilesProcessed = 1_000;
       applyCacheBudget();
-      tiles.errorTarget = requestedErrorTarget;
+      effectiveErrorTarget = requestedErrorTarget;
+      tiles.errorTarget = effectiveErrorTarget;
       offsetGroup.add(tiles.group);
 
       // Request frames until the first tile work starts.
@@ -1268,8 +1513,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         map,
         () => {
           applyRequestConcurrency();
-          if (tiles && tiles.downloadQueue.maxJobs > 0) {
-            tiles.downloadQueue.tryRunJobs();
+          if (tiles && tiles.downloadQueue.maxJobsPerOrigin > 0) {
+            runDownloadQueues();
           }
           tiles?.dispatchEvent({ type: "needs-update" });
           requestRender();
@@ -1278,6 +1523,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map.on("movestart", handleViewStart);
       map.on("moveend", handleViewEnd);
       map.on("resize", handleViewEnd);
+      document.addEventListener("visibilitychange", clearCacheWhileHidden);
     },
 
     update(frame: SharedThreeSceneFrame) {
@@ -1295,7 +1541,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
+        releaseTilesOutsideCameraUnion();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
+        resolveMainViewCachePressure();
         if (viewQualityAuditPasses > 0) {
           viewQualityAuditPasses -= 1;
           if (viewQualityAuditPasses > 0) {
@@ -1342,11 +1590,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       orientationGroup.visible = visible;
       notifyRequestStateChange();
       if (!visible) {
+        resetCachePressureRecovery();
         viewQualityAuditPasses = 0;
         map?.triggerRepaint();
         return;
       }
-      if (tiles) tiles.errorTarget = requestedErrorTarget;
+      resetCachePressureRecovery();
+      effectiveErrorTarget = requestedErrorTarget;
+      if (tiles) tiles.errorTarget = effectiveErrorTarget;
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
       map?.triggerRepaint();
@@ -1363,9 +1614,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         TILES_ERROR_TARGET_MIN_PIXELS,
         TILES_ERROR_TARGET_MAX_PIXELS
       );
-      if (requestedErrorTarget === nextErrorTarget) return;
+      if (
+        requestedErrorTarget === nextErrorTarget &&
+        effectiveErrorTarget === nextErrorTarget
+      ) {
+        return;
+      }
       requestedErrorTarget = nextErrorTarget;
-      if (tiles) tiles.errorTarget = requestedErrorTarget;
+      effectiveErrorTarget = requestedErrorTarget;
+      resetCachePressureRecovery();
+      viewRefinementPending = true;
+      setShadowSelectionEnabled(false);
+      if (tiles) tiles.errorTarget = effectiveErrorTarget;
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
     },
@@ -1396,6 +1656,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       shadowViewSignature = nextSignature;
       shadowView = view;
       if (!view || !hadShadowView) {
+        viewRefinementPending = view !== null;
         setShadowSelectionEnabled(false);
       } else if (shadowSelectionEnabled) {
         cameraSet?.setShadowView(view);
@@ -1467,6 +1728,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     setCacheBudget(bytes: number) {
       cacheBudgetBytes = Math.max(MINIMUM_CACHE_BYTES, Math.floor(bytes));
+      resetCachePressureRecovery();
       applyCacheBudget();
       tiles?.dispatchEvent({ type: "needs-update" });
     },
@@ -1477,8 +1739,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       requestConcurrency = nextConcurrency;
       if (!tiles) return;
       applyRequestConcurrency();
-      if (tiles.downloadQueue.maxJobs > 0) {
-        tiles.downloadQueue.tryRunJobs();
+      if (tiles.downloadQueue.maxJobsPerOrigin > 0) {
+        runDownloadQueues();
       }
       if (changed) tiles.dispatchEvent({ type: "needs-update" });
     },
@@ -1495,6 +1757,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     dispose() {
+      resetCachePressureRecovery();
+      if (requestBackoffTimer) {
+        window.clearTimeout(requestBackoffTimer);
+        requestBackoffTimer = 0;
+      }
       if (kickstartTimer) {
         window.clearInterval(kickstartTimer);
         kickstartTimer = 0;
@@ -1502,6 +1769,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.off("movestart", handleViewStart);
       map?.off("moveend", handleViewEnd);
       map?.off("resize", handleViewEnd);
+      document.removeEventListener("visibilitychange", clearCacheWhileHidden);
       unsubscribeTerrainLoading?.();
       unsubscribeTerrainLoading = null;
       tiles?.removeEventListener("needs-update", requestRender);

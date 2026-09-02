@@ -12,13 +12,11 @@ vi.hoisted(() => {
 });
 
 describe("resolveTiles3dErrorTarget", () => {
-  it("uses a high-quality target for a terrain mesh", () => {
-    expect(resolveTiles3dErrorTarget({ providesTerrain: true })).toBe(1);
+  it("uses a 4 px target for a regular 3D tiles mesh", () => {
+    expect(resolveTiles3dErrorTarget({})).toBe(4);
   });
 
   it("keeps an explicit style target", () => {
-    expect(
-      resolveTiles3dErrorTarget({ providesTerrain: true, errorTarget: 1.25 })
-    ).toBe(1.25);
+    expect(resolveTiles3dErrorTarget({ errorTarget: 1.25 })).toBe(1.25);
   });
 });

@@ -72,7 +72,7 @@ export const createPointTilesetSceneRuntime = ({
     })
   );
   tiles.errorTarget = errorTarget;
-  tiles.downloadQueue.maxJobs = 8;
+  tiles.downloadQueue.maxJobsPerOrigin = 8;
   tiles.parseQueue.maxJobs = 8;
   tiles.lruCache.minSize = 512;
   tiles.lruCache.maxSize = 4_096;

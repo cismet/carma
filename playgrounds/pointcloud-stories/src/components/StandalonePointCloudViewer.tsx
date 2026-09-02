@@ -78,7 +78,11 @@ import {
   getRoadSourceSegments,
 } from "../data/georadarRoads";
 
-export type StandalonePointCloudColor = "white" | "rgb" | "classification" | "intensity";
+export type StandalonePointCloudColor =
+  | "white"
+  | "rgb"
+  | "classification"
+  | "intensity";
 export type StandaloneMetricBlendMode = "normal" | "multiply";
 export type StandalonePointSizeMode = "auto" | "pixels" | "meters";
 export type StandaloneBackground = "white" | "black";
@@ -206,7 +210,11 @@ export interface StandalonePointCloudViewerProps {
       selectedPairIndex?: number | null
     ) => void;
     highlightPoint: (kind: "pointcloud" | "mesh", point: THREE.Vector3) => void;
-    setMeshInspectionPreview: (preview: { enabled: boolean; opacity: number; wireframe: boolean }) => void;
+    setMeshInspectionPreview: (preview: {
+      enabled: boolean;
+      opacity: number;
+      wireframe: boolean;
+    }) => void;
     openFieldColorizer: () => void;
   }) => void;
 }
@@ -353,7 +361,7 @@ const addMesh2024 = async (
   // The public Wuppertal host aborts request bursts near the renderer's
   // generic default of 25 concurrent downloads with ERR_HTTP2_PROTOCOL_ERROR
   // (same limit as the production Mesh 2024 runtime uses).
-  tiles.downloadQueue.maxJobs = 8;
+  tiles.downloadQueue.maxJobsPerOrigin = 8;
   tiles.parseQueue.maxJobs = 8;
   tiles.processNodeQueue.maxJobs = 64;
   // Best-quality targets refine deep, but memory belongs to the CURRENT view:
@@ -621,7 +629,7 @@ const addPointTileset = async (
           : metadata.zBase,
     })
   );
-  tiles.downloadQueue.maxJobs = 8;
+  tiles.downloadQueue.maxJobsPerOrigin = 8;
   tiles.parseQueue.maxJobs = 8;
   tiles.lruCache.minSize = 512;
   tiles.lruCache.maxSize = 4_096;
@@ -946,7 +954,9 @@ const baseColorSlot = (
             : getMetricRange(runtime, "intensity"),
         gamma: 1,
       }
-    : { mode: settings.color === "white" ? 0 : settings.color === "rgb" ? 1 : 2 };
+    : {
+        mode: settings.color === "white" ? 0 : settings.color === "rgb" ? 1 : 2,
+      };
 
 const metricColorSlot = (
   runtime: ViewerRuntime,
@@ -982,7 +992,10 @@ const uploadMetric = (runtime: ViewerRuntime, metric: PointMetric) => {
   runtime.uploadedMetric = fieldName;
 };
 
-const uploadBaseField = (runtime: ViewerRuntime, color: StandalonePointCloudColor) => {
+const uploadBaseField = (
+  runtime: ViewerRuntime,
+  color: StandalonePointCloudColor
+) => {
   const fieldName = color === "intensity" ? "intensity" : null;
   if (fieldName === runtime.uploadedBaseField) return;
   runtime.chunks.forEach((chunk, index) => {
@@ -1035,43 +1048,43 @@ const syncMesh = (runtime: ViewerRuntime, settings: ViewerSettings) => {
       runtime.camera,
       runtime.metadata,
       settings.sourceHeightDatum,
-        settings.meshErrorTarget,
-        settings.meshOpacity,
-        settings.meshWhite,
-        (tileScene) => {
-          // "loaded" means actual tile content arrived — not merely that the
-          // renderer was constructed.
-          if (!meshContentNotified) {
-            meshContentNotified = true;
-            runtime.meshLoadStateChange("loaded");
-          }
-          // Tiles fetched later (camera moves, refinement) must match the
-          // current appearance settings, not the defaults they shipped with.
-          tileScene.traverse((object) => {
-            if (object.userData.isRegistrationWireframeOverlay) return;
-            const objectMaterial = (object as THREE.Mesh).material;
-            const materials = Array.isArray(objectMaterial)
-              ? objectMaterial
-              : [objectMaterial];
-            materials.forEach((material) => {
-              if (!material) return;
-              material.transparent = runtime.meshOpacity < 1;
-              material.opacity = runtime.meshOpacity;
-              if (runtime.meshWhite && "color" in material) {
-                (material as THREE.MeshBasicMaterial).color.set(0xffffff);
-              }
-              material.needsUpdate = true;
-            });
+      settings.meshErrorTarget,
+      settings.meshOpacity,
+      settings.meshWhite,
+      (tileScene) => {
+        // "loaded" means actual tile content arrived — not merely that the
+        // renderer was constructed.
+        if (!meshContentNotified) {
+          meshContentNotified = true;
+          runtime.meshLoadStateChange("loaded");
+        }
+        // Tiles fetched later (camera moves, refinement) must match the
+        // current appearance settings, not the defaults they shipped with.
+        tileScene.traverse((object) => {
+          if (object.userData.isRegistrationWireframeOverlay) return;
+          const objectMaterial = (object as THREE.Mesh).material;
+          const materials = Array.isArray(objectMaterial)
+            ? objectMaterial
+            : [objectMaterial];
+          materials.forEach((material) => {
+            if (!material) return;
+            material.transparent = runtime.meshOpacity < 1;
+            material.opacity = runtime.meshOpacity;
+            if (runtime.meshWhite && "color" in material) {
+              (material as THREE.MeshBasicMaterial).color.set(0xffffff);
+            }
+            material.needsUpdate = true;
           });
-          if (runtime.meshInspectionPreview) {
-            applyMeshInspectionPreview(tileScene, {
-              enabled: true,
-              opacity: runtime.meshPreviewOpacity,
-              wireframe: runtime.meshPreviewWireframe,
-            });
-          }
-        },
-        (status) => runtime.meshStatusChange(status)
+        });
+        if (runtime.meshInspectionPreview) {
+          applyMeshInspectionPreview(tileScene, {
+            enabled: true,
+            opacity: runtime.meshPreviewOpacity,
+            wireframe: runtime.meshPreviewWireframe,
+          });
+        }
+      },
+      (status) => runtime.meshStatusChange(status)
     )
       .then((mesh) => {
         if (runtime.disposed || !runtime.meshDesiredVisible) {
@@ -1160,12 +1173,17 @@ type MeshInspectionPreview = {
   wireframe: boolean;
 };
 
-const applyMeshInspectionPreview = (object: THREE.Object3D, preview: MeshInspectionPreview) => {
+const applyMeshInspectionPreview = (
+  object: THREE.Object3D,
+  preview: MeshInspectionPreview
+) => {
   object.traverse((child) => {
     const mesh = child as THREE.Mesh;
     if (!mesh.material) return;
     if (mesh.userData.isRegistrationWireframeOverlay) return;
-    const wireframeOverlay = mesh.userData.registrationWireframeOverlay as THREE.LineSegments | undefined;
+    const wireframeOverlay = mesh.userData.registrationWireframeOverlay as
+      | THREE.LineSegments
+      | undefined;
     if (preview.enabled && preview.wireframe && !wireframeOverlay) {
       const overlay = new THREE.LineSegments(
         new THREE.WireframeGeometry(mesh.geometry),
@@ -1187,7 +1205,9 @@ const applyMeshInspectionPreview = (object: THREE.Object3D, preview: MeshInspect
       (wireframeOverlay.material as THREE.Material).dispose();
       delete mesh.userData.registrationWireframeOverlay;
     }
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const materials = Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material];
     materials.forEach((material) => {
       const previewMaterial = material as THREE.Material & {
         wireframe?: boolean;
@@ -1198,7 +1218,10 @@ const applyMeshInspectionPreview = (object: THREE.Object3D, preview: MeshInspect
           transparent: material.transparent,
           opacity: material.opacity,
           wireframe: previewMaterial.wireframe,
-          color: "color" in material ? (material as THREE.MeshBasicMaterial).color.getHex() : undefined,
+          color:
+            "color" in material
+              ? (material as THREE.MeshBasicMaterial).color.getHex()
+              : undefined,
           polygonOffset: material.polygonOffset,
           polygonOffsetFactor: material.polygonOffsetFactor,
           polygonOffsetUnits: material.polygonOffsetUnits,
@@ -1221,21 +1244,31 @@ const applyMeshInspectionPreview = (object: THREE.Object3D, preview: MeshInspect
       // the surface instead of z-fighting with it.
       const wireframeActive = preview.enabled && preview.wireframe;
       material.polygonOffset = wireframeActive || original.polygonOffset;
-      material.polygonOffsetFactor = wireframeActive ? 1 : original.polygonOffsetFactor;
-      material.polygonOffsetUnits = wireframeActive ? 1 : original.polygonOffsetUnits;
+      material.polygonOffsetFactor = wireframeActive
+        ? 1
+        : original.polygonOffsetFactor;
+      material.polygonOffsetUnits = wireframeActive
+        ? 1
+        : original.polygonOffsetUnits;
       if ("color" in material) {
-        (material as THREE.MeshBasicMaterial).color.setHex(original.color ?? 0xffffff);
+        (material as THREE.MeshBasicMaterial).color.setHex(
+          original.color ?? 0xffffff
+        );
       }
       material.needsUpdate = true;
     });
   });
 };
 
-const setMeshInspectionPreview = (runtime: ViewerRuntime, preview: MeshInspectionPreview) => {
+const setMeshInspectionPreview = (
+  runtime: ViewerRuntime,
+  preview: MeshInspectionPreview
+) => {
   runtime.meshInspectionPreview = preview.enabled;
   runtime.meshPreviewOpacity = preview.opacity;
   runtime.meshPreviewWireframe = preview.wireframe;
-  if (runtime.mesh) applyMeshInspectionPreview(runtime.mesh.tiles.group, preview);
+  if (runtime.mesh)
+    applyMeshInspectionPreview(runtime.mesh.tiles.group, preview);
 };
 
 const removeRoiGuide = (runtime: ViewerRuntime) => {
@@ -1460,17 +1493,22 @@ export function StandalonePointCloudViewer({
   sourceTransformRef.current = sourceTransform;
   const onMountPriorResolvedRef = useRef(onMountPriorResolved);
   onMountPriorResolvedRef.current = onMountPriorResolved;
-  const registrationMatrixRef = useRef(registrationMatrix ?? new THREE.Matrix4());
+  const registrationMatrixRef = useRef(
+    registrationMatrix ?? new THREE.Matrix4()
+  );
   registrationMatrixRef.current = registrationMatrix ?? new THREE.Matrix4();
   const [colorizerOpen, setColorizerOpen] = useState(false);
   const [colorization, setColorization] = useState<ColorizationConfig>(() =>
     structuredClone(DEFAULT_COLORIZATION)
   );
-  const [colorizerFields, setColorizerFields] = useState<ColorizerFieldInfo[]>([]);
+  const [colorizerFields, setColorizerFields] = useState<ColorizerFieldInfo[]>(
+    []
+  );
 
   useEffect(() => {
     const last = lastColorizerOptionsRef.current;
-    const cameFromColorizer = last &&
+    const cameFromColorizer =
+      last &&
       last.color === color &&
       last.metric === metric &&
       last.colorRamp === colorRamp &&
@@ -1485,21 +1523,29 @@ export function StandalonePointCloudViewer({
     // static color after every change.
     if (cameFromColorizer) return;
     colorizerOverrideRef.current = {};
-    const source = color === "intensity" && metric === "intensity"
-      ? null
-      : metric === "rgb"
-      ? { kind: "rgb" as const }
-      : metric === "classification"
-      ? { kind: "classification" as const }
-      : metric === "none"
-      ? null
-      : { kind: "field" as const, field: metric };
+    const source =
+      color === "intensity" && metric === "intensity"
+        ? null
+        : metric === "rgb"
+        ? { kind: "rgb" as const }
+        : metric === "classification"
+        ? { kind: "classification" as const }
+        : metric === "none"
+        ? null
+        : { kind: "field" as const, field: metric };
     setColorization((current) => ({
       ...current,
       layers: [
         {
           ...current.layers[0],
-          source: color === "rgb" ? { kind: "rgb" as const } : color === "classification" ? { kind: "classification" as const } : color === "intensity" ? { kind: "field" as const, field: "intensity" } : { kind: "solid" as const, color: "#ffffff" },
+          source:
+            color === "rgb"
+              ? { kind: "rgb" as const }
+              : color === "classification"
+              ? { kind: "classification" as const }
+              : color === "intensity"
+              ? { kind: "field" as const, field: "intensity" }
+              : { kind: "solid" as const, color: "#ffffff" },
           ramp: colorRamp,
           clampMin,
           clampMax,
@@ -1670,7 +1716,10 @@ export function StandalonePointCloudViewer({
       );
       navigationRaycaster.setFromCamera(navigationPointer, camera);
       navigationDirection.copy(navigationRaycaster.ray.direction);
-      const distance = Math.max(camera.position.distanceTo(controls.target), 10);
+      const distance = Math.max(
+        camera.position.distanceTo(controls.target),
+        10
+      );
       const requestedMove = THREE.MathUtils.clamp(
         -event.deltaY * 0.00035 * distance,
         -distance * 0.2,
@@ -1699,7 +1748,9 @@ export function StandalonePointCloudViewer({
       handleInteractionStart();
       handleInteractionEnd();
     };
-    renderer.domElement.addEventListener("wheel", handleTravelZoom, { passive: false });
+    renderer.domElement.addEventListener("wheel", handleTravelZoom, {
+      passive: false,
+    });
     const preventContextMenu = (event: MouseEvent) => event.preventDefault();
     renderer.domElement.addEventListener("contextmenu", preventContextMenu);
 
@@ -1786,35 +1837,40 @@ export function StandalonePointCloudViewer({
       roi: roiApplied.enabled ? toLoaderRoi(roiApplied) : undefined,
     };
 
-    const fieldStats = new Map<string, {
-      name: string;
-      min: number;
-      max: number;
-      empty: boolean;
-      histogram: number[];
-      /** Exact value counts while the field stays integer-valued in 0..255;
-       *  null once disqualified. The colorizer needs these to offer the
-       *  qualitative classification mode. */
-      counts: Map<number, number> | null;
-    }>();
+    const fieldStats = new Map<
+      string,
+      {
+        name: string;
+        min: number;
+        max: number;
+        empty: boolean;
+        histogram: number[];
+        /** Exact value counts while the field stays integer-valued in 0..255;
+         *  null once disqualified. The colorizer needs these to offer the
+         *  qualitative classification mode. */
+        counts: Map<number, number> | null;
+      }
+    >();
     let chunksSinceFieldPublish = 0;
     const publishColorizerFields = () => {
-      setColorizerFields([...fieldStats.values()].map((field) => {
-        const peak = Math.max(...field.histogram, 1);
-        return {
-          name: field.name,
-          min: field.min,
-          max: field.max,
-          empty: field.empty,
-          histogram: field.histogram.map((value) => value / peak),
-          categories:
-            field.counts && field.counts.size > 0
-              ? [...field.counts.entries()]
-                  .map(([value, count]) => ({ value, count }))
-                  .sort((a, b) => a.value - b.value)
-              : undefined,
-        } satisfies ColorizerFieldInfo;
-      }));
+      setColorizerFields(
+        [...fieldStats.values()].map((field) => {
+          const peak = Math.max(...field.histogram, 1);
+          return {
+            name: field.name,
+            min: field.min,
+            max: field.max,
+            empty: field.empty,
+            histogram: field.histogram.map((value) => value / peak),
+            categories:
+              field.counts && field.counts.size > 0
+                ? [...field.counts.entries()]
+                    .map(([value, count]) => ({ value, count }))
+                    .sort((a, b) => a.value - b.value)
+                : undefined,
+          } satisfies ColorizerFieldInfo;
+        })
+      );
     };
     // Single ingestion path for both the initial stream and later on-demand
     // refinement loads, keeping runtime.chunks parallel to the visualizer's
@@ -1864,7 +1920,8 @@ export function StandalonePointCloudViewer({
         publishColorizerFields();
       }
       visualizer.addChunk(chunk);
-      const baseFieldName = settingsRef.current.color === "intensity" ? "intensity" : null;
+      const baseFieldName =
+        settingsRef.current.color === "intensity" ? "intensity" : null;
       if (baseFieldName && baseFieldName === runtime.uploadedBaseField) {
         visualizer.setChunkField(
           "a",
@@ -1903,7 +1960,10 @@ export function StandalonePointCloudViewer({
       camera.updateMatrixWorld();
       runtime.visualizer.group.updateWorldMatrix(true, true);
       const frustum = new THREE.Frustum().setFromProjectionMatrix(
-        new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+        new THREE.Matrix4().multiplyMatrices(
+          camera.projectionMatrix,
+          camera.matrixWorldInverse
+        )
       );
       const groupMatrixWorld = runtime.visualizer.group.matrixWorld.clone();
       const boundsInView = (
@@ -1921,7 +1981,9 @@ export function StandalonePointCloudViewer({
       runtime.chunks
         .filter(
           (chunk) =>
-            chunk.nodeKey && chunk.boundsLocal && !boundsInView(chunk.boundsLocal)
+            chunk.nodeKey &&
+            chunk.boundsLocal &&
+            !boundsInView(chunk.boundsLocal)
         )
         .forEach((chunk) => {
           runtime.visualizer.removeChunk(chunk.nodeKey as string);
@@ -1935,7 +1997,10 @@ export function StandalonePointCloudViewer({
       // Push the mesh past the everyday target to the absolute minimum the
       // production Mesh 2024 runtime allows (0.05 px), regardless of the
       // quality slider — maximize means best obtainable detail.
-      const maximizeErrorTarget = Math.min(0.05, runtime.meshDesiredErrorTarget);
+      const maximizeErrorTarget = Math.min(
+        0.05,
+        runtime.meshDesiredErrorTarget
+      );
       if (meshRuntime) {
         meshRuntime.applyErrorTarget(maximizeErrorTarget);
         // Invalidate the previous traversal immediately: stale queued tiles
@@ -1966,7 +2031,10 @@ export function StandalonePointCloudViewer({
       // Mesh quality has absolute priority: point refinement starts only
       // after the mesh is idle at the maximize target (the valve inside
       // waitForMeshIdle keeps a stalled tile host from blocking points).
-      void Promise.all([runtime.copcSource, waitForMeshIdle(90_000, refineToken)])
+      void Promise.all([
+        runtime.copcSource,
+        waitForMeshIdle(90_000, refineToken),
+      ])
         .then(async ([source]) => {
           let addedPoints = 0;
           const candidates = source.nodes
@@ -1983,7 +2051,8 @@ export function StandalonePointCloudViewer({
             );
           for (const { node } of candidates) {
             if (refineToken.cancelled || disposed) return;
-            if (addedPoints + node.pointCount > MAXIMIZE_VIEW_POINT_LIMIT) break;
+            if (addedPoints + node.pointCount > MAXIMIZE_VIEW_POINT_LIMIT)
+              break;
             // The mesh keeps absolute request priority during refinement:
             // whenever it starts fetching again, points wait.
             if (runtime.mesh && !runtime.mesh.isIdle()) {
@@ -2049,9 +2118,11 @@ export function StandalonePointCloudViewer({
     controls.addEventListener("end", handleInteractionEnd);
 
     onViewerReady?.({
-      framePointCloud: () => frameObject(runtime.visualizer.group, camera, controls),
+      framePointCloud: () =>
+        frameObject(runtime.visualizer.group, camera, controls),
       frameMesh: () => {
-        if (runtime.mesh) frameObject(runtime.mesh.tiles.group, camera, controls);
+        if (runtime.mesh)
+          frameObject(runtime.mesh.tiles.group, camera, controls);
       },
       frameRegistrationPairs: (points) => {
         if (points.length === 0) return;
@@ -2060,10 +2131,13 @@ export function StandalonePointCloudViewer({
         const center = bounds.getCenter(new THREE.Vector3());
         const size = bounds.getSize(new THREE.Vector3());
         const radius = Math.max(size.length() * 0.5, 2);
-        const distance = radius / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        const distance =
+          radius / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
         const direction = new THREE.Vector3(1, 0.72, 1).normalize();
         controls.target.copy(center);
-        camera.position.copy(center).addScaledVector(direction, distance * 1.65);
+        camera.position
+          .copy(center)
+          .addScaledVector(direction, distance * 1.65);
         camera.near = Math.max(0.05, radius / 10_000);
         camera.far = Math.max(2_000, radius * 100);
         camera.updateProjectionMatrix();
@@ -2073,38 +2147,46 @@ export function StandalonePointCloudViewer({
       setRegistrationPairLines: (pairs, selectedPairIndex = null) => {
         registrationOverlay.children.slice().forEach((child) => {
           registrationOverlay.remove(child);
-          if ("geometry" in child && child.geometry instanceof THREE.BufferGeometry) {
+          if (
+            "geometry" in child &&
+            child.geometry instanceof THREE.BufferGeometry
+          ) {
             child.geometry.dispose();
           }
           if ("material" in child) {
             const material = child.material;
-            (Array.isArray(material) ? material : [material]).forEach((entry) => entry.dispose());
+            (Array.isArray(material) ? material : [material]).forEach((entry) =>
+              entry.dispose()
+            );
           }
         });
         if (pairs.length === 0) return;
-        const resolution = new THREE.Vector2(renderer.domElement.width, renderer.domElement.height);
+        const resolution = new THREE.Vector2(
+          renderer.domElement.width,
+          renderer.domElement.height
+        );
         const underlayMaterial = new LineMaterial({
-            color: 0x101820,
-            transparent: true,
-            opacity: 0.95,
-            linewidth: 7,
-            resolution,
-          });
+          color: 0x101820,
+          transparent: true,
+          opacity: 0.95,
+          linewidth: 7,
+          resolution,
+        });
         const lineMaterial = new LineMaterial({
-            color: 0xfff200,
-            transparent: true,
-            opacity: 1,
-            linewidth: 3,
-            resolution,
-          });
+          color: 0xfff200,
+          transparent: true,
+          opacity: 1,
+          linewidth: 3,
+          resolution,
+        });
         // The selected pair's connecting line renders cyan instead of yellow.
         const selectedLineMaterial = new LineMaterial({
-            color: 0x00e5ff,
-            transparent: true,
-            opacity: 1,
-            linewidth: 4,
-            resolution,
-          });
+          color: 0x00e5ff,
+          transparent: true,
+          opacity: 1,
+          linewidth: 4,
+          resolution,
+        });
         underlayMaterial.depthTest = false;
         underlayMaterial.depthWrite = false;
         lineMaterial.depthTest = false;
@@ -2117,8 +2199,12 @@ export function StandalonePointCloudViewer({
           // ever being joined into a continuous path.
           const geometry = new LineGeometry();
           geometry.setPositions([
-            pointcloud.x, pointcloud.y, pointcloud.z,
-            mesh.x, mesh.y, mesh.z,
+            pointcloud.x,
+            pointcloud.y,
+            pointcloud.z,
+            mesh.x,
+            mesh.y,
+            mesh.z,
           ]);
           const underlay = new LineSegments2(geometry, underlayMaterial);
           const line = new LineSegments2(
@@ -2139,7 +2225,10 @@ export function StandalonePointCloudViewer({
         const cloudPositions = new Float32Array(pairs.length * 3);
         const cloudColors = new Float32Array(pairs.length * 3);
         pairs.forEach(({ pointcloud }, index) => {
-          cloudPositions.set([pointcloud.x, pointcloud.y, pointcloud.z], index * 3);
+          cloudPositions.set(
+            [pointcloud.x, pointcloud.y, pointcloud.z],
+            index * 3
+          );
           cloudColors.set(
             index === selectedPairIndex ? [0, 0.9, 1] : [1, 0.83, 0],
             index * 3
@@ -2150,7 +2239,10 @@ export function StandalonePointCloudViewer({
           "position",
           new THREE.BufferAttribute(cloudPositions, 3)
         );
-        cloudGeometry.setAttribute("color", new THREE.BufferAttribute(cloudColors, 3));
+        cloudGeometry.setAttribute(
+          "color",
+          new THREE.BufferAttribute(cloudColors, 3)
+        );
         const cloudAnchors = new THREE.Points(
           cloudGeometry,
           new THREE.PointsMaterial({
@@ -2181,12 +2273,20 @@ export function StandalonePointCloudViewer({
           const brightness = index === selectedPairIndex ? 1 : 0.45;
           axisDirections.forEach(([direction, red, green, blue]) => {
             axesPositions.push(
-              mesh.x - direction.x, mesh.y - direction.y, mesh.z - direction.z,
-              mesh.x + direction.x, mesh.y + direction.y, mesh.z + direction.z
+              mesh.x - direction.x,
+              mesh.y - direction.y,
+              mesh.z - direction.z,
+              mesh.x + direction.x,
+              mesh.y + direction.y,
+              mesh.z + direction.z
             );
             axesColors.push(
-              red * brightness, green * brightness, blue * brightness,
-              red * brightness, green * brightness, blue * brightness
+              red * brightness,
+              green * brightness,
+              blue * brightness,
+              red * brightness,
+              green * brightness,
+              blue * brightness
             );
           });
         });
@@ -2227,10 +2327,12 @@ export function StandalonePointCloudViewer({
           scene.add(marker);
         }
         marker.position.copy(point);
-        if (kind === "pointcloud") marker.position.applyMatrix4(registrationMatrixRef.current);
+        if (kind === "pointcloud")
+          marker.position.applyMatrix4(registrationMatrixRef.current);
         marker.updateMatrix();
       },
-      setMeshInspectionPreview: (preview) => setMeshInspectionPreview(runtime, preview),
+      setMeshInspectionPreview: (preview) =>
+        setMeshInspectionPreview(runtime, preview),
       openFieldColorizer: () => setColorizerOpen(true),
     });
     applyViewerSettings(runtime, settingsRef.current, roiAppliedRef.current);
@@ -2268,7 +2370,10 @@ export function StandalonePointCloudViewer({
       // depth under the cursor while the camera orientation stays untouched,
       // so re-anchoring never causes a visible jump.
       const viewDirection = camera.getWorldDirection(navigationDirection);
-      const pivotDepth = hit.point.clone().sub(camera.position).dot(viewDirection);
+      const pivotDepth = hit.point
+        .clone()
+        .sub(camera.position)
+        .dot(viewDirection);
       if (pivotDepth <= camera.near * 2) return;
       controls.target
         .copy(camera.position)
@@ -2285,7 +2390,12 @@ export function StandalonePointCloudViewer({
       }
     };
     const handlePointerMove = (event: PointerEvent) => {
-      if (Math.hypot(event.clientX - pointerStartX, event.clientY - pointerStartY) > 5) {
+      if (
+        Math.hypot(
+          event.clientX - pointerStartX,
+          event.clientY - pointerStartY
+        ) > 5
+      ) {
         pointerDragged = true;
       }
     };
@@ -2314,15 +2424,20 @@ export function StandalonePointCloudViewer({
         (raycaster.params as { Line2?: { threshold: number } }).Line2 = {
           threshold: 0,
         };
-        const overlayHit = raycaster.intersectObject(registrationOverlay, true)[0];
+        const overlayHit = raycaster.intersectObject(
+          registrationOverlay,
+          true
+        )[0];
         if (!overlayHit) return;
         const data = overlayHit.object.userData;
         const pairIndex =
           typeof data.pairIndex === "number"
             ? (data.pairIndex as number)
-            : data.pairAnchorKind === "pointcloud" && overlayHit.index !== undefined
+            : data.pairAnchorKind === "pointcloud" &&
+              overlayHit.index !== undefined
             ? overlayHit.index
-            : data.pairAxes && overlayHit.faceIndex !== undefined &&
+            : data.pairAxes &&
+              overlayHit.faceIndex !== undefined &&
               overlayHit.faceIndex !== null
             ? Math.floor(overlayHit.faceIndex / 3)
             : undefined;
@@ -2377,7 +2492,11 @@ export function StandalonePointCloudViewer({
       runtime.mesh?.tiles.setResolutionFromRenderer(camera, renderer);
       registrationOverlay.traverse((child) => {
         const material = "material" in child ? child.material : undefined;
-        if (material instanceof LineMaterial) material.resolution.set(renderer.domElement.width, renderer.domElement.height);
+        if (material instanceof LineMaterial)
+          material.resolution.set(
+            renderer.domElement.width,
+            renderer.domElement.height
+          );
       });
     };
     const resizeObserver = new ResizeObserver(resize);
@@ -2424,16 +2543,29 @@ export function StandalonePointCloudViewer({
           .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
           .multiply(runtime.visualizer.group.matrixWorld);
         const chunkCount = runtime.visualizer.group.children.length;
-        if (!cullMatrix.equals(lastCullMatrix) || chunkCount !== lastCullChunkCount) {
+        if (
+          !cullMatrix.equals(lastCullMatrix) ||
+          chunkCount !== lastCullChunkCount
+        ) {
           lastCullMatrix.copy(cullMatrix);
           lastCullChunkCount = chunkCount;
           cullFrustum.setFromProjectionMatrix(cullMatrix);
           for (const child of runtime.visualizer.group.children) {
             if (!(child instanceof THREE.Points)) continue;
-            const chunk = runtime.chunksByNodeKey.get(child.userData.nodeKey as string);
+            const chunk = runtime.chunksByNodeKey.get(
+              child.userData.nodeKey as string
+            );
             if (!chunk?.boundsLocal) continue;
-            cullBounds.min.set(chunk.boundsLocal[0], chunk.boundsLocal[1], chunk.boundsLocal[2]);
-            cullBounds.max.set(chunk.boundsLocal[3], chunk.boundsLocal[4], chunk.boundsLocal[5]);
+            cullBounds.min.set(
+              chunk.boundsLocal[0],
+              chunk.boundsLocal[1],
+              chunk.boundsLocal[2]
+            );
+            cullBounds.max.set(
+              chunk.boundsLocal[3],
+              chunk.boundsLocal[4],
+              chunk.boundsLocal[5]
+            );
             child.visible = cullFrustum.intersectsBox(cullBounds);
           }
         }
@@ -2450,7 +2582,9 @@ export function StandalonePointCloudViewer({
       runtime.metadata = metadata;
       applyViewerSettings(runtime, settingsRef.current, roiAppliedRef.current);
       setStatus("Loading 3D Tiles point cloud…");
-      let tilesetRuntime: Awaited<ReturnType<typeof addPointTileset>> | undefined;
+      let tilesetRuntime:
+        | Awaited<ReturnType<typeof addPointTileset>>
+        | undefined;
       void addPointTileset(
         scene,
         renderer,
@@ -2506,10 +2640,19 @@ export function StandalonePointCloudViewer({
         renderer.dispose();
         renderer.domElement.remove();
         renderer.domElement.removeEventListener("click", handlePick);
-        renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
-        renderer.domElement.removeEventListener("pointermove", handlePointerMove);
+        renderer.domElement.removeEventListener(
+          "pointerdown",
+          handlePointerDown
+        );
+        renderer.domElement.removeEventListener(
+          "pointermove",
+          handlePointerMove
+        );
         renderer.domElement.removeEventListener("wheel", handleTravelZoom);
-        renderer.domElement.removeEventListener("contextmenu", preventContextMenu);
+        renderer.domElement.removeEventListener(
+          "contextmenu",
+          preventContextMenu
+        );
         if (runtimeRef.current === runtime) runtimeRef.current = null;
       };
     }
@@ -2619,10 +2762,16 @@ export function StandalonePointCloudViewer({
       scene.remove(visualizer.group);
       scene.remove(registrationOverlay);
       registrationOverlay.traverse((child) => {
-        if ("geometry" in child && child.geometry instanceof THREE.BufferGeometry) child.geometry.dispose();
+        if (
+          "geometry" in child &&
+          child.geometry instanceof THREE.BufferGeometry
+        )
+          child.geometry.dispose();
         if ("material" in child) {
           const material = child.material;
-          (Array.isArray(material) ? material : [material]).forEach((entry) => entry.dispose());
+          (Array.isArray(material) ? material : [material]).forEach((entry) =>
+            entry.dispose()
+          );
         }
       });
       registrationMarkers.forEach((marker) => {
@@ -2637,7 +2786,10 @@ export function StandalonePointCloudViewer({
       renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
       renderer.domElement.removeEventListener("pointermove", handlePointerMove);
       renderer.domElement.removeEventListener("wheel", handleTravelZoom);
-      renderer.domElement.removeEventListener("contextmenu", preventContextMenu);
+      renderer.domElement.removeEventListener(
+        "contextmenu",
+        preventContextMenu
+      );
       if (runtimeRef.current === runtime) runtimeRef.current = null;
     };
   }, [
@@ -2666,7 +2818,9 @@ export function StandalonePointCloudViewer({
           </div>
         )}
         <div>{error ?? status}</div>
-        {meshStatus && <div className="pointcloud-mesh-status">{meshStatus}</div>}
+        {meshStatus && (
+          <div className="pointcloud-mesh-status">{meshStatus}</div>
+        )}
       </div>
       {showRoadRoiControls && (
         <RoiControls
@@ -2675,8 +2829,8 @@ export function StandalonePointCloudViewer({
           onApply={() => setRoiApplied({ ...roiDraft })}
         />
       )}
-      {showFieldColorizer && (
-        colorizerOpen ? (
+      {showFieldColorizer &&
+        (colorizerOpen ? (
           <FloatingPanel
             title="Point cloud field colorizer"
             onClose={() => setColorizerOpen(false)}
@@ -2690,52 +2844,62 @@ export function StandalonePointCloudViewer({
               hasRgb={hasRgb}
               value={colorization}
               onChange={(next) => {
-            setColorization(next);
-            const base = next.layers[0];
-            const blend = next.layers[1];
-            const source = blend.source ?? null;
-            const baseSource = base.source;
-            const nextMetric: PointMetric =
-              source?.kind === "field" ? (source.field as PointMetric) :
-              source?.kind === "rgb" ? "rgb" :
-              source?.kind === "classification" ? "classification" : "none";
-            const nextColor: StandalonePointCloudColor =
-              baseSource?.kind === "field" && baseSource.field === "intensity"
-                ? "intensity"
-                : baseSource?.kind === "rgb"
-                ? "rgb"
-                : baseSource?.kind === "classification"
-                ? "classification"
-                : "white";
-            const slot = baseSource?.kind === "field" ? base : blend;
-            settingsRef.current = {
-              ...settingsRef.current,
-              color: nextColor,
-              metric: nextMetric,
-              colorRamp: slot.ramp,
-              clampMode: slot.source?.kind === "field" ? "manual" : "auto",
-              clampMin: slot.clampMin,
-              clampMax: slot.clampMax,
-            };
-            colorizerOverrideRef.current = {
-              color: nextColor,
-              metric: nextMetric,
-              colorRamp: slot.ramp,
-              clampMode: slot.source?.kind === "field" ? "manual" : "auto",
-              clampMin: slot.clampMin,
-              clampMax: slot.clampMax,
-            };
-            lastColorizerOptionsRef.current = colorizerOverrideRef.current;
-            onColorizerOptionsChange?.({
-              color: nextColor,
-              metric: nextMetric,
-              colorRamp: slot.ramp,
-              clampMode: slot.source?.kind === "field" ? "manual" : "auto",
-              clampMin: slot.clampMin,
-              clampMax: slot.clampMax,
-            });
-            const runtime = runtimeRef.current;
-            if (runtime) applyViewerSettings(runtime, settingsRef.current, roiAppliedRef.current);
+                setColorization(next);
+                const base = next.layers[0];
+                const blend = next.layers[1];
+                const source = blend.source ?? null;
+                const baseSource = base.source;
+                const nextMetric: PointMetric =
+                  source?.kind === "field"
+                    ? (source.field as PointMetric)
+                    : source?.kind === "rgb"
+                    ? "rgb"
+                    : source?.kind === "classification"
+                    ? "classification"
+                    : "none";
+                const nextColor: StandalonePointCloudColor =
+                  baseSource?.kind === "field" &&
+                  baseSource.field === "intensity"
+                    ? "intensity"
+                    : baseSource?.kind === "rgb"
+                    ? "rgb"
+                    : baseSource?.kind === "classification"
+                    ? "classification"
+                    : "white";
+                const slot = baseSource?.kind === "field" ? base : blend;
+                settingsRef.current = {
+                  ...settingsRef.current,
+                  color: nextColor,
+                  metric: nextMetric,
+                  colorRamp: slot.ramp,
+                  clampMode: slot.source?.kind === "field" ? "manual" : "auto",
+                  clampMin: slot.clampMin,
+                  clampMax: slot.clampMax,
+                };
+                colorizerOverrideRef.current = {
+                  color: nextColor,
+                  metric: nextMetric,
+                  colorRamp: slot.ramp,
+                  clampMode: slot.source?.kind === "field" ? "manual" : "auto",
+                  clampMin: slot.clampMin,
+                  clampMax: slot.clampMax,
+                };
+                lastColorizerOptionsRef.current = colorizerOverrideRef.current;
+                onColorizerOptionsChange?.({
+                  color: nextColor,
+                  metric: nextMetric,
+                  colorRamp: slot.ramp,
+                  clampMode: slot.source?.kind === "field" ? "manual" : "auto",
+                  clampMin: slot.clampMin,
+                  clampMax: slot.clampMax,
+                });
+                const runtime = runtimeRef.current;
+                if (runtime)
+                  applyViewerSettings(
+                    runtime,
+                    settingsRef.current,
+                    roiAppliedRef.current
+                  );
               }}
               storageKey="carma-mesh-registration-colorizer"
             />
@@ -2748,8 +2912,7 @@ export function StandalonePointCloudViewer({
           >
             Open field colorizer
           </button>
-        ) : null
-      )}
+        ) : null)}
     </div>
   );
 }

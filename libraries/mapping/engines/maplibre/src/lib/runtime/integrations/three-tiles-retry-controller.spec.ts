@@ -32,9 +32,8 @@ describe("createThreeTilesRetryController", () => {
 
     retries.handleFailure(tile, "https://example.com/tiles/tile.b3dm");
     expect(retries.hasPendingRetries()).toBe(true);
-    vi.advanceTimersByTime(999);
     expect(tile.internal.loadingState).toBe(-1);
-    vi.advanceTimersByTime(1);
+    vi.runOnlyPendingTimers();
 
     expect(tile.internal.loadingState).toBe(0);
     expect(renderer.stats.failed).toBe(0);
@@ -58,18 +57,21 @@ describe("createThreeTilesRetryController", () => {
       tile.internal.loadingState = -1;
       renderer.stats.failed = 1;
       retries.handleFailure(tile, "https://example.com/tiles/tile.b3dm");
-      const delayMs = 1_000 * 2 ** attempt;
-      vi.advanceTimersByTime(delayMs - 1);
       expect(tile.internal.loadingState).toBe(-1);
-      vi.advanceTimersByTime(1);
+      vi.runOnlyPendingTimers();
       expect(tile.internal.loadingState).toBe(0);
     }
 
     tile.internal.loadingState = -1;
-    retries.handleFailure(tile, "https://example.com/tiles/tile.b3dm");
+    expect(
+      retries.handleFailure(tile, "https://example.com/tiles/tile.b3dm")
+    ).toBe("exhausted");
     expect(vi.getTimerCount()).toBe(0);
     expect(tile.internal.loadingState).toBe(-1);
     expect(retries.hasExhaustedRetries()).toBe(true);
+    expect(
+      retries.isExhausted(tile, "https://example.com/tiles/tile.b3dm")
+    ).toBe(true);
   });
 
   it("keeps one retry budget across recreated tiles and successful reloads", () => {
