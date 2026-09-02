@@ -229,6 +229,36 @@ describe("deriveTilePriority", () => {
     expect(external).toBeGreaterThan(margin);
   });
 
+  it("orders shadow-only tiles by receiver relevance and then light depth", () => {
+    const edgeReceiver = deriveTilePriority({
+      depth: 4,
+      inMainFrustum: false,
+      isExternalTileset: false,
+      centerness: 0,
+      shadowReceiverCenterness: 0.2,
+      shadowLightFacing: 1,
+    });
+    const centreReceiverBehind = deriveTilePriority({
+      depth: 4,
+      inMainFrustum: false,
+      isExternalTileset: false,
+      centerness: 0,
+      shadowReceiverCenterness: 0.9,
+      shadowLightFacing: 0,
+    });
+    const centreReceiverLightFacing = deriveTilePriority({
+      depth: 4,
+      inMainFrustum: false,
+      isExternalTileset: false,
+      centerness: 0,
+      shadowReceiverCenterness: 0.9,
+      shadowLightFacing: 1,
+    });
+
+    expect(centreReceiverBehind).toBeGreaterThan(edgeReceiver);
+    expect(centreReceiverLightFacing).toBeGreaterThan(centreReceiverBehind);
+  });
+
   it("clamps depth and centerness", () => {
     expect(
       deriveTilePriority({
