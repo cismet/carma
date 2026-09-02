@@ -912,24 +912,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const runDownloadQueues = () => {
     for (const queue of getDownloadQueues()) queue.tryRunJobs();
   };
-  const releaseTilesOutsideCameraUnion = () => {
-    if (!tiles) return;
-    for (const tile of [...tiles.usedSet]) {
-      const traversal = tile.traversal as
-        | (typeof tile.traversal & { active: boolean; visible: boolean })
-        | null;
-      if (
-        !traversal ||
-        traversal.inFrustum ||
-        traversal.active ||
-        traversal.visible
-      ) {
-        continue;
-      }
-      tiles.usedSet.delete(tile);
-      tiles.lruCache.markUnused(tile);
-    }
-  };
   const resetCachePressureRecovery = () => {
     if (cachePressureTimer) {
       window.clearTimeout(cachePressureTimer);
@@ -1541,7 +1523,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
         tiles.update();
-        releaseTilesOutsideCameraUnion();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         resolveMainViewCachePressure();
         if (viewQualityAuditPasses > 0) {
