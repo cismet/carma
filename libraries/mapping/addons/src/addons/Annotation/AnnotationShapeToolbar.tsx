@@ -1,4 +1,10 @@
-import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
+import {
+  faLock,
+  faLockOpen,
+  faPlus,
+  faRotateLeft,
+  faRotateRight,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
@@ -15,6 +21,9 @@ export type AnnotationShapeToolbarProps = {
   shapes: AnnotationShape[];
   shape: AnnotationShape | null;
   onShapeChange: (shape: AnnotationShape) => void;
+  isLocked?: boolean;
+  onToggleLock?: () => void;
+  onAddGroup?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
 };
@@ -23,10 +32,50 @@ export const AnnotationShapeToolbar = ({
   shapes,
   shape,
   onShapeChange,
+  isLocked = false,
+  onToggleLock,
+  onAddGroup,
   onUndo,
   onRedo,
 }: AnnotationShapeToolbarProps) => (
   <div className={WRAPPER}>
+    {onAddGroup && (
+      <Tooltip title="Neue Zeichnung beginnen" placement="bottom">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddGroup();
+          }}
+          aria-label="Neue Zeichnung beginnen"
+          data-test-id="annotation-add-drawing"
+          className={[BUTTON, INACTIVE].join(" ")}
+        >
+          <FontAwesomeIcon icon={faPlus} />
+        </button>
+      </Tooltip>
+    )}
+    {onToggleLock && (
+      <Tooltip
+        title={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
+        placement="bottom"
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleLock();
+          }}
+          aria-pressed={isLocked}
+          aria-label={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
+          data-test-id="annotation-lock-toggle"
+          className={[BUTTON, isLocked ? ACTIVE : INACTIVE].join(" ")}
+        >
+          <FontAwesomeIcon icon={isLocked ? faLock : faLockOpen} />
+        </button>
+      </Tooltip>
+    )}
+    {(onToggleLock || onAddGroup) && <span className={DIVIDER} aria-hidden />}
     {shapes.map((entry) => {
       const label = SHAPE_LABELS[entry];
       const isActive = entry === shape;
