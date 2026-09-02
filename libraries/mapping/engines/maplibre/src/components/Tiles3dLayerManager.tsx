@@ -9,14 +9,13 @@ import {
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
+import { suppressMapLibreTerrainRendering } from "../lib/runtime/integrations/shared-three-terrain-registry";
 import {
   buildThreeTilesRuntime,
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   type ThreeTilesRuntime,
 } from "../lib/runtime/integrations/three-tiles-runtime";
-
-const TERRAIN_MESH_ERROR_TARGET_PIXELS = 1;
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -81,12 +80,8 @@ export interface Tiles3dLayerManagerProps {
 }
 
 export const resolveTiles3dErrorTarget = (
-  config: Pick<Tiles3dConfig, "errorTarget" | "providesTerrain">
-): number =>
-  config.errorTarget ??
-  (config.providesTerrain
-    ? TERRAIN_MESH_ERROR_TARGET_PIXELS
-    : TILES_ERROR_TARGET_DEFAULT_PIXELS);
+  config: Pick<Tiles3dConfig, "errorTarget">
+): number => config.errorTarget ?? TILES_ERROR_TARGET_DEFAULT_PIXELS;
 
 /** Whether the map can still be asked about its layers, see ThreeLayerManager. */
 function mapIsUsable(map: unknown): boolean {
@@ -115,6 +110,9 @@ export function Tiles3dLayerManager({
   useEffect(() => {
     if (!map || !config.tilesetUrl || !mapIsUsable(map)) return;
 
+    const restoreMapLibreTerrain = config.providesTerrain
+      ? suppressMapLibreTerrainRendering(map)
+      : null;
     const center = map.getCenter();
     const origin: [number, number] = [center.lng, center.lat];
     const runtimeId = `three-tiles-${config.tilesetUrl.replace(
@@ -159,6 +157,7 @@ export function Tiles3dLayerManager({
         lease.layer.removeRuntime(runtime.id);
       }
       lease.release();
+      restoreMapLibreTerrain?.();
     };
   }, [
     map,
@@ -182,7 +181,7 @@ export function Tiles3dLayerManager({
   // change is never a reason to switch it on a second time. Without that guard
   // the next change to the layer list would undo a deliberate switch-off.
   useEffect(() => {
-    if (!map || !config.terrainMandatory) return;
+    if (!map || !config.terrainMandatory || config.providesTerrain) return;
 
     terrainSettledRef.current = false;
 
@@ -204,7 +203,7 @@ export function Tiles3dLayerManager({
     return () => {
       map.off("styledata", demandTerrain);
     };
-  }, [map, config.terrainMandatory]);
+  }, [map, config.terrainMandatory, config.providesTerrain]);
 
   useEffect(() => {
     runtimeRef.current?.setOutlineVisible(config.outline ?? true);

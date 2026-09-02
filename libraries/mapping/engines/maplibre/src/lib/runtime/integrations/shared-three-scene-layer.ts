@@ -447,7 +447,7 @@ export const buildSharedThreeSceneLayer = (
                 centerLngLat.lng,
                 centerLngLat.lat
               ) ??
-              0,
+              map.getCameraTargetElevation(),
           },
           lookTarget
         )

@@ -45,7 +45,7 @@
     "@turf/turf": "^7.0.0",
     "@uidotdev/usehooks": "^2.4.1",
     "@uiw/react-codemirror": "^4.23.0",
-    "3d-tiles-renderer": "^0.4.28",
+    "3d-tiles-renderer": "^0.5.2",
     "antd": "^5.19.4",
     "autoprefixer": "^10.4.19",
     "axios": "^1.6.0",
