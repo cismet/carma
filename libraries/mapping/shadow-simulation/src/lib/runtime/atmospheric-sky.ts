@@ -1,4 +1,8 @@
-import { SKY_RENDER_ORDER, SkyMaterial } from "@takram/three-atmosphere";
+import {
+  getAltitudeCorrectionOffset,
+  SKY_RENDER_ORDER,
+  SkyMaterial,
+} from "@takram/three-atmosphere";
 import * as THREE from "three";
 
 import type {
@@ -12,6 +16,51 @@ export const ATMOSPHERIC_DISPLAY_EXPOSURE = 2;
 
 const OUTPUT_ENCODING_UNIFORM = "carmaOutputToSrgb";
 const DISPLAY_EXPOSURE_UNIFORM = "carmaDisplayExposure";
+const cameraPositionECEFScratch = new THREE.Vector3();
+
+class ObserverPositionSkyMaterial extends SkyMaterial {
+  readonly observerScenePosition = new THREE.Vector3();
+  hasObserverScenePosition = false;
+  viewCamera: THREE.Camera | null = null;
+
+  override copyCameraSettings(camera: THREE.Camera): void {
+    super.copyCameraSettings(camera);
+    if (!this.hasObserverScenePosition) return;
+
+    const uniforms = this.uniforms;
+    uniforms.cameraPosition.value.copy(this.observerScenePosition);
+    if (!this.correctAltitude) return;
+
+    const cameraPositionECEF = cameraPositionECEFScratch
+      .copy(this.observerScenePosition)
+      .applyMatrix4(uniforms.inverseEllipsoidMatrix.value)
+      .sub(uniforms.ellipsoidCenter.value);
+    getAltitudeCorrectionOffset(
+      cameraPositionECEF,
+      this.atmosphere.bottomRadius,
+      this.ellipsoid,
+      uniforms.altitudeCorrection.value
+    );
+  }
+
+  override onBeforeRender(
+    renderer: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+    geometry: THREE.BufferGeometry,
+    object: THREE.Object3D,
+    group: THREE.Group
+  ): void {
+    super.onBeforeRender(
+      renderer,
+      scene,
+      this.viewCamera ?? camera,
+      geometry,
+      object,
+      group
+    );
+  }
+}
 
 const addDisplayTransform = (material: SkyMaterial) => {
   material.uniforms[OUTPUT_ENCODING_UNIFORM] = new THREE.Uniform(false);
@@ -53,6 +102,8 @@ export type AtmosphericSky = Readonly<{
     frame: AtmosphericSkyFrame,
     textures: AtmosphericSkyTextures | null
   ) => boolean;
+  updateViewCamera: (camera: THREE.Camera) => void;
+  updateObserverScenePosition: (position: THREE.Vector3) => void;
   updateGroundAlbedo: (color: THREE.Color) => void;
   dispose: () => void;
 }>;
@@ -60,7 +111,7 @@ export type AtmosphericSky = Readonly<{
 export const buildAtmosphericSky = (
   groundAlbedo: THREE.Color
 ): AtmosphericSky => {
-  const material = new SkyMaterial({
+  const material = new ObserverPositionSkyMaterial({
     groundAlbedo,
     moon: false,
     photometric: true,
@@ -103,6 +154,13 @@ export const buildAtmosphericSky = (
       material.ellipsoidCenter.copy(frame.ellipsoidCenterECEF);
       material.ellipsoidMatrix.copy(frame.ecefToSceneMatrix);
       return true;
+    },
+    updateViewCamera(camera) {
+      material.viewCamera = camera;
+    },
+    updateObserverScenePosition(position) {
+      material.observerScenePosition.copy(position);
+      material.hasObserverScenePosition = true;
     },
     updateGroundAlbedo(color) {
       material.groundAlbedo.copy(color);

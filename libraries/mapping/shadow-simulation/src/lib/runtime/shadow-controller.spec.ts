@@ -58,6 +58,46 @@ describe("ShadowController", () => {
     expect(controller.lights).toHaveLength(1);
   });
 
+  it("increases normal bias for grazing sunlight", () => {
+    const controller = new ShadowController(new THREE.Scene());
+    controller.update(
+      buildUpdate({
+        directionToSun: new THREE.Vector3(0.2, 0.95, -0.2).normalize(),
+      })
+    );
+    const highSunBias = controller.lights[0].shadow.normalBias;
+
+    controller.update(
+      buildUpdate({
+        directionToSun: new THREE.Vector3(0.8, 0.08, -0.6).normalize(),
+      })
+    );
+
+    expect(controller.lights[0].shadow.normalBias).toBeGreaterThan(highSunBias);
+  });
+
+  it("scales negative depth bias from the fitted shadow texel size", () => {
+    const controller = new ShadowController(new THREE.Scene());
+
+    const snapshot = controller.update(buildUpdate());
+
+    expect(snapshot).not.toBeNull();
+    expect(controller.lights[0].shadow.bias).toBeLessThan(0);
+
+    const compactBias = Math.abs(controller.lights[0].shadow.bias);
+    controller.update(
+      buildUpdate({
+        receiverWorldPoints: receiverWorldPoints.map((point) =>
+          point.clone().multiplyScalar(100)
+        ),
+      })
+    );
+
+    expect(Math.abs(controller.lights[0].shadow.bias)).toBeGreaterThan(
+      compactBias
+    );
+  });
+
   it("moves the one light across the sun disc for accumulation rounds", () => {
     const controller = new ShadowController(new THREE.Scene());
     controller.setSoftSun(true);
