@@ -28,18 +28,20 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.material.depthTest).toBe(false);
     expect(sky.mesh.material.depthWrite).toBe(false);
 
-    sky.update(
-      {
-        directionToSunECEF: new THREE.Vector3(1, 2, 3).normalize(),
-        ecefToSceneMatrix,
-        ellipsoidCenterECEF: new THREE.Vector3(-4, -5, -6),
-      },
-      {
-        transmittanceTexture,
-        irradianceTexture,
-        scatteringTexture,
-      }
-    );
+    expect(
+      sky.update(
+        {
+          directionToSunECEF: new THREE.Vector3(1, 2, 3).normalize(),
+          ecefToSceneMatrix,
+          ellipsoidCenterECEF: new THREE.Vector3(-6_371_000, 0, 0),
+        },
+        {
+          transmittanceTexture,
+          irradianceTexture,
+          scatteringTexture,
+        }
+      )
+    ).toBe(true);
 
     expect(sky.mesh.visible).toBe(true);
     expect(sky.mesh.material.sun).toBe(true);
@@ -74,13 +76,32 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.material.transmittanceTexture).toBe(transmittanceTexture);
     expect(sky.mesh.material.irradianceTexture).toBe(irradianceTexture);
     expect(sky.mesh.material.scatteringTexture).toBe(scatteringTexture);
-    expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([-4, -5, -6]);
+    expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([
+      -6_371_000, 0, 0,
+    ]);
     expect(sky.mesh.material.ellipsoidMatrix.equals(ecefToSceneMatrix)).toBe(
       true
     );
     expect(sky.mesh.material.sunDirection.toArray()).toEqual(
       new THREE.Vector3(1, 2, 3).normalize().toArray()
     );
+    expect(
+      sky.update(
+        {
+          directionToSunECEF: new THREE.Vector3(Number.NaN, 0, 0),
+          ecefToSceneMatrix: new THREE.Matrix4().makeScale(2, 0.5, 1),
+          ellipsoidCenterECEF: new THREE.Vector3(),
+        },
+        {
+          transmittanceTexture,
+          irradianceTexture,
+          scatteringTexture,
+        }
+      )
+    ).toBe(false);
+    expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([
+      -6_371_000, 0, 0,
+    ]);
 
     const nextAlbedo = new THREE.Color("#eeeeee");
     sky.updateGroundAlbedo(nextAlbedo);

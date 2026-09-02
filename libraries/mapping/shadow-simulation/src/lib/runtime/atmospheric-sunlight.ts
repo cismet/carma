@@ -27,6 +27,10 @@ import { radToDegNumeric } from "@carma-units";
 const FALLBACK_SUN_COLOR = new THREE.Color("#fff2d8");
 const MIN_RADIANCE = 1e-8;
 const LUT_RETRY_DELAY_MS = 30_000;
+const MIN_OBSERVER_ALTITUDE_METERS = -1_000;
+const MAX_OBSERVER_ALTITUDE_METERS = 10_000_000;
+const MIN_EARTH_CENTER_DISTANCE_METERS = 5_000_000;
+const MAX_EARTH_CENTER_DISTANCE_METERS = 8_000_000;
 
 export type AtmosphericSunlightSample = Readonly<{
   directionToSun: THREE.Vector3;
@@ -68,6 +72,123 @@ export type AtmosphericSunlightOptions = Readonly<{
   useTransmittanceLut: boolean;
   useIrradianceLut: boolean;
 }>;
+
+const isFiniteVector3 = (value: THREE.Vector3) =>
+  Number.isFinite(value.x) &&
+  Number.isFinite(value.y) &&
+  Number.isFinite(value.z);
+
+export const getAtmosphericObserverValidationError = (
+  observer: AtmosphericObserver
+): string | null => {
+  if (
+    !Number.isFinite(observer.longitude) ||
+    Math.abs(observer.longitude) > 180
+  )
+    return "longitude must be a finite value in degrees within [-180, 180]";
+  if (!Number.isFinite(observer.latitude) || Math.abs(observer.latitude) > 90)
+    return "latitude must be a finite value in degrees within [-90, 90]";
+  if (
+    !Number.isFinite(observer.altitudeMeters) ||
+    observer.altitudeMeters < MIN_OBSERVER_ALTITUDE_METERS ||
+    observer.altitudeMeters > MAX_OBSERVER_ALTITUDE_METERS
+  )
+    return `altitudeMeters must be within [${MIN_OBSERVER_ALTITUDE_METERS}, ${MAX_OBSERVER_ALTITUDE_METERS}]`;
+  return null;
+};
+
+export const getAtmosphericInputValidationError = (
+  instant: Date,
+  observer: AtmosphericObserver,
+  skyReference?: AtmosphericSkyReference
+): string | null => {
+  if (!Number.isFinite(instant.getTime()))
+    return "instant must be a valid Date";
+  const observerError = getAtmosphericObserverValidationError(observer);
+  if (observerError) return `observer ${observerError}`;
+  if (!skyReference) return null;
+  const referenceObserverError = getAtmosphericObserverValidationError(
+    skyReference.observer
+  );
+  if (referenceObserverError)
+    return `sky reference observer ${referenceObserverError}`;
+  if (!isFiniteVector3(skyReference.scenePosition))
+    return "sky reference scenePosition must contain finite metre coordinates";
+  return null;
+};
+
+export const getAtmosphericSkyFrameValidationError = (
+  frame: AtmosphericSkyFrame
+): string | null => {
+  if (!isFiniteVector3(frame.directionToSunECEF))
+    return "sun direction contains a non-finite component";
+  if (Math.abs(frame.directionToSunECEF.length() - 1) > 1e-6)
+    return "sun direction is not normalized";
+  if (!frame.ecefToSceneMatrix.elements.every(Number.isFinite))
+    return "ECEF-to-scene matrix contains a non-finite component";
+  const elements = frame.ecefToSceneMatrix.elements;
+  const rows = [
+    new THREE.Vector3(elements[0], elements[4], elements[8]),
+    new THREE.Vector3(elements[1], elements[5], elements[9]),
+    new THREE.Vector3(elements[2], elements[6], elements[10]),
+  ];
+  if (
+    rows.some((row) => Math.abs(row.length() - 1) > 1e-6) ||
+    Math.abs(rows[0].dot(rows[1])) > 1e-6 ||
+    Math.abs(rows[0].dot(rows[2])) > 1e-6 ||
+    Math.abs(rows[1].dot(rows[2])) > 1e-6 ||
+    Math.abs(elements[3]) > 1e-12 ||
+    Math.abs(elements[7]) > 1e-12 ||
+    Math.abs(elements[11]) > 1e-12 ||
+    Math.abs(elements[12]) > 1e-12 ||
+    Math.abs(elements[13]) > 1e-12 ||
+    Math.abs(elements[14]) > 1e-12 ||
+    Math.abs(elements[15] - 1) > 1e-12
+  )
+    return "ECEF-to-scene matrix is not an affine orthonormal rotation";
+  const determinant = frame.ecefToSceneMatrix.determinant();
+  if (!Number.isFinite(determinant) || Math.abs(determinant - 1) > 1e-6)
+    return "ECEF-to-scene matrix is not a proper orthonormal rotation";
+  if (!isFiniteVector3(frame.ellipsoidCenterECEF))
+    return "ellipsoid center contains a non-finite component";
+  const centerDistance = frame.ellipsoidCenterECEF.length();
+  if (
+    centerDistance < MIN_EARTH_CENTER_DISTANCE_METERS ||
+    centerDistance > MAX_EARTH_CENTER_DISTANCE_METERS
+  )
+    return "ellipsoid center is outside the plausible WGS84 distance range";
+  return null;
+};
+
+export const getAtmosphericSunlightSampleValidationError = (
+  sample: AtmosphericSunlightSample
+): string | null => {
+  const frameError = getAtmosphericSkyFrameValidationError(sample.skyFrame);
+  if (frameError) return frameError;
+  if (!isFiniteVector3(sample.directionToSun))
+    return "scene sun direction contains a non-finite component";
+  if (Math.abs(sample.directionToSun.length() - 1) > 1e-6)
+    return "scene sun direction is not normalized";
+  if (
+    ![sample.color.r, sample.color.g, sample.color.b].every(Number.isFinite) ||
+    ![sample.radiance.r, sample.radiance.g, sample.radiance.b].every(
+      Number.isFinite
+    ) ||
+    !Number.isFinite(sample.relativeIntensity) ||
+    sample.relativeIntensity < 0 ||
+    sample.relativeIntensity > 1 ||
+    !Number.isFinite(sample.azimuthDegrees) ||
+    !Number.isFinite(sample.elevationDegrees)
+  )
+    return "sunlight color, intensity, or angles contain invalid values";
+  if (
+    sample.skyIrradianceCoefficients?.some(
+      (coefficient) => !isFiniteVector3(coefficient)
+    )
+  )
+    return "sky irradiance contains a non-finite coefficient";
+  return null;
+};
 
 const DEFAULT_ATMOSPHERIC_SUNLIGHT_OPTIONS: AtmosphericSunlightOptions = {
   useTransmittanceLut: true,

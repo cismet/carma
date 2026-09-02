@@ -193,8 +193,9 @@ describe("shadow scene lighting integration", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const setLight = vi.fn();
+    let mapCenter = { lng: 7.15, lat: 51.256 };
     const map = {
-      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCenter: vi.fn(() => mapCenter),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
         lng: 7.15 + (x / 800 - 0.5) * 0.02,
@@ -335,6 +336,15 @@ describe("shadow scene lighting integration", () => {
     const centeredSunPosition = sun.position.clone();
     accumulationController?.prepareRound(1);
     expect(sun.position.equals(centeredSunPosition)).toBe(false);
+
+    mapCenter = { lng: 7.2, lat: 51.3 };
+    controller.updateSolarPosition({
+      ...solarPosition,
+      instant: new Date("2026-06-21T10:01:00Z"),
+    });
+    expect(
+      evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
+    ).toEqual([7_150, 0, 51_256]);
 
     controller.dispose();
     expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);

@@ -243,6 +243,10 @@ export type {
   SharedThreeSceneShadowView,
   SharedThreeSceneTileVolume,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
+export {
+  createSharedThreeSceneCameraPreview,
+  type SharedThreeSceneCameraPreview,
+} from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
 export {
   getSharedThreeSceneRuntimes,
