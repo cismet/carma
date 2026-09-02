@@ -150,6 +150,7 @@ export const AnnotationOverlay = ({
             savedFiles={restored?.files}
             savedAnchor={restored?.anchor}
             editable={isOn && group.id === activeId && !group.locked}
+            active={group.id === activeId}
             live={isOn}
             shown={isOn || !hideWhenOff}
             langCode={langCode}

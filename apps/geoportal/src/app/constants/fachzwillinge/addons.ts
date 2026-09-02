@@ -61,7 +61,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "annotationOverlay",
       config: {
         hideMenu: true,
-        hideZoom: true,
+        hideZoom: false,
         hideTools: true,
         hideHelp: true,
         hideLibrary: true,
