@@ -1,5 +1,6 @@
 import {
   BufferGeometry,
+  Color,
   Float32BufferAttribute,
   LineBasicMaterial,
   LineSegments,
@@ -54,6 +55,24 @@ export const buildVolumeBoxLinePositions = (
   return positions;
 };
 
+export const buildVolumeBoxLineColors = (
+  boxes: readonly ViewStateVisualizerVolumeBox[],
+  fallbackColor: string
+): Float32Array => {
+  const colors = new Float32Array(boxes.length * BOX_EDGES.length * 2 * 3);
+  const color = new Color();
+  let offset = 0;
+  for (const box of boxes) {
+    color.set(box.color ?? fallbackColor);
+    for (let vertex = 0; vertex < BOX_EDGES.length * 2; vertex += 1) {
+      colors[offset++] = color.r;
+      colors[offset++] = color.g;
+      colors[offset++] = color.b;
+    }
+  }
+  return colors;
+};
+
 export type VolumeBoxesDisplay = Readonly<{
   visible: boolean;
   color: string;
@@ -63,7 +82,8 @@ export type VolumeBoxesDisplay = Readonly<{
 export const createVolumeBoxes = (scene: Scene) => {
   const geometry = new BufferGeometry();
   const material = new LineBasicMaterial({
-    color: "#0f766e",
+    color: "#ffffff",
+    vertexColors: true,
     transparent: true,
     opacity: 0.55,
     depthWrite: false,
@@ -74,20 +94,37 @@ export const createVolumeBoxes = (scene: Scene) => {
   lines.renderOrder = 3;
   scene.add(lines);
 
+  let boxes: readonly ViewStateVisualizerVolumeBox[] = [];
+  let fallbackColor = "#0f766e";
+  const updateGeometry = () => {
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(buildVolumeBoxLinePositions(boxes), 3)
+    );
+    geometry.setAttribute(
+      "color",
+      new Float32BufferAttribute(
+        buildVolumeBoxLineColors(boxes, fallbackColor),
+        3
+      )
+    );
+    geometry.computeBoundingSphere();
+  };
+
   return createThreePart<
     readonly ViewStateVisualizerVolumeBox[],
     VolumeBoxesDisplay
   >({
-    update: (boxes) => {
-      geometry.setAttribute(
-        "position",
-        new Float32BufferAttribute(buildVolumeBoxLinePositions(boxes), 3)
-      );
-      geometry.computeBoundingSphere();
+    update: (nextBoxes) => {
+      boxes = nextBoxes;
+      updateGeometry();
     },
     setDisplay: ({ visible, color, opacity }) => {
       lines.visible = visible;
-      material.color.set(color);
+      if (fallbackColor !== color) {
+        fallbackColor = color;
+        updateGeometry();
+      }
       material.opacity = opacity;
     },
     dispose: () => {

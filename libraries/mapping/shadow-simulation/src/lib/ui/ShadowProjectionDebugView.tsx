@@ -8,6 +8,15 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import {
+  Checkbox,
+  ColorPicker,
+  Segmented,
+  Slider,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import {
@@ -68,7 +77,7 @@ type VisualizerContentGroup =
   | "markers"
   | "altitude"
   | "labels"
-  | "terrainTiles";
+  | "tileVolumes";
 
 const VISUALIZER_CONTENT_GROUPS: ReadonlyArray<{
   key: VisualizerContentGroup;
@@ -83,7 +92,7 @@ const VISUALIZER_CONTENT_GROUPS: ReadonlyArray<{
   { key: "markers", label: "Marker" },
   { key: "altitude", label: "Höhenbezug" },
   { key: "labels", label: "Beschriftung" },
-  { key: "terrainTiles", label: "Terrain-Tiles" },
+  { key: "tileVolumes", label: "Tile-Volumes" },
 ];
 
 const DEFAULT_VISUALIZER_CONTENT_VISIBILITY: Record<
@@ -99,7 +108,7 @@ const DEFAULT_VISUALIZER_CONTENT_VISIBILITY: Record<
   markers: true,
   altitude: false,
   labels: true,
-  terrainTiles: true,
+  tileVolumes: true,
 };
 
 const SHADOW_QUALITIES: ReadonlyArray<{
@@ -155,26 +164,10 @@ export type ShadowProjectionDebugSettings = Readonly<{
   meshTextureSaturation: number;
   buildingColor: string;
   showSunDebugVector: boolean;
-  showShadowBuffers: boolean;
+  showTileBounds: boolean;
   useTransmittanceLut: boolean;
   useSkyIrradianceLut: boolean;
 }>;
-
-const ValueRow = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="grid grid-cols-[max-content_1fr] gap-2 leading-5">
-    <span className="text-neutral-500">{label}</span>
-    <span className="text-right tabular-nums text-neutral-800">{value}</span>
-  </div>
-);
-
-const StatCell = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="grid min-w-0 gap-0.5">
-    <span className="truncate text-neutral-500">{label}</span>
-    <span className="whitespace-nowrap tabular-nums text-neutral-800">
-      {value}
-    </span>
-  </div>
-);
 
 const formatMeters = (value: number, fractionDigits = 0) =>
   `${value.toFixed(fractionDigits)} m`;
@@ -185,43 +178,52 @@ const ShadowBufferStatistics = ({
   model: ShadowProjectionDebugModel;
 }) => {
   const resolution = `${model.shadowBuffer.shadowMapWidth} × ${model.shadowBuffer.shadowMapHeight}`;
+  const values: ReadonlyArray<Readonly<{ label: string; value: ReactNode }>> = [
+    { label: "Samples", value: model.shadowSampleCount },
+    { label: "Tiles", value: model.tileVolumes.length },
+    { label: "Buffer", value: resolution },
+    {
+      label: "Kernabdeckung",
+      value: `${formatMeters(
+        model.receiverCoverageWidthMeters
+      )} × ${formatMeters(model.receiverCoverageHeightMeters)}`,
+    },
+    {
+      label: "Texel",
+      value: formatMeters(
+        Math.max(model.shadowTexelWidthMeters, model.shadowTexelHeightMeters),
+        3
+      ),
+    },
+    {
+      label: "Viewport",
+      value: `${formatMeters(model.viewportWidthMeters)} × ${formatMeters(
+        model.viewportHeightMeters
+      )}`,
+    },
+    { label: "Höhenspanne", value: formatMeters(model.elevationSpanMeters) },
+    { label: "Caster", value: formatMeters(model.casterReachMeters) },
+    {
+      label: "Horizontal / Höhe",
+      value: `${model.horizontalProjectionPerHeight.toFixed(2)} ×`,
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-      <StatCell label="Sonnen-Samples" value={model.shadowSampleCount} />
-      <StatCell label="Terrain-Tiles" value={model.terrainTileVolumes.length} />
-      <StatCell label="Buffer-Auflösung" value={resolution} />
-      <StatCell
-        label="Kernabdeckung"
-        value={`${formatMeters(
-          model.receiverCoverageWidthMeters
-        )} × ${formatMeters(model.receiverCoverageHeightMeters)}`}
-      />
-      <StatCell
-        label="Texel"
-        value={formatMeters(
-          Math.max(model.shadowTexelWidthMeters, model.shadowTexelHeightMeters),
-          3
-        )}
-      />
-      <StatCell
-        label="Viewport"
-        value={`${formatMeters(model.viewportWidthMeters)} × ${formatMeters(
-          model.viewportHeightMeters
-        )}`}
-      />
-      <StatCell
-        label="Höhenspanne"
-        value={formatMeters(model.elevationSpanMeters)}
-      />
-      <StatCell
-        label="Caster-Reichweite"
-        value={formatMeters(model.casterReachMeters)}
-      />
-      <StatCell
-        label="Horizontal / Höhe"
-        value={`${model.horizontalProjectionPerHeight.toFixed(2)} ×`}
-      />
+    <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 border-t border-neutral-200 pt-1 text-xs">
+      {values.map(({ label, value }) => (
+        <div key={label} className="flex min-w-0 items-baseline gap-1">
+          <Typography.Text
+            type="secondary"
+            className="min-w-0 truncate !text-[11px]"
+          >
+            {label}
+          </Typography.Text>
+          <Typography.Text className="ml-auto whitespace-nowrap !text-xs tabular-nums">
+            {value}
+          </Typography.Text>
+        </div>
+      ))}
     </div>
   );
 };
@@ -291,36 +293,39 @@ const ShadowDebugVisualizer = ({
   );
   const volumeBoxes = useMemo(
     () => ({
-      boxes: model.terrainTileVolumes,
-      visible: visibility.terrainTiles,
+      boxes: model.tileVolumes,
+      visible: visibility.tileVolumes,
       color: "#0f766e",
       opacity: 0.58,
     }),
-    [model.terrainTileVolumes, visibility.terrainTiles]
+    [model.tileVolumes, visibility.tileVolumes]
   );
 
   return (
     <div className="relative w-full">
-      <div className="absolute right-2 top-2 z-10 inline-flex rounded-md bg-white/90 shadow-sm">
-        {[
-          { label: "Übersicht", value: SHADOW_DEBUG_VIEWPOINT.OVERVIEW },
-          { label: "Sonnenansicht", value: SHADOW_DEBUG_VIEWPOINT.SUN },
-        ].map(({ label, value }) => (
-          <button
-            key={value}
-            type="button"
-            className={`h-7 border px-2 text-[11px] first:rounded-l-md last:rounded-r-md ${
-              viewpoint === value
-                ? "border-amber-600 bg-amber-50 font-semibold text-amber-800"
-                : "border-neutral-300 bg-white text-neutral-700"
-            }`}
-            aria-pressed={viewpoint === value}
-            onClick={() => onViewpointChange(value)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="absolute right-2 top-2 z-10 rounded-md bg-white/90 shadow-sm">
+        <Segmented
+          size="small"
+          value={viewpoint}
+          options={[
+            { label: "Übersicht", value: SHADOW_DEBUG_VIEWPOINT.OVERVIEW },
+            { label: "Sonnenansicht", value: SHADOW_DEBUG_VIEWPOINT.SUN },
+          ]}
+          onChange={(value) => onViewpointChange(value as ShadowDebugViewpoint)}
+        />
       </div>
+      {visibility.tileVolumes && (
+        <div className="absolute bottom-2 left-2 z-10 flex gap-3 rounded bg-white/90 px-2 py-1 text-[10px] text-neutral-700 shadow-sm">
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-sky-600" />
+            Viewport
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-orange-600" />
+            Schattenpfad
+          </span>
+        </div>
+      )}
       <div
         ref={host.ref}
         className="w-full overflow-hidden rounded-lg bg-neutral-100"
@@ -328,6 +333,7 @@ const ShadowDebugVisualizer = ({
       >
         {host.isReady && (
           <ViewStateVisualizer
+            interactive
             viewState={model.viewStates}
             activeCameraIndex={1}
             width={width}
@@ -355,21 +361,23 @@ const VisualizerContentToggles = ({
   visibility: Record<VisualizerContentGroup, boolean>;
   onToggle: (group: VisualizerContentGroup) => void;
 }) => (
-  <fieldset className="flex content-start flex-wrap gap-x-3 gap-y-1 text-xs">
-    <legend className="mb-0.5 font-semibold uppercase tracking-wide text-neutral-500">
+  <div className="flex min-w-0 items-start gap-2 text-xs">
+    <Typography.Text strong type="secondary" className="shrink-0 !text-xs">
       Visualisierung
-    </legend>
-    {VISUALIZER_CONTENT_GROUPS.map(({ key, label }) => (
-      <label key={key} className="flex items-center gap-1.5">
-        <input
-          type="checkbox"
+    </Typography.Text>
+    <Space size={[10, 0]} wrap className="min-w-0">
+      {VISUALIZER_CONTENT_GROUPS.map(({ key, label }) => (
+        <Checkbox
+          key={key}
           checked={visibility[key]}
           onChange={() => onToggle(key)}
-        />
-        {label}
-      </label>
-    ))}
-  </fieldset>
+          className="!m-0 !text-xs"
+        >
+          {label}
+        </Checkbox>
+      ))}
+    </Space>
+  </div>
 );
 
 const ShadowDebugControls = ({
@@ -385,199 +393,187 @@ const ShadowDebugControls = ({
   meshLoaded: boolean;
   onChange: (patch: Partial<ShadowProjectionDebugSettings>) => void;
 }) => {
-  const buttonClass = (selected: boolean) =>
-    `h-8 border px-3 text-xs transition-colors first:rounded-l-md last:rounded-r-md ${
-      selected
-        ? "border-amber-600 bg-amber-50 font-semibold text-amber-800"
-        : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
-    }`;
-
   return (
-    <div className="grid content-start gap-2 text-xs">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+    <div className="grid content-start gap-1.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <div className="flex items-center gap-2">
-          <span className="font-semibold uppercase tracking-wide text-neutral-500">
+          <Typography.Text strong type="secondary" className="!text-xs">
             Qualität
-          </span>
-          <div className="inline-flex" data-test-id="shadow-debug-quality">
-            {SHADOW_QUALITIES.map(({ label, value }) => (
-              <button
-                key={label}
-                type="button"
-                className={buttonClass(settings.shadowQuality === value)}
-                aria-pressed={settings.shadowQuality === value}
-                onClick={() => onChange({ shadowQuality: value })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          </Typography.Text>
+          <Segmented
+            size="small"
+            data-test-id="shadow-debug-quality"
+            value={settings.shadowQuality}
+            options={[...SHADOW_QUALITIES]}
+            onChange={(value) =>
+              onChange({ shadowQuality: value as ShadowQualityMultiplier })
+            }
+          />
         </div>
         {meshLoaded && (
           <div className="flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-wide text-neutral-500">
+            <Typography.Text strong type="secondary" className="!text-xs">
               Mesh-LOD
-            </span>
-            <div className="inline-flex" data-test-id="mesh-debug-quality">
-              {MESH_ERROR_TARGETS.map(({ label, value }) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={buttonClass(settings.meshErrorTarget === value)}
-                  aria-pressed={settings.meshErrorTarget === value}
-                  onClick={() => onChange({ meshErrorTarget: value })}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            </Typography.Text>
+            <Segmented
+              size="small"
+              data-test-id="mesh-debug-quality"
+              value={settings.meshErrorTarget}
+              options={[...MESH_ERROR_TARGETS]}
+              onChange={(value) =>
+                onChange({ meshErrorTarget: value as MeshErrorTargetPixels })
+              }
+            />
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <label className="flex items-center gap-2">
-          <span className="font-semibold uppercase tracking-wide text-neutral-500">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="flex items-center gap-2">
+          <Typography.Text strong type="secondary" className="!text-xs">
             Terrain
-          </span>
-          <input
-            type="color"
+          </Typography.Text>
+          <ColorPicker
+            size="small"
             value={settings.terrainColor}
-            onChange={(event) =>
-              onChange({ terrainColor: event.currentTarget.value })
-            }
-            className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-transparent p-0.5"
-            aria-label="Terrainfarbe"
-          />
-          <span className="tabular-nums text-neutral-500">
-            {settings.terrainColor.toUpperCase()}
-          </span>
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={settings.buildingsFullOpacity}
-            onChange={(event) =>
-              onChange({ buildingsFullOpacity: event.currentTarget.checked })
+            showText={(color) => color.toHexString().toUpperCase()}
+            onChangeComplete={(color) =>
+              onChange({ terrainColor: color.toHexString() })
             }
           />
+        </div>
+        <Checkbox
+          checked={settings.buildingsFullOpacity}
+          onChange={(event) =>
+            onChange({ buildingsFullOpacity: event.target.checked })
+          }
+          className="!text-xs"
+        >
           Gebäude volle Deckkraft
-        </label>
-        <label className="flex min-w-64 items-center gap-2">
-          <span className="font-semibold uppercase tracking-wide text-neutral-500">
+        </Checkbox>
+        <div className="flex items-center gap-2">
+          <Typography.Text strong type="secondary" className="!text-xs">
             Mesh
-          </span>
-          <span className="text-neutral-500">Textur</span>
-          <input
-            type="range"
+          </Typography.Text>
+          <Typography.Text type="secondary" className="!text-xs">
+            Textur
+          </Typography.Text>
+          <Slider
             min={0}
             max={1}
             step={0.01}
             value={settings.buildingColorMix}
-            onChange={(event) =>
-              onChange({ buildingColorMix: event.currentTarget.valueAsNumber })
-            }
-            className="min-w-24 flex-1 accent-amber-600"
+            onChange={(value) => onChange({ buildingColorMix: value })}
+            tooltip={{ formatter: null }}
+            className="!m-0 w-24"
             aria-label="Mischung aus Meshtextur und Farbe"
           />
-          <span className="text-neutral-500">Farbe</span>
-          <span className="w-8 text-right tabular-nums text-neutral-500">
+          <Typography.Text type="secondary" className="!text-xs">
+            Farbe
+          </Typography.Text>
+          <Typography.Text
+            type="secondary"
+            className="w-8 text-right !text-xs tabular-nums"
+          >
             {Math.round(settings.buildingColorMix * 100)}%
-          </span>
-        </label>
-        <label className="flex min-w-56 items-center gap-2">
-          <span className="text-neutral-500">Sättigung</span>
-          <input
-            type="range"
+          </Typography.Text>
+        </div>
+        <div className="flex items-center gap-2">
+          <Typography.Text type="secondary" className="!text-xs">
+            Sättigung
+          </Typography.Text>
+          <Slider
             min={0}
             max={1}
             step={0.01}
             value={settings.meshTextureSaturation}
-            onChange={(event) =>
-              onChange({
-                meshTextureSaturation: event.currentTarget.valueAsNumber,
-              })
-            }
-            className="min-w-24 flex-1 accent-amber-600"
+            onChange={(value) => onChange({ meshTextureSaturation: value })}
+            tooltip={{ formatter: null }}
+            className="!m-0 w-24"
             aria-label="Sättigung der Meshtextur"
           />
-          <span className="w-8 text-right tabular-nums text-neutral-500">
+          <Typography.Text
+            type="secondary"
+            className="w-8 text-right !text-xs tabular-nums"
+          >
             {Math.round(settings.meshTextureSaturation * 100)}%
-          </span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="color"
+          </Typography.Text>
+          <ColorPicker
+            size="small"
             value={settings.buildingColor}
-            onChange={(event) =>
-              onChange({ buildingColor: event.currentTarget.value })
+            showText={(color) => color.toHexString().toUpperCase()}
+            onChangeComplete={(color) =>
+              onChange({ buildingColor: color.toHexString() })
             }
-            className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-transparent p-0.5"
-            aria-label="Meshfarbe"
           />
-          <span className="tabular-nums text-neutral-500">
-            {settings.buildingColor.toUpperCase()}
-          </span>
-        </label>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={settings.showSunDebugVector}
-            onChange={(event) =>
-              onChange({ showSunDebugVector: event.currentTarget.checked })
-            }
-          />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <Checkbox
+          checked={settings.showSunDebugVector}
+          onChange={(event) =>
+            onChange({ showSunDebugVector: event.target.checked })
+          }
+          className="!text-xs"
+        >
           Sonnenvektor
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={settings.showShadowBuffers}
-            onChange={(event) =>
-              onChange({ showShadowBuffers: event.currentTarget.checked })
-            }
-          />
-          Buffer in Szene
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={settings.useTransmittanceLut}
-            onChange={(event) =>
-              onChange({ useTransmittanceLut: event.currentTarget.checked })
-            }
-          />
+        </Checkbox>
+        <Checkbox
+          checked={settings.showTileBounds}
+          onChange={(event) =>
+            onChange({ showTileBounds: event.target.checked })
+          }
+          className="!text-xs"
+        >
+          Tile-Kanten + IDs
+        </Checkbox>
+        <Checkbox
+          checked={settings.useTransmittanceLut}
+          onChange={(event) =>
+            onChange({ useTransmittanceLut: event.target.checked })
+          }
+          className="!text-xs"
+        >
           Transmittanz-LUT
-          <span className="text-neutral-500">
-            (
+          <Tag
+            bordered={false}
+            color={
+              settings.useTransmittanceLut && transmittanceReady
+                ? "success"
+                : "default"
+            }
+            className="!ml-1 !mr-0 !px-1 !text-[10px] !leading-4"
+          >
             {settings.useTransmittanceLut
               ? transmittanceReady
                 ? "bereit"
                 : "lädt"
               : "aus"}
-            )
-          </span>
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={settings.useSkyIrradianceLut}
-            onChange={(event) =>
-              onChange({ useSkyIrradianceLut: event.currentTarget.checked })
-            }
-          />
+          </Tag>
+        </Checkbox>
+        <Checkbox
+          checked={settings.useSkyIrradianceLut}
+          onChange={(event) =>
+            onChange({ useSkyIrradianceLut: event.target.checked })
+          }
+          className="!text-xs"
+        >
           Sky-Irradianz-LUT
-          <span className="text-neutral-500">
-            (
+          <Tag
+            bordered={false}
+            color={
+              settings.useSkyIrradianceLut && irradianceReady
+                ? "success"
+                : "default"
+            }
+            className="!ml-1 !mr-0 !px-1 !text-[10px] !leading-4"
+          >
             {settings.useSkyIrradianceLut
               ? irradianceReady
                 ? "bereit"
                 : "lädt"
               : "aus"}
-            )
-          </span>
-        </label>
+          </Tag>
+        </Checkbox>
       </div>
     </div>
   );
@@ -641,7 +637,7 @@ export const ShadowProjectionDebugView = ({
 
   const content = (
     <div
-      className="grid max-h-[calc(100vh-140px)] grid-cols-1 items-start gap-2 overflow-y-auto p-1"
+      className="grid max-h-[calc(100vh-140px)] grid-cols-1 items-start gap-1 overflow-y-auto p-1"
       data-test-id="shadow-simulation-projection-debug-view"
     >
       <ShadowDebugVisualizer
@@ -652,7 +648,7 @@ export const ShadowProjectionDebugView = ({
         sunElevationDegrees={displayedElevation}
         onViewpointChange={setVisualizerViewpoint}
       />
-      <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="grid min-w-0 gap-1">
         <VisualizerContentToggles
           visibility={visualizerContentVisibility}
           onToggle={(group) =>
@@ -662,61 +658,67 @@ export const ShadowProjectionDebugView = ({
             }))
           }
         />
-        <div className="grid content-start gap-1.5 text-xs">
-          <div>
-            <div className="font-semibold uppercase tracking-wide text-neutral-500">
-              Sonne
-            </div>
-            <ValueRow
-              label="Azimut"
-              value={`${displayedAzimuth.toFixed(1)}°`}
-            />
-            <ValueRow
-              label="Höhe"
-              value={`${displayedElevation.toFixed(1)}°`}
-            />
-            {snapshot.atmosphericSunlight && (
-              <>
-                <ValueRow
-                  label="Takram-Radiance"
-                  value={`${(
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+          <Typography.Text strong type="secondary" className="!text-xs">
+            Sonne
+          </Typography.Text>
+          <Typography.Text type="secondary" className="!text-xs">
+            Azimut{" "}
+            <span className="tabular-nums text-neutral-800">
+              {displayedAzimuth.toFixed(1)}°
+            </span>
+          </Typography.Text>
+          <Typography.Text type="secondary" className="!text-xs">
+            Höhe{" "}
+            <span className="tabular-nums text-neutral-800">
+              {displayedElevation.toFixed(1)}°
+            </span>
+          </Typography.Text>
+          {snapshot.atmosphericSunlight && (
+            <>
+              <Typography.Text type="secondary" className="!text-xs">
+                Radiance{" "}
+                <span className="tabular-nums text-neutral-800">
+                  {(
                     snapshot.atmosphericSunlight.relativeIntensity * 100
-                  ).toFixed(1)} %`}
+                  ).toFixed(1)}
+                  %
+                </span>
+              </Typography.Text>
+              <Typography.Text
+                type="secondary"
+                className="inline-flex items-center gap-1 !text-xs"
+              >
+                Licht
+                <span
+                  className="h-3 w-3 rounded-full border border-neutral-300"
+                  style={{
+                    backgroundColor: snapshot.atmosphericSunlight.color,
+                  }}
                 />
-                <ValueRow
-                  label="Lichtfarbe"
-                  value={
-                    <span className="inline-flex items-center justify-end gap-1.5">
-                      <span
-                        className="h-3 w-3 rounded-full border border-neutral-300"
-                        style={{
-                          backgroundColor: snapshot.atmosphericSunlight.color,
-                        }}
-                      />
-                      {snapshot.atmosphericSunlight.color.toUpperCase()}
-                    </span>
-                  }
-                />
-              </>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-neutral-500">
-            <span className="flex items-center gap-1.5">
+                <span className="tabular-nums text-neutral-800">
+                  {snapshot.atmosphericSunlight.color.toUpperCase()}
+                </span>
+              </Typography.Text>
+            </>
+          )}
+          <span className="ml-auto flex flex-wrap gap-x-3 gap-y-0.5 text-neutral-500">
+            <span className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
               Kamera
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
               Sonne
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-sm border-2 border-orange-600" />
               Buffer-Grenzen
             </span>
-          </div>
+          </span>
         </div>
       </div>
-      <div className="grid gap-3 border-t border-neutral-200 pt-2 sm:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
+      <div className="grid gap-1 border-t border-neutral-200 pt-1">
         <ShadowDebugControls
           settings={settings}
           transmittanceReady={

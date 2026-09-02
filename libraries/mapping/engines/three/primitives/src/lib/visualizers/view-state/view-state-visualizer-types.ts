@@ -16,6 +16,7 @@ export type ViewStateVisualizerInput = ViewState | readonly ViewState[];
 export type ViewStateVisualizerVolumeBox = Readonly<{
   minimum: readonly [number, number, number];
   maximum: readonly [number, number, number];
+  color?: string;
 }>;
 
 export type ViewStateVisualizerVolumeBoxesOptions = Readonly<{

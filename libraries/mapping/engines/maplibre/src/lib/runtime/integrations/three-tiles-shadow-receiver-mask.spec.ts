@@ -102,6 +102,28 @@ describe("createShadowReceiverMask", () => {
     expect(rotatedMask?.sourceCount).toBe(1);
   });
 
+  it("selects casters only along the receiver-to-sun direction", () => {
+    const lightCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 500);
+    lightCamera.position.set(80, 60, -40);
+    lightCamera.lookAt(0, 0, 0);
+    lightCamera.updateMatrixWorld(true);
+    const towardSun = lightCamera.position.clone().normalize();
+    const receiver = box([-5, -5, -5], [5, 5, 5]);
+    const boxAt = (center: THREE.Vector3) =>
+      new THREE.Box3().setFromCenterAndSize(center, new THREE.Vector3(6, 6, 6));
+    const mask = createShadowReceiverMask(
+      [source(receiver, { maximumCasterDistance: 70 })],
+      lightCamera.matrixWorldInverse
+    );
+
+    expect(
+      mask?.match(boxAt(towardSun.clone().multiplyScalar(40)), match())
+    ).toBe(true);
+    expect(
+      mask?.match(boxAt(towardSun.clone().multiplyScalar(-40)), match())
+    ).toBe(false);
+  });
+
   it("keeps BVH queries conservative across many receiver leaves", () => {
     const receivers = Array.from({ length: 24 }, (_, index) =>
       source(box([index * 20, 0, -100], [index * 20 + 10, 10, -90]), {

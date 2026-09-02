@@ -4,7 +4,7 @@
  * D8/D9 liveness of the 3D Tiles runtime: a failed tile leaves the cache and
  * is requested again after its backoff, a disposed model wakes the traversal,
  * the kickstart stops once the root tileset arrived, the hidden-tab wipe is
- * debounced, the debug plugin only exists while bounds are shown, and a
+ * debounced, the debug overlay only exists while bounds are shown, and a
  * disposed runtime reports no demand.
  */
 
@@ -255,16 +255,17 @@ describe("three tiles runtime liveness", () => {
     layer.dispose();
   });
 
-  it("registers the debug plugin only while tile bounds are shown", () => {
+  it("attaches the tile edge and label overlay only while enabled", () => {
     const { layer, renderer } = mountRuntime();
-    expect(renderer.getPluginByName("DEBUG_TILES_PLUGIN")).toBeNull();
+    const findOverlay = () =>
+      renderer.group.getObjectByName("CARMA 3D tiles bounds and labels");
+    expect(findOverlay()).toBeUndefined();
 
     layer.setTileBoundsVisible(true);
-    expect(renderer.getPluginByName("DEBUG_TILES_PLUGIN")).not.toBeNull();
-    expect(renderer.group.children.length).toBeGreaterThan(0);
+    expect(findOverlay()).toBeDefined();
 
     layer.setTileBoundsVisible(false);
-    expect(renderer.getPluginByName("DEBUG_TILES_PLUGIN")).toBeNull();
+    expect(findOverlay()).toBeUndefined();
     expect(renderer.group.children).toHaveLength(0);
     layer.dispose();
   });

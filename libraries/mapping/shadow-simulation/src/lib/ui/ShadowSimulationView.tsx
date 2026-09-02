@@ -25,6 +25,7 @@ import deDE from "antd/locale/de_DE";
 import dayjs from "dayjs";
 
 import { clamp } from "@carma-commons/math";
+import { getSharedThreeSceneRuntimes } from "@carma-mapping/engines/maplibre";
 import {
   Control,
   ControlButtonStyler,
@@ -132,7 +133,7 @@ export type ShadowSimulationState = {
   meshErrorTarget?: MeshErrorTargetPixels;
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;
-  showShadowBuffers?: boolean;
+  showTileBounds?: boolean;
   softSunShadows?: boolean;
   useTransmittanceLut?: boolean;
   useSkyIrradianceLut?: boolean;
@@ -774,7 +775,7 @@ const ShadowSimulationSecondaryPanel = ({
                 isAnimating: false,
                 shadowIntensity: 1,
                 showSunDebugVector: false,
-                showShadowBuffers: false,
+                showTileBounds: false,
                 showProjectionDebugView: false,
                 useTransmittanceLut: true,
                 useSkyIrradianceLut: true,
@@ -899,11 +900,26 @@ const ShadowSimulationRuntime = ({
   }, [state.enabled, state.showSunDebugVector, sceneRevision]);
 
   useEffect(() => {
-    if (!state.enabled) return;
-    shadowScene.current?.updateShadowBufferDebugVisibility(
-      state.showShadowBuffers ?? false
-    );
-  }, [state.enabled, state.showShadowBuffers, sceneRevision]);
+    if (!libreMap) return;
+    const visible =
+      state.enabled &&
+      (state.showProjectionDebugView ?? false) &&
+      (state.showTileBounds ?? false);
+    for (const runtime of getSharedThreeSceneRuntimes(libreMap)) {
+      runtime.setTileBoundsVisible?.(visible);
+    }
+    return () => {
+      for (const runtime of getSharedThreeSceneRuntimes(libreMap)) {
+        runtime.setTileBoundsVisible?.(false);
+      }
+    };
+  }, [
+    libreMap,
+    sceneRevision,
+    state.enabled,
+    state.showProjectionDebugView,
+    state.showTileBounds,
+  ]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -1001,7 +1017,7 @@ export const ShadowSimulationView = ({
       shadowQuality: DEFAULT_SHADOW_QUALITY,
       meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
       showSunDebugVector: false,
-      showShadowBuffers: false,
+      showTileBounds: false,
       showProjectionDebugView: false,
       softSunShadows: true,
       useTransmittanceLut: true,
@@ -1159,7 +1175,7 @@ export const ShadowSimulationView = ({
             ),
             buildingColor: state.buildingColor ?? DEFAULT_MESH_MIX_COLOR,
             showSunDebugVector: state.showSunDebugVector ?? false,
-            showShadowBuffers: state.showShadowBuffers ?? false,
+            showTileBounds: state.showTileBounds ?? false,
             useTransmittanceLut: state.useTransmittanceLut ?? true,
             useSkyIrradianceLut: state.useSkyIrradianceLut ?? true,
           }}

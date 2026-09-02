@@ -34,6 +34,7 @@ export type SharedThreeSceneShadowView = Readonly<{
 export type SharedThreeSceneTileVolume = Readonly<{
   id: string;
   kind: string;
+  loadReason?: "viewport" | "shadow";
   minimum: readonly [number, number, number];
   maximum: readonly [number, number, number];
 }>;
@@ -61,6 +62,8 @@ export interface SharedThreeSceneRuntime {
   ) => readonly [minimum: number, maximum: number] | null;
   /** World-space bounds of active tiles used for coverage and diagnostics. */
   getActiveTileVolumes?: () => readonly SharedThreeSceneTileVolume[];
+  /** Show runtime-owned tile bounds and identifiers for diagnostics. */
+  setTileBoundsVisible?: (visible: boolean) => void;
   /** Outstanding work required before a fixed-state render can converge. */
   getRequestDemand?: () => number;
   dispose: () => void;
