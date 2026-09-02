@@ -19,6 +19,9 @@ import {
   ecefDirectionToSceneDirection,
   evaluateAtmosphericSkyFrame,
   evaluateAtmosphericSunlight,
+  getAtmosphericInputValidationError,
+  getAtmosphericSkyFrameValidationError,
+  getAtmosphericSunlightSampleValidationError,
   type AtmosphericObserver,
 } from "./atmospheric-sunlight";
 
@@ -227,6 +230,42 @@ describe("atmospheric sunlight", () => {
       1e-12
     );
     expect(second.directionToSun.equals(first.directionToSun)).toBe(false);
+  });
+
+  it("rejects malformed atmosphere units and matrices", () => {
+    const instant = new Date("2026-06-21T10:00:00.000Z");
+    expect(
+      getAtmosphericInputValidationError(instant, {
+        ...WUPPERTAL,
+        latitude: Number.NaN,
+      })
+    ).toContain("latitude");
+    expect(
+      getAtmosphericInputValidationError(instant, WUPPERTAL, {
+        observer: { ...WUPPERTAL, altitudeMeters: 0 },
+        scenePosition: new THREE.Vector3(Number.POSITIVE_INFINITY, 0, 0),
+      })
+    ).toContain("scenePosition");
+
+    const validFrame = evaluateAtmosphericSkyFrame(instant, WUPPERTAL);
+    expect(getAtmosphericSkyFrameValidationError(validFrame)).toBeNull();
+    const malformedMatrix = validFrame.ecefToSceneMatrix.clone();
+    malformedMatrix.elements[0] *= 2;
+    expect(
+      getAtmosphericSkyFrameValidationError({
+        ...validFrame,
+        ecefToSceneMatrix: malformedMatrix,
+      })
+    ).toContain("orthonormal");
+
+    const sample = evaluateAtmosphericSunlight(instant, WUPPERTAL, null);
+    expect(getAtmosphericSunlightSampleValidationError(sample)).toBeNull();
+    expect(
+      getAtmosphericSunlightSampleValidationError({
+        ...sample,
+        relativeIntensity: Number.NaN,
+      })
+    ).toContain("invalid values");
   });
 
   it("moves the local sky ellipsoid with its zero-altitude map anchor", () => {

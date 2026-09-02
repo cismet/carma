@@ -34,6 +34,9 @@ import {
 import {
   AtmosphericSunlightEvaluator,
   evaluateAtmosphericSkyFrame,
+  getAtmosphericInputValidationError,
+  getAtmosphericSkyFrameValidationError,
+  getAtmosphericSunlightSampleValidationError,
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
   type AtmosphericSkyReference,
@@ -804,20 +807,15 @@ export const buildShadowSimulationScene = (
     latitude: atmosphereReferenceCenter.lat,
     altitudeMeters: 0,
   };
-  const atmosphereFallbackScenePosition =
+  const atmosphereSkyScenePosition =
     sceneLease.layer.projectLngLatToScene?.(
       [atmosphereReferenceCenter.lng, atmosphereReferenceCenter.lat],
       0
     ) ?? new THREE.Vector3();
-  const getAtmosphereSkyReference = (
-    longitude: number,
-    latitude: number
-  ): AtmosphericSkyReference => ({
+  const atmosphereSkyReference: AtmosphericSkyReference = {
     observer: atmosphereSkyObserver,
-    scenePosition:
-      sceneLease.layer.projectLngLatToScene?.([longitude, latitude], 0) ??
-      atmosphereFallbackScenePosition,
-  });
+    scenePosition: atmosphereSkyScenePosition,
+  };
   const atmosphericSunlight = new AtmosphericSunlightEvaluator();
   let invalidateShadowMap = () => undefined;
   let refreshTerrainShadowState = () => invalidateShadowMap();
@@ -851,6 +849,27 @@ export const buildShadowSimulationScene = (
   let shadowStateEpoch = 0;
   let shadowVisualEpoch = 0;
   let cameraAltitudeMeters: number | null = null;
+  let lastAtmosphereErrorSignature = "";
+  const rejectAtmosphereUpdate = (
+    phase: string,
+    reason: string,
+    details: Readonly<Record<string, unknown>>
+  ) => {
+    const signature = `${phase}:${reason}`;
+    if (signature === lastAtmosphereErrorSignature) return;
+    lastAtmosphereErrorSignature = signature;
+    console.error(
+      "[SHADOW] Atmospheric update rejected; retaining last valid frame",
+      {
+        phase,
+        reason,
+        ...details,
+      }
+    );
+  };
+  const acceptAtmosphereUpdate = () => {
+    lastAtmosphereErrorSignature = "";
+  };
   const invalidateShadowPresentation = () => {
     shadowStateEpoch += 1;
     shadowVisualEpoch += 1;
@@ -889,11 +908,28 @@ export const buildShadowSimulationScene = (
       cameraAltitudeMeters ??
       terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ??
       0;
+    const observer = {
+      longitude: mapCenter.lng,
+      latitude: mapCenter.lat,
+      altitudeMeters,
+    };
+    const inputError = getAtmosphericInputValidationError(
+      position.instant,
+      observer,
+      atmosphereSkyReference
+    );
+    if (inputError) {
+      rejectAtmosphereUpdate("sunlight input", inputError, {
+        observer,
+        skyReference: atmosphereSkyReference,
+      });
+      return latestAtmosphericSunlight;
+    }
     atmosphericSunlight.ensure(() => {
       if (disposed || !latestSolarPosition) return;
       invalidateShadowPresentation();
       const sample = evaluateAtmosphericSunlightForMap(latestSolarPosition);
-      applyMapLibreLightSample(sample);
+      if (sample) applyMapLibreLightSample(sample);
       map.triggerRepaint();
     }, atmosphericSunlightOptions);
     atmosphericSunlight.ensureSky(() => {
@@ -902,16 +938,30 @@ export const buildShadowSimulationScene = (
       evaluateAtmosphericSunlightForMap(latestSolarPosition);
       map.triggerRepaint();
     });
-    const sample = atmosphericSunlight.evaluate(
-      position.instant,
-      {
-        longitude: mapCenter.lng,
-        latitude: mapCenter.lat,
-        altitudeMeters,
-      },
-      atmosphericSunlightOptions,
-      getAtmosphereSkyReference(mapCenter.lng, mapCenter.lat)
-    );
+    let sample: AtmosphericSunlightSample;
+    try {
+      sample = atmosphericSunlight.evaluate(
+        position.instant,
+        observer,
+        atmosphericSunlightOptions,
+        atmosphereSkyReference
+      );
+    } catch (error) {
+      rejectAtmosphereUpdate("sunlight generation", "generator threw", {
+        observer,
+        error,
+      });
+      return latestAtmosphericSunlight;
+    }
+    const outputError = getAtmosphericSunlightSampleValidationError(sample);
+    if (outputError) {
+      rejectAtmosphereUpdate("sunlight output", outputError, {
+        observer,
+        sample,
+      });
+      return latestAtmosphericSunlight;
+    }
+    acceptAtmosphereUpdate();
     latestAtmosphericSunlight = sample;
     sharedBinding.atmosphericSky.update(
       sample.skyFrame,
@@ -928,15 +978,43 @@ export const buildShadowSimulationScene = (
   };
   const updateAtmosphericSkyFrameForMap = (position: SolarPosition) => {
     const mapCenter = map.getCenter();
-    const skyFrame = evaluateAtmosphericSkyFrame(
+    const observer = {
+      longitude: mapCenter.lng,
+      latitude: mapCenter.lat,
+      altitudeMeters: cameraAltitudeMeters ?? 0,
+    };
+    const inputError = getAtmosphericInputValidationError(
       position.instant,
-      {
-        longitude: mapCenter.lng,
-        latitude: mapCenter.lat,
-        altitudeMeters: cameraAltitudeMeters ?? 0,
-      },
-      getAtmosphereSkyReference(mapCenter.lng, mapCenter.lat)
+      observer,
+      atmosphereSkyReference
     );
+    if (inputError) {
+      rejectAtmosphereUpdate("sky input", inputError, { observer });
+      return;
+    }
+    let skyFrame;
+    try {
+      skyFrame = evaluateAtmosphericSkyFrame(
+        position.instant,
+        observer,
+        atmosphereSkyReference
+      );
+    } catch (error) {
+      rejectAtmosphereUpdate("sky generation", "generator threw", {
+        observer,
+        error,
+      });
+      return;
+    }
+    const frameError = getAtmosphericSkyFrameValidationError(skyFrame);
+    if (frameError) {
+      rejectAtmosphereUpdate("sky output", frameError, {
+        observer,
+        skyFrame,
+      });
+      return;
+    }
+    acceptAtmosphereUpdate();
     sharedBinding.atmosphericSky.update(
       skyFrame,
       atmosphericSunlight.skyTextures
@@ -1114,10 +1192,26 @@ export const buildShadowSimulationScene = (
     updatePriority: SHADOW_CONTROLLER_UPDATE_PRIORITY,
     update(frame) {
       const nextCameraAltitudeMeters = frame.renderCamera.position.y;
+      const renderCameraMatricesValid = [
+        ...frame.renderCamera.matrixWorld.elements,
+        ...frame.renderCamera.projectionMatrix.elements,
+      ].every(Number.isFinite);
       if (
-        Number.isFinite(nextCameraAltitudeMeters) &&
-        (cameraAltitudeMeters === null ||
-          Math.abs(nextCameraAltitudeMeters - cameraAltitudeMeters) >= 0.25)
+        !renderCameraMatricesValid ||
+        !Number.isFinite(nextCameraAltitudeMeters)
+      ) {
+        rejectAtmosphereUpdate(
+          "render camera",
+          "camera matrix or altitude is non-finite",
+          {
+            altitudeMeters: nextCameraAltitudeMeters,
+            matrixWorld: frame.renderCamera.matrixWorld.elements,
+            projectionMatrix: frame.renderCamera.projectionMatrix.elements,
+          }
+        );
+      } else if (
+        cameraAltitudeMeters === null ||
+        Math.abs(nextCameraAltitudeMeters - cameraAltitudeMeters) >= 0.25
       ) {
         cameraAltitudeMeters = nextCameraAltitudeMeters;
         if (latestSolarPosition) {
@@ -1456,7 +1550,7 @@ export const buildShadowSimulationScene = (
   const applyMapLibreLight = (position: SolarPosition) => {
     const sample =
       latestAtmosphericSunlight ?? evaluateAtmosphericSunlightForMap(position);
-    applyMapLibreLightSample(sample);
+    if (sample) applyMapLibreLightSample(sample);
   };
 
   const updateSolarPosition = (position: SolarPosition) => {

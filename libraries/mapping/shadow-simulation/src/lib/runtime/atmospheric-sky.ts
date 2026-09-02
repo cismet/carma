@@ -5,6 +5,7 @@ import type {
   AtmosphericSkyFrame,
   AtmosphericSkyTextures,
 } from "./atmospheric-sunlight";
+import { getAtmosphericSkyFrameValidationError } from "./atmospheric-sunlight";
 
 export const ATMOSPHERIC_SKY_NAME = "shadow-simulation-atmospheric-sky";
 export const ATMOSPHERIC_DISPLAY_EXPOSURE = 2;
@@ -51,7 +52,7 @@ export type AtmosphericSky = Readonly<{
   update: (
     frame: AtmosphericSkyFrame,
     textures: AtmosphericSkyTextures | null
-  ) => void;
+  ) => boolean;
   updateGroundAlbedo: (color: THREE.Color) => void;
   dispose: () => void;
 }>;
@@ -89,14 +90,19 @@ export const buildAtmosphericSky = (
   return {
     mesh,
     update(frame, textures) {
-      mesh.visible = textures !== null;
-      if (!textures) return;
+      if (!textures) {
+        mesh.visible = false;
+        return false;
+      }
+      if (getAtmosphericSkyFrameValidationError(frame)) return false;
+      mesh.visible = true;
       material.irradianceTexture = textures.irradianceTexture;
       material.scatteringTexture = textures.scatteringTexture;
       material.transmittanceTexture = textures.transmittanceTexture;
       material.sunDirection.copy(frame.directionToSunECEF);
       material.ellipsoidCenter.copy(frame.ellipsoidCenterECEF);
       material.ellipsoidMatrix.copy(frame.ecefToSceneMatrix);
+      return true;
     },
     updateGroundAlbedo(color) {
       material.groundAlbedo.copy(color);

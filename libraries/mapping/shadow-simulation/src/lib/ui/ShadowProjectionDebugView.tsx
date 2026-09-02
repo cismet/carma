@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -18,6 +19,7 @@ import {
   Typography,
 } from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import * as THREE from "three";
 
 import {
   CarmaResponsiveInfoBox,
@@ -25,10 +27,11 @@ import {
 } from "@carma-commons/ui/components";
 import { ViewStateVisualizer } from "@carma-mapping/components";
 import {
+  acquireSharedThreeScene,
+  createSharedThreeSceneCameraPreview,
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeSceneContent,
 } from "@carma-mapping/engines/maplibre";
-import { degToRadNumeric } from "@carma-units";
 
 import type { SolarPosition } from "../core/solar-position";
 import type {
@@ -224,24 +227,129 @@ const ShadowBufferStatistics = ({
   );
 };
 
+const SUN_CAMERA_PREVIEW_INTERVAL_MS = 120;
+
+const ShadowSunCameraView = ({
+  map,
+  containerWidth,
+  containerHeight,
+  shadowMapWidth,
+  shadowMapHeight,
+}: {
+  map: MaplibreMap;
+  containerWidth: number;
+  containerHeight: number;
+  shadowMapWidth: number;
+  shadowMapHeight: number;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasFrame, setHasFrame] = useState(false);
+  const aspectRatio = Math.max(
+    0.1,
+    shadowMapWidth / Math.max(1, shadowMapHeight)
+  );
+  const fittedWidth = Math.max(
+    1,
+    Math.min(containerWidth, containerHeight * aspectRatio)
+  );
+  const fittedHeight = Math.max(1, fittedWidth / aspectRatio);
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  const frameWidth = Math.max(1, Math.round(fittedWidth * pixelRatio));
+  const frameHeight = Math.max(1, Math.round(fittedHeight * pixelRatio));
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const lease = acquireSharedThreeScene(map);
+    const preview = createSharedThreeSceneCameraPreview(lease.layer);
+    let lastFrameAt = Number.NEGATIVE_INFINITY;
+    let framePresented = false;
+
+    const renderFrame = () => {
+      const now = performance.now();
+      if (now - lastFrameAt < SUN_CAMERA_PREVIEW_INTERVAL_MS) return;
+      const light = lease.layer
+        .getScene()
+        .getObjectByName("shadow-simulation-sun") as
+        | THREE.DirectionalLight
+        | undefined;
+      if (!light?.isDirectionalLight) return;
+
+      const rendered = preview.render(
+        light.shadow.camera,
+        frameWidth,
+        frameHeight,
+        (framePixels, width, height) => {
+          if (canvas.width !== width) canvas.width = width;
+          if (canvas.height !== height) canvas.height = height;
+          const context = canvas.getContext("2d");
+          if (!context) return;
+          const image = context.createImageData(width, height);
+          image.data.set(framePixels);
+          context.putImageData(image, 0, 0);
+          if (!framePresented) {
+            framePresented = true;
+            setHasFrame(true);
+          }
+        }
+      );
+      if (rendered) lastFrameAt = now;
+    };
+
+    map.on("render", renderFrame);
+    map.triggerRepaint();
+    return () => {
+      map.off("render", renderFrame);
+      preview.dispose();
+      lease.release();
+    };
+  }, [frameHeight, frameWidth, map]);
+
+  return (
+    <div
+      className="relative overflow-hidden bg-slate-900"
+      style={{ width: fittedWidth, height: fittedHeight }}
+    >
+      <canvas
+        ref={canvasRef}
+        aria-label="Livebild der orthografischen Schattenkamera"
+        className="block h-full w-full"
+        style={{ transform: "scaleY(-1)" }}
+      />
+      {!hasFrame && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-white/70">
+          Sonnenkamera wird vorbereitet …
+        </div>
+      )}
+      <div className="absolute bottom-2 left-2 rounded bg-slate-950/75 px-2 py-1 text-[10px] text-white">
+        Live-Szene · orthografische Schattenkamera
+      </div>
+    </div>
+  );
+};
+
 const ShadowDebugVisualizer = ({
+  map,
   model,
   visibility,
   viewpoint,
-  sunAzimuthDegrees,
-  sunElevationDegrees,
   onViewpointChange,
 }: {
+  map: MaplibreMap;
   model: ShadowProjectionDebugModel;
   visibility: Record<VisualizerContentGroup, boolean>;
   viewpoint: ShadowDebugViewpoint;
-  sunAzimuthDegrees: number;
-  sunElevationDegrees: number;
   onViewpointChange: (viewpoint: ShadowDebugViewpoint) => void;
 }) => {
   const host = useHostElementSizeRef<HTMLDivElement>();
   const width = Math.max(1, host.size?.width ?? 1);
-  const height = Math.max(190, Math.min(245, Math.round(width * 0.36)));
+  const shadowMapAspectRatio =
+    model.shadowBuffer.shadowMapWidth /
+    Math.max(1, model.shadowBuffer.shadowMapHeight);
+  const height =
+    viewpoint === SHADOW_DEBUG_VIEWPOINT.SUN
+      ? Math.max(190, Math.round(width / Math.max(0.1, shadowMapAspectRatio)))
+      : Math.max(190, Math.min(245, Math.round(width * 0.36)));
   const visualizedOptions = useMemo(
     () => ({
       useCameraPosition: true,
@@ -249,21 +357,6 @@ const ShadowDebugVisualizer = ({
       imagePlaneDistance: 0.08,
     }),
     [model.visualizationWorldScaleMeters]
-  );
-  const overviewOptions = useMemo(
-    () =>
-      viewpoint === SHADOW_DEBUG_VIEWPOINT.SUN
-        ? {
-            orthographic: false,
-            fitOrthographicWidth: true,
-            fovDeg: 35,
-            orbitTheta: Math.PI - degToRadNumeric(sunAzimuthDegrees),
-            orbitPhi:
-              Math.PI / 2 -
-              degToRadNumeric(Math.max(-89, Math.min(89, sunElevationDegrees))),
-          }
-        : SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS,
-    [sunAzimuthDegrees, sunElevationDegrees, viewpoint]
   );
   const displayOptions = useMemo(
     () => ({
@@ -318,39 +411,51 @@ const ShadowDebugVisualizer = ({
           onChange={(value) => onViewpointChange(value as ShadowDebugViewpoint)}
         />
       </div>
-      {visibility.tileVolumes && (
-        <div className="absolute bottom-2 left-2 z-10 flex gap-3 rounded bg-white/90 px-2 py-1 text-[10px] text-neutral-700 shadow-sm">
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-600" />
-            Viewport
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-orange-600" />
-            Schattenpfad
-          </span>
-        </div>
-      )}
+      {viewpoint === SHADOW_DEBUG_VIEWPOINT.OVERVIEW &&
+        visibility.tileVolumes && (
+          <div className="absolute bottom-2 left-2 z-10 flex gap-3 rounded bg-white/90 px-2 py-1 text-[10px] text-neutral-700 shadow-sm">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-sky-600" />
+              Viewport
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-orange-600" />
+              Schattenpfad
+            </span>
+          </div>
+        )}
       <div
         ref={host.ref}
-        className="w-full overflow-hidden rounded-lg bg-neutral-100"
+        className="flex w-full items-center justify-center overflow-hidden rounded-lg bg-slate-900"
         style={{ height }}
       >
-        {host.isReady && (
-          <ViewStateVisualizer
-            interactive
-            viewState={model.viewStates}
-            activeCameraIndex={1}
-            width={width}
-            height={height}
-            bearingLabel="Schattenrichtung"
-            pitchLabel="Höhe"
-            northLabel="N"
-            upLabel={null}
-            cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
-            overviewOptions={overviewOptions}
-            visualizedOptions={visualizedOptions}
-            displayOptions={displayOptions}
-            volumeBoxes={volumeBoxes}
+        {host.isReady && viewpoint === SHADOW_DEBUG_VIEWPOINT.OVERVIEW && (
+          <div className="bg-neutral-100">
+            <ViewStateVisualizer
+              interactive
+              viewState={model.viewStates}
+              activeCameraIndex={1}
+              width={width}
+              height={height}
+              bearingLabel="Schattenrichtung"
+              pitchLabel="Höhe"
+              northLabel="N"
+              upLabel={null}
+              cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
+              overviewOptions={SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS}
+              visualizedOptions={visualizedOptions}
+              displayOptions={displayOptions}
+              volumeBoxes={volumeBoxes}
+            />
+          </div>
+        )}
+        {host.isReady && viewpoint === SHADOW_DEBUG_VIEWPOINT.SUN && (
+          <ShadowSunCameraView
+            map={map}
+            containerWidth={width}
+            containerHeight={height}
+            shadowMapWidth={model.shadowBuffer.shadowMapWidth}
+            shadowMapHeight={model.shadowBuffer.shadowMapHeight}
           />
         )}
       </div>
@@ -645,23 +750,24 @@ export const ShadowProjectionDebugView = ({
       data-test-id="shadow-simulation-projection-debug-view"
     >
       <ShadowDebugVisualizer
+        map={map}
         model={model}
         visibility={visualizerContentVisibility}
         viewpoint={visualizerViewpoint}
-        sunAzimuthDegrees={displayedAzimuth}
-        sunElevationDegrees={displayedElevation}
         onViewpointChange={setVisualizerViewpoint}
       />
       <div className="grid min-w-0 gap-1">
-        <VisualizerContentToggles
-          visibility={visualizerContentVisibility}
-          onToggle={(group) =>
-            setVisualizerContentVisibility((current) => ({
-              ...current,
-              [group]: !current[group],
-            }))
-          }
-        />
+        {visualizerViewpoint === SHADOW_DEBUG_VIEWPOINT.OVERVIEW && (
+          <VisualizerContentToggles
+            visibility={visualizerContentVisibility}
+            onToggle={(group) =>
+              setVisualizerContentVisibility((current) => ({
+                ...current,
+                [group]: !current[group],
+              }))
+            }
+          />
+        )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
           <Typography.Text strong type="secondary" className="!text-xs">
             Sonne
