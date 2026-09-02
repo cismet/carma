@@ -9,6 +9,7 @@ import type {
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 import { redoScene, undoScene } from "./annotation-history";
+import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
 import { useMapSceneSync } from "./map-scene-sync";
 import type { AnnotationShape } from "./shape-tools";
@@ -124,7 +125,9 @@ export type AnnotationSceneProps = {
   langCode: string;
   background: string;
   chrome: AnnotationSceneChrome;
-  shape: AnnotationShape;
+  shape: AnnotationShape | null;
+  /** what excalidraw switched to on its own, e.g. by a keyboard shortcut */
+  onToolChange: (shape: AnnotationShape | null) => void;
   undoVersion: number;
   redoVersion: number;
   /** bumped when this drawing should be brought into view; 0 means never */
@@ -151,6 +154,7 @@ export const AnnotationScene = ({
   background,
   chrome,
   shape,
+  onToolChange,
   undoVersion,
   redoVersion,
   zoomVersion,
@@ -174,12 +178,21 @@ export const AnnotationScene = ({
   const fileCountRef = useRef(-1);
   const settledRef = useRef(!savedElements?.length);
 
+  const toolRef = useRef<string | null>(null);
+
   const handleChange = (
     elements: readonly ExcalidrawElement[],
     appState: AppState,
     files: BinaryFiles
   ) => {
     onSceneChange(appState);
+
+    // keyboard shortcuts and excalidraw's own tool resets come through here
+    const tool = appState.activeTool.type;
+    if (editable && tool !== toolRef.current) {
+      toolRef.current = tool;
+      onToolChange(isAnnotationShape(tool) ? tool : null);
+    }
 
     if (!settledRef.current) {
       if (elements.length === 0) {
@@ -201,6 +214,7 @@ export const AnnotationScene = ({
 
   useEffect(() => {
     if (api && editable && shape) {
+      toolRef.current = shape;
       api.setActiveTool({ type: shape, locked: true });
     }
   }, [api, editable, shape]);

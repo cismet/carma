@@ -20,7 +20,8 @@ export type AnnotationState = {
   isOn: boolean;
   groups?: AnnotationGroup[];
   activeId?: string;
-  shape?: AnnotationShape;
+  /** null: excalidraw runs a tool the toolbar does not carry */
+  shape?: AnnotationShape | null;
   undoVersion?: number;
   redoVersion?: number;
   zoomRequest?: AnnotationZoomRequest;
