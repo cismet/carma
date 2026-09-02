@@ -29,6 +29,44 @@ void import("@excalidraw/excalidraw").then((module) => {
   getSceneVersion = module.getSceneVersion;
 });
 
+/** keeps a zoomed-to drawing clear of the map chrome, in px */
+const ZOOM_PADDING = 80;
+
+type SceneBox = { minX: number; minY: number; maxX: number; maxY: number };
+
+const sceneBounds = (
+  elements: readonly ExcalidrawElement[]
+): SceneBox | null => {
+  const box = elements.reduce<SceneBox | null>((current, element) => {
+    if (element.isDeleted) {
+      return current;
+    }
+    const minX = Math.min(element.x, element.x + element.width);
+    const minY = Math.min(element.y, element.y + element.height);
+    const maxX = Math.max(element.x, element.x + element.width);
+    const maxY = Math.max(element.y, element.y + element.height);
+    return current
+      ? {
+          minX: Math.min(current.minX, minX),
+          minY: Math.min(current.minY, minY),
+          maxX: Math.max(current.maxX, maxX),
+          maxY: Math.max(current.maxY, maxY),
+        }
+      : { minX, minY, maxX, maxY };
+  }, null);
+  // a single point would make fitBounds pick an arbitrary zoom
+  return box
+    ? box.maxX - box.minX < 1 && box.maxY - box.minY < 1
+      ? {
+          minX: box.minX - 50,
+          minY: box.minY - 50,
+          maxX: box.maxX + 50,
+          maxY: box.maxY + 50,
+        }
+      : box
+    : null;
+};
+
 const referencedFiles = (
   elements: readonly ExcalidrawElement[],
   files: BinaryFiles
@@ -80,6 +118,8 @@ export type AnnotationSceneProps = {
   shape: AnnotationShape;
   undoVersion: number;
   redoVersion: number;
+  /** bumped when this drawing should be brought into view; 0 means never */
+  zoomVersion: number;
   inset: Required<AnnotationInset>;
   zIndex: number;
 };
@@ -102,6 +142,7 @@ export const AnnotationScene = ({
   shape,
   undoVersion,
   redoVersion,
+  zoomVersion,
   inset,
   zIndex,
 }: AnnotationSceneProps) => {
@@ -181,6 +222,39 @@ export const AnnotationScene = ({
       redoScene(container);
     }
   }, [box, editable, redoVersion, undoVersion]);
+
+  const zoomRef = useRef(zoomVersion);
+  useEffect(() => {
+    const previous = zoomRef.current;
+    zoomRef.current = zoomVersion;
+    if (zoomVersion <= previous || !api || !libreMap) {
+      return;
+    }
+    const anchor = getAnchor();
+    if (!anchor) {
+      return;
+    }
+    const bounds = sceneBounds(api.getSceneElements());
+    if (!bounds) {
+      return;
+    }
+
+    // scene units are map pixels at the anchor zoom, measured from the anchor
+    const scale = 2 ** (libreMap.getZoom() - anchor.zoom);
+    const origin = libreMap.project([anchor.lng, anchor.lat]);
+    const at = (x: number, y: number) =>
+      libreMap.unproject([origin.x + x * scale, origin.y + y * scale]);
+    const topLeft = at(bounds.minX, bounds.minY);
+    const bottomRight = at(bounds.maxX, bounds.maxY);
+
+    libreMap.fitBounds(
+      [
+        [topLeft.lng, bottomRight.lat],
+        [bottomRight.lng, topLeft.lat],
+      ],
+      { padding: ZOOM_PADDING, maxZoom: anchor.zoom, duration: 500 }
+    );
+  }, [api, getAnchor, libreMap, zoomVersion]);
 
   const drawing = editable && inSync;
 
