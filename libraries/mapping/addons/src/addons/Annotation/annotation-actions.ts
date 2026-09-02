@@ -126,13 +126,18 @@ export const useAnnotationActions = () => {
     (id: string) =>
       setState((previous) => {
         const remaining = groupsOf(previous).filter((entry) => entry.id !== id);
-        const groups = remaining.length
+        const kept = remaining.length
           ? remaining
           : [{ id: nextGroupId(), locked: false }];
+        // the one that takes over is the one being worked on, so it is open
+        const activeId = kept[kept.length - 1].id;
         return {
           ...(previous ?? { isOn: false }),
-          groups,
-          activeId: groups[groups.length - 1].id,
+          groups: kept.map((entry) => ({
+            ...entry,
+            locked: entry.id !== activeId,
+          })),
+          activeId,
         };
       }),
     [setState]
