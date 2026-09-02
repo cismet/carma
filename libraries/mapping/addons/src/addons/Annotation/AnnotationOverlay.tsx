@@ -75,6 +75,7 @@ export const AnnotationOverlay = ({
     shape,
     undoVersion,
     redoVersion,
+    zoomRequest,
     pickGroup,
     hydrate,
   } = useAnnotationActions();
@@ -157,6 +158,7 @@ export const AnnotationOverlay = ({
             shape={shape}
             undoVersion={undoVersion}
             redoVersion={redoVersion}
+            zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
             inset={{ top: navbarInset + top, right, bottom, left }}
             zIndex={zIndex + index}
           />

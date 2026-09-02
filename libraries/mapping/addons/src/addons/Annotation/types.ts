@@ -9,6 +9,12 @@ export type AnnotationGroup = {
   locked: boolean;
 };
 
+/** "zoom to this drawing", bumped per request so a repeat still lands */
+export type AnnotationZoomRequest = {
+  id: string;
+  version: number;
+};
+
 /** the `annotationMode` channel: whether the sketch layer owns the pointer */
 export type AnnotationState = {
   isOn: boolean;
@@ -17,6 +23,7 @@ export type AnnotationState = {
   shape?: AnnotationShape;
   undoVersion?: number;
   redoVersion?: number;
+  zoomRequest?: AnnotationZoomRequest;
 };
 
 /** how far the overlay keeps clear of each edge of the map area, in px */

@@ -1,9 +1,11 @@
 import {
   faLock,
   faLockOpen,
+  faMagnifyingGlass,
   faPlus,
   faRotateLeft,
   faRotateRight,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
@@ -16,11 +18,33 @@ const BUTTON =
 const ACTIVE = "!text-[#1677ff] hover:!text-[#1677ff]";
 const INACTIVE = "text-gray-600 hover:!text-[#1677ff]";
 const DIVIDER = "h-6 w-px bg-gray-300/80";
+const DRAWING =
+  "flex h-8 items-center rounded-[10px] bg-white pl-3 pr-1.5 button-shadow ring-1 ring-inset transition-colors";
+const DRAWING_ON = "ring-[#1677ff]/40 bg-[#1677ff]/[0.06]";
+const DRAWING_OFF = "ring-transparent hover:ring-gray-300/70";
+const DRAWING_LABEL =
+  "max-w-[9rem] truncate text-[13px] font-medium leading-none transition-colors";
+const DRAWING_TOOLS =
+  "ml-2 flex items-center gap-0.5 border-l border-gray-200 pl-1.5";
+const DRAWING_ICON =
+  "flex h-6 w-6 items-center justify-center rounded-md text-[11px] text-gray-400 transition-colors hover:bg-gray-100 hover:!text-[#1677ff]";
+const DRAWING_ICON_DANGER =
+  "flex h-6 w-6 items-center justify-center rounded-md text-[15px] text-gray-400 transition-colors hover:bg-red-50 hover:!text-[#ff4d4f]";
+
+export type AnnotationDrawingEntry = {
+  id: string;
+  label: string;
+  active: boolean;
+};
 
 export type AnnotationShapeToolbarProps = {
   shapes: AnnotationShape[];
   shape: AnnotationShape | null;
   onShapeChange: (shape: AnnotationShape) => void;
+  drawings?: AnnotationDrawingEntry[];
+  onPickDrawing?: (id: string) => void;
+  onZoomDrawing?: (id: string) => void;
+  onDeleteDrawing?: (id: string) => void;
   isLocked?: boolean;
   onToggleLock?: () => void;
   onAddGroup?: () => void;
@@ -32,6 +56,10 @@ export const AnnotationShapeToolbar = ({
   shapes,
   shape,
   onShapeChange,
+  drawings = [],
+  onPickDrawing,
+  onZoomDrawing,
+  onDeleteDrawing,
   isLocked = false,
   onToggleLock,
   onAddGroup,
@@ -39,6 +67,67 @@ export const AnnotationShapeToolbar = ({
   onRedo,
 }: AnnotationShapeToolbarProps) => (
   <div className={WRAPPER}>
+    {drawings.map((entry) => (
+      <div
+        key={entry.id}
+        className={[DRAWING, entry.active ? DRAWING_ON : DRAWING_OFF].join(" ")}
+      >
+        <Tooltip title="Diese Zeichnung bearbeiten" placement="bottom">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onPickDrawing?.(entry.id);
+            }}
+            aria-pressed={entry.active}
+            data-test-id={`annotation-drawing-${entry.id}`}
+            className={[
+              DRAWING_LABEL,
+              entry.active ? ACTIVE : INACTIVE,
+              onPickDrawing ? "" : "cursor-default",
+            ].join(" ")}
+          >
+            {entry.label}
+          </button>
+        </Tooltip>
+        {(onZoomDrawing || onDeleteDrawing) && (
+          <span className={DRAWING_TOOLS}>
+            {onZoomDrawing && (
+              <Tooltip title="Auf Zeichnung zoomen" placement="bottom">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onZoomDrawing(entry.id);
+                  }}
+                  aria-label={`${entry.label} anzeigen`}
+                  data-test-id={`annotation-drawing-zoom-${entry.id}`}
+                  className={DRAWING_ICON}
+                >
+                  <FontAwesomeIcon icon={faMagnifyingGlass} />
+                </button>
+              </Tooltip>
+            )}
+            {onDeleteDrawing && (
+              <Tooltip title="Zeichnung löschen" placement="bottom">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteDrawing(entry.id);
+                  }}
+                  aria-label={`${entry.label} löschen`}
+                  data-test-id={`annotation-drawing-delete-${entry.id}`}
+                  className={DRAWING_ICON_DANGER}
+                >
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+              </Tooltip>
+            )}
+          </span>
+        )}
+      </div>
+    ))}
     {onAddGroup && (
       <Tooltip title="Neue Zeichnung beginnen" placement="bottom">
         <button

@@ -135,6 +135,18 @@ export const useAnnotationActions = () => {
     [setState]
   );
 
+  const zoomToGroup = useCallback(
+    (id: string) =>
+      setState((previous) => ({
+        ...(previous ?? { isOn: false }),
+        zoomRequest: {
+          id,
+          version: (previous?.zoomRequest?.version ?? 0) + 1,
+        },
+      })),
+    [setState]
+  );
+
   const toggleLock = useCallback(
     () =>
       setState((previous) => {
@@ -158,6 +170,7 @@ export const useAnnotationActions = () => {
     shape: state?.shape ?? "selection",
     undoVersion: state?.undoVersion ?? 0,
     redoVersion: state?.redoVersion ?? 0,
+    zoomRequest: state?.zoomRequest,
     toggle,
     endMode,
     setShape,
@@ -165,6 +178,7 @@ export const useAnnotationActions = () => {
     redo,
     addGroup,
     pickGroup,
+    zoomToGroup,
     toggleLock,
     hydrate,
     deleteGroup,
