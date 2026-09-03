@@ -8,6 +8,7 @@ import type {
 import * as THREE from "three";
 
 import { quantize } from "@carma-commons/math";
+import { buildHostTerrainDepthBinding } from "./host-terrain-depth";
 import {
   buildSharedSceneAccumulator,
   fitRenderTargetSizeToPixelBudget,
@@ -20,6 +21,13 @@ export interface SharedThreeSceneFrame {
   lodCamera: THREE.PerspectiveCamera;
   lookTarget: THREE.Vector3;
   viewport: THREE.Vector2;
+  /** MapLibre's transform from local scene metres to clip space this frame. */
+  sceneToClipMatrix: THREE.Matrix4;
+  /**
+   * The ground MapLibre draws this frame as packed NDC depth per CSS pixel,
+   * or null while the host renders no terrain. See host-terrain-depth.ts.
+   */
+  hostGroundDepth: THREE.Texture | null;
 }
 
 export type SharedThreeSceneShadowView = Readonly<{
@@ -290,6 +298,7 @@ export const buildSharedThreeSceneLayer = (
   const lodCamera = new THREE.PerspectiveCamera();
   let accumulationController: SharedSceneAccumulationController | null = null;
   let accumulator: SharedSceneAccumulator | null = null;
+  const hostTerrainDepth = buildHostTerrainDepthBinding();
   let accumulatorRounds = 0;
   let settledAccumulatorVisualKey = "";
   const jitterMatrix = new THREE.Matrix4();
@@ -461,6 +470,8 @@ export const buildSharedThreeSceneLayer = (
         lodCamera,
         lookTarget,
         viewport,
+        sceneToClipMatrix,
+        hostGroundDepth: hostTerrainDepth.sync(map),
       };
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {
@@ -591,6 +602,7 @@ export const buildSharedThreeSceneLayer = (
       disposed = true;
       accumulator?.dispose();
       accumulator = null;
+      hostTerrainDepth.dispose();
       for (const runtime of runtimes.values()) runtime.dispose();
       runtimes.clear();
       scene.clear();
