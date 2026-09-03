@@ -3,7 +3,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
-  isMapStyleOverlayLayer,
+  isMapStyleLabelLayer,
   type RuntimeStyleLayer,
 } from "./map-style-layer-suppression";
 
@@ -62,12 +62,12 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
-const getFirstMapStyleOverlayLayerId = (
+const getFirstMapStyleLabelLayerId = (
   map: MaplibreMap
 ): string | undefined => {
   try {
     return (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.find(
-      (layer) => isMapStyleOverlayLayer(layer)
+      isMapStyleLabelLayer
     )?.id;
   } catch {
     return undefined;
@@ -75,20 +75,20 @@ const getFirstMapStyleOverlayLayerId = (
 };
 
 const ensureSharedLayerOrder = (map: MaplibreMap): void => {
-  const layers = map.getStyle().layers ?? [];
-  const layerIndex = layers.findIndex(({ id }) => id === SHARED_SCENE_LAYER_ID);
+  const layerOrder = map.getLayersOrder();
+  const layerIndex = layerOrder.indexOf(SHARED_SCENE_LAYER_ID);
   if (layerIndex < 0) return;
 
-  const beforeId = getFirstMapStyleOverlayLayerId(map);
+  const beforeId = getFirstMapStyleLabelLayerId(map);
   if (beforeId) {
-    const beforeIndex = layers.findIndex(({ id }) => id === beforeId);
+    const beforeIndex = layerOrder.indexOf(beforeId);
     if (beforeIndex >= 0 && layerIndex !== beforeIndex - 1) {
       map.moveLayer(SHARED_SCENE_LAYER_ID, beforeId);
     }
     return;
   }
 
-  if (layerIndex !== layers.length - 1) {
+  if (layerIndex !== layerOrder.length - 1) {
     map.moveLayer(SHARED_SCENE_LAYER_ID);
   }
 };
@@ -121,7 +121,7 @@ export const acquireSharedThreeScene = (
       if (nextEntry.disposed) return;
       try {
         if (!getMountedSharedThreeSceneLayer(map)) {
-          map.addLayer(layer, getFirstMapStyleOverlayLayerId(map));
+          map.addLayer(layer, getFirstMapStyleLabelLayerId(map));
         } else {
           ensureSharedLayerOrder(map);
         }

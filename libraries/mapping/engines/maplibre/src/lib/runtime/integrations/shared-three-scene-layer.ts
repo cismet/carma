@@ -44,6 +44,12 @@ export interface SharedThreeSceneRuntime {
   root: THREE.Object3D;
   /** This runtime already supplies the visible ground surface. */
   providesTerrain?: boolean;
+  /** Project preceding MapLibre ground styling onto selected runtime materials. */
+  receivesMapStyleTexture?:
+    | boolean
+    | ((material: THREE.Material) => boolean);
+  /** Changes whenever streamed content replaces or adds render materials. */
+  mapStyleProjectionVersion?: () => number;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
   hasRenderableContent?: () => boolean;
   updatePriority?: number;
@@ -154,18 +160,115 @@ type RenderTargetDepthRangeBridge = {
 
 type SharedCanvasViewportRenderer = Pick<THREE.WebGLRenderer, "setViewport">;
 
+type MapStyleProjectionUniforms = Readonly<{
+  texture: { value: THREE.Texture | null };
+  sceneToClip: { value: THREE.Matrix4 };
+  enabled: { value: number };
+}>;
+
+type MapStyleProjectionMaterialState = {
+  uniforms: MapStyleProjectionUniforms;
+};
+
+const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v1";
+
+const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
+uniform mat4 carmaMapStyleSceneToClip;
+varying vec4 vCarmaMapStyleClip;
+`;
+
+const MAP_STYLE_PROJECTION_VERTEX_BODY = /* glsl */ `
+#include <project_vertex>
+vCarmaMapStyleClip = carmaMapStyleSceneToClip * modelMatrix * vec4( transformed, 1.0 );
+`;
+
+const MAP_STYLE_PROJECTION_FRAGMENT_HEADER = /* glsl */ `
+uniform sampler2D carmaMapStyleTexture;
+uniform float carmaMapStyleEnabled;
+varying vec4 vCarmaMapStyleClip;
+
+vec3 carmaMapStyleSRGBToLinear( vec3 value ) {
+  return mix(
+    pow( value * 0.9478672986 + vec3( 0.0521327014 ), vec3( 2.4 ) ),
+    value * 0.0773993808,
+    vec3( lessThanEqual( value, vec3( 0.04045 ) ) )
+  );
+}
+`;
+
+const MAP_STYLE_PROJECTION_FRAGMENT_BODY = /* glsl */ `
+#include <map_fragment>
+if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
+  vec2 carmaMapStyleUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
+  if (
+    all( greaterThanEqual( carmaMapStyleUv, vec2( 0.0 ) ) ) &&
+    all( lessThanEqual( carmaMapStyleUv, vec2( 1.0 ) ) )
+  ) {
+    vec3 carmaMapStyleColor = texture2D(
+      carmaMapStyleTexture,
+      carmaMapStyleUv
+    ).rgb;
+    diffuseColor.rgb = carmaMapStyleSRGBToLinear( carmaMapStyleColor );
+  }
+}
+`;
+
+/**
+ * Add a stable screen projection of MapLibre's preceding ground pass to a
+ * terrain material. The projected color enters before Lambert lighting, so
+ * terrain and the style draped onto it receive the same Three.js shadows.
+ */
+export const configureMapStyleProjectedMaterial = (
+  material: THREE.Material,
+  uniforms: MapStyleProjectionUniforms
+): void => {
+  const userData = material.userData as Record<string, unknown>;
+  const existing = userData[
+    MAP_STYLE_PROJECTION_STATE
+  ] as MapStyleProjectionMaterialState | undefined;
+  if (existing) {
+    if (existing.uniforms !== uniforms) {
+      existing.uniforms = uniforms;
+      material.needsUpdate = true;
+    }
+    return;
+  }
+
+  const state: MapStyleProjectionMaterialState = { uniforms };
+  userData[MAP_STYLE_PROJECTION_STATE] = state;
+  const previousOnBeforeCompile = material.onBeforeCompile.bind(material);
+  const previousProgramCacheKey = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    previousOnBeforeCompile(shader, renderer);
+    shader.uniforms["carmaMapStyleTexture"] = state.uniforms.texture;
+    shader.uniforms["carmaMapStyleSceneToClip"] = state.uniforms.sceneToClip;
+    shader.uniforms["carmaMapStyleEnabled"] = state.uniforms.enabled;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>${MAP_STYLE_PROJECTION_VERTEX_HEADER}`
+      )
+      .replace("#include <project_vertex>", MAP_STYLE_PROJECTION_VERTEX_BODY);
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>${MAP_STYLE_PROJECTION_FRAGMENT_HEADER}`
+      )
+      .replace("#include <map_fragment>", MAP_STYLE_PROJECTION_FRAGMENT_BODY);
+  };
+  material.customProgramCacheKey = () =>
+    `${previousProgramCacheKey()}${MAP_STYLE_PROJECTION_SHADER_KEY}`;
+  material.needsUpdate = true;
+};
+
 type OverlayDepthContext = Pick<
   WebGLRenderingContext,
   "DEPTH_BUFFER_BIT" | "clear" | "clearDepth" | "depthMask" | "depthRange"
 >;
 
-/**
- * MapLibre overlays following the shared Three layer must not inherit mesh
- * depth. In particular, transparent ground-plan and label rasters are draped
- * onto MapLibre terrain and would otherwise disappear behind the mesh they are
- * intended to annotate.
- */
-export const clearDepthForMapStyleOverlays = (
+/** Clear the shared framebuffer depth without disturbing MapLibre's range. */
+const clearSharedDepthBuffer = (
   gl: OverlayDepthContext,
   mapLibreDepthRange: DepthRange
 ): void => {
@@ -175,6 +278,12 @@ export const clearDepthForMapStyleOverlays = (
   gl.clear(gl.DEPTH_BUFFER_BIT);
   gl.depthRange(mapLibreDepthRange[0], mapLibreDepthRange[1]);
 };
+
+/** Let Three replace MapLibre's DEM depth while retaining its captured color. */
+export const clearDepthBeforeThreeTerrain = clearSharedDepthBuffer;
+
+/** Let labels and annotation layers render without being hidden by Three. */
+export const clearDepthForMapStyleOverlays = clearSharedDepthBuffer;
 
 /**
  * Give the render camera the real local-scene pose while retaining MapLibre's
@@ -318,6 +427,14 @@ export const buildSharedThreeSceneLayer = (
   const unjitteredProjectionMatrix = new THREE.Matrix4();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
+  const mapStyleProjectionUniforms: MapStyleProjectionUniforms = {
+    texture: { value: null },
+    sceneToClip: { value: new THREE.Matrix4() },
+    enabled: { value: 0 },
+  };
+  let mapStyleFramebufferTexture: THREE.FramebufferTexture | null = null;
+  const mapStyleProjectionVersions = new Map<string, number>();
+  const mapStyleProjectionReceivers = new Map<string, boolean>();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
   let runtimeUpdateOrder: SharedThreeSceneRuntime[] = [];
   let map: MaplibreMap | null = null;
@@ -343,6 +460,52 @@ export const buildSharedThreeSceneLayer = (
     runtime.root.updateMatrixWorld(true);
   };
 
+  const configureMapStyleProjection = (): boolean => {
+    for (const runtime of runtimes.values()) {
+      const receiver = runtime.receivesMapStyleTexture;
+      if (!receiver) continue;
+      const version = runtime.mapStyleProjectionVersion?.() ?? 0;
+      if (mapStyleProjectionVersions.get(runtime.id) === version) continue;
+      let configured = false;
+      runtime.root.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        const materials = Array.isArray(object.material)
+          ? object.material
+          : [object.material];
+        for (const material of materials) {
+          if (typeof receiver === "function" && !receiver(material)) continue;
+          configureMapStyleProjectedMaterial(
+            material,
+            mapStyleProjectionUniforms
+          );
+          configured = true;
+        }
+      });
+      mapStyleProjectionVersions.set(runtime.id, version);
+      mapStyleProjectionReceivers.set(runtime.id, configured);
+    }
+    return [...mapStyleProjectionReceivers.values()].some(Boolean);
+  };
+
+  const captureMapStyleFramebuffer = () => {
+    if (!renderer || viewport.x < 1 || viewport.y < 1) return;
+    const width = Math.floor(viewport.x);
+    const height = Math.floor(viewport.y);
+    if (
+      !mapStyleFramebufferTexture ||
+      mapStyleFramebufferTexture.image.width !== width ||
+      mapStyleFramebufferTexture.image.height !== height
+    ) {
+      mapStyleFramebufferTexture?.dispose();
+      mapStyleFramebufferTexture = new THREE.FramebufferTexture(width, height);
+      mapStyleFramebufferTexture.minFilter = THREE.LinearFilter;
+      mapStyleFramebufferTexture.magFilter = THREE.LinearFilter;
+      mapStyleProjectionUniforms.texture.value = mapStyleFramebufferTexture;
+    }
+    renderer.copyFramebufferToTexture(mapStyleFramebufferTexture);
+    mapStyleProjectionUniforms.enabled.value = 1;
+  };
+
   const layer: SharedThreeSceneLayer = {
     id: layerId,
     type: "custom",
@@ -354,6 +517,8 @@ export const buildSharedThreeSceneLayer = (
       if (existing === runtime) return;
       if (existing) layer.removeRuntime(existing.id);
       runtimes.set(runtime.id, runtime);
+      mapStyleProjectionVersions.delete(runtime.id);
+      mapStyleProjectionReceivers.delete(runtime.id);
       runtimeUpdateOrder = [...runtimes.values()].sort(
         (a, b) => (b.updatePriority ?? 0) - (a.updatePriority ?? 0)
       );
@@ -367,6 +532,8 @@ export const buildSharedThreeSceneLayer = (
       const runtime = runtimes.get(runtimeId);
       if (!runtime) return;
       runtimes.delete(runtimeId);
+      mapStyleProjectionVersions.delete(runtimeId);
+      mapStyleProjectionReceivers.delete(runtimeId);
       runtimeUpdateOrder = runtimeUpdateOrder.filter(
         (candidate) => candidate !== runtime
       );
@@ -415,6 +582,12 @@ export const buildSharedThreeSceneLayer = (
       depthRangeBridge = null;
       renderer?.dispose();
       renderer = null;
+      mapStyleFramebufferTexture?.dispose();
+      mapStyleFramebufferTexture = null;
+      mapStyleProjectionUniforms.texture.value = null;
+      mapStyleProjectionUniforms.enabled.value = 0;
+      mapStyleProjectionVersions.clear();
+      mapStyleProjectionReceivers.clear();
       map = null;
       originMerc = null;
       meterScale = 0;
@@ -497,6 +670,28 @@ export const buildSharedThreeSceneLayer = (
       ];
       renderer.resetState();
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
+      mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
+      if (configureMapStyleProjection()) {
+        try {
+          captureMapStyleFramebuffer();
+        } catch (error) {
+          mapStyleProjectionUniforms.enabled.value = 0;
+          console.warn("[shared-three-scene] map-style capture failed", error);
+        }
+      } else {
+        mapStyleProjectionUniforms.enabled.value = 0;
+      }
+      if (
+        runtimeUpdateOrder.some(
+          (runtime) =>
+            runtime.providesTerrain === true ||
+            Boolean(runtime.receivesMapStyleTexture)
+        )
+      ) {
+        // The visible ground now belongs to Three. Keep MapLibre's color as
+        // the captured terrain texture, but discard its competing DEM depth.
+        clearDepthBeforeThreeTerrain(gl, savedDepthRange);
+      }
 
       const accumulation = accumulationController;
       const poseKey = [
@@ -606,6 +801,12 @@ export const buildSharedThreeSceneLayer = (
       depthRangeBridge = null;
       renderer?.dispose();
       renderer = null;
+      mapStyleFramebufferTexture?.dispose();
+      mapStyleFramebufferTexture = null;
+      mapStyleProjectionUniforms.texture.value = null;
+      mapStyleProjectionUniforms.enabled.value = 0;
+      mapStyleProjectionVersions.clear();
+      mapStyleProjectionReceivers.clear();
       map = null;
     },
 
@@ -614,6 +815,12 @@ export const buildSharedThreeSceneLayer = (
       disposed = true;
       accumulator?.dispose();
       accumulator = null;
+      mapStyleFramebufferTexture?.dispose();
+      mapStyleFramebufferTexture = null;
+      mapStyleProjectionUniforms.texture.value = null;
+      mapStyleProjectionUniforms.enabled.value = 0;
+      mapStyleProjectionVersions.clear();
+      mapStyleProjectionReceivers.clear();
       for (const runtime of runtimes.values()) runtime.dispose();
       runtimes.clear();
       scene.clear();

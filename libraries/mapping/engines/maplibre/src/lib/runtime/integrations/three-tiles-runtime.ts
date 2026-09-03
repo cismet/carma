@@ -419,6 +419,17 @@ export function buildThreeTilesRuntime(
     options.outlineColor ?? 0x000000;
   let outlineOpacity = clamp(options.outlineOpacity ?? 1, 0, 1);
   let shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
+  const shadowStylesEqual = (
+    first: SharedThreeSceneShadowStyle | null,
+    second: SharedThreeSceneShadowStyle | null
+  ) =>
+    first === second ||
+    (first !== null &&
+      second !== null &&
+      first.fullOpacity === second.fullOpacity &&
+      first.uniformColor === second.uniformColor &&
+      first.uniformColorMix === second.uniformColorMix &&
+      first.textureSaturation === second.textureSaturation);
   let shadowView: SharedThreeSceneShadowView | null = null;
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
@@ -594,6 +605,15 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     const surfaceName = material.name.trim().toLowerCase();
     return surfaceName === "roof" || surfaceName === "wall";
   };
+  let hasSeparatedBuildingSurfaces = false;
+  let mapStyleProjectionVersion = 0;
+  const isRenderedBuildingSurface = (material: THREE.Material) => {
+    const sourceName = material.name
+      .trim()
+      .toLowerCase()
+      .split(" · ", 1)[0];
+    return sourceName === "roof" || sourceName === "wall";
+  };
   const resolveShadowCastingSide = (material: THREE.Material) =>
     separatedSurfaceShadowSides.get(material) ??
     (options.providesTerrain === true || isSeparatedBuildingSurface(material)
@@ -634,6 +654,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         if (!position || !featureId || !index) continue;
         parts.push({ materials, geometry, position, featureId, index });
       }
+      if (surfaceNames.size > 0) hasSeparatedBuildingSurfaces = true;
 
       if (!surfaceNames.has("roof") || !surfaceNames.has("wall")) return;
 
@@ -1105,6 +1126,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       }
     });
   };
+  const refreshRenderedMaterials = (root: THREE.Object3D) => {
+    applyMaterialFlags(root);
+    mapStyleProjectionVersion += 1;
+  };
 
   const applyOutlineVisibility = (root: THREE.Object3D) => {
     root.traverse((object) => {
@@ -1550,7 +1575,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       event.scene.traverse((object) => {
         object.frustumCulled = false;
       });
-      applyMaterialFlags(event.scene);
+      refreshRenderedMaterials(event.scene);
       applyOutlineVisibility(event.scene);
     }
     options.onContentChanged?.();
@@ -1916,6 +1941,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     originLngLat,
     root: orientationGroup,
     providesTerrain: options.providesTerrain === true,
+    receivesMapStyleTexture:
+      options.providesTerrain === true
+        ? (material) =>
+            hasSeparatedBuildingSurfaces &&
+            !isRenderedBuildingSurface(material)
+        : false,
+    mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     originMerc,
     mScale,
 
@@ -2180,13 +2212,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     setShadowSimulationStyle(style) {
       if (!options.shadowBuildingStyle) return;
+      if (shadowStylesEqual(shadowSimulationStyle, style)) return;
       shadowSimulationStyle = style;
       // Reapply one bounded cache policy when shadow mode changes. The shadow
       // camera may add off-screen casters, but it must not create a separate
       // download-admission ceiling or bypass the memory limit.
       applyCacheBudget();
       if (style?.uniformColor) shadowClayColor.set(style.uniformColor);
-      applyMaterialFlags(orientationGroup);
+      refreshRenderedMaterials(orientationGroup);
       applyOutlineVisibility(orientationGroup);
       map?.triggerRepaint();
     },
@@ -2211,7 +2244,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     setWhiteShading(white: boolean) {
       whiteShading = white;
-      applyMaterialFlags(orientationGroup);
+      refreshRenderedMaterials(orientationGroup);
       map?.triggerRepaint();
     },
 
@@ -2232,7 +2265,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           material.needsUpdate = true;
         }
       }
-      applyMaterialFlags(orientationGroup);
+      refreshRenderedMaterials(orientationGroup);
       map?.triggerRepaint();
     },
 
@@ -2242,13 +2275,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     setOpacity(nextOpacity: number) {
       opacity = clamp(nextOpacity, 0, 1);
-      applyMaterialFlags(orientationGroup);
+      refreshRenderedMaterials(orientationGroup);
       map?.triggerRepaint();
     },
 
     setWireframe(enabled: boolean) {
       wireframe = enabled;
-      applyMaterialFlags(orientationGroup);
+      refreshRenderedMaterials(orientationGroup);
       map?.triggerRepaint();
     },
 

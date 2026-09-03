@@ -30,7 +30,6 @@ const mocks = vi.hoisted(() => ({
   },
   buildRuntime: vi.fn(),
   removeRuntime: vi.fn(),
-  releaseMeshComposition: vi.fn(),
 }));
 
 vi.mock("../contexts/LibreContext", () => ({
@@ -50,11 +49,6 @@ vi.mock("../lib/runtime/integrations/shared-three-scene-registry", () => ({
     },
     release: vi.fn(),
   }),
-}));
-vi.mock("../lib/runtime/integrations/map-style-layer-suppression", () => ({
-  acquireMapLibreTerrainMeshComposition: vi.fn(
-    () => mocks.releaseMeshComposition
-  ),
 }));
 vi.mock(
   "../lib/runtime/integrations/shared-three-scene-content-registry",
@@ -102,7 +96,6 @@ describe("Tiles3dLayerManager", () => {
   beforeEach(() => {
     mocks.buildRuntime.mockReset();
     mocks.removeRuntime.mockReset();
-    mocks.releaseMeshComposition.mockReset();
     mocks.map.setTerrain.mockReset();
     mocks.buildRuntime.mockImplementation((id: string) => buildFakeRuntime(id));
   });
@@ -192,16 +185,14 @@ describe("Tiles3dLayerManager", () => {
     expect(mocks.buildRuntime).toHaveBeenCalledTimes(3);
   });
 
-  it("keeps MapLibre terrain active for draped style content over a terrain mesh", () => {
+  it("keeps MapLibre terrain active while Three owns the visible ground", () => {
     const { unmount } = render(renderManager(baseConfig));
 
     expect(mocks.map.setTerrain).toHaveBeenCalledWith({
       source: expect.any(String),
       exaggeration: 1,
     });
-    expect(mocks.releaseMeshComposition).not.toHaveBeenCalled();
-
     unmount();
-    expect(mocks.releaseMeshComposition).toHaveBeenCalledOnce();
+    expect(mocks.map.setTerrain).toHaveBeenCalledTimes(1);
   });
 });

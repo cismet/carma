@@ -59,6 +59,22 @@ const MAPLIBRE_LIVE_OVERLAY_LAYER_TYPES = new Set([
 const OVERLAY_LAYER_HINT =
   /(?:dop[-_:]?overlay|label|road|route|schrift|street|transport)/i;
 
+const LABEL_LAYER_HINT = /(?:dop[-_:]?overlay|label|schrift)/i;
+
+/** Layers that must stay sharp above shaded Three.js scene content. */
+export const isMapStyleLabelLayer = (layer: RuntimeStyleLayer): boolean => {
+  if (layer.type === "custom") return false;
+  if (layer.type === "symbol") return true;
+  return LABEL_LAYER_HINT.test(
+    [
+      layer.id,
+      layer.source,
+      layer.sourceLayer ?? layer["source-layer"],
+      layer.metadata?.["layer-id"],
+    ].join(":")
+  );
+};
+
 export const isMapStyleOverlayLayer = (layer: RuntimeStyleLayer): boolean => {
   if (layer.type === "custom") return false;
   if (MAPLIBRE_LIVE_OVERLAY_LAYER_TYPES.has(layer.type)) return true;
