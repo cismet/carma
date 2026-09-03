@@ -184,6 +184,7 @@ function App({
   catalogConfig = layerCatalogConfig,
   categories = geoportalCategoryDefinitions,
   addons,
+  routePath,
 }: {
   published?: boolean;
   /** route-specific catalog config, e.g. the filtered /gesundheit catalog */
@@ -191,6 +192,8 @@ function App({
   /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
   categories?: CategoryDefinition[];
   addons?: AddonEntry[];
+  /** the route's path, "/" for the default route; scopes per-route addon state and storage */
+  routePath?: string;
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -259,6 +262,7 @@ function App({
                 defaultRuntimeState={defaultCesiumState}
                 topicMapConfig={{ appKey: APP_KEY }}
                 addons={mergedAddons}
+                addonScope={routePath}
               >
                 <ObliqueProvider
                   config={OBLIQUE_CONFIG}

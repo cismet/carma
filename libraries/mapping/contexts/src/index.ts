@@ -46,6 +46,7 @@ export type {
 export {
   AddonListContext,
   AddonProvider,
+  AddonScopeContext,
   AddonStateSetterContext,
   AddonStateValueContext,
   EMPTY_ADDON_STATE,

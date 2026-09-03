@@ -70,6 +70,7 @@ const RoutedApp = () => {
       catalogConfig={catalogConfig}
       categories={categories}
       addons={fachzwilling?.addons}
+      routePath={fachzwilling ? `/${fachzwilling.path}` : "/"}
     />
   );
 };

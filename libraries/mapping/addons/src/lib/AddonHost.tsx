@@ -59,7 +59,8 @@ const warnOnUnmetRequirements = (addons?: readonly AddonEntry[]) => {
 export const AddonHost = () => {
   const addons = useRouteAddons();
   // what the `addonManager` switched on or off, from this session or from the
-  // last one; undefined when it never wrote, which is the plain route list
+  // last one; undefined when it never wrote, and always undefined on a route
+  // that declares no manager, both of which mount the plain route list
   const [overrides] = usePersistedAddonOverrides();
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();

@@ -2,6 +2,7 @@ import { useCallback, useContext } from "react";
 
 import {
   AddonListContext,
+  AddonScopeContext,
   AddonStateSetterContext,
   AddonStateValueContext,
 } from "@carma-mapping/contexts";
@@ -29,3 +30,7 @@ export const useAddonStateSnapshot = (): Partial<AddonStateMap> =>
 
 export const useRouteAddons = (): readonly AddonEntry[] | undefined =>
   useContext(AddonListContext) as readonly AddonEntry[] | undefined;
+
+/** the host's name for the current route, when it passed one to the provider */
+export const useAddonScope = (): string | undefined =>
+  useContext(AddonScopeContext);

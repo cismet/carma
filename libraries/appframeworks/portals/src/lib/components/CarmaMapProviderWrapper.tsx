@@ -68,6 +68,7 @@ type CarmaMapProviderWrapperProps = {
   hashParamNameOrder?: string[];
   defaultRuntimeState?: Partial<CesiumState>;
   addons?: readonly unknown[];
+  addonScope?: string;
   topicMapConfig?: {
     appKey?: string;
     featureItemsURL?: string;
@@ -169,6 +170,7 @@ export const CarmaMapProviderWrapper = ({
   store,
   defaultRuntimeState,
   addons,
+  addonScope,
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
@@ -208,7 +210,7 @@ export const CarmaMapProviderWrapper = ({
                       <MapSelectionProvider>
                         <CarmaApiBridge store={store} />
                         <MapHighlightProvider>
-                          <AddonProvider addons={addons}>
+                          <AddonProvider addons={addons} scopeKey={addonScope}>
                             {wrappedChildren}
                           </AddonProvider>
                         </MapHighlightProvider>

@@ -38,16 +38,24 @@ export const AddonListContext = createContext<readonly unknown[] | undefined>(
   undefined
 );
 
+/**
+ * The host's name for the current addon scope, usually its route path. Addons
+ * that persist something per route key their storage on it; undefined when the
+ * host passed none, in which case they fall back to the location.
+ */
+export const AddonScopeContext = createContext<string | undefined>(undefined);
+
 export const AddonProvider = ({
   addons,
   scopeKey,
   children,
 }: {
   addons?: readonly unknown[];
-  scopeKey?: unknown;
+  /** route identity: resets the state map when it changes and scopes per-route storage */
+  scopeKey?: string;
   children: ReactNode;
 }) => {
-  const scope = scopeKey !== undefined ? scopeKey : addons;
+  const scope: unknown = scopeKey !== undefined ? scopeKey : addons;
   const [state, setState] = useState<AddonStateRecord>(EMPTY_ADDON_STATE);
 
   const scopeRef = useRef(scope);
@@ -72,11 +80,13 @@ export const AddonProvider = ({
 
   return (
     <AddonListContext.Provider value={addons}>
-      <AddonStateSetterContext.Provider value={set}>
-        <AddonStateValueContext.Provider value={state}>
-          {children}
-        </AddonStateValueContext.Provider>
-      </AddonStateSetterContext.Provider>
+      <AddonScopeContext.Provider value={scopeKey}>
+        <AddonStateSetterContext.Provider value={set}>
+          <AddonStateValueContext.Provider value={state}>
+            {children}
+          </AddonStateValueContext.Provider>
+        </AddonStateSetterContext.Provider>
+      </AddonScopeContext.Provider>
     </AddonListContext.Provider>
   );
 };
