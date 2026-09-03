@@ -23,13 +23,14 @@ const mocks = vi.hoisted(() => ({
     _removed: false,
     getCenter: () => ({ lng: 7.15, lat: 51.25 }),
     getTerrain: () => null,
-    getSource: () => null,
+    getSource: () => ({}),
     setTerrain: vi.fn(),
     on: vi.fn(),
     off: vi.fn(),
   },
   buildRuntime: vi.fn(),
   removeRuntime: vi.fn(),
+  releaseMeshComposition: vi.fn(),
 }));
 
 vi.mock("../contexts/LibreContext", () => ({
@@ -50,6 +51,11 @@ vi.mock("../lib/runtime/integrations/shared-three-scene-registry", () => ({
     release: vi.fn(),
   }),
 }));
+vi.mock("../lib/runtime/integrations/map-style-layer-suppression", () => ({
+  acquireMapLibreTerrainMeshComposition: vi.fn(
+    () => mocks.releaseMeshComposition
+  ),
+}));
 vi.mock(
   "../lib/runtime/integrations/shared-three-scene-content-registry",
   () => ({
@@ -58,9 +64,6 @@ vi.mock(
     registerSharedThreeSceneRuntime: () => () => undefined,
   })
 );
-vi.mock("../lib/runtime/integrations/shared-three-terrain-registry", () => ({
-  suppressMapLibreTerrainRendering: () => () => undefined,
-}));
 vi.mock("../utils/threeDPresence", () => ({
   add3dPresence: vi.fn(),
   remove3dPresence: vi.fn(),
@@ -99,6 +102,8 @@ describe("Tiles3dLayerManager", () => {
   beforeEach(() => {
     mocks.buildRuntime.mockReset();
     mocks.removeRuntime.mockReset();
+    mocks.releaseMeshComposition.mockReset();
+    mocks.map.setTerrain.mockReset();
     mocks.buildRuntime.mockImplementation((id: string) => buildFakeRuntime(id));
   });
   afterEach(() => {
@@ -185,5 +190,18 @@ describe("Tiles3dLayerManager", () => {
       })
     );
     expect(mocks.buildRuntime).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps MapLibre terrain active for draped style content over a terrain mesh", () => {
+    const { unmount } = render(renderManager(baseConfig));
+
+    expect(mocks.map.setTerrain).toHaveBeenCalledWith({
+      source: expect.any(String),
+      exaggeration: 1,
+    });
+    expect(mocks.releaseMeshComposition).not.toHaveBeenCalled();
+
+    unmount();
+    expect(mocks.releaseMeshComposition).toHaveBeenCalledOnce();
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildSharedThreeSceneLayer,
+  clearDepthForMapStyleOverlays,
   configureSharedRenderCamera,
   installRenderTargetDepthRangeBridge,
   syncSharedCanvasViewport,
@@ -18,6 +19,26 @@ const expectMatrixToBeCloseTo = (
 };
 
 describe("shared Three.js scene layer", () => {
+  it("clears mesh depth before MapLibre draws labels and linework", () => {
+    const gl = {
+      DEPTH_BUFFER_BIT: 0x00000100,
+      clear: vi.fn(),
+      clearDepth: vi.fn(),
+      depthMask: vi.fn(),
+      depthRange: vi.fn(),
+    };
+
+    clearDepthForMapStyleOverlays(gl, [0, 0.985]);
+
+    expect(gl.depthMask).toHaveBeenCalledWith(true);
+    expect(gl.depthRange.mock.calls).toEqual([
+      [0, 1],
+      [0, 0.985],
+    ]);
+    expect(gl.clearDepth).toHaveBeenCalledWith(1);
+    expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
+  });
+
   it("uses a real camera view without changing MapLibre's scene-to-clip matrix", () => {
     const lodCamera = new THREE.PerspectiveCamera(52, 16 / 9, 2, 1_000_000);
     lodCamera.position.set(1_250, 840, -430);

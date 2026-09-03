@@ -4,6 +4,7 @@ import type { Layer } from "@carma-mapping/layers";
 
 import {
   geoportalLayersToLibreLayers,
+  layerProvidesTerrainMesh,
   parseThreeTilesLayer,
 } from "./geoportalLayersToLibreLayers";
 
@@ -62,5 +63,45 @@ describe("Geoportal 3D Tiles layer conversion", () => {
         })
       )
     ).toBeNull();
+  });
+
+  it("recognizes the remote photogrammetry mesh before its style is fetched", () => {
+    const layer = {
+      id: "mesh-2024",
+      title: "3D-MeshX 2024",
+      visible: true,
+      layerType: "vector",
+      props: {
+        style: "https://tiles.cismet.de/lod2/mesh2024.style.json",
+      },
+    } as Layer;
+
+    expect(layerProvidesTerrainMesh(layer)).toBe(true);
+    expect(layerProvidesTerrainMesh({ ...layer, visible: false })).toBe(false);
+  });
+
+  it("recognizes inline mesh metadata and direct terrain mesh declarations", () => {
+    const taggedLayer = {
+      id: "inline-mesh",
+      visible: true,
+      props: {
+        style: {
+          version: 8,
+          metadata: {
+            carmaConf: { layerInfo: { tags: ["Basis", "Mesh"] } },
+          },
+          sources: {},
+          layers: [],
+        },
+      },
+    } as unknown as Layer;
+    const directLayer = {
+      id: "direct-mesh",
+      visible: true,
+      conf: { threeTiles: { providesTerrain: true } },
+    } as unknown as Layer;
+
+    expect(layerProvidesTerrainMesh(taggedLayer)).toBe(true);
+    expect(layerProvidesTerrainMesh(directLayer)).toBe(true);
   });
 });

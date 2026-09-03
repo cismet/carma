@@ -16,6 +16,44 @@ type ThreeTilesLibreLayer = Extract<LibreLayer, { type: "three-tiles" }>;
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+const hasMeshTag = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.some((tag) => typeof tag === "string" && tag.toLowerCase() === "mesh");
+
+const styleProvidesTerrainMesh = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") return false;
+  const style = value as {
+    metadata?: { carmaConf?: { layerInfo?: { tags?: unknown } } };
+    layers?: Array<{
+      metadata?: {
+        carmaConf?: { "3d"?: { providesTerrain?: unknown } };
+      };
+    }>;
+  };
+  return (
+    hasMeshTag(style.metadata?.carmaConf?.layerInfo?.tags) ||
+    style.layers?.some(
+      (styleLayer) =>
+        styleLayer.metadata?.carmaConf?.["3d"]?.providesTerrain === true
+    ) === true
+  );
+};
+
+/** Detect a terrain-providing mesh before or after its style was fetched. */
+export const layerProvidesTerrainMesh = (layer: Layer): boolean => {
+  if (!layer.visible) return false;
+  const directConfig = (layer.conf as Record<string, unknown> | undefined)
+    ?.threeTiles as Record<string, unknown> | undefined;
+  if (directConfig?.providesTerrain === true) return true;
+
+  const style = (layer.props as { style?: unknown } | undefined)?.style;
+  if (styleProvidesTerrainMesh(style)) return true;
+  if (typeof style !== "string") return false;
+
+  const stylePath = style.split(/[?#]/, 1)[0].toLowerCase();
+  return /\/mesh[^/]*\.style\.json$/.test(stylePath);
+};
+
 export const parseThreeTilesLayer = (
   layer: Layer
 ): ThreeTilesLibreLayer | null => {

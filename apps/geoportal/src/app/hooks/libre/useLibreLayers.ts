@@ -4,7 +4,10 @@ import { useSelector } from "react-redux";
 import type { LibreLayer } from "@carma-mapping/core";
 
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
-import { geoportalLayersToLibreLayers } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
+import {
+  geoportalLayersToLibreLayers,
+  layerProvidesTerrainMesh,
+} from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
 import { getLayers } from "../../store/slices/mapping";
 import { useRouteBackground } from "../useRouteBackground";
 
@@ -13,10 +16,17 @@ export const useLibreLayers = (): LibreLayer[] => {
   const { backgroundLayer, namedLayers } = useRouteBackground();
 
   const computedLibreLayers = useMemo(
-    () => [
-      ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers),
-      ...geoportalLayersToLibreLayers(geoportalLayers),
-    ],
+    () => {
+      const terrainMeshActive = geoportalLayers.some(
+        layerProvidesTerrainMesh
+      );
+      return [
+        ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
+          terrainMeshActive,
+        }),
+        ...geoportalLayersToLibreLayers(geoportalLayers),
+      ];
+    },
     [backgroundLayer, namedLayers, geoportalLayers]
   );
 

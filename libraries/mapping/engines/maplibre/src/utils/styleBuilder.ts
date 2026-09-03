@@ -21,6 +21,10 @@ import {
   createNonTiledImageSource,
   createNonTiledMetadata,
 } from "./nonTiledWms";
+import {
+  styleProvidesTerrain,
+  withTerrainProviderMetadata,
+} from "./terrainProviderMetadata";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -715,13 +719,7 @@ export const vectorStylesToMapLibreStyle = async ({
 
       if (layer.type === "vector") {
         const additionalStyle = fetched.data;
-        const styleTags = additionalStyle.metadata?.carmaConf?.layerInfo?.tags;
-        const providesTerrain =
-          Array.isArray(styleTags) &&
-          styleTags.some(
-            (tag: unknown) =>
-              typeof tag === "string" && tag.toLowerCase() === "mesh"
-          );
+        const providesTerrain = styleProvidesTerrain(additionalStyle);
         let capabilitiesLayer = "";
 
         if (layer.layer) {
@@ -772,12 +770,6 @@ export const vectorStylesToMapLibreStyle = async ({
                 metadata?: Record<string, unknown>;
               }
             ).metadata;
-            const carmaConf = styleLayerMetadata?.carmaConf as
-              | Record<string, unknown>
-              | undefined;
-            const tiles3dConfig = carmaConf?.["3d"] as
-              | Record<string, unknown>
-              | undefined;
             const src = (styleLayer as { source?: string }).source;
             const origFilter =
               (styleLayer as { filter?: unknown[] }).filter ?? null;
@@ -795,18 +787,10 @@ export const vectorStylesToMapLibreStyle = async ({
                 : {}),
               ...(userFilter ? { filter: bakedFilter as never } : {}),
               metadata: {
-                ...styleLayerMetadata,
-                ...(providesTerrain && tiles3dConfig?.renderMode === "tiles3d"
-                  ? {
-                      carmaConf: {
-                        ...carmaConf,
-                        "3d": {
-                          ...tiles3dConfig,
-                          providesTerrain: true,
-                        },
-                      },
-                    }
-                  : {}),
+                ...withTerrainProviderMetadata(
+                  styleLayerMetadata,
+                  providesTerrain
+                ),
                 "z-index": index,
                 "layer-id": layerId,
                 // What the layer bar's slider asks of this layer. A 2D layer

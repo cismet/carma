@@ -11,7 +11,6 @@ import {
   subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
-  suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
 import type {
   CesiumTerrainRuntimeOptions,
@@ -128,8 +127,6 @@ export type ShadowBuildingAppearance = Readonly<{
   textureSaturation?: number;
 }>;
 
-const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
-
 export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
@@ -140,6 +137,7 @@ export type ShadowSimulationScene = {
   updateTimeAnimating: (animating: boolean) => void;
   refreshProjectionDebug: () => void;
   updateShadowIntensity: (intensity: number) => void;
+  updateMapStyleContentVisibility: (visible: boolean) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
   updateAtmosphericLutUsage: (options: AtmosphericSunlightOptions) => void;
   dispose: () => void;
@@ -746,60 +744,19 @@ export const buildShadowSimulationScene = (
     useIrradianceLut: true,
   };
   let disposed = false;
-  const restoreMapLibreStyleLayers = suppressMapLibreRegularStyleLayers(map);
+  let mapStyleContentVisible = true;
+  let restoreMapLibreStyleLayers: (() => void) | null = null;
   let terrainColor = new THREE.Color(
     terrain?.material?.color ?? DEFAULT_SHADOW_SURFACE_COLOR
   );
-  const ensureShadowBackground = () => {
-    if (disposed || !map.isStyleLoaded()) return;
-    const color = `#${terrainColor.getHexString()}`;
-    try {
-      if (!map.getLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID)) {
-        const firstLayerId = map.getStyle().layers?.[0]?.id;
-        map.addLayer(
-          {
-            id: SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
-            type: "background",
-            paint: {
-              "background-color": color,
-              "background-opacity": 1,
-            },
-          },
-          firstLayerId
-        );
-        return;
-      }
-      if (
-        map.getPaintProperty(
-          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
-          "background-color"
-        ) !== color
-      ) {
-        map.setPaintProperty(
-          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
-          "background-color",
-          color
-        );
-      }
-      if (
-        map.getPaintProperty(
-          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
-          "background-opacity"
-        ) !== 1
-      ) {
-        map.setPaintProperty(
-          SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
-          "background-opacity",
-          1
-        );
-      }
-    } catch {
-      // A style replacement or map teardown can race this callback.
+  const syncMapStyleContentVisibility = () => {
+    if (mapStyleContentVisible) {
+      restoreMapLibreStyleLayers?.();
+      restoreMapLibreStyleLayers = null;
+      return;
     }
+    restoreMapLibreStyleLayers ??= suppressMapLibreRegularStyleLayers(map);
   };
-  map.on("styledata", ensureShadowBackground);
-  ensureShadowBackground();
-  let restoreMapLibreTerrain: (() => void) | null = null;
   const atmosphereReferenceCenter = map.getCenter();
   const sceneLease = acquireSharedThreeScene(map);
   const atmosphereSkyObserver: AtmosphericSkyReference["observer"] = {
@@ -1425,13 +1382,9 @@ export const buildShadowSimulationScene = (
   map.on("move", handleMove);
   map.on("moveend", handleMoveEnd);
   map.on("resize", handleResize);
-  const suppressMapLibreTerrain = () => {
-    restoreMapLibreTerrain ??= suppressMapLibreTerrainRendering(map);
-  };
   const watchTerrainRuntime = (runtime: NonNullable<typeof terrainRuntime>) => {
     void runtime.ready.then((loaded) => {
       if (!loaded || disposed || terrainRuntime !== runtime) return;
-      suppressMapLibreTerrain();
       refreshSharedShadowCoverage();
     });
   };
@@ -1439,7 +1392,6 @@ export const buildShadowSimulationScene = (
     const meshProvidesTerrain = sharedSceneProvidesTerrain();
     if (!terrain) return;
     if (meshProvidesTerrain) {
-      suppressMapLibreTerrain();
       const runtime = terrainRuntime;
       terrainRuntime = null;
       if (runtime && sceneLease.layer.hasRuntime(runtime.id)) {
@@ -1451,8 +1403,6 @@ export const buildShadowSimulationScene = (
     }
     if (terrainRuntime) return;
 
-    restoreMapLibreTerrain?.();
-    restoreMapLibreTerrain = null;
     const runtime = buildTerrainRuntime();
     if (!runtime) return;
     terrainRuntime = runtime;
@@ -1465,8 +1415,6 @@ export const buildShadowSimulationScene = (
   };
   if (terrainRuntime) {
     watchTerrainRuntime(terrainRuntime);
-  } else if (terrain && sharedSceneProvidesTerrain()) {
-    suppressMapLibreTerrain();
   }
   updateSharedShadowCoverage();
 
@@ -1575,7 +1523,6 @@ export const buildShadowSimulationScene = (
       terrainRuntime?.setMaterialColor(color);
       sharedBinding.atmosphericSky.updateGroundAlbedo(nextColor);
       terrainColor = nextColor;
-      ensureShadowBackground();
     },
     updateMeshErrorTarget(errorTarget) {
       if (latestMeshErrorTarget === errorTarget) return;
@@ -1648,6 +1595,12 @@ export const buildShadowSimulationScene = (
       }
       map.triggerRepaint();
     },
+    updateMapStyleContentVisibility(visible) {
+      if (mapStyleContentVisible === visible) return;
+      mapStyleContentVisible = visible;
+      syncMapStyleContentVisibility();
+      map.triggerRepaint();
+    },
     updateSunDebugVectorVisibility(visible) {
       if (sharedBinding.sunVectorVisible === visible) return;
       invalidateShadowPresentation();
@@ -1678,7 +1631,6 @@ export const buildShadowSimulationScene = (
       if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
       clearShadowProjectionDebugSnapshot(map);
       map.off("style.load", restoreLighting);
-      map.off("styledata", ensureShadowBackground);
       map.off("movestart", handleMoveStart);
       map.off("move", handleMove);
       map.off("moveend", handleMoveEnd);
@@ -1697,23 +1649,11 @@ export const buildShadowSimulationScene = (
       }
       genericBridges.clear();
       try {
-        if (map.getLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID)) {
-          map.removeLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID);
-        }
+        restoreMapLibreStyleLayers?.();
       } catch {
         // The style may already be gone during map teardown.
       }
-      try {
-        restoreMapLibreStyleLayers();
-      } catch {
-        // The style may already be gone during map teardown.
-      }
-      try {
-        restoreMapLibreTerrain?.();
-      } catch {
-        // The style or terrain source may already be gone during map teardown.
-      }
-      restoreMapLibreTerrain = null;
+      restoreMapLibreStyleLayers = null;
       if (sceneLease.layer.hasRuntime(shadowControllerRuntime.id)) {
         sceneLease.layer.removeRuntime(shadowControllerRuntime.id);
       }

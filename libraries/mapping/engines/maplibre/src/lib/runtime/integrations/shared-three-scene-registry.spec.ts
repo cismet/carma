@@ -38,7 +38,13 @@ describe("shared Three.js scene registry", () => {
     });
     const map = {
       isStyleLoaded: vi.fn(() => true),
-      getStyle: vi.fn(() => ({ layers: [{ id: "labels", type: "symbol" }] })),
+      getStyle: vi.fn(() => ({
+        layers: [
+          { id: "basemap", type: "raster" },
+          { id: "roads", type: "line" },
+          { id: "labels", type: "symbol" },
+        ],
+      })),
       getLayer: vi.fn(() => (attached ? sharedLayer : undefined)),
       addLayer,
       removeLayer,
@@ -55,7 +61,7 @@ describe("shared Three.js scene registry", () => {
 
     expect(first.layer).toBe(second.layer);
     expect(buildSharedThreeSceneLayer).toHaveBeenCalledOnce();
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, "labels");
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer, "roads");
 
     first.release();
     expect(dispose).not.toHaveBeenCalled();
@@ -87,6 +93,78 @@ describe("shared Three.js scene registry", () => {
     const lease = acquireSharedThreeScene(map as never);
 
     expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    lease.release();
+  });
+
+  it("moves the shared layer behind live overlays after the style grows", () => {
+    const layers = [
+      { id: "basemap", type: "raster" },
+      { id: sharedLayer.id, type: "custom" },
+      { id: "landcover", type: "fill" },
+      { id: "roads", type: "line" },
+      { id: "labels", type: "symbol" },
+    ];
+    const moveLayer = vi.fn((id: string, beforeId?: string) => {
+      const currentIndex = layers.findIndex((layer) => layer.id === id);
+      const [current] = layers.splice(currentIndex, 1);
+      const beforeIndex = beforeId
+        ? layers.findIndex((layer) => layer.id === beforeId)
+        : layers.length;
+      layers.splice(beforeIndex, 0, current);
+    });
+    const map = {
+      getStyle: vi.fn(() => ({ layers })),
+      getLayer: vi.fn(() => ({ implementation: sharedLayer })),
+      addLayer: vi.fn(),
+      moveLayer,
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id, "roads");
+    expect(layers.map(({ id }) => id)).toEqual([
+      "basemap",
+      "landcover",
+      sharedLayer.id,
+      "roads",
+      "labels",
+    ]);
+    lease.release();
+  });
+
+  it("inserts Three after the RVR ground-plan but before its label raster", () => {
+    const addLayer = vi.fn();
+    const map = {
+      getStyle: vi.fn(() => ({
+        layers: [
+          { id: "basemap", type: "raster" },
+          {
+            id: "---raster-spw2-light-grundriss-0:first---",
+            type: "background",
+          },
+          {
+            id: "raster-spw2-light-grundriss-0-raster",
+            type: "raster",
+          },
+          { id: "raster-dop-overlay-1-raster", type: "raster" },
+        ],
+      })),
+      getLayer: vi.fn(() => undefined),
+      addLayer,
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(addLayer).toHaveBeenCalledWith(
+      sharedLayer,
+      "raster-dop-overlay-1-raster"
+    );
     lease.release();
   });
 

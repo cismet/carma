@@ -13,6 +13,23 @@ type NamedLayerConfig = {
   maxNativeZoom?: number;
 };
 
+type GeoportalBackgroundLibreOptions = {
+  terrainMeshActive?: boolean;
+};
+
+// The normal city map and the RVR DOP overlay are rasters, so their labels
+// cannot be separated from their land-cover colours. Keep the selected base
+// in the layer graph for MapLibre terrain, but use the existing vector basemap
+// as the visible overlay. Runtime composition can then hide its fills and
+// rasters while retaining actual road lines, symbols and labels above the
+// photogrammetry mesh.
+const TERRAIN_MESH_OVERLAY_LAYERS = "basemap_relief@100";
+const TERRAIN_MESH_REPLACED_LAYER_NAMES = new Set([
+  "rvrGrundriss",
+  "rvrSchriftNT",
+  "basemap_relief",
+]);
+
 const isTransparent = (value: unknown): boolean => {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") return value.toLowerCase() === "true";
@@ -21,7 +38,8 @@ const isTransparent = (value: unknown): boolean => {
 
 export const geoportalBackgroundToLibreLayers = (
   backgroundLayer: BackgroundLayer | null | undefined,
-  extraNamedLayers?: Record<string, NamedLayerConfig>
+  extraNamedLayers?: Record<string, NamedLayerConfig>,
+  options: GeoportalBackgroundLibreOptions = {}
 ): LibreLayer[] => {
   if (!backgroundLayer || !backgroundLayer.visible) {
     return [];
@@ -38,7 +56,18 @@ export const geoportalBackgroundToLibreLayers = (
   // button, so they share one id and their loading states aggregate.
   const carmaLayerId = backgroundLayer.id;
 
-  for (const spec of backgroundLayer.layers.split("|")) {
+  const originalLayerSpecs = backgroundLayer.layers
+    .split("|")
+    .filter(
+      (spec) =>
+        !options.terrainMeshActive ||
+        !TERRAIN_MESH_REPLACED_LAYER_NAMES.has(spec.split("@")[0])
+    );
+  const layerSpecs = options.terrainMeshActive
+    ? [...originalLayerSpecs, ...TERRAIN_MESH_OVERLAY_LAYERS.split("|")]
+    : originalLayerSpecs;
+
+  for (const spec of layerSpecs) {
     const [name, opacityStr] = spec.split("@");
     const cfg = namedLayers[name];
     if (!cfg) {
