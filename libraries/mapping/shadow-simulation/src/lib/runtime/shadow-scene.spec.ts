@@ -1058,6 +1058,7 @@ describe("shadow scene lighting integration", () => {
       update: vi.fn(),
       setShadowView: vi.fn(),
       setMaterialColor: vi.fn(),
+      setSurfaceMode: vi.fn(),
       getElevation: vi.fn(() => 150),
       dispose: vi.fn(),
     };
@@ -1216,6 +1217,7 @@ describe("shadow scene lighting integration", () => {
       update: vi.fn(),
       setShadowView: vi.fn(),
       setMaterialColor: vi.fn(),
+      setSurfaceMode: vi.fn(),
       getElevation: vi.fn(() => 150),
       dispose: vi.fn(),
     });

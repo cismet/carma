@@ -278,7 +278,10 @@ export type {
   ThreeTilesRuntime,
 } from "./lib/runtime/integrations/three-tiles-runtime";
 export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
-export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export type {
+  CesiumTerrainRuntimeOptions,
+  CesiumTerrainSurfaceMode,
+} from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
 export {
   isSharedThreeTerrainLoading,
   suppressMapLibreTerrainRendering,

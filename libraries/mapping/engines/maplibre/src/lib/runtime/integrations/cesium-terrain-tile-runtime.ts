@@ -69,6 +69,46 @@ export type CesiumTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
 }>;
 
+/**
+ * How the terrain surface reaches the screen.
+ *
+ * `opaque` paints the shaded surface itself, which is what a clay study wants.
+ * `hidden` keeps the runtime but draws and loads nothing, for a host that
+ * renders its own ground.
+ */
+export type CesiumTerrainSurfaceMode = "opaque" | "hidden";
+
+const SOURCE_RETRY_DELAYS_MS: readonly number[] = [1_000, 3_000, 8_000, 15_000];
+
+/**
+ * The terrain host has been seen answering 503 to layer.json for minutes and
+ * recovering afterwards. Without a retry the scene would keep the flat
+ * fallback plane for the rest of the session.
+ */
+const acquireSourceWithRetry = async (
+  url: string,
+  maxCacheBytes: number | undefined,
+  isDisposed: () => boolean,
+  onRetryWait: () => void
+): Promise<CesiumTerrainTileSource> => {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await acquireCesiumTerrainTileSource(url, { maxCacheBytes });
+    } catch (error) {
+      if (attempt >= SOURCE_RETRY_DELAYS_MS.length || isDisposed()) throw error;
+      const delay = SOURCE_RETRY_DELAYS_MS[attempt];
+      console.warn(
+        `[shadow-simulation] terrain source ${url} failed (attempt ${attempt + 1}), retrying in ${delay} ms`,
+        error
+      );
+      // Other content waits for the terrain while it reports loading; a
+      // retry pause must not hold the buildings back.
+      onRetryWait();
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
+
 export type CesiumTerrainRuntimeOptions = Readonly<{
   errorTargetPixels?: number;
   shadowLevelOffset?: number;
@@ -92,6 +132,7 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
   setShadowView: (view: SharedThreeSceneShadowView | null) => void;
   setMaterialColor: (color: ColorRepresentation) => void;
+  setSurfaceMode: (mode: CesiumTerrainSurfaceMode) => void;
   getElevation: (longitude: number, latitude: number) => number | undefined;
   getViewElevationRange: (
     camera: Camera
@@ -492,9 +533,7 @@ export const buildCesiumTerrainRuntime = (
   coverageMaterial.polygonOffset = true;
   coverageMaterial.polygonOffsetFactor = 1;
   coverageMaterial.polygonOffsetUnits = 1;
-  const sourcePromise = acquireCesiumTerrainTileSource(terrainUrl, {
-    maxCacheBytes: options.maxCacheBytes,
-  });
+  let surfaceMode: CesiumTerrainSurfaceMode = "opaque";
   const meshes = new Map<string, TerrainMeshRecord>();
   let coverageMesh: Mesh | null = null;
   let coverageBounds: CesiumTerrainTileBounds | null = null;
@@ -524,9 +563,20 @@ export const buildCesiumTerrainRuntime = (
     resolveReady(loaded);
   };
 
+  // Other content throttles its downloads while terrain reports loading. A
+  // hidden runtime loads nothing, so it must not hold anything back.
+  const publishTerrainLoading = () => {
+    if (map) {
+      setSharedThreeTerrainLoading(
+        map,
+        runtimeId,
+        terrainLoading && root.visible
+      );
+    }
+  };
   const setTerrainLoading = (loading: boolean) => {
     terrainLoading = loading;
-    if (map) setSharedThreeTerrainLoading(map, runtimeId, loading);
+    publishTerrainLoading();
   };
 
   const projectToLocalWorld = (
@@ -1400,6 +1450,9 @@ export const buildCesiumTerrainRuntime = (
   };
 
   const updateViewportCoverage = (frame: SharedThreeSceneFrame) => {
+    // Without a source there is nothing to backfill, and the host's own
+    // ground is a better stand-in than a plane at an arbitrary height.
+    if (coverageMesh) coverageMesh.visible = source !== null;
     const viewportBounds = getViewportBounds(frame.map);
     if (
       coverageBounds &&
@@ -1419,6 +1472,7 @@ export const buildCesiumTerrainRuntime = (
     if (!coverageMesh) {
       coverageMesh = new Mesh(geometry, coverageMaterial);
       coverageMesh.userData.isShadowTerrainSurface = true;
+      coverageMesh.visible = source !== null;
       coverageMesh.name = `${runtimeId}-viewport-coverage`;
       coverageMesh.castShadow = false;
       coverageMesh.receiveShadow = true;
@@ -1552,6 +1606,12 @@ export const buildCesiumTerrainRuntime = (
       });
   };
 
+  const sourcePromise = acquireSourceWithRetry(
+    terrainUrl,
+    options.maxCacheBytes,
+    () => disposed,
+    () => setTerrainLoading(false)
+  );
   void sourcePromise
     .then((terrainSource) => {
       if (disposed) return;
@@ -1565,8 +1625,12 @@ export const buildCesiumTerrainRuntime = (
         map.triggerRepaint();
       }
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       if (disposed) return;
+      console.error(
+        `[shadow-simulation] terrain source ${terrainUrl} unavailable; ground stays on the fallback plane`,
+        error
+      );
       setTerrainLoading(false);
       options.onError?.(error);
       settleReady(false);
@@ -1580,7 +1644,7 @@ export const buildCesiumTerrainRuntime = (
     ready,
     onAdd(mapInstance) {
       map = mapInstance;
-      setSharedThreeTerrainLoading(mapInstance, runtimeId, terrainLoading);
+      publishTerrainLoading();
       if (source && !unregisterSampler) {
         unregisterSampler = registerSharedThreeTerrainSampler(
           mapInstance,
@@ -1624,6 +1688,15 @@ export const buildCesiumTerrainRuntime = (
     setMaterialColor(color) {
       material.color.set(color);
       coverageMaterial.color.set(color);
+      map?.triggerRepaint();
+    },
+    setSurfaceMode(mode) {
+      if (surfaceMode === mode) return;
+      surfaceMode = mode;
+      root.visible = mode === "opaque";
+      // A hidden runtime skips tile selection; redo it once it shows again.
+      if (root.visible) selectionInputSignature = "";
+      publishTerrainLoading();
       map?.triggerRepaint();
     },
     getElevation(longitude, latitude) {
