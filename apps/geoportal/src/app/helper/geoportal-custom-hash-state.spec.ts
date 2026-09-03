@@ -67,6 +67,19 @@ describe("geoportal-custom-hash-state", () => {
     });
   });
 
+  it("decodes the map surface suffix and leaves clay implicit", () => {
+    expect(
+      resolveGeoportalShadowSimulationHashSelection("660;140;map")
+    ).toEqual({ minutes: 660, dayOfYear: 140, surfaceMode: "map" });
+    expect(
+      resolveGeoportalShadowSimulationHashSelection("660;140;clay")
+    ).toEqual({ minutes: 660, dayOfYear: 140, surfaceMode: "clay" });
+    expect(resolveGeoportalShadowSimulationHashSelection("660;140")).toEqual({
+      minutes: 660,
+      dayOfYear: 140,
+    });
+  });
+
   it("round-trips the semicolon through the shared hash encoding", () => {
     const encoded = buildOrderedSearchParamsString({ shadow: "660;140" });
 
@@ -112,6 +125,18 @@ describe("geoportal-custom-hash-state", () => {
       buildGeoportalShadowSimulationHashUpdate({
         enabled: true,
         selection: { minutes: 660, dayOfYear: 140 },
+      })
+    ).toEqual({ shadow: "660;140" });
+    expect(
+      buildGeoportalShadowSimulationHashUpdate({
+        enabled: true,
+        selection: { minutes: 660, dayOfYear: 140, surfaceMode: "map" },
+      })
+    ).toEqual({ shadow: "660;140;map" });
+    expect(
+      buildGeoportalShadowSimulationHashUpdate({
+        enabled: true,
+        selection: { minutes: 660, dayOfYear: 140, surfaceMode: "clay" },
       })
     ).toEqual({ shadow: "660;140" });
     expect(

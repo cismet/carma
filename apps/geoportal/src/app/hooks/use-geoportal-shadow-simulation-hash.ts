@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { useAddonState } from "@carma-mapping/addons";
-import { clampShadowSimulationSelectionToDaylight } from "@carma-mapping/shadow-simulation";
+import {
+  clampShadowSimulationSelectionToDaylight,
+  DEFAULT_SHADOW_SURFACE_MODE,
+  type ShadowSurfaceMode,
+} from "@carma-mapping/shadow-simulation";
 import { useLibreContext } from "@carma-mapping/contexts";
 import { useHashState } from "@carma-providers/hash-state";
 
@@ -26,13 +30,16 @@ const SHADOW_HASH_WRITE_INTERVAL_MS = 500;
 const stateMatchesHashSelection = (
   enabled: boolean,
   selection: { minutes: number; dayOfYear: number },
+  surfaceMode: ShadowSurfaceMode,
   hashSelection: GeoportalShadowSimulationHashSelection | null
 ): boolean =>
   hashSelection === null
     ? !enabled
     : enabled &&
       selection.minutes === hashSelection.minutes &&
-      selection.dayOfYear === hashSelection.dayOfYear;
+      selection.dayOfYear === hashSelection.dayOfYear &&
+      surfaceMode ===
+        (hashSelection.surfaceMode ?? DEFAULT_SHADOW_SURFACE_MODE);
 
 export const useGeoportalShadowSimulationHash = ({
   customHashState,
@@ -100,28 +107,35 @@ export const useGeoportalShadowSimulationHash = ({
     customHashState?.shadowSimulationSelection ?? null;
   const mapCenter = libreMap?.getCenter();
   const shadowYear = shadowState?.selection.year;
-  const hashSelection = useMemo(
-    () =>
-      decodedHashSelection && shadowYear !== undefined
-        ? isGeoportalShadowSimulationHashSelectionValidForYear(
-            decodedHashSelection,
-            shadowYear
-          )
-          ? clampShadowSimulationSelectionToDaylight(
-              {
-                ...decodedHashSelection,
-                year: shadowYear,
-              },
-              {
-                latitude: mapCenter?.lat,
-                longitude: mapCenter?.lng,
-                timeZone: "Europe/Berlin",
-              }
-            )
-          : null
-        : decodedHashSelection,
-    [decodedHashSelection, mapCenter?.lat, mapCenter?.lng, shadowYear]
-  );
+  const hashSelection =
+    useMemo((): GeoportalShadowSimulationHashSelection | null => {
+      if (!decodedHashSelection || shadowYear === undefined) {
+        return decodedHashSelection;
+      }
+      if (
+        !isGeoportalShadowSimulationHashSelectionValidForYear(
+          decodedHashSelection,
+          shadowYear
+        )
+      ) {
+        return null;
+      }
+      const clamped = clampShadowSimulationSelectionToDaylight(
+        {
+          ...decodedHashSelection,
+          year: shadowYear,
+        },
+        {
+          latitude: mapCenter?.lat,
+          longitude: mapCenter?.lng,
+          timeZone: "Europe/Berlin",
+        }
+      );
+      // The clamp only knows the time; the surface rides along unchanged.
+      return clamped
+        ? { ...clamped, surfaceMode: decodedHashSelection.surfaceMode }
+        : null;
+    }, [decodedHashSelection, mapCenter?.lat, mapCenter?.lng, shadowYear]);
 
   useEffect(() => {
     if (!shadowState) {
@@ -154,6 +168,7 @@ export const useGeoportalShadowSimulationHash = ({
       stateMatchesHashSelection(
         shadowState.enabled,
         shadowState.selection,
+        shadowState.surfaceMode ?? DEFAULT_SHADOW_SURFACE_MODE,
         hashSelection
       )
     ) {
@@ -173,6 +188,10 @@ export const useGeoportalShadowSimulationHash = ({
               minutes: hashSelection.minutes,
               dayOfYear: hashSelection.dayOfYear,
             },
+      surfaceMode:
+        hashSelection === null
+          ? shadowState.surfaceMode
+          : hashSelection.surfaceMode ?? DEFAULT_SHADOW_SURFACE_MODE,
     });
   }, [
     cancelPendingHashUpdate,
@@ -185,6 +204,8 @@ export const useGeoportalShadowSimulationHash = ({
   const shadowEnabled = shadowState?.enabled;
   const shadowMinutes = shadowState?.selection.minutes;
   const shadowDayOfYear = shadowState?.selection.dayOfYear;
+  const shadowSurfaceMode =
+    shadowState?.surfaceMode ?? DEFAULT_SHADOW_SURFACE_MODE;
 
   useEffect(() => {
     if (
@@ -202,6 +223,7 @@ export const useGeoportalShadowSimulationHash = ({
         !stateMatchesHashSelection(
           shadowEnabled,
           { minutes: shadowMinutes, dayOfYear: shadowDayOfYear },
+          shadowSurfaceMode,
           hashSelection
         )
       ) {
@@ -216,6 +238,7 @@ export const useGeoportalShadowSimulationHash = ({
         selection: {
           minutes: shadowMinutes,
           dayOfYear: shadowDayOfYear,
+          surfaceMode: shadowSurfaceMode,
         },
       })
     );
@@ -226,5 +249,6 @@ export const useGeoportalShadowSimulationHash = ({
     shadowDayOfYear,
     shadowEnabled,
     shadowMinutes,
+    shadowSurfaceMode,
   ]);
 };

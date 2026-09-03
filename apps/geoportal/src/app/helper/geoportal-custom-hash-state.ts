@@ -9,6 +9,7 @@ import {
   CARMA_MAP_FRAMEWORKS,
   type CarmaMapFramework,
 } from "@carma-mapping/components";
+import type { ShadowSurfaceMode } from "@carma-mapping/shadow-simulation";
 
 import { URL_PARAM_KEYS } from "../config/app.config";
 
@@ -32,6 +33,8 @@ export type GeoportalCustomHashState = {
 export type GeoportalShadowSimulationHashSelection = {
   minutes: number;
   dayOfYear: number;
+  /** Absent means the default clay study; only `map` is written out. */
+  surfaceMode?: ShadowSurfaceMode | undefined;
 };
 
 type GeoportalShadowSimulationHashSource = {
@@ -39,7 +42,8 @@ type GeoportalShadowSimulationHashSource = {
   selection: GeoportalShadowSimulationHashSelection;
 };
 
-const SHADOW_SIMULATION_HASH_VALUE_PATTERN = /^(\d{1,4});(\d{1,3})$/;
+const SHADOW_SIMULATION_HASH_VALUE_PATTERN =
+  /^(\d{1,4});(\d{1,3})(?:;(clay|map))?$/;
 
 export const resolveGeoportalShadowSimulationHashSelection = (
   value: unknown
@@ -59,7 +63,10 @@ export const resolveGeoportalShadowSimulationHashSelection = (
     return null;
   }
 
-  return { minutes, dayOfYear };
+  const surfaceMode = match[3] as ShadowSurfaceMode | undefined;
+  return surfaceMode
+    ? { minutes, dayOfYear, surfaceMode }
+    : { minutes, dayOfYear };
 };
 
 export const isGeoportalShadowSimulationHashSelectionValidForYear = (
@@ -124,8 +131,10 @@ export const buildGeoportalShadowSimulationHashUpdate = (
     return { [URL_PARAM_KEYS.shadowSimulation]: undefined };
   }
 
-  const { minutes, dayOfYear } = state.selection;
-  const serialized = `${minutes};${dayOfYear}`;
+  const { minutes, dayOfYear, surfaceMode } = state.selection;
+  const serialized = `${minutes};${dayOfYear}${
+    surfaceMode === "map" ? ";map" : ""
+  }`;
 
   return {
     [URL_PARAM_KEYS.shadowSimulation]:
