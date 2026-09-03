@@ -50,9 +50,7 @@ interface InfoCardProps {
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview?: boolean
   ) => void;
-  onFavoriteClick: (
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) => void;
+  onFavoriteClick: (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
   links: { url: string; text: string }[];
   onDeleteCollection: () => void;
 }
@@ -178,7 +176,8 @@ const InfoCard = ({
                 {(layer.type === "layer" ||
                   layer.type === "object" ||
                   (layer.type === "workflow" &&
-                    !!layer.workflowLayers?.length)) &&
+                    (!!layer.workflowLayers?.length ||
+                      !!layer.tools?.length))) &&
                   (activeGroupTitle ? (
                     <span className="flex items-center gap-2 text-gray-600">
                       <FontAwesomeIcon icon={faLayerGroup} />
@@ -346,9 +345,9 @@ const InfoCard = ({
                     <h5 className="font-semibold text-lg">Implementierung</h5>
                     <p className="text-base text-gray-600">
                       Themenspezifische Kartenanwendung im Framework{" "}
-                      <a href="https://github.com/cismet/carma">carma</a>,
-                      durch Anpassen von Konfigurationsdateien aus den Daten
-                      und Methoden des DigiTal Zwillings abgeleitet ("Generic
+                      <a href="https://github.com/cismet/carma">carma</a>, durch
+                      Anpassen von Konfigurationsdateien aus den Daten und
+                      Methoden des DigiTal Zwillings abgeleitet ("Generic
                       TopicMap").
                     </p>
                   </>
@@ -358,9 +357,9 @@ const InfoCard = ({
                     <h5 className="font-semibold text-lg">Implementierung</h5>
                     <p className="text-base text-gray-600">
                       Themenspezifische Kartenanwendung im Framework{" "}
-                      <a href="https://github.com/cismet/carma">carma</a>,
-                      durch spezifische Programmierung aus den Daten und
-                      Methoden des DigiTal Zwillings abgeleitet.
+                      <a href="https://github.com/cismet/carma">carma</a>, durch
+                      spezifische Programmierung aus den Daten und Methoden des
+                      DigiTal Zwillings abgeleitet.
                     </p>
                   </>
                 )}
