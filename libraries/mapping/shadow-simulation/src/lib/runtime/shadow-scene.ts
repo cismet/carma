@@ -146,6 +146,7 @@ export type ShadowSimulationScene = {
   refreshProjectionDebug: () => void;
   updateShadowIntensity: (intensity: number) => void;
   updateMapStyleContentVisibility: (visible: boolean) => void;
+  updateMapStyleLabelOverlayVisibility: (visible: boolean) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
   updateAtmosphericLutUsage: (options: AtmosphericSunlightOptions) => void;
   dispose: () => void;
@@ -1905,6 +1906,10 @@ export const buildShadowSimulationScene = (
       if (mapStyleContentVisible === visible) return;
       mapStyleContentVisible = visible;
       syncMapStyleContentVisibility();
+      map.triggerRepaint();
+    },
+    updateMapStyleLabelOverlayVisibility(visible) {
+      sceneLease.setPointLabelOverlayVisible(visible);
       map.triggerRepaint();
     },
     updateSunDebugVectorVisibility(visible) {

@@ -67,12 +67,26 @@ const BASEMAP_DE_LOCATION_LABEL_HINT =
   /(?:^|[-_:])Name_(?:Staat(?:_DE)?|Bundesland|Landeshauptstadt|Stadtgemeinde(?:_|$)|Landgemeinde(?:_|$)|Ortsteil_(?:Gemeindeteil|Stadtteil)(?:_|$)|Wohnplatz(?:_|$))/i;
 
 const ROAD_LABEL_HINT =
-  /(?:road|street|strasse|stra(?:ss|ß)e|highway|motorway|transport|route|autobahn)/i;
+  /(?:road|street|strasse|stra(?:ss|ß)e|highway|motorway|transport|route|autobahn|verkehr|fahrbahn|fernverkehr|bundesstra)/i;
 
-/** Point-based place names that may remain crisp above the shaded scene. */
-export const isMapStyleLocationLabelLayer = (
+/**
+ * Point-anchored MapLibre symbols can be redrawn after the shared Three layer
+ * without duplicating the draped line labels. This includes place names,
+ * house numbers, POIs, and point road shields. Only a literal or omitted
+ * `symbol-placement` counts as point-anchored: a zoom function or expression
+ * (basemap.de street names switch between `line` and `line-center`) follows
+ * line features at some zoom and stays in the draped style.
+ */
+export const isMapStylePointLabelLayer = (
   layer: RuntimeStyleLayer
 ): boolean => {
+  if (layer.type !== "symbol") return false;
+  const placement = layer.layout?.["symbol-placement"];
+  return placement === undefined || placement === "point";
+};
+
+/** Identify road and route shields whose authored text/icon colors stay intact. */
+export const isMapStyleRoadLabelLayer = (layer: RuntimeStyleLayer): boolean => {
   if (layer.type !== "symbol") return false;
   const signature = [
     layer.id,
@@ -80,8 +94,21 @@ export const isMapStyleLocationLabelLayer = (
     layer.sourceLayer ?? layer["source-layer"],
     layer.metadata?.["layer-id"],
   ].join(":");
+  return ROAD_LABEL_HINT.test(signature);
+};
+
+/** Point-based place names that may remain crisp above the shaded scene. */
+export const isMapStyleLocationLabelLayer = (
+  layer: RuntimeStyleLayer
+): boolean => {
+  if (!isMapStylePointLabelLayer(layer)) return false;
+  const signature = [
+    layer.id,
+    layer.source,
+    layer.sourceLayer ?? layer["source-layer"],
+    layer.metadata?.["layer-id"],
+  ].join(":");
   if (ROAD_LABEL_HINT.test(signature)) return false;
-  if (layer.layout?.["symbol-placement"] === "line") return false;
   return (
     BASEMAP_DE_LOCATION_LABEL_HINT.test(signature) ||
     LOCATION_LABEL_HINT.test(signature)
