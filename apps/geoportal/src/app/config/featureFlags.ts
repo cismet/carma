@@ -51,6 +51,12 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "fz",
   },
+  // makes a checkout with cage behave like one without it, so the open-source
+  // fallbacks can be looked at without unlinking the submodule
+  featureFlagNoCage: {
+    default: false,
+    alias: "nocage",
+  },
 };
 
 type FeatureFlagConfigEntry = FeatureFlagConfig[string];

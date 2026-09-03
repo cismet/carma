@@ -33,6 +33,10 @@ import store from "../../store";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
+import {
+  useTimeSeriesLauncher,
+  type TimeSliderConfig,
+} from "@carma-mapping/addons";
 
 const ResourceModal = () => {
   const { setCurrentStyle } = useMapStyle();
@@ -86,6 +90,32 @@ const ResourceModal = () => {
     [getIsCesium, getIsLeaflet]
   );
 
+  const { toggleSeries } = useTimeSeriesLauncher();
+  /** a workflow card's timeSlider tool: its config is the series to run */
+  const startTimeSeries = useCallback(
+    (config: TimeSliderConfig) => {
+      const { wmsUrl, layers } = config;
+      if (!wmsUrl || !layers?.length) {
+        messageApi.open({
+          type: "error",
+          content: "Der Workflow enthält keine vollständige Zeitreihe.",
+        });
+        return;
+      }
+      toggleSeries({
+        title: config.title ?? "Zeitreihe",
+        wmsUrl,
+        layers,
+        labels: config.labels ?? [],
+        styles: config.styles ?? "",
+        intermediateValuesCount: config.intermediateValuesCount,
+        opacity: config.opacity,
+        initialStep: config.initialStep,
+      });
+    },
+    [toggleSeries, messageApi]
+  );
+
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({
       dispatch,
@@ -102,6 +132,7 @@ const ResourceModal = () => {
       setCurrentStyle,
       messageApi,
       addLayerById,
+      startTimeSeries,
     }),
     { measurements }
   );

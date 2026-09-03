@@ -40,6 +40,11 @@ import {
 } from "../../helper/adhoc-layer-feature";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import { AddLayerOptions } from "@carma-mapping/carma-map-api";
+import {
+  resolveAddonEntries,
+  type AddonEntry,
+  type TimeSliderConfig,
+} from "@carma-mapping/addons";
 
 type MessageType = "success" | "error";
 
@@ -97,6 +102,11 @@ type ResourceLayerUpdaterDeps = {
     id: string,
     options?: AddLayerOptions
   ) => Promise<Layer | undefined>;
+  /**
+   * Launches (or toggles) the time series a workflow card carries in its
+   * `timeSlider` tool. Supplied by ResourceModal from `useTimeSeriesLauncher`.
+   */
+  startTimeSeries?: (config: TimeSliderConfig) => void;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -532,6 +542,7 @@ export const createResourceLayerUpdater = ({
   messageApi,
   maxLayers = DEFAULT_MAX_LAYERS,
   addLayerById,
+  startTimeSeries,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -540,6 +551,21 @@ export const createResourceLayerUpdater = ({
     previewLayer: boolean = false,
     updateExisting: boolean = false
   ) => {
+    // A workflow whose tools carry a time series is not a layer group: the
+    // card launches the series into the timeSlider engine its route mounts,
+    // and a second click on the running series switches it off again.
+    if (layer.type === "workflow" && startTimeSeries) {
+      // `Item.tools` is the layer catalog's wider ToolEntry shape;
+      // resolveAddonEntries drops every kind the addon registry does not know
+      const timeSeriesTool = resolveAddonEntries(
+        layer.tools as AddonEntry[] | undefined
+      ).find((entry) => entry.kind === "timeSlider");
+      if (timeSeriesTool) {
+        startTimeSeries(timeSeriesTool.config ?? {});
+        return;
+      }
+    }
+
     if (layer.type === "workflow" && (layer.workflowLayers?.length ?? 0) > 0) {
       await applyWorkflowLayerGroup({
         item: layer,
