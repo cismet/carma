@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   acquireMapLibreTerrainMeshComposition,
   getMapLibreLayerOpacityProperties,
+  isMapStyleLabelLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   notifyMapLibreStyleCompositionReady,
   notifyMapLibreStyleCompositionStarted,
@@ -87,6 +88,18 @@ const createMap = (initialLayers: TestLayer[]) => {
 };
 
 describe("MapLibre regular style layer suppression", () => {
+  it("separates ground linework from labels that must remain above Three", () => {
+    expect(isMapStyleLabelLayer({ id: "roads", type: "line" })).toBe(false);
+    expect(isMapStyleLabelLayer({ id: "labels", type: "symbol" })).toBe(true);
+    expect(
+      isMapStyleLabelLayer({
+        id: "raster-dop-overlay-1-raster",
+        type: "raster",
+        source: "rvrSchriftNT",
+      })
+    ).toBe(true);
+  });
+
   it("makes every opacity-capable regular layer transparent and restores exact values", () => {
     const layerTypes = [
       "background",

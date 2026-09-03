@@ -1481,4 +1481,58 @@ describe("three tiles runtime styling", () => {
 
     layer.dispose();
   });
+
+  it("projects the map style onto terrain but not separated LoD2 surfaces", () => {
+    const layer = buildThreeTilesRuntime(
+      "lod2-native",
+      "tileset.json",
+      [7.15, 51.25],
+      { providesTerrain: true, shadowBuildingStyle: true }
+    );
+    const parent = new THREE.Group();
+    const buildSurface = (name: string) => {
+      const material = new THREE.MeshLambertMaterial();
+      material.name = name;
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+      parent.add(mesh);
+      return mesh;
+    };
+    const terrain = buildSurface("terrain");
+    const roof = buildSurface("roof");
+    const wall = buildSurface("wall");
+    layer.root.add(parent);
+
+    const initialVersion = layer.mapStyleProjectionVersion?.() ?? -1;
+    layer.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: null,
+    });
+    const receivesMapStyle = layer.receivesMapStyleTexture;
+
+    expect(typeof receivesMapStyle).toBe("function");
+    expect(
+      (receivesMapStyle as (material: THREE.Material) => boolean)(
+        terrain.material as THREE.Material
+      )
+    ).toBe(true);
+    expect(
+      (receivesMapStyle as (material: THREE.Material) => boolean)(
+        roof.material as THREE.Material
+      )
+    ).toBe(false);
+    expect(
+      (receivesMapStyle as (material: THREE.Material) => boolean)(
+        wall.material as THREE.Material
+      )
+    ).toBe(false);
+    expect(layer.mapStyleProjectionVersion?.()).toBeGreaterThan(initialVersion);
+    const styledVersion = layer.mapStyleProjectionVersion?.();
+    layer.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: null,
+    });
+    expect(layer.mapStyleProjectionVersion?.()).toBe(styledVersion);
+
+    layer.dispose();
+  });
 });

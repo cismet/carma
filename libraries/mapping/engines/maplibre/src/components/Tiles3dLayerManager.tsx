@@ -9,7 +9,6 @@ import {
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
-import { acquireMapLibreTerrainMeshComposition } from "../lib/runtime/integrations/map-style-layer-suppression";
 import {
   buildThreeTilesRuntime,
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
@@ -148,9 +147,6 @@ export function Tiles3dLayerManager({
     );
     runtime.setOutlineVisible(initialConfig.outline ?? true);
     runtimeRef.current = runtime;
-    const releaseMapStyleComposition = config.providesTerrain
-      ? acquireMapLibreTerrainMeshComposition(map)
-      : undefined;
     lease.layer.addRuntime(runtime);
     // What lets the camera restriction know the map has become three
     // dimensional. A tileset stays out of the raycast registry, which
@@ -165,7 +161,6 @@ export function Tiles3dLayerManager({
       if (lease.layer.hasRuntime(runtime.id)) {
         lease.layer.removeRuntime(runtime.id);
       }
-      releaseMapStyleComposition?.();
       lease.release();
     };
   }, [map, config.tilesetUrl, config.providesTerrain]);

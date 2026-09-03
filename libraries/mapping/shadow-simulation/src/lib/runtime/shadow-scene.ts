@@ -786,6 +786,7 @@ export const buildShadowSimulationScene = (
       [mapCenter.lng, mapCenter.lat],
       {
         ...runtimeOptions,
+        receivesMapStyleTexture: true,
         onContentChanged: () => refreshTerrainShadowState(),
       }
     );

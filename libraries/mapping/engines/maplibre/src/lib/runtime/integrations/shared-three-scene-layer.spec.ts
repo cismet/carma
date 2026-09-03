@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildSharedThreeSceneLayer,
+  clearDepthBeforeThreeTerrain,
   clearDepthForMapStyleOverlays,
+  configureMapStyleProjectedMaterial,
   configureSharedRenderCamera,
   installRenderTargetDepthRangeBridge,
   syncSharedCanvasViewport,
@@ -19,6 +21,40 @@ const expectMatrixToBeCloseTo = (
 };
 
 describe("shared Three.js scene layer", () => {
+  it("projects the captured MapLibre ground pass before terrain lighting", () => {
+    const material = new THREE.MeshLambertMaterial();
+    const texture = new THREE.Texture();
+    const sceneToClip = new THREE.Matrix4().makeTranslation(1, 2, 3);
+    const uniforms = {
+      texture: { value: texture },
+      sceneToClip: { value: sceneToClip },
+      enabled: { value: 1 },
+    };
+    const shader = {
+      uniforms: {},
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader: "#include <common>\n#include <map_fragment>",
+    };
+
+    configureMapStyleProjectedMaterial(material, uniforms);
+    material.onBeforeCompile(shader as never, {} as never);
+
+    expect(shader.uniforms).toMatchObject({
+      carmaMapStyleTexture: uniforms.texture,
+      carmaMapStyleSceneToClip: uniforms.sceneToClip,
+      carmaMapStyleEnabled: uniforms.enabled,
+    });
+    expect(shader.vertexShader).toContain(
+      "carmaMapStyleSceneToClip * modelMatrix"
+    );
+    expect(shader.fragmentShader).toContain(
+      "diffuseColor.rgb = carmaMapStyleSRGBToLinear"
+    );
+    expect(material.customProgramCacheKey()).toContain(
+      "carma-map-style-projection-v1"
+    );
+  });
+
   it("clears mesh depth before MapLibre draws labels and linework", () => {
     const gl = {
       DEPTH_BUFFER_BIT: 0x00000100,
@@ -37,6 +73,24 @@ describe("shared Three.js scene layer", () => {
     ]);
     expect(gl.clearDepth).toHaveBeenCalledWith(1);
     expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
+  });
+
+  it("clears MapLibre DEM depth before Three replaces the visible ground", () => {
+    const gl = {
+      DEPTH_BUFFER_BIT: 0x00000100,
+      clear: vi.fn(),
+      clearDepth: vi.fn(),
+      depthMask: vi.fn(),
+      depthRange: vi.fn(),
+    };
+
+    clearDepthBeforeThreeTerrain(gl, [0, 0.985]);
+
+    expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
+    expect(gl.depthRange.mock.calls).toEqual([
+      [0, 1],
+      [0, 0.985],
+    ]);
   });
 
   it("uses a real camera view without changing MapLibre's scene-to-clip matrix", () => {

@@ -61,7 +61,7 @@ describe("shared Three.js scene registry", () => {
 
     expect(first.layer).toBe(second.layer);
     expect(buildSharedThreeSceneLayer).toHaveBeenCalledOnce();
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, "roads");
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer, "labels");
 
     first.release();
     expect(dispose).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe("shared Three.js scene registry", () => {
     lease.release();
   });
 
-  it("moves the shared layer behind live overlays after the style grows", () => {
+  it("moves the shared layer after ground styling and before labels", () => {
     const layers = [
       { id: "basemap", type: "raster" },
       { id: sharedLayer.id, type: "custom" },
@@ -113,7 +113,10 @@ describe("shared Three.js scene registry", () => {
       layers.splice(beforeIndex, 0, current);
     });
     const map = {
-      getStyle: vi.fn(() => ({ layers })),
+      getStyle: vi.fn(() => ({
+        layers: layers.filter(({ id }) => id !== sharedLayer.id),
+      })),
+      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
       getLayer: vi.fn(() => ({ implementation: sharedLayer })),
       addLayer: vi.fn(),
       moveLayer,
@@ -124,18 +127,18 @@ describe("shared Three.js scene registry", () => {
 
     const lease = acquireSharedThreeScene(map as never);
 
-    expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id, "roads");
+    expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id, "labels");
     expect(layers.map(({ id }) => id)).toEqual([
       "basemap",
       "landcover",
-      sharedLayer.id,
       "roads",
+      sharedLayer.id,
       "labels",
     ]);
     lease.release();
   });
 
-  it("inserts Three after the RVR ground-plan but before its label raster", () => {
+  it("keeps RVR label rasters sharp above Three", () => {
     const addLayer = vi.fn();
     const map = {
       getStyle: vi.fn(() => ({

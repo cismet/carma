@@ -83,6 +83,8 @@ export type CesiumTerrainRuntimeOptions = Readonly<{
   /** Conservative elevation range used until a tile or ancestor is loaded. */
   heightRangeMeters?: readonly [minimum: number, maximum: number];
   material?: CesiumTerrainMaterialOptions;
+  /** Project MapLibre ground styling onto this terrain before lighting. */
+  receivesMapStyleTexture?: boolean;
   /** Called after the active terrain meshes or their normals changed. */
   onContentChanged?: () => void;
   onError?: (error: unknown) => void;
@@ -489,6 +491,7 @@ export const buildCesiumTerrainRuntime = (
     shadowSide: FrontSide,
   });
   const coverageMaterial = material.clone();
+  let mapStyleProjectionVersion = 0;
   coverageMaterial.polygonOffset = true;
   coverageMaterial.polygonOffsetFactor = 1;
   coverageMaterial.polygonOffsetUnits = 1;
@@ -737,6 +740,7 @@ export const buildCesiumTerrainRuntime = (
     }
     node.visible = false;
     root.add(node);
+    mapStyleProjectionVersion += 1;
     const filterReliefBoundary = (indices: Uint32Array | undefined) =>
       Uint32Array.from(
         [...(indices ?? [])].filter((index) => reliefVertexMask[index] === 1)
@@ -1424,6 +1428,7 @@ export const buildCesiumTerrainRuntime = (
       coverageMesh.receiveShadow = true;
       coverageMesh.userData.disableShadowCasting = true;
       root.add(coverageMesh);
+      mapStyleProjectionVersion += 1;
       return;
     }
     coverageMesh.geometry.dispose();
@@ -1576,6 +1581,9 @@ export const buildCesiumTerrainRuntime = (
     id: runtimeId,
     originLngLat,
     root,
+    providesTerrain: true,
+    receivesMapStyleTexture: options.receivesMapStyleTexture === true,
+    mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
     onAdd(mapInstance) {
