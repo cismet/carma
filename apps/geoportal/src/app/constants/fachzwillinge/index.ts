@@ -248,28 +248,33 @@ const withPreFachzwillingeCategoryLabels = (
  * into the "Themenzwillinge" section (before "TopicMaps Wuppertal"). When the
  * active route defines workflow perspectives, a "Workflows" section is
  * appended after the Themenzwillinge; the default route passes no perspectives
- * and therefore shows no workflows. While the feature flag is off, the
- * categories keep their previous labels instead.
+ * and therefore shows no workflows. The workflows do not depend on the
+ * Fachzwillinge feature flag: a route that defines perspectives is already
+ * gated by its own availability. While the flag is off, the categories keep
+ * their previous labels and the "Fachzwillinge" subcategory is left out.
  */
 export const getGeoportalCategoryDefinitions = (
   perspectives?: WorkflowPerspective<AddonEntry>[]
 ): CategoryDefinition[] => {
-  if (!isFachzwillingeEnabled) {
-    return withPreFachzwillingeCategoryLabels(defaultCategoryDefinitions);
-  }
-  return defaultCategoryDefinitions.flatMap((definition) =>
+  const workflowsCategory = perspectives?.length
+    ? [buildWorkflowsCategoryDefinition(perspectives)]
+    : [];
+  const baseDefinitions = isFachzwillingeEnabled
+    ? defaultCategoryDefinitions
+    : withPreFachzwillingeCategoryLabels(defaultCategoryDefinitions);
+  return baseDefinitions.flatMap((definition) =>
     definition.id === "partialTwins"
       ? [
-          {
-            ...definition,
-            staticCategories: [
-              fachzwillingeSubCategory,
-              ...(definition.staticCategories ?? []),
-            ],
-          },
-          ...(perspectives?.length
-            ? [buildWorkflowsCategoryDefinition(perspectives)]
-            : []),
+          isFachzwillingeEnabled
+            ? {
+                ...definition,
+                staticCategories: [
+                  fachzwillingeSubCategory,
+                  ...(definition.staticCategories ?? []),
+                ],
+              }
+            : definition,
+          ...workflowsCategory,
         ]
       : [definition]
   );
