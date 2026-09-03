@@ -85,6 +85,21 @@ const SOURCE_RETRY_DELAYS_MS: readonly number[] = [1_000, 3_000, 8_000, 15_000];
  * recovering afterwards. Without a retry the scene would keep the flat
  * fallback plane for the rest of the session.
  */
+/**
+ * The browser may have cached an error response for `layer.json` (a 503 from
+ * a short outage stays in the HTTP cache and lacks the CORS headers, so every
+ * later request fails from cache while the server is long back). Fetching it
+ * with `reload` replaces that entry, and Cesium's own request then hits the
+ * fresh copy.
+ */
+const refreshLayerJsonCache = async (url: string): Promise<void> => {
+  try {
+    await fetch(`${url.replace(/\/+$/, "")}/layer.json`, { cache: "reload" });
+  } catch {
+    // The retry itself reports a failure.
+  }
+};
+
 const acquireSourceWithRetry = async (
   url: string,
   maxCacheBytes: number | undefined,
@@ -105,6 +120,7 @@ const acquireSourceWithRetry = async (
       // retry pause must not hold the buildings back.
       onRetryWait();
       await new Promise((resolve) => setTimeout(resolve, delay));
+      await refreshLayerJsonCache(url);
     }
   }
 };
