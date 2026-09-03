@@ -44,8 +44,38 @@ export {
   usePersistedAddonOverrides,
 } from "./lib/addon-overrides-storage";
 
-export { isCagedAvailable } from "./lib/caged-addons";
-export type { CageIndicatorBadgeConfig } from "./lib/caged-addons";
+export {
+  isCagedAvailable,
+  useIsCagedAvailable,
+  useCageDisabled,
+  useCreateBlendLayer,
+  NO_CAGE_FLAG,
+} from "./lib/caged-addons";
+export type {
+  BlendLayerHandle,
+  BlendLayerOptions,
+  CageIndicatorBadgeConfig,
+} from "./lib/caged-addons";
+
+export {
+  TimeSlider,
+  TimeSliderPanel,
+  TimeSliderInteractionPanel,
+  useTimeSliderActions,
+  useTimeSeriesLauncher,
+  useTimeSliderLayerRow,
+  getTimeSliderRowSeed,
+  TIME_SLIDER_ICON_COLOR,
+  TIME_SLIDER_LAYER,
+  TIME_SLIDER_LAYER_ID,
+  TIME_SLIDER_PLAY_TOGGLE_ID,
+  TIME_SLIDER_TOOLS_INTERACTION_ID,
+  TIME_SLIDER_STATE_DEFAULT,
+  type TimeSeriesDefinition,
+  type TimeSliderConfig,
+  type TimeSliderState,
+  type UseTimeSliderLayerRowOptions,
+} from "./addons/TimeSlider";
 
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";

@@ -6,6 +6,10 @@ import {
   HighlightInteractionPanel,
   HIGHLIGHT_TOOLS_INTERACTION_ID,
 } from "../addons/VectorHighlight";
+import {
+  TimeSliderInteractionPanel,
+  TIME_SLIDER_TOOLS_INTERACTION_ID,
+} from "../addons/TimeSlider";
 
 /**
  * Panels addons contribute to the host's interaction view, keyed by the id of
@@ -17,4 +21,5 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   ComponentType<{ layer: Layer }>
 > = {
   [HIGHLIGHT_TOOLS_INTERACTION_ID]: HighlightInteractionPanel,
+  [TIME_SLIDER_TOOLS_INTERACTION_ID]: TimeSliderInteractionPanel,
 };

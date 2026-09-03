@@ -1,5 +1,6 @@
 import {
   faCircle,
+  faClock,
   faGlobe,
   faLayerGroup,
   faObjectGroup,
@@ -12,6 +13,7 @@ export const iconMap = {
   measurement: faRuler,
   highlight: faObjectGroup,
   comparing: faTableColumns,
+  timeSeries: faClock,
   background: faLayerGroup,
   ortho: faGlobe,
 };

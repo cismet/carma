@@ -46,6 +46,7 @@ export const SWITCHABLE_KINDS = [
   "libreTerrain",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
+  "timeSlider",
   "cageIndicatorBadge",
 ] as const satisfies readonly BareAddonKind[];
 

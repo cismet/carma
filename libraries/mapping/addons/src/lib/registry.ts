@@ -52,6 +52,11 @@ import {
   type VisibleFeatureStatsState,
 } from "../addons/VisibleFeatureStatsSource";
 import {
+  TimeSlider,
+  type TimeSliderConfig,
+  type TimeSliderState,
+} from "../addons/TimeSlider";
+import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
@@ -98,6 +103,8 @@ export type AddonConfigMap = {
   outlet: OutletConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
+  /** WMS time-series transport; the interpolation behind it is caged */
+  timeSlider: TimeSliderConfig;
   zoomToExtent: ZoomToExtentConfig;
   /** implemented in cage; renders nothing when cage is absent */
   cageIndicatorBadge: CageIndicatorBadgeConfig;
@@ -119,6 +126,12 @@ export type AddonStateMap = {
   compareState: CompareState;
   /** the assignable layer blocks, with the titles the layer bar shows */
   compareLayers: CompareLayerEntry[];
+  /**
+   * the running WMS time series: its steps, the position the slider sits on and
+   * the transport; see `TimeSlider`. Read by the layer-bar row and the ribbon,
+   * which sit in the host's tree rather than in the addon's.
+   */
+  timeSeries: TimeSliderState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -271,6 +284,7 @@ export const addonRegistry: {
     Component: VisibleFeatureStatsPanel,
     requires: ["visibleFeatureStats"],
   },
+  timeSlider: { Component: TimeSlider, provides: ["timeSeries"] },
   zoomToExtent: { trigger: zoomToExtentTrigger },
   // Component is undefined when cage is absent; AddonHost renders nothing then.
   cageIndicatorBadge: { Component: CageIndicatorBadge },
