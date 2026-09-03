@@ -50,7 +50,9 @@ import {
 } from "../core/shadow-types";
 import {
   buildShadowSimulationScene,
+  DEFAULT_SHADOW_SURFACE_MODE,
   type ShadowSimulationScene,
+  type ShadowSurfaceMode,
   type ShadowTerrainOptions,
 } from "../runtime/shadow-scene";
 import { ShadowProjectionDebugView } from "./ShadowProjectionDebugView";
@@ -130,6 +132,8 @@ export type ShadowSimulationState = {
   meshTextureSaturation?: number;
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
+  /** `clay` paints the scene's own ground, `map` shadows the MapLibre style. */
+  surfaceMode?: ShadowSurfaceMode;
   meshErrorTarget?: MeshErrorTargetPixels;
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;
@@ -239,6 +243,16 @@ const QUICK_BUTTON_CLASS_NAME =
   "flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-neutral-300 bg-white px-1 text-center text-sm text-neutral-800 transition-colors hover:border-amber-500 hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40";
 const SEGMENT_BUTTON_CLASS_NAME =
   "h-8 whitespace-nowrap border-r border-neutral-300 px-3 text-sm text-neutral-700 transition-colors last:border-r-0 hover:text-amber-700";
+
+const DEFAULT_SURFACE_MODE: ShadowSurfaceMode = DEFAULT_SHADOW_SURFACE_MODE;
+
+const SURFACE_MODES: ReadonlyArray<{
+  label: string;
+  value: ShadowSurfaceMode;
+}> = [
+  { label: "Tonmodell", value: "clay" },
+  { label: "Karte", value: "map" },
+];
 
 const SHADOW_QUALITY_LEVELS: ReadonlyArray<{
   label: string;
@@ -659,6 +673,31 @@ const ShadowQuickSettings = ({
             />
           </label>
           <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+            <span>Untergrund</span>
+            <div
+              className="inline-flex w-fit max-w-full overflow-hidden whitespace-nowrap rounded-md border border-neutral-300"
+              data-test-id="shadow-simulation-surface-mode"
+            >
+              {SURFACE_MODES.map(({ label, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`${SEGMENT_BUTTON_CLASS_NAME} px-2.5 ${
+                    (state.surfaceMode ?? DEFAULT_SURFACE_MODE) === value
+                      ? "bg-amber-50"
+                      : "bg-white"
+                  }`}
+                  aria-pressed={
+                    (state.surfaceMode ?? DEFAULT_SURFACE_MODE) === value
+                  }
+                  onClick={() => setState({ ...state, surfaceMode: value })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
             <span>Qualität</span>
             <div
               className="inline-flex w-fit max-w-full overflow-hidden whitespace-nowrap rounded-md border border-neutral-300"
@@ -837,6 +876,7 @@ const ShadowSimulationRuntime = ({
       scene = buildShadowSimulationScene(libreMap, {
         shadowAreaMeters,
         terrain,
+        surfaceMode: state.surfaceMode ?? DEFAULT_SURFACE_MODE,
       });
       shadowScene.current = scene;
       setSceneRevision((revision) => revision + 1);
@@ -933,6 +973,13 @@ const ShadowSimulationRuntime = ({
     state.useTransmittanceLut,
     sceneRevision,
   ]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateSurfaceMode(
+      state.surfaceMode ?? DEFAULT_SURFACE_MODE
+    );
+  }, [state.enabled, state.surfaceMode, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;

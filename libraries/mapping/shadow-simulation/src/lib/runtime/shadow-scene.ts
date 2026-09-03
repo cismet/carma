@@ -117,7 +117,20 @@ type GenericThreeShadowBridge = {
 export type ShadowSceneOptions = {
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
+  surfaceMode?: ShadowSurfaceMode;
 };
+
+/**
+ * What the simulation puts on the ground.
+ *
+ * `clay` is the study look: MapLibre's style and terrain step aside and the
+ * scene paints its own shaded surface.
+ * `map` keeps the MapLibre style and terrain and draws only the shadow term
+ * over it, so labels, POIs and every raster layer stay where they are.
+ */
+export type ShadowSurfaceMode = "clay" | "map";
+
+export const DEFAULT_SHADOW_SURFACE_MODE: ShadowSurfaceMode = "clay";
 
 export type ShadowTerrainOptions = Readonly<{ url: string }> &
   Omit<CesiumTerrainRuntimeOptions, "onError" | "onContentChanged">;
@@ -134,6 +147,7 @@ const SHADOW_SIMULATION_BACKGROUND_LAYER_ID = "__shadow-simulation-background";
 export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
+  updateSurfaceMode: (mode: ShadowSurfaceMode) => void;
   updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
@@ -747,16 +761,64 @@ export const buildShadowSimulationScene = (
     useIrradianceLut: true,
   };
   let disposed = false;
-  const restoreMapLibreStyleLayers = suppressMapLibreRegularStyleLayers(map);
+  let surfaceMode: ShadowSurfaceMode =
+    options.surfaceMode ?? DEFAULT_SHADOW_SURFACE_MODE;
+  // Over the map the ground is MapLibre's own terrain, shaded by the ground
+  // shadow pass; a Cesium surface there could only disagree with it.
+  const terrainSurfaceModeFor = (mode: ShadowSurfaceMode) =>
+    mode === "map" ? ("hidden" as const) : ("opaque" as const);
+  // The clay background is ours; the suppression must leave it alone, or it
+  // and ensureShadowBackground would flip its opacity on every styledata.
+  const suppressStyleLayers = () =>
+    suppressMapLibreRegularStyleLayers(map, {
+      keepLayerIds: [SHADOW_SIMULATION_BACKGROUND_LAYER_ID],
+    });
+  let restoreMapLibreStyleLayers: (() => void) | null =
+    surfaceMode === "clay" ? suppressStyleLayers() : null;
   let terrainColor = new THREE.Color(
     terrain?.material?.color ?? DEFAULT_SHADOW_SURFACE_COLOR
   );
+  /**
+   * Restoring the style writes hundreds of paint properties at once, and the
+   * accumulated frame that was settled for the previous mode stays on screen
+   * until something asks for another frame. One repaint in the same tick can
+   * land before all of that has taken effect, so ask again over the next few
+   * frames.
+   */
+  const requestSettlingRepaints = (frames = 12) => {
+    let remaining = frames;
+    const step = () => {
+      if (disposed || remaining <= 0) return;
+      remaining -= 1;
+      map.triggerRepaint();
+      requestAnimationFrame(step);
+    };
+    step();
+  };
+  const removeShadowBackground = () => {
+    try {
+      if (map.getLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID)) {
+        map.removeLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID);
+      }
+    } catch {
+      // A style replacement or map teardown can race this callback.
+    }
+  };
   const ensureShadowBackground = () => {
-    if (disposed || !map.isStyleLoaded()) return;
+    if (disposed) return;
+    if (surfaceMode !== "clay") {
+      removeShadowBackground();
+      return;
+    }
     const color = `#${terrainColor.getHexString()}`;
     try {
+      // Deliberately not isStyleLoaded(): that reports false while any
+      // source still loads tiles, which on this map is most of the time,
+      // and the clay study would keep its empty canvas showing wherever
+      // the terrain does not reach. Adding a layer only needs the list.
+      const firstLayerId = map.getStyle()?.layers?.[0]?.id;
+      if (!firstLayerId) return;
       if (!map.getLayer(SHADOW_SIMULATION_BACKGROUND_LAYER_ID)) {
-        const firstLayerId = map.getStyle().layers?.[0]?.id;
         map.addLayer(
           {
             id: SHADOW_SIMULATION_BACKGROUND_LAYER_ID,
@@ -824,7 +886,7 @@ export const buildShadowSimulationScene = (
     if (!terrain) return null;
     const mapCenter = map.getCenter();
     const { url, ...runtimeOptions } = terrain;
-    return buildCesiumTerrainRuntime(
+    const runtime = buildCesiumTerrainRuntime(
       SHADOW_SIMULATION_TERRAIN_RUNTIME_ID,
       url,
       [mapCenter.lng, mapCenter.lat],
@@ -833,6 +895,10 @@ export const buildShadowSimulationScene = (
         onContentChanged: () => refreshTerrainShadowState(),
       }
     );
+    // A scene that starts in map mode never passes through updateSurfaceMode,
+    // so the surface has to be set here rather than on the first switch.
+    runtime.setSurfaceMode(terrainSurfaceModeFor(surfaceMode));
+    return runtime;
   };
   const sharedSceneProvidesTerrain = () =>
     getSharedThreeSceneRuntimes(map).some(
@@ -973,6 +1039,9 @@ export const buildShadowSimulationScene = (
       sample.skyFrame,
       atmosphericSunlight.skyTextures
     );
+    if (surfaceMode !== "clay") {
+      sharedBinding.atmosphericSky.mesh.visible = false;
+    }
     applyAtmosphericSkyLightToBinding(sharedBinding, sample);
     applySolarPositionToBinding(
       sharedBinding,
@@ -1435,6 +1504,7 @@ export const buildShadowSimulationScene = (
   map.on("moveend", handleMoveEnd);
   map.on("resize", handleResize);
   const suppressMapLibreTerrain = () => {
+    if (surfaceMode !== "clay") return;
     restoreMapLibreTerrain ??= suppressMapLibreTerrainRendering(map);
   };
   const watchTerrainRuntime = (runtime: NonNullable<typeof terrainRuntime>) => {
@@ -1586,6 +1656,25 @@ export const buildShadowSimulationScene = (
       terrainColor = nextColor;
       ensureShadowBackground();
     },
+    updateSurfaceMode(mode) {
+      if (disposed || surfaceMode === mode) return;
+      surfaceMode = mode;
+      if (mode === "map") {
+        restoreMapLibreStyleLayers?.();
+        restoreMapLibreStyleLayers = null;
+        restoreMapLibreTerrain?.();
+        restoreMapLibreTerrain = null;
+        removeShadowBackground();
+        sharedBinding.atmosphericSky.mesh.visible = false;
+      } else {
+        restoreMapLibreStyleLayers ??= suppressStyleLayers();
+          suppressMapLibreTerrain();
+        ensureShadowBackground();
+      }
+      terrainRuntime?.setSurfaceMode(terrainSurfaceModeFor(mode));
+      invalidateShadowPresentation();
+      requestSettlingRepaints();
+    },
     updateMeshErrorTarget(errorTarget) {
       if (latestMeshErrorTarget === errorTarget) return;
       latestMeshErrorTarget = errorTarget;
@@ -1713,7 +1802,7 @@ export const buildShadowSimulationScene = (
         // The style may already be gone during map teardown.
       }
       try {
-        restoreMapLibreStyleLayers();
+        restoreMapLibreStyleLayers?.();
       } catch {
         // The style may already be gone during map teardown.
       }

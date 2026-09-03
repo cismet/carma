@@ -375,7 +375,9 @@ describe("shadow scene lighting integration", () => {
     ).toEqual([7_150, 100, 51_256]);
 
     controller.dispose();
-    expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);
+    expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map, {
+      keepLayerIds: ["__shadow-simulation-background"],
+    });
     expect(
       vi.mocked(suppressMapLibreRegularStyleLayers).mock.results[0]?.value
     ).toHaveBeenCalledOnce();
