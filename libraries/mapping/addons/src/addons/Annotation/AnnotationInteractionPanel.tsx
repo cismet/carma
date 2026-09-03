@@ -28,7 +28,8 @@ export const AnnotationInteractionPanel = () => {
     () =>
       groups.map((group, index) => ({
         id: group.id,
-        label: `${index + 1}`,
+        // only the first one is spelled out, the rest read as a numbered list
+        label: index === 0 ? `Zeichnung 1` : `${index + 1}`,
         name: `Zeichnung ${index + 1}`,
         // locked means nothing is being edited, so nothing is picked out
         active: !isLocked && group.id === activeId,
