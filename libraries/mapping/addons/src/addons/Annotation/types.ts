@@ -49,6 +49,18 @@ export type AnnotationSyncLimits = {
   zoom?: boolean;
 };
 
+/**
+ * The window a drawing lives in, as a percentage of its anchor scale — the
+ * same number excalidraw shows in its zoom widget. Leaving it starts the next
+ * drawing at the current view.
+ */
+export type AnnotationZoomRange = {
+  /** furthest zoomed out, in percent. Default: 25, useful floor 10 */
+  min?: number;
+  /** furthest zoomed in, in percent. Default: 400, useful ceiling 3000 */
+  max?: number;
+};
+
 export type AnnotationOverlayConfig = {
   /** stacking inside the map wrapper. Default: 500 */
   zIndex?: number;
@@ -66,6 +78,7 @@ export type AnnotationOverlayConfig = {
   hideWhenOff?: boolean;
   shapeTools?: boolean;
   syncLimits?: AnnotationSyncLimits;
+  zoomRange?: AnnotationZoomRange;
   hideZoom?: boolean;
   background?: string;
   backgroundOpacity?: number;

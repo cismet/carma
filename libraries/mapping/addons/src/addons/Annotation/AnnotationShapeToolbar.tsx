@@ -2,7 +2,6 @@ import {
   faLock,
   faLockOpen,
   faMagnifyingGlass,
-  faPlus,
   faRotateLeft,
   faRotateRight,
   faXmark,
@@ -50,7 +49,6 @@ export type AnnotationShapeToolbarProps = {
   onDeleteDrawing?: (id: string) => void;
   isLocked?: boolean;
   onToggleLock?: () => void;
-  onAddGroup?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
 };
@@ -65,7 +63,6 @@ export const AnnotationShapeToolbar = ({
   onDeleteDrawing,
   isLocked = false,
   onToggleLock,
-  onAddGroup,
   onUndo,
   onRedo,
 }: AnnotationShapeToolbarProps) => (
@@ -132,22 +129,6 @@ export const AnnotationShapeToolbar = ({
         )}
       </div>
     ))}
-    {onAddGroup && (
-      <Tooltip title="Neue Zeichnung beginnen" placement="bottom">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddGroup();
-          }}
-          aria-label="Neue Zeichnung beginnen"
-          data-test-id="annotation-add-drawing"
-          className={[BUTTON, INACTIVE].join(" ")}
-        >
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
-      </Tooltip>
-    )}
     {/* {onToggleLock && (
       <Tooltip
         title={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
@@ -168,7 +149,7 @@ export const AnnotationShapeToolbar = ({
         </button>
       </Tooltip>
     )} */}
-    {(onToggleLock || onAddGroup) && shapes.length > 0 && (
+    {drawings.length > 0 && shapes.length > 0 && (
       <span className={DIVIDER} aria-hidden />
     )}
     {shapes.map((entry) => {
