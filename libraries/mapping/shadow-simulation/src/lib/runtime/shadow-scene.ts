@@ -8,6 +8,7 @@ import {
   getGenericThreeLayers,
   getSharedThreeShadowViewSignature,
   getSharedThreeSceneRuntimes,
+  isMapStyleContourLineLayer,
   subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
@@ -128,6 +129,19 @@ export type ShadowSceneOptions = {
 export type ShadowTerrainOptions = Readonly<{ url: string }> &
   Omit<CesiumTerrainRuntimeOptions, "onError" | "onContentChanged">;
 
+/**
+ * What the MapLibre pass below Three contributes to the projected drape:
+ * `opaque` paints the complete basemap onto bare terrain, `labels` keeps only
+ * the symbol layers so a textured mesh takes draped street names and nothing
+ * else.
+ */
+export type ShadowMapStyleDrapeMode = "opaque" | "labels";
+
+export type ShadowMapLibreTerrainRelease = (() => void) & {
+  /** Re-evaluate the drape mode after the shared scene's runtimes changed. */
+  refresh: () => void;
+};
+
 export type ShadowBuildingAppearance = Readonly<{
   fullOpacity: boolean;
   uniformColor: string | null;
@@ -160,8 +174,9 @@ export type ShadowSimulationScene = {
 export const acquireShadowMapLibreTerrain = (
   map: MaplibreMap,
   sourceId = WUPPERTAL_TERRAIN_SOURCE_ID,
-  isMapStyleContentVisible: () => boolean = () => true
-): (() => void) => {
+  isMapStyleContentVisible: () => boolean = () => true,
+  getDrapeMode: () => ShadowMapStyleDrapeMode = () => "opaque"
+): ShadowMapLibreTerrainRelease => {
   type InternalTerrain = {
     getMeshFrameDelta?: (zoom: number) => number;
   };
@@ -182,7 +197,7 @@ export const acquireShadowMapLibreTerrain = (
     typeof terrainMap.getSource !== "function" ||
     typeof terrainMap.setTerrain !== "function"
   ) {
-    return () => undefined;
+    return Object.assign(() => undefined, { refresh: () => undefined });
   }
   const previousTerrain = terrainMap.getTerrain();
   const savedDrapeOpacities = new Map<
@@ -193,6 +208,16 @@ export const acquireShadowMapLibreTerrain = (
     string,
     { signature: string; value: unknown }
   >();
+  const savedLabelDrapeVisibilities = new Map<
+    string,
+    { signature: string; value: unknown }
+  >();
+  // Contour lines stay in the label drape at half strength.
+  const savedContourOpacities = new Map<
+    string,
+    { signature: string; value: unknown }
+  >();
+  const LABEL_DRAPE_CONTOUR_OPACITY = 0.5;
   let disposed = false;
   let applying = false;
   let createdBaseLayer = false;
@@ -307,11 +332,163 @@ export const acquireShadowMapLibreTerrain = (
     }
   };
 
+  const restoreSavedVisibilities = (
+    saved: Map<string, { signature: string; value: unknown }>
+  ) => {
+    for (const [layerId, entry] of saved) {
+      try {
+        const layer = map
+          .getStyle()
+          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
+        if (
+          layer &&
+          getLayerSignature(layer) === entry.signature &&
+          map.getLayoutProperty(layerId, "visibility") === "none"
+        ) {
+          map.setLayoutProperty(
+            layerId,
+            "visibility",
+            entry.value === undefined ? null : entry.value
+          );
+        }
+      } catch {
+        // A style replacement may already have removed the layer.
+      }
+    }
+    saved.clear();
+  };
+
+  const restoreContourOpacities = () => {
+    for (const [layerId, saved] of savedContourOpacities) {
+      try {
+        const layer = map
+          .getStyle()
+          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
+        if (
+          layer &&
+          getLayerSignature(layer) === saved.signature &&
+          map.getPaintProperty(layerId, "line-opacity") ===
+            LABEL_DRAPE_CONTOUR_OPACITY
+        ) {
+          map.setPaintProperty(
+            layerId,
+            "line-opacity",
+            saved.value === undefined ? null : saved.value
+          );
+        }
+      } catch {
+        // A style replacement may already have removed the layer.
+      }
+    }
+    savedContourOpacities.clear();
+  };
+
+  const restoreOpaqueDrape = () => {
+    for (const [layerId, saved] of savedDrapeOpacities) {
+      try {
+        const layer = map
+          .getStyle()
+          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
+        if (
+          layer &&
+          getLayerSignature(layer) === saved.signature &&
+          map.getPaintProperty(layerId, saved.property) === 1
+        ) {
+          map.setPaintProperty(
+            layerId,
+            saved.property,
+            saved.value === undefined ? null : saved.value
+          );
+        }
+      } catch {
+        // A style replacement may already have removed the layer.
+      }
+    }
+    savedDrapeOpacities.clear();
+    if (createdBaseLayer) {
+      createdBaseLayer = false;
+      try {
+        if (map.getLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID)) {
+          map.removeLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID);
+        }
+      } catch {
+        // The style may already be gone during map teardown.
+      }
+    }
+  };
+
+  /**
+   * Keep only the symbol layers in the captured pass. Fills, strokes, rasters
+   * and the background would otherwise paint over the mesh's own texture;
+   * the line-placed labels are what the textured ground still lacks. Point
+   * labels leave this pass anyway: the shared scene redraws them above Three.
+   */
+  const ensureLabelDrape = () => {
+    const style = map.getStyle();
+    const layers = (style.layers ?? []) as DrapeLayer[];
+    const currentIds = new Set(layers.map(({ id }) => id));
+    for (const id of savedLabelDrapeVisibilities.keys()) {
+      if (!currentIds.has(id)) savedLabelDrapeVisibilities.delete(id);
+    }
+    for (const layer of layers) {
+      if (layer.type === "custom" || layer.type === "symbol") continue;
+      if (layer.id === SHADOW_MAP_STYLE_BASE_LAYER_ID) continue;
+      // Contour lines read well on the textured ground and stay draped, at
+      // half opacity so they lighten the surface instead of covering it.
+      if (isMapStyleContourLineLayer(layer)) {
+        try {
+          const signature = getLayerSignature(layer);
+          const current = map.getPaintProperty(layer.id, "line-opacity");
+          const saved = savedContourOpacities.get(layer.id);
+          if (!saved || saved.signature !== signature) {
+            savedContourOpacities.set(layer.id, { signature, value: current });
+          }
+          if (current !== LABEL_DRAPE_CONTOUR_OPACITY) {
+            map.setPaintProperty(
+              layer.id,
+              "line-opacity",
+              LABEL_DRAPE_CONTOUR_OPACITY
+            );
+          }
+        } catch {
+          // A style rebuild can remove a layer between inspection and update.
+        }
+        continue;
+      }
+      try {
+        const signature = getLayerSignature(layer);
+        const current = map.getLayoutProperty(layer.id, "visibility");
+        const saved = savedLabelDrapeVisibilities.get(layer.id);
+        if (!saved || saved.signature !== signature) {
+          savedLabelDrapeVisibilities.set(layer.id, {
+            signature,
+            value: current,
+          });
+        }
+        if (current !== "none") {
+          map.setLayoutProperty(layer.id, "visibility", "none");
+        }
+      } catch {
+        // A style rebuild can remove a layer between inspection and update.
+      }
+    }
+  };
+
   const apply = () => {
     if (disposed || applying) return;
     applying = true;
     try {
-      ensureOpaqueDrape();
+      if (getDrapeMode() === "labels") {
+        // Hand the opaque pass's changes back first, so the label drape
+        // records the authored visibilities instead of the hidden state.
+        restoreOpaqueDrape();
+        restoreSavedVisibilities(savedTerrainShadingVisibilities);
+        ensureLabelDrape();
+      } else {
+        restoreSavedVisibilities(savedLabelDrapeVisibilities);
+        restoreContourOpacities();
+        ensureOpaqueDrape();
+      }
       if (terrainMap.getSource(sourceId)) {
         const current = terrainMap.getTerrain();
         if (current?.source !== sourceId || (current.exaggeration ?? 1) !== 1) {
@@ -334,61 +511,16 @@ export const acquireShadowMapLibreTerrain = (
   map.on("terrain", handleTerrainChange);
   apply();
 
-  return () => {
+  const release = () => {
     if (disposed) return;
     disposed = true;
     map.off("styledata", apply);
     map.off("terrain", handleTerrainChange);
     restoreTerrainFrame();
-    for (const [layerId, saved] of savedDrapeOpacities) {
-      try {
-        const layer = map
-          .getStyle()
-          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
-        if (
-          layer &&
-          getLayerSignature(layer) === saved.signature &&
-          map.getPaintProperty(layerId, saved.property) === 1
-        ) {
-          map.setPaintProperty(
-            layerId,
-            saved.property,
-            saved.value === undefined ? null : saved.value
-          );
-        }
-      } catch {
-        // A style replacement may already have removed the layer.
-      }
-    }
-    for (const [layerId, saved] of savedTerrainShadingVisibilities) {
-      try {
-        const layer = map
-          .getStyle()
-          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
-        if (
-          layer &&
-          getLayerSignature(layer) === saved.signature &&
-          map.getLayoutProperty(layerId, "visibility") === "none"
-        ) {
-          map.setLayoutProperty(
-            layerId,
-            "visibility",
-            saved.value === undefined ? null : saved.value
-          );
-        }
-      } catch {
-        // A style replacement may already have removed the layer.
-      }
-    }
-    if (createdBaseLayer) {
-      try {
-        if (map.getLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID)) {
-          map.removeLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID);
-        }
-      } catch {
-        // The style may already be gone during map teardown.
-      }
-    }
+    restoreOpaqueDrape();
+    restoreSavedVisibilities(savedTerrainShadingVisibilities);
+    restoreSavedVisibilities(savedLabelDrapeVisibilities);
+    restoreContourOpacities();
     try {
       if (
         previousTerrain &&
@@ -402,6 +534,11 @@ export const acquireShadowMapLibreTerrain = (
       // The style may already be gone during map teardown.
     }
   };
+  return Object.assign(release, {
+    refresh: () => {
+      if (!disposed && !applying) apply();
+    },
+  });
 };
 
 export const solarPositionToSceneDirection = ({
@@ -992,11 +1129,29 @@ export const buildShadowSimulationScene = (
     configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
   const previousLight = map.getLight();
   let mapStyleContentVisible = true;
+  // A mesh that supplies the terrain carries its own texture: the basemap
+  // pass then only contributes draped labels. Bare Cesium terrain, or no
+  // terrain-providing content at all, keeps the opaque basemap drape.
+  const getMapStyleDrapeMode = (): ShadowMapStyleDrapeMode => {
+    const providers = getSharedThreeSceneRuntimes(map).filter(
+      (runtime) => runtime.providesTerrain === true
+    );
+    return providers.length > 0 &&
+      providers.every(
+        (runtime) => runtime.mapStyleProjectionBlend === "overlay"
+      )
+      ? "labels"
+      : "opaque";
+  };
   const releaseMapLibreTerrain = acquireShadowMapLibreTerrain(
     map,
     WUPPERTAL_TERRAIN_SOURCE_ID,
-    () => mapStyleContentVisible
+    () => mapStyleContentVisible,
+    getMapStyleDrapeMode
   );
+  const syncMeshLabelStyle = () => {
+    sceneLease.setMeshLabelStyle(getMapStyleDrapeMode() === "labels");
+  };
   let latestSolarPosition: SolarPosition | null = null;
   let latestBuildingAppearance: ShadowBuildingAppearance = {
     fullOpacity: true,
@@ -1755,10 +1910,13 @@ export const buildShadowSimulationScene = (
     syncGenericBridges
   );
   syncGenericBridges();
+  syncMeshLabelStyle();
 
   const handleSharedSceneContentChanged = () => {
     if (disposed) return;
     syncTerrainRuntime();
+    releaseMapLibreTerrain.refresh();
+    syncMeshLabelStyle();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
         runtime.setErrorTarget?.(latestMeshErrorTarget);

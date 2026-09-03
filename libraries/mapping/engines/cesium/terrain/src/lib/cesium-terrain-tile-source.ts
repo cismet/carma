@@ -35,6 +35,55 @@ export type CesiumTerrainTile = Readonly<{
   byteLength: number;
 }>;
 
+const TILE_RETRY_BASE_DELAY_MS = 250;
+const TILE_RETRY_MAX_DELAY_MS = 8_000;
+/** Tries per tile before a broken transfer is given up on, the first one included. */
+const TILE_RETRY_MAX_ATTEMPTS = 12;
+
+const getRequestStatusCode = (error: unknown): number | undefined => {
+  if (!error || typeof error !== "object" || !("statusCode" in error)) {
+    return undefined;
+  }
+  const { statusCode } = error as { statusCode?: unknown };
+  return typeof statusCode === "number" ? statusCode : undefined;
+};
+
+/**
+ * A refusal is the server's answer to this tile and stays that way; only a
+ * broken transfer, a timeout or an overloaded host is worth asking again.
+ */
+export const isConfirmedTerrainServerError = (error: unknown): boolean => {
+  const status = getRequestStatusCode(error);
+  return (
+    status !== undefined &&
+    status >= 400 &&
+    status < 500 &&
+    status !== 408 &&
+    status !== 429
+  );
+};
+
+/** Cesium rejects requests with a `RequestErrorEvent`; anything else is our own decoding. */
+const isTerrainRequestError = (error: unknown): boolean =>
+  !!error && typeof error === "object" && "statusCode" in error;
+
+const waitWithSignal = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new Error("aborted"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new Error("aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+
 export type CesiumTerrainTileSourceOptions = Readonly<{
   maxCacheBytes?: number;
 }>;
@@ -174,11 +223,35 @@ const buildSource = async (
   terrainUrl: string,
   options: CesiumTerrainTileSourceOptions
 ): Promise<CesiumTerrainTileSource> => {
-  const provider = await CesiumTerrainProvider.fromUrl(terrainUrl, {
-    requestVertexNormals: false,
-    requestWaterMask: false,
-    requestMetadata: false,
-  });
+  // The layer.json request is the one that decides whether terrain exists at
+  // all; a dropped connection here would otherwise leave the runtime without
+  // terrain until it is rebuilt.
+  let provider: CesiumTerrainProvider;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      provider = await CesiumTerrainProvider.fromUrl(terrainUrl, {
+        requestVertexNormals: false,
+        requestWaterMask: false,
+        requestMetadata: false,
+      });
+      break;
+    } catch (error) {
+      if (
+        !isTerrainRequestError(error) ||
+        isConfirmedTerrainServerError(error) ||
+        attempt + 1 >= TILE_RETRY_MAX_ATTEMPTS
+      ) {
+        throw error;
+      }
+      await waitWithSignal(
+        Math.min(
+          TILE_RETRY_MAX_DELAY_MS,
+          TILE_RETRY_BASE_DELAY_MS * 2 ** attempt
+        ) *
+          (0.5 + Math.random())
+      );
+    }
+  }
   const maxCacheBytes = Math.max(
     1,
     Math.floor(options.maxCacheBytes ?? DEFAULT_MAX_CACHE_BYTES)
@@ -215,15 +288,39 @@ const buildSource = async (
     const inFlight = pending.get(key);
     if (inFlight) return inFlight;
 
-    const load = (async () => {
-      let requested = provider.requestTileGeometry(id.x, id.y, id.level);
-      while (!requested) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        signal?.throwIfAborted();
-        requested = provider.requestTileGeometry(id.x, id.y, id.level);
+    const fetchTerrainData = async (): Promise<QuantizedMeshTerrainData> => {
+      // A dropped connection or an overloaded host is retried with backoff
+      // until the server confirms the tile is unavailable; the caller's
+      // abort signal ends the wait early.
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          let requested = provider.requestTileGeometry(id.x, id.y, id.level);
+          while (!requested) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            signal?.throwIfAborted();
+            requested = provider.requestTileGeometry(id.x, id.y, id.level);
+          }
+          return (await requested) as unknown as QuantizedMeshTerrainData;
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (
+            !isTerrainRequestError(error) ||
+            isConfirmedTerrainServerError(error) ||
+            attempt + 1 >= TILE_RETRY_MAX_ATTEMPTS
+          ) {
+            throw error;
+          }
+          const backoff = Math.min(
+            TILE_RETRY_MAX_DELAY_MS,
+            TILE_RETRY_BASE_DELAY_MS * 2 ** attempt
+          );
+          // Jittered so tiles that failed together do not return as one burst.
+          await waitWithSignal(backoff * (0.5 + Math.random()), signal);
+        }
       }
-      const terrainData =
-        (await requested) as unknown as QuantizedMeshTerrainData;
+    };
+    const load = (async () => {
+      const terrainData = await fetchTerrainData();
       signal?.throwIfAborted();
       const rectangle = provider.tilingScheme.tileXYToRectangle(
         id.x,

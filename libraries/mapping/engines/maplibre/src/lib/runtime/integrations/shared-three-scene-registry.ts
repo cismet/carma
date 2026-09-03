@@ -7,14 +7,27 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
-  getMapStyleLocationLabelFlatOffset,
+  getMapStylePointLabelLiftMeters,
+  isMapStyleElevationLabelLayer,
+  isMapStyleHouseNumberLabelLayer,
   isMapStylePointLabelLayer,
   isMapStyleRoadLabelLayer,
+  isMapStyleRoadShieldLayer,
+  isMapStyleWaterLabelLayer,
   type RuntimeStyleLayer,
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 11;
+const SHARED_SCENE_ENTRY_VERSION = 13;
+const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
+const MAPLIBRE_TILE_SIZE = 512;
+/** Keep a lifted place name inside the view at high zoom. */
+const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;
+/** Halo behind street names and house numbers on the mesh drape. */
+const MESH_LABEL_HALO_COLOR = "#808080";
+/** Draped street names are read off a textured surface; give them more body. */
+const MESH_STREET_LABEL_SIZE_FACTOR = 1.4;
+const MESH_STREET_LABEL_HALO_WIDTH = 1.5;
 const TERRAIN_COVERAGE_MARGIN_METERS = 0.5;
 /** Neighbouring tile boxes overlap by twice the margin; merge anything closer. */
 const TERRAIN_COVERAGE_MERGE_TOLERANCE_METERS = 0.01;
@@ -47,6 +60,17 @@ type SharedSceneEntry = {
   savedPointLabelVisibilities: Map<string, SavedPointLabelVisibility>;
   locationLabelColorRequests: Map<symbol, string>;
   pointLabelOverlayVisibilityRequests: Map<symbol, boolean>;
+  /** Street names and house numbers in sun color on a textured mesh. */
+  meshLabelStyleRequests: Map<symbol, boolean>;
+  lineLabelLayersCache: PointLabelLayersCache | null;
+  savedMeshLabelPaint: Map<string, SavedMeshLabelPaint>;
+  /** Place names floating above the scene, with their saved translate paint. */
+  liftLayers: LabelLiftLayer[];
+  savedLabelLifts: Map<string, SavedLabelLift>;
+  /** Recolored sprite copies while the mesh label style is on. */
+  tintedImages: Map<string, TintedSpriteImage>;
+  /** Per-frame lift update; registered as a MapLibre `move` listener. */
+  updateLabelLift: () => void;
   /** Rate-limited maintenance; safe to register as a MapLibre listener. */
   ensureLayer: (event?: unknown) => void;
   /** Immediate maintenance for user-driven changes. */
@@ -92,6 +116,77 @@ type SavedPointLabelVisibility = {
   original: unknown;
 };
 
+type SavedMeshLabelPaint = {
+  layerId: string;
+  property: MeshLabelPaintProperty;
+  signature: string;
+  original: unknown;
+  applied: unknown;
+};
+
+type LabelLiftLayer = { id: string; signature: string; meters: number };
+
+type SavedLabelLift = {
+  signature: string;
+  originalTranslate: unknown;
+  originalAnchor: unknown;
+  appliedPixels: number;
+};
+
+type SpriteImageData = {
+  width: number;
+  height: number;
+  data: Uint8Array | Uint8ClampedArray;
+};
+
+type TintedSpriteImage = {
+  original: SpriteImageData;
+  color: string;
+};
+
+type MeshLabelPaintProperty =
+  | "text-color"
+  | "text-halo-color"
+  | "text-halo-width"
+  | "text-halo-blur"
+  | "icon-color"
+  | "text-size";
+
+/** `text-size` is a layout property; the rest is paint. */
+const MESH_LABEL_LAYOUT_PROPERTIES = new Set<MeshLabelPaintProperty>([
+  "text-size",
+]);
+
+const getMeshLabelProperty = (
+  map: MaplibreMap,
+  layerId: string,
+  property: MeshLabelPaintProperty
+): unknown =>
+  MESH_LABEL_LAYOUT_PROPERTIES.has(property)
+    ? map.getLayoutProperty(layerId, property)
+    : map.getPaintProperty(layerId, property);
+
+const setMeshLabelProperty = (
+  map: MaplibreMap,
+  layerId: string,
+  property: MeshLabelPaintProperty,
+  value: unknown
+): void => {
+  if (MESH_LABEL_LAYOUT_PROPERTIES.has(property)) {
+    map.setLayoutProperty(layerId, property, value);
+  } else {
+    map.setPaintProperty(layerId, property, value);
+  }
+};
+
+/** Scale an authored `text-size`; legacy stop functions are left alone. */
+const scaleTextSize = (authored: unknown, factor: number): unknown => {
+  if (typeof authored === "number")
+    return Math.round(authored * factor * 10) / 10;
+  if (Array.isArray(authored)) return ["*", factor, authored];
+  return undefined;
+};
+
 type SharedSceneHotData = {
   sharedThreeSceneEntries?: WeakMap<MaplibreMap, SharedSceneEntry>;
 };
@@ -100,6 +195,12 @@ export type SharedThreeSceneLease = {
   layer: SharedThreeSceneLayer;
   setLocationLabelColor: (color: string | null) => void;
   setPointLabelOverlayVisible: (visible: boolean) => void;
+  /**
+   * Restyle the draped and overlaid labels for a textured mesh: street names
+   * and house numbers take the sun color with a grey halo, water names keep
+   * their blue and drop their halo. Off for bare terrain.
+   */
+  setMeshLabelStyle: (enabled: boolean) => void;
   release: () => void;
 };
 
@@ -156,6 +257,27 @@ const getMapStylePointLabelLayers = (
         isMapStylePointLabelLayer
       ) ?? [];
     entry.pointLabelLayersCache = { orderSignature, layers };
+    return layers;
+  } catch {
+    return [];
+  }
+};
+
+/** Line-placed symbols stay below Three; the mesh drape restyles them in place. */
+const getMapStyleLineLabelLayers = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry,
+  layerOrder: readonly string[]
+): RuntimeStyleLayer[] => {
+  const orderSignature = layerOrder.join("\n");
+  const cached = entry.lineLabelLayersCache;
+  if (cached?.orderSignature === orderSignature) return cached.layers;
+  try {
+    const layers =
+      (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.filter(
+        (layer) => layer.type === "symbol" && !isMapStylePointLabelLayer(layer)
+      ) ?? [];
+    entry.lineLabelLayersCache = { orderSignature, layers };
     return layers;
   } catch {
     return [];
@@ -486,13 +608,23 @@ const restoreLocationLabelPaint = (
   savedValues.clear();
 };
 
+/** White and near-white halos (basemap.de uses rgb(255,253,238)) count as white. */
 const isWhiteLabelHalo = (value: unknown): boolean => {
   if (typeof value !== "string") return false;
   const compact = value.toLowerCase().replace(/\s+/g, "");
-  if (compact === "white" || compact === "#fff" || compact === "#ffffff") {
-    return true;
+  if (compact === "white") return true;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(compact);
+  if (hex) {
+    const digits =
+      hex[1].length === 3
+        ? hex[1].split("").map((digit) => digit + digit)
+        : [hex[1].slice(0, 2), hex[1].slice(2, 4), hex[1].slice(4, 6)];
+    return digits.every((digit) => Number.parseInt(digit, 16) >= 235);
   }
-  return /^rgba?\(255,255,255(?:,(?:0?\.\d+|1(?:\.0+)?))?\)$/.test(compact);
+  const rgb = /^rgba?\((\d+),(\d+),(\d+)(?:,[\d.]+)?\)$/.exec(compact);
+  return (
+    rgb !== null && rgb.slice(1, 4).every((channel) => Number(channel) >= 235)
+  );
 };
 
 const restoreLocationLabelOffsets = (
@@ -584,7 +716,9 @@ const applyLocationLabelOffsets = (
   savedHaloWidths: Map<string, SavedLocationLabelHaloWidth>,
   savedHaloColors: Map<string, SavedLocationLabelHaloColor>,
   savedTextColors: Map<string, SavedLocationLabelTextColor>,
-  textColor: string | null
+  textColor: string | null,
+  /** Layers whose paint another rule owns; offsets still apply. */
+  skipPaint: (layer: RuntimeStyleLayer) => boolean = () => false
 ): void => {
   const currentIds = new Set(layers.map(({ id }) => id));
   for (const id of savedOffsets.keys()) {
@@ -605,29 +739,14 @@ const applyLocationLabelOffsets = (
     restoreLocationLabelPaint(map, "text-color", savedTextColors);
   }
 
+  // Place names are lifted in meters (see configureLabelLifts) instead of a
+  // flat em offset; earlier offsets are handed back through savedOffsets.
+  restoreLocationLabelOffsets(map, savedOffsets);
   for (const layer of layers) {
-    const applied = getMapStyleLocationLabelFlatOffset(layer);
     const signature = getLayerSignature(layer);
-    if (applied) {
-      try {
-        const current = map.getLayoutProperty(layer.id, "text-offset");
-        let saved = savedOffsets.get(layer.id);
-        if (
-          !saved ||
-          saved.signature !== signature ||
-          !isAppliedOffset(current, saved.applied)
-        ) {
-          saved = { signature, original: current, applied };
-          savedOffsets.set(layer.id, saved);
-        }
-        if (!isAppliedOffset(current, applied)) {
-          map.setLayoutProperty(layer.id, "text-offset", [...applied]);
-        }
-      } catch {
-        // A style rebuild can remove a layer between inspection and update.
-      }
-    }
-    if (textColor === null) continue;
+    // Road shields keep their authored text and fill in every mode.
+    if (isMapStyleRoadShieldLayer(layer)) continue;
+    if (textColor === null || skipPaint(layer)) continue;
     let authoredHaloColor: unknown;
     try {
       authoredHaloColor =
@@ -676,6 +795,441 @@ const getLocationLabelColor = (entry: SharedSceneEntry): string | null => {
   return color;
 };
 
+const isMeshLabelStyle = (entry: SharedSceneEntry): boolean => {
+  let enabled = false;
+  for (const requested of entry.meshLabelStyleRequests.values()) {
+    enabled = requested;
+  }
+  return enabled;
+};
+
+/**
+ * Whether the mesh drape owns this layer's text, halo and icon paint: every
+ * point label (places, POIs, areas, house numbers, shields), the street names
+ * draped below Three, and water names.
+ */
+const isMeshStyledLabelLayer = (layer: RuntimeStyleLayer): boolean =>
+  isMapStyleWaterLabelLayer(layer) ||
+  isMapStyleElevationLabelLayer(layer) ||
+  (isMapStylePointLabelLayer(layer)
+    ? // Shields keep their authored text on their own icon backdrop.
+      !isMapStyleRoadShieldLayer(layer)
+    : isMapStyleRoadLabelLayer(layer));
+
+const getMeshLabelPaint = (
+  map: MaplibreMap,
+  layer: RuntimeStyleLayer,
+  textColor: string | null,
+  authoredProperty: (
+    layer: RuntimeStyleLayer,
+    property: MeshLabelPaintProperty
+  ) => unknown
+): Array<[MeshLabelPaintProperty, unknown]> => {
+  // Water names keep their authored blue and only drop the halo.
+  if (isMapStyleWaterLabelLayer(layer)) return [["text-halo-width", 0]];
+  // Contour and spot-height numbers: sun colored, no halo, draped or lifted.
+  if (isMapStyleElevationLabelLayer(layer)) {
+    return [
+      ["text-color", textColor ?? "#ffffff"],
+      ["text-halo-width", 0],
+    ];
+  }
+  // Draped street names are lit and shadowed in place on the mesh, so they
+  // stay pure white; only the overlaid point labels take the sun color.
+  // They also get more body and a crisp, narrower halo so the halo does
+  // not creep into the glyphs on the textured ground.
+  if (!isMapStylePointLabelLayer(layer)) {
+    const paint: Array<[MeshLabelPaintProperty, unknown]> = [
+      ["text-color", "#ffffff"],
+      ["text-halo-color", MESH_LABEL_HALO_COLOR],
+      ["text-halo-width", MESH_STREET_LABEL_HALO_WIDTH],
+      ["text-halo-blur", 0],
+    ];
+    const size = scaleTextSize(
+      authoredProperty(layer, "text-size"),
+      MESH_STREET_LABEL_SIZE_FACTOR
+    );
+    if (size !== undefined) paint.push(["text-size", size]);
+    return paint;
+  }
+  if (textColor === null) return [];
+  const paint: Array<[MeshLabelPaintProperty, unknown]> = [
+    ["text-color", textColor],
+    ["text-halo-color", MESH_LABEL_HALO_COLOR],
+  ];
+  // Flat white SDF icons (churches, POIs) take the sun color as well.
+  if (isWhiteLabelHalo(authoredProperty(layer, "icon-color"))) {
+    paint.push(["icon-color", textColor]);
+  }
+  return paint;
+};
+
+/** Expression values come back as fresh arrays; compare by content. */
+const isSameMeshLabelValue = (left: unknown, right: unknown): boolean =>
+  left === right ||
+  (Array.isArray(left) &&
+    Array.isArray(right) &&
+    JSON.stringify(left) === JSON.stringify(right));
+
+const restoreMeshLabelPaint = (
+  map: MaplibreMap,
+  saved: Map<string, SavedMeshLabelPaint>
+): void => {
+  for (const entry of saved.values()) {
+    try {
+      const runtimeLayer = map.getLayer(entry.layerId) as
+        | RuntimeStyleLayer
+        | undefined;
+      if (
+        runtimeLayer &&
+        getLayerSignature(runtimeLayer) === entry.signature &&
+        isSameMeshLabelValue(
+          getMeshLabelProperty(map, entry.layerId, entry.property),
+          entry.applied
+        )
+      ) {
+        setMeshLabelProperty(
+          map,
+          entry.layerId,
+          entry.property,
+          entry.original === undefined ? null : entry.original
+        );
+      }
+    } catch {
+      // The host may already have disposed or replaced its style.
+    }
+  }
+  saved.clear();
+};
+
+const applyMeshLabelPaint = (
+  map: MaplibreMap,
+  layers: readonly RuntimeStyleLayer[],
+  saved: Map<string, SavedMeshLabelPaint>,
+  textColor: string | null
+): void => {
+  const wanted = new Map<
+    string,
+    [RuntimeStyleLayer, MeshLabelPaintProperty, unknown]
+  >();
+  const authoredProperty = (
+    layer: RuntimeStyleLayer,
+    property: MeshLabelPaintProperty
+  ): unknown => {
+    const entry = saved.get(`${layer.id}|${property}`);
+    if (entry && entry.signature === getLayerSignature(layer)) {
+      return entry.original;
+    }
+    try {
+      return getMeshLabelProperty(map, layer.id, property);
+    } catch {
+      return undefined;
+    }
+  };
+  for (const layer of layers) {
+    for (const [property, value] of getMeshLabelPaint(
+      map,
+      layer,
+      textColor,
+      authoredProperty
+    )) {
+      wanted.set(`${layer.id}|${property}`, [layer, property, value]);
+    }
+  }
+  // Hand back paint that is no longer wanted (layer gone, sun color gone).
+  const stale = new Map<string, SavedMeshLabelPaint>();
+  for (const [key, entry] of saved) {
+    if (!wanted.has(key)) {
+      stale.set(key, entry);
+      saved.delete(key);
+    }
+  }
+  restoreMeshLabelPaint(map, stale);
+  for (const [key, [layer, property, value]] of wanted) {
+    try {
+      const signature = getLayerSignature(layer);
+      const current = getMeshLabelProperty(map, layer.id, property);
+      let entry = saved.get(key);
+      if (
+        !entry ||
+        entry.signature !== signature ||
+        !isSameMeshLabelValue(current, entry.applied)
+      ) {
+        entry = {
+          layerId: layer.id,
+          property,
+          signature,
+          original: current,
+          applied: value,
+        };
+        saved.set(key, entry);
+      } else {
+        entry.applied = value;
+      }
+      if (!isSameMeshLabelValue(current, value)) {
+        setMeshLabelProperty(map, layer.id, property, value);
+      }
+    } catch {
+      // A style rebuild can remove a layer between inspection and update.
+    }
+  }
+};
+
+const restoreLabelLifts = (
+  map: MaplibreMap,
+  saved: Map<string, SavedLabelLift>
+): void => {
+  for (const [layerId, entry] of saved) {
+    try {
+      const runtimeLayer = map.getLayer(layerId) as
+        | RuntimeStyleLayer
+        | undefined;
+      if (
+        !runtimeLayer ||
+        getLayerSignature(runtimeLayer) !== entry.signature
+      ) {
+        continue;
+      }
+      map.setPaintProperty(
+        layerId,
+        "text-translate",
+        entry.originalTranslate === undefined ? null : entry.originalTranslate
+      );
+      map.setPaintProperty(
+        layerId,
+        "text-translate-anchor",
+        entry.originalAnchor === undefined ? null : entry.originalAnchor
+      );
+    } catch {
+      // The host may already have disposed or replaced its style.
+    }
+  }
+  saved.clear();
+};
+
+/**
+ * Register the place-name layers that float above the scene and pin their
+ * translate to the viewport, so the per-frame lift is a plain pixel offset.
+ */
+const configureLabelLifts = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry,
+  layers: readonly RuntimeStyleLayer[]
+): void => {
+  const next: LabelLiftLayer[] = [];
+  for (const layer of layers) {
+    const meters = getMapStylePointLabelLiftMeters(layer);
+    if (meters === null) continue;
+    next.push({ id: layer.id, signature: getLayerSignature(layer), meters });
+  }
+  const nextIds = new Set(next.map(({ id }) => id));
+  const stale = new Map<string, SavedLabelLift>();
+  for (const [layerId, saved] of entry.savedLabelLifts) {
+    if (!nextIds.has(layerId)) {
+      stale.set(layerId, saved);
+      entry.savedLabelLifts.delete(layerId);
+    }
+  }
+  restoreLabelLifts(map, stale);
+  for (const lift of next) {
+    try {
+      let saved = entry.savedLabelLifts.get(lift.id);
+      if (!saved || saved.signature !== lift.signature) {
+        saved = {
+          signature: lift.signature,
+          originalTranslate: map.getPaintProperty(lift.id, "text-translate"),
+          originalAnchor: map.getPaintProperty(
+            lift.id,
+            "text-translate-anchor"
+          ),
+          appliedPixels: Number.NaN,
+        };
+        entry.savedLabelLifts.set(lift.id, saved);
+      }
+      if (
+        map.getPaintProperty(lift.id, "text-translate-anchor") !== "viewport"
+      ) {
+        map.setPaintProperty(lift.id, "text-translate-anchor", "viewport");
+      }
+    } catch {
+      // A style rebuild can remove a layer between inspection and update.
+    }
+  }
+  entry.liftLayers = next;
+};
+
+/**
+ * Screen pixels a point `meters` above the ground moves up at the map center
+ * for the current zoom and pitch. Every label of a layer gets the same lift,
+ * which reads as a uniform floating height across the view.
+ */
+const getLabelLiftPixels = (
+  map: MaplibreMap,
+  meters: number
+): number | null => {
+  const zoom = map.getZoom?.();
+  const pitch = map.getPitch?.();
+  const center = map.getCenter?.();
+  const canvas = map.getCanvas?.();
+  if (
+    typeof zoom !== "number" ||
+    typeof pitch !== "number" ||
+    !center ||
+    !Number.isFinite(center.lat)
+  ) {
+    return null;
+  }
+  const pixelsPerMeter =
+    (MAPLIBRE_TILE_SIZE * 2 ** zoom) /
+    (EARTH_CIRCUMFERENCE_METERS * Math.cos((center.lat * Math.PI) / 180));
+  const lifted = meters * pixelsPerMeter * Math.cos((pitch * Math.PI) / 180);
+  const viewportHeight = canvas?.clientHeight ?? 0;
+  const cap =
+    viewportHeight > 0
+      ? viewportHeight * MAX_LABEL_LIFT_VIEWPORT_FRACTION
+      : Number.POSITIVE_INFINITY;
+  return Math.min(lifted, cap);
+};
+
+const updateLabelLiftPaint = (map: MaplibreMap, entry: SharedSceneEntry) => {
+  for (const lift of entry.liftLayers) {
+    const saved = entry.savedLabelLifts.get(lift.id);
+    if (!saved) continue;
+    const pixels = getLabelLiftPixels(map, lift.meters);
+    if (pixels === null) return;
+    if (Math.abs(pixels - saved.appliedPixels) < 0.5) continue;
+    try {
+      map.setPaintProperty(lift.id, "text-translate", [0, -pixels]);
+      saved.appliedPixels = pixels;
+    } catch {
+      // A style rebuild can remove a layer between inspection and update.
+    }
+  }
+};
+
+const isSpriteImageData = (value: unknown): value is SpriteImageData => {
+  if (!value || typeof value !== "object") return false;
+  const image = value as Partial<SpriteImageData>;
+  return (
+    typeof image.width === "number" &&
+    typeof image.height === "number" &&
+    (image.data instanceof Uint8Array ||
+      image.data instanceof Uint8ClampedArray)
+  );
+};
+
+const getSpriteImageData = (
+  map: MaplibreMap,
+  id: string
+): SpriteImageData | null => {
+  const host = map as unknown as {
+    style?: { imageManager?: { getImage?: (id: string) => unknown } };
+  };
+  try {
+    const image = host.style?.imageManager?.getImage?.(id) as
+      | { data?: unknown; sdf?: boolean }
+      | undefined;
+    if (!image || image.sdf || !isSpriteImageData(image.data)) return null;
+    return image.data;
+  } catch {
+    return null;
+  }
+};
+
+/** Every visible sprite is lit by the sun; fully transparent ones are skipped. */
+const isSunTintableSprite = ({ data }: SpriteImageData): boolean => {
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] > 0) return true;
+  }
+  return false;
+};
+
+const parseHexColor = (color: string): [number, number, number] | null => {
+  const match = /^#([0-9a-f]{6})$/i.exec(color.trim());
+  if (!match) return null;
+  const value = Number.parseInt(match[1], 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+};
+
+const tintSpriteImage = (
+  image: SpriteImageData,
+  rgb: [number, number, number]
+): SpriteImageData => {
+  // The sprite is lit by the sun: its authored color is the albedo, the sun
+  // color the light, and the result is their product per channel. White
+  // becomes the sun color, a yellow shield a sun-lit yellow, black stays
+  // black.
+  const data = new Uint8Array(image.data);
+  for (let index = 0; index < data.length; index += 4) {
+    if (data[index + 3] === 0) continue;
+    data[index] = Math.round((data[index] * rgb[0]) / 255);
+    data[index + 1] = Math.round((data[index + 1] * rgb[1]) / 255);
+    data[index + 2] = Math.round((data[index + 2] * rgb[2]) / 255);
+  }
+  return { width: image.width, height: image.height, data };
+};
+
+const restoreMeshIconTint = (map: MaplibreMap, entry: SharedSceneEntry) => {
+  for (const [id, tinted] of entry.tintedImages) {
+    try {
+      if (map.hasImage?.(id)) map.updateImage(id, tinted.original as never);
+    } catch {
+      // The sprite may already have been replaced with the style.
+    }
+  }
+  entry.tintedImages.clear();
+};
+
+const applyMeshIconTint = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry,
+  color: string | null
+) => {
+  const rgb = color === null ? null : parseHexColor(color);
+  if (!rgb || typeof map.listImages !== "function") {
+    restoreMeshIconTint(map, entry);
+    return;
+  }
+  let ids: string[];
+  try {
+    ids = map.listImages();
+  } catch {
+    return;
+  }
+  const present = new Set(ids);
+  for (const id of entry.tintedImages.keys()) {
+    if (!present.has(id)) entry.tintedImages.delete(id);
+  }
+  for (const id of ids) {
+    const tinted = entry.tintedImages.get(id);
+    if (tinted?.color === color) continue;
+    const original = tinted?.original ?? getSpriteImageData(map, id);
+    if (!original) continue;
+    if (!tinted) {
+      if (!isSunTintableSprite(original)) continue;
+      // Keep a private copy: the manager hands out its live buffer.
+      entry.tintedImages.set(id, {
+        original: {
+          width: original.width,
+          height: original.height,
+          data: new Uint8Array(original.data),
+        },
+        color,
+      });
+    } else {
+      tinted.color = color;
+    }
+    try {
+      map.updateImage(
+        id,
+        tintSpriteImage(entry.tintedImages.get(id)!.original, rgb) as never
+      );
+    } catch {
+      entry.tintedImages.delete(id);
+    }
+  }
+};
+
 const isPointLabelOverlayVisible = (entry: SharedSceneEntry): boolean => {
   let visible = true;
   for (const requestedVisibility of entry.pointLabelOverlayVisibilityRequests.values()) {
@@ -706,7 +1260,12 @@ const ensureSharedLayerOrder = (
     entry,
     layerOrder
   );
+  const meshLabelStyle = isMeshLabelStyle(entry);
   if (!pointLabelOverlayVisible) {
+    restoreMeshIconTint(map, entry);
+    restoreMeshLabelPaint(map, entry.savedMeshLabelPaint);
+    restoreLabelLifts(map, entry.savedLabelLifts);
+    entry.liftLayers = [];
     restoreLocationLabelOffsets(map, savedOffsets);
     restoreLocationLabelPaint(map, "text-halo-width", savedHaloWidths);
     restoreLocationLabelPaint(map, "text-halo-color", savedHaloColors);
@@ -727,6 +1286,9 @@ const ensureSharedLayerOrder = (
     locationLabelLayers,
     savedFilters
   );
+  // Hand the mesh paint back before the default rules read the layers, so
+  // they see the authored values and not the mesh colors as "originals".
+  if (!meshLabelStyle) restoreMeshLabelPaint(map, entry.savedMeshLabelPaint);
   applyLocationLabelOffsets(
     map,
     locationLabelLayers,
@@ -734,8 +1296,25 @@ const ensureSharedLayerOrder = (
     savedHaloWidths,
     savedHaloColors,
     savedTextColors,
-    textColor
+    textColor,
+    meshLabelStyle ? isMeshStyledLabelLayer : undefined
   );
+  if (meshLabelStyle) {
+    applyMeshLabelPaint(
+      map,
+      [
+        ...locationLabelLayers,
+        ...getMapStyleLineLabelLayers(map, entry, layerOrder),
+      ].filter(isMeshStyledLabelLayer),
+      entry.savedMeshLabelPaint,
+      textColor
+    );
+    applyMeshIconTint(map, entry, textColor);
+  } else {
+    restoreMeshIconTint(map, entry);
+  }
+  configureLabelLifts(map, entry, locationLabelLayers);
+  updateLabelLiftPaint(map, entry);
   const locationLabelIds = locationLabelLayers
     .map(({ id }) => id)
     .filter((id) => layerOrder.includes(id));
@@ -774,6 +1353,10 @@ const configureEnsureLayer = (
   map: MaplibreMap,
   entry: SharedSceneEntry
 ): void => {
+  entry.updateLabelLift = () => {
+    if (entry.disposed || entry.liftLayers.length === 0) return;
+    updateLabelLiftPaint(map, entry);
+  };
   entry.ensureLayerNow = () => {
     if (entry.disposed) return;
     clearLabelMaintenanceTimer(entry);
@@ -795,6 +1378,7 @@ const configureEnsureLayer = (
     if ((event as { type?: unknown } | undefined)?.type === "style.load") {
       // A new style carries new layer objects; drop the classification.
       entry.pointLabelLayersCache = null;
+      entry.lineLabelLayersCache = null;
       entry.ensureLayerNow();
       return;
     }
@@ -821,6 +1405,7 @@ const addEnsureLayerListeners = (
   map.on("styledata", entry.ensureLayer);
   map.on("style.load", entry.ensureLayer);
   map.on("idle", entry.ensureLayer);
+  map.on("move", entry.updateLabelLift);
 };
 
 const removeEnsureLayerListeners = (
@@ -830,6 +1415,7 @@ const removeEnsureLayerListeners = (
   map.off("styledata", entry.ensureLayer);
   map.off("style.load", entry.ensureLayer);
   map.off("idle", entry.ensureLayer);
+  map.off("move", entry.updateLabelLift);
 };
 
 /**
@@ -849,6 +1435,14 @@ export const acquireSharedThreeScene = (
     entry.labelMaintenanceTimer = null;
     entry.lastLabelMaintenanceMs = Number.NEGATIVE_INFINITY;
     entry.pointLabelLayersCache = null;
+    entry.lineLabelLayersCache = null;
+    entry.liftLayers ??= [];
+    entry.savedLabelLifts ??= new Map();
+    entry.tintedImages ??= new Map();
+    restoreMeshIconTint(map, entry);
+    restoreMeshLabelPaint(map, entry.savedMeshLabelPaint ?? new Map());
+    restoreLabelLifts(map, entry.savedLabelLifts);
+    entry.liftLayers = [];
     restoreLocationLabelOffsets(
       map,
       entry.savedLocationLabelOffsets ?? new Map()
@@ -887,6 +1481,9 @@ export const acquireSharedThreeScene = (
     entry.savedPointLabelVisibilities ??= new Map();
     entry.locationLabelColorRequests ??= new Map();
     entry.pointLabelOverlayVisibilityRequests ??= new Map();
+    entry.meshLabelStyleRequests ??= new Map();
+    entry.savedMeshLabelPaint ??= new Map();
+    entry.updateLabelLift ??= () => undefined;
     configureEnsureLayer(map, entry);
     addEnsureLayerListeners(map, entry);
     entry.ensureLayer();
@@ -916,6 +1513,13 @@ export const acquireSharedThreeScene = (
       savedPointLabelVisibilities: new Map(),
       locationLabelColorRequests: new Map(),
       pointLabelOverlayVisibilityRequests: new Map(),
+      meshLabelStyleRequests: new Map(),
+      lineLabelLayersCache: null,
+      savedMeshLabelPaint: new Map(),
+      liftLayers: [],
+      savedLabelLifts: new Map(),
+      tintedImages: new Map(),
+      updateLabelLift: () => undefined,
       ensureLayer: () => undefined,
       ensureLayerNow: () => undefined,
     };
@@ -929,6 +1533,7 @@ export const acquireSharedThreeScene = (
   entry.references += 1;
   const labelColorRequestId = Symbol("location-label-color");
   const labelVisibilityRequestId = Symbol("point-label-overlay-visibility");
+  const meshLabelStyleRequestId = Symbol("mesh-label-style");
   let released = false;
 
   return {
@@ -964,6 +1569,17 @@ export const acquireSharedThreeScene = (
       // A user toggle should repaint in place, not after the rate limit.
       current.ensureLayerNow();
     },
+    setMeshLabelStyle(enabled) {
+      const current = entries.get(map);
+      if (!current || current !== entry || released) return;
+      if (
+        current.meshLabelStyleRequests.get(meshLabelStyleRequestId) === enabled
+      ) {
+        return;
+      }
+      current.meshLabelStyleRequests.set(meshLabelStyleRequestId, enabled);
+      current.ensureLayerNow();
+    },
     release() {
       if (released) return;
       released = true;
@@ -973,6 +1589,7 @@ export const acquireSharedThreeScene = (
       current.pointLabelOverlayVisibilityRequests.delete(
         labelVisibilityRequestId
       );
+      current.meshLabelStyleRequests.delete(meshLabelStyleRequestId);
       current.references -= 1;
       if (current.references > 0) {
         current.ensureLayer();
@@ -989,6 +1606,9 @@ export const acquireSharedThreeScene = (
       } catch {
         // The host may already have disposed or replaced its style.
       }
+      restoreMeshIconTint(map, current);
+      restoreMeshLabelPaint(map, current.savedMeshLabelPaint);
+      restoreLabelLifts(map, current.savedLabelLifts);
       restoreLocationLabelOffsets(map, current.savedLocationLabelOffsets);
       restoreLocationLabelPaint(
         map,

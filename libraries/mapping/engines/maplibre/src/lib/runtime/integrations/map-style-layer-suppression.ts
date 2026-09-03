@@ -63,8 +63,10 @@ const OVERLAY_LAYER_HINT =
 const LOCATION_LABEL_HINT =
   /(?:^|[-_:])(place|settlement|locality|city|town|village|municipality|district|borough|suburb|neighbou?rhood|quarter|ort|stadt|gemeinde|bezirk)(?:$|[-_:])/i;
 
+// The layer signature joins id, source and source-layer with ":", so a name
+// that ends a layer id is followed by ":" rather than by "_" or the end.
 const BASEMAP_DE_LOCATION_LABEL_HINT =
-  /(?:^|[-_:])Name_(?:Staat(?:_DE)?|Bundesland|Landeshauptstadt|Stadtgemeinde(?:_|$)|Landgemeinde(?:_|$)|Ortsteil_(?:Gemeindeteil|Stadtteil)(?:_|$)|Wohnplatz(?:_|$))/i;
+  /(?:^|[-_:])Name_(?:Staat(?:_DE)?|Bundesland|Landeshauptstadt|Stadtgemeinde(?:[-_:]|$)|Landgemeinde(?:[-_:]|$)|Ortsteil_(?:Gemeindeteil|Stadtteil)(?:[-_:]|$)|Wohnplatz(?:[-_:]|$))/i;
 
 const ROAD_LABEL_HINT =
   /(?:road|street|strasse|stra(?:ss|ß)e|highway|motorway|transport|route|autobahn|verkehr|fahrbahn|fernverkehr|bundesstra)/i;
@@ -96,6 +98,56 @@ export const isMapStyleRoadLabelLayer = (layer: RuntimeStyleLayer): boolean => {
   ].join(":");
   return ROAD_LABEL_HINT.test(signature);
 };
+
+const WATER_LABEL_HINT =
+  /(?:gewaesser|gewässer|wasser|water|river|fluss|bach|see(?:n|$|[-_:])|lake|teich|kanal|hafen)/i;
+
+const HOUSE_NUMBER_LABEL_HINT =
+  /(?:hausnummer|hauskoordinate|house[-_ ]?number|housenumber|housenum|addr)/i;
+
+const getLayerHintSignature = (layer: RuntimeStyleLayer): string =>
+  [
+    layer.id,
+    layer.source,
+    layer.sourceLayer ?? layer["source-layer"],
+    layer.metadata?.["layer-id"],
+  ].join(":");
+
+const ROAD_SHIELD_HINT = /(?:^|[-_:])(?:nummer|shield|route[-_ ]?ref)/i;
+
+/**
+ * Road shields: point-anchored route numbers on their own icon backdrop.
+ * Their authored text and fill stay untouched in every mode. Station and
+ * stop names also live in `Verkehrspunkt`, but they are plain labels.
+ */
+export const isMapStyleRoadShieldLayer = (layer: RuntimeStyleLayer): boolean =>
+  isMapStylePointLabelLayer(layer) &&
+  ROAD_SHIELD_HINT.test(getLayerHintSignature(layer));
+
+const ELEVATION_HINT =
+  /(?:hoehenlinie|hoehenzahl|hoehenpunkt|höhenlinie|contour|isohypse|elevation)/i;
+
+/** Contour lines stay in the mesh drape; every other line or fill is hidden. */
+export const isMapStyleContourLineLayer = (layer: RuntimeStyleLayer): boolean =>
+  layer.type === "line" && ELEVATION_HINT.test(getLayerHintSignature(layer));
+
+/** Contour and spot-height labels: sun colored without a halo on the mesh. */
+export const isMapStyleElevationLabelLayer = (
+  layer: RuntimeStyleLayer
+): boolean =>
+  layer.type === "symbol" && ELEVATION_HINT.test(getLayerHintSignature(layer));
+
+/** Water names keep their authored blue and lose their halo on the mesh drape. */
+export const isMapStyleWaterLabelLayer = (layer: RuntimeStyleLayer): boolean =>
+  layer.type === "symbol" &&
+  WATER_LABEL_HINT.test(getLayerHintSignature(layer));
+
+/** House numbers are styled like street names on the mesh drape. */
+export const isMapStyleHouseNumberLabelLayer = (
+  layer: RuntimeStyleLayer
+): boolean =>
+  layer.type === "symbol" &&
+  HOUSE_NUMBER_LABEL_HINT.test(getLayerHintSignature(layer));
 
 /** Point-based place names that may remain crisp above the shaded scene. */
 export const isMapStyleLocationLabelLayer = (
@@ -144,6 +196,47 @@ export const getMapStyleLocationLabelFlatOffset = (
   }
   if (/Name_Wohnplatz_/i.test(signature)) return [0, -0.65];
   return [0, -1.5];
+};
+
+/**
+ * Height above the ground at which a place name floats over the 3D scene,
+ * ranked by place prominence. `null` for anything but place names.
+ */
+export const getMapStyleLocationLabelLiftMeters = (
+  layer: RuntimeStyleLayer
+): number | null => {
+  if (!isMapStyleLocationLabelLayer(layer)) return null;
+  const signature = [layer.id, layer.metadata?.["layer-id"]].join(":");
+  if (
+    /Name_(?:Staat(?:_DE)?|Bundesland|Landeshauptstadt|Stadtgemeinde_(?:groesser_1Mio|bis_1Mio))/i.test(
+      signature
+    )
+  ) {
+    return 600;
+  }
+  if (/Name_Stadtgemeinde_(?:bis_500000|bis_200000)/i.test(signature)) {
+    return 500;
+  }
+  if (/Name_Stadtgemeinde_/i.test(signature)) return 400;
+  if (/Name_Landgemeinde_/i.test(signature)) return 350;
+  if (/Name_Wohnplatz_/i.test(signature)) return 150;
+  return 300;
+};
+
+/** Small lift that keeps house numbers and POI names just above the mesh. */
+export const POINT_LABEL_LIFT_METERS = 10;
+
+/**
+ * Height above the ground for any point-anchored label: place names by
+ * prominence, shields not at all, everything else (house numbers, POIs,
+ * stations) a few meters so the text clears the mesh surface.
+ */
+export const getMapStylePointLabelLiftMeters = (
+  layer: RuntimeStyleLayer
+): number | null => {
+  if (!isMapStylePointLabelLayer(layer)) return null;
+  if (isMapStyleRoadShieldLayer(layer)) return null;
+  return getMapStyleLocationLabelLiftMeters(layer) ?? POINT_LABEL_LIFT_METERS;
 };
 
 /** @deprecated Prefer the explicit location-label classifier. */

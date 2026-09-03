@@ -20,6 +20,13 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   getSharedThreeSceneRuntimes: vi.fn(() => []),
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
   subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
+  isMapStyleContourLineLayer: (layer: {
+    type?: string;
+    id?: string;
+    "source-layer"?: string;
+  }) =>
+    layer.type === "line" &&
+    /hoehenlinie/i.test(`${layer.id}:${layer["source-layer"]}`),
   suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
 }));
 
@@ -95,6 +102,114 @@ describe("shadow scene sun direction", () => {
 });
 
 describe("shadow scene MapLibre terrain", () => {
+  it("keeps only symbol layers in the drape for a textured terrain mesh", () => {
+    type Handler = () => void;
+    const handlers = new Map<string, Set<Handler>>();
+    let terrain: { source: string; exaggeration: number } | null = null;
+    const layers = [
+      { id: "background", type: "background" },
+      { id: "basemap", type: "raster", source: "basemap-source" },
+      { id: "landcover", type: "fill", source: "vector-source" },
+      { id: "roads", type: "line", source: "vector-source" },
+      {
+        id: "bg-basemap_relief-Hoehenlinie_10er",
+        type: "line",
+        source: "vector-source",
+        "source-layer": "Hoehenlinie",
+      },
+      { id: "road-labels", type: "symbol", source: "vector-source" },
+      { id: "three", type: "custom" },
+    ];
+    const paint = new Map<string, unknown>([["basemap:raster-opacity", 0.9]]);
+    const layout = new Map<string, unknown>([["roads:visibility", "visible"]]);
+    const map = {
+      terrain: null,
+      getTerrain: vi.fn(() => terrain),
+      getSource: vi.fn((sourceId: string) =>
+        sourceId === "terrain-source" ? { id: sourceId } : undefined
+      ),
+      setTerrain: vi.fn((next: typeof terrain) => {
+        terrain = next;
+      }),
+      getStyle: vi.fn(() => ({ layers })),
+      getLayer: vi.fn((layerId: string) =>
+        layers.find(({ id }) => id === layerId)
+      ),
+      addLayer: vi.fn((layer: (typeof layers)[number]) => {
+        layers.unshift(layer);
+      }),
+      removeLayer: vi.fn((layerId: string) => {
+        const index = layers.findIndex(({ id }) => id === layerId);
+        if (index >= 0) layers.splice(index, 1);
+      }),
+      getPaintProperty: vi.fn((layerId: string, property: string) =>
+        paint.get(`${layerId}:${property}`)
+      ),
+      setPaintProperty: vi.fn(
+        (layerId: string, property: string, value: unknown) => {
+          paint.set(`${layerId}:${property}`, value);
+        }
+      ),
+      getLayoutProperty: vi.fn((layerId: string, property: string) =>
+        layout.get(`${layerId}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (layerId: string, property: string, value: unknown) => {
+          if (value == null) layout.delete(`${layerId}:${property}`);
+          else layout.set(`${layerId}:${property}`, value);
+        }
+      ),
+      on: vi.fn((event: string, handler: Handler) => {
+        const listeners = handlers.get(event) ?? new Set<Handler>();
+        listeners.add(handler);
+        handlers.set(event, listeners);
+      }),
+      off: vi.fn(),
+    };
+
+    let drapeMode: "opaque" | "labels" = "labels";
+    const release = acquireShadowMapLibreTerrain(
+      map as never,
+      "terrain-source",
+      () => true,
+      () => drapeMode
+    );
+
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    expect(layers.some(({ id }) => id === "carma-shadow-map-style-base")).toBe(
+      false
+    );
+    expect(layout.get("background:visibility")).toBe("none");
+    expect(layout.get("basemap:visibility")).toBe("none");
+    expect(layout.get("landcover:visibility")).toBe("none");
+    expect(layout.get("roads:visibility")).toBe("none");
+    expect(layout.has("road-labels:visibility")).toBe(false);
+    expect(layout.has("bg-basemap_relief-Hoehenlinie_10er:visibility")).toBe(
+      false
+    );
+    expect(layout.has("three:visibility")).toBe(false);
+    expect(paint.get("basemap:raster-opacity")).toBe(0.9);
+
+    // The mesh leaves the scene: the opaque basemap drape takes over again.
+    drapeMode = "opaque";
+    release.refresh();
+    expect(layout.get("roads:visibility")).toBe("visible");
+    expect(layout.has("basemap:visibility")).toBe(false);
+    expect(paint.get("basemap:raster-opacity")).toBe(1);
+    expect(layers[0]).toMatchObject({ id: "carma-shadow-map-style-base" });
+
+    drapeMode = "labels";
+    release.refresh();
+    expect(layers.some(({ id }) => id === "carma-shadow-map-style-base")).toBe(
+      false
+    );
+    expect(paint.get("basemap:raster-opacity")).toBe(0.9);
+    expect(layout.get("roads:visibility")).toBe("none");
+
+    release();
+    expect(layout.get("roads:visibility")).toBe("visible");
+    expect(layout.has("basemap:visibility")).toBe(false);
+  });
   it("keeps the native terrain enabled and restores the previous setting", () => {
     type Handler = () => void;
     const handlers = new Map<string, Set<Handler>>();
@@ -331,6 +446,7 @@ describe("shadow scene lighting integration", () => {
       layer: sharedLayer as never,
       setLocationLabelColor,
       setPointLabelOverlayVisible,
+      setMeshLabelStyle: vi.fn(),
       release: releaseScene,
     });
   });
@@ -1266,6 +1382,7 @@ describe("shadow scene lighting integration", () => {
         ) => new THREE.Vector3(longitude * 1_000, altitude, latitude * 1_000),
       } as never,
       setLocationLabelColor,
+      setMeshLabelStyle: vi.fn(),
       release: releaseScene,
     });
     const map = {

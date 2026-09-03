@@ -46,6 +46,13 @@ export interface SharedThreeSceneRuntime {
   providesTerrain?: boolean;
   /** Project preceding MapLibre ground styling onto selected runtime materials. */
   receivesMapStyleTexture?: boolean | ((material: THREE.Material) => boolean);
+  /**
+   * How the projected style meets the receiver's own color: `replace` paints
+   * the captured pass as the surface color (bare terrain), `overlay`
+   * composites it by alpha over the receiver's own texture (a textured mesh
+   * that only takes draped labels).
+   */
+  mapStyleProjectionBlend?: MapStyleProjectionBlend;
   /** Changes whenever streamed content replaces or adds render materials. */
   mapStyleProjectionVersion?: () => number;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
@@ -139,6 +146,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   ) => void;
   /** Enable capture and projection of the preceding MapLibre style pass. */
   setMapStyleProjectionVisible?: (visible: boolean) => void;
+  /** Diagnostics: what the map-style projection did in the last frame. */
+  getMapStyleProjectionState?: () => MapStyleProjectionState;
   projectLngLatToScene: (
     lngLat: [number, number],
     altitudeMeters?: number,
@@ -170,14 +179,44 @@ type MapStyleProjectionUniforms = Readonly<{
   texture: { value: THREE.Texture | null };
   sceneToClip: { value: THREE.Matrix4 };
   enabled: { value: number };
+  /** MapLibre's packed terrain depth of the same frame, for overlay occlusion. */
+  depthTexture: { value: THREE.Texture | null };
+  depthEnabled: { value: number };
+  /** Near and far plane of the MapLibre camera that wrote that depth. */
+  depthNearFar: { value: THREE.Vector2 };
+}>;
+
+/**
+ * The internal pieces of MapLibre's terrain that hold the DEM depth pass:
+ * `Terrain.getFramebuffer("depth")` renders the DEM with `terrainDepth`, which
+ * packs `gl_Position.z / gl_Position.w` into RGBA8 (see terrain_depth.fragment).
+ */
+type MapLibreTerrainDepthHost = {
+  terrain?: {
+    _fboDepthTexture?: { texture?: WebGLTexture | null } | null;
+  } | null;
+  transform?: { nearZ?: number; farZ?: number };
+};
+
+export type MapStyleProjectionBlend = "replace" | "overlay";
+
+export type MapStyleProjectionState = Readonly<{
+  visible: boolean;
+  enabled: boolean;
+  depthEnabled: boolean;
+  depthNearFar: readonly [number, number];
+  receivers: Readonly<Record<string, boolean>>;
+  frames: number;
 }>;
 
 type MapStyleProjectionMaterialState = {
   uniforms: MapStyleProjectionUniforms;
+  blend: MapStyleProjectionBlend;
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v1";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v2";
+const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 
 const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
 uniform mat4 carmaMapStyleSceneToClip;
@@ -192,7 +231,41 @@ vCarmaMapStyleClip = carmaMapStyleSceneToClip * modelMatrix * vec4( transformed,
 const MAP_STYLE_PROJECTION_FRAGMENT_HEADER = /* glsl */ `
 uniform sampler2D carmaMapStyleTexture;
 uniform float carmaMapStyleEnabled;
+uniform sampler2D carmaMapStyleDepthTexture;
+uniform float carmaMapStyleDepthEnabled;
+uniform vec2 carmaMapStyleDepthNearFar;
 varying vec4 vCarmaMapStyleClip;
+#ifdef CARMA_MAP_STYLE_OVERLAY
+// Draped label picked up in map_fragment, composited after lighting.
+float carmaMapStyleLabelCoverage = 0.0;
+vec3 carmaMapStyleLabelColor = vec3( 0.0 );
+#endif
+
+// MapLibre packs the DEM depth (clip z / w) into RGBA8, see terrain_depth.fragment.
+float carmaMapStyleUnpackDepth( vec4 packed ) {
+  return dot( packed, vec4( 1.0 / 16777216.0, 1.0 / 65536.0, 1.0 / 256.0, 1.0 ) );
+}
+
+float carmaMapStyleLinearDepth( float ndcZ ) {
+  float near = carmaMapStyleDepthNearFar.x;
+  float far = carmaMapStyleDepthNearFar.y;
+  return 2.0 * near * far / ( far + near - ndcZ * ( far - near ) );
+}
+
+// The screen projection paints every surface along the view ray. A label
+// drawn on the DEM ground belongs only to mesh surfaces at that ground: a
+// roof or facade nearer to the camera than the DEM at the same pixel stays
+// clean, so the label reads as baked on the street and occluded by buildings.
+bool carmaMapStyleOccludedByMesh( vec2 uv ) {
+  if ( carmaMapStyleDepthEnabled < 0.5 ) return false;
+  float groundZ = carmaMapStyleUnpackDepth( texture2D( carmaMapStyleDepthTexture, uv ) );
+  if ( groundZ <= 0.0 ) return false;
+  float fragmentZ = vCarmaMapStyleClip.z / vCarmaMapStyleClip.w;
+  float groundDistance = carmaMapStyleLinearDepth( groundZ );
+  float fragmentDistance = carmaMapStyleLinearDepth( fragmentZ );
+  float tolerance = max( 1.5, 0.02 * groundDistance );
+  return fragmentDistance < groundDistance - tolerance;
+}
 
 vec3 carmaMapStyleSRGBToLinear( vec3 value ) {
   return mix(
@@ -201,6 +274,27 @@ vec3 carmaMapStyleSRGBToLinear( vec3 value ) {
     vec3( lessThanEqual( value, vec3( 0.04045 ) ) )
   );
 }
+`;
+
+const MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT = /* glsl */ `
+#ifdef CARMA_MAP_STYLE_OVERLAY
+if ( carmaMapStyleLabelCoverage > 0.0 ) {
+  // Keep the surface's own light and shadow ratio (how much brighter or
+  // darker lighting made the albedo) and apply it to the label color, so
+  // the text stays the sun color in the light and darkens in shadow
+  // without blowing out.
+  const vec3 carmaLuma = vec3( 0.2126, 0.7152, 0.0722 );
+  float carmaAlbedo = max( dot( diffuseColor.rgb, carmaLuma ), 1e-3 );
+  float carmaLit = dot( outgoingLight, carmaLuma );
+  float carmaShade = clamp( carmaLit / carmaAlbedo, 0.35, 1.0 );
+  outgoingLight = mix(
+    outgoingLight,
+    carmaMapStyleLabelColor * carmaShade,
+    carmaMapStyleLabelCoverage
+  );
+}
+#endif
+#include <opaque_fragment>
 `;
 
 const MAP_STYLE_PROJECTION_FRAGMENT_BODY = /* glsl */ `
@@ -215,10 +309,27 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
       carmaMapStyleTexture,
       carmaMapStyleUv
     );
+#ifdef CARMA_MAP_STYLE_OVERLAY
+    // MapLibre leaves premultiplied color in the framebuffer. Straighten it,
+    // linearize and composite it over the receiver's own texture so a
+    // label-only capture keeps the mesh texture visible in between.
+    if ( carmaMapStyleSample.a > 0.0 && !carmaMapStyleOccludedByMesh( carmaMapStyleUv ) ) {
+      vec3 carmaMapStyleStraight = carmaMapStyleSRGBToLinear(
+        clamp( carmaMapStyleSample.rgb / carmaMapStyleSample.a, 0.0, 1.0 )
+      );
+      // Glyph and halo bodies land at full coverage; only the antialiased
+      // rim keeps a partial blend, so the draped text reads solid. The color
+      // is applied after lighting (see the opaque stage below): fed in as
+      // albedo it would clip to white under direct sun.
+      carmaMapStyleLabelCoverage = smoothstep( 0.15, 0.55, carmaMapStyleSample.a );
+      carmaMapStyleLabelColor = carmaMapStyleStraight;
+    }
+#else
     diffuseColor.rgb = carmaMapStyleSRGBToLinear(
       carmaMapStyleSample.rgb
     );
     diffuseColor.a = 1.0;
+#endif
   }
 }
 `;
@@ -228,9 +339,22 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
  * terrain material. The projected color enters before Lambert lighting, so
  * terrain and the style draped onto it receive the same Three.js shadows.
  */
+const applyMapStyleProjectionBlend = (
+  material: THREE.Material,
+  blend: MapStyleProjectionBlend
+): void => {
+  const defines = (material.defines ??= {});
+  if (blend === "overlay") {
+    defines[MAP_STYLE_PROJECTION_OVERLAY_DEFINE] = "";
+  } else {
+    delete defines[MAP_STYLE_PROJECTION_OVERLAY_DEFINE];
+  }
+};
+
 export const configureMapStyleProjectedMaterial = (
   material: THREE.Material,
-  uniforms: MapStyleProjectionUniforms
+  uniforms: MapStyleProjectionUniforms,
+  blend: MapStyleProjectionBlend = "replace"
 ): void => {
   const userData = material.userData as Record<string, unknown>;
   const existing = userData[MAP_STYLE_PROJECTION_STATE] as
@@ -241,11 +365,17 @@ export const configureMapStyleProjectedMaterial = (
       existing.uniforms = uniforms;
       material.needsUpdate = true;
     }
+    if (existing.blend !== blend) {
+      existing.blend = blend;
+      applyMapStyleProjectionBlend(material, blend);
+      material.needsUpdate = true;
+    }
     return;
   }
 
-  const state: MapStyleProjectionMaterialState = { uniforms };
+  const state: MapStyleProjectionMaterialState = { uniforms, blend };
   userData[MAP_STYLE_PROJECTION_STATE] = state;
+  applyMapStyleProjectionBlend(material, blend);
   const previousOnBeforeCompile = material.onBeforeCompile.bind(material);
   const previousProgramCacheKey = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
@@ -253,6 +383,9 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaMapStyleTexture"] = state.uniforms.texture;
     shader.uniforms["carmaMapStyleSceneToClip"] = state.uniforms.sceneToClip;
     shader.uniforms["carmaMapStyleEnabled"] = state.uniforms.enabled;
+    shader.uniforms["carmaMapStyleDepthTexture"] = state.uniforms.depthTexture;
+    shader.uniforms["carmaMapStyleDepthEnabled"] = state.uniforms.depthEnabled;
+    shader.uniforms["carmaMapStyleDepthNearFar"] = state.uniforms.depthNearFar;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
@@ -264,10 +397,16 @@ export const configureMapStyleProjectedMaterial = (
         "#include <common>",
         `#include <common>${MAP_STYLE_PROJECTION_FRAGMENT_HEADER}`
       )
-      .replace("#include <map_fragment>", MAP_STYLE_PROJECTION_FRAGMENT_BODY);
+      .replace("#include <map_fragment>", MAP_STYLE_PROJECTION_FRAGMENT_BODY)
+      .replace(
+        "#include <opaque_fragment>",
+        MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT
+      );
   };
   material.customProgramCacheKey = () =>
-    `${previousProgramCacheKey()}${MAP_STYLE_PROJECTION_SHADER_KEY}`;
+    `${previousProgramCacheKey()}${MAP_STYLE_PROJECTION_SHADER_KEY}|${
+      state.blend
+    }`;
   material.needsUpdate = true;
 };
 
@@ -463,8 +602,15 @@ export const buildSharedThreeSceneLayer = (
     texture: { value: null },
     sceneToClip: { value: new THREE.Matrix4() },
     enabled: { value: 0 },
+    depthTexture: { value: null },
+    depthEnabled: { value: 0 },
+    depthNearFar: { value: new THREE.Vector2(1, 1000) },
   };
   let mapStyleFramebufferTexture: THREE.FramebufferTexture | null = null;
+  // A Three texture handle that borrows MapLibre's terrain depth WebGLTexture
+  // for the frame instead of copying it.
+  let mapStyleDepthTexture: THREE.Texture | null = null;
+  let mapStyleDepthGlTexture: WebGLTexture | null = null;
   const mapStyleProjectionVersions = new Map<string, number>();
   const mapStyleProjectionReceivers = new Map<string, boolean>();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
@@ -476,6 +622,7 @@ export const buildSharedThreeSceneLayer = (
   let meterScale = 0;
   let mapStyleProjectionVisible = true;
   let mapStyleProjectionEpoch = 0;
+  let renderedFrames = 0;
   let disposed = false;
 
   const placeRuntime = (runtime: SharedThreeSceneRuntime) => {
@@ -510,7 +657,8 @@ export const buildSharedThreeSceneLayer = (
           if (typeof receiver === "function" && !receiver(material)) continue;
           configureMapStyleProjectedMaterial(
             material,
-            mapStyleProjectionUniforms
+            mapStyleProjectionUniforms,
+            runtime.mapStyleProjectionBlend ?? "replace"
           );
           configured = true;
         }
@@ -538,6 +686,65 @@ export const buildSharedThreeSceneLayer = (
     }
     renderer.copyFramebufferToTexture(mapStyleFramebufferTexture);
     mapStyleProjectionUniforms.enabled.value = 1;
+  };
+
+  /**
+   * Borrow MapLibre's terrain depth pass of this frame. It is re-rendered
+   * whenever the camera moves or terrain tiles arrive, so it describes the
+   * same DEM ground that the captured labels were drawn on.
+   */
+  const bindMapStyleDepth = () => {
+    const host = map as unknown as MapLibreTerrainDepthHost | null;
+    const glTexture = host?.terrain?._fboDepthTexture?.texture ?? null;
+    const near = host?.transform?.nearZ;
+    const far = host?.transform?.farZ;
+    if (
+      !renderer ||
+      !glTexture ||
+      typeof near !== "number" ||
+      typeof far !== "number" ||
+      !(far > near && near > 0)
+    ) {
+      mapStyleProjectionUniforms.depthEnabled.value = 0;
+      return;
+    }
+    if (!mapStyleDepthTexture) {
+      mapStyleDepthTexture = new THREE.Texture();
+      mapStyleDepthTexture.minFilter = THREE.NearestFilter;
+      mapStyleDepthTexture.magFilter = THREE.NearestFilter;
+      mapStyleDepthTexture.generateMipmaps = false;
+      mapStyleDepthTexture.flipY = false;
+      mapStyleProjectionUniforms.depthTexture.value = mapStyleDepthTexture;
+    }
+    if (mapStyleDepthGlTexture !== glTexture) {
+      mapStyleDepthGlTexture = glTexture;
+      const properties = renderer.properties.get(mapStyleDepthTexture) as {
+        __webglTexture?: WebGLTexture;
+        __webglInit?: boolean;
+        __version?: number;
+      };
+      properties.__webglTexture = glTexture;
+      properties.__webglInit = true;
+      properties.__version = mapStyleDepthTexture.version;
+    }
+    mapStyleProjectionUniforms.depthNearFar.value.set(near, far);
+    mapStyleProjectionUniforms.depthEnabled.value = 1;
+  };
+
+  const releaseMapStyleDepth = () => {
+    if (mapStyleDepthTexture && renderer) {
+      // The WebGLTexture belongs to MapLibre; drop the handle without
+      // letting Three delete it.
+      const properties = renderer.properties.get(mapStyleDepthTexture) as {
+        __webglTexture?: WebGLTexture;
+      };
+      delete properties.__webglTexture;
+      renderer.properties.remove(mapStyleDepthTexture);
+    }
+    mapStyleDepthTexture = null;
+    mapStyleDepthGlTexture = null;
+    mapStyleProjectionUniforms.depthTexture.value = null;
+    mapStyleProjectionUniforms.depthEnabled.value = 0;
   };
 
   const layer: SharedThreeSceneLayer = {
@@ -600,6 +807,20 @@ export const buildSharedThreeSceneLayer = (
       }
     },
 
+    getMapStyleProjectionState() {
+      return {
+        visible: mapStyleProjectionVisible,
+        enabled: mapStyleProjectionUniforms.enabled.value === 1,
+        depthEnabled: mapStyleProjectionUniforms.depthEnabled.value === 1,
+        depthNearFar: [
+          mapStyleProjectionUniforms.depthNearFar.value.x,
+          mapStyleProjectionUniforms.depthNearFar.value.y,
+        ],
+        receivers: Object.fromEntries(mapStyleProjectionReceivers),
+        frames: renderedFrames,
+      };
+    },
+
     setMapStyleProjectionVisible(visible) {
       if (mapStyleProjectionVisible === visible) return;
       mapStyleProjectionVisible = visible;
@@ -641,6 +862,7 @@ export const buildSharedThreeSceneLayer = (
       for (const runtime of runtimes.values()) scene.remove(runtime.root);
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
+      releaseMapStyleDepth();
       renderer?.dispose();
       renderer = null;
       mapStyleFramebufferTexture?.dispose();
@@ -676,6 +898,7 @@ export const buildSharedThreeSceneLayer = (
 
     render(gl, options: CustomRenderMethodInput) {
       if (!map || !renderer || !originMerc || meterScale <= 0) return;
+      renderedFrames += 1;
 
       const mainMatrix = new THREE.Matrix4().fromArray(
         options.defaultProjectionData.mainMatrix as unknown as number[]
@@ -735,8 +958,10 @@ export const buildSharedThreeSceneLayer = (
       if (mapStyleProjectionVisible && configureMapStyleProjection()) {
         try {
           captureMapStyleFramebuffer();
+          bindMapStyleDepth();
         } catch (error) {
           mapStyleProjectionUniforms.enabled.value = 0;
+          mapStyleProjectionUniforms.depthEnabled.value = 0;
           console.warn("[shared-three-scene] map-style capture failed", error);
         }
       } else {
@@ -862,6 +1087,7 @@ export const buildSharedThreeSceneLayer = (
     onRemove() {
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
+      releaseMapStyleDepth();
       renderer?.dispose();
       renderer = null;
       mapStyleFramebufferTexture?.dispose();

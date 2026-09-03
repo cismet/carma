@@ -1997,6 +1997,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       options.providesTerrain === true
         ? (material) => !isRenderedBuildingSurface(material)
         : false,
+    // A terrain-providing tileset carries its own texture, so the captured
+    // style is composited over it instead of replacing it.
+    mapStyleProjectionBlend:
+      options.providesTerrain === true ? "overlay" : undefined,
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     originMerc,
     mScale,

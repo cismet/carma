@@ -1584,6 +1584,7 @@ describe("three tiles runtime styling", () => {
 
     const receivesMapStyleBeforeTileStyling = layer.receivesMapStyleTexture;
     expect(typeof receivesMapStyleBeforeTileStyling).toBe("function");
+    expect(layer.mapStyleProjectionBlend).toBe("overlay");
     expect(
       (
         receivesMapStyleBeforeTileStyling as (
