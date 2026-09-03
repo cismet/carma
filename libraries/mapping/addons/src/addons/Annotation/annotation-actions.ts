@@ -75,9 +75,13 @@ export const useAnnotationActions = () => {
   );
 
   const addGroup = useCallback(
-    () =>
+    (band?: number) =>
       setState((previous) => {
-        const group: AnnotationGroup = { id: nextGroupId(), locked: false };
+        const group: AnnotationGroup = {
+          id: nextGroupId(),
+          locked: false,
+          band,
+        };
         return {
           ...(previous ?? { isOn: false }),
           groups: [
@@ -87,6 +91,35 @@ export const useAnnotationActions = () => {
           activeId: group.id,
         };
       }),
+    [setState]
+  );
+
+  /**
+   * Hands a band to a drawing and opens it. Only ever used on an untouched
+   * drawing, so nothing moves across the ground; see `AnnotationScene`.
+   */
+  const assignBand = useCallback(
+    (id: string, band: number) =>
+      setState((previous) => ({
+        ...(previous ?? { isOn: false }),
+        groups: groupsOf(previous).map((entry) =>
+          entry.id === id
+            ? { ...entry, band, locked: false }
+            : { ...entry, locked: true }
+        ),
+        activeId: id,
+      })),
+    [setState]
+  );
+
+  /** the grid is cut once, from wherever the user drew first */
+  const setZoomOrigin = useCallback(
+    (zoom: number) =>
+      setState((previous) =>
+        previous?.zoomOrigin !== undefined
+          ? previous
+          : { ...(previous ?? { isOn: false }), zoomOrigin: zoom }
+      ),
     [setState]
   );
 
@@ -108,7 +141,7 @@ export const useAnnotationActions = () => {
    * works right away without a fresh drawing being added on every mount.
    */
   const hydrate = useCallback(
-    (restored: AnnotationGroup[]) =>
+    (restored: AnnotationGroup[], origin?: number) =>
       setState((previous) => {
         if (restored.length === 0) {
           return previous ?? { isOn: false };
@@ -121,6 +154,7 @@ export const useAnnotationActions = () => {
           ...(previous ?? { isOn: false }),
           groups,
           activeId: groups[groups.length - 1].id,
+          zoomOrigin: origin ?? previous?.zoomOrigin,
         };
       }),
     [setState]
@@ -183,12 +217,15 @@ export const useAnnotationActions = () => {
     undoVersion: state?.undoVersion ?? 0,
     redoVersion: state?.redoVersion ?? 0,
     zoomRequest: state?.zoomRequest,
+    zoomOrigin: state?.zoomOrigin,
     toggle,
     endMode,
     setShape,
     undo,
     redo,
     addGroup,
+    assignBand,
+    setZoomOrigin,
     pickGroup,
     zoomToGroup,
     toggleLock,

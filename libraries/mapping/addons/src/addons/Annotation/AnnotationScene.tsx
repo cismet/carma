@@ -133,10 +133,11 @@ export type AnnotationSceneProps = {
   /** bumped when this drawing should be brought into view; 0 means never */
   zoomVersion: number;
   syncLimits: AnnotationSyncLimits;
-  /** the scale window this drawing lives in, as a factor of its anchor */
-  zoomRange: { min: number; max: number };
-  /** the map left that window with something drawn here */
-  onRangeLeft: () => void;
+  /**
+   * The map zoom this drawing renders at 100 %, from the band it owns. Unset
+   * while there is no grid yet, and then the current camera decides.
+   */
+  anchorZoom?: number;
   inset: Required<AnnotationInset>;
   zIndex: number;
 };
@@ -163,8 +164,7 @@ export const AnnotationScene = ({
   redoVersion,
   zoomVersion,
   syncLimits,
-  zoomRange,
-  onRangeLeft,
+  anchorZoom,
   inset,
   zIndex,
 }: AnnotationSceneProps) => {
@@ -257,42 +257,31 @@ export const AnnotationScene = ({
   }, [box, editable, redoVersion, undoVersion]);
 
   /**
-   * A drawing only covers a range of scales around its anchor. Once the map
-   * leaves it, an untouched drawing simply moves to the new view, and one that
-   * carries shapes hands over to the next drawing.
+   * An untouched drawing follows the map, pinned at the anchor of the band it
+   * owns, or at the plain camera while there is no grid yet. Never once it
+   * carries shapes: element coordinates are read against the anchor, so moving
+   * it would drag the drawing across the ground. And before the saved elements
+   * have landed a scene only looks untouched, hence `settledRef`.
    */
-  const rangeRef = useRef({ onRangeLeft, reanchor, zoomRange });
-  rangeRef.current = { onRangeLeft, reanchor, zoomRange };
   useEffect(() => {
-    if (!libreMap || !api || !editable) {
+    if (!libreMap || !api) {
       return;
     }
-    const check = () => {
-      const anchor = getAnchor();
-      // before the saved elements have landed the scene only looks empty
-      if (!anchor || !settledRef.current) {
+    const follow = () => {
+      if (
+        !settledRef.current ||
+        api.getSceneElements().some((element) => !element.isDeleted)
+      ) {
         return;
       }
-      const { min, max } = rangeRef.current.zoomRange;
-      const scale = 2 ** (libreMap.getZoom() - anchor.zoom);
-      if (scale >= min && scale <= max) {
-        return;
-      }
-      const empty = api
-        .getSceneElements()
-        .every((element) => element.isDeleted);
-      if (empty) {
-        rangeRef.current.reanchor();
-      } else {
-        rangeRef.current.onRangeLeft();
-      }
+      reanchor(anchorZoom);
     };
-    check();
-    libreMap.on("moveend", check);
+    follow();
+    libreMap.on("moveend", follow);
     return () => {
-      libreMap.off("moveend", check);
+      libreMap.off("moveend", follow);
     };
-  }, [api, editable, getAnchor, libreMap]);
+  }, [anchorZoom, api, libreMap, reanchor]);
 
   /**
    * The wheel belongs to the map. Excalidraw would zoom its own camera, and
