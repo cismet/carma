@@ -80,6 +80,7 @@ const SHADOW_SELECTION_ERROR_FACTOR = 1.25;
 const DEFAULT_CACHE_MIN_ITEMS = 6_000;
 const DEFAULT_CACHE_MAX_ITEMS = 8_000;
 export const THREE_TILES_DEFAULT_REQUEST_CONCURRENCY = 64;
+const TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY = 8;
 /** Frames are requested at this interval until the root tileset arrived. */
 const KICKSTART_INTERVAL_MS = 400;
 /** A hidden tab keeps its used tiles this long before the cache is wiped. */
@@ -1573,6 +1574,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       !shadowView ||
       !tiles ||
       !cameraSet ||
+      !isPipelineIdle() ||
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries())
     ) {
       return;
@@ -1785,7 +1787,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map &&
       options.providesTerrain !== true &&
       isSharedThreeTerrainLoading(map)
-        ? 0
+        ? Math.min(
+            TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY,
+            activeConcurrency
+          )
         : activeConcurrency;
   };
   const handleWireBytes = (_url: string, response: Response) => {

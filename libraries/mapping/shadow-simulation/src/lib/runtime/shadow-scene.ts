@@ -71,10 +71,10 @@ const MAX_SUN_DISC_ACCUMULATION_ROUNDS = 64;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
 const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
 const MOTION_SHADOW_UPDATE_INTERVAL_MS = 1000 / 30;
+const MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS = 1_000;
 const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
 const OPAQUE_DRAPE_PROPERTIES = new Map<string, string>([
   ["background", "background-opacity"],
-  ["color-relief", "color-relief-opacity"],
   ["fill", "fill-opacity"],
   ["raster", "raster-opacity"],
 ]);
@@ -158,7 +158,8 @@ export type ShadowSimulationScene = {
  */
 export const acquireShadowMapLibreTerrain = (
   map: MaplibreMap,
-  sourceId = WUPPERTAL_TERRAIN_SOURCE_ID
+  sourceId = WUPPERTAL_TERRAIN_SOURCE_ID,
+  isMapStyleContentVisible: () => boolean = () => true
 ): (() => void) => {
   type InternalTerrain = {
     getMeshFrameDelta?: (zoom: number) => number;
@@ -186,6 +187,10 @@ export const acquireShadowMapLibreTerrain = (
   const savedDrapeOpacities = new Map<
     string,
     { signature: string; property: string; value: unknown }
+  >();
+  const savedTerrainShadingVisibilities = new Map<
+    string,
+    { signature: string; value: unknown }
   >();
   let disposed = false;
   let applying = false;
@@ -223,9 +228,39 @@ export const acquireShadowMapLibreTerrain = (
   const getLayerSignature = (layer: DrapeLayer) =>
     `${layer.type}:${String(layer.source)}:${String(layer["source-layer"])}`;
 
+  const isTerrainShadingLayer = (layer: DrapeLayer) => {
+    if (layer.type === "hillshade" || layer.type === "color-relief") {
+      return true;
+    }
+    if (layer.type !== "raster") return false;
+    // basemap.de's relief style models its DEM shading as ordinary raster
+    // layers (Schummerung_Col / Schummerung_Comb), so filtering by MapLibre's
+    // dedicated hillshade type alone does not remove the baked relief pass.
+    return /(?:schummerung|hillshade|combshade|colordem|shaded[-_ ]?relief)/i.test(
+      [layer.id, layer.source, layer["source-layer"]].join(":")
+    );
+  };
+
   const ensureOpaqueDrape = () => {
     const style = map.getStyle();
     const layers = (style.layers ?? []) as DrapeLayer[];
+    for (const layer of layers) {
+      if (!isTerrainShadingLayer(layer)) continue;
+      const signature = getLayerSignature(layer);
+      let saved = savedTerrainShadingVisibilities.get(layer.id);
+      const currentVisibility = map.getLayoutProperty(layer.id, "visibility");
+      if (!saved || saved.signature !== signature) {
+        saved = { signature, value: currentVisibility };
+        savedTerrainShadingVisibilities.set(layer.id, saved);
+      } else if (currentVisibility !== "none") {
+        // Adopt a style-composer replacement as the newest teardown value.
+        saved.value = currentVisibility;
+      }
+      if (currentVisibility !== "none") {
+        map.setLayoutProperty(layer.id, "visibility", "none");
+      }
+    }
+    if (!isMapStyleContentVisible()) return;
     if (!map.getLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID)) {
       map.addLayer(
         {
@@ -317,6 +352,26 @@ export const acquireShadowMapLibreTerrain = (
           map.setPaintProperty(
             layerId,
             saved.property,
+            saved.value === undefined ? null : saved.value
+          );
+        }
+      } catch {
+        // A style replacement may already have removed the layer.
+      }
+    }
+    for (const [layerId, saved] of savedTerrainShadingVisibilities) {
+      try {
+        const layer = map
+          .getStyle()
+          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
+        if (
+          layer &&
+          getLayerSignature(layer) === saved.signature &&
+          map.getLayoutProperty(layerId, "visibility") === "none"
+        ) {
+          map.setLayoutProperty(
+            layerId,
+            "visibility",
             saved.value === undefined ? null : saved.value
           );
         }
@@ -934,7 +989,12 @@ export const buildShadowSimulationScene = (
   const initialShadowAreaMeters =
     configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
   const previousLight = map.getLight();
-  const releaseMapLibreTerrain = acquireShadowMapLibreTerrain(map);
+  let mapStyleContentVisible = true;
+  const releaseMapLibreTerrain = acquireShadowMapLibreTerrain(
+    map,
+    WUPPERTAL_TERRAIN_SOURCE_ID,
+    () => mapStyleContentVisible
+  );
   let latestSolarPosition: SolarPosition | null = null;
   let latestBuildingAppearance: ShadowBuildingAppearance = {
     fullOpacity: true,
@@ -950,7 +1010,10 @@ export const buildShadowSimulationScene = (
     useIrradianceLut: true,
   };
   let disposed = false;
-  let mapStyleContentVisible = true;
+  let timeAnimating = false;
+  let lastMapLibreStyleUpdateMs = Number.NEGATIVE_INFINITY;
+  let pendingMapLibreLightSample: AtmosphericSunlightSample | null = null;
+  let mapLibreStyleUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   let restoreMapLibreStyleLayers: (() => void) | null = null;
   let terrainColor = new THREE.Color(
     terrain?.material?.color ?? DEFAULT_SHADOW_SURFACE_COLOR
@@ -959,8 +1022,10 @@ export const buildShadowSimulationScene = (
     if (mapStyleContentVisible) {
       restoreMapLibreStyleLayers?.();
       restoreMapLibreStyleLayers = null;
+      sceneLease.layer.setMapStyleProjectionVisible?.(true);
       return;
     }
+    sceneLease.layer.setMapStyleProjectionVisible?.(false);
     restoreMapLibreStyleLayers ??= suppressMapLibreRegularStyleLayers(map);
   };
   const atmosphereReferenceCenter = map.getCenter();
@@ -1040,7 +1105,11 @@ export const buildShadowSimulationScene = (
     shadowStateEpoch += 1;
     shadowVisualEpoch += 1;
   };
-  const applyMapLibreLightSample = (sample: AtmosphericSunlightSample) => {
+  const applyMapLibreLightSampleImmediately = (
+    sample: AtmosphericSunlightSample
+  ) => {
+    pendingMapLibreLightSample = null;
+    lastMapLibreStyleUpdateMs = performance.now();
     const nextColor = `#${sample.color.getHexString()}`;
     sceneLease.setLocationLabelColor(nextColor);
     if (!map.isStyleLoaded()) return;
@@ -1068,6 +1137,33 @@ export const buildShadowSimulationScene = (
       color: nextColor,
       intensity: nextIntensity,
     });
+  };
+  const flushMapLibreLightSample = () => {
+    if (mapLibreStyleUpdateTimer !== null) {
+      globalThis.clearTimeout(mapLibreStyleUpdateTimer);
+      mapLibreStyleUpdateTimer = null;
+    }
+    const sample = pendingMapLibreLightSample;
+    if (sample) applyMapLibreLightSampleImmediately(sample);
+  };
+  const applyMapLibreLightSample = (sample: AtmosphericSunlightSample) => {
+    pendingMapLibreLightSample = sample;
+    if (!timeAnimating) {
+      flushMapLibreLightSample();
+      return;
+    }
+
+    const elapsedMs = performance.now() - lastMapLibreStyleUpdateMs;
+    if (elapsedMs >= MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS) {
+      flushMapLibreLightSample();
+      return;
+    }
+    if (mapLibreStyleUpdateTimer !== null) return;
+    mapLibreStyleUpdateTimer = globalThis.setTimeout(() => {
+      mapLibreStyleUpdateTimer = null;
+      const latestSample = pendingMapLibreLightSample;
+      if (latestSample) applyMapLibreLightSampleImmediately(latestSample);
+    }, MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS - elapsedMs);
   };
   const evaluateAtmosphericSunlightForMap = (position: SolarPosition) => {
     const mapCenter = map.getCenter();
@@ -1155,7 +1251,6 @@ export const buildShadowSimulationScene = (
     getCoverageRuntimes().flatMap(
       (runtime) => runtime.getActiveTileVolumes?.() ?? []
     );
-  let timeAnimating = false;
   let mapInMotion = false;
   let latestShadowView: SharedThreeSceneShadowView | null = null;
   let appliedRuntimeShadowView: SharedThreeSceneShadowView | null = null;
@@ -1784,7 +1879,10 @@ export const buildShadowSimulationScene = (
     updateTimeAnimating(animating) {
       if (timeAnimating === animating) return;
       timeAnimating = animating;
-      if (!animating) sharedBinding.dirty = true;
+      if (!animating) {
+        flushMapLibreLightSample();
+        sharedBinding.dirty = true;
+      }
       map.triggerRepaint();
     },
     refreshProjectionDebug() {
@@ -1837,6 +1935,10 @@ export const buildShadowSimulationScene = (
       if (disposed) return;
       disposed = true;
       if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
+      if (mapLibreStyleUpdateTimer !== null) {
+        globalThis.clearTimeout(mapLibreStyleUpdateTimer);
+        mapLibreStyleUpdateTimer = null;
+      }
       clearShadowProjectionDebugSnapshot(map);
       map.off("style.load", restoreLighting);
       map.off("movestart", handleMoveStart);
@@ -1862,6 +1964,7 @@ export const buildShadowSimulationScene = (
         // The style may already be gone during map teardown.
       }
       restoreMapLibreStyleLayers = null;
+      sceneLease.layer.setMapStyleProjectionVisible?.(true);
       releaseMapLibreTerrain();
       if (sceneLease.layer.hasRuntime(shadowControllerRuntime.id)) {
         sceneLease.layer.removeRuntime(shadowControllerRuntime.id);

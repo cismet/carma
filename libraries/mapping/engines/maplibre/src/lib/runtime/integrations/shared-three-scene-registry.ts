@@ -180,6 +180,18 @@ type TerrainCoverageBox = Readonly<{
   maximumZ: number;
 }>;
 
+type TerrainCoverage = Readonly<{ predicate: unknown }>;
+
+type TerrainCoverageCacheEntry = Readonly<{
+  sourceSignature: string;
+  coverage: TerrainCoverage;
+}>;
+
+const terrainCoverageCache = new WeakMap<
+  SharedThreeSceneLayer,
+  TerrainCoverageCacheEntry
+>();
+
 const containsCoverageBox = (
   outer: TerrainCoverageBox,
   inner: TerrainCoverageBox
@@ -191,7 +203,7 @@ const containsCoverageBox = (
 
 const getTerrainCoverageFilter = (
   layer: SharedThreeSceneLayer
-): { predicate: unknown } | null => {
+): TerrainCoverage | null => {
   const terrainRuntimes = (layer.getRuntimes?.() ?? []).filter(
     (runtime) => runtime.providesTerrain === true
   );
@@ -218,6 +230,22 @@ const getTerrainCoverageFilter = (
       });
     }
   }
+
+  // Style and label updates can call this repeatedly while the terrain
+  // selection is unchanged. Keep the signature in the runtime's stable tile
+  // order so the hot path remains linear; an order-only change merely causes
+  // one harmless cache miss.
+  const sourceSignature = JSON.stringify(
+    boxes.map(({ key, minimumX, minimumZ, maximumX, maximumZ }) => [
+      key,
+      minimumX,
+      minimumZ,
+      maximumX,
+      maximumZ,
+    ])
+  );
+  const cached = terrainCoverageCache.get(layer);
+  if (cached?.sourceSignature === sourceSignature) return cached.coverage;
 
   boxes.sort((a, b) => {
     const areaA = (a.maximumX - a.minimumX) * (a.maximumZ - a.minimumZ);
@@ -262,7 +290,9 @@ const getTerrainCoverageFilter = (
     coordinates.length === 0
       ? false
       : ["within", { type: "MultiPolygon", coordinates }];
-  return { predicate };
+  const coverage = { predicate };
+  terrainCoverageCache.set(layer, { sourceSignature, coverage });
+  return coverage;
 };
 
 const applyLocationLabelCoverageFilters = (
@@ -700,6 +730,7 @@ export const acquireSharedThreeScene = (
         current.savedLocationLabelTextColors
       );
       restoreLocationLabelFilters(map, current.savedLocationLabelFilters);
+      terrainCoverageCache.delete(current.layer);
       current.layer.dispose();
       entries.delete(map);
     },

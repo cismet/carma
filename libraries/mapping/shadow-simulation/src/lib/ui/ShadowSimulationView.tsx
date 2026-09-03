@@ -660,7 +660,7 @@ const ShadowQuickSettings = ({
             />
           </label>
           <label className="grid grid-cols-[110px_1fr] items-center gap-3">
-            <span>Kartenstil</span>
+            <span>Basiskarte</span>
             <input
               type="checkbox"
               checked={state.showMapStyleContent ?? true}
@@ -672,7 +672,7 @@ const ShadowQuickSettings = ({
               }
               className="h-4 w-4 cursor-pointer justify-self-start accent-amber-600"
               data-test-id="shadow-simulation-map-style-content"
-              aria-label="Kartenstil-Inhalte anzeigen"
+              aria-label="Basiskarte auf dem Terrain anzeigen"
             />
           </label>
           <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">

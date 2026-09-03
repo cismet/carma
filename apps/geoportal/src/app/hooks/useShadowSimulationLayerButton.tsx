@@ -26,6 +26,7 @@ export const useShadowSimulationLayerButton = () => {
   const routeAddons = useRouteAddons();
   const [addonOverrides] = usePersistedAddonOverrides();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const shadowEnabled = shadowState?.enabled ?? false;
   const wasEnabled = useRef(false);
 
   const shadowAddon = useMemo(
@@ -47,12 +48,12 @@ export const useShadowSimulationLayerButton = () => {
             type: "object",
             icon: "shadow-simulation",
             iconColor: "#d97706",
-            visible: shadowState?.enabled ?? false,
+            visible: shadowEnabled,
             pinned: "last",
             tools: [shadowAddon],
           }
         : null,
-    [shadowAddon, shadowState?.enabled]
+    [shadowAddon, shadowEnabled]
   );
 
   useEffect(() => {
@@ -60,13 +61,15 @@ export const useShadowSimulationLayerButton = () => {
       (entry) => entry.id === SHADOW_SIMULATION_LAYER_ID
     );
     const currentLayer = layerIndex >= 0 ? layerStack[layerIndex] : undefined;
-    const enabled = shadowState?.enabled ?? false;
-    const justEnabled = enabled && !wasEnabled.current;
-    wasEnabled.current = enabled;
+    const justEnabled = shadowEnabled && !wasEnabled.current;
+    wasEnabled.current = shadowEnabled;
 
     if (!shadowAddon || !shadowLayer) {
-      if (enabled && shadowState) {
-        setShadowState({ ...shadowState, enabled: false });
+      if (shadowEnabled) {
+        setShadowState((previous) => {
+          if (!previous || !previous.enabled) return previous!;
+          return { ...previous, enabled: false };
+        });
       }
       if (currentLayer) {
         dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
@@ -74,7 +77,7 @@ export const useShadowSimulationLayerButton = () => {
       return;
     }
 
-    if (enabled && !currentLayer) {
+    if (shadowEnabled && !currentLayer) {
       dispatch(appendLayer(shadowLayer));
       // Switching the simulation on opens its info view; the appended entry
       // lands at the end of the stack.
@@ -86,8 +89,8 @@ export const useShadowSimulationLayerButton = () => {
       return;
     }
 
-    if (currentLayer.visible !== enabled) {
-      dispatch(updateLayer({ ...currentLayer, visible: enabled }));
+    if (currentLayer.visible !== shadowEnabled) {
+      dispatch(updateLayer({ ...currentLayer, visible: shadowEnabled }));
     }
 
     if (justEnabled) {
@@ -98,7 +101,7 @@ export const useShadowSimulationLayerButton = () => {
     layerStack,
     setShadowState,
     shadowAddon,
+    shadowEnabled,
     shadowLayer,
-    shadowState,
   ]);
 };
