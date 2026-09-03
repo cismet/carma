@@ -231,11 +231,15 @@ describe("shared Three.js scene layer", () => {
     });
 
     expect(layer.getScene().children).toContain(root);
+    expect(layer.getRuntimes()).toEqual([
+      expect.objectContaining({ id: "mesh-runtime" }),
+    ]);
     expect(layer.hasRuntime("mesh-runtime")).toBe(true);
 
     layer.removeRuntime("mesh-runtime");
 
     expect(layer.getScene().children).not.toContain(root);
+    expect(layer.getRuntimes()).toEqual([]);
     expect(dispose).toHaveBeenCalledOnce();
   });
 });

@@ -63,6 +63,9 @@ const OVERLAY_LAYER_HINT =
 const LOCATION_LABEL_HINT =
   /(?:^|[-_:])(place|settlement|locality|city|town|village|municipality|district|borough|suburb|neighbou?rhood|quarter|ort|stadt|gemeinde|bezirk)(?:$|[-_:])/i;
 
+const BASEMAP_DE_LOCATION_LABEL_HINT =
+  /(?:^|[-_:])Name_(?:Staat(?:_DE)?|Bundesland|Landeshauptstadt|Stadtgemeinde(?:_|$)|Landgemeinde(?:_|$)|Ortsteil_(?:Gemeindeteil|Stadtteil)(?:_|$)|Wohnplatz(?:_|$))/i;
+
 const ROAD_LABEL_HINT =
   /(?:road|street|strasse|stra(?:ss|ß)e|highway|motorway|transport|route|autobahn)/i;
 
@@ -79,7 +82,41 @@ export const isMapStyleLocationLabelLayer = (
   ].join(":");
   if (ROAD_LABEL_HINT.test(signature)) return false;
   if (layer.layout?.["symbol-placement"] === "line") return false;
-  return LOCATION_LABEL_HINT.test(signature);
+  return (
+    BASEMAP_DE_LOCATION_LABEL_HINT.test(signature) ||
+    LOCATION_LABEL_HINT.test(signature)
+  );
+};
+
+export type MapStyleLocationLabelFlatOffset = readonly [
+  horizontalEm: number,
+  verticalEm: number
+];
+
+/** Flat screen-space lift for point labels, ranked by place prominence. */
+export const getMapStyleLocationLabelFlatOffset = (
+  layer: RuntimeStyleLayer
+): MapStyleLocationLabelFlatOffset | null => {
+  if (!isMapStyleLocationLabelLayer(layer)) return null;
+  const signature = [layer.id, layer.metadata?.["layer-id"]].join(":");
+
+  if (
+    /Name_(?:Staat(?:_DE)?|Bundesland|Landeshauptstadt|Stadtgemeinde_(?:groesser_1Mio|bis_1Mio))/i.test(
+      signature
+    )
+  ) {
+    return [0, -3];
+  }
+  if (/Name_Stadtgemeinde_(?:bis_500000|bis_200000)/i.test(signature)) {
+    return [0, -2.5];
+  }
+  if (/Name_Stadtgemeinde_/i.test(signature)) return [0, -2];
+  if (/Name_Landgemeinde_/i.test(signature)) return [0, -1.5];
+  if (/Name_Ortsteil_(?:Gemeindeteil|Stadtteil)_/i.test(signature)) {
+    return [0, -1];
+  }
+  if (/Name_Wohnplatz_/i.test(signature)) return [0, -0.65];
+  return [0, -1.5];
 };
 
 /** @deprecated Prefer the explicit location-label classifier. */

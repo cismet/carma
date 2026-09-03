@@ -45,9 +45,7 @@ export interface SharedThreeSceneRuntime {
   /** This runtime already supplies the visible ground surface. */
   providesTerrain?: boolean;
   /** Project preceding MapLibre ground styling onto selected runtime materials. */
-  receivesMapStyleTexture?:
-    | boolean
-    | ((material: THREE.Material) => boolean);
+  receivesMapStyleTexture?: boolean | ((material: THREE.Material) => boolean);
   /** Changes whenever streamed content replaces or adds render materials. */
   mapStyleProjectionVersion?: () => number;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
@@ -125,6 +123,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   removeRuntime: (runtimeId: string) => void;
   hasRuntime: (runtimeId: string) => boolean;
   getScene: () => THREE.Scene;
+  /** Runtimes currently attached to the shared scene, including local terrain. */
+  getRuntimes: () => readonly SharedThreeSceneRuntime[];
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
   /**
@@ -142,6 +142,10 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
     altitudeMeters?: number,
     target?: THREE.Vector3
   ) => THREE.Vector3 | null;
+  /** Inverse of projectLngLatToScene for a shared-scene world position. */
+  projectSceneToLngLat: (
+    position: THREE.Vector3 | readonly [number, number, number]
+  ) => [longitude: number, latitude: number] | null;
   /** Detach the custom layer without destroying runtimes preserved across HMR. */
   detach: () => void;
   dispose: () => void;
@@ -227,9 +231,9 @@ export const configureMapStyleProjectedMaterial = (
   uniforms: MapStyleProjectionUniforms
 ): void => {
   const userData = material.userData as Record<string, unknown>;
-  const existing = userData[
-    MAP_STYLE_PROJECTION_STATE
-  ] as MapStyleProjectionMaterialState | undefined;
+  const existing = userData[MAP_STYLE_PROJECTION_STATE] as
+    | MapStyleProjectionMaterialState
+    | undefined;
   if (existing) {
     if (existing.uniforms !== uniforms) {
       existing.uniforms = uniforms;
@@ -273,10 +277,7 @@ type OverlayDepthContext = Pick<
 type GroundClearContext = OverlayDepthContext &
   Pick<
     WebGLRenderingContext,
-    | "COLOR_BUFFER_BIT"
-    | "COLOR_CLEAR_VALUE"
-    | "clearColor"
-    | "getParameter"
+    "COLOR_BUFFER_BIT" | "COLOR_CLEAR_VALUE" | "clearColor" | "getParameter"
   >;
 
 /** Clear the shared framebuffer depth without disturbing MapLibre's range. */
@@ -579,6 +580,10 @@ export const buildSharedThreeSceneLayer = (
       return scene;
     },
 
+    getRuntimes() {
+      return [...runtimes.values()];
+    },
+
     getRenderer() {
       return renderer;
     },
@@ -603,6 +608,20 @@ export const buildSharedThreeSceneLayer = (
         (coordinate.z - originMerc.z) / meterScale,
         (coordinate.y - originMerc.y) / meterScale
       );
+    },
+
+    projectSceneToLngLat(position) {
+      if (!originMerc || meterScale <= 0) return null;
+      const [x, y, z] = Array.isArray(position)
+        ? position
+        : [position.x, position.y, position.z];
+      const coordinate = new MercatorCoordinate(
+        originMerc.x + x * meterScale,
+        originMerc.y + z * meterScale,
+        originMerc.z + y * meterScale
+      );
+      const lngLat = coordinate.toLngLat();
+      return [lngLat.lng, lngLat.lat];
     },
 
     detach() {

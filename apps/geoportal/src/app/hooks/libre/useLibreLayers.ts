@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import { useAddonState } from "@carma-mapping/addons";
 import type { LibreLayer } from "@carma-mapping/core";
 
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
@@ -14,21 +15,18 @@ import { useRouteBackground } from "../useRouteBackground";
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
   const { backgroundLayer, namedLayers } = useRouteBackground();
+  const [shadowState] = useAddonState("shadowSimulation");
 
-  const computedLibreLayers = useMemo(
-    () => {
-      const terrainMeshActive = geoportalLayers.some(
-        layerProvidesTerrainMesh
-      );
-      return [
-        ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
-          terrainMeshActive,
-        }),
-        ...geoportalLayersToLibreLayers(geoportalLayers),
-      ];
-    },
-    [backgroundLayer, namedLayers, geoportalLayers]
-  );
+  const computedLibreLayers = useMemo(() => {
+    const terrainMeshActive = geoportalLayers.some(layerProvidesTerrainMesh);
+    return [
+      ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
+        terrainMeshActive,
+        shadowTerrainActive: shadowState?.enabled === true,
+      }),
+      ...geoportalLayersToLibreLayers(geoportalLayers),
+    ];
+  }, [backgroundLayer, namedLayers, geoportalLayers, shadowState?.enabled]);
 
   const libreLayersRef = useRef(computedLibreLayers);
   return useMemo(() => {

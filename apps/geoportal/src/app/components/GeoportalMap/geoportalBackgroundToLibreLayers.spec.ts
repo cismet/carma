@@ -9,15 +9,15 @@ const background = {
   title: "Stadtplan",
   visible: true,
   opacity: 0.8,
-  layers: "rvrGrundriss@100|opaque-city-map@90|rvrSchriftNT@100",
+  layers: "rvrGrundriss@100|amtlich@90|rvrSchriftNT@100",
 } as BackgroundLayer;
 
-describe("Geoportal mesh background composition", () => {
-  it("keeps the base for terrain draping and adds only transparent labels", () => {
+describe("Geoportal shaded terrain background composition", () => {
+  it("replaces raster-labelled bases with a separable vector basemap", () => {
     const layers = geoportalBackgroundToLibreLayers(
       background,
       {
-        "opaque-city-map": {
+        amtlich: {
           type: "tiles",
           url: "https://example.test/city-map/{z}/{x}/{y}.png",
         },
@@ -37,23 +37,16 @@ describe("Geoportal mesh background composition", () => {
           style: "https://example.test/vector-basemap.json",
         },
       },
-      { terrainMeshActive: true }
+      { shadowTerrainActive: true }
     );
 
-    expect(layers).toHaveLength(2);
+    expect(layers).toHaveLength(1);
     expect(
       layers.some(
         (layer) => "layers" in layer && layer.layers === "ground-plan"
       )
     ).toBe(false);
-    expect(layers[0]).toEqual(
-      expect.objectContaining({
-        type: "tiles",
-        name: "opaque-city-map",
-      })
-    );
-    expect(layers[0]?.opacity).toBeCloseTo(0.72);
-    expect(layers.slice(1)).toEqual([
+    expect(layers).toEqual([
       expect.objectContaining({
         type: "vector",
         name: "bg-basemap_relief",
@@ -63,9 +56,9 @@ describe("Geoportal mesh background composition", () => {
     ]);
   });
 
-  it("keeps the authored background unchanged without a terrain mesh", () => {
+  it("keeps the authored background unchanged without shaded terrain", () => {
     const layers = geoportalBackgroundToLibreLayers(background, {
-      "opaque-city-map": {
+      amtlich: {
         type: "tiles",
         url: "https://example.test/city-map/{z}/{x}/{y}.png",
       },

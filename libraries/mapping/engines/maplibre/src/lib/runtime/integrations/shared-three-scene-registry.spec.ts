@@ -16,12 +16,18 @@ describe("shared Three.js scene registry", () => {
     addRuntime: vi.fn(),
     removeRuntime: vi.fn(),
     getScene: vi.fn(),
+    getRuntimes: vi.fn(() => []),
     getRenderer: vi.fn(),
+    projectSceneToLngLat: vi.fn(
+      (position: readonly [number, number, number]) =>
+        [position[0], position[2]] as [number, number]
+    ),
     dispose,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sharedLayer.getRuntimes.mockReturnValue([]);
     vi.mocked(buildSharedThreeSceneLayer).mockReturnValue(sharedLayer as never);
   });
 
@@ -118,14 +124,46 @@ describe("shared Three.js scene registry", () => {
         : layers.length;
       layers.splice(beforeIndex, 0, current);
     });
+    const layout = new Map<string, unknown>([
+      ["place-city:text-offset", [0, 0]],
+    ]);
+    const paint = new Map<string, unknown>([
+      ["place-city:text-halo-width", 1.25],
+      ["place-city:text-halo-color", "rgba(255, 255, 255, 0.8)"],
+      ["place-city:text-color", "#223344"],
+    ]);
     const map = {
       getStyle: vi.fn(() => ({
         layers: layers.filter(({ id }) => id !== sharedLayer.id),
       })),
       getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
-      getLayer: vi.fn(() => ({ implementation: sharedLayer })),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
       addLayer: vi.fn(),
       moveLayer,
+      getLayoutProperty: vi.fn((id: string, property: string) =>
+        layout.get(`${id}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) layout.delete(key);
+          else layout.set(key, value);
+        }
+      ),
+      getPaintProperty: vi.fn((id: string, property: string) =>
+        paint.get(`${id}:${property}`)
+      ),
+      setPaintProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) paint.delete(key);
+          else paint.set(key, value);
+        }
+      ),
       removeLayer: vi.fn(),
       on: vi.fn(),
       off: vi.fn(),
@@ -143,7 +181,176 @@ describe("shared Three.js scene registry", () => {
       sharedLayer.id,
       "place-city",
     ]);
+    expect(layout.get("place-city:text-offset")).toEqual([0, -1.5]);
+    expect(paint.get("place-city:text-halo-width")).toBe(1.25);
+    lease.setLocationLabelColor("#ffe0aa");
+    expect(paint.get("place-city:text-halo-width")).toBe(1);
+    expect(paint.get("place-city:text-halo-color")).toBe("rgba(0, 0, 0, 0.5)");
+    expect(paint.get("place-city:text-color")).toBe("#ffe0aa");
     lease.release();
+    expect(layout.get("place-city:text-offset")).toEqual([0, 0]);
+    expect(paint.get("place-city:text-halo-width")).toBe(1.25);
+    expect(paint.get("place-city:text-halo-color")).toBe(
+      "rgba(255, 255, 255, 0.8)"
+    );
+    expect(paint.get("place-city:text-color")).toBe("#223344");
+  });
+
+  it("lifts basemap.de place names without lifting line labels", () => {
+    const layers = [
+      { id: "basemap", type: "fill" },
+      { id: sharedLayer.id, type: "custom" },
+      {
+        id: "bg-basemap_relief::Name_Stadtgemeinde_bis_500000",
+        type: "symbol",
+        source: "bg-basemap_relief::basemap",
+        "source-layer": "Name_Punkt",
+      },
+      {
+        id: "bg-basemap_relief::Name_Staatsgrenze",
+        type: "symbol",
+        source: "bg-basemap_relief::basemap",
+        "source-layer": "Name_Linie",
+        layout: { "symbol-placement": "line" },
+      },
+    ];
+    const layout = new Map<string, unknown>();
+    const paint = new Map<string, unknown>();
+    const map = {
+      getStyle: vi.fn(() => ({
+        layers: layers.filter(({ id }) => id !== sharedLayer.id),
+      })),
+      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
+      getLayoutProperty: vi.fn((id: string, property: string) =>
+        layout.get(`${id}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) layout.delete(key);
+          else layout.set(key, value);
+        }
+      ),
+      getPaintProperty: vi.fn((id: string, property: string) =>
+        paint.get(`${id}:${property}`)
+      ),
+      setPaintProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) paint.delete(key);
+          else paint.set(key, value);
+        }
+      ),
+      addLayer: vi.fn(),
+      moveLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+    lease.setLocationLabelColor("#fff2d8");
+
+    expect(
+      layout.get("bg-basemap_relief::Name_Stadtgemeinde_bis_500000:text-offset")
+    ).toEqual([0, -2.5]);
+    expect(
+      paint.get(
+        "bg-basemap_relief::Name_Stadtgemeinde_bis_500000:text-halo-width"
+      )
+    ).toBe(1);
+    expect(
+      paint.get(
+        "bg-basemap_relief::Name_Stadtgemeinde_bis_500000:text-halo-color"
+      )
+    ).toBe("rgba(0, 0, 0, 0.5)");
+    expect(
+      paint.get("bg-basemap_relief::Name_Stadtgemeinde_bis_500000:text-color")
+    ).toBe("#fff2d8");
+    expect(layout.has("bg-basemap_relief::Name_Staatsgrenze:text-offset")).toBe(
+      false
+    );
+    lease.release();
+  });
+
+  it("shows place names only inside active Three terrain tile footprints", () => {
+    const placeLayer = {
+      id: "place-city",
+      type: "symbol",
+      source: "basemap",
+      "source-layer": "place",
+    };
+    const layers = [{ id: sharedLayer.id, type: "custom" }, placeLayer];
+    const originalFilter = ["==", "class", "city"];
+    let currentFilter: unknown = originalFilter;
+    sharedLayer.getRuntimes.mockReturnValue([
+      {
+        id: "terrain",
+        providesTerrain: true,
+        getActiveTileVolumes: () => [
+          {
+            id: "12/34/56",
+            kind: "terrain-tile",
+            minimum: [-10, 100, -20] as const,
+            maximum: [30, 200, 40] as const,
+          },
+        ],
+      } as never,
+    ]);
+    const map = {
+      getStyle: vi.fn(() => ({ layers: [placeLayer] })),
+      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
+      getFilter: vi.fn(() => currentFilter),
+      setFilter: vi.fn((_id: string, filter: unknown) => {
+        currentFilter = filter;
+      }),
+      getLayoutProperty: vi.fn(),
+      setLayoutProperty: vi.fn(),
+      getPaintProperty: vi.fn(),
+      setPaintProperty: vi.fn(),
+      addLayer: vi.fn(),
+      moveLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(currentFilter).toEqual([
+      "all",
+      ["==", ["get", "class"], "city"],
+      [
+        "within",
+        {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [-10.5, -20.5],
+                [30.5, -20.5],
+                [30.5, 40.5],
+                [-10.5, 40.5],
+                [-10.5, -20.5],
+              ],
+            ],
+          ],
+        },
+      ],
+    ]);
+
+    lease.release();
+    expect(currentFilter).toEqual(originalFilter);
   });
 
   it("does not redraw raster label overlays above Three", () => {
