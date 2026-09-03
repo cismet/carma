@@ -43,6 +43,7 @@ import {
   ATMOSPHERIC_DISPLAY_EXPOSURE,
   buildAtmosphericSky,
 } from "./atmospheric-sky";
+import { buildGroundShadowPass } from "./ground-shadow-pass";
 import { ShadowController } from "./shadow-controller";
 import { resolveShadowResourceLimits } from "./shadow-resource-limits";
 import {
@@ -846,6 +847,13 @@ export const buildShadowSimulationScene = (
     initialShadowAreaMeters,
     terrainColor
   );
+  // Active in both modes: it draws only where MapLibre renders terrain, so
+  // a clay study that has suppressed that terrain does not see it, while a
+  // clay study still waiting for its own surface gets shadows on the host's.
+  const groundShadowPass = buildGroundShadowPass();
+  groundShadowPass.mesh.userData[SHADOW_OVERLAY_MARKER] = true;
+  groundShadowPass.setEnabled(true);
+  sceneLease.layer.getScene().add(groundShadowPass.mesh);
   const atmosphereCameraPosition = new THREE.Vector3();
   let shadowStateEpoch = 0;
   let shadowVisualEpoch = 0;
@@ -1142,6 +1150,7 @@ export const buildShadowSimulationScene = (
     root: new THREE.Group(),
     updatePriority: SHADOW_CONTROLLER_UPDATE_PRIORITY,
     update(frame) {
+      groundShadowPass.update(frame);
       const cameraHeightAboveTargetMeters = Math.max(
         0,
         frame.lodCamera.position.y - frame.lookTarget.y
@@ -1721,6 +1730,7 @@ export const buildShadowSimulationScene = (
         sceneLease.layer.removeRuntime(terrainRuntime.id);
       }
       atmosphericSunlight.dispose();
+      groundShadowPass.dispose();
       disposeShadowLightBinding(sharedBinding);
       sceneLease.layer.setAccumulationController?.(null);
       sceneLease.release();

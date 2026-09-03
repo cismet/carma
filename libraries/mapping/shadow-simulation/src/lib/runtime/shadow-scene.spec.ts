@@ -188,6 +188,8 @@ describe("shadow scene lighting integration", () => {
       lodCamera: camera,
       lookTarget,
       viewport: new THREE.Vector2(800, 600),
+      sceneToClipMatrix: new THREE.Matrix4(),
+      hostGroundDepth: null,
     });
   };
 
@@ -1180,6 +1182,8 @@ describe("shadow scene lighting integration", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(7_150, 150, 51_256),
       viewport: new THREE.Vector2(800, 600),
+      sceneToClipMatrix: new THREE.Matrix4(),
+      hostGroundDepth: null,
     });
     const shadowView = terrainRuntime.setShadowView.mock.lastCall?.[0];
     expect(shadowView.camera.name).toBe("shadow-simulation-shadow-camera");
