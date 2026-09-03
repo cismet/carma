@@ -133,6 +133,10 @@ export type AnnotationSceneProps = {
   /** bumped when this drawing should be brought into view; 0 means never */
   zoomVersion: number;
   syncLimits: AnnotationSyncLimits;
+  /** the scale window this drawing lives in, as a factor of its anchor */
+  zoomRange: { min: number; max: number };
+  /** the map left that window with something drawn here */
+  onRangeLeft: () => void;
   inset: Required<AnnotationInset>;
   zIndex: number;
 };
@@ -159,12 +163,14 @@ export const AnnotationScene = ({
   redoVersion,
   zoomVersion,
   syncLimits,
+  zoomRange,
+  onRangeLeft,
   inset,
   zIndex,
 }: AnnotationSceneProps) => {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
-  const { inSync, onSceneChange, getAnchor } = useMapSceneSync(
+  const { inSync, onSceneChange, getAnchor, reanchor } = useMapSceneSync(
     libreMap,
     api,
     box,
@@ -249,6 +255,44 @@ export const AnnotationScene = ({
       redoScene(container);
     }
   }, [box, editable, redoVersion, undoVersion]);
+
+  /**
+   * A drawing only covers a range of scales around its anchor. Once the map
+   * leaves it, an untouched drawing simply moves to the new view, and one that
+   * carries shapes hands over to the next drawing.
+   */
+  const rangeRef = useRef({ onRangeLeft, reanchor, zoomRange });
+  rangeRef.current = { onRangeLeft, reanchor, zoomRange };
+  useEffect(() => {
+    if (!libreMap || !api || !editable) {
+      return;
+    }
+    const check = () => {
+      const anchor = getAnchor();
+      // before the saved elements have landed the scene only looks empty
+      if (!anchor || !settledRef.current) {
+        return;
+      }
+      const { min, max } = rangeRef.current.zoomRange;
+      const scale = 2 ** (libreMap.getZoom() - anchor.zoom);
+      if (scale >= min && scale <= max) {
+        return;
+      }
+      const empty = api
+        .getSceneElements()
+        .every((element) => element.isDeleted);
+      if (empty) {
+        rangeRef.current.reanchor();
+      } else {
+        rangeRef.current.onRangeLeft();
+      }
+    };
+    check();
+    libreMap.on("moveend", check);
+    return () => {
+      libreMap.off("moveend", check);
+    };
+  }, [api, editable, getAnchor, libreMap]);
 
   /**
    * The wheel belongs to the map. Excalidraw would zoom its own camera, and

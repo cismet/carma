@@ -26,6 +26,14 @@ const withAlpha = (color: string, opacity: number) => {
     : color;
 };
 
+/**
+ * The scale window a drawing lives in, in percent; see `AnnotationZoomRange`.
+ * Two zoom levels each way: 25% is the map zoomed out twice from the anchor,
+ * 400% zoomed in twice. Excalidraw itself renders from 10% to 3000%, so those
+ * are the outer bounds worth configuring.
+ */
+const DEFAULT_ZOOM_RANGE = { min: 25, max: 400 };
+
 /** nothing hides the drawing by default; see `AnnotationSyncLimits` */
 const DEFAULT_SYNC_LIMITS: AnnotationSyncLimits = {};
 
@@ -66,6 +74,7 @@ export const AnnotationOverlay = ({
     hideWhenOff = false,
     storageKey,
     syncLimits,
+    zoomRange,
     background = DEFAULT_BACKGROUND,
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY,
   } = config ?? {};
@@ -82,8 +91,17 @@ export const AnnotationOverlay = ({
     zoomRequest,
     pickGroup,
     setShape,
+    addGroup,
     hydrate,
   } = useAnnotationActions();
+
+  const range = useMemo(
+    () => ({
+      min: (zoomRange?.min ?? DEFAULT_ZOOM_RANGE.min) / 100,
+      max: (zoomRange?.max ?? DEFAULT_ZOOM_RANGE.max) / 100,
+    }),
+    [zoomRange?.max, zoomRange?.min]
+  );
 
   const [saved] = useState(() => readDrawings(storageKey));
   const hydratedRef = useRef(false);
@@ -168,6 +186,8 @@ export const AnnotationOverlay = ({
             redoVersion={redoVersion}
             zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
             syncLimits={limits}
+            zoomRange={range}
+            onRangeLeft={addGroup}
             inset={{ top: navbarInset + top, right, bottom, left }}
             zIndex={zIndex + index}
           />

@@ -208,5 +208,20 @@ export const useMapSceneSync = (
 
   const getAnchor = useCallback(() => anchorRef.current, []);
 
-  return { inSync, onSceneChange: applySceneCamera, getAnchor };
+  /**
+   * Pins the scene at the current camera. Only sound while the scene is empty:
+   * element coordinates are read against the anchor, so moving it under a
+   * drawing would drag that drawing across the ground.
+   */
+  const reanchor = useCallback(() => {
+    if (!map) {
+      return;
+    }
+    const { lng, lat } = map.getCenter();
+    anchorRef.current = { lng, lat, zoom: map.getZoom() };
+    restoredRef.current = true;
+    applyMapCamera();
+  }, [applyMapCamera, map]);
+
+  return { inSync, onSceneChange: applySceneCamera, getAnchor, reanchor };
 };
