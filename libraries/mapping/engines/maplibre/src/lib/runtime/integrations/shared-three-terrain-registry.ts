@@ -110,6 +110,32 @@ export const getSharedThreeTerrainElevation = (
  * restoration. Shared Three terrain samplers remain available to building
  * generation while the raster terrain renderer and tile manager are unloaded.
  */
+/**
+ * `isStyleLoaded()` stays false while any source still streams tiles, which
+ * on a busy map is most of the time; gating the restore on it left the map
+ * flat for good. Set the terrain right away and, if the style rejects it,
+ * try again whenever the style reports a change.
+ */
+const restoreTerrain = (
+  map: MaplibreMap,
+  terrain: TerrainSpecification | null
+): void => {
+  if (!terrain) return;
+  const attempt = () => {
+    try {
+      map.setTerrain(terrain);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (attempt()) return;
+  const retry = () => {
+    if (attempt()) map.off("styledata", retry);
+  };
+  map.on("styledata", retry);
+};
+
 export const suppressMapLibreTerrainRendering = (
   map: MaplibreMap
 ): (() => void) => {
@@ -159,7 +185,7 @@ export const suppressMapLibreTerrainRendering = (
       map.off("styledata", entry.clearTerrain);
       suppressedTerrain.delete(map);
       try {
-        if (entry.terrain && map.isStyleLoaded()) map.setTerrain(entry.terrain);
+        restoreTerrain(map, entry.terrain);
         map.setCenterClampedToGround(entry.centerClampedToGround);
       } finally {
         notifySharedThreeTerrainChanged(map);
