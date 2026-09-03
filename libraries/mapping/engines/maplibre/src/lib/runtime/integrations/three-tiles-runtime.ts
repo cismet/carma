@@ -612,17 +612,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   let mapStyleProjectionVersion = 0;
   const isRenderedBuildingSurface = (material: THREE.Material) => {
-    const sourceName = material.name
-      .trim()
-      .toLowerCase()
-      .split(" · ", 1)[0];
+    const sourceName = material.name.trim().toLowerCase().split(" · ", 1)[0];
     return sourceName === "roof" || sourceName === "wall";
   };
+  // Closed building solids cast from both faces. Back faces alone leave a lit
+  // gap under a solid that floats above the terrain: the sun-facing wall has
+  // to cast the shadow beneath and behind the building as well. The shadow
+  // bias keeps the lit front faces from self-shadowing.
   const resolveShadowCastingSide = (material: THREE.Material) =>
     separatedSurfaceShadowSides.get(material) ??
     (options.providesTerrain === true || isSeparatedBuildingSurface(material)
       ? THREE.FrontSide
-      : THREE.BackSide);
+      : THREE.DoubleSide);
   const resolveRenderSide = (material: THREE.Material) =>
     separatedSurfaceRenderSides.get(material) ?? THREE.FrontSide;
   const asMaterialArray = (
@@ -854,9 +855,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
             material,
             isClosed ? THREE.FrontSide : THREE.DoubleSide
           );
+          // A closed solid casts from both faces so its sun-facing walls
+          // shadow the ground beneath a base that floats above the terrain.
           separatedSurfaceShadowSides.set(
             material,
-            isClosed ? THREE.BackSide : THREE.FrontSide
+            isClosed ? THREE.DoubleSide : THREE.FrontSide
           );
         }
         normalizedSeparatedSurfaceGeometries.add(geometry);

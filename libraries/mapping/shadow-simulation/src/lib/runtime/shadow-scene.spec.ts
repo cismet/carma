@@ -718,7 +718,7 @@ describe("shadow scene lighting integration", () => {
     expect((buildingCopy.material as THREE.Material).opacity).toBe(1);
     expect((buildingCopy.material as THREE.Material).transparent).toBe(false);
     expect((buildingCopy.material as THREE.Material).shadowSide).toBe(
-      THREE.BackSide
+      THREE.DoubleSide
     );
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);

@@ -1255,7 +1255,7 @@ describe("three tiles runtime styling", () => {
     expect(sourceMaterial.opacity).toBe(1);
     expect(sourceMaterial.transparent).toBe(false);
     expect(sourceMaterial.depthWrite).toBe(true);
-    expect(sourceMaterial.shadowSide).toBe(THREE.BackSide);
+    expect(sourceMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(outline.visible).toBe(false);
 
     const shader = {
@@ -1293,7 +1293,7 @@ describe("three tiles runtime styling", () => {
       uniformColorMix: 1,
     });
     expect(mesh.material).toBe(sourceMaterial);
-    expect(sourceMaterial.shadowSide).toBe(THREE.BackSide);
+    expect(sourceMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(uniforms.uShadowUniformColorMix.value).toBe(0);
 
     layer.setShadowSimulationStyle?.(null);
@@ -1330,7 +1330,7 @@ describe("three tiles runtime styling", () => {
 
     expect(roofMaterial.shadowSide).toBe(THREE.FrontSide);
     expect(wallMaterial.shadowSide).toBe(THREE.FrontSide);
-    expect(shellMaterial.shadowSide).toBe(THREE.BackSide);
+    expect(shellMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(roofMaterial.side).toBe(THREE.DoubleSide);
     expect(wallMaterial.side).toBe(THREE.DoubleSide);
     expect(shellMaterial.side).toBe(THREE.DoubleSide);
@@ -1486,8 +1486,8 @@ describe("three tiles runtime styling", () => {
     );
     expect(roofMaterial.side).toBe(THREE.FrontSide);
     expect(wallMaterial.side).toBe(THREE.FrontSide);
-    expect(roofMaterial.shadowSide).toBe(THREE.BackSide);
-    expect(wallMaterial.shadowSide).toBe(THREE.BackSide);
+    expect(roofMaterial.shadowSide).toBe(THREE.DoubleSide);
+    expect(wallMaterial.shadowSide).toBe(THREE.DoubleSide);
 
     layer.dispose();
   });
