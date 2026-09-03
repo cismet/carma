@@ -1,14 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
+import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { reserveIdSequence, useAnnotationActions } from "./annotation-actions";
-import { highestIdSequence, readDrawings } from "./annotation-storage";
+import { highestIdSequence, readAnnotations } from "./annotation-storage";
+import { anchorZoomOf, originOf, spanOf } from "./annotation-zoom-bands";
+import { useBandRouting } from "./useBandRouting";
 import { AnnotationScene } from "./AnnotationScene";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
-import type { AnnotationInset, AnnotationSyncLimits } from "./types";
+import type {
+  AnnotationAnchor,
+  AnnotationInset,
+  AnnotationSyncLimits,
+} from "./types";
 
 const DEFAULT_Z_INDEX = 500;
 const DEFAULT_TOOLBAR_SELECTOR = "#topNavbar";
@@ -27,12 +35,12 @@ const withAlpha = (color: string, opacity: number) => {
 };
 
 /**
- * The scale window a drawing lives in, in percent; see `AnnotationZoomRange`.
- * Two zoom levels each way: 25% is the map zoomed out twice from the anchor,
- * 400% zoomed in twice. Excalidraw itself renders from 10% to 3000%, so those
- * are the outer bounds worth configuring.
+ * The scale window a drawing is drawn in, in percent; see `AnnotationZoomRange`.
+ * 100% to 400% keeps strokes between crisp and bold, and makes each drawing two
+ * zoom levels wide. Excalidraw itself renders from 10% to 3000%, so those are
+ * the outer bounds worth configuring.
  */
-const DEFAULT_ZOOM_RANGE = { min: 25, max: 400 };
+const DEFAULT_ZOOM_RANGE = { min: 100, max: 400 };
 
 /** nothing hides the drawing by default; see `AnnotationSyncLimits` */
 const DEFAULT_SYNC_LIMITS: AnnotationSyncLimits = {};
@@ -89,21 +97,27 @@ export const AnnotationOverlay = ({
     undoVersion,
     redoVersion,
     zoomRequest,
+    zoomOrigin,
     pickGroup,
     setShape,
     addGroup,
+    assignBand,
+    setZoomOrigin,
     hydrate,
   } = useAnnotationActions();
 
-  const range = useMemo(
+  const scales = useMemo(
     () => ({
       min: (zoomRange?.min ?? DEFAULT_ZOOM_RANGE.min) / 100,
       max: (zoomRange?.max ?? DEFAULT_ZOOM_RANGE.max) / 100,
     }),
     [zoomRange?.max, zoomRange?.min]
   );
+  const span = useMemo(() => spanOf(scales), [scales]);
 
-  const [saved] = useState(() => readDrawings(storageKey));
+  const [{ origin: savedOrigin, drawings: saved }] = useState(() =>
+    readAnnotations(storageKey)
+  );
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) {
@@ -114,13 +128,58 @@ export const AnnotationOverlay = ({
       return;
     }
     reserveIdSequence(highestIdSequence(saved));
-    hydrate(saved.map(({ id }) => ({ id, locked: true })));
-  }, [hydrate, saved]);
+    hydrate(
+      saved.map(({ id, band }) => ({ id, band, locked: true })),
+      savedOrigin
+    );
+  }, [hydrate, saved, savedOrigin]);
 
-  const onSceneEdit = useAnnotationStorage({
+  const storeSceneEdit = useAnnotationStorage({
     storageKey,
     groups,
     restored: saved,
+    origin: zoomOrigin,
+  });
+
+  /** which drawings carry shapes, so the router leaves their anchors alone */
+  const filledRef = useRef(new Set(saved.map((drawing) => drawing.id)));
+  const isFilled = useCallback((id: string) => filledRef.current.has(id), []);
+
+  const onSceneEdit = useCallback(
+    (
+      id: string,
+      elements: readonly ExcalidrawElement[],
+      files: BinaryFiles,
+      anchor: AnnotationAnchor | null
+    ) => {
+      storeSceneEdit(id, elements, files, anchor);
+      const filled = elements.some((element) => !element.isDeleted);
+      if (filled) {
+        filledRef.current.add(id);
+      } else {
+        filledRef.current.delete(id);
+      }
+      // the first stroke decides where the user works, and cuts the grid that
+      // every later drawing gets its band from
+      if (filled && anchor && zoomOrigin === undefined) {
+        setZoomOrigin(originOf(anchor.zoom, scales.min));
+        assignBand(id, 0);
+      }
+    },
+    [assignBand, scales.min, setZoomOrigin, storeSceneEdit, zoomOrigin]
+  );
+
+  useBandRouting({
+    libreMap,
+    enabled: isOn,
+    groups,
+    activeId,
+    origin: zoomOrigin,
+    span,
+    isFilled,
+    pickGroup,
+    assignBand,
+    addGroup,
   });
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
@@ -186,8 +245,11 @@ export const AnnotationOverlay = ({
             redoVersion={redoVersion}
             zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
             syncLimits={limits}
-            zoomRange={range}
-            onRangeLeft={addGroup}
+            anchorZoom={
+              zoomOrigin === undefined || group.band === undefined
+                ? undefined
+                : anchorZoomOf(group.band, zoomOrigin, span, scales.min)
+            }
             inset={{ top: navbarInset + top, right, bottom, left }}
             zIndex={zIndex + index}
           />
