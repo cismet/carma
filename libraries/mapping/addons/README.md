@@ -91,6 +91,10 @@ two libraries circular. Declaration sites keep full kind checking by narrowing t
 
 ## Where an addon's UI ends up
 
+What the four UI surfaces of a map app look like, and which of them an addon may
+put its own UI on, is [`ADDON-UI.md`](./ADDON-UI.md). This section is only about
+the mount point the registry decides.
+
 There is no `surface` field. An addon renders whatever it wants, and one optional
 registry field decides where that lands:
 
@@ -507,6 +511,24 @@ button, in declaration order. Opening one closes the others.
 
 That is all; there is no further wiring.
 
+
+## Simulating a build without cage
+
+Some addons are implemented in the closed-source cage repo and reached through
+`lib/caged-addons.ts`, which yields `undefined` for each of them when cage is
+not in the checkout. Every consumer therefore has a fallback, and a developer
+with cage linked in never sees one.
+
+`#/<route>?ff=nocage` makes this checkout behave like one without cage: the cage
+badge disappears and `useCreateBlendLayer` yields nothing, so `timeSlider` drops
+to its tiled WMS layer and snaps to whole steps. Branch on `useIsCagedAvailable`
+or `useCreateBlendLayer` rather than on the raw module exports, or the addon
+will not follow the flag.
+
+The flag is a simulation, not the real thing: the registry still holds the caged
+components, so the addon manager keeps listing them as implemented, and cage's
+own code is still in the bundle. For the ground truth, run
+`099-cage/unlinkingHotlinkForDeveloping.sh` and restart the dev server.
 
 ## Guidelines
 
