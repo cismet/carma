@@ -280,11 +280,12 @@ export type {
 } from "./lib/runtime/integrations/three-tiles-runtime";
 export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
 export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export { isSharedThreeTerrainLoading } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
-  isSharedThreeTerrainLoading,
-  suppressMapLibreTerrainRendering,
-} from "./lib/runtime/integrations/shared-three-terrain-registry";
-export { suppressMapLibreRegularStyleLayers } from "./lib/runtime/integrations/map-style-layer-suppression";
+  acquireMapLibreTerrainMeshComposition,
+  MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
+  suppressMapLibreRegularStyleLayers,
+} from "./lib/runtime/integrations/map-style-layer-suppression";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

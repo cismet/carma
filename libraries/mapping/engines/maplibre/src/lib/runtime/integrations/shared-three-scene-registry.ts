@@ -2,6 +2,10 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
+import {
+  isMapStyleOverlayLayer,
+  type RuntimeStyleLayer,
+} from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
 
@@ -58,11 +62,34 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
-const getFirstSymbolLayerId = (map: MaplibreMap): string | undefined => {
+const getFirstMapStyleOverlayLayerId = (
+  map: MaplibreMap
+): string | undefined => {
   try {
-    return map.getStyle().layers?.find(({ type }) => type === "symbol")?.id;
+    return (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.find(
+      (layer) => isMapStyleOverlayLayer(layer)
+    )?.id;
   } catch {
     return undefined;
+  }
+};
+
+const ensureSharedLayerOrder = (map: MaplibreMap): void => {
+  const layers = map.getStyle().layers ?? [];
+  const layerIndex = layers.findIndex(({ id }) => id === SHARED_SCENE_LAYER_ID);
+  if (layerIndex < 0) return;
+
+  const beforeId = getFirstMapStyleOverlayLayerId(map);
+  if (beforeId) {
+    const beforeIndex = layers.findIndex(({ id }) => id === beforeId);
+    if (beforeIndex >= 0 && layerIndex !== beforeIndex - 1) {
+      map.moveLayer(SHARED_SCENE_LAYER_ID, beforeId);
+    }
+    return;
+  }
+
+  if (layerIndex !== layers.length - 1) {
+    map.moveLayer(SHARED_SCENE_LAYER_ID);
   }
 };
 
@@ -94,7 +121,9 @@ export const acquireSharedThreeScene = (
       if (nextEntry.disposed) return;
       try {
         if (!getMountedSharedThreeSceneLayer(map)) {
-          map.addLayer(layer, getFirstSymbolLayerId(map));
+          map.addLayer(layer, getFirstMapStyleOverlayLayerId(map));
+        } else {
+          ensureSharedLayerOrder(map);
         }
       } catch {
         // A style replacement or map teardown can race this callback.

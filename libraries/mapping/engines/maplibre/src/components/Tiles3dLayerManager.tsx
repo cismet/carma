@@ -9,7 +9,7 @@ import {
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
-import { suppressMapLibreTerrainRendering } from "../lib/runtime/integrations/shared-three-terrain-registry";
+import { acquireMapLibreTerrainMeshComposition } from "../lib/runtime/integrations/map-style-layer-suppression";
 import {
   buildThreeTilesRuntime,
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
@@ -117,9 +117,6 @@ export function Tiles3dLayerManager({
     if (!map || !config.tilesetUrl || !mapIsUsable(map)) return;
 
     const initialConfig = configRef.current;
-    const restoreMapLibreTerrain = config.providesTerrain
-      ? suppressMapLibreTerrainRendering(map)
-      : null;
     const center = map.getCenter();
     const origin: [number, number] = [center.lng, center.lat];
     const runtimeId = `three-tiles-${config.tilesetUrl.replace(
@@ -151,6 +148,9 @@ export function Tiles3dLayerManager({
     );
     runtime.setOutlineVisible(initialConfig.outline ?? true);
     runtimeRef.current = runtime;
+    const releaseMapStyleComposition = config.providesTerrain
+      ? acquireMapLibreTerrainMeshComposition(map)
+      : undefined;
     lease.layer.addRuntime(runtime);
     // What lets the camera restriction know the map has become three
     // dimensional. A tileset stays out of the raycast registry, which
@@ -165,13 +165,15 @@ export function Tiles3dLayerManager({
       if (lease.layer.hasRuntime(runtime.id)) {
         lease.layer.removeRuntime(runtime.id);
       }
+      releaseMapStyleComposition?.();
       lease.release();
-      restoreMapLibreTerrain?.();
     };
   }, [map, config.tilesetUrl, config.providesTerrain]);
 
   // Terrain is only ever switched on here, never off again: the way back
   // belongs to the terrain control, and so does the setting it persists.
+  // Terrain-providing meshes still need MapLibre terrain so the host style's
+  // raster and vector content remains draped at the correct elevation.
   //
   // It is answered once per mount. The style can still be loading when the
   // config arrives, which is why this listens on `styledata` at all, but
@@ -179,7 +181,7 @@ export function Tiles3dLayerManager({
   // change is never a reason to switch it on a second time. Without that guard
   // the next change to the layer list would undo a deliberate switch-off.
   useEffect(() => {
-    if (!map || !config.terrainMandatory || config.providesTerrain) return;
+    if (!map || (!config.terrainMandatory && !config.providesTerrain)) return;
 
     terrainSettledRef.current = false;
 

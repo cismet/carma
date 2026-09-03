@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  acquireMapLibreTerrainMeshComposition,
   getMapLibreLayerOpacityProperties,
+  MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
+  notifyMapLibreStyleCompositionReady,
+  notifyMapLibreStyleCompositionStarted,
   suppressMapLibreRegularStyleLayers,
 } from "./map-style-layer-suppression";
 
@@ -222,5 +226,90 @@ describe("MapLibre regular style layer suppression", () => {
     restore();
 
     expect(testMap.getPaint("basemap", "raster-opacity")).toBe(0.45);
+  });
+});
+
+describe("MapLibre terrain mesh composition", () => {
+  it("waits for a full style replacement to finish before applying once", () => {
+    const testMap = createMap([
+      { id: "city-map", type: "raster", source: "amtlich" },
+    ]);
+    testMap.setPaint("city-map", "raster-opacity", 0.9);
+    notifyMapLibreStyleCompositionReady(testMap.map as never);
+    notifyMapLibreStyleCompositionStarted(testMap.map as never);
+
+    const release = acquireMapLibreTerrainMeshComposition(testMap.map as never);
+    expect(testMap.getPaint("city-map", "raster-opacity")).toBe(0.9);
+
+    notifyMapLibreStyleCompositionReady(testMap.map as never);
+    expect(testMap.getPaint("city-map", "raster-opacity")).toBe(
+      MAPLIBRE_TERRAIN_MESH_BASE_OPACITY
+    );
+    expect(testMap.map.setPaintProperty).toHaveBeenCalledTimes(1);
+    release();
+  });
+
+  it("fades base surfaces and preserves roads and label-only overlays", () => {
+    const testMap = createMap([
+      { id: "background", type: "background" },
+      { id: "city-map", type: "raster", source: "amtlich" },
+      { id: "landcover", type: "fill", source: "landcover" },
+      { id: "road-surface", type: "fill", source: "transport" },
+      {
+        id: "spw2-light-grundriss-raster",
+        type: "raster",
+        source: "spw2-light-grundriss",
+      },
+      { id: "dop-overlay-raster", type: "raster", source: "dop-overlay" },
+      { id: "roads", type: "line", source: "transport" },
+      { id: "labels", type: "symbol", source: "labels" },
+      { id: "three", type: "custom" },
+      { id: "---boundary:first---", type: "background" },
+    ]);
+    testMap.setPaint("background", "background-opacity", 1);
+    testMap.setPaint("city-map", "raster-opacity", 0.9);
+    testMap.setPaint("landcover", "fill-opacity", ["get", "opacity"]);
+    testMap.setPaint("road-surface", "fill-opacity", 0.75);
+    testMap.setPaint("spw2-light-grundriss-raster", "raster-opacity", 0.8);
+    testMap.setPaint("dop-overlay-raster", "raster-opacity", 0.85);
+    testMap.setPaint("roads", "line-opacity", 0.7);
+    testMap.setPaint("labels", "text-opacity", 1);
+    testMap.setPaint("---boundary:first---", "background-opacity", 0);
+
+    const release = acquireMapLibreTerrainMeshComposition(testMap.map as never);
+
+    // One coherent StyleComposer completion signal applies the composition;
+    // intermediate styledata events are deliberately ignored.
+    expect(testMap.getPaint("city-map", "raster-opacity")).toBe(0.9);
+    notifyMapLibreStyleCompositionReady(testMap.map as never);
+
+    expect(testMap.getPaint("background", "background-opacity")).toBe(
+      MAPLIBRE_TERRAIN_MESH_BASE_OPACITY
+    );
+    expect(testMap.getPaint("city-map", "raster-opacity")).toBe(
+      MAPLIBRE_TERRAIN_MESH_BASE_OPACITY
+    );
+    expect(testMap.getPaint("landcover", "fill-opacity")).toBe(
+      MAPLIBRE_TERRAIN_MESH_BASE_OPACITY
+    );
+    expect(testMap.getPaint("road-surface", "fill-opacity")).toBe(0.75);
+    expect(
+      testMap.getPaint("spw2-light-grundriss-raster", "raster-opacity")
+    ).toBe(MAPLIBRE_TERRAIN_MESH_BASE_OPACITY);
+    expect(testMap.getPaint("dop-overlay-raster", "raster-opacity")).toBe(0.85);
+    expect(testMap.getPaint("roads", "line-opacity")).toBe(0.7);
+    expect(testMap.getPaint("labels", "text-opacity")).toBe(1);
+    expect(testMap.getPaint("---boundary:first---", "background-opacity")).toBe(
+      0
+    );
+
+    release();
+
+    expect(testMap.getPaint("background", "background-opacity")).toBe(1);
+    expect(testMap.getPaint("city-map", "raster-opacity")).toBe(0.9);
+    expect(testMap.getPaint("landcover", "fill-opacity")).toEqual([
+      "get",
+      "opacity",
+    ]);
   });
 });

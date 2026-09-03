@@ -17,6 +17,10 @@ import {
 } from "../utils/styleComposer";
 import type { LibreLayer } from "../components/LibreMap";
 import { getVectorMapping } from "../utils/styleBuilder";
+import {
+  notifyMapLibreStyleCompositionReady,
+  notifyMapLibreStyleCompositionStarted,
+} from "../lib/runtime/integrations/map-style-layer-suppression";
 
 export interface UseImperativeStyleOptions {
   /** When false the hook is inert (merged mode is active). */
@@ -219,6 +223,7 @@ export function useImperativeStyle({
         if (filterFunction) {
           filterFunction(mapInst, layers);
         }
+        notifyMapLibreStyleCompositionReady(mapInst);
       } finally {
         isApplyingRef.current = false;
       }
@@ -274,6 +279,7 @@ export function useImperativeStyle({
         ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
       };
 
+      notifyMapLibreStyleCompositionStarted(map);
       map.setStyle(baseStyle);
 
       // Wait for style to load, then apply all layers
@@ -325,6 +331,7 @@ export function useImperativeStyle({
         newKeys.length === oldKeys.length &&
         newKeys.every((k, i) => k === oldKeys[i])
       ) {
+        let opacityChanged = false;
         for (let i = 0; i < effectiveLayers.length; i++) {
           const layer = effectiveLayers[i];
           const id = newIds[i];
@@ -334,6 +341,7 @@ export function useImperativeStyle({
             "opacityTransition" in layer ? layer.opacityTransition : undefined;
           const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
           if (newOpacity !== prevOpacity) {
+            opacityChanged = true;
             if (layer.type === "vector") {
               composer.updateVectorOpacity(id, newOpacity, transition);
             } else if (
@@ -347,6 +355,7 @@ export function useImperativeStyle({
             prevOpacitiesRef.current.set(id, newOpacity);
           }
         }
+        if (opacityChanged) notifyMapLibreStyleCompositionReady(map);
         return;
       }
 
@@ -452,6 +461,7 @@ export function useImperativeStyle({
       if (filterFunction) {
         filterFunction(map, layers);
       }
+      notifyMapLibreStyleCompositionReady(map);
     };
 
     void diffAndApply();

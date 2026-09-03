@@ -38,6 +38,10 @@ import {
   createNonTiledImageSource,
   createNonTiledMetadata,
 } from "./nonTiledWms";
+import {
+  styleProvidesTerrain,
+  withTerrainProviderMetadata,
+} from "./terrainProviderMetadata";
 
 /**
  * Slugify a URL into a compact ID: strips protocol and .json extension,
@@ -340,6 +344,7 @@ export class StyleComposer {
 
     // 4. Add layers
     const remoteLayers = (styleJson.layers || []) as LayerSpecification[];
+    const providesTerrain = styleProvidesTerrain(styleJson);
     const opacity = opts.opacity ?? 1;
     const markerSymbolSize = opts.markerSymbolSize ?? 35;
 
@@ -373,8 +378,13 @@ export class StyleComposer {
       // Set metadata for HidingForwardingManager and z-ordering.
       // "layer-id" is the slugified style URL; "carma-layer-id" is the catalog
       // id, which is what the layer apis (hasLayer/addLayer) speak.
+      const styleLayerMetadata = layer.metadata;
+      // Preserve the terrain-provider marker in imperative composition just
+      // like styleBuilder does in merged mode. The runtime uses this marker to
+      // keep MapLibre terrain available for draping while making its base
+      // surfaces transparent underneath a photogrammetric terrain mesh.
       layer.metadata = {
-        ...(layer.metadata || {}),
+        ...withTerrainProviderMetadata(styleLayerMetadata, providesTerrain),
         "z-index": opts.zIndex,
         "layer-id": layerId,
         ...(vectorLayer.carmaLayerId

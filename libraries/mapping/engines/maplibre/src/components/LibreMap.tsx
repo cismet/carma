@@ -88,6 +88,10 @@ import {
   THREE_TILES_LAYER_TYPE,
   type ThreeTilesLayer,
 } from "../lib/runtime/integrations/three-tiles-layer";
+import {
+  notifyMapLibreStyleCompositionReady,
+  notifyMapLibreStyleCompositionStarted,
+} from "../lib/runtime/integrations/map-style-layer-suppression";
 
 const buildGazetteerRouteInfobox = (pos: number[], label: string) => ({
   properties: {
@@ -1576,7 +1580,16 @@ export const LibreMap = ({
             styleForMap = withoutTerrain as StyleSpecification;
           }
 
-          map.current?.setStyle(styleForMap);
+          const mapInstance = map.current;
+          if (mapInstance) {
+            notifyMapLibreStyleCompositionStarted(mapInstance);
+            mapInstance.setStyle(styleForMap);
+            // setStyle installs the complete layer graph synchronously. Mesh
+            // integrations may already be mounted from the previous style,
+            // or mount just after detectedTiles3dConfigs updates below; the
+            // revision signal handles both without a styledata feedback loop.
+            notifyMapLibreStyleCompositionReady(mapInstance);
+          }
           if (debugLog)
             console.log("[LAYER_MODE] merged: derived style", style);
 
@@ -1691,7 +1704,8 @@ export const LibreMap = ({
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta?.skipIn2D) continue;
               const sourceId = meta.sourceId ?? (layer as any).source;
-              const idx = sourceId === undefined ? undefined : sourceToIdx.get(sourceId);
+              const idx =
+                sourceId === undefined ? undefined : sourceToIdx.get(sourceId);
               if (idx === undefined) continue;
               configs[idx].skipIn2DLayerIds!.push((layer as any).id);
             }

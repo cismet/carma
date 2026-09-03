@@ -135,6 +135,7 @@ export type ShadowSimulationState = {
   showProjectionDebugView?: boolean;
   showTileBounds?: boolean;
   softSunShadows?: boolean;
+  showMapStyleContent?: boolean;
   useTransmittanceLut?: boolean;
   useSkyIrradianceLut?: boolean;
   controlStyle?: ShadowControlStyle;
@@ -658,6 +659,22 @@ const ShadowQuickSettings = ({
               aria-label="Punktlichtquelle statt Sonnenscheibe verwenden"
             />
           </label>
+          <label className="grid grid-cols-[110px_1fr] items-center gap-3">
+            <span>Kartenstil</span>
+            <input
+              type="checkbox"
+              checked={state.showMapStyleContent ?? true}
+              onChange={(event) =>
+                setState({
+                  ...state,
+                  showMapStyleContent: event.currentTarget.checked,
+                })
+              }
+              className="h-4 w-4 cursor-pointer justify-self-start accent-amber-600"
+              data-test-id="shadow-simulation-map-style-content"
+              aria-label="Kartenstil-Inhalte anzeigen"
+            />
+          </label>
           <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
             <span>Qualität</span>
             <div
@@ -777,6 +794,7 @@ const ShadowSimulationSecondaryPanel = ({
                 showSunDebugVector: false,
                 showTileBounds: false,
                 showProjectionDebugView: false,
+                showMapStyleContent: true,
                 useTransmittanceLut: true,
                 useSkyIrradianceLut: true,
               });
@@ -891,6 +909,13 @@ const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateShadowIntensity(state.shadowIntensity ?? 1);
   }, [state.enabled, state.shadowIntensity, sceneRevision]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateMapStyleContentVisibility(
+      state.showMapStyleContent ?? true
+    );
+  }, [state.enabled, state.showMapStyleContent, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -1020,6 +1045,7 @@ export const ShadowSimulationView = ({
       showTileBounds: false,
       showProjectionDebugView: false,
       softSunShadows: true,
+      showMapStyleContent: true,
       useTransmittanceLut: true,
       useSkyIrradianceLut: true,
       controlStyle: SHADOW_CONTROL_STYLE.QUICK,

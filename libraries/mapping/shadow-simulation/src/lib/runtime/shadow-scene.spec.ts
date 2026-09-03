@@ -20,7 +20,6 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
   subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
   suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
-  suppressMapLibreTerrainRendering: vi.fn(() => vi.fn()),
 }));
 
 import {
@@ -31,7 +30,6 @@ import {
   subscribeGenericThreeLayers,
   subscribeSharedThreeSceneContent,
   suppressMapLibreRegularStyleLayers,
-  suppressMapLibreTerrainRendering,
 } from "@carma-mapping/engines/maplibre";
 
 import {
@@ -372,11 +370,16 @@ describe("shadow scene lighting integration", () => {
       evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
     ).toEqual([7_150, 100, 51_256]);
 
-    controller.dispose();
+    const restoreMapContent = vi.fn();
+    vi.mocked(suppressMapLibreRegularStyleLayers).mockReturnValueOnce(
+      restoreMapContent
+    );
+    controller.updateMapStyleContentVisibility(false);
     expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);
-    expect(
-      vi.mocked(suppressMapLibreRegularStyleLayers).mock.results[0]?.value
-    ).toHaveBeenCalledOnce();
+    controller.updateMapStyleContentVisibility(true);
+    expect(restoreMapContent).toHaveBeenCalledOnce();
+
+    controller.dispose();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
     expect(
       scene.getObjectByName("shadow-simulation-sun-vector")
@@ -1045,8 +1048,6 @@ describe("shadow scene lighting integration", () => {
   });
 
   it("adds configured Cesium terrain to the shared scene", async () => {
-    const restoreTerrain = vi.fn();
-    vi.mocked(suppressMapLibreTerrainRendering).mockReturnValue(restoreTerrain);
     const terrainRoot = new THREE.Group();
     const terrainRuntime = {
       id: "terrain",
@@ -1079,8 +1080,6 @@ describe("shadow scene lighting integration", () => {
       } as never,
       release: releaseScene,
     });
-    let backgroundLayerPresent = false;
-    const backgroundPaint = new Map<string, unknown>();
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
@@ -1088,29 +1087,6 @@ describe("shadow scene lighting integration", () => {
         lng: 7.15 + (x / 800 - 0.5) * 0.02,
         lat: 51.256 + (0.5 - y / 600) * 0.02,
       })),
-      getLayer: vi.fn(() =>
-        backgroundLayerPresent
-          ? { id: "__shadow-simulation-background", type: "background" }
-          : undefined
-      ),
-      getStyle: vi.fn(() => ({ layers: [{ id: "amtlich" }] })),
-      addLayer: vi.fn((layer: { paint?: Record<string, unknown> }) => {
-        backgroundLayerPresent = true;
-        for (const [property, value] of Object.entries(layer.paint ?? {})) {
-          backgroundPaint.set(property, value);
-        }
-      }),
-      removeLayer: vi.fn(() => {
-        backgroundLayerPresent = false;
-      }),
-      getPaintProperty: vi.fn((_layerId: string, property: string) =>
-        backgroundPaint.get(property)
-      ),
-      setPaintProperty: vi.fn(
-        (_layerId: string, property: string, value: unknown) => {
-          backgroundPaint.set(property, value);
-        }
-      ),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight: vi.fn(),
@@ -1136,26 +1112,10 @@ describe("shadow scene lighting integration", () => {
       expect.objectContaining({ minimumLevel: 10, maximumLevel: 16 })
     );
     expect(addRuntime).toHaveBeenCalledWith(terrainRuntime);
-    expect(suppressMapLibreTerrainRendering).toHaveBeenCalledWith(map);
-    expect(map.addLayer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "__shadow-simulation-background",
-        type: "background",
-        paint: expect.objectContaining({
-          "background-color": "#d3d3d3",
-          "background-opacity": 1,
-        }),
-      }),
-      "amtlich"
-    );
+    expect(map.setTerrain).toBeUndefined();
 
     controller.updateTerrainColor("#8c7a66");
     expect(terrainRuntime.setMaterialColor).toHaveBeenCalledWith("#8c7a66");
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
-      "__shadow-simulation-background",
-      "background-color",
-      "#8c7a66"
-    );
 
     const evaluateAtmosphere = vi.spyOn(
       AtmosphericSunlightEvaluator.prototype,
@@ -1191,19 +1151,13 @@ describe("shadow scene lighting integration", () => {
     expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(425);
 
     controller.dispose();
-    expect(restoreTerrain).toHaveBeenCalledOnce();
     expect(removeRuntime).toHaveBeenCalledWith("terrain");
-    expect(map.removeLayer).toHaveBeenCalledWith(
-      "__shadow-simulation-background"
-    );
   });
 
   it("replaces shadow terrain while a Mesh tiles runtime provides terrain", async () => {
     vi.stubGlobal("window", { clearTimeout, setTimeout });
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
-    const restoreTerrain = vi.fn();
-    vi.mocked(suppressMapLibreTerrainRendering).mockReturnValue(restoreTerrain);
     const makeTerrainRuntime = () => ({
       id: "shadow-simulation-cesium-terrain",
       originLngLat: [7.15, 51.256] as [number, number],
@@ -1231,8 +1185,6 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(getSharedThreeSceneRuntimes).mockImplementation(
       () => activeContentRuntimes as never
     );
-    let backgroundLayerPresent = false;
-    const backgroundPaint = new Map<string, unknown>();
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
@@ -1240,29 +1192,6 @@ describe("shadow scene lighting integration", () => {
         lng: 7.15 + (x / 800 - 0.5) * 0.02,
         lat: 51.256 + (0.5 - y / 600) * 0.02,
       })),
-      getLayer: vi.fn(() =>
-        backgroundLayerPresent
-          ? { id: "__shadow-simulation-background", type: "background" }
-          : undefined
-      ),
-      getStyle: vi.fn(() => ({ layers: [{ id: "amtlich" }] })),
-      addLayer: vi.fn((layer: { paint?: Record<string, unknown> }) => {
-        backgroundLayerPresent = true;
-        for (const [property, value] of Object.entries(layer.paint ?? {})) {
-          backgroundPaint.set(property, value);
-        }
-      }),
-      removeLayer: vi.fn(() => {
-        backgroundLayerPresent = false;
-      }),
-      getPaintProperty: vi.fn((_layerId: string, property: string) =>
-        backgroundPaint.get(property)
-      ),
-      setPaintProperty: vi.fn(
-        (_layerId: string, property: string, value: unknown) => {
-          backgroundPaint.set(property, value);
-        }
-      ),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight: vi.fn(),
@@ -1295,8 +1224,6 @@ describe("shadow scene lighting integration", () => {
 
     expect(sharedRuntimes.has(initialTerrain.id)).toBe(false);
     expect(initialTerrain.dispose).toHaveBeenCalledOnce();
-    expect(backgroundLayerPresent).toBe(true);
-    expect(map.removeLayer).not.toHaveBeenCalled();
 
     controller.updateTerrainColor("#8c7a66");
 
@@ -1307,7 +1234,6 @@ describe("shadow scene lighting integration", () => {
     expect(buildCesiumTerrainRuntime).toHaveBeenCalledTimes(2);
     expect(sharedRuntimes.get(restoredTerrain.id)).toBe(restoredTerrain);
     expect(restoredTerrain.setMaterialColor).toHaveBeenCalled();
-    expect(restoreTerrain).toHaveBeenCalledOnce();
 
     controller.dispose();
     vi.unstubAllGlobals();

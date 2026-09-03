@@ -154,6 +154,28 @@ type RenderTargetDepthRangeBridge = {
 
 type SharedCanvasViewportRenderer = Pick<THREE.WebGLRenderer, "setViewport">;
 
+type OverlayDepthContext = Pick<
+  WebGLRenderingContext,
+  "DEPTH_BUFFER_BIT" | "clear" | "clearDepth" | "depthMask" | "depthRange"
+>;
+
+/**
+ * MapLibre overlays following the shared Three layer must not inherit mesh
+ * depth. In particular, transparent ground-plan and label rasters are draped
+ * onto MapLibre terrain and would otherwise disappear behind the mesh they are
+ * intended to annotate.
+ */
+export const clearDepthForMapStyleOverlays = (
+  gl: OverlayDepthContext,
+  mapLibreDepthRange: DepthRange
+): void => {
+  gl.depthMask(true);
+  gl.depthRange(0, 1);
+  gl.clearDepth(1);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.depthRange(mapLibreDepthRange[0], mapLibreDepthRange[1]);
+};
+
 /**
  * Give the render camera the real local-scene pose while retaining MapLibre's
  * exact scene-to-clip transform.
@@ -576,6 +598,7 @@ export const buildSharedThreeSceneLayer = (
           });
         }
       }
+      clearDepthForMapStyleOverlays(gl, savedDepthRange);
     },
 
     onRemove() {
