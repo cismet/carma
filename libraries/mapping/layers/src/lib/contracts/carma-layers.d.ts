@@ -218,6 +218,7 @@ type BaseLayer = {
     vectorDescription?: string;
     source?: string;
     mapMode?: "2d" | "3d";
+    links?: { url: string; text: string }[];
     [key: string]: unknown;
   };
 };
@@ -396,6 +397,7 @@ export type Item = {
   workflowLayers?: string[];
   workflowLayerItems?: Item[];
   groupInfo?: LayerGroupInfo;
+  links?: { url: string; text: string }[];
   tools?: ToolEntry[];
 } & (TmpLayer | Link | Feature | Collection | Workflow);
 

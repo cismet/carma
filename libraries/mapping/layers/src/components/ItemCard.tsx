@@ -146,6 +146,9 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
             : "Datenquelle im Open-Data-Portal Wuppertal",
       });
     }
+    if (layer.links?.length) {
+      result.push(...layer.links);
+    }
     return result;
   }, [layer, carmaConf]);
 

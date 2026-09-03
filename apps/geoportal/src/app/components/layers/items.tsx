@@ -14,7 +14,26 @@ export const tabItems = (
 ) => {
   const wmsUrl = currentLayer?.other?.service?.url;
   const opendataUrl = currentLayer?.conf?.opendata;
-  const hasLinks = Boolean(links?.length || wmsUrl || opendataUrl);
+  // service links first, then the custom links of the layer or group
+  const allLinks: { url: string; text: string }[] = [
+    ...(wmsUrl
+      ? [
+          {
+            url: `${wmsUrl}?service=WMS&request=GetCapabilities&version=1.1.1`,
+            text: "Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)",
+          },
+        ]
+      : []),
+    ...(opendataUrl
+      ? [
+          {
+            url: opendataUrl as string,
+            text: "Datenquelle im Open-Data-Portal Wuppertal",
+          },
+        ]
+      : []),
+    ...(links ?? []),
+  ];
 
   const items = [
     {
@@ -33,13 +52,13 @@ export const tabItems = (
     },
   ];
 
-  if (hasLinks) {
+  if (allLinks.length > 0) {
     items.push({
       label: "Links",
       key: "2",
-      children: links?.length ? (
+      children: (
         <div className="flex flex-col gap-2">
-          {links.map((link, i) => (
+          {allLinks.map((link, i) => (
             <a
               key={`link_${i}`}
               className="text-sm"
@@ -49,23 +68,6 @@ export const tabItems = (
               {link.text}
             </a>
           ))}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {wmsUrl && (
-            <a
-              className="text-sm"
-              href={`${wmsUrl}?service=WMS&request=GetCapabilities&version=1.1.1`}
-              target="_blank"
-            >
-              Inhaltsverzeichnis des Kartendienstes (WMS Capabilities)
-            </a>
-          )}
-          {opendataUrl && (
-            <a className="text-sm" href={opendataUrl as string} target="_blank">
-              Datenquelle im Open-Data-Portal Wuppertal
-            </a>
-          )}
         </div>
       ),
     });
