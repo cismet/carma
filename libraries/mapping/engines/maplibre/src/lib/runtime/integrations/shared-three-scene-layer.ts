@@ -137,6 +137,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   setAccumulationController: (
     controller: SharedSceneAccumulationController | null
   ) => void;
+  /** Enable capture and projection of the preceding MapLibre style pass. */
+  setMapStyleProjectionVisible?: (visible: boolean) => void;
   projectLngLatToScene: (
     lngLat: [number, number],
     altitudeMeters?: number,
@@ -472,6 +474,8 @@ export const buildSharedThreeSceneLayer = (
   let depthRangeBridge: RenderTargetDepthRangeBridge | null = null;
   let originMerc: MercatorCoordinate | null = null;
   let meterScale = 0;
+  let mapStyleProjectionVisible = true;
+  let mapStyleProjectionEpoch = 0;
   let disposed = false;
 
   const placeRuntime = (runtime: SharedThreeSceneRuntime) => {
@@ -596,6 +600,14 @@ export const buildSharedThreeSceneLayer = (
       }
     },
 
+    setMapStyleProjectionVisible(visible) {
+      if (mapStyleProjectionVisible === visible) return;
+      mapStyleProjectionVisible = visible;
+      mapStyleProjectionEpoch += 1;
+      if (!visible) mapStyleProjectionUniforms.enabled.value = 0;
+      map?.triggerRepaint();
+    },
+
     projectLngLatToScene(
       lngLat,
       altitudeMeters = 0,
@@ -612,9 +624,10 @@ export const buildSharedThreeSceneLayer = (
 
     projectSceneToLngLat(position) {
       if (!originMerc || meterScale <= 0) return null;
-      const [x, y, z] = Array.isArray(position)
-        ? position
-        : [position.x, position.y, position.z];
+      const [x, y, z] =
+        position instanceof THREE.Vector3
+          ? [position.x, position.y, position.z]
+          : position;
       const coordinate = new MercatorCoordinate(
         originMerc.x + x * meterScale,
         originMerc.y + z * meterScale,
@@ -719,7 +732,7 @@ export const buildSharedThreeSceneLayer = (
       renderer.resetState();
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
       mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
-      if (configureMapStyleProjection()) {
+      if (mapStyleProjectionVisible && configureMapStyleProjection()) {
         try {
           captureMapStyleFramebuffer();
         } catch (error) {
@@ -749,7 +762,7 @@ export const buildSharedThreeSceneLayer = (
         .map((value) => value.toPrecision(6))
         .join(",");
       const visualKey = accumulation
-        ? `${accumulation.visualEpoch()}|${poseKey}`
+        ? `${accumulation.visualEpoch()}|${mapStyleProjectionEpoch}|${poseKey}`
         : "";
       if (accumulation?.active() && renderer && !accumulator?.broken) {
         if (accumulator && accumulatorRounds !== accumulation.rounds) {
@@ -761,7 +774,9 @@ export const buildSharedThreeSceneLayer = (
           accumulator = buildSharedSceneAccumulator(accumulation.rounds);
           accumulatorRounds = accumulation.rounds;
         }
-        accumulator.ensureState(`${accumulation.epoch()}|${poseKey}`);
+        accumulator.ensureState(
+          `${accumulation.epoch()}|${mapStyleProjectionEpoch}|${poseKey}`
+        );
         const retainSettled =
           accumulator.hasSettledFrame &&
           settledAccumulatorVisualKey === visualKey;

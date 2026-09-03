@@ -46,6 +46,28 @@ const createTestStore = () =>
     },
   });
 
+const createNonUpdatingLayerStore = (visible: boolean) => {
+  const mappingState = mappingReducer(undefined, { type: "test/setup" });
+  const fixedMappingState = {
+    ...mappingState,
+    layers: [
+      {
+        id: SHADOW_SIMULATION_LAYER_ID,
+        title: "Schatten",
+        type: "object" as const,
+        visible,
+      },
+    ],
+  };
+
+  return configureStore({
+    reducer: {
+      mapping: () => fixedMappingState,
+      ui: uiReducer,
+    },
+  });
+};
+
 type TestStore = ReturnType<typeof createTestStore>;
 
 const createWrapper =
@@ -106,7 +128,7 @@ describe("useShadowSimulationLayerButton", () => {
         })
       );
       // The entry stays selectable so the info view's arrows reach it.
-      expect(findShadowLayer(store)?.skipSelection).toBeUndefined();
+      expect(findShadowLayer(store)).not.toHaveProperty("skipSelection");
       const { layers, selectedLayerIndex } = store.getState().mapping;
       expect(selectedLayerIndex).toBe(
         layers.findIndex((layer) => layer.id === SHADOW_SIMULATION_LAYER_ID)
@@ -159,9 +181,43 @@ describe("useShadowSimulationLayerButton", () => {
 
     await waitFor(() => {
       expect(findShadowLayer(store)).toBeUndefined();
-      expect(addonStateMock.setShadowState).toHaveBeenCalledWith(
-        expect.objectContaining({ enabled: false })
-      );
+      expect(addonStateMock.setShadowState).toHaveBeenCalled();
     });
+
+    const updateState = addonStateMock.setShadowState.mock.calls[0]?.[0];
+    expect(updateState).toBeTypeOf("function");
+    const latestState = {
+      enabled: true,
+      selection: { year: 2026, dayOfYear: 180, minutes: 930 },
+    };
+    expect(updateState(latestState)).toEqual({
+      ...latestState,
+      enabled: false,
+    });
+  });
+
+  it("does not rerun the layer lifecycle when only the time selection changes", async () => {
+    const store = createNonUpdatingLayerStore(false);
+    addonStateMock.shadowState = {
+      ...addonStateMock.shadowState!,
+      enabled: true,
+    };
+    const dispatch = vi.spyOn(store, "dispatch");
+    const { rerender } = renderHook(() => useShadowSimulationLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => expect(dispatch).toHaveBeenCalled());
+    dispatch.mockClear();
+
+    act(() => {
+      addonStateMock.shadowState = {
+        ...addonStateMock.shadowState,
+        selection: { year: 2026, dayOfYear: 172, minutes: 901 },
+      };
+      rerender();
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });

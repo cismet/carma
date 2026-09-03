@@ -111,11 +111,31 @@ describe("shadow scene MapLibre terrain", () => {
         source: "basemap-source",
       },
       { id: "landcover", type: "fill", source: "vector-source" },
+      { id: "terrain-shading", type: "hillshade", source: "terrain-source" },
+      { id: "terrain-relief", type: "color-relief", source: "terrain-source" },
+      {
+        id: "bg-basemap_relief::Schummerung_Col",
+        type: "raster",
+        source: "bg-basemap_relief::schummerung_col",
+      },
+      {
+        id: "bg-basemap_relief::Schummerung_Comb",
+        type: "raster",
+        source: "bg-basemap_relief::schummerung_comb",
+      },
       { id: "roads", type: "line", source: "vector-source" },
     ];
     const paint = new Map([
       ["basemap:raster-opacity", 0.9],
       ["landcover:fill-opacity", 0.6],
+      ["bg-basemap_relief::Schummerung_Col:raster-opacity", 0.8],
+      ["bg-basemap_relief::Schummerung_Comb:raster-opacity", 0.5],
+    ]);
+    const layout = new Map([
+      ["terrain-shading:visibility", "visible"],
+      ["terrain-relief:visibility", "visible"],
+      ["bg-basemap_relief::Schummerung_Col:visibility", "visible"],
+      ["bg-basemap_relief::Schummerung_Comb:visibility", "visible"],
     ]);
     const map = {
       terrain: terrainRuntime,
@@ -149,6 +169,14 @@ describe("shadow scene MapLibre terrain", () => {
           paint.set(`${layerId}:${property}`, value as number);
         }
       ),
+      getLayoutProperty: vi.fn((layerId: string, property: string) =>
+        layout.get(`${layerId}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (layerId: string, property: string, value: unknown) => {
+          layout.set(`${layerId}:${property}`, value as string);
+        }
+      ),
       on: vi.fn((event: string, handler: Handler) => {
         const listeners = handlers.get(event) ?? new Set<Handler>();
         listeners.add(handler);
@@ -159,7 +187,12 @@ describe("shadow scene MapLibre terrain", () => {
       }),
     };
 
-    const release = acquireShadowMapLibreTerrain(map as never);
+    let mapStyleContentVisible = true;
+    const release = acquireShadowMapLibreTerrain(
+      map as never,
+      "terrain-source",
+      () => mapStyleContentVisible
+    );
 
     expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
     expect(terrainRuntime.getMeshFrameDelta(15)).toBe(0);
@@ -169,11 +202,26 @@ describe("shadow scene MapLibre terrain", () => {
     });
     expect(paint.get("basemap:raster-opacity")).toBe(1);
     expect(paint.get("landcover:fill-opacity")).toBe(1);
+    expect(layout.get("terrain-shading:visibility")).toBe("none");
+    expect(layout.get("terrain-relief:visibility")).toBe("none");
+    expect(
+      layout.get("bg-basemap_relief::Schummerung_Col:visibility")
+    ).toBe("none");
+    expect(
+      layout.get("bg-basemap_relief::Schummerung_Comb:visibility")
+    ).toBe("none");
     expect(paint.has("roads:line-opacity")).toBe(false);
     terrain = null;
     for (const handler of handlers.get("terrain") ?? []) handler();
     expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    mapStyleContentVisible = false;
     paint.set("basemap:raster-opacity", 0.75);
+    const paintUpdateCount = map.setPaintProperty.mock.calls.length;
+    for (const handler of handlers.get("styledata") ?? []) handler();
+    expect(paint.get("basemap:raster-opacity")).toBe(0.75);
+    expect(map.setPaintProperty).toHaveBeenCalledTimes(paintUpdateCount);
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    mapStyleContentVisible = true;
     for (const handler of handlers.get("styledata") ?? []) handler();
     expect(paint.get("basemap:raster-opacity")).toBe(1);
 
@@ -186,6 +234,14 @@ describe("shadow scene MapLibre terrain", () => {
     );
     expect(paint.get("basemap:raster-opacity")).toBe(0.75);
     expect(paint.get("landcover:fill-opacity")).toBe(0.6);
+    expect(layout.get("terrain-shading:visibility")).toBe("visible");
+    expect(layout.get("terrain-relief:visibility")).toBe("visible");
+    expect(
+      layout.get("bg-basemap_relief::Schummerung_Col:visibility")
+    ).toBe("visible");
+    expect(
+      layout.get("bg-basemap_relief::Schummerung_Comb:visibility")
+    ).toBe("visible");
     expect(map.off).toHaveBeenCalledWith("styledata", expect.any(Function));
     expect(map.off).toHaveBeenCalledWith("terrain", expect.any(Function));
   });
@@ -194,6 +250,7 @@ describe("shadow scene MapLibre terrain", () => {
 describe("shadow scene lighting integration", () => {
   const releaseScene = vi.fn();
   const setLocationLabelColor = vi.fn();
+  const setMapStyleProjectionVisible = vi.fn();
   let scene: THREE.Scene;
   type SharedRuntimeFixture = {
     id: string;
@@ -233,6 +290,7 @@ describe("shadow scene lighting integration", () => {
         rounds: number;
       } | null
     ) => void;
+    setMapStyleProjectionVisible: (visible: boolean) => void;
     projectLngLatToScene?: (
       lngLat: [number, number],
       altitude?: number
@@ -262,6 +320,7 @@ describe("shadow scene lighting integration", () => {
       setAccumulationController: vi.fn((controller) => {
         accumulationController = controller;
       }),
+      setMapStyleProjectionVisible,
     };
     vi.mocked(getGenericThreeLayers).mockReturnValue([]);
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([]);
@@ -291,6 +350,7 @@ describe("shadow scene lighting integration", () => {
   };
 
   it("drives MapLibre and the Three.js sun from the same solar position", () => {
+    const performanceNow = vi.spyOn(performance, "now").mockReturnValue(100);
     const evaluateAtmosphere = vi.spyOn(
       AtmosphericSunlightEvaluator.prototype,
       "evaluate"
@@ -474,14 +534,30 @@ describe("shadow scene lighting integration", () => {
       evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
     ).toEqual([7_150, 100, 51_256]);
 
+    const animatedMapStyleUpdateCount = setLight.mock.calls.length;
+    controller.updateTimeAnimating(true);
+    controller.updateSolarPosition({
+      ...solarPosition,
+      instant: new Date("2026-06-21T10:02:00Z"),
+    });
+    controller.updateSolarPosition({
+      ...solarPosition,
+      instant: new Date("2026-06-21T10:03:00Z"),
+    });
+    expect(setLight).toHaveBeenCalledTimes(animatedMapStyleUpdateCount);
+    controller.updateTimeAnimating(false);
+    expect(setLight).toHaveBeenCalledTimes(animatedMapStyleUpdateCount + 1);
+
     const restoreMapContent = vi.fn();
     vi.mocked(suppressMapLibreRegularStyleLayers).mockReturnValueOnce(
       restoreMapContent
     );
     controller.updateMapStyleContentVisibility(false);
     expect(suppressMapLibreRegularStyleLayers).toHaveBeenCalledWith(map);
+    expect(setMapStyleProjectionVisible).toHaveBeenLastCalledWith(false);
     controller.updateMapStyleContentVisibility(true);
     expect(restoreMapContent).toHaveBeenCalledOnce();
+    expect(setMapStyleProjectionVisible).toHaveBeenLastCalledWith(true);
 
     controller.dispose();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();
@@ -490,6 +566,7 @@ describe("shadow scene lighting integration", () => {
     ).toBeUndefined();
     expect(releaseScene).toHaveBeenCalledOnce();
     evaluateAtmosphere.mockRestore();
+    performanceNow.mockRestore();
   });
 
   it("keeps sun-disc accumulation active while tiles are streaming", () => {

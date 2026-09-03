@@ -326,6 +326,43 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
+  it("keeps progressive visible-content slots while terrain is loading", () => {
+    let renderer: TilesRenderer | undefined;
+    const updateSpy = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function (this: TilesRenderer) {
+        renderer = this;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    } as unknown as MaplibreMap;
+    const layer = buildThreeTilesRuntime(
+      "buildings",
+      "tileset.json",
+      [7.15, 51.25]
+    );
+    const camera = new THREE.PerspectiveCamera();
+    setSharedThreeTerrainLoading(map, "fallback-terrain", true);
+
+    layer.onAdd?.(map);
+    layer.update({
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    });
+
+    expect(renderer?.downloadQueue.maxJobsPerOrigin).toBe(8);
+
+    setSharedThreeTerrainLoading(map, "fallback-terrain", false);
+    expect(renderer?.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(1);
+    layer.dispose();
+    updateSpy.mockRestore();
+  });
+
   it("exposes the active 3D tile volumes in shared scene coordinates", () => {
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
@@ -582,7 +619,7 @@ describe("three tiles runtime styling", () => {
     registerPluginSpy.mockRestore();
   });
 
-  it("starts receiver extrusion once the viewport is ready even while mesh work remains queued", () => {
+  it("waits for visible mesh work before starting receiver extrusion", () => {
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
       .spyOn(TilesRenderer.prototype, "update")
@@ -680,6 +717,23 @@ describe("three tiles runtime styling", () => {
       error: Number.POSITIVE_INFINITY,
       distanceFromCamera: Number.POSITIVE_INFINITY,
     };
+    renderer!.calculateTileViewErrorWithPlugin(
+      {
+        geometricError: 1,
+        traversal: { error: 1, inFrustum: false },
+        children: [],
+        parent: null,
+        internal: { depth: 1 },
+        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
+      } as never,
+      target
+    );
+
+    expect(target.inView).toBe(false);
+    expect(target.error).toBe(Number.POSITIVE_INFINITY);
+
+    busyQueue.items.length = 0;
+    layer.update(frame);
     renderer!.calculateTileViewErrorWithPlugin(
       {
         geometricError: 1,

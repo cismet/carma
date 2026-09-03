@@ -353,6 +353,84 @@ describe("shared Three.js scene registry", () => {
     expect(currentFilter).toEqual(originalFilter);
   });
 
+  it("reuses terrain coverage until the active tile footprints change", () => {
+    const listeners = new Map<string, () => void>();
+    const placeLayer = {
+      id: "place-city",
+      type: "symbol",
+      source: "basemap",
+      "source-layer": "place",
+    };
+    const layers = [{ id: sharedLayer.id, type: "custom" }, placeLayer];
+    let currentFilter: unknown = null;
+    let volumes = [
+      {
+        id: "12/34/56",
+        kind: "terrain-tile",
+        minimum: [-10, 100, -20] as const,
+        maximum: [30, 200, 40] as const,
+      },
+    ];
+    const getActiveTileVolumes = vi.fn(() => volumes);
+    sharedLayer.getRuntimes.mockReturnValue([
+      {
+        id: "terrain",
+        providesTerrain: true,
+        getActiveTileVolumes,
+      } as never,
+    ]);
+    const map = {
+      getStyle: vi.fn(() => ({ layers: [placeLayer] })),
+      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
+      getFilter: vi.fn(() => currentFilter),
+      setFilter: vi.fn((_id: string, filter: unknown) => {
+        currentFilter = filter;
+      }),
+      getLayoutProperty: vi.fn(),
+      setLayoutProperty: vi.fn(),
+      getPaintProperty: vi.fn(),
+      setPaintProperty: vi.fn(),
+      addLayer: vi.fn(),
+      moveLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        listeners.set(event, handler);
+      }),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    expect(getActiveTileVolumes).toHaveBeenCalledOnce();
+    expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(4);
+
+    listeners.get("styledata")?.();
+    listeners.get("idle")?.();
+    lease.setLocationLabelColor("#fff2d8");
+
+    expect(getActiveTileVolumes).toHaveBeenCalledTimes(4);
+    expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(4);
+
+    volumes = [
+      {
+        id: "12/34/56",
+        kind: "terrain-tile",
+        minimum: [-20, 100, -30] as const,
+        maximum: [40, 200, 50] as const,
+      },
+    ];
+    listeners.get("styledata")?.();
+
+    expect(getActiveTileVolumes).toHaveBeenCalledTimes(5);
+    expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(8);
+    lease.release();
+  });
+
   it("does not redraw raster label overlays above Three", () => {
     const addLayer = vi.fn();
     const map = {
