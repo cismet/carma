@@ -16,7 +16,6 @@ export const AnnotationInteractionPanel = () => {
     undo,
     redo,
     toggleLock,
-    addGroup,
     groups,
     activeId,
     pickGroup,
@@ -53,7 +52,6 @@ export const AnnotationInteractionPanel = () => {
       onDeleteDrawing={deleteGroup}
       isLocked={isLocked}
       onToggleLock={toggleLock}
-      onAddGroup={addGroup}
       onUndo={isLocked ? undefined : undo}
       onRedo={isLocked ? undefined : redo}
     />
