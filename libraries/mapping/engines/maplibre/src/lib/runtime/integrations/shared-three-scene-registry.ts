@@ -58,9 +58,20 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
-const getFirstSymbolLayerId = (map: MaplibreMap): string | undefined => {
+/**
+ * Whether the shared scene is the last layer MapLibre draws.
+ *
+ * A custom layer never appears in `getStyle().layers`, so the draw order has
+ * to come from the style's own order. Anything drawn after the scene paints
+ * over the 3D city with the depth test disabled, which reads as a transparent
+ * city rather than as a layer ordering problem.
+ */
+const isSharedThreeSceneOnTop = (map: MaplibreMap): boolean | undefined => {
   try {
-    return map.getStyle().layers?.find(({ type }) => type === "symbol")?.id;
+    const order = (map.style as unknown as { _order?: readonly string[] })
+      ._order;
+    if (!Array.isArray(order) || order.length === 0) return undefined;
+    return order[order.length - 1] === SHARED_SCENE_LAYER_ID;
   } catch {
     return undefined;
   }
@@ -94,7 +105,13 @@ export const acquireSharedThreeScene = (
       if (nextEntry.disposed) return;
       try {
         if (!getMountedSharedThreeSceneLayer(map)) {
-          map.addLayer(layer, getFirstSymbolLayerId(map));
+          map.addLayer(layer);
+          return;
+        }
+        // A style rebuild re-inserts the custom layer wherever the new order
+        // happens to put it, which can be the very bottom. Put it back on top.
+        if (isSharedThreeSceneOnTop(map) === false) {
+          map.moveLayer(SHARED_SCENE_LAYER_ID);
         }
       } catch {
         // A style replacement or map teardown can race this callback.

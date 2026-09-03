@@ -55,7 +55,7 @@ describe("shared Three.js scene registry", () => {
 
     expect(first.layer).toBe(second.layer);
     expect(buildSharedThreeSceneLayer).toHaveBeenCalledOnce();
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, "labels");
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
 
     first.release();
     expect(dispose).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe("shared Three.js scene registry", () => {
 
     const lease = acquireSharedThreeScene(map as never);
 
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
     lease.release();
   });
 
@@ -197,7 +197,7 @@ describe("shared Three.js scene registry", () => {
     const lease = acquireSharedThreeScene(map as never);
 
     expect(lease.layer).toBe(sharedLayer);
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
     expect(() => lease.release()).not.toThrow();
     expect(dispose).toHaveBeenCalledOnce();
   });
