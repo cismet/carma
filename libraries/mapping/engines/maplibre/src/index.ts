@@ -283,7 +283,10 @@ export {
   isSharedThreeTerrainLoading,
   suppressMapLibreTerrainRendering,
 } from "./lib/runtime/integrations/shared-three-terrain-registry";
-export { suppressMapLibreRegularStyleLayers } from "./lib/runtime/integrations/map-style-layer-suppression";
+export {
+  suppressMapLibreRegularStyleLayers,
+  type SuppressMapLibreRegularStyleLayersOptions,
+} from "./lib/runtime/integrations/map-style-layer-suppression";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

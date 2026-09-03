@@ -151,6 +151,40 @@ describe("MapLibre regular style layer suppression", () => {
     );
   });
 
+  it("leaves kept layers alone, also when a later caller names them", () => {
+    const testMap = createMap([
+      { id: "__own-background", type: "background" },
+      { id: "water", type: "fill", source: "base", "source-layer": "water" },
+    ]);
+    testMap.setPaint("__own-background", "background-opacity", 1);
+    testMap.setPaint("water", "fill-opacity", 0.6);
+
+    const restoreFirst = suppressMapLibreRegularStyleLayers(testMap.map as never);
+    expect(testMap.getPaint("__own-background", "background-opacity")).toBe(0);
+    expect(testMap.getPaint("water", "fill-opacity")).toBe(0);
+
+    const restoreSecond = suppressMapLibreRegularStyleLayers(
+      testMap.map as never,
+      { keepLayerIds: ["__own-background"] }
+    );
+    expect(testMap.getPaint("__own-background", "background-opacity")).toBe(1);
+    expect(testMap.getPaint("water", "fill-opacity")).toBe(0);
+
+    // The owner writes it again on styledata; suppression must not undo that.
+    testMap.map.setPaintProperty.mockClear();
+    testMap.emit("styledata");
+    expect(testMap.map.setPaintProperty).not.toHaveBeenCalledWith(
+      "__own-background",
+      expect.anything(),
+      expect.anything()
+    );
+
+    restoreFirst();
+    restoreSecond();
+    expect(testMap.getPaint("__own-background", "background-opacity")).toBe(1);
+    expect(testMap.getPaint("water", "fill-opacity")).toBe(0.6);
+  });
+
   it("suppresses layers added later and adopts a reloaded style's values", () => {
     const testMap = createMap([
       { id: "basemap", type: "raster", source: "base" },

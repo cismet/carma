@@ -27,9 +27,19 @@ type SavedLayerRendering =
 type SuppressedStyleLayersEntry = {
   references: number;
   savedLayers: Map<string, SavedLayerRendering>;
+  /** Regular layers a caller manages itself; they keep their rendering. */
+  keptLayerIds: Set<string>;
   suppressLayers: () => void;
   prepareForStyleLoad: () => void;
 };
+
+export type SuppressMapLibreRegularStyleLayersOptions = Readonly<{
+  /**
+   * Layers the caller draws on purpose while the rest of the style is
+   * hidden, such as its own background. Left untouched and never restored.
+   */
+  keepLayerIds?: readonly string[];
+}>;
 
 type RuntimeStyleLayer = {
   id: string;
@@ -58,19 +68,60 @@ const getLayerSignature = (layer: {
     layer.sourceLayer ?? layer["source-layer"]
   )}`;
 
+const restoreLayerRendering = (
+  map: MaplibreMap,
+  layerId: string,
+  saved: SavedLayerRendering
+) => {
+  try {
+    const layer = map.getLayer(layerId);
+    if (!layer || getLayerSignature(layer) !== saved.signature) return;
+    if (saved.mode === "paint") {
+      for (const [property, value] of saved.properties) {
+        map.setPaintProperty(
+          layerId,
+          property,
+          value === undefined ? null : value
+        );
+      }
+    } else {
+      map.setLayoutProperty(
+        layerId,
+        "visibility",
+        saved.visibility === undefined ? null : saved.visibility
+      );
+    }
+  } catch {
+    // Nothing remains to restore after map/style teardown.
+  }
+};
+
 /**
  * Temporarily hides regular MapLibre style rendering without hiding custom
  * layers. Paint opacity is preferred because source layers must remain
  * logically visible for custom Three.js layers that consume their features.
+ *
+ * Kept layers matter for correctness, not only for looks: this runs on every
+ * `styledata`, and so does whoever maintains such a layer. Hiding it here and
+ * having its owner show it again would fire `styledata` on every frame.
  */
 export const suppressMapLibreRegularStyleLayers = (
-  map: MaplibreMap
+  map: MaplibreMap,
+  options: SuppressMapLibreRegularStyleLayersOptions = {}
 ): (() => void) => {
   const existing = suppressedStyleLayers.get(map);
   if (existing) {
     existing.references += 1;
+    for (const layerId of options.keepLayerIds ?? []) {
+      existing.keptLayerIds.add(layerId);
+      const saved = existing.savedLayers.get(layerId);
+      if (!saved) continue;
+      existing.savedLayers.delete(layerId);
+      restoreLayerRendering(map, layerId, saved);
+    }
   } else {
     const savedLayers = new Map<string, SavedLayerRendering>();
+    const keptLayerIds = new Set(options.keepLayerIds ?? []);
     let resetOnNextStyleData = false;
 
     const suppressLayers = () => {
@@ -91,7 +142,7 @@ export const suppressMapLibreRegularStyleLayers = (
       }
 
       for (const layer of layers) {
-        if (layer.type === "custom") continue;
+        if (layer.type === "custom" || keptLayerIds.has(layer.id)) continue;
         const signature = getLayerSignature(layer);
         const saved = savedLayers.get(layer.id);
         if (saved && saved.signature !== signature)
@@ -158,6 +209,7 @@ export const suppressMapLibreRegularStyleLayers = (
     const entry = {
       references: 1,
       savedLayers,
+      keptLayerIds,
       suppressLayers,
       prepareForStyleLoad,
     };
@@ -180,27 +232,7 @@ export const suppressMapLibreRegularStyleLayers = (
     map.off("styledata", entry.suppressLayers);
     suppressedStyleLayers.delete(map);
     for (const [layerId, saved] of entry.savedLayers) {
-      try {
-        const layer = map.getLayer(layerId);
-        if (!layer || getLayerSignature(layer) !== saved.signature) continue;
-        if (saved.mode === "paint") {
-          for (const [property, value] of saved.properties) {
-            map.setPaintProperty(
-              layerId,
-              property,
-              value === undefined ? null : value
-            );
-          }
-        } else {
-          map.setLayoutProperty(
-            layerId,
-            "visibility",
-            saved.visibility === undefined ? null : saved.visibility
-          );
-        }
-      } catch {
-        // Nothing remains to restore after map/style teardown.
-      }
+      restoreLayerRendering(map, layerId, saved);
     }
   };
 };
