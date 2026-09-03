@@ -285,7 +285,13 @@ export const parseToMapLayer = async (
         );
       }
 
-      let layerInfo = metaData?.carmaConf?.layerInfo || [];
+      const layerInfo: {
+        keywords?: string[];
+        links?: { url: string; text: string }[];
+        [key: string]: unknown;
+      } = metaData?.carmaConf?.layerInfo ?? {};
+      const styleLinks = Array.isArray(layerInfo.links) ? layerInfo.links : [];
+      const itemLinks = layer.links ?? [];
 
       const metaDataCarmaConf = metaData?.carmaConf as
         | Record<string, unknown>
@@ -331,6 +337,10 @@ export const parseToMapLayer = async (
         },
         layerInfo: {
           ...layerInfo,
+          // style links first, then the ones from the catalog item
+          ...(styleLinks.length || itemLinks.length
+            ? { links: [...styleLinks, ...itemLinks] }
+            : {}),
         },
         filterConfig,
         dynamicStyling,
@@ -377,6 +387,7 @@ export const parseToMapLayer = async (
               vectorLegend: layer.vectorLegend,
               thumbnail: layer.thumbnail,
             },
+            ...(layer.links?.length ? { layerInfo: { links: layer.links } } : {}),
           };
           break;
         }
@@ -415,6 +426,7 @@ export const parseToMapLayer = async (
               vectorLegend: layer.vectorLegend,
               thumbnail: layer.thumbnail,
             },
+            ...(layer.links?.length ? { layerInfo: { links: layer.links } } : {}),
           };
           break;
         }
