@@ -250,6 +250,38 @@ export const AnnotationScene = ({
     }
   }, [box, editable, redoVersion, undoVersion]);
 
+  /**
+   * The wheel belongs to the map. Excalidraw would zoom its own camera, and
+   * its clamp at 10% then stops the map from following any further, so the
+   * event is taken away from it and handed to maplibre's scroll zoom instead.
+   */
+  useEffect(() => {
+    if (!box || !libreMap) {
+      return;
+    }
+    const forward = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      libreMap.getCanvasContainer().dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaZ: event.deltaZ,
+          deltaMode: event.deltaMode,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey,
+          cancelable: true,
+        })
+      );
+    };
+    box.addEventListener("wheel", forward, { capture: true, passive: false });
+    return () => box.removeEventListener("wheel", forward, true);
+  }, [box, libreMap]);
+
   // capture, so excalidraw's canvas handler never sees the click and its
   // context menu stays away
   useEffect(() => {
