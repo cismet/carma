@@ -595,8 +595,11 @@ describe("three tiles runtime styling", () => {
         target.inView = false;
         target.error = Number.POSITIVE_INFINITY;
       });
+    const handlers = new Map<string, () => void>();
     const map = {
-      on: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        handlers.set(event, handler);
+      }),
       off: vi.fn(),
       triggerRepaint: vi.fn(),
     } as unknown as MaplibreMap;
@@ -658,13 +661,14 @@ describe("three tiles runtime styling", () => {
       },
     });
     renderer!.group.add(new THREE.Group());
-    renderer!.visibleTiles.add({
+    const receiverTile = {
       geometricError: 1,
       traversal: { error: 0.2, inFrustum: true },
       children: [],
       parent: null,
       engineData: { boundingVolume: boundingVolume(receiverBounds, true) },
-    } as never);
+    };
+    renderer!.visibleTiles.add(receiverTile as never);
     const busyQueue = new PriorityQueue();
     busyQueue.items.push({ internal: { depth: 1 } } as never);
     renderer!.downloadQueue.originQueues.set("mesh", busyQueue);
@@ -690,6 +694,28 @@ describe("three tiles runtime styling", () => {
 
     expect(target.inView).toBe(true);
     expect(target.error).toBeCloseTo(1);
+
+    // A camera move must retain the last complete offscreen caster set while
+    // the new viewport refines. Clearing the receiver mask here made terrain
+    // and shadow casters disappear before their replacements were ready.
+    handlers.get("movestart")?.();
+    receiverTile.traversal.error = 4;
+    layer.update(frame);
+    target.inView = false;
+    target.error = Number.POSITIVE_INFINITY;
+    renderer!.calculateTileViewErrorWithPlugin(
+      {
+        geometricError: 1,
+        traversal: { error: 1, inFrustum: false },
+        children: [],
+        parent: null,
+        internal: { depth: 1 },
+        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
+      } as never,
+      target
+    );
+    expect(target.inView).toBe(true);
+    receiverTile.traversal.error = 0.2;
 
     const localLightSpaceX = new THREE.Vector3(1, 0, 0)
       .transformDirection(renderer!.group.matrixWorld.clone().invert())
@@ -1501,6 +1527,23 @@ describe("three tiles runtime styling", () => {
     const roof = buildSurface("roof");
     const wall = buildSurface("wall");
     layer.root.add(parent);
+
+    const receivesMapStyleBeforeTileStyling = layer.receivesMapStyleTexture;
+    expect(typeof receivesMapStyleBeforeTileStyling).toBe("function");
+    expect(
+      (
+        receivesMapStyleBeforeTileStyling as (
+          material: THREE.Material
+        ) => boolean
+      )(terrain.material as THREE.Material)
+    ).toBe(true);
+    expect(
+      (
+        receivesMapStyleBeforeTileStyling as (
+          material: THREE.Material
+        ) => boolean
+      )(roof.material as THREE.Material)
+    ).toBe(false);
 
     const initialVersion = layer.mapStyleProjectionVersion?.() ?? -1;
     layer.setShadowSimulationStyle?.({

@@ -87,6 +87,36 @@ vec4 carmaLinearToSrgb(vec4 value) {
 }`
     )
     .replace(
+      "vec3 rayDirection = normalize(vRayDirection);",
+      `vec3 rayDirection = normalize(vRayDirection);
+
+  // The actual ground is rendered by streamed Three geometry. Do not let the
+  // atmosphere shader add a second ellipsoid/zero-ground backdrop below it.
+  // Rays that would hit that synthetic ground sample the tangent atmosphere
+  // instead, so missing terrain reveals sky rather than a dark plane.
+  if (rayIntersectsGround(cameraPosition, rayDirection)) {
+    vec3 localUp = normalize(cameraPosition);
+    float radius = max(length(cameraPosition), u_bottom_radius);
+    float tangentMu = -sqrt(max(
+      0.0,
+      1.0 - u_bottom_radius * u_bottom_radius / (radius * radius)
+    )) + 1e-5;
+    vec3 tangent = rayDirection - localUp * dot(rayDirection, localUp);
+    if (dot(tangent, tangent) < 1e-8) {
+      tangent = normalize(cross(localUp, vec3(1.0, 0.0, 0.0)));
+      if (dot(tangent, tangent) < 1e-8) {
+        tangent = normalize(cross(localUp, vec3(0.0, 0.0, 1.0)));
+      }
+    } else {
+      tangent = normalize(tangent);
+    }
+    rayDirection = normalize(
+      tangent * sqrt(max(0.0, 1.0 - tangentMu * tangentMu)) +
+      localUp * tangentMu
+    );
+  }`
+    )
+    .replace(
       "outputColor.a = 1.0;",
       `outputColor.rgb *= ${DISPLAY_EXPOSURE_UNIFORM};
   outputColor.a = 1.0;

@@ -50,6 +50,9 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.material.fragmentShader).toContain(
       "outputColor = carmaLinearToSrgb(outputColor)"
     );
+    expect(sky.mesh.material.fragmentShader).toContain(
+      "missing terrain reveals sky rather than a dark plane"
+    );
     expect(sky.mesh.material.uniforms.carmaDisplayExposure.value).toBe(
       ATMOSPHERIC_DISPLAY_EXPOSURE
     );

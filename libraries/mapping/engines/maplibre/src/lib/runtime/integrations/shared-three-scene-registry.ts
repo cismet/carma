@@ -3,7 +3,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
-  isMapStyleLabelLayer,
+  isMapStyleLocationLabelLayer,
   type RuntimeStyleLayer,
 } from "./map-style-layer-suppression";
 
@@ -62,15 +62,17 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
-const getFirstMapStyleLabelLayerId = (
+const getMapStyleLocationLabelLayerIds = (
   map: MaplibreMap
-): string | undefined => {
+): string[] => {
   try {
-    return (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.find(
-      isMapStyleLabelLayer
-    )?.id;
+    return (
+      map.getStyle().layers as RuntimeStyleLayer[] | undefined
+    )
+      ?.filter(isMapStyleLocationLabelLayer)
+      .map(({ id }) => id) ?? [];
   } catch {
-    return undefined;
+    return [];
   }
 };
 
@@ -79,18 +81,24 @@ const ensureSharedLayerOrder = (map: MaplibreMap): void => {
   const layerIndex = layerOrder.indexOf(SHARED_SCENE_LAYER_ID);
   if (layerIndex < 0) return;
 
-  const beforeId = getFirstMapStyleLabelLayerId(map);
-  if (beforeId) {
-    const beforeIndex = layerOrder.indexOf(beforeId);
-    if (beforeIndex >= 0 && layerIndex !== beforeIndex - 1) {
-      map.moveLayer(SHARED_SCENE_LAYER_ID, beforeId);
-    }
-    return;
-  }
+  const locationLabelIds = getMapStyleLocationLabelLayerIds(map).filter((id) =>
+    layerOrder.includes(id)
+  );
+  const locationLabelSet = new Set(locationLabelIds);
+  const expectedOrder = [
+    ...layerOrder.filter(
+      (id) => id !== SHARED_SCENE_LAYER_ID && !locationLabelSet.has(id)
+    ),
+    SHARED_SCENE_LAYER_ID,
+    ...locationLabelIds,
+  ];
+  if (expectedOrder.every((id, index) => layerOrder[index] === id)) return;
 
-  if (layerIndex !== layerOrder.length - 1) {
-    map.moveLayer(SHARED_SCENE_LAYER_ID);
-  }
+  // Capture the complete authored style below Three, then redraw only place
+  // names above it. Roads and road labels remain part of the projected,
+  // shadowed terrain texture instead of being drawn a second time.
+  map.moveLayer(SHARED_SCENE_LAYER_ID);
+  for (const id of locationLabelIds) map.moveLayer(id);
 };
 
 /**
@@ -121,7 +129,8 @@ export const acquireSharedThreeScene = (
       if (nextEntry.disposed) return;
       try {
         if (!getMountedSharedThreeSceneLayer(map)) {
-          map.addLayer(layer, getFirstMapStyleLabelLayerId(map));
+          map.addLayer(layer);
+          ensureSharedLayerOrder(map);
         } else {
           ensureSharedLayerOrder(map);
         }

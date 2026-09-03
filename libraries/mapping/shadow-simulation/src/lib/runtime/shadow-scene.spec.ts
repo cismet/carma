@@ -5,6 +5,7 @@ import { SkyMaterial } from "@takram/three-atmosphere";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@carma-mapping/engines/maplibre", () => ({
+  WUPPERTAL_TERRAIN_SOURCE_ID: "terrain-source",
   acquireSharedThreeScene: vi.fn(),
   buildCesiumTerrainRuntime: vi.fn(),
   getGenericThreeLayers: vi.fn(() => []),
@@ -33,6 +34,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 
 import {
+  acquireShadowMapLibreTerrain,
   buildShadowSimulationScene,
   solarPositionToSceneDirection,
 } from "./shadow-scene";
@@ -89,6 +91,104 @@ describe("shadow scene sun direction", () => {
     expect(direction.y).toBeGreaterThan(0.85);
     expect(direction.z).toBeGreaterThan(0);
     expect(Math.abs(direction.x)).toBeLessThan(0.05);
+  });
+});
+
+describe("shadow scene MapLibre terrain", () => {
+  it("keeps the native terrain enabled and restores the previous setting", () => {
+    type Handler = () => void;
+    const handlers = new Map<string, Set<Handler>>();
+    const previousTerrain = { source: "previous-terrain", exaggeration: 0.75 };
+    let terrain: typeof previousTerrain | null = previousTerrain;
+    const terrainRuntime = {
+      getMeshFrameDelta: vi.fn(() => 42),
+    };
+    const sources = new Set(["terrain-source", "previous-terrain"]);
+    const layers = [
+      {
+        id: "basemap",
+        type: "raster",
+        source: "basemap-source",
+      },
+      { id: "landcover", type: "fill", source: "vector-source" },
+      { id: "roads", type: "line", source: "vector-source" },
+    ];
+    const paint = new Map([
+      ["basemap:raster-opacity", 0.9],
+      ["landcover:fill-opacity", 0.6],
+    ]);
+    const map = {
+      terrain: terrainRuntime,
+      getTerrain: vi.fn(() => terrain),
+      getSource: vi.fn((sourceId: string) =>
+        sources.has(sourceId) ? { id: sourceId } : undefined
+      ),
+      setTerrain: vi.fn((nextTerrain: typeof terrain) => {
+        terrain = nextTerrain;
+        for (const handler of handlers.get("terrain") ?? []) handler();
+      }),
+      getStyle: vi.fn(() => ({ layers })),
+      getLayer: vi.fn((layerId: string) =>
+        layers.find(({ id }) => id === layerId)
+      ),
+      addLayer: vi.fn((layer: (typeof layers)[number], beforeId?: string) => {
+        const index = beforeId
+          ? layers.findIndex(({ id }) => id === beforeId)
+          : layers.length;
+        layers.splice(index < 0 ? layers.length : index, 0, layer);
+      }),
+      removeLayer: vi.fn((layerId: string) => {
+        const index = layers.findIndex(({ id }) => id === layerId);
+        if (index >= 0) layers.splice(index, 1);
+      }),
+      getPaintProperty: vi.fn(
+        (layerId: string, property: string) =>
+          paint.get(`${layerId}:${property}`)
+      ),
+      setPaintProperty: vi.fn(
+        (layerId: string, property: string, value: unknown) => {
+          paint.set(`${layerId}:${property}`, value as number);
+        }
+      ),
+      on: vi.fn((event: string, handler: Handler) => {
+        const listeners = handlers.get(event) ?? new Set<Handler>();
+        listeners.add(handler);
+        handlers.set(event, listeners);
+      }),
+      off: vi.fn((event: string, handler: Handler) => {
+        handlers.get(event)?.delete(handler);
+      }),
+    };
+
+    const release = acquireShadowMapLibreTerrain(map as never);
+
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    expect(terrainRuntime.getMeshFrameDelta(15)).toBe(0);
+    expect(layers[0]).toMatchObject({
+      id: "carma-shadow-map-style-base",
+      type: "background",
+    });
+    expect(paint.get("basemap:raster-opacity")).toBe(1);
+    expect(paint.get("landcover:fill-opacity")).toBe(1);
+    expect(paint.has("roads:line-opacity")).toBe(false);
+    terrain = null;
+    for (const handler of handlers.get("terrain") ?? []) handler();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    paint.set("basemap:raster-opacity", 0.75);
+    for (const handler of handlers.get("styledata") ?? []) handler();
+    expect(paint.get("basemap:raster-opacity")).toBe(1);
+
+    release();
+
+    expect(terrain).toEqual(previousTerrain);
+    expect(terrainRuntime.getMeshFrameDelta(15)).toBe(42);
+    expect(layers.some(({ id }) => id === "carma-shadow-map-style-base")).toBe(
+      false
+    );
+    expect(paint.get("basemap:raster-opacity")).toBe(0.75);
+    expect(paint.get("landcover:fill-opacity")).toBe(0.6);
+    expect(map.off).toHaveBeenCalledWith("styledata", expect.any(Function));
+    expect(map.off).toHaveBeenCalledWith("terrain", expect.any(Function));
   });
 });
 

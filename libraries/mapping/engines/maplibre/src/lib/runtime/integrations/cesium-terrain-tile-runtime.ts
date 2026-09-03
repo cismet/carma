@@ -16,9 +16,7 @@ import {
 
 import { clamp, quantize } from "@carma-commons/math";
 import {
-  geographicBoundsContain,
   geographicBoundsIntersect,
-  padGeographicBounds,
   unionGeographicBounds,
 } from "@carma-geo/helpers";
 import {
@@ -29,10 +27,7 @@ import {
   type CesiumTerrainTileId,
   type CesiumTerrainTileSource,
 } from "@carma-mapping/engines/cesium/terrain";
-import {
-  createProjectedTerrainTileGeometry,
-  type TerrainTileProjector,
-} from "@carma-mapping/engines/three/primitives";
+import { createProjectedTerrainTileGeometry } from "@carma-mapping/engines/three/primitives";
 
 import {
   notifySharedThreeTerrainChanged,
@@ -62,7 +57,6 @@ const DEFAULT_REQUEST_CONCURRENCY = DEFAULT_MAXIMUM_REQUEST_CONCURRENCY;
 const DEFAULT_MAX_CACHED_MESHES = 256;
 const TERRAIN_UPDATE_PRIORITY = 100;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
-const VIEWPORT_COVERAGE_PADDING_FACTOR = 0.25;
 const UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS = [-1_000, 10_000] as const;
 
 export type CesiumTerrainMaterialOptions = Readonly<{
@@ -104,7 +98,6 @@ export interface CesiumTerrainRuntime extends SharedThreeSceneRuntime {
 type TerrainMeshRecord = {
   node: Group;
   reliefMesh: Mesh | null;
-  baseMesh: Mesh | null;
   boundaryEdges: TerrainBoundaryEdges;
   lastUsed: number;
   id: CesiumTerrainTileId;
@@ -146,7 +139,7 @@ type TerrainSelection = {
 
 type TerrainSelectionEntry = {
   id: CesiumTerrainTileId;
-  kind: "source" | "flat";
+  kind: "source";
 };
 
 type TerrainCandidate = {
@@ -159,14 +152,6 @@ type TerrainCandidate = {
   viewportCenterDistanceSquared: number;
 };
 
-const FLAT_TERRAIN_U = new Float32Array([0, 0, 1, 1]);
-const FLAT_TERRAIN_V = new Float32Array([0, 1, 0, 1]);
-const FLAT_TERRAIN_HEIGHTS = new Float32Array(4);
-const FLAT_TERRAIN_INDICES = new Uint32Array([0, 3, 1, 0, 2, 3]);
-const FLAT_TERRAIN_WEST_INDICES = new Uint32Array([0, 1]);
-const FLAT_TERRAIN_SOUTH_INDICES = new Uint32Array([0, 2]);
-const FLAT_TERRAIN_EAST_INDICES = new Uint32Array([2, 3]);
-const FLAT_TERRAIN_NORTH_INDICES = new Uint32Array([1, 3]);
 const TERRAIN_BOUNDARY_KEY_PRECISION = 1_000;
 const TERRAIN_BOUNDARY_OVERLAP_EPSILON = 1e-3;
 
@@ -253,7 +238,7 @@ const partitionNoDataTerrainGeometry = (
     // A configured no-data vertex marks missing coverage. Keeping a mixed
     // triangle would create a kilometre-scale ramp whose interpolated normals
     // show up as a light-dependent wedge. Render only complete relief faces;
-    // an independently triangulated base fills the gap.
+    // missing coverage stays transparent and reveals the atmosphere.
     if (noDataMask[a] === 1 || noDataMask[b] === 1 || noDataMask[c] === 1) {
       continue;
     }
@@ -272,25 +257,6 @@ const partitionNoDataTerrainGeometry = (
   geometry.computeBoundingSphere();
   return { reliefGeometry: geometry, reliefVertexMask, hasNoData };
 };
-
-const createFlatTerrainGeometry = (
-  bounds: CesiumTerrainTileBounds,
-  heightMeters: number,
-  projectToWorld: TerrainTileProjector
-) =>
-  createProjectedTerrainTileGeometry({
-    tile: {
-      bounds,
-      u: FLAT_TERRAIN_U,
-      v: FLAT_TERRAIN_V,
-      heightMeters:
-        heightMeters === 0
-          ? FLAT_TERRAIN_HEIGHTS
-          : new Float32Array(4).fill(heightMeters),
-      indices: FLAT_TERRAIN_INDICES,
-    },
-    projectToWorld,
-  });
 
 const terrainSelectionKey = ({ id, kind }: TerrainSelectionEntry) =>
   `${kind}:${cesiumTerrainTileKey(id)}`;
@@ -490,17 +456,11 @@ export const buildCesiumTerrainRuntime = (
     // default opposite-side pass, which requires a closed volume.
     shadowSide: FrontSide,
   });
-  const coverageMaterial = material.clone();
   let mapStyleProjectionVersion = 0;
-  coverageMaterial.polygonOffset = true;
-  coverageMaterial.polygonOffsetFactor = 1;
-  coverageMaterial.polygonOffsetUnits = 1;
   const sourcePromise = acquireCesiumTerrainTileSource(terrainUrl, {
     maxCacheBytes: options.maxCacheBytes,
   });
   const meshes = new Map<string, TerrainMeshRecord>();
-  let coverageMesh: Mesh | null = null;
-  let coverageBounds: CesiumTerrainTileBounds | null = null;
   let source: CesiumTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
   let shadowView: SharedThreeSceneShadowView | null = null;
@@ -548,27 +508,6 @@ export const buildCesiumTerrainRuntime = (
       (coordinate.y - origin.y) / meterScale
     );
   };
-
-  const createFlatTerrainTile = (
-    terrainSource: CesiumTerrainTileSource,
-    id: CesiumTerrainTileId
-  ): CesiumTerrainTile => ({
-    id,
-    bounds: terrainSource.getTileBounds(id),
-    u: FLAT_TERRAIN_U,
-    v: FLAT_TERRAIN_V,
-    heightMeters: FLAT_TERRAIN_HEIGHTS,
-    minimumHeightMeters: 0,
-    maximumHeightMeters: 0,
-    indices: FLAT_TERRAIN_INDICES,
-    westIndices: FLAT_TERRAIN_WEST_INDICES,
-    southIndices: FLAT_TERRAIN_SOUTH_INDICES,
-    eastIndices: FLAT_TERRAIN_EAST_INDICES,
-    northIndices: FLAT_TERRAIN_NORTH_INDICES,
-    childTileMask: 0,
-    geometricErrorMeters: 0,
-    byteLength: 0,
-  });
 
   const getScreenSpaceError = (
     terrainSource: CesiumTerrainTileSource,
@@ -626,7 +565,6 @@ export const buildCesiumTerrainRuntime = (
     intersectsViewport: (entry: TerrainSelectionEntry) => boolean,
     intersectsShadow: (entry: TerrainSelectionEntry) => boolean
   ) => {
-    if (parent.kind === "flat") return [];
     const childLevel = parent.id.level + 1;
     const children: TerrainSelectionEntry[] = [];
     for (let yOffset = 0; yOffset < 2; yOffset += 1) {
@@ -657,10 +595,6 @@ export const buildCesiumTerrainRuntime = (
     terrainSource: CesiumTerrainTileSource,
     entry: TerrainSelectionEntry
   ) => {
-    if (entry.kind === "flat") {
-      const tile = createFlatTerrainTile(terrainSource, entry.id);
-      return { tile, projectedGeometry: createProjectedGeometry(tile) };
-    }
     const cached = await projectedGeometryCache.get(entry.id);
     if (cached) {
       return { tile: cached.tile, projectedGeometry: cached.geometry };
@@ -695,12 +629,7 @@ export const buildCesiumTerrainRuntime = (
     let reliefVertexMask = new Uint8Array(
       reliefGeometry.getAttribute("position").count
     ).fill(1);
-    let baseGeometry: BufferGeometry | null = null;
-    if (entry.kind === "flat") {
-      baseGeometry = reliefGeometry;
-      reliefGeometry = null;
-      reliefVertexMask.fill(0);
-    } else if (noDataHeightMeters !== undefined) {
+    if (noDataHeightMeters !== undefined) {
       const partition = partitionNoDataTerrainGeometry(
         reliefGeometry,
         tile,
@@ -708,27 +637,10 @@ export const buildCesiumTerrainRuntime = (
       );
       reliefGeometry = partition.reliefGeometry;
       reliefVertexMask = partition.reliefVertexMask;
-      if (partition.hasNoData) {
-        baseGeometry = createFlatTerrainGeometry(
-          tile.bounds,
-          noDataHeightMeters,
-          projectToLocalWorld
-        );
-      }
     }
 
     const node = new Group();
     node.name = `${runtimeId}-${key}`;
-    let baseMesh: Mesh | null = null;
-    if (baseGeometry) {
-      baseMesh = new Mesh(baseGeometry, material);
-      baseMesh.userData.isShadowTerrainSurface = true;
-      baseMesh.name = `${node.name}-base`;
-      baseMesh.castShadow = false;
-      baseMesh.receiveShadow = true;
-      baseMesh.userData.disableShadowCasting = true;
-      node.add(baseMesh);
-    }
     let reliefMesh: Mesh | null = null;
     if (reliefGeometry) {
       reliefMesh = new Mesh(reliefGeometry, material);
@@ -763,7 +675,6 @@ export const buildCesiumTerrainRuntime = (
     meshes.set(key, {
       node,
       reliefMesh,
-      baseMesh,
       boundaryEdges,
       lastUsed: ++meshUseClock,
       id: entry.id,
@@ -999,7 +910,6 @@ export const buildCesiumTerrainRuntime = (
       if (excess <= 0) break;
       root.remove(record.node);
       record.reliefMesh?.geometry.dispose();
-      record.baseMesh?.geometry.dispose();
       meshes.delete(key);
       excess -= 1;
     }
@@ -1059,10 +969,6 @@ export const buildCesiumTerrainRuntime = (
     const getKnownHeightRange = (
       entry: TerrainSelectionEntry
     ): readonly [minimum: number, maximum: number] => {
-      if (entry.kind === "flat") {
-        const height = noDataHeightMeters ?? 0;
-        return [height, height];
-      }
       let ancestor = entry.id;
       while (ancestor.level >= 0) {
         const record = meshes.get(
@@ -1167,17 +1073,11 @@ export const buildCesiumTerrainRuntime = (
       terrainSource
         .getTileGridIdsForBounds(getRootSearchBounds(level), level)
         .flatMap((id) => {
-          const kind =
-            terrainSource.getTileDataAvailable(id) === false
-              ? "flat"
-              : "source";
-          const entry = { id, kind } as TerrainSelectionEntry;
+          if (terrainSource.getTileDataAvailable(id) === false) return [];
+          const entry = { id, kind: "source" } as TerrainSelectionEntry;
           const rootIntersectsViewport = intersectsViewport(entry);
           const rootIntersectsShadow = intersectsShadow(entry);
           if (!rootIntersectsViewport && !rootIntersectsShadow) return [];
-          if (kind === "flat" && !rootIntersectsViewport) {
-            return [];
-          }
           return [entry];
         });
     let rootLevel = minimumLevel;
@@ -1209,8 +1109,8 @@ export const buildCesiumTerrainRuntime = (
         : 0;
       return {
         entry,
-        viewportErrorRatio: entry.kind === "flat" ? 0 : viewportErrorRatio,
-        shadowErrorRatio: entry.kind === "flat" ? 0 : shadowErrorRatio,
+        viewportErrorRatio,
+        shadowErrorRatio,
         intersectsViewport: metrics.intersectsViewport,
         viewportCenterDistanceSquared: metrics.viewportCenterDistanceSquared,
       };
@@ -1334,11 +1234,7 @@ export const buildCesiumTerrainRuntime = (
         x: entry.id.x >> shift,
         y: entry.id.y >> shift,
       };
-      return {
-        id,
-        kind:
-          terrainSource.getTileDataAvailable(id) === false ? "flat" : "source",
-      };
+      return { id, kind: "source" };
     };
     const maximumViewportLevel = viewportEntries.reduce(
       (maximum, entry) => Math.max(maximum, entry.id.level),
@@ -1378,7 +1274,7 @@ export const buildCesiumTerrainRuntime = (
       loadEntries: [...loadEntriesByKey.values()],
       signature: entries.map(terrainSelectionKey).sort().join("|"),
       viewportElevationSignature: entries
-        .filter((entry) => entry.kind === "source" && intersectsViewport(entry))
+        .filter(intersectsViewport)
         .map(terrainSelectionKey)
         .sort()
         .join("|"),
@@ -1401,38 +1297,6 @@ export const buildCesiumTerrainRuntime = (
       `${frame.viewport.x}x${frame.viewport.y}`,
       shadowViewSignature,
     ].join(";");
-  };
-
-  const updateViewportCoverage = (frame: SharedThreeSceneFrame) => {
-    const viewportBounds = getViewportBounds(frame.map);
-    if (
-      coverageBounds &&
-      geographicBoundsContain(coverageBounds, viewportBounds)
-    ) {
-      return;
-    }
-    coverageBounds = padGeographicBounds(
-      viewportBounds,
-      VIEWPORT_COVERAGE_PADDING_FACTOR
-    );
-    const geometry = createFlatTerrainGeometry(
-      coverageBounds,
-      noDataHeightMeters ?? 0,
-      projectToLocalWorld
-    );
-    if (!coverageMesh) {
-      coverageMesh = new Mesh(geometry, coverageMaterial);
-      coverageMesh.userData.isShadowTerrainSurface = true;
-      coverageMesh.name = `${runtimeId}-viewport-coverage`;
-      coverageMesh.castShadow = false;
-      coverageMesh.receiveShadow = true;
-      coverageMesh.userData.disableShadowCasting = true;
-      root.add(coverageMesh);
-      mapStyleProjectionVersion += 1;
-      return;
-    }
-    coverageMesh.geometry.dispose();
-    coverageMesh.geometry = geometry;
   };
 
   const loadSelection = (
@@ -1527,9 +1391,7 @@ export const buildCesiumTerrainRuntime = (
         for (const entry of selection.entries) {
           const key = terrainSelectionKey(entry);
           activeKeys.add(key);
-          if (entry.kind === "source") {
-            retainedSourceKeys.add(cesiumTerrainTileKey(entry.id));
-          }
+          retainedSourceKeys.add(cesiumTerrainTileKey(entry.id));
         }
         activateEntries(selection.entries);
         terrainSource.trimCache(retainedSourceKeys);
@@ -1600,7 +1462,6 @@ export const buildCesiumTerrainRuntime = (
     },
     update(frame) {
       if (disposed || !root.visible) return;
-      updateViewportCoverage(frame);
       if (!source) return;
       const inputSignature = computeSelectionInputSignature(frame);
       if (inputSignature === selectionInputSignature) return;
@@ -1631,7 +1492,6 @@ export const buildCesiumTerrainRuntime = (
     },
     setMaterialColor(color) {
       material.color.set(color);
-      coverageMaterial.color.set(color);
       map?.triggerRepaint();
     },
     getElevation(longitude, latitude) {
@@ -1653,12 +1513,9 @@ export const buildCesiumTerrainRuntime = (
       if (map) setSharedThreeTerrainLoading(map, runtimeId, false);
       for (const record of meshes.values()) {
         record.reliefMesh?.geometry.dispose();
-        record.baseMesh?.geometry.dispose();
       }
       meshes.clear();
       material.dispose();
-      coverageMesh?.geometry.dispose();
-      coverageMaterial.dispose();
       root.clear();
       map = null;
       settleReady(false);

@@ -243,16 +243,12 @@ describe("buildCesiumTerrainRuntime", () => {
     });
 
     await expect(runtime.ready).resolves.toBe(true);
-    expect(runtime.root.children).toHaveLength(2);
-    const coverageMesh = runtime.root.children.find((child) =>
-      child.name.endsWith("-viewport-coverage")
-    ) as Mesh;
-    expect(coverageMesh.castShadow).toBe(false);
-    expect(coverageMesh.receiveShadow).toBe(true);
-    expect(coverageMesh.userData.disableShadowCasting).toBe(true);
-    expect((coverageMesh.material as MeshLambertMaterial).polygonOffset).toBe(
-      true
-    );
+    expect(runtime.root.children).toHaveLength(1);
+    expect(
+      runtime.root.children.some((child) =>
+        child.name.endsWith("-viewport-coverage")
+      )
+    ).toBe(false);
     const tileNode = runtime.root.children.find((child) =>
       child.name.includes("source:")
     ) as Group;
@@ -313,7 +309,7 @@ describe("buildCesiumTerrainRuntime", () => {
     });
     await vi.waitFor(() => {
       expect(source.requestTile).toHaveBeenCalledWith(sunTileId);
-      expect(runtime.root.children).toHaveLength(3);
+      expect(runtime.root.children).toHaveLength(2);
     });
     expect(onContentChanged).toHaveBeenCalledTimes(2);
     const viewportNormal = (
@@ -659,7 +655,7 @@ describe("buildCesiumTerrainRuntime", () => {
     runtime.dispose();
   });
 
-  it("fills unavailable viewport cells with zero-elevation receiver tiles", async () => {
+  it("leaves unavailable and no-data terrain transparent", async () => {
     const zeroSourceId = { level: 10, x: 531, y: 218 };
     const sourceId = { level: 10, x: 532, y: 218 };
     const flatId = { level: 10, x: 533, y: 218 };
@@ -730,46 +726,24 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(source.requestTile).toHaveBeenCalledTimes(2);
     expect(source.requestTile).toHaveBeenCalledWith(zeroSourceId);
     expect(source.requestTile).toHaveBeenCalledWith(sourceId);
-    expect(runtime.root.children).toHaveLength(4);
-    const flatNode = runtime.root.children.find((child) =>
-      child.name.includes("flat:10/533/218")
-    ) as Group;
-    expect(flatNode.children).toHaveLength(1);
-    const flatMesh = flatNode.children[0] as Mesh;
-    expect(flatMesh.castShadow).toBe(false);
-    expect(flatMesh.receiveShadow).toBe(true);
-    const flatNormals = flatMesh.geometry.getAttribute("normal");
-    for (let index = 0; index < flatNormals.count; index += 1) {
-      expect(flatNormals.getX(index)).toBeCloseTo(0);
-      expect(flatNormals.getY(index)).toBeCloseTo(1);
-      expect(flatNormals.getZ(index)).toBeCloseTo(0);
-    }
+    expect(runtime.root.children).toHaveLength(2);
+    expect(
+      runtime.root.children.some((child) => child.name.includes("flat:"))
+    ).toBe(false);
     const zeroSourceNode = runtime.root.children.find((child) =>
       child.name.includes("source:10/531/218")
     ) as Group;
-    expect(zeroSourceNode.children).toHaveLength(1);
-    const zeroSourceMesh = zeroSourceNode.children[0] as Mesh;
-    expect(zeroSourceMesh.castShadow).toBe(false);
-    expect(zeroSourceMesh.receiveShadow).toBe(true);
+    expect(zeroSourceNode.children).toHaveLength(0);
     const mixedSourceNode = runtime.root.children.find((child) =>
       child.name.includes("source:10/532/218")
     ) as Group;
-    expect(mixedSourceNode.children).toHaveLength(2);
-    const mixedBaseMesh = mixedSourceNode.children.find((child) =>
-      child.name.endsWith("-base")
-    ) as Mesh;
+    expect(mixedSourceNode.children).toHaveLength(1);
+    expect(
+      mixedSourceNode.children.some((child) => child.name.endsWith("-base"))
+    ).toBe(false);
     const reliefSourceMesh = mixedSourceNode.children.find((child) =>
       child.name.endsWith("-relief")
     ) as Mesh;
-    expect(mixedBaseMesh.castShadow).toBe(false);
-    expect(mixedBaseMesh.receiveShadow).toBe(true);
-    expect(mixedBaseMesh.geometry.getAttribute("position").count).toBe(4);
-    const mixedBaseNormals = mixedBaseMesh.geometry.getAttribute("normal");
-    for (let index = 0; index < mixedBaseNormals.count; index += 1) {
-      expect(mixedBaseNormals.getX(index)).toBeCloseTo(0);
-      expect(mixedBaseNormals.getY(index)).toBeCloseTo(1);
-      expect(mixedBaseNormals.getZ(index)).toBeCloseTo(0);
-    }
     expect(reliefSourceMesh.castShadow).toBe(true);
     expect(reliefSourceMesh.receiveShadow).toBe(true);
     expect(reliefSourceMesh.customDepthMaterial).toBeUndefined();
@@ -777,11 +751,11 @@ describe("buildCesiumTerrainRuntime", () => {
     expect(Array.from(reliefSourceMesh.geometry.getIndex()!.array)).toEqual([
       0, 2, 1,
     ]);
-    const flatGeometryCall = createProjectedTerrainTileGeometry.mock.calls.find(
-      ([{ tile }]) => tile.id?.x === flatId.x
-    );
-    expect(flatGeometryCall).toBeDefined();
-    expect([...flatGeometryCall![0].tile.heightMeters]).toEqual([0, 0, 0, 0]);
+    expect(
+      createProjectedTerrainTileGeometry.mock.calls.some(
+        ([{ tile }]) => tile.id?.x === flatId.x
+      )
+    ).toBe(false);
 
     runtime.dispose();
   });

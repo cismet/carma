@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildSharedThreeSceneLayer,
-  clearDepthBeforeThreeTerrain,
   clearDepthForMapStyleOverlays,
+  clearMapStyleGroundBeforeThreeTerrain,
   configureMapStyleProjectedMaterial,
   configureSharedRenderCamera,
   installRenderTargetDepthRangeBridge,
@@ -50,12 +50,13 @@ describe("shared Three.js scene layer", () => {
     expect(shader.fragmentShader).toContain(
       "diffuseColor.rgb = carmaMapStyleSRGBToLinear"
     );
+    expect(shader.fragmentShader).toContain("diffuseColor.a = 1.0");
     expect(material.customProgramCacheKey()).toContain(
       "carma-map-style-projection-v1"
     );
   });
 
-  it("clears mesh depth before MapLibre draws labels and linework", () => {
+  it("clears mesh depth before MapLibre draws retained place labels", () => {
     const gl = {
       DEPTH_BUFFER_BIT: 0x00000100,
       clear: vi.fn(),
@@ -75,18 +76,29 @@ describe("shared Three.js scene layer", () => {
     expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
   });
 
-  it("clears MapLibre DEM depth before Three replaces the visible ground", () => {
+  it("clears MapLibre ground color and depth before Three replaces it", () => {
+    const previousClearColor = new Float32Array([0.2, 0.3, 0.4, 1]);
     const gl = {
+      COLOR_BUFFER_BIT: 0x00004000,
       DEPTH_BUFFER_BIT: 0x00000100,
+      COLOR_CLEAR_VALUE: 0x0c22,
       clear: vi.fn(),
+      clearColor: vi.fn(),
       clearDepth: vi.fn(),
       depthMask: vi.fn(),
       depthRange: vi.fn(),
+      getParameter: vi.fn(() => previousClearColor),
     };
 
-    clearDepthBeforeThreeTerrain(gl, [0, 0.985]);
+    clearMapStyleGroundBeforeThreeTerrain(gl, [0, 0.985]);
 
-    expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
+    expect(gl.clear).toHaveBeenCalledWith(
+      gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT
+    );
+    expect(gl.clearColor.mock.calls).toEqual([
+      [0, 0, 0, 0],
+      [...previousClearColor],
+    ]);
     expect(gl.depthRange.mock.calls).toEqual([
       [0, 1],
       [0, 0.985],
