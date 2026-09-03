@@ -205,11 +205,14 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
     all( greaterThanEqual( carmaMapStyleUv, vec2( 0.0 ) ) ) &&
     all( lessThanEqual( carmaMapStyleUv, vec2( 1.0 ) ) )
   ) {
-    vec3 carmaMapStyleColor = texture2D(
+    vec4 carmaMapStyleSample = texture2D(
       carmaMapStyleTexture,
       carmaMapStyleUv
-    ).rgb;
-    diffuseColor.rgb = carmaMapStyleSRGBToLinear( carmaMapStyleColor );
+    );
+    diffuseColor.rgb = carmaMapStyleSRGBToLinear(
+      carmaMapStyleSample.rgb
+    );
+    diffuseColor.a = 1.0;
   }
 }
 `;
@@ -267,6 +270,15 @@ type OverlayDepthContext = Pick<
   "DEPTH_BUFFER_BIT" | "clear" | "clearDepth" | "depthMask" | "depthRange"
 >;
 
+type GroundClearContext = OverlayDepthContext &
+  Pick<
+    WebGLRenderingContext,
+    | "COLOR_BUFFER_BIT"
+    | "COLOR_CLEAR_VALUE"
+    | "clearColor"
+    | "getParameter"
+  >;
+
 /** Clear the shared framebuffer depth without disturbing MapLibre's range. */
 const clearSharedDepthBuffer = (
   gl: OverlayDepthContext,
@@ -279,10 +291,27 @@ const clearSharedDepthBuffer = (
   gl.depthRange(mapLibreDepthRange[0], mapLibreDepthRange[1]);
 };
 
-/** Let Three replace MapLibre's DEM depth while retaining its captured color. */
-export const clearDepthBeforeThreeTerrain = clearSharedDepthBuffer;
+/**
+ * Remove MapLibre's captured ground pass from the shared framebuffer before
+ * Three draws the actual terrain. The color remains available through the
+ * framebuffer texture, but MapLibre's flat fill, DEM surface and skirts must
+ * not survive as a second visible ground surface.
+ */
+export const clearMapStyleGroundBeforeThreeTerrain = (
+  gl: GroundClearContext,
+  mapLibreDepthRange: DepthRange
+): void => {
+  const clearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array;
+  gl.depthMask(true);
+  gl.depthRange(0, 1);
+  gl.clearDepth(1);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+  gl.depthRange(mapLibreDepthRange[0], mapLibreDepthRange[1]);
+};
 
-/** Let labels and annotation layers render without being hidden by Three. */
+/** Let the explicitly retained place-label layers render above Three. */
 export const clearDepthForMapStyleOverlays = clearSharedDepthBuffer;
 
 /**
@@ -688,9 +717,9 @@ export const buildSharedThreeSceneLayer = (
             Boolean(runtime.receivesMapStyleTexture)
         )
       ) {
-        // The visible ground now belongs to Three. Keep MapLibre's color as
-        // the captured terrain texture, but discard its competing DEM depth.
-        clearDepthBeforeThreeTerrain(gl, savedDepthRange);
+        // The visible ground now belongs to Three. Keep MapLibre's color only
+        // in the captured texture; discard its competing fill, DEM and skirts.
+        clearMapStyleGroundBeforeThreeTerrain(gl, savedDepthRange);
       }
 
       const accumulation = accumulationController;

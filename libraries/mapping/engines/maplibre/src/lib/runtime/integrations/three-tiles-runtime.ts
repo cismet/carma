@@ -126,6 +126,7 @@ type RuntimeTile = Tile & {
   priority?: number;
   shadowLightFacing?: number;
   shadowReceiverCenterness?: number;
+  shadowReceiverCurrent?: boolean;
   traversal: Tile["traversal"] & { unconditionallyRefine?: boolean };
   engineData?: {
     boundingVolume?: {
@@ -434,7 +435,10 @@ export function buildThreeTilesRuntime(
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
   let shadowSelectionNeedsTraversal = false;
+  let shadowSelectionRefreshPending = false;
   let shadowReceiverMask: ShadowReceiverMask | null = null;
+  let previousShadowReceiverMask: ShadowReceiverMask | null = null;
+  let shadowReceiverMaskConverged = false;
   let shadowReceiverSourceSignature = "";
   const mainViewSourceTiles = new Set<Tile>();
   let viewRefinementPending = false;
@@ -605,7 +609,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     const surfaceName = material.name.trim().toLowerCase();
     return surfaceName === "roof" || surfaceName === "wall";
   };
-  let hasSeparatedBuildingSurfaces = false;
   let mapStyleProjectionVersion = 0;
   const isRenderedBuildingSurface = (material: THREE.Material) => {
     const sourceName = material.name
@@ -654,8 +657,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         if (!position || !featureId || !index) continue;
         parts.push({ materials, geometry, position, featureId, index });
       }
-      if (surfaceNames.size > 0) hasSeparatedBuildingSurfaces = true;
-
       if (!surfaceNames.has("roof") || !surfaceNames.has("wall")) return;
 
       type SurfaceTriangle = {
@@ -1283,8 +1284,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const clearShadowReceiverSources = () => {
     shadowReceiverMask = null;
+    previousShadowReceiverMask = null;
+    shadowReceiverMaskConverged = false;
     shadowReceiverSourceSignature = "";
     mainViewSourceTiles.clear();
+    shadowSelectionRefreshPending = false;
   };
   const setShadowSelectionEnabled = (enabled: boolean) => {
     const nextEnabled = enabled && shadowView !== null;
@@ -1292,6 +1296,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (shadowSelectionEnabled === nextEnabled) return;
     shadowSelectionEnabled = nextEnabled;
     shadowSelectionNeedsTraversal = nextEnabled;
+  };
+  const requestShadowSelectionRefresh = () => {
+    if (!shadowView) return;
+    shadowSelectionRefreshPending = true;
   };
   const isPipelineIdle = () =>
     tiles !== null &&
@@ -1337,6 +1345,24 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     return true;
   };
   const mainViewConverged = () => mainViewWithinErrorFactor(1);
+  const currentShadowPathConverged = () => {
+    if (!tiles || !shadowReceiverMask) return false;
+    let currentTileCount = 0;
+    for (const visible of tiles.visibleTiles) {
+      const tile = visible as RuntimeTile;
+      if (tile.shadowReceiverCurrent !== true || isTileInMainView(tile)) {
+        continue;
+      }
+      currentTileCount += 1;
+      const children = (tile.children ?? []) as RuntimeTile[];
+      if (children.length === 0 || tile.traversal?.unconditionallyRefine) {
+        continue;
+      }
+      if (tile.traversal.error <= effectiveErrorTarget) continue;
+      if (!children.every(isChildUnloadable)) return false;
+    }
+    return currentTileCount > 0;
+  };
   const getTileCenterness = (
     bounds: NonNullable<RuntimeTile["engineData"]>["boundingVolume"]
   ) => {
@@ -1420,7 +1446,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         source = source.parent;
       }
     }
-    const nextSignature = sourceKeys.sort().join("|");
+    const nextSignature = [shadowViewSignature, ...sourceKeys.sort()].join("|");
     if (shadowReceiverMask && nextSignature === shadowReceiverSourceSignature) {
       return "unchanged" as const;
     }
@@ -1429,7 +1455,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       clearShadowReceiverSources();
       return "empty" as const;
     }
+    if (shadowReceiverMaskConverged) {
+      previousShadowReceiverMask = shadowReceiverMask;
+    }
     shadowReceiverMask = nextMask;
+    shadowReceiverMaskConverged = false;
     shadowReceiverSourceSignature = nextSignature;
     mainViewSourceTiles.clear();
     for (const tile of sourceTiles) mainViewSourceTiles.add(tile);
@@ -1448,7 +1478,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     effectiveErrorTarget = nextTarget;
     if (tiles) tiles.errorTarget = effectiveErrorTarget;
     viewRefinementPending = true;
-    setShadowSelectionEnabled(false);
+    requestShadowSelectionRefresh();
     tiles?.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
@@ -1555,6 +1585,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       setShadowSelectionEnabled(false);
       return;
     }
+    shadowSelectionRefreshPending = false;
     if (receiverUpdate === "unchanged") return;
     viewRefinementPending = false;
     if (shadowSelectionEnabled) {
@@ -1562,6 +1593,23 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     } else {
       setShadowSelectionEnabled(true);
     }
+    tiles.dispatchEvent({ type: "needs-update" });
+    requestRender();
+  };
+  const maybeFinalizeShadowSelection = () => {
+    if (
+      !tiles ||
+      !shadowSelectionEnabled ||
+      shadowReceiverMaskConverged ||
+      shadowSelectionNeedsTraversal ||
+      !isPipelineIdle() ||
+      !currentShadowPathConverged()
+    ) {
+      return;
+    }
+    shadowReceiverMaskConverged = true;
+    if (!previousShadowReceiverMask) return;
+    previousShadowReceiverMask = null;
     tiles.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
@@ -1766,17 +1814,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const handleViewStart = () => {
     viewRefinementPending = true;
-    if (shadowView) {
-      setShadowSelectionEnabled(false);
-    }
+    requestShadowSelectionRefresh();
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
     if (!tiles) return;
     viewRefinementPending = true;
-    if (shadowView) {
-      setShadowSelectionEnabled(false);
-    }
+    requestShadowSelectionRefresh();
     viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
     tiles.dispatchEvent({ type: "needs-update" });
   };
@@ -1943,9 +1987,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     providesTerrain: options.providesTerrain === true,
     receivesMapStyleTexture:
       options.providesTerrain === true
-        ? (material) =>
-            hasSeparatedBuildingSurfaces &&
-            !isRenderedBuildingSurface(material)
+        ? (material) => !isRenderedBuildingSurface(material)
         : false,
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     originMerc,
@@ -1991,6 +2033,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         const runtimeTile = tile as RuntimeTile;
         runtimeTile.shadowReceiverCenterness = undefined;
         runtimeTile.shadowLightFacing = undefined;
+        runtimeTile.shadowReceiverCurrent = undefined;
         if (
           shadowSelectionEnabled &&
           shadowReceiverMask &&
@@ -2000,19 +2043,30 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           const bounds = runtimeTile.engineData?.boundingVolume;
           if (bounds?.getAABB) {
             bounds.getAABB(tileBoundingBox);
-            if (
+            const matchedCurrent = applyShadowReceiverMask(
+              shadowReceiverMask,
+              tileBoundingBox,
+              target,
+              shadowReceiverMatch,
+              tile.geometricError,
+              effectiveErrorTarget
+            );
+            const matchedPrevious =
+              !matchedCurrent &&
+              previousShadowReceiverMask !== null &&
               applyShadowReceiverMask(
-                shadowReceiverMask,
+                previousShadowReceiverMask,
                 tileBoundingBox,
                 target,
                 shadowReceiverMatch,
                 tile.geometricError,
                 effectiveErrorTarget
-              )
-            ) {
+              );
+            if (matchedCurrent || matchedPrevious) {
               runtimeTile.shadowReceiverCenterness =
                 shadowReceiverMatch.receiverCenterness;
               runtimeTile.shadowLightFacing = shadowReceiverMatch.lightFacing;
+              runtimeTile.shadowReceiverCurrent = matchedCurrent;
             }
           }
         }
@@ -2020,9 +2074,22 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       };
       const queueTileForDownload = tiles.queueTileForDownload.bind(tiles);
       tiles.queueTileForDownload = (tile) => {
+        const runtimeTile = tile as RuntimeTile;
         // D8: a pending retry or an exhausted budget keeps the parent as the
         // fallback instead of re-requesting the tile every frame.
         if (tileRetries.isBlocked(tile)) return;
+        // Keep the last complete shadow path active across a camera move, but
+        // do not spend bandwidth extending that stale path. Once the main
+        // viewport is near its target, the receiver mask is replaced and the
+        // new offscreen caster traversal may request content.
+        if (
+          shadowSelectionRefreshPending &&
+          runtimeTile.shadowReceiverCenterness !== undefined &&
+          !isTileInMainView(runtimeTile)
+        ) {
+          return;
+        }
+        if (runtimeTile.shadowReceiverCurrent === false) return;
         // D7: REPLACE content that refines unconditionally is never displayed.
         if (
           tile.refine === "REPLACE" &&
@@ -2031,7 +2098,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         ) {
           return;
         }
-        assignTilePriority(tile as RuntimeTile);
+        assignTilePriority(runtimeTile);
         queueTileForDownload(tile);
       };
       // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
@@ -2134,6 +2201,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         tiles.update();
         syncTileDebugOverlay();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
+        maybeFinalizeShadowSelection();
         if (!shadowSelectionEnabled) measureUsedBytesMain();
         lastMainViewConverged = mainViewConverged();
         applyErrorTargetPolicy();
@@ -2205,7 +2273,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       requestedErrorTarget = nextErrorTarget;
       resetEffectiveErrorTarget();
       viewRefinementPending = true;
-      setShadowSelectionEnabled(false);
+      requestShadowSelectionRefresh();
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
     },
@@ -2236,7 +2304,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       shadowViewSignature = nextSignature;
       shadowView = view;
       viewRefinementPending = view !== null;
-      setShadowSelectionEnabled(false);
+      if (view) {
+        requestShadowSelectionRefresh();
+      } else {
+        setShadowSelectionEnabled(false);
+      }
       applyRequestConcurrency();
       tiles?.dispatchEvent({ type: "needs-update" });
       notifyRequestStateChange();
@@ -2321,7 +2393,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       });
       resetEffectiveErrorTarget();
       viewRefinementPending = true;
-      setShadowSelectionEnabled(false);
+      requestShadowSelectionRefresh();
       applyCacheBudget();
       applyRequestConcurrency();
       tiles?.dispatchEvent({ type: "needs-update" });

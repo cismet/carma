@@ -11,6 +11,7 @@ import {
   subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
 } from "@carma-mapping/engines/maplibre";
 import type {
   CesiumTerrainRuntimeOptions,
@@ -70,6 +71,13 @@ const MAX_SUN_DISC_ACCUMULATION_ROUNDS = 64;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
 const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
 const MOTION_SHADOW_UPDATE_INTERVAL_MS = 1000 / 30;
+const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
+const OPAQUE_DRAPE_PROPERTIES = new Map<string, string>([
+  ["background", "background-opacity"],
+  ["color-relief", "color-relief-opacity"],
+  ["fill", "fill-opacity"],
+  ["raster", "raster-opacity"],
+]);
 
 type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
 
@@ -141,6 +149,206 @@ export type ShadowSimulationScene = {
   updateSunDebugVectorVisibility: (visible: boolean) => void;
   updateAtmosphericLutUsage: (options: AtmosphericSunlightOptions) => void;
   dispose: () => void;
+};
+
+/**
+ * Keep MapLibre's highest native DEM active while its styled framebuffer is
+ * captured for projection onto the shared Three scene. Style replacement can
+ * temporarily drop terrain, so re-apply it once the source becomes available.
+ */
+export const acquireShadowMapLibreTerrain = (
+  map: MaplibreMap,
+  sourceId = WUPPERTAL_TERRAIN_SOURCE_ID
+): (() => void) => {
+  type InternalTerrain = {
+    getMeshFrameDelta?: (zoom: number) => number;
+  };
+  type DrapeLayer = {
+    id: string;
+    type: string;
+    source?: unknown;
+    "source-layer"?: unknown;
+  };
+  const terrainMap = map as MaplibreMap & {
+    getTerrain?: MaplibreMap["getTerrain"];
+    getSource?: MaplibreMap["getSource"];
+    setTerrain?: MaplibreMap["setTerrain"];
+    terrain?: InternalTerrain | null;
+  };
+  if (
+    typeof terrainMap.getTerrain !== "function" ||
+    typeof terrainMap.getSource !== "function" ||
+    typeof terrainMap.setTerrain !== "function"
+  ) {
+    return () => undefined;
+  }
+  const previousTerrain = terrainMap.getTerrain();
+  const savedDrapeOpacities = new Map<
+    string,
+    { signature: string; property: string; value: unknown }
+  >();
+  let disposed = false;
+  let applying = false;
+  let createdBaseLayer = false;
+  let patchedTerrain: InternalTerrain | null = null;
+  let inheritedFrameDelta = false;
+  let originalFrameDelta: InternalTerrain["getMeshFrameDelta"];
+
+  const restoreTerrainFrame = () => {
+    if (!patchedTerrain) return;
+    if (inheritedFrameDelta) {
+      delete patchedTerrain.getMeshFrameDelta;
+    } else {
+      patchedTerrain.getMeshFrameDelta = originalFrameDelta;
+    }
+    patchedTerrain = null;
+    originalFrameDelta = undefined;
+    inheritedFrameDelta = false;
+  };
+
+  const suppressTerrainFrame = () => {
+    const terrain = terrainMap.terrain;
+    if (!terrain || terrain === patchedTerrain) return;
+    restoreTerrainFrame();
+    if (typeof terrain.getMeshFrameDelta !== "function") return;
+    inheritedFrameDelta = !Object.prototype.hasOwnProperty.call(
+      terrain,
+      "getMeshFrameDelta"
+    );
+    originalFrameDelta = terrain.getMeshFrameDelta;
+    terrain.getMeshFrameDelta = () => 0;
+    patchedTerrain = terrain;
+  };
+
+  const getLayerSignature = (layer: DrapeLayer) =>
+    `${layer.type}:${String(layer.source)}:${String(layer["source-layer"])}`;
+
+  const ensureOpaqueDrape = () => {
+    const style = map.getStyle();
+    const layers = (style.layers ?? []) as DrapeLayer[];
+    if (!map.getLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: SHADOW_MAP_STYLE_BASE_LAYER_ID,
+          type: "background",
+          paint: {
+            "background-color": "#ffffff",
+            "background-opacity": 1,
+          },
+        },
+        layers[0]?.id
+      );
+      createdBaseLayer = true;
+    }
+
+    for (const layer of layers) {
+      if (
+        layer.id === SHADOW_MAP_STYLE_BASE_LAYER_ID ||
+        layer.type === "custom"
+      ) {
+        continue;
+      }
+      const property = OPAQUE_DRAPE_PROPERTIES.get(layer.type);
+      if (!property) continue;
+      const signature = getLayerSignature(layer);
+      let saved = savedDrapeOpacities.get(layer.id);
+      const currentOpacity = map.getPaintProperty(layer.id, property);
+      if (!saved || saved.signature !== signature) {
+        saved = {
+          signature,
+          property,
+          value: currentOpacity,
+        };
+        savedDrapeOpacities.set(layer.id, saved);
+      } else if (currentOpacity !== 1) {
+        // StyleComposer and opacity controls may replace the authored value
+        // while shadows are active. Preserve the newest value for teardown.
+        saved.value = currentOpacity;
+      }
+      if (currentOpacity !== 1) {
+        map.setPaintProperty(layer.id, property, 1);
+      }
+    }
+  };
+
+  const apply = () => {
+    if (disposed || applying) return;
+    applying = true;
+    try {
+      ensureOpaqueDrape();
+      if (terrainMap.getSource(sourceId)) {
+        const current = terrainMap.getTerrain();
+        if (
+          current?.source !== sourceId ||
+          (current.exaggeration ?? 1) !== 1
+        ) {
+          terrainMap.setTerrain({ source: sourceId, exaggeration: 1 });
+        }
+        suppressTerrainFrame();
+      }
+    } catch {
+      // Style replacement briefly exposes an incomplete style. Its next
+      // styledata event retries both the opaque drape and terrain setup.
+    } finally {
+      applying = false;
+    }
+  };
+  const handleTerrainChange = () => {
+    if (!applying) apply();
+  };
+
+  map.on("styledata", apply);
+  map.on("terrain", handleTerrainChange);
+  apply();
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    map.off("styledata", apply);
+    map.off("terrain", handleTerrainChange);
+    restoreTerrainFrame();
+    for (const [layerId, saved] of savedDrapeOpacities) {
+      try {
+        const layer = map.getStyle().layers?.find(({ id }) => id === layerId) as
+          | DrapeLayer
+          | undefined;
+        if (
+          layer &&
+          getLayerSignature(layer) === saved.signature &&
+          map.getPaintProperty(layerId, saved.property) === 1
+        ) {
+          map.setPaintProperty(
+            layerId,
+            saved.property,
+            saved.value === undefined ? null : saved.value
+          );
+        }
+      } catch {
+        // A style replacement may already have removed the layer.
+      }
+    }
+    if (createdBaseLayer) {
+      try {
+        if (map.getLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID)) {
+          map.removeLayer(SHADOW_MAP_STYLE_BASE_LAYER_ID);
+        }
+      } catch {
+        // The style may already be gone during map teardown.
+      }
+    }
+    try {
+      if (
+        previousTerrain &&
+        terrainMap.getSource(previousTerrain.source) !== undefined
+      ) {
+        terrainMap.setTerrain(previousTerrain);
+      } else {
+        terrainMap.setTerrain(null);
+      }
+    } catch {
+      // The style may already be gone during map teardown.
+    }
+  };
 };
 
 export const solarPositionToSceneDirection = ({
@@ -729,6 +937,7 @@ export const buildShadowSimulationScene = (
   const initialShadowAreaMeters =
     configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
   const previousLight = map.getLight();
+  const releaseMapLibreTerrain = acquireShadowMapLibreTerrain(map);
   let latestSolarPosition: SolarPosition | null = null;
   let latestBuildingAppearance: ShadowBuildingAppearance = {
     fullOpacity: true,
@@ -1655,6 +1864,7 @@ export const buildShadowSimulationScene = (
         // The style may already be gone during map teardown.
       }
       restoreMapLibreStyleLayers = null;
+      releaseMapLibreTerrain();
       if (sceneLease.layer.hasRuntime(shadowControllerRuntime.id)) {
         sceneLease.layer.removeRuntime(shadowControllerRuntime.id);
       }

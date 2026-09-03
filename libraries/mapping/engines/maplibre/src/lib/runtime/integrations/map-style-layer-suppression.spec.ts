@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   acquireMapLibreTerrainMeshComposition,
   getMapLibreLayerOpacityProperties,
-  isMapStyleLabelLayer,
+  isMapStyleLocationLabelLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   notifyMapLibreStyleCompositionReady,
   notifyMapLibreStyleCompositionStarted,
@@ -15,6 +15,7 @@ type TestLayer = {
   type: string;
   source?: string;
   "source-layer"?: string;
+  layout?: Record<string, unknown>;
 };
 
 const createMap = (initialLayers: TestLayer[]) => {
@@ -88,16 +89,32 @@ const createMap = (initialLayers: TestLayer[]) => {
 };
 
 describe("MapLibre regular style layer suppression", () => {
-  it("separates ground linework from labels that must remain above Three", () => {
-    expect(isMapStyleLabelLayer({ id: "roads", type: "line" })).toBe(false);
-    expect(isMapStyleLabelLayer({ id: "labels", type: "symbol" })).toBe(true);
+  it("keeps only point-based location labels above Three", () => {
+    expect(isMapStyleLocationLabelLayer({ id: "roads", type: "line" })).toBe(
+      false
+    );
     expect(
-      isMapStyleLabelLayer({
+      isMapStyleLocationLabelLayer({
+        id: "place-city",
+        type: "symbol",
+        "source-layer": "place",
+      })
+    ).toBe(true);
+    expect(
+      isMapStyleLocationLabelLayer({
+        id: "road-labels",
+        type: "symbol",
+        "source-layer": "transportation_name",
+        layout: { "symbol-placement": "line" },
+      })
+    ).toBe(false);
+    expect(
+      isMapStyleLocationLabelLayer({
         id: "raster-dop-overlay-1-raster",
         type: "raster",
         source: "rvrSchriftNT",
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("makes every opacity-capable regular layer transparent and restores exact values", () => {

@@ -37,6 +37,7 @@ export type RuntimeStyleLayer = {
   source?: unknown;
   "source-layer"?: unknown;
   sourceLayer?: unknown;
+  layout?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -59,21 +60,30 @@ const MAPLIBRE_LIVE_OVERLAY_LAYER_TYPES = new Set([
 const OVERLAY_LAYER_HINT =
   /(?:dop[-_:]?overlay|label|road|route|schrift|street|transport)/i;
 
-const LABEL_LAYER_HINT = /(?:dop[-_:]?overlay|label|schrift)/i;
+const LOCATION_LABEL_HINT =
+  /(?:^|[-_:])(place|settlement|locality|city|town|village|municipality|district|borough|suburb|neighbou?rhood|quarter|ort|stadt|gemeinde|bezirk)(?:$|[-_:])/i;
 
-/** Layers that must stay sharp above shaded Three.js scene content. */
-export const isMapStyleLabelLayer = (layer: RuntimeStyleLayer): boolean => {
-  if (layer.type === "custom") return false;
-  if (layer.type === "symbol") return true;
-  return LABEL_LAYER_HINT.test(
-    [
-      layer.id,
-      layer.source,
-      layer.sourceLayer ?? layer["source-layer"],
-      layer.metadata?.["layer-id"],
-    ].join(":")
-  );
+const ROAD_LABEL_HINT =
+  /(?:road|street|strasse|stra(?:ss|ß)e|highway|motorway|transport|route|autobahn)/i;
+
+/** Point-based place names that may remain crisp above the shaded scene. */
+export const isMapStyleLocationLabelLayer = (
+  layer: RuntimeStyleLayer
+): boolean => {
+  if (layer.type !== "symbol") return false;
+  const signature = [
+    layer.id,
+    layer.source,
+    layer.sourceLayer ?? layer["source-layer"],
+    layer.metadata?.["layer-id"],
+  ].join(":");
+  if (ROAD_LABEL_HINT.test(signature)) return false;
+  if (layer.layout?.["symbol-placement"] === "line") return false;
+  return LOCATION_LABEL_HINT.test(signature);
 };
+
+/** @deprecated Prefer the explicit location-label classifier. */
+export const isMapStyleLabelLayer = isMapStyleLocationLabelLayer;
 
 export const isMapStyleOverlayLayer = (layer: RuntimeStyleLayer): boolean => {
   if (layer.type === "custom") return false;

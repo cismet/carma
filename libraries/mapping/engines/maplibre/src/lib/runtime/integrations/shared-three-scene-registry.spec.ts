@@ -61,7 +61,7 @@ describe("shared Three.js scene registry", () => {
 
     expect(first.layer).toBe(second.layer);
     expect(buildSharedThreeSceneLayer).toHaveBeenCalledOnce();
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, "labels");
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
 
     first.release();
     expect(dispose).not.toHaveBeenCalled();
@@ -92,17 +92,23 @@ describe("shared Three.js scene registry", () => {
 
     const lease = acquireSharedThreeScene(map as never);
 
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
     lease.release();
   });
 
-  it("moves the shared layer after ground styling and before labels", () => {
+  it("moves the shared layer after the full style and keeps only place labels above it", () => {
     const layers = [
       { id: "basemap", type: "raster" },
       { id: sharedLayer.id, type: "custom" },
       { id: "landcover", type: "fill" },
       { id: "roads", type: "line" },
-      { id: "labels", type: "symbol" },
+      {
+        id: "road-labels",
+        type: "symbol",
+        "source-layer": "transportation_name",
+        layout: { "symbol-placement": "line" },
+      },
+      { id: "place-city", type: "symbol", "source-layer": "place" },
     ];
     const moveLayer = vi.fn((id: string, beforeId?: string) => {
       const currentIndex = layers.findIndex((layer) => layer.id === id);
@@ -127,18 +133,20 @@ describe("shared Three.js scene registry", () => {
 
     const lease = acquireSharedThreeScene(map as never);
 
-    expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id, "labels");
+    expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id);
+    expect(moveLayer).toHaveBeenCalledWith("place-city");
     expect(layers.map(({ id }) => id)).toEqual([
       "basemap",
       "landcover",
       "roads",
+      "road-labels",
       sharedLayer.id,
-      "labels",
+      "place-city",
     ]);
     lease.release();
   });
 
-  it("keeps RVR label rasters sharp above Three", () => {
+  it("does not redraw raster label overlays above Three", () => {
     const addLayer = vi.fn();
     const map = {
       getStyle: vi.fn(() => ({
@@ -164,10 +172,7 @@ describe("shared Three.js scene registry", () => {
 
     const lease = acquireSharedThreeScene(map as never);
 
-    expect(addLayer).toHaveBeenCalledWith(
-      sharedLayer,
-      "raster-dop-overlay-1-raster"
-    );
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
     lease.release();
   });
 
@@ -278,7 +283,7 @@ describe("shared Three.js scene registry", () => {
     const lease = acquireSharedThreeScene(map as never);
 
     expect(lease.layer).toBe(sharedLayer);
-    expect(addLayer).toHaveBeenCalledWith(sharedLayer, undefined);
+    expect(addLayer).toHaveBeenCalledWith(sharedLayer);
     expect(() => lease.release()).not.toThrow();
     expect(dispose).toHaveBeenCalledOnce();
   });
