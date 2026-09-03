@@ -8,6 +8,8 @@ const VERSION = 1;
 export type StoredDrawing = {
   id: string;
   locked: boolean;
+  /** the zoom band this drawing owns; missing in files written before bands */
+  band?: number;
   anchor: AnnotationAnchor;
   elements: readonly ExcalidrawElement[];
   files?: BinaryFiles;
@@ -15,6 +17,13 @@ export type StoredDrawing = {
 
 type StoredFile = {
   version: number;
+  /** the map zoom band 0 begins at; see `annotation-zoom-bands` */
+  origin?: number;
+  drawings: StoredDrawing[];
+};
+
+export type StoredAnnotations = {
+  origin?: number;
   drawings: StoredDrawing[];
 };
 
@@ -35,32 +44,41 @@ const isDrawing = (value: unknown): value is StoredDrawing => {
     typeof drawing.id === "string" &&
     typeof drawing.locked === "boolean" &&
     isAnchor(drawing.anchor) &&
+    (drawing.band === undefined || typeof drawing.band === "number") &&
     Array.isArray(drawing.elements)
   );
 };
 
-export const readDrawings = (key?: string): StoredDrawing[] => {
+export const readAnnotations = (key?: string): StoredAnnotations => {
+  const empty: StoredAnnotations = { drawings: [] };
   if (!key || typeof localStorage === "undefined") {
-    return [];
+    return empty;
   }
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
-      return [];
+      return empty;
     }
     const parsed = JSON.parse(raw) as StoredFile;
     if (parsed?.version !== VERSION || !Array.isArray(parsed.drawings)) {
-      return [];
+      return empty;
     }
-    return parsed.drawings.filter(isDrawing);
+    return {
+      origin: typeof parsed.origin === "number" ? parsed.origin : undefined,
+      drawings: parsed.drawings.filter(isDrawing),
+    };
   } catch {
-    return [];
+    return empty;
   }
 };
 
+export const readDrawings = (key?: string): StoredDrawing[] =>
+  readAnnotations(key).drawings;
+
 export const writeDrawings = (
   key: string | undefined,
-  drawings: StoredDrawing[]
+  drawings: StoredDrawing[],
+  origin?: number
 ) => {
   if (!key || typeof localStorage === "undefined") {
     return;
@@ -71,7 +89,7 @@ export const writeDrawings = (
       localStorage.removeItem(key);
       return;
     }
-    const file: StoredFile = { version: VERSION, drawings: kept };
+    const file: StoredFile = { version: VERSION, origin, drawings: kept };
     localStorage.setItem(key, JSON.stringify(file));
   } catch {
     return;

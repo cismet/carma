@@ -7,6 +7,8 @@ export type AnnotationAnchor = { lng: number; lat: number; zoom: number };
 export type AnnotationGroup = {
   id: string;
   locked: boolean;
+  /** the zoom band this drawing owns; unset until the grid exists */
+  band?: number;
 };
 
 /** "zoom to this drawing", bumped per request so a repeat still lands */
@@ -25,6 +27,11 @@ export type AnnotationState = {
   undoVersion?: number;
   redoVersion?: number;
   zoomRequest?: AnnotationZoomRequest;
+  /**
+   * The map zoom where band 0 begins, set by the first drawing the user
+   * started; see `annotation-zoom-bands`. Unset means there is no grid yet.
+   */
+  zoomOrigin?: number;
 };
 
 /** how far the overlay keeps clear of each edge of the map area, in px */
@@ -50,14 +57,18 @@ export type AnnotationSyncLimits = {
 };
 
 /**
- * The window a drawing lives in, as a percentage of its anchor scale — the
- * same number excalidraw shows in its zoom widget. Leaving it starts the next
- * drawing at the current view.
+ * The scale window a drawing is drawn in, in percent — the same number
+ * excalidraw shows in its zoom widget. It keeps strokes in shape: never
+ * thinner than `min`, never bolder than `max`.
+ *
+ * It also sets how wide a drawing is on the zoom axis, `log2(max / min)` zoom
+ * levels, so 100–400 covers two. Leaving the window activates the drawing that
+ * owns the levels the map arrived at, and starts one where none lives yet.
  */
 export type AnnotationZoomRange = {
-  /** furthest zoomed out, in percent. Default: 25, useful floor 10 */
+  /** the thin end, in percent. Default: 100 */
   min?: number;
-  /** furthest zoomed in, in percent. Default: 400, useful ceiling 3000 */
+  /** the bold end, in percent. Default: 400, excalidraw renders up to 3000 */
   max?: number;
 };
 
