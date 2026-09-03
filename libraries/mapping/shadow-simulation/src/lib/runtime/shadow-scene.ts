@@ -863,6 +863,12 @@ export const buildShadowSimulationScene = (
   map.on("styledata", ensureShadowBackground);
   ensureShadowBackground();
   let restoreMapLibreTerrain: (() => void) | null = null;
+  /**
+   * Whether the Cesium terrain has a source and a first selection loaded.
+   * Only then may the clay study take MapLibre's terrain away; before that
+   * the host ground is the only receiver there is.
+   */
+  let terrainRuntimeLoaded = false;
   const atmosphereReferenceCenter = map.getCenter();
   const sceneLease = acquireSharedThreeScene(map);
   const atmosphereSkyObserver: AtmosphericSkyReference["observer"] = {
@@ -1530,6 +1536,7 @@ export const buildShadowSimulationScene = (
   const watchTerrainRuntime = (runtime: NonNullable<typeof terrainRuntime>) => {
     void runtime.ready.then((loaded) => {
       if (!loaded || disposed || terrainRuntime !== runtime) return;
+      terrainRuntimeLoaded = true;
       suppressMapLibreTerrain();
       refreshSharedShadowCoverage();
     });
@@ -1541,6 +1548,7 @@ export const buildShadowSimulationScene = (
       suppressMapLibreTerrain();
       const runtime = terrainRuntime;
       terrainRuntime = null;
+      terrainRuntimeLoaded = false;
       if (runtime && sceneLease.layer.hasRuntime(runtime.id)) {
         sceneLease.layer.removeRuntime(runtime.id);
       }
@@ -1555,6 +1563,7 @@ export const buildShadowSimulationScene = (
     const runtime = buildTerrainRuntime();
     if (!runtime) return;
     terrainRuntime = runtime;
+    terrainRuntimeLoaded = false;
     runtime.setMaterialColor(`#${terrainColor.getHexString()}`);
     runtime.setShadowView(appliedRuntimeShadowView);
     sceneLease.layer.addRuntime(runtime);
@@ -1688,7 +1697,12 @@ export const buildShadowSimulationScene = (
         sharedBinding.atmosphericSky.mesh.visible = false;
       } else {
         restoreMapLibreStyleLayers ??= suppressStyleLayers();
+        // Without its own surface the study keeps the host ground, which the
+        // ground shadow pass shades; watchTerrainRuntime hides it once the
+        // Cesium terrain can take over.
+        if (terrainRuntimeLoaded || sharedSceneProvidesTerrain()) {
           suppressMapLibreTerrain();
+        }
         ensureShadowBackground();
       }
       terrainRuntime?.setSurfaceMode(terrainSurfaceModeFor(mode));
