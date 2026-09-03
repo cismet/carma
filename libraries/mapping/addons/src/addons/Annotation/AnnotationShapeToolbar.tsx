@@ -148,7 +148,7 @@ export const AnnotationShapeToolbar = ({
         </button>
       </Tooltip>
     )}
-    {onToggleLock && (
+    {/* {onToggleLock && (
       <Tooltip
         title={isLocked ? "Zeichnung entsperren" : "Zeichnung sperren"}
         placement="bottom"
@@ -167,7 +167,7 @@ export const AnnotationShapeToolbar = ({
           <FontAwesomeIcon icon={isLocked ? faLock : faLockOpen} />
         </button>
       </Tooltip>
-    )}
+    )} */}
     {(onToggleLock || onAddGroup) && shapes.length > 0 && (
       <span className={DIVIDER} aria-hidden />
     )}
