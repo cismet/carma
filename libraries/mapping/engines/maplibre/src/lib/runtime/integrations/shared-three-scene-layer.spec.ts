@@ -29,11 +29,15 @@ describe("shared Three.js scene layer", () => {
       texture: { value: texture },
       sceneToClip: { value: sceneToClip },
       enabled: { value: 1 },
+      depthTexture: { value: null },
+      depthEnabled: { value: 0 },
+      depthNearFar: { value: new THREE.Vector2(1, 1000) },
     };
     const shader = {
       uniforms: {},
       vertexShader: "#include <common>\n#include <project_vertex>",
-      fragmentShader: "#include <common>\n#include <map_fragment>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
     };
 
     configureMapStyleProjectedMaterial(material, uniforms);
@@ -52,8 +56,49 @@ describe("shared Three.js scene layer", () => {
     );
     expect(shader.fragmentShader).toContain("diffuseColor.a = 1.0");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v1"
+      "carma-map-style-projection-v2"
     );
+    expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
+  });
+
+  it("composites the captured pass over a textured receiver in overlay mode", () => {
+    const material = new THREE.MeshStandardMaterial();
+    const uniforms = {
+      texture: { value: new THREE.Texture() },
+      sceneToClip: { value: new THREE.Matrix4() },
+      enabled: { value: 1 },
+      depthTexture: { value: new THREE.Texture() },
+      depthEnabled: { value: 1 },
+      depthNearFar: { value: new THREE.Vector2(1, 1000) },
+    };
+    const shader = {
+      uniforms: {},
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+    };
+
+    configureMapStyleProjectedMaterial(material, uniforms, "overlay");
+    material.onBeforeCompile(shader as never, {} as never);
+
+    expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBe("");
+    expect(shader.fragmentShader).toContain("#ifdef CARMA_MAP_STYLE_OVERLAY");
+    expect(shader.fragmentShader).toContain("carmaMapStyleOccludedByMesh");
+    expect(shader.fragmentShader).toContain("carmaMapStyleLabelCoverage");
+    expect(shader.fragmentShader.indexOf("carmaShade")).toBeLessThan(
+      shader.fragmentShader.indexOf("#include <opaque_fragment>")
+    );
+    expect(shader.uniforms).toMatchObject({
+      carmaMapStyleDepthTexture: uniforms.depthTexture,
+      carmaMapStyleDepthEnabled: uniforms.depthEnabled,
+      carmaMapStyleDepthNearFar: uniforms.depthNearFar,
+    });
+    expect(shader.fragmentShader).toContain("carmaMapStyleSample.a");
+    expect(material.customProgramCacheKey()).toContain("|overlay");
+
+    configureMapStyleProjectedMaterial(material, uniforms, "replace");
+    expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
+    expect(material.customProgramCacheKey()).toContain("|replace");
   });
 
   it("clears mesh depth before MapLibre draws retained place labels", () => {

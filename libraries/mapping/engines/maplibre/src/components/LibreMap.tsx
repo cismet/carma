@@ -3,8 +3,14 @@ import maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import {
+  RETRY_TILE_PROTOCOL,
+  retryTileProtocol,
+} from "../utils/retryTileProtocol";
 // Register COG protocol once
 maplibregl.addProtocol("cog", cogProtocol as any);
+// Tiles that must not stay missing after a dropped transfer (terrain DEM)
+maplibregl.addProtocol(RETRY_TILE_PROTOCOL, retryTileProtocol);
 import {
   useCallback,
   useContext,

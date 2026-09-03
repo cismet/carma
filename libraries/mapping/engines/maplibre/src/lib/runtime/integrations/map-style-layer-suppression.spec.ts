@@ -5,7 +5,9 @@ import {
   getMapStyleLocationLabelFlatOffset,
   getMapLibreLayerOpacityProperties,
   isMapStyleLocationLabelLayer,
+  isMapStyleHouseNumberLabelLayer,
   isMapStylePointLabelLayer,
+  isMapStyleWaterLabelLayer,
   isMapStyleRoadLabelLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   notifyMapLibreStyleCompositionReady,
@@ -201,6 +203,37 @@ describe("MapLibre regular style layer suppression", () => {
         layout: {
           "symbol-placement": ["step", ["zoom"], "line", 16, "line-center"],
         },
+      })
+    ).toBe(false);
+  });
+
+  it("recognizes water and house-number labels for the mesh drape", () => {
+    expect(
+      isMapStyleWaterLabelLayer({
+        id: "bg-basemap_relief-Name_GewaesserL_Fluss",
+        type: "symbol",
+        "source-layer": "Gewaesserlinie",
+      })
+    ).toBe(true);
+    expect(
+      isMapStyleWaterLabelLayer({
+        id: "bg-basemap_relief-Name_Kreis_Gemeindestr",
+        type: "symbol",
+        "source-layer": "Verkehrslinie",
+      })
+    ).toBe(false);
+    expect(
+      isMapStyleHouseNumberLabelLayer({
+        id: "bg-basemap_relief-Hauskoordinate",
+        type: "symbol",
+        "source-layer": "Hauskoordinate",
+      })
+    ).toBe(true);
+    expect(
+      isMapStyleHouseNumberLabelLayer({
+        id: "place-city",
+        type: "symbol",
+        "source-layer": "place",
       })
     ).toBe(false);
   });

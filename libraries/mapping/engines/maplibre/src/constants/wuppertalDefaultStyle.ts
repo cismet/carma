@@ -1,6 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 
 import { slugifyUrl } from "../utils/styleComposer";
+import { withRetryTileProtocol } from "../utils/retryTileProtocol";
 /**
  * Configuration for creating a city-specific MapLibre default style.
  * Other cities can define their own config and use createDefaultStyle().
@@ -45,7 +46,9 @@ export function createTerrainSources(
   return {
     [slugifyUrl(config.terrain.url)]: {
       type: "raster-dem",
-      tiles: [config.terrain.url],
+      // A DEM tile that drops out leaves the terrain flat there for good;
+      // fetch it through the retrying protocol instead.
+      tiles: [withRetryTileProtocol(config.terrain.url)],
       tileSize: config.terrain.tileSize ?? 512,
       maxzoom: config.terrain.maxzoom ?? 15,
     },

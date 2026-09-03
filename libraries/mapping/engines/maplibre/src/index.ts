@@ -283,6 +283,7 @@ export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/ces
 export { isSharedThreeTerrainLoading } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,
+  isMapStyleContourLineLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   suppressMapLibreRegularStyleLayers,
 } from "./lib/runtime/integrations/map-style-layer-suppression";

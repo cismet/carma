@@ -1,6 +1,7 @@
 export {
   acquireCesiumTerrainTileSource,
   cesiumTerrainTileKey,
+  isConfirmedTerrainServerError,
 } from "./lib/cesium-terrain-tile-source";
 export type {
   CesiumTerrainTile,

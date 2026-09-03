@@ -22,6 +22,7 @@ import {
 import {
   acquireCesiumTerrainTileSource,
   cesiumTerrainTileKey,
+  isConfirmedTerrainServerError,
   type CesiumTerrainTile,
   type CesiumTerrainTileBounds,
   type CesiumTerrainTileId,
@@ -359,29 +360,47 @@ const cameraFrustumBounds = (
     : null;
 };
 
+type ConcurrentLoadFailure<T> = { value: T; error: unknown };
+
+/**
+ * Load every value with bounded concurrency. One failed value does not stop
+ * the others: the failures come back with the results so the caller can
+ * retry them without losing what did arrive.
+ */
 const loadWithConcurrency = async <T, R>(
   values: readonly T[],
   concurrency: number,
   load: (value: T) => Promise<R>,
   onLoaded?: (value: T, result: R) => void
-): Promise<R[]> => {
-  const results = new Array<R>(values.length);
+): Promise<{
+  results: Array<R | undefined>;
+  failures: ConcurrentLoadFailure<T>[];
+}> => {
+  const results = new Array<R | undefined>(values.length);
+  const failures: ConcurrentLoadFailure<T>[] = [];
   let cursor = 0;
   const worker = async () => {
     while (cursor < values.length) {
       const index = cursor;
       cursor += 1;
       const value = values[index];
-      const result = await load(value);
-      results[index] = result;
-      onLoaded?.(value, result);
+      try {
+        const result = await load(value);
+        results[index] = result;
+        onLoaded?.(value, result);
+      } catch (error) {
+        failures.push({ value, error });
+      }
     }
   };
   await Promise.all(
     Array.from({ length: Math.min(concurrency, values.length) }, worker)
   );
-  return results;
+  return { results, failures };
 };
+
+const SELECTION_RETRY_BASE_DELAY_MS = 1_000;
+const SELECTION_RETRY_MAX_DELAY_MS = 30_000;
 
 export const buildCesiumTerrainRuntime = (
   runtimeId: string,
@@ -470,6 +489,35 @@ export const buildCesiumTerrainRuntime = (
   let meshUseClock = 0;
   let selectionGeneration = 0;
   let requestedSignature = "";
+  // Tiles the server refused for good; they are not asked for again.
+  const unavailableTileKeys = new Set<string>();
+  let selectionRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let failedSelectionRounds = 0;
+  const clearSelectionRetry = () => {
+    if (selectionRetryTimer === null) return;
+    clearTimeout(selectionRetryTimer);
+    selectionRetryTimer = null;
+  };
+  /**
+   * A selection whose tiles partly failed is asked for again after a backoff,
+   * so a transient outage leaves no hole once the host recovers. Nothing
+   * else re-evaluates a selection while the camera rests.
+   */
+  const scheduleSelectionRetry = () => {
+    if (disposed || selectionRetryTimer !== null) return;
+    const delay = Math.min(
+      SELECTION_RETRY_MAX_DELAY_MS,
+      SELECTION_RETRY_BASE_DELAY_MS * 2 ** failedSelectionRounds
+    );
+    failedSelectionRounds += 1;
+    selectionRetryTimer = setTimeout(() => {
+      selectionRetryTimer = null;
+      if (disposed) return;
+      requestedSignature = "";
+      selectionInputSignature = "";
+      map?.triggerRepaint();
+    }, delay * (0.5 + Math.random()));
+  };
   let activeViewportElevationSignature = "";
   // Avoid repeating the full selection walk for an unchanged view.
   let selectionInputSignature = "";
@@ -1359,7 +1407,9 @@ export const buildCesiumTerrainRuntime = (
       }
     };
     const entriesToLoad = selection.loadEntries.filter(
-      (entry) => !meshes.has(terrainSelectionKey(entry))
+      (entry) =>
+        !meshes.has(terrainSelectionKey(entry)) &&
+        !unavailableTileKeys.has(cesiumTerrainTileKey(entry.id))
     );
     for (const entry of selection.viewportStages[0] ?? []) {
       if (meshes.has(terrainSelectionKey(entry))) publishViewportRoot(entry);
@@ -1384,8 +1434,22 @@ export const buildCesiumTerrainRuntime = (
         publishReadyViewportStage();
       }
     )
-      .then(() => {
+      .then(({ failures }) => {
         if (disposed || generation !== selectionGeneration) return;
+        let transientFailure: unknown = null;
+        for (const { value, error } of failures) {
+          if (isConfirmedTerrainServerError(error)) {
+            unavailableTileKeys.add(cesiumTerrainTileKey(value.id));
+          } else {
+            transientFailure ??= error;
+          }
+        }
+        if (transientFailure !== null) {
+          options.onError?.(transientFailure);
+          scheduleSelectionRetry();
+        } else {
+          failedSelectionRounds = 0;
+        }
         const activeKeys = new Set<string>();
         const retainedSourceKeys = new Set<string>();
         for (const entry of selection.entries) {
@@ -1507,6 +1571,7 @@ export const buildCesiumTerrainRuntime = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      clearSelectionRetry();
       selectionGeneration += 1;
       unregisterSampler?.();
       unregisterSampler = null;
