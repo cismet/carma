@@ -8,28 +8,49 @@ import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
   getMapStyleLocationLabelFlatOffset,
-  isMapStyleLocationLabelLayer,
+  isMapStylePointLabelLayer,
+  isMapStyleRoadLabelLayer,
   type RuntimeStyleLayer,
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 6;
-const LOCATION_LABEL_HALO_COLOR = "rgba(0, 0, 0, 0.5)";
-const LOCATION_LABEL_HALO_WIDTH = 1;
+const SHARED_SCENE_ENTRY_VERSION = 11;
 const TERRAIN_COVERAGE_MARGIN_METERS = 0.5;
+/** Neighbouring tile boxes overlap by twice the margin; merge anything closer. */
+const TERRAIN_COVERAGE_MERGE_TOLERANCE_METERS = 0.01;
+/**
+ * Label overlay maintenance rewrites the filter and paint of every point-label
+ * layer. MapLibre schedules a repaint per write and that repaint's `idle`
+ * lands here again, so the maintenance is rate limited instead of running on
+ * every style or idle event.
+ */
+const LABEL_OVERLAY_MAINTENANCE_INTERVAL_MS = 1000;
+
+type PointLabelLayersCache = {
+  orderSignature: string;
+  layers: RuntimeStyleLayer[];
+};
 
 type SharedSceneEntry = {
   version: number;
   layer: SharedThreeSceneLayer;
   references: number;
   disposed: boolean;
+  pointLabelLayersCache: PointLabelLayersCache | null;
+  labelMaintenanceTimer: ReturnType<typeof setTimeout> | null;
+  lastLabelMaintenanceMs: number;
   savedLocationLabelOffsets: Map<string, SavedLocationLabelOffset>;
   savedLocationLabelHaloWidths: Map<string, SavedLocationLabelHaloWidth>;
   savedLocationLabelHaloColors: Map<string, SavedLocationLabelHaloColor>;
   savedLocationLabelTextColors: Map<string, SavedLocationLabelTextColor>;
   savedLocationLabelFilters: Map<string, SavedLocationLabelFilter>;
+  savedPointLabelVisibilities: Map<string, SavedPointLabelVisibility>;
   locationLabelColorRequests: Map<symbol, string>;
-  ensureLayer: () => void;
+  pointLabelOverlayVisibilityRequests: Map<symbol, boolean>;
+  /** Rate-limited maintenance; safe to register as a MapLibre listener. */
+  ensureLayer: (event?: unknown) => void;
+  /** Immediate maintenance for user-driven changes. */
+  ensureLayerNow: () => void;
 };
 
 type SavedLocationLabelOffset = {
@@ -41,13 +62,13 @@ type SavedLocationLabelOffset = {
 type SavedLocationLabelHaloWidth = {
   signature: string;
   original: unknown;
-  applied: typeof LOCATION_LABEL_HALO_WIDTH;
+  applied: number;
 };
 
 type SavedLocationLabelHaloColor = {
   signature: string;
   original: unknown;
-  applied: typeof LOCATION_LABEL_HALO_COLOR;
+  applied: string;
 };
 
 type SavedLocationLabelTextColor = {
@@ -60,6 +81,15 @@ type SavedLocationLabelFilter = {
   signature: string;
   original: unknown;
   appliedSignature: string;
+  /** The runtime filter object MapLibre handed back after the last write. */
+  appliedFilter?: unknown;
+  /** The coverage the applied filter was built from. */
+  coverage?: TerrainCoverage;
+};
+
+type SavedPointLabelVisibility = {
+  signature: string;
+  original: unknown;
 };
 
 type SharedSceneHotData = {
@@ -69,6 +99,7 @@ type SharedSceneHotData = {
 export type SharedThreeSceneLease = {
   layer: SharedThreeSceneLayer;
   setLocationLabelColor: (color: string | null) => void;
+  setPointLabelOverlayVisible: (visible: boolean) => void;
   release: () => void;
 };
 
@@ -109,15 +140,23 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
-const getMapStyleLocationLabelLayers = (
-  map: MaplibreMap
+const getMapStylePointLabelLayers = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry,
+  layerOrder: readonly string[]
 ): RuntimeStyleLayer[] => {
+  // `getStyle()` serializes every layer including the coverage filters, so
+  // the classification is reused until the layer list itself changes.
+  const orderSignature = layerOrder.join("\n");
+  const cached = entry.pointLabelLayersCache;
+  if (cached?.orderSignature === orderSignature) return cached.layers;
   try {
-    return (
+    const layers =
       (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.filter(
-        isMapStyleLocationLabelLayer
-      ) ?? []
-    );
+        isMapStylePointLabelLayer
+      ) ?? [];
+    entry.pointLabelLayersCache = { orderSignature, layers };
+    return layers;
   } catch {
     return [];
   }
@@ -201,6 +240,59 @@ const containsCoverageBox = (
   outer.maximumX >= inner.maximumX &&
   outer.maximumZ >= inner.maximumZ;
 
+const nearlyEqual = (a: number, b: number): boolean =>
+  Math.abs(a - b) <= TERRAIN_COVERAGE_MERGE_TOLERANCE_METERS;
+
+/**
+ * Union grid-aligned tile boxes along one axis: boxes that share their extent
+ * on the other axis and touch or overlap along `axis` collapse into one.
+ */
+const mergeCoverageBoxesAlong = (
+  boxes: readonly TerrainCoverageBox[],
+  axis: "x" | "z"
+): TerrainCoverageBox[] => {
+  const [minimum, maximum, otherMinimum, otherMaximum] =
+    axis === "x"
+      ? (["minimumX", "maximumX", "minimumZ", "maximumZ"] as const)
+      : (["minimumZ", "maximumZ", "minimumX", "maximumX"] as const);
+  const sorted = [...boxes].sort(
+    (a, b) =>
+      a[otherMinimum] - b[otherMinimum] ||
+      a[otherMaximum] - b[otherMaximum] ||
+      a[minimum] - b[minimum]
+  );
+  const merged: TerrainCoverageBox[] = [];
+  for (const box of sorted) {
+    const previous = merged[merged.length - 1];
+    if (
+      previous &&
+      nearlyEqual(previous[otherMinimum], box[otherMinimum]) &&
+      nearlyEqual(previous[otherMaximum], box[otherMaximum]) &&
+      box[minimum] <=
+        previous[maximum] + TERRAIN_COVERAGE_MERGE_TOLERANCE_METERS
+    ) {
+      const extent = Math.max(previous[maximum], box[maximum]);
+      merged[merged.length - 1] =
+        axis === "x"
+          ? { ...previous, maximumX: extent }
+          : { ...previous, maximumZ: extent };
+      continue;
+    }
+    merged.push(box);
+  }
+  return merged;
+};
+
+/**
+ * Collapse a quadtree tile selection into far fewer rectangles. Hundreds of
+ * per-tile polygons in a `within` filter make every symbol layout and every
+ * style serialization pay for the polygon count.
+ */
+const mergeCoverageBoxes = (
+  boxes: readonly TerrainCoverageBox[]
+): TerrainCoverageBox[] =>
+  mergeCoverageBoxesAlong(mergeCoverageBoxesAlong(boxes, "x"), "z");
+
 const getTerrainCoverageFilter = (
   layer: SharedThreeSceneLayer
 ): TerrainCoverage | null => {
@@ -262,7 +354,7 @@ const getTerrainCoverageFilter = (
     coverageBoxes.push(box);
   }
 
-  const coordinates = coverageBoxes.flatMap((box) => {
+  const coordinates = mergeCoverageBoxes(coverageBoxes).flatMap((box) => {
     const southWest = layer.projectSceneToLngLat?.([
       box.minimumX,
       0,
@@ -315,8 +407,19 @@ const applyLocationLabelCoverageFilters = (
     const signature = getLayerSignature(layer);
     try {
       const current = map.getFilter(layer.id);
-      const currentSignature = getStyleValueSignature(current);
       let saved = savedFilters.get(layer.id);
+      if (
+        saved &&
+        saved.signature === signature &&
+        saved.coverage === coverage &&
+        saved.appliedFilter !== undefined &&
+        current === saved.appliedFilter
+      ) {
+        // MapLibre still holds the object of the last write, so nothing else
+        // touched this filter; skip serializing the coverage polygon again.
+        continue;
+      }
+      const currentSignature = getStyleValueSignature(current);
       if (
         !saved ||
         saved.signature !== signature ||
@@ -335,8 +438,14 @@ const applyLocationLabelCoverageFilters = (
           : coverage.predicate;
       const appliedSignature = getStyleValueSignature(applied);
       saved.appliedSignature = appliedSignature;
+      saved.coverage = coverage;
       if (currentSignature !== appliedSignature) {
-        map.setFilter(layer.id, applied as never);
+        // The expression is assembled here from validated parts; skipping the
+        // style-spec validation saves a full walk of the coverage polygon.
+        map.setFilter(layer.id, applied as never, { validate: false });
+        saved.appliedFilter = map.getFilter(layer.id);
+      } else {
+        saved.appliedFilter = current;
       }
     } catch {
       // A style rebuild can remove a layer between inspection and update.
@@ -377,6 +486,97 @@ const restoreLocationLabelPaint = (
   savedValues.clear();
 };
 
+const isWhiteLabelHalo = (value: unknown): boolean => {
+  if (typeof value !== "string") return false;
+  const compact = value.toLowerCase().replace(/\s+/g, "");
+  if (compact === "white" || compact === "#fff" || compact === "#ffffff") {
+    return true;
+  }
+  return /^rgba?\(255,255,255(?:,(?:0?\.\d+|1(?:\.0+)?))?\)$/.test(compact);
+};
+
+const restoreLocationLabelOffsets = (
+  map: MaplibreMap,
+  savedOffsets: Map<string, SavedLocationLabelOffset>
+): void => {
+  for (const [layerId, saved] of savedOffsets) {
+    try {
+      const runtimeLayer = map.getLayer(layerId) as
+        | RuntimeStyleLayer
+        | undefined;
+      if (
+        runtimeLayer &&
+        getLayerSignature(runtimeLayer) === saved.signature &&
+        isAppliedOffset(
+          map.getLayoutProperty(layerId, "text-offset"),
+          saved.applied
+        )
+      ) {
+        map.setLayoutProperty(
+          layerId,
+          "text-offset",
+          saved.original === undefined ? null : saved.original
+        );
+      }
+    } catch {
+      // The host may already have disposed or replaced its style.
+    }
+  }
+  savedOffsets.clear();
+};
+
+const setPointLabelLayersHidden = (
+  map: MaplibreMap,
+  layers: RuntimeStyleLayer[],
+  savedVisibilities: Map<string, SavedPointLabelVisibility>,
+  hidden: boolean
+): void => {
+  if (!hidden) {
+    for (const [layerId, saved] of savedVisibilities) {
+      try {
+        const runtimeLayer = map.getLayer(layerId) as
+          | RuntimeStyleLayer
+          | undefined;
+        if (
+          runtimeLayer &&
+          getLayerSignature(runtimeLayer) === saved.signature &&
+          map.getLayoutProperty(layerId, "visibility") === "none"
+        ) {
+          map.setLayoutProperty(
+            layerId,
+            "visibility",
+            saved.original === undefined ? null : saved.original
+          );
+        }
+      } catch {
+        // The host may already have disposed or replaced its style.
+      }
+    }
+    savedVisibilities.clear();
+    return;
+  }
+
+  const currentIds = new Set(layers.map(({ id }) => id));
+  for (const id of savedVisibilities.keys()) {
+    if (!currentIds.has(id)) savedVisibilities.delete(id);
+  }
+  for (const layer of layers) {
+    try {
+      const signature = getLayerSignature(layer);
+      const current = map.getLayoutProperty(layer.id, "visibility");
+      const saved = savedVisibilities.get(layer.id);
+      if (!saved || saved.signature !== signature) {
+        savedVisibilities.set(layer.id, { signature, original: current });
+      }
+      if (current !== "none") {
+        map.setLayoutProperty(layer.id, "visibility", "none");
+      }
+    } catch {
+      // A style rebuild can remove a layer between inspection and update.
+    }
+  }
+};
+
 const applyLocationLabelOffsets = (
   map: MaplibreMap,
   layers: RuntimeStyleLayer[],
@@ -407,50 +607,40 @@ const applyLocationLabelOffsets = (
 
   for (const layer of layers) {
     const applied = getMapStyleLocationLabelFlatOffset(layer);
-    if (!applied) continue;
     const signature = getLayerSignature(layer);
-    try {
-      const current = map.getLayoutProperty(layer.id, "text-offset");
-      let saved = savedOffsets.get(layer.id);
-      if (
-        !saved ||
-        saved.signature !== signature ||
-        !isAppliedOffset(current, saved.applied)
-      ) {
-        saved = { signature, original: current, applied };
-        savedOffsets.set(layer.id, saved);
+    if (applied) {
+      try {
+        const current = map.getLayoutProperty(layer.id, "text-offset");
+        let saved = savedOffsets.get(layer.id);
+        if (
+          !saved ||
+          saved.signature !== signature ||
+          !isAppliedOffset(current, saved.applied)
+        ) {
+          saved = { signature, original: current, applied };
+          savedOffsets.set(layer.id, saved);
+        }
+        if (!isAppliedOffset(current, applied)) {
+          map.setLayoutProperty(layer.id, "text-offset", [...applied]);
+        }
+      } catch {
+        // A style rebuild can remove a layer between inspection and update.
       }
-      if (!isAppliedOffset(current, applied)) {
-        map.setLayoutProperty(layer.id, "text-offset", [...applied]);
-      }
-    } catch {
-      // A style rebuild can remove a layer between inspection and update.
     }
     if (textColor === null) continue;
+    let authoredHaloColor: unknown;
     try {
-      const current = map.getPaintProperty(layer.id, "text-halo-width");
-      let saved = savedHaloWidths.get(layer.id);
-      if (
-        !saved ||
-        saved.signature !== signature ||
-        current !== saved.applied
-      ) {
-        saved = {
-          signature,
-          original: current,
-          applied: LOCATION_LABEL_HALO_WIDTH,
-        };
-        savedHaloWidths.set(layer.id, saved);
-      }
-      if (current !== LOCATION_LABEL_HALO_WIDTH) {
-        map.setPaintProperty(
-          layer.id,
-          "text-halo-width",
-          LOCATION_LABEL_HALO_WIDTH
-        );
-      }
+      authoredHaloColor =
+        savedHaloColors.get(layer.id)?.original ??
+        map.getPaintProperty(layer.id, "text-halo-color");
     } catch {
-      // A style rebuild can remove a layer between inspection and update.
+      continue;
+    }
+    if (
+      authoredHaloColor == null ||
+      (!isMapStyleRoadLabelLayer(layer) && !isWhiteLabelHalo(authoredHaloColor))
+    ) {
+      continue;
     }
     try {
       const current = map.getPaintProperty(layer.id, "text-halo-color");
@@ -463,35 +653,14 @@ const applyLocationLabelOffsets = (
         saved = {
           signature,
           original: current,
-          applied: LOCATION_LABEL_HALO_COLOR,
+          applied: textColor,
         };
         savedHaloColors.set(layer.id, saved);
-      }
-      if (current !== LOCATION_LABEL_HALO_COLOR) {
-        map.setPaintProperty(
-          layer.id,
-          "text-halo-color",
-          LOCATION_LABEL_HALO_COLOR
-        );
-      }
-    } catch {
-      // A style rebuild can remove a layer between inspection and update.
-    }
-    try {
-      const current = map.getPaintProperty(layer.id, "text-color");
-      let saved = savedTextColors.get(layer.id);
-      if (
-        !saved ||
-        saved.signature !== signature ||
-        current !== saved.applied
-      ) {
-        saved = { signature, original: current, applied: textColor };
-        savedTextColors.set(layer.id, saved);
       } else {
         saved.applied = textColor;
       }
       if (current !== textColor) {
-        map.setPaintProperty(layer.id, "text-color", textColor);
+        map.setPaintProperty(layer.id, "text-halo-color", textColor);
       }
     } catch {
       // A style rebuild can remove a layer between inspection and update.
@@ -507,21 +676,51 @@ const getLocationLabelColor = (entry: SharedSceneEntry): string | null => {
   return color;
 };
 
+const isPointLabelOverlayVisible = (entry: SharedSceneEntry): boolean => {
+  let visible = true;
+  for (const requestedVisibility of entry.pointLabelOverlayVisibilityRequests.values()) {
+    visible = requestedVisibility;
+  }
+  return visible;
+};
+
 const ensureSharedLayerOrder = (
   map: MaplibreMap,
-  sceneLayer: SharedThreeSceneLayer,
-  savedOffsets: Map<string, SavedLocationLabelOffset>,
-  savedHaloWidths: Map<string, SavedLocationLabelHaloWidth>,
-  savedHaloColors: Map<string, SavedLocationLabelHaloColor>,
-  savedTextColors: Map<string, SavedLocationLabelTextColor>,
-  savedFilters: Map<string, SavedLocationLabelFilter>,
-  textColor: string | null
+  entry: SharedSceneEntry,
+  textColor: string | null,
+  pointLabelOverlayVisible: boolean
 ): void => {
+  const sceneLayer = entry.layer;
+  const savedOffsets = entry.savedLocationLabelOffsets;
+  const savedHaloWidths = entry.savedLocationLabelHaloWidths;
+  const savedHaloColors = entry.savedLocationLabelHaloColors;
+  const savedTextColors = entry.savedLocationLabelTextColors;
+  const savedFilters = entry.savedLocationLabelFilters;
+  const savedVisibilities = entry.savedPointLabelVisibilities;
   const layerOrder = map.getLayersOrder();
   const layerIndex = layerOrder.indexOf(SHARED_SCENE_LAYER_ID);
   if (layerIndex < 0) return;
 
-  const locationLabelLayers = getMapStyleLocationLabelLayers(map);
+  const locationLabelLayers = getMapStylePointLabelLayers(
+    map,
+    entry,
+    layerOrder
+  );
+  if (!pointLabelOverlayVisible) {
+    restoreLocationLabelOffsets(map, savedOffsets);
+    restoreLocationLabelPaint(map, "text-halo-width", savedHaloWidths);
+    restoreLocationLabelPaint(map, "text-halo-color", savedHaloColors);
+    restoreLocationLabelPaint(map, "text-color", savedTextColors);
+    restoreLocationLabelFilters(map, savedFilters);
+    setPointLabelLayersHidden(
+      map,
+      locationLabelLayers,
+      savedVisibilities,
+      true
+    );
+    return;
+  }
+  setPointLabelLayersHidden(map, locationLabelLayers, savedVisibilities, false);
   applyLocationLabelCoverageFilters(
     map,
     sceneLayer,
@@ -550,34 +749,68 @@ const ensureSharedLayerOrder = (
   ];
   if (expectedOrder.every((id, index) => layerOrder[index] === id)) return;
 
-  // Capture the complete authored style below Three, then redraw only place
-  // names above it. Roads and road labels remain part of the projected,
-  // shadowed terrain texture instead of being drawn a second time.
+  // Capture the complete authored style below Three, then redraw point-based
+  // labels above it. Line labels remain part of the projected, shadowed
+  // terrain texture instead of being drawn a second time.
   map.moveLayer(SHARED_SCENE_LAYER_ID);
   for (const id of locationLabelIds) map.moveLayer(id);
+};
+
+const clearLabelMaintenanceTimer = (entry: SharedSceneEntry): void => {
+  if (entry.labelMaintenanceTimer === null) return;
+  clearTimeout(entry.labelMaintenanceTimer);
+  entry.labelMaintenanceTimer = null;
+};
+
+const mountSharedLayer = (map: MaplibreMap, entry: SharedSceneEntry): void => {
+  try {
+    if (!getMountedSharedThreeSceneLayer(map)) map.addLayer(entry.layer);
+  } catch {
+    // A style replacement or map teardown can race this callback.
+  }
 };
 
 const configureEnsureLayer = (
   map: MaplibreMap,
   entry: SharedSceneEntry
 ): void => {
-  entry.ensureLayer = () => {
+  entry.ensureLayerNow = () => {
     if (entry.disposed) return;
+    clearLabelMaintenanceTimer(entry);
+    entry.lastLabelMaintenanceMs = Date.now();
+    mountSharedLayer(map, entry);
     try {
-      if (!getMountedSharedThreeSceneLayer(map)) map.addLayer(entry.layer);
       ensureSharedLayerOrder(
         map,
-        entry.layer,
-        entry.savedLocationLabelOffsets,
-        entry.savedLocationLabelHaloWidths,
-        entry.savedLocationLabelHaloColors,
-        entry.savedLocationLabelTextColors,
-        entry.savedLocationLabelFilters,
-        getLocationLabelColor(entry)
+        entry,
+        getLocationLabelColor(entry),
+        isPointLabelOverlayVisible(entry)
       );
     } catch {
       // A style replacement or map teardown can race this callback.
     }
+  };
+  entry.ensureLayer = (event) => {
+    if (entry.disposed) return;
+    if ((event as { type?: unknown } | undefined)?.type === "style.load") {
+      // A new style carries new layer objects; drop the classification.
+      entry.pointLabelLayersCache = null;
+      entry.ensureLayerNow();
+      return;
+    }
+    const elapsedMs = Date.now() - entry.lastLabelMaintenanceMs;
+    if (elapsedMs >= LABEL_OVERLAY_MAINTENANCE_INTERVAL_MS) {
+      entry.ensureLayerNow();
+      return;
+    }
+    // Mounting is cheap and must not wait: the custom layer has to exist for
+    // the next frame. Only the label overlay maintenance is rate limited.
+    mountSharedLayer(map, entry);
+    if (entry.labelMaintenanceTimer !== null) return;
+    entry.labelMaintenanceTimer = setTimeout(() => {
+      entry.labelMaintenanceTimer = null;
+      entry.ensureLayerNow();
+    }, LABEL_OVERLAY_MAINTENANCE_INTERVAL_MS - elapsedMs);
   };
 };
 
@@ -610,13 +843,50 @@ export const acquireSharedThreeScene = (
   let entry = entries.get(map);
   if (entry && entry.version !== SHARED_SCENE_ENTRY_VERSION) {
     removeEnsureLayerListeners(map, entry);
+    if (entry.labelMaintenanceTimer != null) {
+      clearTimeout(entry.labelMaintenanceTimer);
+    }
+    entry.labelMaintenanceTimer = null;
+    entry.lastLabelMaintenanceMs = Number.NEGATIVE_INFINITY;
+    entry.pointLabelLayersCache = null;
+    restoreLocationLabelOffsets(
+      map,
+      entry.savedLocationLabelOffsets ?? new Map()
+    );
+    restoreLocationLabelPaint(
+      map,
+      "text-halo-width",
+      entry.savedLocationLabelHaloWidths ?? new Map()
+    );
+    restoreLocationLabelPaint(
+      map,
+      "text-halo-color",
+      entry.savedLocationLabelHaloColors ?? new Map()
+    );
+    restoreLocationLabelPaint(
+      map,
+      "text-color",
+      entry.savedLocationLabelTextColors ?? new Map()
+    );
+    restoreLocationLabelFilters(
+      map,
+      entry.savedLocationLabelFilters ?? new Map()
+    );
+    setPointLabelLayersHidden(
+      map,
+      [],
+      entry.savedPointLabelVisibilities ?? new Map(),
+      false
+    );
     entry.version = SHARED_SCENE_ENTRY_VERSION;
     entry.savedLocationLabelOffsets ??= new Map();
     entry.savedLocationLabelHaloWidths ??= new Map();
     entry.savedLocationLabelHaloColors ??= new Map();
     entry.savedLocationLabelTextColors ??= new Map();
     entry.savedLocationLabelFilters ??= new Map();
+    entry.savedPointLabelVisibilities ??= new Map();
     entry.locationLabelColorRequests ??= new Map();
+    entry.pointLabelOverlayVisibilityRequests ??= new Map();
     configureEnsureLayer(map, entry);
     addEnsureLayerListeners(map, entry);
     entry.ensureLayer();
@@ -635,13 +905,19 @@ export const acquireSharedThreeScene = (
       layer,
       references: 0,
       disposed: false,
+      pointLabelLayersCache: null,
+      labelMaintenanceTimer: null,
+      lastLabelMaintenanceMs: Number.NEGATIVE_INFINITY,
       savedLocationLabelOffsets: new Map(),
       savedLocationLabelHaloWidths: new Map(),
       savedLocationLabelHaloColors: new Map(),
       savedLocationLabelTextColors: new Map(),
       savedLocationLabelFilters: new Map(),
+      savedPointLabelVisibilities: new Map(),
       locationLabelColorRequests: new Map(),
+      pointLabelOverlayVisibilityRequests: new Map(),
       ensureLayer: () => undefined,
+      ensureLayerNow: () => undefined,
     };
     configureEnsureLayer(map, nextEntry);
     entries.set(map, nextEntry);
@@ -652,6 +928,7 @@ export const acquireSharedThreeScene = (
 
   entry.references += 1;
   const labelColorRequestId = Symbol("location-label-color");
+  const labelVisibilityRequestId = Symbol("point-label-overlay-visibility");
   let released = false;
 
   return {
@@ -670,12 +947,32 @@ export const acquireSharedThreeScene = (
       }
       current.ensureLayer();
     },
+    setPointLabelOverlayVisible(visible) {
+      const current = entries.get(map);
+      if (!current || current !== entry || released) return;
+      if (
+        current.pointLabelOverlayVisibilityRequests.get(
+          labelVisibilityRequestId
+        ) === visible
+      ) {
+        return;
+      }
+      current.pointLabelOverlayVisibilityRequests.set(
+        labelVisibilityRequestId,
+        visible
+      );
+      // A user toggle should repaint in place, not after the rate limit.
+      current.ensureLayerNow();
+    },
     release() {
       if (released) return;
       released = true;
       const current = entries.get(map);
       if (!current || current !== entry) return;
       current.locationLabelColorRequests.delete(labelColorRequestId);
+      current.pointLabelOverlayVisibilityRequests.delete(
+        labelVisibilityRequestId
+      );
       current.references -= 1;
       if (current.references > 0) {
         current.ensureLayer();
@@ -683,6 +980,7 @@ export const acquireSharedThreeScene = (
       }
 
       current.disposed = true;
+      clearLabelMaintenanceTimer(current);
       removeEnsureLayerListeners(map, current);
       try {
         if (getMountedSharedThreeSceneLayer(map) === current.layer) {
@@ -691,29 +989,7 @@ export const acquireSharedThreeScene = (
       } catch {
         // The host may already have disposed or replaced its style.
       }
-      for (const [layerId, saved] of current.savedLocationLabelOffsets) {
-        try {
-          const runtimeLayer = map.getLayer(layerId) as
-            | RuntimeStyleLayer
-            | undefined;
-          if (
-            runtimeLayer &&
-            getLayerSignature(runtimeLayer) === saved.signature &&
-            isAppliedOffset(
-              map.getLayoutProperty(layerId, "text-offset"),
-              saved.applied
-            )
-          ) {
-            map.setLayoutProperty(
-              layerId,
-              "text-offset",
-              saved.original === undefined ? null : saved.original
-            );
-          }
-        } catch {
-          // The host may already have disposed or replaced its style.
-        }
-      }
+      restoreLocationLabelOffsets(map, current.savedLocationLabelOffsets);
       restoreLocationLabelPaint(
         map,
         "text-halo-width",
@@ -730,6 +1006,12 @@ export const acquireSharedThreeScene = (
         current.savedLocationLabelTextColors
       );
       restoreLocationLabelFilters(map, current.savedLocationLabelFilters);
+      setPointLabelLayersHidden(
+        map,
+        [],
+        current.savedPointLabelVisibilities,
+        false
+      );
       terrainCoverageCache.delete(current.layer);
       current.layer.dispose();
       entries.delete(map);

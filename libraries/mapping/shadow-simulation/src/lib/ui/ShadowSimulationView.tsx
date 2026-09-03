@@ -136,6 +136,7 @@ export type ShadowSimulationState = {
   showTileBounds?: boolean;
   softSunShadows?: boolean;
   showMapStyleContent?: boolean;
+  showMapStyleLabels?: boolean;
   useTransmittanceLut?: boolean;
   useSkyIrradianceLut?: boolean;
   controlStyle?: ShadowControlStyle;
@@ -675,6 +676,26 @@ const ShadowQuickSettings = ({
               aria-label="Basiskarte auf dem Terrain anzeigen"
             />
           </label>
+          <label className="grid grid-cols-[110px_1fr] items-center gap-3">
+            <span className="pl-3 text-neutral-500">Beschriftungen</span>
+            <input
+              type="checkbox"
+              checked={
+                (state.showMapStyleContent ?? true) &&
+                (state.showMapStyleLabels ?? true)
+              }
+              disabled={!(state.showMapStyleContent ?? true)}
+              onChange={(event) =>
+                setState({
+                  ...state,
+                  showMapStyleLabels: event.currentTarget.checked,
+                })
+              }
+              className="h-4 w-4 cursor-pointer justify-self-start accent-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+              data-test-id="shadow-simulation-map-style-labels"
+              aria-label="Freigestellte Kartenbeschriftungen über dem Modell anzeigen"
+            />
+          </label>
           <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
             <span>Qualität</span>
             <div
@@ -795,6 +816,7 @@ const ShadowSimulationSecondaryPanel = ({
                 showTileBounds: false,
                 showProjectionDebugView: false,
                 showMapStyleContent: true,
+                showMapStyleLabels: true,
                 useTransmittanceLut: true,
                 useSkyIrradianceLut: true,
               });
@@ -916,6 +938,18 @@ const ShadowSimulationRuntime = ({
       state.showMapStyleContent ?? true
     );
   }, [state.enabled, state.showMapStyleContent, sceneRevision]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateMapStyleLabelOverlayVisibility(
+      (state.showMapStyleContent ?? true) && (state.showMapStyleLabels ?? true)
+    );
+  }, [
+    state.enabled,
+    state.showMapStyleContent,
+    state.showMapStyleLabels,
+    sceneRevision,
+  ]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -1046,6 +1080,7 @@ export const ShadowSimulationView = ({
       showProjectionDebugView: false,
       softSunShadows: true,
       showMapStyleContent: true,
+      showMapStyleLabels: true,
       useTransmittanceLut: true,
       useSkyIrradianceLut: true,
       controlStyle: SHADOW_CONTROL_STYLE.QUICK,

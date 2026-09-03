@@ -204,12 +204,12 @@ describe("shadow scene MapLibre terrain", () => {
     expect(paint.get("landcover:fill-opacity")).toBe(1);
     expect(layout.get("terrain-shading:visibility")).toBe("none");
     expect(layout.get("terrain-relief:visibility")).toBe("none");
-    expect(
-      layout.get("bg-basemap_relief::Schummerung_Col:visibility")
-    ).toBe("none");
-    expect(
-      layout.get("bg-basemap_relief::Schummerung_Comb:visibility")
-    ).toBe("none");
+    expect(layout.get("bg-basemap_relief::Schummerung_Col:visibility")).toBe(
+      "none"
+    );
+    expect(layout.get("bg-basemap_relief::Schummerung_Comb:visibility")).toBe(
+      "none"
+    );
     expect(paint.has("roads:line-opacity")).toBe(false);
     terrain = null;
     for (const handler of handlers.get("terrain") ?? []) handler();
@@ -236,12 +236,12 @@ describe("shadow scene MapLibre terrain", () => {
     expect(paint.get("landcover:fill-opacity")).toBe(0.6);
     expect(layout.get("terrain-shading:visibility")).toBe("visible");
     expect(layout.get("terrain-relief:visibility")).toBe("visible");
-    expect(
-      layout.get("bg-basemap_relief::Schummerung_Col:visibility")
-    ).toBe("visible");
-    expect(
-      layout.get("bg-basemap_relief::Schummerung_Comb:visibility")
-    ).toBe("visible");
+    expect(layout.get("bg-basemap_relief::Schummerung_Col:visibility")).toBe(
+      "visible"
+    );
+    expect(layout.get("bg-basemap_relief::Schummerung_Comb:visibility")).toBe(
+      "visible"
+    );
     expect(map.off).toHaveBeenCalledWith("styledata", expect.any(Function));
     expect(map.off).toHaveBeenCalledWith("terrain", expect.any(Function));
   });
@@ -250,6 +250,7 @@ describe("shadow scene MapLibre terrain", () => {
 describe("shadow scene lighting integration", () => {
   const releaseScene = vi.fn();
   const setLocationLabelColor = vi.fn();
+  const setPointLabelOverlayVisible = vi.fn();
   const setMapStyleProjectionVisible = vi.fn();
   let scene: THREE.Scene;
   type SharedRuntimeFixture = {
@@ -329,6 +330,7 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
       layer: sharedLayer as never,
       setLocationLabelColor,
+      setPointLabelOverlayVisible,
       release: releaseScene,
     });
   });
@@ -558,6 +560,10 @@ describe("shadow scene lighting integration", () => {
     controller.updateMapStyleContentVisibility(true);
     expect(restoreMapContent).toHaveBeenCalledOnce();
     expect(setMapStyleProjectionVisible).toHaveBeenLastCalledWith(true);
+    controller.updateMapStyleLabelOverlayVisibility(false);
+    expect(setPointLabelOverlayVisible).toHaveBeenLastCalledWith(false);
+    controller.updateMapStyleLabelOverlayVisibility(true);
+    expect(setPointLabelOverlayVisible).toHaveBeenLastCalledWith(true);
 
     controller.dispose();
     expect(scene.getObjectByName("shadow-simulation-sun")).toBeUndefined();

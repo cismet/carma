@@ -5,6 +5,8 @@ import {
   getMapStyleLocationLabelFlatOffset,
   getMapLibreLayerOpacityProperties,
   isMapStyleLocationLabelLayer,
+  isMapStylePointLabelLayer,
+  isMapStyleRoadLabelLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   notifyMapLibreStyleCompositionReady,
   notifyMapLibreStyleCompositionStarted,
@@ -136,6 +138,69 @@ describe("MapLibre regular style layer suppression", () => {
         id: "bg-basemap_relief::Name_Wald",
         type: "symbol",
         "source-layer": "Name_Punkt",
+      })
+    ).toBe(false);
+  });
+
+  it("classifies every point symbol as an overlay label", () => {
+    expect(
+      isMapStylePointLabelLayer({
+        id: "house-numbers",
+        type: "symbol",
+        "source-layer": "Hausnummer",
+        layout: { "text-field": ["get", "hausnummer"] },
+      })
+    ).toBe(true);
+    expect(
+      isMapStylePointLabelLayer({
+        id: "road-labels",
+        type: "symbol",
+        layout: { "symbol-placement": "line" },
+      })
+    ).toBe(false);
+    expect(
+      isMapStylePointLabelLayer({
+        id: "autobahn-route-shields",
+        type: "symbol",
+        layout: { "symbol-placement": "point" },
+      })
+    ).toBe(true);
+    expect(
+      isMapStyleRoadLabelLayer({
+        id: "Verkehr_Strasse_Fernverkehr_Nummer",
+        type: "symbol",
+        layout: { "symbol-placement": "point" },
+      })
+    ).toBe(true);
+    expect(
+      isMapStylePointLabelLayer({
+        id: "boundary-labels",
+        type: "symbol",
+        layout: { "symbol-placement": "line-center" },
+      })
+    ).toBe(false);
+    // basemap.de street names switch between line placements per zoom.
+    expect(
+      isMapStylePointLabelLayer({
+        id: "Name_Kreis_Gemeindestr",
+        type: "symbol",
+        layout: {
+          "symbol-placement": {
+            stops: [
+              [13, "line"],
+              [16, "line-center"],
+            ],
+          },
+        },
+      })
+    ).toBe(false);
+    expect(
+      isMapStylePointLabelLayer({
+        id: "Name_Landesstr",
+        type: "symbol",
+        layout: {
+          "symbol-placement": ["step", ["zoom"], "line", 16, "line-center"],
+        },
       })
     ).toBe(false);
   });
