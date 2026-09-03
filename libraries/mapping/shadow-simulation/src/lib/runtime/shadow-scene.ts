@@ -1095,10 +1095,24 @@ export const buildShadowSimulationScene = (
   let maxAccumulationPixels = Number.POSITIVE_INFINITY;
   sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
+  /**
+   * Elevation of the ground the host actually draws. The Cesium runtime is
+   * the first choice while it has data; MapLibre's terrain covers the map
+   * mode and the time before those tiles arrive.
+   */
+  const groundElevation = (lng: number, lat: number): number | undefined => {
+    const runtimeElevation = terrainRuntime?.getElevation(lng, lat);
+    if (runtimeElevation !== undefined) return runtimeElevation;
+    try {
+      if (!map.getTerrain()) return undefined;
+      return map.queryTerrainElevation([lng, lat]) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  };
   const updateSharedShadowCoverage = (reevaluateSun = true) => {
     const mapCenter = map.getCenter();
-    const centerElevation =
-      terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0;
+    const centerElevation = groundElevation(mapCenter.lng, mapCenter.lat) ?? 0;
     const center = sceneLease.layer.projectLngLatToScene?.(
       [mapCenter.lng, mapCenter.lat],
       centerElevation
@@ -1139,7 +1153,7 @@ export const buildShadowSimulationScene = (
     for (const lngLat of viewportLngLats) {
       const corner = sceneLease.layer.projectLngLatToScene?.(
         lngLat,
-        terrainRuntime?.getElevation(lngLat[0], lngLat[1]) ?? centerElevation
+        groundElevation(lngLat[0], lngLat[1]) ?? centerElevation
       );
       if (corner) {
         const clamped = clampToReceiverRadius(corner);
@@ -1165,6 +1179,12 @@ export const buildShadowSimulationScene = (
         center.y
       );
       [minimumElevation, maximumElevation] = cachedElevationRange;
+      // The host ground under the viewport corners must stay inside the
+      // shadow frustum, or shadows stop short of the valleys.
+      for (const corner of projectedCorners) {
+        minimumElevation = Math.min(minimumElevation, corner.y);
+        maximumElevation = Math.max(maximumElevation, corner.y);
+      }
       const elevationRadiusMeters = Math.max(
         Math.abs(minimumElevation - center.y),
         Math.abs(maximumElevation - center.y)
