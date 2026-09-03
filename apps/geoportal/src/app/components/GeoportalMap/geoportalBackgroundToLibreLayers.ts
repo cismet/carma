@@ -15,16 +15,16 @@ type NamedLayerConfig = {
 
 type GeoportalBackgroundLibreOptions = {
   terrainMeshActive?: boolean;
+  shadowTerrainActive?: boolean;
 };
 
-// The normal city map and the RVR DOP overlay are rasters, so their labels
-// cannot be separated from their land-cover colours. Keep the selected base
-// in the layer graph for MapLibre terrain, but use the existing vector basemap
-// as the visible overlay. Runtime composition can then hide its fills and
-// rasters while retaining actual road lines, symbols and labels above the
-// photogrammetry mesh.
+// Raster bases bake place names into their ground pixels. Shaded terrain uses
+// the existing vector basemap instead so its ground can be projected while
+// point-based place names remain a separate symbol pass above Three.
 const TERRAIN_MESH_OVERLAY_LAYERS = "basemap_relief@100";
 const TERRAIN_MESH_REPLACED_LAYER_NAMES = new Set([
+  "amtlich",
+  "amtlichBasiskarte",
   "rvrGrundriss",
   "rvrSchriftNT",
   "basemap_relief",
@@ -52,6 +52,8 @@ export const geoportalBackgroundToLibreLayers = (
     ...extraNamedLayers,
   };
   const layerOpacity = backgroundLayer.opacity ?? 1;
+  const separateLocationLabels =
+    options.terrainMeshActive === true || options.shadowTerrainActive === true;
   // All named layers of a background spec belong to the single background
   // button, so they share one id and their loading states aggregate.
   const carmaLayerId = backgroundLayer.id;
@@ -60,10 +62,10 @@ export const geoportalBackgroundToLibreLayers = (
     .split("|")
     .filter(
       (spec) =>
-        !options.terrainMeshActive ||
+        !separateLocationLabels ||
         !TERRAIN_MESH_REPLACED_LAYER_NAMES.has(spec.split("@")[0])
     );
-  const layerSpecs = options.terrainMeshActive
+  const layerSpecs = separateLocationLabels
     ? [...originalLayerSpecs, ...TERRAIN_MESH_OVERLAY_LAYERS.split("|")]
     : originalLayerSpecs;
 

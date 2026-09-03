@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   acquireMapLibreTerrainMeshComposition,
+  getMapStyleLocationLabelFlatOffset,
   getMapLibreLayerOpacityProperties,
   isMapStyleLocationLabelLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
@@ -115,6 +116,59 @@ describe("MapLibre regular style layer suppression", () => {
         source: "rvrSchriftNT",
       })
     ).toBe(false);
+    expect(
+      isMapStyleLocationLabelLayer({
+        id: "bg-basemap_relief::Name_Stadtgemeinde_bis_500000",
+        type: "symbol",
+        "source-layer": "Name_Punkt",
+      })
+    ).toBe(true);
+    expect(
+      isMapStyleLocationLabelLayer({
+        id: "bg-basemap_relief::Name_Staatsgrenze",
+        type: "symbol",
+        "source-layer": "Name_Linie",
+        layout: { "symbol-placement": "line" },
+      })
+    ).toBe(false);
+    expect(
+      isMapStyleLocationLabelLayer({
+        id: "bg-basemap_relief::Name_Wald",
+        type: "symbol",
+        "source-layer": "Name_Punkt",
+      })
+    ).toBe(false);
+  });
+
+  it("lifts place labels by their encoded basemap.de prominence", () => {
+    const layer = (id: string): TestLayer => ({
+      id: `bg-basemap_relief::${id}`,
+      type: "symbol",
+      "source-layer": "Name_Punkt",
+    });
+
+    expect(
+      getMapStyleLocationLabelFlatOffset(layer("Name_Landeshauptstadt"))
+    ).toEqual([0, -3]);
+    expect(
+      getMapStyleLocationLabelFlatOffset(layer("Name_Stadtgemeinde_bis_500000"))
+    ).toEqual([0, -2.5]);
+    expect(
+      getMapStyleLocationLabelFlatOffset(layer("Name_Stadtgemeinde_bis_50000"))
+    ).toEqual([0, -2]);
+    expect(
+      getMapStyleLocationLabelFlatOffset(
+        layer("Name_Landgemeinde_groesser_10000")
+      )
+    ).toEqual([0, -1.5]);
+    expect(
+      getMapStyleLocationLabelFlatOffset(
+        layer("Name_Ortsteil_Stadtteil_bis_1000")
+      )
+    ).toEqual([0, -1]);
+    expect(
+      getMapStyleLocationLabelFlatOffset(layer("Name_Wohnplatz_bis_20"))
+    ).toEqual([0, -0.65]);
   });
 
   it("makes every opacity-capable regular layer transparent and restores exact values", () => {

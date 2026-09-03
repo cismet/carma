@@ -47,6 +47,7 @@ vi.mock("../lib/runtime/integrations/shared-three-scene-registry", () => ({
       hasRuntime: () => true,
       removeRuntime: mocks.removeRuntime,
     },
+    setLocationLabelColor: vi.fn(),
     release: vi.fn(),
   }),
 }));

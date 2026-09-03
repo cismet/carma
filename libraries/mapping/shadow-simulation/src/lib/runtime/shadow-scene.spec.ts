@@ -141,9 +141,8 @@ describe("shadow scene MapLibre terrain", () => {
         const index = layers.findIndex(({ id }) => id === layerId);
         if (index >= 0) layers.splice(index, 1);
       }),
-      getPaintProperty: vi.fn(
-        (layerId: string, property: string) =>
-          paint.get(`${layerId}:${property}`)
+      getPaintProperty: vi.fn((layerId: string, property: string) =>
+        paint.get(`${layerId}:${property}`)
       ),
       setPaintProperty: vi.fn(
         (layerId: string, property: string, value: unknown) => {
@@ -194,6 +193,7 @@ describe("shadow scene MapLibre terrain", () => {
 
 describe("shadow scene lighting integration", () => {
   const releaseScene = vi.fn();
+  const setLocationLabelColor = vi.fn();
   let scene: THREE.Scene;
   type SharedRuntimeFixture = {
     id: string;
@@ -269,6 +269,7 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(subscribeSharedThreeSceneContent).mockReturnValue(vi.fn());
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
       layer: sharedLayer as never,
+      setLocationLabelColor,
       release: releaseScene,
     });
   });
@@ -374,6 +375,9 @@ describe("shadow scene lighting integration", () => {
         ],
         color: `#${atmosphere.color.getHexString()}`,
       })
+    );
+    expect(setLocationLabelColor).toHaveBeenLastCalledWith(
+      `#${atmosphere.color.getHexString()}`
     );
     const sun = scene.getObjectByName(
       "shadow-simulation-sun"
@@ -1178,6 +1182,7 @@ describe("shadow scene lighting integration", () => {
           altitude = 0
         ) => new THREE.Vector3(longitude * 1_000, altitude, latitude * 1_000),
       } as never,
+      setLocationLabelColor,
       release: releaseScene,
     });
     const map = {

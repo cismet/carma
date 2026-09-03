@@ -278,10 +278,7 @@ export const acquireShadowMapLibreTerrain = (
       ensureOpaqueDrape();
       if (terrainMap.getSource(sourceId)) {
         const current = terrainMap.getTerrain();
-        if (
-          current?.source !== sourceId ||
-          (current.exaggeration ?? 1) !== 1
-        ) {
+        if (current?.source !== sourceId || (current.exaggeration ?? 1) !== 1) {
           terrainMap.setTerrain({ source: sourceId, exaggeration: 1 });
         }
         suppressTerrainFrame();
@@ -309,9 +306,9 @@ export const acquireShadowMapLibreTerrain = (
     restoreTerrainFrame();
     for (const [layerId, saved] of savedDrapeOpacities) {
       try {
-        const layer = map.getStyle().layers?.find(({ id }) => id === layerId) as
-          | DrapeLayer
-          | undefined;
+        const layer = map
+          .getStyle()
+          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
         if (
           layer &&
           getLayerSignature(layer) === saved.signature &&
@@ -1044,13 +1041,14 @@ export const buildShadowSimulationScene = (
     shadowVisualEpoch += 1;
   };
   const applyMapLibreLightSample = (sample: AtmosphericSunlightSample) => {
+    const nextColor = `#${sample.color.getHexString()}`;
+    sceneLease.setLocationLabelColor(nextColor);
     if (!map.isStyleLoaded()) return;
     const nextPosition: [number, number, number] = [
       1.5,
       sample.azimuthDegrees,
       90 - sample.elevationDegrees,
     ];
-    const nextColor = `#${sample.color.getHexString()}`;
     const nextIntensity = clamp(sample.relativeIntensity, 0, 1);
     const currentLight = map.getLight();
     const currentPosition = currentLight.position;
