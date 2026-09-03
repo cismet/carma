@@ -94,27 +94,46 @@ const uiConfig = {
   ],
 };
 
-/** a layer row as it comes back out of storage, before the slice types it */
-type PersistedLayer = { id?: string };
+/** a layer row as it goes through storage, before the slice types it */
+type PersistedLayer = {
+  id?: string;
+  tools?: unknown[];
+  interactionButtons?: unknown;
+};
 
 /**
- * Drops the mode rows from the restored layer stack.
+ * Keeps the persisted layer stack serializable, and drops what cannot come
+ * back.
  *
- * A row whose id starts with `__` is not map content: it is the layer bar's
- * handle on a running mode (measurement, the comparison), put there by that
- * mode and taken away with it. Two reasons it must not come back from storage.
- * It carries live React elements in `interactionButtons[].icon`, and
- * redux-persist stores JSON, which drops the `$$typeof` symbol that makes an
- * element an element; rendering what comes back throws "Objects are not valid
- * as a React child". And the mode it stands for is decided at startup by the
- * mode itself, which adds its row again when it is running.
+ * On the way in, every row loses its `interactionButtons`: mode rows
+ * (measurement, comparison, the time series) carry live React elements there,
+ * which are circular in dev (`_owner` is a fiber) and would abort the whole
+ * slice write. The running session never reads them back, the owning mode
+ * hands the host fresh buttons on every change.
+ *
+ * On the way out, a row whose id starts with `__` is dropped, since it is the
+ * layer bar's handle on a running mode and that mode adds its row again at
+ * startup, with one exception: a mode row that carries `tools` holds its own
+ * relaunch config (the time series embeds its series there, the way a
+ * workflow card does) and is exactly what its mode needs at boot.
  */
 const dropModeRows = createTransform<PersistedLayer[], PersistedLayer[]>(
-  // on the way out the stack is stored as the session has it
-  (inbound) => inbound,
+  (inbound) =>
+    Array.isArray(inbound)
+      ? inbound.map((layer) =>
+          layer &&
+          typeof layer === "object" &&
+          layer.interactionButtons !== undefined
+            ? { ...layer, interactionButtons: undefined }
+            : layer
+        )
+      : inbound,
   (outbound) =>
     Array.isArray(outbound)
-      ? outbound.filter((layer) => !layer?.id?.startsWith("__"))
+      ? outbound.filter(
+          (layer) =>
+            !layer?.id?.startsWith("__") || (layer.tools?.length ?? 0) > 0
+        )
       : outbound,
   { whitelist: ["layers"] }
 );
