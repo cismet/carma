@@ -18,6 +18,12 @@ const EPSILON = 0.01;
 /** a scene that will not take our camera must not be pushed at forever */
 const REPUSH_LIMIT = 5;
 
+/**
+ * How long after a gesture a camera from the scene still counts as the user's.
+ * Excalidraw reports a change a tick or two after the click that caused it.
+ */
+const GESTURE_TAIL_MS = 300;
+
 /** the lng/lat the scene puts at (0, 0), and the map zoom where scale is 1 */
 type Anchor = AnnotationAnchor;
 
@@ -70,6 +76,48 @@ export const useMapSceneSync = (
   const primedRef = useRef(false);
   const repushRef = useRef(0);
   const [inSync, setInSync] = useState(false);
+
+  const holdingRef = useRef(false);
+  const touchedRef = useRef(0);
+  /**
+   * Whether the user is working in the scene right now. Excalidraw's onChange
+   * says nothing about where a camera came from, so the pointer is the only
+   * honest signal that a camera is the user's and not an echo of ours.
+   */
+  const userDriven = useCallback(
+    () =>
+      holdingRef.current ||
+      performance.now() - touchedRef.current < GESTURE_TAIL_MS,
+    []
+  );
+
+  useEffect(() => {
+    if (!overlay) {
+      return;
+    }
+    const down = () => {
+      holdingRef.current = true;
+      touchedRef.current = performance.now();
+    };
+    const up = () => {
+      holdingRef.current = false;
+      touchedRef.current = performance.now();
+    };
+    const touch = () => {
+      touchedRef.current = performance.now();
+    };
+    overlay.addEventListener("pointerdown", down, true);
+    overlay.addEventListener("keydown", touch, true);
+    // the pointer may well be let go somewhere else entirely
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    return () => {
+      overlay.removeEventListener("pointerdown", down, true);
+      overlay.removeEventListener("keydown", touch, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+    };
+  }, [overlay]);
 
   /** the overlay's top left inside the map container, what `project` counts from */
   const offsetOf = useCallback(() => {
@@ -137,11 +185,12 @@ export const useMapSceneSync = (
         return;
       }
 
-      // A camera that is not ours is only the user when the scene is primed and
-      // the overlay owns the pointer. Otherwise it is excalidraw's own default,
-      // landing after our first push or while the overlay is pointer
-      // transparent — the map must not follow it, the scene must be put back.
-      if (!primedRef.current || !interactive || !inSync) {
+      // A camera that is not ours is only the user when the scene is primed,
+      // the overlay owns the pointer, and the user is actually working in it.
+      // Otherwise it is excalidraw's own default landing after our first push,
+      // or an echo of a camera we have already replaced — the map must not
+      // follow either, the scene must be put back.
+      if (!primedRef.current || !interactive || !inSync || !userDriven()) {
         if (repushRef.current < REPUSH_LIMIT) {
           repushRef.current += 1;
           applyMapCamera();
@@ -166,7 +215,7 @@ export const useMapSceneSync = (
         ]),
       });
     },
-    [applyMapCamera, inSync, interactive, map, offsetOf]
+    [applyMapCamera, inSync, interactive, map, offsetOf, userDriven]
   );
 
   // a fresh excalidraw starts from its own defaults again, so nothing it says
@@ -220,6 +269,11 @@ export const useMapSceneSync = (
     const { lng, lat } = map.getCenter();
     anchorRef.current = { lng, lat, zoom: map.getZoom() };
     restoredRef.current = true;
+    // the scene's camera is read against the anchor, so every camera still in
+    // flight now means something else than it did. Nothing the scene says
+    // counts again until it has echoed the camera for this anchor.
+    primedRef.current = false;
+    repushRef.current = 0;
     applyMapCamera();
   }, [applyMapCamera, map]);
 
