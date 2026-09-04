@@ -101,6 +101,56 @@
   overflow: visible !important;
 }
 
+.fuzzy-dynamic-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.fuzzy-dynamic-option > .fuzzy-mode-svg-icon,
+.fuzzy-dynamic-option > svg {
+  flex: 0 0 auto;
+}
+
+.fuzzy-dynamic-option__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fuzzy-dynamic-option__label,
+.fuzzy-dynamic-option__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fuzzy-dynamic-option__detail {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.fuzzy-dynamic-option__hint {
+  flex: 0 0 auto;
+  color: #8c8c8c;
+  white-space: nowrap;
+}
+
+/* ant indents every option of a group by 24px, which is width the names of a
+   narrow field cannot spare; the rows carry their own icon column anyway. The
+   dropdown scrolls up and down only: a row that clips itself has nothing to
+   scroll sideways to. */
+.fuzzy-dropdownwrapper--dynamic,
+.fuzzy-dropdownwrapper--dynamic .rc-virtual-list-holder {
+  overflow-x: hidden;
+}
+
+.fuzzy-dropdownwrapper--dynamic .ant-select-item-option-grouped {
+  padding-inline-start: 8px;
+}
+
 .ant-btn-icon {
   margin-right: 0% !important;
 }
@@ -126,7 +176,9 @@
   color: black !important;
 }
 
-.parcel-input-transparent .ant-select-selection-search-input {
+/* the input whose text is drawn by an overlay instead (see
+   `.fuzzy-input-overlay`); the caret stays, it is the text that goes */
+.fuzzy-input-transparent .ant-select-selection-search-input {
   color: transparent !important;
   caret-color: #495057 !important;
 }
@@ -144,7 +196,47 @@
   fill: currentColor;
 }
 
-.parcel-input-overlay {
+/* the fixed label inside the input ("Von:"), drawn over the field itself, at
+   the very place ant would have started the text; the offset the text moves by
+   is measured in lib-fuzzy-search.tsx */
+.fuzzy-input-prefix {
+  position: absolute;
+  left: 11px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  color: #a6a6a6;
+}
+
+.fuzzy-input-prefix,
+.fuzzy-input-overlay {
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+.fuzzy-search-container--with-prefix .ant-select-selector {
+  padding-left: var(--fuzzy-input-prefix-offset, 11px);
+}
+
+/* the typed value and the caret are positioned by ant itself, not by the
+   padding above, so they are moved past the label as well. Ant's own rules for
+   these are more specific than a class of ours, hence !important: without it
+   the text keeps sitting under the label. The placeholder is not in here: an
+   empty input shows no label, it has the label in its placeholder text. */
+.fuzzy-search-container--with-prefix .ant-select-selection-search,
+.fuzzy-search-container--with-prefix .ant-select-selection-item {
+  inset-inline-start: var(--fuzzy-input-prefix-offset, 11px) !important;
+}
+
+.fuzzy-input-overlay {
   position: absolute;
   left: 0;
   top: 0;
@@ -157,12 +249,13 @@
   height: 100%;
   display: flex;
   align-items: center;
-  /* match the Ant Design input font exactly */
-  font-size: 14px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  font-weight: 400;
-  line-height: 1.5;
-  letter-spacing: normal;
   box-sizing: border-box;
+}
+
+.fuzzy-input-overlay__lead {
+  color: #a6a6a6;
+}
+
+.fuzzy-input-overlay__value {
+  color: #495057;
 }

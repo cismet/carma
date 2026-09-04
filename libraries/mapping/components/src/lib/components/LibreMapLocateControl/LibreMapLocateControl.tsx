@@ -1,30 +1,27 @@
+import { useLocate } from "@carma-mapping/contexts";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { faLocationArrow, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 import { isDesktop } from "react-device-detect";
-import type { Map as MapLibreMap } from "maplibre-gl";
-
-import { useLibreMapLocateControl } from "./hooks/useLibreMapLocateControl";
 
 type LibreMapLocateControlProps = {
-  map: MapLibreMap | null;
   disabled?: boolean;
   nativeTooltip?: boolean;
 };
 
 export const LibreMapLocateControl = ({
-  map,
   disabled = false,
   nativeTooltip = false,
 }: LibreMapLocateControlProps) => {
-  const { isLocationActive, hasMapMoved, setIsLocationActive, isLoading } =
-    useLibreMapLocateControl({ map });
+  const { isLocationActive, hasMapMoved, toggle, isLoading } = useLocate();
 
-  const cbs = !isDesktop ? (
+  const show = !isDesktop || isLocationActive || isLoading;
+
+  const cbs = show ? (
     <ControlButtonStyler
       disabled={disabled}
-      onClick={() => setIsLocationActive((prev) => !prev)}
+      onClick={toggle}
       dataTestId="libre-location-control"
     >
       <FontAwesomeIcon

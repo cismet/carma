@@ -260,7 +260,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
 
             {locatorControl && mapEngine === "maplibre" && (
               <Control position="topleft" order={60}>
-                <LibreMapLocateControl map={libreMap} nativeTooltip={true} />
+                <LibreMapLocateControl nativeTooltip={true} />
               </Control>
             )}
 

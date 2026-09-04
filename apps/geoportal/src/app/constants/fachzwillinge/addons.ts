@@ -1,4 +1,5 @@
 import type { FachzwillingRoute } from ".";
+import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
 export const addonsFachzwilling: FachzwillingRoute = {
   path: "addons",
@@ -63,6 +64,23 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "vectorHighlightDebug",
       config: { limit: 20, property: "id", hidden: true },
     },
+    {
+      kind: "nearestFeature",
+      config: {
+        origin: {
+          lat: DEFAULT_HOME_VIEW_REF.lat,
+          lng: DEFAULT_HOME_VIEW_REF.lng,
+        },
+      },
+    },
+    // the categories "In der Nähe" offers here; each can be switched off on its
+    // own in the addon manager
+    "nearestFeatureApotheken",
+    "nearestFeatureBahnhoefe",
+    "nearestFeatureKrankenhaeuser",
+    // the "von wo?" input: appears once a category has been ranked, and any
+    // address picked in it becomes the point "In der Nähe" measures from
+    "originSearch",
     {
       kind: "visibleFeatureStatsSource",
       config: {

@@ -13,6 +13,8 @@ import type { StyleSpecification } from "maplibre-gl";
 import type maplibregl from "maplibre-gl";
 import { createContext, useContext, useState, ReactNode } from "react";
 
+import { LocateProvider } from "./LocateContext";
+
 export interface GeoJsonMetadata {
   sourceId: string;
   uniqueColors: string[];
@@ -60,7 +62,7 @@ export const LibreContextProvider = ({
         setMap,
       }}
     >
-      {children}
+      <LocateProvider map={map}>{children}</LocateProvider>
     </LibreContext.Provider>
   );
 };

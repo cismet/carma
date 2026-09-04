@@ -95,13 +95,17 @@ export function GazDataProvider({
             }
           }),
           Promise.all(
+            // a dynamic mode answers its own input and has nothing to preload,
+            // so it passes through with an empty data set
             (mergedConfig.additionalModes ?? []).map(async (mode) => ({
               ...mode,
-              gazData: await getGazData({
-                crs: mergedConfig.crs,
-                prefix: mergedConfig.prefix,
-                sources: mode.sources,
-              }),
+              gazData: mode.sources
+                ? await getGazData({
+                    crs: mergedConfig.crs,
+                    prefix: mergedConfig.prefix,
+                    sources: mode.sources,
+                  })
+                : [],
             }))
           ),
         ]);

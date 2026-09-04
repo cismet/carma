@@ -11,7 +11,12 @@ export type GazetteerSource = {
   crs: string;
 };
 
-/** Structural mirror of the fuzzy-search additional-mode config. */
+/**
+ * Structural mirror of the fuzzy-search additional-mode config. A mode brings
+ * either `sources` to search over, or a `resolve` that answers every input
+ * itself; the return value is the search's own group/option shape, which this
+ * package does not model.
+ */
 export type GazetteerMode = {
   key: string;
   label: string;
@@ -20,7 +25,22 @@ export type GazetteerMode = {
   iconSize?: number;
   showAllOnFocus?: boolean;
   placeholder?: string;
-  sources: GazetteerSource[];
+  sources?: GazetteerSource[];
+  resolve?: (input: string) => Promise<unknown>;
+  /**
+   * The leading part of the input that is a fixed label rather than something
+   * the user typed, e.g. the category picked in a first stage; the search draws
+   * it in the grey it draws its own fixed labels in.
+   */
+  inputPrefixOf?: (input: string) => string | null;
+  /**
+   * Ask the search to resolve an input again; returns an unsubscribe. The
+   * options let the mode put its own stage back into the input and have the
+   * answer shown, for a rerun the user did not type.
+   */
+  subscribe?: (
+    rerun: (options?: { input?: string; open?: boolean }) => void
+  ) => () => void;
 };
 
 export type GazetteerContribution = {

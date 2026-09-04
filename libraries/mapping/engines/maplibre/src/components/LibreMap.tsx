@@ -43,6 +43,7 @@ import {
   enrichHitsWithCarmaInfo,
   getCarmaConf,
   getCarmaConfFromStyle,
+  isNonSelectable,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
@@ -1185,7 +1186,8 @@ export const LibreMap = ({
         const filteredHits = hits.filter((hit) => {
           return (
             !hit.layer.id.includes("selection") &&
-            !hit.layer.id.includes("cluster")
+            !hit.layer.id.includes("cluster") &&
+            !isNonSelectable(hit)
           );
         });
 
@@ -2076,7 +2078,8 @@ export const LibreMap = ({
       const filteredHits = hits.filter(
         (hit) =>
           !hit.layer.id.includes("selection") &&
-          !hit.layer.id.includes("cluster")
+          !hit.layer.id.includes("cluster") &&
+          !isNonSelectable(hit)
       );
 
       // Stamp effective sourceLayer on geojson hits (same convention as

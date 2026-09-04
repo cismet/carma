@@ -32,6 +32,8 @@ so the second folder is the list of what actually exists:
 | `lib/AddonStateContext.tsx` | Typed hooks over the shared addon state (see below) |
 | `lib/addon-overrides.ts` | What the `addonManager` may switch on or off, applied by the host |
 | `lib/addon-overrides-storage.ts` | Keeps those switch positions in `localStorage`, per route |
+| `lib/stackedSources.ts` | Finds the layer stack's sources and where each one's tile set lives |
+| `lib/featureIndex.ts` | Ranks features against the tilesets' `features.json` (see below) |
 
 | Addon                       | Kind                                                     |
 | --------------------------- | -------------------------------------------------------- |
@@ -40,6 +42,9 @@ so the second folder is the list of what actually exists:
 | `addons/GazetteerSource.tsx` | extra source for the default gazetteer search           |
 | `addons/GazetteerMode.tsx`  | extra mode in the gazetteer mode dropdown                |
 | `addons/HomeOverride.tsx`   | moves the home button's target and tooltip for this route |
+| `addons/NearestFeature/`    | "In der Nähe" mode in the search bar: pick a category, get the nearest ones |
+| `addons/NearestFeature/categories/` | one addon per category the mode offers ("Apotheken") |
+| `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain toggle button for the maplibre map              |
@@ -529,6 +534,408 @@ The flag is a simulation, not the real thing: the registry still holds the caged
 components, so the addon manager keeps listing them as implemented, and cage's
 own code is still in the bundle. For the ground truth, run
 `099-cage/unlinkingHotlinkForDeveloping.sh` and restart the dev server.
+## How "what is nearest" is answered
+
+`nearestFeature` ranks against `lib/featureIndex.ts`: no tiles are read, no
+geometry is compared, and a search costs no requests at all.
+
+| | `lib/featureIndex.ts` |
+| --- | --- |
+| reads | the tileset's `features.json`, once per tileset |
+| ranks by | the feature's bounding box |
+| completeness | the whole layer, always |
+| cost per search | none |
+| needs | the pipeline's `FEATURE_INDEX=true` for that layer |
+
+`features.json` is what the tiling pipeline's `buildFeatureIndex.js` writes next
+to `metadata.json`: one id, one source-layer and one bounding box per feature,
+about 25 bytes each, columnar. One request per tileset, none per search.
+
+It carries no properties, which is why the names are read back off the drawn
+features (see below); writing a hit's attributes into the index itself is
+`docs/features-json-generic.md`. Tiles that MapLibre fetches to *draw* the layer
+are unrelated and unaffected by any of this.
+
+Picking a row **clicks the hit on the map**, where it is drawn, so the host app
+answers with the info box it shows for any other click on that feature; see
+"Picking a hit" below.
+
+The box is why this scales to a source that could never be read as tiles, such
+as ALKIS with its 512k features and tens of megabytes per low-zoom tile: it is an
+exact answer for a point layer and a lower bound for everything else, so a
+feature can be ranked slightly too high but never too low, and a point inside a
+parcel still scores zero. A source whose tileset publishes no index drops out of
+the ranking entirely and is reported in the result's `statuses`.
+
+## The mode it puts that in: "In der Nähe"
+
+`nearestFeature` is a **dynamic gazetteer mode**: where `gazetteerMode` declares
+`sources` that are preloaded and fuzzy searched, this one declares a
+`resolve(input)` that answers every input itself, because its entries depend on
+the map rather than on a file. Everything else about a mode (label, icon,
+placeholder, the Esc-Esc cycle) is unchanged, and the contract lives in
+`@carma-mapping/fuzzy-search` (`DynamicSearchGroup` / `DynamicSearchOption`):
+rows are plain data (`label`, `detail`, `hint`, `drilldown`, `item`, `onPick`),
+so every dynamic mode reads the same in the dropdown.
+
+The mode has two stages, like the land-parcel search. The first lists the
+published categories; picking one drills down into the nearest features of that
+category, with what it takes to drive there on the right. A dynamic drilldown closes the
+dropdown while the next stage is being resolved: it may take a while, and a
+dropdown still showing the stage that was just picked reads as if nothing
+happened, so the input's spinner is the only thing running and the answer opens
+it again. Picking a result runs its `onPick`, which clicks that feature on the
+map rather than handing it to the search: the map has already been fitted to all
+hits, and the index carries a bounding box rather than the position a gazetteer
+marker would need. A dynamic mode that does want the map to travel sets `item`
+instead.
+
+Getting back out of a stage is the button left of the input, which is the mode
+picker while the input is empty and a **✕** while a dynamic mode has anything in
+it: it empties the input, asks the mode again with nothing in it and opens the
+dropdown on the answer, so going from "Apotheken" to "Krankenhäuser" is one
+click and a pick. The search does no more than that; a mode is asked with an
+empty input whether the ✕ did it or the user did, so what a mode put on the map
+it takes back on its own. `NearestFeature` does it in `resetRun`: the drawn
+routes go, the selection is cleared and the run is forgotten, by the ✕, by the
+input being emptied by hand and by the mode being left, so no way back leaves
+the map in a different state than another.
+
+Picking a category runs one sequence, every time the stage is entered; nothing
+is cached between searches. Only the rows of the run that just happened are held
+on to, so typing after that filters what is already there instead of re-ranking
+and moving the map per keystroke:
+
+1. **the layer is put on the map** when it is not on it
+   (`carma.mapping2D.hasLayer` / `addLayer`), then the style is waited for,
+   because the ranking only sees sources the style actually has;
+2. **the ranking** (`collectNearestFromIndex`, narrowed to that layer through
+   its new `filter` option);
+3. **the candidates are driven to** (`carRanking.ts`), which is what puts them
+   in the order the user sees;
+4. **the map is fitted** to the origin and every hit;
+5. **the names are read off the drawn features** with `queryRenderedFeatures`;
+6. **the map is fitted again**, now around the driven lines as well.
+
+Step 5 is why step 4 exists: `features.json` carries no properties, so the names
+have to come from the tiles, and a feature is only queryable once it is drawn.
+It is also why step 6 is a second fit rather than a wider first one: a route
+that swings out of town would zoom the map far enough out for the hits to stop
+being drawn, and their names would go with them.
+Which properties make a label is configured per category (`labelProperties`,
+`detailProperties`), because every layer names things differently;
+`"<Kategorie> #<id>"` is the fallback.
+
+### Nearest by car, and the routes on the map
+
+`features.json` can only measure as the crow flies, which is what makes it free.
+That is a good *candidate* set and a poor order: a river or a valley puts the
+nearest pharmacy on the map twenty minutes away by car. So the straight-line
+hits stay the shortlist and each one is driven to once, in parallel, through
+`fetchCarRoute` of `@carma-mapping/routing` (MOTIS, `CAR` as the only direct
+mode). That is `count` requests per ranking, and the reason it is not done over
+the whole layer. A hit the service cannot answer for keeps its place at the end
+of the list with its straight-line distance: it is still one of the nearest, it
+is only unknown how long it takes to get there. `carRouteRanking: false` turns
+all of it off, and the rows read as they did before.
+
+The driven lines are then drawn (`routeLayer.ts`), which is what makes "twelve
+minutes" mean something: one geojson source, a white casing, the routes in grey,
+and the picked one in blue on top. Which one is picked is not state of its own,
+it is read from the selection: a click on a line picks the hit at its end,
+exactly as picking that hit's row does, so the list and the map cannot disagree.
+The lines are marked `carmaConf.nonSelectable`, so every click path in the
+engine walks past them and what lies under a line stays clickable through it.
+
+### Picking a hit
+
+Selecting a feature through `MapSelectionContext` highlights it and no more. The
+info box belongs to the host app, and every host builds it from its own click
+handling: the geoportal runs `onSelectionChanged` over the hits of a click and
+queries its WMS layers at the clicked position (it runs `LibreMap` with
+`disableInternalSelection`). None of that can be reached by naming a feature, so
+`pickHit.ts` clicks the feature where the map draws it and the host answers as
+it does for any other click, with the right info box for the right layer.
+
+The click is not fired blind at the middle of the bounding box: the middle of a
+bent street is not on it, and a symbol sits above its own coordinate. The point
+is searched for instead, over a small ring around the middle, and the click goes
+to the first one at which the map actually draws this feature. When there is
+none the hit is off screen, and picking falls back to `selectFeature()` on
+`MapSelectionContext`: highlighted, without an info box, which is what picking a
+row did before.
+
+A click on a route line is taken off the DOM on its way down to the map, and not
+from the map. A click on a route means "pick the hit at its end", so the map
+must not also handle it as a click on the spot the line happens to run through:
+the host would put its info box, its marker and its queries there, and the pick
+that follows a moment later would race it. Only a click that lands on a line is
+taken this way; every other one reaches the map untouched.
+
+Matching a hit back to a catalog layer needs the engine's second stamp:
+`metadata["layer-id"]` is the style's own name for the layer (the slugified
+style URL, or the built id), so both style paths — `styleBuilder` for the
+`merged` layer mode, which is what the geoportal runs, and `styleComposer` for
+the `imperative` one — also write `metadata["carma-layer-id"]`, the id the layer
+apis speak. `StackedSource` carries it as `carmaLayerId`.
+
+Where "nearby" is measured from is not the mode's own business either: it reads
+the `originLocation` channel, which the `originSearch` addon below writes, and
+falls back to its `origin` config when nothing published one (the geoportal
+route passes its own `DEFAULT_HOME_VIEW_REF` there, so the app's config stays
+the source of truth for a route without that addon).
+
+A new starting point re-ranks the category on screen: the routes and the
+selection go with the point they were measured from, and the fresh rows are
+pushed into the open dropdown. That re-rank hangs on the stage itself
+(`stageCategoryRef`, `rankedOriginKeyRef`), not on the last run, because a
+starting point can change twice in a row: clearing the origin input publishes
+the user's own position, so the second change has to find a stage to re-rank
+while the first one's ranking is still in flight. The fallback above is why the
+origin input hands the fix back itself rather than publishing nothing and
+letting an effect fill it in a render later: for that render the channel is
+empty, and a consumer reading it measures from its own default instead, which
+is neither the address that was cleared nor the position it is going back to.
+
+### A category is an addon of its own
+
+The mode declares no categories. Each one is a headless addon that publishes
+its **name, icon and layer** on the `nearestFeatureCategories` channel and
+renders nothing:
+
+```ts
+addons: [
+  { kind: "nearestFeature", config: { origin } },
+  "nearestFeatureApotheken",
+  "nearestFeatureBahnhoefe",
+  "nearestFeatureKrankenhaeuser",
+]
+```
+
+So a route mixes and matches the categories it wants, the addon manager can
+switch one off without touching the mode, and a new category is a copy of
+`categories/Apotheken.tsx` with another definition, plus its kind in the
+registry.
+
+A category whose layer does **not** own its tileset names its own index with
+`featureIndexUrl`. The ranking otherwise reads the `features.json` of the
+directory the tiles come from, which is the whole tileset: right for a layer
+tiled on its own (`Apotheken`), wrong for the POI tiles, where every kind of
+place is drawn from one tileset and one source-layer by a filter, and each kind
+has its own index file next to the tiles (`Bahnhöfe`). The channel is a **record keyed per category** rather than a list,
+because several producers write it side by side: `useNearestFeatureCategory`
+merges its own key in and takes it out again when it unmounts, so nobody
+overwrites a sibling. The mode reads the channel through a ref, so a category
+mounting later does not re-register the mode.
+
+A row may carry its own icon (`DynamicSearchOption.icon`), which is how a
+category's icon reaches the first stage; without one a row shows the mode's
+icon. The hits of the second stage pass `icon: null` and show none at all: they
+are all the same kind of place, which the stage's title already says, so the
+column would be that one icon five times over and the names are short of the
+width it takes.
+
+The addon's folder is split along those steps:
+
+| File | |
+| --- | --- |
+| `NearestFeature.tsx` | the addon: config defaults, the mode's `resolve`, registration |
+| `config.ts` | the mode's own config type and every default |
+| `categoryChannel.ts` | the category type, the channel and the publishing hook |
+| `categories/Apotheken.tsx` | one category: name, icon, layer, label properties |
+| `categories/Bahnhoefe.tsx` | the same, for a layer sharing the POI tileset: it names its own index |
+| `categories/Krankenhaeuser.tsx` | another POI category, same shape as `Bahnhoefe` |
+| `categoryInput.ts` | the `"Apotheken: "` input grammar and the first stage |
+| `rankCategory.ts` | the second stage: add layer, rank, drive, fit, build the rows |
+| `carRanking.ts` | driving to the candidates and ordering them by how long it takes |
+| `routeLayer.ts` | the routes on the map: drawing them, the blue one, clicking one |
+| `pickHit.ts` | picking a hit by clicking it where the map draws it |
+| `mapReady.ts` | waiting for the style to carry the layer, and for `idle` |
+| `featureProperties.ts` | reading the hits' names off the drawn features |
+
+## The other half of the pair: „von wo?“
+
+The app's own search says where to go. `originSearch` is the second input that
+says where the journey starts, and it is deliberately not part of "In der
+Nähe": the same pair is what a routing UI is built from, so the origin is a
+channel and an addon of its own, and the nearest-feature mode is just its first
+consumer.
+
+```ts
+addons: [
+  { kind: "nearestFeature", config: { origin } },
+  "nearestFeatureApotheken",
+  "originSearch",
+]
+```
+
+The channel, `originLocation`:
+
+```ts
+type OriginLocationState = {
+  /** the current starting point; null until something publishes one */
+  origin: { lat: number; lng: number; label: string } | null;
+  /** who wants the origin input on screen right now: key -> why */
+  requests: Record<string, string>;
+};
+```
+
+`requests` is what keeps a second search box out of the way until it is worth
+having. A consumer registers its key while it wants an origin
+(`useOriginRequest`) and drops it again when it unmounts: "In der Nähe" does so
+once it has actually ranked a category, so the input appears with the first
+result rather than next to an empty map. `alwaysVisible` overrides that for a
+route that wants it from the start. A record rather than a counter, so several
+consumers ask side by side.
+
+The input itself is an ordinary `LibFuzzySearch`, so any address the gazetteer
+knows can be the starting point, with two differences from the app's own:
+
+- `disableAdditionalModes` (new) keeps it to the built-in gazetteer. Without it
+  the origin input would offer the modes addons contributed, "In der Nähe"
+  among them, which is the very mode reading what this one publishes.
+- it passes its own `onSelection`, so no `SelectionItem` is set: picking a
+  starting point sets no gazetteer selection and does not move the map, and the
+  view stays where the destination search put it. The hit's coordinates are
+  converted to WGS84 by its own crs before they go on the channel.
+
+Its width is `100%` rather than a number of pixels, which is what makes it as
+wide as that search on every screen: the bottom-left control column is as wide
+as its widest child and aligns them to its **right** edge (`control-styles.ts`),
+so a fixed 300px sat indented under a search that spans the whole width of a
+phone. `pixelwidth` still overrides it for a route that wants its own.
+
+It also sits apart from that search rather than flush under it: a gap above it,
+and a fixed "Von:" label inside the field (`inputPrefix`, a new `LibFuzzySearch`
+prop) in front of whatever is typed there, so the input says on its own that it
+is where the search starts rather than a second place to go to. With something
+in the input the label is drawn over the field and the value and caret are moved
+past its measured width; with nothing in it the label goes into the placeholder
+text instead, which ant lays out itself, so the two states line up rather than
+fight ant's own positioning. The label carries the "Von", so the placeholder is
+the current origin's name alone;
+`placeholderPrefix` puts something in front of it again for a route that wants
+it.
+
+While the input is there it owns the origin, so a consumer reads one value
+instead of falling back to a default of its own. It
+also carries the origin's marker (`originMarker.ts`), a MapLibre marker of its
+own rather than the gazetteer's, added while the input is on screen and moved
+with every new starting point, so the point everything measures from is visible.
+
+### Where it starts: the user's own position
+
+The starting point the input publishes on its own is **where the user is**, and
+it does not ask the device for that itself: it switches on **the map's own
+location mode**, the one behind the mobile locate button, and takes its
+position as „Mein Standort“.
+
+That mode used to be a hook each caller ran for itself
+(`useLibreMapLocateControl`), which meant a `watchPosition` and a blue dot per
+caller, and a button showing as off while another caller had it running. It is
+now `LocateContext` in `@carma-mapping/contexts`, rendered by
+`LibreContextProvider` with its own map, so the button, `FeatureInfobox`'s
+routing and this input share one instance and no app mounts anything:
+
+```ts
+const { currentPosition, problem, activate } = useLocate();
+activate({ fly: false }); // on, without moving the map
+```
+
+- **on demand, not at mount**, so a route where nothing asks for an origin never
+  puts a permission prompt in front of the user. "In der Nähe" asks for the
+  input when a ranking *starts*, so the prompt lands right after the user picked
+  "Apotheken in der Nähe", which is a moment they understand.
+- **`fly: false`.** The mode normally flies to the position at zoom 16, which is
+  right for the button and wrong here: the ranking fits the map to its hits a
+  moment later, and two moves read as the map being yanked about. The flag
+  belongs to the activation, not to the mode.
+- **the first fix, then held.** The mode keeps watching, but the origin is only
+  published while the channel carries none, so "In der Nähe" does not re-rank
+  and re-fit every few meters the user walks. Clearing the input is what takes
+  a fresh fix.
+- **a pin is a place, the dot is you.** While the origin is the user,
+  `originMarker` stays off the map, because the location mode already draws them
+  there; a picked address gets MapLibre's default pin, the same one the
+  gazetteer drops on a selection (`LibreMapSelectionContent`), rather than the
+  blue dot it used to draw, which was a second way of reading the same thing.
+- **something switched on has to be switchable off**: `LibreMapLocateControl`
+  shows on a phone as before, and now also wherever the mode is running,
+  whoever started it. The geoportal mounts it whenever the MapLibre map is on;
+  it used to mount the Leaflet `RoutedMapLocateControl` there, which drives
+  Leaflet's own locate and could not show this mode's state at all.
+- **declined or unavailable publishes nothing, and says so.** The channel stays
+  empty, the user says where to start rather than being measured from a point
+  they never chose, and they are told why: an antd `message.warning` plus
+  „Standort unbekannt: Startpunkt suchen“ in the placeholder, which is what is
+  still there once the toast has faded. The wording follows what went wrong
+  (`LocateProblem`: `denied`, `unavailable`, `unsupported`), because a declined
+  permission is the one the user can undo. The browser's own „User denied
+  Geolocation“ goes to the console, where nobody is looking. What "In der Nähe"
+  does meanwhile is its own `origin` config (Rathaus Wuppertal by default), so a
+  ranking still works; it is the input that stays honest about not knowing.
+- **`defaultOrigin` opts out**: a route that measures from a fixed point
+  configures it, and the device is not asked at all. It has no built-in value
+  any more, so leaving it unset is what asks for the own position.
+
+### Waiting for the origin instead of ranking twice
+
+Getting a position takes as long as the permission prompt is on screen, and a
+ranking that does not wait for it runs from the fallback first and from the user
+a moment later: the map flies to the Rathaus, fits itself around the pharmacies
+there, and then does the whole thing again around the user. So the channel also
+carries how far the question has got:
+
+```ts
+type OriginResolution = "absent" | "pending" | "settled";
+```
+
+`absent` is a route without the origin search, where a consumer uses its own
+configured origin and waits for nothing. The input reports `pending` from mount
+("there will be an origin") and `settled` once it has a position, a configured
+origin, or a definitive no. `runRanking` awaits `settled` before it ranks, so
+there is one ranking and one map fit. The waiters are released from an effect
+rather than by polling, and again when the mode unmounts; a 15s backstop keeps
+a search from hanging on an answer that never comes.
+
+### Re-ranking on a new origin
+
+A new starting point re-ranks the category that is on screen, and the mode does
+that itself: picking an address in the origin search moves the focus there, so
+waiting for the search to ask again would leave the map fitted around the old
+point. The mode ranks, which re-fits the map, and only then tells the search.
+
+Telling the search needs a push, because the search pulls: a mode answers
+`resolve(input)` and cannot put rows into the dropdown. So a dynamic mode may
+now hand the search a subscription:
+
+```ts
+/** ask the search to resolve an input again; returns an unsubscribe */
+subscribe?: (
+  rerun: (options?: { input?: string; open?: boolean }) => void
+) => () => void;
+```
+
+`LibFuzzySearch` holds it while that mode is active and re-resolves when it is
+called. "In der Nähe" passes both options: `input` puts the category's own stage
+back into the field, off whatever hit was picked in it, and `open` shows the
+result rather than leaving the user to open the dropdown after a pick that
+happened in the other input. What was selected before belongs to the old
+starting point, so the selection is cleared before the ranking runs. The rows
+are already there when the search asks: the mode keeps the run it just did as
+pending, and `resolve` takes it instead of ranking the same category twice. The mode object
+stays identical (the callback lives in a ref), so nothing re-registers and no
+gaz data is refetched. Every run carries the category and the origin it belongs
+to, which is what tells "the same category from somewhere else" apart from "a
+filter typed behind the same run".
+
+| File | |
+| --- | --- |
+| `OriginSearch/originChannel.ts` | the channel, its type, the origin, request and resolution hooks |
+| `OriginSearch/OriginSearch.tsx` | the input in its `<Control>`, the location mode, the hit conversion |
+| `OriginSearch/originMarker.ts` | the gazetteer's own pin, for an origin that is a picked place |
+| `OriginSearch/config.ts` | position, `defaultOrigin`, placeholders, warnings, `alwaysVisible` |
+| `contexts/LocateContext.tsx` | the map's one location mode, shared with the locate button |
 
 ## Guidelines
 

@@ -370,11 +370,16 @@ export class StyleComposer {
         layer.source = `${layerId}::${layer.source}`;
       }
 
-      // Set metadata for HidingForwardingManager and z-ordering
+      // Set metadata for HidingForwardingManager and z-ordering.
+      // "layer-id" is the slugified style URL; "carma-layer-id" is the catalog
+      // id, which is what the layer apis (hasLayer/addLayer) speak.
       layer.metadata = {
         ...(layer.metadata || {}),
         "z-index": opts.zIndex,
         "layer-id": layerId,
+        ...(vectorLayer.carmaLayerId
+          ? { "carma-layer-id": vectorLayer.carmaLayerId }
+          : {}),
       };
 
       // Apply opacity (skip selection layers)

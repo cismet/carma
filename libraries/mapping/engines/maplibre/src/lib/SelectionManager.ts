@@ -267,10 +267,7 @@ export class SelectionManager {
       }
 
       // Skip if target is the same as source
-      if (
-        targetSource === id.source &&
-        targetSourceLayer === id.sourceLayer
-      )
+      if (targetSource === id.source && targetSourceLayer === id.sourceLayer)
         continue;
 
       const forwardedId: FeatureIdentifier = {
@@ -383,6 +380,10 @@ export function getCarmaConf(
     | Record<string, unknown>
     | undefined;
   return metadata?.carmaConf as CarmaConf | undefined;
+}
+
+export function isNonSelectable(feature: MapGeoJSONFeature): boolean {
+  return Boolean(getCarmaConf(feature)?.nonSelectable);
 }
 
 /**

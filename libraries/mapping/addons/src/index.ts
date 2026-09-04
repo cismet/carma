@@ -109,6 +109,45 @@ export {
   OPERATION_ICONS,
   OPERATION_LABELS,
 } from "./addons/VectorHighlight";
+export {
+  NearestFeature,
+  NearestFeatureApotheken,
+  NearestFeatureBahnhoefe,
+  NearestFeatureKrankenhaeuser,
+  useNearestFeatureCategory,
+  type NearestFeatureApothekenConfig,
+  type NearestFeatureBahnhoefeConfig,
+  type NearestFeatureKrankenhaeuserConfig,
+  type NearestFeatureCategory,
+  type NearestFeatureCategoryConfig,
+  type NearestFeatureCategoryState,
+  type NearestFeatureConfig,
+} from "./addons/NearestFeature";
+export {
+  OriginSearch,
+  useOriginLocation,
+  useOriginLocationState,
+  useOriginRequest,
+  useReportOriginResolution,
+  type OriginLocation,
+  type OriginLocationState,
+  type OriginResolution,
+  type OriginSearchConfig,
+} from "./addons/OriginSearch";
+export {
+  collectNearestFromIndex,
+  primeFeatureIndexes,
+  type FeatureIndex,
+  type FeatureIndexStatus,
+  type IndexedFeatureEntry,
+  type NearestFromIndexOptions,
+  type NearestFromIndexResult,
+} from "./lib/featureIndex";
+export {
+  resolveStackedSources,
+  styleLayerIdsForSource,
+  type StackedSource,
+} from "./lib/stackedSources";
 export type {
   OperationColors,
   HighlightModeState,

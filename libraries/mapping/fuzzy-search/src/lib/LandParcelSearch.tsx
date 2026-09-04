@@ -258,9 +258,9 @@ export function LandParcelSearch({
             const prefix = value.substring(0, sepIdx + 1);
             const active = value.substring(sepIdx + 1);
             return (
-              <div aria-hidden="true" className="parcel-input-overlay">
-                <span style={{ color: "#aaa" }}>{prefix}</span>
-                <span style={{ color: "#495057" }}>{active}</span>
+              <div aria-hidden="true" className="fuzzy-input-overlay">
+                <span className="fuzzy-input-overlay__lead">{prefix}</span>
+                <span className="fuzzy-input-overlay__value">{active}</span>
               </div>
             );
           }
@@ -306,7 +306,7 @@ export function LandParcelSearch({
             value.includes(LAND_PARCEL_SEPARATOR) &&
             landParcelData &&
             cleanBtnDisable
-              ? "parcel-input-transparent"
+              ? "fuzzy-input-transparent"
               : ""
           }
           dropdownRender={(item) => (
