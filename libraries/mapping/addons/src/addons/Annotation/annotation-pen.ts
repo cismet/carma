@@ -43,14 +43,18 @@ export const penFrom = (appState: AppState): AnnotationPen => ({
 });
 
 /**
- * Hands the pen to a scene. `updateScene` touches no camera field, so the
- * change it echoes still matches the camera we last pushed and the map stays
- * where it is; see `useMapSceneSync`.
+ * Hands the pen to a scene, and says whether the tool went with it. It is not
+ * in place when this returns: `setActiveTool` lands in a later commit than the
+ * styles, so the scene reports the tool it still had for a moment afterwards.
+ * Whoever hands the pen over has to wait for the scene to confirm it.
+ *
+ * `updateScene` touches no camera field, so the change it echoes still matches
+ * the camera we last pushed and the map stays put; see `useMapSceneSync`.
  */
 export const applyPen = (
   api: ExcalidrawImperativeAPI,
   pen: AnnotationPen
-): void => {
+): boolean => {
   api.updateScene({
     appState: {
       currentItemStrokeColor: pen.strokeColor,
@@ -69,7 +73,9 @@ export const applyPen = (
     },
   });
   // image opens a file picker on its own, custom is not ours to restore
-  if (pen.tool !== "custom" && pen.tool !== "image") {
-    api.setActiveTool({ type: pen.tool, locked: true });
+  if (pen.tool === "custom" || pen.tool === "image") {
+    return false;
   }
+  api.setActiveTool({ type: pen.tool, locked: true });
+  return true;
 };
