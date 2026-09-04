@@ -41,7 +41,7 @@ const withAlpha = (color: string, opacity: number) => {
  * zoom levels wide. Excalidraw itself renders from 10% to 3000%, so those are
  * the outer bounds worth configuring.
  */
-const DEFAULT_ZOOM_RANGE = { min: 100, max: 400 };
+const DEFAULT_ZOOM_RANGE = { min: 50, max: 200 };
 
 /** nothing hides the drawing by default; see `AnnotationSyncLimits` */
 const DEFAULT_SYNC_LIMITS: AnnotationSyncLimits = {};
