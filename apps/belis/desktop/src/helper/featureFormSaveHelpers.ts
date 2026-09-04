@@ -5,6 +5,7 @@ import type { DokumentItem } from "../components/ui/DocumentPreview";
 import { getDocumentKey } from "../components/ui/FilePreview";
 import type { Draft, DraftFile } from "../store/slices/featuresForms";
 import { updateDataByClassName } from "./apiMethods";
+import { normalizeSensorValues } from "../components/ui/featuresForm/sensorFields";
 import { uploadDraftFiles } from "./uploadDraftFiles";
 import { parseStandortIdFromKey } from "./geometryOptions";
 import { removeMeasurements } from "@carma-mapping/measurements";
@@ -91,7 +92,11 @@ interface FeatureSaveConfig {
 const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
   leuchte: {
     className: "tdta_leuchten",
-    removedFields: ["strassenschluessel_pk", "strassenschluessel_strasse", "sonderturnus"],
+    removedFields: [
+      "strassenschluessel_pk",
+      "strassenschluessel_strasse",
+      "sonderturnus",
+    ],
     fieldRenames: { sonderturnus: "wartungszyklus" },
     transformDates: true,
     valuesPath: "leuchte",
@@ -227,12 +232,15 @@ export const prepareSaveValues = (
     }
   }
 
+  // 6c. An emptied Sensor-ID must go out as null, not ""
+  const normalized = normalizeSensorValues(merged);
+
   // 7. Transform dates if needed
   if (config.transformDates) {
-    return transformDatesForBackend(merged);
+    return transformDatesForBackend(normalized);
   }
 
-  return merged;
+  return normalized;
 };
 
 // ---------------------------------------------------------------------------
@@ -299,11 +307,7 @@ export const saveFeatureDraft = async (
     }
     const deletePayload = { id: featureDbId, is_deleted: true };
     try {
-      await updateDataByClassName(
-        jwt,
-        config.className,
-        deletePayload
-      );
+      await updateDataByClassName(jwt, config.className, deletePayload);
       return { ...base, success: true };
     } catch (error) {
       return {
@@ -316,7 +320,13 @@ export const saveFeatureDraft = async (
 
   // Creation drafts: create new feature with id: -1
   if (draft.isCreation) {
-    return saveCreationDraft(jwt, featureId, draft, config, strassenschluesselByPk);
+    return saveCreationDraft(
+      jwt,
+      featureId,
+      draft,
+      config,
+      strassenschluesselByPk
+    );
   }
 
   if (featureDbId == null) {
@@ -379,7 +389,12 @@ export const saveFeatureDraft = async (
     if (geometryChangeIntended && !geomPayload) {
       console.error(
         `[SAVE-NO-GEOM] edit feature "${featureId}" (${featureType}) had a geometry change selected (geometryKey=${draft.geometryKey}) but is being sent WITHOUT geom — draft.geometry is empty/undefined.`,
-        { featureId, featureType, geometryKey: draft.geometryKey, featureGeomId: draft.featureGeomId }
+        {
+          featureId,
+          featureType,
+          geometryKey: draft.geometryKey,
+          featureGeomId: draft.featureGeomId,
+        }
       );
     }
 
@@ -428,8 +443,11 @@ const saveCreationDraft = async (
 
   try {
     const formValues =
-      prepareSaveValues(featureType, draft.values ?? {}, strassenschluesselByPk) ??
-      {};
+      prepareSaveValues(
+        featureType,
+        draft.values ?? {},
+        strassenschluesselByPk
+      ) ?? {};
     let payload: Record<string, unknown>;
     // Hoisted out of the `featureType === "leuchte"` branch so the Scope-B
     // extras loop below can reuse them when creating additional Leuchten that
@@ -452,10 +470,7 @@ const saveCreationDraft = async (
         // Leuchten persist with `fk_strassenschluessel = null` and the
         // sidebar/tile view shows them with a blank street).
         mastIdForLink = linkedMastId;
-        const mastSlice = (draft.values?.mast ?? {}) as Record<
-          string,
-          unknown
-        >;
+        const mastSlice = (draft.values?.mast ?? {}) as Record<string, unknown>;
         const linkedFk = mastSlice.fk_strassenschluessel;
         if (typeof linkedFk === "number" && Number.isFinite(linkedFk)) {
           leuchteStrassenschluesselId = linkedFk;
@@ -469,8 +484,11 @@ const saveCreationDraft = async (
           unknown
         >;
         const cleanedMastValues =
-          prepareSaveValues("standort", rawMastValues, strassenschluesselByPk) ??
-          {};
+          prepareSaveValues(
+            "standort",
+            rawMastValues,
+            strassenschluesselByPk
+          ) ?? {};
         const mastFkStrassenschluessel =
           (cleanedMastValues.fk_strassenschluessel as
             | number
@@ -552,7 +570,12 @@ const saveCreationDraft = async (
     if (!payloadHasGeom && !leuchteBoundToStandort) {
       console.error(
         `[SAVE-NO-GEOM] creation feature "${featureId}" (${featureType} → ${config.className}) is being sent WITHOUT geometry — draft.geometry is empty/undefined.`,
-        { featureId, featureType, geometryKey: draft.geometryKey, geometry: draft.geometry }
+        {
+          featureId,
+          featureType,
+          geometryKey: draft.geometryKey,
+          geometry: draft.geometry,
+        }
       );
     }
 
@@ -610,10 +633,8 @@ const saveCreationDraft = async (
           id: -1,
           ...extraCleaned,
           fk_strassenschluessel:
-            (extraCleaned.fk_strassenschluessel as
-              | number
-              | null
-              | undefined) ?? mastFk,
+            (extraCleaned.fk_strassenschluessel as number | null | undefined) ??
+            mastFk,
           tdta_standort_mast: { id: createdId },
         };
         await updateDataByClassName(
@@ -642,10 +663,8 @@ const saveCreationDraft = async (
           id: -1,
           ...extraCleaned,
           fk_strassenschluessel:
-            (extraCleaned.fk_strassenschluessel as
-              | number
-              | null
-              | undefined) ?? leuchteStrassenschluesselId,
+            (extraCleaned.fk_strassenschluessel as number | null | undefined) ??
+            leuchteStrassenschluesselId,
           tdta_standort_mast: { id: mastIdForLink },
         };
         await updateDataByClassName(
@@ -801,9 +820,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     parts.push(editCount === 1 ? "1 Änderung" : `${editCount} Änderungen`);
   if (creationCount > 0)
     parts.push(
-      creationCount === 1
-        ? "1 neues Objekt"
-        : `${creationCount} neue Objekte`
+      creationCount === 1 ? "1 neues Objekt" : `${creationCount} neue Objekte`
     );
 
   const skipNote =
