@@ -4,6 +4,7 @@ import {
   TIME_SLIDER_LAYER_ID,
   TIME_SLIDER_TOOLS_INTERACTION_ID,
   getTimeSliderRowSeed,
+  useHasAddonStateProducer,
   useTimeSliderLayerRow,
 } from "@carma-mapping/addons";
 
@@ -27,9 +28,13 @@ export function useTimeSliderLayerButton() {
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
 
   const rowLayer = layers.find((layer) => layer.id === TIME_SLIDER_LAYER_ID);
+  // this hook runs on every route, the addon that draws the series does not;
+  // a row that arrives without it is dropped rather than shown dead
+  const hasEngine = useHasAddonStateProducer("timeSeries");
 
   useTimeSliderLayerRow({
     hasRow: Boolean(rowLayer),
+    hasEngine,
     // a row that came back out of the persisted layer stack carries its
     // series in its tools; the lib hook relaunches it at boot
     restoredSeed: getTimeSliderRowSeed(rowLayer),

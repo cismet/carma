@@ -108,6 +108,14 @@ export type UseTimeSliderLayerRowOptions = {
   /** whether the host already shows the row */
   hasRow: boolean;
   /**
+   * Whether this route mounts the addon that draws the series. The row is
+   * persisted and the channel is not, so a row can arrive on a route that
+   * declares no `timeSlider`: the label and the play button come back, and
+   * nothing is able to put a layer on the map. Such a row is dropped rather
+   * than shown, see `useHasAddonStateProducer`.
+   */
+  hasEngine: boolean;
+  /**
    * The series found in a row restored from a persisted session, from
    * `getTimeSliderRowSeed`. Relaunched once at boot instead of the row being
    * treated as stale; ignored as soon as the series has run in this session.
@@ -131,6 +139,7 @@ export type UseTimeSliderLayerRowOptions = {
  */
 export const useTimeSliderLayerRow = ({
   hasRow,
+  hasEngine,
   panelOpen,
   restoredSeed,
   onAdd,
@@ -220,10 +229,10 @@ export const useTimeSliderLayerRow = ({
 
   // the row carries the current step, so it goes stale on every slider move
   useEffect(() => {
-    if (hasRow) {
+    if (hasEngine && hasRow) {
       onUpdateRef.current?.(layer);
     }
-  }, [hasRow, layer]);
+  }, [hasEngine, hasRow, layer]);
 
   const prevRef = useRef({ isOn, hasRow });
   /** what we last asked the host for, so a re-render before the host's state
@@ -236,9 +245,31 @@ export const useTimeSliderLayerRow = ({
   const restoredSeedRef = useRef(restoredSeed);
   restoredSeedRef.current = restoredSeed;
 
+  /** the warning is about the route's configuration, so once is enough */
+  const warnedRef = useRef(false);
+
   useEffect(() => {
     const prev = prevRef.current;
     prevRef.current = { isOn, hasRow };
+
+    // No engine on this route: nothing can draw the series, so the row goes
+    // instead of offering a control with nothing behind it. Reached by a row
+    // that outlived the route it was added on, which is a configuration
+    // mistake rather than something a visitor can cause.
+    if (!hasEngine) {
+      if (hasRow) {
+        if (!warnedRef.current) {
+          warnedRef.current = true;
+          console.warn(
+            '[ADDON STATE] a time-series row reached a route that mounts no "timeSlider" ' +
+              "addon; dropping the row. A route that offers the series has to declare the addon."
+          );
+        }
+        requestedRef.current = null;
+        onRemoveRef.current(TIME_SLIDER_LAYER_ID);
+      }
+      return;
+    }
 
     // a row restored from a persisted session, with its series in its tools:
     // relaunch that series instead of removing the row as stale
@@ -271,5 +302,5 @@ export const useTimeSliderLayerRow = ({
       requestedRef.current = "remove";
       onRemoveRef.current(TIME_SLIDER_LAYER_ID);
     }
-  }, [hasRow, isOn, setOn, startSeries]);
+  }, [hasEngine, hasRow, isOn, setOn, startSeries]);
 };

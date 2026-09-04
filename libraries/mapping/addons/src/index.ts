@@ -77,6 +77,7 @@ export {
   type UseTimeSliderLayerRowOptions,
 } from "./addons/TimeSlider";
 
+export { useHasAddonStateProducer } from "./lib/addon-channels";
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
 
