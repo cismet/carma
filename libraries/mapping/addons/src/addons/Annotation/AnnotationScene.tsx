@@ -9,9 +9,11 @@ import type {
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 import { redoScene, undoScene } from "./annotation-history";
+import { applyPen, penFrom } from "./annotation-pen";
 import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
 import { useMapSceneSync } from "./map-scene-sync";
+import type { AnnotationPen } from "./annotation-pen";
 import type { AnnotationShape } from "./shape-tools";
 import type { SceneProbe } from "./useDrawingPicker";
 import type {
@@ -122,6 +124,10 @@ export type AnnotationSceneProps = {
   shape: AnnotationShape | null;
   /** what excalidraw switched to on its own, e.g. by a keyboard shortcut */
   onToolChange: (shape: AnnotationShape | null) => void;
+  /** the pen this drawing was just used with, for all the others to take over */
+  onPenChange: (pen: AnnotationPen) => void;
+  /** read rather than passed, so a style tweak re-renders nothing */
+  getPen: () => AnnotationPen | null;
   undoVersion: number;
   redoVersion: number;
   /** bumped when this drawing should be brought into view; 0 means never */
@@ -147,6 +153,8 @@ export const AnnotationScene = ({
   chrome,
   shape,
   onToolChange,
+  onPenChange,
+  getPen,
   undoVersion,
   redoVersion,
   zoomVersion,
@@ -171,6 +179,13 @@ export const AnnotationScene = ({
   const settledRef = useRef(!savedElements?.length);
 
   const toolRef = useRef<string | null>(null);
+  /**
+   * Whether this scene has been handed the shared pen yet. It reports a change
+   * of its own before the effect below can run — React defers effects past the
+   * paint — and without this that first report would put the scene's untouched
+   * defaults into the pen, which the effect would then hand straight back.
+   */
+  const penTakenRef = useRef(false);
 
   const handleChange = (
     elements: readonly ExcalidrawElement[],
@@ -184,6 +199,10 @@ export const AnnotationScene = ({
     if (editable && tool !== toolRef.current) {
       toolRef.current = tool;
       onToolChange(isAnnotationShape(tool) ? tool : null);
+    }
+
+    if (editable && penTakenRef.current) {
+      onPenChange(penFrom(appState));
     }
 
     if (!settledRef.current) {
@@ -210,6 +229,26 @@ export const AnnotationScene = ({
       api.setActiveTool({ type: shape, locked: true });
     }
   }, [api, editable, shape]);
+
+  /**
+   * One pen for every drawing: the tool and the styles the user last worked
+   * with are taken over as the pencil arrives, so nothing resets underneath
+   * them. Only on arrival — while a drawing is open the scene owns them, and
+   * `onPenChange` carries every change back out.
+   */
+  useEffect(() => {
+    if (!api || !editable) {
+      penTakenRef.current = false;
+      return;
+    }
+    const pen = getPen();
+    if (pen) {
+      toolRef.current = pen.tool;
+      applyPen(api, pen);
+    }
+    // with no pen yet this scene is the one that defines it
+    penTakenRef.current = true;
+  }, [api, editable, getPen]);
 
   // the paper is one sheet under all the scenes, see `AnnotationOverlay`
   useEffect(() => {
