@@ -70,6 +70,9 @@ const INERT: LocateContextType = {
 
 export const LocateContext = createContext<LocateContextType>(INERT);
 
+/** the zoom the map goes to when it follows the user */
+const LOCATE_ZOOM = 16;
+
 interface LocateProviderProps {
   map: MapLibreMap | null;
   children: ReactNode;
@@ -87,6 +90,12 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const watchIdRef = useRef<number | null>(null);
   /** whether this activation moves the map; see `activate` */
   const flyRef = useRef(true);
+  /**
+   * Whether the map follows the user: on for a flying activation until the
+   * user moves the map by hand. A ref because the watch callback reads it and
+   * would otherwise see the value from when the watch was started.
+   */
+  const followRef = useRef(false);
   /**
    * The marker is created behind a dynamic import, and until that resolves
    * there is nothing in `markerRef` to say one is on its way. The first fix and
@@ -197,6 +206,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
 
     setIsLoading(true);
     setProblem(null);
+    followRef.current = flyRef.current;
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -204,10 +214,10 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         setIsLoading(false);
         updateLocationMarker(position);
 
-        if (map && flyRef.current) {
+        if (map && followRef.current) {
           map.flyTo({
             center: [position.coords.longitude, position.coords.latitude],
-            zoom: 16,
+            zoom: LOCATE_ZOOM,
           });
         }
       },
@@ -230,6 +240,15 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       (position) => {
         setCurrentPosition(position);
         updateLocationMarker(position);
+
+        // keep the user in the middle of the view, at the locate zoom, until
+        // they take the map somewhere else themselves
+        if (map && isActiveRef.current && followRef.current) {
+          map.easeTo({
+            center: [position.coords.longitude, position.coords.latitude],
+            zoom: LOCATE_ZOOM,
+          });
+        }
       },
       (error) => {
         console.error("Error watching location:", error);
@@ -249,6 +268,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       watchIdRef.current = null;
     }
     clearLocationMarker();
+    followRef.current = false;
     setCurrentPosition(null);
     setHasMapMoved(false);
   }, [clearLocationMarker]);
@@ -256,10 +276,13 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   useEffect(() => {
     if (!map || !isLocationActive) return;
 
-    const handleMapMove = () => {
-      if (currentPosition) {
-        setHasMapMoved(true);
-      }
+    // only moves the user made count: the flight to the position and the
+    // recentering on each fix are ours and carry no `originalEvent`, and
+    // reading them as "moved" switched the button off right after it went on
+    const handleMapMove = (event: { originalEvent?: Event }) => {
+      if (!event.originalEvent) return;
+      followRef.current = false;
+      setHasMapMoved(true);
     };
 
     map.on("dragend", handleMapMove);
@@ -269,7 +292,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       map.off("dragend", handleMapMove);
       map.off("zoomend", handleMapMove);
     };
-  }, [map, isLocationActive, currentPosition]);
+  }, [map, isLocationActive]);
 
   useEffect(() => {
     if (isLocationActive) {
