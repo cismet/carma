@@ -27,13 +27,17 @@ import {
   recordSelectionDefaults,
 } from "../../../store/slices/creationDefaults";
 import type { RootState } from "../../../store";
-import { serializeValues, deserializeValues } from "../../../helper/draftSerialize";
+import {
+  serializeValues,
+  deserializeValues,
+} from "../../../helper/draftSerialize";
 import { DokumentItem } from "../DocumentPreview";
 import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import LeuchteFormFields from "./LeuchteFormFields";
+import { normalizeSensorValues } from "./sensorFields";
 import MastFormFields, { projectMastToFormValues } from "./MastFormFields";
 import {
   fetchFeatureById,
@@ -109,12 +113,8 @@ const projectBestandLeuchteToFormValues = (
   const rundsteuerempfaenger = leuchte.rundsteuerempfaengerObject as
     | Record<string, unknown>
     | undefined;
-  const dk1Object = leuchte.fk_dk1Object as
-    | Record<string, unknown>
-    | undefined;
-  const dk2Object = leuchte.fk_dk2Object as
-    | Record<string, unknown>
-    | undefined;
+  const dk1Object = leuchte.fk_dk1Object as Record<string, unknown> | undefined;
+  const dk2Object = leuchte.fk_dk2Object as Record<string, unknown> | undefined;
   const unterhLeuchte = leuchte.tkey_unterh_leuchte as
     | Record<string, unknown>
     | undefined;
@@ -440,16 +440,20 @@ const LeuchteForm = ({
         finalDokumenteArray = [...kept, ...uploadedDocuments];
       }
 
-      const dataToSave = transformDatesForBackend({
-        id: leuchteId,
-        ...rest,
-        // Map form field "sonderturnus" back to server field "wartungszyklus"
-        ...(sonderturnus !== undefined ? { wartungszyklus: sonderturnus } : {}),
-        // Include updated documents array when changed
-        ...(finalDokumenteArray !== undefined
-          ? { dokumenteArray: finalDokumenteArray }
-          : {}),
-      });
+      const dataToSave = transformDatesForBackend(
+        normalizeSensorValues({
+          id: leuchteId,
+          ...rest,
+          // Map form field "sonderturnus" back to server field "wartungszyklus"
+          ...(sonderturnus !== undefined
+            ? { wartungszyklus: sonderturnus }
+            : {}),
+          // Include updated documents array when changed
+          ...(finalDokumenteArray !== undefined
+            ? { dokumenteArray: finalDokumenteArray }
+            : {}),
+        })
+      );
 
       // Temporary while the sensor fields are being wired up with the server:
       // the exact JSON handed to the cids saveObject action.
@@ -666,9 +670,7 @@ const LeuchteForm = ({
         delete rehydratedSeed[dateKey];
         continue;
       }
-      const d = dayjs.isDayjs(raw)
-        ? raw
-        : dayjs(raw as string | number | Date);
+      const d = dayjs.isDayjs(raw) ? raw : dayjs(raw as string | number | Date);
       rehydratedSeed[dateKey] = d.isValid() ? d : null;
     }
     const newTabId = `extra-${Date.now()}-${Math.random()
@@ -1061,7 +1063,9 @@ const LeuchteForm = ({
     const id = sibling.id as number | string | undefined;
     const raw = sibling.leuchtennummer;
     const leuchtennummerLabel =
-      typeof raw === "number" || typeof raw === "string" ? String(raw) : undefined;
+      typeof raw === "number" || typeof raw === "string"
+        ? String(raw)
+        : undefined;
     return `bestand-${id ?? leuchtennummerLabel ?? idx}`;
   };
   // Slim projection of the bestand Leuchten, mirrored onto the Redux draft so
@@ -1072,12 +1076,12 @@ const LeuchteForm = ({
     if (!showCreationStandortTab) return [];
     const mastLfd = mastData?.lfd_nummer as number | string | undefined;
     const mastStrasse =
-      ((mastData?.tkey_strassenschluessel as
-        | Record<string, unknown>
-        | undefined)?.strasse as string | undefined) ??
-      ((mastData?.tkey_strassenschluessel as
-        | Record<string, unknown>
-        | undefined)?.bezeichnung as string | undefined);
+      ((
+        mastData?.tkey_strassenschluessel as Record<string, unknown> | undefined
+      )?.strasse as string | undefined) ??
+      ((
+        mastData?.tkey_strassenschluessel as Record<string, unknown> | undefined
+      )?.bezeichnung as string | undefined);
     return bestandLeuchten
       .map<BestandLeuchteEntry | null>((sibling, idx) => {
         const id = sibling.id;
@@ -1172,7 +1176,9 @@ const LeuchteForm = ({
             <ChangedFieldsProvider
               originalValues={{}}
               draftValues={{ leuchte: entryFields }}
-              allowlistedPaths={isCreation ? leuchteAllowlistedPaths : undefined}
+              allowlistedPaths={
+                isCreation ? leuchteAllowlistedPaths : undefined
+              }
               currentDefaults={isCreation ? leuchteDefaultsForDiff : undefined}
             >
               <FieldPrefix name="leuchte">
@@ -1355,9 +1361,10 @@ const LeuchteForm = ({
           ? extraLeuchten.find((e) => e._tabId === activeFormTabKey)
           : undefined;
         const source = draftValues ?? originalValuesRef.current;
-        const leuchteSlice = (activeExtra ??
-          source.leuchte ??
-          {}) as Record<string, unknown>;
+        const leuchteSlice = (activeExtra ?? source.leuchte ?? {}) as Record<
+          string,
+          unknown
+        >;
         const mastSlice = (source.mast ?? {}) as Record<string, unknown>;
         const recordPayload = {
           featureType: "leuchte",

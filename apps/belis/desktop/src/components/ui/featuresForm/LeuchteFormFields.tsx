@@ -20,6 +20,11 @@ import {
 } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import { buildLeuchteFormValues } from "./leuchteFormValues";
+import {
+  formatSensorbetreiber,
+  syncSensorbetreiber,
+  useSensorbetreiber,
+} from "./sensorFields";
 
 // Helper to sort options based on display text (same sorting as KeyTablesPage)
 type SortMode = "none" | "alphabetical" | "numeric";
@@ -117,17 +122,6 @@ interface LeuchtmittelItem {
   hersteller?: string;
 }
 
-interface SensorbetreiberItem {
-  id: number;
-  key?: string;
-  name?: string;
-  beschreibung?: string;
-}
-
-/** Option label for the Sensorbetreiber select: the Beschreibung of the row. */
-const formatSensorbetreiber = (item: SensorbetreiberItem) =>
-  item.beschreibung ?? item.name ?? String(item.id);
-
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
@@ -223,30 +217,7 @@ const LeuchteFormFields = ({
   // Helper to create field name with optional prefix
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
 
-  const sensorbetreiberOptions = useMemo(
-    () =>
-      sortOptions(
-        (keyTablesData.sensorbetreiber || []) as SensorbetreiberItem[],
-        formatSensorbetreiber,
-        "alphabetical"
-      ),
-    [keyTablesData.sensorbetreiber]
-  );
-
-  // esave is currently the only Sensorbetreiber. Resolved by key/name rather
-  // than a hardcoded id so the lookup survives differing ids per environment;
-  // a single-row table is taken as-is.
-  const esaveId = useMemo(() => {
-    const match = sensorbetreiberOptions.find((item) =>
-      [item.key, item.name].some(
-        (value) => typeof value === "string" && value.trim().toLowerCase() === "esave"
-      )
-    );
-    if (match) return match.id;
-    return sensorbetreiberOptions.length === 1
-      ? sensorbetreiberOptions[0].id
-      : undefined;
-  }, [sensorbetreiberOptions]);
+  const { options: sensorbetreiberOptions, esaveId } = useSensorbetreiber();
 
   useEffect(() => {
     if (externalForm) return;
@@ -398,29 +369,14 @@ const LeuchteFormFields = ({
     );
   }, [mastLfdNummer, isCreation, form]);
 
-  // Sensor-ID → Sensorbetreiber. Entering a Sensor-ID picks esave for the user
-  // (the server sets it as a fallback, but this way the link is visible right
-  // away); clearing the Sensor-ID drops the Betreiber again so the pair stays
-  // consistent. Driven by the input's own onChange, not by a value watcher, so
-  // loading a record that has a Sensor-ID but no Betreiber does not silently
-  // dirty the form on open.
-  const handleSensorIdChange = (value: string) => {
-    const hasSensorId = value.trim() !== "";
-    const current = form.getFieldValue(fieldName("sensorbetreiber"));
-    if (hasSensorId && current == null && esaveId != null) {
-      form.setFieldValue(fieldName("sensorbetreiber"), esaveId);
-      onValuesChangeRef.current?.(
-        { sensorbetreiber: esaveId },
-        form.getFieldsValue()
-      );
-    } else if (!hasSensorId && current != null) {
-      form.setFieldValue(fieldName("sensorbetreiber"), null);
-      onValuesChangeRef.current?.(
-        { sensorbetreiber: null },
-        form.getFieldsValue()
-      );
-    }
-  };
+  const handleSensorIdChange = (value: string) =>
+    syncSensorbetreiber({
+      value,
+      form,
+      name: fieldName("sensorbetreiber"),
+      esaveId,
+      notify: onValuesChangeRef.current,
+    });
 
   return (
     <Form
