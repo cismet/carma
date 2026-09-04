@@ -152,7 +152,8 @@ const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
   trackUrl: `${APP_BASE_PATH}data/geojson/schwebebahn-trasse.json`,
   lengthMeters: 24.06,
   widthMeters: 2.2,
-  sections: 3,
+  // two driving sections around the short middle module
+  sectionShares: [1, 0.38, 1],
   jointMeters: 0.9,
   speedKmh: 36,
   mode: "loop",
@@ -301,8 +302,8 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "wird im 3:40-Takt mit 25 Sekunden Halt je Station und 36 km/h " +
             "zwischen den Halten, zusammen die rund 27 km/h " +
             "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
-            "sind GTW 15: 24,06 m lang, 2,2 m breit, drei Wagenteile mit " +
-            "zwei Gelenken.",
+            "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
+            "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
           tools: [
             { kind: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
           ],

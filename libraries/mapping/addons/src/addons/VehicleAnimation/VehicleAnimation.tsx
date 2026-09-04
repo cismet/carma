@@ -76,7 +76,7 @@ export const VehicleAnimation = ({
     trackUrl,
     lengthMeters,
     widthMeters,
-    sections,
+    sectionShares,
     jointMeters,
     speedKmh,
     mode,
@@ -124,7 +124,7 @@ export const VehicleAnimation = ({
     trackUrl: configTrackUrl,
     lengthMeters: configLengthMeters,
     widthMeters: configWidthMeters,
-    sections: configSections,
+    sectionShares: configSectionShares,
     jointMeters: configJointMeters,
     speedKmh: configSpeedKmh,
     mode: configMode,
@@ -146,7 +146,7 @@ export const VehicleAnimation = ({
       trackUrl: configTrackUrl,
       lengthMeters: configLengthMeters,
       widthMeters: configWidthMeters,
-      sections: configSections,
+      sectionShares: configSectionShares,
       jointMeters: configJointMeters,
       speedKmh: configSpeedKmh,
       mode: configMode,
@@ -165,7 +165,7 @@ export const VehicleAnimation = ({
     configTrackUrl,
     configLengthMeters,
     configWidthMeters,
-    configSections,
+    configSectionShares,
     configJointMeters,
     configSpeedKmh,
     configMode,
@@ -230,12 +230,12 @@ export const VehicleAnimation = ({
     () => ({
       lengthMeters,
       widthMeters,
-      sections,
+      sectionShares,
       jointMeters,
       noseWidth: 0.55,
       noseMeters: Math.min(2.2, lengthMeters / 8),
     }),
-    [lengthMeters, widthMeters, sections, jointMeters]
+    [lengthMeters, widthMeters, sectionShares, jointMeters]
   );
 
   const schedule = useMemo<VehicleSchedule | null>(

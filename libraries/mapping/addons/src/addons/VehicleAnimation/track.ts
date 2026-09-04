@@ -440,8 +440,13 @@ const ribbon = (
 export type CarShape = {
   lengthMeters: number;
   widthMeters: number;
-  /** body sections; the gaps between them are the articulations */
-  sections: number;
+  /**
+   * The body sections, given as relative lengths; the gaps between them are the
+   * articulations. Relative rather than absolute so the whole car keeps its
+   * `lengthMeters`, and a list rather than a count because the sections are
+   * rarely equal: the GTW 15 is two long end cars around a short middle module.
+   */
+  sectionShares: readonly number[];
   /** length of one articulation gap, in meters */
   jointMeters: number;
   /** how wide the very tip of the cab is, as a fraction of the full width */
@@ -456,7 +461,8 @@ const OUTLINE_STEP_METERS = 0.5;
 export const CAR_SHAPE_GTW15: CarShape = {
   lengthMeters: 24.06,
   widthMeters: 2.2,
-  sections: 3,
+  // the middle module is a short one slung between the two driving sections
+  sectionShares: [1, 0.38, 1],
   jointMeters: 0.9,
   noseWidth: 0.55,
   noseMeters: 2.2,
@@ -481,7 +487,9 @@ export const carParts = (
   distance: number,
   shape: CarShape
 ): CarPart[] => {
-  const { lengthMeters, widthMeters, sections, jointMeters } = shape;
+  const { lengthMeters, widthMeters, jointMeters } = shape;
+  const shares =
+    shape.sectionShares.length > 0 ? shape.sectionShares : ([1] as const);
   const origin = poseAt(track, distance);
   const points = sliceLocal(
     track,
@@ -502,15 +510,15 @@ export const carParts = (
     return half * (shape.noseWidth + (1 - shape.noseWidth) * eased);
   };
 
-  const jointCount = Math.max(0, sections - 1);
-  const sectionLength =
-    (lengthMeters - jointCount * jointMeters) / Math.max(1, sections);
+  const jointCount = shares.length - 1;
+  const bodyLength = Math.max(0, lengthMeters - jointCount * jointMeters);
+  const shareSum = shares.reduce((sum, share) => sum + share, 0) || 1;
 
   const parts: CarPart[] = [];
   let cursor = 0;
-  for (let index = 0; index < sections; index++) {
+  for (let index = 0; index < shares.length; index++) {
     const kinds: { kind: CarPart["kind"]; length: number }[] = [
-      { kind: "section", length: sectionLength },
+      { kind: "section", length: (bodyLength * shares[index]) / shareSum },
       ...(index < jointCount
         ? [{ kind: "joint" as const, length: jointMeters }]
         : []),

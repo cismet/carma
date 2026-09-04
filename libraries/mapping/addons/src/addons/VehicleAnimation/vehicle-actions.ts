@@ -55,8 +55,12 @@ export type VehicleAnimationDefinition = {
   lengthMeters?: number;
   /** vehicle width in meters. Default: 2.2 */
   widthMeters?: number;
-  /** body sections; the gaps between them are the articulations. Default: 3 */
-  sections?: number;
+  /**
+   * The body sections as relative lengths, the gaps between them being the
+   * articulations. Default: `[1, 0.38, 1]`, the GTW 15's two driving sections
+   * around its short middle module.
+   */
+  sectionShares?: readonly number[];
   /** length of one articulation gap in meters. Default: 0.9 */
   jointMeters?: number;
   /**
@@ -89,7 +93,7 @@ export type VehicleAnimationState = {
   trackUrl: string;
   lengthMeters: number;
   widthMeters: number;
-  sections: number;
+  sectionShares: readonly number[];
   jointMeters: number;
   speedKmh: number;
   mode: VehicleMode;
@@ -122,7 +126,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   trackUrl: "",
   lengthMeters: 24.06,
   widthMeters: 2.2,
-  sections: 3,
+  sectionShares: [1, 0.38, 1],
   jointMeters: 0.9,
   speedKmh: 36,
   mode: "loop",
@@ -299,7 +303,7 @@ export const useVehicleAnimationLauncher = () => {
         trackUrl: def.trackUrl,
         lengthMeters: def.lengthMeters ?? fallback.lengthMeters,
         widthMeters: def.widthMeters ?? fallback.widthMeters,
-        sections: def.sections ?? fallback.sections,
+        sectionShares: def.sectionShares ?? fallback.sectionShares,
         jointMeters: def.jointMeters ?? fallback.jointMeters,
         speedKmh: def.speedKmh ?? fallback.speedKmh,
         mode: def.mode ?? fallback.mode,

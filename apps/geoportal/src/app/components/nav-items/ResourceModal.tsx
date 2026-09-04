@@ -164,7 +164,7 @@ const ResourceModal = () => {
         trackUrl,
         lengthMeters: config.lengthMeters,
         widthMeters: config.widthMeters,
-        sections: config.sections,
+        sectionShares: config.sectionShares,
         jointMeters: config.jointMeters,
         speedKmh: config.speedKmh,
         mode: config.mode,
