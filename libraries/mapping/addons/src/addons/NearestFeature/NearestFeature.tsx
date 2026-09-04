@@ -191,13 +191,6 @@ export const NearestFeature = ({
   const lastRunRef = useRef<Run | null>(null);
 
   /**
-   * A run the origin change already did, waiting for the search to ask. Without
-   * it the rerun below would rank the very same category a second time, because
-   * entering a stage always searches again.
-   */
-  const pendingRunRef = useRef<Run | null>(null);
-
-  /**
    * The category whose stage is on screen, and the starting point it was last
    * ranked from. A new origin re-ranks against these two rather than against
    * `lastRunRef`, which is dropped the moment a re-rank starts: an origin
@@ -267,7 +260,6 @@ export const NearestFeature = ({
     stageCategoryRef.current = null;
     rankedOriginKeyRef.current = null;
     lastRunRef.current = null;
-    pendingRunRef.current = null;
     setDrawnRoutes([]);
     clearSelectionRef.current();
   }, []);
@@ -327,13 +319,7 @@ export const NearestFeature = ({
 
       const query = (queryForCategory(input, category) ?? "").toLowerCase();
       const lastRun = lastRunRef.current;
-      const pendingRun = pendingRunRef.current;
       const originKey = originKeyOf(originRef.current);
-      // the run a new origin already did for this category: take it rather than
-      // rank the same thing again
-      const isPendingRun =
-        pendingRun?.category.key === category.key &&
-        pendingRun.originKey === originKey;
       // an empty query is the stage being entered, which always searches again;
       // a query only reuses the rows of the run it is filtering, and only while
       // they were ranked from the origin that is current now
@@ -342,15 +328,8 @@ export const NearestFeature = ({
         lastRun?.category.key === category.key &&
         lastRun.originKey === originKey;
 
-      let run: Run;
-      if (isPendingRun && pendingRun) {
-        pendingRunRef.current = null;
-        run = pendingRun;
-      } else if (isFilteringLastRun && lastRun) {
-        run = lastRun;
-      } else {
-        run = await runRanking(category);
-      }
+      const run =
+        isFilteringLastRun && lastRun ? lastRun : await runRanking(category);
       const { rows, problem } = run;
       // the same run's rows keep the same lines, so a keystroke that only
       // filters them hands back the very array that is drawn and nothing moves
@@ -466,9 +445,12 @@ export const NearestFeature = ({
   /**
    * A new starting point re-ranks the category that is on screen, whether or
    * not the dropdown is open: picking an address in the origin search moves the
-   * focus there, so waiting for the search to ask again would leave the map
-   * fitted around the old point. The ranking runs here, and the search is only
-   * told afterwards, through the rerun above.
+   * focus there, and the map would otherwise stay fitted around the old point
+   * until the user came back to the search. The search is asked through the
+   * rerun above, with the category's own input, and does the ranking itself in
+   * `resolve`: that is the only place its loading state is shown, so a ranking
+   * done here on the side would leave the user looking at nothing for the
+   * seconds it takes.
    *
    * What was drawn and picked before belongs to the old starting point, so the
    * routes and the selection go first: the map ends up on the category's stage
@@ -477,7 +459,8 @@ export const NearestFeature = ({
    * It re-ranks against the stage's own refs, not against the run: a starting
    * point can change twice in a row (clearing the origin search hands back the
    * user's own position), and the second change must still find a stage to
-   * re-rank while the first one's ranking is in flight.
+   * re-rank while the first one's ranking is in flight. The search keeps only
+   * the newest answer, so the earlier ranking is dropped on its way back.
    */
   const originKey = originKeyOf(effectiveOrigin);
   useEffect(() => {
@@ -489,30 +472,15 @@ export const NearestFeature = ({
       return;
     }
     lastRunRef.current = null;
-    pendingRunRef.current = null;
     // the lines were driven from a point that is not the starting point any
     // more, so they go now rather than when their replacements arrive: a
     // ranking takes seconds, and a route from nowhere is worse than none
     setDrawnRoutes([]);
     clearSelectionRef.current();
-    let cancelled = false;
-    void (async () => {
-      const run = await runRanking(category);
-      // another origin arrived while this one was ranking, or the stage was
-      // left altogether: that run owns the map and the rows now, or nothing
-      // does and the input is not to be written back into
-      if (cancelled || stageCategoryRef.current !== category) {
-        return;
-      }
-      pendingRunRef.current = run;
-      // back to the category itself, off whatever hit was picked in it, and
-      // show the new ones rather than leave the user to open the dropdown
-      rerunRef.current?.({ input: categoryInputValue(category), open: true });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [originKey, runRanking]);
+    // back to the category itself, off whatever hit was picked in it, and show
+    // the new ones rather than leave the user to open the dropdown
+    rerunRef.current?.({ input: categoryInputValue(category), open: true });
+  }, [originKey]);
 
   // fetch the indexes as soon as their sources are in the style, so a search
   // has nothing left to fetch. `styledata` fires constantly; priming is a no-op
