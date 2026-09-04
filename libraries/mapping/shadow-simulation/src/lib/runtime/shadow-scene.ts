@@ -1128,6 +1128,7 @@ export const buildShadowSimulationScene = (
   let terrainRuntime = sharedSceneProvidesTerrain()
     ? null
     : buildTerrainRuntime();
+  let initialTerrainStageReady = terrainRuntime === null;
   if (terrainRuntime) sceneLease.layer.addRuntime(terrainRuntime);
   const sharedBinding = buildShadowLightBinding(
     sceneLease.layer.getScene(),
@@ -1690,6 +1691,7 @@ export const buildShadowSimulationScene = (
     visualEpoch: () => shadowVisualEpoch,
     active: () =>
       softSunShadowsEnabled &&
+      initialTerrainStageReady &&
       !mapInMotion &&
       !timeAnimating &&
       contentChangeTimer === 0 &&
@@ -1747,13 +1749,16 @@ export const buildShadowSimulationScene = (
   const watchTerrainRuntime = (runtime: NonNullable<typeof terrainRuntime>) => {
     void runtime.ready.then((loaded) => {
       if (!loaded || disposed || terrainRuntime !== runtime) return;
+      initialTerrainStageReady = true;
       refreshSharedShadowCoverage();
+      map.triggerRepaint();
     });
   };
   const syncTerrainRuntime = () => {
     const meshProvidesTerrain = sharedSceneProvidesTerrain();
     if (!terrain) return;
     if (meshProvidesTerrain) {
+      initialTerrainStageReady = true;
       const runtime = terrainRuntime;
       terrainRuntime = null;
       if (runtime && sceneLease.layer.hasRuntime(runtime.id)) {
@@ -1767,6 +1772,7 @@ export const buildShadowSimulationScene = (
 
     const runtime = buildTerrainRuntime();
     if (!runtime) return;
+    initialTerrainStageReady = false;
     terrainRuntime = runtime;
     runtime.setMaterialColor(`#${terrainColor.getHexString()}`);
     runtime.setShadowView(appliedRuntimeShadowView);

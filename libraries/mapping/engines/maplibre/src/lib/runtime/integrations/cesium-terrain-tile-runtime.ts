@@ -54,7 +54,14 @@ const DEFAULT_SHADOW_LEVEL_OFFSET = 2;
 const DEFAULT_MINIMUM_LEVEL = 8;
 const DEFAULT_MAXIMUM_LEVEL = 17;
 const DEFAULT_MAX_SELECTION_TILES = 192;
-const DEFAULT_REQUEST_CONCURRENCY = DEFAULT_MAXIMUM_REQUEST_CONCURRENCY;
+// Quantized-mesh payloads are small enough that byte-based admission alone can
+// open hundreds of HTTP/2 streams. Keep this origin-bound runtime below the
+// browser/server stream ceiling while retaining progressive loading.
+const MAXIMUM_REQUEST_CONCURRENCY = Math.min(
+  24,
+  DEFAULT_MAXIMUM_REQUEST_CONCURRENCY
+);
+const DEFAULT_REQUEST_CONCURRENCY = MAXIMUM_REQUEST_CONCURRENCY;
 const DEFAULT_MAX_CACHED_MESHES = 256;
 const TERRAIN_UPDATE_PRIORITY = 100;
 const ZERO_ELEVATION_EPSILON_METERS = 1e-3;
@@ -431,10 +438,9 @@ export const buildCesiumTerrainRuntime = (
     DEFAULT_MAX_SELECTION_TILES,
     1
   );
-  const requestConcurrency = clampInteger(
-    options.requestConcurrency,
-    DEFAULT_REQUEST_CONCURRENCY,
-    1
+  const requestConcurrency = Math.min(
+    MAXIMUM_REQUEST_CONCURRENCY,
+    clampInteger(options.requestConcurrency, DEFAULT_REQUEST_CONCURRENCY, 1)
   );
   const maxCachedMeshes = clampInteger(
     options.maxCachedMeshes,
@@ -505,9 +511,13 @@ export const buildCesiumTerrainRuntime = (
    */
   const scheduleSelectionRetry = () => {
     if (disposed || selectionRetryTimer !== null) return;
-    const delay = Math.min(
+    const retryDelay = Math.min(
       SELECTION_RETRY_MAX_DELAY_MS,
       SELECTION_RETRY_BASE_DELAY_MS * 2 ** failedSelectionRounds
+    );
+    const delay = Math.max(
+      retryDelay,
+      payloadAwareConcurrency.getCooldownRemainingMs()
     );
     failedSelectionRounds += 1;
     selectionRetryTimer = setTimeout(() => {
@@ -516,7 +526,7 @@ export const buildCesiumTerrainRuntime = (
       requestedSignature = "";
       selectionInputSignature = "";
       map?.triggerRepaint();
-    }, delay * (0.5 + Math.random()));
+    }, delay * (1 + Math.random() * 0.5));
   };
   let activeViewportElevationSignature = "";
   // Avoid repeating the full selection walk for an unchanged view.
@@ -652,7 +662,7 @@ export const buildCesiumTerrainRuntime = (
       tile = await terrainSource.requestTile(entry.id);
       payloadAwareConcurrency.observePayload(tile.byteLength);
     } catch (error) {
-      payloadAwareConcurrency.observeFailure();
+      payloadAwareConcurrency.observeFailure(error);
       throw error;
     }
     const projectedGeometry = createProjectedGeometry(tile);
@@ -1417,7 +1427,7 @@ export const buildCesiumTerrainRuntime = (
     publishReadyViewportStage();
     void loadWithConcurrency(
       entriesToLoad,
-      payloadAwareConcurrency.getConcurrency(requestConcurrency),
+      Math.max(1, payloadAwareConcurrency.getConcurrency(requestConcurrency)),
       async (entry) => {
         if (disposed || generation !== selectionGeneration) {
           throw new Error("Stale terrain selection");
