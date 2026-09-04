@@ -19,7 +19,13 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
-import { STORE_APP_KEY, resolveAppKey } from "./app/store/app-key";
+import {
+  STORE_APP_KEY,
+  clearAppKeyReloadMarker,
+  readAppKeyReloadMarker,
+  resolveAppKey,
+  writeAppKeyReloadMarker,
+} from "./app/store/app-key";
 import {
   setUIHashWriteEnabled,
   setUIMapInteractionEnabled,
@@ -57,11 +63,31 @@ const RoutedApp = () => {
    * records, which is the leak the namespaces exist to close. So the switch
    * becomes a real page load, which the map position survives because it
    * travels in the hash.
+   *
+   * The reload is fired at most once per mismatch. It relies on the router's
+   * pathname and the hash the store was built from naming the same route, and
+   * a case where they disagree permanently would otherwise reload forever and
+   * leave the app unusable. Both halves of the marker are stable across such a
+   * reload, so a second arrival at the same mismatch is the loop, and the app
+   * then stays up on the wrong namespace with an error rather than spinning.
    */
   useEffect(() => {
-    if (resolveAppKey(pathname) !== STORE_APP_KEY) {
-      window.location.reload();
+    if (resolveAppKey(pathname) === STORE_APP_KEY) {
+      clearAppKeyReloadMarker();
+      return;
     }
+    const marker = `${pathname}|${STORE_APP_KEY ?? ""}`;
+    if (readAppKeyReloadMarker() === marker) {
+      console.error(
+        `[STORE] reloading for "${pathname}" did not reach its storage ` +
+          `namespace (still "${STORE_APP_KEY ?? "app-wide"}"); staying put ` +
+          "instead of reloading again. The route's path and the hash the " +
+          "store reads have to resolve to the same key."
+      );
+      return;
+    }
+    writeAppKeyReloadMarker(marker);
+    window.location.reload();
   }, [pathname]);
 
   useEffect(() => {

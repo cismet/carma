@@ -48,3 +48,40 @@ export const initialRoutePath = window.location.hash
  * against this and turns such a switch into a real page load.
  */
 export const STORE_APP_KEY = resolveAppKey(initialRoutePath);
+
+/**
+ * The mismatch a reload was last fired for, remembered across that reload so a
+ * reload that fails to resolve it can be told apart from a fresh route switch.
+ * Session storage, because the marker belongs to this tab and this visit; the
+ * in-memory copy answers while the page lives, for a browser that denies
+ * storage, where a guard across the reload is not possible anyway.
+ */
+const RELOAD_MARKER_KEY = "carma::appKeyReload";
+
+let memoryMarker: string | null = null;
+
+export const readAppKeyReloadMarker = (): string | null => {
+  try {
+    return window.sessionStorage.getItem(RELOAD_MARKER_KEY) ?? memoryMarker;
+  } catch {
+    return memoryMarker;
+  }
+};
+
+export const writeAppKeyReloadMarker = (marker: string): void => {
+  memoryMarker = marker;
+  try {
+    window.sessionStorage.setItem(RELOAD_MARKER_KEY, marker);
+  } catch {
+    // storage unavailable: the reload still happens, only unguarded
+  }
+};
+
+export const clearAppKeyReloadMarker = (): void => {
+  memoryMarker = null;
+  try {
+    window.sessionStorage.removeItem(RELOAD_MARKER_KEY);
+  } catch {
+    // nothing was written either
+  }
+};
