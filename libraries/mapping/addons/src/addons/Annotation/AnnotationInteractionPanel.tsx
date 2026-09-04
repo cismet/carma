@@ -23,16 +23,19 @@ export const AnnotationInteractionPanel = () => {
     deleteGroup,
   } = useAnnotationActions();
 
+  // the drawing held ready for the next stroke is not one yet, so it has no pill
   const drawings = useMemo<AnnotationDrawingEntry[]>(
     () =>
-      groups.map((group, index) => ({
-        id: group.id,
-        // only the first one is spelled out, the rest read as a numbered list
-        label: index === 0 ? `Zeichnung 1` : `${index + 1}`,
-        name: `Zeichnung ${index + 1}`,
-        // locked means nothing is being edited, so nothing is picked out
-        active: !isLocked && group.id === activeId,
-      })),
+      groups
+        .filter((group) => group.coverage)
+        .map((group, index) => ({
+          id: group.id,
+          // only the first one is spelled out, the rest read as a numbered list
+          label: index === 0 ? `Zeichnung 1` : `${index + 1}`,
+          name: `Zeichnung ${index + 1}`,
+          // locked means nothing is being edited, so nothing is picked out
+          active: !isLocked && group.id === activeId,
+        })),
     [activeId, groups, isLocked]
   );
 

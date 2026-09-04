@@ -17,15 +17,12 @@ export type UseAnnotationStorageOptions = {
   storageKey?: string;
   groups: AnnotationGroup[];
   restored: StoredDrawing[];
-  /** the map zoom band 0 begins at; see `annotation-zoom-bands` */
-  origin?: number;
 };
 
 export const useAnnotationStorage = ({
   storageKey,
   groups,
   restored,
-  origin,
 }: UseAnnotationStorageOptions) => {
   const contents = useRef(
     new Map<string, Content>(
@@ -43,8 +40,6 @@ export const useAnnotationStorage = ({
 
   const groupsRef = useRef(groups);
   groupsRef.current = groups;
-  const originRef = useRef(origin);
-  originRef.current = origin;
 
   const flush = useCallback(() => {
     if (timer.current) {
@@ -61,7 +56,7 @@ export const useAnnotationStorage = ({
           kept.push({
             id: group.id,
             locked: group.locked,
-            band: group.band,
+            coverage: group.coverage,
             anchor: content.anchor,
             elements: content.elements,
             files: content.files,
@@ -71,7 +66,7 @@ export const useAnnotationStorage = ({
       },
       []
     );
-    writeDrawings(storageKey, drawings, originRef.current);
+    writeDrawings(storageKey, drawings);
   }, [storageKey]);
 
   const schedule = useCallback(() => {
@@ -99,7 +94,7 @@ export const useAnnotationStorage = ({
 
   useEffect(() => {
     schedule();
-  }, [groups, origin, schedule]);
+  }, [groups, schedule]);
 
   useEffect(() => {
     if (!storageKey) {

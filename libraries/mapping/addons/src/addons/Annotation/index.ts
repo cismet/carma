@@ -22,11 +22,7 @@ export {
 } from "./shape-tools";
 export type { AnnotationShape } from "./shape-tools";
 export { useAnnotationActions } from "./annotation-actions";
-export {
-  readAnnotations,
-  readDrawings,
-  writeDrawings,
-} from "./annotation-storage";
+export { readDrawings, writeDrawings } from "./annotation-storage";
 export type { StoredDrawing } from "./annotation-storage";
 export { useAnnotationStorage } from "./useAnnotationStorage";
 export { sceneHasElementAt } from "./annotation-hit-test";
