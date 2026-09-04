@@ -55,6 +55,22 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { kind: "vectorHighlightControl" },
+    // annotation layer over the map, pinned to the ground so it pans and scales
+    // with the camera. The control switches who gets the pointer.
+    {
+      kind: "annotationOverlay",
+      config: {
+        hideMenu: true,
+        hideZoom: false,
+        hideTools: true,
+        hideHelp: true,
+        hideLibrary: true,
+        hideHistory: true,
+        hideWhenOff: true,
+        storageKey: "carma.geoportal.addons.annotations",
+      },
+    },
+    { kind: "annotationControl" },
     {
       kind: "libreTerrain",
       config: { appKey: "geoportal", show: "while3dLayersActive" },

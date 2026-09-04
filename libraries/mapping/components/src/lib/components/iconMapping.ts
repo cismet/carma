@@ -4,6 +4,7 @@ import {
   faGlobe,
   faLayerGroup,
   faObjectGroup,
+  faPencil,
   faRuler,
   faSquare,
   faTableColumns,
@@ -12,6 +13,7 @@ import {
 export const iconMap = {
   measurement: faRuler,
   highlight: faObjectGroup,
+  drawing: faPencil,
   comparing: faTableColumns,
   timeSeries: faClock,
   background: faLayerGroup,

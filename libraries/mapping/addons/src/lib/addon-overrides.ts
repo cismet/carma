@@ -49,6 +49,8 @@ export const SWITCHABLE_KINDS = [
   "vectorHighlightControl",
   "vectorHighlightDebug",
   "libreTerrain",
+  "annotationOverlay",
+  "annotationControl",
   "visibleFeatureStatsSource",
   "visibleFeatureStatsPanel",
   "timeSlider",

@@ -1,0 +1,48 @@
+/* off: the scene stays, excalidraw's own chrome goes */
+.carma-annotation-overlay[data-drawing="false"] .layer-ui__wrapper {
+  display: none;
+}
+
+/* the canvas paints viewBackgroundColor; the container must not paint at all */
+.carma-annotation-overlay .excalidraw {
+  background: transparent;
+}
+
+.carma-annotation-overlay .App-menu_top__left {
+  translate: 56px 0;
+}
+
+.carma-annotation-overlay .layer-ui__wrapper__footer-left {
+  translate: 56px -52px;
+}
+
+.carma-annotation-overlay[data-hide-menu="true"] .main-menu-trigger {
+  display: none;
+}
+
+.carma-annotation-overlay[data-hide-zoom="true"] .zoom-actions {
+  display: none;
+}
+
+.carma-annotation-overlay[data-hide-tools="true"] .shapes-section,
+.carma-annotation-overlay[data-hide-tools="true"] .HintViewer {
+  visibility: hidden;
+}
+
+.carma-annotation-overlay[data-hide-help="true"] .help-icon {
+  display: none;
+}
+
+.carma-annotation-overlay[data-hide-history="true"] .undo-redo-buttons {
+  display: none;
+}
+
+.carma-annotation-overlay[data-hide-library="true"] .default-sidebar-trigger {
+  display: none;
+}
+
+/* the scene rides the map, so excalidraw's "scroll back to content" would
+   fight the camera; the drawing list's zoom button does that job */
+.carma-annotation-overlay .scroll-back-to-content {
+  display: none;
+}

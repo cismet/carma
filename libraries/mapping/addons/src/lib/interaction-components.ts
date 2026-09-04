@@ -10,6 +10,10 @@ import {
   TimeSliderInteractionPanel,
   TIME_SLIDER_TOOLS_INTERACTION_ID,
 } from "../addons/TimeSlider";
+import {
+  AnnotationInteractionPanel,
+  ANNOTATION_TOOLS_INTERACTION_ID,
+} from "../addons/Annotation";
 
 /**
  * Panels addons contribute to the host's interaction view, keyed by the id of
@@ -22,4 +26,5 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
 > = {
   [HIGHLIGHT_TOOLS_INTERACTION_ID]: HighlightInteractionPanel,
   [TIME_SLIDER_TOOLS_INTERACTION_ID]: TimeSliderInteractionPanel,
+  [ANNOTATION_TOOLS_INTERACTION_ID]: AnnotationInteractionPanel,
 };

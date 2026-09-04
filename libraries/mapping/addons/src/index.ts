@@ -86,6 +86,22 @@ export {
   CameraRestriction,
   type CameraRestrictionConfig,
 } from "./addons/CameraRestriction";
+export {
+  AnnotationControl,
+  AnnotationInteractionPanel,
+  AnnotationOverlay,
+  AnnotationShapeToolbar,
+  ANNOTATION_LAYER,
+  ANNOTATION_LAYER_ID,
+  ANNOTATION_TOOLS_INTERACTION_ID,
+  useAnnotationLayerRow,
+  useAnnotationActions,
+  type AnnotationControlConfig,
+  type AnnotationOverlayConfig,
+  type AnnotationShape,
+  type AnnotationState,
+  type UseAnnotationLayerRowOptions,
+} from "./addons/Annotation";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
 export { HomeOverride, type HomeOverrideConfig } from "./addons/HomeOverride";
