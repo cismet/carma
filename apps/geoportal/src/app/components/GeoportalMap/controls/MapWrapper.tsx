@@ -38,6 +38,7 @@ import {
   MapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
+  LibreMapLocateControl,
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
@@ -132,6 +133,10 @@ const MapWrapper = () => {
     "ontouchstart" in window;
 
   const showLibreMap = useLibreMapEnabled();
+
+  // the locator is mobile-only, so `ff=locator` is the only way to look at it
+  // from a desktop browser
+  const forceLocatorOnDesktop = Boolean(flags.featureFlagLocatorOnDesktop);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -428,15 +433,30 @@ const MapWrapper = () => {
               <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
             </Control>
           )}
-          {!isObliquePreviewVisible && showLocatorButton && isMobile && (
-            <Control position="topleft" order={30}>
-              <RoutedMapLocateControl
-                tourRefLabels={tourRefLabels}
-                disabled={false}
-                nativeTooltip={true}
-              />
-            </Control>
-          )}
+          {!isObliquePreviewVisible &&
+            showLocatorButton &&
+            (isMobile || forceLocatorOnDesktop) && (
+              <Control position="topleft" order={30}>
+                {showLibreMap ? (
+                  // the leaflet locate control drives the react-cismap
+                  // RoutedMap, which does not exist on the maplibre map, so it
+                  // has to be the libre one there
+                  <LibreMapLocateControl
+                    map={libreMap}
+                    disabled={isCesium}
+                    nativeTooltip={true}
+                    showOnDesktop={forceLocatorOnDesktop}
+                  />
+                ) : (
+                  <RoutedMapLocateControl
+                    tourRefLabels={tourRefLabels}
+                    disabled={false}
+                    nativeTooltip={true}
+                    showOnDesktop={forceLocatorOnDesktop}
+                  />
+                )}
+              </Control>
+            )}
           {!isObliquePreviewVisible && visibleControls.home && (
             <Control position="topleft" order={40}>
               <Tooltip

@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import type { Map as MapLibreMap, Marker } from "maplibre-gl";
+import type { MutableRefObject } from "react";
+import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
+
+const ACCURACY_SOURCE_ID = "locate-accuracy-circle";
 
 interface UseLibreMapLocateControlProps {
   map: MapLibreMap | null;
@@ -14,10 +17,21 @@ export const useLibreMapLocateControl = ({
   const [currentPosition, setCurrentPosition] =
     useState<GeolocationPosition | null>(null);
   const markerRef = useRef<Marker | null>(null);
+  // the Marker class is imported lazily, so a second position update can
+  // arrive while the first one is still waiting for the module. Without this
+  // guard every update before the import resolves creates its own marker.
+  const markerPendingRef = useRef(false);
+  const latestPositionRef = useRef<GeolocationPosition | null>(null);
   const accuracyCircleRef = useRef<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const isActiveRef = useRef(false);
+  // the recentring below is a map move like any other; without this the
+  // control would immediately report "user has panned away"
+  const ignoreNextMoveRef = useRef(false);
 
   const clearLocationMarker = useCallback(() => {
+    markerPendingRef.current = false;
+    latestPositionRef.current = null;
     if (markerRef.current) {
       markerRef.current.remove();
       markerRef.current = null;
@@ -38,52 +52,45 @@ export const useLibreMapLocateControl = ({
       if (!map) return;
 
       const { latitude, longitude, accuracy } = position.coords;
+      latestPositionRef.current = position;
 
       // Create or update marker
       if (!markerRef.current) {
-        const el = document.createElement("div");
-        el.className = "libre-locate-marker";
-        el.style.cssText = `
-          width: 18px;
-          height: 18px;
-          background: #4285f4;
-          border: 3px solid white;
-          border-radius: 50%;
-          box-shadow: 0 0 4px rgba(0,0,0,0.3);
-        `;
+        if (!markerPendingRef.current) {
+          markerPendingRef.current = true;
+          const el = document.createElement("div");
+          el.className = "libre-locate-marker";
+          el.style.cssText = `
+            width: 18px;
+            height: 18px;
+            background: #4285f4;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+          `;
 
-        // Dynamic import to avoid SSR issues
-        import("maplibre-gl").then(({ Marker }) => {
-          markerRef.current = new Marker({ element: el })
-            .setLngLat([longitude, latitude])
-            .addTo(map);
-        });
+          // Dynamic import to avoid SSR issues
+          import("maplibre-gl").then(({ Marker }) => {
+            markerPendingRef.current = false;
+            // the control was switched off while the module was loading
+            if (!isActiveRef.current) return;
+            const latest = latestPositionRef.current ?? position;
+            markerRef.current = new Marker({ element: el })
+              .setLngLat([latest.coords.longitude, latest.coords.latitude])
+              .addTo(map);
+          });
+        }
       } else {
         markerRef.current.setLngLat([longitude, latitude]);
       }
 
-      // Create or update accuracy circle
-      const sourceId = "locate-accuracy-circle";
-      const circleGeoJSON = createCircleGeoJSON(longitude, latitude, accuracy);
-
-      if (map.getSource(sourceId)) {
-        (map.getSource(sourceId) as any).setData(circleGeoJSON);
-      } else {
-        map.addSource(sourceId, {
-          type: "geojson",
-          data: circleGeoJSON,
-        });
-        map.addLayer({
-          id: sourceId,
-          type: "fill",
-          source: sourceId,
-          paint: {
-            "fill-color": "#4285f4",
-            "fill-opacity": 0.15,
-          },
-        });
-        accuracyCircleRef.current = sourceId;
-      }
+      updateAccuracyCircle(
+        map,
+        longitude,
+        latitude,
+        accuracy,
+        accuracyCircleRef
+      );
     },
     [map]
   );
@@ -102,14 +109,19 @@ export const useLibreMapLocateControl = ({
       (position) => {
         setCurrentPosition(position);
         setIsLoading(false);
-        updateLocationMarker(position);
 
+        // recentre first: a failure while drawing the marker must never cost
+        // the user the one thing the control is for
         if (map) {
+          ignoreNextMoveRef.current = true;
           map.flyTo({
             center: [position.coords.longitude, position.coords.latitude],
             zoom: 16,
+            essential: true,
           });
         }
+
+        updateLocationMarker(position);
       },
       (error) => {
         console.error("Error getting location:", error);
@@ -153,7 +165,11 @@ export const useLibreMapLocateControl = ({
     if (!map || !isLocationActive) return;
 
     const handleMapMove = () => {
-      if (currentPosition) {
+      if (ignoreNextMoveRef.current) {
+        ignoreNextMoveRef.current = false;
+        return;
+      }
+      if (latestPositionRef.current) {
         setHasMapMoved(true);
       }
     };
@@ -165,9 +181,37 @@ export const useLibreMapLocateControl = ({
       map.off("dragend", handleMapMove);
       map.off("zoomend", handleMapMove);
     };
-  }, [map, isLocationActive, currentPosition]);
+  }, [map, isLocationActive]);
+
+  // a style swap (background change, layer edit) drops every source and layer
+  // the control added, so they have to go back in once the new style is up
+  useEffect(() => {
+    if (!map || !isLocationActive) return;
+
+    const handleStyleData = () => {
+      const position = latestPositionRef.current;
+      if (!position) return;
+      if (accuracyCircleRef.current && map.getSource(ACCURACY_SOURCE_ID))
+        return;
+      accuracyCircleRef.current = null;
+      const { latitude, longitude, accuracy } = position.coords;
+      updateAccuracyCircle(
+        map,
+        longitude,
+        latitude,
+        accuracy,
+        accuracyCircleRef
+      );
+    };
+
+    map.on("styledata", handleStyleData);
+    return () => {
+      map.off("styledata", handleStyleData);
+    };
+  }, [map, isLocationActive]);
 
   useEffect(() => {
+    isActiveRef.current = isLocationActive;
     if (isLocationActive) {
       startLocating();
     } else {
@@ -192,6 +236,58 @@ export const useLibreMapLocateControl = ({
     currentPosition,
   };
 };
+
+/**
+ * Adds or moves the translucent accuracy disc.
+ *
+ * `addSource` throws "Style is not done loading" while a style is still being
+ * applied, and geoportal reapplies its style on every layer change, so the
+ * call is deferred to the next `idle` instead of being allowed to escape into
+ * the geolocation callback.
+ */
+function updateAccuracyCircle(
+  map: MapLibreMap,
+  lng: number,
+  lat: number,
+  accuracy: number,
+  accuracyCircleRef: MutableRefObject<string | null>
+) {
+  const circleGeoJSON = createCircleGeoJSON(lng, lat, accuracy);
+
+  const existing = map.getSource(ACCURACY_SOURCE_ID);
+  if (existing) {
+    (existing as GeoJSONSource).setData(circleGeoJSON);
+    accuracyCircleRef.current = ACCURACY_SOURCE_ID;
+    return;
+  }
+
+  if (!map.isStyleLoaded()) {
+    map.once("idle", () => {
+      if (
+        accuracyCircleRef.current === null &&
+        !map.getSource(ACCURACY_SOURCE_ID)
+      ) {
+        updateAccuracyCircle(map, lng, lat, accuracy, accuracyCircleRef);
+      }
+    });
+    return;
+  }
+
+  map.addSource(ACCURACY_SOURCE_ID, {
+    type: "geojson",
+    data: circleGeoJSON,
+  });
+  map.addLayer({
+    id: ACCURACY_SOURCE_ID,
+    type: "fill",
+    source: ACCURACY_SOURCE_ID,
+    paint: {
+      "fill-color": "#4285f4",
+      "fill-opacity": 0.15,
+    },
+  });
+  accuracyCircleRef.current = ACCURACY_SOURCE_ID;
+}
 
 function createCircleGeoJSON(
   lng: number,

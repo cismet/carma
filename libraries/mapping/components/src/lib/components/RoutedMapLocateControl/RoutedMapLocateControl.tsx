@@ -13,6 +13,9 @@ type RouteMapControlProps = {
   tourRefLabels: any;
   nativeTooltip?: boolean;
   backgroundColor?: string;
+  /** Render on desktop too. The control is mobile-only by default, which
+   * makes it impossible to look at on a developer machine. */
+  showOnDesktop?: boolean;
 };
 
 // Function to set CSS custom property for dynamic background color
@@ -38,6 +41,7 @@ export const RoutedMapLocateControl = ({
   tourRefLabels,
   nativeTooltip = false,
   backgroundColor = "white",
+  showOnDesktop = false,
 }: RouteMapControlProps) => {
   const { isLocationActive, hasMapMoved, setIsLocationActive, isLoading } =
     useRoutedMapLocateControl();
@@ -51,33 +55,34 @@ export const RoutedMapLocateControl = ({
 
   console.debug("isLocationActive RENDER LOCATOR", isLocationActive);
 
-  const cbs = !isDesktop ? (
-    <ControlButtonStyler
-      ref={tourRefLabels?.navigator ?? null}
-      disabled={disabled}
-      onClick={() => setIsLocationActive((prev) => !prev)}
-      dataTestId="location-control"
-    >
-      <FontAwesomeIcon
-        icon={isLoading ? faSpinner : faLocationArrow}
-        //color={              isLocationActive ? (hasMapMoved ? "blue" : "orange") : ""            }
-        className={`text-2xl ${
-          isLocationActive && !isLoading
-            ? hasMapMoved
-              ? "text-blue-500"
-              : "text-orange-500"
-            : ""
-        } ${isLoading ? "animate-spin" : ""}`}
-        title={
-          nativeTooltip
-            ? isLocationActive
-              ? "Standortanzeige ausschalten"
-              : "Standortanzeige einschalten"
-            : undefined
-        }
-      />
-    </ControlButtonStyler>
-  ) : null;
+  const cbs =
+    !isDesktop || showOnDesktop ? (
+      <ControlButtonStyler
+        ref={tourRefLabels?.navigator ?? null}
+        disabled={disabled}
+        onClick={() => setIsLocationActive((prev) => !prev)}
+        dataTestId="location-control"
+      >
+        <FontAwesomeIcon
+          icon={isLoading ? faSpinner : faLocationArrow}
+          //color={              isLocationActive ? (hasMapMoved ? "blue" : "orange") : ""            }
+          className={`text-2xl ${
+            isLocationActive && !isLoading
+              ? hasMapMoved
+                ? "text-blue-500"
+                : "text-orange-500"
+              : ""
+          } ${isLoading ? "animate-spin" : ""}`}
+          title={
+            nativeTooltip
+              ? isLocationActive
+                ? "Standortanzeige ausschalten"
+                : "Standortanzeige einschalten"
+              : undefined
+          }
+        />
+      </ControlButtonStyler>
+    ) : null;
 
   return (
     <>

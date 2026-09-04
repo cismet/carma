@@ -51,6 +51,12 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "fz",
   },
+  // the locator only renders on mobile user agents, so on a desktop there is
+  // no way to see it at all. This forces it visible for testing.
+  featureFlagLocatorOnDesktop: {
+    default: false,
+    alias: "locator",
+  },
   // makes a checkout with cage behave like one without it, so the open-source
   // fallbacks can be looked at without unlinking the submodule
   featureFlagNoCage: {
