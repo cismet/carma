@@ -180,10 +180,12 @@ export const AnnotationScene = ({
 
   const toolRef = useRef<string | null>(null);
   /**
-   * Whether this scene has been handed the shared pen yet. It reports a change
-   * of its own before the effect below can run — React defers effects past the
-   * paint — and without this that first report would put the scene's untouched
-   * defaults into the pen, which the effect would then hand straight back.
+   * Whether this scene holds the shared pen yet. Until it does it may not
+   * report anything: a scene opens on `selection` with excalidraw's own
+   * styles, and it goes on saying so both before the effect below runs — React
+   * defers effects past the paint — and for a commit or two after, while
+   * `setActiveTool` works its way through. Reporting any of that would replace
+   * the pen the user is actually holding with this scene's defaults.
    */
   const penTakenRef = useRef(false);
 
@@ -194,14 +196,16 @@ export const AnnotationScene = ({
   ) => {
     onSceneChange(appState);
 
-    // keyboard shortcuts and excalidraw's own tool resets come through here
     const tool = appState.activeTool.type;
-    if (editable && tool !== toolRef.current) {
-      toolRef.current = tool;
-      onToolChange(isAnnotationShape(tool) ? tool : null);
-    }
-
-    if (editable && penTakenRef.current) {
+    if (editable && !penTakenRef.current) {
+      // the scene reporting the tool we handed it is how it confirms the pen
+      penTakenRef.current = tool === toolRef.current;
+    } else if (editable) {
+      // keyboard shortcuts and excalidraw's own tool resets come through here
+      if (tool !== toolRef.current) {
+        toolRef.current = tool;
+        onToolChange(isAnnotationShape(tool) ? tool : null);
+      }
       onPenChange(penFrom(appState));
     }
 
@@ -242,12 +246,14 @@ export const AnnotationScene = ({
       return;
     }
     const pen = getPen();
-    if (pen) {
-      toolRef.current = pen.tool;
-      applyPen(api, pen);
+    if (!pen) {
+      // nothing to take over: this scene is the one that defines the pen
+      penTakenRef.current = true;
+      return;
     }
-    // with no pen yet this scene is the one that defines it
-    penTakenRef.current = true;
+    toolRef.current = pen.tool;
+    // a tool that was handed over has to be confirmed before this scene speaks
+    penTakenRef.current = !applyPen(api, pen);
   }, [api, editable, getPen]);
 
   // the paper is one sheet under all the scenes, see `AnnotationOverlay`
