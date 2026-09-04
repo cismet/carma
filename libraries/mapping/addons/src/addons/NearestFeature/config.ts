@@ -41,6 +41,7 @@ export type NearestFeatureConfig = {
    * distance again, as they did before.
    */
   carRouteRanking?: boolean;
+  fitPadding?: number;
 };
 
 /**
@@ -57,6 +58,8 @@ export const DEFAULT_ORIGIN = {
 export const DEFAULT_COUNT = 5;
 /** rank by car by default; the straight-line order is only the shortlist */
 export const DEFAULT_CAR_ROUTE_RANKING = true;
+/** the same clearance the geoportal's own zoom-to-feature keeps */
+export const DEFAULT_FIT_PADDING = 60;
 /** the mode's key in the dropdown, which is about "nearby", not about the kind */
 export const DEFAULT_KEY = "nearby";
 export const DEFAULT_LABEL = "In der Nähe";

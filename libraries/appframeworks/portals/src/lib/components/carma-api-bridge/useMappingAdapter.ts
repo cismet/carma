@@ -122,14 +122,14 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         if (!map) return;
         map.flyTo([lat, lng], zoom ?? 18);
       },
-      fitBounds2D: (minLng, minLat, maxLng, maxLat) => {
+      fitBounds2D: (minLng, minLat, maxLng, maxLat, padding) => {
         if (libreMap) {
           libreMap.fitBounds(
             [
               [minLng, minLat],
               [maxLng, maxLat],
             ],
-            { padding: 40 }
+            { padding: padding ?? 40 }
           );
           return true;
         }
@@ -137,10 +137,13 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         if (!map) {
           return false;
         }
-        map.fitBounds([
-          [minLat, minLng],
-          [maxLat, maxLng],
-        ]);
+        map.fitBounds(
+          [
+            [minLat, minLng],
+            [maxLat, maxLng],
+          ],
+          padding === undefined ? undefined : { padding: [padding, padding] }
+        );
         return true;
       },
 

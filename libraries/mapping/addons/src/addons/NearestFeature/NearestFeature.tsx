@@ -21,6 +21,7 @@ import {
 } from "./categoryInput";
 import {
   DEFAULT_CAR_ROUTE_RANKING,
+  DEFAULT_FIT_PADDING,
   DEFAULT_COUNT,
   DEFAULT_ICON,
   DEFAULT_KEY,
@@ -123,6 +124,7 @@ export const NearestFeature = ({
     origin = DEFAULT_ORIGIN,
     preloadIndexes = true,
     carRouteRanking = DEFAULT_CAR_ROUTE_RANKING,
+    fitPadding = DEFAULT_FIT_PADDING,
   } = config ?? {};
 
   // the mode is registered once and then asked for years of keystrokes, so
@@ -301,13 +303,14 @@ export const NearestFeature = ({
         origin: currentOrigin,
         count,
         carRouteRanking,
+        fitPadding,
         pickHit,
       });
       const run: Run = { category, rows, routes, problem, originKey };
       lastRunRef.current = run;
       return run;
     },
-    [awaitOrigin, carma, count, carRouteRanking, pickHit]
+    [awaitOrigin, carma, count, carRouteRanking, fitPadding, pickHit]
   );
 
   const resolve = useCallback(

@@ -64,7 +64,8 @@ export interface MapAdapter {
     minLng: number,
     minLat: number,
     maxLng: number,
-    maxLat: number
+    maxLat: number,
+    padding?: number
   ) => boolean;
   hasLayer?: (id: string) => boolean;
   addLayer?: (id: string) => Promise<boolean>;
@@ -99,7 +100,8 @@ export interface Mapping2DFacade {
     minLng: number,
     minLat: number,
     maxLng: number,
-    maxLat: number
+    maxLat: number,
+    padding?: number
   ) => boolean;
   hasLayer: (id: string) => boolean;
   addLayer: (id: string) => Promise<boolean>;
@@ -146,8 +148,9 @@ export const mapping2D: Mapping2DFacade = {
   zoomIn: () => getAdapter()?.zoomIn2D?.(),
   zoomOut: () => getAdapter()?.zoomOut2D?.(),
   flyTo: (lat, lng, zoom) => getAdapter()?.flyTo2D?.(lat, lng, zoom),
-  fitBounds: (minLng, minLat, maxLng, maxLat) =>
-    getAdapter()?.fitBounds2D?.(minLng, minLat, maxLng, maxLat) ?? false,
+  fitBounds: (minLng, minLat, maxLng, maxLat, padding) =>
+    getAdapter()?.fitBounds2D?.(minLng, minLat, maxLng, maxLat, padding) ??
+    false,
   hasLayer: (id) => getAdapter()?.hasLayer?.(id) ?? false,
   addLayer: (id) => getAdapter()?.addLayer?.(id) ?? Promise.resolve(false),
   removeLayer: (id) => getAdapter()?.removeLayer?.(id) ?? false,

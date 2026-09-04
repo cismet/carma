@@ -51,6 +51,7 @@ export type RankCategoryOptions = {
    * straight-line distance; see `carRanking.ts`.
    */
   carRouteRanking: boolean;
+  fitPadding: number;
   /** what a row's pick does with its hit; see `pickHit.ts` */
   pickHit: (hit: PickableHit) => void;
 };
@@ -114,6 +115,7 @@ export const rankCategory = async ({
   origin,
   count,
   carRouteRanking,
+  fitPadding,
   pickHit,
 }: RankCategoryOptions): Promise<RankCategoryResult> => {
   if (!carma.mapping2D.hasLayer(category.layerId)) {
@@ -178,14 +180,15 @@ export const rankCategory = async ({
     : { entries, routes: new Map() as CarRoutesByFeature };
 
   // fit the origin and every hit, so all of them are drawn and can be read
-  // back; the bounding boxes are already in WGS84
+  // back; the bounding boxes are already in WGS84. The padding keeps them out
+  // from under the navbar and the controls laid over the map.
   const hitBounds: [number, number, number, number] = [
     Math.min(origin.lng, ...ranked.map((one) => one.bbox[0])),
     Math.min(origin.lat, ...ranked.map((one) => one.bbox[1])),
     Math.max(origin.lng, ...ranked.map((one) => one.bbox[2])),
     Math.max(origin.lat, ...ranked.map((one) => one.bbox[3])),
   ];
-  carma.mapping2D.fitBounds(...hitBounds);
+  carma.mapping2D.fitBounds(...hitBounds, fitPadding);
   await waitForIdle(map);
 
   const properties = collectRenderedProperties(map, ranked);
@@ -250,7 +253,7 @@ export const rankCategory = async ({
         north = Math.max(north, lat);
       }
     }
-    carma.mapping2D.fitBounds(west, south, east, north);
+    carma.mapping2D.fitBounds(west, south, east, north, fitPadding);
   }
 
   return { rows, routes: shapes, problem: null };
