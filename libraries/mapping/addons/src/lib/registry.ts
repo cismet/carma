@@ -78,6 +78,11 @@ import {
   type FlowFieldState,
 } from "../addons/FlowField";
 import {
+  VehicleAnimation,
+  type VehicleAnimationConfig,
+  type VehicleAnimationState,
+} from "../addons/VehicleAnimation";
+import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
@@ -136,6 +141,11 @@ export type AddonConfigMap = {
    * caged: without cage the addon mounts nothing and there is no fallback.
    */
   flowField: FlowFieldConfig;
+  /**
+   * A vehicle running along a route read from GeoJSON. Plain MapLibre: a
+   * rectangle walking an arc-length parameter, with no caged part.
+   */
+  vehicleAnimation: VehicleAnimationConfig;
   zoomToExtent: ZoomToExtentConfig;
   /** implemented in cage; renders nothing when cage is absent */
   cageIndicatorBadge: CageIndicatorBadgeConfig;
@@ -183,6 +193,12 @@ export type AddonStateMap = {
    * addon's.
    */
   flowField: FlowFieldState;
+  /**
+   * the running vehicle animation: which route, whether it is still loading
+   * and whether the vehicle is held; see `VehicleAnimation`. Read by the
+   * layer-bar row, which sits in the host's tree rather than in the addon's.
+   */
+  vehicleAnimation: VehicleAnimationState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -360,6 +376,10 @@ export const addonRegistry: {
   },
   timeSlider: { Component: TimeSlider, provides: ["timeSeries"] },
   flowField: { Component: FlowField, provides: ["flowField"] },
+  vehicleAnimation: {
+    Component: VehicleAnimation,
+    provides: ["vehicleAnimation"],
+  },
   zoomToExtent: { trigger: zoomToExtentTrigger },
   // Component is undefined when cage is absent; AddonHost renders nothing then.
   cageIndicatorBadge: { Component: CageIndicatorBadge },

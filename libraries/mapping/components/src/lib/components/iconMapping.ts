@@ -8,6 +8,7 @@ import {
   faSquare,
   faTableColumns,
   faWater,
+  faTrain,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const iconMap = {
@@ -16,6 +17,7 @@ export const iconMap = {
   comparing: faTableColumns,
   timeSeries: faClock,
   flowField: faWater,
+  vehicleAnimation: faTrain,
   background: faLayerGroup,
   ortho: faGlobe,
 };

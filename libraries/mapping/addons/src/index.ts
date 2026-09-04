@@ -93,6 +93,27 @@ export {
   type UseFlowFieldLayerRowOptions,
 } from "./addons/FlowField";
 
+export {
+  VehicleAnimation,
+  useVehicleAnimationActions,
+  useVehicleAnimationLauncher,
+  useVehicleAnimationLayerRow,
+  buildTrack,
+  poseAt,
+  vehicleRing,
+  VEHICLE_ANIMATION_LAYER,
+  VEHICLE_ANIMATION_LAYER_ID,
+  VEHICLE_ANIMATION_PLAY_ID,
+  VEHICLE_ANIMATION_STATUS_ID,
+  VEHICLE_ANIMATION_STATE_DEFAULT,
+  type Track,
+  type VehicleAnimationConfig,
+  type VehicleAnimationDefinition,
+  type VehicleAnimationState,
+  type VehicleMode,
+  type UseVehicleAnimationLayerRowOptions,
+} from "./addons/VehicleAnimation";
+
 export { useHasAddonStateProducer } from "./lib/addon-channels";
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
