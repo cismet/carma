@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
@@ -219,6 +220,24 @@ export const AnnotationOverlay = ({
 
   return (
     <>
+      {/* one sheet for all the drawings: on a scene it would be a film over
+          every drawing stacked below it, and only one would look drawn on */}
+      {isOn &&
+        createPortal(
+          <div
+            style={{
+              position: "absolute",
+              top: navbarInset + top,
+              right,
+              bottom,
+              left,
+              zIndex: zIndex - 1,
+              background: paper,
+              pointerEvents: "none",
+            }}
+          />,
+          host
+        )}
       {groups.map((group, index) => {
         const restored = saved.find((drawing) => drawing.id === group.id);
         return (
@@ -233,11 +252,9 @@ export const AnnotationOverlay = ({
             savedFiles={restored?.files}
             savedAnchor={restored?.anchor}
             editable={isOn && group.id === activeId && !group.locked}
-            dimmed={isOn && !isLocked && group.id !== activeId}
             live={isOn}
             shown={isOn || !hideWhenOff}
             langCode={langCode}
-            background={paper}
             chrome={chrome}
             shape={shape}
             onToolChange={setShape}

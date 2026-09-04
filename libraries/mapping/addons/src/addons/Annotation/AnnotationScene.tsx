@@ -37,9 +37,6 @@ void import("@excalidraw/excalidraw").then((module) => {
 /** keeps a zoomed-to drawing clear of the map chrome, in px */
 const ZOOM_PADDING = 80;
 
-/** how far a drawing steps back while another one is picked */
-const INACTIVE_OPACITY = 0.45;
-
 type SceneBox = { minX: number; minY: number; maxX: number; maxY: number };
 
 const sceneBounds = (
@@ -118,12 +115,9 @@ export type AnnotationSceneProps = {
   savedFiles?: BinaryFiles;
   savedAnchor?: AnnotationAnchor;
   editable: boolean;
-  /** steps back so the picked drawing stands out; nothing is picked while locked */
-  dimmed: boolean;
   live: boolean;
   shown: boolean;
   langCode: string;
-  background: string;
   chrome: AnnotationSceneChrome;
   shape: AnnotationShape | null;
   /** what excalidraw switched to on its own, e.g. by a keyboard shortcut */
@@ -152,11 +146,9 @@ export const AnnotationScene = ({
   savedFiles,
   savedAnchor,
   editable,
-  dimmed,
   live,
   shown,
   langCode,
-  background,
   chrome,
   shape,
   onToolChange,
@@ -225,13 +217,10 @@ export const AnnotationScene = ({
     }
   }, [api, editable, shape]);
 
+  // the paper is one sheet under all the scenes, see `AnnotationOverlay`
   useEffect(() => {
-    api?.updateScene({
-      appState: {
-        viewBackgroundColor: editable ? background : "transparent",
-      },
-    });
-  }, [api, background, editable]);
+    api?.updateScene({ appState: { viewBackgroundColor: "transparent" } });
+  }, [api]);
 
   useEffect(() => {
     onProbe(id, (clientX, clientY) =>
@@ -382,7 +371,6 @@ export const AnnotationScene = ({
         bottom: inset.bottom,
         left: inset.left,
         zIndex,
-        opacity: dimmed ? INACTIVE_OPACITY : 1,
         pointerEvents: drawing ? "auto" : "none",
         visibility: inSync && shown ? "visible" : "hidden",
       }}
@@ -396,9 +384,7 @@ export const AnnotationScene = ({
           initialData={{
             elements: savedElements,
             files: savedFiles,
-            appState: {
-              viewBackgroundColor: editable ? background : "transparent",
-            },
+            appState: { viewBackgroundColor: "transparent" },
           }}
         />
       </Suspense>
