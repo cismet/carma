@@ -1,15 +1,30 @@
+import {
+  AstroTime,
+  Body,
+  Equator,
+  GeoVector,
+  Horizon,
+  Observer,
+  RotateVector,
+  Rotation_EQJ_EQD,
+  SearchAltitude,
+  SearchHourAngle,
+  SiderealTime,
+} from "astronomy-engine";
+
 import { clamp } from "@carma-commons/math";
 import {
   getDaysInYear,
-  getZonedUtcOffsetMinutes,
   instantToZonedYearDayTime,
+  offsetYearDay,
   type YearDayTime,
   type ZonedYearDayTime,
   zonedYearDayTimeToInstant,
 } from "@carma-commons/utils";
-import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 
 const MINUTES_PER_DAY = 24 * 60;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1_000;
+const RADIANS_PER_SIDEREAL_HOUR = Math.PI / 12;
 
 export const MEAN_SOLAR_ANGULAR_RADIUS_DEGREES = 0.2666;
 
@@ -41,25 +56,22 @@ export type SolarPosition = {
   elevationDegrees: number;
 };
 
-const normalizeMinutes = (minutes: number) =>
-  ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
-
-export const solarSelectionToInstant = (
-  selection: SolarSelection
-): Date =>
-  zonedYearDayTimeToInstant({
+export const solarSelectionToInstant = (selection: SolarSelection): Date => {
+  const minutes = clamp(selection.minutes, 0, MINUTES_PER_DAY - 1);
+  const wholeMinutes = Math.floor(minutes);
+  const wholeMinuteInstant = zonedYearDayTimeToInstant({
     ...selection,
     dayOfYear: clamp(
       Math.round(selection.dayOfYear),
       1,
       getDaysInYear(selection.year)
     ),
-    minutes: clamp(
-      Math.round(selection.minutes),
-      0,
-      MINUTES_PER_DAY - 1
-    ),
+    minutes: wholeMinutes,
   });
+  return new Date(
+    wholeMinuteInstant.getTime() + (minutes - wholeMinutes) * 60_000
+  );
+};
 
 export const getSolarSelectionForInstant = (
   instant: Date,
@@ -68,71 +80,56 @@ export const getSolarSelectionForInstant = (
   return instantToZonedYearDayTime(instant, timeZone);
 };
 
-const getSolarTerms = (year: number, dayOfYear: number, minutes: number) => {
-  const fractionalYear =
-    ((2 * Math.PI) / getDaysInYear(year)) *
-    (dayOfYear - 1 + (minutes - 720) / MINUTES_PER_DAY);
-  const equationOfTimeMinutes =
-    229.18 *
-    (0.000075 +
-      0.001868 * Math.cos(fractionalYear) -
-      0.032077 * Math.sin(fractionalYear) -
-      0.014615 * Math.cos(2 * fractionalYear) -
-      0.040849 * Math.sin(2 * fractionalYear));
-  const declinationRadians =
-    0.006918 -
-    0.399912 * Math.cos(fractionalYear) +
-    0.070257 * Math.sin(fractionalYear) -
-    0.006758 * Math.cos(2 * fractionalYear) +
-    0.000907 * Math.sin(2 * fractionalYear) -
-    0.002697 * Math.cos(3 * fractionalYear) +
-    0.00148 * Math.sin(3 * fractionalYear);
-  return { equationOfTimeMinutes, declinationRadians };
+const createObserver = ({ latitude, longitude }: SolarLocation) =>
+  new Observer(latitude, longitude, 0);
+
+const isOnLocalDay = (
+  instant: Date,
+  selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">
+) => {
+  const local = instantToZonedYearDayTime(instant, selection.timeZone);
+  return (
+    local.year === selection.year && local.dayOfYear === selection.dayOfYear
+  );
 };
 
-const getSelectableHourAngleCosine = (
-  latitudeRadians: number,
-  declinationRadians: number
-) =>
-  (Math.sin(degToRadNumeric(MEAN_SOLAR_ANGULAR_RADIUS_DEGREES)) -
-    Math.sin(latitudeRadians) * Math.sin(declinationRadians)) /
-  (Math.cos(latitudeRadians) * Math.cos(declinationRadians));
+const getLocalEventMinutes = (
+  event: AstroTime | null,
+  selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">
+): number | null => {
+  if (!event || !isOnLocalDay(event.date, selection)) return null;
+  const local = instantToZonedYearDayTime(event.date, selection.timeZone);
+  return (
+    local.minutes +
+    event.date.getUTCSeconds() / 60 +
+    event.date.getUTCMilliseconds() / 60_000
+  );
+};
 
-const resolveDaylightBoundaryMinutes = (
-  year: number,
-  dayOfYear: number,
-  location: SolarLocation,
-  timeZoneOffsetHours: number,
-  initialMinutes: number,
-  direction: -1 | 1
-) => {
-  let boundaryMinutes = initialMinutes;
-  const latitudeRadians = degToRadNumeric(location.latitude);
+export const getSolarDirectionECEF = (
+  instant: Date
+): readonly [number, number, number] => {
+  const time = new AstroTime(instant);
+  const equatorialOfDate = RotateVector(
+    Rotation_EQJ_EQD(time),
+    GeoVector(Body.Sun, time, true)
+  );
+  const siderealAngle = SiderealTime(time) * RADIANS_PER_SIDEREAL_HOUR;
+  const cosSiderealAngle = Math.cos(siderealAngle);
+  const sinSiderealAngle = Math.sin(siderealAngle);
+  const x =
+    cosSiderealAngle * equatorialOfDate.x +
+    sinSiderealAngle * equatorialOfDate.y;
+  const y =
+    -sinSiderealAngle * equatorialOfDate.x +
+    cosSiderealAngle * equatorialOfDate.y;
+  const inverseLength = 1 / Math.hypot(x, y, equatorialOfDate.z);
 
-  for (let iteration = 0; iteration < 4; iteration += 1) {
-    const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
-      year,
-      dayOfYear,
-      boundaryMinutes
-    );
-    const hourAngleDegrees = radToDegNumeric(
-      Math.acos(
-        clamp(
-          getSelectableHourAngleCosine(latitudeRadians, declinationRadians),
-          -1,
-          1
-        )
-      )
-    );
-    const solarNoonMinutes =
-      720 -
-      4 * location.longitude -
-      equationOfTimeMinutes +
-      60 * timeZoneOffsetHours;
-    boundaryMinutes = solarNoonMinutes + direction * 4 * hourAngleDegrees;
-  }
-
-  return boundaryMinutes;
+  return [
+    x * inverseLength,
+    y * inverseLength,
+    equatorialOfDate.z * inverseLength,
+  ];
 };
 
 export const getDaylightWindow = (
@@ -141,78 +138,57 @@ export const getDaylightWindow = (
 ): DaylightWindow => {
   const { year, dayOfYear } = selection;
   const safeDay = clamp(Math.round(dayOfYear), 1, getDaysInYear(year));
-  const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
-    year,
-    safeDay,
-    720
+  const localDay = { ...selection, year, dayOfYear: safeDay };
+  const dayStart = solarSelectionToInstant({ ...localDay, minutes: 0 });
+  const nextDay = offsetYearDay({ year, dayOfYear: safeDay }, 1);
+  const dayEnd = solarSelectionToInstant({
+    ...localDay,
+    ...nextDay,
+    minutes: 0,
+  });
+  const searchDays =
+    (dayEnd.getTime() - dayStart.getTime()) / MILLISECONDS_PER_DAY;
+  const observer = createObserver(location);
+  const sunriseMinutes = getLocalEventMinutes(
+    SearchAltitude(
+      Body.Sun,
+      observer,
+      1,
+      dayStart,
+      searchDays,
+      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES
+    ),
+    localDay
   );
-  const timeZoneOffsetHours =
-    getZonedUtcOffsetMinutes({
-      ...selection,
-      dayOfYear: safeDay,
-      minutes: 720,
-    }) / 60;
-  const latitudeRadians = degToRadNumeric(location.latitude);
-  const hourAngleCosine = getSelectableHourAngleCosine(
-    latitudeRadians,
-    declinationRadians
+  const sunsetMinutes = getLocalEventMinutes(
+    SearchAltitude(
+      Body.Sun,
+      observer,
+      -1,
+      dayStart,
+      searchDays,
+      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES
+    ),
+    localDay
   );
+  const solarNoonEvent = SearchHourAngle(Body.Sun, observer, 0, dayStart, 1);
   const solarNoonMinutes =
-    720 -
-    4 * location.longitude -
-    equationOfTimeMinutes +
-    60 * timeZoneOffsetHours;
+    getLocalEventMinutes(solarNoonEvent.time, localDay) ?? MINUTES_PER_DAY / 2;
+  const startsInDaylight =
+    getSolarPosition({ ...localDay, minutes: 0 }, location).elevationDegrees >=
+    MEAN_SOLAR_ANGULAR_RADIUS_DEGREES;
+  const polarDay =
+    sunriseMinutes === null && sunsetMinutes === null && startsInDaylight;
+  const polarNight =
+    sunriseMinutes === null && sunsetMinutes === null && !startsInDaylight;
 
-  if (hourAngleCosine >= 1) {
-    return {
-      sunriseMinutes: solarNoonMinutes,
-      solarNoonMinutes,
-      sunsetMinutes: solarNoonMinutes,
-      polarDay: false,
-      polarNight: true,
-    };
-  }
-  if (hourAngleCosine <= -1) {
-    return {
-      sunriseMinutes: 0,
-      solarNoonMinutes,
-      sunsetMinutes: MINUTES_PER_DAY,
-      polarDay: true,
-      polarNight: false,
-    };
-  }
-
-  const hourAngleDegrees = radToDegNumeric(Math.acos(hourAngleCosine));
-  const initialSunriseMinutes = solarNoonMinutes - 4 * hourAngleDegrees;
-  const initialSunsetMinutes = solarNoonMinutes + 4 * hourAngleDegrees;
   return {
-    sunriseMinutes: clamp(
-      resolveDaylightBoundaryMinutes(
-        year,
-        safeDay,
-        location,
-        timeZoneOffsetHours,
-        initialSunriseMinutes,
-        -1
-      ),
-      0,
-      MINUTES_PER_DAY
-    ),
+    sunriseMinutes: sunriseMinutes ?? (startsInDaylight ? 0 : solarNoonMinutes),
     solarNoonMinutes,
-    sunsetMinutes: clamp(
-      resolveDaylightBoundaryMinutes(
-        year,
-        safeDay,
-        location,
-        timeZoneOffsetHours,
-        initialSunsetMinutes,
-        1
-      ),
-      0,
-      MINUTES_PER_DAY
-    ),
-    polarDay: false,
-    polarNight: false,
+    sunsetMinutes:
+      sunsetMinutes ?? (startsInDaylight ? MINUTES_PER_DAY : solarNoonMinutes),
+    polarDay,
+    polarNight,
   };
 };
 
@@ -225,10 +201,7 @@ export const clampSelectionToDaylight = (
     1,
     getDaysInYear(selection.year)
   );
-  const daylight = getDaylightWindow(
-    { ...selection, dayOfYear },
-    location
-  );
+  const daylight = getDaylightWindow({ ...selection, dayOfYear }, location);
   if (daylight.polarNight) return null;
   const minimum = daylight.polarDay ? 0 : Math.ceil(daylight.sunriseMinutes);
   const maximum = daylight.polarDay
@@ -248,42 +221,15 @@ export const getSolarPosition = (
   location: SolarLocation
 ): SolarPosition => {
   const instant = solarSelectionToInstant(selection);
-  const offsetHours = getZonedUtcOffsetMinutes(selection) / 60;
-  const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
-    selection.year,
-    selection.dayOfYear,
-    selection.minutes
-  );
-  const trueSolarMinutes = normalizeMinutes(
-    selection.minutes +
-      equationOfTimeMinutes +
-      4 * location.longitude -
-      60 * offsetHours
-  );
-  const hourAngleRadians = degToRadNumeric(trueSolarMinutes / 4 - 180);
-  const latitudeRadians = degToRadNumeric(location.latitude);
-  const zenithCosine = clamp(
-    Math.sin(latitudeRadians) * Math.sin(declinationRadians) +
-      Math.cos(latitudeRadians) *
-        Math.cos(declinationRadians) *
-        Math.cos(hourAngleRadians),
-    -1,
-    1
-  );
-  const elevationDegrees = 90 - radToDegNumeric(Math.acos(zenithCosine));
-  const azimuthDegrees =
-    (radToDegNumeric(
-      Math.atan2(
-        Math.sin(hourAngleRadians),
-        Math.cos(hourAngleRadians) * Math.sin(latitudeRadians) -
-          Math.tan(declinationRadians) * Math.cos(latitudeRadians)
-      )
-    ) +
-      180 +
-      360) %
-    360;
+  const observer = createObserver(location);
+  const equatorial = Equator(Body.Sun, instant, observer, true, true);
+  const horizontal = Horizon(instant, observer, equatorial.ra, equatorial.dec);
 
-  return { instant, azimuthDegrees, elevationDegrees };
+  return {
+    instant,
+    azimuthDegrees: horizontal.azimuth,
+    elevationDegrees: horizontal.altitude,
+  };
 };
 
 const resolveShadowSimulationLocation = (

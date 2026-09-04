@@ -1,6 +1,5 @@
 import {
   DEFAULT_PRECOMPUTED_TEXTURES_URL,
-  getSunDirectionECEF,
   getSunLightColor,
   IRRADIANCE_TEXTURE_HEIGHT,
   IRRADIANCE_TEXTURE_WIDTH,
@@ -23,6 +22,8 @@ import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
 import { radToDegNumeric } from "@carma-units";
+
+import { getSolarDirectionECEF } from "../core/solar-position";
 
 const FALLBACK_SUN_COLOR = new THREE.Color("#fff2d8");
 const MIN_RADIANCE = 1e-8;
@@ -276,12 +277,12 @@ export const evaluateAtmosphericSkyFrame = (
   skyReference?: AtmosphericSkyReference
 ): AtmosphericSkyFrame =>
   buildAtmosphericSkyFrame(
-    getSunDirectionECEF(instant, new THREE.Vector3()),
+    new THREE.Vector3(...getSolarDirectionECEF(instant)),
     getObserverFrame(observer),
     skyReference
   );
 
-/** Convert a Takram ECEF direction into the shared scene's E/U/S axes. */
+/** Convert an ECEF direction into the shared scene's E/U/S axes. */
 export const ecefDirectionToSceneDirection = (
   directionECEF: THREE.Vector3,
   observer: AtmosphericObserver,
@@ -352,7 +353,7 @@ export const evaluateAtmosphericSunlight = (
 ): AtmosphericSunlightSample => {
   const observerFrame = getObserverFrame(observer);
   const { observerECEF, up } = observerFrame;
-  const sunDirectionECEF = getSunDirectionECEF(instant, new THREE.Vector3());
+  const sunDirectionECEF = new THREE.Vector3(...getSolarDirectionECEF(instant));
   const directionToSun = ecefDirectionToSceneDirectionWithFrame(
     sunDirectionECEF,
     observerFrame,
