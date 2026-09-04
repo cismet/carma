@@ -4,11 +4,14 @@ import type { AnnotationShape } from "./shape-tools";
 
 export type AnnotationAnchor = { lng: number; lat: number; zoom: number };
 
+/** the map zooms a drawing owns, half open; it renders 100 % at `from` */
+export type AnnotationCoverage = { from: number; to: number };
+
 export type AnnotationGroup = {
   id: string;
   locked: boolean;
-  /** the zoom band this drawing owns; unset until the grid exists */
-  band?: number;
+  /** claimed by the stroke that started the drawing; unset while untouched */
+  coverage?: AnnotationCoverage;
 };
 
 /** "zoom to this drawing", bumped per request so a repeat still lands */
@@ -27,11 +30,6 @@ export type AnnotationState = {
   undoVersion?: number;
   redoVersion?: number;
   zoomRequest?: AnnotationZoomRequest;
-  /**
-   * The map zoom where band 0 begins, set by the first drawing the user
-   * started; see `annotation-zoom-bands`. Unset means there is no grid yet.
-   */
-  zoomOrigin?: number;
 };
 
 /** how far the overlay keeps clear of each edge of the map area, in px */
@@ -61,14 +59,15 @@ export type AnnotationSyncLimits = {
  * excalidraw shows in its zoom widget. It keeps strokes in shape: never
  * thinner than `min`, never bolder than `max`.
  *
- * It also sets how wide a drawing is on the zoom axis, `log2(max / min)` zoom
- * levels, so 100–400 covers two. Leaving the window activates the drawing that
- * owns the levels the map arrived at, and starts one where none lives yet.
+ * A drawing is started at 100 %, so the window has to hold that: `min` at or
+ * below it, `max` at or above. It is also how far the drawing reaches on the
+ * zoom axis, `log2(min)` levels down and `log2(max)` up — 50–200 is one each
+ * way. Drawing at a zoom another drawing already covers joins that one.
  */
 export type AnnotationZoomRange = {
-  /** the thin end, in percent. Default: 100 */
+  /** the thin end, in percent, at most 100. Default: 50 */
   min?: number;
-  /** the bold end, in percent. Default: 400, excalidraw renders up to 3000 */
+  /** the bold end, in percent, at least 100. Default: 200 */
   max?: number;
 };
 
