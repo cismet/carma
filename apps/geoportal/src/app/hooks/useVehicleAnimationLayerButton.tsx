@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   VEHICLE_ANIMATION_LAYER_ID,
+  getVehicleAnimationRowSeed,
   useHasAddonStateProducer,
   useVehicleAnimationLayerRow,
 } from "@carma-mapping/addons";
@@ -29,6 +30,9 @@ export function useVehicleAnimationLayerButton() {
   useVehicleAnimationLayerRow({
     hasRow: Boolean(rowLayer),
     hasEngine,
+    // a row that came back out of the persisted layer stack carries its
+    // service in its tools; the lib hook relaunches it at boot
+    restoredSeed: getVehicleAnimationRowSeed(rowLayer),
     onAdd: (layer) => dispatch(appendLayer(layer)),
     // the readout carries the speed and the pause state, so the row goes stale
     // without the animation itself changing

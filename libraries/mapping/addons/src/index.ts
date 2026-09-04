@@ -98,6 +98,7 @@ export {
   useVehicleAnimationActions,
   useVehicleAnimationLauncher,
   useVehicleAnimationLayerRow,
+  getVehicleAnimationRowSeed,
   buildTrack,
   carParts,
   poseAt,

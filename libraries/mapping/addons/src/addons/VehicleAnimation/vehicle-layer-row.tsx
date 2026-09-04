@@ -4,7 +4,12 @@ import { faPause, faPlay } from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
-import { useVehicleAnimationActions } from "./vehicle-actions";
+import {
+  useVehicleAnimationActions,
+  useVehicleAnimationLauncher,
+  type VehicleAnimationDefinition,
+} from "./vehicle-actions";
+import type { VehicleAnimationConfig } from "./VehicleAnimation";
 
 export const VEHICLE_ANIMATION_LAYER_ID = "__vehicleAnimation__";
 
@@ -107,6 +112,31 @@ const buildInteractionButtons = (
   },
 ];
 
+/**
+ * The service a rehydrated row carries in its `vehicleAnimation` tool entry, if
+ * it is complete enough to relaunch. The row embeds it in the same encoding a
+ * workflow card uses, so the persisted layer stack is the only storage the
+ * animation needs to survive a reload.
+ */
+export const getVehicleAnimationRowSeed = (
+  layer?: { tools?: unknown } | null
+): VehicleAnimationDefinition | undefined => {
+  const tools = Array.isArray(layer?.tools) ? (layer.tools as unknown[]) : [];
+  const entry = tools.find(
+    (tool): tool is { kind: string; config?: VehicleAnimationConfig } =>
+      typeof tool === "object" &&
+      tool !== null &&
+      (tool as { kind?: unknown }).kind === "vehicleAnimation"
+  );
+  const config = entry?.config;
+  if (!config?.trackUrl) return undefined;
+  return {
+    ...config,
+    title: config.title ?? "Fahrzeug",
+    trackUrl: config.trackUrl,
+  };
+};
+
 export type UseVehicleAnimationLayerRowOptions = {
   /** whether the host currently shows the row */
   hasRow: boolean;
@@ -115,6 +145,12 @@ export type UseVehicleAnimationLayerRowOptions = {
    * outlived its route has nothing behind it and is dropped.
    */
   hasEngine: boolean;
+  /**
+   * The service found in a row restored from a persisted session, from
+   * `getVehicleAnimationRowSeed`. Relaunched once at boot instead of the row
+   * being dropped as stale.
+   */
+  restoredSeed?: VehicleAnimationDefinition;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
   /** the host keeps a snapshot, so a changed row has to be handed over again */
@@ -129,6 +165,7 @@ export type UseVehicleAnimationLayerRowOptions = {
 export const useVehicleAnimationLayerRow = ({
   hasRow,
   hasEngine,
+  restoredSeed,
   onAdd,
   onRemove,
   onUpdate,
@@ -137,6 +174,22 @@ export const useVehicleAnimationLayerRow = ({
     isOn,
     setOn,
     title,
+    trackUrl,
+    lengthMeters,
+    widthMeters,
+    sectionShares,
+    jointMeters,
+    mode,
+    stations,
+    dwellSeconds,
+    stationRadiusMeters,
+    showStations,
+    bodyColor,
+    jointColor,
+    outlineColor,
+    opacity,
+    showTrack,
+    trackColor,
     isPaused,
     isLoading,
     error,
@@ -145,6 +198,7 @@ export const useVehicleAnimationLayerRow = ({
     headwaySeconds,
     togglePaused,
   } = useVehicleAnimationActions();
+  const { startVehicle } = useVehicleAnimationLauncher();
 
   const label = statusLabel({
     isLoading,
@@ -167,8 +221,69 @@ export const useVehicleAnimationLayerRow = ({
         canPlay,
         togglePaused
       ),
+      // The row's rebirth config, in the encoding a workflow card uses. The row
+      // is what the host persists (the rehydrate filter keeps mode rows that
+      // carry tools), so a reload finds the service right here.
+      tools: trackUrl
+        ? [
+            {
+              kind: "vehicleAnimation",
+              config: {
+                title,
+                trackUrl,
+                lengthMeters,
+                widthMeters,
+                sectionShares,
+                jointMeters,
+                speedKmh,
+                mode,
+                ...(headwaySeconds > 0 && stations.length > 0
+                  ? {
+                      schedule: {
+                        headwaySeconds,
+                        dwellSeconds,
+                        stations,
+                        stationRadiusMeters,
+                        showStations,
+                      },
+                    }
+                  : {}),
+                bodyColor,
+                jointColor,
+                outlineColor,
+                opacity,
+                showTrack,
+                trackColor,
+              } satisfies VehicleAnimationConfig,
+            },
+          ]
+        : undefined,
     }),
-    [title, label, isPaused, canPlay, togglePaused]
+    [
+      title,
+      label,
+      isPaused,
+      canPlay,
+      togglePaused,
+      trackUrl,
+      lengthMeters,
+      widthMeters,
+      sectionShares,
+      jointMeters,
+      speedKmh,
+      mode,
+      headwaySeconds,
+      dwellSeconds,
+      stations,
+      stationRadiusMeters,
+      showStations,
+      bodyColor,
+      jointColor,
+      outlineColor,
+      opacity,
+      showTrack,
+      trackColor,
+    ]
   );
 
   const layerRef = useRef(layer);
@@ -188,6 +303,12 @@ export const useVehicleAnimationLayerRow = ({
       onUpdateRef.current?.(layer);
     }
   }, [hasEngine, hasRow, layer]);
+
+  /** whether the fleet has run in this session; a restore only happens before */
+  const everOnRef = useRef(isOn);
+  if (isOn) everOnRef.current = true;
+  const restoredSeedRef = useRef(restoredSeed);
+  restoredSeedRef.current = restoredSeed;
 
   const prevRef = useRef({ isOn, hasRow });
   /** what we last asked the host for, so a re-render before the host's state
@@ -218,6 +339,14 @@ export const useVehicleAnimationLayerRow = ({
       return;
     }
 
+    // a row restored from a persisted session, with its service in its tools:
+    // relaunch that service instead of removing the row as stale
+    if (!isOn && hasRow && !everOnRef.current && restoredSeedRef.current) {
+      requestedRef.current = null;
+      startVehicle(restoredSeedRef.current);
+      return;
+    }
+
     // removed via the row's ✕ while the animation is still on the map
     if (isOn && !hasRow && prev.hasRow) {
       requestedRef.current = null;
@@ -236,9 +365,10 @@ export const useVehicleAnimationLayerRow = ({
       return;
     }
 
+    // a restored row without a usable service in its tools ends up here: stale
     if (!isOn && requestedRef.current !== "remove") {
       requestedRef.current = "remove";
       onRemoveRef.current(VEHICLE_ANIMATION_LAYER_ID);
     }
-  }, [hasEngine, hasRow, isOn, setOn]);
+  }, [hasEngine, hasRow, isOn, setOn, startVehicle]);
 };

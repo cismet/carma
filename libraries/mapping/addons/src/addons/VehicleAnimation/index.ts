@@ -12,6 +12,7 @@ export {
 } from "./vehicle-actions";
 export {
   useVehicleAnimationLayerRow,
+  getVehicleAnimationRowSeed,
   VEHICLE_ANIMATION_LAYER,
   VEHICLE_ANIMATION_LAYER_ID,
   VEHICLE_ANIMATION_PLAY_ID,
