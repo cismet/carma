@@ -706,7 +706,11 @@ describe("shared Three.js scene registry", () => {
       [`${poiLayer.id}:text-color`, "#444444"],
       [`${poiLayer.id}:text-halo-color`, "#ffffff"],
     ]);
+    const terrain = Object.create({ getMeshFrameDelta: () => 42 }) as {
+      getMeshFrameDelta: (zoom: number) => number;
+    };
     const map = {
+      terrain,
       getStyle: vi.fn(() => ({
         layers: layers.filter(({ id }) => id !== sharedLayer.id),
       })),
@@ -755,8 +759,12 @@ describe("shared Three.js scene registry", () => {
     expect(layout.get(`${streetLayer.id}:text-size`)).toBe(18.2);
     expect(paint.get(`${poiLayer.id}:text-color`)).toBe("#444444");
     expect(paint.get(`${poiLayer.id}:text-halo-color`)).toBe("#ffffff");
+    // MapLibre's tile skirts stay out of the captured pass.
+    expect(terrain.getMeshFrameDelta(15)).toBe(0);
 
     lease.release();
+    expect(terrain.getMeshFrameDelta(15)).toBe(42);
+    expect(Object.hasOwn(terrain, "getMeshFrameDelta")).toBe(false);
     expect(layout.has("basemap:visibility")).toBe(false);
     expect(paint.get(`${streetLayer.id}:text-color`)).toBe("#333333");
     expect(layout.get(`${streetLayer.id}:text-size`)).toBe(13);
