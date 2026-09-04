@@ -36,6 +36,10 @@ void import("@excalidraw/excalidraw").then((module) => {
   getSceneVersion = module.getSceneVersion;
 });
 
+/** what the focus must not be taken away from, because the user is using it */
+const IN_USE =
+  "input, textarea, select, button, a[href], [contenteditable=true]";
+
 /** keeps a zoomed-to drawing clear of the map chrome, in px */
 const ZOOM_PADDING = 80;
 
@@ -310,6 +314,44 @@ export const AnnotationScene = ({
       libreMap.off("moveend", follow);
     };
   }, [api, editable, libreMap, reanchor]);
+
+  /**
+   * Excalidraw only sees a shortcut that happens inside its own container:
+   * without `handleKeyboardGlobally` its handler hangs off the container's
+   * `onKeyDown`, and the container is what carries the focus. A zoom hands the
+   * pencil to another scene, or moves the focus to a map control, while the
+   * keystrokes stay where they were — reaching a scene that is now in view
+   * mode, or nothing at all. So the focus follows the pencil, and follows the
+   * map back after a zoom, but is never taken off something in use.
+   */
+  useEffect(() => {
+    if (!box || !libreMap || !editable || !inSync) {
+      return;
+    }
+    const container = box.querySelector<HTMLElement>(".excalidraw");
+    if (!container) {
+      return;
+    }
+    const take = () => {
+      const active = document.activeElement;
+      if (active === container) {
+        return;
+      }
+      if (active instanceof HTMLElement && active.closest(IN_USE)) {
+        return;
+      }
+      // the map and the other scenes are ours to take it from, the app is not
+      if (active && active !== document.body && !host.contains(active)) {
+        return;
+      }
+      container.focus({ preventScroll: true });
+    };
+    take();
+    libreMap.on("moveend", take);
+    return () => {
+      libreMap.off("moveend", take);
+    };
+  }, [api, box, editable, host, inSync, libreMap]);
 
   /**
    * The wheel belongs to the map. Excalidraw would zoom its own camera, and
