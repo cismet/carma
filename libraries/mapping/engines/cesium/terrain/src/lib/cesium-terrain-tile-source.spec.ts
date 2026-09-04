@@ -134,6 +134,60 @@ describe("Cesium terrain tile source", () => {
     }
   });
 
+  it("retries browser transport failures without a status code", async () => {
+    vi.useFakeTimers();
+    try {
+      const { provider, terrainData } = buildProvider();
+      provider.requestTileGeometry
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce(terrainData);
+      fromUrl.mockResolvedValueOnce(provider);
+      const source = await acquireCesiumTerrainTileSource(
+        "https://example.test/terrain-browser-retry"
+      );
+
+      const pending = source.requestTile({ level: 2, x: 4, y: 1 });
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({
+        minimumHeightMeters: 100,
+        maximumHeightMeters: 200,
+      });
+      expect(provider.requestTileGeometry).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("backs off when Cesium's request scheduler is saturated", async () => {
+    vi.useFakeTimers();
+    try {
+      const { provider, terrainData } = buildProvider();
+      provider.requestTileGeometry
+        .mockReturnValueOnce(undefined as never)
+        .mockResolvedValueOnce(terrainData);
+      fromUrl.mockResolvedValueOnce(provider);
+      const source = await acquireCesiumTerrainTileSource(
+        "https://example.test/terrain-scheduler-backoff"
+      );
+
+      const pending = source.requestTile({ level: 2, x: 4, y: 1 });
+      expect(provider.requestTileGeometry).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(15);
+      expect(provider.requestTileGeometry).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(pending).resolves.toMatchObject({
+        minimumHeightMeters: 100,
+        maximumHeightMeters: 200,
+      });
+      expect(provider.requestTileGeometry).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("maps bounds to the provider pyramid and samples cached heights", async () => {
     const { provider, terrainData } = buildProvider();
     fromUrl.mockResolvedValueOnce(provider);

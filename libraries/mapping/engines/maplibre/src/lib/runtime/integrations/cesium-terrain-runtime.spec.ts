@@ -107,6 +107,67 @@ describe("buildCesiumTerrainRuntime", () => {
     });
   });
 
+  it("caps an excessive configured request concurrency per terrain origin", async () => {
+    const tileIds = Array.from({ length: 30 }, (_, x) => ({
+      level: 10,
+      x,
+      y: 0,
+    }));
+    const requestTile = vi.fn(() => new Promise(() => undefined));
+    const source = {
+      requestTile,
+      getTileGridIdsForBounds: vi.fn(() => tileIds),
+      getTileBounds: vi.fn(() => ({
+        west: 7,
+        south: 51,
+        east: 7.4,
+        north: 51.3,
+      })),
+      getLevelMaximumGeometricError: vi.fn(() => 0.00001),
+      getTileDataAvailable: vi.fn(() => true),
+      sampleHeight: vi.fn(() => 150),
+      trimCache: vi.fn(),
+    };
+    acquireCesiumTerrainTileSource.mockResolvedValue(source);
+    const runtime = buildCesiumTerrainRuntime(
+      "bounded-terrain",
+      "https://example.test/bounded-terrain",
+      [7.15, 51.256],
+      {
+        minimumLevel: 10,
+        maximumLevel: 10,
+        maxSelectionTiles: tileIds.length,
+        requestConcurrency: 256,
+      }
+    );
+    const map = {
+      getBounds: vi.fn(() => ({
+        getWest: () => 7,
+        getSouth: () => 51,
+        getEast: () => 7.4,
+        getNorth: () => 51.3,
+      })),
+      triggerRepaint: vi.fn(),
+    };
+    runtime.onAdd?.(map as never);
+    await vi.waitFor(() => {
+      expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    });
+    const lodCamera = new PerspectiveCamera(60, 1, 1, 10_000);
+    lodCamera.position.set(0, 1_000, 0);
+
+    runtime.update({
+      map: map as never,
+      renderCamera: new Camera(),
+      lodCamera,
+      lookTarget: new Vector3(),
+      viewport: new Vector2(1_000, 1_000),
+    });
+
+    await vi.waitFor(() => expect(requestTile).toHaveBeenCalledTimes(24));
+    runtime.dispose();
+  });
+
   it("interpolates coarse neighbor normals for finer LOD edge vertices", async () => {
     const coarseId = { level: 10, x: 532, y: 218 };
     const fineId = { level: 11, x: 533, y: 218 };

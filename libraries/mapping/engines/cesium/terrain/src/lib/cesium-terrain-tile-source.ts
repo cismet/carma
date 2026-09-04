@@ -37,6 +37,7 @@ export type CesiumTerrainTile = Readonly<{
 
 const TILE_RETRY_BASE_DELAY_MS = 250;
 const TILE_RETRY_MAX_DELAY_MS = 8_000;
+const REQUEST_SCHEDULER_RETRY_DELAY_MS = 16;
 /** Tries per tile before a broken transfer is given up on, the first one included. */
 const TILE_RETRY_MAX_ATTEMPTS = 12;
 
@@ -62,10 +63,6 @@ export const isConfirmedTerrainServerError = (error: unknown): boolean => {
     status !== 429
   );
 };
-
-/** Cesium rejects requests with a `RequestErrorEvent`; anything else is our own decoding. */
-const isTerrainRequestError = (error: unknown): boolean =>
-  !!error && typeof error === "object" && "statusCode" in error;
 
 const waitWithSignal = (ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -237,7 +234,6 @@ const buildSource = async (
       break;
     } catch (error) {
       if (
-        !isTerrainRequestError(error) ||
         isConfirmedTerrainServerError(error) ||
         attempt + 1 >= TILE_RETRY_MAX_ATTEMPTS
       ) {
@@ -296,15 +292,13 @@ const buildSource = async (
         try {
           let requested = provider.requestTileGeometry(id.x, id.y, id.level);
           while (!requested) {
-            await new Promise<void>((resolve) => setTimeout(resolve, 0));
-            signal?.throwIfAborted();
+            await waitWithSignal(REQUEST_SCHEDULER_RETRY_DELAY_MS, signal);
             requested = provider.requestTileGeometry(id.x, id.y, id.level);
           }
           return (await requested) as unknown as QuantizedMeshTerrainData;
         } catch (error) {
           signal?.throwIfAborted();
           if (
-            !isTerrainRequestError(error) ||
             isConfirmedTerrainServerError(error) ||
             attempt + 1 >= TILE_RETRY_MAX_ATTEMPTS
           ) {

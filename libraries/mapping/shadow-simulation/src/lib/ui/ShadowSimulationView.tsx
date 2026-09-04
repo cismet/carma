@@ -7,6 +7,8 @@ import {
 } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import "./shadow-simulation.css";
+
 import {
   faArrowRotateLeft,
   faCalendarDays,
@@ -868,12 +870,11 @@ const ShadowSimulationRuntime = ({
     if (!libreMap || !state.enabled) return;
     // URL state can enable the simulation before the style is ready.
     let scene: ShadowSimulationScene | null = null;
-    const styleReady = () =>
-      (libreMap as unknown as { style?: { light?: unknown } | null }).style
-        ?.light != null;
+    const styleReady = () => libreMap.isStyleLoaded();
     const tryBuild = () => {
       if (scene || !styleReady()) return;
       libreMap.off("styledata", tryBuild);
+      libreMap.off("style.load", tryBuild);
       scene = buildShadowSimulationScene(libreMap, {
         shadowAreaMeters,
         terrain,
@@ -884,9 +885,11 @@ const ShadowSimulationRuntime = ({
     tryBuild();
     if (!scene) {
       libreMap.on("styledata", tryBuild);
+      libreMap.on("style.load", tryBuild);
     }
     return () => {
       libreMap.off("styledata", tryBuild);
+      libreMap.off("style.load", tryBuild);
       shadowScene.current = null;
       scene?.dispose();
       scene = null;

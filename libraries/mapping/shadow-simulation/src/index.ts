@@ -9,5 +9,3 @@ export type {
   ShadowSimulationState,
 } from "./lib/ui/ShadowSimulationView";
 export type { MeshErrorTargetPixels } from "./lib/core/shadow-types";
-
-import "./lib/ui/shadow-simulation.css";

@@ -1349,11 +1349,15 @@ describe("shadow scene lighting integration", () => {
 
   it("adds configured Cesium terrain to the shared scene", async () => {
     const terrainRoot = new THREE.Group();
+    let resolveTerrainReady!: (loaded: boolean) => void;
+    const terrainReady = new Promise<boolean>((resolve) => {
+      resolveTerrainReady = resolve;
+    });
     const terrainRuntime = {
       id: "terrain",
       originLngLat: [7.15, 51.256] as [number, number],
       root: terrainRoot,
-      ready: Promise.resolve(true),
+      ready: terrainReady,
       update: vi.fn(),
       setShadowView: vi.fn(),
       setMaterialColor: vi.fn(),
@@ -1373,6 +1377,7 @@ describe("shadow scene lighting integration", () => {
         addRuntime,
         hasRuntime: vi.fn(() => true),
         removeRuntime,
+        setAccumulationController: sharedLayer.setAccumulationController,
         projectLngLatToScene: (
           [longitude, latitude]: [number, number],
           altitude = 0
@@ -1405,8 +1410,6 @@ describe("shadow scene lighting integration", () => {
         maximumLevel: 16,
       },
     });
-    await terrainRuntime.ready;
-
     expect(buildCesiumTerrainRuntime).toHaveBeenCalledWith(
       "shadow-simulation-cesium-terrain",
       "https://example.test/terrain",
@@ -1443,6 +1446,12 @@ describe("shadow scene lighting integration", () => {
       lookTarget: new THREE.Vector3(7_150, 150, 51_256),
       viewport: new THREE.Vector2(800, 600),
     });
+    expect(accumulationController?.active()).toBe(false);
+
+    resolveTerrainReady(true);
+    await terrainRuntime.ready;
+    expect(accumulationController?.active()).toBe(true);
+
     const shadowView = terrainRuntime.setShadowView.mock.lastCall?.[0];
     expect(shadowView.camera.name).toBe("shadow-simulation-shadow-camera");
     expect(
