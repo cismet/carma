@@ -41,8 +41,6 @@ export const parseDescription = (description: string) => {
   return result;
 };
 
-const parser = new DOMParser();
-
 const getIdFromUrl = (url: string) => {
   const urlObj = new URL(url);
 
@@ -61,7 +59,7 @@ export const extractInformation = async (layer: ExtendedLayer) => {
     try {
       const response = await fetch(urlWithoutWhitespace);
       const text = await response.text();
-      const xml = parser.parseFromString(text, "text/xml");
+      const xml = new DOMParser().parseFromString(text, "text/xml");
       const abstract = xml.getElementsByTagName("gmd:abstract")[0];
       if (abstract && abstract.textContent) {
         metadata.text = abstract.textContent;

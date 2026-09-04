@@ -1,11 +1,20 @@
 import { useEffect, useRef } from "react";
 
-import { buildTiles3dLayer } from "@carma-mapping/engines/threejs";
-import type { Tiles3dCustomLayer } from "@carma-mapping/engines/threejs";
-
 import { useLibreContext } from "../contexts/LibreContext";
 import { WUPPERTAL_TERRAIN_SOURCE_ID } from "../constants/wuppertalDefaultStyle";
 import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
+import {
+  notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
+  registerSharedThreeSceneRuntime,
+} from "../lib/runtime/integrations/shared-three-scene-content-registry";
+import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
+import {
+  buildThreeTilesRuntime,
+  THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  type ThreeTilesRuntime,
+} from "../lib/runtime/integrations/three-tiles-runtime";
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -59,6 +68,8 @@ export interface Tiles3dConfig {
    * being drawn wrong.
    */
   terrainMandatory?: boolean;
+  /** The tileset itself supplies terrain, so separate Three.js terrain is redundant. */
+  providesTerrain?: boolean;
 }
 
 export interface Tiles3dLayerManagerProps {
@@ -66,6 +77,10 @@ export interface Tiles3dLayerManagerProps {
   /** The opacity the layer bar asked of this layer, 0 to 1. */
   layerOpacity?: number;
 }
+
+export const resolveTiles3dErrorTarget = (
+  config: Pick<Tiles3dConfig, "errorTarget">
+): number => config.errorTarget ?? TILES_ERROR_TARGET_DEFAULT_PIXELS;
 
 /** Whether the map can still be asked about its layers, see ThreeLayerManager. */
 function mapIsUsable(map: unknown): boolean {
@@ -78,91 +93,82 @@ export function Tiles3dLayerManager({
   layerOpacity,
 }: Tiles3dLayerManagerProps) {
   const { map } = useLibreContext();
-  const layerRef = useRef<Tiles3dCustomLayer | null>(null);
+  const runtimeRef = useRef<ThreeTilesRuntime | null>(null);
   // Whether the terrain demand has been answered for this mount, see below.
   const terrainSettledRef = useRef(false);
-  // Read while building a layer, which happens outside the effect that follows
-  // the slider, so the first frame after a rebuild is already at the right
-  // opacity instead of flashing opaque.
+  // Read while building a layer, which happens outside the effects that follow
+  // the sliders and the style, so the first frame after a rebuild is already
+  // at the right settings instead of flashing opaque or coarse.
   const layerOpacityRef = useRef<number | undefined>(layerOpacity);
   layerOpacityRef.current = layerOpacity;
+  const configRef = useRef(config);
+  configRef.current = config;
 
-  // The origin is fixed when the layer is built, so it is deliberately not a
-  // dependency: re-anchoring it on every pan would tear the tileset down and
-  // load it again. A local metre frame is good enough across a city.
+  // Native style-declared tilesets use the shared Three.js scene as well. This
+  // is what lets the shadow add-on's directional light and shadow map reach
+  // them; without the add-on, the shared scene keeps its regular ambient-only
+  // rendering and no shadow light exists.
+  //
+  // The runtime is rebuilt only for another map, tileset or terrain role;
+  // everything else reaches it through its setters below, so a slider does not
+  // drop the tile cache.
   useEffect(() => {
-    if (!map || !config.tilesetUrl) return;
+    if (!map || !config.tilesetUrl || !mapIsUsable(map)) return;
 
-    const layerId = `3d-tiles-${config.tilesetUrl}`;
+    const initialConfig = configRef.current;
     const center = map.getCenter();
     const origin: [number, number] = [center.lng, center.lat];
-
-    // Adding the layer is a repeated affair, not a one-off. MapLibre cannot
-    // diff a style while a custom layer is attached, so every change to the
-    // layer list rebuilds the style from scratch and takes this layer off
-    // again. The style can also still be loading when the config first
-    // arrives, and `addLayer` refuses outright while it is. Both are answered
-    // by trying again on the events that mark the style usable; the layer
-    // object survives in between, so a re-attach costs no downloads.
-    const attach = () => {
-      if (!mapIsUsable(map) || !map.isStyleLoaded()) return;
-      if (map.getLayer(layerId)) return;
-
-      const layer =
-        layerRef.current ??
-        buildTiles3dLayer(layerId, config.tilesetUrl, origin, {
-          errorTarget: config.errorTarget,
-          cacheBudgetBytes: config.cacheBudgetBytes,
-          cacheOverflowBytes: config.cacheOverflowBytes,
-          opacity: (config.opacity ?? 1) * (layerOpacityRef.current ?? 1),
-          outline: config.outline,
-          outlineColor: config.outlineColor,
-          outlineOpacity: config.outlineOpacity,
-        });
-      layerRef.current = layer;
-
-      try {
-        map.addLayer(layer);
-        // What lets the camera restriction know the map has become three
-        // dimensional. A tileset stays out of the raycast registry, which
-        // holds layers that answer `raycast`, and this one does not.
-        add3dPresence(map, layerId);
-      } catch (err) {
-        // The layer is kept: the next styledata or idle tries again.
-        console.warn("[3D-TILES] addLayer failed:", err);
+    const runtimeId = `three-tiles-${config.tilesetUrl.replace(
+      /[^a-zA-Z0-9_-]+/g,
+      "-"
+    )}`;
+    const lease = acquireSharedThreeScene(map);
+    const runtime = buildThreeTilesRuntime(
+      runtimeId,
+      config.tilesetUrl,
+      origin,
+      {
+        requestConcurrency: THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+        cacheBudgetBytes: initialConfig.cacheBudgetBytes,
+        cacheOverflowBytes: initialConfig.cacheOverflowBytes,
+        outline: initialConfig.outline,
+        outlineColor: initialConfig.outlineColor,
+        outlineOpacity: initialConfig.outlineOpacity,
+        providesTerrain: config.providesTerrain,
+        shadowBuildingStyle: true,
+        onContentChanged: () => notifySharedThreeSceneContentChanged(map),
+        onRequestStateChange: () =>
+          notifySharedThreeSceneRequestStateChanged(map),
       }
-    };
-
-    attach();
-    map.on("styledata", attach);
-    map.on("idle", attach);
+    );
+    runtime.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
+    runtime.setOpacity(
+      (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
+    );
+    runtime.setOutlineVisible(initialConfig.outline ?? true);
+    runtimeRef.current = runtime;
+    lease.layer.addRuntime(runtime);
+    // What lets the camera restriction know the map has become three
+    // dimensional. A tileset stays out of the raycast registry, which
+    // holds layers that answer `raycast`, and this one does not.
+    add3dPresence(map, runtimeId);
+    const unregisterRuntime = registerSharedThreeSceneRuntime(map, runtime);
 
     return () => {
-      map.off("styledata", attach);
-      map.off("idle", attach);
-      const layer = layerRef.current;
-      layerRef.current = null;
-      if (!layer) return;
-      remove3dPresence(map, layerId);
-      // A panel that goes away destroys its map before this runs, and it took
-      // its layers with it.
-      if (mapIsUsable(map) && map.getLayer(layerId)) {
-        map.removeLayer(layerId);
+      runtimeRef.current = null;
+      remove3dPresence(map, runtimeId);
+      unregisterRuntime();
+      if (lease.layer.hasRuntime(runtime.id)) {
+        lease.layer.removeRuntime(runtime.id);
       }
-      layer.dispose();
+      lease.release();
     };
-  }, [
-    map,
-    config.tilesetUrl,
-    config.errorTarget,
-    config.opacity,
-    config.outline,
-    config.outlineColor,
-    config.outlineOpacity,
-  ]);
+  }, [map, config.tilesetUrl, config.providesTerrain]);
 
   // Terrain is only ever switched on here, never off again: the way back
   // belongs to the terrain control, and so does the setting it persists.
+  // Terrain-providing meshes still need MapLibre terrain so the host style's
+  // raster and vector content remains draped at the correct elevation.
   //
   // It is answered once per mount. The style can still be loading when the
   // config arrives, which is why this listens on `styledata` at all, but
@@ -170,7 +176,7 @@ export function Tiles3dLayerManager({
   // change is never a reason to switch it on a second time. Without that guard
   // the next change to the layer list would undo a deliberate switch-off.
   useEffect(() => {
-    if (!map || !config.terrainMandatory) return;
+    if (!map || (!config.terrainMandatory && !config.providesTerrain)) return;
 
     terrainSettledRef.current = false;
 
@@ -192,19 +198,38 @@ export function Tiles3dLayerManager({
     return () => {
       map.off("styledata", demandTerrain);
     };
-  }, [map, config.terrainMandatory]);
+  }, [map, config.terrainMandatory, config.providesTerrain]);
 
   useEffect(() => {
-    layerRef.current?.setOutlineVisible(config.outline ?? true);
+    runtimeRef.current?.setErrorTarget(
+      resolveTiles3dErrorTarget({ errorTarget: config.errorTarget })
+    );
+  }, [config.errorTarget]);
+
+  useEffect(() => {
+    runtimeRef.current?.setCacheBudget(config.cacheBudgetBytes, {
+      overflowBytes: config.cacheOverflowBytes,
+    });
+  }, [config.cacheBudgetBytes, config.cacheOverflowBytes]);
+
+  useEffect(() => {
+    runtimeRef.current?.setOutlineVisible(config.outline ?? true);
   }, [config.outline]);
+
+  useEffect(() => {
+    runtimeRef.current?.setOutlineStyle({
+      color: config.outlineColor ?? 0x000000,
+      opacity: config.outlineOpacity ?? 1,
+    });
+  }, [config.outlineColor, config.outlineOpacity]);
 
   // The layer bar's slider reaches a 2D layer as paint properties, which a
   // custom layer has none of, so it is multiplied in here the way the three.js
   // building layers do it.
   useEffect(() => {
-    const layer = layerRef.current;
-    if (!layer) return;
-    layer.setOpacity((config.opacity ?? 1) * (layerOpacity ?? 1));
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    runtime.setOpacity((config.opacity ?? 1) * (layerOpacity ?? 1));
   }, [config.opacity, layerOpacity]);
 
   return null;

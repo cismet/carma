@@ -49,6 +49,7 @@ import { createAngleCues } from "./parts/cues/angle-cues";
 import { createMaxPitchRing } from "./parts/cues/max-pitch-ring";
 import { createHemisphereSurface } from "./parts/sphere/hemisphere-surface";
 import { createWorldAxes } from "./parts/world-axes/world-axes";
+import { createVolumeBoxes } from "./parts/volume-boxes/volume-boxes";
 import {
   createPointToCanvasProjector,
   projectOrthogonalLineLabelAnchor,
@@ -76,6 +77,7 @@ import type {
   ViewStateVisualizerOverviewOptions,
   ViewStateVisualizerOptions,
   ViewStateVisualizerPrimitive,
+  ViewStateVisualizerVolumeBoxesOptions,
   ViewStateVisualizerVisualizedOptions,
   ViewStateVisualizerSize,
 } from "./view-state-visualizer-types";
@@ -375,6 +377,7 @@ export const createViewStateVisualizerPrimitive = (
     currentOverview.orbitPhi ?? GEOMETRY.overviewCamera.orbitPhiRad;
   let orbitTheta =
     currentOverview.orbitTheta ?? GEOMETRY.overviewCamera.rotationAroundUpRad;
+  let orbitScale = 1;
 
   // --- Cameras ---
   // Keep sphere visually constant: distance adjusts with FOV so projected size stays the same.
@@ -382,7 +385,8 @@ export const createViewStateVisualizerPrimitive = (
   const baseTangentProduct = resolveDefaultFrameHalfExtent();
   let currentFovDeg = initialFovDeg;
   const getOrbitRadius = () =>
-    baseTangentProduct / Math.tan(degToRadNumeric(currentFovDeg)! * 0.5);
+    (baseTangentProduct * orbitScale) /
+    Math.tan(degToRadNumeric(currentFovDeg)! * 0.5);
 
   const perspectiveCamera = createOverviewPerspectiveCamera(initialFovDeg);
 
@@ -404,6 +408,24 @@ export const createViewStateVisualizerPrimitive = (
   let useOrthographic = currentOverview.orthographic;
   const getActiveCamera = (): Camera =>
     useOrthographic ? orthographicCamera : perspectiveCamera;
+
+  const syncOrthographicProjection = (
+    overview: ResolvedViewStateVisualizerOverviewOptions
+  ) => {
+    const aspect = size.widthPx / size.heightPx;
+    const scaledHalfExtent = baseTangentProduct * orbitScale;
+    const halfWidth = overview.fitOrthographicWidth
+      ? scaledHalfExtent
+      : scaledHalfExtent * aspect;
+    const halfHeight = overview.fitOrthographicWidth
+      ? scaledHalfExtent / aspect
+      : scaledHalfExtent;
+    orthographicCamera.left = -halfWidth;
+    orthographicCamera.right = halfWidth;
+    orthographicCamera.top = halfHeight;
+    orthographicCamera.bottom = -halfHeight;
+    orthographicCamera.updateProjectionMatrix();
+  };
 
   const orbitPositionScratch = new Vector3();
 
@@ -558,6 +580,20 @@ export const createViewStateVisualizerPrimitive = (
     },
     opacity: MATERIALS.axes.opacity,
   });
+  const volumeBoxes = createVolumeBoxes(scene);
+  let currentVolumeBoxes: ViewStateVisualizerVolumeBoxesOptions =
+    options.volumeBoxes ?? { boxes: [] };
+  const applyVolumeBoxes = () => {
+    volumeBoxes.update(currentVolumeBoxes.boxes);
+    volumeBoxes.setDisplay({
+      visible:
+        (currentVolumeBoxes.visible ?? true) &&
+        currentVolumeBoxes.boxes.length > 0,
+      color: currentVolumeBoxes.color ?? "#0f766e",
+      opacity: currentVolumeBoxes.opacity ?? 0.55,
+    });
+  };
+  applyVolumeBoxes();
 
   const cameraViews: CameraViewPartInstance[] = [];
 
@@ -618,6 +654,7 @@ export const createViewStateVisualizerPrimitive = (
 
     worldAxes.setDisplay({
       visible: visibility.showWorldAxes,
+      showUp: display.worldAxes.showUp,
       lineWidthPx: lineWidths.worldAxesLineWidthPx,
       cueColors: {
         east: cueColors.east,
@@ -691,12 +728,7 @@ export const createViewStateVisualizerPrimitive = (
     currentFovDeg = clampedFovDeg;
     perspectiveCamera.fov = clampedFovDeg;
     perspectiveCamera.updateProjectionMatrix();
-    const aspect = size.widthPx / size.heightPx;
-    orthographicCamera.left = -baseTangentProduct * aspect;
-    orthographicCamera.right = baseTangentProduct * aspect;
-    orthographicCamera.top = baseTangentProduct;
-    orthographicCamera.bottom = -baseTangentProduct;
-    orthographicCamera.updateProjectionMatrix();
+    syncOrthographicProjection(overview);
     syncCamerasToOrbit();
   };
 
@@ -1111,8 +1143,6 @@ export const createViewStateVisualizerPrimitive = (
     const ndcY = 1 - ((e.clientY - rect.top) / rect.height) * 2;
     raycaster.setFromCamera(new Vector2(ndcX, ndcY), getActiveCamera());
 
-    const sphereHits = raycaster.intersectObject(hemisphereSurface.mesh, false);
-
     const dragTarget = cameraViews
       .flatMap((cameraView, cameraIndex) => {
         const dragTargetMesh = cameraView.readDragTargetMesh();
@@ -1162,7 +1192,7 @@ export const createViewStateVisualizerPrimitive = (
       );
       return;
     }
-    if (sphereHits.length > 0 && interactive) {
+    if (interactive) {
       beginOrbitDrag(e.pointerId, e.clientX, e.clientY);
       return;
     }
@@ -1192,10 +1222,21 @@ export const createViewStateVisualizerPrimitive = (
     canvas.style.cursor = POINTER_CURSOR.IDLE;
   };
 
+  const onWheel = (event: WheelEvent) => {
+    if (!interactive) return;
+    event.preventDefault();
+    orbitScale = clamp(orbitScale * Math.exp(event.deltaY * 0.001), 0.25, 6);
+    syncOrthographicProjection(currentOverview);
+    syncCamerasToOrbit();
+    const anchors = update(lastViewStates);
+    options.onInteraction?.(anchors);
+  };
+
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
   canvas.style.cursor = POINTER_CURSOR.IDLE;
 
   currentLabelAnchors = update(viewState);
@@ -1212,12 +1253,7 @@ export const createViewStateVisualizerPrimitive = (
     maxPitchRing.resize(size);
     altitude.resize(size);
     cameraViews.forEach((cameraView) => cameraView.resize(size));
-    const aspect = size.widthPx / size.heightPx;
-    orthographicCamera.left = -baseTangentProduct * aspect;
-    orthographicCamera.right = baseTangentProduct * aspect;
-    orthographicCamera.top = baseTangentProduct;
-    orthographicCamera.bottom = -baseTangentProduct;
-    orthographicCamera.updateProjectionMatrix();
+    syncOrthographicProjection(currentOverview);
     orthographicCamera.updateMatrixWorld();
 
     currentLabelAnchors = update(lastViewStates);
@@ -1288,6 +1324,15 @@ export const createViewStateVisualizerPrimitive = (
     }
   };
 
+  const setVolumeBoxes = (
+    nextVolumeBoxes: ViewStateVisualizerVolumeBoxesOptions
+  ) => {
+    currentVolumeBoxes = nextVolumeBoxes;
+    applyVolumeBoxes();
+    currentLabelAnchors = update(lastViewStates);
+    return currentLabelAnchors;
+  };
+
   // --- Dispose ---
   const dispose = () => {
     if (isCameraPoseDragging) {
@@ -1302,6 +1347,7 @@ export const createViewStateVisualizerPrimitive = (
     canvas.removeEventListener("pointermove", onPointerMove);
     canvas.removeEventListener("pointerup", onPointerUp);
     canvas.removeEventListener("pointercancel", onPointerUp);
+    canvas.removeEventListener("wheel", onWheel);
 
     renderer.dispose();
     hemisphereSurface.dispose();
@@ -1309,6 +1355,7 @@ export const createViewStateVisualizerPrimitive = (
     altitude.dispose();
     angleCues.dispose();
     worldAxes.dispose();
+    volumeBoxes.dispose();
     cameraViews.forEach((cameraView) => cameraView.dispose());
   };
 
@@ -1319,6 +1366,7 @@ export const createViewStateVisualizerPrimitive = (
     setOverview,
     setVisualized,
     setDisplay,
+    setVolumeBoxes,
     setInteractive,
     readLabelAnchors: () => currentLabelAnchors,
     dispose,

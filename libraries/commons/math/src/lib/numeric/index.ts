@@ -4,6 +4,7 @@ export { isZeroish } from "./is-zeroish";
 export { lerp } from "./lerp";
 export { parseFiniteNumber } from "./parse-finite-number";
 export { parseNumberCandidate } from "./parse-number-candidate";
+export { quantize } from "./quantize";
 export {
   interpolateTimedNumber,
   readTimedInterpolationEasedProgress,

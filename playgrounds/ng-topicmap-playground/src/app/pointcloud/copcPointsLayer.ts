@@ -1,19 +1,19 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 
+import type {
+  SharedThreeSceneFrame,
+  SharedThreeSceneRuntime,
+} from "@carma-mapping/engines/maplibre";
+
 import type { CopcNodeDescriptor, CopcPointChunk } from "./copcLoader";
 import {
   POINT_CLOUD_FRUSTUM_OVERSCAN,
   selectCopcNodesForFrustum,
 } from "./pointCloudFrustum";
 import { mapEnuOffsetToScene } from "./pointcloud-spatial-registration";
-import type {
-  PointcloudSceneFrame,
-  PointcloudSceneRuntime,
-} from "./pointcloudSceneLayer";
-
 // ─────────────────────────────────────────────────────────────
-//  Three.js point-cloud runtime attached to pointcloudSceneLayer.
+//  Three.js point-cloud runtime attached to the shared scene layer.
 //  It uses scene-local meters around an origin lng/lat,
 //  x east / y up / z south.
 //
@@ -75,7 +75,7 @@ export interface LayerColorSlot {
 /** 0 = normal, 1 = multiply, 2 = screen, 3 = overlay */
 export type LayerBlendMode = 0 | 1 | 2 | 3;
 
-export interface CopcPointsLayer extends PointcloudSceneRuntime {
+export interface CopcPointsLayer extends SharedThreeSceneRuntime {
   /** Append a decoded chunk as a THREE.Points object */
   addChunk: (chunk: CopcPointChunk) => void;
   /** Dispose one GPU-resident COPC node without dropping its caller cache. */
@@ -461,7 +461,10 @@ export function createCopcPointCloudVisualizer(
       softSplat || compositeMode !== "normal" || baseHasTransparency || faded;
     const premultipliedAlpha = softSplat || compositeMode === "multiply";
     const depthWrite =
-      !softSplat && compositeMode === "normal" && !baseHasTransparency && !faded;
+      !softSplat &&
+      compositeMode === "normal" &&
+      !baseHasTransparency &&
+      !faded;
     const blending =
       compositeMode === "multiply"
         ? THREE.MultiplyBlending
@@ -626,8 +629,10 @@ export function createCopcPointCloudVisualizer(
         (material.uniforms[`uSolidColor${suffix}`].value as THREE.Color).set(
           slot.solidColor ?? "#ffffff"
         );
-        material.uniforms[`uClipMin${suffix}`].value = slot.clipRangeMin ?? false;
-        material.uniforms[`uClipMax${suffix}`].value = slot.clipRangeMax ?? false;
+        material.uniforms[`uClipMin${suffix}`].value =
+          slot.clipRangeMin ?? false;
+        material.uniforms[`uClipMax${suffix}`].value =
+          slot.clipRangeMax ?? false;
         const categoryTexture = categoryTextures[suffix];
         if (slot.categoryLut) {
           (categoryTexture.image.data as Uint8Array).set(slot.categoryLut);
@@ -782,10 +787,12 @@ export function buildCopcPointsLayer(
   root.add(selectedNodeBoundsGroup);
   const clipFromLocal = new THREE.Matrix4();
   let frustumNodes: readonly CopcNodeDescriptor[] = [];
-  let onFrustumSelection: ((
-    nodeKeys: readonly string[],
-    stats: { visibleNodeCount: number; selectedPointCount: number }
-  ) => void) | null = null;
+  let onFrustumSelection:
+    | ((
+        nodeKeys: readonly string[],
+        stats: { visibleNodeCount: number; selectedPointCount: number }
+      ) => void)
+    | null = null;
   let frustumPointBudget = Number.POSITIVE_INFINITY;
   let minimumSpacingPixels = 0.75;
   let lastSelectionSignature = "";
@@ -794,15 +801,37 @@ export function buildCopcPointsLayer(
     for (const node of nodes) {
       const [minX, minY, minZ, maxX, maxY, maxZ] = node.boundsLocal;
       const corners = [
-        [minX, minY, minZ], [maxX, minY, minZ], [maxX, maxY, minZ], [minX, maxY, minZ],
-        [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ],
+        [minX, minY, minZ],
+        [maxX, minY, minZ],
+        [maxX, maxY, minZ],
+        [minX, maxY, minZ],
+        [minX, minY, maxZ],
+        [maxX, minY, maxZ],
+        [maxX, maxY, maxZ],
+        [minX, maxY, maxZ],
       ];
-      for (const [a, b] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]) {
+      for (const [a, b] of [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [4, 5],
+        [5, 6],
+        [6, 7],
+        [7, 4],
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7],
+      ]) {
         positions.push(...corners[a], ...corners[b]);
       }
     }
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3)
+    );
     return geometry;
   };
   const clearBoundsGroup = (group: THREE.Group) => {
@@ -827,7 +856,9 @@ export function buildCopcPointsLayer(
       onFrustumSelection = onSelection;
       clearBoundsGroup(nodeBoundsGroup);
       clearBoundsGroup(selectedNodeBoundsGroup);
-      nodeBoundsGroup.add(new THREE.LineSegments(buildBoundsGeometry(nodes), nodeBoundsMaterial));
+      nodeBoundsGroup.add(
+        new THREE.LineSegments(buildBoundsGeometry(nodes), nodeBoundsMaterial)
+      );
       lastSelectionSignature = "";
       map?.triggerRepaint();
     },
@@ -860,7 +891,7 @@ export function buildCopcPointsLayer(
       map = mapInstance;
     },
 
-    update(frame: PointcloudSceneFrame) {
+    update(frame: SharedThreeSceneFrame) {
       visualizer.setViewport(frame.viewport.x, frame.viewport.y);
 
       if (onFrustumSelection && frustumNodes.length > 0) {
@@ -883,10 +914,14 @@ export function buildCopcPointsLayer(
         if (signature !== lastSelectionSignature) {
           lastSelectionSignature = signature;
           clearBoundsGroup(selectedNodeBoundsGroup);
-          selectedNodeBoundsGroup.add(new THREE.LineSegments(
-            buildBoundsGeometry(frustumNodes.filter((node) => selection.keys.includes(node.key))),
-            selectedNodeBoundsMaterial
-          ));
+          selectedNodeBoundsGroup.add(
+            new THREE.LineSegments(
+              buildBoundsGeometry(
+                frustumNodes.filter((node) => selection.keys.includes(node.key))
+              ),
+              selectedNodeBoundsMaterial
+            )
+          );
           onFrustumSelection(selection.keys, {
             visibleNodeCount: selection.visibleNodeCount,
             selectedPointCount: selection.pointCount,

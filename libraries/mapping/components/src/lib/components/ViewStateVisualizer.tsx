@@ -12,6 +12,7 @@ import {
   type ViewStateVisualizerOverviewOptions,
   type ViewStateVisualizerPrimitive,
   type ViewStateVisualizerVisualizedOptions,
+  type ViewStateVisualizerVolumeBoxesOptions,
 } from "@carma-mapping/engines/three/primitives";
 import {
   useLayoutEffect,
@@ -51,6 +52,7 @@ export type ViewStateVisualizerProps = {
   interactive?: boolean;
   visualizedOptions?: ViewStateVisualizerVisualizedOptions;
   displayOptions?: ViewStateVisualizerDisplayOptions;
+  volumeBoxes?: ViewStateVisualizerVolumeBoxesOptions;
   activeCameraIndex?: number;
   /** Called when the user drags the camera cube to change bearing/pitch (radians). */
   onPoseChange?: (bearing: number, pitch: number) => void;
@@ -87,6 +89,7 @@ export const ViewStateVisualizer = ({
   interactive = false,
   visualizedOptions,
   displayOptions,
+  volumeBoxes,
   activeCameraIndex = 0,
   onPoseChange,
   onCameraPoseChange,
@@ -125,6 +128,9 @@ export const ViewStateVisualizer = ({
     );
   const resolvedOverviewOptionsRef = useRef(
     mergeViewStateVisualizerOverviewOptions(overviewOptions)
+  );
+  const volumeBoxesRef = useRef<ViewStateVisualizerVolumeBoxesOptions>(
+    volumeBoxes ?? { boxes: [] }
   );
   const resolvedVisualizedOptionsRef = useRef(
     mergeViewStateVisualizerVisualizedOptions(visualizedOptions)
@@ -332,6 +338,7 @@ export const ViewStateVisualizer = ({
   resolvedDisplayOptionsRef.current = resolvedDisplayOptionsWithCueColors;
   resolvedOverviewOptionsRef.current = resolvedOverviewOptions;
   resolvedVisualizedOptionsRef.current = resolvedVisualizedOptions;
+  volumeBoxesRef.current = volumeBoxes ?? { boxes: [] };
 
   const formatCssPx = (value: number) => `${value.toFixed(1)}px`;
   const readDefaultLabelPosition = (key: ViewStateVisualizerCueKey) => {
@@ -441,6 +448,13 @@ export const ViewStateVisualizer = ({
   useLayoutEffect(() => {
     const primitive = primitiveRef.current;
     if (!primitive) return;
+    const anchors = primitive.setVolumeBoxes(volumeBoxes ?? { boxes: [] });
+    if (anchors) applyLabelAnchors(anchors);
+  }, [volumeBoxes]);
+
+  useLayoutEffect(() => {
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
 
     const anchors = primitive.setActiveCameraIndex(activeCameraIndex);
     if (anchors) {
@@ -461,6 +475,7 @@ export const ViewStateVisualizer = ({
         interactive,
         visualized: resolvedVisualizedOptionsRef.current,
         display: resolvedDisplayOptionsRef.current,
+        volumeBoxes: volumeBoxesRef.current,
         activeCameraIndex,
         onInteraction: applyLabelAnchors,
         onPoseChange: (bearing, pitch) =>

@@ -3,9 +3,109 @@ import type { StyleSpecification } from "maplibre-gl";
 import type { DynamicStylingOptionsConfig, Layer } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
 import {
+  THREE_TILES_LAYER_TYPE,
+  THREE_TILES_SHADER_KIND,
+} from "@carma-mapping/engines/maplibre";
+import {
   applyDynamicStylingToStylesheet,
   buildFilterExpression,
 } from "@carma-mapping/components";
+
+type ThreeTilesLibreLayer = Extract<LibreLayer, { type: "three-tiles" }>;
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const hasMeshTag = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.some((tag) => typeof tag === "string" && tag.toLowerCase() === "mesh");
+
+const styleProvidesTerrainMesh = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") return false;
+  const style = value as {
+    metadata?: { carmaConf?: { layerInfo?: { tags?: unknown } } };
+    layers?: Array<{
+      metadata?: {
+        carmaConf?: { "3d"?: { providesTerrain?: unknown } };
+      };
+    }>;
+  };
+  return (
+    hasMeshTag(style.metadata?.carmaConf?.layerInfo?.tags) ||
+    style.layers?.some(
+      (styleLayer) =>
+        styleLayer.metadata?.carmaConf?.["3d"]?.providesTerrain === true
+    ) === true
+  );
+};
+
+/** Detect a terrain-providing mesh before or after its style was fetched. */
+export const layerProvidesTerrainMesh = (layer: Layer): boolean => {
+  if (!layer.visible) return false;
+  const directConfig = (layer.conf as Record<string, unknown> | undefined)
+    ?.threeTiles as Record<string, unknown> | undefined;
+  if (directConfig?.providesTerrain === true) return true;
+
+  const style = (layer.props as { style?: unknown } | undefined)?.style;
+  if (styleProvidesTerrainMesh(style)) return true;
+  if (typeof style !== "string") return false;
+
+  const stylePath = style.split(/[?#]/, 1)[0].toLowerCase();
+  return /\/mesh[^/]*\.style\.json$/.test(stylePath);
+};
+
+export const parseThreeTilesLayer = (
+  layer: Layer
+): ThreeTilesLibreLayer | null => {
+  const candidate = (layer.conf as Record<string, unknown> | undefined)
+    ?.threeTiles;
+  if (!candidate || typeof candidate !== "object") return null;
+
+  const config = candidate as Record<string, unknown>;
+  const shader = config.shader;
+  if (typeof config.url !== "string" || !shader || typeof shader !== "object") {
+    return null;
+  }
+
+  const shaderConfig = shader as Record<string, unknown>;
+  if (
+    shaderConfig.kind !== THREE_TILES_SHADER_KIND.CLAY ||
+    typeof shaderConfig.color !== "string"
+  ) {
+    return null;
+  }
+
+  const origin = config.origin;
+  const validOrigin =
+    Array.isArray(origin) && origin.length === 2 && origin.every(isFiniteNumber)
+      ? ([origin[0], origin[1]] as [number, number])
+      : undefined;
+
+  return {
+    type: THREE_TILES_LAYER_TYPE,
+    name: layer.title || layer.id,
+    carmaLayerId: layer.id,
+    url: config.url,
+    shader: {
+      kind: THREE_TILES_SHADER_KIND.CLAY,
+      color: shaderConfig.color,
+      ...(isFiniteNumber(shaderConfig.roughness)
+        ? { roughness: shaderConfig.roughness }
+        : {}),
+      ...(isFiniteNumber(shaderConfig.metalness)
+        ? { metalness: shaderConfig.metalness }
+        : {}),
+    },
+    ...(validOrigin ? { origin: validOrigin } : {}),
+    ...(isFiniteNumber(config.errorTarget)
+      ? { errorTarget: config.errorTarget }
+      : {}),
+    ...(isFiniteNumber(config.requestConcurrency)
+      ? { requestConcurrency: config.requestConcurrency }
+      : {}),
+    opacity: layer.opacity ?? 1,
+  };
+};
 
 const collectDynamicStylingConfigs = (
   layer: Layer
@@ -64,6 +164,11 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
 
   for (const layer of layers) {
     if (!layer.visible) {
+      continue;
+    }
+    const threeTilesLayer = parseThreeTilesLayer(layer);
+    if (threeTilesLayer) {
+      result.push(threeTilesLayer);
       continue;
     }
     if (!layer.props) {

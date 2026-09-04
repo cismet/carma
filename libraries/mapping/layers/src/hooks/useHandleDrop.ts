@@ -12,6 +12,11 @@ import { wmsCapabilitiesToCustomItems } from "../helper/buildCatalog";
 import type { CatalogDrop } from "../helper/buildCatalog";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { useLiveDeployment } from "@carma-commons/utils";
+import {
+  isJsonUrl,
+  replaceVectorTileServerPlaceholders,
+  resolveDroppedUrl,
+} from "../helper/resolve-dropped-url";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -54,12 +59,6 @@ export const useHandleDrop = ({
     }
   };
 
-  const preTransformJson = (input: string) => {
-    return input
-      .replaceAll("__SERVER_URL__", vectorTileServerUrl)
-      .replaceAll("__server_url__", vectorTileServerUrl);
-  };
-
   const handleAddToMap = async (newItem: Item, instant = false) => {
     const existingLayer = activeLayers.find((layer) => layer.id === newItem.id);
 
@@ -99,7 +98,10 @@ export const useHandleDrop = ({
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
           if (typeof fileContent === "string") {
-            const processedContent = preTransformJson(fileContent);
+            const processedContent = replaceVectorTileServerPlaceholders(
+              fileContent,
+              vectorTileServerUrl
+            );
 
             const jsonData = JSON.parse(processedContent);
 
@@ -156,7 +158,7 @@ export const useHandleDrop = ({
         .then((data) => {
           if (data.metadata && data.metadata.carmaConf.layerInfo) {
             const layerInfo = data.metadata.carmaConf.layerInfo;
-            instant = instant || (data.metaData?.carmaConf?.instant ?? false);
+            instant = instant || (data.metadata?.carmaConf?.instant ?? false);
             newItem = {
               ...newItem,
               id: importedId,
@@ -193,7 +195,10 @@ export const useHandleDrop = ({
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
           if (typeof fileContent === "string") {
-            const processedContent = preTransformJson(fileContent);
+            const processedContent = replaceVectorTileServerPlaceholders(
+              fileContent,
+              vectorTileServerUrl
+            );
 
             const jsonData = JSON.parse(processedContent);
             let newItem = {
@@ -239,7 +244,7 @@ export const useHandleDrop = ({
         .then((data) => {
           if (data.metadata && data.metadata.carmaConf.layerInfo) {
             const layerInfo = data.metadata.carmaConf.layerInfo;
-            instant = data.metaData?.carmaConf?.instant ?? false;
+            instant = data.metadata?.carmaConf?.instant ?? false;
             newItem = {
               ...newItem,
               ...layerInfo,
@@ -270,7 +275,7 @@ export const useHandleDrop = ({
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
-      const url = event.dataTransfer?.getData("URL");
+      const url = resolveDroppedUrl(event.dataTransfer);
 
       const file = event?.dataTransfer?.files[0];
 
@@ -280,7 +285,7 @@ export const useHandleDrop = ({
       ) {
         handleTwinFile(file ?? null, url ?? null);
       } else {
-        if (url && url.endsWith(".json")) {
+        if (url && isJsonUrl(url)) {
           handleJsonStyle(null, url);
         } else if (url) {
           fetch(url)
@@ -349,12 +354,12 @@ export const useHandleDrop = ({
       event.preventDefault();
     };
 
-    window.addEventListener("drop", handleDrop);
-    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("drop", handleDrop, true);
+    window.addEventListener("dragover", handleDragOver, true);
 
     return () => {
-      window.removeEventListener("drop", handleDrop);
-      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("drop", handleDrop, true);
+      window.removeEventListener("dragover", handleDragOver, true);
     };
   }, [
     setOpen,

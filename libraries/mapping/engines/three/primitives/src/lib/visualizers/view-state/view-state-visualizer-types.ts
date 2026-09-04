@@ -13,6 +13,19 @@ export type ViewStateVisualizerCameraModel =
 
 export type ViewStateVisualizerInput = ViewState | readonly ViewState[];
 
+export type ViewStateVisualizerVolumeBox = Readonly<{
+  minimum: readonly [number, number, number];
+  maximum: readonly [number, number, number];
+  color?: string;
+}>;
+
+export type ViewStateVisualizerVolumeBoxesOptions = Readonly<{
+  boxes: readonly ViewStateVisualizerVolumeBox[];
+  visible?: boolean;
+  color?: string;
+  opacity?: number;
+}>;
+
 export type ViewStateVisualizerCueKey =
   | "bearing"
   | "pitch"
@@ -36,11 +49,17 @@ export type ViewStateVisualizerOverviewOptions = {
   fovDeg?: number;
   /** Use orthographic projection for the overview camera. */
   orthographic?: boolean;
+  /** Keep the horizontal orthographic extent fixed instead of the vertical extent. */
+  fitOrthographicWidth?: boolean;
 };
 
 export type ViewStateVisualizerVisualizedOptions = {
   maxPitch?: Radians;
   imagePlaneDistance?: number;
+  /** Place the marker from the stored ECEF camera position, not orbit angles. */
+  useCameraPosition?: boolean;
+  /** Shared number of world meters represented by one visualizer unit. */
+  worldScaleMeters?: number;
 };
 
 export type ViewStateVisualizerSurfaceDisplayOptions = {
@@ -62,6 +81,7 @@ export type ViewStateVisualizerSurfaceDisplayOptions = {
 
 export type ViewStateVisualizerAxisDisplayOptions = {
   show?: boolean;
+  showUp?: boolean;
   lineWidthPx?: number;
 };
 
@@ -135,11 +155,14 @@ export type ResolvedViewStateVisualizerOverviewOptions = {
   orbitPhi?: number;
   fovDeg: number;
   orthographic: boolean;
+  fitOrthographicWidth: boolean;
 };
 
 export type ResolvedViewStateVisualizerVisualizedOptions = {
   maxPitch: Radians | null;
   imagePlaneDistance: number | null;
+  useCameraPosition: boolean;
+  worldScaleMeters: number | null;
 };
 
 export type ResolvedViewStateVisualizerSurfaceDisplayOptions = {
@@ -152,6 +175,7 @@ export type ResolvedViewStateVisualizerSurfaceDisplayOptions = {
 
 export type ResolvedViewStateVisualizerAxisDisplayOptions = {
   show: boolean;
+  showUp: boolean;
   lineWidthPx: number;
 };
 
@@ -246,6 +270,7 @@ export type ViewStateVisualizerOptions = {
   interactive?: boolean;
   visualized?: ViewStateVisualizerVisualizedOptions;
   display?: ViewStateVisualizerDisplayOptions;
+  volumeBoxes?: ViewStateVisualizerVolumeBoxesOptions;
   activeCameraIndex?: number;
   onInteraction?: (labelAnchors: ViewStateVisualizerLabelAnchors) => void;
   /** Called when the user drags the camera cube to change bearing/pitch (radians). */
@@ -287,6 +312,9 @@ export type ViewStateVisualizerPrimitive = {
   ) => ViewStateVisualizerLabelAnchors | null;
   setDisplay: (
     options: ViewStateVisualizerDisplayOptions
+  ) => ViewStateVisualizerLabelAnchors | null;
+  setVolumeBoxes: (
+    options: ViewStateVisualizerVolumeBoxesOptions
   ) => ViewStateVisualizerLabelAnchors | null;
   setInteractive: (interactive: boolean) => void;
   readLabelAnchors: () => ViewStateVisualizerLabelAnchors | null;

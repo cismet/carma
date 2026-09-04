@@ -225,11 +225,72 @@ export {
   DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
   DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
 } from "./constants/cameraDefaults";
+export {
+  MAPLIBRE_EVENT,
+  type MapLibreEventName,
+} from "./constants/mapEvents";
 
 // Three.js layer management
-export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";
+export { ThreeLayerManager } from "./components/ThreeLayerManager";
+export { getGenericThreeLayers as get3dLayers } from "./lib/runtime/integrations/generic-three-layer-registry";
 export { has3dLayers } from "./utils/threeDPresence";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
+
+export {
+  buildSharedThreeSceneLayer,
+  getSharedThreeShadowViewSignature,
+} from "./lib/runtime/integrations/shared-three-scene-layer";
+export type {
+  SharedThreeSceneFrame,
+  SharedThreeSceneLayer,
+  SharedThreeSceneRuntime,
+  SharedThreeSceneShadowView,
+  SharedThreeSceneTileVolume,
+} from "./lib/runtime/integrations/shared-three-scene-layer";
+export {
+  createSharedThreeSceneCameraPreview,
+  type SharedThreeSceneCameraPreview,
+} from "./lib/runtime/integrations/shared-three-scene-camera-preview";
+export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
+export {
+  getSharedThreeSceneRuntimes,
+  notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
+  registerSharedThreeSceneRuntime,
+  subscribeSharedThreeSceneContent,
+  subscribeSharedThreeSceneRequestState,
+} from "./lib/runtime/integrations/shared-three-scene-content-registry";
+export {
+  getGenericThreeLayers,
+  notifyGenericThreeLayerContentChanged,
+  registerGenericThreeLayer,
+  subscribeGenericThreeLayers,
+  unregisterGenericThreeLayer,
+} from "./lib/runtime/integrations/generic-three-layer-registry";
+export type { ThreeTilesLayer } from "./lib/runtime/integrations/three-tiles-layer";
+export {
+  THREE_TILES_LAYER_TYPE,
+  THREE_TILES_SHADER_KIND,
+} from "./lib/runtime/integrations/three-tiles-layer";
+export {
+  buildThreeTilesRuntime,
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_ERROR_TARGET_MAX_PIXELS,
+  TILES_ERROR_TARGET_MIN_PIXELS,
+} from "./lib/runtime/integrations/three-tiles-runtime";
+export type {
+  ImageProjector,
+  ThreeTilesRuntime,
+} from "./lib/runtime/integrations/three-tiles-runtime";
+export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export { isSharedThreeTerrainLoading } from "./lib/runtime/integrations/shared-three-terrain-registry";
+export {
+  acquireMapLibreTerrainMeshComposition,
+  isMapStyleContourLineLayer,
+  MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
+  suppressMapLibreRegularStyleLayers,
+} from "./lib/runtime/integrations/map-style-layer-suppression";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

@@ -9,6 +9,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   faFloppyDisk,
+  faPause,
+  faPlay,
   faTimes,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
@@ -25,6 +27,7 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
+import { useAddonState } from "@carma-mapping/addons";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
@@ -32,9 +35,11 @@ import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import {
   getActiveInteractionButtonID,
   getActiveInteractionLayerID,
+  getSelectedLayerIndex,
   removeLayer,
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
+  setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import type { AppDispatch } from "../../store";
 import {
@@ -43,6 +48,8 @@ import {
 } from "../annotations/cesium-annotations.constants";
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
+import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
 import {
   AdhocModelFlyToLayerbarAction,
   AdhocModelLayerbarActions,
@@ -358,7 +365,6 @@ const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
       actionSlot={<LayerbarActionGroup actions={actions} />}
       closeButton={{ icon: faTimes, onClick: handleClose }}
       closeButtonVariant="compact"
-      interactionActivationMode="button"
       overflowVisible
     />
   );
@@ -385,6 +391,74 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
         onCancel={() => setShowDeleteConfirmation(false)}
       />
     </>
+  );
+};
+
+const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const [shadowDate] = useAddonState("shadowDate");
+  const selectedLayerIndex = useSelector(getSelectedLayerIndex);
+  const infoViewOpen = selectedLayerIndex === props.index;
+
+  const handleClose = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (shadowState) {
+        setShadowState({
+          ...shadowState,
+          enabled: false,
+          isAnimating: false,
+        });
+      }
+      if (infoViewOpen) {
+        dispatch(setSelectedLayerIndexNoSelection());
+      }
+      dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
+    },
+    [dispatch, infoViewOpen, setShadowState, shadowState]
+  );
+
+  return (
+    <GeoportalLayerButton
+      {...props}
+      title={props.title}
+      actionSlot={
+        shadowState && shadowDate ? (
+          <div className="flex items-center">
+            <span className="mx-1.5 h-5 w-px bg-neutral-200" />
+            <span className="whitespace-nowrap px-1.5 text-sm tabular-nums text-neutral-600">
+              {formatShadowSelection(shadowDate)}
+            </span>
+            <LayerbarActionGroup
+              actions={[
+                {
+                  id: "toggle-animation",
+                  title: shadowState.isAnimating
+                    ? "Animation pausieren"
+                    : "Animation starten",
+                  icon: (
+                    <FontAwesomeIcon
+                      icon={shadowState.isAnimating ? faPause : faPlay}
+                      className="text-amber-600"
+                    />
+                  ),
+                  active: shadowState.isAnimating ?? false,
+                  onClick: () =>
+                    setShadowState({
+                      ...shadowState,
+                      isAnimating: !shadowState.isAnimating,
+                    }),
+                },
+              ]}
+            />
+          </div>
+        ) : null
+      }
+      closeButton={{ icon: faTimes, onClick: handleClose }}
+      closeButtonVariant="compact"
+      overflowVisible
+    />
   );
 };
 
@@ -422,6 +496,10 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
 
   if (props.id === MEASUREMENT_LAYER_ID) {
     return <MeasurementLayerButton {...props} />;
+  }
+
+  if (props.id === SHADOW_SIMULATION_LAYER_ID) {
+    return <ShadowSimulationLayerButton {...props} />;
   }
 
   const isAdhocModelLayer =

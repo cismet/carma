@@ -17,6 +17,14 @@ import {
 } from "../utils/styleComposer";
 import type { LibreLayer } from "../components/LibreMap";
 import { getVectorMapping } from "../utils/styleBuilder";
+import {
+  notifyMapLibreStyleCompositionReady,
+  notifyMapLibreStyleCompositionStarted,
+} from "../lib/runtime/integrations/map-style-layer-suppression";
+import {
+  getLibreLayerCompositionKey,
+  getLibreLayerSubStyleId,
+} from "../lib/style-composition/libre-layer-identity";
 
 export interface UseImperativeStyleOptions {
   /** When false the hook is inert (merged mode is active). */
@@ -38,52 +46,6 @@ export interface UseImperativeStyleOptions {
   ) => void;
   onStyleReady: (style: StyleSpecification) => void;
   onHidingManagerRefresh: () => void;
-}
-
-/** Compute a stable key for a LibreLayer entry for diff purposes. */
-function layerKey(layer: LibreLayer, index: number): string {
-  switch (layer.type) {
-    case "vector":
-      return `vector::${layer.name}::${
-        typeof layer.style === "string" ? layer.style : "inline"
-      }`;
-    case "geojson":
-      return `geojson::${layer.name}::${layer.data}`;
-    case "wms":
-    case "wmts":
-      return `${layer.type}::${layer.url}::${layer.layers}::${
-        layer.nonTiled ? "nt" : "tiled"
-      }`;
-    case "tiles":
-      return `tiles::${layer.name}::${layer.url}`;
-    case "cog":
-      return `cog::${layer.name}::${layer.url}`;
-    default:
-      return `unknown::${index}`;
-  }
-}
-
-/** Derive a sub-style ID that matches the key used by StyleComposer.managed. */
-function subStyleId(layer: LibreLayer, index: number): string {
-  switch (layer.type) {
-    case "vector": {
-      // Must match the layerId used in StyleComposer.addVectorSubStyle
-      return typeof layer.style === "string"
-        ? slugifyUrl(layer.style)
-        : layer.name;
-    }
-    case "geojson":
-      return `geojson-${layer.name}-${index}`;
-    case "wms":
-    case "wmts":
-      return `raster-${layer.layers.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
-    case "tiles":
-      return `tiles-${layer.name.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
-    case "cog":
-      return `cog-${layer.name}-${index}`;
-    default:
-      return `layer-${index}`;
-  }
 }
 
 export function useImperativeStyle({
@@ -128,8 +90,8 @@ export function useImperativeStyle({
 
         for (let i = 0; i < effectiveLayers.length; i++) {
           const layer = effectiveLayers[i];
-          const id = subStyleId(layer, i);
-          const key = layerKey(layer, i);
+          const id = getLibreLayerSubStyleId(layer, i);
+          const key = getLibreLayerCompositionKey(layer, i);
           newKeys.push(key);
           newIds.push(id);
 
@@ -197,7 +159,10 @@ export function useImperativeStyle({
             l.infoboxMapping &&
             l.infoboxMapping.length > 0
           ) {
-            const geoId = subStyleId(l, vectorBackgroundLayers.length + idx);
+            const geoId = getLibreLayerSubStyleId(
+              l,
+              vectorBackgroundLayers.length + idx
+            );
             mapping[l.name] = l.infoboxMapping;
             mapping[`${geoId}::geojson`] = l.infoboxMapping;
           }
@@ -219,6 +184,7 @@ export function useImperativeStyle({
         if (filterFunction) {
           filterFunction(mapInst, layers);
         }
+        notifyMapLibreStyleCompositionReady(mapInst);
       } finally {
         isApplyingRef.current = false;
       }
@@ -274,6 +240,7 @@ export function useImperativeStyle({
         ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
       };
 
+      notifyMapLibreStyleCompositionStarted(map);
       map.setStyle(baseStyle);
 
       // Wait for style to load, then apply all layers
@@ -315,8 +282,8 @@ export function useImperativeStyle({
 
       const effectiveLayers = [...vectorBackgroundLayers, ...(layers || [])];
 
-      const newKeys = effectiveLayers.map((l, i) => layerKey(l, i));
-      const newIds = effectiveLayers.map((l, i) => subStyleId(l, i));
+      const newKeys = effectiveLayers.map(getLibreLayerCompositionKey);
+      const newIds = effectiveLayers.map(getLibreLayerSubStyleId);
       const oldKeys = prevKeysRef.current;
       const oldIds = prevIdsRef.current;
 
@@ -325,6 +292,7 @@ export function useImperativeStyle({
         newKeys.length === oldKeys.length &&
         newKeys.every((k, i) => k === oldKeys[i])
       ) {
+        let opacityChanged = false;
         for (let i = 0; i < effectiveLayers.length; i++) {
           const layer = effectiveLayers[i];
           const id = newIds[i];
@@ -334,6 +302,7 @@ export function useImperativeStyle({
             "opacityTransition" in layer ? layer.opacityTransition : undefined;
           const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
           if (newOpacity !== prevOpacity) {
+            opacityChanged = true;
             if (layer.type === "vector") {
               composer.updateVectorOpacity(id, newOpacity, transition);
             } else if (
@@ -347,6 +316,7 @@ export function useImperativeStyle({
             prevOpacitiesRef.current.set(id, newOpacity);
           }
         }
+        if (opacityChanged) notifyMapLibreStyleCompositionReady(map);
         return;
       }
 
@@ -440,7 +410,10 @@ export function useImperativeStyle({
           l.infoboxMapping &&
           l.infoboxMapping.length > 0
         ) {
-          const geoId = subStyleId(l, vectorBackgroundLayers.length + idx);
+          const geoId = getLibreLayerSubStyleId(
+            l,
+            vectorBackgroundLayers.length + idx
+          );
           mapping[l.name] = l.infoboxMapping;
           mapping[`${geoId}::geojson`] = l.infoboxMapping;
         }
@@ -452,6 +425,7 @@ export function useImperativeStyle({
       if (filterFunction) {
         filterFunction(map, layers);
       }
+      notifyMapLibreStyleCompositionReady(map);
     };
 
     void diffAndApply();

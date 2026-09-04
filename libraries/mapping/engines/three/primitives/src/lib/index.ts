@@ -5,3 +5,10 @@ export type {
   UtmGridSurface,
   UtmGridSurfaceOptions,
 } from "./common/utm-grid-surface";
+export { createProjectedTerrainTileGeometry } from "./common/terrain-tile-geometry";
+export type {
+  ProjectedTerrainTileBounds,
+  ProjectedTerrainTileGeometryOptions,
+  ProjectedTerrainTileSource,
+  TerrainTileProjector,
+} from "./common/terrain-tile-geometry";

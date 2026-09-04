@@ -1,0 +1,203 @@
+import {
+  getAltitudeCorrectionOffset,
+  SKY_RENDER_ORDER,
+  SkyMaterial,
+} from "@takram/three-atmosphere";
+import * as THREE from "three";
+
+import type {
+  AtmosphericSkyFrame,
+  AtmosphericSkyTextures,
+} from "./atmospheric-sunlight";
+import { getAtmosphericSkyFrameValidationError } from "./atmospheric-sunlight";
+
+export const ATMOSPHERIC_SKY_NAME = "shadow-simulation-atmospheric-sky";
+export const ATMOSPHERIC_DISPLAY_EXPOSURE = 2;
+
+const OUTPUT_ENCODING_UNIFORM = "carmaOutputToSrgb";
+const DISPLAY_EXPOSURE_UNIFORM = "carmaDisplayExposure";
+const cameraPositionECEFScratch = new THREE.Vector3();
+
+class ObserverPositionSkyMaterial extends SkyMaterial {
+  readonly observerScenePosition = new THREE.Vector3();
+  hasObserverScenePosition = false;
+  viewCamera: THREE.Camera | null = null;
+
+  override copyCameraSettings(camera: THREE.Camera): void {
+    super.copyCameraSettings(camera);
+    if (!this.hasObserverScenePosition) return;
+
+    const uniforms = this.uniforms;
+    uniforms.cameraPosition.value.copy(this.observerScenePosition);
+    if (!this.correctAltitude) return;
+
+    const cameraPositionECEF = cameraPositionECEFScratch
+      .copy(this.observerScenePosition)
+      .applyMatrix4(uniforms.inverseEllipsoidMatrix.value)
+      .sub(uniforms.ellipsoidCenter.value);
+    getAltitudeCorrectionOffset(
+      cameraPositionECEF,
+      this.atmosphere.bottomRadius,
+      this.ellipsoid,
+      uniforms.altitudeCorrection.value
+    );
+  }
+
+  override onBeforeRender(
+    renderer: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+    geometry: THREE.BufferGeometry,
+    object: THREE.Object3D,
+    group: THREE.Group
+  ): void {
+    super.onBeforeRender(
+      renderer,
+      scene,
+      this.viewCamera ?? camera,
+      geometry,
+      object,
+      group
+    );
+  }
+}
+
+const addDisplayTransform = (material: SkyMaterial) => {
+  material.uniforms[OUTPUT_ENCODING_UNIFORM] = new THREE.Uniform(false);
+  material.uniforms[DISPLAY_EXPOSURE_UNIFORM] = new THREE.Uniform(
+    ATMOSPHERIC_DISPLAY_EXPOSURE
+  );
+  material.fragmentShader = material.fragmentShader
+    .replace(
+      "precision highp sampler3D;",
+      `precision highp sampler3D;
+
+uniform bool ${OUTPUT_ENCODING_UNIFORM};
+uniform float ${DISPLAY_EXPOSURE_UNIFORM};
+
+vec4 carmaLinearToSrgb(vec4 value) {
+  return vec4(
+    mix(
+      pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055),
+      value.rgb * 12.92,
+      vec3(lessThanEqual(value.rgb, vec3(0.0031308)))
+    ),
+    value.a
+  );
+}`
+    )
+    .replace(
+      "vec3 rayDirection = normalize(vRayDirection);",
+      `vec3 rayDirection = normalize(vRayDirection);
+
+  // The actual ground is rendered by streamed Three geometry. Do not let the
+  // atmosphere shader add a second ellipsoid/zero-ground backdrop below it.
+  // Rays that would hit that synthetic ground sample the tangent atmosphere
+  // instead, so missing terrain reveals sky rather than a dark plane.
+  if (rayIntersectsGround(cameraPosition, rayDirection)) {
+    vec3 localUp = normalize(cameraPosition);
+    float radius = max(length(cameraPosition), u_bottom_radius);
+    float tangentMu = -sqrt(max(
+      0.0,
+      1.0 - u_bottom_radius * u_bottom_radius / (radius * radius)
+    )) + 1e-5;
+    vec3 tangent = rayDirection - localUp * dot(rayDirection, localUp);
+    if (dot(tangent, tangent) < 1e-8) {
+      tangent = normalize(cross(localUp, vec3(1.0, 0.0, 0.0)));
+      if (dot(tangent, tangent) < 1e-8) {
+        tangent = normalize(cross(localUp, vec3(0.0, 0.0, 1.0)));
+      }
+    } else {
+      tangent = normalize(tangent);
+    }
+    rayDirection = normalize(
+      tangent * sqrt(max(0.0, 1.0 - tangentMu * tangentMu)) +
+      localUp * tangentMu
+    );
+  }`
+    )
+    .replace(
+      "outputColor.a = 1.0;",
+      `outputColor.rgb *= ${DISPLAY_EXPOSURE_UNIFORM};
+  outputColor.a = 1.0;
+  if (${OUTPUT_ENCODING_UNIFORM}) {
+    outputColor = carmaLinearToSrgb(outputColor);
+  }`
+    );
+};
+
+export type AtmosphericSky = Readonly<{
+  mesh: THREE.Mesh<THREE.BufferGeometry, SkyMaterial>;
+  update: (
+    frame: AtmosphericSkyFrame,
+    textures: AtmosphericSkyTextures | null
+  ) => boolean;
+  updateViewCamera: (camera: THREE.Camera) => void;
+  updateObserverScenePosition: (position: THREE.Vector3) => void;
+  updateGroundAlbedo: (color: THREE.Color) => void;
+  dispose: () => void;
+}>;
+
+export const buildAtmosphericSky = (
+  groundAlbedo: THREE.Color
+): AtmosphericSky => {
+  const material = new ObserverPositionSkyMaterial({
+    groundAlbedo,
+    moon: false,
+    photometric: true,
+    side: THREE.DoubleSide,
+    sun: true,
+  });
+  addDisplayTransform(material);
+  material.depthTest = false;
+  material.depthWrite = false;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3)
+  );
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = ATMOSPHERIC_SKY_NAME;
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = -SKY_RENDER_ORDER;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.onBeforeRender = (renderer) => {
+    material.uniforms[OUTPUT_ENCODING_UNIFORM].value =
+      renderer.getRenderTarget() === null;
+  };
+
+  return {
+    mesh,
+    update(frame, textures) {
+      if (!textures) {
+        mesh.visible = false;
+        return false;
+      }
+      if (getAtmosphericSkyFrameValidationError(frame)) return false;
+      mesh.visible = true;
+      material.irradianceTexture = textures.irradianceTexture;
+      material.scatteringTexture = textures.scatteringTexture;
+      material.transmittanceTexture = textures.transmittanceTexture;
+      material.sunDirection.copy(frame.directionToSunECEF);
+      material.ellipsoidCenter.copy(frame.ellipsoidCenterECEF);
+      material.ellipsoidMatrix.copy(frame.ecefToSceneMatrix);
+      return true;
+    },
+    updateViewCamera(camera) {
+      material.viewCamera = camera;
+    },
+    updateObserverScenePosition(position) {
+      material.observerScenePosition.copy(position);
+      material.hasObserverScenePosition = true;
+    },
+    updateGroundAlbedo(color) {
+      material.groundAlbedo.copy(color);
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    },
+  };
+};

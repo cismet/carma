@@ -29,12 +29,15 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS = Object.freeze({
 export const DEFAULT_VIEW_STATE_VISUALIZER_OVERVIEW_OPTIONS = Object.freeze({
   fovDeg: 38,
   orthographic: false,
+  fitOrthographicWidth: false,
 }) satisfies Readonly<ResolvedViewStateVisualizerOverviewOptions>;
 
 export const DEFAULT_VIEW_STATE_VISUALIZER_INTERACTIVE = false;
 export const DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS = Object.freeze({
   maxPitch: null,
   imagePlaneDistance: null,
+  useCameraPosition: false,
+  worldScaleMeters: null,
 }) satisfies Readonly<ResolvedViewStateVisualizerVisualizedOptions>;
 
 export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
@@ -47,6 +50,7 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
   }),
   worldAxes: Object.freeze({
     show: true,
+    showUp: true,
     lineWidthPx: 0.5,
   }),
   angleCues: Object.freeze({
@@ -142,6 +146,15 @@ export const mergeViewStateVisualizerVisualizedOptions = (
       Number.isFinite(merged.imagePlaneDistance)
         ? merged.imagePlaneDistance
         : DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.imagePlaneDistance,
+    useCameraPosition:
+      merged.useCameraPosition ??
+      DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.useCameraPosition,
+    worldScaleMeters:
+      typeof merged.worldScaleMeters === "number" &&
+      Number.isFinite(merged.worldScaleMeters) &&
+      merged.worldScaleMeters > 0
+        ? merged.worldScaleMeters
+        : DEFAULT_VIEW_STATE_VISUALIZER_VISUALIZED_OPTIONS.worldScaleMeters,
   };
 };
 

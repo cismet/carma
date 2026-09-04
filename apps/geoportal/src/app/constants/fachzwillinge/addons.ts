@@ -1,6 +1,8 @@
 import type { FachzwillingRoute } from ".";
 import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
+import { WUPP_TERRAIN_PROVIDER } from "@carma-commons/resources";
+
 export const addonsFachzwilling: FachzwillingRoute = {
   path: "addons",
   hideFromCatalog: true,
@@ -30,6 +32,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // circle that is dragged over it, and wheeled larger or smaller. Two panels
     // and no more, which the shared state holds the layout to.
     { kind: "compareSpyglass", config: {} },
+    { kind: "cameraRestriction", config: { mode: "never" } },
     {
       kind: "vectorHighlight",
       config: {
@@ -58,6 +61,28 @@ export const addonsFachzwilling: FachzwillingRoute = {
     {
       kind: "libreTerrain",
       config: { appKey: "geoportal", show: "while3dLayersActive" },
+    },
+    {
+      kind: "shadowSimulation",
+      config: {
+        initialMinutes: 15 * 60,
+        terrain: {
+          url: WUPP_TERRAIN_PROVIDER.url,
+          errorTargetPixels: 0.5,
+          shadowLevelOffset: 3,
+          minimumLevel: 8,
+          maximumLevel: 18,
+          noDataHeightMeters: 0,
+          heightRangeMeters: [-100, 600],
+          maxSelectionTiles: 1_536,
+          requestConcurrency: 24,
+          maxCacheBytes: 268_435_456,
+          maxCachedMeshes: 2_048,
+          material: {
+            color: "#d3d3d3",
+          },
+        },
+      },
     },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {

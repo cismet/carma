@@ -41,7 +41,7 @@ export interface VertexRange {
 
 /** Group vertex ranges by sourceIndex for O(1) highlight lookup. */
 export function buildSourceIndexMap(
-  ranges: VertexRange[],
+  ranges: VertexRange[]
 ): Map<number, VertexRange[]> {
   const map = new Map<number, VertexRange[]>();
   for (const r of ranges) {
@@ -70,6 +70,19 @@ export const DEFAULT_BUILDING_OPACITY = 0.65;
 const WALL_DARKEN = 0.85;
 const COLOR_DEFAULT_WALL = COLOR_DEFAULT.clone().multiplyScalar(WALL_DARKEN);
 const COLOR_PUBLIC_WALL = COLOR_PUBLIC.clone().multiplyScalar(WALL_DARKEN);
+
+/** GeoJSON exterior rings are counter-clockwise in longitude/latitude. The
+ * MapLibre-local X/Z plane flips latitude to south, making that orientation
+ * clockwise there: roof faces point up and wall faces point out. */
+const orientExteriorRing = (ring: number[][]): number[][] => {
+  let signedAreaTwice = 0;
+  for (let index = 0; index < ring.length; index += 1) {
+    const current = ring[index];
+    const next = ring[(index + 1) % ring.length];
+    signedAreaTwice += current[0] * next[1] - next[0] * current[1];
+  }
+  return signedAreaTwice < 0 ? [...ring].reverse() : ring;
+};
 
 /**
  * What a colour resolver is actually allowed to look at.
@@ -143,7 +156,9 @@ const HEX = /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
  */
 const colorCache = new Map<string, THREE.Color | null>();
 
-const parseHexColor = (value: string | null | undefined): THREE.Color | null => {
+const parseHexColor = (
+  value: string | null | undefined
+): THREE.Color | null => {
   if (!value) {
     return null;
   }
@@ -154,9 +169,7 @@ const parseHexColor = (value: string | null | undefined): THREE.Color | null => 
   const trimmed = value.trim();
   let parsed: THREE.Color | null = null;
   if (HEX.test(trimmed)) {
-    parsed = new THREE.Color(
-      trimmed.startsWith("#") ? trimmed : `#${trimmed}`
-    );
+    parsed = new THREE.Color(trimmed.startsWith("#") ? trimmed : `#${trimmed}`);
   } else {
     console.warn(
       `[3D-BUILDINGS] not a hex colour, falling back: ${JSON.stringify(value)}`
@@ -264,7 +277,6 @@ export const wallRunsForRing = (
   return walls;
 };
 
-
 /**
  * The material both building meshes are made of.
  *
@@ -279,7 +291,7 @@ export function createBuildingMaterial(): THREE.MeshLambertMaterial {
     transparent: true,
     opacity: DEFAULT_BUILDING_OPACITY,
     depthWrite: true,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
   });
 }
 
@@ -291,7 +303,7 @@ export function removeBuildingMeshes(scene: THREE.Scene): void {
   const toRemove = scene.children.filter(
     (c): c is THREE.Mesh =>
       (c as THREE.Mesh).isMesh === true &&
-      (c as THREE.Mesh).userData.isBuilding === true,
+      (c as THREE.Mesh).userData.isBuilding === true
   );
   for (const m of toRemove) {
     m.geometry.dispose();
@@ -317,7 +329,7 @@ export function buildExtrusionMeshes(
   originMerc: MercatorCoordinate,
   mScale: number,
   colors: BuildingColors = defaultBuildingColors,
-  wallAngleThreshold: number = DEFAULT_WALL_ANGLE,
+  wallAngleThreshold: number = DEFAULT_WALL_ANGLE
 ): FactoryStats {
   removeBuildingMeshes(scene);
 
@@ -333,6 +345,7 @@ export function buildExtrusionMeshes(
       ring = ring.slice(0, -1);
     }
     if (ring.length < 3) continue;
+    ring = orientExteriorRing(ring);
     validFeatures.push({ f, ring });
   }
 
@@ -351,9 +364,9 @@ export function buildExtrusionMeshes(
     // Walls: 4 verts per edge, 6 indices per edge
     totalWallVerts += n * 4;
     totalWallIdx += n * 6;
-    // Roof: n perimeter verts, earcut produces at most (n-2) triangles
-    totalRoofVerts += n;
-    totalRoofIdx += (n - 2) * 3;
+    // Top and bottom caps: n perimeter verts and at most (n-2) triangles each
+    totalRoofVerts += n * 2;
+    totalRoofIdx += (n - 2) * 6;
   }
 
   // Allocate typed arrays
@@ -406,19 +419,29 @@ export function buildExtrusionMeshes(
     // Pre-compute scene-space positions for each vertex at ground and roof height
     const roofBaseIdx = rv;
     const flatXZ: number[] = []; // flat [x, z, x, z, ...] for 2D triangulation
+    const groundPositions: number[] = [];
 
     for (let i = 0; i < n; i++) {
       const [lng, lat] = ring[i];
-      const mH = MercatorCoordinate.fromLngLat([lng, lat], f.elevation + f.height);
+      const mH = MercatorCoordinate.fromLngLat(
+        [lng, lat],
+        f.elevation + f.height
+      );
       const rx = (mH.x - originMerc.x) / mScale;
       const ry = (mH.z - originMerc.z) / mScale;
       const rz = (mH.y - originMerc.y) / mScale;
 
       // Roof vertex
       let v3 = rv * 3;
-      rP[v3] = rx; rP[v3 + 1] = ry; rP[v3 + 2] = rz;
-      rN[v3] = 0; rN[v3 + 1] = 1; rN[v3 + 2] = 0;
-      rC[v3] = cr; rC[v3 + 1] = cg; rC[v3 + 2] = cb;
+      rP[v3] = rx;
+      rP[v3 + 1] = ry;
+      rP[v3 + 2] = rz;
+      rN[v3] = 0;
+      rN[v3 + 1] = 1;
+      rN[v3 + 2] = 0;
+      rC[v3] = cr;
+      rC[v3 + 1] = cg;
+      rC[v3 + 2] = cb;
       rv++;
 
       // earcut uses 2D coords: we project onto XZ plane
@@ -437,11 +460,15 @@ export function buildExtrusionMeshes(
 
       const m0 = MercatorCoordinate.fromLngLat([lng, lat], f.elevation);
       const m1 = MercatorCoordinate.fromLngLat([lng1, lat1], f.elevation);
-      const mH1 = MercatorCoordinate.fromLngLat([lng1, lat1], f.elevation + f.height);
+      const mH1 = MercatorCoordinate.fromLngLat(
+        [lng1, lat1],
+        f.elevation + f.height
+      );
 
       const ax = (m0.x - originMerc.x) / mScale;
       const ay = (m0.z - originMerc.z) / mScale;
       const az = (m0.y - originMerc.y) / mScale;
+      groundPositions.push(ax, ay, az);
 
       const bx = (m1.x - originMerc.x) / mScale;
       const by = (m1.z - originMerc.z) / mScale;
@@ -466,27 +493,51 @@ export function buildExtrusionMeshes(
       const wallBase = wv;
 
       v3 = wv * 3;
-      wP[v3] = ax; wP[v3 + 1] = ay; wP[v3 + 2] = az;
-      wN[v3] = nx; wN[v3 + 1] = 0; wN[v3 + 2] = nz;
-      wC[v3] = wcr; wC[v3 + 1] = wcg; wC[v3 + 2] = wcb;
+      wP[v3] = ax;
+      wP[v3 + 1] = ay;
+      wP[v3 + 2] = az;
+      wN[v3] = nx;
+      wN[v3 + 1] = 0;
+      wN[v3 + 2] = nz;
+      wC[v3] = wcr;
+      wC[v3 + 1] = wcg;
+      wC[v3 + 2] = wcb;
       wv++;
 
       v3 = wv * 3;
-      wP[v3] = bx; wP[v3 + 1] = by; wP[v3 + 2] = bz;
-      wN[v3] = nx; wN[v3 + 1] = 0; wN[v3 + 2] = nz;
-      wC[v3] = wcr; wC[v3 + 1] = wcg; wC[v3 + 2] = wcb;
+      wP[v3] = bx;
+      wP[v3 + 1] = by;
+      wP[v3 + 2] = bz;
+      wN[v3] = nx;
+      wN[v3 + 1] = 0;
+      wN[v3 + 2] = nz;
+      wC[v3] = wcr;
+      wC[v3 + 1] = wcg;
+      wC[v3 + 2] = wcb;
       wv++;
 
       v3 = wv * 3;
-      wP[v3] = dx; wP[v3 + 1] = dy; wP[v3 + 2] = dz;
-      wN[v3] = nx; wN[v3 + 1] = 0; wN[v3 + 2] = nz;
-      wC[v3] = wcr; wC[v3 + 1] = wcg; wC[v3 + 2] = wcb;
+      wP[v3] = dx;
+      wP[v3 + 1] = dy;
+      wP[v3 + 2] = dz;
+      wN[v3] = nx;
+      wN[v3 + 1] = 0;
+      wN[v3 + 2] = nz;
+      wC[v3] = wcr;
+      wC[v3 + 1] = wcg;
+      wC[v3 + 2] = wcb;
       wv++;
 
       v3 = wv * 3;
-      wP[v3] = ex; wP[v3 + 1] = ey; wP[v3 + 2] = ez;
-      wN[v3] = nx; wN[v3 + 1] = 0; wN[v3 + 2] = nz;
-      wC[v3] = wcr; wC[v3 + 1] = wcg; wC[v3 + 2] = wcb;
+      wP[v3] = ex;
+      wP[v3 + 1] = ey;
+      wP[v3 + 2] = ez;
+      wN[v3] = nx;
+      wN[v3 + 1] = 0;
+      wN[v3 + 2] = nz;
+      wC[v3] = wcr;
+      wC[v3 + 1] = wcg;
+      wC[v3 + 2] = wcb;
       wv++;
 
       // Wall indices: A-B-E, A-E-D
@@ -498,33 +549,91 @@ export function buildExtrusionMeshes(
       wI[wi++] = wallBase + 2;
     }
 
-    // Roof triangulation via earcut (handles concave polygons, winding-insensitive)
+    const bottomBaseIdx = rv;
+    for (let i = 0; i < n; i++) {
+      const source = i * 3;
+      const target = rv * 3;
+      rP[target] = groundPositions[source];
+      rP[target + 1] = groundPositions[source + 1];
+      rP[target + 2] = groundPositions[source + 2];
+      rN[target] = 0;
+      rN[target + 1] = -1;
+      rN[target + 2] = 0;
+      rC[target] = cr;
+      rC[target + 1] = cg;
+      rC[target + 2] = cb;
+      rv++;
+    }
+
+    // Cap triangulation via earcut (handles concave polygons). In Three's
+    // X/Z plane Earcut's winding faces down, so only the roof is reversed.
     const roofIndices = Earcut.triangulate(flatXZ, undefined, 2);
-    for (const idx of roofIndices) {
-      rI[ri++] = roofBaseIdx + idx;
+    for (let index = 0; index < roofIndices.length; index += 3) {
+      rI[ri++] = roofBaseIdx + roofIndices[index];
+      rI[ri++] = roofBaseIdx + roofIndices[index + 2];
+      rI[ri++] = roofBaseIdx + roofIndices[index + 1];
+    }
+    for (let index = 0; index < roofIndices.length; index += 3) {
+      rI[ri++] = bottomBaseIdx + roofIndices[index];
+      rI[ri++] = bottomBaseIdx + roofIndices[index + 1];
+      rI[ri++] = bottomBaseIdx + roofIndices[index + 2];
     }
 
     // Record face/vertex ranges for this building (selection metadata)
     const wallFaceEnd = wi / 3;
-    wallFaceRanges.push({ faceStart: wallFaceStart, faceEnd: wallFaceEnd, sourceIndex: f.sourceIndex });
-    wallVertexRanges.push({ vertexStart: wallVertStart, vertexEnd: wv, sourceIndex: f.sourceIndex });
+    wallFaceRanges.push({
+      faceStart: wallFaceStart,
+      faceEnd: wallFaceEnd,
+      sourceIndex: f.sourceIndex,
+    });
+    wallVertexRanges.push({
+      vertexStart: wallVertStart,
+      vertexEnd: wv,
+      sourceIndex: f.sourceIndex,
+    });
 
     const roofFaceEnd = ri / 3;
-    roofFaceRanges.push({ faceStart: roofFaceStart, faceEnd: roofFaceEnd, sourceIndex: f.sourceIndex });
-    roofVertexRanges.push({ vertexStart: roofVertStart, vertexEnd: rv, sourceIndex: f.sourceIndex });
+    roofFaceRanges.push({
+      faceStart: roofFaceStart,
+      faceEnd: roofFaceEnd,
+      sourceIndex: f.sourceIndex,
+    });
+    roofVertexRanges.push({
+      vertexStart: roofVertStart,
+      vertexEnd: rv,
+      sourceIndex: f.sourceIndex,
+    });
   }
 
   // Build BufferGeometry objects
   const wallGeo = new THREE.BufferGeometry();
-  wallGeo.setAttribute("position", new THREE.BufferAttribute(wP.subarray(0, wv * 3), 3));
-  wallGeo.setAttribute("normal", new THREE.BufferAttribute(wN.subarray(0, wv * 3), 3));
-  wallGeo.setAttribute("color", new THREE.BufferAttribute(wC.subarray(0, wv * 3), 3));
+  wallGeo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(wP.subarray(0, wv * 3), 3)
+  );
+  wallGeo.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(wN.subarray(0, wv * 3), 3)
+  );
+  wallGeo.setAttribute(
+    "color",
+    new THREE.BufferAttribute(wC.subarray(0, wv * 3), 3)
+  );
   wallGeo.setIndex(new THREE.BufferAttribute(wI.subarray(0, wi), 1));
 
   const roofGeo = new THREE.BufferGeometry();
-  roofGeo.setAttribute("position", new THREE.BufferAttribute(rP.subarray(0, rv * 3), 3));
-  roofGeo.setAttribute("normal", new THREE.BufferAttribute(rN.subarray(0, rv * 3), 3));
-  roofGeo.setAttribute("color", new THREE.BufferAttribute(rC.subarray(0, rv * 3), 3));
+  roofGeo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(rP.subarray(0, rv * 3), 3)
+  );
+  roofGeo.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(rN.subarray(0, rv * 3), 3)
+  );
+  roofGeo.setAttribute(
+    "color",
+    new THREE.BufferAttribute(rC.subarray(0, rv * 3), 3)
+  );
   roofGeo.setIndex(new THREE.BufferAttribute(rI.subarray(0, ri), 1));
 
   const wallMat = createBuildingMaterial();
