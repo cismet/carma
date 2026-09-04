@@ -1,8 +1,10 @@
 import type {
   FlowFieldDefinition,
   TimeSeriesDefinition,
+  VehicleAnimationDefinition,
 } from "@carma-mapping/addons";
 
+import { APP_BASE_PATH } from "../../config/app.config";
 import type { FachzwillingRoute } from ".";
 
 /**
@@ -110,6 +112,32 @@ const STARKREGEN_T50_FLOW_WITH_DEPTH: FlowFieldDefinition = {
   },
 };
 
+/**
+ * A Schwebebahn car running the trasse.
+ *
+ * The route asset is the horizontal centre line of the city's 3D trasse model
+ * (`1596_SchwebTrasse.json`), reduced by
+ * `scripts/geodata/build-schwebebahn-track.mjs`. It is a closed ring of about
+ * nine kilometres, out on one rail and back on the other, so the car drives the
+ * whole loop rather than turning around: hence `mode: "loop"`.
+ *
+ * 24 m is the length of one Schwebebahn car (GTW 72 and its successor are both
+ * about that), 27 km/h its average speed including stops. The car is a plain
+ * rectangle for now.
+ */
+const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
+  title: "Schwebebahn",
+  trackUrl: `${APP_BASE_PATH}data/geojson/schwebebahn-trasse.json`,
+  lengthMeters: 24,
+  widthMeters: 2.2,
+  speedKmh: 27,
+  mode: "loop",
+  fillColor: "#1677ff",
+  outlineColor: "#00325c",
+  showTrack: true,
+  trackColor: "#8c8c8c",
+};
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -117,8 +145,8 @@ export const workflowsFachzwilling: FachzwillingRoute = {
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },
-  // the bare engine, idle until a workflow card launches a series into it
-  addons: ["timeSlider", "flowField"],
+  // the bare engines, idle until a workflow card launches something into them
+  addons: ["timeSlider", "flowField", "vehicleAnimation"],
   perspectives: [
     {
       id: "versorgung",
@@ -216,6 +244,32 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "entstehen aus den u- und v-Komponenten derselben Simulation.",
           tools: [
             { kind: "flowField", config: STARKREGEN_T50_FLOW_WITH_DEPTH },
+          ],
+        },
+      ],
+    },
+    {
+      id: "mobilitaet",
+      title: "Mobilität",
+      workflows: [
+        {
+          // No `layers`: like the time series card, this one adds no layer
+          // group. Its vehicleAnimation tool carries the route and the click
+          // launches it into the engine the route mounts.
+          id: "schwebebahn",
+          title: "Schwebebahn",
+          description:
+            "Inhalt: Eine Schwebebahn, die entlang der Trasse fährt. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt den Verlauf der Trasse als Bewegung statt als " +
+            "Linie. Über den Knopf in der Layer-Zeile lässt sich die Fahrt " +
+            "anhalten.",
+          metaDataText:
+            "Grundlage ist die Mittellinie des 3D-Trassenmodells der Stadt " +
+            "Wuppertal. Das Fahrzeug ist ein 24 m langes Rechteck und fährt " +
+            "mit 27 km/h, der Durchschnittsgeschwindigkeit der Schwebebahn.",
+          tools: [
+            { kind: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
           ],
         },
       ],

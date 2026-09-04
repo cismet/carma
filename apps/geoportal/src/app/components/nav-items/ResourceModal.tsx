@@ -37,7 +37,9 @@ import {
   useTimeSeriesLauncher,
   useFlowFieldLauncher,
   type FlowFieldConfig,
+  useVehicleAnimationLauncher,
   type TimeSliderConfig,
+  type VehicleAnimationConfig,
 } from "@carma-mapping/addons";
 
 const ResourceModal = () => {
@@ -145,6 +147,35 @@ const ResourceModal = () => {
     [toggleField, messageApi]
   );
 
+  const { toggleVehicle } = useVehicleAnimationLauncher();
+  /** a workflow card's vehicleAnimation tool: its config is the route to run */
+  const startVehicleAnimation = useCallback(
+    (config: VehicleAnimationConfig) => {
+      const { trackUrl } = config;
+      if (!trackUrl) {
+        messageApi.open({
+          type: "error",
+          content: "Der Workflow enthält keine Strecke für die Animation.",
+        });
+        return;
+      }
+      toggleVehicle({
+        title: config.title ?? "Fahrzeug",
+        trackUrl,
+        lengthMeters: config.lengthMeters,
+        widthMeters: config.widthMeters,
+        speedKmh: config.speedKmh,
+        mode: config.mode,
+        fillColor: config.fillColor,
+        outlineColor: config.outlineColor,
+        opacity: config.opacity,
+        showTrack: config.showTrack,
+        trackColor: config.trackColor,
+      });
+    },
+    [toggleVehicle, messageApi]
+  );
+
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({
       dispatch,
@@ -163,6 +194,7 @@ const ResourceModal = () => {
       addLayerById,
       startTimeSeries,
       startFlowField,
+      startVehicleAnimation,
     }),
     { measurements }
   );

@@ -63,6 +63,7 @@ import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
+import { useVehicleAnimationLayerButton } from "../../hooks/useVehicleAnimationLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
 
 const scrollLayerBarBy = (left: number) => {
@@ -79,6 +80,7 @@ const LayerWrapper = () => {
   useComparingLayerButton();
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();
+  useVehicleAnimationLayerButton();
   useComparingSelectionReset();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();

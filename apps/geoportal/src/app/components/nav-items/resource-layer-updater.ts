@@ -45,6 +45,7 @@ import {
   type AddonEntry,
   type FlowFieldConfig,
   type TimeSliderConfig,
+  type VehicleAnimationConfig,
 } from "@carma-mapping/addons";
 
 type MessageType = "success" | "error";
@@ -114,6 +115,12 @@ type ResourceLayerUpdaterDeps = {
    * `useFlowFieldLauncher`.
    */
   startFlowField?: (config: FlowFieldConfig) => void;
+  /**
+   * Launches (or toggles) the animation a workflow card carries in its
+   * `vehicleAnimation` tool. Supplied by ResourceModal from
+   * `useVehicleAnimationLauncher`.
+   */
+  startVehicleAnimation?: (config: VehicleAnimationConfig) => void;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -551,6 +558,7 @@ export const createResourceLayerUpdater = ({
   addLayerById,
   startTimeSeries,
   startFlowField,
+  startVehicleAnimation,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -584,6 +592,19 @@ export const createResourceLayerUpdater = ({
       );
       if (flowFieldTool && startFlowField) {
         startFlowField(flowFieldTool.config ?? {});
+        return;
+      }
+    }
+
+    // The same for a card whose tools carry a vehicle animation: the click
+    // launches the route into the vehicleAnimation engine, and a second click
+    // on the running animation switches it off again.
+    if (layer.type === "workflow" && startVehicleAnimation) {
+      const vehicleTool = resolveAddonEntries(
+        layer.tools as AddonEntry[] | undefined
+      ).find((entry) => entry.kind === "vehicleAnimation");
+      if (vehicleTool) {
+        startVehicleAnimation(vehicleTool.config ?? {});
         return;
       }
     }
