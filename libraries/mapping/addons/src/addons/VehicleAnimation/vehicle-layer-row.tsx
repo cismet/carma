@@ -42,28 +42,45 @@ export const VEHICLE_ANIMATION_LAYER: Layer = {
   skipSelection: true,
 };
 
+/** seconds as the minutes-and-seconds a timetable is written in */
+const headwayLabel = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return rest === 0
+    ? `${minutes}-Min-Takt`
+    : `${minutes}:${String(rest).padStart(2, "0")}-Takt`;
+};
+
 /**
  * What the readout says.
  *
  * An animation whose route failed to load is the case worth spelling out:
- * everything else about the row looks exactly as it does while the vehicle is
+ * everything else about the row looks exactly as it does while the fleet is
  * running, so without a word an empty map reads as broken rather than as a
- * missing file.
+ * missing file. With a timetable the fleet size is the interesting number,
+ * because it is counted from the route rather than configured.
  */
 const statusLabel = ({
   isLoading,
   error,
   isPaused,
   speedKmh,
+  fleetSize,
+  headwaySeconds,
 }: {
   isLoading: boolean;
   error: string | null;
   isPaused: boolean;
   speedKmh: number;
+  fleetSize: number;
+  headwaySeconds: number;
 }): string => {
   if (error) return "Strecke fehlt";
   if (isLoading) return "lädt";
   if (isPaused) return "angehalten";
+  if (headwaySeconds > 0 && fleetSize > 0) {
+    return `${fleetSize} Bahnen · ${headwayLabel(headwaySeconds)}`;
+  }
   return `${Math.round(speedKmh)} km/h`;
 };
 
@@ -78,7 +95,7 @@ const buildInteractionButtons = (
         {
           id: VEHICLE_ANIMATION_PLAY_ID,
           icon: <FontAwesomeIcon icon={isPaused ? faPlay : faPause} />,
-          tooltip: isPaused ? "Fahrt fortsetzen" : "Fahrt anhalten",
+          tooltip: isPaused ? "Fahrten fortsetzen" : "Fahrten anhalten",
           onClick: onTogglePaused,
         },
       ]
@@ -86,7 +103,7 @@ const buildInteractionButtons = (
   {
     id: VEHICLE_ANIMATION_STATUS_ID,
     icon: <span style={READOUT_STYLE}>{label}</span>,
-    tooltip: "Zustand der Fahrzeug-Animation",
+    tooltip: "Zustand der Fahrten",
   },
 ];
 
@@ -124,10 +141,19 @@ export const useVehicleAnimationLayerRow = ({
     isLoading,
     error,
     speedKmh,
+    fleetSize,
+    headwaySeconds,
     togglePaused,
   } = useVehicleAnimationActions();
 
-  const label = statusLabel({ isLoading, error, isPaused, speedKmh });
+  const label = statusLabel({
+    isLoading,
+    error,
+    isPaused,
+    speedKmh,
+    fleetSize,
+    headwaySeconds,
+  });
   const canPlay = !error && !isLoading;
 
   const layer = useMemo(

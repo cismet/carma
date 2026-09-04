@@ -113,27 +113,57 @@ const STARKREGEN_T50_FLOW_WITH_DEPTH: FlowFieldDefinition = {
 };
 
 /**
- * A Schwebebahn car running the trasse.
+ * The stations the trasse asset passes, west to east.
+ *
+ * Coordinates from OpenStreetMap (`public_transport=stop_position` on the
+ * Schwebebahn route relation). The full line has twenty stations between
+ * Vohwinkel and Oberbarmen; these seven are the ones inside the section the
+ * trasse model covers, from Hammerstein to Robert-Daum-Platz.
+ */
+const SCHWEBEBAHN_STATIONS = [
+  { name: "Hammerstein", lon: 7.088325, lat: 51.23639 },
+  { name: "Sonnborner Straße", lon: 7.096763, lat: 51.238122 },
+  { name: "Zoo/Stadion", lon: 7.103271, lat: 51.240938 },
+  { name: "Varresbecker Straße", lon: 7.107128, lat: 51.24666 },
+  { name: "Westende", lon: 7.118499, lat: 51.248965 },
+  { name: "Pestalozzistraße", lon: 7.125398, lat: 51.248623 },
+  { name: "Robert-Daum-Platz", lon: 7.134347, lat: 51.252396 },
+];
+
+/**
+ * Schwebebahnen running the trasse to the real service pattern.
  *
  * The route asset is the horizontal centre line of the city's 3D trasse model
  * (`1596_SchwebTrasse.json`), reduced by
  * `scripts/geodata/build-schwebebahn-track.mjs`. It is a closed ring of about
- * nine kilometres, out on one rail and back on the other, so the car drives the
- * whole loop rather than turning around: hence `mode: "loop"`.
+ * nine kilometres, out on one rail and back on the other, so a car drives the
+ * whole loop rather than turning around: hence `mode: "loop"`, and hence each
+ * station being served twice per lap, once per direction.
  *
- * 24 m is the length of one Schwebebahn car (GTW 72 and its successor are both
- * about that), 27 km/h its average speed including stops. The car is a plain
- * rectangle for now.
+ * The numbers are the WSW service: a 3:40 headway at peak times, a full run
+ * from end to end in about half an hour. 36 km/h between stops plus 25 seconds
+ * at each one gives the line's ~27 km/h average, and how many cars that takes
+ * follows from the route rather than being configured. The car is a GTW 15:
+ * 24.06 m long, 2.2 m wide, three sections with two rubber articulations, pale
+ * blue.
  */
 const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
   title: "Schwebebahn",
   trackUrl: `${APP_BASE_PATH}data/geojson/schwebebahn-trasse.json`,
-  lengthMeters: 24,
+  lengthMeters: 24.06,
   widthMeters: 2.2,
-  speedKmh: 27,
+  sections: 3,
+  jointMeters: 0.9,
+  speedKmh: 36,
   mode: "loop",
-  fillColor: "#1677ff",
-  outlineColor: "#00325c",
+  schedule: {
+    headwaySeconds: 220,
+    dwellSeconds: 25,
+    stations: SCHWEBEBAHN_STATIONS,
+  },
+  bodyColor: "#a9c9dc",
+  jointColor: "#232323",
+  outlineColor: "#33556b",
   showTrack: true,
   trackColor: "#8c8c8c",
 };
@@ -259,15 +289,20 @@ export const workflowsFachzwilling: FachzwillingRoute = {
           id: "schwebebahn",
           title: "Schwebebahn",
           description:
-            "Inhalt: Eine Schwebebahn, die entlang der Trasse fährt. " +
+            "Inhalt: Mehrere Schwebebahnen, die im Takt über die Trasse " +
+            "fahren und an jeder Station halten. " +
             "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Zeigt den Verlauf der Trasse als Bewegung statt als " +
-            "Linie. Über den Knopf in der Layer-Zeile lässt sich die Fahrt " +
-            "anhalten.",
+            "Nutzung: Zeigt den Betrieb auf der Strecke, nicht nur ihren " +
+            "Verlauf. Über den Knopf in der Layer-Zeile lassen sich die " +
+            "Fahrten anhalten.",
           metaDataText:
             "Grundlage ist die Mittellinie des 3D-Trassenmodells der Stadt " +
-            "Wuppertal. Das Fahrzeug ist ein 24 m langes Rechteck und fährt " +
-            "mit 27 km/h, der Durchschnittsgeschwindigkeit der Schwebebahn.",
+            "Wuppertal, die Stationen stammen aus OpenStreetMap. Gefahren " +
+            "wird im 3:40-Takt mit 25 Sekunden Halt je Station und 36 km/h " +
+            "zwischen den Halten, zusammen die rund 27 km/h " +
+            "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
+            "sind GTW 15: 24,06 m lang, 2,2 m breit, drei Wagenteile mit " +
+            "zwei Gelenken.",
           tools: [
             { kind: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
           ],

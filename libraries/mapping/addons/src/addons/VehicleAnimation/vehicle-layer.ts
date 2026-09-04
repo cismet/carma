@@ -1,30 +1,56 @@
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 
-import { poseAt, vehicleRing, type Track } from "./track";
+import {
+  carParts,
+  projectStops,
+  type CarShape,
+  type Station,
+  type Track,
+  type TrackStop,
+} from "./track";
 
 /**
- * The moving body on the map: one GeoJSON source rewritten every frame, drawn
- * as a filled polygon with an outline, optionally over the track it runs on.
+ * The moving fleet on the map: one GeoJSON source rewritten every frame, drawn
+ * as body sections with the articulations between them, over the track and its
+ * stations.
  *
- * Plain MapLibre and nothing caged. The whole animation is a rectangle walking
- * an arc-length parameter, so there is no proprietary field, no worker and no
- * texture; `setData` on a four-corner polygon is cheap enough to do per frame.
+ * Plain MapLibre and nothing caged. A vehicle is a slice of the route's own
+ * polyline widened to either side, so `setData` on a few dozen small rings is
+ * cheap enough to do per frame and the body bends through curves the way the
+ * real one does.
  *
  * The handle owns its animation frame. Nothing outside it reads the clock, so a
- * paused animation costs nothing and a destroyed one cannot leave a frame
- * behind.
+ * held fleet costs nothing and a destroyed one cannot leave a frame behind.
  */
 
 export type VehicleMode = "loop" | "pingpong";
 
+/**
+ * A service, in the terms a timetable is actually written in: how often a
+ * vehicle leaves, how long it waits at a station, and how fast it runs between
+ * them. How many vehicles that takes follows from the route and is counted
+ * rather than configured.
+ *
+ * Station stops are served in `loop` mode. In `pingpong` the vehicle turns
+ * around mid-route, which no timetable of this shape describes, so stops are
+ * ignored there.
+ */
+export type VehicleSchedule = {
+  /** seconds between two departures of the same direction */
+  headwaySeconds: number;
+  /** how long a vehicle waits at each station */
+  dwellSeconds: number;
+  /** the stations it calls at */
+  stations: readonly Station[];
+  /** how close a piece of track has to pass a station to count as its stop */
+  stationRadiusMeters: number;
+};
+
 export type VehicleLayerOptions = {
   map: MapLibreMap;
   track: Track;
-  /** meters; the Schwebebahn's classic GTW 72 is about 24 m long */
-  lengthMeters: number;
-  /** meters across */
-  widthMeters: number;
-  /** travel speed in km/h */
+  shape: CarShape;
+  /** running speed between stops, in km/h */
   speedKmh: number;
   /**
    * What happens at the end of the track. `loop` restarts at the beginning,
@@ -32,23 +58,30 @@ export type VehicleLayerOptions = {
    * an out-and-back line wants.
    */
   mode: VehicleMode;
-  fillColor: string;
+  /** without one, a single vehicle runs the route without stopping */
+  schedule: VehicleSchedule | null;
+  bodyColor: string;
+  jointColor: string;
   outlineColor: string;
   opacity: number;
-  /** draw the track itself under the vehicle */
+  /** draw the track itself under the vehicles */
   showTrack: boolean;
   trackColor: string;
-  /** MapLibre layer the vehicle is inserted before, e.g. to sit under labels */
+  /** draw a dot and a name at every station */
+  showStations: boolean;
+  /** MapLibre layer the fleet is inserted before, e.g. to sit under labels */
   beforeId?: string;
   id?: string;
+  /** how many vehicles the service needs, once that is known */
+  onFleetSize?: (count: number) => void;
 };
 
 export type VehicleLayerHandle = {
   setSpeed: (speedKmh: number) => void;
   setPaused: (paused: boolean) => void;
   setOpacity: (opacity: number) => void;
-  /** meters travelled from the start of the track */
-  getDistance: () => number;
+  /** how many vehicles are running */
+  getFleetSize: () => number;
   destroy: () => void;
 };
 
@@ -56,10 +89,23 @@ const DEFAULT_ID = "vehicle-animation";
 const KMH_TO_MS = 1000 / 3600;
 /** a tab that was in the background hands back a huge delta; ignore it */
 const MAX_FRAME_SECONDS = 0.25;
+/** a misconfigured headway must not fill the map with vehicles */
+const MAX_FLEET = 60;
 
-const emptyCollection = {
-  type: "FeatureCollection" as const,
-  features: [] as GeoJSON.Feature[],
+type Car = {
+  /** meters from the start of the track */
+  distance: number;
+  /** 1 forwards, -1 after a pingpong turnaround */
+  direction: number;
+  /** seconds still to wait at the stop it is standing in */
+  dwellRemaining: number;
+  /** which entry of `stops` it is heading for */
+  nextStop: number;
+};
+
+const emptyCollection: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
 };
 
 export const createVehicleLayer = (
@@ -68,48 +114,85 @@ export const createVehicleLayer = (
   const {
     map,
     track,
-    lengthMeters,
-    widthMeters,
+    shape,
     mode,
-    fillColor,
+    schedule,
+    bodyColor,
+    jointColor,
     outlineColor,
     showTrack,
     trackColor,
+    showStations,
     beforeId,
     id = DEFAULT_ID,
+    onFleetSize,
   } = options;
 
   const sourceId = `${id}-source`;
   const trackSourceId = `${id}-track-source`;
-  const fillId = id;
+  const stationSourceId = `${id}-station-source`;
+  const bodyId = id;
+  const jointId = `${id}-joints`;
   const outlineId = `${id}-outline`;
   const trackId = `${id}-track`;
+  const stationDotId = `${id}-stations`;
+  const stationLabelId = `${id}-station-labels`;
 
   let speedKmh = options.speedKmh;
   let opacity = options.opacity;
   let paused = false;
   let destroyed = false;
-  let distance = 0;
-  /** 1 forwards, -1 after a pingpong turnaround */
-  let direction = 1;
   let frame: number | null = null;
   let lastTimestamp: number | null = null;
 
-  const bodyFeature = (): GeoJSON.Feature => ({
-    type: "Feature",
-    properties: {},
-    geometry: {
-      type: "Polygon",
-      coordinates: [
-        vehicleRing(
-          poseAt(track, distance),
-          lengthMeters,
-          widthMeters,
-          track.metersPerLon
-        ),
-      ],
-    },
+  /** every place the service stops, in track order */
+  const stops: TrackStop[] =
+    schedule && mode === "loop"
+      ? projectStops(track, schedule.stations, schedule.stationRadiusMeters)
+      : [];
+
+  /**
+   * How many vehicles the timetable needs: one round trip divided by the
+   * headway. Running time plus every wait is the honest cycle, so a denser
+   * timetable or a longer wait both put more vehicles on the route by
+   * themselves.
+   */
+  const fleetSize = ((): number => {
+    if (!schedule || schedule.headwaySeconds <= 0) return 1;
+    const runningSeconds = track.length / Math.max(0.1, speedKmh * KMH_TO_MS);
+    const cycleSeconds = runningSeconds + stops.length * schedule.dwellSeconds;
+    const count = Math.round(cycleSeconds / schedule.headwaySeconds);
+    return Math.max(1, Math.min(MAX_FLEET, count));
+  })();
+
+  /** the first stop at or after `distance` */
+  const stopAfter = (distance: number): number => {
+    if (stops.length === 0) return 0;
+    const index = stops.findIndex((stop) => stop.distance >= distance);
+    return index === -1 ? 0 : index;
+  };
+
+  // Evenly spaced around the route rather than released one headway apart at
+  // the start: every vehicle keeps the same stopping pattern, so an even
+  // spacing in distance stays an even spacing in time.
+  const cars: Car[] = Array.from({ length: fleetSize }, (_, index) => {
+    const distance = (track.length * index) / fleetSize;
+    return {
+      distance,
+      direction: 1,
+      dwellRemaining: 0,
+      nextStop: stopAfter(distance),
+    };
   });
+
+  const carFeatures = (): GeoJSON.Feature[] =>
+    cars.flatMap((car) =>
+      carParts(track, car.distance, shape).map((part) => ({
+        type: "Feature" as const,
+        properties: { part: part.kind },
+        geometry: { type: "Polygon" as const, coordinates: [part.ring] },
+      }))
+    );
 
   const trackFeature = (): GeoJSON.Feature => ({
     type: "Feature",
@@ -120,12 +203,19 @@ export const createVehicleLayer = (
     },
   });
 
-  const pushBody = (): void => {
+  const stationFeatures = (): GeoJSON.Feature[] =>
+    (schedule?.stations ?? []).map((station) => ({
+      type: "Feature",
+      properties: { name: station.name },
+      geometry: { type: "Point", coordinates: [station.lon, station.lat] },
+    }));
+
+  const pushCars = (): void => {
     const source = map.getSource(sourceId);
     if (source && "setData" in source) {
       (source as GeoJSONSource).setData({
         type: "FeatureCollection",
-        features: [bodyFeature()],
+        features: carFeatures(),
       });
     }
   };
@@ -139,11 +229,18 @@ export const createVehicleLayer = (
         data: { type: "FeatureCollection", features: [trackFeature()] },
       });
     }
+    if (showStations && !map.getSource(stationSourceId)) {
+      map.addSource(stationSourceId, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: stationFeatures() },
+      });
+    }
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, { type: "geojson", data: emptyCollection });
     }
 
-    const insertBefore = beforeId && map.getLayer(beforeId) ? beforeId : undefined;
+    const insertBefore =
+      beforeId && map.getLayer(beforeId) ? beforeId : undefined;
 
     if (showTrack && !map.getLayer(trackId)) {
       map.addLayer(
@@ -161,13 +258,46 @@ export const createVehicleLayer = (
         insertBefore
       );
     }
-    if (!map.getLayer(fillId)) {
+    if (showStations && !map.getLayer(stationDotId)) {
       map.addLayer(
         {
-          id: fillId,
+          id: stationDotId,
+          type: "circle",
+          source: stationSourceId,
+          paint: {
+            "circle-radius": 4,
+            "circle-color": "#ffffff",
+            "circle-stroke-color": outlineColor,
+            "circle-stroke-width": 1.5,
+            "circle-opacity": opacity,
+            "circle-stroke-opacity": opacity,
+          },
+        },
+        insertBefore
+      );
+    }
+    // the sections sit over the articulations, so a rounded cab end never
+    // shows the black band through the gap it leaves
+    if (!map.getLayer(jointId)) {
+      map.addLayer(
+        {
+          id: jointId,
           type: "fill",
           source: sourceId,
-          paint: { "fill-color": fillColor, "fill-opacity": opacity },
+          filter: ["==", ["get", "part"], "joint"],
+          paint: { "fill-color": jointColor, "fill-opacity": opacity },
+        },
+        insertBefore
+      );
+    }
+    if (!map.getLayer(bodyId)) {
+      map.addLayer(
+        {
+          id: bodyId,
+          type: "fill",
+          source: sourceId,
+          filter: ["==", ["get", "part"], "section"],
+          paint: { "fill-color": bodyColor, "fill-opacity": opacity },
         },
         insertBefore
       );
@@ -178,45 +308,98 @@ export const createVehicleLayer = (
           id: outlineId,
           type: "line",
           source: sourceId,
+          filter: ["==", ["get", "part"], "section"],
+          layout: { "line-join": "round" },
           paint: {
             "line-color": outlineColor,
-            "line-width": 1.5,
+            "line-width": 1.2,
             "line-opacity": opacity,
           },
         },
         insertBefore
       );
     }
+    if (showStations && !map.getLayer(stationLabelId)) {
+      map.addLayer({
+        id: stationLabelId,
+        type: "symbol",
+        source: stationSourceId,
+        layout: {
+          "text-field": ["get", "name"],
+          "text-size": 11,
+          "text-offset": [0, 1.1],
+          "text-anchor": "top",
+          "text-optional": true,
+        },
+        paint: {
+          "text-color": outlineColor,
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
+          "text-opacity": opacity,
+        },
+      });
+    }
 
-    pushBody();
+    pushCars();
   };
 
   const detach = (): void => {
     if (!map.getStyle()) return;
-    for (const layerId of [outlineId, fillId, trackId]) {
+    for (const layerId of [
+      stationLabelId,
+      outlineId,
+      bodyId,
+      jointId,
+      stationDotId,
+      trackId,
+    ]) {
       if (map.getLayer(layerId)) map.removeLayer(layerId);
     }
-    for (const source of [sourceId, trackSourceId]) {
+    for (const source of [sourceId, trackSourceId, stationSourceId]) {
       if (map.getSource(source)) map.removeSource(source);
     }
   };
 
-  const advance = (seconds: number): void => {
-    const step = speedKmh * KMH_TO_MS * seconds * direction;
-    distance += step;
+  /** how far ahead the next stop is, going forwards around a closed track */
+  const gapAhead = (from: number, to: number): number =>
+    ((to - from) % track.length + track.length) % track.length;
 
-    if (mode === "loop") {
-      // a closed ring has no end to reach, it only wraps
-      distance = ((distance % track.length) + track.length) % track.length;
+  const advanceCar = (car: Car, seconds: number): void => {
+    if (car.dwellRemaining > 0) {
+      car.dwellRemaining -= seconds;
       return;
     }
 
-    if (distance > track.length) {
-      distance = track.length - (distance - track.length);
-      direction = -1;
-    } else if (distance < 0) {
-      distance = -distance;
-      direction = 1;
+    let remaining = speedKmh * KMH_TO_MS * seconds;
+
+    if (stops.length > 0 && schedule) {
+      const gap = gapAhead(car.distance, stops[car.nextStop].distance);
+      if (gap <= remaining) {
+        // stand exactly at the stop rather than a fraction past it: over a
+        // whole day of frames the leftover would drift the timetable
+        car.distance = stops[car.nextStop].distance;
+        car.dwellRemaining = schedule.dwellSeconds;
+        car.nextStop = (car.nextStop + 1) % stops.length;
+        return;
+      }
+    }
+
+    remaining *= car.direction;
+    car.distance += remaining;
+
+    if (mode === "loop") {
+      // a closed ring has no end to reach, it only wraps
+      car.distance =
+        ((car.distance % track.length) + track.length) % track.length;
+      return;
+    }
+
+    if (car.distance > track.length) {
+      car.distance = track.length - (car.distance - track.length);
+      car.direction = -1;
+    } else if (car.distance < 0) {
+      car.distance = -car.distance;
+      car.direction = 1;
     }
   };
 
@@ -228,8 +411,8 @@ export const createVehicleLayer = (
         ? 0
         : Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_SECONDS);
     lastTimestamp = timestamp;
-    advance(seconds);
-    pushBody();
+    for (const car of cars) advanceCar(car, seconds);
+    pushCars();
     if (!paused) frame = requestAnimationFrame(tick);
   };
 
@@ -249,6 +432,7 @@ export const createVehicleLayer = (
   const onStyleData = (): void => attach();
   map.on("styledata", onStyleData);
   attach();
+  onFleetSize?.(fleetSize);
   start();
 
   return {
@@ -263,17 +447,23 @@ export const createVehicleLayer = (
     },
     setOpacity: (next) => {
       opacity = Math.max(0, Math.min(1, next));
-      if (map.getLayer(fillId)) {
-        map.setPaintProperty(fillId, "fill-opacity", opacity);
+      for (const [layerId, property, value] of [
+        [bodyId, "fill-opacity", opacity],
+        [jointId, "fill-opacity", opacity],
+        [outlineId, "line-opacity", opacity],
+        [trackId, "line-opacity", 0.6 * opacity],
+        [stationDotId, "circle-opacity", opacity],
+        [stationLabelId, "text-opacity", opacity],
+      ] as const) {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, property, value);
+        }
       }
-      if (map.getLayer(outlineId)) {
-        map.setPaintProperty(outlineId, "line-opacity", opacity);
-      }
-      if (map.getLayer(trackId)) {
-        map.setPaintProperty(trackId, "line-opacity", 0.6 * opacity);
+      if (map.getLayer(stationDotId)) {
+        map.setPaintProperty(stationDotId, "circle-stroke-opacity", opacity);
       }
     },
-    getDistance: () => distance,
+    getFleetSize: () => fleetSize,
     destroy: () => {
       destroyed = true;
       stop();

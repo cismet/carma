@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrain } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
@@ -10,8 +10,12 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../../lib/registry";
-import { buildTrack, type Track } from "./track";
-import { createVehicleLayer, type VehicleLayerHandle } from "./vehicle-layer";
+import { buildTrack, type CarShape, type Track } from "./track";
+import {
+  createVehicleLayer,
+  type VehicleLayerHandle,
+  type VehicleSchedule,
+} from "./vehicle-layer";
 import {
   useVehicleAnimationActions,
   useVehicleAnimationLauncher,
@@ -20,11 +24,11 @@ import {
 
 /**
  * The engine of a vehicle animation: it fetches the route, owns the map layer
- * and reports loading and failure back into the channel.
+ * and reports loading, failure and the fleet size back into the channel.
  *
  * It brings no route of its own. A route that wants one on the map declares it
  * in full in the config; a route that mounts the bare kind gets an idle engine
- * that a workflow card launches a vehicle into, through
+ * that a workflow card launches a service into, through
  * `useVehicleAnimationLauncher`. There is no implicit demo.
  *
  * The component draws no panel and, by default, no control button: the
@@ -43,7 +47,7 @@ export type VehicleAnimationConfig = Partial<VehicleAnimationDefinition> & {
   controlPosition?: Positions;
   /** Sort order within that corner. Default: 83 */
   controlOrder?: number;
-  /** MapLibre layer the vehicle is inserted before, e.g. to sit under labels */
+  /** MapLibre layer the fleet is inserted before, e.g. to sit under labels */
   beforeId?: string;
 };
 
@@ -59,17 +63,6 @@ export const VehicleAnimation = ({
   libreMap,
 }: AddonComponentProps<"vehicleAnimation">) => {
   const {
-    title,
-    trackUrl: configTrackUrl,
-    lengthMeters: configLengthMeters,
-    widthMeters: configWidthMeters,
-    speedKmh: configSpeedKmh,
-    mode: configMode,
-    fillColor: configFillColor,
-    outlineColor: configOutlineColor,
-    opacity: configOpacity,
-    showTrack: configShowTrack,
-    trackColor: configTrackColor,
     startEnabled = true,
     showControl = false,
     controlPosition = DEFAULT_CONTROL_POSITION,
@@ -83,9 +76,17 @@ export const VehicleAnimation = ({
     trackUrl,
     lengthMeters,
     widthMeters,
+    sections,
+    jointMeters,
     speedKmh,
     mode,
-    fillColor,
+    headwaySeconds,
+    dwellSeconds,
+    stations,
+    stationRadiusMeters,
+    showStations,
+    bodyColor,
+    jointColor,
     outlineColor,
     opacity,
     showTrack,
@@ -95,6 +96,7 @@ export const VehicleAnimation = ({
     setLoading,
     setError,
     setTrackLength,
+    setFleetSize,
   } = useVehicleAnimationActions();
 
   const { startVehicle } = useVehicleAnimationLauncher();
@@ -112,23 +114,45 @@ export const VehicleAnimation = ({
   speedRef.current = speedKmh;
 
   /**
-   * A route that declares its vehicle in full gets it on the map at mount; the
+   * A route that declares its service in full gets it on the map at mount; the
    * teardown takes it off again, so suspending the kind in the addon manager
    * does not leave the layer-bar row behind. A config without a route makes
    * this a no-op and the engine idles until a workflow launches one.
    */
+  const {
+    title: configTitle,
+    trackUrl: configTrackUrl,
+    lengthMeters: configLengthMeters,
+    widthMeters: configWidthMeters,
+    sections: configSections,
+    jointMeters: configJointMeters,
+    speedKmh: configSpeedKmh,
+    mode: configMode,
+    schedule: configSchedule,
+    bodyColor: configBodyColor,
+    jointColor: configJointColor,
+    outlineColor: configOutlineColor,
+    opacity: configOpacity,
+    showTrack: configShowTrack,
+    trackColor: configTrackColor,
+  } = config;
+
   useEffect(() => {
     if (!startEnabled || !configTrackUrl) {
       return undefined;
     }
     startVehicle({
-      title: title ?? "Fahrzeug",
+      title: configTitle ?? "Fahrzeug",
       trackUrl: configTrackUrl,
       lengthMeters: configLengthMeters,
       widthMeters: configWidthMeters,
+      sections: configSections,
+      jointMeters: configJointMeters,
       speedKmh: configSpeedKmh,
       mode: configMode,
-      fillColor: configFillColor,
+      schedule: configSchedule,
+      bodyColor: configBodyColor,
+      jointColor: configJointColor,
       outlineColor: configOutlineColor,
       opacity: configOpacity,
       showTrack: configShowTrack,
@@ -137,13 +161,17 @@ export const VehicleAnimation = ({
     return () => setOn(false);
   }, [
     startEnabled,
-    title,
+    configTitle,
     configTrackUrl,
     configLengthMeters,
     configWidthMeters,
+    configSections,
+    configJointMeters,
     configSpeedKmh,
     configMode,
-    configFillColor,
+    configSchedule,
+    configBodyColor,
+    configJointColor,
     configOutlineColor,
     configOpacity,
     configShowTrack,
@@ -153,8 +181,8 @@ export const VehicleAnimation = ({
   ]);
 
   // Fetch and stitch the route. Separate from the layer, because the same route
-  // survives a pause, an opacity change and a basemap swap, and re-reading a
-  // few thousand coordinates for any of those would be waste.
+  // survives a hold, an opacity change and a basemap swap, and re-reading a few
+  // thousand coordinates for any of those would be waste.
   useEffect(() => {
     if (!isOn || !trackUrl) {
       setTrack(null);
@@ -198,10 +226,34 @@ export const VehicleAnimation = ({
     };
   }, [isOn, trackUrl, setLoading, setError, setTrackLength]);
 
-  // Mount the moving body. Every value the layer cannot be told about later is
-  // a dependency, so changing one rebuilds the layer and the vehicle restarts
-  // from the beginning of the route; speed, opacity and pausing are pushed
-  // down instead and leave it where it is.
+  const shape = useMemo<CarShape>(
+    () => ({
+      lengthMeters,
+      widthMeters,
+      sections,
+      jointMeters,
+      noseWidth: 0.55,
+      noseMeters: Math.min(2.2, lengthMeters / 8),
+    }),
+    [lengthMeters, widthMeters, sections, jointMeters]
+  );
+
+  const schedule = useMemo<VehicleSchedule | null>(
+    () =>
+      headwaySeconds > 0 && stations.length > 0
+        ? {
+            headwaySeconds,
+            dwellSeconds,
+            stations,
+            stationRadiusMeters,
+          }
+        : null,
+    [headwaySeconds, dwellSeconds, stations, stationRadiusMeters]
+  );
+
+  // Mount the fleet. Every value the layer cannot be told about later is a
+  // dependency, so changing one rebuilds the layer and the vehicles start over;
+  // speed, opacity and holding are pushed down instead and leave them running.
   useEffect(() => {
     if (!libreMap || !isOn || !track) {
       return undefined;
@@ -210,16 +262,19 @@ export const VehicleAnimation = ({
     const handle = createVehicleLayer({
       map: libreMap,
       track,
-      lengthMeters,
-      widthMeters,
+      shape,
       speedKmh: speedRef.current,
       mode,
-      fillColor,
+      schedule,
+      bodyColor,
+      jointColor,
       outlineColor,
       opacity: opacityRef.current,
       showTrack,
       trackColor,
+      showStations: showStations && schedule !== null,
       beforeId,
+      onFleetSize: setFleetSize,
     });
     handle.setPaused(pausedRef.current);
     layerRef.current = handle;
@@ -227,23 +282,27 @@ export const VehicleAnimation = ({
     return () => {
       handle.destroy();
       layerRef.current = null;
+      setFleetSize(0);
     };
   }, [
     libreMap,
     isOn,
     track,
-    lengthMeters,
-    widthMeters,
+    shape,
     mode,
-    fillColor,
+    schedule,
+    bodyColor,
+    jointColor,
     outlineColor,
     showTrack,
     trackColor,
+    showStations,
     beforeId,
+    setFleetSize,
   ]);
 
   // Push the live values down separately, so changing one never rebuilds the
-  // layer and the vehicle keeps its place on the route.
+  // layer and the vehicles keep their place on the route.
   useEffect(() => {
     layerRef.current?.setSpeed(speedKmh);
   }, [speedKmh]);

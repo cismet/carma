@@ -38,8 +38,6 @@ const METERS_PER_LAT = 111320;
 const metersPerLon = (lat: number): number =>
   METERS_PER_LAT * Math.cos((lat * Math.PI) / 180);
 
-type Ring = [number, number][];
-
 const isPosition = (value: unknown): value is number[] =>
   Array.isArray(value) &&
   value.length >= 2 &&
@@ -229,37 +227,304 @@ export const poseAt = (track: Track, distance: number): TrackPose => {
   return { lon, lat, heading: Math.atan2(north, east) };
 };
 
-/**
- * The vehicle body: a rectangle of `length` by `width` meters, centred on the
- * pose and turned into its heading, as a closed GeoJSON ring.
- *
- * Straight rather than bent along the track. Over 24 m the Schwebebahn's
- * tightest curve deviates by well under a car width, and a straight box keeps
- * the per-frame work at four corner transforms.
- */
-export const vehicleRing = (
-  pose: TrackPose,
-  lengthMeters: number,
-  widthMeters: number,
-  metersPerLonScale: number
-): Ring => {
-  const cos = Math.cos(pose.heading);
-  const sin = Math.sin(pose.heading);
-  const halfLength = lengthMeters / 2;
-  const halfWidth = widthMeters / 2;
+/* ------------------------------------------------------------------ *
+ *  Stops and vehicle bodies
+ * ------------------------------------------------------------------ */
 
-  const corner = (along: number, across: number): [number, number] => {
-    const east = along * cos - across * sin;
-    const north = along * sin + across * cos;
-    return [
-      pose.lon + east / metersPerLonScale,
-      pose.lat + north / METERS_PER_LAT,
-    ];
+/** a station as it is configured: a name and where it is on the ground */
+export type Station = {
+  name: string;
+  lon: number;
+  lat: number;
+};
+
+/** where a station sits on the track, in meters from the start */
+export type TrackStop = {
+  name: string;
+  distance: number;
+};
+
+/**
+ * Finds every place on the track where a station is served.
+ *
+ * A station is one point on the ground but usually more than one stop on the
+ * track: an out-and-back route passes it once per direction, on two rails a few
+ * meters apart. So this keeps every local minimum within `radiusMeters` rather
+ * than the single nearest point, and the vehicle stops in both directions
+ * without the configuration having to say so.
+ *
+ * The result is sorted by distance, which is the order a vehicle meets them.
+ */
+export const projectStops = (
+  track: Track,
+  stations: readonly Station[],
+  radiusMeters: number
+): TrackStop[] => {
+  const stops: TrackStop[] = [];
+
+  for (const station of stations) {
+    /** vertices inside the radius, as (index, distance²) */
+    let run: { index: number; squared: number }[] = [];
+
+    const flushRun = (): void => {
+      if (run.length === 0) return;
+      const best = run.reduce((a, b) => (b.squared < a.squared ? b : a));
+      stops.push({ name: station.name, distance: track.cumulative[best.index] });
+      run = [];
+    };
+
+    track.points.forEach((point, index) => {
+      const east = (point[0] - station.lon) * track.metersPerLon;
+      const north = (point[1] - station.lat) * METERS_PER_LAT;
+      const squared = east * east + north * north;
+      if (squared <= radiusMeters * radiusMeters) {
+        run.push({ index, squared });
+      } else {
+        // the vertices inside the radius form one run per pass, so a gap ends
+        // the pass and the closest vertex of that pass is the stop
+        flushRun();
+      }
+    });
+    flushRun();
+  }
+
+  return stops.sort((a, b) => a.distance - b.distance);
+};
+
+/** a point on the track in the local meter frame, with its arc position */
+type LocalPoint = { x: number; y: number; s: number };
+
+/**
+ * The stretch of track between two distances, in meters relative to `origin`,
+ * with both ends interpolated onto the polyline.
+ *
+ * `from` may be greater than `to` on a closed track: the slice then runs over
+ * the seam, which is what a vehicle sitting on the start point needs.
+ */
+const sliceLocal = (
+  track: Track,
+  from: number,
+  to: number,
+  origin: TrackPose
+): LocalPoint[] => {
+  const total = track.length;
+  const wrap = (value: number): number =>
+    track.closed ? ((value % total) + total) % total : Math.max(0, Math.min(total, value));
+
+  const span = track.closed
+    ? ((to - from) % total + total) % total
+    : Math.max(0, Math.min(total, to) - Math.max(0, from));
+
+  const toLocal = (lon: number, lat: number, s: number): LocalPoint => ({
+    x: (lon - origin.lon) * track.metersPerLon,
+    y: (lat - origin.lat) * METERS_PER_LAT,
+    s,
+  });
+
+  const start = wrap(from);
+  const startPose = poseAt(track, start);
+  const points: LocalPoint[] = [toLocal(startPose.lon, startPose.lat, 0)];
+
+  // walk the vertices strictly inside the slice, in track order
+  const vertexCount = track.cumulative.length;
+  for (let step = 1; step <= vertexCount; step++) {
+    const index = step % vertexCount;
+    const at = track.cumulative[index];
+    const offset = track.closed
+      ? ((at - start) % total + total) % total
+      : at - start;
+    if (offset <= 0 || offset >= span) continue;
+    const point = track.points[index];
+    points.push(toLocal(point[0], point[1], offset));
+  }
+  points.sort((a, b) => a.s - b.s);
+
+  const endPose = poseAt(track, wrap(from + span));
+  points.push(toLocal(endPose.lon, endPose.lat, span));
+  return points;
+};
+
+/**
+ * The piece of a local slice between two arc positions, ends interpolated and
+ * the result resampled to at most `maxStep` meters.
+ *
+ * The resampling is what makes the body's outline follow its width profile. A
+ * route's own vertices can be ten meters apart, so a body piece would otherwise
+ * consist of its two ends alone and every width in between would be a straight
+ * interpolation between them: a rounded cab would come out as a wedge running
+ * the whole length of the first section.
+ */
+const subPolyline = (
+  points: LocalPoint[],
+  from: number,
+  to: number,
+  maxStep: number
+): LocalPoint[] => {
+  const at = (s: number): LocalPoint => {
+    if (s <= points[0].s) return points[0];
+    const last = points[points.length - 1];
+    if (s >= last.s) return last;
+    let index = 0;
+    while (index < points.length - 2 && points[index + 1].s < s) index++;
+    const a = points[index];
+    const b = points[index + 1];
+    const span = b.s - a.s;
+    const t = span > 0 ? (s - a.s) / span : 0;
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, s };
   };
 
-  const a = corner(halfLength, halfWidth);
-  const b = corner(halfLength, -halfWidth);
-  const c = corner(-halfLength, -halfWidth);
-  const d = corner(-halfLength, halfWidth);
-  return [a, b, c, d, a];
+  const steps = Math.max(1, Math.ceil((to - from) / maxStep));
+  const samples: number[] = [];
+  for (let index = 0; index <= steps; index++) {
+    samples.push(from + ((to - from) * index) / steps);
+  }
+  // the route's own vertices carry the actual bends, so they stay in
+  for (const point of points) {
+    if (point.s > from && point.s < to) samples.push(point.s);
+  }
+  samples.sort((a, b) => a - b);
+
+  return samples.map(at);
+};
+
+/**
+ * A closed ring around a local polyline, `halfWidth(s)` meters to either side.
+ *
+ * The normal at a vertex is taken from its two neighbours together, so the band
+ * stays the same width through a curve instead of pinching on the inside of it.
+ */
+const ribbon = (
+  points: LocalPoint[],
+  halfWidth: (s: number) => number,
+  origin: TrackPose,
+  metersPerLonScale: number
+): [number, number][] => {
+  const left: [number, number][] = [];
+  const right: [number, number][] = [];
+
+  const toLonLat = (x: number, y: number): [number, number] => [
+    origin.lon + x / metersPerLonScale,
+    origin.lat + y / METERS_PER_LAT,
+  ];
+
+  for (let index = 0; index < points.length; index++) {
+    const previous = points[Math.max(0, index - 1)];
+    const next = points[Math.min(points.length - 1, index + 1)];
+    let tx = next.x - previous.x;
+    let ty = next.y - previous.y;
+    const length = Math.hypot(tx, ty);
+    if (length === 0) {
+      // a repeated vertex carries no direction; the neighbours already do
+      continue;
+    }
+    tx /= length;
+    ty /= length;
+    const width = halfWidth(points[index].s);
+    const point = points[index];
+    left.push(toLonLat(point.x - ty * width, point.y + tx * width));
+    right.push(toLonLat(point.x + ty * width, point.y - tx * width));
+  }
+
+  if (left.length < 2) return [];
+  return [...left, ...right.reverse(), left[0]];
+};
+
+/**
+ * What a vehicle looks like from above.
+ *
+ * The Schwebebahn's GTW 15 is 24.06 m long, 2.2 m wide and made of three
+ * sections joined by two rubber articulations, so the default is three sections
+ * with two gaps rather than one box. The cab ends are rounded, which from above
+ * reads as a taper over the last stretch.
+ */
+export type CarShape = {
+  lengthMeters: number;
+  widthMeters: number;
+  /** body sections; the gaps between them are the articulations */
+  sections: number;
+  /** length of one articulation gap, in meters */
+  jointMeters: number;
+  /** how wide the very tip of the cab is, as a fraction of the full width */
+  noseWidth: number;
+  /** over how many meters the cab narrows to that */
+  noseMeters: number;
+};
+
+/** how finely a body outline is sampled along its length */
+const OUTLINE_STEP_METERS = 0.5;
+
+export const CAR_SHAPE_GTW15: CarShape = {
+  lengthMeters: 24.06,
+  widthMeters: 2.2,
+  sections: 3,
+  jointMeters: 0.9,
+  noseWidth: 0.55,
+  noseMeters: 2.2,
+};
+
+/** one drawable piece of a vehicle: a body section or an articulation */
+export type CarPart = {
+  kind: "section" | "joint";
+  ring: [number, number][];
+};
+
+/**
+ * The pieces of one vehicle centred at `distance` along the track, as rings in
+ * lon/lat.
+ *
+ * The body follows the track rather than sitting on it as a straight box, so a
+ * vehicle in a curve bends the way the real one does. That is the whole reason
+ * the shape is built from a slice of the polyline instead of from four corners.
+ */
+export const carParts = (
+  track: Track,
+  distance: number,
+  shape: CarShape
+): CarPart[] => {
+  const { lengthMeters, widthMeters, sections, jointMeters } = shape;
+  const origin = poseAt(track, distance);
+  const points = sliceLocal(
+    track,
+    distance - lengthMeters / 2,
+    distance + lengthMeters / 2,
+    origin
+  );
+  if (points.length < 2) return [];
+
+  const half = widthMeters / 2;
+  const nose = Math.max(0.01, shape.noseMeters);
+  /** eased rather than linear, so the cab ends read as rounded, not chamfered */
+  const halfWidth = (s: number): number => {
+    const fromEnd = Math.min(s, lengthMeters - s);
+    if (fromEnd >= nose) return half;
+    const t = Math.max(0, fromEnd) / nose;
+    const eased = Math.sin((t * Math.PI) / 2);
+    return half * (shape.noseWidth + (1 - shape.noseWidth) * eased);
+  };
+
+  const jointCount = Math.max(0, sections - 1);
+  const sectionLength =
+    (lengthMeters - jointCount * jointMeters) / Math.max(1, sections);
+
+  const parts: CarPart[] = [];
+  let cursor = 0;
+  for (let index = 0; index < sections; index++) {
+    const kinds: { kind: CarPart["kind"]; length: number }[] = [
+      { kind: "section", length: sectionLength },
+      ...(index < jointCount
+        ? [{ kind: "joint" as const, length: jointMeters }]
+        : []),
+    ];
+    for (const { kind, length } of kinds) {
+      const ring = ribbon(
+        subPolyline(points, cursor, cursor + length, OUTLINE_STEP_METERS),
+        halfWidth,
+        origin,
+        track.metersPerLon
+      );
+      if (ring.length > 3) parts.push({ kind, ring });
+      cursor += length;
+    }
+  }
+  return parts;
 };
