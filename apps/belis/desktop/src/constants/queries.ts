@@ -317,6 +317,15 @@ query MyQuery($id: Int!) {
     }
     zusaetzliche_standortbezeichnung
     schaltstellen_nummer
+    sensorid
+    sensorbetreiber
+    sensorbetreiberObject {
+      id
+      beschreibung
+      key
+      name
+      url
+    }
   }
 }`;
 

@@ -1,13 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  Form,
-  Row,
-  Col,
-  Select,
-  Input,
-  DatePicker,
-  InputNumber,
-} from "antd";
+import { Form, Row, Col, Select, Input, DatePicker, InputNumber } from "antd";
 import type { FormInstance } from "antd";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
@@ -17,6 +9,11 @@ import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
+import {
+  formatSensorbetreiber,
+  syncSensorbetreiber,
+  useSensorbetreiber,
+} from "./sensorFields";
 
 interface SchaltstelleFormFieldsProps {
   schaltstelle: Record<string, unknown> | null;
@@ -62,6 +59,10 @@ const SchaltstelleFormFields = ({
   const [localForm] = Form.useForm();
   const form = externalForm ?? localForm;
   const draftApplied = useRef(false);
+  const onValuesChangeRef = useRef(onValuesChange);
+  useEffect(() => {
+    onValuesChangeRef.current = onValuesChange;
+  }, [onValuesChange]);
   const appliedForFeatureRef = useRef<string | number | undefined>(undefined);
   useEffect(() => {
     if (!externalForm) onFormInstance?.(form);
@@ -77,6 +78,7 @@ const SchaltstelleFormFields = ({
     ...((keyTablesData["rundsteuerempfänger"] ||
       []) as RundsteuerempfaengerItem[]),
   ].sort((a, b) => (a.rs_typ || "").localeCompare(b.rs_typ || ""));
+  const { options: sensorbetreiberOptions, esaveId } = useSensorbetreiber();
 
   useEffect(() => {
     if (externalForm) return;
@@ -132,6 +134,12 @@ const SchaltstelleFormFields = ({
         : null,
       // Pruefung
       pruefdatum: ss.pruefdatum ? dayjs(ss.pruefdatum as string) : null,
+      // Sensor (esave)
+      sensorid: ss.sensorid,
+      sensorbetreiber:
+        (ss.sensorbetreiberObject as { id?: number } | undefined)?.id ??
+        ss.sensorbetreiber ??
+        null,
       // Bemerkung
       bemerkung: ss.bemerkung,
     };
@@ -156,6 +164,15 @@ const SchaltstelleFormFields = ({
     form.setFieldsValue(draftValues);
     draftApplied.current = true;
   }, [draftValues, form, externalForm]);
+
+  const handleSensorIdChange = (value: string) =>
+    syncSensorbetreiber({
+      value,
+      form,
+      name: "sensorbetreiber",
+      esaveId,
+      notify: onValuesChangeRef.current,
+    });
 
   return (
     <Form
@@ -182,7 +199,10 @@ const SchaltstelleFormFields = ({
         label={<FormLabel>Hausnummer</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" placeholder={getPlaceholder(readOnly, "Hausnummer eingeben")} />
+        <Input
+          size="large"
+          placeholder={getPlaceholder(readOnly, "Hausnummer eingeben")}
+        />
       </FormItem>
 
       {/* Standortbez. */}
@@ -191,7 +211,10 @@ const SchaltstelleFormFields = ({
         label={<FormLabel>Standortbez.</FormLabel>}
         className="mb-4"
       >
-        <Input size="large" placeholder={getPlaceholder(readOnly, "Standortbezeichnung eingeben")} />
+        <Input
+          size="large"
+          placeholder={getPlaceholder(readOnly, "Standortbezeichnung eingeben")}
+        />
       </FormItem>
 
       {/* Laufende Nr. and Schaltstellen Nr. */}
@@ -202,7 +225,11 @@ const SchaltstelleFormFields = ({
             label={<FormLabel>Laufende Nr.</FormLabel>}
             className="mb-4"
           >
-            <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+            <InputNumber
+              className="w-full"
+              size="large"
+              placeholder={getPlaceholder(readOnly, "Nummer eingeben")}
+            />
           </FormItem>
         </Col>
         <Col span={12}>
@@ -211,7 +238,10 @@ const SchaltstelleFormFields = ({
             label={<FormLabel>Schaltstellen Nr.</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+            <Input
+              size="large"
+              placeholder={getPlaceholder(readOnly, "Nummer eingeben")}
+            />
           </FormItem>
         </Col>
       </Row>
@@ -277,6 +307,48 @@ const SchaltstelleFormFields = ({
         </Select>
       </FormItem>
 
+      {/* Sensor (esave) */}
+      <Row gutter={16}>
+        <Col span={8}>
+          <FormItem
+            name="sensorid"
+            label={<FormLabel>Sensor-ID</FormLabel>}
+            className="mb-4"
+          >
+            <Input
+              size="large"
+              placeholder={getPlaceholder(readOnly, "Sensor-ID eingeben")}
+              onChange={(e) => handleSensorIdChange(e.target.value)}
+            />
+          </FormItem>
+        </Col>
+        <Col span={16}>
+          <FormItem
+            name="sensorbetreiber"
+            label={<FormLabel>Sensorbetreiber</FormLabel>}
+            className="mb-4"
+          >
+            <Select
+              placeholder={getPlaceholder(
+                readOnly,
+                "Sensorbetreiber auswählen"
+              )}
+              className="w-full"
+              size="large"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+            >
+              {sensorbetreiberOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {formatSensorbetreiber(item)}
+                </Select.Option>
+              ))}
+            </Select>
+          </FormItem>
+        </Col>
+      </Row>
+
       {/* Einbaudatum and Pruefung */}
       <Row gutter={16}>
         <Col span={12}>
@@ -315,7 +387,11 @@ const SchaltstelleFormFields = ({
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
-        <Input.TextArea rows={4} size="large" placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")} />
+        <Input.TextArea
+          rows={4}
+          size="large"
+          placeholder={getPlaceholder(readOnly, "Bemerkung eingeben")}
+        />
       </FormItem>
     </Form>
   );
