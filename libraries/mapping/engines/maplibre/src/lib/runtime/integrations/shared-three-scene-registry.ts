@@ -19,7 +19,7 @@ import {
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 14;
+const SHARED_SCENE_ENTRY_VERSION = 15;
 /** Contour lines stay in the mesh drape at half strength. */
 const MESH_DRAPE_CONTOUR_OPACITY = 0.5;
 const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
@@ -70,6 +70,8 @@ type SharedSceneEntry = {
   /** Fills, strokes and rasters hidden below Three while a mesh is draped. */
   savedMeshDrapeVisibilities: Map<string, SavedPointLabelVisibility>;
   savedContourOpacities: Map<string, SavedPointLabelVisibility>;
+  /** MapLibre terrain whose tile skirts are switched off while Three draws the ground. */
+  terrainFramePatch: TerrainFramePatch | null;
   /** Place names floating above the scene, with their saved translate paint. */
   liftLayers: LabelLiftLayer[];
   savedLabelLifts: Map<string, SavedLabelLift>;
@@ -137,6 +139,16 @@ type SavedLabelLift = {
   originalTranslate: unknown;
   originalAnchor: unknown;
   appliedPixels: number;
+};
+
+type MapLibreTerrainWithFrame = {
+  getMeshFrameDelta?: (zoom: number) => number;
+};
+
+type TerrainFramePatch = {
+  terrain: MapLibreTerrainWithFrame;
+  inherited: boolean;
+  original: MapLibreTerrainWithFrame["getMeshFrameDelta"];
 };
 
 type SpriteImageData = {
@@ -813,6 +825,55 @@ const hasMeshDrapeProvider = (entry: SharedSceneEntry): boolean => {
   );
 };
 
+const hasTerrainProvider = (entry: SharedSceneEntry): boolean =>
+  (entry.layer.getRuntimes?.() ?? []).some(
+    (runtime) => runtime.providesTerrain === true
+  );
+
+const restoreTerrainFrame = (entry: SharedSceneEntry): void => {
+  const patch = entry.terrainFramePatch;
+  if (!patch) return;
+  if (patch.inherited) {
+    delete patch.terrain.getMeshFrameDelta;
+  } else {
+    patch.terrain.getMeshFrameDelta = patch.original;
+  }
+  entry.terrainFramePatch = null;
+};
+
+/**
+ * MapLibre extends every terrain tile with a skirt (`getMeshFrameDelta`).
+ * Those skirts end up in the captured style pass as smeared strips at the
+ * tile borders once Three draws the actual ground, so they are switched off
+ * while a runtime supplies the terrain, with or without the shadow scene.
+ */
+const suppressTerrainFrame = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry
+): void => {
+  if (!hasTerrainProvider(entry)) {
+    restoreTerrainFrame(entry);
+    return;
+  }
+  const terrain = (map as unknown as { terrain?: MapLibreTerrainWithFrame })
+    .terrain;
+  if (!terrain || typeof terrain.getMeshFrameDelta !== "function") {
+    restoreTerrainFrame(entry);
+    return;
+  }
+  if (entry.terrainFramePatch?.terrain === terrain) return;
+  restoreTerrainFrame(entry);
+  entry.terrainFramePatch = {
+    terrain,
+    inherited: !Object.prototype.hasOwnProperty.call(
+      terrain,
+      "getMeshFrameDelta"
+    ),
+    original: terrain.getMeshFrameDelta,
+  };
+  terrain.getMeshFrameDelta = () => 0;
+};
+
 /** An explicit request (the shadow scene) wins; otherwise the mesh decides. */
 const isMeshLabelStyle = (entry: SharedSceneEntry): boolean => {
   let enabled: boolean | null = null;
@@ -1385,6 +1446,7 @@ const ensureSharedLayerOrder = (
     entry,
     layerOrder
   );
+  suppressTerrainFrame(map, entry);
   const meshLabelStyle = isMeshLabelStyle(entry);
   if (meshLabelStyle) {
     applyMeshDrape(map, entry, getCachedStyleLayers(map, entry, layerOrder));
@@ -1566,6 +1628,8 @@ export const acquireSharedThreeScene = (
     entry.styleLayersCache = null;
     entry.savedMeshDrapeVisibilities ??= new Map();
     entry.savedContourOpacities ??= new Map();
+    entry.terrainFramePatch ??= null;
+    restoreTerrainFrame(entry);
     restoreMeshDrape(map, entry);
     entry.liftLayers ??= [];
     entry.savedLabelLifts ??= new Map();
@@ -1648,6 +1712,7 @@ export const acquireSharedThreeScene = (
       savedMeshLabelPaint: new Map(),
       savedMeshDrapeVisibilities: new Map(),
       savedContourOpacities: new Map(),
+      terrainFramePatch: null,
       liftLayers: [],
       savedLabelLifts: new Map(),
       tintedImages: new Map(),
@@ -1739,6 +1804,7 @@ export const acquireSharedThreeScene = (
         // The host may already have disposed or replaced its style.
       }
       restoreMeshIconTint(map, current);
+      restoreTerrainFrame(current);
       restoreMeshDrape(map, current);
       restoreMeshLabelPaint(map, current.savedMeshLabelPaint);
       restoreLabelLifts(map, current.savedLabelLifts);
