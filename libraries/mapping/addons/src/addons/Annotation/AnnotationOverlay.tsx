@@ -9,6 +9,7 @@ import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { reserveIdSequence, useAnnotationActions } from "./annotation-actions";
 import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { coverageAround } from "./annotation-zoom-coverage";
+import type { AnnotationPen } from "./annotation-pen";
 import { useZoomRouting } from "./useZoomRouting";
 import { AnnotationScene } from "./AnnotationScene";
 import { useAnnotationStorage } from "./useAnnotationStorage";
@@ -158,6 +159,17 @@ export const AnnotationOverlay = ({
     [scales, setCoverage, storeSceneEdit]
   );
 
+  /**
+   * The one pen every drawing shares. A ref, not state: it changes with every
+   * stroke and nothing outside the scenes renders it, so a re-render per change
+   * would cost the excalidraw instances for nothing.
+   */
+  const penRef = useRef<AnnotationPen | null>(null);
+  const onPenChange = useCallback((pen: AnnotationPen) => {
+    penRef.current = pen;
+  }, []);
+  const getPen = useCallback(() => penRef.current, []);
+
   useZoomRouting({
     libreMap,
     enabled: isOn,
@@ -242,6 +254,8 @@ export const AnnotationOverlay = ({
             chrome={chrome}
             shape={shape}
             onToolChange={setShape}
+            onPenChange={onPenChange}
+            getPen={getPen}
             undoVersion={undoVersion}
             redoVersion={redoVersion}
             zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
