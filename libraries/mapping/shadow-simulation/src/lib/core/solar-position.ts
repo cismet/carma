@@ -1,4 +1,12 @@
 import { clamp } from "@carma-commons/math";
+import {
+  getDaysInYear,
+  getZonedUtcOffsetMinutes,
+  instantToZonedYearDayTime,
+  type YearDayTime,
+  type ZonedYearDayTime,
+  zonedYearDayTimeToInstant,
+} from "@carma-commons/utils";
 import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -8,20 +16,16 @@ export const MEAN_SOLAR_ANGULAR_RADIUS_DEGREES = 0.2666;
 export type SolarLocation = {
   latitude: number;
   longitude: number;
-  timeZone: string;
 };
 
 export const DEFAULT_SHADOW_SIMULATION_LOCATION: SolarLocation = {
   latitude: 51.256,
   longitude: 7.15,
-  timeZone: "Europe/Berlin",
 };
 
-export type SolarSelection = {
-  year: number;
-  dayOfYear: number;
-  minutes: number;
-};
+export const DEFAULT_SHADOW_SIMULATION_TIME_ZONE = "Europe/Berlin";
+
+export type SolarSelection = ZonedYearDayTime;
 
 export type DaylightWindow = {
   sunriseMinutes: number;
@@ -40,121 +44,28 @@ export type SolarPosition = {
 const normalizeMinutes = (minutes: number) =>
   ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
 
-export const getDaysInYear = (year: number): number =>
-  new Date(Date.UTC(year, 1, 29)).getUTCMonth() === 1 ? 366 : 365;
-
-const getDatePartsForDayOfYear = (year: number, dayOfYear: number) => {
-  const date = new Date(
-    Date.UTC(year, 0, clamp(Math.round(dayOfYear), 1, getDaysInYear(year)))
-  );
-  return {
-    year: date.getUTCFullYear(),
-    month: date.getUTCMonth() + 1,
-    day: date.getUTCDate(),
-  };
-};
-
-const formatterCache = new Map<string, Intl.DateTimeFormat>();
-
-const getTimeZoneFormatter = (timeZone: string) => {
-  let formatter = formatterCache.get(timeZone);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    });
-    formatterCache.set(timeZone, formatter);
-  }
-  return formatter;
-};
-
-const getZonedParts = (instant: Date, timeZone: string) => {
-  const values = Object.fromEntries(
-    getTimeZoneFormatter(timeZone)
-      .formatToParts(instant)
-      .filter(({ type }) => type !== "literal")
-      .map(({ type, value }) => [type, Number(value)])
-  );
-  return {
-    year: values.year,
-    month: values.month,
-    day: values.day,
-    hour: values.hour,
-    minute: values.minute,
-    second: values.second,
-  };
-};
-
-const getTimeZoneOffsetMinutes = (instant: Date, timeZone: string): number => {
-  const parts = getZonedParts(instant, timeZone);
-  const representedAsUtc = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second
-  );
-  return Math.round((representedAsUtc - instant.getTime()) / 60_000);
-};
-
 export const solarSelectionToInstant = (
-  selection: SolarSelection,
-  timeZone: string
-): Date => {
-  const date = getDatePartsForDayOfYear(selection.year, selection.dayOfYear);
-  const safeMinutes = clamp(
-    Math.round(selection.minutes),
-    0,
-    MINUTES_PER_DAY - 1
-  );
-  const hour = Math.floor(safeMinutes / 60);
-  const minute = safeMinutes % 60;
-  const wallClockUtc = Date.UTC(
-    date.year,
-    date.month - 1,
-    date.day,
-    hour,
-    minute
-  );
-  let instantMs = wallClockUtc;
-
-  // Resolve the local wall-clock time against the named IANA zone. Iterating
-  // handles the offset changing between the initial UTC guess and local noon.
-  for (let iteration = 0; iteration < 3; iteration += 1) {
-    const offsetMinutes = getTimeZoneOffsetMinutes(
-      new Date(instantMs),
-      timeZone
-    );
-    const nextInstantMs = wallClockUtc - offsetMinutes * 60_000;
-    if (nextInstantMs === instantMs) break;
-    instantMs = nextInstantMs;
-  }
-  return new Date(instantMs);
-};
+  selection: SolarSelection
+): Date =>
+  zonedYearDayTimeToInstant({
+    ...selection,
+    dayOfYear: clamp(
+      Math.round(selection.dayOfYear),
+      1,
+      getDaysInYear(selection.year)
+    ),
+    minutes: clamp(
+      Math.round(selection.minutes),
+      0,
+      MINUTES_PER_DAY - 1
+    ),
+  });
 
 export const getSolarSelectionForInstant = (
   instant: Date,
   timeZone: string
 ): SolarSelection => {
-  const parts = getZonedParts(instant, timeZone);
-  const dayOfYear =
-    Math.floor(
-      (Date.UTC(parts.year, parts.month - 1, parts.day) -
-        Date.UTC(parts.year, 0, 1)) /
-        86_400_000
-    ) + 1;
-  return {
-    year: parts.year,
-    dayOfYear,
-    minutes: parts.hour * 60 + parts.minute,
-  };
+  return instantToZonedYearDayTime(instant, timeZone);
 };
 
 const getSolarTerms = (year: number, dayOfYear: number, minutes: number) => {
@@ -225,22 +136,22 @@ const resolveDaylightBoundaryMinutes = (
 };
 
 export const getDaylightWindow = (
-  year: number,
-  dayOfYear: number,
+  selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">,
   location: SolarLocation
 ): DaylightWindow => {
+  const { year, dayOfYear } = selection;
   const safeDay = clamp(Math.round(dayOfYear), 1, getDaysInYear(year));
   const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
     year,
     safeDay,
     720
   );
-  const noonInstant = solarSelectionToInstant(
-    { year, dayOfYear: safeDay, minutes: 720 },
-    location.timeZone
-  );
   const timeZoneOffsetHours =
-    getTimeZoneOffsetMinutes(noonInstant, location.timeZone) / 60;
+    getZonedUtcOffsetMinutes({
+      ...selection,
+      dayOfYear: safeDay,
+      minutes: 720,
+    }) / 60;
   const latitudeRadians = degToRadNumeric(location.latitude);
   const hourAngleCosine = getSelectableHourAngleCosine(
     latitudeRadians,
@@ -314,7 +225,10 @@ export const clampSelectionToDaylight = (
     1,
     getDaysInYear(selection.year)
   );
-  const daylight = getDaylightWindow(selection.year, dayOfYear, location);
+  const daylight = getDaylightWindow(
+    { ...selection, dayOfYear },
+    location
+  );
   if (daylight.polarNight) return null;
   const minimum = daylight.polarDay ? 0 : Math.ceil(daylight.sunriseMinutes);
   const maximum = daylight.polarDay
@@ -325,6 +239,7 @@ export const clampSelectionToDaylight = (
     year: selection.year,
     dayOfYear,
     minutes: clamp(Math.round(selection.minutes), minimum, maximum),
+    timeZone: selection.timeZone,
   };
 };
 
@@ -332,8 +247,8 @@ export const getSolarPosition = (
   selection: SolarSelection,
   location: SolarLocation
 ): SolarPosition => {
-  const instant = solarSelectionToInstant(selection, location.timeZone);
-  const offsetHours = getTimeZoneOffsetMinutes(instant, location.timeZone) / 60;
+  const instant = solarSelectionToInstant(selection);
+  const offsetHours = getZonedUtcOffsetMinutes(selection) / 60;
   const { equationOfTimeMinutes, declinationRadians } = getSolarTerms(
     selection.year,
     selection.dayOfYear,
@@ -376,14 +291,16 @@ const resolveShadowSimulationLocation = (
 ): SolarLocation => ({
   latitude: location.latitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
   longitude: location.longitude ?? DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
-  timeZone: location.timeZone ?? DEFAULT_SHADOW_SIMULATION_LOCATION.timeZone,
 });
 
 export const clampShadowSimulationSelectionToDaylight = (
-  selection: SolarSelection,
-  location: Partial<SolarLocation> = {}
+  selection: YearDayTime,
+  location: Partial<SolarLocation> & { timeZone?: string } = {}
 ): SolarSelection | null =>
   clampSelectionToDaylight(
-    selection,
+    {
+      ...selection,
+      timeZone: location.timeZone ?? DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
+    },
     resolveShadowSimulationLocation(location)
   );

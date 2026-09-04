@@ -39,7 +39,6 @@ import {
   removeLayer,
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
-  setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import type { AppDispatch } from "../../store";
@@ -398,6 +397,7 @@ const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
 const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const [shadowDate] = useAddonState("shadowDate");
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const infoViewOpen = selectedLayerIndex === props.index;
 
@@ -424,11 +424,11 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
       {...props}
       title={props.title}
       actionSlot={
-        shadowState ? (
+        shadowState && shadowDate ? (
           <div className="flex items-center">
             <span className="mx-1.5 h-5 w-px bg-neutral-200" />
             <span className="whitespace-nowrap px-1.5 text-sm tabular-nums text-neutral-600">
-              {formatShadowSelection(shadowState.selection)}
+              {formatShadowSelection(shadowDate)}
             </span>
             <LayerbarActionGroup
               actions={[

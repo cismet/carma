@@ -38,6 +38,22 @@ export {
 export { isNumberArrayEqual } from "./lib/arrays";
 
 export {
+  getDayOfYear,
+  getDaysInYear,
+  getUtcDateForDayOfYear,
+  offsetYearDay,
+  type YearDay,
+  type YearDayTime,
+  type ZonedYearDayTime,
+} from "./lib/calendar";
+
+export {
+  getZonedUtcOffsetMinutes,
+  instantToZonedYearDayTime,
+  zonedYearDayTimeToInstant,
+} from "./lib/zoned-date-time";
+
+export {
   extractCarmaConfig,
   resolveLayerTitle,
   resolveLayerDescription,

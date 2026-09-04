@@ -36,7 +36,7 @@ export type GeoportalShadowSimulationHashSelection = {
 
 type GeoportalShadowSimulationHashSource = {
   enabled: boolean;
-  selection: GeoportalShadowSimulationHashSelection;
+  dateState: GeoportalShadowSimulationHashSelection;
 };
 
 const SHADOW_SIMULATION_HASH_VALUE_PATTERN = /^(\d{1,4});(\d{1,3})$/;
@@ -124,7 +124,7 @@ export const buildGeoportalShadowSimulationHashUpdate = (
     return { [URL_PARAM_KEYS.shadowSimulation]: undefined };
   }
 
-  const { minutes, dayOfYear } = state.selection;
+  const { minutes, dayOfYear } = state.dateState;
   const serialized = `${minutes};${dayOfYear}`;
 
   return {

@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 
 import { useLibreContext } from "@carma-mapping/contexts";
 import type {
+  ShadowDateState,
   ShadowSimulationConfig,
   ShadowSimulationState,
 } from "@carma-mapping/shadow-simulation";
@@ -9,7 +10,11 @@ import type {
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 
-export type { ShadowSimulationConfig, ShadowSimulationState };
+export type {
+  ShadowDateState,
+  ShadowSimulationConfig,
+  ShadowSimulationState,
+};
 
 const LazyShadowSimulationView = lazy(async () => {
   const module = await import("@carma-mapping/shadow-simulation");
@@ -27,6 +32,7 @@ export const ShadowSimulation = ({
   target,
 }: AddonComponentProps<"shadowSimulation">) => {
   const [state, setState] = useAddonState("shadowSimulation");
+  const [dateState, setDateState] = useAddonState("shadowDate");
   return (
     <Suspense fallback={null}>
       <LazyShadowSimulationView
@@ -35,6 +41,8 @@ export const ShadowSimulation = ({
         targeted={target !== null}
         sharedState={state}
         setSharedState={setState}
+        sharedDateState={dateState}
+        setSharedDateState={setDateState}
       />
     </Suspense>
   );
@@ -47,6 +55,7 @@ export const ShadowSimulationHeaderControls = ({
 }) => {
   const { map } = useLibreContext();
   const [state, setState] = useAddonState("shadowSimulation");
+  const [dateState, setDateState] = useAddonState("shadowDate");
   return (
     <Suspense fallback={null}>
       <LazyShadowSimulationHeaderControlsView
@@ -54,6 +63,8 @@ export const ShadowSimulationHeaderControls = ({
         libreMap={map}
         state={state}
         setState={setState}
+        dateState={dateState}
+        setDateState={setDateState}
       />
     </Suspense>
   );

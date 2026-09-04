@@ -12,69 +12,16 @@ import { wmsCapabilitiesToCustomItems } from "../helper/buildCatalog";
 import type { CatalogDrop } from "../helper/buildCatalog";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { useLiveDeployment } from "@carma-commons/utils";
+import {
+  isJsonUrl,
+  replaceVectorTileServerPlaceholders,
+  resolveDroppedUrl,
+} from "../helper/resolve-dropped-url";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
 
 const TWININDICATOR = ".twin.";
-
-const DROP_URL_TYPES = [
-  "URL",
-  "text/uri-list",
-  "text/plain",
-  "text/html",
-] as const;
-
-const parseHttpUrl = (candidate: string): string | null => {
-  try {
-    const url = new URL(candidate.trim());
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? url.toString()
-      : null;
-  } catch {
-    return null;
-  }
-};
-
-const resolveHtmlUrl = (html: string): string | null => {
-  const href = new DOMParser()
-    .parseFromString(html, "text/html")
-    .querySelector<HTMLAnchorElement>("a[href]")?.href;
-
-  return href ? parseHttpUrl(href) : null;
-};
-
-export const resolveDroppedUrl = (
-  dataTransfer: Pick<DataTransfer, "getData"> | null | undefined
-): string | null => {
-  if (!dataTransfer) return null;
-
-  for (const type of DROP_URL_TYPES) {
-    let value = "";
-    try {
-      value = dataTransfer.getData(type);
-    } catch {
-      continue;
-    }
-
-    for (const line of value.split(/\r?\n/)) {
-      const candidate = line.trim();
-      if (!candidate || candidate.startsWith("#")) continue;
-      const url = parseHttpUrl(candidate);
-      if (url) return url;
-    }
-
-    if (type === "text/html") {
-      const url = resolveHtmlUrl(value);
-      if (url) return url;
-    }
-  }
-
-  return null;
-};
-
-const isJsonUrl = (url: string) =>
-  new URL(url).pathname.toLowerCase().endsWith(".json");
 
 const CONFIG_FILE_LOOKUP: Record<
   string,
@@ -110,12 +57,6 @@ export const useHandleDrop = ({
       setOpen(true);
       setSelectedNavItemIndex(index ?? 3);
     }
-  };
-
-  const preTransformJson = (input: string) => {
-    return input
-      .replaceAll("__SERVER_URL__", vectorTileServerUrl)
-      .replaceAll("__server_url__", vectorTileServerUrl);
   };
 
   const handleAddToMap = async (newItem: Item, instant = false) => {
@@ -157,7 +98,10 @@ export const useHandleDrop = ({
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
           if (typeof fileContent === "string") {
-            const processedContent = preTransformJson(fileContent);
+            const processedContent = replaceVectorTileServerPlaceholders(
+              fileContent,
+              vectorTileServerUrl
+            );
 
             const jsonData = JSON.parse(processedContent);
 
@@ -251,7 +195,10 @@ export const useHandleDrop = ({
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
           if (typeof fileContent === "string") {
-            const processedContent = preTransformJson(fileContent);
+            const processedContent = replaceVectorTileServerPlaceholders(
+              fileContent,
+              vectorTileServerUrl
+            );
 
             const jsonData = JSON.parse(processedContent);
             let newItem = {

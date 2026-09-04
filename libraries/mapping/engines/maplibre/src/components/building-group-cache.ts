@@ -2,7 +2,6 @@ import { MercatorCoordinate } from "maplibre-gl";
 
 import {
   geographicBoundsIntersect,
-  getGeographicRingBounds,
   padGeographicBounds,
   type GeographicBounds,
   unionGeographicBounds,
@@ -53,11 +52,6 @@ export const getFootprintRadiusMeters = (
   return radiusMeters;
 };
 
-export const getRingBounds = (ring: number[][]): GeographicBounds =>
-  getGeographicRingBounds(ring as [number, number][]);
-
-export const mergeGeographicBounds = unionGeographicBounds;
-
 export const retainBuildingGroupsInView = (
   cache: Map<string | number, CachedBuildingGroup>,
   queried: ReadonlyMap<string | number, CachedBuildingGroup>,
@@ -83,7 +77,7 @@ export const retainBuildingGroupsInView = (
     cache.set(id, {
       ...next,
       fragments,
-      bounds: mergeGeographicBounds(previous.bounds, next.bounds),
+      bounds: unionGeographicBounds(previous.bounds, next.bounds),
       roofFaces: next.roofFaces?.length ? next.roofFaces : previous.roofFaces,
     });
   }

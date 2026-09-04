@@ -55,6 +55,7 @@ import {
 import { LibreTerrain, type LibreTerrainConfig } from "../addons/LibreTerrain";
 import {
   ShadowSimulation,
+  type ShadowDateState,
   type ShadowSimulationConfig,
   type ShadowSimulationState,
 } from "../addons/ShadowSimulation";
@@ -183,8 +184,10 @@ export type AddonStateMap = {
    * addon, which is why it has no consumer among the registry's `requires`.
    */
   addonOverrides: AddonOverridesState;
-  /** enabled state and daylight selection shared by the control and layer pane */
+  /** rendering and animation state shared by the shadow controls */
   shadowSimulation: ShadowSimulationState;
+  /** selected civil date and time, separate for future shared-time sync */
+  shadowDate: ShadowDateState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -349,7 +352,7 @@ export const addonRegistry: {
   shadowSimulation: {
     Component: ShadowSimulation,
     targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
-    provides: ["shadowSimulation"],
+    provides: ["shadowSimulation", "shadowDate"],
   },
   infoBoxZoomImage: {
     Component: InfoBoxZoomImage,

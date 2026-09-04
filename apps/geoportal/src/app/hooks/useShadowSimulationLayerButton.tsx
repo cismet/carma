@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  applyAddonOverrides,
-  resolveAddonEntries,
   useAddonState,
   usePersistedAddonOverrides,
   useRouteAddons,
 } from "@carma-mapping/addons";
-import type { Layer } from "@carma-mapping/layers";
 
+import {
+  createShadowSimulationLayer,
+  resolveShadowSimulationAddon,
+  SHADOW_SIMULATION_LAYER_ID,
+} from "../helper/shadow-simulation-layer";
 import {
   appendLayer,
   getLayerStack,
@@ -18,7 +20,7 @@ import {
   updateLayer,
 } from "../store/slices/mapping";
 
-export const SHADOW_SIMULATION_LAYER_ID = "__shadow_simulation__";
+export { SHADOW_SIMULATION_LAYER_ID } from "../helper/shadow-simulation-layer";
 
 export const useShadowSimulationLayerButton = () => {
   const dispatch = useDispatch();
@@ -30,29 +32,11 @@ export const useShadowSimulationLayerButton = () => {
   const wasEnabled = useRef(false);
 
   const shadowAddon = useMemo(
-    () =>
-      applyAddonOverrides(
-        resolveAddonEntries(routeAddons),
-        addonOverrides
-      ).find((entry) => entry.kind === "shadowSimulation"),
+    () => resolveShadowSimulationAddon(routeAddons, addonOverrides),
     [addonOverrides, routeAddons]
   );
-  const shadowLayer = useMemo<Layer | null>(
-    () =>
-      shadowAddon
-        ? {
-            id: SHADOW_SIMULATION_LAYER_ID,
-            title: "Schatten",
-            description:
-              "Sonnenstand und Schattenwurf in der gemeinsamen Three.js-Szene.",
-            type: "object",
-            icon: "shadow-simulation",
-            iconColor: "#d97706",
-            visible: shadowEnabled,
-            pinned: "last",
-            tools: [shadowAddon],
-          }
-        : null,
+  const shadowLayer = useMemo(
+    () => createShadowSimulationLayer(shadowAddon, shadowEnabled),
     [shadowAddon, shadowEnabled]
   );
 

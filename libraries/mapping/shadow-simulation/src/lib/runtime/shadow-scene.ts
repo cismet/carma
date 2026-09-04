@@ -6,6 +6,7 @@ import {
   acquireSharedThreeScene,
   buildCesiumTerrainRuntime,
   getGenericThreeLayers,
+  MAPLIBRE_EVENT,
   getSharedThreeShadowViewSignature,
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeSceneContent,
@@ -14,7 +15,6 @@ import {
   WUPPERTAL_TERRAIN_SOURCE_ID,
 } from "@carma-mapping/engines/maplibre";
 import type {
-  CesiumTerrainRuntimeOptions,
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
@@ -22,6 +22,7 @@ import type {
 } from "@carma-mapping/engines/maplibre";
 import { degToRadNumeric } from "@carma-units";
 
+import type { ShadowSceneOptions } from "../contracts/shadow-simulation";
 import type { SolarPosition } from "../core/solar-position";
 import { getFrustumBoxIntersectionPoints } from "../core/frustum-box-intersection";
 import {
@@ -119,14 +120,6 @@ type GenericThreeShadowBridge = {
   sync: () => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
 };
-
-export type ShadowSceneOptions = {
-  shadowAreaMeters?: number;
-  terrain?: ShadowTerrainOptions;
-};
-
-export type ShadowTerrainOptions = Readonly<{ url: string }> &
-  Omit<CesiumTerrainRuntimeOptions, "onError" | "onContentChanged">;
 
 /**
  * What the MapLibre pass below Three contributes to the projected drape:
@@ -411,15 +404,15 @@ export const acquireShadowMapLibreTerrain = (
     if (!applying) apply();
   };
 
-  map.on("styledata", apply);
-  map.on("terrain", handleTerrainChange);
+  map.on(MAPLIBRE_EVENT.STYLE_DATA, apply);
+  map.on(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
   apply();
 
   const release = () => {
     if (disposed) return;
     disposed = true;
-    map.off("styledata", apply);
-    map.off("terrain", handleTerrainChange);
+    map.off(MAPLIBRE_EVENT.STYLE_DATA, apply);
+    map.off(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
     restoreTerrainFrame();
     restoreOpaqueDrape();
     restoreSavedVisibilities(savedTerrainShadingVisibilities);
@@ -1742,10 +1735,10 @@ export const buildShadowSimulationScene = (
     handleMove();
     map.triggerRepaint();
   };
-  map.on("movestart", handleMoveStart);
-  map.on("move", handleMove);
-  map.on("moveend", handleMoveEnd);
-  map.on("resize", handleResize);
+  map.on(MAPLIBRE_EVENT.MOVE_START, handleMoveStart);
+  map.on(MAPLIBRE_EVENT.MOVE, handleMove);
+  map.on(MAPLIBRE_EVENT.MOVE_END, handleMoveEnd);
+  map.on(MAPLIBRE_EVENT.RESIZE, handleResize);
   const watchTerrainRuntime = (runtime: NonNullable<typeof terrainRuntime>) => {
     void runtime.ready.then((loaded) => {
       if (!loaded || disposed || terrainRuntime !== runtime) return;
@@ -1883,7 +1876,7 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition) applyMapLibreLight(latestSolarPosition);
   };
 
-  map.on("style.load", restoreLighting);
+  map.on(MAPLIBRE_EVENT.STYLE_LOAD, restoreLighting);
 
   return {
     updateSolarPosition,
@@ -2012,11 +2005,11 @@ export const buildShadowSimulationScene = (
         mapLibreStyleUpdateTimer = null;
       }
       clearShadowProjectionDebugSnapshot(map);
-      map.off("style.load", restoreLighting);
-      map.off("movestart", handleMoveStart);
-      map.off("move", handleMove);
-      map.off("moveend", handleMoveEnd);
-      map.off("resize", handleResize);
+      map.off(MAPLIBRE_EVENT.STYLE_LOAD, restoreLighting);
+      map.off(MAPLIBRE_EVENT.MOVE_START, handleMoveStart);
+      map.off(MAPLIBRE_EVENT.MOVE, handleMove);
+      map.off(MAPLIBRE_EVENT.MOVE_END, handleMoveEnd);
+      map.off(MAPLIBRE_EVENT.RESIZE, handleResize);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
       latestShadowView = null;

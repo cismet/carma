@@ -1,6 +1,10 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-const MAPLIBRE_LAYER_OPACITY_PROPERTIES = {
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+
+const MAPLIBRE_LAYER_OPACITY_PROPERTIES: Readonly<
+  Record<string, readonly string[]>
+> = {
   background: ["background-opacity"],
   circle: ["circle-opacity", "circle-stroke-opacity"],
   "color-relief": ["color-relief-opacity"],
@@ -10,7 +14,7 @@ const MAPLIBRE_LAYER_OPACITY_PROPERTIES = {
   line: ["line-opacity"],
   raster: ["raster-opacity"],
   symbol: ["icon-opacity", "text-opacity"],
-} as const satisfies Record<string, readonly string[]>;
+};
 
 type SavedLayerRendering =
   | {
@@ -238,9 +242,6 @@ export const getMapStylePointLabelLiftMeters = (
   if (isMapStyleRoadShieldLayer(layer)) return null;
   return getMapStyleLocationLabelLiftMeters(layer) ?? POINT_LABEL_LIFT_METERS;
 };
-
-/** @deprecated Prefer the explicit location-label classifier. */
-export const isMapStyleLabelLayer = isMapStyleLocationLabelLayer;
 
 export const isMapStyleOverlayLayer = (layer: RuntimeStyleLayer): boolean => {
   if (layer.type === "custom") return false;
@@ -575,8 +576,8 @@ export const suppressMapLibreRegularStyleLayers = (
       prepareForStyleLoad,
     };
     suppressedStyleLayers.set(map, entry);
-    map.on("styledataloading", prepareForStyleLoad);
-    map.on("styledata", suppressLayers);
+    map.on(MAPLIBRE_EVENT.STYLE_DATA_LOADING, prepareForStyleLoad);
+    map.on(MAPLIBRE_EVENT.STYLE_DATA, suppressLayers);
     suppressLayers();
   }
 
@@ -589,8 +590,8 @@ export const suppressMapLibreRegularStyleLayers = (
     entry.references -= 1;
     if (entry.references > 0) return;
 
-    map.off("styledataloading", entry.prepareForStyleLoad);
-    map.off("styledata", entry.suppressLayers);
+    map.off(MAPLIBRE_EVENT.STYLE_DATA_LOADING, entry.prepareForStyleLoad);
+    map.off(MAPLIBRE_EVENT.STYLE_DATA, entry.suppressLayers);
     suppressedStyleLayers.delete(map);
     for (const [layerId, saved] of entry.savedLayers) {
       try {

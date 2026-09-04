@@ -1,14 +1,16 @@
 import { useId, useMemo, useRef } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 
+import { getDayOfYear, getDaysInYear } from "@carma-commons/utils";
+
 import {
   clampSelectionToDaylight,
   getDaylightWindow,
-  getDaysInYear,
   type SolarLocation,
   type SolarPosition,
   type SolarSelection,
 } from "../core/solar-position";
+import { formatClockMinutes } from "./format-shadow-selection";
 
 const SVG_WIDTH = 336;
 const SVG_HEIGHT = 112;
@@ -28,13 +30,6 @@ export type SolarDayTimeControlProps = {
   onChange: (selection: SolarSelection) => void;
 };
 
-const pad2 = (value: number) => String(value).padStart(2, "0");
-
-const formatMinutes = (minutes: number) => {
-  const rounded = Math.round(minutes);
-  return `${pad2(Math.floor(rounded / 60))}:${pad2(rounded % 60)}`;
-};
-
 const formatDay = (year: number, dayOfYear: number) =>
   new Intl.DateTimeFormat("de-DE", {
     day: "2-digit",
@@ -45,10 +40,8 @@ const formatDay = (year: number, dayOfYear: number) =>
 const getMonthTicks = (year: number) =>
   Array.from({ length: 12 }, (_, month) => {
     const date = new Date(Date.UTC(year, month, 1));
-    const dayOfYear =
-      Math.floor((date.getTime() - Date.UTC(year, 0, 1)) / 86_400_000) + 1;
     return {
-      dayOfYear,
+      dayOfYear: getDayOfYear(year, month, 1),
       label: new Intl.DateTimeFormat("de-DE", {
         month: "short",
         timeZone: "UTC",
@@ -73,9 +66,12 @@ export const SolarDayTimeControl = ({
   const daylight = useMemo(
     () =>
       Array.from({ length: dayCount }, (_, index) =>
-        getDaylightWindow(selection.year, index + 1, location)
+        getDaylightWindow(
+          { ...selection, dayOfYear: index + 1 },
+          location
+        )
       ),
-    [dayCount, location, selection.year]
+    [dayCount, location, selection]
   );
 
   const toX = (dayOfYear: number) =>
@@ -118,7 +114,7 @@ export const SolarDayTimeControl = ({
 
   const publishCandidate = (dayOfYear: number, minutes: number) => {
     const next = clampSelectionToDaylight(
-      { year: selection.year, dayOfYear, minutes },
+      { ...selection, dayOfYear, minutes },
       location
     );
     if (next) onChange(next);
@@ -189,7 +185,7 @@ export const SolarDayTimeControl = ({
           aria-label={`Tag und Tageszeit für die Schattensimulation: ${formatDay(
             selection.year,
             selection.dayOfYear
-          )}, ${formatMinutes(
+          )}, ${formatClockMinutes(
             selection.minutes
           )} Uhr; Sonne: Azimut ${position.azimuthDegrees.toFixed(
             0
@@ -253,7 +249,7 @@ export const SolarDayTimeControl = ({
                   fill="rgba(15,23,42,0.58)"
                   fontSize="9"
                 >
-                  {pad2(hour)}
+                  {String(hour).padStart(2, "0")}
                 </text>
               </g>
             );
