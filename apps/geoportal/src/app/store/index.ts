@@ -7,7 +7,7 @@ import localForage from "localforage";
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
-import { allFachzwillingRoutes } from "../constants/fachzwillinge/routes";
+import { STORE_APP_KEY } from "./app-key";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
 import measurementsReducer from "./slices/measurements";
@@ -25,22 +25,8 @@ const initialUIMode =
     ? UIMode.MEASUREMENT
     : initialUIState.mode;
 
-/** the route the app is starting on; the router is not mounted yet */
-const initialRoutePath = window.location.hash.replace(/^#/, "").split("?")[0];
-
-/** a route may ask for a storage namespace of its own, see its `appKey` */
-const routeAppKey = allFachzwillingRoutes.find(
-  (route) => initialRoutePath === `/${route.path}`
-)?.appKey;
-
-// Parsed off the part behind the "?": URLSearchParams strips a leading "?" but
-// not a leading "#", so feeding it the whole hash makes the first parameter's
-// name come out as "#/outlet?appKey" and the lookup miss.
-const initialHashQuery = window.location.hash.split("?").slice(1).join("?");
-
-// an explicit ?appKey= overrides what the route asks for
-const customAppKey =
-  new URLSearchParams(initialHashQuery).get("appKey") ?? routeAppKey;
+/** the namespace the persisted records live in, see `app-key` */
+const customAppKey = STORE_APP_KEY;
 
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";

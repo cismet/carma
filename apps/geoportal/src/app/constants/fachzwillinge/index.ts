@@ -104,10 +104,11 @@ type FachzwillingRouteBase = {
    */
   configHashKey?: string;
   /**
-   * Storage namespace for the persisted mapping and ui state, instead of the
-   * app-wide one. Same purpose as the `appKey` hash parameter: a route whose
-   * layers are driven from outside would otherwise overwrite the settings of
-   * the plain geoportal on the same origin. An explicit `?appKey=` still wins.
+   * Storage namespace for the persisted mapping and ui state, overriding the
+   * route's path. Every Fachzwilling is already namespaced by its path, so this
+   * is only for a route that wants a name unhooked from its url: one that
+   * should keep its stored state across a path rename, or two routes that are
+   * meant to share one record. An explicit `?appKey=` still wins over both.
    *
    * Read at store construction time (store/index.ts), which is why the route
    * list lives in its own module and not in this barrel.

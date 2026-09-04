@@ -19,6 +19,7 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
 import store from "./app/store";
+import { STORE_APP_KEY, resolveAppKey } from "./app/store/app-key";
 import {
   setUIHashWriteEnabled,
   setUIMapInteractionEnabled,
@@ -47,6 +48,21 @@ const RoutedApp = () => {
     () => findFachzwillingByPathname(pathname),
     [pathname]
   );
+
+  /**
+   * A route with a storage namespace of its own cannot be served by a store
+   * that was built for another one: redux-persist takes its keys once, at
+   * construction, and the hash router switches route without rebuilding the
+   * store. The new route would then read and write the previous route's
+   * records, which is the leak the namespaces exist to close. So the switch
+   * becomes a real page load, which the map position survives because it
+   * travels in the hash.
+   */
+  useEffect(() => {
+    if (resolveAppKey(pathname) !== STORE_APP_KEY) {
+      window.location.reload();
+    }
+  }, [pathname]);
 
   useEffect(() => {
     dispatch(setUIVisibleControls(resolveFachzwillingUi(fachzwilling?.ui)));
