@@ -14,6 +14,7 @@ import { Ellipsoid, Geodetic, radians } from "@takram/three-geospatial";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getSolarPosition } from "../core/solar-position";
 import {
   AtmosphericSunlightEvaluator,
   ecefDirectionToSceneDirection,
@@ -184,6 +185,27 @@ describe("atmospheric sunlight", () => {
     expect(sample.atmosphericIrradianceReady).toBe(false);
     expect(sample.skyIrradianceCoefficients).toBeNull();
     expect(sample.relativeIntensity).toBeGreaterThan(0);
+  });
+
+  it("uses the same astronomy model as the solar controls", () => {
+    const selection = {
+      year: 2026,
+      dayOfYear: 172,
+      minutes: 12 * 60,
+      timeZone: "Europe/Berlin",
+    };
+    const position = getSolarPosition(selection, WUPPERTAL);
+    const sample = evaluateAtmosphericSunlight(
+      position.instant,
+      WUPPERTAL,
+      null
+    );
+    const azimuthDelta = Math.abs(
+      ((position.azimuthDegrees - sample.azimuthDegrees + 540) % 360) - 180
+    );
+
+    expect(azimuthDelta).toBeLessThan(0.02);
+    expect(position.elevationDegrees).toBeCloseTo(sample.elevationDegrees, 2);
   });
 
   it("keeps the sky ellipsoid fixed while the observer moves inside the AOI", () => {
