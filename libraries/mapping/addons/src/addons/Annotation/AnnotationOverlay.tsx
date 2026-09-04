@@ -7,9 +7,9 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { reserveIdSequence, useAnnotationActions } from "./annotation-actions";
-import { highestIdSequence, readAnnotations } from "./annotation-storage";
-import { anchorZoomOf, originOf, spanOf } from "./annotation-zoom-bands";
-import { useBandRouting } from "./useBandRouting";
+import { highestIdSequence, readDrawings } from "./annotation-storage";
+import { coverageAround } from "./annotation-zoom-coverage";
+import { useZoomRouting } from "./useZoomRouting";
 import { AnnotationScene } from "./AnnotationScene";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
@@ -98,12 +98,10 @@ export const AnnotationOverlay = ({
     undoVersion,
     redoVersion,
     zoomRequest,
-    zoomOrigin,
     pickGroup,
     setShape,
     addGroup,
-    assignBand,
-    setZoomOrigin,
+    setCoverage,
     hydrate,
   } = useAnnotationActions();
 
@@ -114,11 +112,8 @@ export const AnnotationOverlay = ({
     }),
     [zoomRange?.max, zoomRange?.min]
   );
-  const span = useMemo(() => spanOf(scales), [scales]);
 
-  const [{ origin: savedOrigin, drawings: saved }] = useState(() =>
-    readAnnotations(storageKey)
-  );
+  const [saved] = useState(() => readDrawings(storageKey));
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) {
@@ -129,22 +124,17 @@ export const AnnotationOverlay = ({
       return;
     }
     reserveIdSequence(highestIdSequence(saved));
-    hydrate(
-      saved.map(({ id, band }) => ({ id, band, locked: true })),
-      savedOrigin
-    );
-  }, [hydrate, saved, savedOrigin]);
+    hydrate(saved.map(({ id, coverage }) => ({ id, coverage, locked: true })));
+  }, [hydrate, saved]);
 
   const storeSceneEdit = useAnnotationStorage({
     storageKey,
     groups,
     restored: saved,
-    origin: zoomOrigin,
   });
 
-  /** which drawings carry shapes, so the router leaves their anchors alone */
-  const filledRef = useRef(new Set(saved.map((drawing) => drawing.id)));
-  const isFilled = useCallback((id: string) => filledRef.current.has(id), []);
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
 
   const onSceneEdit = useCallback(
     (
@@ -154,32 +144,26 @@ export const AnnotationOverlay = ({
       anchor: AnnotationAnchor | null
     ) => {
       storeSceneEdit(id, elements, files, anchor);
-      const filled = elements.some((element) => !element.isDeleted);
-      if (filled) {
-        filledRef.current.add(id);
-      } else {
-        filledRef.current.delete(id);
+      // the stroke that starts a drawing is what claims its zooms, the window
+      // around the 100 % it is drawn at
+      const groups = groupsRef.current;
+      const group = groups.find((entry) => entry.id === id);
+      if (!group || group.coverage || !anchor) {
+        return;
       }
-      // the first stroke decides where the user works, and cuts the grid that
-      // every later drawing gets its band from
-      if (filled && anchor && zoomOrigin === undefined) {
-        setZoomOrigin(originOf(anchor.zoom, scales.min));
-        assignBand(id, 0);
+      if (elements.some((element) => !element.isDeleted)) {
+        setCoverage(id, coverageAround(anchor.zoom, scales, groups));
       }
     },
-    [assignBand, scales.min, setZoomOrigin, storeSceneEdit, zoomOrigin]
+    [scales, setCoverage, storeSceneEdit]
   );
 
-  useBandRouting({
+  useZoomRouting({
     libreMap,
     enabled: isOn,
     groups,
     activeId,
-    origin: zoomOrigin,
-    span,
-    isFilled,
     pickGroup,
-    assignBand,
     addGroup,
   });
   // in state so the measurement re-runs once the host is there
@@ -262,11 +246,6 @@ export const AnnotationOverlay = ({
             redoVersion={redoVersion}
             zoomVersion={zoomRequest?.id === group.id ? zoomRequest.version : 0}
             syncLimits={limits}
-            anchorZoom={
-              zoomOrigin === undefined || group.band === undefined
-                ? undefined
-                : anchorZoomOf(group.band, zoomOrigin, span, scales.min)
-            }
             inset={{ top: navbarInset + top, right, bottom, left }}
             zIndex={zIndex + index}
           />

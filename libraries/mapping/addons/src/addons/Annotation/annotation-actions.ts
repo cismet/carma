@@ -2,7 +2,11 @@ import { useCallback } from "react";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AnnotationShape } from "./shape-tools";
-import type { AnnotationGroup, AnnotationState } from "./types";
+import type {
+  AnnotationCoverage,
+  AnnotationGroup,
+  AnnotationState,
+} from "./types";
 
 const FIRST_GROUPS: AnnotationGroup[] = [{ id: "annotation-1", locked: false }];
 
@@ -75,13 +79,9 @@ export const useAnnotationActions = () => {
   );
 
   const addGroup = useCallback(
-    (band?: number) =>
+    () =>
       setState((previous) => {
-        const group: AnnotationGroup = {
-          id: nextGroupId(),
-          locked: false,
-          band,
-        };
+        const group: AnnotationGroup = { id: nextGroupId(), locked: false };
         return {
           ...(previous ?? { isOn: false }),
           groups: [
@@ -94,32 +94,15 @@ export const useAnnotationActions = () => {
     [setState]
   );
 
-  /**
-   * Hands a band to a drawing and opens it. Only ever used on an untouched
-   * drawing, so nothing moves across the ground; see `AnnotationScene`.
-   */
-  const assignBand = useCallback(
-    (id: string, band: number) =>
+  /** the first stroke turns an untouched drawing into one that owns a range */
+  const setCoverage = useCallback(
+    (id: string, coverage: AnnotationCoverage) =>
       setState((previous) => ({
         ...(previous ?? { isOn: false }),
         groups: groupsOf(previous).map((entry) =>
-          entry.id === id
-            ? { ...entry, band, locked: false }
-            : { ...entry, locked: true }
+          entry.id === id ? { ...entry, coverage } : entry
         ),
-        activeId: id,
       })),
-    [setState]
-  );
-
-  /** the grid is cut once, from wherever the user drew first */
-  const setZoomOrigin = useCallback(
-    (zoom: number) =>
-      setState((previous) =>
-        previous?.zoomOrigin !== undefined
-          ? previous
-          : { ...(previous ?? { isOn: false }), zoomOrigin: zoom }
-      ),
     [setState]
   );
 
@@ -141,7 +124,7 @@ export const useAnnotationActions = () => {
    * works right away without a fresh drawing being added on every mount.
    */
   const hydrate = useCallback(
-    (restored: AnnotationGroup[], origin?: number) =>
+    (restored: AnnotationGroup[]) =>
       setState((previous) => {
         if (restored.length === 0) {
           return previous ?? { isOn: false };
@@ -154,7 +137,6 @@ export const useAnnotationActions = () => {
           ...(previous ?? { isOn: false }),
           groups,
           activeId: groups[groups.length - 1].id,
-          zoomOrigin: origin ?? previous?.zoomOrigin,
         };
       }),
     [setState]
@@ -217,15 +199,13 @@ export const useAnnotationActions = () => {
     undoVersion: state?.undoVersion ?? 0,
     redoVersion: state?.redoVersion ?? 0,
     zoomRequest: state?.zoomRequest,
-    zoomOrigin: state?.zoomOrigin,
     toggle,
     endMode,
     setShape,
     undo,
     redo,
     addGroup,
-    assignBand,
-    setZoomOrigin,
+    setCoverage,
     pickGroup,
     zoomToGroup,
     toggleLock,

@@ -127,11 +127,6 @@ export type AnnotationSceneProps = {
   /** bumped when this drawing should be brought into view; 0 means never */
   zoomVersion: number;
   syncLimits: AnnotationSyncLimits;
-  /**
-   * The map zoom this drawing renders at 100 %, from the band it owns. Unset
-   * while there is no grid yet, and then the current camera decides.
-   */
-  anchorZoom?: number;
   inset: Required<AnnotationInset>;
   zIndex: number;
 };
@@ -156,7 +151,6 @@ export const AnnotationScene = ({
   redoVersion,
   zoomVersion,
   syncLimits,
-  anchorZoom,
   inset,
   zIndex,
 }: AnnotationSceneProps) => {
@@ -246,14 +240,14 @@ export const AnnotationScene = ({
   }, [box, editable, redoVersion, undoVersion]);
 
   /**
-   * An untouched drawing follows the map, pinned at the anchor of the band it
-   * owns, or at the plain camera while there is no grid yet. Never once it
-   * carries shapes: element coordinates are read against the anchor, so moving
-   * it would drag the drawing across the ground. And before the saved elements
-   * have landed a scene only looks untouched, hence `settledRef`.
+   * The drawing held ready for the next stroke follows the camera, so whatever
+   * is drawn in it starts at 100 %. It stops the moment it carries shapes:
+   * element coordinates are read against the anchor, so moving it then would
+   * drag the drawing across the ground. And before the saved elements have
+   * landed a scene only looks untouched, hence `settledRef`.
    */
   useEffect(() => {
-    if (!libreMap || !api) {
+    if (!libreMap || !api || !editable) {
       return;
     }
     const follow = () => {
@@ -263,14 +257,14 @@ export const AnnotationScene = ({
       ) {
         return;
       }
-      reanchor(anchorZoom);
+      reanchor();
     };
     follow();
     libreMap.on("moveend", follow);
     return () => {
       libreMap.off("moveend", follow);
     };
-  }, [anchorZoom, api, libreMap, reanchor]);
+  }, [api, editable, libreMap, reanchor]);
 
   /**
    * The wheel belongs to the map. Excalidraw would zoom its own camera, and
@@ -342,13 +336,23 @@ export const AnnotationScene = ({
     const topLeft = at(bounds.minX, bounds.minY);
     const bottomRight = at(bounds.maxX, bounds.maxY);
 
-    libreMap.fitBounds(
+    const camera = libreMap.cameraForBounds(
       [
         [topLeft.lng, bottomRight.lat],
         [bottomRight.lng, topLeft.lat],
       ],
-      { padding: ZOOM_PADDING, maxZoom: anchor.zoom, duration: 500 }
+      { padding: ZOOM_PADDING, maxZoom: anchor.zoom }
     );
+    if (!camera?.center) {
+      return;
+    }
+    // never below the anchor: that zoom belongs to another drawing, and the
+    // routing would hand the pencil straight over to it
+    libreMap.easeTo({
+      center: camera.center,
+      zoom: Math.max(camera.zoom ?? anchor.zoom, anchor.zoom),
+      duration: 500,
+    });
   }, [api, getAnchor, libreMap, zoomVersion]);
 
   const drawing = editable && inSync;

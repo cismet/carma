@@ -1,15 +1,15 @@
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
-import type { AnnotationAnchor } from "./types";
+import type { AnnotationAnchor, AnnotationCoverage } from "./types";
 
 const VERSION = 1;
 
 export type StoredDrawing = {
   id: string;
   locked: boolean;
-  /** the zoom band this drawing owns; missing in files written before bands */
-  band?: number;
+  /** the zooms this drawing owns; missing in files written before coverage */
+  coverage?: AnnotationCoverage;
   anchor: AnnotationAnchor;
   elements: readonly ExcalidrawElement[];
   files?: BinaryFiles;
@@ -17,13 +17,6 @@ export type StoredDrawing = {
 
 type StoredFile = {
   version: number;
-  /** the map zoom band 0 begins at; see `annotation-zoom-bands` */
-  origin?: number;
-  drawings: StoredDrawing[];
-};
-
-export type StoredAnnotations = {
-  origin?: number;
   drawings: StoredDrawing[];
 };
 
@@ -44,41 +37,35 @@ const isDrawing = (value: unknown): value is StoredDrawing => {
     typeof drawing.id === "string" &&
     typeof drawing.locked === "boolean" &&
     isAnchor(drawing.anchor) &&
-    (drawing.band === undefined || typeof drawing.band === "number") &&
+    (drawing.coverage === undefined ||
+      (typeof drawing.coverage.from === "number" &&
+        typeof drawing.coverage.to === "number")) &&
     Array.isArray(drawing.elements)
   );
 };
 
-export const readAnnotations = (key?: string): StoredAnnotations => {
-  const empty: StoredAnnotations = { drawings: [] };
+export const readDrawings = (key?: string): StoredDrawing[] => {
   if (!key || typeof localStorage === "undefined") {
-    return empty;
+    return [];
   }
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
-      return empty;
+      return [];
     }
     const parsed = JSON.parse(raw) as StoredFile;
     if (parsed?.version !== VERSION || !Array.isArray(parsed.drawings)) {
-      return empty;
+      return [];
     }
-    return {
-      origin: typeof parsed.origin === "number" ? parsed.origin : undefined,
-      drawings: parsed.drawings.filter(isDrawing),
-    };
+    return parsed.drawings.filter(isDrawing);
   } catch {
-    return empty;
+    return [];
   }
 };
 
-export const readDrawings = (key?: string): StoredDrawing[] =>
-  readAnnotations(key).drawings;
-
 export const writeDrawings = (
   key: string | undefined,
-  drawings: StoredDrawing[],
-  origin?: number
+  drawings: StoredDrawing[]
 ) => {
   if (!key || typeof localStorage === "undefined") {
     return;
@@ -89,7 +76,7 @@ export const writeDrawings = (
       localStorage.removeItem(key);
       return;
     }
-    const file: StoredFile = { version: VERSION, origin, drawings: kept };
+    const file: StoredFile = { version: VERSION, drawings: kept };
     localStorage.setItem(key, JSON.stringify(file));
   } catch {
     return;
