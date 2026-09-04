@@ -204,8 +204,19 @@ export const OriginSearch = ({
  * makes it match that search: the bottom-left control column is as wide as its
  * widest child and aligns them to its right edge, so a fixed width would sit
  * indented under the search on a phone, where the search spans the screen.
+ *
+ * Not `width: 100%`: the column shrink-wraps its children, and a percentage
+ * width inside a shrink-wrapped box falls back to the content's own width
+ * while the column is measured, so a long placeholder ("Standort unbekannt:
+ * Startpunkt suchen") made this input, and with it the column, wider than the
+ * app's search. A zero width with a percentage minimum contributes nothing to
+ * that measurement and still stretches to the column once it is laid out.
  */
-const WRAPPER_STYLE = { marginTop: "8px", width: "100%" } as const;
+const WRAPPER_STYLE = {
+  marginTop: "8px",
+  width: 0,
+  minWidth: "100%",
+} as const;
 
 /**
  * A gazetteer hit as a starting point. The hit's coordinates are in the crs the
