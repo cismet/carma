@@ -5,6 +5,10 @@ import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import * as THREE from "three";
 
 import {
+  getGeographicRingBounds,
+  unionGeographicBounds,
+} from "@carma-geo/helpers";
+import {
   buildGenericLayer,
   buildOverlayLayer,
   syncGenericLayerFromSource,
@@ -30,6 +34,7 @@ import type {
   GenericCustomLayer,
 } from "@carma-mapping/engines/threejs";
 
+import { MAPLIBRE_EVENT } from "../constants/mapEvents";
 import { useLibreContext } from "../contexts/LibreContext";
 import {
   notifyGenericThreeLayerContentChanged,
@@ -43,8 +48,6 @@ import {
 } from "../lib/runtime/integrations/shared-three-terrain-registry";
 import {
   getFootprintRadiusMeters,
-  getRingBounds,
-  mergeGeographicBounds,
   retainBuildingGroupsInView,
   type CachedBuildingGroup,
 } from "./building-group-cache";
@@ -536,14 +539,16 @@ export function ThreeLayerManager({
           ]);
           const fid =
             f.id ?? `${f.properties?.gml_id ?? JSON.stringify(fragment)}`;
-          const fragmentBounds = getRingBounds(fragment);
+          const fragmentBounds = getGeographicRingBounds(
+            fragment as [number, number][]
+          );
           const mapFeature = f as MapGeoJSONFeature & {
             sourceLayer?: string;
           };
           const g = queriedGroups.get(fid);
           if (g) {
             g.fragments.push(fragment);
-            g.bounds = mergeGeographicBounds(g.bounds, fragmentBounds);
+            g.bounds = unionGeographicBounds(g.bounds, fragmentBounds);
           } else {
             queriedGroups.set(fid, {
               fragments: [fragment],
@@ -552,7 +557,9 @@ export function ThreeLayerManager({
               roofFaces:
                 facesByParent.get(String(f.properties?.fid ?? fid)) ??
                 facesByParent.get(String(fid)),
-              isPublic: f.properties?.[publicField] === "1",
+              isPublic:
+                publicField !== undefined &&
+                f.properties?.[publicField] === "1",
               roofColor: resolveFeatureColor(
                 f.properties,
                 roofColorField,
@@ -891,7 +898,7 @@ export function ThreeLayerManager({
       }, 500);
     };
 
-    map.on("moveend", requestSync);
+    map.on(MAPLIBRE_EVENT.MOVE_END, requestSync);
 
     // Idle also follows unrelated style/light changes. Use it only to flush
     // source work that was explicitly marked dirty.
@@ -900,7 +907,7 @@ export function ThreeLayerManager({
           if (extrusionSyncPending && !sourceSyncTimer) void trySync();
         }
       : undefined;
-    if (handleIdle) map.on("idle", handleIdle);
+    if (handleIdle) map.on(MAPLIBRE_EVENT.IDLE, handleIdle);
 
     const handleSourceData = (e: {
       sourceId: string;
@@ -916,7 +923,7 @@ export function ThreeLayerManager({
 
     // Force rebuild when terrain is toggled so elevation is applied/removed
     const handleTerrain = requestSync;
-    map.on("terrain", handleTerrain);
+    map.on(MAPLIBRE_EVENT.TERRAIN, handleTerrain);
     const unsubscribeSharedTerrain = subscribeSharedThreeTerrain(
       map,
       requestSync
@@ -946,23 +953,23 @@ export function ThreeLayerManager({
         requestSync();
       }
     };
-    map.on("styledata", handleStyleData);
+    map.on(MAPLIBRE_EVENT.STYLE_DATA, handleStyleData);
 
     // Sync immediately if the map is already idle
     if (map.isStyleLoaded()) {
       requestSync();
     } else {
-      map.once("idle", requestSync);
+      map.once(MAPLIBRE_EVENT.IDLE, requestSync);
     }
 
     return () => {
       if (sourceSyncTimer) clearTimeout(sourceSyncTimer);
-      map.off("moveend", requestSync);
-      if (handleIdle) map.off("idle", handleIdle);
+      map.off(MAPLIBRE_EVENT.MOVE_END, requestSync);
+      if (handleIdle) map.off(MAPLIBRE_EVENT.IDLE, handleIdle);
       map.off("sourcedata", handleSourceData);
-      map.off("terrain", handleTerrain);
+      map.off(MAPLIBRE_EVENT.TERRAIN, handleTerrain);
       unsubscribeSharedTerrain();
-      map.off("styledata", handleStyleData);
+      map.off(MAPLIBRE_EVENT.STYLE_DATA, handleStyleData);
       if (perfRef) {
         perfRef.current = EMPTY_PERF;
       }

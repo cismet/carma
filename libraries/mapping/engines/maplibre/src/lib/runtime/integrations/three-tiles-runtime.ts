@@ -20,6 +20,8 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { clamp } from "@carma-commons/math";
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 import { degToRadNumeric } from "@carma-units";
+
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { createPayloadAwareRequestConcurrency } from "./payload-aware-request-concurrency";
 import {
@@ -442,7 +444,6 @@ export function buildThreeTilesRuntime(
   let shadowReceiverMaskConverged = false;
   let shadowReceiverSourceSignature = "";
   const mainViewSourceTiles = new Set<Tile>();
-  let viewRefinementPending = false;
   let viewQualityAuditPasses = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
   let tileBoundsVisible = false;
@@ -1481,7 +1482,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (effectiveErrorTarget === nextTarget) return;
     effectiveErrorTarget = nextTarget;
     if (tiles) tiles.errorTarget = effectiveErrorTarget;
-    viewRefinementPending = true;
     requestShadowSelectionRefresh();
     tiles?.dispatchEvent({ type: "needs-update" });
     requestRender();
@@ -1545,7 +1545,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const wipeCacheWhileHidden = () => {
     hiddenWipeTimer = 0;
     if (!tiles) return;
-    viewRefinementPending = true;
     setShadowSelectionEnabled(false);
     resetEffectiveErrorTarget();
     resetDeferredTiles();
@@ -1592,7 +1591,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }
     shadowSelectionRefreshPending = false;
     if (receiverUpdate === "unchanged") return;
-    viewRefinementPending = false;
     if (shadowSelectionEnabled) {
       shadowSelectionNeedsTraversal = true;
     } else {
@@ -1821,13 +1819,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }, delay);
   };
   const handleViewStart = () => {
-    viewRefinementPending = true;
     requestShadowSelectionRefresh();
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
     if (!tiles) return;
-    viewRefinementPending = true;
     requestShadowSelectionRefresh();
     viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
     tiles.dispatchEvent({ type: "needs-update" });
@@ -2190,9 +2186,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           requestRender();
         }
       );
-      map.on("movestart", handleViewStart);
-      map.on("moveend", handleViewEnd);
-      map.on("resize", handleViewEnd);
+      map.on(MAPLIBRE_EVENT.MOVE_START, handleViewStart);
+      map.on(MAPLIBRE_EVENT.MOVE_END, handleViewEnd);
+      map.on(MAPLIBRE_EVENT.RESIZE, handleViewEnd);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     },
 
@@ -2284,7 +2280,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       if (requestedErrorTarget === nextErrorTarget) return;
       requestedErrorTarget = nextErrorTarget;
       resetEffectiveErrorTarget();
-      viewRefinementPending = true;
       requestShadowSelectionRefresh();
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
@@ -2315,7 +2310,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       if (nextSignature === shadowViewSignature) return;
       shadowViewSignature = nextSignature;
       shadowView = view;
-      viewRefinementPending = view !== null;
       if (view) {
         requestShadowSelectionRefresh();
       } else {
@@ -2404,7 +2398,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         cacheOverflowBytes: styleCacheOverflowBytes,
       });
       resetEffectiveErrorTarget();
-      viewRefinementPending = true;
       requestShadowSelectionRefresh();
       applyCacheBudget();
       applyRequestConcurrency();
@@ -2444,9 +2437,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         window.clearTimeout(requestBackoffTimer);
         requestBackoffTimer = 0;
       }
-      map?.off("movestart", handleViewStart);
-      map?.off("moveend", handleViewEnd);
-      map?.off("resize", handleViewEnd);
+      map?.off(MAPLIBRE_EVENT.MOVE_START, handleViewStart);
+      map?.off(MAPLIBRE_EVENT.MOVE_END, handleViewEnd);
+      map?.off(MAPLIBRE_EVENT.RESIZE, handleViewEnd);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsubscribeTerrainLoading?.();
       unsubscribeTerrainLoading = null;

@@ -2,16 +2,19 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { useAddonState } from "@carma-mapping/addons";
-import { clampShadowSimulationSelectionToDaylight } from "@carma-mapping/shadow-simulation";
 import { useLibreContext } from "@carma-mapping/contexts";
+import { DEFAULT_SHADOW_SIMULATION_TIME_ZONE } from "@carma-mapping/shadow-simulation";
 import { useHashState } from "@carma-providers/hash-state";
 
 import {
   buildGeoportalShadowSimulationHashUpdate,
-  isGeoportalShadowSimulationHashSelectionValidForYear,
   type GeoportalCustomHashState,
-  type GeoportalShadowSimulationHashSelection,
 } from "../helper/geoportal-custom-hash-state";
+import {
+  applyShadowHashSelection,
+  resolveGeoportalShadowHashSelection,
+  shadowStateMatchesHashSelection,
+} from "../helper/geoportal-shadow-simulation-state";
 
 type UseGeoportalShadowSimulationHashOptions = {
   customHashState: AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState> | null;
@@ -23,21 +26,11 @@ type ShadowHashUpdate = ReturnType<
 
 const SHADOW_HASH_WRITE_INTERVAL_MS = 500;
 
-const stateMatchesHashSelection = (
-  enabled: boolean,
-  selection: { minutes: number; dayOfYear: number },
-  hashSelection: GeoportalShadowSimulationHashSelection | null
-): boolean =>
-  hashSelection === null
-    ? !enabled
-    : enabled &&
-      selection.minutes === hashSelection.minutes &&
-      selection.dayOfYear === hashSelection.dayOfYear;
-
 export const useGeoportalShadowSimulationHash = ({
   customHashState,
 }: UseGeoportalShadowSimulationHashOptions) => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const [shadowDate, setShadowDate] = useAddonState("shadowDate");
   const { map: libreMap } = useLibreContext();
   const { updateHashState } = useHashState();
   const handledHashStateVersionRef = useRef<number | null>(null);
@@ -99,37 +92,33 @@ export const useGeoportalShadowSimulationHash = ({
   const decodedHashSelection =
     customHashState?.shadowSimulationSelection ?? null;
   const mapCenter = libreMap?.getCenter();
-  const shadowYear = shadowState?.selection.year;
+  const shadowYear = shadowDate?.year;
+  const shadowTimeZone =
+    shadowDate?.timeZone ?? DEFAULT_SHADOW_SIMULATION_TIME_ZONE;
   const hashSelection = useMemo(
     () =>
-      decodedHashSelection && shadowYear !== undefined
-        ? isGeoportalShadowSimulationHashSelectionValidForYear(
-            decodedHashSelection,
-            shadowYear
-          )
-          ? clampShadowSimulationSelectionToDaylight(
-              {
-                ...decodedHashSelection,
-                year: shadowYear,
-              },
-              {
-                latitude: mapCenter?.lat,
-                longitude: mapCenter?.lng,
-                timeZone: "Europe/Berlin",
-              }
-            )
-          : null
-        : decodedHashSelection,
-    [decodedHashSelection, mapCenter?.lat, mapCenter?.lng, shadowYear]
+      resolveGeoportalShadowHashSelection(
+        decodedHashSelection,
+        shadowYear,
+        { latitude: mapCenter?.lat, longitude: mapCenter?.lng },
+        shadowTimeZone
+      ),
+    [
+      decodedHashSelection,
+      mapCenter?.lat,
+      mapCenter?.lng,
+      shadowTimeZone,
+      shadowYear,
+    ]
   );
 
   useEffect(() => {
-    if (!shadowState) {
+    if (!shadowState || !shadowDate) {
       cancelPendingHashUpdate();
       handledHashStateVersionRef.current = null;
       pendingHashStateVersionRef.current = null;
     }
-  }, [cancelPendingHashUpdate, shadowState]);
+  }, [cancelPendingHashUpdate, shadowDate, shadowState]);
 
   useEffect(
     () => () => {
@@ -142,6 +131,7 @@ export const useGeoportalShadowSimulationHash = ({
     if (
       hashStateVersion === undefined ||
       !shadowState ||
+      !shadowDate ||
       handledHashStateVersionRef.current === hashStateVersion
     ) {
       return;
@@ -151,9 +141,9 @@ export const useGeoportalShadowSimulationHash = ({
     cancelPendingHashUpdate();
 
     if (
-      stateMatchesHashSelection(
+      shadowStateMatchesHashSelection(
         shadowState.enabled,
-        shadowState.selection,
+        shadowDate,
         hashSelection
       )
     ) {
@@ -162,29 +152,26 @@ export const useGeoportalShadowSimulationHash = ({
     }
 
     pendingHashStateVersionRef.current = hashStateVersion;
-    setShadowState({
-      ...shadowState,
-      enabled: hashSelection !== null,
-      selection:
-        hashSelection === null
-          ? shadowState.selection
-          : {
-              ...shadowState.selection,
-              minutes: hashSelection.minutes,
-              dayOfYear: hashSelection.dayOfYear,
-            },
-    });
+    const next = applyShadowHashSelection(
+      shadowState,
+      shadowDate,
+      hashSelection
+    );
+    setShadowState(next.shadowState);
+    setShadowDate(next.dateState);
   }, [
     cancelPendingHashUpdate,
     hashSelection,
     hashStateVersion,
     setShadowState,
+    setShadowDate,
+    shadowDate,
     shadowState,
   ]);
 
   const shadowEnabled = shadowState?.enabled;
-  const shadowMinutes = shadowState?.selection.minutes;
-  const shadowDayOfYear = shadowState?.selection.dayOfYear;
+  const shadowMinutes = shadowDate?.minutes;
+  const shadowDayOfYear = shadowDate?.dayOfYear;
 
   useEffect(() => {
     if (
@@ -199,7 +186,7 @@ export const useGeoportalShadowSimulationHash = ({
 
     if (pendingHashStateVersionRef.current === hashStateVersion) {
       if (
-        !stateMatchesHashSelection(
+        !shadowStateMatchesHashSelection(
           shadowEnabled,
           { minutes: shadowMinutes, dayOfYear: shadowDayOfYear },
           hashSelection
@@ -213,7 +200,7 @@ export const useGeoportalShadowSimulationHash = ({
     scheduleHashUpdate(
       buildGeoportalShadowSimulationHashUpdate({
         enabled: shadowEnabled,
-        selection: {
+        dateState: {
           minutes: shadowMinutes,
           dayOfYear: shadowDayOfYear,
         },

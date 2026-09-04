@@ -1,24 +1,31 @@
 import { describe, expect, it } from "vitest";
 
+import { getDaysInYear } from "@carma-commons/utils";
+
 import {
   clampSelectionToDaylight,
   getDaylightWindow,
-  getDaysInYear,
   getSolarPosition,
   MEAN_SOLAR_ANGULAR_RADIUS_DEGREES,
   solarSelectionToInstant,
   type SolarLocation,
+  type SolarSelection,
 } from "./solar-position";
 
+const BERLIN = "Europe/Berlin";
 const WUPPERTAL: SolarLocation = {
   latitude: 51.256,
   longitude: 7.15,
-  timeZone: "Europe/Berlin",
 };
+const createSelection = (
+  dayOfYear: number,
+  minutes: number,
+  year = 2026
+): SolarSelection => ({ year, dayOfYear, minutes, timeZone: BERLIN });
 
 describe("solar position", () => {
   it("models the long Wuppertal summer day in local civil time", () => {
-    const daylight = getDaylightWindow(2026, 172, WUPPERTAL);
+    const daylight = getDaylightWindow(createSelection(172, 720), WUPPERTAL);
 
     expect(daylight.sunriseMinutes).toBeGreaterThan(300);
     expect(daylight.sunriseMinutes).toBeLessThan(340);
@@ -28,31 +35,23 @@ describe("solar position", () => {
 
   it("clamps night input to the daylight curve", () => {
     const selection = clampSelectionToDaylight(
-      { year: 2026, dayOfYear: 172, minutes: 120 },
+      createSelection(172, 120),
       WUPPERTAL
     );
-    const daylight = getDaylightWindow(2026, 172, WUPPERTAL);
+    const daylight = getDaylightWindow(createSelection(172, 120), WUPPERTAL);
 
     expect(selection).not.toBeNull();
     expect(selection?.minutes).toBe(Math.ceil(daylight.sunriseMinutes));
   });
 
   it("limits selection to the lower solar limb touching the horizon", () => {
-    const daylight = getDaylightWindow(2026, 64, WUPPERTAL);
+    const daylight = getDaylightWindow(createSelection(64, 720), WUPPERTAL);
     const sunrisePosition = getSolarPosition(
-      {
-        year: 2026,
-        dayOfYear: 64,
-        minutes: daylight.sunriseMinutes,
-      },
+      createSelection(64, daylight.sunriseMinutes),
       WUPPERTAL
     );
     const sunsetPosition = getSolarPosition(
-      {
-        year: 2026,
-        dayOfYear: 64,
-        minutes: daylight.sunsetMinutes,
-      },
+      createSelection(64, daylight.sunsetMinutes),
       WUPPERTAL
     );
 
@@ -66,11 +65,11 @@ describe("solar position", () => {
     );
 
     const earliestSelection = clampSelectionToDaylight(
-      { year: 2026, dayOfYear: 64, minutes: 0 },
+      createSelection(64, 0),
       WUPPERTAL
     );
     const latestSelection = clampSelectionToDaylight(
-      { year: 2026, dayOfYear: 64, minutes: 24 * 60 - 1 },
+      createSelection(64, 24 * 60 - 1),
       WUPPERTAL
     );
 
@@ -89,26 +88,29 @@ describe("solar position", () => {
     const excludedEdgeElevations: number[] = [];
 
     for (let dayOfYear = 1; dayOfYear <= getDaysInYear(2026); dayOfYear += 1) {
-      const daylight = getDaylightWindow(2026, dayOfYear, WUPPERTAL);
+      const daylight = getDaylightWindow(
+        createSelection(dayOfYear, 720),
+        WUPPERTAL
+      );
       const earliestMinutes = Math.ceil(daylight.sunriseMinutes);
       const latestMinutes = Math.floor(daylight.sunsetMinutes);
       selectedEdgeElevations.push(
         getSolarPosition(
-          { year: 2026, dayOfYear, minutes: earliestMinutes },
+          createSelection(dayOfYear, earliestMinutes),
           WUPPERTAL
         ).elevationDegrees,
         getSolarPosition(
-          { year: 2026, dayOfYear, minutes: latestMinutes },
+          createSelection(dayOfYear, latestMinutes),
           WUPPERTAL
         ).elevationDegrees
       );
       excludedEdgeElevations.push(
         getSolarPosition(
-          { year: 2026, dayOfYear, minutes: earliestMinutes - 1 },
+          createSelection(dayOfYear, earliestMinutes - 1),
           WUPPERTAL
         ).elevationDegrees,
         getSolarPosition(
-          { year: 2026, dayOfYear, minutes: latestMinutes + 1 },
+          createSelection(dayOfYear, latestMinutes + 1),
           WUPPERTAL
         ).elevationDegrees
       );
@@ -124,21 +126,14 @@ describe("solar position", () => {
 
   it("keeps local wall-clock time stable across the named time zone", () => {
     expect(
-      solarSelectionToInstant(
-        { year: 2026, dayOfYear: 172, minutes: 12 * 60 },
-        WUPPERTAL.timeZone
-      ).toISOString()
+      solarSelectionToInstant(createSelection(172, 12 * 60)).toISOString()
     ).toBe("2026-06-21T10:00:00.000Z");
   });
 
   it("places the summer-noon sun high in the southern sky", () => {
-    const daylight = getDaylightWindow(2026, 172, WUPPERTAL);
+    const daylight = getDaylightWindow(createSelection(172, 720), WUPPERTAL);
     const position = getSolarPosition(
-      {
-        year: 2026,
-        dayOfYear: 172,
-        minutes: daylight.solarNoonMinutes,
-      },
+      createSelection(172, daylight.solarNoonMinutes),
       WUPPERTAL
     );
 
@@ -150,7 +145,7 @@ describe("solar position", () => {
 
   it("keeps a March late morning selection above the local horizon", () => {
     const position = getSolarPosition(
-      { year: 2026, dayOfYear: 71, minutes: 11 * 60 + 3 },
+      createSelection(71, 11 * 60 + 3),
       WUPPERTAL
     );
 

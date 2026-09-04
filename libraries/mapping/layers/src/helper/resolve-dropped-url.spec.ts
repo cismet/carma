@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveDroppedUrl } from "./useHandleDrop";
+import {
+  replaceVectorTileServerPlaceholders,
+  resolveDroppedUrl,
+} from "./resolve-dropped-url";
 
 const createDataTransfer = (values: Record<string, string>) => ({
   getData: vi.fn((type: string) => values[type] ?? ""),
@@ -56,5 +59,18 @@ describe("resolveDroppedUrl", () => {
     });
 
     expect(resolveDroppedUrl(dataTransfer)).toBeNull();
+  });
+});
+
+describe("replaceVectorTileServerPlaceholders", () => {
+  it("replaces both supported placeholder spellings", () => {
+    expect(
+      replaceVectorTileServerPlaceholders(
+        '{"upper":"__SERVER_URL__","lower":"__server_url__"}',
+        "https://tiles.example.test"
+      )
+    ).toBe(
+      '{"upper":"https://tiles.example.test","lower":"https://tiles.example.test"}'
+    );
   });
 });

@@ -30,6 +30,7 @@ import {
   acquireSharedThreeScene,
   createSharedThreeSceneCameraPreview,
   getSharedThreeSceneRuntimes,
+  MAPLIBRE_EVENT,
   subscribeSharedThreeSceneContent,
 } from "@carma-mapping/engines/maplibre";
 
@@ -46,6 +47,7 @@ import {
   readShadowProjectionDebugSnapshot,
   subscribeShadowProjectionDebugSnapshot,
 } from "../runtime/shadow-projection-debug-store";
+import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
 
 const SHADOW_PROJECTION_DEBUG_CUE_OPTIONS = {
   bearing: { label: "Schattenrichtung", color: "#d97706" },
@@ -109,15 +111,6 @@ const DEFAULT_VISUALIZER_CONTENT_VISIBILITY: Record<
   labels: true,
   tileVolumes: true,
 };
-
-const SHADOW_QUALITIES: ReadonlyArray<{
-  label: string;
-  value: ShadowQualityMultiplier;
-}> = [
-  { label: "Mittel", value: 4 },
-  { label: "Hoch", value: 16 },
-  { label: "Max", value: 64 },
-];
 
 const MESH_ERROR_TARGETS: ReadonlyArray<{
   label: string;
@@ -296,10 +289,10 @@ const ShadowSunCameraView = ({
       if (rendered) lastFrameAt = now;
     };
 
-    map.on("render", renderFrame);
+    map.on(MAPLIBRE_EVENT.RENDER, renderFrame);
     map.triggerRepaint();
     return () => {
-      map.off("render", renderFrame);
+      map.off(MAPLIBRE_EVENT.RENDER, renderFrame);
       preview.dispose();
       lease.release();
     };
@@ -513,7 +506,7 @@ const ShadowDebugControls = ({
             size="small"
             data-test-id="shadow-debug-quality"
             value={settings.shadowQuality}
-            options={[...SHADOW_QUALITIES]}
+            options={[...SHADOW_QUALITY_LEVELS]}
             onChange={(value) =>
               onChange({ shadowQuality: value as ShadowQualityMultiplier })
             }

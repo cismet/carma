@@ -225,6 +225,10 @@ export {
   DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
   DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
 } from "./constants/cameraDefaults";
+export {
+  MAPLIBRE_EVENT,
+  type MapLibreEventName,
+} from "./constants/mapEvents";
 
 // Three.js layer management
 export { ThreeLayerManager } from "./components/ThreeLayerManager";

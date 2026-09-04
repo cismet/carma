@@ -4,37 +4,51 @@ import * as THREE from "three";
 import { SkyMaterial } from "@takram/three-atmosphere";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@carma-mapping/engines/maplibre", () => ({
-  WUPPERTAL_TERRAIN_SOURCE_ID: "terrain-source",
-  acquireSharedThreeScene: vi.fn(),
-  buildCesiumTerrainRuntime: vi.fn(),
-  getGenericThreeLayers: vi.fn(() => []),
-  getSharedThreeShadowViewSignature: vi.fn(({ camera, shadowMapSize }) =>
-    [
-      ...camera.matrixWorld.elements,
-      ...camera.projectionMatrix.elements,
-      shadowMapSize.width,
-      shadowMapSize.height,
-    ].join(",")
-  ),
-  getSharedThreeSceneRuntimes: vi.fn(() => []),
-  subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
-  subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
-  isMapStyleContourLineLayer: (layer: {
-    type?: string;
-    id?: string;
-    "source-layer"?: string;
-  }) =>
-    layer.type === "line" &&
-    /hoehenlinie/i.test(`${layer.id}:${layer["source-layer"]}`),
-  suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
+const mapLibreEventMock = vi.hoisted(() => ({
+  MOVE: "move",
+  MOVE_END: "moveend",
+  MOVE_START: "movestart",
+  RESIZE: "resize",
+  STYLE_DATA: "styledata",
+  STYLE_LOAD: "style.load",
+  TERRAIN: "terrain",
 }));
+
+vi.mock("@carma-mapping/engines/maplibre", () => {
+  return {
+    MAPLIBRE_EVENT: mapLibreEventMock,
+    WUPPERTAL_TERRAIN_SOURCE_ID: "terrain-source",
+    acquireSharedThreeScene: vi.fn(),
+    buildCesiumTerrainRuntime: vi.fn(),
+    getGenericThreeLayers: vi.fn(() => []),
+    getSharedThreeShadowViewSignature: vi.fn(({ camera, shadowMapSize }) =>
+      [
+        ...camera.matrixWorld.elements,
+        ...camera.projectionMatrix.elements,
+        shadowMapSize.width,
+        shadowMapSize.height,
+      ].join(",")
+    ),
+    getSharedThreeSceneRuntimes: vi.fn(() => []),
+    subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
+    subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
+    isMapStyleContourLineLayer: (layer: {
+      type?: string;
+      id?: string;
+      "source-layer"?: string;
+    }) =>
+      layer.type === "line" &&
+      /hoehenlinie/i.test(`${layer.id}:${layer["source-layer"]}`),
+    suppressMapLibreRegularStyleLayers: vi.fn(() => vi.fn()),
+  };
+});
 
 import {
   acquireSharedThreeScene,
   buildCesiumTerrainRuntime,
   getGenericThreeLayers,
   getSharedThreeSceneRuntimes,
+  MAPLIBRE_EVENT,
   subscribeGenericThreeLayers,
   subscribeSharedThreeSceneContent,
   suppressMapLibreRegularStyleLayers,
@@ -81,13 +95,17 @@ describe("shadow scene sun direction", () => {
     const location = {
       latitude: 51.256,
       longitude: 7.15,
+    };
+    const selection = {
+      year: 2026,
+      dayOfYear: 172,
+      minutes: 12 * 60,
       timeZone: "Europe/Berlin",
     };
-    const daylight = getDaylightWindow(2026, 172, location);
+    const daylight = getDaylightWindow(selection, location);
     const solarPosition = getSolarPosition(
       {
-        year: 2026,
-        dayOfYear: 172,
+        ...selection,
         minutes: daylight.solarNoonMinutes,
       },
       location
@@ -617,7 +635,10 @@ describe("shadow scene lighting integration", () => {
       expect(shadowRayDirection.dot(shadowRayDirections[0])).toBeCloseTo(1);
     }
     expect(sunVector.visible).toBe(false);
-    expect(map.on).toHaveBeenCalledWith("style.load", expect.any(Function));
+    expect(map.on).toHaveBeenCalledWith(
+      MAPLIBRE_EVENT.STYLE_LOAD,
+      expect.any(Function)
+    );
     controller.updateSunDebugVectorVisibility(true);
     expect(sunVector.visible).toBe(true);
     expect(sunVector.position).toEqual(sun.target.position);

@@ -2,6 +2,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+
 vi.mock("./shared-three-scene-layer", () => ({
   buildSharedThreeSceneLayer: vi.fn(),
 }));
@@ -83,7 +85,7 @@ describe("shared Three.js scene registry", () => {
     expect(removeLayer).toHaveBeenCalledWith(sharedLayer.id);
     expect(dispose).toHaveBeenCalledOnce();
     expect(listeners.has("styledata")).toBe(false);
-    expect(listeners.has("style.load")).toBe(false);
+    expect(listeners.has(MAPLIBRE_EVENT.STYLE_LOAD)).toBe(false);
     expect(listeners.has("idle")).toBe(false);
   });
 
@@ -1061,7 +1063,7 @@ describe("shared Three.js scene registry", () => {
     const lease = acquireSharedThreeScene(map as never);
     expect(attached).toBe(false);
 
-    listeners.get("style.load")?.();
+    listeners.get(MAPLIBRE_EVENT.STYLE_LOAD)?.();
 
     expect(attached).toBe(true);
     expect(addLayer).toHaveBeenCalledTimes(2);

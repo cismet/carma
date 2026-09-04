@@ -12,7 +12,7 @@ const addonStateMock = vi.hoisted(() => ({
     | undefined,
   setShadowState: vi.fn(),
   shadowState: undefined as
-    | { enabled: boolean; selection: Record<string, number> }
+    | { enabled: boolean }
     | undefined,
 }));
 
@@ -95,7 +95,6 @@ describe("useShadowSimulationLayerButton", () => {
     ];
     addonStateMock.shadowState = {
       enabled: false,
-      selection: { year: 2026, dayOfYear: 172, minutes: 900 },
     };
   });
 
@@ -188,7 +187,6 @@ describe("useShadowSimulationLayerButton", () => {
     expect(updateState).toBeTypeOf("function");
     const latestState = {
       enabled: true,
-      selection: { year: 2026, dayOfYear: 180, minutes: 930 },
     };
     expect(updateState(latestState)).toEqual({
       ...latestState,
@@ -213,7 +211,6 @@ describe("useShadowSimulationLayerButton", () => {
     act(() => {
       addonStateMock.shadowState = {
         ...addonStateMock.shadowState,
-        selection: { year: 2026, dayOfYear: 172, minutes: 901 },
       };
       rerender();
     });

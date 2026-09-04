@@ -4,13 +4,13 @@ import {
 } from "@maplibre/maplibre-gl-style-spec";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
   getMapStylePointLabelLiftMeters,
   isMapStyleContourLineLayer,
   isMapStyleElevationLabelLayer,
-  isMapStyleHouseNumberLabelLayer,
   isMapStylePointLabelLayer,
   isMapStyleRoadLabelLayer,
   isMapStyleRoadShieldLayer,
@@ -1567,7 +1567,10 @@ const configureEnsureLayer = (
   };
   entry.ensureLayer = (event) => {
     if (entry.disposed) return;
-    if ((event as { type?: unknown } | undefined)?.type === "style.load") {
+    if (
+      (event as { type?: unknown } | undefined)?.type ===
+      MAPLIBRE_EVENT.STYLE_LOAD
+    ) {
       // A new style carries new layer objects; drop the classification.
       entry.styleLayersCache = null;
       entry.ensureLayerNow();
@@ -1593,20 +1596,20 @@ const addEnsureLayerListeners = (
   map: MaplibreMap,
   entry: SharedSceneEntry
 ): void => {
-  map.on("styledata", entry.ensureLayer);
-  map.on("style.load", entry.ensureLayer);
-  map.on("idle", entry.ensureLayer);
-  map.on("move", entry.updateLabelLift);
+  map.on(MAPLIBRE_EVENT.STYLE_DATA, entry.ensureLayer);
+  map.on(MAPLIBRE_EVENT.STYLE_LOAD, entry.ensureLayer);
+  map.on(MAPLIBRE_EVENT.IDLE, entry.ensureLayer);
+  map.on(MAPLIBRE_EVENT.MOVE, entry.updateLabelLift);
 };
 
 const removeEnsureLayerListeners = (
   map: MaplibreMap,
   entry: SharedSceneEntry
 ): void => {
-  map.off("styledata", entry.ensureLayer);
-  map.off("style.load", entry.ensureLayer);
-  map.off("idle", entry.ensureLayer);
-  map.off("move", entry.updateLabelLift);
+  map.off(MAPLIBRE_EVENT.STYLE_DATA, entry.ensureLayer);
+  map.off(MAPLIBRE_EVENT.STYLE_LOAD, entry.ensureLayer);
+  map.off(MAPLIBRE_EVENT.IDLE, entry.ensureLayer);
+  map.off(MAPLIBRE_EVENT.MOVE, entry.updateLabelLift);
 };
 
 /**

@@ -111,13 +111,13 @@ describe("geoportal-custom-hash-state", () => {
     expect(
       buildGeoportalShadowSimulationHashUpdate({
         enabled: true,
-        selection: { minutes: 660, dayOfYear: 140 },
+        dateState: { minutes: 660, dayOfYear: 140 },
       })
     ).toEqual({ shadow: "660;140" });
     expect(
       buildGeoportalShadowSimulationHashUpdate({
         enabled: false,
-        selection: { minutes: 660, dayOfYear: 140 },
+        dateState: { minutes: 660, dayOfYear: 140 },
       })
     ).toEqual({ shadow: undefined });
   });
