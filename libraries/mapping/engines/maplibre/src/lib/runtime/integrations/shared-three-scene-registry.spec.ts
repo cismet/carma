@@ -379,8 +379,15 @@ describe("shared Three.js scene registry", () => {
       "source-layer": "Verkehrslinie",
       layout: { "symbol-placement": "point" },
     };
+    const contourLineLayer = {
+      id: "bg-basemap_relief-Hoehenlinie_10er",
+      type: "line",
+      source: "bg-basemap_relief::basemap",
+      "source-layer": "Hoehenlinie",
+    };
     const layers = [
       { id: "basemap", type: "fill" },
+      contourLineLayer,
       streetLayer,
       { id: sharedLayer.id, type: "custom" },
       houseLayer,
@@ -409,6 +416,7 @@ describe("shared Three.js scene registry", () => {
       [`${shieldLayer.id}:text-halo-color`, "#ffffff"],
       [`${contourLabelLayer.id}:text-color`, "#666666"],
       [`${contourLabelLayer.id}:text-halo-width`, 1],
+      [`${contourLineLayer.id}:line-opacity`, 0.8],
     ]);
     const map = {
       getStyle: vi.fn(() => ({
@@ -475,6 +483,11 @@ describe("shared Three.js scene registry", () => {
     expect(paint.get(`${shieldLayer.id}:text-halo-color`)).toBe("#ffffff");
     expect(paint.get(`${contourLabelLayer.id}:text-color`)).toBe("#fff2d8");
     expect(paint.get(`${contourLabelLayer.id}:text-halo-width`)).toBe(0);
+    // The drape below Three keeps symbols and contour lines only.
+    expect(layout.get("basemap:visibility")).toBe("none");
+    expect(layout.has(`${contourLineLayer.id}:visibility`)).toBe(false);
+    expect(paint.get(`${contourLineLayer.id}:line-opacity`)).toBe(0.5);
+    expect(layout.has(`${streetLayer.id}:visibility`)).toBe(false);
 
     lease.setMeshLabelStyle(false);
 
@@ -491,6 +504,8 @@ describe("shared Three.js scene registry", () => {
     expect(paint.get(`${poiLayer.id}:icon-color`)).toBe("#ffffff");
     expect(paint.get(`${contourLabelLayer.id}:text-color`)).toBe("#666666");
     expect(paint.get(`${contourLabelLayer.id}:text-halo-width`)).toBe(1);
+    expect(layout.has("basemap:visibility")).toBe(false);
+    expect(paint.get(`${contourLineLayer.id}:line-opacity`)).toBe(0.8);
 
     lease.release();
     expect(paint.get(`${houseLayer.id}:text-halo-color`)).toBe(
@@ -652,6 +667,99 @@ describe("shared Three.js scene registry", () => {
     lease.release();
     expect(paint.has(`${placeLayer.id}:text-translate`)).toBe(false);
     expect(paint.has(`${placeLayer.id}:text-translate-anchor`)).toBe(false);
+  });
+
+  it("drapes a textured terrain mesh without the shadow simulation", () => {
+    sharedLayer.getRuntimes.mockReturnValue([
+      {
+        id: "mesh",
+        providesTerrain: true,
+        mapStyleProjectionBlend: "overlay",
+        getActiveTileVolumes: () => [],
+      } as never,
+    ]);
+    const streetLayer = {
+      id: "bg-basemap_relief-Name_Kreis_Gemeindestr",
+      type: "symbol",
+      source: "bg-basemap_relief::basemap",
+      "source-layer": "Verkehrslinie",
+      layout: { "symbol-placement": "line" },
+    };
+    const poiLayer = {
+      id: "bg-basemap_relief-Name_Gebaeude_oeffentlich",
+      type: "symbol",
+      source: "bg-basemap_relief::basemap",
+      "source-layer": "Gebaeudepunkt",
+    };
+    const layers = [
+      { id: "basemap", type: "fill" },
+      streetLayer,
+      { id: sharedLayer.id, type: "custom" },
+      poiLayer,
+    ];
+    const layout = new Map<string, unknown>([
+      [`${streetLayer.id}:text-size`, 13],
+    ]);
+    const paint = new Map<string, unknown>([
+      [`${streetLayer.id}:text-color`, "#333333"],
+      [`${streetLayer.id}:text-halo-color`, "#ffffff"],
+      [`${poiLayer.id}:text-color`, "#444444"],
+      [`${poiLayer.id}:text-halo-color`, "#ffffff"],
+    ]);
+    const map = {
+      getStyle: vi.fn(() => ({
+        layers: layers.filter(({ id }) => id !== sharedLayer.id),
+      })),
+      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
+      getLayoutProperty: vi.fn((id: string, property: string) =>
+        layout.get(`${id}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) layout.delete(key);
+          else layout.set(key, value);
+        }
+      ),
+      getPaintProperty: vi.fn((id: string, property: string) =>
+        paint.get(`${id}:${property}`)
+      ),
+      setPaintProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) paint.delete(key);
+          else paint.set(key, value);
+        }
+      ),
+      getFilter: vi.fn(),
+      setFilter: vi.fn(),
+      addLayer: vi.fn(),
+      moveLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+
+    const lease = acquireSharedThreeScene(map as never);
+
+    // Drape and street styling apply on their own; without a sun color the
+    // point labels keep their authored paint.
+    expect(layout.get("basemap:visibility")).toBe("none");
+    expect(paint.get(`${streetLayer.id}:text-color`)).toBe("#ffffff");
+    expect(paint.get(`${streetLayer.id}:text-halo-color`)).toBe("#808080");
+    expect(layout.get(`${streetLayer.id}:text-size`)).toBe(18.2);
+    expect(paint.get(`${poiLayer.id}:text-color`)).toBe("#444444");
+    expect(paint.get(`${poiLayer.id}:text-halo-color`)).toBe("#ffffff");
+
+    lease.release();
+    expect(layout.has("basemap:visibility")).toBe(false);
+    expect(paint.get(`${streetLayer.id}:text-color`)).toBe("#333333");
+    expect(layout.get(`${streetLayer.id}:text-size`)).toBe(13);
   });
 
   it("shows place names only inside active Three terrain tile footprints", () => {

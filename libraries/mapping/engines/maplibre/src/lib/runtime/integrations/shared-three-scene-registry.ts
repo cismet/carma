@@ -8,6 +8,7 @@ import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
   getMapStylePointLabelLiftMeters,
+  isMapStyleContourLineLayer,
   isMapStyleElevationLabelLayer,
   isMapStyleHouseNumberLabelLayer,
   isMapStylePointLabelLayer,
@@ -18,7 +19,9 @@ import {
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 13;
+const SHARED_SCENE_ENTRY_VERSION = 14;
+/** Contour lines stay in the mesh drape at half strength. */
+const MESH_DRAPE_CONTOUR_OPACITY = 0.5;
 const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
 const MAPLIBRE_TILE_SIZE = 512;
 /** Keep a lifted place name inside the view at high zoom. */
@@ -49,7 +52,8 @@ type SharedSceneEntry = {
   layer: SharedThreeSceneLayer;
   references: number;
   disposed: boolean;
-  pointLabelLayersCache: PointLabelLayersCache | null;
+  /** All style layers, reused until the layer list changes. */
+  styleLayersCache: PointLabelLayersCache | null;
   labelMaintenanceTimer: ReturnType<typeof setTimeout> | null;
   lastLabelMaintenanceMs: number;
   savedLocationLabelOffsets: Map<string, SavedLocationLabelOffset>;
@@ -62,8 +66,10 @@ type SharedSceneEntry = {
   pointLabelOverlayVisibilityRequests: Map<symbol, boolean>;
   /** Street names and house numbers in sun color on a textured mesh. */
   meshLabelStyleRequests: Map<symbol, boolean>;
-  lineLabelLayersCache: PointLabelLayersCache | null;
   savedMeshLabelPaint: Map<string, SavedMeshLabelPaint>;
+  /** Fills, strokes and rasters hidden below Three while a mesh is draped. */
+  savedMeshDrapeVisibilities: Map<string, SavedPointLabelVisibility>;
+  savedContourOpacities: Map<string, SavedPointLabelVisibility>;
   /** Place names floating above the scene, with their saved translate paint. */
   liftLayers: LabelLiftLayer[];
   savedLabelLifts: Map<string, SavedLabelLift>;
@@ -241,48 +247,45 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
-const getMapStylePointLabelLayers = (
+const getCachedStyleLayers = (
   map: MaplibreMap,
   entry: SharedSceneEntry,
   layerOrder: readonly string[]
 ): RuntimeStyleLayer[] => {
   // `getStyle()` serializes every layer including the coverage filters, so
-  // the classification is reused until the layer list itself changes.
+  // the list is reused until the layer list itself changes.
   const orderSignature = layerOrder.join("\n");
-  const cached = entry.pointLabelLayersCache;
+  const cached = entry.styleLayersCache;
   if (cached?.orderSignature === orderSignature) return cached.layers;
   try {
-    const layers =
-      (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.filter(
-        isMapStylePointLabelLayer
-      ) ?? [];
-    entry.pointLabelLayersCache = { orderSignature, layers };
+    const layers = [
+      ...((map.getStyle().layers as RuntimeStyleLayer[] | undefined) ?? []),
+    ];
+    entry.styleLayersCache = { orderSignature, layers };
     return layers;
   } catch {
     return [];
   }
 };
 
+const getMapStylePointLabelLayers = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry,
+  layerOrder: readonly string[]
+): RuntimeStyleLayer[] =>
+  getCachedStyleLayers(map, entry, layerOrder).filter(
+    isMapStylePointLabelLayer
+  );
+
 /** Line-placed symbols stay below Three; the mesh drape restyles them in place. */
 const getMapStyleLineLabelLayers = (
   map: MaplibreMap,
   entry: SharedSceneEntry,
   layerOrder: readonly string[]
-): RuntimeStyleLayer[] => {
-  const orderSignature = layerOrder.join("\n");
-  const cached = entry.lineLabelLayersCache;
-  if (cached?.orderSignature === orderSignature) return cached.layers;
-  try {
-    const layers =
-      (map.getStyle().layers as RuntimeStyleLayer[] | undefined)?.filter(
-        (layer) => layer.type === "symbol" && !isMapStylePointLabelLayer(layer)
-      ) ?? [];
-    entry.lineLabelLayersCache = { orderSignature, layers };
-    return layers;
-  } catch {
-    return [];
-  }
-};
+): RuntimeStyleLayer[] =>
+  getCachedStyleLayers(map, entry, layerOrder).filter(
+    (layer) => layer.type === "symbol" && !isMapStylePointLabelLayer(layer)
+  );
 
 const getLayerSignature = (layer: RuntimeStyleLayer): string =>
   `${layer.type}:${String(layer.source)}:${String(
@@ -795,12 +798,133 @@ const getLocationLabelColor = (entry: SharedSceneEntry): string | null => {
   return color;
 };
 
+/**
+ * A textured mesh that supplies the terrain composites the captured style
+ * over its own texture; that is the case the mesh label rules exist for.
+ */
+const hasMeshDrapeProvider = (entry: SharedSceneEntry): boolean => {
+  const runtimes = entry.layer.getRuntimes?.() ?? [];
+  const providers = runtimes.filter(
+    (runtime) => runtime.providesTerrain === true
+  );
+  return (
+    providers.length > 0 &&
+    providers.every((runtime) => runtime.mapStyleProjectionBlend === "overlay")
+  );
+};
+
+/** An explicit request (the shadow scene) wins; otherwise the mesh decides. */
 const isMeshLabelStyle = (entry: SharedSceneEntry): boolean => {
-  let enabled = false;
+  let enabled: boolean | null = null;
   for (const requested of entry.meshLabelStyleRequests.values()) {
     enabled = requested;
   }
-  return enabled;
+  return enabled ?? hasMeshDrapeProvider(entry);
+};
+
+const restoreMeshDrape = (map: MaplibreMap, entry: SharedSceneEntry): void => {
+  for (const [layerId, saved] of entry.savedMeshDrapeVisibilities) {
+    try {
+      const runtimeLayer = map.getLayer(layerId) as
+        | RuntimeStyleLayer
+        | undefined;
+      if (
+        runtimeLayer &&
+        getLayerSignature(runtimeLayer) === saved.signature &&
+        map.getLayoutProperty(layerId, "visibility") === "none"
+      ) {
+        map.setLayoutProperty(
+          layerId,
+          "visibility",
+          saved.original === undefined ? null : saved.original
+        );
+      }
+    } catch {
+      // The host may already have disposed or replaced its style.
+    }
+  }
+  entry.savedMeshDrapeVisibilities.clear();
+  for (const [layerId, saved] of entry.savedContourOpacities) {
+    try {
+      const runtimeLayer = map.getLayer(layerId) as
+        | RuntimeStyleLayer
+        | undefined;
+      if (
+        runtimeLayer &&
+        getLayerSignature(runtimeLayer) === saved.signature &&
+        map.getPaintProperty(layerId, "line-opacity") ===
+          MESH_DRAPE_CONTOUR_OPACITY
+      ) {
+        map.setPaintProperty(
+          layerId,
+          "line-opacity",
+          saved.original === undefined ? null : saved.original
+        );
+      }
+    } catch {
+      // The host may already have disposed or replaced its style.
+    }
+  }
+  entry.savedContourOpacities.clear();
+};
+
+/**
+ * Keep only the symbol layers and the contour lines in the pass captured
+ * below Three. Fills, strokes, rasters and the background would otherwise
+ * paint over the mesh texture; contour lines stay at half strength so they
+ * lighten the surface instead of covering it. Runs whenever a textured mesh
+ * supplies the terrain, with or without the shadow simulation.
+ */
+const applyMeshDrape = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry,
+  layers: readonly RuntimeStyleLayer[]
+): void => {
+  const currentIds = new Set(layers.map(({ id }) => id));
+  for (const id of entry.savedMeshDrapeVisibilities.keys()) {
+    if (!currentIds.has(id)) entry.savedMeshDrapeVisibilities.delete(id);
+  }
+  for (const id of entry.savedContourOpacities.keys()) {
+    if (!currentIds.has(id)) entry.savedContourOpacities.delete(id);
+  }
+  for (const layer of layers) {
+    if (layer.type === "custom" || layer.type === "symbol") continue;
+    if (layer.id.startsWith("carma-")) continue;
+    try {
+      const signature = getLayerSignature(layer);
+      if (isMapStyleContourLineLayer(layer)) {
+        const current = map.getPaintProperty(layer.id, "line-opacity");
+        const saved = entry.savedContourOpacities.get(layer.id);
+        if (!saved || saved.signature !== signature) {
+          entry.savedContourOpacities.set(layer.id, {
+            signature,
+            original: current,
+          });
+        }
+        if (current !== MESH_DRAPE_CONTOUR_OPACITY) {
+          map.setPaintProperty(
+            layer.id,
+            "line-opacity",
+            MESH_DRAPE_CONTOUR_OPACITY
+          );
+        }
+        continue;
+      }
+      const current = map.getLayoutProperty(layer.id, "visibility");
+      const saved = entry.savedMeshDrapeVisibilities.get(layer.id);
+      if (!saved || saved.signature !== signature) {
+        entry.savedMeshDrapeVisibilities.set(layer.id, {
+          signature,
+          original: current,
+        });
+      }
+      if (current !== "none") {
+        map.setLayoutProperty(layer.id, "visibility", "none");
+      }
+    } catch {
+      // A style rebuild can remove a layer between inspection and update.
+    }
+  }
 };
 
 /**
@@ -828,6 +952,7 @@ const getMeshLabelPaint = (
   // Water names keep their authored blue and only drop the halo.
   if (isMapStyleWaterLabelLayer(layer)) return [["text-halo-width", 0]];
   // Contour and spot-height numbers: sun colored, no halo, draped or lifted.
+  // Without a sun (shadow simulation off) they stay white.
   if (isMapStyleElevationLabelLayer(layer)) {
     return [
       ["text-color", textColor ?? "#ffffff"],
@@ -1261,6 +1386,11 @@ const ensureSharedLayerOrder = (
     layerOrder
   );
   const meshLabelStyle = isMeshLabelStyle(entry);
+  if (meshLabelStyle) {
+    applyMeshDrape(map, entry, getCachedStyleLayers(map, entry, layerOrder));
+  } else {
+    restoreMeshDrape(map, entry);
+  }
   if (!pointLabelOverlayVisible) {
     restoreMeshIconTint(map, entry);
     restoreMeshLabelPaint(map, entry.savedMeshLabelPaint);
@@ -1377,8 +1507,7 @@ const configureEnsureLayer = (
     if (entry.disposed) return;
     if ((event as { type?: unknown } | undefined)?.type === "style.load") {
       // A new style carries new layer objects; drop the classification.
-      entry.pointLabelLayersCache = null;
-      entry.lineLabelLayersCache = null;
+      entry.styleLayersCache = null;
       entry.ensureLayerNow();
       return;
     }
@@ -1434,8 +1563,10 @@ export const acquireSharedThreeScene = (
     }
     entry.labelMaintenanceTimer = null;
     entry.lastLabelMaintenanceMs = Number.NEGATIVE_INFINITY;
-    entry.pointLabelLayersCache = null;
-    entry.lineLabelLayersCache = null;
+    entry.styleLayersCache = null;
+    entry.savedMeshDrapeVisibilities ??= new Map();
+    entry.savedContourOpacities ??= new Map();
+    restoreMeshDrape(map, entry);
     entry.liftLayers ??= [];
     entry.savedLabelLifts ??= new Map();
     entry.tintedImages ??= new Map();
@@ -1502,7 +1633,7 @@ export const acquireSharedThreeScene = (
       layer,
       references: 0,
       disposed: false,
-      pointLabelLayersCache: null,
+      styleLayersCache: null,
       labelMaintenanceTimer: null,
       lastLabelMaintenanceMs: Number.NEGATIVE_INFINITY,
       savedLocationLabelOffsets: new Map(),
@@ -1514,8 +1645,9 @@ export const acquireSharedThreeScene = (
       locationLabelColorRequests: new Map(),
       pointLabelOverlayVisibilityRequests: new Map(),
       meshLabelStyleRequests: new Map(),
-      lineLabelLayersCache: null,
       savedMeshLabelPaint: new Map(),
+      savedMeshDrapeVisibilities: new Map(),
+      savedContourOpacities: new Map(),
       liftLayers: [],
       savedLabelLifts: new Map(),
       tintedImages: new Map(),
@@ -1607,6 +1739,7 @@ export const acquireSharedThreeScene = (
         // The host may already have disposed or replaced its style.
       }
       restoreMeshIconTint(map, current);
+      restoreMeshDrape(map, current);
       restoreMeshLabelPaint(map, current.savedMeshLabelPaint);
       restoreLabelLifts(map, current.savedLabelLifts);
       restoreLocationLabelOffsets(map, current.savedLocationLabelOffsets);

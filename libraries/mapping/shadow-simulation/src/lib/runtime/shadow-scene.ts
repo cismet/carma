@@ -8,7 +8,6 @@ import {
   getGenericThreeLayers,
   getSharedThreeShadowViewSignature,
   getSharedThreeSceneRuntimes,
-  isMapStyleContourLineLayer,
   subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
@@ -208,16 +207,6 @@ export const acquireShadowMapLibreTerrain = (
     string,
     { signature: string; value: unknown }
   >();
-  const savedLabelDrapeVisibilities = new Map<
-    string,
-    { signature: string; value: unknown }
-  >();
-  // Contour lines stay in the label drape at half strength.
-  const savedContourOpacities = new Map<
-    string,
-    { signature: string; value: unknown }
-  >();
-  const LABEL_DRAPE_CONTOUR_OPACITY = 0.5;
   let disposed = false;
   let applying = false;
   let createdBaseLayer = false;
@@ -358,31 +347,6 @@ export const acquireShadowMapLibreTerrain = (
     saved.clear();
   };
 
-  const restoreContourOpacities = () => {
-    for (const [layerId, saved] of savedContourOpacities) {
-      try {
-        const layer = map
-          .getStyle()
-          .layers?.find(({ id }) => id === layerId) as DrapeLayer | undefined;
-        if (
-          layer &&
-          getLayerSignature(layer) === saved.signature &&
-          map.getPaintProperty(layerId, "line-opacity") ===
-            LABEL_DRAPE_CONTOUR_OPACITY
-        ) {
-          map.setPaintProperty(
-            layerId,
-            "line-opacity",
-            saved.value === undefined ? null : saved.value
-          );
-        }
-      } catch {
-        // A style replacement may already have removed the layer.
-      }
-    }
-    savedContourOpacities.clear();
-  };
-
   const restoreOpaqueDrape = () => {
     for (const [layerId, saved] of savedDrapeOpacities) {
       try {
@@ -417,76 +381,16 @@ export const acquireShadowMapLibreTerrain = (
     }
   };
 
-  /**
-   * Keep only the symbol layers in the captured pass. Fills, strokes, rasters
-   * and the background would otherwise paint over the mesh's own texture;
-   * the line-placed labels are what the textured ground still lacks. Point
-   * labels leave this pass anyway: the shared scene redraws them above Three.
-   */
-  const ensureLabelDrape = () => {
-    const style = map.getStyle();
-    const layers = (style.layers ?? []) as DrapeLayer[];
-    const currentIds = new Set(layers.map(({ id }) => id));
-    for (const id of savedLabelDrapeVisibilities.keys()) {
-      if (!currentIds.has(id)) savedLabelDrapeVisibilities.delete(id);
-    }
-    for (const layer of layers) {
-      if (layer.type === "custom" || layer.type === "symbol") continue;
-      if (layer.id === SHADOW_MAP_STYLE_BASE_LAYER_ID) continue;
-      // Contour lines read well on the textured ground and stay draped, at
-      // half opacity so they lighten the surface instead of covering it.
-      if (isMapStyleContourLineLayer(layer)) {
-        try {
-          const signature = getLayerSignature(layer);
-          const current = map.getPaintProperty(layer.id, "line-opacity");
-          const saved = savedContourOpacities.get(layer.id);
-          if (!saved || saved.signature !== signature) {
-            savedContourOpacities.set(layer.id, { signature, value: current });
-          }
-          if (current !== LABEL_DRAPE_CONTOUR_OPACITY) {
-            map.setPaintProperty(
-              layer.id,
-              "line-opacity",
-              LABEL_DRAPE_CONTOUR_OPACITY
-            );
-          }
-        } catch {
-          // A style rebuild can remove a layer between inspection and update.
-        }
-        continue;
-      }
-      try {
-        const signature = getLayerSignature(layer);
-        const current = map.getLayoutProperty(layer.id, "visibility");
-        const saved = savedLabelDrapeVisibilities.get(layer.id);
-        if (!saved || saved.signature !== signature) {
-          savedLabelDrapeVisibilities.set(layer.id, {
-            signature,
-            value: current,
-          });
-        }
-        if (current !== "none") {
-          map.setLayoutProperty(layer.id, "visibility", "none");
-        }
-      } catch {
-        // A style rebuild can remove a layer between inspection and update.
-      }
-    }
-  };
-
   const apply = () => {
     if (disposed || applying) return;
     applying = true;
     try {
       if (getDrapeMode() === "labels") {
-        // Hand the opaque pass's changes back first, so the label drape
-        // records the authored visibilities instead of the hidden state.
+        // The shared scene registry owns the label drape (it also runs
+        // without the shadow simulation); only hand the opaque pass back.
         restoreOpaqueDrape();
         restoreSavedVisibilities(savedTerrainShadingVisibilities);
-        ensureLabelDrape();
       } else {
-        restoreSavedVisibilities(savedLabelDrapeVisibilities);
-        restoreContourOpacities();
         ensureOpaqueDrape();
       }
       if (terrainMap.getSource(sourceId)) {
@@ -519,8 +423,6 @@ export const acquireShadowMapLibreTerrain = (
     restoreTerrainFrame();
     restoreOpaqueDrape();
     restoreSavedVisibilities(savedTerrainShadingVisibilities);
-    restoreSavedVisibilities(savedLabelDrapeVisibilities);
-    restoreContourOpacities();
     try {
       if (
         previousTerrain &&

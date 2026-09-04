@@ -102,7 +102,7 @@ describe("shadow scene sun direction", () => {
 });
 
 describe("shadow scene MapLibre terrain", () => {
-  it("keeps only symbol layers in the drape for a textured terrain mesh", () => {
+  it("leaves the label drape to the shared scene for a textured terrain mesh", () => {
     type Handler = () => void;
     const handlers = new Map<string, Set<Handler>>();
     let terrain: { source: string; exaggeration: number } | null = null;
@@ -179,14 +179,11 @@ describe("shadow scene MapLibre terrain", () => {
     expect(layers.some(({ id }) => id === "carma-shadow-map-style-base")).toBe(
       false
     );
-    expect(layout.get("background:visibility")).toBe("none");
-    expect(layout.get("basemap:visibility")).toBe("none");
-    expect(layout.get("landcover:visibility")).toBe("none");
-    expect(layout.get("roads:visibility")).toBe("none");
+    // Hiding fills and strokes is the registry's job; the scene leaves the
+    // authored visibilities and opacities alone in labels mode.
+    expect(layout.has("basemap:visibility")).toBe(false);
+    expect(layout.get("roads:visibility")).toBe("visible");
     expect(layout.has("road-labels:visibility")).toBe(false);
-    expect(layout.has("bg-basemap_relief-Hoehenlinie_10er:visibility")).toBe(
-      false
-    );
     expect(layout.has("three:visibility")).toBe(false);
     expect(paint.get("basemap:raster-opacity")).toBe(0.9);
 
@@ -204,7 +201,7 @@ describe("shadow scene MapLibre terrain", () => {
       false
     );
     expect(paint.get("basemap:raster-opacity")).toBe(0.9);
-    expect(layout.get("roads:visibility")).toBe("none");
+    expect(layout.get("roads:visibility")).toBe("visible");
 
     release();
     expect(layout.get("roads:visibility")).toBe("visible");
