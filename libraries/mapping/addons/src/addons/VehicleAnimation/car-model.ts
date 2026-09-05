@@ -140,12 +140,14 @@ type SideItem =
  * What sits along one side of a section, as spans in metres from the
  * section's centre. A driving section, cab at +x: the cab's own side window,
  * the red stripe, a double door, windows between pillars, and a double door
- * before the bellows. The middle module carries one door pair.
+ * before the bellows. The middle module carries one square window.
  */
 const sideLayout = (length: number, cab: number): SideItem[] => {
   const half = length / 2;
   if (cab === 0) {
-    return [{ kind: "door", from: -DOOR_METERS / 2, to: DOOR_METERS / 2 }];
+    // the middle module has one square window and no door
+    const square = (WINDOW_TOP - WINDOW_BOTTOM) / 2;
+    return [{ kind: "window", from: -square, to: square }];
   }
   const items: SideItem[] = [
     { kind: "window", from: half - 0.8, to: half - 0.3 },
