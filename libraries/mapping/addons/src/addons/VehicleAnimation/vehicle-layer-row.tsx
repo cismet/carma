@@ -208,6 +208,7 @@ export const useVehicleAnimationLayerRow = ({
     opacity,
     showTrack,
     trackColor,
+    structureUrl,
     isPaused,
     isLoading,
     error,
@@ -274,6 +275,7 @@ export const useVehicleAnimationLayerRow = ({
                 opacity,
                 showTrack,
                 trackColor,
+                ...(structureUrl ? { structureUrl } : {}),
               } satisfies VehicleAnimationConfig,
             },
           ]
@@ -304,6 +306,7 @@ export const useVehicleAnimationLayerRow = ({
       opacity,
       showTrack,
       trackColor,
+      structureUrl,
     ]
   );
 

@@ -1,5 +1,10 @@
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import type {
+  ExpressionSpecification,
+  GeoJSONSource,
+  Map as MapLibreMap,
+} from "maplibre-gl";
 
+import { structurePlanFeatures, type StructureAsset } from "./geruest";
 import {
   carParts,
   poseAt,
@@ -70,6 +75,12 @@ export type VehicleLayerOptions = {
   trackColor: string;
   /** draw a dot and a name at every station */
   showStations: boolean;
+  /**
+   * The structure the vehicles hang from, drawn over them as it is seen from
+   * above: the rail on top of its girder, the wind bracing between the two
+   * rails, the supports. Without one the fleet runs on a bare line.
+   */
+  structure?: StructureAsset | null;
   /** MapLibre layer the fleet is inserted before, e.g. to sit under labels */
   beforeId?: string;
   id?: string;
@@ -98,6 +109,30 @@ const KMH_TO_MS = 1000 / 3600;
 const MAX_FRAME_SECONDS = 0.25;
 /** a misconfigured headway must not fill the map with vehicles */
 const MAX_FLEET = 60;
+
+/** the painted steel of the Gerüst, and the rust of the bare rail on top */
+const STEEL_COLOR = "#7fa48b";
+const RAIL_COLOR = "#8a5a3c";
+/** metres per pixel at zoom 0 on the equator, for MapLibre's 512 px tiles */
+const EQUATOR_METERS_PER_PIXEL = 78271.517;
+
+/**
+ * A line width that is `meters` wide on the ground at every zoom, and never
+ * thinner than `minPixels`. The clamp sits in the stop values rather than
+ * around the expression, because `zoom` may only feed a top-level interpolate.
+ */
+const metersWide = (
+  meters: number,
+  lat: number,
+  minPixels: number
+): ExpressionSpecification => {
+  const metersPerPixel = EQUATOR_METERS_PER_PIXEL * Math.cos((lat * Math.PI) / 180);
+  const stops: number[] = [];
+  for (let zoom = 10; zoom <= 24; zoom++) {
+    stops.push(zoom, Math.max(minPixels, (meters * 2 ** zoom) / metersPerPixel));
+  }
+  return ["interpolate", ["exponential", 2], ["zoom"], ...stops];
+};
 
 type Car = {
   /** meters from the start of the track */
@@ -130,6 +165,7 @@ export const createVehicleLayer = (
     showTrack,
     trackColor,
     showStations,
+    structure = null,
     beforeId,
     id = DEFAULT_ID,
     onFleetSize,
@@ -138,12 +174,21 @@ export const createVehicleLayer = (
   const sourceId = `${id}-source`;
   const trackSourceId = `${id}-track-source`;
   const stationSourceId = `${id}-station-source`;
+  const structureSourceId = `${id}-structure-source`;
   const bodyId = id;
   const jointId = `${id}-joints`;
   const outlineId = `${id}-outline`;
   const trackId = `${id}-track`;
+  const girderId = `${id}-girder`;
+  const bracingId = `${id}-bracing`;
+  const supportId = `${id}-supports`;
+  const railId = `${id}-rail`;
   const stationDotId = `${id}-stations`;
   const stationLabelId = `${id}-station-labels`;
+
+  /** the structure's lines from above, built once: they never move */
+  const structureFeatures = structure ? structurePlanFeatures(structure) : null;
+  const trackLat = track.points[0][1];
 
   let speedKmh = options.speedKmh;
   let opacity = options.opacity;
@@ -232,10 +277,17 @@ export const createVehicleLayer = (
   const attach = (): void => {
     if (destroyed || !map.getStyle()) return;
 
-    if (showTrack && !map.getSource(trackSourceId)) {
+    // the structure draws the route twice more, as girder and as rail
+    if ((showTrack || structureFeatures) && !map.getSource(trackSourceId)) {
       map.addSource(trackSourceId, {
         type: "geojson",
         data: { type: "FeatureCollection", features: [trackFeature()] },
+      });
+    }
+    if (structureFeatures && !map.getSource(structureSourceId)) {
+      map.addSource(structureSourceId, {
+        type: "geojson",
+        data: structureFeatures,
       });
     }
     if (showStations && !map.getSource(stationSourceId)) {
@@ -328,6 +380,76 @@ export const createVehicleLayer = (
         insertBefore
       );
     }
+    // The Gerüst goes over the vehicles: from above, the rail runs along the
+    // roof of every car and the bracing crosses between the two rails. The
+    // girder is a translucent band so the car under it stays legible.
+    if (structureFeatures) {
+      if (!map.getLayer(girderId)) {
+        map.addLayer(
+          {
+            id: girderId,
+            type: "line",
+            source: trackSourceId,
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: {
+              "line-color": STEEL_COLOR,
+              "line-width": metersWide(1.0, trackLat, 1.5),
+              "line-opacity": 0.55 * opacity,
+            },
+          },
+          insertBefore
+        );
+      }
+      if (!map.getLayer(bracingId)) {
+        map.addLayer(
+          {
+            id: bracingId,
+            type: "line",
+            source: structureSourceId,
+            filter: ["==", ["get", "part"], "bracing"],
+            paint: {
+              "line-color": STEEL_COLOR,
+              "line-width": metersWide(0.3, trackLat, 0.5),
+              "line-opacity": opacity,
+            },
+          },
+          insertBefore
+        );
+      }
+      if (!map.getLayer(supportId)) {
+        map.addLayer(
+          {
+            id: supportId,
+            type: "line",
+            source: structureSourceId,
+            filter: ["==", ["get", "part"], "support"],
+            layout: { "line-cap": "round" },
+            paint: {
+              "line-color": STEEL_COLOR,
+              "line-width": metersWide(0.45, trackLat, 0.8),
+              "line-opacity": opacity,
+            },
+          },
+          insertBefore
+        );
+      }
+      if (!map.getLayer(railId)) {
+        map.addLayer(
+          {
+            id: railId,
+            type: "line",
+            source: trackSourceId,
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: {
+              "line-color": RAIL_COLOR,
+              "line-width": metersWide(0.35, trackLat, 1),
+              "line-opacity": opacity,
+            },
+          },
+          insertBefore
+        );
+      }
+    }
     if (showStations && !map.getLayer(stationLabelId)) {
       map.addLayer({
         id: stationLabelId,
@@ -356,6 +478,10 @@ export const createVehicleLayer = (
     if (!map.getStyle()) return;
     for (const layerId of [
       stationLabelId,
+      railId,
+      supportId,
+      bracingId,
+      girderId,
       outlineId,
       bodyId,
       jointId,
@@ -364,7 +490,12 @@ export const createVehicleLayer = (
     ]) {
       if (map.getLayer(layerId)) map.removeLayer(layerId);
     }
-    for (const source of [sourceId, trackSourceId, stationSourceId]) {
+    for (const source of [
+      sourceId,
+      trackSourceId,
+      stationSourceId,
+      structureSourceId,
+    ]) {
       if (map.getSource(source)) map.removeSource(source);
     }
   };
@@ -461,6 +592,10 @@ export const createVehicleLayer = (
         [jointId, "fill-opacity", opacity],
         [outlineId, "line-opacity", opacity],
         [trackId, "line-opacity", 0.6 * opacity],
+        [girderId, "line-opacity", 0.55 * opacity],
+        [bracingId, "line-opacity", opacity],
+        [supportId, "line-opacity", opacity],
+        [railId, "line-opacity", opacity],
         [stationDotId, "circle-opacity", opacity],
         [stationLabelId, "text-opacity", opacity],
       ] as const) {

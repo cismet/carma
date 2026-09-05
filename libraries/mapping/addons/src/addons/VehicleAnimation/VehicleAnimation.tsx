@@ -10,6 +10,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import { parseStructureAsset, type StructureAsset } from "./geruest";
 import {
   CAR_SHAPE_GTW15,
   buildTrack,
@@ -97,6 +98,7 @@ export const VehicleAnimation = ({
     opacity,
     showTrack,
     trackColor,
+    structureUrl,
     isPaused,
     focusRequest,
     setOn,
@@ -109,6 +111,7 @@ export const VehicleAnimation = ({
   const { startVehicle } = useVehicleAnimationLauncher();
 
   const [track, setTrack] = useState<Track | null>(null);
+  const [structure, setStructure] = useState<StructureAsset | null>(null);
   const layerRef = useRef<VehicleLayerHandle | null>(null);
 
   // read the live values without making the mount effect depend on them, which
@@ -142,6 +145,7 @@ export const VehicleAnimation = ({
     opacity: configOpacity,
     showTrack: configShowTrack,
     trackColor: configTrackColor,
+    structureUrl: configStructureUrl,
   } = config;
 
   useEffect(() => {
@@ -164,6 +168,7 @@ export const VehicleAnimation = ({
       opacity: configOpacity,
       showTrack: configShowTrack,
       trackColor: configTrackColor,
+      structureUrl: configStructureUrl,
     });
     return () => setOn(false);
   }, [
@@ -183,6 +188,7 @@ export const VehicleAnimation = ({
     configOpacity,
     configShowTrack,
     configTrackColor,
+    configStructureUrl,
     startVehicle,
     setOn,
   ]);
@@ -232,6 +238,43 @@ export const VehicleAnimation = ({
       controller.abort();
     };
   }, [isOn, trackUrl, setLoading, setError, setTrackLength]);
+
+  // The structure is optional and separate: a fleet without one runs as soon
+  // as its route is in, and a structure that fails to load costs the map the
+  // Gerüst, not the vehicles.
+  useEffect(() => {
+    if (!isOn || !structureUrl) {
+      setStructure(null);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    let disposed = false;
+
+    fetch(structureUrl, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then((json: unknown) => {
+        if (disposed) return;
+        const parsed = parseStructureAsset(json);
+        if (!parsed) throw new Error("not a structure asset");
+        setStructure(parsed);
+      })
+      .catch((error: unknown) => {
+        if (disposed || controller.signal.aborted) return;
+        console.error("[VEHICLE ANIMATION] structure request failed", error);
+        setStructure(null);
+      });
+
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
+  }, [isOn, structureUrl]);
 
   const shape = useMemo<CarShape>(
     () => ({
@@ -284,6 +327,7 @@ export const VehicleAnimation = ({
       showTrack,
       trackColor,
       showStations: showStations && schedule !== null,
+      structure,
       beforeId,
       onFleetSize: setFleetSize,
     });
@@ -308,6 +352,7 @@ export const VehicleAnimation = ({
     showTrack,
     trackColor,
     showStations,
+    structure,
     beforeId,
     setFleetSize,
   ]);

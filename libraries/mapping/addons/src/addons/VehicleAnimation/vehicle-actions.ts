@@ -84,6 +84,12 @@ export type VehicleAnimationDefinition = {
   /** draw the route under the vehicles. Default: true */
   showTrack?: boolean;
   trackColor?: string;
+  /**
+   * The structure the vehicles hang from, as `build-schwebebahn-structure.mjs`
+   * writes it. With one, the Gerüst is drawn over the fleet the way it is seen
+   * from above; without, the vehicles run on a bare line.
+   */
+  structureUrl?: string;
 };
 
 export type VehicleAnimationState = {
@@ -108,6 +114,8 @@ export type VehicleAnimationState = {
   opacity: number;
   showTrack: boolean;
   trackColor: string;
+  /** empty: no structure over the vehicles */
+  structureUrl: string;
   /** the fleet stands still but stays on the map */
   isPaused: boolean;
   /** the route is being fetched */
@@ -148,6 +156,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   opacity: 1,
   showTrack: true,
   trackColor: "#8c8c8c",
+  structureUrl: "",
   isPaused: false,
   isLoading: false,
   error: null,
@@ -337,6 +346,7 @@ export const useVehicleAnimationLauncher = () => {
         opacity: def.opacity ?? fallback.opacity,
         showTrack: def.showTrack ?? fallback.showTrack,
         trackColor: def.trackColor ?? fallback.trackColor,
+        structureUrl: def.structureUrl ?? fallback.structureUrl,
         isOn: true,
       };
     },

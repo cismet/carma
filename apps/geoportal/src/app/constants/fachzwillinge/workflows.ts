@@ -169,6 +169,23 @@ const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
   trackColor: "#8c8c8c",
 };
 
+/**
+ * The same service, seen from above with its Gerüst over it.
+ *
+ * The structure asset comes from the city's trasse and support wireframes via
+ * `scripts/geodata/build-schwebebahn-structure.mjs`: the rail girders as
+ * modelled, the supports as three shapes placed 160 times, and the wind
+ * bracing between the two rails, which the model does not contain and which
+ * the script adds as five-metre X panels. The plain route line is off: the
+ * rail drawn on top of the girder takes its place.
+ */
+const SCHWEBEBAHN_GERUEST_VEHICLE: VehicleAnimationDefinition = {
+  ...SCHWEBEBAHN_VEHICLE,
+  title: "Schwebebahn mit Gerüst",
+  structureUrl: `${APP_BASE_PATH}data/geojson/schwebebahn-geruest.json`,
+  showTrack: false,
+};
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -306,6 +323,29 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
           tools: [
             { kind: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
+          ],
+        },
+        {
+          id: "schwebebahn-geruest",
+          title: "Schwebebahn mit Gerüst",
+          description:
+            "Inhalt: Dieselben Fahrten wie in der Karte „Schwebebahn“, dazu " +
+            "das Gerüst aus der Vogelperspektive: die beiden Fahrschienen " +
+            "auf ihren Trägern, der Windverband dazwischen und die Stützen. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt die Bahnen unter dem Gerüst, so wie ein Luftbild " +
+            "sie zeigen würde. Die Fahrten lassen sich über die Layer-Zeile " +
+            "anhalten.",
+          metaDataText:
+            "Träger und Stützen stammen aus dem 3D-Modell der Stadt " +
+            "Wuppertal (Trasse und Stützen der Schwebebahn). Das Modell " +
+            "enthält keine Verbindung zwischen den beiden Trägern; der " +
+            "Windverband ist deshalb als Fachwerk mit Feldern von fünf " +
+            "Metern ergänzt. Die Stützen liegen im Modell rund 90 Meter " +
+            "über der Trasse und werden auf deren Höhe gesetzt. Fahrplan " +
+            "und Fahrzeuge wie in der Karte „Schwebebahn“.",
+          tools: [
+            { kind: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE },
           ],
         },
       ],
