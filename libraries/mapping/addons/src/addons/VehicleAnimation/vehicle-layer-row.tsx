@@ -21,7 +21,7 @@ export const VEHICLE_ANIMATION_LAYER_ID = "__vehicleAnimation__";
 export const VEHICLE_ANIMATION_STATUS_ID = "vehicle-animation-status";
 /** stop the vehicles where they are, and let them go again */
 export const VEHICLE_ANIMATION_PLAY_ID = "vehicle-animation-play";
-/** fly the map to one of them, for when there is no vehicle in view */
+/** fly the map to the nearest of them, for when there is no vehicle in view */
 export const VEHICLE_ANIMATION_FOCUS_ID = "vehicle-animation-focus";
 
 const ICON_COLOR = { running: "#1677ff", idle: "#8c8c8c" };
@@ -62,14 +62,21 @@ const headwayLabel = (seconds: number): string => {
     : `${minutes}:${String(rest).padStart(2, "0")}-Takt`;
 };
 
+/** how many vehicles are out, in words */
+const countLabel = (count: number): string => {
+  if (count === 0) return "keine Bahn";
+  return count === 1 ? "1 Bahn" : `${count} Bahnen`;
+};
+
 /**
  * What the readout says.
  *
- * An animation whose route failed to load is the case worth spelling out:
- * everything else about the row looks exactly as it does while the fleet is
- * running, so without a word an empty map reads as broken rather than as a
- * missing file. With a timetable the fleet size is the interesting number,
- * because it is counted from the route rather than configured.
+ * An animation whose route or timetable failed to load is the case worth
+ * spelling out: everything else about the row looks exactly as it does while
+ * the fleet is running, so without a word an empty map reads as broken rather
+ * than as a missing file. With a headway the fleet size is the interesting
+ * number, because it is counted from the route rather than configured; with a
+ * timetable it is how many vehicles the clock has on the modelled stretch.
  */
 const statusLabel = ({
   isLoading,
@@ -78,6 +85,7 @@ const statusLabel = ({
   speedKmh,
   fleetSize,
   headwaySeconds,
+  hasTimetable,
 }: {
   isLoading: boolean;
   error: string | null;
@@ -85,24 +93,32 @@ const statusLabel = ({
   speedKmh: number;
   fleetSize: number;
   headwaySeconds: number;
+  hasTimetable: boolean;
 }): string => {
-  if (error) return "Strecke fehlt";
+  if (error) return error.startsWith("Fahrplan") ? "Fahrplan fehlt" : "Strecke fehlt";
   if (isLoading) return "lädt";
   if (isPaused) return "angehalten";
+  if (hasTimetable) return `${countLabel(fleetSize)} · Fahrplan`;
   if (headwaySeconds > 0 && fleetSize > 0) {
-    return `${fleetSize} Bahnen · ${headwayLabel(headwaySeconds)}`;
+    return `${countLabel(fleetSize)} · ${headwayLabel(headwaySeconds)}`;
   }
   return `${Math.round(speedKmh)} km/h`;
 };
 
+/**
+ * `canPlay` gates every control, `canPause` the hold button alone: a fleet
+ * running by the clock has nothing to hold, it would only fall behind the
+ * time it claims to show.
+ */
 const buildInteractionButtons = (
   label: string,
   isPaused: boolean,
   canPlay: boolean,
+  canPause: boolean,
   onTogglePaused: () => void,
   onFocus: () => void
 ): InteractionButton[] => [
-  ...(canPlay
+  ...(canPause
     ? [
         {
           id: VEHICLE_ANIMATION_PLAY_ID,
@@ -123,7 +139,7 @@ const buildInteractionButtons = (
         {
           id: VEHICLE_ANIMATION_FOCUS_ID,
           icon: <FontAwesomeIcon icon={faMagnifyingGlass} />,
-          tooltip: "Zu einer Bahn springen",
+          tooltip: "Zur nächsten Bahn springen",
           onClick: onFocus,
         },
       ]
@@ -209,6 +225,7 @@ export const useVehicleAnimationLayerRow = ({
     showTrack,
     trackColor,
     structureUrl,
+    timetableUrl,
     renderer,
     isPaused,
     isLoading,
@@ -228,8 +245,13 @@ export const useVehicleAnimationLayerRow = ({
     speedKmh,
     fleetSize,
     headwaySeconds,
+    hasTimetable: timetableUrl !== "",
   });
   const canPlay = !error && !isLoading;
+  // a timetable fleet has no headway to persist but still wants its dwell and
+  // station radius back after a reload
+  const persistSchedule =
+    timetableUrl !== "" || (headwaySeconds > 0 && stations.length > 0);
 
   const layer = useMemo(
     () => ({
@@ -240,6 +262,7 @@ export const useVehicleAnimationLayerRow = ({
         label,
         isPaused,
         canPlay,
+        canPlay && timetableUrl === "",
         togglePaused,
         requestFocus
       ),
@@ -259,7 +282,7 @@ export const useVehicleAnimationLayerRow = ({
                 jointMeters,
                 speedKmh,
                 mode,
-                ...(headwaySeconds > 0 && stations.length > 0
+                ...(persistSchedule
                   ? {
                       schedule: {
                         headwaySeconds,
@@ -277,6 +300,7 @@ export const useVehicleAnimationLayerRow = ({
                 showTrack,
                 trackColor,
                 ...(structureUrl ? { structureUrl } : {}),
+                ...(timetableUrl ? { timetableUrl } : {}),
                 renderer,
               } satisfies VehicleAnimationConfig,
             },
@@ -297,6 +321,7 @@ export const useVehicleAnimationLayerRow = ({
       jointMeters,
       speedKmh,
       mode,
+      persistSchedule,
       headwaySeconds,
       dwellSeconds,
       stations,
@@ -309,6 +334,7 @@ export const useVehicleAnimationLayerRow = ({
       showTrack,
       trackColor,
       structureUrl,
+      timetableUrl,
       renderer,
     ]
   );

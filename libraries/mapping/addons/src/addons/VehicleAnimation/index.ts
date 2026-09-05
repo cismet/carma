@@ -33,3 +33,10 @@ export {
   type TrackStop,
 } from "./track";
 export { type VehicleMode, type VehicleSchedule } from "./vehicle-layer";
+export {
+  parseTimetable,
+  type Timetable,
+  type TimetableService,
+  type TimetableStation,
+  type TimetableTrip,
+} from "./timetable";

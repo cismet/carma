@@ -1,5 +1,7 @@
+import type { Timetable } from "./timetable";
+import { createTimetableFleet } from "./timetable-fleet";
 import {
-  poseAt,
+  nearestPose,
   projectStops,
   type Station,
   type Track,
@@ -12,6 +14,10 @@ import {
  * one is along the track, and how they move on. No map in here; the flat and
  * the 3D renderer both drive the same fleet and only differ in how they draw
  * it.
+ *
+ * Two kinds of fleet answer to the same interface: the one in this file runs
+ * a fixed headway and moves its vehicles on by elapsed time, the one in
+ * `timetable-fleet.ts` places them by the clock from a published timetable.
  */
 
 export type VehicleMode = "loop" | "pingpong";
@@ -46,6 +52,21 @@ export type Car = {
   dwellRemaining: number;
   /** which entry of `stops` it is heading for */
   nextStop: number;
+  /**
+   * Whether the vehicle is on the track at all. A headway fleet keeps every
+   * vehicle out; a timetable fleet holds a pool and seats only the trips that
+   * are on the modelled stretch right now.
+   */
+  visible: boolean;
+};
+
+/** a published timetable to run instead of a headway */
+export type FleetTimetable = {
+  timetable: Timetable;
+  /** seconds a vehicle stands at a station before its published departure */
+  dwellSeconds: number;
+  /** how close a piece of track has to pass a station to count as its stop */
+  stationRadiusMeters: number;
 };
 
 export type FleetOptions = {
@@ -60,17 +81,24 @@ export type FleetOptions = {
   mode: VehicleMode;
   /** without one, a single vehicle runs the route without stopping */
   schedule: VehicleSchedule | null;
+  /**
+   * With one, the vehicles are placed by the clock from its departures and
+   * `speedKmh`, `mode` and the headway of `schedule` are not used.
+   */
+  timetable?: FleetTimetable | null;
 };
 
 export type Fleet = {
   readonly cars: readonly Car[];
-  /** how many vehicles the service needs */
+  /** how many vehicles the service needs, or the pool a timetable fleet seats them in */
   readonly size: number;
+  /** the stations the vehicles call at on this track, for drawing */
+  readonly stations: readonly Station[];
   setSpeed: (speedKmh: number) => void;
   /** move every vehicle on by `seconds` of timetable time */
   advance: (seconds: number) => void;
-  /** where one of the vehicles is, picked at random, never the same one twice */
-  pickRandom: () => TrackPose | null;
+  /** where the vehicle nearest to (lon, lat) is, or the next one when that is where the view already stands */
+  pickNearest: (lon: number, lat: number) => TrackPose | null;
 };
 
 const KMH_TO_MS = 1000 / 3600;
@@ -82,10 +110,13 @@ export const createFleet = ({
   mode,
   schedule,
   speedKmh: initialSpeed,
+  timetable = null,
 }: FleetOptions): Fleet => {
+  if (timetable) {
+    return createTimetableFleet({ track, ...timetable });
+  }
+
   let speedKmh = initialSpeed;
-  /** so a second look does not land on the vehicle already in the middle */
-  let lastPicked: number | null = null;
 
   /** every place the service stops, in track order */
   const stops: TrackStop[] =
@@ -124,6 +155,7 @@ export const createFleet = ({
       direction: 1,
       dwellRemaining: 0,
       nextStop: stopAfter(distance),
+      visible: true,
     };
   });
 
@@ -173,20 +205,19 @@ export const createFleet = ({
   return {
     cars,
     size,
+    stations: schedule?.stations ?? [],
     setSpeed: (next) => {
       speedKmh = Math.max(0, next);
     },
     advance: (seconds) => {
       for (const car of cars) advanceCar(car, seconds);
     },
-    pickRandom: () => {
-      if (cars.length === 0) return null;
-      let index = Math.floor(Math.random() * cars.length);
-      if (cars.length > 1 && index === lastPicked) {
-        index = (index + 1) % cars.length;
-      }
-      lastPicked = index;
-      return poseAt(track, cars[index].distance);
-    },
+    pickNearest: (lon, lat) =>
+      nearestPose(
+        track,
+        cars.map((car) => car.distance),
+        lon,
+        lat
+      ),
   };
 };

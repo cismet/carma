@@ -233,6 +233,34 @@ export const poseAt = (track: Track, distance: number): TrackPose => {
   return { lon, lat, heading: Math.atan2(north, east), height };
 };
 
+/**
+ * The pose at whichever of `distances` lies closest to (lon, lat).
+ *
+ * One already within `skipWithinMeters` of the point is passed over for the
+ * next: asked twice from the same place, the answer moves on to another
+ * vehicle instead of naming the one the view is already on. The default is
+ * about a vehicle length.
+ */
+export const nearestPose = (
+  track: Track,
+  distances: readonly number[],
+  lon: number,
+  lat: number,
+  skipWithinMeters = 30
+): TrackPose | null => {
+  if (distances.length === 0) return null;
+  const ranked = distances
+    .map((distance) => {
+      const pose = poseAt(track, distance);
+      const east = (pose.lon - lon) * track.metersPerLon;
+      const north = (pose.lat - lat) * METERS_PER_LAT;
+      return { pose, meters: Math.hypot(east, north) };
+    })
+    .sort((a, b) => a.meters - b.meters);
+  const beyond = ranked.find((entry) => entry.meters >= skipWithinMeters);
+  return (beyond ?? ranked[0]).pose;
+};
+
 /* ------------------------------------------------------------------ *
  *  Stops and vehicle bodies
  * ------------------------------------------------------------------ */

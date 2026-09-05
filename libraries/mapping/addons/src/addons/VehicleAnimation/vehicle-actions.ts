@@ -22,7 +22,10 @@ import type { VehicleMode } from "./vehicle-layer";
  * route, not configured.
  */
 export type VehicleScheduleDefinition = {
-  /** seconds between two departures of the same direction */
+  /**
+   * Seconds between two departures of the same direction. 0 when a
+   * `timetableUrl` sets the departures instead.
+   */
   headwaySeconds: number;
   /** how long a vehicle waits at each station. Default: 25 */
   dwellSeconds?: number;
@@ -75,6 +78,13 @@ export type VehicleAnimationDefinition = {
   mode?: VehicleMode;
   /** without one, a single vehicle runs the route without stopping */
   schedule?: VehicleScheduleDefinition;
+  /**
+   * A published timetable as `build-schwebebahn-timetable.mjs` writes it.
+   * With one, the vehicles are placed by the clock from its departures: the
+   * headway, `speedKmh` and `mode` are not used, and the stations come from
+   * the timetable rather than from `schedule`.
+   */
+  timetableUrl?: string;
   bodyColor?: string;
   /** the rubber articulations between the sections */
   jointColor?: string;
@@ -125,6 +135,8 @@ export type VehicleAnimationState = {
   trackColor: string;
   /** empty: no structure over the vehicles */
   structureUrl: string;
+  /** empty: the fleet runs a headway rather than a timetable */
+  timetableUrl: string;
   renderer: VehicleRenderer;
   /** the fleet stands still but stays on the map */
   isPaused: boolean;
@@ -167,6 +179,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   showTrack: true,
   trackColor: "#8c8c8c",
   structureUrl: "",
+  timetableUrl: "",
   renderer: "flat",
   isPaused: false,
   isLoading: false,
@@ -360,6 +373,7 @@ export const useVehicleAnimationLauncher = () => {
         showTrack: def.showTrack ?? fallback.showTrack,
         trackColor: def.trackColor ?? fallback.trackColor,
         structureUrl: def.structureUrl ?? fallback.structureUrl,
+        timetableUrl: def.timetableUrl ?? fallback.timetableUrl,
         renderer: def.renderer ?? fallback.renderer,
         isOn: true,
       };

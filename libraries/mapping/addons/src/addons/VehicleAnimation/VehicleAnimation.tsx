@@ -10,7 +10,9 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import type { FleetTimetable } from "./fleet";
 import { parseStructureAsset, type StructureAsset } from "./geruest";
+import { parseTimetable, type Timetable } from "./timetable";
 import {
   CAR_SHAPE_GTW15,
   buildTrack,
@@ -100,6 +102,7 @@ export const VehicleAnimation = ({
     showTrack,
     trackColor,
     structureUrl,
+    timetableUrl,
     renderer,
     isPaused,
     focusRequest,
@@ -114,6 +117,7 @@ export const VehicleAnimation = ({
 
   const [track, setTrack] = useState<Track | null>(null);
   const [structure, setStructure] = useState<StructureAsset | null>(null);
+  const [timetable, setTimetable] = useState<Timetable | null>(null);
   const layerRef = useRef<VehicleLayerHandle | null>(null);
 
   // read the live values without making the mount effect depend on them, which
@@ -148,6 +152,7 @@ export const VehicleAnimation = ({
     showTrack: configShowTrack,
     trackColor: configTrackColor,
     structureUrl: configStructureUrl,
+    timetableUrl: configTimetableUrl,
     renderer: configRenderer,
   } = config;
 
@@ -172,6 +177,7 @@ export const VehicleAnimation = ({
       showTrack: configShowTrack,
       trackColor: configTrackColor,
       structureUrl: configStructureUrl,
+      timetableUrl: configTimetableUrl,
       renderer: configRenderer,
     });
     return () => setOn(false);
@@ -193,6 +199,7 @@ export const VehicleAnimation = ({
     configShowTrack,
     configTrackColor,
     configStructureUrl,
+    configTimetableUrl,
     configRenderer,
     startVehicle,
     setOn,
@@ -281,6 +288,52 @@ export const VehicleAnimation = ({
     };
   }, [isOn, structureUrl]);
 
+  // The timetable is what a "nach Fahrplan" fleet runs on, so unlike the
+  // structure it is not optional once asked for: a fleet that fell back to
+  // its headway would look right and be wrong.
+  useEffect(() => {
+    if (!isOn || !timetableUrl) {
+      setTimetable(null);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    let disposed = false;
+
+    fetch(timetableUrl, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then((json: unknown) => {
+        if (disposed) return;
+        const parsed = parseTimetable(json);
+        if (!parsed) throw new Error("not a timetable asset");
+        setTimetable(parsed);
+      })
+      .catch((error: unknown) => {
+        if (disposed || controller.signal.aborted) return;
+        console.error("[VEHICLE ANIMATION] timetable request failed", error);
+        setTimetable(null);
+        setError(
+          `Fahrplan fehlt: ${error instanceof Error ? error.message : "unbekannter Fehler"}`
+        );
+      });
+
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
+  }, [isOn, timetableUrl, setError]);
+
+  const fleetTimetable = useMemo<FleetTimetable | null>(
+    () =>
+      timetable ? { timetable, dwellSeconds, stationRadiusMeters } : null,
+    [timetable, dwellSeconds, stationRadiusMeters]
+  );
+
   const shape = useMemo<CarShape>(
     () => ({
       lengthMeters,
@@ -323,6 +376,10 @@ export const VehicleAnimation = ({
     if (renderer === "three" && structureUrl && !structure) {
       return undefined;
     }
+    // and a timetable that is still loading must not start a headway fleet
+    if (timetableUrl && !fleetTimetable) {
+      return undefined;
+    }
 
     const handle =
       renderer === "three"
@@ -333,6 +390,7 @@ export const VehicleAnimation = ({
             speedKmh: speedRef.current,
             mode,
             schedule,
+            timetable: fleetTimetable,
             bodyColor,
             jointColor,
             opacity: opacityRef.current,
@@ -347,13 +405,15 @@ export const VehicleAnimation = ({
             speedKmh: speedRef.current,
             mode,
             schedule,
+            timetable: fleetTimetable,
             bodyColor,
             jointColor,
             outlineColor,
             opacity: opacityRef.current,
             showTrack,
             trackColor,
-            showStations: showStations && schedule !== null,
+            showStations:
+              showStations && (schedule !== null || fleetTimetable !== null),
             structure,
             beforeId,
             onFleetSize: setFleetSize,
@@ -381,6 +441,8 @@ export const VehicleAnimation = ({
     showStations,
     structure,
     structureUrl,
+    fleetTimetable,
+    timetableUrl,
     renderer,
     beforeId,
     setFleetSize,
@@ -400,9 +462,10 @@ export const VehicleAnimation = ({
     layerRef.current?.setPaused(isPaused);
   }, [isPaused]);
 
-  // Someone asked to be shown a vehicle. The first value is whatever the
-  // channel starts at, so it is only recorded, never flown to: a fresh
-  // animation must not move the map on its own.
+  // Someone asked to be shown a vehicle: the one nearest to where the view
+  // is. The first value is whatever the channel starts at, so it is only
+  // recorded, never flown to: a fresh animation must not move the map on its
+  // own.
   //
   // The flight goes through the app's camera rather than through this
   // MapLibre map. Moving the map object directly would move only that one, and
@@ -412,9 +475,12 @@ export const VehicleAnimation = ({
   useEffect(() => {
     if (handledFocusRef.current === focusRequest) return;
     handledFocusRef.current = focusRequest;
-    const at = layerRef.current?.pickRandomCar();
+    const center = libreMap?.getCenter();
+    const at = center
+      ? layerRef.current?.pickNearestCar(center.lng, center.lat)
+      : null;
     if (at) carma.mapping2D.flyTo(at.lat, at.lon);
-  }, [focusRequest, carma]);
+  }, [focusRequest, carma, libreMap]);
 
   if (!libreMap || !showControl) {
     return null;

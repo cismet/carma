@@ -198,6 +198,50 @@ const SCHWEBEBAHN_3D_VEHICLE: VehicleAnimationDefinition = {
   renderer: "three",
 };
 
+/**
+ * The same fleet, run to the published timetable instead of a fixed headway.
+ *
+ * The asset is the Schwebebahn's share of the VRR's GTFS feed, reduced by
+ * `scripts/geodata/build-schwebebahn-timetable.mjs`: every trip of the feed's
+ * validity with its departure at each of the twenty stations, and the
+ * calendar that says which trip runs on which day. The engine places the
+ * cars by the clock, so the map shows what the timetable has between
+ * Hammerstein and Robert-Daum-Platz at this moment: a car comes onto the
+ * modelled stretch at one end and leaves it at the other. Headway and speed
+ * are not configured, the timetable carries both; the stations come from the
+ * asset too, hence the empty list, and the 70 m radius is what the feed's
+ * platform positions need to find their rail.
+ *
+ * There is no realtime for the line to sync to: the VRR's EFA, bahn.de and
+ * the gtfs.de realtime feed all carry the Schwebebahn as planned times only
+ * (checked 2026-09-05), so "nach Fahrplan" is what it is.
+ */
+const SCHWEBEBAHN_FAHRPLAN_VEHICLE: VehicleAnimationDefinition = {
+  ...SCHWEBEBAHN_VEHICLE,
+  title: "Schwebebahn nach Fahrplan",
+  timetableUrl: `${APP_BASE_PATH}data/schwebebahn-fahrplan.json`,
+  schedule: {
+    headwaySeconds: 0,
+    dwellSeconds: 25,
+    stations: [],
+    stationRadiusMeters: 70,
+  },
+};
+
+const SCHWEBEBAHN_GERUEST_FAHRPLAN_VEHICLE: VehicleAnimationDefinition = {
+  ...SCHWEBEBAHN_GERUEST_VEHICLE,
+  title: "Schwebebahn mit Gerüst nach Fahrplan",
+  timetableUrl: SCHWEBEBAHN_FAHRPLAN_VEHICLE.timetableUrl,
+  schedule: SCHWEBEBAHN_FAHRPLAN_VEHICLE.schedule,
+};
+
+const SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE: VehicleAnimationDefinition = {
+  ...SCHWEBEBAHN_3D_VEHICLE,
+  title: "Schwebebahn in 3D nach Fahrplan",
+  timetableUrl: SCHWEBEBAHN_FAHRPLAN_VEHICLE.timetableUrl,
+  schedule: SCHWEBEBAHN_FAHRPLAN_VEHICLE.schedule,
+};
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -380,6 +424,72 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "breit, 2,7 m hoch, mit vier Laufwerken auf der Schiene.",
           tools: [
             { kind: "vehicleAnimation", config: SCHWEBEBAHN_3D_VEHICLE },
+          ],
+        },
+        {
+          id: "schwebebahn-fahrplan",
+          title: "Schwebebahn nach Fahrplan",
+          description:
+            "Inhalt: Die Schwebebahnen, die der Fahrplan für den jetzigen " +
+            "Zeitpunkt vorsieht. Jede Bahn, die laut Fahrplan gerade zwischen " +
+            "Hammerstein und Robert-Daum-Platz unterwegs ist, fährt auf der " +
+            "Trasse; sie kommt an einem Ende des Modells herein und verlässt " +
+            "es am anderen. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt den Betrieb zur aktuellen Uhrzeit, nachts also " +
+            "keine Bahn. Die Lupe in der Layer-Zeile springt zur " +
+            "nächstgelegenen Bahn.",
+          metaDataText:
+            "Grundlage sind die Soll-Fahrplandaten des VRR (GTFS, Stand " +
+            "August 2026, Lizenz CC-BY) für die Schwebebahn, mit den " +
+            "Abfahrtszeiten an allen 20 Stationen und dem Kalender, an " +
+            "welchen Tagen welche Fahrt stattfindet. Echtzeitdaten gibt es " +
+            "für die Schwebebahn nicht öffentlich; die Bahnen fahren deshalb " +
+            "nach dem veröffentlichten Fahrplan. Zwischen zwei Abfahrten " +
+            "fährt eine Bahn so schnell, wie es der Fahrplan verlangt, und " +
+            "steht 25 Sekunden vor jeder Abfahrt an der Station. Trasse und " +
+            "Fahrzeuge wie in der Karte „Schwebebahn“.",
+          tools: [
+            { kind: "vehicleAnimation", config: SCHWEBEBAHN_FAHRPLAN_VEHICLE },
+          ],
+        },
+        {
+          id: "schwebebahn-geruest-fahrplan",
+          title: "Schwebebahn mit Gerüst nach Fahrplan",
+          description:
+            "Inhalt: Die Fahrten nach Fahrplan aus der Karte „Schwebebahn " +
+            "nach Fahrplan“, dazu das Gerüst aus der Vogelperspektive: die " +
+            "beiden Fahrschienen auf ihren Trägern, der Windverband " +
+            "dazwischen und die Stützen. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt die Bahnen unter dem Gerüst zur aktuellen " +
+            "Uhrzeit.",
+          metaDataText:
+            "Gerüst wie in der Karte „Schwebebahn mit Gerüst“, Fahrplan und " +
+            "Fahrzeuge wie in der Karte „Schwebebahn nach Fahrplan“.",
+          tools: [
+            {
+              kind: "vehicleAnimation",
+              config: SCHWEBEBAHN_GERUEST_FAHRPLAN_VEHICLE,
+            },
+          ],
+        },
+        {
+          id: "schwebebahn-3d-fahrplan",
+          title: "Schwebebahn in 3D nach Fahrplan",
+          description:
+            "Inhalt: Die Fahrten nach Fahrplan, räumlich: Träger, Windverband " +
+            "und Stützen stehen in ihrer Höhe über dem Gelände, die Bahnen " +
+            "hängen unter der Fahrschiene. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Karte mit gedrückter rechter Maustaste oder mit zwei " +
+            "Fingern kippen und drehen. Solange die Fahrten laufen, ist die " +
+            "Kamera frei und die Geländedarstellung lässt sich einschalten.",
+          metaDataText:
+            "Geometrie wie in der Karte „Schwebebahn in 3D“, Fahrplan wie in " +
+            "der Karte „Schwebebahn nach Fahrplan“.",
+          tools: [
+            { kind: "vehicleAnimation", config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE },
           ],
         },
       ],

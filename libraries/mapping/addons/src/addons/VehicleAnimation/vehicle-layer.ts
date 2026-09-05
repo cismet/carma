@@ -4,7 +4,12 @@ import type {
   Map as MapLibreMap,
 } from "maplibre-gl";
 
-import { createFleet, type VehicleMode, type VehicleSchedule } from "./fleet";
+import {
+  createFleet,
+  type FleetTimetable,
+  type VehicleMode,
+  type VehicleSchedule,
+} from "./fleet";
 import { structurePlanFeatures, type StructureAsset } from "./geruest";
 import { carParts, type CarShape, type Track } from "./track";
 
@@ -38,6 +43,8 @@ export type VehicleLayerOptions = {
   mode: VehicleMode;
   /** without one, a single vehicle runs the route without stopping */
   schedule: VehicleSchedule | null;
+  /** with one, the vehicles run to its departures by the clock instead */
+  timetable?: FleetTimetable | null;
   bodyColor: string;
   jointColor: string;
   outlineColor: string;
@@ -64,14 +71,15 @@ export type VehicleLayerHandle = {
   setSpeed: (speedKmh: number) => void;
   setPaused: (paused: boolean) => void;
   setOpacity: (opacity: number) => void;
-  /** how many vehicles are running */
+  /** how many vehicles are on the track right now */
   getFleetSize: () => number;
   /**
-   * Where one of the vehicles is, picked at random. The handle only reports
-   * the position: moving the map is the host app's business, and moving this
-   * MapLibre map on its own would leave the other framework behind.
+   * Where the vehicle nearest to (lon, lat) is, or the next one when that is
+   * where the view already stands. The handle only reports the position:
+   * moving the map is the host app's business, and moving this MapLibre map
+   * on its own would leave the other framework behind.
    */
-  pickRandomCar: () => { lon: number; lat: number } | null;
+  pickNearestCar: (lon: number, lat: number) => { lon: number; lat: number } | null;
   destroy: () => void;
 };
 
@@ -117,6 +125,7 @@ export const createVehicleLayer = (
     shape,
     mode,
     schedule,
+    timetable = null,
     bodyColor,
     jointColor,
     outlineColor,
@@ -158,17 +167,32 @@ export const createVehicleLayer = (
     track,
     mode,
     schedule,
+    timetable,
     speedKmh: options.speedKmh,
   });
 
+  const visibleCount = (): number =>
+    fleet.cars.reduce((count, car) => count + (car.visible ? 1 : 0), 0);
+
+  /** tells the host how many vehicles are out, whenever that number changes */
+  let reportedCount = -1;
+  const reportFleet = (): void => {
+    const count = visibleCount();
+    if (count === reportedCount) return;
+    reportedCount = count;
+    onFleetSize?.(count);
+  };
+
   const carFeatures = (): GeoJSON.Feature[] =>
-    fleet.cars.flatMap((car) =>
-      carParts(track, car.distance, shape).map((part) => ({
-        type: "Feature" as const,
-        properties: { part: part.kind },
-        geometry: { type: "Polygon" as const, coordinates: [part.ring] },
-      }))
-    );
+    fleet.cars
+      .filter((car) => car.visible)
+      .flatMap((car) =>
+        carParts(track, car.distance, shape).map((part) => ({
+          type: "Feature" as const,
+          properties: { part: part.kind },
+          geometry: { type: "Polygon" as const, coordinates: [part.ring] },
+        }))
+      );
 
   const trackFeature = (): GeoJSON.Feature => ({
     type: "Feature",
@@ -180,7 +204,7 @@ export const createVehicleLayer = (
   });
 
   const stationFeatures = (): GeoJSON.Feature[] =>
-    (schedule?.stations ?? []).map((station) => ({
+    fleet.stations.map((station) => ({
       type: "Feature",
       properties: { name: station.name },
       geometry: { type: "Point", coordinates: [station.lon, station.lat] },
@@ -432,6 +456,7 @@ export const createVehicleLayer = (
     lastTimestamp = timestamp;
     fleet.advance(seconds);
     pushCars();
+    reportFleet();
     if (!paused) frame = requestAnimationFrame(tick);
   };
 
@@ -451,7 +476,7 @@ export const createVehicleLayer = (
   const onStyleData = (): void => attach();
   map.on("styledata", onStyleData);
   attach();
-  onFleetSize?.(fleet.size);
+  reportFleet();
   start();
 
   return {
@@ -484,9 +509,9 @@ export const createVehicleLayer = (
         map.setPaintProperty(stationDotId, "circle-stroke-opacity", opacity);
       }
     },
-    getFleetSize: () => fleet.size,
-    pickRandomCar: () => {
-      const pose = fleet.pickRandom();
+    getFleetSize: visibleCount,
+    pickNearestCar: (lon, lat) => {
+      const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;
     },
     destroy: () => {

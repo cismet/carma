@@ -176,6 +176,7 @@ const ResourceModal = () => {
         showTrack: config.showTrack,
         trackColor: config.trackColor,
         structureUrl: config.structureUrl,
+        timetableUrl: config.timetableUrl,
         renderer: config.renderer,
       });
     },

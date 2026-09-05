@@ -9,7 +9,12 @@ import * as THREE from "three";
 import { add3dPresence, remove3dPresence } from "@carma-mapping/engines/maplibre";
 
 import { buildCar, type CarPiece } from "./car-model";
-import { createFleet, type VehicleMode, type VehicleSchedule } from "./fleet";
+import {
+  createFleet,
+  type FleetTimetable,
+  type VehicleMode,
+  type VehicleSchedule,
+} from "./fleet";
 import {
   structureSegments,
   type Segment3,
@@ -41,6 +46,8 @@ export type VehicleThreeLayerOptions = {
   speedKmh: number;
   mode: VehicleMode;
   schedule: VehicleSchedule | null;
+  /** with one, the vehicles run to its departures by the clock instead */
+  timetable?: FleetTimetable | null;
   bodyColor: string;
   jointColor: string;
   opacity: number;
@@ -278,6 +285,7 @@ export const createVehicleThreeLayer = (
     shape,
     mode,
     schedule,
+    timetable = null,
     structure,
     beforeId,
     id = DEFAULT_ID,
@@ -293,8 +301,21 @@ export const createVehicleThreeLayer = (
     track,
     mode,
     schedule,
+    timetable,
     speedKmh: options.speedKmh,
   });
+
+  const visibleCount = (): number =>
+    fleet.cars.reduce((count, car) => count + (car.visible ? 1 : 0), 0);
+
+  /** tells the host how many vehicles are out, whenever that number changes */
+  let reportedCount = -1;
+  const reportFleet = (): void => {
+    const count = visibleCount();
+    if (count === reportedCount) return;
+    reportedCount = count;
+    onFleetSize?.(count);
+  };
 
   const frame: LocalFrame = structure
     ? { origin: structure.origin, metersPerLon: structure.metersPerLon }
@@ -451,6 +472,8 @@ export const createVehicleThreeLayer = (
   const placeCars = (): void => {
     fleet.cars.forEach((car, carIndex) => {
       for (const { group, offset } of cars[carIndex]) {
+        group.visible = car.visible;
+        if (!car.visible) continue;
         let distance = car.distance + offset * car.direction;
         if (track.closed) {
           distance = ((distance % track.length) + track.length) % track.length;
@@ -508,6 +531,7 @@ export const createVehicleThreeLayer = (
       if (!paused) {
         fleet.advance(seconds);
         placeCars();
+        reportFleet();
       }
 
       const projection = new THREE.Matrix4().fromArray(
@@ -570,7 +594,7 @@ export const createVehicleThreeLayer = (
   map.on("terrain", onTerrain);
 
   attach();
-  onFleetSize?.(fleet.size);
+  reportFleet();
 
   return {
     setSpeed: fleet.setSpeed,
@@ -585,9 +609,9 @@ export const createVehicleThreeLayer = (
       applyOpacity();
       map.triggerRepaint();
     },
-    getFleetSize: () => fleet.size,
-    pickRandomCar: () => {
-      const pose = fleet.pickRandom();
+    getFleetSize: visibleCount,
+    pickNearestCar: (lon, lat) => {
+      const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;
     },
     destroy: () => {
