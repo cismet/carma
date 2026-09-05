@@ -186,6 +186,18 @@ const SCHWEBEBAHN_GERUEST_VEHICLE: VehicleAnimationDefinition = {
   showTrack: false,
 };
 
+/**
+ * The same service and structure in three dimensions: girders, bracing and
+ * supports as box members at the model's heights, the cars as low-poly
+ * bodies hanging under the rail. Registers as a 3D layer, which unlocks the
+ * camera tilt and the terrain button while it runs.
+ */
+const SCHWEBEBAHN_3D_VEHICLE: VehicleAnimationDefinition = {
+  ...SCHWEBEBAHN_GERUEST_VEHICLE,
+  title: "Schwebebahn in 3D",
+  renderer: "three",
+};
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -346,6 +358,28 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "und Fahrzeuge wie in der Karte „Schwebebahn“.",
           tools: [
             { kind: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE },
+          ],
+        },
+        {
+          id: "schwebebahn-3d",
+          title: "Schwebebahn in 3D",
+          description:
+            "Inhalt: Dieselben Fahrten, aber räumlich: Träger, Windverband " +
+            "und Stützen stehen in ihrer Höhe über dem Gelände, die Bahnen " +
+            "hängen unter der Fahrschiene. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Karte mit gedrückter rechter Maustaste oder mit zwei " +
+            "Fingern kippen und drehen. Solange die Fahrten laufen, ist die " +
+            "Kamera frei und die Geländedarstellung lässt sich einschalten.",
+          metaDataText:
+            "Geometrie wie in der Karte „Schwebebahn mit Gerüst“. Die Höhen " +
+            "stammen aus dem 3D-Modell der Stadt Wuppertal; ohne Gelände " +
+            "wird der Boden unter der Trasse aus den Fußpunkten der Stützen " +
+            "abgeleitet, mit Gelände gelten die Modellhöhen. Der " +
+            "Wagenkasten ist ein vereinfachter GTW 15: 24,06 m lang, 2,2 m " +
+            "breit, 2,7 m hoch, mit vier Laufwerken auf der Schiene.",
+          tools: [
+            { kind: "vehicleAnimation", config: SCHWEBEBAHN_3D_VEHICLE },
           ],
         },
       ],

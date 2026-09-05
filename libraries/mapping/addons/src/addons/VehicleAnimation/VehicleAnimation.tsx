@@ -22,6 +22,7 @@ import {
   type VehicleLayerHandle,
   type VehicleSchedule,
 } from "./vehicle-layer";
+import { createVehicleThreeLayer } from "./vehicle-three-layer";
 import {
   useVehicleAnimationActions,
   useVehicleAnimationLauncher,
@@ -99,6 +100,7 @@ export const VehicleAnimation = ({
     showTrack,
     trackColor,
     structureUrl,
+    renderer,
     isPaused,
     focusRequest,
     setOn,
@@ -146,6 +148,7 @@ export const VehicleAnimation = ({
     showTrack: configShowTrack,
     trackColor: configTrackColor,
     structureUrl: configStructureUrl,
+    renderer: configRenderer,
   } = config;
 
   useEffect(() => {
@@ -169,6 +172,7 @@ export const VehicleAnimation = ({
       showTrack: configShowTrack,
       trackColor: configTrackColor,
       structureUrl: configStructureUrl,
+      renderer: configRenderer,
     });
     return () => setOn(false);
   }, [
@@ -189,6 +193,7 @@ export const VehicleAnimation = ({
     configShowTrack,
     configTrackColor,
     configStructureUrl,
+    configRenderer,
     startVehicle,
     setOn,
   ]);
@@ -313,24 +318,46 @@ export const VehicleAnimation = ({
       return undefined;
     }
 
-    const handle = createVehicleLayer({
-      map: libreMap,
-      track,
-      shape,
-      speedKmh: speedRef.current,
-      mode,
-      schedule,
-      bodyColor,
-      jointColor,
-      outlineColor,
-      opacity: opacityRef.current,
-      showTrack,
-      trackColor,
-      showStations: showStations && schedule !== null,
-      structure,
-      beforeId,
-      onFleetSize: setFleetSize,
-    });
+    // a structure that is still loading would otherwise start the 3D fleet
+    // twice, once bare and once under its girders
+    if (renderer === "three" && structureUrl && !structure) {
+      return undefined;
+    }
+
+    const handle =
+      renderer === "three"
+        ? createVehicleThreeLayer({
+            map: libreMap,
+            track,
+            shape,
+            speedKmh: speedRef.current,
+            mode,
+            schedule,
+            bodyColor,
+            jointColor,
+            opacity: opacityRef.current,
+            structure,
+            beforeId,
+            onFleetSize: setFleetSize,
+          })
+        : createVehicleLayer({
+            map: libreMap,
+            track,
+            shape,
+            speedKmh: speedRef.current,
+            mode,
+            schedule,
+            bodyColor,
+            jointColor,
+            outlineColor,
+            opacity: opacityRef.current,
+            showTrack,
+            trackColor,
+            showStations: showStations && schedule !== null,
+            structure,
+            beforeId,
+            onFleetSize: setFleetSize,
+          });
     handle.setPaused(pausedRef.current);
     layerRef.current = handle;
 
@@ -353,6 +380,8 @@ export const VehicleAnimation = ({
     trackColor,
     showStations,
     structure,
+    structureUrl,
+    renderer,
     beforeId,
     setFleetSize,
   ]);

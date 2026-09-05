@@ -228,7 +228,11 @@ export {
 
 // Three.js layer management
 export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";
-export { has3dLayers } from "./utils/threeDPresence";
+export {
+  add3dPresence,
+  has3dLayers,
+  remove3dPresence,
+} from "./utils/threeDPresence";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 // Styles (CSS should be imported by consumers)

@@ -31,6 +31,8 @@ export type TrackPose = {
   lat: number;
   /** heading in radians, counter-clockwise from east, in the local frame */
   heading: number;
+  /** the source's height at that point, when both neighbours carry one */
+  height?: number;
 };
 
 const METERS_PER_LAT = 111320;
@@ -223,8 +225,12 @@ export const poseAt = (track: Track, distance: number): TrackPose => {
   const lat = from[1] + (to[1] - from[1]) * t;
   const east = (to[0] - from[0]) * track.metersPerLon;
   const north = (to[1] - from[1]) * METERS_PER_LAT;
+  const height =
+    from.length > 2 && to.length > 2
+      ? from[2] + (to[2] - from[2]) * t
+      : undefined;
 
-  return { lon, lat, heading: Math.atan2(north, east) };
+  return { lon, lat, heading: Math.atan2(north, east), height };
 };
 
 /* ------------------------------------------------------------------ *

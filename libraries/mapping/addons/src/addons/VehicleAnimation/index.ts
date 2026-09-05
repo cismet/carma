@@ -7,6 +7,7 @@ export {
   useVehicleAnimationLauncher,
   VEHICLE_ANIMATION_STATE_DEFAULT,
   type VehicleAnimationDefinition,
+  type VehicleRenderer,
   type VehicleAnimationState,
   type VehicleScheduleDefinition,
 } from "./vehicle-actions";

@@ -90,7 +90,16 @@ export type VehicleAnimationDefinition = {
    * from above; without, the vehicles run on a bare line.
    */
   structureUrl?: string;
+  /**
+   * How the fleet is drawn. `flat` is MapLibre fill and line layers seen from
+   * above; `three` is a three.js custom layer with the structure standing at
+   * its real height and the vehicles hanging under the rail, for a tilted
+   * map. Default: `flat`.
+   */
+  renderer?: VehicleRenderer;
 };
+
+export type VehicleRenderer = "flat" | "three";
 
 export type VehicleAnimationState = {
   /** whether the animation is on the map; the row exists exactly while it is */
@@ -116,6 +125,7 @@ export type VehicleAnimationState = {
   trackColor: string;
   /** empty: no structure over the vehicles */
   structureUrl: string;
+  renderer: VehicleRenderer;
   /** the fleet stands still but stays on the map */
   isPaused: boolean;
   /** the route is being fetched */
@@ -157,6 +167,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   showTrack: true,
   trackColor: "#8c8c8c",
   structureUrl: "",
+  renderer: "flat",
   isPaused: false,
   isLoading: false,
   error: null,
@@ -349,6 +360,7 @@ export const useVehicleAnimationLauncher = () => {
         showTrack: def.showTrack ?? fallback.showTrack,
         trackColor: def.trackColor ?? fallback.trackColor,
         structureUrl: def.structureUrl ?? fallback.structureUrl,
+        renderer: def.renderer ?? fallback.renderer,
         isOn: true,
       };
     },

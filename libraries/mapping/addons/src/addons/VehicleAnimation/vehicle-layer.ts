@@ -4,16 +4,11 @@ import type {
   Map as MapLibreMap,
 } from "maplibre-gl";
 
+import { createFleet, type VehicleMode, type VehicleSchedule } from "./fleet";
 import { structurePlanFeatures, type StructureAsset } from "./geruest";
-import {
-  carParts,
-  poseAt,
-  projectStops,
-  type CarShape,
-  type Station,
-  type Track,
-  type TrackStop,
-} from "./track";
+import { carParts, type CarShape, type Track } from "./track";
+
+export type { VehicleMode, VehicleSchedule } from "./fleet";
 
 /**
  * The moving fleet on the map: one GeoJSON source rewritten every frame, drawn
@@ -28,29 +23,6 @@ import {
  * The handle owns its animation frame. Nothing outside it reads the clock, so a
  * held fleet costs nothing and a destroyed one cannot leave a frame behind.
  */
-
-export type VehicleMode = "loop" | "pingpong";
-
-/**
- * A service, in the terms a timetable is actually written in: how often a
- * vehicle leaves, how long it waits at a station, and how fast it runs between
- * them. How many vehicles that takes follows from the route and is counted
- * rather than configured.
- *
- * Station stops are served in `loop` mode. In `pingpong` the vehicle turns
- * around mid-route, which no timetable of this shape describes, so stops are
- * ignored there.
- */
-export type VehicleSchedule = {
-  /** seconds between two departures of the same direction */
-  headwaySeconds: number;
-  /** how long a vehicle waits at each station */
-  dwellSeconds: number;
-  /** the stations it calls at */
-  stations: readonly Station[];
-  /** how close a piece of track has to pass a station to count as its stop */
-  stationRadiusMeters: number;
-};
 
 export type VehicleLayerOptions = {
   map: MapLibreMap;
@@ -104,11 +76,8 @@ export type VehicleLayerHandle = {
 };
 
 const DEFAULT_ID = "vehicle-animation";
-const KMH_TO_MS = 1000 / 3600;
 /** a tab that was in the background hands back a huge delta; ignore it */
 const MAX_FRAME_SECONDS = 0.25;
-/** a misconfigured headway must not fill the map with vehicles */
-const MAX_FLEET = 60;
 
 /** the painted steel of the Gerüst, and the rust of the bare rail on top */
 const STEEL_COLOR = "#7fa48b";
@@ -132,17 +101,6 @@ const metersWide = (
     stops.push(zoom, Math.max(minPixels, (meters * 2 ** zoom) / metersPerPixel));
   }
   return ["interpolate", ["exponential", 2], ["zoom"], ...stops];
-};
-
-type Car = {
-  /** meters from the start of the track */
-  distance: number;
-  /** 1 forwards, -1 after a pingpong turnaround */
-  direction: number;
-  /** seconds still to wait at the stop it is standing in */
-  dwellRemaining: number;
-  /** which entry of `stops` it is heading for */
-  nextStop: number;
 };
 
 const emptyCollection: GeoJSON.FeatureCollection = {
@@ -190,57 +148,21 @@ export const createVehicleLayer = (
   const structureFeatures = structure ? structurePlanFeatures(structure) : null;
   const trackLat = track.points[0][1];
 
-  let speedKmh = options.speedKmh;
   let opacity = options.opacity;
   let paused = false;
   let destroyed = false;
   let frame: number | null = null;
   let lastTimestamp: number | null = null;
-  /** so a second look does not land on the vehicle already in the middle */
-  let lastPicked: number | null = null;
 
-  /** every place the service stops, in track order */
-  const stops: TrackStop[] =
-    schedule && mode === "loop"
-      ? projectStops(track, schedule.stations, schedule.stationRadiusMeters)
-      : [];
-
-  /**
-   * How many vehicles the timetable needs: one round trip divided by the
-   * headway. Running time plus every wait is the honest cycle, so a denser
-   * timetable or a longer wait both put more vehicles on the route by
-   * themselves.
-   */
-  const fleetSize = ((): number => {
-    if (!schedule || schedule.headwaySeconds <= 0) return 1;
-    const runningSeconds = track.length / Math.max(0.1, speedKmh * KMH_TO_MS);
-    const cycleSeconds = runningSeconds + stops.length * schedule.dwellSeconds;
-    const count = Math.round(cycleSeconds / schedule.headwaySeconds);
-    return Math.max(1, Math.min(MAX_FLEET, count));
-  })();
-
-  /** the first stop at or after `distance` */
-  const stopAfter = (distance: number): number => {
-    if (stops.length === 0) return 0;
-    const index = stops.findIndex((stop) => stop.distance >= distance);
-    return index === -1 ? 0 : index;
-  };
-
-  // Evenly spaced around the route rather than released one headway apart at
-  // the start: every vehicle keeps the same stopping pattern, so an even
-  // spacing in distance stays an even spacing in time.
-  const cars: Car[] = Array.from({ length: fleetSize }, (_, index) => {
-    const distance = (track.length * index) / fleetSize;
-    return {
-      distance,
-      direction: 1,
-      dwellRemaining: 0,
-      nextStop: stopAfter(distance),
-    };
+  const fleet = createFleet({
+    track,
+    mode,
+    schedule,
+    speedKmh: options.speedKmh,
   });
 
   const carFeatures = (): GeoJSON.Feature[] =>
-    cars.flatMap((car) =>
+    fleet.cars.flatMap((car) =>
       carParts(track, car.distance, shape).map((part) => ({
         type: "Feature" as const,
         properties: { part: part.kind },
@@ -500,49 +422,6 @@ export const createVehicleLayer = (
     }
   };
 
-  /** how far ahead the next stop is, going forwards around a closed track */
-  const gapAhead = (from: number, to: number): number =>
-    ((to - from) % track.length + track.length) % track.length;
-
-  const advanceCar = (car: Car, seconds: number): void => {
-    if (car.dwellRemaining > 0) {
-      car.dwellRemaining -= seconds;
-      return;
-    }
-
-    let remaining = speedKmh * KMH_TO_MS * seconds;
-
-    if (stops.length > 0 && schedule) {
-      const gap = gapAhead(car.distance, stops[car.nextStop].distance);
-      if (gap <= remaining) {
-        // stand exactly at the stop rather than a fraction past it: over a
-        // whole day of frames the leftover would drift the timetable
-        car.distance = stops[car.nextStop].distance;
-        car.dwellRemaining = schedule.dwellSeconds;
-        car.nextStop = (car.nextStop + 1) % stops.length;
-        return;
-      }
-    }
-
-    remaining *= car.direction;
-    car.distance += remaining;
-
-    if (mode === "loop") {
-      // a closed ring has no end to reach, it only wraps
-      car.distance =
-        ((car.distance % track.length) + track.length) % track.length;
-      return;
-    }
-
-    if (car.distance > track.length) {
-      car.distance = track.length - (car.distance - track.length);
-      car.direction = -1;
-    } else if (car.distance < 0) {
-      car.distance = -car.distance;
-      car.direction = 1;
-    }
-  };
-
   const tick = (timestamp: number): void => {
     frame = null;
     if (destroyed) return;
@@ -551,7 +430,7 @@ export const createVehicleLayer = (
         ? 0
         : Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_SECONDS);
     lastTimestamp = timestamp;
-    for (const car of cars) advanceCar(car, seconds);
+    fleet.advance(seconds);
     pushCars();
     if (!paused) frame = requestAnimationFrame(tick);
   };
@@ -572,13 +451,11 @@ export const createVehicleLayer = (
   const onStyleData = (): void => attach();
   map.on("styledata", onStyleData);
   attach();
-  onFleetSize?.(fleetSize);
+  onFleetSize?.(fleet.size);
   start();
 
   return {
-    setSpeed: (next) => {
-      speedKmh = Math.max(0, next);
-    },
+    setSpeed: fleet.setSpeed,
     setPaused: (next) => {
       if (paused === next) return;
       paused = next;
@@ -607,16 +484,10 @@ export const createVehicleLayer = (
         map.setPaintProperty(stationDotId, "circle-stroke-opacity", opacity);
       }
     },
-    getFleetSize: () => fleetSize,
+    getFleetSize: () => fleet.size,
     pickRandomCar: () => {
-      if (cars.length === 0) return null;
-      let index = Math.floor(Math.random() * cars.length);
-      if (cars.length > 1 && index === lastPicked) {
-        index = (index + 1) % cars.length;
-      }
-      lastPicked = index;
-      const pose = poseAt(track, cars[index].distance);
-      return { lon: pose.lon, lat: pose.lat };
+      const pose = fleet.pickRandom();
+      return pose ? { lon: pose.lon, lat: pose.lat } : null;
     },
     destroy: () => {
       destroyed = true;

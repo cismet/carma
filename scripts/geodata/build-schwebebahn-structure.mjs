@@ -134,8 +134,29 @@ const ringAt = (s) => {
   const b = ringLocal[low + 1] ?? a;
   const span = cumulative[low + 1] - cumulative[low];
   const t = span > 0 ? (s - cumulative[low]) / span : 0;
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
 };
+
+/**
+ * How far the top chord sits above the ring. The ring is the girder's bottom
+ * chord, so the bracing, which spans between the rails on top, is lifted by
+ * this. Read once as a median over the ring vertices, where the top chord's
+ * own vertices sit straight above.
+ */
+const girderRise = (() => {
+  const rises = [];
+  for (let i = 0; i < ringLocal.length; i += 5) {
+    const [x, y, z] = ringLocal[i];
+    const top = topNear(x, y, 3);
+    if (top !== null && top > z) rises.push(top - z);
+  }
+  rises.sort((a, b) => a - b);
+  return rises[Math.floor(rises.length / 2)] ?? 0;
+})();
 
 /** the nearest point on the other rail: far along the ring, close by in plan */
 const partnerOf = (s, x, y) => {
@@ -167,7 +188,7 @@ const partnerOf = (s, x, y) => {
 
 const samples = [];
 for (let s = 0; s < ringLength; s += BRACING_PANEL_METERS) {
-  const [x, y] = ringAt(s);
+  const [x, y, z] = ringAt(s);
   const partner = partnerOf(s, x, y);
   // each pair of rails is walked from both sides; keep the walk from the
   // lower arc position so every panel is emitted once
@@ -175,8 +196,8 @@ for (let s = 0; s < ringLength; s += BRACING_PANEL_METERS) {
     samples.push(null);
     continue;
   }
-  const z = topNear(x, y, 4) ?? 0;
-  samples.push({ a: [x, y, z], b: [partner.x, partner.y, z] });
+  const top = z + girderRise;
+  samples.push({ a: [x, y, top], b: [partner.x, partner.y, top] });
 }
 
 const bracing = [];
@@ -364,7 +385,7 @@ const asset = {
 
 writeFileSync(targetPath, `${JSON.stringify(asset)}\n`);
 console.log(
-  `girder ${trasseSegments.length} segments, bracing ${bracing.length / 6} segments, ` +
+  `girder ${trasseSegments.length} segments (top chord ${girderRise.toFixed(2)} m over the ring), bracing ${bracing.length / 6} segments, ` +
     `${supports.length} supports as ${shapes.length} shapes (${shapes
       .map((shape) => shape.segments.length)
       .join("/")} segments), ${unsnapped} without trasse nearby (median drop ${medianOffset.toFixed(2)} m) -> ${targetPath}`
