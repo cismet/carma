@@ -57,7 +57,7 @@ export type VehicleAnimationDefinition = {
   widthMeters?: number;
   /**
    * The body sections as relative lengths, the gaps between them being the
-   * articulations. Default: `[1, 0.38, 1]`, the GTW 15's two driving sections
+   * articulations. Default: `[1, 0.28, 1]`, the GTW 15's two driving sections
    * around its short middle module.
    */
   sectionShares?: readonly number[];
@@ -151,7 +151,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   trackUrl: "",
   lengthMeters: 24.06,
   widthMeters: 2.2,
-  sectionShares: [1, 0.38, 1],
+  sectionShares: [1, 0.28, 1],
   jointMeters: 0.9,
   speedKmh: 36,
   mode: "loop",
