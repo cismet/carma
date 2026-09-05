@@ -8,6 +8,7 @@ import * as THREE from "three";
 
 import { add3dPresence, remove3dPresence } from "@carma-mapping/engines/maplibre";
 
+import { buildCar, type CarPiece } from "./car-model";
 import { createFleet, type VehicleMode, type VehicleSchedule } from "./fleet";
 import {
   structureSegments,
@@ -56,32 +57,20 @@ const METERS_PER_LAT = 111320;
 const MAX_FRAME_SECONDS = 0.25;
 
 /** the painted steel of the Gerüst, and the rust of the bare rail on top */
-const STEEL_COLOR = new THREE.Color("#7fa48b");
+const STEEL_COLOR = new THREE.Color("#93ad98");
 const RAIL_COLOR = new THREE.Color("#8a5a3c");
-const WINDOW_COLOR = new THREE.Color("#1f2a33");
-const BOGIE_COLOR = new THREE.Color("#4a4f55");
 
 /** member thickness in metres: the girder chords, the bracing, the support bars */
 const GIRDER_THICKNESS = 0.25;
-const RAIL_THICKNESS = 0.35;
 const BRACING_THICKNESS = 0.15;
 const SUPPORT_THICKNESS = 0.3;
-
 /**
- * The GTW 15 body: 2.7 m tall, roof 0.8 m under the rail (rail top to floor
- * is 3.5 m). The rail is the girder's bottom chord, the rust beam the bogies
- * run on; the lattice stands above it.
+ * The rail beam: the rust plate girder the Laufwerke run on, hung under the
+ * lattice. Its top is the bottom chord of the model, so the plate hangs
+ * down from there.
  */
-const CAR_HEIGHT = 2.7;
-const ROOF_BELOW_RAIL = 0.8;
-/** the cab's front bottom is set back this far: the nose leans forward */
-const CAB_SETBACK = 0.55;
-/** how high the set-back part reaches before the front turns vertical */
-const CAB_SLANT_HEIGHT = 1.2;
-/** rounding of the body edges */
-const BODY_BEVEL = 0.12;
-/** the two bogies of an end section sit this far apart along the car */
-const BOGIE_PIVOT_METERS = 7.645;
+const RAIL_PLATE_HEIGHT = 0.95;
+const RAIL_PLATE_WIDTH = 0.3;
 /** how far a member may be from the track and still take its ground from it */
 const GROUND_SEARCH_METERS = 120;
 /** without supports, the rail is assumed this high over the flat map */
@@ -126,6 +115,23 @@ class PointGrid<T> {
             bestDistance = d;
             best = entry.value;
           }
+        }
+      }
+    }
+    return best;
+  }
+
+  /** the smallest value among the entries within `radius`, or null */
+  lowest(x: number, y: number, radius: number): T | null {
+    const reach = Math.ceil(radius / this.cellSize);
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    let best: T | null = null;
+    for (let dx = -reach; dx <= reach; dx++) {
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (const entry of this.cells.get(`${cx + dx},${cy + dy}`) ?? []) {
+          if (Math.hypot(entry.x - x, entry.y - y) > radius) continue;
+          if (best === null || entry.value < best) best = entry.value;
         }
       }
     }
@@ -215,13 +221,23 @@ const UNIT_X = new THREE.Vector3(1, 0, 0);
  * stretched to its length, turned to its direction and set on its midpoint.
  * `heightOf` turns the model's absolute z into a scene height.
  */
+type MemberSize = {
+  /** across, in metres */
+  thickness: number;
+  /** tall, in metres. Default: `thickness` */
+  height?: number;
+  /** shift up (+) or down (-) from the member's line, e.g. to hang a plate under it */
+  lift?: number;
+};
+
 const buildMembers = (
   segments: Segment3[],
-  thickness: number,
+  size: MemberSize,
   material: THREE.Material,
   heightOf: (x: number, y: number, z: number) => number,
   colorOf?: (segment: Segment3) => THREE.Color
 ): THREE.InstancedMesh => {
+  const { thickness, height = thickness, lift = 0 } = size;
   const mesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     material,
@@ -241,8 +257,8 @@ const buildMembers = (
     const length = direction.length();
     if (length > 0) direction.divideScalar(length);
     quaternion.setFromUnitVectors(UNIT_X, direction);
-    position.set((x1 + x2) / 2, (h1 + h2) / 2, -(y1 + y2) / 2);
-    scale.set(Math.max(length, thickness), thickness, thickness);
+    position.set((x1 + x2) / 2, (h1 + h2) / 2 + lift, -(y1 + y2) / 2);
+    scale.set(Math.max(length, thickness), height, thickness);
     matrix.compose(position, quaternion, scale);
     mesh.setMatrixAt(index, matrix);
     if (colorOf) mesh.setColorAt(index, colorOf(segment));
@@ -252,9 +268,6 @@ const buildMembers = (
   mesh.frustumCulled = false;
   return mesh;
 };
-
-/** one movable piece of a vehicle and where it sits along the car */
-type CarPiece = { group: THREE.Group; offset: number };
 
 export const createVehicleThreeLayer = (
   options: VehicleThreeLayerOptions
@@ -307,6 +320,16 @@ export const createVehicleThreeLayer = (
 
   const members = structure ? structureSegments(structure) : null;
 
+  /** the lowest girder point within a few metres of (x, y), or null */
+  const lowestGirderNear = ((): ((x: number, y: number) => number | null) => {
+    const grid = new PointGrid<number>(10);
+    for (const [x1, y1, z1, x2, y2, z2] of members?.girder ?? []) {
+      grid.add(x1, y1, z1);
+      grid.add(x2, y2, z2);
+    }
+    return (x, y) => grid.lowest(x, y, 6);
+  })();
+
   let hasTerrain = map.getTerrain() !== null && map.getTerrain() !== undefined;
 
   /** ground under a point in the local frame, from the nearest track vertex */
@@ -332,11 +355,13 @@ export const createVehicleThreeLayer = (
    * ---------------------------------------------------------------- */
 
   const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const sun = new THREE.DirectionalLight(0xfff4e0, 1.1);
+  // bright and flat, like an overcast day: Lambert shading with a strong
+  // sun turns the sky blue into slate, and the photos are lit from all sides
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 0.9);
   sun.position.set(100, 300, 150);
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xc8d8ff, 0.35);
+  const fill = new THREE.DirectionalLight(0xdde8ff, 0.5);
   fill.position.set(-80, 100, -60);
   scene.add(fill);
 
@@ -354,29 +379,48 @@ export const createVehicleThreeLayer = (
     structureGroup.clear();
     if (!members) return;
     const steel = material(STEEL_COLOR);
-    // the rail is the bottom chord: the ring runs along it
+    // The rail is the bottom chord. A chord follows the track's gradient, so
+    // "bottom" is judged against the lowest girder point next to the member
+    // rather than against a level: the diagonals and verticals reach it too,
+    // but only a chord stays within a hand's breadth of it along its length.
     const isRail = ([x1, y1, z1, x2, y2, z2]: Segment3): boolean => {
-      if (Math.abs(z2 - z1) > 0.05) return false;
-      const index = trackVertices.nearest((x1 + x2) / 2, (y1 + y2) / 2, 30);
-      if (index === null) return false;
-      const bottom = track.points[index][2] ?? 0;
-      return Math.abs((z1 + z2) / 2 - bottom) < 0.3;
+      const length = Math.hypot(x2 - x1, y2 - y1);
+      if (length < 0.5 || Math.abs(z2 - z1) > 0.05 * length + 0.05) return false;
+      // judged at both ends: a chord can be 200 m long, and its middle is far
+      // from every other girder point
+      const floorA = lowestGirderNear(x1, y1);
+      const floorB = lowestGirderNear(x2, y2);
+      return (
+        floorA !== null &&
+        floorB !== null &&
+        z1 - floorA < 0.35 &&
+        z2 - floorB < 0.35
+      );
     };
     structureGroup.add(
       buildMembers(
         members.girder,
-        GIRDER_THICKNESS,
+        { thickness: GIRDER_THICKNESS },
         steel,
         heightOf,
         (segment) => (isRail(segment) ? RAIL_COLOR : STEEL_COLOR)
       ),
-      buildMembers(members.bracing, BRACING_THICKNESS, steel, heightOf),
-      buildMembers(members.supports, SUPPORT_THICKNESS, steel, heightOf)
+      buildMembers(members.bracing, { thickness: BRACING_THICKNESS }, steel, heightOf),
+      buildMembers(members.supports, { thickness: SUPPORT_THICKNESS }, steel, heightOf)
     );
-    // the rail once more, thicker, so it reads as the bar the vehicles run on
+    // the plate girder hangs under the bottom chord; the Laufwerke run on its top
     const rails = members.girder.filter(isRail);
     structureGroup.add(
-      buildMembers(rails, RAIL_THICKNESS, material(RAIL_COLOR), heightOf)
+      buildMembers(
+        rails,
+        {
+          thickness: RAIL_PLATE_WIDTH,
+          height: RAIL_PLATE_HEIGHT,
+          lift: -RAIL_PLATE_HEIGHT / 2,
+        },
+        material(RAIL_COLOR),
+        heightOf
+      )
     );
   };
   buildStructure();
@@ -385,148 +429,21 @@ export const createVehicleThreeLayer = (
    *  Vehicles
    * ---------------------------------------------------------------- */
 
-  const bodyMaterial = material(options.bodyColor);
-  const jointMaterial = material(options.jointColor);
-  const windowMaterial = material(WINDOW_COLOR);
-  const bogieMaterial = material(BOGIE_COLOR);
   const geometries: THREE.BufferGeometry[] = [];
-  const keep = <G extends THREE.BufferGeometry>(geometry: G): G => {
-    geometries.push(geometry);
-    return geometry;
-  };
-
-  const { lengthMeters, widthMeters, jointMeters } = shape;
-  const shares = shape.sectionShares.length > 0 ? shape.sectionShares : [1];
-  const jointCount = shares.length - 1;
-  const bodyLength = Math.max(0, lengthMeters - jointCount * jointMeters);
-  const shareSum = shares.reduce((sum, share) => sum + share, 0) || 1;
-
-  /** the rail is the ring's own height; the roof hangs under it */
-  const railTopY = 0;
-  const roofY = -ROOF_BELOW_RAIL;
-  const bodyCenterY = roofY - CAR_HEIGHT / 2;
-
-  const bogieGeometry = keep(new THREE.BoxGeometry(1.4, 0.7, 0.8));
-  const armHeight = railTopY + 0.3 - roofY;
-  const armGeometry = keep(new THREE.BoxGeometry(0.3, armHeight, 0.3));
-  const linkGeometry = keep(new THREE.BoxGeometry(0.3, 0.25, 0.9));
-
-  /** a hanger: the arm up the outside of the rail beam, the link over it, the bogie on the rail */
-  const hanger = (atX: number): THREE.Group => {
-    const group = new THREE.Group();
-    const arm = new THREE.Mesh(armGeometry, bogieMaterial);
-    arm.position.set(atX, roofY + armHeight / 2, outerSign * 0.65);
-    const link = new THREE.Mesh(linkGeometry, bogieMaterial);
-    link.position.set(atX, railTopY + 0.3, outerSign * 0.33);
-    const bogie = new THREE.Mesh(bogieGeometry, bogieMaterial);
-    bogie.position.set(atX, railTopY + 0.5, 0);
-    group.add(arm, link, bogie);
-    return group;
-  };
-
-  /**
-   * A body section as its side profile, extruded to the car's width. A cab
-   * end is not a plain box: under the windscreen the front is set back, so
-   * the nose leans forward. `cab` says which ends are cabs (+1 front, -1
-   * back, 0 none). The bevel rounds the edges and grows the shape, so the
-   * profile is drawn that much smaller.
-   */
-  const bodyGeometry = (length: number, cab: readonly number[]): THREE.ExtrudeGeometry => {
-    const half = length / 2 - BODY_BEVEL;
-    const top = CAR_HEIGHT / 2 - BODY_BEVEL;
-    const bottom = -CAR_HEIGHT / 2 + BODY_BEVEL;
-    const shape = new THREE.Shape();
-    // clockwise from the top-left corner; a cab end gets its chin cut
-    const end = (sign: number): [number, number][] =>
-      cab.includes(sign)
-        ? [
-            [sign * half, top],
-            [sign * half, bottom + CAB_SLANT_HEIGHT],
-            [sign * (half - CAB_SETBACK), bottom],
-          ]
-        : [
-            [sign * half, top],
-            [sign * half, bottom],
-          ];
-    const outline: [number, number][] = [
-      ...end(1),
-      ...[...end(-1)].reverse(),
-    ];
-    shape.moveTo(outline[0][0], outline[0][1]);
-    for (const [x, y] of outline.slice(1)) shape.lineTo(x, y);
-    shape.closePath();
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: widthMeters - 2 * BODY_BEVEL,
-      bevelEnabled: true,
-      bevelThickness: BODY_BEVEL,
-      bevelSize: BODY_BEVEL,
-      bevelSegments: 2,
-    });
-    geometry.translate(0, 0, -(widthMeters - 2 * BODY_BEVEL) / 2);
-    return geometry;
-  };
-
-  const buildSection = (length: number, cabAtFront: boolean, cabAtBack: boolean): THREE.Group => {
-    const group = new THREE.Group();
-    const cab = [...(cabAtFront ? [1] : []), ...(cabAtBack ? [-1] : [])];
-    const body = new THREE.Mesh(keep(bodyGeometry(length, cab)), bodyMaterial);
-    body.position.y = bodyCenterY;
-    group.add(body);
-
-    const band = new THREE.Mesh(
-      keep(new THREE.BoxGeometry(Math.max(0.5, length - 0.6), 1.0, widthMeters + 0.04)),
-      windowMaterial
-    );
-    band.position.y = bodyCenterY + 0.5;
-    group.add(band);
-
-    for (const [isCab, sign] of [
-      [cabAtFront, 1],
-      [cabAtBack, -1],
-    ] as const) {
-      if (!isCab) continue;
-      // the windscreen sits on the vertical part above the chin
-      const glass = new THREE.Mesh(
-        keep(new THREE.BoxGeometry(0.08, 1.1, widthMeters - 0.4)),
-        windowMaterial
-      );
-      glass.position.set(sign * (length / 2 - 0.02), bodyCenterY + 0.55, 0);
-      group.add(glass);
-    }
-    return group;
-  };
-
-  const buildCar = (): CarPiece[] => {
-    const pieces: CarPiece[] = [];
-    let cursor = -lengthMeters / 2;
-    shares.forEach((share, index) => {
-      const length = (bodyLength * share) / shareSum;
-      const isEnd = index === 0 || index === shares.length - 1;
-      const group = buildSection(length, index === shares.length - 1, index === 0);
-      if (isEnd) {
-        // two bogies per driving section, the pivot distance apart
-        const half = Math.min(BOGIE_PIVOT_METERS / 2, length / 2 - 0.9);
-        group.add(hanger(-half), hanger(half));
-      }
-      pieces.push({ group, offset: cursor + length / 2 });
-      cursor += length;
-      if (index < jointCount) {
-        const joint = new THREE.Group();
-        const bellows = new THREE.Mesh(
-          keep(new THREE.BoxGeometry(jointMeters + 0.2, CAR_HEIGHT - 0.3, widthMeters - 0.2)),
-          jointMaterial
-        );
-        bellows.position.y = bodyCenterY;
-        joint.add(bellows);
-        pieces.push({ group: joint, offset: cursor + jointMeters / 2 });
-        cursor += jointMeters;
-      }
-    });
-    return pieces;
+  const keep = <T extends THREE.BufferGeometry | THREE.Material>(resource: T): T => {
+    if (resource instanceof THREE.Material) materials.push(resource);
+    else geometries.push(resource);
+    return resource;
   };
 
   const cars: CarPiece[][] = fleet.cars.map(() => {
-    const pieces = buildCar();
+    const pieces = buildCar({
+      shape,
+      bodyColor: options.bodyColor,
+      bellowsColor: options.jointColor,
+      outerSign,
+      keep,
+    });
     for (const piece of pieces) scene.add(piece.group);
     return pieces;
   });
