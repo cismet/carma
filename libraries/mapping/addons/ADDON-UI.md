@@ -161,8 +161,10 @@ to keep, all three existing rows get them wrong-proof the same way:
 
 - the row's ✕ has to switch the addon off (`isOn && !hasRow && wasRow`), because
   the user closing the pill means "stop", not "hide"
-- a row without a running addon is stale and gets removed, since the addon state
-  is session-only while the layer list may be restored from storage
+- a row that comes back from storage brings its addon back with it: the addon
+  restores itself from its `localStorage` mirror (README, "Workflow tools"), so
+  the row and the running tool agree after a reload. Only a row whose stored
+  state says off is stale and gets removed
 - the host keeps a **snapshot** of the `Layer`, so a changed readout must be
   handed over again through `onUpdate`
 - guard against asking twice before the host's state catches up (`requestedRef`)
@@ -256,7 +258,7 @@ the readout, not in the label.
 | --------------------------- | ------------------------------------------------------------------- |
 | local `useState`            | only the panel cares, and only while it is open (expanded, hover)   |
 | addon-state channel         | two or more of the four surfaces read it                            |
-| `localStorage` via the channel | it should survive a reload, as the comparison's layout does      |
+| `localStorage` via the channel | it should survive a reload, as the comparison's layout does; mandatory for everything a workflow launches (README, "Workflow tools") |
 | the app's redux store       | never from a library; the app dispatches, the library calls back    |
 
 The time slider is the worked example: `isOn`, the position, the labels, the

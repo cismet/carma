@@ -94,6 +94,18 @@ two libraries circular. Declaration sites keep full kind checking by narrowing t
 `WorkflowPerspective<TTool>` type parameter, as the geoportal does with
 `WorkflowPerspective<AddonEntry>`.
 
+**A launched tool survives a reload.** A workflow the user has launched is still
+on the map after a page refresh, on every route and for every kind, in the
+state it was left in. This is a rule of the library, not a per-workflow feature
+request: the layer bar row comes back through the host's own layer-list
+persistence, and the tool's channel state is mirrored into `localStorage` and
+seeded from there on the next load, the way the comparison
+(`addons/comparing/comparing-storage.ts`) and the addon manager
+(`lib/addon-overrides-storage.ts`) do it. A row that comes back without its
+running addon is the bug, not a stale row to clean up. Session-only state is not
+an option for anything a workflow card can launch; a tool that has nothing else
+to restore still stores that it is on and what it was launched with.
+
 ## Where an addon's UI ends up
 
 What the four UI surfaces of a map app look like, and which of them an addon may
