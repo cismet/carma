@@ -434,8 +434,9 @@ const ribbon = (
  *
  * The Schwebebahn's GTW 15 is 24.06 m long, 2.2 m wide and made of three
  * sections joined by two rubber articulations, so the default is three sections
- * with two gaps rather than one box. The cab ends are rounded, which from above
- * reads as a taper over the last stretch.
+ * with two gaps rather than one box. The cab ends are blunt: the front face is
+ * nearly the full width and only its corners are rounded, so from above the nose
+ * is a short rounded corner, not a taper.
  */
 export type CarShape = {
   lengthMeters: number;
@@ -456,7 +457,7 @@ export type CarShape = {
 };
 
 /** how finely a body outline is sampled along its length */
-const OUTLINE_STEP_METERS = 0.5;
+const OUTLINE_STEP_METERS = 0.25;
 
 export const CAR_SHAPE_GTW15: CarShape = {
   lengthMeters: 24.06,
@@ -464,8 +465,8 @@ export const CAR_SHAPE_GTW15: CarShape = {
   // the middle module is a short one slung between the two driving sections
   sectionShares: [1, 0.38, 1],
   jointMeters: 0.9,
-  noseWidth: 0.55,
-  noseMeters: 2.2,
+  noseWidth: 0.7,
+  noseMeters: 0.8,
 };
 
 /** one drawable piece of a vehicle: a body section or an articulation */
@@ -501,12 +502,12 @@ export const carParts = (
 
   const half = widthMeters / 2;
   const nose = Math.max(0.01, shape.noseMeters);
-  /** eased rather than linear, so the cab ends read as rounded, not chamfered */
+  /** a quarter ellipse, so the corner is round and meets the side tangentially */
   const halfWidth = (s: number): number => {
     const fromEnd = Math.min(s, lengthMeters - s);
     if (fromEnd >= nose) return half;
     const t = Math.max(0, fromEnd) / nose;
-    const eased = Math.sin((t * Math.PI) / 2);
+    const eased = Math.sqrt(1 - (1 - t) ** 2);
     return half * (shape.noseWidth + (1 - shape.noseWidth) * eased);
   };
 

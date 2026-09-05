@@ -10,7 +10,12 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../../lib/registry";
-import { buildTrack, type CarShape, type Track } from "./track";
+import {
+  CAR_SHAPE_GTW15,
+  buildTrack,
+  type CarShape,
+  type Track,
+} from "./track";
 import {
   createVehicleLayer,
   type VehicleLayerHandle,
@@ -234,8 +239,12 @@ export const VehicleAnimation = ({
       widthMeters,
       sectionShares,
       jointMeters,
-      noseWidth: 0.55,
-      noseMeters: Math.min(2.2, lengthMeters / 8),
+      // the nose is a rounded corner, so it scales with the width, not the length
+      noseWidth: CAR_SHAPE_GTW15.noseWidth,
+      noseMeters: Math.min(
+        CAR_SHAPE_GTW15.noseMeters,
+        widthMeters * CAR_SHAPE_GTW15.noseMeters / CAR_SHAPE_GTW15.widthMeters
+      ),
     }),
     [lengthMeters, widthMeters, sectionShares, jointMeters]
   );
