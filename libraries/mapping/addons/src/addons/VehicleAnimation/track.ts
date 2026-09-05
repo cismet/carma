@@ -469,8 +469,8 @@ export const CAR_SHAPE_GTW15: CarShape = {
   lengthMeters: 24.06,
   widthMeters: 2.2,
   // the middle module is a short one slung between the two driving sections
-  sectionShares: [1, 0.28, 1],
-  jointMeters: 0.9,
+  sectionShares: [1, 0.17, 1],
+  jointMeters: 0.7,
   noseWidth: 0.7,
   noseMeters: 0.8,
 };

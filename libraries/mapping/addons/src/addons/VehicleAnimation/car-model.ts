@@ -4,16 +4,21 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { CarShape } from "./track";
 
 /**
- * A low-poly GTW 15 for the three.js renderer, built from boxes.
+ * A low-poly GTW 15 (Generation 15) for the three.js renderer, built from
+ * boxes and a few prisms.
  *
  * What the photos show and what is modelled: a sky-blue body with rounded
- * edges, separate side windows between pillars, double doors with a groove
- * at each leaf, a red stripe beside the cab, a wrap-around windscreen with
- * the number plate and the red light strip under it, a front bottom that is
- * set back under the windscreen, light grey ribbed bellows between the
- * sections, and on top of each driving section two Laufwerke on the rail:
- * a frame with the motors on the outer side and a plate hanging the car from
- * the outside of the rail beam.
+ * edges whose cab front leans back over its whole height, so the windscreen
+ * looks down on the track; one wrap-around cab glazing that runs from the
+ * windscreen into a tall side window; under the windscreen a black band
+ * with the blue number plate and the light strip; the red stripe behind the
+ * cab; separate side windows between pillars; double doors on the platform
+ * side only, which is the outer side of the ring (the turning loops at both
+ * ends keep that side at the platforms); light grey ribbed bellows between
+ * the sections;
+ * and on top of each driving section two Laufwerke on the rail: a frame with
+ * the rust-brown drive units on the outer side and a plate hanging the car
+ * from the outside of the rail beam.
  *
  * Every section's details are merged into one vertex-coloured geometry, so a
  * car costs about a dozen draw calls rather than a hundred.
@@ -32,7 +37,7 @@ export type CarModelOptions = {
   shape: CarShape;
   bodyColor: string;
   bellowsColor: string;
-  /** +1 or -1: on which side of the rail the hanger plate and motors sit */
+  /** +1 or -1: the ring's outer side, where the hanger plate, the motors and the doors are */
   outerSign: number;
   /** collects geometries and materials for disposal */
   keep: <T extends THREE.BufferGeometry | THREE.Material>(resource: T) => T;
@@ -41,10 +46,8 @@ export type CarModelOptions = {
 /** body height, and how far the roof hangs under the rail top */
 export const CAR_HEIGHT = 2.7;
 export const ROOF_BELOW_RAIL = 1.4;
-/** the cab's front bottom is set back this far under the windscreen */
+/** the cab front leans back: its floor edge sits this far behind its roof edge */
 const CAB_SETBACK = 0.5;
-/** height of the set-back part before the front turns vertical */
-const CAB_SLANT_HEIGHT = 1.15;
 /** rounding of the body edges */
 const BODY_BEVEL = 0.22;
 /** the two Laufwerke of a driving section sit this far apart */
@@ -53,9 +56,15 @@ const BOGIE_PIVOT_METERS = 7.645;
 /** window sill and lintel, metres above the floor */
 const WINDOW_BOTTOM = 0.95;
 const WINDOW_TOP = 2.3;
-const WINDOW_METERS = 1.45;
-const PILLAR_METERS = 0.2;
+/** the cab glazing shares the sill but reaches up to the roof edge */
+const CAB_GLASS_TOP = 2.55;
+/** how far the cab side glass reaches back from the nose */
+const CAB_GLASS_METERS = 1.9;
+/** the side glass stops this far short of the front edge, leaving the rounded corner */
+const CAB_GLASS_CORNER = 0.18;
+const PILLAR_METERS = 0.15;
 const DOOR_METERS = 1.4;
+const STRIPE_METERS = 0.18;
 /** protrusion of a pane or groove out of the body side */
 const SKIN = 0.05;
 
@@ -66,16 +75,10 @@ const WHITE = new THREE.Color("#f2f2f2");
 const ORANGE = new THREE.Color("#ff9a2e");
 const RIB = new THREE.Color("#6f787e");
 const BOGIE = new THREE.Color("#3b4045");
-const MOTOR = new THREE.Color("#7a8187");
+const MOTOR = new THREE.Color("#6e4f36");
 
-/** a box with every vertex in one colour, placed by its centre and optionally turned about z */
-const coloredBox = (
-  size: [number, number, number],
-  at: [number, number, number],
-  color: THREE.Color,
-  rotationZ = 0
-): THREE.BufferGeometry => {
-  const geometry = new THREE.BoxGeometry(...size);
+/** gives every vertex of a geometry the same colour */
+const paint = (geometry: THREE.BufferGeometry, color: THREE.Color): THREE.BufferGeometry => {
   const count = geometry.getAttribute("position").count;
   const colors = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
@@ -84,16 +87,68 @@ const coloredBox = (
     colors[i * 3 + 2] = color.b;
   }
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return geometry;
+};
+
+/**
+ * A box in one colour, placed by its centre and optionally turned about z.
+ * Non-indexed like the prisms, so all details merge into one geometry.
+ */
+const coloredBox = (
+  size: [number, number, number],
+  at: [number, number, number],
+  color: THREE.Color,
+  rotationZ = 0
+): THREE.BufferGeometry => {
+  const geometry = paint(new THREE.BoxGeometry(...size).toNonIndexed(), color);
   if (rotationZ !== 0) geometry.rotateZ(rotationZ);
   geometry.translate(...at);
   return geometry;
 };
 
+/** a flat prism: an outline in the x/y plane, `thickness` deep, centred on `z` */
+const coloredPrism = (
+  outline: readonly [number, number][],
+  thickness: number,
+  z: number,
+  color: THREE.Color
+): THREE.BufferGeometry => {
+  const shape = new THREE.Shape();
+  shape.moveTo(outline[0][0], outline[0][1]);
+  for (const [x, y] of outline.slice(1)) shape.lineTo(x, y);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
+  geometry.translate(0, 0, z - thickness / 2);
+  return paint(geometry, color);
+};
+
 /**
- * The body as its side profile extruded to the width. A cab end has its
- * chin cut: under the windscreen the front is set back, so the nose leans
- * forward. `cab` lists the cab ends (+1 front, -1 back). The bevel rounds
- * the edges and grows the shape, so the profile is drawn that much smaller.
+ * The side profile is drawn a bevel smaller and the bevel grows it back. The
+ * cab front is a straight line from the roof edge down to the set-back floor
+ * edge; this is its lean from the vertical.
+ */
+const FRONT_LEAN = Math.atan2(CAB_SETBACK, CAR_HEIGHT - 2 * BODY_BEVEL);
+
+/**
+ * Where the leaning cab front surface is at a height, as +x distance from
+ * the section's centre; `y` is measured from the body's centre. The profile
+ * line is offset outward by the bevel along its normal.
+ */
+const frontFaceX = (length: number, y: number): number => {
+  const half = length / 2 - BODY_BEVEL;
+  const top = CAR_HEIGHT / 2 - BODY_BEVEL;
+  const bottom = -CAR_HEIGHT / 2 + BODY_BEVEL;
+  const onLine = y + BODY_BEVEL * Math.sin(FRONT_LEAN);
+  return (
+    half - (CAB_SETBACK * (top - onLine)) / (top - bottom) + BODY_BEVEL * Math.cos(FRONT_LEAN)
+  );
+};
+
+/**
+ * The body as its side profile extruded to the width. A cab end leans back
+ * over its whole height, from the roof edge to the floor edge. `cab` lists
+ * the cab ends (+1 front, -1 back). The bevel rounds the edges and grows the
+ * shape, so the profile is drawn that much smaller.
  */
 const bodyGeometry = (
   length: number,
@@ -107,7 +162,6 @@ const bodyGeometry = (
     cab.includes(sign)
       ? [
           [sign * half, top],
-          [sign * half, bottom + CAB_SLANT_HEIGHT],
           [sign * (half - CAB_SETBACK), bottom],
         ]
       : [
@@ -136,35 +190,52 @@ type SideItem =
   | { kind: "door"; from: number; to: number }
   | { kind: "stripe"; at: number };
 
-/**
- * What sits along one side of a section, as spans in metres from the
- * section's centre. A driving section, cab at +x: the cab's own side window,
- * the red stripe, a double door, windows between pillars, and a double door
- * before the bellows. The middle module carries one square window.
- */
-const sideLayout = (length: number, cab: number): SideItem[] => {
-  const half = length / 2;
-  if (cab === 0) {
-    // the middle module has one square window and no door
-    const square = (WINDOW_TOP - WINDOW_BOTTOM) / 2;
-    return [{ kind: "window", from: -square, to: square }];
-  }
-  const items: SideItem[] = [
-    { kind: "window", from: half - 0.8, to: half - 0.3 },
-    { kind: "stripe", at: half - 0.9 },
-    { kind: "door", from: half - 1.0 - DOOR_METERS, to: half - 1.0 },
-    { kind: "door", from: -half + 0.4, to: -half + 0.4 + DOOR_METERS },
-  ];
-  // windows fill the stretch between the two doors, centred
-  const start = half - 1.0 - DOOR_METERS - PILLAR_METERS;
-  const stop = -half + 0.4 + DOOR_METERS + PILLAR_METERS;
+/** windows with pillars between them, filling the stretch from `start` back to `stop` */
+const windowBand = (start: number, stop: number): SideItem[] => {
   const room = start - stop;
-  const count = Math.max(0, Math.floor((room + PILLAR_METERS) / (WINDOW_METERS + PILLAR_METERS)));
-  const used = count * WINDOW_METERS + (count - 1) * PILLAR_METERS;
-  let cursor = start - (room - used) / 2;
+  const count = Math.max(1, Math.round(room / 1.5));
+  const meters = (room - (count - 1) * PILLAR_METERS) / count;
+  const items: SideItem[] = [];
   for (let i = 0; i < count; i++) {
-    items.push({ kind: "window", from: cursor - WINDOW_METERS, to: cursor });
-    cursor -= WINDOW_METERS + PILLAR_METERS;
+    const to = start - i * (meters + PILLAR_METERS);
+    items.push({ kind: "window", from: to - meters, to });
+  }
+  return items;
+};
+
+/**
+ * What sits along one side of a section behind the cab glass, as spans in
+ * metres from the section's centre, for a cab at +x. The platform side has
+ * the doors: the red stripe, a window, a double door, windows, and a double
+ * door right before the bellows. The other side has no doors: a wide pillar
+ * behind the cab, a window, the stripe, then a band of windows. The middle
+ * module carries one window per side.
+ */
+const sideLayout = (length: number, cab: number, doorSide: boolean): SideItem[] => {
+  const half = length / 2;
+  if (cab === 0) return [{ kind: "window", from: -0.55, to: 0.55 }];
+  const rear = -half + 0.35;
+  const behindCab = half - CAB_GLASS_METERS;
+  let items: SideItem[];
+  if (doorSide) {
+    const stripeAt = behindCab - PILLAR_METERS - STRIPE_METERS / 2;
+    const windowTo = stripeAt - STRIPE_METERS / 2 - PILLAR_METERS;
+    const doorTo = windowTo - 1.25 - PILLAR_METERS;
+    items = [
+      { kind: "stripe", at: stripeAt },
+      { kind: "window", from: windowTo - 1.25, to: windowTo },
+      { kind: "door", from: doorTo - DOOR_METERS, to: doorTo },
+      { kind: "door", from: rear, to: rear + DOOR_METERS },
+      ...windowBand(doorTo - DOOR_METERS - PILLAR_METERS, rear + DOOR_METERS + PILLAR_METERS),
+    ];
+  } else {
+    const windowTo = behindCab - 0.9;
+    const stripeAt = windowTo - 1.15 - PILLAR_METERS - STRIPE_METERS / 2;
+    items = [
+      { kind: "window", from: windowTo - 1.15, to: windowTo },
+      { kind: "stripe", at: stripeAt },
+      ...windowBand(stripeAt - STRIPE_METERS / 2 - PILLAR_METERS, rear),
+    ];
   }
   // the cab at -x is the same layout mirrored
   return cab > 0
@@ -176,26 +247,101 @@ const sideLayout = (length: number, cab: number): SideItem[] => {
       );
 };
 
-/** the detail boxes of one section, both sides and the cab front */
+/**
+ * The cab's side glass: from the sill up to the roof edge, from behind the
+ * cab forward to the rounded corner, its front edge following the lean of
+ * the front.
+ */
+const cabSideGlass = (
+  sign: number,
+  length: number,
+  z: number,
+  bodyCenterY: number
+): THREE.BufferGeometry => {
+  const floor = bodyCenterY - CAR_HEIGHT / 2;
+  const sill = floor + WINDOW_BOTTOM;
+  const top = floor + CAB_GLASS_TOP;
+  const rear = sign * (length / 2 - CAB_GLASS_METERS);
+  const front = (y: number): number =>
+    sign * (frontFaceX(length, y - bodyCenterY) - CAB_GLASS_CORNER);
+  return coloredPrism(
+    [
+      [rear, sill],
+      [front(sill), sill],
+      [front(top), top],
+      [rear, top],
+    ],
+    SKIN,
+    z,
+    GLASS
+  );
+};
+
+/**
+ * What sits on the leaning cab front: the windscreen with the destination
+ * display at its top, the black band under it carrying the number plate in
+ * body colour on the left and the light strip, white ahead and red astern.
+ */
+const cabFront = (
+  sign: number,
+  length: number,
+  width: number,
+  bodyCenterY: number,
+  bodyColor: THREE.Color
+): THREE.BufferGeometry[] => {
+  const floor = bodyCenterY - CAR_HEIGHT / 2;
+  const lean = -sign * FRONT_LEAN;
+  const stretch = 1 / Math.cos(FRONT_LEAN);
+  // a box lying on the front surface, centred on the surface at height `y` above the floor
+  const onFront = (
+    size: [number, number, number],
+    y: number,
+    z: number,
+    color: THREE.Color
+  ): THREE.BufferGeometry =>
+    coloredBox(
+      [size[0], size[1] * stretch, size[2]],
+      [sign * frontFaceX(length, floor + y - bodyCenterY), floor + y, z],
+      color,
+      lean
+    );
+  const screenBottom = 0.85;
+  const screenTop = CAB_GLASS_TOP + 0.03;
+  return [
+    onFront([SKIN + 0.02, screenTop - screenBottom, width - 0.3], (screenTop + screenBottom) / 2, 0, GLASS),
+    onFront([SKIN + 0.05, 0.13, 0.55], screenTop - 0.16, 0, ORANGE),
+    onFront([SKIN, screenBottom - 0.12, width - 0.45], (screenBottom + 0.12) / 2, 0, GLASS),
+    onFront([SKIN + 0.03, 0.34, 1.1], 0.6, -sign * 0.4, bodyColor),
+    onFront([SKIN + 0.04, 0.05, 0.6], 0.26, -sign * 0.2, sign > 0 ? WHITE : RED),
+  ];
+};
+
+/** the detail boxes of one section, both sides and the cab front; the doors are on `doorSign` */
 const sectionDetails = (
   length: number,
   width: number,
   cab: readonly number[],
-  bodyCenterY: number
+  bodyCenterY: number,
+  bodyColor: THREE.Color,
+  doorSign: number
 ): THREE.BufferGeometry[] => {
   const floor = bodyCenterY - CAR_HEIGHT / 2;
-  const roof = bodyCenterY + CAR_HEIGHT / 2;
   const windowY = floor + (WINDOW_BOTTOM + WINDOW_TOP) / 2;
   const windowHeight = WINDOW_TOP - WINDOW_BOTTOM;
+  const stripeBottom = WINDOW_BOTTOM - 0.1;
   const parts: THREE.BufferGeometry[] = [];
   const cabSign = cab[0] ?? 0;
 
   for (const side of [-1, 1]) {
     const z = side * (width / 2 - SKIN / 2 + 0.02);
-    for (const item of sideLayout(length, cabSign)) {
+    for (const item of sideLayout(length, cabSign, side === doorSign)) {
       if (item.kind === "stripe") {
         parts.push(
-          coloredBox([0.1, CAR_HEIGHT - 0.5, SKIN], [item.at, bodyCenterY, z], RED)
+          coloredBox(
+            [STRIPE_METERS, CAB_GLASS_TOP - stripeBottom, SKIN],
+            [item.at, floor + (CAB_GLASS_TOP + stripeBottom) / 2, z],
+            RED
+          )
         );
         continue;
       }
@@ -222,39 +368,10 @@ const sectionDetails = (
         );
       }
     }
+    for (const sign of cab) parts.push(cabSideGlass(sign, length, z, bodyCenterY));
   }
 
-  for (const sign of cab) {
-    const face = sign * (length / 2);
-    // the windscreen fills the vertical part of the front above the chin,
-    // and wraps around the corners
-    const screenBottom = floor + CAB_SLANT_HEIGHT + 0.05;
-    const screenTop = roof - 0.2;
-    parts.push(
-      coloredBox(
-        [SKIN + 0.04, screenTop - screenBottom, width - 0.3],
-        [face, (screenTop + screenBottom) / 2, 0],
-        GLASS
-      )
-    );
-    parts.push(
-      coloredBox(
-        [0.5, 0.14, width - 0.9],
-        [face - sign * 0.02, screenTop - 0.2, 0],
-        ORANGE
-      )
-    );
-    // the chin leans back; the plate and the light strip sit on it
-    const slant = Math.atan2(CAB_SETBACK, CAB_SLANT_HEIGHT) * sign;
-    const onChin = (y: number): number =>
-      face - sign * CAB_SETBACK * ((floor + CAB_SLANT_HEIGHT - y) / CAB_SLANT_HEIGHT);
-    parts.push(
-      coloredBox([SKIN, 0.32, 0.95], [onChin(floor + 0.75), floor + 0.75, sign * 0.15], WHITE, slant)
-    );
-    parts.push(
-      coloredBox([SKIN, 0.06, 0.7], [onChin(floor + 0.35), floor + 0.35, 0], RED, slant)
-    );
-  }
+  for (const sign of cab) parts.push(...cabFront(sign, length, width, bodyCenterY, bodyColor));
   return parts;
 };
 
@@ -310,6 +427,7 @@ export const buildCar = ({
 
   const roofY = -ROOF_BELOW_RAIL;
   const bodyCenterY = roofY - CAR_HEIGHT / 2;
+  const plateColor = new THREE.Color(bodyColor);
 
   const bodyMaterial = keep(new THREE.MeshLambertMaterial({ color: bodyColor }));
   const bellowsMaterial = keep(new THREE.MeshLambertMaterial({ color: bellowsColor }));
@@ -334,7 +452,7 @@ export const buildCar = ({
     body.position.y = bodyCenterY;
     group.add(body);
 
-    const parts = sectionDetails(length, widthMeters, cab, bodyCenterY);
+    const parts = sectionDetails(length, widthMeters, cab, bodyCenterY, plateColor, outerSign);
     if (cab.length > 0) {
       // two Laufwerke per driving section, the pivot distance apart
       const half = Math.min(BOGIE_PIVOT_METERS / 2, length / 2 - 1.1);

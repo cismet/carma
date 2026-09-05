@@ -153,8 +153,8 @@ const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
   lengthMeters: 24.06,
   widthMeters: 2.2,
   // two driving sections around the short middle module
-  sectionShares: [1, 0.28, 1],
-  jointMeters: 0.9,
+  sectionShares: [1, 0.17, 1],
+  jointMeters: 0.7,
   speedKmh: 36,
   mode: "loop",
   schedule: {
