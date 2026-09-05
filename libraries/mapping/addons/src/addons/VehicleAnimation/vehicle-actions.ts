@@ -319,9 +319,11 @@ export const useVehicleAnimationLauncher = () => {
       previous: VehicleAnimationState,
       def: VehicleAnimationDefinition
     ): VehicleAnimationState => {
-      if (sameDefinition(previous, def)) {
-        return previous.isOn ? previous : { ...previous, isOn: true };
-      }
+      // A running service is left alone. A switched-off one is rebuilt from
+      // the definition even when it is the same route: what the channel held
+      // may be an older reading of it, e.g. a row restored from before the
+      // definition grew a field.
+      if (sameDefinition(previous, def) && previous.isOn) return previous;
       const fallback = VEHICLE_ANIMATION_STATE_DEFAULT;
       const schedule = def.schedule;
       return {
