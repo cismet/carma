@@ -35,6 +35,8 @@ import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
 import {
   useTimeSeriesLauncher,
+  useFlowFieldLauncher,
+  type FlowFieldConfig,
   type TimeSliderConfig,
 } from "@carma-mapping/addons";
 
@@ -91,6 +93,7 @@ const ResourceModal = () => {
   );
 
   const { toggleSeries } = useTimeSeriesLauncher();
+  const { toggleField } = useFlowFieldLauncher();
   /** a workflow card's timeSlider tool: its config is the series to run */
   const startTimeSeries = useCallback(
     (config: TimeSliderConfig) => {
@@ -116,6 +119,32 @@ const ResourceModal = () => {
     [toggleSeries, messageApi]
   );
 
+  /** a workflow card's flowField tool: its config is the animation to run */
+  const startFlowField = useCallback(
+    (config: FlowFieldConfig) => {
+      const { service, scenario } = config;
+      if (!service || !scenario) {
+        messageApi.open({
+          type: "error",
+          content: "Der Workflow enthält keine vollständige Fließwege-Animation.",
+        });
+        return;
+      }
+      toggleField({
+        title: config.title ?? "Fließwege",
+        service,
+        scenario,
+        layerPostfix: config.layerPostfix,
+        uvCorrection: config.uvCorrection,
+        minZoom: config.minZoom,
+        opacity: config.opacity,
+        params: config.params,
+        backdrop: config.backdrop,
+      });
+    },
+    [toggleField, messageApi]
+  );
+
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({
       dispatch,
@@ -133,6 +162,7 @@ const ResourceModal = () => {
       messageApi,
       addLayerById,
       startTimeSeries,
+      startFlowField,
     }),
     { measurements }
   );

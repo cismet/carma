@@ -83,9 +83,99 @@ export type BlendLayerHandle = {
   destroy: () => void;
 };
 
+/**
+ * How a model's u and v components map onto eastward and northward.
+ *
+ * Which way round they are written depends on the simulation's result file, so
+ * it travels with the scenario. The Leaflet rain hazard map carries the same
+ * value under the same name, defaulting to `{ u: -1, v: -1 }`.
+ */
+export type UvCorrection = { u: number; v: number };
+
+/**
+ * One row of the animation's per-zoom profile: the alpha every drawn pixel
+ * keeps per frame, and how many frames a particle runs before it is reborn
+ * elsewhere. Same numbers as the Leaflet rain hazard map's `settingsForZoom`,
+ * keyed by MapLibre zoom, which is the Leaflet zoom minus one.
+ */
+export type FlowFieldZoomProfileEntry = {
+  zoom: number;
+  fade: number;
+  maxAge: number;
+};
+
+/**
+ * Knobs for the caged particle animation. All optional; cage's defaults are
+ * the Leaflet app's.
+ */
+export type FlowFieldParams = {
+  /** particles per square root of the viewport's ground area in m². Default 8 */
+  pathFactor?: number;
+  /** screen pixels per second a particle moves per m/s of flow. Default 36 */
+  speed?: number;
+  /** stroke width in CSS pixels. Default 1 */
+  width?: number;
+  /** stroke colour. Default `#326C88` */
+  color?: string;
+  /** fade and lifetime by zoom, interpolated between rows */
+  profile?: FlowFieldZoomProfileEntry[];
+};
+
+/**
+ * Options for the caged flow-field animation. Mirrored rather than imported,
+ * same reason as the types above. Matched structurally against cage's
+ * `FlowFieldParticles/createFlowLayer.ts`.
+ */
+export type FlowLayerOptions = {
+  map: MapLibreMap;
+  /** rasterfari base, e.g. `https://rain-rasterfari-wuppertal.cismet.de` */
+  service: string;
+  /** scenario folder, the rain hazard map config's `animation` value */
+  scenario: string;
+  layerPostfix?: string;
+  uvCorrection?: UvCorrection;
+  /**
+   * MapLibre zoom at or above which the animation runs; below it nothing is
+   * fetched or drawn. Default 16, which is the Leaflet app's zoom 17.
+   */
+  minZoom?: number;
+  /** linear factor by which the fetched box exceeds the viewport */
+  viewportBuffer?: number;
+  /** quiet time after a map move before a request goes out */
+  debounceMs?: number;
+  params?: FlowFieldParams;
+  /** class name of the overlay canvas */
+  id?: string;
+  /** the zoom gate opened or closed */
+  onActiveChange?: (active: boolean) => void;
+  onLoadingChange?: (loading: boolean) => void;
+  onRasterLoaded?: (info: {
+    width: number;
+    height: number;
+    /** share of cells carrying data, 0..1 */
+    coverage: number;
+  }) => void;
+  onError?: (error: unknown) => void;
+};
+
+/** What the caged particle layer hands back. */
+export type FlowLayerHandle = {
+  setVisible: (visible: boolean) => void;
+  setOpacity: (opacity: number) => void;
+  setParams: (params: FlowFieldParams) => void;
+  isActive: () => boolean;
+  getStats: () => {
+    count: number;
+    meanSpeed: number;
+    maxSpeed: number;
+  } | null;
+  destroy: () => void;
+};
+
 type CagedMappingAddons = {
   CageIndicatorBadge?: FunctionComponent<{ config?: CageIndicatorBadgeConfig }>;
   createBlendLayer?: (options: BlendLayerOptions) => BlendLayerHandle;
+  createFlowLayer?: (options: FlowLayerOptions) => FlowLayerHandle;
 };
 
 // Exact path rather than a wildcard: this is a single known entry point, and an
@@ -146,6 +236,19 @@ export const createBlendLayer = caged.createBlendLayer;
 /** `createBlendLayer`, or undefined while the no-cage flag is on. */
 export const useCreateBlendLayer = (): typeof createBlendLayer =>
   useCageDisabled() ? undefined : createBlendLayer;
+
+/**
+ * The flow-field particle animation over a Starkregen velocity field.
+ * Undefined without cage, and unlike the crossfade there is no fallback: the
+ * `flowField` addon then mounts nothing and the map simply has no animation.
+ *
+ * Prefer `useCreateFlowLayer` in a component.
+ */
+export const createFlowLayer = caged.createFlowLayer;
+
+/** `createFlowLayer`, or undefined while the no-cage flag is on. */
+export const useCreateFlowLayer = (): typeof createFlowLayer =>
+  useCageDisabled() ? undefined : createFlowLayer;
 
 /** Whether the caged implementations were compiled into this build. */
 export const isCagedAvailable = Boolean(cagedIndicatorBadge);

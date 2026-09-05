@@ -1,4 +1,7 @@
-import type { TimeSeriesDefinition } from "@carma-mapping/addons";
+import type {
+  FlowFieldDefinition,
+  TimeSeriesDefinition,
+} from "@carma-mapping/addons";
 
 import type { FachzwillingRoute } from ".";
 
@@ -72,6 +75,35 @@ const STARKREGEN_T50_SERIES: TimeSeriesDefinition = {
   ],
 };
 
+/**
+ * The Starkregen T50 flow field: where the surface water runs in the SRI 6 /
+ * T50 simulation, animated from the model's u/v velocity rasters.
+ *
+ * One field per scenario and no time dimension: the `84` in `u84.tif` is
+ * WGS84, not a time step, so this is the maximum-velocity field the Leaflet
+ * rain hazard map has always animated. Declared in full here for the same
+ * reason the time series is, the addon ships no scenario of its own.
+ */
+const STARKREGEN_T50_FLOW: FlowFieldDefinition = {
+  title: "Starkregen T50 Fließwege",
+  service: "https://rain-rasterfari-wuppertal.cismet.de",
+  scenario: "T50/",
+  // Leaflet 17 in the old rain hazard map; MapLibre counts one lower
+  minZoom: 16,
+};
+
+/** The same animation over the scenario's maximum water depths. */
+const STARKREGEN_T50_FLOW_WITH_DEPTH: FlowFieldDefinition = {
+  ...STARKREGEN_T50_FLOW,
+  title: "Starkregen T50 Fließwege und Wassertiefen",
+  backdrop: {
+    wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_T50_depth3857",
+    styles: "starkregen:depth",
+    opacity: 0.85,
+  },
+};
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -80,7 +112,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
     deployments: ["localDev", "dev", "pr"],
   },
   // the bare engine, idle until a workflow card launches a series into it
-  addons: ["timeSlider"],
+  addons: ["timeSlider", "flowField"],
   perspectives: [
     {
       id: "versorgung",
@@ -136,6 +168,49 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Starkregengefahrenkarte Wuppertal für das Szenario T50 (SRI 6) " +
             "in Schritten von fünf Minuten.",
           tools: [{ kind: "timeSlider", config: STARKREGEN_T50_SERIES }],
+        },
+        {
+          // No `layers`: like the time series card, this one adds no layer
+          // group. Its flowField tool carries the scenario and the click
+          // launches it into the engine the route mounts.
+          id: "t50-fliesswege",
+          title: "Starkregen T50 Fließwege",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Fließwege eines simulierten 50-jährlichen Starkregens " +
+            "(SRI 6), animiert aus den maximalen Fließgeschwindigkeiten. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt, wohin das Wasser an der Oberfläche abläuft. Die " +
+            "Animation läuft erst ab einem größeren Maßstab, weiter " +
+            "herausgezoomt bleibt die Karte ruhig.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum " +
+            "Szenario T50 (SRI 6). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [{ kind: "flowField", config: STARKREGEN_T50_FLOW }],
+        },
+        {
+          // The backdrop raster travels in the tool's own config rather than
+          // as a layer group, so this card also adds no layers of its own.
+          id: "t50-fliesswege-wassertiefen",
+          title: "Starkregen T50 Fließwege und Wassertiefen",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Die Fließwege des Szenarios T50 über der Karte der " +
+            "maximalen Wassertiefen desselben Ereignisses. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Verbindet die Frage, wo Wasser steht, mit der Frage, " +
+            "wohin es läuft. Die Animation läuft erst ab einem größeren " +
+            "Maßstab, die Wassertiefen sind in jedem Maßstab zu sehen.",
+          metaDataText:
+            "Die Wassertiefen stammen aus der Starkregengefahrenkarte " +
+            "Wuppertal, Layer starkregen:L_T50_depth3857. Die Fließwege " +
+            "entstehen aus den u- und v-Komponenten derselben Simulation.",
+          tools: [
+            { kind: "flowField", config: STARKREGEN_T50_FLOW_WITH_DEPTH },
+          ],
         },
       ],
     },

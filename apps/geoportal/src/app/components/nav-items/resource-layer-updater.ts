@@ -43,6 +43,7 @@ import { AddLayerOptions } from "@carma-mapping/carma-map-api";
 import {
   resolveAddonEntries,
   type AddonEntry,
+  type FlowFieldConfig,
   type TimeSliderConfig,
 } from "@carma-mapping/addons";
 
@@ -107,6 +108,12 @@ type ResourceLayerUpdaterDeps = {
    * `timeSlider` tool. Supplied by ResourceModal from `useTimeSeriesLauncher`.
    */
   startTimeSeries?: (config: TimeSliderConfig) => void;
+  /**
+   * Launches (or toggles) the flow-field animation a workflow card carries in
+   * its `flowField` tool. Supplied by ResourceModal from
+   * `useFlowFieldLauncher`.
+   */
+  startFlowField?: (config: FlowFieldConfig) => void;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -543,6 +550,7 @@ export const createResourceLayerUpdater = ({
   maxLayers = DEFAULT_MAX_LAYERS,
   addLayerById,
   startTimeSeries,
+  startFlowField,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -554,14 +562,28 @@ export const createResourceLayerUpdater = ({
     // A workflow whose tools carry a time series is not a layer group: the
     // card launches the series into the timeSlider engine its route mounts,
     // and a second click on the running series switches it off again.
-    if (layer.type === "workflow" && startTimeSeries) {
+    if (layer.type === "workflow") {
       // `Item.tools` is the layer catalog's wider ToolEntry shape;
       // resolveAddonEntries drops every kind the addon registry does not know
-      const timeSeriesTool = resolveAddonEntries(
-        layer.tools as AddonEntry[] | undefined
-      ).find((entry) => entry.kind === "timeSlider");
-      if (timeSeriesTool) {
+      const tools = resolveAddonEntries(layer.tools as AddonEntry[] | undefined);
+
+      const timeSeriesTool = tools.find(
+        (entry): entry is { kind: "timeSlider"; config?: TimeSliderConfig } =>
+          entry.kind === "timeSlider"
+      );
+      if (timeSeriesTool && startTimeSeries) {
         startTimeSeries(timeSeriesTool.config ?? {});
+        return;
+      }
+
+      // The animation carries its own backdrop raster in its config rather than
+      // as a layer group, so this card is done here too.
+      const flowFieldTool = tools.find(
+        (entry): entry is { kind: "flowField"; config?: FlowFieldConfig } =>
+          entry.kind === "flowField"
+      );
+      if (flowFieldTool && startFlowField) {
+        startFlowField(flowFieldTool.config ?? {});
         return;
       }
     }

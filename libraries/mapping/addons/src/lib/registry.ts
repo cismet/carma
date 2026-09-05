@@ -73,6 +73,11 @@ import {
   type TimeSliderState,
 } from "../addons/TimeSlider";
 import {
+  FlowField,
+  type FlowFieldConfig,
+  type FlowFieldState,
+} from "../addons/FlowField";
+import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
@@ -126,6 +131,11 @@ export type AddonConfigMap = {
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
   /** WMS time-series transport; the interpolation behind it is caged */
   timeSlider: TimeSliderConfig;
+  /**
+   * Flow-field particle animation over a Starkregen velocity field. Entirely
+   * caged: without cage the addon mounts nothing and there is no fallback.
+   */
+  flowField: FlowFieldConfig;
   zoomToExtent: ZoomToExtentConfig;
   /** implemented in cage; renders nothing when cage is absent */
   cageIndicatorBadge: CageIndicatorBadgeConfig;
@@ -166,6 +176,13 @@ export type AddonStateMap = {
    * which sit in the host's tree rather than in the addon's.
    */
   timeSeries: TimeSliderState;
+  /**
+   * the running flow-field animation: which scenario, whether the map is above
+   * its zoom gate, and whether a velocity field is loading; see `FlowField`.
+   * Read by the layer-bar row, which sits in the host's tree rather than in the
+   * addon's.
+   */
+  flowField: FlowFieldState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -342,6 +359,7 @@ export const addonRegistry: {
     requires: ["visibleFeatureStats"],
   },
   timeSlider: { Component: TimeSlider, provides: ["timeSeries"] },
+  flowField: { Component: FlowField, provides: ["flowField"] },
   zoomToExtent: { trigger: zoomToExtentTrigger },
   // Component is undefined when cage is absent; AddonHost renders nothing then.
   cageIndicatorBadge: { Component: CageIndicatorBadge },

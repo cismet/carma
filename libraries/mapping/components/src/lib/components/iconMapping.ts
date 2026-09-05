@@ -7,6 +7,7 @@ import {
   faRuler,
   faSquare,
   faTableColumns,
+  faWater,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const iconMap = {
@@ -14,6 +15,7 @@ export const iconMap = {
   highlight: faObjectGroup,
   comparing: faTableColumns,
   timeSeries: faClock,
+  flowField: faWater,
   background: faLayerGroup,
   ortho: faGlobe,
 };

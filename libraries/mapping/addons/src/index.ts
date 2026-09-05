@@ -77,6 +77,22 @@ export {
   type UseTimeSliderLayerRowOptions,
 } from "./addons/TimeSlider";
 
+export {
+  FlowField,
+  useFlowFieldActions,
+  useFlowFieldLauncher,
+  useFlowFieldLayerRow,
+  FLOW_FIELD_LAYER,
+  FLOW_FIELD_LAYER_ID,
+  FLOW_FIELD_STATUS_ID,
+  FLOW_FIELD_STATE_DEFAULT,
+  type FlowFieldBackdrop,
+  type FlowFieldConfig,
+  type FlowFieldDefinition,
+  type FlowFieldState,
+  type UseFlowFieldLayerRowOptions,
+} from "./addons/FlowField";
+
 export { useHasAddonStateProducer } from "./lib/addon-channels";
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
