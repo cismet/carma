@@ -2,6 +2,7 @@ import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 
 import {
   carParts,
+  poseAt,
   projectStops,
   type CarShape,
   type Station,
@@ -82,6 +83,12 @@ export type VehicleLayerHandle = {
   setOpacity: (opacity: number) => void;
   /** how many vehicles are running */
   getFleetSize: () => number;
+  /**
+   * Where one of the vehicles is, picked at random. The handle only reports
+   * the position: moving the map is the host app's business, and moving this
+   * MapLibre map on its own would leave the other framework behind.
+   */
+  pickRandomCar: () => { lon: number; lat: number } | null;
   destroy: () => void;
 };
 
@@ -144,6 +151,8 @@ export const createVehicleLayer = (
   let destroyed = false;
   let frame: number | null = null;
   let lastTimestamp: number | null = null;
+  /** so a second look does not land on the vehicle already in the middle */
+  let lastPicked: number | null = null;
 
   /** every place the service stops, in track order */
   const stops: TrackStop[] =
@@ -464,6 +473,16 @@ export const createVehicleLayer = (
       }
     },
     getFleetSize: () => fleetSize,
+    pickRandomCar: () => {
+      if (cars.length === 0) return null;
+      let index = Math.floor(Math.random() * cars.length);
+      if (cars.length > 1 && index === lastPicked) {
+        index = (index + 1) % cars.length;
+      }
+      lastPicked = index;
+      const pose = poseAt(track, cars[index].distance);
+      return { lon: pose.lon, lat: pose.lat };
+    },
     destroy: () => {
       destroyed = true;
       stop();

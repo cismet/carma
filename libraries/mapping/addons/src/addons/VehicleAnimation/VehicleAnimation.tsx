@@ -61,6 +61,7 @@ const OFF_COLOR = "#000000";
 export const VehicleAnimation = ({
   config = {},
   libreMap,
+  carma,
 }: AddonComponentProps<"vehicleAnimation">) => {
   const {
     startEnabled = true,
@@ -92,6 +93,7 @@ export const VehicleAnimation = ({
     showTrack,
     trackColor,
     isPaused,
+    focusRequest,
     setOn,
     setLoading,
     setError,
@@ -314,6 +316,22 @@ export const VehicleAnimation = ({
   useEffect(() => {
     layerRef.current?.setPaused(isPaused);
   }, [isPaused]);
+
+  // Someone asked to be shown a vehicle. The first value is whatever the
+  // channel starts at, so it is only recorded, never flown to: a fresh
+  // animation must not move the map on its own.
+  //
+  // The flight goes through the app's camera rather than through this
+  // MapLibre map. Moving the map object directly would move only that one, and
+  // the framework rendering beside it would stay where it was. No zoom is
+  // passed, so the view arrives at the vehicle at whatever scale it was on.
+  const handledFocusRef = useRef(focusRequest);
+  useEffect(() => {
+    if (handledFocusRef.current === focusRequest) return;
+    handledFocusRef.current = focusRequest;
+    const at = layerRef.current?.pickRandomCar();
+    if (at) carma.mapping2D.flyTo(at.lat, at.lon);
+  }, [focusRequest, carma]);
 
   if (!libreMap || !showControl) {
     return null;

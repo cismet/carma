@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPause, faPlay } from "@fortawesome/free-solid-svg-icons";
+import {
+  faMagnifyingGlass,
+  faPause,
+  faPlay,
+} from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
@@ -15,8 +19,10 @@ export const VEHICLE_ANIMATION_LAYER_ID = "__vehicleAnimation__";
 
 /** the readout the row shows instead of opening anything */
 export const VEHICLE_ANIMATION_STATUS_ID = "vehicle-animation-status";
-/** the row's only control: stop the vehicle where it is, and let it go again */
+/** stop the vehicles where they are, and let them go again */
 export const VEHICLE_ANIMATION_PLAY_ID = "vehicle-animation-play";
+/** fly the map to one of them, for when there is no vehicle in view */
+export const VEHICLE_ANIMATION_FOCUS_ID = "vehicle-animation-focus";
 
 const ICON_COLOR = { running: "#1677ff", idle: "#8c8c8c" };
 
@@ -93,7 +99,8 @@ const buildInteractionButtons = (
   label: string,
   isPaused: boolean,
   canPlay: boolean,
-  onTogglePaused: () => void
+  onTogglePaused: () => void,
+  onFocus: () => void
 ): InteractionButton[] => [
   ...(canPlay
     ? [
@@ -110,6 +117,17 @@ const buildInteractionButtons = (
     icon: <span style={READOUT_STYLE}>{label}</span>,
     tooltip: "Zustand der Fahrten",
   },
+  // last, so the magnifier keeps the same place whatever the readout says
+  ...(canPlay
+    ? [
+        {
+          id: VEHICLE_ANIMATION_FOCUS_ID,
+          icon: <FontAwesomeIcon icon={faMagnifyingGlass} />,
+          tooltip: "Zu einer Bahn springen",
+          onClick: onFocus,
+        },
+      ]
+    : []),
 ];
 
 /**
@@ -197,6 +215,7 @@ export const useVehicleAnimationLayerRow = ({
     fleetSize,
     headwaySeconds,
     togglePaused,
+    requestFocus,
   } = useVehicleAnimationActions();
   const { startVehicle } = useVehicleAnimationLauncher();
 
@@ -219,7 +238,8 @@ export const useVehicleAnimationLayerRow = ({
         label,
         isPaused,
         canPlay,
-        togglePaused
+        togglePaused,
+        requestFocus
       ),
       // The row's rebirth config, in the encoding a workflow card uses. The row
       // is what the host persists (the rehydrate filter keeps mode rows that
@@ -265,6 +285,7 @@ export const useVehicleAnimationLayerRow = ({
       isPaused,
       canPlay,
       togglePaused,
+      requestFocus,
       trackUrl,
       lengthMeters,
       widthMeters,

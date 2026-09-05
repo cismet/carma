@@ -118,6 +118,13 @@ export type VehicleAnimationState = {
   trackLength: number;
   /** how many vehicles the service needs, once the layer has counted them */
   fleetSize: number;
+  /**
+   * Bumped every time someone asks to be shown a vehicle. A counter rather
+   * than a flag, because the row and the engine sit in different trees and the
+   * channel is all they share: the engine flies the map when the number it
+   * last acted on changes, so two clicks in a row are two flights.
+   */
+  focusRequest: number;
 };
 
 export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
@@ -146,6 +153,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   error: null,
   trackLength: 0,
   fleetSize: 0,
+  focusRequest: 0,
 };
 
 const sameDefinition = (
@@ -245,6 +253,15 @@ export const useVehicleAnimationActions = () => {
     [setState]
   );
 
+  const requestFocus = useCallback(
+    () =>
+      setState((previous) => ({
+        ...previous,
+        focusRequest: previous.focusRequest + 1,
+      })),
+    [setState]
+  );
+
   const setFleetSize = useCallback(
     (next: number) =>
       setState((previous) =>
@@ -265,6 +282,7 @@ export const useVehicleAnimationActions = () => {
     setError,
     setTrackLength,
     setFleetSize,
+    requestFocus,
   };
 };
 
