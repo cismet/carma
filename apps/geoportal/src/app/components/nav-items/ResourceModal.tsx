@@ -175,6 +175,7 @@ const ResourceModal = () => {
         opacity: config.opacity,
         showTrack: config.showTrack,
         trackColor: config.trackColor,
+        structureUrl: config.structureUrl,
       });
     },
     [toggleVehicle, messageApi]
