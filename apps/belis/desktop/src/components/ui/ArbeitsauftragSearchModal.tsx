@@ -224,28 +224,27 @@ const ArbeitsauftragSearchModal = ({
         footer={
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
             <div className="flex items-center gap-3 text-sm text-gray-500">
-              {noResults ? (
-                <span>Keine Ergebnisse gefunden</span>
-              ) : (
-                <Checkbox
-                  checked={keepMapPosition}
-                  onChange={(e) => setKeepMapPosition(e.target.checked)}
-                >
-                  <span className="text-sm text-gray-500">
-                    Kartenposition nicht ändern
-                  </span>
-                </Checkbox>
-              )}
+              {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-              <Button
-                type="primary"
-                onClick={executeSearch}
-                loading={isSearching}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={keepMapPosition}
+                onChange={(e) => setKeepMapPosition(e.target.checked)}
               >
-                Suchen
-              </Button>
+                <span className="text-sm text-gray-500">
+                  Kartenposition nicht ändern
+                </span>
+              </Checkbox>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
+                <Button
+                  type="primary"
+                  onClick={executeSearch}
+                  loading={isSearching}
+                >
+                  Suchen
+                </Button>
+              </div>
             </div>
           </div>
         }
