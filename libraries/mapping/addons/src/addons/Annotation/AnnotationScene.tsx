@@ -38,6 +38,12 @@ void import("@excalidraw/excalidraw").then((module) => {
   getSceneVersion = module.getSceneVersion;
 });
 
+const PEN_DEFAULTS = {
+  currentItemStrokeWidth: 1,
+  currentItemStrokeStyle: "solid",
+  currentItemRoughness: 0,
+} satisfies Partial<AppState>;
+
 /** what the focus must not be taken away from, because the user is using it */
 const IN_USE =
   "input, textarea, select, button, a[href], [contenteditable=true]";
@@ -508,7 +514,7 @@ export const AnnotationScene = ({
           initialData={{
             elements: savedElements,
             files: savedFiles,
-            appState: { viewBackgroundColor: "transparent" },
+            appState: { viewBackgroundColor: "transparent", ...PEN_DEFAULTS },
           }}
         />
       </Suspense>
