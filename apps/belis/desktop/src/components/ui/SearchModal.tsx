@@ -1302,43 +1302,37 @@ const SearchModal = ({
         footer={
           <div className="flex justify-between items-center pt-3 border-t border-gray-100 -mx-6 px-6">
             <div className="flex items-center gap-3 text-sm text-gray-500">
-              {noResults ? (
-                <span>Keine Ergebnisse gefunden</span>
-              ) : (
-                <>
-                  {isExpertSearch && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => dispatch(resetType(expertObjectType))}
-                        className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
-                      >
-                        Zurücksetzen
-                      </button>
-                      <span className="w-px h-4 bg-gray-200" />
-                    </>
-                  )}
-                  <Checkbox
-                    checked={keepMapPosition}
-                    onChange={(e) => setKeepMapPosition(e.target.checked)}
-                  >
-                    <span className="text-sm text-gray-500">
-                      Kartenposition nicht ändern
-                    </span>
-                  </Checkbox>
-                </>
+              {isExpertSearch && (
+                <button
+                  type="button"
+                  onClick={() => dispatch(resetType(expertObjectType))}
+                  className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
+                >
+                  Zurücksetzen
+                </button>
               )}
+              {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-              <Button
-                type="primary"
-                onClick={executeSearch}
-                loading={isSearching}
-                disabled={searchDisabled}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={keepMapPosition}
+                onChange={(e) => setKeepMapPosition(e.target.checked)}
               >
-                Suchen
-              </Button>
+                <span className="text-sm text-gray-500">
+                  Kartenposition nicht ändern
+                </span>
+              </Checkbox>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
+                <Button
+                  type="primary"
+                  onClick={executeSearch}
+                  loading={isSearching}
+                  disabled={searchDisabled}
+                >
+                  Suchen
+                </Button>
+              </div>
             </div>
           </div>
         }
