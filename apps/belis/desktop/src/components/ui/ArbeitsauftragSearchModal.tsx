@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Modal, Button, Checkbox } from "antd";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
@@ -115,6 +115,13 @@ const ArbeitsauftragSearchModal = ({
     if (param !== null) return param === "true";
     return window.location.hostname === "localhost";
   }, []);
+
+  useEffect(() => {
+    if (noResults) {
+      const timer = setTimeout(() => setNoResults(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [noResults]);
 
   const searchValuesRef = useRef<ArbeitsauftragSearchValues>({});
 
