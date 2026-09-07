@@ -140,8 +140,12 @@ export const useLibreMapSelectionHandler = (
 
   useEffect(() => removeFeatureInfoMarker, [removeFeatureInfoMarker]);
 
-  const { selectFeature: selectMapFeature, clearSelection: clearMapSelection } =
-    useMapSelection();
+  const {
+    selectFeature: selectMapFeature,
+    clearSelection: clearMapSelection,
+    selectedFeatureId: mapSelectedFeatureId,
+    selectionVersion: mapSelectionVersion,
+  } = useMapSelection();
   const selectedFeature = useSelector(getSelectedFeature);
   useEffect(() => {
     const feature = selectedFeature as {
@@ -161,6 +165,30 @@ export const useLibreMapSelectionHandler = (
       sourceFeature
     );
   }, [selectedFeature, selectMapFeature, clearMapSelection]);
+
+  // The other direction: a selection cleared through the context by someone
+  // other than the map (an addon dropping the feature it picked) must take the
+  // redux feature with it, or the info box stays and the next click on that
+  // feature counts as a re-click and zooms. The map's own click cycle clears
+  // the context as well, right after handing the click to
+  // handleSelectionChanged, so the change that follows a click is the map's and
+  // is skipped; the redux feature for that click arrives on its own.
+  const clickClearPendingRef = useRef(false);
+  useEffect(() => {
+    if (clickClearPendingRef.current) {
+      clickClearPendingRef.current = false;
+      return;
+    }
+    if (mapSelectedFeatureId) {
+      return;
+    }
+    const current = getSelectedFeature(store.getState()) as {
+      sourceFeature?: maplibregl.MapGeoJSONFeature;
+    } | null;
+    if (current?.sourceFeature?.source) {
+      dispatch(setSelectedFeature(null));
+    }
+  }, [mapSelectionVersion, mapSelectedFeatureId, dispatch]);
 
   // styles that draw one object from several source-layers need `selected` on
   // every one of them; this runs after LibreMap has applied it to the primary
@@ -206,6 +234,8 @@ export const useLibreMapSelectionHandler = (
 
   const handleSelectionChanged = useCallback(
     async (e: SelectionEvent) => {
+      // the map clears the context in this same click; see the effect above
+      clickClearPendingRef.current = true;
       setPos([e.latlng.lat, e.latlng.lng]);
 
       const currentIsModeFeatureInfo =
