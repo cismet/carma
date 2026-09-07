@@ -136,6 +136,18 @@ export {
   type OriginSearchConfig,
 } from "./addons/OriginSearch";
 export {
+  Routing,
+  routeCameraTarget,
+  useActiveRoute,
+  useRouteNavigation,
+  type ActiveRoute,
+  type ActiveRouteState,
+  type RouteCameraTarget,
+  type RouteNavigation,
+  type RouteNavigationState,
+  type RoutingConfig,
+} from "./addons/Routing";
+export {
   collectNearestFromIndex,
   primeFeatureIndexes,
   type FeatureIndex,

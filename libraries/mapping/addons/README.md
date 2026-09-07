@@ -45,6 +45,7 @@ so the second folder is the list of what actually exists:
 | `addons/NearestFeature/`    | "In der Nähe" mode in the search bar: pick a category, get the nearest ones |
 | `addons/NearestFeature/categories/` | one addon per category the mode offers ("Apotheken") |
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
+| `addons/Routing/`           | puts the camera on the route in focus (see below)        |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain toggle button for the maplibre map              |
@@ -936,6 +937,87 @@ filter typed behind the same run".
 | `OriginSearch/originMarker.ts` | the gazetteer's own pin, for an origin that is a picked place |
 | `OriginSearch/config.ts` | position, `defaultOrigin`, placeholders, warnings, `alwaysVisible` |
 | `contexts/LocateContext.tsx` | the map's one location mode, shared with the locate button |
+
+## Onto the route: `routing`
+
+The third piece of the pair is what happens once there is a route. `routing`
+puts the user on it when asked: the map eases to the start of the route, zooms
+in and turns so the route runs up the screen, with a little tilt. Asked, not
+automatic: picking a hit shows its info box as it always did, and a button in
+that box starts the navigation. That is all it does for now; no turn list, no
+following along.
+
+Two channels carry it. `activeRoute` is the route in focus:
+
+```ts
+type ActiveRouteState = {
+  /** the route in focus; null while there is none */
+  route: { source: string; coordinates: [number, number][]; label?: string } | null;
+};
+```
+
+"In der Nähe" publishes the route of the *picked* hit, and only that one.
+Clearing the pick, leaving the stage or leaving the mode empties the channel.
+A routing search publishes the same channel later, and nothing downstream
+changes. Nothing moves the camera on this channel; it only says "there is a
+route for this".
+
+`routeNavigation` is the offer to go along it, published by the addon:
+
+```ts
+type RouteNavigationState = {
+  /** null while no routing addon is mounted */
+  navigation: { navigating: boolean; start: () => void; stop: () => void } | null;
+};
+```
+
+The button itself does not go through a channel: the app's info box is the
+consumer, and an app must not have to import this library to show it. So the
+addon contributes it through the public api, `carma.ui.addInfoBoxAction`, the
+way the gazetteer addons contribute their modes; the bridge in portals keeps
+the contributed actions, the app's info box renders whatever is there with
+`useInfoBoxActions` and `getInfoBoxActionLinks`, and neither side names the
+other. The action is registered while a route is in focus and re-registered
+under its key when `navigating` flips, which swaps label and colour in place.
+`start` does the flight and sets `navigating`, `stop` clears it, and a change
+of the route in focus ends it on its own: the user presses the button again
+for the next hit. A feature clicked directly on the map has no route in focus
+and therefore no button; fetching one from the origin is a later step.
+
+`routeNavigation` is what the camera restriction reads (below); the info box
+does not.
+
+The start of the route is the current location without asking the device
+again: the origin search hands the user's own position to the ranking as its
+default starting point, so a driven route already begins there. A route from a
+picked address begins at that address, which is right as well.
+
+The bearing looks `lookAheadMeters` (100 m) along the line rather than at the
+second vertex, so a driveway at the start does not point the map sideways.
+`zoom` (17), `pitch` (30) and `duration` (1200 ms) are the rest of the config;
+everything is optional, so the bare kind `"routing"` works.
+
+A rotated camera needs the restriction lifted: a restricted camera resets its
+bearing to zero, so the rotation would be undone as it is applied. Rather than
+have two addons write the one override slot, `cameraRestriction` got a mode
+that follows the channel:
+
+```ts
+addons: [
+  "routing",
+  { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
+]
+```
+
+Free while navigating, locked again once it ends, which is also what turns the
+map back north.
+
+| File                      | |
+| ------------------------- | --- |
+| `Routing/Routing.tsx`     | the addon: reads the route, publishes the offer, eases the camera |
+| `Routing/routeChannel.ts` | both channels, their types and hooks |
+| `Routing/routeCamera.ts`  | start point and look-ahead bearing of a route |
+| `Routing/config.ts`       | `RoutingConfig` and its defaults |
 
 ## Guidelines
 

@@ -81,6 +81,13 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // the "von wo?" input: appears once a category has been ranked, and any
     // address picked in it becomes the point "In der Nähe" measures from
     "originSearch",
+    // the route button in the info box of a picked hit: the camera goes to
+    // the start of its route, zoomed in and turned so the route runs up the
+    // screen. The restriction has to follow that, otherwise the engine turns
+    // the map straight back north; it re-locks and snaps back once the
+    // navigation ends
+    "routing",
+    { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
     {
       kind: "visibleFeatureStatsSource",
       config: {
