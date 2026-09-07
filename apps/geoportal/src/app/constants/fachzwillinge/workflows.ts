@@ -195,7 +195,7 @@ const SCHWEBEBAHN_GERUEST_VEHICLE: VehicleAnimationDefinition = {
  * The same service and structure in three dimensions: girders, bracing and
  * supports as box members at the model's heights, the cars as low-poly
  * bodies hanging under the rail. Registers as a 3D layer, which unlocks the
- * camera tilt and the terrain button while it runs.
+ * camera tilt, and with it the terrain, while it runs.
  */
 const SCHWEBEBAHN_3D_VEHICLE: VehicleAnimationDefinition = {
   ...SCHWEBEBAHN_GERUEST_VEHICLE,

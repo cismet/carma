@@ -48,10 +48,11 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  * style is covered the day it is published. A route that wants different rules
  * declares the kind itself with a config of its own.
  *
- * `libreTerrain` rides along on the same condition. The app switches CarmaMap's
- * own terrain button off (`terrainControl={false}`), so this is the only one,
- * and it is only worth offering once the map draws something three dimensional
- * for the relief to show under.
+ * `libreTerrain` follows the restriction the engine ends up with rather than
+ * the layers: whenever the camera is free the terrain is on, and it goes off
+ * again the moment the camera locks. There is no button to it; the app
+ * switches CarmaMap's own terrain button off as well (`terrainControl={false}`),
+ * so relief is never a choice the user has to make.
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
@@ -60,7 +61,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   },
   {
     kind: "libreTerrain",
-    config: { appKey: "geoportal", show: "while3dLayersActive" },
+    config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
 ];
 
