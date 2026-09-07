@@ -125,6 +125,14 @@ const ArbeitsauftragSearchModal = ({
 
   const searchValuesRef = useRef<ArbeitsauftragSearchValues>({});
 
+  // Without this the preview stays empty (and its box collapses) until the
+  // user edits a field for the first time.
+  useEffect(() => {
+    if (showRaw && isOpen) {
+      setQueryPreview(generateQueryPreview(searchValuesRef.current));
+    }
+  }, [showRaw, isOpen]);
+
   const handleValuesChange = useCallback(
     (values: ArbeitsauftragSearchValues) => {
       searchValuesRef.current = values;
