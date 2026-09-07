@@ -56,6 +56,7 @@ export {
   isItemAvailableInDeployment,
   type RestrictableItem,
 } from "./helper/deploymentRestriction";
+export { ASSET_BASE_URL, ASSET_DATA_BASE_URL } from "./helper/assetUrls";
 export * from "./helper/layerHelper";
 export * from "./helper/layerStack";
 export { default as ImageList } from "./about/pages/ImageList";

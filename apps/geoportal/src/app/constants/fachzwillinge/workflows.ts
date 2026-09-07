@@ -4,8 +4,13 @@ import type {
   VehicleAnimationDefinition,
 } from "@carma-mapping/addons";
 
-import { APP_BASE_PATH } from "../../config/app.config";
+import { ASSET_BASE_URL } from "@carma-mapping/layers";
+
 import type { FachzwillingRoute } from ".";
+
+/** the Schwebebahn geometry and timetable, too big to ship with the app */
+const SCHWEBEBAHN_GEOMETRY = `${ASSET_BASE_URL}/geoportal/geojson`;
+const SCHWEBEBAHN_DATA = `${ASSET_BASE_URL}/geoportal/data`;
 
 /**
  * The Starkregen T50 time series: water depth of the SRI 6 / T50 simulation
@@ -149,7 +154,7 @@ const SCHWEBEBAHN_STATIONS = [
  */
 const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
   title: "Schwebebahn",
-  trackUrl: `${APP_BASE_PATH}data/geojson/schwebebahn-trasse.json`,
+  trackUrl: `${SCHWEBEBAHN_GEOMETRY}/schwebebahn-trasse.json`,
   lengthMeters: 24.06,
   widthMeters: 2.2,
   // two driving sections around the short middle module
@@ -182,7 +187,7 @@ const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
 const SCHWEBEBAHN_GERUEST_VEHICLE: VehicleAnimationDefinition = {
   ...SCHWEBEBAHN_VEHICLE,
   title: "Schwebebahn mit Gerüst",
-  structureUrl: `${APP_BASE_PATH}data/geojson/schwebebahn-geruest.json`,
+  structureUrl: `${SCHWEBEBAHN_GEOMETRY}/schwebebahn-geruest.json`,
   showTrack: false,
 };
 
@@ -219,7 +224,7 @@ const SCHWEBEBAHN_3D_VEHICLE: VehicleAnimationDefinition = {
 const SCHWEBEBAHN_FAHRPLAN_VEHICLE: VehicleAnimationDefinition = {
   ...SCHWEBEBAHN_VEHICLE,
   title: "Schwebebahn nach Fahrplan",
-  timetableUrl: `${APP_BASE_PATH}data/schwebebahn-fahrplan.json`,
+  timetableUrl: `${SCHWEBEBAHN_DATA}/schwebebahn-fahrplan.json`,
   schedule: {
     headwaySeconds: 0,
     dwellSeconds: 25,
