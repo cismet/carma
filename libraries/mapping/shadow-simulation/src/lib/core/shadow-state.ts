@@ -19,5 +19,9 @@ export const resetShadowSimulationState = (
     showMapStyleLabels: true,
     useTransmittanceLut: true,
     useSkyIrradianceLut: true,
+    shadowBufferFormat: undefined,
+    shadowSunDiscSamples: undefined,
+    shadowMsaaSamples: undefined,
+    shadowGroundTexelFit: undefined,
   };
 };

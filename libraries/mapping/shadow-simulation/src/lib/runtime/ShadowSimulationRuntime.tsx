@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { clamp } from "@carma-commons/math";
+import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import {
   getSharedThreeSceneRuntimes,
   MAPLIBRE_EVENT,
@@ -11,11 +12,9 @@ import type {
   ShadowDateState,
   ShadowSimulationState,
   ShadowTerrainOptions,
+  ShadowTerrainQuality,
 } from "../contracts/shadow-simulation";
-import {
-  getSolarPosition,
-  type SolarLocation,
-} from "../core/solar-position";
+import { getSolarPosition, type SolarLocation } from "../core/solar-position";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_BUILDING_COLOR,
@@ -23,6 +22,7 @@ import {
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
   DEFAULT_SHADOW_SURFACE_COLOR,
   resolveShadowQuality,
+  resolveShadowTerrainQuality,
 } from "../core/shadow-types";
 import {
   buildShadowSimulationScene,
@@ -33,6 +33,8 @@ export const ShadowSimulationRuntime = ({
   libreMap,
   shadowAreaMeters,
   terrain,
+  mapLibreTerrain,
+  terrainQuality,
   location,
   state,
   dateState,
@@ -40,11 +42,23 @@ export const ShadowSimulationRuntime = ({
   libreMap: MaplibreMap | null;
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
+  mapLibreTerrain?: RasterDemTerrainResource;
+  terrainQuality?: ShadowTerrainQuality;
   location: SolarLocation;
   state: ShadowSimulationState;
   dateState: ShadowDateState;
 }) => {
   const shadowScene = useRef<ShadowSimulationScene | null>(null);
+  const effectiveTerrain = useMemo(
+    () =>
+      resolveShadowTerrainQuality(
+        terrain,
+        resolveShadowQuality(state.shadowQuality)
+      ),
+    [terrain, state.shadowQuality]
+  );
+  const terrainRef = useRef(effectiveTerrain);
+  terrainRef.current = effectiveTerrain;
   const [sceneRevision, setSceneRevision] = useState(0);
   const solarPosition = useMemo(
     () => getSolarPosition(dateState, location),
@@ -55,30 +69,61 @@ export const ShadowSimulationRuntime = ({
     if (!libreMap || !state.enabled) return;
     // URL state can enable the simulation before the style is ready.
     let scene: ShadowSimulationScene | null = null;
-    const tryBuild = () => {
-      if (scene || !libreMap.isStyleLoaded()) return;
+    let frame: number | null = null;
+    let task: ReturnType<typeof setTimeout> | null = null;
+    const removeStyleReadinessListeners = () => {
       libreMap.off(MAPLIBRE_EVENT.STYLE_DATA, tryBuild);
       libreMap.off(MAPLIBRE_EVENT.STYLE_LOAD, tryBuild);
-      scene = buildShadowSimulationScene(libreMap, {
-        shadowAreaMeters,
-        terrain,
-      });
-      shadowScene.current = scene;
-      setSceneRevision((revision) => revision + 1);
+      libreMap.off(MAPLIBRE_EVENT.IDLE, tryBuild);
     };
+    const tryBuild = () => {
+      if (scene || frame !== null || task !== null || !libreMap.isStyleLoaded())
+        return;
+      // Let controls paint before allocating the shadow scene. The addon gates
+      // the canvas until its first shaded pass; terrain fidelity is unchanged.
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        task = setTimeout(() => {
+          task = null;
+          if (!libreMap.isStyleLoaded()) return;
+          removeStyleReadinessListeners();
+          scene = buildShadowSimulationScene(libreMap, {
+            shadowAreaMeters,
+            terrain: terrainRef.current,
+            mapLibreTerrain,
+            terrainQuality,
+          });
+          shadowScene.current = scene;
+          setSceneRevision((revision) => revision + 1);
+        }, 0);
+      });
+    };
+    // Subscribe before checking readiness. Otherwise the style can finish in
+    // the gap between isStyleLoaded() and listener registration, leaving a
+    // URL-enabled simulation permanently without its Three scene.
+    libreMap.on(MAPLIBRE_EVENT.STYLE_DATA, tryBuild);
+    libreMap.on(MAPLIBRE_EVENT.STYLE_LOAD, tryBuild);
+    libreMap.on(MAPLIBRE_EVENT.IDLE, tryBuild);
     tryBuild();
-    if (!scene) {
-      libreMap.on(MAPLIBRE_EVENT.STYLE_DATA, tryBuild);
-      libreMap.on(MAPLIBRE_EVENT.STYLE_LOAD, tryBuild);
-    }
     return () => {
-      libreMap.off(MAPLIBRE_EVENT.STYLE_DATA, tryBuild);
-      libreMap.off(MAPLIBRE_EVENT.STYLE_LOAD, tryBuild);
+      removeStyleReadinessListeners();
+      if (frame !== null) cancelAnimationFrame(frame);
+      if (task !== null) clearTimeout(task);
       shadowScene.current = null;
       scene?.dispose();
       scene = null;
     };
-  }, [libreMap, shadowAreaMeters, state.enabled, terrain]);
+  }, [
+    libreMap,
+    shadowAreaMeters,
+    state.enabled,
+    mapLibreTerrain,
+    terrainQuality,
+  ]);
+
+  useEffect(() => {
+    shadowScene.current?.updateTerrain(effectiveTerrain);
+  }, [effectiveTerrain, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -91,6 +136,23 @@ export const ShadowSimulationRuntime = ({
       resolveShadowQuality(state.shadowQuality)
     );
   }, [state.enabled, state.shadowQuality, sceneRevision]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
+    shadowScene.current?.updateRenderQuality({
+      shadowBufferFormat: state.shadowBufferFormat,
+      shadowSunDiscSamples: state.shadowSunDiscSamples,
+      shadowMsaaSamples: state.shadowMsaaSamples,
+      shadowGroundTexelFit: state.shadowGroundTexelFit,
+    });
+  }, [
+    state.enabled,
+    state.shadowBufferFormat,
+    state.shadowSunDiscSamples,
+    state.shadowMsaaSamples,
+    state.shadowGroundTexelFit,
+    sceneRevision,
+  ]);
 
   useEffect(() => {
     if (!state.enabled) return;

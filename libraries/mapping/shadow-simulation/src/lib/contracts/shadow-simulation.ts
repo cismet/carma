@@ -1,18 +1,42 @@
 import type { Positions } from "@carma-mapping/map-controls-layout";
-import type { CesiumTerrainRuntimeOptions } from "@carma-mapping/engines/maplibre";
+import type { RasterDemTerrainRuntimeOptions } from "@carma-mapping/engines/maplibre";
+import type { RasterDemTerrainResource } from "@carma-commons/resources";
 
 import type { SolarSelection } from "../core/solar-position";
 import type {
   MeshErrorTargetPixels,
   ShadowQualityMultiplier,
+  ShadowRenderQualityOptions,
 } from "../core/shadow-types";
 
-export type ShadowTerrainOptions = Readonly<{ url: string }> &
-  Omit<CesiumTerrainRuntimeOptions, "onError" | "onContentChanged">;
+export type ShadowTerrainOptions = RasterDemTerrainResource &
+  Omit<
+    RasterDemTerrainRuntimeOptions,
+    "onError" | "onContentChanged" | "receivesMapStyleTexture"
+  >;
+
+export type ShadowTerrainSourceOption = Readonly<{
+  label: string;
+  terrain: ShadowTerrainOptions;
+}>;
+
+export const SHADOW_TERRAIN_QUALITY = {
+  STANDARD: "standard",
+  HIGH: "high",
+  MAX: "max",
+  ULTRA: "ultra",
+  EXTREME: "extreme",
+} as const;
+
+export type ShadowTerrainQuality =
+  (typeof SHADOW_TERRAIN_QUALITY)[keyof typeof SHADOW_TERRAIN_QUALITY];
 
 export type ShadowSceneOptions = {
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
+  /** Independent surface used by MapLibre for basemap draping. */
+  mapLibreTerrain?: RasterDemTerrainResource;
+  terrainQuality?: ShadowTerrainQuality;
 };
 
 export const SHADOW_CONTROL_STYLE = {
@@ -41,14 +65,21 @@ export type ShadowSimulationConfig = {
   longitude?: number;
   timeZone?: string;
   shadowAreaMeters?: number;
+  /** Primary terrain source, retained for single-source configurations. */
   terrain?: ShadowTerrainOptions;
+  /** Pinned draping source; selecting a shadow source does not change it. */
+  mapLibreTerrain?: RasterDemTerrainResource;
+  /** Selectable terrain sources. The first entry is the initial source. */
+  terrainSources?: readonly ShadowTerrainSourceOption[];
   controlPosition?: Positions;
   controlOrder?: number;
 };
 
-export type ShadowSimulationState = {
+export type ShadowSimulationState = ShadowRenderQualityOptions & {
   enabled: boolean;
   terrainColor: string;
+  terrainSourceId?: string;
+  terrainQuality?: ShadowTerrainQuality;
   buildingsFullOpacity: boolean;
   buildingColorMix: number;
   meshTextureSaturation?: number;

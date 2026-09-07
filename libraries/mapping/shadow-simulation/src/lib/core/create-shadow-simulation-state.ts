@@ -1,6 +1,7 @@
 import {
   SHADOW_ANIMATION_MODE,
   SHADOW_CONTROL_STYLE,
+  SHADOW_TERRAIN_QUALITY,
   type ShadowDateState,
   type ShadowSimulationConfig,
   type ShadowSimulationState,
@@ -18,14 +19,33 @@ import {
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
   DEFAULT_SHADOW_QUALITY,
   resolveShadowSurfaceColor,
+  SHADOW_QUALITY_PROFILES,
+  type ShadowQualityMultiplier,
 } from "./shadow-types";
+
+export const selectShadowQualityPreset = (
+  state: ShadowSimulationState,
+  shadowQuality: ShadowQualityMultiplier
+): ShadowSimulationState => ({
+  ...state,
+  shadowQuality,
+  meshErrorTarget: SHADOW_QUALITY_PROFILES[shadowQuality].meshErrorPixels,
+  shadowBufferFormat: undefined,
+  shadowSunDiscSamples: undefined,
+  shadowMsaaSamples: undefined,
+  shadowGroundTexelFit: undefined,
+});
 
 export const createInitialShadowSimulationState = (
   config: ShadowSimulationConfig | undefined
 ): ShadowSimulationState => {
+  const initialTerrain =
+    config?.terrainSources?.[0]?.terrain ?? config?.terrain;
   return {
     enabled: false,
-    terrainColor: resolveShadowSurfaceColor(config?.terrain?.material?.color),
+    terrainColor: resolveShadowSurfaceColor(initialTerrain?.material?.color),
+    terrainSourceId: initialTerrain?.id,
+    terrainQuality: SHADOW_TERRAIN_QUALITY.MAX,
     buildingsFullOpacity: true,
     buildingColorMix: DEFAULT_SHADOW_BUILDING_COLOR_MIX,
     meshTextureSaturation: DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,

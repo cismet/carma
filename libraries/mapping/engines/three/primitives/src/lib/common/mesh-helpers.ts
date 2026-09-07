@@ -5,6 +5,83 @@ import {
   type Mesh,
   type Vector3,
 } from "three";
+import { tryComputeMeshVertexNormalsWasm } from "./mesh-normals-wasm";
+
+/** Three-compatible area-weighted normals, specialized for packed indexed meshes. */
+export const computeMeshVertexNormals = (geometry: BufferGeometry): void => {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  let normal = geometry.getAttribute("normal");
+  if (
+    !(position instanceof BufferAttribute) ||
+    !(position.array instanceof Float32Array) ||
+    position.itemSize !== 3 ||
+    position.normalized ||
+    !index ||
+    !(
+      index.array instanceof Uint16Array || index.array instanceof Uint32Array
+    ) ||
+    index.itemSize !== 1 ||
+    index.normalized ||
+    (normal &&
+      (!(normal instanceof BufferAttribute) ||
+        !(normal.array instanceof Float32Array) ||
+        normal.itemSize !== 3 ||
+        normal.normalized ||
+        normal.count !== position.count))
+  ) {
+    geometry.computeVertexNormals();
+    return;
+  }
+
+  const positions = position.array;
+  const indices = index.array;
+  if (!normal) {
+    normal = new BufferAttribute(new Float32Array(positions.length), 3);
+    geometry.setAttribute("normal", normal);
+  }
+  const normals = normal.array as Float32Array;
+  if (tryComputeMeshVertexNormalsWasm(positions, indices, normals)) {
+    normal.needsUpdate = true;
+    return;
+  }
+  normals.fill(0);
+  // Preserve Three's cross-product order and Float32 rounding after each face;
+  // summing in double precision until the end changes stitched vertex normals.
+  for (let offset = 0; offset < indices.length; offset += 3) {
+    const a = indices[offset] * 3;
+    const b = indices[offset + 1] * 3;
+    const c = indices[offset + 2] * 3;
+    const cbX = positions[c] - positions[b];
+    const cbY = positions[c + 1] - positions[b + 1];
+    const cbZ = positions[c + 2] - positions[b + 2];
+    const abX = positions[a] - positions[b];
+    const abY = positions[a + 1] - positions[b + 1];
+    const abZ = positions[a + 2] - positions[b + 2];
+    const normalX = cbY * abZ - cbZ * abY;
+    const normalY = cbZ * abX - cbX * abZ;
+    const normalZ = cbX * abY - cbY * abX;
+    normals[a] += normalX;
+    normals[a + 1] += normalY;
+    normals[a + 2] += normalZ;
+    normals[b] += normalX;
+    normals[b + 1] += normalY;
+    normals[b + 2] += normalZ;
+    normals[c] += normalX;
+    normals[c + 1] += normalY;
+    normals[c + 2] += normalZ;
+  }
+  for (let offset = 0; offset < normals.length; offset += 3) {
+    const x = normals[offset];
+    const y = normals[offset + 1];
+    const z = normals[offset + 2];
+    const inverseLength = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+    normals[offset] = x * inverseLength;
+    normals[offset + 1] = y * inverseLength;
+    normals[offset + 2] = z * inverseLength;
+  }
+  normal.needsUpdate = true;
+};
 
 const buildRepeatedNormalAttribute = (
   normal: Vector3,

@@ -3,10 +3,31 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialShadowDateState,
   createInitialShadowSimulationState,
+  selectShadowQualityPreset,
 } from "./create-shadow-simulation-state";
 import { DEFAULT_SHADOW_SIMULATION_LOCATION } from "./solar-position";
 
 describe("initial shadow states", () => {
+  it("resets all manual render overrides when choosing a whole-scene preset", () => {
+    const previous = {
+      ...createInitialShadowSimulationState(undefined),
+      shadowMsaaSamples: 8 as const,
+      shadowSunDiscSamples: 32 as const,
+      shadowGroundTexelFit: false,
+      terrainSourceId: "dem",
+    };
+    const next = selectShadowQualityPreset(previous, 256);
+    expect(next).toMatchObject({
+      shadowQuality: 256,
+      meshErrorTarget: 0.25,
+      terrainSourceId: "dem",
+      showMapStyleContent: true,
+    });
+    expect(next.shadowMsaaSamples).toBeUndefined();
+    expect(next.shadowSunDiscSamples).toBeUndefined();
+    expect(next.shadowGroundTexelFit).toBeUndefined();
+    expect(previous.shadowMsaaSamples).toBe(8);
+  });
   it("builds stable independent defaults", () => {
     const state = createInitialShadowSimulationState(undefined);
     const dateState = createInitialShadowDateState(

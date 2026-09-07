@@ -57,6 +57,7 @@ import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
+import { MapLoadingProgress } from "../MapLoadingProgress";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
@@ -575,6 +576,11 @@ const MapWrapper = () => {
           }}
         >
           <GeoportalMap height={height} width={width} allow3d={allow3d} />
+          {showLibreMap && !isCesium && (
+            <MapLoadingProgress
+              navbarVisible={!zenMode && visibleControls.navbar}
+            />
+          )}
           {isCesium && <ObliqueControls hideControls={zenMode} />}
         </div>
       </ControlLayoutCanvas>

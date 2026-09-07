@@ -8,11 +8,17 @@ import type {
 import * as THREE from "three";
 
 import { quantize } from "@carma-commons/math";
+import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-registry";
+import { createMapStyleFramebufferCache } from "./map-style-framebuffer-cache";
+import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
+import { publishMapLoadingProgress } from "./map-loading-progress";
 import {
   buildSharedSceneAccumulator,
+  DEFAULT_SCENE_ACCUMULATION_OPTIONS,
   fitRenderTargetSizeToPixelBudget,
+  type SceneAccumulationOptions,
   type SharedSceneAccumulator,
-} from "./shared-scene-accumulator";
+} from "@carma-mapping/engines/three/primitives/rendering";
 
 export interface SharedThreeSceneFrame {
   map: MaplibreMap;
@@ -114,6 +120,8 @@ export type SharedSceneAccumulationController = {
   visualEpoch: () => number;
   /** Whether accumulating is worthwhile right now (soft sun, camera at rest). */
   active: () => boolean;
+  /** Sampling is queued but waiting for terrain, motion or content settling. */
+  pending?: () => boolean;
   /** Whether a settled result may cover a temporary content-loading gap. */
   retainSettledFrame: () => boolean;
   /** Re-aim the scene's lights for the given accumulation round. */
@@ -121,6 +129,8 @@ export type SharedSceneAccumulationController = {
   /** Restore the non-jittered scene state before drawing the visible frame. */
   finishRound?: () => void;
   rounds: number;
+  /** Effective buffer options may change without replacing the controller. */
+  readonly options?: SceneAccumulationOptions;
   /** Maximum offscreen pixels used by each accumulation target. */
   maxRenderTargetPixels?: number;
 };
@@ -184,6 +194,7 @@ type MapStyleProjectionUniforms = Readonly<{
   depthEnabled: { value: number };
   /** Near and far plane of the MapLibre camera that wrote that depth. */
   depthNearFar: { value: THREE.Vector2 };
+  texelSize: { value: THREE.Vector2 };
 }>;
 
 /**
@@ -207,6 +218,8 @@ export type MapStyleProjectionState = Readonly<{
   depthNearFar: readonly [number, number];
   receivers: Readonly<Record<string, boolean>>;
   frames: number;
+  captures: number;
+  captureReuses: number;
 }>;
 
 type MapStyleProjectionMaterialState = {
@@ -215,7 +228,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v2";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v4";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 
 const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
@@ -234,6 +247,7 @@ uniform float carmaMapStyleEnabled;
 uniform sampler2D carmaMapStyleDepthTexture;
 uniform float carmaMapStyleDepthEnabled;
 uniform vec2 carmaMapStyleDepthNearFar;
+uniform vec2 carmaMapStyleTexelSize;
 varying vec4 vCarmaMapStyleClip;
 #ifdef CARMA_MAP_STYLE_OVERLAY
 // Draped label picked up in map_fragment, composited after lighting.
@@ -250,6 +264,52 @@ float carmaMapStyleLinearDepth( float ndcZ ) {
   float near = carmaMapStyleDepthNearFar.x;
   float far = carmaMapStyleDepthNearFar.y;
   return 2.0 * near * far / ( far + near - ndcZ * ( far - near ) );
+}
+
+bool carmaMapStyleMatchesReceiver( vec2 uv ) {
+  if ( carmaMapStyleDepthEnabled < 0.5 ) return true;
+  float groundZ = carmaMapStyleUnpackDepth( texture2D( carmaMapStyleDepthTexture, uv ) );
+  if ( groundZ <= 0.0 ) return false;
+  float fragmentZ = vCarmaMapStyleClip.z / vCarmaMapStyleClip.w;
+  float groundDistance = carmaMapStyleLinearDepth( groundZ );
+  float fragmentDistance = carmaMapStyleLinearDepth( fragmentZ );
+  float tolerance = max( 2.0, 0.005 * groundDistance );
+  return abs( fragmentDistance - groundDistance ) <= tolerance;
+}
+
+vec4 carmaMapStyleSampleGround( vec2 uv ) {
+  vec4 sampleColor = texture2D( carmaMapStyleTexture, uv );
+  if ( carmaMapStyleMatchesReceiver( uv ) ) return sampleColor;
+
+  // MapLibre terrain without skirts can leave a one-to-few-pixel gap between
+  // independently tessellated DEM tiles. Fill only those depth-less pixels
+  // from the nearest ground sample so the captured style cannot paint the
+  // framebuffer background as a dark seam onto the continuous Three terrain.
+  vec2 texel = carmaMapStyleTexelSize;
+  vec2 offsets[16];
+  offsets[0] = vec2( 2.0, 0.0 );
+  offsets[1] = vec2( -2.0, 0.0 );
+  offsets[2] = vec2( 0.0, 2.0 );
+  offsets[3] = vec2( 0.0, -2.0 );
+  offsets[4] = vec2( 2.0, 2.0 );
+  offsets[5] = vec2( -2.0, 2.0 );
+  offsets[6] = vec2( 2.0, -2.0 );
+  offsets[7] = vec2( -2.0, -2.0 );
+  offsets[8] = vec2( 8.0, 0.0 );
+  offsets[9] = vec2( -8.0, 0.0 );
+  offsets[10] = vec2( 0.0, 8.0 );
+  offsets[11] = vec2( 0.0, -8.0 );
+  offsets[12] = vec2( 8.0, 8.0 );
+  offsets[13] = vec2( -8.0, 8.0 );
+  offsets[14] = vec2( 8.0, -8.0 );
+  offsets[15] = vec2( -8.0, -8.0 );
+  for ( int index = 0; index < 16; index++ ) {
+    vec2 candidateUv = clamp( uv + offsets[index] * texel, vec2( 0.0 ), vec2( 1.0 ) );
+    if ( carmaMapStyleMatchesReceiver( candidateUv ) ) {
+      return texture2D( carmaMapStyleTexture, candidateUv );
+    }
+  }
+  return vec4( 0.0 );
 }
 
 // The screen projection paints every surface along the view ray. A label
@@ -305,10 +365,7 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
     all( greaterThanEqual( carmaMapStyleUv, vec2( 0.0 ) ) ) &&
     all( lessThanEqual( carmaMapStyleUv, vec2( 1.0 ) ) )
   ) {
-    vec4 carmaMapStyleSample = texture2D(
-      carmaMapStyleTexture,
-      carmaMapStyleUv
-    );
+    vec4 carmaMapStyleSample = carmaMapStyleSampleGround( carmaMapStyleUv );
 #ifdef CARMA_MAP_STYLE_OVERLAY
     // MapLibre leaves premultiplied color in the framebuffer. Straighten it,
     // linearize and composite it over the receiver's own texture so a
@@ -325,10 +382,12 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
       carmaMapStyleLabelColor = carmaMapStyleStraight;
     }
 #else
-    diffuseColor.rgb = carmaMapStyleSRGBToLinear(
-      carmaMapStyleSample.rgb
-    );
-    diffuseColor.a = 1.0;
+    if ( carmaMapStyleSample.a > 0.0 ) {
+      diffuseColor.rgb = carmaMapStyleSRGBToLinear(
+        carmaMapStyleSample.rgb
+      );
+      diffuseColor.a = 1.0;
+    }
 #endif
   }
 }
@@ -386,6 +445,7 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaMapStyleDepthTexture"] = state.uniforms.depthTexture;
     shader.uniforms["carmaMapStyleDepthEnabled"] = state.uniforms.depthEnabled;
     shader.uniforms["carmaMapStyleDepthNearFar"] = state.uniforms.depthNearFar;
+    shader.uniforms["carmaMapStyleTexelSize"] = state.uniforms.texelSize;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
@@ -592,10 +652,8 @@ export const buildSharedThreeSceneLayer = (
   const lodCamera = new THREE.PerspectiveCamera();
   let accumulationController: SharedSceneAccumulationController | null = null;
   let accumulator: SharedSceneAccumulator | null = null;
-  let accumulatorRounds = 0;
+  let accumulatorConfigurationKey = "";
   let settledAccumulatorVisualKey = "";
-  const jitterMatrix = new THREE.Matrix4();
-  const unjitteredProjectionMatrix = new THREE.Matrix4();
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const mapStyleProjectionUniforms: MapStyleProjectionUniforms = {
@@ -605,8 +663,12 @@ export const buildSharedThreeSceneLayer = (
     depthTexture: { value: null },
     depthEnabled: { value: 0 },
     depthNearFar: { value: new THREE.Vector2(1, 1000) },
+    texelSize: { value: new THREE.Vector2(1, 1) },
   };
   let mapStyleFramebufferTexture: THREE.FramebufferTexture | null = null;
+  let mapStyleFramebufferCache: ReturnType<
+    typeof createMapStyleFramebufferCache
+  > | null = null;
   // A Three texture handle that borrows MapLibre's terrain depth WebGLTexture
   // for the frame instead of copying it.
   let mapStyleDepthTexture: THREE.Texture | null = null;
@@ -622,6 +684,7 @@ export const buildSharedThreeSceneLayer = (
   let meterScale = 0;
   let mapStyleProjectionVisible = true;
   let mapStyleProjectionEpoch = 0;
+  let capturedMapStyleRevision = -1;
   let renderedFrames = 0;
   let disposed = false;
 
@@ -684,6 +747,7 @@ export const buildSharedThreeSceneLayer = (
       mapStyleFramebufferTexture.magFilter = THREE.LinearFilter;
       mapStyleProjectionUniforms.texture.value = mapStyleFramebufferTexture;
     }
+    mapStyleProjectionUniforms.texelSize.value.set(1 / width, 1 / height);
     renderer.copyFramebufferToTexture(mapStyleFramebufferTexture);
     mapStyleProjectionUniforms.enabled.value = 1;
   };
@@ -717,6 +781,7 @@ export const buildSharedThreeSceneLayer = (
       mapStyleProjectionUniforms.depthTexture.value = mapStyleDepthTexture;
     }
     if (mapStyleDepthGlTexture !== glTexture) {
+      mapStyleFramebufferCache?.invalidate();
       mapStyleDepthGlTexture = glTexture;
       const properties = renderer.properties.get(mapStyleDepthTexture) as {
         __webglTexture?: WebGLTexture;
@@ -800,7 +865,20 @@ export const buildSharedThreeSceneLayer = (
     },
 
     setAccumulationController(controller) {
+      if (map)
+        publishMapLoadingProgress(
+          map,
+          MAP_LOADING_PHASE.SHADOW,
+          layerId,
+          controller ? 0 : 1
+        );
+      if (map && !controller) setSharedThreeShadedPresentation(map, false);
       accumulationController = controller;
+      if (renderer) {
+        renderer.toneMapping = controller
+          ? THREE.AgXToneMapping
+          : THREE.NoToneMapping;
+      }
       if (!controller) {
         accumulator?.dispose();
         accumulator = null;
@@ -818,6 +896,8 @@ export const buildSharedThreeSceneLayer = (
         ],
         receivers: Object.fromEntries(mapStyleProjectionReceivers),
         frames: renderedFrames,
+        captures: mapStyleFramebufferCache?.stats.captures ?? 0,
+        captureReuses: mapStyleFramebufferCache?.stats.reuses ?? 0,
       };
     },
 
@@ -825,6 +905,7 @@ export const buildSharedThreeSceneLayer = (
       if (mapStyleProjectionVisible === visible) return;
       mapStyleProjectionVisible = visible;
       mapStyleProjectionEpoch += 1;
+      mapStyleFramebufferCache?.invalidate();
       if (!visible) mapStyleProjectionUniforms.enabled.value = 0;
       map?.triggerRepaint();
     },
@@ -859,6 +940,10 @@ export const buildSharedThreeSceneLayer = (
     },
 
     detach() {
+      if (map)
+        publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
+      mapStyleFramebufferCache?.dispose();
+      mapStyleFramebufferCache = null;
       for (const runtime of runtimes.values()) scene.remove(runtime.root);
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
@@ -878,6 +963,13 @@ export const buildSharedThreeSceneLayer = (
 
     onAdd(mapInstance, gl) {
       map = mapInstance;
+      mapStyleFramebufferCache?.dispose();
+      mapStyleFramebufferCache = createMapStyleFramebufferCache(
+        mapInstance,
+        layerId
+      );
+      capturedMapStyleRevision = -1;
+      mapStyleProjectionEpoch += 1;
       const center = mapInstance.getCenter();
       originMerc = MercatorCoordinate.fromLngLat([center.lng, center.lat], 0);
       meterScale = originMerc.meterInMercatorCoordinateUnits();
@@ -887,6 +979,11 @@ export const buildSharedThreeSceneLayer = (
       });
       depthRangeBridge = installRenderTargetDepthRangeBridge(renderer, gl);
       renderer.autoClear = false;
+      // Direct/point-sun frames and the final HDR accumulation use the same
+      // display transform. Ordinary unshaded tiles retain their original look.
+      renderer.toneMapping = accumulationController
+        ? THREE.AgXToneMapping
+        : THREE.NoToneMapping;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFShadowMap;
       for (const runtime of runtimes.values()) {
@@ -957,9 +1054,33 @@ export const buildSharedThreeSceneLayer = (
       mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
       if (mapStyleProjectionVisible && configureMapStyleProjection()) {
         try {
-          captureMapStyleFramebuffer();
           bindMapStyleDepth();
+          const contentRevision = mapStyleFramebufferCache?.revision ?? 0;
+          if (capturedMapStyleRevision !== contentRevision) {
+            capturedMapStyleRevision = contentRevision;
+            mapStyleProjectionEpoch += 1;
+          }
+          const captureSignature = [
+            viewport.x,
+            viewport.y,
+            ...sceneToClipMatrix.elements,
+            mapStyleProjectionUniforms.depthEnabled.value,
+            ...mapStyleProjectionUniforms.depthNearFar.value.toArray(),
+          ].join(",");
+          const lightingReplay = accumulationController !== null;
+          if (
+            !mapStyleFramebufferTexture ||
+            !mapStyleFramebufferCache?.canReuse(
+              captureSignature,
+              lightingReplay
+            )
+          ) {
+            captureMapStyleFramebuffer();
+            mapStyleFramebufferCache?.captured(captureSignature);
+          }
+          mapStyleProjectionUniforms.enabled.value = 1;
         } catch (error) {
+          mapStyleFramebufferCache?.invalidate();
           mapStyleProjectionUniforms.enabled.value = 0;
           mapStyleProjectionUniforms.depthEnabled.value = 0;
           console.warn("[shared-three-scene] map-style capture failed", error);
@@ -989,15 +1110,30 @@ export const buildSharedThreeSceneLayer = (
       const visualKey = accumulation
         ? `${accumulation.visualEpoch()}|${mapStyleProjectionEpoch}|${poseKey}`
         : "";
+      const nextAccumulatorConfigurationKey = accumulation
+        ? `${accumulation.rounds}|${
+            accumulation.options?.format ??
+            DEFAULT_SCENE_ACCUMULATION_OPTIONS.format
+          }|${
+            accumulation.options?.msaaSamples ??
+            DEFAULT_SCENE_ACCUMULATION_OPTIONS.msaaSamples
+          }`
+        : "";
+      if (
+        accumulator &&
+        accumulatorConfigurationKey !== nextAccumulatorConfigurationKey
+      ) {
+        accumulator.dispose();
+        accumulator = null;
+        settledAccumulatorVisualKey = "";
+      }
       if (accumulation?.active() && renderer && !accumulator?.broken) {
-        if (accumulator && accumulatorRounds !== accumulation.rounds) {
-          accumulator.dispose();
-          accumulator = null;
-          settledAccumulatorVisualKey = "";
-        }
         if (!accumulator) {
-          accumulator = buildSharedSceneAccumulator(accumulation.rounds);
-          accumulatorRounds = accumulation.rounds;
+          accumulator = buildSharedSceneAccumulator(
+            accumulation.rounds,
+            accumulation.options
+          );
+          accumulatorConfigurationKey = nextAccumulatorConfigurationKey;
         }
         accumulator.ensureState(
           `${accumulation.epoch()}|${mapStyleProjectionEpoch}|${poseKey}`
@@ -1016,21 +1152,10 @@ export const buildSharedThreeSceneLayer = (
         if (!accumulator.converged) {
           const round = accumulator.nextRound;
           accumulation.prepareRound(round);
-          // Sub-pixel camera jitter per round: with the geometry at rest the
-          // average is straight supersampling, which also wins back the
-          // antialiasing the offscreen target lacks.
-          const jitter = accumulator.jitterFor(round);
-          jitterMatrix.makeTranslation(
-            (jitter.x * 2) / accumulationSize.width,
-            (jitter.y * 2) / accumulationSize.height,
-            0
-          );
+          // Only sample the light direction. MapLibre's captured color/depth
+          // were rendered from this exact camera; keep that registration for
+          // every round. The accumulation target supplies geometry MSAA.
           const activeRenderer = renderer;
-          unjitteredProjectionMatrix.copy(renderCamera.projectionMatrix);
-          renderCamera.projectionMatrix.premultiply(jitterMatrix);
-          renderCamera.projectionMatrixInverse
-            .copy(renderCamera.projectionMatrix)
-            .invert();
           try {
             depthRangeBridge?.render(savedDepthRange, () => {
               accumulator?.renderRound(
@@ -1041,10 +1166,6 @@ export const buildSharedThreeSceneLayer = (
               );
             });
           } finally {
-            renderCamera.projectionMatrix.copy(unjitteredProjectionMatrix);
-            renderCamera.projectionMatrixInverse
-              .copy(unjitteredProjectionMatrix)
-              .invert();
             accumulation.finishRound?.();
           }
           if (accumulator.converged) {
@@ -1064,6 +1185,14 @@ export const buildSharedThreeSceneLayer = (
           });
         }
         if (!accumulator.converged) map.triggerRepaint();
+        publishMapLoadingProgress(
+          map,
+          MAP_LOADING_PHASE.SHADOW,
+          layerId,
+          accumulator.converged
+            ? 1
+            : accumulator.nextRound / Math.max(1, accumulation.rounds)
+        );
       } else {
         const retainSettled =
           accumulation?.retainSettledFrame() === true &&
@@ -1080,11 +1209,29 @@ export const buildSharedThreeSceneLayer = (
             renderer?.render(scene, renderCamera);
           });
         }
+        publishMapLoadingProgress(
+          map,
+          MAP_LOADING_PHASE.SHADOW,
+          layerId,
+          !accumulator?.broken && accumulation?.pending?.() ? 0 : 1
+        );
       }
       clearDepthForMapStyleOverlays(gl, savedDepthRange);
+      if (accumulation) setSharedThreeShadedPresentation(map, true);
     },
 
     onRemove() {
+      if (map)
+        publishMapLoadingProgress(
+          map,
+          MAP_LOADING_PHASE.SHADOW,
+          layerId,
+          1,
+          false
+        );
+      mapStyleFramebufferCache?.dispose();
+      mapStyleFramebufferCache = null;
+      if (map) setSharedThreeShadedPresentation(map, false);
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
       releaseMapStyleDepth();
@@ -1101,6 +1248,17 @@ export const buildSharedThreeSceneLayer = (
 
     dispose() {
       if (disposed) return;
+      if (map)
+        publishMapLoadingProgress(
+          map,
+          MAP_LOADING_PHASE.SHADOW,
+          layerId,
+          1,
+          false
+        );
+      mapStyleFramebufferCache?.dispose();
+      mapStyleFramebufferCache = null;
+      if (map) setSharedThreeShadedPresentation(map, false);
       disposed = true;
       accumulator?.dispose();
       accumulator = null;

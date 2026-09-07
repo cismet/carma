@@ -37,6 +37,7 @@ import {
 import { getRangeProgressStyle } from "./shadow-control-utils";
 
 import "dayjs/locale/de";
+import "./shadow-simulation.css";
 
 export const ShadowSimulationHeaderControlsView = ({
   config,
@@ -61,10 +62,7 @@ export const ShadowSimulationHeaderControlsView = ({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const selection = dateState;
   const daylight = useMemo(
-    () =>
-      selection
-        ? getDaylightWindow(selection, location)
-        : null,
+    () => (selection ? getDaylightWindow(selection, location) : null),
     [location, selection]
   );
   const selectedDate = useMemo(
@@ -86,138 +84,152 @@ export const ShadowSimulationHeaderControlsView = ({
 
   return (
     <div
-      className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-neutral-700"
+      className="shadow-simulation-header-controls text-sm text-neutral-700"
       data-test-id="shadow-simulation-header-controls"
     >
-      <div className="grid shrink-0 grid-cols-[28px_118px_28px] items-center">
-        <button
-          type="button"
-          className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
-          aria-label="Vorheriger Tag"
-          onClick={() =>
-            publishSelection({
-              ...selection,
-              ...offsetYearDay(selection, -1),
-            })
-          }
-        >
-          <FontAwesomeIcon icon={faChevronLeft} />
-        </button>
-        <div className="relative min-w-0 justify-self-center">
+      <div className="shadow-simulation-header-layout">
+        <div className="shadow-simulation-header-date grid grid-cols-[28px_minmax(0,118px)_28px] items-center">
           <button
             type="button"
-            className="flex h-9 max-w-full items-center gap-1.5 whitespace-nowrap rounded-md px-1 tabular-nums hover:bg-neutral-100"
-            aria-label="Datum auswählen"
-            aria-expanded={datePickerOpen}
-            onClick={() => setDatePickerOpen(true)}
-          >
-            <FontAwesomeIcon
-              icon={faCalendarDays}
-              className="shrink-0 text-neutral-500"
-            />
-            <span className="truncate">
-              {formatSolarSelectionDate(selection, false)}
-            </span>
-          </button>
-          <DatePicker
-            open={datePickerOpen}
-            value={selectedDate}
-            locale={deDE.DatePicker}
-            format="D. MMMM YYYY"
-            allowClear={false}
-            inputReadOnly
-            getPopupContainer={(trigger) => trigger.parentElement ?? trigger}
-            onOpenChange={setDatePickerOpen}
-            onChange={(date) => {
-              if (!date) return;
+            className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
+            aria-label="Vorheriger Tag"
+            onClick={() =>
               publishSelection({
                 ...selection,
-                year: date.year(),
-                dayOfYear: getDayOfYear(date.year(), date.month(), date.date()),
-              });
-              setDatePickerOpen(false);
-            }}
-            className="pointer-events-none absolute left-0 top-full h-0 w-0 overflow-hidden p-0 opacity-0"
-            aria-label="Datum auswählen"
-          />
+                ...offsetYearDay(selection, -1),
+              })
+            }
+          >
+            <FontAwesomeIcon icon={faChevronLeft} />
+          </button>
+          <div className="relative min-w-0 justify-self-center">
+            <button
+              type="button"
+              className="flex h-9 max-w-full items-center gap-1.5 whitespace-nowrap rounded-md px-1 tabular-nums hover:bg-neutral-100"
+              aria-label="Datum auswählen"
+              aria-expanded={datePickerOpen}
+              onClick={() => setDatePickerOpen(true)}
+            >
+              <FontAwesomeIcon
+                icon={faCalendarDays}
+                className="shrink-0 text-neutral-500"
+              />
+              <span className="truncate">
+                {formatSolarSelectionDate(selection, false)}
+              </span>
+            </button>
+            <DatePicker
+              open={datePickerOpen}
+              value={selectedDate}
+              locale={deDE.DatePicker}
+              format="D. MMMM YYYY"
+              allowClear={false}
+              inputReadOnly
+              getPopupContainer={(trigger) => trigger.parentElement ?? trigger}
+              onOpenChange={setDatePickerOpen}
+              onChange={(date) => {
+                if (!date) return;
+                publishSelection({
+                  ...selection,
+                  year: date.year(),
+                  dayOfYear: getDayOfYear(
+                    date.year(),
+                    date.month(),
+                    date.date()
+                  ),
+                });
+                setDatePickerOpen(false);
+              }}
+              className="pointer-events-none absolute left-0 top-full h-0 w-0 overflow-hidden p-0 opacity-0"
+              aria-label="Datum auswählen"
+            />
+          </div>
+          <button
+            type="button"
+            className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
+            aria-label="Nächster Tag"
+            onClick={() =>
+              publishSelection({
+                ...selection,
+                ...offsetYearDay(selection, 1),
+              })
+            }
+          >
+            <FontAwesomeIcon icon={faChevronRight} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="flex h-9 w-7 items-center justify-center rounded-full hover:bg-neutral-100"
-          aria-label="Nächster Tag"
-          onClick={() =>
+        <span
+          className="shadow-simulation-header-divider h-7 w-px bg-neutral-200"
+          aria-hidden="true"
+        />
+        <label className="shadow-simulation-header-time m-0 flex h-9 w-fit cursor-pointer items-center gap-1.5 rounded-md px-1 hover:bg-neutral-100">
+          <FontAwesomeIcon
+            icon={faClock}
+            className="shrink-0 text-neutral-500"
+          />
+          <input
+            type="time"
+            value={formatClockMinutes(selection.minutes)}
+            min={formatClockMinutes(minimumMinutes)}
+            max={formatClockMinutes(maximumMinutes)}
+            step={60}
+            onClick={(event) => {
+              try {
+                event.currentTarget.showPicker();
+              } catch {
+                return;
+              }
+            }}
+            onChange={(event) => {
+              const [hours, minutes] = event.currentTarget.value
+                .split(":")
+                .map(Number);
+              if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+              publishSelection({
+                ...selection,
+                minutes: hours * 60 + minutes,
+              });
+            }}
+            className="shadow-simulation-time-input w-[46px] cursor-pointer bg-transparent p-0 text-sm font-medium leading-none tabular-nums text-neutral-800 outline-none"
+            aria-label="Uhrzeit auswählen"
+            data-test-id="shadow-simulation-time-input"
+          />
+        </label>
+        <input
+          type="range"
+          min={minimumMinutes}
+          max={maximumMinutes}
+          step={1}
+          value={selection.minutes}
+          onChange={(event) =>
             publishSelection({
               ...selection,
-              ...offsetYearDay(selection, 1),
+              minutes: Number(event.currentTarget.value),
             })
           }
+          className="shadow-simulation-header-range shadow-simulation-range cursor-pointer"
+          style={getRangeProgressStyle(
+            selection.minutes,
+            minimumMinutes,
+            maximumMinutes
+          )}
+          aria-label="Uhrzeit"
+          data-test-id="shadow-simulation-ribbon-time"
+        />
+        <button
+          type="button"
+          className="shadow-simulation-header-play flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100"
+          aria-label={
+            state.isAnimating ? "Animation pausieren" : "Animation starten"
+          }
+          aria-pressed={state.isAnimating ?? false}
+          onClick={() =>
+            setState({ ...state, isAnimating: !state.isAnimating })
+          }
         >
-          <FontAwesomeIcon icon={faChevronRight} />
+          <FontAwesomeIcon icon={state.isAnimating ? faPause : faPlay} />
         </button>
       </div>
-      <span className="h-7 w-px shrink-0 bg-neutral-200" />
-      <label className="m-0 flex h-9 w-fit shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 hover:bg-neutral-100">
-        <FontAwesomeIcon icon={faClock} className="shrink-0 text-neutral-500" />
-        <input
-          type="time"
-          value={formatClockMinutes(selection.minutes)}
-          min={formatClockMinutes(minimumMinutes)}
-          max={formatClockMinutes(maximumMinutes)}
-          step={60}
-          onClick={(event) => {
-            try {
-              event.currentTarget.showPicker();
-            } catch {
-              return;
-            }
-          }}
-          onChange={(event) => {
-            const [hours, minutes] = event.currentTarget.value
-              .split(":")
-              .map(Number);
-            if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
-            publishSelection({
-              ...selection,
-              minutes: hours * 60 + minutes,
-            });
-          }}
-          className="shadow-simulation-time-input w-[46px] cursor-pointer bg-transparent p-0 text-sm font-medium leading-none tabular-nums text-neutral-800 outline-none"
-          aria-label="Uhrzeit auswählen"
-          data-test-id="shadow-simulation-time-input"
-        />
-      </label>
-      <input
-        type="range"
-        min={minimumMinutes}
-        max={maximumMinutes}
-        step={1}
-        value={selection.minutes}
-        onChange={(event) =>
-          publishSelection({
-            ...selection,
-            minutes: Number(event.currentTarget.value),
-          })
-        }
-        className="shadow-simulation-range min-w-[80px] flex-1 cursor-pointer"
-        style={getRangeProgressStyle(
-          selection.minutes,
-          minimumMinutes,
-          maximumMinutes
-        )}
-        aria-label="Uhrzeit"
-        data-test-id="shadow-simulation-ribbon-time"
-      />
-      <button
-        type="button"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100"
-        aria-label={
-          state.isAnimating ? "Animation pausieren" : "Animation starten"
-        }
-        aria-pressed={state.isAnimating ?? false}
-        onClick={() => setState({ ...state, isAnimating: !state.isAnimating })}
-      >
-        <FontAwesomeIcon icon={state.isAnimating ? faPause : faPlay} />
-      </button>
     </div>
   );
 };

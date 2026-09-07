@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { createInitialShadowSimulationState } from "./create-shadow-simulation-state";
 import { resetShadowSimulationState } from "./shadow-state";
+import {
+  resolveShadowRenderQuality,
+  SHADOW_BUFFER_FORMAT,
+} from "./shadow-types";
 
 const initialState = createInitialShadowSimulationState(undefined);
 
@@ -17,5 +21,18 @@ describe("shadow state transitions", () => {
     expect(state.isAnimating).toBe(false);
     expect(state.showProjectionDebugView).toBe(false);
     expect(state.showMapStyleContent).toBe(true);
+  });
+
+  it("resets experimental render settings to automatic defaults", () => {
+    const state = resetShadowSimulationState({
+      ...initialState,
+      shadowBufferFormat: SHADOW_BUFFER_FORMAT.SDR_8,
+      shadowSunDiscSamples: 512,
+      shadowMsaaSamples: 0,
+    });
+    expect(resolveShadowRenderQuality(state)).toEqual(
+      resolveShadowRenderQuality()
+    );
+    expect(state.shadowSunDiscSamples).toBeUndefined();
   });
 });

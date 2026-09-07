@@ -52,7 +52,7 @@ export {
   AddonProvider,
   AddonScopeContext,
   AddonStateSetterContext,
-  AddonStateValueContext,
+  AddonStateStoreContext,
   EMPTY_ADDON_STATE,
 } from "./AddonStateContext";
 

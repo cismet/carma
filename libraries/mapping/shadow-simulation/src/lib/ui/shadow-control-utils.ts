@@ -1,6 +1,10 @@
 import type { CSSProperties } from "react";
 
-import type { ShadowQualityMultiplier } from "../core/shadow-types";
+import {
+  SHADOW_BUFFER_FORMAT,
+  SHADOW_QUALITY,
+  type ShadowQualityMultiplier,
+} from "../core/shadow-types";
 
 export const QUICK_BUTTON_CLASS_NAME =
   "flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-neutral-300 bg-white px-1 text-center text-sm text-neutral-800 transition-colors hover:border-amber-500 hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40";
@@ -12,10 +16,21 @@ export const SHADOW_QUALITY_LEVELS: ReadonlyArray<{
   label: string;
   value: ShadowQualityMultiplier;
 }> = [
-  { label: "Mittel", value: 4 },
-  { label: "Hoch", value: 16 },
-  { label: "Max", value: 64 },
+  { label: "120 FPS", value: SHADOW_QUALITY.FPS_120 },
+  { label: "60 FPS", value: SHADOW_QUALITY.FPS_60 },
+  { label: "30 FPS", value: SHADOW_QUALITY.FPS_30 },
+  { label: "Ultra", value: SHADOW_QUALITY.ULTRA },
 ];
+
+export const SHADOW_BUFFER_FORMAT_OPTIONS = [
+  { value: SHADOW_BUFFER_FORMAT.HDR_16, label: "HDR · 16 Bit (Experiment)" },
+  {
+    value: SHADOW_BUFFER_FORMAT.HDR_16_32,
+    label: "HDR · 16/32 Bit (Standard)",
+  },
+  { value: SHADOW_BUFFER_FORMAT.HDR_32, label: "HDR · 32 Bit (ohne MSAA)" },
+  { value: SHADOW_BUFFER_FORMAT.SDR_8, label: "SDR · 8 Bit (Experiment)" },
+] as const;
 
 export const formatHour = (hour: number): string =>
   `${String(hour).padStart(2, "0")}:00`;

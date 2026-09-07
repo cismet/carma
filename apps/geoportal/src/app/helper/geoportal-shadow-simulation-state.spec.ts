@@ -9,9 +9,35 @@ import {
   applyShadowHashSelection,
   resolveGeoportalShadowHashSelection,
   shadowStateMatchesHashSelection,
+  createGeoportalShadowStartupState,
 } from "./geoportal-shadow-simulation-state";
 
 describe("geoportal shadow simulation state", () => {
+  it("resolves enabled state and date before any map or addon mounts", () => {
+    const state = createGeoportalShadowStartupState(
+      { year: 2026 },
+      { dayOfYear: 172, minutes: 720 },
+      { latitude: 51.27, longitude: 7.2 }
+    );
+    expect(state.shadowSimulation.enabled).toBe(true);
+    expect(state.shadowDate).toMatchObject({
+      year: 2026,
+      dayOfYear: 172,
+      minutes: 720,
+      timeZone: "Europe/Berlin",
+    });
+    expect(
+      createGeoportalShadowStartupState(
+        { year: 2025 },
+        { dayOfYear: 366, minutes: 720 },
+        {}
+      ).shadowSimulation.enabled
+    ).toBe(false);
+    expect(
+      createGeoportalShadowStartupState(undefined, null, {}).shadowSimulation
+        .enabled
+    ).toBe(false);
+  });
   it("matches enabled state and hash selection by value", () => {
     const selection = { dayOfYear: 172, minutes: 720 };
     expect(shadowStateMatchesHashSelection(true, selection, selection)).toBe(

@@ -14,12 +14,29 @@ const mapLibreEventMock = vi.hoisted(() => ({
   TERRAIN: "terrain",
 }));
 
-vi.mock("@carma-mapping/engines/maplibre", () => {
+const TEST_TERRAIN_SOURCE = {
+  id: "terrain-source",
+  url: "https://example.test/terrain/{z}/{x}/{y}.png",
+  tileSize: 512,
+  minzoom: 5,
+  maxzoom: 15,
+  encoding: "terrarium" as const,
+  bounds: [6.4, 50.8, 7.8, 51.6] as const,
+};
+
+vi.mock("@carma-mapping/engines/maplibre", async () => {
+  // Node-only renderer fixtures: load the pure implementation, not Leaflet/UI.
+  const { isTerrainShadingStyleLayer } = await vi.importActual<
+    typeof import("../../../../engines/maplibre/src/lib/style-composition/terrain-drape-style")
+  >(
+    "../../../../engines/maplibre/src/lib/style-composition/terrain-drape-style"
+  );
   return {
+    isTerrainShadingStyleLayer,
     MAPLIBRE_EVENT: mapLibreEventMock,
     WUPPERTAL_TERRAIN_SOURCE_ID: "terrain-source",
     acquireSharedThreeScene: vi.fn(),
-    buildCesiumTerrainRuntime: vi.fn(),
+    buildRasterDemTerrainRuntime: vi.fn(),
     getGenericThreeLayers: vi.fn(() => []),
     getSharedThreeShadowViewSignature: vi.fn(({ camera, shadowMapSize }) =>
       [
@@ -45,13 +62,14 @@ vi.mock("@carma-mapping/engines/maplibre", () => {
 
 import {
   acquireSharedThreeScene,
-  buildCesiumTerrainRuntime,
+  buildRasterDemTerrainRuntime,
   getGenericThreeLayers,
   getSharedThreeSceneRuntimes,
   MAPLIBRE_EVENT,
   subscribeGenericThreeLayers,
   subscribeSharedThreeSceneContent,
   suppressMapLibreRegularStyleLayers,
+  type SharedThreeSceneLayer,
 } from "@carma-mapping/engines/maplibre";
 
 import {
@@ -69,7 +87,10 @@ import {
   subscribeShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 import { getDaylightWindow, getSolarPosition } from "../core/solar-position";
-import { DEFAULT_MESH_ERROR_TARGET_PIXELS } from "../core/shadow-types";
+import {
+  DEFAULT_MESH_ERROR_TARGET_PIXELS,
+  SHADOW_QUALITY,
+} from "../core/shadow-types";
 
 describe("shadow scene sun direction", () => {
   const position = (azimuthDegrees: number, elevationDegrees: number) => ({
@@ -124,6 +145,7 @@ describe("shadow scene MapLibre terrain", () => {
     type Handler = () => void;
     const handlers = new Map<string, Set<Handler>>();
     let terrain: { source: string; exaggeration: number } | null = null;
+    let terrainSourceAdded = false;
     const layers = [
       { id: "background", type: "background" },
       { id: "basemap", type: "raster", source: "basemap-source" },
@@ -144,8 +166,14 @@ describe("shadow scene MapLibre terrain", () => {
       terrain: null,
       getTerrain: vi.fn(() => terrain),
       getSource: vi.fn((sourceId: string) =>
-        sourceId === "terrain-source" ? { id: sourceId } : undefined
+        sourceId === "terrain-source" && terrainSourceAdded
+          ? { id: sourceId }
+          : undefined
       ),
+      isStyleLoaded: vi.fn(() => true),
+      addSource: vi.fn((sourceId: string) => {
+        if (sourceId === "terrain-source") terrainSourceAdded = true;
+      }),
       setTerrain: vi.fn((next: typeof terrain) => {
         terrain = next;
       }),
@@ -188,12 +216,20 @@ describe("shadow scene MapLibre terrain", () => {
     let drapeMode: "opaque" | "labels" = "labels";
     const release = acquireShadowMapLibreTerrain(
       map as never,
-      "terrain-source",
+      TEST_TERRAIN_SOURCE,
       () => true,
       () => drapeMode
     );
 
     expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    expect(map.addSource).toHaveBeenCalledWith(
+      "terrain-source",
+      expect.objectContaining({
+        type: "raster-dem",
+        tiles: [TEST_TERRAIN_SOURCE.url],
+        encoding: "terrarium",
+      })
+    );
     expect(layers.some(({ id }) => id === "carma-shadow-map-style-base")).toBe(
       false
     );
@@ -320,7 +356,7 @@ describe("shadow scene MapLibre terrain", () => {
     let mapStyleContentVisible = true;
     const release = acquireShadowMapLibreTerrain(
       map as never,
-      "terrain-source",
+      TEST_TERRAIN_SOURCE,
       () => mapStyleContentVisible
     );
 
@@ -399,28 +435,16 @@ describe("shadow scene lighting integration", () => {
     dispose: () => void;
   };
   let sharedRuntimes: Map<string, SharedRuntimeFixture>;
-  let accumulationController: {
-    active: () => boolean;
-    retainSettledFrame: () => boolean;
-    prepareRound: (round: number) => void;
-    finishRound?: () => void;
-    rounds: number;
-  } | null;
+  let accumulationController: Parameters<
+    SharedThreeSceneLayer["setAccumulationController"]
+  >[0];
   let sharedLayer: {
     getScene: () => THREE.Scene;
     addRuntime: (runtime: SharedRuntimeFixture) => void;
     hasRuntime: (runtimeId: string) => boolean;
     removeRuntime: (runtimeId: string) => void;
     getRenderer: () => THREE.WebGLRenderer | null;
-    setAccumulationController: (
-      controller: {
-        active: () => boolean;
-        retainSettledFrame: () => boolean;
-        prepareRound: (round: number) => void;
-        finishRound?: () => void;
-        rounds: number;
-      } | null
-    ) => void;
+    setAccumulationController: SharedThreeSceneLayer["setAccumulationController"];
     setMapStyleProjectionVisible: (visible: boolean) => void;
     projectLngLatToScene?: (
       lngLat: [number, number],
@@ -481,6 +505,144 @@ describe("shadow scene lighting integration", () => {
       viewport: new THREE.Vector2(800, 600),
     });
   };
+
+  it.each(["loaded", "failed", "disposed"] as const)(
+    "transfers DEM/DSM coverage (%s) without replacing style or lighting",
+    async (outcome) => {
+      let resolveReplacement!: (loaded: boolean) => void;
+      const createTerrain = (id: string, ready: Promise<boolean>) => ({
+        id,
+        originLngLat: [7.15, 51.256] as [number, number],
+        root: new THREE.Group(),
+        ready,
+        update: vi.fn(),
+        setShadowView: vi.fn(),
+        setMaterialColor: vi.fn(),
+        adoptPresentation: vi.fn(),
+        getElevation: vi.fn(() => 150),
+        getActiveTileVolumes: vi.fn(() => []),
+        getViewElevationRange: vi.fn(() => [100, 200] as const),
+        dispose: vi.fn(),
+      });
+      const original = createTerrain("original", Promise.resolve(true));
+      const replacement = createTerrain(
+        "replacement",
+        new Promise((resolve) => {
+          resolveReplacement = resolve;
+        })
+      );
+      vi.mocked(buildRasterDemTerrainRuntime)
+        .mockReturnValueOnce(original)
+        .mockReturnValueOnce(replacement);
+      const map = {
+        getCenter: () => ({ lng: 7.15, lat: 51.256 }),
+        getLight: () => ({ anchor: "viewport" }),
+        isStyleLoaded: () => true,
+        setLight: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        triggerRepaint: vi.fn(),
+      };
+      const controller = buildShadowSimulationScene(map as never, {
+        terrain: TEST_TERRAIN_SOURCE,
+      });
+      await original.ready;
+      const lights = accumulationController;
+      controller.updateTerrain({
+        ...TEST_TERRAIN_SOURCE,
+        id: "dsm",
+        url: "/dsm/{z}/{x}/{y}",
+      });
+      expect(replacement.adoptPresentation).toHaveBeenCalledWith(original);
+      expect(original.dispose).toHaveBeenCalledOnce();
+      expect(
+        replacement.adoptPresentation.mock.invocationCallOrder[0]
+      ).toBeLessThan(original.dispose.mock.invocationCallOrder[0]);
+      expect(buildRasterDemTerrainRuntime).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({ id: "dsm" }),
+        original.originLngLat,
+        expect.objectContaining({ receivesMapStyleTexture: true })
+      );
+      expect(releaseScene).not.toHaveBeenCalled();
+      expect(accumulationController).toBe(lights);
+      if (outcome === "disposed") controller.dispose();
+      resolveReplacement(outcome !== "failed");
+      await replacement.ready;
+      if (outcome === "disposed") {
+        expect(replacement.dispose).toHaveBeenCalledOnce();
+        return;
+      }
+      // A failed source still owns the transferred surface; do not remove it.
+      expect(replacement.dispose).not.toHaveBeenCalled();
+      expect(original.dispose).toHaveBeenCalledOnce();
+      expect(accumulationController).toBe(lights);
+      expect(releaseScene).not.toHaveBeenCalled();
+      controller.dispose();
+    }
+  );
+
+  it("updates render quality in place and skips equivalent invalidations", () => {
+    vi.mocked(buildRasterDemTerrainRuntime).mockReturnValue({
+      id: "terrain",
+      originLngLat: [7.15, 51.256],
+      root: new THREE.Group(),
+      ready: Promise.resolve(true),
+      update: vi.fn(),
+      setShadowView: vi.fn(),
+      setMaterialColor: vi.fn(),
+      getElevation: vi.fn(() => 150),
+      dispose: vi.fn(),
+    });
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never, {
+      terrain: TEST_TERRAIN_SOURCE,
+    });
+    const accumulation = accumulationController!;
+    const initialEpoch = accumulation.epoch();
+    const initialRuntimeCount = vi.mocked(sharedLayer.addRuntime).mock.calls
+      .length;
+    const initialOptions = accumulation.options;
+    expect(accumulation.rounds).toBe(512);
+    expect(initialOptions).toEqual({ format: "rgba16f-32f", msaaSamples: 4 });
+
+    map.triggerRepaint.mockClear();
+    controller.updateRenderQuality({
+      shadowBufferFormat: "rgba16f-32f",
+      shadowMsaaSamples: 4,
+    });
+    expect(accumulation.epoch()).toBe(initialEpoch);
+    expect(accumulation.options).toBe(initialOptions);
+    expect(map.triggerRepaint).not.toHaveBeenCalled();
+
+    controller.updateRenderQuality({
+      shadowBufferFormat: "rgba32f",
+      shadowSunDiscSamples: 256,
+    });
+    expect(accumulation.epoch()).toBeGreaterThan(initialEpoch);
+    expect(accumulation.rounds).toBe(256);
+    expect(accumulation.options).toEqual({ format: "rgba32f", msaaSamples: 0 });
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(sharedLayer.addRuntime).mock.calls.length).toBe(
+      initialRuntimeCount
+    );
+    expect(sharedLayer.setAccumulationController).toHaveBeenCalledTimes(1);
+    expect(buildRasterDemTerrainRuntime).toHaveBeenCalledTimes(1);
+
+    controller.updateShadowQuality(4);
+    expect(accumulation.rounds).toBe(256);
+    controller.updateRenderQuality({});
+    expect(accumulation.rounds).toBe(128);
+    controller.dispose();
+  });
 
   it("drives MapLibre and the Three.js sun from the same solar position", () => {
     const performanceNow = vi.spyOn(performance, "now").mockReturnValue(100);
@@ -669,6 +831,54 @@ describe("shadow scene lighting integration", () => {
     expect(
       evaluateAtmosphere.mock.lastCall?.[3]?.scenePosition.toArray()
     ).toEqual([7_150, 100, 51_256]);
+
+    const moveStart = map.on.mock.calls.find(
+      ([eventName]) => eventName === MAPLIBRE_EVENT.MOVE_START
+    )?.[1] as () => void;
+    const moveEnd = map.on.mock.calls.find(
+      ([eventName]) => eventName === MAPLIBRE_EVENT.MOVE_END
+    )?.[1] as () => void;
+    const movingMapStyleUpdateCount = setLight.mock.calls.length;
+    const movingLabelUpdateCount = setLocationLabelColor.mock.calls.length;
+    moveStart();
+    for (const [nowMs, altitude] of [
+      [120, 4_600],
+      [140, 4_700],
+    ]) {
+      performanceNow.mockReturnValue(nowMs);
+      camera.position.y = altitude;
+      camera.updateMatrixWorld(true);
+      updateShadows(map, camera);
+    }
+    expect(setLight).toHaveBeenCalledTimes(movingMapStyleUpdateCount);
+    expect(setLocationLabelColor).toHaveBeenCalledTimes(movingLabelUpdateCount);
+    expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(4_800);
+    const movingSample = evaluateAtmosphere.mock.results.at(-1)?.value;
+    expect(sun.color.equals(movingSample.radiance)).toBe(true);
+
+    performanceNow.mockReturnValue(1_200);
+    camera.position.y = 4_800;
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera);
+    expect(setLight).toHaveBeenCalledTimes(movingMapStyleUpdateCount + 1);
+
+    performanceNow.mockReturnValue(1_220);
+    camera.position.y = 4_900;
+    camera.updateMatrixWorld(true);
+    updateShadows(map, camera);
+    expect(setLight).toHaveBeenCalledTimes(movingMapStyleUpdateCount + 1);
+    moveEnd();
+    expect(setLight).toHaveBeenCalledTimes(movingMapStyleUpdateCount + 2);
+    expect(setLocationLabelColor).toHaveBeenCalledTimes(
+      movingLabelUpdateCount + 2
+    );
+    const finalMotionSample = evaluateAtmosphere.mock.results.at(-1)?.value;
+    expect(setLight.mock.lastCall?.[0].color).toBe(
+      `#${finalMotionSample.color.getHexString()}`
+    );
+    expect(setLocationLabelColor).toHaveBeenLastCalledWith(
+      `#${finalMotionSample.color.getHexString()}`
+    );
 
     const animatedMapStyleUpdateCount = setLight.mock.calls.length;
     controller.updateTimeAnimating(true);
@@ -960,11 +1170,9 @@ describe("shadow scene lighting integration", () => {
         clientWidth: viewportWidth,
         clientHeight: viewportHeight,
       })),
-      unproject: vi.fn(([x, y]: [number, number]) => ({
-        lng: mapCenter.lng + (x / viewportWidth - 0.5) * viewportHalfWidth * 2,
-        lat:
-          mapCenter.lat + (0.5 - y / viewportHeight) * viewportHalfHeight * 2,
-      })),
+      unproject: vi.fn(() => {
+        throw new Error("Terrain picking must not run while fitting shadows");
+      }),
       getLight: vi.fn(() => ({ anchor: "viewport" })),
       isStyleLoaded: vi.fn(() => true),
       setLight: vi.fn(),
@@ -983,6 +1191,8 @@ describe("shadow scene lighting integration", () => {
     const sunVector = scene.getObjectByName(
       "shadow-simulation-sun-vector"
     ) as THREE.ArrowHelper;
+    expect(readShadowProjectionDebugSnapshot(map as never)?.shadow).toBeFalsy();
+    controller.updateSunDebugVectorVisibility(true);
     const updateAndExpectViewportInsideBuffer = () => {
       const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
       const cameraRange =
@@ -1029,8 +1239,11 @@ describe("shadow scene lighting integration", () => {
 
     const wideViewportBuffer = updateAndExpectViewportInsideBuffer();
     expect(getBounds).not.toHaveBeenCalled();
+    expect(map.unproject).not.toHaveBeenCalled();
     expect(sunVector.position.toArray()).toEqual([0, 0, 0]);
-    expect(sunVector.cone.position.y).toBeCloseTo(1_000);
+    const wideSunVectorLength = sunVector.cone.position.y;
+    expect(wideSunVectorLength).toBeGreaterThan(0);
+    expect(Number.isFinite(wideSunVectorLength)).toBe(true);
     expect(map.on).toHaveBeenCalledWith("move", expect.any(Function));
 
     mapCenter = { lng: 0.5, lat: 1 };
@@ -1052,6 +1265,7 @@ describe("shadow scene lighting integration", () => {
     moveHandler();
 
     const zoomedViewportBuffer = updateAndExpectViewportInsideBuffer();
+    expect(sunVector.cone.position.y).toBeLessThan(wideSunVectorLength);
     expect(
       (zoomedViewportBuffer?.rightMeters ?? 0) -
         (zoomedViewportBuffer?.leftMeters ?? 0)
@@ -1059,6 +1273,19 @@ describe("shadow scene lighting integration", () => {
       (wideViewportBuffer?.rightMeters ?? 0) -
         (wideViewportBuffer?.leftMeters ?? 0)
     );
+
+    const resizeHandler = map.on.mock.calls.find(
+      ([eventName]) => eventName === MAPLIBRE_EVENT.RESIZE
+    )?.[1] as () => void;
+    const moveEndHandler = map.on.mock.calls.find(
+      ([eventName]) => eventName === MAPLIBRE_EVENT.MOVE_END
+    )?.[1] as () => void;
+    resizeHandler();
+    updateAndExpectViewportInsideBuffer();
+    moveEndHandler();
+    controller.updateShadowQuality(SHADOW_QUALITY.FPS_60);
+    updateAndExpectViewportInsideBuffer();
+    expect(map.unproject).not.toHaveBeenCalled();
 
     controller.dispose();
   });
@@ -1270,6 +1497,18 @@ describe("shadow scene lighting integration", () => {
         return vi.fn();
       }
     );
+    const setTerrainShadowView = vi.fn();
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      {
+        id: "terrain-provider",
+        originLngLat: [0, 0],
+        root: new THREE.Group(),
+        providesTerrain: true,
+        update: vi.fn(),
+        setShadowView: setTerrainShadowView,
+        dispose: vi.fn(),
+      },
+    ]);
     const map = {
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
@@ -1297,6 +1536,8 @@ describe("shadow scene lighting integration", () => {
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
     updateShadows(map, camera);
+    const initialTerrainShadowViewCalls =
+      setTerrainShadowView.mock.calls.length;
     expect(
       readShadowProjectionDebugSnapshot(map as never)?.maximumElevationMeters
     ).toBeCloseTo(0);
@@ -1310,9 +1551,13 @@ describe("shadow scene lighting integration", () => {
     contentChanged();
     updateShadows(map, camera);
 
+    expect(map.unproject).not.toHaveBeenCalled();
     expect(
       readShadowProjectionDebugSnapshot(map as never)?.maximumElevationMeters
     ).toBeGreaterThanOrEqual(300);
+    expect(setTerrainShadowView).toHaveBeenCalledTimes(
+      initialTerrainShadowViewCalls
+    );
 
     controller.dispose();
     buildingVolume.geometry.dispose();
@@ -1368,7 +1613,7 @@ describe("shadow scene lighting integration", () => {
     (elevatedReceiver.material as THREE.Material).dispose();
   });
 
-  it("adds configured Cesium terrain to the shared scene", async () => {
+  it("adds configured raster DEM terrain to the shared scene", async () => {
     const terrainRoot = new THREE.Group();
     let resolveTerrainReady!: (loaded: boolean) => void;
     const terrainReady = new Promise<boolean>((resolve) => {
@@ -1385,7 +1630,7 @@ describe("shadow scene lighting integration", () => {
       getElevation: vi.fn(() => 150),
       dispose: vi.fn(),
     };
-    vi.mocked(buildCesiumTerrainRuntime).mockReturnValue(terrainRuntime);
+    vi.mocked(buildRasterDemTerrainRuntime).mockReturnValue(terrainRuntime);
     const addRuntime = vi.fn();
     const removeRuntime = vi.fn();
     vi.mocked(acquireSharedThreeScene).mockReturnValue({
@@ -1394,6 +1639,10 @@ describe("shadow scene lighting integration", () => {
         getRenderer: () =>
           ({
             capabilities: { maxTextureSize: 16_384 },
+            getContext: () => ({
+              getInternalformatParameter: () => new Int32Array([4, 2]),
+              getParameter: () => 16_384,
+            }),
           } as THREE.WebGLRenderer),
         addRuntime,
         hasRuntime: vi.fn(() => true),
@@ -1426,14 +1675,14 @@ describe("shadow scene lighting integration", () => {
     const controller = buildShadowSimulationScene(map as never, {
       shadowAreaMeters: 600,
       terrain: {
-        url: "https://example.test/terrain",
+        ...TEST_TERRAIN_SOURCE,
         minimumLevel: 10,
         maximumLevel: 16,
       },
     });
-    expect(buildCesiumTerrainRuntime).toHaveBeenCalledWith(
-      "shadow-simulation-cesium-terrain",
-      "https://example.test/terrain",
+    expect(buildRasterDemTerrainRuntime).toHaveBeenCalledWith(
+      "shadow-simulation-raster-dem-1",
+      TEST_TERRAIN_SOURCE,
       [7.15, 51.256],
       expect.objectContaining({ minimumLevel: 10, maximumLevel: 16 })
     );
@@ -1478,7 +1727,10 @@ describe("shadow scene lighting integration", () => {
     expect(
       (shadowView.camera as THREE.OrthographicCamera).isOrthographicCamera
     ).toBe(true);
-    expect(shadowView.shadowMapSize.width).toBe(4_096);
+    // The 30 FPS preset budgets 4096² depth texels at native 2560×1440.
+    expect(shadowView.shadowMapSize.width).toBe(
+      Math.floor(Math.sqrt((4096 ** 2 * (800 * 600)) / (2560 * 1440)))
+    );
     expect(shadowView.shadowMapSize.width).not.toBe(800);
     expect(evaluateAtmosphere.mock.lastCall?.[1].altitudeMeters).toBe(425);
 
@@ -1491,7 +1743,7 @@ describe("shadow scene lighting integration", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const makeTerrainRuntime = () => ({
-      id: "shadow-simulation-cesium-terrain",
+      id: "shadow-simulation-raster-dem",
       originLngLat: [7.15, 51.256] as [number, number],
       root: new THREE.Group(),
       ready: Promise.resolve(true),
@@ -1503,7 +1755,7 @@ describe("shadow scene lighting integration", () => {
     });
     const initialTerrain = makeTerrainRuntime();
     const restoredTerrain = makeTerrainRuntime();
-    vi.mocked(buildCesiumTerrainRuntime)
+    vi.mocked(buildRasterDemTerrainRuntime)
       .mockReturnValueOnce(initialTerrain)
       .mockReturnValueOnce(restoredTerrain);
     let contentChanged = () => undefined;
@@ -1533,7 +1785,7 @@ describe("shadow scene lighting integration", () => {
     };
 
     const controller = buildShadowSimulationScene(map as never, {
-      terrain: { url: "https://example.test/terrain" },
+      terrain: TEST_TERRAIN_SOURCE,
     });
     await initialTerrain.ready;
     expect(sharedRuntimes.has(initialTerrain.id)).toBe(true);
@@ -1563,7 +1815,7 @@ describe("shadow scene lighting integration", () => {
     contentChanged();
     await restoredTerrain.ready;
 
-    expect(buildCesiumTerrainRuntime).toHaveBeenCalledTimes(2);
+    expect(buildRasterDemTerrainRuntime).toHaveBeenCalledTimes(2);
     expect(sharedRuntimes.get(restoredTerrain.id)).toBe(restoredTerrain);
     expect(restoredTerrain.setMaterialColor).toHaveBeenCalled();
 

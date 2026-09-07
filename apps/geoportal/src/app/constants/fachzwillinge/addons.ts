@@ -1,7 +1,25 @@
 import type { FachzwillingRoute } from ".";
 import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
-import { WUPP_TERRAIN_PROVIDER } from "@carma-commons/resources";
+import {
+  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
+} from "@carma-commons/resources";
+
+const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
+  errorTargetPixels: 0.5,
+  shadowLevelOffset: 3,
+  minimumLevel: 8,
+  meshSegments: 512,
+  heightRangeMeters: [-100, 600] as const,
+  maxSelectionTiles: 1_536,
+  requestConcurrency: 24,
+  maxCacheBytes: 268_435_456,
+  maxCachedMeshes: 2_048,
+  material: {
+    color: "#d3d3d3",
+  },
+} as const;
 
 export const addonsFachzwilling: FachzwillingRoute = {
   path: "addons",
@@ -84,22 +102,25 @@ export const addonsFachzwilling: FachzwillingRoute = {
       kind: "shadowSimulation",
       config: {
         initialMinutes: 15 * 60,
-        terrain: {
-          url: WUPP_TERRAIN_PROVIDER.url,
-          errorTargetPixels: 0.5,
-          shadowLevelOffset: 3,
-          minimumLevel: 8,
-          maximumLevel: 18,
-          noDataHeightMeters: 0,
-          heightRangeMeters: [-100, 600],
-          maxSelectionTiles: 1_536,
-          requestConcurrency: 24,
-          maxCacheBytes: 268_435_456,
-          maxCachedMeshes: 2_048,
-          material: {
-            color: "#d3d3d3",
+        mapLibreTerrain: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+        terrainSources: [
+          {
+            label: "Gelände (DGM)",
+            terrain: {
+              ...NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+              ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
+              maximumLevel: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+            },
           },
-        },
+          {
+            label: "Oberfläche (DOM/DSM)",
+            terrain: {
+              ...NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
+              ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
+              maximumLevel: NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+            },
+          },
+        ],
       },
     },
     // dev harness for highlightByIds; this route is localDev/dev/pr only

@@ -2,7 +2,15 @@
 // MapLibre GL JS integration for CARMA mapping framework
 
 export const MAPLIBRE_ENGINE_VERSION = "0.0.1";
-export * from "./lib/contracts/maplibre-style.d";
+export type {
+  CarmaConf3DModel,
+  CarmaConf3DClippingPolygon,
+  CarmaConf3D,
+  CarmaMapLibreStyleMetadata,
+  CarmaMapLibreStyleData,
+  CarmaMapLibreFeatureProperties,
+} from "./lib/contracts/maplibre-style.d";
+export { useMapLoadingProgress } from "./lib/runtime/hooks/use-map-loading-progress";
 
 // Components
 export { LibreMap } from "./components/LibreMap";
@@ -225,10 +233,7 @@ export {
   DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
   DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
 } from "./constants/cameraDefaults";
-export {
-  MAPLIBRE_EVENT,
-  type MapLibreEventName,
-} from "./constants/mapEvents";
+export { MAPLIBRE_EVENT, type MapLibreEventName } from "./constants/mapEvents";
 
 // Three.js layer management
 export { ThreeLayerManager } from "./components/ThreeLayerManager";
@@ -257,12 +262,18 @@ export {
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
 export {
+  isTerrainShadingStyleLayer,
+  prepareTerrainDrapeStyle,
+} from "./lib/style-composition/terrain-drape-style";
+export {
   getSharedThreeSceneRuntimes,
   notifySharedThreeSceneContentChanged,
   notifySharedThreeSceneRequestStateChanged,
   registerSharedThreeSceneRuntime,
   subscribeSharedThreeSceneContent,
   subscribeSharedThreeSceneRequestState,
+  hasSharedThreeShadedPresentation,
+  subscribeSharedThreeShadedPresentation,
 } from "./lib/runtime/integrations/shared-three-scene-content-registry";
 export {
   getGenericThreeLayers,
@@ -286,8 +297,8 @@ export type {
   ImageProjector,
   ThreeTilesRuntime,
 } from "./lib/runtime/integrations/three-tiles-runtime";
-export { buildCesiumTerrainRuntime } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
-export type { CesiumTerrainRuntimeOptions } from "./lib/runtime/integrations/cesium-terrain-tile-runtime";
+export { buildRasterDemTerrainRuntime } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
+export type { RasterDemTerrainRuntimeOptions } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
 export { isSharedThreeTerrainLoading } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,

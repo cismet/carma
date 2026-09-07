@@ -51,13 +51,19 @@ describe("atmospheric sky", () => {
       "outputColor = carmaLinearToSrgb(outputColor)"
     );
     expect(sky.mesh.material.fragmentShader).toContain(
+      "outputColor.rgb = AgXToneMapping(outputColor.rgb)"
+    );
+    expect(sky.mesh.material.fragmentShader).toContain(
       "missing terrain reveals sky rather than a dark plane"
     );
     expect(sky.mesh.material.uniforms.carmaDisplayExposure.value).toBe(
       ATMOSPHERIC_DISPLAY_EXPOSURE
     );
     sky.mesh.onBeforeRender(
-      { getRenderTarget: () => null } as unknown as THREE.WebGLRenderer,
+      {
+        getRenderTarget: () => null,
+        toneMappingExposure: 1,
+      } as unknown as THREE.WebGLRenderer,
       new THREE.Scene(),
       new THREE.PerspectiveCamera(),
       sky.mesh.geometry,
@@ -65,9 +71,11 @@ describe("atmospheric sky", () => {
       null
     );
     expect(sky.mesh.material.uniforms.carmaOutputToSrgb.value).toBe(true);
+    expect(sky.mesh.material.uniforms.toneMappingExposure.value).toBe(1);
     sky.mesh.onBeforeRender(
       {
         getRenderTarget: () => ({}),
+        toneMappingExposure: 1,
       } as unknown as THREE.WebGLRenderer,
       new THREE.Scene(),
       new THREE.PerspectiveCamera(),

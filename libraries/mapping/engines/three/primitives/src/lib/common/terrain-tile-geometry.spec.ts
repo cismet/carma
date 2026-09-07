@@ -66,4 +66,27 @@ describe("createProjectedTerrainTileGeometry", () => {
       })
     ).toThrow("outside the vertex array");
   });
+
+  it("keeps indices above 65535 intact for full-resolution terrain grids", () => {
+    const vertexCount = 65537;
+    const u = new Float32Array(vertexCount);
+    const v = new Float32Array(vertexCount);
+    u[65535] = 1;
+    v[65536] = 1;
+    const geometry = createProjectedTerrainTileGeometry({
+      tile: {
+        bounds: tile.bounds,
+        u,
+        v,
+        heightMeters: new Float32Array(vertexCount),
+        indices: new Uint32Array([0, 65535, 65536]),
+      },
+      projectToWorld: (longitude, latitude, height, target) =>
+        target.set(longitude, height, -latitude),
+    });
+
+    expect(geometry.getIndex()?.array).toBeInstanceOf(Uint32Array);
+    expect([...(geometry.getIndex()?.array ?? [])]).toEqual([0, 65535, 65536]);
+    geometry.dispose();
+  });
 });

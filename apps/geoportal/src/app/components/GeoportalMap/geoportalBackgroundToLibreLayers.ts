@@ -1,6 +1,7 @@
 import type { BackgroundLayer } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
+import { prepareTerrainDrapeStyle } from "@carma-mapping/engines/maplibre";
 
 type NamedLayerConfig = {
   type: string;
@@ -132,6 +133,12 @@ export const geoportalBackgroundToLibreLayers = (
           carmaLayerId,
           style: cfg.style,
           opacity,
+          ...(options.shadowTerrainActive
+            ? {
+                userStyleTransform: prepareTerrainDrapeStyle,
+                userStyleTransformKey: "terrain-albedo-v1",
+              }
+            : {}),
         });
         break;
       }

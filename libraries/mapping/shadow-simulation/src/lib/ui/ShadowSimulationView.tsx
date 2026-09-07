@@ -22,6 +22,7 @@ import {
 import {
   createInitialShadowDateState,
   createInitialShadowSimulationState,
+  selectShadowQualityPreset,
 } from "../core/create-shadow-simulation-state";
 import {
   DEFAULT_SHADOW_SIMULATION_LOCATION,
@@ -69,24 +70,44 @@ export const ShadowSimulationView = ({
     timeZone = DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
     shadowAreaMeters,
     terrain,
+    terrainSources,
+    mapLibreTerrain,
     controlPosition = "topleft",
     controlOrder = 70,
   } = config ?? {};
   const location = useMapCenterSolarLocation(libreMap, latitude, longitude);
   const initialState = useMemo<ShadowSimulationState>(
-    () => createInitialShadowSimulationState({ terrain }),
-    [terrain]
+    () => createInitialShadowSimulationState({ terrain, terrainSources }),
+    [terrain, terrainSources]
   );
   const initialDateState = useMemo<ShadowDateState>(
     () =>
+      sharedDateState ??
       createInitialShadowDateState(
         { year, initialDayOfYear, initialMinutes, timeZone },
         location
       ),
-    [initialDayOfYear, initialMinutes, location, timeZone, year]
+    [
+      sharedDateState,
+      initialDayOfYear,
+      initialMinutes,
+      location,
+      timeZone,
+      year,
+    ]
   );
   const state = sharedState ?? initialState;
   const dateState = sharedDateState ?? initialDateState;
+  const selectableTerrainSources = useMemo(
+    () =>
+      terrainSources ??
+      (terrain ? [{ label: terrain.id, terrain }] : undefined),
+    [terrain, terrainSources]
+  );
+  const selectedTerrain =
+    selectableTerrainSources?.find(
+      ({ terrain: candidate }) => candidate.id === state.terrainSourceId
+    )?.terrain ?? selectableTerrainSources?.[0]?.terrain;
   useEffect(() => {
     if (!sharedState) setSharedState(initialState);
   }, [initialState, setSharedState, sharedState]);
@@ -109,6 +130,7 @@ export const ShadowSimulationView = ({
         setState={setSharedState}
         dateState={dateState}
         setDateState={setSharedDateState}
+        terrainSources={selectableTerrainSources}
       />
     );
   }
@@ -153,7 +175,9 @@ export const ShadowSimulationView = ({
       <ShadowSimulationRuntime
         libreMap={libreMap}
         shadowAreaMeters={shadowAreaMeters}
-        terrain={terrain}
+        terrain={selectedTerrain}
+        mapLibreTerrain={mapLibreTerrain}
+        terrainQuality={state.terrainQuality}
         location={location}
         state={state}
         dateState={dateState}
@@ -179,14 +203,20 @@ export const ShadowSimulationView = ({
               0,
               1
             ),
-            buildingColor:
-              state.buildingColor ?? DEFAULT_SHADOW_BUILDING_COLOR,
+            buildingColor: state.buildingColor ?? DEFAULT_SHADOW_BUILDING_COLOR,
             showSunDebugVector: state.showSunDebugVector ?? false,
             showTileBounds: state.showTileBounds ?? false,
             useTransmittanceLut: state.useTransmittanceLut ?? true,
             useSkyIrradianceLut: state.useSkyIrradianceLut ?? true,
           }}
-          onSettingsChange={(patch) => setSharedState({ ...state, ...patch })}
+          onSettingsChange={(patch) =>
+            setSharedState({
+              ...(patch.shadowQuality === undefined
+                ? state
+                : selectShadowQualityPreset(state, patch.shadowQuality)),
+              ...patch,
+            })
+          }
         />
       )}
     </>

@@ -52,6 +52,8 @@ describe("Geoportal shaded terrain background composition", () => {
         name: "bg-basemap_relief",
         style: "https://example.test/vector-basemap.json",
         opacity: 0.8,
+        userStyleTransform: expect.any(Function),
+        userStyleTransformKey: "terrain-albedo-v1",
       }),
     ]);
   });

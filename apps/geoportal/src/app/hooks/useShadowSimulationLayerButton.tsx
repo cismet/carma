@@ -73,6 +73,14 @@ export const useShadowSimulationLayerButton = () => {
       return;
     }
 
+    // The layer stack keeps the target addon's config for the secondary UI.
+    // Refresh it when route/HMR config changes; otherwise the headless runtime
+    // and the visible controls can operate on different terrain sources.
+    if (currentLayer.tools?.[0] !== shadowLayer.tools?.[0]) {
+      dispatch(updateLayer({ ...currentLayer, tools: shadowLayer.tools }));
+      return;
+    }
+
     if (currentLayer.visible !== shadowEnabled) {
       dispatch(updateLayer({ ...currentLayer, visible: shadowEnabled }));
     }

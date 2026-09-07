@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import { MAPLIBRE_EVENT } from "@carma-mapping/engines/maplibre";
+
 import { areSolarLocationsEqual } from "../../core/solar-location";
 import type { SolarLocation } from "../../core/solar-position";
 import { readMapCenterSolarLocation } from "../map-center-solar-location";
@@ -11,11 +13,7 @@ export const useMapCenterSolarLocation = (
   fallbackLongitude: number
 ): SolarLocation => {
   const [location, setLocation] = useState<SolarLocation>(() =>
-    readMapCenterSolarLocation(
-      libreMap,
-      fallbackLatitude,
-      fallbackLongitude
-    )
+    readMapCenterSolarLocation(libreMap, fallbackLatitude, fallbackLongitude)
   );
 
   useEffect(() => {
@@ -31,9 +29,9 @@ export const useMapCenterSolarLocation = (
     };
     updateLocation();
     if (!libreMap) return;
-    libreMap.on("moveend", updateLocation);
+    libreMap.on(MAPLIBRE_EVENT.MOVE_END, updateLocation);
     return () => {
-      libreMap.off("moveend", updateLocation);
+      libreMap.off(MAPLIBRE_EVENT.MOVE_END, updateLocation);
     };
   }, [fallbackLatitude, fallbackLongitude, libreMap]);
 

@@ -42,13 +42,16 @@ export const DEFAULT_SHADOW_SIMULATION_TIME_ZONE = "Europe/Berlin";
 
 export type SolarSelection = ZonedYearDayTime;
 
-export type DaylightWindow = {
+export type DaylightWindow = Readonly<{
   sunriseMinutes: number;
   solarNoonMinutes: number;
   sunsetMinutes: number;
   polarDay: boolean;
   polarNight: boolean;
-};
+}>;
+
+const DAYLIGHT_WINDOW_CACHE_CAPACITY = 64;
+const daylightWindowCache = new Map<string, DaylightWindow>();
 
 export type SolarPosition = {
   instant: Date;
@@ -132,7 +135,7 @@ export const getSolarDirectionECEF = (
   ];
 };
 
-export const getDaylightWindow = (
+const calculateDaylightWindow = (
   selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">,
   location: SolarLocation
 ): DaylightWindow => {
@@ -190,6 +193,35 @@ export const getDaylightWindow = (
     polarDay,
     polarNight,
   };
+};
+
+export const getDaylightWindow = (
+  selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">,
+  location: SolarLocation
+): DaylightWindow => {
+  // Day events do not depend on the selected minute. Share exact-input results
+  // across animation and controls without retaining every visited map location.
+  const key = JSON.stringify([
+    selection.year,
+    selection.dayOfYear,
+    selection.timeZone,
+    location.latitude,
+    location.longitude,
+  ]);
+  const cached = daylightWindowCache.get(key);
+  if (cached) {
+    daylightWindowCache.delete(key);
+    daylightWindowCache.set(key, cached);
+    return cached;
+  }
+
+  const daylight = Object.freeze(calculateDaylightWindow(selection, location));
+  daylightWindowCache.set(key, daylight);
+  if (daylightWindowCache.size > DAYLIGHT_WINDOW_CACHE_CAPACITY) {
+    const oldest = daylightWindowCache.keys().next().value;
+    if (oldest !== undefined) daylightWindowCache.delete(oldest);
+  }
+  return daylight;
 };
 
 export const clampSelectionToDaylight = (

@@ -32,6 +32,7 @@ describe("shared Three.js scene layer", () => {
       depthTexture: { value: null },
       depthEnabled: { value: 0 },
       depthNearFar: { value: new THREE.Vector2(1, 1000) },
+      texelSize: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
     };
     const shader = {
       uniforms: {},
@@ -47,6 +48,7 @@ describe("shared Three.js scene layer", () => {
       carmaMapStyleTexture: uniforms.texture,
       carmaMapStyleSceneToClip: uniforms.sceneToClip,
       carmaMapStyleEnabled: uniforms.enabled,
+      carmaMapStyleTexelSize: uniforms.texelSize,
     });
     expect(shader.vertexShader).toContain(
       "carmaMapStyleSceneToClip * modelMatrix"
@@ -56,7 +58,7 @@ describe("shared Three.js scene layer", () => {
     );
     expect(shader.fragmentShader).toContain("diffuseColor.a = 1.0");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v2"
+      "carma-map-style-projection-v4"
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
   });
@@ -70,6 +72,7 @@ describe("shared Three.js scene layer", () => {
       depthTexture: { value: new THREE.Texture() },
       depthEnabled: { value: 1 },
       depthNearFar: { value: new THREE.Vector2(1, 1000) },
+      texelSize: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
     };
     const shader = {
       uniforms: {},
@@ -94,6 +97,8 @@ describe("shared Three.js scene layer", () => {
       carmaMapStyleDepthNearFar: uniforms.depthNearFar,
     });
     expect(shader.fragmentShader).toContain("carmaMapStyleSample.a");
+    expect(shader.fragmentShader).toContain("carmaMapStyleSampleGround");
+    expect(shader.fragmentShader).toContain("carmaMapStyleMatchesReceiver");
     expect(material.customProgramCacheKey()).toContain("|overlay");
 
     configureMapStyleProjectedMaterial(material, uniforms, "replace");

@@ -63,6 +63,7 @@ class ObserverPositionSkyMaterial extends SkyMaterial {
 }
 
 const addDisplayTransform = (material: SkyMaterial) => {
+  material.uniforms.toneMappingExposure = new THREE.Uniform(1);
   material.uniforms[OUTPUT_ENCODING_UNIFORM] = new THREE.Uniform(false);
   material.uniforms[DISPLAY_EXPOSURE_UNIFORM] = new THREE.Uniform(
     ATMOSPHERIC_DISPLAY_EXPOSURE
@@ -74,6 +75,7 @@ const addDisplayTransform = (material: SkyMaterial) => {
 
 uniform bool ${OUTPUT_ENCODING_UNIFORM};
 uniform float ${DISPLAY_EXPOSURE_UNIFORM};
+#include <tonemapping_pars_fragment>
 
 vec4 carmaLinearToSrgb(vec4 value) {
   return vec4(
@@ -121,6 +123,9 @@ vec4 carmaLinearToSrgb(vec4 value) {
       `outputColor.rgb *= ${DISPLAY_EXPOSURE_UNIFORM};
   outputColor.a = 1.0;
   if (${OUTPUT_ENCODING_UNIFORM}) {
+    // SkyMaterial is raw GLSL: match terrain's AgX on the display target.
+    // Offscreen samples stay linear HDR until the shared final composite.
+    outputColor.rgb = AgXToneMapping(outputColor.rgb);
     outputColor = carmaLinearToSrgb(outputColor);
   }`
     );
@@ -164,6 +169,7 @@ export const buildAtmosphericSky = (
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   mesh.onBeforeRender = (renderer) => {
+    material.uniforms.toneMappingExposure.value = renderer.toneMappingExposure;
     material.uniforms[OUTPUT_ENCODING_UNIFORM].value =
       renderer.getRenderTarget() === null;
   };

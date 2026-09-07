@@ -11,11 +11,9 @@ import {
   SHADOW_CONTROL_STYLE,
   type ShadowDateState,
   type ShadowSimulationState,
+  type ShadowTerrainSourceOption,
 } from "../contracts/shadow-simulation";
-import {
-  getSolarPosition,
-  type SolarLocation,
-} from "../core/solar-position";
+import { getSolarPosition, type SolarLocation } from "../core/solar-position";
 import { resetShadowDateState } from "../core/shadow-date-state";
 import { resetShadowSimulationState } from "../core/shadow-state";
 import { ShadowSimulationCurveSettings } from "./ShadowSimulationCurveSettings";
@@ -27,12 +25,14 @@ export const ShadowSimulationSecondaryPanel = ({
   setState,
   dateState,
   setDateState,
+  terrainSources,
 }: {
   location: SolarLocation;
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
   dateState: ShadowDateState;
   setDateState: (state: ShadowDateState) => void;
+  terrainSources?: readonly ShadowTerrainSourceOption[];
 }) => {
   const controlStyle = state.controlStyle ?? SHADOW_CONTROL_STYLE.QUICK;
   const position = useMemo(
@@ -113,6 +113,7 @@ export const ShadowSimulationSecondaryPanel = ({
           setState={setState}
           dateState={dateState}
           setDateState={setDateState}
+          terrainSources={terrainSources}
         />
       ) : (
         <ShadowSimulationCurveSettings

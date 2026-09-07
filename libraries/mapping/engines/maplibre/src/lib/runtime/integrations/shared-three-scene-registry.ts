@@ -142,13 +142,23 @@ type SavedLabelLift = {
 };
 
 type MapLibreTerrainWithFrame = {
+  _meshCache?: Record<string, unknown>;
   getMeshFrameDelta?: (zoom: number) => number;
+  tileManager?: { freeRtt?: () => void };
 };
 
 type TerrainFramePatch = {
   terrain: MapLibreTerrainWithFrame;
   inherited: boolean;
   original: MapLibreTerrainWithFrame["getMeshFrameDelta"];
+};
+
+/** Drop terrain meshes and their render-to-texture pass after frame changes. */
+const invalidateMapLibreTerrainMeshes = (
+  terrain: MapLibreTerrainWithFrame
+): void => {
+  terrain._meshCache = {};
+  terrain.tileManager?.freeRtt?.();
 };
 
 type SpriteImageData = {
@@ -838,6 +848,7 @@ const restoreTerrainFrame = (entry: SharedSceneEntry): void => {
   } else {
     patch.terrain.getMeshFrameDelta = patch.original;
   }
+  invalidateMapLibreTerrainMeshes(patch.terrain);
   entry.terrainFramePatch = null;
 };
 
@@ -872,6 +883,10 @@ const suppressTerrainFrame = (
     original: terrain.getMeshFrameDelta,
   };
   terrain.getMeshFrameDelta = () => 0;
+  // The style may have produced terrain meshes before the shared Three layer
+  // mounted. Rebuild those meshes immediately; otherwise their cached skirts
+  // remain visible in the framebuffer that is projected onto Three terrain.
+  invalidateMapLibreTerrainMeshes(terrain);
 };
 
 /** An explicit request (the shadow scene) wins; otherwise the mesh decides. */

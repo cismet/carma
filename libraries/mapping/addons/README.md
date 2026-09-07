@@ -308,8 +308,12 @@ export const MapInsightsPanel = (
 };
 ```
 
-`useAddonState` subscribes per component, so a producer that only writes does
-not re-render on state changes. `useAddonStateSnapshot()` returns the whole
+`useAddonState` subscribes to its requested channel using `useSyncExternalStore`.
+Changes to another channel do not re-render that reader; unchanged channel
+values do not notify it. `AddonProvider.initialState` seeds the route before
+children mount, so hosts can resolve URL and persisted addon decisions before
+creating their map. It is initialization-only and resets when the scope changes.
+`useAddonStateSnapshot()` subscribes to the whole
 channel map at once for callers outside the addon components (the layer-button
 trigger path, once it derives from state); addons themselves should read
 single channels.

@@ -1,4 +1,6 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
+import { publishMapLoadingProgress } from "./map-loading-progress";
 
 type TerrainHeightSampler = (
   longitude: number,
@@ -17,8 +19,17 @@ const notifySharedThreeTerrainLoadingChanged = (map: MaplibreMap) => {
 export const setSharedThreeTerrainLoading = (
   map: MaplibreMap,
   runtimeId: string,
-  loading: boolean
+  loading: boolean,
+  fraction = 0,
+  recordDuration = true
 ) => {
+  publishMapLoadingProgress(
+    map,
+    MAP_LOADING_PHASE.TERRAIN,
+    runtimeId,
+    loading ? fraction : 1,
+    recordDuration
+  );
   const runtimeIds = loadingRuntimeIds.get(map) ?? new Set<string>();
   const changed = loading
     ? !runtimeIds.has(runtimeId)

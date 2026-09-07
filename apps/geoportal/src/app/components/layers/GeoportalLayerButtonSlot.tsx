@@ -49,7 +49,7 @@ import {
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
 import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
-import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
+import { formatShadowSelection } from "@carma-mapping/shadow-simulation/core";
 import {
   AdhocModelFlyToLayerbarAction,
   AdhocModelLayerbarActions,

@@ -1,10 +1,10 @@
+import { createContext, useRef, useState, type ReactNode } from "react";
 import {
-  createContext,
-  useCallback,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+  createAddonStateStore,
+  type AddonStateRecord,
+  type AddonStateSet,
+} from "./addon-state-store";
+export type { AddonStateRecord, AddonStateSet } from "./addon-state-store";
 
 /**
  * Generic, string-keyed core of the state map addons share within one route:
@@ -14,10 +14,6 @@ import {
  * dependency on the addons library, which would be circular
  * (portals -> addons -> fuzzy-search -> portals).
  */
-
-export type AddonStateRecord = Record<string, unknown>;
-
-export type AddonStateSet = (key: string, action: unknown) => void;
 
 export const EMPTY_ADDON_STATE: AddonStateRecord = {};
 
@@ -29,8 +25,8 @@ const noProviderSet: AddonStateSet = () => {
   }
 };
 
-export const AddonStateValueContext =
-  createContext<AddonStateRecord>(EMPTY_ADDON_STATE);
+const emptyStore = createAddonStateStore(EMPTY_ADDON_STATE);
+export const AddonStateStoreContext = createContext(emptyStore);
 export const AddonStateSetterContext =
   createContext<AddonStateSet>(noProviderSet);
 
@@ -48,43 +44,32 @@ export const AddonScopeContext = createContext<string | undefined>(undefined);
 export const AddonProvider = ({
   addons,
   scopeKey,
+  initialState = EMPTY_ADDON_STATE,
   children,
 }: {
   addons?: readonly unknown[];
   /** route identity: resets the state map when it changes and scopes per-route storage */
   scopeKey?: string;
+  /** Already resolved launch state, consumed once per route before children mount. */
+  initialState?: AddonStateRecord;
   children: ReactNode;
 }) => {
   const scope: unknown = scopeKey !== undefined ? scopeKey : addons;
-  const [state, setState] = useState<AddonStateRecord>(EMPTY_ADDON_STATE);
+  const [store, setStore] = useState(() => createAddonStateStore(initialState));
 
   const scopeRef = useRef(scope);
   if (!Object.is(scopeRef.current, scope)) {
     scopeRef.current = scope;
-    setState(EMPTY_ADDON_STATE);
+    setStore(createAddonStateStore(initialState));
   }
-
-  const set = useCallback<AddonStateSet>((key, action) => {
-    setState((previous) => {
-      const previousValue = previous[key];
-      const nextValue =
-        typeof action === "function"
-          ? (action as (prev: unknown) => unknown)(previousValue)
-          : action;
-      if (Object.is(previousValue, nextValue)) {
-        return previous;
-      }
-      return { ...previous, [key]: nextValue };
-    });
-  }, []);
 
   return (
     <AddonListContext.Provider value={addons}>
       <AddonScopeContext.Provider value={scopeKey}>
-        <AddonStateSetterContext.Provider value={set}>
-          <AddonStateValueContext.Provider value={state}>
+        <AddonStateSetterContext.Provider value={store.set}>
+          <AddonStateStoreContext.Provider value={store}>
             {children}
-          </AddonStateValueContext.Provider>
+          </AddonStateStoreContext.Provider>
         </AddonStateSetterContext.Provider>
       </AddonScopeContext.Provider>
     </AddonListContext.Provider>

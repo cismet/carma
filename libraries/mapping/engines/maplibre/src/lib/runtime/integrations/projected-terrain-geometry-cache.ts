@@ -1,52 +1,46 @@
 import localforage from "localforage";
 import md5 from "md5";
+import { BufferGeometry, BufferAttribute, Box3, Sphere, Vector3 } from "three";
+
+import { runTerrainWorkerTask } from "./terrain-worker-client";
 import {
-  BufferGeometry,
-  Float32BufferAttribute,
-  Uint32BufferAttribute,
-} from "three";
+  projectedTerrainGeometryStorage as storage,
+  type CachedProjectedTerrainGeometry,
+  type CachedProjectedTerrainTile,
+} from "./projected-terrain-cache-record";
 
 import {
-  cesiumTerrainTileKey,
-  type CesiumTerrainTile,
-  type CesiumTerrainTileId,
-} from "@carma-mapping/engines/cesium/terrain";
+  terrainTileKey,
+  type TerrainTile,
+  type TerrainTileId,
+} from "./raster-dem-terrain-tile-source";
 
 // Bump the revision whenever projection, winding, generated attributes, or the
 // persisted tile metadata change.
 export const PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION =
-  "projected-quantized-mesh-v2";
+  "prepared-raster-dem-interpolated-boundaries-v6";
 
 const CACHE_REVISION_KEY = "__conversion_revision__";
-const storage = localforage.createInstance({
-  name: "carma-terrain-geometry-cache",
-  storeName: "projected_tiles",
-});
-
-type CachedProjectedTerrainGeometry = Readonly<{
-  positions: Float32Array;
-  normals: Float32Array;
-  indices: Uint32Array;
-}>;
-
-type CachedProjectedTerrainTile = Readonly<{
-  tile: CesiumTerrainTile;
-  geometry: CachedProjectedTerrainGeometry;
-}>;
-
+const MAX_PENDING_WRITE_BYTES = 32 * 1024 ** 2;
 export type ProjectedTerrainCacheEntry = Readonly<{
-  tile: CesiumTerrainTile;
-  geometry: BufferGeometry;
+  tile: TerrainTile;
+  geometry: BufferGeometry | null;
+  reliefVertexMask: Uint8Array;
 }>;
 
 type ProjectedTerrainGeometryCache = Readonly<{
-  get: (id: CesiumTerrainTileId) => Promise<ProjectedTerrainCacheEntry | null>;
-  set: (tile: CesiumTerrainTile, geometry: BufferGeometry) => void;
+  get: (id: TerrainTileId) => Promise<ProjectedTerrainCacheEntry | null>;
+  set: (
+    tile: TerrainTile,
+    geometry: BufferGeometry | null,
+    reliefVertexMask: Uint8Array
+  ) => void;
 }>;
 
 let cacheAvailable = true;
 let revisionReady: Promise<boolean> | null = null;
 const pendingWrites = new Map<string, Promise<void>>();
+let pendingWriteBytes = 0;
 
 const prepareStorage = () => {
   revisionReady ??= (async () => {
@@ -70,72 +64,7 @@ const prepareStorage = () => {
 
 const hash = md5 as unknown as (message: string | Uint8Array) => string;
 
-const isTypedArray = <T extends Float32Array | Uint32Array>(
-  value: unknown,
-  constructor: { new (array: ArrayLike<number>): T }
-): value is T => value instanceof constructor;
-
-const isCachedTile = (value: unknown): value is CesiumTerrainTile => {
-  if (!value || typeof value !== "object") return false;
-  const tile = value as Partial<CesiumTerrainTile>;
-  const id = tile.id;
-  const bounds = tile.bounds;
-  return Boolean(
-    id &&
-      [id.level, id.x, id.y].every(Number.isInteger) &&
-      bounds &&
-      [bounds.west, bounds.south, bounds.east, bounds.north].every(
-        Number.isFinite
-      ) &&
-      isTypedArray(tile.u, Float32Array) &&
-      isTypedArray(tile.v, Float32Array) &&
-      isTypedArray(tile.heightMeters, Float32Array) &&
-      tile.u.length === tile.v.length &&
-      tile.u.length === tile.heightMeters.length &&
-      isTypedArray(tile.indices, Uint32Array) &&
-      isTypedArray(tile.westIndices, Uint32Array) &&
-      isTypedArray(tile.southIndices, Uint32Array) &&
-      isTypedArray(tile.eastIndices, Uint32Array) &&
-      isTypedArray(tile.northIndices, Uint32Array) &&
-      Number.isFinite(tile.minimumHeightMeters) &&
-      Number.isFinite(tile.maximumHeightMeters) &&
-      Number.isFinite(tile.childTileMask) &&
-      Number.isFinite(tile.geometricErrorMeters) &&
-      Number.isFinite(tile.byteLength)
-  );
-};
-
-const isCachedGeometry = (
-  value: unknown
-): value is CachedProjectedTerrainGeometry => {
-  if (!value || typeof value !== "object") return false;
-  const record = value as Partial<CachedProjectedTerrainGeometry>;
-  if (
-    !(record.positions instanceof Float32Array) ||
-    !(record.normals instanceof Float32Array) ||
-    !(record.indices instanceof Uint32Array) ||
-    record.positions.length === 0 ||
-    record.positions.length % 3 !== 0 ||
-    record.normals.length !== record.positions.length ||
-    record.indices.length === 0 ||
-    record.indices.length % 3 !== 0
-  ) {
-    return false;
-  }
-  const vertexCount = record.positions.length / 3;
-  for (const index of record.indices) {
-    if (index >= vertexCount) return false;
-  }
-  return true;
-};
-
-const isCachedEntry = (value: unknown): value is CachedProjectedTerrainTile => {
-  if (!value || typeof value !== "object") return false;
-  const entry = value as Partial<CachedProjectedTerrainTile>;
-  return isCachedTile(entry.tile) && isCachedGeometry(entry.geometry);
-};
-
-const cloneTile = (tile: CesiumTerrainTile): CesiumTerrainTile => ({
+const cloneTile = (tile: TerrainTile): TerrainTile => ({
   ...tile,
   id: { ...tile.id },
   bounds: { ...tile.bounds },
@@ -149,93 +78,187 @@ const cloneTile = (tile: CesiumTerrainTile): CesiumTerrainTile => ({
   northIndices: Uint32Array.from(tile.northIndices),
 });
 
-const restoreGeometry = (record: CachedProjectedTerrainGeometry) => {
+const restoreGeometry = (
+  record: CachedProjectedTerrainGeometry,
+  ownsArrays: boolean
+) => {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
     "position",
-    new Float32BufferAttribute(Float32Array.from(record.positions), 3)
+    new BufferAttribute(
+      ownsArrays ? record.positions : Float32Array.from(record.positions),
+      3
+    )
   );
   geometry.setAttribute(
     "normal",
-    new Float32BufferAttribute(Float32Array.from(record.normals), 3)
+    new BufferAttribute(
+      ownsArrays ? record.normals : Float32Array.from(record.normals),
+      3
+    )
   );
   geometry.setIndex(
-    new Uint32BufferAttribute(Uint32Array.from(record.indices), 1)
+    new BufferAttribute(
+      ownsArrays ? record.indices : Uint32Array.from(record.indices),
+      1
+    )
   );
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
+  geometry.boundingBox = new Box3(
+    new Vector3().fromArray(record.bounds),
+    new Vector3().fromArray(record.bounds, 3)
+  );
+  geometry.boundingSphere = new Sphere(
+    new Vector3().fromArray(record.sphere),
+    record.sphere[3]
+  );
   return geometry;
 };
 
 const snapshotGeometry = (
-  geometry: BufferGeometry
+  geometry: BufferGeometry,
+  availableBytes: number
 ): CachedProjectedTerrainGeometry | null => {
   const position = geometry.getAttribute("position");
   const normal = geometry.getAttribute("normal");
   const index = geometry.getIndex();
   if (!position || !normal || !index) return null;
+  // Worker-generated terrain already supplies these. Do not rescan cached
+  // vertices on reload; missing bounds mean this geometry is not cache-ready.
+  if (!geometry.boundingBox || !geometry.boundingSphere) return null;
+  const byteLength =
+    (position.array.length + normal.array.length) *
+      Float32Array.BYTES_PER_ELEMENT +
+    index.array.length * Uint32Array.BYTES_PER_ELEMENT;
+  if (byteLength > availableBytes) return null;
   return {
     positions: Float32Array.from(position.array),
     normals: Float32Array.from(normal.array),
     indices: Uint32Array.from(index.array),
+    bounds: [
+      ...geometry.boundingBox.min.toArray(),
+      ...geometry.boundingBox.max.toArray(),
+    ],
+    sphere: [
+      ...geometry.boundingSphere.center.toArray(),
+      geometry.boundingSphere.radius,
+    ],
   };
 };
 
 export const createProjectedTerrainGeometryCache = (
-  terrainUrl: string,
-  originLngLat: readonly [longitude: number, latitude: number]
+  terrainSourceKey: string,
+  originLngLat: readonly [longitude: number, latitude: number],
+  noDataHeightMeters: number | undefined
 ): ProjectedTerrainGeometryCache => {
   const namespace = hash(
     [
-      terrainUrl.trim().replace(/\/+$/, ""),
+      terrainSourceKey,
       originLngLat[0],
       originLngLat[1],
+      noDataHeightMeters ?? "no-nodata",
       PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION,
     ].join("|")
   );
-  const getKey = (id: CesiumTerrainTileId) =>
-    `${namespace}:${cesiumTerrainTileKey(id)}`;
+  const getKey = (id: TerrainTileId) => `${namespace}:${terrainTileKey(id)}`;
 
   return {
     async get(id) {
-      if (!(await prepareStorage())) return null;
+      if (!cacheAvailable || !(await prepareStorage())) return null;
       const key = getKey(id);
       await pendingWrites.get(key);
+      if (!cacheAvailable) return null;
+      let cached: CachedProjectedTerrainTile | null;
       try {
-        const cached = await storage.getItem<unknown>(key);
-        if (
-          isCachedEntry(cached) &&
-          cached.tile.id.level === id.level &&
-          cached.tile.id.x === id.x &&
-          cached.tile.id.y === id.y
-        ) {
-          return {
-            tile: cloneTile(cached.tile),
-            geometry: restoreGeometry(cached.geometry),
-          };
+        const result = await runTerrainWorkerTask({ kind: "read-cache", key });
+        if (result.kind !== "read-cache") return null;
+        cached = result.entry;
+      } catch {
+        cacheAvailable = false;
+        return null;
+      }
+      if (
+        !cached ||
+        cached.tile.id.level !== id.level ||
+        cached.tile.id.x !== id.x ||
+        cached.tile.id.y !== id.y
+      )
+        return null;
+      // IndexedDB returns a structured clone owned by this read. Keep
+      // defensive copies for adapters without that ownership guarantee.
+      const ownsArrays =
+        typeof Worker !== "undefined" ||
+        storage.driver() === localforage.INDEXEDDB;
+      const tile = ownsArrays ? cached.tile : cloneTile(cached.tile);
+      const reliefVertexMask = ownsArrays
+        ? cached.reliefVertexMask
+        : Uint8Array.from(cached.reliefVertexMask);
+      return {
+        tile,
+        geometry: cached.geometry
+          ? restoreGeometry(cached.geometry, ownsArrays)
+          : null,
+        reliefVertexMask,
+      };
+    },
+
+    set(tile, geometry, reliefVertexMask) {
+      if (!cacheAvailable) return;
+      const key = getKey(tile.id);
+      if (pendingWrites.has(key)) return;
+      const tileBytes = [
+        tile.u,
+        tile.v,
+        tile.heightMeters,
+        tile.indices,
+        tile.westIndices,
+        tile.southIndices,
+        tile.eastIndices,
+        tile.northIndices,
+      ].reduce((bytes, array) => bytes + array.buffer.byteLength, 0);
+      const maskBytes = reliefVertexMask.byteLength;
+      if (tileBytes + maskBytes > MAX_PENDING_WRITE_BYTES - pendingWriteBytes)
+        return;
+      let snapshot: CachedProjectedTerrainGeometry | null = null;
+      try {
+        // Include the source arrays retained by the write; check the global
+        // budget before allocating optional geometry snapshots.
+        if (geometry) {
+          snapshot = snapshotGeometry(
+            geometry,
+            MAX_PENDING_WRITE_BYTES - pendingWriteBytes - tileBytes - maskBytes
+          );
+          if (!snapshot) return;
         }
       } catch {
         cacheAvailable = false;
+        return;
       }
-      return null;
-    },
-
-    set(tile, geometry) {
-      if (!cacheAvailable) return;
-      const snapshot = snapshotGeometry(geometry);
-      if (!snapshot) return;
-      const key = getKey(tile.id);
+      const byteLength =
+        tileBytes +
+        maskBytes +
+        (snapshot
+          ? snapshot.positions.byteLength +
+            snapshot.normals.byteLength +
+            snapshot.indices.byteLength
+          : 0);
       const entry: CachedProjectedTerrainTile = {
         tile,
         geometry: snapshot,
+        reliefVertexMask: Uint8Array.from(reliefVertexMask),
       };
+      pendingWriteBytes += byteLength;
       const write = prepareStorage()
         .then((ready) => {
-          if (!ready) return;
+          if (!ready || !cacheAvailable) return;
           return storage.setItem(key, entry).then(() => undefined);
         })
-        .catch(() => undefined)
-        .finally(() => pendingWrites.delete(key));
+        .catch(() => {
+          cacheAvailable = false;
+        })
+        .finally(() => {
+          pendingWriteBytes -= byteLength;
+          pendingWrites.delete(key);
+        });
       pendingWrites.set(key, write);
     },
   };

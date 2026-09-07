@@ -5,14 +5,17 @@ import {
   type ShadowAnimationMode,
   type ShadowDateState,
   type ShadowSimulationState,
+  type ShadowTerrainSourceOption,
 } from "../contracts/shadow-simulation";
 import type { SolarLocation } from "../core/solar-position";
+import { selectShadowQualityPreset } from "../core/create-shadow-simulation-state";
 import {
   updateShadowCalendarDate,
   updateShadowDateState,
   updateShadowToCurrentDate,
 } from "../core/shadow-date-state";
 import { resolveShadowQuality } from "../core/shadow-types";
+import { ShadowSimulationRenderSettings } from "./ShadowSimulationRenderSettings";
 import {
   formatHour,
   getRangeProgressStyle,
@@ -27,12 +30,14 @@ export const ShadowSimulationQuickSettings = ({
   setState,
   dateState,
   setDateState,
+  terrainSources,
 }: {
   location: SolarLocation;
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
   dateState: ShadowDateState;
   setDateState: (state: ShadowDateState) => void;
+  terrainSources?: readonly ShadowTerrainSourceOption[];
 }) => {
   const animationMode = state.animationMode ?? SHADOW_ANIMATION_MODE.DAY;
   const animationSpeed = state.animationSpeed ?? 4;
@@ -213,6 +218,30 @@ export const ShadowSimulationQuickSettings = ({
               aria-label="Punktlichtquelle statt Sonnenscheibe verwenden"
             />
           </label>
+          {terrainSources && terrainSources.length > 1 && (
+            <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+              <span>Höhenmodell</span>
+              <select
+                aria-label="Höhenmodell für die Verschattung"
+                title="Höhenmodell für die Verschattung. Die Basiskarte bleibt auf dem Geländemodell (DGM)."
+                className="min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-1"
+                value={
+                  terrainSources.find(
+                    ({ terrain }) => terrain.id === state.terrainSourceId
+                  )?.terrain.id ?? terrainSources[0].terrain.id
+                }
+                onChange={(event) =>
+                  setState({ ...state, terrainSourceId: event.target.value })
+                }
+              >
+                {terrainSources.map(({ label, terrain }) => (
+                  <option key={terrain.id} value={terrain.id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <label className="grid grid-cols-[110px_1fr] items-center gap-3">
             <span>Basiskarte</span>
             <input
@@ -250,9 +279,9 @@ export const ShadowSimulationQuickSettings = ({
             />
           </label>
           <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-            <span>Qualität</span>
+            <span>Qualitätsziel</span>
             <div
-              className="inline-flex w-fit max-w-full overflow-hidden whitespace-nowrap rounded-md border border-neutral-300"
+              className="flex w-fit max-w-full flex-wrap overflow-hidden rounded-md border border-neutral-300"
               data-test-id="shadow-simulation-quality"
             >
               {SHADOW_QUALITY_LEVELS.map(({ label, value }) => (
@@ -267,15 +296,22 @@ export const ShadowSimulationQuickSettings = ({
                   aria-pressed={
                     resolveShadowQuality(state.shadowQuality) === value
                   }
-                  onClick={() => setState({ ...state, shadowQuality: value })}
+                  onClick={() =>
+                    setState(selectShadowQualityPreset(state, value))
+                  }
                 >
                   {label}
                 </button>
               ))}
             </div>
           </div>
+          <p className="text-xs text-neutral-500">
+            Ziel beim Bewegen in 1440p (physische Pixel), abhängig von Gerät und
+            Szene. Karte und Beschriftungen bleiben in voller Auflösung.
+          </p>
         </div>
       </section>
+      <ShadowSimulationRenderSettings state={state} setState={setState} />
     </div>
   );
 };

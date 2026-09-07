@@ -1,10 +1,10 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["stories/**/*.spec.ts", "stories/**/*.spec.tsx"],
+  "exclude": ["src/stories/**/*.spec.ts", "src/stories/**/*.spec.tsx"],
   "include": [
-    "stories/**/*.stories.ts",
-    "stories/**/*.stories.tsx",
-    "stories/**/*.stories.mdx",
+    "src/stories/**/*.stories.ts",
+    "src/stories/**/*.stories.tsx",
+    "src/stories/**/*.stories.mdx",
     ".storybook/*.ts"
   ]
 }

@@ -352,13 +352,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           ref={infoRef}
           className={cn(
             "pointer-events-auto",
+            isShadowSimulationLayer && "shadow-simulation-secondary-container",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-[100vw] sm:w-3/4 sm:mx-0 shrink-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo
               ? secondaryViewAddon
                 ? "max-h-[min(600px,80vh)]"
                 : "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
-              : isBaseLayer
+              : isBaseLayer || isShadowSimulationLayer
               ? "h-fit"
               : "h-fit sm:h-12"
           )}
@@ -387,7 +388,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           </button>
           <div
             className={cn(
-              "flex items-center w-full h-8 shrink-0 gap-2 px-6 sm:px-0",
+              "flex items-center w-full shrink-0 gap-2 px-6 sm:px-0",
+              isShadowSimulationLayer ? "flex-wrap min-h-8" : "h-8",
               secondaryViewAddon ? "sm:gap-3" : "sm:gap-6"
             )}
           >
@@ -439,7 +441,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               </div>
             )}
             {isShadowSimulationLayer && (
-              <div className="hidden min-w-0 flex-1 sm:flex">
+              <div className="shadow-simulation-header-slot">
                 <ShadowSimulationHeaderControls
                   config={secondaryViewAddon?.config}
                 />

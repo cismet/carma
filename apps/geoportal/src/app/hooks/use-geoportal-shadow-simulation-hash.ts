@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { useAddonState } from "@carma-mapping/addons";
 import { useLibreContext } from "@carma-mapping/contexts";
-import { DEFAULT_SHADOW_SIMULATION_TIME_ZONE } from "@carma-mapping/shadow-simulation";
+import { DEFAULT_SHADOW_SIMULATION_TIME_ZONE } from "@carma-mapping/shadow-simulation/core";
 import { useHashState } from "@carma-providers/hash-state";
 
 import {

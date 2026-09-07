@@ -9,12 +9,9 @@ import type {
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
+import { useShadowStartupPresentation } from "./use-shadow-startup-presentation";
 
-export type {
-  ShadowDateState,
-  ShadowSimulationConfig,
-  ShadowSimulationState,
-};
+export type { ShadowDateState, ShadowSimulationConfig, ShadowSimulationState };
 
 const LazyShadowSimulationView = lazy(async () => {
   const module = await import("@carma-mapping/shadow-simulation");
@@ -33,6 +30,13 @@ export const ShadowSimulation = ({
 }: AddonComponentProps<"shadowSimulation">) => {
   const [state, setState] = useAddonState("shadowSimulation");
   const [dateState, setDateState] = useAddonState("shadowDate");
+  useShadowStartupPresentation(
+    libreMap,
+    state?.enabled === true && target === null
+  );
+  // An explicit shadow launch can load its module alongside the map. Ordinary
+  // routes retain lazy loading and do not pay for the shadow renderer upfront.
+  if (!libreMap && !state?.enabled) return null;
   return (
     <Suspense fallback={null}>
       <LazyShadowSimulationView
@@ -56,6 +60,7 @@ export const ShadowSimulationHeaderControls = ({
   const { map } = useLibreContext();
   const [state, setState] = useAddonState("shadowSimulation");
   const [dateState, setDateState] = useAddonState("shadowDate");
+  if (!map) return null;
   return (
     <Suspense fallback={null}>
       <LazyShadowSimulationHeaderControlsView

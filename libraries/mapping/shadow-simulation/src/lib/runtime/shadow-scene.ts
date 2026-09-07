@@ -3,18 +3,22 @@ import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
 import {
+  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  type RasterDemTerrainResource,
+} from "@carma-commons/resources";
+import {
   acquireSharedThreeScene,
-  buildCesiumTerrainRuntime,
+  buildRasterDemTerrainRuntime,
   getGenericThreeLayers,
   MAPLIBRE_EVENT,
-  getSharedThreeShadowViewSignature,
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
-  WUPPERTAL_TERRAIN_SOURCE_ID,
+  isTerrainShadingStyleLayer,
 } from "@carma-mapping/engines/maplibre";
 import type {
+  SharedThreeSceneFrame,
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
@@ -22,15 +26,23 @@ import type {
 } from "@carma-mapping/engines/maplibre";
 import { degToRadNumeric } from "@carma-units";
 
-import type { ShadowSceneOptions } from "../contracts/shadow-simulation";
+import {
+  SHADOW_TERRAIN_QUALITY,
+  type ShadowSceneOptions,
+  type ShadowTerrainOptions,
+  type ShadowTerrainQuality,
+} from "../contracts/shadow-simulation";
 import type { SolarPosition } from "../core/solar-position";
 import { getFrustumBoxIntersectionPoints } from "../core/frustum-box-intersection";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
+  resolveShadowRenderQuality,
+  SHADOW_BUFFER_FORMAT,
   type MeshErrorTargetPixels,
   type ShadowQualityMultiplier,
+  type ShadowRenderQualityOptions,
 } from "../core/shadow-types";
 import {
   AtmosphericSunlightEvaluator,
@@ -45,12 +57,25 @@ import {
   buildAtmosphericSky,
 } from "./atmospheric-sky";
 import { ShadowController } from "./shadow-controller";
-import { resolveShadowResourceLimits } from "./shadow-resource-limits";
+import {
+  applyMapLibreTerrainQuality,
+  type InternalMapLibreTerrain,
+} from "./maplibre-terrain-quality";
+import {
+  resolveShadowResourceLimits,
+  resolveShadowDepthTexelBudget,
+  getShadowRenderCapabilities,
+  resolveSupportedShadowMsaa,
+} from "./shadow-resource-limits";
 import {
   clearShadowProjectionDebugSnapshot,
   hasShadowProjectionDebugListeners,
   publishShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
+import {
+  createShadowFrameBudget,
+  updateShadowFrameBudget,
+} from "./shadow-frame-budget";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
 /** Maximum radius represented by the fitted shadow buffer. */
@@ -58,7 +83,7 @@ const MAX_RECEIVER_DISTANCE_METERS = 4_000;
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
 const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
-const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-cesium-terrain";
+const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-raster-dem";
 const SHADOW_CONTROLLER_UPDATE_PRIORITY = 200;
 const SUN_VECTOR_COLOR = 0xf59e0b;
 const SUN_VECTOR_HEAD_LENGTH_FACTOR = 0.18;
@@ -67,11 +92,8 @@ const SUN_VECTOR_VIEWPORT_LENGTH_FACTOR = 0.5;
 const SUN_VECTOR_ANGLE_RADIUS_FACTOR = 0.22;
 const SUN_VECTOR_ANGLE_SEGMENTS = 24;
 const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
-const SUN_DISC_ACCUMULATION_ROUNDS = 32;
-const MAX_SUN_DISC_ACCUMULATION_ROUNDS = 64;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
 const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
-const MOTION_SHADOW_UPDATE_INTERVAL_MS = 1000 / 30;
 const MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS = 1_000;
 const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
 const OPAQUE_DRAPE_PROPERTIES = new Map<string, string>([
@@ -142,11 +164,13 @@ export type ShadowBuildingAppearance = Readonly<{
 }>;
 
 export type ShadowSimulationScene = {
+  updateTerrain: (terrain: ShadowTerrainOptions | undefined) => void;
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
   updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
+  updateRenderQuality: (options: ShadowRenderQualityOptions) => void;
   updateSoftSunShadows: (enabled: boolean) => void;
   updateTimeAnimating: (animating: boolean) => void;
   refreshProjectionDebug: () => void;
@@ -165,11 +189,13 @@ export type ShadowSimulationScene = {
  */
 export const acquireShadowMapLibreTerrain = (
   map: MaplibreMap,
-  sourceId = WUPPERTAL_TERRAIN_SOURCE_ID,
+  terrainSource: RasterDemTerrainResource = NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
   isMapStyleContentVisible: () => boolean = () => true,
-  getDrapeMode: () => ShadowMapStyleDrapeMode = () => "opaque"
+  getDrapeMode: () => ShadowMapStyleDrapeMode = () => "opaque",
+  terrainQuality: ShadowTerrainQuality = SHADOW_TERRAIN_QUALITY.MAX
 ): ShadowMapLibreTerrainRelease => {
-  type InternalTerrain = {
+  const sourceId = terrainSource.id;
+  type InternalTerrain = InternalMapLibreTerrain & {
     getMeshFrameDelta?: (zoom: number) => number;
   };
   type DrapeLayer = {
@@ -206,6 +232,9 @@ export const acquireShadowMapLibreTerrain = (
   let patchedTerrain: InternalTerrain | null = null;
   let inheritedFrameDelta = false;
   let originalFrameDelta: InternalTerrain["getMeshFrameDelta"];
+  let qualityPatchedTerrain: InternalTerrain | null = null;
+  let restoreTerrainQuality: () => void = () => undefined;
+  let lastApplyErrorMessage: string | null = null;
 
   const restoreTerrainFrame = () => {
     if (!patchedTerrain) return;
@@ -233,27 +262,33 @@ export const acquireShadowMapLibreTerrain = (
     patchedTerrain = terrain;
   };
 
+  const applyTerrainQuality = () => {
+    const currentTerrain = terrainMap.terrain;
+    if (!currentTerrain || currentTerrain === qualityPatchedTerrain) return;
+    restoreTerrainQuality();
+    qualityPatchedTerrain = currentTerrain;
+    restoreTerrainQuality = applyMapLibreTerrainQuality(
+      currentTerrain,
+      terrainSource.tileSize,
+      terrainQuality,
+      () => {
+        // Native MapLibre 5.x defaults. Materialize its adaptive LOD callback
+        // through the public API before adding our private quality offset.
+        // Only this terrain source changes; existing custom hooks are kept.
+        map.setSourceTileLodParams?.(9.314, 3, terrainSource.id);
+      }
+    );
+    map.triggerRepaint?.();
+  };
+
   const getLayerSignature = (layer: DrapeLayer) =>
     `${layer.type}:${String(layer.source)}:${String(layer["source-layer"])}`;
-
-  const isTerrainShadingLayer = (layer: DrapeLayer) => {
-    if (layer.type === "hillshade" || layer.type === "color-relief") {
-      return true;
-    }
-    if (layer.type !== "raster") return false;
-    // basemap.de's relief style models its DEM shading as ordinary raster
-    // layers (Schummerung_Col / Schummerung_Comb), so filtering by MapLibre's
-    // dedicated hillshade type alone does not remove the baked relief pass.
-    return /(?:schummerung|hillshade|combshade|colordem|shaded[-_ ]?relief)/i.test(
-      [layer.id, layer.source, layer["source-layer"]].join(":")
-    );
-  };
 
   const ensureOpaqueDrape = () => {
     const style = map.getStyle();
     const layers = (style.layers ?? []) as DrapeLayer[];
     for (const layer of layers) {
-      if (!isTerrainShadingLayer(layer)) continue;
+      if (!isTerrainShadingStyleLayer(layer)) continue;
       const signature = getLayerSignature(layer);
       let saved = savedTerrainShadingVisibilities.get(layer.id);
       const currentVisibility = map.getLayoutProperty(layer.id, "visibility");
@@ -378,6 +413,17 @@ export const acquireShadowMapLibreTerrain = (
     if (disposed || applying) return;
     applying = true;
     try {
+      if (!terrainMap.getSource(sourceId) && map.isStyleLoaded()) {
+        map.addSource(sourceId, {
+          type: "raster-dem",
+          tiles: [terrainSource.url],
+          tileSize: terrainSource.tileSize,
+          minzoom: terrainSource.minzoom,
+          maxzoom: terrainSource.maxzoom,
+          encoding: terrainSource.encoding,
+          bounds: [...terrainSource.bounds],
+        });
+      }
       if (getDrapeMode() === "labels") {
         // The shared scene registry owns the label drape (it also runs
         // without the shadow simulation); only hand the opaque pass back.
@@ -391,11 +437,21 @@ export const acquireShadowMapLibreTerrain = (
         if (current?.source !== sourceId || (current.exaggeration ?? 1) !== 1) {
           terrainMap.setTerrain({ source: sourceId, exaggeration: 1 });
         }
+        applyTerrainQuality();
         suppressTerrainFrame();
       }
-    } catch {
+      lastApplyErrorMessage = null;
+    } catch (error) {
       // Style replacement briefly exposes an incomplete style. Its next
       // styledata event retries both the opaque drape and terrain setup.
+      const message = error instanceof Error ? error.message : String(error);
+      if (message !== lastApplyErrorMessage) {
+        lastApplyErrorMessage = message;
+        console.error(
+          "[shadow-simulation] MapLibre terrain setup failed",
+          error
+        );
+      }
     } finally {
       applying = false;
     }
@@ -414,6 +470,8 @@ export const acquireShadowMapLibreTerrain = (
     map.off(MAPLIBRE_EVENT.STYLE_DATA, apply);
     map.off(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
     restoreTerrainFrame();
+    restoreTerrainQuality();
+    qualityPatchedTerrain = null;
     restoreOpaqueDrape();
     restoreSavedVisibilities(savedTerrainShadingVisibilities);
     try {
@@ -1019,13 +1077,19 @@ export const buildShadowSimulationScene = (
   map: MaplibreMap,
   options: ShadowSceneOptions = {}
 ): ShadowSimulationScene => {
-  const { shadowAreaMeters: configuredShadowAreaMeters, terrain } = options;
+  const {
+    shadowAreaMeters: configuredShadowAreaMeters,
+    terrain: initialTerrain,
+    mapLibreTerrain,
+    terrainQuality = SHADOW_TERRAIN_QUALITY.MAX,
+  } = options;
+  let terrain = initialTerrain;
   const initialShadowAreaMeters =
     configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
   const previousLight = map.getLight();
   let mapStyleContentVisible = true;
   // A mesh that supplies the terrain carries its own texture: the basemap
-  // pass then only contributes draped labels. Bare Cesium terrain, or no
+  // pass then only contributes draped labels. Bare raster-DEM terrain, or no
   // terrain-providing content at all, keeps the opaque basemap drape.
   const getMapStyleDrapeMode = (): ShadowMapStyleDrapeMode => {
     const providers = getSharedThreeSceneRuntimes(map).filter(
@@ -1040,9 +1104,10 @@ export const buildShadowSimulationScene = (
   };
   const releaseMapLibreTerrain = acquireShadowMapLibreTerrain(
     map,
-    WUPPERTAL_TERRAIN_SOURCE_ID,
+    mapLibreTerrain ?? NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
     () => mapStyleContentVisible,
-    getMapStyleDrapeMode
+    getMapStyleDrapeMode,
+    terrainQuality
   );
   const syncMeshLabelStyle = () => {
     sceneLease.setMeshLabelStyle(getMapStyleDrapeMode() === "labels");
@@ -1099,18 +1164,55 @@ export const buildShadowSimulationScene = (
   const atmosphericSunlight = new AtmosphericSunlightEvaluator();
   let invalidateShadowMap = () => undefined;
   let refreshTerrainShadowState = () => invalidateShadowMap();
-  const buildTerrainRuntime = () => {
+  let lastTerrainRuntimeErrorMessage: string | null = null;
+  let terrainRevision = 0;
+  const buildTerrainRuntime = (originLngLat?: [number, number]) => {
     if (!terrain) return null;
     const mapCenter = map.getCenter();
-    const { url, ...runtimeOptions } = terrain;
-    return buildCesiumTerrainRuntime(
-      SHADOW_SIMULATION_TERRAIN_RUNTIME_ID,
-      url,
-      [mapCenter.lng, mapCenter.lat],
+    const {
+      errorTargetPixels,
+      shadowLevelOffset,
+      minimumLevel,
+      maximumLevel,
+      maxSelectionTiles,
+      requestConcurrency,
+      maxCacheBytes,
+      maxCachedMeshes,
+      meshSegments,
+      noDataHeightMeters,
+      heightRangeMeters,
+      material,
+      ...terrainSourceConfig
+    } = terrain;
+    return buildRasterDemTerrainRuntime(
+      `${SHADOW_SIMULATION_TERRAIN_RUNTIME_ID}-${++terrainRevision}`,
+      terrainSourceConfig,
+      originLngLat ?? [mapCenter.lng, mapCenter.lat],
       {
-        ...runtimeOptions,
+        errorTargetPixels: errorTargetPixels ?? 0.5,
+        shadowLevelOffset,
+        minimumLevel,
+        maximumLevel,
+        maxSelectionTiles,
+        requestConcurrency,
+        maxCacheBytes,
+        maxCachedMeshes,
+        meshSegments: meshSegments ?? terrainSourceConfig.tileSize,
+        noDataHeightMeters,
+        heightRangeMeters,
+        material,
         receivesMapStyleTexture: true,
         onContentChanged: () => refreshTerrainShadowState(),
+        onError: (error) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (message === lastTerrainRuntimeErrorMessage) return;
+          lastTerrainRuntimeErrorMessage = message;
+          console.error(
+            "[shadow-simulation] Raster DEM terrain runtime failed",
+            error
+          );
+        },
       }
     );
   };
@@ -1201,7 +1303,7 @@ export const buildShadowSimulationScene = (
   };
   const applyMapLibreLightSample = (sample: AtmosphericSunlightSample) => {
     pendingMapLibreLightSample = sample;
-    if (!timeAnimating) {
+    if (!timeAnimating && !mapInMotion) {
       flushMapLibreLightSample();
       return;
     }
@@ -1307,12 +1409,46 @@ export const buildShadowSimulationScene = (
   let mapInMotion = false;
   let latestShadowView: SharedThreeSceneShadowView | null = null;
   let appliedRuntimeShadowView: SharedThreeSceneShadowView | null = null;
+  const terrainSelectionSignatures = new WeakMap<
+    SharedThreeSceneRuntime,
+    string
+  >();
+  const getTerrainSelectionSignature = (
+    view: SharedThreeSceneShadowView | null
+  ) => {
+    if (!view) return "none";
+    const center = map.getCenter();
+    const canvas = map.getCanvas();
+    return [
+      Math.round(center.lng * 10_000_000),
+      Math.round(center.lat * 10_000_000),
+      Math.round((map.getZoom?.() ?? 0) * 10_000),
+      Math.round((map.getBearing?.() ?? 0) * 1_000),
+      Math.round((map.getPitch?.() ?? 0) * 1_000),
+      `${canvas.clientWidth || canvas.width}x${
+        canvas.clientHeight || canvas.height
+      }`,
+      latestSolarPosition?.azimuthDegrees ?? "no-sun",
+      latestSolarPosition?.elevationDegrees ?? "no-sun",
+      sharedBinding.shadowQuality,
+    ].join(";");
+  };
   const applyRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
-    if (view === null && appliedRuntimeShadowView === null) return;
     appliedRuntimeShadowView = view;
-    terrainRuntime?.setShadowView(view);
-    for (const runtime of getSharedThreeSceneRuntimes(map)) {
-      if (runtime === terrainRuntime) continue;
+    const selectionSignature = getTerrainSelectionSignature(view);
+    const runtimes = [
+      ...getSharedThreeSceneRuntimes(map),
+      ...(terrainRuntime ? [terrainRuntime] : []),
+    ];
+    for (const runtime of new Set(runtimes)) {
+      if (!runtime.providesTerrain) {
+        runtime.setShadowView?.(view);
+        continue;
+      }
+      if (terrainSelectionSignatures.get(runtime) === selectionSignature) {
+        continue;
+      }
+      terrainSelectionSignatures.set(runtime, selectionSignature);
       runtime.setShadowView?.(view);
     }
   };
@@ -1323,15 +1459,52 @@ export const buildShadowSimulationScene = (
 
   let lastDebugPublishMs = 0;
   let softSunShadowsEnabled = true;
+  let renderQuality: ShadowRenderQualityOptions = {};
+  let effectiveRenderQuality = resolveShadowRenderQuality(renderQuality);
+  let renderCapabilities: ReturnType<
+    typeof getShadowRenderCapabilities
+  > | null = null;
+  const getAccumulationOptions = () => ({
+    format: effectiveRenderQuality.shadowBufferFormat,
+    msaaSamples: resolveSupportedShadowMsaa(
+      effectiveRenderQuality,
+      (effectiveRenderQuality.shadowBufferFormat === SHADOW_BUFFER_FORMAT.SDR_8
+        ? renderCapabilities?.sdrSamples
+        : renderCapabilities?.hdrSamples) ?? [0, 2, 4]
+    ),
+  });
+  let accumulationOptions = getAccumulationOptions();
   let contentChangeTimer = 0;
   let coverageNeedsCameraReevaluation = true;
   let fallbackReceiverWorldPoints: THREE.Vector3[] = [];
   let renderCameraSignature = "";
   let lastMotionShadowUpdateMs = Number.NEGATIVE_INFINITY;
+  let shadowFrameBudget = createShadowFrameBudget();
   let maxAccumulationPixels = Number.POSITIVE_INFINITY;
+  let nativeAccumulationFits = true;
+  let resourceLimits = resolveShadowResourceLimits(4096);
   sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
-  const updateSharedShadowCoverage = (reevaluateSun = true) => {
+  const quantizeViewValue = (value: number, step: number) =>
+    Math.round(value / step) * step;
+
+  const getCoverageViewSignature = (frame: SharedThreeSceneFrame) => {
+    const center = map.getCenter();
+    return [
+      quantizeViewValue(center.lng, 0.0000001),
+      quantizeViewValue(center.lat, 0.0000001),
+      quantizeViewValue(map.getZoom?.() ?? 0, 0.0001),
+      quantizeViewValue(map.getBearing?.() ?? 0, 0.001),
+      quantizeViewValue(map.getPitch?.() ?? 0, 0.001),
+      `${frame.viewport.x}x${frame.viewport.y}`,
+    ].join(";");
+  };
+
+  const updateSharedShadowCoverage = (
+    reevaluateSun = true,
+    requestRepaint = true,
+    frame?: SharedThreeSceneFrame
+  ) => {
     const mapCenter = map.getCenter();
     const centerElevation =
       terrainRuntime?.getElevation(mapCenter.lng, mapCenter.lat) ?? 0;
@@ -1343,94 +1516,49 @@ export const buildShadowSimulationScene = (
       if (latestSolarPosition) {
         evaluateAtmosphericSunlightForMap(latestSolarPosition);
       }
-      map.triggerRepaint();
+      if (requestRepaint) map.triggerRepaint();
       return;
     }
     sharedBinding.center.copy(center);
-    const canvas = map.getCanvas();
-    const viewportWidth = canvas.clientWidth || canvas.width;
-    const viewportHeight = canvas.clientHeight || canvas.height;
-    let radiusMeters = 0;
-    const projectedCorners: THREE.Vector3[] = [];
-    // Fit the actual screen corners rather than their geographic AABB.
-    const viewportLngLats = [
-      [0, viewportHeight],
-      [0, 0],
-      [viewportWidth, viewportHeight],
-      [viewportWidth, 0],
-    ].map((point) => {
-      const lngLat = map.unproject(point as [number, number]);
-      return [lngLat.lng, lngLat.lat] as [number, number];
-    });
-    // Clamp near-horizon projections to the supported receiver radius.
-    const clampToReceiverRadius = (point: THREE.Vector3) => {
-      const offset = point.clone().sub(center);
-      const horizontal = Math.hypot(offset.x, offset.z);
-      if (horizontal <= MAX_RECEIVER_DISTANCE_METERS) return point;
-      const scale = MAX_RECEIVER_DISTANCE_METERS / horizontal;
-      offset.x *= scale;
-      offset.z *= scale;
-      return offset.add(center);
-    };
-    for (const lngLat of viewportLngLats) {
-      const corner = sceneLease.layer.projectLngLatToScene?.(
-        lngLat,
-        terrainRuntime?.getElevation(lngLat[0], lngLat[1]) ?? centerElevation
+    cachedElevationRange ??= getVisibleSceneElevationRange(
+      sharedBinding.scene,
+      center.y
+    );
+    const [minimumElevation, maximumElevation] = cachedElevationRange;
+    if (frame) {
+      const coveragePoints = getViewportElevationEnvelopePoints(
+        frame.renderCamera,
+        minimumElevation,
+        maximumElevation,
+        center
       );
-      if (corner) {
-        const clamped = clampToReceiverRadius(corner);
-        projectedCorners.push(clamped);
-        radiusMeters = Math.max(radiusMeters, clamped.distanceTo(center));
+      if (coveragePoints.length > 0) {
+        const viewportSize = new THREE.Box3()
+          .setFromPoints(coveragePoints)
+          .getSize(new THREE.Vector3());
+        const viewportRadiusMeters = Math.max(
+          ...coveragePoints.map((point) => point.distanceTo(center))
+        );
+        sharedBinding.sunVectorLengthMeters =
+          Math.min(viewportSize.x, viewportSize.z) *
+          SUN_VECTOR_VIEWPORT_LENGTH_FACTOR;
+        sharedBinding.shadowAreaMeters = Math.max(
+          configuredShadowAreaMeters ?? 0,
+          MIN_VIEWPORT_SHADOW_AREA_METERS,
+          viewportRadiusMeters * 2
+        );
+        fallbackReceiverWorldPoints = coveragePoints;
       }
-    }
-    if (projectedCorners.length === 4) {
-      const [southWest, northWest, southEast, northEast] = projectedCorners;
-      const viewportWidthMeters =
-        (southWest.distanceTo(southEast) + northWest.distanceTo(northEast)) / 2;
-      const viewportHeightMeters =
-        (southWest.distanceTo(northWest) + southEast.distanceTo(northEast)) / 2;
-      sharedBinding.sunVectorLengthMeters =
-        Math.min(viewportWidthMeters, viewportHeightMeters) *
-        SUN_VECTOR_VIEWPORT_LENGTH_FACTOR;
-    }
-    let minimumElevation = center.y;
-    let maximumElevation = center.y;
-    if (projectedCorners.length > 0) {
-      cachedElevationRange ??= getVisibleSceneElevationRange(
-        sharedBinding.scene,
-        center.y
-      );
-      [minimumElevation, maximumElevation] = cachedElevationRange;
-      const elevationRadiusMeters = Math.max(
-        Math.abs(minimumElevation - center.y),
-        Math.abs(maximumElevation - center.y)
-      );
-      // Include the scene's vertical span in the receiver radius.
-      const viewportRadiusMeters = Math.hypot(
-        radiusMeters,
-        elevationRadiusMeters
-      );
-      sharedBinding.shadowAreaMeters = Math.max(
-        configuredShadowAreaMeters ?? 0,
-        MIN_VIEWPORT_SHADOW_AREA_METERS,
-        viewportRadiusMeters * 2
-      );
+    } else {
+      // Public map.unproject performs synchronous terrain depth readback.
+      // Fit against the next render camera and retain the last valid coverage.
+      coverageNeedsCameraReevaluation = true;
     }
     sharedBinding.shadowCameraOffsetMeters = Math.max(
       DEFAULT_SHADOW_CAMERA_OFFSET_METERS,
       sharedBinding.shadowAreaMeters * 1.5
     );
-    const coveragePoints = viewportLngLats.flatMap((lngLat) =>
-      [minimumElevation, maximumElevation].flatMap((elevation) => {
-        const point = sceneLease.layer.projectLngLatToScene?.(
-          lngLat,
-          elevation
-        );
-        return point ? [clampToReceiverRadius(point)] : [];
-      })
-    );
-    fallbackReceiverWorldPoints = coveragePoints;
-    sharedBinding.receiverWorldPoints = coveragePoints;
+    sharedBinding.receiverWorldPoints = fallbackReceiverWorldPoints;
     sharedBinding.minimumElevationMeters = minimumElevation;
     sharedBinding.maximumElevationMeters = maximumElevation;
     sharedBinding.dirty = true;
@@ -1446,7 +1574,7 @@ export const buildShadowSimulationScene = (
       sharedBinding.sunVector.root.position.copy(sharedBinding.center);
       sharedBinding.sunVector.root.updateMatrixWorld(true);
     }
-    map.triggerRepaint();
+    if (requestRepaint) map.triggerRepaint();
   };
 
   const shadowControllerRuntime: SharedThreeSceneRuntime = {
@@ -1455,6 +1583,30 @@ export const buildShadowSimulationScene = (
     root: new THREE.Group(),
     updatePriority: SHADOW_CONTROLLER_UPDATE_PRIORITY,
     update(frame) {
+      const renderer = sceneLease.layer.getRenderer?.();
+      if (renderer && !renderCapabilities) {
+        renderCapabilities = getShadowRenderCapabilities(renderer);
+        accumulationOptions = getAccumulationOptions();
+        resourceLimits = resolveShadowResourceLimits(
+          Math.min(
+            renderCapabilities.maxTextureSize,
+            renderCapabilities.maxRenderbufferSize
+          )
+        );
+        sharedBinding.controller.setMaxShadowMapSize(
+          resourceLimits.maxShadowMapSize
+        );
+        maxAccumulationPixels = resourceLimits.maxAccumulationPixels;
+      }
+      // Above the device's existing memory cap, retain direct full-resolution
+      // shading instead of blurring the captured map/labels by downsampling.
+      nativeAccumulationFits =
+        frame.viewport.x * frame.viewport.y <= maxAccumulationPixels;
+      shadowFrameBudget = updateShadowFrameBudget(
+        shadowFrameBudget,
+        performance.now(),
+        mapInMotion
+      );
       const cameraHeightAboveTargetMeters = Math.max(
         0,
         frame.lodCamera.position.y - frame.lookTarget.y
@@ -1500,13 +1652,10 @@ export const buildShadowSimulationScene = (
           if (sample) applyMapLibreLightSample(sample);
         }
       }
-      const nextRenderCameraSignature = getSharedThreeShadowViewSignature({
-        camera: frame.renderCamera,
-        shadowMapSize: {
-          width: frame.viewport.x,
-          height: frame.viewport.y,
-        },
-      });
+      // MapLibre may rebuild render-camera matrices while terrain settles even
+      // though its public view did not move. Terrain changes invalidate this
+      // coverage separately, so use the stable user-facing view state here.
+      const nextRenderCameraSignature = getCoverageViewSignature(frame);
       if (
         coverageNeedsCameraReevaluation ||
         nextRenderCameraSignature !== renderCameraSignature
@@ -1514,7 +1663,7 @@ export const buildShadowSimulationScene = (
         const nowMs = performance.now();
         if (
           mapInMotion &&
-          nowMs - lastMotionShadowUpdateMs < MOTION_SHADOW_UPDATE_INTERVAL_MS
+          nowMs - lastMotionShadowUpdateMs < shadowFrameBudget.updateIntervalMs
         ) {
           return;
         }
@@ -1531,17 +1680,25 @@ export const buildShadowSimulationScene = (
               frame.renderCamera,
               sharedBinding.center.y
             );
-        updateSharedShadowCoverage(false);
+        // We are already inside the custom-layer render. Triggering MapLibre
+        // here would turn a coverage refresh into a self-sustaining idle loop.
+        updateSharedShadowCoverage(false, false, frame);
         coverageNeedsCameraReevaluation = false;
       }
       if (!sharedBinding.dirty) return;
+      if (
+        sharedBinding.sunVectorVisible &&
+        sharedBinding.sunVector.root.cone.position.y !==
+          sharedBinding.sunVectorLengthMeters
+      ) {
+        applySolarPositionToBinding(
+          sharedBinding,
+          sharedBinding.directionToSun,
+          sharedBinding.sunColor,
+          sharedBinding.sunIntensity
+        );
+      }
       shadowStateEpoch += 1;
-      const cameraCoveragePoints = getViewportElevationEnvelopePoints(
-        frame.renderCamera,
-        sharedBinding.minimumElevationMeters,
-        sharedBinding.maximumElevationMeters,
-        sharedBinding.center
-      );
       const visibleTileVolumePoints = mapInMotion
         ? []
         : getActiveTileVolumes().flatMap(({ minimum, maximum }) =>
@@ -1556,8 +1713,6 @@ export const buildShadowSimulationScene = (
       sharedBinding.receiverWorldPoints =
         visibleTileVolumePoints.length > 0
           ? visibleTileVolumePoints
-          : cameraCoveragePoints.length > 0
-          ? cameraCoveragePoints
           : fallbackReceiverWorldPoints;
       if (
         sharedBinding.receiverWorldPoints.length === 0 ||
@@ -1566,16 +1721,6 @@ export const buildShadowSimulationScene = (
         setRuntimeShadowView(null);
         clearShadowProjectionDebugSnapshot(map);
         return;
-      }
-      const rendererCaps = sceneLease.layer.getRenderer?.()?.capabilities;
-      if (rendererCaps?.maxTextureSize) {
-        const resourceLimits = resolveShadowResourceLimits(
-          rendererCaps.maxTextureSize
-        );
-        sharedBinding.controller.setMaxShadowMapSize(
-          resourceLimits.maxShadowMapSize
-        );
-        maxAccumulationPixels = resourceLimits.maxAccumulationPixels;
       }
       const snapshot = sharedBinding.controller.update({
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
@@ -1587,6 +1732,14 @@ export const buildShadowSimulationScene = (
         intensity: sharedBinding.sunIntensity,
         shadowIntensity: sharedBinding.shadowIntensity,
         quality: sharedBinding.shadowQuality,
+        mapTexelBudget: resolveShadowDepthTexelBudget(
+          resourceLimits.maxShadowMapSize,
+          sharedBinding.shadowQuality,
+          frame.viewport.x * frame.viewport.y,
+          mapInMotion ? shadowFrameBudget.depthScale : 1
+        ),
+        groundTexelFit: effectiveRenderQuality.shadowGroundTexelFit,
+        stabilizeMapSize: mapInMotion,
       });
       sharedBinding.dirty = false;
       if (!snapshot) {
@@ -1670,10 +1823,11 @@ export const buildShadowSimulationScene = (
   sceneLease.layer.addRuntime(shadowControllerRuntime);
 
   const getSunDiscAccumulationRounds = () =>
-    sharedBinding.shadowQuality === 64
-      ? MAX_SUN_DISC_ACCUMULATION_ROUNDS
-      : SUN_DISC_ACCUMULATION_ROUNDS;
+    effectiveRenderQuality.shadowSunDiscSamples;
   const accumulationController = {
+    get options() {
+      return accumulationOptions;
+    },
     get maxRenderTargetPixels() {
       return maxAccumulationPixels;
     },
@@ -1682,7 +1836,13 @@ export const buildShadowSimulationScene = (
     },
     epoch: () => shadowStateEpoch,
     visualEpoch: () => shadowVisualEpoch,
+    pending: () =>
+      nativeAccumulationFits &&
+      softSunShadowsEnabled &&
+      !timeAnimating &&
+      (!initialTerrainStageReady || mapInMotion || contentChangeTimer !== 0),
     active: () =>
+      nativeAccumulationFits &&
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
       !mapInMotion &&
@@ -1692,6 +1852,7 @@ export const buildShadowSimulationScene = (
       latestShadowView !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
     retainSettledFrame: () =>
+      nativeAccumulationFits &&
       softSunShadowsEnabled &&
       latestSolarPosition !== null &&
       latestShadowView !== null &&
@@ -1716,6 +1877,11 @@ export const buildShadowSimulationScene = (
   };
 
   const handleMoveStart = () => {
+    shadowFrameBudget = updateShadowFrameBudget(
+      shadowFrameBudget,
+      performance.now(),
+      false
+    );
     mapInMotion = true;
     coverageNeedsCameraReevaluation = true;
     sharedBinding.dirty = true;
@@ -1726,7 +1892,16 @@ export const buildShadowSimulationScene = (
   };
   const handleMoveEnd = () => {
     mapInMotion = false;
+    shadowFrameBudget = updateShadowFrameBudget(
+      shadowFrameBudget,
+      performance.now(),
+      false
+    );
     refreshSharedShadowCoverage();
+    if (latestAtmosphericSunlight) {
+      pendingMapLibreLightSample = latestAtmosphericSunlight;
+      flushMapLibreLightSample();
+    }
     if (appliedRuntimeShadowView !== latestShadowView) {
       applyRuntimeShadowView(latestShadowView);
     }
@@ -1823,8 +1998,11 @@ export const buildShadowSimulationScene = (
         runtime.setErrorTarget?.(latestMeshErrorTarget);
       }
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
-      runtime.setShadowView?.(appliedRuntimeShadowView);
     }
+    // New terrain providers receive the current shadow-selection envelope,
+    // while existing ones keep their stationary-view signature. Refitting the
+    // light to freshly streamed terrain must not restart terrain traversal.
+    applyRuntimeShadowView(appliedRuntimeShadowView);
     makeSceneMeshesShadeable(sceneLease.layer.getScene());
     sharedBinding.controller.invalidate();
     sharedBinding.dirty = true;
@@ -1880,6 +2058,28 @@ export const buildShadowSimulationScene = (
 
   return {
     updateSolarPosition,
+    updateTerrain(nextTerrain) {
+      if (terrain === nextTerrain) return;
+      terrain = nextTerrain;
+      if (!nextTerrain || sharedSceneProvidesTerrain()) return;
+      const previous = terrainRuntime;
+      const replacement = buildTerrainRuntime(previous?.originLngLat);
+      if (!replacement) return;
+      replacement.setMaterialColor(`#${terrainColor.getHexString()}`);
+      replacement.setShadowView(appliedRuntimeShadowView);
+      // One runtime owns the mixed old/new quadtree cut. This keeps borders
+      // stitched across sources and preserves receivers while tiles arrive.
+      if (previous) replacement.adoptPresentation(previous);
+      terrainRuntime = replacement;
+      sceneLease.layer.addRuntime(replacement);
+      if (previous) sceneLease.layer.removeRuntime(previous.id);
+      watchTerrainRuntime(replacement);
+      cachedElevationRange = null;
+      coverageNeedsCameraReevaluation = true;
+      invalidateShadowPresentation();
+      refreshTerrainShadowState();
+      map.triggerRepaint();
+    },
     updateTerrainColor(color) {
       const nextColor = new THREE.Color(color);
       if (terrainColor.equals(nextColor)) return;
@@ -1924,9 +2124,39 @@ export const buildShadowSimulationScene = (
       if (sharedBinding.shadowQuality === quality) return;
       invalidateShadowPresentation();
       sharedBinding.shadowQuality = quality;
+      effectiveRenderQuality = resolveShadowRenderQuality(
+        renderQuality,
+        quality
+      );
+      accumulationOptions = getAccumulationOptions();
+      shadowFrameBudget = createShadowFrameBudget(quality);
       sharedBinding.dirty = true;
       updateSharedShadowCoverage();
       sharedBinding.controller.invalidate();
+    },
+    updateRenderQuality(options) {
+      const previous = effectiveRenderQuality;
+      const next = resolveShadowRenderQuality(
+        options,
+        sharedBinding.shadowQuality
+      );
+      renderQuality = { ...options };
+      effectiveRenderQuality = next;
+      if (
+        previous.shadowBufferFormat === next.shadowBufferFormat &&
+        previous.shadowSunDiscSamples === next.shadowSunDiscSamples &&
+        previous.shadowMsaaSamples === next.shadowMsaaSamples &&
+        previous.shadowGroundTexelFit === next.shadowGroundTexelFit
+      ) {
+        return;
+      }
+      accumulationOptions = getAccumulationOptions();
+      invalidateShadowPresentation();
+      if (previous.shadowGroundTexelFit !== next.shadowGroundTexelFit) {
+        sharedBinding.dirty = true;
+        sharedBinding.controller.invalidate();
+      }
+      map.triggerRepaint();
     },
     updateSoftSunShadows(enabled) {
       if (softSunShadowsEnabled === enabled) return;

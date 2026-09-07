@@ -5,6 +5,8 @@ import type { SharedThreeSceneRuntime } from "./shared-three-scene-layer";
 const listeners = new WeakMap<MaplibreMap, Set<() => void>>();
 const requestStateListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 const runtimes = new WeakMap<MaplibreMap, Set<SharedThreeSceneRuntime>>();
+const shadedPresentation = new WeakSet<MaplibreMap>();
+const presentationListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 
 const notifyListeners = (
   registry: WeakMap<MaplibreMap, Set<() => void>>,
@@ -39,9 +41,26 @@ export const subscribeSharedThreeSceneContent = (
   return subscribeListeners(listeners, map, listener);
 };
 
-export const notifySharedThreeSceneRequestStateChanged = (
-  map: MaplibreMap
+/** A shaded custom pass has reached the framebuffer (not merely been loaded). */
+export const hasSharedThreeShadedPresentation = (map: MaplibreMap): boolean =>
+  shadedPresentation.has(map);
+
+export const setSharedThreeShadedPresentation = (
+  map: MaplibreMap,
+  presented: boolean
 ) => {
+  if (shadedPresentation.has(map) === presented) return;
+  if (presented) shadedPresentation.add(map);
+  else shadedPresentation.delete(map);
+  notifyListeners(presentationListeners, map);
+};
+
+export const subscribeSharedThreeShadedPresentation = (
+  map: MaplibreMap,
+  listener: () => void
+): (() => void) => subscribeListeners(presentationListeners, map, listener);
+
+export const notifySharedThreeSceneRequestStateChanged = (map: MaplibreMap) => {
   notifyListeners(requestStateListeners, map);
 };
 

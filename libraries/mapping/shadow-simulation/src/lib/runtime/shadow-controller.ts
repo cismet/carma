@@ -3,11 +3,16 @@ import * as THREE from "three";
 import { clamp } from "@carma-commons/math";
 import { degToRadNumeric } from "@carma-units";
 
+import {
+  fitShadowMap,
+  getSunDiscReceiverGuard,
+  resolveShadowMapTexelBudget,
+} from "../core/fit-shadow-map";
 import type { ShadowQualityMultiplier } from "../core/shadow-types";
+import { shadowRasterOffset } from "../core/shadow-raster-offset";
 
 const BASE_SHADOW_MAP_SIZE = 2_048;
 const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
-const SHADOW_FILTER_GUARD_TEXELS = 3;
 const MIN_SHADOW_AREA_METERS = 2;
 const MIN_CASTER_REACH_METERS = 50;
 const MAX_CASTER_REACH_METERS = 10_000;
@@ -18,7 +23,7 @@ const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
 const MIN_SHADOW_BIAS_ELEVATION_SINE = 0.2;
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
-const SUN_ANGULAR_RADIUS_RAD = degToRadNumeric(0.53 / 2);
+export const SUN_ANGULAR_RADIUS_RAD = degToRadNumeric(0.53 / 2);
 const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));
 
 export const CASTER_RELIEF_MARGIN_METERS = 300;
@@ -50,11 +55,18 @@ export type ShadowCameraSnapshot = Readonly<{
   projectionMatrixElements: readonly number[];
   guardMeters: number;
   metersPerTexel: number;
+  metersPerTexelX?: number;
+  metersPerTexelY?: number;
+  groundTexelWidthMeters?: number;
+  groundTexelHeightMeters?: number;
+  groundTexelFitLimited?: boolean;
+  groundTexelFit?: boolean;
 }>;
 
 export type ShadowSnapshot = Readonly<{
   sampleCount: number;
   totalShadowTexels: number;
+  mapTexelBudget?: number;
   casterReachMeters: number;
   camera: ShadowCameraSnapshot;
 }>;
@@ -69,6 +81,14 @@ export type ShadowUpdate = Readonly<{
   intensity: number;
   shadowIntensity: number;
   quality: ShadowQualityMultiplier;
+  groundTexelFit?: boolean;
+  /** Avoid reallocating depth storage for each aspect-ratio change in a gesture. */
+  stabilizeMapSize?: boolean;
+  /** Total depth texels, independent of the hardware's per-axis limit.
+   * Invalid values use the quality policy; positive values clamp to at least
+   * 64² texels (the allocation/guard minimum) and at most the hardware limit².
+   */
+  mapTexelBudget?: number;
 }>;
 
 const getReceiverBoundsInLightCamera = (
@@ -119,8 +139,16 @@ export class ShadowController {
     tangentB: THREE.Vector3;
     anchorPosition: THREE.Vector3;
     lightDistance: number;
+    rasterBounds: LightSpaceBounds;
   } | null = null;
   private maxShadowMapSize = DEFAULT_MAX_SHADOW_MAP_SIZE;
+  private mapAllocation: {
+    width: number;
+    height: number;
+    texelBudget: number;
+    maxMapSize: number;
+    groundTexelFit: boolean;
+  } | null = null;
   private disposed = false;
 
   constructor(private readonly hostScene: THREE.Scene) {
@@ -140,6 +168,7 @@ export class ShadowController {
   }
 
   setMaxShadowMapSize(size: number): void {
+    if (!Number.isFinite(size) || size <= 0) return;
     const next = Math.max(256, Math.floor(size));
     if (this.disposed || this.maxShadowMapSize === next) return;
     this.maxShadowMapSize = next;
@@ -147,11 +176,16 @@ export class ShadowController {
 
   setSoftSun(enabled: boolean): void {
     if (this.disposed || this.softSun === enabled) return;
+    if (!enabled) this.restoreSunDiscCenter();
     this.softSun = enabled;
     if (!enabled) this.lastSoftFit = null;
   }
 
-  applySunDiscSample(round: number, sampleCount: number): void {
+  applySunDiscSample(
+    round: number,
+    sampleCount: number,
+    rasterJitter = true
+  ): void {
     if (this.disposed) return;
     const fit = this.lastSoftFit;
     if (!fit) return;
@@ -173,6 +207,19 @@ export class ShadowController {
       .addScaledVector(tangentDirection, Math.sin(angularOffset))
       .normalize();
     const light = this.lights[0];
+    const [phaseX, phaseY] =
+      rasterJitter && count > 1 ? shadowRasterOffset(sampleIndex) : [0, 0];
+    const camera = light.shadow.camera;
+    const bounds = fit.rasterBounds;
+    const shiftX =
+      (phaseX * (bounds.right - bounds.left)) / light.shadow.mapSize.x;
+    const shiftY =
+      (phaseY * (bounds.top - bounds.bottom)) / light.shadow.mapSize.y;
+    camera.left = bounds.left + shiftX;
+    camera.right = bounds.right + shiftX;
+    camera.bottom = bounds.bottom + shiftY;
+    camera.top = bounds.top + shiftY;
+    camera.updateProjectionMatrix();
     light.position
       .copy(direction)
       .multiplyScalar(fit.lightDistance)
@@ -187,6 +234,12 @@ export class ShadowController {
     if (this.disposed || !this.lastSoftFit) return;
     const fit = this.lastSoftFit;
     const light = this.lights[0];
+    const camera = light.shadow.camera;
+    camera.left = fit.rasterBounds.left;
+    camera.right = fit.rasterBounds.right;
+    camera.bottom = fit.rasterBounds.bottom;
+    camera.top = fit.rasterBounds.top;
+    camera.updateProjectionMatrix();
     light.position
       .copy(fit.directionToSun)
       .multiplyScalar(fit.lightDistance)
@@ -211,6 +264,9 @@ export class ShadowController {
     intensity,
     shadowIntensity,
     quality,
+    groundTexelFit = true,
+    stabilizeMapSize = false,
+    mapTexelBudget,
   }: ShadowUpdate): ShadowSnapshot | null {
     if (this.disposed) return null;
     if (receiverWorldPoints.length === 0) {
@@ -241,7 +297,12 @@ export class ShadowController {
     const lightMargin =
       casterReachMeters + reliefMeters + LIGHT_CAMERA_SAFETY_METERS;
     const restingMapSize = restingShadowMapSize(quality, this.maxShadowMapSize);
-    const mapSize = Math.floor(restingMapSize);
+    const resolvedMapTexelBudget = resolveShadowMapTexelBudget(
+      mapTexelBudget,
+      Math.floor(restingMapSize) ** 2,
+      this.maxShadowMapSize
+    );
+    const mapSize = Math.floor(Math.sqrt(resolvedMapTexelBudget));
     const resolvedColor = new THREE.Color(color);
     const targetPosition = receiverAnchorWorldPosition.clone();
     const receiverRadius = receiverWorldPoints.reduce(
@@ -266,46 +327,68 @@ export class ShadowController {
     );
     if (!receiverBounds) return null;
 
-    const sampleMapSize = mapSize;
+    // This camera also selects streamed offscreen casters. Preserve the
+    // caster-reach guard; a receiver-only bound would miss some sun-disc rays.
+    const receiverSunDiscGuard = getSunDiscReceiverGuard(
+      receiverRadius,
+      normalizedDirectionToSun.y,
+      this.softSun ? SUN_ANGULAR_RADIUS_RAD : 0
+    );
     const sunDiscGuardMeters = this.softSun
-      ? Math.tan(SUN_ANGULAR_RADIUS_RAD) * lightDistance
+      ? Math.max(
+          Math.tan(SUN_ANGULAR_RADIUS_RAD) * lightDistance,
+          receiverSunDiscGuard.planarMeters
+        )
       : 0;
-    const usableMapDimension = Math.max(
-      1,
-      sampleMapSize - SHADOW_FILTER_GUARD_TEXELS * 2
-    );
+    const shadowFit = fitShadowMap(receiverBounds, {
+      mapSize,
+      mapTexelBudget: resolvedMapTexelBudget,
+      maxMapSize: this.maxShadowMapSize,
+      elevationSine: normalizedDirectionToSun.y,
+      sunDiscGuardMeters,
+      groundTexelFit,
+      mapDimensions:
+        stabilizeMapSize &&
+        this.mapAllocation?.texelBudget === resolvedMapTexelBudget &&
+        this.mapAllocation.maxMapSize === this.maxShadowMapSize &&
+        this.mapAllocation.groundTexelFit === groundTexelFit
+          ? this.mapAllocation
+          : undefined,
+    });
+    this.mapAllocation = {
+      width: shadowFit.mapWidth,
+      height: shadowFit.mapHeight,
+      texelBudget: resolvedMapTexelBudget,
+      maxMapSize: this.maxShadowMapSize,
+      groundTexelFit,
+    };
     const metersPerTexel = Math.max(
-      (receiverBounds.right - receiverBounds.left + sunDiscGuardMeters * 2) /
-        usableMapDimension,
-      (receiverBounds.top - receiverBounds.bottom + sunDiscGuardMeters * 2) /
-        usableMapDimension,
-      Number.EPSILON
+      shadowFit.metersPerTexelX,
+      shadowFit.metersPerTexelY
     );
-    const guardMeters = metersPerTexel * SHADOW_FILTER_GUARD_TEXELS;
-    const fittedSize = metersPerTexel * sampleMapSize;
-    const centerX =
-      Math.round(
-        (receiverBounds.left + receiverBounds.right) / 2 / metersPerTexel
-      ) * metersPerTexel;
-    const centerY =
-      Math.round(
-        (receiverBounds.bottom + receiverBounds.top) / 2 / metersPerTexel
-      ) * metersPerTexel;
+    const guardMeters = Math.max(
+      shadowFit.guardMetersX,
+      shadowFit.guardMetersY
+    );
     const shadowBounds = {
-      left: centerX - fittedSize / 2,
-      right: centerX + fittedSize / 2,
-      bottom: centerY - fittedSize / 2,
-      top: centerY + fittedSize / 2,
+      left: shadowFit.left,
+      right: shadowFit.right,
+      bottom: shadowFit.bottom,
+      top: shadowFit.top,
       near: Math.max(
         0.01,
         receiverBounds.near -
+          receiverSunDiscGuard.depthMeters -
           casterReachMeters -
           reliefMeters -
           LIGHT_CAMERA_SAFETY_METERS
       ),
       far: Math.max(
         1,
-        receiverBounds.far + reliefMeters + LIGHT_CAMERA_SAFETY_METERS
+        receiverBounds.far +
+          receiverSunDiscGuard.depthMeters +
+          reliefMeters +
+          LIGHT_CAMERA_SAFETY_METERS
       ),
     };
     shadowBounds.far = Math.max(shadowBounds.near + 1, shadowBounds.far);
@@ -342,12 +425,12 @@ export class ShadowController {
     light.shadow.intensity = clamp(shadowIntensity, 0, 1);
     light.shadow.needsUpdate = true;
     if (
-      light.shadow.mapSize.x !== sampleMapSize ||
-      light.shadow.mapSize.y !== sampleMapSize
+      light.shadow.mapSize.x !== shadowFit.mapWidth ||
+      light.shadow.mapSize.y !== shadowFit.mapHeight
     ) {
       light.shadow.map?.dispose();
       light.shadow.map = null;
-      light.shadow.mapSize.set(sampleMapSize, sampleMapSize);
+      light.shadow.mapSize.set(shadowFit.mapWidth, shadowFit.mapHeight);
     }
     light.position
       .copy(normalizedDirectionToSun)
@@ -375,12 +458,14 @@ export class ShadowController {
           tangentB,
           anchorPosition: targetPosition.clone(),
           lightDistance,
+          rasterBounds: shadowBounds,
         }
       : null;
     const primaryCamera = primaryLight.shadow.camera;
     return {
       sampleCount: 1,
-      totalShadowTexels: sampleMapSize * sampleMapSize,
+      totalShadowTexels: shadowFit.mapWidth * shadowFit.mapHeight,
+      mapTexelBudget: resolvedMapTexelBudget,
       casterReachMeters,
       camera: {
         receiverPointCount: receiverWorldPoints.length,
@@ -394,12 +479,18 @@ export class ShadowController {
         topMeters: primaryCamera.top,
         nearMeters: primaryCamera.near,
         farMeters: primaryCamera.far,
-        shadowMapWidth: sampleMapSize,
-        shadowMapHeight: sampleMapSize,
+        shadowMapWidth: shadowFit.mapWidth,
+        shadowMapHeight: shadowFit.mapHeight,
         viewMatrixElements: [...primaryCamera.matrixWorldInverse.elements],
         projectionMatrixElements: [...primaryCamera.projectionMatrix.elements],
         guardMeters,
         metersPerTexel,
+        metersPerTexelX: shadowFit.metersPerTexelX,
+        metersPerTexelY: shadowFit.metersPerTexelY,
+        groundTexelWidthMeters: shadowFit.groundTexelWidthMeters,
+        groundTexelHeightMeters: shadowFit.groundTexelHeightMeters,
+        groundTexelFitLimited: shadowFit.groundTexelFitLimited,
+        groundTexelFit,
       },
     };
   }

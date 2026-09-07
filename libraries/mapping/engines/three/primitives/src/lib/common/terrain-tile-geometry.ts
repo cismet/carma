@@ -1,4 +1,5 @@
-import { BufferGeometry, Float32BufferAttribute, Vector3 } from "three";
+import { BufferAttribute, BufferGeometry, Vector3 } from "three";
+import { computeMeshVertexNormals } from "./mesh-helpers";
 
 export type ProjectedTerrainTileBounds = Readonly<{
   west: number;
@@ -60,7 +61,8 @@ const assertTile = ({ tile }: ProjectedTerrainTileGeometryOptions) => {
       throw new TypeError("Terrain tile vertices must be finite");
     }
   }
-  for (const index of Array.from(tile.indices)) {
+  for (let offset = 0; offset < tile.indices.length; offset += 1) {
+    const index = tile.indices[offset];
     if (!Number.isInteger(index) || index < 0 || index >= vertexCount) {
       throw new RangeError("Terrain tile index is outside the vertex array");
     }
@@ -73,7 +75,11 @@ const buildUpwardTriangleIndices = (
   positions: Float32Array,
   sourceIndices: ArrayLike<number>
 ) => {
-  const indices: number[] = [];
+  const indices =
+    positions.length / 3 < 65536
+      ? new Uint16Array(sourceIndices.length)
+      : new Uint32Array(sourceIndices.length);
+  let indexCount = 0;
   for (let offset = 0; offset < sourceIndices.length; offset += 3) {
     const a = sourceIndices[offset];
     const b = sourceIndices[offset + 1];
@@ -88,19 +94,18 @@ const buildUpwardTriangleIndices = (
     if (Math.abs(normalY) <= MIN_HORIZONTAL_DOUBLE_AREA_SQUARE_METERS) {
       continue;
     }
-    if (normalY > 0) {
-      indices.push(a, b, c);
-    } else {
-      indices.push(a, c, b);
-    }
+    indices[indexCount] = a;
+    indices[indexCount + 1] = normalY > 0 ? b : c;
+    indices[indexCount + 2] = normalY > 0 ? c : b;
+    indexCount += 3;
   }
-  if (indices.length === 0) {
+  if (indexCount === 0) {
     throw new RangeError("Terrain tile does not contain a renderable triangle");
   }
-  return indices;
+  return indices.subarray(0, indexCount);
 };
 
-/** Projects one native quantized-mesh TIN tile without synthetic skirts. */
+/** Projects one geographic terrain triangle mesh without synthetic skirts. */
 export const createProjectedTerrainTileGeometry = (
   options: ProjectedTerrainTileGeometryOptions
 ): BufferGeometry => {
@@ -122,7 +127,11 @@ export const createProjectedTerrainTileGeometry = (
       tile.heightMeters[sourceIndex],
       projected
     );
-    if (![projected.x, projected.y, projected.z].every(Number.isFinite)) {
+    if (
+      !Number.isFinite(projected.x) ||
+      !Number.isFinite(projected.y) ||
+      !Number.isFinite(projected.z)
+    ) {
       throw new TypeError("Terrain projector returned a non-finite vertex");
     }
     positions[sourceIndex * 3] = projected.x;
@@ -135,9 +144,11 @@ export const createProjectedTerrainTileGeometry = (
   }
 
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  geometry.setIndex(buildUpwardTriangleIndices(positions, tile.indices));
-  geometry.computeVertexNormals();
+  geometry.setAttribute("position", new BufferAttribute(positions, 3));
+  geometry.setIndex(
+    new BufferAttribute(buildUpwardTriangleIndices(positions, tile.indices), 1)
+  );
+  computeMeshVertexNormals(geometry);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
