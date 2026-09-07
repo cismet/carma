@@ -125,6 +125,36 @@ export {
   type SelectedCar,
 } from "./addons/VehicleAnimation";
 
+export {
+  FloodSimulation,
+  FloodPanel,
+  FloodInteractionPanel,
+  useFloodActions,
+  useFloodLauncher,
+  useFloodLayerRow,
+  formatLevel,
+  resolveLook,
+  resolveTerrainSource,
+  floodStateStorageKey,
+  NRW_DGM1_TERRAIN,
+  FLOOD_ICON_COLOR,
+  FLOOD_LAYER,
+  FLOOD_LAYER_ID,
+  FLOOD_LEVEL_STEP,
+  FLOOD_LOOK_BOUNDS,
+  FLOOD_LOOK_DEFAULT,
+  FLOOD_STATE_DEFAULT,
+  FLOOD_STATE_STORAGE_KEY,
+  FLOOD_TOOLS_INTERACTION_ID,
+  type FloodDefinition,
+  type FloodLook,
+  type FloodRange,
+  type FloodSimulationConfig,
+  type FloodState,
+  type FloodTerrainSource,
+  type UseFloodLayerRowOptions,
+} from "./addons/FloodSimulation";
+
 export { useHasAddonStateProducer } from "./lib/addon-channels";
 export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";

@@ -83,6 +83,11 @@ import {
   type VehicleAnimationState,
 } from "../addons/VehicleAnimation";
 import {
+  FloodSimulation,
+  type FloodSimulationConfig,
+  type FloodState,
+} from "../addons/FloodSimulation";
+import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
@@ -146,6 +151,11 @@ export type AddonConfigMap = {
    * rectangle walking an arc-length parameter, with no caged part.
    */
   vehicleAnimation: VehicleAnimationConfig;
+  /**
+   * A plane of water at an adjustable level over a raster DEM, drawn with
+   * three.js. Open, no cage involved.
+   */
+  floodSimulation: FloodSimulationConfig;
   zoomToExtent: ZoomToExtentConfig;
   /** implemented in cage; renders nothing when cage is absent */
   cageIndicatorBadge: CageIndicatorBadgeConfig;
@@ -199,6 +209,12 @@ export type AddonStateMap = {
    * layer-bar row, which sits in the host's tree rather than in the addon's.
    */
   vehicleAnimation: VehicleAnimationState;
+  /**
+   * the flood on the map: its terrain, the water level and the slider's
+   * bounds; see `FloodSimulation`. Read by the layer-bar row and the panel,
+   * which sit in the host's tree rather than in the addon's.
+   */
+  floodSimulation: FloodState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -379,6 +395,10 @@ export const addonRegistry: {
   vehicleAnimation: {
     Component: VehicleAnimation,
     provides: ["vehicleAnimation"],
+  },
+  floodSimulation: {
+    Component: FloodSimulation,
+    provides: ["floodSimulation"],
   },
   zoomToExtent: { trigger: zoomToExtentTrigger },
   // Component is undefined when cage is absent; AddonHost renders nothing then.

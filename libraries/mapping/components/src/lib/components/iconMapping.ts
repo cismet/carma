@@ -2,6 +2,7 @@ import {
   faCircle,
   faClock,
   faGlobe,
+  faHouseFloodWater,
   faLayerGroup,
   faObjectGroup,
   faRuler,
@@ -18,6 +19,7 @@ export const iconMap = {
   timeSeries: faClock,
   flowField: faWater,
   vehicleAnimation: faTrain,
+  flood: faHouseFloodWater,
   background: faLayerGroup,
   ortho: faGlobe,
 };
