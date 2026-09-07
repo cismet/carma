@@ -78,23 +78,7 @@ export const useAnnotationActions = () => {
     [setState]
   );
 
-  const addGroup = useCallback(
-    () =>
-      setState((previous) => {
-        const group: AnnotationGroup = { id: nextGroupId(), locked: false };
-        return {
-          ...(previous ?? { isOn: false }),
-          groups: [
-            ...groupsOf(previous).map((entry) => ({ ...entry, locked: true })),
-            group,
-          ],
-          activeId: group.id,
-        };
-      }),
-    [setState]
-  );
-
-  /** the first stroke turns an untouched drawing into one that owns a range */
+  /** the first stroke turns an untouched drawing into one the toolbar lists */
   const setCoverage = useCallback(
     (id: string, coverage: AnnotationCoverage) =>
       setState((previous) => ({
@@ -204,7 +188,6 @@ export const useAnnotationActions = () => {
     setShape,
     undo,
     redo,
-    addGroup,
     setCoverage,
     pickGroup,
     zoomToGroup,

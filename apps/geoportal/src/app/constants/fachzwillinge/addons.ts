@@ -55,13 +55,15 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { addon: "vectorHighlightControl" },
-    // annotation layer over the map, pinned to the ground so it pans and scales
-    // with the camera. The control switches who gets the pointer.
+    // annotation layer over the map, pinned to the ground so it pans with the
+    // camera. Geometry scales with the map, stroke width and font size do not.
+    // The map is the only scale there is, so excalidraw's own zoom widget is
+    // hidden. The control switches who gets the pointer.
     {
       addon: "annotationOverlay",
       config: {
         hideMenu: true,
-        hideZoom: false,
+        hideZoom: true,
         hideTools: true,
         hideHelp: true,
         hideLibrary: true,

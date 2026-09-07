@@ -26,6 +26,8 @@ export { readDrawings, writeDrawings } from "./annotation-storage";
 export type { StoredDrawing } from "./annotation-storage";
 export { useAnnotationStorage } from "./useAnnotationStorage";
 export { sceneHasElementAt } from "./annotation-hit-test";
+export { useDecorationScale } from "./annotation-normalize";
+export type { UseDecorationScaleOptions } from "./annotation-normalize";
 export { useDrawingPicker } from "./useDrawingPicker";
 export type { SceneProbe } from "./useDrawingPicker";
 export { useMapSceneSync } from "./map-scene-sync";

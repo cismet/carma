@@ -7,19 +7,23 @@ import type {
  * How the next thing drawn will look, and what draws it. Excalidraw keeps this
  * per instance, so without sharing it every drawing would start again from the
  * defaults — black, thin, selection tool — the moment the pencil moves to it.
+ *
+ * Stroke width, font size and roughness are deliberately not in here. Those
+ * three are screen referenced and the value excalidraw carries for them is a
+ * derived one, in scene units for the zoom the map is at; see
+ * `annotation-normalize`. Handing it to another scene would take it for a size
+ * the user picked, and the drawing would come out at whatever scale the number
+ * happened to be written for.
  */
 export type AnnotationPen = {
   tool: AppState["activeTool"]["type"];
   strokeColor: AppState["currentItemStrokeColor"];
   backgroundColor: AppState["currentItemBackgroundColor"];
   fillStyle: AppState["currentItemFillStyle"];
-  strokeWidth: AppState["currentItemStrokeWidth"];
   strokeStyle: AppState["currentItemStrokeStyle"];
-  roughness: AppState["currentItemRoughness"];
   roundness: AppState["currentItemRoundness"];
   opacity: AppState["currentItemOpacity"];
   fontFamily: AppState["currentItemFontFamily"];
-  fontSize: AppState["currentItemFontSize"];
   textAlign: AppState["currentItemTextAlign"];
   startArrowhead: AppState["currentItemStartArrowhead"];
   endArrowhead: AppState["currentItemEndArrowhead"];
@@ -30,13 +34,10 @@ export const penFrom = (appState: AppState): AnnotationPen => ({
   strokeColor: appState.currentItemStrokeColor,
   backgroundColor: appState.currentItemBackgroundColor,
   fillStyle: appState.currentItemFillStyle,
-  strokeWidth: appState.currentItemStrokeWidth,
   strokeStyle: appState.currentItemStrokeStyle,
-  roughness: appState.currentItemRoughness,
   roundness: appState.currentItemRoundness,
   opacity: appState.currentItemOpacity,
   fontFamily: appState.currentItemFontFamily,
-  fontSize: appState.currentItemFontSize,
   textAlign: appState.currentItemTextAlign,
   startArrowhead: appState.currentItemStartArrowhead,
   endArrowhead: appState.currentItemEndArrowhead,
@@ -60,13 +61,10 @@ export const applyPen = (
       currentItemStrokeColor: pen.strokeColor,
       currentItemBackgroundColor: pen.backgroundColor,
       currentItemFillStyle: pen.fillStyle,
-      currentItemStrokeWidth: pen.strokeWidth,
       currentItemStrokeStyle: pen.strokeStyle,
-      currentItemRoughness: pen.roughness,
       currentItemRoundness: pen.roundness,
       currentItemOpacity: pen.opacity,
       currentItemFontFamily: pen.fontFamily,
-      currentItemFontSize: pen.fontSize,
       currentItemTextAlign: pen.textAlign,
       currentItemStartArrowhead: pen.startArrowhead,
       currentItemEndArrowhead: pen.endArrowhead,

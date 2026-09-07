@@ -12,6 +12,7 @@ import { redoScene, undoScene } from "./annotation-history";
 import { applyPen, penFrom } from "./annotation-pen";
 import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
+import { useDecorationScale } from "./annotation-normalize";
 import { useMapSceneSync } from "./map-scene-sync";
 import type { AnnotationPen } from "./annotation-pen";
 import type { AnnotationShape } from "./shape-tools";
@@ -42,6 +43,9 @@ const IN_USE =
 
 /** keeps a zoomed-to drawing clear of the map chrome, in px */
 const ZOOM_PADDING = 80;
+
+/** how far zooming to a drawing goes in, however small the drawing is */
+const ZOOM_TO_MAX = 20;
 
 type SceneBox = { minX: number; minY: number; maxX: number; maxY: number };
 
@@ -168,15 +172,29 @@ export const AnnotationScene = ({
 }: AnnotationSceneProps) => {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
-  const { inSync, onSceneChange, getAnchor, reanchor } = useMapSceneSync(
-    libreMap,
+  const { inSync, onSceneChange, getAnchor, reanchor, setAnchorZoom } =
+    useMapSceneSync(
+      libreMap,
+      api,
+      box,
+      editable,
+      live,
+      syncLimits,
+      savedAnchor
+    );
+
+  /**
+   * Stroke width, font size and image size are screen referenced: they keep
+   * the pixel size they were drawn at while the geometry scales with the map.
+   * See `annotation-normalize`.
+   */
+  const { normalize: normalizeDecoration, noteState } = useDecorationScale({
     api,
-    box,
-    editable,
-    live,
-    syncLimits,
-    savedAnchor
-  );
+    libreMap,
+    overlay: box,
+    getAnchor,
+    setAnchorZoom,
+  });
 
   const versionRef = useRef(-1);
   const fileCountRef = useRef(-1);
@@ -199,6 +217,7 @@ export const AnnotationScene = ({
     files: BinaryFiles
   ) => {
     onSceneChange(appState);
+    noteState(appState);
 
     const tool = appState.activeTool.type;
     if (editable && !penTakenRef.current) {
@@ -218,6 +237,10 @@ export const AnnotationScene = ({
         return;
       }
       settledRef.current = true;
+      // the restored drawing carries the scene values of the zoom it was saved
+      // at, so it is put back on this one. After the paint, updateScene is not
+      // excalidraw's to take while it is telling us about a change
+      requestAnimationFrame(() => normalizeDecoration(true));
     }
 
     const version = getSceneVersion?.(elements) ?? -1;
@@ -428,16 +451,14 @@ export const AnnotationScene = ({
         [topLeft.lng, bottomRight.lat],
         [bottomRight.lng, topLeft.lat],
       ],
-      { padding: ZOOM_PADDING, maxZoom: anchor.zoom }
+      { padding: ZOOM_PADDING, maxZoom: ZOOM_TO_MAX }
     );
     if (!camera?.center) {
       return;
     }
-    // never below the anchor: that zoom belongs to another drawing, and the
-    // routing would hand the pencil straight over to it
     libreMap.easeTo({
       center: camera.center,
-      zoom: Math.max(camera.zoom ?? anchor.zoom, anchor.zoom),
+      zoom: camera.zoom,
       duration: 500,
     });
   }, [api, getAnchor, libreMap, zoomVersion]);
