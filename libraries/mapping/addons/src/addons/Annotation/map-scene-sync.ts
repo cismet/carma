@@ -277,5 +277,33 @@ export const useMapSceneSync = (
     applyMapCamera();
   }, [applyMapCamera, map]);
 
-  return { inSync, onSceneChange: applySceneCamera, getAnchor, reanchor };
+  /**
+   * Moves the anchor to another zoom without moving it on the ground. Scene
+   * units are map pixels at the anchor's zoom, so every coordinate in the
+   * scene means something else afterwards: whoever calls this rewrites the
+   * elements by the same factor in the same tick, see `annotation-normalize`.
+   */
+  const setAnchorZoom = useCallback(
+    (zoom: number) => {
+      const anchor = anchorRef.current;
+      if (!anchor) {
+        return;
+      }
+      anchorRef.current = { ...anchor, zoom };
+      // the camera in flight was read against the old anchor and means
+      // something else now; nothing counts until the scene echoes this one
+      primedRef.current = false;
+      repushRef.current = 0;
+      applyMapCamera();
+    },
+    [applyMapCamera]
+  );
+
+  return {
+    inSync,
+    onSceneChange: applySceneCamera,
+    getAnchor,
+    reanchor,
+    setAnchorZoom,
+  };
 };

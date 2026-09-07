@@ -10,7 +10,6 @@ import { reserveIdSequence, useAnnotationActions } from "./annotation-actions";
 import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { coverageAround } from "./annotation-zoom-coverage";
 import type { AnnotationPen } from "./annotation-pen";
-import { useZoomRouting } from "./useZoomRouting";
 import { AnnotationScene } from "./AnnotationScene";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
@@ -58,9 +57,12 @@ const DEFAULT_INSET: Required<AnnotationInset> = {
  * The georeferenced sketch layer: one excalidraw scene per drawing, portalled
  * into the map wrapper and pinned to the ground by `useMapSceneSync`.
  *
- * Each drawing has its own anchor, so a new one starts at the current camera
- * while the older ones stay where they were drawn. `annotationControl` flips
- * the `annotationMode` channel; off means view mode and `pointer-events: none`.
+ * There is one drawing. It takes its anchor from the camera it is opened at
+ * and keeps it from its first stroke on; nothing here opens a second one, and
+ * a zoom no longer hands the pencil anywhere. What a zoom does instead is
+ * leave the drawing alone and rewrite its decoration, see `useDecorationScale`.
+ * `annotationControl` flips the `annotationMode` channel; off means view mode
+ * and `pointer-events: none`.
  *
  * The map wrapper spans the window behind the app chrome, and excalidraw pins
  * its toolbar to the top of whatever box it gets — hence the insets, at the
@@ -101,7 +103,6 @@ export const AnnotationOverlay = ({
     zoomRequest,
     pickGroup,
     setShape,
-    addGroup,
     setCoverage,
     hydrate,
   } = useAnnotationActions();
@@ -145,8 +146,8 @@ export const AnnotationOverlay = ({
       anchor: AnnotationAnchor | null
     ) => {
       storeSceneEdit(id, elements, files, anchor);
-      // the stroke that starts a drawing is what claims its zooms, the window
-      // around the 100 % it is drawn at
+      // the stroke that starts a drawing is what fixes the zooms it reads
+      // 100 % at, and what turns it into a drawing the toolbar lists
       const groups = groupsRef.current;
       const group = groups.find((entry) => entry.id === id);
       if (!group || group.coverage || !anchor) {
@@ -170,14 +171,6 @@ export const AnnotationOverlay = ({
   }, []);
   const getPen = useCallback(() => penRef.current, []);
 
-  useZoomRouting({
-    libreMap,
-    enabled: isOn,
-    groups,
-    activeId,
-    pickGroup,
-    addGroup,
-  });
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
   // flush to the host would file the toolbar away behind the navbar. Measured,
