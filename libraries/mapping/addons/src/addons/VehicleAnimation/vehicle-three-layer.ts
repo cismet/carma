@@ -8,10 +8,12 @@ import * as THREE from "three";
 
 import { add3dPresence, remove3dPresence } from "@carma-mapping/engines/maplibre";
 
-import { buildCar, type CarPiece } from "./car-model";
+import { buildCar, type CarModel } from "./car-model";
 import {
   createFleet,
+  createSelectionReporter,
   type FleetTimetable,
+  type SelectedCar,
   type VehicleMode,
   type VehicleSchedule,
 } from "./fleet";
@@ -56,6 +58,8 @@ export type VehicleThreeLayerOptions = {
   beforeId?: string;
   id?: string;
   onFleetSize?: (count: number) => void;
+  /** told about the selected vehicle, refreshed as it runs; null when there is none */
+  onSelection?: (car: SelectedCar | null) => void;
 };
 
 const DEFAULT_ID = "vehicle-animation-3d";
@@ -66,6 +70,12 @@ const MAX_FRAME_SECONDS = 0.25;
 /** the painted steel of the Gerüst, and the rust of the bare rail on top */
 const STEEL_COLOR = new THREE.Color("#93ad98");
 const RAIL_COLOR = new THREE.Color("#8a5a3c");
+/** the blue a selected feature gets in the vector styles */
+const HIGHLIGHT_COLOR = new THREE.Color("#4892F0");
+/** how far a click may miss a car's centre line on screen and still hit it */
+const PICK_TOLERANCE_PX = 20;
+/** the body's centre hangs about this far under the rail */
+const CAR_PICK_DEPTH = 2.5;
 
 /** member thickness in metres: the girder chords, the bracing, the support bars */
 const GIRDER_THICKNESS = 0.25;
@@ -290,12 +300,15 @@ export const createVehicleThreeLayer = (
     beforeId,
     id = DEFAULT_ID,
     onFleetSize,
+    onSelection,
   } = options;
 
   let opacity = options.opacity;
   let paused = false;
   let destroyed = false;
   let lastTimestamp: number | null = null;
+  /** whether a frame has set the camera yet; picking needs its matrix */
+  let rendered = false;
 
   const fleet = createFleet({
     track,
@@ -316,6 +329,10 @@ export const createVehicleThreeLayer = (
     reportedCount = count;
     onFleetSize?.(count);
   };
+
+  const selection = createSelectionReporter(track, fleet, (car) =>
+    onSelection?.(car)
+  );
 
   const frame: LocalFrame = structure
     ? { origin: structure.origin, metersPerLon: structure.metersPerLon }
@@ -457,21 +474,25 @@ export const createVehicleThreeLayer = (
     return resource;
   };
 
-  const cars: CarPiece[][] = fleet.cars.map(() => {
-    const pieces = buildCar({
+  const cars: CarModel[] = fleet.cars.map(() => {
+    const model = buildCar({
       shape,
       bodyColor: options.bodyColor,
       bellowsColor: options.jointColor,
       outerSign,
       keep,
     });
-    for (const piece of pieces) scene.add(piece.group);
-    return pieces;
+    for (const piece of model.pieces) scene.add(piece.group);
+    return model;
   });
 
   const placeCars = (): void => {
+    const selected = selection.get();
     fleet.cars.forEach((car, carIndex) => {
-      for (const { group, offset } of cars[carIndex]) {
+      cars[carIndex].body.color.set(
+        carIndex === selected ? HIGHLIGHT_COLOR : options.bodyColor
+      );
+      for (const { group, offset } of cars[carIndex].pieces) {
         group.visible = car.visible;
         if (!car.visible) continue;
         let distance = car.distance + offset * car.direction;
@@ -494,6 +515,72 @@ export const createVehicleThreeLayer = (
   scene.traverse((object) => {
     object.frustumCulled = false;
   });
+
+  /* ---------------------------------------------------------------- *
+   *  Picking: the cars projected to the screen with the last frame's camera
+   * ---------------------------------------------------------------- */
+
+  const clip = new THREE.Vector4();
+  /** the body under the rail at `distance`, on screen in CSS pixels; null behind the camera */
+  const screenOf = (distance: number): [number, number] | null => {
+    const wrapped = track.closed
+      ? ((distance % track.length) + track.length) % track.length
+      : distance;
+    const pose = poseAt(track, wrapped);
+    const [x, y] = toLocal(frame, pose.lon, pose.lat);
+    const bottomChord = pose.height ?? 0;
+    const height =
+      (hasTerrain ? bottomChord : bottomChord - groundAt(wrapped)) - CAR_PICK_DEPTH;
+    clip.set(x, height, -y, 1).applyMatrix4(camera.projectionMatrix);
+    if (clip.w <= 0) return null;
+    const canvas = map.getCanvas();
+    return [
+      ((clip.x / clip.w + 1) / 2) * canvas.clientWidth,
+      ((1 - clip.y / clip.w) / 2) * canvas.clientHeight,
+    ];
+  };
+
+  const distanceToSegment = (
+    point: { x: number; y: number },
+    a: [number, number],
+    b: [number, number]
+  ): number => {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const squared = dx * dx + dy * dy;
+    const t =
+      squared > 0
+        ? Math.max(0, Math.min(1, ((point.x - a[0]) * dx + (point.y - a[1]) * dy) / squared))
+        : 0;
+    return Math.hypot(point.x - (a[0] + dx * t), point.y - (a[1] + dy * t));
+  };
+
+  /**
+   * The car nearest to a screen point, judged by its centre line from nose
+   * to nose: a car is long and thin, so its middle alone would miss most
+   * clicks on it.
+   */
+  const pickCarAt = (point: { x: number; y: number }): number | null => {
+    if (!rendered) return null;
+    const half = shape.lengthMeters / 2;
+    let best: number | null = null;
+    let bestDistance = PICK_TOLERANCE_PX;
+    fleet.cars.forEach((car, index) => {
+      if (!car.visible) return;
+      const points = [car.distance - half, car.distance, car.distance + half].map(screenOf);
+      for (let step = 0; step + 1 < points.length; step++) {
+        const a = points[step];
+        const b = points[step + 1];
+        if (!a || !b) continue;
+        const distance = distanceToSegment(point, a, b);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = index;
+        }
+      }
+    });
+    return best;
+  };
 
   /* ---------------------------------------------------------------- *
    *  The MapLibre layer
@@ -530,6 +617,7 @@ export const createVehicleThreeLayer = (
       lastTimestamp = now;
       if (!paused) {
         fleet.advance(seconds);
+        selection.tick();
         placeCars();
         reportFleet();
       }
@@ -543,6 +631,7 @@ export const createVehicleThreeLayer = (
         .multiply(rotationX);
       camera.projectionMatrix = projection.multiply(model);
       camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+      rendered = true;
 
       // MapLibre's depth range must survive three's state reset, or the
       // symbol layers after this one test against the wrong depth space
@@ -610,6 +699,13 @@ export const createVehicleThreeLayer = (
       map.triggerRepaint();
     },
     getFleetSize: visibleCount,
+    pickCarAt,
+    selectCar: (index) => {
+      selection.set(index);
+      placeCars();
+      map.triggerRepaint();
+    },
+    getSelectedCar: selection.get,
     pickNearestCar: (lon, lat) => {
       const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;

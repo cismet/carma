@@ -121,6 +121,8 @@ export {
   type VehicleSchedule,
   type VehicleScheduleDefinition,
   type UseVehicleAnimationLayerRowOptions,
+  type CarInfo,
+  type SelectedCar,
 } from "./addons/VehicleAnimation";
 
 export { useHasAddonStateProducer } from "./lib/addon-channels";

@@ -2,6 +2,7 @@ import type { Timetable } from "./timetable";
 import { createTimetableFleet } from "./timetable-fleet";
 import {
   nearestPose,
+  poseAt,
   projectStops,
   type Station,
   type Track,
@@ -60,6 +61,28 @@ export type Car = {
   visible: boolean;
 };
 
+/** what a vehicle is doing right now, for an info box */
+export type CarInfo = {
+  /** the terminus it is heading for, what the cab display says; null when the route has no ends */
+  destination: string | null;
+  /** the station it is heading for, or standing in; null without stations */
+  nextStop: string | null;
+  /** seconds until it leaves that station when standing, until it arrives when running */
+  secondsToNextStop: number | null;
+  /** whether it stands in `nextStop` right now */
+  atStop: boolean;
+  /** the service it runs, in one line: the trip's origin and departure, or the headway */
+  service: string;
+};
+
+/** a selected vehicle, as the host's info box wants it */
+export type SelectedCar = CarInfo & {
+  /** which vehicle of the fleet */
+  index: number;
+  lon: number;
+  lat: number;
+};
+
 /** a published timetable to run instead of a headway */
 export type FleetTimetable = {
   timetable: Timetable;
@@ -99,11 +122,77 @@ export type Fleet = {
   advance: (seconds: number) => void;
   /** where the vehicle nearest to (lon, lat) is, or the next one when that is where the view already stands */
   pickNearest: (lon: number, lat: number) => TrackPose | null;
+  /** what one vehicle is doing, by its index in `cars`; null when it is not out */
+  describe: (index: number) => CarInfo | null;
 };
 
 const KMH_TO_MS = 1000 / 3600;
+const METERS_PER_LAT = 111320;
 /** a misconfigured headway must not fill the map with vehicles */
 const MAX_FLEET = 60;
+
+/** seconds as the minutes-and-seconds a timetable is written in */
+export const headwayLabel = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return rest === 0
+    ? `${minutes}-Min-Takt`
+    : `${minutes}:${String(rest).padStart(2, "0")}-Takt`;
+};
+
+/**
+ * Watches one selected vehicle and hands the host a fresh description
+ * whenever what it would show changes, about once a second while the
+ * vehicle runs, and null once the vehicle is gone or the selection dropped.
+ *
+ * Both renderers share this so they cannot describe the same fleet
+ * differently.
+ */
+export const createSelectionReporter = (
+  track: Track,
+  fleet: Fleet,
+  report: (car: SelectedCar | null) => void
+) => {
+  let selected: number | null = null;
+  let lastKey: string | null = null;
+
+  const publish = (): void => {
+    if (selected === null) {
+      if (lastKey !== null) {
+        lastKey = null;
+        report(null);
+      }
+      return;
+    }
+    const info = fleet.describe(selected);
+    if (!info) {
+      selected = null;
+      publish();
+      return;
+    }
+    const key = [
+      selected,
+      info.destination,
+      info.nextStop,
+      info.atStop,
+      Math.round(info.secondsToNextStop ?? -1),
+    ].join("|");
+    if (key === lastKey) return;
+    lastKey = key;
+    const pose = poseAt(track, fleet.cars[selected].distance);
+    report({ ...info, index: selected, lon: pose.lon, lat: pose.lat });
+  };
+
+  return {
+    get: (): number | null => selected,
+    set: (index: number | null): void => {
+      selected = index;
+      publish();
+    },
+    /** after the fleet moved on: the description may have changed, the vehicle may be gone */
+    tick: publish,
+  };
+};
 
 export const createFleet = ({
   track,
@@ -202,10 +291,57 @@ export const createFleet = ({
     }
   };
 
+  /** the line's axis, first to last station, which names the direction of travel */
+  const axis = ((): [number, number] | null => {
+    const stations = schedule?.stations ?? [];
+    if (stations.length < 2) return null;
+    const first = stations[0];
+    const last = stations[stations.length - 1];
+    const east = (last.lon - first.lon) * track.metersPerLon;
+    const north = (last.lat - first.lat) * METERS_PER_LAT;
+    const length = Math.hypot(east, north) || 1;
+    return [east / length, north / length];
+  })();
+
+  const describe = (index: number): CarInfo | null => {
+    const car = cars[index] as Car | undefined;
+    if (!car?.visible) return null;
+    const stations = schedule?.stations ?? [];
+    let destination: string | null = null;
+    if (axis) {
+      const heading = poseAt(track, car.distance).heading;
+      const forward =
+        Math.cos(heading) * axis[0] + Math.sin(heading) * axis[1] >= 0;
+      destination = (forward ? stations[stations.length - 1] : stations[0]).name;
+    }
+    const standing = car.dwellRemaining > 0;
+    // while it stands, `nextStop` already points past the stop it stands in
+    const stopIndex = standing
+      ? (car.nextStop - 1 + stops.length) % stops.length
+      : car.nextStop;
+    const stop = stops.length > 0 ? stops[stopIndex] : null;
+    const speed = Math.max(0.1, speedKmh * KMH_TO_MS);
+    return {
+      destination,
+      nextStop: stop?.name ?? null,
+      secondsToNextStop: stop
+        ? standing
+          ? car.dwellRemaining
+          : gapAhead(car.distance, stop.distance) / speed
+        : null,
+      atStop: standing,
+      service:
+        schedule && schedule.headwaySeconds > 0
+          ? `${headwayLabel(schedule.headwaySeconds)} · ${Math.round(schedule.dwellSeconds)} s Halt`
+          : `${Math.round(speedKmh)} km/h`,
+    };
+  };
+
   return {
     cars,
     size,
     stations: schedule?.stations ?? [],
+    describe,
     setSpeed: (next) => {
       speedKmh = Math.max(0, next);
     },

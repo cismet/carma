@@ -33,6 +33,7 @@ export {
   type TrackStop,
 } from "./track";
 export { type VehicleMode, type VehicleSchedule } from "./vehicle-layer";
+export { type CarInfo, type SelectedCar } from "./fleet";
 export {
   parseTimetable,
   type Timetable,

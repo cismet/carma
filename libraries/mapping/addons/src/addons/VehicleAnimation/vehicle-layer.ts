@@ -6,7 +6,9 @@ import type {
 
 import {
   createFleet,
+  createSelectionReporter,
   type FleetTimetable,
+  type SelectedCar,
   type VehicleMode,
   type VehicleSchedule,
 } from "./fleet";
@@ -65,6 +67,8 @@ export type VehicleLayerOptions = {
   id?: string;
   /** how many vehicles the service needs, once that is known */
   onFleetSize?: (count: number) => void;
+  /** told about the selected vehicle, refreshed as it runs; null when there is none */
+  onSelection?: (car: SelectedCar | null) => void;
 };
 
 export type VehicleLayerHandle = {
@@ -73,6 +77,11 @@ export type VehicleLayerHandle = {
   setOpacity: (opacity: number) => void;
   /** how many vehicles are on the track right now */
   getFleetSize: () => number;
+  /** the vehicle under a screen point (CSS pixels), as its index in the fleet, or null */
+  pickCarAt: (point: { x: number; y: number }) => number | null;
+  /** highlight one vehicle, or none, and report it through `onSelection` */
+  selectCar: (index: number | null) => void;
+  getSelectedCar: () => number | null;
   /**
    * Where the vehicle nearest to (lon, lat) is, or the next one when that is
    * where the view already stands. The handle only reports the position:
@@ -90,6 +99,9 @@ const MAX_FRAME_SECONDS = 0.25;
 /** the painted steel of the Gerüst, and the rust of the bare rail on top */
 const STEEL_COLOR = "#7fa48b";
 const RAIL_COLOR = "#8a5a3c";
+/** the blue a selected feature gets in the vector styles, and a darker rim */
+const HIGHLIGHT_COLOR = "#4892F0";
+const HIGHLIGHT_OUTLINE_COLOR = "#1a56c4";
 /** metres per pixel at zoom 0 on the equator, for MapLibre's 512 px tiles */
 const EQUATOR_METERS_PER_PIXEL = 78271.517;
 
@@ -136,6 +148,7 @@ export const createVehicleLayer = (
     beforeId,
     id = DEFAULT_ID,
     onFleetSize,
+    onSelection,
   } = options;
 
   const sourceId = `${id}-source`;
@@ -183,16 +196,22 @@ export const createVehicleLayer = (
     onFleetSize?.(count);
   };
 
-  const carFeatures = (): GeoJSON.Feature[] =>
-    fleet.cars
-      .filter((car) => car.visible)
-      .flatMap((car) =>
-        carParts(track, car.distance, shape).map((part) => ({
-          type: "Feature" as const,
-          properties: { part: part.kind },
-          geometry: { type: "Polygon" as const, coordinates: [part.ring] },
-        }))
-      );
+  const selection = createSelectionReporter(track, fleet, (car) =>
+    onSelection?.(car)
+  );
+
+  const carFeatures = (): GeoJSON.Feature[] => {
+    const selected = selection.get();
+    return fleet.cars.flatMap((car, index) =>
+      car.visible
+        ? carParts(track, car.distance, shape).map((part) => ({
+            type: "Feature" as const,
+            properties: { part: part.kind, car: index, selected: index === selected },
+            geometry: { type: "Polygon" as const, coordinates: [part.ring] },
+          }))
+        : []
+    );
+  };
 
   const trackFeature = (): GeoJSON.Feature => ({
     type: "Feature",
@@ -304,7 +323,15 @@ export const createVehicleLayer = (
           type: "fill",
           source: sourceId,
           filter: ["==", ["get", "part"], "section"],
-          paint: { "fill-color": bodyColor, "fill-opacity": opacity },
+          paint: {
+            "fill-color": [
+              "case",
+              ["boolean", ["get", "selected"], false],
+              HIGHLIGHT_COLOR,
+              bodyColor,
+            ],
+            "fill-opacity": opacity,
+          },
         },
         insertBefore
       );
@@ -318,8 +345,18 @@ export const createVehicleLayer = (
           filter: ["==", ["get", "part"], "section"],
           layout: { "line-join": "round" },
           paint: {
-            "line-color": outlineColor,
-            "line-width": 1.2,
+            "line-color": [
+              "case",
+              ["boolean", ["get", "selected"], false],
+              HIGHLIGHT_OUTLINE_COLOR,
+              outlineColor,
+            ],
+            "line-width": [
+              "case",
+              ["boolean", ["get", "selected"], false],
+              2,
+              1.2,
+            ],
             "line-opacity": opacity,
           },
         },
@@ -455,6 +492,7 @@ export const createVehicleLayer = (
         : Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_SECONDS);
     lastTimestamp = timestamp;
     fleet.advance(seconds);
+    selection.tick();
     pushCars();
     reportFleet();
     if (!paused) frame = requestAnimationFrame(tick);
@@ -510,6 +548,27 @@ export const createVehicleLayer = (
       }
     },
     getFleetSize: visibleCount,
+    pickCarAt: (point) => {
+      if (!map.getStyle()) return null;
+      const layers = [bodyId, jointId].filter(
+        (layerId) => map.getLayer(layerId) !== undefined
+      );
+      if (layers.length === 0) return null;
+      const hit = map
+        .queryRenderedFeatures([point.x, point.y], { layers })
+        .find(
+          (feature) =>
+            typeof (feature.properties as Record<string, unknown>).car === "number"
+        );
+      return hit
+        ? ((hit.properties as Record<string, unknown>).car as number)
+        : null;
+    },
+    selectCar: (index) => {
+      selection.set(index);
+      pushCars();
+    },
+    getSelectedCar: selection.get,
     pickNearestCar: (lon, lat) => {
       const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;

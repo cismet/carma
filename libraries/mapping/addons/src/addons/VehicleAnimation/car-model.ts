@@ -33,6 +33,13 @@ export type CarPiece = {
   offset: number;
 };
 
+/** one car: its pieces along the track, and the paint of its body */
+export type CarModel = {
+  pieces: CarPiece[];
+  /** the body colour, shared by the car's sections; swapped to highlight the car */
+  body: THREE.MeshLambertMaterial;
+};
+
 export type CarModelOptions = {
   shape: CarShape;
   bodyColor: string;
@@ -411,14 +418,14 @@ const bogie = (atX: number, roofY: number, outerSign: number): THREE.BufferGeome
   ];
 };
 
-/** the pieces of one car, each centred on its own offset along the track */
+/** one car, its pieces each centred on their own offset along the track */
 export const buildCar = ({
   shape,
   bodyColor,
   bellowsColor,
   outerSign,
   keep,
-}: CarModelOptions): CarPiece[] => {
+}: CarModelOptions): CarModel => {
   const { lengthMeters, widthMeters, jointMeters } = shape;
   const shares = shape.sectionShares.length > 0 ? shape.sectionShares : [1];
   const jointCount = shares.length - 1;
@@ -474,5 +481,5 @@ export const buildCar = ({
       cursor += jointMeters;
     }
   });
-  return pieces;
+  return { pieces, body: bodyMaterial };
 };

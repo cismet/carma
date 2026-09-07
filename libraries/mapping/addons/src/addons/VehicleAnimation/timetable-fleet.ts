@@ -1,4 +1,4 @@
-import type { Car, Fleet } from "./fleet";
+import type { Car, CarInfo, Fleet } from "./fleet";
 import {
   serviceRunsOn,
   shiftDay,
@@ -72,6 +72,13 @@ type Run = {
   arc: Arc;
   times: number[];
   u: number[];
+  /** the station names, one per entry of `times` */
+  stops: string[];
+  /** where the trip starts and ends, whatever the model shows of it */
+  origin: string;
+  destination: string;
+  /** the published departure at the origin, seconds after midnight */
+  departure: number;
 };
 
 /** a run in service on a given day, its times shifted onto that day's clock */
@@ -243,16 +250,27 @@ const arcFor = (
 };
 
 /** a trip as a run along its arc, or null when it cannot be placed */
-const toRun = (trip: TimetableTrip, index: number, arc: Arc | null, dwell: number): Run | null => {
+const toRun = (
+  trip: TimetableTrip,
+  index: number,
+  arc: Arc | null,
+  dwell: number,
+  names: readonly string[]
+): Run | null => {
   if (!arc) return null;
   const count = trip.times.length;
   const times: number[] = [];
   const u: number[] = [];
+  const stops: string[] = [];
+  /** every station the trip calls at, placed or not */
+  const served: { name: string; time: number }[] = [];
   for (let step = 0; step < count; step++) {
     const station = trip.direction === "backward" ? count - 1 - step : step;
     const time = trip.times[station];
+    if (time === null) continue;
+    served.push({ name: names[station], time });
     const position = arc.stationU[station];
-    if (time === null || Number.isNaN(position)) continue;
+    if (Number.isNaN(position)) continue;
     // a timetable that goes backwards in time or space is a broken one
     if (times.length > 0 && (time < times[times.length - 1] || position < u[u.length - 1])) {
       return null;
@@ -263,9 +281,26 @@ const toRun = (trip: TimetableTrip, index: number, arc: Arc | null, dwell: numbe
     }
     times.push(time);
     u.push(position);
+    stops.push(names[station]);
   }
-  return times.length >= 2 ? { trip: index, arc, times, u } : null;
+  if (times.length < 2 || served.length === 0) return null;
+  return {
+    trip: index,
+    arc,
+    times,
+    u,
+    stops,
+    origin: served[0].name,
+    destination: served[served.length - 1].name,
+    departure: served[0].time,
+  };
 };
+
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+/** seconds after midnight as the clock time a timetable prints */
+const clockLabel = (seconds: number): string =>
+  `${pad(Math.floor(seconds / 3600) % 24)}:${pad(Math.floor((seconds % 3600) / 60))}`;
 
 /** where the run is at `second` of its service day, or null when it is not out */
 const positionAt = (run: Run, second: number, dwell: number): number | null => {
@@ -361,9 +396,16 @@ export const createTimetableFleet = ({
     ];
   });
 
+  const names = stations.map((station) => station.name);
   const runs: Run[] = [];
   timetable.trips.forEach((trip, index) => {
-    const run = toRun(trip, index, trip.direction === "forward" ? forward : backward, dwell);
+    const run = toRun(
+      trip,
+      index,
+      trip.direction === "forward" ? forward : backward,
+      dwell,
+      names
+    );
     if (run) runs.push(run);
   });
 
@@ -425,15 +467,20 @@ export const createTimetableFleet = ({
   /** which run each slot carries, by key; a run keeps its slot while it is on the model */
   const slotOf = new Map<string, number>();
   const slots: (string | null)[] = cars.map(() => null);
+  /** the run seated in each slot, for describing it */
+  const seated = new Map<number, DayRun>();
+  /** the day's second the vehicles were last placed at */
+  let lastSeconds = 0;
 
   const update = (): void => {
     const { day, weekday, seconds } = zonedMoment(timetable.timezone, now());
-    const present = new Map<string, number>();
+    lastSeconds = seconds;
+    const present = new Map<string, { dayRun: DayRun; u: number }>();
     for (const dayRun of runsOn(day, weekday)) {
       if (seconds < dayRun.enter || seconds > dayRun.exit) continue;
       const u = positionAt(dayRun.run, seconds - dayRun.offset, dwell);
       if (u === null || u < dayRun.run.arc.start || u > dayRun.run.arc.end) continue;
-      present.set(dayRun.key, u);
+      present.set(dayRun.key, { dayRun, u });
     }
 
     // free the slots of runs that have left, then seat the newcomers
@@ -441,16 +488,18 @@ export const createTimetableFleet = ({
       if (key !== null && !present.has(key)) {
         slots[slot] = null;
         slotOf.delete(key);
+        seated.delete(slot);
         cars[slot].visible = false;
       }
     });
-    for (const [key, u] of present) {
+    for (const [key, { dayRun, u }] of present) {
       let slot = slotOf.get(key);
       if (slot === undefined) {
         slot = slots.indexOf(null);
         if (slot === -1) continue;
         slots[slot] = key;
         slotOf.set(key, slot);
+        seated.set(slot, dayRun);
       }
       const car = cars[slot];
       car.distance = ((u % total) + total) % total;
@@ -459,10 +508,31 @@ export const createTimetableFleet = ({
   };
   update();
 
+  const describe = (index: number): CarInfo | null => {
+    const car = cars[index] as Car | undefined;
+    const dayRun = seated.get(index);
+    if (!car?.visible || !dayRun) return null;
+    const { run } = dayRun;
+    const second = lastSeconds - dayRun.offset;
+    const stop = run.times.findIndex((time) => second <= time);
+    if (stop === -1) return null;
+    const standing = second >= run.times[stop] - dwell;
+    return {
+      destination: run.destination,
+      nextStop: run.stops[stop],
+      secondsToNextStop: standing
+        ? run.times[stop] - second
+        : run.times[stop] - dwell - second,
+      atStop: standing,
+      service: `Fahrt ab ${run.origin} ${clockLabel(run.departure)} · nach Fahrplan`,
+    };
+  };
+
   return {
     cars,
     size,
     stations: served,
+    describe,
     // the timetable sets the speed; there is nothing to turn
     setSpeed: () => undefined,
     advance: () => update(),

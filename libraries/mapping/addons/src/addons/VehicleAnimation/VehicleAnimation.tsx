@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrain } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 
+import { claimClick } from "@carma-mapping/engines/maplibre";
 import {
   Control,
   ControlButtonStyler,
@@ -66,6 +67,8 @@ const DEFAULT_CONTROL_ORDER = 83;
 
 const ON_COLOR = "#1677ff";
 const OFF_COLOR = "#000000";
+/** a press that moved further than this is a drag, not a click; MapLibre's own tolerance */
+const CLICK_TOLERANCE_PX = 3;
 
 export const VehicleAnimation = ({
   config = {},
@@ -106,11 +109,13 @@ export const VehicleAnimation = ({
     renderer,
     isPaused,
     focusRequest,
+    selectedCar,
     setOn,
     setLoading,
     setError,
     setTrackLength,
     setFleetSize,
+    setSelectedCar,
   } = useVehicleAnimationActions();
 
   const { startVehicle } = useVehicleAnimationLauncher();
@@ -128,6 +133,8 @@ export const VehicleAnimation = ({
   pausedRef.current = isPaused;
   const speedRef = useRef(speedKmh);
   speedRef.current = speedKmh;
+  const setSelectedCarRef = useRef(setSelectedCar);
+  setSelectedCarRef.current = setSelectedCar;
 
   /**
    * A route that declares its service in full gets it on the map at mount; the
@@ -397,6 +404,7 @@ export const VehicleAnimation = ({
             structure,
             beforeId,
             onFleetSize: setFleetSize,
+            onSelection: (car) => setSelectedCarRef.current(car),
           })
         : createVehicleLayer({
             map: libreMap,
@@ -417,6 +425,7 @@ export const VehicleAnimation = ({
             structure,
             beforeId,
             onFleetSize: setFleetSize,
+            onSelection: (car) => setSelectedCarRef.current(car),
           });
     handle.setPaused(pausedRef.current);
     layerRef.current = handle;
@@ -425,6 +434,7 @@ export const VehicleAnimation = ({
       handle.destroy();
       layerRef.current = null;
       setFleetSize(0);
+      setSelectedCarRef.current(null);
     };
   }, [
     libreMap,
@@ -461,6 +471,52 @@ export const VehicleAnimation = ({
   useEffect(() => {
     layerRef.current?.setPaused(isPaused);
   }, [isPaused]);
+
+  // the host closed its info box, or showed something else in it: the
+  // highlight goes with it
+  useEffect(() => {
+    if (selectedCar === null) layerRef.current?.selectCar(null);
+  }, [selectedCar]);
+
+  // A click on a vehicle is answered here, before MapLibre dispatches it, so
+  // the engine's own selection (WMS feature info and all) leaves it alone: a
+  // capture listener on the canvas container runs ahead of MapLibre's own.
+  // A press that moved is a drag ending on the canvas, not a click.
+  useEffect(() => {
+    if (!libreMap) return undefined;
+    const container = libreMap.getCanvasContainer();
+    let pressedAt: { x: number; y: number } | null = null;
+
+    const onPointerDown = (event: PointerEvent): void => {
+      pressedAt = { x: event.clientX, y: event.clientY };
+    };
+    const onClick = (event: MouseEvent): void => {
+      const handle = layerRef.current;
+      if (!handle) return;
+      if (
+        pressedAt &&
+        Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y) >
+          CLICK_TOLERANCE_PX
+      ) {
+        return;
+      }
+      const rect = libreMap.getCanvas().getBoundingClientRect();
+      const index = handle.pickCarAt({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+      if (index === null) return;
+      claimClick(event);
+      handle.selectCar(index);
+    };
+
+    container.addEventListener("pointerdown", onPointerDown, true);
+    container.addEventListener("click", onClick, true);
+    return () => {
+      container.removeEventListener("pointerdown", onPointerDown, true);
+      container.removeEventListener("click", onClick, true);
+    };
+  }, [libreMap]);
 
   // Someone asked to be shown a vehicle: the one nearest to where the view
   // is. The first value is whatever the channel starts at, so it is only

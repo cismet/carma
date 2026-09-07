@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { useAddonState } from "../../lib/AddonStateContext";
+import type { SelectedCar } from "./fleet";
 import type { Station } from "./track";
 import type { VehicleMode } from "./vehicle-layer";
 
@@ -155,6 +156,13 @@ export type VehicleAnimationState = {
    * last acted on changes, so two clicks in a row are two flights.
    */
   focusRequest: number;
+  /**
+   * The vehicle the visitor clicked, described for an info box, refreshed by
+   * the engine about once a second while it runs; null for none. The host
+   * shows it in its own info box and writes null back when that box closes,
+   * whereupon the engine drops the highlight.
+   */
+  selectedCar: SelectedCar | null;
 };
 
 export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
@@ -187,6 +195,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   trackLength: 0,
   fleetSize: 0,
   focusRequest: 0,
+  selectedCar: null,
 };
 
 const sameDefinition = (
@@ -303,6 +312,16 @@ export const useVehicleAnimationActions = () => {
     [setState]
   );
 
+  const setSelectedCar = useCallback(
+    (next: SelectedCar | null) =>
+      setState((previous) =>
+        previous.selectedCar === next
+          ? previous
+          : { ...previous, selectedCar: next }
+      ),
+    [setState]
+  );
+
   return {
     ...state,
     setOn,
@@ -316,6 +335,7 @@ export const useVehicleAnimationActions = () => {
     setTrackLength,
     setFleetSize,
     requestFocus,
+    setSelectedCar,
   };
 };
 
