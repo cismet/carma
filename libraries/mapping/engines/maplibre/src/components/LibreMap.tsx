@@ -47,6 +47,7 @@ import {
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
+import { isClickClaimed } from "../utils/clickClaims";
 import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
 import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
@@ -953,6 +954,10 @@ export const LibreMap = ({
         // listeners (terra-draw etc.) still fire — maplibre fires events to
         // all registered handlers regardless of order.
         if (!selectionEnabledRef.current) return;
+
+        // an addon that draws its own pickable things has answered this
+        // click before it reached MapLibre; see clickClaims.ts
+        if (isClickClaimed(e.originalEvent)) return;
 
         // ── 3D raycast: check 3D layers before 2D ─────────────
         const threeLayers = get3dLayers(mapInstance);

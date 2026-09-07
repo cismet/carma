@@ -237,3 +237,6 @@ export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';
+
+// Clicks an addon answers before the engine does
+export { claimClick, isClickClaimed } from "./utils/clickClaims";
