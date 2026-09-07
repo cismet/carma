@@ -114,6 +114,7 @@ export const loadFlowFieldState = (
       minZoom: finiteNumber(parsed.minZoom)
         ? parsed.minZoom
         : FLOW_FIELD_STATE_DEFAULT.minZoom,
+      animateWhileMoving: parsed.animateWhileMoving !== false,
       opacity: finiteNumber(parsed.opacity)
         ? Math.max(0, Math.min(1, parsed.opacity))
         : FLOW_FIELD_STATE_DEFAULT.opacity,

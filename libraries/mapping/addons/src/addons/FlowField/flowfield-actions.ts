@@ -65,6 +65,12 @@ export type FlowFieldDefinition = {
    * ground scale as the Leaflet app's `minAnimationZoom` of 17.
    */
   minZoom?: number;
+  /**
+   * Whether the particles keep running while the map pans, zooms or tilts.
+   * Default true. False clears them the moment a move starts and brings them
+   * back once the map has settled, the way the Leaflet rain hazard map did.
+   */
+  animateWhileMoving?: boolean;
   /** 0..1. Default: 1 */
   opacity?: number;
   params?: FlowFieldParams;
@@ -80,6 +86,7 @@ export type FlowFieldState = {
   layerPostfix: string;
   uvCorrection?: UvCorrection;
   minZoom: number;
+  animateWhileMoving: boolean;
   opacity: number;
   params: FlowFieldParams;
   backdrop: FlowFieldBackdrop | null;
@@ -104,6 +111,7 @@ export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   scenario: "",
   layerPostfix: "",
   minZoom: 16,
+  animateWhileMoving: true,
   opacity: 1,
   params: {},
   backdrop: null,
@@ -119,7 +127,8 @@ const sameDefinition = (
   state.title === def.title &&
   state.service === def.service &&
   state.scenario === def.scenario &&
-  state.layerPostfix === (def.layerPostfix ?? "");
+  state.layerPostfix === (def.layerPostfix ?? "") &&
+  state.animateWhileMoving === (def.animateWhileMoving ?? true);
 
 /**
  * The channel with its `localStorage` mirror in front of it: the stored launch
@@ -232,6 +241,7 @@ export const useFlowFieldLauncher = () => {
         layerPostfix: def.layerPostfix ?? "",
         uvCorrection: def.uvCorrection,
         minZoom: def.minZoom ?? FLOW_FIELD_STATE_DEFAULT.minZoom,
+        animateWhileMoving: def.animateWhileMoving ?? true,
         opacity: def.opacity ?? 1,
         params: def.params ?? {},
         backdrop: def.backdrop ?? null,

@@ -139,6 +139,12 @@ export type FlowLayerOptions = {
    * fetched or drawn. Default 16, which is the Leaflet app's zoom 17.
    */
   minZoom?: number;
+  /**
+   * Whether the particles keep running while the map pans, zooms or tilts.
+   * Default true; false pauses them at `movestart` and brings them back once
+   * the map has settled, the Leaflet behaviour.
+   */
+  animateWhileMoving?: boolean;
   /** linear factor by which the fetched box exceeds the viewport */
   viewportBuffer?: number;
   /** quiet time after a map move before a request goes out */
