@@ -194,7 +194,15 @@ export {
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 
-export { getActionLinksForFeature } from "./lib/components/helper";
+export {
+  getActionLinksForFeature,
+  getInfoBoxActionLinks,
+} from "./lib/components/helper";
+export {
+  addInfoBoxAction,
+  getInfoBoxActions,
+  useInfoBoxActions,
+} from "./lib/components/info-box-actions";
 
 export {
   motisClient,
