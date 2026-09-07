@@ -6,6 +6,18 @@ import type {
   ExcalidrawImperativeAPI,
 } from "@excalidraw/excalidraw/types/types";
 
+import {
+  clipHidden,
+  clipShown,
+  clipWindow,
+  clipCovers,
+  isClipProxy,
+  isClipped,
+  oversized,
+  proxiesFor,
+  sameProxy,
+} from "./annotation-clip";
+import type { SceneRect } from "./annotation-clip";
 import type { AnnotationAnchor } from "./types";
 
 /**
@@ -303,6 +315,38 @@ export const useDecorationScale = ({
     editing: false,
   });
 
+  /** the window the copies were clipped to, null while there are none */
+  const clipRef = useRef<SceneRect | null>(null);
+
+  /**
+   * What is on screen, in scene units, given the camera the scene is about to
+   * be read at. Scene units are map pixels at the anchor's zoom counted from
+   * the anchor, so the anchor's own screen position is where they start.
+   */
+  const viewportRect = useCallback(
+    (scale: number): SceneRect | null => {
+      const anchor = getAnchor();
+      if (!libreMap || !overlay || !anchor || !(scale > 0)) {
+        return null;
+      }
+      const container = libreMap.getContainer().getBoundingClientRect();
+      const box = overlay.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) {
+        return null;
+      }
+      const point = libreMap.project([anchor.lng, anchor.lat]);
+      const originX = point.x - (box.left - container.left);
+      const originY = point.y - (box.top - container.top);
+      return {
+        minX: -originX / scale,
+        minY: -originY / scale,
+        maxX: (box.width - originX) / scale,
+        maxY: (box.height - originY) / scale,
+      };
+    },
+    [getAnchor, libreMap, overlay]
+  );
+
   const noteState = useCallback((state: AppState) => {
     // excalidraw's own state, so this is what it really has right now
     const ids = new Set<string>();
@@ -383,19 +427,74 @@ export const useDecorationScale = ({
 
       let touched = false;
       // including the deleted ones: updateScene replaces the whole array, and
-      // dropping them here would take the redo of a deletion with it
-      const elements = api.getSceneElementsIncludingDeleted().map((element) => {
-        const moved = rebasing ? rebased(element, camera) : null;
-        const decoration = rescaled(element, scale, pen, busy);
-        if (!moved && !decoration) {
-          return element;
+      // dropping them here would take the redo of a deletion with it. The
+      // copies are not the drawing and are made again further down
+      const scene = api.getSceneElementsIncludingDeleted();
+      const spare = new Map(
+        scene.filter(isClipProxy).map((proxy) => [proxy.id, proxy])
+      );
+      const rewritten = scene
+        .filter((element) => !isClipProxy(element))
+        .map((element) => {
+          const moved = rebasing ? rebased(element, camera) : null;
+          const decoration = rescaled(element, scale, pen, busy);
+          if (!moved && !decoration) {
+            return element;
+          }
+          touched = true;
+          return redrawn(element, {
+            ...(moved ?? {}),
+            ...(decoration ?? {}),
+          }) as ExcalidrawElement;
+        });
+
+      // What excalidraw's canvas cap would eat is drawn by clipped copies
+      // instead, see `annotation-clip`. The element under the hand keeps
+      // drawing itself: it is being moved, and its copies would lag it.
+      const viewport = viewportRect(scale);
+      const clipBox = viewport ? clipWindow(viewport) : null;
+      const pixelRatio = globalThis.devicePixelRatio || 1;
+      const elements: ExcalidrawElement[] = [];
+      const copies = new Set<string>();
+      rewritten.forEach((element) => {
+        const takeOver =
+          clipBox !== null &&
+          !busy.has(element.id) &&
+          oversized(element, scale, pixelRatio);
+        if (!takeOver) {
+          if (!isClipped(element)) {
+            elements.push(element);
+            return;
+          }
+          touched = true;
+          elements.push(redrawn(clipShown(element), {}) as ExcalidrawElement);
+          return;
         }
-        touched = true;
-        return redrawn(element, {
-          ...(moved ?? {}),
-          ...(decoration ?? {}),
-        }) as ExcalidrawElement;
+        if (isClipped(element)) {
+          elements.push(element);
+        } else {
+          touched = true;
+          elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
+        }
+        proxiesFor(element, clipBox, scale).forEach((proxy) => {
+          copies.add(proxy.id);
+          const previous = spare.get(proxy.id);
+          // the same copy as last time keeps its version, so excalidraw draws
+          // it from its cache instead of making it again
+          if (previous && sameProxy(previous, proxy)) {
+            elements.push(previous);
+            return;
+          }
+          touched = true;
+          elements.push(proxy);
+        });
       });
+      if (spare.size !== copies.size) {
+        touched = true;
+      }
+      // a copy only covers the window it was clipped to, so panning past that
+      // window has to make them again; nothing to watch while there are none
+      clipRef.current = copies.size > 0 ? clipBox : null;
 
       if (!touched && !penMoved) {
         return;
@@ -421,8 +520,35 @@ export const useDecorationScale = ({
         commitToHistory: false,
       });
     },
-    [api, getAnchor, libreMap, setAnchorZoom]
+    [api, getAnchor, libreMap, setAnchorZoom, viewportRect]
   );
+
+  /**
+   * Panning changes no scale, so it costs nothing here, but it does move the
+   * window the copies were clipped to. They are made again once the map has
+   * left it, and never while there are no copies to begin with.
+   */
+  useEffect(() => {
+    if (!api || !libreMap) {
+      return;
+    }
+    const onMove = () => {
+      const clipped = clipRef.current;
+      const anchor = getAnchor();
+      if (!clipped || !anchor) {
+        return;
+      }
+      const viewport = viewportRect(2 ** (libreMap.getZoom() - anchor.zoom));
+      if (!viewport || clipCovers(clipped, viewport)) {
+        return;
+      }
+      normalize(true);
+    };
+    libreMap.on("move", onMove);
+    return () => {
+      libreMap.off("move", onMove);
+    };
+  }, [api, getAnchor, libreMap, normalize, viewportRect]);
 
   useEffect(() => {
     if (!api || !libreMap) {
