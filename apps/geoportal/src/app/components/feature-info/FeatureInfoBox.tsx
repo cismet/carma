@@ -44,6 +44,8 @@ import {
   InfoBoxHeader,
   utils,
   getActionLinksForFeature,
+  getInfoBoxActionLinks,
+  useInfoBoxActions,
 } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -101,6 +103,9 @@ const FeatureInfoBox = ({
     fotoHighlight,
     fotoHighlightColor
   );
+  // buttons contributed at runtime through `carma.ui.addInfoBoxAction`, e.g.
+  // the routing addon's "Route anzeigen"; rendered after the app's own
+  const infoBoxActions = useInfoBoxActions();
 
   if (secondaryInfoBoxElements.length > 4) {
     dispatch(setSecondaryInfoBoxElements([]));
@@ -213,6 +218,10 @@ const FeatureInfoBox = ({
       isOrbiting,
       onOrbitToggle,
     });
+  }
+
+  if (selectedFeature) {
+    links.push(...getInfoBoxActionLinks(infoBoxActions));
   }
 
   const loadingRef = useRef(loadingFeatureInfo);

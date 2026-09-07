@@ -1,6 +1,30 @@
 import IconLink from "react-cismap/commons/IconLink";
 import { CarmaIconLink } from "./CarmaIconLink";
 import { faRotate } from "@fortawesome/free-solid-svg-icons";
+import type { IconProp } from "@fortawesome/fontawesome-svg-core";
+import type { InfoBoxAction } from "@carma-api";
+
+/** what a switched-on contributed action is drawn in */
+const ACTIVE_ACTION_COLOR = "#3b82f6";
+
+/**
+ * The buttons contributed through `carma.ui.addInfoBoxAction`, as links the
+ * info box renders after the app's own. See `info-box-actions.ts` for the
+ * store and `useInfoBoxActions` for reading it.
+ */
+export const getInfoBoxActionLinks = (
+  actions: readonly InfoBoxAction[]
+): JSX.Element[] =>
+  actions.map((action) => (
+    <CarmaIconLink
+      key={`action-${action.key}`}
+      tooltip={action.tooltip}
+      onClick={action.onClick}
+      icon={action.icon as IconProp | undefined}
+      iconname={action.iconname}
+      style={action.active ? { color: ACTIVE_ACTION_COLOR } : undefined}
+    />
+  ));
 
 interface ActionLinksConfig {
   entityClassName?: string;
