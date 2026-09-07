@@ -39,6 +39,14 @@ carma.mapping3D.zoomOut();
 
 carma.ui.openMenu();
 carma.ui.openHelperOverlay();
+const removeAction = carma.ui.addInfoBoxAction({
+  key: "routing",
+  tooltip: "Route anzeigen",
+  icon: faRoute,                             // or iconname: "car"
+  active: false,
+  onClick: () => {},
+});                                          // a button in the selected feature's info box
+removeAction();
 
 // gazetteer search
 const removeMode = carma.gazetteer.addMode({
