@@ -764,9 +764,16 @@ const SearchModal = ({
     }
   }, [searchType, showFinalQuery]);
 
+  // Any edit to the criteria invalidates the "Keine Ergebnisse gefunden"
+  // message, which frees the footer slot for the checkbox again.
+  useEffect(() => {
+    setNoResults(false);
+  }, [searchType, isExpertSearch, expertTypeState]);
+
   const handleValuesChange = useCallback(
     (values: SearchValues) => {
       searchValuesRef.current = values;
+      setNoResults(false);
       if (showFinalQuery) {
         setQueryPreview(generateQueryString(searchType, values));
       }
@@ -1295,24 +1302,32 @@ const SearchModal = ({
         footer={
           <div className="flex justify-between items-center pt-3 border-t border-gray-100 -mx-6 px-6">
             <div className="flex items-center gap-3 text-sm text-gray-500">
-              {isExpertSearch && (
-                <button
-                  type="button"
-                  onClick={() => dispatch(resetType(expertObjectType))}
-                  className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
-                >
-                  Zurücksetzen
-                </button>
+              {noResults ? (
+                <span>Keine Ergebnisse gefunden</span>
+              ) : (
+                <>
+                  {isExpertSearch && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(resetType(expertObjectType))}
+                        className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
+                      >
+                        Zurücksetzen
+                      </button>
+                      <span className="w-px h-4 bg-gray-200" />
+                    </>
+                  )}
+                  <Checkbox
+                    checked={keepMapPosition}
+                    onChange={(e) => setKeepMapPosition(e.target.checked)}
+                  >
+                    <span className="text-sm text-gray-500">
+                      Kartenposition nicht ändern
+                    </span>
+                  </Checkbox>
+                </>
               )}
-              <Checkbox
-                checked={keepMapPosition}
-                onChange={(e) => setKeepMapPosition(e.target.checked)}
-              >
-                <span className="text-sm text-gray-500">
-                  Kartenposition nicht ändern
-                </span>
-              </Checkbox>
-              {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
             <div className="flex gap-2">
               <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
