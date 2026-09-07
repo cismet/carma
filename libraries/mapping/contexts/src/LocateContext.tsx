@@ -24,6 +24,14 @@ import {
 import type { ReactNode } from "react";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 
+import { subscribeCompassHeading } from "./locate/compass-heading";
+import {
+  createAccuracyCircleGeoJSON,
+  createLocateMarkerElement,
+  LOCATE_MARKER_OPTIONS,
+} from "./locate/locate-marker";
+import type { LocateMarkerElement } from "./locate/locate-marker";
+
 /**
  * Why there is no position, for the caller that has to say so on screen. Told
  * apart because "you said no" and "the device could not tell" are different
@@ -109,9 +117,38 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const markerLngLatRef = useRef<[number, number] | null>(null);
   /** whether the mode is still on by the time the import resolves */
   const isActiveRef = useRef(false);
+  /** the dot with its heading arrow, built before the marker exists */
+  const markerElementRef = useRef<LocateMarkerElement | null>(null);
+  /**
+   * The compass heading in degrees from north, null while the device has not
+   * given one. Refs, not state: orientation events come many times a second
+   * and only the marker needs to know.
+   */
+  const headingRef = useRef<number | null>(null);
+  const unsubscribeHeadingRef = useRef<(() => void) | null>(null);
+
+  const applyHeading = useCallback(() => {
+    markerElementRef.current?.setHeading(headingRef.current, markerRef.current);
+  }, []);
+
+  const stopHeading = useCallback(() => {
+    unsubscribeHeadingRef.current?.();
+    unsubscribeHeadingRef.current = null;
+  }, []);
+
+  const startHeading = useCallback(() => {
+    if (unsubscribeHeadingRef.current) {
+      return;
+    }
+    unsubscribeHeadingRef.current = subscribeCompassHeading((heading) => {
+      headingRef.current = heading;
+      applyHeading();
+    });
+  }, [applyHeading]);
 
   const clearLocationMarker = useCallback(() => {
     markerLngLatRef.current = null;
+    markerElementRef.current = null;
     if (markerRef.current) {
       markerRef.current.remove();
       markerRef.current = null;
@@ -143,16 +180,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       } else if (!markerPendingRef.current) {
         markerPendingRef.current = true;
 
-        const el = document.createElement("div");
-        el.className = "libre-locate-marker";
-        el.style.cssText = `
-          width: 18px;
-          height: 18px;
-          background: #4285f4;
-          border: 3px solid white;
-          border-radius: 50%;
-          box-shadow: 0 0 4px rgba(0,0,0,0.3);
-        `;
+        const markerElement = createLocateMarkerElement();
+        markerElementRef.current = markerElement;
 
         // Dynamic import to avoid SSR issues
         import("maplibre-gl").then(({ Marker }) => {
@@ -162,15 +191,24 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
           if (!isActiveRef.current || !markerLngLatRef.current) {
             return;
           }
-          markerRef.current = new Marker({ element: el })
+          markerRef.current = new Marker({
+            element: markerElement.element,
+            ...LOCATE_MARKER_OPTIONS,
+          })
             .setLngLat(markerLngLatRef.current)
             .addTo(map);
+          // a heading may have arrived while the import was on its way
+          applyHeading();
         });
       }
 
       // Create or update accuracy circle
       const sourceId = "locate-accuracy-circle";
-      const circleGeoJSON = createCircleGeoJSON(longitude, latitude, accuracy);
+      const circleGeoJSON = createAccuracyCircleGeoJSON(
+        longitude,
+        latitude,
+        accuracy
+      );
 
       if (map.getSource(sourceId)) {
         (map.getSource(sourceId) as any).setData(circleGeoJSON);
@@ -191,7 +229,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         accuracyCircleRef.current = sourceId;
       }
     },
-    [map]
+    [map, applyHeading]
   );
 
   const startLocating = useCallback(() => {
@@ -207,6 +245,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     setIsLoading(true);
     setProblem(null);
     followRef.current = flyRef.current;
+    startHeading();
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -259,7 +298,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         maximumAge: 0,
       }
     );
-  }, [map, updateLocationMarker]);
+  }, [map, updateLocationMarker, startHeading]);
 
   const stopLocating = useCallback(() => {
     isActiveRef.current = false;
@@ -267,11 +306,12 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+    stopHeading();
     clearLocationMarker();
     followRef.current = false;
     setCurrentPosition(null);
     setHasMapMoved(false);
-  }, [clearLocationMarker]);
+  }, [clearLocationMarker, stopHeading]);
 
   useEffect(() => {
     if (!map || !isLocationActive) return;
@@ -308,9 +348,10 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
+      stopHeading();
       clearLocationMarker();
     };
-  }, [clearLocationMarker]);
+  }, [clearLocationMarker, stopHeading]);
 
   const activate = useCallback((options?: { fly?: boolean }) => {
     // the flag belongs to the activation, not to the mode: whoever switches it
@@ -347,39 +388,3 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
 };
 
 export const useLocate = () => useContext(LocateContext);
-
-function createCircleGeoJSON(
-  lng: number,
-  lat: number,
-  radiusInMeters: number
-): GeoJSON.FeatureCollection {
-  const points = 64;
-  const coords: [number, number][] = [];
-
-  for (let i = 0; i < points; i++) {
-    const angle = (i / points) * 2 * Math.PI;
-    const dx = radiusInMeters * Math.cos(angle);
-    const dy = radiusInMeters * Math.sin(angle);
-
-    // Convert meters to degrees (approximate)
-    const dLng = dx / (111320 * Math.cos((lat * Math.PI) / 180));
-    const dLat = dy / 110540;
-
-    coords.push([lng + dLng, lat + dLat]);
-  }
-  coords.push(coords[0]);
-
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "Polygon",
-          coordinates: [coords],
-        },
-      },
-    ],
-  };
-}
