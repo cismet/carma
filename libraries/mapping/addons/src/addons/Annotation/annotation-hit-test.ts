@@ -1,5 +1,7 @@
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 
+import { isClipProxy } from "./annotation-clip";
+
 const TOLERANCE = 6;
 
 type Bounds = {
@@ -44,5 +46,11 @@ export const sceneHasElementAt = (
 
   return api
     .getSceneElements()
-    .some((element) => !element.isDeleted && contains(element, x, y, pad));
+    .some(
+      (element) =>
+        !element.isDeleted &&
+        // the element a copy stands for is in here too, at its full size
+        !isClipProxy(element) &&
+        contains(element, x, y, pad)
+    );
 };

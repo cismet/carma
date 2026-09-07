@@ -9,6 +9,7 @@ import type {
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 import { redoScene, undoScene } from "./annotation-history";
+import { staleProxies, unclipped } from "./annotation-clip";
 import { applyPen, penFrom } from "./annotation-pen";
 import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
@@ -243,15 +244,26 @@ export const AnnotationScene = ({
       requestAnimationFrame(() => normalizeDecoration(true));
     }
 
-    const version = getSceneVersion?.(elements) ?? -1;
-    const used = referencedFiles(elements, files);
+    // an undo or a redo puts back an element array that was captured with
+    // copies in it, which can leave one behind without its element or over an
+    // element that draws itself again; a pass sorts both out
+    if (staleProxies(elements)) {
+      requestAnimationFrame(() => normalizeDecoration(true));
+    }
+
+    // the clipped copies are a rendering of elements that are already in
+    // there, and the elements they stand for are hidden while they exist:
+    // neither belongs in what is saved, see `annotation-clip`
+    const drawing = unclipped(elements);
+    const version = getSceneVersion?.(drawing) ?? -1;
+    const used = referencedFiles(drawing, files);
     const fileCount = Object.keys(used).length;
     if (version === versionRef.current && fileCount === fileCountRef.current) {
       return;
     }
     versionRef.current = version;
     fileCountRef.current = fileCount;
-    onSceneEdit(id, elements, used, getAnchor());
+    onSceneEdit(id, drawing, used, getAnchor());
   };
 
   useEffect(() => {
@@ -433,7 +445,7 @@ export const AnnotationScene = ({
     if (!anchor) {
       return;
     }
-    const bounds = sceneBounds(api.getSceneElements());
+    const bounds = sceneBounds(unclipped(api.getSceneElements()));
     if (!bounds) {
       return;
     }
