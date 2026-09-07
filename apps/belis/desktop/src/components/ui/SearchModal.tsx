@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Modal, Button, Switch } from "antd";
+import { Modal, Button, Switch, Checkbox } from "antd";
 import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
@@ -713,6 +713,9 @@ const SearchModal = ({
   const [isExpertSearch, setIsExpertSearch] = useState(false);
   const [isQueryView, setIsQueryView] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  // When set, a search only loads/highlights its results — the map view is
+  // left untouched instead of being fitted to the result bounds.
+  const [keepMapPosition, setKeepMapPosition] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
 
@@ -866,7 +869,7 @@ const SearchModal = ({
           // console.log(`${logPrefix} Highlighted`, ids.length, "features");
           // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
-          if (map && hasCoords) {
+          if (map && hasCoords && !keepMapPosition) {
             const rawBbox = {
               minLng: Math.min(...coords.map((c) => c[0])),
               maxLng: Math.max(...coords.map((c) => c[0])),
@@ -917,6 +920,7 @@ const SearchModal = ({
     [
       jwt,
       map,
+      keepMapPosition,
       clearHighlights,
       setHighlightingActive,
       highlightByIds,
@@ -1300,6 +1304,14 @@ const SearchModal = ({
                   Zurücksetzen
                 </button>
               )}
+              <Checkbox
+                checked={keepMapPosition}
+                onChange={(e) => setKeepMapPosition(e.target.checked)}
+              >
+                <span className="text-sm text-gray-500">
+                  Kartenposition nicht ändern
+                </span>
+              </Checkbox>
               {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
             <div className="flex gap-2">
