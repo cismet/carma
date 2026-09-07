@@ -38,6 +38,8 @@ import {
   useFlowFieldLauncher,
   type FlowFieldConfig,
   useVehicleAnimationLauncher,
+  useFloodLauncher,
+  type FloodSimulationConfig,
   type TimeSliderConfig,
   type VehicleAnimationConfig,
 } from "@carma-mapping/addons";
@@ -96,6 +98,7 @@ const ResourceModal = () => {
 
   const { toggleSeries } = useTimeSeriesLauncher();
   const { toggleField } = useFlowFieldLauncher();
+  const { toggleFlood } = useFloodLauncher();
   /** a workflow card's timeSlider tool: its config is the series to run */
   const startTimeSeries = useCallback(
     (config: TimeSliderConfig) => {
@@ -183,6 +186,20 @@ const ResourceModal = () => {
     [toggleVehicle, messageApi]
   );
 
+  /** a workflow card's floodSimulation tool: its config is the flood to show */
+  const startFlood = useCallback(
+    (config: FloodSimulationConfig) => {
+      toggleFlood({
+        title: config.title ?? "Hochwasser",
+        terrain: config.terrain,
+        level: config.level,
+        range: config.range,
+        opacity: config.opacity,
+      });
+    },
+    [toggleFlood]
+  );
+
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({
       dispatch,
@@ -202,6 +219,7 @@ const ResourceModal = () => {
       startTimeSeries,
       startFlowField,
       startVehicleAnimation,
+      startFlood,
     }),
     { measurements }
   );

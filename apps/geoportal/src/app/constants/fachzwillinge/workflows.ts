@@ -1,4 +1,5 @@
 import type {
+  FloodDefinition,
   FlowFieldDefinition,
   TimeSeriesDefinition,
   VehicleAnimationDefinition,
@@ -247,6 +248,16 @@ const SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE: VehicleAnimationDefinition = {
   schedule: SCHWEBEBAHN_FAHRPLAN_VEHICLE.schedule,
 };
 
+/**
+ * A flood as a plane of water over the Geobasis NRW DGM1 (wupp #4199). No
+ * level and no range here on purpose: the slider takes its bounds from the
+ * ground in view and starts two metres above the lowest point, so the same
+ * card works in the Wupper valley and on the Ronsdorf plateau.
+ */
+const HOCHWASSER_FLOOD: FloodDefinition = {
+  title: "Hochwasser",
+};
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -255,7 +266,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
     deployments: ["localDev", "dev", "pr"],
   },
   // the bare engines, idle until a workflow card launches something into them
-  addons: ["timeSlider", "flowField", "vehicleAnimation"],
+  addons: ["timeSlider", "flowField", "vehicleAnimation", "floodSimulation"],
   perspectives: [
     {
       id: "versorgung",
@@ -496,6 +507,32 @@ export const workflowsFachzwilling: FachzwillingRoute = {
           tools: [
             { kind: "vehicleAnimation", config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE },
           ],
+        },
+      ],
+    },
+    {
+      id: "hochwasser",
+      title: "Hochwasser",
+      workflows: [
+        {
+          // No `layers`: like the time series card, this one adds no layer
+          // group. Its floodSimulation tool is the flood, and the click
+          // launches it into the engine the route mounts.
+          id: "wasserstand",
+          title: "Hochwasser: Wasserstand",
+          description:
+            "Inhalt: Eine Wasserfläche in frei wählbarer Höhe über dem " +
+            "Geländemodell, als Ebene ohne Abflussberechnung. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt, welche Flächen bei einem angenommenen " +
+            "Wasserstand unter Wasser stünden. Der Wasserstand wird mit " +
+            "einem Regler eingestellt.",
+          metaDataText:
+            "Grundlage ist das Digitale Geländemodell DGM1 von Geobasis " +
+            "NRW mit Höhen über Normalhöhennull (DHHN2016). Die " +
+            "Darstellung ist ein ebener Wasserstand über dem Gelände und " +
+            "keine hydraulische Simulation.",
+          tools: [{ kind: "floodSimulation", config: HOCHWASSER_FLOOD }],
         },
       ],
     },

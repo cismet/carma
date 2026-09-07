@@ -44,6 +44,7 @@ import {
   resolveAddonEntries,
   type AddonEntry,
   type FlowFieldConfig,
+  type FloodSimulationConfig,
   type TimeSliderConfig,
   type VehicleAnimationConfig,
 } from "@carma-mapping/addons";
@@ -121,6 +122,11 @@ type ResourceLayerUpdaterDeps = {
    * `useVehicleAnimationLauncher`.
    */
   startVehicleAnimation?: (config: VehicleAnimationConfig) => void;
+  /**
+   * Launches (or toggles) the flood a workflow card carries in its
+   * `floodSimulation` tool. Supplied by ResourceModal from `useFloodLauncher`.
+   */
+  startFlood?: (config: FloodSimulationConfig) => void;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -559,6 +565,7 @@ export const createResourceLayerUpdater = ({
   startTimeSeries,
   startFlowField,
   startVehicleAnimation,
+  startFlood,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -592,6 +599,19 @@ export const createResourceLayerUpdater = ({
       );
       if (flowFieldTool && startFlowField) {
         startFlowField(flowFieldTool.config ?? {});
+        return;
+      }
+
+      // The flood is a plane of water over the DEM, not a layer group, so this
+      // card is done here too.
+      const floodTool = tools.find(
+        (
+          entry
+        ): entry is { kind: "floodSimulation"; config?: FloodSimulationConfig } =>
+          entry.kind === "floodSimulation"
+      );
+      if (floodTool && startFlood) {
+        startFlood(floodTool.config ?? {});
         return;
       }
     }

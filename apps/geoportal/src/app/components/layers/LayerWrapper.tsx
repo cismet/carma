@@ -65,6 +65,7 @@ import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
 import { useVehicleAnimationLayerButton } from "../../hooks/useVehicleAnimationLayerButton";
 import { useVehicleAnimationInfoBox } from "../../hooks/useVehicleAnimationInfoBox";
+import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
 
 const scrollLayerBarBy = (left: number) => {
@@ -84,6 +85,7 @@ const LayerWrapper = () => {
   useVehicleAnimationLayerButton();
   // a clicked vehicle shows up in the feature info box
   useVehicleAnimationInfoBox();
+  useFloodLayerButton();
   useComparingSelectionReset();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
