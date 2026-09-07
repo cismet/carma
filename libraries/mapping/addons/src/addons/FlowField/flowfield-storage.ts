@@ -120,6 +120,7 @@ export const loadFlowFieldState = (
         : FLOW_FIELD_STATE_DEFAULT.opacity,
       params: isRecord(parsed.params) ? (parsed.params as FlowFieldParams) : {},
       backdrop: readBackdrop(parsed.backdrop),
+      fallback: readBackdrop(parsed.fallback),
       isCaged,
     };
   } catch (error) {

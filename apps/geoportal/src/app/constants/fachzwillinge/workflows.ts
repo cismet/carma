@@ -90,6 +90,12 @@ const STARKREGEN_T50_FLOW: FlowFieldDefinition = {
   scenario: "T50/",
   // Leaflet 17 in the old rain hazard map; MapLibre counts one lower
   minZoom: 16,
+  // without cage: the same scenario's direction arrows as a plain WMS
+  fallback: {
+    wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_T50_direction3857",
+    styles: "starkregen:direction",
+  },
 };
 
 /** The same animation over the scenario's maximum water depths. */

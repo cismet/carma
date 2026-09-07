@@ -75,6 +75,12 @@ export type FlowFieldDefinition = {
   opacity?: number;
   params?: FlowFieldParams;
   backdrop?: FlowFieldBackdrop;
+  /**
+   * What stands in for the animation when cage is not in the build: a plain
+   * WMS, the scenario's direction arrows in the rain hazard map's case. Drawn
+   * only then; with cage present it is never mounted.
+   */
+  fallback?: FlowFieldBackdrop;
 };
 
 export type FlowFieldState = {
@@ -90,6 +96,7 @@ export type FlowFieldState = {
   opacity: number;
   params: FlowFieldParams;
   backdrop: FlowFieldBackdrop | null;
+  fallback: FlowFieldBackdrop | null;
   /**
    * Whether the map is at or above the zoom gate. Written by the addon from
    * the caged layer, read by the row so it can say why nothing is moving.
@@ -115,6 +122,7 @@ export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   opacity: 1,
   params: {},
   backdrop: null,
+  fallback: null,
   isActive: false,
   isLoading: false,
   isCaged: false,
@@ -231,7 +239,20 @@ export const useFlowFieldLauncher = () => {
   const launchedState = useCallback(
     (previous: FlowFieldState, def: FlowFieldDefinition): FlowFieldState => {
       if (sameDefinition(previous, def)) {
-        return previous.isOn ? previous : { ...previous, isOn: true };
+        // The same scenario launched again. What the card declares may have
+        // changed since the state was stored (a backdrop or a fallback added,
+        // a parameter tuned), so those come fresh from the definition; what
+        // the user set on the row, the opacity, stays.
+        return {
+          ...previous,
+          uvCorrection: def.uvCorrection,
+          minZoom: def.minZoom ?? FLOW_FIELD_STATE_DEFAULT.minZoom,
+          params: def.params ?? {},
+          backdrop: def.backdrop ?? null,
+          fallback: def.fallback ?? null,
+          isCaged,
+          isOn: true,
+        };
       }
       return {
         ...FLOW_FIELD_STATE_DEFAULT,
@@ -245,6 +266,7 @@ export const useFlowFieldLauncher = () => {
         opacity: def.opacity ?? 1,
         params: def.params ?? {},
         backdrop: def.backdrop ?? null,
+        fallback: def.fallback ?? null,
         isCaged,
         isOn: true,
       };

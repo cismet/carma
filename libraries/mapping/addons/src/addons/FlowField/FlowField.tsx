@@ -72,6 +72,9 @@ export type FlowFieldConfig = Partial<FlowFieldDefinition> & {
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 const DEFAULT_CONTROL_ORDER = 84;
 
+/** the layer id of the stand-in WMS drawn while cage is absent */
+const FALLBACK_LAYER_ID = "flow-field-fallback";
+
 const ON_COLOR = "#1677ff";
 const OFF_COLOR = "#000000";
 
@@ -90,6 +93,7 @@ export const FlowField = ({
     opacity: configOpacity,
     params: configParams,
     backdrop: configBackdrop,
+    fallback: configFallback,
     startEnabled = true,
     showControl = false,
     controlPosition = DEFAULT_CONTROL_POSITION,
@@ -109,6 +113,7 @@ export const FlowField = ({
     opacity,
     params,
     backdrop,
+    fallback,
     setOn,
     setActive,
     setLoading,
@@ -122,6 +127,7 @@ export const FlowField = ({
 
   const layerRef = useRef<FlowLayerHandle | null>(null);
   const backdropRef = useRef<BackdropLayerHandle | null>(null);
+  const fallbackRef = useRef<BackdropLayerHandle | null>(null);
 
   // read the live opacity without making the mount effect depend on it, which
   // would tear the layer down and rebuild it on every slider nudge
@@ -150,6 +156,7 @@ export const FlowField = ({
       opacity: configOpacity,
       params: configParams,
       backdrop: configBackdrop,
+      fallback: configFallback,
     });
     return () => setOn(false);
   }, [
@@ -164,6 +171,7 @@ export const FlowField = ({
     configOpacity,
     configParams,
     configBackdrop,
+    configFallback,
     startField,
     setOn,
   ]);
@@ -188,9 +196,31 @@ export const FlowField = ({
     };
   }, [libreMap, isOn, backdrop, beforeId]);
 
+  // Without cage nothing animates. A route or card that declares a `fallback`
+  // gets that WMS instead, the scenario's direction arrows in the rain hazard
+  // map's case; with cage present this effect never mounts anything.
+  useEffect(() => {
+    if (!libreMap || !isOn || createFlowLayer || !fallback) {
+      return undefined;
+    }
+    fallbackRef.current = createBackdropLayer({
+      map: libreMap,
+      wmsUrl: fallback.wmsUrl,
+      layers: fallback.layers,
+      styles: fallback.styles,
+      opacity: fallback.opacity,
+      beforeId,
+      id: FALLBACK_LAYER_ID,
+    });
+    return () => {
+      fallbackRef.current?.destroy();
+      fallbackRef.current = null;
+    };
+  }, [libreMap, isOn, createFlowLayer, fallback, beforeId]);
+
   // Mount the caged particle layer. Without cage `createFlowLayer` is
   // undefined and this whole effect is a no-op, which is the intended
-  // degradation: no animation, no substitute.
+  // degradation: no animation, and the `fallback` above if one is declared.
   useEffect(() => {
     if (!libreMap || !isOn || !createFlowLayer || !service || !scenario) {
       return undefined;
@@ -248,7 +278,10 @@ export const FlowField = ({
     backdropRef.current?.setOpacity(
       (backdrop?.opacity ?? 0.85) * opacity
     );
-  }, [opacity, backdrop]);
+    fallbackRef.current?.setOpacity(
+      (fallback?.opacity ?? 0.85) * opacity
+    );
+  }, [opacity, backdrop, fallback]);
 
   if (!libreMap || !showControl) {
     return null;

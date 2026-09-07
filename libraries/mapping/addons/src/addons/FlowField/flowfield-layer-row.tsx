@@ -49,12 +49,15 @@ const statusLabel = ({
   isCaged,
   isActive,
   isLoading,
+  hasFallback,
 }: {
   isCaged: boolean;
   isActive: boolean;
   isLoading: boolean;
+  /** a WMS stands in for the animation while cage is absent */
+  hasFallback: boolean;
 }): string => {
-  if (!isCaged) return "nicht verfügbar";
+  if (!isCaged) return hasFallback ? "Richtungspfeile" : "nicht verfügbar";
   if (!isActive) return "näher heranzoomen";
   if (isLoading) return "lädt";
   return "läuft";
@@ -94,10 +97,15 @@ export const useFlowFieldLayerRow = ({
   onRemove,
   onUpdate,
 }: UseFlowFieldLayerRowOptions) => {
-  const { isOn, setOn, title, isCaged, isActive, isLoading } =
+  const { isOn, setOn, title, isCaged, isActive, isLoading, fallback } =
     useFlowFieldActions();
 
-  const label = statusLabel({ isCaged, isActive, isLoading });
+  const label = statusLabel({
+    isCaged,
+    isActive,
+    isLoading,
+    hasFallback: Boolean(fallback),
+  });
 
   const layer = useMemo(
     () => ({
