@@ -11,6 +11,7 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import { primeFeatureIndexes } from "../../lib/featureIndex";
 import type { AddonComponentProps } from "../../lib/registry";
 import { useOriginLocationState, useOriginRequest } from "../OriginSearch";
+import { useActiveRoute } from "../Routing";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
   categoryForInput,
@@ -424,6 +425,27 @@ export const NearestFeature = ({
       highlightRoute(libreMap, selectedRouteKey);
     }
   }, [libreMap, selectedRouteKey, drawnRoutes]);
+
+  /**
+   * The picked route is also the route in focus, for whoever wants to do
+   * something with it (the `routing` addon puts the camera on it). Only the
+   * picked one goes on the channel, never the whole ranking: the ranking has
+   * just fitted the map around every hit, and a consumer flying off to the
+   * first one would undo that. Coming off the stage clears the selection, so
+   * the channel empties with it; leaving the mode empties it as well.
+   */
+  const [, setActiveRoute] = useActiveRoute();
+  useEffect(() => {
+    const picked = selectedRouteKey
+      ? drawnRoutes.find((route) => route.key === selectedRouteKey)
+      : undefined;
+    setActiveRoute(
+      picked
+        ? { source: "nearestFeature", coordinates: picked.coordinates }
+        : null
+    );
+  }, [drawnRoutes, selectedRouteKey, setActiveRoute]);
+  useEffect(() => () => setActiveRoute(null), [setActiveRoute]);
 
   /**
    * Clicking a route is picking its hit: the same click on the same feature
