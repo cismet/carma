@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { faRoute } from "@fortawesome/free-solid-svg-icons";
 
+import { formatRouteSummary, getModeIcon } from "@carma-mapping/routing";
+
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import {
@@ -26,6 +28,12 @@ import { useActiveRoute } from "./routeChannel";
  * produced the route is not the addon's business: "In der Nähe" publishes the
  * route of the picked hit today, and anything that publishes a route later
  * gets the same button.
+ *
+ * What the route costs goes into the box the same way, as a note
+ * (`carma.ui.addInfoBoxNote`): "12 Min · 4,3 km" with the mode's icon in
+ * front, while the route in focus carries a duration. A route that was only
+ * measured as the crow flies carries none and gets no note: a straight-line
+ * distance is not a route summary.
  *
  * Whether the camera is on the route is published on `routeNavigation`, for
  * the camera restriction, which lets the map turn while it is.
@@ -168,6 +176,26 @@ export const Routing = ({
       onClick: navigating ? stop : start,
     });
   }, [carma, route, navigating, start, stop]);
+
+  /**
+   * The summary, for as long as the route in focus has one. Its own effect,
+   * keyed on the numbers rather than on the route object: the button above is
+   * re-registered when `navigating` flips, and the note has no reason to go
+   * with it.
+   */
+  const durationInSeconds = route?.durationInSeconds;
+  const distanceInMeters = route?.distanceInMeters;
+  const routeMode = route?.mode;
+  useEffect(() => {
+    if (durationInSeconds === undefined || distanceInMeters === undefined) {
+      return;
+    }
+    return carma.ui.addInfoBoxNote({
+      key: "routing",
+      text: formatRouteSummary(durationInSeconds, distanceInMeters),
+      icon: getModeIcon(routeMode ?? "car"),
+    });
+  }, [carma, durationInSeconds, distanceInMeters, routeMode]);
 
   const [, publishNavigation] = useAddonState("routeNavigation");
   useEffect(() => {

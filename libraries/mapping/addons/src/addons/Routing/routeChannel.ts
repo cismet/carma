@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { useAddonState } from "../../lib/AddonStateContext";
+import type { RouteMode } from "./routeMode";
 
 /**
  * Two channels, one for the route and one for going along it.
@@ -28,6 +29,15 @@ export type ActiveRoute = {
   coordinates: [number, number][];
   /** what the destination is called, when the producer knows */
   label?: string;
+  /**
+   * What it takes to get there, when the producer routed rather than measured:
+   * a line the routing service drove has a time and a length, a straight line
+   * has neither, and a summary is only shown for the former.
+   */
+  durationInSeconds?: number;
+  distanceInMeters?: number;
+  /** how the route was computed, for the icon in front of the summary */
+  mode?: RouteMode;
 };
 
 export type ActiveRouteState = {
