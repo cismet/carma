@@ -952,7 +952,15 @@ Two channels carry it. `activeRoute` is the route in focus:
 ```ts
 type ActiveRouteState = {
   /** the route in focus; null while there is none */
-  route: { source: string; coordinates: [number, number][]; label?: string } | null;
+  route: {
+    source: string;
+    coordinates: [number, number][];
+    label?: string;
+    /** what it takes, when the producer routed rather than measured */
+    durationInSeconds?: number;
+    distanceInMeters?: number;
+    mode?: "car" | "bike" | "walk" | "transit";
+  } | null;
 };
 ```
 
@@ -986,6 +994,17 @@ and therefore no button; fetching one from the origin is a later step.
 
 `routeNavigation` is what the camera restriction reads (below); the info box
 does not.
+
+What the route costs goes into the box the same way, through
+`carma.ui.addInfoBoxNote`: a line "12 Min · 4,3 km" with the mode's icon in
+front, rendered under the feature's subtitle by the app's info box
+(`useInfoBoxNotes`, `getInfoBoxNoteElements`), for as long as the route in
+focus carries `durationInSeconds` and `distanceInMeters`. "In der Nähe" puts
+the ranking's numbers on `activeRoute` with the line; a producer that only
+measured as the crow flies leaves them out and the box shows no note, because
+a straight-line distance is not a route summary. The words come from
+`@carma-mapping/routing` (`formatRouteSummary`), the same ones the dropdown
+rows use, so the row and the box never disagree.
 
 The start of the route is the current location without asking the device
 again: the origin search hands the user's own position to the ranking as its

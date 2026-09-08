@@ -441,7 +441,14 @@ export const NearestFeature = ({
       : undefined;
     setActiveRoute(
       picked
-        ? { source: "nearestFeature", coordinates: picked.coordinates }
+        ? {
+            source: "nearestFeature",
+            coordinates: picked.coordinates,
+            durationInSeconds: picked.durationInSeconds,
+            distanceInMeters: picked.distanceInMeters,
+            // the ranking drives; see `carRanking.ts`
+            mode: "car",
+          }
         : null
     );
   }, [drawnRoutes, selectedRouteKey, setActiveRoute]);
