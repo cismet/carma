@@ -168,6 +168,20 @@ describe("three tiles runtime styling", () => {
       const staleRequest = makeTile(false, 2);
       const spare = makeTile(false, 4);
       const caster = makeTile(false, 2, new THREE.Vector3(0, 10, 0));
+      if (shadows) {
+        const metadata = makeTile(true, 4);
+        metadata.internal.hasRenderableContent = false;
+        metadata.internal.hasContent = false;
+        metadata.children = [
+          visible,
+          wantedRequest,
+          spare,
+          staleRequest,
+          caster,
+        ];
+        for (const tile of metadata.children) tile.parent = metadata;
+        Object.assign(renderer!, { rootTileset: { root: metadata } });
+      }
       const rootBounds = vi
         .spyOn(renderer!, "getBoundingBox")
         .mockImplementation((box) => {
@@ -224,13 +238,18 @@ describe("three tiles runtime styling", () => {
           expect(removed).toContain(spare);
         }
         expect(renderer!.loadingTiles.has(wantedRequest)).toBe(true);
-        expect(renderer!.visibleTiles.has(visible)).toBe(true);
+        // The same demand stays pinned, but an incomplete cold corridor must
+        // not publish its otherwise loaded receiver as bare mesh.
+        expect(renderer!.visibleTiles.has(visible)).toBe(!shadows);
         expect(renderer!.lruCache.isFull()).toBe(false);
         const child = makeTile(true, 0);
         child.parent = visible;
         runtime.update(frame);
         renderer!.queueTileForDownload(child);
-        expect(renderer!.queuedTiles).toContain(child); // no stale 16px gate
+        // With shadows, the parent has not yet acquired its current-stage
+        // caster: refinement waits for that local joint publication. Without
+        // shadows, there is no corridor stage that could gate this child.
+        expect(renderer!.queuedTiles.includes(child)).toBe(!shadows);
         if (shadows) {
           // Native OBB visibility wins even if the secondary frustum and the
           // sunward mask both exclude this boundary tile.
@@ -344,6 +363,7 @@ describe("three tiles runtime styling", () => {
     try {
       loader.queueTileForDownload(near);
       expect(loader.queuedTiles).toHaveLength(0); // parent covers the 16px pass
+      parent.internal.loadingState = 4; // parsing is not published coverage
       renderer!.visibleTiles.add(parent as never);
       runtime.update(frame); // 16px coverage complete -> allow 8px pass
       loader.queueTileForDownload(far);
@@ -906,8 +926,9 @@ describe("three tiles runtime styling", () => {
 
     expect(volumes).toHaveLength(1);
     expect(volumes[0]).toMatchObject({
-      id: "buildings:building.b3dm",
+      id: "tileset.json#:building.b3dm",
       kind: "3d-tile",
+      sourceId: "tileset.json",
     });
     expect(volumes[0]?.minimum.every(Number.isFinite)).toBe(true);
     expect(volumes[0]?.maximum.every(Number.isFinite)).toBe(true);
@@ -1035,6 +1056,7 @@ describe("three tiles runtime styling", () => {
     renderer!.group.add(new THREE.Group());
     const visibleTile = {
       traversal: { error: 0.2, inFrustum: true },
+      engineData: {},
       children: [{ internal: { hasContent: true, loadingState: 0 } }],
     };
     renderer!.visibleTiles.add(visibleTile as never);
@@ -1255,7 +1277,9 @@ describe("three tiles runtime styling", () => {
     );
 
     expect(target.inView).toBe(true);
-    expect(target.error).toBeCloseTo(1);
+    // This already-subpixel receiver has fivefold headroom inside target1.
+    // Caster admission uses that stage budget without over-refining to0.2px.
+    expect(target.error).toBeCloseTo(0.2);
 
     // A camera move must retain the last complete offscreen caster set while
     // the new viewport refines. Clearing the receiver mask here made terrain
@@ -1383,6 +1407,7 @@ describe("three tiles runtime styling", () => {
       // and one used tile that fills the whole ceiling: full, idle, unconverged.
       const visibleTile = {
         traversal: { error: 1, inFrustum: true },
+        engineData: {},
         children: [{ internal: { hasContent: true, loadingState: 0 } }],
       } as never;
       const requiredTile = {} as never;
@@ -1616,11 +1641,14 @@ describe("three tiles runtime styling", () => {
       new THREE.MeshStandardMaterial()
     );
     model.position.y = 150;
-    const forEachLoadedModelSpy = vi
-      .spyOn(TilesRenderer.prototype, "forEachLoadedModel")
-      .mockImplementation((callback) => {
-        callback(model, {
+    let renderer: TilesRenderer;
+    const updateSpy = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this;
+        renderer.visibleTiles.add({
           engineData: {
+            scene: model,
             boundingVolume: {
               getAABB: (target: THREE.Box3) =>
                 target.set(
@@ -1644,12 +1672,19 @@ describe("three tiles runtime styling", () => {
     camera.updateMatrixWorld(true);
 
     layer.onAdd?.(map);
+    layer.update({
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      viewport: new THREE.Vector2(800, 600),
+      lookTarget: new THREE.Vector3(),
+    });
     const range = layer.getViewElevationRange(camera);
 
     expect(range?.[0]).toBeCloseTo(145);
     expect(range?.[1]).toBeCloseTo(155);
 
-    forEachLoadedModelSpy.mockRestore();
+    updateSpy.mockRestore();
     layer.dispose();
     model.geometry.dispose();
     (model.material as THREE.Material).dispose();

@@ -35,7 +35,7 @@ import {
   createTileBytesPredictor,
   deriveTilePriority,
   initialMeshLoadError,
-  nextMeshLoadError,
+  meshShadowStageError,
   nextEffectiveErrorTarget,
   resolveRequestConcurrency,
   resolveTilesCacheBounds,
@@ -56,18 +56,28 @@ import {
   type RetryableTilesRenderer,
 } from "./three-tiles-retry-controller";
 import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
+import { readOrientedTileBounds } from "./three-tiles-bounds";
 import {
   isMeshCoveredByLoadedChildren,
+  isMeshTileUnconditionallyRefined,
+  getReadyMeshRegionCut,
+  advanceMeshCorridorFrontier,
+  collectLoadedMeshReceiverCandidates,
+  selectMeshReceiverCut,
+  isMeshRefinementBeyondStage,
+  refineLoadedMeshFrontier,
   retainMeshDetailFrontier,
+  shouldDeferMeshRefinement,
 } from "./three-tiles-mesh-frontier";
 import {
   applyShadowReceiverMask,
   createShadowReceiverMask,
   maximumSweepDistanceWithinBox,
+  receiverMatchedTileError,
   type ShadowReceiverMatch,
   type ShadowReceiverMask,
   type ShadowReceiverSource,
-} from "./three-tiles-shadow-receiver-mask";
+} from "../../core/shadow-receiver-mask";
 import {
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
@@ -78,6 +88,7 @@ import type {
   SharedThreeSceneShadowStyle,
   SharedThreeSceneShadowView,
   SharedThreeSceneTileVolume,
+  SharedThreeShadowRegionDiagnostics,
 } from "./shared-three-scene-layer";
 import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
 
@@ -89,6 +100,7 @@ export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 4;
 
 const VIEW_QUALITY_AUDIT_PASSES = 2;
 const MESH_SETTLED_AUDIT_INTERVAL_MS = 1_000;
+const MESH_MOTION_COVERAGE_INTERVAL_MS = 120;
 const MESH_EVICTION_BATCH_SIZE = 16;
 const SHADOW_SELECTION_ERROR_FACTOR = 1.25;
 const DEFAULT_CACHE_MIN_ITEMS = 6_000;
@@ -149,8 +161,10 @@ type RuntimeTile = Tile & {
     wasSetVisible?: boolean;
   };
   engineData?: {
+    scene?: THREE.Object3D;
     boundingVolume?: {
       getAABB: (target: THREE.Box3) => void;
+      getOBB?: (bounds: THREE.Box3, transform: THREE.Matrix4) => void;
       getSphere: (target: THREE.Sphere) => void;
       intersectsFrustum: (frustum: THREE.Frustum) => boolean;
       distanceToPoint?: (point: THREE.Vector3) => number;
@@ -408,7 +422,6 @@ export function buildThreeTilesRuntime(
   let unsubscribeTerrainLoading: (() => void) | null = null;
   let requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
   let effectiveErrorTarget = requestedErrorTarget;
-  let meshLoadError = initialMeshLoadError(requestedErrorTarget);
   let errorTargetState: EffectiveErrorTargetState =
     createEffectiveErrorTargetState(requestedErrorTarget, Date.now());
   let errorTargetTimer = 0;
@@ -482,6 +495,16 @@ export function buildThreeTilesRuntime(
   let previousShadowReceiverMask: ShadowReceiverMask | null = null;
   let shadowReceiverMaskConverged = false;
   let shadowReceiverSourceSignature = "";
+  let pendingMeshReceiverFrontier: Set<Tile> | null = null;
+  let pendingMeshCorridorReceiverDemand = new Set<Tile>();
+  let meshCorridorDemandViewSignature = "";
+  let committedMeshReceiverFrontier = new Set<Tile>();
+  let shadowStagePresentationGated = false;
+  const presentedMeshReceivers = new Set<Tile>();
+  let committedMeshCasterFrontier = new Set<Tile>();
+  let meshContentRevision = 0;
+  let meshCorridorAttemptSignature = "";
+  let meshCorridorPending = true;
   const mainViewSourceTiles = new Set<Tile>();
   let viewQualityAuditPasses = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
@@ -500,6 +523,9 @@ export function buildThreeTilesRuntime(
   let viewFrustumsReady = false;
   const tileBoundingSphere = new THREE.Sphere();
   const tileBoundingBox = new THREE.Box3();
+  const tileBoundsTransform = new THREE.Matrix4();
+  const rootBoundsTransform = new THREE.Matrix4();
+  const sourceWorldBoundsTransform = new THREE.Matrix4();
   const activeTileBoundingBox = new THREE.Box3();
   const rootTileBoundingBox = new THREE.Box3();
   const rootWorldBoundingBox = new THREE.Box3();
@@ -1263,14 +1289,18 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     );
     let minimum = Number.POSITIVE_INFINITY;
     let maximum = Number.NEGATIVE_INFINITY;
-    currentTiles.forEachLoadedModel((model) => {
+    for (const tile of currentTiles.visibleTiles) {
+      if (options.providesTerrain && !isTileInMainView(tile as RuntimeTile))
+        continue;
+      const model = (tile as RuntimeTile).engineData?.scene;
+      if (!model) continue;
       model.updateWorldMatrix(true, true);
       tileBoundingBox.setFromObject(model);
-      if (tileBoundingBox.isEmpty()) return;
-      if (!tileViewElevationFrustum.intersectsBox(tileBoundingBox)) return;
+      if (tileBoundingBox.isEmpty()) continue;
+      if (!tileViewElevationFrustum.intersectsBox(tileBoundingBox)) continue;
       minimum = Math.min(minimum, tileBoundingBox.min.y);
       maximum = Math.max(maximum, tileBoundingBox.max.y);
-    });
+    }
     return Number.isFinite(minimum) && Number.isFinite(maximum)
       ? [minimum, maximum]
       : null;
@@ -1280,12 +1310,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     tiles.group.updateWorldMatrix(true, false);
     const volumes: SharedThreeSceneTileVolume[] = [];
     for (const tile of tiles.activeTiles) {
-      const activeTile = tile as Tile & {
-        engineData?: {
-          scene?: THREE.Object3D;
-          boundingVolume?: { getAABB?: (target: THREE.Box3) => void };
-        };
-      };
+      // Native traversal may keep active metadata/ancestors while the atomic
+      // corridor cut is staged. Only the published surface supplies receivers.
+      if (options.providesTerrain && !tiles.visibleTiles.has(tile)) continue;
+      if (
+        options.providesTerrain &&
+        !isTileInMainView(tile as RuntimeTile) &&
+        (tile as RuntimeTile).shadowReceiverCenterness === undefined &&
+        !committedMeshCasterFrontier.has(tile)
+      )
+        continue;
+      const activeTile = tile as RuntimeTile;
       // Use the loaded surface, not an ECEF-axis-aligned metadata box rotated
       // into the local frame. That conservative double AABB can inflate a city
       // tile's vertical span by kilometres and destroy shadow contact resolution.
@@ -1297,13 +1332,21 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       }
       const boundingVolume = activeTile.engineData?.boundingVolume;
       if (activeTileBoundingBox.isEmpty() && boundingVolume?.getAABB) {
-        boundingVolume.getAABB(activeTileBoundingBox);
-        activeTileBoundingBox.applyMatrix4(tiles.group.matrixWorld);
+        readOrientedTileBounds(
+          boundingVolume,
+          activeTileBoundingBox,
+          tileBoundsTransform
+        );
+        tileBoundsTransform.premultiply(tiles.group.matrixWorld);
+        activeTileBoundingBox.applyMatrix4(tileBoundsTransform);
       }
       if (activeTileBoundingBox.isEmpty()) continue;
       volumes.push({
-        id: getTileDebugId(tile),
+        id: getStableTileId(tile),
         kind: options.providesTerrain ? "terrain-tile" : "3d-tile",
+        sourceId: tilesetUrl,
+        geometricError: tile.geometricError,
+        errorPixels: getTileScreenError(tile as RuntimeTile),
         loadReason: getTileLoadReason(activeTile as RuntimeTile),
         minimum: activeTileBoundingBox.min.toArray(),
         maximum: activeTileBoundingBox.max.toArray(),
@@ -1325,6 +1368,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     shadowReceiverSourceSignature = "";
     mainViewSourceTiles.clear();
     shadowSelectionRefreshPending = false;
+    pendingMeshReceiverFrontier = null;
+    pendingMeshCorridorReceiverDemand.clear();
+    meshCorridorDemandViewSignature = "";
+    meshCorridorAttemptSignature = "";
+    meshCorridorPending = true;
+    committedMeshReceiverFrontier.clear();
+    presentedMeshReceivers.clear();
+    committedMeshCasterFrontier.clear();
   };
   const setShadowSelectionEnabled = (enabled: boolean) => {
     const nextEnabled = enabled && shadowView !== null;
@@ -1345,7 +1396,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     tiles.loadingTiles.size === 0 &&
     !tileRetries.hasPendingRetries() &&
     payloadAwareConcurrency.getCooldownRemainingMs() <= 0;
+  let mainViewIntersectionCache = new WeakMap<Tile, boolean>();
+  const lastMainViewProjection = new THREE.Matrix4();
+  let mainViewProjectionChanged = true;
+  let lastMotionCoverageAt = Number.NEGATIVE_INFINITY;
   const isTileInMainView = (tile: RuntimeTile): boolean => {
+    const cached = mainViewIntersectionCache.get(tile);
+    if (cached !== undefined) return cached;
     const bounds = tile.engineData?.boundingVolume;
     if (tiles && viewFrustumsReady && bounds?.distanceToPoint) {
       const target = { inView: false, error: 0, distanceFromCamera: 0 };
@@ -1353,7 +1410,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       // the shadow extension. A second independently constructed frustum can
       // disagree at the boundary and must not cancel visible requests.
       tiles.calculateTileViewError(tile, target);
-      return target.inView;
+      // Decision: MESH-CORRIDOR-20260908 in engines/maplibre/README.md.
+      // External tileset wrappers inherit their parent's loose bounds. Once
+      // their child bounds are known, they must not retain an offscreen parent
+      // forever or block the receiver/caster bootstrap behind phantom demand.
+      const children = (tile.children ?? []) as RuntimeTile[];
+      const inView =
+        target.inView &&
+        (!options.providesTerrain ||
+          children.length === 0 ||
+          children.some((child) => !child.engineData?.boundingVolume) ||
+          children.some(isTileInMainView));
+      mainViewIntersectionCache.set(tile, inView);
+      return inView;
     }
     if (
       !bounds ||
@@ -1373,10 +1442,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
    * frustum either meets the effective target or cannot refine any further
    * because all of its children are deferred, retry-blocked or empty.
    */
-  const mainViewWithinErrorFactor = (factor: number, allowBlocked = true) => {
-    if (!tiles || tiles.visibleTiles.size === 0) return false;
+  const mainViewWithinErrorFactor = (
+    factor: number,
+    allowBlocked = true,
+    frontier: ReadonlySet<Tile> | undefined = tiles?.visibleTiles
+  ) => {
+    if (!tiles || !frontier || frontier.size === 0) return false;
     const acceptedError = effectiveErrorTarget * factor;
-    for (const visible of tiles.visibleTiles) {
+    for (const visible of frontier) {
       const tile = visible as RuntimeTile;
       const children = (tile.children ?? []) as RuntimeTile[];
       if (children.length === 0 || tile.traversal?.unconditionallyRefine) {
@@ -1443,28 +1516,269 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       ?.depth;
     return `${layerId}:${uri ?? `d${depth ?? "?"}:t${sequence}`}`;
   };
+  const getStableTileId = (tile: Tile) => {
+    const path: number[] = [];
+    for (let entry = tile; entry.parent; entry = entry.parent) {
+      path.push(entry.parent.children.indexOf(entry));
+    }
+    return `${tilesetUrl}#${path.reverse().join("/")}:${
+      resolveTileContentUrl(tile) ?? "metadata"
+    }`;
+  };
+  const getTileScreenError = (tile: RuntimeTile): number => {
+    if (!tiles) return Number.POSITIVE_INFINITY;
+    const target = {
+      inView: false,
+      error: Number.POSITIVE_INFINITY,
+      distanceFromCamera: Number.POSITIVE_INFINITY,
+    };
+    if (tile.engineData?.boundingVolume?.distanceToPoint) {
+      tiles.calculateTileViewError(tile, target);
+    } else if (isTileInMainView(tile)) {
+      target.inView = true;
+      target.error = tile.traversal?.error ?? Number.POSITIVE_INFINITY;
+    }
+    if (target.inView) return target.error;
+    const bounds = tile.engineData?.boundingVolume;
+    if (bounds?.getAABB) {
+      readOrientedTileBounds(bounds, tileBoundingBox, tileBoundsTransform);
+      // A staged finer receiver can have a smaller prism. The still-published
+      // coarse family retains its fringe casters until their joint replacement;
+      // those casters remain measurable against that committed receiver mask.
+      for (const mask of [shadowReceiverMask, previousShadowReceiverMask]) {
+        if (
+          mask?.match(tileBoundingBox, shadowReceiverMatch, tileBoundsTransform)
+        ) {
+          return receiverMatchedTileError(
+            tile.geometricError,
+            shadowReceiverMatch.receiverGeometricError,
+            effectiveErrorTarget,
+            shadowReceiverMatch.receiverPixelsPerMeter
+          );
+        }
+      }
+    }
+    return Number.POSITIVE_INFINITY;
+  };
+  const updateRootWorldBounds = (): boolean => {
+    if (!tiles) return false;
+    const volume = (tiles.rootTileset?.root as RuntimeTile | undefined)
+      ?.engineData?.boundingVolume;
+    rootBoundsTransform.identity();
+    if (volume?.getOBB) {
+      readOrientedTileBounds(volume, rootTileBoundingBox, rootBoundsTransform);
+    } else if (!tiles.getBoundingBox(rootTileBoundingBox)) {
+      return false;
+    }
+    // Expanding in ECEF before returning to the local frame can turn a thin
+    // city surface into a kilometres-high box and an equally long caster ray.
+    rootBoundsTransform.premultiply(tiles.group.matrixWorld);
+    rootWorldBoundingBox
+      .copy(rootTileBoundingBox)
+      .applyMatrix4(rootBoundsTransform);
+    return !rootWorldBoundingBox.isEmpty();
+  };
+  const shadowRegionRevisions = new Map<
+    string,
+    {
+      revision: string | null;
+      diagnostics: SharedThreeShadowRegionDiagnostics;
+    }
+  >();
+  let shadowRegionWorldBounds = new WeakMap<
+    Tile,
+    {
+      box: THREE.Box3;
+      transform: THREE.Matrix4;
+      worldBounds: THREE.Box3;
+    }
+  >();
+  const shadowRegionTransform = new THREE.Matrix4();
+  const shadowRegionKey = (
+    bounds: THREE.Box3,
+    errorPixels: number,
+    receiverBounds?: THREE.Box3
+  ) =>
+    [
+      ...bounds.min.toArray(),
+      ...bounds.max.toArray(),
+      errorPixels,
+      ...(receiverBounds
+        ? [...receiverBounds.min.toArray(), ...receiverBounds.max.toArray()]
+        : []),
+    ].join(",");
+  const getShadowRegionRevision = (
+    bounds: THREE.Box3,
+    errorPixels = requestedErrorTarget,
+    receiverBounds?: THREE.Box3
+  ): string | null => {
+    if (
+      !tiles ||
+      !runtimeVisible ||
+      disposed ||
+      (!shadowReceiverMask && !previousShadowReceiverMask) ||
+      !tiles.rootTileset?.root
+    )
+      return null;
+    // A pending traversal elsewhere is not missing coverage in this committed
+    // region. View/model changes invalidate the memo; the regional hierarchy
+    // proof below decides readiness, not global loading/refresh flags.
+    tiles.group.updateWorldMatrix(true, false);
+    if (!shadowRegionTransform.equals(tiles.group.matrixWorld)) {
+      shadowRegionTransform.copy(tiles.group.matrixWorld);
+      shadowRegionWorldBounds = new WeakMap();
+      shadowRegionRevisions.clear();
+    }
+    const key = shadowRegionKey(bounds, errorPixels, receiverBounds);
+    if (shadowRegionRevisions.has(key))
+      return shadowRegionRevisions.get(key)!.revision;
+    const worldBounds = new THREE.Box3();
+    let regionMask: ShadowReceiverMask | null = null;
+    if (receiverBounds && shadowView && updateRootWorldBounds()) {
+      shadowView.camera.updateMatrixWorld(true);
+      shadowView.camera
+        .getWorldDirection(sunwardDirection)
+        .negate()
+        .normalize();
+      const regionalReceivers: ShadowReceiverSource[] = [];
+      const receiverFrontier = options.providesTerrain
+        ? committedMeshReceiverFrontier
+        : tiles.visibleTiles;
+      for (const receiver of receiverFrontier) {
+        const volume = (receiver as RuntimeTile).engineData?.boundingVolume;
+        if (!volume?.getAABB) continue;
+        readOrientedTileBounds(volume, worldBounds, tileBoundsTransform);
+        tileBoundsTransform.premultiply(tiles.group.matrixWorld);
+        worldBounds.applyMatrix4(tileBoundsTransform);
+        if (!worldBounds.intersectsBox(receiverBounds)) continue;
+        const clippedBounds = worldBounds.clone().intersect(receiverBounds);
+        regionalReceivers.push({
+          bounds: clippedBounds,
+          geometricError: receiver.geometricError,
+          screenErrorPixels: getTileScreenError(receiver as RuntimeTile),
+          centerness: 1,
+          maximumCasterDistance: maximumSweepDistanceWithinBox(
+            clippedBounds,
+            rootWorldBoundingBox,
+            sunwardDirection
+          ),
+        });
+      }
+      regionMask = createShadowReceiverMask(
+        regionalReceivers,
+        shadowView.camera.matrixWorldInverse,
+        shadowView.casterAngularRadiusRadians
+      );
+      if (!regionMask) return null;
+    }
+    let visitedNodes = 0;
+    let broadPhaseNodes = 0;
+    let rejectedPrismNodes = 0;
+    const cut = getReadyMeshRegionCut(
+      tiles.rootTileset.root,
+      tiles.visibleTiles,
+      errorPixels,
+      (entry) => {
+        visitedNodes += 1;
+        const tile = entry as RuntimeTile;
+        const volume = tile.engineData?.boundingVolume;
+        if (!volume?.getAABB)
+          return { intersects: true, errorPixels: Number.POSITIVE_INFINITY };
+        let cachedBounds = shadowRegionWorldBounds.get(tile);
+        if (!cachedBounds) {
+          const box = new THREE.Box3();
+          const transform = new THREE.Matrix4();
+          readOrientedTileBounds(volume, box, transform);
+          transform.premultiply(tiles!.group.matrixWorld);
+          cachedBounds = {
+            box,
+            transform,
+            worldBounds: box.clone().applyMatrix4(transform),
+          };
+          shadowRegionWorldBounds.set(tile, cachedBounds);
+        }
+        let intersects = cachedBounds.worldBounds.intersectsBox(bounds);
+        if (intersects) {
+          broadPhaseNodes += 1;
+          if (
+            regionMask &&
+            !regionMask.match(
+              cachedBounds.box,
+              shadowReceiverMatch,
+              cachedBounds.transform
+            )
+          ) {
+            intersects = false;
+            rejectedPrismNodes += 1;
+          }
+        }
+        return {
+          intersects,
+          errorPixels: !intersects
+            ? 0
+            : regionMask
+            ? receiverMatchedTileError(
+                tile.geometricError,
+                shadowReceiverMatch.receiverGeometricError,
+                errorPixels,
+                shadowReceiverMatch.receiverPixelsPerMeter
+              )
+            : getTileScreenError(tile),
+        };
+      }
+    );
+    // Cache identities describe the source, transform and complete published
+    // cut, not a session counter. URL versions remain the source's authority
+    // for remotely changed payloads; this cache never persists raw GPU targets.
+    const revision =
+      cut === null
+        ? null
+        : JSON.stringify([
+            tilesetUrl,
+            tiles.group.matrixWorld.elements,
+            errorPixels,
+            cut
+              .map((tile) => [getStableTileId(tile), tile.geometricError])
+              .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+          ]);
+    if (shadowRegionRevisions.size >= 128) shadowRegionRevisions.clear();
+    shadowRegionRevisions.set(key, {
+      revision,
+      diagnostics: {
+        sourceId: tilesetUrl,
+        ready: revision !== null,
+        errorPixels,
+        visitedNodes,
+        broadPhaseNodes,
+        rejectedPrismNodes,
+        receiverPrismTested: regionMask !== null,
+        selectedTileIds: cut?.map(getStableTileId) ?? [],
+      },
+    });
+    return revision;
+  };
   const getTileLoadReason = (
     tile: RuntimeTile
   ): SharedThreeSceneTileVolume["loadReason"] => {
+    if (options.providesTerrain && shadowView) {
+      return committedMeshReceiverFrontier.has(tile) ? "viewport" : "shadow";
+    }
     if (isTileInMainView(tile)) return "viewport";
     return tile.shadowReceiverCenterness === undefined ? undefined : "shadow";
   };
-  const captureShadowReceiverSources = () => {
+  const createReceiverSnapshot = (frontier: ReadonlySet<Tile>) => {
     const sourceCamera = shadowView?.camera;
     if (
       !tiles ||
       !(sourceCamera instanceof THREE.OrthographicCamera) ||
-      !viewFrustumsReady ||
-      !tiles.getBoundingBox(rootTileBoundingBox)
+      !viewFrustumsReady
     ) {
-      return "empty" as const;
+      return null;
     }
 
     sourceCamera.updateMatrixWorld(true);
     tiles.group.updateWorldMatrix(true, false);
-    rootWorldBoundingBox
-      .copy(rootTileBoundingBox)
-      .applyMatrix4(tiles.group.matrixWorld);
+    if (!updateRootWorldBounds()) return null;
     sourceCamera.getWorldDirection(sunwardDirection).negate().normalize();
     tilesToShadowView.multiplyMatrices(
       sourceCamera.matrixWorldInverse,
@@ -1473,24 +1787,40 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     const sources: ShadowReceiverSource[] = [];
     const sourceTiles = new Set<Tile>();
     const sourceKeys: string[] = [];
-    for (const visible of tiles.visibleTiles) {
+    for (const visible of frontier) {
       const tile = visible as RuntimeTile;
       if (!isTileInMainView(tile)) continue;
       const bounds = tile.engineData?.boundingVolume;
       if (!bounds?.getAABB) continue;
-      bounds.getAABB(tileBoundingBox);
+      const screenErrorPixels = getTileScreenError(tile);
+      readOrientedTileBounds(bounds, tileBoundingBox, tileBoundsTransform);
       if (!tileBoundingBox.isEmpty()) {
+        sourceWorldBoundsTransform.multiplyMatrices(
+          tiles.group.matrixWorld,
+          tileBoundsTransform
+        );
         sourceWorldBoundingBox
           .copy(tileBoundingBox)
-          .applyMatrix4(tiles.group.matrixWorld);
+          .applyMatrix4(sourceWorldBoundsTransform);
         sources.push({
           bounds: tileBoundingBox.clone(),
+          boundsTransform: tileBoundsTransform.clone(),
           maximumCasterDistance: maximumSweepDistanceWithinBox(
             sourceWorldBoundingBox,
             rootWorldBoundingBox,
             sunwardDirection
           ),
           geometricError: tile.geometricError,
+          casterGeometricError:
+            screenErrorPixels > 0 && Number.isFinite(screenErrorPixels)
+              ? (tile.geometricError *
+                  meshShadowStageError(
+                    screenErrorPixels,
+                    requestedErrorTarget
+                  )) /
+                screenErrorPixels
+              : tile.geometricError,
+          screenErrorPixels,
           centerness: getTileCenterness(bounds),
         });
         sourceKeys.push(`${getTileDebugId(tile)}:${tile.geometricError}`);
@@ -1501,19 +1831,37 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         source = source.parent;
       }
     }
-    const nextSignature = [shadowViewSignature, ...sourceKeys.sort()].join("|");
+    return {
+      signature: [shadowViewSignature, ...sourceKeys.sort()].join("|"),
+      mask: createShadowReceiverMask(
+        sources,
+        tilesToShadowView,
+        shadowView?.casterAngularRadiusRadians
+      ),
+      sourceTiles,
+    };
+  };
+  const captureShadowReceiverSources = () => {
+    if (!tiles) return "empty" as const;
+    const snapshot = createReceiverSnapshot(
+      new Set([
+        ...(pendingMeshReceiverFrontier ??
+          (committedMeshReceiverFrontier.size > 0
+            ? committedMeshReceiverFrontier
+            : tiles.visibleTiles)),
+        ...pendingMeshCorridorReceiverDemand,
+      ])
+    );
+    if (!snapshot?.mask) return "empty" as const;
+    const { signature: nextSignature, mask: nextMask, sourceTiles } = snapshot;
     if (shadowReceiverMask && nextSignature === shadowReceiverSourceSignature) {
       return "unchanged" as const;
-    }
-    const nextMask = createShadowReceiverMask(sources, tilesToShadowView);
-    if (!nextMask) {
-      clearShadowReceiverSources();
-      return "empty" as const;
     }
     if (shadowReceiverMaskConverged) {
       previousShadowReceiverMask = shadowReceiverMask;
     }
     shadowReceiverMask = nextMask;
+    shadowRegionRevisions.clear();
     shadowReceiverMaskConverged = false;
     shadowReceiverSourceSignature = nextSignature;
     mainViewSourceTiles.clear();
@@ -1553,14 +1901,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (options.providesTerrain) {
       if (effectiveErrorTarget !== requestedErrorTarget)
         resetEffectiveErrorTarget();
-      if (
-        meshLoadError > requestedErrorTarget &&
-        mainViewWithinErrorFactor(meshLoadError / effectiveErrorTarget, false)
-      ) {
-        meshLoadError = nextMeshLoadError(meshLoadError, requestedErrorTarget);
-        tiles.dispatchEvent({ type: "needs-update" });
-        requestRender();
-      }
       return;
     }
     const { zoom, pitch } = readMapView(map);
@@ -1642,7 +1982,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       !tiles ||
       !cameraSet ||
       (!settledMeshAudit && !isPipelineIdle()) ||
-      (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries())
+      (tiles.group.children.length === 0 &&
+        !pendingMeshReceiverFrontier?.size &&
+        !tileRetries.hasExhaustedRetries())
     ) {
       return;
     }
@@ -1651,7 +1993,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       mainViewWithinErrorFactor(
         initialMeshLoadError(requestedErrorTarget) /
           Math.max(effectiveErrorTarget, Number.EPSILON),
-        false
+        false,
+        pendingMeshReceiverFrontier ?? undefined
       );
     if (
       !settledMeshAudit &&
@@ -1666,6 +2009,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }
     const receiverUpdate = captureShadowReceiverSources();
     if (receiverUpdate === "empty") {
+      if (committedMeshCasterFrontier.size > 0) return;
       setShadowSelectionEnabled(false);
       return;
     }
@@ -1692,15 +2036,115 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (tile.internal?.hasUnrenderableContent || !bounds?.getAABB) return true;
     if (!shadowView) return false;
     if (shadowSelectionRefreshPending || !shadowReceiverMask) return true;
-    bounds.getAABB(tileBoundingBox);
-    return shadowReceiverMask.match(tileBoundingBox, shadowReceiverMatch);
+    readOrientedTileBounds(bounds, tileBoundingBox, tileBoundsTransform);
+    return (
+      shadowReceiverMask.match(
+        tileBoundingBox,
+        shadowReceiverMatch,
+        tileBoundsTransform
+      ) ||
+      (previousShadowReceiverMask?.match(
+        tileBoundingBox,
+        shadowReceiverMatch,
+        tileBoundsTransform
+      ) ??
+        false)
+    );
+  };
+  const isFinerThanCurrentMeshDemand = (tile: RuntimeTile): boolean => {
+    const stageFrontier =
+      pendingMeshReceiverFrontier ??
+      (shadowStagePresentationGated ? committedMeshReceiverFrontier : null);
+    if (!shadowView || !stageFrontier) return false;
+    let maximumCasterGeometricError = Number.POSITIVE_INFINITY;
+    const candidateVolume = tile.engineData?.boundingVolume;
+    if (shadowReceiverMask && candidateVolume?.getAABB) {
+      readOrientedTileBounds(
+        candidateVolume,
+        tileBoundingBox,
+        tileBoundsTransform
+      );
+      if (
+        shadowReceiverMask.match(
+          tileBoundingBox,
+          shadowReceiverMatch,
+          tileBoundsTransform
+        )
+      ) {
+        // A REPLACE parent split for a finer overlapping receiver needs every
+        // intersecting child, including siblings whose own receiver budget
+        // would permit the parent. Judge the split at that parent, not at the
+        // child footprint; otherwise publication waits for never-queued data.
+        for (let parent = tile.parent; parent; parent = parent.parent) {
+          if (
+            !parent.internal?.hasRenderableContent ||
+            isMeshTileUnconditionallyRefined(parent)
+          )
+            continue;
+          const parentVolume = (parent as RuntimeTile).engineData
+            ?.boundingVolume;
+          if (parentVolume?.getAABB) {
+            readOrientedTileBounds(
+              parentVolume,
+              tileBoundingBox,
+              tileBoundsTransform
+            );
+            if (
+              shadowReceiverMask.match(
+                tileBoundingBox,
+                shadowReceiverMatch,
+                tileBoundsTransform
+              )
+            )
+              maximumCasterGeometricError =
+                shadowReceiverMatch.receiverGeometricError;
+          }
+          break;
+        }
+      }
+    }
+    if (
+      isMeshRefinementBeyondStage(
+        tile,
+        stageFrontier,
+        shadowStagePresentationGated
+          ? presentedMeshReceivers
+          : committedMeshReceiverFrontier,
+        maximumCasterGeometricError
+      )
+    )
+      return true;
+    if (isTileInMainView(tile) || !shadowReceiverMask) return false;
+    for (let parent = tile.parent; parent; parent = parent.parent) {
+      if (
+        !parent.internal?.hasRenderableContent ||
+        isMeshTileUnconditionallyRefined(parent)
+      )
+        continue;
+      const bounds = (parent as RuntimeTile).engineData?.boundingVolume;
+      if (!bounds?.getAABB) continue;
+      readOrientedTileBounds(bounds, tileBoundingBox, tileBoundsTransform);
+      if (
+        shadowReceiverMask.match(
+          tileBoundingBox,
+          shadowReceiverMatch,
+          tileBoundsTransform
+        )
+      )
+        return (
+          parent.geometricError <= shadowReceiverMatch.receiverGeometricError
+        );
+    }
+    return false;
   };
   const sweepSettledMeshDemand = () => {
     // Decision: MESH-SETTLED-DEMAND-20260908 in engines/maplibre/README.md.
     // Fresh geometric demand, not upstream ancestor LRU pins, controls release.
     if (!tiles || !meshDemandSweepPending || map?.isMoving?.()) return;
+    const cache = getRuntimeCache();
+    if (!cache) return;
     const viewError = { inView: false, error: 0, distanceFromCamera: 0 };
-    for (const entry of tiles.lruCache.itemList) {
+    for (const entry of cache.itemList) {
       const tile = entry as RuntimeTile;
       if (!tile.engineData?.boundingVolume?.distanceToPoint) continue;
       // The retained cut can include tiles the last traversal did not visit.
@@ -1718,9 +2162,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     maybeEnableShadowSelection(true);
     if (shadowView && (shadowSelectionRefreshPending || !shadowReceiverMask))
       return;
-    previousShadowReceiverMask = null;
-    const cache = getRuntimeCache();
-    if (!cache) return;
     meshDemandSweepPending = false;
     let removed = 0;
     for (const tile of [...cache.itemList]) {
@@ -1730,7 +2171,21 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         underPressure &&
         !tiles.activeTiles.has(tile) &&
         isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles);
-      if (!replacedParent && isRequiredMeshTile(tile as RuntimeTile)) continue;
+      // Paused parsing must not retain finer pending blobs behind the stage
+      // that is waiting to publish. Release only unnecessary uncommitted work;
+      // the complete visible receiver/caster cut remains pinned throughout.
+      const prematureFinePayload =
+        underPressure &&
+        tile.internal?.hasRenderableContent &&
+        !committedMeshCasterFrontier.has(tile) &&
+        !committedMeshReceiverFrontier.has(tile) &&
+        isFinerThanCurrentMeshDemand(tile as RuntimeTile);
+      if (
+        !replacedParent &&
+        !prematureFinePayload &&
+        isRequiredMeshTile(tile as RuntimeTile)
+      )
+        continue;
       if (!pending && !underPressure) continue;
       if (removed >= MESH_EVICTION_BATCH_SIZE) {
         meshDemandSweepPending = true;
@@ -1765,10 +2220,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     meshAuditTimer = setTimeout(() => {
       meshAuditTimer = null;
       if (disposed || map?.isMoving?.()) return;
-      // Staged bootstrap must not indefinitely hold a settled view at 16px.
-      // Re-evaluate at the requested target; already loaded/requested tiles
-      // still go through the existing deduplication and retry guards.
-      meshLoadError = requestedErrorTarget;
+      // Refresh stale demand at the requested target; local refinement and
+      // existing deduplication/retry guards still control request admission.
       meshDemandSweepPending = true;
       resetDeferredTiles();
       requestShadowSelectionRefresh();
@@ -1779,6 +2232,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const maybeFinalizeShadowSelection = () => {
     if (
       !tiles ||
+      pendingMeshReceiverFrontier !== null ||
       !shadowSelectionEnabled ||
       shadowReceiverMaskConverged ||
       shadowSelectionNeedsTraversal ||
@@ -1793,11 +2247,176 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     tiles.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
+  const advanceMeshShadowCorridors = (
+    proposed: ReadonlySet<Tile>
+  ): Set<Tile> => {
+    if (!tiles || !shadowView) return new Set(proposed);
+    // Proposed receivers drive loading even while their old complete family
+    // remains displayed. Deriving demand from the committed coarse cut would
+    // never request its missing fine offscreen casters.
+    pendingMeshReceiverFrontier = new Set(
+      [...proposed].filter((tile) => isTileInMainView(tile as RuntimeTile))
+    );
+    const demandViewSignature = [
+      shadowViewSignature,
+      ...tileViewProjection.elements,
+    ].join("|");
+    if (demandViewSignature !== meshCorridorDemandViewSignature) {
+      pendingMeshCorridorReceiverDemand.clear();
+      meshCorridorDemandViewSignature = demandViewSignature;
+    }
+    for (const tile of pendingMeshReceiverFrontier) tiles.markTileUsed(tile);
+    const attemptSignature = [
+      shadowViewSignature,
+      meshContentRevision,
+      ...tileViewProjection.elements,
+      ...[...pendingMeshReceiverFrontier].map(getStableTileId).sort(),
+    ].join("|");
+    for (const tile of committedMeshCasterFrontier) tiles.markTileUsed(tile);
+    if (attemptSignature === meshCorridorAttemptSignature) {
+      if (!meshCorridorPending) pendingMeshReceiverFrontier = null;
+      return committedMeshCasterFrontier;
+    }
+    maybeEnableShadowSelection(true);
+    if (
+      !shadowReceiverMask ||
+      !meshCasterAdmissionReady ||
+      !tiles.rootTileset?.root
+    )
+      return committedMeshCasterFrontier;
+    const resident = new Set<Tile>([
+      ...(tiles.lruCache as RuntimeLruCache).itemList,
+      ...tiles.visibleTiles,
+      ...committedMeshCasterFrontier,
+      ...pendingMeshReceiverFrontier,
+    ]);
+    const nativeBounds = new WeakMap<
+      Tile,
+      { box: THREE.Box3; transform: THREE.Matrix4 }
+    >();
+    const candidateMatch: ShadowReceiverMatch = {
+      receiverGeometricError: Number.POSITIVE_INFINITY,
+      receiverCenterness: 0,
+      lightFacing: 0,
+    };
+    const nextReceiverDemand = new Set<Tile>();
+    const next = advanceMeshCorridorFrontier({
+      receivers: new Set(
+        [...committedMeshReceiverFrontier].filter((tile) =>
+          isTileInMainView(tile as RuntimeTile)
+        )
+      ),
+      casters: committedMeshCasterFrontier,
+      proposed: pendingMeshReceiverFrontier,
+      errorPixels: getTileScreenError,
+      presented: shadowStagePresentationGated
+        ? presentedMeshReceivers
+        : undefined,
+      resolveCasters: (receivers) => {
+        let actualReceivers = new Set(receivers);
+        // A shared caster branch may refine an existing receiver family, but
+        // must never add another family merely because its caster is in view.
+        // That lateral expansion recursively requests shadows of casters and
+        // can turn a single receiver into a city-wide publication barrier.
+        for (let iteration = 0; iteration < 8; iteration += 1) {
+          const mask = createReceiverSnapshot(actualReceivers)?.mask;
+          if (!mask) return null;
+          const cut = getReadyMeshRegionCut(
+            tiles!.rootTileset.root,
+            resident,
+            1,
+            (entry) => {
+              const tile = entry as RuntimeTile;
+              const volume = tile.engineData?.boundingVolume;
+              if (!volume?.getAABB)
+                return {
+                  intersects: true,
+                  errorPixels: Number.POSITIVE_INFINITY,
+                };
+              let cachedBounds = nativeBounds.get(tile);
+              if (!cachedBounds) {
+                const box = new THREE.Box3();
+                const transform = new THREE.Matrix4();
+                readOrientedTileBounds(volume, box, transform);
+                cachedBounds = { box, transform };
+                nativeBounds.set(tile, cachedBounds);
+              }
+              const intersects = mask.match(
+                cachedBounds.box,
+                candidateMatch,
+                cachedBounds.transform
+              );
+              return {
+                intersects,
+                // Each trial pairs caster and receiver geometric error, not
+                // the final target with a partially refined current receiver.
+                errorPixels: intersects
+                  ? receiverMatchedTileError(
+                      tile.geometricError,
+                      candidateMatch.receiverGeometricError,
+                      1
+                    )
+                  : 0,
+              };
+            }
+          );
+          if (!cut) {
+            // A shared caster split can force an original receiver family to
+            // refine. Its stricter direct corridor must drive the next loader
+            // traversal as well as this proof, without publishing partial data
+            // or turning lateral/offscreen caster families into receivers.
+            for (const receiver of actualReceivers)
+              nextReceiverDemand.add(receiver);
+            return null;
+          }
+          const selectedReceivers = selectMeshReceiverCut(cut, receivers);
+          if (
+            selectedReceivers.size === actualReceivers.size &&
+            [...selectedReceivers].every((tile) => actualReceivers.has(tile))
+          )
+            return { receivers: selectedReceivers, casters: cut };
+          actualReceivers = selectedReceivers;
+        }
+        for (const receiver of actualReceivers)
+          nextReceiverDemand.add(receiver);
+        return null;
+      },
+    });
+    committedMeshReceiverFrontier = next.receivers;
+    for (const tile of presentedMeshReceivers) {
+      if (!next.receivers.has(tile)) presentedMeshReceivers.delete(tile);
+    }
+    committedMeshCasterFrontier = next.casters;
+    // Exactly one committed mask protects the complete mixed-stage cut; it
+    // does not accumulate historical corridors after camera movement.
+    previousShadowReceiverMask =
+      createReceiverSnapshot(next.receivers)?.mask ?? null;
+    shadowReceiverMaskConverged = !next.pending;
+    meshCorridorAttemptSignature = attemptSignature;
+    meshCorridorPending = next.pending;
+    if (
+      nextReceiverDemand.size !== pendingMeshCorridorReceiverDemand.size ||
+      [...nextReceiverDemand].some(
+        (tile) => !pendingMeshCorridorReceiverDemand.has(tile)
+      )
+    ) {
+      pendingMeshCorridorReceiverDemand = nextReceiverDemand;
+      tiles.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    }
+    if (!next.pending) pendingMeshReceiverFrontier = null;
+    return next.casters;
+  };
   const handleModelLoad = (event: {
     scene?: THREE.Object3D;
     tile?: Tile;
     url?: string;
   }) => {
+    if (event.tile) presentedMeshReceivers.delete(event.tile);
+    meshContentRevision += 1;
+    shadowRegionRevisions.clear();
+    shadowRegionWorldBounds = new WeakMap();
+    mainViewIntersectionCache = new WeakMap();
     if (event.tile) tileRetries.handleSuccess(event.tile, event.url);
     if (event.scene) {
       event.scene.traverse((object) => {
@@ -1825,6 +2444,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     requestRender();
   };
   const handleModelDispose = (event: { scene?: THREE.Object3D }) => {
+    meshContentRevision += 1;
+    shadowRegionRevisions.clear();
+    shadowRegionWorldBounds = new WeakMap();
+    mainViewIntersectionCache = new WeakMap();
     if (event.scene) {
       restoreClayMaterials(event.scene);
       restoreLitTextureMaterials(event.scene);
@@ -1838,6 +2461,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }
   };
   const handleTilesetLoad = (event: { url?: string }) => {
+    meshContentRevision += 1;
+    shadowRegionRevisions.clear();
+    mainViewIntersectionCache = new WeakMap();
     clearKickstartTimer();
     tileRetries.handleSuccess(null, event.url);
     payloadAwareConcurrency.observeSuccess();
@@ -2075,6 +2701,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }, delay);
   };
   const handleViewStart = () => {
+    lastMotionCoverageAt = Number.NEGATIVE_INFINITY;
     // Camera movement is not a new loading session. Keep the reached admission
     // stage as well as the displayed mesh cut; only new targets reset staging.
     if (meshAuditTimer !== null) clearTimeout(meshAuditTimer);
@@ -2088,7 +2715,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const handleViewEnd = () => {
     if (!tiles) return;
     if (options.providesTerrain) {
-      meshLoadError = requestedErrorTarget;
       meshDemandSweepPending = true;
     }
     resetDeferredTiles();
@@ -2109,6 +2735,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         viewCamera.matrixWorldInverse
       )
       .multiply(tiles.group.matrixWorld);
+    mainViewProjectionChanged =
+      !lastMainViewProjection.equals(tileViewProjection);
+    if (mainViewProjectionChanged) {
+      mainViewIntersectionCache = new WeakMap();
+      lastMainViewProjection.copy(tileViewProjection);
+    }
     tileViewFrustum.setFromProjectionMatrix(
       tileViewProjection,
       viewCamera.coordinateSystem,
@@ -2329,14 +2961,19 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         ) {
           const bounds = runtimeTile.engineData?.boundingVolume;
           if (bounds?.getAABB) {
-            bounds.getAABB(tileBoundingBox);
+            readOrientedTileBounds(
+              bounds,
+              tileBoundingBox,
+              tileBoundsTransform
+            );
             const matchedCurrent = applyShadowReceiverMask(
               shadowReceiverMask,
               tileBoundingBox,
               target,
               shadowReceiverMatch,
               tile.geometricError,
-              effectiveErrorTarget
+              effectiveErrorTarget,
+              tileBoundsTransform
             );
             const matchedPrevious =
               !matchedCurrent &&
@@ -2347,7 +2984,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
                 target,
                 shadowReceiverMatch,
                 tile.geometricError,
-                effectiveErrorTarget
+                effectiveErrorTarget,
+                tileBoundsTransform
               );
             if (matchedCurrent || matchedPrevious) {
               runtimeTile.shadowReceiverCenterness =
@@ -2368,6 +3006,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         )
           return;
         const runtimeTile = tile as RuntimeTile;
+        if (
+          options.providesTerrain &&
+          tile.internal.hasRenderableContent &&
+          isFinerThanCurrentMeshDemand(runtimeTile)
+        )
+          return;
         // A payload freed after proven child replacement must not immediately
         // re-enter loadAncestors' queue. Its hierarchy/metadata remains intact.
         if (
@@ -2382,21 +3026,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           !isTileInMainView(runtimeTile)
         )
           return;
-        if (options.providesTerrain && isTileInMainView(runtimeTile)) {
-          // Do not refine below this pass until the entire viewport is covered.
-          // Metadata/ADD nodes cannot substitute for renderable REPLACE parents.
-          let parent = tile.parent as RuntimeTile | null;
-          while (parent) {
-            if (
-              parent.internal.hasRenderableContent &&
-              parent.refine === "REPLACE" &&
-              !parent.traversal?.unconditionallyRefine &&
-              parent.traversal?.error <= meshLoadError
-            )
-              return;
-            parent = parent.parent as RuntimeTile | null;
-          }
-        }
+        if (
+          options.providesTerrain &&
+          isTileInMainView(runtimeTile) &&
+          shouldDeferMeshRefinement(
+            tile,
+            map?.isMoving?.()
+              ? initialMeshLoadError(requestedErrorTarget)
+              : requestedErrorTarget
+          )
+        )
+          return;
         // D8: a pending retry or an exhausted budget keeps the parent as the
         // fallback instead of re-requesting the tile every frame.
         if (tileRetries.isBlocked(tile)) return;
@@ -2511,6 +3151,15 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     update(frame: SharedThreeSceneFrame) {
       if (!runtimeVisible || !tiles || !map) return;
+      // Keep drawing the retained cut at native resolution. While input is
+      // active, only a bounded coverage traversal admits missing coarse tiles;
+      // moveend immediately runs the full requested-error audit again.
+      if (options.providesTerrain && map.isMoving?.()) {
+        const now = performance.now();
+        if (now - lastMotionCoverageAt < MESH_MOTION_COVERAGE_INTERVAL_MS)
+          return;
+        lastMotionCoverageAt = now;
+      }
       applyRequestConcurrency();
       syncProjector();
       try {
@@ -2525,8 +3174,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         prepareViewFrustums(viewCamera);
         // Refresh both pending jobs AND cached candidates before the upstream
         // admission/eviction sort; a finished old query is not a priority cache.
-        if (options.providesTerrain) {
-          for (const tile of tiles.lruCache.itemList)
+        if (options.providesTerrain && mainViewProjectionChanged) {
+          for (const tile of (tiles.lruCache as RuntimeLruCache).itemList)
             assignTilePriority(tile as RuntimeTile);
         }
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
@@ -2534,20 +3183,69 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         const previousMeshFrontier = options.providesTerrain
           ? new Set(tiles.visibleTiles)
           : null;
+        const previousTraversal = tiles.frameCount;
         tiles.update();
         if (
+          tiles.frameCount !== previousTraversal ||
+          mainViewProjectionChanged
+        ) {
+          shadowRegionRevisions.clear();
+          shadowRegionWorldBounds = new WeakMap();
+        }
+        if (tiles.frameCount !== previousTraversal)
+          mainViewIntersectionCache = new WeakMap();
+        const atomicMeshCorridors =
+          options.providesTerrain && shadowView !== null;
+        const refinedMeshFrontier =
+          previousMeshFrontier && tiles.frameCount !== previousTraversal
+            ? atomicMeshCorridors && tiles.rootTileset?.root
+              ? collectLoadedMeshReceiverCandidates(
+                  tiles.rootTileset.root,
+                  requestedErrorTarget,
+                  initialMeshLoadError(requestedErrorTarget),
+                  isTileInMainView,
+                  getTileScreenError,
+                  committedMeshReceiverFrontier,
+                  shadowStagePresentationGated
+                    ? presentedMeshReceivers
+                    : undefined
+                )
+              : refineLoadedMeshFrontier(
+                  tiles.visibleTiles,
+                  requestedErrorTarget,
+                  shadowSelectionEnabled ? isRequiredMeshTile : isTileInMainView
+                )
+            : tiles.visibleTiles;
+        const proposedMeshFrontier = atomicMeshCorridors
+          ? advanceMeshShadowCorridors(
+              tiles.frameCount === previousTraversal &&
+                pendingMeshReceiverFrontier
+                ? pendingMeshReceiverFrontier
+                : refinedMeshFrontier
+            )
+          : refinedMeshFrontier;
+        if (
           previousMeshFrontier &&
-          (previousMeshFrontier.size !== tiles.visibleTiles.size ||
+          (previousMeshFrontier.size !== proposedMeshFrontier.size ||
             [...previousMeshFrontier].some(
-              (tile) => !tiles!.visibleTiles.has(tile)
+              (tile) => !proposedMeshFrontier.has(tile)
+            ) ||
+            [...tiles.visibleTiles].some(
+              (tile) => !proposedMeshFrontier.has(tile)
             ))
         ) {
-          const frontier = retainMeshDetailFrontier({
-            previous: previousMeshFrontier,
-            proposed: tiles.visibleTiles,
-            requestedError: requestedErrorTarget,
-            inView: isTileInMainView,
-          });
+          const frontier = atomicMeshCorridors
+            ? proposedMeshFrontier
+            : retainMeshDetailFrontier({
+                previous: previousMeshFrontier,
+                proposed: proposedMeshFrontier,
+                requestedError: requestedErrorTarget,
+                // The retained cut includes offscreen casters as well as visible
+                // receivers. A pending replacement must not expose a caster hole.
+                inView: shadowSelectionEnabled
+                  ? isRequiredMeshTile
+                  : isTileInMainView,
+              });
           for (const tile of new Set([...tiles.visibleTiles, ...frontier])) {
             const visible = frontier.has(tile);
             if (visible !== tiles.visibleTiles.has(tile)) {
@@ -2646,7 +3344,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       // change; only a changed request resets a relaxed effective target.
       if (requestedErrorTarget === nextErrorTarget) return;
       requestedErrorTarget = nextErrorTarget;
-      meshLoadError = initialMeshLoadError(requestedErrorTarget);
       meshDemandSweepPending = options.providesTerrain === true;
       resetDeferredTiles();
       resetEffectiveErrorTarget();
@@ -2676,10 +3373,42 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.triggerRepaint();
     },
 
+    setShadowStagePresentationGate(enabled) {
+      if (shadowStagePresentationGated === enabled) return;
+      shadowStagePresentationGated = enabled;
+      presentedMeshReceivers.clear();
+      meshCorridorAttemptSignature = "";
+      tiles?.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    },
+
+    acknowledgeShadowStage(receiverIds) {
+      if (!shadowStagePresentationGated || !shadowView || !receiverIds.length)
+        return;
+      const ids = new Set(receiverIds);
+      let changed = false;
+      for (const tile of committedMeshReceiverFrontier) {
+        if (
+          !presentedMeshReceivers.has(tile) &&
+          ids.has(getStableTileId(tile))
+        ) {
+          presentedMeshReceivers.add(tile);
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      // One receiver can advance while another is still waiting for its hard
+      // capture. This acknowledgment is synchronous with the host's actual draw.
+      meshCorridorAttemptSignature = "";
+      tiles?.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    },
+
     setShadowView(view) {
       const nextSignature = getSharedThreeShadowViewSignature(view);
       if (nextSignature === shadowViewSignature) return;
       shadowViewSignature = nextSignature;
+      shadowRegionRevisions.clear();
       shadowView = view;
       if (view) {
         requestShadowSelectionRefresh();
@@ -2790,6 +3519,21 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     getRequestDemand,
+    isShadowRegionReady: (bounds, errorPixels, receiverBounds) =>
+      getShadowRegionRevision(bounds, errorPixels, receiverBounds) !== null,
+    getShadowRegionRevision,
+    getShadowRegionDiagnostics: (
+      bounds,
+      errorPixels = requestedErrorTarget,
+      receiverBounds
+    ) => {
+      getShadowRegionRevision(bounds, errorPixels, receiverBounds);
+      return (
+        shadowRegionRevisions.get(
+          shadowRegionKey(bounds, errorPixels, receiverBounds)
+        )?.diagnostics ?? null
+      );
+    },
     isMainViewReady: () =>
       mainViewWithinErrorFactor(
         requestedErrorTarget / effectiveErrorTarget,

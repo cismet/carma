@@ -64,7 +64,7 @@ const buildMap = () =>
 const dispatchedTypes = (spy: { mock: { calls: unknown[][] } }) =>
   spy.mock.calls.map(([event]) => (event as { type: string }).type);
 
-const mountRuntime = () => {
+const mountRuntime = (providesTerrain = false) => {
   let renderer: LivenessRenderer | undefined;
   vi.spyOn(TilesRenderer.prototype, "update").mockImplementation(function (
     this: TilesRenderer
@@ -73,7 +73,10 @@ const mountRuntime = () => {
   });
   const map = buildMap();
   const repaint = map.triggerRepaint as unknown as ReturnType<typeof vi.fn>;
-  const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
+  const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], {
+    providesTerrain,
+  });
+  if (providesTerrain) layer.setErrorTarget(1);
   const camera = new THREE.PerspectiveCamera();
   const frame = {
     map,
@@ -99,6 +102,84 @@ describe("three tiles runtime liveness", () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("does not let loose external metadata keep offscreen mesh demand alive", () => {
+    const { layer, renderer, frame } = mountRuntime(true);
+    const parent = buildTile("coarse.b3dm", new THREE.Group());
+    const metadata = buildTile("children.json");
+    const child = buildTile("outside.b3dm");
+    for (const tile of [parent, metadata, child]) {
+      Object.assign(tile.engineData, {
+        boundingVolume: { distanceToPoint: () => 1 },
+      });
+      Object.assign(tile.traversal, { error: 300 });
+    }
+    parent.internal.loadingState = 4;
+    Object.assign(metadata.internal, {
+      loadingState: 4, hasRenderableContent: false, hasUnrenderableContent: true,
+    });
+    Object.assign(parent, { children: [metadata] });
+    Object.assign(metadata, { children: [child] });
+    const error = vi.spyOn(renderer, "calculateTileViewError").mockImplementation((tile, target) => {
+      Object.assign(target, { inView: tile !== child, error: 300, distanceFromCamera: 1 });
+    });
+    renderer.visibleTiles.add(parent as never);
+    layer.update(frame);
+    expect(layer.isMainViewReady?.()).toBe(true);
+    const calls = error.mock.calls.length;
+    expect(layer.isMainViewReady?.()).toBe(true);
+    expect(error.mock.calls.length).toBe(calls);
+    // Missing descendant bounds must remain unresolved, never false coverage.
+    Object.assign(child.engineData, { boundingVolume: undefined });
+    renderer.dispatchEvent({ type: "load-tileset", url: "children.json" } as never);
+    layer.update(frame);
+    expect(layer.isMainViewReady?.()).toBe(false);
+    layer.dispose();
+  });
+
+  it("admits a ready mesh branch immediately without a view-wide stage or audit timer", () => {
+    const { layer, renderer } = mountRuntime(true);
+    const parent = {
+      ...buildTile("coarse.b3dm", new THREE.Group()),
+      refine: "REPLACE",
+      parent: null,
+    };
+    parent.internal.loadingState = 4;
+    Object.assign(parent.traversal, { error: 8 });
+    const child = { ...buildTile("local-next.b3dm"), parent };
+    const grandchild = { ...buildTile("local-final.b3dm"), parent: child };
+    Object.assign(child, { refine: "REPLACE" });
+    Object.assign(child.traversal, { error: 4 });
+    renderer.queueTileForDownload(child);
+    renderer.queueTileForDownload(child);
+    expect(renderer.queuedTiles).toEqual([child]);
+    renderer.queueTileForDownload(grandchild);
+    expect(renderer.queuedTiles).toEqual([child]);
+    child.internal.loadingState = 4;
+    renderer.queueTileForDownload(grandchild);
+    expect(renderer.queuedTiles).toEqual([child, grandchild]);
+    layer.dispose();
+  });
+
+  it("throttles mesh coverage during input and traverses immediately after movement", () => {
+    const { layer, map, frame, renderer } = mountRuntime(true);
+    let moving = true;
+    Object.assign(map, { isMoving: () => moving });
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const update = vi.mocked(renderer.update);
+    update.mockClear();
+    layer.update(frame);
+    now = 50;
+    layer.update(frame);
+    now = 120;
+    layer.update(frame);
+    expect(update).toHaveBeenCalledTimes(2);
+    moving = false;
+    layer.update(frame);
+    expect(update).toHaveBeenCalledTimes(3);
+    layer.dispose();
   });
 
   it("removes a failed tile from the cache and requests it again after the backoff", () => {

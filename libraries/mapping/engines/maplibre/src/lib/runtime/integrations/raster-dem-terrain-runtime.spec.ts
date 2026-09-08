@@ -1139,10 +1139,12 @@ describe("buildRasterDemTerrainRuntime", () => {
       1_000,
       -1_000,
       1,
-      5_000
+      40_000
     );
     shadowCamera.position.set(20_000, 1_000, 0);
-    shadowCamera.lookAt(20_000, 0, 0);
+    // The eastern tile must lie sunward of the visible receiver, not merely
+    // inside a disconnected, vertically illuminated shadow-camera frustum.
+    shadowCamera.lookAt(0, 0, 0);
     shadowCamera.updateProjectionMatrix();
     shadowCamera.updateMatrixWorld(true);
     runtime.setShadowView({
@@ -1952,25 +1954,22 @@ describe("buildRasterDemTerrainRuntime", () => {
     });
     const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
     const meterScale = origin.meterInMercatorCoordinateUnits();
-    const westCenter = MercatorCoordinate.fromLngLat([6.85, 51.25], 0);
+    const westCenter = MercatorCoordinate.fromLngLat([6.65, 51.25], 0);
     const shadowCamera = new OrthographicCamera(
       -12_000,
       12_000,
       12_000,
       -12_000,
       1,
-      20_000
+      50_000
     );
     shadowCamera.position.set(
       (westCenter.x - origin.x) / meterScale,
       2_000,
       (westCenter.y - origin.y) / meterScale
     );
-    shadowCamera.lookAt(
-      (westCenter.x - origin.x) / meterScale,
-      0,
-      (westCenter.y - origin.y) / meterScale
-    );
+    // Sweep from the visible frontier toward these western caster roots.
+    shadowCamera.lookAt(0, 0, 0);
     shadowCamera.updateProjectionMatrix();
     shadowCamera.updateMatrixWorld(true);
     runtime.setShadowView({

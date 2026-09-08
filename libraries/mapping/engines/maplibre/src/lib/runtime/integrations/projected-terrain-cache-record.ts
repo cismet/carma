@@ -2,6 +2,10 @@ import {
   createDerivedBufferCache,
   resolveDerivedCacheAssetEpoch,
 } from "@carma-commons/utils";
+import {
+  mergeTerrainHeightMetadata,
+  TERRAIN_HEIGHT_METADATA_VERSION,
+} from "../../core/terrain-height-metadata";
 import type { TerrainTile } from "../../core/raster-dem-tile";
 import { createProjectedTerrainCacheStrategy } from "./projected-terrain-cache-strategy";
 import { cleanupLegacyProjectedTerrainCache } from "./projected-terrain-cache-maintenance";
@@ -132,6 +136,7 @@ const createPipelineCache = (producerEpoch: string) => {
   });
   return {
     manager,
+    heightMetadata: manager.register("terrain-height-metadata", TERRAIN_HEIGHT_METADATA_VERSION),
     records: manager.register(
       TERRAIN_CACHE_NAMESPACE,
       PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
@@ -220,6 +225,38 @@ export const readProjectedTerrainCacheRecord = (
     async ({ records, strategy }) =>
       strategy.decode((await records.get<unknown>(key))?.value)
   );
+
+export const readTerrainHeightMetadata = (
+  key: string,
+  producerAssetUrl?: string
+) =>
+  withPipelineCache<Float64Array | null>(
+    producerAssetUrl,
+    null,
+    async ({ heightMetadata }) =>
+      (await heightMetadata.get<Float64Array>(key))?.value ?? null
+  );
+
+export const writeTerrainHeightMetadata = (
+  key: string,
+  update: Float64Array,
+  producerAssetUrl?: string
+) =>
+  withPipelineCache(producerAssetUrl, false, async ({ heightMetadata }) => {
+    // A separate source-scoped lock protects read/merge/write across workers
+    // and tabs. Without Web Locks retain RAM metadata; losing an observation
+    // is not a reason to risk publishing a narrower concurrent extent.
+    if (typeof navigator === "undefined" || !navigator.locks?.request)
+      return false;
+    return navigator.locks.request(
+      `terrain-height-metadata:${producerAssetUrl}:${key}`,
+      async () => {
+        const previous = (await heightMetadata.get<Float64Array>(key))?.value;
+        const merged = mergeTerrainHeightMetadata(previous, update);
+        return heightMetadata.put(key, merged, { bytes: merged.byteLength });
+      }
+    );
+  });
 
 export const writeProjectedTerrainCacheRecord = (
   key: string,

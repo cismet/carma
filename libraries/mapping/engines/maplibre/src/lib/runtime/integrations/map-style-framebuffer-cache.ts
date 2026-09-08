@@ -1,5 +1,10 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import {
+  matchesMapStyleImageRevision,
+  snapshotMapStyleImageRevision,
+  type MapStyleImageRevision,
+} from "../../core/map-style-image-revision";
 
 const CONTENT_EVENTS = [
   MAPLIBRE_EVENT.SOURCE_DATA,
@@ -38,7 +43,9 @@ export const createMapStyleFramebufferCache = (
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let retryDelayMs = 100;
   let disposed = false;
-  let imageVersions: Array<readonly [id: string, version: number]> = [];
+  let imageVersions: Array<
+    readonly [id: string, revision: MapStyleImageRevision]
+  > = [];
 
   const cancelRetry = () => {
     if (retryTimer !== undefined) clearTimeout(retryTimer);
@@ -88,18 +95,20 @@ export const createMapStyleFramebufferCache = (
     for (const id of map.listImages()) {
       const image = map.getImage(id);
       if (image?.userImage?.render) return false;
-      if (image) imageVersions.push([id, image.version]);
+      if (image) imageVersions.push([id, snapshotMapStyleImageRevision(image)]);
     }
     return true;
   };
   const refreshImages = () => {
     // updateImage also emits no content event; getImage is a public API.
-    // Keep only IDs/versions, not image objects or pixel buffers.
+    // Versionless sprites need exact snapshots because updateImage writes into
+    // their existing pixel buffer without producing a usable numeric version.
     if (
       idle &&
       staticStyle === true &&
       imageVersions.some(
-        ([id, version]) => map.getImage(id)?.version !== version
+        ([id, revision]) =>
+          !matchesMapStyleImageRevision(map.getImage(id), revision)
       )
     )
       invalidateStyle();

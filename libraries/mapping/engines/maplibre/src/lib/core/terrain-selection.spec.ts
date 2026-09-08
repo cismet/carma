@@ -43,6 +43,81 @@ const input = (): TerrainSelectionInput => {
 };
 
 describe("terrain selection worker task", () => {
+  it.each([
+    {
+      label: "aligned known height",
+      caster: [10, 20] as const,
+      included: true,
+    },
+    {
+      label: "known height above the corridor",
+      caster: [60, 70] as const,
+      included: false,
+    },
+    {
+      label: "unknown height stays conservative",
+      caster: undefined,
+      included: true,
+    },
+  ])(
+    "selects native-LOD bounds without downloading a raster: $label",
+    ({ caster, included }) => {
+      const base = input();
+      const receiver = { west: 0, east: 1, south: 0, north: 1 };
+      const ids = [
+        { level: 1, x: 0, y: 0 },
+        { level: 1, x: 0, y: 1 },
+        { level: 1, x: 1, y: 1 },
+      ];
+      const selection = buildTerrainSelection(
+        {
+          ...base,
+          viewportBounds: receiver,
+          source: {
+            ...base.source,
+            bounds: { west: 0, east: 5, south: -2, north: 1 },
+            minzoom: 1,
+            maxzoom: 1,
+          },
+          origin: [0.5, 0.5, 0],
+          meterScale: 1 / 360,
+          minimumLevel: 1,
+          maximumLevel: 1,
+          knownHeightRanges: {
+            "1/0/0": [10, 20],
+            ...(caster ? { "1/0/1": caster } : {}),
+            "1/1/1": [10, 20],
+          },
+          shadow: {
+            camera: {
+              ...base.renderCamera,
+              projectionMatrix: new Matrix4()
+                .makeScale(0.1, 0.01, 0.1)
+                .toArray(),
+              isOrthographicCamera: true,
+            },
+            shadowMapSize: [1024, 1024],
+            bounds: { west: 0, east: 5, south: -2, north: 1 },
+          },
+        },
+        {
+          getTileGridIdsForBounds: () => ids,
+          getTileBounds: (id) =>
+            id.y === 0
+              ? receiver
+              : { west: id.x * 4, east: id.x * 4 + 1, south: -2, north: -1 },
+          getTileGeometricError: () => 0,
+          getTileDataAvailable: () => true,
+        }
+      );
+      expect(selection.entries.map((entry) => entry.id)).toEqual(
+        included ? [ids[0], ids[1]] : [ids[0]]
+      );
+      expect(selection.loadEntries.some((entry) => entry.id.x === 1)).toBe(
+        false
+      );
+    }
+  );
   it("terminates with no coverage outside the source", () => {
     const selection = buildTerrainSelection(input(), {
       getTileGridIdsForBounds: () => [],

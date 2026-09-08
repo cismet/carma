@@ -13,7 +13,7 @@ import type {
 import { ShadowCorridorPresentation } from "./shadow-corridor-presentation";
 
 const MAX_PAGES = 64;
-const MAX_ATLAS_BYTES = 512 * 1024 ** 2;
+export const SHADOW_CORRIDOR_WORKING_BUDGET_BYTES = 512 * 1024 ** 2;
 
 export const SHADOW_CORRIDOR_FALLBACK_REASONS = {
   inactive: "inactive",
@@ -115,6 +115,8 @@ export type ShadowCorridorProgress = Readonly<{
   progress: number;
   settled: boolean;
   needsRepaint: boolean;
+  /** Retry publication without rerendering the disc or spinning at frame rate. */
+  retryAfterMs?: number;
 }>;
 
 export type ShadowCorridorFrame = Readonly<{
@@ -149,11 +151,11 @@ type PageRenderer = Pick<
   | "renderPageSample"
 >;
 
-/** Camera-registered RGB refinement with independently invalidated corridors.
- * Replaces the global round counter only for the opaque tiled MSAA0 path.
- * Decision: native shared targets preserve MapLibre gl_FragCoord registration;
- * camera/style changes restart RGB, while world-fixed light depths stay owned
- * by TiledShadowRenderer. See three/TILED_SHADOW_PAGES.md, CORRIDOR-RGB-20260907.
+/** Integration kernel for a caller-owned capture camera.
+ * ShadowReceiverAccumulator supplies one stable source-tile camera and shares
+ * publications while releasing completed scratch targets. Direct callers may
+ * still use the observer-registered RGB path; only that path resets on movement.
+ * See three/TILED_SHADOW_PAGES.md, CORRIDOR-RGB-20260907 for its original scope.
  */
 export class ShadowCorridorAccumulator {
   private readonly fullscreenScene = new THREE.Scene();
@@ -223,9 +225,16 @@ export class ShadowCorridorAccumulator {
   private lastFallbackReason: ShadowCorridorFallbackReason | null = null;
   readonly presentation: ShadowCorridorPresentation;
   private readonly publishedStateKeys = new Map<string, string>();
+  private publicationRetryMs = 250;
+  private readonly ownsPresentation: boolean;
 
-  constructor(private readonly renderer: THREE.WebGLRenderer) {
-    this.presentation = new ShadowCorridorPresentation(renderer);
+  constructor(
+    private readonly renderer: THREE.WebGLRenderer,
+    presentation?: ShadowCorridorPresentation
+  ) {
+    this.ownsPresentation = presentation === undefined;
+    this.presentation =
+      presentation ?? new ShadowCorridorPresentation(renderer);
     this.quad.frustumCulled = false;
     this.fullscreenScene.add(this.quad);
   }
@@ -234,11 +243,17 @@ export class ShadowCorridorAccumulator {
     id: string;
     samples: number;
     totalSamples: number;
+    ready: boolean;
+    published: boolean;
   }>[] {
     return [...this.pages].map(([id, page]) => ({
       id,
       samples: page.samples,
       totalSamples: this.totalSamples,
+      ready: page.page.ready !== false,
+      published:
+        this.publishedStateKeys.get(id) ===
+        JSON.stringify([this.stateKey, page.page.revision]),
     }));
   }
 
@@ -272,9 +287,18 @@ export class ShadowCorridorAccumulator {
       frame.options?.msaaSamples ??
       DEFAULT_SCENE_ACCUMULATION_OPTIONS.msaaSamples;
     const pixels = width * height;
+    // Decision: MESH-CORRIDOR-20260908 in engines/maplibre/README.md.
+    // Visibility capture writes a scalar; RGB lighting is composed afterwards.
+    // Keeping four channels here spent the working budget again as soon as
+    // finished corridor captures arrived, aborting and restarting integration.
+    const targetFormat = frame.visibilityOnly
+      ? THREE.RedFormat
+      : THREE.RGBAFormat;
+    const channels = frame.visibilityOnly ? 1 : 4;
     const bytes =
       pixels *
-      (2 * (buffer.bytesPerPixel + 4) + 2 * buffer.accumulationBytesPerPixel);
+      (2 * ((buffer.bytesPerPixel * channels) / 4 + 4) +
+        (2 * buffer.accumulationBytesPerPixel * channels) / 4);
     if (
       !Number.isInteger(width) ||
       width < 1 ||
@@ -290,7 +314,8 @@ export class ShadowCorridorAccumulator {
       (frame.maxRenderTargetPixels !== undefined &&
         (!(frame.maxRenderTargetPixels > 0) ||
           pixels > frame.maxRenderTargetPixels)) ||
-      bytes + this.presentation.memoryBytes > MAX_ATLAS_BYTES
+      bytes + this.presentation.memoryBytes >
+        SHADOW_CORRIDOR_WORKING_BUDGET_BYTES
     )
       return this.fallback(SHADOW_CORRIDOR_FALLBACK_REASONS.budget);
     if (buffer.format !== THREE.RGBAFormat)
@@ -323,12 +348,13 @@ export class ShadowCorridorAccumulator {
         height,
         buffer.type,
         buffer.accumulationType,
+        targetFormat,
       ]);
       if (this.targetKey !== targetKey) {
         this.releaseTargets();
         const sceneOptions = {
           type: buffer.type,
-          format: THREE.RGBAFormat,
+          format: targetFormat,
           minFilter: THREE.NearestFilter,
           magFilter: THREE.NearestFilter,
           depthBuffer: true,
@@ -352,7 +378,7 @@ export class ShadowCorridorAccumulator {
         });
         const accumulationOptions = {
           type: buffer.accumulationType,
-          format: THREE.RGBAFormat,
+          format: targetFormat,
           minFilter: THREE.NearestFilter,
           magFilter: THREE.NearestFilter,
           depthBuffer: false,
@@ -372,7 +398,9 @@ export class ShadowCorridorAccumulator {
       }
       const stateKey = JSON.stringify([
         frame.viewKey,
-        frame.styleEpoch,
+        // Scalar visibility is independent of live albedo/label paint updates.
+        // Geometry and sunlight changes still invalidate page revisions.
+        frame.visibilityOnly ? 0 : frame.styleEpoch,
         samples,
         targetKey,
       ]);
@@ -383,9 +411,13 @@ export class ShadowCorridorAccumulator {
         .map(({ page }) => page);
       const changed = resetAll
         ? descriptors
-        : descriptors.filter(
-            (page) => this.pages.get(page.id)?.page.revision !== page.revision
-          );
+        : descriptors.filter((page) => {
+            const previous = this.pages.get(page.id)?.page;
+            return (
+              previous?.revision !== page.revision ||
+              (previous?.ready === false && page.ready)
+            );
+          });
       // Removing a foreground receiver may reveal a different corridor. Reset
       // its screen-overlap neighbours as well, not only the caster dependency.
       const changedScreens = [...changed, ...removed].flatMap((page) => [
@@ -409,6 +441,11 @@ export class ShadowCorridorAccumulator {
         this.cursor = 0;
       }
       for (const page of removed) this.pages.delete(page.id);
+      // A neighbour's changed geometry can invalidate the shared screen atlas
+      // without changing this page's own revision. Its old capture remains a
+      // display fallback, but must not count as the new publication.
+      for (const page of resetPages) this.publishedStateKeys.delete(page.id);
+      if (resetPages.length > 0) this.publicationRetryMs = 250;
       this.cursor %= Math.max(1, descriptors.length);
       for (const page of descriptors) {
         const progress = this.pages.get(page.id);
@@ -430,7 +467,6 @@ export class ShadowCorridorAccumulator {
         for (const page of resetPages) this.pages.get(page.id)!.samples = 1;
       } else {
         const progress = [...this.pages.values()];
-        const selected: PageProgress[] = [];
         const startedAt = performance.now();
         const requestedLimit = frame.maxPagesPerFrame ?? 4;
         const pageLimit = Number.isFinite(requestedLimit)
@@ -440,30 +476,38 @@ export class ShadowCorridorAccumulator {
         const milliseconds = Number.isFinite(requestedMilliseconds)
           ? Math.max(0, requestedMilliseconds)
           : 4;
-        const firstIndex = this.cursor;
-        for (let offset = 0; offset < progress.length; offset += 1) {
-          const index = (firstIndex + offset) % progress.length;
-          const page = progress[index];
-          if (page.samples >= samples || page.page.ready === false) continue;
-          if (selected.length === 0) this.clearTarget(this.sampleTarget!);
-          if (
-            !pageRenderer.renderPageSample(
-              camera,
-              page.page.id,
-              page.samples,
-              samples
+        let submitted = 0;
+        do {
+          const selected: PageProgress[] = [];
+          const firstIndex = this.cursor;
+          for (let offset = 0; offset < progress.length; offset += 1) {
+            const index = (firstIndex + offset) % progress.length;
+            const page = progress[index];
+            if (page.samples >= samples || page.page.ready === false) continue;
+            if (selected.length === 0) this.clearTarget(this.sampleTarget!);
+            if (
+              !pageRenderer.renderPageSample(
+                camera,
+                page.page.id,
+                page.samples,
+                samples
+              )
             )
-          )
-            return this.fallback(SHADOW_CORRIDOR_FALLBACK_REASONS.pages);
-          selected.push(page);
-          this.cursor = (index + 1) % progress.length;
-          if (
-            selected.length >= pageLimit ||
-            performance.now() - startedAt >= milliseconds
-          )
-            break;
-        }
-        if (selected.length > 0) {
+              return this.fallback(SHADOW_CORRIDOR_FALLBACK_REASONS.pages);
+            selected.push(page);
+            submitted += 1;
+            this.cursor = (index + 1) % progress.length;
+            if (
+              submitted >= pageLimit ||
+              performance.now() - startedAt >= milliseconds
+            )
+              break;
+          }
+          if (selected.length === 0) break;
+          // A second sample of the same corridor must be blended BEFORE its
+          // sample target is overwritten. Revisit the round-robin only while
+          // the existing submission/CPU budget allows it; a one-page capture
+          // must not accidentally be capped at one sample per animation frame.
           this.blend(
             selected.map(({ page }) => page),
             false,
@@ -471,7 +515,10 @@ export class ShadowCorridorAccumulator {
             selected.map((page) => 1 / (page.samples + 1))
           );
           for (const page of selected) page.samples += 1;
-        }
+        } while (
+          submitted < pageLimit &&
+          performance.now() - startedAt < milliseconds
+        );
       }
       this.stateKey = stateKey;
       renderer.setRenderTarget(
@@ -497,38 +544,59 @@ export class ShadowCorridorAccumulator {
         previousTarget === null;
       if (!frame.visibilityOnly)
         renderer.render(this.fullscreenScene, this.fullscreenCamera);
-      const completed = [...this.pages.values()].reduce(
-        (sum, page) => sum + page.samples,
-        0
-      );
-      const settled = completed >= this.pages.size * samples;
+      let publicationFailed = false;
       for (const { page, samples: completedSamples } of this.pages.values()) {
         if (page.ready === false || completedSamples < samples) continue;
         const key = JSON.stringify([stateKey, page.revision]);
         if (this.publishedStateKeys.get(page.id) === key) continue;
         // Cache admission/copy failures must not disable shadow rendering.
         try {
-          this.presentation.publish(
+          const published = this.presentation.publish(
             this.readTarget!,
             this.referenceTarget!,
             camera,
             page,
             samples
           );
+          if (published) {
+            this.publishedStateKeys.set(page.id, key);
+          } else {
+            publicationFailed = true;
+          }
         } catch (error) {
+          publicationFailed = true;
           console.error(
             "[shadow-simulation] retaining previous corridor capture after copy failure",
             error
           );
         }
-        this.publishedStateKeys.set(page.id, key);
       }
       for (const id of this.publishedStateKeys.keys()) {
         if (!descriptorIds.has(id)) this.publishedStateKeys.delete(id);
       }
+      // Submission counts alone are not completion: every visible corridor
+      // must be ready AND successfully copied into its retained presentation.
+      // Reserve its last sample's share until then (including one-sample mode).
+      const completed = [...this.pages.values()].reduce(
+        (sum, { page, samples: count }) => {
+          const published =
+            page.ready !== false &&
+            this.publishedStateKeys.get(page.id) ===
+              JSON.stringify([stateKey, page.revision]);
+          return sum + (published ? samples : Math.min(count, samples - 1));
+        },
+        0
+      );
+      const retryAfterMs = publicationFailed
+        ? this.publicationRetryMs
+        : undefined;
+      this.publicationRetryMs = publicationFailed
+        ? Math.min(4000, this.publicationRetryMs * 2)
+        : 250;
       return {
         progress: completed / (this.pages.size * samples),
-        settled,
+        settled: completed === this.pages.size * samples,
+        ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
         needsRepaint: [...this.pages.values()].some(
           (page) => page.samples < samples && page.page.ready !== false
         ),
@@ -621,6 +689,13 @@ export class ShadowCorridorAccumulator {
     this.pages.clear();
   }
 
+  /** Release completed page working attachments without evicting its publication. */
+  releaseScratch() {
+    this.releaseTargets();
+    this.publishedStateKeys.clear();
+    this.cursor = 0;
+  }
+
   private fallback(reason: ShadowCorridorFallbackReason): null {
     this.lastFallbackReason = reason;
     this.releaseTargets();
@@ -631,7 +706,7 @@ export class ShadowCorridorAccumulator {
     if (this.disposed) return;
     this.disposed = true;
     this.releaseTargets();
-    this.presentation.dispose();
+    if (this.ownsPresentation) this.presentation.dispose();
     this.quad.geometry.dispose();
     this.blendMaterial.dispose();
     this.compositeMaterial.dispose();

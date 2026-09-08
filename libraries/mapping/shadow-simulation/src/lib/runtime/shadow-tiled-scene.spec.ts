@@ -4,20 +4,66 @@ import type { SharedThreeSceneFrame } from "@carma-mapping/engines/maplibre";
 
 import { ShadowTiledScene } from "./shadow-tiled-scene";
 import { TiledShadowRenderer } from "./tiled-shadow-renderer";
-import { ShadowCorridorAccumulator } from "./shadow-corridor-accumulator";
+import { ShadowReceiverAccumulator } from "./shadow-receiver-accumulator";
+import { SceneFrameCache } from "@carma-mapping/engines/three/primitives/rendering";
+
+vi.mock("@carma-mapping/engines/three/primitives/rendering", () => ({
+  SceneFrameCache: vi.fn(),
+}));
 
 vi.mock("./tiled-shadow-renderer", () => ({ TiledShadowRenderer: vi.fn() }));
-vi.mock("./shadow-corridor-accumulator", () => ({
-  ShadowCorridorAccumulator: vi.fn(),
+vi.mock("./shadow-receiver-accumulator", () => ({
+  ShadowReceiverAccumulator: vi.fn(),
+}));
+vi.mock("./shadow-corridor-cache-client", () => ({
+  createShadowCorridorCache: () => ({ dispose: vi.fn() }),
 }));
 
 describe("Geoportal tiled scene adapter", () => {
-  const fixture = () => {
+  const fixture = (
+    host: {
+      isCorridorReady?: (bounds: THREE.Box3, error?: number) => boolean;
+      receiverStageError?: (bounds: THREE.Box3) => number;
+      visualEpoch?: () => number;
+      onPresentedPages?: (pages: readonly { id: string }[]) => void;
+    } = {}
+  ) => {
+    let frameKey: string | null = null;
+    const frameCache = {
+      render: vi.fn(
+        (key: string, _width: number, _height: number, draw: () => void) => {
+          if (key !== frameKey) {
+            draw();
+            frameKey = key;
+          }
+          return true;
+        }
+      ),
+      invalidate: vi.fn(() => {
+        frameKey = null;
+      }),
+      dispose: vi.fn(),
+      stats: {},
+    };
+    vi.mocked(SceneFrameCache).mockImplementation(() => frameCache as never);
     const pages = {
       setView: vi.fn(),
       renderSample: vi.fn(),
-      renderPageSample: vi.fn(),
-      accumulationPages: [{ id: "64:1:0", revision: "initial", receiverBounds: new THREE.Box3(), screenBounds: new THREE.Vector4() }],
+      renderPageSample: vi.fn(() => true),
+      getPageGeometry: vi.fn(() => ({
+        casterBounds: new THREE.Box3(),
+        receiverBounds: new THREE.Box3(),
+        width: 64,
+        height: 64,
+      })),
+      accumulationPages: [
+        {
+          id: "64:1:0",
+          revision: "initial",
+          receiverBounds: new THREE.Box3(),
+          screenBounds: new THREE.Vector4(),
+        },
+      ],
       clearCache: vi.fn(),
       invalidateCasters: vi.fn(),
       dispose: vi.fn(),
@@ -50,13 +96,24 @@ describe("Geoportal tiled scene adapter", () => {
     vi.mocked(TiledShadowRenderer).mockImplementation(() => pages as never);
     const accumulation = {
       render: vi.fn(),
+      renderHard: vi.fn(() => ({ published: 0, needsRepaint: false })),
+      capturePages: pages.accumulationPages,
       dispose: vi.fn(),
       pageProgress: [{ id: "64:1:0", samples: 5, totalSamples: 16 }],
       memoryBytes: 1024,
       fallbackReason: null,
-      presentation: { beginFrame: vi.fn(), render: vi.fn((_scene, _page, _samples, draw) => draw()), capture: vi.fn((_scene, draw) => draw()), stats: {} },
+      presentation: {
+        revision: 0,
+        supportsCapture: true,
+        beginFrame: vi.fn(),
+        canReplay: vi.fn(() => false),
+        hasAtLeast: vi.fn(() => false),
+        render: vi.fn((_scene, _page, _samples, draw) => draw()),
+        capture: vi.fn((_scene, draw) => draw()),
+        stats: {},
+      },
     };
-    vi.mocked(ShadowCorridorAccumulator).mockImplementation(
+    vi.mocked(ShadowReceiverAccumulator).mockImplementation(
       () => accumulation as never
     );
     const scene = new THREE.Scene();
@@ -71,6 +128,7 @@ describe("Geoportal tiled scene adapter", () => {
       sky,
       overlay,
       maximumMapSize: 2048,
+      ...host,
     });
     return {
       adapter,
@@ -82,8 +140,216 @@ describe("Geoportal tiled scene adapter", () => {
       overlay,
       terrain,
       renderer,
+      frameCache,
     };
   };
+
+  it("budgets a retained maximum-size depth page in addition to streamed scratch", () => {
+    const f = fixture();
+    expect(TiledShadowRenderer).toHaveBeenLastCalledWith(
+      f.scene,
+      f.renderer,
+      2 * 2048 ** 2 * 8,
+      2048
+    );
+  });
+
+  it("keeps corridor integration running but memoizes unchanged native-pixel presentation", () => {
+    let visualEpoch = 0;
+    const f = fixture({ visualEpoch: () => visualEpoch });
+    f.accumulation.render.mockReturnValue({
+      progress: 0.2,
+      settled: false,
+      needsRepaint: true,
+    });
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    const camera = new THREE.Camera();
+    const frame = {
+      width: 2560,
+      height: 1440,
+      viewKey: "view",
+      styleEpoch: 1,
+      samples: 512,
+      active: true,
+    };
+    f.adapter.renderProgressive(camera, frame);
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.accumulation.render).toHaveBeenCalledTimes(2);
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.frameCache.render).toHaveBeenLastCalledWith(
+      expect.any(String),
+      2560,
+      1440,
+      expect.any(Function)
+    );
+    f.accumulation.presentation.revision += 1;
+    f.adapter.renderProgressive(camera, frame);
+    f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
+    camera.matrixWorldInverse.makeTranslation(1, 0, 0);
+    f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
+    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(4);
+    f.accumulation.capturePages[0].revision = "geometry-changed";
+    f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
+    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(5);
+    f.adapter.invalidateContent();
+    f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
+    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(6);
+    f.accumulation.presentation.supportsCapture = false;
+    f.adapter.renderProgressive(camera, frame);
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(8);
+    f.accumulation.presentation.supportsCapture = true;
+    f.adapter.renderProgressive(camera, frame);
+    const beforeVisualChange = f.pages.renderPageSample.mock.calls.length;
+    visualEpoch += 1;
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(
+      beforeVisualChange + 1
+    );
+  });
+
+  it("rebuilds the frame when direct readiness changes instead of caching an empty hole", () => {
+    const ready = vi.fn(() => false);
+    const f = fixture({ isCorridorReady: ready });
+    f.accumulation.render.mockReturnValue({
+      progress: 0,
+      settled: false,
+      needsRepaint: true,
+    });
+    const frame = {
+      width: 100,
+      height: 100,
+      viewKey: "view",
+      styleEpoch: 0,
+      samples: 512,
+      active: true,
+    };
+    const camera = new THREE.Camera();
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    ready.mockReturnValue(true);
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+  });
+
+  it("acknowledges current captures and successful direct hard draws, not compatible old captures", () => {
+    const onPresentedPages = vi.fn();
+    const f = fixture({ onPresentedPages });
+    const camera = new THREE.Camera();
+    f.adapter.render(camera, null, 512);
+    expect(onPresentedPages).toHaveBeenLastCalledWith(
+      f.accumulation.capturePages,
+      f.accumulation.capturePages
+    );
+    onPresentedPages.mockClear();
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    f.adapter.render(camera, null, 512);
+    expect(onPresentedPages).not.toHaveBeenCalled();
+    f.accumulation.presentation.hasAtLeast.mockReturnValue(true);
+    f.adapter.render(camera, null, 512);
+    expect(onPresentedPages).toHaveBeenCalledOnce();
+    onPresentedPages.mockClear();
+    f.pages.renderPageSample.mockReturnValue(false);
+    f.adapter.render(camera, null, 512);
+    expect(onPresentedPages).not.toHaveBeenCalled();
+  });
+
+  it("does not acknowledge a frame whose presentation throws", () => {
+    const onPresentedPages = vi.fn();
+    const f = fixture({ onPresentedPages });
+    f.pages.renderPageSample.mockImplementation(() => {
+      throw new Error("draw failed");
+    });
+    expect(() => f.adapter.render(new THREE.Camera(), null, 512)).toThrow(
+      "draw failed"
+    );
+    expect(onPresentedPages).not.toHaveBeenCalled();
+  });
+
+  it("never draws a receiver whose current-stage offscreen caster cut is incomplete", () => {
+    const ready = vi.fn(() => false);
+    const f = fixture({ isCorridorReady: ready, receiverStageError: () => 16 });
+    f.adapter.render(new THREE.Camera(), null, 128);
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    const hardFrame = f.accumulation.renderHard.mock.calls[0][2];
+    expect(hardFrame.isPageReady("64:1:0")).toBe(false);
+    ready.mockReturnValue(true);
+    f.adapter.render(new THREE.Camera(), null, 128);
+    expect(f.pages.renderPageSample).toHaveBeenCalledWith(
+      expect.any(THREE.Camera),
+      "64:1:0",
+      0,
+      1
+    );
+    expect(ready).toHaveBeenLastCalledWith(
+      expect.any(THREE.Box3),
+      16,
+      expect.any(THREE.Box3)
+    );
+  });
+
+  it("gates final sun-disc readiness separately from committed coarse hard stages", () => {
+    const f = fixture({
+      isCorridorReady: (_bounds, error) => error === 16,
+      receiverStageError: () => 16,
+    });
+    f.accumulation.render.mockReturnValue({
+      progress: 0,
+      settled: false,
+      needsRepaint: false,
+    });
+    f.adapter.renderProgressive(new THREE.Camera(), {
+      width: 1200,
+      height: 900,
+      viewKey: "view",
+      styleEpoch: 0,
+      samples: 128,
+      active: true,
+    });
+    expect(
+      f.accumulation.renderHard.mock.calls[0][2].isPageReady("64:1:0")
+    ).toBe(true);
+    expect(f.accumulation.render.mock.calls[0][2].isPageReady("64:1:0")).toBe(
+      false
+    );
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a completed compatible shadow visible while replacement casters are loading", () => {
+    const f = fixture({ isCorridorReady: () => false });
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    f.adapter.render(new THREE.Camera(), null, 128);
+    expect(f.accumulation.presentation.render).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(
+      f.accumulation.renderHard.mock.calls[0][2].isPageReady("64:1:0")
+    ).toBe(false);
+    f.accumulation.presentation.canReplay.mockReturnValue(false);
+    f.pages.renderPageSample.mockClear();
+    f.adapter.render(new THREE.Camera(), null, 128);
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+  });
+
+  it("does not declare an empty initial committed cut settled or request an empty render loop", () => {
+    const f = fixture();
+    f.accumulation.capturePages = [];
+    f.accumulation.render.mockReturnValue({
+      progress: 1,
+      settled: true,
+      needsRepaint: true,
+    });
+    expect(
+      f.adapter.renderProgressive(new THREE.Camera(), {
+        width: 800,
+        height: 600,
+        viewKey: "bootstrap",
+        styleEpoch: 0,
+        samples: 128,
+        active: true,
+      })
+    ).toEqual({ progress: 0, settled: false, needsRepaint: false });
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+  });
 
   it("delegates native corridor frames and only signals settlement transitions", () => {
     const f = fixture();
@@ -162,7 +428,12 @@ describe("Geoportal tiled scene adapter", () => {
     });
     const camera = new THREE.Camera();
     f.adapter.render(camera, 5, 128);
-    expect(f.pages.renderPageSample).toHaveBeenCalledWith(camera, "64:1:0", 5, 128);
+    expect(f.pages.renderPageSample).toHaveBeenCalledWith(
+      camera,
+      "64:1:0",
+      5,
+      128
+    );
     expect(f.renderer.render).toHaveBeenCalledTimes(2);
     expect(f.scene.children.every((c) => c.visible)).toBe(true);
     expect(f.renderer.autoClear).toBe(true);
@@ -170,7 +441,12 @@ describe("Geoportal tiled scene adapter", () => {
       throw new Error("shader");
     });
     expect(() => f.adapter.render(camera, null, 128)).toThrow("shader");
-    expect(f.pages.renderPageSample).toHaveBeenLastCalledWith(camera, "64:1:0", 0, 1);
+    expect(f.pages.renderPageSample).toHaveBeenLastCalledWith(
+      camera,
+      "64:1:0",
+      0,
+      1
+    );
     expect(f.scene.children.every((c) => c.visible)).toBe(true);
     expect(f.renderer.autoClear).toBe(true);
   });

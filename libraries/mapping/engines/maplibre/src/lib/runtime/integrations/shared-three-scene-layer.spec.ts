@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSharedSceneAccumulator } from "@carma-mapping/engines/three/primitives/rendering";
+import { getMapLoadingProgress } from "./map-loading-progress";
 
 import {
   buildSharedThreeSceneLayer,
@@ -357,12 +358,14 @@ describe("shared Three.js scene layer", () => {
     bridge.render([0, 0.985], () => {
       renderer.setRenderTarget({} as THREE.WebGLRenderTarget);
       renderer.setRenderTarget(null);
+      expect(activeFramebuffer).toBe(hostFramebuffer);
     });
 
     expect(events).toEqual([
       "target:offscreen",
       "depth:0:1",
       "target:main",
+      "framebuffer:host",
       "depth:0:0.985",
       "framebuffer:host",
       "depth:0:0.985",
@@ -373,6 +376,74 @@ describe("shared Three.js scene layer", () => {
     renderer.setRenderTarget(null);
     expect(originalSetRenderTarget).toHaveBeenCalledTimes(3);
     expect(gl.depthRange).toHaveBeenCalledTimes(3);
+  });
+
+  it("restores nested host targets through Three's cache even when capture throws", () => {
+    const host = {} as WebGLFramebuffer;
+    const outerTarget = {} as THREE.WebGLRenderTarget;
+    const innerTarget = {} as THREE.WebGLRenderTarget;
+    let bound: unknown = host;
+    let cached: unknown = null;
+    const gl = {
+      FRAMEBUFFER: 0x8d40,
+      FRAMEBUFFER_BINDING: 0x8ca6,
+      getParameter: vi.fn(() => bound),
+      bindFramebuffer: vi.fn((_target: number, framebuffer: unknown) => {
+        bound = framebuffer;
+      }),
+      depthRange: vi.fn(),
+    };
+    const state = {
+      bindFramebuffer: vi.fn(
+        (target: number, framebuffer: WebGLFramebuffer | null) => {
+          if (cached === framebuffer) return;
+          gl.bindFramebuffer(target, framebuffer);
+          cached = framebuffer;
+        }
+      ),
+    };
+    const original = vi.fn((target: THREE.WebGLRenderTarget | null) => {
+      state.bindFramebuffer(
+        gl.FRAMEBUFFER,
+        target as unknown as WebGLFramebuffer | null
+      );
+    });
+    const renderer = { setRenderTarget: original, state };
+    const bridge = installRenderTargetDepthRangeBridge(renderer, gl);
+    const failure = new Error("capture failed");
+
+    expect(() =>
+      bridge.render([0, 0.985], () => {
+        renderer.setRenderTarget(outerTarget);
+        expect(() =>
+          bridge.render([0, 1], () => {
+            renderer.setRenderTarget(innerTarget);
+            renderer.setRenderTarget(null);
+            expect(bound).toBe(outerTarget);
+            expect(cached).toBe(outerTarget);
+            expect(gl.depthRange).toHaveBeenLastCalledWith(0, 1);
+            throw failure;
+          })
+        ).toThrow(failure);
+        expect(bound).toBe(outerTarget);
+        renderer.setRenderTarget(null);
+        expect(bound).toBe(host);
+        expect(cached).toBe(host);
+        expect(gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+        renderer.setRenderTarget(innerTarget);
+        throw failure;
+      })
+    ).toThrow(failure);
+
+    expect(bound).toBe(host);
+    expect(cached).toBe(host);
+    expect(gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+    const depthCalls = gl.depthRange.mock.calls.length;
+    renderer.setRenderTarget(null);
+    expect(bound).toBeNull();
+    expect(gl.depthRange).toHaveBeenCalledTimes(depthCalls);
+    bridge.dispose();
+    expect(renderer.setRenderTarget).toBe(original);
   });
 
   it("exposes attached runtime roots", () => {
@@ -403,6 +474,62 @@ describe("shared Three.js scene layer", () => {
 });
 
 describe("progressive strategy host", () => {
+  it("keeps failed corridor publication pending and retries without a frame-rate loop", () => {
+    vi.useFakeTimers();
+    const host = createProgressiveHost();
+    try {
+      host.controller.renderProgressive = vi.fn(() => ({
+        progress: 0.99,
+        settled: false,
+        needsRepaint: false,
+        retryAfterMs: 250,
+      }));
+      host.render();
+      expect(getMapLoadingProgress(host.map as never)).toMatchObject({
+        active: true,
+        percent: 99,
+      });
+      expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(249);
+      expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(host.map.triggerRepaint).toHaveBeenCalledOnce();
+      host.controller.renderProgressive = vi.fn(() => ({
+        progress: 1,
+        settled: true,
+        needsRepaint: false,
+      }));
+      host.render();
+      expect(getMapLoadingProgress(host.map as never)).toMatchObject({
+        active: false,
+        percent: 100,
+      });
+      vi.advanceTimersByTime(1000);
+      expect(host.map.triggerRepaint).toHaveBeenCalledOnce();
+    } finally {
+      host.layer.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels a queued corridor retry on disposal", () => {
+    vi.useFakeTimers();
+    const host = createProgressiveHost();
+    try {
+      host.controller.renderProgressive = vi.fn(() => ({
+        progress: 0.99,
+        settled: false,
+        needsRepaint: false,
+        retryAfterMs: 250,
+      }));
+      host.render();
+      host.layer.dispose();
+      vi.advanceTimersByTime(1000);
+      expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   const mono = {
     broken: false,
     converged: false,

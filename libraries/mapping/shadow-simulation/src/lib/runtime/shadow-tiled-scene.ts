@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { SharedThreeSceneFrame } from "@carma-mapping/engines/maplibre";
+import { SceneFrameCache } from "@carma-mapping/engines/three/primitives/rendering";
 
 import type { ShadowReceiverCell } from "../core/shadow-page-plan";
 import type {
@@ -8,6 +9,7 @@ import type {
   ShadowPrewarmPage,
   TiledShadowStats,
   ShadowPrewarmResult,
+  ShadowAccumulationPage,
 } from "./tiled-shadow-renderer";
 import { TiledShadowRenderer } from "./tiled-shadow-renderer";
 import {
@@ -16,7 +18,10 @@ import {
   type ShadowIdlePageStats,
 } from "./shadow-idle-pages";
 import { yieldShadowIdleTask } from "./shadow-idle-prefetch";
-import { ShadowCorridorAccumulator } from "./shadow-corridor-accumulator";
+import type { ShadowCorridorFrame } from "./shadow-corridor-accumulator";
+import { ShadowReceiverAccumulator } from "./shadow-receiver-accumulator";
+import { createShadowCorridorCache } from "./shadow-corridor-cache-client";
+import type { auditShadowCorridor } from "../core/shadow-corridor-audit";
 
 /** Map-host adapter: same page engine as the standalone story, but sky and
  * debug overlays belong to the host and must not paint over earlier pages.
@@ -25,8 +30,15 @@ export class ShadowTiledScene {
   private readonly pages: TiledShadowRenderer;
   private viewKey = "";
   private idleStats: ShadowIdlePageStats | null = null;
-  private readonly accumulation: ShadowCorridorAccumulator;
+  private readonly accumulation: ShadowReceiverAccumulator;
+  private readonly persistentCache = createShadowCorridorCache(import.meta.url);
   private accumulationSettled = false;
+  private viewport = new THREE.Vector2(1, 1);
+  private lastFrame: ShadowCorridorFrame | null = null;
+  private readonly frameCache: SceneFrameCache;
+  private presentedPageIds = new Set<string>();
+  private hardRetryTimer: ReturnType<typeof globalThis.setTimeout> | null =
+    null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -36,19 +48,82 @@ export class ShadowTiledScene {
       sky: THREE.Object3D;
       overlay: THREE.Object3D;
       maximumMapSize: number;
-      isCorridorReady?: (bounds: THREE.Box3) => boolean;
+      isCorridorReady?: (
+        bounds: THREE.Box3,
+        errorPixels?: number,
+        receiverBounds?: THREE.Box3
+      ) => boolean;
+      receiverStageError?: (bounds: THREE.Box3) => number;
+      corridorRevision?: (
+        bounds: THREE.Box3,
+        errorPixels?: number,
+        receiverBounds?: THREE.Box3
+      ) => string | null;
+      dateTimeKey?: () => string | null;
+      worldBasis?: () => THREE.Matrix4;
+      requestRepaint?: () => void;
+      visualEpoch?: () => number;
+      onPresentedPages?: (
+        presentedPages: readonly ShadowAccumulationPage[],
+        visiblePages: readonly ShadowAccumulationPage[]
+      ) => void;
+      auditCorridors?: (
+        pages: readonly {
+          id: string;
+          casterBounds: THREE.Box3;
+          receiverBounds: THREE.Box3;
+        }[]
+      ) => readonly ReturnType<typeof auditShadowCorridor>[];
       runIdleRender?: (render: () => void) => boolean;
     }>
   ) {
-    // Same ceiling as one maximum-size RGBA8+depth32 mono map. No unbounded
-    // sample-count multiplier; cached and streamed attachments share this cap.
+    this.frameCache = new SceneFrameCache(renderer);
+    // Reserve one maximum-size streamed RGBA8+depth32 target AND one retained
+    // target. A one-target budget is consumed entirely by the scratch reserve
+    // and otherwise forces every unchanged hard-presentation pass to rebuild
+    // its depth. This fixed two-target cap never scales with disc sample count.
     this.pages = new TiledShadowRenderer(
       scene,
       renderer,
-      host.maximumMapSize ** 2 * 8,
+      host.maximumMapSize ** 2 * 8 * 2,
       host.maximumMapSize
     );
-    this.accumulation = new ShadowCorridorAccumulator(renderer);
+    this.accumulation = new ShadowReceiverAccumulator(renderer);
+    if (host.worldBasis && host.corridorRevision && host.dateTimeKey) {
+      this.accumulation.presentation.setPersistence({
+        cache: this.persistentCache,
+        identity: (page, samples) => {
+          const geometry = this.pages.getPageGeometry(page.id);
+          const dateTime = host.dateTimeKey?.();
+          if (!geometry || !dateTime || !page.captureKey) return null;
+          const error =
+            samples === 1
+              ? host.receiverStageError?.(page.receiverBounds)
+              : undefined;
+          const fingerprint = host.corridorRevision?.(
+            geometry.casterBounds,
+            error,
+            page.receiverBounds
+          );
+          if (!fingerprint) return null;
+          return {
+            source: "shared-scene-corridor-v1",
+            dateTime,
+            corridor: page.id,
+            resolution: JSON.stringify([
+              geometry.width,
+              geometry.height,
+              page.captureKey,
+            ]),
+            geometryFingerprint: fingerprint,
+            samples,
+          };
+        },
+        worldBasis: host.worldBasis,
+        runIdleRender: host.runIdleRender,
+        requestRepaint: host.requestRepaint,
+      });
+    }
   }
 
   update(
@@ -57,6 +132,7 @@ export class ShadowTiledScene {
     lighting: TiledShadowLighting,
     targetPixels: number
   ) {
+    this.viewport.copy(frame.viewport);
     const key = JSON.stringify([
       cells.map(({ id, bounds }) => [id, bounds.min, bounds.max]),
       frame.renderCamera.projectionMatrix.elements,
@@ -80,6 +156,7 @@ export class ShadowTiledScene {
    * publications provide old-union-new geometry bounds, including removed tiles.
    */
   invalidateContent(changedBounds?: readonly THREE.Box3[]) {
+    this.frameCache.invalidate();
     if (!changedBounds) this.pages.clearCache();
     else
       for (const bounds of changedBounds) this.pages.invalidateCasters(bounds);
@@ -163,20 +240,15 @@ export class ShadowTiledScene {
     }
   }
 
-  renderProgressive(
-    camera: THREE.Camera,
-    frame: Parameters<ShadowCorridorAccumulator["render"]>[2]
-  ) {
+  renderProgressive(camera: THREE.Camera, frame: ShadowCorridorFrame) {
+    this.lastFrame = frame;
     const result = this.renderWithHost(camera, () => {
-      this.accumulation.presentation.beginFrame(this.pages.accumulationPages);
-      const isPageReady = (id: string) =>
-        !this.host.isCorridorReady ||
-        this.pages.areCastersReady(id, this.host.isCorridorReady);
+      this.captureHard(camera);
       const progress = this.accumulation.presentation.capture(this.scene, () =>
         this.accumulation.render(camera, this.pages, {
           ...frame,
           visibilityOnly: true,
-          isPageReady,
+          isPageReady: (id) => this.isPageReady(id, false),
         })
       );
       // Completed corridors are independent publications. An unfinished sibling
@@ -188,6 +260,12 @@ export class ShadowTiledScene {
       this.accumulationSettled = false;
       return null;
     }
+    if (this.accumulation.capturePages.length === 0) {
+      // No committed receivers is bootstrap, not a completed simulation. Tile
+      // publication supplies the next repaint; do not spin an empty GPU loop.
+      this.accumulationSettled = false;
+      return { ...result, progress: 0, settled: false, needsRepaint: false };
+    }
     const becameSettled = result.settled && !this.accumulationSettled;
     this.accumulationSettled = result.settled;
     // The host schedules idle work on transitions, not every settled blit.
@@ -195,9 +273,47 @@ export class ShadowTiledScene {
   }
 
   render(camera: THREE.Camera, round: number | null, samples: number) {
-    this.renderWithHost(camera, () =>
-      this.renderContent(camera, round, samples)
+    this.renderWithHost(camera, () => {
+      this.captureHard(camera);
+      this.renderContent(camera, round, samples);
+    });
+  }
+
+  private isPageReady(id: string, hard: boolean) {
+    const geometry = this.pages.getPageGeometry(id);
+    if (!geometry) return false;
+    return (
+      !this.host.isCorridorReady ||
+      this.host.isCorridorReady(
+        geometry.casterBounds,
+        hard
+          ? this.host.receiverStageError?.(geometry.receiverBounds)
+          : undefined,
+        geometry.receiverBounds
+      )
     );
+  }
+
+  private captureHard(camera: THREE.Camera) {
+    const result = this.accumulation.presentation.capture(this.scene, () =>
+      this.accumulation.renderHard(camera, this.pages, {
+        ...this.lastFrame,
+        width: this.viewport.x,
+        height: this.viewport.y,
+        viewKey: this.viewKey,
+        styleEpoch: this.lastFrame?.styleEpoch ?? 0,
+        samples: 1,
+        active: true,
+        isPageReady: (id) => this.isPageReady(id, true),
+      })
+    );
+    if (result.needsRepaint) this.host.requestRepaint?.();
+    if (result.retryAfterMs !== undefined && this.hardRetryTimer === null) {
+      this.hardRetryTimer = globalThis.setTimeout(() => {
+        this.hardRetryTimer = null;
+        this.host.requestRepaint?.();
+      }, result.retryAfterMs);
+    }
   }
 
   private renderContent(
@@ -205,18 +321,83 @@ export class ShadowTiledScene {
     round: number | null,
     samples: number
   ) {
-    const pages = this.pages.accumulationPages;
+    const pages = this.accumulation.capturePages;
     this.accumulation.presentation.beginFrame(pages);
-    for (const page of pages) {
-      this.accumulation.presentation.render(this.scene, page, samples, () =>
-        this.pages.renderPageSample(
-          camera,
+    const states = pages.map((page) => {
+      // Readiness gates a NEW publication, not the already committed surface.
+      // Keep a compatible completed capture while its replacement loads. An
+      // unknown receiver without that capture must still wait for its casters.
+      const replay = this.accumulation.presentation.canReplay(page);
+      return { page, replay, ready: replay || this.isPageReady(page.id, true) };
+    });
+    let incomplete = false;
+    const draw = () => {
+      this.presentedPageIds.clear();
+      for (const { page, ready } of states) {
+        if (!ready) continue;
+        const rendered = this.accumulation.presentation.render(
+          this.scene,
+          page,
+          samples,
+          () =>
+            this.pages.renderPageSample(
+              camera,
+              page.id,
+              round ?? 0,
+              round === null ? 1 : samples
+            )
+        );
+        if (rendered) this.presentedPageIds.add(page.id);
+        else incomplete = true;
+      }
+    };
+    // Only idle, exact-view presentation is memoized. Solar-disc integration
+    // above still advances per corridor, independent of this volatile image.
+    // Sky/debug overlays remain live outside this cache. Non-progressive/moving
+    // draws retain the original path and never reuse a stale camera snapshot.
+    if (
+      this.lastFrame?.active &&
+      round === null &&
+      this.accumulation.presentation.supportsCapture
+    ) {
+      const key = JSON.stringify([
+        this.viewKey,
+        camera.projectionMatrix.elements,
+        camera.matrixWorldInverse.elements,
+        camera.layers.mask,
+        this.lastFrame.styleEpoch,
+        this.host.visualEpoch?.() ?? 0,
+        this.accumulation.presentation.revision,
+        states.map(({ page, replay, ready }) => [
           page.id,
-          round ?? 0,
-          round === null ? 1 : samples
-        )
+          page.contentKey ?? page.revision,
+          replay,
+          ready,
+        ]),
+      ]);
+      this.frameCache.render(
+        key,
+        this.lastFrame.width,
+        this.lastFrame.height,
+        draw
       );
+      if (incomplete) this.frameCache.invalidate();
+    } else {
+      this.frameCache.invalidate();
+      draw();
     }
+    const presented = states
+      .filter(
+        ({ page, replay }) =>
+          this.presentedPageIds.has(page.id) &&
+          (this.accumulation.presentation.hasAtLeast(page, 1) ||
+            (!replay && (round === null || samples === 1)))
+      )
+      .map(({ page }) => page);
+    // A compatible OLD capture preserves display continuity, but cannot release
+    // a newly committed geometry stage. Acknowledge only its current shadow or
+    // a successful direct hard draw, after the complete presentation succeeded.
+    if (presented.length > 0) this.host.onPresentedPages?.(presented, pages);
   }
 
   private renderWithHost<T>(camera: THREE.Camera, renderContent: () => T): T {
@@ -259,9 +440,14 @@ export class ShadowTiledScene {
     }
   }
 
-  get stats(): TiledShadowStats & { idlePrewarm?: ShadowIdlePageStats } {
+  get stats(): TiledShadowStats & {
+    framePresentation: SceneFrameCache["stats"];
+    idlePrewarm?: ShadowIdlePageStats;
+    corridorAudit?: readonly ReturnType<typeof auditShadowCorridor>[];
+  } {
     return {
       ...this.pages.stats,
+      framePresentation: this.frameCache.stats,
       corridorAccumulation: {
         retained: this.accumulation.presentation.stats,
         pageSamples: this.accumulation.pageProgress,
@@ -269,11 +455,34 @@ export class ShadowTiledScene {
         fallbackReason: this.accumulation.fallbackReason,
       },
       ...(this.idleStats ? { idlePrewarm: this.idleStats } : {}),
+      ...(this.host.auditCorridors
+        ? {
+            corridorAudit: this.host.auditCorridors(
+              this.pages.accumulationPages.flatMap((page) => {
+                const geometry = this.pages.getPageGeometry(page.id);
+                return geometry
+                  ? [
+                      {
+                        id: page.id,
+                        casterBounds: geometry.casterBounds,
+                        receiverBounds: geometry.receiverBounds,
+                      },
+                    ]
+                  : [];
+              })
+            ),
+          }
+        : {}),
     };
   }
 
   dispose() {
+    if (this.hardRetryTimer !== null)
+      globalThis.clearTimeout(this.hardRetryTimer);
+    this.hardRetryTimer = null;
     this.accumulation.dispose();
+    this.frameCache.dispose();
+    this.persistentCache.dispose();
     this.pages.dispose();
   }
 }

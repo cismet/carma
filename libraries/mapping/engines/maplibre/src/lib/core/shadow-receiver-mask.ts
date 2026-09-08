@@ -7,8 +7,14 @@ const boxAxes = ["x", "y", "z"] as const;
 
 export interface ShadowReceiverSource {
   readonly bounds: THREE.Box3;
+  /** Optional local-box to tile-space transform; compose before enclosing the
+   * box in light space to avoid inflating an OBB through an intermediate AABB. */
+  readonly boundsTransform?: THREE.Matrix4;
   readonly maximumCasterDistance: number;
   readonly geometricError: number;
+  /** Optional allowed caster error for the shared progressive shadow stage. */
+  readonly casterGeometricError?: number;
+  readonly screenErrorPixels?: number;
   readonly centerness: number;
 }
 
@@ -16,11 +22,16 @@ export interface ShadowReceiverMatch {
   receiverGeometricError: number;
   receiverCenterness: number;
   lightFacing: number;
+  receiverPixelsPerMeter?: number;
 }
 
 export interface ShadowReceiverMask {
   readonly sourceCount: number;
-  match: (candidate: THREE.Box3, target: ShadowReceiverMatch) => boolean;
+  match: (
+    candidate: THREE.Box3,
+    target: ShadowReceiverMatch,
+    candidateTransform?: THREE.Matrix4
+  ) => boolean;
 }
 
 export interface ShadowReceiverTileTarget {
@@ -48,14 +59,19 @@ export const maximumSweepDistanceWithinBox = (
 
 type IndexedReceiver = Readonly<{
   bounds: THREE.Box3;
+  sourceBounds: THREE.Box3;
+  maximumCasterDistance: number;
+  angularSlope: number;
   geometricError: number;
   centerness: number;
+  pixelsPerMeter: number;
 }>;
 
 type ReceiverNode = Readonly<{
   bounds: THREE.Box3;
   minimumGeometricError: number;
   receiverCenterness: number;
+  maximumPixelsPerMeter: number;
   receivers?: readonly IndexedReceiver[];
   left?: ReceiverNode;
   right?: ReceiverNode;
@@ -73,7 +89,8 @@ const isFiniteBox = (box: THREE.Box3) =>
 const includeMatch = (
   target: ShadowReceiverMatch,
   receiverGeometricError: number,
-  receiverCenterness: number
+  receiverCenterness: number,
+  pixelsPerMeter: number
 ) => {
   target.receiverGeometricError = Math.min(
     target.receiverGeometricError,
@@ -82,6 +99,10 @@ const includeMatch = (
   target.receiverCenterness = Math.max(
     target.receiverCenterness,
     receiverCenterness
+  );
+  target.receiverPixelsPerMeter = Math.max(
+    target.receiverPixelsPerMeter ?? 0,
+    pixelsPerMeter
   );
 };
 
@@ -97,18 +118,24 @@ const buildReceiverNode = (
   const bounds = unionBounds(receivers);
   let minimumGeometricError = Number.POSITIVE_INFINITY;
   let receiverCenterness = 0;
+  let maximumPixelsPerMeter = 0;
   for (const receiver of receivers) {
     minimumGeometricError = Math.min(
       minimumGeometricError,
       receiver.geometricError
     );
     receiverCenterness = Math.max(receiverCenterness, receiver.centerness);
+    maximumPixelsPerMeter = Math.max(
+      maximumPixelsPerMeter,
+      receiver.pixelsPerMeter
+    );
   }
   if (receivers.length <= MAX_RECEIVERS_PER_LEAF) {
     return {
       bounds,
       minimumGeometricError,
       receiverCenterness,
+      maximumPixelsPerMeter,
       receivers,
     };
   }
@@ -126,6 +153,7 @@ const buildReceiverNode = (
     bounds,
     minimumGeometricError,
     receiverCenterness,
+    maximumPixelsPerMeter,
     left: buildReceiverNode(sorted.slice(0, midpoint)),
     right: buildReceiverNode(sorted.slice(midpoint)),
   };
@@ -138,19 +166,59 @@ const queryReceiverNode = (
 ) => {
   if (!node.bounds.intersectsBox(candidate)) return;
   if (candidate.containsBox(node.bounds)) {
-    includeMatch(target, node.minimumGeometricError, node.receiverCenterness);
+    includeMatch(
+      target,
+      node.minimumGeometricError,
+      node.receiverCenterness,
+      node.maximumPixelsPerMeter
+    );
     return;
   }
   if (node.receivers) {
     for (const receiver of node.receivers) {
-      if (receiver.bounds.intersectsBox(candidate)) {
-        includeMatch(target, receiver.geometricError, receiver.centerness);
+      if (intersectsReceiverCone(receiver, candidate)) {
+        includeMatch(
+          target,
+          receiver.geometricError,
+          receiver.centerness,
+          receiver.pixelsPerMeter
+        );
       }
     }
     return;
   }
   if (node.left) queryReceiverNode(node.left, candidate, target);
   if (node.right) queryReceiverNode(node.right, candidate, target);
+};
+
+/** The BVH uses the full far-end guard, but a nearby caster only sees the
+ * finite disc's expansion at its own axial distance. Using the far-end width
+ * at every depth admits unrelated neighbouring mesh families into each atomic
+ * caster barrier. Box extents make this conservative for every disc ray, even
+ * when the receiver and candidate span a nonzero light-space depth interval.
+ */
+const intersectsReceiverCone = (
+  receiver: IndexedReceiver,
+  candidate: THREE.Box3
+): boolean => {
+  const source = receiver.sourceBounds;
+  if (
+    candidate.max.z < source.min.z - DEPTH_EPSILON ||
+    candidate.min.z >
+      source.max.z + receiver.maximumCasterDistance + DEPTH_EPSILON
+  )
+    return false;
+  const distance = Math.min(
+    receiver.maximumCasterDistance,
+    Math.max(0, candidate.max.z - source.min.z)
+  );
+  const guard = distance * receiver.angularSlope + DEPTH_EPSILON;
+  return (
+    candidate.max.x >= source.min.x - guard &&
+    candidate.min.x <= source.max.x + guard &&
+    candidate.max.y >= source.min.y - guard &&
+    candidate.min.y <= source.max.y + guard
+  );
 };
 
 /**
@@ -160,21 +228,51 @@ const queryReceiverNode = (
  */
 export const createShadowReceiverMask = (
   sources: readonly ShadowReceiverSource[],
-  tilesToShadowView: THREE.Matrix4
+  tilesToShadowView: THREE.Matrix4,
+  angularRadiusRadians = 0
 ): ShadowReceiverMask | null => {
+  if (
+    !Number.isFinite(angularRadiusRadians) ||
+    angularRadiusRadians < 0 ||
+    angularRadiusRadians >= Math.PI / 2
+  )
+    return null;
+  // A retained corridor is a snapshot. The runtime reuses its matrix when
+  // fitting the next view; old receiver bounds and candidate queries must
+  // continue to use the same light-space transform until replacement commits.
+  const projection = tilesToShadowView.clone();
+  const angularSlope = Math.tan(angularRadiusRadians);
   const receivers: IndexedReceiver[] = [];
   for (const source of sources) {
-    const bounds = source.bounds.clone().applyMatrix4(tilesToShadowView);
+    const casterError = source.casterGeometricError ?? source.geometricError;
+    const sourceProjection = source.boundsTransform
+      ? projection.clone().multiply(source.boundsTransform)
+      : projection;
+    const sourceBounds = source.bounds.clone().applyMatrix4(sourceProjection);
+    const bounds = sourceBounds.clone();
     if (!isFiniteBox(bounds)) continue;
-    bounds.max.z += Math.max(0, source.maximumCasterDistance);
-    bounds.expandByScalar(DEPTH_EPSILON);
+    const maximumCasterDistance = Math.max(0, source.maximumCasterDistance);
+    bounds.max.z += maximumCasterDistance;
+    // The retrieval mask must include the entire finite light disc, not only
+    // the centre ray; distant penumbra contributors lie outside that ray.
+    const guard = maximumCasterDistance * angularSlope;
+    bounds.expandByScalar(DEPTH_EPSILON + guard);
     receivers.push({
       bounds,
+      sourceBounds,
+      maximumCasterDistance,
+      angularSlope,
       geometricError:
-        Number.isFinite(source.geometricError) && source.geometricError >= 0
-          ? source.geometricError
+        Number.isFinite(casterError) && casterError >= 0
+          ? casterError
           : Number.MAX_VALUE,
       centerness: clamp(source.centerness, 0, 1),
+      pixelsPerMeter:
+        source.geometricError > DEPTH_EPSILON &&
+        Number.isFinite(source.screenErrorPixels) &&
+        source.screenErrorPixels! > 0
+          ? source.screenErrorPixels! / source.geometricError
+          : 0,
     });
   }
   if (receivers.length === 0) return null;
@@ -185,13 +283,21 @@ export const createShadowReceiverMask = (
     root.bounds.max.z - root.bounds.min.z
   );
   const projectedCandidate = new THREE.Box3();
+  const candidateProjection = new THREE.Matrix4();
   return {
     sourceCount: receivers.length,
-    match(candidate, target) {
-      projectedCandidate.copy(candidate).applyMatrix4(tilesToShadowView);
+    match(candidate, target, candidateTransform) {
+      projectedCandidate
+        .copy(candidate)
+        .applyMatrix4(
+          candidateTransform
+            ? candidateProjection.copy(projection).multiply(candidateTransform)
+            : projection
+        );
       if (!isFiniteBox(projectedCandidate)) return false;
       target.receiverGeometricError = Number.POSITIVE_INFINITY;
       target.receiverCenterness = 0;
+      target.receiverPixelsPerMeter = 0;
       target.lightFacing = clamp(
         (projectedCandidate.max.z - root.bounds.min.z) / lightDepthRange,
         0,
@@ -206,8 +312,12 @@ export const createShadowReceiverMask = (
 export const receiverMatchedTileError = (
   tileGeometricError: number,
   receiverGeometricError: number,
-  errorTarget: number
+  errorTarget: number,
+  receiverPixelsPerMeter = 0
 ): number => {
+  if (receiverPixelsPerMeter > 0) {
+    return Math.max(0, tileGeometricError) * receiverPixelsPerMeter;
+  }
   if (receiverGeometricError <= DEPTH_EPSILON) {
     return tileGeometricError <= DEPTH_EPSILON ? 0 : Number.POSITIVE_INFINITY;
   }
@@ -222,11 +332,17 @@ export const applyShadowReceiverMask = (
   target: ShadowReceiverTileTarget,
   match: ShadowReceiverMatch,
   tileGeometricError: number,
-  errorTarget: number
+  errorTarget: number,
+  candidateTransform?: THREE.Matrix4
 ): boolean => {
-  const matched = mask.match(candidate, match);
+  const matched = mask.match(candidate, match, candidateTransform);
   target.inView = matched;
   if (matched) {
+    // Traversal admission is relative to this receiver's current geometric
+    // stage, not the final physical-pixel target. Using pixelsPerMeter here
+    // would load final-resolution casters for a coarse bootstrap receiver.
+    // Actual screen error remains available via receiverMatchedTileError for
+    // public descriptors and final regional quality certification.
     target.error = receiverMatchedTileError(
       tileGeometricError,
       match.receiverGeometricError,

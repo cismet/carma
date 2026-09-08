@@ -29,6 +29,7 @@ let dispatchYieldTimer: ReturnType<typeof setTimeout> | undefined;
 const MAX_DISPATCH_BATCH_MS = 2;
 const isOptionalCacheTask = (task: TerrainWorkerTask) =>
   task.kind === "read-cache" || task.kind === "write-cache" ||
+  task.kind === "read-height-metadata" || task.kind === "write-height-metadata" ||
   task.kind === "cache-cost" || task.kind === "calibrate-cache";
 
 const updateLoad = () => {
@@ -46,6 +47,8 @@ const updateLoad = () => {
 // progressive publication until nearly the entire selection has been converted.
 const TASK_PRIORITY = {
   "read-cache": 0,
+  "read-height-metadata": 0,
+  "write-height-metadata": 5,
   select: 0,
   partition: 0,
   project: 1,

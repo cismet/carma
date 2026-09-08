@@ -3,6 +3,10 @@
 // touches MapLibre, DOM, WebGL, network state, or mesh ownership.
 import { Box3, Camera, Frustum, Matrix4, Vector3 } from "three";
 import { geographicBoundsIntersect } from "@carma-geo/helpers";
+import {
+  createShadowReceiverMask,
+  maximumSweepDistanceWithinBox,
+} from "./shadow-receiver-mask";
 
 import {
   boundsIntersect,
@@ -58,6 +62,7 @@ export type TerrainSelectionInput = Readonly<{
     camera: TerrainSelectionCameraSnapshot;
     shadowMapSize: readonly [width: number, height: number];
     bounds: TerrainTileBounds;
+    casterAngularRadiusRadians?: number;
   }>;
   source: TerrainSelectionSourceMetadata;
   knownHeightRanges: Readonly<Record<string, readonly [number, number]>>;
@@ -254,22 +259,11 @@ export const buildTerrainSelection = (
     const cached = metrics.get(key);
     if (cached) return cached;
     const bounds = adapter.getTileBounds(entry.id);
-    let known = input.knownHeightRanges[terrainTileKey(entry.id)];
-    let ancestor = entry.id;
-    while (!known && ancestor.level >= 0) {
-      ancestor = {
-        level: ancestor.level - 1,
-        x: ancestor.x >> 1,
-        y: ancestor.y >> 1,
-      };
-      known = input.knownHeightRanges[terrainTileKey(ancestor)];
-      if (ancestor.level === 0) break;
-    }
-    if (!known) known = input.unknownHeightRange;
-    else if (ancestor.level !== entry.id.level) {
-      const uncertainty = geometricError(adapter, ancestor.level);
-      known = [known[0] - uncertainty, known[1] + uncertainty];
-    }
+    // A coarse raster's horizontal pixel size does not bound vertical peaks
+    // lost by resampling. Never infer descendant extents from that heuristic.
+    const known =
+      input.knownHeightRanges[terrainTileKey(entry.id)] ??
+      input.unknownHeightRange;
     const localBoundingBox = new Box3();
     for (const longitude of [bounds.west, bounds.east])
       for (const latitude of [bounds.south, bounds.north]) {
@@ -297,6 +291,25 @@ export const buildTerrainSelection = (
     const worldBoundingBox = localBoundingBox
       .clone()
       .applyMatrix4(rootMatrixWorld);
+    const traversalBounds = localBoundingBox.clone();
+    if (entry.id.level < input.maximumLevel) {
+      // Payload min/max is not a subtree certificate. Only the final chosen
+      // payload may be culled tightly; child traversal remains conservative.
+      for (const longitude of [bounds.west, bounds.east])
+        for (const latitude of [bounds.south, bounds.north])
+          for (const height of input.unknownHeightRange)
+            traversalBounds.expandByPoint(
+              projectToLocalWorld(
+                longitude,
+                latitude,
+                height,
+                input.origin,
+                input.meterScale,
+                new Vector3()
+              )
+            );
+    }
+    traversalBounds.applyMatrix4(rootMatrixWorld);
     const projectedCenter = worldBoundingBox
       .getCenter(new Vector3())
       .applyMatrix4(renderCamera.matrixWorldInverse)
@@ -305,7 +318,7 @@ export const buildTerrainSelection = (
       intersectsViewport:
         geographicBoundsIntersect(bounds, input.viewportBounds) ||
         viewportFrustum.intersectsBox(worldBoundingBox),
-      intersectsShadow: shadowFrustum?.intersectsBox(worldBoundingBox) ?? false,
+      intersectsShadow: shadowFrustum?.intersectsBox(traversalBounds) ?? false,
       localBoundingBox,
       distance: projectedCenter.x ** 2 + projectedCenter.y ** 2,
     };
@@ -492,6 +505,57 @@ export const buildTerrainSelection = (
   };
   refine(viewportHeap, (candidate) => candidate.viewportErrorRatio);
   refine(shadowHeap, (candidate) => candidate.shadowErrorRatio);
+  // Use the same light-space receiver BVH as native 3D tiles. Refine the
+  // conservative frustum first: source-LOD extrema describe this payload,
+  // not all descendants (unlike a 3D tileset's subtree bounding volume).
+  // Decision: TERRAIN-VOLUMES-20260908 in engines/maplibre/README.md.
+  if (shadowCamera) {
+    const lightWorldBounds = new Box3(
+      new Vector3(-1, -1, -1),
+      new Vector3(1, 1, 1)
+    )
+      .applyMatrix4(shadowCamera.projectionMatrix.clone().invert())
+      .applyMatrix4(shadowCamera.matrixWorld);
+    const sunward = new Vector3(0, 0, 1).transformDirection(
+      shadowCamera.matrixWorld
+    );
+    const localToLight = shadowCamera.matrixWorldInverse
+      .clone()
+      .multiply(rootMatrixWorld);
+    const receivers = [...selected.values()]
+      .filter(intersectsViewport)
+      .map((entry) => {
+        const bounds = getMetrics(entry).localBoundingBox;
+        return {
+          bounds,
+          maximumCasterDistance: maximumSweepDistanceWithinBox(
+            bounds.clone().applyMatrix4(rootMatrixWorld),
+            lightWorldBounds,
+            sunward
+          ),
+          geometricError: geometricError(adapter, entry.id.level),
+          centerness: 1 / (1 + getMetrics(entry).distance),
+        };
+      });
+    const mask = createShadowReceiverMask(
+      receivers,
+      localToLight,
+      input.shadow?.casterAngularRadiusRadians
+    );
+    const match = {
+      receiverGeometricError: 0,
+      receiverCenterness: 0,
+      lightFacing: 0,
+    };
+    if (mask)
+      for (const [key, entry] of selected) {
+        if (
+          !intersectsViewport(entry) &&
+          !mask.match(getMetrics(entry).localBoundingBox, match)
+        )
+          selected.delete(key);
+      }
+  }
   const entries = [...selected.values()].sort((a, b) => {
     const av = intersectsViewport(a) ? 0 : 1;
     const bv = intersectsViewport(b) ? 0 : 1;

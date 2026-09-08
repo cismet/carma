@@ -9,6 +9,108 @@
 - **Evidence:** Focused tile-source, raster-runtime, mesh-runtime and shadow-scene regressions cover shared-source retention/final release, cache reset only on provider change, target preservation under pressure and integration gating without hiding retained presentation. Playwright confirms the live mesh-only scene and new readiness signal. No end-to-end speed or memory-size benchmark claimed.
 - **Revisit when:** A source is shared by consumers outside the runtime lease contract, storage rather than RAM is constrained, or mesh refinement needs a larger measured resident budget.
 
+## Regression review: corridor-stage publication
+
+**ID / date / status:** CORRIDOR-STAGES-20260908 / 2026-09-08 / locally implemented;
+Geoportal cold-start acceptance still under investigation. No merge-ready claim.
+
+**Contract:** native receiver IDs own corridors. Compatible binary cache first;
+complete receiver + direct sunward caster cut at each error stage; synchronous
+hard shadow before displaying that stage; progressively refine per corridor;
+integrate the finite disc only at its final/source-limited error. Intersection,
+not containment, makes a volume a caster. Never promote casters to receivers
+and recursively extend the dependency corridor. No bare-mesh fallback.
+
+**Diff review and corrections:**
+
+- Replacing the discovery-camera envelope with an empty committed receiver cut
+  cleared `setShadowView`, disabled the publication barrier, exposed bare meshes,
+  then re-enabled the barrier on the next frame. Keep discovery coverage alive
+  independently of renderable source pages; the tiled host also handles an empty
+  frame without falling through to the unshaded renderer.
+- A native receiver's complete bounds are for its page projection, not an
+  instruction to expand the global discovery envelope to offscreen caster boxes.
+  Only explicit receiver-cut volumes create pages.
+- Returning from an offscreen target restored MapLibre's depth range but not its
+  framebuffer until the callback ended. The bridge now restores both immediately,
+  using Three's state cache where available; nested calls/exceptions retain scope.
+- Atomic mesh-family admission must retain pending demand across skipped
+  traversals and discover independently complete coarse child families beneath
+  an unusably coarse ancestor. Displayed children cannot be a prerequisite for
+  enabling the caster selection needed to display those children.
+- Captured visibility must bypass tone mapping, colour conversion, fog and
+  dithering. The scalar output override is last; alpha/discard remain intact.
+- Review baseline is `f251fd0ab` (dataset 2024 colour correction), followed only
+  by committed `cc38f6d65` (layer opacity), then the open corridor work. The
+  dataset correction itself is unchanged. A finished capture's display
+  compatibility is independent of new compute readiness. Empty startup cuts
+  keep nonempty fetch coverage but must not report simulation completion.
+- Fetch bounds cover each full visible native receiver page, not just its
+  screen intersection. Pending receivers and their casters share explicit
+  16/8/4/2/1/... px stages; e.g. an 11.72 px receiver must accept a 13.15 px
+  caster in the same 16 px stage. Final receiver-relative error remains strict.
+- Hard capture admission checks material/float-target support. Retained
+  publication budgets charge the replacement's final footprint, with a bounded
+  synchronous copy reserve; otherwise a full hard cache can permanently block
+  every soft replacement. Failed copies retain the previous capture, with
+  bounded retries and scheduling fairness rather than an endless render loop.
+- Project native oriented tile bounds directly into the light frame. Expanding
+  them to an ECEF AABB and then rotating that AABB enlarged five measured
+  footprints by 2.09–2.34 times. Keep the far-end solar-disc envelope for BVH
+  broad-phase only; the leaf test uses the actual sunward separation. A distant
+  possible blocker must not enlarge the search for a nearby blocker.
+- A necessary parent split must request its intersecting children even when a
+  child's own, less strict corridor budget would accept the parent. A second
+  regional proof may discover finer receiver descendants; preserve their staged
+  demand until the required caster arrives. Neither demand is permission to
+  publish an incomplete receiver. Overlapping offscreen casters never relax a
+  receiver's stage through their unrelated observer-space error.
+- Plan retained capture sizes across all visible pages before allocation, not
+  independently against the same budget. Same-ID downsizing precedes new-page
+  admission when pinned pages exhaust that budget. Display resolution and mesh
+  geometry are unchanged.
+
+**Representation and alternatives:** one independent full-receiver orthographic
+visibility/depth capture, one active soft scratch, bounded retained captures;
+quantized allocation classes avoid translation-driven resets. A single depth
+layer cannot invent newly exposed walls after rotation: direction changes create
+a new capture while reprojection rejects uncovered surfaces. The former global
+screen atlas and its 64-page cap are not a world-fixed cache. Persistent records
+reuse the existing worker-backed derived-storage manager, producer epochs and
+typed binaries; never persist baked basemap RGB. HMR storage is disabled rather
+than trusting mutable module URLs. Storage failure is optional, not a render gate.
+The old coordinate-grid neighbor shadow prewarm is suspended for native IDs;
+terrain sibling prefetch remains active. Source-native shadow prewarm needs its
+own follow-up, not parsing tile IDs as viewport-grid coordinates.
+
+**Evidence / limits:** focused host, bridge, frontier, accumulator and cache tests
+cover the listed transitions. An isolated Apple M4 Max / ANGLE Metal GPU probe
+compares direct and retained hard shadows at three poses: finite visibility 0–1,
+no GL errors, mean RGB error below 0.012/255; translation keeps the same capture.
+Individual edge differences remain (see `output/playwright/receiver-gpu-parity.md`).
+This proves neither mesh-loader completion nor absence of full-app regressions.
+Live Geoportal initially showed dark meshes with zero depth passes; after the
+discovery fix it held incomplete geometry instead. A frozen reload before the
+OBB/cone correction still had zero committed tiles after 43 seconds, over 2,000
+loaded payloads and 105 required parses paused near 3.5 GB JS heap. The next
+frozen reload showed 142 active volumes at its first 12-second observation,
+161 at 55 seconds, a drained queue and under 1.1 GB sampled heap. These are
+browser-observed intervals, not a controlled cold-network speedup benchmark.
+That intermediate result still had nine blocked receiver families and missing
+screen regions, leading to the subsequent parent-split/demand corrections.
+Its 137 regional audits were ready with no missing published or out-of-envelope
+selected volumes; exact traversal visited 117–208 nodes per page. First soft
+integration was still prohibitively slow, with repeated hard-depth work during
+retained display. Full-screen reload and final soft-shadow acceptance remain
+open until the final unchanged-browser run succeeds.
+
+**Audit:** more than ten selected volumes above a 10-degree solar elevation is
+only a review flag, never a cap. Diagnostics separate broad-phase visits and
+prism rejection, list selected IDs, and compare loaded positions to the corridor.
+Queries reuse regional results and world-space bounds; debug snapshots collect
+provider volumes once, not once per receiver. Revisit additional acceleration
+only from actual traversal counts, not the heuristic count alone.
+
 ## Required contract: persistent soft-shadow presentation (2026-09-07)
 
 **Status: required, NOT fully implemented.** This contract supersedes the motion

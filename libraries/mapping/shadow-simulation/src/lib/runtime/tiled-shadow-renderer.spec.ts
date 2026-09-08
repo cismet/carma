@@ -795,6 +795,27 @@ describe("shared tiled shadow runtime", () => {
     for (const disposed of disposals) expect(disposed).toHaveBeenCalledOnce();
   });
 
+  it("keeps hard depth through alternating soft integration and hard presentation", () => {
+    const budget = 2 * shadowDepthPageBytes(256, 256);
+    const f = fixture(budget, 0.001);
+    f.pages.renderPageSample(f.camera, "0", 0, 1);
+    const retainedHard = f.depths[0];
+    const dispose = vi.spyOn(retainedHard, "dispose");
+    for (let sample = 0; sample < 8; sample += 1) {
+      f.pages.renderPageSample(f.camera, "0", sample, 8);
+      const depthRenders = f.pages.stats.depthRenders;
+      f.pages.renderPageSample(f.camera, "0", 0, 1);
+      expect(f.pages.stats.depthRenders).toBe(depthRenders);
+      expect(
+        f.pages.stats.cacheBytes + f.pages.stats.scratchBytes
+      ).toBeLessThanOrEqual(budget);
+    }
+    expect(dispose).not.toHaveBeenCalled();
+    expect(f.pages.stats.hits).toBeGreaterThanOrEqual(8);
+    f.pages.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it("restores the renderer on errors and rejects invalid samples", () => {
     const f = fixture();
     f.renderer.render.mockImplementationOnce(() => {

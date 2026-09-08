@@ -82,7 +82,10 @@ const fixture = () => {
     accumulationPages: pages,
     supportsOpaqueAccumulation: true,
     renderSample: vi.fn(),
-    renderPageSample: vi.fn(() => true),
+    renderPageSample: vi.fn(
+      (_camera: THREE.Camera, _id: string, _sample: number, _samples: number) =>
+        true
+    ),
   };
   const camera = new THREE.PerspectiveCamera(60, 1.6, 1, 1000);
   const accumulator = new ShadowCorridorAccumulator(
@@ -118,6 +121,144 @@ const fixture = () => {
 };
 
 describe("camera-registered corridor accumulation", () => {
+  it("batches sequential samples of one corridor with independent running-mean blends", () => {
+    const f = fixture();
+    f.pages.splice(1);
+    const frame = {
+      samples: 8,
+      maxPagesPerFrame: 4,
+      maxFrameCpuMilliseconds: 1000,
+    };
+    f.render(frame);
+    f.passes.length = 0;
+    f.render(frame);
+    expect(
+      f.pageRenderer.renderPageSample.mock.calls.map((call) => call[2])
+    ).toEqual([1, 2, 3, 4]);
+    expect(f.accumulator.pageProgress[0].samples).toBe(5);
+    expect(
+      f.passes.filter((pass) => pass.bounds === 1).map((pass) => pass.weight)
+    ).toEqual(Array.from(new Float32Array([1 / 2, 1 / 3, 1 / 4, 1 / 5])));
+    expect(f.render(frame)?.settled).toBe(true);
+    expect(
+      f.pageRenderer.renderPageSample.mock.calls.map((call) => call[2])
+    ).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it("yields a single-corridor batch when its CPU budget expires", () => {
+    const f = fixture();
+    f.pages.splice(1);
+    const frame = {
+      samples: 8,
+      maxPagesPerFrame: 4,
+      maxFrameCpuMilliseconds: 4,
+    };
+    f.render(frame);
+    let clock = 0;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    f.pageRenderer.renderPageSample.mockImplementation(() => {
+      clock += 5;
+      return true;
+    });
+    try {
+      f.render(frame);
+      expect(f.pageRenderer.renderPageSample).toHaveBeenCalledOnce();
+      expect(f.accumulator.pageProgress[0].samples).toBe(2);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("releases working targets without evicting externally owned completed captures", () => {
+    const f = fixture();
+    f.finish();
+    const presentation = f.accumulator.presentation;
+    const dispose = vi.spyOn(presentation, "dispose");
+    const shared = new ShadowCorridorAccumulator(
+      f.renderer as unknown as THREE.WebGLRenderer,
+      presentation
+    );
+    f.accumulator.releaseScratch();
+    expect(f.accumulator.pageProgress).toEqual([]);
+    expect(presentation.has(f.pages[0], f.frame.samples)).toBe(true);
+    shared.dispose();
+    expect(dispose).not.toHaveBeenCalled();
+    expect(presentation.has(f.pages[0], f.frame.samples)).toBe(true);
+    f.accumulator.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("does not finish until every completed corridor capture was published, and retries without resampling", () => {
+    const f = fixture();
+    const original = f.accumulator.presentation.publish.bind(
+      f.accumulator.presentation
+    );
+    let reject = true;
+    vi.spyOn(f.accumulator.presentation, "publish").mockImplementation(
+      (...args) => (args[3].id === "2" && reject ? false : original(...args))
+    );
+    f.finish();
+    expect(f.render()).toMatchObject({
+      settled: false,
+      needsRepaint: false,
+      retryAfterMs: expect.any(Number),
+    });
+    expect(f.render()!.progress).toBeLessThan(1);
+    expect(f.accumulator.pageProgress.map((page) => page.published)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    const submissions = f.pageRenderer.renderPageSample.mock.calls.length;
+    reject = false;
+    expect(f.render()).toEqual({
+      progress: 1,
+      settled: true,
+      needsRepaint: false,
+    });
+    expect(f.pageRenderer.renderPageSample).toHaveBeenCalledTimes(submissions);
+    expect(f.accumulator.pageProgress.every((page) => page.published)).toBe(
+      true
+    );
+  });
+
+  it("keeps an unready one-sample corridor pending even though its preview was rendered", () => {
+    const f = fixture();
+    for (let i = 0; i < 3; i++)
+      f.render({ samples: 1, isPageReady: (id) => id !== "2" });
+    expect(f.render({ samples: 1, isPageReady: (id) => id !== "2" })).toEqual({
+      progress: 2 / 3,
+      settled: false,
+      needsRepaint: false,
+    });
+    expect(f.render({ samples: 1, isPageReady: () => true })).toEqual({
+      progress: 1,
+      settled: true,
+      needsRepaint: false,
+    });
+  });
+
+  it("retries a failed GPU copy without reporting successful publication", () => {
+    const f = fixture();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const original = f.accumulator.presentation.publish.bind(
+      f.accumulator.presentation
+    );
+    const publish = vi
+      .spyOn(f.accumulator.presentation, "publish")
+      .mockImplementation(() => {
+        throw new Error("copy failed");
+      });
+    f.finish();
+    expect(f.render()?.settled).toBe(false);
+    expect(f.accumulator.pageProgress.every((page) => !page.published)).toBe(
+      true
+    );
+    publish.mockImplementation(original);
+    expect(f.render()?.settled).toBe(true);
+    vi.mocked(console.error).mockRestore();
+  });
+
   it("never publishes intermediate soft-shadow sample stages", () => {
     const f = fixture();
     const publish = vi.spyOn(f.accumulator.presentation, "publish");
@@ -304,6 +445,37 @@ describe("camera-registered corridor accumulation", () => {
     expect(f.accumulator.memoryBytes).toBe(320 * 200 * 72);
     expect(f.render({ width: 8192, height: 8192 })).toBeNull();
     expect(f.accumulator.memoryBytes).toBe(0);
+  });
+
+  it("keeps scalar visibility work within budget as native-resolution captures arrive", () => {
+    const f = fixture();
+    vi.spyOn(f.accumulator.presentation, "memoryBytes", "get").mockReturnValue(
+      240 * 1024 ** 2
+    );
+    const result = f.render({
+      width: 2400,
+      height: 2398,
+      visibilityOnly: true,
+    });
+    expect(result).not.toBeNull();
+    expect(f.accumulator.memoryBytes).toBe(2400 * 2398 * 24 + 240 * 1024 ** 2);
+    expect(f.accumulator.fallbackReason).toBeNull();
+    // Ordinary RGB rendering still accounts for its four-channel buffers.
+    expect(
+      f.render({ width: 2400, height: 2398, visibilityOnly: false })
+    ).toBeNull();
+    expect(f.accumulator.fallbackReason).toBe("budget");
+  });
+
+  it("does not restart scalar sunlight visibility when the live basemap style changes", () => {
+    const f = fixture();
+    f.render({ visibilityOnly: true });
+    f.render({ visibilityOnly: true, styleEpoch: 1 });
+    f.render({ visibilityOnly: true, styleEpoch: 2 });
+    expect(f.pageRenderer.renderSample).toHaveBeenCalledTimes(1);
+    expect(f.accumulator.pageProgress.some((page) => page.samples > 1)).toBe(
+      true
+    );
   });
 
   it("uses reference world position and matching nearest depth, not rectangle-only colour masks", () => {

@@ -30,7 +30,13 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
     await vi.importActual<
       typeof import("../../../../engines/maplibre/src/lib/core/terrain-map-style")
     >("../../../../engines/maplibre/src/lib/core/terrain-map-style");
+  const { meshShadowStageError } = await vi.importActual<
+    typeof import("../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy")
+  >(
+    "../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy"
+  );
   return {
+    meshShadowStageError,
     isTerrainShadingStyleLayer,
     TERRAIN_MAP_STYLE,
     MAPLIBRE_EVENT: mapLibreEventMock,
@@ -527,7 +533,10 @@ describe("shadow scene lighting integration", () => {
     });
   };
 
-  const createIdleTerrainHost = async (initialReady = true) => {
+  const createIdleTerrainHost = async (
+    initialReady = true,
+    committedTiles = true
+  ) => {
     vi.stubGlobal("window", { setTimeout, clearTimeout });
     const tasks: Array<{
       callback: () => Promise<void>;
@@ -553,7 +562,18 @@ describe("shadow scene lighting integration", () => {
       setMaterialColor: vi.fn(),
       adoptPresentation: vi.fn(),
       getElevation: vi.fn(() => 150),
-      getActiveTileVolumes: vi.fn(() => []),
+      getActiveTileVolumes: vi.fn(() =>
+        committedTiles
+          ? [
+              {
+                id: "terrain-source:14/8512/5421",
+                kind: "terrain-tile" as const,
+                minimum: [6_650, 100, 50_756] as const,
+                maximum: [7_650, 200, 51_756] as const,
+              },
+            ]
+          : []
+      ),
       getViewElevationRange: vi.fn(() => [100, 200] as const),
       getIdlePrefetchAvailability: vi.fn(() => ({ ready: true, remaining: 8 })),
       getIdleShadowRegions: vi.fn(() => [
@@ -641,6 +661,56 @@ describe("shadow scene lighting integration", () => {
       expect(map.triggerRepaint).not.toHaveBeenCalled();
     } finally {
       controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps caster fetch coverage and owns the render while the first committed native cut is empty", async () => {
+    const f = await createIdleTerrainHost(true, false);
+    const update = vi
+      .spyOn(ShadowTiledScene.prototype, "update")
+      .mockImplementation(() => undefined);
+    const render = vi
+      .spyOn(ShadowTiledScene.prototype, "render")
+      .mockImplementation(() => undefined);
+    sharedLayer.getRenderer = () =>
+      ({
+        capabilities: { maxTextureSize: 4096 },
+        shadowMap: { type: THREE.PCFShadowMap },
+        getContext: () => ({
+          getInternalformatParameter: () => new Int32Array([4, 2]),
+          getParameter: () => 4096,
+        }),
+      } as unknown as THREE.WebGLRenderer);
+    try {
+      f.controller.updateRenderQuality({
+        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+      });
+      f.raster.setShadowView.mockClear();
+      for (let frame = 0; frame < 3; frame += 1) {
+        f.fire(MAPLIBRE_EVENT.MOVE);
+        updateShadows(f.map, f.camera);
+        // Returning false delegates to the bare shared-scene render, which
+        // bypasses the corridor barrier and caused the startup strobe loop.
+        expect(accumulationController!.renderScene?.(f.camera, null)).toBe(
+          true
+        );
+      }
+      expect(f.raster.getActiveTileVolumes()).toEqual([]);
+      expect(update).toHaveBeenCalledTimes(3);
+      expect(update.mock.calls.every(([cells]) => cells.length === 0)).toBe(
+        true
+      );
+      expect(render).toHaveBeenCalledTimes(3);
+      expect(f.raster.setShadowView).toHaveBeenCalled();
+      expect(
+        f.raster.setShadowView.mock.calls.every(([view]) => view !== null)
+      ).toBe(true);
+      expect(
+        f.raster.setShadowView.mock.lastCall?.[0]?.camera.isOrthographicCamera
+      ).toBe(true);
+    } finally {
+      f.controller.dispose();
       vi.unstubAllGlobals();
     }
   });
@@ -749,7 +819,7 @@ describe("shadow scene lighting integration", () => {
   });
 
   it.each([false, true])(
-    "warms neighbouring shadows only after terrain and with provable caster coverage (external=%s)",
+    "warms native terrain neighbours without interpreting source IDs as legacy shadow-grid coordinates (external=%s)",
     async (external) => {
       const prewarm = vi
         .spyOn(ShadowTiledScene.prototype, "prewarm")
@@ -789,15 +859,10 @@ describe("shadow scene lighting integration", () => {
         await f.tasks[0].callback();
         f.tasks[0].finish();
         expect(f.raster.prefetchIdleTerrain).toHaveBeenCalledOnce();
-        if (external) expect(prewarm).not.toHaveBeenCalled();
-        else {
-          expect(prewarm).toHaveBeenCalledOnce();
-          expect(prewarm.mock.calls[0][0].cells.length).toBeGreaterThan(0);
-          expect(prewarm.mock.calls[0][0].signal).toBe(f.tasks[0].signal);
-          expect(
-            f.raster.prefetchIdleTerrain.mock.invocationCallOrder[0]
-          ).toBeLessThan(prewarm.mock.invocationCallOrder[0]);
-        }
+        // Native-source neighbour planning is not implemented by the legacy
+        // spacing:x:z ring. Terrain warming continues; arbitrary shadow pages
+        // must not be fabricated from these source tile IDs.
+        expect(prewarm).not.toHaveBeenCalled();
       } finally {
         f.controller.dispose();
         prewarm.mockRestore();
@@ -809,6 +874,21 @@ describe("shadow scene lighting integration", () => {
   );
 
   it("switches mono/tiled in situ, keeps fetch coverage and releases the tiled cache", () => {
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      {
+        id: "committed-mesh",
+        root: new THREE.Group(),
+        dispose: vi.fn(),
+        getActiveTileVolumes: () => [
+          {
+            id: "mesh-2024/root/tile-1",
+            kind: "tiles3d",
+            minimum: [-512, 0, -512],
+            maximum: [512, 200, 512],
+          },
+        ],
+      },
+    ] as never);
     sharedLayer.projectLngLatToScene = () => new THREE.Vector3();
     const renderer = {
       capabilities: { maxTextureSize: 4096 },
@@ -902,6 +982,27 @@ describe("shadow scene lighting integration", () => {
   });
 
   it("adapts tiled depth demand during slow motion without resizing or replacing the native view", () => {
+    let regionReady = false;
+    const isShadowRegionReady = vi.fn(() => regionReady);
+    const readVolumes = vi.fn(() => [
+      {
+        id: "mesh-2024/root/tile-1",
+        kind: "tiles3d",
+        minimum: [-512, 0, -512],
+        maximum: [512, 200, 512],
+      },
+    ]);
+    const acknowledgeShadowStage = vi.fn();
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      {
+        id: "committed-mesh",
+        root: new THREE.Group(),
+        dispose: vi.fn(),
+        getActiveTileVolumes: readVolumes,
+        isShadowRegionReady,
+        acknowledgeShadowStage,
+      },
+    ] as never);
     let nowMs = 0;
     const performanceNow = vi
       .spyOn(performance, "now")
@@ -942,7 +1043,39 @@ describe("shadow scene lighting integration", () => {
       });
     const renderTiled = vi
       .spyOn(ShadowTiledScene.prototype, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(function () {
+        const host = (
+          this as unknown as {
+            host: {
+              receiverStageError: (bounds: THREE.Box3) => number;
+              isCorridorReady: (
+                bounds: THREE.Box3,
+                errorPixels?: number,
+                receiverBounds?: THREE.Box3
+              ) => boolean;
+              onPresentedPages: (
+                presented: unknown[],
+                visible: unknown[]
+              ) => void;
+            };
+          }
+        ).host;
+        const bounds = new THREE.Box3(
+          new THREE.Vector3(-512, 0, -512),
+          new THREE.Vector3(512, 200, 512)
+        );
+        for (let page = 0; page < 100; page += 1) {
+          host.receiverStageError(bounds);
+          expect(host.isCorridorReady(bounds.clone(), 4, bounds.clone())).toBe(
+            regionReady
+          );
+          expect(
+            host.isCorridorReady(bounds.clone(), undefined, bounds.clone())
+          ).toBe(regionReady);
+        }
+        const pages = [{ id: "page", receiverBounds: bounds }];
+        host.onPresentedPages(pages, pages);
+      });
     const disposeTiled = vi.spyOn(ShadowTiledScene.prototype, "dispose");
     const controller = buildShadowSimulationScene(map as never);
     try {
@@ -972,7 +1105,15 @@ describe("shadow scene lighting integration", () => {
         const updateCount = updateTiled.mock.calls.length;
         const renderCount = renderTiled.mock.calls.length;
         runtime.update?.(frame);
+        const volumeReads = readVolumes.mock.calls.length;
+        const regionReads = isShadowRegionReady.mock.calls.length;
         expect(accumulation.renderScene?.(camera, null)).toBe(true);
+        expect(readVolumes).toHaveBeenCalledTimes(volumeReads + 1);
+        expect(isShadowRegionReady).toHaveBeenCalledTimes(regionReads + 2);
+        regionReady = !regionReady;
+        expect(acknowledgeShadowStage).toHaveBeenLastCalledWith([
+          "mesh-2024/root/tile-1",
+        ]);
         expect(updateTiled).toHaveBeenCalledTimes(updateCount + 1);
         expect(renderTiled).toHaveBeenCalledTimes(renderCount + 1);
       };
@@ -1053,6 +1194,21 @@ describe("shadow scene lighting integration", () => {
   });
 
   it("publishes configured samples and trailing tiled stats at most ten times per second", () => {
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      {
+        id: "committed-mesh",
+        root: new THREE.Group(),
+        dispose: vi.fn(),
+        getActiveTileVolumes: () => [
+          {
+            id: "mesh-2024/root/tile-1",
+            kind: "tiles3d",
+            minimum: [-512, 0, -512],
+            maximum: [512, 200, 512],
+          },
+        ],
+      },
+    ] as never);
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     sharedLayer.projectLngLatToScene = () => new THREE.Vector3();
     sharedLayer.getRenderer = () =>
@@ -1629,6 +1785,14 @@ describe("shadow scene lighting integration", () => {
         update: vi.fn(),
         setShadowView,
         getRequestDemand: () => 1,
+        getActiveTileVolumes: () => [
+          {
+            id: "mesh-2024/root/tile-1",
+            kind: "tiles3d" as const,
+            minimum: [6_650, 0, 50_756] as const,
+            maximum: [7_650, 200, 51_756] as const,
+          },
+        ],
         dispose: vi.fn(),
       },
     ]);
@@ -1679,18 +1843,31 @@ describe("shadow scene lighting integration", () => {
       ...contentRuntimes,
       { providesTerrain: true, isMainViewReady } as never,
     ]);
-    expect(accumulation.active()).toBe(false);
-    expect(accumulation.retainSettledFrame()).toBe(true);
-    isMainViewReady.mockReturnValue(true);
+    // Tiled integration gates each native corridor against its caster cut;
+    // another unfinished main-view region must not stall all committed pages.
     expect(accumulation.active()).toBe(true);
-    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue(contentRuntimes);
-    vi.mocked(isSharedThreeTerrainLoading).mockReturnValue(true);
-    expect(accumulation.active()).toBe(true);
-    expect(accumulation.pending?.()).toBe(true);
+    expect(accumulation.pending?.()).toBe(false);
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
     });
     expect(accumulation.active()).toBe(false);
+    expect(accumulation.pending?.()).toBe(true);
+    expect(accumulation.retainSettledFrame()).toBe(true);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    });
+    isMainViewReady.mockReturnValue(true);
+    expect(accumulation.active()).toBe(true);
+    expect(accumulation.pending?.()).toBe(false);
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue(contentRuntimes);
+    vi.mocked(isSharedThreeTerrainLoading).mockReturnValue(true);
+    expect(accumulation.active()).toBe(true);
+    expect(accumulation.pending?.()).toBe(false);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
+    expect(accumulation.active()).toBe(false);
+    expect(accumulation.pending?.()).toBe(true);
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
     });
@@ -2148,6 +2325,11 @@ describe("shadow scene lighting integration", () => {
       elevationDegrees: 45,
     });
     const camera = new THREE.PerspectiveCamera(55, 4 / 3, 1, 20_000);
+    // This test covers the mono viewport envelope; tiled mode fits complete
+    // committed source boxes rather than intersections of synthetic ground rays.
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
     camera.position.set(0, 500, 500);
     camera.lookAt(0, 100, 0);
     camera.updateProjectionMatrix();
@@ -2219,6 +2401,9 @@ describe("shadow scene lighting integration", () => {
     const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
     camera.position.set(0, 500, 500);
     camera.lookAt(0, 400, 0);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
 
@@ -2302,6 +2487,9 @@ describe("shadow scene lighting integration", () => {
     });
     const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
     camera.position.set(0, 1_000, 1_000);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
@@ -2365,6 +2553,9 @@ describe("shadow scene lighting integration", () => {
     };
 
     const controller = buildShadowSimulationScene(map as never);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
     subscribeShadowProjectionDebugSnapshot(map as never, () => undefined);
     controller.updateSolarPosition({
       instant: new Date("2026-06-21T10:00:00Z"),
@@ -2403,6 +2594,14 @@ describe("shadow scene lighting integration", () => {
       setShadowView: vi.fn(),
       setMaterialColor: vi.fn(),
       getElevation: vi.fn(() => 150),
+      getActiveTileVolumes: vi.fn(() => [
+        {
+          id: "terrain-source:14/8512/5421",
+          kind: "terrain-tile" as const,
+          minimum: [6_650, 100, 50_756] as const,
+          maximum: [7_650, 200, 51_756] as const,
+        },
+      ]),
       dispose: vi.fn(),
     };
     vi.mocked(buildRasterDemTerrainRuntime).mockReturnValue(terrainRuntime);

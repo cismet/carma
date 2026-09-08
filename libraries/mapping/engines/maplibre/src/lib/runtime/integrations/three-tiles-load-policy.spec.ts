@@ -9,7 +9,7 @@ import {
   createTileBytesPredictor,
   deriveTilePriority,
   initialMeshLoadError,
-  nextMeshLoadError,
+  meshShadowStageError,
   nextEffectiveErrorTarget,
   resolveRequestConcurrency,
   resolveTilesCacheBounds,
@@ -29,6 +29,30 @@ const desktop = {
   platform: "MacIntel",
   maxTouchPoints: 0,
 };
+
+describe("meshShadowStageError", () => {
+  it.each([
+    [11.72, 1, 16],
+    [13.15, 1, 16],
+    [16, 1, 16],
+    [1, 1, 1],
+    [0.63, 0.5, 1],
+    [0.49, 0.5, 0.5],
+    [0, 1, 1],
+    [33, 1, 64],
+    [2.8, 3, 3],
+  ])(
+    "quantizes actual %s at target %s to shared stage %s",
+    (actual, target, expected) => {
+      expect(meshShadowStageError(actual, target)).toBe(expected);
+    }
+  );
+  it("does not certify invalid error metrics", () => {
+    expect(meshShadowStageError(Number.NaN, 1)).toBe(Infinity);
+    expect(meshShadowStageError(Infinity, 1)).toBe(Infinity);
+    expect(meshShadowStageError(1, 0)).toBe(Infinity);
+  });
+});
 
 describe("resolveTilesCacheCeiling", () => {
   it("caps iOS and iPadOS devices, including touch Macs", () => {
@@ -98,8 +122,12 @@ describe("resolveTilesCacheCeiling", () => {
         cacheOverflowBytes: Number.POSITIVE_INFINITY,
       })
     ).toBe(TILES_CACHE_CEILING_BYTES.desktopDefault);
-    expect(resolveTilesCacheCeiling(desktop, { cacheBudgetBytes: 24 * GIB })).toBe(24 * GIB);
-    expect(resolveTilesCacheCeiling(desktop, { cacheBudgetBytes: 128 * GIB })).toBe(24 * GIB);
+    expect(
+      resolveTilesCacheCeiling(desktop, { cacheBudgetBytes: 24 * GIB })
+    ).toBe(24 * GIB);
+    expect(
+      resolveTilesCacheCeiling(desktop, { cacheBudgetBytes: 128 * GIB })
+    ).toBe(24 * GIB);
   });
 
   it("derives eviction bounds around the physical ceiling", () => {
@@ -122,7 +150,15 @@ describe("resolveTilesCacheCeiling", () => {
 
 describe("createTileBytesPredictor", () => {
   it("pauses downloads under memory pressure even below the configured cache budget", () => {
-    expect(resolveRequestConcurrency({ configured: 16, ceilingBytes: 24 * GIB, cachedBytes: GIB, estimateBytes: MIB, memoryPressure: true })).toBe(0);
+    expect(
+      resolveRequestConcurrency({
+        configured: 16,
+        ceilingBytes: 24 * GIB,
+        cachedBytes: GIB,
+        estimateBytes: MIB,
+        memoryPressure: true,
+      })
+    ).toBe(0);
   });
   it("starts from the initial estimate and learns per url, level and globally", () => {
     const predictor = createTileBytesPredictor();
@@ -192,19 +228,21 @@ describe("createTileBytesPredictor", () => {
 describe("deriveTilePriority", () => {
   it("orders mesh requests by observer distance, ahead of offscreen casters", () => {
     const priority = (distance: number, depth: number, inMainFrustum = true) =>
-      deriveTilePriority({ distanceFromCamera: distance, depth, inMainFrustum,
-        isExternalTileset: false, centerness: 0 });
+      deriveTilePriority({
+        distanceFromCamera: distance,
+        depth,
+        inMainFrustum,
+        isExternalTileset: false,
+        centerness: 0,
+      });
     expect(priority(10, 30)).toBeGreaterThan(priority(100, 1));
     expect(priority(10000, 30)).toBeGreaterThan(priority(0, 1, false));
     expect(priority(Infinity, 0)).toBeLessThan(priority(10000, 30));
   });
 
-  it("refines admission from 16 pixels without passing the requested target", () => {
-    const stages = [initialMeshLoadError(0.25)];
-    while (stages.at(-1)! > 0.25) stages.push(nextMeshLoadError(stages.at(-1)!, 0.25));
-    expect(stages).toEqual([16, 8, 4, 2, 1, 0.5, 0.25]);
+  it("bootstraps coverage at 16 pixels without exceeding requested quality", () => {
+    expect(initialMeshLoadError(0.25)).toBe(16);
     expect(initialMeshLoadError(32)).toBe(32);
-    expect(nextMeshLoadError(1, 0.75)).toBe(0.75);
   });
   it("orders the main view first, then hierarchy, external tilesets and centre", () => {
     const shallow = deriveTilePriority({

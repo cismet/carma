@@ -45,6 +45,8 @@ const optionalCacheTasks: TerrainWorkerTask[] = [
       },
     },
   },
+  { kind: "read-height-metadata", key: "source" },
+  { kind: "write-height-metadata", key: "source", ranges: new Float64Array() },
 ];
 
 describe("terrain worker queue", () => {

@@ -1,5 +1,60 @@
 # engines/maplibre
 
+## Shared caster volumes — TERRAIN-VOLUMES-20260908
+
+- **Status / scope:** Implemented, uncommitted. Native mesh bounds and raster
+  terrain now use `core/shadow-receiver-mask.ts`, the same light-space receiver
+  BVH and sunward sweep test, including the finite solar-disc angular margin.
+  Loader ownership, decoding and publication remain source-specific.
+- **Decision:** Keep observed native raster min/max per source and exact z/x/y
+  independently of resident geometry. Reconstruct horizontal bounds from the
+  tile address; project the resulting 3D volume into the current local frame
+  only for selection. Cache hits and normal foreground/idle tile loads populate
+  the index. No separate speculative raster download or conversion is needed
+  just to rediscover an already known vertical extent.
+- **Persistence:** Use the existing derived-buffer cache through the terrain
+  worker pool, with a separate `terrain-height-metadata` asset registration.
+  Source/configuration/revision and no-data identity isolate records; immutable
+  main + worker asset hashes and the metadata schema version invalidate them.
+  Bounded Float64 rows `[z,x,y,min,max]` cost 40 bytes per tile, at most 640 KiB
+  for 16,384 observations per source, before storage overhead. Source-scoped
+  Web Locks serialize conservative read/merge/write across workers and tabs.
+  Changed values batch for one second; foreground-preempted writes retry up
+  to three times. No write is required for an unchanged observation.
+- **Responsiveness / fallback:** Initial metadata lookup waits at most 50 ms;
+  a late successful restore invalidates selection and requests repaint. Reads
+  and storage/merge operations use existing workers. Missing, malformed,
+  evicted, denied or too-slow metadata does not prevent terrain loading.
+  RAM observations remain useful. Persistence deliberately fails closed in
+  unbundled HMR, where no immutable producer graph is available. A service
+  changing bytes at a stable URL must change the resource `revision` (or use
+  immutable URLs); no client-only index can certify silent source changes.
+- **Rejected alternatives / safety:** Do not copy the mesh corridor algorithm,
+  retain large meshes just for bounds, or persist origin-dependent boxes.
+  Coarse raster extrema are **not** certified descendant bounds: resampling
+  can hide peaks. Unknown child traversal retains the configured conservative
+  height envelope; final selected payloads are filtered against receiver prisms
+  before download. This is not a precomputed complete dataset hierarchy, and
+  genuinely required caster geometry still has to load.
+- **Verification:** Focused tests cover known-height rejection versus unknown
+  conservative selection, mesh/terrain corridor queries, finite-disc margins,
+  binary validation and conservative merges, producer/source isolation,
+  bounded startup, late restore/disposal and worker preemption: 146 engine
+  tests and 45 shadow-scene tests passed. Existing
+  Playwright MeshX view retains mesh and caster shadows at 2400 × 2398 physical
+  pixels with no new page errors; capture: `output/playwright/terrain-volume-smoke.png`.
+  Production persistence is covered by focused tests, not a new production
+  build or device storage benchmark; no measured end-to-end speedup is claimed.
+- **Revisit:** A server-published, versioned min/max hierarchy with certified
+  descendant bounds would additionally prune traversal before reaching the
+  final payload LOD. Optional storage must remain recoverable, never authoritative.
+
+## Local mesh refinement — MESH-PROGRESSIVE-20260908
+
+- **Decision:** Request coarse coverage first (16px bootstrap), then release the next generation independently beneath each loaded local fallback. Display a complete loaded cut per camera-intersecting REPLACE family; ready grandchildren can coexist with a coarse sibling. Keep the existing no-downgrade frontier and request deduplication. Recompute the cut only after an actual traversal, not every idle frame.
+- **Cause / alternatives:** The global admission stage waited for the whole view; a separate upstream ancestor fallback also waited for offscreen sibling content. Removing only the admission gate still reproduced a single coarse tile until about 14.7s in the original Playwright view. Do not overlay a partial child group on its parent (double surfaces), or treat failed/unknown content as loaded coverage. Local family replacement remains atomic where clipping would otherwise be required.
+- **Validation:** Focused policy, frontier, runtime liveness and error-target tests cover independent ready branches, pending offscreen metadata, incomplete visible children, unchanged retry/deduplication and target limits. Browser timing is diagnostic, not a controlled throughput benchmark; network/cache state and the interactive camera can change during inspection.
+
 ## Mesh layer opacity — MESH-OPACITY-20260908
 
 - **Decision:** Full-opacity shadow styling normalizes authored material opacity only. Apply the layer/modal opacity afterward as the final multiplier; enable transparency and disable depth writes below full layer opacity. Restoring full layer opacity restores the appropriate opaque/source render flags. No terrain visibility changes.
@@ -185,3 +240,78 @@ terrain-mesh runtime to the shared scene.
   download concurrency 48, 2.50 GiB heap, no app fallback. This demonstrates
   resumed admission, not an all-tiles-at-target result or a controlled timing
   comparison with the initially reported camera.
+
+### MESH-CORRIDOR-20260908 — missing casters and stalled disc integration
+
+- **ID/date/status:** MESH-CORRIDOR-20260908 / 2026-09-08 / implemented fixes,
+  partial performance validation; atomic mesh/corridor publication remains open.
+- **Context/constraints:** User's MeshX 2024 view near 51.27049/7.20080,
+  hash zoom20.577, bearing15.26, pitch9.34, Nov24 13:32. Retain native display
+  resolution, reached visible LOD and complete finite-disc shadows during input.
+- **Decision:** Resolve loose external metadata bounds through known child
+  bounds, memoize intersection results until camera/content/traversal changes,
+  and keep the caster-required frontier when refining visible families. Use
+  the terrain-owning runtime's current receiver elevation range instead of
+  unioning unrelated retained city-wide ancestors. Scalar visibility buffers
+  use one channel (same configured component precision); live basemap paint
+  cannot reset them. RGB accumulation retains its existing format semantics.
+  Mesh coverage traversal is limited to once per120ms during motion, admitting
+  missing coarse coverage but postponing new sub16px refinement until moveend.
+  Tiled shadow coverage obeys the same minimum motion cadence as mono.
+- **Evidence:** Before: zero selected offscreen casters, idle queues but demand1;
+  inherited external metadata kept coarse offscreen parents unconverged. After
+  reload:144 selected offscreen casters, ready=true/demand0. A second failure
+  retained five512-sample captures then exceeded the512MiB working+capture limit
+  and fell back after >80,000 repeated depth draws. Independently, a read-only
+  probe counted80 style-epoch changes with one camera and one page revision;
+  scalar integration restarted each time. After fixes the current view reported
+  four pages at512/512, no fallback,205,832,256 total accumulator/capture bytes
+  instead of15 oversized pages. Screenshot: output/playwright/mesh-soft-corridors-restored.png.
+- **Measurements:** Playwright CLI, existing headed Chromium session, Vite dev
+  build,2400x2398 physical pixels. CDP CPU profiler at1ms sampling plus timed
+  runtime wrappers;1.5s idle,40 pointer steps with35ms delays,4s settle. Runs are
+  diagnostics, not a controlled speedup benchmark: restored caster geometry and
+  user camera/time changes alter work. The final instrumented run starts303
+  visible meshes/260 casters and ends319/260;134 drag updates perform45 traversals,
+  median48.5ms/p95 131.6ms frame intervals. Three attribute-binding/render work
+  dominates; offloading pure terrain conversion cannot remove shared-context GL
+  work. No React commit instrumentation or full network/DevTools trace yet.
+  Raw runs and reproduction: output/playwright/shadow-drag-20260908/.
+- **Alternatives/disposition:** Removing offscreen casters or lowering visible
+  mesh/display quality: incompatible with requirements. Bigger cache alone:
+  does not fix style-reset feedback (inspection). GPU/worker rendering migration:
+  deferred, not benchmarked. Missing child metadata still fails closed.
+- **Validation:**45 focused mesh/runtime tests and64 shadow scene/accumulator
+  tests. Native-resolution scalar allocation and paint-independent progression
+  have regressions. No broad build/lint, commit or push.
+- **Revisit/open:** Atomically publish each coarse/refined mesh family only with
+  its complete same-LOD hard-shadow corridor; integrate soft shadows only at
+  stable per-corridor target error. Replace mesh global readiness/invalidation
+  with spatial dependencies, prove retained-result reuse/disocclusion on drag,
+  and add stable binary persistence keys. These are not completed by these fixes.
+
+### CORRIDOR-COMPLETION-20260908 — publication is part of loading
+
+- **Status/context:** Implemented, uncommitted. Accumulation previously ignored
+  `presentation.publish()` rejection and marked that page published anyway.
+  It also counted an unready page's first preview as completion in one-sample
+  mode. The inactive mesh-quality gate was missing from loading `pending`.
+- **Decision:** A visible corridor finishes only when ready, fully sampled and
+  successfully published for the current atlas/revision. Retain the previous
+  presentation on failure; retry the copy with 250–4000 ms backoff, without
+  repeating disc integration. Dispose cancels retries. A readiness transition
+  refreshes the first sample; screen-overlap invalidation clears publication
+  bookkeeping as well. Debug page records expose readiness and publication.
+- **Alternatives:** Counting submitted samples, increasing the cache blindly,
+  or spinning failed copies at frame rate does not establish visible completion.
+  No cache budget, sample count or display resolution was lowered. A persistent
+  GPU/storage admission failure deliberately remains pending, never false 100%.
+- **Validation:**67 focused accumulator/scene tests and15 shared-layer tests.
+  Playwright in the existing mesh session:8/8 pages at512/512, ready and published.
+  A bounded injected rejection leaves7/8 published with loading active at99%;
+  retry publishes8/8 at1431ms and only then reports100%. All eight captured
+  scalar buffers contained fractional coverage (not empty/hard-only buffers).
+  This is not a per-pixel proof of correct reprojection for every mesh surface.
+  Evidence: `output/playwright/corridor-completion-20260908/`.
+- **Open:** Spatial mesh readiness/invalidation and atomic same-LOD mesh/hard
+  shadow publication remain separate work, as listed above. No broad build/lint.

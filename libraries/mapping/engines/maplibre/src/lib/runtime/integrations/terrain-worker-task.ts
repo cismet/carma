@@ -18,6 +18,8 @@ import {
   writeProjectedTerrainCacheRecord,
   updateProjectedTerrainReadCost,
   calibrateProjectedTerrainCache,
+  readTerrainHeightMetadata,
+  writeTerrainHeightMetadata,
   type CachedProjectedTerrainTile,
 } from "./projected-terrain-cache-record";
 import {
@@ -30,6 +32,13 @@ import {
 } from "../../core/terrain-selection";
 
 export type TerrainWorkerTask =
+  | { kind: "read-height-metadata"; key: string; producerAssetUrl?: string }
+  | {
+      kind: "write-height-metadata";
+      key: string;
+      ranges: Float64Array;
+      producerAssetUrl?: string;
+    }
   | { kind: "read-cache"; key: string; producerAssetUrl?: string }
   | {
       kind: "write-cache";
@@ -87,6 +96,20 @@ export const executeTerrainWorkerTask = async (
   task: TerrainWorkerTask,
   signal?: AbortSignal
 ) => {
+  if (task.kind === "read-height-metadata")
+    return {
+      kind: task.kind,
+      ranges: await readTerrainHeightMetadata(task.key, task.producerAssetUrl),
+    };
+  if (task.kind === "write-height-metadata")
+    return {
+      kind: task.kind,
+      stored: await writeTerrainHeightMetadata(
+        task.key,
+        task.ranges,
+        task.producerAssetUrl
+      ),
+    };
   if (task.kind === "calibrate-cache")
     return {
       kind: "calibrate-cache" as const,
@@ -202,7 +225,11 @@ export type TerrainWorkerResult = Awaited<
 export const terrainResultTransfers = (
   result: TerrainWorkerResult
 ): Transferable[] =>
-  result.kind === "read-cache"
+  result.kind === "read-height-metadata"
+    ? result.ranges
+      ? [result.ranges.buffer as ArrayBuffer]
+      : []
+    : result.kind === "read-cache"
     ? result.entry
       ? [
           ...new Set([
@@ -221,6 +248,7 @@ export const terrainResultTransfers = (
         ]
       : []
     : result.kind === "select" ||
+      result.kind === "write-height-metadata" ||
       result.kind === "write-cache" ||
       result.kind === "cache-cost" ||
       result.kind === "calibrate-cache"

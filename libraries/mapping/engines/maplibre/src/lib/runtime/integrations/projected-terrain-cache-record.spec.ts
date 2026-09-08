@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CachedProjectedTerrainTile } from "./projected-terrain-cache-record";
+import { decodeTerrainHeightMetadata } from "../../core/terrain-height-metadata";
 
 const mocks = vi.hoisted(() => ({
   manager: vi.fn((_options: unknown) => {
@@ -140,6 +141,31 @@ describe("projected terrain combined producer epoch", () => {
     expect(mocks.manager).toHaveBeenCalledTimes(5);
     for (const [index, result] of mocks.manager.mock.results.entries())
       expect(result.value.close).toHaveBeenCalledTimes(index === 1 ? 1 : 0);
+  });
+
+  it("merges native height observations under a source lock and isolates sources and producers", async () => {
+    const request = vi.fn(async (_name: string, callback: () => Promise<unknown>) => callback());
+    vi.stubGlobal("navigator", { locks: { request } });
+    const cache = await import("./projected-terrain-cache-record");
+    const source = "dem-terrarium/revision-1";
+    expect(await cache.writeTerrainHeightMetadata(source, new Float64Array([10, 532, 218, 100, 120]), mainUrl())).toBe(true);
+    expect(await cache.writeTerrainHeightMetadata(source, new Float64Array([10, 532, 218, 90, 115]), mainUrl())).toBe(true);
+    expect(decodeTerrainHeightMetadata(await cache.readTerrainHeightMetadata(source, mainUrl())).get("10/532/218")).toEqual([90, 120]);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[0][0]).toContain(source);
+    expect(await cache.readTerrainHeightMetadata("dem-terrarium/revision-2", mainUrl())).toBeNull();
+    expect(await cache.readTerrainHeightMetadata(source, mainUrl("b"))).toBeNull();
+    expect(mocks.strategy.mock.results.every(({ value }) => value.encode.mock.calls.length === 0)).toBe(true);
+  });
+
+  it("does not write height metadata without cross-worker locking or a valid producer", async () => {
+    vi.stubGlobal("navigator", {});
+    const cache = await import("./projected-terrain-cache-record");
+    const ranges = new Float64Array([10, 532, 218, 100, 120]);
+    expect(await cache.writeTerrainHeightMetadata("source", ranges, mainUrl())).toBe(false);
+    expect(await cache.readTerrainHeightMetadata("source", mainUrl())).toBeNull();
+    expect(await cache.writeTerrainHeightMetadata("source", ranges)).toBe(false);
+    expect(await cache.readTerrainHeightMetadata("source")).toBeNull();
   });
 
   it("does not evict an in-flight pipeline to admit a fifth concurrent identity", async () => {

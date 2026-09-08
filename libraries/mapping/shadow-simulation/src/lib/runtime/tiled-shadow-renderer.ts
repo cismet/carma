@@ -40,6 +40,7 @@ type Page = {
   limited: boolean;
   screenBounds: THREE.Vector4;
   receiverBounds: THREE.Box3;
+  groundTexelTargetMeters: number;
   casterBounds: THREE.Box3;
   contentRevision: number;
 };
@@ -122,6 +123,10 @@ export type ShadowAccumulationPage = Readonly<{
   presentationKey?: string;
   screenBounds: THREE.Vector4;
   receiverBounds: THREE.Box3;
+  /** Observer demand used to allocate an independent full-tile capture. */
+  groundTexelTargetMeters?: number;
+  /** Source-relative capture orientation/allocation, excluding scene origin. */
+  captureKey?: string;
   /** False blocks refinement only, never first-fill or retained presentation. */
   ready?: boolean;
 }>;
@@ -506,7 +511,9 @@ export class TiledShadowRenderer {
     // clipping/render-state setup; an external host must dirty its own cached
     // program/VAO/texture bindings afterward, beyond the native state saved here.
     const { renderer, scene } = this;
-    const gl = renderer.getContext();
+    // This renderer requires WebGL2 (float receiver/depth targets). Three's
+    // installed declaration still exposes the legacy WebGL1 context union.
+    const gl = renderer.getContext() as WebGL2RenderingContext;
     const target = renderer.getRenderTarget();
     const cubeFace = renderer.getActiveCubeFace();
     const mipLevel = renderer.getActiveMipmapLevel();
@@ -612,6 +619,7 @@ export class TiledShadowRenderer {
         limited: false,
         screenBounds: plan.screenBounds,
         receiverBounds: plan.bounds.clone(),
+        groundTexelTargetMeters: plan.groundTexelTargetMeters,
         casterBounds: new THREE.Box3(),
         contentRevision: 0,
       };
@@ -658,6 +666,7 @@ export class TiledShadowRenderer {
       plan.bounds.max.z,
     ]);
     page.receiverBounds.copy(plan.bounds);
+    page.groundTexelTargetMeters = plan.groundTexelTargetMeters;
     page.screenBounds = plan.screenBounds;
     page.width = c.shadowMapWidth;
     page.height = c.shadowMapHeight;
@@ -713,10 +722,11 @@ export class TiledShadowRenderer {
     camera: THREE.Camera,
     pageId: string,
     sample: number,
-    samples: number
+    samples: number,
+    screenBounds?: THREE.Vector4
   ): boolean {
     if (this.disposed || !this.activePageIds.has(pageId)) return false;
-    this.renderSamples(camera, [pageId], sample, samples);
+    this.renderSamples(camera, [pageId], sample, samples, screenBounds);
     return true;
   }
 
@@ -737,6 +747,7 @@ export class TiledShadowRenderer {
         ]),
         screenBounds: page.screenBounds.clone(),
         receiverBounds: page.receiverBounds.clone(),
+        groundTexelTargetMeters: page.groundTexelTargetMeters,
       };
     });
   }
@@ -744,6 +755,26 @@ export class TiledShadowRenderer {
   areCastersReady(id: string, ready: (bounds: THREE.Box3) => boolean): boolean {
     const page = this.pages.get(id);
     return Boolean(page && ready(page.casterBounds));
+  }
+
+  getPageGeometry(id: string): Readonly<{
+    casterBounds: THREE.Box3;
+    receiverBounds: THREE.Box3;
+    width: number;
+    height: number;
+    /** Scene-local diagnostic identity; do not persist without rebasing. */
+    projectionKey: string;
+  }> | null {
+    const page = this.pages.get(id);
+    return page
+      ? {
+          casterBounds: page.casterBounds.clone(),
+          receiverBounds: page.receiverBounds.clone(),
+          width: page.width,
+          height: page.height,
+          projectionKey: page.projectionKey,
+        }
+      : null;
   }
 
   /** A single visible depth cannot partition translucent colour contributions. */
@@ -769,7 +800,8 @@ export class TiledShadowRenderer {
     camera: THREE.Camera,
     pageIds: Iterable<string>,
     sample: number,
-    samples: number
+    samples: number,
+    screenBounds?: THREE.Vector4
   ) {
     if (this.disposed) return;
     if (this.renderer.shadowMap.type !== THREE.PCFShadowMap) {
@@ -829,7 +861,7 @@ export class TiledShadowRenderer {
         light.visible = true;
         renderer.clippingPlanes = [...clipping, ...page.planes];
         if (sceneTarget) {
-          const { x, y, z, w } = page.screenBounds;
+          const { x, y, z, w } = screenBounds ?? page.screenBounds;
           const left = Math.floor(x * sceneTarget.width);
           const bottom = Math.floor(y * sceneTarget.height);
           sceneTarget.scissor.set(
@@ -900,12 +932,14 @@ export class TiledShadowRenderer {
   private updateActiveVariants() {
     this.cache.setActiveVariants(
       new Set(
-        [...this.activePageIds].map((id) =>
-          JSON.stringify([
-            id,
-            this.pages.get(id)!.projectionKey,
-            this.activeSamples,
-          ])
+        [...this.activePageIds].flatMap((id) =>
+          // Live presentation still needs centre-sun depth for newly exposed
+          // receiver surfaces. Soft integration must not evict that reusable
+          // depth on every 1 -> N -> 1 sample-count transition. Once the bounded
+          // cache is full, stream additional disc samples as already intended.
+          [...new Set([1, this.activeSamples])].map((samples) =>
+            JSON.stringify([id, this.pages.get(id)!.projectionKey, samples])
+          )
         )
       )
     );

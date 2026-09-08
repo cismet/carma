@@ -148,6 +148,7 @@ export const ShadowSimulationSurfaceSettings = ({
                 Gebäude-Mesh
               </Typography.Text>
               <Typography.Text type="secondary">Textur</Typography.Text>
+              {/* AntD 5.19 forwards rc-slider handle ARIA props but omits their types. */}
               <Slider
                 min={0}
                 max={1}
@@ -156,7 +157,9 @@ export const ShadowSimulationSurfaceSettings = ({
                 onChange={(value) => onChange({ buildingColorMix: value })}
                 tooltip={{ formatter: null }}
                 className="!m-0 w-24"
-                ariaLabelForHandle="Mischung aus Meshtextur und Farbe"
+                {...{
+                  ariaLabelForHandle: "Mischung aus Meshtextur und Farbe",
+                }}
               />
               <Typography.Text type="secondary">Farbe</Typography.Text>
               <Typography.Text
@@ -187,7 +190,7 @@ export const ShadowSimulationSurfaceSettings = ({
                 onChange={(value) => onChange({ meshTextureSaturation: value })}
                 tooltip={{ formatter: null }}
                 className="!m-0 w-24"
-                ariaLabelForHandle="Sättigung der Meshtextur"
+                {...{ ariaLabelForHandle: "Sättigung der Meshtextur" }}
               />
               <Typography.Text
                 type="secondary"

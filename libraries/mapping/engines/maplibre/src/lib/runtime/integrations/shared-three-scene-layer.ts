@@ -31,6 +31,7 @@ export interface SharedThreeSceneFrame {
 
 export type SharedThreeSceneShadowView = Readonly<{
   camera: THREE.Camera;
+  casterAngularRadiusRadians?: number;
   shadowMapSize: Readonly<{
     width: number;
     height: number;
@@ -40,9 +41,24 @@ export type SharedThreeSceneShadowView = Readonly<{
 export type SharedThreeSceneTileVolume = Readonly<{
   id: string;
   kind: string;
+  sourceId?: string;
+  geometricError?: number;
+  /** Current physical-pixel error, not the configured final target. */
+  errorPixels?: number;
   loadReason?: "viewport" | "shadow";
   minimum: readonly [number, number, number];
   maximum: readonly [number, number, number];
+}>;
+
+export type SharedThreeShadowRegionDiagnostics = Readonly<{
+  sourceId: string;
+  ready: boolean;
+  errorPixels: number;
+  visitedNodes: number;
+  broadPhaseNodes: number;
+  rejectedPrismNodes: number;
+  receiverPrismTested: boolean;
+  selectedTileIds: readonly string[];
 }>;
 
 export interface SharedThreeSceneRuntime {
@@ -71,6 +87,10 @@ export interface SharedThreeSceneRuntime {
     style: SharedThreeSceneShadowStyle | null
   ) => void;
   setShadowView?: (view: SharedThreeSceneShadowView | null) => void;
+  /** Tiled presentation opts in before rendering; mono/shadow-off disables it. */
+  setShadowStagePresentationGate?: (enabled: boolean) => void;
+  /** Current receiver IDs fully drawn with hard or soft shadows, not merely loaded. */
+  acknowledgeShadowStage?: (receiverIds: readonly string[]) => void;
   /** Requested screen-space error in pixels; lower loads finer tiles. */
   setErrorTarget?: (errorTarget: number) => void;
   setCacheBudget?: (bytes?: number) => void;
@@ -88,7 +108,23 @@ export interface SharedThreeSceneRuntime {
   isMainViewReady?: () => boolean;
   /** Whether this provider's selected target-LOD dependencies in a world region
    * are published. Unrelated downloads must not block corridor refinement. */
-  isShadowRegionReady?: (bounds: THREE.Box3) => boolean;
+  isShadowRegionReady?: (
+    bounds: THREE.Box3,
+    errorPixels?: number,
+    receiverBounds?: THREE.Box3
+  ) => boolean;
+  /** Stable source/payload/cut identity, null until this exact region is ready. */
+  getShadowRegionRevision?: (
+    bounds: THREE.Box3,
+    errorPixels?: number,
+    receiverBounds?: THREE.Box3
+  ) => string | null;
+  /** Memoized with regional readiness; no separate traversal per debug draw. */
+  getShadowRegionDiagnostics?: (
+    bounds: THREE.Box3,
+    errorPixels?: number,
+    receiverBounds?: THREE.Box3
+  ) => SharedThreeShadowRegionDiagnostics | null;
   dispose: () => void;
 }
 
@@ -108,6 +144,7 @@ export const getSharedThreeShadowViewSignature = (
     quantize(camera.quaternion.w, 0.0001),
     ...camera.projectionMatrix.elements.map((value) => quantize(value, 0.0001)),
     `${shadowMapSize.width}x${shadowMapSize.height}`,
+    view.casterAngularRadiusRadians ?? 0,
   ].join(",");
 };
 
@@ -141,6 +178,7 @@ export type SharedSceneAccumulationController = {
     progress: number;
     settled: boolean;
     needsRepaint: boolean;
+    retryAfterMs?: number;
   }> | null;
   /** Changes whenever the shadow/lighting state the rounds sample changed. */
   epoch: () => number;
@@ -629,7 +667,9 @@ export const syncSharedCanvasViewport = (
  * range while preserving MapLibre's range for the shared main framebuffer.
  */
 export const installRenderTargetDepthRangeBridge = (
-  renderer: Pick<THREE.WebGLRenderer, "setRenderTarget">,
+  renderer: Pick<THREE.WebGLRenderer, "setRenderTarget"> & {
+    state?: Pick<THREE.WebGLRenderer["state"], "bindFramebuffer">;
+  },
   gl: Pick<
     WebGLRenderingContext,
     | "depthRange"
@@ -640,13 +680,28 @@ export const installRenderTargetDepthRangeBridge = (
   >
 ): RenderTargetDepthRangeBridge => {
   const originalSetRenderTarget = renderer.setRenderTarget;
-  let activeDepthRange: DepthRange | null = null;
+  let activeContext: {
+    depthRange: DepthRange;
+    framebuffer: WebGLFramebuffer | null;
+  } | null = null;
+  const bindHostFramebuffer = (framebuffer: WebGLFramebuffer | null) => {
+    // Keep Three's framebuffer cache in sync; a raw GL bind alone lets its next
+    // setRenderTarget(null) incorrectly skip rebinding the browser framebuffer.
+    if (renderer.state) {
+      renderer.state.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    } else {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    }
+  };
 
   renderer.setRenderTarget = function (...args) {
     originalSetRenderTarget.apply(renderer, args);
-    if (!activeDepthRange) return;
+    if (!activeContext) return;
     if (args[0] === null) {
-      gl.depthRange(activeDepthRange[0], activeDepthRange[1]);
+      // Restore immediately, not only at the outer callback's end: the next
+      // draw is already a main-scene pass (e.g. after a hard corridor capture).
+      bindHostFramebuffer(activeContext.framebuffer);
+      gl.depthRange(...activeContext.depthRange);
     } else {
       gl.depthRange(0, 1);
     }
@@ -660,17 +715,18 @@ export const installRenderTargetDepthRangeBridge = (
       const hostFramebuffer = gl.getParameter(
         gl.FRAMEBUFFER_BINDING
       ) as WebGLFramebuffer | null;
-      activeDepthRange = depthRange;
+      const previousContext = activeContext;
+      activeContext = { depthRange, framebuffer: hostFramebuffer };
       try {
         callback();
       } finally {
-        activeDepthRange = null;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, hostFramebuffer);
+        activeContext = previousContext;
+        bindHostFramebuffer(hostFramebuffer);
         gl.depthRange(depthRange[0], depthRange[1]);
       }
     },
     dispose() {
-      activeDepthRange = null;
+      activeContext = null;
       renderer.setRenderTarget = originalSetRenderTarget;
     },
   };
@@ -700,6 +756,11 @@ export const buildSharedThreeSceneLayer = (
   let accumulator: SharedSceneAccumulator | null = null;
   let accumulatorConfigurationKey = "";
   let settledAccumulatorVisualKey = "";
+  let accumulationRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  const clearAccumulationRetry = () => {
+    if (accumulationRetryTimer !== null) clearTimeout(accumulationRetryTimer);
+    accumulationRetryTimer = null;
+  };
   const viewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const mapStyleProjectionUniforms: MapStyleProjectionUniforms = {
@@ -1212,6 +1273,7 @@ export const buildSharedThreeSceneLayer = (
         });
       }
       const progressive = progressiveResult.value;
+      clearAccumulationRetry();
       if (
         accumulator &&
         accumulatorConfigurationKey !== nextAccumulatorConfigurationKey
@@ -1228,6 +1290,12 @@ export const buildSharedThreeSceneLayer = (
         accumulatorConfigurationKey = "";
         settledAccumulatorVisualKey = "";
         if (progressive.needsRepaint) map.triggerRepaint();
+        else if (progressive.retryAfterMs !== undefined) {
+          accumulationRetryTimer = setTimeout(() => {
+            accumulationRetryTimer = null;
+            map.triggerRepaint();
+          }, progressive.retryAfterMs);
+        }
         publishMapLoadingProgress(
           map,
           MAP_LOADING_PHASE.SHADOW,
@@ -1334,6 +1402,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     onRemove() {
+      clearAccumulationRetry();
       if (map)
         publishMapLoadingProgress(
           map,
@@ -1360,6 +1429,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     dispose() {
+      clearAccumulationRetry();
       if (disposed) return;
       if (map)
         publishMapLoadingProgress(

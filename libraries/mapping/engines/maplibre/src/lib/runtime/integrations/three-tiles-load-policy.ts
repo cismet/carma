@@ -12,7 +12,8 @@ const GIB = 1024 ** 3;
 
 const FAILED_LOADING_STATE = -1;
 const UNLOADED_LOADING_STATE = 0;
-export const TILE_MEMORY_ALLOCATION_ERROR = /out of memory|allocation failed|failed to allocate|cannot allocate memory/i;
+export const TILE_MEMORY_ALLOCATION_ERROR =
+  /out of memory|allocation failed|failed to allocate|cannot allocate memory/i;
 
 export const TILES_CACHE_CEILING_BYTES = {
   configuredMaximum: 24 * GIB,
@@ -136,7 +137,10 @@ export const resolveTilesCacheCeiling = (
       ? Math.max(0, budget) + Math.max(0, overflow)
       : Number.POSITIVE_INFINITY;
     if (Number.isFinite(styleCeiling))
-      ceiling = Math.min(styleCeiling, TILES_CACHE_CEILING_BYTES.configuredMaximum);
+      ceiling = Math.min(
+        styleCeiling,
+        TILES_CACHE_CEILING_BYTES.configuredMaximum
+      );
   }
   return Math.max(TILES_CACHE_CEILING_BYTES.floor, Math.floor(ceiling));
 };
@@ -281,12 +285,24 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
   );
 };
 
-/** Admission-only refinement; never coarsen the already rendered frontier. */
-export const nextMeshLoadError = (current: number, requested: number): number =>
-  Math.max(requested, current / 2);
-
 export const initialMeshLoadError = (requested: number): number =>
   Math.max(16, requested);
+
+/** Shared hard-shadow stages; final target readiness is tested separately. */
+export const meshShadowStageError = (
+  actualErrorPixels: number,
+  targetErrorPixels: number
+): number => {
+  if (
+    !Number.isFinite(actualErrorPixels) ||
+    !Number.isFinite(targetErrorPixels) ||
+    targetErrorPixels <= 0
+  )
+    return Number.POSITIVE_INFINITY;
+  return actualErrorPixels <= targetErrorPixels
+    ? targetErrorPixels
+    : Math.max(targetErrorPixels, 2 ** Math.ceil(Math.log2(actualErrorPixels)));
+};
 
 // D1 — off-frustum sibling deferral
 

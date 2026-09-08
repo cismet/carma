@@ -255,6 +255,7 @@ export type {
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
   SharedThreeSceneTileVolume,
+  SharedThreeShadowRegionDiagnostics,
 } from "./lib/runtime/integrations/shared-three-scene-layer";
 export {
   createSharedThreeSceneCameraPreview,
@@ -284,6 +285,7 @@ export {
   unregisterGenericThreeLayer,
 } from "./lib/runtime/integrations/generic-three-layer-registry";
 export type { ThreeTilesLayer } from "./lib/runtime/integrations/three-tiles-layer";
+export { meshShadowStageError } from "./lib/runtime/integrations/three-tiles-load-policy";
 export {
   THREE_TILES_LAYER_TYPE,
   THREE_TILES_SHADER_KIND,

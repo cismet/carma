@@ -76,7 +76,8 @@ export const encodeTypedBinaryRecord = (
   const visit = (input: unknown, depth: number): Node => {
     if (++nodes > MAX_NODES || depth > MAX_DEPTH)
       throw new RangeError("Typed binary record exceeds node or depth limit");
-    if (input === null || typeof input === "boolean") return input;
+    if (input === null) return null;
+    if (typeof input === "boolean") return input;
     if (typeof input === "string") { chargeString(input); return input; }
     if (typeof input === "number") {
       if (!Number.isFinite(input)) return fail("non-finite primitive number");

@@ -1,4 +1,4 @@
-import type { Map as MaplibreMap } from "maplibre-gl";
+import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
@@ -38,14 +38,12 @@ import {
 import type { SolarPosition } from "../core/solar-position";
 import { getFrustumBoxIntersectionPoints } from "../core/frustum-box-intersection";
 import {
-  buildShadowReceiverGrid,
+  buildShadowReceiverCells,
   buildShadowReceiverNeighbourRing,
+  getVisibleShadowReceiverCorners,
   nearestIdleTerrainLevel,
 } from "../core/shadow-receiver-grid";
-import {
-  shadowReceiverCorners,
-  type ShadowReceiverCell,
-} from "../core/shadow-page-plan";
+import type { ShadowReceiverCell } from "../core/shadow-page-plan";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
@@ -71,10 +69,18 @@ import {
   ATMOSPHERIC_DISPLAY_EXPOSURE,
   buildAtmosphericSky,
 } from "./atmospheric-sky";
-import { ShadowController } from "./shadow-controller";
+import { ShadowController, SUN_ANGULAR_RADIUS_RAD } from "./shadow-controller";
 import { configureReceiverPlaneShadow } from "./shadow-receiver-plane-material";
 import type { SunVectorGizmo } from "./shadow-sun-vector";
 import { ShadowTiledScene } from "./shadow-tiled-scene";
+import {
+  shadowSceneWorldBasis,
+  shadowRegionQueryKey,
+  shadowReceiverStageError,
+  getPresentedShadowReceiverIds,
+  getChangedShadowVolumeBounds,
+} from "../core/shadow-corridor-host-state";
+import { auditShadowCorridor } from "../core/shadow-corridor-audit";
 import { createShadowIdleTerrainPrefetch } from "./shadow-idle-prefetch";
 import { disposeShadowDepthPage } from "./shadow-depth-page-cache";
 import {
@@ -620,6 +626,19 @@ const getViewElevationRange = (
   camera: THREE.Camera,
   fallbackElevation: number
 ): readonly [number, number] => {
+  const surfaceRanges = runtimes
+    .filter((runtime) => runtime.providesTerrain)
+    .flatMap((runtime) => {
+      const range = runtime.getViewElevationRange?.(camera);
+      return range ? [range] : [];
+    });
+  // Terrain-owning runtimes know their visible cut. Scanning the whole scene
+  // also includes retained ancestor/caster meshes with city-wide bounding boxes.
+  if (surfaceRanges.length > 0)
+    return [
+      Math.min(...surfaceRanges.map((range) => range[0])),
+      Math.max(...surfaceRanges.map((range) => range[1])),
+    ];
   let [minimum, maximum] = getVisibleSceneElevationRange(
     scene,
     fallbackElevation,
@@ -1192,6 +1211,11 @@ export const buildShadowSimulationScene = (
             )
           )
             return;
+          // Native receiver IDs are not coordinates of the legacy viewport
+          // grid. Terrain sibling prefetch above remains valid; do not invent
+          // unrelated shadow pages by parsing source IDs as spacing:x:z.
+          if (receiverCells.some(({ id }) => !/^\d+:[-\d]+:[-\d]+$/.test(id)))
+            return;
           const regions = runtime.getIdleShadowRegions?.() ?? [];
           if (regions.length === 0 || !runtime.prepareIdleShadowRegion) return;
           await tiledScene.prewarm({
@@ -1408,10 +1432,39 @@ export const buildShadowSimulationScene = (
       ? [terrainRuntime, ...runtimes]
       : runtimes;
   };
-  const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
+  let renderTileVolumes: readonly SharedThreeSceneTileVolume[] | null = null;
+  let renderRegionReadiness: Map<string, boolean> | null = null;
+  let renderedTileVolumes: readonly SharedThreeSceneTileVolume[] = [];
+  const readActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
     getCoverageRuntimes().flatMap(
       (runtime) => runtime.getActiveTileVolumes?.() ?? []
     );
+  const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
+    renderTileVolumes ?? readActiveTileVolumes();
+  const withTileVolumeSnapshot = <T>(render: () => T): T => {
+    // A synchronous render cannot observe a new asynchronous tile publication.
+    // Rebuilding the same volumes per corridor cost 15.6 s across 31,158 calls
+    // in a 56 s mesh startup profile. Share only within this call: the next
+    // frame still sees all newly committed geometry and changed transforms.
+    const previous = renderTileVolumes;
+    const previousReadiness = renderRegionReadiness;
+    renderTileVolumes = previous ?? readActiveTileVolumes();
+    renderRegionReadiness = previousReadiness ?? new Map();
+    if (!previous) {
+      const changes = getChangedShadowVolumeBounds(
+        renderedTileVolumes,
+        renderTileVolumes
+      );
+      if (changes.length > 0) tiledScene?.invalidateContent(changes);
+      renderedTileVolumes = renderTileVolumes;
+    }
+    try {
+      return render();
+    } finally {
+      renderTileVolumes = previous;
+      renderRegionReadiness = previousReadiness;
+    }
+  };
   let mapInMotion = false;
   let latestShadowView: SharedThreeSceneShadowView | null = null;
   let appliedRuntimeShadowView: SharedThreeSceneShadowView | null = null;
@@ -1447,6 +1500,9 @@ export const buildShadowSimulationScene = (
       ...(terrainRuntime ? [terrainRuntime] : []),
     ];
     for (const runtime of new Set(runtimes)) {
+      runtime.setShadowStagePresentationGate?.(
+        view !== null && isTiledBufferEnabled()
+      );
       if (!runtime.providesTerrain) {
         runtime.setShadowView?.(view);
         continue;
@@ -1735,8 +1791,8 @@ export const buildShadowSimulationScene = (
         const nowMs = performance.now();
         if (
           mapInMotion &&
-          !isTiledBufferEnabled() &&
-          nowMs - lastMotionShadowUpdateMs < shadowFrameBudget.updateIntervalMs
+          nowMs - lastMotionShadowUpdateMs <
+            Math.max(120, shadowFrameBudget.updateIntervalMs)
         ) {
           return;
         }
@@ -1776,7 +1832,8 @@ export const buildShadowSimulationScene = (
       // The loaded receiver surfaces remain authoritative during movement too.
       // Dropping them on drag start shrinks the clipping grid to an estimated
       // elevation envelope and can cut away still-visible terrain.
-      const visibleTileVolumePoints = getActiveTileVolumes().flatMap(
+      const committedVolumes = getActiveTileVolumes();
+      const visibleTileVolumePoints = committedVolumes.flatMap(
         ({ minimum, maximum }) =>
           getFrustumBoxIntersectionPoints(
             frame.renderCamera,
@@ -1800,17 +1857,31 @@ export const buildShadowSimulationScene = (
         return;
       }
       if (isTiledBufferEnabled()) {
-        // Include the full viewport envelope and elevated receivers, not just
-        // currently loaded tile centres. The disjoint grid covers edge surfaces.
-        receiverCells = buildShadowReceiverGrid(
-          new THREE.Box3().setFromPoints([
-            ...sharedBinding.receiverWorldPoints,
-            ...fallbackReceiverWorldPoints,
-          ])
+        // A corridor belongs to a committed source tile, not the intersection
+        // of the camera with a freshly fitted viewport grid. Plan all retained
+        // full boxes before frustum filtering so panning cannot rename pages.
+        receiverCells = buildShadowReceiverCells(
+          committedVolumes
+            .filter(({ loadReason }) => loadReason !== "shadow")
+            .map(({ id, minimum, maximum }) => ({
+              id,
+              bounds: new THREE.Box3(
+                new THREE.Vector3(...minimum),
+                new THREE.Vector3(...maximum)
+              ),
+            }))
         );
-        sharedBinding.receiverWorldPoints = receiverCells.flatMap(
-          ({ bounds }) => shadowReceiverCorners(bounds)
+        const fullPagePoints = getVisibleShadowReceiverCorners(
+          receiverCells,
+          frame.renderCamera
         );
+        // Capture readiness and fetching must refer to the SAME full source
+        // page. Clipping discovery to the screen starves edge-page casters.
+        // Keep the startup fallback until a committed cut exists: clearing it
+        // would release/re-enable the provider barrier every frame (strobing).
+        if (fullPagePoints.length > 0) {
+          sharedBinding.receiverWorldPoints = [...fullPagePoints];
+        }
       }
       const snapshot = sharedBinding.controller.update({
         maxReceiverBiasMeters: sharedSceneProvidesTerrain()
@@ -1845,6 +1916,9 @@ export const buildShadowSimulationScene = (
       const primaryCamera = sharedBinding.controller.lights[0].shadow.camera;
       setRuntimeShadowView({
         camera: primaryCamera,
+        casterAngularRadiusRadians: softSunShadowsEnabled
+          ? SUN_ANGULAR_RADIUS_RAD
+          : 0,
         shadowMapSize: {
           width: primary.shadowMapWidth,
           height: primary.shadowMapHeight,
@@ -1932,7 +2006,6 @@ export const buildShadowSimulationScene = (
     if (
       !isTiledBufferEnabled() ||
       !latestFrame ||
-      receiverCells.length === 0 ||
       sharedBinding.directionToSun.y <= 0
     )
       return null;
@@ -1948,14 +2021,102 @@ export const buildShadowSimulationScene = (
         sky: sharedBinding.atmosphericSky.mesh,
         overlay: sharedBinding.sunVectorRoot,
         maximumMapSize: resourceLimits.maxShadowMapSize,
-        isCorridorReady: (bounds) =>
-          getCoverageRuntimes().every(
+        isCorridorReady: (bounds, errorPixels, receiverBounds) => {
+          // Hard capture, soft scheduling and presentation inspect the same
+          // immutable cut during this synchronous draw. Do not traverse its
+          // tree again for each consumer; both true and false expire next draw.
+          const key = shadowRegionQueryKey(bounds, errorPixels, receiverBounds);
+          const cached = renderRegionReadiness?.get(key);
+          if (cached !== undefined) return cached;
+          const ready = getCoverageRuntimes().every(
             (runtime) =>
-              runtime.isShadowRegionReady?.(bounds) ??
+              runtime.isShadowRegionReady?.(
+                bounds,
+                errorPixels,
+                receiverBounds
+              ) ??
               (runtime.getRequestDemand
                 ? runtime.getRequestDemand() === 0
                 : !runtime.providesTerrain || !isSharedThreeTerrainLoading(map))
+          );
+          renderRegionReadiness?.set(key, ready);
+          return ready;
+        },
+        receiverStageError: (bounds) =>
+          shadowReceiverStageError(
+            bounds,
+            getActiveTileVolumes(),
+            latestMeshErrorTarget
           ),
+        onPresentedPages: (presentedPages, visiblePages) => {
+          const receiverIds = getPresentedShadowReceiverIds(
+            getActiveTileVolumes(),
+            visiblePages.map(({ id, receiverBounds: bounds }) => ({
+              id,
+              bounds,
+            })),
+            presentedPages.map(({ id, receiverBounds: bounds }) => ({
+              id,
+              bounds,
+            }))
+          );
+          if (receiverIds.length === 0) return;
+          for (const runtime of getCoverageRuntimes()) {
+            runtime.acknowledgeShadowStage?.(receiverIds);
+          }
+        },
+        corridorRevision: (bounds, errorPixels, receiverBounds) => {
+          const revisions: string[] = [];
+          for (const runtime of getCoverageRuntimes()) {
+            if (runtime === shadowControllerRuntime) continue;
+            const revision = runtime.getShadowRegionRevision?.(
+              bounds,
+              errorPixels,
+              receiverBounds
+            );
+            // A runtime with no persistent geometry identity cannot certify a
+            // cache hit. Live shadows continue normally without persistent I/O.
+            if (!revision) return null;
+            revisions.push(JSON.stringify([runtime.id, revision]));
+          }
+          return revisions.length ? JSON.stringify(revisions.sort()) : null;
+        },
+        dateTimeKey: () => latestSolarPosition?.instant.toISOString() ?? null,
+        worldBasis: () => {
+          const origin = sceneLease.layer.projectSceneToLngLat([0, 0, 0]);
+          if (!origin)
+            throw new Error("Shared scene origin is not initialized");
+          const mercator = MercatorCoordinate.fromLngLat(origin, 0);
+          return shadowSceneWorldBasis(
+            mercator.x,
+            mercator.y,
+            mercator.meterInMercatorCoordinateUnits()
+          );
+        },
+        requestRepaint: () => map.triggerRepaint(),
+        visualEpoch: () => shadowVisualEpoch,
+        auditCorridors: (pages) => {
+          // Debug-only: take one coherent geometry snapshot for all queries.
+          // Do not rebuild every provider's volume list for every page.
+          const volumes = getActiveTileVolumes();
+          const runtimes = getCoverageRuntimes();
+          return pages.map(({ id, casterBounds, receiverBounds }) =>
+            auditShadowCorridor({
+              id,
+              casterBounds,
+              sunElevationDegrees: latestSolarPosition?.elevationDegrees ?? 0,
+              volumes,
+              regions: runtimes.flatMap((runtime) => {
+                const result = runtime.getShadowRegionDiagnostics?.(
+                  casterBounds,
+                  undefined,
+                  receiverBounds
+                );
+                return result ? [result] : [];
+              }),
+            })
+          );
+        },
         runIdleRender: (render) =>
           sceneLease.layer.runIdleRender?.(render) ?? false,
       });
@@ -1999,14 +2160,15 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       !timeAnimating &&
       (!initialTerrainStageReady ||
-        isSharedThreeTerrainLoading(map) ||
+        (!isTiledBufferEnabled() && !meshViewReady()) ||
+        (!isTiledBufferEnabled() && isSharedThreeTerrainLoading(map)) ||
         mapInMotion ||
-        contentChangeTimer !== 0),
+        (!isTiledBufferEnabled() && contentChangeTimer !== 0)),
     active: () =>
       nativeAccumulationFits &&
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
-      meshViewReady() &&
+      (isTiledBufferEnabled() || meshViewReady()) &&
       (isTiledBufferEnabled() || !isSharedThreeTerrainLoading(map)) &&
       !mapInMotion &&
       !timeAnimating &&
@@ -2037,28 +2199,30 @@ export const buildShadowSimulationScene = (
         styleEpoch: number;
         active: boolean;
       }>
-    ) => {
-      if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
-      const tiles = updateTiledScene();
-      if (!tiles) return null;
-      const result = tiles.renderProgressive(camera, {
-        ...frame,
-        samples: getSunDiscAccumulationRounds(),
-        maxRenderTargetPixels: maxAccumulationPixels,
-        options: accumulationOptions,
-      });
-      publishProjectionDebug();
-      return result;
-    },
-    renderScene: (camera: THREE.Camera, round: number | null) => {
-      const tiles = updateTiledScene();
-      if (!tiles) return false;
-      tiles.render(camera, round, getSunDiscAccumulationRounds());
-      // A trailing publication includes the final page counters even when
-      // convergence stops repaints before the next debug interval.
-      publishProjectionDebug();
-      return true;
-    },
+    ) =>
+      withTileVolumeSnapshot(() => {
+        if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
+        const tiles = updateTiledScene();
+        if (!tiles) return null;
+        const result = tiles.renderProgressive(camera, {
+          ...frame,
+          samples: getSunDiscAccumulationRounds(),
+          maxRenderTargetPixels: maxAccumulationPixels,
+          options: accumulationOptions,
+        });
+        publishProjectionDebug();
+        return result;
+      }),
+    renderScene: (camera: THREE.Camera, round: number | null) =>
+      withTileVolumeSnapshot(() => {
+        const tiles = updateTiledScene();
+        if (!tiles) return false;
+        tiles.render(camera, round, getSunDiscAccumulationRounds());
+        // A trailing publication includes the final page counters even when
+        // convergence stops repaints before the next debug interval.
+        publishProjectionDebug();
+        return true;
+      }),
   };
   sceneLease.layer.setAccumulationController?.(accumulationController);
   const refreshSharedShadowCoverage = () => {
@@ -2252,7 +2416,16 @@ export const buildShadowSimulationScene = (
       sharedSceneProvidesTerrain()
     );
     idleTerrainPrefetch.cancel();
-    tiledScene?.invalidateContent();
+    // Native runtimes publish stable tile-volume IDs. Diff that committed cut
+    // at render entry; parsing another offscreen tile must not restart EVERY
+    // corridor. Unknown generic geometry still requires a conservative reset.
+    if (
+      getCoverageRuntimes().some(
+        (runtime) =>
+          runtime !== shadowControllerRuntime && !runtime.getActiveTileVolumes
+      )
+    )
+      tiledScene?.invalidateContent();
     syncTerrainRuntime();
     cachedElevationRange = null;
     coverageNeedsCameraReevaluation = true;

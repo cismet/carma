@@ -6,6 +6,8 @@ import type { TerrainWorkerTask } from "./terrain-worker-task";
 export const getTerrainTaskWork = (task: TerrainWorkerTask): number => {
   switch (task.kind) {
     case "read-cache":
+    case "read-height-metadata":
+    case "write-height-metadata":
     case "write-cache":
     case "cache-cost":
     case "calibrate-cache":

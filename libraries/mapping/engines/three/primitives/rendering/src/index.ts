@@ -1,4 +1,5 @@
 // Renderer-only entry point: no React, MapLibre, or application bootstrap.
+export { SceneFrameCache } from "../../src/lib/rendering/scene-frame-cache";
 export {
   buildSharedSceneAccumulator,
   fitRenderTargetSizeToPixelBudget,

@@ -1,19 +1,73 @@
 import * as THREE from "three";
 
+import {
+  shadowCorridorCacheKey,
+  type ShadowCorridorCacheIdentity,
+} from "../core/shadow-corridor-cache-record";
+import type { ShadowCorridorCache } from "./shadow-corridor-cache-client";
 import type { ShadowAccumulationPage } from "./tiled-shadow-renderer";
 
 const MAX_PAGES = 64;
-const MAX_BYTES = 256 * 1024 ** 2;
+export const SHADOW_CORRIDOR_RETAINED_BUDGET_BYTES = 256 * 1024 ** 2;
+const MAX_BYTES = SHADOW_CORRIDOR_RETAINED_BUDGET_BYTES;
+const MAX_REPLACEMENT_BYTES = 128 * 1024 ** 2;
 const CAPTURE_BYTES_PER_PIXEL = 8; // R32F visibility + depth32, no baked basemap.
+const MAX_READBACK_BYTES = 32 * 1024 ** 2;
+const MAX_PENDING_WRITES = 4;
 
 type CorridorCapture = Readonly<{
-  target: THREE.WebGLRenderTarget;
+  target: THREE.WebGLRenderTarget | null;
+  visibility: THREE.Texture;
+  depth: THREE.Texture;
+  width: number;
+  height: number;
+  bytes: number;
+  restored: boolean;
+  persistentKey?: string;
   revision: string;
   presentationKey: string;
   samples: number;
   matrix: THREE.Matrix4;
   crop: THREE.Vector4;
 }>;
+
+export type ShadowCorridorPersistenceContext = Readonly<{
+  cache: ShadowCorridorCache;
+  /** Return null until the exact corridor geometry is loaded and fingerprinted. */
+  identity: (
+    page: ShadowAccumulationPage,
+    samples: number
+  ) => ShadowCorridorCacheIdentity | null;
+  worldBasis: () => THREE.Matrix4;
+  runIdleRender?: (draw: () => void) => boolean;
+  requestRepaint?: () => void;
+}>;
+
+type PendingCaptureWrite = Readonly<{
+  page: ShadowAccumulationPage;
+  capture: CorridorCapture;
+  identity: ShadowCorridorCacheIdentity;
+  key: string;
+  worldBasis: number[];
+}>;
+
+const disposeCapture = (capture: CorridorCapture) => {
+  if (capture.target) {
+    capture.target.depthTexture?.dispose();
+    capture.target.dispose();
+  } else {
+    capture.visibility.dispose();
+    capture.depth.dispose();
+  }
+};
+
+const matrixMatches = (left: THREE.Matrix4, right: THREE.Matrix4) =>
+  left.elements.every(
+    (value, index) =>
+      Number.isFinite(value) &&
+      Math.abs(value - right.elements[index]) <=
+        1e-10 * Math.max(1, Math.abs(value))
+  );
 
 /** Bounded per-corridor scalar visibility captures, reprojected onto their world
  * surfaces. Basemap, normals and materials are shaded live, never baked here.
@@ -26,7 +80,58 @@ export class ShadowCorridorPresentation {
   private samples = 0;
   private replayCount = 0;
   private matchingPages = 0;
+  private persistence: ShadowCorridorPersistenceContext | undefined;
+  private persistenceGeneration = 0;
+  private disposed = false;
+  private readonly restoreAttempts = new Set<string>();
+  private readonly pendingRestores = new Map<
+    string,
+    { key: string; samples: number }
+  >();
+  private readonly restoreRequests = new Map<
+    string,
+    {
+      page: ShadowAccumulationPage;
+      samples: number;
+      expected?: THREE.Matrix4;
+    }
+  >();
+  private readonly pendingWrites = new Map<string, PendingCaptureWrite>();
+  private persistenceOffers = new WeakMap<
+    CorridorCapture,
+    PendingCaptureWrite
+  >();
+  private persistenceAttempted = new WeakSet<CorridorCapture>();
+  private persistenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private readbackBusy = false;
+  private readbackBytes = 0;
+  private readonly packMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      visibility: { value: null as THREE.Texture | null },
+      depth: { value: null as THREE.Texture | null },
+    },
+    vertexShader:
+      "varying vec2 uvCopy; void main() { uvCopy = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader:
+      "uniform sampler2D visibility; uniform sampler2D depth; varying vec2 uvCopy; void main() { gl_FragColor = vec4(texture2D(visibility, uvCopy).r, texture2D(depth, uvCopy).r, 0.0, 1.0); }",
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.NoBlending,
+    toneMapped: false,
+  });
   private readonly materials = new Map<THREE.Material, () => void>();
+  private readonly unsupportedMaterials = new WeakSet<THREE.Material>();
+  private captureSupported = true;
+  private contentRevision = 0;
+
+  /** Changes only when retained image content changes, never on LRU touches. */
+  get revision() {
+    return this.contentRevision;
+  }
+
+  get supportsCapture() {
+    return this.captureSupported;
+  }
   private readonly copyScene = new THREE.Scene();
   private readonly copyCamera = new THREE.Camera();
   private readonly copyMaterial = new THREE.ShaderMaterial({
@@ -68,10 +173,22 @@ export class ShadowCorridorPresentation {
 
   get memoryBytes() {
     return [...this.captures.values()].reduce(
-      (bytes, { target }) =>
-        bytes + target.width * target.height * CAPTURE_BYTES_PER_PIXEL,
-      0
+      (bytes, capture) => bytes + capture.bytes,
+      this.readbackBytes
     );
+  }
+
+  getCapturedSize(
+    pageId: string
+  ): Readonly<{ width: number; height: number; samples: number }> | null {
+    const capture = this.captures.get(pageId);
+    return capture
+      ? {
+          width: capture.width,
+          height: capture.height,
+          samples: capture.samples,
+        }
+      : null;
   }
 
   get stats() {
@@ -87,14 +204,216 @@ export class ShadowCorridorPresentation {
   beginFrame(pages: readonly ShadowAccumulationPage[] = []) {
     this.matchingPages = 0;
     this.visiblePageIds = new Set(pages.map((page) => page.id));
+    this.schedulePersistence();
   }
 
   has(page: ShadowAccumulationPage, samples: number) {
     const capture = this.captures.get(page.id);
+    if (capture?.restored) {
+      const request = this.restoreRequests.get(page.id);
+      const identity = this.persistence?.identity(page, samples);
+      if (
+        page.ready === false ||
+        !request?.expected ||
+        !identity ||
+        shadowCorridorCacheKey(identity) !== capture.persistentKey ||
+        !matrixMatches(capture.matrix, request.expected)
+      )
+        return false;
+      const b = page.screenBounds;
+      const crop = capture.crop;
+      if (
+        crop.x > b.x + 1e-6 ||
+        crop.y > b.y + 1e-6 ||
+        crop.x + crop.z < b.x + b.z - 1e-6 ||
+        crop.y + crop.w < b.y + b.w - 1e-6
+      )
+        return false;
+    }
     return (
       capture?.revision === (page.contentKey ?? page.revision) &&
       capture.samples === samples
     );
+  }
+
+  hasAtLeast(page: ShadowAccumulationPage, samples: number) {
+    const capture = this.captures.get(page.id);
+    return Boolean(
+      capture && capture.samples >= samples && this.has(page, capture.samples)
+    );
+  }
+
+  isRestorePending(page: ShadowAccumulationPage, samples: number) {
+    const pending = this.pendingRestores.get(page.id);
+    const identity = this.persistence?.identity(page, samples);
+    return Boolean(
+      pending &&
+        pending.samples === samples &&
+        identity &&
+        shadowCorridorCacheKey(identity) === pending.key
+    );
+  }
+
+  setPersistence(context?: ShadowCorridorPersistenceContext) {
+    if (this.persistence === context) return;
+    this.persistence = context;
+    this.persistenceGeneration += 1;
+    this.restoreAttempts.clear();
+    this.pendingRestores.clear();
+    this.restoreRequests.clear();
+    this.pendingWrites.clear();
+    this.persistenceOffers = new WeakMap();
+    this.persistenceAttempted = new WeakSet();
+    if (this.persistenceTimer !== null) clearTimeout(this.persistenceTimer);
+    this.persistenceTimer = null;
+  }
+
+  prepareRestore(
+    page: ShadowAccumulationPage,
+    samples: number,
+    expectedCaptureMatrix?: THREE.Matrix4
+  ): void {
+    if (this.disposed) return;
+    this.restoreRequests.set(page.id, {
+      page,
+      samples,
+      expected: expectedCaptureMatrix?.clone(),
+    });
+    // Keep only a bounded set of current/last visible projections.
+    if (this.restoreRequests.size > MAX_PAGES * 2) {
+      for (const id of this.restoreRequests.keys()) {
+        if (id !== page.id && !this.visiblePageIds.has(id)) {
+          this.restoreRequests.delete(id);
+          break;
+        }
+      }
+    }
+    const context = this.persistence;
+    if (
+      !context?.cache.enabled ||
+      context.cache.busy ||
+      page.ready === false ||
+      this.hasAtLeast(page, samples)
+    )
+      return;
+    const identity = context.identity(page, samples);
+    const key = identity && shadowCorridorCacheKey(identity);
+    if (!identity || !key || this.restoreAttempts.has(key)) return;
+    this.restoreAttempts.add(key);
+    if (this.restoreAttempts.size > MAX_PAGES * 4)
+      this.restoreAttempts.delete(this.restoreAttempts.values().next().value!);
+    const generation = this.persistenceGeneration;
+    const before = this.captures.get(page.id);
+    this.pendingRestores.set(page.id, { key, samples });
+    void context.cache
+      .read(identity)
+      .then((record) => {
+        const current = this.restoreRequests.get(page.id);
+        const currentIdentity =
+          current && context.identity(current.page, samples);
+        if (
+          !record ||
+          this.disposed ||
+          this.persistenceGeneration !== generation ||
+          this.persistence !== context ||
+          !current ||
+          current.page.ready === false ||
+          !currentIdentity ||
+          shadowCorridorCacheKey(currentIdentity) !== key ||
+          this.captures.get(page.id) !== before
+        )
+          return;
+        const storedBasis = new THREE.Matrix4().fromArray(record.worldBasis);
+        const currentBasis = context.worldBasis();
+        if (
+          !storedBasis.elements.every(Number.isFinite) ||
+          storedBasis.determinant() === 0 ||
+          !currentBasis.elements.every(Number.isFinite) ||
+          currentBasis.determinant() === 0
+        )
+          return;
+        const matrix = new THREE.Matrix4()
+          .fromArray(record.captureMatrix)
+          .multiply(storedBasis.invert())
+          .multiply(currentBasis);
+        const cpuBytes = [
+          ...new Set([record.visibility.buffer, record.depth.buffer]),
+        ].reduce((bytes, buffer) => bytes + buffer.byteLength, 0);
+        const bytes =
+          record.width * record.height * CAPTURE_BYTES_PER_PIXEL + cpuBytes;
+        if (!this.admit(page.id, bytes)) return;
+        const visibility = new THREE.DataTexture(
+          record.visibility,
+          record.width,
+          record.height,
+          THREE.RedFormat,
+          THREE.FloatType
+        );
+        const depth = new THREE.DataTexture(
+          record.depth,
+          record.width,
+          record.height,
+          THREE.RedFormat,
+          THREE.FloatType
+        );
+        for (const texture of [visibility, depth]) {
+          texture.minFilter = THREE.NearestFilter;
+          texture.magFilter = THREE.NearestFilter;
+          texture.generateMipmaps = false;
+          texture.needsUpdate = true;
+        }
+        if (before) disposeCapture(before);
+        this.captures.delete(page.id);
+        this.captures.set(page.id, {
+          target: null,
+          visibility,
+          depth,
+          width: record.width,
+          height: record.height,
+          bytes,
+          restored: true,
+          persistentKey: key,
+          revision: current.page.contentKey ?? current.page.revision,
+          presentationKey:
+            current.page.presentationKey ??
+            current.page.contentKey ??
+            current.page.revision,
+          samples: record.identity.samples,
+          matrix,
+          crop: new THREE.Vector4().fromArray(record.crop),
+        });
+        this.samples = record.identity.samples;
+        this.contentRevision += 1;
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!this.disposed && generation === this.persistenceGeneration) {
+          if (this.pendingRestores.get(page.id)?.key === key)
+            this.pendingRestores.delete(page.id);
+          context.requestRepaint?.();
+          this.schedulePersistence();
+        }
+      });
+  }
+
+  private admit(pageId: string, bytes: number, replacing = false) {
+    // Only synchronous GPU replacement may borrow this bounded reserve. The
+    // old capture stays intact until both copies succeed; afterwards its bytes
+    // are released and retained storage is back within MAX_BYTES. New pages
+    // and asynchronous restores never receive replacement credit.
+    const replacementCredit = replacing
+      ? Math.min(this.captures.get(pageId)?.bytes ?? 0, MAX_REPLACEMENT_BYTES)
+      : 0;
+    const limit = MAX_BYTES + replacementCredit;
+    for (const [id, capture] of this.captures) {
+      if (bytes + this.memoryBytes <= limit) break;
+      if (id === pageId || this.visiblePageIds.has(id)) continue;
+      disposeCapture(capture);
+      this.captures.delete(id);
+      this.contentRevision += 1;
+      this.pendingWrites.delete(id);
+    }
+    return bytes + this.memoryBytes <= limit;
   }
 
   publish(
@@ -104,6 +423,7 @@ export class ShadowCorridorPresentation {
     page: ShadowAccumulationPage,
     samples: number
   ): boolean {
+    if (!this.captureSupported) return false;
     // R32F + depth32. Account for old and new captures during replacement.
     const b = page.screenBounds;
     const left = Math.max(0, Math.floor(b.x * color.width));
@@ -120,19 +440,8 @@ export class ShadowCorridorPresentation {
       !reference.depthTexture
     )
       return false;
-    // LRU admission never destroys the page being replaced before its copy succeeds.
-    for (const [id, capture] of this.captures) {
-      if (
-        bytes + this.memoryBytes <= MAX_BYTES &&
-        this.captures.size < MAX_PAGES
-      )
-        break;
-      if (id === page.id || this.visiblePageIds.has(id)) continue;
-      capture.target.depthTexture?.dispose();
-      capture.target.dispose();
-      this.captures.delete(id);
-    }
-    if (bytes + this.memoryBytes > MAX_BYTES) return false;
+    // Admission preserves the previous publication until copying succeeds.
+    if (!this.admit(page.id, bytes, true)) return false;
     const renderer = this.renderer;
     const previous = renderer.getRenderTarget();
     const face = renderer.getActiveCubeFace();
@@ -190,12 +499,17 @@ export class ShadowCorridorPresentation {
       renderer.autoClear = autoClear;
     }
     const previousCapture = this.captures.get(page.id);
-    previousCapture?.target.depthTexture?.dispose();
-    previousCapture?.target.dispose();
+    if (previousCapture) disposeCapture(previousCapture);
     this.samples = samples;
     this.captures.delete(page.id);
-    this.captures.set(page.id, {
+    const capture: CorridorCapture = {
       target,
+      visibility: target.texture,
+      depth: target.depthTexture!,
+      width,
+      height,
+      bytes,
+      restored: false,
       revision: page.contentKey ?? page.revision,
       samples,
       presentationKey: page.presentationKey ?? page.contentKey ?? page.revision,
@@ -209,16 +523,232 @@ export class ShadowCorridorPresentation {
         width / color.width,
         height / color.height
       ),
-    });
+    };
+    this.captures.set(page.id, capture);
+    this.contentRevision += 1;
+    this.queuePersistence(page, capture);
     return true;
   }
 
-  render<T>(
-    scene: THREE.Scene,
+  private queuePersistence(
     page: ShadowAccumulationPage,
-    _samples: number,
-    draw: () => T
-  ): T {
+    capture: CorridorCapture
+  ) {
+    const context = this.persistence;
+    if (!context?.cache.enabled || page.ready === false || this.disposed)
+      return;
+    const identity = context.identity(page, capture.samples);
+    const key = identity && shadowCorridorCacheKey(identity);
+    const worldBasis = context.worldBasis();
+    if (
+      !identity ||
+      identity.samples !== capture.samples ||
+      !key ||
+      !worldBasis.elements.every(Number.isFinite) ||
+      worldBasis.determinant() === 0 ||
+      capture.width * capture.height * 16 > MAX_READBACK_BYTES
+    )
+      return;
+    this.pendingWrites.delete(page.id);
+    // Metadata follows the retained capture without owning another GPU copy.
+    // A four-job queue can therefore drain all retained native cells over time.
+    this.persistenceOffers.set(capture, {
+      page,
+      capture,
+      identity,
+      key,
+      worldBasis: [...worldBasis.elements],
+    });
+    this.schedulePersistence();
+  }
+
+  private schedulePersistence() {
+    if (
+      this.disposed ||
+      this.persistenceTimer !== null ||
+      this.readbackBusy ||
+      !this.persistence?.cache.enabled ||
+      this.persistence.cache.busy
+    )
+      return;
+    for (const [id, job] of this.pendingWrites) {
+      if (this.captures.get(id) !== job.capture) this.pendingWrites.delete(id);
+    }
+    for (const visible of [true, false]) {
+      for (const [id, capture] of this.captures) {
+        if (this.pendingWrites.size >= MAX_PENDING_WRITES) break;
+        const offer = this.persistenceOffers.get(capture);
+        if (
+          this.visiblePageIds.has(id) === visible &&
+          offer &&
+          !this.persistenceAttempted.has(capture) &&
+          !this.pendingWrites.has(id)
+        )
+          this.pendingWrites.set(id, offer);
+      }
+    }
+    if (this.pendingWrites.size === 0) return;
+    this.persistenceTimer = setTimeout(() => {
+      this.persistenceTimer = null;
+      this.persistNextCapture();
+    }, 0);
+  }
+
+  private persistNextCapture() {
+    const context = this.persistence;
+    if (
+      this.disposed ||
+      this.readbackBusy ||
+      !context?.cache.enabled ||
+      context.cache.busy ||
+      typeof this.renderer.readRenderTargetPixelsAsync !== "function"
+    )
+      return;
+    const entry = [...this.pendingWrites.entries()].find(
+      ([id, job]) => this.captures.get(id) === job.capture
+    );
+    if (!entry) {
+      this.pendingWrites.clear();
+      return;
+    }
+    const [id, job] = entry;
+    const current = this.restoreRequests.get(id)?.page ?? job.page;
+    const identity = context.identity(current, job.capture.samples);
+    if (
+      current.ready === false ||
+      !identity ||
+      shadowCorridorCacheKey(identity) !== job.key
+    ) {
+      this.pendingWrites.delete(id);
+      this.persistenceAttempted.add(job.capture);
+      this.schedulePersistence();
+      return;
+    }
+    const { capture } = job;
+    const bytes = capture.width * capture.height * 16;
+    // GPU packing target and CPU readback are transient and budgeted together.
+    if (
+      bytes > MAX_READBACK_BYTES ||
+      this.memoryBytes + bytes * 2 > MAX_BYTES
+    ) {
+      this.pendingWrites.delete(id);
+      this.persistenceAttempted.add(capture);
+      this.schedulePersistence();
+      return;
+    }
+    const generation = this.persistenceGeneration;
+    const transfer = {
+      target: null as THREE.WebGLRenderTarget | null,
+      pixels: null as Float32Array | null,
+      reading: null as Promise<unknown> | null,
+    };
+    const draw = () => {
+      const renderer = this.renderer;
+      const previous = renderer.getRenderTarget();
+      const face = renderer.getActiveCubeFace();
+      const mip = renderer.getActiveMipmapLevel();
+      const viewport = renderer.getViewport(new THREE.Vector4());
+      const scissor = renderer.getScissor(new THREE.Vector4());
+      const scissorTest = renderer.getScissorTest();
+      const autoClear = renderer.autoClear;
+      const material = this.copyQuad.material;
+      try {
+        transfer.target = new THREE.WebGLRenderTarget(
+          capture.width,
+          capture.height,
+          {
+            format: THREE.RGBAFormat,
+            type: THREE.FloatType,
+            depthBuffer: false,
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+          }
+        );
+        renderer.initRenderTarget(transfer.target);
+        transfer.pixels = new Float32Array(capture.width * capture.height * 4);
+        this.packMaterial.uniforms.visibility.value = capture.visibility;
+        this.packMaterial.uniforms.depth.value = capture.depth;
+        this.copyQuad.material = this.packMaterial;
+        renderer.autoClear = false;
+        renderer.setRenderTarget(transfer.target);
+        renderer.setViewport(
+          new THREE.Vector4(0, 0, capture.width, capture.height)
+        );
+        renderer.setScissorTest(false);
+        renderer.render(this.copyScene, this.copyCamera);
+        transfer.reading = renderer.readRenderTargetPixelsAsync(
+          transfer.target,
+          0,
+          0,
+          capture.width,
+          capture.height,
+          transfer.pixels
+        );
+      } finally {
+        this.copyQuad.material = material;
+        renderer.setRenderTarget(previous, face, mip);
+        renderer.setViewport(viewport);
+        renderer.setScissor(scissor);
+        renderer.setScissorTest(scissorTest);
+        renderer.autoClear = autoClear;
+      }
+    };
+    try {
+      if (context.runIdleRender) {
+        if (!context.runIdleRender(draw) && !transfer.target) return;
+      } else draw();
+    } catch {
+      transfer.target?.dispose();
+      this.pendingWrites.delete(id);
+      this.persistenceAttempted.add(capture);
+      this.schedulePersistence();
+      return;
+    }
+    if (!transfer.reading || !transfer.target || !transfer.pixels) {
+      transfer.target?.dispose();
+      return;
+    }
+    const packedTarget = transfer.target;
+    const rgba = transfer.pixels;
+    this.pendingWrites.delete(id);
+    this.persistenceAttempted.add(capture);
+    this.readbackBusy = true;
+    this.readbackBytes = bytes * 2;
+    void transfer.reading
+      .then(async () => {
+        const latest = this.restoreRequests.get(id)?.page ?? job.page;
+        const latestIdentity = context.identity(latest, capture.samples);
+        if (
+          this.disposed ||
+          generation !== this.persistenceGeneration ||
+          this.persistence !== context ||
+          latest.ready === false ||
+          !latestIdentity ||
+          shadowCorridorCacheKey(latestIdentity) !== job.key
+        )
+          return;
+        await context.cache.writePacked(job.identity, {
+          width: capture.width,
+          height: capture.height,
+          rgba,
+          captureMatrix: [...capture.matrix.elements],
+          crop: capture.crop.toArray(),
+          worldBasis: job.worldBasis,
+        });
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        packedTarget.dispose();
+        this.readbackBusy = false;
+        this.readbackBytes = 0;
+        if (!this.disposed) {
+          context.requestRepaint?.();
+          this.schedulePersistence();
+        }
+      });
+  }
+
+  canReplay(page: ShadowAccumulationPage): boolean {
     const capture = this.captures.get(page.id);
     // Recompute validity is deliberately stricter than display continuity.
     // A drag-end LOD/sample change must not hide a finished corridor while its
@@ -230,17 +760,33 @@ export class ShadowCorridorPresentation {
       capture.presentationKey !==
         (page.presentationKey ?? page.contentKey ?? page.revision)
     )
-      return draw();
+      return false;
+    if (capture.restored) {
+      const identity = this.persistence?.identity(page, capture.samples);
+      if (
+        !identity ||
+        shadowCorridorCacheKey(identity) !== capture.persistentKey
+      )
+        return false;
+    }
+    return true;
+  }
+
+  render<T>(
+    scene: THREE.Scene,
+    page: ShadowAccumulationPage,
+    _samples: number,
+    draw: () => T
+  ): T {
+    if (!this.canReplay(page)) return draw();
+    const capture = this.captures.get(page.id)!;
     this.captures.delete(page.id);
     this.captures.set(page.id, capture);
     this.uniforms.carmaRetainedMatrix.value.copy(capture.matrix);
     this.uniforms.carmaRetainedCrop.value.copy(capture.crop);
-    this.uniforms.carmaRetainedColor.value = capture.target.texture;
-    this.uniforms.carmaRetainedDepth.value = capture.target.depthTexture;
-    this.uniforms.carmaRetainedSize.value.set(
-      capture.target.width,
-      capture.target.height
-    );
+    this.uniforms.carmaRetainedColor.value = capture.visibility;
+    this.uniforms.carmaRetainedDepth.value = capture.depth;
+    this.uniforms.carmaRetainedSize.value.set(capture.width, capture.height);
     this.matchingPages += 1;
     this.replayCount += 1;
     this.uniforms.carmaRetainedCount.value = 1;
@@ -261,6 +807,7 @@ export class ShadowCorridorPresentation {
   }
 
   capture<T>(scene: THREE.Scene, draw: () => T): T {
+    this.captureSupported = true;
     this.configureScene(scene);
     this.uniforms.carmaCaptureVisibility.value = true;
     try {
@@ -274,21 +821,28 @@ export class ShadowCorridorPresentation {
     scene.traverseVisible((object) => {
       const mesh = object as THREE.Mesh;
       // Their vertex transforms need a separate verified world-position path.
+      if (!mesh.isMesh) return;
       if (
-        !mesh.isMesh ||
         (mesh as THREE.InstancedMesh).isInstancedMesh ||
         (mesh as THREE.SkinnedMesh).isSkinnedMesh
-      )
+      ) {
+        this.captureSupported = false;
         return;
+      }
       for (const material of Array.isArray(mesh.material)
         ? mesh.material
         : [mesh.material]) {
+        if (this.unsupportedMaterials.has(material))
+          this.captureSupported = false;
         const lit =
           (material as THREE.MeshStandardMaterial).isMeshStandardMaterial ||
           (material as THREE.MeshLambertMaterial).isMeshLambertMaterial ||
           (material as THREE.MeshPhongMaterial).isMeshPhongMaterial;
-        if (!lit || material.transparent || this.materials.has(material))
+        if (!lit || material.transparent) {
+          this.captureSupported = false;
           continue;
+        }
+        if (this.materials.has(material)) continue;
         this.configure(material);
       }
     });
@@ -300,6 +854,23 @@ export class ShadowCorridorPresentation {
     const uniforms = this.uniforms;
     const retainedCompile: typeof compile = (shader, renderer) => {
       compile.call(material, shader, renderer);
+      const directionalShadow =
+        /getShadow\( directionalShadowMap\[ i \][^;]+?\)/;
+      // Custom compile hooks may remove our anchors. Preserve their live shader,
+      // but never publish its shaded colour as numeric visibility.
+      if (
+        !shader.vertexShader.includes("#include <common>") ||
+        !shader.vertexShader.includes("#include <project_vertex>") ||
+        !shader.fragmentShader.includes("#include <common>") ||
+        !shader.fragmentShader.includes("#include <lights_fragment_begin>") ||
+        !shader.fragmentShader.includes("#include <dithering_fragment>") ||
+        !directionalShadow.test(THREE.ShaderChunk.lights_fragment_begin)
+      ) {
+        this.unsupportedMaterials.add(material);
+        this.captureSupported = false;
+        return;
+      }
+      this.unsupportedMaterials.delete(material);
       Object.assign(shader.uniforms, uniforms);
       shader.vertexShader = shader.vertexShader
         .replace(
@@ -362,7 +933,7 @@ float carmaRetainedCoverage(float fallbackCoverage) {
 `
       );
       const lighting = THREE.ShaderChunk.lights_fragment_begin.replace(
-        /getShadow\( directionalShadowMap\[ i \][^;]+?\)/,
+        directionalShadow,
         (match) =>
           `(carmaCapturedCoverage = ${match}, carmaRetainedCoverage(carmaCapturedCoverage))`
       );
@@ -372,12 +943,14 @@ float carmaRetainedCoverage(float fallbackCoverage) {
           `float carmaCapturedCoverage = 1.0;\n${lighting}`
         )
         .replace(
-          "#include <opaque_fragment>",
-          "if (carmaCaptureVisibility) outgoingLight = vec3(carmaCapturedCoverage);\n#include <opaque_fragment>"
+          "#include <dithering_fragment>",
+          // Capture a scalar, not display colour. Keep all prior alpha/discard
+          // logic, then bypass tone mapping, colour space, fog and dithering.
+          "#include <dithering_fragment>\nif (carmaCaptureVisibility) gl_FragColor.rgb = vec3(carmaCapturedCoverage);"
         );
     };
     const retainedKey = () =>
-      `${key.call(material)}|retained-corridor-visibility-v2`;
+      `${key.call(material)}|retained-corridor-visibility-v3`;
     material.onBeforeCompile = retainedCompile;
     material.customProgramCacheKey = retainedKey;
     material.needsUpdate = true;
@@ -398,16 +971,16 @@ float carmaRetainedCoverage(float fallbackCoverage) {
   }
 
   dispose() {
-    for (const { target } of this.captures.values()) {
-      target.depthTexture?.dispose();
-      target.dispose();
-    }
+    this.disposed = true;
+    this.setPersistence(undefined);
+    for (const capture of this.captures.values()) disposeCapture(capture);
     this.captures.clear();
     this.uniforms.carmaRetainedEnabled.value = false;
     this.uniforms.carmaRetainedColor.value = null;
     this.uniforms.carmaRetainedDepth.value = null;
     this.copyQuad.geometry.dispose();
     this.copyMaterial.dispose();
+    this.packMaterial.dispose();
     for (const restore of this.materials.values()) restore();
     this.materials.clear();
   }

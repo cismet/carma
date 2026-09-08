@@ -32,6 +32,7 @@ const fixture = () => {
     getImage: vi.fn(
       (): {
         version: number;
+        data?: { width: number; height: number; data: Uint8Array };
         userImage?: { render: () => boolean };
       } => ({ version: 0 })
     ),
@@ -204,6 +205,33 @@ describe("MapLibre ground capture reuse", () => {
     cache.captured("pose");
     expect(cache.canReuse("pose", true)).toBe(true);
   });
+
+  it.each([NaN, undefined])(
+    "reuses stable versionless sprite pixels (%s) but detects an in-place update",
+    (version) => {
+      const { cache, emit, map } = fixture();
+      const data = new Uint8Array([10, 20, 30, 255]);
+      map.getImage.mockReturnValue({
+        version: version as number,
+        data: { width: 1, height: 1, data },
+      });
+      emit(MAPLIBRE_EVENT.IDLE);
+      cache.captured("pose");
+      const revision = cache.revision;
+      for (let frame = 0; frame < 128; frame += 1) {
+        expect(cache.revision).toBe(revision);
+        expect(cache.canReuse("pose", true)).toBe(true);
+        emit(MAPLIBRE_EVENT.IDLE);
+      }
+      data[2] = 99;
+      expect(cache.revision).toBeGreaterThan(revision);
+      expect(cache.canReuse("pose", true)).toBe(false);
+      emit(MAPLIBRE_EVENT.IDLE);
+      cache.captured("pose");
+      expect(cache.canReuse("pose", true)).toBe(true);
+      expect(cache.stats.captures).toBe(2);
+    }
+  );
 
   it("preserves eventless feature-state highlighting through the fallback", () => {
     const { cache, emit, map } = fixture();

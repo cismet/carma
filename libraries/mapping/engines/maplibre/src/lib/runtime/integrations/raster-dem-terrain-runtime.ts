@@ -35,6 +35,7 @@ import {
   setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
 import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
+import { createTerrainHeightMetadataIndex } from "./terrain-height-metadata-index";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import {
   planTerrainIdlePrefetch,
@@ -424,6 +425,17 @@ export const buildRasterDemTerrainRuntime = (
     noDataHeightMeters,
     producerAssetUrl
   );
+  const heightMetadata = createTerrainHeightMetadataIndex(
+    JSON.stringify([terrainSourceConfig, noDataHeightMeters]),
+    {
+      producerAssetUrl,
+      onRestored: () => {
+        if (disposed) return;
+        selectionInputSignature = "";
+        map?.triggerRepaint();
+      },
+    }
+  );
   const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
   const root = new Group();
   root.name = `${runtimeId}-root`;
@@ -621,12 +633,14 @@ export const buildRasterDemTerrainRuntime = (
       cached?.geometry?.dispose();
       signal.throwIfAborted();
     }
-    if (cached)
+    if (cached) {
+      heightMetadata.record(cached.tile);
       return {
         tile: cached.tile,
         projectedGeometry: cached.geometry,
         reliefVertexMask: cached.reliefVertexMask,
       };
+    }
     let tile: TerrainTile;
     try {
       tile =
@@ -643,6 +657,7 @@ export const buildRasterDemTerrainRuntime = (
       throw error;
     }
     signal.throwIfAborted();
+    heightMetadata.record(tile);
     // Exclude download and source-cache lookup: persistent derived geometry
     // must compete with the locally available source, not a slow network.
     const computeStart = performance.now();
@@ -1201,13 +1216,17 @@ export const buildRasterDemTerrainRuntime = (
     const shadowBounds = shadowView
       ? cameraFrustumBounds(shadowView.camera, root, origin, meterScale)
       : null;
-    const knownHeightRanges: Record<string, readonly [number, number]> = {};
+    const knownHeightRanges: Record<string, readonly [number, number]> =
+      heightMetadata.snapshot();
     for (const [key, record] of meshes) {
-      if (key.startsWith("source:"))
-        knownHeightRanges[terrainTileKey(record.id)] = [
-          record.minimumHeightMeters,
-          record.maximumHeightMeters,
+      if (key.startsWith("source:")) {
+        const tileKey = terrainTileKey(record.id);
+        const known = knownHeightRanges[tileKey];
+        knownHeightRanges[tileKey] = [
+          Math.min(known?.[0] ?? Infinity, record.minimumHeightMeters),
+          Math.max(known?.[1] ?? -Infinity, record.maximumHeightMeters),
         ];
+      }
     }
     return {
       viewportBounds: bounds,
@@ -1230,6 +1249,7 @@ export const buildRasterDemTerrainRuntime = (
         shadowView && shadowBounds
           ? {
               camera: snapshotCamera(shadowView.camera),
+              casterAngularRadiusRadians: shadowView.casterAngularRadiusRadians,
               shadowMapSize: [
                 shadowView.shadowMapSize.width,
                 shadowView.shadowMapSize.height,
@@ -1493,7 +1513,8 @@ export const buildRasterDemTerrainRuntime = (
       });
   };
   void sourcePromise
-    .then((terrainSource) => {
+    .then(async (terrainSource) => {
+      await heightMetadata.ready;
       if (disposed) {
         terrainSource.release();
         return;
@@ -1616,8 +1637,8 @@ export const buildRasterDemTerrainRuntime = (
       generation: selectionGeneration,
       selection,
       attemptedKeys: new Set(),
-      heightRanges: new Map(
-        [...meshes.values()].flatMap((record) =>
+      heightRanges: new Map([
+        ...[...meshes.values()].flatMap((record) =>
           shadowEntries.some(
             ({ id }) => terrainTileKey(id) === terrainTileKey(record.id)
           )
@@ -1631,8 +1652,11 @@ export const buildRasterDemTerrainRuntime = (
                 ] as const,
               ]
             : []
-        )
-      ),
+        ),
+        // Full native-raster observations take precedence over resident
+        // variants and remain available after the geometry was evicted.
+        ...Object.entries(heightMetadata.snapshot()),
+      ]),
       entries,
       shadowEntries,
     };
@@ -2206,6 +2230,7 @@ export const buildRasterDemTerrainRuntime = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      heightMetadata.dispose();
       invalidateIdlePrefetch();
       map?.off?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
       takePresentations.delete(root);
