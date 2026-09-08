@@ -38,10 +38,12 @@ import { useActiveRoute } from "./routeChannel";
  *
  * Navigation belongs to the route it was started on. Another route in focus,
  * or none, ends it: the user presses the button again for the next feature.
- * Ending it moves nothing by itself; turning the map back north is the camera
- * restriction's job (`cameraRestriction` with `unlessNavigating`), the same
- * addon that allows the rotation in the first place, because a restricted
- * camera resets its bearing to zero.
+ * Ending it puts the camera back to north-up and flat, eased when the user
+ * pressed the button and instantly when the route went away underneath, and
+ * only then hands the camera back to the restriction (`cameraRestriction`
+ * with `unlessNavigating`), the same addon that allows the rotation in the
+ * first place. Re-locking snaps rather than eases, which is why the camera is
+ * flattened first and locked second.
  *
  * MapLibre only: without a MapLibre map `start` does nothing.
  */
@@ -70,12 +72,56 @@ export const Routing = ({
   coordinatesRef.current = coordinates;
 
   const [navigating, setNavigating] = useState(false);
+  const navigatingRef = useRef(navigating);
+  navigatingRef.current = navigating;
+
+  /**
+   * Counts the flights, so a `moveend` of a leave that was overtaken by a new
+   * `start` does not end the navigation that start just began.
+   */
+  const flightRef = useRef(0);
+
+  /**
+   * Takes the camera off the route: back to north-up and flat, which is the
+   * view the restriction locks to, and then ends the navigation. The order
+   * matters: `navigating` stays true until the camera is flat, because the
+   * restriction re-locks the moment it flips and would snap the camera there
+   * instead of letting it ease.
+   *
+   * Eased when the user asks for it, instant when the route goes away
+   * underneath (a new starting point, another pick): whoever took the route
+   * is about to move the map, and a flight of ours would be cut by theirs.
+   */
+  const leave = useCallback(
+    (animate: boolean) => {
+      const map = mapRef.current;
+      const flight = ++flightRef.current;
+      if (!map || !animate) {
+        map?.jumpTo({ pitch: 0, bearing: 0 });
+        setNavigating(false);
+        return;
+      }
+      if (map.getPitch() === 0 && map.getBearing() === 0) {
+        setNavigating(false);
+        return;
+      }
+      map.once("moveend", () => {
+        if (flightRef.current === flight) {
+          setNavigating(false);
+        }
+      });
+      map.easeTo({ pitch: 0, bearing: 0, duration });
+    },
+    [duration]
+  );
 
   // the route this navigation was started on is not the one in focus any
   // more, or there is none: the navigation goes with it
   useEffect(() => {
-    setNavigating(false);
-  }, [coordinates]);
+    if (navigatingRef.current) {
+      leave(false);
+    }
+  }, [coordinates, leave]);
 
   const start = useCallback(() => {
     const map = mapRef.current;
@@ -87,6 +133,7 @@ export const Routing = ({
     if (!target) {
       return;
     }
+    flightRef.current++;
     // the restriction reads `navigating` and unlocks the camera on it; that
     // write lands before the ease starts moving, so the bearing sticks
     setNavigating(true);
@@ -100,8 +147,8 @@ export const Routing = ({
   }, [zoom, pitch, lookAheadMeters, duration]);
 
   const stop = useCallback(() => {
-    setNavigating(false);
-  }, []);
+    leave(true);
+  }, [leave]);
 
   /**
    * The button, for as long as there is a route to go along. Re-registered
