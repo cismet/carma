@@ -40,8 +40,10 @@ import type { LocateMarkerElement } from "./locate/locate-marker";
 export type LocateProblem =
   /** the permission was declined, here or for the site as a whole */
   | "denied"
-  /** the device could not produce a fix, timeout included */
+  /** the device could not produce a fix */
   | "unavailable"
+  /** the device did not answer in time; a slow fix, not a refusal */
+  | "timeout"
   /** no geolocation api in this browser */
   | "unsupported";
 
@@ -263,7 +265,11 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       (error) => {
         console.error("Error getting location:", error);
         setProblem(
-          error.code === error.PERMISSION_DENIED ? "denied" : "unavailable"
+          error.code === error.PERMISSION_DENIED
+            ? "denied"
+            : error.code === error.TIMEOUT
+              ? "timeout"
+              : "unavailable"
         );
         setIsLoading(false);
         setIsLocationActive(false);

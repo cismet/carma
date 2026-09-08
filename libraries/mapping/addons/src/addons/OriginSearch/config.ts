@@ -66,6 +66,8 @@ export const NO_POSITION_WARNINGS = {
     "Standortfreigabe abgelehnt. Der Startpunkt kann nicht auf Ihren Standort gesetzt werden: bitte suchen Sie ihn.",
   unavailable:
     "Ihr Standort konnte nicht ermittelt werden. Bitte suchen Sie den Startpunkt.",
+  timeout:
+    "Die Standortermittlung hat zu lange gedauert. Bitte suchen Sie den Startpunkt.",
   unsupported:
     "Dieser Browser kann Ihren Standort nicht ermitteln. Bitte suchen Sie den Startpunkt.",
 } as const;
