@@ -36,7 +36,12 @@ export type {
 } from "./lib/mapping";
 
 export { registerUi } from "./lib/ui";
-export type { InfoBoxAction, UiAdapter, UiFacade } from "./lib/ui";
+export type {
+  InfoBoxAction,
+  InfoBoxNote,
+  UiAdapter,
+  UiFacade,
+} from "./lib/ui";
 
 export { registerGazetteer } from "./lib/gazetteer";
 export type {
