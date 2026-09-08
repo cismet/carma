@@ -31,16 +31,13 @@ type Anchor = AnnotationAnchor;
 
 type SceneCamera = { scrollX: number; scrollY: number; scale: number };
 
+/** a camera we wrote, kept with the anchor it was worked out against */
+type PushedCamera = SceneCamera & { anchor: Anchor };
+
 const same = (a: SceneCamera, b: SceneCamera) =>
   Math.abs(a.scrollX - b.scrollX) < EPSILON &&
   Math.abs(a.scrollY - b.scrollY) < EPSILON &&
   Math.abs(a.scale - b.scale) < EPSILON;
-
-const asPlane = (camera: SceneCamera): PlaneCamera => ({
-  scrollX: camera.scrollX,
-  scrollY: camera.scrollY,
-  zoom: camera.scale,
-});
 
 /**
  * Pins the scene to the ground at one anchor lng/lat, taken from the camera
@@ -81,7 +78,7 @@ export const useMapSceneSync = (
   } = limits;
   const anchorRef = useRef<Anchor | null>(savedAnchor ?? null);
   const restoredRef = useRef(Boolean(savedAnchor));
-  const pushedRef = useRef<SceneCamera | null>(null);
+  const pushedRef = useRef<PushedCamera | null>(null);
   /** false until the scene has handed a camera of ours back through onChange */
   const primedRef = useRef(false);
   const repushRef = useRef(0);
@@ -89,7 +86,6 @@ export const useMapSceneSync = (
 
   /** the camera the plane is solved against: what the scene is rendering with */
   const appliedRef = useRef<PlaneCamera | null>(null);
-  const settleRef = useRef(0);
 
   const holdingRef = useRef(false);
   const touchedRef = useRef(0);
@@ -176,7 +172,7 @@ export const useMapSceneSync = (
       return;
     }
 
-    pushedRef.current = camera;
+    pushedRef.current = { ...camera, anchor };
     api.updateScene({
       appState: {
         scrollX: camera.scrollX,
@@ -185,30 +181,6 @@ export const useMapSceneSync = (
       },
     });
   }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf, plane]);
-
-  /**
-   * Takes the camera the scene reports as the one the plane is read against —
-   * two frames later, because excalidraw throttles its canvas into the next
-   * frame and the matrix must not swap over before the pixels it lines up with
-   * are painted. Both descriptions draw the same picture while it waits.
-   */
-  const settlePlaneCamera = useCallback(
-    (camera: SceneCamera) => {
-      settleRef.current += 1;
-      const token = settleRef.current;
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          if (settleRef.current !== token) {
-            return;
-          }
-          appliedRef.current = asPlane(camera);
-          setInSync(true);
-          map?.triggerRepaint();
-        })
-      );
-    },
-    [map]
-  );
 
   const applySceneCamera = useCallback(
     (state: Pick<AppState, "scrollX" | "scrollY" | "zoom">) => {
@@ -239,6 +211,7 @@ export const useMapSceneSync = (
         const applied = appliedRef.current;
         if (
           applied &&
+          applied.anchor === pushed.anchor &&
           same(camera, {
             scrollX: applied.scrollX,
             scrollY: applied.scrollY,
@@ -247,7 +220,22 @@ export const useMapSceneSync = (
         ) {
           return;
         }
-        settlePlaneCamera(camera);
+        /**
+         * Straight away, in the same turn the scene reports it. The canvas has
+         * already been repainted with this camera; a matrix still solved from
+         * the one before it draws the scene at the ratio between the two, and
+         * across a rebase that ratio is the whole zoom step. It carries the
+         * anchor the camera was pushed with, because that is the only anchor
+         * these coordinates mean anything against.
+         */
+        appliedRef.current = {
+          anchor: pushed.anchor,
+          scrollX: camera.scrollX,
+          scrollY: camera.scrollY,
+          zoom: camera.scale,
+        };
+        setInSync(true);
+        map.triggerRepaint();
         return;
       }
 
@@ -288,16 +276,7 @@ export const useMapSceneSync = (
         ]),
       });
     },
-    [
-      applyMapCamera,
-      inSync,
-      interactive,
-      map,
-      offsetOf,
-      plane,
-      settlePlaneCamera,
-      userDriven,
-    ]
+    [applyMapCamera, inSync, interactive, map, offsetOf, plane, userDriven]
   );
 
   // a fresh excalidraw starts from its own defaults again, so nothing it says
@@ -307,7 +286,6 @@ export const useMapSceneSync = (
     primedRef.current = false;
     repushRef.current = 0;
     appliedRef.current = null;
-    settleRef.current += 1;
   }, [api]);
 
   useEffect(() => {

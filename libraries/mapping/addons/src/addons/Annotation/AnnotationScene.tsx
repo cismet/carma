@@ -214,7 +214,7 @@ export const AnnotationScene = ({
   const ground = useGroundPlane({
     map: libreMap,
     box,
-    getAnchor,
+    // the anchor rides with the camera, so the plane never mixes two of them
     getCamera: getPlaneCamera,
     enabled: plane,
   });
@@ -237,6 +237,8 @@ export const AnnotationScene = ({
     overlay: box,
     getAnchor,
     setAnchorZoom,
+    // measured against what the plane is painted with, not where the map is
+    getCamera: plane ? getPlaneCamera : undefined,
   });
 
   const versionRef = useRef(-1);

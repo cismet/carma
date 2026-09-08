@@ -19,6 +19,7 @@ import {
 } from "./annotation-clip";
 import type { SceneRect } from "./annotation-clip";
 import { planeSceneRect } from "./annotation-scene-space";
+import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor } from "./types";
 
 /**
@@ -292,6 +293,16 @@ export type UseDecorationScaleOptions = {
   getAnchor: () => AnnotationAnchor | null;
   /** moves the anchor to another zoom, leaving it where it is on the ground */
   setAnchorZoom: (zoom: number) => void;
+  /**
+   * The camera the scene is really painted with, where there is a ground
+   * plane, and the anchor that camera counts from. Everything here is measured
+   * against what is on the canvas, never against where the map happens to be:
+   * the two are the same number only at rest, and a pass that reads the map
+   * mid-gesture rewrites the drawing for a scale it is not being drawn at.
+   * Left out, the map's own zoom is the camera — which is what it is with the
+   * plane switched off.
+   */
+  getCamera?: () => PlaneCamera | null;
 };
 
 /**
@@ -311,6 +322,7 @@ export const useDecorationScale = ({
   overlay,
   getAnchor,
   setAnchorZoom,
+  getCamera,
 }: UseDecorationScaleOptions) => {
   const scaleRef = useRef(0);
   const penRef = useRef<Pen>({
@@ -328,17 +340,59 @@ export const useDecorationScale = ({
   const clipRef = useRef<SceneRect | null>(null);
 
   /**
-   * The plane in scene units, given the camera the scene is about to be read
-   * at. Scene units are map pixels at the anchor's zoom counted from the
-   * anchor, so the anchor's own screen position is where they start. One
-   * measurement, shared with the plane transform and the hit test, see
-   * `annotation-scene-space`.
+   * The plane in scene units, read at `scale`. With a ground plane that is the
+   * box the scene is painted into, taken straight from the camera it is
+   * painted with — where the map is standing right now says nothing about it.
+   * Without one it is what is on screen, measured from the anchor.
    */
   const viewportRect = useCallback(
-    (scale: number): SceneRect | null =>
-      planeSceneRect(libreMap, overlay, getAnchor(), scale),
-    [getAnchor, libreMap, overlay]
+    (scale: number): SceneRect | null => {
+      const camera = getCamera?.();
+      if (!camera) {
+        return planeSceneRect(libreMap, overlay, getAnchor(), scale);
+      }
+      if (
+        !overlay ||
+        camera.anchor !== getAnchor() ||
+        !(scale > 0) ||
+        !(camera.zoom > 0)
+      ) {
+        return null;
+      }
+      const box = overlay.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) {
+        return null;
+      }
+      // a rebase reads the same box in smaller units, by the same factor the
+      // elements are rewritten with
+      const factor = camera.zoom / scale;
+      return {
+        minX: -camera.scrollX * factor,
+        minY: -camera.scrollY * factor,
+        maxX: (box.width / camera.zoom - camera.scrollX) * factor,
+        maxY: (box.height / camera.zoom - camera.scrollY) * factor,
+      };
+    },
+    [getAnchor, getCamera, libreMap, overlay]
   );
+
+  /**
+   * The scale the scene is drawn at: the painted camera, or the map's own
+   * where there is no plane. Null while the scene is still painted against an
+   * anchor the drawing has already moved past — a coordinate does not mean the
+   * same thing in the two of them, so there is nothing to measure yet.
+   */
+  const paintedScale = useCallback((): number | null => {
+    const anchor = getAnchor();
+    if (!libreMap || !anchor) {
+      return null;
+    }
+    const camera = getCamera?.();
+    if (!camera) {
+      return 2 ** (libreMap.getZoom() - anchor.zoom);
+    }
+    return camera.anchor === anchor ? camera.zoom : null;
+  }, [getAnchor, getCamera, libreMap]);
 
   const noteState = useCallback((state: AppState) => {
     // excalidraw's own state, so this is what it really has right now
@@ -373,9 +427,8 @@ export const useDecorationScale = ({
       if (!api || !libreMap || !anchor) {
         return;
       }
-      const mapZoom = libreMap.getZoom();
-      const camera = 2 ** (mapZoom - anchor.zoom);
-      if (!(camera > 0)) {
+      const camera = paintedScale();
+      if (camera === null || !(camera > 0)) {
         return;
       }
       const moved =
@@ -497,8 +550,9 @@ export const useDecorationScale = ({
       }
       if (rebasing) {
         // before the elements land, so the camera for the new anchor is what
-        // the scene draws them with
-        setAnchorZoom(mapZoom);
+        // the scene draws them with. Read off the painted camera, not the map:
+        // the zoom that puts this scale at 1 is the one the scene is at
+        setAnchorZoom(anchor.zoom + Math.log2(camera));
       }
       // not an edit the user made, so it stays out of the undo history
       api.updateScene({
@@ -516,7 +570,7 @@ export const useDecorationScale = ({
         commitToHistory: false,
       });
     },
-    [api, getAnchor, libreMap, setAnchorZoom, viewportRect]
+    [api, getAnchor, libreMap, paintedScale, setAnchorZoom, viewportRect]
   );
 
   /**
@@ -530,11 +584,11 @@ export const useDecorationScale = ({
     }
     const onMove = () => {
       const clipped = clipRef.current;
-      const anchor = getAnchor();
-      if (!clipped || !anchor) {
+      const scale = paintedScale();
+      if (!clipped || scale === null) {
         return;
       }
-      const viewport = viewportRect(2 ** (libreMap.getZoom() - anchor.zoom));
+      const viewport = viewportRect(scale);
       if (!viewport || clipCovers(clipped, viewport)) {
         return;
       }
@@ -544,7 +598,7 @@ export const useDecorationScale = ({
     return () => {
       libreMap.off("move", onMove);
     };
-  }, [api, getAnchor, libreMap, normalize, viewportRect]);
+  }, [api, libreMap, normalize, paintedScale, viewportRect]);
 
   useEffect(() => {
     if (!api || !libreMap) {
