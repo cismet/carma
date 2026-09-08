@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
@@ -14,6 +15,10 @@ import { applyPen, penFrom } from "./annotation-pen";
 import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
 import { useDecorationScale } from "./annotation-normalize";
+import { usePlaneEnabled } from "./annotation-plane-flag";
+import { useGroundPlane, usePlaneMargin } from "./annotation-plane";
+import { usePlanePointer } from "./annotation-plane-pointer";
+import { sceneToLngLat } from "./annotation-scene-space";
 import { useMapSceneSync } from "./map-scene-sync";
 import type { AnnotationPen } from "./annotation-pen";
 import type { AnnotationShape } from "./shape-tools";
@@ -179,16 +184,47 @@ export const AnnotationScene = ({
 }: AnnotationSceneProps) => {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
-  const { inSync, onSceneChange, getAnchor, reanchor, setAnchorZoom } =
-    useMapSceneSync(
-      libreMap,
-      api,
-      box,
-      editable,
-      live,
-      syncLimits,
-      savedAnchor
-    );
+  const plane = usePlaneEnabled();
+  const {
+    inSync,
+    onSceneChange,
+    getAnchor,
+    getPlaneCamera,
+    reanchor,
+    setAnchorZoom,
+  } = useMapSceneSync(
+    libreMap,
+    api,
+    box,
+    editable,
+    live,
+    syncLimits,
+    savedAnchor,
+    plane
+  );
+  const drawing = editable && inSync;
+
+  /**
+   * The drawing lies on the ground and is put on screen by one matrix a frame,
+   * so it follows bearing and pitch instead of being hidden by them. The plane
+   * hangs past the map area on every side, which is what a rotation turns into
+   * the corners; the box is clipped back to the map area in CSS.
+   */
+  const margin = usePlaneMargin(host, plane);
+  const ground = useGroundPlane({
+    map: libreMap,
+    box,
+    getAnchor,
+    getCamera: getPlaneCamera,
+    enabled: plane,
+  });
+  usePlanePointer({
+    map: libreMap,
+    api,
+    box,
+    enabled: plane && drawing,
+    toPlane: ground.screenToPlaneClient,
+  });
 
   /**
    * Stroke width, font size and image size are screen referenced: they keep
@@ -306,12 +342,13 @@ export const AnnotationScene = ({
     api?.updateScene({ appState: { viewBackgroundColor: "transparent" } });
   }, [api]);
 
+  const toScene = plane ? ground.screenToScene : undefined;
   useEffect(() => {
     onProbe(id, (clientX, clientY) =>
-      sceneHasElementAt(api, box, clientX, clientY)
+      sceneHasElementAt(api, box, clientX, clientY, toScene)
     );
     return () => onProbe(id, null);
-  }, [api, box, id, onProbe]);
+  }, [api, box, id, onProbe, toScene]);
 
   const historyRef = useRef({ undoVersion, redoVersion });
   useEffect(() => {
@@ -355,6 +392,23 @@ export const AnnotationScene = ({
       libreMap.off("moveend", follow);
     };
   }, [api, editable, libreMap, reanchor]);
+
+  /**
+   * The residual the matrix carried through the gesture is folded back into
+   * the scene once the map is still: `useMapSceneSync` writes the camera for
+   * where the map now stands, and the decoration is measured against it again.
+   * From there the matrix is the identity until the next gesture.
+   */
+  useEffect(() => {
+    if (!libreMap || !plane) {
+      return;
+    }
+    const settle = () => normalizeDecoration(true);
+    libreMap.on("moveend", settle);
+    return () => {
+      libreMap.off("moveend", settle);
+    };
+  }, [libreMap, normalizeDecoration, plane]);
 
   /**
    * Excalidraw only sees a shortcut that happens inside its own container:
@@ -457,12 +511,8 @@ export const AnnotationScene = ({
     }
 
     // scene units are map pixels at the anchor zoom, measured from the anchor
-    const scale = 2 ** (libreMap.getZoom() - anchor.zoom);
-    const origin = libreMap.project([anchor.lng, anchor.lat]);
-    const at = (x: number, y: number) =>
-      libreMap.unproject([origin.x + x * scale, origin.y + y * scale]);
-    const topLeft = at(bounds.minX, bounds.minY);
-    const bottomRight = at(bounds.maxX, bounds.maxY);
+    const topLeft = sceneToLngLat(anchor, bounds.minX, bounds.minY);
+    const bottomRight = sceneToLngLat(anchor, bounds.maxX, bounds.maxY);
 
     const camera = libreMap.cameraForBounds(
       [
@@ -481,29 +531,32 @@ export const AnnotationScene = ({
     });
   }, [api, getAnchor, libreMap, zoomVersion]);
 
-  const drawing = editable && inSync;
-
   return createPortal(
     <div
       ref={setBox}
       className="carma-annotation-overlay"
       data-drawing={drawing ? "true" : "false"}
+      data-plane={plane ? "true" : "false"}
       data-hide-menu={chrome.hideMenu ? "true" : "false"}
       data-hide-zoom={chrome.hideZoom ? "true" : "false"}
       data-hide-tools={chrome.hideTools ? "true" : "false"}
       data-hide-help={chrome.hideHelp ? "true" : "false"}
       data-hide-library={chrome.hideLibrary ? "true" : "false"}
       data-hide-history={chrome.hideHistory ? "true" : "false"}
-      style={{
-        position: "absolute",
-        top: inset.top,
-        right: inset.right,
-        bottom: inset.bottom,
-        left: inset.left,
-        zIndex,
-        pointerEvents: drawing ? "auto" : "none",
-        visibility: inSync && shown ? "visible" : "hidden",
-      }}
+      style={
+        {
+          position: "absolute",
+          top: inset.top - margin.y,
+          right: inset.right - margin.x,
+          bottom: inset.bottom - margin.y,
+          left: inset.left - margin.x,
+          zIndex,
+          pointerEvents: drawing ? "auto" : "none",
+          visibility: inSync && shown ? "visible" : "hidden",
+          "--carma-plane-x": `${margin.x}px`,
+          "--carma-plane-y": `${margin.y}px`,
+        } as CSSProperties
+      }
     >
       <Suspense fallback={null}>
         <Excalidraw

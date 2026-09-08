@@ -6,6 +6,8 @@ import type {
   NormalizedZoomValue,
 } from "@excalidraw/excalidraw/types/types";
 
+import { overlayOffset } from "./annotation-scene-space";
+import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
 
 /** excalidraw clamps zoom.value to this range; see its getNormalizedZoom */
@@ -34,25 +36,31 @@ const same = (a: SceneCamera, b: SceneCamera) =>
   Math.abs(a.scrollY - b.scrollY) < EPSILON &&
   Math.abs(a.scale - b.scale) < EPSILON;
 
+const asPlane = (camera: SceneCamera): PlaneCamera => ({
+  scrollX: camera.scrollX,
+  scrollY: camera.scrollY,
+  zoom: camera.scale,
+});
+
 /**
  * Pins the scene to the ground at one anchor lng/lat, taken from the camera
- * while `live` and the scene is still empty. The rest follows because
- * excalidraw's `screen = (scene + scroll) * zoom` is a translate and a uniform
- * scale — the same transform as a north-up web mercator map.
+ * while `live` and the scene is still empty.
  *
- * Two-way: the map drives the scene while the overlay is passive, the scene
- * drives the map while it owns the pointer. `pushedRef` breaks the loop, since
- * every update we write comes back through `onChange`.
+ * With the ground plane on, this is the slow half of the two: it writes
+ * excalidraw's camera when the map comes to rest, and never in between. What
+ * happens during a gesture is a matrix, see `annotation-plane`. The camera the
+ * plane is solved against is not the one we wrote but the one the scene says
+ * it is rendering with, delivered through `onSceneChange` — so a value
+ * excalidraw clamped or moved on its own is compensated by the matrix instead
+ * of putting the drawing in the wrong place. The scene never drives the map;
+ * the gestures that used to reach it that way are handed to maplibre in
+ * `annotation-plane-pointer`.
  *
- * The scene only gets to drive once it has echoed a camera we pushed, and only
- * while `interactive`. Excalidraw hands over its API before it has finished
- * applying `initialData`, so its own default camera can arrive after our first
- * push — and following that would drag the map half a viewport off, see
- * `applySceneCamera`.
- *
- * The shared transform does not hold on a rotated or tilted map, or past
- * excalidraw's zoom clamp. `limits` says which of those hide the overlay;
- * with none set the drawing stays on screen, off its ground position.
+ * With the plane off this is what it always was: the map drives the scene on
+ * every `move` through excalidraw's `screen = (scene + scroll) * zoom`, the
+ * scene drives the map while it owns the pointer, `pushedRef` breaks the loop,
+ * and `limits` hides the overlay wherever that shared transform stops holding
+ * — on a rotated or tilted map, or past excalidraw's zoom clamp.
  */
 export const useMapSceneSync = (
   map: MaplibreMap | null,
@@ -62,7 +70,9 @@ export const useMapSceneSync = (
   interactive: boolean,
   live: boolean,
   limits: AnnotationSyncLimits,
-  savedAnchor?: AnnotationAnchor
+  savedAnchor?: AnnotationAnchor,
+  /** the drawing follows bearing and pitch; see `annotation-plane-flag` */
+  plane = false
 ) => {
   const {
     rotated: hideRotated = false,
@@ -76,6 +86,10 @@ export const useMapSceneSync = (
   const primedRef = useRef(false);
   const repushRef = useRef(0);
   const [inSync, setInSync] = useState(false);
+
+  /** the camera the plane is solved against: what the scene is rendering with */
+  const appliedRef = useRef<PlaneCamera | null>(null);
+  const settleRef = useRef(0);
 
   const holdingRef = useRef(false);
   const touchedRef = useRef(0);
@@ -124,9 +138,7 @@ export const useMapSceneSync = (
     if (!map || !overlay) {
       return { x: 0, y: 0 };
     }
-    const container = map.getContainer().getBoundingClientRect();
-    const box = overlay.getBoundingClientRect();
-    return { x: box.left - container.left, y: box.top - container.top };
+    return overlayOffset(map, overlay);
   }, [map, overlay]);
 
   const applyMapCamera = useCallback(() => {
@@ -136,11 +148,18 @@ export const useMapSceneSync = (
     }
 
     const scale = 2 ** (map.getZoom() - anchor.zoom);
-    const usable =
-      (!hideRotated || map.getBearing() === 0) &&
-      (!hideTilted || map.getPitch() === 0) &&
-      (!hideZoom || (scale >= MIN_SCENE_ZOOM && scale <= MAX_SCENE_ZOOM));
-    setInSync(usable);
+    const inZoomRange = scale >= MIN_SCENE_ZOOM && scale <= MAX_SCENE_ZOOM;
+    const usable = plane
+      ? !hideZoom || inZoomRange
+      : (!hideRotated || map.getBearing() === 0) &&
+        (!hideTilted || map.getPitch() === 0) &&
+        (!hideZoom || inZoomRange);
+    // with the plane on, what the scene is rendering with is what decides
+    if (!plane) {
+      setInSync(usable);
+    } else if (!usable) {
+      setInSync(false);
+    }
     if (!usable) {
       return;
     }
@@ -153,6 +172,9 @@ export const useMapSceneSync = (
       scrollY: (point.y - offset.y) / scale,
       scale,
     };
+    if (plane && pushedRef.current && same(camera, pushedRef.current)) {
+      return;
+    }
 
     pushedRef.current = camera;
     api.updateScene({
@@ -162,7 +184,31 @@ export const useMapSceneSync = (
         zoom: { value: scale as NormalizedZoomValue },
       },
     });
-  }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf]);
+  }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf, plane]);
+
+  /**
+   * Takes the camera the scene reports as the one the plane is read against —
+   * two frames later, because excalidraw throttles its canvas into the next
+   * frame and the matrix must not swap over before the pixels it lines up with
+   * are painted. Both descriptions draw the same picture while it waits.
+   */
+  const settlePlaneCamera = useCallback(
+    (camera: SceneCamera) => {
+      settleRef.current += 1;
+      const token = settleRef.current;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (settleRef.current !== token) {
+            return;
+          }
+          appliedRef.current = asPlane(camera);
+          setInSync(true);
+          map?.triggerRepaint();
+        })
+      );
+    },
+    [map]
+  );
 
   const applySceneCamera = useCallback(
     (state: Pick<AppState, "scrollX" | "scrollY" | "zoom">) => {
@@ -178,6 +224,33 @@ export const useMapSceneSync = (
         scrollY: state.scrollY,
         scale: state.zoom.value,
       };
+
+      if (plane) {
+        if (!primedRef.current) {
+          // excalidraw's own default lands after our first push, and following
+          // that would put the plane half a viewport off
+          if (!same(camera, pushed) && repushRef.current < REPUSH_LIMIT) {
+            repushRef.current += 1;
+            applyMapCamera();
+            return;
+          }
+          primedRef.current = true;
+        }
+        const applied = appliedRef.current;
+        if (
+          applied &&
+          same(camera, {
+            scrollX: applied.scrollX,
+            scrollY: applied.scrollY,
+            scale: applied.zoom,
+          })
+        ) {
+          return;
+        }
+        settlePlaneCamera(camera);
+        return;
+      }
+
       if (same(camera, pushed)) {
         // our own camera coming back: the scene is speaking our coordinates now
         primedRef.current = true;
@@ -215,7 +288,16 @@ export const useMapSceneSync = (
         ]),
       });
     },
-    [applyMapCamera, inSync, interactive, map, offsetOf, userDriven]
+    [
+      applyMapCamera,
+      inSync,
+      interactive,
+      map,
+      offsetOf,
+      plane,
+      settlePlaneCamera,
+      userDriven,
+    ]
   );
 
   // a fresh excalidraw starts from its own defaults again, so nothing it says
@@ -224,6 +306,8 @@ export const useMapSceneSync = (
     pushedRef.current = null;
     primedRef.current = false;
     repushRef.current = 0;
+    appliedRef.current = null;
+    settleRef.current += 1;
   }, [api]);
 
   useEffect(() => {
@@ -239,7 +323,10 @@ export const useMapSceneSync = (
     }
 
     applyMapCamera();
-    map.on("move", applyMapCamera);
+    // the plane carries the camera through a gesture, so the scene is only
+    // written where a write costs nothing: at rest
+    const moved = plane ? "moveend" : "move";
+    map.on(moved, applyMapCamera);
     map.on("resize", applyMapCamera);
 
     // the measured offset moves whenever the app's chrome does
@@ -249,13 +336,15 @@ export const useMapSceneSync = (
     }
 
     return () => {
-      map.off("move", applyMapCamera);
+      map.off(moved, applyMapCamera);
       map.off("resize", applyMapCamera);
       sizes?.disconnect();
     };
-  }, [api, applyMapCamera, live, map, overlay]);
+  }, [api, applyMapCamera, live, map, overlay, plane]);
 
   const getAnchor = useCallback(() => anchorRef.current, []);
+
+  const getPlaneCamera = useCallback(() => appliedRef.current, []);
 
   /**
    * Pins the scene at the current camera, so it renders at 100 % right here.
@@ -303,6 +392,7 @@ export const useMapSceneSync = (
     inSync,
     onSceneChange: applySceneCamera,
     getAnchor,
+    getPlaneCamera,
     reanchor,
     setAnchorZoom,
   };

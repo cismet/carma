@@ -2,6 +2,12 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types
 
 import { isClipProxy } from "./annotation-clip";
 
+/** a client point read into scene units, see `annotation-plane` */
+export type ScreenToScene = (
+  clientX: number,
+  clientY: number
+) => { x: number; y: number } | null;
+
 const TOLERANCE = 6;
 
 type Bounds = {
@@ -29,28 +35,34 @@ const contains = (element: Bounds, x: number, y: number, pad: number) => {
   );
 };
 
+/**
+ * Whether the drawing has anything under a client point. The point is taken
+ * into the scene the same way the plane transform takes it, when there is one:
+ * on a tilted or rotated map the flat reading below is not where the user is
+ * pointing. See `annotation-plane`.
+ */
 export const sceneHasElementAt = (
   api: ExcalidrawImperativeAPI | null,
   box: HTMLElement | null,
   clientX: number,
-  clientY: number
+  clientY: number,
+  screenToScene?: ScreenToScene
 ): boolean => {
   if (!api || !box) {
     return false;
   }
   const { scrollX, scrollY, zoom } = api.getAppState();
   const rect = box.getBoundingClientRect();
-  const x = (clientX - rect.left) / zoom.value - scrollX;
-  const y = (clientY - rect.top) / zoom.value - scrollY;
+  const at = screenToScene?.(clientX, clientY);
+  const x = at ? at.x : (clientX - rect.left) / zoom.value - scrollX;
+  const y = at ? at.y : (clientY - rect.top) / zoom.value - scrollY;
   const pad = TOLERANCE / zoom.value;
 
-  return api
-    .getSceneElements()
-    .some(
-      (element) =>
-        !element.isDeleted &&
-        // the element a copy stands for is in here too, at its full size
-        !isClipProxy(element) &&
-        contains(element, x, y, pad)
-    );
+  return api.getSceneElements().some(
+    (element) =>
+      !element.isDeleted &&
+      // the element a copy stands for is in here too, at its full size
+      !isClipProxy(element) &&
+      contains(element, x, y, pad)
+  );
 };

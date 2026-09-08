@@ -26,6 +26,20 @@ export { readDrawings, writeDrawings } from "./annotation-storage";
 export type { StoredDrawing } from "./annotation-storage";
 export { useAnnotationStorage } from "./useAnnotationStorage";
 export { sceneHasElementAt } from "./annotation-hit-test";
+export type { ScreenToScene } from "./annotation-hit-test";
+export {
+  isPlaneEnabled,
+  setPlaneEnabled,
+  usePlaneEnabled,
+} from "./annotation-plane-flag";
+export { useGroundPlane, usePlaneMargin } from "./annotation-plane";
+export type { GroundPlane, PlaneCamera, PlaneMargin } from "./annotation-plane";
+export { usePlanePointer } from "./annotation-plane-pointer";
+export {
+  lngLatToScene,
+  planeSceneRect,
+  sceneToLngLat,
+} from "./annotation-scene-space";
 export { useDecorationScale } from "./annotation-normalize";
 export type { UseDecorationScaleOptions } from "./annotation-normalize";
 export { useDrawingPicker } from "./useDrawingPicker";
