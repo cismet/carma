@@ -13,7 +13,7 @@ import {
   type TerrainTileBounds,
   type TerrainTileId,
   terrainTileKey,
-} from "../runtime/integrations/raster-dem-tile";
+} from "./raster-dem-tile";
 
 export type TerrainSelectionEntry = Readonly<{
   id: TerrainTileId;
@@ -512,44 +512,76 @@ export const buildTerrainSelection = (
             y: entry.id.y >> (entry.id.level - level),
           },
         };
-  const maximumViewportLevel = viewportEntries.reduce(
-    (max, entry) => Math.max(max, entry.id.level),
-    rootLevel
+  // A near tile must not force the entire distant viewport to its resolution.
+  // Find each receiver's first useful ancestor, then refine the cut one level
+  // at a time. The loader publishes each cut before spending work on the next.
+  const previewLevels = viewportEntries.map((entry) => {
+    for (let level = rootLevel; level < entry.id.level; level += 1) {
+      const candidate = ancestor(entry, level);
+      if (
+        tileIsAvailable(adapter, candidate.id) &&
+        toCandidate(candidate).viewportErrorRatio * input.errorTargetPixels <=
+          input.initialErrorTargetPixels
+      )
+        return level;
+    }
+    return entry.id.level;
+  });
+  const refinementSteps = viewportEntries.reduce(
+    (max, entry, index) => Math.max(max, entry.id.level - previewLevels[index]),
+    0
   );
   const viewportStages: TerrainSelectionEntry[][] = [];
-  for (let level = rootLevel; level <= maximumViewportLevel; level += 1) {
-    const stageByKey = new Map<string, TerrainSelectionEntry>();
-    for (const entry of viewportEntries)
-      stageByKey.set(
-        selectionKey(ancestor(entry, level)),
-        ancestor(entry, level)
-      );
-    const stage = [...stageByKey.values()].sort(
-      (a, b) => getMetrics(a).distance - getMetrics(b).distance
-    );
+  // Responsiveness takes precedence over the preview error goal: unknown
+  // heights can conservatively put the eye inside every tile's bounds. Start
+  // with at most four ancestors where possible, rather than waiting for a
+  // screen full of source-maxzoom tiles. Never coarsen an already visible cut.
+  for (
+    let level = Math.min(input.maximumLevel, ...previewLevels);
+    level >= rootLevel;
+    level -= 1
+  ) {
+    const coverage = new Map<string, TerrainSelectionEntry>();
+    for (const entry of viewportEntries) {
+      const candidate = ancestor(entry, level);
+      coverage.set(selectionKey(candidate), candidate);
+    }
+    if (coverage.size > 4 && level > rootLevel) continue;
     if (
-      stage.every((entry) => {
-        const view = getMetrics(entry);
-        const distance = Math.max(
-          1,
-          view.localBoundingBox.distanceToPoint(localCameraPosition)
-        );
-        const focal =
-          input.viewport[1] /
-          (2 * Math.tan((input.renderCamera.fov * Math.PI) / 360));
-        return (
-          (geometricError(adapter, entry.id.level) * focal) / distance <=
-          input.initialErrorTargetPixels
-        );
-      }) ||
-      level === maximumViewportLevel
+      [...coverage.values()].every((entry) =>
+        tileIsAvailable(adapter, entry.id)
+      )
     ) {
-      viewportStages.push(stage);
+      viewportStages.push(
+        [...coverage.values()].sort(
+          (a, b) => getMetrics(a).distance - getMetrics(b).distance
+        )
+      );
       break;
     }
   }
-  if (viewportStages[0]?.some((entry) => !selected.has(selectionKey(entry))))
-    viewportStages.push(viewportEntries);
+  for (let step = 0; step <= refinementSteps; step += 1) {
+    const stageByKey = new Map<string, TerrainSelectionEntry>();
+    viewportEntries.forEach((entry, index) => {
+      const candidate = ancestor(entry, previewLevels[index] + step);
+      stageByKey.set(selectionKey(candidate), candidate);
+    });
+    const candidates = [...stageByKey.values()];
+    // Different projected errors can select a parent and one of its children.
+    // Keep a disjoint cut; parent coverage is refined together in later stages.
+    const stage = candidates
+      .filter(
+        (entry) =>
+          !candidates.some(
+            (other) =>
+              other.id.level < entry.id.level &&
+              selectionKey(ancestor(entry, other.id.level)) ===
+                selectionKey(other)
+          )
+      )
+      .sort((a, b) => getMetrics(a).distance - getMetrics(b).distance);
+    viewportStages.push(stage);
+  }
   const load = new Map<string, TerrainSelectionEntry>();
   for (const stage of viewportStages)
     for (const entry of stage) load.set(selectionKey(entry), entry);

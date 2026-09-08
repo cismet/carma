@@ -9,14 +9,19 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  Button,
+  Collapse,
   Checkbox,
-  ColorPicker,
+  ConfigProvider,
+  Descriptions,
   Segmented,
-  Slider,
   Space,
-  Tag,
   Typography,
+  Tooltip,
+  theme,
 } from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
@@ -35,10 +40,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 
 import type { SolarPosition } from "../core/solar-position";
-import type {
-  MeshErrorTargetPixels,
-  ShadowQualityMultiplier,
-} from "../core/shadow-types";
+import { SHADOW_BUFFER_LAYOUT } from "../core/shadow-types";
 import {
   buildShadowProjectionDebugModel,
   type ShadowProjectionDebugModel,
@@ -47,17 +49,11 @@ import {
   readShadowProjectionDebugSnapshot,
   subscribeShadowProjectionDebugSnapshot,
 } from "../runtime/shadow-projection-debug-store";
-import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
 
 const SHADOW_PROJECTION_DEBUG_CUE_OPTIONS = {
   bearing: { label: "Schattenrichtung", color: "#d97706" },
   pitch: { label: "Höhe", color: "#f59e0b" },
   north: { label: "N", color: "#2563eb" },
-} as const;
-
-const SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS = {
-  orthographic: true,
-  fitOrthographicWidth: true,
 } as const;
 
 const SHADOW_DEBUG_VIEWPOINT = {
@@ -112,15 +108,6 @@ const DEFAULT_VISUALIZER_CONTENT_VISIBILITY: Record<
   tileVolumes: true,
 };
 
-const MESH_ERROR_TARGETS: ReadonlyArray<{
-  label: string;
-  value: MeshErrorTargetPixels;
-}> = [
-  { label: "0,25 px", value: 0.25 },
-  { label: "1 px", value: 1 },
-  { label: "4 px", value: 4 },
-];
-
 const useShadowProjectionDebugPortalHost = () => {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
 
@@ -148,17 +135,8 @@ export const ShadowProjectionDebugPortal = ({
 };
 
 export type ShadowProjectionDebugSettings = Readonly<{
-  shadowQuality: ShadowQualityMultiplier;
-  meshErrorTarget: MeshErrorTargetPixels;
-  terrainColor: string;
-  buildingsFullOpacity: boolean;
-  buildingColorMix: number;
-  meshTextureSaturation: number;
-  buildingColor: string;
   showSunDebugVector: boolean;
   showTileBounds: boolean;
-  useTransmittanceLut: boolean;
-  useSkyIrradianceLut: boolean;
 }>;
 
 const formatMeters = (value: number, fractionDigits = 0) =>
@@ -169,54 +147,119 @@ const ShadowBufferStatistics = ({
 }: {
   model: ShadowProjectionDebugModel;
 }) => {
-  const resolution = `${model.shadowBuffer.shadowMapWidth} × ${model.shadowBuffer.shadowMapHeight}`;
+  const { token } = theme.useToken();
+  const isTiled = model.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED;
+  const stats = model.tiledStats;
   const values: ReadonlyArray<Readonly<{ label: string; value: ReactNode }>> = [
-    { label: "Samples", value: model.shadowSampleCount },
-    { label: "Tiles", value: model.tileVolumes.length },
-    { label: "Buffer", value: resolution },
-    {
-      label: "Kernabdeckung",
-      value: `${formatMeters(
-        model.receiverCoverageWidthMeters
-      )} × ${formatMeters(model.receiverCoverageHeightMeters)}`,
-    },
-    {
-      label: "Texel",
-      value: formatMeters(
-        Math.max(model.shadowTexelWidthMeters, model.shadowTexelHeightMeters),
-        3
-      ),
-    },
+    { label: "Schattenpuffer", value: isTiled ? "Gekachelt" : "Einzelpuffer" },
+    { label: "Samples (Ziel)", value: model.sunDiscSamples },
+    { label: "Geladene Tiles", value: model.tileVolumes.length },
     {
       label: "Viewport",
       value: `${formatMeters(model.viewportWidthMeters)} × ${formatMeters(
         model.viewportHeightMeters
       )}`,
     },
-    { label: "Höhenspanne", value: formatMeters(model.elevationSpanMeters) },
-    { label: "Caster", value: formatMeters(model.casterReachMeters) },
-    {
-      label: "Horizontal / Höhe",
-      value: `${model.horizontalProjectionPerHeight.toFixed(2)} ×`,
-    },
+    ...(isTiled
+      ? stats
+        ? [
+            { label: "Schattenseiten", value: stats.pages },
+            {
+              label: "Seitenformate",
+              value: stats.dimensions.join(", ") || "–",
+            },
+            { label: "Begrenzte Seiten", value: stats.limitedPages },
+            { label: "Cache-Seiten", value: stats.cachedSamplePages },
+            {
+              label: "Cache",
+              value: `${(stats.cacheBytes / 1024 ** 2).toFixed(1)} MiB`,
+            },
+            {
+              label: "Scratch",
+              value: `${(stats.scratchBytes / 1024 ** 2).toFixed(1)} MiB`,
+            },
+            {
+              label: "Cache Treffer / Misses",
+              value: `${stats.hits} / ${stats.misses}`,
+            },
+            {
+              label: "Depth- / Farb-Pässe",
+              value: `${stats.depthRenders} / ${stats.colorPasses}`,
+            },
+            ...(stats.corridorAccumulation
+              ? [
+                  {
+                    label: "Sonnenscheiben-Mittelung",
+                    value: stats.corridorAccumulation.fallbackReason
+                      ? `Fallback: ${stats.corridorAccumulation.fallbackReason}`
+                      : "Pro Korridor",
+                  },
+                  {
+                    label: "Fertige Korridore",
+                    value: `${
+                      stats.corridorAccumulation.pageSamples.filter(
+                        (page) => page.samples >= page.totalSamples
+                      ).length
+                    } / ${stats.corridorAccumulation.pageSamples.length}`,
+                  },
+                  {
+                    label: "HDR-Atlas",
+                    value: `${(
+                      stats.corridorAccumulation.memoryBytes /
+                      1024 ** 2
+                    ).toFixed(1)} MiB`,
+                  },
+                ]
+              : []),
+          ]
+        : [{ label: "Schattenseiten", value: "werden vorbereitet" }]
+      : [
+          {
+            label: "Buffer",
+            value: `${model.shadowBuffer.shadowMapWidth} × ${model.shadowBuffer.shadowMapHeight}`,
+          },
+          {
+            label: "Kernabdeckung",
+            value: `${formatMeters(
+              model.receiverCoverageWidthMeters
+            )} × ${formatMeters(model.receiverCoverageHeightMeters)}`,
+          },
+          {
+            label: "Texel",
+            value: formatMeters(
+              Math.max(
+                model.shadowTexelWidthMeters,
+                model.shadowTexelHeightMeters
+              ),
+              3
+            ),
+          },
+          {
+            label: "Höhenspanne",
+            value: formatMeters(model.elevationSpanMeters),
+          },
+          { label: "Caster", value: formatMeters(model.casterReachMeters) },
+          {
+            label: "Horizontal / Höhe",
+            value: `${model.horizontalProjectionPerHeight.toFixed(2)} ×`,
+          },
+        ]),
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 border-t border-neutral-200 pt-1 text-xs">
-      {values.map(({ label, value }) => (
-        <div key={label} className="flex min-w-0 items-baseline gap-1">
-          <Typography.Text
-            type="secondary"
-            className="min-w-0 truncate !text-[11px]"
-          >
-            {label}
-          </Typography.Text>
-          <Typography.Text className="ml-auto whitespace-nowrap !text-xs tabular-nums">
-            {value}
-          </Typography.Text>
-        </div>
-      ))}
-    </div>
+    <Descriptions
+      size="small"
+      column={{ xs: 1, sm: 2 }}
+      style={{
+        borderTop: `1px solid ${token.colorBorderSecondary}`,
+        paddingTop: token.paddingSM,
+      }}
+      items={values.map(({ label, value }) => ({
+        key: label,
+        label,
+        children: value,
+      }))}
+    />
   );
 };
 
@@ -235,6 +278,7 @@ const ShadowSunCameraView = ({
   shadowMapWidth: number;
   shadowMapHeight: number;
 }) => {
+  const { token } = theme.useToken();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasFrame, setHasFrame] = useState(false);
   const aspectRatio = Math.max(
@@ -300,8 +344,12 @@ const ShadowSunCameraView = ({
 
   return (
     <div
-      className="relative overflow-hidden bg-slate-900"
-      style={{ width: fittedWidth, height: fittedHeight }}
+      className="relative overflow-hidden"
+      style={{
+        width: fittedWidth,
+        height: fittedHeight,
+        backgroundColor: token.colorBgLayout,
+      }}
     >
       <canvas
         ref={canvasRef}
@@ -310,11 +358,22 @@ const ShadowSunCameraView = ({
         style={{ transform: "scaleY(-1)" }}
       />
       {!hasFrame && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-white/70">
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ color: token.colorTextSecondary }}
+        >
           Sonnenkamera wird vorbereitet …
         </div>
       )}
-      <div className="absolute bottom-2 left-2 rounded bg-slate-950/75 px-2 py-1 text-[10px] text-white">
+      <div
+        className="absolute bottom-2 left-2 px-2 py-1"
+        style={{
+          color: token.colorText,
+          backgroundColor: token.colorBgElevated,
+          borderRadius: token.borderRadiusSM,
+          fontSize: token.fontSizeSM,
+        }}
+      >
         Live-Szene · orthografische Schattenkamera
       </div>
     </div>
@@ -334,6 +393,7 @@ const ShadowDebugVisualizer = ({
   viewpoint: ShadowDebugViewpoint;
   onViewpointChange: (viewpoint: ShadowDebugViewpoint) => void;
 }) => {
+  const { token } = theme.useToken();
   const host = useHostElementSizeRef<HTMLDivElement>();
   const width = Math.max(1, host.size?.width ?? 1);
   const shadowMapAspectRatio =
@@ -343,6 +403,16 @@ const ShadowDebugVisualizer = ({
     viewpoint === SHADOW_DEBUG_VIEWPOINT.SUN
       ? Math.max(190, Math.round(width / Math.max(0.1, shadowMapAspectRatio)))
       : Math.max(190, Math.min(245, Math.round(width * 0.36)));
+  const fitOrthographicWidth = width < height;
+  const overviewOptions = useMemo(
+    () => ({
+      orthographic: true,
+      // Fit the shorter panel axis so wide debug panels do not crop the
+      // loaded-tile extent vertically (or narrow panels horizontally).
+      fitOrthographicWidth,
+    }),
+    [fitOrthographicWidth]
+  );
   const visualizedOptions = useMemo(
     () => ({
       useCameraPosition: true,
@@ -393,20 +463,41 @@ const ShadowDebugVisualizer = ({
 
   return (
     <div className="relative w-full">
-      <div className="absolute right-2 top-2 z-10 rounded-md bg-white/90 shadow-sm">
+      <div className="absolute right-2 top-2 z-10">
         <Segmented
-          size="small"
           value={viewpoint}
           options={[
             { label: "Übersicht", value: SHADOW_DEBUG_VIEWPOINT.OVERVIEW },
-            { label: "Sonnenansicht", value: SHADOW_DEBUG_VIEWPOINT.SUN },
+            {
+              label: (
+                <Tooltip
+                  title={
+                    model.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED
+                      ? "Nur Einzelpuffer; für gekachelte Schatten noch nicht verfügbar"
+                      : undefined
+                  }
+                >
+                  <span>Sonnenansicht</span>
+                </Tooltip>
+              ),
+              value: SHADOW_DEBUG_VIEWPOINT.SUN,
+              disabled: model.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED,
+            },
           ]}
           onChange={(value) => onViewpointChange(value as ShadowDebugViewpoint)}
         />
       </div>
       {viewpoint === SHADOW_DEBUG_VIEWPOINT.OVERVIEW &&
         visibility.tileVolumes && (
-          <div className="absolute bottom-2 left-2 z-10 flex gap-3 rounded bg-white/90 px-2 py-1 text-[10px] text-neutral-700 shadow-sm">
+          <div
+            className="absolute bottom-2 left-2 z-10 flex gap-3 px-2 py-1"
+            style={{
+              color: token.colorText,
+              backgroundColor: token.colorBgElevated,
+              borderRadius: token.borderRadiusSM,
+              fontSize: token.fontSizeSM,
+            }}
+          >
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-sky-600" />
               Viewport
@@ -419,11 +510,15 @@ const ShadowDebugVisualizer = ({
         )}
       <div
         ref={host.ref}
-        className="flex w-full items-center justify-center overflow-hidden rounded-lg bg-slate-900"
-        style={{ height }}
+        className="flex w-full items-center justify-center overflow-hidden"
+        style={{
+          height,
+          borderRadius: token.borderRadiusLG,
+          backgroundColor: token.colorBgLayout,
+        }}
       >
         {host.isReady && viewpoint === SHADOW_DEBUG_VIEWPOINT.OVERVIEW && (
-          <div className="bg-neutral-100">
+          <div style={{ backgroundColor: token.colorBgLayout }}>
             <ViewStateVisualizer
               interactive
               viewState={model.viewStates}
@@ -435,7 +530,7 @@ const ShadowDebugVisualizer = ({
               northLabel="N"
               upLabel={null}
               cueOptions={SHADOW_PROJECTION_DEBUG_CUE_OPTIONS}
-              overviewOptions={SHADOW_PROJECTION_DEBUG_OVERVIEW_OPTIONS}
+              overviewOptions={overviewOptions}
               visualizedOptions={visualizedOptions}
               displayOptions={displayOptions}
               volumeBoxes={volumeBoxes}
@@ -463,17 +558,17 @@ const VisualizerContentToggles = ({
   visibility: Record<VisualizerContentGroup, boolean>;
   onToggle: (group: VisualizerContentGroup) => void;
 }) => (
-  <div className="flex min-w-0 items-start gap-2 text-xs">
-    <Typography.Text strong type="secondary" className="shrink-0 !text-xs">
+  <div className="flex min-w-0 flex-wrap items-start gap-3">
+    <Typography.Text strong type="secondary" className="shrink-0">
       Visualisierung
     </Typography.Text>
-    <Space size={[10, 0]} wrap className="min-w-0">
+    <Space size={["middle", "small"]} wrap className="min-w-0">
       {VISUALIZER_CONTENT_GROUPS.map(({ key, label }) => (
         <Checkbox
           key={key}
           checked={visibility[key]}
           onChange={() => onToggle(key)}
-          className="!m-0 !text-xs"
+          className="!m-0"
         >
           {label}
         </Checkbox>
@@ -484,198 +579,34 @@ const VisualizerContentToggles = ({
 
 const ShadowDebugControls = ({
   settings,
-  transmittanceReady,
-  irradianceReady,
-  meshLoaded,
+  tileBoundsSupported,
   onChange,
 }: {
   settings: ShadowProjectionDebugSettings;
-  transmittanceReady: boolean;
-  irradianceReady: boolean;
-  meshLoaded: boolean;
+  tileBoundsSupported: boolean;
   onChange: (patch: Partial<ShadowProjectionDebugSettings>) => void;
 }) => {
   return (
-    <div className="grid content-start gap-1.5 text-xs">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <div className="flex items-center gap-2">
-          <Typography.Text strong type="secondary" className="!text-xs">
-            Qualität
-          </Typography.Text>
-          <Segmented
-            size="small"
-            data-test-id="shadow-debug-quality"
-            value={settings.shadowQuality}
-            options={[...SHADOW_QUALITY_LEVELS]}
-            onChange={(value) =>
-              onChange({ shadowQuality: value as ShadowQualityMultiplier })
-            }
-          />
-        </div>
-        {meshLoaded && (
-          <div className="flex items-center gap-2">
-            <Typography.Text strong type="secondary" className="!text-xs">
-              Mesh-LOD
-            </Typography.Text>
-            <Segmented
-              size="small"
-              data-test-id="mesh-debug-quality"
-              value={settings.meshErrorTarget}
-              options={[...MESH_ERROR_TARGETS]}
-              onChange={(value) =>
-                onChange({ meshErrorTarget: value as MeshErrorTargetPixels })
-              }
-            />
-          </div>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <div className="flex items-center gap-2">
-          <Typography.Text strong type="secondary" className="!text-xs">
-            Terrain
-          </Typography.Text>
-          <ColorPicker
-            size="small"
-            value={settings.terrainColor}
-            showText={(color) => color.toHexString().toUpperCase()}
-            onChangeComplete={(color) =>
-              onChange({ terrainColor: color.toHexString() })
-            }
-          />
-        </div>
-        <Checkbox
-          checked={settings.buildingsFullOpacity}
-          onChange={(event) =>
-            onChange({ buildingsFullOpacity: event.target.checked })
-          }
-          className="!text-xs"
-        >
-          Gebäude volle Deckkraft
-        </Checkbox>
-        <div className="flex items-center gap-2">
-          <Typography.Text strong type="secondary" className="!text-xs">
-            Mesh
-          </Typography.Text>
-          <Typography.Text type="secondary" className="!text-xs">
-            Textur
-          </Typography.Text>
-          <Slider
-            min={0}
-            max={1}
-            step={0.01}
-            value={settings.buildingColorMix}
-            onChange={(value) => onChange({ buildingColorMix: value })}
-            tooltip={{ formatter: null }}
-            className="!m-0 w-24"
-            aria-label="Mischung aus Meshtextur und Farbe"
-          />
-          <Typography.Text type="secondary" className="!text-xs">
-            Farbe
-          </Typography.Text>
-          <Typography.Text
-            type="secondary"
-            className="w-8 text-right !text-xs tabular-nums"
-          >
-            {Math.round(settings.buildingColorMix * 100)}%
-          </Typography.Text>
-        </div>
-        <div className="flex items-center gap-2">
-          <Typography.Text type="secondary" className="!text-xs">
-            Sättigung
-          </Typography.Text>
-          <Slider
-            min={0}
-            max={1}
-            step={0.01}
-            value={settings.meshTextureSaturation}
-            onChange={(value) => onChange({ meshTextureSaturation: value })}
-            tooltip={{ formatter: null }}
-            className="!m-0 w-24"
-            aria-label="Sättigung der Meshtextur"
-          />
-          <Typography.Text
-            type="secondary"
-            className="w-8 text-right !text-xs tabular-nums"
-          >
-            {Math.round(settings.meshTextureSaturation * 100)}%
-          </Typography.Text>
-          <ColorPicker
-            size="small"
-            value={settings.buildingColor}
-            showText={(color) => color.toHexString().toUpperCase()}
-            onChangeComplete={(color) =>
-              onChange({ buildingColor: color.toHexString() })
-            }
-          />
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+    <div className="grid content-start gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Checkbox
           checked={settings.showSunDebugVector}
           onChange={(event) =>
             onChange({ showSunDebugVector: event.target.checked })
           }
-          className="!text-xs"
         >
           Sonnenvektor
         </Checkbox>
-        <Checkbox
-          checked={settings.showTileBounds}
-          onChange={(event) =>
-            onChange({ showTileBounds: event.target.checked })
-          }
-          className="!text-xs"
-        >
-          Tile-Kanten + IDs
-        </Checkbox>
-        <Checkbox
-          checked={settings.useTransmittanceLut}
-          onChange={(event) =>
-            onChange({ useTransmittanceLut: event.target.checked })
-          }
-          className="!text-xs"
-        >
-          Transmittanz-LUT
-          <Tag
-            bordered={false}
-            color={
-              settings.useTransmittanceLut && transmittanceReady
-                ? "success"
-                : "default"
+        {tileBoundsSupported && (
+          <Checkbox
+            checked={settings.showTileBounds}
+            onChange={(event) =>
+              onChange({ showTileBounds: event.target.checked })
             }
-            className="!ml-1 !mr-0 !px-1 !text-[10px] !leading-4"
           >
-            {settings.useTransmittanceLut
-              ? transmittanceReady
-                ? "bereit"
-                : "lädt"
-              : "aus"}
-          </Tag>
-        </Checkbox>
-        <Checkbox
-          checked={settings.useSkyIrradianceLut}
-          onChange={(event) =>
-            onChange({ useSkyIrradianceLut: event.target.checked })
-          }
-          className="!text-xs"
-        >
-          Sky-Irradianz-LUT
-          <Tag
-            bordered={false}
-            color={
-              settings.useSkyIrradianceLut && irradianceReady
-                ? "success"
-                : "default"
-            }
-            className="!ml-1 !mr-0 !px-1 !text-[10px] !leading-4"
-          >
-            {settings.useSkyIrradianceLut
-              ? irradianceReady
-                ? "bereit"
-                : "lädt"
-              : "aus"}
-          </Tag>
-        </Checkbox>
+            Tile-Kanten + IDs
+          </Checkbox>
+        )}
       </div>
     </div>
   );
@@ -686,42 +617,50 @@ export const ShadowProjectionDebugView = ({
   solarPosition,
   settings,
   onSettingsChange,
+  onClose,
 }: {
   map: MaplibreMap;
   solarPosition: SolarPosition;
   settings: ShadowProjectionDebugSettings;
   onSettingsChange: (patch: Partial<ShadowProjectionDebugSettings>) => void;
+  onClose: () => void;
 }) => {
+  const [collapsed, setCollapsed] = useState(false);
   const subscribe = useCallback(
     (listener: () => void) =>
-      subscribeShadowProjectionDebugSnapshot(map, listener),
-    [map]
+      collapsed
+        ? () => {}
+        : subscribeShadowProjectionDebugSnapshot(map, listener),
+    [map, collapsed]
   );
   const getSnapshot = useCallback(
-    () => readShadowProjectionDebugSnapshot(map),
-    [map]
+    () => (collapsed ? null : readShadowProjectionDebugSnapshot(map)),
+    [map, collapsed]
   );
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const subscribeMeshPresence = useCallback(
-    (listener: () => void) => subscribeSharedThreeSceneContent(map, listener),
-    [map]
+    (listener: () => void) =>
+      collapsed ? () => {} : subscribeSharedThreeSceneContent(map, listener),
+    [map, collapsed]
   );
-  const getMeshPresence = useCallback(
+  const getTileBoundsSupport = useCallback(
     () =>
+      !collapsed &&
       getSharedThreeSceneRuntimes(map).some(
-        (runtime) => runtime.providesTerrain === true
+        (runtime) => typeof runtime.setTileBoundsVisible === "function"
       ),
-    [map]
+    [map, collapsed]
   );
-  const meshLoaded = useSyncExternalStore(
+  const tileBoundsSupported = useSyncExternalStore(
     subscribeMeshPresence,
-    getMeshPresence,
-    getMeshPresence
+    getTileBoundsSupport,
+    getTileBoundsSupport
   );
   const [visualizerContentVisibility, setVisualizerContentVisibility] =
     useState(DEFAULT_VISUALIZER_CONTENT_VISIBILITY);
   const [visualizerViewpoint, setVisualizerViewpoint] =
     useState<ShadowDebugViewpoint>(SHADOW_DEBUG_VIEWPOINT.OVERVIEW);
+  const { token } = theme.useToken();
   const model = useMemo(
     () =>
       snapshot
@@ -729,138 +668,221 @@ export const ShadowProjectionDebugView = ({
         : null,
     [map, snapshot, solarPosition]
   );
-  if (!snapshot || !model) return null;
+  const activeVisualizerViewpoint =
+    model?.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED
+      ? SHADOW_DEBUG_VIEWPOINT.OVERVIEW
+      : visualizerViewpoint;
   const displayedAzimuth =
-    snapshot.atmosphericSunlight?.azimuthDegrees ??
+    snapshot?.atmosphericSunlight?.azimuthDegrees ??
     solarPosition.azimuthDegrees;
   const displayedElevation =
-    snapshot.atmosphericSunlight?.elevationDegrees ??
+    snapshot?.atmosphericSunlight?.elevationDegrees ??
     solarPosition.elevationDegrees;
 
-  const content = (
-    <div
-      className="grid max-h-[calc(100vh-140px)] grid-cols-1 items-start gap-1 overflow-y-auto p-1"
-      data-test-id="shadow-simulation-projection-debug-view"
-    >
-      <ShadowDebugVisualizer
-        map={map}
-        model={model}
-        visibility={visualizerContentVisibility}
-        viewpoint={visualizerViewpoint}
-        onViewpointChange={setVisualizerViewpoint}
-      />
-      <div className="grid min-w-0 gap-1">
-        {visualizerViewpoint === SHADOW_DEBUG_VIEWPOINT.OVERVIEW && (
-          <VisualizerContentToggles
-            visibility={visualizerContentVisibility}
-            onToggle={(group) =>
-              setVisualizerContentVisibility((current) => ({
-                ...current,
-                [group]: !current[group],
-              }))
-            }
-          />
+  const content =
+    snapshot && model ? (
+      <div
+        className="grid grid-cols-1 items-start"
+        style={{ gap: token.marginXS }}
+        data-test-id="shadow-simulation-projection-debug-view"
+      >
+        {model.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED && (
+          <Typography.Text type="secondary">
+            Caster-/Viewport-Referenz. Die Übersicht zeigt keine gekachelten
+            Schattenseiten.
+          </Typography.Text>
         )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-          <Typography.Text strong type="secondary" className="!text-xs">
-            Sonne
-          </Typography.Text>
-          <Typography.Text type="secondary" className="!text-xs">
-            Azimut{" "}
-            <span className="tabular-nums text-neutral-800">
-              {displayedAzimuth.toFixed(1)}°
-            </span>
-          </Typography.Text>
-          <Typography.Text type="secondary" className="!text-xs">
-            Höhe{" "}
-            <span className="tabular-nums text-neutral-800">
-              {displayedElevation.toFixed(1)}°
-            </span>
-          </Typography.Text>
-          {snapshot.atmosphericSunlight && (
-            <>
-              <Typography.Text type="secondary" className="!text-xs">
-                Radiance{" "}
-                <span className="tabular-nums text-neutral-800">
-                  {(
-                    snapshot.atmosphericSunlight.relativeIntensity * 100
-                  ).toFixed(1)}
-                  %
-                </span>
-              </Typography.Text>
-              <Typography.Text
-                type="secondary"
-                className="inline-flex items-center gap-1 !text-xs"
-              >
-                Licht
-                <span
-                  className="h-3 w-3 rounded-full border border-neutral-300"
-                  style={{
-                    backgroundColor: snapshot.atmosphericSunlight.color,
-                  }}
-                />
-                <span className="tabular-nums text-neutral-800">
-                  {snapshot.atmosphericSunlight.color.toUpperCase()}
-                </span>
-              </Typography.Text>
-            </>
-          )}
-          <span className="ml-auto flex flex-wrap gap-x-3 gap-y-0.5 text-neutral-500">
-            <span className="flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-              Kamera
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
-              Sonne
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-sm border-2 border-orange-600" />
-              Buffer-Grenzen
-            </span>
-          </span>
-        </div>
-      </div>
-      <div className="grid gap-1 border-t border-neutral-200 pt-1">
+        <ShadowDebugVisualizer
+          map={map}
+          model={model}
+          visibility={visualizerContentVisibility}
+          viewpoint={activeVisualizerViewpoint}
+          onViewpointChange={setVisualizerViewpoint}
+        />
         <ShadowDebugControls
           settings={settings}
-          transmittanceReady={
-            snapshot.atmosphericSunlight?.transmittanceReady ?? false
-          }
-          irradianceReady={
-            snapshot.atmosphericSunlight?.irradianceReady ?? false
-          }
-          meshLoaded={meshLoaded}
+          tileBoundsSupported={tileBoundsSupported}
           onChange={onSettingsChange}
         />
-        <ShadowBufferStatistics model={model} />
+
+        <Collapse
+          ghost
+          size="small"
+          items={[
+            {
+              key: "visualizer-options",
+              label: "Visualisierungsoptionen",
+              children: (
+                <div className="grid min-w-0 gap-2">
+                  {activeVisualizerViewpoint ===
+                    SHADOW_DEBUG_VIEWPOINT.OVERVIEW && (
+                    <VisualizerContentToggles
+                      visibility={visualizerContentVisibility}
+                      onToggle={(group) =>
+                        setVisualizerContentVisibility((current) => ({
+                          ...current,
+                          [group]: !current[group],
+                        }))
+                      }
+                    />
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+                    <Typography.Text strong type="secondary">
+                      Sonne
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                      Azimut{" "}
+                      <span
+                        className="tabular-nums"
+                        style={{ color: token.colorText }}
+                      >
+                        {displayedAzimuth.toFixed(1)}°
+                      </span>
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                      Höhe{" "}
+                      <span
+                        className="tabular-nums"
+                        style={{ color: token.colorText }}
+                      >
+                        {displayedElevation.toFixed(1)}°
+                      </span>
+                    </Typography.Text>
+                    {snapshot.atmosphericSunlight && (
+                      <>
+                        <Typography.Text type="secondary">
+                          Radiance{" "}
+                          <span
+                            className="tabular-nums"
+                            style={{ color: token.colorText }}
+                          >
+                            {(
+                              snapshot.atmosphericSunlight.relativeIntensity *
+                              100
+                            ).toFixed(1)}
+                            %
+                          </span>
+                        </Typography.Text>
+                        <Typography.Text
+                          type="secondary"
+                          className="inline-flex items-center gap-1"
+                        >
+                          Licht
+                          <span
+                            className="h-3 w-3 rounded-full border border-neutral-300"
+                            style={{
+                              backgroundColor:
+                                snapshot.atmosphericSunlight.color,
+                            }}
+                          />
+                          <span
+                            className="tabular-nums"
+                            style={{ color: token.colorText }}
+                          >
+                            {snapshot.atmosphericSunlight.color.toUpperCase()}
+                          </span>
+                        </Typography.Text>
+                      </>
+                    )}
+                    <span className="ml-auto flex flex-wrap gap-x-3 gap-y-2 text-neutral-500">
+                      <span className="flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                        Kamera
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+                        Sonne
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-sm border-2 border-orange-600" />
+                        {model.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED
+                          ? "Caster-Hülle"
+                          : "Buffer-Grenzen"}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "statistics",
+              label: "Schattenstatistik",
+              children: <ShadowBufferStatistics model={model} />,
+            },
+          ]}
+        />
       </div>
-    </div>
-  );
+    ) : null;
 
   return (
     <ShadowProjectionDebugPortal>
-      <CarmaResponsiveInfoBox
-        useControlLayout={false}
-        draggable
-        dragGripPlacement="auto"
-        dragHandleTitle="Projektions-Debug verschieben"
-        collapsible
-        heading={
-          <span className="font-semibold text-white">Projektions-Debug</span>
+      <ConfigProvider
+        getPopupContainer={(trigger) =>
+          (trigger?.closest('[role="dialog"]') as HTMLElement | null) ??
+          document.body
         }
-        headingColor="rgba(51, 65, 85, 0.94)"
-        width={700}
-        content={content}
-        style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 5000,
-          maxWidth: "calc(100vw - 24px)",
-          pointerEvents: "auto",
-        }}
-      />
+      >
+        <CarmaResponsiveInfoBox
+          role="dialog"
+          aria-label="Projektions-Debug"
+          useControlLayout={false}
+          draggable
+          dragGripPlacement="auto"
+          dragHandleTitle="Projektions-Debug verschieben"
+          collapsible
+          collapsed={collapsed}
+          onCollapsedChange={setCollapsed}
+          heading={
+            <div
+              className="flex w-full items-center justify-between"
+              style={{ gap: token.marginXS, padding: token.paddingXS }}
+            >
+              <Typography.Text strong>Projektions-Debug</Typography.Text>
+              <Button
+                type="text"
+                size="small"
+                icon={<FontAwesomeIcon icon={faXmark} />}
+                aria-label="Projektions-Debug schließen"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClose();
+                }}
+              />
+            </div>
+          }
+          headingColor={token.colorBgContainer}
+          headingStyle={{
+            color: token.colorText,
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: `${token.borderRadiusLG}px ${token.borderRadiusLG}px 0 0`,
+            boxShadow: "none",
+          }}
+          bodyStyle={{
+            maxHeight: "calc(100dvh - 140px)",
+            overflowY: "auto",
+            padding: `${token.paddingXS}px ${token.padding}px`,
+            backgroundColor: token.colorBgContainer,
+            borderRadius: `0 0 ${token.borderRadiusLG}px ${token.borderRadiusLG}px`,
+          }}
+          width={700}
+          content={content}
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 5000,
+            maxWidth: "calc(100vw - 24px)",
+            minWidth: 0,
+            pointerEvents: "auto",
+            fontFamily: token.fontFamily,
+            fontSize: token.fontSize,
+            color: token.colorText,
+            borderRadius: token.borderRadiusLG,
+            boxShadow: token.boxShadowSecondary,
+          }}
+        />
+      </ConfigProvider>
     </ShadowProjectionDebugPortal>
   );
 };

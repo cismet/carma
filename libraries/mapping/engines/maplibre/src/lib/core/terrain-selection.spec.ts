@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildTerrainSelection } from "./terrain-selection";
 import { executeTerrainWorkerTask } from "../runtime/integrations/terrain-worker-task";
 import type { TerrainSelectionInput } from "./terrain-selection";
+import { terrainTileContains } from "../runtime/integrations/terrain-tile-frontier";
 
 const input = (): TerrainSelectionInput => {
   const camera = new Camera();
@@ -42,6 +43,47 @@ const input = (): TerrainSelectionInput => {
 };
 
 describe("terrain selection worker task", () => {
+  it("terminates with no coverage outside the source", () => {
+    const selection = buildTerrainSelection(input(), {
+      getTileGridIdsForBounds: () => [],
+      getTileBounds: () => input().viewportBounds,
+      getTileGeometricError: () => 1,
+      getTileDataAvailable: () => false,
+    });
+    expect(selection.entries).toEqual([]);
+    expect(selection.loadEntries).toEqual([]);
+  });
+  it("fills unknown-height coverage with a bounded coarse cut before detailed receivers", () => {
+    const selectionInput = input();
+    const selection = buildTerrainSelection(
+      { ...selectionInput, errorTargetPixels: 0.01 },
+      {
+        getTileGridIdsForBounds: () => [{ level: 8, x: 132, y: 85 }],
+        getTileBounds: () => selectionInput.viewportBounds,
+        getTileGeometricError: () => 1_000_000,
+        getTileDataAvailable: () => true,
+      }
+    );
+    const first = selection.viewportStages[0];
+    const final = selection.viewportStages.at(-1)!;
+    expect(first.length).toBeGreaterThan(0);
+    expect(first.length).toBeLessThanOrEqual(4);
+    expect(final.length).toBeGreaterThan(first.length);
+    for (const entry of final)
+      expect(
+        first.some((parent) => terrainTileContains(parent.id, entry.id))
+      ).toBe(true);
+    for (const stage of selection.viewportStages) {
+      for (const entry of stage)
+        expect(
+          stage.some(
+            (other) =>
+              other !== entry && terrainTileContains(other.id, entry.id)
+          )
+        ).toBe(false);
+    }
+    expect(selection.loadEntries.slice(0, first.length)).toEqual(first);
+  });
   it("keeps synchronous and worker-task selection bit-for-bit identical", async () => {
     const selectionInput = input();
     const expected = buildTerrainSelection(selectionInput);

@@ -299,7 +299,10 @@ export type {
 } from "./lib/runtime/integrations/three-tiles-runtime";
 export { buildRasterDemTerrainRuntime } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
 export type { RasterDemTerrainRuntimeOptions } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
-export { isSharedThreeTerrainLoading } from "./lib/runtime/integrations/shared-three-terrain-registry";
+export {
+  isSharedThreeTerrainLoading,
+  subscribeSharedThreeTerrainLoading,
+} from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,
   isMapStyleContourLineLayer,

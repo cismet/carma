@@ -1,4 +1,4 @@
-import type { TerrainTileId } from "./raster-dem-tile";
+import type { TerrainTileId } from "../../core/raster-dem-tile";
 
 type FrontierTile = Readonly<{ key: string; id: TerrainTileId }>;
 
@@ -21,15 +21,22 @@ const overlaps = (left: FrontierTile, right: FrontierTile) =>
  * A non-overlapping quadtree cut. Replace equal tiles immediately, but retire a
  * coarse tile only when its entire requested child group is ready. Failed or
  * still loading children therefore keep their previous receiver/caster surface.
+ * Selection pruning must also retain caller-protected visible surfaces; a ready
+ * overlapping replacement can still retire them atomically.
  */
 export const advanceTerrainTileFrontier = (
   current: readonly FrontierTile[],
   requested: readonly FrontierTile[],
   isReady: (key: string) => boolean,
-  pruneOutsideSelection = false
+  pruneOutsideSelection = false,
+  retainedKeys?: ReadonlySet<string>
 ): FrontierTile[] => {
   let frontier = pruneOutsideSelection
-    ? current.filter((tile) => requested.some((entry) => overlaps(tile, entry)))
+    ? current.filter(
+        (tile) =>
+          retainedKeys?.has(tile.key) ||
+          requested.some((entry) => overlaps(tile, entry))
+      )
     : [...current];
   for (const candidate of requested) {
     if (!isReady(candidate.key)) continue;

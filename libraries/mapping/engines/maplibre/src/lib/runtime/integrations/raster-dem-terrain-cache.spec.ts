@@ -15,7 +15,13 @@ const { acquireSource, cache, createCache, registerSampler, runTask } =
       acquireSource: vi.fn(),
       cache,
       createCache: vi.fn(() => cache),
-      registerSampler: vi.fn(() => vi.fn()),
+      registerSampler: vi.fn(
+        (
+          _map: unknown,
+          _id: string,
+          _sample: (longitude: number, latitude: number) => number | undefined
+        ) => vi.fn()
+      ),
       runTask: vi.fn(),
     };
   });
@@ -101,12 +107,15 @@ describe("prepared terrain cache integration", () => {
         cacheHit ? { tile, geometry, reliefVertexMask } : null
       );
       const source = {
+        release: vi.fn(),
         requestTile: vi.fn(async () => tile),
         getTileGridIdsForBounds: () => [id],
         getTileBounds: () => bounds,
         getLevelMaximumGeometricError: () => 0.01,
         getTileDataAvailable: () => true,
-        sampleHeight: () => 123,
+        sampleHeight: vi.fn(() =>
+          cacheHit ? undefined : coverage === "empty" ? -9999 : 123
+        ),
         trimCache: vi.fn(),
       };
       acquireSource.mockResolvedValue(source);
@@ -136,6 +145,9 @@ describe("prepared terrain cache integration", () => {
       const lodCamera = new PerspectiveCamera(60, 1, 1, 10_000);
       lodCamera.position.set(0, 1000, 0);
       try {
+        // Exercise both sampler registration paths: source-first and map-first.
+        if (cacheHit)
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
         runtime.onAdd?.(map as never);
         await vi.waitFor(() => expect(registerSampler).toHaveBeenCalledOnce());
         runtime.update({
@@ -146,7 +158,28 @@ describe("prepared terrain cache integration", () => {
           viewport: new Vector2(1000, 1000),
         });
         await expect(runtime.ready).resolves.toBe(true);
-        expect(cache.get).toHaveBeenCalledWith(id);
+        const sharedSampler = registerSampler.mock.calls[0][2];
+        expect(sharedSampler).toBe(runtime.getElevation);
+        const expectedHeight = coverage === "empty" ? undefined : 123;
+        expect(runtime.getElevation(bounds.west, bounds.south)).toBe(
+          expectedHeight
+        );
+        expect(sharedSampler(bounds.west, bounds.south)).toBe(expectedHeight);
+        if (cacheHit) {
+          expect(runtime.getElevation(bounds.east, bounds.north)).toBe(
+            coverage === "complete" ? 123 : undefined
+          );
+          expect(
+            runtime.getElevation(bounds.west - 0.01, bounds.south)
+          ).toBeUndefined();
+          source.sampleHeight.mockReturnValueOnce(321);
+          expect(runtime.getElevation(bounds.west, bounds.south)).toBe(321);
+          source.sampleHeight.mockReturnValueOnce(-9999);
+          expect(
+            runtime.getElevation(bounds.west, bounds.south)
+          ).toBeUndefined();
+        }
+        expect(cache.get).toHaveBeenCalledWith(id, 0.01);
         if (cacheHit) {
           expect(source.requestTile).not.toHaveBeenCalled();
           expect(cache.set).not.toHaveBeenCalled();
@@ -158,7 +191,8 @@ describe("prepared terrain cache integration", () => {
           expect(cache.set).toHaveBeenCalledWith(
             tile,
             coverage === "empty" ? null : expect.any(BufferGeometry),
-            reliefVertexMask
+            reliefVertexMask,
+            expect.any(Number)
           );
           expect(
             runTask.mock.calls.filter(([task]) => task.kind === "project")
@@ -170,7 +204,8 @@ describe("prepared terrain cache integration", () => {
         expect(createCache).toHaveBeenCalledWith(
           expect.any(String),
           [7.15, 51.256],
-          -9999
+          -9999,
+          undefined // This test runs an unbundled, intentionally uncached graph.
         );
         expect(runtime.root.children).toHaveLength(1);
         expect(runtime.root.children[0].children).toHaveLength(

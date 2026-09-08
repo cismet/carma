@@ -15,13 +15,16 @@ export const resetShadowSimulationState = (
     showSunDebugVector: false,
     showTileBounds: false,
     showProjectionDebugView: false,
+    showDisplaySettings: false,
     showMapStyleContent: true,
     showMapStyleLabels: true,
     useTransmittanceLut: true,
     useSkyIrradianceLut: true,
+    shadowBufferLayout: undefined,
     shadowBufferFormat: undefined,
     shadowSunDiscSamples: undefined,
     shadowMsaaSamples: undefined,
     shadowGroundTexelFit: undefined,
+    shadowAdaptiveQuality: undefined,
   };
 };

@@ -14,6 +14,30 @@ const children = [
 ];
 
 describe("advanceTerrainTileFrontier", () => {
+  it("keeps visible detail when a drag selection omits it or its parent is still loading", () => {
+    const visible = new Set(children.map(({ key }) => key));
+    expect(
+      advanceTerrainTileFrontier(children, [], () => false, true, visible)
+    ).toEqual(children);
+    expect(
+      advanceTerrainTileFrontier(children, [parent], () => false, true, visible)
+    ).toEqual(children);
+    expect(
+      advanceTerrainTileFrontier(children, [parent], () => true, true, visible)
+    ).toEqual([parent]);
+  });
+
+  it("releases omitted tiles only after they leave the visible set", () => {
+    expect(
+      advanceTerrainTileFrontier(
+        children,
+        [],
+        () => false,
+        true,
+        new Set([children[0].key])
+      )
+    ).toEqual([children[0]]);
+  });
   it("replaces one ready tile without waiting for an unrelated tile", () => {
     const other = tile("old-other", 10, 533, 218);
     const next = [

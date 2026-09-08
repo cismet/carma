@@ -3,18 +3,30 @@ import { describe, expect, it } from "vitest";
 import type {
   ShadowDateState,
   ShadowSimulationState,
-} from "@carma-mapping/shadow-simulation";
+} from "../contracts/shadow-simulation";
 
 import {
   applyShadowHashSelection,
-  resolveGeoportalShadowHashSelection,
+  resolveShadowHashSelection,
   shadowStateMatchesHashSelection,
-  createGeoportalShadowStartupState,
-} from "./geoportal-shadow-simulation-state";
+  createShadowStartupState,
+} from "./shadow-selection-state";
 
-describe("geoportal shadow simulation state", () => {
+describe("shadow selection state", () => {
+  it("validates leap days and integer years with the shared calendar", () => {
+    const selection = { dayOfYear: 366, minutes: 720 };
+    expect(
+      resolveShadowHashSelection(selection, 2024, {}, "Europe/Berlin")
+    ).not.toBeNull();
+    expect(
+      resolveShadowHashSelection(selection, 2026, {}, "Europe/Berlin")
+    ).toBeNull();
+    expect(
+      resolveShadowHashSelection(selection, 2024.5, {}, "Europe/Berlin")
+    ).toBeNull();
+  });
   it("resolves enabled state and date before any map or addon mounts", () => {
-    const state = createGeoportalShadowStartupState(
+    const state = createShadowStartupState(
       { year: 2026 },
       { dayOfYear: 172, minutes: 720 },
       { latitude: 51.27, longitude: 7.2 }
@@ -27,15 +39,14 @@ describe("geoportal shadow simulation state", () => {
       timeZone: "Europe/Berlin",
     });
     expect(
-      createGeoportalShadowStartupState(
+      createShadowStartupState(
         { year: 2025 },
         { dayOfYear: 366, minutes: 720 },
         {}
       ).shadowSimulation.enabled
     ).toBe(false);
     expect(
-      createGeoportalShadowStartupState(undefined, null, {}).shadowSimulation
-        .enabled
+      createShadowStartupState(undefined, null, {}).shadowSimulation.enabled
     ).toBe(false);
   });
   it("matches enabled state and hash selection by value", () => {
@@ -48,7 +59,7 @@ describe("geoportal shadow simulation state", () => {
 
   it("rejects invalid dates and clamps valid night selections", () => {
     expect(
-      resolveGeoportalShadowHashSelection(
+      resolveShadowHashSelection(
         { dayOfYear: 366, minutes: 720 },
         2025,
         { latitude: 51.256, longitude: 7.15 },
@@ -57,7 +68,7 @@ describe("geoportal shadow simulation state", () => {
     ).toBeNull();
 
     expect(
-      resolveGeoportalShadowHashSelection(
+      resolveShadowHashSelection(
         { dayOfYear: 172, minutes: 0 },
         2026,
         { latitude: 51.256, longitude: 7.15 },

@@ -14,3 +14,10 @@ export type {
   ShadowSimulationConfig,
   ShadowSimulationState,
 } from "../../src/lib/contracts/shadow-simulation";
+
+export {
+  applyShadowHashSelection,
+  resolveShadowHashSelection,
+  shadowStateMatchesHashSelection,
+  createShadowStartupState,
+} from "../../src/lib/core/shadow-selection-state";

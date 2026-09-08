@@ -19,6 +19,9 @@ const INFO_BOX_MIN_WIDTH_REM = "24rem";
 const CONTROL_LAYOUT_EDGE_MARGIN_PX = 25;
 
 export interface CarmaResponsiveInfoBoxProps {
+  role?: React.AriaRole;
+  "aria-label"?: string;
+  dataTestId?: string;
   onPanelClick?: (event: React.MouseEvent) => void;
   width?: number;
   fitContentWidth?: boolean;
@@ -48,6 +51,9 @@ export interface CarmaResponsiveInfoBoxProps {
 }
 
 export const CarmaResponsiveInfoBox = ({
+  role,
+  "aria-label": ariaLabel,
+  dataTestId = "info-box",
   onPanelClick = () => {},
   width,
   fitContentWidth = false,
@@ -197,18 +203,39 @@ export const CarmaResponsiveInfoBox = ({
       dragStateRef.current = null;
     };
 
+    const restoreVisiblePosition = () => {
+      if (style?.position !== "fixed") return;
+      const bounds = infoBoxRef.current?.getBoundingClientRect();
+      if (
+        bounds &&
+        (bounds.left < 0 ||
+          bounds.top < 0 ||
+          bounds.right > window.innerWidth ||
+          bounds.bottom > window.innerHeight)
+      ) {
+        // A stored drag offset must not strand a responsive floating panel
+        // outside a smaller window. Its CSS anchor provides the safe position.
+        dragStateRef.current = null;
+        setDragOffset({ x: 0, y: 0 });
+      }
+    };
+
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("resize", restoreVisiblePosition);
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("resize", restoreVisiblePosition);
     };
-  }, [draggable]);
+  }, [draggable, style?.position]);
 
   const box = (
     <div
       ref={infoBoxRef}
-      data-test-id="info-box"
+      role={role}
+      aria-label={ariaLabel}
+      data-test-id={dataTestId}
       style={{
         ...infoBoxStyle,
         ...(isRightAnchoredControl ? { marginLeft: "auto" } : null),

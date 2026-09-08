@@ -5,6 +5,44 @@ import {
 } from "./shadow-frame-budget";
 
 describe("shadow frame budget", () => {
+  it("adapts tiled depth density without throttling coverage or color resolution", () => {
+    let budget = createShadowFrameBudget(4);
+    for (let time = 0; time <= 500; time += 50) {
+      budget = updateShadowFrameBudget(budget, time, true, {
+        allowCadenceReduction: false,
+      });
+    }
+    expect(budget.depthScale).toBe(0.75);
+    expect(budget.updateIntervalMs).toBeCloseTo(1000 / 120);
+    // No real gain: restore density rather than degrading a CPU/display-limited map.
+    for (let time = 550; time <= 1000; time += 50) {
+      budget = updateShadowFrameBudget(budget, time, true, {
+        allowCadenceReduction: false,
+      });
+    }
+    expect(budget.depthScale).toBe(1);
+    expect(budget.adaptationBlocked).toBe(true);
+    expect(budget).not.toHaveProperty("renderScale");
+  });
+
+  it("turns adaptation off immediately and keeps the fixed budget idle", () => {
+    let budget = createShadowFrameBudget(4);
+    for (let time = 0; time <= 500; time += 50) {
+      budget = updateShadowFrameBudget(budget, time, true, {
+        allowCadenceReduction: false,
+      });
+    }
+    const fixed = updateShadowFrameBudget(budget, 550, true, {
+      enabled: false,
+    });
+    expect(fixed.depthScale).toBe(1);
+    expect(fixed.updateIntervalMs).toBeCloseTo(1000 / 120);
+    expect(fixed.trial).toBeNull();
+    expect(updateShadowFrameBudget(fixed, 1500, true, { enabled: false })).toBe(
+      fixed
+    );
+  });
+
   it.each([
     [4, 120],
     [16, 60],

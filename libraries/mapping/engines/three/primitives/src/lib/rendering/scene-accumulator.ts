@@ -122,12 +122,15 @@ export type SharedSceneAccumulator = {
   ) => void;
   /**
    * Draw an accumulated average plus scene depth into the current target.
+   * Opt in to the current running mean with `allowPartial`; a retained settled
+   * frame still takes precedence when `preferSettled` is true.
    * Returns false when no suitable frame exists yet.
    */
   composite: (
     renderer: WebGLRenderer,
     preferSettled?: boolean,
-    lighting?: SceneAccumulationLighting
+    lighting?: SceneAccumulationLighting,
+    options?: Readonly<{ allowPartial?: boolean }>
   ) => boolean;
   dispose: () => void;
 };
@@ -388,18 +391,25 @@ export const buildSharedSceneAccumulator = (
         );
       }
     },
-    composite(renderer, preferSettled = false, lighting) {
-      if (
-        !hasSettledFrame ||
-        (!preferSettled && round < rounds) ||
-        !settledAccum ||
-        !settledSceneTarget
-      ) {
+    composite(renderer, preferSettled = false, lighting, options) {
+      const useSettled = hasSettledFrame && (preferSettled || round >= rounds);
+      const usePartial = options?.allowPartial && round > 0 && round < rounds;
+      const colorTarget = useSettled
+        ? settledAccum
+        : usePartial
+        ? accumRead
+        : null;
+      const depthTarget = useSettled
+        ? settledSceneTarget
+        : usePartial
+        ? sceneTarget
+        : null;
+      if (broken || !colorTarget || !depthTarget) {
         return false;
       }
       fullscreenMesh.material = compositeMaterial;
-      compositeMaterial.uniforms.tColor.value = settledAccum.texture;
-      compositeMaterial.uniforms.tDepth.value = settledSceneTarget.depthTexture;
+      compositeMaterial.uniforms.tColor.value = colorTarget.texture;
+      compositeMaterial.uniforms.tDepth.value = depthTarget.depthTexture;
       const composeLighting = buffer.format === RedFormat && lighting;
       compositeMaterial.uniforms.uLighting.value = Boolean(composeLighting);
       compositeMaterial.uniforms.tUnshadowed.value = composeLighting

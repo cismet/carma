@@ -1,3 +1,10 @@
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+
+import {
+  reduceRasterMesh,
+  resolveRasterMeshErrorMeters,
+} from "./raster-mesh-error";
+
 export const EARTH_CIRCUMFERENCE_METERS = 40_075_016.68557849;
 const MAX_MERCATOR_LATITUDE = 85.0511287798066;
 
@@ -29,6 +36,10 @@ export type TerrainTile = Readonly<{
   northIndices: Uint32Array;
   geometricErrorMeters: number;
   byteLength: number;
+  /** Certified against the native raster triangle surface, before projection. */
+  reconstructionErrorMeters?: number;
+  maximumMeshErrorMeters?: number;
+  rasterStride?: 1 | 2 | 4;
 }>;
 
 export type DecodedRaster = Readonly<{
@@ -47,12 +58,12 @@ export const longitudeToTileX = (longitude: number, level: number) =>
   ((longitude + 180) / 360) * 2 ** level;
 
 export const latitudeToTileY = (latitude: number, level: number) => {
-  const radians = (clampLatitude(latitude) * Math.PI) / 180;
+  const radians = degToRadNumeric(clampLatitude(latitude));
   return ((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2) * 2 ** level;
 };
 
 const tileYToLatitude = (y: number, level: number) =>
-  (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** level))) * 180) / Math.PI;
+  radToDegNumeric(Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** level))));
 
 export const assertTileId = ({ level, x, y }: TerrainTileId) => {
   const scale = 2 ** level;
@@ -93,31 +104,6 @@ export const boundsIntersect = (
   left.east > right[0] &&
   left.south < right[3] &&
   left.north > right[1];
-
-export const decodeImage = async (blob: Blob): Promise<DecodedRaster> => {
-  const image = await createImageBitmap(blob, {
-    colorSpaceConversion: "none",
-    premultiplyAlpha: "none",
-  });
-  try {
-    const canvas =
-      typeof OffscreenCanvas === "function"
-        ? new OffscreenCanvas(image.width, image.height)
-        : Object.assign(document.createElement("canvas"), {
-            width: image.width,
-            height: image.height,
-          });
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context || !("getImageData" in context)) {
-      throw new Error("A 2D canvas is required to decode raster DEM tiles");
-    }
-    context.drawImage(image, 0, 0);
-    const pixels = context.getImageData(0, 0, image.width, image.height).data;
-    return { width: image.width, height: image.height, pixels };
-  } finally {
-    image.close();
-  }
-};
 
 export const decodeRasterDemHeight = (
   red: number,
@@ -282,5 +268,50 @@ export const buildGridTile = (
     northIndices,
     geometricErrorMeters,
     byteLength: arrays.reduce((sum, array) => sum + array.byteLength, 0),
+  };
+};
+
+/** Replaces fixed segment caps in terrain workers; preserves the native edge ring. */
+export const buildErrorBoundedGridTile = (
+  id: TerrainTileId,
+  raster: DecodedRaster,
+  geometricErrorMeters: number,
+  requestedMaximumErrorMeters?: number
+): TerrainTile => {
+  const maximumMeshErrorMeters = resolveRasterMeshErrorMeters(
+    requestedMaximumErrorMeters
+  );
+  const native = buildGridTile(
+    id,
+    raster,
+    Math.max(raster.width, raster.height),
+    geometricErrorMeters
+  );
+  const reduction = reduceRasterMesh(
+    native.heightMeters,
+    raster.width,
+    raster.height,
+    maximumMeshErrorMeters
+  );
+  if (!reduction)
+    return {
+      ...native,
+      reconstructionErrorMeters: 0,
+      maximumMeshErrorMeters,
+      rasterStride: 1,
+    };
+  // Keep canonical arrays for the existing native-grid height sampler after a
+  // persistent restore. Only indexed vertices reach the GPU vertex shader;
+  // attribute allocation/upload savings are deliberately not claimed (RME-01).
+  return {
+    ...native,
+    indices: reduction.indices,
+    reconstructionErrorMeters: reduction.maximumErrorMeters,
+    maximumMeshErrorMeters,
+    rasterStride: reduction.stride,
+    byteLength:
+      native.byteLength -
+      native.indices.byteLength +
+      reduction.indices.byteLength,
   };
 };

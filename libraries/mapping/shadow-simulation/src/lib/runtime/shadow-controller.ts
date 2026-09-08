@@ -61,6 +61,7 @@ export type ShadowCameraSnapshot = Readonly<{
   groundTexelHeightMeters?: number;
   groundTexelFitLimited?: boolean;
   groundTexelFit?: boolean;
+  groundTexelTargetMeters?: number;
 }>;
 
 export type ShadowSnapshot = Readonly<{
@@ -82,8 +83,12 @@ export type ShadowUpdate = Readonly<{
   shadowIntensity: number;
   quality: ShadowQualityMultiplier;
   groundTexelFit?: boolean;
+  /** Optional demand-driven ground spacing for world-fixed receiver pages. */
+  groundTexelTargetMeters?: number;
   /** Avoid reallocating depth storage for each aspect-ratio change in a gesture. */
   stabilizeMapSize?: boolean;
+  /** Cap normal and light-depth receiver offsets in world metres. */
+  maxReceiverBiasMeters?: number;
   /** Total depth texels, independent of the hardware's per-axis limit.
    * Invalid values use the quality policy; positive values clamp to at least
    * 64² texels (the allocation/guard minimum) and at most the hardware limit².
@@ -267,6 +272,8 @@ export class ShadowController {
     groundTexelFit = true,
     stabilizeMapSize = false,
     mapTexelBudget,
+    groundTexelTargetMeters,
+    maxReceiverBiasMeters,
   }: ShadowUpdate): ShadowSnapshot | null {
     if (this.disposed) return null;
     if (receiverWorldPoints.length === 0) {
@@ -347,6 +354,7 @@ export class ShadowController {
       elevationSine: normalizedDirectionToSun.y,
       sunDiscGuardMeters,
       groundTexelFit,
+      groundTexelTargetMeters,
       mapDimensions:
         stabilizeMapSize &&
         this.mapAllocation?.texelBudget === resolvedMapTexelBudget &&
@@ -392,6 +400,12 @@ export class ShadowController {
       ),
     };
     shadowBounds.far = Math.max(shadowBounds.near + 1, shadowBounds.far);
+    // SHADOW-PCF-PARITY-20260907 (three/TILED_SHADOW_PAGES.md): use the same
+    // raster-footprint bias for viewport and corridor depth maps. The terrain's
+    // 1 cm reconstruction tolerance does NOT bound PCF self-intersection across
+    // different triangles. Capping bias to that value produced black facets in
+    // the overhead-sun GPU oracle. Coarse maps can still lose contact detail;
+    // report unmet texel demand rather than promising centimetre shadow accuracy.
     const normalBias = clamp(
       (metersPerTexel * SHADOW_NORMAL_BIAS_TEXELS) /
         Math.max(MIN_SHADOW_BIAS_ELEVATION_SINE, normalizedDirectionToSun.y),
@@ -437,8 +451,17 @@ export class ShadowController {
       .multiplyScalar(lightDistance)
       .add(targetPosition);
     light.target.position.copy(targetPosition);
-    light.shadow.bias = depthBias;
-    light.shadow.normalBias = normalBias;
+    // Decision MESH-CONTACT-BIAS-20260908 (three/TILED_SHADOW_PAGES.md): mesh
+    // contact must not inherit metre-scale heightfield acne suppression.
+    const biasLimit =
+      maxReceiverBiasMeters !== undefined && Number.isFinite(maxReceiverBiasMeters)
+        ? Math.max(0, maxReceiverBiasMeters)
+        : Infinity;
+    light.shadow.bias = Math.max(
+      depthBias,
+      -biasLimit / (shadowBounds.far - shadowBounds.near)
+    );
+    light.shadow.normalBias = Math.min(normalBias, biasLimit);
     const camera = light.shadow.camera;
     camera.left = shadowBounds.left;
     camera.right = shadowBounds.right;
@@ -465,7 +488,10 @@ export class ShadowController {
     return {
       sampleCount: 1,
       totalShadowTexels: shadowFit.mapWidth * shadowFit.mapHeight,
-      mapTexelBudget: resolvedMapTexelBudget,
+      mapTexelBudget:
+        groundTexelTargetMeters === undefined
+          ? resolvedMapTexelBudget
+          : undefined,
       casterReachMeters,
       camera: {
         receiverPointCount: receiverWorldPoints.length,
@@ -491,6 +517,7 @@ export class ShadowController {
         groundTexelHeightMeters: shadowFit.groundTexelHeightMeters,
         groundTexelFitLimited: shadowFit.groundTexelFitLimited,
         groundTexelFit,
+        groundTexelTargetMeters,
       },
     };
   }

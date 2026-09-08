@@ -3,18 +3,18 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { useAddonState } from "@carma-mapping/addons";
 import { useLibreContext } from "@carma-mapping/contexts";
-import { DEFAULT_SHADOW_SIMULATION_TIME_ZONE } from "@carma-mapping/shadow-simulation/core";
+import {
+  DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
+  applyShadowHashSelection,
+  resolveShadowHashSelection,
+  shadowStateMatchesHashSelection,
+} from "@carma-mapping/shadow-simulation/core";
 import { useHashState } from "@carma-providers/hash-state";
 
 import {
   buildGeoportalShadowSimulationHashUpdate,
   type GeoportalCustomHashState,
 } from "../helper/geoportal-custom-hash-state";
-import {
-  applyShadowHashSelection,
-  resolveGeoportalShadowHashSelection,
-  shadowStateMatchesHashSelection,
-} from "../helper/geoportal-shadow-simulation-state";
 
 type UseGeoportalShadowSimulationHashOptions = {
   customHashState: AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState> | null;
@@ -97,7 +97,7 @@ export const useGeoportalShadowSimulationHash = ({
     shadowDate?.timeZone ?? DEFAULT_SHADOW_SIMULATION_TIME_ZONE;
   const hashSelection = useMemo(
     () =>
-      resolveGeoportalShadowHashSelection(
+      resolveShadowHashSelection(
         decodedHashSelection,
         shadowYear,
         { latitude: mapCenter?.lat, longitude: mapCenter?.lng },

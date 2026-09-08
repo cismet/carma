@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { ecefToEnuOffset } from "@carma-geo/utils";
 
+import { SHADOW_BUFFER_LAYOUT } from "../core/shadow-types";
 import type { ShadowSnapshot } from "./shadow-controller";
 import { buildShadowProjectionDebugModel } from "./shadow-projection-debug-model";
 
@@ -68,6 +69,9 @@ const buildSnapshot = () => {
     },
   };
   return {
+    bufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    sunDiscSamples: 256,
+    tiledStats: null,
     cameraRangeMeters: 2_500,
     leftMeters: camera.left,
     rightMeters: camera.right,
@@ -108,10 +112,53 @@ describe("buildShadowProjectionDebugModel", () => {
     expect(model?.receiverCoverageWidthMeters).toBe(180);
     expect(model?.receiverCoverageHeightMeters).toBe(80);
     expect(model?.shadowTexelWidthMeters).toBe(0.05);
-    expect(model?.shadowSampleCount).toBe(8);
+    expect(model?.sunDiscSamples).toBe(256);
+    expect(model?.bufferLayout).toBe(SHADOW_BUFFER_LAYOUT.MONO);
+    expect(model?.tiledStats).toBeNull();
     expect(model?.casterReachMeters).toBe(875);
     expect(model?.horizontalProjectionPerHeight).toBeCloseTo(Math.sqrt(3), 5);
     expect(model?.viewStates[0].anchorCartographic.altitude).toBeCloseTo(20);
+  });
+
+  it("exposes actual tiled page statistics independently of the mono camera fit", () => {
+    const tiledStats = {
+      pages: 4,
+      cachedSamplePages: 12,
+      cacheBytes: 4096,
+      scratchBytes: 1024,
+      hits: 8,
+      misses: 12,
+      depthRenders: 12,
+      colorPasses: 20,
+      limitedPages: 1,
+      dimensions: ["128×256", "256×512"],
+    };
+    const model = buildShadowProjectionDebugModel(
+      buildMap(),
+      { instant, azimuthDegrees: 120, elevationDegrees: 30 },
+      {
+        ...buildSnapshot(),
+        bufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+        sunDiscSamples: 1024,
+        tiledStats,
+      }
+    );
+
+    expect(model?.bufferLayout).toBe(SHADOW_BUFFER_LAYOUT.TILED);
+    expect(model?.sunDiscSamples).toBe(1024);
+    expect(model?.tiledStats).toBe(tiledStats);
+    expect(model?.shadowBuffer.shadowMapWidth).toBe(4096);
+  });
+
+  it("does not invent page counts before the tiled renderer is initialized", () => {
+    const model = buildShadowProjectionDebugModel(
+      buildMap(),
+      { instant, azimuthDegrees: 120, elevationDegrees: 30 },
+      { ...buildSnapshot(), bufferLayout: SHADOW_BUFFER_LAYOUT.TILED }
+    );
+
+    expect(model?.bufferLayout).toBe(SHADOW_BUFFER_LAYOUT.TILED);
+    expect(model?.tiledStats).toBeNull();
   });
 
   it("uses the actual shadow-camera pose independently of display angles", () => {
@@ -205,5 +252,77 @@ describe("buildShadowProjectionDebugModel", () => {
     ]);
     expect(model?.tileVolumes[0]?.color).toBe("#ea580c");
     expect(model?.viewStates[0].intrinsics.frustum?.far).toBeGreaterThan(0);
+  });
+
+  it("fits loaded extent at center elevation independently of sun-camera distance", () => {
+    const snapshot = {
+      ...buildSnapshot(),
+      tileVolumes: [
+        {
+          id: "terrain",
+          loadReason: "viewport" as const,
+          minimum: [0, 10, 20] as const,
+          maximum: [20, 30, 40] as const,
+        },
+      ],
+    };
+    const solarPosition = { instant, azimuthDegrees: 120, elevationDegrees: 30 };
+    const model = buildShadowProjectionDebugModel(
+      buildMap(),
+      solarPosition,
+      snapshot
+    )!;
+    const distantCamera = new Matrix4()
+      .fromArray(snapshot.shadow.camera.viewMatrixElements)
+      .invert()
+      .setPosition(100_000, 200_000, -300_000)
+      .invert();
+    const distantModel = buildShadowProjectionDebugModel(
+      buildMap(),
+      solarPosition,
+      {
+        ...snapshot,
+        shadow: {
+          ...snapshot.shadow,
+          camera: {
+            ...snapshot.shadow.camera,
+            viewMatrixElements: distantCamera.toArray(),
+          },
+        },
+      }
+    )!;
+
+    expect(model.visualizationWorldScaleMeters).toBeCloseTo(Math.sqrt(300));
+    expect(distantModel.visualizationWorldScaleMeters).toBe(
+      model.visualizationWorldScaleMeters
+    );
+    expect(distantModel.tileVolumes).toEqual(model.tileVolumes);
+    expect(model.viewStates[0].anchorCartographic.altitude).toBeCloseTo(20);
+    const expandedModel = buildShadowProjectionDebugModel(
+      buildMap(),
+      solarPosition,
+      {
+        ...snapshot,
+        tileVolumes: [
+          ...snapshot.tileVolumes,
+          {
+            id: "caster",
+            loadReason: "shadow" as const,
+            minimum: [50, 10, 20] as const,
+            maximum: [110, 30, 40] as const,
+          },
+        ],
+      }
+    )!;
+    expect(expandedModel.visualizationWorldScaleMeters).toBeCloseTo(
+      Math.sqrt(10_200)
+    );
+    expect(
+      Math.max(
+        ...expandedModel.tileVolumes.flatMap(({ minimum, maximum }) =>
+          [...minimum, ...maximum].map(Math.abs)
+        )
+      )
+    ).toBeLessThanOrEqual(1);
   });
 });

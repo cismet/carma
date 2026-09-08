@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import "./shadow-simulation.css";
@@ -7,7 +7,6 @@ import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
-import { clamp } from "@carma-commons/math";
 import {
   Control,
   ControlButtonStyler,
@@ -22,26 +21,27 @@ import {
 import {
   createInitialShadowDateState,
   createInitialShadowSimulationState,
-  selectShadowQualityPreset,
 } from "../core/create-shadow-simulation-state";
 import {
   DEFAULT_SHADOW_SIMULATION_LOCATION,
   DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
   getSolarPosition,
 } from "../core/solar-position";
-import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
-  DEFAULT_SHADOW_BUILDING_COLOR,
-  DEFAULT_SHADOW_BUILDING_COLOR_MIX,
-  DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
-  DEFAULT_SHADOW_SURFACE_COLOR,
-  resolveShadowQuality,
-} from "../core/shadow-types";
 import { ShadowSimulationRuntime } from "../runtime/ShadowSimulationRuntime";
 import { useMapCenterSolarLocation } from "../runtime/hooks/use-map-center-solar-location";
 import { useShadowAnimation } from "../runtime/hooks/use-shadow-animation";
-import { ShadowProjectionDebugView } from "./ShadowProjectionDebugView";
 import { ShadowSimulationSecondaryPanel } from "./ShadowSimulationSecondaryPanel";
+
+const ShadowProjectionDebugView = lazy(() =>
+  import("./ShadowProjectionDebugView").then((module) => ({
+    default: module.ShadowProjectionDebugView,
+  }))
+);
+const ShadowSimulationDisplaySettingsPanel = lazy(() =>
+  import("./ShadowSimulationDisplaySettingsPanel").then((module) => ({
+    default: module.ShadowSimulationDisplaySettingsPanel,
+  }))
+);
 
 const ACTIVE_CONTROL_COLOR = "#1677ff";
 export const ShadowSimulationView = ({
@@ -130,7 +130,6 @@ export const ShadowSimulationView = ({
         setState={setSharedState}
         dateState={dateState}
         setDateState={setSharedDateState}
-        terrainSources={selectableTerrainSources}
       />
     );
   }
@@ -182,42 +181,31 @@ export const ShadowSimulationView = ({
         state={state}
         dateState={dateState}
       />
-      {state.showProjectionDebugView && libreMap && (
-        <ShadowProjectionDebugView
-          map={libreMap}
-          solarPosition={getSolarPosition(dateState, location)}
-          settings={{
-            shadowQuality: resolveShadowQuality(state.shadowQuality),
-            meshErrorTarget:
-              state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS,
-            terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
-            buildingsFullOpacity: state.buildingsFullOpacity ?? true,
-            buildingColorMix: clamp(
-              state.buildingColorMix ?? DEFAULT_SHADOW_BUILDING_COLOR_MIX,
-              0,
-              1
-            ),
-            meshTextureSaturation: clamp(
-              state.meshTextureSaturation ??
-                DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
-              0,
-              1
-            ),
-            buildingColor: state.buildingColor ?? DEFAULT_SHADOW_BUILDING_COLOR,
-            showSunDebugVector: state.showSunDebugVector ?? false,
-            showTileBounds: state.showTileBounds ?? false,
-            useTransmittanceLut: state.useTransmittanceLut ?? true,
-            useSkyIrradianceLut: state.useSkyIrradianceLut ?? true,
-          }}
-          onSettingsChange={(patch) =>
-            setSharedState({
-              ...(patch.shadowQuality === undefined
-                ? state
-                : selectShadowQualityPreset(state, patch.shadowQuality)),
-              ...patch,
-            })
-          }
-        />
+      {state.showDisplaySettings && (
+        <Suspense fallback={null}>
+          <ShadowSimulationDisplaySettingsPanel
+            state={state}
+            setState={setSharedState}
+            terrainSources={selectableTerrainSources}
+            map={libreMap}
+          />
+        </Suspense>
+      )}
+      {state.enabled && state.showProjectionDebugView && libreMap && (
+        <Suspense fallback={null}>
+          <ShadowProjectionDebugView
+            map={libreMap}
+            solarPosition={getSolarPosition(dateState, location)}
+            settings={{
+              showSunDebugVector: state.showSunDebugVector ?? false,
+              showTileBounds: state.showTileBounds ?? false,
+            }}
+            onSettingsChange={(patch) => setSharedState({ ...state, ...patch })}
+            onClose={() =>
+              setSharedState({ ...state, showProjectionDebugView: false })
+            }
+          />
+        </Suspense>
       )}
     </>
   );

@@ -6,13 +6,20 @@ import {
   createProjectedTerrainTileGeometry,
 } from "@carma-mapping/engines/three/primitives/core";
 import {
-  buildGridTile,
-  decodeImage,
+  buildErrorBoundedGridTile,
+  type DecodedRaster,
   type TerrainTile,
   type TerrainTileId,
-} from "./raster-dem-tile";
+} from "../../core/raster-dem-tile";
 import { createMercatorTerrainProjector } from "./mercator-terrain-projector";
-import { readProjectedTerrainCacheRecord } from "./projected-terrain-cache-record";
+import { decodeImage } from "./decode-raster-dem-image";
+import {
+  readProjectedTerrainCacheRecord,
+  writeProjectedTerrainCacheRecord,
+  updateProjectedTerrainReadCost,
+  calibrateProjectedTerrainCache,
+  type CachedProjectedTerrainTile,
+} from "./projected-terrain-cache-record";
 import {
   executeTerrainBoundaryStitch,
   type TerrainStitchInput,
@@ -23,7 +30,22 @@ import {
 } from "../../core/terrain-selection";
 
 export type TerrainWorkerTask =
-  | { kind: "read-cache"; key: string }
+  | { kind: "read-cache"; key: string; producerAssetUrl?: string }
+  | {
+      kind: "write-cache";
+      key: string;
+      entry: CachedProjectedTerrainTile;
+      bytes: number;
+      recomputeMs?: number;
+      producerAssetUrl?: string;
+    }
+  | {
+      kind: "cache-cost";
+      key: string;
+      restoreMs: number;
+      producerAssetUrl?: string;
+    }
+  | { kind: "calibrate-cache"; producerAssetUrl?: string }
   | { kind: "select"; input: TerrainSelectionInput }
   | {
       kind: "partition";
@@ -46,6 +68,14 @@ export type TerrainWorkerTask =
       id: TerrainTileId;
       segments: number;
       error: number;
+      maximumMeshErrorMeters?: number;
+    }
+  | {
+      kind: "remesh";
+      raster: DecodedRaster;
+      id: TerrainTileId;
+      error: number;
+      maximumMeshErrorMeters?: number;
     }
   | {
       kind: "project";
@@ -53,11 +83,45 @@ export type TerrainWorkerTask =
       origin: { x: number; y: number; z: number };
     };
 
-export const executeTerrainWorkerTask = async (task: TerrainWorkerTask) => {
+export const executeTerrainWorkerTask = async (
+  task: TerrainWorkerTask,
+  signal?: AbortSignal
+) => {
+  if (task.kind === "calibrate-cache")
+    return {
+      kind: "calibrate-cache" as const,
+      calibrated: await calibrateProjectedTerrainCache(
+        task.producerAssetUrl,
+        signal
+      ),
+    };
+  if (task.kind === "write-cache")
+    return {
+      kind: "write-cache" as const,
+      stored: await writeProjectedTerrainCacheRecord(
+        task.key,
+        task.entry,
+        task.bytes,
+        task.recomputeMs,
+        task.producerAssetUrl
+      ),
+    };
+  if (task.kind === "cache-cost")
+    return {
+      kind: "cache-cost" as const,
+      updated: await updateProjectedTerrainReadCost(
+        task.key,
+        task.restoreMs,
+        task.producerAssetUrl
+      ),
+    };
   if (task.kind === "read-cache")
     return {
       kind: "read-cache" as const,
-      entry: await readProjectedTerrainCacheRecord(task.key),
+      entry: await readProjectedTerrainCacheRecord(
+        task.key,
+        task.producerAssetUrl
+      ),
     };
   if (task.kind === "select")
     return {
@@ -88,12 +152,18 @@ export const executeTerrainWorkerTask = async (task: TerrainWorkerTask) => {
       kind: "stitch" as const,
       ...executeTerrainBoundaryStitch(task.inputs, task),
     };
-  if (task.kind === "decode") {
-    const raster = await decodeImage(task.blob);
+  if (task.kind === "decode" || task.kind === "remesh") {
+    const raster =
+      task.kind === "decode" ? await decodeImage(task.blob) : task.raster;
     return {
-      kind: "decode" as const,
+      kind: task.kind,
       raster,
-      tile: buildGridTile(task.id, raster, task.segments, task.error),
+      tile: buildErrorBoundedGridTile(
+        task.id,
+        raster,
+        task.error,
+        task.maximumMeshErrorMeters
+      ),
     };
   }
   const geometry = createProjectedTerrainTileGeometry({
@@ -150,7 +220,10 @@ export const terrainResultTransfers = (
           ]),
         ]
       : []
-    : result.kind === "select"
+    : result.kind === "select" ||
+      result.kind === "write-cache" ||
+      result.kind === "cache-cost" ||
+      result.kind === "calibrate-cache"
     ? []
     : result.kind === "partition"
     ? ([

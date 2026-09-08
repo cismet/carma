@@ -17,6 +17,7 @@ import {
 } from "three";
 
 import { quantize } from "@carma-commons/math";
+import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import {
   acquireRasterDemTerrainTileSource,
@@ -34,6 +35,13 @@ import {
   setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
 import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import {
+  planTerrainIdlePrefetch,
+  planTerrainIdleShadowRegion,
+  TERRAIN_IDLE_SHADOW_REASON,
+  type TerrainIdleShadowReason,
+} from "../../core/terrain-idle-prefetch";
 import {
   prepareTerrainBoundaryStitch,
   type TerrainBoundaryStitchState,
@@ -49,8 +57,13 @@ import {
 import {
   NO_DATA_EPSILON_METERS,
   terrainHeightRangeExcludesNoData,
-} from "./terrain-no-data";
-import { getTileBounds } from "./raster-dem-tile";
+} from "../../core/terrain-no-data";
+import { getTileBounds } from "../../core/raster-dem-tile";
+import {
+  MAXIMUM_RASTER_MESH_ERROR_METERS,
+  resolveRasterMeshErrorMeters,
+} from "../../core/raster-mesh-error";
+import { createTerrainTileHeightSampler } from "../../core/terrain-tile-height-sampler";
 import {
   advanceTerrainTileFrontier,
   terrainTileContains,
@@ -67,10 +80,18 @@ import type {
 } from "./shared-three-scene-layer";
 import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
 
+// The runtime chunk owns preparation orchestration outside the worker graph.
+const producerAssetUrl =
+  resolveDerivedCacheAssetEpoch({
+    production: import.meta.env.PROD,
+    assetUrl: import.meta.url,
+  }) ?? undefined;
+
 const DEFAULT_TERRAIN_COLOR = 0xd8d1c4;
 const DEFAULT_ERROR_TARGET_PIXELS = 2.5;
 // Same screen-space raster-spacing metric as final selection, not a certified
-// vertical DEM error bound. Never fetch coarser startup ancestors above 16 px.
+// vertical DEM error bound. Refine the coverage-first cut to 16 px before
+// final-detail work; the very first coverage cut may intentionally be coarser.
 const INITIAL_ERROR_TARGET_PIXELS = 16;
 const DEFAULT_SHADOW_LEVEL_OFFSET = 2;
 const DEFAULT_MINIMUM_LEVEL = 8;
@@ -85,6 +106,25 @@ const DEFAULT_MAX_CACHED_MESHES = 256;
 const TERRAIN_UPDATE_PRIORITY = 100;
 const UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS = [-1_000, 10_000] as const;
 const PUBLICATION_BATCH_DELAY_MS = 32;
+const MAXIMUM_IDLE_SHADOW_GEOMETRY_BYTES = 32 * 1024 * 1024;
+const IDLE_SHADOW_VALIDATION_CHUNK_VERTICES = 16_384;
+
+export type TerrainIdleShadowRegion = Readonly<{
+  id: string;
+  terrainLevel: number;
+  receiverBounds: Box3;
+}>;
+
+export type TerrainIdleShadowLease = Readonly<{
+  /** False after cancellation/disposal, even if preparation originally succeeded. */
+  covered: boolean;
+  /** Detached, depth-only surface; the host owns temporary scene attachment. */
+  group: Group | null;
+  dependencyBounds: readonly Box3[];
+  reason?: TerrainIdleShadowReason;
+  isCurrent: () => boolean;
+  dispose: () => void;
+}>;
 
 export type RasterDemTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
@@ -101,6 +141,8 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   maxCachedMeshes?: number;
   /** Number of height-grid segments per tile used by the Three.js terrain. */
   meshSegments?: number;
+  /** Additional reconstruction residual; source-LOD pixel spacing is separate. */
+  maximumMeshErrorMeters?: number;
   /** Source-specific height that denotes missing terrain coverage. */
   noDataHeightMeters?: number;
   /** Conservative elevation range used until a tile or ancestor is loaded. */
@@ -108,13 +150,38 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   material?: RasterDemTerrainMaterialOptions;
   /** Project MapLibre ground styling onto this terrain before lighting. */
   receivesMapStyleTexture?: boolean;
-  /** Called after the active terrain meshes or their normals changed. */
-  onContentChanged?: () => void;
+  /** Published old-union-new bounds, including stitched normals/topology changes. */
+  onContentChanged?: (changedBounds: readonly Box3[]) => void;
   onError?: (error: unknown) => void;
 }>;
 
 export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
+  getIdlePrefetchAvailability: () => Readonly<{
+    ready: boolean;
+    remaining: number;
+  }>;
+  /** Source/derived-cache warming only; never changes the published mesh cut. */
+  prefetchIdleTerrain: (signal?: AbortSignal) => Promise<
+    Readonly<{
+      /** Computed/restored and offered to the bounded cache, not guaranteed persisted. */
+      prepared: number;
+      failed: number;
+      remaining: number;
+      aborted: boolean;
+    }>
+  >;
+  getIdleShadowRegions: () => readonly TerrainIdleShadowRegion[];
+  /** One isolated lease at a time; never changes the published terrain cut. */
+  prepareIdleShadowRegion: (
+    region: Readonly<{
+      receiverBounds: Box3;
+      /** Host-computed finite-disc/guard-widened receiver-to-light corridor. */
+      casterBounds: Box3;
+      terrainLevel: number;
+    }>,
+    signal?: AbortSignal
+  ) => Promise<TerrainIdleShadowLease>;
   /** Move the previous visible cut into this runtime before disposing it. */
   adoptPresentation: (previous: RasterDemTerrainRuntime) => void;
   setShadowView: (view: SharedThreeSceneShadowView | null) => void;
@@ -139,6 +206,8 @@ type TerrainMeshRecord = {
   boundaryBaseHeights: Record<TerrainBoundarySide, Float32Array>;
   lastUsed: number;
   id: TerrainTileId;
+  heightBounds: TerrainTileBounds | null;
+  sampleHeight: ReturnType<typeof createTerrainTileHeightSampler>;
   minimumHeightMeters: number;
   maximumHeightMeters: number;
 };
@@ -346,10 +415,14 @@ export const buildRasterDemTerrainRuntime = (
     options.heightRangeMeters ?? UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS;
   const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const meterScale = origin.meterInMercatorCoordinateUnits();
+  const maximumMeshErrorMeters = resolveRasterMeshErrorMeters(
+    options.maximumMeshErrorMeters
+  );
   const projectedGeometryCache = createProjectedTerrainGeometryCache(
-    JSON.stringify([terrainSourceConfig, options.meshSegments]),
+    JSON.stringify([terrainSourceConfig, maximumMeshErrorMeters]),
     originLngLat,
-    noDataHeightMeters
+    noDataHeightMeters,
+    producerAssetUrl
   );
   const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
   const root = new Group();
@@ -365,16 +438,25 @@ export const buildRasterDemTerrainRuntime = (
   let mapStyleProjectionVersion = 0;
   const sourcePromise = acquireRasterDemTerrainTileSource(terrainSourceConfig, {
     maxCacheBytes: options.maxCacheBytes,
-    meshSegments: options.meshSegments,
+    // Profile segment caps are not a residual guarantee. The worker now chooses
+    // native/half/quarter from the same full-resolution source and a measured
+    // error bound; progressive source-LOD stages still fill the screen first.
+    meshSegments: terrainSourceConfig.tileSize,
   });
   const meshes = new Map<string, TerrainMeshRecord>();
   let source: RasterDemTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
+  let latestRenderCamera: Camera | null = null;
   let shadowView: SharedThreeSceneShadowView | null = null;
+  let previousShadowFrustum: Frustum | null = null;
   let unregisterSampler: (() => void) | null = null;
   let disposed = false;
   let terrainLoading = true;
   let contentChangedSinceFrame = false;
+  let publishedShadowGeometry = new Map<
+    string,
+    { revision: string; bounds: Box3 }
+  >();
   let meshUseClock = 0;
   let selectionGeneration = 0;
   let requestedSignature = "";
@@ -416,6 +498,35 @@ export const buildRasterDemTerrainRuntime = (
   let selectionInputSignature = "";
   let selectionRequestPending = false;
   let queuedSelectionInput: TerrainSelectionInput | null = null;
+  type PrefetchSelectionView = Readonly<{
+    inputSignature: string;
+    shadowSignature: string;
+    viewportBounds: TerrainTileBounds;
+  }>;
+  let idlePrefetchSelection:
+    | (PrefetchSelectionView & {
+        generation: number;
+        selection: TerrainSelection;
+        entries: readonly TerrainSelectionEntry[];
+        /** Shadow candidates survive successful warming and resident mesh hits. */
+        shadowEntries: readonly TerrainSelectionEntry[];
+        attemptedKeys: Set<string>;
+        /** Metadata only; prefetch never retains source/derived geometry buffers. */
+        heightRanges: Map<string, readonly [number, number]>;
+      })
+    | null = null;
+  let idlePrefetchController: AbortController | null = null;
+  let idleShadowLease: TerrainIdleShadowLease | null = null;
+  const invalidateIdlePrefetch = () => {
+    idlePrefetchController?.abort();
+    idleShadowLease?.dispose();
+    idlePrefetchSelection = null;
+  };
+  const handleIdlePrefetchMovement = () => {
+    invalidateIdlePrefetch();
+    // Reconfirm even when a gesture ends at the same camera/cut.
+    selectionInputSignature = "";
+  };
   // Keep the latest fitted shadow view separate from the view used by an
   // in-flight selection. Otherwise every progressive terrain stage refits the
   // shadow camera and immediately supersedes the load that produced it.
@@ -461,14 +572,17 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   const conversionAbort = new AbortController();
-  const createProjectedGeometry = async (tile: TerrainTile) => {
+  const createProjectedGeometry = async (
+    tile: TerrainTile,
+    signal = conversionAbort.signal
+  ) => {
     const result = await runTerrainWorkerTask(
       {
         kind: "project",
         tile,
         origin: { x: origin.x, y: origin.y, z: origin.z },
       },
-      conversionAbort.signal
+      signal
     );
     if (result.kind !== "project")
       throw new Error("Unexpected terrain projection result");
@@ -495,9 +609,18 @@ export const buildRasterDemTerrainRuntime = (
 
   const loadTerrainEntry = async (
     terrainSource: RasterDemTerrainTileSource,
-    entry: TerrainSelectionEntry
+    entry: TerrainSelectionEntry,
+    signal = conversionAbort.signal
   ) => {
-    const cached = await projectedGeometryCache.get(entry.id);
+    signal.throwIfAborted();
+    const cached = await projectedGeometryCache.get(
+      entry.id,
+      maximumMeshErrorMeters
+    );
+    if (signal.aborted) {
+      cached?.geometry?.dispose();
+      signal.throwIfAborted();
+    }
     if (cached)
       return {
         tile: cached.tile,
@@ -506,25 +629,46 @@ export const buildRasterDemTerrainRuntime = (
       };
     let tile: TerrainTile;
     try {
-      tile = await terrainSource.requestTile(entry.id);
+      tile =
+        maximumMeshErrorMeters === MAXIMUM_RASTER_MESH_ERROR_METERS
+          ? await terrainSource.requestTile(entry.id)
+          : await terrainSource.requestTile(
+              entry.id,
+              undefined,
+              maximumMeshErrorMeters
+            );
       payloadAwareConcurrency.observePayload(tile.byteLength);
     } catch (error) {
       payloadAwareConcurrency.observeFailure(error);
       throw error;
     }
-    const projectedGeometry = await createProjectedGeometry(tile);
-    const prepared = await prepareReliefGeometry(tile, projectedGeometry);
+    signal.throwIfAborted();
+    // Exclude download and source-cache lookup: persistent derived geometry
+    // must compete with the locally available source, not a slow network.
+    const computeStart = performance.now();
+    const projectedGeometry = await createProjectedGeometry(tile, signal);
+    const prepared = await prepareReliefGeometry(
+      tile,
+      projectedGeometry,
+      signal
+    );
+    if (signal.aborted) {
+      prepared.projectedGeometry?.dispose();
+      signal.throwIfAborted();
+    }
     projectedGeometryCache.set(
       tile,
       prepared.projectedGeometry,
-      prepared.reliefVertexMask
+      prepared.reliefVertexMask,
+      performance.now() - computeStart
     );
     return prepared;
   };
 
   const prepareReliefGeometry = async (
     tile: TerrainTile,
-    geometry: BufferGeometry
+    geometry: BufferGeometry,
+    signal = conversionAbort.signal
   ) => {
     if (
       noDataHeightMeters === undefined ||
@@ -546,7 +690,7 @@ export const buildRasterDemTerrainRuntime = (
           heights: tile.heightMeters,
           noDataHeightMeters,
         },
-        conversionAbort.signal
+        signal
       );
       if (result.kind !== "partition")
         throw new Error("Unexpected terrain partition result");
@@ -657,10 +801,49 @@ export const buildRasterDemTerrainRuntime = (
       boundaryBaseHeights,
       lastUsed: ++meshUseClock,
       id: entry.id,
+      heightBounds: tile.bounds ? { ...tile.bounds } : null,
+      sampleHeight: reliefGeometry
+        ? createTerrainTileHeightSampler(tile, noDataHeightMeters)
+        : null,
       minimumHeightMeters,
       maximumHeightMeters,
     });
     return node;
+  };
+
+  const getElevation = (longitude: number, latitude: number) => {
+    if (disposed) return undefined;
+    const height = source?.sampleHeight(longitude, latitude);
+    if (height !== undefined)
+      return Number.isFinite(height) &&
+        (noDataHeightMeters === undefined ||
+          Math.abs(height - noDataHeightMeters) > NO_DATA_EPSILON_METERS)
+        ? height
+        : undefined;
+    // A persistent component hit bypasses requestTile, so the source's raster
+    // cache may be empty. Keep labels queryable from the existing mesh cut.
+    let finest: TerrainMeshRecord | undefined;
+    for (const candidate of meshes.values()) {
+      const bounds = candidate.heightBounds;
+      if (
+        !bounds ||
+        longitude < bounds.west ||
+        longitude > bounds.east ||
+        latitude < bounds.south ||
+        latitude > bounds.north
+      )
+        continue;
+      if (
+        !finest ||
+        candidate.id.level > finest.id.level ||
+        (candidate.id.level === finest.id.level &&
+          candidate.node.visible &&
+          !finest.node.visible)
+      )
+        finest = candidate;
+    }
+    // A finer no-data tile must not reveal a coarser surface below its hole.
+    return finest?.sampleHeight?.(longitude, latitude);
   };
 
   let stitchedActiveSignature = "";
@@ -809,10 +992,11 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
+  let shadowDependencies: readonly { key: string; bounds: Box3 }[] = [];
   const terrainBoundsCorner = new Vector3();
 
   const getTerrainMeshWorldBounds = (
-    record: TerrainMeshRecord,
+    record: Pick<TerrainMeshRecord, "id" | "minimumHeightMeters" | "maximumHeightMeters">,
     target: Box3
   ): Box3 => {
     const geographicBounds =
@@ -895,6 +1079,39 @@ export const buildRasterDemTerrainRuntime = (
     for (const [key, record] of meshes) {
       record.node.visible = root.visible && activeMeshKeys.has(key);
     }
+  };
+
+  // Selection runs asynchronously and may omit still-visible old tiles while
+  // dragging. The actual latest camera, not membership in that selection,
+  // decides whether their last loaded surface can be discarded.
+  const getRequiredMeshKeys = (): ReadonlySet<string> => {
+    if (!latestRenderCamera) return activeMeshKeys;
+    latestRenderCamera.updateMatrixWorld(true);
+    root.updateWorldMatrix(true, false);
+    const projection = new Matrix4().multiplyMatrices(
+      latestRenderCamera.projectionMatrix,
+      latestRenderCamera.matrixWorldInverse
+    );
+    if (!projection.elements.every(Number.isFinite)) return activeMeshKeys;
+    const frustum = new Frustum().setFromProjectionMatrix(
+      projection,
+      latestRenderCamera.coordinateSystem,
+      latestRenderCamera.reversedDepth
+    );
+    const shadowFrustum = shadowView ? new Frustum().setFromProjectionMatrix(
+      new Matrix4().multiplyMatrices(shadowView.camera.projectionMatrix, shadowView.camera.matrixWorldInverse),
+      shadowView.camera.coordinateSystem,
+      shadowView.camera.reversedDepth
+    ) : null;
+    const bounds = new Box3();
+    return new Set(
+      [...activeMeshKeys].filter((key) => {
+        const record = meshes.get(key);
+        if (!record) return false;
+        getTerrainMeshWorldBounds(record, bounds);
+        return frustum.intersectsBox(bounds) || shadowFrustum?.intersectsBox(bounds) || previousShadowFrustum?.intersectsBox(bounds);
+      })
+    );
   };
 
   const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
@@ -1029,13 +1246,7 @@ export const buildRasterDemTerrainRuntime = (
         },
         minzoom: terrainSourceConfig.minzoom,
         maxzoom: terrainSourceConfig.maxzoom,
-        meshSegments: Math.max(
-          2,
-          Math.min(
-            terrainSourceConfig.tileSize,
-            Math.floor(options.meshSegments ?? terrainSourceConfig.tileSize)
-          )
-        ),
+        meshSegments: terrainSourceConfig.tileSize,
       },
       knownHeightRanges,
       unknownHeightRange: unknownTerrainHeightRange,
@@ -1050,11 +1261,12 @@ export const buildRasterDemTerrainRuntime = (
 
   const loadSelection = (
     terrainSource: RasterDemTerrainTileSource,
-    selection: TerrainSelection
+    selection: TerrainSelection,
+    prefetchView: PrefetchSelectionView
   ) => {
+    invalidateIdlePrefetch();
     setTerrainLoading(true);
     const generation = ++selectionGeneration;
-    const startedWithoutCoverage = activeMeshKeys.size === 0;
     let finishedLoading = false;
     let publicationRequested = false;
     let publicationJob: Promise<void> | null = null;
@@ -1065,14 +1277,23 @@ export const buildRasterDemTerrainRuntime = (
         id: entry.id,
       }));
     const requested = toFrontier(selection.entries);
+    // Cache footprints at selection time, not for every sun-disc sample. Extend
+    // vertically because an unloaded tile's actual elevation is not yet known.
+    root.updateMatrixWorld(true);
+    shadowDependencies = requested.map(({ key, id }) => ({
+      key,
+      bounds: getTerrainMeshWorldBounds({ id, minimumHeightMeters: -1000000, maximumHeightMeters: 1000000 }, new Box3()),
+    }));
+    const hasReadySurface = (key: string) =>
+      Boolean(meshes.get(key)?.reliefMesh);
     const publish = async () => {
       let frontier = [...activeMeshKeys].flatMap((key) => {
         const record = meshes.get(key);
         return record ? [{ key, id: record.id }] : [];
       });
-      // Preview ancestors are only useful on a cold start, never as a lower
-      // quality replacement for a detailed surface already on screen.
-      if (startedWithoutCoverage && !finishedLoading) {
+      // Fill newly uncovered areas on pans as well as cold starts. A preview
+      // must never replace detailed coverage already visible in that area.
+      if (!finishedLoading) {
         for (const stage of selection.viewportStages) {
           const candidates = toFrontier(stage).filter(
             (candidate) =>
@@ -1082,22 +1303,43 @@ export const buildRasterDemTerrainRuntime = (
                   terrainTileContains(candidate.id, tile.id)
               )
           );
-          frontier = advanceTerrainTileFrontier(frontier, candidates, (key) =>
-            meshes.has(key)
+          frontier = advanceTerrainTileFrontier(
+            frontier,
+            candidates,
+            hasReadySurface
           );
         }
       }
       frontier = advanceTerrainTileFrontier(
         frontier,
         requested,
-        (key) => meshes.has(key),
-        finishedLoading
+        hasReadySurface,
+        finishedLoading,
+        getRequiredMeshKeys()
       );
       const activeKeys = new Set(frontier.map(({ key }) => key));
       const signature = [...activeKeys].sort().join(";");
       if (signature === stitchedActiveSignature) return;
       await smoothActiveBoundaryNormals(activeKeys, generation, current);
       if (!current()) return;
+      // The camera can move during worker stitching. Replan before publishing
+      // if a formerly offscreen tile has become visible without any replacement.
+      const newlyUncovered = [...getRequiredMeshKeys()].some((key) => {
+        if (activeKeys.has(key)) return false;
+        const previous = meshes.get(key);
+        return (
+          previous &&
+          !frontier.some(
+            ({ id }) =>
+              terrainTileContains(id, previous.id) ||
+              terrainTileContains(previous.id, id)
+          )
+        );
+      });
+      if (newlyUncovered) {
+        publicationRequested = true;
+        return;
+      }
       activeMeshKeys = activeKeys;
       applyMeshVisibility();
       if (activeKeys.size > 0) settleReady(true);
@@ -1136,34 +1378,72 @@ export const buildRasterDemTerrainRuntime = (
         if (current()) options.onError?.(error);
       });
     };
-    const entriesToLoad = selection.loadEntries.filter(
-      (entry) =>
-        !meshes.has(terrainSelectionKey(entry)) &&
-        !unavailableTileKeys.has(terrainTileKey(entry.id))
+    const scheduledKeys = new Set<string>();
+    const finalKeys = new Set(requested.map(({ key }) => key));
+    const loadStages = [...selection.viewportStages, selection.entries].map(
+      (stage) =>
+        stage.filter((entry) => {
+          const key = terrainSelectionKey(entry);
+          if (
+            scheduledKeys.has(key) ||
+            meshes.has(key) ||
+            unavailableTileKeys.has(terrainTileKey(entry.id))
+          )
+            return false;
+          if (
+            !finalKeys.has(key) &&
+            [...activeMeshKeys].some((activeKey) => {
+              const active = meshes.get(activeKey);
+              return (
+                active &&
+                active.id.level > entry.id.level &&
+                terrainTileContains(entry.id, active.id)
+              );
+            })
+          )
+            return false;
+          scheduledKeys.add(key);
+          return true;
+        })
     );
     let completedEntries = 0;
     publishInBackground();
-    void loadWithConcurrency(
-      entriesToLoad,
-      Math.max(1, payloadAwareConcurrency.getConcurrency(requestConcurrency)),
-      async (entry) => {
-        if (!current()) throw new Error("Stale terrain selection");
-        try {
-          return await prepareMesh(terrainSource, entry);
-        } finally {
-          // Reserve one work unit for the final stitched/publication pass.
-          // Cancelled generations must never advance the current selection.
-          if (current())
-            setTerrainLoading(
-              true,
-              ++completedEntries / (entriesToLoad.length + 1)
-            );
-        }
-      },
-      () => {
-        if (current()) publishInBackground();
+    void (async () => {
+      const failures: ConcurrentLoadFailure<TerrainSelectionEntry>[] = [];
+      for (const stage of loadStages) {
+        if (!current()) break;
+        if (stage.length === 0) continue;
+        const loaded = await loadWithConcurrency(
+          stage,
+          Math.max(
+            1,
+            payloadAwareConcurrency.getConcurrency(requestConcurrency)
+          ),
+          async (entry) => {
+            if (!current()) throw new Error("Stale terrain selection");
+            try {
+              return await prepareMesh(terrainSource, entry);
+            } finally {
+              // Reserve one unit for the final stitched/publication pass.
+              if (current())
+                setTerrainLoading(
+                  true,
+                  ++completedEntries / (scheduledKeys.size + 1)
+                );
+            }
+          },
+          () => {
+            if (current()) publishInBackground();
+          }
+        );
+        failures.push(...loaded.failures);
+        // Do not let detailed or offscreen-caster work overtake first coverage
+        // while its geometry is still being stitched. This also yields to input
+        // and painting between stages, including memory-cache-only loads.
+        if (current()) await requestPublication();
       }
-    )
+      return { failures };
+    })()
       .then(async ({ failures }) => {
         if (!current()) return;
         let transientFailure: unknown = null;
@@ -1183,12 +1463,15 @@ export const buildRasterDemTerrainRuntime = (
         finishedLoading = true;
         await requestPublication();
         if (!current()) return;
+        if (prefetchView.shadowSignature === shadowViewSignature && failures.length === 0) previousShadowFrustum = null;
         terrainSource.trimCache(
           new Set(selection.entries.map((entry) => terrainTileKey(entry.id)))
         );
         trimMeshCache(activeMeshKeys);
         setTerrainLoading(false);
         syncSelectionShadowView();
+        if (failures.length === 0)
+          recordIdlePrefetchSelection(selection, prefetchView);
         if (activeMeshKeys.size === 0) settleReady(failures.length === 0);
         if (
           map &&
@@ -1211,13 +1494,16 @@ export const buildRasterDemTerrainRuntime = (
   };
   void sourcePromise
     .then((terrainSource) => {
-      if (disposed) return;
+      if (disposed) {
+        terrainSource.release();
+        return;
+      }
       source = terrainSource;
       if (map) {
         unregisterSampler = registerSharedThreeTerrainSampler(
           map,
           runtimeId,
-          terrainSource.sampleHeight
+          getElevation
         );
         map.triggerRepaint();
       }
@@ -1233,6 +1519,7 @@ export const buildRasterDemTerrainRuntime = (
     const transferred: TerrainMeshRecord[] = [];
     // Cancel old publications before moving their records: late workers must
     // never overwrite geometry now owned by the replacement source runtime.
+    invalidateIdlePrefetch();
     selectionGeneration += 1;
     pendingStitch?.controller.abort();
     for (const key of activeMeshKeys) {
@@ -1246,13 +1533,20 @@ export const buildRasterDemTerrainRuntime = (
   });
 
   const runSelection = (input: TerrainSelectionInput) => {
+    const prefetchView: PrefetchSelectionView = {
+      inputSignature: selectionInputSignature,
+      shadowSignature: selectionShadowViewSignature,
+      viewportBounds: input.viewportBounds,
+    };
     selectionRequestPending = true;
     void runTerrainWorkerTask({ kind: "select", input }, conversionAbort.signal)
       .then((result) => {
         if (disposed || result.kind !== "select") return;
         if (result.selection.signature !== requestedSignature) {
           requestedSignature = result.selection.signature;
-          loadSelection(source!, result.selection);
+          loadSelection(source!, result.selection, prefetchView);
+        } else if (!terrainLoading) {
+          recordIdlePrefetchSelection(result.selection, prefetchView);
         }
       })
       .catch((error) => {
@@ -1268,6 +1562,486 @@ export const buildRasterDemTerrainRuntime = (
       });
   };
 
+  const recordIdlePrefetchSelection = (
+    selection: TerrainSelection,
+    view: PrefetchSelectionView
+  ) => {
+    if (
+      disposed ||
+      terrainLoading ||
+      selectionRetryTimer !== null ||
+      selectionInputSignature !== view.inputSignature ||
+      shadowViewSignature !== view.shadowSignature ||
+      selectionShadowViewSignature !== view.shadowSignature ||
+      !selection.entries.every((entry) =>
+        activeMeshKeys.has(terrainSelectionKey(entry))
+      )
+    )
+      return;
+    const cachedTileKeys = new Set(
+      [...meshes.values()].map(({ id }) => terrainTileKey(id))
+    );
+    for (const key of unavailableTileKeys) cachedTileKeys.add(key);
+    const visibleEntries = selection.viewportStages.at(-1) ?? [];
+    let entries: readonly TerrainSelectionEntry[];
+    let shadowEntries: readonly TerrainSelectionEntry[];
+    try {
+      const input = {
+        visibleEntries,
+        requiredEntries: selection.entries,
+        source: {
+          bounds: {
+            west: terrainSourceConfig.bounds[0],
+            south: terrainSourceConfig.bounds[1],
+            east: terrainSourceConfig.bounds[2],
+            north: terrainSourceConfig.bounds[3],
+          },
+          minzoom: terrainSourceConfig.minzoom,
+          maxzoom: terrainSourceConfig.maxzoom,
+        },
+        viewportBounds: view.viewportBounds,
+      };
+      entries = planTerrainIdlePrefetch({ ...input, cachedTileKeys });
+      shadowEntries = planTerrainIdlePrefetch({
+        ...input,
+        cachedTileKeys: unavailableTileKeys,
+      });
+    } catch {
+      // Optional speculation must not fail foreground publication, including
+      // unnormalised world-copy bounds outside this planner's geographic API.
+      return;
+    }
+    idlePrefetchSelection = {
+      ...view,
+      generation: selectionGeneration,
+      selection,
+      attemptedKeys: new Set(),
+      heightRanges: new Map(
+        [...meshes.values()].flatMap((record) =>
+          shadowEntries.some(
+            ({ id }) => terrainTileKey(id) === terrainTileKey(record.id)
+          )
+            ? [
+                [
+                  terrainTileKey(record.id),
+                  [
+                    record.minimumHeightMeters,
+                    record.maximumHeightMeters,
+                  ] as const,
+                ] as const,
+              ]
+            : []
+        )
+      ),
+      entries,
+      shadowEntries,
+    };
+  };
+
+  const isIdlePrefetchCurrent = (
+    snapshot: NonNullable<typeof idlePrefetchSelection>
+  ) =>
+    !disposed &&
+    root.visible &&
+    !terrainLoading &&
+    !selectionRequestPending &&
+    queuedSelectionInput === null &&
+    selectionRetryTimer === null &&
+    idlePrefetchSelection === snapshot &&
+    snapshot.generation === selectionGeneration &&
+    snapshot.selection.signature === requestedSignature &&
+    snapshot.inputSignature === selectionInputSignature &&
+    snapshot.shadowSignature === shadowViewSignature &&
+    snapshot.shadowSignature === selectionShadowViewSignature;
+
+  const getIdlePrefetchAvailability = () => {
+    const snapshot = idlePrefetchSelection;
+    const ready =
+      source !== null &&
+      snapshot !== null &&
+      isIdlePrefetchCurrent(snapshot) &&
+      payloadAwareConcurrency.getCooldownRemainingMs() === 0;
+    return {
+      ready: ready && idlePrefetchController === null,
+      remaining: ready
+        ? snapshot.entries.filter(
+            ({ id }) => !snapshot.attemptedKeys.has(terrainTileKey(id))
+          ).length
+        : 0,
+    };
+  };
+
+  const prefetchIdleTerrain = async (signal?: AbortSignal) => {
+    const availability = getIdlePrefetchAvailability();
+    const snapshot = idlePrefetchSelection;
+    if (!availability.ready || !snapshot || !source || signal?.aborted)
+      return {
+        prepared: 0,
+        failed: 0,
+        remaining: availability.remaining,
+        aborted: signal?.aborted ?? false,
+      };
+    const controller = new AbortController();
+    idlePrefetchController = controller;
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    let prepared = 0;
+    let failed = 0;
+    try {
+      for (const entry of snapshot.entries) {
+        if (controller.signal.aborted || !isIdlePrefetchCurrent(snapshot))
+          break;
+        const key = terrainTileKey(entry.id);
+        if (snapshot.attemptedKeys.has(key)) continue;
+        // Even cache hits yield to input/paint; never chain sixteen conversions
+        // through one microtask turn. Only one speculative tile is in flight.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        if (controller.signal.aborted || !isIdlePrefetchCurrent(snapshot))
+          break;
+        if (payloadAwareConcurrency.getCooldownRemainingMs() > 0) break;
+        try {
+          // A shared source request can be adopted by foreground work. Its
+          // first caller owns cancellation, so abort only our subsequent CPU
+          // work, never that shared fetch. Cache offers retain their own budget.
+          const result = await loadTerrainEntry(
+            source,
+            entry,
+            controller.signal
+          );
+          result.projectedGeometry?.dispose();
+          if (controller.signal.aborted || !isIdlePrefetchCurrent(snapshot))
+            break;
+          if (
+            Number.isFinite(result.tile.minimumHeightMeters) &&
+            Number.isFinite(result.tile.maximumHeightMeters) &&
+            result.tile.minimumHeightMeters <= result.tile.maximumHeightMeters
+          )
+            snapshot.heightRanges.set(key, [
+              result.tile.minimumHeightMeters,
+              result.tile.maximumHeightMeters,
+            ]);
+          snapshot.attemptedKeys.add(key);
+          prepared += 1;
+        } catch {
+          if (controller.signal.aborted || !isIdlePrefetchCurrent(snapshot))
+            break;
+          snapshot.attemptedKeys.add(key);
+          failed += 1;
+          // Speculative failures do not change foreground availability or
+          // loading UI, and do not spin their own retry loop.
+          break;
+        }
+      }
+      // Last priority, after the visible shadow and bounded neighbour terrain
+      // have settled. One client-local format profile at most, no render work.
+      if (!controller.signal.aborted && isIdlePrefetchCurrent(snapshot)) {
+        await runTerrainWorkerTask(
+          { kind: "calibrate-cache", producerAssetUrl },
+          controller.signal
+        ).catch(() => {});
+      }
+    } finally {
+      signal?.removeEventListener("abort", abort);
+      if (idlePrefetchController === controller) idlePrefetchController = null;
+    }
+    return {
+      prepared,
+      failed,
+      remaining: getIdlePrefetchAvailability().remaining,
+      aborted: controller.signal.aborted || !isIdlePrefetchCurrent(snapshot),
+    };
+  };
+
+  const getIdleShadowRegions = (): readonly TerrainIdleShadowRegion[] => {
+    const snapshot = idlePrefetchSelection;
+    if (!source || !snapshot || !isIdlePrefetchCurrent(snapshot)) return [];
+    root.updateMatrixWorld(true);
+    return snapshot.shadowEntries.map(({ id }) => {
+      const key = terrainTileKey(id);
+      const bounds = getTileBounds(id);
+      const heights =
+        snapshot.heightRanges.get(key) ?? unknownTerrainHeightRange;
+      const receiverBounds = new Box3();
+      const corner = new Vector3();
+      for (const longitude of [bounds.west, bounds.east]) {
+        for (const latitude of [bounds.south, bounds.north]) {
+          for (const height of heights) {
+            receiverBounds.expandByPoint(
+              projectToLocalWorld(longitude, latitude, height, corner)
+            );
+          }
+        }
+      }
+      receiverBounds.applyMatrix4(root.matrixWorld);
+      return { id: key, terrainLevel: id.level, receiverBounds };
+    });
+  };
+
+  const prepareIdleShadowRegion: RasterDemTerrainRuntime["prepareIdleShadowRegion"] =
+    async (region, signal) => {
+      const reject = (
+        reason: TerrainIdleShadowReason
+      ): TerrainIdleShadowLease => ({
+        covered: false,
+        group: null,
+        dependencyBounds: [],
+        reason,
+        isCurrent: () => false,
+        dispose: () => undefined,
+      });
+      const snapshot = idlePrefetchSelection;
+      const terrainSource = source;
+      if (signal?.aborted) return reject(TERRAIN_IDLE_SHADOW_REASON.aborted);
+      if (!snapshot || !terrainSource || !getIdlePrefetchAvailability().ready)
+        return reject(TERRAIN_IDLE_SHADOW_REASON.unavailable);
+      const finiteBox = (bounds: Box3) =>
+        !bounds.isEmpty() &&
+        [...bounds.min.toArray(), ...bounds.max.toArray()].every(
+          Number.isFinite
+        );
+      if (
+        !finiteBox(region.receiverBounds) ||
+        !finiteBox(region.casterBounds) ||
+        !region.casterBounds.containsBox(region.receiverBounds) ||
+        !getIdleShadowRegions().some(
+          (candidate) =>
+            candidate.terrainLevel === region.terrainLevel &&
+            candidate.receiverBounds.intersectsBox(region.receiverBounds)
+        )
+      )
+        return reject(TERRAIN_IDLE_SHADOW_REASON.unavailable);
+
+      root.updateMatrixWorld(true);
+      const rootWorld = root.matrixWorld.clone();
+      const localFromWorld = rootWorld.clone().invert();
+      const localBounds = region.casterBounds
+        .clone()
+        .applyMatrix4(localFromWorld);
+      const southwest = new MercatorCoordinate(
+        origin.x + localBounds.min.x * meterScale,
+        origin.y + localBounds.max.z * meterScale
+      ).toLngLat();
+      const northeast = new MercatorCoordinate(
+        origin.x + localBounds.max.x * meterScale,
+        origin.y + localBounds.min.z * meterScale
+      ).toLngLat();
+      const activeTiles = [...activeMeshKeys].flatMap((key) => {
+        const record = meshes.get(key);
+        return record?.node.visible
+          ? [
+              {
+                id: record.id,
+                complete:
+                  record.reliefMesh !== null &&
+                  Number.isFinite(record.minimumHeightMeters) &&
+                  Number.isFinite(record.maximumHeightMeters) &&
+                  (noDataHeightMeters === undefined ||
+                    terrainHeightRangeExcludesNoData(
+                      record,
+                      noDataHeightMeters
+                    )),
+              },
+            ]
+          : [];
+      });
+      const plan = planTerrainIdleShadowRegion({
+        casterBounds: {
+          west: southwest.lng,
+          south: southwest.lat,
+          east: northeast.lng,
+          north: northeast.lat,
+        },
+        terrainLevel: region.terrainLevel,
+        source: {
+          bounds: {
+            west: terrainSourceConfig.bounds[0],
+            south: terrainSourceConfig.bounds[1],
+            east: terrainSourceConfig.bounds[2],
+            north: terrainSourceConfig.bounds[3],
+          },
+          minzoom: terrainSourceConfig.minzoom,
+          maxzoom: terrainSourceConfig.maxzoom,
+        },
+        activeTiles,
+        isAvailable: (id) =>
+          !unavailableTileKeys.has(terrainTileKey(id)) &&
+          terrainSource.getTileDataAvailable(id),
+      });
+      if (plan.reason) return reject(plan.reason);
+
+      const controller = new AbortController();
+      idlePrefetchController = controller;
+      const group = new Group();
+      group.name = `${runtimeId}-idle-shadow-terrain`;
+      group.matrixAutoUpdate = false;
+      // The host attaches this world-space group only during its depth pass.
+      group.matrix.copy(rootWorld);
+      const geometries = new Set<BufferGeometry>();
+      const buffers = new Set<ArrayBufferLike>();
+      let geometryBytes = 0;
+      let preparing = true;
+      let leaseDisposed = false;
+      let complete = false;
+      let reason: TerrainIdleShadowReason | undefined;
+      const isCurrent = () => {
+        root.updateMatrixWorld(true);
+        return (
+          !leaseDisposed &&
+          !controller.signal.aborted &&
+          source === terrainSource &&
+          isIdlePrefetchCurrent(snapshot) &&
+          root.matrixWorld.equals(rootWorld)
+        );
+      };
+      const releaseSlot = () => {
+        signal?.removeEventListener("abort", abort);
+        controller.signal.removeEventListener("abort", disposeLease);
+        if (idlePrefetchController === controller)
+          idlePrefetchController = null;
+        if (idleShadowLease === lease) idleShadowLease = null;
+      };
+      const disposeLease = () => {
+        if (!leaseDisposed) {
+          leaseDisposed = true;
+          group.removeFromParent();
+          group.clear();
+          for (const geometry of geometries) geometry.dispose();
+          geometries.clear();
+          buffers.clear();
+        }
+        // A shared source fetch may still be in flight. Keep its slot occupied
+        // until it resolves rather than starting a second speculative job.
+        if (!preparing) releaseSlot();
+      };
+      const abort = () => controller.abort();
+      const lease: TerrainIdleShadowLease = {
+        get covered() {
+          return complete && isCurrent();
+        },
+        get group() {
+          return leaseDisposed ? null : group;
+        },
+        dependencyBounds: [region.casterBounds.clone()],
+        get reason() {
+          return controller.signal.aborted
+            ? TERRAIN_IDLE_SHADOW_REASON.aborted
+            : reason;
+        },
+        isCurrent,
+        dispose: disposeLease,
+      };
+      idleShadowLease = lease;
+      signal?.addEventListener("abort", abort, { once: true });
+      controller.signal.addEventListener("abort", disposeLease, { once: true });
+      if (signal?.aborted) controller.abort();
+      try {
+        for (const entry of plan.entries) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          if (!isCurrent()) {
+            reason = TERRAIN_IDLE_SHADOW_REASON.aborted;
+            break;
+          }
+          if (payloadAwareConcurrency.getCooldownRemainingMs() > 0) {
+            reason = TERRAIN_IDLE_SHADOW_REASON.unavailable;
+            break;
+          }
+          const result = await loadTerrainEntry(
+            terrainSource,
+            entry,
+            controller.signal
+          );
+          const geometry = result.projectedGeometry;
+          if (geometry) geometries.add(geometry);
+          if (!isCurrent()) {
+            reason = TERRAIN_IDLE_SHADOW_REASON.aborted;
+            break;
+          }
+          // Native source tiles cover their whole grid. Partitioned no-data
+          // relief does not; never cache a depth page that assumes those holes
+          // are known empty space. This validation runs only in the idle task.
+          if (
+            !geometry?.index?.count ||
+            geometry.index.count !== result.tile.indices.length ||
+            geometry.getAttribute("position").count !==
+              result.tile.heightMeters.length ||
+            !geometry.boundingBox ||
+            !finiteBox(geometry.boundingBox) ||
+            terrainTileKey(result.tile.id) !== terrainTileKey(entry.id) ||
+            result.tile.heightMeters.length === 0 ||
+            result.reliefVertexMask.length !== result.tile.heightMeters.length
+          ) {
+            reason = TERRAIN_IDLE_SHADOW_REASON.missing;
+            break;
+          }
+          // Typed-binary cache attributes can be views of one larger record.
+          // Count unique retained backing buffers, not only attribute slices.
+          for (const attribute of [
+            ...Object.values(geometry.attributes),
+            geometry.index,
+          ]) {
+            const buffer = attribute.array.buffer;
+            if (buffers.has(buffer)) continue;
+            buffers.add(buffer);
+            geometryBytes += buffer.byteLength;
+          }
+          if (geometryBytes > MAXIMUM_IDLE_SHADOW_GEOMETRY_BYTES) {
+            reason = TERRAIN_IDLE_SHADOW_REASON.budget;
+            break;
+          }
+          const heights = result.tile.heightMeters;
+          for (
+            let offset = 0;
+            offset < heights.length;
+            offset += IDLE_SHADOW_VALIDATION_CHUNK_VERTICES
+          ) {
+            const end = Math.min(
+              heights.length,
+              offset + IDLE_SHADOW_VALIDATION_CHUNK_VERTICES
+            );
+            for (let index = offset; index < end; index += 1) {
+              const height = heights[index];
+              if (
+                result.reliefVertexMask[index] !== 1 ||
+                !Number.isFinite(height) ||
+                (noDataHeightMeters !== undefined &&
+                  Math.abs(height - noDataHeightMeters) <=
+                    NO_DATA_EPSILON_METERS)
+              ) {
+                reason = TERRAIN_IDLE_SHADOW_REASON.missing;
+                break;
+              }
+            }
+            if (reason) break;
+            if (end < heights.length) {
+              // Even validation of a restored native grid remains interruptible.
+              await new Promise<void>((resolve) => setTimeout(resolve, 0));
+              if (!isCurrent()) {
+                reason = TERRAIN_IDLE_SHADOW_REASON.aborted;
+                break;
+              }
+            }
+          }
+          if (reason) break;
+          const mesh = new Mesh(geometry, material);
+          mesh.name = `${group.name}-${terrainTileKey(entry.id)}`;
+          mesh.userData.isShadowTerrainSurface = true;
+          mesh.castShadow = true;
+          mesh.receiveShadow = false;
+          group.add(mesh);
+        }
+        complete = reason === undefined && isCurrent();
+      } catch {
+        reason =
+          controller.signal.aborted || !isCurrent()
+            ? TERRAIN_IDLE_SHADOW_REASON.aborted
+            : TERRAIN_IDLE_SHADOW_REASON.missing;
+      } finally {
+        preparing = false;
+        if (!complete) disposeLease();
+      }
+      return lease;
+    };
+
   return {
     id: runtimeId,
     originLngLat,
@@ -1277,6 +2051,10 @@ export const buildRasterDemTerrainRuntime = (
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
+    getIdlePrefetchAvailability,
+    prefetchIdleTerrain,
+    getIdleShadowRegions,
+    prepareIdleShadowRegion,
     adoptPresentation(previous) {
       if (disposed || previous === this) return;
       if (selectionGeneration !== 0 || activeMeshKeys.size > 0)
@@ -1307,33 +2085,79 @@ export const buildRasterDemTerrainRuntime = (
     },
     onAdd(mapInstance) {
       map = mapInstance;
+      map.on?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
       setSharedThreeTerrainLoading(mapInstance, runtimeId, terrainLoading);
       if (source && !unregisterSampler) {
         unregisterSampler = registerSharedThreeTerrainSampler(
           mapInstance,
           runtimeId,
-          source.sampleHeight
+          getElevation
         );
       }
       map.triggerRepaint();
     },
     update(frame) {
+      latestRenderCamera = frame.renderCamera;
       if (disposed || !root.visible) return;
       if (!source) return;
       if (contentChangedSinceFrame) {
         contentChangedSinceFrame = false;
-        options.onContentChanged?.();
+        // Compare only at publication, never per camera frame. A same-bounds
+        // stitch/normal update still changes the receiver and must invalidate it.
+        root.updateMatrixWorld(true);
+        const nextGeometry = new Map<
+          string,
+          { revision: string; bounds: Box3 }
+        >();
+        const changedBounds: Box3[] = [];
+        for (const key of activeMeshKeys) {
+          const record = meshes.get(key);
+          const geometry = record?.reliefMesh?.geometry;
+          if (!record?.node.visible || !geometry) continue;
+          const revision = [
+            geometry.id,
+            (geometry.getAttribute("position") as BufferAttribute).version,
+            (geometry.getAttribute("normal") as BufferAttribute).version,
+            geometry.index?.version,
+            ...record.reliefMesh!.matrixWorld.elements,
+          ].join(",");
+          const bounds = new Box3();
+          getTerrainMeshWorldBounds(record, bounds);
+          const previous = publishedShadowGeometry.get(key);
+          nextGeometry.set(key, { revision, bounds });
+          if (
+            !previous ||
+            previous.revision !== revision ||
+            !previous.bounds.equals(bounds)
+          ) {
+            changedBounds.push(
+              previous ? bounds.clone().union(previous.bounds) : bounds.clone()
+            );
+          }
+        }
+        for (const [key, previous] of publishedShadowGeometry) {
+          if (!nextGeometry.has(key)) changedBounds.push(previous.bounds);
+        }
+        publishedShadowGeometry = nextGeometry;
+        options.onContentChanged?.(changedBounds);
       }
       if (selectionGeneration === 0) syncSelectionShadowView();
       const inputSignature = computeSelectionInputSignature(frame);
       if (inputSignature === selectionInputSignature) return;
+      invalidateIdlePrefetch();
       selectionInputSignature = inputSignature;
       if (typeof Worker === "undefined") {
         const selection = buildSelection(source, frame);
+        const prefetchView = {
+          inputSignature,
+          shadowSignature: selectionShadowViewSignature,
+          viewportBounds: getViewportBounds(frame.map),
+        };
         if (selection.signature !== requestedSignature) {
           requestedSignature = selection.signature;
-          loadSelection(source, selection);
-        }
+          loadSelection(source, selection, prefetchView);
+        } else if (!terrainLoading)
+          recordIdlePrefetchSelection(selection, prefetchView);
         return;
       }
       const input = snapshotSelectionInput(source, frame);
@@ -1341,14 +2165,26 @@ export const buildRasterDemTerrainRuntime = (
       else runSelection(input);
     },
     setShadowView(view) {
+      if (shadowView && !previousShadowFrustum) {
+        previousShadowFrustum = new Frustum().setFromProjectionMatrix(
+          new Matrix4().multiplyMatrices(shadowView.camera.projectionMatrix, shadowView.camera.matrixWorldInverse),
+          shadowView.camera.coordinateSystem,
+          shadowView.camera.reversedDepth
+        );
+      }
+      // Controller cameras are mutable. Freeze the selection epoch rather than
+      // letting a later refit silently change the active caster-retention volume.
+      view?.camera.updateMatrixWorld(true);
       shadowView = view
         ? {
-            camera: view.camera,
+            camera: view.camera.clone(),
             shadowMapSize: normalizeShadowMapSize(view.shadowMapSize),
           }
         : null;
+      if (!view) previousShadowFrustum = null;
       const nextSignature = getSharedThreeShadowViewSignature(shadowView);
       if (nextSignature !== shadowViewSignature) {
+        invalidateIdlePrefetch();
         shadowViewSignature = nextSignature;
         if (!terrainLoading) syncSelectionShadowView();
       }
@@ -1357,21 +2193,25 @@ export const buildRasterDemTerrainRuntime = (
       material.color.set(color);
       map?.triggerRepaint();
     },
-    getElevation(longitude, latitude) {
-      const height = source?.sampleHeight(longitude, latitude);
-      return height !== undefined &&
-        noDataHeightMeters !== undefined &&
-        Math.abs(height - noDataHeightMeters) <= NO_DATA_EPSILON_METERS
-        ? undefined
-        : height;
-    },
+    getElevation,
     getViewElevationRange,
     getActiveTileVolumes,
+    isShadowRegionReady: (bounds) => {
+      if (disposed || selectionRequestPending || queuedSelectionInput || shadowDependencies.length === 0) return false;
+      const dependencies = shadowDependencies.filter(tile => tile.bounds.intersectsBox(bounds));
+      return dependencies.length > 0 && dependencies.every(({ key }) =>
+        activeMeshKeys.has(key) && Boolean(meshes.get(key)?.reliefMesh)
+      );
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
+      invalidateIdlePrefetch();
+      map?.off?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
       takePresentations.delete(root);
       conversionAbort.abort();
+      source?.release();
+      source = null;
       clearSelectionRetry();
       selectionGeneration += 1;
       unregisterSampler?.();
@@ -1381,6 +2221,7 @@ export const buildRasterDemTerrainRuntime = (
         record.reliefMesh?.geometry.dispose();
       }
       meshes.clear();
+      publishedShadowGeometry.clear();
       material.dispose();
       root.clear();
       map = null;

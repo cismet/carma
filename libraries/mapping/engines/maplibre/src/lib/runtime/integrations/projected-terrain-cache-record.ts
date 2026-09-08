@@ -1,9 +1,25 @@
-import localforage from "localforage";
-import type { TerrainTile } from "./raster-dem-tile";
+import {
+  createDerivedBufferCache,
+  resolveDerivedCacheAssetEpoch,
+} from "@carma-commons/utils";
+import type { TerrainTile } from "../../core/raster-dem-tile";
+import { createProjectedTerrainCacheStrategy } from "./projected-terrain-cache-strategy";
+import { cleanupLegacyProjectedTerrainCache } from "./projected-terrain-cache-maintenance";
 
-export const projectedTerrainGeometryStorage = localforage.createInstance({
-  name: "carma-terrain-geometry-cache",
-  storeName: "projected_tiles",
+export const PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION =
+  "prepared-raster-dem-error-bounded-grid-v7";
+
+const TERRAIN_CACHE_NAMESPACE = "terrain-projected";
+// DBC-06: use the ENTRY worker identity, not this module's potentially split
+// codec chunk. Vite hashes the worker and its imported dependency graph (also
+// the inline normals WASM). An unchanged schema constant alone is insufficient.
+// Unbundled HMR has no immutable graph identity: persistence fails closed there.
+const workerAssetUrl = resolveDerivedCacheAssetEpoch({
+  production: import.meta.env.PROD,
+  assetUrl:
+    typeof document === "undefined" && typeof location !== "undefined"
+      ? location.href
+      : "",
 });
 
 export type CachedProjectedTerrainGeometry = Readonly<{
@@ -50,7 +66,15 @@ const isCachedTile = (value: unknown): value is TerrainTile => {
       Number.isFinite(tile.minimumHeightMeters) &&
       Number.isFinite(tile.maximumHeightMeters) &&
       Number.isFinite(tile.geometricErrorMeters) &&
-      Number.isFinite(tile.byteLength)
+      Number.isFinite(tile.byteLength) &&
+      (tile.maximumMeshErrorMeters === undefined ||
+        (Number.isFinite(tile.maximumMeshErrorMeters) &&
+          tile.maximumMeshErrorMeters >= 0 &&
+          tile.maximumMeshErrorMeters <= 0.01 &&
+          Number.isFinite(tile.reconstructionErrorMeters) &&
+          tile.reconstructionErrorMeters! >= 0 &&
+          tile.reconstructionErrorMeters! <= tile.maximumMeshErrorMeters &&
+          [1, 2, 4].includes(tile.rasterStride!)))
   );
 };
 
@@ -85,7 +109,9 @@ const isCachedGeometry = (
   return true;
 };
 
-const isCachedEntry = (value: unknown): value is CachedProjectedTerrainTile => {
+export const isCachedProjectedTerrainTile = (
+  value: unknown
+): value is CachedProjectedTerrainTile => {
   if (!value || typeof value !== "object") return false;
   const entry = value as Partial<CachedProjectedTerrainTile>;
   return Boolean(
@@ -96,10 +122,139 @@ const isCachedEntry = (value: unknown): value is CachedProjectedTerrainTile => {
   );
 };
 
-/** IndexedDB deserialization and full index validation run in the terrain worker. */
-export const readProjectedTerrainCacheRecord = async (
-  key: string
-): Promise<CachedProjectedTerrainTile | null> => {
-  const value = await projectedTerrainGeometryStorage.getItem<unknown>(key);
-  return isCachedEntry(value) ? value : null;
+const createPipelineCache = (producerEpoch: string) => {
+  // DBC-06: preparation orchestration lives in the main runtime, while kernels,
+  // codecs and inline WASM live in the worker. Both immutable graphs own the
+  // same epoch, including format profiles/probes and their cleanup leases.
+  const manager = createDerivedBufferCache({
+    capacityBytes: 256 * 1024 ** 2,
+    producerEpoch,
+  });
+  return {
+    manager,
+    records: manager.register(
+      TERRAIN_CACHE_NAMESPACE,
+      PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
+    ),
+    strategy: createProjectedTerrainCacheStrategy(
+      manager,
+      TERRAIN_CACHE_NAMESPACE,
+      PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION,
+      isCachedProjectedTerrainTile
+    ),
+    activeJobs: 0,
+  };
 };
+const pipelineCaches = new Map<
+  string,
+  ReturnType<typeof createPipelineCache>
+>();
+const MAX_PIPELINE_CACHES = 4;
+let legacyCleanupAttempted = false;
+const withPipelineCache = async <T>(
+  producerAssetUrl: string | undefined,
+  missing: T,
+  use: (cache: ReturnType<typeof createPipelineCache>) => Promise<T>
+): Promise<T> => {
+  const mainAssetUrl = resolveDerivedCacheAssetEpoch({
+    production: import.meta.env.PROD,
+    assetUrl: producerAssetUrl ?? "",
+  });
+  if (!mainAssetUrl || !workerAssetUrl) return missing;
+  const epoch = JSON.stringify([mainAssetUrl, workerAssetUrl]);
+  let cache = pipelineCaches.get(epoch);
+  if (!cache) {
+    if (pipelineCaches.size >= MAX_PIPELINE_CACHES) {
+      const oldest = [...pipelineCaches].find(
+        ([, candidate]) => candidate.activeJobs === 0
+      );
+      // Normal worker jobs are serialized. Concurrent direct callers still
+      // must not close an in-flight pipeline to admit a fifth identity.
+      if (!oldest) return missing;
+      oldest[1].strategy.dispose();
+      oldest[1].manager.close();
+      pipelineCaches.delete(oldest[0]);
+    }
+    cache = createPipelineCache(epoch);
+  }
+  pipelineCaches.delete(epoch);
+  pipelineCaches.set(epoch, cache);
+  cache.activeJobs += 1;
+  try {
+    return await use(cache);
+  } finally {
+    cache.activeJobs -= 1;
+  }
+};
+
+export const calibrateProjectedTerrainCache = (
+  producerAssetUrl?: string,
+  signal?: AbortSignal
+) =>
+  signal?.aborted
+    ? Promise.resolve(false)
+    : withPipelineCache(
+        producerAssetUrl,
+        false,
+        async ({ manager, strategy }) => {
+          // Idle-only: current/live pipelines retain leases, not chronological ranks.
+          await manager.cleanupObsoleteEpochs();
+          if (!legacyCleanupAttempted && !signal?.aborted) {
+            legacyCleanupAttempted = true;
+            // This old localforage store has no compatible readers in the new app.
+            // Clear its derived payload only, with a bounded native transaction.
+            await cleanupLegacyProjectedTerrainCache();
+          }
+          return signal?.aborted ? false : strategy.calibrate(signal);
+        }
+      );
+
+/** IndexedDB deserialization and full index validation run in the terrain worker. */
+export const readProjectedTerrainCacheRecord = (
+  key: string,
+  producerAssetUrl?: string
+): Promise<CachedProjectedTerrainTile | null> =>
+  withPipelineCache<CachedProjectedTerrainTile | null>(
+    producerAssetUrl,
+    null,
+    async ({ records, strategy }) =>
+      strategy.decode((await records.get<unknown>(key))?.value)
+  );
+
+export const writeProjectedTerrainCacheRecord = (
+  key: string,
+  entry: CachedProjectedTerrainTile,
+  bytes: number,
+  recomputeMs?: number,
+  producerAssetUrl?: string
+) =>
+  withPipelineCache(producerAssetUrl, false, async ({ records, strategy }) => {
+    if (!strategy.canWrite(key)) return false;
+    const encoded = await strategy.encode(entry, bytes);
+    if (!encoded) return false;
+    return records.put(key, encoded.payload, {
+      bytes: encoded.bytes,
+      recomputeMs,
+    });
+  });
+
+export const updateProjectedTerrainReadCost = (
+  key: string,
+  restoreMs: number,
+  producerAssetUrl?: string
+) =>
+  withPipelineCache(producerAssetUrl, false, ({ strategy }) =>
+    strategy.updateCosts(key, restoreMs)
+  );
+
+/** Small, read-only format audit; never loads terrain payloads or adds hits. */
+export const inspectProjectedTerrainCacheProfiles = (
+  producerAssetUrl?: string
+) =>
+  withPipelineCache<Awaited<
+    ReturnType<
+      ReturnType<typeof createProjectedTerrainCacheStrategy>["inspectProfiles"]
+    >
+  > | null>(producerAssetUrl, null, ({ strategy }) =>
+    strategy.inspectProfiles()
+  );

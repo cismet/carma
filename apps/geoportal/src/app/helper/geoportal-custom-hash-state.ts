@@ -62,19 +62,6 @@ export const resolveGeoportalShadowSimulationHashSelection = (
   return { minutes, dayOfYear };
 };
 
-export const isGeoportalShadowSimulationHashSelectionValidForYear = (
-  selection: GeoportalShadowSimulationHashSelection,
-  year: number
-): boolean => {
-  if (!Number.isInteger(year)) {
-    return false;
-  }
-
-  const daysInYear =
-    new Date(Date.UTC(year, 1, 29)).getUTCMonth() === 1 ? 366 : 365;
-  return selection.dayOfYear <= daysInYear;
-};
-
 const resolveGeoportalMeasurementModeRequested = (
   hashParams: Record<string, unknown>
 ) => isTruthyHashValue(hashParams[URL_PARAM_KEYS.measurements]);

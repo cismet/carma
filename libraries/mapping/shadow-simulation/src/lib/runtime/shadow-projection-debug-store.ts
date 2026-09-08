@@ -1,8 +1,15 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import type { ShadowBufferLayout } from "../core/shadow-types";
 import type { ShadowSnapshot } from "./shadow-controller";
+import type { TiledShadowStats } from "./tiled-shadow-renderer";
 
 export type ShadowProjectionDebugSnapshot = Readonly<{
+  bufferLayout: ShadowBufferLayout;
+  /** Configured finite-disc sample goal, independent of concurrent lights. */
+  sunDiscSamples: number;
+  /** Actual page statistics; null before a tiled renderer exists or in mono. */
+  tiledStats: TiledShadowStats | null;
   cameraRangeMeters: number;
   leftMeters: number;
   rightMeters: number;
@@ -44,6 +51,7 @@ export type ShadowProjectionDebugSnapshot = Readonly<{
 type ShadowProjectionDebugEntry = {
   snapshot: ShadowProjectionDebugSnapshot | null;
   listeners: Set<() => void>;
+  demandListeners: Set<(active: boolean) => void>;
 };
 
 const entries = new WeakMap<MaplibreMap, ShadowProjectionDebugEntry>();
@@ -51,7 +59,11 @@ const entries = new WeakMap<MaplibreMap, ShadowProjectionDebugEntry>();
 const getOrCreateEntry = (map: MaplibreMap) => {
   let entry = entries.get(map);
   if (!entry) {
-    entry = { snapshot: null, listeners: new Set() };
+    entry = {
+      snapshot: null,
+      listeners: new Set(),
+      demandListeners: new Set(),
+    };
     entries.set(map, entry);
   }
   return entry;
@@ -65,9 +77,31 @@ export const subscribeShadowProjectionDebugSnapshot = (
   listener: () => void
 ) => {
   const entry = getOrCreateEntry(map);
+  const firstSubscriber = entry.listeners.size === 0;
   entry.listeners.add(listener);
+  if (firstSubscriber) {
+    for (const onDemand of entry.demandListeners) onDemand(true);
+  }
   return () => {
-    entry.listeners.delete(listener);
+    if (!entry.listeners.delete(listener) || entry.listeners.size > 0) return;
+    entry.snapshot = null;
+    for (const onDemand of entry.demandListeners) onDemand(false);
+    if (entry.demandListeners.size === 0) entries.delete(map);
+  };
+};
+
+/** The lazy panel's real subscription, not its import request, owns capture. */
+export const subscribeShadowProjectionDebugDemand = (
+  map: MaplibreMap,
+  listener: (active: boolean) => void
+) => {
+  const entry = getOrCreateEntry(map);
+  entry.demandListeners.add(listener);
+  if (entry.listeners.size > 0) listener(true);
+  return () => {
+    entry.demandListeners.delete(listener);
+    if (entry.listeners.size === 0 && entry.demandListeners.size === 0)
+      entries.delete(map);
   };
 };
 
@@ -79,7 +113,8 @@ export const publishShadowProjectionDebugSnapshot = (
   map: MaplibreMap,
   snapshot: ShadowProjectionDebugSnapshot
 ) => {
-  const entry = getOrCreateEntry(map);
+  const entry = entries.get(map);
+  if (!entry?.listeners.size) return;
   entry.snapshot = snapshot;
   for (const listener of entry.listeners) listener();
 };
@@ -89,5 +124,6 @@ export const clearShadowProjectionDebugSnapshot = (map: MaplibreMap) => {
   if (!entry) return;
   entry.snapshot = null;
   for (const listener of entry.listeners) listener();
-  if (entry.listeners.size === 0) entries.delete(map);
+  if (entry.listeners.size === 0 && entry.demandListeners.size === 0)
+    entries.delete(map);
 };

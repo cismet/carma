@@ -4,13 +4,23 @@ import {
   DEFAULT_SHADOW_GROUND_TEXEL_FIT,
   resolveShadowRenderQuality,
   SHADOW_BUFFER_FORMAT,
+  SHADOW_BUFFER_LAYOUT,
   SHADOW_SUN_DISC_SAMPLES,
   SHADOW_QUALITY_PROFILES,
   SHADOW_QUALITY,
   resolveShadowTerrainQuality,
+  type ShadowBufferLayout,
 } from "./shadow-types";
 
 describe("shadow render quality", () => {
+  it("keeps adaptive shadow work independent from color resolution", () => {
+    expect(resolveShadowRenderQuality().shadowAdaptiveQuality).toBe(true);
+    const fixed = resolveShadowRenderQuality({ shadowAdaptiveQuality: false });
+    expect(fixed.shadowAdaptiveQuality).toBe(false);
+    expect(fixed).not.toHaveProperty("renderScale");
+    expect(fixed).not.toHaveProperty("pixelRatio");
+  });
+
   it("enables validated ground texel fitting by default", () => {
     expect(DEFAULT_SHADOW_GROUND_TEXEL_FIT).toBe(true);
     expect(resolveShadowRenderQuality().shadowGroundTexelFit).toBe(true);
@@ -25,6 +35,8 @@ describe("shadow render quality", () => {
     "uses hybrid HDR and the validated sample budget for quality %s",
     (quality, samples, msaa) => {
       expect(resolveShadowRenderQuality({}, quality)).toEqual({
+        shadowAdaptiveQuality: true,
+        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
         shadowBufferFormat: SHADOW_BUFFER_FORMAT.HDR_16_32,
         shadowSunDiscSamples: samples,
         shadowMsaaSamples: msaa,
@@ -32,6 +44,24 @@ describe("shadow render quality", () => {
       });
     }
   );
+  it.each(Object.values(SHADOW_BUFFER_LAYOUT))(
+    "retains the selected %s buffer layout without changing quality budgets",
+    (shadowBufferLayout) => {
+      expect(resolveShadowRenderQuality({ shadowBufferLayout })).toEqual({
+        ...resolveShadowRenderQuality(),
+        shadowBufferLayout,
+      });
+    }
+  );
+
+  it("falls back to tiled buffers for an unsupported layout", () => {
+    expect(
+      resolveShadowRenderQuality({
+        shadowBufferLayout: "unsupported" as ShadowBufferLayout,
+      }).shadowBufferLayout
+    ).toBe(SHADOW_BUFFER_LAYOUT.TILED);
+  });
+
   it("budgets terrain separately from the native-resolution color path", () => {
     const source = {
       id: "dem",

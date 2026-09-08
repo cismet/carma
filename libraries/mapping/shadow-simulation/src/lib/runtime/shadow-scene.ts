@@ -16,6 +16,8 @@ import {
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
   isTerrainShadingStyleLayer,
+  isSharedThreeTerrainLoading,
+  subscribeSharedThreeTerrainLoading,
 } from "@carma-mapping/engines/maplibre";
 import type {
   SharedThreeSceneFrame,
@@ -35,11 +37,23 @@ import {
 import type { SolarPosition } from "../core/solar-position";
 import { getFrustumBoxIntersectionPoints } from "../core/frustum-box-intersection";
 import {
+  buildShadowReceiverGrid,
+  buildShadowReceiverNeighbourRing,
+  nearestIdleTerrainLevel,
+} from "../core/shadow-receiver-grid";
+import {
+  shadowReceiverCorners,
+  type ShadowReceiverCell,
+} from "../core/shadow-page-plan";
+import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
   resolveShadowRenderQuality,
   SHADOW_BUFFER_FORMAT,
+  SHADOW_BUFFER_LAYOUT,
+  SHADOW_QUALITY_PROFILES,
+  SHADOW_SCENE_USER_DATA,
   type MeshErrorTargetPixels,
   type ShadowQualityMultiplier,
   type ShadowRenderQualityOptions,
@@ -57,6 +71,11 @@ import {
   buildAtmosphericSky,
 } from "./atmospheric-sky";
 import { ShadowController } from "./shadow-controller";
+import { configureReceiverPlaneShadow } from "./shadow-receiver-plane-material";
+import type { SunVectorGizmo } from "./shadow-sun-vector";
+import { ShadowTiledScene } from "./shadow-tiled-scene";
+import { createShadowIdleTerrainPrefetch } from "./shadow-idle-prefetch";
+import { disposeShadowDepthPage } from "./shadow-depth-page-cache";
 import {
   applyMapLibreTerrainQuality,
   type InternalMapLibreTerrain,
@@ -71,6 +90,8 @@ import {
   clearShadowProjectionDebugSnapshot,
   hasShadowProjectionDebugListeners,
   publishShadowProjectionDebugSnapshot,
+  subscribeShadowProjectionDebugDemand,
+  type ShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 import {
   createShadowFrameBudget,
@@ -78,23 +99,19 @@ import {
 } from "./shadow-frame-budget";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
+const MESH_MAX_RECEIVER_BIAS_METERS = 0.005;
+// Mesh contact policy is applied again to newly streamed receiver materials.
 /** Maximum radius represented by the fitted shadow buffer. */
 const MAX_RECEIVER_DISTANCE_METERS = 4_000;
 const MIN_VIEWPORT_SHADOW_AREA_METERS = 10;
 const DEFAULT_SHADOW_CAMERA_OFFSET_METERS = 2_500;
-const SHADOW_SIMULATION_SUN_VECTOR_NAME = "shadow-simulation-sun-vector";
 const SHADOW_SIMULATION_TERRAIN_RUNTIME_ID = "shadow-simulation-raster-dem";
 const SHADOW_CONTROLLER_UPDATE_PRIORITY = 200;
-const SUN_VECTOR_COLOR = 0xf59e0b;
-const SUN_VECTOR_HEAD_LENGTH_FACTOR = 0.18;
-const SUN_VECTOR_HEAD_WIDTH_FACTOR = 0.07;
 const SUN_VECTOR_VIEWPORT_LENGTH_FACTOR = 0.5;
-const SUN_VECTOR_ANGLE_RADIUS_FACTOR = 0.22;
-const SUN_VECTOR_ANGLE_SEGMENTS = 24;
-const SHADOW_OVERLAY_MARKER = "isShadowSimulationOverlay";
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
 const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
 const MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS = 1_000;
+const SHADOW_DEBUG_PUBLISH_INTERVAL_MS = 100;
 const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
 const OPAQUE_DRAPE_PROPERTIES = new Map<string, string>([
   ["background", "background-opacity"],
@@ -104,15 +121,6 @@ const OPAQUE_DRAPE_PROPERTIES = new Map<string, string>([
 
 type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
 
-type SunVectorGizmo = {
-  root: THREE.ArrowHelper;
-  shaft: THREE.Mesh;
-  origin: THREE.Mesh;
-  groundRay: THREE.Line;
-  elevationArc: THREE.Line;
-  dispose: () => void;
-};
-
 type ShadowLightBinding = {
   scene: THREE.Scene;
   controller: ShadowController;
@@ -120,7 +128,8 @@ type ShadowLightBinding = {
   atmosphericSky: ReturnType<typeof buildAtmosphericSky>;
   ambientLightIntensities: Map<THREE.AmbientLight, number>;
   lightTarget: THREE.Object3D;
-  sunVector: SunVectorGizmo;
+  sunVector: SunVectorGizmo | null;
+  sunVectorRoot: THREE.Group;
   center: THREE.Vector3;
   shadowCameraOffsetMeters: number;
   shadowAreaMeters: number;
@@ -168,6 +177,7 @@ export type ShadowSimulationScene = {
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
   updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels) => void;
+  updateMeshCacheBudget: (bytes?: number) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
   updateRenderQuality: (options: ShadowRenderQualityOptions) => void;
@@ -509,8 +519,8 @@ export const solarPositionToSceneDirection = ({
   ).normalize();
 };
 
-const makeMeshShadeable = (mesh: THREE.Mesh) => {
-  if (mesh.userData[SHADOW_OVERLAY_MARKER]) return;
+const makeMeshShadeable = (mesh: THREE.Mesh, receiverPlane = false) => {
+  if (mesh.userData[SHADOW_SCENE_USER_DATA.OVERLAY]) return;
   mesh.castShadow = mesh.userData.disableShadowCasting !== true;
   mesh.receiveShadow = true;
   const materials = Array.isArray(mesh.material)
@@ -523,94 +533,16 @@ const makeMeshShadeable = (mesh: THREE.Mesh) => {
   if (!mesh.userData.isShadowTerrainSurface) {
     for (const material of materials) {
       material.shadowSide ??= THREE.DoubleSide;
+      configureReceiverPlaneShadow(material, receiverPlane);
     }
   }
 };
 
-const buildSunVector = () => {
-  const helper = new THREE.ArrowHelper(
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(),
-    1,
-    SUN_VECTOR_COLOR
-  );
-  helper.name = SHADOW_SIMULATION_SUN_VECTOR_NAME;
-  helper.visible = false;
-  helper.frustumCulled = false;
-  helper.line.visible = false;
-  const overlayMaterial = new THREE.MeshBasicMaterial({
-    color: SUN_VECTOR_COLOR,
-    depthTest: false,
-    depthWrite: false,
-    toneMapped: false,
-    transparent: true,
-  });
-  const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(1, 1, 1, 12),
-    overlayMaterial
-  );
-  shaft.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-shaft`;
-  shaft.matrixAutoUpdate = false;
-  const origin = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 16, 8),
-    overlayMaterial
-  );
-  origin.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-origin`;
-  origin.matrixAutoUpdate = false;
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: SUN_VECTOR_COLOR,
-    depthTest: false,
-    depthWrite: false,
-    toneMapped: false,
-    transparent: true,
-  });
-  const groundRay = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
-  groundRay.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-ground-ray`;
-  const elevationArc = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
-  elevationArc.name = `${SHADOW_SIMULATION_SUN_VECTOR_NAME}-elevation-arc`;
-  helper.add(shaft, origin, groundRay, elevationArc);
-  for (const part of [
-    helper.line,
-    helper.cone,
-    shaft,
-    origin,
-    groundRay,
-    elevationArc,
-  ]) {
-    part.userData[SHADOW_OVERLAY_MARKER] = true;
-    part.castShadow = false;
-    part.receiveShadow = false;
-    part.frustumCulled = false;
-    part.renderOrder = 10_000;
-    const material = part.material as THREE.Material;
-    material.depthTest = false;
-    material.depthWrite = false;
-    material.toneMapped = false;
-    material.transparent = true;
-  }
-  return {
-    root: helper,
-    shaft,
-    origin,
-    groundRay,
-    elevationArc,
-    dispose: () => {
-      helper.dispose();
-      shaft.geometry.dispose();
-      origin.geometry.dispose();
-      overlayMaterial.dispose();
-      groundRay.geometry.dispose();
-      elevationArc.geometry.dispose();
-      lineMaterial.dispose();
-    },
-  };
-};
-
-const makeSceneMeshesShadeable = (scene: THREE.Scene) => {
+const makeSceneMeshesShadeable = (scene: THREE.Scene, receiverPlane = false) => {
   scene.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) return;
-    makeMeshShadeable(mesh);
+    makeMeshShadeable(mesh, receiverPlane);
   });
 };
 
@@ -665,7 +597,7 @@ const getVisibleSceneElevationRange = (
   scene.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (
-      mesh.userData[SHADOW_OVERLAY_MARKER] ||
+      mesh.userData[SHADOW_SCENE_USER_DATA.OVERLAY] ||
       (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) ||
       !mesh.geometry?.getAttribute("position")?.count
     ) {
@@ -904,11 +836,14 @@ const buildShadowLightBinding = (
   const controller = new ShadowController(scene);
   const sunLight = controller.lights[0];
   const lightTarget = sunLight.target;
-  const sunVector = buildSunVector();
+  // Stable, empty host for the tiled renderer; debug geometry is demand-loaded.
+  const sunVectorRoot = new THREE.Group();
+  sunVectorRoot.visible = false;
+  sunVectorRoot.userData[SHADOW_SCENE_USER_DATA.OVERLAY] = true;
   const skyLight = new THREE.LightProbe(undefined, 0);
   skyLight.name = SHADOW_SIMULATION_SKY_LIGHT_NAME;
   const atmosphericSky = buildAtmosphericSky(groundAlbedo);
-  atmosphericSky.mesh.userData[SHADOW_OVERLAY_MARKER] = true;
+  atmosphericSky.mesh.userData[SHADOW_SCENE_USER_DATA.OVERLAY] = true;
   const ambientLightIntensities = new Map<THREE.AmbientLight, number>();
   scene.traverse((object) => {
     const light = object as THREE.AmbientLight;
@@ -923,7 +858,8 @@ const buildShadowLightBinding = (
     atmosphericSky,
     ambientLightIntensities,
     lightTarget,
-    sunVector,
+    sunVector: null,
+    sunVectorRoot,
     center: new THREE.Vector3(),
     shadowCameraOffsetMeters: Math.max(
       DEFAULT_SHADOW_CAMERA_OFFSET_METERS,
@@ -946,7 +882,7 @@ const buildShadowLightBinding = (
   updateBindingCenter(binding);
   scene.add(skyLight);
   scene.add(atmosphericSky.mesh);
-  scene.add(sunVector.root);
+  scene.add(sunVectorRoot);
   return binding;
 };
 
@@ -996,59 +932,13 @@ const applySolarPositionToBinding = (
       .add(binding.center);
     sunLight.color.copy(binding.sunColor);
   }
-  const vectorLength = binding.sunVectorLengthMeters;
-  const headLength = vectorLength * SUN_VECTOR_HEAD_LENGTH_FACTOR;
-  const shaftLength = vectorLength - headLength;
-  binding.sunVector.root.position.copy(binding.center);
-  binding.sunVector.root.setDirection(normalizedDirection);
-  binding.sunVector.root.setLength(
-    vectorLength,
-    headLength,
-    vectorLength * SUN_VECTOR_HEAD_WIDTH_FACTOR
+  binding.sunVector?.update(
+    binding.center,
+    normalizedDirection,
+    binding.sunVectorLengthMeters
   );
-  binding.sunVector.shaft.position.set(0, shaftLength / 2, 0);
-  binding.sunVector.shaft.scale.set(
-    vectorLength * 0.006,
-    shaftLength,
-    vectorLength * 0.006
-  );
-  binding.sunVector.shaft.updateMatrix();
-  binding.sunVector.origin.scale.setScalar(vectorLength * 0.012);
-  binding.sunVector.origin.updateMatrix();
-  const horizontalDirection = new THREE.Vector3(
-    normalizedDirection.x,
-    0,
-    normalizedDirection.z
-  );
-  if (horizontalDirection.lengthSq() < Number.EPSILON) {
-    horizontalDirection.set(0, 0, -1);
-  } else {
-    horizontalDirection.normalize();
-  }
-  const angleRadius = vectorLength * SUN_VECTOR_ANGLE_RADIUS_FACTOR;
-  const inverseArrowRotation = binding.sunVector.root.quaternion
-    .clone()
-    .invert();
-  binding.sunVector.groundRay.geometry.setFromPoints([
-    new THREE.Vector3(),
-    horizontalDirection
-      .clone()
-      .multiplyScalar(angleRadius)
-      .applyQuaternion(inverseArrowRotation),
-  ]);
-  const elevationRadians = Math.asin(clamp(normalizedDirection.y, -1, 1));
-  binding.sunVector.elevationArc.geometry.setFromPoints(
-    Array.from({ length: SUN_VECTOR_ANGLE_SEGMENTS + 1 }, (_, index) => {
-      const angle = (elevationRadians * index) / SUN_VECTOR_ANGLE_SEGMENTS;
-      return horizontalDirection
-        .clone()
-        .multiplyScalar(Math.cos(angle) * angleRadius)
-        .add(new THREE.Vector3(0, Math.sin(angle) * angleRadius, 0))
-        .applyQuaternion(inverseArrowRotation);
-    })
-  );
-  binding.sunVector.root.visible = binding.sunVectorVisible;
-  binding.sunVector.root.updateMatrixWorld(true);
+  binding.sunVectorRoot.visible =
+    binding.sunVectorVisible && !!binding.sunVector;
   binding.sunIntensity = intensity ?? ATMOSPHERIC_DISPLAY_EXPOSURE;
   for (const sunLight of binding.controller.lights) {
     sunLight.intensity = binding.sunIntensity;
@@ -1067,8 +957,8 @@ const disposeShadowLightBinding = (binding: ShadowLightBinding) => {
   }
   binding.scene.remove(binding.skyLight);
   binding.scene.remove(binding.atmosphericSky.mesh);
-  binding.scene.remove(binding.sunVector.root);
-  binding.sunVector.dispose();
+  binding.scene.remove(binding.sunVectorRoot);
+  binding.sunVector?.dispose();
   binding.atmosphericSky.dispose();
   binding.controller.dispose();
 };
@@ -1121,6 +1011,8 @@ export const buildShadowSimulationScene = (
   };
   let latestShadowIntensity = 1;
   let latestMeshErrorTarget = DEFAULT_MESH_ERROR_TARGET_PIXELS;
+  let latestMeshCacheBudget: number | undefined;
+  const meshCacheBudgets = new WeakMap<object, number | undefined>();
   let latestAtmosphericSunlight: AtmosphericSunlightSample | null = null;
   let atmosphericSunlightOptions: AtmosphericSunlightOptions = {
     useTransmittanceLut: true,
@@ -1162,8 +1054,11 @@ export const buildShadowSimulationScene = (
     scenePosition: atmosphereSkyScenePosition,
   };
   const atmosphericSunlight = new AtmosphericSunlightEvaluator();
-  let invalidateShadowMap = () => undefined;
-  let refreshTerrainShadowState = () => invalidateShadowMap();
+  let invalidateShadowMap: (
+    changedBounds?: readonly THREE.Box3[]
+  ) => void = () => undefined;
+  let refreshTerrainShadowState = (changedBounds?: readonly THREE.Box3[]) =>
+    invalidateShadowMap(changedBounds);
   let lastTerrainRuntimeErrorMessage: string | null = null;
   let terrainRevision = 0;
   const buildTerrainRuntime = (originLngLat?: [number, number]) => {
@@ -1202,7 +1097,8 @@ export const buildShadowSimulationScene = (
         heightRangeMeters,
         material,
         receivesMapStyleTexture: true,
-        onContentChanged: () => refreshTerrainShadowState(),
+        onContentChanged: (changedBounds) =>
+          refreshTerrainShadowState(changedBounds),
         onError: (error) => {
           const message =
             error instanceof Error ? error.message : String(error);
@@ -1220,6 +1116,13 @@ export const buildShadowSimulationScene = (
     getSharedThreeSceneRuntimes(map).some(
       (runtime) => runtime.providesTerrain === true
     );
+  const meshViewReady = () =>
+    getSharedThreeSceneRuntimes(map).every(
+      (runtime) => !runtime.providesTerrain || (runtime.isMainViewReady?.() ?? true)
+    );
+  let surfaceProviders = getSharedThreeSceneRuntimes(map).filter(
+    (runtime) => runtime.providesTerrain
+  );
   let terrainRuntime = sharedSceneProvidesTerrain()
     ? null
     : buildTerrainRuntime();
@@ -1233,7 +1136,102 @@ export const buildShadowSimulationScene = (
   const atmosphereCameraPosition = new THREE.Vector3();
   let shadowStateEpoch = 0;
   let shadowVisualEpoch = 0;
-  let cameraAltitudeMeters = LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS;
+  const idleTerrainPrefetch = createShadowIdleTerrainPrefetch({
+    getRequest: () => {
+      if (
+        disposed ||
+        !terrain ||
+        !terrainRuntime ||
+        !initialTerrainStageReady ||
+        isSharedThreeTerrainLoading(map) ||
+        mapInMotion ||
+        timeAnimating ||
+        contentChangeTimer !== 0 ||
+        !softSunShadowsEnabled ||
+        !nativeAccumulationFits ||
+        !latestFrame
+      )
+        return null;
+      const availability = terrainRuntime.getIdlePrefetchAvailability?.();
+      // Even a fully warm neighbour ring needs once-per-settled-view cache
+      // maintenance/calibration. The idle controller deduplicates this key.
+      if (!availability?.ready) return null;
+      const runtime = terrainRuntime;
+      return {
+        key: JSON.stringify([
+          terrainRevision,
+          shadowStateEpoch,
+          shadowVisualEpoch,
+          latestFrame.renderCamera.projectionMatrix.elements,
+          latestFrame.renderCamera.matrixWorldInverse.elements,
+          latestFrame.viewport.x,
+          latestFrame.viewport.y,
+        ]),
+        run: async (signal) => {
+          await runtime.prefetchIdleTerrain(signal);
+          if (
+            signal.aborted ||
+            !isTiledBufferEnabled() ||
+            !tiledScene ||
+            !latestFrame ||
+            !sceneLease.layer.runIdleRender
+          )
+            return;
+          // Other streamed meshes currently have no complete offscreen-caster
+          // lease contract. Warming terrain remains safe, but caching shadows
+          // with missing buildings would poison later views. Fail closed until
+          // those providers can prove coverage for the same finite-sun corridor.
+          if (
+            genericBridges.size > 0 ||
+            getCoverageRuntimes().some(
+              (candidate) =>
+                candidate !== runtime && candidate !== shadowControllerRuntime
+            )
+          )
+            return;
+          const regions = runtime.getIdleShadowRegions?.() ?? [];
+          if (regions.length === 0 || !runtime.prepareIdleShadowRegion) return;
+          await tiledScene.prewarm({
+            cells: buildShadowReceiverNeighbourRing(receiverCells),
+            frame: latestFrame,
+            lighting: {
+              directionToSun: sharedBinding.directionToSun,
+              color: sharedBinding.sunColor,
+              intensity: sharedBinding.sunIntensity,
+              shadowIntensity: sharedBinding.shadowIntensity,
+            },
+            targetPixels:
+              SHADOW_QUALITY_PROFILES[sharedBinding.shadowQuality]
+                .shadowTexelErrorPixels,
+            samples: getSunDiscAccumulationRounds(),
+            signal,
+            prepare: async (page, leaseSignal) => {
+              const terrainLevel = nearestIdleTerrainLevel(
+                page.receiverBounds,
+                regions
+              );
+              if (terrainLevel === null)
+                return {
+                  covered: false,
+                  group: null,
+                  isCurrent: () => false,
+                  dispose: () => undefined,
+                };
+              return runtime.prepareIdleShadowRegion(
+                {
+                  receiverBounds: page.receiverBounds,
+                  casterBounds: page.casterBounds,
+                  terrainLevel,
+                },
+                leaseSignal
+              );
+            },
+          });
+          if (!signal.aborted) publishProjectionDebug();
+        },
+      };
+    },
+  });
   let cachedElevationRange: readonly [number, number] | null = null;
   let lastAtmosphereErrorSignature = "";
   const rejectAtmosphereUpdate = (
@@ -1257,6 +1255,7 @@ export const buildShadowSimulationScene = (
     lastAtmosphereErrorSignature = "";
   };
   const invalidateShadowPresentation = () => {
+    idleTerrainPrefetch.cancel();
     shadowStateEpoch += 1;
     shadowVisualEpoch += 1;
   };
@@ -1321,11 +1320,13 @@ export const buildShadowSimulationScene = (
     }, MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS - elapsedMs);
   };
   const evaluateAtmosphericSunlightForMap = (position: SolarPosition) => {
-    const mapCenter = map.getCenter();
+    // Incident light belongs to the local world, not the viewing camera. A pan
+    // must not change its direction/radiance and invalidate every shadow page.
+    // The sky still receives the live view camera and observer scene position.
     const observer = {
-      longitude: mapCenter.lng,
-      latitude: mapCenter.lat,
-      altitudeMeters: cameraAltitudeMeters,
+      longitude: atmosphereReferenceCenter.lng,
+      latitude: atmosphereReferenceCenter.lat,
+      altitudeMeters: LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS,
     };
     const inputError = getAtmosphericInputValidationError(
       position.instant,
@@ -1390,8 +1391,10 @@ export const buildShadowSimulationScene = (
     );
     return sample;
   };
-  invalidateShadowMap = () => {
+  invalidateShadowMap = (changedBounds) => {
     if (disposed) return;
+    idleTerrainPrefetch.cancel();
+    tiledScene?.invalidateContent(changedBounds);
     sharedBinding.controller.invalidate();
     sharedBinding.dirty = true;
   };
@@ -1457,7 +1460,12 @@ export const buildShadowSimulationScene = (
     if (!mapInMotion) applyRuntimeShadowView(view);
   };
 
-  let lastDebugPublishMs = 0;
+  let lastDebugPublishMs = Number.NEGATIVE_INFINITY;
+  let debugPublishTimer: ReturnType<typeof setTimeout> | null = null;
+  let latestProjectionDebugSnapshot: ShadowProjectionDebugSnapshot | null =
+    null;
+  let publishedProjectionDebugBase: ShadowProjectionDebugSnapshot | null = null;
+  let publishedDebugRenderingKey = "";
   let softSunShadowsEnabled = true;
   let renderQuality: ShadowRenderQualityOptions = {};
   let effectiveRenderQuality = resolveShadowRenderQuality(renderQuality);
@@ -1466,12 +1474,19 @@ export const buildShadowSimulationScene = (
   > | null = null;
   const getAccumulationOptions = () => ({
     format: effectiveRenderQuality.shadowBufferFormat,
-    msaaSamples: resolveSupportedShadowMsaa(
-      effectiveRenderQuality,
-      (effectiveRenderQuality.shadowBufferFormat === SHADOW_BUFFER_FORMAT.SDR_8
-        ? renderCapabilities?.sdrSamples
-        : renderCapabilities?.hdrSamples) ?? [0, 2, 4]
-    ),
+    // Page ownership is resolved at the native pixel centre. MSAA coverage
+    // split across different receiver pages needs its own per-sample ownership
+    // buffer; until then only the mono path exposes geometry MSAA (see UI).
+    msaaSamples:
+      effectiveRenderQuality.shadowBufferLayout === SHADOW_BUFFER_LAYOUT.TILED
+        ? 0
+        : resolveSupportedShadowMsaa(
+            effectiveRenderQuality,
+            (effectiveRenderQuality.shadowBufferFormat ===
+            SHADOW_BUFFER_FORMAT.SDR_8
+              ? renderCapabilities?.sdrSamples
+              : renderCapabilities?.hdrSamples) ?? [0, 2, 4]
+          ),
   });
   let accumulationOptions = getAccumulationOptions();
   let contentChangeTimer = 0;
@@ -1483,6 +1498,62 @@ export const buildShadowSimulationScene = (
   let maxAccumulationPixels = Number.POSITIVE_INFINITY;
   let nativeAccumulationFits = true;
   let resourceLimits = resolveShadowResourceLimits(4096);
+  let latestFrame: SharedThreeSceneFrame | null = null;
+  let tiledScene: ShadowTiledScene | null = null;
+  let tiledRenderer: THREE.WebGLRenderer | null = null;
+  let receiverCells: readonly ShadowReceiverCell[] = [];
+  const isTiledBufferEnabled = () =>
+    effectiveRenderQuality.shadowBufferLayout === SHADOW_BUFFER_LAYOUT.TILED;
+  const releaseTiledScene = () => {
+    tiledScene?.dispose();
+    tiledScene = null;
+    tiledRenderer = null;
+    receiverCells = [];
+  };
+  const publishProjectionDebug = () => {
+    if (
+      disposed ||
+      !latestProjectionDebugSnapshot ||
+      !hasShadowProjectionDebugListeners(map)
+    )
+      return;
+    const elapsed = performance.now() - lastDebugPublishMs;
+    if (elapsed < SHADOW_DEBUG_PUBLISH_INTERVAL_MS) {
+      debugPublishTimer ??= globalThis.setTimeout(() => {
+        debugPublishTimer = null;
+        publishProjectionDebug();
+      }, SHADOW_DEBUG_PUBLISH_INTERVAL_MS - elapsed);
+      return;
+    }
+    if (debugPublishTimer !== null) {
+      globalThis.clearTimeout(debugPublishTimer);
+      debugPublishTimer = null;
+    }
+    const bufferLayout = effectiveRenderQuality.shadowBufferLayout;
+    const sunDiscSamples = effectiveRenderQuality.shadowSunDiscSamples;
+    const tiledStats = isTiledBufferEnabled()
+      ? tiledScene?.stats ?? null
+      : null;
+    const renderingKey = JSON.stringify([
+      bufferLayout,
+      sunDiscSamples,
+      tiledStats,
+    ]);
+    if (
+      publishedProjectionDebugBase === latestProjectionDebugSnapshot &&
+      publishedDebugRenderingKey === renderingKey
+    )
+      return;
+    lastDebugPublishMs = performance.now();
+    publishedProjectionDebugBase = latestProjectionDebugSnapshot;
+    publishedDebugRenderingKey = renderingKey;
+    publishShadowProjectionDebugSnapshot(map, {
+      ...latestProjectionDebugSnapshot,
+      bufferLayout,
+      sunDiscSamples,
+      tiledStats,
+    });
+  };
   sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
   const quantizeViewValue = (value: number, step: number) =>
@@ -1571,8 +1642,8 @@ export const buildShadowSimulationScene = (
         sunLight.target.position.copy(sharedBinding.center);
         sunLight.target.updateMatrixWorld(true);
       }
-      sharedBinding.sunVector.root.position.copy(sharedBinding.center);
-      sharedBinding.sunVector.root.updateMatrixWorld(true);
+      sharedBinding.sunVector?.root.position.copy(sharedBinding.center);
+      sharedBinding.sunVector?.root.updateMatrixWorld(true);
     }
     if (requestRepaint) map.triggerRepaint();
   };
@@ -1583,6 +1654,7 @@ export const buildShadowSimulationScene = (
     root: new THREE.Group(),
     updatePriority: SHADOW_CONTROLLER_UPDATE_PRIORITY,
     update(frame) {
+      latestFrame = frame;
       const renderer = sceneLease.layer.getRenderer?.();
       if (renderer && !renderCapabilities) {
         renderCapabilities = getShadowRenderCapabilities(renderer);
@@ -1605,7 +1677,11 @@ export const buildShadowSimulationScene = (
       shadowFrameBudget = updateShadowFrameBudget(
         shadowFrameBudget,
         performance.now(),
-        mapInMotion
+        mapInMotion,
+        {
+          enabled: effectiveRenderQuality.shadowAdaptiveQuality,
+          allowCadenceReduction: !isTiledBufferEnabled(),
+        }
       );
       const cameraHeightAboveTargetMeters = Math.max(
         0,
@@ -1644,13 +1720,6 @@ export const buildShadowSimulationScene = (
             atmosphereSkyScenePosition.z
           )
         );
-        const altitudeChanged =
-          Math.abs(nextCameraAltitudeMeters - cameraAltitudeMeters) >= 0.25;
-        cameraAltitudeMeters = nextCameraAltitudeMeters;
-        if (altitudeChanged && latestSolarPosition) {
-          const sample = evaluateAtmosphericSunlightForMap(latestSolarPosition);
-          if (sample) applyMapLibreLightSample(sample);
-        }
       }
       // MapLibre may rebuild render-camera matrices while terrain settles even
       // though its public view did not move. Terrain changes invalidate this
@@ -1663,6 +1732,7 @@ export const buildShadowSimulationScene = (
         const nowMs = performance.now();
         if (
           mapInMotion &&
+          !isTiledBufferEnabled() &&
           nowMs - lastMotionShadowUpdateMs < shadowFrameBudget.updateIntervalMs
         ) {
           return;
@@ -1688,6 +1758,7 @@ export const buildShadowSimulationScene = (
       if (!sharedBinding.dirty) return;
       if (
         sharedBinding.sunVectorVisible &&
+        sharedBinding.sunVector &&
         sharedBinding.sunVector.root.cone.position.y !==
           sharedBinding.sunVectorLengthMeters
       ) {
@@ -1699,17 +1770,19 @@ export const buildShadowSimulationScene = (
         );
       }
       shadowStateEpoch += 1;
-      const visibleTileVolumePoints = mapInMotion
-        ? []
-        : getActiveTileVolumes().flatMap(({ minimum, maximum }) =>
-            getFrustumBoxIntersectionPoints(
-              frame.renderCamera,
-              new THREE.Box3(
-                new THREE.Vector3(...minimum),
-                new THREE.Vector3(...maximum)
-              )
+      // The loaded receiver surfaces remain authoritative during movement too.
+      // Dropping them on drag start shrinks the clipping grid to an estimated
+      // elevation envelope and can cut away still-visible terrain.
+      const visibleTileVolumePoints = getActiveTileVolumes().flatMap(
+        ({ minimum, maximum }) =>
+          getFrustumBoxIntersectionPoints(
+            frame.renderCamera,
+            new THREE.Box3(
+              new THREE.Vector3(...minimum),
+              new THREE.Vector3(...maximum)
             )
-          );
+          )
+      );
       sharedBinding.receiverWorldPoints =
         visibleTileVolumePoints.length > 0
           ? visibleTileVolumePoints
@@ -1719,10 +1792,27 @@ export const buildShadowSimulationScene = (
         !latestSolarPosition
       ) {
         setRuntimeShadowView(null);
+        latestProjectionDebugSnapshot = null;
         clearShadowProjectionDebugSnapshot(map);
         return;
       }
+      if (isTiledBufferEnabled()) {
+        // Include the full viewport envelope and elevated receivers, not just
+        // currently loaded tile centres. The disjoint grid covers edge surfaces.
+        receiverCells = buildShadowReceiverGrid(
+          new THREE.Box3().setFromPoints([
+            ...sharedBinding.receiverWorldPoints,
+            ...fallbackReceiverWorldPoints,
+          ])
+        );
+        sharedBinding.receiverWorldPoints = receiverCells.flatMap(
+          ({ bounds }) => shadowReceiverCorners(bounds)
+        );
+      }
       const snapshot = sharedBinding.controller.update({
+        maxReceiverBiasMeters: sharedSceneProvidesTerrain()
+          ? MESH_MAX_RECEIVER_BIAS_METERS
+          : undefined,
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
         receiverAnchorWorldPosition: sharedBinding.center,
         minimumElevationMeters: sharedBinding.minimumElevationMeters,
@@ -1744,6 +1834,7 @@ export const buildShadowSimulationScene = (
       sharedBinding.dirty = false;
       if (!snapshot) {
         setRuntimeShadowView(null);
+        latestProjectionDebugSnapshot = null;
         clearShadowProjectionDebugSnapshot(map);
         return;
       }
@@ -1756,11 +1847,17 @@ export const buildShadowSimulationScene = (
           height: primary.shadowMapHeight,
         },
       });
-      const nowMs = performance.now();
-      const publishDue = !mapInMotion || nowMs - lastDebugPublishMs >= 100;
+      // The mono camera remains the conservative caster-fetch envelope in tiled
+      // mode; it needs no resident depth target or visible directional light.
+      if (isTiledBufferEnabled()) {
+        const light = sharedBinding.controller.lights[0];
+        if (light.shadow.map) {
+          disposeShadowDepthPage(light.shadow.map);
+          light.shadow.map = null;
+        }
+      }
       const publishWanted = hasShadowProjectionDebugListeners(map);
-      if (primary && publishWanted && publishDue) {
-        lastDebugPublishMs = nowMs;
+      if (primary && publishWanted) {
         frame.lodCamera.updateMatrixWorld(true);
         frame.lodCamera.updateProjectionMatrix();
         const tileVolumes = getCoverageRuntimes().flatMap((runtime) =>
@@ -1773,7 +1870,10 @@ export const buildShadowSimulationScene = (
             })
           )
         );
-        publishShadowProjectionDebugSnapshot(map, {
+        latestProjectionDebugSnapshot = {
+          bufferLayout: effectiveRenderQuality.shadowBufferLayout,
+          sunDiscSamples: effectiveRenderQuality.shadowSunDiscSamples,
+          tiledStats: null,
           cameraRangeMeters: primaryCamera.position.distanceTo(
             sharedBinding.controller.lights[0].target.position
           ),
@@ -1815,7 +1915,8 @@ export const buildShadowSimulationScene = (
                   latestAtmosphericSunlight.atmosphericIrradianceReady,
               }
             : null,
-        });
+        };
+        publishProjectionDebug();
       }
     },
     dispose: () => undefined,
@@ -1824,7 +1925,58 @@ export const buildShadowSimulationScene = (
 
   const getSunDiscAccumulationRounds = () =>
     effectiveRenderQuality.shadowSunDiscSamples;
+  const updateTiledScene = () => {
+    if (
+      !isTiledBufferEnabled() ||
+      !latestFrame ||
+      receiverCells.length === 0 ||
+      sharedBinding.directionToSun.y <= 0
+    )
+      return null;
+    const renderer = sceneLease.layer.getRenderer?.();
+    if (!renderer) return null;
+    if (!tiledScene || tiledRenderer !== renderer) {
+      const cells = receiverCells;
+      releaseTiledScene();
+      receiverCells = cells;
+      tiledRenderer = renderer;
+      tiledScene = new ShadowTiledScene(sharedBinding.scene, renderer, {
+        light: sharedBinding.controller.lights[0],
+        sky: sharedBinding.atmosphericSky.mesh,
+        overlay: sharedBinding.sunVectorRoot,
+        maximumMapSize: resourceLimits.maxShadowMapSize,
+        isCorridorReady: (bounds) => getCoverageRuntimes().every(runtime =>
+          runtime.isShadowRegionReady?.(bounds) ??
+          (runtime.getRequestDemand ? runtime.getRequestDemand() === 0 :
+            !runtime.providesTerrain || !isSharedThreeTerrainLoading(map))
+        ),
+        runIdleRender: (render) =>
+          sceneLease.layer.runIdleRender?.(render) ?? false,
+      });
+    }
+    tiledScene.update(
+      receiverCells,
+      latestFrame,
+      {
+        maxReceiverBiasMeters: sharedSceneProvidesTerrain()
+          ? MESH_MAX_RECEIVER_BIAS_METERS
+          : undefined,
+        directionToSun: sharedBinding.directionToSun,
+        color: sharedBinding.sunColor,
+        intensity: sharedBinding.sunIntensity,
+        shadowIntensity: sharedBinding.shadowIntensity,
+      },
+      // Scale depth demand, never the native-pixel map/style colour pass.
+      SHADOW_QUALITY_PROFILES[sharedBinding.shadowQuality]
+        .shadowTexelErrorPixels /
+        (mapInMotion ? shadowFrameBudget.depthScale : 1)
+    );
+    return tiledScene;
+  };
   const accumulationController = {
+    // Mono and tiled soft-sun paths share this post-composition hook. Point
+    // lighting has no convergence event and deliberately schedules no prefetch.
+    onSettled: idleTerrainPrefetch.onSettled,
     get options() {
       return accumulationOptions;
     },
@@ -1840,14 +1992,19 @@ export const buildShadowSimulationScene = (
       nativeAccumulationFits &&
       softSunShadowsEnabled &&
       !timeAnimating &&
-      (!initialTerrainStageReady || mapInMotion || contentChangeTimer !== 0),
+      (!initialTerrainStageReady ||
+        isSharedThreeTerrainLoading(map) ||
+        mapInMotion ||
+        contentChangeTimer !== 0),
     active: () =>
       nativeAccumulationFits &&
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
+      meshViewReady() &&
+      (isTiledBufferEnabled() || !isSharedThreeTerrainLoading(map)) &&
       !mapInMotion &&
       !timeAnimating &&
-      contentChangeTimer === 0 &&
+      (isTiledBufferEnabled() || contentChangeTimer === 0) &&
       latestSolarPosition !== null &&
       latestShadowView !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
@@ -1858,12 +2015,44 @@ export const buildShadowSimulationScene = (
       latestShadowView !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
     prepareRound: (round: number) => {
+      if (isTiledBufferEnabled()) return;
       sharedBinding.controller.applySunDiscSample(
         round,
         getSunDiscAccumulationRounds()
       );
     },
     finishRound: () => sharedBinding.controller.restoreSunDiscCenter(),
+    renderProgressive: (
+      camera: THREE.Camera,
+      frame: Readonly<{
+        width: number;
+        height: number;
+        viewKey: string;
+        styleEpoch: number;
+        active: boolean;
+      }>
+    ) => {
+      if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
+      const tiles = updateTiledScene();
+      if (!tiles) return null;
+      const result = tiles.renderProgressive(camera, {
+        ...frame,
+        samples: getSunDiscAccumulationRounds(),
+        maxRenderTargetPixels: maxAccumulationPixels,
+        options: accumulationOptions,
+      });
+      publishProjectionDebug();
+      return result;
+    },
+    renderScene: (camera: THREE.Camera, round: number | null) => {
+      const tiles = updateTiledScene();
+      if (!tiles) return false;
+      tiles.render(camera, round, getSunDiscAccumulationRounds());
+      // A trailing publication includes the final page counters even when
+      // convergence stops repaints before the next debug interval.
+      publishProjectionDebug();
+      return true;
+    },
   };
   sceneLease.layer.setAccumulationController?.(accumulationController);
   const refreshSharedShadowCoverage = () => {
@@ -1871,12 +2060,13 @@ export const buildShadowSimulationScene = (
     coverageNeedsCameraReevaluation = true;
     updateSharedShadowCoverage();
   };
-  refreshTerrainShadowState = () => {
-    invalidateShadowMap();
+  refreshTerrainShadowState = (changedBounds) => {
+    invalidateShadowMap(changedBounds);
     refreshSharedShadowCoverage();
   };
 
   const handleMoveStart = () => {
+    idleTerrainPrefetch.cancel();
     shadowFrameBudget = updateShadowFrameBudget(
       shadowFrameBudget,
       performance.now(),
@@ -1887,6 +2077,7 @@ export const buildShadowSimulationScene = (
     sharedBinding.dirty = true;
   };
   const handleMove = () => {
+    idleTerrainPrefetch.cancel();
     coverageNeedsCameraReevaluation = true;
     sharedBinding.dirty = true;
   };
@@ -1923,9 +2114,30 @@ export const buildShadowSimulationScene = (
     });
   };
   const syncTerrainRuntime = () => {
+    const nextProviders = getSharedThreeSceneRuntimes(map).filter(
+      (runtime) => runtime.providesTerrain
+    );
+    if (
+      nextProviders.length !== surfaceProviders.length ||
+      nextProviders.some((runtime) => !surfaceProviders.includes(runtime))
+    ) {
+      surfaceProviders = nextProviders;
+      // Decision: MESH-FIRST-20260908 in three/TILED_SHADOW_PAGES.md.
+      // Release the previous surface's buffers once, never on tile arrivals.
+      releaseTiledScene();
+      sceneLease.layer.setAccumulationController?.(null);
+      sceneLease.layer.setAccumulationController?.(accumulationController);
+      for (const light of sharedBinding.controller.lights) {
+        if (!light.shadow.map) continue;
+        disposeShadowDepthPage(light.shadow.map);
+        light.shadow.map = null;
+      }
+      invalidateShadowPresentation();
+    }
     const meshProvidesTerrain = sharedSceneProvidesTerrain();
     if (!terrain) return;
     if (meshProvidesTerrain) {
+      idleTerrainPrefetch.cancel();
       initialTerrainStageReady = true;
       const runtime = terrainRuntime;
       terrainRuntime = null;
@@ -1940,6 +2152,7 @@ export const buildShadowSimulationScene = (
 
     const runtime = buildTerrainRuntime();
     if (!runtime) return;
+    idleTerrainPrefetch.cancel();
     initialTerrainStageReady = false;
     terrainRuntime = runtime;
     runtime.setMaterialColor(`#${terrainColor.getHexString()}`);
@@ -1976,7 +2189,10 @@ export const buildShadowSimulationScene = (
       );
       if (nextBridge) genericBridges.set(layer, nextBridge);
     }
-    makeSceneMeshesShadeable(sceneLease.layer.getScene());
+    makeSceneMeshesShadeable(
+      sceneLease.layer.getScene(),
+      sharedSceneProvidesTerrain()
+    );
     refreshSharedShadowCoverage();
     map.triggerRepaint();
   };
@@ -1990,12 +2206,17 @@ export const buildShadowSimulationScene = (
 
   const handleSharedSceneContentChanged = () => {
     if (disposed) return;
+    idleTerrainPrefetch.cancel();
     syncTerrainRuntime();
     releaseMapLibreTerrain.refresh();
     syncMeshLabelStyle();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
         runtime.setErrorTarget?.(latestMeshErrorTarget);
+        if (!meshCacheBudgets.has(runtime) || meshCacheBudgets.get(runtime) !== latestMeshCacheBudget) {
+          runtime.setCacheBudget?.(latestMeshCacheBudget);
+          meshCacheBudgets.set(runtime, latestMeshCacheBudget);
+        }
       }
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
     }
@@ -2003,7 +2224,10 @@ export const buildShadowSimulationScene = (
     // while existing ones keep their stationary-view signature. Refitting the
     // light to freshly streamed terrain must not restart terrain traversal.
     applyRuntimeShadowView(appliedRuntimeShadowView);
-    makeSceneMeshesShadeable(sceneLease.layer.getScene());
+    makeSceneMeshesShadeable(
+      sceneLease.layer.getScene(),
+      sharedSceneProvidesTerrain()
+    );
     sharedBinding.controller.invalidate();
     sharedBinding.dirty = true;
     coverageNeedsCameraReevaluation = true;
@@ -2011,6 +2235,15 @@ export const buildShadowSimulationScene = (
   };
   const scheduleSharedSceneContentChanged = () => {
     if (disposed) return;
+    // Install the receiver policy before the first draw of an arriving tile.
+    // The expensive coverage work below stays debounced; shader flags may not
+    // wait 120 ms with millimetre bias and uncorrected stock PCF.
+    makeSceneMeshesShadeable(
+      sceneLease.layer.getScene(),
+      sharedSceneProvidesTerrain()
+    );
+    idleTerrainPrefetch.cancel();
+    tiledScene?.invalidateContent();
     syncTerrainRuntime();
     cachedElevationRange = null;
     coverageNeedsCameraReevaluation = true;
@@ -2027,6 +2260,15 @@ export const buildShadowSimulationScene = (
     map,
     scheduleSharedSceneContentChanged
   );
+  // Coverage and interaction take priority over finite-disc refinement. Wake
+  // the renderer when loading finishes even if the last tile was already cached.
+  const unsubscribeTerrainLoading = subscribeSharedThreeTerrainLoading(
+    map,
+    () => {
+      if (isSharedThreeTerrainLoading(map)) idleTerrainPrefetch.cancel();
+      if (!disposed) map.triggerRepaint();
+    }
+  );
   handleSharedSceneContentChanged();
 
   const applyMapLibreLight = (position: SolarPosition) => {
@@ -2037,9 +2279,7 @@ export const buildShadowSimulationScene = (
 
   const updateSolarPosition = (position: SolarPosition) => {
     if (
-      latestSolarPosition?.instant.getTime() === position.instant.getTime() &&
-      latestSolarPosition.azimuthDegrees === position.azimuthDegrees &&
-      latestSolarPosition.elevationDegrees === position.elevationDegrees
+      latestSolarPosition?.instant.getTime() === position.instant.getTime()
     ) {
       return;
     }
@@ -2056,10 +2296,47 @@ export const buildShadowSimulationScene = (
 
   map.on(MAPLIBRE_EVENT.STYLE_LOAD, restoreLighting);
 
+  const refreshProjectionDebug = () => {
+    lastDebugPublishMs = Number.NEGATIVE_INFINITY;
+    sharedBinding.dirty = true;
+    map.triggerRepaint();
+  };
+  const unsubscribeDebugDemand = subscribeShadowProjectionDebugDemand(
+    map,
+    (active) => {
+      if (active) {
+        // React.lazy may finish after the scene has already settled. Capture
+        // only once the panel actually subscribes, without a camera move.
+        refreshProjectionDebug();
+      } else {
+        if (debugPublishTimer !== null)
+          globalThis.clearTimeout(debugPublishTimer);
+        debugPublishTimer = null;
+        latestProjectionDebugSnapshot = null;
+        publishedProjectionDebugBase = null;
+        publishedDebugRenderingKey = "";
+      }
+    }
+  );
+
   return {
     updateSolarPosition,
+    updateMeshCacheBudget(bytes) {
+      const next = bytes !== undefined && Number.isFinite(bytes) && bytes > 0
+        ? bytes
+        : undefined;
+      if (latestMeshCacheBudget === next) return;
+      latestMeshCacheBudget = next;
+      for (const runtime of getSharedThreeSceneRuntimes(map)) {
+        if (!runtime.providesTerrain) continue;
+        runtime.setCacheBudget?.(next);
+        meshCacheBudgets.set(runtime, next);
+      }
+      map.triggerRepaint();
+    },
     updateTerrain(nextTerrain) {
       if (terrain === nextTerrain) return;
+      idleTerrainPrefetch.cancel();
       terrain = nextTerrain;
       if (!nextTerrain || sharedSceneProvidesTerrain()) return;
       const previous = terrainRuntime;
@@ -2108,6 +2385,7 @@ export const buildShadowSimulationScene = (
         return;
       }
       invalidateShadowPresentation();
+      tiledScene?.invalidateContent();
       latestBuildingAppearance = appearance;
       for (const bridge of genericBridges.values()) {
         bridge.updateBuildingAppearance(appearance);
@@ -2115,7 +2393,10 @@ export const buildShadowSimulationScene = (
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(appearance);
       }
-      makeSceneMeshesShadeable(sceneLease.layer.getScene());
+      makeSceneMeshesShadeable(
+        sceneLease.layer.getScene(),
+        sharedSceneProvidesTerrain()
+      );
       sharedBinding.controller.invalidate();
       sharedBinding.dirty = true;
       map.triggerRepaint();
@@ -2142,7 +2423,19 @@ export const buildShadowSimulationScene = (
       );
       renderQuality = { ...options };
       effectiveRenderQuality = next;
+      const adaptationChanged =
+        previous.shadowAdaptiveQuality !== next.shadowAdaptiveQuality;
       if (
+        adaptationChanged ||
+        previous.shadowBufferLayout !== next.shadowBufferLayout
+      ) {
+        shadowFrameBudget = createShadowFrameBudget(
+          sharedBinding.shadowQuality
+        );
+      }
+      if (
+        !adaptationChanged &&
+        previous.shadowBufferLayout === next.shadowBufferLayout &&
         previous.shadowBufferFormat === next.shadowBufferFormat &&
         previous.shadowSunDiscSamples === next.shadowSunDiscSamples &&
         previous.shadowMsaaSamples === next.shadowMsaaSamples &&
@@ -2152,16 +2445,26 @@ export const buildShadowSimulationScene = (
       }
       accumulationOptions = getAccumulationOptions();
       invalidateShadowPresentation();
-      if (previous.shadowGroundTexelFit !== next.shadowGroundTexelFit) {
+      if (previous.shadowBufferLayout !== next.shadowBufferLayout) {
+        releaseTiledScene();
+        coverageNeedsCameraReevaluation = true;
+      }
+      if (
+        adaptationChanged ||
+        previous.shadowGroundTexelFit !== next.shadowGroundTexelFit ||
+        previous.shadowBufferLayout !== next.shadowBufferLayout
+      ) {
         sharedBinding.dirty = true;
         sharedBinding.controller.invalidate();
       }
+      publishProjectionDebug();
       map.triggerRepaint();
     },
     updateSoftSunShadows(enabled) {
       if (softSunShadowsEnabled === enabled) return;
       invalidateShadowPresentation();
       softSunShadowsEnabled = enabled;
+      releaseTiledScene();
       sharedBinding.controller.setSoftSun(enabled);
       sharedBinding.controller.invalidate();
       sharedBinding.dirty = true;
@@ -2169,6 +2472,7 @@ export const buildShadowSimulationScene = (
     },
     updateTimeAnimating(animating) {
       if (timeAnimating === animating) return;
+      idleTerrainPrefetch.cancel();
       timeAnimating = animating;
       if (!animating) {
         flushMapLibreLightSample();
@@ -2176,11 +2480,7 @@ export const buildShadowSimulationScene = (
       }
       map.triggerRepaint();
     },
-    refreshProjectionDebug() {
-      lastDebugPublishMs = 0;
-      sharedBinding.dirty = true;
-      map.triggerRepaint();
-    },
+    refreshProjectionDebug,
     updateShadowIntensity(intensity) {
       const nextIntensity = clamp(intensity, 0, 1);
       if (latestShadowIntensity === nextIntensity) return;
@@ -2206,7 +2506,41 @@ export const buildShadowSimulationScene = (
       if (sharedBinding.sunVectorVisible === visible) return;
       invalidateShadowPresentation();
       sharedBinding.sunVectorVisible = visible;
-      sharedBinding.sunVector.root.visible = visible && !!latestSolarPosition;
+      sharedBinding.sunVectorRoot.visible = visible && !!latestSolarPosition;
+      if (!visible) {
+        if (sharedBinding.sunVector) {
+          sharedBinding.sunVectorRoot.remove(sharedBinding.sunVector.root);
+          sharedBinding.sunVector.dispose();
+          sharedBinding.sunVector = null;
+        }
+      } else {
+        void import("./shadow-sun-vector")
+          .then(({ buildSunVector }) => {
+            // Closing the panel or disposing the scene while the chunk loads
+            // must not resurrect debug geometry or allocate GPU resources.
+            if (
+              disposed ||
+              !sharedBinding.sunVectorVisible ||
+              sharedBinding.sunVector
+            )
+              return;
+            const vector = buildSunVector();
+            sharedBinding.sunVector = vector;
+            sharedBinding.sunVectorRoot.add(vector.root);
+            vector.update(
+              sharedBinding.center,
+              sharedBinding.directionToSun,
+              sharedBinding.sunVectorLengthMeters
+            );
+            vector.root.visible = true;
+            sharedBinding.sunVectorRoot.visible = !!latestSolarPosition;
+            map.triggerRepaint();
+          })
+          .catch((error: unknown) => {
+            if (!disposed)
+              console.error("Unable to load sun-vector diagnostics", error);
+          });
+      }
       map.triggerRepaint();
     },
     updateAtmosphericLutUsage(options) {
@@ -2229,6 +2563,14 @@ export const buildShadowSimulationScene = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      idleTerrainPrefetch.dispose();
+      unsubscribeDebugDemand();
+      releaseTiledScene();
+      if (debugPublishTimer !== null) {
+        globalThis.clearTimeout(debugPublishTimer);
+        debugPublishTimer = null;
+      }
+      latestProjectionDebugSnapshot = null;
       if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
       if (mapLibreStyleUpdateTimer !== null) {
         globalThis.clearTimeout(mapLibreStyleUpdateTimer);
@@ -2242,6 +2584,7 @@ export const buildShadowSimulationScene = (
       map.off(MAPLIBRE_EVENT.RESIZE, handleResize);
       unsubscribeGenericLayers();
       unsubscribeSharedSceneContent();
+      unsubscribeTerrainLoading();
       latestShadowView = null;
       applyRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {

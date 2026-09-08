@@ -86,8 +86,11 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   meshErrorTarget?: MeshErrorTargetPixels;
+  /** Optional explicit resident budget; absent uses the device default. */
+  meshCacheBudgetBytes?: number;
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;
+  showDisplaySettings?: boolean;
   showTileBounds?: boolean;
   softSunShadows?: boolean;
   showMapStyleContent?: boolean;

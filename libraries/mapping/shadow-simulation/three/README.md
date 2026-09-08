@@ -2,6 +2,10 @@
 
 Story: **Mapping / Shadows / Sun Disc** in `playgrounds/stories`.
 
+The additional **Tiled Corridors** story exercises the shared world-fixed page
+renderer, with extruded LOD digits, optional columns and a camera tour. See
+[implementation, measurements and rollout limits](./TILED_SHADOW_PAGES.md).
+
 The renderer-only entry exports the production `ShadowController` and a small
 DOM host for reference fixtures. The host uses the same `buildSharedSceneAccumulator`
 as Geoportal through `@carma-mapping/engines/three/primitives/rendering`.

@@ -111,7 +111,7 @@ describe("shared Three.js scene registry", () => {
     lease.release();
   });
 
-  it("moves the shared layer after the full style and keeps point labels above it", () => {
+  it.each([MAPLIBRE_EVENT.STYLE_DATA, MAPLIBRE_EVENT.STYLE_LOAD])("keeps ground below Three on %s even while point labels are hidden", (maintenanceEvent) => {
     const layers = [
       { id: "basemap", type: "raster" },
       { id: sharedLayer.id, type: "custom" },
@@ -225,6 +225,32 @@ describe("shared Three.js scene registry", () => {
     expect(layout.get("house-numbers:visibility")).toBe("none");
     expect(layout.get("autobahn-route-shields:visibility")).toBe("none");
     expect(paint.get("house-numbers:text-color")).toBe("#112233");
+    const appendGroundAndRefresh = (suffix: string) => {
+      const lateGround = ["fill", "raster", "line"].map((type) => ({
+        id: `${suffix}-${type}`, type,
+      }));
+      layers.push(...lateGround);
+      const refresh = map.on.mock.calls.find(([event]) => event === maintenanceEvent)?.[1];
+      expect(refresh).toBeTypeOf("function");
+      refresh({ type: maintenanceEvent });
+      // Check synchronously: the label timer must not leave a second native
+      // terrain stack behind Three for even one intervening render.
+      const order = layers.map(({ id }) => id);
+      const receiverIndex = order.indexOf(sharedLayer.id);
+      for (const { id } of lateGround) {
+        expect(order.indexOf(id)).toBeLessThan(receiverIndex);
+        expect(layout.has(`${id}:visibility`)).toBe(false);
+      }
+      expect(order.slice(receiverIndex + 1)).toEqual([
+        "autobahn-route-shields", "place-city", "house-numbers",
+      ]);
+      const writes = moveLayer.mock.calls.length;
+      refresh({ type: maintenanceEvent });
+      expect(moveLayer).toHaveBeenCalledTimes(writes);
+    };
+    appendGroundAndRefresh("hidden-labels-ground");
+    expect(layout.get("place-city:visibility")).toBe("none");
+    expect(layout.get("house-numbers:visibility")).toBe("none");
     lease.setPointLabelOverlayVisible(true);
     expect(layout.has("place-city:visibility")).toBe(false);
     expect(layout.has("house-numbers:visibility")).toBe(false);
@@ -235,6 +261,7 @@ describe("shared Three.js scene registry", () => {
       "place-city",
       "house-numbers",
     ]);
+    appendGroundAndRefresh("visible-labels-ground");
     lease.release();
     expect(layout.get("place-city:text-offset")).toEqual([0, 0]);
     expect(paint.get("place-city:text-halo-width")).toBe(1.25);

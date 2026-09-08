@@ -38,6 +38,8 @@ export const fitShadowMap = (
     elevationSine: number;
     sunDiscGuardMeters: number;
     groundTexelFit: boolean;
+    /** Demand-driven pages: metres on horizontal ground, not a texel budget. */
+    groundTexelTargetMeters?: number;
     /** Keep an already allocated target while fitting a moving receiver. */
     mapDimensions?: Readonly<{ width: number; height: number }>;
   }>
@@ -66,7 +68,25 @@ export const fitShadowMap = (
   let hardwareLimited = false;
   let preservedResolutionLimited = false;
 
-  if (groundTexelFit) {
+  const target = options.groundTexelTargetMeters;
+  if (target !== undefined && (!Number.isFinite(target) || target <= 0)) {
+    throw new RangeError(
+      "Shadow ground texel target must be positive and finite"
+    );
+  }
+  if (target !== undefined) {
+    // Nested size classes keep page projections stable across small camera
+    // changes. Guards are additional storage, not part of the useful pixels.
+    const sizeClass = (required: number) =>
+      Math.max(MAP_DIMENSION_STEP, 2 ** Math.ceil(Math.log2(required)));
+    const requiredWidth = sizeClass(width / target + guardDiameter);
+    const requiredHeight = sizeClass(
+      height / (target * projectionSine) + guardDiameter
+    );
+    mapWidth = Math.min(maxMapSize, requiredWidth);
+    mapHeight = Math.min(maxMapSize, requiredHeight);
+    hardwareLimited = mapWidth < requiredWidth || mapHeight < requiredHeight;
+  } else if (groundTexelFit) {
     // With world Y as camera up, a light-space Y texel projects to the
     // horizontal ground with length dy / sin(elevation). Include the guards
     // in the allocation so the usable pixels, rather than just the texture

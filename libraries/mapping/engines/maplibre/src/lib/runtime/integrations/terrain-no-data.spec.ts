@@ -3,7 +3,7 @@ import {
   executeTerrainWorkerTask,
   terrainResultTransfers,
 } from "./terrain-worker-task";
-import { terrainHeightRangeExcludesNoData } from "./terrain-no-data";
+import { terrainHeightRangeExcludesNoData } from "../../core/terrain-no-data";
 
 const partition = (heights: number[]) =>
   executeTerrainWorkerTask({

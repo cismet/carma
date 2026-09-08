@@ -1,19 +1,18 @@
+import { getDaysInYear } from "@carma-commons/utils";
+
 import type {
   ShadowSimulationConfig,
   ShadowDateState,
   ShadowSimulationState,
-} from "@carma-mapping/shadow-simulation/core";
+} from "../contracts/shadow-simulation";
 import {
-  clampShadowSimulationSelectionToDaylight,
   createInitialShadowDateState,
   createInitialShadowSimulationState,
-  DEFAULT_SHADOW_SIMULATION_LOCATION,
-} from "@carma-mapping/shadow-simulation/core";
-
+} from "./create-shadow-simulation-state";
 import {
-  isGeoportalShadowSimulationHashSelectionValidForYear,
-  type GeoportalShadowSimulationHashSelection,
-} from "./geoportal-custom-hash-state";
+  clampShadowSimulationSelectionToDaylight,
+  DEFAULT_SHADOW_SIMULATION_LOCATION,
+} from "./solar-position";
 
 type ShadowSelection = Readonly<{
   minutes: number;
@@ -23,7 +22,7 @@ type ShadowSelection = Readonly<{
 export const shadowStateMatchesHashSelection = (
   enabled: boolean,
   selection: ShadowSelection,
-  hashSelection: GeoportalShadowSimulationHashSelection | null
+  hashSelection: ShadowSelection | null
 ): boolean =>
   hashSelection === null
     ? !enabled
@@ -31,14 +30,14 @@ export const shadowStateMatchesHashSelection = (
       selection.minutes === hashSelection.minutes &&
       selection.dayOfYear === hashSelection.dayOfYear;
 
-export const resolveGeoportalShadowHashSelection = (
-  selection: GeoportalShadowSimulationHashSelection | null,
+export const resolveShadowHashSelection = (
+  selection: ShadowSelection | null,
   year: number | undefined,
   position: { latitude?: number; longitude?: number },
   timeZone: string
-): GeoportalShadowSimulationHashSelection | null => {
+): ShadowSelection | null => {
   if (!selection || year === undefined) return selection;
-  if (!isGeoportalShadowSimulationHashSelectionValidForYear(selection, year)) {
+  if (!Number.isInteger(year) || selection.dayOfYear > getDaysInYear(year)) {
     return null;
   }
 
@@ -57,16 +56,16 @@ export const resolveGeoportalShadowHashSelection = (
 export const applyShadowHashSelection = (
   shadowState: ShadowSimulationState,
   dateState: ShadowDateState,
-  selection: GeoportalShadowSimulationHashSelection | null
+  selection: ShadowSelection | null
 ): { shadowState: ShadowSimulationState; dateState: ShadowDateState } => ({
   shadowState: { ...shadowState, enabled: selection !== null },
   dateState: selection ? { ...dateState, ...selection } : dateState,
 });
 
 /** Resolve URL-owned state before the map chooses its first basemap sources. */
-export const createGeoportalShadowStartupState = (
+export const createShadowStartupState = (
   config: ShadowSimulationConfig | undefined,
-  selection: GeoportalShadowSimulationHashSelection | null,
+  selection: ShadowSelection | null,
   location: { latitude?: number; longitude?: number }
 ) => {
   const resolvedLocation = {
@@ -80,7 +79,7 @@ export const createGeoportalShadowStartupState = (
       DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
   };
   const date = createInitialShadowDateState(config, resolvedLocation);
-  const resolved = resolveGeoportalShadowHashSelection(
+  const resolved = resolveShadowHashSelection(
     selection,
     date.year,
     resolvedLocation,

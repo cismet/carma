@@ -1,4 +1,27 @@
+import { getDayOfYear, getUtcDateForDayOfYear } from "@carma-commons/utils";
 import type { SolarSelection } from "../core/solar-position";
+
+const shortDayFormatter = new Intl.DateTimeFormat("de-DE", {
+  day: "2-digit",
+  month: "short",
+  timeZone: "UTC",
+});
+const monthFormatter = new Intl.DateTimeFormat("de-DE", {
+  month: "short",
+  timeZone: "UTC",
+});
+
+export const formatSolarDay = (year: number, dayOfYear: number): string =>
+  shortDayFormatter.format(getUtcDateForDayOfYear(year, dayOfYear));
+
+export const getSolarMonthTicks = (year: number) =>
+  Array.from({ length: 12 }, (_, month) => {
+    const dayOfYear = getDayOfYear(year, month, 1);
+    return {
+      dayOfYear,
+      label: monthFormatter.format(getUtcDateForDayOfYear(year, dayOfYear)),
+    };
+  });
 
 export const formatClockMinutes = (minutes: number): string => {
   const roundedMinutes = Math.round(minutes);

@@ -40,7 +40,11 @@ export type ShadowProjectionDebugBuffer = Readonly<{
   shadowMapHeight: number;
 }>;
 
-export type ShadowProjectionDebugModel = {
+export type ShadowProjectionDebugModel = Pick<
+  ShadowProjectionDebugSnapshot,
+  "bufferLayout" | "sunDiscSamples" | "tiledStats"
+> & {
+  /** Main view and conservative caster envelope, not tiled page cameras. */
   viewStates: readonly ViewState[];
   tileVolumes: readonly Readonly<{
     minimum: readonly [number, number, number];
@@ -55,8 +59,8 @@ export type ShadowProjectionDebugModel = {
   shadowTexelHeightMeters: number;
   horizontalProjectionPerHeight: number;
   elevationSpanMeters: number;
+  /** Mono camera fit; in tiled mode this describes only caster-fetch coverage. */
   shadowBuffer: ShadowProjectionDebugBuffer;
-  shadowSampleCount: number;
   totalShadowTexels: number;
   casterReachMeters: number;
   visualizationWorldScaleMeters: number;
@@ -211,15 +215,29 @@ const readVisualizationWorldScaleMeters = (
   relativeVolumes: readonly RelativeTileVolume[],
   viewStates: readonly ViewState[]
 ) => {
-  const maximumAbsoluteCoordinate = [
-    ...relativeVolumes.flatMap(({ minimum, maximum }) => [minimum, maximum]),
-    ...viewStates.map(readLocalCameraPosition),
-  ].reduce(
-    (maximumValue, point) =>
-      Math.max(maximumValue, ...point.toArray().map(Math.abs)),
-    1
+  if (relativeVolumes.length > 0) {
+    // Fit the loaded tiles around the view-center terrain anchor, not the
+    // artificial sun-camera distance. A corner radius keeps the complete
+    // extent in frame while orbiting, including asymmetric caster corridors.
+    // One normalized unit leaves the visualizer's existing frame padding.
+    return relativeVolumes.reduce(
+      (radius, { minimum, maximum }) =>
+        Math.max(
+          radius,
+          Math.hypot(
+            Math.max(Math.abs(minimum.x), Math.abs(maximum.x)),
+            Math.max(Math.abs(minimum.y), Math.abs(maximum.y)),
+            Math.max(Math.abs(minimum.z), Math.abs(maximum.z))
+          )
+        ),
+      1
+    );
+  }
+  // Before any tile arrives, retain the camera-only overview as a fallback.
+  return Math.max(
+    1,
+    ...viewStates.map(readLocalCameraPosition).map((position) => position.length())
   );
-  return maximumAbsoluteCoordinate / 0.82;
 };
 
 const normalizeTileVolumes = (
@@ -388,6 +406,9 @@ export const buildShadowProjectionDebugModel = (
   );
 
   return {
+    bufferLayout: snapshot.bufferLayout,
+    sunDiscSamples: snapshot.sunDiscSamples,
+    tiledStats: snapshot.tiledStats,
     viewStates: [cameraViewState, resolvedShadowViewState],
     tileVolumes: normalizeTileVolumes(
       relativeTileVolumes,
@@ -418,7 +439,6 @@ export const buildShadowProjectionDebugModel = (
       shadowMapWidth: camera.shadowMapWidth,
       shadowMapHeight: camera.shadowMapHeight,
     },
-    shadowSampleCount: shadow.sampleCount,
     totalShadowTexels: shadow.totalShadowTexels,
     casterReachMeters: shadow.casterReachMeters,
     visualizationWorldScaleMeters,

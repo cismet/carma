@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { TILE_OUTLINE_FLAG } from "@carma-mapping/engines/threejs";
 import { setSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import {
   buildThreeTilesRuntime,
   HIDDEN_TAB_WIPE_DELAY_MS,
@@ -268,7 +269,39 @@ describe("three tiles runtime styling", () => {
     layer.setShadowView(null);
     expect(cache.isFull()).toBe(true);
 
-    // A style may only lower the ceiling; the floor still applies.
+    const events = vi.mocked(map.on).mock.calls;
+    const loseContext = events.find(([event]) => event === MAPLIBRE_EVENT.WEBGL_CONTEXT_LOST)?.[1] as () => void;
+    const restoreContext = events.find(([event]) => event === MAPLIBRE_EVENT.WEBGL_CONTEXT_RESTORED)?.[1] as () => void;
+    cache.cachedBytes = 0;
+    loseContext();
+    expect(cache.isFull()).toBe(true);
+    expect(renderer!.downloadQueue.maxJobsPerOrigin).toBe(0);
+    expect(renderer!.parseQueue.maxJobs).toBe(0);
+    restoreContext();
+    expect(cache.isFull()).toBe(false);
+    expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
+    layer.setCacheBudget(24 * 1024 ** 3);
+    expect(renderer!.lruCache.minBytesSize).toBe(18 * 1024 ** 3);
+    const memoryDescriptor = Object.getOwnPropertyDescriptor(performance, "memory");
+    const memory = { usedJSHeapSize: 85, jsHeapSizeLimit: 100 };
+    Object.defineProperty(performance, "memory", { configurable: true, value: memory });
+    try {
+      layer.setCacheBudget(24 * 1024 ** 3);
+      expect(renderer!.downloadQueue.maxJobsPerOrigin).toBe(0);
+      expect(renderer!.parseQueue.maxJobs).toBe(0);
+      memory.usedJSHeapSize = 70;
+      layer.setCacheBudget(24 * 1024 ** 3);
+      expect(renderer!.parseQueue.maxJobs).toBe(0);
+      memory.usedJSHeapSize = 60;
+      layer.setCacheBudget(24 * 1024 ** 3);
+      expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
+    } finally {
+      if (memoryDescriptor) Object.defineProperty(performance, "memory", memoryDescriptor);
+      else Reflect.deleteProperty(performance, "memory");
+    }
+    cache.cachedBytes = 512 * MIB;
+
+    // Explicit budgets may exceed the device default; the floor still applies.
     layer.setCacheBudget(1024);
     expect(cache.isFull()).toBe(true);
     cache.cachedBytes = 100 * MIB;
@@ -414,6 +447,17 @@ describe("three tiles runtime styling", () => {
     });
     expect(volumes[0]?.minimum.every(Number.isFinite)).toBe(true);
     expect(volumes[0]?.maximum.every(Number.isFinite)).toBe(true);
+
+    const tile = [...renderer!.activeTiles][0];
+    const model = tile.engineData.scene!;
+    const surface = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 8));
+    surface.position.set(1, 200, 3);
+    model.add(surface);
+    const loadedVolumes = layer.getActiveTileVolumes?.() ?? [];
+    expect(loadedVolumes[0].minimum).toEqual([-1, 197, -1]);
+    expect(loadedVolumes[0].maximum).toEqual([3, 203, 7]);
+    surface.geometry.dispose();
+    (surface.material as THREE.Material).dispose();
 
     layer.dispose();
     updateSpy.mockRestore();
@@ -825,7 +869,7 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
-  it("relaxes the requested error only after the full, idle view stalled and keeps it across pans", () => {
+  it.each([false, true])("keeps surface-mesh precision under shadow cache pressure (providesTerrain=%s)", (providesTerrain) => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
     const updateErrorTargets: number[] = [];
@@ -846,7 +890,7 @@ describe("three tiles runtime styling", () => {
       getZoom: () => 17,
       getPitch: () => 45,
     } as unknown as MaplibreMap;
-    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
+    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], { providesTerrain });
     const viewCamera = new THREE.PerspectiveCamera();
     const frame = {
       map,
@@ -890,22 +934,23 @@ describe("three tiles runtime styling", () => {
 
     vi.advanceTimersByTime(1);
     layer.update(frame);
-    expect(renderer!.errorTarget).toBe(0.5);
+    expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 0.5);
+    expect(layer.isMainViewReady()).toBe(false);
     expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25]);
 
     // A pan keeps the effective target; the next stall relaxes further, up to
     // four times the requested target.
     handlers.get("movestart")?.();
     handlers.get("moveend")?.();
-    expect(renderer!.errorTarget).toBe(0.5);
+    expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 0.5);
     layer.update(frame);
     vi.advanceTimersByTime(1_000);
     layer.update(frame);
-    expect(renderer!.errorTarget).toBe(1);
+    expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
     layer.update(frame);
     vi.advanceTimersByTime(1_000);
     layer.update(frame);
-    expect(renderer!.errorTarget).toBe(1);
+    expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
 
     // A hidden tab keeps the used tiles and the effective target for a
     // while; the debounced full wipe resets to the requested target.
@@ -914,7 +959,7 @@ describe("three tiles runtime styling", () => {
       .mockReturnValue("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
     expect(disposeRequiredTile).not.toHaveBeenCalled();
-    expect(renderer!.errorTarget).toBe(1);
+    expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
     vi.advanceTimersByTime(HIDDEN_TAB_WIPE_DELAY_MS);
     expect(disposeRequiredTile).toHaveBeenCalledOnce();
     expect(renderer!.errorTarget).toBe(0.25);
@@ -1328,8 +1373,8 @@ describe("three tiles runtime styling", () => {
 
     layer.setShadowSimulationStyle?.({ fullOpacity: true, uniformColor: null });
 
-    expect(roofMaterial.shadowSide).toBe(THREE.FrontSide);
-    expect(wallMaterial.shadowSide).toBe(THREE.FrontSide);
+    expect(roofMaterial.shadowSide).toBe(THREE.DoubleSide);
+    expect(wallMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(shellMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(roofMaterial.side).toBe(THREE.DoubleSide);
     expect(wallMaterial.side).toBe(THREE.DoubleSide);
@@ -1522,11 +1567,10 @@ describe("three tiles runtime styling", () => {
     expect(shadowMaterial.color.getHexString()).toBe("847466");
     expect(shadowMaterial.roughness).toBe(1);
     expect(shadowMaterial.metalness).toBe(0);
-    expect(shadowMaterial.normalMap).toBeInstanceOf(THREE.DataTexture);
-    expect(shadowMaterial.normalMapType).toBe(THREE.ObjectSpaceNormalMap);
+    expect(shadowMaterial.normalMap).toBeNull();
     expect(mesh.castShadow).toBe(true);
     expect(mesh.receiveShadow).toBe(true);
-    expect(shadowMaterial.shadowSide).toBe(THREE.FrontSide);
+    expect(shadowMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(sourceMaterial.shadowSide).toBeNull();
     expect(normals.getX(0)).toBeCloseTo(0.5);
     expect(normals.getY(0)).toBeCloseTo(-0.5);

@@ -255,15 +255,132 @@ describe("buildSharedSceneAccumulator", () => {
     accumulator.dispose();
   });
 
-  it("marks an unusable blend pipeline as broken", () => {
+  it("optionally displays each normalized running mean with its current scene depth", () => {
+    const renderer = buildRenderer();
+    const accumulator = buildSharedSceneAccumulator(3);
+    const renderScene = vi.fn();
+    const options = { allowPartial: true };
+
+    expect(accumulator.composite(renderer, false, undefined, options)).toBe(
+      false
+    );
+    for (let round = 0; round < 3; round += 1) {
+      accumulator.renderRound(renderer, 8, 4, renderScene);
+      const blendScene = vi.mocked(renderer.render).mock.calls.at(-1)?.[0];
+      const blendMaterial = (blendScene?.children[0] as Mesh)
+        .material as ShaderMaterial;
+      expect(blendMaterial.uniforms.uRoundWeight.value).toBe(1 / (round + 1));
+      expect(blendMaterial.fragmentShader).toContain("outColor = mix(");
+      const targetCalls = vi.mocked(renderer.setRenderTarget).mock.calls;
+      const sceneTarget = targetCalls.at(-3)?.[0];
+      const meanTarget = targetCalls.at(-2)?.[0];
+      if (round < 2) expect(accumulator.composite(renderer)).toBe(false);
+
+      expect(accumulator.composite(renderer, false, undefined, options)).toBe(
+        true
+      );
+      const compositeScene = vi.mocked(renderer.render).mock.calls.at(-1)?.[0];
+      const material = (compositeScene?.children[0] as Mesh)
+        .material as ShaderMaterial;
+      expect(material.uniforms.tColor.value).toBe(meanTarget?.texture);
+      expect(material.uniforms.tDepth.value).toBe(sceneTarget?.depthTexture);
+      expect(material.uniforms.uOutputDither.value).toBe(true);
+      expect(accumulator.converged).toBe(round === 2);
+      expect(accumulator.hasSettledFrame).toBe(round === 2);
+    }
+    expect(renderScene).toHaveBeenCalledTimes(3);
+    expect(renderer.render).toHaveBeenCalledTimes(6);
+    accumulator.dispose();
+  });
+
+  it("keeps retained color and depth together while a new state converges", () => {
+    const renderer = buildRenderer();
+    const accumulator = buildSharedSceneAccumulator(2);
+    const options = { allowPartial: true };
+    accumulator.ensureState("first camera");
+    accumulator.renderRound(renderer, 8, 4, () => undefined);
+    accumulator.renderRound(renderer, 8, 4, () => undefined);
+    accumulator.composite(renderer);
+    const compositeScene = vi.mocked(renderer.render).mock.calls.at(-1)?.[0];
+    const material = (compositeScene?.children[0] as Mesh)
+      .material as ShaderMaterial;
+    const settledColor = material.uniforms.tColor.value;
+    const settledDepth = material.uniforms.tDepth.value;
+
+    accumulator.ensureState("second camera");
+    expect(accumulator.composite(renderer, false, undefined, options)).toBe(
+      false
+    );
+    accumulator.renderRound(renderer, 8, 4, () => undefined);
+    expect(accumulator.composite(renderer, true, undefined, options)).toBe(
+      true
+    );
+    expect(material.uniforms.tColor.value).toBe(settledColor);
+    expect(material.uniforms.tDepth.value).toBe(settledDepth);
+
+    expect(accumulator.composite(renderer)).toBe(false);
+    expect(accumulator.composite(renderer, false, undefined, options)).toBe(
+      true
+    );
+    expect(material.uniforms.tColor.value).not.toBe(settledColor);
+    expect(material.uniforms.tDepth.value).not.toBe(settledDepth);
+    const currentDepth = material.uniforms.tDepth.value;
+    accumulator.renderRound(renderer, 8, 4, () => undefined);
+    expect(accumulator.composite(renderer, true, undefined, options)).toBe(
+      true
+    );
+    expect(material.uniforms.tDepth.value).toBe(currentDepth);
+    expect(accumulator.converged).toBe(true);
+
+    accumulator.ensureState("third camera");
+    expect(accumulator.composite(renderer, false, undefined, options)).toBe(
+      false
+    );
+    accumulator.dispose();
+  });
+
+  it("uses the first new partial frame after resizing invalidates retained buffers", () => {
+    const renderer = buildRenderer();
+    const accumulator = buildSharedSceneAccumulator(2);
+    accumulator.renderRound(renderer, 8, 4, () => undefined);
+    accumulator.renderRound(renderer, 8, 4, () => undefined);
+    accumulator.composite(renderer);
+    const compositeScene = vi.mocked(renderer.render).mock.calls.at(-1)?.[0];
+    const material = (compositeScene?.children[0] as Mesh)
+      .material as ShaderMaterial;
+    const settledDepth = material.uniforms.tDepth.value;
+
+    accumulator.renderRound(renderer, 4, 8, () => undefined);
+    expect(accumulator.nextRound).toBe(1);
+    expect(accumulator.hasSettledFrame).toBe(false);
+    expect(
+      accumulator.composite(renderer, true, undefined, { allowPartial: true })
+    ).toBe(true);
+    expect(material.uniforms.tDepth.value).not.toBe(settledDepth);
+    expect(material.uniforms.tDepth.value.image).toMatchObject({
+      width: 4,
+      height: 8,
+    });
+    expect(material.uniforms.tColor.value.image).toMatchObject({
+      width: 4,
+      height: 8,
+    });
+    accumulator.dispose();
+  });
+
+  it("marks an unusable blend pipeline as broken and rejects partial output", () => {
     const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    const accumulator = buildSharedSceneAccumulator(1);
+    const accumulator = buildSharedSceneAccumulator(2);
+    const renderer = buildRenderer(true);
 
-    accumulator.renderRound(buildRenderer(true), 4, 4, () => undefined);
+    accumulator.renderRound(renderer, 4, 4, () => undefined);
 
     expect(accumulator.broken).toBe(true);
+    expect(
+      accumulator.composite(renderer, false, undefined, { allowPartial: true })
+    ).toBe(false);
     expect(error).toHaveBeenCalledOnce();
     accumulator.dispose();
     error.mockRestore();

@@ -12,8 +12,10 @@ const GIB = 1024 ** 3;
 
 const FAILED_LOADING_STATE = -1;
 const UNLOADED_LOADING_STATE = 0;
+export const TILE_MEMORY_ALLOCATION_ERROR = /out of memory|allocation failed|failed to allocate|cannot allocate memory/i;
 
 export const TILES_CACHE_CEILING_BYTES = {
+  configuredMaximum: 24 * GIB,
   ios: 384 * MIB,
   mobile: 512 * MIB,
   desktopDefault: 1 * GIB,
@@ -24,6 +26,9 @@ export const TILES_CACHE_CEILING_BYTES = {
 } as const;
 
 export const TILES_LOAD_POLICY = {
+  memoryCheckIntervalMs: 1_000,
+  heapPauseFraction: 0.8,
+  heapResumeFraction: 0.65,
   /** Fov multiplier of the prefetch margin around the main view. */
   prefetchMarginFovFactor: 1.25,
   /** CPU copies of textures/geometry stay alive next to the GPU upload. */
@@ -130,7 +135,8 @@ export const resolveTilesCacheCeiling = (
     const styleCeiling = Number.isFinite(overflow)
       ? Math.max(0, budget) + Math.max(0, overflow)
       : Number.POSITIVE_INFINITY;
-    ceiling = Math.min(ceiling, styleCeiling);
+    if (Number.isFinite(styleCeiling))
+      ceiling = Math.min(styleCeiling, TILES_CACHE_CEILING_BYTES.configuredMaximum);
   }
   return Math.max(TILES_CACHE_CEILING_BYTES.floor, Math.floor(ceiling));
 };
@@ -495,11 +501,13 @@ export const nextEffectiveErrorTarget = (
 // D2 — request concurrency bounded by cache headroom
 
 export const resolveRequestConcurrency = (input: {
+  memoryPressure?: boolean;
   configured: number;
   ceilingBytes: number;
   cachedBytes: number;
   estimateBytes: number;
 }): number => {
+  if (input.memoryPressure) return 0;
   const configured = Math.floor(input.configured);
   if (!Number.isFinite(configured) || configured <= 0) return 0;
   const headroom = Math.max(0, input.ceilingBytes - input.cachedBytes);

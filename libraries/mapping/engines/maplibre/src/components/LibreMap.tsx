@@ -262,6 +262,8 @@ export interface LibreMapProps {
   useRouting?: boolean;
   /** Keep the canvas readable for toDataURL() snapshot capture */
   preserveDrawingBuffer?: boolean;
+  /** Initial canvas ceiling; omitted retains MapLibre's default. */
+  maxCanvasSize?: maplibregl.MapOptions["maxCanvasSize"];
   /** Disable all map interaction (pan, zoom, rotate, keyboard) */
   interactive?: boolean;
   /** Enable visual selection via setFeatureState even without infoboxMapping */
@@ -416,6 +418,7 @@ export const LibreMap = ({
   useRouting = false,
   interactive = true,
   preserveDrawingBuffer = false,
+  maxCanvasSize,
   selectionEnabled = true,
   layerMode = "merged",
   onFeatureSelect,
@@ -941,6 +944,7 @@ export const LibreMap = ({
         attributionControl: false,
         interactive,
         refreshExpiredTiles,
+        ...(maxCanvasSize ? { maxCanvasSize } : {}),
         canvasContextAttributes: preserveDrawingBuffer
           ? { preserveDrawingBuffer: true }
           : undefined,

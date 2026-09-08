@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TerrainWorkerTask } from "./terrain-worker-task";
 
 class TestWorker {
   static instances: TestWorker[] = [];
@@ -25,6 +26,27 @@ const task = () => ({
   error: 1,
 });
 
+const optionalCacheTasks: TerrainWorkerTask[] = [
+  { kind: "read-cache", key: "cached" },
+  { kind: "cache-cost", key: "cached", restoreMs: 1 },
+  {
+    kind: "write-cache", key: "cached", bytes: 0,
+    entry: {
+      geometry: null,
+      reliefVertexMask: new Uint8Array(),
+      tile: {
+        id: { level: 1, x: 0, y: 0 },
+        bounds: { west: 0, south: 0, east: 1, north: 1 },
+        u: new Float32Array(), v: new Float32Array(), heightMeters: new Float32Array(),
+        indices: new Uint32Array(), westIndices: new Uint32Array(),
+        southIndices: new Uint32Array(), eastIndices: new Uint32Array(), northIndices: new Uint32Array(),
+        minimumHeightMeters: 0, maximumHeightMeters: 0, childTileMask: 0,
+        geometricErrorMeters: 0, byteLength: 0,
+      },
+    },
+  },
+];
+
 describe("terrain worker queue", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -41,6 +63,8 @@ describe("terrain worker queue", () => {
   });
 
   it("bounds CPU concurrency to two real worker slots and retires idle workers", async () => {
+    // Test capacity independently of wall-clock scheduling under a busy runner.
+    vi.spyOn(performance, "now").mockReturnValue(0);
     const { runTerrainWorkerTask } = await import("./terrain-worker-client");
     const pending = [
       runTerrainWorkerTask(task()),
@@ -66,6 +90,129 @@ describe("terrain worker queue", () => {
     TestWorker.instances[0].onerror?.({ message: "broken worker" });
     await rejection;
     expect(TestWorker.instances[0].terminate).toHaveBeenCalledOnce();
+  });
+
+  it("cooperatively cancels calibration without reusing its still-running slot", async () => {
+    const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import("./terrain-worker-client");
+    const controller = new AbortController();
+    const pending = runTerrainWorkerTask({kind: "calibrate-cache"}, controller.signal);
+    const rejected = expect(pending).rejects.toMatchObject({name: "AbortError"});
+    const worker = TestWorker.instances[0];
+    controller.abort();
+    expect(worker.postMessage).toHaveBeenLastCalledWith({kind: "cancel-current"});
+    expect(worker.terminate).not.toHaveBeenCalled();
+    const visible = runTerrainWorkerTask(task());
+    expect(TestWorker.instances).toHaveLength(2);
+    expect(worker.postMessage).toHaveBeenCalledTimes(2);
+    worker.respond();
+    TestWorker.instances[1].respond();
+    await rejected;
+    await visible;
+    disposeTerrainWorkerPool();
+  });
+
+  it.each(optionalCacheTasks)("releases an aborted $kind worker immediately for queued terrain", async (cacheTask) => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import("./terrain-worker-client");
+    const busy = runTerrainWorkerTask(task());
+    const controller = new AbortController();
+    const optional = runTerrainWorkerTask(cacheTask, controller.signal);
+    const rejected = expect(optional).rejects.toMatchObject({ name: "TimeoutError" });
+    const foreground = runTerrainWorkerTask(task());
+    const settled = vi.fn();
+    void foreground.then(settled);
+    expect(TestWorker.instances).toHaveLength(2);
+    const cacheWorker = TestWorker.instances[1];
+    const lateReply = cacheWorker.onmessage!;
+    controller.abort(new DOMException("Cache deadline", "TimeoutError"));
+    await rejected;
+
+    expect(cacheWorker.terminate).toHaveBeenCalledOnce();
+    expect(TestWorker.instances[0].terminate).not.toHaveBeenCalled();
+    expect(TestWorker.instances).toHaveLength(3);
+    expect(TestWorker.instances[2].postMessage).toHaveBeenCalledOnce();
+    expect(TestWorker.instances[2].postMessage).toHaveBeenCalledWith(task());
+    expect(cacheWorker.onmessage).toBeNull();
+    expect(cacheWorker.onerror).toBeNull();
+    expect(cacheWorker.onmessageerror).toBeNull();
+    lateReply({ data: { result: { kind: "read-cache", entry: null } } });
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+    TestWorker.instances[0].respond();
+    TestWorker.instances[2].respond();
+    await Promise.all([busy, foreground]);
+    disposeTerrainWorkerPool();
+    expect(cacheWorker.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("removes an aborted queued cache read without terminating unrelated terrain workers", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import("./terrain-worker-client");
+    const running = [runTerrainWorkerTask(task()), runTerrainWorkerTask(task())];
+    const controller = new AbortController();
+    const optional = runTerrainWorkerTask({ kind: "read-cache", key: "queued" }, controller.signal);
+    const rejected = expect(optional).rejects.toMatchObject({ name: "AbortError" });
+    controller.abort();
+    await rejected;
+    expect(TestWorker.instances).toHaveLength(2);
+    for (const worker of TestWorker.instances) {
+      expect(worker.terminate).not.toHaveBeenCalled();
+      worker.respond();
+      expect(worker.postMessage).toHaveBeenCalledOnce();
+    }
+    await Promise.all(running);
+    disposeTerrainWorkerPool();
+  });
+
+  it.each([...optionalCacheTasks, { kind: "calibrate-cache" } as const])(
+    "preempts one $kind slot when optional I/O fills the pool and terrain becomes ready",
+    async (cacheTask) => {
+      vi.spyOn(performance, "now").mockReturnValue(0);
+      const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import("./terrain-worker-client");
+      const offers = [runTerrainWorkerTask(cacheTask), runTerrainWorkerTask(cacheTask)];
+      const settledOffers = Promise.allSettled(offers);
+      const victim = TestWorker.instances[0];
+      const lateReply = victim.onmessage!;
+      // Even a higher-priority queued cache read must not consume the slot
+      // specifically reclaimed for the already downloaded foreground terrain.
+      const cachedRead = runTerrainWorkerTask({ kind: "read-cache", key: "queued" });
+      const foreground = runTerrainWorkerTask(task());
+      const settledForeground = vi.fn();
+      void foreground.then(settledForeground);
+      expect(TestWorker.instances).toHaveLength(3);
+      expect(victim.terminate).toHaveBeenCalledOnce();
+      expect(TestWorker.instances[1].terminate).not.toHaveBeenCalled();
+      expect(TestWorker.instances[2].postMessage).toHaveBeenCalledWith(task());
+      lateReply({ data: { result: { kind: "read-cache", entry: null } } });
+      await Promise.resolve();
+      expect(settledForeground).not.toHaveBeenCalled();
+      TestWorker.instances[2].respond();
+      await foreground;
+      expect(TestWorker.instances[2].postMessage).toHaveBeenLastCalledWith({ kind: "read-cache", key: "queued" });
+      TestWorker.instances[1].respond();
+      TestWorker.instances[2].respond();
+      await cachedRead;
+      const offersResult = await settledOffers;
+      expect(offersResult.map((result) => result.status)).toEqual(["rejected", "fulfilled"]);
+      expect(offersResult[0]).toMatchObject({ reason: { name: "AbortError" } });
+      disposeTerrainWorkerPool();
+      expect(victim.terminate).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("never preempts terrain while the other slot performs optional cache I/O", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import("./terrain-worker-client");
+    const busy = runTerrainWorkerTask(task());
+    const optional = runTerrainWorkerTask(optionalCacheTasks[2]);
+    const next = runTerrainWorkerTask(task());
+    expect(TestWorker.instances).toHaveLength(2);
+    expect(TestWorker.instances.every((worker) => worker.terminate.mock.calls.length === 0)).toBe(true);
+    TestWorker.instances[0].respond();
+    TestWorker.instances[0].respond();
+    TestWorker.instances[1].respond();
+    await Promise.all([busy, optional, next]);
+    disposeTerrainWorkerPool();
   });
 
   it("yields between expensive input-copy bursts without dropping queued work", async () => {

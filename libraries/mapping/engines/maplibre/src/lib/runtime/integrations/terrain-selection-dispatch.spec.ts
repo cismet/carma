@@ -2,6 +2,7 @@ import { Camera, PerspectiveCamera, Vector2, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TerrainSelection } from "../../core/terrain-selection";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
+import { getTileBounds } from "../../core/raster-dem-tile";
 
 const { acquireSource, runWorker, registerSampler } = vi.hoisted(() => ({
   acquireSource: vi.fn(),
@@ -9,6 +10,13 @@ const { acquireSource, runWorker, registerSampler } = vi.hoisted(() => ({
   registerSampler: vi.fn(() => vi.fn()),
 }));
 vi.mock("./terrain-worker-client", () => ({ runTerrainWorkerTask: runWorker }));
+// This fixture controls selection jobs, not the separate optional cache jobs.
+vi.mock("./projected-terrain-geometry-cache", () => ({
+  createProjectedTerrainGeometryCache: () => ({
+    get: vi.fn(async () => null),
+    set: vi.fn(),
+  }),
+}));
 vi.mock("./raster-dem-terrain-tile-source", async (original) => ({
   ...(await original<typeof import("./raster-dem-terrain-tile-source")>()),
   acquireRasterDemTerrainTileSource: acquireSource,
@@ -34,6 +42,8 @@ describe("coalesced asynchronous terrain selection", () => {
       () => new Promise((resolve) => pending.push(resolve))
     );
     const source = {
+      release: vi.fn(),
+      getTileBounds,
       sampleHeight: vi.fn(),
       trimCache: vi.fn(),
       requestTile: vi.fn(() => new Promise(() => undefined)),
@@ -88,7 +98,7 @@ describe("coalesced asynchronous terrain selection", () => {
     });
     pending.shift()!({ kind: "select", selection: selection(firstId) });
     await vi.waitFor(() => expect(runWorker).toHaveBeenCalledTimes(2));
-    expect(source.requestTile).toHaveBeenCalledWith(firstId);
+    await vi.waitFor(() => expect(source.requestTile).toHaveBeenCalledWith(firstId));
     expect(runWorker.mock.calls[1][0].input.lodCameraPosition[0]).toBe(30);
     // An identical frame while pending does not enqueue another walk.
     runtime.update(frame);

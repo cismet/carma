@@ -389,14 +389,21 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <div
             className={cn(
               "flex items-center w-full shrink-0 gap-2 px-6 sm:px-0",
-              isShadowSimulationLayer ? "flex-wrap min-h-8" : "h-8",
+              isShadowSimulationLayer ? "flex-nowrap min-h-8" : "h-8",
               secondaryViewAddon ? "sm:gap-3" : "sm:gap-6"
             )}
           >
             <div
               className={cn(
-                "flex-1 sm:flex-none min-w-0 flex items-center gap-2",
-                secondaryViewAddon ? "sm:w-auto sm:shrink-0" : "sm:w-1/4"
+                "min-w-0 flex items-center gap-2",
+                isShadowSimulationLayer
+                  ? "shadow-simulation-layer-title"
+                  : "flex-1 sm:flex-none",
+                isShadowSimulationLayer
+                  ? ""
+                  : secondaryViewAddon
+                  ? "sm:w-auto sm:shrink-0"
+                  : "sm:w-1/4"
               )}
             >
               {group ? (

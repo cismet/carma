@@ -4,14 +4,19 @@
 
 .shadow-simulation-header-slot {
   display: flex;
-  flex: 1 1 360px;
+  flex: 1 1 480px;
   min-width: 0;
 }
 
-@container shadow-secondary (max-width: 620px) {
-  .shadow-simulation-header-slot {
-    order: 1;
-    flex-basis: 100%;
+.shadow-simulation-layer-title {
+  flex: 0 0 auto;
+  min-width: 24px;
+  max-width: 160px;
+}
+
+@container shadow-secondary (max-width: 480px) {
+  .shadow-simulation-layer-title {
+    flex-shrink: 1;
   }
 }
 
@@ -23,7 +28,7 @@
 
 .shadow-simulation-header-layout {
   display: grid;
-  grid-template-columns: auto 1px auto minmax(80px, 1fr) 36px;
+  grid-template-columns: minmax(0, 174px) 1px auto minmax(0, 1fr) 36px;
   grid-template-areas: "date divider time range play";
   align-items: center;
   gap: 6px;
@@ -52,25 +57,15 @@
   grid-area: play;
 }
 
-@container shadow-header (max-width: 400px) {
+@container shadow-header (max-width: 390px) {
   .shadow-simulation-header-layout {
     grid-template-columns: minmax(0, 1fr) auto 36px;
-    grid-template-areas:
-      "date time play"
-      "range range range";
+    grid-template-areas: "date time play";
   }
 
-  .shadow-simulation-header-divider {
+  .shadow-simulation-header-divider,
+  .shadow-simulation-header-range {
     display: none;
-  }
-}
-
-@container shadow-header (max-width: 280px) {
-  .shadow-simulation-header-layout {
-    grid-template-columns: auto minmax(0, 1fr) 36px;
-    grid-template-areas:
-      "date date date"
-      "time range play";
   }
 }
 

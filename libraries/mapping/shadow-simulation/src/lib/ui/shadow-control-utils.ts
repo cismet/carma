@@ -4,6 +4,7 @@ import {
   SHADOW_BUFFER_FORMAT,
   SHADOW_QUALITY,
   type ShadowQualityMultiplier,
+  type MeshErrorTargetPixels,
 } from "../core/shadow-types";
 
 export const QUICK_BUTTON_CLASS_NAME =
@@ -20,6 +21,15 @@ export const SHADOW_QUALITY_LEVELS: ReadonlyArray<{
   { label: "60 FPS", value: SHADOW_QUALITY.FPS_60 },
   { label: "30 FPS", value: SHADOW_QUALITY.FPS_30 },
   { label: "Ultra", value: SHADOW_QUALITY.ULTRA },
+];
+
+export const MESH_ERROR_TARGETS: ReadonlyArray<{
+  label: string;
+  value: MeshErrorTargetPixels;
+}> = [
+  { label: "0,25 px", value: 0.25 },
+  { label: "1 px", value: 1 },
+  { label: "4 px", value: 4 },
 ];
 
 export const SHADOW_BUFFER_FORMAT_OPTIONS = [

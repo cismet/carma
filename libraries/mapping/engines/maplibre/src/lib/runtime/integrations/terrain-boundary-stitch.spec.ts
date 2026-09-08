@@ -4,7 +4,7 @@ import {
   buildGridTile,
   latitudeToTileY,
   longitudeToTileX,
-} from "./raster-dem-tile";
+} from "../../core/raster-dem-tile";
 import {
   prepareTerrainBoundaryStitch,
   executeTerrainBoundaryStitch,

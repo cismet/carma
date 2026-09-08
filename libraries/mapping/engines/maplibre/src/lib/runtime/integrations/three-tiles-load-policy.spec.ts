@@ -72,7 +72,7 @@ describe("resolveTilesCacheCeiling", () => {
     );
   });
 
-  it("lets a style only lower the ceiling, never below the floor", () => {
+  it("accepts explicit budgets up to 24 GiB, retaining the floor and safe defaults", () => {
     expect(
       resolveTilesCacheCeiling(desktop, {
         cacheBudgetBytes: 256 * MIB,
@@ -84,7 +84,7 @@ describe("resolveTilesCacheCeiling", () => {
         cacheBudgetBytes: 4 * GIB,
         cacheOverflowBytes: 4 * GIB,
       })
-    ).toBe(TILES_CACHE_CEILING_BYTES.desktopDefault);
+    ).toBe(8 * GIB);
     expect(
       resolveTilesCacheCeiling(desktop, {
         cacheBudgetBytes: 16 * MIB,
@@ -96,6 +96,8 @@ describe("resolveTilesCacheCeiling", () => {
         cacheOverflowBytes: Number.POSITIVE_INFINITY,
       })
     ).toBe(TILES_CACHE_CEILING_BYTES.desktopDefault);
+    expect(resolveTilesCacheCeiling(desktop, { cacheBudgetBytes: 24 * GIB })).toBe(24 * GIB);
+    expect(resolveTilesCacheCeiling(desktop, { cacheBudgetBytes: 128 * GIB })).toBe(24 * GIB);
   });
 
   it("derives eviction bounds around the physical ceiling", () => {
@@ -117,6 +119,9 @@ describe("resolveTilesCacheCeiling", () => {
 });
 
 describe("createTileBytesPredictor", () => {
+  it("pauses downloads under memory pressure even below the configured cache budget", () => {
+    expect(resolveRequestConcurrency({ configured: 16, ceilingBytes: 24 * GIB, cachedBytes: GIB, estimateBytes: MIB, memoryPressure: true })).toBe(0);
+  });
   it("starts from the initial estimate and learns per url, level and globally", () => {
     const predictor = createTileBytesPredictor();
     const leaf = { url: "https://tiles.test/a.b3dm", geometricError: 0.5 };

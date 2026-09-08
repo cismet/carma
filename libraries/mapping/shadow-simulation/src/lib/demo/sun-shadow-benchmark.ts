@@ -4,7 +4,9 @@ export type SunShadowBenchmarkCase =
   | "full"
   | "full-rgb-reference"
   | "one-percent-color"
-  | "cached-shadow-map";
+  | "cached-shadow-map"
+  | "tiled-cold"
+  | "tiled-warm";
 export type SunShadowBenchmarkResult = Readonly<{
   case: SunShadowBenchmarkCase;
   timing: "gpu-query" | "synchronized-readback";
@@ -54,10 +56,12 @@ export const waitForSunShadowBenchmarkFrame = (
   });
 
 /**
- * Cost attribution only. The latter two cases intentionally do NOT produce a
+ * Default cases are cost attribution only. The latter two intentionally do NOT produce a
  * correct image: they bound possible savings before implementing a classifier.
  * A 1%-colour pass still generates every full-resolution sun-direction depth map.
  * The cached-depth pass omits those maps, demonstrating their share of the cost.
+ * Tiled callers register tiled-cold/tiled-warm instead: those retain the exact
+ * per-direction depth data and do produce equivalent images, subject to parity checks.
  */
 export const benchmarkSunShadowPasses = async (
   renderer: WebGLRenderer,

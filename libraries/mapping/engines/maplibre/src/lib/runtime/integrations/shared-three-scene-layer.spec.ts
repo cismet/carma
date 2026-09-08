@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildSharedSceneAccumulator } from "@carma-mapping/engines/three/primitives/rendering";
 
 import {
   buildSharedThreeSceneLayer,
@@ -9,7 +10,88 @@ import {
   configureSharedRenderCamera,
   installRenderTargetDepthRangeBridge,
   syncSharedCanvasViewport,
+  type SharedSceneAccumulationController,
 } from "./shared-three-scene-layer";
+
+vi.mock("@carma-mapping/engines/threejs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-mapping/engines/threejs")>()),
+  synthesizeLodCamera: vi.fn(() => true),
+}));
+
+vi.mock(
+  "@carma-mapping/engines/three/primitives/rendering",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@carma-mapping/engines/three/primitives/rendering")
+    >()),
+    buildSharedSceneAccumulator: vi.fn(),
+  })
+);
+
+vi.mock("three", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("three")>()),
+  WebGLRenderer: class {
+    shadowMap = {};
+    setRenderTarget = vi.fn();
+    setViewport = vi.fn();
+    resetState = vi.fn();
+    render = vi.fn();
+    dispose = vi.fn();
+  },
+}));
+
+const createProgressiveHost = () => {
+  const canvas = {
+    width: 4400,
+    height: 1800,
+    clientWidth: 2200,
+    clientHeight: 900,
+  };
+  const map = {
+    getCanvas: () => canvas,
+    getCenter: () => ({ lng: 7.15, lat: 51.25 }),
+    getTerrain: () => null,
+    on: vi.fn(),
+    off: vi.fn(),
+    triggerRepaint: vi.fn(),
+  };
+  const hostFramebuffer = {};
+  const gl = {
+    DEPTH_RANGE: 0x0b70,
+    FRAMEBUFFER: 0x8d40,
+    FRAMEBUFFER_BINDING: 0x8ca6,
+    DEPTH_BUFFER_BIT: 0x00000100,
+    getParameter: vi.fn((parameter: number) =>
+      parameter === 0x0b70 ? [0, 0.985] : hostFramebuffer
+    ),
+    bindFramebuffer: vi.fn(),
+    depthRange: vi.fn(),
+    depthMask: vi.fn(),
+    clearDepth: vi.fn(),
+    clear: vi.fn(),
+  };
+  const layer = buildSharedThreeSceneLayer("progressive-host");
+  layer.onAdd!(map as never, gl as never);
+  const controller: SharedSceneAccumulationController = {
+    active: vi.fn(() => true),
+    epoch: () => 0,
+    visualEpoch: () => 0,
+    retainSettledFrame: () => false,
+    prepareRound: vi.fn(),
+    finishRound: vi.fn(),
+    onSettled: vi.fn(),
+    rounds: 8,
+  };
+  layer.setAccumulationController(controller);
+  const render = () =>
+    layer.render(
+      gl as never,
+      {
+        defaultProjectionData: { mainMatrix: new THREE.Matrix4().elements },
+      } as never
+    );
+  return { layer, controller, map, canvas, gl, hostFramebuffer, render };
+};
 
 const expectMatrixToBeCloseTo = (
   actual: THREE.Matrix4,
@@ -57,8 +139,13 @@ describe("shared Three.js scene layer", () => {
       "diffuseColor.rgb = carmaMapStyleSRGBToLinear"
     );
     expect(shader.fragmentShader).toContain("diffuseColor.a = 1.0");
+    const terrainDepthBranch = shader.fragmentShader
+      .split("#ifndef CARMA_MAP_STYLE_OVERLAY")[1]
+      .split("#else")[0];
+    expect(terrainDepthBranch).toContain("return true;");
+    expect(terrainDepthBranch).not.toContain("fragmentDistance");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v4"
+      "carma-map-style-projection-v5"
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
   });
@@ -215,6 +302,27 @@ describe("shared Three.js scene layer", () => {
     expect(renderer.setViewport).toHaveBeenCalledTimes(2);
   });
 
+  it("uses physical HiDPI pixels above 4096 without resizing the MapLibre canvas", () => {
+    const renderer = {
+      setViewport: vi.fn(),
+      setSize: vi.fn(),
+      setPixelRatio: vi.fn(),
+    };
+    const canvas = {
+      width: 4400,
+      height: 1800,
+      clientWidth: 2200,
+      clientHeight: 900,
+    };
+    const viewport = new THREE.Vector2(2400, 1800);
+    syncSharedCanvasViewport(renderer, canvas, viewport);
+    expect(viewport.toArray()).toEqual([4400, 1800]);
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(0, 0, 4400, 1800);
+    expect(renderer.setSize).not.toHaveBeenCalled();
+    expect(renderer.setPixelRatio).not.toHaveBeenCalled();
+    expect(canvas.width).toBe(4400);
+  });
+
   it("uses canonical depth for offscreen targets and MapLibre depth on main", () => {
     const events: string[] = [];
     const hostFramebuffer = {} as WebGLFramebuffer;
@@ -291,5 +399,110 @@ describe("shared Three.js scene layer", () => {
     expect(layer.getScene().children).not.toContain(root);
     expect(layer.getRuntimes()).toEqual([]);
     expect(dispose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("progressive strategy host", () => {
+  const mono = {
+    broken: false,
+    converged: false,
+    hasSettledFrame: false,
+    nextRound: 0,
+    ensureState: vi.fn(),
+    renderRound: vi.fn(),
+    composite: vi.fn(() => true),
+    dispose: vi.fn(),
+  };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(buildSharedSceneAccumulator).mockReturnValue(mono as never);
+  });
+
+  it.each([true, false])(
+    "lets a handled corridor own integration while active=%s",
+    (active) => {
+      const host = createProgressiveHost();
+      const renderer = host.layer.getRenderer()!;
+      const depthsAtTarget: unknown[][] = [];
+      host.controller.active = () => active;
+      host.controller.renderProgressive = vi.fn((_camera, frame) => {
+        expect(frame).toMatchObject({ width: 4400, height: 1800, active });
+        expect(frame.viewKey).toContain("4400.00,1800.00");
+        expect(frame.styleEpoch).toBe(1);
+        renderer.setRenderTarget({} as THREE.WebGLRenderTarget);
+        depthsAtTarget.push(host.gl.depthRange.mock.lastCall!);
+        renderer.setRenderTarget(null);
+        depthsAtTarget.push(host.gl.depthRange.mock.lastCall!);
+        return { progress: 1, settled: true, needsRepaint: false };
+      });
+
+      host.render();
+
+      expect(host.controller.renderProgressive).toHaveBeenCalledOnce();
+      expect(depthsAtTarget).toEqual([
+        [0, 1],
+        [0, 0.985],
+      ]);
+      expect(host.gl.bindFramebuffer).toHaveBeenCalledWith(
+        host.gl.FRAMEBUFFER,
+        host.hostFramebuffer
+      );
+      expect(host.gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+      expect(renderer.setViewport).toHaveBeenLastCalledWith(0, 0, 4400, 1800);
+      expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
+      expect(host.controller.prepareRound).not.toHaveBeenCalled();
+      expect(renderer.render).not.toHaveBeenCalled();
+      expect(host.controller.onSettled).toHaveBeenCalledOnce();
+      expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+      expect(host.canvas).toMatchObject({
+        width: 4400,
+        height: 1800,
+        clientWidth: 2200,
+      });
+      host.layer.dispose();
+    }
+  );
+
+  it("retains the mono fallback when the strategy returns null", () => {
+    const host = createProgressiveHost();
+    host.controller.renderProgressive = vi.fn(() => null);
+
+    host.render();
+
+    expect(buildSharedSceneAccumulator).toHaveBeenCalledOnce();
+    expect(host.controller.prepareRound).toHaveBeenCalledWith(0);
+    expect(mono.renderRound).toHaveBeenCalledWith(
+      host.layer.getRenderer(),
+      4400,
+      1800,
+      expect.any(Function)
+    );
+    expect(mono.composite).toHaveBeenCalledOnce();
+    expect(host.controller.finishRound).toHaveBeenCalledOnce();
+    expect(host.map.triggerRepaint).toHaveBeenCalledOnce();
+    host.layer.dispose();
+  });
+
+  it("releases previous mono targets without averaging a corridor-owned frame", () => {
+    const host = createProgressiveHost();
+    host.controller.renderProgressive = vi.fn(() => null);
+    host.render();
+    vi.clearAllMocks();
+    host.controller.renderProgressive = vi.fn(() => ({
+      progress: 0.5,
+      settled: false,
+      needsRepaint: true,
+    }));
+
+    host.render();
+
+    expect(mono.dispose).toHaveBeenCalledOnce();
+    expect(mono.renderRound).not.toHaveBeenCalled();
+    expect(mono.composite).not.toHaveBeenCalled();
+    expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
+    expect(host.controller.prepareRound).not.toHaveBeenCalled();
+    expect(host.map.triggerRepaint).toHaveBeenCalledOnce();
+    expect(host.controller.onSettled).not.toHaveBeenCalled();
+    host.layer.dispose();
   });
 });

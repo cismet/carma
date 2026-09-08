@@ -6,6 +6,7 @@ import type {
   Map as MaplibreMap,
 } from "maplibre-gl";
 import * as THREE from "three";
+import { runMapLibreIdleRender } from "./maplibre-idle-render";
 
 import { quantize } from "@carma-commons/math";
 import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-registry";
@@ -72,6 +73,7 @@ export interface SharedThreeSceneRuntime {
   setShadowView?: (view: SharedThreeSceneShadowView | null) => void;
   /** Requested screen-space error in pixels; lower loads finer tiles. */
   setErrorTarget?: (errorTarget: number) => void;
+  setCacheBudget?: (bytes?: number) => void;
   /** World-space elevation span of loaded content intersecting this camera. */
   getViewElevationRange?: (
     camera: THREE.Camera
@@ -82,6 +84,11 @@ export interface SharedThreeSceneRuntime {
   setTileBoundsVisible?: (visible: boolean) => void;
   /** Outstanding work required before a fixed-state render can converge. */
   getRequestDemand?: () => number;
+  /** Visible content takes priority over optional sun-disc refinement. */
+  isMainViewReady?: () => boolean;
+  /** Whether this provider's selected target-LOD dependencies in a world region
+   * are published. Unrelated downloads must not block corridor refinement. */
+  isShadowRegionReady?: (bounds: THREE.Box3) => boolean;
   dispose: () => void;
 }
 
@@ -114,6 +121,26 @@ export type SharedThreeSceneShadowStyle = Readonly<{
 }>;
 
 export type SharedSceneAccumulationController = {
+  /** An independently converging scene strategy may own its accumulation.
+   * The host still owns native pixel size, style registration and the shared
+   * framebuffer depth range. A null result retains the mono implementation.
+   * Do not include the global terrain epoch in viewKey: spatial strategies
+   * invalidate affected receivers using their own caster dependencies.
+   */
+  renderProgressive?: (
+    camera: THREE.Camera,
+    frame: Readonly<{
+      width: number;
+      height: number;
+      viewKey: string;
+      styleEpoch: number;
+      active: boolean;
+    }>
+  ) => Readonly<{
+    progress: number;
+    settled: boolean;
+    needsRepaint: boolean;
+  }> | null;
   /** Changes whenever the shadow/lighting state the rounds sample changed. */
   epoch: () => number;
   /** Changes only when an already displayed result is visually obsolete. */
@@ -128,6 +155,14 @@ export type SharedSceneAccumulationController = {
   prepareRound: (round: number) => void;
   /** Restore the non-jittered scene state before drawing the visible frame. */
   finishRound?: () => void;
+  /** One transition after a complete current-camera result, for cancellable
+   * background work. Must schedule work, never synchronously compute here. */
+  onSettled?: () => void;
+  /** Optional scene strategy, inside the existing drape/HDR/depth-range chain.
+   * null selects the centre-sun preview used during motion or point lighting.
+   * Return false to use the ordinary single-pass scene renderer.
+   */
+  renderScene?: (camera: THREE.Camera, round: number | null) => boolean;
   rounds: number;
   /** Effective buffer options may change without replacing the controller. */
   readonly options?: SceneAccumulationOptions;
@@ -144,6 +179,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   getRuntimes: () => readonly SharedThreeSceneRuntime[];
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
+  /** Optional synchronous GPU work outside a map frame; false means unsupported. */
+  runIdleRender?: (render: () => void) => boolean;
   /**
    * Progressive refinement at rest: while the controller reports itself
    * active and its epoch and the camera hold still, the layer renders one
@@ -228,7 +265,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v4";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v5";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 
 const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
@@ -270,11 +307,19 @@ bool carmaMapStyleMatchesReceiver( vec2 uv ) {
   if ( carmaMapStyleDepthEnabled < 0.5 ) return true;
   float groundZ = carmaMapStyleUnpackDepth( texture2D( carmaMapStyleDepthTexture, uv ) );
   if ( groundZ <= 0.0 ) return false;
+#ifndef CARMA_MAP_STYLE_OVERLAY
+  // Terrain owns the visible surface; MapLibre only supplies its color.
+  // Its independent DEM tessellation/depth must not mask that color where
+  // Three uses another LOD or DSM. Keep depth-less capture gap repair below,
+  // but reserve surface-depth matching for labels projected onto meshes.
+  return true;
+#else
   float fragmentZ = vCarmaMapStyleClip.z / vCarmaMapStyleClip.w;
   float groundDistance = carmaMapStyleLinearDepth( groundZ );
   float fragmentDistance = carmaMapStyleLinearDepth( fragmentZ );
   float tolerance = max( 2.0, 0.005 * groundDistance );
   return abs( fragmentDistance - groundDistance ) <= tolerance;
+#endif
 }
 
 vec4 carmaMapStyleSampleGround( vec2 uv ) {
@@ -666,6 +711,7 @@ export const buildSharedThreeSceneLayer = (
     texelSize: { value: new THREE.Vector2(1, 1) },
   };
   let mapStyleFramebufferTexture: THREE.FramebufferTexture | null = null;
+  const capturedMapStyleMatrix = new THREE.Matrix4();
   let mapStyleFramebufferCache: ReturnType<
     typeof createMapStyleFramebufferCache
   > | null = null;
@@ -736,19 +782,28 @@ export const buildSharedThreeSceneLayer = (
     if (!renderer || viewport.x < 1 || viewport.y < 1) return;
     const width = Math.floor(viewport.x);
     const height = Math.floor(viewport.y);
-    if (
+    const needsResize =
       !mapStyleFramebufferTexture ||
       mapStyleFramebufferTexture.image.width !== width ||
-      mapStyleFramebufferTexture.image.height !== height
-    ) {
-      mapStyleFramebufferTexture?.dispose();
-      mapStyleFramebufferTexture = new THREE.FramebufferTexture(width, height);
-      mapStyleFramebufferTexture.minFilter = THREE.LinearFilter;
-      mapStyleFramebufferTexture.magFilter = THREE.LinearFilter;
-      mapStyleProjectionUniforms.texture.value = mapStyleFramebufferTexture;
+      mapStyleFramebufferTexture.image.height !== height;
+    const texture = needsResize
+      ? new THREE.FramebufferTexture(width, height)
+      : mapStyleFramebufferTexture!;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    try {
+      renderer.copyFramebufferToTexture(texture);
+    } catch (error) {
+      if (needsResize) texture.dispose();
+      throw error;
     }
+    // Publish a resized capture only after copying succeeds. A transient failure
+    // must not dispose the last usable map and expose the plain terrain albedo.
+    if (needsResize) mapStyleFramebufferTexture?.dispose();
+    mapStyleFramebufferTexture = texture;
+    mapStyleProjectionUniforms.texture.value = texture;
     mapStyleProjectionUniforms.texelSize.value.set(1 / width, 1 / height);
-    renderer.copyFramebufferToTexture(mapStyleFramebufferTexture);
+    capturedMapStyleMatrix.copy(mapStyleProjectionUniforms.sceneToClip.value);
     mapStyleProjectionUniforms.enabled.value = 1;
   };
 
@@ -862,6 +917,9 @@ export const buildSharedThreeSceneLayer = (
 
     getRenderer() {
       return renderer;
+    },
+    runIdleRender(render) {
+      return renderer !== null && runMapLibreIdleRender(map, render);
     },
 
     setAccumulationController(controller) {
@@ -1080,10 +1138,17 @@ export const buildSharedThreeSceneLayer = (
           }
           mapStyleProjectionUniforms.enabled.value = 1;
         } catch (error) {
-          mapStyleFramebufferCache?.invalidate();
-          mapStyleProjectionUniforms.enabled.value = 0;
+          mapStyleFramebufferCache?.captureFailed();
+          mapStyleProjectionUniforms.enabled.value = mapStyleFramebufferTexture
+            ? 1
+            : 0;
+          mapStyleProjectionUniforms.sceneToClip.value.copy(
+            capturedMapStyleMatrix
+          );
+          // The borrowed depth belongs to this frame, not the retained capture.
           mapStyleProjectionUniforms.depthEnabled.value = 0;
           console.warn("[shared-three-scene] map-style capture failed", error);
+          if (!mapStyleFramebufferTexture) return;
         }
       } else {
         mapStyleProjectionUniforms.enabled.value = 0;
@@ -1101,7 +1166,16 @@ export const buildSharedThreeSceneLayer = (
       }
 
       const accumulation = accumulationController;
+      const renderScene = (round: number | null) => {
+        if (!accumulation?.renderScene?.(renderCamera, round)) {
+          renderer?.render(scene, renderCamera);
+        }
+      };
       const poseKey = [
+        // A DPR-only resize can keep both camera matrices unchanged. Its old
+        // settled color frame must not be stretched to the new native viewport.
+        viewport.x,
+        viewport.y,
         ...renderCamera.matrixWorld.elements,
         ...renderCamera.projectionMatrix.elements,
       ]
@@ -1119,6 +1193,24 @@ export const buildSharedThreeSceneLayer = (
             DEFAULT_SCENE_ACCUMULATION_OPTIONS.msaaSamples
           }`
         : "";
+      const progressiveResult: {
+        value: ReturnType<
+          NonNullable<SharedSceneAccumulationController["renderProgressive"]>
+        >;
+      } = { value: null };
+      if (accumulation?.renderProgressive && renderer) {
+        depthRangeBridge?.render(savedDepthRange, () => {
+          progressiveResult.value =
+            accumulation.renderProgressive?.(renderCamera, {
+              width: viewport.x,
+              height: viewport.y,
+              viewKey: poseKey,
+              styleEpoch: mapStyleProjectionEpoch,
+              active: accumulation.active(),
+            }) ?? null;
+        });
+      }
+      const progressive = progressiveResult.value;
       if (
         accumulator &&
         accumulatorConfigurationKey !== nextAccumulatorConfigurationKey
@@ -1127,7 +1219,22 @@ export const buildSharedThreeSceneLayer = (
         accumulator = null;
         settledAccumulatorVisualKey = "";
       }
-      if (accumulation?.active() && renderer && !accumulator?.broken) {
+      if (progressive) {
+        // A corridor-owned integration must never also be averaged by the
+        // viewport accumulator. Release mono targets when changing strategy.
+        accumulator?.dispose();
+        accumulator = null;
+        accumulatorConfigurationKey = "";
+        settledAccumulatorVisualKey = "";
+        if (progressive.needsRepaint) map.triggerRepaint();
+        publishMapLoadingProgress(
+          map,
+          MAP_LOADING_PHASE.SHADOW,
+          layerId,
+          progressive.progress
+        );
+        if (progressive.settled) accumulation?.onSettled?.();
+      } else if (accumulation?.active() && renderer && !accumulator?.broken) {
         if (!accumulator) {
           accumulator = buildSharedSceneAccumulator(
             accumulation.rounds,
@@ -1141,14 +1248,15 @@ export const buildSharedThreeSceneLayer = (
         const retainSettled =
           accumulator.hasSettledFrame &&
           settledAccumulatorVisualKey === visualKey;
-        const drawingBuffer = renderer.getDrawingBufferSize(
-          new THREE.Vector2()
-        );
+        // MapLibre owns canvas resizes. Three's cached drawing-buffer size
+        // stays at construction size because we intentionally never setSize.
+        // Use the physical canvas viewport for draped text after resize/DPR moves.
         const accumulationSize = fitRenderTargetSizeToPixelBudget(
-          drawingBuffer.x,
-          drawingBuffer.y,
+          viewport.x,
+          viewport.y,
           accumulation.maxRenderTargetPixels ?? Number.POSITIVE_INFINITY
         );
+        let becameSettled = false;
         if (!accumulator.converged) {
           const round = accumulator.nextRound;
           accumulation.prepareRound(round);
@@ -1162,7 +1270,7 @@ export const buildSharedThreeSceneLayer = (
                 activeRenderer,
                 accumulationSize.width,
                 accumulationSize.height,
-                () => activeRenderer.render(scene, renderCamera)
+                () => renderScene(round)
               );
             });
           } finally {
@@ -1170,18 +1278,21 @@ export const buildSharedThreeSceneLayer = (
           }
           if (accumulator.converged) {
             settledAccumulatorVisualKey = visualKey;
+            becameSettled = true;
           }
         }
         let composited = false;
         depthRangeBridge?.render(savedDepthRange, () => {
           if (renderer) {
             composited =
-              accumulator?.composite(renderer, retainSettled) ?? false;
+              accumulator?.composite(renderer, retainSettled, undefined, {
+                allowPartial: true,
+              }) ?? false;
           }
         });
         if (!composited) {
           depthRangeBridge?.render(savedDepthRange, () => {
-            renderer?.render(scene, renderCamera);
+            renderScene(null);
           });
         }
         if (!accumulator.converged) map.triggerRepaint();
@@ -1193,6 +1304,7 @@ export const buildSharedThreeSceneLayer = (
             ? 1
             : accumulator.nextRound / Math.max(1, accumulation.rounds)
         );
+        if (becameSettled && composited) accumulation.onSettled?.();
       } else {
         const retainSettled =
           accumulation?.retainSettledFrame() === true &&
@@ -1206,7 +1318,7 @@ export const buildSharedThreeSceneLayer = (
         });
         if (!composited) {
           depthRangeBridge?.render(savedDepthRange, () => {
-            renderer?.render(scene, renderCamera);
+            renderScene(null);
           });
         }
         publishMapLoadingProgress(

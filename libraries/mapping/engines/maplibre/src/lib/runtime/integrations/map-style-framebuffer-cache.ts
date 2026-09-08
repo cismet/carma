@@ -35,7 +35,15 @@ export const createMapStyleFramebufferCache = (
   let capturedSignature = "";
   let captures = 0;
   let reuses = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let retryDelayMs = 100;
+  let disposed = false;
   let imageVersions: Array<readonly [id: string, version: number]> = [];
+
+  const cancelRetry = () => {
+    if (retryTimer !== undefined) clearTimeout(retryTimer);
+    retryTimer = undefined;
+  };
 
   const invalidate = () => {
     idle = false;
@@ -113,6 +121,17 @@ export const createMapStyleFramebufferCache = (
 
   return {
     invalidate,
+    /** A capture exception need not produce another source/camera event. Retry
+     * without a hot render loop; arrivals and a successful copy still win. */
+    captureFailed() {
+      if (disposed || retryTimer !== undefined) return;
+      invalidate();
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        if (!disposed) map.triggerRepaint();
+      }, retryDelayMs);
+      retryDelayMs = Math.min(2_000, retryDelayMs * 2);
+    },
     /** Exact camera/viewport/depth registration; no screen-space rounding. */
     canReuse(signature: string, lightingReplay: boolean): boolean {
       refreshImages();
@@ -128,6 +147,8 @@ export const createMapStyleFramebufferCache = (
       return reuse;
     },
     captured(signature: string) {
+      cancelRetry();
+      retryDelayMs = 100;
       capturedRevision = revision;
       capturedSignature = signature;
       captures += 1;
@@ -140,6 +161,8 @@ export const createMapStyleFramebufferCache = (
       return { captures, reuses };
     },
     dispose() {
+      disposed = true;
+      cancelRetry();
       CONTENT_EVENTS.forEach((event) => map.off(event, invalidate));
       STYLE_EVENTS.forEach((event) => map.off(event, invalidateStyle));
       map.off(MAPLIBRE_EVENT.IDLE, markIdle);

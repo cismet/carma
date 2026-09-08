@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { acquireRasterDemTerrainTileSource } from "./raster-dem-terrain-tile-source";
-import { buildGridTile, decodeRasterDemHeight } from "./raster-dem-tile";
+import { buildGridTile, decodeRasterDemHeight } from "../../core/raster-dem-tile";
 
 describe("raster DEM terrain tile source", () => {
   it("preserves asymmetric row/column samples including Terrarium blue-channel fractions", () => {
@@ -50,6 +50,78 @@ describe("raster DEM terrain tile source", () => {
     expect(decodeRasterDemHeight(128, 100, 128)).toBe(100.5);
   });
 
+  it("keeps mesh-error variants separate while reusing one decoded source", async () => {
+    const size = 16;
+    const pixels = new Uint8ClampedArray(size * size * 4);
+    for (let y = 0; y < size; y += 1)
+      for (let x = 0; x < size; x += 1)
+        pixels.set([128, 100, ((x + y) % 2) * 2, 255], (y * size + x) * 4);
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ width: size, height: size, close: vi.fn() }))
+    );
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return { drawImage: vi.fn(), getImageData: () => ({ data: pixels }) };
+        }
+      }
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, blob: async () => new Blob() }))
+    );
+    const source = await acquireRasterDemTerrainTileSource({
+      id: "error-variants",
+      url: "https://example.test/error/{z}/{x}/{y}.png",
+      tileSize: size,
+      minzoom: 0,
+      maxzoom: 2,
+      encoding: "terrarium",
+      bounds: [-180, -85, 180, 85],
+    });
+    const id = { level: 1, x: 1, y: 1 };
+    const [coarse, fine] = await Promise.all([
+      source.requestTile(id, undefined, 0.01),
+      source.requestTile(id, undefined, 0.001),
+    ]);
+    expect(coarse.rasterStride).toBe(4);
+    expect(fine.rasterStride).toBe(1);
+    expect(fine.maximumMeshErrorMeters).toBeLessThanOrEqual(0.001);
+    expect(await source.requestTile(id, undefined, 0.001)).toBe(fine);
+    expect(await source.requestTile(id, undefined, 0.01)).toBe(coarse);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(createImageBitmap).toHaveBeenCalledOnce();
+    const second = await acquireRasterDemTerrainTileSource({
+      id: "error-variants",
+      url: "https://example.test/error/{z}/{x}/{y}.png",
+      tileSize: size,
+      minzoom: 0,
+      maxzoom: 2,
+      encoding: "terrarium",
+      bounds: [-180, -85, 180, 85],
+    });
+    source.release();
+    source.release();
+    expect(await second.requestTile(id, undefined, 0.001)).toBe(fine);
+    expect(fetch).toHaveBeenCalledOnce();
+    second.release();
+    await expect(second.requestTile(id)).rejects.toThrow();
+    const restored = await acquireRasterDemTerrainTileSource({
+      id: "error-variants",
+      url: "https://example.test/error/{z}/{x}/{y}.png",
+      tileSize: size,
+      minzoom: 0,
+      maxzoom: 2,
+      encoding: "terrarium",
+      bounds: [-180, -85, 180, 85],
+    });
+    expect(await restored.requestTile(id, undefined, 0.001)).not.toBe(fine);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    restored.release();
+  });
+
   it("uses XYZ tile bounds and builds a skirtless height grid", async () => {
     const pixels = new Uint8ClampedArray([
       128, 100, 0, 255, 128, 101, 0, 255, 128, 102, 0, 255, 128, 103, 0, 255,
@@ -94,7 +166,7 @@ describe("raster DEM terrain tile source", () => {
     const tile = await source.requestTile({ level: 1, x: 1, y: 1 });
 
     expect(fetch).toHaveBeenCalledWith("https://example.test/1/1/1.png", {
-      signal: undefined,
+      signal: expect.any(AbortSignal),
     });
     expect(tile.bounds.west).toBe(0);
     expect(tile.bounds.east).toBe(180);

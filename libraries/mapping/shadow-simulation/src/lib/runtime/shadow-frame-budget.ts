@@ -43,14 +43,42 @@ export const createShadowFrameBudget = (
 
 /** Measure continuous camera motion only: idle gaps are not slow frames.
  * Reduce shadow fitting cadence first, then depth-map density. Never resize
- * color targets or change terrain during motion. Ultra bypasses adaptation.
+ * color targets or change terrain during motion. Tiled coverage must follow
+ * every frame, so its trials reduce depth density directly. Ultra bypasses it.
  */
 export const updateShadowFrameBudget = (
   previous: ShadowFrameBudget,
   nowMs: number,
-  moving: boolean
+  moving: boolean,
+  {
+    enabled = true,
+    allowCadenceReduction = true,
+  }: Readonly<{
+    enabled?: boolean;
+    allowCadenceReduction?: boolean;
+  }> = {}
 ): ShadowFrameBudget => {
   if (previous.targetFrameMs === 0) return previous;
+  if (!enabled) {
+    if (
+      previous.lastFrameMs === null &&
+      previous.updateIntervalMs === previous.targetFrameMs &&
+      previous.depthScale === 1 &&
+      !previous.adaptationBlocked
+    )
+      return previous;
+    return {
+      ...previous,
+      lastFrameMs: null,
+      sampleDurationMs: 0,
+      sampleCount: 0,
+      recoveryDurationMs: 0,
+      updateIntervalMs: previous.targetFrameMs,
+      depthScale: 1,
+      trial: null,
+      adaptationBlocked: false,
+    };
+  }
   if (!moving || !Number.isFinite(nowMs)) {
     return previous.lastFrameMs === null
       ? previous
@@ -102,15 +130,16 @@ export const updateShadowFrameBudget = (
   const recoveryDurationMs = recovering
     ? previous.recoveryDurationMs + duration
     : 0;
-  const updateIntervalMs =
-    averageFrameMs > targetFrameMs + FRAME_TIME_EPSILON_MS
-      ? Math.min(targetFrameMs * 4, previous.updateIntervalMs + targetFrameMs)
-      : recoveryDurationMs >= RECOVERY_WINDOW_MS
-      ? Math.max(targetFrameMs, previous.updateIntervalMs - targetFrameMs)
-      : previous.updateIntervalMs;
+  const updateIntervalMs = !allowCadenceReduction
+    ? targetFrameMs
+    : averageFrameMs > targetFrameMs + FRAME_TIME_EPSILON_MS
+    ? Math.min(targetFrameMs * 4, previous.updateIntervalMs + targetFrameMs)
+    : recoveryDurationMs >= RECOVERY_WINDOW_MS
+    ? Math.max(targetFrameMs, previous.updateIntervalMs - targetFrameMs)
+    : previous.updateIntervalMs;
   const depthScale =
     averageFrameMs > targetFrameMs + FRAME_TIME_EPSILON_MS &&
-    previous.updateIntervalMs >= targetFrameMs * 4
+    (!allowCadenceReduction || previous.updateIntervalMs >= targetFrameMs * 4)
       ? Math.max(0.5, previous.depthScale - 0.25)
       : recoveryDurationMs >= RECOVERY_WINDOW_MS
       ? Math.min(1, previous.depthScale + 0.25)

@@ -27,6 +27,7 @@ import { createPayloadAwareRequestConcurrency } from "./payload-aware-request-co
 import {
   DEFERRED_TILE_LOADING_STATE,
   TILES_LOAD_POLICY,
+  TILE_MEMORY_ALLOCATION_ERROR,
   createEffectiveErrorTargetState,
   createTileBytesPredictor,
   deriveTilePriority,
@@ -311,12 +312,13 @@ export interface ThreeTilesRuntime extends SharedThreeSceneRuntime {
   setOutlineStyle: (style: OutlineStyleOptions) => void;
   setTileBoundsVisible: (enabled: boolean) => void;
   /**
-   * Style cache limits; they can only lower the device ceiling. No budget
-   * restores the device ceiling.
+   * Explicit resident cache budget (up to 24 GiB). No budget restores the
+   * conservative device default; it is not an available-VRAM measurement.
    */
   setCacheBudget: (bytes?: number, options?: CacheBudgetOptions) => void;
   setRequestConcurrency: (jobs: number) => void;
   getRequestDemand: () => number;
+  isMainViewReady: () => boolean;
   getViewElevationRange: (
     camera: THREE.Camera
   ) => readonly [minimum: number, maximum: number] | null;
@@ -404,6 +406,12 @@ export function buildThreeTilesRuntime(
     )
   );
   const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
+  let memoryAdmissionPaused = false;
+  let allocationFailed = false;
+  let contextLost = false;
+  let memoryCheckTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastMemoryCheck = Number.NEGATIVE_INFINITY;
+  let normalParseConcurrency: number | null = null;
   // ReorientationPlugin produces X west / Z north. The MapLibre custom-layer
   // matrix below and the other pointcloud layers use X east / Z south, so keep
   // the plugin-owned group untouched and correct the horizontal axes in a
@@ -489,22 +497,6 @@ export function buildThreeTilesRuntime(
     uShadowUniformColorMix: { value: 0 },
     uShadowTextureSaturation: { value: 1 },
   };
-  const flatTerrainNormalMap = options.providesTerrain
-    ? new THREE.DataTexture(
-        new Uint8Array([128, 255, 128, 255]),
-        1,
-        1,
-        THREE.RGBAFormat,
-        THREE.UnsignedByteType
-      )
-    : null;
-  if (flatTerrainNormalMap) {
-    flatTerrainNormalMap.name = `${layerId}-flat-terrain-normal`;
-    flatTerrainNormalMap.generateMipmaps = false;
-    flatTerrainNormalMap.minFilter = THREE.NearestFilter;
-    flatTerrainNormalMap.magFilter = THREE.NearestFilter;
-    flatTerrainNormalMap.needsUpdate = true;
-  }
 
   const patchMaterialForProjection = (material: THREE.Material) => {
     if ((material as { __projPatched?: boolean }).__projPatched) return;
@@ -606,7 +598,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const originalShadowSides = new Map<THREE.Material, THREE.Side | null>();
   const originalRenderSides = new Map<THREE.Material, THREE.Side>();
   const separatedSurfaceRenderSides = new WeakMap<THREE.Material, THREE.Side>();
-  const separatedSurfaceShadowSides = new WeakMap<THREE.Material, THREE.Side>();
   const isSeparatedBuildingSurface = (material: THREE.Material) => {
     const surfaceName = material.name.trim().toLowerCase();
     return surfaceName === "roof" || surfaceName === "wall";
@@ -616,15 +607,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     const sourceName = material.name.trim().toLowerCase().split(" · ", 1)[0];
     return sourceName === "roof" || sourceName === "wall";
   };
-  // Closed building solids cast from both faces. Back faces alone leave a lit
-  // gap under a solid that floats above the terrain: the sun-facing wall has
-  // to cast the shadow beneath and behind the building as well. The shadow
-  // bias keeps the lit front faces from self-shadowing.
-  const resolveShadowCastingSide = (material: THREE.Material) =>
-    separatedSurfaceShadowSides.get(material) ??
-    (options.providesTerrain === true || isSeparatedBuildingSurface(material)
-      ? THREE.FrontSide
-      : THREE.DoubleSide);
   const resolveRenderSide = (material: THREE.Material) =>
     separatedSurfaceRenderSides.get(material) ?? THREE.FrontSide;
   const asMaterialArray = (
@@ -856,12 +838,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
             material,
             isClosed ? THREE.FrontSide : THREE.DoubleSide
           );
-          // A closed solid casts from both faces so its sun-facing walls
-          // shadow the ground beneath a base that floats above the terrain.
-          separatedSurfaceShadowSides.set(
-            material,
-            isClosed ? THREE.DoubleSide : THREE.FrontSide
-          );
         }
         normalizedSeparatedSurfaceGeometries.add(geometry);
       }
@@ -881,7 +857,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       depthWrite: source.depthWrite,
       alphaTest: source.alphaTest,
     });
-    material.shadowSide = resolveShadowCastingSide(source);
+    material.shadowSide = THREE.DoubleSide;
     material.name = source.name ? `${source.name} · clay` : "tileset-clay";
     return material;
   };
@@ -929,12 +905,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     material.toneMapped = basic.toneMapped;
     material.visible = basic.visible;
     material.userData = { ...basic.userData };
-    if (flatTerrainNormalMap) {
-      // Keep the baked texture evenly lit without replacing the geometry
-      // normals that Three.js uses for receiver-side shadow bias.
-      material.normalMap = flatTerrainNormalMap;
-      material.normalMapType = THREE.ObjectSpaceNormalMap;
-    }
+    // Decision MESH-CONTACT-BIAS-20260908 (shadow-simulation/three/
+    // TILED_SHADOW_PAGES.md): real geometry normals keep sun-away facades dark
+    // up to their silhouette; a constant up-normal creates false bright rims.
     delete material.userData.__projPatched;
     delete material.userData.__baseOpacity;
     delete material.userData.__baseTransparent;
@@ -996,7 +969,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         material.side = renderSide;
         material.needsUpdate = true;
       }
-      material.shadowSide = resolveShadowCastingSide(material);
+      // Mesh walls/roofs and photogrammetric surfaces occlude from either side.
+      // Decision: MESH-BUDGET-20260908 in engines/maplibre/README.md.
+      material.shadowSide = THREE.DoubleSide;
       return;
     }
 
@@ -1262,13 +1237,24 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     for (const tile of tiles.activeTiles) {
       const activeTile = tile as Tile & {
         engineData?: {
+          scene?: THREE.Object3D;
           boundingVolume?: { getAABB?: (target: THREE.Box3) => void };
         };
       };
+      // Use the loaded surface, not an ECEF-axis-aligned metadata box rotated
+      // into the local frame. That conservative double AABB can inflate a city
+      // tile's vertical span by kilometres and destroy shadow contact resolution.
+      activeTileBoundingBox.makeEmpty();
+      const model = activeTile.engineData?.scene;
+      if (model) {
+        model.updateWorldMatrix(true, true);
+        activeTileBoundingBox.setFromObject(model);
+      }
       const boundingVolume = activeTile.engineData?.boundingVolume;
-      if (!boundingVolume?.getAABB) continue;
-      boundingVolume.getAABB(activeTileBoundingBox);
-      activeTileBoundingBox.applyMatrix4(tiles.group.matrixWorld);
+      if (activeTileBoundingBox.isEmpty() && boundingVolume?.getAABB) {
+        boundingVolume.getAABB(activeTileBoundingBox);
+        activeTileBoundingBox.applyMatrix4(tiles.group.matrixWorld);
+      }
       if (activeTileBoundingBox.isEmpty()) continue;
       volumes.push({
         id: getTileDebugId(tile),
@@ -1334,7 +1320,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
    * frustum either meets the effective target or cannot refine any further
    * because all of its children are deferred, retry-blocked or empty.
    */
-  const mainViewWithinErrorFactor = (factor: number) => {
+  const mainViewWithinErrorFactor = (factor: number, allowBlocked = true) => {
     if (!tiles || tiles.visibleTiles.size === 0) return false;
     const acceptedError = effectiveErrorTarget * factor;
     for (const visible of tiles.visibleTiles) {
@@ -1345,7 +1331,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       }
       if (!isTileInMainView(tile)) continue;
       if (tile.traversal.error <= acceptedError) continue;
-      if (!children.every(isChildUnloadable)) return false;
+      if (!allowBlocked || !children.every(isChildUnloadable)) return false;
     }
     return true;
   };
@@ -1498,6 +1484,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   const applyErrorTargetPolicy = () => {
     const cache = getRuntimeCache();
     if (!tiles || !cache) return;
+    // Shadow quality yields to the requested surface-mesh precision, not vice
+    // versa. Cache pressure must not silently turn a 1px request into 4px.
+    if (options.providesTerrain && shadowView) {
+      if (effectiveErrorTarget !== requestedErrorTarget)
+        resetEffectiveErrorTarget();
+      return;
+    }
     const { zoom, pitch } = readMapView(map);
     const result = nextEffectiveErrorTarget(errorTargetState, {
       now: Date.now(),
@@ -1581,7 +1574,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     ) {
       return;
     }
-    if (!mainViewWithinErrorFactor(SHADOW_SELECTION_ERROR_FACTOR)) {
+    if (
+      !mainViewWithinErrorFactor(
+        options.providesTerrain
+          ? requestedErrorTarget / effectiveErrorTarget
+          : SHADOW_SELECTION_ERROR_FACTOR,
+        !options.providesTerrain
+      )
+    ) {
       return;
     }
     const receiverUpdate = captureShadowReceiverSources();
@@ -1677,6 +1677,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     url?: string | URL;
     error?: unknown;
   }) => {
+    if (TILE_MEMORY_ALLOCATION_ERROR.test(String(event.error))) {
+      allocationFailed = true;
+      applyRequestConcurrency();
+    }
     const failedTile = event.tile ?? null;
     if (failedTile && deferred.has(failedTile)) return;
     const retryState = tileRetries.handleFailure(
@@ -1758,6 +1762,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     cache.maxBytesSize = bounds.maxBytesSize;
     cache.unloadPercent = TILES_LOAD_POLICY.cacheUnloadPercent;
     cache.isFull = () =>
+      memoryAdmissionPaused ||
       cache.itemSet.size >= cache.maxSize || cache.cachedBytes >= ceiling;
     cache.scheduleUnload();
   };
@@ -1775,10 +1780,63 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       applyCacheBudget();
     }
   };
+  const sampleMemoryPressure = () => {
+    const now = performance.now();
+    if (!allocationFailed && !contextLost && now - lastMemoryCheck < TILES_LOAD_POLICY.memoryCheckIntervalMs) return;
+    lastMemoryCheck = now;
+    // Chromium's optional heap signal is only an early warning, NOT free RAM
+    // or VRAM. Missing telemetry keeps the finite configured admission budget.
+    const memory = (performance as Performance & {
+      memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+    }).memory;
+    const ratio = memory && memory.jsHeapSizeLimit > 0
+      ? memory.usedJSHeapSize / memory.jsHeapSizeLimit
+      : 0;
+    const wasPaused = memoryAdmissionPaused;
+    memoryAdmissionPaused = allocationFailed || contextLost || ratio >= (
+      wasPaused ? TILES_LOAD_POLICY.heapResumeFraction : TILES_LOAD_POLICY.heapPauseFraction
+    );
+    if (memoryAdmissionPaused && !wasPaused) {
+      evictUnusedCacheItems();
+      // Drop unfinished requests/parse buffers, never the visible replacement
+      // parents or loaded caster coverage. Paused queues must not pin blobs.
+      if (tiles) {
+        for (const tile of [...tiles.loadingTiles]) {
+          if (!tiles.visibleTiles.has(tile)) tiles.lruCache.remove(tile);
+        }
+      }
+    }
+    if (wasPaused && !memoryAdmissionPaused) {
+      tiles?.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    }
+    if (memoryAdmissionPaused && !allocationFailed && !contextLost && memoryCheckTimer === null) {
+      memoryCheckTimer = setTimeout(() => {
+        memoryCheckTimer = null;
+        if (disposed) return;
+        applyRequestConcurrency();
+        if (!memoryAdmissionPaused) runDownloadQueues();
+      }, TILES_LOAD_POLICY.memoryCheckIntervalMs);
+    }
+  };
+  const handleContextLost = () => {
+    contextLost = true;
+    applyRequestConcurrency();
+  };
+  const handleContextRestored = () => {
+    contextLost = false;
+    lastMemoryCheck = Number.NEGATIVE_INFINITY;
+    applyRequestConcurrency();
+    if (!memoryAdmissionPaused) runDownloadQueues();
+  };
   const applyRequestConcurrency = () => {
     const cache = getRuntimeCache();
     if (!tiles || !cache) return;
+    sampleMemoryPressure();
+    normalParseConcurrency ??= tiles.parseQueue.maxJobs;
+    tiles.parseQueue.maxJobs = memoryAdmissionPaused ? 0 : normalParseConcurrency;
     const activeConcurrency = resolveRequestConcurrency({
+      memoryPressure: memoryAdmissionPaused,
       configured: payloadAwareConcurrency.getConcurrency(requestConcurrency),
       ceilingBytes,
       cachedBytes: cache.cachedBytes,
@@ -2082,6 +2140,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       };
       const queueTileForDownload = tiles.queueTileForDownload.bind(tiles);
       tiles.queueTileForDownload = (tile) => {
+        if (memoryAdmissionPaused) return;
         const runtimeTile = tile as RuntimeTile;
         // D8: a pending retry or an exhausted budget keeps the parent as the
         // fallback instead of re-requesting the tile every frame.
@@ -2189,11 +2248,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map.on(MAPLIBRE_EVENT.MOVE_START, handleViewStart);
       map.on(MAPLIBRE_EVENT.MOVE_END, handleViewEnd);
       map.on(MAPLIBRE_EVENT.RESIZE, handleViewEnd);
+      map.on(MAPLIBRE_EVENT.WEBGL_CONTEXT_LOST, handleContextLost);
+      map.on(MAPLIBRE_EVENT.WEBGL_CONTEXT_RESTORED, handleContextRestored);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     },
 
     update(frame: SharedThreeSceneFrame) {
       if (!runtimeVisible || !tiles || !map) return;
+      applyRequestConcurrency();
       syncProjector();
       try {
         const viewCamera = resolveTilesViewCamera(
@@ -2222,6 +2284,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         }
         maybeEnableShadowSelection();
       } catch (error) {
+        if (TILE_MEMORY_ALLOCATION_ERROR.test(String(error))) {
+          allocationFailed = true;
+          applyRequestConcurrency();
+        }
         console.error("[tiles3d] update failed:", error);
       }
       prioritizeQueuedTiles();
@@ -2236,12 +2302,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           currJobs: number;
         };
       if (
+        !memoryAdmissionPaused && (
         (stats.queued > 0 && tiles.downloadQueue.maxJobsPerOrigin > 0) ||
         stats.downloading > 0 ||
         stats.parsing > 0 ||
         processNodeQueue.items.length > 0 ||
         processNodeQueue.currJobs > 0 ||
-        viewQualityAuditPasses > 0
+        viewQualityAuditPasses > 0)
       ) {
         map.triggerRepaint();
       }
@@ -2387,6 +2454,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     setCacheBudget(bytes?: number, cacheOptions?: CacheBudgetOptions) {
+      allocationFailed = false;
+      lastMemoryCheck = Number.NEGATIVE_INFINITY;
       styleCacheBudgetBytes =
         bytes === undefined ? undefined : Math.max(0, Math.floor(bytes));
       styleCacheOverflowBytes =
@@ -2417,6 +2486,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     },
 
     getRequestDemand,
+    isMainViewReady: () =>
+      mainViewWithinErrorFactor(
+        requestedErrorTarget / effectiveErrorTarget,
+        false
+      ),
     getViewElevationRange,
     getActiveTileVolumes,
     hasRenderableContent: () => {
@@ -2429,6 +2503,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
     dispose() {
       disposed = true;
+      if (memoryCheckTimer !== null) clearTimeout(memoryCheckTimer);
+      memoryCheckTimer = null;
       clearErrorTargetTimer();
       clearHiddenWipeTimer();
       clearKickstartTimer();
@@ -2440,6 +2516,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       map?.off(MAPLIBRE_EVENT.MOVE_START, handleViewStart);
       map?.off(MAPLIBRE_EVENT.MOVE_END, handleViewEnd);
       map?.off(MAPLIBRE_EVENT.RESIZE, handleViewEnd);
+      map?.off(MAPLIBRE_EVENT.WEBGL_CONTEXT_LOST, handleContextLost);
+      map?.off(MAPLIBRE_EVENT.WEBGL_CONTEXT_RESTORED, handleContextRestored);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsubscribeTerrainLoading?.();
       unsubscribeTerrainLoading = null;
@@ -2469,7 +2547,6 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       dracoLoader?.dispose();
       dracoLoader = null;
       orientationGroup.clear();
-      flatTerrainNormalMap?.dispose();
       map = null;
     },
   };

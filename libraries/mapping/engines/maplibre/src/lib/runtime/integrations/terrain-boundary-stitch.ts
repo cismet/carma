@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, Vector3 } from "three";
 import { clamp } from "@carma-commons/math";
 import { computeMeshVertexNormals } from "@carma-mapping/engines/three/primitives/core";
-import { terrainTileKey, type TerrainTileId } from "./raster-dem-tile";
+import { terrainTileKey, type TerrainTileId } from "../../core/raster-dem-tile";
 import {
   refineTerrainBoundaryTriangles,
   type TerrainEdgeSubdivision,

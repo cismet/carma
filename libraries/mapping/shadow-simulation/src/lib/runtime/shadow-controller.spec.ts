@@ -30,6 +30,75 @@ const buildUpdate = (overrides: Partial<ShadowUpdate> = {}): ShadowUpdate => ({
 });
 
 describe("ShadowController", () => {
+  it("caps mesh receiver offsets at one millimetre even with coarse depth maps", () => {
+    const controller = new ShadowController(new THREE.Scene());
+    controller.setMaxShadowMapSize(512);
+    const snapshot = controller.update(
+      buildUpdate({
+        maxReceiverBiasMeters: 0.001,
+        directionToSun: new THREE.Vector3(1, 0.1, 0).normalize(),
+      })
+    )!;
+    const shadow = controller.lights[0].shadow;
+    expect(shadow.normalBias).toBe(0.001);
+    expect(
+      -shadow.bias * (snapshot.camera.farMeters - snapshot.camera.nearMeters)
+    ).toBeCloseTo(0.001, 12);
+    controller.applySunDiscSample(4, 64);
+    expect(shadow.normalBias).toBe(0.001);
+    controller.update(buildUpdate());
+    expect(shadow.normalBias).toBeGreaterThan(0.001);
+    controller.dispose();
+  });
+
+  it("uses texel-sized PCF bias for pages, invariant within the same size class", () => {
+    const controller = new ShadowController(new THREE.Scene());
+    const update = buildUpdate({
+      groundTexelFit: true,
+      groundTexelTargetMeters: 0.1,
+    });
+    const first = controller.update(update)!;
+    const shadow = controller.lights[0].shadow;
+    const normalBias = shadow.normalBias;
+    const depthBias = shadow.bias;
+    expect(normalBias).toBeGreaterThan(0.01);
+    expect(
+      Math.abs(depthBias) * (first.camera.farMeters - first.camera.nearMeters)
+    ).toBeGreaterThan(0.01);
+    const next = controller.update({
+      ...update,
+      groundTexelTargetMeters: 0.101,
+    })!;
+    expect(next.camera.shadowMapWidth).toBe(first.camera.shadowMapWidth);
+    expect(shadow.normalBias).toBe(normalBias);
+    expect(shadow.bias).toBe(depthBias);
+    controller.dispose();
+  });
+  it("applies the same footprint bias in mono and tiled allocation", () => {
+    const controllers = [
+      new ShadowController(new THREE.Scene()),
+      new ShadowController(new THREE.Scene()),
+    ];
+    controllers.forEach((controller) => controller.setMaxShadowMapSize(512));
+    const update = buildUpdate({
+      groundTexelFit: true,
+      groundTexelTargetMeters: 0.001,
+    });
+    const tiled = controllers[0].update(update)!;
+    // Force both fits into the same hardware-capped allocation. Their bias must
+    // depend on achieved texel size, not on presence of the demand parameter.
+    const mono = controllers[1].update({
+      ...update,
+      groundTexelTargetMeters: undefined,
+    })!;
+    expect(tiled.camera.shadowMapWidth).toBe(mono.camera.shadowMapWidth);
+    expect(tiled.camera.shadowMapHeight).toBe(mono.camera.shadowMapHeight);
+    const tiledLight = controllers[0].lights[0].shadow;
+    const monoLight = controllers[1].lights[0].shadow;
+    expect(tiledLight.normalBias).toBeCloseTo(monoLight.normalBias, 12);
+    expect(tiledLight.bias).toBeCloseTo(monoLight.bias, 12);
+    controllers.forEach((controller) => controller.dispose());
+  });
   it("reuses depth allocation during motion while fitting the current receiver", () => {
     const controller = new ShadowController(new THREE.Scene());
     const initialUpdate = buildUpdate({

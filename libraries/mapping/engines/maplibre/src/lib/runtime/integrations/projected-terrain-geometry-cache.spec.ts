@@ -20,15 +20,49 @@ const { stored, storage } = vi.hoisted(() => {
         stored.set(key, structuredClone(value));
         return value;
       }),
+      updateCosts: vi.fn(
+        async (_key: string, _costs: { restoreMs: number }) => true
+      ),
     },
   };
 });
 
-vi.mock("localforage", () => ({
-  default: {
-    INDEXEDDB: "asyncStorage",
-    createInstance: vi.fn(() => storage),
-  },
+vi.mock("@carma-commons/utils", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-commons/utils")>()),
+  createDerivedBufferCache: () => ({
+    register: () => ({
+      get: async (key: string) => {
+        const value = await storage.getItem(key);
+        return value === null ? null : { value, metadata: {} };
+      },
+      put: async (key: string, value: unknown) => {
+        try {
+          await storage.setItem(key, value);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      updateCosts: storage.updateCosts,
+    }),
+  }),
+}));
+
+// This suite owns main-thread restoration, dispatch and byte accounting. Codec
+// selection/admission has its own strategy tests; keep records as typed buffers
+// here so the fixture does not benchmark Blob codecs or require native storage.
+vi.mock("./projected-terrain-cache-strategy", () => ({
+  createProjectedTerrainCacheStrategy: () => ({
+    canWrite: () => true,
+    encode: async (entry: unknown, bytes: number) => ({
+      payload: entry,
+      bytes,
+    }),
+    decode: async (entry: unknown) => entry ?? null,
+    updateCosts: (key: string, restoreMs: number) =>
+      storage.updateCosts(key, { restoreMs }),
+    dispose: () => {},
+  }),
 }));
 
 let createProjectedTerrainGeometryCache: typeof import("./projected-terrain-geometry-cache").createProjectedTerrainGeometryCache;
@@ -68,9 +102,14 @@ const createGeometry = () => {
 const reliefVertexMask = new Uint8Array([1, 1, 1]);
 describe("projected terrain geometry cache", () => {
   beforeEach(async () => {
+    vi.stubEnv("PROD", true);
+    vi.stubGlobal("location", {
+      href: "https://fixture.test/assets/terrain.worker-a1b2c3d4.js",
+    });
     vi.resetModules();
     stored.clear();
     storage.clear.mockClear();
+    storage.updateCosts.mockReset().mockResolvedValue(true);
     storage.driver.mockReset().mockReturnValue("asyncStorage");
     storage.getItem
       .mockReset()
@@ -81,16 +120,390 @@ describe("projected terrain geometry cache", () => {
       stored.set(key, structuredClone(value));
       return value;
     });
-    ({
-      createProjectedTerrainGeometryCache,
-      PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION,
-    } = await import("./projected-terrain-geometry-cache"));
+    const module = await import("./projected-terrain-geometry-cache");
+    // Headless execution dynamically imports the entire worker dependency
+    // graph. Exclude test-runner module transforms from these fast-path fixtures.
+    await import("./terrain-worker-task");
+    PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION =
+      module.PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION;
+    createProjectedTerrainGeometryCache = (
+      source,
+      origin,
+      noData,
+      producerAssetUrl = "https://fixture.test/assets/terrain-main-a1b2c3d4.js"
+    ) =>
+      module.createProjectedTerrainGeometryCache(
+        source,
+        origin,
+        noData,
+        producerAssetUrl
+      );
     stored.set(
       "__conversion_revision__",
       PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
     );
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("adopts a fast read and clears its deadline without disabling the cache", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockImplementation(async (task) => {
+        if (task.kind === "read-cache") {
+          await new Promise((resolve) => setTimeout(resolve, 49));
+          return {
+            kind: "read-cache",
+            entry: { tile, geometry: null, reliefVertexMask },
+          };
+        }
+        return { kind: "cache-cost", updated: true };
+      });
+    const cache = createProjectedTerrainGeometryCache(
+      "fast",
+      [7, 51],
+      undefined
+    );
+    const read = cache.get(tile.id);
+    await vi.advanceTimersByTimeAsync(49);
+    expect(await read).toMatchObject({ tile });
+    expect(dispatch.mock.calls[0][1]?.aborted).toBe(false);
+    expect(dispatch.mock.calls[1][0]).toMatchObject({
+      kind: "cache-cost",
+      restoreMs: 49,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(100);
+    const next = cache.get(tile.id);
+    await vi.advanceTimersByTimeAsync(49);
+    expect(await next).not.toBeNull();
+  });
+
+  it("does not reuse a looser projected mesh for a stricter residual request", async () => {
+    const cache = createProjectedTerrainGeometryCache(
+      "error-variants",
+      [7, 51],
+      undefined
+    );
+    const coarse = {
+      ...tile,
+      maximumMeshErrorMeters: 0.01,
+      reconstructionErrorMeters: 0.009,
+      rasterStride: 4 as const,
+    };
+    cache.set(coarse, null, reliefVertexMask);
+    expect((await cache.get(tile.id))?.tile.maximumMeshErrorMeters).toBe(0.01);
+    expect(await cache.get(tile.id, 0.005)).toBeNull();
+    const fine = {
+      ...tile,
+      maximumMeshErrorMeters: 0.005,
+      reconstructionErrorMeters: 0.004,
+      rasterStride: 2 as const,
+    };
+    cache.set(fine, null, reliefVertexMask);
+    expect((await cache.get(tile.id, 0.009))?.tile.maximumMeshErrorMeters).toBe(
+      0.005
+    );
+    expect((await cache.get(tile.id))?.tile.rasterStride).toBe(4);
+  });
+
+  it("times out a hanging read at 50 ms, rejects late adoption and opens the session circuit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const worker = await import("./terrain-worker-client");
+    let finishRead!: (
+      value: Awaited<ReturnType<typeof worker.runTerrainWorkerTask>>
+    ) => void;
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishRead = resolve;
+          })
+      );
+    const cache = createProjectedTerrainGeometryCache(
+      "slow",
+      [7, 51],
+      undefined
+    );
+    const settled = vi.fn();
+    const read = cache.get(tile.id).then((value) => {
+      settled(value);
+      return value;
+    });
+    await vi.advanceTimersByTimeAsync(49);
+    expect(settled).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await read).toBeNull();
+    expect(dispatch.mock.calls[0][1]?.aborted).toBe(true);
+    expect(dispatch.mock.calls[0][1]?.reason).toMatchObject({
+      name: "TimeoutError",
+    });
+    // This mock deliberately ignores abort, like a native completion already
+    // posted before termination. The read must not adopt it or emit feedback.
+    finishRead({
+      kind: "read-cache",
+      entry: { tile, geometry: null, reliefVertexMask },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toHaveBeenCalledOnce();
+    expect(settled).toHaveBeenCalledWith(null);
+    const anotherCache = createProjectedTerrainGeometryCache(
+      "other",
+      [7, 51],
+      undefined
+    );
+    expect(await anotherCache.get(tile.id)).toBeNull();
+    const copies = vi.spyOn(Uint8Array, "from");
+    anotherCache.set(tile, null, reliefVertexMask);
+    expect(copies).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("includes a pending write in the same 50 ms deadline and aborts optional work", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockImplementation(
+        (_task, signal) =>
+          new Promise((_resolve, reject) =>
+            signal?.addEventListener("abort", () => reject(signal.reason), {
+              once: true,
+            })
+          )
+      );
+    const cache = createProjectedTerrainGeometryCache(
+      "slow-write",
+      [7, 51],
+      undefined
+    );
+    cache.set(tile, null, reliefVertexMask);
+    const read = cache.get(tile.id);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(await read).toBeNull();
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(dispatch.mock.calls[0][0].kind).toBe("write-cache");
+    expect(dispatch.mock.calls[0][1]?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not restart the deadline after waiting for a same-key write", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockImplementation(async (task) => {
+        if (task.kind === "write-cache") {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return { kind: "write-cache", stored: true };
+        }
+        return new Promise(() => {});
+      });
+    const cache = createProjectedTerrainGeometryCache(
+      "write-then-slow-read",
+      [7, 51],
+      undefined
+    );
+    cache.set(tile, null, reliefVertexMask);
+    const read = cache.get(tile.id);
+    await vi.advanceTimersByTimeAsync(49);
+    expect(dispatch.mock.calls.map(([task]) => task.kind)).toEqual([
+      "write-cache",
+      "read-cache",
+    ]);
+    expect(dispatch.mock.calls[1][1]?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await read).toBeNull();
+    expect(dispatch.mock.calls[1][1]?.aborted).toBe(true);
+  });
+
+  it("rejects an over-budget completion even before a delayed timer callback runs", async () => {
+    const worker = await import("./terrain-worker-client");
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockImplementation(async () => {
+        clock.mockReturnValue(51);
+        return {
+          kind: "read-cache",
+          entry: { tile, geometry: null, reliefVertexMask },
+        };
+      });
+    const cache = createProjectedTerrainGeometryCache(
+      "late-main-task",
+      [7, 51],
+      undefined
+    );
+    expect(await cache.get(tile.id)).toBeNull();
+    expect(await cache.get(tile.id)).toBeNull();
+    expect(dispatch).toHaveBeenCalledOnce();
+  });
+
+  it("treats an unavailable backend as a miss without banning a later fast read", async () => {
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockRejectedValueOnce(
+        new DOMException("Storage unavailable", "SecurityError")
+      )
+      .mockResolvedValue({
+        kind: "read-cache",
+        entry: { tile, geometry: null, reliefVertexMask },
+      });
+    const cache = createProjectedTerrainGeometryCache(
+      "unavailable",
+      [7, 51],
+      undefined
+    );
+    expect(await cache.get(tile.id)).toBeNull();
+    expect(await cache.get(tile.id)).not.toBeNull();
+    expect(dispatch.mock.calls.map(([task]) => task.kind)).toEqual([
+      "read-cache",
+      "read-cache",
+      "cache-cost",
+    ]);
+  });
+
+  it("aborts sibling reads and pending cost feedback when the first read exceeds its deadline", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockResolvedValueOnce({
+        kind: "read-cache",
+        entry: { tile, geometry: null, reliefVertexMask },
+      })
+      .mockImplementation(
+        (_task, signal) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () => reject(signal.reason), {
+              once: true,
+            });
+          })
+      );
+    const cache = createProjectedTerrainGeometryCache(
+      "siblings",
+      [7, 51],
+      undefined
+    );
+    expect(await cache.get(tile.id)).not.toBeNull();
+    const first = cache.get(tile.id);
+    await vi.advanceTimersByTimeAsync(20);
+    const second = cache.get({ ...tile.id, x: tile.id.x + 1 });
+    await vi.advanceTimersByTimeAsync(30);
+    expect(await Promise.all([first, second])).toEqual([null, null]);
+    expect(dispatch.mock.calls.map(([task]) => task.kind)).toEqual([
+      "read-cache",
+      "cache-cost",
+      "read-cache",
+      "read-cache",
+    ]);
+    expect(
+      dispatch.mock.calls.slice(1).every(([, signal]) => signal?.aborted)
+    ).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not restore, copy or persist buffers from an unversioned HMR graph", async () => {
+    vi.stubEnv("PROD", false);
+    const cache = createProjectedTerrainGeometryCache(
+      "dev",
+      [7, 51],
+      undefined
+    );
+    const geometry = createGeometry();
+    cache.set(tile, geometry, reliefVertexMask, 100);
+    expect(await cache.get(tile.id)).toBeNull();
+    expect(storage.getItem).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    geometry.dispose();
+  });
+
+  it("emits cost feedback with only one real read per cache instance", async () => {
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi.spyOn(worker, "runTerrainWorkerTask");
+    const caches = Array.from({ length: 3 }, () =>
+      createProjectedTerrainGeometryCache(
+        "terrain-reload-cost",
+        [7.15, 51.25],
+        undefined
+      )
+    );
+    const geometry = createGeometry();
+    caches[0].set(tile, geometry, reliefVertexMask, 100);
+    for (const cache of caches) {
+      const restored = await cache.get(tile.id);
+      expect(restored).not.toBeNull();
+      restored?.geometry?.dispose();
+    }
+    const feedback = dispatch.mock.calls.flatMap(([task], index) =>
+      task.kind === "cache-cost"
+        ? [{ task, result: dispatch.mock.results[index].value }]
+        : []
+    );
+    expect(feedback).toHaveLength(3);
+    expect(new Set(feedback.map(({ task }) => task.key)).size).toBe(1);
+    expect(
+      feedback.every(
+        ({ task }) => Number.isFinite(task.restoreMs) && task.restoreMs >= 0
+      )
+    ).toBe(true);
+    await Promise.all(feedback.map(({ result }) => result));
+    expect(storage.updateCosts).toHaveBeenCalledTimes(3);
+    expect(storage.setItem).toHaveBeenCalledOnce();
+    expect(
+      dispatch.mock.calls
+        .map(([task]) => task.kind)
+        .filter(
+          (kind) =>
+            kind !== "write-cache" &&
+            kind !== "read-cache" &&
+            kind !== "cache-cost"
+        )
+    ).toEqual([]);
+    geometry.dispose();
+  });
+
+  it("refines real restore measurements using at most five recent samples", async () => {
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi
+      .spyOn(worker, "runTerrainWorkerTask")
+      .mockImplementation(async (task) => {
+        if (task.kind === "read-cache")
+          return {
+            kind: "read-cache",
+            entry: { tile, geometry: null, reliefVertexMask },
+          };
+        if (task.kind === "cache-cost")
+          return { kind: "cache-cost", updated: true };
+        throw new Error(`Unexpected task: ${task.kind}`);
+      });
+    const clock = vi.spyOn(performance, "now");
+    const cache = createProjectedTerrainGeometryCache(
+      "terrain-cost-median",
+      [7.15, 51.25],
+      undefined
+    );
+    for (const duration of [1, 2, 3, 10, 11, 12, 13]) {
+      clock.mockReturnValueOnce(1000).mockReturnValueOnce(1000 + duration);
+      expect(await cache.get(tile.id)).not.toBeNull();
+    }
+    expect(
+      dispatch.mock.calls.flatMap(([task]) =>
+        task.kind === "cache-cost" ? [task.restoreMs] : []
+      )
+    ).toEqual([1, 2, 2, 3, 3, 10, 11]);
+  });
 
   it("dispatches only a cache key and transfers validated read buffers without cloning them again", async () => {
     const worker = await import("./terrain-worker-client");
@@ -103,11 +516,19 @@ describe("projected terrain geometry cache", () => {
     const geometry = createGeometry();
     cache.set(tile, geometry, reliefVertexMask);
     const restored = await cache.get(tile.id);
-    expect(dispatch).toHaveBeenCalledWith({
-      kind: "read-cache",
-      key: expect.any(String),
-    });
-    const result = await dispatch.mock.results[0].value;
+    expect(dispatch).toHaveBeenCalledWith(
+      {
+        kind: "read-cache",
+        key: expect.any(String),
+        producerAssetUrl:
+          "https://fixture.test/assets/terrain-main-a1b2c3d4.js",
+      },
+      expect.any(AbortSignal)
+    );
+    const readIndex = dispatch.mock.calls.findIndex(
+      ([task]) => task.kind === "read-cache"
+    );
+    const result = await dispatch.mock.results[readIndex].value;
     expect(result.kind).toBe("read-cache");
     const { terrainResultTransfers } = await import("./terrain-worker-task");
     const transfers = terrainResultTransfers(result);
@@ -152,11 +573,9 @@ describe("projected terrain geometry cache", () => {
     boxScan.mockRestore();
     sphereScan.mockRestore();
 
-    expect(storage.clear).toHaveBeenCalledOnce();
-    expect(stored.get("__conversion_revision__")).toBe(
-      PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
-    );
-    expect(stored.has("stale-tile")).toBe(false);
+    // Version-key isolation no longer clears an entire legacy or foreign store.
+    expect(storage.clear).not.toHaveBeenCalled();
+    expect(stored.has("stale-tile")).toBe(true);
     expect(restored?.tile).not.toBe(tile);
     expect(restored?.tile.id).toEqual(tile.id);
     expect(restored?.tile.heightMeters).toEqual(tile.heightMeters);
@@ -241,9 +660,7 @@ describe("projected terrain geometry cache", () => {
     second.geometry!.dispose();
   });
 
-  it("keeps defensive copies for adapters without IndexedDB read ownership", async () => {
-    storage.driver.mockReturnValue("custom-reference-storage");
-    storage.getItem.mockImplementation(async (key) => stored.get(key) ?? null);
+  it("uses only native read ownership without a localStorage adapter", async () => {
     const cache = createProjectedTerrainGeometryCache(
       "terrain",
       [7.15, 51.25],
@@ -280,8 +697,13 @@ describe("projected terrain geometry cache", () => {
     const gate = new Promise<void>((resolve) => {
       finishWrite = resolve;
     });
+    let startedWrite!: () => void;
+    const writeStarted = new Promise<void>((resolve) => {
+      startedWrite = resolve;
+    });
     storage.setItem.mockImplementation(async (key, value) => {
       const snapshot = structuredClone(value);
+      startedWrite();
       await gate;
       stored.set(key, snapshot);
       return value;
@@ -294,13 +716,70 @@ describe("projected terrain geometry cache", () => {
     expect(copies).not.toHaveBeenCalled();
     copies.mockRestore();
     const read = sameCache.get(tile.id);
-    await Promise.resolve();
+    await writeStarted;
     expect(storage.setItem).toHaveBeenCalledOnce();
     finishWrite();
     const restored = (await read)!;
     expect(restored.geometry!.getAttribute("position").getX(0)).toBe(0);
     geometry.dispose();
     restored.geometry!.dispose();
+  });
+
+  it("counts a shared source backing once while charging compact mask and geometry snapshots", async () => {
+    const worker = await import("./terrain-worker-client");
+    const dispatch = vi.spyOn(worker, "runTerrainWorkerTask");
+    const backing = new ArrayBuffer(4 * 1024 ** 2);
+    const sharedTile = {
+      ...tile,
+      u: new Float32Array(backing, 0, 3),
+      v: new Float32Array(backing, 12, 3),
+      heightMeters: new Float32Array(backing, 24, 3),
+      indices: new Uint32Array(backing, 36, 3),
+      westIndices: new Uint32Array(backing, 48, 0),
+      southIndices: new Uint32Array(backing, 48, 0),
+      eastIndices: new Uint32Array(backing, 48, 0),
+      northIndices: new Uint32Array(backing, 48, 0),
+    };
+    sharedTile.u.set(tile.u);
+    sharedTile.v.set(tile.v);
+    sharedTile.heightMeters.set(tile.heightMeters);
+    sharedTile.indices.set(tile.indices);
+    const sharedMask = new Uint8Array(backing, 64, reliefVertexMask.length);
+    sharedMask.set(reliefVertexMask);
+    const geometry = createGeometry();
+    const cache = createProjectedTerrainGeometryCache(
+      "shared-blob-backing",
+      [7.15, 51.25],
+      undefined
+    );
+    cache.set(sharedTile, geometry, sharedMask);
+    const restored = await cache.get(tile.id);
+    expect(restored).not.toBeNull();
+    const write = dispatch.mock.calls
+      .map(([task]) => task)
+      .find((task) => task.kind === "write-cache");
+    if (!write || write.kind !== "write-cache")
+      throw Error("Expected shared-backing write admission");
+    const snapshot = write.entry.geometry!;
+    expect(write.bytes).toBe(
+      backing.byteLength +
+        sharedMask.byteLength +
+        snapshot.positions.byteLength +
+        snapshot.normals.byteLength +
+        snapshot.indices.byteLength
+    );
+    expect(write.entry.reliefVertexMask.buffer.byteLength).toBe(
+      sharedMask.byteLength
+    );
+    expect(write.entry.reliefVertexMask.buffer).not.toBe(backing);
+    expect(snapshot.positions.buffer).not.toBe(backing);
+    expect(snapshot.indices.buffer).not.toBe(backing);
+    // Eight views into 4 MiB must not falsely consume the whole 32 MiB budget.
+    expect(storage.setItem).toHaveBeenCalledOnce();
+    expect(restored?.tile.heightMeters).toEqual(tile.heightMeters);
+    expect(backing.byteLength).toBe(4 * 1024 ** 2);
+    geometry.dispose();
+    restored?.geometry?.dispose();
   });
 
   it("bounds pending array bytes across namespaces and admits writes after completion", async () => {
@@ -332,8 +811,7 @@ describe("projected terrain geometry cache", () => {
     caches[2].set(tile, geometry, reliefVertexMask);
     expect(copies).not.toHaveBeenCalled();
     copies.mockRestore();
-    await Promise.resolve();
-    expect(storage.setItem).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(storage.setItem).toHaveBeenCalledTimes(2));
     expect(await caches[2].get(tile.id)).toBeNull();
 
     finishWrites();
@@ -348,7 +826,7 @@ describe("projected terrain geometry cache", () => {
     restored?.geometry?.dispose();
   });
 
-  it("disables optional persistence after a quota failure without rejecting readers", async () => {
+  it("a failed optional write does not disable subsequent writes or cache readers", async () => {
     const cache = createProjectedTerrainGeometryCache(
       "terrain",
       [7.15, 51.25],
@@ -367,8 +845,11 @@ describe("projected terrain geometry cache", () => {
       geometry,
       reliefVertexMask
     );
-    expect(copies).not.toHaveBeenCalled();
-    expect(storage.setItem).toHaveBeenCalledOnce();
+    expect(copies).toHaveBeenCalled();
+    const recovered = await cache.get({ ...tile.id, x: tile.id.x + 1 });
+    expect(recovered).not.toBeNull();
+    expect(storage.setItem).toHaveBeenCalledTimes(2);
+    recovered?.geometry?.dispose();
     geometry.dispose();
   });
 

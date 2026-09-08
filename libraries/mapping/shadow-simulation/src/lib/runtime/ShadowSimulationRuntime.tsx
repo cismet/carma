@@ -5,6 +5,7 @@ import { clamp } from "@carma-commons/math";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import {
   getSharedThreeSceneRuntimes,
+  subscribeSharedThreeSceneContent,
   MAPLIBRE_EVENT,
 } from "@carma-mapping/engines/maplibre";
 
@@ -140,6 +141,8 @@ export const ShadowSimulationRuntime = ({
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateRenderQuality({
+      shadowAdaptiveQuality: state.shadowAdaptiveQuality,
+      shadowBufferLayout: state.shadowBufferLayout,
       shadowBufferFormat: state.shadowBufferFormat,
       shadowSunDiscSamples: state.shadowSunDiscSamples,
       shadowMsaaSamples: state.shadowMsaaSamples,
@@ -147,6 +150,8 @@ export const ShadowSimulationRuntime = ({
     });
   }, [
     state.enabled,
+    state.shadowAdaptiveQuality,
+    state.shadowBufferLayout,
     state.shadowBufferFormat,
     state.shadowSunDiscSamples,
     state.shadowMsaaSamples,
@@ -163,6 +168,11 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
+    shadowScene.current?.updateMeshCacheBudget(state.meshCacheBudgetBytes);
+  }, [state.enabled, state.meshCacheBudgetBytes, sceneRevision]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateSoftSunShadows(state.softSunShadows ?? true);
   }, [state.enabled, state.softSunShadows, sceneRevision]);
 
@@ -170,11 +180,6 @@ export const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateTimeAnimating(state.isAnimating ?? false);
   }, [state.enabled, state.isAnimating, sceneRevision]);
-
-  useEffect(() => {
-    if (!state.enabled || !state.showProjectionDebugView) return;
-    shadowScene.current?.refreshProjectionDebug();
-  }, [state.enabled, state.showProjectionDebugView, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;
@@ -203,9 +208,15 @@ export const ShadowSimulationRuntime = ({
   useEffect(() => {
     if (!state.enabled) return;
     shadowScene.current?.updateSunDebugVectorVisibility(
-      state.showSunDebugVector ?? false
+      (state.showProjectionDebugView ?? false) &&
+        (state.showSunDebugVector ?? false)
     );
-  }, [state.enabled, state.showSunDebugVector, sceneRevision]);
+  }, [
+    state.enabled,
+    state.showProjectionDebugView,
+    state.showSunDebugVector,
+    sceneRevision,
+  ]);
 
   useEffect(() => {
     if (!libreMap) return;
@@ -213,10 +224,27 @@ export const ShadowSimulationRuntime = ({
       state.enabled &&
       (state.showProjectionDebugView ?? false) &&
       (state.showTileBounds ?? false);
-    for (const runtime of getSharedThreeSceneRuntimes(libreMap)) {
-      runtime.setTileBoundsVisible?.(visible);
-    }
+    if (!visible) return;
+    const applied = new Set<
+      ReturnType<typeof getSharedThreeSceneRuntimes>[number]
+    >();
+    const syncTileBounds = () => {
+      const runtimes = getSharedThreeSceneRuntimes(libreMap);
+      for (const runtime of applied)
+        if (!runtimes.includes(runtime)) applied.delete(runtime);
+      for (const runtime of runtimes) {
+        if (applied.has(runtime)) continue;
+        runtime.setTileBoundsVisible?.(visible);
+        applied.add(runtime);
+      }
+    };
+    syncTileBounds();
+    const unsubscribe = subscribeSharedThreeSceneContent(
+      libreMap,
+      syncTileBounds
+    );
     return () => {
+      unsubscribe();
       for (const runtime of getSharedThreeSceneRuntimes(libreMap)) {
         runtime.setTileBoundsVisible?.(false);
       }

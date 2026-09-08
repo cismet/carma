@@ -19,7 +19,7 @@ import {
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 15;
+const SHARED_SCENE_ENTRY_VERSION = 16;
 /** Contour lines stay in the mesh drape at half strength. */
 const MESH_DRAPE_CONTOUR_OPACITY = 0.5;
 const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
@@ -1439,6 +1439,32 @@ const isPointLabelOverlayVisible = (entry: SharedSceneEntry): boolean => {
   return visible;
 };
 
+const ensureSharedCaptureOrder = (
+  map: MaplibreMap,
+  layerOrder: readonly string[],
+  locationLabelLayers: readonly RuntimeStyleLayer[]
+): void => {
+  if (!layerOrder.includes(SHARED_SCENE_LAYER_ID)) return;
+  const locationLabelIds = locationLabelLayers
+    .map(({ id }) => id)
+    .filter((id) => layerOrder.includes(id));
+  const locationLabelSet = new Set(locationLabelIds);
+  const expectedOrder = [
+    ...layerOrder.filter(
+      (id) => id !== SHARED_SCENE_LAYER_ID && !locationLabelSet.has(id)
+    ),
+    SHARED_SCENE_LAYER_ID,
+    ...locationLabelIds,
+  ];
+  if (expectedOrder.every((id, index) => layerOrder[index] === id)) return;
+
+  // MapLibre must finish every ground stack before Three captures and clears
+  // it. Only point symbols may follow the custom pass, even when hidden. This
+  // invariant is independent of label paint/visibility and its maintenance rate.
+  map.moveLayer(SHARED_SCENE_LAYER_ID);
+  for (const id of locationLabelIds) map.moveLayer(id);
+};
+
 const ensureSharedLayerOrder = (
   map: MaplibreMap,
   entry: SharedSceneEntry,
@@ -1461,6 +1487,7 @@ const ensureSharedLayerOrder = (
     entry,
     layerOrder
   );
+  ensureSharedCaptureOrder(map, layerOrder, locationLabelLayers);
   suppressTerrainFrame(map, entry);
   const meshLabelStyle = isMeshLabelStyle(entry);
   if (meshLabelStyle) {
@@ -1522,24 +1549,6 @@ const ensureSharedLayerOrder = (
   }
   configureLabelLifts(map, entry, locationLabelLayers);
   updateLabelLiftPaint(map, entry);
-  const locationLabelIds = locationLabelLayers
-    .map(({ id }) => id)
-    .filter((id) => layerOrder.includes(id));
-  const locationLabelSet = new Set(locationLabelIds);
-  const expectedOrder = [
-    ...layerOrder.filter(
-      (id) => id !== SHARED_SCENE_LAYER_ID && !locationLabelSet.has(id)
-    ),
-    SHARED_SCENE_LAYER_ID,
-    ...locationLabelIds,
-  ];
-  if (expectedOrder.every((id, index) => layerOrder[index] === id)) return;
-
-  // Capture the complete authored style below Three, then redraw point-based
-  // labels above it. Line labels remain part of the projected, shadowed
-  // terrain texture instead of being drawn a second time.
-  map.moveLayer(SHARED_SCENE_LAYER_ID);
-  for (const id of locationLabelIds) map.moveLayer(id);
 };
 
 const clearLabelMaintenanceTimer = (entry: SharedSceneEntry): void => {
@@ -1596,9 +1605,20 @@ const configureEnsureLayer = (
       entry.ensureLayerNow();
       return;
     }
-    // Mounting is cheap and must not wait: the custom layer has to exist for
-    // the next frame. Only the label overlay maintenance is rate limited.
+    // Neither mounting nor capture order can wait: a newly appended ground
+    // layer would otherwise redraw native terrain over Three until the timer.
+    // Only the expensive label paint/coverage maintenance is rate limited.
     mountSharedLayer(map, entry);
+    try {
+      const layerOrder = map.getLayersOrder();
+      ensureSharedCaptureOrder(
+        map,
+        layerOrder,
+        getMapStylePointLabelLayers(map, entry, layerOrder)
+      );
+    } catch {
+      // A style replacement or map teardown can race this callback.
+    }
     if (entry.labelMaintenanceTimer !== null) return;
     entry.labelMaintenanceTimer = setTimeout(() => {
       entry.labelMaintenanceTimer = null;

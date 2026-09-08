@@ -5,6 +5,7 @@ import { resetShadowSimulationState } from "./shadow-state";
 import {
   resolveShadowRenderQuality,
   SHADOW_BUFFER_FORMAT,
+  SHADOW_BUFFER_LAYOUT,
 } from "./shadow-types";
 
 const initialState = createInitialShadowSimulationState(undefined);
@@ -15,17 +16,20 @@ describe("shadow state transitions", () => {
       ...initialState,
       isAnimating: true,
       showProjectionDebugView: true,
+      showDisplaySettings: true,
       showMapStyleContent: false,
     });
 
     expect(state.isAnimating).toBe(false);
     expect(state.showProjectionDebugView).toBe(false);
+    expect(state.showDisplaySettings).toBe(false);
     expect(state.showMapStyleContent).toBe(true);
   });
 
   it("resets experimental render settings to automatic defaults", () => {
     const state = resetShadowSimulationState({
       ...initialState,
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
       shadowBufferFormat: SHADOW_BUFFER_FORMAT.SDR_8,
       shadowSunDiscSamples: 512,
       shadowMsaaSamples: 0,
@@ -33,6 +37,7 @@ describe("shadow state transitions", () => {
     expect(resolveShadowRenderQuality(state)).toEqual(
       resolveShadowRenderQuality()
     );
+    expect(state.shadowBufferLayout).toBeUndefined();
     expect(state.shadowSunDiscSamples).toBeUndefined();
   });
 });

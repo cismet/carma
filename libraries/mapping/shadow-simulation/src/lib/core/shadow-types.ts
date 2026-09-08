@@ -2,6 +2,10 @@ import { clamp } from "@carma-commons/math";
 import type { SceneAccumulationFormat } from "@carma-mapping/engines/three/primitives/rendering";
 import type { ShadowTerrainOptions } from "../contracts/shadow-simulation";
 
+export const SHADOW_SCENE_USER_DATA = {
+  OVERLAY: "isShadowSimulationOverlay",
+} as const;
+
 export const SHADOW_QUALITY = {
   FPS_120: 4,
   FPS_60: 16,
@@ -23,6 +27,7 @@ export const SHADOW_QUALITY_PROFILES = {
     targetFps: 120,
     depthSize: 2048,
     terrainErrorPixels: 2,
+    shadowTexelErrorPixels: 2,
     terrainTileLimit: 96,
     terrainSegments: 128,
     meshErrorPixels: 4,
@@ -33,6 +38,7 @@ export const SHADOW_QUALITY_PROFILES = {
     targetFps: 60,
     depthSize: 3072,
     terrainErrorPixels: 1,
+    shadowTexelErrorPixels: 1,
     terrainTileLimit: 144,
     terrainSegments: 256,
     meshErrorPixels: 1,
@@ -43,6 +49,7 @@ export const SHADOW_QUALITY_PROFILES = {
     targetFps: 30,
     depthSize: 4096,
     terrainErrorPixels: 0.5,
+    shadowTexelErrorPixels: 0.5,
     terrainTileLimit: 192,
     terrainSegments: 512,
     meshErrorPixels: 1,
@@ -53,6 +60,7 @@ export const SHADOW_QUALITY_PROFILES = {
     targetFps: null,
     depthSize: 16384,
     terrainErrorPixels: 0.25,
+    shadowTexelErrorPixels: 0.25,
     terrainTileLimit: 256,
     terrainSegments: 512,
     meshErrorPixels: 0.25,
@@ -85,6 +93,13 @@ export const DEFAULT_SHADOW_BUILDING_COLOR_MIX = 0.05;
 export const DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION = 1;
 export const DEFAULT_SHADOW_BUILDING_COLOR = "#ffffff";
 
+export const SHADOW_BUFFER_LAYOUT = {
+  MONO: "mono",
+  TILED: "tiled",
+} as const;
+export type ShadowBufferLayout =
+  (typeof SHADOW_BUFFER_LAYOUT)[keyof typeof SHADOW_BUFFER_LAYOUT];
+
 /** The scene compositor carries color, not just monochrome visibility. */
 export const SHADOW_BUFFER_FORMAT = {
   HDR_16: "rgba16f",
@@ -102,6 +117,9 @@ export type ShadowSunDiscSamples = (typeof SHADOW_SUN_DISC_SAMPLES)[number];
 export const DEFAULT_SHADOW_GROUND_TEXEL_FIT = true;
 
 export type ShadowRenderQualityOptions = Readonly<{
+  /** Adapt shadow work only; never the map capture or scene-color resolution. */
+  shadowAdaptiveQuality?: boolean;
+  shadowBufferLayout?: ShadowBufferLayout;
   shadowBufferFormat?: ShadowBufferFormat;
   shadowSunDiscSamples?: ShadowSunDiscSamples;
   shadowMsaaSamples?: ShadowMsaaSamples;
@@ -112,6 +130,12 @@ export const resolveShadowRenderQuality = (
   options: ShadowRenderQualityOptions = {},
   quality: ShadowQualityMultiplier = DEFAULT_SHADOW_QUALITY
 ): Required<ShadowRenderQualityOptions> => ({
+  shadowAdaptiveQuality: options.shadowAdaptiveQuality ?? true,
+  shadowBufferLayout:
+    options.shadowBufferLayout &&
+    Object.values(SHADOW_BUFFER_LAYOUT).includes(options.shadowBufferLayout)
+      ? options.shadowBufferLayout
+      : SHADOW_BUFFER_LAYOUT.TILED,
   shadowBufferFormat:
     options.shadowBufferFormat &&
     Object.values(SHADOW_BUFFER_FORMAT).includes(options.shadowBufferFormat)

@@ -337,6 +337,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 markerSymbolSize={props.markerSymbolSize}
                 selectionEnabled={miniMap ? false : props.selectionEnabled}
                 preserveDrawingBuffer={props.preserveDrawingBuffer}
+                maxCanvasSize={props.maxCanvasSize}
                 interactive={miniMap ? false : props.interactive}
                 debugLog={props.debugLog}
                 logErrors={props.logErrors}

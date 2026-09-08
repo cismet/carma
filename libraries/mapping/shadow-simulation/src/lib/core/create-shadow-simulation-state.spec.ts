@@ -6,11 +6,13 @@ import {
   selectShadowQualityPreset,
 } from "./create-shadow-simulation-state";
 import { DEFAULT_SHADOW_SIMULATION_LOCATION } from "./solar-position";
+import { SHADOW_BUFFER_LAYOUT } from "./shadow-types";
 
 describe("initial shadow states", () => {
-  it("resets all manual render overrides when choosing a whole-scene preset", () => {
+  it("resets manual quality overrides while keeping the selected buffer layout", () => {
     const previous = {
       ...createInitialShadowSimulationState(undefined),
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
       shadowMsaaSamples: 8 as const,
       shadowSunDiscSamples: 32 as const,
       shadowGroundTexelFit: false,
@@ -18,6 +20,7 @@ describe("initial shadow states", () => {
     };
     const next = selectShadowQualityPreset(previous, 256);
     expect(next).toMatchObject({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
       shadowQuality: 256,
       meshErrorTarget: 0.25,
       terrainSourceId: "dem",
@@ -37,6 +40,7 @@ describe("initial shadow states", () => {
     );
 
     expect(state.enabled).toBe(false);
+    expect(state.showDisplaySettings).toBe(false);
     expect(dateState.year).toBe(2026);
     expect(dateState.dayOfYear).toBe(172);
     expect(dateState.timeZone).toBe("Europe/Berlin");

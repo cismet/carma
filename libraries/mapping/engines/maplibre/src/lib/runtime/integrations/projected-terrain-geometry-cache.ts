@@ -1,10 +1,12 @@
-import localforage from "localforage";
 import md5 from "md5";
 import { BufferGeometry, BufferAttribute, Box3, Sphere, Vector3 } from "three";
+import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
 
 import { runTerrainWorkerTask } from "./terrain-worker-client";
+import type { TerrainWorkerTask } from "./terrain-worker-task";
+import { resolveRasterMeshErrorMeters } from "../../core/raster-mesh-error";
 import {
-  projectedTerrainGeometryStorage as storage,
+  PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION,
   type CachedProjectedTerrainGeometry,
   type CachedProjectedTerrainTile,
 } from "./projected-terrain-cache-record";
@@ -15,13 +17,11 @@ import {
   type TerrainTileId,
 } from "./raster-dem-terrain-tile-source";
 
-// Bump the revision whenever projection, winding, generated attributes, or the
-// persisted tile metadata change.
-export const PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION =
-  "prepared-raster-dem-interpolated-boundaries-v6";
-
-const CACHE_REVISION_KEY = "__conversion_revision__";
+export { PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION } from "./projected-terrain-cache-record";
 const MAX_PENDING_WRITE_BYTES = 32 * 1024 ** 2;
+// This optional shortcut must not postpone source terrain behind a hung IDB
+// transaction. The total budget includes queued work and a same-key write.
+const CACHE_READ_DEADLINE_MS = 50;
 export type ProjectedTerrainCacheEntry = Readonly<{
   tile: TerrainTile;
   geometry: BufferGeometry | null;
@@ -29,80 +29,48 @@ export type ProjectedTerrainCacheEntry = Readonly<{
 }>;
 
 type ProjectedTerrainGeometryCache = Readonly<{
-  get: (id: TerrainTileId) => Promise<ProjectedTerrainCacheEntry | null>;
+  get: (
+    id: TerrainTileId,
+    maximumMeshErrorMeters?: number
+  ) => Promise<ProjectedTerrainCacheEntry | null>;
   set: (
     tile: TerrainTile,
     geometry: BufferGeometry | null,
-    reliefVertexMask: Uint8Array
+    reliefVertexMask: Uint8Array,
+    recomputeMs?: number
   ) => void;
 }>;
 
-let cacheAvailable = true;
-let revisionReady: Promise<boolean> | null = null;
 const pendingWrites = new Map<string, Promise<void>>();
 let pendingWriteBytes = 0;
-
-const prepareStorage = () => {
-  revisionReady ??= (async () => {
-    try {
-      const revision = await storage.getItem<string>(CACHE_REVISION_KEY);
-      if (revision !== PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION) {
-        await storage.clear();
-        await storage.setItem(
-          CACHE_REVISION_KEY,
-          PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
-        );
-      }
-      return true;
-    } catch {
-      cacheAvailable = false;
-      return false;
-    }
-  })();
-  return revisionReady;
+let cacheTimedOut = false;
+const cacheJobs = new Set<AbortController>();
+const runCacheTask = async (task: TerrainWorkerTask) => {
+  const controller = new AbortController();
+  cacheJobs.add(controller);
+  try {
+    return await runTerrainWorkerTask(task, controller.signal);
+  } finally {
+    cacheJobs.delete(controller);
+  }
 };
-
+const disableTimedOutCache = () => {
+  cacheTimedOut = true;
+  // Module-session circuit breaker, not a persistent ban. Abort optional writes
+  // and cost feedback too: they may own the worker/IDB lock delaying this read.
+  for (const controller of cacheJobs) {
+    controller.abort(
+      new DOMException("Terrain cache read timed out", "TimeoutError")
+    );
+  }
+};
 const hash = md5 as unknown as (message: string | Uint8Array) => string;
 
-const cloneTile = (tile: TerrainTile): TerrainTile => ({
-  ...tile,
-  id: { ...tile.id },
-  bounds: { ...tile.bounds },
-  u: Float32Array.from(tile.u),
-  v: Float32Array.from(tile.v),
-  heightMeters: Float32Array.from(tile.heightMeters),
-  indices: Uint32Array.from(tile.indices),
-  westIndices: Uint32Array.from(tile.westIndices),
-  southIndices: Uint32Array.from(tile.southIndices),
-  eastIndices: Uint32Array.from(tile.eastIndices),
-  northIndices: Uint32Array.from(tile.northIndices),
-});
-
-const restoreGeometry = (
-  record: CachedProjectedTerrainGeometry,
-  ownsArrays: boolean
-) => {
+const restoreGeometry = (record: CachedProjectedTerrainGeometry) => {
   const geometry = new BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new BufferAttribute(
-      ownsArrays ? record.positions : Float32Array.from(record.positions),
-      3
-    )
-  );
-  geometry.setAttribute(
-    "normal",
-    new BufferAttribute(
-      ownsArrays ? record.normals : Float32Array.from(record.normals),
-      3
-    )
-  );
-  geometry.setIndex(
-    new BufferAttribute(
-      ownsArrays ? record.indices : Uint32Array.from(record.indices),
-      1
-    )
-  );
+  geometry.setAttribute("position", new BufferAttribute(record.positions, 3));
+  geometry.setAttribute("normal", new BufferAttribute(record.normals, 3));
+  geometry.setIndex(new BufferAttribute(record.indices, 1));
   geometry.boundingBox = new Box3(
     new Vector3().fromArray(record.bounds),
     new Vector3().fromArray(record.bounds, 3)
@@ -148,8 +116,17 @@ const snapshotGeometry = (
 export const createProjectedTerrainGeometryCache = (
   terrainSourceKey: string,
   originLngLat: readonly [longitude: number, latitude: number],
-  noDataHeightMeters: number | undefined
+  noDataHeightMeters: number | undefined,
+  producerAssetUrl?: string
 ): ProjectedTerrainGeometryCache => {
+  // Development module URLs survive source/HMR changes and cannot identify an
+  // immutable transformation graph. Skip even the worker read and buffer-copy
+  // cost there; the worker independently verifies its built producer identity.
+  const producer = resolveDerivedCacheAssetEpoch({
+    production: import.meta.env.PROD,
+    assetUrl: producerAssetUrl ?? "",
+  });
+  if (!producer) return { get: async () => null, set: () => {} };
   const namespace = hash(
     [
       terrainSourceKey,
@@ -159,53 +136,106 @@ export const createProjectedTerrainGeometryCache = (
       PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION,
     ].join("|")
   );
-  const getKey = (id: TerrainTileId) => `${namespace}:${terrainTileKey(id)}`;
+  const getKey = (id: TerrainTileId, maximumMeshErrorMeters?: number) =>
+    `${namespace}:${terrainTileKey(id)}:error=${resolveRasterMeshErrorMeters(
+      maximumMeshErrorMeters
+    )}`;
+  const getPendingKey = (key: string) => JSON.stringify([producer, key]);
+  const readTimings = new Map<string, number[]>();
 
   return {
-    async get(id) {
-      if (!cacheAvailable || !(await prepareStorage())) return null;
-      const key = getKey(id);
-      await pendingWrites.get(key);
-      if (!cacheAvailable) return null;
-      let cached: CachedProjectedTerrainTile | null;
+    async get(id, maximumMeshErrorMeters) {
+      if (cacheTimedOut) return null;
+      const key = getKey(id, maximumMeshErrorMeters);
+      const start = performance.now();
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const result = await runTerrainWorkerTask({ kind: "read-cache", key });
-        if (result.kind !== "read-cache") return null;
-        cached = result.entry;
+        const deadline = new Promise<null>((resolve) => {
+          timer = setTimeout(() => {
+            disableTimedOutCache();
+            resolve(null);
+          }, CACHE_READ_DEADLINE_MS);
+        });
+        const read = async () => {
+          await pendingWrites.get(getPendingKey(key));
+          if (cacheTimedOut) return null;
+          const result = await runCacheTask({
+            kind: "read-cache",
+            key,
+            producerAssetUrl: producer,
+          });
+          return result.kind === "read-cache" ? result.entry : null;
+        };
+        const cached = await Promise.race([read(), deadline]);
+        // A timed-out worker can still finish in headless execution. Its late
+        // payload must never create geometry or emit successful-read feedback.
+        if (cacheTimedOut) return null;
+        if (
+          !cached ||
+          cached.tile.id.level !== id.level ||
+          cached.tile.id.x !== id.x ||
+          cached.tile.id.y !== id.y ||
+          (cached.tile.reconstructionErrorMeters ?? 0) >
+            resolveRasterMeshErrorMeters(maximumMeshErrorMeters) ||
+          (cached.tile.maximumMeshErrorMeters !== undefined &&
+            cached.tile.maximumMeshErrorMeters !==
+              resolveRasterMeshErrorMeters(maximumMeshErrorMeters))
+        ) {
+          if (performance.now() - start >= CACHE_READ_DEADLINE_MS)
+            disableTimedOutCache();
+          return null;
+        }
+        // Native IndexedDB returns a clone owned by this read; the worker
+        // transfers it. No additional copies or fallback string-storage adapter.
+        const restored = {
+          tile: cached.tile,
+          geometry: cached.geometry ? restoreGeometry(cached.geometry) : null,
+          reliefVertexMask: cached.reliefVertexMask,
+        };
+        const restoreMs = performance.now() - start;
+        // A busy main thread can defer the timer task beyond its deadline. Check
+        // the measured total as well before adopting the transferred payload.
+        if (restoreMs >= CACHE_READ_DEADLINE_MS) {
+          restored.geometry?.dispose();
+          disableTimedOutCache();
+          return null;
+        }
+        // Include worker wait/transfer and reconstruction, not just IDB service
+        // time. Feedback is lower priority than visible terrain and never awaited.
+        const samples = readTimings.get(key) ?? [];
+        samples.push(restoreMs);
+        if (samples.length > 5) samples.shift();
+        readTimings.delete(key);
+        readTimings.set(key, samples);
+        if (readTimings.size > 256)
+          readTimings.delete(readTimings.keys().next().value!);
+        // A mesh may be read only once per runtime, so persist the first real
+        // measurement too. Later reuse refines it with the bounded rolling median;
+        // waiting for three local reads would leave reload-only entries unknown.
+        void runCacheTask({
+          kind: "cache-cost",
+          key,
+          producerAssetUrl: producer,
+          restoreMs: [...samples].sort((a, b) => a - b)[
+            Math.floor(samples.length / 2)
+          ],
+        }).catch(() => {});
+        return restored;
       } catch {
-        cacheAvailable = false;
+        if (performance.now() - start >= CACHE_READ_DEADLINE_MS)
+          disableTimedOutCache();
         return null;
+      } finally {
+        clearTimeout(timer);
       }
-      if (
-        !cached ||
-        cached.tile.id.level !== id.level ||
-        cached.tile.id.x !== id.x ||
-        cached.tile.id.y !== id.y
-      )
-        return null;
-      // IndexedDB returns a structured clone owned by this read. Keep
-      // defensive copies for adapters without that ownership guarantee.
-      const ownsArrays =
-        typeof Worker !== "undefined" ||
-        storage.driver() === localforage.INDEXEDDB;
-      const tile = ownsArrays ? cached.tile : cloneTile(cached.tile);
-      const reliefVertexMask = ownsArrays
-        ? cached.reliefVertexMask
-        : Uint8Array.from(cached.reliefVertexMask);
-      return {
-        tile,
-        geometry: cached.geometry
-          ? restoreGeometry(cached.geometry, ownsArrays)
-          : null,
-        reliefVertexMask,
-      };
     },
 
-    set(tile, geometry, reliefVertexMask) {
-      if (!cacheAvailable) return;
-      const key = getKey(tile.id);
-      if (pendingWrites.has(key)) return;
-      const tileBytes = [
+    set(tile, geometry, reliefVertexMask, recomputeMs) {
+      if (cacheTimedOut) return;
+      const key = getKey(tile.id, tile.maximumMeshErrorMeters);
+      const pendingKey = getPendingKey(key);
+      if (pendingWrites.has(pendingKey)) return;
+      const tileArrays = [
         tile.u,
         tile.v,
         tile.heightMeters,
@@ -214,7 +244,16 @@ export const createProjectedTerrainGeometryCache = (
         tile.southIndices,
         tile.eastIndices,
         tile.northIndices,
-      ].reduce((bytes, array) => bytes + array.buffer.byteLength, 0);
+      ];
+      // An optional cache must never turn incomplete/foreign runtime metadata
+      // into a failed visible terrain publication.
+      if (!tileArrays.every((array) => ArrayBuffer.isView(array))) return;
+      // Blob-restored tile views can share the complete container backing.
+      // Retaining/cloning the tile keeps that buffer once, not once per view.
+      const tileBytes = [
+        ...new Set(tileArrays.map((array) => array.buffer)),
+      ].reduce((bytes, buffer) => bytes + buffer.byteLength, 0);
+      // The pending entry owns a compact mask copy, not the input mask backing.
       const maskBytes = reliefVertexMask.byteLength;
       if (tileBytes + maskBytes > MAX_PENDING_WRITE_BYTES - pendingWriteBytes)
         return;
@@ -230,7 +269,6 @@ export const createProjectedTerrainGeometryCache = (
           if (!snapshot) return;
         }
       } catch {
-        cacheAvailable = false;
         return;
       }
       const byteLength =
@@ -247,19 +285,23 @@ export const createProjectedTerrainGeometryCache = (
         reliefVertexMask: Uint8Array.from(reliefVertexMask),
       };
       pendingWriteBytes += byteLength;
-      const write = prepareStorage()
-        .then((ready) => {
-          if (!ready || !cacheAvailable) return;
-          return storage.setItem(key, entry).then(() => undefined);
-        })
+      const write = runCacheTask({
+        kind: "write-cache",
+        key,
+        entry,
+        bytes: byteLength,
+        recomputeMs,
+        producerAssetUrl: producer,
+      })
+        .then(() => undefined)
         .catch(() => {
-          cacheAvailable = false;
+          /* Optional cache: a failed write must not disable reads. */
         })
         .finally(() => {
           pendingWriteBytes -= byteLength;
-          pendingWrites.delete(key);
+          pendingWrites.delete(pendingKey);
         });
-      pendingWrites.set(key, write);
+      pendingWrites.set(pendingKey, write);
     },
   };
 };

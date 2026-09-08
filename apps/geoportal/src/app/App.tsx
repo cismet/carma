@@ -90,7 +90,7 @@ import {
   loadAddonOverrides,
 } from "@carma-mapping/addons";
 import { resolveShadowSimulationAddon } from "./helper/shadow-simulation-layer";
-import { createGeoportalShadowStartupState } from "./helper/geoportal-shadow-simulation-state";
+import { createShadowStartupState } from "@carma-mapping/shadow-simulation/core";
 import { resolveGeoportalCustomHashState } from "./helper/geoportal-custom-hash-state";
 import { getFeatureFlagConfig } from "./config/featureFlags";
 import { routeFeatureFlagConfig } from "./config/availability";
@@ -254,7 +254,7 @@ function App({
     return {
       addonOverrides: overrides,
       ...(addon
-        ? createGeoportalShadowStartupState(
+        ? createShadowStartupState(
             addon.config,
             resolveGeoportalCustomHashState(hash).shadowSimulationSelection,
             {

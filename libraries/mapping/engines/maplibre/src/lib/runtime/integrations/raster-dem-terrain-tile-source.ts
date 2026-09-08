@@ -1,5 +1,6 @@
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
+import { resolveRasterMeshErrorMeters } from "../../core/raster-mesh-error";
 
 import {
   EARTH_CIRCUMFERENCE_METERS,
@@ -14,13 +15,13 @@ import {
   type TerrainTileBounds,
   type TerrainTile,
   type DecodedRaster,
-} from "./raster-dem-tile";
-export { terrainTileKey } from "./raster-dem-tile";
+} from "../../core/raster-dem-tile";
+export { terrainTileKey } from "../../core/raster-dem-tile";
 export type {
   TerrainTileId,
   TerrainTileBounds,
   TerrainTile,
-} from "./raster-dem-tile";
+} from "../../core/raster-dem-tile";
 const DEFAULT_MAX_CACHE_BYTES = 96 * 1024 ** 2;
 const TILE_RETRY_BASE_DELAY_MS = 250;
 const TILE_RETRY_MAX_DELAY_MS = 8_000;
@@ -34,7 +35,8 @@ export type RasterDemTerrainTileSourceOptions = Readonly<{
 export interface RasterDemTerrainTileSource {
   requestTile: (
     id: TerrainTileId,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    maximumMeshErrorMeters?: number
   ) => Promise<TerrainTile>;
   getTileGridIdsForBounds: (
     bounds: TerrainTileBounds,
@@ -45,6 +47,7 @@ export interface RasterDemTerrainTileSource {
   getTileDataAvailable: (id: TerrainTileId) => boolean;
   sampleHeight: (longitude: number, latitude: number) => number | undefined;
   trimCache: (retainedKeys?: ReadonlySet<string>) => void;
+  release: () => void;
 }
 
 type CacheEntry = {
@@ -59,7 +62,10 @@ class TerrainRequestError extends Error {
   }
 }
 
-const sourcePromises = new Map<string, Promise<RasterDemTerrainTileSource>>();
+const sources = new Map<
+  string,
+  { source: RasterDemTerrainTileSource; users: number }
+>();
 
 export const isConfirmedTerrainServerError = (error: unknown): boolean => {
   if (!error || typeof error !== "object" || !("statusCode" in error)) {
@@ -109,6 +115,7 @@ const buildSource = (
   );
   const cache = new Map<string, CacheEntry>();
   const pending = new Map<string, Promise<TerrainTile>>();
+  const lifetime = new AbortController();
   let cachedBytes = 0;
   let useClock = 0;
 
@@ -127,7 +134,7 @@ const buildSource = (
   const trimCache = (retainedKeys: ReadonlySet<string> = new Set()) => {
     if (cachedBytes <= maxCacheBytes) return;
     const candidates = [...cache.entries()]
-      .filter(([key]) => !retainedKeys.has(key))
+      .filter(([, entry]) => !retainedKeys.has(terrainTileKey(entry.tile.id)))
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, entry] of candidates) {
       cache.delete(key);
@@ -135,7 +142,14 @@ const buildSource = (
       if (cachedBytes <= maxCacheBytes) break;
     }
   };
-  const requestTile = async (id: TerrainTileId, signal?: AbortSignal) => {
+  const requestTile = async (
+    id: TerrainTileId,
+    signal?: AbortSignal,
+    requestedMaximumErrorMeters?: number
+  ) => {
+    signal = signal
+      ? AbortSignal.any([signal, lifetime.signal])
+      : lifetime.signal;
     assertTileId(id);
     if (!tileIsAvailable(id)) {
       throw new TerrainRequestError(
@@ -144,7 +158,11 @@ const buildSource = (
       );
     }
     signal?.throwIfAborted();
-    const key = terrainTileKey(id);
+    const maximumMeshErrorMeters = resolveRasterMeshErrorMeters(
+      requestedMaximumErrorMeters
+    );
+    const tileKey = terrainTileKey(id);
+    const key = `${tileKey}:error=${maximumMeshErrorMeters}`;
     const cached = cache.get(key);
     if (cached) {
       cached.lastUsed = ++useClock;
@@ -153,6 +171,40 @@ const buildSource = (
     const inFlight = pending.get(key);
     if (inFlight) return inFlight;
     const load = (async () => {
+      // A stricter view reuses the decoded source. Different mesh-error variants
+      // never share geometry by tile id alone, and concurrent variants share the
+      // first source request rather than downloading/decoding the PNG twice.
+      const otherVariant = [...pending].find(([pendingKey]) =>
+        pendingKey.startsWith(`${tileKey}:error=`)
+      );
+      if (otherVariant) await otherVariant[1];
+      signal?.throwIfAborted();
+      const decoded = [...cache.values()].find(
+        (entry) => terrainTileKey(entry.tile.id) === tileKey
+      )?.raster;
+      if (decoded) {
+        const result = await runTerrainWorkerTask(
+          {
+            kind: "remesh",
+            raster: decoded,
+            id,
+            error: getLevelMaximumGeometricError(id.level),
+            maximumMeshErrorMeters,
+          },
+          signal
+        );
+        if (result.kind !== "remesh")
+          throw new Error("Unexpected terrain remeshing result");
+        signal?.throwIfAborted();
+        cache.set(key, {
+          tile: result.tile,
+          raster: result.raster,
+          lastUsed: ++useClock,
+        });
+        cachedBytes += result.tile.byteLength + result.raster.pixels.byteLength;
+        trimCache();
+        return result.tile;
+      }
       const url = config.url
         .replace("{z}", String(id.level))
         .replace("{x}", String(id.x))
@@ -195,6 +247,7 @@ const buildSource = (
           id,
           segments: meshSegments,
           error: getLevelMaximumGeometricError(id.level),
+          maximumMeshErrorMeters,
         },
         signal
       );
@@ -293,6 +346,12 @@ const buildSource = (
       return sampleRaster(entry.raster, x, y);
     },
     trimCache,
+    release() {
+      lifetime.abort();
+      cache.clear();
+      pending.clear();
+      cachedBytes = 0;
+    },
   };
 };
 
@@ -312,9 +371,24 @@ export const acquireRasterDemTerrainTileSource = (
     throw new TypeError("Terrain source id and URL must not be empty");
   }
   const key = JSON.stringify([normalized, options]);
-  const cached = sourcePromises.get(key);
-  if (cached) return cached;
-  const source = Promise.resolve(buildSource(normalized, options));
-  sourcePromises.set(key, source);
-  return source;
+  const entry = sources.get(key) ?? {
+    source: buildSource(normalized, options),
+    users: 0,
+  };
+  sources.set(key, entry);
+  entry.users += 1;
+  let released = false;
+  // A source switch can overlap two runtimes. Keep shared decoded data only
+  // while a consumer exists; persistent binary records remain on disk.
+  return Promise.resolve({
+    ...entry.source,
+    release() {
+      if (released) return;
+      released = true;
+      entry.users -= 1;
+      if (entry.users !== 0) return;
+      sources.delete(key);
+      entry.source.release();
+    },
+  });
 };

@@ -195,6 +195,14 @@ const calculateDaylightWindow = (
   };
 };
 
+export const getYearDaylightWindows = (
+  selection: Pick<SolarSelection, "year" | "timeZone">,
+  location: SolarLocation
+): readonly DaylightWindow[] =>
+  Array.from({ length: getDaysInYear(selection.year) }, (_, index) =>
+    getDaylightWindow({ ...selection, dayOfYear: index + 1 }, location)
+  );
+
 export const getDaylightWindow = (
   selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">,
   location: SolarLocation

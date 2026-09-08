@@ -49,6 +49,38 @@ const fixture = () => {
 };
 
 describe("MapLibre ground capture reuse", () => {
+  it("retries failed captures without movement, backs off and stops after recovery", () => {
+    vi.useFakeTimers();
+    const { cache, map } = fixture();
+    try {
+      cache.captureFailed();
+      cache.captureFailed();
+      vi.advanceTimersByTime(99);
+      expect(map.triggerRepaint).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(map.triggerRepaint).toHaveBeenCalledTimes(1);
+      cache.captureFailed();
+      vi.advanceTimersByTime(199);
+      expect(map.triggerRepaint).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1);
+      expect(map.triggerRepaint).toHaveBeenCalledTimes(2);
+      cache.captureFailed();
+      cache.captured("recovered");
+      vi.advanceTimersByTime(5_000);
+      expect(map.triggerRepaint).toHaveBeenCalledTimes(2);
+      cache.captureFailed();
+      vi.advanceTimersByTime(100);
+      expect(map.triggerRepaint).toHaveBeenCalledTimes(3);
+      cache.captureFailed();
+      cache.dispose();
+      vi.advanceTimersByTime(5_000);
+      expect(map.triggerRepaint).toHaveBeenCalledTimes(3);
+    } finally {
+      cache.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps copying until idle, then shares one capture across 128 sun samples", () => {
     const { cache, emit, map } = fixture();
     cache.captured("pose");

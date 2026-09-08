@@ -9,7 +9,6 @@ import {
 import {
   buildGeoportalMeasurementModeHashUpdate,
   buildGeoportalShadowSimulationHashUpdate,
-  isGeoportalShadowSimulationHashSelectionValidForYear,
   resolveGeoportalCustomHashState,
   resolveGeoportalShadowSimulationHashSelection,
 } from "./geoportal-custom-hash-state";
@@ -94,17 +93,6 @@ describe("geoportal-custom-hash-state", () => {
     " 660;140",
   ])("rejects an invalid shadow tuple %s", (value) => {
     expect(resolveGeoportalShadowSimulationHashSelection(value)).toBeNull();
-  });
-
-  it("validates day 366 against the selection year", () => {
-    const selection = { minutes: 660, dayOfYear: 366 };
-
-    expect(
-      isGeoportalShadowSimulationHashSelectionValidForYear(selection, 2024)
-    ).toBe(true);
-    expect(
-      isGeoportalShadowSimulationHashSelectionValidForYear(selection, 2026)
-    ).toBe(false);
   });
 
   it("serializes enabled shadow state and removes disabled shadow state", () => {
