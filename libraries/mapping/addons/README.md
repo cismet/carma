@@ -992,10 +992,12 @@ again: the origin search hands the user's own position to the ranking as its
 default starting point, so a driven route already begins there. A route from a
 picked address begins at that address, which is right as well.
 
-The bearing looks `lookAheadMeters` (100 m) along the line rather than at the
-second vertex, so a driveway at the start does not point the map sideways.
-`zoom` (17), `pitch` (30) and `duration` (1200 ms) are the rest of the config;
-everything is optional, so the bare kind `"routing"` works.
+The bearing looks `lookAheadMeters` (10 m) along the line, so the first meters
+of the route run straight up the screen and the first turn shows as a turn;
+a longer look-ahead averages that turn into the bearing and the start leg
+comes out slanted. `zoom` (18), `pitch` (30) and `duration` (1200 ms) are the
+rest of the config; everything is optional, so the bare kind `"routing"`
+works.
 
 A rotated camera needs the restriction lifted: a restricted camera resets its
 bearing to zero, so the rotation would be undone as it is applied. Rather than
