@@ -207,6 +207,19 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
+    shadowScene.current?.updateMapStyleElevationVisibility(
+      state.showMapStyleElevationLines ?? false,
+      state.showMapStyleElevationLabels ?? false
+    );
+  }, [
+    state.enabled,
+    state.showMapStyleElevationLines,
+    state.showMapStyleElevationLabels,
+    sceneRevision,
+  ]);
+
+  useEffect(() => {
+    if (!state.enabled) return;
     shadowScene.current?.updateSunDebugVectorVisibility(
       (state.showProjectionDebugView ?? false) &&
         (state.showSunDebugVector ?? false)

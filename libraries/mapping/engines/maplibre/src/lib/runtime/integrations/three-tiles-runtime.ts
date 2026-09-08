@@ -31,6 +31,8 @@ import {
   createEffectiveErrorTargetState,
   createTileBytesPredictor,
   deriveTilePriority,
+  initialMeshLoadError,
+  nextMeshLoadError,
   nextEffectiveErrorTarget,
   resolveRequestConcurrency,
   resolveTilesCacheBounds,
@@ -51,6 +53,10 @@ import {
   type RetryableTilesRenderer,
 } from "./three-tiles-retry-controller";
 import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
+import {
+  isMeshCoveredByLoadedChildren,
+  retainMeshDetailFrontier,
+} from "./three-tiles-mesh-frontier";
 import {
   applyShadowReceiverMask,
   createShadowReceiverMask,
@@ -79,6 +85,8 @@ export const TILES_ERROR_TARGET_MAX_PIXELS = 50;
 export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 4;
 
 const VIEW_QUALITY_AUDIT_PASSES = 2;
+const MESH_SETTLED_AUDIT_INTERVAL_MS = 1_000;
+const MESH_EVICTION_BATCH_SIZE = 16;
 const SHADOW_SELECTION_ERROR_FACTOR = 1.25;
 const DEFAULT_CACHE_MIN_ITEMS = 6_000;
 const DEFAULT_CACHE_MAX_ITEMS = 8_000;
@@ -131,12 +139,18 @@ type RuntimeTile = Tile & {
   shadowLightFacing?: number;
   shadowReceiverCenterness?: number;
   shadowReceiverCurrent?: boolean;
-  traversal: Tile["traversal"] & { unconditionallyRefine?: boolean };
+  traversal: Tile["traversal"] & {
+    unconditionallyRefine?: boolean;
+    active?: boolean;
+    wasSetActive?: boolean;
+    wasSetVisible?: boolean;
+  };
   engineData?: {
     boundingVolume?: {
       getAABB: (target: THREE.Box3) => void;
       getSphere: (target: THREE.Sphere) => void;
       intersectsFrustum: (frustum: THREE.Frustum) => boolean;
+      distanceToPoint?: (point: THREE.Vector3) => number;
     };
   };
 };
@@ -191,6 +205,12 @@ class TilesViewFrustum extends THREE.Frustum {
 }
 
 type RuntimeTilesRenderer = TilesRenderer & {
+  // Existing upstream methods omitted from its declaration file. Keep retained
+  // mesh visibility and cache usage synchronized through the renderer itself.
+  setTileActive: (tile: Tile, active: boolean) => void;
+  setTileVisible: (tile: Tile, visible: boolean) => void;
+  markTileUsed: (tile: Tile) => void;
+  calculateTileViewError: (tile: Tile, target: TileViewErrorTarget) => void;
   calculateBytesUsed: (
     tile: Tile,
     scene: THREE.Object3D | null
@@ -383,6 +403,7 @@ export function buildThreeTilesRuntime(
   let unsubscribeTerrainLoading: (() => void) | null = null;
   let requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
   let effectiveErrorTarget = requestedErrorTarget;
+  let meshLoadError = initialMeshLoadError(requestedErrorTarget);
   let errorTargetState: EffectiveErrorTargetState =
     createEffectiveErrorTargetState(requestedErrorTarget, Date.now());
   let errorTargetTimer = 0;
@@ -399,6 +420,7 @@ export function buildThreeTilesRuntime(
   const bytesPredictor = createTileBytesPredictor();
   /** Displayable siblings outside the view and its prefetch margin (D1). */
   const deferred = new Set<Tile>();
+  const queuedThisTraversal = new Set<Tile>();
   let requestConcurrency = Math.max(
     0,
     Math.floor(
@@ -410,6 +432,8 @@ export function buildThreeTilesRuntime(
   let allocationFailed = false;
   let contextLost = false;
   let memoryCheckTimer: ReturnType<typeof setTimeout> | null = null;
+  let meshAuditTimer: ReturnType<typeof setTimeout> | null = null;
+  let meshDemandSweepPending = options.providesTerrain === true;
   let lastMemoryCheck = Number.NEGATIVE_INFINITY;
   let normalParseConcurrency: number | null = null;
   // ReorientationPlugin produces X west / Z north. The MapLibre custom-layer
@@ -445,6 +469,7 @@ export function buildThreeTilesRuntime(
   let shadowView: SharedThreeSceneShadowView | null = null;
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
+  let meshCasterAdmissionReady = false;
   let shadowSelectionNeedsTraversal = false;
   let shadowSelectionRefreshPending = false;
   let shadowReceiverMask: ShadowReceiverMask | null = null;
@@ -1302,6 +1327,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     payloadAwareConcurrency.getCooldownRemainingMs() <= 0;
   const isTileInMainView = (tile: RuntimeTile): boolean => {
     const bounds = tile.engineData?.boundingVolume;
+    if (tiles && viewFrustumsReady && bounds?.distanceToPoint) {
+      const target = { inView: false, error: 0, distanceFromCamera: 0 };
+      // Use the same current camera/OBB test as traversal, without applying
+      // the shadow extension. A second independently constructed frustum can
+      // disagree at the boundary and must not cancel visible requests.
+      tiles.calculateTileViewError(tile, target);
+      return target.inView;
+    }
     if (
       !bounds ||
       !viewFrustumsReady ||
@@ -1331,6 +1364,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       }
       if (!isTileInMainView(tile)) continue;
       if (tile.traversal.error <= acceptedError) continue;
+      // A loose parent box can intersect the camera while all processed child
+      // volumes miss it. There is no visible refinement to fetch in that branch.
+      // Test current bounds, not a previous traversal's inFrustum/failed flag;
+      // unknown child bounds still block convergence until they are processed.
+      if (
+        children.every(
+          (child) =>
+            child.engineData?.boundingVolume && !isTileInMainView(child)
+        )
+      )
+        continue;
       if (!allowBlocked || !children.every(isChildUnloadable)) return false;
     }
     return true;
@@ -1486,9 +1530,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (!tiles || !cache) return;
     // Shadow quality yields to the requested surface-mesh precision, not vice
     // versa. Cache pressure must not silently turn a 1px request into 4px.
-    if (options.providesTerrain && shadowView) {
+    if (options.providesTerrain) {
       if (effectiveErrorTarget !== requestedErrorTarget)
         resetEffectiveErrorTarget();
+      if (
+        meshLoadError > requestedErrorTarget &&
+        mainViewWithinErrorFactor(meshLoadError / effectiveErrorTarget, false)
+      ) {
+        meshLoadError = nextMeshLoadError(meshLoadError, requestedErrorTarget);
+        tiles.dispatchEvent({ type: "needs-update" });
+        requestRender();
+      }
       return;
     }
     const { zoom, pitch } = readMapView(map);
@@ -1564,17 +1616,25 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       HIDDEN_TAB_WIPE_DELAY_MS
     );
   };
-  const maybeEnableShadowSelection = () => {
+  const maybeEnableShadowSelection = (settledMeshAudit = false) => {
     if (
       !shadowView ||
       !tiles ||
       !cameraSet ||
-      !isPipelineIdle() ||
+      (!settledMeshAudit && !isPipelineIdle()) ||
       (tiles.group.children.length === 0 && !tileRetries.hasExhaustedRetries())
     ) {
       return;
     }
+    const bootstrapReady =
+      !settledMeshAudit ||
+      mainViewWithinErrorFactor(
+        initialMeshLoadError(requestedErrorTarget) /
+          Math.max(effectiveErrorTarget, Number.EPSILON),
+        false
+      );
     if (
+      !settledMeshAudit &&
       !mainViewWithinErrorFactor(
         options.providesTerrain
           ? requestedErrorTarget / effectiveErrorTarget
@@ -1590,7 +1650,11 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       return;
     }
     shadowSelectionRefreshPending = false;
-    if (receiverUpdate === "unchanged") return;
+    meshCasterAdmissionReady = bootstrapReady;
+    // A conservative coarse receiver mask suffices for safe cancellation, but
+    // must not launch city-wide caster downloads from the initial root mesh.
+    if (!bootstrapReady) return;
+    if (receiverUpdate === "unchanged" && shadowSelectionEnabled) return;
     if (shadowSelectionEnabled) {
       shadowSelectionNeedsTraversal = true;
     } else {
@@ -1598,6 +1662,99 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }
     tiles.dispatchEvent({ type: "needs-update" });
     requestRender();
+  };
+  /** Current view plus its sunward receiver prisms, not last frame's usedSet. */
+  const isRequiredMeshTile = (tile: RuntimeTile): boolean => {
+    if (!viewFrustumsReady || isTileInMainView(tile)) return true;
+    const bounds = tile.engineData?.boundingVolume;
+    // Metadata is tiny and owns descendant topology. Unknown coverage is never
+    // proof that deleting a subtree is safe.
+    if (tile.internal?.hasUnrenderableContent || !bounds?.getAABB) return true;
+    if (!shadowView) return false;
+    if (shadowSelectionRefreshPending || !shadowReceiverMask) return true;
+    bounds.getAABB(tileBoundingBox);
+    return shadowReceiverMask.match(tileBoundingBox, shadowReceiverMatch);
+  };
+  const sweepSettledMeshDemand = () => {
+    // Decision: MESH-SETTLED-DEMAND-20260908 in engines/maplibre/README.md.
+    // Fresh geometric demand, not upstream ancestor LRU pins, controls release.
+    if (!tiles || !meshDemandSweepPending || map?.isMoving?.()) return;
+    const viewError = { inView: false, error: 0, distanceFromCamera: 0 };
+    for (const entry of tiles.lruCache.itemList) {
+      const tile = entry as RuntimeTile;
+      if (!tile.engineData?.boundingVolume?.distanceToPoint) continue;
+      // The retained cut can include tiles the last traversal did not visit.
+      // Read current camera SSE through the renderer, never reuse old-query
+      // errors to decide that those tiles no longer need refinement.
+      tiles.calculateTileViewError(tile, viewError);
+      if (viewError.inView) {
+        tile.traversal.error = viewError.error;
+        tile.traversal.distanceFromCamera = viewError.distanceFromCamera;
+      }
+      assignTilePriority(tile);
+    }
+    // Capture corridors from available receivers, not only from an already
+    // perfect viewport: that would deadlock memory reclamation behind loading.
+    maybeEnableShadowSelection(true);
+    if (shadowView && (shadowSelectionRefreshPending || !shadowReceiverMask))
+      return;
+    previousShadowReceiverMask = null;
+    const cache = getRuntimeCache();
+    if (!cache) return;
+    meshDemandSweepPending = false;
+    let removed = 0;
+    for (const tile of [...cache.itemList]) {
+      const pending = tiles.loadingTiles.has(tile);
+      const underPressure = memoryAdmissionPaused || cache.isFull();
+      const replacedParent =
+        underPressure &&
+        !tiles.activeTiles.has(tile) &&
+        isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles);
+      if (!replacedParent && isRequiredMeshTile(tile as RuntimeTile)) continue;
+      if (!pending && !underPressure) continue;
+      if (removed >= MESH_EVICTION_BATCH_SIZE) {
+        meshDemandSweepPending = true;
+        break;
+      }
+      // LRU removal invokes upstream's AbortController, queue cleanup, disposal
+      // and byte accounting together. Never mutate request queues independently.
+      if (cache.remove(tile)) {
+        removed += 1;
+        applyTileDeferral(tile, false);
+      }
+    }
+    if (removed > 0 || meshDemandSweepPending) {
+      tiles.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    }
+  };
+  const scheduleSettledMeshAudit = () => {
+    if (
+      !options.providesTerrain ||
+      meshAuditTimer !== null ||
+      disposed ||
+      map?.isMoving?.()
+    )
+      return;
+    if (
+      lastMainViewConverged &&
+      !memoryAdmissionPaused &&
+      !meshDemandSweepPending
+    )
+      return;
+    meshAuditTimer = setTimeout(() => {
+      meshAuditTimer = null;
+      if (disposed || map?.isMoving?.()) return;
+      // Staged bootstrap must not indefinitely hold a settled view at 16px.
+      // Re-evaluate at the requested target; already loaded/requested tiles
+      // still go through the existing deduplication and retry guards.
+      meshLoadError = requestedErrorTarget;
+      meshDemandSweepPending = true;
+      resetDeferredTiles();
+      requestShadowSelectionRefresh();
+      tiles?.dispatchEvent({ type: "needs-update" });
+      requestRender();
+    }, MESH_SETTLED_AUDIT_INTERVAL_MS);
   };
   const maybeFinalizeShadowSelection = () => {
     if (
@@ -1763,7 +1920,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     cache.unloadPercent = TILES_LOAD_POLICY.cacheUnloadPercent;
     cache.isFull = () =>
       memoryAdmissionPaused ||
-      cache.itemSet.size >= cache.maxSize || cache.cachedBytes >= ceiling;
+      cache.itemSet.size >= cache.maxSize ||
+      cache.cachedBytes >= ceiling;
     cache.scheduleUnload();
   };
   const reapplyCacheBoundsIfDrifted = () => {
@@ -1782,25 +1940,38 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
   };
   const sampleMemoryPressure = () => {
     const now = performance.now();
-    if (!allocationFailed && !contextLost && now - lastMemoryCheck < TILES_LOAD_POLICY.memoryCheckIntervalMs) return;
+    if (
+      !allocationFailed &&
+      !contextLost &&
+      now - lastMemoryCheck < TILES_LOAD_POLICY.memoryCheckIntervalMs
+    )
+      return;
     lastMemoryCheck = now;
     // Chromium's optional heap signal is only an early warning, NOT free RAM
     // or VRAM. Missing telemetry keeps the finite configured admission budget.
-    const memory = (performance as Performance & {
-      memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
-    }).memory;
-    const ratio = memory && memory.jsHeapSizeLimit > 0
-      ? memory.usedJSHeapSize / memory.jsHeapSizeLimit
-      : 0;
+    const memory = (
+      performance as Performance & {
+        memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+      }
+    ).memory;
+    const ratio =
+      memory && memory.jsHeapSizeLimit > 0
+        ? memory.usedJSHeapSize / memory.jsHeapSizeLimit
+        : 0;
     const wasPaused = memoryAdmissionPaused;
-    memoryAdmissionPaused = allocationFailed || contextLost || ratio >= (
-      wasPaused ? TILES_LOAD_POLICY.heapResumeFraction : TILES_LOAD_POLICY.heapPauseFraction
-    );
+    memoryAdmissionPaused =
+      allocationFailed ||
+      contextLost ||
+      ratio >=
+        (wasPaused
+          ? TILES_LOAD_POLICY.heapResumeFraction
+          : TILES_LOAD_POLICY.heapPauseFraction);
     if (memoryAdmissionPaused && !wasPaused) {
-      evictUnusedCacheItems();
+      if (options.providesTerrain) meshDemandSweepPending = true;
+      else evictUnusedCacheItems();
       // Drop unfinished requests/parse buffers, never the visible replacement
       // parents or loaded caster coverage. Paused queues must not pin blobs.
-      if (tiles) {
+      if (tiles && !options.providesTerrain) {
         for (const tile of [...tiles.loadingTiles]) {
           if (!tiles.visibleTiles.has(tile)) tiles.lruCache.remove(tile);
         }
@@ -1810,7 +1981,12 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       tiles?.dispatchEvent({ type: "needs-update" });
       requestRender();
     }
-    if (memoryAdmissionPaused && !allocationFailed && !contextLost && memoryCheckTimer === null) {
+    if (
+      memoryAdmissionPaused &&
+      !allocationFailed &&
+      !contextLost &&
+      memoryCheckTimer === null
+    ) {
       memoryCheckTimer = setTimeout(() => {
         memoryCheckTimer = null;
         if (disposed) return;
@@ -1834,7 +2010,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     if (!tiles || !cache) return;
     sampleMemoryPressure();
     normalParseConcurrency ??= tiles.parseQueue.maxJobs;
-    tiles.parseQueue.maxJobs = memoryAdmissionPaused ? 0 : normalParseConcurrency;
+    tiles.parseQueue.maxJobs = memoryAdmissionPaused
+      ? 0
+      : normalParseConcurrency;
     const activeConcurrency = resolveRequestConcurrency({
       memoryPressure: memoryAdmissionPaused,
       configured: payloadAwareConcurrency.getConcurrency(requestConcurrency),
@@ -1877,11 +2055,23 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
     }, delay);
   };
   const handleViewStart = () => {
+    // Camera movement is not a new loading session. Keep the reached admission
+    // stage as well as the displayed mesh cut; only new targets reset staging.
+    if (meshAuditTimer !== null) clearTimeout(meshAuditTimer);
+    meshAuditTimer = null;
+    // Only our own offscreen sentinels, never real network failures. A parent
+    // may prune its old failed-looking children before their view hook runs.
+    resetDeferredTiles();
     requestShadowSelectionRefresh();
     tiles?.dispatchEvent({ type: "needs-update" });
   };
   const handleViewEnd = () => {
     if (!tiles) return;
+    if (options.providesTerrain) {
+      meshLoadError = requestedErrorTarget;
+      meshDemandSweepPending = true;
+    }
+    resetDeferredTiles();
     requestShadowSelectionRefresh();
     viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
     tiles.dispatchEvent({ type: "needs-update" });
@@ -1949,7 +2139,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       displayable,
       inView,
       inMargin:
-        !inView && (isDeferred || displayable)
+        !inView &&
+        (isDeferred || displayable) &&
+        (!options.providesTerrain || map?.isMoving?.())
           ? isTileInPrefetchMargin(runtimeTile)
           : false,
       loadingState: tile.internal.loadingState,
@@ -1974,6 +2166,9 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       centerness = getTileCenterness(bounds);
     }
     tile.priority = deriveTilePriority({
+      distanceFromCamera: options.providesTerrain
+        ? tile.traversal?.distanceFromCamera ?? Number.POSITIVE_INFINITY
+        : undefined,
       depth: tile.internal?.depth ?? 0,
       inMainFrustum,
       isExternalTileset: tile.internal?.hasUnrenderableContent ?? false,
@@ -2065,8 +2260,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
 
       tiles = new TilesRenderer(tilesetUrl) as RuntimeTilesRenderer;
       const tileCache = new LRUCache();
-      tileCache.unloadPriorityCallback =
-        tilesCacheUnloadPriorityCallback as typeof tileCache.unloadPriorityCallback;
+      tileCache.unloadPriorityCallback = (
+        options.providesTerrain
+          ? // Upstream uses this comparator for admission too (ascending), then
+            // negates it for eviction. Download/parse queues pop from the end.
+            (first: Tile, second: Tile) =>
+              -tilesQueuePriorityCallback(first, second)
+          : tilesCacheUnloadPriorityCallback
+      ) as typeof tileCache.unloadPriorityCallback;
       const downloadQueue = new DownloadPriorityQueue();
       downloadQueue.priorityCallback = tilesQueuePriorityCallback;
       const parseQueue = new PriorityQueue();
@@ -2104,7 +2305,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           shadowSelectionEnabled &&
           shadowReceiverMask &&
           !mainViewSourceTiles.has(tile) &&
-          !isTileInMainView(runtimeTile)
+          !target.inView
         ) {
           const bounds = runtimeTile.engineData?.boundingVolume;
           if (bounds?.getAABB) {
@@ -2141,7 +2342,41 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       const queueTileForDownload = tiles.queueTileForDownload.bind(tiles);
       tiles.queueTileForDownload = (tile) => {
         if (memoryAdmissionPaused) return;
+        if (
+          tile.internal.loadingState !== UNLOADED_LOADING_STATE ||
+          queuedThisTraversal.has(tile)
+        )
+          return;
         const runtimeTile = tile as RuntimeTile;
+        // A payload freed after proven child replacement must not immediately
+        // re-enter loadAncestors' queue. Its hierarchy/metadata remains intact.
+        if (
+          options.providesTerrain &&
+          isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles)
+        )
+          return;
+        if (
+          options.providesTerrain &&
+          shadowView &&
+          !meshCasterAdmissionReady &&
+          !isTileInMainView(runtimeTile)
+        )
+          return;
+        if (options.providesTerrain && isTileInMainView(runtimeTile)) {
+          // Do not refine below this pass until the entire viewport is covered.
+          // Metadata/ADD nodes cannot substitute for renderable REPLACE parents.
+          let parent = tile.parent as RuntimeTile | null;
+          while (parent) {
+            if (
+              parent.internal.hasRenderableContent &&
+              parent.refine === "REPLACE" &&
+              !parent.traversal?.unconditionallyRefine &&
+              parent.traversal?.error <= meshLoadError
+            )
+              return;
+            parent = parent.parent as RuntimeTile | null;
+          }
+        }
         // D8: a pending retry or an exhausted budget keeps the parent as the
         // fallback instead of re-requesting the tile every frame.
         if (tileRetries.isBlocked(tile)) return;
@@ -2166,6 +2401,7 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           return;
         }
         assignTilePriority(runtimeTile);
+        queuedThisTraversal.add(tile);
         queueTileForDownload(tile);
       };
       // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
@@ -2267,8 +2503,48 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
         }
         cameraSet.update(viewCamera, frame.viewport.x, frame.viewport.y);
         prepareViewFrustums(viewCamera);
+        // Refresh both pending jobs AND cached candidates before the upstream
+        // admission/eviction sort; a finished old query is not a priority cache.
+        if (options.providesTerrain) {
+          for (const tile of tiles.lruCache.itemList)
+            assignTilePriority(tile as RuntimeTile);
+        }
         const completingShadowTraversal = shadowSelectionNeedsTraversal;
+        queuedThisTraversal.clear();
+        const previousMeshFrontier = options.providesTerrain
+          ? new Set(tiles.visibleTiles)
+          : null;
         tiles.update();
+        if (
+          previousMeshFrontier &&
+          (previousMeshFrontier.size !== tiles.visibleTiles.size ||
+            [...previousMeshFrontier].some(
+              (tile) => !tiles!.visibleTiles.has(tile)
+            ))
+        ) {
+          const frontier = retainMeshDetailFrontier({
+            previous: previousMeshFrontier,
+            proposed: tiles.visibleTiles,
+            requestedError: requestedErrorTarget,
+            inView: isTileInMainView,
+          });
+          for (const tile of new Set([...tiles.visibleTiles, ...frontier])) {
+            const visible = frontier.has(tile);
+            if (visible !== tiles.visibleTiles.has(tile)) {
+              tiles.setTileActive(tile, visible);
+              tiles.setTileVisible(tile, visible);
+              // Upstream records these after setTileVisible during traversal.
+              // Reconcile them after our retained-cut override as well, or its
+              // next traversal can skip a necessary visibility notification.
+              const traversal = (tile as RuntimeTile).traversal;
+              traversal.active = visible;
+              traversal.visible = visible;
+              traversal.wasSetActive = visible;
+              traversal.wasSetVisible = visible;
+            }
+            if (visible) tiles.markTileUsed(tile);
+          }
+        }
         syncTileDebugOverlay();
         if (completingShadowTraversal) shadowSelectionNeedsTraversal = false;
         maybeFinalizeShadowSelection();
@@ -2283,6 +2559,10 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           }
         }
         maybeEnableShadowSelection();
+        if (options.providesTerrain) {
+          sweepSettledMeshDemand();
+          scheduleSettledMeshAudit();
+        }
       } catch (error) {
         if (TILE_MEMORY_ALLOCATION_ERROR.test(String(error))) {
           allocationFailed = true;
@@ -2302,13 +2582,13 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           currJobs: number;
         };
       if (
-        !memoryAdmissionPaused && (
-        (stats.queued > 0 && tiles.downloadQueue.maxJobsPerOrigin > 0) ||
-        stats.downloading > 0 ||
-        stats.parsing > 0 ||
-        processNodeQueue.items.length > 0 ||
-        processNodeQueue.currJobs > 0 ||
-        viewQualityAuditPasses > 0)
+        !memoryAdmissionPaused &&
+        ((stats.queued > 0 && tiles.downloadQueue.maxJobsPerOrigin > 0) ||
+          stats.downloading > 0 ||
+          stats.parsing > 0 ||
+          processNodeQueue.items.length > 0 ||
+          processNodeQueue.currJobs > 0 ||
+          viewQualityAuditPasses > 0)
       ) {
         map.triggerRepaint();
       }
@@ -2346,10 +2626,14 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       // change; only a changed request resets a relaxed effective target.
       if (requestedErrorTarget === nextErrorTarget) return;
       requestedErrorTarget = nextErrorTarget;
+      meshLoadError = initialMeshLoadError(requestedErrorTarget);
+      meshDemandSweepPending = options.providesTerrain === true;
+      resetDeferredTiles();
       resetEffectiveErrorTarget();
       requestShadowSelectionRefresh();
       viewQualityAuditPasses = VIEW_QUALITY_AUDIT_PASSES;
       tiles?.dispatchEvent({ type: "needs-update" });
+      requestRender();
     },
 
     setShadowSimulationStyle(style) {
@@ -2505,6 +2789,8 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       disposed = true;
       if (memoryCheckTimer !== null) clearTimeout(memoryCheckTimer);
       memoryCheckTimer = null;
+      if (meshAuditTimer !== null) clearTimeout(meshAuditTimer);
+      meshAuditTimer = null;
       clearErrorTargetTimer();
       clearHiddenWipeTimer();
       clearKickstartTimer();

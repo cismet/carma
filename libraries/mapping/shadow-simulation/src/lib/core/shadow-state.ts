@@ -18,6 +18,8 @@ export const resetShadowSimulationState = (
     showDisplaySettings: false,
     showMapStyleContent: true,
     showMapStyleLabels: true,
+    showMapStyleElevationLines: false,
+    showMapStyleElevationLabels: false,
     useTransmittanceLut: true,
     useSkyIrradianceLut: true,
     shadowBufferLayout: undefined,

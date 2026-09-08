@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StyleSpecification } from "maplibre-gl";
-import { prepareTerrainDrapeStyle } from "./terrain-drape-style";
+import { prepareTerrainDrapeStyle } from "../core/terrain-map-style";
 
 describe("terrain albedo style preparation", () => {
   it("removes unused baked relief before installation, preserving DEM and imagery", () => {

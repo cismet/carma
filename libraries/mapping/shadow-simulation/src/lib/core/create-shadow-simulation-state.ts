@@ -14,6 +14,7 @@ import {
 } from "./solar-position";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
+  DEFAULT_MESH_CACHE_BUDGET_BYTES,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -53,6 +54,7 @@ export const createInitialShadowSimulationState = (
     shadowQuality: DEFAULT_SHADOW_QUALITY,
     shadowAdaptiveQuality: true,
     meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
+    meshCacheBudgetBytes: DEFAULT_MESH_CACHE_BUDGET_BYTES,
     showSunDebugVector: false,
     showTileBounds: false,
     showProjectionDebugView: false,
@@ -60,6 +62,8 @@ export const createInitialShadowSimulationState = (
     softSunShadows: true,
     showMapStyleContent: true,
     showMapStyleLabels: true,
+    showMapStyleElevationLines: false,
+    showMapStyleElevationLabels: false,
     useTransmittanceLut: true,
     useSkyIrradianceLut: true,
     controlStyle: SHADOW_CONTROL_STYLE.QUICK,

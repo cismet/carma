@@ -26,13 +26,13 @@ const TEST_TERRAIN_SOURCE = {
 
 vi.mock("@carma-mapping/engines/maplibre", async () => {
   // Node-only renderer fixtures: load the pure implementation, not Leaflet/UI.
-  const { isTerrainShadingStyleLayer } = await vi.importActual<
-    typeof import("../../../../engines/maplibre/src/lib/style-composition/terrain-drape-style")
-  >(
-    "../../../../engines/maplibre/src/lib/style-composition/terrain-drape-style"
-  );
+  const { isTerrainShadingStyleLayer, TERRAIN_MAP_STYLE } =
+    await vi.importActual<
+      typeof import("../../../../engines/maplibre/src/lib/core/terrain-map-style")
+    >("../../../../engines/maplibre/src/lib/core/terrain-map-style");
   return {
     isTerrainShadingStyleLayer,
+    TERRAIN_MAP_STYLE,
     MAPLIBRE_EVENT: mapLibreEventMock,
     WUPPERTAL_TERRAIN_SOURCE_ID: "terrain-source",
     acquireSharedThreeScene: vi.fn(),
@@ -502,6 +502,7 @@ describe("shadow scene lighting integration", () => {
       setLocationLabelColor,
       setPointLabelOverlayVisible,
       setMeshLabelStyle: vi.fn(),
+      setMapStyleElevationVisibility: vi.fn(),
       release: releaseScene,
     });
   });
@@ -2318,7 +2319,9 @@ describe("shadow scene lighting integration", () => {
     scene.add(buildingVolume);
     contentChanged();
     // The first draw must not wait for the 120 ms coverage debounce.
-    expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(true);
+    expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(
+      true
+    );
     controller.refreshProjectionDebug();
     updateShadows(map, camera);
 
@@ -2426,6 +2429,7 @@ describe("shadow scene lighting integration", () => {
       } as never,
       setLocationLabelColor,
       setMeshLabelStyle: vi.fn(),
+      setMapStyleElevationVisibility: vi.fn(),
       release: releaseScene,
     });
     const map = {
@@ -2577,11 +2581,14 @@ describe("shadow scene lighting integration", () => {
     expect(initialTerrain.dispose).toHaveBeenCalledOnce();
 
     expect(sharedLayer.setAccumulationController).toHaveBeenCalledWith(null);
-    const resetCalls = vi.mocked(sharedLayer.setAccumulationController).mock.calls.length;
+    const resetCalls = vi.mocked(sharedLayer.setAccumulationController).mock
+      .calls.length;
 
     meshRenderable = true;
     contentChanged();
-    expect(sharedLayer.setAccumulationController).toHaveBeenCalledTimes(resetCalls);
+    expect(sharedLayer.setAccumulationController).toHaveBeenCalledTimes(
+      resetCalls
+    );
 
     expect(sharedRuntimes.has(initialTerrain.id)).toBe(false);
     expect(initialTerrain.dispose).toHaveBeenCalledOnce();

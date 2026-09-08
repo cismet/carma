@@ -8,6 +8,8 @@ import {
   createEffectiveErrorTargetState,
   createTileBytesPredictor,
   deriveTilePriority,
+  initialMeshLoadError,
+  nextMeshLoadError,
   nextEffectiveErrorTarget,
   resolveRequestConcurrency,
   resolveTilesCacheBounds,
@@ -188,6 +190,22 @@ describe("createTileBytesPredictor", () => {
 });
 
 describe("deriveTilePriority", () => {
+  it("orders mesh requests by observer distance, ahead of offscreen casters", () => {
+    const priority = (distance: number, depth: number, inMainFrustum = true) =>
+      deriveTilePriority({ distanceFromCamera: distance, depth, inMainFrustum,
+        isExternalTileset: false, centerness: 0 });
+    expect(priority(10, 30)).toBeGreaterThan(priority(100, 1));
+    expect(priority(10000, 30)).toBeGreaterThan(priority(0, 1, false));
+    expect(priority(Infinity, 0)).toBeLessThan(priority(10000, 30));
+  });
+
+  it("refines admission from 16 pixels without passing the requested target", () => {
+    const stages = [initialMeshLoadError(0.25)];
+    while (stages.at(-1)! > 0.25) stages.push(nextMeshLoadError(stages.at(-1)!, 0.25));
+    expect(stages).toEqual([16, 8, 4, 2, 1, 0.5, 0.25]);
+    expect(initialMeshLoadError(32)).toBe(32);
+    expect(nextMeshLoadError(1, 0.75)).toBe(0.75);
+  });
   it("orders the main view first, then hierarchy, external tilesets and centre", () => {
     const shallow = deriveTilePriority({
       depth: 3,

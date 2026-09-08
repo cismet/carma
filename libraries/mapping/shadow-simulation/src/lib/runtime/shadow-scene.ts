@@ -15,6 +15,7 @@ import {
   subscribeSharedThreeSceneContent,
   subscribeGenericThreeLayers,
   suppressMapLibreRegularStyleLayers,
+  TERRAIN_MAP_STYLE,
   isTerrainShadingStyleLayer,
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
@@ -113,11 +114,6 @@ const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
 const MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS = 1_000;
 const SHADOW_DEBUG_PUBLISH_INTERVAL_MS = 100;
 const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
-const OPAQUE_DRAPE_PROPERTIES = new Map<string, string>([
-  ["background", "background-opacity"],
-  ["fill", "fill-opacity"],
-  ["raster", "raster-opacity"],
-]);
 
 type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
 
@@ -187,6 +183,7 @@ export type ShadowSimulationScene = {
   updateShadowIntensity: (intensity: number) => void;
   updateMapStyleContentVisibility: (visible: boolean) => void;
   updateMapStyleLabelOverlayVisibility: (visible: boolean) => void;
+  updateMapStyleElevationVisibility: (lines: boolean, labels: boolean) => void;
   updateSunDebugVectorVisibility: (visible: boolean) => void;
   updateAtmosphericLutUsage: (options: AtmosphericSunlightOptions) => void;
   dispose: () => void;
@@ -320,8 +317,8 @@ export const acquireShadowMapLibreTerrain = (
           id: SHADOW_MAP_STYLE_BASE_LAYER_ID,
           type: "background",
           paint: {
-            "background-color": "#ffffff",
-            "background-opacity": 1,
+            "background-color": TERRAIN_MAP_STYLE.baseColor,
+            "background-opacity": TERRAIN_MAP_STYLE.opacity,
           },
         },
         layers[0]?.id
@@ -336,7 +333,7 @@ export const acquireShadowMapLibreTerrain = (
       ) {
         continue;
       }
-      const property = OPAQUE_DRAPE_PROPERTIES.get(layer.type);
+      const property = TERRAIN_MAP_STYLE.opaqueDrapeProperties.get(layer.type);
       if (!property) continue;
       const signature = getLayerSignature(layer);
       let saved = savedDrapeOpacities.get(layer.id);
@@ -538,7 +535,10 @@ const makeMeshShadeable = (mesh: THREE.Mesh, receiverPlane = false) => {
   }
 };
 
-const makeSceneMeshesShadeable = (scene: THREE.Scene, receiverPlane = false) => {
+const makeSceneMeshesShadeable = (
+  scene: THREE.Scene,
+  receiverPlane = false
+) => {
   scene.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh && !(mesh as THREE.InstancedMesh).isInstancedMesh) return;
@@ -1118,7 +1118,8 @@ export const buildShadowSimulationScene = (
     );
   const meshViewReady = () =>
     getSharedThreeSceneRuntimes(map).every(
-      (runtime) => !runtime.providesTerrain || (runtime.isMainViewReady?.() ?? true)
+      (runtime) =>
+        !runtime.providesTerrain || (runtime.isMainViewReady?.() ?? true)
     );
   let surfaceProviders = getSharedThreeSceneRuntimes(map).filter(
     (runtime) => runtime.providesTerrain
@@ -1945,11 +1946,14 @@ export const buildShadowSimulationScene = (
         sky: sharedBinding.atmosphericSky.mesh,
         overlay: sharedBinding.sunVectorRoot,
         maximumMapSize: resourceLimits.maxShadowMapSize,
-        isCorridorReady: (bounds) => getCoverageRuntimes().every(runtime =>
-          runtime.isShadowRegionReady?.(bounds) ??
-          (runtime.getRequestDemand ? runtime.getRequestDemand() === 0 :
-            !runtime.providesTerrain || !isSharedThreeTerrainLoading(map))
-        ),
+        isCorridorReady: (bounds) =>
+          getCoverageRuntimes().every(
+            (runtime) =>
+              runtime.isShadowRegionReady?.(bounds) ??
+              (runtime.getRequestDemand
+                ? runtime.getRequestDemand() === 0
+                : !runtime.providesTerrain || !isSharedThreeTerrainLoading(map))
+          ),
         runIdleRender: (render) =>
           sceneLease.layer.runIdleRender?.(render) ?? false,
       });
@@ -2213,7 +2217,10 @@ export const buildShadowSimulationScene = (
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
         runtime.setErrorTarget?.(latestMeshErrorTarget);
-        if (!meshCacheBudgets.has(runtime) || meshCacheBudgets.get(runtime) !== latestMeshCacheBudget) {
+        if (
+          !meshCacheBudgets.has(runtime) ||
+          meshCacheBudgets.get(runtime) !== latestMeshCacheBudget
+        ) {
           runtime.setCacheBudget?.(latestMeshCacheBudget);
           meshCacheBudgets.set(runtime, latestMeshCacheBudget);
         }
@@ -2278,9 +2285,7 @@ export const buildShadowSimulationScene = (
   };
 
   const updateSolarPosition = (position: SolarPosition) => {
-    if (
-      latestSolarPosition?.instant.getTime() === position.instant.getTime()
-    ) {
+    if (latestSolarPosition?.instant.getTime() === position.instant.getTime()) {
       return;
     }
     invalidateShadowPresentation();
@@ -2322,9 +2327,10 @@ export const buildShadowSimulationScene = (
   return {
     updateSolarPosition,
     updateMeshCacheBudget(bytes) {
-      const next = bytes !== undefined && Number.isFinite(bytes) && bytes > 0
-        ? bytes
-        : undefined;
+      const next =
+        bytes !== undefined && Number.isFinite(bytes) && bytes > 0
+          ? bytes
+          : undefined;
       if (latestMeshCacheBudget === next) return;
       latestMeshCacheBudget = next;
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
@@ -2496,6 +2502,10 @@ export const buildShadowSimulationScene = (
       if (mapStyleContentVisible === visible) return;
       mapStyleContentVisible = visible;
       syncMapStyleContentVisibility();
+      map.triggerRepaint();
+    },
+    updateMapStyleElevationVisibility(lines, labels) {
+      sceneLease.setMapStyleElevationVisibility(lines, labels);
       map.triggerRepaint();
     },
     updateMapStyleLabelOverlayVisibility(visible) {

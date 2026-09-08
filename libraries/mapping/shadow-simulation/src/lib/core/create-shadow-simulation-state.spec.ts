@@ -40,6 +40,7 @@ describe("initial shadow states", () => {
     );
 
     expect(state.enabled).toBe(false);
+    expect(state.meshCacheBudgetBytes).toBe(24 * 1024 ** 3);
     expect(state.showDisplaySettings).toBe(false);
     expect(dateState.year).toBe(2026);
     expect(dateState.dayOfYear).toBe(172);

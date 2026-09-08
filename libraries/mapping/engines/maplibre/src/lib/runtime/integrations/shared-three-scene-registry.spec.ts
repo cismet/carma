@@ -111,165 +111,175 @@ describe("shared Three.js scene registry", () => {
     lease.release();
   });
 
-  it.each([MAPLIBRE_EVENT.STYLE_DATA, MAPLIBRE_EVENT.STYLE_LOAD])("keeps ground below Three on %s even while point labels are hidden", (maintenanceEvent) => {
-    const layers = [
-      { id: "basemap", type: "raster" },
-      { id: sharedLayer.id, type: "custom" },
-      { id: "landcover", type: "fill" },
-      { id: "roads", type: "line" },
-      {
-        id: "road-labels",
-        type: "symbol",
-        "source-layer": "transportation_name",
-        layout: { "symbol-placement": "line" },
-      },
-      {
-        id: "autobahn-route-shields",
-        type: "symbol",
-        layout: { "symbol-placement": "point" },
-      },
-      { id: "place-city", type: "symbol", "source-layer": "place" },
-      {
-        id: "house-numbers",
-        type: "symbol",
-        "source-layer": "Hausnummer",
-      },
-    ];
-    const moveLayer = vi.fn((id: string, beforeId?: string) => {
-      const currentIndex = layers.findIndex((layer) => layer.id === id);
-      const [current] = layers.splice(currentIndex, 1);
-      const beforeIndex = beforeId
-        ? layers.findIndex((layer) => layer.id === beforeId)
-        : layers.length;
-      layers.splice(beforeIndex, 0, current);
-    });
-    const layout = new Map<string, unknown>([
-      ["place-city:text-offset", [0, 0]],
-    ]);
-    const paint = new Map<string, unknown>([
-      ["place-city:text-halo-width", 1.25],
-      ["place-city:text-halo-color", "rgba(255, 255, 255, 0.8)"],
-      ["place-city:text-color", "#223344"],
-      ["house-numbers:text-halo-color", "rgba(255, 255, 255, 0.8)"],
-      ["house-numbers:text-color", "#112233"],
-      ["autobahn-route-shields:text-color", "#ffffff"],
-      ["autobahn-route-shields:text-halo-color", "#003399"],
-    ]);
-    const map = {
-      getStyle: vi.fn(() => ({
-        layers: layers.filter(({ id }) => id !== sharedLayer.id),
-      })),
-      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
-      getLayer: vi.fn((id: string) =>
-        id === sharedLayer.id
-          ? { implementation: sharedLayer }
-          : layers.find((layer) => layer.id === id)
-      ),
-      addLayer: vi.fn(),
-      moveLayer,
-      getLayoutProperty: vi.fn((id: string, property: string) =>
-        layout.get(`${id}:${property}`)
-      ),
-      setLayoutProperty: vi.fn(
-        (id: string, property: string, value: unknown) => {
-          const key = `${id}:${property}`;
-          if (value == null) layout.delete(key);
-          else layout.set(key, value);
-        }
-      ),
-      getPaintProperty: vi.fn((id: string, property: string) =>
-        paint.get(`${id}:${property}`)
-      ),
-      setPaintProperty: vi.fn(
-        (id: string, property: string, value: unknown) => {
-          const key = `${id}:${property}`;
-          if (value == null) paint.delete(key);
-          else paint.set(key, value);
-        }
-      ),
-      removeLayer: vi.fn(),
-      on: vi.fn(),
-      off: vi.fn(),
-    };
-
-    const lease = acquireSharedThreeScene(map as never);
-
-    expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id);
-    expect(moveLayer).toHaveBeenCalledWith("place-city");
-    expect(moveLayer).toHaveBeenCalledWith("house-numbers");
-    expect(layers.map(({ id }) => id)).toEqual([
-      "basemap",
-      "landcover",
-      "roads",
-      "road-labels",
-      sharedLayer.id,
-      "autobahn-route-shields",
-      "place-city",
-      "house-numbers",
-    ]);
-    expect(layout.get("place-city:text-offset")).toEqual([0, 0]);
-    expect(paint.get("place-city:text-translate-anchor")).toBe("viewport");
-    expect(paint.get("place-city:text-halo-width")).toBe(1.25);
-    lease.setLocationLabelColor("#ffe0aa");
-    vi.advanceTimersByTime(1000);
-    expect(paint.get("place-city:text-halo-width")).toBe(1.25);
-    expect(paint.get("place-city:text-halo-color")).toBe("#ffe0aa");
-    expect(paint.get("place-city:text-color")).toBe("#223344");
-    expect(paint.has("house-numbers:text-halo-width")).toBe(false);
-    expect(paint.get("house-numbers:text-halo-color")).toBe("#ffe0aa");
-    expect(paint.get("house-numbers:text-color")).toBe("#112233");
-    expect(paint.get("autobahn-route-shields:text-color")).toBe("#ffffff");
-    expect(paint.get("autobahn-route-shields:text-halo-color")).toBe("#003399");
-    lease.setPointLabelOverlayVisible(false);
-    expect(layout.get("place-city:visibility")).toBe("none");
-    expect(layout.get("house-numbers:visibility")).toBe("none");
-    expect(layout.get("autobahn-route-shields:visibility")).toBe("none");
-    expect(paint.get("house-numbers:text-color")).toBe("#112233");
-    const appendGroundAndRefresh = (suffix: string) => {
-      const lateGround = ["fill", "raster", "line"].map((type) => ({
-        id: `${suffix}-${type}`, type,
-      }));
-      layers.push(...lateGround);
-      const refresh = map.on.mock.calls.find(([event]) => event === maintenanceEvent)?.[1];
-      expect(refresh).toBeTypeOf("function");
-      refresh({ type: maintenanceEvent });
-      // Check synchronously: the label timer must not leave a second native
-      // terrain stack behind Three for even one intervening render.
-      const order = layers.map(({ id }) => id);
-      const receiverIndex = order.indexOf(sharedLayer.id);
-      for (const { id } of lateGround) {
-        expect(order.indexOf(id)).toBeLessThan(receiverIndex);
-        expect(layout.has(`${id}:visibility`)).toBe(false);
-      }
-      expect(order.slice(receiverIndex + 1)).toEqual([
-        "autobahn-route-shields", "place-city", "house-numbers",
+  it.each([MAPLIBRE_EVENT.STYLE_DATA, MAPLIBRE_EVENT.STYLE_LOAD])(
+    "keeps ground below Three on %s even while point labels are hidden",
+    (maintenanceEvent) => {
+      const layers = [
+        { id: "basemap", type: "raster" },
+        { id: sharedLayer.id, type: "custom" },
+        { id: "landcover", type: "fill" },
+        { id: "roads", type: "line" },
+        {
+          id: "road-labels",
+          type: "symbol",
+          "source-layer": "transportation_name",
+          layout: { "symbol-placement": "line" },
+        },
+        {
+          id: "autobahn-route-shields",
+          type: "symbol",
+          layout: { "symbol-placement": "point" },
+        },
+        { id: "place-city", type: "symbol", "source-layer": "place" },
+        {
+          id: "house-numbers",
+          type: "symbol",
+          "source-layer": "Hausnummer",
+        },
+      ];
+      const moveLayer = vi.fn((id: string, beforeId?: string) => {
+        const currentIndex = layers.findIndex((layer) => layer.id === id);
+        const [current] = layers.splice(currentIndex, 1);
+        const beforeIndex = beforeId
+          ? layers.findIndex((layer) => layer.id === beforeId)
+          : layers.length;
+        layers.splice(beforeIndex, 0, current);
+      });
+      const layout = new Map<string, unknown>([
+        ["place-city:text-offset", [0, 0]],
       ]);
-      const writes = moveLayer.mock.calls.length;
-      refresh({ type: maintenanceEvent });
-      expect(moveLayer).toHaveBeenCalledTimes(writes);
-    };
-    appendGroundAndRefresh("hidden-labels-ground");
-    expect(layout.get("place-city:visibility")).toBe("none");
-    expect(layout.get("house-numbers:visibility")).toBe("none");
-    lease.setPointLabelOverlayVisible(true);
-    expect(layout.has("place-city:visibility")).toBe(false);
-    expect(layout.has("house-numbers:visibility")).toBe(false);
-    expect(layout.has("autobahn-route-shields:visibility")).toBe(false);
-    expect(layers.slice(-4).map(({ id }) => id)).toEqual([
-      sharedLayer.id,
-      "autobahn-route-shields",
-      "place-city",
-      "house-numbers",
-    ]);
-    appendGroundAndRefresh("visible-labels-ground");
-    lease.release();
-    expect(layout.get("place-city:text-offset")).toEqual([0, 0]);
-    expect(paint.get("place-city:text-halo-width")).toBe(1.25);
-    expect(paint.get("place-city:text-halo-color")).toBe(
-      "rgba(255, 255, 255, 0.8)"
-    );
-    expect(paint.get("place-city:text-color")).toBe("#223344");
-  });
+      const paint = new Map<string, unknown>([
+        ["place-city:text-halo-width", 1.25],
+        ["place-city:text-halo-color", "rgba(255, 255, 255, 0.8)"],
+        ["place-city:text-color", "#223344"],
+        ["house-numbers:text-halo-color", "rgba(255, 255, 255, 0.8)"],
+        ["house-numbers:text-color", "#112233"],
+        ["autobahn-route-shields:text-color", "#ffffff"],
+        ["autobahn-route-shields:text-halo-color", "#003399"],
+      ]);
+      const map = {
+        getStyle: vi.fn(() => ({
+          layers: layers.filter(({ id }) => id !== sharedLayer.id),
+        })),
+        getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
+        getLayer: vi.fn((id: string) =>
+          id === sharedLayer.id
+            ? { implementation: sharedLayer }
+            : layers.find((layer) => layer.id === id)
+        ),
+        addLayer: vi.fn(),
+        moveLayer,
+        getLayoutProperty: vi.fn((id: string, property: string) =>
+          layout.get(`${id}:${property}`)
+        ),
+        setLayoutProperty: vi.fn(
+          (id: string, property: string, value: unknown) => {
+            const key = `${id}:${property}`;
+            if (value == null) layout.delete(key);
+            else layout.set(key, value);
+          }
+        ),
+        getPaintProperty: vi.fn((id: string, property: string) =>
+          paint.get(`${id}:${property}`)
+        ),
+        setPaintProperty: vi.fn(
+          (id: string, property: string, value: unknown) => {
+            const key = `${id}:${property}`;
+            if (value == null) paint.delete(key);
+            else paint.set(key, value);
+          }
+        ),
+        removeLayer: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+      };
+
+      const lease = acquireSharedThreeScene(map as never);
+
+      expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id);
+      expect(moveLayer).toHaveBeenCalledWith("place-city");
+      expect(moveLayer).toHaveBeenCalledWith("house-numbers");
+      expect(layers.map(({ id }) => id)).toEqual([
+        "basemap",
+        "landcover",
+        "roads",
+        "road-labels",
+        sharedLayer.id,
+        "autobahn-route-shields",
+        "place-city",
+        "house-numbers",
+      ]);
+      expect(layout.get("place-city:text-offset")).toEqual([0, 0]);
+      expect(paint.get("place-city:text-translate-anchor")).toBe("viewport");
+      expect(paint.get("place-city:text-halo-width")).toBe(1.25);
+      lease.setLocationLabelColor("#ffe0aa");
+      vi.advanceTimersByTime(1000);
+      expect(paint.get("place-city:text-halo-width")).toBe(1.25);
+      expect(paint.get("place-city:text-halo-color")).toBe("#ffe0aa");
+      expect(paint.get("place-city:text-color")).toBe("#223344");
+      expect(paint.has("house-numbers:text-halo-width")).toBe(false);
+      expect(paint.get("house-numbers:text-halo-color")).toBe("#ffe0aa");
+      expect(paint.get("house-numbers:text-color")).toBe("#112233");
+      expect(paint.get("autobahn-route-shields:text-color")).toBe("#ffffff");
+      expect(paint.get("autobahn-route-shields:text-halo-color")).toBe(
+        "#003399"
+      );
+      lease.setPointLabelOverlayVisible(false);
+      expect(layout.get("place-city:visibility")).toBe("none");
+      expect(layout.get("house-numbers:visibility")).toBe("none");
+      expect(layout.get("autobahn-route-shields:visibility")).toBe("none");
+      expect(paint.get("house-numbers:text-color")).toBe("#112233");
+      const appendGroundAndRefresh = (suffix: string) => {
+        const lateGround = ["fill", "raster", "line"].map((type) => ({
+          id: `${suffix}-${type}`,
+          type,
+        }));
+        layers.push(...lateGround);
+        const refresh = map.on.mock.calls.find(
+          ([event]) => event === maintenanceEvent
+        )?.[1];
+        expect(refresh).toBeTypeOf("function");
+        refresh({ type: maintenanceEvent });
+        // Check synchronously: the label timer must not leave a second native
+        // terrain stack behind Three for even one intervening render.
+        const order = layers.map(({ id }) => id);
+        const receiverIndex = order.indexOf(sharedLayer.id);
+        for (const { id } of lateGround) {
+          expect(order.indexOf(id)).toBeLessThan(receiverIndex);
+          expect(layout.has(`${id}:visibility`)).toBe(false);
+        }
+        expect(order.slice(receiverIndex + 1)).toEqual([
+          "autobahn-route-shields",
+          "place-city",
+          "house-numbers",
+        ]);
+        const writes = moveLayer.mock.calls.length;
+        refresh({ type: maintenanceEvent });
+        expect(moveLayer).toHaveBeenCalledTimes(writes);
+      };
+      appendGroundAndRefresh("hidden-labels-ground");
+      expect(layout.get("place-city:visibility")).toBe("none");
+      expect(layout.get("house-numbers:visibility")).toBe("none");
+      lease.setPointLabelOverlayVisible(true);
+      expect(layout.has("place-city:visibility")).toBe(false);
+      expect(layout.has("house-numbers:visibility")).toBe(false);
+      expect(layout.has("autobahn-route-shields:visibility")).toBe(false);
+      expect(layers.slice(-4).map(({ id }) => id)).toEqual([
+        sharedLayer.id,
+        "autobahn-route-shields",
+        "place-city",
+        "house-numbers",
+      ]);
+      appendGroundAndRefresh("visible-labels-ground");
+      lease.release();
+      expect(layout.get("place-city:text-offset")).toEqual([0, 0]);
+      expect(paint.get("place-city:text-halo-width")).toBe(1.25);
+      expect(paint.get("place-city:text-halo-color")).toBe(
+        "rgba(255, 255, 255, 0.8)"
+      );
+      expect(paint.get("place-city:text-color")).toBe("#223344");
+    }
+  );
 
   it("lifts basemap.de place names without lifting line labels", () => {
     const layers = [
@@ -514,7 +524,23 @@ describe("shared Three.js scene registry", () => {
     expect(paint.get(`${contourLabelLayer.id}:text-halo-width`)).toBe(0);
     // The drape below Three keeps symbols and contour lines only.
     expect(layout.get("basemap:visibility")).toBe("none");
+    expect(layout.get(`${houseLayer.id}:visibility`)).toBe("none");
+    expect(layout.get(`${contourLineLayer.id}:visibility`)).toBe("none");
+    expect(layout.get(`${contourLabelLayer.id}:visibility`)).toBe("none");
+    lease.setMapStyleElevationVisibility(true, false);
     expect(layout.has(`${contourLineLayer.id}:visibility`)).toBe(false);
+    expect(layout.get(`${contourLabelLayer.id}:visibility`)).toBe("none");
+    lease.setMapStyleElevationVisibility(false, true);
+    expect(layout.get(`${contourLineLayer.id}:visibility`)).toBe("none");
+    expect(layout.has(`${contourLabelLayer.id}:visibility`)).toBe(false);
+    lease.setMapStyleElevationVisibility(true, true);
+    lease.setPointLabelOverlayVisible(false);
+    lease.setPointLabelOverlayVisible(true);
+    expect(layout.get(`${houseLayer.id}:visibility`)).toBe("none");
+    expect(layout.has(`${contourLabelLayer.id}:visibility`)).toBe(false);
+    const writes = map.setLayoutProperty.mock.calls.length;
+    lease.setMapStyleElevationVisibility(true, true);
+    expect(map.setLayoutProperty).toHaveBeenCalledTimes(writes);
     expect(paint.get(`${contourLineLayer.id}:line-opacity`)).toBe(0.5);
     expect(layout.has(`${streetLayer.id}:visibility`)).toBe(false);
 
@@ -534,6 +560,7 @@ describe("shared Three.js scene registry", () => {
     expect(paint.get(`${contourLabelLayer.id}:text-color`)).toBe("#666666");
     expect(paint.get(`${contourLabelLayer.id}:text-halo-width`)).toBe(1);
     expect(layout.has("basemap:visibility")).toBe(false);
+    expect(layout.has(`${houseLayer.id}:visibility`)).toBe(false);
     expect(paint.get(`${contourLineLayer.id}:line-opacity`)).toBe(0.8);
 
     lease.release();

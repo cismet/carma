@@ -176,3 +176,27 @@ describe("adaptive shadow quality", () => {
     );
   });
 });
+
+describe("elevation map details", () => {
+  it("defaults both options off and changes them independently", () => {
+    const state = createInitialShadowSimulationState(undefined);
+    const setState = vi.fn();
+    const { getByLabelText } = render(
+      <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
+    );
+    const lines = getByLabelText("Höhenlinien") as HTMLInputElement;
+    const labels = getByLabelText("Höhenbeschriftungen") as HTMLInputElement;
+    expect(lines.checked).toBe(false);
+    expect(labels.checked).toBe(false);
+    fireEvent.click(lines);
+    expect(setState).toHaveBeenLastCalledWith({
+      ...state,
+      showMapStyleElevationLines: true,
+    });
+    fireEvent.click(labels);
+    expect(setState).toHaveBeenLastCalledWith({
+      ...state,
+      showMapStyleElevationLabels: true,
+    });
+  });
+});

@@ -233,6 +233,8 @@ export const createTileBytesPredictor = (): TileBytesPredictor => {
 // D6 — download order
 
 export type TilePriorityInput = Readonly<{
+  /** Mesh admission: distance to the camera in the current traversal, in metres. */
+  distanceFromCamera?: number;
   depth: number;
   inMainFrustum: boolean;
   isExternalTileset: boolean;
@@ -246,6 +248,14 @@ export type TilePriorityInput = Readonly<{
 
 /** Higher values download first (upstream pops from the end of the queue). */
 export const deriveTilePriority = (input: TilePriorityInput): number => {
+  if (input.distanceFromCamera !== undefined) {
+    const distance = Number.isFinite(input.distanceFromCamera)
+      ? Math.max(0, input.distanceFromCamera)
+      : Number.MAX_VALUE;
+    // Keep all visible requests ahead of corridor-only requests. Tree depth
+    // and screen centerness must not outweigh the observer distance.
+    return (input.inMainFrustum ? 2 : 0) + 1 / (1 + distance);
+  }
   const depth = clamp(Math.floor(input.depth), 0, TILE_PRIORITY.maxDepth);
   const requestedCenterness = input.inMainFrustum
     ? input.centerness
@@ -270,6 +280,13 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
       : shadowLightFacing * TILE_PRIORITY.shadowLightFacingWeight)
   );
 };
+
+/** Admission-only refinement; never coarsen the already rendered frontier. */
+export const nextMeshLoadError = (current: number, requested: number): number =>
+  Math.max(requested, current / 2);
+
+export const initialMeshLoadError = (requested: number): number =>
+  Math.max(16, requested);
 
 // D1 — off-frustum sibling deferral
 

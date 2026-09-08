@@ -262,9 +262,10 @@ export {
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
 export {
+  TERRAIN_MAP_STYLE,
   isTerrainShadingStyleLayer,
   prepareTerrainDrapeStyle,
-} from "./lib/style-composition/terrain-drape-style";
+} from "./lib/core/terrain-map-style";
 export {
   getSharedThreeSceneRuntimes,
   notifySharedThreeSceneContentChanged,

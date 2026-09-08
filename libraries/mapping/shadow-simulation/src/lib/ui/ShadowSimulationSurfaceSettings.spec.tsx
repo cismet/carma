@@ -53,8 +53,8 @@ describe("shadow surface display settings", () => {
     expect(setState).toHaveBeenLastCalledWith({ ...state, meshErrorTarget: 4 });
     const budget = getByRole("spinbutton", { name: "Mesh-Cache in GiB" });
     expect(budget.getAttribute("aria-valuemax")).toBe("24");
-    fireEvent.change(budget, { target: { value: "24" } });
-    expect(setState).toHaveBeenLastCalledWith({ ...state, meshCacheBudgetBytes: 24 * 1024 ** 3 });
+    fireEvent.change(budget, { target: { value: "8" } });
+    expect(setState).toHaveBeenLastCalledWith({ ...state, meshCacheBudgetBytes: 8 * 1024 ** 3 });
     fireEvent.click(getByRole("checkbox", { name: "Gebäude volle Deckkraft" }));
     expect(setState).toHaveBeenLastCalledWith({
       ...state,

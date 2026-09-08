@@ -174,6 +174,40 @@ export const ShadowSimulationDisplaySettingsPanel = ({
               >
                 Beschriftungen
               </Checkbox>
+              <Checkbox
+                checked={
+                  (state.showMapStyleContent ?? true) &&
+                  (state.showMapStyleElevationLines ?? false)
+                }
+                disabled={!(state.showMapStyleContent ?? true)}
+                onChange={(event) =>
+                  setState({
+                    ...state,
+                    showMapStyleElevationLines: event.target.checked,
+                  })
+                }
+                style={{ marginInlineStart: token.marginLG }}
+                data-test-id="shadow-simulation-map-style-elevation-lines"
+              >
+                Höhenlinien
+              </Checkbox>
+              <Checkbox
+                checked={
+                  (state.showMapStyleContent ?? true) &&
+                  (state.showMapStyleElevationLabels ?? false)
+                }
+                disabled={!(state.showMapStyleContent ?? true)}
+                onChange={(event) =>
+                  setState({
+                    ...state,
+                    showMapStyleElevationLabels: event.target.checked,
+                  })
+                }
+                style={{ marginInlineStart: token.marginLG }}
+                data-test-id="shadow-simulation-map-style-elevation-labels"
+              >
+                Höhenbeschriftungen
+              </Checkbox>
             </Space>
             <div>
               <Typography.Text

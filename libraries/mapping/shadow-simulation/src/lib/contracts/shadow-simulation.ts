@@ -95,6 +95,8 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   softSunShadows?: boolean;
   showMapStyleContent?: boolean;
   showMapStyleLabels?: boolean;
+  showMapStyleElevationLines?: boolean;
+  showMapStyleElevationLabels?: boolean;
   useTransmittanceLut?: boolean;
   useSkyIrradianceLut?: boolean;
   controlStyle?: ShadowControlStyle;
