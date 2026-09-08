@@ -1,6 +1,7 @@
 import {
   buildWorkflowsCategoryDefinition,
   defaultCategoryDefinitions,
+  filterPerspectivesByAvailability,
   type CatalogFilters,
   type CatalogSubCategory,
   type CategoryDefinition,
@@ -8,13 +9,9 @@ import {
   type LayerCatalogConfig,
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
-import {
-  resolveFeatureFlags,
-  type FeatureFlagConfig,
-} from "@carma-providers/feature-flag";
-import type { AddonEntry } from "@carma-mapping/addons";
+import { filterAddonsByAvailability, type AddonEntry } from "@carma-mapping/addons";
 import type { NamedLayers } from "@carma-appframeworks/portals";
-import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
+import { isAvailable, type Availability } from "@carma-commons/utils";
 
 import {
   defaultVisibleControls,
@@ -24,10 +21,10 @@ import {
 
 import { layerCatalogConfig } from "../discover";
 import { allFachzwillingRoutes } from "./routes";
-import { getFeatureFlagConfig } from "../../config/featureFlags";
-
-const currentDeployment = resolveDeployment();
-const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
+import {
+  activeFeatureFlags,
+  availabilityContext,
+} from "../../config/availability";
 
 /**
  * A Fachzwilling is a thematic geoportal variant: an own route whose layer
@@ -39,7 +36,8 @@ const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
  * Two independent gates apply:
  * - `availability` decides whether the route exists at all, i.e. whether it can
  *   be opened by its url. Without it the route is reachable on every deployment
- *   without any feature flag, see isRouteAvailable.
+ *   without any feature flag. The same option gates a route's perspectives,
+ *   workflows and addons individually, see resolveRouteContents.
  * - featureFlagFachzwillinge ("fz") decides whether the routes are advertised
  *   in the catalog, see isFachzwillingeEnabled.
  */
@@ -57,16 +55,6 @@ export const resolveFachzwillingUi = (
 };
 
 /**
- * Restricts where a route is reachable. Every given condition must hold; an
- * omitted condition is not checked, so an omitted `availability` means the
- * route is reachable by its url everywhere, without any feature flag.
- */
-export type FachzwillingAvailability = {
-  deployments?: DeploymentTarget[];
-  featureFlag?: string;
-};
-
-/**
  * Route-scoped base map overrides. They are applied where the background is
  * turned into map layers (useRouteBackground) and never dispatched, so the
  * store keeps saying what the app-wide catalog says. That matters because the
@@ -81,7 +69,11 @@ export type FachzwillingBackgroundConfig = {
 type FachzwillingRouteBase = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
-  availability?: FachzwillingAvailability;
+  /**
+   * Where the route is reachable by its url. Perspectives, workflows and addons
+   * carry the same option; theirs only counts once the route has passed.
+   */
+  availability?: Availability;
   ui?: FachzwillingUiOptions;
   disableMapInteraction?: boolean;
   /**
@@ -152,44 +144,32 @@ export type FachzwillingRoute =
   | CatalogFachzwillingRoute
   | HiddenFachzwillingRoute;
 
-export const routeFeatureFlagConfig: FeatureFlagConfig = Object.fromEntries(
-  allFachzwillingRoutes
-    .map((route) => route.availability?.featureFlag)
-    .filter(
-      (flagName): flagName is string =>
-        !!flagName && !(flagName in baseFeatureFlagConfig)
-    )
-    .map((flagName) => [flagName, { alias: flagName, default: false }])
-);
-
-const activeFeatureFlags = resolveFeatureFlags({
-  ...baseFeatureFlagConfig,
-  ...routeFeatureFlagConfig,
-});
-
 const isFachzwillingeEnabled =
   activeFeatureFlags.featureFlagFachzwillinge === true;
 
-const isRouteAvailable = ({ availability }: FachzwillingRoute): boolean => {
-  if (!availability) {
-    return true;
-  }
-  const { deployments, featureFlag } = availability;
-  // an unresolvable deployment (unknown host) never satisfies a deployment list
-  if (
-    deployments &&
-    (currentDeployment === null || !deployments.includes(currentDeployment))
-  ) {
-    return false;
-  }
-  if (featureFlag && activeFeatureFlags[featureFlag] !== true) {
-    return false;
-  }
-  return true;
-};
+/**
+ * The route with only the perspectives, workflows and addons that are
+ * available here, so everything downstream keeps reading `route.perspectives`
+ * and `route.addons` as declared.
+ */
+const resolveRouteContents = (route: FachzwillingRoute): FachzwillingRoute => ({
+  ...route,
+  ...(route.perspectives
+    ? {
+        perspectives: filterPerspectivesByAvailability(
+          route.perspectives,
+          availabilityContext
+        ),
+      }
+    : {}),
+  ...(route.addons
+    ? { addons: filterAddonsByAvailability(route.addons, availabilityContext) }
+    : {}),
+});
 
-export const fachzwillingRoutes: FachzwillingRoute[] =
-  allFachzwillingRoutes.filter(isRouteAvailable);
+export const fachzwillingRoutes: FachzwillingRoute[] = allFachzwillingRoutes
+  .filter((route) => isAvailable(route.availability, availabilityContext))
+  .map(resolveRouteContents);
 
 export const getFachzwillingCatalogConfig = (
   route: FachzwillingRoute

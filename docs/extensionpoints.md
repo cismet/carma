@@ -101,3 +101,25 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
 ```
 
 Falls irgendwelche Links oder spezielle Metadatan gefordert sind die hier nicht aufgelistet sind, dann nach einem Layer im Modal suchen wo dies bereits vorhanden ist und einmal darauf klicken. Danach werden die ganzen Informationen in der Console ausgegeben und man kann schauen was genau angegeben werden muss.
+# Availability
+
+Mit `availability` wird eingeschränkt, wo etwas erreichbar ist. Alle angegebenen Bedingungen müssen gelten; eine ausgelassene Bedingung wird nicht geprüft. Ohne `availability` ist etwas überall und ohne Feature Flag verfügbar.
+
+```ts
+availability: {
+  deployments: ["localDev", "dev", "pr"], // nur auf diesen Deployments (live fehlt hier)
+  featureFlag: "featureFlagHochwasser",   // nur solange das Flag aktiv ist
+}
+```
+
+Die Option gibt es an folgenden Stellen (Typ `Availability` aus `@carma-commons/utils`, Auswertung mit `isAvailable`):
+
+| Stelle                | Wo                                                        | Wirkung                                                  |
+| --------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
+| Fachzwilling-Route    | `apps/geoportal/src/app/constants/fachzwillinge/*.ts`     | Route existiert nicht, ist per URL nicht erreichbar      |
+| Perspektive           | `perspectives[].availability`                             | Perspektive fehlt in der Kategorie "Workflows"           |
+| Workflow              | `perspectives[].workflows[].availability`                 | Karte fehlt; leere Perspektiven fallen weg               |
+| Addon einer Route     | `addons[]` in der Objektform `{ kind, availability }`      | Addon wird nicht gemountet                               |
+| Default-Addon der App | `DEFAULT_ADDONS` in `apps/geoportal/src/app/config/app.config.ts` | wie oben; Flags dafür gehören in `featureFlags.ts` |
+
+Verschachtelung ist ein UND: die `availability` eines Workflows zählt erst, wenn Route und Perspektive schon erreichbar sind. Ein Feature Flag, das nur in einer `availability` vorkommt, wird automatisch registriert (Standard aus, Alias gleich Name), siehe `apps/geoportal/src/app/config/availability.ts`. Ausgewertet wird einmal beim Laden; ein später geändertes Flag braucht einen Reload.

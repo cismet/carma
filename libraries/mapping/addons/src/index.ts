@@ -8,6 +8,7 @@ export {
 } from "./lib/target-addons";
 export {
   addonRegistry,
+  filterAddonsByAvailability,
   getAddonKind,
   normalizeAddonEntries,
   resolveAddonEntries,

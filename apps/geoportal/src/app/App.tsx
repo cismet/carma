@@ -83,7 +83,7 @@ import {
 } from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
 import { getFeatureFlagConfig } from "./config/featureFlags";
-import { routeFeatureFlagConfig } from "./constants/fachzwillinge";
+import { routeFeatureFlagConfig } from "./config/availability";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 

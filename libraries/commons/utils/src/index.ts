@@ -34,6 +34,11 @@ export {
   useLiveDeployment,
   type DeploymentTarget,
 } from "./lib/react/hooks/useDeployment";
+export {
+  isAvailable,
+  type Availability,
+  type AvailabilityContext,
+} from "./lib/availability";
 
 export { isNumberArrayEqual } from "./lib/arrays";
 

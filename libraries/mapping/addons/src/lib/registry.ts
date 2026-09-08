@@ -6,6 +6,11 @@ import type { Store } from "redux";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 import { carma } from "@carma-api";
+import {
+  isAvailable,
+  type Availability,
+  type AvailabilityContext,
+} from "@carma-commons/utils";
 import type {
   GazDataAdditionalModeConfig,
   GazDataSourceConfig,
@@ -234,12 +239,16 @@ export type AddonStateKey = keyof AddonStateMap;
  * A full declaration: the kind plus its config. Kinds whose config is entirely
  * optional may be declared as `{ kind }` alone, so a route that just wants the
  * addon's defaults does not have to pass an empty config object.
+ *
+ * `availability` restricts where the addon is mounted, with the same options
+ * as a route's availability. Only this form can carry it: an addon that is to
+ * be gated is written as `{ kind, availability }` even when it needs no config.
  */
 export type Addon = {
   // `Partial<C> extends C` holds exactly when every field of C is optional
   [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
-    ? { kind: K; config?: AddonConfigMap[K] }
-    : { kind: K; config: AddonConfigMap[K] };
+    ? { kind: K; config?: AddonConfigMap[K]; availability?: Availability }
+    : { kind: K; config: AddonConfigMap[K]; availability?: Availability };
 }[AddonKind];
 
 /**
@@ -272,6 +281,16 @@ export const normalizeAddonEntries = (
 ): ResolvedAddon[] =>
   (entries ?? []).map((entry) =>
     typeof entry === "string" ? ({ kind: entry } as ResolvedAddon) : entry
+  );
+
+/** the entries reachable in the given context; a bare kind is always kept */
+export const filterAddonsByAvailability = (
+  entries: readonly AddonEntry[] | undefined,
+  context: AvailabilityContext
+): AddonEntry[] =>
+  (entries ?? []).filter(
+    (entry) =>
+      typeof entry === "string" || isAvailable(entry.availability, context)
   );
 
 export type AddonComponentProps<K extends AddonKind = AddonKind> = {

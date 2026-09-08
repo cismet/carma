@@ -31,6 +31,7 @@ export {
 export type { CatalogSubCategory } from "./hooks/useCatalogSearch";
 export {
   buildWorkflowsCategoryDefinition,
+  filterPerspectivesByAvailability,
   WORKFLOWS_CATEGORY_ID,
   WORKFLOWS_CATEGORY_LABEL,
   type WorkflowDefinition,

@@ -10,7 +10,11 @@ import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
-import { getAddonKind, type AddonEntry } from "@carma-mapping/addons";
+import {
+  filterAddonsByAvailability,
+  getAddonKind,
+  type AddonEntry,
+} from "@carma-mapping/addons";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
@@ -26,6 +30,8 @@ import {
   type AnnotationInfoBoxLayoutProps,
 } from "@carma-mapping/annotations/ui";
 import { Rectangle } from "cesium";
+
+import { availabilityContext } from "./availability";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -65,11 +71,18 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   },
 ];
 
-/** the app's defaults, with the route's own declarations taking precedence */
+/**
+ * The app's defaults, with the route's own declarations taking precedence.
+ * A default addon may carry an `availability` like a route addon; a feature
+ * flag used there must be in the base feature flag config (featureFlags.ts).
+ * The route's addons arrive already filtered, see constants/fachzwillinge.
+ */
 export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
   const declared = new Set((addons ?? []).map(getAddonKind));
   return [
-    ...DEFAULT_ADDONS.filter((addon) => !declared.has(getAddonKind(addon))),
+    ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext).filter(
+      (addon) => !declared.has(getAddonKind(addon))
+    ),
     ...(addons ?? []),
   ];
 };
