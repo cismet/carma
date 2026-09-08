@@ -6,6 +6,7 @@ import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import type { TimeSliderConfig } from "./TimeSlider";
 import {
+  derivedSeriesLegend,
   useTimeSeriesLauncher,
   useTimeSliderActions,
   type TimeSeriesDefinition,
@@ -43,7 +44,13 @@ export const TIME_SLIDER_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
-  rowClickInteractionId: TIME_SLIDER_TOOLS_INTERACTION_ID,
+  // Clicking the row opens the layer info view, the way a layer group's row
+  // does; the time readout below carries the ribbon's id, so clicking that is
+  // what opens and closes the ribbon. Spelled out as `undefined` rather than
+  // left out: the host merges this row into the persisted one (`updateLayer`
+  // does an `Object.assign`), so a key that is merely absent here would keep
+  // whatever a row stored by an older build still carries.
+  rowClickInteractionId: undefined,
 };
 
 const buildInteractionButtons = ({
@@ -101,6 +108,13 @@ export const getTimeSliderRowSeed = (
     intermediateValuesCount: config.intermediateValuesCount,
     opacity: config.opacity,
     initialStep: config.initialStep,
+    description: config.description,
+    metaDataText: config.metaDataText,
+    links: config.links,
+    // No `legend`: it is resolved from the series (see `legendUrls` below), so
+    // a restored row re-resolves it with the current code rather than reviving
+    // whatever url was current when the row was stored. A legend a card
+    // declares reaches the channel on the click, not through this seed.
   };
 };
 
@@ -161,6 +175,10 @@ export const useTimeSliderLayerRow = ({
     intermediateValuesCount,
     opacity,
     stepIndex,
+    description,
+    metaDataText,
+    links,
+    legend,
   } = useTimeSliderActions();
   const { startSeries } = useTimeSeriesLauncher();
 
@@ -168,6 +186,26 @@ export const useTimeSliderLayerRow = ({
   useEffect(() => {
     setPanelOpen(panelOpen);
   }, [panelOpen, setPanelOpen]);
+
+  // Resolved here rather than in the channel: the channel is what the row
+  // persists, and a derived url stored there would come back after a reload as
+  // if the series had declared it, outliving any change to how it is built.
+  const legendUrls = useMemo(
+    () =>
+      legend?.length
+        ? legend
+        : derivedSeriesLegend({
+            wmsUrl,
+            layers: seriesLayers,
+            styles,
+          }),
+    [legend, wmsUrl, seriesLayers, styles]
+  );
+
+  /** nothing to say means no info button and no selectable row */
+  const hasInfo = Boolean(
+    description || metaDataText || links?.length || legendUrls.length
+  );
 
   const layer = useMemo(
     () => ({
@@ -181,6 +219,19 @@ export const useTimeSliderLayerRow = ({
         isPlaying,
         togglePlay,
       }),
+      // What the host's info view reads. No `props` on purpose: a stack entry
+      // that has one is turned into a map layer by both render paths, and the
+      // series is already on the map through the addon.
+      hasInfoView: hasInfo,
+      // the info view's Transparenz slider reads and writes the row's opacity;
+      // the host bridges it back into the channel, see useTimeSliderLayerButton
+      opacity,
+      description,
+      layerInfo: {
+        metaDataText,
+        links,
+        legend: legendUrls.map((url) => ({ OnlineResource: url })),
+      },
       // The row's rebirth config, in the encoding a workflow card uses. The
       // row is what the host persists (the rehydrate filter keeps mode rows
       // that carry tools), so a reload finds the series right here.
@@ -197,6 +248,9 @@ export const useTimeSliderLayerRow = ({
                 intermediateValuesCount,
                 opacity,
                 initialStep: stepIndex,
+                description,
+                metaDataText,
+                links,
               } satisfies TimeSliderConfig,
             },
           ]
@@ -215,6 +269,11 @@ export const useTimeSliderLayerRow = ({
       intermediateValuesCount,
       opacity,
       stepIndex,
+      description,
+      metaDataText,
+      links,
+      legendUrls,
+      hasInfo,
     ]
   );
   const layerRef = useRef(layer);

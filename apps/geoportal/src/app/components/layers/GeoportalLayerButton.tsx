@@ -275,7 +275,10 @@ const GeoportalLayerButton = ({
             );
             return;
           }
-          if (interactionButtons.length > 0) {
+          // A row that offers the info view falls through to the selection
+          // below: its own panel is opened from one of its buttons, so the row
+          // click is free to do what every other layer row does.
+          if (interactionButtons.length > 0 && !layer.hasInfoView) {
             if (interactionActivationMode === "button") {
               const primaryInteractionButton = interactionButtons[0];
               const isActive =
@@ -290,7 +293,7 @@ const GeoportalLayerButton = ({
             }
             return;
           }
-          if (layer.skipSelection) {
+          if (layer.skipSelection && !layer.hasInfoView) {
             return;
           }
           if (!clickFromInfoView) {

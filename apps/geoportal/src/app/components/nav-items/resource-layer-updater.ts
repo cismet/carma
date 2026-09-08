@@ -587,7 +587,16 @@ export const createResourceLayerUpdater = ({
           entry.kind === "timeSlider"
       );
       if (timeSeriesTool && startTimeSeries) {
-        startTimeSeries(timeSeriesTool.config ?? {});
+        const config = timeSeriesTool.config ?? {};
+        // The card's own texts are what its info view shows, so the series
+        // does not have to repeat them; a series that brings its own wins.
+        startTimeSeries({
+          ...config,
+          description: config.description ?? layer.description,
+          metaDataText: config.metaDataText ?? layer.groupInfo?.metaDataText,
+          links: config.links ?? layer.groupInfo?.links,
+          legend: config.legend ?? layer.groupInfo?.legend,
+        });
         return;
       }
 

@@ -12,6 +12,20 @@ export const isLayerGroup = (
 export const layerGroupHasInfoView = (group: LayerGroup): boolean =>
   !!(group.description || group.groupInfo);
 
+/**
+ * Whether an entry offers the info view (`LayerInfo`) at all, i.e. whether
+ * selecting it in the layer bar shows anything.
+ *
+ * `skipSelection` marks the rows an addon owns: they are not draggable, carry
+ * no opacity of their own and are not selected by a row click, which opens the
+ * addon's own panel instead. Such a row can still have something to say about
+ * its data, and says so with `hasInfoView`.
+ */
+export const entryHasInfoView = (entry: LayerStackEntry): boolean =>
+  isLayerGroup(entry)
+    ? layerGroupHasInfoView(entry)
+    : !entry.skipSelection || entry.hasInfoView === true;
+
 const maskMemberWithGroup = (member: Layer, group: LayerGroup): Layer => {
   const visible = group.visible !== false && member.visible !== false;
   const opacity =

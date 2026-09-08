@@ -53,6 +53,17 @@ export type TimeSliderState = {
    * themselves from it, and neither may read the app's store.
    */
   panelOpen: boolean;
+  /** what the row's info view says about the series; all optional */
+  description?: string;
+  metaDataText?: string;
+  links?: { url: string; text: string }[];
+  /**
+   * Legend images **as declared** by the series, empty when it declared none.
+   * The derived fallback is not kept here: it would be persisted with the row
+   * and come back as if it had been declared, which is how a legend url built
+   * by an older version of `derivedSeriesLegend` survives a code change.
+   */
+  legend?: readonly string[];
 };
 
 export const TIME_SLIDER_STATE_DEFAULT: TimeSliderState = {
@@ -95,6 +106,45 @@ export type TimeSeriesDefinition = {
   opacity?: number;
   /** whole step the slider starts on. Default: 0 */
   initialStep?: number;
+  /**
+   * What the row's info view says about the series. A workflow card's own
+   * texts are used where the series brings none, see the workflow branch in
+   * the geoportal's `resource-layer-updater`.
+   */
+  description?: string;
+  metaDataText?: string;
+  links?: { url: string; text: string }[];
+  /**
+   * Legend images. Left out, the series' own WMS is asked for one, see
+   * `derivedSeriesLegend`.
+   */
+  legend?: readonly string[];
+};
+
+/**
+ * The WMS's own legend for a series, as a single-element list.
+ *
+ * Every step of a series is the same data at a different time and shares one
+ * style, so the first layer describes all of them. Returns nothing when the
+ * series brought no style: GeoServer would answer with the layer's default,
+ * which is not necessarily what is on the map.
+ */
+export const derivedSeriesLegend = (
+  def: Pick<TimeSeriesDefinition, "wmsUrl" | "layers" | "styles">
+): readonly string[] => {
+  const layer = def.layers[0];
+  if (!def.wmsUrl || !layer || !def.styles) {
+    return [];
+  }
+  const separator = def.wmsUrl.includes("?") ? "&" : "?";
+  return [
+    `${def.wmsUrl}${separator}VERSION=1.1.1&REQUEST=GetLegendGraphic` +
+      `&FORMAT=image%2Fpng&LAYER=${encodeURIComponent(layer)}` +
+      `&STYLE=${encodeURIComponent(def.styles)}` +
+      // GeoServer draws the swatch flush against its label; `dx` is the gap
+      // between the two. `labelMargin` is ignored here, `dx` is not.
+      `&LEGEND_OPTIONS=${encodeURIComponent("dx:8")}`,
+  ];
 };
 
 /**
@@ -321,12 +371,26 @@ export const useTimeSeriesLauncher = () => {
       );
       const stepsPerUnit = isBlending ? intermediateValuesCount : 1;
       const max = Math.max(def.layers.length - 1, 0) * stepsPerUnit;
+      // what the info view shows: not part of the series' identity, so it is
+      // refreshed even when the series itself is already in the channel
+      const info = {
+        description: def.description,
+        metaDataText: def.metaDataText,
+        links: def.links,
+        legend: def.legend,
+      };
       if (
         sameSeriesDefinition(previous, def) &&
         previous.stepsPerUnit === stepsPerUnit
       ) {
         // the series is already in the channel; keep its position and settings
-        return previous.isOn ? previous : { ...previous, isOn: true };
+        const unchanged =
+          previous.isOn &&
+          previous.description === info.description &&
+          previous.metaDataText === info.metaDataText &&
+          previous.links === info.links &&
+          previous.legend === info.legend;
+        return unchanged ? previous : { ...previous, ...info, isOn: true };
       }
       return {
         ...TIME_SLIDER_STATE_DEFAULT,
@@ -347,6 +411,7 @@ export const useTimeSeriesLauncher = () => {
         isOn: true,
         // the ribbon's visibility is the host's fact, not the series'
         panelOpen: previous.panelOpen,
+        ...info,
       };
     },
     [isBlending]

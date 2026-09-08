@@ -119,6 +119,12 @@ const ResourceModal = () => {
         intermediateValuesCount: config.intermediateValuesCount,
         opacity: config.opacity,
         initialStep: config.initialStep,
+        // what the row's info view shows; the card's own texts by default,
+        // see the workflow branch in `resource-layer-updater`
+        description: config.description,
+        metaDataText: config.metaDataText,
+        links: config.links,
+        legend: config.legend,
       });
     },
     [toggleSeries, messageApi]

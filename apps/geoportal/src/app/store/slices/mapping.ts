@@ -10,10 +10,10 @@ import type {
   SavedLayerConfig,
 } from "@carma-mapping/layers";
 import {
+  entryHasInfoView,
   findStackEntryByLayerId,
   flattenLayerStack,
   isLayerGroup,
-  layerGroupHasInfoView,
 } from "@carma-mapping/layers";
 import {
   SELECTED_LAYER_INDEX,
@@ -56,9 +56,6 @@ const resolveLayer = (
   const target = resolveStackTarget(state, id);
   return target && !isLayerGroup(target) ? target : undefined;
 };
-
-const entryHasInfoView = (entry: LayerStackEntry): boolean =>
-  isLayerGroup(entry) ? layerGroupHasInfoView(entry) : !entry.skipSelection;
 
 const shouldSkipEntryForSelection = (
   entry: LayerStackEntry | undefined,

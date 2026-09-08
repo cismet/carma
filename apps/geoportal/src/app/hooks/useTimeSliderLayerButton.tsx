@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -5,6 +6,7 @@ import {
   TIME_SLIDER_TOOLS_INTERACTION_ID,
   getTimeSliderRowSeed,
   useHasAddonStateProducer,
+  useTimeSliderActions,
   useTimeSliderLayerRow,
 } from "@carma-mapping/addons";
 
@@ -31,6 +33,18 @@ export function useTimeSliderLayerButton() {
   // this hook runs on every route, the addon that draws the series does not;
   // a row that arrives without it is dropped rather than shown dead
   const hasEngine = useHasAddonStateProducer("timeSeries");
+
+  // The info view's Transparenz slider writes the row's opacity into the
+  // mapping slice, while the series draws from the addon channel. One value in
+  // two stores, so it is carried across here; each side writes only when the
+  // two differ, which is what stops the two writes chasing each other.
+  const { opacity: channelOpacity, setOpacity } = useTimeSliderActions();
+  const rowOpacity = rowLayer?.opacity;
+  useEffect(() => {
+    if (rowOpacity !== undefined && rowOpacity !== channelOpacity) {
+      setOpacity(rowOpacity);
+    }
+  }, [rowOpacity, channelOpacity, setOpacity]);
 
   useTimeSliderLayerRow({
     hasRow: Boolean(rowLayer),

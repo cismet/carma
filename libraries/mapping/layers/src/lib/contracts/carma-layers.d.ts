@@ -193,6 +193,12 @@ type BaseLayer = {
     icon?: string;
   };
   skipSelection?: boolean;
+  /**
+   * Show the info view for this entry even though `skipSelection` keeps it out
+   * of the normal layer handling. For an addon row that has something to say
+   * about its data, e.g. a time series with a legend; see `entryHasInfoView`.
+   */
+  hasInfoView?: boolean;
   /** Clicking the row toggles the panel registered under this interaction id. */
   rowClickInteractionId?: string;
   interactionButtons?: InteractionButton | InteractionButton[];
@@ -215,6 +221,13 @@ type BaseLayer = {
     thumbnail?: string;
     vectorStyle?: string;
     vectorLegend?: string;
+    /**
+     * Legend images for an entry that has no `props`, i.e. one that is not a
+     * map layer of its own. A row with `props` would enter the map render
+     * paths (`useCreateCismapLayer`, `geoportalLayersToLibreLayers`), so an
+     * addon row carries its legend here instead.
+     */
+    legend?: { OnlineResource: string }[];
     metaDataText?: string;
     vectorLegendTitle?: string;
     vectorTitle?: string;

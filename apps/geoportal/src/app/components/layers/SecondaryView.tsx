@@ -40,8 +40,8 @@ import {
   setUIShowInfoText,
 } from "../../store/slices/ui";
 import {
+  entryHasInfoView,
   isLayerGroup,
-  layerGroupHasInfoView,
   useLayerCatalog,
 } from "@carma-mapping/layers";
 import type {
@@ -97,7 +97,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       target?.other?.vectorLegend;
     return vectorLegend && target.layerType === "vector"
       ? [{ OnlineResource: vectorLegend }]
-      : target.props?.legend || [];
+      : // an addon row has no `props`, so its legend travels in `layerInfo`
+        target.props?.legend || target.layerInfo?.legend || [];
   };
   // a group shows its configured legend images, otherwise its members' legends
   const legend = group
@@ -113,6 +114,19 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
+
+  // An addon row draws through its addon, not through the layer stack, so the
+  // eye here would toggle a flag nothing reads. Its opacity does travel back
+  // to the addon (see the bridge in useTimeSliderLayerButton), so the
+  // Transparenz slider stays live.
+  //
+  // TODO: make the eye work for the time series. It needs a `visible` of its
+  // own in the addon channel which the map layers multiply into their opacity;
+  // the snap and blend layers' existing `setVisible` cannot be reused, it is
+  // what the blend-to-tiles handover switches between. Then the bridge carries
+  // `visible` alongside `opacity`, this guard goes, and the same disabled
+  // toggle in LayerRow (gated on `skipSelection`) goes with it.
+  const ownsOwnVisibility = !group && !!(layer as Layer).skipSelection;
 
   const isInteractionActive = activeInteractionLayerID === entry.id;
   const canFilter =
@@ -260,10 +274,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             newLayerIndex = SELECTED_LAYER_INDEX.BACKGROUND_LAYER;
             return;
           }
-          const hasInfoView = isLayerGroup(clickedEntry)
-            ? layerGroupHasInfoView(clickedEntry)
-            : !clickedEntry.skipSelection;
-          if (!hasInfoView) {
+          if (!entryHasInfoView(clickedEntry)) {
             // leave the selection cleared
             return;
           }
@@ -443,7 +454,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             )}
             <VisibilityToggle
               visible={entry.visible}
-              disabled={isCesium}
+              disabled={isCesium || ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
               onToggleVisibility={(nextVisible) =>
                 dispatch(
@@ -533,8 +544,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 legend={legend}
                 links={layer.layerInfo?.links}
                 zoomLevels={{
-                  maxZoom: layer.props.maxZoom,
-                  minZoom: layer.props.minZoom,
+                  maxZoom: layer.props?.maxZoom,
+                  minZoom: layer.props?.minZoom,
                 }}
               />
             ))}

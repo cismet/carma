@@ -1,10 +1,14 @@
-import { useState, type ReactNode } from "react";
+/* eslint-disable @typescript-eslint/no-unused-vars --
+   The ribbon's settings block (step count, Zuruecksetzen, playback speed, step
+   readout) is parked in a comment further down. It comes back once the ribbon
+   has a settings button to put it behind; until then the ribbon is the slider
+   and nothing else. Everything the block used is kept next to it rather than
+   deleted and rewritten later; this disable goes when the block comes back. */
+import type { ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faChevronDown,
   faChevronLeft,
   faChevronRight,
-  faChevronUp,
   faPause,
   faPlay,
   faRotateLeft,
@@ -105,7 +109,6 @@ export const TimeSliderPanel = () => {
     total,
     isPlaying,
     speed,
-    opacity,
     loaded,
     isBlending,
     stepIndex,
@@ -117,7 +120,6 @@ export const TimeSliderPanel = () => {
     setOpacity,
   } = useTimeSliderActions();
 
-  const [expanded, setExpanded] = useState(false);
 
   // Only the caged path preloads: it holds one viewport-locked image per time
   // step, and every one of them is thrown away on a pan. The fallback loads
@@ -136,7 +138,12 @@ export const TimeSliderPanel = () => {
 
   return (
     <div
-      className="relative w-[100vw] sm:w-[86vw] sm:max-w-[680px] md:max-w-[760px] shrink-0 bg-white rounded-[10px] px-4 py-2 shadow-lg"
+      // The caps are the layer info view's, so the two panels the row opens are
+      // the same width. The width itself stays viewport-based: the interaction
+      // column this sits in is ~300px, so a parent-relative width (`w-3/4`,
+      // which is what the info view uses inside its own wide container) would
+      // collapse the ribbon to a third of the info view.
+      className="relative w-[100vw] sm:w-[86vw] sm:max-w-[560px] md:max-w-[720px] shrink-0 bg-white rounded-[10px] px-4 py-2 shadow-lg"
       data-test-id="time-slider"
     >
       {/* No title here: the layer-bar row the ribbon hangs off already carries
@@ -176,11 +183,6 @@ export const TimeSliderPanel = () => {
           active={isPlaying}
           onClick={togglePlay}
         />
-        <IconButton
-          label={expanded ? "Einstellungen schließen" : "Einstellungen öffnen"}
-          icon={expanded ? faChevronUp : faChevronDown}
-          onClick={() => setExpanded((open) => !open)}
-        />
       </div>
 
       {/* The load line the Leaflet app shows while the series is being fetched.
@@ -214,8 +216,15 @@ export const TimeSliderPanel = () => {
         />
       </div>
 
-      {expanded && (
-        <div className="mt-2 border-0 border-t border-solid border-gray-200 pt-2">
+      {/* Parked, not deleted: the step count, Zuruecksetzen, the playback
+          speed and the step readout. These belong behind a settings button on
+          the ribbon, which does not exist yet; the block waits here for it
+          rather than being rewritten from scratch later.
+
+      {/\* Always shown: the ribbon itself is what the row's time readout opens
+          and closes, so a second expander inside it would be a fold within a
+          fold. *\/}
+      <div className="mt-2 border-0 border-t border-solid border-gray-200 pt-2">
           <div className="mb-2 flex items-center justify-between gap-4">
             <span className="whitespace-nowrap text-sm text-gray-500">
               {status}
@@ -234,7 +243,7 @@ export const TimeSliderPanel = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-x-8 gap-y-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-y-3">
             <Section title="Wiedergabe">
               <Segment>
                 {SPEEDS.map((factor) => (
@@ -249,31 +258,13 @@ export const TimeSliderPanel = () => {
                 ))}
               </Segment>
             </Section>
-
-            <Section title="Darstellung">
-              <label className="m-0 grid grid-cols-[80px_minmax(0,1fr)_42px] items-center gap-3 text-sm text-gray-700">
-                <span>Deckkraft</span>
-                <Slider
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={opacity}
-                  onChange={setOpacity}
-                  tooltip={{ open: false }}
-                  style={{ margin: 0 }}
-                />
-                <span className="text-right tabular-nums">
-                  {Math.round(opacity * 100)}%
-                </span>
-              </label>
-            </Section>
           </div>
 
-          <p className="mb-0 mt-2 text-xs text-gray-500 tabular-nums">
-            Zeitschritt {stepIndex + 1} von {total}
-          </p>
-        </div>
-      )}
+        <p className="mb-0 mt-2 text-xs text-gray-500 tabular-nums">
+          Zeitschritt {stepIndex + 1} von {total}
+        </p>
+      </div>
+      */}
     </div>
   );
 };
