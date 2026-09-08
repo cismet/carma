@@ -65,7 +65,19 @@ const SEEDS: readonly [number, number][] = [
   [0.05, 0.95],
 ];
 
-export type PlaneCamera = { scrollX: number; scrollY: number; zoom: number };
+/**
+ * The camera the scene is painted with, and the anchor its coordinates are
+ * counted from. The two travel together and are never read apart: a rebase
+ * moves both at once, and a plane solved from a new anchor against the camera
+ * before it draws the whole scene at the ratio between them — four zoom levels
+ * of rebase is the drawing sixteen times its size, across the screen.
+ */
+export type PlaneCamera = {
+  anchor: AnnotationAnchor;
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+};
 
 export type PlaneMargin = { x: number; y: number };
 
@@ -142,8 +154,11 @@ export type UseGroundPlaneOptions = {
   map: MaplibreMap | null;
   /** the scene's own box, the plane */
   box: HTMLElement | null;
-  getAnchor: () => AnnotationAnchor | null;
-  /** the camera excalidraw is actually rendering with, null until it is */
+  /**
+   * The camera excalidraw is actually rendering with, and the anchor that
+   * camera was computed against. Null until the scene has taken one. Nothing
+   * here reads the anchor from anywhere else, see `PlaneCamera`.
+   */
   getCamera: () => PlaneCamera | null;
   enabled: boolean;
 };
@@ -166,7 +181,6 @@ const localOffset = (element: HTMLElement, box: HTMLElement): Point | null => {
 export const useGroundPlane = ({
   map,
   box,
-  getAnchor,
   getCamera,
   enabled,
 }: UseGroundPlaneOptions): GroundPlane => {
@@ -174,8 +188,6 @@ export const useGroundPlane = ({
   const inverseRef = useRef<Mat3>(IDENTITY);
   const cameraRef = useRef<PlaneCamera | null>(null);
 
-  const anchorFn = useRef(getAnchor);
-  anchorFn.current = getAnchor;
   const cameraFn = useRef(getCamera);
   cameraFn.current = getCamera;
 
@@ -242,10 +254,9 @@ export const useGroundPlane = ({
     };
 
     const tick = () => {
-      const anchor = anchorFn.current();
       const camera = cameraFn.current();
       cameraRef.current = camera;
-      if (!anchor || !camera || !(camera.zoom > 0)) {
+      if (!camera || !(camera.zoom > 0)) {
         clear();
         return;
       }
@@ -260,7 +271,7 @@ export const useGroundPlane = ({
       for (const [fx, fy] of SEEDS) {
         const at = { x: area.width * fx, y: area.height * fy };
         const lngLat = map.unproject([at.x, at.y]);
-        const scene = lngLatToScene(anchor, lngLat.lng, lngLat.lat);
+        const scene = lngLatToScene(camera.anchor, lngLat.lng, lngLat.lat);
         source.push({
           x: (scene.x + camera.scrollX) * camera.zoom,
           y: (scene.y + camera.scrollY) * camera.zoom,
