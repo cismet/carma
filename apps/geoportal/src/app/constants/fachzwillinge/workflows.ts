@@ -478,6 +478,57 @@ const PALM4U_UTCI_SERIES = palm4uThermalSeries(
 );
 
 /**
+ * The PALM-4U wind field as particles, first step of the nocturnal run.
+ *
+ * The rasterfari behind this is the one the PALM-4U stack brought with it, and
+ * its `WIND/` folder holds one u/v pair per time step: `u84_ts021.tif` through
+ * `v84_ts030.tif`, 21:00 to 06:00. `scenario` and `layerPostfix` compose that
+ * path, so a single step is all a `FlowFieldDefinition` can carry; the other
+ * nine steps wait for the meta-workflow layer that can drive a series.
+ *
+ * `uvCorrection` is the one number here that is not free: the build script on
+ * amy writes `u = wspeed * cos(rad(270 - wdir))`, i.e. `-wspeed * sin(wdir)`,
+ * which is the meteorological "wind from" conversion, so u84 and v84 already
+ * are the eastward and northward components of the motion. cage defaults to
+ * `{ u: -1, v: -1 }` for the Starkregen rasters, and taking that default here
+ * would run every particle against the wind. Whether PALM really writes wdir
+ * as "from" is the open question on wupp #4114; if it turns out to be
+ * "toward", this goes back to the default and the wdir style gains a +180.
+ *
+ * The gate sits one zoom below the Starkregen one because the model is only
+ * 1200 m across: at zoom 16 the viewport is already inside it. Below 15 the
+ * particle count still follows the viewport while every one of them is born in
+ * that same square, so the field turns into a solid smear.
+ */
+const PALM4U_WIND_FLOW: FlowFieldDefinition = {
+  title: "Windfeld 21:00 Uhr (PALM-4U)",
+  service: "https://wupp-palm4u-rasterfari.cismet.de",
+  scenario: "WIND/",
+  layerPostfix: "_ts021",
+  uvCorrection: { u: 1, v: 1 },
+  minZoom: 15,
+  params: {
+    // The Starkregen default `#326C88` is a water blue and would read as
+    // running water. White carries over both grounds the wind cards use, the
+    // orthophoto and the blue-to-purple wind speed ramp.
+    color: "#FFFFFF",
+  },
+};
+
+/** The same animation over the wind speed of that step. */
+const PALM4U_WIND_FLOW_WITH_SPEED: FlowFieldDefinition = {
+  ...PALM4U_WIND_FLOW,
+  title: "Windfeld und Windgeschwindigkeit 21:00 Uhr (PALM-4U)",
+  backdrop: {
+    wmsUrl: "https://wupp-palm4u-wms.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "palm4u:L_WIND_wspeed3857_ts021",
+    styles: "palm4u:wspeed",
+    // the SLD already carries 0.85, so the layer stays fully opaque here
+    opacity: 1,
+  },
+};
+
+/**
  * The stations the trasse asset passes, west to east.
  *
  * Coordinates from OpenStreetMap (`public_transport=stop_position` on the
@@ -999,6 +1050,55 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Simulation angepasst. Die Daten sind ein Testdatensatz und " +
             "beschreiben keinen gemessenen Tag.",
           tools: [{ addon: "timeSlider", config: PALM4U_UTCI_SERIES }],
+        },
+        {
+          // The same run as the three Tagesgang cards, but its night hours and
+          // its wind quantities, so this one goes to the flowField engine
+          // instead of the timeSlider. No `layers` and no backdrop: the
+          // particles are all this card puts on the map.
+          id: "windfeld",
+          title: "Windfeld 21:00 Uhr (PALM-4U)",
+          description:
+            "Inhalt: Das simulierte Windfeld um 21:00 Uhr, als " +
+            "Partikelanimation über der Karte. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt, wo der Wind zwischen den Gebäuden durchzieht " +
+            "und wo er abgebremst wird. Die Animation läuft erst ab einem " +
+            "größeren Maßstab, weiter herausgezoomt bleibt die Karte ruhig. " +
+            "Die Simulation deckt nur einen Quadratkilometer rund um das " +
+            "Rathaus ab; außerhalb bleibt die Karte leer.",
+          metaDataText:
+            "Grundlage ist dieselbe PALM-4U-Simulation wie bei den " +
+            "Tagesgängen, ein Gebiet von 1200 mal 1200 Metern um das " +
+            "Rathaus mit 5 Metern Rasterweite. Die Partikel folgen den u- " +
+            "und v-Komponenten, die aus Windrichtung und " +
+            "Windgeschwindigkeit des Zeitschritts berechnet sind. Der " +
+            "Windteil der Simulation reicht von 21:00 bis 06:00 Uhr; hier " +
+            "ist bisher nur die erste Stunde hinterlegt. Die Daten sind ein " +
+            "Testdatensatz und beschreiben keine gemessene Nacht.",
+          tools: [{ addon: "flowField", config: PALM4U_WIND_FLOW }],
+        },
+        {
+          // The backdrop raster travels in the tool's own config rather than
+          // as a layer group, so this card also adds no layers of its own.
+          id: "windfeld-windgeschwindigkeit",
+          title: "Windfeld und Windgeschwindigkeit 21:00 Uhr (PALM-4U)",
+          description:
+            "Inhalt: Dasselbe Windfeld über der Karte der simulierten " +
+            "Windgeschwindigkeit desselben Zeitschritts. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Verbindet die Frage, wohin der Wind weht, mit der " +
+            "Frage, wie stark er ist. Die Animation läuft erst ab einem " +
+            "größeren Maßstab, die Windgeschwindigkeit ist in jedem Maßstab " +
+            "zu sehen.",
+          metaDataText:
+            "Die Farbskala der Windgeschwindigkeit ist auf diese Simulation " +
+            "gelegt, deren Maximum bei 3,31 m/s liegt; sie lässt sich nicht " +
+            "auf andere Läufe übertragen. Ansonsten gilt dasselbe wie beim " +
+            "Windfeld ohne Hintergrund: eine PALM-4U-Simulation über 1200 " +
+            "mal 1200 Meter um das Rathaus mit 5 Metern Rasterweite, " +
+            "Zeitschritt 21:00 Uhr, ein Testdatensatz ohne gemessene Nacht.",
+          tools: [{ addon: "flowField", config: PALM4U_WIND_FLOW_WITH_SPEED }],
         },
       ],
     },
