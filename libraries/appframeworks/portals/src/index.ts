@@ -197,12 +197,18 @@ export {
 export {
   getActionLinksForFeature,
   getInfoBoxActionLinks,
+  getInfoBoxNoteElements,
 } from "./lib/components/helper";
 export {
   addInfoBoxAction,
   getInfoBoxActions,
   useInfoBoxActions,
 } from "./lib/components/info-box-actions";
+export {
+  addInfoBoxNote,
+  getInfoBoxNotes,
+  useInfoBoxNotes,
+} from "./lib/components/info-box-notes";
 
 export {
   motisClient,
