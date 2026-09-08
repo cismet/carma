@@ -46,3 +46,20 @@
 .carma-annotation-overlay .scroll-back-to-content {
   display: none;
 }
+
+/* The plane hangs past the map area on every side, which is what a rotation
+   turns into the corners. What is drawn out there is clipped back to the map
+   area, so it never covers the app's own chrome and never takes a pointer
+   event meant for it. */
+.carma-annotation-overlay[data-plane="true"] {
+  clip-path: inset(var(--carma-plane-y, 0) var(--carma-plane-x, 0));
+}
+
+/* excalidraw pins its chrome to the box it is given, and that box is now
+   bigger than the map area; the chrome belongs over the map area */
+.carma-annotation-overlay[data-plane="true"] .layer-ui__wrapper {
+  top: var(--carma-plane-y, 0);
+  left: var(--carma-plane-x, 0);
+  width: calc(100% - 2 * var(--carma-plane-x, 0px));
+  height: calc(100% - 2 * var(--carma-plane-y, 0px));
+}

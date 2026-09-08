@@ -3,6 +3,11 @@ import { createPortal } from "react-dom";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
+import {
+  DEFAULT_MAX_PITCH,
+  setCameraRestrictionOverride,
+} from "@carma-mapping/engines/maplibre";
+
 import type { AddonComponentProps } from "../../lib/registry";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
@@ -11,6 +16,7 @@ import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { coverageAround } from "./annotation-zoom-coverage";
 import type { AnnotationPen } from "./annotation-pen";
 import { AnnotationScene } from "./AnnotationScene";
+import { usePlaneEnabled } from "./annotation-plane-flag";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
 import type {
@@ -170,6 +176,30 @@ export const AnnotationOverlay = ({
     penRef.current = pen;
   }, []);
   const getPen = useCallback(() => penRef.current, []);
+
+  /**
+   * Annotation mode lifts the camera lock. The drawing follows bearing and
+   * pitch now, so there is nothing left for the lock to protect it from. It is
+   * written as the map's camera-restriction override — the one channel the
+   * engine applies and publishes, so the compass and the pitch control follow
+   * without knowing this addon exists — and dropped again when the mode ends,
+   * which hands the app its own value back. A base the app marked forced,
+   * print above all, still wins, and a `cameraRestriction` addon on the same
+   * route writes the same slot: the later write is the one that stands.
+   */
+  const plane = usePlaneEnabled();
+  useEffect(() => {
+    if (!libreMap || !plane || !isOn) {
+      return;
+    }
+    setCameraRestrictionOverride(libreMap, {
+      restricted: false,
+      maxPitch: DEFAULT_MAX_PITCH,
+    });
+    return () => {
+      setCameraRestrictionOverride(libreMap, null);
+    };
+  }, [isOn, libreMap, plane]);
 
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);

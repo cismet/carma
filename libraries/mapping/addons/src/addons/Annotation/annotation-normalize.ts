@@ -18,6 +18,7 @@ import {
   sameProxy,
 } from "./annotation-clip";
 import type { SceneRect } from "./annotation-clip";
+import { planeSceneRect } from "./annotation-scene-space";
 import type { AnnotationAnchor } from "./types";
 
 /**
@@ -206,7 +207,10 @@ const rebased = (element: ExcalidrawElement, factor: number): Patch => {
     };
   }
 
-  const roundness = element.roundness as { type: number; value?: number } | null;
+  const roundness = element.roundness as {
+    type: number;
+    value?: number;
+  } | null;
   if (roundness && typeof roundness.value === "number") {
     patch.roundness = { ...roundness, value: roundness.value * factor };
   }
@@ -235,7 +239,12 @@ const rescaled = (
   const customData: Record<string, unknown> = { ...data };
   let dirty = false;
 
-  const stroke = freeze(element.strokeWidth, data.strokeNorm, scale, pen.stroke);
+  const stroke = freeze(
+    element.strokeWidth,
+    data.strokeNorm,
+    scale,
+    pen.stroke
+  );
   customData.strokeNorm = stroke;
   dirty = dirty || changed(stroke, data.strokeNorm);
   if (Math.abs(element.strokeWidth - stroke.at) > EPSILON) {
@@ -319,31 +328,15 @@ export const useDecorationScale = ({
   const clipRef = useRef<SceneRect | null>(null);
 
   /**
-   * What is on screen, in scene units, given the camera the scene is about to
-   * be read at. Scene units are map pixels at the anchor's zoom counted from
-   * the anchor, so the anchor's own screen position is where they start.
+   * The plane in scene units, given the camera the scene is about to be read
+   * at. Scene units are map pixels at the anchor's zoom counted from the
+   * anchor, so the anchor's own screen position is where they start. One
+   * measurement, shared with the plane transform and the hit test, see
+   * `annotation-scene-space`.
    */
   const viewportRect = useCallback(
-    (scale: number): SceneRect | null => {
-      const anchor = getAnchor();
-      if (!libreMap || !overlay || !anchor || !(scale > 0)) {
-        return null;
-      }
-      const container = libreMap.getContainer().getBoundingClientRect();
-      const box = overlay.getBoundingClientRect();
-      if (box.width === 0 || box.height === 0) {
-        return null;
-      }
-      const point = libreMap.project([anchor.lng, anchor.lat]);
-      const originX = point.x - (box.left - container.left);
-      const originY = point.y - (box.top - container.top);
-      return {
-        minX: -originX / scale,
-        minY: -originY / scale,
-        maxX: (box.width - originX) / scale,
-        maxY: (box.height - originY) / scale,
-      };
-    },
+    (scale: number): SceneRect | null =>
+      planeSceneRect(libreMap, overlay, getAnchor(), scale),
     [getAnchor, libreMap, overlay]
   );
 
@@ -407,7 +400,10 @@ export const useDecorationScale = ({
       const wanted = (slot: PenSlot) =>
         slot.px === null ? null : slot.px / scale;
       const write = (slot: PenSlot, value: number | null) => {
-        if (value === null || Math.abs((slot.written[0] ?? NaN) - value) < EPSILON) {
+        if (
+          value === null ||
+          Math.abs((slot.written[0] ?? NaN) - value) < EPSILON
+        ) {
           return false;
         }
         slot.written = [value, ...slot.written].slice(0, PEN_MEMORY);
@@ -569,9 +565,7 @@ export const useDecorationScale = ({
     // a frame later: excalidraw finishes the gesture after this handler, and
     // the element it was drawing is only free to be rewritten once it has
     const onUp = () =>
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => normalize(true))
-      );
+      requestAnimationFrame(() => requestAnimationFrame(() => normalize(true)));
     overlay.addEventListener("pointerup", onUp, true);
     // a stroke may well be let go somewhere else entirely
     window.addEventListener("pointerup", onUp, true);
