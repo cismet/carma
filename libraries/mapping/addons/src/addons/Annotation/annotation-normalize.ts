@@ -18,6 +18,7 @@ import {
   sameProxy,
 } from "./annotation-clip";
 import type { SceneRect } from "./annotation-clip";
+import { planeLog } from "./annotation-plane-flag";
 import { planeSceneRect } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor } from "./types";
@@ -377,22 +378,47 @@ export const useDecorationScale = ({
   );
 
   /**
-   * The scale the scene is drawn at: the painted camera, or the map's own
-   * where there is no plane. Null while the scene is still painted against an
-   * anchor the drawing has already moved past — a coordinate does not mean the
-   * same thing in the two of them, so there is nothing to measure yet.
+   * The two scales, which are the same number only while the map is at rest.
+   *
+   * `painted` is what the canvas was drawn at: the scene's own camera. It is
+   * what everything about the canvas is measured against — the box the drawing
+   * is painted into, whether an element is too big for excalidraw to draw, and
+   * how far the camera has drifted from 1.
+   *
+   * `screen` is what the drawing is *seen* at, the map's own scale. The plane
+   * matrix scales the canvas by `screen / painted`, so a stroke arrives on the
+   * screen at `strokeWidth * painted * (screen / painted)` — the painted
+   * camera cancels and the width the eye gets is `strokeWidth * screen`.
+   * Decoration is therefore divided by this one and never by the painted
+   * camera: dividing by the painted camera leaves every stroke `screen /
+   * painted` out for the length of a gesture, bold zooming one way and thin
+   * the other.
+   *
+   * Null while the scene is still drawn against an anchor the drawing has
+   * moved past — a coordinate does not mean the same thing in the two of them,
+   * so there is nothing to measure yet.
    */
-  const paintedScale = useCallback((): number | null => {
+  const scalesNow = useCallback((): {
+    painted: number;
+    screen: number;
+  } | null => {
     const anchor = getAnchor();
     if (!libreMap || !anchor) {
       return null;
     }
+    const screen = 2 ** (libreMap.getZoom() - anchor.zoom);
     const camera = getCamera?.();
     if (!camera) {
-      return 2 ** (libreMap.getZoom() - anchor.zoom);
+      return { painted: screen, screen };
     }
-    return camera.anchor === anchor ? camera.zoom : null;
+    return camera.anchor === anchor ? { painted: camera.zoom, screen } : null;
   }, [getAnchor, getCamera, libreMap]);
+
+  /** the scale of the canvas itself, for everything measured against it */
+  const paintedScale = useCallback(
+    (): number | null => scalesNow()?.painted ?? null,
+    [scalesNow]
+  );
 
   const noteState = useCallback((state: AppState) => {
     // excalidraw's own state, so this is what it really has right now
@@ -427,13 +453,23 @@ export const useDecorationScale = ({
       if (!api || !libreMap || !anchor) {
         return;
       }
-      const camera = paintedScale();
-      if (camera === null || !(camera > 0)) {
+      const scales = scalesNow();
+      if (!scales || !(scales.painted > 0) || !(scales.screen > 0)) {
+        const seen = getCamera?.();
+        planeLog("normalize skipped", {
+          force,
+          anchorZoom: anchor.zoom,
+          cameraAnchorZoom: seen?.anchor.zoom ?? null,
+          cameraZoom: seen?.zoom ?? null,
+        });
         return;
       }
+      const { painted, screen } = scales;
+      // the decoration is what drifts while the map moves, so it is what says
+      // whether the pass is worth its cost
       const moved =
         scaleRef.current <= 0 ||
-        Math.abs(Math.log2(camera / scaleRef.current)) >= K;
+        Math.abs(Math.log2(screen / scaleRef.current)) >= K;
       if (!force && !moved) {
         return;
       }
@@ -443,8 +479,11 @@ export const useDecorationScale = ({
       // moves to this zoom and the drawing is read against it instead. Never
       // while the hand is on an element, which would be rewritten under it.
       const rebasing =
-        busy.size === 0 && Math.abs(Math.log2(camera)) >= REBASE_LEVELS;
-      const scale = rebasing ? 1 : camera;
+        busy.size === 0 && Math.abs(Math.log2(painted)) >= REBASE_LEVELS;
+      // a rebase reads every coordinate in units `painted` times smaller, so
+      // both scales are read in those units from here on
+      const geometry = rebasing ? 1 : painted;
+      const scale = rebasing ? screen / painted : screen;
       scaleRef.current = scale;
 
       // the pen first: what it hands out is what a new element is born with,
@@ -485,7 +524,7 @@ export const useDecorationScale = ({
       const rewritten = scene
         .filter((element) => !isClipProxy(element))
         .map((element) => {
-          const moved = rebasing ? rebased(element, camera) : null;
+          const moved = rebasing ? rebased(element, painted) : null;
           const decoration = rescaled(element, scale, pen, busy);
           if (!moved && !decoration) {
             return element;
@@ -500,7 +539,7 @@ export const useDecorationScale = ({
       // What excalidraw's canvas cap would eat is drawn by clipped copies
       // instead, see `annotation-clip`. The element under the hand keeps
       // drawing itself: it is being moved, and its copies would lag it.
-      const viewport = viewportRect(scale);
+      const viewport = viewportRect(geometry);
       const clipBox = viewport ? clipWindow(viewport) : null;
       const pixelRatio = globalThis.devicePixelRatio || 1;
       const elements: ExcalidrawElement[] = [];
@@ -509,7 +548,7 @@ export const useDecorationScale = ({
         const takeOver =
           clipBox !== null &&
           !busy.has(element.id) &&
-          oversized(element, scale, pixelRatio);
+          oversized(element, geometry, pixelRatio);
         if (!takeOver) {
           if (!isClipped(element)) {
             elements.push(element);
@@ -525,7 +564,7 @@ export const useDecorationScale = ({
           touched = true;
           elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
         }
-        proxiesFor(element, clipBox, scale).forEach((proxy) => {
+        proxiesFor(element, clipBox, geometry).forEach((proxy) => {
           copies.add(proxy.id);
           const previous = spare.get(proxy.id);
           // the same copy as last time keeps its version, so excalidraw draws
@@ -545,6 +584,26 @@ export const useDecorationScale = ({
       // window has to make them again; nothing to watch while there are none
       clipRef.current = copies.size > 0 ? clipBox : null;
 
+      const sample = elements.find(
+        (element) => !element.isDeleted && !isClipProxy(element)
+      );
+      planeLog("normalize", {
+        force,
+        mapZoom: libreMap.getZoom(),
+        anchorZoom: anchor.zoom,
+        painted,
+        screen,
+        rebasing,
+        geometry,
+        decoration: scale,
+        penPx: pen.stroke.px,
+        strokeWidth: sample?.strokeWidth ?? null,
+        strokeNorm: (sample?.customData as { strokeNorm?: unknown } | undefined)
+          ?.strokeNorm,
+        touched,
+        penMoved,
+      });
+
       if (!touched && !penMoved) {
         return;
       }
@@ -552,7 +611,7 @@ export const useDecorationScale = ({
         // before the elements land, so the camera for the new anchor is what
         // the scene draws them with. Read off the painted camera, not the map:
         // the zoom that puts this scale at 1 is the one the scene is at
-        setAnchorZoom(anchor.zoom + Math.log2(camera));
+        setAnchorZoom(anchor.zoom + Math.log2(painted));
       }
       // not an edit the user made, so it stays out of the undo history
       api.updateScene({
@@ -570,7 +629,15 @@ export const useDecorationScale = ({
         commitToHistory: false,
       });
     },
-    [api, getAnchor, libreMap, paintedScale, setAnchorZoom, viewportRect]
+    [
+      api,
+      getAnchor,
+      getCamera,
+      libreMap,
+      scalesNow,
+      setAnchorZoom,
+      viewportRect,
+    ]
   );
 
   /**

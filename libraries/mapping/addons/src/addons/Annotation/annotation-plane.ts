@@ -315,7 +315,7 @@ export const useGroundPlane = ({
         { x: 0, y: rect.height },
       ];
       write(
-        cssTransform(matrix),
+        cssTransform(matrix, rect.width, rect.height),
         cssClipPath(clipToHorizon(corners, matrix, HORIZON_W), corners)
       );
       billboard(matrix);
