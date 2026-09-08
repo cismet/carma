@@ -17,6 +17,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const FLAG = "annotationPlane";
 const CONSOLE_NAME = "carmaAnnotationPlane";
+const LOG_NAME = "carmaAnnotationPlaneLog";
 
 const OFF_VALUES = new Set(["off", "0", "false", "no", "nein"]);
 
@@ -55,11 +56,29 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-/** the console handle, installed once per document */
+/**
+ * What the plane and the decoration decided, for when a drawing comes out at a
+ * size nothing in the code explains. Off, and free: one boolean per call.
+ * `carmaAnnotationPlaneLog()` in the console turns it on.
+ */
+let logging = false;
+
+export const planeLog = (tag: string, data: Record<string, unknown>) => {
+  if (logging) {
+    // eslint-disable-next-line no-console
+    console.log(`[annotation-plane] ${tag}`, data);
+  }
+};
+
+/** the console handles, installed once per document */
 if (typeof window !== "undefined") {
   const host = window as unknown as Record<string, unknown>;
   host[CONSOLE_NAME] = (next?: boolean) =>
     setPlaneEnabled(next === undefined ? !enabled : next);
+  host[LOG_NAME] = (next?: boolean) => {
+    logging = next === undefined ? !logging : next;
+    return logging;
+  };
 }
 
 /** whether the drawing follows bearing and pitch, as a subscribed value */

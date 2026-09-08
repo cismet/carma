@@ -43,8 +43,20 @@ export const HORIZON_W = 0.15;
 /** below this a matrix entry is zero */
 const EPSILON = 1e-9;
 
-/** below this the transform is the identity and nothing is written */
-const IDENTITY_EPSILON = 1e-6;
+/**
+ * How far the transform may move a corner of the plane and still count as no
+ * transform at all, in pixels.
+ *
+ * Measured as a displacement, not as a difference between matrix entries: two
+ * of the entries are a translation in pixels, so a threshold small enough to
+ * be meaningful for the others is one no real matrix ever meets. The map's own
+ * projection and ours agree to a fraction of a pixel, not to the last bit, and
+ * a matrix that misses by a hundredth of a pixel is still a matrix — the
+ * canvas goes onto a composited layer and the browser resamples every pixel of
+ * it at a fractional offset. That is a soft, jagged drawing that never comes
+ * back into focus, for a difference nobody can see.
+ */
+const IDENTITY_PX = 0.25;
 
 const solveLinear = (rows: number[][], rhs: number[]): number[] | null => {
   const n = rhs.length;
@@ -178,15 +190,22 @@ export const apply = (m: Mat3, x: number, y: number): Point | null => {
   };
 };
 
-export const isIdentity = (m: Mat3): boolean => {
-  const scale = m[8];
-  if (!Number.isFinite(scale) || Math.abs(scale) < 1e-12) {
-    return false;
-  }
-  const n = m.map((value) => value / scale);
-  return IDENTITY.every(
-    (value, index) => Math.abs(n[index] - value) < IDENTITY_EPSILON
-  );
+/** whether the transform leaves every corner of a `width` by `height` plane put */
+export const isIdentity = (m: Mat3, width: number, height: number): boolean => {
+  const corners: Point[] = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ];
+  return corners.every((corner) => {
+    const at = apply(m, corner.x, corner.y);
+    return (
+      at !== null &&
+      Math.abs(at.x - corner.x) < IDENTITY_PX &&
+      Math.abs(at.y - corner.y) < IDENTITY_PX
+    );
+  });
 };
 
 /**
@@ -196,8 +215,12 @@ export const isIdentity = (m: Mat3): boolean => {
  * unnormalised: CSS takes any `m44`, and dividing by one that is near zero is
  * exactly what happens when the plane's own origin sits on the horizon.
  */
-export const cssTransform = (m: Mat3): string => {
-  if (isIdentity(m)) {
+export const cssTransform = (
+  m: Mat3,
+  width: number,
+  height: number
+): string => {
+  if (isIdentity(m, width, height)) {
     return "none";
   }
   const [a, b, c, d, e, f, g, h, i] = m;

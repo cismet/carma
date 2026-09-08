@@ -6,6 +6,7 @@ import type {
   NormalizedZoomValue,
 } from "@excalidraw/excalidraw/types/types";
 
+import { planeLog } from "./annotation-plane-flag";
 import { overlayOffset } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
@@ -19,6 +20,19 @@ const EPSILON = 0.01;
 
 /** a scene that will not take our camera must not be pushed at forever */
 const REPUSH_LIMIT = 5;
+
+/**
+ * How far the map's scale may drift from the one the scene was painted at
+ * before the camera is written mid-gesture, in zoom levels. Only while the map
+ * is turned or tilted; see `followsMap`.
+ *
+ * A zoom is the one gesture the matrix cannot carry for free. Rotation, pitch
+ * and pan move a finished bitmap around, which costs nothing and loses
+ * nothing; a zoom magnifies it, and a magnified bitmap is a drawing made of
+ * stairsteps until the scene is painted again. So the scale is handed back to
+ * excalidraw as it drifts, and the matrix is left with the part it is good at.
+ */
+const PLANE_RESCALE_LEVELS = 1 / 8;
 
 /**
  * How long after a gesture a camera from the scene still counts as the user's.
@@ -169,6 +183,23 @@ export const useMapSceneSync = (
       scale,
     };
     if (plane && pushedRef.current && same(camera, pushedRef.current)) {
+      /**
+       * The same numbers under a different anchor. `reanchor` hands out one of
+       * these on every `moveend` an empty drawing sees — scale exactly 1, the
+       * scroll the middle of the box — so the scene has nothing to redraw and
+       * would never echo, leaving the pair the plane and the decoration read
+       * pointing at an anchor the drawing left behind. Everything measured
+       * against that pair then quietly stops: `normalize` sees two anchors
+       * that disagree and does nothing, pass after pass, and the strokes keep
+       * whatever width they were last given. So the label is corrected here,
+       * without asking the scene for anything.
+       */
+      const applied = appliedRef.current;
+      if (applied && applied.anchor !== anchor) {
+        appliedRef.current = { ...applied, anchor };
+        map.triggerRepaint();
+      }
+      pushedRef.current = { ...camera, anchor };
       return;
     }
 
@@ -234,6 +265,11 @@ export const useMapSceneSync = (
           scrollY: camera.scrollY,
           zoom: camera.scale,
         };
+        planeLog("camera", {
+          anchorZoom: pushed.anchor.zoom,
+          zoom: camera.scale,
+          mapZoom: map.getZoom(),
+        });
         setInSync(true);
         map.triggerRepaint();
         return;
@@ -279,6 +315,47 @@ export const useMapSceneSync = (
     [applyMapCamera, inSync, interactive, map, offsetOf, plane, userDriven]
   );
 
+  /**
+   * What happens between two rests, per frame.
+   *
+   * The matrix exists for the one thing excalidraw's camera cannot say:
+   * a turned or tilted ground. While the map is north-up and flat it has
+   * nothing to add — every camera the map can be at is a scroll and a zoom,
+   * which the scene expresses itself — so the camera is written each frame and
+   * the matrix stays the identity. That matters more than the cost: a canvas
+   * under any transform at all, even one a few percent off, is composited and
+   * resampled every frame, and resampling a one pixel line at a fraction of a
+   * scale is a drawing made of stairsteps. `transform: none` is the only state
+   * that is genuinely sharp, and north-up is the state the map is in almost
+   * all of the time.
+   *
+   * Turned or tilted, the matrix is unavoidable and the picture is a scaled
+   * bitmap whatever we do, so the camera is only rewritten once the scale has
+   * drifted far enough to show — which no rotation and no pan ever does.
+   */
+  const followsMap = useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!map || !anchor) {
+      return;
+    }
+    if (map.getBearing() === 0 && map.getPitch() === 0) {
+      applyMapCamera();
+      return;
+    }
+    const applied = appliedRef.current;
+    if (!applied || applied.anchor !== anchor) {
+      return;
+    }
+    const screen = 2 ** (map.getZoom() - anchor.zoom);
+    if (!(screen > 0) || !(applied.zoom > 0)) {
+      return;
+    }
+    if (Math.abs(Math.log2(screen / applied.zoom)) < PLANE_RESCALE_LEVELS) {
+      return;
+    }
+    applyMapCamera();
+  }, [applyMapCamera, map]);
+
   // a fresh excalidraw starts from its own defaults again, so nothing it says
   // counts as a camera until it has echoed one of ours
   useEffect(() => {
@@ -306,6 +383,9 @@ export const useMapSceneSync = (
     const moved = plane ? "moveend" : "move";
     map.on(moved, applyMapCamera);
     map.on("resize", applyMapCamera);
+    if (plane) {
+      map.on("move", followsMap);
+    }
 
     // the measured offset moves whenever the app's chrome does
     const sizes = overlay ? new ResizeObserver(applyMapCamera) : null;
@@ -316,9 +396,10 @@ export const useMapSceneSync = (
     return () => {
       map.off(moved, applyMapCamera);
       map.off("resize", applyMapCamera);
+      map.off("move", followsMap);
       sizes?.disconnect();
     };
-  }, [api, applyMapCamera, live, map, overlay, plane]);
+  }, [api, applyMapCamera, live, map, overlay, plane, followsMap]);
 
   const getAnchor = useCallback(() => anchorRef.current, []);
 
