@@ -30,6 +30,56 @@ vi.hoisted(() => {
 
 describe("three tiles runtime styling", () => {
   it.each([false, true])(
+    "keeps layer opacity authoritative with shadow full-opacity=%s",
+    (fullOpacity) => {
+      const layer = buildThreeTilesRuntime(
+        "mesh",
+        "tileset.json",
+        [7.15, 51.25],
+        {
+          providesTerrain: true,
+          shadowBuildingStyle: true,
+        }
+      );
+      const source = new THREE.MeshBasicMaterial({
+        map: new THREE.Texture(),
+        opacity: 0.4,
+        transparent: true,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(), source);
+      layer.root.add(mesh);
+      layer.setShadowSimulationStyle?.({ fullOpacity, uniformColor: null });
+      const material = mesh.material;
+      const version = layer.mapStyleProjectionVersion?.();
+      layer.setOpacity(0.25);
+      expect(mesh.material).toBe(material);
+      expect(material.opacity).toBeCloseTo(fullOpacity ? 0.25 : 0.1);
+      expect(material.transparent).toBe(true);
+      expect(material.depthWrite).toBe(false);
+      expect(layer.mapStyleProjectionVersion?.()).toBeGreaterThan(version!);
+
+      // Changing shader options must not reset the modal's opacity.
+      layer.setShadowSimulationStyle?.({
+        fullOpacity,
+        uniformColor: "#ffffff",
+        uniformColorMix: 0.5,
+      });
+      expect(material.opacity).toBeCloseTo(fullOpacity ? 0.25 : 0.1);
+      layer.setOpacity(0);
+      expect(material.opacity).toBe(0);
+      layer.setOpacity(1);
+      expect(material.opacity).toBe(fullOpacity ? 1 : 0.4);
+      expect(material.transparent).toBe(!fullOpacity);
+      expect(material.depthWrite).toBe(fullOpacity);
+      layer.setShadowSimulationStyle?.(null);
+      expect(mesh.material).toBe(source);
+      expect(source.opacity).toBe(0.4);
+      layer.dispose();
+    }
+  );
+
+  it.each([false, true])(
     "cancels stale requests without evicting current view/corridor demand (shadows=%s)",
     (shadows) => {
       let renderer: TilesRenderer & {

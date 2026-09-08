@@ -1127,15 +1127,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
           material.userData.__baseDepthWrite = material.depthWrite;
         }
         const translucent = opacity < 0.999;
-        material.opacity = forceOpaque
-          ? 1
-          : (material.userData.__baseOpacity as number) * opacity;
-        material.transparent = forceOpaque
-          ? false
-          : (material.userData.__baseTransparent as boolean) || translucent;
-        material.depthWrite = forceOpaque
-          ? true
-          : (material.userData.__baseDepthWrite as boolean) && !translucent;
+        // Full opacity normalizes the source material, not the user's layer
+        // opacity. The layer/modal slider is the final multiplier in both modes.
+        material.opacity =
+          (forceOpaque ? 1 : (material.userData.__baseOpacity as number)) *
+          opacity;
+        material.transparent =
+          translucent ||
+          (!forceOpaque && (material.userData.__baseTransparent as boolean));
+        material.depthWrite =
+          !translucent &&
+          (forceOpaque || (material.userData.__baseDepthWrite as boolean));
         if ("wireframe" in material) {
           (material as THREE.Material & { wireframe: boolean }).wireframe =
             wireframe;
