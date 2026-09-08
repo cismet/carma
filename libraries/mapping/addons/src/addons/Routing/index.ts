@@ -9,3 +9,4 @@ export {
   type RouteNavigationState,
 } from "./routeChannel";
 export { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
+export type { RouteMode } from "./routeMode";
