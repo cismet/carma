@@ -411,6 +411,64 @@ const STARKREGEN_EXTREM2018_FLOW_WITH_DEPTH: FlowFieldDefinition = {
 };
 
 /**
+ * PET over the course of a hot day, from the PALM-4U training run around the
+ * Rathaus (wupp #4113, data described in #4098). One WMS layer per full hour
+ * from 06:00 to 20:00, `ts006` … `ts020` being the model's own step numbering.
+ *
+ * The model area is only 1200 x 1200 m: outside that square the layers are
+ * empty, and a workflow card cannot move the map (see the comment on the card
+ * below). The masked building footprints come through as nodata and stay
+ * transparent, so the series shows the ground between the buildings.
+ *
+ * `initialStep: 9` is 15:00, in the middle of the afternoon band where the
+ * values peak; the exact peak hour differs per location with the shading.
+ */
+const PALM4U_PET_SERIES: TimeSeriesDefinition = {
+  title: "PET Tagesgang (PALM-4U)",
+  wmsUrl: "https://wupp-palm4u-wms.cismet.de/geoserver/wms?SERVICE=WMS",
+  styles: "palm4u:pet",
+  intermediateValuesCount: 20,
+  opacity: 0.85,
+  initialStep: 9,
+  /** one WMS layer per full hour */
+  layers: [
+    "palm4u:L_PET_pet3857_ts006",
+    "palm4u:L_PET_pet3857_ts007",
+    "palm4u:L_PET_pet3857_ts008",
+    "palm4u:L_PET_pet3857_ts009",
+    "palm4u:L_PET_pet3857_ts010",
+    "palm4u:L_PET_pet3857_ts011",
+    "palm4u:L_PET_pet3857_ts012",
+    "palm4u:L_PET_pet3857_ts013",
+    "palm4u:L_PET_pet3857_ts014",
+    "palm4u:L_PET_pet3857_ts015",
+    "palm4u:L_PET_pet3857_ts016",
+    "palm4u:L_PET_pet3857_ts017",
+    "palm4u:L_PET_pet3857_ts018",
+    "palm4u:L_PET_pet3857_ts019",
+    "palm4u:L_PET_pet3857_ts020",
+  ],
+  /** what the slider shows for each step, the hour of the simulated day */
+  labels: [
+    "06:00",
+    "07:00",
+    "08:00",
+    "09:00",
+    "10:00",
+    "11:00",
+    "12:00",
+    "13:00",
+    "14:00",
+    "15:00",
+    "16:00",
+    "17:00",
+    "18:00",
+    "19:00",
+    "20:00",
+  ],
+};
+
+/**
  * The stations the trasse asset passes, west to east.
  *
  * Coordinates from OpenStreetMap (`public_transport=stop_position` on the
@@ -849,6 +907,41 @@ export const workflowsFachzwilling: FachzwillingRoute = {
               config: STARKREGEN_EXTREM2018_FLOW_WITH_DEPTH,
             },
           ],
+        },
+      ],
+    },
+    {
+      id: "stadtklima",
+      title: "Stadtklima",
+      workflows: [
+        {
+          // No `layers`: like the Starkregen time series, this card adds no
+          // layer group. Its timeSlider tool carries the series and the click
+          // launches it into the engine the route mounts. That path returns
+          // before any layer group is built, so the card can neither move the
+          // map to the model area nor show a legend; the map has to be over
+          // the Rathaus already for the series to be visible.
+          id: "pet-tagesgang",
+          title: "PET Tagesgang (PALM-4U)",
+          description:
+            "Inhalt: Die physiologisch äquivalente Temperatur (PET) an " +
+            "einem heißen Tag, stündlich von 06:00 bis 20:00 Uhr, als " +
+            "abspielbare Zeitreihe. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Zeigt, wo es im Tagesverlauf heiß wird und welche " +
+            "Flächen im Schatten bleiben. Die Simulation deckt nur einen " +
+            "Quadratkilometer rund um das Rathaus ab; außerhalb bleibt die " +
+            "Karte leer.",
+          metaDataText:
+            "Grundlage ist eine PALM-4U-Simulation aus einer Schulung der " +
+            "Stadt Wuppertal beim Fraunhofer IBP, ein Gebiet von 1200 mal " +
+            "1200 Metern um das Rathaus mit 5 Metern Rasterweite. Die " +
+            "Gebäudeflächen sind im Modell ausmaskiert und bleiben " +
+            "durchsichtig. Die Farbklassen folgen der Skala von Matzarakis " +
+            "und Mayer für das thermische Empfinden in Mitteleuropa; sie " +
+            "sind nicht an diese Simulation angepasst. Die Daten sind ein " +
+            "Testdatensatz und beschreiben keinen gemessenen Tag.",
+          tools: [{ addon: "timeSlider", config: PALM4U_PET_SERIES }],
         },
       ],
     },
