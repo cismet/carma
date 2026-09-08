@@ -44,7 +44,7 @@ export const MIN_MOBILE_WIDTH = 600;
 export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 /**
- * Addons every route gets. A route declaring the same kind replaces the entry
+ * Addons every route gets. A route declaring the same addon replaces the entry
  * here, see `withDefaultAddons`.
  *
  * `cameraRestriction` keeps the MapLibre camera north-up and flat everywhere,
@@ -52,7 +52,7 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  * map: buildings, trees and tilesets only show up in a tilted view. The mode
  * asks the map what it is drawing rather than matching layer names, so a new 3D
  * style is covered the day it is published. A route that wants different rules
- * declares the kind itself with a config of its own.
+ * declares the addon itself with a config of its own.
  *
  * `libreTerrain` follows the restriction the engine ends up with rather than
  * the layers: whenever the camera is free the terrain is on, and it goes off
@@ -62,11 +62,11 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
-    kind: "cameraRestriction",
+    addon: "cameraRestriction",
     config: { mode: "unless3dLayersActive" },
   },
   {
-    kind: "libreTerrain",
+    addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
 ];

@@ -28,7 +28,7 @@ export const kommunalePlanungFachzwilling: FachzwillingRoute = {
   ],
   addons: [
     {
-      kind: "homeOverride",
+      addon: "homeOverride",
       config: {
         lat: 51.2178674,
         lng: 7.178007,

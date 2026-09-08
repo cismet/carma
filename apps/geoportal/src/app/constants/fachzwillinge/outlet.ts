@@ -31,7 +31,7 @@ export const outletFachzwilling: FachzwillingRoute = {
   },
   addons: [
     {
-      kind: "outlet",
+      addon: "outlet",
       config: {
         // georef.bounds of the printed Wuppertal model, from carmaPM
         // models/wupp/twin-wupp.json (surveyed 2026-07-25). Overridable per

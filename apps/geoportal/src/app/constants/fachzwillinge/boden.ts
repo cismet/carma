@@ -35,7 +35,7 @@ export const bodenFachzwilling: FachzwillingRoute = {
   ],
   addons: [
     {
-      kind: "gazetteerMode",
+      addon: "gazetteerMode",
       config: {
         key: "bplaene",
         label: "Bebauungspläne",

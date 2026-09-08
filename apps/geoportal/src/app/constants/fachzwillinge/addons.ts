@@ -9,13 +9,13 @@ export const addonsFachzwilling: FachzwillingRoute = {
     deployments: ["localDev", "dev", "pr"],
   },
   addons: [
-    { kind: "addonManager", config: { showControl: true } },
+    { addon: "addonManager", config: { showControl: true } },
     // Compares the layers already on the map by splitting the window between
     // two panels. The button switches the mode; which layer goes to which side
     // is not selectable yet, the topmost two go one each and whatever is below
     // them stays under both.
-    { kind: "comparingControl" },
-    { kind: "compareSwipe", config: {} },
+    { addon: "comparingControl" },
+    { addon: "compareSwipe", config: {} },
     // the same comparison as separate windows: up to four real maps in a
     // layout, one per assigned set of layers, all on one camera.
     // `ignoreToolbar: false` keeps the top row clear of the navbar instead of
@@ -23,15 +23,15 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // chrome comes or goes. The layer buttons keep floating over the maps;
     // `#buttonWrapper` instead of `#topNavbar` would clear those as well.
     {
-      kind: "compareArena",
+      addon: "compareArena",
       config: { toolbarSelector: "#topNavbar", ignoreToolbar: false },
     },
     // the same two panels as a lens: one map everywhere, the other inside a
     // circle that is dragged over it, and wheeled larger or smaller. Two panels
     // and no more, which the shared state holds the layout to.
-    { kind: "compareSpyglass", config: {} },
+    { addon: "compareSpyglass", config: {} },
     {
-      kind: "vectorHighlight",
+      addon: "vectorHighlight",
       config: {
         modifierClick: "alt",
         lasso: true,
@@ -54,18 +54,18 @@ export const addonsFachzwilling: FachzwillingRoute = {
         },
       },
     },
-    { kind: "vectorHighlightControl" },
+    { addon: "vectorHighlightControl" },
     {
-      kind: "libreTerrain",
+      addon: "libreTerrain",
       config: { appKey: "geoportal", mode: "whileCameraFree" },
     },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {
-      kind: "vectorHighlightDebug",
+      addon: "vectorHighlightDebug",
       config: { limit: 20, property: "id", hidden: true },
     },
     {
-      kind: "nearestFeature",
+      addon: "nearestFeature",
       config: {
         origin: {
           lat: DEFAULT_HOME_VIEW_REF.lat,
@@ -82,17 +82,17 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // address picked in it becomes the point "In der Nähe" measures from
     "originSearch",
     {
-      kind: "visibleFeatureStatsSource",
+      addon: "visibleFeatureStatsSource",
       config: {
         showDebugBounds: true,
         insetPx: { top: 56, left: 1, right: 0, bottom: 4 },
       },
     },
-    { kind: "visibleFeatureStatsPanel", config: {} },
+    { addon: "visibleFeatureStatsPanel", config: {} },
     // caged: shows that cage is present, and renders nothing at all when the
     // cage submodule isre absent. Default is topright order 100, which puts it
     // under the stats panel (topright order 10).
-    { kind: "cageIndicatorBadge" },
+    { addon: "cageIndicatorBadge" },
     // {
     //   /**
     //    * experiment: the image in the info box changes with the zoom.
@@ -104,7 +104,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
     //    * A key is the layer name from the catalog config, or the full
     //    * "<serviceName>:<layerName>" id when the name is ambiguous.
     //    */
-    //   kind: "infoBoxZoomImage",
+    //   addon: "infoBoxZoomImage",
     //   config: {
     //     rules: {
     //       // one image per zoom step, from the widest view to the closest;

@@ -321,7 +321,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Die Zeitreihe zeigt die Simulationsergebnisse der " +
             "Starkregengefahrenkarte Wuppertal für das Szenario T50 (SRI 6) " +
             "in Schritten von fünf Minuten.",
-          tools: [{ kind: "timeSlider", config: STARKREGEN_T50_SERIES }],
+          tools: [{ addon: "timeSlider", config: STARKREGEN_T50_SERIES }],
         },
         {
           // No `layers`: like the time series card, this one adds no layer
@@ -342,7 +342,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Grundlage sind die u- und v-Komponenten der Simulation zum " +
             "Szenario T50 (SRI 6). Das Feld enthält die Maximalwerte des " +
             "Ereignisses und keine Zeitschritte.",
-          tools: [{ kind: "flowField", config: STARKREGEN_T50_FLOW }],
+          tools: [{ addon: "flowField", config: STARKREGEN_T50_FLOW }],
         },
         {
           // The backdrop raster travels in the tool's own config rather than
@@ -363,7 +363,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Wuppertal, Layer starkregen:L_T50_depth3857. Die Fließwege " +
             "entstehen aus den u- und v-Komponenten derselben Simulation.",
           tools: [
-            { kind: "flowField", config: STARKREGEN_T50_FLOW_WITH_DEPTH },
+            { addon: "flowField", config: STARKREGEN_T50_FLOW_WITH_DEPTH },
           ],
         },
       ],
@@ -394,7 +394,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
             "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
           tools: [
-            { kind: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
+            { addon: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
           ],
         },
         {
@@ -417,7 +417,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "über der Trasse und werden auf deren Höhe gesetzt. Fahrplan " +
             "und Fahrzeuge wie in der Karte „Schwebebahn“.",
           tools: [
-            { kind: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE },
+            { addon: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE },
           ],
         },
         {
@@ -439,7 +439,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Wagenkasten ist ein vereinfachter GTW 15: 24,06 m lang, 2,2 m " +
             "breit, 2,7 m hoch, mit vier Laufwerken auf der Schiene.",
           tools: [
-            { kind: "vehicleAnimation", config: SCHWEBEBAHN_3D_VEHICLE },
+            { addon: "vehicleAnimation", config: SCHWEBEBAHN_3D_VEHICLE },
           ],
         },
         {
@@ -466,7 +466,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "steht 25 Sekunden vor jeder Abfahrt an der Station. Trasse und " +
             "Fahrzeuge wie in der Karte „Schwebebahn“.",
           tools: [
-            { kind: "vehicleAnimation", config: SCHWEBEBAHN_FAHRPLAN_VEHICLE },
+            { addon: "vehicleAnimation", config: SCHWEBEBAHN_FAHRPLAN_VEHICLE },
           ],
         },
         {
@@ -485,7 +485,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Fahrzeuge wie in der Karte „Schwebebahn nach Fahrplan“.",
           tools: [
             {
-              kind: "vehicleAnimation",
+              addon: "vehicleAnimation",
               config: SCHWEBEBAHN_GERUEST_FAHRPLAN_VEHICLE,
             },
           ],
@@ -505,7 +505,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Geometrie wie in der Karte „Schwebebahn in 3D“, Fahrplan wie in " +
             "der Karte „Schwebebahn nach Fahrplan“.",
           tools: [
-            { kind: "vehicleAnimation", config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE },
+            { addon: "vehicleAnimation", config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE },
           ],
         },
       ],
