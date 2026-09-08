@@ -21,7 +21,7 @@ const SCHWEBEBAHN_DATA = `${ASSET_BASE_URL}/geoportal/data`;
  * ships no scenario of its own, whatever runs is spelled out where it is used.
  */
 const STARKREGEN_T50_SERIES: TimeSeriesDefinition = {
-  title: "Starkregen  T50",
+  title: "Starkregen T50 (zeitlicher Verlauf)",
   wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
   styles: "starkregen:depth",
   intermediateValuesCount: 20,
@@ -100,7 +100,8 @@ const STARKREGEN_T50_FLOW: FlowFieldDefinition = {
   minZoom: 16,
   // without cage: the same scenario's direction arrows as a plain WMS
   fallback: {
-    wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
     layers: "starkregen:L_T50_direction3857",
     styles: "starkregen:direction",
   },
@@ -111,8 +112,299 @@ const STARKREGEN_T50_FLOW_WITH_DEPTH: FlowFieldDefinition = {
   ...STARKREGEN_T50_FLOW,
   title: "Starkregen T50 Fließwege und Wassertiefen",
   backdrop: {
-    wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
     layers: "starkregen:L_T50_depth3857",
+    styles: "starkregen:depth",
+    opacity: 0.85,
+  },
+};
+
+/**
+ * Starkregen SRI 7: zwei Stunden mit 42 l/m², statistische Wiederkehrzeit 100
+ * Jahre. Zweiter Eintrag von `simulations` in
+ * `envirometrics/wuppertal/rainhazardmap/src/config.js`.
+ */
+const STARKREGEN_T100_SERIES: TimeSeriesDefinition = {
+  title: "Starkregen T100 (zeitlicher Verlauf)",
+  wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+  styles: "starkregen:depth",
+  intermediateValuesCount: 20,
+  opacity: 0.85,
+  initialStep: 2,
+  /** one WMS layer per time step */
+  layers: [
+    "starkregen:L_T100_steps_depth3857_00h_05m",
+    "starkregen:L_T100_steps_depth3857_00h_10m",
+    "starkregen:L_T100_steps_depth3857_00h_15m",
+    "starkregen:L_T100_steps_depth3857_00h_20m",
+    "starkregen:L_T100_steps_depth3857_00h_25m",
+    "starkregen:L_T100_steps_depth3857_00h_30m",
+    "starkregen:L_T100_steps_depth3857_00h_35m",
+    "starkregen:L_T100_steps_depth3857_00h_39m",
+    "starkregen:L_T100_steps_depth3857_00h_44m",
+    "starkregen:L_T100_steps_depth3857_00h_49m",
+    "starkregen:L_T100_steps_depth3857_00h_55m",
+    "starkregen:L_T100_steps_depth3857_00h_59m",
+    "starkregen:L_T100_steps_depth3857_01h_04m",
+    "starkregen:L_T100_steps_depth3857_01h_09m",
+    "starkregen:L_T100_steps_depth3857_01h_15m",
+    "starkregen:L_T100_steps_depth3857_01h_19m",
+    "starkregen:L_T100_steps_depth3857_01h_24m",
+    "starkregen:L_T100_steps_depth3857_01h_30m",
+    "starkregen:L_T100_steps_depth3857_01h_34m",
+    "starkregen:L_T100_steps_depth3857_01h_39m",
+    "starkregen:L_T100_steps_depth3857_01h_44m",
+    "starkregen:L_T100_steps_depth3857_01h_49m",
+    "starkregen:L_T100_steps_depth3857_01h_54m",
+    "starkregen:L_T100_steps_depth3857_01h_59m",
+  ],
+  /** what the slider shows for each step, elapsed time since the event start */
+  labels: [
+    "00h 05m",
+    "00h 10m",
+    "00h 15m",
+    "00h 20m",
+    "00h 25m",
+    "00h 30m",
+    "00h 35m",
+    "00h 40m",
+    "00h 45m",
+    "00h 50m",
+    "00h 55m",
+    "01h 00m",
+    "01h 05m",
+    "01h 09m",
+    "01h 15m",
+    "01h 20m",
+    "01h 24m",
+    "01h 30m",
+    "01h 35m",
+    "01h 40m",
+    "01h 44m",
+    "01h 50m",
+    "01h 55m",
+    "02h 00m",
+  ],
+};
+
+/** The same scenario as a flow field, animated from its u/v velocity rasters. */
+const STARKREGEN_T100_FLOW: FlowFieldDefinition = {
+  title: "Starkregen T100 Fließwege",
+  service: "https://rain-rasterfari-wuppertal.cismet.de",
+  scenario: "T100/",
+  // Leaflet 17 in the old rain hazard map; MapLibre counts one lower
+  minZoom: 16,
+  // without cage: the same scenario's direction arrows as a plain WMS
+  fallback: {
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_T100_direction3857",
+    styles: "starkregen:direction",
+  },
+};
+
+/** The same animation over the scenario's maximum water depths. */
+const STARKREGEN_T100_FLOW_WITH_DEPTH: FlowFieldDefinition = {
+  ...STARKREGEN_T100_FLOW,
+  title: "Starkregen T100 Fließwege und Wassertiefen",
+  backdrop: {
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_T100_depth3857",
+    styles: "starkregen:depth",
+    opacity: 0.85,
+  },
+};
+
+/**
+ * Starkregen SRI 10: eine Stunde mit 90 l/m². Dritter Eintrag von
+ * `simulations` in `envirometrics/wuppertal/rainhazardmap/src/config.js`.
+ */
+const STARKREGEN_90MM_SERIES: TimeSeriesDefinition = {
+  title: "Starkregen 90 mm (zeitlicher Verlauf)",
+  wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+  styles: "starkregen:depth",
+  intermediateValuesCount: 20,
+  opacity: 0.85,
+  initialStep: 2,
+  /** one WMS layer per time step */
+  layers: [
+    "starkregen:L_90mm_steps_depth3857_00h_05m",
+    "starkregen:L_90mm_steps_depth3857_00h_09m",
+    "starkregen:L_90mm_steps_depth3857_00h_15m",
+    "starkregen:L_90mm_steps_depth3857_00h_20m",
+    "starkregen:L_90mm_steps_depth3857_00h_25m",
+    "starkregen:L_90mm_steps_depth3857_00h_30m",
+    "starkregen:L_90mm_steps_depth3857_00h_35m",
+    "starkregen:L_90mm_steps_depth3857_00h_40m",
+    "starkregen:L_90mm_steps_depth3857_00h_45m",
+    "starkregen:L_90mm_steps_depth3857_00h_50m",
+    "starkregen:L_90mm_steps_depth3857_00h_55m",
+    "starkregen:L_90mm_steps_depth3857_00h_59m",
+    "starkregen:L_90mm_steps_depth3857_01h_04m",
+    "starkregen:L_90mm_steps_depth3857_01h_09m",
+    "starkregen:L_90mm_steps_depth3857_01h_14m",
+    "starkregen:L_90mm_steps_depth3857_01h_19m",
+    "starkregen:L_90mm_steps_depth3857_01h_24m",
+    "starkregen:L_90mm_steps_depth3857_01h_29m",
+    "starkregen:L_90mm_steps_depth3857_01h_34m",
+    "starkregen:L_90mm_steps_depth3857_01h_39m",
+    "starkregen:L_90mm_steps_depth3857_01h_44m",
+    "starkregen:L_90mm_steps_depth3857_01h_49m",
+    "starkregen:L_90mm_steps_depth3857_01h_54m",
+    "starkregen:L_90mm_steps_depth3857_01h_59m",
+  ],
+  /** what the slider shows for each step, elapsed time since the event start */
+  labels: [
+    "00h 05m",
+    "00h 10m",
+    "00h 15m",
+    "00h 20m",
+    "00h 25m",
+    "00h 30m",
+    "00h 35m",
+    "00h 40m",
+    "00h 45m",
+    "00h 50m",
+    "00h 55m",
+    "01h 00m",
+    "01h 05m",
+    "01h 09m",
+    "01h 15m",
+    "01h 20m",
+    "01h 24m",
+    "01h 30m",
+    "01h 35m",
+    "01h 40m",
+    "01h 44m",
+    "01h 50m",
+    "01h 55m",
+    "02h 00m",
+  ],
+};
+
+/** The same scenario as a flow field, animated from its u/v velocity rasters. */
+const STARKREGEN_90MM_FLOW: FlowFieldDefinition = {
+  title: "Starkregen 90 mm Fließwege",
+  service: "https://rain-rasterfari-wuppertal.cismet.de",
+  scenario: "90mm/",
+  // Leaflet 17 in the old rain hazard map; MapLibre counts one lower
+  minZoom: 16,
+  // without cage: the same scenario's direction arrows as a plain WMS
+  fallback: {
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_90mm_direction3857",
+    styles: "starkregen:direction",
+  },
+};
+
+/** The same animation over the scenario's maximum water depths. */
+const STARKREGEN_90MM_FLOW_WITH_DEPTH: FlowFieldDefinition = {
+  ...STARKREGEN_90MM_FLOW,
+  title: "Starkregen 90 mm Fließwege und Wassertiefen",
+  backdrop: {
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_90mm_depth3857",
+    styles: "starkregen:depth",
+    opacity: 0.85,
+  },
+};
+
+/**
+ * Der Regen vom 29.05.2018, SRI 11, aus den gemessenen Niederschlagsmengen
+ * gerechnet. Vierter Eintrag von `simulations` in
+ * `envirometrics/wuppertal/rainhazardmap/src/config.js`.
+ */
+const STARKREGEN_EXTREM2018_SERIES: TimeSeriesDefinition = {
+  title: "Regen vom 29.05.2018 (zeitlicher Verlauf)",
+  wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+  styles: "starkregen:depth",
+  intermediateValuesCount: 20,
+  opacity: 0.85,
+  initialStep: 2,
+  /** one WMS layer per time step */
+  layers: [
+    "starkregen:L_Extrem2018_steps_depth3857_00h_05m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_10m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_15m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_20m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_25m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_30m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_35m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_40m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_45m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_50m",
+    "starkregen:L_Extrem2018_steps_depth3857_00h_54m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_00m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_05m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_09m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_14m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_19m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_24m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_29m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_34m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_39m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_44m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_49m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_54m",
+    "starkregen:L_Extrem2018_steps_depth3857_01h_59m",
+  ],
+  /** what the slider shows for each step, elapsed time since the event start */
+  labels: [
+    "00h 05m",
+    "00h 10m",
+    "00h 15m",
+    "00h 20m",
+    "00h 25m",
+    "00h 30m",
+    "00h 35m",
+    "00h 40m",
+    "00h 45m",
+    "00h 50m",
+    "00h 55m",
+    "01h 00m",
+    "01h 05m",
+    "01h 09m",
+    "01h 15m",
+    "01h 20m",
+    "01h 24m",
+    "01h 30m",
+    "01h 35m",
+    "01h 40m",
+    "01h 44m",
+    "01h 50m",
+    "01h 55m",
+    "02h 00m",
+  ],
+};
+
+/** The same scenario as a flow field, animated from its u/v velocity rasters. */
+const STARKREGEN_EXTREM2018_FLOW: FlowFieldDefinition = {
+  title: "Regen vom 29.05.2018 Fließwege",
+  service: "https://rain-rasterfari-wuppertal.cismet.de",
+  scenario: "Extrem2018/",
+  // Leaflet 17 in the old rain hazard map; MapLibre counts one lower
+  minZoom: 16,
+  // without cage: the same scenario's direction arrows as a plain WMS
+  fallback: {
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_Extrem2018_direction3857",
+    styles: "starkregen:direction",
+  },
+};
+
+/** The same animation over the scenario's maximum water depths. */
+const STARKREGEN_EXTREM2018_FLOW_WITH_DEPTH: FlowFieldDefinition = {
+  ...STARKREGEN_EXTREM2018_FLOW,
+  title: "Regen vom 29.05.2018 Fließwege und Wassertiefen",
+  backdrop: {
+    wmsUrl:
+      "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+    layers: "starkregen:L_Extrem2018_depth3857",
     styles: "starkregen:depth",
     opacity: 0.85,
   },
@@ -306,7 +598,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
           // carries the series, and the click launches it into the engine the
           // route mounts, see `startTimeSeries` in resource-layer-updater.ts.
           id: "t50-zeitreihe",
-          title: "Starkregen T50",
+          title: "Starkregen T50 (zeitlicher Verlauf)",
           // the Starkregen-Gefahrenkarte card's image (helper/config.ts)
           thumbnail:
             "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
@@ -366,6 +658,198 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             { addon: "flowField", config: STARKREGEN_T50_FLOW_WITH_DEPTH },
           ],
         },
+        {
+          // No `layers`: this card adds no layer group. Its timeSlider tool
+          // carries the series, and the click launches it into the engine the
+          // route mounts, see `startTimeSeries` in resource-layer-updater.ts.
+          id: "t100-zeitreihe",
+          title: "Starkregen T100 (zeitlicher Verlauf)",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Simulierte Wassertiefen eines zweistündigen Starkregens " +
+            "mit 42 Liter/m² Niederschlag (SRI 7), als abspielbare Zeitreihe " +
+            "in 24 Schritten. Sichtbarkeit: öffentlich. Nutzung: Zeigt, wie " +
+            "sich die Überflutung während des Ereignisses entwickelt.",
+          metaDataText:
+            "Die Zeitreihe zeigt die Simulationsergebnisse der " +
+            "Starkregengefahrenkarte Wuppertal für das Szenario T100 (SRI 7) " +
+            "in Schritten von fünf Minuten. Die statistische Wiederkehrzeit " +
+            "des Ereignisses liegt bei 100 Jahren.",
+          tools: [{ addon: "timeSlider", config: STARKREGEN_T100_SERIES }],
+        },
+        {
+          // No `layers`: like the time series card, this one adds no layer
+          // group. Its flowField tool carries the scenario and the click
+          // launches it into the engine the route mounts.
+          id: "t100-fliesswege",
+          title: "Starkregen T100 Fließwege",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Fließwege eines zweistündigen Starkregens mit 42 " +
+            "Liter/m² Niederschlag (SRI 7), animiert aus den maximalen " +
+            "Fließgeschwindigkeiten. Sichtbarkeit: öffentlich. Nutzung: " +
+            "Zeigt, wohin das Wasser an der Oberfläche abläuft. Die Animation " +
+            "läuft erst ab einem größeren Maßstab, weiter herausgezoomt " +
+            "bleibt die Karte ruhig.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum " +
+            "Szenario T100 (SRI 7). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [{ addon: "flowField", config: STARKREGEN_T100_FLOW }],
+        },
+        {
+          // The backdrop raster travels in the tool's own config rather than
+          // as a layer group, so this card also adds no layers of its own.
+          id: "t100-fliesswege-wassertiefen",
+          title: "Starkregen T100 Fließwege und Wassertiefen",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Die Fließwege des Szenarios T100 über der Karte der " +
+            "maximalen Wassertiefen desselben Ereignisses. Sichtbarkeit: " +
+            "öffentlich. Nutzung: Verbindet die Frage, wo Wasser steht, mit " +
+            "der Frage, wohin es läuft. Die Animation läuft erst ab einem " +
+            "größeren Maßstab, die Wassertiefen sind in jedem Maßstab zu " +
+            "sehen.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum " +
+            "Szenario T100 (SRI 7). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [
+            { addon: "flowField", config: STARKREGEN_T100_FLOW_WITH_DEPTH },
+          ],
+        },
+        {
+          // No `layers`: this card adds no layer group. Its timeSlider tool
+          // carries the series, and the click launches it into the engine the
+          // route mounts, see `startTimeSeries` in resource-layer-updater.ts.
+          id: "90mm-zeitreihe",
+          title: "Starkregen 90 mm (zeitlicher Verlauf)",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Simulierte Wassertiefen eines einstündigen Starkregens " +
+            "mit 90 Liter/m² Niederschlag (SRI 10), als abspielbare Zeitreihe " +
+            "in 24 Schritten. Sichtbarkeit: öffentlich. Nutzung: Zeigt, wie " +
+            "sich die Überflutung während des Ereignisses entwickelt.",
+          metaDataText:
+            "Die Zeitreihe zeigt die Simulationsergebnisse der " +
+            "Starkregengefahrenkarte Wuppertal für einen einstündigen Regen " +
+            "mit 90 Liter/m² (SRI 10) in Schritten von fünf Minuten.",
+          tools: [{ addon: "timeSlider", config: STARKREGEN_90MM_SERIES }],
+        },
+        {
+          // No `layers`: like the time series card, this one adds no layer
+          // group. Its flowField tool carries the scenario and the click
+          // launches it into the engine the route mounts.
+          id: "90mm-fliesswege",
+          title: "Starkregen 90 mm Fließwege",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Fließwege eines einstündigen Starkregens mit 90 Liter/m² " +
+            "Niederschlag (SRI 10), animiert aus den maximalen " +
+            "Fließgeschwindigkeiten. Sichtbarkeit: öffentlich. Nutzung: " +
+            "Zeigt, wohin das Wasser an der Oberfläche abläuft. Die Animation " +
+            "läuft erst ab einem größeren Maßstab, weiter herausgezoomt " +
+            "bleibt die Karte ruhig.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum Regen " +
+            "mit 90 Liter/m² (SRI 10). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [{ addon: "flowField", config: STARKREGEN_90MM_FLOW }],
+        },
+        {
+          // The backdrop raster travels in the tool's own config rather than
+          // as a layer group, so this card also adds no layers of its own.
+          id: "90mm-fliesswege-wassertiefen",
+          title: "Starkregen 90 mm Fließwege und Wassertiefen",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Die Fließwege des Szenarios mit 90 Liter/m² über der " +
+            "Karte der maximalen Wassertiefen desselben Ereignisses. " +
+            "Sichtbarkeit: öffentlich. Nutzung: Verbindet die Frage, wo " +
+            "Wasser steht, mit der Frage, wohin es läuft. Die Animation läuft " +
+            "erst ab einem größeren Maßstab, die Wassertiefen sind in jedem " +
+            "Maßstab zu sehen.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum Regen " +
+            "mit 90 Liter/m² (SRI 10). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [
+            { addon: "flowField", config: STARKREGEN_90MM_FLOW_WITH_DEPTH },
+          ],
+        },
+        {
+          // No `layers`: this card adds no layer group. Its timeSlider tool
+          // carries the series, and the click launches it into the engine the
+          // route mounts, see `startTimeSeries` in resource-layer-updater.ts.
+          id: "extrem2018-zeitreihe",
+          title: "Regen vom 29.05.2018 (zeitlicher Verlauf)",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Simulierte Wassertiefen des Regens vom 29.05.2018 (SRI " +
+            "11), als abspielbare Zeitreihe in 24 Schritten. Sichtbarkeit: " +
+            "öffentlich. Nutzung: Zeigt, wie sich die Überflutung während des " +
+            "Ereignisses entwickelt.",
+          metaDataText:
+            "Die Zeitreihe zeigt die Simulationsergebnisse der " +
+            "Starkregengefahrenkarte Wuppertal für den Regen vom 29.05.2018 " +
+            "(SRI 11) in Schritten von fünf Minuten. Gerechnet wurde er aus " +
+            "den gemessenen Niederschlagsmengen des Ereignisses.",
+          tools: [
+            { addon: "timeSlider", config: STARKREGEN_EXTREM2018_SERIES },
+          ],
+        },
+        {
+          // No `layers`: like the time series card, this one adds no layer
+          // group. Its flowField tool carries the scenario and the click
+          // launches it into the engine the route mounts.
+          id: "extrem2018-fliesswege",
+          title: "Regen vom 29.05.2018 Fließwege",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Fließwege des Regens vom 29.05.2018 (SRI 11), animiert " +
+            "aus den maximalen Fließgeschwindigkeiten. Sichtbarkeit: " +
+            "öffentlich. Nutzung: Zeigt, wohin das Wasser an der Oberfläche " +
+            "abläuft. Die Animation läuft erst ab einem größeren Maßstab, " +
+            "weiter herausgezoomt bleibt die Karte ruhig.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum Regen " +
+            "vom 29.05.2018 (SRI 11). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [{ addon: "flowField", config: STARKREGEN_EXTREM2018_FLOW }],
+        },
+        {
+          // The backdrop raster travels in the tool's own config rather than
+          // as a layer group, so this card also adds no layers of its own.
+          id: "extrem2018-fliesswege-wassertiefen",
+          title: "Regen vom 29.05.2018 Fließwege und Wassertiefen",
+          thumbnail:
+            "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
+          description:
+            "Inhalt: Die Fließwege des Regens vom 29.05.2018 über der Karte " +
+            "der maximalen Wassertiefen desselben Ereignisses. Sichtbarkeit: " +
+            "öffentlich. Nutzung: Verbindet die Frage, wo Wasser steht, mit " +
+            "der Frage, wohin es läuft. Die Animation läuft erst ab einem " +
+            "größeren Maßstab, die Wassertiefen sind in jedem Maßstab zu " +
+            "sehen.",
+          metaDataText:
+            "Grundlage sind die u- und v-Komponenten der Simulation zum Regen " +
+            "vom 29.05.2018 (SRI 11). Das Feld enthält die Maximalwerte des " +
+            "Ereignisses und keine Zeitschritte.",
+          tools: [
+            {
+              addon: "flowField",
+              config: STARKREGEN_EXTREM2018_FLOW_WITH_DEPTH,
+            },
+          ],
+        },
       ],
     },
     {
@@ -393,9 +877,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
             "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
             "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
-          tools: [
-            { addon: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE },
-          ],
+          tools: [{ addon: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE }],
         },
         {
           id: "schwebebahn-geruest",
@@ -505,7 +987,10 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "Geometrie wie in der Karte „Schwebebahn in 3D“, Fahrplan wie in " +
             "der Karte „Schwebebahn nach Fahrplan“.",
           tools: [
-            { addon: "vehicleAnimation", config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE },
+            {
+              addon: "vehicleAnimation",
+              config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE,
+            },
           ],
         },
       ],
