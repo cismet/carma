@@ -1,3 +1,5 @@
+import { WUPP_MESH_2024 } from "@carma-commons/resources";
+
 import { LightingModel, UniformType, Cartesian3 } from "cesium";
 
 // Shared fragment shader for all UNLIT variants
@@ -89,10 +91,10 @@ export const CUSTOM_SHADERS_DEFINITIONS = {
   UNLIT_ENHANCED_2024: {
     lightingModel: LightingModel.UNLIT,
     uniforms: createUnlitUniforms(
-      [1.25, 1.25, 1.23],
-      [0.0, 0.0, 0.0],
-      [0.9, 0.9, 0.92],
-      1.0
+      WUPP_MESH_2024.colorCorrection.gamma,
+      WUPP_MESH_2024.colorCorrection.blackPoint,
+      WUPP_MESH_2024.colorCorrection.whitePoint,
+      WUPP_MESH_2024.colorCorrection.saturation
     ),
     fragmentShaderText: UNLIT_FRAGMENT_SHADER,
   },

@@ -118,6 +118,7 @@ export type SharedThreeSceneShadowStyle = Readonly<{
   uniformColorMix?: number;
   /** 0 removes all source-texture saturation, 1 preserves it. */
   textureSaturation?: number;
+  textureColorCorrection?: boolean;
 }>;
 
 export type SharedSceneAccumulationController = {

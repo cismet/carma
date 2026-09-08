@@ -19,3 +19,11 @@ export const ContentType = {
   TREES: "trees",
 } as const;
 export type ContentType = (typeof ContentType)[keyof typeof ContentType];
+
+/** Linear-RGB display correction, applied before current scene lighting. */
+export type TextureColorCorrection = {
+  gamma: [number, number, number];
+  blackPoint: [number, number, number];
+  whitePoint: [number, number, number];
+  saturation: number;
+};

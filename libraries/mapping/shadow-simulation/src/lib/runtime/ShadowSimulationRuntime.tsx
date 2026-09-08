@@ -300,6 +300,7 @@ export const ShadowSimulationRuntime = ({
         0,
         1
       ),
+      textureColorCorrection: state.meshTextureColorCorrection ?? true,
       textureSaturation: clamp(
         state.meshTextureSaturation ??
           DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -313,6 +314,7 @@ export const ShadowSimulationRuntime = ({
     state.buildingsFullOpacity,
     state.enabled,
     state.meshTextureSaturation,
+    state.meshTextureColorCorrection,
     sceneRevision,
   ]);
 

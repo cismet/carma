@@ -17,6 +17,9 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
+import type { TextureColorCorrection } from "@carma-commons/resources";
+import { MESH_SURFACE_ALBEDO_GLSL } from "../../core/mesh-surface-shader";
+
 import { clamp } from "@carma-commons/math";
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 import { degToRadNumeric } from "@carma-units";
@@ -365,6 +368,8 @@ export interface CacheBudgetOptions {
 }
 
 export interface ThreeTilesRuntimeOptions {
+  /** Dataset metadata; absent means identity, never a dataset-specific fallback. */
+  colorCorrection?: TextureColorCorrection;
   cacheBudgetBytes?: number;
   /** Bytes allowed beyond the eviction budget before downloads pause. */
   cacheOverflowBytes?: number;
@@ -465,7 +470,8 @@ export function buildThreeTilesRuntime(
       first.fullOpacity === second.fullOpacity &&
       first.uniformColor === second.uniformColor &&
       first.uniformColorMix === second.uniformColorMix &&
-      first.textureSaturation === second.textureSaturation);
+      first.textureSaturation === second.textureSaturation &&
+      first.textureColorCorrection === second.textureColorCorrection);
   let shadowView: SharedThreeSceneShadowView | null = null;
   let shadowViewSignature = "";
   let shadowSelectionEnabled = false;
@@ -521,6 +527,22 @@ export function buildThreeTilesRuntime(
     uShadowUniformColor: { value: shadowClayColor },
     uShadowUniformColorMix: { value: 0 },
     uShadowTextureSaturation: { value: 1 },
+    uShadowTextureColorCorrection: { value: false },
+    uShadowTextureGamma: {
+      value: new THREE.Vector3().fromArray(
+        options.colorCorrection?.gamma ?? [1, 1, 1]
+      ),
+    },
+    uShadowTextureBlackPoint: {
+      value: new THREE.Vector3().fromArray(
+        options.colorCorrection?.blackPoint ?? [0, 0, 0]
+      ),
+    },
+    uShadowTextureWhitePoint: {
+      value: new THREE.Vector3().fromArray(
+        options.colorCorrection?.whitePoint ?? [1, 1, 1]
+      ),
+    },
   };
 
   const patchMaterialForProjection = (material: THREE.Material) => {
@@ -554,25 +576,15 @@ uniform mat4 uProjMatrix;
 uniform sampler2D tProj;
 uniform vec3 uShadowUniformColor;
 uniform float uShadowUniformColorMix;
-uniform float uShadowTextureSaturation;`
+uniform float uShadowTextureSaturation;
+uniform bool uShadowTextureColorCorrection;
+uniform vec3 uShadowTextureGamma;
+uniform vec3 uShadowTextureBlackPoint;
+uniform vec3 uShadowTextureWhitePoint;`
         )
         .replace(
-          "#include <map_fragment>",
-          `#include <map_fragment>
-float shadowTextureLuma = dot(
-  diffuseColor.rgb,
-  vec3(0.2126, 0.7152, 0.0722)
-);
-diffuseColor.rgb = mix(
-  vec3(shadowTextureLuma),
-  diffuseColor.rgb,
-  uShadowTextureSaturation
-);
-diffuseColor.rgb = mix(
-  diffuseColor.rgb,
-  uShadowUniformColor,
-  uShadowUniformColorMix
-);`
+          "#include <color_fragment>",
+          `#include <color_fragment>\n${MESH_SURFACE_ALBEDO_GLSL}`
         )
         .replace(
           "#include <dithering_fragment>",
@@ -1032,11 +1044,17 @@ if (uProjKind > 0.5 && uProjOpacity > 0.001) {
       shadowSimulationStyle?.uniformColor
         ? clamp(shadowSimulationStyle.uniformColorMix ?? 1, 0, 1)
         : 0;
+    const correctionEnabled =
+      options.colorCorrection !== undefined &&
+      shadowSimulationStyle?.textureColorCorrection === true;
     shadowAppearanceUniforms.uShadowTextureSaturation.value = clamp(
-      shadowSimulationStyle?.textureSaturation ?? 1,
+      (shadowSimulationStyle?.textureSaturation ?? 1) *
+        (correctionEnabled ? options.colorCorrection?.saturation ?? 1 : 1),
       0,
       1
     );
+    shadowAppearanceUniforms.uShadowTextureColorCorrection.value =
+      correctionEnabled;
     const forceOpaque = shadowSimulationStyle?.fullOpacity === true;
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;

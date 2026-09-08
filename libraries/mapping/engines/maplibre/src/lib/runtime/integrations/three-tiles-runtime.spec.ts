@@ -1743,8 +1743,7 @@ describe("three tiles runtime styling", () => {
     const shader = {
       uniforms: {},
       vertexShader: "#include <common>\n#include <worldpos_vertex>",
-      fragmentShader:
-        "#include <common>\n#include <map_fragment>\n#include <dithering_fragment>",
+      fragmentShader: THREE.ShaderLib.physical.fragmentShader,
     } as Parameters<typeof sourceMaterial.onBeforeCompile>[0];
     sourceMaterial.onBeforeCompile(
       shader,
@@ -1753,6 +1752,7 @@ describe("three tiles runtime styling", () => {
     const uniforms = shader.uniforms as Record<string, { value: unknown }>;
     expect(uniforms.uShadowUniformColorMix.value).toBe(0.35);
     expect(uniforms.uShadowTextureSaturation.value).toBe(0.4);
+    expect(uniforms.uShadowTextureColorCorrection.value).toBe(false);
     expect(
       (uniforms.uShadowUniformColor.value as THREE.Color).getHexString()
     ).toBe("d8d1c4");
@@ -1979,7 +1979,16 @@ describe("three tiles runtime styling", () => {
       "mesh",
       "tileset.json",
       [7.15, 51.25],
-      { providesTerrain: true, shadowBuildingStyle: true }
+      {
+        providesTerrain: true,
+        shadowBuildingStyle: true,
+        colorCorrection: {
+          gamma: [1.25, 1.25, 1.23],
+          blackPoint: [0, 0, 0],
+          whitePoint: [0.9, 0.9, 0.92],
+          saturation: 1,
+        },
+      }
     );
     const sourceMaterial = new THREE.MeshBasicMaterial({
       color: "#847466",
@@ -2016,14 +2025,21 @@ describe("three tiles runtime styling", () => {
     const shader = {
       uniforms: {},
       vertexShader: "#include <common>\n#include <worldpos_vertex>",
-      fragmentShader:
-        "#include <common>\n#include <map_fragment>\n#include <dithering_fragment>",
+      fragmentShader: THREE.ShaderLib.physical.fragmentShader,
     } as Parameters<typeof shadowMaterial.onBeforeCompile>[0];
     shadowMaterial.onBeforeCompile(
       shader,
       {} as Parameters<typeof shadowMaterial.onBeforeCompile>[1]
     );
     expect(shader.fragmentShader).not.toContain("flatTextureShadow");
+    const uniforms = shader.uniforms as Record<string, { value: unknown }>;
+    expect(uniforms.uShadowTextureColorCorrection.value).toBe(false);
+    expect(shader.fragmentShader.indexOf("shadowTextureLuma")).toBeGreaterThan(
+      shader.fragmentShader.indexOf("#include <color_fragment>")
+    );
+    expect(shader.fragmentShader.indexOf("shadowTextureLuma")).toBeLessThan(
+      shader.fragmentShader.indexOf("#include <lights_fragment_begin>")
+    );
     expect(shader.vertexShader).not.toContain("flatTextureNormalBias");
 
     layer.setShadowSimulationStyle?.({
@@ -2031,9 +2047,23 @@ describe("three tiles runtime styling", () => {
       uniformColor: "#d8d1c4",
       uniformColorMix: 0.75,
       textureSaturation: 0.8,
+      textureColorCorrection: true,
     });
     expect(mesh.material).toBe(shadowMaterial);
     expect(mesh.material).not.toBe(sourceMaterial);
+    expect(uniforms.uShadowTextureColorCorrection.value).toBe(true);
+    expect(
+      (uniforms.uShadowTextureGamma.value as THREE.Vector3).toArray()
+    ).toEqual([1.25, 1.25, 1.23]);
+    layer.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: "#d8d1c4",
+      uniformColorMix: 0.75,
+      textureSaturation: 0.8,
+      textureColorCorrection: false,
+    });
+    expect(uniforms.uShadowTextureColorCorrection.value).toBe(false);
+    expect(mesh.material).toBe(shadowMaterial);
 
     layer.setShadowSimulationStyle?.(null);
     expect(mesh.material).toBe(sourceMaterial);

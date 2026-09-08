@@ -101,12 +101,19 @@ export const ShadowSimulationSurfaceSettings = ({
               min={0.125}
               max={24}
               step={1}
-              value={state.meshCacheBudgetBytes === undefined ? null : state.meshCacheBudgetBytes / 1024 ** 3}
-              onChange={(value) => onChange({
-                meshCacheBudgetBytes: typeof value === "number" && Number.isFinite(value)
-                  ? value * 1024 ** 3
-                  : undefined,
-              })}
+              value={
+                state.meshCacheBudgetBytes === undefined
+                  ? null
+                  : state.meshCacheBudgetBytes / 1024 ** 3
+              }
+              onChange={(value) =>
+                onChange({
+                  meshCacheBudgetBytes:
+                    typeof value === "number" && Number.isFinite(value)
+                      ? value * 1024 ** 3
+                      : undefined,
+                })
+              }
             />
           </Tooltip>
         </div>
@@ -159,6 +166,17 @@ export const ShadowSimulationSurfaceSettings = ({
                 {Math.round(settings.buildingColorMix * 100)}%
               </Typography.Text>
             </div>
+            <Tooltip title="Schwarz-/Weißpunkt und Gamma wie im Cesium-Stil für Mesh 2024. Farbkorrektur vor der Beleuchtung; keine Entfernung eingebrannter Schatten.">
+              <Checkbox
+                checked={state.meshTextureColorCorrection ?? true}
+                onChange={(event) =>
+                  onChange({ meshTextureColorCorrection: event.target.checked })
+                }
+                data-test-id="shadow-mesh-color-correction"
+              >
+                Farbkorrektur (Mesh 2024)
+              </Checkbox>
+            </Tooltip>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Typography.Text type="secondary">Sättigung</Typography.Text>
               <Slider

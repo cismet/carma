@@ -54,7 +54,10 @@ describe("shadow surface display settings", () => {
     const budget = getByRole("spinbutton", { name: "Mesh-Cache in GiB" });
     expect(budget.getAttribute("aria-valuemax")).toBe("24");
     fireEvent.change(budget, { target: { value: "8" } });
-    expect(setState).toHaveBeenLastCalledWith({ ...state, meshCacheBudgetBytes: 8 * 1024 ** 3 });
+    expect(setState).toHaveBeenLastCalledWith({
+      ...state,
+      meshCacheBudgetBytes: 8 * 1024 ** 3,
+    });
     fireEvent.click(getByRole("checkbox", { name: "Gebäude volle Deckkraft" }));
     expect(setState).toHaveBeenLastCalledWith({
       ...state,
@@ -66,7 +69,16 @@ describe("shadow surface display settings", () => {
     expect(
       getByRole("slider", { name: "Sättigung der Meshtextur" })
     ).toBeTruthy();
-    expect(getByText("5%")).toBeTruthy();
+    expect(getByText("0%")).toBeTruthy();
     expect(getByText("100%")).toBeTruthy();
+    const correction = getByRole("checkbox", {
+      name: "Farbkorrektur (Mesh 2024)",
+    }) as HTMLInputElement;
+    expect(correction.checked).toBe(true);
+    fireEvent.click(correction);
+    expect(setState).toHaveBeenLastCalledWith({
+      ...state,
+      meshTextureColorCorrection: false,
+    });
   });
 });

@@ -83,6 +83,7 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   buildingsFullOpacity: boolean;
   buildingColorMix: number;
   meshTextureSaturation?: number;
+  meshTextureColorCorrection?: boolean;
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   meshErrorTarget?: MeshErrorTargetPixels;

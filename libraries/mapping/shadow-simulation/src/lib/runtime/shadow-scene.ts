@@ -166,6 +166,7 @@ export type ShadowBuildingAppearance = Readonly<{
   uniformColor: string | null;
   uniformColorMix?: number;
   textureSaturation?: number;
+  textureColorCorrection?: boolean;
 }>;
 
 export type ShadowSimulationScene = {
@@ -1008,6 +1009,7 @@ export const buildShadowSimulationScene = (
     uniformColor: null,
     uniformColorMix: 0,
     textureSaturation: 1,
+    textureColorCorrection: true,
   };
   let latestShadowIntensity = 1;
   let latestMeshErrorTarget = DEFAULT_MESH_ERROR_TARGET_PIXELS;
@@ -2386,7 +2388,9 @@ export const buildShadowSimulationScene = (
         (latestBuildingAppearance.uniformColorMix ?? 1) ===
           (appearance.uniformColorMix ?? 1) &&
         (latestBuildingAppearance.textureSaturation ?? 1) ===
-          (appearance.textureSaturation ?? 1)
+          (appearance.textureSaturation ?? 1) &&
+        (latestBuildingAppearance.textureColorCorrection ?? false) ===
+          (appearance.textureColorCorrection ?? false)
       ) {
         return;
       }

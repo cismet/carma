@@ -1857,6 +1857,7 @@ describe("shadow scene lighting integration", () => {
       uniformColor: null,
       uniformColorMix: 0,
       textureSaturation: 1,
+      textureColorCorrection: true,
     });
     expect(setErrorTarget).toHaveBeenLastCalledWith(
       DEFAULT_MESH_ERROR_TARGET_PIXELS

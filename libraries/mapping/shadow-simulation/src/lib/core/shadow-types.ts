@@ -91,7 +91,7 @@ export const DEFAULT_MESH_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 1;
 /** Explicit mesh-only ceiling; browser memory-pressure admission still applies. */
 export const DEFAULT_MESH_CACHE_BUDGET_BYTES = 24 * 1024 ** 3;
 export const DEFAULT_SHADOW_SURFACE_COLOR = "#d3d3d3";
-export const DEFAULT_SHADOW_BUILDING_COLOR_MIX = 0.05;
+export const DEFAULT_SHADOW_BUILDING_COLOR_MIX = 0;
 export const DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION = 1;
 export const DEFAULT_SHADOW_BUILDING_COLOR = "#ffffff";
 

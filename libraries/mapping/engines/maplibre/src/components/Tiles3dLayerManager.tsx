@@ -1,3 +1,4 @@
+import type { TextureColorCorrection } from "@carma-commons/resources";
 import { useEffect, useRef } from "react";
 
 import { useLibreContext } from "../contexts/LibreContext";
@@ -29,6 +30,7 @@ import {
 /** What a style has to say for a tileset to be drawn. */
 export interface Tiles3dConfig {
   renderMode: "tiles3d";
+  colorCorrection?: TextureColorCorrection;
   /** The tileset.json. */
   tilesetUrl: string;
   /** Pixels of allowed error; lower asks for more detail. */
@@ -135,6 +137,7 @@ export function Tiles3dLayerManager({
         outlineColor: initialConfig.outlineColor,
         outlineOpacity: initialConfig.outlineOpacity,
         providesTerrain: config.providesTerrain,
+        colorCorrection: initialConfig.colorCorrection,
         shadowBuildingStyle: true,
         onContentChanged: () => notifySharedThreeSceneContentChanged(map),
         onRequestStateChange: () =>

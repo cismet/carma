@@ -50,6 +50,7 @@ export const createInitialShadowSimulationState = (
     buildingsFullOpacity: true,
     buildingColorMix: DEFAULT_SHADOW_BUILDING_COLOR_MIX,
     meshTextureSaturation: DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
+    meshTextureColorCorrection: true,
     buildingColor: DEFAULT_SHADOW_BUILDING_COLOR,
     shadowQuality: DEFAULT_SHADOW_QUALITY,
     shadowAdaptiveQuality: true,
