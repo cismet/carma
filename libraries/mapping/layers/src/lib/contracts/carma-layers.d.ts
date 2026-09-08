@@ -79,7 +79,10 @@ export type FilterType = (typeof FILTER_TYPES)[keyof typeof FILTER_TYPES];
  * the typed kinds and their configs. Typing it against that registry would
  * make the two libraries circular.
  */
-export type ToolEntry = string | { kind: string; config?: unknown };
+export type ToolEntry =
+  | string
+  | { kind: string; config?: unknown }
+  | { addon: string; config?: unknown };
 
 export const LAYER_ENTITY_TYPES = {
   LAYER: "layer",

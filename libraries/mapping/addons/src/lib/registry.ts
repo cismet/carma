@@ -236,20 +236,41 @@ export type AddonStateMap = {
 export type AddonStateKey = keyof AddonStateMap;
 
 /**
- * A full declaration: the kind plus its config. Kinds whose config is entirely
- * optional may be declared as `{ kind }` alone, so a route that just wants the
- * addon's defaults does not have to pass an empty config object.
+ * A full declaration written with the original `kind` key. Kinds whose config
+ * is entirely optional may be declared as `{ kind }` alone, so a route that
+ * just wants the addon's defaults does not have to pass an empty config
+ * object.
  *
  * `availability` restricts where the addon is mounted, with the same options
- * as a route's availability. Only this form can carry it: an addon that is to
- * be gated is written as `{ kind, availability }` even when it needs no config.
+ * as a route's availability. Only the object forms can carry it: an addon that
+ * is to be gated is written as `{ addon, availability }` even when it needs no
+ * config.
  */
-export type Addon = {
+export type AddonWithKind = {
   // `Partial<C> extends C` holds exactly when every field of C is optional
   [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
     ? { kind: K; config?: AddonConfigMap[K]; availability?: Availability }
     : { kind: K; config: AddonConfigMap[K]; availability?: Availability };
 }[AddonKind];
+
+/**
+ * The same declaration written with `addon` instead of `kind`. Both keys name
+ * the addon and mean exactly the same thing; `addon` says at the call site
+ * what the string is, where `kind` only says that it discriminates. Prefer it
+ * in new declarations.
+ */
+export type AddonWithName = {
+  [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
+    ? { addon: K; config?: AddonConfigMap[K]; availability?: Availability }
+    : { addon: K; config: AddonConfigMap[K]; availability?: Availability };
+}[AddonKind];
+
+/**
+ * A full declaration: the addon plus its config, named either way. The two
+ * forms are interchangeable, and `normalizeAddonEntries` folds `addon` into
+ * `kind` so everything downstream sees one shape.
+ */
+export type Addon = AddonWithKind | AddonWithName;
 
 /**
  * Kinds that may be declared as a bare string. Same condition as the optional
@@ -263,8 +284,9 @@ export type BareAddonKind = {
 }[AddonKind];
 
 /**
- * How an addon is declared: the bare kind (`"cameraRestriction"`) for the
- * addon's own defaults, or the `{ kind, config }` form.
+ * How an addon is declared: the bare name (`"cameraRestriction"`) for the
+ * addon's own defaults, or the object form written as `{ addon, config }` or
+ * `{ kind, config }`.
  */
 export type AddonEntry = BareAddonKind | Addon;
 
@@ -272,16 +294,30 @@ export type ResolvedAddon = {
   [K in AddonKind]: { kind: K; config?: AddonConfigMap[K] };
 }[AddonKind];
 
-/** the kind of an entry, whichever of the two forms it was written in */
-export const getAddonKind = (entry: AddonEntry): AddonKind =>
-  typeof entry === "string" ? entry : entry.kind;
+/** whether an object entry names its addon with `addon` rather than `kind` */
+const isNamedAddon = (entry: Addon): entry is AddonWithName =>
+  "addon" in entry;
 
+/** the addon an entry names, whichever of the three forms it was written in */
+export const getAddonKind = (entry: AddonEntry): AddonKind =>
+  typeof entry === "string"
+    ? entry
+    : isNamedAddon(entry)
+    ? entry.addon
+    : entry.kind;
+
+/** Every entry as `{ kind, config }`, so no consumer sees the `addon` spelling. */
 export const normalizeAddonEntries = (
   entries?: readonly AddonEntry[]
 ): ResolvedAddon[] =>
-  (entries ?? []).map((entry) =>
-    typeof entry === "string" ? ({ kind: entry } as ResolvedAddon) : entry
-  );
+  (entries ?? []).map((entry) => {
+    if (typeof entry === "string") return { kind: entry } as ResolvedAddon;
+    if (isNamedAddon(entry)) {
+      const { addon, ...rest } = entry;
+      return { kind: addon, ...rest } as ResolvedAddon;
+    }
+    return entry;
+  });
 
 /** the entries reachable in the given context; a bare kind is always kept */
 export const filterAddonsByAvailability = (

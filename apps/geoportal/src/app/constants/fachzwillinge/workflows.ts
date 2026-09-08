@@ -532,7 +532,7 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "NRW mit Höhen über Normalhöhennull (DHHN2016). Die " +
             "Darstellung ist ein ebener Wasserstand über dem Gelände und " +
             "keine hydraulische Simulation.",
-          tools: [{ kind: "floodSimulation", config: HOCHWASSER_FLOOD }],
+          tools: [{ addon: "floodSimulation", config: HOCHWASSER_FLOOD }],
         },
       ],
     },

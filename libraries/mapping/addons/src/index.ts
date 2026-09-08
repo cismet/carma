@@ -25,6 +25,8 @@ export type {
   AddonStateKey,
   AddonStateMap,
   AddonTrigger,
+  AddonWithKind,
+  AddonWithName,
   BareAddonKind,
   ResolvedAddon,
 } from "./lib/registry";
