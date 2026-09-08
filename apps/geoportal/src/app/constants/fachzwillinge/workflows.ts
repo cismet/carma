@@ -411,62 +411,71 @@ const STARKREGEN_EXTREM2018_FLOW_WITH_DEPTH: FlowFieldDefinition = {
 };
 
 /**
- * PET over the course of a hot day, from the PALM-4U training run around the
- * Rathaus (wupp #4113, data described in #4098). One WMS layer per full hour
- * from 06:00 to 20:00, `ts006` … `ts020` being the model's own step numbering.
+ * The three thermal indices of the PALM-4U training run around the Rathaus
+ * (wupp #4113, data described in #4098) share one hourly grid: 06:00 to 20:00,
+ * and the model numbers its output steps by the hour, so `ts006` is 06:00.
+ *
+ * The Starkregen series above spell their layers out because their timestamps
+ * are irregular (00h_54m, 00h_59m). These are not, so they are built from the
+ * hour, and only the layer prefix and the style differ between the indices.
+ */
+const PALM4U_THERMAL_HOURS = [
+  6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+];
+
+/** 15:00, in the middle of the afternoon band where the values peak */
+const PALM4U_THERMAL_INITIAL_STEP = PALM4U_THERMAL_HOURS.indexOf(15);
+
+/**
+ * One thermal index as an hourly series.
  *
  * The model area is only 1200 x 1200 m: outside that square the layers are
- * empty, and a workflow card cannot move the map (see the comment on the card
+ * empty, and a workflow card cannot move the map (see the comment on the cards
  * below). The masked building footprints come through as nodata and stay
  * transparent, so the series shows the ground between the buildings.
- *
- * `initialStep: 9` is 15:00, in the middle of the afternoon band where the
- * values peak; the exact peak hour differs per location with the shading.
  */
-const PALM4U_PET_SERIES: TimeSeriesDefinition = {
-  title: "PET Tagesgang (PALM-4U)",
+const palm4uThermalSeries = (
+  title: string,
+  /** everything between the workspace and the `_tsNNN` suffix */
+  layerPrefix: string,
+  styles: string
+): TimeSeriesDefinition => ({
+  title,
   wmsUrl: "https://wupp-palm4u-wms.cismet.de/geoserver/wms?SERVICE=WMS",
-  styles: "palm4u:pet",
+  styles,
   intermediateValuesCount: 20,
   opacity: 0.85,
-  initialStep: 9,
+  initialStep: PALM4U_THERMAL_INITIAL_STEP,
   /** one WMS layer per full hour */
-  layers: [
-    "palm4u:L_PET_pet3857_ts006",
-    "palm4u:L_PET_pet3857_ts007",
-    "palm4u:L_PET_pet3857_ts008",
-    "palm4u:L_PET_pet3857_ts009",
-    "palm4u:L_PET_pet3857_ts010",
-    "palm4u:L_PET_pet3857_ts011",
-    "palm4u:L_PET_pet3857_ts012",
-    "palm4u:L_PET_pet3857_ts013",
-    "palm4u:L_PET_pet3857_ts014",
-    "palm4u:L_PET_pet3857_ts015",
-    "palm4u:L_PET_pet3857_ts016",
-    "palm4u:L_PET_pet3857_ts017",
-    "palm4u:L_PET_pet3857_ts018",
-    "palm4u:L_PET_pet3857_ts019",
-    "palm4u:L_PET_pet3857_ts020",
-  ],
+  layers: PALM4U_THERMAL_HOURS.map(
+    (hour) => `palm4u:${layerPrefix}_ts${String(hour).padStart(3, "0")}`
+  ),
   /** what the slider shows for each step, the hour of the simulated day */
-  labels: [
-    "06:00",
-    "07:00",
-    "08:00",
-    "09:00",
-    "10:00",
-    "11:00",
-    "12:00",
-    "13:00",
-    "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
-    "18:00",
-    "19:00",
-    "20:00",
-  ],
-};
+  labels: PALM4U_THERMAL_HOURS.map(
+    (hour) => `${String(hour).padStart(2, "0")}:00`
+  ),
+});
+
+/** physiologisch äquivalente Temperatur, classified after Matzarakis and Mayer */
+const PALM4U_PET_SERIES = palm4uThermalSeries(
+  "PET Tagesgang (PALM-4U)",
+  "L_PET_pet3857",
+  "palm4u:pet"
+);
+
+/** gefühlte Temperatur, the DWD Klima-Michel scale after Staiger et al. */
+const PALM4U_PERCT_SERIES = palm4uThermalSeries(
+  "Gefühlte Temperatur Tagesgang (PALM-4U)",
+  "L_PERCT_perct3857",
+  "palm4u:perct"
+);
+
+/** universeller thermischer Klimaindex, classified after Bröde et al. 2012 */
+const PALM4U_UTCI_SERIES = palm4uThermalSeries(
+  "UTCI Tagesgang (PALM-4U)",
+  "L_UTCI_utci3857",
+  "palm4u:utci"
+);
 
 /**
  * The stations the trasse asset passes, west to east.
@@ -942,6 +951,54 @@ export const workflowsFachzwilling: FachzwillingRoute = {
             "sind nicht an diese Simulation angepasst. Die Daten sind ein " +
             "Testdatensatz und beschreiben keinen gemessenen Tag.",
           tools: [{ addon: "timeSlider", config: PALM4U_PET_SERIES }],
+        },
+        {
+          // Same run and the same hours as the PET card, a different index.
+          id: "perct-tagesgang",
+          title: "Gefühlte Temperatur Tagesgang (PALM-4U)",
+          description:
+            "Inhalt: Die gefühlte Temperatur an einem heißen Tag, stündlich " +
+            "von 06:00 bis 20:00 Uhr, als abspielbare Zeitreihe. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Dasselbe Simulationsergebnis wie beim PET-Tagesgang, " +
+            "bewertet nach der Skala des Deutschen Wetterdienstes. Die " +
+            "Simulation deckt nur einen Quadratkilometer rund um das " +
+            "Rathaus ab; außerhalb bleibt die Karte leer.",
+          metaDataText:
+            "Grundlage ist eine PALM-4U-Simulation aus einer Schulung der " +
+            "Stadt Wuppertal beim Fraunhofer IBP, ein Gebiet von 1200 mal " +
+            "1200 Metern um das Rathaus mit 5 Metern Rasterweite. Die " +
+            "Gebäudeflächen sind im Modell ausmaskiert und bleiben " +
+            "durchsichtig. Die Farbklassen sind die Belastungsklassen der " +
+            "gefühlten Temperatur nach Staiger et al. aus dem " +
+            "Klima-Michel-Modell des DWD; sie sind nicht an diese " +
+            "Simulation angepasst. Die Daten sind ein Testdatensatz und " +
+            "beschreiben keinen gemessenen Tag.",
+          tools: [{ addon: "timeSlider", config: PALM4U_PERCT_SERIES }],
+        },
+        {
+          // Same run and the same hours as the PET card, a different index.
+          id: "utci-tagesgang",
+          title: "UTCI Tagesgang (PALM-4U)",
+          description:
+            "Inhalt: Der universelle thermische Klimaindex (UTCI) an einem " +
+            "heißen Tag, stündlich von 06:00 bis 20:00 Uhr, als abspielbare " +
+            "Zeitreihe. " +
+            "Sichtbarkeit: öffentlich. " +
+            "Nutzung: Dasselbe Simulationsergebnis wie beim PET-Tagesgang, " +
+            "bewertet nach der international abgestimmten UTCI-Skala. Die " +
+            "Simulation deckt nur einen Quadratkilometer rund um das " +
+            "Rathaus ab; außerhalb bleibt die Karte leer.",
+          metaDataText:
+            "Grundlage ist eine PALM-4U-Simulation aus einer Schulung der " +
+            "Stadt Wuppertal beim Fraunhofer IBP, ein Gebiet von 1200 mal " +
+            "1200 Metern um das Rathaus mit 5 Metern Rasterweite. Die " +
+            "Gebäudeflächen sind im Modell ausmaskiert und bleiben " +
+            "durchsichtig. Die Farbklassen sind die Wärmebelastungsklassen " +
+            "der UTCI-Skala nach Bröde et al. 2012; sie sind nicht an diese " +
+            "Simulation angepasst. Die Daten sind ein Testdatensatz und " +
+            "beschreiben keinen gemessenen Tag.",
+          tools: [{ addon: "timeSlider", config: PALM4U_UTCI_SERIES }],
         },
       ],
     },
