@@ -2,6 +2,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { carma } from "@carma-api";
 import type { DynamicSearchOption } from "@carma-mapping/fuzzy-search";
+import { formatDistance, formatRouteSummary } from "@carma-mapping/routing";
 
 import { collectNearestFromIndex } from "../../lib/featureIndex";
 import { resolveStackedSources } from "../../lib/stackedSources";
@@ -66,29 +67,6 @@ export type RankCategoryResult = {
   routes: NearestFeatureRoute[];
   /** why there are no rows, for the row that says so; `null` when there are */
   problem: string | null;
-};
-
-const formatDistance = (meters: number): string =>
-  meters < 1000
-    ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(
-        meters
-      )} m`
-    : `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(
-        meters / 1000
-      )} km`;
-
-/**
- * A driving time, rounded to whole minutes. Never "0 Min": a hit around the
- * corner takes a moment, and a zero would read as "no route".
- */
-const formatDuration = (seconds: number): string => {
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  if (minutes < 60) {
-    return `${minutes} Min`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours} Std` : `${hours} Std ${rest} Min`;
 };
 
 /**
@@ -209,7 +187,13 @@ export const rankCategory = async ({
       bbox: entry.bbox,
     };
     if (route && route.coordinates.length > 1) {
-      shapes.push({ key, hit, coordinates: route.coordinates });
+      shapes.push({
+        key,
+        hit,
+        coordinates: route.coordinates,
+        durationInSeconds: route.durationInSeconds,
+        distanceInMeters: route.distanceInMeters,
+      });
     }
     const title =
       pickProperty(props, category.labelProperties) ??
@@ -226,9 +210,7 @@ export const rankCategory = async ({
       // what it takes to get there by car; the straight-line distance is what
       // is left when the routing service could not answer for this one
       hint: route
-        ? `${formatDuration(route.durationInSeconds)} · ${formatDistance(
-            route.distanceInMeters
-          )}`
+        ? formatRouteSummary(route.durationInSeconds, route.distanceInMeters)
         : formatDistance(entry.distanceInMeters),
       // no `item`: a pick clicks the feature on the map, so the host app
       // answers with the info box it shows for any other click (see
