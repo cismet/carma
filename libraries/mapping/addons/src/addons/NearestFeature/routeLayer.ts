@@ -32,6 +32,9 @@ export type NearestFeatureRoute = {
   hit: PickableHit;
   /** the driven line, `[lng, lat]` in WGS84 */
   coordinates: [number, number][];
+  /** what the routing service said it takes; shown once the hit is picked */
+  durationInSeconds: number;
+  distanceInMeters: number;
 };
 
 const SOURCE_ID = "carma-nearest-feature-routes";
