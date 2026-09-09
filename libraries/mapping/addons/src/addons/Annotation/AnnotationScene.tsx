@@ -10,7 +10,7 @@ import type {
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 import { redoScene, undoScene } from "./annotation-history";
-import { staleProxies, unclipped } from "./annotation-clip";
+import { dropProxies, staleProxies, unclipped } from "./annotation-clip";
 import { applyPen, penFrom } from "./annotation-pen";
 import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
@@ -369,14 +369,37 @@ export const AnnotationScene = ({
     if (!editable) {
       return;
     }
+    const undone = undoVersion > previous.undoVersion;
+    const redone = redoVersion > previous.redoVersion;
+    if (!undone && !redone) {
+      return;
+    }
     const container = box?.querySelector<HTMLElement>(".excalidraw") ?? null;
-    if (undoVersion > previous.undoVersion) {
+    if (undone) {
       undoScene(container);
     }
-    if (redoVersion > previous.redoVersion) {
+    if (redone) {
       redoScene(container);
     }
-  }, [box, editable, redoVersion, undoVersion]);
+    /**
+     * What excalidraw hands back is the element array of an earlier moment,
+     * copies and all, written in whatever anchor the drawing stood in then.
+     * The copies go, so the pass makes the ones this camera needs, and the
+     * pass reads every element into the anchor in use — see the stamp in
+     * `annotation-normalize`. A frame later, because excalidraw applies the
+     * undo after this handler and updateScene is not ours to take until it has.
+     */
+    requestAnimationFrame(() => {
+      if (!api) {
+        return;
+      }
+      const dropped = dropProxies(api.getSceneElementsIncludingDeleted());
+      if (dropped) {
+        api.updateScene({ elements: dropped, commitToHistory: false });
+      }
+      normalizeDecoration(true);
+    });
+  }, [api, box, editable, normalizeDecoration, redoVersion, undoVersion]);
 
   /**
    * The drawing held ready for the next stroke follows the camera, so whatever

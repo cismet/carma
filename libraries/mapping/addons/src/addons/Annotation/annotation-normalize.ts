@@ -217,6 +217,42 @@ export const fontPixels = (element: ExcalidrawElement): number | null =>
   )?.px ?? null;
 
 /**
+ * The anchor zoom an element's coordinates are written in. Scene units are map
+ * pixels at that zoom, so a coordinate on its own says nothing about where the
+ * element is or how big it is.
+ *
+ * It is what makes undo safe. Excalidraw's history keeps deep copies of the
+ * elements, `customData` and all, and a rebase is written with
+ * `commitToHistory: false` — so an undo hands back coordinates from an anchor
+ * the drawing has long left, and what comes back is the wrong size in the
+ * wrong place, by the whole ratio between the two anchors. Stamped, every
+ * element says which anchor it is written in and the next pass reads it into
+ * the one in use, however many rebases ago it was written.
+ *
+ * Missing, the element has never been through a pass — and where that leaves
+ * it is the whole difficulty, because excalidraw captures a history entry on
+ * pointer up, a frame before this pass first sees the element. So the copy of
+ * a new element kept in the history is always the unstamped one, and an undo
+ * or a redo reaching back that far hands it out again long after the anchor
+ * has moved on. Read in the anchor in use, it would come back at its birth
+ * size on a map that is nowhere near the zoom it was drawn at.
+ *
+ * So the birth anchor is remembered on the side, per element id, by the first
+ * pass that sees it unstamped — `bornRef`. That is the true epoch: the anchor
+ * only ever moves in `setAnchorZoom`, which this pass alone calls, so nothing
+ * can have moved it between the pointer up and the pass that follows it.
+ *
+ * With no record either — an element this session has never seen at all, which
+ * is one the user has just made or one restored from storage under its own
+ * saved anchor — the anchor in use is right.
+ */
+const stampedZoom = (element: ExcalidrawElement): number | null => {
+  const value = (element.customData as Record<string, unknown> | undefined)
+    ?.anchorZoom;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+/**
  * Whether this element carries a style the user has just picked in the panel:
  * a preset that is not the value we last wrote. The panel changes the element
  * itself, in excalidraw's units, so until a pass has read it as pixels the
@@ -453,6 +489,13 @@ export const useDecorationScale = ({
   getCamera,
 }: UseDecorationScaleOptions) => {
   const scaleRef = useRef(0);
+  /**
+   * The anchor zoom each element was born in, kept by id for the unstamped
+   * copies excalidraw's history hands back; see `stampedZoom`. Ids are kept
+   * for the session: a deleted element comes back on a redo, and the scene
+   * holds its own deleted elements just as long.
+   */
+  const bornRef = useRef(new Map<string, number>());
   const penRef = useRef<Pen>({
     stroke: emptySlot(),
     font: emptySlot(),
@@ -681,24 +724,52 @@ export const useDecorationScale = ({
       const spare = new Map(
         scene.filter(isClipProxy).map((proxy) => [proxy.id, proxy])
       );
+      // where the anchor stands once this pass is done, which is the anchor
+      // every element is read into
+      const anchorZoom = rebasing
+        ? anchor.zoom + Math.log2(painted)
+        : anchor.zoom;
+
       const rewritten = scene
         .filter((element) => !isClipProxy(element))
         .map((element) => {
-          const moved = rebasing ? rebased(element, painted) : null;
-          const decoration = rescaled(
-            element,
-            scale,
-            pen,
-            busy,
-            rebasing ? painted : 1
-          );
-          if (!moved && !decoration) {
+          // the element under the hand is moved out from under the pointer by
+          // a rewrite, so it is left for the pass after the gesture
+          if (busy.has(element.id)) {
+            return element;
+          }
+          // Its own catch-up, not the pass's: an element left behind by a
+          // rebase — an undo hands those back — carries the whole ratio
+          // between the anchor it was written in and this one, across as many
+          // rebases as it has missed. An element already in these units gets
+          // 1, which is the rebase-free pass exactly as it was.
+          const stamp = stampedZoom(element);
+          const born = bornRef.current;
+          if (stamp === null && !born.has(element.id)) {
+            born.set(element.id, anchor.zoom);
+          }
+          const from = stamp ?? born.get(element.id) ?? anchor.zoom;
+          const factor = 2 ** (anchorZoom - from);
+          const moved =
+            Math.abs(factor - 1) > EPSILON ? rebased(element, factor) : null;
+          const decoration = rescaled(element, scale, pen, busy, factor);
+          // an image is not rescaled at all, so this is what stamps it
+          const restamp =
+            stamp === null || Math.abs(stamp - anchorZoom) > EPSILON;
+          if (!moved && !decoration && !restamp) {
             return element;
           }
           touched = true;
           return redrawn(element, {
             ...(moved ?? {}),
             ...(decoration ?? {}),
+            customData: {
+              ...((element.customData ?? {}) as Record<string, unknown>),
+              ...((decoration?.customData as
+                | Record<string, unknown>
+                | undefined) ?? {}),
+              anchorZoom,
+            },
           }) as ExcalidrawElement;
         });
 
@@ -777,7 +848,7 @@ export const useDecorationScale = ({
         // before the elements land, so the camera for the new anchor is what
         // the scene draws them with. Read off the painted camera, not the map:
         // the zoom that puts this scale at 1 is the one the scene is at
-        setAnchorZoom(anchor.zoom + Math.log2(painted));
+        setAnchorZoom(anchorZoom);
       }
       // not an edit the user made, so it stays out of the undo history
       api.updateScene({
