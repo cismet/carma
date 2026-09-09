@@ -95,6 +95,10 @@ import {
   type ModelCollectionState,
 } from "../addons/ModelCollection";
 import {
+  LocationSimulator,
+  type LocationSimulatorConfig,
+} from "../addons/LocationSimulator";
+import {
   LayerVisibility,
   layerVisibilityTrigger,
   type LayerVisibilityConfig,
@@ -188,6 +192,8 @@ export type AddonConfigMap = {
   nearestFeatureKrankenhaeuser: NearestFeatureKrankenhaeuserConfig;
   originSearch: OriginSearchConfig;
   routing: RoutingConfig;
+  /** dev only; never declare it on a shipped route (and it no-ops outside a dev build) */
+  locationSimulator: LocationSimulatorConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -572,6 +578,9 @@ export const addonRegistry: {
     requires: ["activeRoute"],
     provides: ["routeNavigation"],
   },
+  // reads `activeRoute` and `routeNavigation` when they are there, to drive
+  // along the route; without them it only stands at its position
+  locationSimulator: { Component: LocationSimulator },
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],

@@ -48,6 +48,7 @@ export const SWITCHABLE_KINDS = [
   "nearestFeatureKrankenhaeuser",
   "originSearch",
   "routing",
+  "locationSimulator",
   "vectorHighlight",
   "vectorHighlightControl",
   "vectorHighlightDebug",

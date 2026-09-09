@@ -352,6 +352,12 @@ export {
   type RoutingConfig,
 } from "./addons/Routing";
 export {
+  LocationSimulator,
+  createFakeDevice,
+  type FakeDevice,
+  type LocationSimulatorConfig,
+} from "./addons/LocationSimulator";
+export {
   collectNearestFromIndex,
   primeFeatureIndexes,
   type FeatureIndex,
