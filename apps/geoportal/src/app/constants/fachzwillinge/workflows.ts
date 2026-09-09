@@ -1,11 +1,15 @@
 import type {
+  AddonEntry,
   FloodDefinition,
   FlowFieldDefinition,
   TimeSeriesDefinition,
   VehicleAnimationDefinition,
 } from "@carma-mapping/addons";
 
-import { ASSET_BASE_URL } from "@carma-mapping/layers";
+import {
+  ASSET_BASE_URL,
+  type WorkflowDefinition,
+} from "@carma-mapping/layers";
 
 import type { FachzwillingRoute } from ".";
 
@@ -668,6 +672,209 @@ const HOCHWASSER_FLOOD: FloodDefinition = {
   title: "Hochwasser",
 };
 
+const SCHWEBEBAHN_CARD: WorkflowDefinition<AddonEntry> = {
+  // No `layers`: like the time series card, this one adds no layer
+  // group. Its vehicleAnimation tool carries the route and the click
+  // launches it into the engine the route mounts.
+  id: "schwebebahn",
+  title: "Schwebebahn",
+  description:
+    "Inhalt: Mehrere Schwebebahnen, die im Takt über die Trasse " +
+    "fahren und an jeder Station halten. " +
+    "Sichtbarkeit: öffentlich. " +
+    "Nutzung: Zeigt den Betrieb auf der Strecke, nicht nur ihren " +
+    "Verlauf. Über den Knopf in der Layer-Zeile lassen sich die " +
+    "Fahrten anhalten.",
+  metaDataText:
+    "Grundlage ist die Mittellinie des 3D-Trassenmodells der Stadt " +
+    "Wuppertal, die Stationen stammen aus OpenStreetMap. Gefahren " +
+    "wird im 3:40-Takt mit 25 Sekunden Halt je Station und 36 km/h " +
+    "zwischen den Halten, zusammen die rund 27 km/h " +
+    "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
+    "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
+    "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
+  tools: [{ addon: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE }],
+};
+
+const SCHWEBEBAHN_GERUEST_CARD: WorkflowDefinition<AddonEntry> = {
+  id: "schwebebahn-geruest",
+  title: "Schwebebahn mit Gerüst",
+  description:
+    "Inhalt: Dieselben Fahrten wie in der Karte „Schwebebahn“, dazu " +
+    "das Gerüst aus der Vogelperspektive: die beiden Fahrschienen " +
+    "auf ihren Trägern, der Windverband dazwischen und die Stützen. " +
+    "Sichtbarkeit: öffentlich. " +
+    "Nutzung: Zeigt die Bahnen unter dem Gerüst, so wie ein Luftbild " +
+    "sie zeigen würde. Die Fahrten lassen sich über die Layer-Zeile " +
+    "anhalten.",
+  metaDataText:
+    "Träger und Stützen stammen aus dem 3D-Modell der Stadt " +
+    "Wuppertal (Trasse und Stützen der Schwebebahn). Das Modell " +
+    "enthält keine Verbindung zwischen den beiden Trägern; der " +
+    "Windverband ist deshalb als Fachwerk mit Feldern von fünf " +
+    "Metern ergänzt. Die Stützen liegen im Modell rund 90 Meter " +
+    "über der Trasse und werden auf deren Höhe gesetzt. Fahrplan " +
+    "und Fahrzeuge wie in der Karte „Schwebebahn“.",
+  tools: [
+    { addon: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE },
+  ],
+};
+
+const SCHWEBEBAHN_3D_CARD: WorkflowDefinition<AddonEntry> = {
+  id: "schwebebahn-3d",
+  title: "Schwebebahn in 3D",
+  description:
+    "Inhalt: Dieselben Fahrten, aber räumlich: Träger, Windverband " +
+    "und Stützen stehen in ihrer Höhe über dem Gelände, die Bahnen " +
+    "hängen unter der Fahrschiene. " +
+    "Sichtbarkeit: öffentlich. " +
+    "Nutzung: Karte mit gedrückter rechter Maustaste oder mit zwei " +
+    "Fingern kippen und drehen. Solange die Fahrten laufen, ist die " +
+    "Kamera frei und die Geländedarstellung lässt sich einschalten.",
+  metaDataText:
+    "Geometrie wie in der Karte „Schwebebahn mit Gerüst“. Die Höhen " +
+    "stammen aus dem 3D-Modell der Stadt Wuppertal; ohne Gelände " +
+    "wird der Boden unter der Trasse aus den Fußpunkten der Stützen " +
+    "abgeleitet, mit Gelände gelten die Modellhöhen. Der " +
+    "Wagenkasten ist ein vereinfachter GTW 15: 24,06 m lang, 2,2 m " +
+    "breit, 2,7 m hoch, mit vier Laufwerken auf der Schiene.",
+  tools: [
+    { addon: "vehicleAnimation", config: SCHWEBEBAHN_3D_VEHICLE },
+  ],
+};
+
+const SCHWEBEBAHN_FAHRPLAN_CARD: WorkflowDefinition<AddonEntry> = {
+  id: "schwebebahn-fahrplan",
+  title: "Schwebebahn nach Fahrplan",
+  description:
+    "Inhalt: Die Schwebebahnen, die der Fahrplan für den jetzigen " +
+    "Zeitpunkt vorsieht. Jede Bahn, die laut Fahrplan gerade zwischen " +
+    "Hammerstein und Robert-Daum-Platz unterwegs ist, fährt auf der " +
+    "Trasse; sie kommt an einem Ende des Modells herein und verlässt " +
+    "es am anderen. " +
+    "Sichtbarkeit: öffentlich. " +
+    "Nutzung: Zeigt den Betrieb zur aktuellen Uhrzeit, nachts also " +
+    "keine Bahn. Die Lupe in der Layer-Zeile springt zur " +
+    "nächstgelegenen Bahn.",
+  metaDataText:
+    "Grundlage sind die Soll-Fahrplandaten des VRR (GTFS, Stand " +
+    "August 2026, Lizenz CC-BY) für die Schwebebahn, mit den " +
+    "Abfahrtszeiten an allen 20 Stationen und dem Kalender, an " +
+    "welchen Tagen welche Fahrt stattfindet. Echtzeitdaten gibt es " +
+    "für die Schwebebahn nicht öffentlich; die Bahnen fahren deshalb " +
+    "nach dem veröffentlichten Fahrplan. Zwischen zwei Abfahrten " +
+    "fährt eine Bahn so schnell, wie es der Fahrplan verlangt, und " +
+    "steht 25 Sekunden vor jeder Abfahrt an der Station. Trasse und " +
+    "Fahrzeuge wie in der Karte „Schwebebahn“.",
+  tools: [
+    { addon: "vehicleAnimation", config: SCHWEBEBAHN_FAHRPLAN_VEHICLE },
+  ],
+};
+
+const SCHWEBEBAHN_GERUEST_FAHRPLAN_CARD: WorkflowDefinition<AddonEntry> = {
+  id: "schwebebahn-geruest-fahrplan",
+  title: "Schwebebahn mit Gerüst nach Fahrplan",
+  description:
+    "Inhalt: Die Fahrten nach Fahrplan aus der Karte „Schwebebahn " +
+    "nach Fahrplan“, dazu das Gerüst aus der Vogelperspektive: die " +
+    "beiden Fahrschienen auf ihren Trägern, der Windverband " +
+    "dazwischen und die Stützen. " +
+    "Sichtbarkeit: öffentlich. " +
+    "Nutzung: Zeigt die Bahnen unter dem Gerüst zur aktuellen " +
+    "Uhrzeit.",
+  metaDataText:
+    "Gerüst wie in der Karte „Schwebebahn mit Gerüst“, Fahrplan und " +
+    "Fahrzeuge wie in der Karte „Schwebebahn nach Fahrplan“.",
+  tools: [
+    {
+      addon: "vehicleAnimation",
+      config: SCHWEBEBAHN_GERUEST_FAHRPLAN_VEHICLE,
+    },
+  ],
+};
+
+const SCHWEBEBAHN_3D_FAHRPLAN_CARD: WorkflowDefinition<AddonEntry> = {
+  id: "schwebebahn-3d-fahrplan",
+  title: "Schwebebahn in 3D nach Fahrplan",
+  description:
+    "Inhalt: Die Fahrten nach Fahrplan, räumlich: Träger, Windverband " +
+    "und Stützen stehen in ihrer Höhe über dem Gelände, die Bahnen " +
+    "hängen unter der Fahrschiene. " +
+    "Sichtbarkeit: öffentlich. " +
+    "Nutzung: Karte mit gedrückter rechter Maustaste oder mit zwei " +
+    "Fingern kippen und drehen. Solange die Fahrten laufen, ist die " +
+    "Kamera frei und die Geländedarstellung lässt sich einschalten.",
+  metaDataText:
+    "Geometrie wie in der Karte „Schwebebahn in 3D“, Fahrplan wie in " +
+    "der Karte „Schwebebahn nach Fahrplan“.",
+  tools: [
+    {
+      addon: "vehicleAnimation",
+      config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE,
+    },
+  ],
+};
+
+/**
+ * The same card with nothing drawn at the stations, neither the dot nor the
+ * name. Held stops are unaffected: the schedule keeps its stations, only their
+ * markers stay off the map. For the projection mapping show, where the map is
+ * thrown onto the printed model and the labels would land on the buildings.
+ */
+const withoutStationMarkers = (
+  card: WorkflowDefinition<AddonEntry>,
+  vehicle: VehicleAnimationDefinition
+): WorkflowDefinition<AddonEntry> => ({
+  ...card,
+  id: `${card.id}_nt`,
+  title: `${card.title} ohne Stationen`,
+  description: card.description
+    ? `${card.description} An den Stationen wird nichts gezeichnet, weder ein ` +
+      "Punkt noch ein Name; gehalten wird an ihnen trotzdem."
+    : card.description,
+  tools: [
+    {
+      addon: "vehicleAnimation",
+      config: {
+        ...vehicle,
+        schedule: vehicle.schedule
+          ? { ...vehicle.schedule, showStations: false }
+          : vehicle.schedule,
+      },
+    },
+  ],
+});
+
+/**
+ * The Schwebebahn cards that stay in the map plane. Shared with routes that
+ * offer no 3d at all (projectionMapping.ts), which is why they are named
+ * rather than written into the perspective below.
+ */
+export const schwebebahn2dWorkflows: WorkflowDefinition<AddonEntry>[] = [
+  SCHWEBEBAHN_CARD,
+  SCHWEBEBAHN_GERUEST_CARD,
+  SCHWEBEBAHN_FAHRPLAN_CARD,
+  SCHWEBEBAHN_GERUEST_FAHRPLAN_CARD,
+];
+
+/**
+ * The same four for a map that shows no station markers at all.
+ */
+export const schwebebahn2dWorkflowsWithoutStations: WorkflowDefinition<AddonEntry>[] =
+  [
+    withoutStationMarkers(SCHWEBEBAHN_CARD, SCHWEBEBAHN_VEHICLE),
+    withoutStationMarkers(SCHWEBEBAHN_GERUEST_CARD, SCHWEBEBAHN_GERUEST_VEHICLE),
+    withoutStationMarkers(
+      SCHWEBEBAHN_FAHRPLAN_CARD,
+      SCHWEBEBAHN_FAHRPLAN_VEHICLE
+    ),
+    withoutStationMarkers(
+      SCHWEBEBAHN_GERUEST_FAHRPLAN_CARD,
+      SCHWEBEBAHN_GERUEST_FAHRPLAN_VEHICLE
+    ),
+  ];
+
+
 export const workflowsFachzwilling: FachzwillingRoute = {
   path: "workflows",
   hideFromCatalog: true,
@@ -1106,143 +1313,12 @@ export const workflowsFachzwilling: FachzwillingRoute = {
       id: "mobilitaet",
       title: "Mobilität",
       workflows: [
-        {
-          // No `layers`: like the time series card, this one adds no layer
-          // group. Its vehicleAnimation tool carries the route and the click
-          // launches it into the engine the route mounts.
-          id: "schwebebahn",
-          title: "Schwebebahn",
-          description:
-            "Inhalt: Mehrere Schwebebahnen, die im Takt über die Trasse " +
-            "fahren und an jeder Station halten. " +
-            "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Zeigt den Betrieb auf der Strecke, nicht nur ihren " +
-            "Verlauf. Über den Knopf in der Layer-Zeile lassen sich die " +
-            "Fahrten anhalten.",
-          metaDataText:
-            "Grundlage ist die Mittellinie des 3D-Trassenmodells der Stadt " +
-            "Wuppertal, die Stationen stammen aus OpenStreetMap. Gefahren " +
-            "wird im 3:40-Takt mit 25 Sekunden Halt je Station und 36 km/h " +
-            "zwischen den Halten, zusammen die rund 27 km/h " +
-            "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
-            "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
-            "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
-          tools: [{ addon: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE }],
-        },
-        {
-          id: "schwebebahn-geruest",
-          title: "Schwebebahn mit Gerüst",
-          description:
-            "Inhalt: Dieselben Fahrten wie in der Karte „Schwebebahn“, dazu " +
-            "das Gerüst aus der Vogelperspektive: die beiden Fahrschienen " +
-            "auf ihren Trägern, der Windverband dazwischen und die Stützen. " +
-            "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Zeigt die Bahnen unter dem Gerüst, so wie ein Luftbild " +
-            "sie zeigen würde. Die Fahrten lassen sich über die Layer-Zeile " +
-            "anhalten.",
-          metaDataText:
-            "Träger und Stützen stammen aus dem 3D-Modell der Stadt " +
-            "Wuppertal (Trasse und Stützen der Schwebebahn). Das Modell " +
-            "enthält keine Verbindung zwischen den beiden Trägern; der " +
-            "Windverband ist deshalb als Fachwerk mit Feldern von fünf " +
-            "Metern ergänzt. Die Stützen liegen im Modell rund 90 Meter " +
-            "über der Trasse und werden auf deren Höhe gesetzt. Fahrplan " +
-            "und Fahrzeuge wie in der Karte „Schwebebahn“.",
-          tools: [
-            { addon: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE },
-          ],
-        },
-        {
-          id: "schwebebahn-3d",
-          title: "Schwebebahn in 3D",
-          description:
-            "Inhalt: Dieselben Fahrten, aber räumlich: Träger, Windverband " +
-            "und Stützen stehen in ihrer Höhe über dem Gelände, die Bahnen " +
-            "hängen unter der Fahrschiene. " +
-            "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Karte mit gedrückter rechter Maustaste oder mit zwei " +
-            "Fingern kippen und drehen. Solange die Fahrten laufen, ist die " +
-            "Kamera frei und die Geländedarstellung lässt sich einschalten.",
-          metaDataText:
-            "Geometrie wie in der Karte „Schwebebahn mit Gerüst“. Die Höhen " +
-            "stammen aus dem 3D-Modell der Stadt Wuppertal; ohne Gelände " +
-            "wird der Boden unter der Trasse aus den Fußpunkten der Stützen " +
-            "abgeleitet, mit Gelände gelten die Modellhöhen. Der " +
-            "Wagenkasten ist ein vereinfachter GTW 15: 24,06 m lang, 2,2 m " +
-            "breit, 2,7 m hoch, mit vier Laufwerken auf der Schiene.",
-          tools: [
-            { addon: "vehicleAnimation", config: SCHWEBEBAHN_3D_VEHICLE },
-          ],
-        },
-        {
-          id: "schwebebahn-fahrplan",
-          title: "Schwebebahn nach Fahrplan",
-          description:
-            "Inhalt: Die Schwebebahnen, die der Fahrplan für den jetzigen " +
-            "Zeitpunkt vorsieht. Jede Bahn, die laut Fahrplan gerade zwischen " +
-            "Hammerstein und Robert-Daum-Platz unterwegs ist, fährt auf der " +
-            "Trasse; sie kommt an einem Ende des Modells herein und verlässt " +
-            "es am anderen. " +
-            "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Zeigt den Betrieb zur aktuellen Uhrzeit, nachts also " +
-            "keine Bahn. Die Lupe in der Layer-Zeile springt zur " +
-            "nächstgelegenen Bahn.",
-          metaDataText:
-            "Grundlage sind die Soll-Fahrplandaten des VRR (GTFS, Stand " +
-            "August 2026, Lizenz CC-BY) für die Schwebebahn, mit den " +
-            "Abfahrtszeiten an allen 20 Stationen und dem Kalender, an " +
-            "welchen Tagen welche Fahrt stattfindet. Echtzeitdaten gibt es " +
-            "für die Schwebebahn nicht öffentlich; die Bahnen fahren deshalb " +
-            "nach dem veröffentlichten Fahrplan. Zwischen zwei Abfahrten " +
-            "fährt eine Bahn so schnell, wie es der Fahrplan verlangt, und " +
-            "steht 25 Sekunden vor jeder Abfahrt an der Station. Trasse und " +
-            "Fahrzeuge wie in der Karte „Schwebebahn“.",
-          tools: [
-            { addon: "vehicleAnimation", config: SCHWEBEBAHN_FAHRPLAN_VEHICLE },
-          ],
-        },
-        {
-          id: "schwebebahn-geruest-fahrplan",
-          title: "Schwebebahn mit Gerüst nach Fahrplan",
-          description:
-            "Inhalt: Die Fahrten nach Fahrplan aus der Karte „Schwebebahn " +
-            "nach Fahrplan“, dazu das Gerüst aus der Vogelperspektive: die " +
-            "beiden Fahrschienen auf ihren Trägern, der Windverband " +
-            "dazwischen und die Stützen. " +
-            "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Zeigt die Bahnen unter dem Gerüst zur aktuellen " +
-            "Uhrzeit.",
-          metaDataText:
-            "Gerüst wie in der Karte „Schwebebahn mit Gerüst“, Fahrplan und " +
-            "Fahrzeuge wie in der Karte „Schwebebahn nach Fahrplan“.",
-          tools: [
-            {
-              addon: "vehicleAnimation",
-              config: SCHWEBEBAHN_GERUEST_FAHRPLAN_VEHICLE,
-            },
-          ],
-        },
-        {
-          id: "schwebebahn-3d-fahrplan",
-          title: "Schwebebahn in 3D nach Fahrplan",
-          description:
-            "Inhalt: Die Fahrten nach Fahrplan, räumlich: Träger, Windverband " +
-            "und Stützen stehen in ihrer Höhe über dem Gelände, die Bahnen " +
-            "hängen unter der Fahrschiene. " +
-            "Sichtbarkeit: öffentlich. " +
-            "Nutzung: Karte mit gedrückter rechter Maustaste oder mit zwei " +
-            "Fingern kippen und drehen. Solange die Fahrten laufen, ist die " +
-            "Kamera frei und die Geländedarstellung lässt sich einschalten.",
-          metaDataText:
-            "Geometrie wie in der Karte „Schwebebahn in 3D“, Fahrplan wie in " +
-            "der Karte „Schwebebahn nach Fahrplan“.",
-          tools: [
-            {
-              addon: "vehicleAnimation",
-              config: SCHWEBEBAHN_3D_FAHRPLAN_VEHICLE,
-            },
-          ],
-        },
+        SCHWEBEBAHN_CARD,
+        SCHWEBEBAHN_GERUEST_CARD,
+        SCHWEBEBAHN_3D_CARD,
+        SCHWEBEBAHN_FAHRPLAN_CARD,
+        SCHWEBEBAHN_GERUEST_FAHRPLAN_CARD,
+        SCHWEBEBAHN_3D_FAHRPLAN_CARD,
       ],
     },
     {
