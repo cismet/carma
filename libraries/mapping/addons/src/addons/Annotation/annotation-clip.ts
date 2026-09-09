@@ -586,6 +586,33 @@ export const staleProxies = (elements: readonly ExcalidrawElement[]) => {
   });
 };
 
+/**
+ * The scene with every copy taken out and every element drawing itself again,
+ * or null when there is none in there. Undo and redo hand back an element
+ * array that was captured while copies existed, which stand for a camera and
+ * an anchor that are no longer the ones in use; the pass that follows makes
+ * the copies this camera needs. The versions are bumped because excalidraw
+ * skips an element at a version it has already drawn.
+ */
+export const dropProxies = (
+  elements: readonly ExcalidrawElement[]
+): ExcalidrawElement[] | null => {
+  if (!elements.some((element) => isClipProxy(element) || isClipped(element))) {
+    return null;
+  }
+  return elements
+    .filter((element) => !isClipProxy(element))
+    .map((element) =>
+      isClipped(element)
+        ? ({
+            ...clipShown(element),
+            version: element.version + 1,
+            versionNonce: Math.floor(Math.random() * 2 ** 31),
+          } as ExcalidrawElement)
+        : element
+    );
+};
+
 /** whether the copy that is there already is the copy we would make now */
 export const sameProxy = (a: ExcalidrawElement, b: ExcalidrawElement) =>
   dataOf(a).clipHash === dataOf(b).clipHash &&
