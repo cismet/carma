@@ -30,6 +30,13 @@ export const hasMeshRefinementContentInView = (
 ): boolean => {
   if (!inView(tile)) return false;
   if (
+    tile.internal?.hasContent === false &&
+    !tile.internal.hasRenderableContent &&
+    !tile.internal.hasUnrenderableContent &&
+    !tile.children?.length
+  )
+    return false;
+  if (
     !tile.internal?.hasUnrenderableContent ||
     tile.internal.loadingState !== LOADED ||
     !tile.children?.length
@@ -386,13 +393,37 @@ export const refineLoadedMeshFrontier = (
   proposed: ReadonlySet<Tile>,
   requestedError: number,
   inView: (tile: Tile) => boolean,
-  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error
+  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
+  minimumFrontier: ReadonlySet<Tile> = new Set()
 ): Set<Tile> => {
+  // Decision: LINKED-RECEIVER-CASTER-LOD-20260910 in engines/maplibre/README.md.
+  // A parent meeting caster SSE must not mask already displayed finer geometry.
+  // Only a missing corridor-relevant sibling may keep its depth fallback alive.
+  const requiredAncestors = new Set<Tile>();
+  for (const tile of minimumFrontier) {
+    if (!isLoadedMesh(tile)) continue;
+    for (const parent of ancestors(tile)) requiredAncestors.add(parent);
+  }
   const select = (tile: Tile): Tile[] | null => {
     if (!tile.internal || !tile.traversal) return null;
+    // A parsed, content-free leaf is a complete empty branch. Unknown metadata
+    // and external JSON still block below; absence of a payload alone is not
+    // proof that a routing subtree is empty.
+    if (
+      tile.internal.hasContent === false &&
+      !tile.internal.hasRenderableContent &&
+      !tile.internal.hasUnrenderableContent &&
+      !tile.children?.length
+    )
+      return [];
     const fallback = isLoadedMesh(tile) ? [tile] : null;
     if (tile.refine !== "REPLACE") return null;
-    if (fallback && errorPixels(tile) <= requestedError) return fallback;
+    if (
+      fallback &&
+      !requiredAncestors.has(tile) &&
+      errorPixels(tile) <= requestedError
+    )
+      return fallback;
     if (
       tile.internal.hasUnrenderableContent &&
       tile.internal.loadingState !== LOADED

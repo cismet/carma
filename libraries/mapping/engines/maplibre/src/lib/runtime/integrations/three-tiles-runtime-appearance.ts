@@ -3,6 +3,10 @@ import * as THREE from "three";
 import { clamp } from "@carma-commons/math";
 
 import { hasDeferredGltfMaterials } from "./gltf-deferred-materials";
+import {
+  getTileShadowRole,
+  setTileShadowMaterialReceiver,
+} from "./three-tiles-shadow-role";
 import type { SharedThreeSceneShadowStyle } from "../../core/shared-three-scene-types";
 import type {
   ThreeTilesRuntimeServices,
@@ -278,8 +282,16 @@ export function createThreeTilesAppearance(
       }
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
+      // Decision: MESH-SHADOW-FRUSTUM-20260910 in engines/maplibre/README.md.
+      // Three tests the observer AND each light's own frustum independently;
+      // an offscreen chimney remains a caster when it intersects the light.
+      // Disabling this submits the whole loaded city for every solar sample.
+      if (runtimeState.options.providesTerrain) mesh.frustumCulled = true;
+      const role = getTileShadowRole(mesh);
+      for (const material of dependencies.asMaterialArray(mesh.material))
+        setTileShadowMaterialReceiver(material, true);
       if (hasDeferredGltfMaterials(mesh)) {
-        mesh.castShadow = true;
+        mesh.castShadow = role?.caster ?? true;
         mesh.receiveShadow = false;
         // Transient placeholders never enter the long-lived material-restore maps.
         for (const material of dependencies.asMaterialArray(mesh.material))
@@ -288,8 +300,8 @@ export function createThreeTilesAppearance(
             : null;
         return;
       }
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      mesh.castShadow = role?.caster ?? true;
+      mesh.receiveShadow = role?.receiver ?? true;
       let clayState = runtimeState.clayMaterialStates.get(mesh);
       let litTextureState = runtimeState.litTextureMaterialStates.get(mesh);
       if (useClayShading) {
@@ -377,6 +389,7 @@ export function createThreeTilesAppearance(
           );
         }
         dependencies.patchMaterialForProjection(material);
+        setTileShadowMaterialReceiver(material, role?.receiver ?? true);
         material.needsUpdate = true;
       }
     });

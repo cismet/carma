@@ -16,6 +16,7 @@ import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 import { degToRadNumeric } from "@carma-units";
+import { isLocalhostHostname } from "@carma-commons/utils";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { applyShadowReceiverMask } from "../../core/shadow-receiver-mask";
@@ -25,6 +26,7 @@ import { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plu
 import type { SharedThreeSceneFrame } from "../../core/shared-three-scene-types";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { setTileShadowRole } from "./three-tiles-shadow-role";
 import {
   TILES_LOAD_POLICY,
   TILE_MEMORY_ALLOCATION_ERROR,
@@ -131,6 +133,7 @@ export function createThreeTilesLifecycle(
     | "clayMaterialStates"
     | "litTextureMaterialStates"
     | "tileDebugOverlay"
+    | "tileBoundsVisible"
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
@@ -181,6 +184,7 @@ export function createThreeTilesLifecycle(
     | "restoreShadowSides"
   >
 ) {
+  const localTelemetry = isLocalhostHostname(globalThis.location?.hostname);
   const deferredMaterials = new TilesetDeferredMaterialsPlugin({
     inView: dependencies.isTileInMainView,
     onPromoted: (tile, scene) => {
@@ -191,7 +195,8 @@ export function createThreeTilesLifecycle(
       dependencies.requestRender();
     },
     onError: (tile, error) => {
-      dependencies.getTileDebugProgress(tile).lastError = String(error);
+      if (runtimeState.tileBoundsVisible)
+        dependencies.getTileDebugProgress(tile).lastError = String(error);
     },
   });
   // Bounded event samples, never a resident-cache scan. Decision:
@@ -252,7 +257,12 @@ export function createThreeTilesLifecycle(
     }, 0);
   };
   const noteTileActivity = (tile: Tile) => {
-    if (runtimeState.disposed || runtimeState.options.tileTelemetry === false)
+    if (
+      runtimeState.disposed ||
+      !localTelemetry ||
+      !runtimeState.tileBoundsVisible ||
+      runtimeState.options.tileTelemetry === false
+    )
       return;
     if (telemetryTiles.has(tile)) return;
     if (telemetryTiles.size >= 32) {
@@ -262,6 +272,7 @@ export function createThreeTilesLifecycle(
     telemetryTiles.add(tile);
   };
   const handleDownloadStart = ({ tile }: { tile: Tile }) => {
+    if (!runtimeState.tileBoundsVisible) return;
     const progress = dependencies.getTileDebugProgress(tile);
     progress.downloadStartedAt = performance.now();
     progress.downloadFinishedAt = undefined;
@@ -273,7 +284,7 @@ export function createThreeTilesLifecycle(
 
   const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
     (event: { scene?: THREE.Object3D; tile?: Tile; url?: string }) => {
-      if (event.tile) {
+      if (event.tile && runtimeState.tileBoundsVisible) {
         dependencies.getTileDebugProgress(event.tile).publicationStartedAt =
           performance.now();
         dependencies.getTileDebugProgress(event.tile).loadedAt ??=
@@ -299,8 +310,19 @@ export function createThreeTilesLifecycle(
         if (!bounds.isEmpty()) changedBounds.push(bounds.clone());
       }
       dependencies.invalidateShadowRegionRevisions(changedBounds);
+      // Decoding a partial caster child is not a depth-cut publication. Register
+      // its materials without invalidating hard/soft pages; the atomic caster
+      // handover supplies regional invalidation when the complete family exists.
+      const unpublishedMesh =
+        runtimeState.options.providesTerrain &&
+        runtimeState.shadowView &&
+        event.tile &&
+        !runtimeState.committedMeshCasterFrontier.has(event.tile) &&
+        !runtimeState.committedMeshReceiverFrontier.has(event.tile);
+      if (unpublishedMesh && event.scene)
+        setTileShadowRole(event.scene, { receiver: false, caster: false });
       runtimeState.options.onContentChanged?.(
-        changedBounds,
+        unpublishedMesh ? [] : changedBounds,
         event.scene ? [event.scene] : undefined
       );
       runtimeState.lastProgressAt = Date.now();
@@ -321,7 +343,7 @@ export function createThreeTilesLifecycle(
       dependencies.applyRequestConcurrency();
       dependencies.notifyRequestStateChange();
       dependencies.requestRender();
-      if (event.tile)
+      if (event.tile && runtimeState.tileBoundsVisible)
         dependencies.getTileDebugProgress(event.tile).publicationFinishedAt =
           performance.now();
     };
@@ -357,10 +379,11 @@ export function createThreeTilesLifecycle(
 
   const handleTilesetLoad: ThreeTilesRuntimeServices["handleTilesetLoad"] =
     (event: { url?: string }) => {
-      console.debug(
-        "[tiles3d-debug] tileset loaded",
-        event.url ?? runtimeState.tilesetUrl
-      );
+      if (localTelemetry && runtimeState.tileBoundsVisible)
+        console.debug(
+          "[tiles3d-debug] tileset loaded",
+          event.url ?? runtimeState.tilesetUrl
+        );
       runtimeState.meshContentRevision += 1;
       runtimeState.shadowRegionRevisions.clear();
       runtimeState.mainViewIntersectionCache = new WeakMap();
@@ -387,7 +410,7 @@ export function createThreeTilesLifecycle(
         dependencies.applyRequestConcurrency();
       }
       const failedTile = event.tile ?? null;
-      if (failedTile) {
+      if (failedTile && runtimeState.tileBoundsVisible) {
         dependencies.getTileDebugProgress(failedTile).lastError = String(
           event.error
         ).slice(0, 240);
@@ -515,10 +538,11 @@ export function createThreeTilesLifecycle(
     runtimeState.map = mapInstance;
     if (runtimeState.tiles) return;
 
-    console.debug("[tiles3d-debug] runtime added", {
-      tilesetUrl: runtimeState.tilesetUrl,
-      providesTerrain: runtimeState.options.providesTerrain === true,
-    });
+    if (localTelemetry && runtimeState.tileBoundsVisible)
+      console.debug("[tiles3d-debug] runtime added", {
+        tilesetUrl: runtimeState.tilesetUrl,
+        providesTerrain: runtimeState.options.providesTerrain === true,
+      });
 
     runtimeState.tiles = new TilesRenderer(
       runtimeState.tilesetUrl
@@ -582,8 +606,10 @@ export function createThreeTilesLifecycle(
     const hasParseJob = parseQueue.has.bind(parseQueue);
     parseQueue.has = (tile) => metadataParsing.has(tile) || hasParseJob(tile);
     parseQueue.add = (tile: Tile, callback) => {
-      const progress = dependencies.getTileDebugProgress(tile);
-      progress.downloadFinishedAt = performance.now();
+      const progress = runtimeState.tileBoundsVisible
+        ? dependencies.getTileDebugProgress(tile)
+        : null;
+      if (progress) progress.downloadFinishedAt = performance.now();
       noteTileActivity(tile);
       const add = tile.internal.hasUnrenderableContent
         ? metadataParsing.add.bind(metadataParsing)
@@ -593,14 +619,17 @@ export function createThreeTilesLifecycle(
         // so queue admission itself does not run parsing inside a paint callback.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         if (runtimeState.disposed) return;
-        progress.parseStartedAt = performance.now();
+        if (progress && runtimeState.tileBoundsVisible)
+          progress.parseStartedAt = performance.now();
         try {
           return await callback(item);
         } catch (error) {
-          progress.lastError = String(error).slice(0, 240);
+          if (progress && runtimeState.tileBoundsVisible)
+            progress.lastError = String(error).slice(0, 240);
           throw error;
         } finally {
-          progress.parseFinishedAt = performance.now();
+          if (progress && runtimeState.tileBoundsVisible)
+            progress.parseFinishedAt = performance.now();
           noteTileActivity(tile);
         }
       });
@@ -627,7 +656,7 @@ export function createThreeTilesLifecycle(
         runtimeState.tiles
       );
     runtimeState.tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
-      dependencies.recordTileIteration(tile);
+      if (runtimeState.tileBoundsVisible) dependencies.recordTileIteration(tile);
       calculateTileViewErrorWithPlugin(tile, target);
       if (target.inView && retainedMeshAncestors.has(tile)) {
         // Native REPLACE traversal must reach the retained mixed-LOD cut and
@@ -725,8 +754,8 @@ export function createThreeTilesLifecycle(
       }
       dependencies.assignTilePriority(runtimeTile);
       runtimeState.queuedThisTraversal.add(tile);
-      const progress = dependencies.getTileDebugProgress(tile);
-      progress.queuedAt ??= performance.now();
+      if (runtimeState.tileBoundsVisible)
+        dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
       noteTileActivity(tile);
       queueTileForDownload(tile);
     };
@@ -766,7 +795,7 @@ export function createThreeTilesLifecycle(
         ],
       })
     );
-    dependencies.syncTileDebugOverlay();
+    if (runtimeState.tileBoundsVisible) dependencies.syncTileDebugOverlay();
     // Reorient the ECEF tileset into the local scene frame at the
     // layer origin: ENU with +Y up, north toward -Z — matching the
     // point cloud layers (x east, y up, z south).
@@ -993,6 +1022,16 @@ export function createThreeTilesLifecycle(
           // Publish ready replacements directly: no tile fade/crossfade and no
           // animated opacity. Layer opacity remains a separate user setting.
           const visible = displayed.has(tile);
+          const model = (tile as RuntimeTile).engineData?.scene;
+          if (model)
+            setTileShadowRole(model, {
+              receiver: runtimeState.shadowView
+                ? runtimeState.committedMeshReceiverFrontier.has(tile)
+                : visible,
+              caster: runtimeState.shadowView
+                ? runtimeState.committedMeshCasterFrontier.has(tile)
+                : visible,
+            });
           if (visible === runtimeState.tiles.visibleTiles.has(tile)) continue;
           runtimeState.tiles.setTileActive(tile, visible);
           runtimeState.tiles.setTileVisible(tile, visible);
@@ -1019,6 +1058,8 @@ export function createThreeTilesLifecycle(
           queue.scheduleJobRun();
       }
       if (
+        localTelemetry &&
+        runtimeState.tileBoundsVisible &&
         runtimeState.options.tileTelemetry !== false &&
         performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000
       ) {
@@ -1082,7 +1123,11 @@ export function createThreeTilesLifecycle(
         );
         telemetryDropped = 0;
       }
-      dependencies.syncTileDebugOverlay();
+      if (runtimeState.tileBoundsVisible) dependencies.syncTileDebugOverlay();
+      else if (telemetryTiles.size) {
+        telemetryTiles.clear();
+        telemetryDropped = 0;
+      }
       if (completingShadowTraversal)
         runtimeState.shadowSelectionNeedsTraversal = false;
       dependencies.maybeFinalizeShadowSelection();

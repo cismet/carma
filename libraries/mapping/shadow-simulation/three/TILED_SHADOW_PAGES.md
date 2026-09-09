@@ -1138,3 +1138,23 @@ has been removed at the user's explicit request.
 - **Verification:** 112 focused regression tests pass. Internal-browser captures
   at animation start and during changing time retain Mesh2024 coverage. These
   are sampled checks, not a guarantee for every possible camera/time sequence.
+# CORRIDOR-SCHEDULING-20260909
+
+- **ID / date / status:** CORRIDOR-SCHEDULING-20260909 / 2026-09-09 / implemented;
+  worker pipeline proposed separately.
+- **Context:** a single unready active corridor could hold the working slot;
+  scene-wide hard/base gates prevented ready soft jobs from starting. Allocation
+  was recomputed as each working page changed.
+- **Decision:** ready siblings may run without global coverage gates. Yield an
+  unready active slot only when other ready work exists. Preserve paused work
+  otherwise; memoize unchanged allocation demand. One 20-second scene timer
+  reports per-corridor no-progress state without requiring further repaints.
+- **Alternatives:** larger main-thread submission budget rejected by requirement;
+  worker contexts and off-thread planning deferred for review, not rejected.
+- **Evidence:** 54 focused tests, including active-readiness loss, motion pause,
+  124 mixed-area allocations and watchdog completion/removal/disposal. Live
+  console reports 123 ready zero-sample jobs queued behind one active job. The
+  30-second internal-browser reload still experiences an input timeout; no
+  end-to-end speedup or stall-free result is claimed.
+- **Revisit when:** implement and benchmark the geometry-only worker pipeline in
+  [CORRIDOR_WORKERS_REVIEW.md](CORRIDOR_WORKERS_REVIEW.md).

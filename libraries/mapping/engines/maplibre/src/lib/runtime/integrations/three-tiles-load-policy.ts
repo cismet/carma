@@ -258,14 +258,18 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
     const distance = Number.isFinite(input.distanceFromCamera)
       ? Math.max(0, input.distanceFromCamera)
       : Number.MAX_VALUE;
-    // Keep all visible requests ahead of corridor-only requests. Tree depth
-    // and screen centerness must not outweigh the observer distance.
+    // Metadata and missing visible coverage first. A proven sun-corridor
+    // dependency comes before cosmetic receiver refinement, otherwise detail
+    // can starve the offscreen geometry needed for the first correct shadow.
+    // Within a lane, keep nearest-first ordering independent of tree depth.
     const lane = input.isExternalTileset
       ? 6
       : input.inMainFrustum
       ? input.fillsViewCoverage
         ? 4
         : 2
+      : Number.isFinite(input.shadowReceiverCenterness)
+      ? 3
       : 0;
     return lane + 1 / (1 + distance);
   }

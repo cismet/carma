@@ -17,7 +17,7 @@ import type {
   SharedThreeSceneShadowView,
   SharedThreeShadowRegionDiagnostics,
 } from "../../core/shared-three-scene-types";
-import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
+import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import type { EffectiveErrorTargetState } from "./three-tiles-load-policy";
 import {
   createEffectiveErrorTargetState,
@@ -145,7 +145,7 @@ export function createThreeTilesRuntimeState(
   const mainViewSourceTiles = new Set<Tile>();
   const viewQualityAuditPasses = 0;
   const shadowClayColor = new THREE.Color(CLAY_COLOR);
-  const tileBoundsVisible = true;
+  const tileBoundsVisible = false;
   const tileDebugIds = new WeakMap<Tile, number>();
   const nextTileDebugId = 1;
   const tileDebugProgress = new WeakMap<Tile, MeshTileDebugProgress>();

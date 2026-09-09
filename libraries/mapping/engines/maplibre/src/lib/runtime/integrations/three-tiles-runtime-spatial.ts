@@ -176,6 +176,7 @@ export function createThreeTilesSpatial(
           geometricError: tile.geometricError,
           errorPixels: getTileScreenError(tile as RuntimeTile),
           loadReason: dependencies.getTileLoadReason(activeTile as RuntimeTile),
+          receiverObjectId: model?.id,
           minimum: runtimeState.activeTileBoundingBox.min.toArray(),
           maximum: runtimeState.activeTileBoundingBox.max.toArray(),
         });

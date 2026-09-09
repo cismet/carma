@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe("tile diagnostics runtime registration", () => {
-  it("shows tile diagnostics independently of the lazy debug panel", () => {
+  it.each([false, undefined])("does not register scene diagnostics when the debug panel is %s", (showProjectionDebugView) => {
     const runtime = { setTileBoundsVisible: vi.fn() };
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([runtime] as never);
     render(
@@ -37,7 +37,7 @@ describe("tile diagnostics runtime registration", () => {
         state={{
           ...createInitialShadowSimulationState(undefined),
           enabled: true,
-          showProjectionDebugView: false,
+          showProjectionDebugView,
           showTileBounds: true,
         }}
         dateState={{
@@ -49,8 +49,8 @@ describe("tile diagnostics runtime registration", () => {
         location={{ latitude: 51.27, longitude: 7.2 }}
       />
     );
-    expect(subscribeSharedThreeSceneContent).toHaveBeenCalledOnce();
-    expect(runtime.setTileBoundsVisible).toHaveBeenCalledWith(true);
+    expect(subscribeSharedThreeSceneContent).not.toHaveBeenCalled();
+    expect(runtime.setTileBoundsVisible).not.toHaveBeenCalled();
   });
 
   it("applies enabled bounds to arriving runtimes once and unsubscribes on cleanup", () => {
@@ -95,5 +95,36 @@ describe("tile diagnostics runtime registration", () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
     expect(first.setTileBoundsVisible).toHaveBeenLastCalledWith(false);
     expect(next.setTileBoundsVisible).toHaveBeenLastCalledWith(false);
+  });
+
+  it("turns scene diagnostics off on panel close and restores the default on reopening", () => {
+    const runtime = { setTileBoundsVisible: vi.fn() };
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([runtime] as never);
+    const unsubscribe = vi.fn();
+    vi.mocked(subscribeSharedThreeSceneContent).mockReturnValue(unsubscribe);
+    const map = { isStyleLoaded: () => false, on: vi.fn(), off: vi.fn() };
+    const initial = createInitialShadowSimulationState(undefined);
+    const view = (open: boolean, enabled = true, bounds = initial.showTileBounds) => (
+      <ShadowSimulationRuntime
+        libreMap={map as never}
+        state={{ ...initial, enabled, showProjectionDebugView: open, showTileBounds: bounds }}
+        dateState={{year: 2026, dayOfYear: 250, minutes: 720, timeZone: "Europe/Berlin"}}
+        location={{latitude: 51.27, longitude: 7.2}}
+      />
+    );
+    const { rerender, unmount } = render(view(false));
+    rerender(view(true));
+    expect(runtime.setTileBoundsVisible).toHaveBeenLastCalledWith(true);
+    rerender(view(false));
+    expect(runtime.setTileBoundsVisible).toHaveBeenLastCalledWith(false);
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    rerender(view(true));
+    expect(runtime.setTileBoundsVisible).toHaveBeenLastCalledWith(true);
+    rerender(view(true, true, false));
+    expect(runtime.setTileBoundsVisible).toHaveBeenLastCalledWith(false);
+    rerender(view(true));
+    rerender(view(true, false));
+    expect(runtime.setTileBoundsVisible).toHaveBeenLastCalledWith(false);
+    unmount();
   });
 });

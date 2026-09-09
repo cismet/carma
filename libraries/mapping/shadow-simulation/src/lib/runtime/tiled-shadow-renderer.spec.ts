@@ -192,6 +192,40 @@ const fixture = (budget = 8 * 1024 ** 2, targetPixels = 1) => {
 };
 
 describe("shared tiled shadow runtime", () => {
+  it("replays only the native receiver while sampling preserves other casters", () => {
+    const f = fixture();
+    const receiver = new THREE.Mesh();
+    const caster = new THREE.Mesh();
+    caster.castShadow = true;
+    f.scene.add(receiver, caster);
+    f.pages.setView(
+      [{ ...f.cells[0], receiverObjectId: receiver.id }],
+      f.camera,
+      new THREE.Vector2(1440, 1440),
+      1,
+      f.lighting
+    );
+    expect(f.pages.accumulationPages[0].receiverObjectId).toBe(receiver.id);
+    f.renderer.render.mockImplementationOnce(() => {
+      expect(receiver.visible).toBe(true);
+      expect(caster.visible).toBe(false);
+      expect(f.renderer.shadowMap.autoUpdate).toBe(false);
+      expect(f.renderer.shadowMap.needsUpdate).toBe(false);
+    });
+    expect(f.pages.renderPageColor(f.camera, "0")).toBe(true);
+    expect(caster.visible).toBe(true);
+    f.renderer.render.mockImplementationOnce(() => {
+      expect(caster.visible).toBe(true);
+      expect(caster.castShadow).toBe(true);
+    });
+    expect(f.pages.renderPageSample(f.camera, "0", 0, 64)).toBe(true);
+    f.scene.remove(receiver);
+    f.renderer.render.mockClear();
+    expect(f.pages.renderPageSample(f.camera, "0", 1, 64)).toBe(false);
+    expect(f.renderer.render).not.toHaveBeenCalled();
+    f.pages.dispose();
+  });
+
   it("measures the depth-pass versus texel-resolution tradeoff of merging capped pages", () => {
     const separate = fixture();
     const merged = fixture();

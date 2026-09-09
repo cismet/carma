@@ -18,7 +18,7 @@ import type {
   SharedThreeSceneTileVolume,
   SharedThreeShadowRegionDiagnostics,
 } from "../../core/shared-three-scene-types";
-import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
+import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import type { EffectiveErrorTargetState } from "./three-tiles-load-policy";
 import {
   createTileBytesPredictor,

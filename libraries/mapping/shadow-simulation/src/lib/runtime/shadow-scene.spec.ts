@@ -514,6 +514,7 @@ describe("shadow scene lighting integration", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -2468,7 +2469,8 @@ describe("shadow scene lighting integration", () => {
     (terrain.material as THREE.Material).dispose();
   });
 
-  it("refits the direct shadow pass immediately when streamed content changes", () => {
+  it("prepares materials immediately but batches only published geometry changes", async () => {
+    vi.useFakeTimers();
     vi.stubGlobal("window", {
       clearTimeout,
       setTimeout,
@@ -2476,7 +2478,10 @@ describe("shadow scene lighting integration", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     let contentChanged: (
-      change?: Readonly<{ roots?: readonly THREE.Object3D[] }>
+      change?: Readonly<{
+        roots?: readonly THREE.Object3D[];
+        bounds?: readonly THREE.Box3[];
+      }>
     ) => void = () => undefined;
     vi.mocked(subscribeSharedThreeSceneContent).mockImplementation(
       (_map, listener) => {
@@ -2538,11 +2543,22 @@ describe("shadow scene lighting integration", () => {
     );
     buildingVolume.position.y = 150;
     scene.add(buildingVolume);
+    // Preparing a payload is not publication: it must configure the arriving
+    // material and request paint, but schedule no global geometry refresh.
+    const scheduled = vi.spyOn(window, "setTimeout");
+    scheduled.mockClear();
+    contentChanged({ bounds: [], roots: [buildingVolume] });
+    expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(true);
+    expect(scheduled).not.toHaveBeenCalled();
+    expect(setTerrainShadowView).toHaveBeenCalledTimes(initialTerrainShadowViewCalls);
+    scheduled.mockRestore();
     contentChanged({ roots: [buildingVolume] });
-    // The first draw must not wait for the 120 ms coverage debounce.
+    // Material setup is immediate; geometric coverage is refreshed on the
+    // one-second publication cadence, never per decoded model.
     expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(
       true
     );
+    await vi.advanceTimersByTimeAsync(1000);
     controller.refreshProjectionDebug();
     updateShadows(map, camera);
 

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { renderShadowReceiverObject } from "./shadow-receiver-object";
 
 import {
   planShadowReceiverPages,
@@ -30,6 +31,7 @@ export type TiledShadowLighting = Pick<
 >;
 
 type Page = {
+  receiverObjectId?: number;
   controller: ShadowController;
   projectionKey: string;
   lightingKey: string;
@@ -119,9 +121,12 @@ export type ShadowPageLevel = Readonly<{
 
 export type ShadowAccumulationPage = Readonly<{
   id: string;
+  receiverObjectId?: number;
   revision: string;
   /** Physical dependency identity, independent of depth-buffer sizing. */
   contentKey?: string;
+  /** Committed caster geometry identity; camera movement is not a revision. */
+  casterRevision?: string | null;
   /** Stable sun/receiver identity for displaying the last completed result
    * while geometry, buffer size or sample-budget replacements are pending. */
   presentationKey?: string;
@@ -681,7 +686,12 @@ export class TiledShadowRenderer {
     const light = page.controller.lights[0];
     light.visible = false;
     const c = snapshot.camera;
+    const receiverMode =
+      plan.receiverObjectId === undefined
+        ? "spatial-partition-v1"
+        : "native-object-v1";
     const projectionKey = JSON.stringify([
+      receiverMode,
       c.viewMatrixElements,
       c.projectionMatrixElements,
       c.shadowMapWidth,
@@ -699,6 +709,7 @@ export class TiledShadowRenderer {
       plan.bounds.max,
     ]);
     page.presentationKey = JSON.stringify([
+      receiverMode,
       lighting.directionToSun,
       lighting.shadowIntensity,
       plan.bounds.min.x,
@@ -707,6 +718,7 @@ export class TiledShadowRenderer {
       plan.bounds.max.z,
     ]);
     page.receiverBounds.copy(plan.bounds);
+    page.receiverObjectId = plan.receiverObjectId;
     page.groundTexelTargetMeters = plan.groundTexelTargetMeters;
     page.screenBounds = plan.screenBounds;
     page.width = c.shadowMapWidth;
@@ -785,8 +797,9 @@ export class TiledShadowRenderer {
     screenBounds?: THREE.Vector4
   ): boolean {
     if (this.disposed || !this.activePageIds.has(pageId)) return false;
-    this.renderSamples(camera, [pageId], sample, samples, screenBounds);
-    return true;
+    return (
+      this.renderSamples(camera, [pageId], sample, samples, screenBounds) > 0
+    );
   }
 
   /** Replay an already integrated visibility mask with the host's common hard
@@ -809,9 +822,14 @@ export class TiledShadowRenderer {
     renderer.clippingPlanes = [...clipping, ...page.planes];
     scene.background = null;
     try {
-      renderer.render(scene, camera);
-      this.colorPasses += 1;
-      return true;
+      const rendered = renderShadowReceiverObject(
+        scene,
+        page.receiverObjectId,
+        () => renderer.render(scene, camera),
+        "color-only"
+      );
+      if (rendered) this.colorPasses += 1;
+      return rendered;
     } finally {
       renderer.clippingPlanes = clipping;
       renderer.autoClear = autoClear;
@@ -827,7 +845,9 @@ export class TiledShadowRenderer {
       const light = page.controller.lights[0];
       return {
         id,
+        receiverObjectId: page.receiverObjectId,
         contentKey: JSON.stringify([page.lightingKey, page.contentRevision]),
+        casterRevision: page.casterRevision,
         presentationKey: page.presentationKey,
         revision: JSON.stringify([
           page.projectionKey,
@@ -894,7 +914,7 @@ export class TiledShadowRenderer {
     samples: number,
     screenBounds?: THREE.Vector4
   ) {
-    if (this.disposed) return;
+    if (this.disposed) return 0;
     if (this.renderer.shadowMap.type !== THREE.PCFShadowMap) {
       throw new Error(
         "Shadow page cache must be recreated after changing the depth/filter format"
@@ -925,6 +945,7 @@ export class TiledShadowRenderer {
     const sceneTarget = renderer.getRenderTarget();
     const previousScissor = sceneTarget?.scissor.clone();
     const previousScissorTest = sceneTarget?.scissorTest;
+    let renderedPages = 0;
     renderer.autoClear = false;
     // A sky/background is the host's one-time pass, never one pass per cell.
     scene.background = null;
@@ -967,8 +988,15 @@ export class TiledShadowRenderer {
           renderer.setRenderTarget(sceneTarget);
         }
         try {
-          renderer.render(scene, camera);
-          this.colorPasses += 1;
+          const rendered = renderShadowReceiverObject(
+            scene,
+            page.receiverObjectId,
+            () => renderer.render(scene, camera)
+          );
+          if (rendered) {
+            this.colorPasses += 1;
+            renderedPages += 1;
+          }
           if (!cached && light.shadow.map) {
             this.depthRenders += 1;
             const target = light.shadow.map;
@@ -995,6 +1023,7 @@ export class TiledShadowRenderer {
         renderer.setRenderTarget(sceneTarget);
       }
     }
+    return renderedPages;
   }
 
   get stats(): TiledShadowStats {

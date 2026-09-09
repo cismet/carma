@@ -197,6 +197,25 @@ it("settles a budget-limited view with interleaved hard and soft passes", () => 
   expect(settled).toBe(true);
 });
 
+it("keeps 124 mixed-area allocations stable across active corridor changes", () => {
+  const f = fixture();
+  f.pages.accumulationPages = Array.from({ length: 124 }, (_, i) => ({
+    ...f.page(String(i)),
+    groundTexelTargetMeters: 0.001,
+    screenBounds: new THREE.Vector4(0, 0, (i % 7 + 1) / 8, 1),
+  }));
+  f.accumulator.renderHard(f.observer, f.pages, f.frame);
+  const sizes = f.accumulator.capturePages.map((page) => page.captureKey);
+  for (let i = 0; i < 500; i += 1) {
+    f.accumulator.renderHard(f.observer, f.pages, f.frame);
+    const result = f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.capturePages.map((page) => page.captureKey)).toEqual(sizes);
+    if (result?.settled) break;
+  }
+  expect(f.accumulator.pageProgress.every(({ published }) => published)).toBe(true);
+  f.accumulator.dispose();
+});
+
 const fixture = () => {
   const observer = new THREE.PerspectiveCamera(60, 1.5, 0.1, 1000);
   observer.rotation.x = -0.6;
@@ -601,6 +620,20 @@ describe("independent full-receiver accumulation", () => {
     expect(f.pages.renderPageSample).not.toHaveBeenCalled();
     expect(result?.settled).toBe(false);
     expect(result?.needsRepaint).toBe(false);
+  });
+
+  it("does not let an active corridor losing readiness block a ready sibling", () => {
+    const f = fixture();
+    f.pages.accumulationPages = [f.page("a"), f.page("b")];
+    f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.pageProgress[0].samples).toBe(1);
+    const frame = { ...f.frame, isPageReady: (id: string) => id === "b" };
+    for (let i = 0; i < 3; i += 1)
+      f.accumulator.render(f.observer, f.pages, frame);
+    expect(state.publications).toEqual([
+      expect.objectContaining({ id: "b", samples: 3 }),
+    ]);
+    f.accumulator.dispose();
   });
 
   it("finishes a ready corridor without waiting for siblings and reuses it while they load", () => {

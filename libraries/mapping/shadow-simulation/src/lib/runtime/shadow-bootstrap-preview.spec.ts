@@ -3,14 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { createShadowBootstrapPreview } from "./shadow-bootstrap-preview";
 
 describe("mesh shadow bootstrap preview", () => {
-  it("waits for the shared caster demand, not just visible mesh readiness", () => {
+  it("starts corridors with available content without waiting for global demand", () => {
     const preview = createShadowBootstrapPreview();
     const source = {
       providesTerrain: true,
       hasRenderableContent: vi.fn(() => true),
       getRequestDemand: vi.fn(() => 12),
     };
-    expect(preview([source])).toBe(true);
+    expect(preview([source])).toBe(false);
+    expect(source.getRequestDemand).not.toHaveBeenCalled();
     source.getRequestDemand.mockReturnValue(0);
     expect(preview([source])).toBe(false);
     source.hasRenderableContent.mockReturnValue(false);
@@ -26,13 +27,24 @@ describe("mesh shadow bootstrap preview", () => {
         {
           providesTerrain: true,
           hasRenderableContent: () => false,
-          getRequestDemand: () => 0,
         },
       ])
     ).toBe(true);
     expect(preview([])).toBe(false);
-    expect(
-      preview([{ providesTerrain: false, getRequestDemand: () => 10 }])
-    ).toBe(false);
+    expect(preview([{ providesTerrain: false }])).toBe(false);
+  });
+
+  it("does not let an empty second source block an available corridor", () => {
+    const preview = createShadowBootstrapPreview();
+    const pending = {
+      providesTerrain: true,
+      hasRenderableContent: () => false,
+    };
+    const available = {
+      providesTerrain: true,
+      hasRenderableContent: () => true,
+    };
+    expect(preview([pending, available])).toBe(false);
+    expect(preview([available, pending])).toBe(false);
   });
 });

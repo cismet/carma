@@ -74,6 +74,17 @@ describe("source-tile receiver ownership", () => {
     expect(getVisibleShadowReceiverCorners([], camera)).toEqual([]);
   });
 
+  it("keeps one full receiver per native payload despite overlapping AABBs", () => {
+    const sources = Array.from({ length: 30 }, (_, index) => ({
+      ...receiverTile(`mesh:${index}`, [index, 0, index], [index + 50, 10, index + 50]),
+      receiverObjectId: index,
+    }));
+    const cells = buildShadowReceiverCells(sources);
+    expect(cells).toHaveLength(sources.length);
+    expect(new Set(cells)).toEqual(new Set(sources));
+    expect(buildShadowReceiverCells([...sources].reverse())).toEqual(cells);
+  });
+
   it("retains full tile identities and bounds across observer moves and pitches", () => {
     const tiles = [
       receiverTile("dem:16/1/2", [-10, 103, -10], [0, 147, 0]),

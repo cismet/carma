@@ -226,7 +226,7 @@ describe("createTileBytesPredictor", () => {
 });
 
 describe("deriveTilePriority", () => {
-  it("prioritizes JSON, then missing coverage, then visible refinement, then casters", () => {
+  it("prioritizes JSON, missing coverage, proven casters, then visible refinement", () => {
     const common = {
       distanceFromCamera: 1,
       depth: 30,
@@ -248,12 +248,14 @@ describe("deriveTilePriority", () => {
     });
     const caster = deriveTilePriority({
       ...common,
-      distanceFromCamera: 0,
+      distanceFromCamera: Infinity,
       inMainFrustum: false,
+      shadowReceiverCenterness: 0,
     });
     expect(metadata).toBeGreaterThan(coverage);
     expect(coverage).toBeGreaterThan(detail);
-    expect(detail).toBeGreaterThan(caster);
+    expect(coverage).toBeGreaterThan(caster);
+    expect(caster).toBeGreaterThan(detail);
   });
   it("orders mesh requests by observer distance, ahead of offscreen casters", () => {
     const priority = (distance: number, depth: number, inMainFrustum = true) =>

@@ -1,5 +1,92 @@
 # engines/maplibre
 
+## Native shadow frustums — MESH-SHADOW-FRUSTUM-20260910
+
+Mesh payloads that provide terrain now retain Three's native observer/light
+frustum culling rather than disabling it for every mesh. The shared loaded
+geometry remains eligible as an offscreen caster in the sun's frustum.
+Decision, synthetic pixel-parity measurements, alternatives and remaining
+live-view limitations: [corridor performance report](../../shadow-simulation/three/CORRIDOR_PERFORMANCE_20260909.md#2026-09-10--mesh-shadow-frustum--native-mask-batch--scratch-reuse).
+
+## Linked receiver/caster detail — LINKED-RECEIVER-CASTER-LOD-20260910
+
+- **ID / date / status:** LINKED-RECEIVER-CASTER-LOD-20260910, 2026-09-10;
+  implemented, uncommitted; full live-view convergence remains unverified.
+- **Context and constraints:** Fine visible mesh tiles could receive shadows
+  from a coarser retained parent despite all required children being resident.
+  The caster selector stopped at a parent meeting its own SSE, independent of
+  the published receiver cut. Completed in-memory solar masks also ignored a
+  changed caster geometry revision at unchanged sun/receiver/buffer dimensions.
+- **Decision:** The receiver cut now supplies a minimum-detail ancestor closure
+  to the existing caster-family selector. Meeting caster SSE cannot terminate
+  above displayed descendants. Missing corridor-intersecting children still
+  retain the parent atomically; complete families replace it using the same
+  native Tile/Object3D/BufferGeometry resources as display. Sets describe roles,
+  not separate loaded assets; no new loader, scene clone or geometry cache.
+  Captures retain a dedicated committed-caster revision, separate from observer
+  allocation. Changed geometry schedules a fresh hard capture and then soft
+  integration; the prior mask remains drawable only until that replacement.
+  Same-geometry camera movement and smaller buffer demand remain reusable.
+- **Alternatives and disposition:** Always casting parent plus partial children
+  is **incompatible by inspection** with the no-hybrids/consistent depth rule.
+  Removing a parent before its required offscreen siblings load is **incompatible
+  by inspection** with chimney continuity. Reloading/cloning visible geometry
+  into a second caster pool is **not needed**: both roles reference native tile
+  instances already. A separate GPU-worker copy is **deferred**, as described in
+  `CORRIDOR_WORKERS_REVIEW.md`; this change does not claim zero-copy GPU contexts.
+- **Evidence:** 64 focused frontier/publication/role tests and 98 presentation/
+  tiled-renderer tests pass. Regression fixture: parent SSE0.5px, target1px,
+  already-displayed children and a pending offscreen chimney; retain parent
+  while pending, replace with identical resident child objects when complete,
+  issue only the affected publication invalidation. Mask fixture verifies
+  camera reuse, geometry-change invalidation, old-mask continuity, hard
+  replacement and subsequent new soft completion. Internal browser retains
+  Mesh2024 and the shadow addon; only pre-existing Matomo console errors observed.
+  No timed before/after or memory benchmark; no end-to-end speedup claimed.
+- **Revisit when:** A complete family still keeps a coarse caster or an old
+  soft mask; inspect the committed tile cut and geometry fingerprint separately
+  from buffer resolution. Atomic fallback rationale remains in the next record.
+
+## Caster replacement investigation — CASTER-FAMILY-HANDOVER-20260909
+
+- **Status / date:** Initial coupled-display attempt rejected and reverted;
+  independent colour/depth roles subsequently implemented, uncommitted,
+  2026-09-09. Live chimney continuity is not yet fully validated.
+- **Context:** At 51.2703852/7.2008024, z19.258, shadow=821;19, the user
+  reports two thin chimney shadows appearing early, disappearing during mesh
+  refinement, then returning. `advanceMeshShadowCorridors` excludes a prior
+  caster as soon as its box intersects the main camera but it is no longer a
+  committed receiver. This can discard a shared parent before its offscreen
+  chimney child has decoded, despite the existing complete-child frontier logic.
+- **Evidence:** An added runtime regression reproduced this with a loaded
+  parent, loaded visible child and pending chimney sibling. Retaining the parent
+  across the two cuts passed 57 focused tests, but the internal-browser reload
+  remained stuck on coarse surfaces at 5.95 and 27.98 seconds. Observation was
+  capped at 30 seconds. The experimental code and its acceptance expectation
+  were removed; passing unit tests did not establish a valid live fix.
+- **Alternatives and disposition:** Holding visible receiver refinement behind
+  caster siblings is a **measured rejection** for this implementation, consistent
+  with the earlier CORRIDOR-PUBLICATION experiment below. Keeping both parent
+  and children as visible surfaces is **incompatible by inspection** (overlap).
+  Separate depth-only caster membership from the colour receiver cut is now
+  **implemented** with focused role/publication tests. The parent keeps casting
+  with display colour/depth writes disabled; partial receiver children do not
+  cast until the complete corridor child family replaces the parent.
+- **Implemented contract:** Preserve the loaded caster parent in the depth pass
+  until all corridor-intersecting child branches provide replacement geometry;
+  do not render that parent in colour or as a shadow receiver. Replace the depth
+  family atomically, keep its LRU protection until replacement, and invalidate
+  only affected shadow pages. A new solar direction or loss of corridor demand
+  still invalidates/removes obsolete content; never preserve old-sun masks.
+- **Performance evidence:** The independent roles no longer held the observed
+  reload on coarse visible geometry. Separate profiling identified redundant
+  presentation depth renders as a larger slowdown; see
+  [the bounded internal-browser report](../../shadow-simulation/three/CORRIDOR_PERFORMANCE_20260909.md).
+- **Revisit / validation:** Test colour/depth membership separately, pending and
+  failed children, unrelated-family progress and no depth/colour overlap. Repeat
+  the marked chimney reload before calling this bug fixed. Frame intervals do
+  not prove absence of shorter flicker; no per-caster live trace was obtained.
+
 ## Published corridor invalidation — CORRIDOR-PUBLICATION-20260909
 
 - **Status / scope:** Implemented, uncommitted; mesh publication and soft-shadow

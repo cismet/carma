@@ -131,6 +131,70 @@ it("keeps a finished mask after downsample allocation failure", () => {
 });
 
 describe("completed corridor presentation", () => {
+  it("batches distinct material owners but separates shared receiver uniforms", () => {
+    const f = fixture();
+    const first = f.scene.children[0] as THREE.Mesh;
+    const second = new THREE.Mesh(
+      first.geometry,
+      new THREE.MeshLambertMaterial()
+    );
+    second.receiveShadow = true;
+    f.scene.add(second);
+    const pages = [first, second].map((mesh, index) => ({
+      ...f.pages[0],
+      id: String(index),
+      receiverObjectId: mesh.id,
+    }));
+    for (const page of pages)
+      f.presentation.publish(f.color, f.reference, f.camera, page, 64);
+    const before = first.onBeforeRender;
+    const draw = vi.fn();
+    expect(f.presentation.renderNative(f.scene, pages, draw)).toEqual(
+      new Set(["0", "1"])
+    );
+    expect(draw).toHaveBeenCalledOnce();
+    expect(first.onBeforeRender).toBe(before);
+    second.material = first.material;
+    expect(f.presentation.renderNative(f.scene, pages, draw).size).toBe(0);
+    expect(() =>
+      f.presentation.renderNative(f.scene, pages, () => {
+        throw new Error("draw");
+      })
+    ).toThrow("draw");
+    expect(first.onBeforeRender).toBe(before);
+    f.presentation.dispose();
+  });
+
+  it("replaces coarse-caster soft visibility with new hard geometry before reintegration", () => {
+    const f = fixture();
+    const coarse = {
+      ...f.pages[0],
+      presentationKey: "same-receiver-and-sun",
+      casterRevision: "parent",
+      captureSize: { width: 32, height: 32 },
+    };
+    expect(
+      f.presentation.publish(f.color, f.reference, f.camera, coarse, 64)
+    ).toBe(true);
+    const moved = { ...coarse, contentKey: "new-camera-allocation" };
+    expect(f.presentation.has(moved, 64)).toBe(true);
+    const fine = { ...moved, casterRevision: "complete-children" };
+    expect(f.presentation.hasAtLeast(fine, 1)).toBe(false);
+    expect(f.presentation.has(fine, 64)).toBe(false);
+    // Retain continuity until the current hard capture atomically replaces it.
+    expect(f.presentation.canReplay(fine)).toBe(true);
+    expect(
+      f.presentation.publish(f.color, f.reference, f.camera, fine, 1)
+    ).toBe(true);
+    expect(f.presentation.has(fine, 1)).toBe(true);
+    expect(f.presentation.has(fine, 64)).toBe(false);
+    expect(
+      f.presentation.publish(f.color, f.reference, f.camera, fine, 64)
+    ).toBe(true);
+    expect(f.presentation.has(fine, 64)).toBe(true);
+    f.presentation.dispose();
+  });
+
   it("never replays an old-sun soft mask during solar animation handover", () => {
     const f = fixture();
     const previous = {

@@ -11,6 +11,13 @@ import {
 const initialState = createInitialShadowSimulationState(undefined);
 
 describe("shadow state transitions", () => {
+  it("defaults scene geometry diagnostics on inside a closed debug panel", () => {
+    for (const state of [initialState, resetShadowSimulationState(initialState)]) {
+      expect(state.showProjectionDebugView).toBe(false);
+      expect(state.showTileBounds).toBe(true);
+      expect(state.showSunDebugVector).toBe(true);
+    }
+  });
   it("resets transient display and animation state", () => {
     const state = resetShadowSimulationState({
       ...initialState,

@@ -23,7 +23,6 @@ describe("Geoportal tiled scene adapter", () => {
   const fixture = (
     host: {
       isCorridorReady?: (bounds: THREE.Box3, error?: number) => boolean;
-      isBaseCoverageReady?: () => boolean;
       receiverStageError?: (bounds: THREE.Box3) => number;
       visualEpoch?: () => number;
       requestRepaint?: () => void;
@@ -114,7 +113,12 @@ describe("Geoportal tiled scene adapter", () => {
       memoryBytes: 1024,
       fallbackReason: null,
       cancelPending: vi.fn(),
+      pausePending: vi.fn(),
       presentation: {
+        renderNative: vi.fn((_scene, _pages, draw) => {
+          draw();
+          return new Set<string>();
+        }),
         revision: 0,
         supportsCapture: true,
         beginFrame: vi.fn(),
@@ -217,7 +221,7 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.dispose();
   });
 
-  it("publishes ready hard coverage before submitting more soft samples", () => {
+  it("submits soft work after hard coverage in the same frame", () => {
     const f = fixture();
     f.accumulation.renderHard.mockReturnValueOnce({
       published: 1,
@@ -232,11 +236,14 @@ describe("Geoportal tiled scene adapter", () => {
       samples: 64,
       active: true,
     };
-    expect(f.adapter.renderProgressive(camera, frame)?.needsRepaint).toBe(true);
-    expect(f.accumulation.render).not.toHaveBeenCalled();
-    f.accumulation.presentation.canReplay.mockReturnValue(true);
     f.adapter.renderProgressive(camera, frame);
     expect(f.accumulation.render).toHaveBeenCalledOnce();
+    expect(f.accumulation.renderHard.mock.invocationCallOrder[0]).toBeLessThan(
+      f.accumulation.render.mock.invocationCallOrder[0]
+    );
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.accumulation.render).toHaveBeenCalledTimes(2);
     f.adapter.dispose();
   });
 
@@ -253,9 +260,8 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.light.visible).toBe(true);
   });
 
-  it("keeps paused samples until the settled viewport has complete base coverage", () => {
-    let covered = false;
-    const f = fixture({ isBaseCoverageReady: () => covered });
+  it("resumes ready corridors without waiting for unrelated base coverage", () => {
+    const f = fixture();
     f.accumulation.presentation.canReplay.mockReturnValue(true);
     const camera = new THREE.Camera();
     const frame = {
@@ -270,10 +276,9 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.renderProgressive(camera, { ...frame, active: false });
     f.adapter.renderProgressive(camera, frame);
     expect(f.accumulation.cancelPending).not.toHaveBeenCalled();
-    expect(f.accumulation.render).not.toHaveBeenCalled();
-    covered = true;
-    f.adapter.renderProgressive(camera, frame);
     expect(f.accumulation.render).toHaveBeenCalledOnce();
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.accumulation.render).toHaveBeenCalledTimes(2);
     f.adapter.dispose();
   });
 
@@ -356,7 +361,7 @@ describe("Geoportal tiled scene adapter", () => {
           })
         ).not.toBeNull();
       expect(f.accumulation.renderHard).toHaveBeenCalledOnce();
-      expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+      expect(f.pages.renderPageSample).not.toHaveBeenCalled();
       f.adapter.dispose();
     }
   );
@@ -430,6 +435,7 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.pages.setCasterRevision).toHaveBeenLastCalledWith("64:1:0", null);
     revision.mockReturnValue("complete-with-offscreen-chimney");
     f.pages.setCasterRevision.mockReturnValue(true);
+    f.adapter.invalidateContent([new THREE.Box3()]);
     f.adapter.render(new THREE.Camera(), null, 512);
     expect(f.pages.setCasterRevision).toHaveBeenLastCalledWith(
       "64:1:0",
@@ -437,12 +443,18 @@ describe("Geoportal tiled scene adapter", () => {
     );
     expect(revision).toHaveBeenLastCalledWith(
       expect.any(THREE.Box3),
-      undefined,
+      4,
       expect.any(THREE.Box3)
     );
     expect(
       f.pages.setCasterRevision.mock.invocationCallOrder.at(-1)
     ).toBeLessThan(f.accumulation.renderHard.mock.invocationCallOrder.at(-1)!);
+    const proofs = revision.mock.calls.length;
+    f.adapter.render(new THREE.Camera(), null, 512);
+    expect(revision).toHaveBeenCalledTimes(proofs);
+    f.adapter.invalidateContent([]);
+    f.adapter.render(new THREE.Camera(), null, 512);
+    expect(revision).toHaveBeenCalledTimes(proofs);
   });
 
   it("does not expose an unshadowed receiver when no complete corridor stage is available", () => {
@@ -499,7 +511,7 @@ describe("Geoportal tiled scene adapter", () => {
   it("does not acknowledge a frame whose presentation throws", () => {
     const onPresentedPages = vi.fn();
     const f = fixture({ onPresentedPages });
-    f.pages.renderPageSample.mockImplementation(() => {
+    f.renderer.render.mockImplementation(() => {
       throw new Error("draw failed");
     });
     expect(() => f.adapter.render(new THREE.Camera(), null, 512)).toThrow(
@@ -517,12 +529,10 @@ describe("Geoportal tiled scene adapter", () => {
     expect(hardFrame.isPageReady("64:1:0")).toBe(false);
     ready.mockReturnValue(true);
     f.adapter.render(new THREE.Camera(), null, 128);
-    expect(f.pages.renderPageSample).toHaveBeenCalledWith(
-      expect.any(THREE.Camera),
-      "64:1:0",
-      0,
-      1
-    );
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    expect(
+      f.accumulation.renderHard.mock.calls[1][2].isPageReady("64:1:0")
+    ).toBe(true);
     expect(ready).toHaveBeenLastCalledWith(
       expect.any(THREE.Box3),
       16,
@@ -554,7 +564,7 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.accumulation.render.mock.calls[0][2].isPageReady("64:1:0")).toBe(
       false
     );
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
   });
 
   it("keeps a completed compatible shadow visible while replacement casters are loading", () => {
@@ -737,12 +747,12 @@ describe("Geoportal tiled scene adapter", () => {
     f.pages.renderPageSample.mockImplementationOnce(() => {
       throw new Error("shader");
     });
-    expect(() => f.adapter.render(camera, null, 128)).toThrow("shader");
+    expect(() => f.adapter.render(camera, 0, 128)).toThrow("shader");
     expect(f.pages.renderPageSample).toHaveBeenLastCalledWith(
       camera,
       "64:1:0",
       0,
-      1
+      128
     );
     expect(f.scene.children.every((c) => c.visible)).toBe(true);
     expect(f.renderer.autoClear).toBe(true);

@@ -94,6 +94,35 @@ describe("mesh caster publication", () => {
       new Set([parent, otherParent])
     );
 
+    state.effectiveErrorTarget = 1;
+    // A coarse caster may meet its own SSE after camera/receiver changes.
+    // Already displayed descendants still set its minimum geometric detail.
+    parent.traversal.error = 0.5;
+    api.advanceMeshShadowCorridors(
+      new Set([receiver, otherChild]),
+      new Set([receiver, otherChild])
+    );
+    expect(state.committedMeshReceiverFrontier).toEqual(
+      new Set([receiver, otherChild])
+    );
+    expect(state.committedMeshCasterFrontier).toEqual(
+      new Set([parent, otherChild])
+    );
+    // A pending/failed child and repeated traversal must neither replace the
+    // parent in depth nor trigger another hard-shadow invalidation.
+    onContentChanged.mockClear();
+    for (const loadingState of [2, 3, -1]) {
+      chimney.internal.loadingState = loadingState;
+      api.advanceMeshShadowCorridors(
+        new Set([receiver, otherChild]),
+        new Set([receiver, otherChild])
+      );
+      expect(state.committedMeshCasterFrontier).toEqual(
+        new Set([parent, otherChild])
+      );
+      expect(onContentChanged).not.toHaveBeenCalled();
+    }
+
     // A cached negative proof from the decode/publication gap must be retried.
     const diagnostics: SharedThreeShadowRegionDiagnostics = {
       sourceId: "mesh.json",

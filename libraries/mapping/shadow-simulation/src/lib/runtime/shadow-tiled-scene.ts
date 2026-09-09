@@ -37,6 +37,7 @@ export class ShadowTiledScene {
   private lastFrame: ShadowCorridorFrame | null = null;
   private readonly frameCache: SceneFrameCache;
   private presentedPageIds = new Set<string>();
+  private casterRevisionsDirty = true;
   private hardRetryTimer: ReturnType<typeof globalThis.setTimeout> | null =
     null;
 
@@ -48,7 +49,6 @@ export class ShadowTiledScene {
       sky: THREE.Object3D;
       overlay: THREE.Object3D;
       maximumMapSize: number;
-      isBaseCoverageReady?: () => boolean;
       isCorridorReady?: (
         bounds: THREE.Box3,
         errorPixels?: number,
@@ -112,7 +112,8 @@ export class ShadowTiledScene {
           );
           if (!fingerprint) return null;
           return {
-            source: "shared-scene-corridor-v1",
+            // v2 separates geometry-owned native captures from old AABB masks.
+            source: "shared-scene-corridor-v2",
             dateTime,
             corridor: page.id,
             resolution: JSON.stringify([
@@ -139,7 +140,12 @@ export class ShadowTiledScene {
   ) {
     this.viewport.copy(frame.viewport);
     const key = JSON.stringify([
-      cells.map(({ id, bounds }) => [id, bounds.min, bounds.max]),
+      cells.map(({ id, bounds, receiverObjectId }) => [
+        id,
+        bounds.min,
+        bounds.max,
+        receiverObjectId,
+      ]),
       frame.renderCamera.projectionMatrix.elements,
       frame.renderCamera.matrixWorldInverse.elements,
       frame.viewport,
@@ -156,6 +162,7 @@ export class ShadowTiledScene {
       this.host.receiverBiasLimit
     );
     this.viewKey = key;
+    this.casterRevisionsDirty = true;
   }
 
   /** Keep completed corridor textures attached to their receiver tiles while
@@ -169,6 +176,8 @@ export class ShadowTiledScene {
    * publications provide old-union-new geometry bounds, including removed tiles.
    */
   invalidateContent(changedBounds?: readonly THREE.Box3[]) {
+    if (changedBounds?.length === 0) return;
+    this.casterRevisionsDirty = true;
     this.frameCache.invalidate();
     if (!changedBounds) this.pages.clearCache();
     else if (changedBounds.length > 0)
@@ -274,22 +283,8 @@ export class ShadowTiledScene {
     }
     const result = this.renderWithHost(camera, () => {
       const hard = this.captureHard(camera);
-      // Ready hard publications fill newly exposed areas before spending GPU
-      // time on finite-disc refinement. Unready corridors do not block others.
-      const missingCoverage = this.accumulation.capturePages.some(
-        (page) => !this.accumulation.presentation.canPresent(page)
-      );
-      if (
-        ((hard.published > 0 || hard.needsRepaint) && missingCoverage) ||
-        this.host.isBaseCoverageReady?.() === false
-      ) {
-        this.renderContent(camera, null, frame.samples);
-        return {
-          progress: 0,
-          settled: false,
-          needsRepaint: hard.needsRepaint || hard.published > 0,
-        };
-      }
+      // Hard coverage gets the first submission, not exclusive ownership of
+      // every frame until unrelated corridors or viewport tiles become ready.
       const progress = this.accumulation.presentation.capture(this.scene, () =>
         this.accumulation.render(camera, this.pages, {
           ...frame,
@@ -298,7 +293,7 @@ export class ShadowTiledScene {
           // fixed sleep between samples or an additional four-submit ceiling.
           // A single draw cannot be preempted by this CPU submission budget.
           maxPagesPerFrame: Math.min(frame.samples, 64),
-          maxFrameCpuMilliseconds: 2,
+          maxFrameCpuMilliseconds: frame.maxFrameCpuMilliseconds ?? 2,
           isPageReady: (id) => this.isPageReady(id, false),
         })
       );
@@ -361,6 +356,7 @@ export class ShadowTiledScene {
 
   /** Suspend scheduling, retaining the current corridor's accumulated samples. */
   pausePending() {
+    this.accumulation.pausePending();
     if (this.hardRetryTimer !== null) {
       globalThis.clearTimeout(this.hardRetryTimer);
       this.hardRetryTimer = null;
@@ -387,20 +383,24 @@ export class ShadowTiledScene {
   }
 
   private captureHard(camera: THREE.Camera) {
-    if (this.host.corridorRevision) {
+    if (this.casterRevisionsDirty && this.host.corridorRevision) {
       for (const page of this.pages.accumulationPages) {
         const geometry = this.pages.getPageGeometry(page.id);
         if (!geometry) continue;
         const revision = this.host.corridorRevision(
           geometry.casterBounds,
-          // Share the final-cut proof with soft readiness instead of creating
-          // additional stage-error keys in the bounded regional proof cache.
-          undefined,
+          // Hard readiness and provenance must describe the same committed
+          // receiver stage, including its offscreen caster replacements.
+          this.host.receiverStageError?.(geometry.receiverBounds),
           geometry.receiverBounds
         );
         if (this.pages.setCasterRevision(page.id, revision))
           this.frameCache.invalidate();
       }
+      // Publication deltas and changed receiver/sun plans are the inputs to
+      // caster provenance. Advancing another solar sample changes neither.
+      // Readiness still runs independently, including pending metadata loads.
+      this.casterRevisionsDirty = false;
     }
     const result = this.accumulation.presentation.capture(this.scene, () =>
       this.accumulation.renderHard(camera, this.pages, {
@@ -454,9 +454,31 @@ export class ShadowTiledScene {
         // a solar transition a new page may have no retained capture yet: still
         // draw the loaded scene with the common hard-shadow light, then overlay
         // retained/completed corridor masks. Never publish a sky-only hole.
-        this.renderer.render(this.scene, camera);
+        let batched: ReadonlySet<string> = new Set();
+        if (round === null) {
+          batched = this.accumulation.presentation.renderNative(
+            this.scene,
+            states.filter((state) => state.replay).map((state) => state.page),
+            () => this.renderer.render(this.scene, camera)
+          );
+        } else {
+          this.renderer.render(this.scene, camera);
+        }
         for (const { page, replay, ready } of states) {
           if (!ready) continue;
+          if (batched.has(page.id)) {
+            this.presentedPageIds.add(page.id);
+            continue;
+          }
+          if (round === null && !replay) {
+            // The common hard draw above already covers this surface. Building
+            // its uncached page depth AGAIN here, on every presentation, races
+            // the bounded renderHard queue and starves finite-disc integration.
+            // Only captureHard publishes reusable hard pages; replay them when
+            // available. Explicit diagnostic sample rounds remain unchanged.
+            this.presentedPageIds.add(page.id);
+            continue;
+          }
           if (replayOnly && !replay) {
             this.presentedPageIds.add(page.id);
             continue;

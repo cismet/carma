@@ -911,7 +911,6 @@ const buildShadowLightBinding = (
   updateBindingCenter(binding);
   scene.add(skyLight);
   scene.add(atmosphericSky.mesh);
-  scene.add(sunVectorRoot);
   return binding;
 };
 
@@ -1907,8 +1906,9 @@ export const buildShadowSimulationScene = (
         receiverCells = buildShadowReceiverCells(
           committedVolumes
             .filter(({ loadReason }) => loadReason !== "shadow")
-            .map(({ id, minimum, maximum }) => ({
+            .map(({ id, minimum, maximum, receiverObjectId }) => ({
               id,
+              receiverObjectId,
               bounds: new THREE.Box3(
                 new THREE.Vector3(...minimum),
                 new THREE.Vector3(...maximum)
@@ -2064,12 +2064,6 @@ export const buildShadowSimulationScene = (
         sky: sharedBinding.atmosphericSky.mesh,
         overlay: sharedBinding.sunVectorRoot,
         maximumMapSize: resourceLimits.maxShadowMapSize,
-        isBaseCoverageReady: () =>
-          initialTerrainStageReady &&
-          getSharedThreeSceneRuntimes(map).every(
-            (runtime) =>
-              !runtime.providesTerrain || (runtime.isBaseViewReady?.() ?? true)
-          ),
         isCorridorReady: (bounds, errorPixels, receiverBounds) => {
           // Hard capture, soft scheduling and presentation inspect the same
           // immutable cut during this synchronous draw. Do not traverse its
@@ -2520,6 +2514,13 @@ export const buildShadowSimulationScene = (
     for (const root of change?.roots ?? []) {
       makeSceneMeshesShadeable(root, sharedSceneProvidesTerrain());
     }
+    // An explicit empty delta registers an unpublished model or changes only
+    // its appearance. It must not refit the sun or invalidate active integrals.
+    // The atomic receiver/caster cut publishes geometry bounds separately.
+    if (changedBounds?.length === 0) {
+      map.triggerRepaint();
+      return;
+    }
     if (changedBounds === undefined) {
       fullContentInvalidationPending = true;
     } else if (changedBounds.length > 0) {
@@ -2818,12 +2819,14 @@ export const buildShadowSimulationScene = (
       sharedBinding.sunVectorVisible = visible;
       sharedBinding.sunVectorRoot.visible = visible && !!latestSolarPosition;
       if (!visible) {
+        sharedBinding.scene.remove(sharedBinding.sunVectorRoot);
         if (sharedBinding.sunVector) {
           sharedBinding.sunVectorRoot.remove(sharedBinding.sunVector.root);
           sharedBinding.sunVector.dispose();
           sharedBinding.sunVector = null;
         }
       } else {
+        sharedBinding.scene.add(sharedBinding.sunVectorRoot);
         void import("./shadow-sun-vector")
           .then(({ buildSunVector }) => {
             // Closing the panel or disposing the scene while the chunk loads

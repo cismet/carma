@@ -56,7 +56,7 @@ export const createInitialShadowSimulationState = (
     shadowAdaptiveQuality: true,
     meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
     meshCacheBudgetBytes: DEFAULT_MESH_CACHE_BUDGET_BYTES,
-    showSunDebugVector: false,
+    showSunDebugVector: true,
     showTileBounds: true,
     showProjectionDebugView: false,
     showDisplaySettings: false,

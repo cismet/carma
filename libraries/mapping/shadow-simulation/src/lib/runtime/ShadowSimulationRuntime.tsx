@@ -222,7 +222,7 @@ export const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateSunDebugVectorVisibility(
       (state.showProjectionDebugView ?? false) &&
-        (state.showSunDebugVector ?? false)
+        (state.showSunDebugVector ?? true)
     );
   }, [
     state.enabled,
@@ -233,7 +233,10 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!libreMap) return;
-    const visible = state.enabled && (state.showTileBounds ?? true);
+    const visible =
+      state.enabled &&
+      (state.showProjectionDebugView ?? false) &&
+      (state.showTileBounds ?? true);
     if (!visible) return;
     const applied = new Set<
       ReturnType<typeof getSharedThreeSceneRuntimes>[number]
@@ -263,6 +266,7 @@ export const ShadowSimulationRuntime = ({
     libreMap,
     sceneRevision,
     state.enabled,
+    state.showProjectionDebugView,
     state.showTileBounds,
   ]);
 

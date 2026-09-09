@@ -22,6 +22,7 @@ import type {
   ShadowAccumulationPage,
   TiledShadowRenderer,
 } from "./tiled-shadow-renderer";
+import { ShadowCorridorWatchdog } from "./shadow-corridor-watchdog";
 
 type PageRenderer = Pick<
   TiledShadowRenderer,
@@ -49,6 +50,7 @@ export class ShadowReceiverAccumulator {
   private cursor = 0;
   private samples = 1;
   private disposed = false;
+  private readonly watchdog = new ShadowCorridorWatchdog();
   private readonly publicationRetries = new Map<
     string,
     Readonly<{
@@ -58,6 +60,9 @@ export class ShadowReceiverAccumulator {
     }>
   >();
   private readonly restoreOpportunities = new Map<string, string>();
+  private allocationKey = "";
+  private allocations: ReadonlyMap<string, ShadowReceiverCapturePlan> =
+    new Map();
   private readonly plans = new Map<
     string,
     Readonly<{
@@ -174,22 +179,36 @@ export class ShadowReceiverAccumulator {
           ])
     );
     const pinnedPlan = pinned ? this.activeCapture!.plan : null;
-    const allocated = new Map(
-      budgetShadowReceiverCaptures(
-        desired
-          .filter(({ page }) => page.id !== pinned?.page.id)
-          .map(({ page, plan }) => ({
-            id: page.id,
-            plan,
-            screenArea: page.screenBounds.z * page.screenBounds.w,
-          })),
-        SHADOW_CORRIDOR_RETAINED_BUDGET_BYTES -
-          (pinnedPlan ? pinnedPlan.width * pinnedPlan.height * 8 : 0)
-      )
+    const allocationKey = JSON.stringify(
+      desired.map(({ page, plan }) => [
+        page.id,
+        plan.key,
+        page.screenBounds.z * page.screenBounds.w,
+      ])
     );
-    if (pinned && pinnedPlan) allocated.set(pinned.page.id, pinnedPlan);
+    // Stable demand keeps its allocation across working-page switches. A newly
+    // selected page already fits that allocation; excluding it from a fresh
+    // greedy rebalance can otherwise resize its completed siblings needlessly.
+    if (allocationKey !== this.allocationKey) {
+      const allocated = new Map(
+        budgetShadowReceiverCaptures(
+          desired
+            .filter(({ page }) => page.id !== pinned?.page.id)
+            .map(({ page, plan }) => ({
+              id: page.id,
+              plan,
+              screenArea: page.screenBounds.z * page.screenBounds.w,
+            })),
+          SHADOW_CORRIDOR_RETAINED_BUDGET_BYTES -
+            (pinnedPlan ? pinnedPlan.width * pinnedPlan.height * 8 : 0)
+        )
+      );
+      if (pinned && pinnedPlan) allocated.set(pinned.page.id, pinnedPlan);
+      this.allocationKey = allocationKey;
+      this.allocations = allocated;
+    }
     this.captures = desired.map(({ page, plan: desiredPlan }) => {
-      const plan = allocated.get(page.id) ?? desiredPlan;
+      const plan = this.allocations.get(page.id) ?? desiredPlan;
       const contentKey = JSON.stringify([
         page.contentKey ?? page.revision,
         plan.key,
@@ -235,6 +254,17 @@ export class ShadowReceiverAccumulator {
         )
       );
     }
+    if (frame.active) this.reportProgress();
+  }
+
+  private reportProgress() {
+    if (!this.watchdog.enabled) return;
+    this.watchdog.observe(this.pageProgress, {
+      activeId: this.activeId,
+      memoryBytes: this.memoryBytes,
+      fallbackReason: this.fallbackReason,
+      publicationRetries: [...this.publicationRetries.entries()],
+    });
   }
 
   private yieldForRestore(
@@ -260,7 +290,10 @@ export class ShadowReceiverAccumulator {
     frame: ShadowCorridorFrame
   ): ShadowCorridorProgress | null {
     if (this.disposed) return null;
-    if (!frame.active) return null;
+    if (!frame.active) {
+      this.watchdog.pause();
+      return null;
+    }
     this.samples = frame.samples;
     this.updateCaptures(observer, renderer, frame);
     // A rejected numeric-capture shader must return to correct direct lighting
@@ -274,8 +307,23 @@ export class ShadowReceiverAccumulator {
     const now = performance.now();
     let retryAfterMs: number | undefined;
     let active = this.captures.find(({ page }) => page.id === this.activeId);
-    if (!active || this.presentation.has(active.page, frame.samples)) {
-      this.scratch.releaseScratch();
+    // Decision: a lost readiness proof cannot monopolize the working targets.
+    // See three/TILED_SHADOW_PAGES.md, CORRIDOR-SCHEDULING-20260909.
+    const blockedByUnready =
+      active &&
+      !active.ready &&
+      this.captures.some(
+        ({ page, ready }) =>
+          ready &&
+          page.id !== active?.page.id &&
+          !this.presentation.has(page, frame.samples)
+      );
+    if (
+      !active ||
+      blockedByUnready ||
+      this.presentation.has(active.page, frame.samples)
+    ) {
+      this.scratch.releaseScratch(true);
       this.activeId = null;
       active = undefined;
     }
@@ -345,7 +393,7 @@ export class ShadowReceiverAccumulator {
       );
       if (update?.settled) {
         this.publicationRetries.delete(page.id);
-        this.scratch.releaseScratch();
+        this.scratch.releaseScratch(true);
         this.activeId = null;
       } else if (update?.retryAfterMs !== undefined) {
         const attempts =
@@ -379,7 +427,18 @@ export class ShadowReceiverAccumulator {
       }
       if (!update) return null;
     }
+    // No queued ready work: do not keep working GPU attachments resident.
+    if (
+      !this.activeId &&
+      !this.captures.some(
+        ({ page, ready }) =>
+          ready && !this.presentation.has(page, frame.samples)
+      )
+    ) {
+      this.scratch.releaseScratch();
+    }
     const progress = this.pageProgress;
+    this.reportProgress();
     const completed = progress.reduce(
       (sum, page) =>
         sum +
@@ -393,7 +452,6 @@ export class ShadowReceiverAccumulator {
       progress: total > 0 ? completed / total : 1,
       settled: total === completed,
       needsRepaint:
-        (!active || active.ready) &&
         progress.some((page) => page.ready && !page.published) &&
         retryAfterMs === undefined,
       ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
@@ -574,8 +632,14 @@ export class ShadowReceiverAccumulator {
     }
   }
 
-  /** Discard incompatible solar work; camera motion only pauses scheduling. */
+  /** Camera motion pauses stall accounting without discarding samples. */
+  pausePending() {
+    this.watchdog.pause();
+  }
+
+  /** Discard incompatible solar work. */
   cancelPending() {
+    this.watchdog.pause();
     if (this.activeId !== null) this.scratch.releaseScratch();
     this.activeId = null;
     this.publicationRetries.clear();
@@ -585,10 +649,12 @@ export class ShadowReceiverAccumulator {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.watchdog.pause();
     this.scratch.dispose();
     this.presentation.dispose();
     this.captures = [];
     this.plans.clear();
+    this.allocations = new Map();
     this.publicationRetries.clear();
     this.restoreOpportunities.clear();
   }

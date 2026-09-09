@@ -26,6 +26,7 @@ type CorridorCapture = Readonly<{
   persistentKey?: string;
   persistentIdentity?: ShadowCorridorCacheIdentity;
   revision: string;
+  casterRevision?: string | null;
   presentationKey: string;
   samples: number;
   matrix: THREE.Matrix4;
@@ -235,6 +236,10 @@ export class ShadowCorridorPresentation {
   has(page: ShadowAccumulationPage, samples: number) {
     const capture = this.captures.get(page.id);
     if (!this.canReplay(page)) return false;
+    // Decision: LINKED-RECEIVER-CASTER-LOD-20260910 in engines/maplibre/README.md.
+    // Keep old visibility for continuity, but a newly committed geometry cut
+    // requires a fresh hard/soft capture even at unchanged sun and resolution.
+    if (capture?.casterRevision !== page.casterRevision) return false;
     // Completed finite-disc masks are baked to a stable receiver/sun identity.
     // Observer changes and smaller buffer demand do not invalidate them. A
     // larger demand keeps replaying this mask but schedules a finer replacement.
@@ -523,6 +528,7 @@ export class ShadowCorridorPresentation {
           persistentKey: key,
           persistentIdentity: record.identity,
           revision: current.page.contentKey ?? current.page.revision,
+          casterRevision: current.page.casterRevision,
           presentationKey:
             current.page.presentationKey ??
             current.page.contentKey ??
@@ -660,6 +666,7 @@ export class ShadowCorridorPresentation {
       bytes,
       restored: false,
       revision: page.contentKey ?? page.revision,
+      casterRevision: page.casterRevision,
       samples,
       presentationKey: page.presentationKey ?? page.contentKey ?? page.revision,
       matrix: new THREE.Matrix4().multiplyMatrices(
@@ -936,13 +943,7 @@ export class ShadowCorridorPresentation {
     return true;
   }
 
-  render<T>(
-    scene: THREE.Scene,
-    page: ShadowAccumulationPage,
-    _samples: number,
-    draw: () => T
-  ): T {
-    if (!this.canPresent(page)) return draw();
+  private activate(page: ShadowAccumulationPage) {
     const capture = this.captures.get(page.id)!;
     this.captures.delete(page.id);
     this.captures.set(page.id, capture);
@@ -960,8 +961,96 @@ export class ShadowCorridorPresentation {
       b.max.x,
       b.max.z
     );
-    this.configureScene(scene);
     this.uniforms.carmaRetainedEnabled.value = true;
+  }
+
+  /** One colour pass for native receivers with unambiguous material ownership.
+   * Shared materials spanning different receivers stay in separate replay draws:
+   * Three uploads stock material uniforms only on a material/program change.
+   * No geometry/material copies and no private renderer uniform API are needed.
+   */
+  renderNative(
+    scene: THREE.Scene,
+    pages: readonly ShadowAccumulationPage[],
+    draw: () => void
+  ): ReadonlySet<string> {
+    if (pages.length === 0) {
+      draw();
+      return new Set();
+    }
+    this.configureScene(scene);
+    const roots = new Map(
+      pages
+        .filter(
+          (page) => page.receiverObjectId !== undefined && this.canPresent(page)
+        )
+        .map((page) => [page.receiverObjectId!, page])
+    );
+    const entries: {
+      mesh: THREE.Mesh;
+      page: ShadowAccumulationPage | undefined;
+    }[] = [];
+    const owners = new Map<THREE.Material, Set<string | undefined>>();
+    scene.traverseVisible((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      let page: ShadowAccumulationPage | undefined;
+      for (
+        let parent: THREE.Object3D | null = mesh;
+        parent;
+        parent = parent.parent
+      ) {
+        page = roots.get(parent.id);
+        if (page) break;
+      }
+      entries.push({ mesh, page });
+      for (const material of Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material]) {
+        let assigned = owners.get(material);
+        if (!assigned) owners.set(material, (assigned = new Set()));
+        assigned.add(page?.id);
+      }
+    });
+    const excluded = new Set<string>();
+    for (const assigned of owners.values()) {
+      if (assigned.size < 2) continue;
+      for (const id of assigned) if (id !== undefined) excluded.add(id);
+    }
+    const handled = new Set<string>();
+    const restore: (() => void)[] = [];
+    for (const { mesh, page } of entries) {
+      const before = mesh.onBeforeRender;
+      const included = page !== undefined && !excluded.has(page.id);
+      mesh.onBeforeRender = (...args) => {
+        before.call(mesh, ...args);
+        this.uniforms.carmaRetainedEnabled.value = false;
+        if (included) this.activate(page);
+      };
+      if (included) handled.add(page.id);
+      restore.push(() => {
+        mesh.onBeforeRender = before;
+      });
+    }
+    this.uniforms.carmaRetainedEnabled.value = false;
+    try {
+      draw();
+      return handled;
+    } finally {
+      this.uniforms.carmaRetainedEnabled.value = false;
+      for (const reset of restore) reset();
+    }
+  }
+
+  render<T>(
+    scene: THREE.Scene,
+    page: ShadowAccumulationPage,
+    _samples: number,
+    draw: () => T
+  ): T {
+    if (!this.canPresent(page)) return draw();
+    this.configureScene(scene);
+    this.activate(page);
     try {
       return draw();
     } finally {

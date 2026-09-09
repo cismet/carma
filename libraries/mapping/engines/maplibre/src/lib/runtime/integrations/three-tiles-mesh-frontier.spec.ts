@@ -13,6 +13,7 @@ import {
   collectLoadedMeshReceiverCandidates,
   selectMeshReceiverCut,
   isMeshRefinementBeyondStage,
+  hasMeshRefinementContentInView,
 } from "./three-tiles-mesh-frontier";
 
 const mesh = (parent: Tile | null = null, error = 0.5): Tile =>
@@ -39,6 +40,22 @@ const retain = (previous: Tile[], proposed: Tile[], requestedError = 1) =>
   });
 
 describe("local progressive mesh admission", () => {
+  it("accepts proven empty children, but not unknown or external metadata", () => {
+    const { parent, children } = quartet(mesh(null, 16));
+    const empty = children[0];
+    empty.internal.hasContent = false;
+    empty.internal.hasRenderableContent = false;
+    empty.internal.loadingState = 0;
+    const select = () =>
+      refineLoadedMeshFrontier(new Set([parent]), 1, () => true);
+    expect(select()).toEqual(new Set(children.slice(1)));
+    expect(hasMeshRefinementContentInView(empty, () => true)).toBe(false);
+    empty.internal.hasContent = true;
+    empty.internal.hasUnrenderableContent = true;
+    expect(select()).toEqual(new Set([parent]));
+    expect(hasMeshRefinementContentInView(empty, () => true)).toBe(true);
+  });
+
   it("keeps the textured parent until all visible geometry-only children are promoted", () => {
     const { parent, children } = quartet(mesh(null, 16));
     const ready = new Set([parent, ...children.slice(1)]);
@@ -483,6 +500,25 @@ describe("atomic progressive mesh corridors", () => {
 });
 
 describe("progressive loaded mesh display", () => {
+  it("uses displayed descendants as minimum caster detail without partial families", () => {
+    const { parent, children } = quartet(mesh(null, 0.5));
+    const displayed = new Set(children.slice(0, 3));
+    const proposed = new Set([parent, ...children]);
+    const select = () =>
+      refineLoadedMeshFrontier(proposed, 1, () => true, () => 0.5, displayed);
+    children[3].internal.loadingState = 2;
+    expect([...select()]).toEqual([parent]);
+    children[3].internal.loadingState = 4;
+    const casters = select();
+    expect([...casters]).toEqual(children);
+    for (const receiver of displayed) expect(casters.has(receiver)).toBe(true);
+    expect(casters.has(parent)).toBe(false);
+    // Mere cache residency is not a reason to over-refine unrelated casters.
+    expect([
+      ...refineLoadedMeshFrontier(proposed, 1, () => true, () => 0.5),
+    ]).toEqual([parent]);
+  });
+
   it("rechecks resident error and releases loose parent bounds with no intersecting children", () => {
     const { parent, children } = quartet(mesh(null, 0));
     const proposed = new Set([parent, ...children]);

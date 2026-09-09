@@ -1,34 +1,25 @@
 type MeshSource = Readonly<{
   providesTerrain?: boolean;
   hasRenderableContent?: () => boolean;
-  getRequestDemand?: () => number;
 }>;
 
-/** One common hard-shadow draw while a newly attached mesh loads its sunward
- * union. Per-page full-scene draws otherwise compete with decode/publication.
+/** One common hard-shadow draw until mesh content first becomes available.
+ * Never wait for global request idleness: each corridor certifies its own cut.
  * Completion is latched by runtime identity: dragging/refinement must NEVER
  * switch an existing mesh back from its retained corridor textures to preview.
  */
 export function createShadowBootstrapPreview() {
   const completed = new WeakSet<MeshSource>();
   return (sources: readonly MeshSource[]): boolean => {
-    let pending = false;
+    let hasMeshSource = false;
     for (const source of sources) {
-      if (
-        !source.providesTerrain ||
-        !source.getRequestDemand ||
-        !source.hasRenderableContent
-      )
-        continue;
-      if (completed.has(source)) continue;
-      // Request demand includes metadata expansion and the pending sunward
-      // traversal. Main-view SSE is not the exit condition: a source-capped
-      // tile can stay above SSE with no finer payload to request. Regional
-      // readiness remains responsible for certifying each soft-shadow cut.
-      if (source.hasRenderableContent() && source.getRequestDemand() === 0)
+      if (!source.providesTerrain || !source.hasRenderableContent) continue;
+      hasMeshSource = true;
+      if (completed.has(source) || source.hasRenderableContent()) {
         completed.add(source);
-      else pending = true;
+        return false;
+      }
     }
-    return pending;
+    return hasMeshSource;
   };
 }

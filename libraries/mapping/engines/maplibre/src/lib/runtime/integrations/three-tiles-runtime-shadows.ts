@@ -246,7 +246,9 @@ export function createThreeTilesShadows(
       let rejectedPrismNodes = 0;
       const cut = getReadyMeshRegionCut(
         runtimeState.tiles.rootTileset.root,
-        runtimeState.tiles.visibleTiles,
+        runtimeState.options.providesTerrain
+          ? runtimeState.committedMeshCasterFrontier
+          : runtimeState.tiles.visibleTiles,
         errorPixels,
         (entry) => {
           visitedNodes += 1;
@@ -598,10 +600,13 @@ export function createThreeTilesShadows(
           ...new Set([...traversalTiles, ...previousCasters, ...residentTiles]),
         ].filter((tile) => {
           const runtimeTile = tile as RuntimeTile;
-          // The receiver cut exclusively owns observer-visible coverage.
-          // Re-introducing upstream's partial parent/child traversal here made
-          // coarse REPLACE ancestors bleed through their detailed children.
-          if (dependencies.isTileInMainView(runtimeTile))
+          // Decision: CASTER-FAMILY-HANDOVER-20260909 in engines/maplibre/README.md.
+          // A retained parent may overlap the camera while its offscreen
+          // children are loading. Keep it in depth, not in the colour cut.
+          if (
+            dependencies.isTileInMainView(runtimeTile) &&
+            !previousCasters.has(tile)
+          )
             return runtimeState.committedMeshReceiverFrontier.has(tile);
           if (
             !runtimeTile.engineData?.scene &&
@@ -653,18 +658,12 @@ export function createThreeTilesShadows(
             { key: tile, parent: tile.parent ?? undefined }
           );
         },
-        (tile) => dependencies.getTileScreenError(tile as RuntimeTile)
+        (tile) => dependencies.getTileScreenError(tile as RuntimeTile),
+        runtimeState.committedMeshReceiverFrontier
       );
-      // The main-camera receiver frontier still owns its own atomic families.
-      for (const tile of casterCut) {
-        if (
-          dependencies.isTileInMainView(tile as RuntimeTile) &&
-          !runtimeState.committedMeshReceiverFrontier.has(tile)
-        )
-          casterCut.delete(tile);
-      }
-      for (const tile of runtimeState.committedMeshReceiverFrontier)
-        casterCut.add(tile);
+      // Receiver children can improve colour independently, but must not join
+      // the depth cut until the complete corridor-relevant family replaces its
+      // parent. The lifecycle publishes these two roles separately.
       runtimeState.committedMeshCasterFrontier = casterCut;
       // A proof can be negative between decode and publication. Geometry load
       // invalidation alone never clears that cached false after the cut changes.

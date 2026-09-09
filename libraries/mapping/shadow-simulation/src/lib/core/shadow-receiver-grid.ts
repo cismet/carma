@@ -177,6 +177,12 @@ export const buildShadowReceiverCells = (
   const ordered = [...descriptors].sort((a, b) =>
     a.id < b.id ? -1 : a.id > b.id ? 1 : 0
   );
+  // Native mesh cuts already have disjoint geometry ownership. Their AABBs
+  // overlap, not their ownership: planar subtraction explodes a few dozen
+  // tiles into hundreds of capture passes. Mask colour by payload instead.
+  // Mixed/generic raster scenes retain the existing spatial partition.
+  if (ordered.every(({ receiverObjectId }) => receiverObjectId !== undefined))
+    return ordered;
   const cells = ordered.flatMap(({ id, bounds }, index) => {
     const footprint = receiverFootprint(bounds);
     if (

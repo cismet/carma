@@ -6,7 +6,7 @@ import {
   type ShadowReceiverMatch,
 } from "../../core/shadow-receiver-mask";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
-import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
+import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import {
   getMeshLoadStage,
   meshShadowStageError,
@@ -52,6 +52,8 @@ export function createThreeTilesDebug(
     | "peekShadowRegionRevision"
   >
 ) {
+  let createOverlay: typeof createThreeTilesDebugOverlay | undefined;
+  let loadingOverlay = false;
   const getTileDebugId: ThreeTilesRuntimeServices["getTileDebugId"] = (
     tile: Tile
   ) => {
@@ -117,13 +119,30 @@ export function createThreeTilesDebug(
         runtimeState.tileDebugOverlay = null;
         return;
       }
+      if (!createOverlay) {
+        if (!loadingOverlay) {
+          loadingOverlay = true;
+          void import("./three-tiles-debug-overlay").then((module) => {
+            createOverlay = module.createThreeTilesDebugOverlay;
+            loadingOverlay = false;
+            if (runtimeState.tileBoundsVisible && runtimeState.tiles === tiles) {
+              syncTileDebugOverlay();
+              runtimeState.map?.triggerRepaint();
+            }
+          }).catch((error: unknown) => {
+            loadingOverlay = false;
+            console.error("Unable to load mesh diagnostics", error);
+          });
+        }
+        return;
+      }
       const now = performance.now();
       // Diagnostics must observe production work, never drive it. Text/line
       // rebuilds are intentionally slow and the readiness probe below only
       // reads an existing corridor proof.
       if (now - runtimeState.tileDebugOverlayUpdatedAt < 1_000) return;
       runtimeState.tileDebugOverlayUpdatedAt = now;
-      runtimeState.tileDebugOverlay ??= createThreeTilesDebugOverlay(
+      runtimeState.tileDebugOverlay ??= createOverlay(
         tiles.group
       );
       const receiverTiles = [...tiles.visibleTiles].filter((tile) =>
@@ -276,6 +295,8 @@ export function createThreeTilesDebug(
     (enabled: boolean) => {
       if (runtimeState.tileBoundsVisible === enabled) return;
       runtimeState.tileBoundsVisible = enabled;
+      if (!enabled) runtimeState.tileDebugProgress = new WeakMap();
+      runtimeState.tileDebugOverlayUpdatedAt = -Infinity;
       syncTileDebugOverlay();
       runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
       runtimeState.map?.triggerRepaint();

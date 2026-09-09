@@ -350,12 +350,16 @@ describe("three tiles runtime liveness", () => {
     layer.scene.dispose();
   });
 
-  it("attaches the tile edge and label overlay only while enabled", () => {
+  it("attaches the tile edge and label overlay only while enabled", async () => {
     const { layer, renderer } = mountRuntime();
     const findOverlay = () =>
       renderer.group.getObjectByName("CARMA 3D tiles bounds and labels");
     expect(findOverlay()).toBeUndefined();
 
+    layer.debug.setTileBoundsVisible(true);
+    layer.debug.setTileBoundsVisible(false);
+    await vi.dynamicImportSettled();
+    expect(findOverlay()).toBeUndefined();
     layer.debug.setTileBoundsVisible(true);
     expect(findOverlay()).toBeDefined();
 

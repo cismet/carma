@@ -27,6 +27,8 @@ export type SharedThreeSceneTileVolume = Readonly<{
   /** Current physical-pixel error, not the configured final target. */
   errorPixels?: number;
   loadReason?: "viewport" | "shadow";
+  /** Ephemeral Three payload identity, never part of a persistent cache key. */
+  receiverObjectId?: number;
   minimum: readonly [number, number, number];
   maximum: readonly [number, number, number];
 }>;

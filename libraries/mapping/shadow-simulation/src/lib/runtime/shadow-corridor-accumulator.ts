@@ -689,9 +689,17 @@ export class ShadowCorridorAccumulator {
     this.pages.clear();
   }
 
-  /** Release completed page working attachments without evicting its publication. */
-  releaseScratch() {
-    this.releaseTargets();
+  /** Reset integration ownership. Reuse one bounded allocation between ready
+   * corridors; format/size changes still dispose it through the target key.
+   * Idle, failed and disposed workloads release attachments immediately.
+   */
+  releaseScratch(retainAllocation = false) {
+    if (retainAllocation) {
+      this.stateKey = "";
+      this.pages.clear();
+    } else {
+      this.releaseTargets();
+    }
     this.publishedStateKeys.clear();
     this.cursor = 0;
   }

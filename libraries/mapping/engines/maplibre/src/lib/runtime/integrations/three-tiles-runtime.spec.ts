@@ -30,7 +30,7 @@ vi.hoisted(() => {
 });
 
 describe("three tiles runtime styling", () => {
-  it("preempts the old request generation asynchronously without clearing loaded or new tiles", async () => {
+  it("pauses motion without discarding pending, newly requested, or completed tiles", async () => {
     vi.useFakeTimers();
     let renderer!: TilesRenderer & { loadingTiles: Set<Tile> };
     const update = vi
@@ -72,13 +72,14 @@ describe("three tiles runtime styling", () => {
       handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
       expect(removed).toEqual([]);
       const fresh = request();
-      // One old request completes before its deferred cancellation turn.
+      // An in-flight request may finish while motion has paused queue admission.
       const completed = old.pop()!;
       renderer.loadingTiles.delete(completed);
       await vi.advanceTimersByTimeAsync(0);
-      expect(removed).toHaveLength(MESH_EVICTION_BATCH_SIZE);
+      expect(removed).toEqual([]);
       await vi.advanceTimersByTimeAsync(5);
-      expect(new Set(removed)).toEqual(new Set(old));
+      expect(removed).toEqual([]);
+      expect(old.every((tile) => renderer.loadingTiles.has(tile))).toBe(true);
       expect(renderer.lruCache.has(completed)).toBe(true);
       expect(renderer.loadingTiles.has(fresh)).toBe(true);
       handlers.get(MAPLIBRE_EVENT.MOVE)?.();
@@ -1059,6 +1060,7 @@ describe("three tiles runtime styling", () => {
     layer.appearance.setWhiteShading(true);
     layer.appearance.setWireframe(true);
     expect((mesh.material as THREE.MeshStandardMaterial).wireframe).toBe(true);
+    expect(mesh.frustumCulled).toBe(true);
     layer.debug.setTileBoundsVisible(true);
     layer.loading.setCacheBudget(1024);
     layer.loading.setRequestConcurrency(2);

@@ -4,6 +4,8 @@ export type ShadowReceiverCell = Readonly<{
   /** Stable world identity, independent of the observer camera. */
   id: string;
   bounds: THREE.Box3;
+  /** Exact native receiver payload; omit for spatially partitioned rasters. */
+  receiverObjectId?: number;
 }>;
 
 export type ShadowReceiverPage = ShadowReceiverCell &

@@ -201,6 +201,31 @@ describe("camera-registered corridor accumulation", () => {
     }
   });
 
+  it("reuses same-sized working attachments between corridors without reusing their samples", () => {
+    const f = fixture();
+    f.pages.splice(1);
+    const bind = vi.spyOn(f.renderer, "setRenderTarget");
+    f.render();
+    f.render(); // Exercise both ping-pong attachments before recording identities.
+    const allocated = f.accumulator.memoryBytes;
+    const targets = new Set(bind.mock.calls.map(([target]) => target));
+    expect(allocated).toBeGreaterThan(0);
+    bind.mockClear();
+    f.accumulator.releaseScratch(true);
+    expect(f.accumulator.memoryBytes).toBe(allocated);
+    expect(f.accumulator.pageProgress).toEqual([]);
+    f.pages[0].id = "new-corridor";
+    f.render();
+    expect(bind.mock.calls.every(([target]) => targets.has(target))).toBe(true);
+    expect(f.accumulator.pageProgress[0]).toMatchObject({
+      id: "new-corridor",
+      samples: 1,
+    });
+    f.accumulator.releaseScratch();
+    expect(f.accumulator.memoryBytes).toBe(0);
+    f.accumulator.dispose();
+  });
+
   it("releases working targets without evicting externally owned completed captures", () => {
     const f = fixture();
     f.finish();

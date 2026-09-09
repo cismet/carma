@@ -13,7 +13,7 @@ export const resetShadowSimulationState = (
     isAnimating: false,
     shadowIntensity: 1,
     meshTextureColorCorrection: true,
-    showSunDebugVector: false,
+    showSunDebugVector: true,
     showTileBounds: true,
     showProjectionDebugView: false,
     showDisplaySettings: false,
