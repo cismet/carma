@@ -178,22 +178,30 @@ export const AnnotationOverlay = ({
   const getPen = useCallback(() => penRef.current, []);
 
   /**
-   * Annotation mode lifts the camera lock. The drawing follows bearing and
-   * pitch now, so there is nothing left for the lock to protect it from. It is
-   * written as the map's camera-restriction override — the one channel the
+   * Who decides whether the camera may turn and tilt, and only while the
+   * pencil is out. Off, the addon says nothing at all and the camera is the
+   * app's own, whatever bearing and pitch it is standing at.
+   *
+   * Turning the mode on, the answer depends on the ground plane. With it, the
+   * lock is lifted: the drawing follows bearing and pitch, so there is nothing
+   * left for the lock to protect it from. Without it, the lock goes on and the
+   * engine brings the camera back to north-up and flat as it applies it — a
+   * flat scene only lines up with a flat, north-up map. Ending the mode hands
+   * the camera back either way.
+   *
+   * It goes through the map's camera-restriction override, the one channel the
    * engine applies and publishes, so the compass and the pitch control follow
-   * without knowing this addon exists — and dropped again when the mode ends,
-   * which hands the app its own value back. A base the app marked forced,
-   * print above all, still wins, and a `cameraRestriction` addon on the same
-   * route writes the same slot: the later write is the one that stands.
+   * without knowing this addon exists. A base the app marked forced, print
+   * above all, still wins, and a `cameraRestriction` addon on the same route
+   * writes the same slot: the later write stands.
    */
   const plane = usePlaneEnabled();
   useEffect(() => {
-    if (!libreMap || !plane || !isOn) {
+    if (!libreMap || !isOn) {
       return;
     }
     setCameraRestrictionOverride(libreMap, {
-      restricted: false,
+      restricted: !plane,
       maxPitch: DEFAULT_MAX_PITCH,
     });
     return () => {
