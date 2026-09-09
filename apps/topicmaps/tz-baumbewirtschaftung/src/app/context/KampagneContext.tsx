@@ -62,6 +62,16 @@ const APP_KEY = "tz.baumbewirtschaftung";
 const CONFIG_ATTR_URL = `${APP_CONFIG.restService}configattributes/${APP_CONFIG.configAttributeKey}`;
 const ATTRIBUTESET_ATTR_URL = `${APP_CONFIG.restService}configattributes/${APP_CONFIG.attributesetConfigAttributeKey}`;
 
+// Dev override: `?devMode&attributeset=irrigation` (hash-based routing supported)
+// picks an attributeset without the config attribute being set on the user.
+// Only honoured together with `devMode`, which already lifts the photo rule.
+const devAttributesetOverride = (): string | null => {
+  const hashQuery = window.location.hash.split("?")[1];
+  const params = new URLSearchParams(hashQuery ?? window.location.search);
+  if (!params.has("devMode")) return null;
+  return params.get("attributeset");
+};
+
 // Optional attribute: 404 or an empty value simply means "default attributeset".
 const fetchAttributesetValue = async (jwt: string): Promise<string | null> => {
   const res = await fetch(ATTRIBUTESET_ATTR_URL, {
@@ -208,7 +218,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
   }, [allowedCampaignIds, viewSelection, showAll, keineCampaignId]);
 
   const attributeset = useMemo(
-    () => resolveAttributeset(attributesetValue),
+    () => resolveAttributeset(devAttributesetOverride() ?? attributesetValue),
     [attributesetValue]
   );
 
