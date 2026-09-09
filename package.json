@@ -4,6 +4,7 @@
   "license": "MIT",
   "scripts": {
     "update": "git fetch --all && git submodule update --init --recursive --remote --checkout --force -- libraries/collaboration && npm install",
+    "cage:update": "bash scripts/cage-update.sh",
     "update-with-cage": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npm install",
     "update-force": "git fetch --all && git submodule update --init --recursive --remote --checkout --force -- libraries/collaboration && npx nx reset && npm ci",
     "update-force-with-cage": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npx nx reset && npm ci"
