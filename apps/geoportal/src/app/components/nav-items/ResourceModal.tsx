@@ -33,16 +33,7 @@ import store from "../../store";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
-import {
-  useTimeSeriesLauncher,
-  useFlowFieldLauncher,
-  type FlowFieldConfig,
-  useVehicleAnimationLauncher,
-  useFloodLauncher,
-  type FloodSimulationConfig,
-  type TimeSliderConfig,
-  type VehicleAnimationConfig,
-} from "@carma-mapping/addons";
+import { useWorkflowAddonLaunchers } from "./workflow-addon-launchers";
 
 const ResourceModal = () => {
   const { setCurrentStyle } = useMapStyle();
@@ -96,115 +87,14 @@ const ResourceModal = () => {
     [getIsCesium, getIsLeaflet]
   );
 
-  const { toggleSeries } = useTimeSeriesLauncher();
-  const { toggleField } = useFlowFieldLauncher();
-  const { toggleFlood } = useFloodLauncher();
-  /** a workflow card's timeSlider tool: its config is the series to run */
-  const startTimeSeries = useCallback(
-    (config: TimeSliderConfig) => {
-      const { wmsUrl, layers } = config;
-      if (!wmsUrl || !layers?.length) {
-        messageApi.open({
-          type: "error",
-          content: "Der Workflow enthält keine vollständige Zeitreihe.",
-        });
-        return;
-      }
-      toggleSeries({
-        title: config.title ?? "Zeitreihe",
-        wmsUrl,
-        layers,
-        labels: config.labels ?? [],
-        styles: config.styles ?? "",
-        intermediateValuesCount: config.intermediateValuesCount,
-        opacity: config.opacity,
-        initialStep: config.initialStep,
-        // what the row's info view shows; the card's own texts by default,
-        // see the workflow branch in `resource-layer-updater`
-        description: config.description,
-        metaDataText: config.metaDataText,
-        links: config.links,
-        legend: config.legend,
-      });
-    },
-    [toggleSeries, messageApi]
-  );
-
-  /** a workflow card's flowField tool: its config is the animation to run */
-  const startFlowField = useCallback(
-    (config: FlowFieldConfig) => {
-      const { service, scenario } = config;
-      if (!service || !scenario) {
-        messageApi.open({
-          type: "error",
-          content: "Der Workflow enthält keine vollständige Fließwege-Animation.",
-        });
-        return;
-      }
-      // Spread rather than rebuilt field by field: a `FlowFieldConfig` is a
-      // `FlowFieldDefinition` plus the keys only a route uses, and listing the
-      // definition's keys here meant every one added since was silently
-      // dropped on the way from a card into the channel. `startEnabled`,
-      // `showControl` and the rest ride along and are ignored by the channel.
-      toggleField({
-        ...config,
-        title: config.title ?? "Fließwege",
-        service,
-        scenario,
-      });
-    },
-    [toggleField, messageApi]
-  );
-
-  const { toggleVehicle } = useVehicleAnimationLauncher();
-  /** a workflow card's vehicleAnimation tool: its config is the route to run */
-  const startVehicleAnimation = useCallback(
-    (config: VehicleAnimationConfig) => {
-      const { trackUrl } = config;
-      if (!trackUrl) {
-        messageApi.open({
-          type: "error",
-          content: "Der Workflow enthält keine Strecke für die Animation.",
-        });
-        return;
-      }
-      toggleVehicle({
-        title: config.title ?? "Fahrzeug",
-        trackUrl,
-        lengthMeters: config.lengthMeters,
-        widthMeters: config.widthMeters,
-        sectionShares: config.sectionShares,
-        jointMeters: config.jointMeters,
-        speedKmh: config.speedKmh,
-        mode: config.mode,
-        schedule: config.schedule,
-        bodyColor: config.bodyColor,
-        jointColor: config.jointColor,
-        outlineColor: config.outlineColor,
-        opacity: config.opacity,
-        showTrack: config.showTrack,
-        trackColor: config.trackColor,
-        structureUrl: config.structureUrl,
-        timetableUrl: config.timetableUrl,
-        renderer: config.renderer,
-      });
-    },
-    [toggleVehicle, messageApi]
-  );
-
-  /** a workflow card's floodSimulation tool: its config is the flood to show */
-  const startFlood = useCallback(
-    (config: FloodSimulationConfig) => {
-      toggleFlood({
-        title: config.title ?? "Hochwasser",
-        terrain: config.terrain,
-        level: config.level,
-        range: config.range,
-        opacity: config.opacity,
-      });
-    },
-    [toggleFlood]
-  );
+  // the workflow cards whose tools launch an addon instead of adding layers
+  const {
+    startTimeSeries,
+    startFlowField,
+    startVehicleAnimation,
+    startFlood,
+    isWorkflowActive,
+  } = useWorkflowAddonLaunchers(messageApi);
 
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({
@@ -245,6 +135,7 @@ const ResourceModal = () => {
           dispatch(deleteSavedLayerConfig(layer.id));
         }}
         activeLayers={[backgroundLayer, ...activeLayers]}
+        isWorkflowActive={isWorkflowActive}
         customCategories={customCategories}
         updateActiveLayer={(layer) => {
           dispatch(updateLayer(layer));

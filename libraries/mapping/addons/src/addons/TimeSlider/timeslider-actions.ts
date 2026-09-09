@@ -352,7 +352,7 @@ export const useTimeSliderActions = () => {
  * sub-steps, without it in whole steps.
  */
 export const useTimeSeriesLauncher = () => {
-  const [, setSessionState] = useAddonState("timeSeries");
+  const [sessionState, setSessionState] = useAddonState("timeSeries");
   const isBlending = useIsCagedAvailable();
 
   const setState = useCallback(
@@ -439,5 +439,18 @@ export const useTimeSeriesLauncher = () => {
     [setState, launchedState]
   );
 
-  return { startSeries, toggleSeries };
+  /**
+   * Whether this series is the one the channel currently runs. What the
+   * workflow card that launched it shows on its button, so a card that is on
+   * the map offers to remove it rather than to add it again.
+   */
+  const isSeriesRunning = useCallback(
+    (def: TimeSeriesDefinition): boolean => {
+      const state = sessionState ?? TIME_SLIDER_STATE_DEFAULT;
+      return state.isOn && sameSeriesDefinition(state, def);
+    },
+    [sessionState]
+  );
+
+  return { startSeries, toggleSeries, isSeriesRunning };
 };

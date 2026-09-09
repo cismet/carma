@@ -348,7 +348,7 @@ export const useVehicleAnimationActions = () => {
  * switches the animation on and off.
  */
 export const useVehicleAnimationLauncher = () => {
-  const [, setSessionState] = useAddonState("vehicleAnimation");
+  const [sessionState, setSessionState] = useAddonState("vehicleAnimation");
 
   const setState = useCallback(
     (updater: (previous: VehicleAnimationState) => VehicleAnimationState) =>
@@ -418,5 +418,18 @@ export const useVehicleAnimationLauncher = () => {
     [setState, launchedState]
   );
 
-  return { startVehicle, toggleVehicle };
+  /**
+   * Whether this service is the one the channel currently runs. What the
+   * workflow card that launched it shows on its button, so a card that is on
+   * the map offers to remove it rather than to add it again.
+   */
+  const isVehicleRunning = useCallback(
+    (def: VehicleAnimationDefinition): boolean => {
+      const state = sessionState ?? VEHICLE_ANIMATION_STATE_DEFAULT;
+      return state.isOn && sameDefinition(state, def);
+    },
+    [sessionState]
+  );
+
+  return { startVehicle, toggleVehicle, isVehicleRunning };
 };

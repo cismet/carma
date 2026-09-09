@@ -93,6 +93,12 @@ export interface LayerCatalogProps {
   onRemoveCollection?: (layer: Item) => void;
   activeLayers: ActiveLayers;
   /**
+   * Whether a workflow card is on the map. Only the host knows: a card without
+   * layers launches an addon into its channel instead, so `activeLayers` never
+   * mentions it. Cards that bring a layer group do not need this.
+   */
+  isWorkflowActive?: (item: Item) => boolean;
+  /**
    * app-specific subcategories in addition to the registry defaults
    * (`subCategories` of the category definitions); same id overrides a default
    */
@@ -111,6 +117,7 @@ const LayerCatalogView = ({
   setOpen,
   setAdditionalLayers,
   activeLayers,
+  isWorkflowActive,
   customCategories,
   savedCollections,
   onAddCollection,
@@ -728,6 +735,7 @@ const LayerCatalogView = ({
     () => ({
       setAdditionalLayers,
       activeLayers,
+      isWorkflowActive,
       favorites: displayedFavorites,
       addFavorite: handleAddFavorite,
       removeFavorite: handleRemoveFavorite,
@@ -738,6 +746,7 @@ const LayerCatalogView = ({
     [
       setAdditionalLayers,
       activeLayers,
+      isWorkflowActive,
       displayedFavorites,
       handleAddFavorite,
       handleRemoveFavorite,

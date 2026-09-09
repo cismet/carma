@@ -51,7 +51,7 @@ import {
 
 type MessageType = "success" | "error";
 
-type MessageApiLike = {
+export type MessageApiLike = {
   open: (config: { type: MessageType; content: ReactNode }) => void;
   success: (content: string) => void;
   error: (content: string) => void;

@@ -15,6 +15,11 @@ export interface CatalogInteractionContextValue {
   /** host callback that applies, removes or updates an item on the map */
   setAdditionalLayers: SetAdditionalLayers;
   activeLayers: ActiveLayers;
+  /**
+   * host check for a workflow card that runs an addon rather than adding
+   * layers; such a card never shows up in `activeLayers`
+   */
+  isWorkflowActive?: (item: Item) => boolean;
   /** provider favorites extended by the host-owned saved collections */
   favorites: Array<Item | SavedLayerConfig>;
   /** routes collections to the host callbacks, everything else to the provider */
