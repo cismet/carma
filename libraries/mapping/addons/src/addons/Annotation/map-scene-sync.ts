@@ -7,7 +7,7 @@ import type {
 } from "@excalidraw/excalidraw/types/types";
 
 import { planeLog } from "./annotation-plane-flag";
-import { overlayOffset } from "./annotation-scene-space";
+import { lngLatToScene, overlayOffset } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
 
@@ -175,13 +175,47 @@ export const useMapSceneSync = (
     }
 
     const offset = offsetOf();
-    const point = map.project([anchor.lng, anchor.lat]);
-    // the anchor is scene (0, 0), so its screen position is scroll * scale
-    const camera: SceneCamera = {
-      scrollX: (point.x - offset.x) / scale,
-      scrollY: (point.y - offset.y) / scale,
-      scale,
-    };
+    const box = overlay?.getBoundingClientRect();
+    /**
+     * Where the plane sits on the ground.
+     *
+     * Asked in ground terms, never in screen terms. `project` answers where
+     * the anchor has ended up on the screen, and that answer carries the
+     * bearing inside it — while the plane is a north-up rectangle on the
+     * ground. Using one as the other places the plane's ground footprint off
+     * by the rotation of the vector from the anchor to the middle of the view,
+     * which is nothing at all north-up and more than that vector's own length
+     * once the map is turned past ninety degrees. The drawing then runs off
+     * the edge of the canvas: a straight cut through a shape, and then no
+     * shape.
+     *
+     * So the ground under the middle of the plane is what the plane is centred
+     * on, which is true at any bearing and any pitch, and is the same
+     * arithmetic as before whenever the bearing is zero.
+     */
+    const camera: SceneCamera =
+      plane && box && box.width > 0 && box.height > 0
+        ? (() => {
+            const middle = map.unproject([
+              offset.x + box.width / 2,
+              offset.y + box.height / 2,
+            ]);
+            const centre = lngLatToScene(anchor, middle.lng, middle.lat);
+            return {
+              scrollX: box.width / (2 * scale) - centre.x,
+              scrollY: box.height / (2 * scale) - centre.y,
+              scale,
+            };
+          })()
+        : // the anchor is scene (0, 0), so its screen position is scroll * scale
+          (() => {
+            const point = map.project([anchor.lng, anchor.lat]);
+            return {
+              scrollX: (point.x - offset.x) / scale,
+              scrollY: (point.y - offset.y) / scale,
+              scale,
+            };
+          })();
     if (plane && pushedRef.current && same(camera, pushedRef.current)) {
       /**
        * The same numbers under a different anchor. `reanchor` hands out one of
@@ -211,7 +245,7 @@ export const useMapSceneSync = (
         zoom: { value: scale as NormalizedZoomValue },
       },
     });
-  }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf, plane]);
+  }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf, overlay, plane]);
 
   const applySceneCamera = useCallback(
     (state: Pick<AppState, "scrollX" | "scrollY" | "zoom">) => {
