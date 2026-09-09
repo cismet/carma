@@ -426,8 +426,10 @@ const indexItemsById = (
  * here, so it is taken out of the category it came from and shows up once.
  *
  * Returns the layers destined for the custom category, which the caller
- * assembles together with the dropped ones, and the ids that were moved, which
- * the caller drops from those.
+ * assembles together with the dropped ones, the ids that were moved, which the
+ * caller drops from those, and the categories that are new here, which the
+ * caller puts in front: what a host configures explicitly is what it wants
+ * seen first, so the configured groups lead the service structure.
  */
 const placeAdditionalLayers = (
   subCategories: CatalogSubCategory[],
@@ -435,10 +437,15 @@ const placeAdditionalLayers = (
   droppedLayers: Item[],
   customFragmentLayers: Item[],
   featureFlags: FeatureFlags
-): { customLayers: Item[]; movedIds: Set<string> } => {
+): {
+  customLayers: Item[];
+  movedIds: Set<string>;
+  addedCategories: CatalogSubCategory[];
+} => {
   const movedIds = new Set<string>();
+  const addedCategories: CatalogSubCategory[] = [];
   if (additionalLayers.length === 0) {
-    return { customLayers: [], movedIds };
+    return { customLayers: [], movedIds, addedCategories };
   }
   const itemsById = indexItemsById(
     subCategories,
@@ -454,11 +461,13 @@ const placeAdditionalLayers = (
         subCategory.Title === Title
     );
     if (existing) {
+      // the configured layers lead the category they extend, for the same
+      // reason the configured categories lead the catalog
       existing.layers = reorderLayersByInsertRules(
-        dedupeById([...existing.layers, ...layers])
+        dedupeById([...layers, ...existing.layers])
       );
     } else {
-      subCategories.push({
+      addedCategories.push({
         id,
         Title,
         layers: reorderLayersByInsertRules(layers),
@@ -515,11 +524,12 @@ const placeAdditionalLayers = (
     });
   });
 
-  return { customLayers, movedIds };
+  return { customLayers, movedIds, addedCategories };
 };
 
-// The "mapLayers" main category: dropped items first, then the featured
-// window, then the service structure enriched by the additional config.
+// The "mapLayers" main category: dropped items first, then the configured
+// groups, then the featured window, then the service structure enriched by the
+// additional config.
 export const buildMapLayerSubcategories = (
   serviceCategories: ServiceCategory[],
   additionalConfig: CatalogConfigEntry[],
@@ -572,8 +582,11 @@ export const buildMapLayerSubcategories = (
     subCategories.unshift(featured);
   }
 
-  const { customLayers: customAdditionalLayers, movedIds } =
-    placeAdditionalLayers(
+  const {
+    customLayers: customAdditionalLayers,
+    movedIds,
+    addedCategories,
+  } = placeAdditionalLayers(
       subCategories,
       additionalLayers,
       droppedLayers,
@@ -590,6 +603,11 @@ export const buildMapLayerSubcategories = (
   ]).filter(
     (layer) => !movedIds.has(layer.id) || customAdditionalLayers.includes(layer)
   );
+  // ahead of the featured window and the services: what a host configures
+  // explicitly is what it wants seen first
+  subCategories.unshift(...addedCategories);
+
+  // still above those: a drop is the most recent statement about the catalog
   if (customLayers.length > 0) {
     subCategories.unshift({ ...CUSTOM_CATEGORY, layers: customLayers });
   }
