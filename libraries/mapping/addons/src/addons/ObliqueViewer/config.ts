@@ -198,20 +198,24 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   },
 };
 
+/** the config keys that describe the viewer rather than the flight */
+const VIEWER_ONLY_KEYS = new Set<string>([
+  "showControl",
+  "controlPosition",
+  "controlOrder",
+  "storageKey",
+  "heightDatum",
+  "heightOffset",
+]);
+
 /** the dataset a config describes: the preset with the config's fields on top */
 export const resolveDataset = (
-  config: Partial<ObliqueDataset> | undefined
+  config: ObliqueViewerConfig | undefined
 ): ObliqueDataset => {
   if (!config) return WUPPERTAL_OBLIQUE_2024;
-  const {
-    showControl: _showControl,
-    controlPosition: _controlPosition,
-    controlOrder: _controlOrder,
-    storageKey: _storageKey,
-    heightDatum: _heightDatum,
-    heightOffset: _heightOffset,
-    ...dataset
-  } = config as ObliqueViewerConfig;
+  const dataset = Object.fromEntries(
+    Object.entries(config).filter(([key]) => !VIEWER_ONLY_KEYS.has(key))
+  ) as Partial<ObliqueDataset>;
   return {
     ...WUPPERTAL_OBLIQUE_2024,
     ...dataset,

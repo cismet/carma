@@ -1,5 +1,4 @@
-import type { Easing } from "@carma-commons/math";
-import type { Matrix3RowMajor, Vector3Arr } from "@carma-commons/math";
+import type { Easing, Matrix3RowMajor, Vector3Arr } from "@carma-commons/math";
 import type { CardinalDirectionClockwise } from "@carma-geo/data-structures";
 
 import type { PreviewQualityLevel } from "./constants";
