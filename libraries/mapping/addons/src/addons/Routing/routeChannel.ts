@@ -68,6 +68,30 @@ export const useActiveRoute = (): [
   return [state?.route ?? null, setRoute];
 };
 
+/**
+ * What is left of the route from where the user is on it. Only the meters are
+ * measured: the routing service gives one duration for the whole route and no
+ * per-segment speeds, so the time left is that duration scaled by the fraction
+ * still ahead. Right at both ends of the route, and off by however much the
+ * route's own speed varies in between.
+ *
+ * Held at the last value while the user is off the route, where the place on
+ * the line, and everything read off it, means nothing.
+ */
+export type RouteProgress = {
+  /**
+   * meters to the destination: the route's own distance scaled by the fraction
+   * still ahead, so the countdown starts at the number the summary showed and
+   * ends at zero. The geometry's own remaining length when the producer gave
+   * no distance
+   */
+  remainingMeters: number;
+  /** seconds to the destination; undefined for a route that carries no duration */
+  remainingSeconds?: number;
+  /** 0 where the route starts, 1 at the destination */
+  fraction: number;
+};
+
 export type RouteNavigation = {
   /** a navigation is running: the camera is on the route, or was until the user moved it */
   navigating: boolean;
@@ -76,6 +100,11 @@ export type RouteNavigation = {
    * has moved the map by hand during a navigation, until `recenter`
    */
   following: boolean;
+  /**
+   * what is left to the destination, updated per position fix; null while no
+   * navigation runs, and until the first fix of one
+   */
+  progress: RouteProgress | null;
   /** ease the camera onto the route in focus; does nothing without one */
   start: () => void;
   stop: () => void;
