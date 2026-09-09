@@ -463,6 +463,19 @@ describe("atomic progressive mesh corridors", () => {
 });
 
 describe("progressive loaded mesh display", () => {
+  it("rechecks resident error and releases loose parent bounds with no intersecting children", () => {
+    const { parent, children } = quartet(mesh(null, 0));
+    const proposed = new Set([parent, ...children]);
+    const currentError = (tile: Tile) => tile === parent ? 16 : 0.5;
+    expect([...refineLoadedMeshFrontier(proposed, 1, () => true, currentError)])
+      .toEqual(children);
+    expect([...refineLoadedMeshFrontier(proposed, 1, tile => tile === parent, currentError)])
+      .toEqual([]);
+    children[0].internal.loadingState = 2;
+    expect([...refineLoadedMeshFrontier(proposed, 1, () => true, currentError)])
+      .toEqual([parent]);
+  });
+
   it("never publishes a partial child set over a retained parent", () => {
     const { parent, children } = quartet(mesh(null, 16));
     children[3].internal.loadingState = 2;

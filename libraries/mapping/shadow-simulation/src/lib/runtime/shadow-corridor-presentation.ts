@@ -24,6 +24,7 @@ type CorridorCapture = Readonly<{
   bytes: number;
   restored: boolean;
   persistentKey?: string;
+  persistentIdentity?: ShadowCorridorCacheIdentity;
   revision: string;
   presentationKey: string;
   samples: number;
@@ -159,7 +160,6 @@ export class ShadowCorridorPresentation {
     carmaRetainedDepth: { value: null as THREE.Texture | null },
     carmaRetainedMatrix: { value: new THREE.Matrix4() },
     carmaRetainedCrop: { value: new THREE.Vector4(0, 0, 1, 1) },
-    carmaRetainedSize: { value: new THREE.Vector2(1, 1) },
     carmaRetainedCount: { value: 0 },
     carmaRetainedBounds: {
       value: Array.from({ length: MAX_PAGES }, () => new THREE.Vector4()),
@@ -209,6 +209,27 @@ export class ShadowCorridorPresentation {
 
   has(page: ShadowAccumulationPage, samples: number) {
     const capture = this.captures.get(page.id);
+    // Completed finite-disc masks are baked to a stable receiver/sun identity.
+    // Observer changes and smaller buffer demand do not invalidate them. A
+    // larger demand keeps replaying this mask but schedules a finer replacement.
+    // Hard captures still use exact revisions while their caster stack improves.
+    if (
+      capture &&
+      capture.samples > 1 &&
+      capture.samples >= samples &&
+      page.captureSize &&
+      page.presentationKey &&
+      this.canReplay(page) &&
+      capture.crop.x === 0 &&
+      capture.crop.y === 0 &&
+      capture.crop.z === 1 &&
+      capture.crop.w === 1
+    ) {
+      return (
+        capture.width >= page.captureSize.width &&
+        capture.height >= page.captureSize.height
+      );
+    }
     if (capture?.restored) {
       const request = this.restoreRequests.get(page.id);
       const identity = this.persistence?.identity(page, samples);
@@ -373,6 +394,7 @@ export class ShadowCorridorPresentation {
           bytes,
           restored: true,
           persistentKey: key,
+          persistentIdentity: record.identity,
           revision: current.page.contentKey ?? current.page.revision,
           presentationKey:
             current.page.presentationKey ??
@@ -752,8 +774,8 @@ export class ShadowCorridorPresentation {
     const capture = this.captures.get(page.id);
     // Recompute validity is deliberately stricter than display continuity.
     // A drag-end LOD/sample change must not hide a finished corridor while its
-    // replacement is integrating. Depth reprojection still rejects disoccluded
-    // or changed receiver surfaces; a different sun must never reuse this mask.
+    // replacement is integrating. Reuse the baked world-projected visibility
+    // without observer-depth rejection; a different sun must never reuse it.
     // Decision: three/TILED_SHADOW_PAGES.md, RETAINED-VISIBILITY-20260907.
     if (
       !capture ||
@@ -763,6 +785,20 @@ export class ShadowCorridorPresentation {
       return false;
     if (capture.restored) {
       const identity = this.persistence?.identity(page, capture.samples);
+      const stored = capture.persistentIdentity;
+      if (page.captureSize && stored) {
+        // Resolution is demand, not physical content. A restored finer mask
+        // remains valid after zoom-out; all persisted content identities remain
+        // checked before accepting it for the current source and solar state.
+        return Boolean(
+          identity &&
+            identity.source === stored.source &&
+            identity.dateTime === stored.dateTime &&
+            identity.corridor === stored.corridor &&
+            identity.geometryFingerprint === stored.geometryFingerprint &&
+            identity.samples === stored.samples
+        );
+      }
       if (
         !identity ||
         shadowCorridorCacheKey(identity) !== capture.persistentKey
@@ -786,7 +822,6 @@ export class ShadowCorridorPresentation {
     this.uniforms.carmaRetainedCrop.value.copy(capture.crop);
     this.uniforms.carmaRetainedColor.value = capture.visibility;
     this.uniforms.carmaRetainedDepth.value = capture.depth;
-    this.uniforms.carmaRetainedSize.value.set(capture.width, capture.height);
     this.matchingPages += 1;
     this.replayCount += 1;
     this.uniforms.carmaRetainedCount.value = 1;
@@ -897,7 +932,6 @@ uniform bool carmaCaptureVisibility;
 uniform sampler2D carmaRetainedColor;
 uniform sampler2D carmaRetainedDepth;
 uniform vec4 carmaRetainedCrop;
-uniform vec2 carmaRetainedSize;
 uniform int carmaRetainedCount;
 uniform vec4 carmaRetainedBounds[${MAX_PAGES}];
 varying vec4 vCarmaRetainedClip;
@@ -906,8 +940,6 @@ float carmaRetainedCoverage(float fallbackCoverage) {
   vec3 ndc = vCarmaRetainedClip.xyz / vCarmaRetainedClip.w;
   vec2 uv = ndc.xy * 0.5 + 0.5;
   uv = (uv - carmaRetainedCrop.xy) / carmaRetainedCrop.zw;
-  vec3 q = vec3(uv, ndc.z * 0.5 + 0.5);
-  vec3 dx = dFdx(q), dy = dFdy(q);
   if (!carmaRetainedEnabled || carmaCaptureVisibility || vCarmaRetainedClip.w <= 0.0) return fallbackCoverage;
   bool owned = false;
   for (int i = 0; i < ${MAX_PAGES}; i++) {
@@ -918,13 +950,11 @@ float carmaRetainedCoverage(float fallbackCoverage) {
   }
   if (owned && all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)))) {
     float depth = texture2D(carmaRetainedDepth, uv).r;
-    // Compare at the sampled texel centre, not at a different point on a slope.
-    // This is receiver-plane depth reprojection, not a widened disocclusion bias.
-    float det = dx.x * dy.y - dx.y * dy.x;
-    vec2 dz = abs(det) > 1e-20 ? vec2(dx.z * dy.y - dy.z * dx.y, dx.x * dy.z - dy.x * dx.z) / det : vec2(0.0);
-    vec2 centre = (floor(uv * carmaRetainedSize) + 0.5) / carmaRetainedSize;
-    float expectedDepth = q.z + dot(dz, centre - uv);
-    if (depth < 1.0 && abs(depth - expectedDepth) <= 0.000001) {
+    // Depth is only a capture-coverage marker. Per-fragment depth matching
+    // rejected valid triangle-edge samples and exposed hard-shadow patches.
+    // Baked visibility intentionally survives observer motion; see
+    // BAKED-VISIBILITY-20260909 in three/TILED_SHADOW_PAGES.md.
+    if (depth < 1.0) {
       return texture2D(carmaRetainedColor, uv).r;
     }
   }
@@ -950,7 +980,7 @@ float carmaRetainedCoverage(float fallbackCoverage) {
         );
     };
     const retainedKey = () =>
-      `${key.call(material)}|retained-corridor-visibility-v3`;
+      `${key.call(material)}|retained-corridor-visibility-v4`;
     material.onBeforeCompile = retainedCompile;
     material.customProgramCacheKey = retainedKey;
     material.needsUpdate = true;

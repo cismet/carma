@@ -2299,6 +2299,7 @@ export const buildShadowSimulationScene = (
 
   const handleMoveStart = () => {
     idleTerrainPrefetch.cancel();
+    tiledScene?.cancelPending();
     shadowFrameBudget = updateShadowFrameBudget(
       shadowFrameBudget,
       performance.now(),
@@ -2570,6 +2571,7 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition?.instant.getTime() === position.instant.getTime()) {
       return;
     }
+    tiledScene?.cancelPending();
     invalidateShadowPresentation();
     latestSolarPosition = position;
     updateSharedShadowCoverage();

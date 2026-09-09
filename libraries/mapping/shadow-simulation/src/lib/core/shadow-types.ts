@@ -16,6 +16,7 @@ export type ShadowQualityMultiplier =
   (typeof SHADOW_QUALITY)[keyof typeof SHADOW_QUALITY];
 export type MeshErrorTargetPixels = 0.25 | 1 | 4;
 export const SHADOW_MSAA_MAX = "max" as const;
+export const DEFAULT_SHADOW_SUN_DISC_SAMPLES = 64;
 export const SHADOW_MSAA_OPTIONS = [0, 2, 4, 8, SHADOW_MSAA_MAX] as const;
 export type ShadowMsaaSamples = (typeof SHADOW_MSAA_OPTIONS)[number];
 
@@ -31,7 +32,7 @@ export const SHADOW_QUALITY_PROFILES = {
     terrainTileLimit: 96,
     terrainSegments: 128,
     meshErrorPixels: 4,
-    sunSamples: 128,
+    sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: 0,
   },
   [SHADOW_QUALITY.FPS_60]: {
@@ -42,7 +43,7 @@ export const SHADOW_QUALITY_PROFILES = {
     terrainTileLimit: 144,
     terrainSegments: 256,
     meshErrorPixels: 1,
-    sunSamples: 256,
+    sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: 2,
   },
   [SHADOW_QUALITY.FPS_30]: {
@@ -53,7 +54,7 @@ export const SHADOW_QUALITY_PROFILES = {
     terrainTileLimit: 192,
     terrainSegments: 512,
     meshErrorPixels: 1,
-    sunSamples: 512,
+    sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: 4,
   },
   [SHADOW_QUALITY.ULTRA]: {
@@ -64,7 +65,7 @@ export const SHADOW_QUALITY_PROFILES = {
     terrainTileLimit: 256,
     terrainSegments: 512,
     meshErrorPixels: 0.25,
-    sunSamples: 8192,
+    sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: SHADOW_MSAA_MAX,
   },
 } as const;

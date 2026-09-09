@@ -109,7 +109,12 @@ describe("three tiles runtime liveness", () => {
     const child = buildTile("outside.b3dm");
     for (const tile of [parent, metadata, child]) {
       Object.assign(tile.engineData, {
-        boundingVolume: { distanceToPoint: () => 1 },
+        // Main-view membership now uses the native bound/frustum predicate,
+        // not calculateTileViewError (which also includes shadow cameras).
+        boundingVolume: {
+          distanceToPoint: () => 1,
+          intersectsFrustum: () => tile !== child,
+        },
       });
       Object.assign(tile.traversal, { error: 300 });
     }

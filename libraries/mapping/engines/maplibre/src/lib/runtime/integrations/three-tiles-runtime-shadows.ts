@@ -19,7 +19,7 @@ import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
-import type { RuntimeTile } from "./three-tiles-runtime-types";
+import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
 
 /** shadows responsibility of the shared 3D Tiles runtime. */
 export function createThreeTilesShadows(
@@ -267,6 +267,21 @@ export function createThreeTilesShadows(
             runtimeState.shadowRegionWorldBounds.set(tile, cachedBounds);
           }
           let intersects = cachedBounds.worldBounds.intersectsBox(bounds);
+          if (intersects && runtimeState.shadowReceiverMask) {
+            // Regional receiver AABBs are only a query envelope. They must not
+            // invent demand outside the native-volume union used by loading.
+            readOrientedTileBounds(
+              volume,
+              runtimeState.tileBoundingBox,
+              runtimeState.tileBoundsTransform
+            );
+            intersects = runtimeState.shadowReceiverMask.match(
+              runtimeState.tileBoundingBox,
+              runtimeState.shadowReceiverMatch,
+              runtimeState.tileBoundsTransform,
+              { key: tile, parent: tile.parent ?? undefined }
+            );
+          }
           if (intersects) {
             broadPhaseNodes += 1;
             if (
@@ -570,11 +585,15 @@ export function createThreeTilesShadows(
       );
       maybeEnableShadowSelection();
 
-      // Pass 2 is the loaded cut selected by the same upstream traversal after
-      // the receiver mask extended its `inView` result into the sunward union.
+      // Upstream visibleTiles can withhold an already decoded caster behind
+      // unrelated REPLACE siblings. Membership comes from resident metadata;
+      // the local family refinement below still prevents parent/child hybrids.
       // A tile may be both a receiver and a caster; Set union keeps it once.
+      const residentTiles =
+        (runtimeState.tiles.lruCache as RuntimeLruCache | undefined)?.itemList ??
+        [];
       const proposed = new Set(
-        [...new Set([...traversalTiles, ...previousCasters])].filter((tile) => {
+        [...new Set([...traversalTiles, ...previousCasters, ...residentTiles])].filter((tile) => {
           const runtimeTile = tile as RuntimeTile;
           // The receiver cut exclusively owns observer-visible coverage.
           // Re-introducing upstream's partial parent/child traversal here made
@@ -630,7 +649,8 @@ export function createThreeTilesShadows(
             runtimeState.tileBoundsTransform,
             { key: tile, parent: tile.parent ?? undefined }
           );
-        }
+        },
+        (tile) => dependencies.getTileScreenError(tile as RuntimeTile)
       );
       // The main-camera receiver frontier still owns its own atomic families.
       for (const tile of casterCut) {

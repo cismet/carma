@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ShadowReceiverMask } from "../../core/shadow-receiver-mask";
 import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
 import { createThreeTilesShadows } from "./three-tiles-runtime-shadows";
-import type { RuntimeTilesRenderer } from "./three-tiles-runtime-types";
+import type { RuntimeLruCache, RuntimeTilesRenderer } from "./three-tiles-runtime-types";
 import type { SharedThreeShadowRegionDiagnostics } from "./shared-three-scene-layer";
 
 vi.hoisted(() => {
@@ -121,9 +121,12 @@ describe("mesh caster publication", () => {
     onContentChanged.mockClear();
     chimney.internal.loadingState = 4;
     Object.assign(chimney, { shadowReceiverCurrent: true });
+    // Decode completion is enough: upstream may still withhold this caster
+    // from visibleTiles behind unrelated sibling payloads.
+    state.tiles.lruCache = { itemList: [chimney] } as RuntimeLruCache;
     api.advanceMeshShadowCorridors(
       new Set([receiver, otherChild]),
-      new Set([receiver, chimney, otherChild])
+      new Set([receiver, otherChild])
     );
     expect(state.committedMeshReceiverFrontier).toEqual(
       new Set([receiver, otherChild])

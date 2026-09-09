@@ -110,6 +110,7 @@ describe("Geoportal tiled scene adapter", () => {
       pageProgress: [{ id: "64:1:0", samples: 5, totalSamples: 16 }],
       memoryBytes: 1024,
       fallbackReason: null,
+      cancelPending: vi.fn(),
       presentation: {
         revision: 0,
         supportsCapture: true,
@@ -160,6 +161,19 @@ describe("Geoportal tiled scene adapter", () => {
       2 * 2048 ** 2 * 8,
       2048
     );
+  });
+
+  it("keeps the page-light pass for idle presentation of a retained mask", () => {
+    const f = fixture();
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    f.pages.renderPageSample.mockImplementation(() => {
+      expect(f.light.visible).toBe(false);
+      return true;
+    });
+    expect(f.adapter.render(new THREE.Camera(), null, 64)).toBe(true);
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageColor).not.toHaveBeenCalled();
+    expect(f.light.visible).toBe(true);
   });
 
   it("replays retained masks during motion without recapturing corridor depths", () => {
@@ -235,7 +249,7 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.renderProgressive(camera, frame);
     expect(f.accumulation.render).toHaveBeenCalledTimes(2);
     expect(f.accumulation.render.mock.calls[0][2]).toMatchObject({
-      maxPagesPerFrame: 4,
+      maxPagesPerFrame: 64,
       maxFrameCpuMilliseconds: 2,
     });
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
@@ -296,7 +310,7 @@ describe("Geoportal tiled scene adapter", () => {
     ).toBeLessThan(f.accumulation.renderHard.mock.invocationCallOrder.at(-1)!);
   });
 
-  it("shows the available hard stage while final corridor readiness is pending", () => {
+  it("does not expose an unshadowed receiver when no complete corridor stage is available", () => {
     const ready = vi.fn(() => false);
     const f = fixture({ isCorridorReady: ready });
     f.accumulation.render.mockReturnValue({
@@ -314,7 +328,7 @@ describe("Geoportal tiled scene adapter", () => {
     };
     const camera = new THREE.Camera();
     f.adapter.renderProgressive(camera, frame);
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
     expect(f.accumulation.render.mock.calls[0][2].isPageReady("64:1:0")).toBe(
       false
     );
@@ -359,13 +373,13 @@ describe("Geoportal tiled scene adapter", () => {
     expect(onPresentedPages).not.toHaveBeenCalled();
   });
 
-  it("does not hide available receivers behind a hard-stage corridor gate", () => {
+  it("withholds a newly visible receiver until its current-LOD caster corridor is ready", () => {
     const ready = vi.fn(() => false);
     const f = fixture({ isCorridorReady: ready, receiverStageError: () => 16 });
     f.adapter.render(new THREE.Camera(), null, 128);
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
     const hardFrame = f.accumulation.renderHard.mock.calls[0][2];
-    expect(hardFrame.isPageReady("64:1:0")).toBe(true);
+    expect(hardFrame.isPageReady("64:1:0")).toBe(false);
     ready.mockReturnValue(true);
     f.adapter.render(new THREE.Camera(), null, 128);
     expect(f.pages.renderPageSample).toHaveBeenCalledWith(
@@ -374,7 +388,11 @@ describe("Geoportal tiled scene adapter", () => {
       0,
       1
     );
-    expect(ready).not.toHaveBeenCalled();
+    expect(ready).toHaveBeenLastCalledWith(
+      expect.any(THREE.Box3),
+      16,
+      expect.any(THREE.Box3)
+    );
   });
 
   it("gates final sun-disc readiness separately from committed coarse hard stages", () => {
@@ -412,11 +430,11 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
     expect(
       f.accumulation.renderHard.mock.calls[0][2].isPageReady("64:1:0")
-    ).toBe(true);
+    ).toBe(false);
     f.accumulation.presentation.canReplay.mockReturnValue(false);
     f.pages.renderPageSample.mockClear();
     f.adapter.render(new THREE.Camera(), null, 128);
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
   });
 
   it("does not declare an empty initial committed cut settled or request an empty render loop", () => {

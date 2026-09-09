@@ -124,6 +124,10 @@ export class ShadowReceiverAccumulator {
       )
     );
     const desired = renderer.accumulationPages.map((page) => {
+      // The baked projection belongs to this receiver, not to a later camera
+      // rotation. Keep its orientation even when a larger allocation is needed.
+      const previous = this.plans.get(page.id);
+      const captureOrientation = previous?.plan.camera.quaternion ?? orientation;
       const options = {
         groundTexelTargetMeters: page.groundTexelTargetMeters ?? 1,
         maximumDimension: this.renderer.capabilities.maxTextureSize,
@@ -132,14 +136,17 @@ export class ShadowReceiverAccumulator {
       const inputs = JSON.stringify([
         page.receiverBounds.min,
         page.receiverBounds.max,
-        orientation.toArray(),
+        captureOrientation.toArray(),
         options,
       ]);
-      const previous = this.plans.get(page.id);
       const plan =
         previous?.inputs === inputs
           ? previous.plan
-          : fitShadowReceiverCapture(page.receiverBounds, orientation, options);
+          : fitShadowReceiverCapture(
+              page.receiverBounds,
+              captureOrientation,
+              options
+            );
       this.plans.set(page.id, { inputs, plan });
       plan.camera.layers.mask = observer.layers.mask;
       return { page, plan };
@@ -166,10 +173,11 @@ export class ShadowReceiverAccumulator {
           ...page,
           ready,
           captureKey: JSON.stringify([
-            orientation.toArray(),
+            plan.camera.quaternion.toArray(),
             plan.width,
             plan.height,
           ]),
+          captureSize: { width: plan.width, height: plan.height },
           contentKey,
           revision: contentKey,
           screenBounds: new THREE.Vector4(0, 0, 1, 1),
@@ -410,8 +418,15 @@ export class ShadowReceiverAccumulator {
       return old ? (old.width * old.height - plan.width * plan.height) * 8 : 0;
     };
     const pending = this.captures.filter(({ page, plan, ready }) => {
-      if (!ready || this.presentation.hasAtLeast(page, 1)) return false;
+      if (!ready) return false;
       const old = existingSizes.get(page.id);
+      if (
+        this.presentation.hasAtLeast(page, 1) &&
+        (!needsRebalance ||
+          !old ||
+          old.width * old.height <= plan.width * plan.height)
+      )
+        return false;
       // Keep a finer soft mask while its new layout integrates. Only actual
       // pressure justifies replacing it with a smaller hard publication.
       return !(
@@ -496,6 +511,16 @@ export class ShadowReceiverAccumulator {
       target.depthTexture?.dispose();
       target.dispose();
     }
+  }
+
+  /** Cancel unpublished integration only; completed world-space masks survive
+   * dragging. The next settled view rebuilds demand from visible receivers.
+   */
+  cancelPending() {
+    if (this.activeId !== null) this.scratch.releaseScratch();
+    this.activeId = null;
+    this.publicationRetries.clear();
+    this.restoreOpportunities.clear();
   }
 
   dispose() {

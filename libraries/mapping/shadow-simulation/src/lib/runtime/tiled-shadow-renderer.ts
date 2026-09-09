@@ -131,6 +131,8 @@ export type ShadowAccumulationPage = Readonly<{
   groundTexelTargetMeters?: number;
   /** Source-relative capture orientation/allocation, excluding scene origin. */
   captureKey?: string;
+  /** Full receiver capture demand, independent of the observer's viewport. */
+  captureSize?: Readonly<{ width: number; height: number }>;
   /** False blocks refinement only, never first-fill or retained presentation. */
   ready?: boolean;
 }>;

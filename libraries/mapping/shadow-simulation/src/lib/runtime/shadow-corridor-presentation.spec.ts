@@ -78,6 +78,26 @@ const fixture = () => {
 };
 
 describe("completed corridor presentation", () => {
+  it("reuses a baked receiver at equal or smaller demand, but refines larger buffers", () => {
+    const f = fixture();
+    const page: ShadowAccumulationPage = {
+      ...f.pages[0],
+      presentationKey: "same-tile-lod-and-sun",
+      captureSize: { width: 32, height: 32 },
+    };
+    expect(f.presentation.publish(f.color, f.reference, f.camera, page, 64)).toBe(true);
+    const moved = { ...page, contentKey: "camera-or-traversal-changed" };
+    expect(f.presentation.has(moved, 64)).toBe(true);
+    expect(f.presentation.has({ ...moved, captureSize: { width: 16, height: 16 } }, 64)).toBe(true);
+    const finer = { ...moved, captureSize: { width: 64, height: 32 } };
+    expect(f.presentation.has(finer, 64)).toBe(false);
+    expect(f.presentation.canReplay(finer)).toBe(true);
+    expect(f.presentation.has({ ...moved, presentationKey: "different-sun" }, 64)).toBe(false);
+    expect(f.presentation.has({ ...moved, id: "different-mesh-lod" }, 64)).toBe(false);
+    expect(f.presentation.has(moved, 128)).toBe(false);
+    f.presentation.dispose();
+  });
+
   it.each(["basic", "instanced", "skinned", "transparent"])(
     "rejects visible unsupported %s receivers instead of capturing albedo as visibility",
     (kind) => {
@@ -235,7 +255,12 @@ describe("completed corridor presentation", () => {
       expect(shader.vertexShader).toContain(
         "modelMatrix * vec4(transformed, 1.0)"
       );
-      expect(shader.fragmentShader).toContain("abs(depth - expectedDepth)");
+      expect(shader.fragmentShader).not.toContain("expectedDepth");
+      expect(shader.fragmentShader).not.toContain("dFdx(q)");
+      expect(shader.fragmentShader).toContain("if (depth < 1.0)");
+      expect(shader.fragmentShader).toContain(
+        "return texture2D(carmaRetainedColor, uv).r;"
+      );
     });
     expect(uniforms.carmaRetainedEnabled.value).toBe(false);
     expect(f.presentation.stats).toMatchObject({
@@ -517,6 +542,31 @@ const settlePersistence = async () => {
 };
 
 describe("persistent corridor GPU integration", () => {
+  it("reuses restored finer masks after a demand change while still checking source geometry", async () => {
+    const f = persistentFixture();
+    const page: ShadowAccumulationPage = {
+      ...f.pages[0],
+      presentationKey: "stable-receiver-sun",
+      captureSize: { width: 32, height: 32 },
+    };
+    f.presentation.prepareRestore(page, 128, f.captureMatrix);
+    await settlePersistence();
+    f.context.identity.mockImplementation((_page, samples) => ({
+      ...f.identity,
+      resolution: "smaller-demand",
+      samples,
+    }));
+    expect(f.presentation.has({ ...page, captureSize: { width: 16, height: 16 } }, 128)).toBe(true);
+    expect(f.presentation.has({ ...page, captureSize: { width: 64, height: 64 } }, 128)).toBe(false);
+    f.context.identity.mockImplementation((_page, samples) => ({
+      ...f.identity,
+      geometryFingerprint: "changed-source-geometry",
+      samples,
+    }));
+    expect(f.presentation.has(page, 128)).toBe(false);
+    f.presentation.dispose();
+  });
+
   it("only offers restored replay while its persistent source identity is current", async () => {
     const f = persistentFixture();
     expect(f.presentation.canReplay(f.pages[0])).toBe(false);

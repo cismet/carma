@@ -27,10 +27,10 @@ describe("shadow render quality", () => {
   });
 
   it.each([
-    [4, 128, 0],
-    [16, 256, 2],
-    [64, 512, 4],
-    [256, 8192, "max"],
+    [4, 64, 0],
+    [16, 64, 2],
+    [64, 64, 4],
+    [256, 64, "max"],
   ] as const)(
     "uses hybrid HDR and the validated sample budget for quality %s",
     (quality, samples, msaa) => {

@@ -9,6 +9,26 @@ const LOADED = 4;
 const isLoadedMesh = (tile: Tile): boolean =>
   tile.internal?.hasRenderableContent && tile.internal.loadingState === LOADED;
 
+/** Loaded external JSON is a routing volume, not missing display geometry.
+ * Its loose box must not keep a finished view waiting when all real children
+ * miss the camera. The caller treats unknown bounds as intersecting.
+ */
+export const hasMeshRefinementContentInView = (
+  tile: Tile,
+  inView: (tile: Tile) => boolean
+): boolean => {
+  if (!inView(tile)) return false;
+  if (
+    !tile.internal?.hasUnrenderableContent ||
+    tile.internal.loadingState !== LOADED ||
+    !tile.children?.length
+  )
+    return true;
+  return tile.children.some((child) =>
+    hasMeshRefinementContentInView(child, inView)
+  );
+};
+
 /** Upstream sets this flag in core/renderer/tiles/traverseFunctions.js, but its
  * TileTraversalData declaration omits it. Keep the verified runtime adapter
  * here rather than widening the upstream Tile type or bypassing type checks.
@@ -345,13 +365,14 @@ const ancestors = function* (tile: Tile): Generator<Tile> {
 export const refineLoadedMeshFrontier = (
   proposed: ReadonlySet<Tile>,
   requestedError: number,
-  inView: (tile: Tile) => boolean
+  inView: (tile: Tile) => boolean,
+  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error
 ): Set<Tile> => {
   const select = (tile: Tile): Tile[] | null => {
     if (!tile.internal || !tile.traversal) return null;
     const fallback = isLoadedMesh(tile) ? [tile] : null;
     if (tile.refine !== "REPLACE") return null;
-    if (fallback && tile.traversal.error <= requestedError) return fallback;
+    if (fallback && errorPixels(tile) <= requestedError) return fallback;
     if (
       tile.internal.hasUnrenderableContent &&
       tile.internal.loadingState !== LOADED
@@ -360,7 +381,11 @@ export const refineLoadedMeshFrontier = (
     const children = (tile.children ?? []).filter(
       (child) => !child.traversal || inView(child)
     );
-    if (children.length === 0) return fallback;
+    // A loose parent volume may hit the corridor while every known child
+    // misses it. That is complete empty coverage, not a reason to retain a
+    // coarse caster indefinitely. Unknown child traversal remains above.
+    if (children.length === 0)
+      return (tile.children?.length ?? 0) > 0 ? [] : fallback;
     const selected: Tile[] = [];
     for (const child of children) {
       const cut = select(child);

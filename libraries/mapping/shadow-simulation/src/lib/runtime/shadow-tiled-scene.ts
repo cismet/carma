@@ -275,10 +275,9 @@ export class ShadowTiledScene {
           ...frame,
           visibilityOnly: true,
           // Bounded submissions, then yield to the browser. Do not insert a
-          // fixed sleep between samples: 512 samples at 50 ms already impose
-          // 25.6 seconds per corridor before accounting for any actual work.
+          // fixed sleep between samples or an additional four-submit ceiling.
           // A single draw cannot be preempted by this CPU submission budget.
-          maxPagesPerFrame: 4,
+          maxPagesPerFrame: Math.min(frame.samples, 64),
           maxFrameCpuMilliseconds: 2,
           isPageReady: (id) => this.isPageReady(id, false),
         })
@@ -315,19 +314,26 @@ export class ShadowTiledScene {
     return true;
   }
 
+  cancelPending() {
+    this.accumulation.cancelPending();
+    if (this.hardRetryTimer !== null) {
+      globalThis.clearTimeout(this.hardRetryTimer);
+      this.hardRetryTimer = null;
+    }
+    this.accumulationSettled = false;
+  }
+
   private isPageReady(id: string, hard: boolean) {
     const geometry = this.pages.getPageGeometry(id);
     if (!geometry) return false;
-    // The hard pass is the immediate, current-state presentation. It must not
-    // hide an already loaded receiver while its sunward caster corridor is
-    // still streaming. Finite-sun accumulation remains gated below so a soft
-    // result is only published from a complete, revision-stable corridor.
-    if (hard) return true;
+    // New receivers need their sunward casters at the current LOD before their
+    // first hard draw, including after motion. Only the soft pass waits for
+    // final error. Existing captures remain replayable while a new stage loads.
     return (
       !this.host.isCorridorReady ||
       this.host.isCorridorReady(
         geometry.casterBounds,
-        undefined,
+        hard ? this.host.receiverStageError?.(geometry.receiverBounds) : undefined,
         geometry.receiverBounds
       )
     );
@@ -401,6 +407,9 @@ export class ShadowTiledScene {
             this.presentedPageIds.add(page.id);
             continue;
           }
+          // Colour-only replay requires the common hard-light fallback rendered
+          // above. Idle presentation must retain its page-light pass; a stored
+          // mask alone does not establish that fallback. See REPLAY-20260909.
           const rendered = this.accumulation.presentation.render(
             this.scene,
             page,

@@ -5,6 +5,7 @@ import { receiverMatchedTileError } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneTileVolume } from "./shared-three-scene-layer";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
+import { hasMeshRefinementContentInView } from "./three-tiles-mesh-frontier";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -230,7 +231,12 @@ export function createThreeTilesSpatial(
         if (
           children.every(
             (child) =>
-              child.engineData?.boundingVolume && !isTileInMainView(child)
+              !hasMeshRefinementContentInView(
+                child,
+                (candidate) =>
+                  !(candidate as RuntimeTile).engineData?.boundingVolume ||
+                  isTileInMainView(candidate as RuntimeTile)
+              )
           )
         )
           continue;

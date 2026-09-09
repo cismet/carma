@@ -229,6 +229,22 @@ beforeEach(() => {
 });
 
 describe("independent full-receiver accumulation", () => {
+  it("cancels unfinished work but reuses completed receiver masks", () => {
+    const f = fixture();
+    f.pages.accumulationPages.push(f.page("b"));
+    for (let i = 0; i < f.frame.samples; i++)
+      f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.pageProgress.find(p => p.id === "a")?.published).toBe(true);
+    f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.pageProgress.find(p => p.id === "b")?.samples).toBe(1);
+    f.accumulator.cancelPending();
+    expect(f.accumulator.pageProgress.find(p => p.id === "a")?.published).toBe(true);
+    expect(f.accumulator.pageProgress.find(p => p.id === "b")?.samples).toBe(0);
+    f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.pageProgress.find(p => p.id === "b")?.samples).toBe(1);
+    expect(state.publications.filter(p => p.id === "a")).toHaveLength(1);
+  });
+
   it("admits all nine large pages by shrinking old pinned captures before adding the ninth", () => {
     const f = fixture();
     f.pages.accumulationPages = Array.from({ length: 8 }, (_, i) => ({
@@ -298,6 +314,18 @@ describe("independent full-receiver accumulation", () => {
     ).toBe(0);
     expect(state.capturedSizes.get("a")).toEqual(old);
     expect(state.publications).toHaveLength(1);
+  });
+
+  it("keeps the receiver capture projection stable after observer rotation", () => {
+    const f = fixture();
+    for (let i = 0; i < 3; i++) f.accumulator.render(f.observer, f.pages, f.frame);
+    const originalKey = f.accumulator.capturePages[0].captureKey;
+    const publications = state.publications.length;
+    f.observer.rotateY(0.4);
+    f.observer.updateMatrixWorld(true);
+    f.accumulator.render(f.observer, f.pages, { ...f.frame, viewKey: "rotated" });
+    expect(f.accumulator.capturePages[0].captureKey).toBe(originalKey);
+    expect(state.publications).toHaveLength(publications);
   });
 
   it("retains completed scratch for transient retries but yields after repeated publication failures", () => {
@@ -502,14 +530,14 @@ describe("independent full-receiver accumulation", () => {
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
   });
 
-  it("does not claim a changed capture direction is already complete", () => {
+  it("keeps capture direction on rotation without mistaking a hard mask for a finished soft mask", () => {
     const f = fixture();
     f.accumulator.render(f.observer, f.pages, { ...f.frame, samples: 1 });
     const original = f.accumulator.capturePages[0].captureKey;
     f.observer.rotation.y += 0.2;
     f.observer.updateMatrixWorld(true);
     f.accumulator.render(f.observer, f.pages, f.frame);
-    expect(f.accumulator.capturePages[0].captureKey).not.toBe(original);
+    expect(f.accumulator.capturePages[0].captureKey).toBe(original);
     expect(f.accumulator.pageProgress[0].published).toBe(false);
   });
 

@@ -10,10 +10,14 @@ count, MSAA and Three terrain/mesh detail change. The MapLibre DEM remains pinne
 
 | Profile | Depth texel budget at 1440p | Three terrain target / grid ceiling / tile ceiling | Sun samples / MSAA |
 | --- | --- | --- | --- |
-| 120 FPS | 2048² | 2 px / 128² cells / 96 | 128 / 0 |
-| 60 FPS | 3072² | 1 px / 256² cells / 144 | 256 / 2 |
-| 30 FPS | 4096² | 0.5 px / 512² cells / 192 | 512 / 4 |
-| Ultra | Requested 16384², clipped by existing device caps | 0.25 px / source grid, at most 512² cells / 256 | 8192 / format-supported maximum |
+| 120 FPS | 2048² | 2 px / 128² cells / 96 | 64 / 0 |
+| 60 FPS | 3072² | 1 px / 256² cells / 144 | 64 / 2 |
+| 30 FPS | 4096² | 0.5 px / 512² cells / 192 | 64 / 4 |
+| Ultra | Requested 16384², clipped by existing device caps | 0.25 px / source grid, at most 512² cells / 256 | 64 / format-supported maximum |
+
+As of 2026-09-09 all automatic profiles use 64 solar-disc samples by explicit
+request. Advanced sample overrides remain available. Earlier benchmark sample
+counts below describe their original workloads, not current automatic defaults.
 
 Budgets scale with physical viewport area; ground-texel fitting may choose a
 rectangular depth map. Explicit source limits remain authoritative. Targets are

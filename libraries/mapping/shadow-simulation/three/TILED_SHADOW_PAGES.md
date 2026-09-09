@@ -643,6 +643,154 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
 45/77 passed regional readiness. Full soft coverage is still unresolved; the
 <10 s result above concerns the visible hard chimney shadows only.
 
+## SOFT-BASELINE-20260909 — receiver roles and stalled convergence
+
+### BAKED-LOD-REUSE-20260909 — separate buffer demand from baked visibility
+
+- **Cause:** observer rotation changed the receiver capture key; any allocation
+  change and traversal revision required another integration despite compatible
+  baked visibility being available.
+- **Decision:** preserve the receiver capture orientation across camera updates.
+  A full-receiver soft capture with compatible receiver/solar presentation identity
+  and sufficient samples satisfies equal or smaller buffer demand. Larger demand
+  continues replaying the old capture while scheduling the finer replacement.
+  Hard captures retain exact revision checks while caster LOD improves.
+- **Persistence:** restored captures compare source, date/time, corridor, geometry
+  fingerprint and samples independently of resolution demand. No cache format
+  change. This permits reuse of a finer capture already restored; it does not add
+  a cross-resolution persistent-cache index.
+- **Alternatives:** observer-oriented recapture on every rotation is unnecessary
+  under the accepted baked-projection contract. Keep the finer allocation instead
+  of copying to a smaller texture when it fits the budget: no extra GPU copy or
+  sample integration. Under actual memory pressure the existing hard replacement
+  path still applies; downsample-only budget reclamation remains open. Different
+  mesh parent/child IDs do not yet inherit each other's captures.
+- **Validation:** 51 focused presentation/accumulator tests pass, including rotation,
+  equal/smaller/larger demand, sample increases, solar identity and restored geometry
+  identity. No new live drag benchmark or end-to-end speedup claim. Main framebuffer
+  resolution, disc sample count and receiver-depth guard removal are unchanged.
+
+### HARD-STAGE-ADMISSION-20260909 — post-motion receivers need their casters
+
+- **Cause:** `isPageReady(id, true)` returned true unconditionally, a diagnostic
+  bypass that let new receivers draw hard shadows with incomplete caster sets.
+- **Decision:** hard capture and first page draw now require regional readiness
+  at `receiverStageError(receiverBounds)`. Soft integration still requires final
+  readiness. Do not gate a coarse complete corridor on final SSE or on siblings.
+  Compatible baked captures bypass only presentation waiting, not new capture
+  readiness, and remain displayed while replacement caster content arrives.
+- **Scope/validation:** focused adapter tests cover rejection without casters,
+  coarse hard versus final soft readiness, and continued compatible replay.
+  This does not restore the unused runtime stage-gate API or change bootstrap
+  preview, mesh selection, buffer precision or baking policy. Existing source
+  bootstrap is latched and does not re-enable on a later drag. Browser drag
+  validation of all LOD-family retention paths remains separate.
+
+### BAKED-VISIBILITY-20260909 — retain baked masks without depth matching
+
+- **Decision:** user confirmed that bypassing receiver-depth matching removed
+  the hard fragments and explicitly accepted world-projected mask reuse for the
+  handled geometries. Remove the mismatch test and its derivative/texel-plane
+  arithmetic permanently. Keep receiver bounds, UV bounds, captured coverage
+  (`depth < 1`), solar identity and existing cache/revision checks.
+- **Replaces:** the receiver-plane rejection in RETAINED-VISIBILITY. That check
+  fell back to hard shadows within otherwise soft areas. Frustum-culling and
+  receiveShadow-role rollbacks did not resolve the reported fragments.
+- **Tradeoff:** no per-pixel same-surface/disocclusion validation is promised.
+  This is explicitly accepted for this viewer; do not reintroduce that guard or
+  a replacement surface-classification system without a new requirement.
+- **Scope:** camera movement retains the existing baked capture. This change
+  does not alter integration scheduling, sample counts, publication cadence or
+  geometry revision policy. The user reports faster rendering; no timed speedup
+  is claimed. Capture data format is unchanged; shader program key advances to v4.
+
+### TERRAIN-BIAS-20260909 — keep mesh contact limits off raster terrain
+
+- **Rollback:** reverted at user request for stepwise visual comparison. The
+  findings and prior test evidence below describe the experiment, not active code.
+
+- **Cause:** the Geoportal tiled host returned the 1 cm mesh contact limit when
+  `resolveMeshReceiverBiasLimit` returned undefined for raster terrain. This
+  truncated both existing texel-sized depth and sun-angle-dependent normal bias.
+- **Decision:** allow the per-receiver callback to return undefined explicitly.
+  Raster terrain keeps the controller's existing footprint bias; mesh contact
+  and progressive mesh SSE limits are unchanged. No extra blur or sampling cost.
+- **Validation:** 94 controller/tiled-renderer tests pass, including mesh-cap →
+  uncapped terrain → mesh-cap transitions. Playwright terrain-only view at
+  51.2976909, 7.0273392, URL zoom18.08, bearing35, pitch55, shadow660;345:
+  confirmed raster runtime without Mesh2024, non-centimetre page bias and visible
+  cast shadows without widespread acne in the inspected final screenshot.
+  This is a spot check, not a universal grazing-angle/contact-error guarantee.
+- **Alternative:** do not increase the shared bias constants; their terrain
+  policy already existed and only the erroneous mesh fallback bypassed it.
+
+### REPLAY-20260909 — reject idle colour-only replay
+
+- **Status:** rejected optimization; original idle page-light rendering restored.
+- **Attempt:** use `renderPageColor` for every completed retained mask, including
+  idle frames, to avoid repeated page depth renders. This bypassed the common
+  hard-light fallback setup that only the motion replay path establishes.
+- **Evidence:** the exact Mesh2024 chimney view became blank despite 45/77 pages
+  reporting published. After rollback and reload the mesh and chimney shadows
+  were visible again. GPU readback of 25 resident capture middle rows found 12
+  with fractional visibility, including 64-sample captures. This proves those
+  buffers contain soft visibility, not that every page has converged. Five zero
+  rows alone do not prove empty tiles: they may be outside receiver coverage or
+  fully shadowed. Regional readiness remains 45/77 and needs a separate fix.
+- **Guard:** idle retained presentation must use the page-light pass; colour-only
+  motion replay remains allowed after the common fallback pass. A focused test
+  checks both the draw route and common-light visibility. Do not retry the idle
+  optimization without pixel-level coverage/fallback validation.
+- **Other measurement:** before this rejected change, one warm nearby-view mono
+  64-sample run at 2400 × 2286 took 1.539 s through the last offscreen draw and
+  0.906 s summed GPU queries. Geometry was already loaded. This is not a cold-load
+  benchmark, repeated result, or proof of equal tiled/mono ground-texel quality.
+
+- **Date/status:** 2026-09-09; implementation candidates, live comparison incomplete.
+- **Context/constraints:** same Mesh2024 chimney URL as MESH-BOOTSTRAP above;
+  native canvas resolution, offscreen casters retained, no extra soft integration
+  for caster-only tiles. All automatic profiles now use 64 samples by request.
+- **Decision:** explicitly assign `receiveShadow` only to the committed visible
+  receiver cut; payloads in the caster union retain `castShadow`. Remember roles
+  per payload/mesh so appearance refreshes preserve them and unchanged traversal
+  does not walk their meshes again. Enable native geometry-frustum culling for
+  terrain-providing meshes instead of submitting the entire union to each camera.
+  Loaded external JSON routing boxes are followed to their actual children when
+  deciding visible refinement readiness; unknown bounds still block readiness.
+  Cancel unfinished scratch integration on motion/time changes, keep completed
+  captures. Submit up to 64 samples per frame within the existing 2 ms CPU budget.
+- **Evidence:** single warm development reloads, Chrome on this M4 Max device;
+  CPU hooks, NOT GPU execution timings. Committed baseline first caster membership
+  6.49 s, demand drained 7.71 s. Resident-payload/metadata-cut candidate: first
+  caster membership 4.08 s, demand drained 8.34 s. Counts are NOT timestamps of a
+  verified correct chimney shadow. Candidate reached 45/77 regional ready pages;
+  the remaining regional completeness problem is not solved by these timings.
+  Tiled paths allocate 77 receiver pages for 53 visible mesh tiles in this view;
+  caster-only volumes are filtered before page creation. Page count is not mesh
+  count. Repeated page renders still traverse shared scene geometry.
+- **Single-buffer baseline attempt:** with loaded geometry, 53 viewport tiles,
+  141 caster tiles and request demand zero, `isMainViewReady()` was false.
+  During the 20 s observation, 44 renderer calls used only the default framebuffer
+  (156.7 ms summed CPU submission); NO soft accumulation target was rendered.
+  This is a readiness failure, not a successful fast benchmark. DevTools transport
+  closed when stopping the trace; no raw trace or validated screenshot was saved.
+  Do not quote a mono speedup, visual parity or a measured Friday regression factor.
+- **Alternatives/disposition:** whole-view 64-sample integration remains the
+  requested baseline, **not evaluated successfully**. It replaces up to 77 sets
+  of sample draws by one set, but a common buffer may have coarser ground texels;
+  draw-count ratios do not prove time or quality equivalence. More GPU-context
+  workers are **deferred**: they duplicate geometry and do not eliminate redundant
+  scene draws. No new flag duplicates the existing viewport/shadow load role.
+- **Verification/revisit:** focused role transitions, scratch cancellation,
+  profiles and routing-metadata readiness tests. The readiness fixture now mocks
+  the actual native `intersectsFrustum` contract; it still rejects unknown child
+  bounds. Four other liveness assertions failed; their baseline status has not
+  been established in this run. Reconnect browser,
+  verify culling visually, compare hard/64-sample screenshots and measure at least
+  three warmed mono/tiled runs at recorded depth dimensions before changing the
+  default strategy. Cache restores already in flight are not physically aborted
+  by scratch cancellation; do not describe this as cancellation of all I/O.
+
 ### Decision MESH-DRAG-REPLAY-20260909
 
 - **Scope:** keep completed corridor visibility masks during camera motion;
