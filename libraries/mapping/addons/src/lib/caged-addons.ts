@@ -97,11 +97,27 @@ export type UvCorrection = { u: number; v: number };
  * keeps per frame, and how many frames a particle runs before it is reborn
  * elsewhere. Same numbers as the Leaflet rain hazard map's `settingsForZoom`,
  * keyed by MapLibre zoom, which is the Leaflet zoom minus one.
+ *
+ * The last three shadow the flat `FlowFieldParams` value of the same name at
+ * this zoom; a row that leaves one out takes the flat value.
+ *
+ * `pathFactor` is the one that usually wants a row of its own. The count is
+ * `sqrt(ground area) * pathFactor` and the ground behind a screen pixel
+ * quarters with every zoom level, so one flat factor halves the particles on
+ * the same screen for every level the map goes in. Doubling `pathFactor` per
+ * level holds the density where it was; cage interpolates this key in the
+ * exponent so that a doubling stays a doubling between rows.
  */
 export type FlowFieldZoomProfileEntry = {
   zoom: number;
   fade: number;
   maxAge: number;
+  /** particles per square root of the viewport's ground area, at this zoom */
+  pathFactor?: number;
+  /** screen pixels per second per m/s of flow, at this zoom */
+  speed?: number;
+  /** stroke width in CSS pixels, at this zoom */
+  width?: number;
 };
 
 /**
