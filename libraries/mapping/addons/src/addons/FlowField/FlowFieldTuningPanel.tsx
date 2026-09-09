@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheck,
   faCopy,
+  faCrosshairs,
   faPlus,
   faRotateLeft,
   faTrash,
@@ -49,6 +50,94 @@ const ACCENT = "#1677ff";
 
 /** how far the profile editor lets a row go */
 const ZOOM_RANGE: [number, number] = [8, 24];
+
+/** the profile columns a rule can drive */
+const LADDER_COLUMNS = [
+  "fade",
+  "maxAge",
+  "pathFactor",
+  "speed",
+  "width",
+] as const;
+type LadderColumn = (typeof LADDER_COLUMNS)[number];
+
+/** the table's column widths, shared by the header, the rules and the rows */
+const COLUMN_WIDTH: Record<LadderColumn | "zoom", number> = {
+  zoom: 62,
+  fade: 76,
+  maxAge: 68,
+  pathFactor: 76,
+  speed: 62,
+  width: 56,
+};
+
+/**
+ * A rule for one column. The first row is the anchor and every row below it is
+ * the row above plus `step`, or times it.
+ *
+ * `step === null` means the column has no rule and its cells are what someone
+ * typed, which is how every column starts.
+ */
+type LadderRule = { op: "add" | "mul"; step: number | null };
+
+/** each column's rule as it starts: the operator its quantity actually wants */
+const LADDER_DEFAULTS: Record<LadderColumn, LadderRule> = {
+  fade: { op: "add", step: null },
+  maxAge: { op: "add", step: null },
+  // holding the particle density means doubling per zoom level, so this one
+  // multiplies; see `FlowFieldZoomProfileEntry`
+  pathFactor: { op: "mul", step: null },
+  speed: { op: "add", step: null },
+  width: { op: "add", step: null },
+};
+
+/** decimals per column, so a long ladder does not drift into float noise */
+const LADDER_PRECISION: Record<LadderColumn, number> = {
+  fade: 3,
+  maxAge: 0,
+  pathFactor: 3,
+  speed: 3,
+  width: 3,
+};
+
+/** what each column's input allows, so a long rule cannot walk out of range */
+const LADDER_RANGE: Record<LadderColumn, [number, number]> = {
+  fade: [0, 0.999],
+  maxAge: [1, 2000],
+  pathFactor: [0.1, 400],
+  speed: [0, 400],
+  width: [0.25, 12],
+};
+
+/** a cell that leaves its rule, shown in antd's warning gold */
+const LADDER_OVERRIDE = "#faad14";
+
+const roundTo = (value: number, digits: number) => {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+};
+
+/** what a rule puts in the row `index` steps below the anchor */
+const ladderValue = (
+  column: LadderColumn,
+  anchor: number,
+  rule: LadderRule,
+  index: number
+): number | null =>
+  rule.step === null
+    ? null
+    : Math.min(
+        LADDER_RANGE[column][1],
+        Math.max(
+          LADDER_RANGE[column][0],
+          roundTo(
+            rule.op === "add"
+              ? anchor + rule.step * index
+              : anchor * rule.step ** index,
+            LADDER_PRECISION[column]
+          )
+        )
+      );
 
 /**
  * Puts one value back to what cage would use if nothing set it.
@@ -375,6 +464,9 @@ export const FlowFieldTuningPanel = () => {
   } = useFlowFieldActions();
 
   const mapZoom = useMapZoom();
+  // the same map the zoom is read from, so a row can put the view where its
+  // numbers apply instead of leaving that to the wheel
+  const { map } = useLibreContext();
   const [scope, setScope] = useState<"delta" | "full">("delta");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -433,6 +525,168 @@ export const FlowFieldTuningPanel = () => {
         })
         .sort((a, b) => a.zoom - b.zoom),
     });
+
+  /**
+   * The rules driving the profile columns. Panel state, not channel state: a
+   * rule writes real numbers into the rows, so what cage, the channel and the
+   * paste see stays an ordinary table. Nothing here reaches localStorage, and
+   * nothing has to, because a column's rule is visible in the rows it made.
+   */
+  const [ladder, setLadder] =
+    useState<Record<LadderColumn, LadderRule>>(LADDER_DEFAULTS);
+
+  /**
+   * The flat drawing value a column falls back to. `fade` and `maxAge` have
+   * none: they exist only per row.
+   */
+  const flatValue = (column: LadderColumn): number | null =>
+    column === "fade" || column === "maxAge"
+      ? null
+      : (resolved[column] as number);
+
+  /** what a cell shows, whether the row sets it or it inherits the flat value */
+  const cellValue = (
+    row: FlowFieldZoomProfileEntry,
+    column: LadderColumn
+  ): number | null => {
+    const own = row[column];
+    return typeof own === "number" ? own : flatValue(column);
+  };
+
+  /** the value the ladder starts from: the first row, or the flat value */
+  const anchorOf = (column: LadderColumn): number | null => {
+    const first = resolved.profile[0];
+    return first ? cellValue(first, column) : null;
+  };
+
+  /**
+   * The step the rows already follow, used as the field's placeholder so an
+   * empty rule still says what the table is doing. Read off the first two rows
+   * rather than fitted over all of them: a table that leaves the ladder further
+   * down should still offer the step it starts with.
+   */
+  const derivedStep = (column: LadderColumn): number | null => {
+    const [first, second] = resolved.profile;
+    if (!first || !second) return null;
+    const a = cellValue(first, column);
+    const b = cellValue(second, column);
+    if (a === null || b === null) return null;
+    if (ladder[column].op === "mul")
+      return a === 0 ? null : roundTo(b / a, 3);
+    return roundTo(b - a, LADDER_PRECISION[column]);
+  };
+
+  /** what a column's rule wants in a given row, or null when it has no rule */
+  const ladderTarget = (column: LadderColumn, index: number): number | null => {
+    const anchor = anchorOf(column);
+    return anchor === null ? null : ladderValue(column, anchor, ladder[column], index);
+  };
+
+  /** whether a cell has been typed away from what its rule would put there */
+  const isOverride = (
+    column: LadderColumn,
+    index: number,
+    row: FlowFieldZoomProfileEntry
+  ): boolean => {
+    const target = ladderTarget(column, index);
+    if (target === null) return false;
+    const value = cellValue(row, column);
+    return value === null || Math.abs(value - target) > 1e-9;
+  };
+
+  const overrideStyle = (
+    column: LadderColumn,
+    index: number,
+    row: FlowFieldZoomProfileEntry
+  ) =>
+    isOverride(column, index, row)
+      ? { borderColor: LADDER_OVERRIDE }
+      : undefined;
+
+  /** a row without the keys an input cleared, the way `patchProfile` writes it */
+  const cleanRow = (row: Record<string, unknown>) => {
+    for (const key of Object.keys(row)) {
+      if (row[key] === undefined) delete row[key];
+    }
+    return row as unknown as FlowFieldZoomProfileEntry;
+  };
+
+  /**
+   * Writes a column's rule down the table.
+   *
+   * `keepOverrides` is what separates moving the anchor from changing the rule.
+   * Changing the rule is the prefill and takes every row; nudging the anchor
+   * slides the ladder underneath cells that were already typed away from it,
+   * which are recognised by still sitting on the old rule.
+   */
+  const applyLadder = (
+    column: LadderColumn,
+    rule: LadderRule,
+    anchor: number,
+    keepOverrides: boolean,
+    rows = resolved.profile
+  ): FlowFieldZoomProfileEntry[] => {
+    if (rule.step === null) return rows;
+    const previousAnchor = anchorOf(column);
+    return rows.map((row, index) => {
+      const next = ladderValue(column, anchor, rule, index);
+      if (next === null) return row;
+      if (keepOverrides && index > 0 && previousAnchor !== null) {
+        const was = ladderValue(column, previousAnchor, ladder[column], index);
+        const value = cellValue(row, column);
+        if (was === null || value === null || Math.abs(value - was) > 1e-9)
+          return row;
+      }
+      return cleanRow({ ...row, [column]: next });
+    });
+  };
+
+  /** a rule changed: prefill the whole column from the anchor that is there */
+  const setRule = (column: LadderColumn, rule: LadderRule) => {
+    setLadder((previous) => ({ ...previous, [column]: rule }));
+    const anchor = anchorOf(column);
+    if (rule.step === null || anchor === null) return;
+    patchParams({ profile: applyLadder(column, rule, anchor, false) });
+  };
+
+  /** every rule written down its column again, wiping what was typed over it */
+  const reapplyLadders = () => {
+    let rows = resolved.profile;
+    for (const column of LADDER_COLUMNS) {
+      const rule = ladder[column];
+      const anchor = anchorOf(column);
+      if (rule.step === null || anchor === null) continue;
+      rows = applyLadder(column, rule, anchor, false, rows);
+    }
+    patchParams({ profile: rows });
+  };
+
+  /**
+   * One cell written. Editing the anchor of a ruled column slides the whole
+   * column with it; every other cell is written on its own and, when a rule is
+   * on, becomes an override.
+   */
+  const setCell = (
+    column: LadderColumn,
+    index: number,
+    value: number | null
+  ) => {
+    const rule = ladder[column];
+    if (index === 0 && rule.step !== null && value !== null) {
+      const withAnchor = resolved.profile.map((row, at) =>
+        at === 0 ? cleanRow({ ...row, [column]: value }) : row
+      );
+      patchParams({
+        profile: applyLadder(column, rule, value, true, withAnchor),
+      });
+      return;
+    }
+    patchProfile(index, {
+      [column]: value ?? undefined,
+    } as Partial<FlowFieldZoomProfileEntry>);
+  };
+
+  const anyRule = LADDER_COLUMNS.some((column) => ladder[column].step !== null);
 
   /** what the zoom profile currently works out to, and the rows that say it */
   const inForce = useMemo(
@@ -703,7 +957,7 @@ export const FlowFieldTuningPanel = () => {
 
         <Section
           title="Zoomprofil"
-          note="fade ist die Deckkraft, die eine gezeichnete Spur pro Bild behält; maxAge die Lebensdauer eines Partikels in Bildern. Die drei rechten Spalten überschreiben den flachen Wert aus der Zeichnung für diesen Zoom; bleiben sie leer, gilt er weiter. Zwischen den Zeilen wird interpoliert, außerhalb gilt die nächste Zeile. pathFactor wird dabei verdoppelnd interpoliert, der Rest linear."
+          note="fade ist die Deckkraft, die eine gezeichnete Spur pro Bild behält; maxAge die Lebensdauer eines Partikels in Bildern. Die drei rechten Spalten überschreiben den flachen Wert aus der Zeichnung für diesen Zoom; bleiben sie leer, gilt er weiter. Zwischen den Zeilen wird interpoliert, außerhalb gilt die nächste Zeile. pathFactor wird dabei verdoppelnd interpoliert, der Rest linear. In der Regelzeile trägt man einen Schritt pro Zoomstufe ein: die erste Zeile ist der Anfangswert, die darunter folgen der Regel. Eine Zelle, die davon abweicht, steht in Gold."
         >
           <div className="flex flex-col gap-1">
             {/* Which rows the map is currently between, and what they work out
@@ -743,12 +997,81 @@ export const FlowFieldTuningPanel = () => {
               )}
             </div>
             <div className="flex items-center gap-1.5 pl-[10px] text-[10px] uppercase tracking-wide text-gray-400">
+              <span className="w-6 shrink-0" />
               <span className="w-[62px]">zoom</span>
               <span className="w-[76px]">fade</span>
               <span className="w-[68px]">maxAge</span>
               <span className="w-[76px]">pathFactor</span>
               <span className="w-[62px]">speed</span>
               <span className="w-[56px]">width</span>
+            </div>
+            {/* One step per column. Empty means the column is typed by hand, and
+                the placeholder then shows the step its rows already follow, so
+                an untouched table says what it is doing. Filling one in writes
+                the ladder down the column; typing over a cell afterwards marks
+                it as leaving the rule. */}
+            <div className="flex items-center gap-1.5 pl-[10px]">
+              <span className="w-6 shrink-0" />
+              <span
+                className="text-[10px] uppercase tracking-wide text-gray-400"
+                style={{ width: COLUMN_WIDTH.zoom }}
+              >
+                Regel
+              </span>
+              {LADDER_COLUMNS.map((column) => {
+                const rule = ladder[column];
+                const suggestion = derivedStep(column);
+                return (
+                  <div
+                    key={column}
+                    className="flex items-center gap-0.5"
+                    style={{ width: COLUMN_WIDTH[column] }}
+                  >
+                    <Tooltip
+                      title={
+                        rule.op === "mul"
+                          ? "Multiplikativ: jede Zeile mal dem Schritt"
+                          : "Additiv: jede Zeile plus dem Schritt"
+                      }
+                    >
+                      <button
+                        type="button"
+                        aria-label={`Rechenart für ${column} umschalten`}
+                        className="h-6 w-3.5 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-[12px] leading-none text-gray-500 hover:text-gray-900"
+                        onClick={() =>
+                          setRule(column, {
+                            op: rule.op === "mul" ? "add" : "mul",
+                            step: rule.step,
+                          })
+                        }
+                      >
+                        {rule.op === "mul" ? "×" : "+"}
+                      </button>
+                    </Tooltip>
+                    <InputNumber
+                      size="small"
+                      controls={false}
+                      className="min-w-0 flex-1"
+                      step={column === "fade" ? 0.005 : 1}
+                      placeholder={
+                        suggestion === null ? "" : short(suggestion)
+                      }
+                      value={rule.step}
+                      onChange={(step) =>
+                        setRule(column, {
+                          op: rule.op,
+                          step: typeof step === "number" ? step : null,
+                        })
+                      }
+                    />
+                  </div>
+                );
+              })}
+              <ResetButton
+                label="Alle Zellen wieder auf ihre Regel setzen"
+                disabled={!anyRule}
+                onClick={reapplyLadders}
+              />
             </div>
             {resolved.profile.map((row, index) => {
               const standard = defaultProfileRow(row.zoom);
@@ -771,6 +1094,17 @@ export const FlowFieldTuningPanel = () => {
                     : undefined
                 }
               >
+                <Tooltip title={`Karte auf Zoom ${short(row.zoom)} stellen`}>
+                  <button
+                    type="button"
+                    aria-label={`Karte auf Zoom ${short(row.zoom)} stellen`}
+                    className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent text-gray-400 hover:bg-black/5 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!map}
+                    onClick={() => map?.easeTo({ zoom: row.zoom, duration: 400 })}
+                  >
+                    <FontAwesomeIcon icon={faCrosshairs} />
+                  </button>
+                </Tooltip>
                 <InputNumber
                   size="small"
                   className="w-[62px]"
@@ -785,24 +1119,25 @@ export const FlowFieldTuningPanel = () => {
                 <InputNumber
                   size="small"
                   className="w-[76px]"
+                  style={overrideStyle("fade", index, row)}
                   min={0}
                   max={0.999}
                   step={0.005}
                   value={row.fade}
                   onChange={(fade) =>
-                    typeof fade === "number" && patchProfile(index, { fade })
+                    typeof fade === "number" && setCell("fade", index, fade)
                   }
                 />
                 <InputNumber
                   size="small"
                   className="w-[68px]"
+                  style={overrideStyle("maxAge", index, row)}
                   min={1}
                   max={2000}
                   step={10}
                   value={row.maxAge}
                   onChange={(maxAge) =>
-                    typeof maxAge === "number" &&
-                    patchProfile(index, { maxAge })
+                    typeof maxAge === "number" && setCell("maxAge", index, maxAge)
                   }
                 />
                 {/* The three overrides. Empty means "take the flat value", and
@@ -812,44 +1147,52 @@ export const FlowFieldTuningPanel = () => {
                 <InputNumber
                   size="small"
                   className="w-[76px]"
+                  style={overrideStyle("pathFactor", index, row)}
                   min={0.1}
                   max={400}
                   step={1}
                   placeholder={short(resolved.pathFactor)}
                   value={row.pathFactor ?? null}
                   onChange={(pathFactor) =>
-                    patchProfile(index, {
-                      pathFactor:
-                        typeof pathFactor === "number" ? pathFactor : undefined,
-                    })
+                    setCell(
+                      "pathFactor",
+                      index,
+                      typeof pathFactor === "number" ? pathFactor : null
+                    )
                   }
                 />
                 <InputNumber
                   size="small"
                   className="w-[62px]"
+                  style={overrideStyle("speed", index, row)}
                   min={0}
                   max={400}
                   step={1}
                   placeholder={short(resolved.speed)}
                   value={row.speed ?? null}
                   onChange={(speed) =>
-                    patchProfile(index, {
-                      speed: typeof speed === "number" ? speed : undefined,
-                    })
+                    setCell(
+                      "speed",
+                      index,
+                      typeof speed === "number" ? speed : null
+                    )
                   }
                 />
                 <InputNumber
                   size="small"
                   className="w-[56px]"
+                  style={overrideStyle("width", index, row)}
                   min={0.25}
                   max={12}
                   step={0.25}
                   placeholder={short(resolved.width)}
                   value={row.width ?? null}
                   onChange={(width) =>
-                    patchProfile(index, {
-                      width: typeof width === "number" ? width : undefined,
-                    })
+                    setCell(
+                      "width",
+                      index,
+                      typeof width === "number" ? width : null
+                    )
                   }
                 />
                 <ResetButton
@@ -917,19 +1260,31 @@ export const FlowFieldTuningPanel = () => {
                 className="flex w-fit cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-[13px] text-gray-600 hover:text-gray-900"
                 onClick={() => {
                   const last = resolved.profile[resolved.profile.length - 1];
+                  const added: Record<string, unknown> = {
+                    // the last row carried on, overrides included: a table
+                    // that doubles `pathFactor` is extended by editing one
+                    // number rather than by typing the row again
+                    ...(last ?? {}),
+                    zoom: Math.min(ZOOM_RANGE[1], (last?.zoom ?? 16) + 1),
+                    fade: last?.fade ?? 0.9,
+                    maxAge: last?.maxAge ?? 100,
+                  };
+                  // a column on a rule continues it rather than repeating the
+                  // last row, which is the whole point of having the rule
+                  for (const column of LADDER_COLUMNS) {
+                    const anchor = anchorOf(column);
+                    if (ladder[column].step === null || anchor === null)
+                      continue;
+                    const next = ladderValue(
+                      column,
+                      anchor,
+                      ladder[column],
+                      resolved.profile.length
+                    );
+                    if (next !== null) added[column] = next;
+                  }
                   patchParams({
-                    profile: [
-                      ...resolved.profile,
-                      {
-                        // the last row carried on, overrides included: a table
-                        // that doubles `pathFactor` is extended by editing one
-                        // number rather than by typing the row again
-                        ...(last ?? {}),
-                        zoom: Math.min(ZOOM_RANGE[1], (last?.zoom ?? 16) + 1),
-                        fade: last?.fade ?? 0.9,
-                        maxAge: last?.maxAge ?? 100,
-                      },
-                    ],
+                    profile: [...resolved.profile, cleanRow(added)],
                   });
                 }}
               >
@@ -943,7 +1298,10 @@ export const FlowFieldTuningPanel = () => {
                   resolved.profile,
                   FLOW_FIELD_PARAM_DEFAULTS.profile
                 )}
-                onClick={() => resetParam("profile")}
+                onClick={() => {
+                  setLadder(LADDER_DEFAULTS);
+                  resetParam("profile");
+                }}
               >
                 <FontAwesomeIcon icon={faRotateLeft} />
                 Ganzes Profil zurücksetzen
