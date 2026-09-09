@@ -1,4 +1,10 @@
+import { schwebebahn2dWorkflowsWithoutStations } from "./workflows";
+
 import type { FachzwillingRoute } from ".";
+
+/** where the pipeline publishes the styles built for the printed model */
+const PROJECTION_MAPPING_STYLES =
+  "https://tiles.cismet.de/projection_mapping";
 
 /**
  * The collection point for the projection mapping show: the layers that are
@@ -24,31 +30,73 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },
+  // the engine the Schwebebahn cards launch into; idle until one is clicked
+  addons: ["vehicleAnimation"],
+  /**
+   * The layers of the show, grouped as it walks through them. Most are built
+   * for the printed model and are not in the catalog the services deliver; the
+   * entries given as an id (the undivided true orthofoto, the two thematic
+   * maps) are the delivered layers, lifted into the group they belong to
+   * here.
+   */
+  additionalLayers: [
+    {
+      Title: "Projection Mapping",
+      layers: [
+        {
+          layer: `${PROJECTION_MAPPING_STYLES}/umriss.style.json`,
+          // everything outside the projection area is darkened by this layer,
+          // so it has to stay above whatever is added after it
+          tools: ["alwaysOnTop"],
+        },
+        `${PROJECTION_MAPPING_STYLES}/wupper.style.json`,
+      ],
+    },
+    {
+      Title: "Orthofotos",
+      layers: [
+        "wuppKarten:R102:trueortho2024",
+        `${PROJECTION_MAPPING_STYLES}/trueortho_daecher.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/trueortho_strassen.style.json`,
+      ],
+    },
+    {
+      Title: "Themen",
+      layers: [
+        "wuppPlanung:r102_fnp_haupt_fl",
+        "wuppUmwelt:Klimafunktion",
+        "https://tiles.cismet.de/pm_naturdenkmale/style.json",
+        "https://tiles.cismet.de/pm_poi/style.json",
+      ],
+    },
+    {
+      Title: "Bäume",
+      layers: [
+        "https://tiles.cismet.de/pm_trees/style.json",
+        "https://tiles.cismet.de/pm_trees/mask.style.json",
+      ],
+    },
+    {
+      Title: "RVR",
+      layers: [
+        `${PROJECTION_MAPPING_STYLES}/grundriss_light.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/grundriss_graublau.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/grundriss_extralight.style.json`,
+      ],
+    },
+  ],
   /**
    * The "Workflows" category of this route: one card per set of layers that is
-   * meant to be shown as one step of the show. A perspective without cards is
-   * dropped before the catalog is built, so the placeholder below is what keeps
-   * the category on screen until the real sets are declared.
+   * meant to be shown as one step of the show.
    */
   perspectives: [
     {
-      id: "projection-mapping",
-      title: "Projection Mapping",
-      workflows: [
-        {
-          /**
-           * Placeholder, carries no `layers` on purpose: nothing is added to
-           * the map when it is clicked. Replace it with the real steps of the
-           * show, each with its own `layers` and, where the step is meant to
-           * show only its own layers, `tools: ["layerVisibility"]`.
-           */
-          id: "platzhalter",
-          title: "Platzhalter",
-          description:
-            "Noch ohne Inhalt. Hier stehen später die Layer-Sets der " +
-            "Projection-Mapping-Demo, ein Eintrag je Schritt der Show.",
-        },
-      ],
+      id: "mobilitaet",
+      title: "Mobilität",
+      // the workflows route's cards without the two 3d ones, which this route
+      // has no mode for, and without the station markers, which would be
+      // projected onto the model
+      workflows: schwebebahn2dWorkflowsWithoutStations,
     },
   ],
 };
