@@ -84,11 +84,18 @@ const NON_SELECTABLE = { carmaConf: { nonSelectable: true } };
  * Draw the routes, or update the lines that are already drawn. Safe to call
  * again with the same routes, which is what a style rebuild needs: it drops the
  * source and the layers, and this puts them back.
+ *
+ * `hidden` is the whole set taken off the map without being taken apart: while
+ * one of these routes is being driven, the `routing` addon draws that one and
+ * the candidates around it are noise. Applied here rather than once, when the
+ * navigation starts, because a style rebuild re-runs this and would otherwise
+ * bring them back mid-drive.
  */
 export const drawRoutes = (
   map: MaplibreMap,
   routes: NearestFeatureRoute[],
-  selectedKey: string | null
+  selectedKey: string | null,
+  hidden = false
 ) => {
   const data = featureCollection(routes);
   const source = map.getSource<GeoJSONSource>(SOURCE_ID);
@@ -141,6 +148,20 @@ export const drawRoutes = (
     });
   }
   highlightRoute(map, selectedKey);
+  setRoutesHidden(map, hidden);
+};
+
+/**
+ * Show or hide the whole set. The lines stay as they are underneath, so the
+ * navigation ending is one property per layer and not a redraw; hidden layers
+ * are not rendered, so a click cannot find them either.
+ */
+export const setRoutesHidden = (map: MaplibreMap, hidden: boolean) => {
+  for (const layerId of LAYER_IDS) {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", hidden ? "none" : "visible");
+    }
+  }
 };
 
 /** Paint one route as the picked one, or none of them. */

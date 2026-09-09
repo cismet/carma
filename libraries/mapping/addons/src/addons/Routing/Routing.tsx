@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { faRoute } from "@fortawesome/free-solid-svg-icons";
 
 import { useLocate } from "@carma-mapping/contexts";
@@ -7,6 +7,7 @@ import { formatRouteSummary, getModeIcon } from "@carma-mapping/routing";
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import {
+  DEFAULT_AHEAD_COLOR,
   DEFAULT_ARRIVAL_METERS,
   DEFAULT_DURATION,
   DEFAULT_FOLLOW_DURATION,
@@ -16,10 +17,17 @@ import {
   DEFAULT_RECENTER_ORDER,
   DEFAULT_RECENTER_POSITION,
   DEFAULT_SNAP_TOLERANCE_METERS,
+  DEFAULT_TRAVELLED_COLOR,
   DEFAULT_ZOOM,
   REMAINING_PREFIX,
 } from "./config";
 import { RecenterControl } from "./RecenterControl";
+import {
+  clearRouteLine,
+  drawRouteLine,
+  routeLineIsDrawn,
+  setRouteLineProgress,
+} from "./routeLine";
 import { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
 import { useActiveRoute, type RouteProgress } from "./routeChannel";
 
@@ -66,7 +74,7 @@ import { useActiveRoute, type RouteProgress } from "./routeChannel";
  *
  * The user's own hand wins: a drag, a wheel, a rotate pauses the following,
  * the camera stays where they put it and the fixes keep coming in unseen. A
- * pill at the bottom of the map, "Zentrieren", puts the camera back on the
+ * button at the bottom of the map, "Zentrieren", puts the camera back on the
  * position and the following resumes, the way the recenter button of any
  * navigation app does; it is the one piece of UI the addon renders itself.
  * The navigation only ends with the route button, arrival, or the route
@@ -103,6 +111,8 @@ export const Routing = ({
     recenterPosition = DEFAULT_RECENTER_POSITION,
     recenterOrder = DEFAULT_RECENTER_ORDER,
     recenterLabel = DEFAULT_RECENTER_LABEL,
+    aheadColor = DEFAULT_AHEAD_COLOR,
+    travelledColor = DEFAULT_TRAVELLED_COLOR,
   } = config ?? {};
 
   const [route] = useActiveRoute();
@@ -372,6 +382,53 @@ export const Routing = ({
       libreMap.off("movestart", onMoveStart);
     };
   }, [libreMap, navigating]);
+
+  const colors = useMemo(
+    () => ({ aheadColor, travelledColor }),
+    [aheadColor, travelledColor]
+  );
+  /**
+   * Where the line changes colour, rounded to a thousandth of the route: a few
+   * meters on a route of kilometers, below what anyone can see, and it keeps a
+   * standing user from re-painting the line once a second.
+   */
+  const split = progress ? Math.round(progress.fraction * 1000) / 1000 : null;
+  const splitRef = useRef(split);
+  splitRef.current = split;
+
+  /**
+   * The line, for as long as a navigation runs. The producer of the route
+   * takes its own lines off meanwhile (the ranking hides its candidates), so
+   * what is on the map is the route being driven and nothing else.
+   *
+   * Redrawn on `styledata`: a basemap change rebuilds the style and drops
+   * every source and layer with it, the same reason the ranking redraws its
+   * routes there.
+   */
+  useEffect(() => {
+    if (!libreMap || !navigating || !coordinates) {
+      return;
+    }
+    drawRouteLine(libreMap, coordinates, splitRef.current, colors);
+    const onStyleData = () => {
+      if (!routeLineIsDrawn(libreMap)) {
+        drawRouteLine(libreMap, coordinates, splitRef.current, colors);
+      }
+    };
+    libreMap.on("styledata", onStyleData);
+    return () => {
+      libreMap.off("styledata", onStyleData);
+      clearRouteLine(libreMap);
+    };
+  }, [libreMap, navigating, coordinates, colors]);
+
+  /** the split follows the user, one paint property per fix that moved it */
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    setRouteLineProgress(libreMap, split, colors);
+  }, [libreMap, navigating, split, colors]);
 
   /**
    * The button, for as long as there is a route to go along. Re-registered
