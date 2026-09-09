@@ -1,4 +1,5 @@
 // Converts the glTF 1 payloads in the 2020 b3dm mesh to glTF 2 for GLTFLoader.
+import { fetchTileResponse } from "./fetch-tile-response";
 
 interface Gltf1Json {
   asset?: Record<string, unknown>;
@@ -308,6 +309,8 @@ export const upgradeB3dmGltf1 = (buffer: ArrayBuffer): ArrayBuffer | null => {
 };
 
 export interface Gltf1UpgradePluginOptions {
+  /** Includes response-body transfer; caller cancellation remains authoritative. */
+  requestTimeoutMs?: number;
   /** Observes every raw response before its body is consumed. */
   onResponse?: (url: string, response: Response) => void;
 }
@@ -315,13 +318,15 @@ export interface Gltf1UpgradePluginOptions {
 export class Gltf1UpgradePlugin {
   name = "GLTF1_UPGRADE_PLUGIN";
   private readonly onResponse: Gltf1UpgradePluginOptions["onResponse"];
+  private readonly requestTimeoutMs: number;
 
   constructor(options: Gltf1UpgradePluginOptions = {}) {
     this.onResponse = options.onResponse;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
   }
 
   async fetchData(url: string | URL, options: RequestInit): Promise<Response> {
-    const response = await fetch(url, options);
+    const response = await fetchTileResponse(url, options, this.requestTimeoutMs);
     this.onResponse?.(String(url), response);
     if (!/\.b3dm(\?|$)/.test(String(url)) || !response.ok) return response;
 

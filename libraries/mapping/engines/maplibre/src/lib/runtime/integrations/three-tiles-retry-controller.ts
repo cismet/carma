@@ -86,6 +86,7 @@ export const createThreeTilesRetryController = (
     if (expiresAt === undefined) return false;
     if (Date.now() < expiresAt) return true;
     exhaustedRetries.delete(key);
+    retryCounts.delete(key);
     return false;
   };
   const exhaust = (key: string) => {
@@ -101,6 +102,8 @@ export const createThreeTilesRetryController = (
     const pending = pendingRetries.get(key);
     if (pending) clearTimeout(pending.timer);
     pendingRetries.delete(key);
+    retryCounts.delete(key);
+    exhaustedRetries.delete(key);
   };
 
   const handleFailure: ThreeTilesRetryController["handleFailure"] = (

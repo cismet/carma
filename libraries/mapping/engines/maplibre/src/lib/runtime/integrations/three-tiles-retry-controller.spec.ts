@@ -151,7 +151,7 @@ describe("createThreeTilesRetryController", () => {
     expect(retries.isBlocked(tile, url)).toBe(true);
   });
 
-  it("keeps one retry budget across recreated tiles and successful reloads", () => {
+  it("resets consecutive-failure budgets after a successful reload", () => {
     vi.useFakeTimers();
     const renderer = buildRenderer();
     const retries = createThreeTilesRetryController(() => renderer, vi.fn());
@@ -168,7 +168,7 @@ describe("createThreeTilesRetryController", () => {
 
     const replacement = failedTile("recreated.b3dm");
     retries.handleFailure(replacement, url);
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
     expect(replacement.internal.loadingState).toBe(-1);
   });
 
@@ -188,6 +188,22 @@ describe("createThreeTilesRetryController", () => {
     retries.handleFailure(replacement, url);
     expect(vi.getTimerCount()).toBe(0);
     expect(replacement.internal.loadingState).toBe(-1);
+  });
+
+  it("allows bounded transient retries again after exhaustion expires", () => {
+    vi.useFakeTimers();
+    const renderer = buildRenderer();
+    const retries = createThreeTilesRetryController(() => renderer, vi.fn());
+    const tile = failedTile();
+    const url = "https://example.com/transient.b3dm";
+    for (let attempt = 0; attempt < MAX_TILE_RETRIES; attempt += 1) {
+      retries.handleFailure(tile, url, new Error("status 503"));
+      vi.runOnlyPendingTimers();
+    }
+    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe("exhausted");
+    vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS);
+    expect(retries.isBlocked(tile, url)).toBe(false);
+    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe("scheduled");
   });
 
   it("cancels a pending retry after a successful load", () => {

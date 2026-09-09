@@ -719,6 +719,9 @@ export function createThreeTilesShadows(
     if (nextSignature === runtimeState.shadowViewSignature) return;
     runtimeState.shadowViewSignature = nextSignature;
     runtimeState.shadowRegionRevisions.clear();
+    // Reconcile pending caster downloads against the NEW corridor mask in the
+    // existing bounded sweep. Never evict visible receivers on a solar change.
+    runtimeState.meshDemandSweepPending = true;
     if (view) {
       requestShadowSelectionRefresh();
     } else {

@@ -75,6 +75,24 @@ afterEach(() => {
 });
 
 describe("optional corridor persistence worker", () => {
+  it("cancels obsolete work without disabling the cache or accepting late replies", async () => {
+    const reading = client.read(identity);
+    const oldWorker = FakeWorker.instances[0];
+    const lateReply = oldWorker.onmessage;
+    const oldId = oldWorker.sent[0].request.id;
+    client.cancelPending();
+    expect(await reading).toBeNull();
+    expect(oldWorker.terminate).toHaveBeenCalledOnce();
+    expect(client.enabled).toBe(true);
+    const next = client.read({ ...identity, dateTime: "2026-09-08T13:00:00Z" });
+    lateReply?.({ data: { id: oldId, record: capture() } } as MessageEvent);
+    expect(client.busy).toBe(true);
+    const worker = FakeWorker.instances[1];
+    worker.reply({ id: worker.sent[0].request.id, record: null });
+    expect(await next).toBeNull();
+    expect(client.busy).toBe(false);
+  });
+
   it("transfers a packed GPU readback without allocating split arrays on the caller", async () => {
     const {
       visibility: _visibility,

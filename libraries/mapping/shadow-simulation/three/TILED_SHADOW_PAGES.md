@@ -883,3 +883,36 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
   stall, and receiver-footprint fragmentation (up to 237 pages observed after
   movement) still need investigation. Do not label the 30-second complaint fully
   resolved based on this run.
+
+# SOLAR-HANDOVER-20260909 — retain shaded meshes during time changes
+
+- **Context:** A changed solar identity immediately invalidated the previous
+  mask for display as well as computation. Geometry could remain resident while
+  its receiver page disappeared before the new corridor was ready.
+- **Decision:** Cancel unfinished integration and pending persistence work on
+  solar change. Retain existing capture objects as display-only fallbacks until
+  each replacement is published. No extra GPU texture copy is allocated. Strict
+  `canReplay`/`has` checks still require the current solar identity, even when
+  geometry/content keys are unchanged; `canPresent` alone allows handover.
+  Repeated time changes retain the last publication. Late restore/readback jobs
+  fail their generation check; terminating an obsolete storage worker does not
+  disable future cache use. Already submitted GPU work cannot be preempted.
+- **Retrieval:** Refresh the current sunward mask and use the existing bounded
+  native-LRU demand sweep to cancel obsolete caster requests. Keep in-view mesh
+  payloads; do not reset their LOD or downloaded textures for a time change.
+- **Alternatives:** Immediate removal rejected (coverage gaps); treating old
+  masks as current rejected (false readiness/no recompute); duplicating all
+  meshes/textures rejected (unnecessary memory). No new worker pool or rendering
+  backend is introduced. This is continuity, not a frame-time speedup claim.
+- **Validation:** 65 presentation/cache/scene tests pass, including repeated time
+  changes, same-geometry/different-sun validity and late cache replies. Internal
+  Codex browser, Mesh2024 at 51.2703894/7.2007926, z21.989, bearing255.74/pitch60:
+  13:21 -> 12:00 screenshots retained mesh coverage immediately and afterward.
+  This is a visual spot check, not frame-by-frame proof or a soft-finish timing
+  benchmark. Subsequent user-requested test cleanup replaced the obsolete
+  acknowledgement-gate fixtures (which also failed against `6bb83b01d`) with
+  current receiver/caster and atomic-family contracts. The final focused set is
+  115 mesh/runtime/transport assertions plus 65 shadow/cache assertions, all
+  passing. See CURRENT-MESH-CONTRACT-TESTS-20260909 in engines/maplibre/README.md.
+- **Open:** End-to-end LOD liveness, receiver-page fragmentation and reliable
+  full soft convergence still need a separate scoped investigation.

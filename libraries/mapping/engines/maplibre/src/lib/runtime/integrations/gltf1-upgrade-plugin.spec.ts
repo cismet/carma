@@ -83,6 +83,70 @@ const readGltf2Json = (b3dm: ArrayBuffer) => {
 describe("glTF 1 b3dm upgrade", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it.each(["headers", "body"])(
+    "bounds stalled %s without losing the caller abort signal",
+    async (stage) => {
+      const deadline = new AbortController();
+      const caller = new AbortController();
+      vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+      let requestSignal: AbortSignal | undefined;
+      vi.spyOn(globalThis, "fetch").mockImplementation(
+        async (_url, options) => {
+          requestSignal = options?.signal ?? undefined;
+          const stalled = () =>
+            new Promise<never>((_resolve, reject) => {
+              if (requestSignal!.aborted) {
+                reject(requestSignal!.reason);
+                return;
+              }
+              requestSignal!.addEventListener(
+                "abort",
+                () => reject(requestSignal!.reason),
+                { once: true }
+              );
+            });
+          return stage === "headers"
+            ? stalled()
+            : ({
+                ok: true,
+                arrayBuffer: stalled,
+                json: stalled,
+              } as unknown as Response);
+        }
+      );
+      const plugin = new Gltf1UpgradePlugin();
+      const loading = plugin.fetchData("tile.b3dm", { signal: caller.signal });
+      await Promise.resolve();
+      const timeout = new DOMException("Download timed out", "TimeoutError");
+      deadline.abort(timeout);
+      await expect(loading).rejects.toBe(timeout);
+      expect(AbortSignal.timeout).toHaveBeenCalledWith(30_000);
+      expect(caller.signal.aborted).toBe(false);
+    }
+  );
+
+  it("preserves cancellation of obsolete native tile requests", async () => {
+    const deadline = new AbortController();
+    const caller = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener(
+            "abort",
+            () => reject(options!.signal!.reason),
+            { once: true }
+          );
+        })
+    );
+    const loading = new Gltf1UpgradePlugin().fetchData("tileset.json", {
+      signal: caller.signal,
+    });
+    caller.abort();
+    await expect(loading).rejects.toMatchObject({ name: "AbortError" });
+    expect(deadline.signal.aborted).toBe(false);
+  });
+
   it("converts dictionaries, binary images and scene references to glTF 2", () => {
     const upgraded = upgradeB3dmGltf1(buildB3dmWithGltf1());
 
@@ -91,10 +155,7 @@ describe("glTF 1 b3dm upgrade", () => {
     expect(json.asset).toMatchObject({ version: "2.0" });
     expect(json.buffers).toEqual([{ byteLength: 4 }]);
     expect(json.images).toEqual([{ bufferView: 0, mimeType: "image/png" }]);
-    expect(json.extensionsUsed).toEqual([
-      "KHR_materials_unlit",
-      "CESIUM_RTC",
-    ]);
+    expect(json.extensionsUsed).toEqual(["KHR_materials_unlit", "CESIUM_RTC"]);
     expect(json.scene).toBe(0);
   });
 
@@ -113,9 +174,9 @@ describe("glTF 1 b3dm upgrade", () => {
     const upgraded = await plugin.fetchData("tile.b3dm", {});
     const plain = await plugin.fetchData("tile.json", {});
 
-    expect(new DataView(await upgraded.arrayBuffer()).getUint32(28 + 4, true)).toBe(
-      2
-    );
+    expect(
+      new DataView(await upgraded.arrayBuffer()).getUint32(28 + 4, true)
+    ).toBe(2);
     expect(await plain.text()).toBe("plain");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

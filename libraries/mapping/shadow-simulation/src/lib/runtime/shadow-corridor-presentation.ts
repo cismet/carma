@@ -77,6 +77,7 @@ const matrixMatches = (left: THREE.Matrix4, right: THREE.Matrix4) =>
  */
 export class ShadowCorridorPresentation {
   private readonly captures = new Map<string, CorridorCapture>();
+  private solarTransitionCaptures = new WeakSet<CorridorCapture>();
   private visiblePageIds = new Set<string>();
   private samples = 0;
   private replayCount = 0;
@@ -209,6 +210,7 @@ export class ShadowCorridorPresentation {
 
   has(page: ShadowAccumulationPage, samples: number) {
     const capture = this.captures.get(page.id);
+    if (!this.canReplay(page)) return false;
     // Completed finite-disc masks are baked to a stable receiver/sun identity.
     // Observer changes and smaller buffer demand do not invalidate them. A
     // larger demand keeps replaying this mask but schedules a finer replacement.
@@ -219,7 +221,6 @@ export class ShadowCorridorPresentation {
       capture.samples >= samples &&
       page.captureSize &&
       page.presentationKey &&
-      this.canReplay(page) &&
       capture.crop.x === 0 &&
       capture.crop.y === 0 &&
       capture.crop.z === 1 &&
@@ -277,7 +278,12 @@ export class ShadowCorridorPresentation {
 
   setPersistence(context?: ShadowCorridorPersistenceContext) {
     if (this.persistence === context) return;
+    this.cancelPendingPersistence();
     this.persistence = context;
+  }
+
+  private cancelPendingPersistence() {
+    this.persistence?.cache.cancelPending();
     this.persistenceGeneration += 1;
     this.restoreAttempts.clear();
     this.pendingRestores.clear();
@@ -287,6 +293,22 @@ export class ShadowCorridorPresentation {
     this.persistenceAttempted = new WeakSet();
     if (this.persistenceTimer !== null) clearTimeout(this.persistenceTimer);
     this.persistenceTimer = null;
+  }
+
+  /** Decision: SOLAR-HANDOVER-20260909 in three/TILED_SHADOW_PAGES.md.
+   * Keep the old image as a display-only fallback, never as current-time work.
+   * Object identity automatically retires it when a new capture is published.
+   */
+  beginSolarTransition() {
+    this.cancelPendingPersistence();
+    this.solarTransitionCaptures = new WeakSet(this.captures.values());
+  }
+
+  canPresent(page: ShadowAccumulationPage): boolean {
+    const capture = this.captures.get(page.id);
+    return this.canReplay(page) || Boolean(
+      capture && this.solarTransitionCaptures.has(capture)
+    );
   }
 
   prepareRestore(
@@ -775,7 +797,8 @@ export class ShadowCorridorPresentation {
     // Recompute validity is deliberately stricter than display continuity.
     // A drag-end LOD/sample change must not hide a finished corridor while its
     // replacement is integrating. Reuse the baked world-projected visibility
-    // without observer-depth rejection; a different sun must never reuse it.
+    // without observer-depth rejection. A different sun is never a cache hit;
+    // canPresent separately retains the old image during the solar handover.
     // Decision: three/TILED_SHADOW_PAGES.md, RETAINED-VISIBILITY-20260907.
     if (
       !capture ||
@@ -814,7 +837,7 @@ export class ShadowCorridorPresentation {
     _samples: number,
     draw: () => T
   ): T {
-    if (!this.canReplay(page)) return draw();
+    if (!this.canPresent(page)) return draw();
     const capture = this.captures.get(page.id)!;
     this.captures.delete(page.id);
     this.captures.set(page.id, capture);

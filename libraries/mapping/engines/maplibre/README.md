@@ -457,3 +457,56 @@ terrain-mesh runtime to the shared scene.
   or a trace showing traversal rather than page shading dominates. Preserve the
   box-only contract when replacing scheduling; do not add payload-readiness gates
   to spatial intersection.
+
+### TILE-TRANSPORT-DEADLINE-20260909
+
+- **Context:** Fetching headers or reading tile/tileset bodies had no deadline.
+  A stalled response could indefinitely occupy a native loading slot. Successful
+  reloads also retained their historical retry count, exhausting unrelated later
+  failures; cooldown expiry did not reset that count either.
+- **Decision:** A 30 s active download deadline composes with the native caller
+  abort signal. Wrap only the public `json`/`arrayBuffer` readers consumed by
+  TilesRenderer, preserving Response identity, headers and zero extra full-body
+  copies. Normalize body timeout AbortErrors to TimeoutError: native traversal
+  ignores AbortError and otherwise cannot release/account/retry that failed job.
+  Ordinary caller cancellation is preserved. Successful loads and exhausted-key
+  expiry reset the consecutive-failure budget; five exponential-backoff retries
+  and the existing 120 s exhausted cooldown remain. Permanent failures retain
+  their existing no-immediate-retry behavior. Modern AbortSignal APIs required.
+- **Alternatives:** Promise.race alone rejected (does not stop network work);
+  full-body buffering/stream pumping rejected (copies or per-chunk main-thread
+  work). No additional queue, parser worker or throughput claim. Larger genuine
+  downloads taking >30 s retry; the plugin exposes requestTimeoutMs for tuning.
+- **Validation:** 19 focused transport/retry assertions pass: stalled headers
+  and bodies, normalized body cancellation, native caller abort, HTTP failure
+  preservation, success resets and cooldown resets. Live connection degradation
+  and Safari/Firefox were not tested. Exhaustion expiry remains demand-driven;
+  an idle failed root's autonomous recovery is not established by these tests.
+
+### CURRENT-MESH-CONTRACT-TESTS-20260909
+
+- **Context:** Retired integration fixtures silently called removed optional
+  acknowledgement APIs, treated offscreen casters as main-view receivers and
+  published arbitrary `visibleTiles` without a traversed root. They asserted
+  historical global/atomic caster-stage gates no longer used by mesh retrieval.
+  Those expectations failed against the committed baseline too.
+- **Decision:** Share a test-only fixture outside production `src/`: explicit
+  main-view roles, finite SSE/distance, actual traversal frame increments,
+  coherent native/local OBB transforms, parent boxes enclosing descendants and
+  matching loaded-state/scene data. Replace the combined legacy scenarios with
+  focused tests for union membership, sunward-only caster retention, complete
+  local child replacement, pending request deduplication/cancellation, near-first
+  ordering, no native shadow camera, time-change retention and target-quality
+  mesh retention under cache pressure. Native loading/publication runs; network
+  and GPU rendering are stubbed. These are not visual correctness benchmarks.
+- **Corrections:** A failed child is not strict target-readiness proof. Spatial
+  search remains metadata-based after payload geometry arrives. A global heap
+  ratio does not pause mesh admission; context loss and finite own-cache limits
+  still have dedicated checks. Non-terrain error relaxation remains separately
+  tested. The existing pure frontier/parent-child regression suite is unchanged.
+- **Rejected:** Skipping/red-marking old tests, lowering assertions to match
+  accidental outputs, or restoring dead APIs just to satisfy fixtures. No
+  production behavior was changed in this test-cleanup step.
+- **Validation:** 115 focused engine tests and 65 shadow/cache tests pass. No
+  broad build, lint or full monorepo suite. Real-device soft convergence and
+  source anomalies remain distinct from this deterministic contract coverage.

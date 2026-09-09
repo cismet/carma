@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TilesRenderer } from "3d-tiles-renderer";
-import type { Tile } from "3d-tiles-renderer/core";
-import type { Map as MaplibreMap } from "maplibre-gl";
-import * as THREE from "three";
-import { describe, expect, it, vi } from "vitest";
-import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -12,171 +9,125 @@ vi.hoisted(() => {
     value: () => "blob:vitest-maplibre-worker",
   });
 });
+afterEach(() => vi.restoreAllMocks());
 
-describe("atomic mesh corridor loader demand", () => {
-  it("loads split siblings and the stricter follow-up caster cut before publishing their receiver family", () => {
-    let renderer: TilesRenderer;
-    const update = vi
-      .spyOn(TilesRenderer.prototype, "update")
-      .mockImplementation(function () {
-        renderer = this;
-        this.frameCount += 1;
-      });
-    const queued = vi
-      .spyOn(TilesRenderer.prototype, "queueTileForDownload")
-      .mockImplementation(() => {});
-    const nativeError = vi
-      .spyOn(TilesRenderer.prototype, "calculateTileViewErrorWithPlugin")
-      .mockImplementation((_tile, target) => {
-        target.inView = false;
-        target.error = Number.POSITIVE_INFINITY;
-      });
-    const map = {
-      on: vi.fn(),
-      off: vi.fn(),
-      triggerRepaint: vi.fn(),
-      isMoving: () => false,
-    } as unknown as MaplibreMap;
-    const runtime = buildThreeTilesRuntime(
-      "staged",
-      "https://example.test/mesh/tileset.json",
-      [7.2, 51.2],
-      { providesTerrain: true }
-    );
-    const camera = new THREE.PerspectiveCamera();
-    const frame = {
-      map,
-      renderCamera: camera,
-      lodCamera: camera,
-      viewport: new THREE.Vector2(800, 600),
-      lookTarget: new THREE.Vector3(),
-    };
-    runtime.scene.onAdd?.(map);
-    runtime.loading.setErrorTarget(1);
-    runtime.scene.update(frame);
-    const nativePlacement = renderer!.group.matrixWorld.clone().invert();
-    const makeTile = (
-      id: string,
-      minX: number,
-      maxX: number,
-      z: number,
-      error: number,
-      main: boolean,
-      parent: Tile | null = null
-    ): Tile => {
-      const box = new THREE.Box3(
-        new THREE.Vector3(minX, -1, z - 1),
-        new THREE.Vector3(maxX, 1, z + 1)
-      );
-      return {
-        content: { uri: `${id}.b3dm` },
-        geometricError: error,
-        parent,
-        children: [],
-        refine: "REPLACE",
-        internal: {
-          hasContent: true,
-          hasRenderableContent: true,
-          loadingState: 4,
-          basePath: "https://example.test/mesh",
-          depth: parent ? 1 : 0,
-        },
-        traversal: { error, inFrustum: main },
-        engineData: {
-          scene: new THREE.Group(),
-          boundingVolume: {
-            getAABB: (target: THREE.Box3) =>
-              target.copy(box).applyMatrix4(nativePlacement),
-            getOBB: (target: THREE.Box3, transform: THREE.Matrix4) => {
-              target.copy(box);
-              transform.copy(nativePlacement);
-            },
-            getSphere: (target: THREE.Sphere) => box.getBoundingSphere(target),
-            intersectsFrustum: () => main,
-          },
-        },
-      } as unknown as Tile;
-    };
-    const root = makeTile("root", -20, 20, -80, 64, true);
-    root.internal.hasContent = false;
-    root.internal.hasRenderableContent = false;
-    const rootBox = new THREE.Box3(
-      new THREE.Vector3(-20, -20, -120),
-      new THREE.Vector3(20, 20, 0)
-    );
-    Object.assign(root.engineData.boundingVolume, {
-      getAABB: (target: THREE.Box3) =>
-        target.copy(rootBox).applyMatrix4(nativePlacement),
-      getOBB: (target: THREE.Box3, transform: THREE.Matrix4) => {
-        target.copy(rootBox);
-        transform.copy(nativePlacement);
-      },
-    });
-    const reference = makeTile("reference4", -2, 1, -100, 4, true, root);
-    const receiver = makeTile("receiver16", 0, 10, -100, 16, true, root);
-    const left = makeTile("receiver-left8", 0, 5, -100, 8, true, receiver);
-    const right = makeTile("receiver-right8", 5, 10, -100, 8, true, receiver);
-    right.internal.loadingState = 0;
-    const caster = makeTile("caster16", 6, 10, -50, 16, false, root);
-    const fineCaster = makeTile("caster8", 6, 10, -50, 8, false, caster);
-    fineCaster.internal.loadingState = 0;
-    receiver.children = [left, right];
-    caster.children = [fineCaster];
-    root.children = [reference, receiver, caster];
-    Object.assign(renderer!, { rootTileset: { root } });
-    for (const tile of [root, reference, receiver, left, caster])
-      renderer!.lruCache.add(tile, () => {});
-    const sun = new THREE.OrthographicCamera(-100, 100, 100, -100, 1, 500);
-    sun.position.set(0, 0, 100);
-    sun.lookAt(0, 0, 0);
-    sun.updateMatrixWorld(true);
-    runtime.scene.setShadowView({
-      camera: sun,
-      shadowMapSize: { width: 1024, height: 1024 },
-    });
-    const loaded = (tile: Tile) => {
-      tile.internal.loadingState = 4;
-      renderer!.lruCache.add(tile, () => {});
-      renderer!.dispatchEvent({
-        type: "load-model",
-        scene: tile.engineData.scene,
-        tile,
-        url: `https://example.test/mesh/${tile.content.uri}`,
-      });
-    };
+describe("current mesh corridor request admission", () => {
+  it("selects sunward casters while unrelated downloads run, without a second native camera", () => {
+    const setCamera = vi.spyOn(TilesRenderer.prototype, "setCamera");
+    const f = createMeshCorridorFixture();
     try {
-      runtime.scene.update(frame);
-      expect(renderer!.visibleTiles.has(reference)).toBe(true);
-      expect(renderer!.visibleTiles.has(receiver)).toBe(false);
-      expect(renderer!.visibleTiles.has(right)).toBe(false);
-      queued.mockClear();
-      // Its own coarse budget permits the parent, but the reference receiver
-      // forces that shared parent to split. The sibling is a real dependency.
-      renderer!.queueTileForDownload(right);
-      expect(queued).toHaveBeenCalledWith(right);
-      queued.mockClear();
-      renderer!.queueTileForDownload(fineCaster);
-      expect(queued).not.toHaveBeenCalled();
-
-      loaded(right);
-      runtime.scene.update(frame);
-      // The proof now selects the two 8px receiver children. The loader must
-      // see their stricter demand although neither may publish before caster8.
-      expect(renderer!.visibleTiles.has(right)).toBe(false);
-      queued.mockClear();
-      renderer!.queueTileForDownload(fineCaster);
-      expect(queued).toHaveBeenCalledWith(fineCaster);
-      loaded(fineCaster);
-      runtime.scene.update(frame);
-      expect(renderer!.visibleTiles.has(right)).toBe(true);
-      expect(renderer!.visibleTiles.has(fineCaster)).toBe(true);
-      expect(renderer!.visibleTiles.has(receiver)).toBe(false);
-      expect(renderer!.visibleTiles.has(caster)).toBe(false);
+      f.renderer.stats.downloading = 1;
+      f.update();
+      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
+      expect(setCamera).not.toHaveBeenCalledWith(f.sun);
+      expect(setCamera).toHaveBeenCalledWith(f.frame.lodCamera);
     } finally {
-      runtime.scene.dispose();
-      nativeError.mockRestore();
-      queued.mockRestore();
-      update.mockRestore();
+      f.dispose();
+    }
+  });
+
+  it("cancels obsolete pending payloads after a solar demand refresh, keeping visible and required payloads", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      f.update();
+      const stale = f.tile("stale", 150, 160, -50, 0, false, f.root);
+      const wanted = f.tile("wanted", -5, 5, -50, 0, false, f.root);
+      const removed: string[] = [];
+      for (const value of [stale, wanted]) {
+        value.internal.loadingState = 2;
+        f.renderer.loadingTiles.add(value);
+        f.renderer.lruCache.add(value, () => {
+          removed.push(value.content.uri!);
+          f.renderer.loadingTiles.delete(value);
+        });
+      }
+      f.sun.rotateY(0.01);
+      f.setSun();
+      f.update();
+      expect(removed).toEqual(["stale.b3dm"]);
+      expect(f.renderer.loadingTiles.has(wanted)).toBe(true);
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+      expect(f.renderer.lruCache.has(f.caster)).toBe(true);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("orders receiver requests near-first and does not restart demand for loaded meshes", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      const near = f.tile("near", -10, 0, -100, 1, true, f.receiver);
+      const far = f.tile("far", 0, 10, -100, 1, true, f.receiver);
+      f.receiver.children = [near, far];
+      f.update();
+      near.traversal.distanceFromCamera = 10;
+      far.traversal.distanceFromCamera = 1000;
+      f.renderer.queueTileForDownload(far);
+      f.renderer.queueTileForDownload(near);
+      expect(
+        f.renderer.downloadQueue.priorityCallback!(near, far)
+      ).toBeGreaterThan(0);
+      f.load(near);
+      f.load(far);
+      f.update();
+      f.queued.mockClear();
+      f.renderer.queueTileForDownload(near);
+      f.renderer.queueTileForDownload(far);
+      expect(f.queued).not.toHaveBeenCalled();
+      expect(f.visibleIds()).toEqual(["caster16", "far", "near"]);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("admits missing receiver children and caster detail without a removed publication acknowledgement", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
+      const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);
+      const caster = f.tile("caster-final", -10, 10, -50, 0, false, f.caster);
+      f.receiver.children = [left, right];
+      f.caster.children = [caster];
+      f.load(left);
+      f.update();
+      f.queued.mockClear();
+      f.renderer.queueTileForDownload(right);
+      f.renderer.queueTileForDownload(caster);
+      expect(f.queued.mock.calls.map(([tile]) => tile)).toEqual([
+        right,
+        caster,
+      ]);
+      // Even when the native mock does not update loadingState, same-traversal
+      // admission is idempotent. A real pending or loaded payload is never added.
+      f.renderer.queueTileForDownload(right);
+      f.renderer.queueTileForDownload(caster);
+      f.renderer.queueTileForDownload(left);
+      expect(f.queued).toHaveBeenCalledTimes(2);
+      f.load(right);
+      f.load(caster);
+      f.update();
+      expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);
+      expect(
+        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
+      ).toBe(true);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("does not requeue pending payloads on a new traversal", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      const pending = f.tile("pending", -10, 10, -100, 1, true, f.receiver);
+      f.receiver.children = [pending];
+      pending.internal.loadingState = 2;
+      f.update();
+      f.queued.mockClear();
+      f.renderer.queueTileForDownload(pending);
+      expect(f.queued).not.toHaveBeenCalled();
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+    } finally {
+      f.dispose();
     }
   });
 });

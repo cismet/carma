@@ -102,6 +102,7 @@ describe("Geoportal tiled scene adapter", () => {
       })),
     };
     vi.mocked(TiledShadowRenderer).mockImplementation(() => pages as never);
+    const canReplay = vi.fn(() => false);
     const accumulation = {
       render: vi.fn(),
       renderHard: vi.fn(() => ({ published: 0, needsRepaint: false })),
@@ -115,7 +116,9 @@ describe("Geoportal tiled scene adapter", () => {
         revision: 0,
         supportsCapture: true,
         beginFrame: vi.fn(),
-        canReplay: vi.fn(() => false),
+        canReplay,
+        canPresent: canReplay,
+        beginSolarTransition: vi.fn(),
         hasAtLeast: vi.fn(() => false),
         render: vi.fn((_scene, _page, _samples, draw) => draw()),
         capture: vi.fn((_scene, draw) => draw()),
@@ -161,6 +164,17 @@ describe("Geoportal tiled scene adapter", () => {
       2 * 2048 ** 2 * 8,
       2048
     );
+  });
+
+  it("cancels obsolete solar jobs while retaining the last publication only for display", () => {
+    const f = fixture();
+    f.adapter.cancelPending(true);
+    expect(f.accumulation.cancelPending).toHaveBeenCalledOnce();
+    expect(f.accumulation.presentation.beginSolarTransition).toHaveBeenCalledOnce();
+    f.adapter.cancelPending();
+    expect(f.accumulation.presentation.beginSolarTransition).toHaveBeenCalledOnce();
+    expect(f.accumulation.dispose).not.toHaveBeenCalled();
+    f.adapter.dispose();
   });
 
   it("cancels pending integration when inactive without dropping retained masks", () => {

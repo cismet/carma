@@ -111,6 +111,9 @@ export const createShadowCorridorCache = (producerAssetUrl: string) => {
     }
   };
   const client = {
+    // Superseded solar work is not a storage failure. Release the occupied
+    // worker immediately; the next current-time request may start a fresh one.
+    cancelPending: stop,
     get enabled() {
       return Boolean(
         producer && !closed && !disabled && typeof Worker !== "undefined"

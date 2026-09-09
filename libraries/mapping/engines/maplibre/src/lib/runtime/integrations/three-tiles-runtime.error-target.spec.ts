@@ -4,8 +4,8 @@
  * D5 wiring of the effective error target in the runtime: a full, idle and
  * unconverged view relaxes the target once after the hold time, a pan keeps
  * the relaxed target, the failure memory blocks a re-tighten in the same view
- * class until the view zooms in, and a placeholder parent whose children can
- * never load counts as converged so the shadow camera can join.
+ * class until the view zooms in. A permanently missing child must not turn
+ * its coarse placeholder into proof of requested-quality readiness.
  */
 
 import { TilesRenderer } from "3d-tiles-renderer";
@@ -181,7 +181,7 @@ describe("three tiles runtime effective error target", () => {
     layer.scene.dispose();
   });
 
-  it("treats a placeholder whose child can never load as ready for receiver traversal", () => {
+  it("retains the placeholder but does not claim target readiness when refinement is unavailable", () => {
     const { layer, renderer, tick, child, visibleTile, requiredTile } = setup();
     renderer.lruCache.setMemoryUsage(requiredTile, 16 * MIB);
     const receiverBounds = new THREE.Box3(
@@ -216,7 +216,10 @@ describe("three tiles runtime effective error target", () => {
       vi.advanceTimersByTime(ERROR_TARGET_POLICY.relaxHoldMs);
     }
     expect(renderer.errorTarget).toBe(0.25);
-    expect(layer.loading.getRequestDemand()).toBe(0);
+    // A blocked retry is not proof of requested quality. Keep the displayed
+    // fallback, while strict readiness remains false instead of lying to callers.
+    expect(renderer.visibleTiles.has(visibleTile as never)).toBe(true);
+    expect(layer.scene.isMainViewReady()).toBe(false);
     layer.scene.dispose();
   });
 });

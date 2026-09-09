@@ -2571,7 +2571,7 @@ export const buildShadowSimulationScene = (
     if (latestSolarPosition?.instant.getTime() === position.instant.getTime()) {
       return;
     }
-    tiledScene?.cancelPending();
+    tiledScene?.cancelPending(true);
     invalidateShadowPresentation();
     latestSolarPosition = position;
     updateSharedShadowCoverage();

@@ -78,6 +78,26 @@ const fixture = () => {
 };
 
 describe("completed corridor presentation", () => {
+  it("retains the last shaded publication across time changes without claiming current readiness", () => {
+    const f = fixture();
+    const previous = { ...f.pages[0], contentKey: "same-geometry", presentationKey: "old-sun" };
+    f.presentation.publish(f.color, f.reference, f.camera, previous, 128);
+    const next = { ...previous, presentationKey: "new-sun" };
+    expect(f.presentation.canPresent(next)).toBe(false);
+    f.presentation.beginSolarTransition();
+    expect(f.presentation.canPresent(next)).toBe(true);
+    expect(f.presentation.canReplay(next)).toBe(false);
+    expect(f.presentation.hasAtLeast(next, 1)).toBe(false);
+    // A second time change while loading must still retain the same image.
+    f.presentation.beginSolarTransition();
+    expect(f.presentation.canPresent(next)).toBe(true);
+    expect(f.presentation.publish(f.color, f.reference, f.camera, next, 1)).toBe(true);
+    expect(f.presentation.canReplay(next)).toBe(true);
+    expect(f.presentation.hasAtLeast(next, 1)).toBe(true);
+    expect(f.presentation.canPresent({ ...next, presentationKey: "another-sun" })).toBe(false);
+    f.presentation.dispose();
+  });
+
   it("reuses a baked receiver at equal or smaller demand, but refines larger buffers", () => {
     const f = fixture();
     const page: ShadowAccumulationPage = {
@@ -519,6 +539,7 @@ const persistentFixture = () => {
       ) => true
     ),
     dispose: vi.fn(),
+    cancelPending: vi.fn(),
   };
   const context = {
     cache,
@@ -542,6 +563,19 @@ const settlePersistence = async () => {
 };
 
 describe("persistent corridor GPU integration", () => {
+  it("rejects late old-time cache reads after solar cancellation", async () => {
+    const f = persistentFixture();
+    let complete!: (record: ShadowCorridorCacheRecord) => void;
+    f.cache.read.mockReturnValue(new Promise((resolve) => { complete = resolve; }));
+    f.presentation.prepareRestore(f.pages[0], 128, f.captureMatrix);
+    f.presentation.beginSolarTransition();
+    expect(f.cache.cancelPending).toHaveBeenCalledOnce();
+    complete(f.record);
+    await settlePersistence();
+    expect(f.presentation.stats.pages).toBe(0);
+    f.presentation.dispose();
+  });
+
   it("reuses restored finer masks after a demand change while still checking source geometry", async () => {
     const f = persistentFixture();
     const page: ShadowAccumulationPage = {

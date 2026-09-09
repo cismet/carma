@@ -166,196 +166,6 @@ describe("three tiles runtime styling", () => {
     }
   );
 
-  it.each([false, true])(
-    "cancels stale requests without evicting current view/corridor demand (shadows=%s)",
-    (shadows) => {
-      let renderer: TilesRenderer & {
-        loadingTiles: Set<Tile>;
-        queueTileForDownload: (tile: Tile) => void;
-        queuedTiles: Tile[];
-        calculateTileViewErrorWithPlugin: (
-          tile: Tile,
-          target: { inView: boolean; error: number; distanceFromCamera: number }
-        ) => void;
-      };
-      const nativeView = vi
-        .spyOn(
-          TilesRenderer.prototype as unknown as {
-            calculateTileViewErrorWithPlugin: (
-              tile: Tile,
-              target: {
-                inView: boolean;
-                error: number;
-                distanceFromCamera: number;
-              }
-            ) => void;
-          },
-          "calculateTileViewErrorWithPlugin"
-        )
-        .mockImplementation((_tile, target) => {
-          Object.assign(target, {
-            inView: true,
-            error: 2,
-            distanceFromCamera: 1,
-          });
-        });
-      const update = vi
-        .spyOn(TilesRenderer.prototype, "update")
-        .mockImplementation(function () {
-          renderer = this as typeof renderer;
-        });
-      const handlers = new Map<string, () => void>();
-      let moving = false;
-      const map = {
-        on: vi.fn((name, callback) => handlers.set(name, callback)),
-        off: vi.fn(),
-        triggerRepaint: vi.fn(),
-        isMoving: () => moving,
-      } as unknown as MaplibreMap;
-      const runtime = buildThreeTilesRuntime(
-        "sweep",
-        "mesh.json",
-        [7.2, 51.2],
-        { providesTerrain: true, cacheBudgetBytes: 128 * MIB }
-      );
-      runtime.loading.setErrorTarget(1);
-      runtime.scene.onAdd?.(map);
-      const camera = new THREE.PerspectiveCamera();
-      const frame = {
-        map,
-        renderCamera: camera,
-        lodCamera: camera,
-        lookTarget: new THREE.Vector3(),
-        viewport: new THREE.Vector2(800, 600),
-      };
-      runtime.scene.update(frame);
-      const makeTile = (
-        inView: boolean,
-        state: number,
-        center = new THREE.Vector3(inView ? 0 : 100, 0, 0)
-      ): Tile =>
-        ({
-          parent: null,
-          children: [],
-          refine: "REPLACE",
-          geometricError: 1,
-          internal: { hasRenderableContent: true, loadingState: state },
-          traversal: { error: 8, inFrustum: inView },
-          engineData: {
-            boundingVolume: {
-              intersectsFrustum: () => inView,
-              getAABB: (box: THREE.Box3) =>
-                box.setFromCenterAndSize(center, new THREE.Vector3(1, 1, 1)),
-              getSphere: (sphere: THREE.Sphere) => sphere.set(center, 1),
-            },
-          },
-        } as unknown as Tile);
-      const visible = makeTile(true, 4);
-      const wantedRequest = makeTile(true, 2);
-      const staleRequest = makeTile(false, 2);
-      const spare = makeTile(false, 4);
-      const caster = makeTile(false, 2, new THREE.Vector3(0, 10, 0));
-      if (shadows) {
-        const metadata = makeTile(true, 4);
-        metadata.internal.hasRenderableContent = false;
-        metadata.internal.hasContent = false;
-        metadata.children = [
-          visible,
-          wantedRequest,
-          spare,
-          staleRequest,
-          caster,
-        ];
-        for (const tile of metadata.children) tile.parent = metadata;
-        Object.assign(renderer!, { rootTileset: { root: metadata } });
-      }
-      const rootBounds = vi
-        .spyOn(renderer!, "getBoundingBox")
-        .mockImplementation((box) => {
-          box.setFromCenterAndSize(
-            new THREE.Vector3(),
-            new THREE.Vector3(400, 400, 400)
-          );
-          return true;
-        });
-      if (shadows) {
-        const sun = new THREE.OrthographicCamera();
-        sun.position.set(0, 50, 0);
-        sun.up.set(0, 0, -1);
-        sun.lookAt(0, 0, 0);
-        runtime.scene.setShadowView({
-          camera: sun,
-          shadowMapSize: { width: 1024, height: 1024 },
-        });
-        renderer!.group.add(new THREE.Group());
-        renderer!.loadingTiles.add(caster);
-      }
-      const removed: Tile[] = [];
-      for (const tile of [
-        visible,
-        wantedRequest,
-        spare,
-        staleRequest,
-        ...(shadows ? [caster] : []),
-      ]) {
-        renderer!.lruCache.add(tile, () => {
-          removed.push(tile);
-          renderer.loadingTiles.delete(tile);
-          tile.internal.loadingState = 0;
-        });
-        renderer!.lruCache.setMemoryUsage(tile, 30 * MIB);
-      }
-      renderer!.visibleTiles.add(visible);
-      renderer!.loadingTiles.add(wantedRequest);
-      renderer!.loadingTiles.add(staleRequest);
-      try {
-        moving = true;
-        handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
-        runtime.scene.update(frame);
-        expect(removed).toEqual([]);
-        moving = false;
-        handlers.get(MAPLIBRE_EVENT.MOVE_END)?.();
-        runtime.scene.update(frame);
-        expect(removed).toContain(staleRequest);
-        expect(removed).not.toContain(visible);
-        expect(removed).not.toContain(wantedRequest);
-        if (shadows) {
-          expect(removed).not.toContain(caster);
-          expect(renderer!.loadingTiles.has(caster)).toBe(true);
-          expect(removed).toContain(spare);
-        }
-        expect(renderer!.loadingTiles.has(wantedRequest)).toBe(true);
-        // The same demand stays pinned, but an incomplete cold corridor must
-        // not publish its otherwise loaded receiver as bare mesh.
-        expect(renderer!.visibleTiles.has(visible)).toBe(!shadows);
-        expect(renderer!.lruCache.isFull()).toBe(false);
-        const child = makeTile(true, 0);
-        child.parent = visible;
-        runtime.scene.update(frame);
-        renderer!.queueTileForDownload(child);
-        // With shadows, the parent has not yet acquired its current-stage
-        // caster: refinement waits for that local joint publication. Without
-        // shadows, there is no corridor stage that could gate this child.
-        expect(renderer!.queuedTiles.includes(child)).toBe(!shadows);
-        if (shadows) {
-          // Native OBB visibility wins even if the secondary frustum and the
-          // sunward mask both exclude this boundary tile.
-          const boundary = makeTile(false, 0);
-          const target = { inView: false, error: 0, distanceFromCamera: 0 };
-          renderer!.calculateTileViewErrorWithPlugin(boundary, target);
-          expect(target.inView).toBe(true);
-          expect(target.error).toBe(2);
-          expect(boundary.internal.loadingState).toBe(0);
-        }
-      } finally {
-        runtime.scene.dispose();
-        rootBounds.mockRestore();
-        nativeView.mockRestore();
-        update.mockRestore();
-      }
-    }
-  );
-
   it("rechecks a stalled settled view on a bounded timer and cancels the audit on disposal", () => {
     vi.useFakeTimers();
     const update = vi
@@ -395,110 +205,6 @@ describe("three tiles runtime styling", () => {
       vi.useRealTimers();
     }
   });
-  it("fills a mesh pass before refining, orders admission near-first, and retains the render target on drag", () => {
-    let renderer: TilesRenderer;
-    const update = vi
-      .spyOn(TilesRenderer.prototype, "update")
-      .mockImplementation(function () {
-        renderer = this;
-      });
-    const handlers = new Map<string, () => void>();
-    const map = {
-      on: vi.fn((name, callback) => handlers.set(name, callback)),
-      off: vi.fn(),
-      triggerRepaint: vi.fn(),
-    } as unknown as MaplibreMap;
-    const runtime = buildThreeTilesRuntime(
-      "progressive",
-      "mesh.json",
-      [7.2, 51.2],
-      { providesTerrain: true }
-    );
-    runtime.loading.setErrorTarget(1);
-    runtime.scene.onAdd?.(map);
-    const camera = new THREE.PerspectiveCamera();
-    const frame = {
-      map,
-      renderCamera: camera,
-      lodCamera: camera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    };
-    runtime.scene.update(frame);
-    const parent = {
-      refine: "REPLACE",
-      internal: { hasRenderableContent: true, loadingState: 3, depth: 10 },
-      traversal: { error: 12, inFrustum: true, distanceFromCamera: 50 },
-      children: [{}],
-      parent: null,
-    };
-    const near = {
-      refine: "REPLACE",
-      internal: { hasRenderableContent: true, loadingState: 0, depth: 11 },
-      traversal: { error: 6, inFrustum: true, distanceFromCamera: 10 },
-      children: [],
-      parent,
-    };
-    const far = {
-      ...near,
-      traversal: { ...near.traversal, distanceFromCamera: 1000 },
-    };
-    const loader = renderer! as TilesRenderer & {
-      queuedTiles: unknown[];
-      queueTileForDownload: (tile: unknown) => void;
-    };
-    try {
-      loader.queueTileForDownload(near);
-      expect(loader.queuedTiles).toHaveLength(0); // parent covers the 16px pass
-      parent.internal.loadingState = 4; // parsing is not published coverage
-      renderer!.visibleTiles.add(parent as never);
-      runtime.scene.update(frame); // 16px coverage complete -> allow 8px pass
-      loader.queueTileForDownload(far);
-      loader.queueTileForDownload(near);
-      loader.queueTileForDownload(near);
-      expect(loader.queuedTiles).toEqual([far, near]);
-      const loaded = {
-        ...near,
-        internal: { ...near.internal, loadingState: 4 },
-      };
-      const downloading = {
-        ...near,
-        internal: { ...near.internal, loadingState: 2 },
-      };
-      loader.queueTileForDownload(loaded);
-      loader.queueTileForDownload(downloading);
-      expect(loader.queuedTiles).toEqual([far, near]);
-      expect(
-        renderer!.lruCache.unloadPriorityCallback!(near as never, far as never)
-      ).toBeLessThan(0);
-      expect(
-        renderer!.downloadQueue.priorityCallback!(near as never, far as never)
-      ).toBeGreaterThan(0);
-      expect(renderer!.errorTarget).toBe(1);
-      handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
-      expect(renderer!.visibleTiles.has(parent as never)).toBe(true);
-      expect(renderer!.errorTarget).toBe(1);
-      loader.queuedTiles.length = 0;
-      runtime.scene.update(frame);
-      loader.queueTileForDownload(near);
-      expect(loader.queuedTiles).toEqual([near]); // drag must not restart the 16px admission pass
-      parent.traversal.error = 100;
-      parent.children = [
-        { engineData: { boundingVolume: { intersectsFrustum: () => false } } },
-      ] as never;
-      runtime.scene.update(frame);
-      expect(runtime.scene.isMainViewReady()).toBe(true);
-      parent.children = [{}]; // unknown metadata must not pass the same gate
-      expect(runtime.scene.isMainViewReady()).toBe(false);
-      map.triggerRepaint = vi.fn();
-      runtime.loading.setErrorTarget(0.25);
-      expect(renderer!.errorTarget).toBe(0.25);
-      expect(map.triggerRepaint).toHaveBeenCalled();
-    } finally {
-      runtime.scene.dispose();
-      update.mockRestore();
-    }
-  });
   it("restores fine visible meshes and pins them when upstream proposes a coarse drag fallback", () => {
     type FrontierRenderer = TilesRenderer & {
       setTileVisible: (tile: Tile, visible: boolean) => void;
@@ -511,6 +217,7 @@ describe("three tiles runtime styling", () => {
       .spyOn(TilesRenderer.prototype, "update")
       .mockImplementation(function () {
         renderer = this as FrontierRenderer;
+        this.frameCount += 1;
         if (!proposed) return;
         // Production retention walks the hierarchy, not only visible leaves.
         // Keep the test's loaded family reachable through the same entrypoint.
@@ -865,11 +572,13 @@ describe("three tiles runtime styling", () => {
     });
     try {
       layer.loading.setCacheBudget(24 * 1024 ** 3);
-      expect(renderer!.downloadQueue.maxJobsPerOrigin).toBe(0);
-      expect(renderer!.parseQueue.maxJobs).toBe(0);
+      // Tab-wide heap usage no longer stops admission. Only the own finite
+      // tile budget, an allocation failure or context loss may do so.
+      expect(renderer!.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
+      expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
       memory.usedJSHeapSize = 70;
       layer.loading.setCacheBudget(24 * 1024 ** 3);
-      expect(renderer!.parseQueue.maxJobs).toBe(0);
+      expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
       memory.usedJSHeapSize = 60;
       layer.loading.setCacheBudget(24 * 1024 ** 3);
       expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
@@ -1034,8 +743,10 @@ describe("three tiles runtime styling", () => {
     surface.position.set(1, 200, 3);
     model.add(surface);
     const loadedVolumes = layer.scene.getActiveTileVolumes?.() ?? [];
-    expect(loadedVolumes[0].minimum).toEqual([-1, 197, -1]);
-    expect(loadedVolumes[0].maximum).toEqual([3, 203, 7]);
+    // Spatial search follows tileset metadata, not payload vertex traversal.
+    // Adding geometry must not replace the stable declared bounding volume.
+    expect(loadedVolumes[0].minimum).toEqual(volumes[0].minimum);
+    expect(loadedVolumes[0].maximum).toEqual(volumes[0].maximum);
     surface.geometry.dispose();
     (surface.material as THREE.Material).dispose();
 
@@ -1079,37 +790,17 @@ describe("three tiles runtime styling", () => {
     updateSpy.mockRestore();
   });
 
-  it("uses receiver extrusion without registering a shadow selection camera", () => {
+  it("relaxes non-terrain layer precision under its own cache pressure", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(10_000);
     const updateErrorTargets: number[] = [];
-    const eventOrder: string[] = [];
     let renderer: TilesRenderer | undefined;
     const updateSpy = vi
       .spyOn(TilesRenderer.prototype, "update")
       .mockImplementation(function (this: TilesRenderer) {
         renderer = this;
         updateErrorTargets.push(this.errorTarget);
-        eventOrder.push("update");
       });
-    const setCameraSpy = vi
-      .spyOn(TilesRenderer.prototype, "setCamera")
-      .mockImplementation((camera) => {
-        eventOrder.push(
-          camera instanceof THREE.OrthographicCamera
-            ? "shadow-camera"
-            : "view-camera"
-        );
-        return true;
-      });
-    const deleteCameraSpy = vi
-      .spyOn(TilesRenderer.prototype, "deleteCamera")
-      .mockImplementation(() => true);
-    const setResolutionSpy = vi
-      .spyOn(TilesRenderer.prototype, "setResolution")
-      .mockImplementation(() => true);
-    const registerPluginSpy = vi.spyOn(
-      TilesRenderer.prototype,
-      "registerPlugin"
-    );
     const handlers = new Map<string, () => void>();
     const map = {
       on: vi.fn((event: string, handler: () => void) => {
@@ -1117,450 +808,94 @@ describe("three tiles runtime styling", () => {
       }),
       off: vi.fn(),
       triggerRepaint: vi.fn(),
+      getZoom: () => 17,
+      getPitch: () => 45,
     } as unknown as MaplibreMap;
     const layer = buildThreeTilesRuntime(
       "mesh",
       "tileset.json",
       [7.15, 51.25],
-      { providesTerrain: true }
+      { providesTerrain: false }
     );
     const viewCamera = new THREE.PerspectiveCamera();
-    const shadowCamera = new THREE.OrthographicCamera();
-    const isShadowCameraCall = ([camera]: unknown[]) =>
-      camera instanceof THREE.OrthographicCamera;
-    const registeredShadowCamera = (spy: { mock: { calls: unknown[][] } }) =>
-      spy.mock.calls.some(isShadowCameraCall);
-
-    layer.loading.setErrorTarget(0.25);
-    layer.scene.onAdd?.(map);
-    layer.scene.setShadowView({
-      camera: shadowCamera,
-      shadowMapSize: { width: 2048, height: 2048 },
-    });
-    layer.scene.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-
-    expect(updateErrorTargets).toEqual([0.25]);
-    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
-    // Loaded content exists; the shadow camera never joins an empty scene.
-    renderer!.group.add(new THREE.Group());
-    const visibleTile = {
-      traversal: { error: 0.2, inFrustum: true },
-      engineData: {},
-      children: [{ internal: { hasContent: true, loadingState: 0 } }],
-    };
-    renderer!.visibleTiles.add(visibleTile as never);
-    layer.scene.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-
-    expect(updateErrorTargets).toEqual([0.25, 0.25]);
-    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
-    expect(setCameraSpy).not.toHaveBeenCalledWith(shadowCamera);
-    expect(eventOrder).not.toContain("shadow-camera");
-    expect(
-      registerPluginSpy.mock.calls.some(
-        ([plugin]) =>
-          (plugin as { name?: string }).name === "UPDATE_ON_CHANGE_PLUGIN"
-      )
-    ).toBe(true);
-
-    deleteCameraSpy.mockClear();
-    setCameraSpy.mockClear();
-    visibleTile.traversal.error = 1;
-    const staleTile = {} as never;
-    const disposeStaleTile = vi.fn();
-    renderer!.lruCache.add(staleTile, disposeStaleTile);
-    renderer!.lruCache.setMemoryUsage(staleTile, 2 * 1024 ** 3);
-
-    handlers.get("moveend")?.();
-    expect(registeredShadowCamera(deleteCameraSpy)).toBe(false);
-    layer.scene.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-
-    expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25]);
-    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
-    // Unused content is left to the LRU's own eviction; the runtime no
-    // longer purges the cache while the view refines.
-    expect(disposeStaleTile).not.toHaveBeenCalled();
-
-    visibleTile.traversal.error = 0.2;
-    layer.scene.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-    expect(registeredShadowCamera(setCameraSpy)).toBe(false);
-
-    deleteCameraSpy.mockClear();
-    setResolutionSpy.mockClear();
-
-    handlers.get("movestart")?.();
-
-    expect(renderer!.errorTarget).toBe(0.25);
-    expect(registeredShadowCamera(deleteCameraSpy)).toBe(false);
-
-    shadowCamera.position.x = 2;
-    shadowCamera.updateMatrixWorld(true);
-    layer.scene.setShadowView({
-      camera: shadowCamera,
-      shadowMapSize: { width: 4096, height: 2048 },
-    });
-    layer.scene.update({
-      map,
-      renderCamera: viewCamera,
-      lodCamera: viewCamera,
-      lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 600),
-    });
-
-    expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25, 0.25]);
-    expect(registeredShadowCamera(setResolutionSpy)).toBe(false);
-
-    deleteCameraSpy.mockClear();
-    layer.scene.setShadowView(null);
-    expect(deleteCameraSpy).not.toHaveBeenCalled();
-    layer.scene.dispose();
-    updateSpy.mockRestore();
-    setCameraSpy.mockRestore();
-    deleteCameraSpy.mockRestore();
-    setResolutionSpy.mockRestore();
-    registerPluginSpy.mockRestore();
-  });
-
-  it("waits for visible mesh work before starting receiver extrusion", () => {
-    let renderer: TilesRenderer | undefined;
-    const updateSpy = vi
-      .spyOn(TilesRenderer.prototype, "update")
-      .mockImplementation(function (this: TilesRenderer) {
-        renderer = this;
-      });
-    const viewErrorSpy = vi
-      .spyOn(TilesRenderer.prototype, "calculateTileViewErrorWithPlugin")
-      .mockImplementation((_tile, target) => {
-        target.inView = false;
-        target.error = Number.POSITIVE_INFINITY;
-      });
-    const handlers = new Map<string, () => void>();
-    const map = {
-      on: vi.fn((event: string, handler: () => void) => {
-        handlers.set(event, handler);
-      }),
-      off: vi.fn(),
-      triggerRepaint: vi.fn(),
-    } as unknown as MaplibreMap;
-    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
-    const viewCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1_000);
-    viewCamera.updateProjectionMatrix();
-    viewCamera.updateMatrixWorld(true);
-    const shadowCamera = new THREE.OrthographicCamera(
-      -100,
-      100,
-      100,
-      -100,
-      1,
-      500
-    );
-    shadowCamera.position.set(0, 0, 100);
-    shadowCamera.lookAt(0, 0, 0);
-    shadowCamera.updateMatrixWorld(true);
     const frame = {
       map,
       renderCamera: viewCamera,
       lodCamera: viewCamera,
       lookTarget: new THREE.Vector3(),
-      viewport: new THREE.Vector2(800, 800),
+      viewport: new THREE.Vector2(800, 600),
     };
 
+    layer.loading.setErrorTarget(0.25);
     layer.scene.onAdd?.(map);
-    layer.loading.setErrorTarget(1);
     layer.scene.setShadowView({
-      camera: shadowCamera,
+      camera: new THREE.OrthographicCamera(),
       shadowMapSize: { width: 2048, height: 2048 },
     });
     layer.scene.update(frame);
 
-    const boundingVolume = (bounds: THREE.Box3, inMainView: boolean) => ({
-      getAABB: (target: THREE.Box3) => target.copy(bounds),
-      getSphere: (target: THREE.Sphere) => bounds.getBoundingSphere(target),
-      intersectsFrustum: () => inMainView,
-    });
-    const rootBounds = new THREE.Box3(
-      new THREE.Vector3(-200, -200, -200),
-      new THREE.Vector3(200, 200, 200)
+    // A displayed placeholder above the target whose child still has to load,
+    // and one used tile that fills the whole ceiling: full, idle, unconverged.
+    const visibleTile = {
+      traversal: { error: 1, inFrustum: true },
+      engineData: {},
+      children: [{ internal: { hasContent: true, loadingState: 0 } }],
+    } as never;
+    const requiredTile = {} as never;
+    const disposeRequiredTile = vi.fn();
+    renderer!.visibleTiles.add(visibleTile);
+    (renderer as TilesRenderer & { usedSet: Set<unknown> }).usedSet.add(
+      requiredTile
     );
-    const receiverBounds = new THREE.Box3(
-      new THREE.Vector3(-10, -10, -110),
-      new THREE.Vector3(10, 10, -90)
-    );
-    const localSunward = new THREE.Vector3(0, 0, 1).transformDirection(
-      renderer!.group.matrixWorld.clone().invert()
-    );
-    const casterBounds = receiverBounds
-      .clone()
-      .translate(localSunward.multiplyScalar(50));
-    Object.assign(renderer!, {
-      rootTileset: {
-        root: {
-          engineData: { boundingVolume: boundingVolume(rootBounds, true) },
-        },
-      },
-    });
-    renderer!.group.add(new THREE.Group());
-    const receiverTile = {
-      geometricError: 1,
-      traversal: { error: 0.2, inFrustum: true },
-      children: [],
-      parent: null,
-      engineData: { boundingVolume: boundingVolume(receiverBounds, true) },
-    };
-    renderer!.visibleTiles.add(receiverTile as never);
-    const busyQueue = new PriorityQueue();
-    busyQueue.items.push({ internal: { depth: 1 } } as never);
-    renderer!.downloadQueue.originQueues.set("mesh", busyQueue);
+    renderer!.lruCache.add(requiredTile, disposeRequiredTile);
+    renderer!.lruCache.setMemoryUsage(requiredTile, 2 * 1024 ** 3);
 
     layer.scene.update(frame);
+    expect(disposeRequiredTile).not.toHaveBeenCalled();
+    expect(renderer!.errorTarget).toBe(0.25);
+    expect(layer.loading.getRequestDemand()).toBeGreaterThan(0);
 
-    const target = {
-      inView: false,
-      error: Number.POSITIVE_INFINITY,
-      distanceFromCamera: Number.POSITIVE_INFINITY,
-    };
-    renderer!.calculateTileViewErrorWithPlugin(
-      {
-        geometricError: 1,
-        traversal: { error: 1, inFrustum: false },
-        children: [],
-        parent: null,
-        internal: { depth: 1 },
-        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
-      } as never,
-      target
-    );
-
-    expect(target.inView).toBe(false);
-    expect(target.error).toBe(Number.POSITIVE_INFINITY);
-
-    busyQueue.items.length = 0;
+    vi.advanceTimersByTime(999);
     layer.scene.update(frame);
-    renderer!.calculateTileViewErrorWithPlugin(
-      {
-        geometricError: 1,
-        traversal: { error: 1, inFrustum: false },
-        children: [],
-        parent: null,
-        internal: { depth: 1 },
-        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
-      } as never,
-      target
-    );
+    expect(renderer!.errorTarget).toBe(0.25);
 
-    expect(target.inView).toBe(true);
-    // This already-subpixel receiver has fivefold headroom inside target1.
-    // Caster admission uses that stage budget without over-refining to0.2px.
-    expect(target.error).toBeCloseTo(0.2);
+    vi.advanceTimersByTime(1);
+    layer.scene.update(frame);
+    expect(renderer!.errorTarget).toBe(0.5);
+    expect(layer.scene.isMainViewReady()).toBe(false);
+    expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25]);
 
-    // A camera move must retain the last complete offscreen caster set while
-    // the new viewport refines. Clearing the receiver mask here made terrain
-    // and shadow casters disappear before their replacements were ready.
+    // A pan keeps the effective target; the next stall relaxes further, up to
+    // four times the requested target.
     handlers.get("movestart")?.();
-    receiverTile.traversal.error = 4;
+    handlers.get("moveend")?.();
+    expect(renderer!.errorTarget).toBe(0.5);
     layer.scene.update(frame);
-    target.inView = false;
-    target.error = Number.POSITIVE_INFINITY;
-    renderer!.calculateTileViewErrorWithPlugin(
-      {
-        geometricError: 1,
-        traversal: { error: 1, inFrustum: false },
-        children: [],
-        parent: null,
-        internal: { depth: 1 },
-        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
-      } as never,
-      target
-    );
-    expect(target.inView).toBe(true);
-    receiverTile.traversal.error = 0.2;
-
-    const localLightSpaceX = new THREE.Vector3(1, 0, 0)
-      .transformDirection(renderer!.group.matrixWorld.clone().invert())
-      .multiplyScalar(100);
-    const shiftedReceiverBounds = receiverBounds
-      .clone()
-      .translate(localLightSpaceX);
-    const shiftedCasterBounds = shiftedReceiverBounds
-      .clone()
-      .translate(localSunward);
-    renderer!.visibleTiles.clear();
-    renderer!.visibleTiles.add({
-      geometricError: 1,
-      traversal: { error: 0.2, inFrustum: true },
-      children: [],
-      parent: null,
-      engineData: {
-        boundingVolume: boundingVolume(shiftedReceiverBounds, true),
-      },
-    } as never);
-
+    vi.advanceTimersByTime(1_000);
     layer.scene.update(frame);
-    renderer!.calculateTileViewErrorWithPlugin(
-      {
-        geometricError: 1,
-        traversal: { error: 1, inFrustum: false },
-        children: [],
-        parent: null,
-        internal: { depth: 1 },
-        engineData: { boundingVolume: boundingVolume(casterBounds, false) },
-      } as never,
-      target
-    );
-    expect(target.inView).toBe(false);
-    renderer!.calculateTileViewErrorWithPlugin(
-      {
-        geometricError: 1,
-        traversal: { error: 1, inFrustum: false },
-        children: [],
-        parent: null,
-        internal: { depth: 1 },
-        engineData: {
-          boundingVolume: boundingVolume(shiftedCasterBounds, false),
-        },
-      } as never,
-      target
-    );
-    expect(target.inView).toBe(true);
+    expect(renderer!.errorTarget).toBe(1);
+    layer.scene.update(frame);
+    vi.advanceTimersByTime(1_000);
+    layer.scene.update(frame);
+    expect(renderer!.errorTarget).toBe(1);
 
-    busyQueue.items.length = 0;
+    // A hidden tab keeps the used tiles and the effective target for a
+    // while; the debounced full wipe resets to the requested target.
+    const visibilitySpy = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(disposeRequiredTile).not.toHaveBeenCalled();
+    expect(renderer!.errorTarget).toBe(1);
+    vi.advanceTimersByTime(HIDDEN_TAB_WIPE_DELAY_MS);
+    expect(disposeRequiredTile).toHaveBeenCalledOnce();
+    expect(renderer!.errorTarget).toBe(0.25);
+
+    visibilitySpy.mockRestore();
     layer.scene.dispose();
-    viewErrorSpy.mockRestore();
     updateSpy.mockRestore();
+    vi.useRealTimers();
   });
-
-  it.each([false, true])(
-    "keeps surface-mesh precision under shadow cache pressure (providesTerrain=%s)",
-    (providesTerrain) => {
-      vi.useFakeTimers();
-      vi.setSystemTime(10_000);
-      const updateErrorTargets: number[] = [];
-      let renderer: TilesRenderer | undefined;
-      const updateSpy = vi
-        .spyOn(TilesRenderer.prototype, "update")
-        .mockImplementation(function (this: TilesRenderer) {
-          renderer = this;
-          updateErrorTargets.push(this.errorTarget);
-        });
-      const handlers = new Map<string, () => void>();
-      const map = {
-        on: vi.fn((event: string, handler: () => void) => {
-          handlers.set(event, handler);
-        }),
-        off: vi.fn(),
-        triggerRepaint: vi.fn(),
-        getZoom: () => 17,
-        getPitch: () => 45,
-      } as unknown as MaplibreMap;
-      const layer = buildThreeTilesRuntime(
-        "mesh",
-        "tileset.json",
-        [7.15, 51.25],
-        { providesTerrain }
-      );
-      const viewCamera = new THREE.PerspectiveCamera();
-      const frame = {
-        map,
-        renderCamera: viewCamera,
-        lodCamera: viewCamera,
-        lookTarget: new THREE.Vector3(),
-        viewport: new THREE.Vector2(800, 600),
-      };
-
-      layer.loading.setErrorTarget(0.25);
-      layer.scene.onAdd?.(map);
-      layer.scene.setShadowView({
-        camera: new THREE.OrthographicCamera(),
-        shadowMapSize: { width: 2048, height: 2048 },
-      });
-      layer.scene.update(frame);
-
-      // A displayed placeholder above the target whose child still has to load,
-      // and one used tile that fills the whole ceiling: full, idle, unconverged.
-      const visibleTile = {
-        traversal: { error: 1, inFrustum: true },
-        engineData: {},
-        children: [{ internal: { hasContent: true, loadingState: 0 } }],
-      } as never;
-      const requiredTile = {} as never;
-      const disposeRequiredTile = vi.fn();
-      renderer!.visibleTiles.add(visibleTile);
-      (renderer as TilesRenderer & { usedSet: Set<unknown> }).usedSet.add(
-        requiredTile
-      );
-      renderer!.lruCache.add(requiredTile, disposeRequiredTile);
-      renderer!.lruCache.setMemoryUsage(requiredTile, 2 * 1024 ** 3);
-
-      layer.scene.update(frame);
-      expect(disposeRequiredTile).not.toHaveBeenCalled();
-      expect(renderer!.errorTarget).toBe(0.25);
-      expect(layer.loading.getRequestDemand()).toBeGreaterThan(0);
-
-      vi.advanceTimersByTime(999);
-      layer.scene.update(frame);
-      expect(renderer!.errorTarget).toBe(0.25);
-
-      vi.advanceTimersByTime(1);
-      layer.scene.update(frame);
-      expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 0.5);
-      expect(layer.scene.isMainViewReady()).toBe(false);
-      expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25]);
-
-      // A pan keeps the effective target; the next stall relaxes further, up to
-      // four times the requested target.
-      handlers.get("movestart")?.();
-      handlers.get("moveend")?.();
-      expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 0.5);
-      layer.scene.update(frame);
-      vi.advanceTimersByTime(1_000);
-      layer.scene.update(frame);
-      expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
-      layer.scene.update(frame);
-      vi.advanceTimersByTime(1_000);
-      layer.scene.update(frame);
-      expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
-
-      // A hidden tab keeps the used tiles and the effective target for a
-      // while; the debounced full wipe resets to the requested target.
-      const visibilitySpy = vi
-        .spyOn(document, "visibilityState", "get")
-        .mockReturnValue("hidden");
-      document.dispatchEvent(new Event("visibilitychange"));
-      expect(disposeRequiredTile).not.toHaveBeenCalled();
-      expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
-      vi.advanceTimersByTime(HIDDEN_TAB_WIPE_DELAY_MS);
-      expect(disposeRequiredTile).toHaveBeenCalledOnce();
-      expect(renderer!.errorTarget).toBe(0.25);
-
-      visibilitySpy.mockRestore();
-      layer.scene.dispose();
-      updateSpy.mockRestore();
-      vi.useRealTimers();
-    }
-  );
 
   it("reprioritizes queued meshes by camera distance before shadow-only tiles", () => {
     let renderer: TilesRenderer | undefined;

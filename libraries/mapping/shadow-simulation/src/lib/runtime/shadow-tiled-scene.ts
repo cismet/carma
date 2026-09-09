@@ -323,8 +323,9 @@ export class ShadowTiledScene {
     return true;
   }
 
-  cancelPending() {
+  cancelPending(solarChanged = false) {
     this.accumulation.cancelPending();
+    if (solarChanged) this.accumulation.presentation.beginSolarTransition();
     if (this.hardRetryTimer !== null) {
       globalThis.clearTimeout(this.hardRetryTimer);
       this.hardRetryTimer = null;
@@ -398,7 +399,7 @@ export class ShadowTiledScene {
       // Readiness gates a NEW publication, not the already committed surface.
       // Keep a compatible completed capture while its replacement loads. An
       // unknown receiver without that capture must still wait for its casters.
-      const replay = this.accumulation.presentation.canReplay(page);
+      const replay = this.accumulation.presentation.canPresent(page);
       return { page, replay, ready: replay || this.isPageReady(page.id, true) };
     });
     let incomplete = false;
