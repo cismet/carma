@@ -77,6 +77,15 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
+  // the Schrägluftbild viewer on the MapLibre map, local development only
+  // and behind its flag while it is being brought up next to the Cesium one
+  {
+    addon: "obliqueViewer",
+    availability: {
+      deployments: ["localDev"],
+      featureFlag: "featureFlagObliqueViewerAddon",
+    },
+  },
 ];
 
 /**

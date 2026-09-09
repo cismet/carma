@@ -24,12 +24,16 @@ import { cardinalLetter } from "./utils/orientation";
  * `request`, which the engine answers and clears.
  */
 
-export type ObliqueRequest =
-  | { seq: number; type: "rotate"; clockwise: boolean }
-  | { seq: number; type: "rotateTo"; direction: CardinalDirection }
-  | { seq: number; type: "sibling"; direction: CardinalDirection }
-  | { seq: number; type: "flyToImage" }
-  | { seq: number; type: "closePreview" };
+/** what the ribbon can ask the engine to do */
+export type ObliqueCommand =
+  | { type: "rotate"; clockwise: boolean }
+  | { type: "rotateTo"; direction: CardinalDirection }
+  | { type: "sibling"; direction: CardinalDirection }
+  | { type: "flyToImage" }
+  | { type: "closePreview" };
+
+/** a command with the sequence number that tells one request from the next */
+export type ObliqueRequest = ObliqueCommand & { seq: number };
 
 export type ObliqueViewerState = {
   /** whether the viewer runs; the row exists exactly while it does */
@@ -228,13 +232,10 @@ export const useObliqueViewerActions = () => {
 
   /** the ribbon's commands; each gets a fresh sequence number */
   const sendRequest = useCallback(
-    (command: Omit<ObliqueRequest, "seq">) =>
+    (command: ObliqueCommand) =>
       setState((previous) => ({
         ...previous,
-        request: {
-          ...command,
-          seq: (previous.request?.seq ?? 0) + 1,
-        } as ObliqueRequest,
+        request: { ...command, seq: (previous.request?.seq ?? 0) + 1 },
       })),
     [setState]
   );
