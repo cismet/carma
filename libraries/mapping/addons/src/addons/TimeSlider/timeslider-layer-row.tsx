@@ -4,6 +4,8 @@ import { faPause, faPlay } from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
+import { getToolEntryKind } from "../../lib/tool-entry";
+
 import type { TimeSliderConfig } from "./TimeSlider";
 import {
   derivedSeriesLegend,
@@ -92,10 +94,10 @@ export const getTimeSliderRowSeed = (
 ): TimeSeriesDefinition | undefined => {
   const tools = Array.isArray(layer?.tools) ? (layer.tools as unknown[]) : [];
   const entry = tools.find(
-    (tool): tool is { kind: string; config?: TimeSliderConfig } =>
+    (tool): tool is { config?: TimeSliderConfig } =>
       typeof tool === "object" &&
       tool !== null &&
-      (tool as { kind?: unknown }).kind === "timeSlider"
+      getToolEntryKind(tool) === "timeSlider"
   );
   const config = entry?.config;
   if (!config?.wmsUrl || !config.layers?.length) return undefined;

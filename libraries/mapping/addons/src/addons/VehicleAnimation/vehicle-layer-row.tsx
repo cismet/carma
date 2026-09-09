@@ -8,6 +8,7 @@ import {
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
+import { getToolEntryKind } from "../../lib/tool-entry";
 import {
   useVehicleAnimationActions,
   useVehicleAnimationLauncher,
@@ -157,10 +158,10 @@ export const getVehicleAnimationRowSeed = (
 ): VehicleAnimationDefinition | undefined => {
   const tools = Array.isArray(layer?.tools) ? (layer.tools as unknown[]) : [];
   const entry = tools.find(
-    (tool): tool is { kind: string; config?: VehicleAnimationConfig } =>
+    (tool): tool is { config?: VehicleAnimationConfig } =>
       typeof tool === "object" &&
       tool !== null &&
-      (tool as { kind?: unknown }).kind === "vehicleAnimation"
+      getToolEntryKind(tool) === "vehicleAnimation"
   );
   const config = entry?.config;
   if (!config?.trackUrl) return undefined;

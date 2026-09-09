@@ -157,11 +157,18 @@ function isJson(str) {
   return true;
 }
 
+/**
+ * `ToolEntry` accepts three spellings, a bare kind and an object naming its
+ * addon with either `kind` or `addon`, and configs are written in all of them.
+ * Accepting only `kind` here dropped every `{ addon: "..." }` entry on the way
+ * into the layer, without a trace: the addon registry never saw it.
+ */
 const isToolEntry = (value: unknown): value is ToolEntry =>
   typeof value === "string" ||
   (typeof value === "object" &&
     value !== null &&
-    typeof (value as { kind?: unknown }).kind === "string");
+    (typeof (value as { kind?: unknown }).kind === "string" ||
+      typeof (value as { addon?: unknown }).addon === "string"));
 
 const parseToolEntries = (value: unknown): ToolEntry[] | null => {
   let entries = value;
