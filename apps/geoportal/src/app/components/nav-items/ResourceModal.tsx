@@ -141,16 +141,16 @@ const ResourceModal = () => {
         });
         return;
       }
+      // Spread rather than rebuilt field by field: a `FlowFieldConfig` is a
+      // `FlowFieldDefinition` plus the keys only a route uses, and listing the
+      // definition's keys here meant every one added since was silently
+      // dropped on the way from a card into the channel. `startEnabled`,
+      // `showControl` and the rest ride along and are ignored by the channel.
       toggleField({
+        ...config,
         title: config.title ?? "Fließwege",
         service,
         scenario,
-        layerPostfix: config.layerPostfix,
-        uvCorrection: config.uvCorrection,
-        minZoom: config.minZoom,
-        opacity: config.opacity,
-        params: config.params,
-        backdrop: config.backdrop,
       });
     },
     [toggleField, messageApi]
