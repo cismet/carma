@@ -11,6 +11,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { wmsCapabilitiesToCustomItems } from "../helper/buildCatalog";
 import type { CatalogDrop } from "../helper/buildCatalog";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { buildVectorStyleItem } from "../helper/configuredLayers";
 import { useLiveDeployment } from "@carma-commons/utils";
 
 // @ts-expect-error tbd
@@ -139,40 +140,18 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      const importedId = `custom:${url}`;
-
-      let newItem = {
-        description: "",
-        id: importedId,
-        layerType: "vector",
-        title: url.slice(0, -5),
-        serviceName: "custom",
-        type: "layer",
-        keywords: [`carmaConf://vectorStyle:${url}`],
-        path: "Externe Dienste",
-      } as unknown as Item;
+      let style: unknown;
       await fetch(url)
         .then((response) => response.json())
         .then((data) => {
-          if (data.metadata && data.metadata.carmaConf.layerInfo) {
-            const layerInfo = data.metadata.carmaConf.layerInfo;
-            instant = instant || (data.metaData?.carmaConf?.instant ?? false);
-            newItem = {
-              ...newItem,
-              id: importedId,
-              ...layerInfo,
-              keywords: [
-                ...(newItem?.keywords ?? []),
-                ...(layerInfo?.keywords || []),
-              ],
-            };
-          }
+          style = data;
+          instant = instant || (data?.metadata?.carmaConf?.instant ?? false);
         })
         .catch((error) => {
           console.error("Error fetching JSON to check metadata:", error);
         });
 
-      await handleAddToMap(newItem, instant);
+      await handleAddToMap(buildVectorStyleItem(url, style), instant);
     }
   };
 

@@ -20,6 +20,8 @@ import { discoverConfig } from "./discover";
 import type { DiscoverItem } from "./discover";
 import type { DeploymentTarget } from "@carma-commons/utils";
 import type { CategoryDefinition } from "../config/categoryDefinitions";
+import type { ConfiguredLayerGroup } from "./configuredLayers";
+import { withConfiguredTools } from "./configuredLayers";
 import { defaultCategoryDefinitions } from "../config/categoryDefinitions";
 
 // The additional configs come from JSON files where `Title` is optional; a
@@ -369,13 +371,55 @@ export const deriveFeaturedSubcategory = (
     : null;
 };
 
-// The "mapLayers" main category: dropped items first, then the featured
-// window, then the service structure enriched by the additional config.
+/**
+ * The configured groups as subcategories: their style items are already built,
+ * their catalog ids are looked up in the subcategories assembled so far. An id
+ * that matches nothing is left out, so a renamed or retired layer costs its
+ * entry and not the group.
+ */
+const resolveConfiguredGroups = (
+  configuredLayers: ConfiguredLayerGroup[],
+  subCategories: CatalogSubCategory[]
+): ItemSubCategory[] => {
+  const byId = new Map<string, Item>();
+  subCategories.forEach((subCategory) =>
+    (subCategory.layers as Item[]).forEach((layer) => {
+      if (layer.id && !byId.has(layer.id)) {
+        byId.set(layer.id, layer);
+      }
+    })
+  );
+
+  return configuredLayers
+    .map((group) => ({
+      id: group.id,
+      Title: group.Title,
+      layers: dedupeById(
+        group.entries
+          .map((entry) => {
+            if (!("ref" in entry)) {
+              return entry;
+            }
+            const item = byId.get(entry.ref);
+            return item
+              ? withConfiguredTools({ ...item, path: group.Title }, entry.tools)
+              : undefined;
+          })
+          .filter((layer): layer is Item => !!layer)
+      ),
+    }))
+    .filter((group) => group.layers.length > 0);
+};
+
+// The "mapLayers" main category: dropped items first, then the configured
+// layers and the featured window, then the service structure enriched by the
+// additional config.
 export const buildMapLayerSubcategories = (
   serviceCategories: ServiceCategory[],
   additionalConfig: CatalogConfigEntry[],
   droppedLayers: Item[],
-  featureFlags: FeatureFlags
+  featureFlags: FeatureFlags,
+  configuredLayers: ConfiguredLayerGroup[] = []
 ): CatalogSubCategory[] => {
   const subCategories: CatalogSubCategory[] = serviceCategories.map(
     (category) => ({
@@ -417,6 +461,26 @@ export const buildMapLayerSubcategories = (
   if (droppedLayers.length > 0) {
     subCategories.unshift({ ...CUSTOM_CATEGORY, layers: droppedLayers });
   }
+
+  // configured groups go in front, except where they name a subcategory that
+  // already exists (the dropped "Externe Dienste", or a service category),
+  // which they extend instead
+  const configuredGroups = resolveConfiguredGroups(
+    configuredLayers,
+    subCategories
+  );
+  const addedGroups: CatalogSubCategory[] = [];
+  configuredGroups.forEach((group) => {
+    const existing = subCategories.find(
+      (subCategory) => subCategory.id === group.id
+    );
+    if (existing) {
+      existing.layers = dedupeById([...group.layers, ...existing.layers]);
+    } else {
+      addedGroups.push(group);
+    }
+  });
+  subCategories.unshift(...addedGroups);
 
   return subCategories;
 };
@@ -481,6 +545,8 @@ export interface CatalogSources {
   categoryConfigs?: Record<string, CatalogConfigEntry[]>;
   discoverItems?: DiscoverItem[];
   dropped?: DroppedCatalogState;
+  /** layers the host declared in `additionalLayers`, grouped (useConfiguredLayers) */
+  configuredLayers?: ConfiguredLayerGroup[];
 }
 
 export interface CatalogBuildOptions {
@@ -504,6 +570,7 @@ export const buildCatalog = (
     categoryConfigs = {},
     discoverItems,
     dropped = EMPTY_DROPPED_CATALOG,
+    configuredLayers = [],
   } = sources;
   const {
     featureFlags,
@@ -539,7 +606,8 @@ export const buildCatalog = (
             serviceCategories,
             additionalConfig,
             dropped.customLayers,
-            featureFlags
+            featureFlags,
+            configuredLayers
           ),
         });
         break;

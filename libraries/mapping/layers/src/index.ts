@@ -3,6 +3,9 @@ export {
   type LayerCatalogProps,
 } from "./components/LayerCatalog";
 export {
+  type AdditionalLayerEntry,
+  type AdditionalLayerGroup,
+  type AdditionalLayerRef,
   type LayerCatalogConfig,
   wuppDiscoverProps,
   wuppLayerCatalogConfig,

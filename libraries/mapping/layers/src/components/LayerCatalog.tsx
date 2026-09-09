@@ -52,6 +52,8 @@ import {
   EMPTY_DROPPED_CATALOG,
   getDroppedItemIds,
 } from "../helper/buildCatalog";
+import { getConfiguredItemIds } from "../helper/configuredLayers";
+import { useConfiguredLayers } from "../hooks/useConfiguredLayers";
 import { fetchDiscoverItems } from "../helper/discover";
 import {
   countCategoryLayers,
@@ -232,6 +234,11 @@ const LayerCatalogView = ({
     services: catalogConfig.services,
   });
 
+  const configuredLayers = useConfiguredLayers(
+    catalogConfig.additionalLayers,
+    catalogConfig.vectorTileServerUrl
+  );
+
   // The complete category tree is a pure derivation over all sources; every
   // source change (fetch result, drop, feature flag, custom categories)
   // triggers exactly one recompute instead of cascading state writes.
@@ -244,6 +251,7 @@ const LayerCatalogView = ({
           categoryConfigs: { sensors: sensorConfig, objects: objectConfig },
           discoverItems,
           dropped,
+          configuredLayers,
         },
         {
           featureFlags: flags,
@@ -259,6 +267,7 @@ const LayerCatalogView = ({
       objectConfig,
       discoverItems,
       dropped,
+      configuredLayers,
       flags,
       resolvedCustomCategories,
       categoryDefinitions,
@@ -361,21 +370,27 @@ const LayerCatalogView = ({
       ),
     [categoryDefinitions]
   );
-  // layers the user dropped in are never hidden by a curated filter config
+  // layers the user dropped in and layers the host configured explicitly are
+  // never hidden by a curated filter config
   const droppedItemIds = useMemo(() => getDroppedItemIds(dropped), [dropped]);
+  const filterExemptItemIds = useMemo(
+    () =>
+      new Set([...droppedItemIds, ...getConfiguredItemIds(configuredLayers)]),
+    [droppedItemIds, configuredLayers]
+  );
   const filteredCategories = useMemo(
     () =>
       catalogFilters?.length
         ? filterCategoriesByFilters(searchedCategories, catalogFilters, {
             categoryIds: filterExemptCategoryIds,
-            itemIds: droppedItemIds,
+            itemIds: filterExemptItemIds,
           })
         : searchedCategories,
     [
       searchedCategories,
       catalogFilters,
       filterExemptCategoryIds,
-      droppedItemIds,
+      filterExemptItemIds,
     ]
   );
   // active filters hide empty categories entirely instead of showing them
