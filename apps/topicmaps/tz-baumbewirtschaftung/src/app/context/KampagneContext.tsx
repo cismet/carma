@@ -8,6 +8,10 @@ import {
 } from "react";
 import { md5ActionFetchDAQ } from "react-cismap/tools/fetching";
 import { APP_CONFIG } from "../../config/appConfig";
+import {
+  resolveAttributeset,
+  type AttributesetConfig,
+} from "../../config/attributesets";
 
 export type Campaign = {
   id: number;
@@ -38,6 +42,8 @@ export type KampagneContextValue = {
   setViewSelection: (v: ViewSelection) => void;
   error: string | null;
   configAttributeMissing: boolean;
+  /** Anwendungsfall of the logged-in user (wupp #4128/#4145). */
+  attributeset: AttributesetConfig;
 };
 
 const UNASSIGNED_NAME = "keine";
@@ -54,6 +60,18 @@ export const useKampagne = () => {
 
 const APP_KEY = "tz.baumbewirtschaftung";
 const CONFIG_ATTR_URL = `${APP_CONFIG.restService}configattributes/${APP_CONFIG.configAttributeKey}`;
+const ATTRIBUTESET_ATTR_URL = `${APP_CONFIG.restService}configattributes/${APP_CONFIG.attributesetConfigAttributeKey}`;
+
+// Optional attribute: 404 or an empty value simply means "default attributeset".
+const fetchAttributesetValue = async (jwt: string): Promise<string | null> => {
+  const res = await fetch(ATTRIBUTESET_ATTR_URL, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+  if (!res.ok) return null;
+  const body = await res.json();
+  const raw = body?.[APP_CONFIG.attributesetConfigAttributeKey];
+  return typeof raw === "string" ? raw : null;
+};
 
 type Props = {
   jwt?: string | null;
@@ -68,6 +86,9 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
   const [viewSelection, setViewSelection] = useState<ViewSelection>("active");
   const [error, setError] = useState<string | null>(null);
   const [configAttributeMissing, setConfigAttributeMissing] = useState(false);
+  const [attributesetValue, setAttributesetValue] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     if (!jwt) {
@@ -78,6 +99,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
       setViewSelection("active");
       setError(null);
       setConfigAttributeMissing(false);
+      setAttributesetValue(null);
       return;
     }
 
@@ -85,7 +107,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
 
     (async () => {
       try {
-        const [attrRes, campaignsRes] = await Promise.all([
+        const [attrRes, campaignsRes, attributesetRaw] = await Promise.all([
           fetch(CONFIG_ATTR_URL, {
             headers: { Authorization: `Bearer ${jwt}` },
           }),
@@ -95,6 +117,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
             jwt,
             APP_CONFIG.daqKeys.campaigns
           ),
+          fetchAttributesetValue(jwt).catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -134,6 +157,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
         setAllowedNames(nextShowAll ? null : nextAllowedNames);
         setCampaigns(loadedCampaigns);
         setConfigAttributeMissing(attrMissing);
+        setAttributesetValue(attributesetRaw);
         setError(null);
         setReady(true);
       } catch (e) {
@@ -183,6 +207,11 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     return allowedCampaignIds.filter((id) => id !== keineCampaignId);
   }, [allowedCampaignIds, viewSelection, showAll, keineCampaignId]);
 
+  const attributeset = useMemo(
+    () => resolveAttributeset(attributesetValue),
+    [attributesetValue]
+  );
+
   const value: KampagneContextValue = {
     ready,
     showAll,
@@ -195,6 +224,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     setViewSelection,
     error,
     configAttributeMissing,
+    attributeset,
   };
 
   return (

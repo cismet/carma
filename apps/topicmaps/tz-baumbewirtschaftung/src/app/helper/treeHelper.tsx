@@ -262,7 +262,8 @@ export const maxActionIdInLegacyFC = (fc: FeatureCollection): number => {
 export const createInfoBoxControlObject = (
   feature: Feature,
   setShowStatusDialog: (show: boolean) => void,
-  jwt?: string | null
+  jwt?: string | null,
+  headerLabel = "Baumbewirtschaftung"
 ) => {
   const p = feature.properties as any;
 
@@ -274,23 +275,23 @@ export const createInfoBoxControlObject = (
   switch (p.latestActionStatus) {
     case "none":
       headerColor = "#A5D6A7";
-      header = "Baumbewirtschaftung" + upcomingSuffix;
+      header = headerLabel + upcomingSuffix;
       break;
     case "open":
       headerColor = "#FFEB3B";
-      header = "Baumbewirtschaftung (in Bearbeitung)" + upcomingSuffix;
+      header = headerLabel + " (in Bearbeitung)" + upcomingSuffix;
       break;
     case "exception":
       headerColor = "#F44336";
-      header = "Baumbewirtschaftung (Ausnahme)" + upcomingSuffix;
+      header = headerLabel + " (Ausnahme)" + upcomingSuffix;
       break;
     case "done":
       headerColor = "#4CAF50";
-      header = "Baumbewirtschaftung (erledigt)" + upcomingSuffix;
+      header = headerLabel + " (erledigt)" + upcomingSuffix;
       break;
     default:
       headerColor = "#A5D6A7";
-      header = "Baumbewirtschaftung" + upcomingSuffix;
+      header = headerLabel + upcomingSuffix;
   }
 
   // Get the latest image from any action (not just the latest action)

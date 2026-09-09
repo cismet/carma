@@ -117,7 +117,12 @@ const TZBaumbewirtschaftung = ({
   // kampagne-filtered view (`featureCollection`) computed from it.
   const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
     useState<any>();
-  const { ready: kampagneReady, showAll, effectiveCampaignIds } = useKampagne();
+  const {
+    ready: kampagneReady,
+    showAll,
+    effectiveCampaignIds,
+    attributeset,
+  } = useKampagne();
 
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
@@ -268,7 +273,8 @@ const TZBaumbewirtschaftung = ({
         updatedSelectedFeature.properties.info = createInfoBoxControlObject(
           updatedSelectedFeature,
           setShowStatusDialog,
-          jwt
+          jwt,
+          attributeset.headerLabel
         );
         updatedSelectedFeature.text =
           updatedSelectedFeature.properties.info.puretitle;
@@ -310,7 +316,8 @@ const TZBaumbewirtschaftung = ({
           updatedSelectedFeature.properties.info = createInfoBoxControlObject(
             updatedSelectedFeature,
             setShowStatusDialog,
-            jwt
+            jwt,
+            attributeset.headerLabel
           );
           updatedSelectedFeature.text =
             updatedSelectedFeature.properties.info.puretitle;
@@ -358,7 +365,8 @@ const TZBaumbewirtschaftung = ({
         affectedFeature.properties.info = createInfoBoxControlObject(
           affectedFeature,
           setShowStatusDialog,
-          jwt
+          jwt,
+          attributeset.headerLabel
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
@@ -395,6 +403,7 @@ const TZBaumbewirtschaftung = ({
     isFollowMode,
     routedMapRef,
     effectiveCampaignIds,
+    attributeset.headerLabel,
   ]);
 
   useEffect(() => {
@@ -798,6 +807,21 @@ const TZBaumbewirtschaftung = ({
               opacity={0.5}
             />
 
+            {/* Attributeset overlays for "*" users (Auftraggeber), e.g. the
+                Watermark soil moisture sensors for irrigation (wupp #4145).
+                Same pane as the Stadtbezirk backdrop, below the tree markers. */}
+            {showAll &&
+              attributeset.adminOverlays?.map((overlay) => (
+                <CismapLayer
+                  key={`admin-overlay-${overlay.key}`}
+                  type="vector"
+                  style={overlay.style}
+                  pane="oneAboveBackgroundLayers"
+                  selectionEnabled={false}
+                  opacity={overlay.opacity ?? 1}
+                />
+              ))}
+
             {featureCollection && (
               <CismapLayer
                 key={`tree-layer-${markerSymbolSize}`}
@@ -827,7 +851,8 @@ const TZBaumbewirtschaftung = ({
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
                         setShowStatusDialog,
-                        jwt
+                        jwt,
+                        attributeset.headerLabel
                       );
                       feature.text = feature.properties.info.puretitle;
 
