@@ -10,7 +10,10 @@ import type { Map as MaplibreMap } from "maplibre-gl";
  *   interaction effect and at map construction. That is the app's own value.
  * - Anything outside the react tree (an addon, a workflow, a debug console)
  *   writes an **override** with `setCameraRestrictionOverride`, which wins over
- *   the base and is dropped again by passing `null`.
+ *   the base and is dropped again by passing `null`. Overrides are keyed by
+ *   owner, so two addons holding one each do not wipe each other's entry: the
+ *   most recently written one is the effective override, and removing an
+ *   owner's entry falls back to the next most recent, then to the base.
  *
  * A base marked `forced` cannot be overridden. That is what keeps app modes
  * which must lock the camera (print, an export frame) safe from configuration
@@ -34,9 +37,13 @@ export type CameraRestrictionBase = CameraRestriction & {
   interactive: boolean;
 };
 
+/** the override an addon holds by default when it names no owner */
+const DEFAULT_OVERRIDE_OWNER = "default";
+
 type Entry = {
   base: CameraRestrictionBase;
-  override: CameraRestriction | null;
+  /** insertion order is write order, so the last entry is the effective one */
+  overrides: Map<string, CameraRestriction>;
   effective: CameraRestriction;
   listeners: Set<() => void>;
 };
@@ -74,7 +81,19 @@ export const applyCameraRestriction = (
   }
 };
 
-const resolve = ({ base, override }: Entry): CameraRestriction => {
+/** the override written last, or null when no owner holds one */
+const latestOverride = (
+  overrides: Map<string, CameraRestriction>
+): CameraRestriction | null => {
+  let latest: CameraRestriction | null = null;
+  for (const override of overrides.values()) {
+    latest = override;
+  }
+  return latest;
+};
+
+const resolve = ({ base, overrides }: Entry): CameraRestriction => {
+  const override = latestOverride(overrides);
   if (base.forced || !override) {
     return { restricted: base.restricted, maxPitch: base.maxPitch };
   }
@@ -91,7 +110,7 @@ const entryOf = (map: MaplibreMap): Entry => {
   }
   const entry: Entry = {
     base: DEFAULT_BASE,
-    override: null,
+    overrides: new Map(),
     effective: { restricted: false, maxPitch: DEFAULT_MAX_PITCH },
     listeners: new Set(),
   };
@@ -127,12 +146,20 @@ export const setCameraRestrictionBase = (
   settle(map, entry);
 };
 
+/**
+ * Write or drop one owner's override. A rewrite by the same owner moves that
+ * owner to the front again, so whoever wrote last is who the map follows.
+ */
 export const setCameraRestrictionOverride = (
   map: MaplibreMap,
-  override: CameraRestriction | null
+  override: CameraRestriction | null,
+  owner: string = DEFAULT_OVERRIDE_OWNER
 ) => {
   const entry = entryOf(map);
-  entry.override = override;
+  entry.overrides.delete(owner);
+  if (override) {
+    entry.overrides.set(owner, override);
+  }
   settle(map, entry);
 };
 
