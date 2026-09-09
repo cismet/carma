@@ -290,16 +290,16 @@ export {
   THREE_TILES_LAYER_TYPE,
   THREE_TILES_SHADER_KIND,
 } from "./lib/runtime/integrations/three-tiles-layer";
+export { buildThreeTilesRuntime } from "./lib/runtime/integrations/three-tiles-runtime";
 export {
-  buildThreeTilesRuntime,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
-} from "./lib/runtime/integrations/three-tiles-runtime";
+} from "./lib/runtime/integrations/three-tiles-runtime-config";
 export type {
   ImageProjector,
   ThreeTilesRuntime,
-} from "./lib/runtime/integrations/three-tiles-runtime";
+} from "./lib/runtime/integrations/three-tiles-runtime-types";
 export { buildRasterDemTerrainRuntime } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
 export type { RasterDemTerrainRuntimeOptions } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
 export {

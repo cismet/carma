@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import {
+  meshReceiverBiasLimitMeters,
   shadowReceiverStageError,
   shadowSceneWorldBasis,
   getPresentedShadowReceiverIds,
@@ -175,5 +176,21 @@ describe("source-anchored corridor host state", () => {
         1
       )
     ).toBe(4);
+  });
+
+  it("relaxes only coarse mesh shadow bias and converges to final contact bias", () => {
+    const limit = (stageErrorPixels: number, groundTexelTargetMeters: number) =>
+      meshReceiverBiasLimitMeters({
+        stageErrorPixels,
+        targetErrorPixels: 0.25,
+        groundTexelTargetMeters,
+        finalBiasMeters: 0.01,
+        maximumCoarseBiasMeters: 0.25,
+      });
+
+    expect(limit(16, 0.5)).toBe(0.25);
+    expect(limit(1, 0.5)).toBe(0.04);
+    expect(limit(0.25, 0.5)).toBe(0.01);
+    expect(limit(16, 0.01)).toBe(0.02);
   });
 });

@@ -233,10 +233,7 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!libreMap) return;
-    const visible =
-      state.enabled &&
-      (state.showProjectionDebugView ?? false) &&
-      (state.showTileBounds ?? false);
+    const visible = state.enabled && (state.showTileBounds ?? true);
     if (!visible) return;
     const applied = new Set<
       ReturnType<typeof getSharedThreeSceneRuntimes>[number]
@@ -266,7 +263,6 @@ export const ShadowSimulationRuntime = ({
     libreMap,
     sceneRevision,
     state.enabled,
-    state.showProjectionDebugView,
     state.showTileBounds,
   ]);
 

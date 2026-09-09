@@ -51,9 +51,9 @@ describe("atomic mesh corridor loader demand", () => {
       viewport: new THREE.Vector2(800, 600),
       lookTarget: new THREE.Vector3(),
     };
-    runtime.onAdd?.(map);
-    runtime.setErrorTarget(1);
-    runtime.update(frame);
+    runtime.scene.onAdd?.(map);
+    runtime.loading.setErrorTarget(1);
+    runtime.scene.update(frame);
     const nativePlacement = renderer!.group.matrixWorld.clone().invert();
     const makeTile = (
       id: string,
@@ -130,7 +130,7 @@ describe("atomic mesh corridor loader demand", () => {
     sun.position.set(0, 0, 100);
     sun.lookAt(0, 0, 0);
     sun.updateMatrixWorld(true);
-    runtime.setShadowView({
+    runtime.scene.setShadowView({
       camera: sun,
       shadowMapSize: { width: 1024, height: 1024 },
     });
@@ -145,7 +145,7 @@ describe("atomic mesh corridor loader demand", () => {
       });
     };
     try {
-      runtime.update(frame);
+      runtime.scene.update(frame);
       expect(renderer!.visibleTiles.has(reference)).toBe(true);
       expect(renderer!.visibleTiles.has(receiver)).toBe(false);
       expect(renderer!.visibleTiles.has(right)).toBe(false);
@@ -159,7 +159,7 @@ describe("atomic mesh corridor loader demand", () => {
       expect(queued).not.toHaveBeenCalled();
 
       loaded(right);
-      runtime.update(frame);
+      runtime.scene.update(frame);
       // The proof now selects the two 8px receiver children. The loader must
       // see their stricter demand although neither may publish before caster8.
       expect(renderer!.visibleTiles.has(right)).toBe(false);
@@ -167,13 +167,13 @@ describe("atomic mesh corridor loader demand", () => {
       renderer!.queueTileForDownload(fineCaster);
       expect(queued).toHaveBeenCalledWith(fineCaster);
       loaded(fineCaster);
-      runtime.update(frame);
+      runtime.scene.update(frame);
       expect(renderer!.visibleTiles.has(right)).toBe(true);
       expect(renderer!.visibleTiles.has(fineCaster)).toBe(true);
       expect(renderer!.visibleTiles.has(receiver)).toBe(false);
       expect(renderer!.visibleTiles.has(caster)).toBe(false);
     } finally {
-      runtime.dispose();
+      runtime.scene.dispose();
       nativeError.mockRestore();
       queued.mockRestore();
       update.mockRestore();

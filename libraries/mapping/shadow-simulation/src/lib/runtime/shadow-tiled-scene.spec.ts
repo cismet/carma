@@ -48,6 +48,7 @@ describe("Geoportal tiled scene adapter", () => {
     vi.mocked(SceneFrameCache).mockImplementation(() => frameCache as never);
     const pages = {
       setView: vi.fn(),
+      updatePresentation: vi.fn(),
       renderSample: vi.fn(),
       renderPageSample: vi.fn(() => true),
       getPageGeometry: vi.fn(() => ({
@@ -154,6 +155,41 @@ describe("Geoportal tiled scene adapter", () => {
     );
   });
 
+  it.each(["hard", "soft"])(
+    "initializes the first receiver capture from planned pages in the %s path",
+    (path) => {
+      const f = fixture();
+      // Production starts with descriptors but no previous captures. The old
+      // guard returned before renderHard could initialize these descriptors.
+      f.accumulation.capturePages = [];
+      f.accumulation.renderHard.mockImplementation(() => {
+        f.accumulation.capturePages = f.pages.accumulationPages;
+        return { published: 0, needsRepaint: false };
+      });
+      f.accumulation.render.mockReturnValue({
+        progress: 0.5,
+        settled: false,
+        needsRepaint: true,
+      });
+      const camera = new THREE.Camera();
+      if (path === "hard") expect(f.adapter.render(camera, null, 16)).toBe(true);
+      else
+        expect(
+          f.adapter.renderProgressive(camera, {
+            width: 800,
+            height: 600,
+            viewKey: "initial",
+            styleEpoch: 0,
+            samples: 16,
+            active: true,
+          })
+        ).not.toBeNull();
+      expect(f.accumulation.renderHard).toHaveBeenCalledOnce();
+      expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+      f.adapter.dispose();
+    }
+  );
+
   it("keeps corridor integration running but memoizes unchanged native-pixel presentation", () => {
     let visualEpoch = 0;
     const f = fixture({ visualEpoch: () => visualEpoch });
@@ -175,6 +211,10 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.renderProgressive(camera, frame);
     f.adapter.renderProgressive(camera, frame);
     expect(f.accumulation.render).toHaveBeenCalledTimes(2);
+    expect(f.accumulation.render.mock.calls[0][2]).toMatchObject({
+      maxPagesPerFrame: 4,
+      maxFrameCpuMilliseconds: 2,
+    });
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
     expect(f.frameCache.render).toHaveBeenLastCalledWith(
       expect.any(String),
@@ -208,7 +248,7 @@ describe("Geoportal tiled scene adapter", () => {
     );
   });
 
-  it("rebuilds the frame when direct readiness changes instead of caching an empty hole", () => {
+  it("shows the available hard stage while final corridor readiness is pending", () => {
     const ready = vi.fn(() => false);
     const f = fixture({ isCorridorReady: ready });
     f.accumulation.render.mockReturnValue({
@@ -226,10 +266,11 @@ describe("Geoportal tiled scene adapter", () => {
     };
     const camera = new THREE.Camera();
     f.adapter.renderProgressive(camera, frame);
-    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.accumulation.render.mock.calls[0][2].isPageReady("64:1:0")).toBe(false);
     ready.mockReturnValue(true);
     f.adapter.renderProgressive(camera, frame);
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.accumulation.render.mock.calls[1][2].isPageReady("64:1:0")).toBe(true);
   });
 
   it("acknowledges current captures and successful direct hard draws, not compatible old captures", () => {
@@ -266,13 +307,13 @@ describe("Geoportal tiled scene adapter", () => {
     expect(onPresentedPages).not.toHaveBeenCalled();
   });
 
-  it("never draws a receiver whose current-stage offscreen caster cut is incomplete", () => {
+  it("does not hide available receivers behind a hard-stage corridor gate", () => {
     const ready = vi.fn(() => false);
     const f = fixture({ isCorridorReady: ready, receiverStageError: () => 16 });
     f.adapter.render(new THREE.Camera(), null, 128);
-    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
     const hardFrame = f.accumulation.renderHard.mock.calls[0][2];
-    expect(hardFrame.isPageReady("64:1:0")).toBe(false);
+    expect(hardFrame.isPageReady("64:1:0")).toBe(true);
     ready.mockReturnValue(true);
     f.adapter.render(new THREE.Camera(), null, 128);
     expect(f.pages.renderPageSample).toHaveBeenCalledWith(
@@ -281,11 +322,7 @@ describe("Geoportal tiled scene adapter", () => {
       0,
       1
     );
-    expect(ready).toHaveBeenLastCalledWith(
-      expect.any(THREE.Box3),
-      16,
-      expect.any(THREE.Box3)
-    );
+    expect(ready).not.toHaveBeenCalled();
   });
 
   it("gates final sun-disc readiness separately from committed coarse hard stages", () => {
@@ -323,16 +360,17 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
     expect(
       f.accumulation.renderHard.mock.calls[0][2].isPageReady("64:1:0")
-    ).toBe(false);
+    ).toBe(true);
     f.accumulation.presentation.canReplay.mockReturnValue(false);
     f.pages.renderPageSample.mockClear();
     f.adapter.render(new THREE.Camera(), null, 128);
-    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
   });
 
   it("does not declare an empty initial committed cut settled or request an empty render loop", () => {
     const f = fixture();
     f.accumulation.capturePages = [];
+    f.pages.accumulationPages = [];
     f.accumulation.render.mockReturnValue({
       progress: 1,
       settled: true,
@@ -347,7 +385,8 @@ describe("Geoportal tiled scene adapter", () => {
         samples: 128,
         active: true,
       })
-    ).toEqual({ progress: 0, settled: false, needsRepaint: false });
+    ).toBeNull();
+    expect(f.accumulation.renderHard).not.toHaveBeenCalled();
     expect(f.pages.renderPageSample).not.toHaveBeenCalled();
   });
 
@@ -468,6 +507,10 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.pages.setView).toHaveBeenCalledOnce();
     frame.renderCamera.matrixWorldInverse.makeTranslation(1, 0, 0);
     f.adapter.update([], frame, lighting, 0.5);
+    expect(f.pages.setView).toHaveBeenCalledTimes(2);
+    f.adapter.updatePresentation(frame);
+    expect(f.pages.updatePresentation).toHaveBeenCalledOnce();
+    expect(f.pages.updatePresentation).toHaveBeenCalledWith(frame.renderCamera);
     expect(f.pages.setView).toHaveBeenCalledTimes(2);
     expect(f.pages.clearCache).not.toHaveBeenCalled();
     f.adapter.invalidateContent();

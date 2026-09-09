@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { Box3, Object3D } from "three";
 
 import {
   getSharedThreeSceneRuntimes,
@@ -28,6 +29,24 @@ describe("shared Three.js scene content registry", () => {
     unsubscribe();
     notifySharedThreeSceneContentChanged(firstMap);
     expect(firstListener).toHaveBeenCalledOnce();
+  });
+
+  it("forwards localized bounds and published roots", () => {
+    const map = {} as never;
+    const listener = vi.fn();
+    const bounds = new Box3();
+    const root = new Object3D();
+    subscribeSharedThreeSceneContent(map, listener);
+
+    notifySharedThreeSceneContentChanged(map, {
+      bounds: [bounds],
+      roots: [root],
+    });
+
+    expect(listener).toHaveBeenCalledWith({
+      bounds: [bounds],
+      roots: [root],
+    });
   });
 
   it("keeps request-state notifications separate from content changes", () => {

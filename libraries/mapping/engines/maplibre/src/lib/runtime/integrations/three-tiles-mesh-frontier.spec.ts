@@ -37,6 +37,49 @@ const retain = (previous: Tile[], proposed: Tile[], requestedError = 1) =>
   });
 
 describe("local progressive mesh admission", () => {
+  it("retains a shared chimney parent until its offscreen caster child is loaded", () => {
+    const { parent, children } = quartet(mesh(null, 16));
+    const [receiver, chimney, unrelatedA, unrelatedB] = children;
+    chimney.traversal.inFrustum = false;
+    chimney.internal.loadingState = 2;
+    const demand = (tile: Tile) => tile !== unrelatedA && tile !== unrelatedB;
+    const select = () => collectLoadedMeshReceiverCandidates(
+      parent, 1, Infinity, demand, (tile) => tile.traversal.error
+    );
+    expect(select()).toEqual(new Set([parent]));
+    chimney.internal.loadingState = 4;
+    expect(select()).toEqual(new Set([receiver, chimney]));
+    // Unrelated children need not load, and the parent never overlaps children.
+    unrelatedA.internal.loadingState = 2;
+    unrelatedB.internal.loadingState = 2;
+    expect(select()).toEqual(new Set([receiver, chimney]));
+  });
+  it("replaces complete local families atomically for every partial child arrival order", () => {
+    const root = mesh(null, 64);
+    const a = mesh(root, 8);
+    const b = mesh(root, 8);
+    root.children = [a, b];
+    const readyFamily = quartet(a).children;
+    const streamingFamily = quartet(b).children;
+    for (let mask = 0; mask < 16; mask += 1) {
+      streamingFamily.forEach((tile, index) => {
+        tile.internal.loadingState = mask & (1 << index) ? 4 : 2;
+      });
+      const proposed = collectLoadedMeshReceiverCandidates(
+        root, 1, Infinity, () => true, (tile) => tile.traversal.error
+      );
+      const published = retain([a, b], [...proposed]);
+      expect(published).toEqual(new Set([
+        ...readyFamily,
+        ...(mask === 15 ? streamingFamily : [b]),
+      ]));
+      for (const tile of published) {
+        for (let parent = tile.parent; parent; parent = parent.parent) {
+          expect(published.has(parent)).toBe(false);
+        }
+      }
+    }
+  });
   it("holds each loaded stage until its own hard presentation, independently of other families", () => {
     const root = mesh(null, 64);
     const a16 = mesh(root, 16);

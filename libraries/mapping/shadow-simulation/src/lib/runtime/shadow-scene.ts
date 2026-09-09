@@ -77,6 +77,7 @@ import {
   shadowSceneWorldBasis,
   shadowRegionQueryKey,
   shadowReceiverStageError,
+  meshReceiverBiasLimitMeters,
   getPresentedShadowReceiverIds,
   getChangedShadowVolumeBounds,
 } from "../core/shadow-corridor-host-state";
@@ -106,7 +107,9 @@ import {
 } from "./shadow-frame-budget";
 
 const FALLBACK_SHADOW_AREA_METERS = 900;
-const MESH_MAX_RECEIVER_BIAS_METERS = 0.005;
+const MESH_FINAL_SHADOW_BIAS_METERS = 0.01;
+const MESH_COARSE_SHADOW_BIAS_LIMIT_METERS = 0.25;
+const STREAMED_CONTENT_REFRESH_INTERVAL_MS = 1_000;
 // Mesh contact policy is applied again to newly streamed receiver materials.
 /** Maximum radius represented by the fitted shadow buffer. */
 const MAX_RECEIVER_DISTANCE_METERS = 4_000;
@@ -543,7 +546,7 @@ const makeMeshShadeable = (mesh: THREE.Mesh, receiverPlane = false) => {
 };
 
 const makeSceneMeshesShadeable = (
-  scene: THREE.Scene,
+  scene: THREE.Object3D,
   receiverPlane = false
 ) => {
   scene.traverseVisible((object) => {
@@ -1441,6 +1444,34 @@ export const buildShadowSimulationScene = (
     );
   const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
     renderTileVolumes ?? readActiveTileVolumes();
+  const resolveMeshReceiverBiasLimit = (
+    bounds?: THREE.Box3,
+    groundTexelTargetMeters = MESH_FINAL_SHADOW_BIAS_METERS * 4
+  ) => {
+    if (!sharedSceneProvidesTerrain()) return undefined;
+    const volumes = getActiveTileVolumes();
+    const stageError = bounds
+      ? shadowReceiverStageError(bounds, volumes, latestMeshErrorTarget)
+      : Math.max(
+          latestMeshErrorTarget,
+          ...volumes
+            .filter(({ loadReason }) => loadReason !== "shadow")
+            .map(({ errorPixels }) => errorPixels)
+            .filter((error): error is number => Number.isFinite(error))
+        );
+    // Coarse mesh triangles need enough self-intersection tolerance for their
+    // achieved depth-map footprint. Keeping the final 1 cm cap at the 16 px
+    // bootstrap stage produced triangle-edge acne across whole roofs. The cap
+    // follows progressive SSE and converges back to 1 cm at the requested LOD;
+    // only the temporary coarse representation may use up to 25 cm.
+    return meshReceiverBiasLimitMeters({
+      stageErrorPixels: stageError,
+      targetErrorPixels: latestMeshErrorTarget,
+      groundTexelTargetMeters,
+      finalBiasMeters: MESH_FINAL_SHADOW_BIAS_METERS,
+      maximumCoarseBiasMeters: MESH_COARSE_SHADOW_BIAS_LIMIT_METERS,
+    });
+  };
   const withTileVolumeSnapshot = <T>(render: () => T): T => {
     // A synchronous render cannot observe a new asynchronous tile publication.
     // Rebuilding the same volumes per corridor cost 15.6 s across 31,158 calls
@@ -1455,7 +1486,13 @@ export const buildShadowSimulationScene = (
         renderedTileVolumes,
         renderTileVolumes
       );
-      if (changes.length > 0) tiledScene?.invalidateContent(changes);
+      if (changes.length > 0) {
+        tiledScene?.invalidateContent(changes);
+        // Native content events may precede publication by one paint. This
+        // coherent active-cut diff includes every published add/remove, so the
+        // later batch must not invalidate those same corridors a second time.
+        changedContentBoundsPending.length = 0;
+      }
       renderedTileVolumes = renderTileVolumes;
     }
     try {
@@ -1500,9 +1537,9 @@ export const buildShadowSimulationScene = (
       ...(terrainRuntime ? [terrainRuntime] : []),
     ];
     for (const runtime of new Set(runtimes)) {
-      runtime.setShadowStagePresentationGate?.(
-        view !== null && isTiledBufferEnabled()
-      );
+      // Keep mesh display admission independent from corridor publication
+      // while per-tile stages are diagnosed in the scene overlay.
+      runtime.setShadowStagePresentationGate?.(false);
       if (!runtime.providesTerrain) {
         runtime.setShadowView?.(view);
         continue;
@@ -1549,6 +1586,9 @@ export const buildShadowSimulationScene = (
   });
   let accumulationOptions = getAccumulationOptions();
   let contentChangeTimer = 0;
+  let contentRefreshPendingAfterMove = false;
+  let fullContentInvalidationPending = false;
+  const changedContentBoundsPending: THREE.Box3[] = [];
   let coverageNeedsCameraReevaluation = true;
   let fallbackReceiverWorldPoints: THREE.Vector3[] = [];
   let renderCameraSignature = "";
@@ -1788,14 +1828,12 @@ export const buildShadowSimulationScene = (
         coverageNeedsCameraReevaluation ||
         nextRenderCameraSignature !== renderCameraSignature
       ) {
+        // Dragging only changes the observer. Corridor geometry, sun direction
+        // and tile-owned shadow textures remain valid, so defer every expensive
+        // fit/query/update to moveend and let the presentation path reproject
+        // the retained pages meanwhile.
+        if (mapInMotion) return;
         const nowMs = performance.now();
-        if (
-          mapInMotion &&
-          nowMs - lastMotionShadowUpdateMs <
-            Math.max(120, shadowFrameBudget.updateIntervalMs)
-        ) {
-          return;
-        }
         lastMotionShadowUpdateMs = nowMs;
         renderCameraSignature = nextRenderCameraSignature;
         cachedElevationRange = mapInMotion
@@ -1884,9 +1922,7 @@ export const buildShadowSimulationScene = (
         }
       }
       const snapshot = sharedBinding.controller.update({
-        maxReceiverBiasMeters: sharedSceneProvidesTerrain()
-          ? MESH_MAX_RECEIVER_BIAS_METERS
-          : undefined,
+        maxReceiverBiasMeters: resolveMeshReceiverBiasLimit(),
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
         receiverAnchorWorldPosition: sharedBinding.center,
         minimumElevationMeters: sharedBinding.minimumElevationMeters,
@@ -2011,6 +2047,7 @@ export const buildShadowSimulationScene = (
       return null;
     const renderer = sceneLease.layer.getRenderer?.();
     if (!renderer) return null;
+    let created = false;
     if (!tiledScene || tiledRenderer !== renderer) {
       const cells = receiverCells;
       releaseTiledScene();
@@ -2048,6 +2085,9 @@ export const buildShadowSimulationScene = (
             getActiveTileVolumes(),
             latestMeshErrorTarget
           ),
+        receiverBiasLimit: (bounds, groundTexelTargetMeters) =>
+          resolveMeshReceiverBiasLimit(bounds, groundTexelTargetMeters) ??
+          MESH_FINAL_SHADOW_BIAS_METERS,
         onPresentedPages: (presentedPages, visiblePages) => {
           const receiverIds = getPresentedShadowReceiverIds(
             getActiveTileVolumes(),
@@ -2120,24 +2160,31 @@ export const buildShadowSimulationScene = (
         runIdleRender: (render) =>
           sceneLease.layer.runIdleRender?.(render) ?? false,
       });
+      created = true;
     }
-    tiledScene.update(
-      receiverCells,
-      latestFrame,
-      {
-        maxReceiverBiasMeters: sharedSceneProvidesTerrain()
-          ? MESH_MAX_RECEIVER_BIAS_METERS
-          : undefined,
-        directionToSun: sharedBinding.directionToSun,
-        color: sharedBinding.sunColor,
-        intensity: sharedBinding.sunIntensity,
-        shadowIntensity: sharedBinding.shadowIntensity,
-      },
-      // Scale depth demand, never the native-pixel map/style colour pass.
-      SHADOW_QUALITY_PROFILES[sharedBinding.shadowQuality]
-        .shadowTexelErrorPixels /
-        (mapInMotion ? shadowFrameBudget.depthScale : 1)
-    );
+    if (!mapInMotion || created) {
+      tiledScene.update(
+        receiverCells,
+        latestFrame,
+        {
+          maxReceiverBiasMeters: sharedSceneProvidesTerrain()
+            ? MESH_FINAL_SHADOW_BIAS_METERS
+            : undefined,
+          directionToSun: sharedBinding.directionToSun,
+          color: sharedBinding.sunColor,
+          intensity: sharedBinding.sunIntensity,
+          shadowIntensity: sharedBinding.shadowIntensity,
+        },
+        // Scale depth demand, never the native-pixel map/style colour pass.
+        SHADOW_QUALITY_PROFILES[sharedBinding.shadowQuality]
+          .shadowTexelErrorPixels
+      );
+    } else {
+      // Receiver pages and their finite-sun captures are world anchored. A
+      // camera drag changes only their framebuffer scissor; reproject that
+      // presentation without changing corridor or cache identity.
+      tiledScene.updatePresentation(latestFrame);
+    }
     return tiledScene;
   };
   const accumulationController = {
@@ -2217,11 +2264,16 @@ export const buildShadowSimulationScene = (
       withTileVolumeSnapshot(() => {
         const tiles = updateTiledScene();
         if (!tiles) return false;
-        tiles.render(camera, round, getSunDiscAccumulationRounds());
+        const rendered = tiles.render(
+          camera,
+          round,
+          getSunDiscAccumulationRounds(),
+          !mapInMotion
+        );
         // A trailing publication includes the final page counters even when
         // convergence stops repaints before the next debug interval.
         publishProjectionDebug();
-        return true;
+        return rendered;
       }),
   };
   sceneLease.layer.setAccumulationController?.(accumulationController);
@@ -2244,12 +2296,10 @@ export const buildShadowSimulationScene = (
     );
     mapInMotion = true;
     coverageNeedsCameraReevaluation = true;
-    sharedBinding.dirty = true;
   };
   const handleMove = () => {
     idleTerrainPrefetch.cancel();
     coverageNeedsCameraReevaluation = true;
-    sharedBinding.dirty = true;
   };
   const handleMoveEnd = () => {
     mapInMotion = false;
@@ -2258,7 +2308,12 @@ export const buildShadowSimulationScene = (
       performance.now(),
       false
     );
-    refreshSharedShadowCoverage();
+    if (contentRefreshPendingAfterMove) {
+      contentRefreshPendingAfterMove = false;
+      handleSharedSceneContentChanged();
+    } else {
+      refreshSharedShadowCoverage();
+    }
     if (latestAtmosphericSunlight) {
       pendingMapLibreLightSample = latestAtmosphericSunlight;
       flushMapLibreLightSample();
@@ -2376,10 +2431,19 @@ export const buildShadowSimulationScene = (
 
   const handleSharedSceneContentChanged = () => {
     if (disposed) return;
+    if (contentChangeTimer) {
+      window.clearTimeout(contentChangeTimer);
+      contentChangeTimer = 0;
+    }
+    if (fullContentInvalidationPending) tiledScene?.invalidateContent();
+    else if (changedContentBoundsPending.length > 0) {
+      tiledScene?.invalidateContent(changedContentBoundsPending);
+    }
+    fullContentInvalidationPending = false;
+    changedContentBoundsPending.length = 0;
     idleTerrainPrefetch.cancel();
     syncTerrainRuntime();
     releaseMapLibreTerrain.refresh();
-    syncMeshLabelStyle();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
         runtime.setErrorTarget?.(latestMeshErrorTarget);
@@ -2397,46 +2461,79 @@ export const buildShadowSimulationScene = (
     // while existing ones keep their stationary-view signature. Refitting the
     // light to freshly streamed terrain must not restart terrain traversal.
     applyRuntimeShadowView(appliedRuntimeShadowView);
-    makeSceneMeshesShadeable(
-      sceneLease.layer.getScene(),
-      sharedSceneProvidesTerrain()
-    );
+    // Native tile runtimes configure only the arriving model subtree. A full
+    // scene traversal is reserved for generic Three layers that do not expose
+    // that lifecycle hook.
+    if (genericBridges.size > 0) {
+      makeSceneMeshesShadeable(
+        sceneLease.layer.getScene(),
+        sharedSceneProvidesTerrain()
+      );
+    }
     sharedBinding.controller.invalidate();
     sharedBinding.dirty = true;
     coverageNeedsCameraReevaluation = true;
-    refreshSharedShadowCoverage();
+    // A tile arrival changes geometry, not the sun. Fit once with the next
+    // render camera, using the runtime's cached model bounds. Calling the
+    // generic refresh here also walked the whole scene and reevaluated the
+    // atmosphere before doing the same camera fit in the next render.
+    cachedElevationRange = null;
+    map.triggerRepaint();
   };
-  const scheduleSharedSceneContentChanged = () => {
+  const scheduleSharedSceneContentChanged = (
+    change?: Readonly<{
+      bounds?: readonly THREE.Box3[];
+      roots?: readonly THREE.Object3D[];
+    }>
+  ) => {
     if (disposed) return;
-    // Install the receiver policy before the first draw of an arriving tile.
-    // The expensive coverage work below stays debounced; shader flags may not
-    // wait 120 ms with millimetre bias and uncorrected stock PCF.
-    makeSceneMeshesShadeable(
-      sceneLease.layer.getScene(),
-      sharedSceneProvidesTerrain()
-    );
+    const changedBounds = change?.bounds;
+    // Native runtimes already know the exact published GLTF subtree. Apply
+    // receiver-plane PCF there synchronously so its first shaded frame does not
+    // use the acne-prone stock comparison. This replaces the old full-scene
+    // traversal without making correctness depend on the later batch refresh.
+    for (const root of change?.roots ?? []) {
+      makeSceneMeshesShadeable(root, sharedSceneProvidesTerrain());
+    }
+    if (changedBounds === undefined) {
+      fullContentInvalidationPending = true;
+    } else if (changedBounds.length > 0) {
+      // A native tile publication carries exact world bounds. Invalidate only
+      // pages whose caster corridor intersects that delta; unrelated finished
+      // hard and sun-disc captures remain reusable.
+      changedContentBoundsPending.push(
+        ...changedBounds.map((bounds) => bounds.clone())
+      );
+    }
     idleTerrainPrefetch.cancel();
     // Native runtimes publish stable tile-volume IDs. Diff that committed cut
     // at render entry; parsing another offscreen tile must not restart EVERY
     // corridor. Unknown generic geometry still requires a conservative reset.
     if (
+      changedBounds === undefined &&
       getCoverageRuntimes().some(
         (runtime) =>
           runtime !== shadowControllerRuntime && !runtime.getActiveTileVolumes
       )
     )
-      tiledScene?.invalidateContent();
-    syncTerrainRuntime();
-    cachedElevationRange = null;
-    coverageNeedsCameraReevaluation = true;
-    sharedBinding.controller.invalidate();
-    sharedBinding.dirty = true;
+      fullContentInvalidationPending = true;
+    if (mapInMotion) {
+      // Loading continues, but camera input never pays for repeated global
+      // shadow invalidation. One consolidated refresh runs at moveend.
+      contentRefreshPendingAfterMove = true;
+      map.triggerRepaint();
+      return;
+    }
     map.triggerRepaint();
-    if (contentChangeTimer) window.clearTimeout(contentChangeTimer);
+    // Fixed-cadence batching, not a trailing debounce: a continuous tile
+    // stream still publishes progress once per second, but cannot refit the
+    // whole viewport shadow envelope once per model completion. Exact changed
+    // bounds above invalidate only the intersecting tiled corridors.
+    if (contentChangeTimer) return;
     contentChangeTimer = window.setTimeout(() => {
       contentChangeTimer = 0;
       handleSharedSceneContentChanged();
-    }, 120);
+    }, STREAMED_CONTENT_REFRESH_INTERVAL_MS);
   };
   const unsubscribeSharedSceneContent = subscribeSharedThreeSceneContent(
     map,

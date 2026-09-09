@@ -1,6 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
 
+import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  Button,
   Checkbox,
   ColorPicker,
   InputNumber,
@@ -93,7 +96,7 @@ export const ShadowSimulationSurfaceSettings = ({
               onChange({ meshErrorTarget: value as MeshErrorTargetPixels })
             }
           />
-          <Tooltip title="Residenter Mesh-Cache in GiB. Leer: Geräte-Standard. Große Budgets können RAM und GPU-Speicher überlasten; der Browser meldet nicht jeden Engpass rechtzeitig.">
+          <>
             <InputNumber
               aria-label="Mesh-Cache in GiB"
               placeholder="Auto"
@@ -115,7 +118,18 @@ export const ShadowSimulationSurfaceSettings = ({
                 })
               }
             />
-          </Tooltip>
+            <Tooltip
+              trigger={["hover", "focus", "click"]}
+              title="Residenter Mesh-Cache in GiB. Leer: Geräte-Standard. Große Budgets können RAM und GPU-Speicher überlasten; der Browser meldet nicht jeden Engpass rechtzeitig."
+            >
+              <Button
+                type="text"
+                size="small"
+                aria-label="Info zum Mesh-Cache"
+                icon={<FontAwesomeIcon icon={faCircleInfo} />}
+              />
+            </Tooltip>
+          </>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -123,7 +137,7 @@ export const ShadowSimulationSurfaceSettings = ({
           <Typography.Text strong type="secondary">
             Terrain
           </Typography.Text>
-          <Tooltip title="Terrainfarbe wirkt vor allem auf untexturiertes Terrain beziehungsweise dessen Albedo.">
+          <>
             <ColorPicker
               value={settings.terrainColor}
               showText={(color) => color.toHexString().toUpperCase()}
@@ -131,7 +145,18 @@ export const ShadowSimulationSurfaceSettings = ({
                 onChange({ terrainColor: color.toHexString() })
               }
             />
-          </Tooltip>
+            <Tooltip
+              trigger={["hover", "focus", "click"]}
+              title="Grundfarbe des Rasterterrains. Auf texturierten Flächen beeinflusst auch die Basiskarte das Ergebnis; für Meshflächen gelten die separaten Textur-/Farboptionen."
+            >
+              <Button
+                type="text"
+                size="small"
+                aria-label="Info zur Terrainfarbe"
+                icon={<FontAwesomeIcon icon={faCircleInfo} />}
+              />
+            </Tooltip>
+          </>
         </div>
         {meshLoaded && (
           <>
@@ -169,7 +194,7 @@ export const ShadowSimulationSurfaceSettings = ({
                 {Math.round(settings.buildingColorMix * 100)}%
               </Typography.Text>
             </div>
-            <Tooltip title="Schwarz-/Weißpunkt und Gamma wie im Cesium-Stil für Mesh 2024. Farbkorrektur vor der Beleuchtung; keine Entfernung eingebrannter Schatten.">
+            <>
               <Checkbox
                 checked={state.meshTextureColorCorrection ?? true}
                 onChange={(event) =>
@@ -179,7 +204,18 @@ export const ShadowSimulationSurfaceSettings = ({
               >
                 Farbkorrektur (Mesh 2024)
               </Checkbox>
-            </Tooltip>
+              <Tooltip
+                trigger={["hover", "focus", "click"]}
+                title="Schwarz-/Weißpunkt und Gamma aus den Mesh-Datensatzmetadaten, vor der Beleuchtung. Entfernt keine bereits in der Textur enthaltenen Schatten."
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="Info zur Mesh-Farbkorrektur"
+                  icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                />
+              </Tooltip>
+            </>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Typography.Text type="secondary">Sättigung</Typography.Text>
               <Slider

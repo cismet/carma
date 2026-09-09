@@ -66,13 +66,13 @@ describe("three tiles runtime effective error target", () => {
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
     };
-    layer.setErrorTarget(0.25);
-    layer.onAdd?.(map);
-    layer.setShadowView({
+    layer.loading.setErrorTarget(0.25);
+    layer.scene.onAdd?.(map);
+    layer.scene.setShadowView({
       camera: new THREE.OrthographicCamera(),
       shadowMapSize: { width: 2048, height: 2048 },
     });
-    layer.update(frame);
+    layer.scene.update(frame);
     // A displayed placeholder above the target whose child still has to load,
     // and one used tile that fills the whole ceiling: full, idle, unconverged.
     const child = {
@@ -94,7 +94,7 @@ describe("three tiles runtime effective error target", () => {
     renderer!.usedSet.add(requiredTile);
     renderer!.lruCache.add(requiredTile, disposeRequiredTile);
     renderer!.lruCache.setMemoryUsage(requiredTile, 2 * GIB);
-    const tick = () => layer.update(frame);
+    const tick = () => layer.scene.update(frame);
     const stall = (ms: number) => {
       tick();
       vi.advanceTimersByTime(ms);
@@ -137,7 +137,7 @@ describe("three tiles runtime effective error target", () => {
     // Four times the requested target is the cap.
     stall(ERROR_TARGET_POLICY.relaxHoldMs);
     expect(renderer.errorTarget).toBe(1);
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("does not tighten below the target that failed in this view until the view zooms in", () => {
@@ -158,7 +158,7 @@ describe("three tiles runtime effective error target", () => {
     view.zoom = 17.5;
     tick();
     expect(renderer.errorTarget).toBe(0.25);
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("does not retraverse when the same requested target is re-applied", () => {
@@ -169,16 +169,16 @@ describe("three tiles runtime effective error target", () => {
 
     // shadow-scene.ts re-applies the same requested target on every content
     // change; that must not restart the relaxation cycle.
-    layer.setErrorTarget(0.25);
+    layer.loading.setErrorTarget(0.25);
     expect(renderer.errorTarget).toBe(0.5);
     expect(dispatchSpy).not.toHaveBeenCalled();
 
-    layer.setErrorTarget(1);
+    layer.loading.setErrorTarget(1);
     expect(renderer.errorTarget).toBe(1);
     expect(
       dispatchSpy.mock.calls.map(([event]) => (event as { type: string }).type)
     ).toContain("needs-update");
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("treats a placeholder whose child can never load as ready for receiver traversal", () => {
@@ -216,7 +216,7 @@ describe("three tiles runtime effective error target", () => {
       vi.advanceTimersByTime(ERROR_TARGET_POLICY.relaxHoldMs);
     }
     expect(renderer.errorTarget).toBe(0.25);
-    expect(layer.getRequestDemand()).toBe(0);
-    layer.dispose();
+    expect(layer.loading.getRequestDemand()).toBe(0);
+    layer.scene.dispose();
   });
 });

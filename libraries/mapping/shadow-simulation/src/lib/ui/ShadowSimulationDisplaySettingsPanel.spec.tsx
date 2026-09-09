@@ -16,7 +16,7 @@ import {
   createInitialShadowSimulationState,
   selectShadowQualityPreset,
 } from "../core/create-shadow-simulation-state";
-import { SHADOW_QUALITY } from "../core/shadow-types";
+import { SHADOW_BUFFER_LAYOUT, SHADOW_QUALITY } from "../core/shadow-types";
 import { ShadowSimulationDisplaySettingsPanel } from "./ShadowSimulationDisplaySettingsPanel";
 
 afterEach(cleanup);
@@ -110,6 +110,7 @@ describe("adaptive shadow quality", () => {
       const state = {
         ...createInitialShadowSimulationState(undefined),
         shadowAdaptiveQuality,
+        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
       };
       const setState = vi.fn();
       const { getByRole } = render(
@@ -159,21 +160,26 @@ describe("adaptive shadow quality", () => {
     }
   );
 
-  it("explains that map and label rendering stays at native display resolution", () => {
-    const { getByText } = render(
+  it("keeps explanations behind keyboard-accessible info buttons", async () => {
+    const { getByRole, findByRole, queryByText } = render(
       <ShadowSimulationDisplaySettingsPanel
         state={createInitialShadowSimulationState(undefined)}
         setState={vi.fn()}
       />
     );
 
-    expect(
-      getByText(
-        /Bei Bewegung werden Update-Takt und Schattenpuffer an das FPS-Ziel angepasst/
-      ).textContent
-    ).toContain(
-      "Basiskarte und Beschriftungen bleiben in nativen Displaypixeln; die Farbauflösung wird nicht reduziert."
+    expect(queryByText(/keine FPS-Garantie/)).toBeNull();
+    fireEvent.focus(getByRole("button", { name: "Info zum Qualitätsziel" }));
+    expect((await findByRole("tooltip")).textContent).toContain(
+      "nativen Displaypixeln"
     );
+    expect(
+      (
+        getByRole("checkbox", {
+          name: "Adaptive Schattenqualität",
+        }) as HTMLInputElement
+      ).disabled
+    ).toBe(true);
   });
 });
 

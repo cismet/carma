@@ -146,3 +146,33 @@ export const shadowReceiverStageError = (
     }, target),
     target
   );
+
+/** Keep final-LOD mesh contacts tight while allowing a coarse progressive cut
+ * enough receiver offset to avoid shadowing its own simplified triangles.
+ */
+export const meshReceiverBiasLimitMeters = ({
+  stageErrorPixels,
+  targetErrorPixels,
+  groundTexelTargetMeters,
+  finalBiasMeters,
+  maximumCoarseBiasMeters,
+}: Readonly<{
+  stageErrorPixels: number;
+  targetErrorPixels: number;
+  groundTexelTargetMeters: number;
+  finalBiasMeters: number;
+  maximumCoarseBiasMeters: number;
+}>): number => {
+  const stageScale = Math.max(
+    1,
+    Math.min(
+      maximumCoarseBiasMeters / finalBiasMeters,
+      stageErrorPixels / Math.max(targetErrorPixels, 0.25)
+    )
+  );
+  return Math.min(
+    maximumCoarseBiasMeters,
+    finalBiasMeters * stageScale,
+    Math.max(finalBiasMeters, groundTexelTargetMeters * 2)
+  );
+};

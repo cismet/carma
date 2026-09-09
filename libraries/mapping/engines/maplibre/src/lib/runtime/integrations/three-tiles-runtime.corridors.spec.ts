@@ -58,10 +58,10 @@ describe("native mesh corridor publication", () => {
         viewport: new THREE.Vector2(800, 600),
         lookTarget: new THREE.Vector3(),
       };
-      runtime.onAdd?.(map);
-      runtime.setErrorTarget(1);
-      runtime.setShadowStagePresentationGate?.(presentation !== "off");
-      runtime.update(frame);
+      runtime.scene.onAdd?.(map);
+      runtime.loading.setErrorTarget(1);
+      runtime.scene.setShadowStagePresentationGate?.(presentation !== "off");
+      runtime.scene.update(frame);
       if (cityRootFallback) {
         // ECEF-to-local placement rotates native boxes relative to sunlight.
         renderer!.group.rotation.z = Math.PI / 4;
@@ -244,7 +244,7 @@ describe("native mesh corridor publication", () => {
       ]) {
         renderer!.lruCache.add(tile, () => {});
       }
-      runtime.setShadowView({
+      runtime.scene.setShadowView({
         camera: sun,
         shadowMapSize: { width: 1024, height: 1024 },
       });
@@ -252,7 +252,7 @@ describe("native mesh corridor publication", () => {
         proposed = new Set(
           cityRootFallback ? [root] : [coarseReceiver, coarseCaster]
         );
-        runtime.update(frame);
+        runtime.scene.update(frame);
         expect(renderer!.visibleTiles).toEqual(
           new Set([
             coarseReceiver,
@@ -262,7 +262,7 @@ describe("native mesh corridor publication", () => {
         );
 
         proposed = new Set([fineReceiver, coarseCaster]);
-        runtime.update(frame);
+        runtime.scene.update(frame);
         expect(renderer!.visibleTiles).toEqual(
           new Set([
             coarseReceiver,
@@ -284,14 +284,14 @@ describe("native mesh corridor publication", () => {
               .applyMatrix4(renderer!.group.matrixWorld)
           );
         expect(
-          runtime.isShadowRegionReady?.(
+          runtime.scene.isShadowRegionReady?.(
             coarseCorridorWorld,
             16,
             coarseReceiverWorld
           )
         ).toBe(true);
         expect(
-          runtime.isShadowRegionReady?.(
+          runtime.scene.isShadowRegionReady?.(
             coarseCorridorWorld,
             1,
             coarseReceiverWorld
@@ -331,7 +331,7 @@ describe("native mesh corridor publication", () => {
               value: { usedJSHeapSize: 85, jsHeapSizeLimit: 100 },
             });
             try {
-              runtime.update(frame);
+              runtime.scene.update(frame);
               expect(renderer!.lruCache.has(premature)).toBe(false);
               expect(renderer!.lruCache.has(coarseReceiver)).toBe(true);
               expect(renderer!.lruCache.has(coarseCaster)).toBe(true);
@@ -352,7 +352,7 @@ describe("native mesh corridor publication", () => {
           tile: fineCaster,
           url: "https://example.test/mesh/caster1.b3dm",
         });
-        runtime.update(frame);
+        runtime.scene.update(frame);
         if (presentation !== "off") {
           expect(renderer!.visibleTiles.has(coarseReceiver)).toBe(true);
           expect(renderer!.visibleTiles.has(fineReceiver)).toBe(false);
@@ -360,13 +360,13 @@ describe("native mesh corridor publication", () => {
             .getActiveTileVolumes?.()
             .find((tile) => tile.id.includes("receiver16"))?.id;
           expect(receiverId).toBeDefined();
-          runtime.acknowledgeShadowStage?.(["stale-or-unknown-receiver"]);
-          runtime.update(frame);
+          runtime.scene.acknowledgeShadowStage?.(["stale-or-unknown-receiver"]);
+          runtime.scene.update(frame);
           expect(renderer!.visibleTiles.has(coarseReceiver)).toBe(true);
           if (presentation === "disabled")
-            runtime.setShadowStagePresentationGate?.(false);
-          else runtime.acknowledgeShadowStage?.([receiverId!]);
-          runtime.update(frame);
+            runtime.scene.setShadowStagePresentationGate?.(false);
+          else runtime.scene.acknowledgeShadowStage?.([receiverId!]);
+          runtime.scene.update(frame);
         }
         expect(renderer!.visibleTiles).toEqual(
           new Set([fineReceiver, fineCaster])
@@ -382,18 +382,18 @@ describe("native mesh corridor publication", () => {
               .translate(sunward)
               .applyMatrix4(renderer!.group.matrixWorld)
           );
-        runtime.update(frame);
+        runtime.scene.update(frame);
         expect(
-          runtime.isShadowRegionReady?.(corridorWorld, 1, receiverWorld)
+          runtime.scene.isShadowRegionReady?.(corridorWorld, 1, receiverWorld)
         ).toBe(true);
-        const revision = runtime.getShadowRegionRevision?.(
+        const revision = runtime.scene.getShadowRegionRevision?.(
           corridorWorld,
           1,
           receiverWorld
         );
         expect(revision).toContain("receiver1.b3dm");
         expect(revision).toContain("caster1.b3dm");
-        const diagnostics = runtime.getShadowRegionDiagnostics?.(
+        const diagnostics = runtime.scene.getShadowRegionDiagnostics?.(
           corridorWorld,
           1,
           receiverWorld
@@ -401,18 +401,22 @@ describe("native mesh corridor publication", () => {
         expect(diagnostics?.selectedTileIds).toHaveLength(2);
         expect(diagnostics?.receiverPrismTested).toBe(true);
         expect(
-          runtime.getShadowRegionDiagnostics?.(corridorWorld, 1, receiverWorld)
+          runtime.scene.getShadowRegionDiagnostics?.(
+            corridorWorld,
+            1,
+            receiverWorld
+          )
         ).toBe(diagnostics);
         sun.left *= 2;
         sun.updateProjectionMatrix();
-        runtime.setShadowView({
+        runtime.scene.setShadowView({
           camera: sun,
           shadowMapSize: { width: 1024, height: 1024 },
         });
         // A global fetch envelope refit does not unpublish complete regional
         // coverage while unrelated traversal work is pending.
         expect(
-          runtime.isShadowRegionReady?.(corridorWorld, 1, receiverWorld)
+          runtime.scene.isShadowRegionReady?.(corridorWorld, 1, receiverWorld)
         ).toBe(true);
         expect(
           runtime
@@ -421,7 +425,7 @@ describe("native mesh corridor publication", () => {
             .every((tile) => tile.errorPixels === 1)
         ).toBe(true);
       } finally {
-        runtime.dispose();
+        runtime.scene.dispose();
         nativeError.mockRestore();
         update.mockRestore();
       }

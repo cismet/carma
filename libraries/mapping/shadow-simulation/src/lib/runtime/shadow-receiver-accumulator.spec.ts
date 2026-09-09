@@ -461,6 +461,32 @@ describe("independent full-receiver accumulation", () => {
     expect(result?.needsRepaint).toBe(false);
   });
 
+  it("finishes a ready corridor without waiting for siblings and reuses it while they load", () => {
+    const f = fixture();
+    f.pages.accumulationPages = [f.page("a"), f.page("b")];
+    const frame = { ...f.frame, isPageReady: (id: string) => id === "b" };
+    for (let i = 0; i < 3; i += 1)
+      f.accumulator.render(f.observer, f.pages, frame);
+    expect(state.publications).toEqual([
+      expect.objectContaining({ id: "b", samples: 3 }),
+    ]);
+    const calls = f.pages.renderPageSample.mock.calls.length;
+    const progress = f.accumulator.render(f.observer, f.pages, frame);
+    expect(progress?.settled).toBe(false);
+    expect(progress?.needsRepaint).toBe(false);
+    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(calls);
+    f.accumulator.render(f.observer, f.pages, {
+      ...f.frame,
+      isPageReady: () => true,
+    });
+    expect(
+      f.accumulator.pageProgress.find(({ id }) => id === "b")?.published
+    ).toBe(true);
+    expect(
+      f.accumulator.pageProgress.find(({ id }) => id === "a")?.samples
+    ).toBe(1);
+  });
+
   it("accepts more than 64 receiver descriptors without a global atlas fallback", () => {
     const f = fixture();
     f.pages.accumulationPages = Array.from({ length: 70 }, (_, index) =>

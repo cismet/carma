@@ -57,7 +57,7 @@ export const createInitialShadowSimulationState = (
     meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
     meshCacheBudgetBytes: DEFAULT_MESH_CACHE_BUDGET_BYTES,
     showSunDebugVector: false,
-    showTileBounds: false,
+    showTileBounds: true,
     showProjectionDebugView: false,
     showDisplaySettings: false,
     softSunShadows: true,

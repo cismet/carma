@@ -2445,7 +2445,9 @@ describe("shadow scene lighting integration", () => {
     });
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
-    let contentChanged = () => undefined;
+    let contentChanged: (
+      change?: Readonly<{ roots?: readonly THREE.Object3D[] }>
+    ) => void = () => undefined;
     vi.mocked(subscribeSharedThreeSceneContent).mockImplementation(
       (_map, listener) => {
         contentChanged = listener;
@@ -2506,7 +2508,7 @@ describe("shadow scene lighting integration", () => {
     );
     buildingVolume.position.y = 150;
     scene.add(buildingVolume);
-    contentChanged();
+    contentChanged({ roots: [buildingVolume] });
     // The first draw must not wait for the 120 ms coverage debounce.
     expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(
       true

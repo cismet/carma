@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe("tile diagnostics runtime registration", () => {
-  it("does not subscribe to tile diagnostics while the debug panel is closed", () => {
+  it("shows tile diagnostics independently of the lazy debug panel", () => {
     const runtime = { setTileBoundsVisible: vi.fn() };
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([runtime] as never);
     render(
@@ -49,8 +49,8 @@ describe("tile diagnostics runtime registration", () => {
         location={{ latitude: 51.27, longitude: 7.2 }}
       />
     );
-    expect(subscribeSharedThreeSceneContent).not.toHaveBeenCalled();
-    expect(runtime.setTileBoundsVisible).not.toHaveBeenCalled();
+    expect(subscribeSharedThreeSceneContent).toHaveBeenCalledOnce();
+    expect(runtime.setTileBoundsVisible).toHaveBeenCalledWith(true);
   });
 
   it("applies enabled bounds to arriving runtimes once and unsubscribes on cleanup", () => {

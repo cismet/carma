@@ -108,8 +108,11 @@ describe("advanced shadow render settings", () => {
       <ShadowSimulationRenderSettings state={tiledState} setState={setState} />
     );
     expect(selectedText(layout)).toBe("Gekachelt (experimentell)");
-    expect(getByRole("status").textContent).toContain("begrenzten Cache");
-    expect(getByRole("status").textContent).toContain("länger dauern");
+    expect(queryByRole("status")).toBeNull();
+    fireEvent.click(getByRole("button", { name: "Info zum Schattenpuffer" }));
+    expect((await screen.findByRole("tooltip")).textContent).toContain(
+      "begrenzter Cache"
+    );
     await selectOption(layout, "Einzelpuffer");
     expect(setState).toHaveBeenLastCalledWith({
       ...state,
@@ -134,10 +137,7 @@ describe("advanced shadow render settings", () => {
         { selector: "input" }
       ) as HTMLInputElement;
       expect(fitting.disabled).toBe(true);
-      expect(fitting.checked).toBe(shadowGroundTexelFit);
-      expect(getByRole("status").textContent).toContain(
-        "Bodenauflösung automatisch"
-      );
+      expect(fitting.checked).toBe(true);
       fitting.click();
       expect(setState).not.toHaveBeenCalled();
       const monoState = {
@@ -182,7 +182,15 @@ describe("advanced shadow render settings", () => {
         setState={setState}
       />
     );
-    expect(queryByRole("status")?.textContent).toContain("begrenzt HDR");
+    expect(queryByRole("status")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Info zur erweiterten Schattenqualität",
+      })
+    );
+    expect((await screen.findByRole("tooltip")).textContent).toContain(
+      "8 Bit können Stufen erzeugen"
+    );
   });
 
   it.each([256, 4096] as const)(
@@ -266,7 +274,7 @@ describe("advanced shadow render settings", () => {
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
       shadowMsaaSamples: 4 as const,
     };
-    const { getByLabelText, getByText } = render(
+    const { getByLabelText, getByRole } = render(
       <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
     );
     const msaa = getByLabelText(
@@ -276,7 +284,7 @@ describe("advanced shadow render settings", () => {
     expect(msaa.disabled).toBe(true);
     expect(selectedText(msaa)).toBe("0×");
     expect(
-      getByText(/Karte und Beschriftungen bleiben in nativer/)
+      getByRole("button", { name: "Info zum Schattenpuffer" })
     ).toBeTruthy();
   });
 
@@ -294,7 +302,7 @@ describe("advanced shadow render settings", () => {
       { selector: "input" }
     ) as HTMLInputElement;
     expect(msaa.disabled).toBe(true);
-    expect(selectedText(msaa)).toBe("Automatisch nach Qualitätsziel");
+    expect(selectedText(msaa)).toBe("0×");
   });
 
   it("offers hybrid HDR without disabling scene MSAA", () => {
@@ -321,7 +329,7 @@ describe("advanced shadow render settings", () => {
     ).toBe("HDR · 16/32 Bit (Standard)");
   });
 
-  it("warns about repeated FP16 rounding, not HDR clipping", () => {
+  it("explains format limits on demand without expanding the panel", async () => {
     const state = {
       ...createInitialShadowSimulationState(undefined),
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
@@ -331,9 +339,15 @@ describe("advanced shadow render settings", () => {
     const { getByRole } = render(
       <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
     );
-    const warning = getByRole("status").textContent;
+    const info = getByRole("button", {
+      name: "Info zur erweiterten Schattenqualität",
+    });
+    const details = info.closest("details")!;
+    details.open = true;
+    fireEvent.click(info);
+    expect(details.open).toBe(true);
+    const warning = (await screen.findByRole("tooltip")).textContent;
     expect(warning).toContain("bei jedem Sample erneut");
-    expect(warning).toContain("Rundungsfehler summieren");
     expect(warning).not.toContain("begrenzt HDR");
   });
 });

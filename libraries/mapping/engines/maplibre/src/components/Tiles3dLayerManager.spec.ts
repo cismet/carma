@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
     off: vi.fn(),
   },
   buildRuntime: vi.fn(),
+  addRuntime: vi.fn(),
   removeRuntime: vi.fn(),
 }));
 
@@ -37,13 +38,11 @@ vi.mock("../contexts/LibreContext", () => ({
 }));
 vi.mock("../lib/runtime/integrations/three-tiles-runtime", () => ({
   buildThreeTilesRuntime: mocks.buildRuntime,
-  TILES_ERROR_TARGET_DEFAULT_PIXELS: 4,
-  THREE_TILES_DEFAULT_REQUEST_CONCURRENCY: 64,
 }));
 vi.mock("../lib/runtime/integrations/shared-three-scene-registry", () => ({
   acquireSharedThreeScene: () => ({
     layer: {
-      addRuntime: vi.fn(),
+      addRuntime: mocks.addRuntime,
       hasRuntime: () => true,
       removeRuntime: mocks.removeRuntime,
     },
@@ -65,12 +64,16 @@ vi.mock("../utils/threeDPresence", () => ({
 }));
 
 const buildFakeRuntime = (id: string) => ({
-  id,
-  setErrorTarget: vi.fn(),
-  setOpacity: vi.fn(),
-  setOutlineVisible: vi.fn(),
-  setOutlineStyle: vi.fn(),
-  setCacheBudget: vi.fn(),
+  scene: { id },
+  appearance: {
+    setOpacity: vi.fn(),
+    setOutlineVisible: vi.fn(),
+    setOutlineStyle: vi.fn(),
+  },
+  loading: {
+    setErrorTarget: vi.fn(),
+    setCacheBudget: vi.fn(),
+  },
 });
 
 const baseConfig: Tiles3dConfig = {
@@ -96,6 +99,7 @@ describe("resolveTiles3dErrorTarget", () => {
 describe("Tiles3dLayerManager", () => {
   beforeEach(() => {
     mocks.buildRuntime.mockReset();
+    mocks.addRuntime.mockReset();
     mocks.removeRuntime.mockReset();
     mocks.map.setTerrain.mockReset();
     mocks.buildRuntime.mockImplementation((id: string) => buildFakeRuntime(id));
@@ -110,17 +114,18 @@ describe("Tiles3dLayerManager", () => {
     const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
       typeof buildFakeRuntime
     >;
-    expect(runtime.setErrorTarget).toHaveBeenLastCalledWith(4);
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4);
+    expect(mocks.addRuntime).toHaveBeenCalledWith(runtime.scene);
 
     rerender(renderManager({ ...baseConfig, errorTarget: 1 }, 1));
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
-    expect(runtime.setErrorTarget).toHaveBeenLastCalledWith(1);
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(1);
 
     rerender(
       renderManager({ ...baseConfig, errorTarget: 1, opacity: 0.5 }, 0.5)
     );
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
-    expect(runtime.setOpacity).toHaveBeenLastCalledWith(0.25);
+    expect(runtime.appearance.setOpacity).toHaveBeenLastCalledWith(0.25);
 
     rerender(
       renderManager(
@@ -135,9 +140,12 @@ describe("Tiles3dLayerManager", () => {
       )
     );
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
-    expect(runtime.setCacheBudget).toHaveBeenLastCalledWith(256 * 1024 ** 2, {
-      overflowBytes: 64 * 1024 ** 2,
-    });
+    expect(runtime.loading.setCacheBudget).toHaveBeenLastCalledWith(
+      256 * 1024 ** 2,
+      {
+        overflowBytes: 64 * 1024 ** 2,
+      }
+    );
 
     rerender(
       renderManager(
@@ -153,8 +161,10 @@ describe("Tiles3dLayerManager", () => {
       )
     );
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
-    expect(runtime.setOutlineVisible).toHaveBeenLastCalledWith(false);
-    expect(runtime.setOutlineStyle).toHaveBeenLastCalledWith({
+    expect(runtime.appearance.setOutlineVisible).toHaveBeenLastCalledWith(
+      false
+    );
+    expect(runtime.appearance.setOutlineStyle).toHaveBeenLastCalledWith({
       color: "#ff0000",
       opacity: 0.3,
     });
@@ -174,7 +184,7 @@ describe("Tiles3dLayerManager", () => {
       })
     );
     expect(mocks.buildRuntime).toHaveBeenCalledTimes(2);
-    expect(mocks.removeRuntime).toHaveBeenCalledWith(first.id);
+    expect(mocks.removeRuntime).toHaveBeenCalledWith(first.scene.id);
 
     rerender(
       renderManager({

@@ -190,7 +190,7 @@ describe("three tiles admission (D2)", () => {
       cacheBudgetBytes: 1,
       cacheOverflowBytes: 0,
     });
-    layer.onAdd?.(map);
+    layer.scene.onAdd?.(map);
     const tiles = captured!;
     const cache = tiles.lruCache as HarnessCache;
     expect(cache.isFull()).toBe(false);
@@ -254,8 +254,8 @@ describe("three tiles admission (D2)", () => {
     const cachedBytesSamples: number[] = [];
     for (let index = 0; index < 80; index += 1) {
       tiles.dispatchEvent({ type: "needs-update" });
-      layer.root.updateMatrixWorld(true);
-      layer.update(frameInput);
+      layer.scene.root.updateMatrixWorld(true);
+      layer.scene.update(frameInput);
       concurrencySamples.push(tiles.downloadQueue.maxJobsPerOrigin);
       cachedBytesSamples.push(cache.cachedBytes);
       await flushMicrotasks();
@@ -342,6 +342,6 @@ describe("three tiles admission (D2)", () => {
     );
     expect(prediction).toBeLessThan(TILE_BYTES_PREDICTION.initialBytes * 1.4);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 });

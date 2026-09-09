@@ -114,8 +114,20 @@ beforeEach(() => {
       dimensions: ["1024 × 512"],
       corridorAccumulation: {
         pageSamples: [
-          { id: "a", samples: 256, totalSamples: 256 },
-          { id: "b", samples: 128, totalSamples: 256 },
+          {
+            id: "a",
+            samples: 256,
+            totalSamples: 256,
+            ready: true,
+            published: true,
+          },
+          {
+            id: "b",
+            samples: 128,
+            totalSamples: 256,
+            ready: true,
+            published: false,
+          },
         ],
         memoryBytes: 4 * 1024 ** 2,
         fallbackReason: null,
@@ -200,7 +212,7 @@ describe("projection debug availability", () => {
     fireEvent.click(getByRole("button", { name: /Schattenstatistik/ }));
     expect(getByText("Samples (Ziel)")).toBeTruthy();
     expect(getByText("256")).toBeTruthy();
-    expect(getByText("1024 × 512")).toBeTruthy();
+    expect(getByText("1: 1024 × 512")).toBeTruthy();
     expect(getByText("9 / 3")).toBeTruthy();
     expect(getByText("Pro Korridor")).toBeTruthy();
     expect(getByText("1 / 2")).toBeTruthy();
@@ -210,7 +222,15 @@ describe("projection debug availability", () => {
       (getByRole("radio", { name: "Sonnenansicht" }) as HTMLInputElement)
         .disabled
     ).toBe(true);
-    expect(getByText(/keine gekachelten Schattenseiten/)).toBeTruthy();
+    expect(
+      getByRole("button", { name: "Info zum Projektions-Debug" })
+    ).toBeTruthy();
+    expect(
+      getByRole("region", { name: "Schattenstatistik" }).style.overflowY
+    ).toBe("auto");
+    expect(
+      getByRole("region", { name: "Schattenseitenformate" }).style.maxHeight
+    ).toBe("88px");
   });
 
   it("makes unsupported corridor integration visible instead of claiming local means", () => {

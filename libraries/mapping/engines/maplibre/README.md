@@ -1,5 +1,98 @@
 # engines/maplibre
 
+## Published corridor invalidation — CORRIDOR-PUBLICATION-20260909
+
+- **Status / scope:** Implemented, uncommitted; mesh publication and soft-shadow
+  liveness, not a new loader or a change to solar-disc quality.
+- **Cause:** Model decoding and selection into the rendered tile cut are separate
+  events. A regional readiness query between them can cache a negative result.
+  Publication previously invalidated neither that proof nor an already captured
+  depth buffer, so a corridor could keep waiting or reuse outdated casters.
+- **Decision:** Compare the previous/current committed caster sets. Transform the
+  symmetric difference's native bounds into scene coordinates and invalidate only
+  intersecting regional proofs; notify the existing coalesced content-change path
+  for the same bounds. Unknown bounds conservatively invalidate all. An unchanged
+  cut emits nothing. Keep per-corridor completion and retained scalar/depth replay;
+  a ready corridor does not wait for siblings and never exposes partial samples.
+- **Alternatives:** Rejected retaining coarse ancestor families across both view
+  and sunward demand: the live scene regressed to eight coarse surfaces despite
+  loaded detailed children. That experiment is not retained. A global queue-idle
+  gate would unnecessarily block otherwise complete corridors.
+- **Evidence:** 67 focused publication/frontier/architecture tests and 89 focused
+  accumulation/presentation/adapter tests pass. The new tests cover publication
+  after decode, unchanged-cut reuse, unaffected regional proofs and a ready
+  corridor completing while its sibling remains blocked. In the existing MeshX
+  2024 chimney view, all 107 corridors became ready and completed 512-sample
+  publications increased from 3 to 7; offscreen shadows were visible. Full-set
+  completion and startup performance are not yet acceptance-tested. Debug now
+  exposes ready-corridor count and maximum sample progress separately.
+- **Revisit:** Measure cold-load convergence and full-set completion before
+  claiming production acceptance. Keep publication invalidation even if decoding
+  or traversal moves to another worker; decoding alone is not scene membership.
+
+## Runtime composition — RUNTIME-SPLIT-20260909
+
+### Scoped public API — RUNTIME-API-20260909
+
+- **Status / date:** Implemented, 2026-09-09. Replaces the flat
+  `ThreeTilesRuntime` control surface, without compatibility aliases.
+- **Decision:** `runtime.scene` is the existing `SharedThreeSceneRuntime`
+  adapter registered with the renderer. UI controls use `runtime.appearance`
+  (materials, opacity, visibility and texture projection), `runtime.loading`
+  (SSE, cache and concurrency), `runtime.placement` (origin and height offset),
+  and `runtime.debug` (tile visualization). Shared host capabilities point at
+  the same owner functions; they do not introduce forwarding wrappers.
+- **Identity / frequency:** All groups are constructed once per runtime.
+  `scene.update` is the frame callback, not a React state update. The mutable
+  engine state remains instance-owned with typed owner slices; splitting or
+  copying it into React contexts would not reduce renderer work. Debug geometry
+  is absent while disabled and refreshes at most once per second while enabled.
+- **Alternatives:** Nesting every shared-scene provider was deferred: it would
+  widen this refactor to raster, point-cloud and generic scene integrations.
+  Memoization or separate React providers were rejected by inspection because
+  this factory is imperative and already held in refs, not recreated per frame.
+- **Evidence / limits:** Consumer managers register only `.scene`; API tests
+  assert stable group and update references after appearance changes. This is
+  an ownership/API refactor, not a measured frame-rate or shadow-speed gain.
+- **Revisit:** Split a debug subscription from the frame loop if profiling
+  finds material diagnostic overhead; do not add duplicate state preemptively.
+
+### Runtime owners
+
+- **Status / date:** Implemented, 2026-09-09; behavior-preserving extraction of
+  the existing 3D Tiles runtime, not a replacement loader or a caster fix.
+- **Context:** The 3,585-line closure mixed engine lifetime, loading, materials,
+  spatial queries, shadow corridors and diagnostic rendering.
+- **Decision:** `three-tiles-runtime.ts` only constructs the instance and wires
+  its public methods. `three-tiles-runtime-lifecycle.ts` owns engine attachment,
+  events, frame updates and disposal; `-loading.ts` owns queues, memory and SSE;
+  `-shadows.ts` owns receiver/caster selection and corridor revisions;
+  `-spatial.ts` owns bounds, frustums and screen errors; `-appearance.ts`,
+  `-projection.ts` and `-surfaces.ts` own materials, projection and topology;
+  `-debug.ts` observes their state.
+- **Access:** Import types directly from `three-tiles-runtime-types.ts` and
+  tuning constants from `three-tiles-runtime-config.ts`. The package root keeps
+  its existing public exports, pointing directly at these owners. Internal
+  factories remain private to the package. Vendor compatibility lives in
+  `-vendor.ts`, not in the public configuration module.
+- **Ownership:** `-state.ts` allocates per-instance state; `-context.ts` declares
+  its contracts. Each owner receives explicit typed state slices and callbacks.
+  Factories must stay inert; engine subscriptions begin only in `onAdd`.
+  This preserves callback identity without circular runtime imports.
+- **Alternatives:** Rejected a second loader, global mutable services and an
+  untyped catch-all context. A new package or new alias adds no useful boundary.
+- **Evidence:** The before/after focused runtime/frontier run has the same
+  73 passing and seven failing cases. The known reload/offscreen-chimney and
+  convergence failures remain open; this refactor does not claim to fix them.
+  The architecture test enforces at most 1,000 lines per runtime module and
+  no type/configuration re-exports from the entry file.
+  Final scoped runtime/frontier, architecture and layer-manager verification:
+  93 passing tests, the same seven pre-existing failures; no TypeScript
+  diagnostics in the extracted runtime modules. The facade is 189 lines;
+  the largest owner is 995 lines. No full build or browser acceptance claimed.
+- **Revisit:** Split a concern again when its responsibility or line budget
+  grows; do not move traversal or shader algorithms back into the facade.
+
 ## Shared caster volumes — TERRAIN-VOLUMES-20260908
 
 - **Status / scope:** Implemented, uncommitted. Native mesh bounds and raster

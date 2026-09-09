@@ -14,7 +14,7 @@ export const resetShadowSimulationState = (
     shadowIntensity: 1,
     meshTextureColorCorrection: true,
     showSunDebugVector: false,
-    showTileBounds: false,
+    showTileBounds: true,
     showProjectionDebugView: false,
     showDisplaySettings: false,
     showMapStyleContent: true,

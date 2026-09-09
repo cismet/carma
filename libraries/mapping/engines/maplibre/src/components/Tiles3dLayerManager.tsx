@@ -10,12 +10,12 @@ import {
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
+import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime";
 import {
-  buildThreeTilesRuntime,
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
-  type ThreeTilesRuntime,
-} from "../lib/runtime/integrations/three-tiles-runtime";
+} from "../lib/runtime/integrations/three-tiles-runtime-config";
+import type { ThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime-types";
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -118,6 +118,10 @@ export function Tiles3dLayerManager({
     if (!map || !config.tilesetUrl || !mapIsUsable(map)) return;
 
     const initialConfig = configRef.current;
+    console.debug("[tiles3d-debug] manager mount", {
+      tilesetUrl: config.tilesetUrl,
+      providesTerrain: config.providesTerrain,
+    });
     const center = map.getCenter();
     const origin: [number, number] = [center.lng, center.lat];
     const runtimeId = `three-tiles-${config.tilesetUrl.replace(
@@ -139,30 +143,37 @@ export function Tiles3dLayerManager({
         providesTerrain: config.providesTerrain,
         colorCorrection: initialConfig.colorCorrection,
         shadowBuildingStyle: true,
-        onContentChanged: () => notifySharedThreeSceneContentChanged(map),
+        onContentChanged: (changedBounds, changedRoots) =>
+          notifySharedThreeSceneContentChanged(map, {
+            bounds: changedBounds,
+            roots: changedRoots,
+          }),
         onRequestStateChange: () =>
           notifySharedThreeSceneRequestStateChanged(map),
       }
     );
-    runtime.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
-    runtime.setOpacity(
+    runtime.loading.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
+    runtime.appearance.setOpacity(
       (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
     );
-    runtime.setOutlineVisible(initialConfig.outline ?? true);
+    runtime.appearance.setOutlineVisible(initialConfig.outline ?? true);
     runtimeRef.current = runtime;
-    lease.layer.addRuntime(runtime);
+    lease.layer.addRuntime(runtime.scene);
     // What lets the camera restriction know the map has become three
     // dimensional. A tileset stays out of the raycast registry, which
     // holds layers that answer `raycast`, and this one does not.
     add3dPresence(map, runtimeId);
-    const unregisterRuntime = registerSharedThreeSceneRuntime(map, runtime);
+    const unregisterRuntime = registerSharedThreeSceneRuntime(
+      map,
+      runtime.scene
+    );
 
     return () => {
       runtimeRef.current = null;
       remove3dPresence(map, runtimeId);
       unregisterRuntime();
-      if (lease.layer.hasRuntime(runtime.id)) {
-        lease.layer.removeRuntime(runtime.id);
+      if (lease.layer.hasRuntime(runtime.scene.id)) {
+        lease.layer.removeRuntime(runtime.scene.id);
       }
       lease.release();
     };
@@ -204,23 +215,23 @@ export function Tiles3dLayerManager({
   }, [map, config.terrainMandatory, config.providesTerrain]);
 
   useEffect(() => {
-    runtimeRef.current?.setErrorTarget(
+    runtimeRef.current?.loading.setErrorTarget(
       resolveTiles3dErrorTarget({ errorTarget: config.errorTarget })
     );
   }, [config.errorTarget]);
 
   useEffect(() => {
-    runtimeRef.current?.setCacheBudget(config.cacheBudgetBytes, {
+    runtimeRef.current?.loading.setCacheBudget(config.cacheBudgetBytes, {
       overflowBytes: config.cacheOverflowBytes,
     });
   }, [config.cacheBudgetBytes, config.cacheOverflowBytes]);
 
   useEffect(() => {
-    runtimeRef.current?.setOutlineVisible(config.outline ?? true);
+    runtimeRef.current?.appearance.setOutlineVisible(config.outline ?? true);
   }, [config.outline]);
 
   useEffect(() => {
-    runtimeRef.current?.setOutlineStyle({
+    runtimeRef.current?.appearance.setOutlineStyle({
       color: config.outlineColor ?? 0x000000,
       opacity: config.outlineOpacity ?? 1,
     });
@@ -232,7 +243,7 @@ export function Tiles3dLayerManager({
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    runtime.setOpacity((config.opacity ?? 1) * (layerOpacity ?? 1));
+    runtime.appearance.setOpacity((config.opacity ?? 1) * (layerOpacity ?? 1));
   }, [config.opacity, layerOpacity]);
 
   return null;

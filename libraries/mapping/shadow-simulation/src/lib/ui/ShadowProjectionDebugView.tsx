@@ -9,7 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCircleInfo, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   Button,
@@ -166,7 +166,25 @@ const ShadowBufferStatistics = ({
             { label: "Schattenseiten", value: stats.pages },
             {
               label: "Seitenformate",
-              value: stats.dimensions.join(", ") || "–",
+              value: (
+                <div
+                  role="region"
+                  aria-label="Schattenseitenformate"
+                  tabIndex={0}
+                  style={{
+                    maxHeight: 88,
+                    overflowY: "auto",
+                    overflowWrap: "anywhere",
+                    overscrollBehavior: "contain",
+                  }}
+                >
+                  {stats.dimensions.map((dimension, index) => (
+                    <div key={index}>
+                      {index + 1}: {dimension}
+                    </div>
+                  ))}
+                </div>
+              ),
             },
             { label: "Begrenzte Seiten", value: stats.limitedPages },
             { label: "Cache-Seiten", value: stats.cachedSamplePages },
@@ -198,12 +216,27 @@ const ShadowBufferStatistics = ({
                     label: "Fertige Korridore",
                     value: `${
                       stats.corridorAccumulation.pageSamples.filter(
-                        (page) => page.samples >= page.totalSamples
+                        (page) => page.published
                       ).length
                     } / ${stats.corridorAccumulation.pageSamples.length}`,
                   },
                   {
-                    label: "HDR-Atlas",
+                    label: "Bereite Korridore",
+                    value: stats.corridorAccumulation.pageSamples.filter(
+                      (page) => page.ready
+                    ).length,
+                  },
+                  {
+                    label: "Laufende Samples (Maximum)",
+                    value: Math.max(
+                      0,
+                      ...stats.corridorAccumulation.pageSamples
+                        .filter((page) => !page.published)
+                        .map((page) => page.samples)
+                    ),
+                  },
+                  {
+                    label: "Integrations-Arbeitsbuffer",
                     value: `${(
                       stats.corridorAccumulation.memoryBytes /
                       1024 ** 2
@@ -247,19 +280,31 @@ const ShadowBufferStatistics = ({
   ];
 
   return (
-    <Descriptions
-      size="small"
-      column={{ xs: 1, sm: 2 }}
+    <div
+      role="region"
+      aria-label="Schattenstatistik"
+      tabIndex={0}
       style={{
-        borderTop: `1px solid ${token.colorBorderSecondary}`,
-        paddingTop: token.paddingSM,
+        maxHeight: 240,
+        minWidth: 0,
+        overflowY: "auto",
+        overscrollBehavior: "contain",
       }}
-      items={values.map(({ label, value }) => ({
-        key: label,
-        label,
-        children: value,
-      }))}
-    />
+    >
+      <Descriptions
+        size="small"
+        column={{ xs: 1, sm: 2 }}
+        style={{
+          borderTop: `1px solid ${token.colorBorderSecondary}`,
+          paddingTop: token.paddingSM,
+        }}
+        items={values.map(({ label, value }) => ({
+          key: label,
+          label,
+          children: value,
+        }))}
+      />
+    </div>
   );
 };
 
@@ -686,12 +731,6 @@ export const ShadowProjectionDebugView = ({
         style={{ gap: token.marginXS }}
         data-test-id="shadow-simulation-projection-debug-view"
       >
-        {model.bufferLayout === SHADOW_BUFFER_LAYOUT.TILED && (
-          <Typography.Text type="secondary">
-            Caster-/Viewport-Referenz. Die Übersicht zeigt keine gekachelten
-            Schattenseiten.
-          </Typography.Text>
-        )}
         <ShadowDebugVisualizer
           map={map}
           model={model}
@@ -713,7 +752,14 @@ export const ShadowProjectionDebugView = ({
               key: "visualizer-options",
               label: "Visualisierungsoptionen",
               children: (
-                <div className="grid min-w-0 gap-2">
+                <div
+                  className="grid min-w-0 gap-2"
+                  style={{
+                    maxHeight: 180,
+                    overflowY: "auto",
+                    overscrollBehavior: "contain",
+                  }}
+                >
                   {activeVisualizerViewpoint ===
                     SHADOW_DEBUG_VIEWPOINT.OVERVIEW && (
                     <VisualizerContentToggles
@@ -837,7 +883,22 @@ export const ShadowProjectionDebugView = ({
               className="flex w-full items-center justify-between"
               style={{ gap: token.marginXS, padding: token.paddingXS }}
             >
-              <Typography.Text strong>Projektions-Debug</Typography.Text>
+              <Typography.Text strong>
+                Projektions-Debug{" "}
+                <Tooltip
+                  trigger={["hover", "focus", "click"]}
+                  title="Die Übersicht zeigt Viewport und Caster-Hülle, keine einzelnen Schattenpuffer. Die Sonnenansicht ist nur für den Einzelpuffer verfügbar. Visualisierungsoptionen verändern nur diese Vorschau; Sonnenvektor und Tile-Kanten wirken in der Karte."
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    aria-label="Info zum Projektions-Debug"
+                    icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </Tooltip>
+              </Typography.Text>
               <Button
                 type="text"
                 size="small"

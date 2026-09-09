@@ -304,6 +304,43 @@ export const meshShadowStageError = (
     : Math.max(targetErrorPixels, 2 ** Math.ceil(Math.log2(actualErrorPixels)));
 };
 
+export type MeshLoadStage = Readonly<{
+  current: number;
+  total: number;
+  stable: boolean;
+}>;
+
+/** 16 px, 8 px, ... target define the user-visible progressive mesh stages. */
+export const getMeshLoadStage = (
+  actualErrorPixels: number,
+  targetErrorPixels: number
+): MeshLoadStage => {
+  if (
+    !Number.isFinite(actualErrorPixels) ||
+    !Number.isFinite(targetErrorPixels) ||
+    targetErrorPixels <= 0
+  ) {
+    return { current: 0, total: 0, stable: false };
+  }
+  const initialError = initialMeshLoadError(targetErrorPixels);
+  const total =
+    Math.ceil(Math.log2(initialError / targetErrorPixels)) + 1;
+  const remaining = Math.max(
+    0,
+    Math.ceil(
+      Math.log2(
+        Math.max(actualErrorPixels, targetErrorPixels) / targetErrorPixels
+      )
+    )
+  );
+  const stable = actualErrorPixels <= targetErrorPixels;
+  return {
+    current: stable ? total : Math.max(0, total - remaining),
+    total,
+    stable,
+  };
+};
+
 // D1 — off-frustum sibling deferral
 
 export type TileDeferralDecision = "defer" | "undefer" | "keep";

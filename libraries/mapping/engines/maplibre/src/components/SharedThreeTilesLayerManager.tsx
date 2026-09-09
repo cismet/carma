@@ -1,9 +1,7 @@
 import { useEffect } from "react";
 
-import {
-  buildThreeTilesRuntime,
-  THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
-} from "../lib/runtime/integrations/three-tiles-runtime";
+import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime";
+import { THREE_TILES_DEFAULT_REQUEST_CONCURRENCY } from "../lib/runtime/integrations/three-tiles-runtime-config";
 import {
   notifySharedThreeSceneContentChanged,
   notifySharedThreeSceneRequestStateChanged,
@@ -38,30 +36,34 @@ export const SharedThreeTilesLayerManager = ({
         {
           requestConcurrency:
             layer.requestConcurrency ?? THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
-          onContentChanged: () => notifySharedThreeSceneContentChanged(map),
+          onContentChanged: (changedBounds, changedRoots) =>
+            notifySharedThreeSceneContentChanged(map, {
+              bounds: changedBounds,
+              roots: changedRoots,
+            }),
           onRequestStateChange: () =>
             notifySharedThreeSceneRequestStateChanged(map),
         }
       );
-      runtime.setClayMaterial({
+      runtime.appearance.setClayMaterial({
         color: layer.shader.color,
         roughness: layer.shader.roughness,
         metalness: layer.shader.metalness,
       });
-      runtime.setWhiteShading(true);
-      runtime.setOpacity(layer.opacity ?? 1);
-      runtime.setErrorTarget(layer.errorTarget ?? 8);
-      lease.layer.addRuntime(runtime);
+      runtime.appearance.setWhiteShading(true);
+      runtime.appearance.setOpacity(layer.opacity ?? 1);
+      runtime.loading.setErrorTarget(layer.errorTarget ?? 8);
+      lease.layer.addRuntime(runtime.scene);
       return {
         runtime,
-        unregister: registerSharedThreeSceneRuntime(map, runtime),
+        unregister: registerSharedThreeSceneRuntime(map, runtime.scene),
       };
     });
 
     return () => {
       for (const { runtime, unregister } of runtimeRegistrations) {
         unregister();
-        lease.layer.removeRuntime(runtime.id);
+        lease.layer.removeRuntime(runtime.scene.id);
       }
       lease.release();
     };

@@ -192,6 +192,25 @@ const fixture = (budget = 8 * 1024 ** 2, targetPixels = 1) => {
 };
 
 describe("shared tiled shadow runtime", () => {
+  it("reprojects retained pages without invalidating their shadow captures", () => {
+    const f = fixture();
+    f.pages.renderSample(f.camera, 0, 4);
+    const initialDepthRenders = f.pages.stats.depthRenders;
+    const initialRevision = f.pages.accumulationPages[0].revision;
+    const initialScreenBounds =
+      f.pages.accumulationPages[0].screenBounds.clone();
+    f.camera.position.x += 5;
+    f.camera.lookAt(10, 0, 0);
+    f.camera.updateMatrixWorld(true);
+    f.pages.updatePresentation(f.camera);
+    expect(f.pages.accumulationPages[0].revision).toBe(initialRevision);
+    expect(f.pages.accumulationPages[0].screenBounds.equals(initialScreenBounds)).toBe(
+      false
+    );
+    expect(f.pages.stats.depthRenders).toBe(initialDepthRenders);
+    f.pages.dispose();
+  });
+
   it("renders one explicitly selected corridor without advancing other page samples", () => {
     const f = fixture();
     expect(f.pages.renderPageSample(f.camera, "0", 1, 4)).toBe(true);

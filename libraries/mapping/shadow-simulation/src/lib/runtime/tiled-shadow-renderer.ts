@@ -5,6 +5,7 @@ import {
   shadowReceiverCorners,
   shadowReceiverCorridor,
   shadowReceiverPixelsPerMeter,
+  shadowReceiverScreenBounds,
   type ShadowReceiverCell,
   type ShadowReceiverPage,
 } from "../core/shadow-page-plan";
@@ -99,6 +100,8 @@ export type TiledShadowStats = Readonly<{
       id: string;
       samples: number;
       totalSamples: number;
+      ready: boolean;
+      published: boolean;
     }>[];
     memoryBytes: number;
     fallbackReason: string | null;
@@ -205,7 +208,11 @@ export class TiledShadowRenderer {
     camera: THREE.Camera,
     viewport: THREE.Vector2,
     targetPixels: number,
-    lighting: TiledShadowLighting
+    lighting: TiledShadowLighting,
+    receiverBiasLimit?: (
+      bounds: THREE.Box3,
+      groundTexelTargetMeters: number
+    ) => number
   ) {
     if (this.disposed) return;
     this.clearPrewarmView();
@@ -229,7 +236,8 @@ export class TiledShadowRenderer {
       targetPixels
     );
     this.activePageIds = new Set(plans.map(({ id }) => id));
-    for (const plan of plans) this.configurePage(plan, lighting);
+    for (const plan of plans)
+      this.configurePage(plan, lighting, receiverBiasLimit);
     const retainedPageLimit = Math.max(32, this.activePageIds.size * 2);
     for (const [id, page] of this.pages) {
       if (this.pages.size <= retainedPageLimit) break;
@@ -257,6 +265,28 @@ export class TiledShadowRenderer {
       this.streamedTarget = null;
     }
     this.cache.setBudget(this.memoryBudgetBytes, this.reservedBytes);
+  }
+
+  /** Reproject retained world-space pages during observer motion without
+   * changing their shadow projection, geometry revision or cached samples. */
+  updatePresentation(camera: THREE.Camera) {
+    if (this.disposed) return;
+    camera.updateMatrixWorld(true);
+    const matrix = new THREE.Matrix4().multiplyMatrices(
+      camera.projectionMatrix,
+      camera.matrixWorldInverse
+    );
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(matrix);
+    const active = new Set<string>();
+    for (const [id, page] of this.pages) {
+      if (!frustum.intersectsBox(page.receiverBounds)) continue;
+      page.screenBounds.copy(
+        shadowReceiverScreenBounds(page.receiverBounds, matrix)
+      );
+      active.add(id);
+    }
+    this.activePageIds = active;
+    this.updateActiveVariants();
   }
 
   private get reservedBytes() {
@@ -600,7 +630,11 @@ export class TiledShadowRenderer {
 
   private configurePage(
     plan: ShadowReceiverPage,
-    lighting: TiledShadowLighting
+    lighting: TiledShadowLighting,
+    receiverBiasLimit?: (
+      bounds: THREE.Box3,
+      groundTexelTargetMeters: number
+    ) => number
   ) {
     let page = this.pages.get(plan.id);
     if (!page) {
@@ -628,6 +662,9 @@ export class TiledShadowRenderer {
     this.pages.set(plan.id, page);
     const snapshot = page.controller.update({
       ...lighting,
+      maxReceiverBiasMeters: receiverBiasLimit
+        ? receiverBiasLimit(plan.bounds, plan.groundTexelTargetMeters)
+        : lighting.maxReceiverBiasMeters,
       receiverWorldPoints: shadowReceiverCorners(plan.bounds),
       receiverAnchorWorldPosition: plan.bounds.getCenter(new THREE.Vector3()),
       minimumElevationMeters: plan.bounds.min.y,

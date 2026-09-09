@@ -220,7 +220,7 @@ const createHarness = (
     getPitch: () => 45,
   } as unknown as MaplibreMap;
   const layer = buildThreeTilesRuntime("mesh", TILESET_URL, ORIGIN);
-  layer.onAdd?.(map);
+  layer.scene.onAdd?.(map);
   expect(captured).toBeDefined();
   const tiles = captured!;
   tilesets = buildTilesets(tiles);
@@ -258,8 +258,8 @@ const createHarness = (
   };
   const frame = async (camera: THREE.PerspectiveCamera, flushSteps = 8) => {
     tiles.dispatchEvent({ type: "needs-update" });
-    layer.root.updateMatrixWorld(true);
-    layer.update({
+    layer.scene.root.updateMatrixWorld(true);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -293,7 +293,7 @@ const createHarness = (
     frame,
     runUntilSettled,
     dispose: () => {
-      layer.dispose();
+      layer.scene.dispose();
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
     },
@@ -337,7 +337,7 @@ describe("three tiles traversal (D1 deferral)", () => {
     }));
     const { tiles, layer, downloads } = harness;
     // Serialise the pipeline so the placeholder chain is observable.
-    layer.setRequestConcurrency(1);
+    layer.loading.setRequestConcurrency(1);
     tiles.parseQueue.maxJobs = 1;
     const camera = createViewCamera(450);
     const visibleTimeline: string[][] = [];
@@ -521,7 +521,7 @@ describe("three tiles traversal (D1 deferral)", () => {
       }),
     }));
     const { tiles, layer, downloads } = harness;
-    layer.setRequestConcurrency(1);
+    layer.loading.setRequestConcurrency(1);
     const camera = createViewCamera(1_000);
     const priorities = new Map<string, number>();
     await harness.runUntilSettled(camera, {

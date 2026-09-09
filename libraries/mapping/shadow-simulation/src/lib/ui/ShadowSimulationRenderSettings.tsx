@@ -1,4 +1,6 @@
-import { Checkbox, Select, theme, Typography } from "antd";
+import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Button, Checkbox, Select, theme, Tooltip } from "antd";
 
 import type { ShadowSimulationState } from "../contracts/shadow-simulation";
 import {
@@ -9,7 +11,6 @@ import {
   SHADOW_SUN_DISC_SAMPLES,
   SHADOW_MSAA_OPTIONS,
   SHADOW_MSAA_MAX,
-  SHADOW_QUALITY,
 } from "../core/shadow-types";
 import { SHADOW_BUFFER_FORMAT_OPTIONS } from "./shadow-control-utils";
 
@@ -30,8 +31,21 @@ export const ShadowSimulationRenderSettings = ({
 
   return (
     <div className="min-w-0">
-      <label className="grid min-w-0 grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-        <span>Schattenpuffer</span>
+      <div className="grid min-w-0 grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+        <span>
+          Schattenpuffer{" "}
+          <Tooltip
+            trigger={["hover", "focus", "click"]}
+            title="Gekachelt: Schattenauflösung am Boden je Korridor, begrenzter Cache und wiederverwendbare Sonnenscheiben-Schatten. Einzelpuffer: gemeinsamer Schattenbereich. Gekachelt ist Geometrie-MSAA aus; bei flacher Sonne können Terrain-Artefakte auftreten."
+          >
+            <Button
+              type="text"
+              size="small"
+              aria-label="Info zum Schattenpuffer"
+              icon={<FontAwesomeIcon icon={faCircleInfo} />}
+            />
+          </Tooltip>
+        </span>
         <Select
           aria-label="Schattenpuffer"
           style={{ width: "100%", minWidth: 0 }}
@@ -48,25 +62,7 @@ export const ShadowSimulationRenderSettings = ({
             setState({ ...state, shadowBufferLayout })
           }
         />
-      </label>
-      {quality.shadowBufferLayout === SHADOW_BUFFER_LAYOUT.TILED && (
-        <Typography.Paragraph
-          role="status"
-          style={{
-            marginTop: token.marginXS,
-            marginBottom: 0,
-            fontSize: token.fontSizeSM,
-            color: token.colorWarningText,
-          }}
-        >
-          Gekachelte Schatten richten die Bodenauflösung automatisch an der
-          Ansicht aus und nutzen einen begrenzten Cache. Bei hoher Qualität kann
-          die Berechnung länger dauern als mit dem Einzelpuffer. Bei flacher
-          Sonne sind feine Terrain-Artefakte noch möglich. Die Sonnenscheibe
-          wird je Korridor integriert; Geometrie-MSAA ist hier derzeit aus.
-          Karte und Beschriftungen bleiben in nativer Bildschirmauflösung.
-        </Typography.Paragraph>
-      )}
+      </div>
       <div
         className="flex flex-wrap gap-x-4 gap-y-2"
         style={{ marginTop: token.marginSM }}
@@ -96,7 +92,41 @@ export const ShadowSimulationRenderSettings = ({
             fontWeight: token.fontWeightStrong,
           }}
         >
-          Erweiterte Schattenqualität (experimentell)
+          Erweiterte Schattenqualität{" "}
+          <Tooltip
+            trigger={["hover", "focus", "click"]}
+            title={
+              <div>
+                <p>
+                  Gilt für die Sonnenscheibe im Ruhezustand. Manuelle Werte
+                  überschreiben das Preset bis zur nächsten Preset-Auswahl. MSAA
+                  gilt nur im Einzelpuffer und wird auf Format und Gerät
+                  begrenzt.
+                </p>
+                <p>
+                  Mehr Samples reduzieren Abtastungsstufen, verlängern aber die
+                  Integration; 1024 und mehr sind Referenzqualität.
+                </p>
+                <p>
+                  Gekachelt wird skalare Sichtbarkeit statt RGB-Farbe
+                  gespeichert. 8 Bit können Stufen erzeugen; reine
+                  16-Bit-Mittelung rundet bei jedem Sample erneut. 16/32 Bit
+                  verwendet 32 Bit für die Mittelung.
+                </p>
+              </div>
+            }
+          >
+            <Button
+              type="text"
+              size="small"
+              aria-label="Info zur erweiterten Schattenqualität"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              icon={<FontAwesomeIcon icon={faCircleInfo} />}
+            />
+          </Tooltip>
         </summary>
         <div className="mt-2 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex min-w-0 flex-col gap-1">
@@ -144,7 +174,12 @@ export const ShadowSimulationRenderSettings = ({
               aria-label="Geometrie-Kantenglättung im Schattenfarbpuffer"
               style={{ width: "100%", minWidth: 0 }}
               virtual={false}
-              value={tiled ? 0 : state.shadowMsaaSamples ?? ""}
+              value={
+                tiled ||
+                quality.shadowBufferFormat === SHADOW_BUFFER_FORMAT.HDR_32
+                  ? 0
+                  : state.shadowMsaaSamples ?? ""
+              }
               disabled={
                 !softSun ||
                 tiled ||
@@ -172,7 +207,7 @@ export const ShadowSimulationRenderSettings = ({
           </label>
           <Checkbox
             aria-label="Schattenauflösung an der Bodenfläche ausrichten"
-            checked={quality.shadowGroundTexelFit}
+            checked={tiled || quality.shadowGroundTexelFit}
             disabled={quality.shadowBufferLayout === SHADOW_BUFFER_LAYOUT.TILED}
             onChange={(event) =>
               setState({ ...state, shadowGroundTexelFit: event.target.checked })
@@ -181,83 +216,6 @@ export const ShadowSimulationRenderSettings = ({
             Gleichmäßige Schattenauflösung am Boden
           </Checkbox>
         </div>
-        <Typography.Paragraph
-          type="secondary"
-          style={{
-            marginTop: token.marginSM,
-            marginBottom: 0,
-            fontSize: token.fontSizeSM,
-          }}
-        >
-          Farbpuffer, Samples und MSAA gelten für die Sonnenscheibe im
-          Ruhezustand. Mehr Samples reduzieren Abtastungsstufen, verlängern aber
-          die Berechnung. Manuelle Werte überschreiben das Qualitätsziel bis zur
-          nächsten Preset-Auswahl; MSAA wird auf das Format-/Gerätelimit
-          begrenzt.
-        </Typography.Paragraph>
-        {state.shadowQuality === SHADOW_QUALITY.ULTRA && (
-          <Typography.Paragraph
-            role="status"
-            style={{
-              marginTop: token.marginXS,
-              marginBottom: 0,
-              fontSize: token.fontSizeSM,
-              color: token.colorWarningText,
-            }}
-          >
-            Ultra: maximale Terrain- und Sonnenscheiben-Qualität, Gerätemaximum
-            für MSAA im Einzelpuffer und große Schattenpuffer innerhalb des
-            Speicherbudgets. Kein FPS-Ziel und keine automatische
-            Qualitätsreduktion.
-          </Typography.Paragraph>
-        )}
-        {softSun && quality.shadowSunDiscSamples >= 1024 && (
-          <Typography.Paragraph
-            role="status"
-            style={{
-              marginTop: token.marginXS,
-              marginBottom: 0,
-              fontSize: token.fontSizeSM,
-              color: token.colorWarningText,
-            }}
-          >
-            Referenzqualität: Die vollständige Sonnenscheiben-Integration kann
-            in großen Szenen deutlich länger dauern. Kamera und Gelände behalten
-            ihre Qualität; die Auswahl wird nicht automatisch aktiviert.
-          </Typography.Paragraph>
-        )}
-        {softSun &&
-          quality.shadowBufferFormat === SHADOW_BUFFER_FORMAT.SDR_8 && (
-            <Typography.Paragraph
-              role="status"
-              style={{
-                marginTop: token.marginXS,
-                marginBottom: 0,
-                fontSize: token.fontSizeSM,
-                color: token.colorWarningText,
-              }}
-            >
-              SDR mit 8 Bit begrenzt HDR-Helligkeiten bereits vor dem Tone
-              Mapping und kann sichtbare Helligkeitsstufen erzeugen. Nur zum
-              Vergleich.
-            </Typography.Paragraph>
-          )}
-        {softSun &&
-          quality.shadowBufferFormat === SHADOW_BUFFER_FORMAT.HDR_16 && (
-            <Typography.Paragraph
-              role="status"
-              style={{
-                marginTop: token.marginXS,
-                marginBottom: 0,
-                fontSize: token.fontSizeSM,
-                color: token.colorWarningText,
-              }}
-            >
-              Reine 16-Bit-Akkumulation rundet das Ergebnis bei jedem Sample
-              erneut. Bei vielen Samples können sich diese Rundungsfehler
-              summieren. Der 16/32-Bit-Standard mittelt deshalb mit 32 Bit.
-            </Typography.Paragraph>
-          )}
       </details>
     </div>
   );

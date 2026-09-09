@@ -1,8 +1,21 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Box3, Object3D } from "three";
 
 import type { SharedThreeSceneRuntime } from "./shared-three-scene-layer";
 
-const listeners = new WeakMap<MaplibreMap, Set<() => void>>();
+export type SharedThreeSceneContentChange = Readonly<{
+  bounds?: readonly Box3[];
+  roots?: readonly Object3D[];
+}>;
+
+type SharedThreeSceneContentListener = (
+  change?: SharedThreeSceneContentChange
+) => void;
+
+const listeners = new WeakMap<
+  MaplibreMap,
+  Set<SharedThreeSceneContentListener>
+>();
 const requestStateListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 const runtimes = new WeakMap<MaplibreMap, Set<SharedThreeSceneRuntime>>();
 const shadedPresentation = new WeakSet<MaplibreMap>();
@@ -30,15 +43,25 @@ const subscribeListeners = (
 };
 
 /** Notify consumers such as the shadow simulation after streamed scene data changes. */
-export const notifySharedThreeSceneContentChanged = (map: MaplibreMap) => {
-  notifyListeners(listeners, map);
+export const notifySharedThreeSceneContentChanged = (
+  map: MaplibreMap,
+  change?: SharedThreeSceneContentChange
+) => {
+  for (const listener of listeners.get(map) ?? []) listener(change);
 };
 
 export const subscribeSharedThreeSceneContent = (
   map: MaplibreMap,
-  listener: () => void
+  listener: SharedThreeSceneContentListener
 ): (() => void) => {
-  return subscribeListeners(listeners, map, listener);
+  const mapListeners =
+    listeners.get(map) ?? new Set<SharedThreeSceneContentListener>();
+  mapListeners.add(listener);
+  listeners.set(map, mapListeners);
+  return () => {
+    mapListeners.delete(listener);
+    if (mapListeners.size === 0) listeners.delete(map);
+  };
 };
 
 /** A shaded custom pass has reached the framebuffer (not merely been loaded). */

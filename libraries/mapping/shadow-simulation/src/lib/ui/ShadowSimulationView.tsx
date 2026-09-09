@@ -198,7 +198,7 @@ export const ShadowSimulationView = ({
             solarPosition={getSolarPosition(dateState, location)}
             settings={{
               showSunDebugVector: state.showSunDebugVector ?? false,
-              showTileBounds: state.showTileBounds ?? false,
+              showTileBounds: state.showTileBounds ?? true,
             }}
             onSettingsChange={(patch) => setSharedState({ ...state, ...patch })}
             onClose={() =>

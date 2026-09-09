@@ -13,10 +13,8 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  buildThreeTilesRuntime,
-  HIDDEN_TAB_WIPE_DELAY_MS,
-} from "./three-tiles-runtime";
+import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { HIDDEN_TAB_WIPE_DELAY_MS } from "./three-tiles-runtime-config";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -76,7 +74,7 @@ const mountRuntime = (providesTerrain = false) => {
   const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], {
     providesTerrain,
   });
-  if (providesTerrain) layer.setErrorTarget(1);
+  if (providesTerrain) layer.loading.setErrorTarget(1);
   const camera = new THREE.PerspectiveCamera();
   const frame = {
     map,
@@ -85,8 +83,8 @@ const mountRuntime = (providesTerrain = false) => {
     lookTarget: new THREE.Vector3(),
     viewport: new THREE.Vector2(800, 600),
   };
-  layer.onAdd?.(map);
-  layer.update(frame);
+  layer.scene.onAdd?.(map);
+  layer.scene.update(frame);
   return { layer, map, repaint, frame, renderer: renderer as LivenessRenderer };
 };
 
@@ -117,25 +115,36 @@ describe("three tiles runtime liveness", () => {
     }
     parent.internal.loadingState = 4;
     Object.assign(metadata.internal, {
-      loadingState: 4, hasRenderableContent: false, hasUnrenderableContent: true,
+      loadingState: 4,
+      hasRenderableContent: false,
+      hasUnrenderableContent: true,
     });
     Object.assign(parent, { children: [metadata] });
     Object.assign(metadata, { children: [child] });
-    const error = vi.spyOn(renderer, "calculateTileViewError").mockImplementation((tile, target) => {
-      Object.assign(target, { inView: tile !== child, error: 300, distanceFromCamera: 1 });
-    });
+    const error = vi
+      .spyOn(renderer, "calculateTileViewError")
+      .mockImplementation((tile, target) => {
+        Object.assign(target, {
+          inView: tile !== child,
+          error: 300,
+          distanceFromCamera: 1,
+        });
+      });
     renderer.visibleTiles.add(parent as never);
-    layer.update(frame);
-    expect(layer.isMainViewReady?.()).toBe(true);
+    layer.scene.update(frame);
+    expect(layer.scene.isMainViewReady?.()).toBe(true);
     const calls = error.mock.calls.length;
-    expect(layer.isMainViewReady?.()).toBe(true);
+    expect(layer.scene.isMainViewReady?.()).toBe(true);
     expect(error.mock.calls.length).toBe(calls);
     // Missing descendant bounds must remain unresolved, never false coverage.
     Object.assign(child.engineData, { boundingVolume: undefined });
-    renderer.dispatchEvent({ type: "load-tileset", url: "children.json" } as never);
-    layer.update(frame);
-    expect(layer.isMainViewReady?.()).toBe(false);
-    layer.dispose();
+    renderer.dispatchEvent({
+      type: "load-tileset",
+      url: "children.json",
+    } as never);
+    layer.scene.update(frame);
+    expect(layer.scene.isMainViewReady?.()).toBe(false);
+    layer.scene.dispose();
   });
 
   it("admits a ready mesh branch immediately without a view-wide stage or audit timer", () => {
@@ -159,7 +168,7 @@ describe("three tiles runtime liveness", () => {
     child.internal.loadingState = 4;
     renderer.queueTileForDownload(grandchild);
     expect(renderer.queuedTiles).toEqual([child, grandchild]);
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("throttles mesh coverage during input and traverses immediately after movement", () => {
@@ -170,16 +179,16 @@ describe("three tiles runtime liveness", () => {
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const update = vi.mocked(renderer.update);
     update.mockClear();
-    layer.update(frame);
+    layer.scene.update(frame);
     now = 50;
-    layer.update(frame);
+    layer.scene.update(frame);
     now = 120;
-    layer.update(frame);
+    layer.scene.update(frame);
     expect(update).toHaveBeenCalledTimes(2);
     moving = false;
-    layer.update(frame);
+    layer.scene.update(frame);
     expect(update).toHaveBeenCalledTimes(3);
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("removes a failed tile from the cache and requests it again after the backoff", () => {
@@ -187,7 +196,7 @@ describe("three tiles runtime liveness", () => {
     // Content exists, so the demand below only reflects the retry state.
     renderer.group.add(new THREE.Group());
     const tile = buildTile("child.b3dm");
-    expect(layer.getRequestDemand()).toBe(0);
+    expect(layer.loading.getRequestDemand()).toBe(0);
 
     // first request: enters the cache and the download queue
     renderer.requestTileContents(tile);
@@ -218,12 +227,12 @@ describe("three tiles runtime liveness", () => {
     expect(renderer.queuedTiles).toHaveLength(0);
     // Only the required retry blocks a settled scene. Policy cooldowns and
     // adaptive-error timers do not represent missing tile content.
-    expect(layer.getRequestDemand()).toBe(1);
+    expect(layer.loading.getRequestDemand()).toBe(1);
 
     const dispatchSpy = vi.spyOn(renderer, "dispatchEvent");
     vi.advanceTimersByTime(2_000);
     expect(dispatchedTypes(dispatchSpy)).toContain("needs-update");
-    expect(layer.getRequestDemand()).toBe(0);
+    expect(layer.loading.getRequestDemand()).toBe(0);
 
     // the next traversal can request it again
     renderer.queueTileForDownload(tile);
@@ -234,7 +243,7 @@ describe("three tiles runtime liveness", () => {
     expect(renderer.lruCache.has(tile as never)).toBe(true);
     expect(renderer.downloadQueue.has(tile)).toBe(true);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("asks for a traversal when a disposed model frees cache space", () => {
@@ -253,7 +262,7 @@ describe("three tiles runtime liveness", () => {
       "needs-update",
     ]);
     expect(repaint).toHaveBeenCalled();
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("stops kickstarting frames once the root tileset arrived", () => {
@@ -272,7 +281,7 @@ describe("three tiles runtime liveness", () => {
     repaint.mockClear();
     vi.advanceTimersByTime(4_000);
     expect(repaint).not.toHaveBeenCalled();
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("keeps kickstarting after a tile error but not while hidden", () => {
@@ -287,15 +296,15 @@ describe("three tiles runtime liveness", () => {
     vi.advanceTimersByTime(800);
     expect(repaint).toHaveBeenCalledTimes(2);
 
-    layer.setVisible(false);
+    layer.appearance.setVisible(false);
     repaint.mockClear();
     vi.advanceTimersByTime(2_000);
     expect(repaint).not.toHaveBeenCalled();
-    layer.setVisible(true);
+    layer.appearance.setVisible(true);
     repaint.mockClear();
     vi.advanceTimersByTime(800);
     expect(repaint).toHaveBeenCalledTimes(2);
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("evicts unused tiles at once when hidden and wipes the rest after the delay", () => {
@@ -333,7 +342,7 @@ describe("three tiles runtime liveness", () => {
     expect(cache.has(usedTile as never)).toBe(false);
 
     visibilitySpy.mockRestore();
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("attaches the tile edge and label overlay only while enabled", () => {
@@ -342,35 +351,35 @@ describe("three tiles runtime liveness", () => {
       renderer.group.getObjectByName("CARMA 3D tiles bounds and labels");
     expect(findOverlay()).toBeUndefined();
 
-    layer.setTileBoundsVisible(true);
+    layer.debug.setTileBoundsVisible(true);
     expect(findOverlay()).toBeDefined();
 
-    layer.setTileBoundsVisible(false);
+    layer.debug.setTileBoundsVisible(false);
     expect(findOverlay()).toBeUndefined();
     expect(renderer.group.children).toHaveLength(0);
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("keeps rendering for queued downloads only while downloads may run", () => {
     const { layer, repaint, frame, renderer } = mountRuntime();
     renderer.stats.queued = 1;
 
-    layer.setRequestConcurrency(0);
+    layer.loading.setRequestConcurrency(0);
     repaint.mockClear();
-    layer.update(frame);
+    layer.scene.update(frame);
     expect(repaint).not.toHaveBeenCalled();
 
-    layer.setRequestConcurrency(8);
+    layer.loading.setRequestConcurrency(8);
     repaint.mockClear();
-    layer.update(frame);
+    layer.scene.update(frame);
     expect(repaint).toHaveBeenCalled();
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("reports no request demand after dispose", () => {
     const { layer } = mountRuntime();
-    expect(layer.getRequestDemand()).toBeGreaterThan(0);
-    layer.dispose();
-    expect(layer.getRequestDemand()).toBe(0);
+    expect(layer.loading.getRequestDemand()).toBeGreaterThan(0);
+    layer.scene.dispose();
+    expect(layer.loading.getRequestDemand()).toBe(0);
   });
 });

@@ -10,10 +10,8 @@ import { TILE_OUTLINE_FLAG } from "@carma-mapping/engines/threejs";
 import { setSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
-import {
-  buildThreeTilesRuntime,
-  HIDDEN_TAB_WIPE_DELAY_MS,
-} from "./three-tiles-runtime";
+import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { HIDDEN_TAB_WIPE_DELAY_MS } from "./three-tiles-runtime-config";
 
 const MIB = 1024 ** 2;
 
@@ -29,6 +27,26 @@ vi.hoisted(() => {
 });
 
 describe("three tiles runtime styling", () => {
+  it("keeps concern APIs stable and exposes only the adapter to the scene", () => {
+    const runtime = buildThreeTilesRuntime("scoped", "mesh.json", [7.2, 51.2]);
+    const { scene, appearance, loading, placement, debug } = runtime;
+    expect(Object.keys(runtime).sort()).toEqual(
+      ["scene", "appearance", "loading", "placement", "debug"].sort()
+    );
+    expect(scene.setErrorTarget).toBe(loading.setErrorTarget);
+    expect(scene.setCacheBudget).toBe(loading.setCacheBudget);
+    expect(scene.setTileBoundsVisible).toBe(debug.setTileBoundsVisible);
+    const update = scene.update;
+    appearance.setOpacity(0.5);
+    appearance.setClayColor("#abcdef");
+    expect(runtime.scene).toBe(scene);
+    expect(runtime.appearance).toBe(appearance);
+    expect(runtime.loading).toBe(loading);
+    expect(runtime.placement).toBe(placement);
+    expect(runtime.debug).toBe(debug);
+    expect(scene.update).toBe(update);
+    scene.dispose();
+  });
   it.each([false, true])(
     "keeps layer opacity authoritative with shadow full-opacity=%s",
     (fullOpacity) => {
@@ -48,34 +66,39 @@ describe("three tiles runtime styling", () => {
         depthWrite: false,
       });
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(), source);
-      layer.root.add(mesh);
-      layer.setShadowSimulationStyle?.({ fullOpacity, uniformColor: null });
+      layer.scene.root.add(mesh);
+      layer.scene.setShadowSimulationStyle?.({
+        fullOpacity,
+        uniformColor: null,
+      });
       const material = mesh.material;
-      const version = layer.mapStyleProjectionVersion?.();
-      layer.setOpacity(0.25);
+      const version = layer.scene.mapStyleProjectionVersion?.();
+      layer.appearance.setOpacity(0.25);
       expect(mesh.material).toBe(material);
       expect(material.opacity).toBeCloseTo(fullOpacity ? 0.25 : 0.1);
       expect(material.transparent).toBe(true);
       expect(material.depthWrite).toBe(false);
-      expect(layer.mapStyleProjectionVersion?.()).toBeGreaterThan(version!);
+      expect(layer.scene.mapStyleProjectionVersion?.()).toBeGreaterThan(
+        version!
+      );
 
       // Changing shader options must not reset the modal's opacity.
-      layer.setShadowSimulationStyle?.({
+      layer.scene.setShadowSimulationStyle?.({
         fullOpacity,
         uniformColor: "#ffffff",
         uniformColorMix: 0.5,
       });
       expect(material.opacity).toBeCloseTo(fullOpacity ? 0.25 : 0.1);
-      layer.setOpacity(0);
+      layer.appearance.setOpacity(0);
       expect(material.opacity).toBe(0);
-      layer.setOpacity(1);
+      layer.appearance.setOpacity(1);
       expect(material.opacity).toBe(fullOpacity ? 1 : 0.4);
       expect(material.transparent).toBe(!fullOpacity);
       expect(material.depthWrite).toBe(fullOpacity);
-      layer.setShadowSimulationStyle?.(null);
+      layer.scene.setShadowSimulationStyle?.(null);
       expect(mesh.material).toBe(source);
       expect(source.opacity).toBe(0.4);
-      layer.dispose();
+      layer.scene.dispose();
     }
   );
 
@@ -131,8 +154,8 @@ describe("three tiles runtime styling", () => {
         [7.2, 51.2],
         { providesTerrain: true, cacheBudgetBytes: 128 * MIB }
       );
-      runtime.setErrorTarget(1);
-      runtime.onAdd?.(map);
+      runtime.loading.setErrorTarget(1);
+      runtime.scene.onAdd?.(map);
       const camera = new THREE.PerspectiveCamera();
       const frame = {
         map,
@@ -141,7 +164,7 @@ describe("three tiles runtime styling", () => {
         lookTarget: new THREE.Vector3(),
         viewport: new THREE.Vector2(800, 600),
       };
-      runtime.update(frame);
+      runtime.scene.update(frame);
       const makeTile = (
         inView: boolean,
         state: number,
@@ -196,7 +219,7 @@ describe("three tiles runtime styling", () => {
         sun.position.set(0, 50, 0);
         sun.up.set(0, 0, -1);
         sun.lookAt(0, 0, 0);
-        runtime.setShadowView({
+        runtime.scene.setShadowView({
           camera: sun,
           shadowMapSize: { width: 1024, height: 1024 },
         });
@@ -224,11 +247,11 @@ describe("three tiles runtime styling", () => {
       try {
         moving = true;
         handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
-        runtime.update(frame);
+        runtime.scene.update(frame);
         expect(removed).toEqual([]);
         moving = false;
         handlers.get(MAPLIBRE_EVENT.MOVE_END)?.();
-        runtime.update(frame);
+        runtime.scene.update(frame);
         expect(removed).toContain(staleRequest);
         expect(removed).not.toContain(visible);
         expect(removed).not.toContain(wantedRequest);
@@ -244,7 +267,7 @@ describe("three tiles runtime styling", () => {
         expect(renderer!.lruCache.isFull()).toBe(false);
         const child = makeTile(true, 0);
         child.parent = visible;
-        runtime.update(frame);
+        runtime.scene.update(frame);
         renderer!.queueTileForDownload(child);
         // With shadows, the parent has not yet acquired its current-stage
         // caster: refinement waits for that local joint publication. Without
@@ -261,7 +284,7 @@ describe("three tiles runtime styling", () => {
           expect(boundary.internal.loadingState).toBe(0);
         }
       } finally {
-        runtime.dispose();
+        runtime.scene.dispose();
         rootBounds.mockRestore();
         nativeView.mockRestore();
         update.mockRestore();
@@ -284,8 +307,8 @@ describe("three tiles runtime styling", () => {
       providesTerrain: true,
     });
     const camera = new THREE.PerspectiveCamera();
-    runtime.onAdd?.(map);
-    runtime.update({
+    runtime.scene.onAdd?.(map);
+    runtime.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -298,12 +321,12 @@ describe("three tiles runtime styling", () => {
       expect(vi.mocked(map.triggerRepaint).mock.calls.length).toBeGreaterThan(
         count
       );
-      runtime.dispose();
+      runtime.scene.dispose();
       vi.mocked(map.triggerRepaint).mockClear();
       vi.advanceTimersByTime(2000);
       expect(map.triggerRepaint).not.toHaveBeenCalled();
     } finally {
-      runtime.dispose();
+      runtime.scene.dispose();
       update.mockRestore();
       vi.useRealTimers();
     }
@@ -327,8 +350,8 @@ describe("three tiles runtime styling", () => {
       [7.2, 51.2],
       { providesTerrain: true }
     );
-    runtime.setErrorTarget(1);
-    runtime.onAdd?.(map);
+    runtime.loading.setErrorTarget(1);
+    runtime.scene.onAdd?.(map);
     const camera = new THREE.PerspectiveCamera();
     const frame = {
       map,
@@ -337,7 +360,7 @@ describe("three tiles runtime styling", () => {
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
     };
-    runtime.update(frame);
+    runtime.scene.update(frame);
     const parent = {
       refine: "REPLACE",
       internal: { hasRenderableContent: true, loadingState: 3, depth: 10 },
@@ -365,7 +388,7 @@ describe("three tiles runtime styling", () => {
       expect(loader.queuedTiles).toHaveLength(0); // parent covers the 16px pass
       parent.internal.loadingState = 4; // parsing is not published coverage
       renderer!.visibleTiles.add(parent as never);
-      runtime.update(frame); // 16px coverage complete -> allow 8px pass
+      runtime.scene.update(frame); // 16px coverage complete -> allow 8px pass
       loader.queueTileForDownload(far);
       loader.queueTileForDownload(near);
       loader.queueTileForDownload(near);
@@ -392,23 +415,23 @@ describe("three tiles runtime styling", () => {
       expect(renderer!.visibleTiles.has(parent as never)).toBe(true);
       expect(renderer!.errorTarget).toBe(1);
       loader.queuedTiles.length = 0;
-      runtime.update(frame);
+      runtime.scene.update(frame);
       loader.queueTileForDownload(near);
       expect(loader.queuedTiles).toEqual([near]); // drag must not restart the 16px admission pass
       parent.traversal.error = 100;
       parent.children = [
         { engineData: { boundingVolume: { intersectsFrustum: () => false } } },
       ] as never;
-      runtime.update(frame);
-      expect(runtime.isMainViewReady()).toBe(true);
+      runtime.scene.update(frame);
+      expect(runtime.scene.isMainViewReady()).toBe(true);
       parent.children = [{}]; // unknown metadata must not pass the same gate
-      expect(runtime.isMainViewReady()).toBe(false);
+      expect(runtime.scene.isMainViewReady()).toBe(false);
       map.triggerRepaint = vi.fn();
-      runtime.setErrorTarget(0.25);
+      runtime.loading.setErrorTarget(0.25);
       expect(renderer!.errorTarget).toBe(0.25);
       expect(map.triggerRepaint).toHaveBeenCalled();
     } finally {
-      runtime.dispose();
+      runtime.scene.dispose();
       update.mockRestore();
     }
   });
@@ -425,6 +448,9 @@ describe("three tiles runtime styling", () => {
       .mockImplementation(function () {
         renderer = this as FrontierRenderer;
         if (!proposed) return;
+        // Production retention walks the hierarchy, not only visible leaves.
+        // Keep the test's loaded family reachable through the same entrypoint.
+        renderer.rootTileset = { root: parent } as typeof renderer.rootTileset;
         renderer.usedSet.clear();
         for (const tile of [...renderer.visibleTiles]) {
           renderer.setTileActive(tile, false);
@@ -447,8 +473,8 @@ describe("three tiles runtime styling", () => {
       [7.2, 51.2],
       { providesTerrain: true }
     );
-    runtime.setErrorTarget(1);
-    runtime.onAdd?.(map);
+    runtime.loading.setErrorTarget(1);
+    runtime.scene.onAdd?.(map);
     const camera = new THREE.PerspectiveCamera();
     const frame = {
       map,
@@ -471,26 +497,31 @@ describe("three tiles runtime styling", () => {
     parent.children = children;
     try {
       proposed = children;
-      runtime.update(frame);
+      runtime.scene.update(frame);
       handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
       proposed = [parent];
       for (let pass = 0; pass < 3; pass++) {
-        runtime.update(frame);
+        runtime.scene.update(frame);
         expect(renderer!.visibleTiles).toEqual(new Set(children));
-        expect(renderer!.group.children).toHaveLength(4);
+        // The group also contains the independent debug overlay root.
+        expect(renderer!.group.children).not.toContain(parent.engineData.scene);
+        for (const child of children)
+          expect(renderer!.group.children).toContain(child.engineData.scene);
         for (const child of children)
           expect(renderer!.usedSet.has(child)).toBe(true);
         expect(renderer!.activeTiles.has(parent)).toBe(false);
       }
       handlers.get(MAPLIBRE_EVENT.MOVE_END)?.();
-      runtime.update(frame);
+      runtime.scene.update(frame);
       expect(renderer!.visibleTiles).toEqual(new Set(children));
       parent.traversal.error = 1;
-      runtime.update(frame);
+      runtime.scene.update(frame);
       expect(renderer!.visibleTiles).toEqual(new Set([parent]));
-      expect(renderer!.group.children).toHaveLength(1);
+      expect(renderer!.group.children).toContain(parent.engineData.scene);
+      for (const child of children)
+        expect(renderer!.group.children).not.toContain(child.engineData.scene);
     } finally {
-      runtime.dispose();
+      runtime.scene.dispose();
       update.mockRestore();
     }
   });
@@ -528,10 +559,10 @@ describe("three tiles runtime styling", () => {
       [7.15, 51.25]
     );
 
-    first.onAdd?.(map);
-    second.onAdd?.(map);
-    first.update(frame);
-    second.update(frame);
+    first.scene.onAdd?.(map);
+    second.scene.onAdd?.(map);
+    first.scene.update(frame);
+    second.scene.update(frame);
 
     expect(renderers).toHaveLength(2);
     expect(renderers[0]?.lruCache).not.toBe(renderers[1]?.lruCache);
@@ -550,8 +581,8 @@ describe("three tiles runtime styling", () => {
       )
     ).toBe(Math.round(10.6 * TILES_LOAD_POLICY.residentOverhead));
 
-    first.dispose();
-    second.dispose();
+    first.scene.dispose();
+    second.scene.dispose();
     bytesSpy.mockRestore();
     updateSpy.mockRestore();
   });
@@ -589,8 +620,8 @@ describe("three tiles runtime styling", () => {
       traversal: { inFrustum: true },
     };
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -615,7 +646,7 @@ describe("three tiles runtime styling", () => {
       expect(queueSpy).toHaveBeenCalledTimes(attempt);
       vi.runOnlyPendingTimers();
       // A retry requests a fresh traversal, not a second admission in the old one.
-      layer.update({
+      layer.scene.update({
         map,
         renderCamera: camera,
         lodCamera: camera,
@@ -659,7 +690,7 @@ describe("three tiles runtime styling", () => {
     renderer!.queueTileForDownload(missingTile);
     expect(queueSpy).not.toHaveBeenCalled();
 
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
     queueSpy.mockRestore();
     vi.useRealTimers();
@@ -693,8 +724,8 @@ describe("three tiles runtime styling", () => {
     );
     const camera = new THREE.PerspectiveCamera();
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -716,12 +747,12 @@ describe("three tiles runtime styling", () => {
       expect(renderer?.lruCache.maxSize).toBe(8_000);
     };
     expectBounds();
-    layer.setShadowSimulationStyle({
+    layer.scene.setShadowSimulationStyle({
       fullOpacity: true,
       uniformColor: null,
     });
     expectBounds();
-    layer.setShadowSimulationStyle(null);
+    layer.scene.setShadowSimulationStyle(null);
     expectBounds();
 
     const cache = renderer?.lruCache as TilesRenderer["lruCache"] & {
@@ -734,12 +765,12 @@ describe("three tiles runtime styling", () => {
     expect(cache.isFull()).toBe(true);
 
     const shadowCamera = new THREE.OrthographicCamera();
-    layer.setShadowView({
+    layer.scene.setShadowView({
       camera: shadowCamera,
       shadowMapSize: { width: 4_096, height: 4_096 },
     });
     expect(cache.isFull()).toBe(true);
-    layer.setShadowView(null);
+    layer.scene.setShadowView(null);
     expect(cache.isFull()).toBe(true);
 
     const events = vi.mocked(map.on).mock.calls;
@@ -757,7 +788,7 @@ describe("three tiles runtime styling", () => {
     restoreContext();
     expect(cache.isFull()).toBe(false);
     expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
-    layer.setCacheBudget(24 * 1024 ** 3);
+    layer.loading.setCacheBudget(24 * 1024 ** 3);
     expect(renderer!.lruCache.minBytesSize).toBe(18 * 1024 ** 3);
     const memoryDescriptor = Object.getOwnPropertyDescriptor(
       performance,
@@ -769,14 +800,14 @@ describe("three tiles runtime styling", () => {
       value: memory,
     });
     try {
-      layer.setCacheBudget(24 * 1024 ** 3);
+      layer.loading.setCacheBudget(24 * 1024 ** 3);
       expect(renderer!.downloadQueue.maxJobsPerOrigin).toBe(0);
       expect(renderer!.parseQueue.maxJobs).toBe(0);
       memory.usedJSHeapSize = 70;
-      layer.setCacheBudget(24 * 1024 ** 3);
+      layer.loading.setCacheBudget(24 * 1024 ** 3);
       expect(renderer!.parseQueue.maxJobs).toBe(0);
       memory.usedJSHeapSize = 60;
-      layer.setCacheBudget(24 * 1024 ** 3);
+      layer.loading.setCacheBudget(24 * 1024 ** 3);
       expect(renderer!.parseQueue.maxJobs).toBeGreaterThan(0);
     } finally {
       if (memoryDescriptor)
@@ -786,12 +817,12 @@ describe("three tiles runtime styling", () => {
     cache.cachedBytes = 512 * MIB;
 
     // Explicit budgets may exceed the device default; the floor still applies.
-    layer.setCacheBudget(1024);
+    layer.loading.setCacheBudget(1024);
     expect(cache.isFull()).toBe(true);
     cache.cachedBytes = 100 * MIB;
     expect(cache.isFull()).toBe(false);
 
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
   });
 
@@ -818,8 +849,8 @@ describe("three tiles runtime styling", () => {
     const camera = new THREE.PerspectiveCamera();
     setSharedThreeTerrainLoading(map, "fallback-terrain", true);
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -828,18 +859,18 @@ describe("three tiles runtime styling", () => {
     });
 
     expect(renderer?.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
-    expect(layer.hasRenderableContent?.()).toBe(false);
-    const tilesGroup = layer.root.children[0]?.children[0];
+    expect(layer.scene.hasRenderableContent?.()).toBe(false);
+    const tilesGroup = layer.scene.root.children[0]?.children[0];
     tilesGroup?.add(
       new THREE.Mesh(
         new THREE.BoxGeometry(1, 1, 1),
         new THREE.MeshBasicMaterial()
       )
     );
-    expect(layer.hasRenderableContent?.()).toBe(true);
+    expect(layer.scene.hasRenderableContent?.()).toBe(true);
 
     setSharedThreeTerrainLoading(map, "fallback-terrain", false);
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
   });
 
@@ -863,8 +894,8 @@ describe("three tiles runtime styling", () => {
     const camera = new THREE.PerspectiveCamera();
     setSharedThreeTerrainLoading(map, "fallback-terrain", true);
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -876,7 +907,7 @@ describe("three tiles runtime styling", () => {
 
     setSharedThreeTerrainLoading(map, "fallback-terrain", false);
     expect(renderer?.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(1);
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
   });
 
@@ -899,8 +930,8 @@ describe("three tiles runtime styling", () => {
     );
     const camera = new THREE.PerspectiveCamera();
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -922,7 +953,7 @@ describe("three tiles runtime styling", () => {
       },
     } as never);
 
-    const volumes = layer.getActiveTileVolumes?.() ?? [];
+    const volumes = layer.scene.getActiveTileVolumes?.() ?? [];
 
     expect(volumes).toHaveLength(1);
     expect(volumes[0]).toMatchObject({
@@ -938,13 +969,13 @@ describe("three tiles runtime styling", () => {
     const surface = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 8));
     surface.position.set(1, 200, 3);
     model.add(surface);
-    const loadedVolumes = layer.getActiveTileVolumes?.() ?? [];
+    const loadedVolumes = layer.scene.getActiveTileVolumes?.() ?? [];
     expect(loadedVolumes[0].minimum).toEqual([-1, 197, -1]);
     expect(loadedVolumes[0].maximum).toEqual([3, 203, 7]);
     surface.geometry.dispose();
     (surface.material as THREE.Material).dispose();
 
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
   });
 
@@ -963,8 +994,8 @@ describe("three tiles runtime styling", () => {
     const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
     const camera = new THREE.PerspectiveCamera();
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -973,14 +1004,14 @@ describe("three tiles runtime styling", () => {
     });
     const dispatchSpy = vi.spyOn(renderer!, "dispatchEvent");
 
-    layer.setErrorTarget(1);
+    layer.loading.setErrorTarget(1);
     const callsAfterChange = dispatchSpy.mock.calls.length;
-    layer.setErrorTarget(1);
+    layer.loading.setErrorTarget(1);
 
     expect(dispatchSpy).toHaveBeenCalled();
     expect(dispatchSpy).toHaveBeenCalledTimes(callsAfterChange);
 
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
   });
 
@@ -1036,13 +1067,13 @@ describe("three tiles runtime styling", () => {
     const registeredShadowCamera = (spy: { mock: { calls: unknown[][] } }) =>
       spy.mock.calls.some(isShadowCameraCall);
 
-    layer.setErrorTarget(0.25);
-    layer.onAdd?.(map);
-    layer.setShadowView({
+    layer.loading.setErrorTarget(0.25);
+    layer.scene.onAdd?.(map);
+    layer.scene.setShadowView({
       camera: shadowCamera,
       shadowMapSize: { width: 2048, height: 2048 },
     });
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: viewCamera,
       lodCamera: viewCamera,
@@ -1060,7 +1091,7 @@ describe("three tiles runtime styling", () => {
       children: [{ internal: { hasContent: true, loadingState: 0 } }],
     };
     renderer!.visibleTiles.add(visibleTile as never);
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: viewCamera,
       lodCamera: viewCamera,
@@ -1089,7 +1120,7 @@ describe("three tiles runtime styling", () => {
 
     handlers.get("moveend")?.();
     expect(registeredShadowCamera(deleteCameraSpy)).toBe(false);
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: viewCamera,
       lodCamera: viewCamera,
@@ -1104,7 +1135,7 @@ describe("three tiles runtime styling", () => {
     expect(disposeStaleTile).not.toHaveBeenCalled();
 
     visibleTile.traversal.error = 0.2;
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: viewCamera,
       lodCamera: viewCamera,
@@ -1123,11 +1154,11 @@ describe("three tiles runtime styling", () => {
 
     shadowCamera.position.x = 2;
     shadowCamera.updateMatrixWorld(true);
-    layer.setShadowView({
+    layer.scene.setShadowView({
       camera: shadowCamera,
       shadowMapSize: { width: 4096, height: 2048 },
     });
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: viewCamera,
       lodCamera: viewCamera,
@@ -1139,9 +1170,9 @@ describe("three tiles runtime styling", () => {
     expect(registeredShadowCamera(setResolutionSpy)).toBe(false);
 
     deleteCameraSpy.mockClear();
-    layer.setShadowView(null);
+    layer.scene.setShadowView(null);
     expect(deleteCameraSpy).not.toHaveBeenCalled();
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
     setCameraSpy.mockRestore();
     deleteCameraSpy.mockRestore();
@@ -1193,13 +1224,13 @@ describe("three tiles runtime styling", () => {
       viewport: new THREE.Vector2(800, 800),
     };
 
-    layer.onAdd?.(map);
-    layer.setErrorTarget(1);
-    layer.setShadowView({
+    layer.scene.onAdd?.(map);
+    layer.loading.setErrorTarget(1);
+    layer.scene.setShadowView({
       camera: shadowCamera,
       shadowMapSize: { width: 2048, height: 2048 },
     });
-    layer.update(frame);
+    layer.scene.update(frame);
 
     const boundingVolume = (bounds: THREE.Box3, inMainView: boolean) => ({
       getAABB: (target: THREE.Box3) => target.copy(bounds),
@@ -1240,7 +1271,7 @@ describe("three tiles runtime styling", () => {
     busyQueue.items.push({ internal: { depth: 1 } } as never);
     renderer!.downloadQueue.originQueues.set("mesh", busyQueue);
 
-    layer.update(frame);
+    layer.scene.update(frame);
 
     const target = {
       inView: false,
@@ -1263,7 +1294,7 @@ describe("three tiles runtime styling", () => {
     expect(target.error).toBe(Number.POSITIVE_INFINITY);
 
     busyQueue.items.length = 0;
-    layer.update(frame);
+    layer.scene.update(frame);
     renderer!.calculateTileViewErrorWithPlugin(
       {
         geometricError: 1,
@@ -1286,7 +1317,7 @@ describe("three tiles runtime styling", () => {
     // and shadow casters disappear before their replacements were ready.
     handlers.get("movestart")?.();
     receiverTile.traversal.error = 4;
-    layer.update(frame);
+    layer.scene.update(frame);
     target.inView = false;
     target.error = Number.POSITIVE_INFINITY;
     renderer!.calculateTileViewErrorWithPlugin(
@@ -1323,7 +1354,7 @@ describe("three tiles runtime styling", () => {
       },
     } as never);
 
-    layer.update(frame);
+    layer.scene.update(frame);
     renderer!.calculateTileViewErrorWithPlugin(
       {
         geometricError: 1,
@@ -1352,7 +1383,7 @@ describe("three tiles runtime styling", () => {
     expect(target.inView).toBe(true);
 
     busyQueue.items.length = 0;
-    layer.dispose();
+    layer.scene.dispose();
     viewErrorSpy.mockRestore();
     updateSpy.mockRestore();
   });
@@ -1395,13 +1426,13 @@ describe("three tiles runtime styling", () => {
         viewport: new THREE.Vector2(800, 600),
       };
 
-      layer.setErrorTarget(0.25);
-      layer.onAdd?.(map);
-      layer.setShadowView({
+      layer.loading.setErrorTarget(0.25);
+      layer.scene.onAdd?.(map);
+      layer.scene.setShadowView({
         camera: new THREE.OrthographicCamera(),
         shadowMapSize: { width: 2048, height: 2048 },
       });
-      layer.update(frame);
+      layer.scene.update(frame);
 
       // A displayed placeholder above the target whose child still has to load,
       // and one used tile that fills the whole ceiling: full, idle, unconverged.
@@ -1419,19 +1450,19 @@ describe("three tiles runtime styling", () => {
       renderer!.lruCache.add(requiredTile, disposeRequiredTile);
       renderer!.lruCache.setMemoryUsage(requiredTile, 2 * 1024 ** 3);
 
-      layer.update(frame);
+      layer.scene.update(frame);
       expect(disposeRequiredTile).not.toHaveBeenCalled();
       expect(renderer!.errorTarget).toBe(0.25);
-      expect(layer.getRequestDemand()).toBeGreaterThan(0);
+      expect(layer.loading.getRequestDemand()).toBeGreaterThan(0);
 
       vi.advanceTimersByTime(999);
-      layer.update(frame);
+      layer.scene.update(frame);
       expect(renderer!.errorTarget).toBe(0.25);
 
       vi.advanceTimersByTime(1);
-      layer.update(frame);
+      layer.scene.update(frame);
       expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 0.5);
-      expect(layer.isMainViewReady()).toBe(false);
+      expect(layer.scene.isMainViewReady()).toBe(false);
       expect(updateErrorTargets).toEqual([0.25, 0.25, 0.25, 0.25]);
 
       // A pan keeps the effective target; the next stall relaxes further, up to
@@ -1439,13 +1470,13 @@ describe("three tiles runtime styling", () => {
       handlers.get("movestart")?.();
       handlers.get("moveend")?.();
       expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 0.5);
-      layer.update(frame);
+      layer.scene.update(frame);
       vi.advanceTimersByTime(1_000);
-      layer.update(frame);
+      layer.scene.update(frame);
       expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
-      layer.update(frame);
+      layer.scene.update(frame);
       vi.advanceTimersByTime(1_000);
-      layer.update(frame);
+      layer.scene.update(frame);
       expect(renderer!.errorTarget).toBe(providesTerrain ? 0.25 : 1);
 
       // A hidden tab keeps the used tiles and the effective target for a
@@ -1461,7 +1492,7 @@ describe("three tiles runtime styling", () => {
       expect(renderer!.errorTarget).toBe(0.25);
 
       visibilitySpy.mockRestore();
-      layer.dispose();
+      layer.scene.dispose();
       updateSpy.mockRestore();
       vi.useRealTimers();
     }
@@ -1489,8 +1520,8 @@ describe("three tiles runtime styling", () => {
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -1571,7 +1602,7 @@ describe("three tiles runtime styling", () => {
       renderer!.parseQueue as PriorityQueue & { items: QueuedTile[] }
     ).items.push(parsingTile);
 
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -1589,7 +1620,7 @@ describe("three tiles runtime styling", () => {
     expect(queue.items.at(-1)).toBe(centerTile);
 
     outerVisibleTile.traversal.distanceFromCamera = 1;
-    layer.update({
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
@@ -1600,7 +1631,7 @@ describe("three tiles runtime styling", () => {
     expect(queue.items.at(-1)).toBe(outerVisibleTile);
 
     queue.items.length = 0;
-    layer.dispose();
+    layer.scene.dispose();
     updateSpy.mockRestore();
   });
 
@@ -1615,24 +1646,24 @@ describe("three tiles runtime styling", () => {
       new THREE.BoxGeometry(1, 1, 1),
       new THREE.MeshStandardMaterial()
     );
-    layer.root.add(mesh);
+    layer.scene.root.add(mesh);
 
-    expect(layer.providesTerrain).toBe(true);
-    expect(layer.getRequestDemand()).toBe(1);
-    layer.setVisible(false);
-    expect(layer.root.visible).toBe(false);
-    expect(layer.getRequestDemand()).toBe(0);
-    layer.setVisible(true);
-    layer.setHeightOffset(12);
-    expect(layer.root.children[0].position.y).toBe(12);
-    layer.setClayColor("#abcdef");
-    layer.setWhiteShading(true);
-    layer.setWireframe(true);
+    expect(layer.scene.providesTerrain).toBe(true);
+    expect(layer.loading.getRequestDemand()).toBe(1);
+    layer.appearance.setVisible(false);
+    expect(layer.scene.root.visible).toBe(false);
+    expect(layer.loading.getRequestDemand()).toBe(0);
+    layer.appearance.setVisible(true);
+    layer.placement.setHeightOffset(12);
+    expect(layer.scene.root.children[0].position.y).toBe(12);
+    layer.appearance.setClayColor("#abcdef");
+    layer.appearance.setWhiteShading(true);
+    layer.appearance.setWireframe(true);
     expect((mesh.material as THREE.MeshStandardMaterial).wireframe).toBe(true);
-    layer.setTileBoundsVisible(true);
-    layer.setCacheBudget(1024);
-    layer.setRequestConcurrency(2);
-    layer.dispose();
+    layer.debug.setTileBoundsVisible(true);
+    layer.loading.setCacheBudget(1024);
+    layer.loading.setRequestConcurrency(2);
+    layer.scene.dispose();
   });
 
   it("derives the visible elevation range from model geometry", () => {
@@ -1671,21 +1702,31 @@ describe("three tiles runtime styling", () => {
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
 
-    layer.onAdd?.(map);
-    layer.update({
+    layer.scene.onAdd?.(map);
+    layer.scene.update({
       map,
       renderCamera: camera,
       lodCamera: camera,
       viewport: new THREE.Vector2(800, 600),
       lookTarget: new THREE.Vector3(),
     });
-    const range = layer.getViewElevationRange(camera);
+    const range = layer.scene.getViewElevationRange(camera);
 
     expect(range?.[0]).toBeCloseTo(145);
     expect(range?.[1]).toBeCloseTo(155);
 
+    const boundsSpy = vi.spyOn(THREE.Box3.prototype, "setFromObject");
+    for (let i = 0; i < 100; i += 1) {
+      expect(layer.scene.getViewElevationRange(camera)).toEqual(range);
+    }
+    expect(boundsSpy).not.toHaveBeenCalled();
+    model.position.y += 10;
+    expect(layer.scene.getViewElevationRange(camera)).toEqual([155, 165]);
+    expect(boundsSpy).toHaveBeenCalledOnce();
+    boundsSpy.mockRestore();
+
     updateSpy.mockRestore();
-    layer.dispose();
+    layer.scene.dispose();
     model.geometry.dispose();
     (model.material as THREE.Material).dispose();
   });
@@ -1696,8 +1737,8 @@ describe("three tiles runtime styling", () => {
       new THREE.BoxGeometry(1, 1, 1),
       new THREE.MeshStandardMaterial()
     );
-    layer.root.add(mesh);
-    layer.setWhiteShading(true);
+    layer.scene.root.add(mesh);
+    layer.appearance.setWhiteShading(true);
     const material = mesh.material as THREE.MeshStandardMaterial;
     const shader = {
       uniforms: {},
@@ -1705,7 +1746,7 @@ describe("three tiles runtime styling", () => {
       fragmentShader: "#include <common>\n#include <dithering_fragment>",
     } as Parameters<typeof material.onBeforeCompile>[0];
 
-    layer.setProjector({
+    layer.appearance.setProjector({
       kind: "pano",
       position: new THREE.Vector3(1, 2, 3),
       headingRad: 0.5,
@@ -1721,7 +1762,7 @@ describe("three tiles runtime styling", () => {
     expect(uniforms.uProjOpacity.value).toBe(0.7);
     expect(shader.fragmentShader).toContain("uProjMatrix");
 
-    layer.setProjector({
+    layer.appearance.setProjector({
       kind: "frustum",
       viewProj: new THREE.Matrix4(),
       texture: new THREE.Texture(),
@@ -1729,10 +1770,10 @@ describe("three tiles runtime styling", () => {
     });
     expect(uniforms.uProjKind.value).toBe(2);
 
-    layer.setProjector(null);
+    layer.appearance.setProjector(null);
     expect(uniforms.uProjKind.value).toBe(0);
     expect(uniforms.tProj.value).toBeNull();
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("applies the declared clay material to meshes in the shared scene", () => {
@@ -1741,14 +1782,14 @@ describe("three tiles runtime styling", () => {
       new THREE.BoxGeometry(1, 1, 1),
       new THREE.MeshBasicMaterial()
     );
-    layer.root.add(mesh);
+    layer.scene.root.add(mesh);
 
-    layer.setClayMaterial({
+    layer.appearance.setClayMaterial({
       color: "#d8d1c4",
       roughness: 0.7,
       metalness: 0.1,
     });
-    layer.setWhiteShading(true);
+    layer.appearance.setWhiteShading(true);
 
     const material: THREE.Material = mesh.material;
     expect(material).toBeInstanceOf(THREE.MeshStandardMaterial);
@@ -1761,7 +1802,7 @@ describe("three tiles runtime styling", () => {
     expect(mesh.castShadow).toBe(true);
     expect(mesh.receiveShadow).toBe(true);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("keeps native tile meshes shadeable and controls their declared outlines", () => {
@@ -1773,18 +1814,18 @@ describe("three tiles runtime styling", () => {
     const outline = new THREE.LineSegments();
     outline.userData[TILE_OUTLINE_FLAG] = true;
     mesh.add(outline);
-    layer.root.add(mesh);
+    layer.scene.root.add(mesh);
 
-    layer.setWhiteShading(false);
+    layer.appearance.setWhiteShading(false);
     expect(mesh.castShadow).toBe(true);
     expect(mesh.receiveShadow).toBe(true);
 
-    layer.setOutlineVisible(false);
+    layer.appearance.setOutlineVisible(false);
     expect(outline.visible).toBe(false);
-    layer.setOutlineVisible(true);
+    layer.appearance.setOutlineVisible(true);
     expect(outline.visible).toBe(true);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("fades textured tiles to the shadow color without replacing their material", () => {
@@ -1806,9 +1847,9 @@ describe("three tiles runtime styling", () => {
     const outline = new THREE.LineSegments();
     outline.userData[TILE_OUTLINE_FLAG] = true;
     mesh.add(outline);
-    layer.root.add(mesh);
+    layer.scene.root.add(mesh);
 
-    layer.setShadowSimulationStyle?.({
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: "#d8d1c4",
       uniformColorMix: 0.35,
@@ -1844,7 +1885,7 @@ describe("three tiles runtime styling", () => {
     expect(shader.fragmentShader).toContain("diffuseColor.rgb = mix(");
     expect(shader.fragmentShader).toContain("shadowTextureLuma");
 
-    layer.setShadowSimulationStyle?.(null);
+    layer.scene.setShadowSimulationStyle?.(null);
     expect(mesh.material).toBe(sourceMaterial);
     expect(sourceMaterial.opacity).toBe(0.4);
     expect(sourceMaterial.transparent).toBe(true);
@@ -1854,7 +1895,7 @@ describe("three tiles runtime styling", () => {
     expect(uniforms.uShadowTextureSaturation.value).toBe(1);
     expect(outline.visible).toBe(true);
 
-    layer.setShadowSimulationStyle?.({
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: null,
       uniformColorMix: 1,
@@ -1863,10 +1904,10 @@ describe("three tiles runtime styling", () => {
     expect(sourceMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(uniforms.uShadowUniformColorMix.value).toBe(0);
 
-    layer.setShadowSimulationStyle?.(null);
+    layer.scene.setShadowSimulationStyle?.(null);
     expect(sourceMaterial.shadowSide).toBeNull();
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("keeps unclassified separated LoD2 surfaces visible from both sides", () => {
@@ -1887,13 +1928,16 @@ describe("three tiles runtime styling", () => {
     const shellMaterial = new THREE.MeshStandardMaterial({
       side: THREE.DoubleSide,
     });
-    layer.root.add(
+    layer.scene.root.add(
       new THREE.Mesh(new THREE.PlaneGeometry(1, 1), roofMaterial),
       new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wallMaterial),
       new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), shellMaterial)
     );
 
-    layer.setShadowSimulationStyle?.({ fullOpacity: true, uniformColor: null });
+    layer.scene.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: null,
+    });
 
     expect(roofMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(wallMaterial.shadowSide).toBe(THREE.DoubleSide);
@@ -1902,14 +1946,14 @@ describe("three tiles runtime styling", () => {
     expect(wallMaterial.side).toBe(THREE.DoubleSide);
     expect(shellMaterial.side).toBe(THREE.DoubleSide);
 
-    layer.setShadowSimulationStyle?.(null);
+    layer.scene.setShadowSimulationStyle?.(null);
     expect(roofMaterial.shadowSide).toBeNull();
     expect(wallMaterial.shadowSide).toBeNull();
     expect(shellMaterial.shadowSide).toBeNull();
     expect(roofMaterial.side).toBe(THREE.DoubleSide);
     expect(wallMaterial.side).toBe(THREE.DoubleSide);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("orients connected LoD2 roof and wall triangles into outward shells", () => {
@@ -1977,9 +2021,12 @@ describe("three tiles runtime styling", () => {
       new THREE.Mesh(roofGeometry, roofMaterial),
       new THREE.Mesh(wallGeometry, wallMaterial)
     );
-    layer.root.add(cityTile);
+    layer.scene.root.add(cityTile);
 
-    layer.setShadowSimulationStyle?.({ fullOpacity: true, uniformColor: null });
+    layer.scene.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: null,
+    });
 
     const edges = new Map<string, boolean[]>();
     const signedVolumes = new Map<number, number>();
@@ -2056,7 +2103,7 @@ describe("three tiles runtime styling", () => {
     expect(roofMaterial.shadowSide).toBe(THREE.DoubleSide);
     expect(wallMaterial.shadowSide).toBe(THREE.DoubleSide);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("uses the regular lit tile material for unlit terrain textures", () => {
@@ -2083,9 +2130,9 @@ describe("three tiles runtime styling", () => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sourceMaterial);
     const normals = mesh.geometry.getAttribute("normal");
     normals.setXYZ(0, 0.5, -0.5, 0.5);
-    layer.root.add(mesh);
+    layer.scene.root.add(mesh);
 
-    layer.setShadowSimulationStyle?.({
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: null,
     });
@@ -2127,7 +2174,7 @@ describe("three tiles runtime styling", () => {
     );
     expect(shader.vertexShader).not.toContain("flatTextureNormalBias");
 
-    layer.setShadowSimulationStyle?.({
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: "#d8d1c4",
       uniformColorMix: 0.75,
@@ -2140,7 +2187,7 @@ describe("three tiles runtime styling", () => {
     expect(
       (uniforms.uShadowTextureGamma.value as THREE.Vector3).toArray()
     ).toEqual([1.25, 1.25, 1.23]);
-    layer.setShadowSimulationStyle?.({
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: "#d8d1c4",
       uniformColorMix: 0.75,
@@ -2150,12 +2197,12 @@ describe("three tiles runtime styling", () => {
     expect(uniforms.uShadowTextureColorCorrection.value).toBe(false);
     expect(mesh.material).toBe(shadowMaterial);
 
-    layer.setShadowSimulationStyle?.(null);
+    layer.scene.setShadowSimulationStyle?.(null);
     expect(mesh.material).toBe(sourceMaterial);
     expect(sourceMaterial.side).toBe(THREE.DoubleSide);
     expect(sourceMaterial.shadowSide).toBeNull();
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 
   it("projects the map style onto terrain but not separated LoD2 surfaces", () => {
@@ -2176,11 +2223,12 @@ describe("three tiles runtime styling", () => {
     const terrain = buildSurface("terrain");
     const roof = buildSurface("roof");
     const wall = buildSurface("wall");
-    layer.root.add(parent);
+    layer.scene.root.add(parent);
 
-    const receivesMapStyleBeforeTileStyling = layer.receivesMapStyleTexture;
+    const receivesMapStyleBeforeTileStyling =
+      layer.scene.receivesMapStyleTexture;
     expect(typeof receivesMapStyleBeforeTileStyling).toBe("function");
-    expect(layer.mapStyleProjectionBlend).toBe("overlay");
+    expect(layer.scene.mapStyleProjectionBlend).toBe("overlay");
     expect(
       (
         receivesMapStyleBeforeTileStyling as (
@@ -2196,12 +2244,12 @@ describe("three tiles runtime styling", () => {
       )(roof.material as THREE.Material)
     ).toBe(false);
 
-    const initialVersion = layer.mapStyleProjectionVersion?.() ?? -1;
-    layer.setShadowSimulationStyle?.({
+    const initialVersion = layer.scene.mapStyleProjectionVersion?.() ?? -1;
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: null,
     });
-    const receivesMapStyle = layer.receivesMapStyleTexture;
+    const receivesMapStyle = layer.scene.receivesMapStyleTexture;
 
     expect(typeof receivesMapStyle).toBe("function");
     expect(
@@ -2219,14 +2267,16 @@ describe("three tiles runtime styling", () => {
         wall.material as THREE.Material
       )
     ).toBe(false);
-    expect(layer.mapStyleProjectionVersion?.()).toBeGreaterThan(initialVersion);
-    const styledVersion = layer.mapStyleProjectionVersion?.();
-    layer.setShadowSimulationStyle?.({
+    expect(layer.scene.mapStyleProjectionVersion?.()).toBeGreaterThan(
+      initialVersion
+    );
+    const styledVersion = layer.scene.mapStyleProjectionVersion?.();
+    layer.scene.setShadowSimulationStyle?.({
       fullOpacity: true,
       uniformColor: null,
     });
-    expect(layer.mapStyleProjectionVersion?.()).toBe(styledVersion);
+    expect(layer.scene.mapStyleProjectionVersion?.()).toBe(styledVersion);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 });

@@ -1,6 +1,10 @@
 import { createPortal } from "react-dom";
 
-import { faBug, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBug,
+  faCircleInfo,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   Button,
@@ -10,6 +14,7 @@ import {
   Select,
   Space,
   theme,
+  Tooltip,
   Typography,
 } from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -21,7 +26,12 @@ import type {
   ShadowTerrainSourceOption,
 } from "../contracts/shadow-simulation";
 import { selectShadowQualityPreset } from "../core/create-shadow-simulation-state";
-import { resolveShadowQuality, SHADOW_QUALITY } from "../core/shadow-types";
+import {
+  resolveShadowQuality,
+  resolveShadowRenderQuality,
+  SHADOW_BUFFER_LAYOUT,
+  SHADOW_QUALITY,
+} from "../core/shadow-types";
 import { ShadowSimulationRenderSettings } from "./ShadowSimulationRenderSettings";
 import { ShadowSimulationSurfaceSettings } from "./ShadowSimulationSurfaceSettings";
 import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
@@ -40,6 +50,9 @@ export const ShadowSimulationDisplaySettingsPanel = ({
   const { token } = theme.useToken();
   const quality = resolveShadowQuality(state.shadowQuality);
   const isUltraQuality = quality === SHADOW_QUALITY.ULTRA;
+  const isTiled =
+    resolveShadowRenderQuality(state, quality).shadowBufferLayout ===
+    SHADOW_BUFFER_LAYOUT.TILED;
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -121,10 +134,22 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                 className="grid min-w-0 grid-cols-[110px_minmax(0,1fr)] items-center"
                 style={{ gap: token.marginSM }}
               >
-                <Typography.Text>Höhenmodell</Typography.Text>
+                <Typography.Text>
+                  Höhenmodell{" "}
+                  <Tooltip
+                    trigger={["hover", "focus", "click"]}
+                    title="Rasterquelle für Terrain-Schatten ohne flächendeckendes 3D-Mesh. Bei Mesh 2024 liefert das Mesh die Oberfläche. Die MapLibre-Basiskarte bleibt auf DGM."
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      aria-label="Info zum Höhenmodell"
+                      icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                    />
+                  </Tooltip>
+                </Typography.Text>
                 <Select
                   aria-label="Höhenmodell für die Verschattung"
-                  title="Höhenmodell für die Verschattung. Die Basiskarte bleibt auf dem Geländemodell (DGM)."
                   value={
                     terrainSources.find(
                       ({ terrain }) => terrain.id === state.terrainSourceId
@@ -213,7 +238,18 @@ export const ShadowSimulationDisplaySettingsPanel = ({
               <Typography.Text
                 style={{ display: "block", marginBottom: token.marginXS }}
               >
-                Qualitätsziel
+                Qualitätsziel{" "}
+                <Tooltip
+                  trigger={["hover", "focus", "click"]}
+                  title="Ziel beim Bewegen in 1440p, abhängig von Gerät und Szene; keine FPS-Garantie. Karte und Beschriftungen bleiben in nativen Displaypixeln. Ultra deaktiviert die automatische Reduktion; manuelle Schattenwerte bleiben möglich."
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    aria-label="Info zum Qualitätsziel"
+                    icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                  />
+                </Tooltip>
               </Typography.Text>
               <Select
                 aria-label="Qualitätsziel"
@@ -226,23 +262,14 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                   setState(selectShadowQualityPreset(state, value))
                 }
               />
-              <Typography.Paragraph
-                type="secondary"
-                style={{
-                  marginTop: token.marginXS,
-                  marginBottom: 0,
-                  fontSize: token.fontSizeSM,
-                }}
-              >
-                Ziel beim Bewegen in 1440p (physische Pixel), abhängig von Gerät
-                und Szene. Karte und Beschriftungen bleiben in voller Auflösung.
-              </Typography.Paragraph>
               <Checkbox
                 aria-label="Adaptive Schattenqualität"
                 checked={
-                  !isUltraQuality && (state.shadowAdaptiveQuality ?? true)
+                  !isUltraQuality &&
+                  !isTiled &&
+                  (state.shadowAdaptiveQuality ?? true)
                 }
-                disabled={isUltraQuality}
+                disabled={isUltraQuality || isTiled}
                 onChange={(event) =>
                   setState({
                     ...state,
@@ -253,19 +280,17 @@ export const ShadowSimulationDisplaySettingsPanel = ({
               >
                 Adaptive Schattenqualität
               </Checkbox>
-              <Typography.Paragraph
-                type="secondary"
-                style={{
-                  marginTop: token.marginXS,
-                  marginBottom: 0,
-                  fontSize: token.fontSizeSM,
-                }}
+              <Tooltip
+                trigger={["hover", "focus", "click"]}
+                title="Nur Einzelpuffer: passt bei Bewegung Update-Takt und Schattenpuffer an das FPS-Ziel an, nicht die Farbauflösung der Karte. Gekachelt werden bestehende Korridorschatten weiterverwendet und die Sonnenscheiben-Integration pausiert; keine adaptive Pufferreduktion beim Drag. Bei Ultra ist die automatische Reduktion aus."
               >
-                Bei Bewegung werden Update-Takt und Schattenpuffer an das
-                FPS-Ziel angepasst. Basiskarte und Beschriftungen bleiben in
-                nativen Displaypixeln; die Farbauflösung wird nicht reduziert.
-                Ultra verwendet unverändert die gewählte Schattenqualität.
-              </Typography.Paragraph>
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="Info zur adaptiven Schattenqualität"
+                  icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                />
+              </Tooltip>
             </div>
             <ShadowSimulationSurfaceSettings
               state={state}

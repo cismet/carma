@@ -88,7 +88,7 @@ describe("three tiles unconditional refine (D7)", () => {
       getPitch: () => 45,
     } as unknown as MaplibreMap;
     const layer = buildThreeTilesRuntime("mesh", TILESET_URL, [7.15, 51.25]);
-    layer.onAdd?.(map);
+    layer.scene.onAdd?.(map);
     expect(tiles).toBeDefined();
     const renderer = tiles!;
 
@@ -127,7 +127,7 @@ describe("three tiles unconditional refine (D7)", () => {
     };
     const update = () => {
       renderer.dispatchEvent({ type: "needs-update" });
-      layer.update(frame);
+      layer.scene.update(frame);
     };
 
     update();
@@ -155,6 +155,6 @@ describe("three tiles unconditional refine (D7)", () => {
     expect(traversalOf(leaf).traversal.active).toBe(true);
     expect(traversalOf(leaf).traversal.visible).toBe(true);
 
-    layer.dispose();
+    layer.scene.dispose();
   });
 });

@@ -54,6 +54,10 @@ export class ShadowTiledScene {
         receiverBounds?: THREE.Box3
       ) => boolean;
       receiverStageError?: (bounds: THREE.Box3) => number;
+      receiverBiasLimit?: (
+        bounds: THREE.Box3,
+        groundTexelTargetMeters: number
+      ) => number;
       corridorRevision?: (
         bounds: THREE.Box3,
         errorPixels?: number,
@@ -147,9 +151,17 @@ export class ShadowTiledScene {
       frame.renderCamera,
       frame.viewport,
       targetPixels,
-      lighting
+      lighting,
+      this.host.receiverBiasLimit
     );
     this.viewKey = key;
+  }
+
+  /** Keep completed corridor textures attached to their receiver tiles while
+   * the observer camera moves; capture dimensions are reconsidered on moveend. */
+  updatePresentation(frame: SharedThreeSceneFrame) {
+    this.viewport.copy(frame.viewport);
+    this.pages.updatePresentation(frame.renderCamera);
   }
 
   /** Unknown external scene changes still require a full invalidation. Raster
@@ -242,12 +254,32 @@ export class ShadowTiledScene {
 
   renderProgressive(camera: THREE.Camera, frame: ShadowCorridorFrame) {
     this.lastFrame = frame;
+    // Camera motion changes presentation only. Keep the world-anchored hard and
+    // finite-sun page textures untouched until moveend; the lightweight draw
+    // path below can reuse them against the current camera.
+    if (!frame.active) return null;
+    // A tiled view can be enabled before the first committed receiver cut is
+    // available. Treat that as "not handled" so the shared scene renders its
+    // already loaded meshes directly instead of publishing a sky-only frame.
+    // Receiver publication will request the next paint and activate pages.
+    // Page descriptors precede captures: captureHard initializes the receiver
+    // accumulator below. Testing capturePages here deadlocked the first draw.
+    if (this.pages.accumulationPages.length === 0) {
+      this.accumulationSettled = false;
+      return null;
+    }
     const result = this.renderWithHost(camera, () => {
       this.captureHard(camera);
       const progress = this.accumulation.presentation.capture(this.scene, () =>
         this.accumulation.render(camera, this.pages, {
           ...frame,
           visibilityOnly: true,
+          // Bounded submissions, then yield to the browser. Do not insert a
+          // fixed sleep between samples: 512 samples at 50 ms already impose
+          // 25.6 seconds per corridor before accounting for any actual work.
+          // A single draw cannot be preempted by this CPU submission budget.
+          maxPagesPerFrame: 4,
+          maxFrameCpuMilliseconds: 2,
           isPageReady: (id) => this.isPageReady(id, false),
         })
       );
@@ -260,35 +292,42 @@ export class ShadowTiledScene {
       this.accumulationSettled = false;
       return null;
     }
-    if (this.accumulation.capturePages.length === 0) {
-      // No committed receivers is bootstrap, not a completed simulation. Tile
-      // publication supplies the next repaint; do not spin an empty GPU loop.
-      this.accumulationSettled = false;
-      return { ...result, progress: 0, settled: false, needsRepaint: false };
-    }
     const becameSettled = result.settled && !this.accumulationSettled;
     this.accumulationSettled = result.settled;
     // The host schedules idle work on transitions, not every settled blit.
-    return { ...result, settled: becameSettled };
+    return {
+      ...result,
+      settled: becameSettled,
+    };
   }
 
-  render(camera: THREE.Camera, round: number | null, samples: number) {
+  render(
+    camera: THREE.Camera,
+    round: number | null,
+    samples: number,
+    refreshHard = true
+  ) {
+    if (this.pages.accumulationPages.length === 0) return false;
     this.renderWithHost(camera, () => {
-      this.captureHard(camera);
+      if (refreshHard) this.captureHard(camera);
       this.renderContent(camera, round, samples);
     });
+    return true;
   }
 
   private isPageReady(id: string, hard: boolean) {
     const geometry = this.pages.getPageGeometry(id);
     if (!geometry) return false;
+    // The hard pass is the immediate, current-state presentation. It must not
+    // hide an already loaded receiver while its sunward caster corridor is
+    // still streaming. Finite-sun accumulation remains gated below so a soft
+    // result is only published from a complete, revision-stable corridor.
+    if (hard) return true;
     return (
       !this.host.isCorridorReady ||
       this.host.isCorridorReady(
         geometry.casterBounds,
-        hard
-          ? this.host.receiverStageError?.(geometry.receiverBounds)
-          : undefined,
+        undefined,
         geometry.receiverBounds
       )
     );

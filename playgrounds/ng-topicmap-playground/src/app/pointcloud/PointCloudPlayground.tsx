@@ -1043,13 +1043,13 @@ const SceneManager = memo(function SceneManager({
       const settings = meshSettingsRef.current[id];
       const layer = meshLayersRef.current.get(id);
       if (!settings || !layer) return;
-      layer.setHeightOffset(meshOffset(id));
-      layer.setErrorTarget(settings.errorTarget);
-      layer.setWhiteShading(settings.white);
-      layer.setClayColor(settings.clayColor);
-      layer.setOpacity(settings.opacity);
-      layer.setWireframe(settings.wireframe);
-      layer.setTileBoundsVisible(settings.tileBoundsVisible);
+      layer.placement.setHeightOffset(meshOffset(id));
+      layer.loading.setErrorTarget(settings.errorTarget);
+      layer.appearance.setWhiteShading(settings.white);
+      layer.appearance.setClayColor(settings.clayColor);
+      layer.appearance.setOpacity(settings.opacity);
+      layer.appearance.setWireframe(settings.wireframe);
+      layer.debug.setTileBoundsVisible(settings.tileBoundsVisible);
     },
     [meshOffset]
   );
@@ -1226,7 +1226,7 @@ const SceneManager = memo(function SceneManager({
         return pending;
       }),
       meshJobsByLayer: meshIds.map(
-        (id) => meshLayers.get(id)?.getRequestDemand() ?? 1
+        (id) => meshLayers.get(id)?.loading.getRequestDemand() ?? 1
       ),
       prioritizedMeshLayers: meshIds.map((id) => id === "lod2"),
     });
@@ -1241,7 +1241,7 @@ const SceneManager = memo(function SceneManager({
     meshIds.forEach((id, index) => {
       meshLayers
         .get(id)
-        ?.setRequestConcurrency(allocation.meshJobsByLayer[index] ?? 0);
+        ?.loading.setRequestConcurrency(allocation.meshJobsByLayer[index] ?? 0);
     });
   }, []);
   const scheduleSceneRequestAllocation = useCallback(() => {
@@ -1831,9 +1831,9 @@ const SceneManager = memo(function SceneManager({
 
     for (const [id, tilesLayer] of layers) {
       const visible = active.has(id);
-      tilesLayer.setVisible(visible);
+      tilesLayer.appearance.setVisible(visible);
       if (!visible) continue;
-      tilesLayer.setCacheBudget(meshCacheBudgetBytes);
+      tilesLayer.loading.setCacheBudget(meshCacheBudgetBytes);
     }
 
     const addMissing = async () => {
@@ -1844,8 +1844,8 @@ const SceneManager = memo(function SceneManager({
       // creation on the next effect run.
       for (const [id, tilesLayer] of [...layers]) {
         if (!active.has(id)) continue;
-        if (!sharedSceneLayer.hasRuntime(tilesLayer.id)) {
-          tilesLayer.dispose();
+        if (!sharedSceneLayer.hasRuntime(tilesLayer.scene.id)) {
+          tilesLayer.scene.dispose();
           layers.delete(id);
         }
       }
@@ -1869,8 +1869,8 @@ const SceneManager = memo(function SceneManager({
           }
         );
         layers.set(def.id, tilesLayer);
-        sharedSceneLayer.addRuntime(tilesLayer);
-        tilesLayer.setVisible(true);
+        sharedSceneLayer.addRuntime(tilesLayer.scene);
+        tilesLayer.appearance.setVisible(true);
         applyMeshSettings(def.id);
         scheduleSceneRequestAllocation();
       }
@@ -1970,7 +1970,8 @@ const SceneManager = memo(function SceneManager({
       const imageryLayers = [...imageryLayersRef.current.values()];
       if (!meshLayers.length || !imageryLayers.length) {
         activeImageRef.current = null;
-        for (const meshLayer of meshLayers) meshLayer.setProjector(null);
+        for (const meshLayer of meshLayers)
+          meshLayer.appearance.setProjector(null);
         return;
       }
       const center = map.getCenter();
@@ -1999,7 +2000,8 @@ const SceneManager = memo(function SceneManager({
       if (!best || best.dist > MAX_DIST) {
         if (activeImageRef.current !== null) {
           activeImageRef.current = null;
-          for (const meshLayer of meshLayers) meshLayer.setProjector(null);
+          for (const meshLayer of meshLayers)
+            meshLayer.appearance.setProjector(null);
           for (const imagery of imageryLayers) imagery.setHighlight(null);
           onImageryStatusRef.current("kein Bild in Reichweite (<120 m)");
         }
@@ -2025,8 +2027,8 @@ const SceneManager = memo(function SceneManager({
                   position: utmToScene(
                     pose.utm,
                     pose.lngLat,
-                    meshLayer.originMerc,
-                    meshLayer.mScale
+                    meshLayer.placement.originMerc,
+                    meshLayer.placement.mScale
                   ),
                   headingRad: pose.headingRad ?? 0,
                   texture,
@@ -2036,13 +2038,13 @@ const SceneManager = memo(function SceneManager({
                   kind: "frustum",
                   viewProj: buildFrustumProjector(
                     pose,
-                    meshLayer.originMerc,
-                    meshLayer.mScale
+                    meshLayer.placement.originMerc,
+                    meshLayer.placement.mScale
                   ),
                   texture,
                   opacity,
                 };
-          meshLayer.setProjector(projector);
+          meshLayer.appearance.setProjector(projector);
         }
         onImageryStatusRef.current(
           `${pose.kind === "pano" ? "Pano" : "Oblique"} ${
@@ -2080,7 +2082,7 @@ const SceneManager = memo(function SceneManager({
       }
       onPointMemoryUsageRef.current(0);
       for (const [id, tilesLayer] of [...meshLayersRef.current]) {
-        sharedSceneLayer.removeRuntime(tilesLayer.id);
+        sharedSceneLayer.removeRuntime(tilesLayer.scene.id);
         meshLayersRef.current.delete(id);
       }
     };
