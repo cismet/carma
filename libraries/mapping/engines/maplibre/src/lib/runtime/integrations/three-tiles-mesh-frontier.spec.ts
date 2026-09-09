@@ -43,9 +43,14 @@ describe("local progressive mesh admission", () => {
     chimney.traversal.inFrustum = false;
     chimney.internal.loadingState = 2;
     const demand = (tile: Tile) => tile !== unrelatedA && tile !== unrelatedB;
-    const select = () => collectLoadedMeshReceiverCandidates(
-      parent, 1, Infinity, demand, (tile) => tile.traversal.error
-    );
+    const select = () =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        1,
+        Infinity,
+        demand,
+        (tile) => tile.traversal.error
+      );
     expect(select()).toEqual(new Set([parent]));
     chimney.internal.loadingState = 4;
     expect(select()).toEqual(new Set([receiver, chimney]));
@@ -66,13 +71,16 @@ describe("local progressive mesh admission", () => {
         tile.internal.loadingState = mask & (1 << index) ? 4 : 2;
       });
       const proposed = collectLoadedMeshReceiverCandidates(
-        root, 1, Infinity, () => true, (tile) => tile.traversal.error
+        root,
+        1,
+        Infinity,
+        () => true,
+        (tile) => tile.traversal.error
       );
       const published = retain([a, b], [...proposed]);
-      expect(published).toEqual(new Set([
-        ...readyFamily,
-        ...(mask === 15 ? streamingFamily : [b]),
-      ]));
+      expect(published).toEqual(
+        new Set([...readyFamily, ...(mask === 15 ? streamingFamily : [b])])
+      );
       for (const tile of published) {
         for (let parent = tile.parent; parent; parent = parent.parent) {
           expect(published.has(parent)).toBe(false);
@@ -455,6 +463,19 @@ describe("atomic progressive mesh corridors", () => {
 });
 
 describe("progressive loaded mesh display", () => {
+  it("never publishes a partial child set over a retained parent", () => {
+    const { parent, children } = quartet(mesh(null, 16));
+    children[3].internal.loadingState = 2;
+    const proposed = new Set([parent, ...children.slice(0, 3)]);
+    expect([...refineLoadedMeshFrontier(proposed, 1, () => true)]).toEqual([
+      parent,
+    ]);
+    children[3].internal.loadingState = 4;
+    expect([...refineLoadedMeshFrontier(proposed, 1, () => true)]).toEqual(
+      children
+    );
+  });
+
   const refine = (root: Tile) => [
     ...refineLoadedMeshFrontier(
       new Set([root]),

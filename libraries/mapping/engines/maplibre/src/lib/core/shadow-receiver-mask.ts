@@ -25,12 +25,15 @@ export interface ShadowReceiverMatch {
   receiverPixelsPerMeter?: number;
 }
 
+type ShadowReceiverCandidateIdentity = { key: object; parent?: object };
+
 export interface ShadowReceiverMask {
   readonly sourceCount: number;
   match: (
     candidate: THREE.Box3,
     target: ShadowReceiverMatch,
-    candidateTransform?: THREE.Matrix4
+    candidateTransform?: THREE.Matrix4,
+    identity?: ShadowReceiverCandidateIdentity
   ) => boolean;
 }
 
@@ -162,10 +165,11 @@ const buildReceiverNode = (
 const queryReceiverNode = (
   node: ReceiverNode,
   candidate: THREE.Box3,
-  target: ShadowReceiverMatch
+  target: ShadowReceiverMatch,
+  matches?: IndexedReceiver[]
 ) => {
   if (!node.bounds.intersectsBox(candidate)) return;
-  if (candidate.containsBox(node.bounds)) {
+  if (!matches && candidate.containsBox(node.bounds)) {
     includeMatch(
       target,
       node.minimumGeometricError,
@@ -177,6 +181,7 @@ const queryReceiverNode = (
   if (node.receivers) {
     for (const receiver of node.receivers) {
       if (intersectsReceiverCone(receiver, candidate)) {
+        matches?.push(receiver);
         includeMatch(
           target,
           receiver.geometricError,
@@ -187,8 +192,8 @@ const queryReceiverNode = (
     }
     return;
   }
-  if (node.left) queryReceiverNode(node.left, candidate, target);
-  if (node.right) queryReceiverNode(node.right, candidate, target);
+  if (node.left) queryReceiverNode(node.left, candidate, target, matches);
+  if (node.right) queryReceiverNode(node.right, candidate, target, matches);
 };
 
 /** The BVH uses the full far-end guard, but a nearby caster only sees the
@@ -284,16 +289,34 @@ export const createShadowReceiverMask = (
   );
   const projectedCandidate = new THREE.Box3();
   const candidateProjection = new THREE.Matrix4();
+  // Decision: MESH-CORRIDOR-MEMBERSHIP-20260909 in engines/maplibre/README.md.
+  // One immutable union owns its hierarchy proofs. Children only test the
+  // corridors their enclosing parent hit; negative parents exclude everything.
+  // Weak keys release metadata with its tileset, without a separate LRU scan.
+  const proofs = new WeakMap<
+    object,
+    {
+      localBounds: THREE.Box3;
+      transform: THREE.Matrix4;
+      projectedBounds: THREE.Box3;
+      receivers: IndexedReceiver[];
+      result: ShadowReceiverMatch;
+    }
+  >();
   return {
     sourceCount: receivers.length,
-    match(candidate, target, candidateTransform) {
-      projectedCandidate
-        .copy(candidate)
-        .applyMatrix4(
-          candidateTransform
-            ? candidateProjection.copy(projection).multiply(candidateTransform)
-            : projection
-        );
+    match(candidate, target, candidateTransform, identity) {
+      candidateProjection.copy(projection);
+      if (candidateTransform) candidateProjection.multiply(candidateTransform);
+      const cached = identity && proofs.get(identity.key);
+      if (
+        cached?.localBounds.equals(candidate) &&
+        cached.transform.equals(candidateProjection)
+      ) {
+        Object.assign(target, cached.result);
+        return cached.receivers.length > 0;
+      }
+      projectedCandidate.copy(candidate).applyMatrix4(candidateProjection);
       if (!isFiniteBox(projectedCandidate)) return false;
       target.receiverGeometricError = Number.POSITIVE_INFINITY;
       target.receiverCenterness = 0;
@@ -303,7 +326,37 @@ export const createShadowReceiverMask = (
         0,
         1
       );
-      queryReceiverNode(root, projectedCandidate, target);
+      const parent = identity?.parent && proofs.get(identity.parent);
+      const matches: IndexedReceiver[] = [];
+      // Only inherit spatially enclosing proofs. Malformed metadata or a
+      // changed placement must never exclude a possible caster silently.
+      if (parent?.projectedBounds.containsBox(projectedCandidate)) {
+        for (const receiver of parent.receivers) {
+          if (!intersectsReceiverCone(receiver, projectedCandidate)) continue;
+          matches.push(receiver);
+          includeMatch(
+            target,
+            receiver.geometricError,
+            receiver.centerness,
+            receiver.pixelsPerMeter
+          );
+        }
+      } else {
+        queryReceiverNode(
+          root,
+          projectedCandidate,
+          target,
+          identity ? matches : undefined
+        );
+      }
+      if (identity)
+        proofs.set(identity.key, {
+          localBounds: candidate.clone(),
+          transform: candidateProjection.clone(),
+          projectedBounds: projectedCandidate.clone(),
+          receivers: matches,
+          result: { ...target },
+        });
       return target.receiverGeometricError !== Number.POSITIVE_INFINITY;
     },
   };
@@ -333,9 +386,10 @@ export const applyShadowReceiverMask = (
   match: ShadowReceiverMatch,
   tileGeometricError: number,
   errorTarget: number,
-  candidateTransform?: THREE.Matrix4
+  candidateTransform?: THREE.Matrix4,
+  identity?: ShadowReceiverCandidateIdentity
 ): boolean => {
-  const matched = mask.match(candidate, match, candidateTransform);
+  const matched = mask.match(candidate, match, candidateTransform, identity);
   target.inView = matched;
   if (matched) {
     // Traversal admission is relative to this receiver's current geometric

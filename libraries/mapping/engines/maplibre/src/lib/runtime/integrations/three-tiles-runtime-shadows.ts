@@ -11,7 +11,10 @@ import {
 import type { SharedThreeSceneTileVolume } from "./shared-three-scene-layer";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { meshShadowStageError } from "./three-tiles-load-policy";
-import { getReadyMeshRegionCut } from "./three-tiles-mesh-frontier";
+import {
+  getReadyMeshRegionCut,
+  refineLoadedMeshFrontier,
+} from "./three-tiles-mesh-frontier";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -271,7 +274,8 @@ export function createThreeTilesShadows(
               !regionMask.match(
                 cachedBounds.box,
                 runtimeState.shadowReceiverMatch,
-                cachedBounds.transform
+                cachedBounds.transform,
+                { key: tile, parent: tile.parent ?? undefined }
               )
             ) {
               intersects = false;
@@ -570,23 +574,79 @@ export function createThreeTilesShadows(
       // the receiver mask extended its `inView` result into the sunward union.
       // A tile may be both a receiver and a caster; Set union keeps it once.
       const proposed = new Set(
-        [...traversalTiles].filter((tile) => {
+        [...new Set([...traversalTiles, ...previousCasters])].filter((tile) => {
           const runtimeTile = tile as RuntimeTile;
           // The receiver cut exclusively owns observer-visible coverage.
           // Re-introducing upstream's partial parent/child traversal here made
           // coarse REPLACE ancestors bleed through their detailed children.
-          return dependencies.isTileInMainView(runtimeTile)
-            ? runtimeState.committedMeshReceiverFrontier.has(tile)
-            : runtimeTile.shadowReceiverCurrent === true;
+          if (dependencies.isTileInMainView(runtimeTile))
+            return runtimeState.committedMeshReceiverFrontier.has(tile);
+          if (
+            !runtimeTile.engineData?.scene &&
+            tile.internal?.loadingState !== 4
+          )
+            return false;
+          const volume = runtimeTile.engineData?.boundingVolume;
+          if (!volume?.getAABB || !runtimeState.shadowReceiverMask)
+            return false;
+          readOrientedTileBounds(
+            volume,
+            runtimeState.tileBoundingBox,
+            runtimeState.tileBoundsTransform
+          );
+          // Membership is metadata geometry, never a stale traversal flag or
+          // the payload's current self-shadow result. Preserve loaded casters
+          // still in the union while the next upstream cut is being assembled.
+          const intersects = runtimeState.shadowReceiverMask.match(
+            runtimeState.tileBoundingBox,
+            runtimeState.shadowReceiverMatch,
+            runtimeState.tileBoundsTransform,
+            { key: tile, parent: tile.parent ?? undefined }
+          );
+          runtimeTile.shadowReceiverCurrent = intersects;
+          runtimeTile.shadowReceiverCenterness = intersects
+            ? runtimeState.shadowReceiverMatch.receiverCenterness
+            : undefined;
+          return intersects;
         })
       );
       for (const tile of runtimeState.committedMeshReceiverFrontier)
         proposed.add(tile);
-      runtimeState.committedMeshCasterFrontier = proposed;
+      const casterCut = refineLoadedMeshFrontier(
+        proposed,
+        runtimeState.effectiveErrorTarget,
+        (tile) => {
+          if (dependencies.isTileInMainView(tile as RuntimeTile)) return true;
+          const volume = (tile as RuntimeTile).engineData?.boundingVolume;
+          if (!volume?.getAABB || !runtimeState.shadowReceiverMask) return true;
+          readOrientedTileBounds(
+            volume,
+            runtimeState.tileBoundingBox,
+            runtimeState.tileBoundsTransform
+          );
+          return runtimeState.shadowReceiverMask.match(
+            runtimeState.tileBoundingBox,
+            runtimeState.shadowReceiverMatch,
+            runtimeState.tileBoundsTransform,
+            { key: tile, parent: tile.parent ?? undefined }
+          );
+        }
+      );
+      // The main-camera receiver frontier still owns its own atomic families.
+      for (const tile of casterCut) {
+        if (
+          dependencies.isTileInMainView(tile as RuntimeTile) &&
+          !runtimeState.committedMeshReceiverFrontier.has(tile)
+        )
+          casterCut.delete(tile);
+      }
+      for (const tile of runtimeState.committedMeshReceiverFrontier)
+        casterCut.add(tile);
+      runtimeState.committedMeshCasterFrontier = casterCut;
       // A proof can be negative between decode and publication. Geometry load
       // invalidation alone never clears that cached false after the cut changes.
-      const changed = [...new Set([...previousCasters, ...proposed])].filter(
-        (tile) => previousCasters.has(tile) !== proposed.has(tile)
+      const changed = [...new Set([...previousCasters, ...casterCut])].filter(
+        (tile) => previousCasters.has(tile) !== casterCut.has(tile)
       );
       if (changed.length > 0) {
         const changedBounds: THREE.Box3[] = [];

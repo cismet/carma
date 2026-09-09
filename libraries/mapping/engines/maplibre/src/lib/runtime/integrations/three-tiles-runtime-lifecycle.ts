@@ -475,7 +475,8 @@ export function createThreeTilesLifecycle(
             runtimeState.shadowReceiverMatch,
             tile.geometricError,
             runtimeState.effectiveErrorTarget,
-            runtimeState.tileBoundsTransform
+            runtimeState.tileBoundsTransform,
+            { key: tile, parent: tile.parent ?? undefined }
           );
           if (matchedCurrent) {
             runtimeTile.shadowReceiverCenterness =

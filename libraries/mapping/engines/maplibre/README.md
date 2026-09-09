@@ -408,3 +408,52 @@ terrain-mesh runtime to the shared scene.
   Evidence: `output/playwright/corridor-completion-20260908/`.
 - **Open:** Spatial mesh readiness/invalidation and atomic same-LOD mesh/hard
   shadow publication remain separate work, as listed above. No broad build/lint.
+
+### MESH-CORRIDOR-MEMBERSHIP-20260909
+
+- **Status:** Implemented; focused geometry/publication tests and live mesh
+  inspection. This is not a replacement of the entire progressive load scheduler.
+- **Context/contract:** Caster membership is intersection of the tile metadata
+  volume with the union of sunward swept main-camera receiver volumes, including
+  the finite solar-disc guard. Content, normals, a previous traversal flag and
+  shadow-buffer readiness do not decide geometric membership. Error selects LOD
+  only. Existing `createShadowReceiverMask` is the common union/BVH implementation.
+- **Decision:** Loading, error queries, eviction and publication pass stable tile
+  identities into the same immutable mask. Weakly keyed proofs reuse exact
+  results, and child queries restrict their receiver candidates to those hit by
+  the enclosing parent. Changed boxes/transforms re-query; non-enclosing metadata
+  cannot inherit exclusions. A new union builds new proofs, so sun/receiver changes
+  cannot reuse stale negatives. No cross-union/disk membership cache is introduced.
+  Publication checks actual intersection instead of `shadowReceiverCurrent`;
+  omitted but still-required loaded casters survive transient traversal cuts.
+  Parent plus partially loaded children are resolved as one complete local
+  REPLACE family, never drawn as overlapping hybrids.
+- **Evidence:** Chrome 152/macOS, 14 reported logical cores, existing Geoportal
+  mesh session. `benchmarks/corridor-membership.browser.ts` exports the repeatable
+  benchmark (import using Vite `/@fs/<checkout>/...`). 64 synthetic receiver
+  boxes, 512 candidates, 100 scans per timed batch, 9 repetitions after warm-up;
+  cached/uncached output parity asserted. Per 512 queries, uncached median/max
+  0.098/0.102 ms; memory 0.043/0.045 ms. Warm worker transfer alone: 6.6/10.6 ms;
+  warm Cache Storage read of the final 512-byte answer: 0.20/5.10 ms. Worker
+  measurements include event-loop delay on the loaded page, exclude computation
+  and startup. No GPU or end-to-end loading improvement is inferred.
+  Memory batch raw ms: [.043,.040,.043,.043,.045,.044,.041,.045,.043]; worker
+  round-trip ms: [6.5,6.1,6.6,10.6,7.7,8.7,6.6,4.5,8.5]; storage read ms:
+  [5.1,.3,.2,.2,.1,.2,.1,.2,.2]. Memory holds per-tile boxes, transform and matched
+  receiver references in WeakMaps; no GPU buffers or payload copies are cached.
+  Exact chimney view settled with 53 receivers, 151 offscreen casters and zero
+  outstanding demand. Full soft-shadow/reprojection correctness remains separate.
+  Focused validation: 76 tests pass. Five older atomic-corridor integration
+  assertions fail identically on the changed code and the read-only source
+  baseline at `9508cb9fc` (`/private/tmp/corridor-membership-final-tests.log`,
+  `/private/tmp/corridor-baseline-tests.log`); no full integration-suite pass is
+  claimed. Their staged publication/admission behavior remains open.
+- **Alternatives:** Worker dispatch per small query batch and Cache Storage
+  answers: measured rejection for this workload. IndexedDB/OPFS: not evaluated.
+  Whole-tree worker selection and reusable search frontiers across changing LOD
+  unions: deferred; current upstream traversal remains bounded but main-thread.
+  Network/DRACO worker concurrency is unchanged, not a new parallel implementation.
+- **Revisit:** Large measured metadata-query batches, cross-union candidate reuse,
+  or a trace showing traversal rather than page shading dominates. Preserve the
+  box-only contract when replacing scheduling; do not add payload-readiness gates
+  to spatial intersection.

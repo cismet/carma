@@ -371,6 +371,15 @@ export const refineLoadedMeshFrontier = (
   };
   const result = new Set<Tile>();
   for (const tile of proposed) {
+    // A streaming input may contain both the retained parent and new children.
+    // Select that family once, from its parent; visiting children independently
+    // would bypass the complete-sibling proof and create overlapping surfaces.
+    if (
+      [...ancestors(tile)].some(
+        (parent) => parent.refine === "REPLACE" && proposed.has(parent)
+      )
+    )
+      continue;
     const cut = inView(tile) ? select(tile) : null;
     for (const selected of cut ?? [tile]) result.add(selected);
   }

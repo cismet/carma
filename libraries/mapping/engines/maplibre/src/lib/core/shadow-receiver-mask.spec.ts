@@ -33,6 +33,61 @@ const match = (): ShadowReceiverMatch => ({
 });
 
 describe("createShadowReceiverMask", () => {
+  it("reuses parent candidate sets with exact uncached parity, including boundary contacts", () => {
+    const sources = Array.from({ length: 30 }, (_, i) =>
+      source(box([i * 4, 0, 0], [i * 4 + 2, 2, 2]))
+    );
+    const mask = createShadowReceiverMask(sources, new THREE.Matrix4(), 0.005)!;
+    const parent = {};
+    const parentBox = box([-2, -2, -2], [18, 8, 55]);
+    mask.match(parentBox, match(), undefined, { key: parent });
+    for (let i = 0; i < 160; i++) {
+      const candidate = box(
+        [(i % 20) - 2, (i % 7) - 2, i % 54],
+        [(i % 20) - 1, (i % 7) - 1, (i % 54) + 1]
+      );
+      const key = {};
+      const expected = match();
+      const included = mask.match(candidate, expected);
+      for (let repeat = 0; repeat < 2; repeat++) {
+        const actual = match();
+        expect(mask.match(candidate, actual, undefined, { key, parent })).toBe(
+          included
+        );
+        expect(actual).toEqual(expected);
+      }
+    }
+  });
+
+  it("invalidates changed boxes/transforms and does not inherit a non-enclosing parent's rejection", () => {
+    const mask = createShadowReceiverMask(
+      [source(box([0, 0, 0], [2, 2, 2]))],
+      new THREE.Matrix4()
+    )!;
+    const parent = {},
+      key = {};
+    mask.match(box([20, 20, 0], [30, 30, 40]), match(), undefined, {
+      key: parent,
+    });
+    const candidate = box([0, 0, 5], [1, 1, 6]);
+    const transform = new THREE.Matrix4();
+    expect(mask.match(candidate, match(), transform, { key, parent })).toBe(
+      true
+    );
+    transform.makeTranslation(30, 0, 0);
+    expect(mask.match(candidate, match(), transform, { key, parent })).toBe(
+      false
+    );
+    transform.identity();
+    expect(mask.match(candidate, match(), transform, { key, parent })).toBe(
+      true
+    );
+    candidate.translate(new THREE.Vector3(40, 0, 0));
+    expect(mask.match(candidate, match(), transform, { key, parent })).toBe(
+      false
+    );
+  });
+
   it("does not give nearby casters the full far-end solar-disc guard", () => {
     const mask = createShadowReceiverMask(
       [source(box([-1, -1, 0], [1, 1, 2]), { maximumCasterDistance: 10_000 })],

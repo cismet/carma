@@ -293,7 +293,8 @@ export function createThreeTilesSpatial(
         runtimeState.shadowReceiverMask?.match(
           runtimeState.tileBoundingBox,
           runtimeState.shadowReceiverMatch,
-          runtimeState.tileBoundsTransform
+          runtimeState.tileBoundsTransform,
+          { key: tile, parent: tile.parent ?? undefined }
         )
       ) {
         return receiverMatchedTileError(

@@ -167,5 +167,19 @@ describe("mesh caster publication", () => {
     receiver.traversal.error = 1;
     state.requestedErrorTarget = 0.25;
     expect(api.createReceiverSnapshot(frontier)?.mask).not.toBe(snapshot.mask);
+
+    // Membership follows metadata intersection, not a previous traversal flag.
+    const outside = makeTile("outside-corridor", 1000, 1, false);
+    Object.assign(outside, { shadowReceiverCurrent: true });
+    Object.assign(chimney, { shadowReceiverCurrent: false });
+    api.advanceMeshShadowCorridors(
+      frontier,
+      new Set([receiver, otherChild, chimney, outside])
+    );
+    expect(state.committedMeshCasterFrontier.has(chimney)).toBe(true);
+    expect(state.committedMeshCasterFrontier.has(outside)).toBe(false);
+    // A still-needed loaded caster survives a transient omission from upstream.
+    api.advanceMeshShadowCorridors(frontier, new Set([receiver, otherChild]));
+    expect(state.committedMeshCasterFrontier.has(chimney)).toBe(true);
   });
 });
