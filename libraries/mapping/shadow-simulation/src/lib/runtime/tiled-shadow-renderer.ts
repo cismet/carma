@@ -740,10 +740,15 @@ export class TiledShadowRenderer {
   /** Pass old UNION new bounds on movement/removal/source replacement. Also
    * call for newly available geometry: absent casters are dependencies too.
    */
-  invalidateCasters(changedBounds: THREE.Box3): readonly string[] {
+  invalidateCasters(
+    changedBounds: THREE.Box3 | readonly THREE.Box3[]
+  ): readonly string[] {
+    const changes =
+      changedBounds instanceof THREE.Box3 ? [changedBounds] : changedBounds;
     const affected: string[] = [];
     for (const [id, page] of this.pages) {
-      if (!page.corridor.intersectsBox(changedBounds)) continue;
+      if (!changes.some((bounds) => page.corridor.intersectsBox(bounds)))
+        continue;
       page.contentRevision += 1;
       this.cache.invalidate(id);
       affected.push(id);

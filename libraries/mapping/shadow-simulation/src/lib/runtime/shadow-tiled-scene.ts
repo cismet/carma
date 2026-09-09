@@ -170,8 +170,8 @@ export class ShadowTiledScene {
   invalidateContent(changedBounds?: readonly THREE.Box3[]) {
     this.frameCache.invalidate();
     if (!changedBounds) this.pages.clearCache();
-    else
-      for (const bounds of changedBounds) this.pages.invalidateCasters(bounds);
+    else if (changedBounds.length > 0)
+      this.pages.invalidateCasters(changedBounds);
   }
 
   async prewarm({
@@ -275,7 +275,10 @@ export class ShadowTiledScene {
       const hard = this.captureHard(camera);
       // Ready hard publications fill newly exposed areas before spending GPU
       // time on finite-disc refinement. Unready corridors do not block others.
-      if (hard.published > 0 || hard.needsRepaint) {
+      const missingCoverage = this.accumulation.capturePages.some(
+        (page) => !this.accumulation.presentation.canPresent(page)
+      );
+      if ((hard.published > 0 || hard.needsRepaint) && missingCoverage) {
         this.renderContent(camera, null, frame.samples);
         return { progress: 0, settled: false, needsRepaint: true };
       }
@@ -294,7 +297,15 @@ export class ShadowTiledScene {
       // Completed corridors are independent publications. An unfinished sibling
       // must not expose its running mean or replace an already published shadow.
       if (progress) this.renderContent(camera, null, frame.samples);
-      return progress;
+      // After base coverage exists, a refining sibling must not starve an
+      // already-ready corridor. Hard publication still runs first each frame.
+      return (
+        progress && {
+          ...progress,
+          settled: progress.settled && !hard.needsRepaint,
+          needsRepaint: progress.needsRepaint || hard.needsRepaint,
+        }
+      );
     });
     if (!result) {
       this.accumulationSettled = false;
@@ -343,7 +354,9 @@ export class ShadowTiledScene {
       !this.host.isCorridorReady ||
       this.host.isCorridorReady(
         geometry.casterBounds,
-        hard ? this.host.receiverStageError?.(geometry.receiverBounds) : undefined,
+        hard
+          ? this.host.receiverStageError?.(geometry.receiverBounds)
+          : undefined,
         geometry.receiverBounds
       )
     );
@@ -413,7 +426,8 @@ export class ShadowTiledScene {
         round === null && states.some(({ replay }) => replay);
       this.host.light.visible = replayOnly || replayCaptured;
       try {
-        if (replayOnly || replayCaptured) this.renderer.render(this.scene, camera);
+        if (replayOnly || replayCaptured)
+          this.renderer.render(this.scene, camera);
         for (const { page, replay, ready } of states) {
           if (!ready) continue;
           if (replayOnly && !replay) {

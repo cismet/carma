@@ -131,6 +131,8 @@ export function buildThreeTilesRuntime(
       shadows.maybeFinalizeShadowSelection(...args),
     measureUsedBytesMain: (...args) => loading.measureUsedBytesMain(...args),
     mainViewConverged: (...args) => spatial.mainViewConverged(...args),
+    mainViewWithinErrorFactor: (...args) =>
+      spatial.mainViewWithinErrorFactor(...args),
     applyErrorTargetPolicy: (...args) =>
       loading.applyErrorTargetPolicy(...args),
     sweepSettledMeshDemand: (...args) =>

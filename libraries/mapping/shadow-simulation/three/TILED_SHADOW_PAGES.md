@@ -916,3 +916,109 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
   passing. See CURRENT-MESH-CONTRACT-TESTS-20260909 in engines/maplibre/README.md.
 - **Open:** End-to-end LOD liveness, receiver-page fragmentation and reliable
   full soft convergence still need a separate scoped investigation.
+
+# SOFT-PIPELINE-REVIEW-20260909 — finish corridors, avoid discarded integration
+
+- **Status:** Investigation/proposed experiments, not a new rendering policy.
+  Checkpoint `e09a4d636` was committed and pushed to `feat/shadow-simulation`.
+  Its 180 focused tests passed. No measured speedup is claimed by this review.
+- **Observed:** Internal Codex browser, Mesh2024, 51.2704713/7.2012022,
+  z20.717, bearing254.53/pitch47.12, November21 14:12: 1px mesh target,
+  download/parse/queue zero, main-view converged; 46 receivers in runtime logs.
+  Debug UI: 64 shadow pages, 63 ready and finished, maximum running samples zero,
+  target64; progress98%. The remaining page is a readiness/liveness issue, not
+  64 ongoing integrations. This does not establish why that page is unready.
+  Depth sizes: 52 at4096², 12 at2048×4096; all budget-limited. Depth cache:
+  one page/128MiB, scratch128MiB, hits0/misses6112, depth6112/color12224.
+  These are cumulative session counters, NOT cold-reload timing or proof that
+  all misses were avoidable. DevTools MCP targets a separate blank browser;
+  no trace was taken there in place of the requested internal session.
+- **Code evidence:** `ShadowReceiverAccumulator` already finishes one ready
+  receiver at a time using one scratch allocation. `renderProgressive` yields
+  to every pending hard publication, including later LOD refinements; repeated
+  hard stages can delay a ready soft page. Regional readiness is already memoized
+  per synchronous draw; scalar integration already ignores style-only epochs.
+  `invalidateCasters` invalidates intersecting corridor AABBs, not exact caster
+  membership; `shadow-receiver-grid` partitions overlapping mesh footprints and
+  can create more pages than source receivers. Each missing disc-depth sample
+  calls `renderer.render(scene, camera)` again. Extra JS workers alone do not
+  parallelize this shared WebGL context's depth/visibility/blend passes.
+- **First experiment — liveness and coherent stages:** Explain the unready page
+  before increasing GPU concurrency. Once base coverage is complete, prioritize
+  a bounded receiver family AND its required caster cut through target SSE.
+  New uncovered areas retain first priority. Keep the old displayed family and
+  its caster payloads pinned until the replacement family and hard mask are
+  ready; promote locally, never mix a parent with incomplete children. Only
+  then release obsolete payloads. Do not substitute a global readiness barrier.
+- **Second experiment — fewer invalidations:** Retain a reverse dependency set
+  of committed caster IDs/geometry versions for each stable receiver. Loading an
+  unrelated sibling should not invalidate its integration. A new potential caster
+  or changed/removed caster still must invalidate affected pages; unknown metadata
+  cannot be treated as proven empty. Batch changed bounds per publication stage.
+  Do not merely remove invalidation or readiness checks to obtain better timings.
+- **Third experiment — less depth work:** Measure merging adjacent compatible
+  receiver pages and a whole-view/shared-depth baseline at the SAME ground texel
+  target. A fresh 64-page ×64-sample view can require4096 depth evaluations before
+  hard stages/retries; reducing page count can therefore dominate CPU caching.
+  Sharing depth requires the same light projection and caster coverage, not just
+  the same sun vector. A larger combined extent must not reduce resolution.
+  Do not retain every4096² sample: 64×128MiB is8GiB for only one corridor.
+- **Progressive samples:** Current `applySunDiscSample` uses
+  `radius * sqrt((sampleIndex + 0.5) / sampleCount)`. Changing16→64 moves existing
+  directions, and the first16 of64 cover mainly the central half-radius. Simply
+  publishing that prefix biases early penumbrae. First evaluate a deterministic,
+  count-independent low-discrepancy sequence covering the entire disc at useful
+  checkpoints, with a versioned cache identity. Reference:
+  [PBRT Sobol samplers](https://www.pbr-book.org/4ed/Sampling_and_Reconstruction/Sobol_Samplers).
+  At unchanged geometry/projection/resolution, retain mean plus count (or weighted
+  sum plus total weight) and append samples:16→32→64 needs64 evaluations instead
+  of112 for three independent runs. This is an operation count, not a timing.
+  Quality comparison must reject the previously reported speckled previews.
+- **Progressive resolution:** Half width/height gives a quarter of receiver
+  pixels; quarter width/height gives a sixteenth. A completed low-resolution mask
+  can be displayed upscaled without recomputing geometry. Missing high-resolution
+  visibility cannot be reconstructed losslessly from that mean: evaluate the
+  samples on the finer grid. Per-direction depth can be reused only with unchanged
+  light projection/resolution and resident entries; the observed one-page cache
+  cannot provide an entire64-sample sequence. Do not equate fewer capture pixels
+  with proportional speedup of depth rendering or scene traversal.
+- **Acceptance:** Compare identical camera/time/mesh/quality and cold versus warm
+  caches separately. Record base hard fill, first/full target hard fill, first/full
+  soft publication; per-page wait, resets/discarded samples, depth hits/misses,
+  CPU submission and GPU time where supported. Reload, pan and time-change checks
+  must retain chimney casters and coverage. Keep completed masks on motion; cancel
+  unfinished obsolete work. No sampler/LOD/cache policy change was enabled here.
+
+# SOFT-PIPELINE-FOLLOWUP-20260909 — bounded scheduling changes and parity rejection
+
+- **Status:** Uncommitted implementation following the review above. Mesh
+  coverage/current-camera fixes and base-to-target scheduling are recorded in
+  MESH-COVERAGE-AUDIT-20260909 in engines/maplibre/README.md.
+- **Decision:** Hard publication still executes first. While receiver coverage
+  is missing, retain its exclusive priority; once every current page has a
+  presentable mask, allow ready soft integration in the same frame even if
+  siblings have pending hard refinements. Keep existing per-corridor readiness,
+  CPU submission budget, completed masks and motion cancellation. Do not expose
+  unfinished sample means. Batch changed bounds in `invalidateCasters`: each
+  intersecting page gets one revision increment/cache invalidation per batch,
+  not one per overlapping changed tile. Unrelated pages remain untouched.
+- **Operation checks:** Under ten consecutive hard-refinement scheduling ticks
+  with full coverage, ready soft work now gets ten submissions instead of zero.
+  One batch of 100 overlapping bounds changes advances the affected page exactly
+  as one equivalent bounds change; previously it invalidated it 100 times. These
+  are deterministic work counts, not GPU or end-to-end timing measurements.
+- **Shared-depth experiment:** Existing production page planner/controller with
+  mocked draw backend, two adjacent 20m receiver cells, 64 samples, 256px maximum
+  axis. Separate:128 depth passes, worst-axis 0.321289m/texel; merged:64 passes,
+  0.528721m/texel. Same cap saves draws by sacrificing about65% texel precision.
+  Rejected for production; current live 4096px pages were already budget-limited.
+  This does NOT prove a larger-budget shared projection cannot win. Such a path
+  still needs a real-GPU benchmark at equal ground texel precision and memory
+  accounting; no new merged backend or hidden resolution reduction was enabled.
+- **Validation:** 57 shadow scheduling/depth-cache tests plus99 engine tests pass.
+  Test fixtures intentionally mock GPU submission; they cannot measure GPU time.
+  Browser camera round-trip retained Mesh2024, hard shading and screen coverage;
+  requests remained active. No guaranteed zero-flicker/complete-soft-convergence
+  claim. Atomic receiver/caster/mask replacement under continuous asynchronous
+  streaming, exact caster-ID dependency pruning and equal-quality shared-depth
+  timing remain open rather than being silently approximated.

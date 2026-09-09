@@ -106,6 +106,7 @@ export function createThreeTilesRuntimeState(
   const meshAuditTimer: ReturnType<typeof setTimeout> | null = null;
   const motionCoverageTimer: ReturnType<typeof setTimeout> | null = null;
   const motionCoverageDue = false;
+  const meshBaseCoverageReady = false;
   const meshDemandSweepPending = options.providesTerrain === true;
   const lastMemoryCheck = Number.NEGATIVE_INFINITY;
   const normalParseConcurrency: number | null = null;
@@ -288,6 +289,7 @@ export function createThreeTilesRuntimeState(
     meshAuditTimer,
     motionCoverageTimer,
     motionCoverageDue,
+    meshBaseCoverageReady,
     meshDemandSweepPending,
     lastMemoryCheck,
     normalParseConcurrency,

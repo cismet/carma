@@ -49,8 +49,16 @@ describe("shadow surface display settings", () => {
         />
       </StyleProvider>
     );
-    fireEvent.click(getByRole("radio", { name: "4 px" }));
-    expect(setState).toHaveBeenLastCalledWith({ ...state, meshErrorTarget: 4 });
+    expect((getByRole("radio", { name: "2 px" }) as HTMLInputElement).checked).toBe(true);
+    for (const [label, value] of [
+      ["0,25 px", 0.25],
+      ["0,5 px", 0.5],
+      ["1 px", 1],
+      ["4 px", 4],
+    ] as const) {
+      fireEvent.click(getByRole("radio", { name: label }));
+      expect(setState).toHaveBeenLastCalledWith({ ...state, meshErrorTarget: value });
+    }
     const budget = getByRole("spinbutton", { name: "Mesh-Cache in GiB" });
     expect(budget.getAttribute("aria-valuemax")).toBe("24");
     fireEvent.change(budget, { target: { value: "8" } });

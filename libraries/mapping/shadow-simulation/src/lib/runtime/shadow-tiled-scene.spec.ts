@@ -170,9 +170,13 @@ describe("Geoportal tiled scene adapter", () => {
     const f = fixture();
     f.adapter.cancelPending(true);
     expect(f.accumulation.cancelPending).toHaveBeenCalledOnce();
-    expect(f.accumulation.presentation.beginSolarTransition).toHaveBeenCalledOnce();
+    expect(
+      f.accumulation.presentation.beginSolarTransition
+    ).toHaveBeenCalledOnce();
     f.adapter.cancelPending();
-    expect(f.accumulation.presentation.beginSolarTransition).toHaveBeenCalledOnce();
+    expect(
+      f.accumulation.presentation.beginSolarTransition
+    ).toHaveBeenCalledOnce();
     expect(f.accumulation.dispose).not.toHaveBeenCalled();
     f.adapter.dispose();
   });
@@ -228,6 +232,39 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.pages.renderPageSample).not.toHaveBeenCalled();
     expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
     expect(f.light.visible).toBe(true);
+  });
+
+  it("continues ready soft corridors during sibling hard refinements after coverage", () => {
+    const f = fixture();
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    f.accumulation.renderHard.mockReturnValue({
+      published: 1,
+      needsRepaint: true,
+    });
+    f.accumulation.render.mockReturnValue({
+      progress: 0.5,
+      settled: false,
+      needsRepaint: true,
+    });
+    const camera = new THREE.Camera();
+    const frame = {
+      width: 100,
+      height: 100,
+      viewKey: "covered",
+      styleEpoch: 0,
+      samples: 64,
+      active: true,
+    };
+    for (let i = 0; i < 10; i += 1) {
+      expect(f.adapter.renderProgressive(camera, frame)?.needsRepaint).toBe(
+        true
+      );
+    }
+    expect(f.accumulation.render).toHaveBeenCalledTimes(10);
+    expect(f.accumulation.renderHard.mock.invocationCallOrder[0]).toBeLessThan(
+      f.accumulation.render.mock.invocationCallOrder[0]
+    );
+    f.adapter.dispose();
   });
 
   it("replays retained masks during motion without recapturing corridor depths", () => {
@@ -649,7 +686,7 @@ describe("Geoportal tiled scene adapter", () => {
     );
     f.adapter.invalidateContent([changedBounds]);
     expect(f.pages.invalidateCasters).toHaveBeenCalledOnce();
-    expect(f.pages.invalidateCasters).toHaveBeenCalledWith(changedBounds);
+    expect(f.pages.invalidateCasters).toHaveBeenCalledWith([changedBounds]);
     expect(f.pages.clearCache).toHaveBeenCalledOnce();
     f.adapter.dispose();
     expect(f.pages.dispose).toHaveBeenCalledOnce();

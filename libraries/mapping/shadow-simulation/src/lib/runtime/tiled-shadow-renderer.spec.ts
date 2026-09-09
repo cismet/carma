@@ -192,6 +192,42 @@ const fixture = (budget = 8 * 1024 ** 2, targetPixels = 1) => {
 };
 
 describe("shared tiled shadow runtime", () => {
+  it("measures the depth-pass versus texel-resolution tradeoff of merging capped pages", () => {
+    const separate = fixture();
+    const merged = fixture();
+    merged.setView([
+      {
+        id: "merged",
+        bounds: merged.cells[0].bounds.clone().union(merged.cells[1].bounds),
+      },
+    ]);
+    for (let sample = 0; sample < 64; sample += 1) {
+      separate.pages.renderSample(separate.camera, sample, 64);
+      merged.pages.renderSample(merged.camera, sample, 64);
+    }
+    const texelSize = (f: ReturnType<typeof fixture>) =>
+      Math.max(
+        2 / Math.abs(f.shadowMatrices[0][0]) / f.depths[0].width,
+        2 / Math.abs(f.shadowMatrices[0][5]) / f.depths[0].height
+      );
+    expect(separate.pages.stats.depthRenders).toBe(128);
+    expect(merged.pages.stats.depthRenders).toBe(64);
+    // Fewer draws at an unchanged per-page cap are NOT quality parity.
+    expect(texelSize(merged)).toBeGreaterThan(texelSize(separate) * 1.1);
+    console.info(
+      "shadow-merge-operation-benchmark",
+      JSON.stringify({
+        separateDepthPasses: separate.pages.stats.depthRenders,
+        mergedDepthPasses: merged.pages.stats.depthRenders,
+        separateMetersPerTexel: texelSize(separate),
+        mergedMetersPerTexel: texelSize(merged),
+        gpuTiming: "not measured; mocked draw backend",
+      })
+    );
+    separate.pages.dispose();
+    merged.pages.dispose();
+  });
+
   it("replays colour without generating depth and restores renderer state on failure", () => {
     const f = fixture();
     f.renderer.shadowMap.autoUpdate = true;
@@ -658,6 +694,28 @@ describe("shared tiled shadow runtime", () => {
     expect(f.depths).toHaveLength(3);
     expect(f.pages.stats.hits).toBe(1);
     f.pages.dispose();
+  });
+
+  it("invalidates each page once for overlapping changes in one publication", () => {
+    const f = fixture();
+    const changes = Array.from(
+      { length: 100 },
+      () =>
+        new THREE.Box3(new THREE.Vector3(1, 5, 2), new THREE.Vector3(2, 6, 3))
+    );
+    const before = f.pages.accumulationPages.map(({ revision }) => revision);
+    expect(f.pages.invalidateCasters(changes)).toEqual(["0"]);
+    const after = f.pages.accumulationPages.map(({ revision }) => revision);
+    expect(after[0]).not.toEqual(before[0]);
+    expect(after[1]).toEqual(before[1]);
+    // One batch has exactly the same dependency revision as one matching edit.
+    const reference = fixture();
+    reference.pages.invalidateCasters(changes[0]);
+    expect(after).toEqual(
+      reference.pages.accumulationPages.map(({ revision }) => revision)
+    );
+    f.pages.dispose();
+    reference.pages.dispose();
   });
 
   it("does not reuse a retained page after the sun changed while it was offscreen", () => {

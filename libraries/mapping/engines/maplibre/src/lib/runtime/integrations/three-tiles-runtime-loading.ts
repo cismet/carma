@@ -72,6 +72,7 @@ export function createThreeTilesLoading(
     | "effectiveErrorTarget"
     | "errorTargetState"
     | "lastMainViewConverged"
+    | "meshBaseCoverageReady"
     | "ceilingBytes"
     | "lastProgressAt"
     | "deferred"
@@ -253,20 +254,14 @@ export function createThreeTilesLoading(
     () => {
       const cache = getRuntimeCache();
       if (!runtimeState.tiles || !cache) return;
-      // Mesh surfaces fill the viewport at 16 px and then deterministically
-      // halve the error. The displayed parent cut is retained while children
-      // arrive; cache pressure may never relax the user's final mesh target.
+      // Fill base coverage first, then let independent complete families reach
+      // the requested target. Global 8/4/2px barriers delayed ready corridors.
       if (runtimeState.options.providesTerrain) {
         if (
-          runtimeState.lastMainViewConverged &&
+          runtimeState.meshBaseCoverageReady &&
           runtimeState.effectiveErrorTarget > runtimeState.requestedErrorTarget
         ) {
-          applyEffectiveErrorTarget(
-            Math.max(
-              runtimeState.requestedErrorTarget,
-              runtimeState.effectiveErrorTarget / 2
-            )
-          );
+          applyEffectiveErrorTarget(runtimeState.requestedErrorTarget);
         }
         return;
       }
@@ -621,7 +616,16 @@ export function createThreeTilesLoading(
       // consume it. The former 42-64 request fan-out accumulated 225 parse jobs
       // and starved rendering. A bounded backlog gate keeps decoder and
       // browser-thread scene commits fed without building an unbounded blob wall.
+      const previousDownloadConcurrency =
+        runtimeState.tiles.downloadQueue.maxJobsPerOrigin;
       runtimeState.tiles.downloadQueue.maxJobsPerOrigin = downloadConcurrency;
+      if (downloadConcurrency > previousDownloadConcurrency) {
+        // Decision: CORRIDOR-REQUEST-CONCURRENCY-20260909 in engines/maplibre/README.md.
+        // Updating the native limit does not wake an idle origin queue. Resume
+        // asynchronously on capacity recovery, independent of the next traversal
+        // or a different corridor completing its downloads/shadow work.
+        for (const queue of getDownloadQueues()) queue.scheduleJobRun();
+      }
     };
 
   const handleWireBytes: ThreeTilesRuntimeServices["handleWireBytes"] = (

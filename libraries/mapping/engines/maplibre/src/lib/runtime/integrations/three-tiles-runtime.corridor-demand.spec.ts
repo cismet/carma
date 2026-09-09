@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TilesRenderer } from "3d-tiles-renderer";
+import { PriorityQueue } from "3d-tiles-renderer/core";
 import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
 
 vi.hoisted(() => {
@@ -12,6 +13,30 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("current mesh corridor request admission", () => {
+  it("wakes paused downloads on capacity recovery without another traversal", () => {
+    const f = createMeshCorridorFixture();
+    const queue = new PriorityQueue();
+    const schedule = vi.spyOn(queue, "scheduleJobRun").mockImplementation(() => {});
+    const start = vi.spyOn(queue, "tryRunJobs").mockImplementation(() => {});
+    const origin = "https://resume.example.test";
+    try {
+      f.renderer.downloadQueue.originQueues.set(origin, queue);
+      f.renderer.downloadQueue.maxJobsPerOrigin = 0;
+      const frame = f.renderer.frameCount;
+      f.renderer.dispatchEvent({ type: "load-model" });
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(1);
+      expect(schedule).toHaveBeenCalledTimes(1);
+      expect(start).not.toHaveBeenCalled();
+      expect(f.renderer.frameCount).toBe(frame);
+      // Unchanged capacity must not enqueue redundant wakeups per tile.
+      f.renderer.dispatchEvent({ type: "load-model" });
+      expect(schedule).toHaveBeenCalledTimes(1);
+    } finally {
+      f.renderer.downloadQueue.originQueues.delete(origin);
+      f.dispose();
+    }
+  });
+
   it("selects sunward casters while unrelated downloads run, without a second native camera", () => {
     const setCamera = vi.spyOn(TilesRenderer.prototype, "setCamera");
     const f = createMeshCorridorFixture();

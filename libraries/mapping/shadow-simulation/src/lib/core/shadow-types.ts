@@ -14,7 +14,7 @@ export const SHADOW_QUALITY = {
 } as const;
 export type ShadowQualityMultiplier =
   (typeof SHADOW_QUALITY)[keyof typeof SHADOW_QUALITY];
-export type MeshErrorTargetPixels = 0.25 | 1 | 4;
+export type MeshErrorTargetPixels = 0.25 | 0.5 | 1 | 2 | 4;
 export const SHADOW_MSAA_MAX = "max" as const;
 export const DEFAULT_SHADOW_SUN_DISC_SAMPLES = 64;
 export const SHADOW_MSAA_OPTIONS = [0, 2, 4, 8, SHADOW_MSAA_MAX] as const;
@@ -88,7 +88,7 @@ export const resolveShadowTerrainQuality = (
 };
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 64;
-export const DEFAULT_MESH_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 1;
+export const DEFAULT_MESH_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 2;
 /** Explicit mesh-only ceiling; browser memory-pressure admission still applies. */
 export const DEFAULT_MESH_CACHE_BUDGET_BYTES = 24 * 1024 ** 3;
 export const DEFAULT_SHADOW_SURFACE_COLOR = "#d3d3d3";

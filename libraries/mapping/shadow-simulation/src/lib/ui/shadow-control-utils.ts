@@ -28,7 +28,9 @@ export const MESH_ERROR_TARGETS: ReadonlyArray<{
   value: MeshErrorTargetPixels;
 }> = [
   { label: "0,25 px", value: 0.25 },
+  { label: "0,5 px", value: 0.5 },
   { label: "1 px", value: 1 },
+  { label: "2 px", value: 2 },
   { label: "4 px", value: 4 },
 ];
 

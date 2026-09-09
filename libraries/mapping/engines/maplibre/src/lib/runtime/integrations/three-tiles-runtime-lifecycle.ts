@@ -83,6 +83,7 @@ export function createThreeTilesLifecycle(
     | "allocationFailed"
     | "deferred"
     | "motionCoverageDue"
+    | "meshBaseCoverageReady"
     | "meshAuditTimer"
     | "map"
     | "motionCoverageTimer"
@@ -162,6 +163,7 @@ export function createThreeTilesLifecycle(
     | "maybeFinalizeShadowSelection"
     | "measureUsedBytesMain"
     | "mainViewConverged"
+    | "mainViewWithinErrorFactor"
     | "applyErrorTargetPolicy"
     | "sweepSettledMeshDemand"
     | "scheduleSettledMeshAudit"
@@ -397,6 +399,7 @@ export function createThreeTilesLifecycle(
     };
 
   const handleViewEnd: ThreeTilesRuntimeServices["handleViewEnd"] = () => {
+    runtimeState.meshBaseCoverageReady = false;
     if (runtimeState.motionCoverageTimer !== null)
       clearTimeout(runtimeState.motionCoverageTimer);
     runtimeState.motionCoverageTimer = null;
@@ -554,9 +557,10 @@ export function createThreeTilesLifecycle(
         dependencies.isTileInMainView(runtimeTile) &&
         shouldDeferMeshRefinement(
           tile,
-          runtimeState.map?.isMoving?.()
+          runtimeState.map?.isMoving?.() || !runtimeState.meshBaseCoverageReady
             ? initialMeshLoadError(runtimeState.requestedErrorTarget)
-            : runtimeState.requestedErrorTarget
+            : runtimeState.requestedErrorTarget,
+          (parent) => dependencies.getTileScreenError(parent as RuntimeTile)
         )
       )
         return;
@@ -727,6 +731,8 @@ export function createThreeTilesLifecycle(
         frame.viewport.y
       );
       dependencies.prepareViewFrustums(viewCamera);
+      if (runtimeState.mainViewProjectionChanged)
+        runtimeState.meshBaseCoverageReady = false;
       // Refresh both pending jobs AND cached candidates before the upstream
       // admission/eviction sort; a finished old query is not a priority cache.
       if (
@@ -815,6 +821,13 @@ export function createThreeTilesLifecycle(
           if (visible) runtimeState.tiles.markTileUsed(tile);
         }
       }
+      runtimeState.lastMainViewConverged = dependencies.mainViewConverged();
+      runtimeState.meshBaseCoverageReady =
+        dependencies.mainViewWithinErrorFactor(
+          initialMeshLoadError(runtimeState.requestedErrorTarget) /
+            runtimeState.effectiveErrorTarget,
+          false
+        );
       if (performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000) {
         runtimeState.lastRuntimeDebugAt = performance.now();
         const residentTiles = [
@@ -858,7 +871,7 @@ export function createThreeTilesLifecycle(
             memoryAdmissionPaused: runtimeState.memoryAdmissionPaused,
             effectiveErrorTarget: runtimeState.effectiveErrorTarget,
             requestedErrorTarget: runtimeState.requestedErrorTarget,
-            mainViewConverged: dependencies.mainViewConverged(),
+            mainViewConverged: runtimeState.lastMainViewConverged,
           })
         );
       }
@@ -868,7 +881,6 @@ export function createThreeTilesLifecycle(
       dependencies.maybeFinalizeShadowSelection();
       if (!runtimeState.shadowSelectionEnabled)
         dependencies.measureUsedBytesMain();
-      runtimeState.lastMainViewConverged = dependencies.mainViewConverged();
       dependencies.applyErrorTargetPolicy();
       dependencies.applyRequestConcurrency();
       if (runtimeState.viewQualityAuditPasses > 0) {

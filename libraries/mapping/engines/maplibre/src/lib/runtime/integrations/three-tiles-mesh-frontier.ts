@@ -322,7 +322,8 @@ export const advanceMeshCorridorFrontier = ({
  */
 export const shouldDeferMeshRefinement = (
   tile: Tile,
-  requestedError: number
+  requestedError: number,
+  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error
 ): boolean => {
   for (let parent = tile.parent; parent; parent = parent.parent) {
     if (
@@ -331,10 +332,10 @@ export const shouldDeferMeshRefinement = (
       isMeshTileUnconditionallyRefined(parent)
     )
       continue;
+    const error = errorPixels(parent);
     return (
-      parent.traversal.error <= requestedError ||
-      (parent.traversal.error <= initialMeshLoadError(requestedError) &&
-        !isLoadedMesh(parent))
+      error <= requestedError ||
+      (error <= initialMeshLoadError(requestedError) && !isLoadedMesh(parent))
     );
   }
   return false;

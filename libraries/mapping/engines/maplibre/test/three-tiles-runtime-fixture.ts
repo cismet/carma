@@ -153,6 +153,9 @@ export const createMeshCorridorFixture = (rotation = 0) => {
     load,
     queued,
     setSun,
+    setTileError: (value: Tile, error: number) => {
+      errors.set(value, { ...errors.get(value)!, error });
+    },
     receiverBox,
     corridor: receiverBox.clone().expandByVector(new THREE.Vector3(0, 0, 51)),
     update: () => runtime.scene.update(frame),

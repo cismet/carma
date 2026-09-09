@@ -12,6 +12,57 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("mesh receiver and sunward caster publication", () => {
+  it("does not declare a partial loaded viewport complete", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      const missing = f.tile("missing", 12, 22, -100, 1, true, f.root);
+      f.root.children.push(missing);
+      f.update();
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+      expect(f.runtime.scene.isMainViewReady()).toBe(false);
+      expect(f.renderer.errorTarget).toBe(16);
+      f.load(missing);
+      f.update();
+      expect(f.renderer.visibleTiles.has(missing)).toBe(true);
+      expect(f.runtime.scene.isMainViewReady()).toBe(true);
+      expect(f.renderer.errorTarget).toBe(1);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("uses current camera errors rather than a previous traversal's LOD", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      const child = f.tile("next1", -10, 10, -100, 1, true, f.receiver);
+      f.receiver.children = [child];
+      f.receiver.traversal.error = 0.25;
+      f.setTileError(f.receiver, 16);
+      f.update();
+      expect(f.runtime.scene.isMainViewReady()).toBe(false);
+      f.renderer.queueTileForDownload(child);
+      expect(f.queued).toHaveBeenCalledWith(child);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("keeps the settled audit awake for an unloaded visible branch", () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    try {
+      f.root.children.push(f.tile("missing", 12, 22, -100, 1, true, f.root));
+      f.update();
+      vi.mocked(f.frame.map.triggerRepaint).mockClear();
+      vi.advanceTimersByTime(1_000);
+      expect(f.frame.map.triggerRepaint).toHaveBeenCalled();
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps loaded target-quality receivers under their own cache pressure", () => {
     const f = createMeshCorridorFixture();
     try {

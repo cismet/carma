@@ -5,7 +5,10 @@ import { receiverMatchedTileError } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneTileVolume } from "./shared-three-scene-layer";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
-import { hasMeshRefinementContentInView } from "./three-tiles-mesh-frontier";
+import {
+  getReadyMeshRegionCut,
+  hasMeshRefinementContentInView,
+} from "./three-tiles-mesh-frontier";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -55,6 +58,7 @@ export function createThreeTilesSpatial(
     "getStableTileId" | "getTileLoadReason"
   >
 ) {
+  let cameraErrors = new WeakMap<RuntimeTile, number>();
   const readModelWorldBounds: ThreeTilesRuntimeServices["readModelWorldBounds"] =
     (model: THREE.Object3D, target: THREE.Box3): THREE.Box3 => {
       // Tile payloads are immutable after GLTF publication. Updating the root's
@@ -213,7 +217,8 @@ export function createThreeTilesSpatial(
     (
       factor: number,
       allowBlocked = true,
-      frontier: ReadonlySet<Tile> | undefined = runtimeState.options.providesTerrain
+      frontier: ReadonlySet<Tile> | undefined = runtimeState.options
+        .providesTerrain
         ? runtimeState.displayedMeshFrontier
         : runtimeState.tiles?.visibleTiles
     ) => {
@@ -224,6 +229,19 @@ export function createThreeTilesSpatial(
       // startup target while every request queue is already empty.
       if (!runtimeState.tiles || !frontier || frontier.size === 0) return false;
       const acceptedError = runtimeState.effectiveErrorTarget * factor;
+      const root = runtimeState.tiles.rootTileset?.root;
+      if (runtimeState.options.providesTerrain && root) {
+        // A complete-looking loaded subset is not proof of viewport coverage.
+        // Missing intersecting branches must keep the settled demand audit alive.
+        return (
+          getReadyMeshRegionCut(root, frontier, acceptedError, (tile) => ({
+            intersects:
+              !tile.engineData?.boundingVolume ||
+              isTileInMainView(tile as RuntimeTile),
+            errorPixels: getTileScreenError(tile as RuntimeTile),
+          })) !== null
+        );
+      }
       for (const visible of frontier) {
         const tile = visible as RuntimeTile;
         const children = (tile.children ?? []) as RuntimeTile[];
@@ -231,7 +249,7 @@ export function createThreeTilesSpatial(
           continue;
         }
         if (!isTileInMainView(tile)) continue;
-        if (tile.traversal.error <= acceptedError) continue;
+        if (getTileScreenError(tile) <= acceptedError) continue;
         // A loose parent box can intersect the camera while all processed child
         // volumes miss it. There is no visible refinement to fetch in that branch.
         // Test current bounds, not a previous traversal's inFrustum/failed flag;
@@ -278,9 +296,8 @@ export function createThreeTilesSpatial(
     tile: RuntimeTile
   ): number => {
     if (!runtimeState.tiles) return Number.POSITIVE_INFINITY;
-    if (isTileInMainView(tile) && Number.isFinite(tile.traversal?.error)) {
-      return tile.traversal.error;
-    }
+    const cached = cameraErrors.get(tile);
+    if (cached !== undefined) return cached;
     const target = {
       inView: false,
       error: Number.POSITIVE_INFINITY,
@@ -292,7 +309,11 @@ export function createThreeTilesSpatial(
       target.inView = true;
       target.error = tile.traversal?.error ?? Number.POSITIVE_INFINITY;
     }
-    if (target.inView) return target.error;
+    if (target.inView) {
+      if (tile.engineData?.boundingVolume?.distanceToPoint)
+        cameraErrors.set(tile, target.error);
+      return target.error;
+    }
     const bounds = tile.engineData?.boundingVolume;
     if (bounds?.getAABB) {
       readOrientedTileBounds(
@@ -355,6 +376,8 @@ export function createThreeTilesSpatial(
   const prepareViewFrustums: ThreeTilesRuntimeServices["prepareViewFrustums"] =
     (viewCamera: THREE.Camera) => {
       if (!runtimeState.tiles) return;
+      // Scope native camera-error memoization to this audit, never a prior drag.
+      cameraErrors = new WeakMap();
       // Refresh the parents directly, then let TilesGroup recompute its own
       // world matrix so its cached inverse (used by the traversal) stays in sync.
       runtimeState.offsetGroup.updateWorldMatrix(true, false);

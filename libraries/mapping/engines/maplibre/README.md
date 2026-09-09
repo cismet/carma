@@ -409,6 +409,37 @@ terrain-mesh runtime to the shared scene.
 - **Open:** Spatial mesh readiness/invalidation and atomic same-LOD mesh/hard
   shadow publication remain separate work, as listed above. No broad build/lint.
 
+### CORRIDOR-REQUEST-CONCURRENCY-20260909
+
+- **Status/date:** Implemented 2026-09-09; focused concurrency regression tests.
+- **Context and constraints:** Corridors share a receiver-union spatial index and
+  native per-origin download queues. They do not await each other's network or
+  shadow completion. Parsing backpressure bounds downloads to 16, then 4 at a
+  backlog of 12, and 0 at 24; existing in-flight transfers continue. Main-thread
+  metadata traversal is still bounded to 64 nodes per update (8 during motion),
+  not moved into a worker by this change.
+- **Decision:** When available download concurrency increases, explicitly schedule
+  the existing origin queues. The upstream limit setter only changes numbers;
+  it does not wake stopped queues. Use the native deferred/coalesced scheduler,
+  not synchronous fetch dispatch from a model-publication callback. Keep tile
+  identity deduplication and the shared global capacity limit.
+- **Alternatives and disposition:** A queue/worker per corridor is not introduced:
+  it would duplicate shared requests or multiply capacity unless another global
+  scheduler were added (inspection). Whole-tree worker selection remains deferred.
+  Earlier small-query worker measurements remain in MESH-CORRIDOR-MEMBERSHIP-20260909;
+  they are not a benchmark of whole-tree offloading.
+- **Evidence:** `fetch-tile-response.spec.ts` uses the real native download queue
+  with two same-origin requests and mocked transport: the second finishes while
+  the first remains unresolved. `three-tiles-runtime.corridor-demand.spec.ts`
+  verifies asynchronous wakeup on capacity recovery without a new traversal,
+  no repeated wakeup at unchanged capacity, parallel admission and deduplication.
+  These are deterministic behavior tests, not a throughput benchmark. Internal
+  Codex browser spot checks still show four concurrent downloads and a 25-27 tile
+  parsing backlog; no end-to-end speedup or settled-scene claim is made.
+- **Revisit when:** Parsing throughput, CPU traversal time, or request inventory
+  shows the next limiting stage. Raising downloads alone does not clear parsing
+  backlog; the reported multi-minute convergence remains under investigation.
+
 ### MESH-CORRIDOR-MEMBERSHIP-20260909
 
 - **Status:** Implemented; focused geometry/publication tests and live mesh
@@ -510,3 +541,29 @@ terrain-mesh runtime to the shared scene.
 - **Validation:** 115 focused engine tests and 65 shadow/cache tests pass. No
   broad build, lint or full monorepo suite. Real-device soft convergence and
   source anomalies remain distinct from this deterministic contract coverage.
+
+### MESH-COVERAGE-AUDIT-20260909 — missing branches and current camera demand
+
+- **Context:** Testing only displayed leaves could declare a partial viewport
+  complete. A retained parent's finite traversal error could still belong to a
+  previous camera, incorrectly deferring needed refinement. Global 16/8/4/2px
+  completion barriers also held independent receiver families back.
+- **Decision:** Reuse `getReadyMeshRegionCut` against the root and actual receiver
+  cut to prove coverage of every intersecting branch. Unknown/missing content is
+  not coverage. Evaluate native camera errors once per tile per audit, and use
+  them for readiness and parent admission. Preserve the existing bounded motion
+  checks and one-second settled audit; an incomplete subset cannot stop it.
+  Require base coverage before fine admission, then release the requested target
+  directly instead of waiting for viewport-wide intermediate LOD levels. Existing
+  loaded-family replacement and retained detail policies remain in force.
+- **Alternatives:** Another frame-rate tree traversal rejected; existing motion
+  and settled scheduling already supplies the wakeups. No new worker, queue,
+  manual HTTP downloader or memory heuristic. Do not disable failed-child checks
+  or drop visible parents to make loading appear complete.
+- **Validation:** 99 focused engine/runtime tests pass, including an unloaded
+  visible branch, stale parent error, settled recheck wakeup and 16-to-target
+  admission after coverage. Internal browser Mesh2024 at 51.2700831/7.1996327,
+  z18.275 ->19.275 ->18.275 retained visually filled coverage in snapshots.
+  This is not frame-by-frame mouse-drag proof. Final snapshot still had queued
+  requests/parse backlog and target1px not converged; complete target liveness
+  and wall-time improvement are not claimed. No build/lint/commit/push.
