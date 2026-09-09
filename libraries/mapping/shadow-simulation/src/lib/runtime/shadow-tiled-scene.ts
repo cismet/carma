@@ -310,7 +310,7 @@ export class ShadowTiledScene {
     if (this.pages.accumulationPages.length === 0) return false;
     this.renderWithHost(camera, () => {
       if (refreshHard) this.captureHard(camera);
-      this.renderContent(camera, round, samples);
+      this.renderContent(camera, round, samples, !refreshHard);
     });
     return true;
   }
@@ -373,7 +373,8 @@ export class ShadowTiledScene {
   private renderContent(
     camera: THREE.Camera,
     round: number | null,
-    samples: number
+    samples: number,
+    replayOnly = false
   ) {
     const pages = this.accumulation.capturePages;
     this.accumulation.presentation.beginFrame(pages);
@@ -387,22 +388,38 @@ export class ShadowTiledScene {
     let incomplete = false;
     const draw = () => {
       this.presentedPageIds.clear();
-      for (const { page, ready } of states) {
-        if (!ready) continue;
-        const rendered = this.accumulation.presentation.render(
-          this.scene,
-          page,
-          samples,
-          () =>
-            this.pages.renderPageSample(
-              camera,
-              page.id,
-              round ?? 0,
-              round === null ? 1 : samples
-            )
-        );
-        if (rendered) this.presentedPageIds.add(page.id);
-        else incomplete = true;
+      // One common hard pass supplies all uncovered/disoccluded receiver pixels.
+      // Replaying a finite-disc mask below is colour-only: no page depth rebuild,
+      // no sample-variant change, and no loss of the retained soft result on drag.
+      const lightVisible = this.host.light.visible;
+      this.host.light.visible = replayOnly;
+      try {
+        if (replayOnly) this.renderer.render(this.scene, camera);
+        for (const { page, replay, ready } of states) {
+          if (!ready) continue;
+          if (replayOnly && !replay) {
+            this.presentedPageIds.add(page.id);
+            continue;
+          }
+          const rendered = this.accumulation.presentation.render(
+            this.scene,
+            page,
+            samples,
+            () =>
+              replayOnly
+                ? this.pages.renderPageColor(camera, page.id)
+                : this.pages.renderPageSample(
+                    camera,
+                    page.id,
+                    round ?? 0,
+                    round === null ? 1 : samples
+                  )
+          );
+          if (rendered) this.presentedPageIds.add(page.id);
+          else incomplete = true;
+        }
+      } finally {
+        this.host.light.visible = lightVisible;
       }
     };
     // Only idle, exact-view presentation is memoized. Solar-disc integration

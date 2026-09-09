@@ -782,6 +782,38 @@ export class TiledShadowRenderer {
     return true;
   }
 
+  /** Replay an already integrated visibility mask with the host's common hard
+   * shadow as disocclusion fallback. Presentation must not regenerate a page's
+   * depth map just because its observer camera moved. The caller has rendered
+   * the common light once and installs the retained-visibility material hook.
+   */
+  renderPageColor(camera: THREE.Camera, pageId: string): boolean {
+    const page = this.pages.get(pageId);
+    if (this.disposed || !page || !this.activePageIds.has(pageId)) return false;
+    const { renderer, scene } = this;
+    const clipping = renderer.clippingPlanes;
+    const autoClear = renderer.autoClear;
+    const background = scene.background;
+    const updateShadows = renderer.shadowMap.autoUpdate;
+    const shadowsNeedUpdate = renderer.shadowMap.needsUpdate;
+    renderer.autoClear = false;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = false;
+    renderer.clippingPlanes = [...clipping, ...page.planes];
+    scene.background = null;
+    try {
+      renderer.render(scene, camera);
+      this.colorPasses += 1;
+      return true;
+    } finally {
+      renderer.clippingPlanes = clipping;
+      renderer.autoClear = autoClear;
+      renderer.shadowMap.autoUpdate = updateShadows;
+      renderer.shadowMap.needsUpdate = shadowsNeedUpdate;
+      scene.background = background;
+    }
+  }
+
   get accumulationPages(): readonly ShadowAccumulationPage[] {
     return [...this.activePageIds].map((id) => {
       const page = this.pages.get(id)!;

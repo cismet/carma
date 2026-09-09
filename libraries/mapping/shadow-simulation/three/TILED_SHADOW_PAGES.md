@@ -642,3 +642,24 @@ finite-disc convergence; neither is established as solved by this decision.
 At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
 45/77 passed regional readiness. Full soft coverage is still unresolved; the
 <10 s result above concerns the visible hard chimney shadows only.
+
+### Decision MESH-DRAG-REPLAY-20260909
+
+- **Scope:** keep completed corridor visibility masks during camera motion;
+  coalesce latest-camera coverage audits at 180 ms without trailing-debounce
+  starvation. Input handlers schedule work rather than traversing immediately.
+- **Implementation:** one common hard fallback plus colour-only retained-mask
+  replay during motion. Replay disables shadow-map updates and restores renderer
+  state even on failure. Stationary integration and final disc samples are unchanged.
+- **Evidence:** Apple M4 Max, Chrome/Metal, 2400 × 2286 physical pixels, Mesh2024
+  chimney area. Synthetic 24-move test: elapsed 9.76 → 5.59 s; synchronous render
+  time 7.66 → 4.20 s; median frame interval 185.7 → 86.9 ms. Mesh update time
+  142 → 78 ms. These are preliminary warm-session CPU measurements, not GPU
+  timings or an INP benchmark; refinement state was not identical between runs.
+- **Alternatives / remaining:** per-page depth regeneration while replaying is
+  unnecessary; drawing the whole scene for each colour page remains expensive.
+  Do not claim smooth 30 FPS or complete soft coverage. Fifty focused tests pass.
+- **Visual investigation:** bypassing retained-mask depth rejection in a temporary
+  browser diagnostic restored contiguous soft chimney shadows. This bypass is
+  NOT shipped: it would permit disocclusion leaks. Investigate reprojection depth
+  validation separately; the finite solar-disc integration remains in place.

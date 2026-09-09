@@ -192,6 +192,32 @@ const fixture = (budget = 8 * 1024 ** 2, targetPixels = 1) => {
 };
 
 describe("shared tiled shadow runtime", () => {
+  it("replays colour without generating depth and restores renderer state on failure", () => {
+    const f = fixture();
+    f.renderer.shadowMap.autoUpdate = true;
+    f.renderer.shadowMap.needsUpdate = true;
+    const clipping = f.renderer.clippingPlanes;
+    const autoClear = f.renderer.autoClear;
+    const background = f.scene.background;
+    f.renderer.render.mockImplementationOnce(() => {
+      expect(f.renderer.shadowMap.autoUpdate).toBe(false);
+      expect(f.renderer.shadowMap.needsUpdate).toBe(false);
+      expect(f.renderer.clippingPlanes.length).toBe(clipping.length + 4);
+      throw new Error("colour draw failed");
+    });
+    expect(() => f.pages.renderPageColor(f.camera, "0")).toThrow(
+      "colour draw failed"
+    );
+    expect(f.pages.stats.depthRenders).toBe(0);
+    expect(f.renderer.shadowMap.autoUpdate).toBe(true);
+    expect(f.renderer.shadowMap.needsUpdate).toBe(true);
+    expect(f.renderer.clippingPlanes).toBe(clipping);
+    expect(f.renderer.autoClear).toBe(autoClear);
+    expect(f.scene.background).toBe(background);
+    expect(f.pages.renderPageColor(f.camera, "missing")).toBe(false);
+    f.pages.dispose();
+  });
+
   it("reprojects retained pages without invalidating their shadow captures", () => {
     const f = fixture();
     f.pages.renderSample(f.camera, 0, 4);

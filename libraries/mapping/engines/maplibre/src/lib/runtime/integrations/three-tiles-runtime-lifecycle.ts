@@ -54,7 +54,7 @@ import {
 } from "./three-tiles-runtime-vendor";
 import {
   KICKSTART_INTERVAL_MS,
-  MESH_MOTION_COVERAGE_DEBOUNCE_MS,
+  MESH_MOTION_COVERAGE_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
   VIEW_QUALITY_AUDIT_PASSES,
 } from "./three-tiles-runtime-config";
@@ -342,11 +342,10 @@ export function createThreeTilesLifecycle(
         !runtimeState.map?.isMoving?.()
       )
         return;
-      if (runtimeState.motionCoverageTimer !== null)
-        clearTimeout(runtimeState.motionCoverageTimer);
-      // Trailing debounce: pointer frames only draw the retained cut. After a
-      // short input pause one bounded traversal may admit newly exposed coarse
-      // coverage; network and worker queues continue independently meanwhile.
+      if (runtimeState.motionCoverageTimer !== null) return;
+      // Coalesce continuous motion into one bounded latest-camera audit per
+      // interval. A trailing debounce starves coverage until the pointer stops.
+      // No traversal runs in the input handler; network/worker queues continue.
       runtimeState.motionCoverageTimer = setTimeout(() => {
         runtimeState.motionCoverageTimer = null;
         runtimeState.motionCoverageDue = true;
@@ -354,7 +353,7 @@ export function createThreeTilesLifecycle(
         dependencies.requestShadowSelectionRefresh();
         runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
         dependencies.requestRender();
-      }, MESH_MOTION_COVERAGE_DEBOUNCE_MS);
+      }, MESH_MOTION_COVERAGE_INTERVAL_MS);
     };
 
   const handleViewEnd: ThreeTilesRuntimeServices["handleViewEnd"] = () => {

@@ -56,6 +56,7 @@ describe("Geoportal tiled scene adapter", () => {
       updatePresentation: vi.fn(),
       renderSample: vi.fn(),
       renderPageSample: vi.fn(() => true),
+      renderPageColor: vi.fn(() => true),
       getPageGeometry: vi.fn(() => ({
         casterBounds: new THREE.Box3(),
         receiverBounds: new THREE.Box3(),
@@ -159,6 +160,21 @@ describe("Geoportal tiled scene adapter", () => {
       2 * 2048 ** 2 * 8,
       2048
     );
+  });
+
+  it("replays retained masks during motion without recapturing corridor depths", () => {
+    const f = fixture();
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    f.pages.renderPageColor.mockImplementation(() => {
+      expect(f.light.visible).toBe(true);
+      return true;
+    });
+    expect(f.adapter.render(new THREE.Camera(), null, 128, false)).toBe(true);
+    expect(f.accumulation.renderHard).not.toHaveBeenCalled();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
+    expect(f.light.visible).toBe(true);
+    f.adapter.dispose();
   });
 
   it.each(["hard", "soft"])(
