@@ -50,6 +50,7 @@ so the second folder is the list of what actually exists:
 | [`addons/MapStyle3d/`](./src/addons/MapStyle3d/README.md) | optional draped map style and floating labels over terrain and 3D tiles |
 | `addons/LibreTerrain.tsx`   | terrain for the maplibre map: a toggle button, or on whenever the camera is free |
 | `addons/ShadowSimulation/`   | daylight-clamped sun control for MapLibre and Three.js content   |
+| `addons/ObliqueViewer/`     | Schrägluftbilder on the maplibre map: the image nearest the centre, its footprint, and a preview aligned with the camera |
 
 An addon that needs more than one file gets its own folder there
 (`addons/CameraTour/index.tsx` plus its parts).
