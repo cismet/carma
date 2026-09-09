@@ -40,26 +40,14 @@ const selectedText = (control: HTMLElement) =>
     ?.textContent;
 
 describe("advanced shadow render settings", () => {
-  it("owns both LUT switches and preserves the existing simulation state", () => {
+  it("leaves atmosphere switches to their display group", () => {
     const state = createInitialShadowSimulationState(undefined);
     const setState = vi.fn();
-    const { getByRole } = render(
+    const { queryByRole } = render(
       <ShadowSimulationRenderSettings state={state} setState={setState} />
     );
-    fireEvent.click(
-      getByRole("checkbox", { name: "Transmittanz-LUT", exact: true })
-    );
-    expect(setState).toHaveBeenLastCalledWith({
-      ...state,
-      useTransmittanceLut: false,
-    });
-    fireEvent.click(
-      getByRole("checkbox", { name: "Sky-Irradianz-LUT", exact: true })
-    );
-    expect(setState).toHaveBeenLastCalledWith({
-      ...state,
-      useSkyIrradianceLut: false,
-    });
+    expect(queryByRole("checkbox", { name: "Transmittanz-LUT" })).toBeNull();
+    expect(queryByRole("checkbox", { name: "Sky-Irradianz-LUT" })).toBeNull();
   });
   it("shows the buffer selector while advanced quality settings stay collapsed", () => {
     const state = {

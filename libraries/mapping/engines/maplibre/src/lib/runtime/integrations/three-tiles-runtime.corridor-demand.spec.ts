@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TilesRenderer } from "3d-tiles-renderer";
 import { PriorityQueue } from "3d-tiles-renderer/core";
 import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -13,6 +14,67 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("current mesh corridor request admission", () => {
+  it("retains visible receiver/caster coverage at dragstart, through throttled drags and on moveend", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    let moving = false;
+    vi.spyOn(f.frame.map, "isMoving").mockImplementation(() => moving);
+    const emit = (event: string) => {
+      const calls = vi.mocked(f.frame.map.on).mock.calls as unknown as [
+        string,
+        () => void
+      ][];
+      for (const [type, handler] of calls) if (type === event) handler();
+    };
+    try {
+      f.update();
+      const before = f.visibleIds();
+      expect(before).toContain("receiver16");
+      expect(before).toContain("caster16");
+      const children = [
+        f.tile("receiver-child-a", -10, 0, -100, 1, true, f.receiver),
+        f.tile("receiver-child-b", 0, 10, -100, 1, true, f.receiver),
+      ];
+      f.receiver.children = children;
+      f.load(children[0]); // Incomplete refinement is never a replacement.
+      const stale = f.tile("stale", 150, 160, -50, 0, false, f.root);
+      const wanted = f.tile("wanted", -5, 5, -50, 0, false, f.root);
+      const removed: string[] = [];
+      for (const value of [stale, wanted]) {
+        value.internal.loadingState = 2;
+        f.renderer.loadingTiles.add(value);
+        f.renderer.lruCache.add(value, () => {
+          removed.push(value.content.uri!);
+          f.renderer.loadingTiles.delete(value);
+        });
+      }
+      moving = true;
+      emit(MAPLIBRE_EVENT.MOVE_START);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBe(0);
+      expect(f.renderer.parseQueue.maxJobs).toBe(0);
+      expect(f.visibleIds()).toEqual(before);
+      for (let index = 0; index < 8; index++) {
+        emit(MAPLIBRE_EVENT.MOVE);
+        await vi.advanceTimersByTimeAsync(60);
+        f.update();
+        expect(f.visibleIds()).toEqual(before);
+        expect(f.receiver.internal.loadingState).toBe(4);
+        expect(f.caster.internal.loadingState).toBe(4);
+        expect(removed).toEqual([]);
+      }
+      moving = false;
+      emit(MAPLIBRE_EVENT.MOVE_END);
+      f.update();
+      expect(f.visibleIds()).toEqual(before);
+      expect(removed).toEqual(["stale.b3dm"]);
+      expect(f.renderer.loadingTiles.has(wanted)).toBe(true);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
+      expect(f.renderer.parseQueue.maxJobs).toBeGreaterThan(0);
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
   it("reaches retained fine branches during bootstrap and admits missing siblings instead of their coarse parent", () => {
     const f = createMeshCorridorFixture();
     try {
@@ -39,6 +101,49 @@ describe("current mesh corridor request admission", () => {
       expect(f.visibleIds()).toEqual(["fine", "missing"]);
     } finally {
       f.dispose();
+    }
+  });
+
+  it("parks payload jobs behind base coverage without rejecting their original promises", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    try {
+      f.update();
+      const end = vi
+        .mocked(f.frame.map.on)
+        .mock.calls.find(
+          ([event]) => event === MAPLIBRE_EVENT.MOVE_END
+        )![1] as () => void;
+      end();
+      expect(f.runtime.scene.isBaseViewReady?.()).toBe(false);
+      const visible = f.tile("base-work", -5, 5, -100, 0, true, f.root);
+      const caster = f.tile("parked-caster", -5, 5, -50, 0, false, f.root);
+      const baseJob = vi.fn(() => Promise.resolve("base"));
+      const casterJob = vi.fn(() => Promise.resolve("caster"));
+      const base = f.renderer.downloadQueue.add(
+        "https://example.test/base",
+        visible,
+        baseJob
+      );
+      const parked = f.renderer.downloadQueue.add(
+        "https://example.test/caster",
+        caster,
+        casterJob
+      );
+      for (const queue of f.renderer.downloadQueue.originQueues.values())
+        queue.tryRunJobs();
+      expect(baseJob).toHaveBeenCalledOnce();
+      expect(casterJob).not.toHaveBeenCalled();
+      expect(f.renderer.downloadQueue.has(caster)).toBe(true);
+      expect(await base).toBe("base");
+      f.update();
+      expect(f.runtime.scene.isBaseViewReady?.()).toBe(true);
+      await vi.advanceTimersByTimeAsync(50);
+      expect(await parked).toBe("caster");
+      expect(casterJob).toHaveBeenCalledOnce();
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
     }
   });
   it("discovers metadata while payload download and parse queues are paused", async () => {

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { createSharedThreeSceneCameraPreview } from "./shared-three-scene-camera-preview";
-import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
+import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
 
 describe("shared Three.js camera preview", () => {
   it("renders offscreen and restores the shared renderer state", () => {

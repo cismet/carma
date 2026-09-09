@@ -647,6 +647,9 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
 
 ### CAMERA-REQUEST-PREEMPTION-20260909 — prioritize changed-view hard coverage
 
+**Superseded for camera motion by MOTION-PAUSE-20260909 below.** Solar changes
+still invalidate incompatible work; pointer-down no longer cancels it.
+
 - **ID/date/status:** CAMERA-REQUEST-PREEMPTION-20260909, 2026-09-09, implemented;
   follows checkpoint `791c13e4d`, not yet committed.
 - **Context and constraints:** pending work from an old camera competes with
@@ -1022,3 +1025,85 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
   claim. Atomic receiver/caster/mask replacement under continuous asynchronous
   streaming, exact caster-ID dependency pruning and equal-quality shared-depth
   timing remain open rather than being silently approximated.
+# PAN-REUSE-20260909 — preserve completed integrals under allocation pressure
+
+- **Failure:** Camera-dependent page budgeting admitted smaller hard captures
+  over completed soft captures, throwing away their solar samples. Separately,
+  deferred soft publications returned a retry deadline without scheduling a
+  repaint, so a stationary scene could remain unfinished indefinitely.
+- **Decision:** Rebalance compatible completed masks with one dyadic R32F
+  visibility box-filter pass, retaining world projection, crop, sun identity and
+  sample count. Keep the original on allocation failure; include both targets
+  in the existing working-memory budget. Larger demand may still integrate a
+  finer replacement. A single cancellable retry wake resumes stranded work;
+  movement cancels pending work, not published masks.
+- **Alternatives:** Re-running solar samples at smaller resolution wastes the
+  existing integral. Keeping every original-sized page exceeds the fixed budget.
+  This is resampling a computed signal, not adding an arbitrary shadow blur.
+  Persistent higher-resolution records remain reusable; no duplicate resized
+  cache record is written.
+- **Validation:** 81 focused shadow tests and 69 mesh-frontier/runtime tests
+  pass, including completed-mask rebalance, failed resize retention, idle retry,
+  and drag-start/move/end coverage with an incomplete child family. Native
+  internal-browser WebGL2 test `test/benchmarks/corridor-downsample.html` gives
+  exact 64-to-32 pixel means (maximum absolute error 0), retains 64 samples and
+  performs no geometry draw for resizing. This is correctness evidence, not a
+  reload performance benchmark.
+- **Remaining visual caveat:** A live Mesh2024 pan showed a temporary grey strip
+  at the left edge before the filled scene returned. The runtime retention tests
+  do not prove end-to-end presentation continuity for that case; it remains a
+  separate reproduction to isolate. Do not describe all drag coverage as fixed.
+
+## MOTION-PAUSE-20260909 — retain pending work through observer motion
+
+- **ID/date/status:** MOTION-PAUSE-20260909 / 2026-09-09 / local implementation.
+- **Context and constraints:** A pan changes demand, not previously sampled
+  sunlight. Abort/restart lost payloads and partial solar integrations. Preserve
+  native request ownership, bounded memory and initial-error viewport priority.
+- **Decision:** Suspend payload download/parse admission during dragging; allow
+  already executing fetch/decode callbacks to finish rather than aborting them.
+  Keep metadata discovery independent. After moveend, the existing geometric
+  demand sweep removes only unnecessary receiver/caster work. Park other payload
+  jobs behind missing base coverage and explicitly wake their native queues when
+  it becomes complete. Soft scheduling pauses with its scratch samples and retry
+  state intact; resume after base coverage, retaining transiently unready work.
+  Sun changes still discard incompatible integrations.
+- **Integration boundary:** Upstream PriorityQueue lacks eligibility filtering.
+  Its scheduling array is synchronously partitioned and restored around dequeue;
+  native callback/promise/abort registries are not removed or recreated. The
+  separate memory-pressure admission remains authoritative. Parked parse jobs
+  do not close the download-backlog gate against necessary base coverage.
+- **Alternatives:** Abort/requeue is superseded by user requirement. Finishing
+  all pending jobs during input was rejected by inspection for main-thread
+  GLTF publication contention. New worker/pool dependencies were not evaluated.
+- **Evidence:** 47 focused shadow tests and 14 current mesh runtime tests pass:
+  same sample resumes, original queued promise survives, base jobs run first,
+  obsolete offscreen requests are removed only after moveend, required casters
+  and visible receivers survive. Broader older tests have 9 scene + 6 mesh
+  liveness failures, independently reproduced using read-only HEAD source.
+  Internal-browser Mesh2024 still shows the previously recorded temporary grey
+  edge after pan; this scheduling change is not its visual fix. No speedup claim.
+- **Revisit when:** Upstream offers queue eligibility, pressure requires spilling
+  a paused GPU accumulator, or frame-level presentation coverage is investigated.
+
+### CORRIDOR-OWNERSHIP-20260909 — explicit strategy and receiver roles
+
+- **Context:** A pending/unsupported tiled result silently started the camera-keyed
+  mono accumulator. Geometry-only offscreen GLTF placeholders were also promoted
+  back to receivers by the scene host, causing the receiver-material check to
+  reject every corridor (observed live: MeshBasicMaterial, no depth/colour writes).
+- **Decision:** Tiled null means pending, never an implicit mono switch. Explicit
+  mono remains selectable. Check actual receivers only; colourless caster-only
+  geometry stays outside reception. Pin an active capture's allocation while its
+  physical content key is unchanged, reserving its bytes before budgeting siblings.
+- **Alternatives:** Removing material validity checks would accumulate invalid
+  visibility; retaining automatic mono hides the defect and reintroduces pan-keyed
+  work. Neither is acceptable. No new worker/GPU backend is introduced here.
+- **Evidence:** 36 shared-layer/registry/camera tests, 69 receiver/presentation
+  tests, 22 receiver-accumulator tests and the targeted scene caster-role test
+  pass. Live after the role fix: per-corridor mode, no receiver rejection, first
+  completed capture. A wider user-selected view still has 175 pages and excessive
+  depth submissions; throughput and complete pan continuity remain unvalidated.
+- **Open:** Reduce repeated page rendering; complete explicit capability-error
+  reporting and remove remaining unsupported-path fallbacks separately. No
+  measured end-to-end speedup is claimed.

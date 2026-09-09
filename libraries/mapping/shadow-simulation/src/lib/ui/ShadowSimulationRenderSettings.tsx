@@ -31,8 +31,8 @@ export const ShadowSimulationRenderSettings = ({
 
   return (
     <div className="min-w-0">
-      <div className="grid min-w-0 grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-        <span>
+      <div className="grid min-w-0 grid-cols-[minmax(0,130px)_minmax(0,1fr)] items-center gap-2">
+        <span className="whitespace-nowrap">
           Schattenpuffer{" "}
           <Tooltip
             trigger={["hover", "focus", "click"]}
@@ -63,32 +63,11 @@ export const ShadowSimulationRenderSettings = ({
           }
         />
       </div>
-      <div
-        className="flex flex-wrap gap-x-4 gap-y-2"
-        style={{ marginTop: token.marginSM }}
-      >
-        <Checkbox
-          checked={state.useTransmittanceLut ?? true}
-          onChange={(event) =>
-            setState({ ...state, useTransmittanceLut: event.target.checked })
-          }
-        >
-          Transmittanz-LUT
-        </Checkbox>
-        <Checkbox
-          checked={state.useSkyIrradianceLut ?? true}
-          onChange={(event) =>
-            setState({ ...state, useSkyIrradianceLut: event.target.checked })
-          }
-        >
-          Sky-Irradianz-LUT
-        </Checkbox>
-      </div>
-      <details className="min-w-0" style={{ marginTop: token.margin }}>
+      <details className="min-w-0" style={{ marginTop: token.marginXS }}>
         <summary
           className="cursor-pointer"
           style={{
-            paddingBlock: token.paddingXS,
+            paddingBlock: token.paddingXXS,
             fontWeight: token.fontWeightStrong,
           }}
         >
@@ -128,7 +107,7 @@ export const ShadowSimulationRenderSettings = ({
             />
           </Tooltip>
         </summary>
-        <div className="mt-2 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-1 grid min-w-0 grid-cols-2 gap-2">
           <label className="flex min-w-0 flex-col gap-1">
             <span>Farbpuffer</span>
             <Select

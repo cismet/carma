@@ -3,16 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSharedSceneAccumulator } from "@carma-mapping/engines/three/primitives/rendering";
 import { getMapLoadingProgress } from "./map-loading-progress";
 
+import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import {
-  buildSharedThreeSceneLayer,
   clearDepthForMapStyleOverlays,
   clearMapStyleGroundBeforeThreeTerrain,
-  configureMapStyleProjectedMaterial,
   configureSharedRenderCamera,
   installRenderTargetDepthRangeBridge,
   syncSharedCanvasViewport,
-  type SharedSceneAccumulationController,
-} from "./shared-three-scene-layer";
+} from "./shared-three-scene-render-context";
+import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
+import { type SharedSceneAccumulationController } from "../../core/shared-three-scene-types";
 
 vi.mock("@carma-mapping/engines/threejs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@carma-mapping/engines/threejs")>()),
@@ -590,29 +590,24 @@ describe("progressive strategy host", () => {
     }
   );
 
-  it("retains the mono fallback when the strategy returns null", () => {
+  it("never starts mono accumulation when the selected progressive strategy is pending", () => {
     const host = createProgressiveHost();
     host.controller.renderProgressive = vi.fn(() => null);
 
     host.render();
 
-    expect(buildSharedSceneAccumulator).toHaveBeenCalledOnce();
-    expect(host.controller.prepareRound).toHaveBeenCalledWith(0);
-    expect(mono.renderRound).toHaveBeenCalledWith(
-      host.layer.getRenderer(),
-      4400,
-      1800,
-      expect.any(Function)
-    );
-    expect(mono.composite).toHaveBeenCalledOnce();
-    expect(host.controller.finishRound).toHaveBeenCalledOnce();
-    expect(host.map.triggerRepaint).toHaveBeenCalledOnce();
+    expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
+    expect(host.controller.prepareRound).not.toHaveBeenCalled();
+    expect(mono.renderRound).not.toHaveBeenCalled();
+    expect(mono.composite).not.toHaveBeenCalled();
+    expect(host.controller.finishRound).not.toHaveBeenCalled();
+    expect(host.map.triggerRepaint).not.toHaveBeenCalled();
     host.layer.dispose();
   });
 
   it("releases previous mono targets without averaging a corridor-owned frame", () => {
     const host = createProgressiveHost();
-    host.controller.renderProgressive = vi.fn(() => null);
+    host.controller.renderProgressive = undefined;
     host.render();
     vi.clearAllMocks();
     host.controller.renderProgressive = vi.fn(() => ({

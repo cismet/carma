@@ -1,7 +1,7 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type { Box3, Object3D } from "three";
 
-import type { SharedThreeSceneRuntime } from "./shared-three-scene-layer";
+import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
 
 export type SharedThreeSceneContentChange = Readonly<{
   bounds?: readonly Box3[];

@@ -1926,6 +1926,11 @@ describe("shadow scene lighting integration", () => {
   });
 
   it("moves ALKIS buildings into the shared terrain shadow scene", () => {
+    const casterOnly = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+    );
+    scene.add(casterOnly);
     const terrain = new THREE.Mesh(
       new THREE.PlaneGeometry(100, 100),
       new THREE.MeshLambertMaterial()
@@ -1993,6 +1998,8 @@ describe("shadow scene lighting integration", () => {
     );
     expect(terrain.castShadow).toBe(true);
     expect(terrain.receiveShadow).toBe(true);
+    expect(casterOnly.castShadow).toBe(true);
+    expect(casterOnly.receiveShadow).toBe(false);
     expect((terrain.material as THREE.Material).shadowSide).toBeNull();
     expect(openSurfaceMaterial.shadowSide).toBe(THREE.FrontSide);
     expect(terrain.customDepthMaterial).toBeUndefined();

@@ -78,8 +78,8 @@ import type {
   SharedThreeSceneTileVolume,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
-} from "./shared-three-scene-layer";
-import { getSharedThreeShadowViewSignature } from "./shared-three-scene-layer";
+} from "../../core/shared-three-scene-types";
+import { getSharedThreeShadowViewSignature } from "../../core/shared-three-shadow-view";
 
 // The runtime chunk owns preparation orchestration outside the worker graph.
 const producerAssetUrl =
@@ -1011,7 +1011,10 @@ export const buildRasterDemTerrainRuntime = (
   const terrainBoundsCorner = new Vector3();
 
   const getTerrainMeshWorldBounds = (
-    record: Pick<TerrainMeshRecord, "id" | "minimumHeightMeters" | "maximumHeightMeters">,
+    record: Pick<
+      TerrainMeshRecord,
+      "id" | "minimumHeightMeters" | "maximumHeightMeters"
+    >,
     target: Box3
   ): Box3 => {
     const geographicBounds =
@@ -1113,18 +1116,27 @@ export const buildRasterDemTerrainRuntime = (
       latestRenderCamera.coordinateSystem,
       latestRenderCamera.reversedDepth
     );
-    const shadowFrustum = shadowView ? new Frustum().setFromProjectionMatrix(
-      new Matrix4().multiplyMatrices(shadowView.camera.projectionMatrix, shadowView.camera.matrixWorldInverse),
-      shadowView.camera.coordinateSystem,
-      shadowView.camera.reversedDepth
-    ) : null;
+    const shadowFrustum = shadowView
+      ? new Frustum().setFromProjectionMatrix(
+          new Matrix4().multiplyMatrices(
+            shadowView.camera.projectionMatrix,
+            shadowView.camera.matrixWorldInverse
+          ),
+          shadowView.camera.coordinateSystem,
+          shadowView.camera.reversedDepth
+        )
+      : null;
     const bounds = new Box3();
     return new Set(
       [...activeMeshKeys].filter((key) => {
         const record = meshes.get(key);
         if (!record) return false;
         getTerrainMeshWorldBounds(record, bounds);
-        return frustum.intersectsBox(bounds) || shadowFrustum?.intersectsBox(bounds) || previousShadowFrustum?.intersectsBox(bounds);
+        return (
+          frustum.intersectsBox(bounds) ||
+          shadowFrustum?.intersectsBox(bounds) ||
+          previousShadowFrustum?.intersectsBox(bounds)
+        );
       })
     );
   };
@@ -1302,7 +1314,10 @@ export const buildRasterDemTerrainRuntime = (
     root.updateMatrixWorld(true);
     shadowDependencies = requested.map(({ key, id }) => ({
       key,
-      bounds: getTerrainMeshWorldBounds({ id, minimumHeightMeters: -1000000, maximumHeightMeters: 1000000 }, new Box3()),
+      bounds: getTerrainMeshWorldBounds(
+        { id, minimumHeightMeters: -1000000, maximumHeightMeters: 1000000 },
+        new Box3()
+      ),
     }));
     const hasReadySurface = (key: string) =>
       Boolean(meshes.get(key)?.reliefMesh);
@@ -1483,7 +1498,11 @@ export const buildRasterDemTerrainRuntime = (
         finishedLoading = true;
         await requestPublication();
         if (!current()) return;
-        if (prefetchView.shadowSignature === shadowViewSignature && failures.length === 0) previousShadowFrustum = null;
+        if (
+          prefetchView.shadowSignature === shadowViewSignature &&
+          failures.length === 0
+        )
+          previousShadowFrustum = null;
         terrainSource.trimCache(
           new Set(selection.entries.map((entry) => terrainTileKey(entry.id)))
         );
@@ -2191,7 +2210,10 @@ export const buildRasterDemTerrainRuntime = (
     setShadowView(view) {
       if (shadowView && !previousShadowFrustum) {
         previousShadowFrustum = new Frustum().setFromProjectionMatrix(
-          new Matrix4().multiplyMatrices(shadowView.camera.projectionMatrix, shadowView.camera.matrixWorldInverse),
+          new Matrix4().multiplyMatrices(
+            shadowView.camera.projectionMatrix,
+            shadowView.camera.matrixWorldInverse
+          ),
           shadowView.camera.coordinateSystem,
           shadowView.camera.reversedDepth
         );
@@ -2221,10 +2243,22 @@ export const buildRasterDemTerrainRuntime = (
     getViewElevationRange,
     getActiveTileVolumes,
     isShadowRegionReady: (bounds) => {
-      if (disposed || selectionRequestPending || queuedSelectionInput || shadowDependencies.length === 0) return false;
-      const dependencies = shadowDependencies.filter(tile => tile.bounds.intersectsBox(bounds));
-      return dependencies.length > 0 && dependencies.every(({ key }) =>
-        activeMeshKeys.has(key) && Boolean(meshes.get(key)?.reliefMesh)
+      if (
+        disposed ||
+        selectionRequestPending ||
+        queuedSelectionInput ||
+        shadowDependencies.length === 0
+      )
+        return false;
+      const dependencies = shadowDependencies.filter((tile) =>
+        tile.bounds.intersectsBox(bounds)
+      );
+      return (
+        dependencies.length > 0 &&
+        dependencies.every(
+          ({ key }) =>
+            activeMeshKeys.has(key) && Boolean(meshes.get(key)?.reliefMesh)
+        )
       );
     },
     dispose() {

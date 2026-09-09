@@ -1,22 +1,12 @@
 import { StyleProvider } from "@ant-design/cssinjs";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import type { Map as MaplibreMap } from "maplibre-gl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createInitialShadowSimulationState } from "../core/create-shadow-simulation-state";
 import { ShadowSimulationSurfaceSettings } from "./ShadowSimulationSurfaceSettings";
 
-const runtime = vi.hoisted(() => ({ present: false }));
-vi.mock("@carma-mapping/engines/maplibre", () => ({
-  getSharedThreeSceneRuntimes: () =>
-    runtime.present
-      ? [{ providesTerrain: true, setErrorTarget: () => {} }]
-      : [],
-  subscribeSharedThreeSceneContent: () => () => {},
-}));
 afterEach(() => {
   cleanup();
-  runtime.present = false;
 });
 
 describe("shadow surface display settings", () => {
@@ -37,7 +27,6 @@ describe("shadow surface display settings", () => {
   });
 
   it("edits the existing mesh state without changing other display options", () => {
-    runtime.present = true;
     const state = createInitialShadowSimulationState(undefined);
     const setState = vi.fn();
     const { getByRole, getByText } = render(
@@ -45,11 +34,13 @@ describe("shadow surface display settings", () => {
         <ShadowSimulationSurfaceSettings
           state={state}
           setState={setState}
-          map={{} as MaplibreMap}
+          meshLoaded
         />
       </StyleProvider>
     );
-    expect((getByRole("radio", { name: "2 px" }) as HTMLInputElement).checked).toBe(true);
+    expect(
+      (getByRole("radio", { name: "2 px" }) as HTMLInputElement).checked
+    ).toBe(true);
     for (const [label, value] of [
       ["0,25 px", 0.25],
       ["0,5 px", 0.5],
@@ -57,7 +48,10 @@ describe("shadow surface display settings", () => {
       ["4 px", 4],
     ] as const) {
       fireEvent.click(getByRole("radio", { name: label }));
-      expect(setState).toHaveBeenLastCalledWith({ ...state, meshErrorTarget: value });
+      expect(setState).toHaveBeenLastCalledWith({
+        ...state,
+        meshErrorTarget: value,
+      });
     }
     const budget = getByRole("spinbutton", { name: "Mesh-Cache in GiB" });
     expect(budget.getAttribute("aria-valuemax")).toBe("24");

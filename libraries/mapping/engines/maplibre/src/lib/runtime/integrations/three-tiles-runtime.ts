@@ -174,6 +174,7 @@ export function buildThreeTilesRuntime(
       getShadowRegionRevision: shadows.getShadowRegionRevision,
       getShadowRegionDiagnostics: shadows.getShadowRegionDiagnostics,
       isMainViewReady: spatial.isMainViewReady,
+      isBaseViewReady: () => state.meshBaseCoverageReady,
       getViewElevationRange: spatial.getViewElevationRange,
       getActiveTileVolumes: spatial.getActiveTileVolumes,
       setTileBoundsVisible: debug.setTileBoundsVisible,

@@ -1,5 +1,3 @@
-import { useCallback, useSyncExternalStore } from "react";
-
 import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -13,13 +11,8 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { clamp } from "@carma-commons/math";
-import {
-  getSharedThreeSceneRuntimes,
-  subscribeSharedThreeSceneContent,
-} from "@carma-mapping/engines/maplibre";
 
 import type { ShadowSimulationState } from "../contracts/shadow-simulation";
 import {
@@ -35,34 +28,12 @@ import { MESH_ERROR_TARGETS } from "./shadow-control-utils";
 export const ShadowSimulationSurfaceSettings = ({
   state,
   setState,
-  map,
+  meshLoaded = false,
 }: {
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
-  map?: MaplibreMap | null;
+  meshLoaded?: boolean;
 }) => {
-  const subscribe = useCallback(
-    (listener: () => void) =>
-      map ? subscribeSharedThreeSceneContent(map, listener) : () => {},
-    [map]
-  );
-  const getMeshPresence = useCallback(
-    () =>
-      Boolean(
-        map &&
-          getSharedThreeSceneRuntimes(map).some(
-            (runtime) =>
-              runtime.providesTerrain === true &&
-              typeof runtime.setErrorTarget === "function"
-          )
-      ),
-    [map]
-  );
-  const meshLoaded = useSyncExternalStore(
-    subscribe,
-    getMeshPresence,
-    getMeshPresence
-  );
   const settings = {
     meshErrorTarget: state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS,
     terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
@@ -133,31 +104,33 @@ export const ShadowSimulationSurfaceSettings = ({
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Typography.Text strong type="secondary">
-            Terrain
-          </Typography.Text>
-          <>
-            <ColorPicker
-              value={settings.terrainColor}
-              showText={(color) => color.toHexString().toUpperCase()}
-              onChangeComplete={(color) =>
-                onChange({ terrainColor: color.toHexString() })
-              }
-            />
-            <Tooltip
-              trigger={["hover", "focus", "click"]}
-              title="Grundfarbe des Rasterterrains. Auf texturierten Flächen beeinflusst auch die Basiskarte das Ergebnis; für Meshflächen gelten die separaten Textur-/Farboptionen."
-            >
-              <Button
-                type="text"
-                size="small"
-                aria-label="Info zur Terrainfarbe"
-                icon={<FontAwesomeIcon icon={faCircleInfo} />}
+        {!meshLoaded && (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Typography.Text strong type="secondary">
+              Terrain
+            </Typography.Text>
+            <>
+              <ColorPicker
+                value={settings.terrainColor}
+                showText={(color) => color.toHexString().toUpperCase()}
+                onChangeComplete={(color) =>
+                  onChange({ terrainColor: color.toHexString() })
+                }
               />
-            </Tooltip>
-          </>
-        </div>
+              <Tooltip
+                trigger={["hover", "focus", "click"]}
+                title="Grundfarbe des Rasterterrains. Auf texturierten Flächen beeinflusst auch die Basiskarte das Ergebnis; für Meshflächen gelten die separaten Textur-/Farboptionen."
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="Info zur Terrainfarbe"
+                  icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                />
+              </Tooltip>
+            </>
+          </div>
+        )}
         {meshLoaded && (
           <>
             <Checkbox

@@ -8,7 +8,7 @@ import {
   type ShadowReceiverMask,
   type ShadowReceiverSource,
 } from "../../core/shadow-receiver-mask";
-import type { SharedThreeSceneTileVolume } from "./shared-three-scene-layer";
+import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { meshShadowStageError } from "./three-tiles-load-policy";
 import {

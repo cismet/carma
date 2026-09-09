@@ -19,7 +19,14 @@ import {
 import { SHADOW_BUFFER_LAYOUT, SHADOW_QUALITY } from "../core/shadow-types";
 import { ShadowSimulationDisplaySettingsPanel } from "./ShadowSimulationDisplaySettingsPanel";
 
-afterEach(cleanup);
+const meshPresence = vi.hoisted(() => ({ active: false }));
+vi.mock("./use-shadow-mesh-presence", () => ({
+  useShadowMeshPresence: () => meshPresence.active,
+}));
+afterEach(() => {
+  cleanup();
+  meshPresence.active = false;
+});
 
 // jsdom's selector engine cannot parse AntD's nested :has/:not stylesheet rules.
 const render = (ui: ReactNode) =>
@@ -38,6 +45,88 @@ const terrainSources = [
 ];
 
 describe("shadow terrain settings", () => {
+  it("keeps map style controls in an independent full-width section", () => {
+    const state = createInitialShadowSimulationState(undefined);
+    const setState = vi.fn();
+    const { getByText, getByRole, queryByRole } = render(
+      <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
+    );
+    expect(
+      queryByRole("checkbox", { name: "Basiskarte auf dem Terrain anzeigen" })
+    ).toBeNull();
+    fireEvent.click(getByText("Kartenstil", { exact: true }));
+    fireEvent.click(
+      getByRole("checkbox", { name: "Basiskarte auf dem Terrain anzeigen" })
+    );
+    expect(setState).toHaveBeenCalledWith({
+      ...state,
+      showMapStyleContent: false,
+    });
+    expect(document.querySelector(".ant-collapse-borderless")).not.toBeNull();
+  });
+
+  it("closes and disables the inapplicable surface group on mesh changes", () => {
+    const state = createInitialShadowSimulationState({ terrainSources });
+    const panel = () => (
+      <ShadowSimulationDisplaySettingsPanel
+        state={state}
+        setState={vi.fn()}
+        terrainSources={terrainSources}
+      />
+    );
+    const { getByText, queryByLabelText, queryByRole, rerender } = render(
+      panel()
+    );
+    expect(
+      getByText("Mesh (kein Mesh aktiv)")
+        .closest('[role="button"]')
+        ?.getAttribute("aria-disabled")
+    ).toBe("true");
+    fireEvent.click(getByText("Terrain", { exact: true }));
+    expect(
+      queryByLabelText("Höhenmodell für die Verschattung", {
+        selector: "input",
+      })
+    ).not.toBeNull();
+    meshPresence.active = true;
+    rerender(panel());
+    expect(
+      queryByLabelText("Höhenmodell für die Verschattung", {
+        selector: "input",
+      })
+    ).toBeNull();
+    expect(
+      getByText("Terrain (durch Mesh ersetzt)")
+        .closest('[role="button"]')
+        ?.getAttribute("aria-disabled")
+    ).toBe("true");
+    fireEvent.click(getByText("Mesh", { exact: true }));
+    expect(queryByRole("radio", { name: "2 px" })).not.toBeNull();
+    meshPresence.active = false;
+    rerender(panel());
+    expect(queryByRole("radio", { name: "2 px" })).toBeNull();
+  });
+
+  it("keeps atmosphere options separate from shadow quality", () => {
+    const state = createInitialShadowSimulationState(undefined);
+    const setState = vi.fn();
+    const { getByText, getByRole, queryByRole } = render(
+      <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
+    );
+    expect(queryByRole("checkbox", { name: "Transmittanz-LUT" })).toBeNull();
+    fireEvent.click(getByText("Atmosphäre", { exact: true }));
+    fireEvent.click(getByRole("checkbox", { name: "Transmittanz-LUT" }));
+    expect(setState).toHaveBeenCalledWith({
+      ...state,
+      useTransmittanceLut: false,
+    });
+    fireEvent.click(getByRole("checkbox", { name: "Sky-Irradianz-LUT" }));
+    expect(setState).toHaveBeenLastCalledWith({
+      ...state,
+      useSkyIrradianceLut: false,
+    });
+  });
+
   it.each([
     ["nrw-dgm1", NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.id],
     [
@@ -47,7 +136,7 @@ describe("shadow terrain settings", () => {
   ])(
     "resolves stored source %s without exposing zoom offsets",
     (storedId, selectedId) => {
-      const { getByLabelText, container } = render(
+      const { getByLabelText, getByText, container } = render(
         <ShadowSimulationDisplaySettingsPanel
           state={{
             ...createInitialShadowSimulationState({ terrainSources }),
@@ -60,6 +149,7 @@ describe("shadow terrain settings", () => {
       const selectedLabel = terrainSources.find(
         ({ terrain }) => terrain.id === selectedId
       )?.label;
+      fireEvent.click(getByText("Terrain", { exact: true }));
       expect(
         getByLabelText("Höhenmodell für die Verschattung", {
           selector: "input",
@@ -187,9 +277,10 @@ describe("elevation map details", () => {
   it("defaults both options off and changes them independently", () => {
     const state = createInitialShadowSimulationState(undefined);
     const setState = vi.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText, getByText } = render(
       <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
     );
+    fireEvent.click(getByText("Kartenstil", { exact: true }));
     const lines = getByLabelText("Höhenlinien") as HTMLInputElement;
     const labels = getByLabelText("Höhenbeschriftungen") as HTMLInputElement;
     expect(lines.checked).toBe(false);

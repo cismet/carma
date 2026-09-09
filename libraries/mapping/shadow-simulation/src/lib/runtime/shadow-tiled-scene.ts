@@ -48,6 +48,7 @@ export class ShadowTiledScene {
       sky: THREE.Object3D;
       overlay: THREE.Object3D;
       maximumMapSize: number;
+      isBaseCoverageReady?: () => boolean;
       isCorridorReady?: (
         bounds: THREE.Box3,
         errorPixels?: number,
@@ -258,7 +259,7 @@ export class ShadowTiledScene {
     // finite-sun page textures untouched until moveend; the lightweight draw
     // path below can reuse them against the current camera.
     if (!frame.active) {
-      this.cancelPending();
+      this.pausePending();
       return null;
     }
     // A tiled view can be enabled before the first committed receiver cut is
@@ -278,9 +279,16 @@ export class ShadowTiledScene {
       const missingCoverage = this.accumulation.capturePages.some(
         (page) => !this.accumulation.presentation.canPresent(page)
       );
-      if ((hard.published > 0 || hard.needsRepaint) && missingCoverage) {
+      if (
+        ((hard.published > 0 || hard.needsRepaint) && missingCoverage) ||
+        this.host.isBaseCoverageReady?.() === false
+      ) {
         this.renderContent(camera, null, frame.samples);
-        return { progress: 0, settled: false, needsRepaint: true };
+        return {
+          progress: 0,
+          settled: false,
+          needsRepaint: hard.needsRepaint || hard.published > 0,
+        };
       }
       const progress = this.accumulation.presentation.capture(this.scene, () =>
         this.accumulation.render(camera, this.pages, {
@@ -311,6 +319,17 @@ export class ShadowTiledScene {
       this.accumulationSettled = false;
       return null;
     }
+    // A failed/budget-delayed soft publication can be the last outstanding
+    // work. Its retry must wake the scene even with idle geometry and camera.
+    // Previously only the hard pass armed this timer, stranding soft pages.
+    const retryAfterMs =
+      "retryAfterMs" in result ? result.retryAfterMs : undefined;
+    if (retryAfterMs !== undefined && this.hardRetryTimer === null) {
+      this.hardRetryTimer = globalThis.setTimeout(() => {
+        this.hardRetryTimer = null;
+        this.host.requestRepaint?.();
+      }, Math.max(1, retryAfterMs));
+    }
     const becameSettled = result.settled && !this.accumulationSettled;
     this.accumulationSettled = result.settled;
     // The host schedules idle work on transitions, not every settled blit.
@@ -337,6 +356,11 @@ export class ShadowTiledScene {
   cancelPending(solarChanged = false) {
     this.accumulation.cancelPending();
     if (solarChanged) this.accumulation.presentation.beginSolarTransition();
+    this.pausePending();
+  }
+
+  /** Suspend scheduling, retaining the current corridor's accumulated samples. */
+  pausePending() {
     if (this.hardRetryTimer !== null) {
       globalThis.clearTimeout(this.hardRetryTimer);
       this.hardRetryTimer = null;

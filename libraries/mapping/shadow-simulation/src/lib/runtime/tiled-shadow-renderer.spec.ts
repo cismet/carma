@@ -344,10 +344,14 @@ describe("shared tiled shadow runtime", () => {
     const f = fixture();
     const material = new THREE.MeshStandardMaterial({ alphaTest: 0.5 });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), material);
+    mesh.receiveShadow = true;
     f.scene.add(mesh);
     expect(f.pages.supportsOpaqueAccumulation).toBe(true);
     material.transparent = true;
     expect(f.pages.supportsOpaqueAccumulation).toBe(false);
+    mesh.receiveShadow = false;
+    expect(f.pages.supportsOpaqueAccumulation).toBe(true);
+    mesh.receiveShadow = true;
     mesh.visible = false;
     expect(f.pages.supportsOpaqueAccumulation).toBe(true);
     mesh.visible = true;

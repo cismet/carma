@@ -22,7 +22,7 @@ import { applyShadowReceiverMask } from "../../core/shadow-receiver-mask";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { TilesetHierarchyPlugin } from "./tileset-hierarchy-plugin";
 import { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plugin";
-import type { SharedThreeSceneFrame } from "./shared-three-scene-layer";
+import type { SharedThreeSceneFrame } from "../../core/shared-three-scene-types";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import {
@@ -43,6 +43,7 @@ import type {
 } from "./three-tiles-runtime-context";
 import type {
   RuntimeLruCache,
+  RuntimePriorityQueue,
   RuntimeTile,
   RuntimeTilesRenderer,
 } from "./three-tiles-runtime-types";
@@ -57,7 +58,6 @@ import {
 } from "./three-tiles-runtime-vendor";
 import {
   KICKSTART_INTERVAL_MS,
-  MESH_EVICTION_BATCH_SIZE,
   MESH_MOTION_COVERAGE_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
   TILE_METADATA_DOWNLOAD_CONCURRENCY,
@@ -198,6 +198,41 @@ export function createThreeTilesLifecycle(
   // TILE-PIPELINE-TELEMETRY-20260909 in engines/maplibre/README.md.
   const telemetryTiles = new Set<Tile>();
   let retainedMeshAncestors = new Set<Tile>();
+  const guardedPayloadQueues = new WeakSet<PriorityQueue>();
+  const guardPayloadQueue = (nativeQueue: PriorityQueue) => {
+    if (guardedPayloadQueues.has(nativeQueue)) return;
+    guardedPayloadQueues.add(nativeQueue);
+    const queue = nativeQueue as RuntimePriorityQueue;
+    const run = queue.tryRunJobs.bind(queue);
+    queue.tryRunJobs = () => {
+      if (!runtimeState.options.providesTerrain) return run();
+      if (runtimeState.map?.isMoving?.()) return;
+      if (runtimeState.meshBaseCoverageReady) return run();
+      // Native PriorityQueue has no eligibility predicate. Partition only its
+      // scheduling list synchronously; promises, callbacks and native abort
+      // ownership stay registered. Restore parked entries before yielding.
+      // Decision: MOTION-PAUSE-20260909 in shadow-simulation/three/TILED_SHADOW_PAGES.md.
+      const parked: Tile[] = [];
+      const ready: Tile[] = [];
+      for (const tile of queue.items) {
+        const required =
+          dependencies.isTileInMainView(tile as RuntimeTile) &&
+          !shouldDeferMeshRefinement(
+            tile,
+            initialMeshLoadError(runtimeState.requestedErrorTarget),
+            (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
+            retainedMeshAncestors
+          );
+        (required ? ready : parked).push(tile);
+      }
+      queue.items = ready;
+      try {
+        run();
+      } finally {
+        queue.items.push(...parked);
+      }
+    };
+  };
   let telemetryDropped = 0;
   const telemetryCenter = new THREE.Vector3();
   const telemetrySphere = new THREE.Sphere();
@@ -234,41 +269,6 @@ export function createThreeTilesLifecycle(
     progress.parseFinishedAt = undefined;
     progress.lastError = undefined;
     noteTileActivity(tile);
-  };
-  let requestCancellationTimer: ReturnType<typeof setTimeout> | null = null;
-  const supersededRequests = new Set<Tile>();
-  const cancelSupersededRequests = () => {
-    requestCancellationTimer = null;
-    const tiles = runtimeState.tiles;
-    if (!tiles || runtimeState.disposed) {
-      supersededRequests.clear();
-      return;
-    }
-    // Decision: CAMERA-REQUEST-PREEMPTION-20260909 in
-    // libraries/mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md.
-    // Native LRU removal aborts fetch and removes queued parse work together.
-    // Yield between batches; never dispose a completed receiver/caster payload.
-    let count = 0;
-    for (const tile of supersededRequests) {
-      supersededRequests.delete(tile);
-      if (
-        tiles.loadingTiles.has(tile) &&
-        !tiles.visibleTiles.has(tile) &&
-        !(tile as RuntimeTile).engineData?.scene
-      )
-        tiles.lruCache.remove(tile);
-      if (++count >= MESH_EVICTION_BATCH_SIZE) break;
-    }
-    if (supersededRequests.size > 0) {
-      requestCancellationTimer = setTimeout(cancelSupersededRequests, 0);
-      return;
-    }
-    dependencies.notifyRequestStateChange();
-    runtimeState.motionCoverageDue = true;
-    dependencies.resetDeferredTiles();
-    dependencies.requestShadowSelectionRefresh();
-    tiles.dispatchEvent({ type: "needs-update" });
-    dependencies.requestRender();
   };
 
   const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
@@ -442,12 +442,10 @@ export function createThreeTilesLifecycle(
       clearTimeout(runtimeState.meshAuditTimer);
     runtimeState.meshAuditTimer = null;
     for (const tile of runtimeState.tiles?.loadingTiles ?? [])
-      supersededRequests.add(tile);
-    if (requestCancellationTimer === null && supersededRequests.size > 0)
-      requestCancellationTimer = setTimeout(cancelSupersededRequests, 0);
-    // Abort only the old pending generation, not the published mesh cut,
-    // corridor membership or their shadow textures. Later motion audits admit
-    // new demand without repeatedly aborting those new requests.
+      runtimeState.tiles?.markTileUsed(tile);
+    // Decision: MOTION-PAUSE-20260909 in shadow-simulation/three/TILED_SHADOW_PAGES.md.
+    // Pause queue admission, never abort reusable work on pointer-down. The
+    // settled demand sweep removes only work outside receivers AND corridors.
   };
 
   const scheduleMotionCoverage: ThreeTilesRuntimeServices["scheduleMotionCoverage"] =
@@ -540,10 +538,14 @@ export function createThreeTilesLifecycle(
     // Preserve upstream ownership/abort handling, but metadata must not wait
     // behind payload downloads or the mesh parse-backlog throttle.
     const addDownload = downloadQueue.add.bind(downloadQueue);
-    downloadQueue.add = (url, tile: Tile, callback, signal) =>
-      tile.internal.hasUnrenderableContent
-        ? metadataDownloads.add(url, tile, callback, signal)
-        : addDownload(url, tile, callback, signal);
+    downloadQueue.add = (url, tile: Tile, callback, signal) => {
+      if (tile.internal.hasUnrenderableContent)
+        return metadataDownloads.add(url, tile, callback, signal);
+      const pending = addDownload(url, tile, callback, signal);
+      for (const queue of downloadQueue.originQueues.values())
+        guardPayloadQueue(queue);
+      return pending;
+    };
     const removeDownload = downloadQueue.remove.bind(downloadQueue);
     downloadQueue.remove = (tile) => {
       metadataDownloads.remove(tile);
@@ -554,6 +556,7 @@ export function createThreeTilesLifecycle(
       metadataDownloads.has(tile) || hasDownload(tile);
     const parseQueue = new PriorityQueue();
     parseQueue.priorityCallback = tilesQueuePriorityCallback;
+    guardPayloadQueue(parseQueue);
     // Parsing must not wait for an expensive shadow frame to finish before the
     // next two jobs start. Coalesce native wakeups onto a separate browser task;
     // keep bounded concurrency and yield between batches instead of microtasks.
@@ -924,6 +927,9 @@ export function createThreeTilesLifecycle(
         ? 8
         : 64;
       runtimeState.tiles.update();
+      if (runtimeState.map?.isMoving?.())
+        for (const tile of runtimeState.tiles.loadingTiles)
+          runtimeState.tiles.markTileUsed(tile);
       // A queue paused by memory/backlog admission can retain work after its
       // concurrency recovers. Explicitly kick every origin after the bounded
       // traversal; tryRunJobs() is idempotent at the configured limit.
@@ -999,12 +1005,19 @@ export function createThreeTilesLifecycle(
         }
       }
       runtimeState.lastMainViewConverged = dependencies.mainViewConverged();
+      const hadBaseCoverage = runtimeState.meshBaseCoverageReady;
       runtimeState.meshBaseCoverageReady =
         dependencies.mainViewWithinErrorFactor(
           initialMeshLoadError(runtimeState.requestedErrorTarget) /
             runtimeState.effectiveErrorTarget,
           false
         );
+      if (!hadBaseCoverage && runtimeState.meshBaseCoverageReady) {
+        // A parked native queue has no running job left to wake it.
+        runtimeState.tiles.parseQueue.scheduleJobRun();
+        for (const queue of runtimeState.tiles.downloadQueue.originQueues.values())
+          queue.scheduleJobRun();
+      }
       if (
         runtimeState.options.tileTelemetry !== false &&
         performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000
@@ -1163,10 +1176,6 @@ export function createThreeTilesLifecycle(
     if (metadataWakeTimer !== null) clearTimeout(metadataWakeTimer);
     metadataWakeTimer = null;
     telemetryTiles.clear();
-    if (requestCancellationTimer !== null)
-      clearTimeout(requestCancellationTimer);
-    requestCancellationTimer = null;
-    supersededRequests.clear();
     if (runtimeState.meshAuditTimer !== null)
       clearTimeout(runtimeState.meshAuditTimer);
     runtimeState.meshAuditTimer = null;

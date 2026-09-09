@@ -746,7 +746,7 @@ export const ShadowProjectionDebugView = ({
 
         <Collapse
           ghost
-          size="small"
+          size="middle"
           items={[
             {
               key: "visualizer-options",
@@ -863,6 +863,12 @@ export const ShadowProjectionDebugView = ({
   return (
     <ShadowProjectionDebugPortal>
       <ConfigProvider
+        componentSize="small"
+        theme={{
+          components: {
+            Collapse: { headerPadding: "4px 8px", contentPadding: "4px 8px" },
+          },
+        }}
         getPopupContainer={(trigger) =>
           (trigger?.closest('[role="dialog"]') as HTMLElement | null) ??
           document.body
@@ -881,7 +887,7 @@ export const ShadowProjectionDebugView = ({
           heading={
             <div
               className="flex w-full items-center justify-between"
-              style={{ gap: token.marginXS, padding: token.paddingXS }}
+              style={{ gap: token.marginXS, padding: 0 }}
             >
               <Typography.Text strong>
                 Projektions-Debug{" "}
@@ -922,7 +928,7 @@ export const ShadowProjectionDebugView = ({
           bodyStyle={{
             maxHeight: "calc(100dvh - 140px)",
             overflowY: "auto",
-            padding: `${token.paddingXS}px ${token.padding}px`,
+            padding: token.paddingXS,
             backgroundColor: token.colorBgContainer,
             borderRadius: `0 0 ${token.borderRadiusLG}px ${token.borderRadiusLG}px`,
           }}

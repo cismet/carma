@@ -245,10 +245,8 @@ export {
 } from "./utils/threeDPresence";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
-export {
-  buildSharedThreeSceneLayer,
-  getSharedThreeShadowViewSignature,
-} from "./lib/runtime/integrations/shared-three-scene-layer";
+export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
+export { getSharedThreeShadowViewSignature } from "./lib/core/shared-three-shadow-view";
 export type {
   SharedThreeSceneFrame,
   SharedThreeSceneLayer,
@@ -256,7 +254,7 @@ export type {
   SharedThreeSceneShadowView,
   SharedThreeSceneTileVolume,
   SharedThreeShadowRegionDiagnostics,
-} from "./lib/runtime/integrations/shared-three-scene-layer";
+} from "./lib/core/shared-three-scene-types";
 export {
   createSharedThreeSceneCameraPreview,
   type SharedThreeSceneCameraPreview,

@@ -2,7 +2,7 @@ import { type Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
 import { receiverMatchedTileError } from "../../core/shadow-receiver-mask";
-import type { SharedThreeSceneTileVolume } from "./shared-three-scene-layer";
+import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import {

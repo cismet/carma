@@ -806,3 +806,21 @@ terrain-mesh runtime to the shared scene.
   This is not frame-by-frame mouse-drag proof. Final snapshot still had queued
   requests/parse backlog and target1px not converged; complete target liveness
   and wall-time improvement are not claimed. No build/lint/commit/push.
+
+### SHARED-SCENE-SCOPES-20260909 — layer orchestration only
+
+- **Decision:** `shared-three-scene-layer.ts` coordinates lifecycle, scene placement
+  and camera/render dispatch (344 lines). Contracts live in `core/shared-three-scene-types`,
+  shader strings in `core/shared-three-map-style-shaders`, and the pure shadow-view
+  signature in `core/shared-three-shadow-view`. Runtime integration modules own
+  accumulation, map-style projection, material hooks and WebGL render context.
+- **Boundary:** Internal consumers import the owning module directly. The package
+  root retains explicit public exports; the layer is not a compatibility barrel.
+  The offscreen/main-framebuffer depth-range bridge is preserved.
+- **Reason:** Shader source and independent mutable resources obscured lifecycle
+  review. Splitting by resource owner avoids a flat forwarding monolith. This is
+  an imperative Three.js runtime, not a React provider; splitting it alone does
+  not reduce React rerenders or prove faster rendering.
+- **Validation:** 36 focused layer/registry/camera tests pass against the actual
+  split. Internal browser still renders Mesh2024 and hard shadows. No build/lint
+  or full performance claim; global barrel-policy findings remain elsewhere.

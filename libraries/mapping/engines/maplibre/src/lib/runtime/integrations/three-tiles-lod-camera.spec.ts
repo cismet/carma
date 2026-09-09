@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
-import { configureSharedRenderCamera } from "./shared-three-scene-layer";
+import { configureSharedRenderCamera } from "./shared-three-scene-render-context";
 import {
   createTilesCameraSet,
   resolveTilesViewCamera,

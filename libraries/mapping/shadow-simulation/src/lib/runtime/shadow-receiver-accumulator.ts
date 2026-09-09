@@ -45,6 +45,7 @@ export class ShadowReceiverAccumulator {
   private readonly scratch: ShadowCorridorAccumulator;
   private captures: readonly ReceiverCapture[] = [];
   private activeId: string | null = null;
+  private activeCapture: ReceiverCapture | null = null;
   private cursor = 0;
   private samples = 1;
   private disposed = false;
@@ -127,7 +128,8 @@ export class ShadowReceiverAccumulator {
       // The baked projection belongs to this receiver, not to a later camera
       // rotation. Keep its orientation even when a larger allocation is needed.
       const previous = this.plans.get(page.id);
-      const captureOrientation = previous?.plan.camera.quaternion ?? orientation;
+      const captureOrientation =
+        previous?.plan.camera.quaternion ?? orientation;
       const options = {
         groundTexelTargetMeters: page.groundTexelTargetMeters ?? 1,
         maximumDimension: this.renderer.capabilities.maxTextureSize,
@@ -151,14 +153,34 @@ export class ShadowReceiverAccumulator {
       plan.camera.layers.mask = observer.layers.mask;
       return { page, plan };
     });
-    const allocated = budgetShadowReceiverCaptures(
-      desired.map(({ page, plan }) => ({
-        id: page.id,
-        plan,
-        screenArea: page.screenBounds.z * page.screenBounds.w,
-      })),
-      SHADOW_CORRIDOR_RETAINED_BUDGET_BYTES
+    // A camera-dependent budget redistribution must not restart an in-flight
+    // integral. Reserve its actual allocation until publication; only changed
+    // sunlight/caster content may replace the running capture.
+    const pinned = desired.find(
+      ({ page }) =>
+        this.activeId === page.id &&
+        this.activeCapture?.page.id === page.id &&
+        this.activeCapture.page.contentKey ===
+          JSON.stringify([
+            page.contentKey ?? page.revision,
+            this.activeCapture.plan.key,
+          ])
     );
+    const pinnedPlan = pinned ? this.activeCapture!.plan : null;
+    const allocated = new Map(
+      budgetShadowReceiverCaptures(
+        desired
+          .filter(({ page }) => page.id !== pinned?.page.id)
+          .map(({ page, plan }) => ({
+            id: page.id,
+            plan,
+            screenArea: page.screenBounds.z * page.screenBounds.w,
+          })),
+        SHADOW_CORRIDOR_RETAINED_BUDGET_BYTES -
+          (pinnedPlan ? pinnedPlan.width * pinnedPlan.height * 8 : 0)
+      )
+    );
+    if (pinned && pinnedPlan) allocated.set(pinned.page.id, pinnedPlan);
     this.captures = desired.map(({ page, plan: desiredPlan }) => {
       const plan = allocated.get(page.id) ?? desiredPlan;
       const contentKey = JSON.stringify([
@@ -231,9 +253,9 @@ export class ShadowReceiverAccumulator {
     frame: ShadowCorridorFrame
   ): ShadowCorridorProgress | null {
     if (this.disposed) return null;
+    if (!frame.active) return null;
     this.samples = frame.samples;
     this.updateCaptures(observer, renderer, frame);
-    if (!frame.active) return null;
     // A rejected numeric-capture shader must return to correct direct lighting
     // immediately, not spend another complete disc on unpublishable albedo.
     if (!this.presentation.supportsCapture) {
@@ -245,7 +267,7 @@ export class ShadowReceiverAccumulator {
     const now = performance.now();
     let retryAfterMs: number | undefined;
     let active = this.captures.find(({ page }) => page.id === this.activeId);
-    if (!active?.ready || this.presentation.has(active.page, frame.samples)) {
+    if (!active || this.presentation.has(active.page, frame.samples)) {
       this.scratch.releaseScratch();
       this.activeId = null;
       active = undefined;
@@ -276,12 +298,14 @@ export class ShadowReceiverAccumulator {
         active = candidate;
         retryAfterMs = undefined;
         this.activeId = candidate.page.id;
+        this.activeCapture = candidate;
         this.cursor = (index + 1) % this.captures.length;
         break;
       }
     }
     let update: ShadowCorridorProgress | null = null;
-    if (active && retryAfterMs === undefined) {
+    if (active?.ready && retryAfterMs === undefined) {
+      this.activeCapture = active;
       const { page, plan } = active;
       // Every pass is this full source page, including its first disc sample.
       // The original observer scissor must never crop a capture-camera render.
@@ -362,6 +386,7 @@ export class ShadowReceiverAccumulator {
       progress: total > 0 ? completed / total : 1,
       settled: total === completed,
       needsRepaint:
+        (!active || active.ready) &&
         progress.some((page) => page.ready && !page.published) &&
         retryAfterMs === undefined,
       ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
@@ -427,8 +452,8 @@ export class ShadowReceiverAccumulator {
           old.width * old.height <= plan.width * plan.height)
       )
         return false;
-      // Keep a finer soft mask while its new layout integrates. Only actual
-      // pressure justifies replacing it with a smaller hard publication.
+      // A smaller allocation must resample the finished integral, never replace
+      // it with a hard shadow and force all solar samples to run again.
       return !(
         old &&
         old.samples > 1 &&
@@ -444,6 +469,35 @@ export class ShadowReceiverAccumulator {
     const next = pending.find(({ page }) => !this.yieldForRestore(page, 1));
     if (!next) return { published: 0, needsRepaint: pending.length > 0 };
     const { page, plan } = next;
+    if (
+      needsRebalance &&
+      this.presentation.hasAtLeast(page, 1) &&
+      reclaimableBytes(next) > 0
+    ) {
+      const old = existingSizes.get(page.id)!;
+      const resizeBytes =
+        Math.max(plan.width, Math.ceil(old.width / 2)) *
+        Math.max(plan.height, Math.ceil(old.height / 2)) *
+        8;
+      if (this.memoryBytes + resizeBytes > SHADOW_CORRIDOR_WORKING_BUDGET_BYTES)
+        return { published: 0, needsRepaint: false, retryAfterMs: 1000 };
+      try {
+        const resized = this.presentation.downsample(
+          page,
+          plan.width,
+          plan.height
+        );
+        return {
+          published: resized ? 1 : 0,
+          needsRepaint: resized,
+          ...(resized ? {} : { retryAfterMs: 1000 }),
+        };
+      } catch {
+        // Keep the original mask on allocation/context failures. A retry must
+        // not replace working soft shadows with an unrelated hard publication.
+        return { published: 0, needsRepaint: false, retryAfterMs: 1000 };
+      }
+    }
     // Temporary hard R32F+depth32 AND the newly copied publication coexist.
     if (
       this.memoryBytes + plan.width * plan.height * 16 >
@@ -513,9 +567,7 @@ export class ShadowReceiverAccumulator {
     }
   }
 
-  /** Cancel unpublished integration only; completed world-space masks survive
-   * dragging. The next settled view rebuilds demand from visible receivers.
-   */
+  /** Discard incompatible solar work; camera motion only pauses scheduling. */
   cancelPending() {
     if (this.activeId !== null) this.scratch.releaseScratch();
     this.activeId = null;

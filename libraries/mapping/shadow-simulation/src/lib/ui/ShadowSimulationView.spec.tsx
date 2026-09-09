@@ -52,7 +52,11 @@ vi.mock("./ShadowProjectionDebugView", async () => {
   };
 });
 vi.mock("./ShadowSimulationCurveSettings", () => ({
-  ShadowSimulationCurveSettings: () => <div>Kurvenauswahl</div>,
+  ShadowSimulationCurveSettings: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog" aria-label="Kurvenansicht">
+      <button onClick={onClose}>Kurvenansicht schließen</button>Kurvenauswahl
+    </div>
+  ),
 }));
 
 afterEach(cleanup);
@@ -97,6 +101,32 @@ const ShadowPanels = ({
 };
 
 describe("shadow display panel integration", () => {
+  it("opens curves from display settings without replacing quick controls", async () => {
+    const { getByRole, findByRole, queryByRole } = render(
+      <ShadowPanels controlStyle={SHADOW_CONTROL_STYLE.QUICK} />
+    );
+    expect(
+      queryByRole("button", { name: "Kurvenansicht", exact: true })
+    ).toBeNull();
+    fireEvent.click(getByRole("button", { name: "Darstellungseinstellungen" }));
+    const panel = await findByRole("dialog", { name: "Schattendarstellung" });
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Kurvenansicht", exact: true })
+    );
+    const curves = await findByRole("dialog", { name: "Kurvenansicht" });
+    expect(getByRole("button", { name: "Heute", exact: true })).toBeTruthy();
+    fireEvent.click(
+      within(panel).getByRole("button", {
+        name: "Schattendarstellung schließen",
+      })
+    );
+    expect(curves.isConnected).toBe(true);
+    fireEvent.click(
+      within(curves).getByRole("button", { name: "Kurvenansicht schließen" })
+    );
+    expect(queryByRole("dialog", { name: "Kurvenansicht" })).toBeNull();
+  });
+
   it.each([SHADOW_CONTROL_STYLE.QUICK, SHADOW_CONTROL_STYLE.CURVE])(
     "keeps intensity and a visible display opener on the %s main panel",
     async (controlStyle) => {
@@ -111,9 +141,10 @@ describe("shadow display panel integration", () => {
       const opener = getByRole("button", { name: "Darstellungseinstellungen" });
       expect(opener.getAttribute("aria-expanded")).toBe("false");
       expect(
-        intensity.compareDocumentPosition(opener) &
+        opener.compareDocumentPosition(intensity) &
           Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
+      expect(opener.textContent).not.toContain("Darstellungseinstellungen");
       fireEvent.change(intensity, { target: { value: "0.42" } });
       expect((intensity as HTMLInputElement).value).toBe("0.42");
       fireEvent.click(opener);

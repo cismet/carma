@@ -100,6 +100,7 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   showMapStyleElevationLabels?: boolean;
   useTransmittanceLut?: boolean;
   useSkyIrradianceLut?: boolean;
+  /** CURVE opens the independent curve panel; quick controls remain available. */
   controlStyle?: ShadowControlStyle;
   animationMode?: ShadowAnimationMode;
   animationSpeed?: ShadowAnimationSpeed;

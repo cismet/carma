@@ -573,12 +573,12 @@ export function createThreeTilesLoading(
         runtimeState.tiles.parseQueue.maxJobs;
       const previousParseConcurrency = runtimeState.tiles.parseQueue.maxJobs;
       // DRACO decode is already worker-backed, but GLTF scene/material creation
-      // must touch Three objects on the renderer thread. Keep one such job while
-      // dragging; restore normal parallelism as soon as input ends.
+      // must touch Three objects on the renderer thread. Pause admission while
+      // dragging without aborting downloads or discarding decoded payloads.
       runtimeState.tiles.parseQueue.maxJobs = runtimeState.memoryAdmissionPaused
         ? 0
         : runtimeState.map?.isMoving?.() && runtimeState.options.providesTerrain
-        ? 1
+        ? 0
         : runtimeState.normalParseConcurrency;
       if (runtimeState.tiles.parseQueue.maxJobs > previousParseConcurrency) {
         // Changing the upstream concurrency limit does not wake a paused queue.
@@ -597,18 +597,17 @@ export function createThreeTilesLoading(
       const parseBacklog = (
         runtimeState.tiles.parseQueue as RuntimePriorityQueue
       ).items.length;
-      const meshPipelineLimit =
-        parseBacklog >= MESH_PARSE_BACKLOG_HARD_LIMIT
-          ? 0
-          : parseBacklog >= MESH_PARSE_BACKLOG_SOFT_LIMIT
-          ? 4
-          : MESH_DOWNLOAD_CONCURRENCY;
+      const meshPipelineLimit = !runtimeState.meshBaseCoverageReady
+        ? MESH_DOWNLOAD_CONCURRENCY
+        : parseBacklog >= MESH_PARSE_BACKLOG_HARD_LIMIT
+        ? 0
+        : parseBacklog >= MESH_PARSE_BACKLOG_SOFT_LIMIT
+        ? 4
+        : MESH_DOWNLOAD_CONCURRENCY;
       const downloadConcurrency = runtimeState.options.providesTerrain
         ? Math.min(
             activeConcurrency,
-            runtimeState.map?.isMoving?.()
-              ? TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY
-              : meshPipelineLimit
+            runtimeState.map?.isMoving?.() ? 0 : meshPipelineLimit
           )
         : runtimeState.map && isSharedThreeTerrainLoading(runtimeState.map)
         ? Math.min(

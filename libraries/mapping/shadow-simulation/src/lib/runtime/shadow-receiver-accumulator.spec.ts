@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   scratchKeys: [] as string[],
   restorePending: false,
   publicationBlocked: new Set<string>(),
+  downsamples: [] as string[],
   capturedSizes: new Map<
     string,
     { width: number; height: number; samples: number }
@@ -34,6 +35,17 @@ vi.mock("./shadow-corridor-presentation", () => ({
       return state.restorePending;
     }
     has(page: ShadowAccumulationPage, samples: number) {
+      const capture = state.capturedSizes.get(page.id);
+      if (
+        capture &&
+        capture.samples > 1 &&
+        capture.samples >= samples &&
+        page.captureSize
+      )
+        return (
+          capture.width >= page.captureSize.width &&
+          capture.height >= page.captureSize.height
+        );
       return state.publications.some(
         (entry) =>
           entry.id === page.id &&
@@ -42,12 +54,29 @@ vi.mock("./shadow-corridor-presentation", () => ({
       );
     }
     hasAtLeast(page: ShadowAccumulationPage, samples: number) {
+      const capture = state.capturedSizes.get(page.id);
+      if (capture && capture.samples > 1 && capture.samples >= samples)
+        return this.has(page, capture.samples);
       return state.publications.some(
         (entry) =>
           entry.id === page.id &&
           entry.key === page.contentKey &&
           entry.samples >= samples
       );
+    }
+    downsample(page: ShadowAccumulationPage, width: number, height: number) {
+      const old = state.capturedSizes.get(page.id);
+      if (!old) return false;
+      state.capturedSizes.set(page.id, {
+        ...old,
+        width: Math.max(width, Math.ceil(old.width / 2)),
+        height: Math.max(height, Math.ceil(old.height / 2)),
+      });
+      for (const publication of state.publications) {
+        if (publication.id === page.id) publication.key = page.contentKey!;
+      }
+      state.downsamples.push(page.id);
+      return true;
     }
     publish(
       _color: unknown,
@@ -226,79 +255,133 @@ beforeEach(() => {
   state.restorePending = false;
   state.publicationBlocked.clear();
   state.capturedSizes.clear();
+  state.downsamples = [];
 });
 
 describe("independent full-receiver accumulation", () => {
+  it("finishes its existing allocation when camera demand changes mid-integration", () => {
+    const f = fixture();
+    const original = f.page("a");
+    const pages = { accumulationPages: [original], supportsOpaqueAccumulation: true, renderPageSample: vi.fn(() => true) };
+    f.accumulator.render(f.observer, pages, f.frame);
+    const key = state.scratchKeys.at(-1);
+    pages.accumulationPages = [{ ...original, groundTexelTargetMeters: 0.01, screenBounds: new THREE.Vector4(0, 0, 0.8, 0.8) }];
+    f.accumulator.render(f.observer, pages, { ...f.frame, viewKey: "moved" });
+    expect(state.scratchKeys.at(-1)).toBe(key);
+    expect(f.accumulator.pageProgress[0].samples).toBe(2);
+    f.accumulator.render(f.observer, pages, { ...f.frame, viewKey: "moved" });
+    expect(state.publications).toHaveLength(1);
+  });
+
+  it("resumes the same sample after motion and temporarily unready corridor coverage", () => {
+    const f = fixture();
+    f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.pageProgress[0].samples).toBe(1);
+    const resets = state.resets;
+    f.accumulator.render(f.observer, f.pages, { ...f.frame, active: false });
+    f.accumulator.render(f.observer, f.pages, {
+      ...f.frame,
+      isPageReady: () => false,
+    });
+    expect(f.accumulator.pageProgress[0].samples).toBe(1);
+    expect(state.resets).toBe(resets);
+    f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(f.accumulator.pageProgress[0].samples).toBe(2);
+    f.accumulator.render(f.observer, f.pages, f.frame);
+    expect(state.publications).toHaveLength(1);
+    expect(state.publications[0].samples).toBe(3);
+    f.accumulator.dispose();
+  });
   it("cancels unfinished work but reuses completed receiver masks", () => {
     const f = fixture();
     f.pages.accumulationPages.push(f.page("b"));
     for (let i = 0; i < f.frame.samples; i++)
       f.accumulator.render(f.observer, f.pages, f.frame);
-    expect(f.accumulator.pageProgress.find(p => p.id === "a")?.published).toBe(true);
+    expect(
+      f.accumulator.pageProgress.find((p) => p.id === "a")?.published
+    ).toBe(true);
     f.accumulator.render(f.observer, f.pages, f.frame);
-    expect(f.accumulator.pageProgress.find(p => p.id === "b")?.samples).toBe(1);
+    expect(f.accumulator.pageProgress.find((p) => p.id === "b")?.samples).toBe(
+      1
+    );
     f.accumulator.cancelPending();
-    expect(f.accumulator.pageProgress.find(p => p.id === "a")?.published).toBe(true);
-    expect(f.accumulator.pageProgress.find(p => p.id === "b")?.samples).toBe(0);
+    expect(
+      f.accumulator.pageProgress.find((p) => p.id === "a")?.published
+    ).toBe(true);
+    expect(f.accumulator.pageProgress.find((p) => p.id === "b")?.samples).toBe(
+      0
+    );
     f.accumulator.render(f.observer, f.pages, f.frame);
-    expect(f.accumulator.pageProgress.find(p => p.id === "b")?.samples).toBe(1);
-    expect(state.publications.filter(p => p.id === "a")).toHaveLength(1);
+    expect(f.accumulator.pageProgress.find((p) => p.id === "b")?.samples).toBe(
+      1
+    );
+    expect(state.publications.filter((p) => p.id === "a")).toHaveLength(1);
   });
 
-  it("admits all nine large pages by shrinking old pinned captures before adding the ninth", () => {
-    const f = fixture();
-    f.pages.accumulationPages = Array.from({ length: 8 }, (_, i) => ({
-      ...f.page(String(i)),
-      groundTexelTargetMeters: 0.001,
-    }));
-    const frame = {
-      ...f.frame,
-      width: 2048,
-      height: 2048,
-      maxRenderTargetPixels: 2048 ** 2,
-    };
-    for (let i = 0; i < 8; i++)
+  it.each([1, 64])(
+    "admits a ninth page without reintegrating retained %i-sample masks",
+    (samples) => {
+      const f = fixture();
+      f.pages.accumulationPages = Array.from({ length: 8 }, (_, i) => ({
+        ...f.page(String(i)),
+        groundTexelTargetMeters: 0.001,
+      }));
+      const frame = {
+        ...f.frame,
+        width: 2048,
+        height: 2048,
+        maxRenderTargetPixels: 2048 ** 2,
+      };
+      for (let i = 0; i < 8; i++)
+        expect(
+          f.accumulator.renderHard(f.observer, f.pages, frame).published
+        ).toBe(1);
       expect(
-        f.accumulator.renderHard(f.observer, f.pages, frame).published
-      ).toBe(1);
-    expect(
-      [...state.capturedSizes.values()].reduce(
-        (sum, p) => sum + p.width * p.height * 8,
-        0
-      )
-    ).toBe(256 * 1024 ** 2);
-    f.pages.accumulationPages.push({
-      ...f.page("8"),
-      groundTexelTargetMeters: 0.001,
-    });
-    const start = state.publications.length;
-    for (let i = 0; i < 3; i++)
+        [...state.capturedSizes.values()].reduce(
+          (sum, p) => sum + p.width * p.height * 8,
+          0
+        )
+      ).toBe(256 * 1024 ** 2);
+      // Model already completed integrations. The real presentation reuses their
+      // stable receiver/sun identity even when camera allocation changes.
+      for (const capture of state.capturedSizes.values())
+        capture.samples = samples;
+      for (const publication of state.publications)
+        publication.samples = samples;
+      f.pages.accumulationPages.push({
+        ...f.page("8"),
+        groundTexelTargetMeters: 0.001,
+      });
+      const start = state.publications.length;
+      for (let i = 0; i < 3; i++)
+        expect(
+          f.accumulator.renderHard(f.observer, f.pages, frame).published
+        ).toBe(1);
+      expect(state.downsamples).toEqual(samples > 1 ? ["0", "1"] : []);
+      expect(state.publications.slice(start).map(({ id }) => id)).toEqual(
+        samples > 1 ? ["8"] : ["0", "1", "8"]
+      );
+      for (let i = 0; i < 8; i++)
+        expect(state.capturedSizes.get(String(i))?.samples).toBe(samples);
+      expect(state.capturedSizes.size).toBe(9);
       expect(
-        f.accumulator.renderHard(f.observer, f.pages, frame).published
-      ).toBe(1);
-    expect(state.publications.slice(start).map(({ id }) => id)).toEqual([
-      "0",
-      "1",
-      "8",
-    ]);
-    expect(state.capturedSizes.size).toBe(9);
-    expect(
-      [...state.capturedSizes.values()].reduce(
-        (sum, p) => sum + p.width * p.height * 8,
-        0
-      )
-    ).toBe(256 * 1024 ** 2);
-    for (let i = 0; i < 9; i++)
-      f.accumulator.render(f.observer, f.pages, { ...frame, samples: 1 });
-    expect(f.accumulator.pageProgress.every((page) => page.published)).toBe(
-      true
-    );
-    expect(
-      f.accumulator.pageProgress.filter(
-        (page) => page.width < 2048 || page.height < 2048
-      )
-    ).toHaveLength(2);
-  });
+        [...state.capturedSizes.values()].reduce(
+          (sum, p) => sum + p.width * p.height * 8,
+          0
+        )
+      ).toBe(256 * 1024 ** 2);
+      for (let i = 0; i < 9; i++)
+        f.accumulator.render(f.observer, f.pages, { ...frame, samples: 1 });
+      expect(f.accumulator.pageProgress.every((page) => page.published)).toBe(
+        true
+      );
+      expect(
+        f.accumulator.pageProgress.filter(
+          (page) => page.width < 2048 || page.height < 2048
+        )
+      ).toHaveLength(2);
+    }
+  );
 
   it("does not replace a useful soft capture with a resized hard capture without byte pressure", () => {
     const f = fixture();
@@ -318,12 +401,16 @@ describe("independent full-receiver accumulation", () => {
 
   it("keeps the receiver capture projection stable after observer rotation", () => {
     const f = fixture();
-    for (let i = 0; i < 3; i++) f.accumulator.render(f.observer, f.pages, f.frame);
+    for (let i = 0; i < 3; i++)
+      f.accumulator.render(f.observer, f.pages, f.frame);
     const originalKey = f.accumulator.capturePages[0].captureKey;
     const publications = state.publications.length;
     f.observer.rotateY(0.4);
     f.observer.updateMatrixWorld(true);
-    f.accumulator.render(f.observer, f.pages, { ...f.frame, viewKey: "rotated" });
+    f.accumulator.render(f.observer, f.pages, {
+      ...f.frame,
+      viewKey: "rotated",
+    });
     expect(f.accumulator.capturePages[0].captureKey).toBe(originalKey);
     expect(state.publications).toHaveLength(publications);
   });
@@ -585,7 +672,7 @@ describe("independent full-receiver accumulation", () => {
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
   });
 
-  it("separates committed hard readiness from final soft readiness while paused", () => {
+  it("preserves committed hard readiness while paused, then checks final soft readiness on resume", () => {
     const f = fixture();
     f.pages.accumulationPages = [{ ...f.page("a"), ready: false }];
     expect(
@@ -597,6 +684,14 @@ describe("independent full-receiver accumulation", () => {
     f.accumulator.render(f.observer, f.pages, {
       ...f.frame,
       active: false,
+      isPageReady: () => false,
+    });
+    expect(f.accumulator.pageProgress[0]).toMatchObject({
+      published: true,
+      totalSamples: 1,
+    });
+    f.accumulator.render(f.observer, f.pages, {
+      ...f.frame,
       isPageReady: () => false,
     });
     expect(f.accumulator.pageProgress[0]).toMatchObject({

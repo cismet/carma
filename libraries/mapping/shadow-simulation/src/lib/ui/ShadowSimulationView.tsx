@@ -12,6 +12,7 @@ import {
   ControlButtonStyler,
 } from "@carma-mapping/map-controls-layout";
 import {
+  SHADOW_CONTROL_STYLE,
   type ShadowDateState,
   type ShadowDateStateSetter,
   type ShadowSimulationConfig,
@@ -40,6 +41,12 @@ const ShadowProjectionDebugView = lazy(() =>
 const ShadowSimulationDisplaySettingsPanel = lazy(() =>
   import("./ShadowSimulationDisplaySettingsPanel").then((module) => ({
     default: module.ShadowSimulationDisplaySettingsPanel,
+  }))
+);
+
+const ShadowSimulationCurveSettings = lazy(() =>
+  import("./ShadowSimulationCurveSettings").then((module) => ({
+    default: module.ShadowSimulationCurveSettings,
   }))
 );
 
@@ -181,6 +188,21 @@ export const ShadowSimulationView = ({
         state={state}
         dateState={dateState}
       />
+      {state.controlStyle === SHADOW_CONTROL_STYLE.CURVE && (
+        <Suspense fallback={null}>
+          <ShadowSimulationCurveSettings
+            location={location}
+            dateState={dateState}
+            setDateState={setSharedDateState}
+            onClose={() =>
+              setSharedState({
+                ...state,
+                controlStyle: SHADOW_CONTROL_STYLE.QUICK,
+              })
+            }
+          />
+        </Suspense>
+      )}
       {state.showDisplaySettings && (
         <Suspense fallback={null}>
           <ShadowSimulationDisplaySettingsPanel

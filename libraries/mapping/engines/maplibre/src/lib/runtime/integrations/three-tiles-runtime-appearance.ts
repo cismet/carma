@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { clamp } from "@carma-commons/math";
 
 import { hasDeferredGltfMaterials } from "./gltf-deferred-materials";
-import type { SharedThreeSceneShadowStyle } from "./shared-three-scene-layer";
+import type { SharedThreeSceneShadowStyle } from "../../core/shared-three-scene-types";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,

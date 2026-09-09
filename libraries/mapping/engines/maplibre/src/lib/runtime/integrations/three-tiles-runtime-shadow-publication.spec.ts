@@ -5,8 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { ShadowReceiverMask } from "../../core/shadow-receiver-mask";
 import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
 import { createThreeTilesShadows } from "./three-tiles-runtime-shadows";
-import type { RuntimeLruCache, RuntimeTilesRenderer } from "./three-tiles-runtime-types";
-import type { SharedThreeShadowRegionDiagnostics } from "./shared-three-scene-layer";
+import type {
+  RuntimeLruCache,
+  RuntimeTilesRenderer,
+} from "./three-tiles-runtime-types";
+import type { SharedThreeShadowRegionDiagnostics } from "../../core/shared-three-scene-types";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {

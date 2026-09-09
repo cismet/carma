@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { SharedThreeSceneTileVolume } from "./shared-three-scene-layer";
+import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 
 export type ThreeTilesDebugVolume = Readonly<{
   id: string;

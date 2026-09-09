@@ -21,7 +21,7 @@ import {
 } from "../../core/terrain-map-style";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
-import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
+import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
 import {
   getMapStylePointLabelLiftMeters,
   isMapStyleContourLineLayer,

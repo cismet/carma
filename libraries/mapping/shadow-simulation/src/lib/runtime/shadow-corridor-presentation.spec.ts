@@ -60,6 +60,7 @@ const fixture = () => {
   const scene = new THREE.Scene();
   const material = new THREE.MeshLambertMaterial();
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(), material);
+  mesh.receiveShadow = true;
   scene.add(mesh);
   const publish = () =>
     presentation.publish(color, reference, camera, pages[0], 128);
@@ -77,10 +78,66 @@ const fixture = () => {
   };
 };
 
+it("downsamples baked solar visibility without rendering geometry or losing its samples/projection", () => {
+  const f = fixture();
+  const page = {
+    ...f.pages[0],
+    presentationKey: "same-receiver-and-sun",
+    captureSize: { width: 32, height: 32 },
+  };
+  expect(f.presentation.publish(f.color, f.reference, f.camera, page, 64)).toBe(
+    true
+  );
+  const copies = f.renderer.copyTextureToTexture.mock.calls.length;
+  expect(f.presentation.downsample(page, 16, 16)).toBe(true);
+  const next = {
+    ...page,
+    contentKey: "changed-camera-demand",
+    captureSize: { width: 16, height: 16 },
+  };
+  expect(f.presentation.has(next, 64)).toBe(true);
+  expect(f.presentation.getCapturedSize(page.id)).toEqual({
+    width: 16,
+    height: 16,
+    samples: 64,
+  });
+  expect(f.renderer.copyTextureToTexture).toHaveBeenCalledTimes(copies);
+  expect(f.presentation.has({ ...next, presentationKey: "new-sun" }, 64)).toBe(
+    false
+  );
+  expect(
+    f.presentation.has({ ...next, captureSize: { width: 64, height: 64 } }, 64)
+  ).toBe(false);
+  expect(f.presentation.canReplay(next)).toBe(true);
+  f.presentation.dispose();
+});
+
+it("keeps a finished mask after downsample allocation failure", () => {
+  const f = fixture();
+  f.publish();
+  f.renderer.initRenderTarget.mockImplementationOnce(() => {
+    throw new Error("allocation failed");
+  });
+  expect(() => f.presentation.downsample(f.pages[0], 16, 16)).toThrow(
+    "allocation failed"
+  );
+  expect(f.presentation.has(f.pages[0], 128)).toBe(true);
+  expect(f.presentation.getCapturedSize("a")).toEqual({
+    width: 32,
+    height: 32,
+    samples: 128,
+  });
+  f.presentation.dispose();
+});
+
 describe("completed corridor presentation", () => {
   it("retains the last shaded publication across time changes without claiming current readiness", () => {
     const f = fixture();
-    const previous = { ...f.pages[0], contentKey: "same-geometry", presentationKey: "old-sun" };
+    const previous = {
+      ...f.pages[0],
+      contentKey: "same-geometry",
+      presentationKey: "old-sun",
+    };
     f.presentation.publish(f.color, f.reference, f.camera, previous, 128);
     const next = { ...previous, presentationKey: "new-sun" };
     expect(f.presentation.canPresent(next)).toBe(false);
@@ -91,10 +148,14 @@ describe("completed corridor presentation", () => {
     // A second time change while loading must still retain the same image.
     f.presentation.beginSolarTransition();
     expect(f.presentation.canPresent(next)).toBe(true);
-    expect(f.presentation.publish(f.color, f.reference, f.camera, next, 1)).toBe(true);
+    expect(
+      f.presentation.publish(f.color, f.reference, f.camera, next, 1)
+    ).toBe(true);
     expect(f.presentation.canReplay(next)).toBe(true);
     expect(f.presentation.hasAtLeast(next, 1)).toBe(true);
-    expect(f.presentation.canPresent({ ...next, presentationKey: "another-sun" })).toBe(false);
+    expect(
+      f.presentation.canPresent({ ...next, presentationKey: "another-sun" })
+    ).toBe(false);
     f.presentation.dispose();
   });
 
@@ -105,15 +166,26 @@ describe("completed corridor presentation", () => {
       presentationKey: "same-tile-lod-and-sun",
       captureSize: { width: 32, height: 32 },
     };
-    expect(f.presentation.publish(f.color, f.reference, f.camera, page, 64)).toBe(true);
+    expect(
+      f.presentation.publish(f.color, f.reference, f.camera, page, 64)
+    ).toBe(true);
     const moved = { ...page, contentKey: "camera-or-traversal-changed" };
     expect(f.presentation.has(moved, 64)).toBe(true);
-    expect(f.presentation.has({ ...moved, captureSize: { width: 16, height: 16 } }, 64)).toBe(true);
+    expect(
+      f.presentation.has(
+        { ...moved, captureSize: { width: 16, height: 16 } },
+        64
+      )
+    ).toBe(true);
     const finer = { ...moved, captureSize: { width: 64, height: 32 } };
     expect(f.presentation.has(finer, 64)).toBe(false);
     expect(f.presentation.canReplay(finer)).toBe(true);
-    expect(f.presentation.has({ ...moved, presentationKey: "different-sun" }, 64)).toBe(false);
-    expect(f.presentation.has({ ...moved, id: "different-mesh-lod" }, 64)).toBe(false);
+    expect(
+      f.presentation.has({ ...moved, presentationKey: "different-sun" }, 64)
+    ).toBe(false);
+    expect(f.presentation.has({ ...moved, id: "different-mesh-lod" }, 64)).toBe(
+      false
+    );
     expect(f.presentation.has(moved, 128)).toBe(false);
     f.presentation.dispose();
   });
@@ -138,6 +210,9 @@ describe("completed corridor presentation", () => {
       const overlay = new THREE.Group();
       overlay.add(mesh);
       f.scene.add(overlay);
+      f.presentation.capture(f.scene, () => expect(f.publish()).toBe(true));
+      expect(f.presentation.supportsCapture).toBe(true);
+      mesh.receiveShadow = true;
       f.presentation.capture(f.scene, () => expect(f.publish()).toBe(false));
       expect(f.presentation.supportsCapture).toBe(false);
       overlay.visible = false;
@@ -183,7 +258,9 @@ describe("completed corridor presentation", () => {
       const f = fixture();
       const material = new Material({ color: 0x2468ac, alphaTest: 0.5 });
       const scene = new THREE.Scene();
-      scene.add(new THREE.Mesh(new THREE.PlaneGeometry(), material));
+      const receiver = new THREE.Mesh(new THREE.PlaneGeometry(), material);
+      receiver.receiveShadow = true;
+      scene.add(receiver);
       const shader = {
         uniforms: {} as Record<string, { value: unknown }>,
         vertexShader: THREE.ShaderLib[name].vertexShader,
@@ -566,7 +643,11 @@ describe("persistent corridor GPU integration", () => {
   it("rejects late old-time cache reads after solar cancellation", async () => {
     const f = persistentFixture();
     let complete!: (record: ShadowCorridorCacheRecord) => void;
-    f.cache.read.mockReturnValue(new Promise((resolve) => { complete = resolve; }));
+    f.cache.read.mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      })
+    );
     f.presentation.prepareRestore(f.pages[0], 128, f.captureMatrix);
     f.presentation.beginSolarTransition();
     expect(f.cache.cancelPending).toHaveBeenCalledOnce();
@@ -590,8 +671,18 @@ describe("persistent corridor GPU integration", () => {
       resolution: "smaller-demand",
       samples,
     }));
-    expect(f.presentation.has({ ...page, captureSize: { width: 16, height: 16 } }, 128)).toBe(true);
-    expect(f.presentation.has({ ...page, captureSize: { width: 64, height: 64 } }, 128)).toBe(false);
+    expect(
+      f.presentation.has(
+        { ...page, captureSize: { width: 16, height: 16 } },
+        128
+      )
+    ).toBe(true);
+    expect(
+      f.presentation.has(
+        { ...page, captureSize: { width: 64, height: 64 } },
+        128
+      )
+    ).toBe(false);
     f.context.identity.mockImplementation((_page, samples) => ({
       ...f.identity,
       geometryFingerprint: "changed-source-geometry",

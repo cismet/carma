@@ -17,7 +17,7 @@ import type {
   SharedThreeSceneShadowView,
   SharedThreeSceneTileVolume,
   SharedThreeShadowRegionDiagnostics,
-} from "./shared-three-scene-layer";
+} from "../../core/shared-three-scene-types";
 import { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import type { EffectiveErrorTargetState } from "./three-tiles-load-policy";
 import {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { SharedThreeSceneLayer } from "./shared-three-scene-layer";
+import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
 
 export type SharedThreeSceneCameraPreview = Readonly<{
   render: (

@@ -154,6 +154,31 @@ export class ShadowCorridorPresentation {
     new THREE.PlaneGeometry(2, 2),
     this.copyMaterial
   );
+  private readonly downsampleMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      source: { value: null as THREE.Texture | null },
+      depth: { value: null as THREE.Texture | null },
+      texel: { value: new THREE.Vector2() },
+    },
+    vertexShader:
+      "varying vec2 uvCopy; void main() { uvCopy = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader: `uniform sampler2D source; uniform sampler2D depth;
+      uniform vec2 texel; varying vec2 uvCopy;
+      void main() {
+        vec2 d = texel * 0.25;
+        float visibility = (texture2D(source, uvCopy + d).r
+          + texture2D(source, uvCopy - d).r
+          + texture2D(source, uvCopy + vec2(d.x, -d.y)).r
+          + texture2D(source, uvCopy + vec2(-d.x, d.y)).r) * 0.25;
+        gl_FragColor = vec4(visibility, 0.0, 0.0, 1.0);
+        gl_FragDepth = texture2D(depth, uvCopy).r;
+      }`,
+    depthTest: true,
+    depthFunc: THREE.AlwaysDepth,
+    depthWrite: true,
+    blending: THREE.NoBlending,
+    toneMapped: false,
+  });
   private readonly uniforms = {
     carmaCaptureVisibility: { value: false },
     carmaRetainedEnabled: { value: false },
@@ -265,6 +290,93 @@ export class ShadowCorridorPresentation {
     );
   }
 
+  /** Reclaim retained bytes without throwing away a completed sun-disc integral.
+   * One dyadic step per call is an exact 2x2 (or 2x1) visibility average. Keep
+   * the original world projection, crop and sample count; never render geometry.
+   */
+  downsample(
+    page: ShadowAccumulationPage,
+    width: number,
+    height: number
+  ): boolean {
+    if (
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 1 ||
+      height < 1
+    )
+      return false;
+    const capture = this.captures.get(page.id);
+    if (!capture || !this.canReplay(page)) return false;
+    const nextWidth = Math.max(width, Math.ceil(capture.width / 2));
+    const nextHeight = Math.max(height, Math.ceil(capture.height / 2));
+    if (
+      nextWidth > capture.width ||
+      nextHeight > capture.height ||
+      nextWidth * nextHeight >= capture.width * capture.height
+    )
+      return false;
+    const target = new THREE.WebGLRenderTarget(nextWidth, nextHeight, {
+      type: THREE.FloatType,
+      format: THREE.RedFormat,
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      depthTexture: new THREE.DepthTexture(
+        nextWidth,
+        nextHeight,
+        THREE.UnsignedIntType
+      ),
+      samples: 0,
+    });
+    const renderer = this.renderer;
+    const previous = renderer.getRenderTarget();
+    const face = renderer.getActiveCubeFace();
+    const mip = renderer.getActiveMipmapLevel();
+    const viewport = renderer.getViewport(new THREE.Vector4());
+    const scissor = renderer.getScissor(new THREE.Vector4());
+    const scissorTest = renderer.getScissorTest();
+    const autoClear = renderer.autoClear;
+    try {
+      renderer.initRenderTarget(target);
+      this.downsampleMaterial.uniforms.source.value = capture.visibility;
+      this.downsampleMaterial.uniforms.depth.value = capture.depth;
+      this.downsampleMaterial.uniforms.texel.value.set(
+        1 / nextWidth,
+        1 / nextHeight
+      );
+      this.copyQuad.material = this.downsampleMaterial;
+      renderer.autoClear = false;
+      renderer.setRenderTarget(target);
+      renderer.setViewport(new THREE.Vector4(0, 0, nextWidth, nextHeight));
+      renderer.setScissorTest(false);
+      renderer.render(this.copyScene, this.copyCamera);
+    } catch (error) {
+      target.depthTexture?.dispose();
+      target.dispose();
+      throw error;
+    } finally {
+      this.copyQuad.material = this.copyMaterial;
+      renderer.setRenderTarget(previous, face, mip);
+      renderer.setViewport(viewport);
+      renderer.setScissor(scissor);
+      renderer.setScissorTest(scissorTest);
+      renderer.autoClear = autoClear;
+    }
+    this.captures.set(page.id, {
+      ...capture,
+      target,
+      visibility: target.texture,
+      depth: target.depthTexture!,
+      width: nextWidth,
+      height: nextHeight,
+      bytes: nextWidth * nextHeight * 8,
+    });
+    this.pendingWrites.delete(page.id);
+    disposeCapture(capture);
+    this.contentRevision += 1;
+    return true;
+  }
+
   isRestorePending(page: ShadowAccumulationPage, samples: number) {
     const pending = this.pendingRestores.get(page.id);
     const identity = this.persistence?.identity(page, samples);
@@ -306,8 +418,9 @@ export class ShadowCorridorPresentation {
 
   canPresent(page: ShadowAccumulationPage): boolean {
     const capture = this.captures.get(page.id);
-    return this.canReplay(page) || Boolean(
-      capture && this.solarTransitionCaptures.has(capture)
+    return (
+      this.canReplay(page) ||
+      Boolean(capture && this.solarTransitionCaptures.has(capture))
     );
   }
 
@@ -879,7 +992,7 @@ export class ShadowCorridorPresentation {
     scene.traverseVisible((object) => {
       const mesh = object as THREE.Mesh;
       // Their vertex transforms need a separate verified world-position path.
-      if (!mesh.isMesh) return;
+      if (!mesh.isMesh || !mesh.receiveShadow) return;
       if (
         (mesh as THREE.InstancedMesh).isInstancedMesh ||
         (mesh as THREE.SkinnedMesh).isSkinnedMesh
@@ -1033,6 +1146,7 @@ float carmaRetainedCoverage(float fallbackCoverage) {
     this.uniforms.carmaRetainedDepth.value = null;
     this.copyQuad.geometry.dispose();
     this.copyMaterial.dispose();
+    this.downsampleMaterial.dispose();
     this.packMaterial.dispose();
     for (const restore of this.materials.values()) restore();
     this.materials.clear();

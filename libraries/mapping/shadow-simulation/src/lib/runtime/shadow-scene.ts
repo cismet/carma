@@ -530,10 +530,15 @@ export const solarPositionToSceneDirection = ({
 const makeMeshShadeable = (mesh: THREE.Mesh, receiverPlane = false) => {
   if (mesh.userData[SHADOW_SCENE_USER_DATA.OVERLAY]) return;
   mesh.castShadow = mesh.userData.disableShadowCasting !== true;
-  mesh.receiveShadow = true;
   const materials = Array.isArray(mesh.material)
     ? mesh.material
     : [mesh.material];
+  // Geometry-only offscreen GLTF placeholders deliberately write no colour.
+  // Do not promote them to receivers: their unlit/depthless materials would
+  // block the entire corridor accumulator despite contributing only occlusion.
+  mesh.receiveShadow = materials.some(
+    (material) => material.visible && material.colorWrite
+  );
   // Closed solids default to casting from both faces, so a sun-facing wall
   // shadows the ground under a solid that does not sit flush on the terrain.
   // Tile runtimes can provide a topology-derived side before they join the
@@ -2059,6 +2064,12 @@ export const buildShadowSimulationScene = (
         sky: sharedBinding.atmosphericSky.mesh,
         overlay: sharedBinding.sunVectorRoot,
         maximumMapSize: resourceLimits.maxShadowMapSize,
+        isBaseCoverageReady: () =>
+          initialTerrainStageReady &&
+          getSharedThreeSceneRuntimes(map).every(
+            (runtime) =>
+              !runtime.providesTerrain || (runtime.isBaseViewReady?.() ?? true)
+          ),
         isCorridorReady: (bounds, errorPixels, receiverBounds) => {
           // Hard capture, soft scheduling and presentation inspect the same
           // immutable cut during this synchronous draw. Do not traverse its
@@ -2243,30 +2254,33 @@ export const buildShadowSimulationScene = (
       );
     },
     finishRound: () => sharedBinding.controller.restoreSunDiscCenter(),
-    renderProgressive: (
-      camera: THREE.Camera,
-      frame: Readonly<{
-        width: number;
-        height: number;
-        viewKey: string;
-        styleEpoch: number;
-        active: boolean;
-      }>
-    ) =>
-      withTileVolumeSnapshot(() => {
-        if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
-        if (useBootstrapPreview()) return null;
-        const tiles = updateTiledScene();
-        if (!tiles) return null;
-        const result = tiles.renderProgressive(camera, {
-          ...frame,
-          samples: getSunDiscAccumulationRounds(),
-          maxRenderTargetPixels: maxAccumulationPixels,
-          options: accumulationOptions,
+    get renderProgressive() {
+      if (!isTiledBufferEnabled()) return undefined;
+      return (
+        camera: THREE.Camera,
+        frame: Readonly<{
+          width: number;
+          height: number;
+          viewKey: string;
+          styleEpoch: number;
+          active: boolean;
+        }>
+      ) =>
+        withTileVolumeSnapshot(() => {
+          if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
+          if (useBootstrapPreview()) return null;
+          const tiles = updateTiledScene();
+          if (!tiles) return null;
+          const result = tiles.renderProgressive(camera, {
+            ...frame,
+            samples: getSunDiscAccumulationRounds(),
+            maxRenderTargetPixels: maxAccumulationPixels,
+            options: accumulationOptions,
+          });
+          publishProjectionDebug();
+          return result;
         });
-        publishProjectionDebug();
-        return result;
-      }),
+    },
     renderScene: (camera: THREE.Camera, round: number | null) =>
       withTileVolumeSnapshot(() => {
         // A common centre-sun pass includes every currently loaded caster;
@@ -2299,7 +2313,7 @@ export const buildShadowSimulationScene = (
 
   const handleMoveStart = () => {
     idleTerrainPrefetch.cancel();
-    tiledScene?.cancelPending();
+    tiledScene?.pausePending();
     shadowFrameBudget = updateShadowFrameBudget(
       shadowFrameBudget,
       performance.now(),

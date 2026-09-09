@@ -873,7 +873,7 @@ export class TiledShadowRenderer {
     let supported = true;
     this.scene.traverseVisible((object) => {
       const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
+      if (!mesh.isMesh || !mesh.receiveShadow) return;
       for (const material of Array.isArray(mesh.material)
         ? mesh.material
         : [mesh.material]) {

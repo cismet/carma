@@ -23,8 +23,10 @@ describe("Geoportal tiled scene adapter", () => {
   const fixture = (
     host: {
       isCorridorReady?: (bounds: THREE.Box3, error?: number) => boolean;
+      isBaseCoverageReady?: () => boolean;
       receiverStageError?: (bounds: THREE.Box3) => number;
       visualEpoch?: () => number;
+      requestRepaint?: () => void;
       corridorRevision?: (
         bounds: THREE.Box3,
         error?: number,
@@ -181,7 +183,7 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.dispose();
   });
 
-  it("cancels pending integration when inactive without dropping retained masks", () => {
+  it("pauses pending integration when inactive without dropping samples or retained masks", () => {
     const f = fixture();
     expect(
       f.adapter.renderProgressive(new THREE.Camera(), {
@@ -193,7 +195,7 @@ describe("Geoportal tiled scene adapter", () => {
         active: false,
       })
     ).toBeNull();
-    expect(f.accumulation.cancelPending).toHaveBeenCalledOnce();
+    expect(f.accumulation.cancelPending).not.toHaveBeenCalled();
     expect(f.accumulation.render).not.toHaveBeenCalled();
     expect(f.accumulation.dispose).not.toHaveBeenCalled();
     f.adapter.dispose();
@@ -216,6 +218,7 @@ describe("Geoportal tiled scene adapter", () => {
     };
     expect(f.adapter.renderProgressive(camera, frame)?.needsRepaint).toBe(true);
     expect(f.accumulation.render).not.toHaveBeenCalled();
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
     f.adapter.renderProgressive(camera, frame);
     expect(f.accumulation.render).toHaveBeenCalledOnce();
     f.adapter.dispose();
@@ -232,6 +235,30 @@ describe("Geoportal tiled scene adapter", () => {
     expect(f.pages.renderPageSample).not.toHaveBeenCalled();
     expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
     expect(f.light.visible).toBe(true);
+  });
+
+  it("keeps paused samples until the settled viewport has complete base coverage", () => {
+    let covered = false;
+    const f = fixture({ isBaseCoverageReady: () => covered });
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    const camera = new THREE.Camera();
+    const frame = {
+      width: 100,
+      height: 100,
+      viewKey: "pan",
+      styleEpoch: 0,
+      samples: 64,
+      active: true,
+    };
+    f.adapter.pausePending();
+    f.adapter.renderProgressive(camera, { ...frame, active: false });
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.accumulation.cancelPending).not.toHaveBeenCalled();
+    expect(f.accumulation.render).not.toHaveBeenCalled();
+    covered = true;
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.accumulation.render).toHaveBeenCalledOnce();
+    f.adapter.dispose();
   });
 
   it("continues ready soft corridors during sibling hard refinements after coverage", () => {
@@ -550,6 +577,58 @@ describe("Geoportal tiled scene adapter", () => {
     ).toBeNull();
     expect(f.accumulation.renderHard).not.toHaveBeenCalled();
     expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+  });
+
+  it("wakes a stranded soft publication after retry and cancels that wake on drag", () => {
+    vi.useFakeTimers();
+    const requestRepaint = vi.fn();
+    const f = fixture({ requestRepaint });
+    const frame = {
+      width: 800,
+      height: 600,
+      viewKey: "view",
+      styleEpoch: 0,
+      samples: 64,
+      active: true,
+    };
+    try {
+      f.accumulation.render.mockReturnValue({
+        progress: 0.5,
+        settled: false,
+        needsRepaint: false,
+        retryAfterMs: 1000,
+      });
+      f.adapter.renderProgressive(new THREE.Camera(), frame);
+      f.adapter.renderProgressive(new THREE.Camera(), frame);
+      vi.advanceTimersByTime(999);
+      expect(requestRepaint).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(requestRepaint).toHaveBeenCalledOnce();
+      f.accumulation.render.mockReturnValue({
+        progress: 1,
+        settled: true,
+        needsRepaint: false,
+      });
+      expect(
+        f.adapter.renderProgressive(new THREE.Camera(), frame)?.settled
+      ).toBe(true);
+      expect(
+        f.adapter.renderProgressive(new THREE.Camera(), frame)?.settled
+      ).toBe(false);
+      f.accumulation.render.mockReturnValue({
+        progress: 0.5,
+        settled: false,
+        needsRepaint: false,
+        retryAfterMs: 1000,
+      });
+      f.adapter.renderProgressive(new THREE.Camera(), frame);
+      f.adapter.pausePending();
+      vi.advanceTimersByTime(1000);
+      expect(requestRepaint).toHaveBeenCalledOnce();
+    } finally {
+      f.adapter.dispose();
+      vi.useRealTimers();
+    }
   });
 
   it("delegates native corridor frames and only signals settlement transitions", () => {

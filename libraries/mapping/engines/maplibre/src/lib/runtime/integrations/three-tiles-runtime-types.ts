@@ -5,7 +5,7 @@ import * as THREE from "three";
 
 import type { TextureColorCorrection } from "@carma-commons/resources";
 
-import type { SharedThreeSceneRuntime } from "./shared-three-scene-layer";
+import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
 
 export type RuntimePriorityQueue = PriorityQueue & {
   items: Tile[];
