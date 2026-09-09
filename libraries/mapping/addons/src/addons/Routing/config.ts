@@ -34,6 +34,14 @@ export type RoutingConfig = {
   arrivalMeters?: number;
 };
 
+/**
+ * What the info box note says in front of the numbers while a navigation runs
+ * ("noch 6 Min · 2,1 km"), so the countdown is not mistaken for the whole
+ * route's summary. A constant rather than config: no route has wanted another
+ * word yet.
+ */
+export const REMAINING_PREFIX = "noch";
+
 export const DEFAULT_RECENTER_POSITION: Positions = "bottomcenter";
 export const DEFAULT_RECENTER_ORDER = 10;
 export const DEFAULT_RECENTER_LABEL = "Zentrieren";
