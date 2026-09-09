@@ -69,11 +69,18 @@ export const useActiveRoute = (): [
 };
 
 export type RouteNavigation = {
-  /** the camera is on the route right now */
+  /** a navigation is running: the camera is on the route, or was until the user moved it */
   navigating: boolean;
+  /**
+   * the camera goes along with the user's position; false while the user
+   * has moved the map by hand during a navigation, until `recenter`
+   */
+  following: boolean;
   /** ease the camera onto the route in focus; does nothing without one */
   start: () => void;
   stop: () => void;
+  /** put the camera back on the position and follow again; does nothing while not navigating */
+  recenter: () => void;
 };
 
 export type RouteNavigationState = {
