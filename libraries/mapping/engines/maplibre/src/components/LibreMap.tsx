@@ -49,7 +49,10 @@ import {
 import type { FeatureIdentifier } from "../lib/selectionTypes";
 import { isClickClaimed } from "../utils/clickClaims";
 import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
-import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
+import {
+  LibreMapSelectionContent,
+  SELECTION_OVERLAY_LAYER_IDS,
+} from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
 import {
@@ -1192,6 +1195,7 @@ export const LibreMap = ({
           return (
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster") &&
+            !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
             !isNonSelectable(hit)
           );
         });
@@ -2084,6 +2088,7 @@ export const LibreMap = ({
         (hit) =>
           !hit.layer.id.includes("selection") &&
           !hit.layer.id.includes("cluster") &&
+          !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
           !isNonSelectable(hit)
       );
 

@@ -12,11 +12,24 @@ interface SelectionContentProps {
   map: maplibregl.Map | null;
 }
 
+// Purely decorative layers for the gazetteer/area overlay. They sit on top of
+// the style, so queryRenderedFeatures reports them as the topmost hit; the hit
+// filters in LibreMap must drop them or they shadow real feature selections.
+const MASK_LAYER_ID = "mask-layer";
+const FEATURE_FILL_LAYER_ID = "feature-fill";
+const FEATURE_OUTLINE_LAYER_ID = "feature-outline";
+
+export const SELECTION_OVERLAY_LAYER_IDS = [
+  MASK_LAYER_ID,
+  FEATURE_FILL_LAYER_ID,
+  FEATURE_OUTLINE_LAYER_ID,
+];
+
 export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
   const [marker, setMarker] = useState<maplibregl.Marker | undefined>();
   const { selection, overlayFeature } = useSelection();
   const maskSourceId = useRef("mask-source");
-  const maskLayerId = useRef("mask-layer");
+  const maskLayerId = useRef(MASK_LAYER_ID);
   const featureSourceId = useRef("feature-source");
 
   useEffect(() => {
@@ -47,11 +60,11 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
           if (map.getSource(maskSourceId.current)) {
             map.removeSource(maskSourceId.current);
           }
-          if (map.getLayer("feature-outline")) {
-            map.removeLayer("feature-outline");
+          if (map.getLayer(FEATURE_OUTLINE_LAYER_ID)) {
+            map.removeLayer(FEATURE_OUTLINE_LAYER_ID);
           }
-          if (map.getLayer("feature-fill")) {
-            map.removeLayer("feature-fill");
+          if (map.getLayer(FEATURE_FILL_LAYER_ID)) {
+            map.removeLayer(FEATURE_FILL_LAYER_ID);
           }
           if (map.getSource(featureSourceId.current)) {
             map.removeSource(featureSourceId.current);
@@ -138,11 +151,11 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
         }
 
         // Create a mask using a feature-state filter instead of a separate polygon
-        if (map.getLayer("feature-fill")) {
-          map.removeLayer("feature-fill");
+        if (map.getLayer(FEATURE_FILL_LAYER_ID)) {
+          map.removeLayer(FEATURE_FILL_LAYER_ID);
         }
         map.addLayer({
-          id: "feature-fill",
+          id: FEATURE_FILL_LAYER_ID,
           type: "fill",
           source: featureSourceId.current,
           paint: {
@@ -152,11 +165,11 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
         });
 
         // Add the feature outline layer
-        if (map.getLayer("feature-outline")) {
-          map.removeLayer("feature-outline");
+        if (map.getLayer(FEATURE_OUTLINE_LAYER_ID)) {
+          map.removeLayer(FEATURE_OUTLINE_LAYER_ID);
         }
         map.addLayer({
-          id: "feature-outline",
+          id: FEATURE_OUTLINE_LAYER_ID,
           type: "line",
           source: featureSourceId.current,
           paint: {
@@ -197,7 +210,7 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
                   "fill-opacity": 0.5,
                 },
               },
-              "feature-fill"
+              FEATURE_FILL_LAYER_ID
             );
           }
         } catch (maskError) {
