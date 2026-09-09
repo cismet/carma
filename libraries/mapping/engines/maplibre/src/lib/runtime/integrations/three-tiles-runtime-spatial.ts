@@ -24,6 +24,7 @@ export function createThreeTilesSpatial(
     | "options"
     | "tileBoundingBox"
     | "committedMeshCasterFrontier"
+    | "displayedMeshFrontier"
     | "activeTileBoundingBox"
     | "tileBoundsTransform"
     | "tilesetUrl"
@@ -212,8 +213,15 @@ export function createThreeTilesSpatial(
     (
       factor: number,
       allowBlocked = true,
-      frontier: ReadonlySet<Tile> | undefined = runtimeState.tiles?.visibleTiles
+      frontier: ReadonlySet<Tile> | undefined = runtimeState.options.providesTerrain
+        ? runtimeState.displayedMeshFrontier
+        : runtimeState.tiles?.visibleTiles
     ) => {
+      // Mesh visibleTiles also contains offscreen casters (and their retained
+      // parents). Only the loaded receiver cut drives viewport LOD progression;
+      // corridor completeness is checked independently before shadow capture.
+      // Testing the render union can strand a complete viewport at its coarse
+      // startup target while every request queue is already empty.
       if (!runtimeState.tiles || !frontier || frontier.size === 0) return false;
       const acceptedError = runtimeState.effectiveErrorTarget * factor;
       for (const visible of frontier) {

@@ -163,16 +163,56 @@ describe("Geoportal tiled scene adapter", () => {
     );
   });
 
-  it("keeps the page-light pass for idle presentation of a retained mask", () => {
+  it("cancels pending integration when inactive without dropping retained masks", () => {
+    const f = fixture();
+    expect(
+      f.adapter.renderProgressive(new THREE.Camera(), {
+        width: 100,
+        height: 100,
+        viewKey: "moved",
+        styleEpoch: 0,
+        samples: 64,
+        active: false,
+      })
+    ).toBeNull();
+    expect(f.accumulation.cancelPending).toHaveBeenCalledOnce();
+    expect(f.accumulation.render).not.toHaveBeenCalled();
+    expect(f.accumulation.dispose).not.toHaveBeenCalled();
+    f.adapter.dispose();
+  });
+
+  it("publishes ready hard coverage before submitting more soft samples", () => {
+    const f = fixture();
+    f.accumulation.renderHard.mockReturnValueOnce({
+      published: 1,
+      needsRepaint: false,
+    });
+    const camera = new THREE.Camera();
+    const frame = {
+      width: 100,
+      height: 100,
+      viewKey: "new tiles",
+      styleEpoch: 0,
+      samples: 64,
+      active: true,
+    };
+    expect(f.adapter.renderProgressive(camera, frame)?.needsRepaint).toBe(true);
+    expect(f.accumulation.render).not.toHaveBeenCalled();
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.accumulation.render).toHaveBeenCalledOnce();
+    f.adapter.dispose();
+  });
+
+  it("replays idle retained masks with common lighting without page depth renders", () => {
     const f = fixture();
     f.accumulation.presentation.canReplay.mockReturnValue(true);
-    f.pages.renderPageSample.mockImplementation(() => {
-      expect(f.light.visible).toBe(false);
+    f.pages.renderPageColor.mockImplementation(() => {
+      expect(f.light.visible).toBe(true);
       return true;
     });
     expect(f.adapter.render(new THREE.Camera(), null, 64)).toBe(true);
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
-    expect(f.pages.renderPageColor).not.toHaveBeenCalled();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
+    expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
     expect(f.light.visible).toBe(true);
   });
 
@@ -252,7 +292,8 @@ describe("Geoportal tiled scene adapter", () => {
       maxPagesPerFrame: 64,
       maxFrameCpuMilliseconds: 2,
     });
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageSample).not.toHaveBeenCalled();
     expect(f.frameCache.render).toHaveBeenLastCalledWith(
       expect.any(String),
       2560,
@@ -264,23 +305,23 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
     camera.matrixWorldInverse.makeTranslation(1, 0, 0);
     f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
-    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(4);
+    expect(f.pages.renderPageColor).toHaveBeenCalledTimes(4);
     f.accumulation.capturePages[0].revision = "geometry-changed";
     f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
-    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(5);
+    expect(f.pages.renderPageColor).toHaveBeenCalledTimes(5);
     f.adapter.invalidateContent();
     f.adapter.renderProgressive(camera, { ...frame, styleEpoch: 2 });
-    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(6);
+    expect(f.pages.renderPageColor).toHaveBeenCalledTimes(6);
     f.accumulation.presentation.supportsCapture = false;
     f.adapter.renderProgressive(camera, frame);
     f.adapter.renderProgressive(camera, frame);
-    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(8);
+    expect(f.pages.renderPageColor).toHaveBeenCalledTimes(8);
     f.accumulation.presentation.supportsCapture = true;
     f.adapter.renderProgressive(camera, frame);
-    const beforeVisualChange = f.pages.renderPageSample.mock.calls.length;
+    const beforeVisualChange = f.pages.renderPageColor.mock.calls.length;
     visualEpoch += 1;
     f.adapter.renderProgressive(camera, frame);
-    expect(f.pages.renderPageSample).toHaveBeenCalledTimes(
+    expect(f.pages.renderPageColor).toHaveBeenCalledTimes(
       beforeVisualChange + 1
     );
   });
@@ -356,7 +397,7 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.render(camera, null, 512);
     expect(onPresentedPages).toHaveBeenCalledOnce();
     onPresentedPages.mockClear();
-    f.pages.renderPageSample.mockReturnValue(false);
+    f.pages.renderPageColor.mockReturnValue(false);
     f.adapter.render(camera, null, 512);
     expect(onPresentedPages).not.toHaveBeenCalled();
   });
@@ -427,7 +468,7 @@ describe("Geoportal tiled scene adapter", () => {
     f.accumulation.presentation.canReplay.mockReturnValue(true);
     f.adapter.render(new THREE.Camera(), null, 128);
     expect(f.accumulation.presentation.render).toHaveBeenCalledOnce();
-    expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
+    expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
     expect(
       f.accumulation.renderHard.mock.calls[0][2].isPageReady("64:1:0")
     ).toBe(false);

@@ -645,6 +645,40 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
 
 ## SOFT-BASELINE-20260909 — receiver roles and stalled convergence
 
+### CAMERA-REQUEST-PREEMPTION-20260909 — prioritize changed-view hard coverage
+
+- **ID/date/status:** CAMERA-REQUEST-PREEMPTION-20260909, 2026-09-09, implemented;
+  follows checkpoint `791c13e4d`, not yet committed.
+- **Context and constraints:** pending work from an old camera competes with
+  newly exposed viewport coverage. Preserve loaded receiver/caster payloads and
+  completed baked masks; cancellation must not traverse geometry on input events.
+- **Decision:** snapshot the pending 3D Tiles requests at movestart. Abort that
+  generation asynchronously, at most 16 entries per task, through native LRU
+  removal (AbortController, parse/download queue cleanup and accounting together).
+  Skip payloads that completed or became visible before cancellation. Once the
+  batch sequence finishes, wake the latest-camera coverage traversal. Later move
+  events keep the existing 180 ms coverage cadence rather than repeatedly aborting
+  newly requested work. Disposal cancels the outstanding callback.
+- **Soft scheduling:** inactive tiled frames also cancel unpublished scratch
+  integration. Ready hard publications are presented before another soft batch;
+  corridors still waiting for data do not impose a viewport-wide soft barrier.
+  Existing per-corridor readiness and completed-mask replay remain in place.
+- **Alternatives and disposition:** aborting on every move event is rejected by
+  inspection because it can starve useful requests. Direct queue mutation is
+  rejected by inspection because it bypasses native abort/accounting. Workers
+  cannot own the existing renderer's request objects; moving this orchestration
+  into a worker is not evaluated. Raster DEM source-request cancellation and
+  physically interrupting already submitted GPU work are not implemented here.
+- **Evidence:** one focused old/new/completed-generation test and 41 tiled/
+  receiver tests pass. Internal Codex browser, Mesh2024 at the supplied Wuppertal
+  view, one drag: mesh and visible cast shadows remain in the post-drag screenshot.
+  No instrumented frame trace, first-new-tile latency, soft-convergence timing or
+  comparative performance claim. The checkpoint has 93 shadow tests and 61 mesh
+  tests passing; four previously recorded mesh liveness tests still fail.
+- **Revisit when:** extend to independently owned raster request generations or
+  measure cancellation/download churn during long continuous drags. GPU work
+  already submitted can finish; cancellation stops subsequent submissions.
+
 ### BAKED-LOD-REUSE-20260909 — separate buffer demand from baked visibility
 
 - **Cause:** observer rotation changed the receiver capture key; any allocation
@@ -811,3 +845,41 @@ At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
   browser diagnostic restored contiguous soft chimney shadows. This bypass is
   NOT shipped: it would permit disocclusion leaks. Investigate reprojection depth
   validation separately; the finite solar-disc integration remains in place.
+# IDLE-REPLAY-20260909 — avoid rebuilding retained corridor depths
+
+- **Context:** Mesh-LOD UI -> runtime state -> `updateMeshErrorTarget` -> native
+  tile loading is wired. The initial default is already 1 px (now asserted by a
+  regression test). Presets can deliberately select other targets. Caster demand
+  and regional final-readiness derive from that target; hard bootstrap stages
+  use the current coarser receiver stage.
+- **Observation:** Internal-browser Mesh2024 inspection at approximately
+  51.2703/7.2003, z21, pitch48 found 49/75 finished corridors, no running samples,
+  and an empty tile queue at effective16/requested1. One retained receiver
+  `mesh_4000.b3dm` reported 44.83 px with loaded child JSON but unloaded mesh
+  descendants. This is not evidence of cache saturation. The remaining regional
+  stall is unresolved; changing to a nearby view reached effective1/requested1.
+- **Decision:** Viewport convergence uses the loaded receiver frontier, not the
+  render union with retained caster parents. Regional caster-completeness gates
+  are unchanged. Expose requested/effective target and convergence in the
+  existing runtime diagnostic so UI wiring and progress can be distinguished.
+- **GPU work:** Idle presentation previously rendered page-light depth again for
+  each retained mask. A 4096-square page consumes 128 MiB; the observed cache
+  retained just one of dozens of pages. Replay now establishes common lighting
+  once and renders retained pages colour-only, like motion replay. Pages without
+  captures still use their own page-light pass with the common light disabled.
+  No resolution/sample reduction and no receiver-depth rejection were added.
+- **Alternatives:** Colour-only replay without a common light was rejected
+  earlier because it did not establish lighting. More workers/independent GPU
+  contexts were not added: they do not parallelize this shared WebGL context and
+  would require duplicated geometry/resources; no measured gain justifies that.
+  GPU submissions remain CPU-budgeted and yield to input.
+- **Validation:** 56 focused default/scene/renderer tests and 3 viewport
+  convergence tests pass. Internal-browser telemetry observed 69/69 completed
+  corridors at 64 samples without fallback and visible mesh/shadows. Camera/time
+  were changed during testing, so cumulative pass counts are NOT a controlled
+  wall-time speedup benchmark. Temporary logging has been removed. No DevTools
+  trace was taken on the unrelated browser target.
+- **Open:** Stable-view reload A/B timing, remaining regional readiness/LOD
+  stall, and receiver-footprint fragmentation (up to 237 pages observed after
+  movement) still need investigation. Do not label the 30-second complaint fully
+  resolved based on this run.

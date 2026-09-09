@@ -11,7 +11,10 @@ import { setSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
-import { HIDDEN_TAB_WIPE_DELAY_MS } from "./three-tiles-runtime-config";
+import {
+  HIDDEN_TAB_WIPE_DELAY_MS,
+  MESH_EVICTION_BATCH_SIZE,
+} from "./three-tiles-runtime-config";
 
 const MIB = 1024 ** 2;
 
@@ -27,6 +30,67 @@ vi.hoisted(() => {
 });
 
 describe("three tiles runtime styling", () => {
+  it("preempts the old request generation asynchronously without clearing loaded or new tiles", async () => {
+    vi.useFakeTimers();
+    let renderer!: TilesRenderer & { loadingTiles: Set<Tile> };
+    const update = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this as typeof renderer;
+      });
+    const handlers = new Map<string, () => void>();
+    const map = {
+      on: vi.fn((name, callback) => handlers.set(name, callback)),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      isMoving: () => false,
+    } as unknown as MaplibreMap;
+    const runtime = buildThreeTilesRuntime("cancel", "mesh.json", [7.2, 51.2], {
+      providesTerrain: true,
+    });
+    const removed: Tile[] = [];
+    const request = () => {
+      const tile = { internal: { loadingState: 2 } } as Tile;
+      renderer.loadingTiles.add(tile);
+      renderer.lruCache.add(tile, () => {
+        renderer.loadingTiles.delete(tile);
+        removed.push(tile);
+      });
+      return tile;
+    };
+    try {
+      runtime.scene.onAdd?.(map);
+      const camera = new THREE.PerspectiveCamera();
+      runtime.scene.update({
+        map,
+        renderCamera: camera,
+        lodCamera: camera,
+        lookTarget: new THREE.Vector3(),
+        viewport: new THREE.Vector2(800, 600),
+      });
+      const old = Array.from({ length: MESH_EVICTION_BATCH_SIZE + 2 }, request);
+      handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
+      expect(removed).toEqual([]);
+      const fresh = request();
+      // One old request completes before its deferred cancellation turn.
+      const completed = old.pop()!;
+      renderer.loadingTiles.delete(completed);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(removed).toHaveLength(MESH_EVICTION_BATCH_SIZE);
+      await vi.advanceTimersByTimeAsync(5);
+      expect(new Set(removed)).toEqual(new Set(old));
+      expect(renderer.lruCache.has(completed)).toBe(true);
+      expect(renderer.loadingTiles.has(fresh)).toBe(true);
+      handlers.get(MAPLIBRE_EVENT.MOVE)?.();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(renderer.loadingTiles.has(fresh)).toBe(true);
+    } finally {
+      runtime.scene.dispose();
+      update.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps concern APIs stable and exposes only the adapter to the scene", () => {
     const runtime = buildThreeTilesRuntime("scoped", "mesh.json", [7.2, 51.2]);
     const { scene, appearance, loading, placement, debug } = runtime;

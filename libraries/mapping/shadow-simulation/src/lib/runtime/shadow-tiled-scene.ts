@@ -257,7 +257,10 @@ export class ShadowTiledScene {
     // Camera motion changes presentation only. Keep the world-anchored hard and
     // finite-sun page textures untouched until moveend; the lightweight draw
     // path below can reuse them against the current camera.
-    if (!frame.active) return null;
+    if (!frame.active) {
+      this.cancelPending();
+      return null;
+    }
     // A tiled view can be enabled before the first committed receiver cut is
     // available. Treat that as "not handled" so the shared scene renders its
     // already loaded meshes directly instead of publishing a sky-only frame.
@@ -269,7 +272,13 @@ export class ShadowTiledScene {
       return null;
     }
     const result = this.renderWithHost(camera, () => {
-      this.captureHard(camera);
+      const hard = this.captureHard(camera);
+      // Ready hard publications fill newly exposed areas before spending GPU
+      // time on finite-disc refinement. Unready corridors do not block others.
+      if (hard.published > 0 || hard.needsRepaint) {
+        this.renderContent(camera, null, frame.samples);
+        return { progress: 0, settled: false, needsRepaint: true };
+      }
       const progress = this.accumulation.presentation.capture(this.scene, () =>
         this.accumulation.render(camera, this.pages, {
           ...frame,
@@ -374,6 +383,7 @@ export class ShadowTiledScene {
         this.host.requestRepaint?.();
       }, result.retryAfterMs);
     }
+    return result;
   }
 
   private renderContent(
@@ -398,24 +408,28 @@ export class ShadowTiledScene {
       // Replaying a finite-disc mask below is colour-only: no page depth rebuild,
       // no sample-variant change, and no loss of the retained soft result on drag.
       const lightVisible = this.host.light.visible;
-      this.host.light.visible = replayOnly;
+      const replayCaptured =
+        round === null && states.some(({ replay }) => replay);
+      this.host.light.visible = replayOnly || replayCaptured;
       try {
-        if (replayOnly) this.renderer.render(this.scene, camera);
+        if (replayOnly || replayCaptured) this.renderer.render(this.scene, camera);
         for (const { page, replay, ready } of states) {
           if (!ready) continue;
           if (replayOnly && !replay) {
             this.presentedPageIds.add(page.id);
             continue;
           }
-          // Colour-only replay requires the common hard-light fallback rendered
-          // above. Idle presentation must retain its page-light pass; a stored
-          // mask alone does not establish that fallback. See REPLAY-20260909.
+          // Retained hard/soft masks need live colour lighting, not another
+          // per-corridor depth render. Establish the common light above also
+          // while stationary; leave it off for pages that still need sampling.
+          const colorOnly = replayOnly || (replayCaptured && replay);
+          this.host.light.visible = colorOnly;
           const rendered = this.accumulation.presentation.render(
             this.scene,
             page,
             samples,
             () =>
-              replayOnly
+              colorOnly
                 ? this.pages.renderPageColor(camera, page.id)
                 : this.pages.renderPageSample(
                     camera,

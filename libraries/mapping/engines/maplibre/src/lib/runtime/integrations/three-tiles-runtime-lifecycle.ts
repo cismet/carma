@@ -54,6 +54,7 @@ import {
 } from "./three-tiles-runtime-vendor";
 import {
   KICKSTART_INTERVAL_MS,
+  MESH_EVICTION_BATCH_SIZE,
   MESH_MOTION_COVERAGE_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
   VIEW_QUALITY_AUDIT_PASSES,
@@ -172,6 +173,42 @@ export function createThreeTilesLifecycle(
     | "restoreShadowSides"
   >
 ) {
+  let requestCancellationTimer: ReturnType<typeof setTimeout> | null = null;
+  const supersededRequests = new Set<Tile>();
+  const cancelSupersededRequests = () => {
+    requestCancellationTimer = null;
+    const tiles = runtimeState.tiles;
+    if (!tiles || runtimeState.disposed) {
+      supersededRequests.clear();
+      return;
+    }
+    // Decision: CAMERA-REQUEST-PREEMPTION-20260909 in
+    // libraries/mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md.
+    // Native LRU removal aborts fetch and removes queued parse work together.
+    // Yield between batches; never dispose a completed receiver/caster payload.
+    let count = 0;
+    for (const tile of supersededRequests) {
+      supersededRequests.delete(tile);
+      if (
+        tiles.loadingTiles.has(tile) &&
+        !tiles.visibleTiles.has(tile) &&
+        !(tile as RuntimeTile).engineData?.scene
+      )
+        tiles.lruCache.remove(tile);
+      if (++count >= MESH_EVICTION_BATCH_SIZE) break;
+    }
+    if (supersededRequests.size > 0) {
+      requestCancellationTimer = setTimeout(cancelSupersededRequests, 0);
+      return;
+    }
+    dependencies.notifyRequestStateChange();
+    runtimeState.motionCoverageDue = true;
+    dependencies.resetDeferredTiles();
+    dependencies.requestShadowSelectionRefresh();
+    tiles.dispatchEvent({ type: "needs-update" });
+    dependencies.requestRender();
+  };
+
   const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
     (event: { scene?: THREE.Object3D; tile?: Tile; url?: string }) => {
       if (event.tile) {
@@ -328,10 +365,13 @@ export function createThreeTilesLifecycle(
     if (runtimeState.meshAuditTimer !== null)
       clearTimeout(runtimeState.meshAuditTimer);
     runtimeState.meshAuditTimer = null;
-    // Drag-start changes only presentation. Keep the published mesh cut,
-    // corridor membership and their shadow textures intact; the debounced
-    // coverage audit below admits newly exposed tiles without invalidating the
-    // content that already covers the screen.
+    for (const tile of runtimeState.tiles?.loadingTiles ?? [])
+      supersededRequests.add(tile);
+    if (requestCancellationTimer === null && supersededRequests.size > 0)
+      requestCancellationTimer = setTimeout(cancelSupersededRequests, 0);
+    // Abort only the old pending generation, not the published mesh cut,
+    // corridor membership or their shadow textures. Later motion audits admit
+    // new demand without repeatedly aborting those new requests.
   };
 
   const scheduleMotionCoverage: ThreeTilesRuntimeServices["scheduleMotionCoverage"] =
@@ -817,6 +857,8 @@ export function createThreeTilesLifecycle(
               runtimeState.tiles.downloadQueue.maxJobsPerOrigin,
             memoryAdmissionPaused: runtimeState.memoryAdmissionPaused,
             effectiveErrorTarget: runtimeState.effectiveErrorTarget,
+            requestedErrorTarget: runtimeState.requestedErrorTarget,
+            mainViewConverged: dependencies.mainViewConverged(),
           })
         );
       }
@@ -909,6 +951,10 @@ export function createThreeTilesLifecycle(
 
   const dispose: ThreeTilesRuntimeServices["dispose"] = () => {
     runtimeState.disposed = true;
+    if (requestCancellationTimer !== null)
+      clearTimeout(requestCancellationTimer);
+    requestCancellationTimer = null;
+    supersededRequests.clear();
     if (runtimeState.meshAuditTimer !== null)
       clearTimeout(runtimeState.meshAuditTimer);
     runtimeState.meshAuditTimer = null;
