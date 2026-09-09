@@ -91,6 +91,9 @@ export const FlowField = ({
     minZoom: configMinZoom,
     animateWhileMoving: configAnimateWhileMoving,
     opacity: configOpacity,
+    viewportBuffer: configViewportBuffer,
+    debounceMs: configDebounceMs,
+    occlusion: configOcclusion,
     params: configParams,
     backdrop: configBackdrop,
     fallback: configFallback,
@@ -111,6 +114,9 @@ export const FlowField = ({
     minZoom,
     animateWhileMoving,
     opacity,
+    viewportBuffer,
+    debounceMs,
+    occlusion,
     params,
     backdrop,
     fallback,
@@ -134,6 +140,13 @@ export const FlowField = ({
   const opacityRef = useRef(opacity);
   opacityRef.current = opacity;
 
+  // The same for the drawing parameters. The caged layer takes them through
+  // `setParams` without refetching anything, so a tuning slider must not reach
+  // the mount effect: a rebuild there would ask the rasterfari for the
+  // velocity field again on every pixel of the drag.
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
+
   /**
    * A route that declares its scenario in full gets it on the map at mount;
    * the teardown takes it off again, so suspending the kind in the addon
@@ -154,6 +167,9 @@ export const FlowField = ({
       minZoom: configMinZoom,
       animateWhileMoving: configAnimateWhileMoving,
       opacity: configOpacity,
+      viewportBuffer: configViewportBuffer,
+      debounceMs: configDebounceMs,
+      occlusion: configOcclusion,
       params: configParams,
       backdrop: configBackdrop,
       fallback: configFallback,
@@ -169,6 +185,9 @@ export const FlowField = ({
     configMinZoom,
     configAnimateWhileMoving,
     configOpacity,
+    configViewportBuffer,
+    configDebounceMs,
+    configOcclusion,
     configParams,
     configBackdrop,
     configFallback,
@@ -235,7 +254,10 @@ export const FlowField = ({
       uvCorrection,
       minZoom,
       animateWhileMoving,
-      params,
+      viewportBuffer,
+      debounceMs,
+      occlusion,
+      params: paramsRef.current,
       onActiveChange: (active) => {
         if (!disposed) setActive(active);
       },
@@ -267,10 +289,22 @@ export const FlowField = ({
     uvCorrection,
     minZoom,
     animateWhileMoving,
-    params,
+    viewportBuffer,
+    debounceMs,
+    occlusion,
     setActive,
     setLoading,
   ]);
+
+  /**
+   * Push the drawing parameters down separately, for the reason `paramsRef`
+   * states. Sent whole rather than as the keys that changed: `setParams` merges
+   * into what the layer holds, so a key going back to cage's default has to be
+   * sent as that default or the layer would keep the tuned value.
+   */
+  useEffect(() => {
+    layerRef.current?.setParams(params);
+  }, [params]);
 
   // Push opacity down separately, so changing it never rebuilds the layer.
   useEffect(() => {

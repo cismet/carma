@@ -118,6 +118,13 @@ export const loadFlowFieldState = (
       opacity: finiteNumber(parsed.opacity)
         ? Math.max(0, Math.min(1, parsed.opacity))
         : FLOW_FIELD_STATE_DEFAULT.opacity,
+      viewportBuffer: finiteNumber(parsed.viewportBuffer)
+        ? parsed.viewportBuffer
+        : FLOW_FIELD_STATE_DEFAULT.viewportBuffer,
+      debounceMs: finiteNumber(parsed.debounceMs)
+        ? parsed.debounceMs
+        : FLOW_FIELD_STATE_DEFAULT.debounceMs,
+      occlusion: parsed.occlusion !== false,
       params: isRecord(parsed.params) ? (parsed.params as FlowFieldParams) : {},
       backdrop: readBackdrop(parsed.backdrop),
       fallback: readBackdrop(parsed.fallback),

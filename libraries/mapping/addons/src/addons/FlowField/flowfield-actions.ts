@@ -3,6 +3,7 @@ import { useCallback, useMemo } from "react";
 import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
 import {
   useIsCagedAvailable,
+  FLOW_FIELD_OPTION_DEFAULTS,
   type FlowFieldParams,
   type UvCorrection,
 } from "../../lib/caged-addons";
@@ -73,6 +74,18 @@ export type FlowFieldDefinition = {
   animateWhileMoving?: boolean;
   /** 0..1. Default: 1 */
   opacity?: number;
+  /**
+   * Linear factor by which the fetched velocity field exceeds the viewport, so
+   * a pan inside the margin needs no request. Default 1.3.
+   */
+  viewportBuffer?: number;
+  /** quiet time after a map move before a request goes out. Default 250 */
+  debounceMs?: number;
+  /**
+   * Whether 3D objects on the map hide the particles behind them. Default
+   * true; needs WebGL2, without which it is off whatever this says.
+   */
+  occlusion?: boolean;
   params?: FlowFieldParams;
   backdrop?: FlowFieldBackdrop;
   /**
@@ -94,6 +107,9 @@ export type FlowFieldState = {
   minZoom: number;
   animateWhileMoving: boolean;
   opacity: number;
+  viewportBuffer: number;
+  debounceMs: number;
+  occlusion: boolean;
   params: FlowFieldParams;
   backdrop: FlowFieldBackdrop | null;
   fallback: FlowFieldBackdrop | null;
@@ -117,9 +133,12 @@ export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   service: "",
   scenario: "",
   layerPostfix: "",
-  minZoom: 16,
-  animateWhileMoving: true,
-  opacity: 1,
+  minZoom: FLOW_FIELD_OPTION_DEFAULTS.minZoom,
+  animateWhileMoving: FLOW_FIELD_OPTION_DEFAULTS.animateWhileMoving,
+  opacity: FLOW_FIELD_OPTION_DEFAULTS.opacity,
+  viewportBuffer: FLOW_FIELD_OPTION_DEFAULTS.viewportBuffer,
+  debounceMs: FLOW_FIELD_OPTION_DEFAULTS.debounceMs,
+  occlusion: FLOW_FIELD_OPTION_DEFAULTS.occlusion,
   params: {},
   backdrop: null,
   fallback: null,
@@ -247,6 +266,10 @@ export const useFlowFieldLauncher = () => {
           ...previous,
           uvCorrection: def.uvCorrection,
           minZoom: def.minZoom ?? FLOW_FIELD_STATE_DEFAULT.minZoom,
+          viewportBuffer:
+            def.viewportBuffer ?? FLOW_FIELD_STATE_DEFAULT.viewportBuffer,
+          debounceMs: def.debounceMs ?? FLOW_FIELD_STATE_DEFAULT.debounceMs,
+          occlusion: def.occlusion ?? FLOW_FIELD_STATE_DEFAULT.occlusion,
           params: def.params ?? {},
           backdrop: def.backdrop ?? null,
           fallback: def.fallback ?? null,
@@ -264,6 +287,10 @@ export const useFlowFieldLauncher = () => {
         minZoom: def.minZoom ?? FLOW_FIELD_STATE_DEFAULT.minZoom,
         animateWhileMoving: def.animateWhileMoving ?? true,
         opacity: def.opacity ?? 1,
+        viewportBuffer:
+          def.viewportBuffer ?? FLOW_FIELD_STATE_DEFAULT.viewportBuffer,
+        debounceMs: def.debounceMs ?? FLOW_FIELD_STATE_DEFAULT.debounceMs,
+        occlusion: def.occlusion ?? FLOW_FIELD_STATE_DEFAULT.occlusion,
         params: def.params ?? {},
         backdrop: def.backdrop ?? null,
         fallback: def.fallback ?? null,

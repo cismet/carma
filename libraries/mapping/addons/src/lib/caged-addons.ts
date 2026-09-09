@@ -122,6 +122,49 @@ export type FlowFieldParams = {
 };
 
 /**
+ * What cage falls back to for the keys a caller leaves out. Mirrored here for
+ * the same reason the types are: carma has to know the defaults without cage
+ * present, so a panel can show the value that is actually in force and an
+ * exported config can leave out what does not differ from it.
+ *
+ * Matched by hand against cage's `DEFAULT_FLOW_PARAMS`
+ * (`FlowFieldParticles/particles.ts`). A cage release that changes them makes
+ * this stale, and what goes wrong is cosmetic: the panel shows the wrong
+ * starting value until something is touched, and the export keeps a key it
+ * could have dropped.
+ */
+export const FLOW_FIELD_PARAM_DEFAULTS: Required<FlowFieldParams> = {
+  pathFactor: 8,
+  speed: 36,
+  width: 1,
+  color: "#326C88",
+  profile: [
+    { zoom: 16, fade: 0.8, maxAge: 50 },
+    { zoom: 17, fade: 0.83, maxAge: 80 },
+    { zoom: 18, fade: 0.86, maxAge: 110 },
+    { zoom: 19, fade: 0.89, maxAge: 140 },
+    { zoom: 20, fade: 0.92, maxAge: 170 },
+    { zoom: 21, fade: 0.95, maxAge: 200 },
+  ],
+};
+
+/**
+ * The same for the layer options that are not `params`. `uvCorrection` is
+ * cage's `DEFAULT_UV_CORRECTION` (`FlowFieldParticles/raster.ts`), which is
+ * what the Leaflet rain hazard map used; the PALM-4U wind field needs
+ * `{ u: 1, v: 1 }` instead and says so in its own definition.
+ */
+export const FLOW_FIELD_OPTION_DEFAULTS = {
+  uvCorrection: { u: -1, v: -1 } as UvCorrection,
+  minZoom: 16,
+  animateWhileMoving: true,
+  opacity: 1,
+  viewportBuffer: 1.3,
+  debounceMs: 250,
+  occlusion: true,
+};
+
+/**
  * Options for the caged flow-field animation. Mirrored rather than imported,
  * same reason as the types above. Matched structurally against cage's
  * `FlowFieldParticles/createFlowLayer.ts`.
@@ -152,6 +195,12 @@ export type FlowLayerOptions = {
   params?: FlowFieldParams;
   /** class name of the overlay canvas */
   id?: string;
+  /**
+   * Whether 3D objects on the map hide the particles behind them. Default
+   * true; costs one depth readback per settled view and needs WebGL2, without
+   * which it is off whatever this says.
+   */
+  occlusion?: boolean;
   /** the zoom gate opened or closed */
   onActiveChange?: (active: boolean) => void;
   onLoadingChange?: (loading: boolean) => void;

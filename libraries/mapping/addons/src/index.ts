@@ -52,12 +52,17 @@ export {
   useIsCagedAvailable,
   useCageDisabled,
   useCreateBlendLayer,
+  FLOW_FIELD_OPTION_DEFAULTS,
+  FLOW_FIELD_PARAM_DEFAULTS,
   NO_CAGE_FLAG,
 } from "./lib/caged-addons";
 export type {
   BlendLayerHandle,
   BlendLayerOptions,
   CageIndicatorBadgeConfig,
+  FlowFieldParams,
+  FlowFieldZoomProfileEntry,
+  UvCorrection,
 } from "./lib/caged-addons";
 
 export {
