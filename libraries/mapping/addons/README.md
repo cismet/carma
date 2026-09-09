@@ -1062,8 +1062,9 @@ with the same eased leave as the button.
 
 The user's hand wins. Any move with an `originalEvent` (a drag, a wheel, a
 rotate) pauses the following: `navigating` stays true, the camera stays where
-they put it, the fixes keep coming in unseen. A pill "Zentrieren" with a
-crosshairs icon appears at the bottom of the map while paused
+they put it, the fixes keep coming in unseen. A button "Zentrieren" appears at
+the bottom of the map while paused, its word and nothing else, on the same
+white surface the square controls use
 (`recenterPosition` `bottomcenter`, `recenterOrder` 10, `recenterLabel`) and
 puts the camera back on the position with the long ease; `following` goes
 back to true with it. The same shape as the recenter button of any
@@ -1120,7 +1121,7 @@ map back north.
 | File                      | |
 | ------------------------- | --- |
 | `Routing/Routing.tsx`     | the addon: reads the route and the fixes, publishes the offer, drives the camera |
-| `Routing/RecenterControl.tsx` | the "Zentrieren" pill shown while the follow is paused |
+| `Routing/RecenterControl.tsx` | the "Zentrieren" button shown while the follow is paused |
 | `Routing/routeChannel.ts` | both channels, their types and hooks |
 | `Routing/routeLine.ts`    | the driven route on the map, gray behind the user and blue ahead |
 | `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
