@@ -11,6 +11,7 @@ import {
   DEFAULT_CONTROL_ORDER,
   DEFAULT_CONTROL_POSITION,
   resolveDataset,
+  type ObliqueViewerConfig,
 } from "./config";
 import { useActiveDirection } from "./hooks/useActiveDirection";
 import { useFootprintLayer } from "./hooks/useFootprintLayer";
@@ -68,6 +69,13 @@ const OFF_COLOR = "#000000";
 /** a key press is taken after the last of a quick run of them */
 const SIBLING_MOVE_DEBOUNCE_MS = 200;
 
+/**
+ * One object for "no config", so a bare declaration resolves to one dataset
+ * rather than a fresh one per render, which would restart every effect
+ * keyed on it.
+ */
+const EMPTY_CONFIG: ObliqueViewerConfig = {};
+
 /** a record as the selection, the way the nearest search reports one */
 const recordAsSelection = (
   record: ObliqueImageRecord
@@ -85,17 +93,18 @@ const recordAsSelection = (
 });
 
 export const ObliqueViewer = ({
-  config = {},
+  config,
   libreMap,
 }: AddonComponentProps<"obliqueViewer">) => {
+  const viewerConfig = config ?? EMPTY_CONFIG;
   const {
     showControl = true,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
     heightDatum = "dhhn2016",
     heightOffset = 0,
-  } = config;
-  const dataset = useMemo(() => resolveDataset(config), [config]);
+  } = viewerConfig;
+  const dataset = useMemo(() => resolveDataset(viewerConfig), [viewerConfig]);
   const converter = useMemo(
     () => getProj4Converter(dataset.crs, "EPSG:4326"),
     [dataset.crs]
