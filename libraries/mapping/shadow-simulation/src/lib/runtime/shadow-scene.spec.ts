@@ -1839,6 +1839,29 @@ describe("shadow scene lighting integration", () => {
     expect(accumulation.retainSettledFrame()).toBe(true);
     const contentRuntimes = getSharedThreeSceneRuntimes(map as never);
     const isMainViewReady = vi.fn(() => false);
+    const getRequestDemand = vi.fn(() => 12);
+    const loadingMesh = {
+      providesTerrain: true,
+      isMainViewReady,
+      getRequestDemand,
+      hasRenderableContent: () => true,
+    };
+    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+      ...contentRuntimes,
+      loadingMesh as never,
+    ]);
+    expect(accumulation.active()).toBe(false);
+    expect(accumulation.pending?.()).toBe(true);
+    expect(accumulation.renderScene?.(camera, null)).toBe(false);
+    isMainViewReady.mockReturnValue(true);
+    expect(accumulation.active()).toBe(false);
+    getRequestDemand.mockReturnValue(0);
+    expect(accumulation.active()).toBe(true);
+    // Later demand (pan/refinement) retains the tiled renderer, never preview.
+    getRequestDemand.mockReturnValue(12);
+    isMainViewReady.mockReturnValue(false);
+    expect(accumulation.active()).toBe(true);
+    expect(accumulation.pending?.()).toBe(false);
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
       ...contentRuntimes,
       { providesTerrain: true, isMainViewReady } as never,

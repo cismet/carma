@@ -204,10 +204,35 @@ describe("shared tiled shadow runtime", () => {
     f.camera.updateMatrixWorld(true);
     f.pages.updatePresentation(f.camera);
     expect(f.pages.accumulationPages[0].revision).toBe(initialRevision);
-    expect(f.pages.accumulationPages[0].screenBounds.equals(initialScreenBounds)).toBe(
-      false
-    );
+    expect(
+      f.pages.accumulationPages[0].screenBounds.equals(initialScreenBounds)
+    ).toBe(false);
     expect(f.pages.stats.depthRenders).toBe(initialDepthRenders);
+    f.pages.dispose();
+  });
+
+  it("refreshes only a completed caster cut and retains it during pending refinement", () => {
+    const f = fixture();
+    f.pages.renderPageSample(f.camera, "0", 0, 1);
+    const before = f.pages.accumulationPages;
+    expect(f.pages.setCasterRevision("0", null)).toBe(false);
+    expect(f.pages.setCasterRevision("0", "receiver+chimney-v1")).toBe(true);
+    const complete = f.pages.accumulationPages;
+    expect(complete[0].contentKey).not.toBe(before[0].contentKey);
+    for (const page of before.filter((page) => page.id !== "0")) {
+      expect(complete.find((next) => next.id === page.id)?.contentKey).toBe(
+        page.contentKey
+      );
+    }
+    const renders = f.pages.stats.depthRenders;
+    f.pages.renderPageSample(f.camera, "0", 0, 1);
+    expect(f.pages.stats.depthRenders).toBe(renders + 1);
+    expect(f.pages.setCasterRevision("0", "receiver+chimney-v1")).toBe(false);
+    expect(f.pages.setCasterRevision("0", null)).toBe(false);
+    expect(f.pages.accumulationPages[0].contentKey).toBe(
+      complete[0].contentKey
+    );
+    expect(f.pages.setCasterRevision("0", "receiver+chimney-v2")).toBe(true);
     f.pages.dispose();
   });
 

@@ -44,6 +44,7 @@ type Page = {
   groundTexelTargetMeters: number;
   casterBounds: THREE.Box3;
   contentRevision: number;
+  casterRevision: string | null;
 };
 
 export type ShadowPrewarmPage = Readonly<{
@@ -656,6 +657,7 @@ export class TiledShadowRenderer {
         groundTexelTargetMeters: plan.groundTexelTargetMeters,
         casterBounds: new THREE.Box3(),
         contentRevision: 0,
+        casterRevision: null,
       };
     }
     this.pages.delete(plan.id);
@@ -745,6 +747,19 @@ export class TiledShadowRenderer {
       affected.push(id);
     }
     return affected;
+  }
+
+  /** Readiness can change after decode without another bounds change. A newly
+   * complete cut must replace the early hard mask, not wait for the disc pass.
+   * Pending refinement retains the last complete publication. */
+  setCasterRevision(id: string, revision: string | null): boolean {
+    const page = this.pages.get(id);
+    if (!page || revision === null || page.casterRevision === revision)
+      return false;
+    page.casterRevision = revision;
+    page.contentRevision += 1;
+    this.cache.invalidate(id);
+    return true;
   }
 
   /** The host owns the target/clear/accumulation. Every visible receiver page

@@ -25,6 +25,11 @@ describe("Geoportal tiled scene adapter", () => {
       isCorridorReady?: (bounds: THREE.Box3, error?: number) => boolean;
       receiverStageError?: (bounds: THREE.Box3) => number;
       visualEpoch?: () => number;
+      corridorRevision?: (
+        bounds: THREE.Box3,
+        error?: number,
+        receiverBounds?: THREE.Box3
+      ) => string | null;
       onPresentedPages?: (pages: readonly { id: string }[]) => void;
     } = {}
   ) => {
@@ -67,6 +72,7 @@ describe("Geoportal tiled scene adapter", () => {
       ],
       clearCache: vi.fn(),
       invalidateCasters: vi.fn(),
+      setCasterRevision: vi.fn(() => false),
       dispose: vi.fn(),
       setPrewarmView: vi.fn(),
       clearPrewarmView: vi.fn(),
@@ -172,7 +178,8 @@ describe("Geoportal tiled scene adapter", () => {
         needsRepaint: true,
       });
       const camera = new THREE.Camera();
-      if (path === "hard") expect(f.adapter.render(camera, null, 16)).toBe(true);
+      if (path === "hard")
+        expect(f.adapter.render(camera, null, 16)).toBe(true);
       else
         expect(
           f.adapter.renderProgressive(camera, {
@@ -248,6 +255,31 @@ describe("Geoportal tiled scene adapter", () => {
     );
   });
 
+  it("checks caster provenance before capturing the hard stage", () => {
+    const revision = vi.fn<() => string | null>(() => null);
+    const f = fixture({
+      corridorRevision: revision,
+      receiverStageError: () => 4,
+    });
+    f.adapter.render(new THREE.Camera(), null, 512);
+    expect(f.pages.setCasterRevision).toHaveBeenLastCalledWith("64:1:0", null);
+    revision.mockReturnValue("complete-with-offscreen-chimney");
+    f.pages.setCasterRevision.mockReturnValue(true);
+    f.adapter.render(new THREE.Camera(), null, 512);
+    expect(f.pages.setCasterRevision).toHaveBeenLastCalledWith(
+      "64:1:0",
+      "complete-with-offscreen-chimney"
+    );
+    expect(revision).toHaveBeenLastCalledWith(
+      expect.any(THREE.Box3),
+      undefined,
+      expect.any(THREE.Box3)
+    );
+    expect(
+      f.pages.setCasterRevision.mock.invocationCallOrder.at(-1)
+    ).toBeLessThan(f.accumulation.renderHard.mock.invocationCallOrder.at(-1)!);
+  });
+
   it("shows the available hard stage while final corridor readiness is pending", () => {
     const ready = vi.fn(() => false);
     const f = fixture({ isCorridorReady: ready });
@@ -267,10 +299,14 @@ describe("Geoportal tiled scene adapter", () => {
     const camera = new THREE.Camera();
     f.adapter.renderProgressive(camera, frame);
     expect(f.pages.renderPageSample).toHaveBeenCalledOnce();
-    expect(f.accumulation.render.mock.calls[0][2].isPageReady("64:1:0")).toBe(false);
+    expect(f.accumulation.render.mock.calls[0][2].isPageReady("64:1:0")).toBe(
+      false
+    );
     ready.mockReturnValue(true);
     f.adapter.renderProgressive(camera, frame);
-    expect(f.accumulation.render.mock.calls[1][2].isPageReady("64:1:0")).toBe(true);
+    expect(f.accumulation.render.mock.calls[1][2].isPageReady("64:1:0")).toBe(
+      true
+    );
   });
 
   it("acknowledges current captures and successful direct hard draws, not compatible old captures", () => {

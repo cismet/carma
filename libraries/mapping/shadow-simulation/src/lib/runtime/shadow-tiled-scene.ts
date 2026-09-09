@@ -334,6 +334,21 @@ export class ShadowTiledScene {
   }
 
   private captureHard(camera: THREE.Camera) {
+    if (this.host.corridorRevision) {
+      for (const page of this.pages.accumulationPages) {
+        const geometry = this.pages.getPageGeometry(page.id);
+        if (!geometry) continue;
+        const revision = this.host.corridorRevision(
+          geometry.casterBounds,
+          // Share the final-cut proof with soft readiness instead of creating
+          // additional stage-error keys in the bounded regional proof cache.
+          undefined,
+          geometry.receiverBounds
+        );
+        if (this.pages.setCasterRevision(page.id, revision))
+          this.frameCache.invalidate();
+      }
+    }
     const result = this.accumulation.presentation.capture(this.scene, () =>
       this.accumulation.renderHard(camera, this.pages, {
         ...this.lastFrame,

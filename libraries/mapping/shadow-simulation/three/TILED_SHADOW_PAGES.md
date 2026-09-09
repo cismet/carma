@@ -579,3 +579,66 @@ The required final camera colour passes still ran (250 to 500).
 Focused shadow validation passes 238 tests in 29 files. The broader Storybook
 typecheck still reports 529 transitive diagnostics outside the changed files;
 this reference is not a branch-wide merge-readiness claim.
+
+## MESH-BOOTSTRAP-20260909 — keep rendering from starving caster loads
+
+**Decision.** During the first load of each terrain-providing mesh runtime,
+draw the current scene with the existing common centre-sun shadow pass. Start
+the retained per-corridor hard/finite-disc path once that runtime has renderable
+content and its shared request demand is empty. Demand includes metadata queues
+and the pending sunward traversal. This is a one-way, runtime-identity latch:
+new demand on pan/refinement never discards an existing tiled presentation.
+Do not use `isMainViewReady` as the latch: an above-target/source-limited cut can
+have no further requests, while the regional proof must still decide soft readiness.
+Map/style colour resolution, receiver/caster SSE, final page sizes and sample
+counts are unchanged. The temporary common hard pass is not the final tiled
+texel-resolution guarantee. It includes all geometry currently published.
+
+**Evidence/method.** Local Chrome/ANGLE Metal, Apple M4 Max, 2400×2286 physical
+canvas pixels, Mesh2024, tiled 512-sample configuration, warm reload (existing
+HTTP/local caches), 2026-09-09. The initial reference view was
+`lat=51.2702198&lng=7.200346&zoom=20.911&b=20.09&p=47.99&shadow=765%3B325`.
+Receiver/caster counts were sampled about once a second. Wrapped runtime calls
+measure synchronous CPU/driver submission, **not GPU execution time**.
+
+| Experiment | Offscreen cut first observed | Demand drained | Interpretation |
+| --- | ---: | ---: | --- |
+| Per-page startup reference | 21.12 s, 119 casters | 22.35 s | 8.0 s synchronous render submission by 23.54 s; regional revision/readiness calls together only 0.17 s |
+| Diagnostic: suppress Three draws while loading | 7.50 s, 119 casters | 7.50 s | Diagnostic only; blank output is not a shippable solution |
+| Common hard startup, same nearby view | 6.30–7.39 s, 119 casters | 7.39–7.61 s | Real scene remains visible; eight-second capture contains chimney shadows |
+| Final exact requested URL (`lat=51.2702238&lng=7.2003258`, other fields identical) | 6.90 s, 151 casters | 8.27 s | Captured at **8.23 s**: chimney shadows visible; 53 receivers |
+
+The few-metre camera difference changes selected source boxes; do not quote the
+last row as an identical-cut A/B speed ratio. These are warm development reloads,
+not a cold-network guarantee or a claim that 512-sample convergence takes <10 s.
+The internal browser tab reported a crash when selected; the timings above are
+Chrome measurements, not a successful internal-browser validation.
+
+**Alternatives.** Loading already traverses the tree against one shared receiver
+BVH/union (`createReceiverSnapshot` + `applyShadowReceiverMask`). Replacing the
+cached regional proof with a new global/worker search cannot recover the observed
+~14 s delay when that proof costs ~0.17 s. Avoided a new queue/worker algorithm;
+the dominant interference was rendering during load. Requiring target viewport
+SSE before leaving preview was tested and rejected: the exact view could drain
+all requests while that flag remained false, permanently preventing soft work.
+
+**Hard-cache correctness.** A complete regional caster fingerprint change also
+invalidates that page's hard depth/capture identity. A null proof during refinement
+retains the previous publication; unchanged fingerprints and unrelated pages are
+not invalidated. This prevents an early incomplete hard mask from surviving until
+the much later finite-disc publication. Hard refresh and soft readiness share the
+final-error proof key rather than doubling entries in the bounded proof cache.
+
+**Reproduce/verification.** Use
+`../benchmarks/mesh-shadow-reload.browser.js` as a DevTools navigation `initScript`
+with Mesh2024 already selected. Read `window.__carmaMeshShadowReloadBenchmark`:
+`samples` contains costs/counts and `captures` has actual timestamps and canvas
+images at 5/8/10 s. Instrumentation removes its hooks after 40 s (or call `stop`).
+Focused tests: 50 renderer/bootstrap tests plus one scene integration test pass.
+They cover pending caster demand, empty startup, one-way completion on later
+requests, common-pass fallback, and selective complete-cut invalidation.
+Remaining: optimize post-load per-page colour/replay cost and separately measure
+finite-disc convergence; neither is established as solved by this decision.
+At 206 s in the final exact-view run, 43/77 pages had published soft shadows and
+45/77 passed regional readiness. Full soft coverage is still unresolved; the
+<10 s result above concerns the visible hard chimney shadows only.

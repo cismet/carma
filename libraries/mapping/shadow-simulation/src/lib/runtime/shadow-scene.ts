@@ -73,6 +73,7 @@ import { ShadowController, SUN_ANGULAR_RADIUS_RAD } from "./shadow-controller";
 import { configureReceiverPlaneShadow } from "./shadow-receiver-plane-material";
 import type { SunVectorGizmo } from "./shadow-sun-vector";
 import { ShadowTiledScene } from "./shadow-tiled-scene";
+import { createShadowBootstrapPreview } from "./shadow-bootstrap-preview";
 import {
   shadowSceneWorldBasis,
   shadowRegionQueryKey,
@@ -2187,6 +2188,9 @@ export const buildShadowSimulationScene = (
     }
     return tiledScene;
   };
+  const bootstrapPreview = createShadowBootstrapPreview();
+  const useBootstrapPreview = () =>
+    isTiledBufferEnabled() && bootstrapPreview(getCoverageRuntimes());
   const accumulationController = {
     // Mono and tiled soft-sun paths share this post-composition hook. Point
     // lighting has no convergence event and deliberately schedules no prefetch.
@@ -2207,6 +2211,7 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       !timeAnimating &&
       (!initialTerrainStageReady ||
+        useBootstrapPreview() ||
         (!isTiledBufferEnabled() && !meshViewReady()) ||
         (!isTiledBufferEnabled() && isSharedThreeTerrainLoading(map)) ||
         mapInMotion ||
@@ -2215,6 +2220,7 @@ export const buildShadowSimulationScene = (
       nativeAccumulationFits &&
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
+      !useBootstrapPreview() &&
       (isTiledBufferEnabled() || meshViewReady()) &&
       (isTiledBufferEnabled() || !isSharedThreeTerrainLoading(map)) &&
       !mapInMotion &&
@@ -2249,6 +2255,7 @@ export const buildShadowSimulationScene = (
     ) =>
       withTileVolumeSnapshot(() => {
         if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
+        if (useBootstrapPreview()) return null;
         const tiles = updateTiledScene();
         if (!tiles) return null;
         const result = tiles.renderProgressive(camera, {
@@ -2262,6 +2269,9 @@ export const buildShadowSimulationScene = (
       }),
     renderScene: (camera: THREE.Camera, round: number | null) =>
       withTileVolumeSnapshot(() => {
+        // A common centre-sun pass includes every currently loaded caster;
+        // unlike page-by-page replay it leaves time for the remaining loads.
+        if (useBootstrapPreview()) return false;
         const tiles = updateTiledScene();
         if (!tiles) return false;
         const rendered = tiles.render(
