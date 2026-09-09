@@ -15,6 +15,7 @@ import { applyPen, penFrom } from "./annotation-pen";
 import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
 import { useDecorationScale } from "./annotation-normalize";
+import { useStyleMarks } from "./annotation-style-marks";
 import { usePlaneEnabled } from "./annotation-plane-flag";
 import { useGroundPlane, usePlaneMargin } from "./annotation-plane";
 import { usePlanePointer } from "./annotation-plane-pointer";
@@ -231,7 +232,11 @@ export const AnnotationScene = ({
    * while the geometry — text and images included — scales with the map.
    * See `annotation-normalize`.
    */
-  const { normalize: normalizeDecoration, noteState } = useDecorationScale({
+  const {
+    normalize: normalizeDecoration,
+    noteState,
+    penPixels,
+  } = useDecorationScale({
     api,
     libreMap,
     overlay: box,
@@ -240,6 +245,8 @@ export const AnnotationScene = ({
     // measured against what the plane is painted with, not where the map is
     getCamera: plane ? getPlaneCamera : undefined,
   });
+
+  const markStyles = useStyleMarks({ api, overlay: box, penPixels });
 
   const versionRef = useRef(-1);
   const fileCountRef = useRef(-1);
@@ -262,7 +269,10 @@ export const AnnotationScene = ({
     files: BinaryFiles
   ) => {
     onSceneChange(appState);
-    noteState(appState);
+    noteState(appState, elements);
+    // the panel excalidraw is about to render shows scene units, so the size
+    // the user picked is marked on it by hand, see `annotation-style-marks`
+    markStyles();
 
     const tool = appState.activeTool.type;
     if (editable && !penTakenRef.current) {

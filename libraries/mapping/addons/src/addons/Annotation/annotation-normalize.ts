@@ -159,32 +159,31 @@ const freeze = (
  * hands out a preset, and only a value that is not the one we last saw on the
  * element can have come from the user at all.
  *
- * `at` is that last seen value; `px` is what it was on screen when it was
- * written, and is kept only so a stored size still reads like the frozen ones.
+ * `at` is the size we last saw on the element, in whatever units the scene is
+ * in at the time. `px` is the size that was picked, which is the style itself:
+ * it is stamped once and left alone, so a text is still the size it was given
+ * after a zoom has rewritten every number in the scene — that is what the
+ * style panel is marked from, see `annotation-style-marks`.
  */
 const grounded = (
   current: number,
   stored: unknown,
   scale: number,
-  panel: boolean
+  factor: number
 ): Frozen => {
   const previous = storedFrozen(stored);
-  if (previous && Math.abs(current - previous.at) < EPSILON) {
-    return previous;
+  // the size we last saw, in the units it is now read in: the element has not
+  // been touched, or has been touched by nothing but our own rebase. The size
+  // the user picked is a style and stays, whatever the map does to the units
+  if (previous && Math.abs(current - previous.at * factor) < EPSILON) {
+    return { px: previous.px, at: current };
   }
-  if (previous && panel && isPreset(current, FONT_PRESETS)) {
+  // a size just picked in the style panel; the panel's numbers are pixels
+  if (previous && factor === 1 && isPreset(current, FONT_PRESETS)) {
     return { px: current, at: current / scale };
   }
+  // the user's own sizing, by the element's handles: scene units already
   return { px: current * scale, at: current };
-};
-
-const changed = (frozen: Frozen, stored: unknown) => {
-  const previous = storedFrozen(stored);
-  return (
-    !previous ||
-    Math.abs(previous.px - frozen.px) > EPSILON ||
-    Math.abs(previous.at - frozen.at) > EPSILON
-  );
 };
 
 type TextElement = ExcalidrawElement & {
@@ -198,6 +197,60 @@ type TextElement = ExcalidrawElement & {
    */
   baseline: number;
   containerId: string | null;
+};
+
+/**
+ * The pixel size an element's decoration was last given. It is what the user
+ * picked, so it is what the style panel has to show; the element itself
+ * carries scene units, which are that size read on the map. Null before a
+ * pass has seen the element, which is an element still carrying the pen's own
+ * size.
+ */
+export const strokePixels = (element: ExcalidrawElement): number | null =>
+  storedFrozen(
+    (element.customData as Record<string, unknown> | undefined)?.strokeNorm
+  )?.px ?? null;
+
+export const fontPixels = (element: ExcalidrawElement): number | null =>
+  storedFrozen(
+    (element.customData as Record<string, unknown> | undefined)?.fontNorm
+  )?.px ?? null;
+
+/**
+ * Whether this element carries a style the user has just picked in the panel:
+ * a preset that is not the value we last wrote. The panel changes the element
+ * itself, in excalidraw's units, so until a pass has read it as pixels the
+ * element is drawn at whatever the map's scale makes of the raw number — a
+ * size that means nothing on a map. An element without our record yet is not
+ * one of these: it has never been through a pass at all.
+ */
+const panelPick = (element: ExcalidrawElement): boolean => {
+  const data = (element.customData ?? {}) as Record<string, unknown>;
+  const at = (stored: unknown) => storedFrozen(stored)?.at;
+  const off = (value: number, seen: number | undefined, presets: number[]) =>
+    seen !== undefined &&
+    Math.abs(value - seen) > EPSILON &&
+    isPreset(value, presets);
+
+  if (off(element.strokeWidth, at(data.strokeNorm), STROKE_PRESETS)) {
+    return true;
+  }
+  if (off(element.roughness, at(data.roughNorm), ROUGHNESS_PRESETS)) {
+    return true;
+  }
+  return (
+    element.type === "text" &&
+    off((element as TextElement).fontSize, at(data.fontNorm), FONT_PRESETS)
+  );
+};
+
+const changed = (frozen: Frozen, stored: unknown) => {
+  const previous = storedFrozen(stored);
+  return (
+    !previous ||
+    Math.abs(previous.px - frozen.px) > EPSILON ||
+    Math.abs(previous.at - frozen.at) > EPSILON
+  );
 };
 
 /** excalidraw skips an element whose version it has already drawn */
@@ -323,7 +376,7 @@ const rescaled = (
     // read in the units the element is about to be in, so a rebase in the
     // same pass is not mistaken for the user picking a size
     const current = text.fontSize * factor;
-    const font = grounded(current, data.fontNorm, scale, factor === 1);
+    const font = grounded(current, data.fontNorm, scale, factor);
     customData.fontNorm = font;
     dirty = dirty || changed(font, data.fontNorm);
     if (Math.abs(current - font.at) > EPSILON && current > EPSILON) {
@@ -414,6 +467,26 @@ export const useDecorationScale = ({
   /** the window the copies were clipped to, null while there are none */
   const clipRef = useRef<SceneRect | null>(null);
 
+  /** the pass itself, for the callbacks that are made before it exists */
+  const passRef = useRef<((force: boolean) => void) | null>(null);
+  /** a pass already asked for, so a burst of reports still costs one */
+  const askedRef = useRef(false);
+
+  /**
+   * A pass on the next frame. Excalidraw is in the middle of telling us about
+   * a change, and updateScene is not ours to take until it has finished.
+   */
+  const askForPass = useCallback(() => {
+    if (askedRef.current) {
+      return;
+    }
+    askedRef.current = true;
+    requestAnimationFrame(() => {
+      askedRef.current = false;
+      passRef.current?.(true);
+    });
+  }, []);
+
   /**
    * The plane in scene units, read at `scale`. With a ground plane that is the
    * box the scene is painted into, taken straight from the camera it is
@@ -494,32 +567,45 @@ export const useDecorationScale = ({
     [scalesNow]
   );
 
-  const noteState = useCallback((state: AppState) => {
-    // excalidraw's own state, so this is what it really has right now
-    const ids = new Set<string>();
-    if (state.editingElement) {
-      ids.add(state.editingElement.id);
-    }
-    if (state.draggingElement) {
-      ids.add(state.draggingElement.id);
-    }
-    if (state.editingLinearElement) {
-      ids.add(state.editingLinearElement.elementId);
-    }
-    busyRef.current = { ids, editing: Boolean(state.editingElement) };
+  const noteState = useCallback(
+    (state: AppState, elements: readonly ExcalidrawElement[]) => {
+      // excalidraw's own state, so this is what it really has right now
+      const ids = new Set<string>();
+      if (state.editingElement) {
+        ids.add(state.editingElement.id);
+      }
+      if (state.draggingElement) {
+        ids.add(state.draggingElement.id);
+      }
+      if (state.editingLinearElement) {
+        ids.add(state.editingLinearElement.elementId);
+      }
+      busyRef.current = { ids, editing: Boolean(state.editingElement) };
 
-    const pen = penRef.current;
-    // only a preset can be the user: everything else in there is our own
-    if (isPreset(state.currentItemStrokeWidth, STROKE_PRESETS)) {
-      pen.stroke.px = state.currentItemStrokeWidth;
-    }
-    if (isPreset(state.currentItemFontSize, FONT_PRESETS)) {
-      pen.font.px = state.currentItemFontSize;
-    }
-    if (isPreset(state.currentItemRoughness, ROUGHNESS_PRESETS)) {
-      pen.roughness.px = state.currentItemRoughness;
-    }
-  }, []);
+      const pen = penRef.current;
+      // only a preset can be the user: everything else in there is our own
+      if (isPreset(state.currentItemStrokeWidth, STROKE_PRESETS)) {
+        pen.stroke.px = state.currentItemStrokeWidth;
+      }
+      if (isPreset(state.currentItemFontSize, FONT_PRESETS)) {
+        pen.font.px = state.currentItemFontSize;
+      }
+      if (isPreset(state.currentItemRoughness, ROUGHNESS_PRESETS)) {
+        pen.roughness.px = state.currentItemRoughness;
+      }
+
+      // A style picked in the panel lands on the element here and nowhere else:
+      // it is not a gesture on the canvas, so nothing else would notice it until
+      // the next one — a click or two later, with the element drawn in the
+      // meantime at a size that was never asked for.
+      if (
+        elements.some((element) => !ids.has(element.id) && panelPick(element))
+      ) {
+        askForPass();
+      }
+    },
+    [askForPass]
+  );
 
   const normalize = useCallback(
     (force: boolean) => {
@@ -778,5 +864,16 @@ export const useDecorationScale = ({
     };
   }, [normalize, overlay]);
 
-  return { normalize, noteState };
+  /** what the pen would draw with, which is what an empty panel shows */
+  const penPixels = useCallback(
+    () => ({
+      stroke: penRef.current.stroke.px,
+      font: penRef.current.font.px,
+    }),
+    []
+  );
+
+  passRef.current = normalize;
+
+  return { normalize, noteState, penPixels };
 };
