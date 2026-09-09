@@ -189,6 +189,7 @@ const changed = (frozen: Frozen, stored: unknown) => {
 
 type TextElement = ExcalidrawElement & {
   fontSize: number;
+  textAlign: "left" | "center" | "right";
   /**
    * Where the glyphs sit in the box: excalidraw draws a line at `height -
    * baseline` from the top, so a font size rewritten without it puts the text
@@ -332,8 +333,22 @@ const rescaled = (
       // the measured box goes with the glyphs. A text bound to a container is
       // laid out by excalidraw itself, so its box is left alone
       if (!text.containerId) {
-        patch.width = text.width * factor * ratio;
-        patch.height = text.height * factor * ratio;
+        const width = text.width * factor;
+        const height = text.height * factor;
+        patch.width = width * ratio;
+        patch.height = height * ratio;
+        // A resized text is held the way excalidraw holds one, in
+        // `offsetElementAfterFontResize`: the vertical middle stays put and
+        // the horizontal edge the text is aligned to does. The style panel has
+        // just done this for the size it set, and this pass sets another one
+        // on top of it — leaving the box where it is instead would walk the
+        // text up the map a step per click.
+        patch.y = text.y * factor + (height - patch.height) / 2;
+        if (text.textAlign !== "left") {
+          patch.x =
+            text.x * factor +
+            (width - patch.width) / (text.textAlign === "center" ? 2 : 1);
+        }
       }
     }
   }
