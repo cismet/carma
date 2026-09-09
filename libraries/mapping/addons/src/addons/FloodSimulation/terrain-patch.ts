@@ -1,3 +1,4 @@
+import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 
 /**
@@ -27,15 +28,15 @@ export type ResolvedFloodTerrainSource = Required<FloodTerrainSource>;
  * The Geobasis NRW DGM1 as served for wupp #4199: 1 m ground model without
  * buildings and vegetation, heights in DHHN2016, covering NRW rather than
  * stopping at the city limits. Terrarium rather than Mapbox encoding, per the
- * issue's finding that 0.1 m steps show as bands on flat ground.
+ * issue's finding that 0.1 m steps show as bands on flat ground. The same
+ * resource backs the Wuppertal default style's MapLibre terrain.
  */
 export const NRW_DGM1_TERRAIN: ResolvedFloodTerrainSource = {
-  tiles:
-    "https://terrain.cismet.de/services/nrw/dgm1_dhhn2016_terrarium/tiles/{z}/{x}/{y}.png",
-  tileSize: 512,
-  minzoom: 5,
-  maxzoom: 16,
-  encoding: "terrarium",
+  tiles: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.url,
+  tileSize: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.tileSize,
+  minzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.minzoom,
+  maxzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+  encoding: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.encoding,
 };
 
 export const resolveTerrainSource = (
@@ -217,15 +218,13 @@ const loadTile = (url: string): Promise<ImageBitmap | null> => {
       if (!response.ok) {
         throw new Error(`DEM tile ${response.status}: ${url}`);
       }
-      return response
-        .blob()
-        .then((blob) =>
-          // no colour management: the channels are height bits, not colour
-          createImageBitmap(blob, {
-            premultiplyAlpha: "none",
-            colorSpaceConversion: "none",
-          })
-        );
+      return response.blob().then((blob) =>
+        // no colour management: the channels are height bits, not colour
+        createImageBitmap(blob, {
+          premultiplyAlpha: "none",
+          colorSpaceConversion: "none",
+        })
+      );
     })
     .catch((error: unknown) => {
       tileCache.delete(url);
@@ -292,7 +291,13 @@ export const loadTerrainPatch = async (
     hasData = true;
     const col = index % cols;
     const row = Math.floor(index / cols);
-    context.drawImage(bitmap, col * tileSize, row * tileSize, tileSize, tileSize);
+    context.drawImage(
+      bitmap,
+      col * tileSize,
+      row * tileSize,
+      tileSize,
+      tileSize
+    );
   });
 
   let minHeight = Number.POSITIVE_INFINITY;
@@ -306,7 +311,11 @@ export const loadTerrainPatch = async (
     );
     for (let y = 0; y < height; y += STATS_STRIDE) {
       let offset = y * width * 4;
-      for (let x = 0; x < width; x += STATS_STRIDE, offset += 4 * STATS_STRIDE) {
+      for (
+        let x = 0;
+        x < width;
+        x += STATS_STRIDE, offset += 4 * STATS_STRIDE
+      ) {
         const h = decodeHeight(
           data[offset],
           data[offset + 1],

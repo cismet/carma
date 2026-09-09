@@ -1,3 +1,4 @@
+import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import type { StyleSpecification } from "maplibre-gl";
 
 export const SURFACE_TILE_OPTIONS = ["stadtplan", "luftbild"] as const;
@@ -13,8 +14,6 @@ export const WUPPERTAL_TERRAIN_SOURCE_ID = "source-wuppertal-terrain";
 
 const BASEMAP_SOURCE_ID = "source-basemap";
 const BASEMAP_LAYER_ID = "layer-basemap";
-const WUPPERTAL_TERRAIN_TILE_URL =
-  "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png";
 const STADTPLAN_TILE_URL =
   "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
 const LUFTBILD_TILE_URL =
@@ -30,9 +29,11 @@ export const createWuppertalStoryStyle = (
     sources: {
       [WUPPERTAL_TERRAIN_SOURCE_ID]: {
         type: "raster-dem",
-        tiles: [WUPPERTAL_TERRAIN_TILE_URL],
-        tileSize: 512,
-        maxzoom: 15,
+        tiles: [NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.url],
+        tileSize: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.tileSize,
+        minzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.minzoom,
+        maxzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+        encoding: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.encoding,
       },
       [BASEMAP_SOURCE_ID]: {
         type: "raster",

@@ -1,6 +1,7 @@
 export * from "./lib/base/endpoints";
 export * from "./lib/base/service-options";
 export * from "./lib/base/tilesets";
+export type { RasterDemTerrainResource } from "./lib/base/terrain";
 export * from "./lib/base/wms";
 
 export * from "./lib/de/tileset3d.ts";

@@ -3,8 +3,14 @@ import maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import {
+  RETRY_TILE_PROTOCOL,
+  retryTileProtocol,
+} from "../utils/retryTileProtocol";
 // Register COG protocol once
 maplibregl.addProtocol("cog", cogProtocol as any);
+// Tiles that must not stay missing after a dropped transfer (terrain DEM)
+maplibregl.addProtocol(RETRY_TILE_PROTOCOL, retryTileProtocol);
 import {
   useCallback,
   useContext,
@@ -1470,9 +1476,9 @@ export const LibreMap = ({
     // catch below can release them; otherwise an unexpected throw leaves every
     // layer button spinning forever.
     let preparedLayerIds: string[] = [];
-    const trackerRef = { current: null as ReturnType<
-      typeof ensureLayerLoadingTracker
-    > | null };
+    const trackerRef = {
+      current: null as ReturnType<typeof ensureLayerLoadingTracker> | null,
+    };
 
     const updateMapStyle = async () => {
       try {
@@ -1678,7 +1684,8 @@ export const LibreMap = ({
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta?.skipIn2D) continue;
               const sourceId = meta.sourceId ?? (layer as any).source;
-              const idx = sourceId === undefined ? undefined : sourceToIdx.get(sourceId);
+              const idx =
+                sourceId === undefined ? undefined : sourceToIdx.get(sourceId);
               if (idx === undefined) continue;
               configs[idx].skipIn2DLayerIds!.push((layer as any).id);
             }

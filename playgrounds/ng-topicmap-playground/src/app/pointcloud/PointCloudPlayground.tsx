@@ -13,16 +13,25 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Icon from "react-cismap/commons/Icon";
-import { Button, Checkbox, InputNumber, Radio, Select, Slider, Switch, Tabs } from "antd";
+import {
+  Button,
+  Checkbox,
+  InputNumber,
+  Radio,
+  Select,
+  Slider,
+  Switch,
+  Tabs,
+} from "antd";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { CarmaMap } from "@carma-mapping/core";
 import { useHashState } from "@carma-providers/hash-state";
 import {
-  slugifyUrl,
   useLibreContext,
   WUPPERTAL_CONFIG,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
 } from "@carma-mapping/engines/maplibre";
 
 import {
@@ -117,7 +126,6 @@ import {
 import type { PersistedMapCamera } from "./pointcloudViewState";
 import {
   buildTerrainRelativeHeightField,
-  TERRAIN_DEM_ENCODINGS,
   TERRAIN_RELATIVE_HEIGHT_FIELD,
 } from "./terrainRelativeField";
 import type { TerrainDemFieldSource } from "./terrainRelativeField";
@@ -172,8 +180,9 @@ try {
   // localStorage unavailable (e.g. privacy mode) — non-fatal
 }
 
+// The default style already carries this source under the resource's id.
 const DGM01_SOURCE_ID = WUPPERTAL_CONFIG.terrain
-  ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
+  ? WUPPERTAL_TERRAIN_SOURCE_ID
   : "terrainSource";
 
 interface DemEntry {
@@ -192,14 +201,14 @@ interface DemEntry {
 const DEMS: DemEntry[] = [
   {
     id: "dgm01",
-    label: "Wuppertal DGM1 (1 m · DHHN2016)",
+    label: "NRW DGM1 (1 m · DHHN2016)",
     sourceId: DGM01_SOURCE_ID,
     terrainFieldSource: WUPPERTAL_CONFIG.terrain
       ? {
           tileUrlTemplate: WUPPERTAL_CONFIG.terrain.url,
-          tileSize: WUPPERTAL_CONFIG.terrain.tileSize ?? 512,
-          zoom: WUPPERTAL_CONFIG.terrain.maxzoom ?? 15,
-          encoding: TERRAIN_DEM_ENCODINGS.MAPBOX,
+          tileSize: WUPPERTAL_CONFIG.terrain.tileSize,
+          zoom: WUPPERTAL_CONFIG.terrain.maxzoom,
+          encoding: WUPPERTAL_CONFIG.terrain.encoding,
         }
       : undefined,
   },
@@ -291,7 +300,8 @@ for (const feature of POINT_CLOUD_PRESET_FEATURE_COLLECTION.features) {
     continue;
   }
   const base = CLOUD_ASSETS.find(
-    (asset) => asset.artifactFileName && pointcloud.fields === asset.fieldDimensions
+    (asset) =>
+      asset.artifactFileName && pointcloud.fields === asset.fieldDimensions
   );
   CLOUD_ASSETS.push({
     ...(base ?? CLOUD_ASSETS[0]),
@@ -393,7 +403,7 @@ interface MeshSettings {
   enabled: boolean;
   zOffset: number;
   white: boolean;
-    clayColor: string;
+  clayColor: string;
   errorTarget: number;
   opacity: number;
   wireframe: boolean;
@@ -468,7 +478,7 @@ const defaultMeshSettings = (definition?: MeshAssetDef): MeshSettings => ({
   enabled: false,
   zOffset: 0,
   white: definition?.defaultClay ?? false,
-    clayColor: "#d6d2ca",
+  clayColor: "#d6d2ca",
   errorTarget: TILES_ERROR_TARGET_DEFAULT_PIXELS,
   opacity: 1,
   wireframe: false,
@@ -823,9 +833,9 @@ const SceneManager = memo(function SceneManager({
     new Map()
   );
 
-  const activeCloudIds = cloudAssets.filter(
-    (def) => cloudSettings[def.id]?.enabled
-  ).map((def) => def.id);
+  const activeCloudIds = cloudAssets
+    .filter((def) => cloudSettings[def.id]?.enabled)
+    .map((def) => def.id);
   const activeMeshIds = MESH_ASSETS.filter(
     (def) => meshSettings[def.id]?.enabled
   ).map((def) => def.id);
@@ -1758,11 +1768,11 @@ const SceneManager = memo(function SceneManager({
             Math.floor(pointCapacity / Math.max(1, active.size))
           )
         );
-      layer.setMinimumSpacingPixels(
-        cameraMovingRef.current
-          ? CAMERA_MOVE_MINIMUM_SPACING_PIXELS
-          : NORMAL_MINIMUM_SPACING_PIXELS
-      );
+        layer.setMinimumSpacingPixels(
+          cameraMovingRef.current
+            ? CAMERA_MOVE_MINIMUM_SPACING_PIXELS
+            : NORMAL_MINIMUM_SPACING_PIXELS
+        );
         layer.setFrustumNodeSource(source.nodes, reconcileFrustumNodes);
         applyCloudSettings(slot);
         scheduleSceneRequestAllocation();
@@ -2232,10 +2242,7 @@ const buildAnchorMarker = (): THREE.Group => {
   return group;
 };
 
-const updateAnchorMarker = (
-  slot: CloudSlot,
-  settings: CloudSettings
-): void => {
+const updateAnchorMarker = (slot: CloudSlot, settings: CloudSettings): void => {
   if (!slot.layer || !slot.meta) {
     disposeAnchorMarker(slot);
     return;
@@ -2250,7 +2257,10 @@ const updateAnchorMarker = (
   const originMerc = MercatorCoordinate.fromLngLat([lng, lat], 0);
   const meterScale = originMerc.meterInMercatorCoordinateUnits();
   const merc = MercatorCoordinate.fromLngLat(
-    getFromUTM32ToWGS84([resolvedAnchor.easting, resolvedAnchor.northing]) as [number, number],
+    getFromUTM32ToWGS84([resolvedAnchor.easting, resolvedAnchor.northing]) as [
+      number,
+      number
+    ],
     resolvedAnchor.height - slot.meta.zBase
   );
   const localAnchor = [
@@ -2380,12 +2390,16 @@ export function PointCloudPlayground({
   const { map } = useLibreContext();
   const { getHashStateValues, updateHashState } = useHashState();
   const hashView = getHashStateValues();
-  const { addFeature, features: adhocFeatures, removeFeature } =
-    useAdhocFeatureDisplay();
-  const [importedCloudAssets, setImportedCloudAssets] = useState<CloudAssetDef[]>(
-    []
-  );
-  const [adhocPointCloudsHydrated, setAdhocPointCloudsHydrated] = useState(false);
+  const {
+    addFeature,
+    features: adhocFeatures,
+    removeFeature,
+  } = useAdhocFeatureDisplay();
+  const [importedCloudAssets, setImportedCloudAssets] = useState<
+    CloudAssetDef[]
+  >([]);
+  const [adhocPointCloudsHydrated, setAdhocPointCloudsHydrated] =
+    useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(ADHOC_POINTCLOUD_STORAGE_KEY);
@@ -2403,14 +2417,20 @@ export function PointCloudPlayground({
           const asset: CloudAssetDef = {
             format: config.format,
             id: feature.id,
-            label: feature.metadata?.title ?? config.url.split("/").pop() ?? feature.id,
+            label:
+              feature.metadata?.title ??
+              config.url.split("/").pop() ??
+              feature.id,
             artifactFileName: config.url,
             sourceTag: "Import",
             acquiredOn: null,
             fieldDimensions: config.fields ?? [],
             hasRgb: config.hasRgb ?? false,
             runtimeEnabled: true,
-            defaultDatum: config.source?.verticalDatum === "ellipsoidal" ? "ellipsoidal" : "dhhn",
+            defaultDatum:
+              config.source?.verticalDatum === "ellipsoidal"
+                ? "ellipsoidal"
+                : "dhhn",
             source: config.source,
             transform: config.transform,
             url: config.url,
@@ -2421,7 +2441,10 @@ export function PointCloudPlayground({
         setCloudSettings((current) => ({
           ...current,
           ...Object.fromEntries(
-            restoredAssets.map((asset) => [asset.id, defaultCloudSettings(asset, true)])
+            restoredAssets.map((asset) => [
+              asset.id,
+              defaultCloudSettings(asset, true),
+            ])
           ),
         }));
         parsed.features.forEach((feature) =>
@@ -2434,7 +2457,10 @@ export function PointCloudPlayground({
         );
       }
     } catch (error) {
-      console.warn("Gespeicherte Pointcloud-Imports konnten nicht geladen werden.", error);
+      console.warn(
+        "Gespeicherte Pointcloud-Imports konnten nicht geladen werden.",
+        error
+      );
     } finally {
       setAdhocPointCloudsHydrated(true);
     }
@@ -2455,14 +2481,20 @@ export function PointCloudPlayground({
         );
       }
     } catch (error) {
-      console.warn("Pointcloud-Imports konnten nicht gespeichert werden.", error);
+      console.warn(
+        "Pointcloud-Imports konnten nicht gespeichert werden.",
+        error
+      );
     }
   }, [adhocFeatures, adhocPointCloudsHydrated]);
   const handlePointCloudDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const file = event.dataTransfer.files[0];
-      if (!file || (!file.name.endsWith(".json") && !file.name.endsWith(".geojson"))) {
+      if (
+        !file ||
+        (!file.name.endsWith(".json") && !file.name.endsWith(".geojson"))
+      ) {
         console.warn("Bitte eine Pointcloud-GeoJSON-Datei ablegen.");
         return;
       }
@@ -2473,7 +2505,9 @@ export function PointCloudPlayground({
           ...parsed.features.map((feature) => {
             const config = pointCloudFeatureToConfig(feature);
             const label =
-              feature.metadata?.title ?? config.url.split("/").pop() ?? feature.id;
+              feature.metadata?.title ??
+              config.url.split("/").pop() ??
+              feature.id;
             const nextAsset: CloudAssetDef = {
               format: config.format,
               id: feature.id,
@@ -2660,7 +2694,9 @@ export function PointCloudPlayground({
   const [sceneApi, setSceneApi] = useState<SceneApi | null>(null);
   const [cloudOptionsIds, setCloudOptionsIds] = useState<string[]>([]);
   const [meshOptionsIds, setMeshOptionsIds] = useState<string[]>([]);
-  const [cloudDetailsOpen, setCloudDetailsOpen] = useState<Record<string, boolean>>({});
+  const [cloudDetailsOpen, setCloudDetailsOpen] = useState<
+    Record<string, boolean>
+  >({});
   /** Cloud whose colorizer floats as a draggable expert panel */
   const [colorizerCloudId, setColorizerCloudId] = useState<string | null>(null);
   useEffect(() => {
@@ -2988,19 +3024,19 @@ export function PointCloudPlayground({
             <div className="text-xs text-red-600 pb-1">{state.error}</div>
           )}
           {!isTilesetDelivery && (
-          <OptionRow label="Punktstil">
-            <span className="min-w-[160px] flex-1 truncate text-sm text-gray-700">
-              {(() => {
-                const source = settings.colorization.layers[0].source;
-                return source
-                  ? formatColorizerSourceLabel(source)
-                  : "nicht konfiguriert";
-              })()}
-            </span>
-            <Button size="small" onClick={() => setColorizerCloudId(def.id)}>
-              Bearbeiten
-            </Button>
-          </OptionRow>
+            <OptionRow label="Punktstil">
+              <span className="min-w-[160px] flex-1 truncate text-sm text-gray-700">
+                {(() => {
+                  const source = settings.colorization.layers[0].source;
+                  return source
+                    ? formatColorizerSourceLabel(source)
+                    : "nicht konfiguriert";
+                })()}
+              </span>
+              <Button size="small" onClick={() => setColorizerCloudId(def.id)}>
+                Bearbeiten
+              </Button>
+            </OptionRow>
           )}
           <OptionRow label="Punktgröße">
             {!isTilesetDelivery && (
@@ -3089,22 +3125,22 @@ export function PointCloudPlayground({
             )}
           </OptionRow>
           {!isTilesetDelivery && (
-          <OptionRow label="Form">
-            <Radio.Group
-              size="small"
-              optionType="button"
-              value={settings.shape}
-              onChange={(event) =>
-                patchCloud(def.id, { shape: event.target.value })
-              }
-              options={[
-                { value: POINT_SHAPES.SQUARE, label: "Quadrat" },
-                { value: POINT_SHAPES.CIRCLE, label: "Kreis" },
-                { value: POINT_SHAPES.DOME, label: "Kugel" },
-                { value: POINT_SHAPES.SOFT_SPLAT, label: "Gradient" },
-              ]}
-            />
-          </OptionRow>
+            <OptionRow label="Form">
+              <Radio.Group
+                size="small"
+                optionType="button"
+                value={settings.shape}
+                onChange={(event) =>
+                  patchCloud(def.id, { shape: event.target.value })
+                }
+                options={[
+                  { value: POINT_SHAPES.SQUARE, label: "Quadrat" },
+                  { value: POINT_SHAPES.CIRCLE, label: "Kreis" },
+                  { value: POINT_SHAPES.DOME, label: "Kugel" },
+                  { value: POINT_SHAPES.SOFT_SPLAT, label: "Gradient" },
+                ]}
+              />
+            </OptionRow>
           )}
           <div>
             <button
@@ -3153,12 +3189,16 @@ export function PointCloudPlayground({
                 <CloudOffsetRow
                   label="Ost"
                   value={settings.offsetEast}
-                  onChange={(value) => patchCloud(def.id, { offsetEast: value })}
+                  onChange={(value) =>
+                    patchCloud(def.id, { offsetEast: value })
+                  }
                 />
                 <CloudOffsetRow
                   label="Nord"
                   value={settings.offsetNorth}
-                  onChange={(value) => patchCloud(def.id, { offsetNorth: value })}
+                  onChange={(value) =>
+                    patchCloud(def.id, { offsetNorth: value })
+                  }
                 />
                 <CloudOffsetRow
                   label="Oben"
@@ -3202,7 +3242,7 @@ export function PointCloudPlayground({
                     <div className="pt-1 text-xs text-gray-500">
                       Datei {formatCount(state.meta.totalFilePoints)} Punkte ·
                       Höhen {state.meta.zMin.toFixed(1)}–
-                      {state.meta.zMax.toFixed(1)} m · Attribute: {" "}
+                      {state.meta.zMax.toFixed(1)} m · Attribute:{" "}
                       {[
                         state.meta.hasRgb ? "RGB" : null,
                         state.meta.hasClassification ? "Klassifikation" : null,
@@ -3212,7 +3252,9 @@ export function PointCloudPlayground({
                     </div>
                     {settings.nodeBoundsVisible && state && (
                       <div className="pt-1 text-xs tabular-nums text-orange-700">
-                        Knoten: {state.visibleNodes} im Sichtfeld · {state.renderedNodes} gerendert · {state.loadedNodes} geladen
+                        Knoten: {state.visibleNodes} im Sichtfeld ·{" "}
+                        {state.renderedNodes} gerendert · {state.loadedNodes}{" "}
+                        geladen
                       </div>
                     )}
                     <CloudMountPose
@@ -3270,17 +3312,17 @@ export function PointCloudPlayground({
       children: (
         <div className="pl-1">
           <OptionRow label="Shader">
-                      <OptionRow label="Clay-Farbe">
-                        <input
-                          aria-label="Clay-Farbe"
-                          type="color"
-                          value={settings.clayColor}
-                          onChange={(event) =>
-                            patchMesh(def.id, { clayColor: event.target.value })
-                          }
-                          className="h-7 w-12 cursor-pointer rounded border border-gray-300 bg-transparent p-0.5"
-                        />
-                      </OptionRow>
+            <OptionRow label="Clay-Farbe">
+              <input
+                aria-label="Clay-Farbe"
+                type="color"
+                value={settings.clayColor}
+                onChange={(event) =>
+                  patchMesh(def.id, { clayColor: event.target.value })
+                }
+                className="h-7 w-12 cursor-pointer rounded border border-gray-300 bg-transparent p-0.5"
+              />
+            </OptionRow>
             <Radio.Group
               size="small"
               optionType="button"
@@ -3480,154 +3522,157 @@ export function PointCloudPlayground({
                     defaultActiveKey="pointclouds"
                     tabBarStyle={{ borderBottom: "none", marginBottom: 0 }}
                     items={[
-                        {
-                          key: "pointclouds",
-                          label: `Punktwolken (${
-                            cloudAssets.filter(
-                              (def) => cloudSettings[def.id]?.enabled
-                            ).length
-                          }/${cloudAssets.length})`,
-                          children: (
-                            <div className="flex min-w-[360px] flex-col pb-1">
-                              {cloudItems.map((item) => (
-                                <div key={item.key}>{item.label}</div>
-                              ))}
-                            </div>
-                          ),
-                        },
-                        {
-                          key: "meshes",
-                          label: `3D-Meshes (${
-                            MESH_ASSETS.filter(
-                              (def) => meshSettings[def.id]?.enabled
-                            ).length
-                          }/${MESH_ASSETS.length})`,
-                          children: (
-                            <div className="flex min-w-[360px] flex-col">
-                              {meshItems.map((item) => (
-                                <div key={item.key}>{item.label}</div>
-                              ))}
-                              <div className="border-t border-gray-200 px-2 pt-1 pb-2">
-                                <OptionRow label="Gebäude (LOD)">
-                                  <Switch
-                                    size="small"
-                                    checked={buildingsEnabled}
-                                    onChange={setBuildingsEnabled}
-                                  />
-                                  <span className="text-xs text-gray-500">
-                                    ALKIS-Extrusion via Gelände
-                                  </span>
-                                </OptionRow>
-                              </div>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: "scene",
-                          label: "Szene",
-                          children: (
-                            <div className="flex flex-col gap-1 px-2 pb-2">
-                              <OptionRow label="Pitch-Limit">
+                      {
+                        key: "pointclouds",
+                        label: `Punktwolken (${
+                          cloudAssets.filter(
+                            (def) => cloudSettings[def.id]?.enabled
+                          ).length
+                        }/${cloudAssets.length})`,
+                        children: (
+                          <div className="flex min-w-[360px] flex-col pb-1">
+                            {cloudItems.map((item) => (
+                              <div key={item.key}>{item.label}</div>
+                            ))}
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "meshes",
+                        label: `3D-Meshes (${
+                          MESH_ASSETS.filter(
+                            (def) => meshSettings[def.id]?.enabled
+                          ).length
+                        }/${MESH_ASSETS.length})`,
+                        children: (
+                          <div className="flex min-w-[360px] flex-col">
+                            {meshItems.map((item) => (
+                              <div key={item.key}>{item.label}</div>
+                            ))}
+                            <div className="border-t border-gray-200 px-2 pt-1 pb-2">
+                              <OptionRow label="Gebäude (LOD)">
                                 <Switch
                                   size="small"
-                                  checked={pitchLimiterEnabled}
-                                  onChange={setPitchLimiterEnabled}
+                                  checked={buildingsEnabled}
+                                  onChange={setBuildingsEnabled}
                                 />
                                 <span className="text-xs text-gray-500">
-                                  {pitchLimiterEnabled ? "60°" : "frei"}
+                                  ALKIS-Extrusion via Gelände
                                 </span>
-                              </OptionRow>
-                              <OptionRow label="Ziel-Bildrate">
-                                <div className="min-w-[120px] flex-1 pt-1">
-                                  <Slider
-                                    min={15}
-                                    max={60}
-                                    step={5}
-                                    value={targetFrameRate}
-                                    onChange={setTargetFrameRate}
-                                    tooltip={{
-                                      formatter: (value) => `${value ?? 0} FPS`,
-                                    }}
-                                  />
-                                </div>
-                                <span className="w-14 text-right text-xs tabular-nums">
-                                  {targetFrameRate} FPS
-                                </span>
-                              </OptionRow>
-                              <OptionRow label="Hintergrund">
-                                <div className="flex items-center gap-1">
-                                  {(
-                                    [
-                                      ["white", "Weiß"],
-                                      ["black", "Schwarz"],
-                                      ["gray50", "50 % Grau"],
-                                    ] as const
-                                  ).map(([preset, label]) => (
-                                    <button
-                                      key={preset}
-                                      type="button"
-                                      aria-label={label}
-                                      title={label}
-                                      className={`size-6 rounded border-2 ${
-                                        sceneBackground === preset
-                                          ? "border-blue-600"
-                                          : "border-gray-300"
-                                      }`}
-                                      style={{
-                                        backgroundColor:
-                                          SCENE_BACKGROUND_COLORS[preset],
-                                      }}
-                                      onClick={() => {
-                                        setSceneBackground(preset);
-                                        setSceneBackgroundColor(
-                                          SCENE_BACKGROUND_COLORS[preset]
-                                        );
-                                      }}
-                                    />
-                                  ))}
-                                  <input
-                                    type="color"
-                                    aria-label="Benutzerdefinierte Hintergrundfarbe"
-                                    title="Benutzerdefinierte Hintergrundfarbe"
-                                    value={sceneBackgroundColor}
-                                    onChange={(event) => {
-                                      setSceneBackground("gray50");
-                                      setSceneBackgroundColor(event.target.value);
-                                    }}
-                                    className="size-7 cursor-pointer rounded border border-gray-300 bg-transparent p-0.5"
-                                  />
-                                </div>
-                              </OptionRow>
-                              <OptionRow label="JSON-Export">
-                                <Button size="small" onClick={exportMicroCorrections}>
-                                  JSON exportieren
-                                </Button>
-                              </OptionRow>
-                              <OptionRow label="Gelände-DEM">
-                                <Select
-                                  size="small"
-                                  className="w-52"
-                                  value={demId}
-                                  disabled={!terrainActive}
-                                  onChange={setDemId}
-                                  options={DEMS.map((dem) => ({
-                                    value: dem.id,
-                                    label: dem.label,
-                                  }))}
-                                />
-                                {!terrainActive && (
-                                  <span className="text-xs text-gray-500">
-                                    Gelände über den Berg-Button links
-                                  </span>
-                                )}
                               </OptionRow>
                             </div>
-                          ),
-                        },
-                      ]}
-                    />
-                  </div>
-                )}
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "scene",
+                        label: "Szene",
+                        children: (
+                          <div className="flex flex-col gap-1 px-2 pb-2">
+                            <OptionRow label="Pitch-Limit">
+                              <Switch
+                                size="small"
+                                checked={pitchLimiterEnabled}
+                                onChange={setPitchLimiterEnabled}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {pitchLimiterEnabled ? "60°" : "frei"}
+                              </span>
+                            </OptionRow>
+                            <OptionRow label="Ziel-Bildrate">
+                              <div className="min-w-[120px] flex-1 pt-1">
+                                <Slider
+                                  min={15}
+                                  max={60}
+                                  step={5}
+                                  value={targetFrameRate}
+                                  onChange={setTargetFrameRate}
+                                  tooltip={{
+                                    formatter: (value) => `${value ?? 0} FPS`,
+                                  }}
+                                />
+                              </div>
+                              <span className="w-14 text-right text-xs tabular-nums">
+                                {targetFrameRate} FPS
+                              </span>
+                            </OptionRow>
+                            <OptionRow label="Hintergrund">
+                              <div className="flex items-center gap-1">
+                                {(
+                                  [
+                                    ["white", "Weiß"],
+                                    ["black", "Schwarz"],
+                                    ["gray50", "50 % Grau"],
+                                  ] as const
+                                ).map(([preset, label]) => (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    aria-label={label}
+                                    title={label}
+                                    className={`size-6 rounded border-2 ${
+                                      sceneBackground === preset
+                                        ? "border-blue-600"
+                                        : "border-gray-300"
+                                    }`}
+                                    style={{
+                                      backgroundColor:
+                                        SCENE_BACKGROUND_COLORS[preset],
+                                    }}
+                                    onClick={() => {
+                                      setSceneBackground(preset);
+                                      setSceneBackgroundColor(
+                                        SCENE_BACKGROUND_COLORS[preset]
+                                      );
+                                    }}
+                                  />
+                                ))}
+                                <input
+                                  type="color"
+                                  aria-label="Benutzerdefinierte Hintergrundfarbe"
+                                  title="Benutzerdefinierte Hintergrundfarbe"
+                                  value={sceneBackgroundColor}
+                                  onChange={(event) => {
+                                    setSceneBackground("gray50");
+                                    setSceneBackgroundColor(event.target.value);
+                                  }}
+                                  className="size-7 cursor-pointer rounded border border-gray-300 bg-transparent p-0.5"
+                                />
+                              </div>
+                            </OptionRow>
+                            <OptionRow label="JSON-Export">
+                              <Button
+                                size="small"
+                                onClick={exportMicroCorrections}
+                              >
+                                JSON exportieren
+                              </Button>
+                            </OptionRow>
+                            <OptionRow label="Gelände-DEM">
+                              <Select
+                                size="small"
+                                className="w-52"
+                                value={demId}
+                                disabled={!terrainActive}
+                                onChange={setDemId}
+                                options={DEMS.map((dem) => ({
+                                  value: dem.id,
+                                  label: dem.label,
+                                }))}
+                              />
+                              {!terrainActive && (
+                                <span className="text-xs text-gray-500">
+                                  Gelände über den Berg-Button links
+                                </span>
+                              )}
+                            </OptionRow>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3636,9 +3681,7 @@ export function PointCloudPlayground({
       {showScenePanel &&
         cloudOptionsIds.map((cloudId, index) => {
           const options = cloudItems.find((item) => item.key === cloudId);
-          const def = cloudAssets.find(
-            (candidate) => candidate.id === cloudId
-          );
+          const def = cloudAssets.find((candidate) => candidate.id === cloudId);
           if (!options || !def) return null;
           const settings = cloudSettings[cloudId];
           const state = cloudStates[cloudId];
@@ -3693,7 +3736,8 @@ export function PointCloudPlayground({
                           const [lng, lat] = state.meta.centerLngLat;
                           const terrainElevation =
                             terrainActive && map
-                              ? map.queryTerrainElevation({ lng, lat }) ?? undefined
+                              ? map.queryTerrainElevation({ lng, lat }) ??
+                                undefined
                               : undefined;
                           map?.fitBounds(state.meta.boundsLngLat, {
                             padding: 60,
@@ -3702,7 +3746,10 @@ export function PointCloudPlayground({
                           });
                         }}
                       >
-                        <Icon name="search-location" className="size-4 leading-none" />
+                        <Icon
+                          name="search-location"
+                          className="size-4 leading-none"
+                        />
                       </button>
                     );
                   })()}
@@ -3775,7 +3822,9 @@ export function PointCloudPlayground({
                   <FontAwesomeIcon icon={faRotateLeft} />
                 </button>
               }
-              initial={getSecondaryPanelPosition(cloudOptionsIds.length + index)}
+              initial={getSecondaryPanelPosition(
+                cloudOptionsIds.length + index
+              )}
               zIndex={30 + cloudOptionsIds.length + index}
               onClose={() =>
                 setMeshOptionsIds((previous) =>
