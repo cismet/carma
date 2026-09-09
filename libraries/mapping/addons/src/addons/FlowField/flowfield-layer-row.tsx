@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSliders } from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
+import { useIsAdminMode } from "../../lib/admin-mode";
 import { useFlowFieldActions } from "./flowfield-actions";
 
 export const FLOW_FIELD_LAYER_ID = "__flowField__";
 
 /** the readout the row shows instead of opening anything */
 export const FLOW_FIELD_STATUS_ID = "flow-field-status";
+
+/**
+ * The tuning panel the row opens under `?ff=admin`. Without the flag the
+ * button is not on the row at all, so nothing about it is reachable by
+ * clicking around.
+ */
+export const FLOW_FIELD_TUNING_INTERACTION_ID = "flow-field-tuning";
 
 const ICON_COLOR = { running: "#1677ff", idle: "#8c8c8c" };
 
@@ -63,12 +73,24 @@ const statusLabel = ({
   return "läuft";
 };
 
-const buildInteractionButtons = (label: string): InteractionButton[] => [
+const buildInteractionButtons = (
+  label: string,
+  isAdmin: boolean
+): InteractionButton[] => [
   {
     id: FLOW_FIELD_STATUS_ID,
     icon: <span style={READOUT_STYLE}>{label}</span>,
     tooltip: "Zustand der Fließwege-Animation",
   },
+  ...(isAdmin
+    ? [
+        {
+          id: FLOW_FIELD_TUNING_INTERACTION_ID,
+          icon: <FontAwesomeIcon icon={faSliders} />,
+          tooltip: "Partikel-Parameter",
+        },
+      ]
+    : []),
 ];
 
 export type UseFlowFieldLayerRowOptions = {
@@ -99,6 +121,7 @@ export const useFlowFieldLayerRow = ({
 }: UseFlowFieldLayerRowOptions) => {
   const { isOn, setOn, title, isCaged, isActive, isLoading, fallback } =
     useFlowFieldActions();
+  const isAdmin = useIsAdminMode();
 
   const label = statusLabel({
     isCaged,
@@ -112,9 +135,9 @@ export const useFlowFieldLayerRow = ({
       ...FLOW_FIELD_LAYER,
       title,
       iconColor: isActive && isCaged ? ICON_COLOR.running : ICON_COLOR.idle,
-      interactionButtons: buildInteractionButtons(label),
+      interactionButtons: buildInteractionButtons(label, isAdmin),
     }),
-    [title, label, isActive, isCaged]
+    [title, label, isActive, isCaged, isAdmin]
   );
 
   const layerRef = useRef(layer);

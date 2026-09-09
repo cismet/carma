@@ -127,6 +127,25 @@ export type FlowFieldState = {
   isCaged: boolean;
 };
 
+/**
+ * The part of the channel a tuning panel may write: everything that shapes the
+ * animation, and nothing that says which scenario it is.
+ *
+ * Split out so the panel cannot rewrite the service, and so the exported
+ * config has an exact shape to be built from.
+ */
+export type FlowFieldTuning = Pick<
+  FlowFieldState,
+  | "uvCorrection"
+  | "minZoom"
+  | "animateWhileMoving"
+  | "opacity"
+  | "viewportBuffer"
+  | "debounceMs"
+  | "occlusion"
+  | "params"
+>;
+
 export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   isOn: false,
   title: "Fließwege",
@@ -223,6 +242,17 @@ export const useFlowFieldActions = () => {
     [setState]
   );
 
+  /**
+   * Replaces the given tuning keys. The engine pushes `params` and `opacity`
+   * into the running layer and rebuilds it for anything else, so a knob that
+   * costs a request is one the panel commits on release rather than on drag.
+   */
+  const setTuning = useCallback(
+    (patch: Partial<FlowFieldTuning>) =>
+      setState((previous) => ({ ...previous, ...patch })),
+    [setState]
+  );
+
   const setActive = useCallback(
     (next: boolean) =>
       setState((previous) =>
@@ -241,7 +271,15 @@ export const useFlowFieldActions = () => {
     [setState]
   );
 
-  return { ...state, setOn, toggle, setOpacity, setActive, setLoading };
+  return {
+    ...state,
+    setOn,
+    toggle,
+    setOpacity,
+    setTuning,
+    setActive,
+    setLoading,
+  };
 };
 
 /**

@@ -14,6 +14,10 @@ import {
   FloodInteractionPanel,
   FLOOD_TOOLS_INTERACTION_ID,
 } from "../addons/FloodSimulation";
+import {
+  FlowFieldTuningInteractionPanel,
+  FLOW_FIELD_TUNING_INTERACTION_ID,
+} from "../addons/FlowField";
 
 /**
  * Panels addons contribute to the host's interaction view, keyed by the id of
@@ -27,4 +31,6 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   [HIGHLIGHT_TOOLS_INTERACTION_ID]: HighlightInteractionPanel,
   [TIME_SLIDER_TOOLS_INTERACTION_ID]: TimeSliderInteractionPanel,
   [FLOOD_TOOLS_INTERACTION_ID]: FloodInteractionPanel,
+  // the row only offers the button that opens this under `?ff=admin`
+  [FLOW_FIELD_TUNING_INTERACTION_ID]: FlowFieldTuningInteractionPanel,
 };

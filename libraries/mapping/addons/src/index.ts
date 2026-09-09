@@ -64,6 +64,7 @@ export type {
   FlowFieldZoomProfileEntry,
   UvCorrection,
 } from "./lib/caged-addons";
+export { ADMIN_MODE_FLAG, useIsAdminMode } from "./lib/admin-mode";
 
 export {
   TimeSlider,
@@ -87,17 +88,21 @@ export {
 
 export {
   FlowField,
+  FlowFieldTuningPanel,
+  FlowFieldTuningInteractionPanel,
   useFlowFieldActions,
   useFlowFieldLauncher,
   useFlowFieldLayerRow,
   FLOW_FIELD_LAYER,
   FLOW_FIELD_LAYER_ID,
   FLOW_FIELD_STATUS_ID,
+  FLOW_FIELD_TUNING_INTERACTION_ID,
   FLOW_FIELD_STATE_DEFAULT,
   type FlowFieldBackdrop,
   type FlowFieldConfig,
   type FlowFieldDefinition,
   type FlowFieldState,
+  type FlowFieldTuning,
   type UseFlowFieldLayerRowOptions,
 } from "./addons/FlowField";
 

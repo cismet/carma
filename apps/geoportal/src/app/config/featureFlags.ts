@@ -57,6 +57,13 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "nocage",
   },
+  // tools that are ours rather than the product's: parameter panels, raw
+  // readouts, anything a visitor should never be offered. First user is the
+  // flow field's tuning panel.
+  isAdminMode: {
+    default: false,
+    alias: "admin",
+  },
 };
 
 type FeatureFlagConfigEntry = FeatureFlagConfig[string];
