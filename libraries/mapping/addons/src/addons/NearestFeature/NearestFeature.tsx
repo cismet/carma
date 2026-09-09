@@ -11,7 +11,7 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import { primeFeatureIndexes } from "../../lib/featureIndex";
 import type { AddonComponentProps } from "../../lib/registry";
 import { useOriginLocationState, useOriginRequest } from "../OriginSearch";
-import { useActiveRoute } from "../Routing";
+import { useActiveRoute, useRouteNavigation } from "../Routing";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
   categoryForInput,
@@ -38,6 +38,7 @@ import {
   drawRoutes,
   highlightRoute,
   onRouteClick,
+  setRoutesHidden,
   routesAreDrawn,
   type NearestFeatureRoute,
 } from "./routeLayer";
@@ -230,6 +231,12 @@ export const NearestFeature = ({
   const selectedRouteKeyRef = useRef(selectedRouteKey);
   selectedRouteKeyRef.current = selectedRouteKey;
 
+  // one of these routes may be the one being driven; while it is, it is drawn
+  // by the `routing` addon and these lines stay off the map
+  const navigating = useRouteNavigation()?.navigating ?? false;
+  const navigatingRef = useRef(navigating);
+  navigatingRef.current = navigating;
+
   /**
    * What picking a hit does, from a row and from its route alike: click it
    * where the map draws it, so the host app shows the info box it shows for
@@ -380,16 +387,19 @@ export const NearestFeature = ({
    * never re-registered.
    */
   const rerunRef = useRef<DynamicModeRerun | null>(null);
-  const subscribe = useCallback((rerun: DynamicModeRerun) => {
-    rerunRef.current = rerun;
-    return () => {
-      if (rerunRef.current === rerun) {
-        rerunRef.current = null;
-      }
-      setWantsOrigin(false);
-      resetRun();
-    };
-  }, [resetRun]);
+  const subscribe = useCallback(
+    (rerun: DynamicModeRerun) => {
+      rerunRef.current = rerun;
+      return () => {
+        if (rerunRef.current === rerun) {
+          rerunRef.current = null;
+        }
+        setWantsOrigin(false);
+        resetRun();
+      };
+    },
+    [resetRun]
+  );
 
   /**
    * The run's routes on the map, and back on it after a style rebuild: adding a
@@ -405,7 +415,12 @@ export const NearestFeature = ({
       return;
     }
     const draw = () =>
-      drawRoutes(libreMap, drawnRoutes, selectedRouteKeyRef.current);
+      drawRoutes(
+        libreMap,
+        drawnRoutes,
+        selectedRouteKeyRef.current,
+        navigatingRef.current
+      );
     draw();
     const redraw = () => {
       if (!routesAreDrawn(libreMap)) {
@@ -418,6 +433,18 @@ export const NearestFeature = ({
       clearRoutes(libreMap);
     };
   }, [libreMap, drawnRoutes]);
+
+  /**
+   * While one of these routes is being driven it is the only one on the map:
+   * the `routing` addon draws that one, split at the user's place on it, and
+   * the candidates around it would only be in the way. They come back when the
+   * navigation ends.
+   */
+  useEffect(() => {
+    if (libreMap) {
+      setRoutesHidden(libreMap, navigating);
+    }
+  }, [libreMap, navigating, drawnRoutes]);
 
   /** the picked route is the one that leads to the selected feature */
   useEffect(() => {
