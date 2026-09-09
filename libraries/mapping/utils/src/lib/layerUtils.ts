@@ -186,6 +186,32 @@ const parseToolEntries = (value: unknown): ToolEntry[] | null => {
   return tools.length > 0 ? tools : null;
 };
 
+const toolKind = (tool: ToolEntry): string =>
+  typeof tool === "string" ? tool : "kind" in tool ? tool.kind : tool.addon;
+
+/**
+ * The tools of a layer from both places that may declare them: the style speaks
+ * about itself (a "zoomToExtent" on its own extent), the catalog item about
+ * this deployment's use of it. Both are kept; where they name the same addon
+ * the item wins, since it is the more specific statement.
+ */
+const mergeToolEntries = (
+  styleTools: unknown,
+  itemTools: unknown
+): ToolEntry[] | null => {
+  const fromStyle = parseToolEntries(styleTools) ?? [];
+  const fromItem = parseToolEntries(itemTools) ?? [];
+  if (fromStyle.length === 0) {
+    return fromItem.length > 0 ? fromItem : null;
+  }
+  const itemKinds = new Set(fromItem.map(toolKind));
+  const merged = [
+    ...fromStyle.filter((tool) => !itemKinds.has(toolKind(tool))),
+    ...fromItem,
+  ];
+  return merged.length > 0 ? merged : null;
+};
+
 export const parseToMapLayer = async (
   layer: Item,
   forceWMS: boolean,
@@ -198,9 +224,9 @@ export const parseToMapLayer = async (
   const carmaConf = extractCarmaConfig(layer.keywords);
   const resolvedTitle = resolveLayerTitle(layer);
   const resolvedDescription = resolveLayerDescription(layer);
-  // Addon tools of this layer. The catalog item wins; a vector layer may also
-  // declare them in its style, which the vector branch below picks up.
-  let toolsSource: unknown = layer.tools ?? carmaConf?.tools;
+  // Addon tools of this layer, from the item and from what the layer declares
+  // about itself; a vector layer's style is read in the vector branch below.
+  let tools: ToolEntry[] | null = mergeToolEntries(carmaConf?.tools, layer.tools);
   let resolvedStyleJson: object | null = null;
   if (layer.type === "layer" || layer.type === "object") {
     let capabilitiesUrl = layer?.props?.url
@@ -304,7 +330,7 @@ export const parseToMapLayer = async (
         | Record<string, unknown>
         | undefined;
       const mergedConf = { ...vectorConf, ...metaDataCarmaConf, ...carmaConf };
-      toolsSource = layer.tools ?? mergedConf.tools;
+      tools = mergeToolEntries(mergedConf.tools, layer.tools);
 
       newLayer = {
         title: resolvedTitle,
@@ -446,7 +472,6 @@ export const parseToMapLayer = async (
     throw new Error(`Could not parse layer ${layer.id} to map layer.`);
   }
 
-  const tools = parseToolEntries(toolsSource);
   if (tools) {
     newLayer.tools = tools;
   }

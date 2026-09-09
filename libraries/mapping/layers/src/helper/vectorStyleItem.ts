@@ -11,10 +11,7 @@ export interface CarmaVectorStyle {
     carmaConf?: {
       instant?: boolean;
       /** open-ended: whatever a style states about its item, item fields win */
-      layerInfo?: { keywords?: string[]; tools?: ToolEntry[] } & Record<
-        string,
-        unknown
-      >;
+      layerInfo?: { keywords?: string[] } & Record<string, unknown>;
     };
   };
 }
@@ -103,13 +100,12 @@ export const buildVectorStyleItem = ({
   }
 
   const layerInfo = carmaConf.layerInfo;
-  const mergedTools = [...(tools ?? []), ...(layerInfo?.tools ?? [])];
   return {
     item: {
       ...item,
       ...layerInfo,
       keywords: [...(item.keywords ?? []), ...(layerInfo?.keywords ?? [])],
-      ...(mergedTools.length ? { tools: mergedTools } : {}),
+      ...(tools?.length ? { tools } : {}),
     } as unknown as Item,
     instant: carmaConf.instant ?? false,
   };
