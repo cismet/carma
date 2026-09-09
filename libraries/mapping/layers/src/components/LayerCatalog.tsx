@@ -64,6 +64,7 @@ import {
 } from "../hooks/useCatalogSearch";
 import { filterCategoriesByFilters } from "../helper/catalogFilter";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
+import { useAdditionalLayers } from "../hooks/useAdditionalLayers";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 import { useSyncActiveLayers } from "../hooks/useSyncActiveLayers";
 import { useHandleDrop } from "../hooks/useHandleDrop";
@@ -216,6 +217,17 @@ const LayerCatalogView = ({
 
   const deployment = useDeployment();
 
+  // the layers this catalog config adds on top of the fetched sources; their
+  // references are resolved by the catalog derivation, which knows every item
+  const {
+    categories: additionalLayerCategories,
+    itemIds: additionalLayerIds,
+  } = useAdditionalLayers({
+    additionalLayers: catalogConfig.additionalLayers,
+    vectorTileServerUrl: catalogConfig.vectorTileServerUrl,
+    setFeatureFlags,
+  });
+
   const {
     additionalConfig,
     sensorConfig,
@@ -244,6 +256,7 @@ const LayerCatalogView = ({
           categoryConfigs: { sensors: sensorConfig, objects: objectConfig },
           discoverItems,
           dropped,
+          additionalLayers: additionalLayerCategories,
         },
         {
           featureFlags: flags,
@@ -259,6 +272,7 @@ const LayerCatalogView = ({
       objectConfig,
       discoverItems,
       dropped,
+      additionalLayerCategories,
       flags,
       resolvedCustomCategories,
       categoryDefinitions,
@@ -361,21 +375,26 @@ const LayerCatalogView = ({
       ),
     [categoryDefinitions]
   );
-  // layers the user dropped in are never hidden by a curated filter config
-  const droppedItemIds = useMemo(() => getDroppedItemIds(dropped), [dropped]);
+  // Layers the user dropped in are never hidden by a curated filter config, and
+  // neither are the additional layers of that very config: filters and
+  // additional layers are written together, so those are wanted here.
+  const filterExemptItemIds = useMemo(
+    () => new Set([...getDroppedItemIds(dropped), ...additionalLayerIds]),
+    [dropped, additionalLayerIds]
+  );
   const filteredCategories = useMemo(
     () =>
       catalogFilters?.length
         ? filterCategoriesByFilters(searchedCategories, catalogFilters, {
             categoryIds: filterExemptCategoryIds,
-            itemIds: droppedItemIds,
+            itemIds: filterExemptItemIds,
           })
         : searchedCategories,
     [
       searchedCategories,
       catalogFilters,
       filterExemptCategoryIds,
-      droppedItemIds,
+      filterExemptItemIds,
     ]
   );
   // active filters hide empty categories entirely instead of showing them

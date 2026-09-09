@@ -472,6 +472,115 @@ describe("applyCatalogDrop", () => {
     expect(mapLayers?.categories[0].layers[0].title).toBe("Dropped Style");
   });
 
+  it("files configured additional layers, moving a referenced layer out of its category", () => {
+    const catalog = buildCatalog(
+      {
+        ...emptySources,
+        serviceCategories,
+        additionalLayers: [
+          {
+            Title: "Test Kategorie",
+            serviceName: "test-kategorie",
+            layers: [
+              item("custom:style", "Konfigurierter Style", {
+                path: "Test Kategorie",
+              }),
+              // an existing catalog item, pulled in by its id
+              { refId: "wuppKarten:expg" },
+            ],
+          },
+          // title-less: the style url written on its own
+          {
+            layers: [
+              item("custom:extern", "Externer Style", {
+                path: "Externe Dienste",
+              }),
+            ],
+          },
+        ],
+      },
+      { featureFlags: {} }
+    );
+    const mapLayers = catalog.find((category) => category.id === "mapLayers");
+    const testCategory = mapLayers?.categories.find(
+      (category) => category.id === "test-kategorie"
+    );
+    expect(testCategory?.layers.map((layer) => layer.title)).toEqual([
+      "Konfigurierter Style",
+      "Strichkarte",
+    ]);
+    // and it is gone from the category it came from, so it shows up once
+    const karten = mapLayers?.categories.find(
+      (category) => category.id === "wuppKarten"
+    );
+    expect(karten?.layers.map((layer) => layer.id)).toEqual([
+      "wuppKarten:alkomgw",
+    ]);
+    expect(mapLayers?.categories[0]).toMatchObject({
+      id: "custom",
+      Title: "Externe Dienste",
+    });
+    expect(mapLayers?.categories[0].layers[0].title).toBe("Externer Style");
+  });
+
+  it("leaves out a reference to an item the catalog does not know", () => {
+    const catalog = buildCatalog(
+      {
+        ...emptySources,
+        serviceCategories,
+        additionalLayers: [
+          {
+            Title: "Test Kategorie",
+            serviceName: "test-kategorie",
+            layers: [{ refId: "wuppKarten:gibtesnicht" }],
+          },
+        ],
+      },
+      { featureFlags: {} }
+    );
+    const mapLayers = catalog.find((category) => category.id === "mapLayers");
+    expect(
+      mapLayers?.categories.find(
+        (category) => category.id === "test-kategorie"
+      )
+    ).toBeUndefined();
+  });
+
+  it("merges custom-service config layers into the one custom subcategory", () => {
+    const dropped = applyCatalogDrop(EMPTY_DROPPED_CATALOG, {
+      kind: "layers",
+      items: [item("custom:style", "Dropped Style")],
+    });
+    const catalog = buildCatalog(
+      {
+        ...emptySources,
+        serviceCategories,
+        dropped,
+        // shape of a configured style addition: title-less, custom service
+        additionalConfig: [
+          {
+            layers: [
+              item("custom:addition", "Added Style", {
+                serviceName: "custom",
+                path: "Externe Dienste",
+              }),
+            ],
+          },
+        ],
+      },
+      { featureFlags: {} }
+    );
+    const mapLayers = catalog.find((category) => category.id === "mapLayers");
+    const customCategories = mapLayers?.categories.filter(
+      (category) => category.id === "custom"
+    );
+    expect(customCategories).toHaveLength(1);
+    expect(customCategories?.[0].layers.map((layer) => layer.title)).toEqual([
+      "Dropped Style",
+      "Added Style",
+    ]);
+  });
+
   it("feeds dropped sensor configs into the sensors category before fetched ones", () => {
     const dropped = applyCatalogDrop(EMPTY_DROPPED_CATALOG, {
       kind: "categoryConfig",
