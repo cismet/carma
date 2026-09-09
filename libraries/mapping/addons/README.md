@@ -1082,6 +1082,26 @@ hash is in the Leaflet convention and shows one more), `pitch` (30) and
 ms, the start, recenter and leave ease) are the rest of the config;
 everything is optional, so the bare kind `"routing"` works.
 
+While a navigation runs, the map shows one route: the one being driven, drawn
+by this addon (`routeLine.ts`), while its producer takes its own lines off (the
+ranking hides all its candidates until the navigation ends). The picture
+belongs to the addon that owns the navigation, so a second producer of routes
+gets it without drawing anything itself, and "only the route we are on" is the
+design rather than a filter.
+
+That line is in two colours, split where the user is: gray (`ROUTE_GRAY`) for
+what is already driven, blue (`ROUTE_BLUE`) for what is still ahead, at the
+width and opacity the picked candidate had, so pressing start changes the
+colours behind the user and nothing else. One line rather than two: MapLibre
+paints it with a `line-gradient` over `line-progress`, which is why the source
+is created with `lineMetrics: true`, and the split is a `step` at
+`progress.fraction` because it is a place on the route and not a fade. Moving
+it is one paint property per fix, no geometry rebuilt; the fraction is rounded
+to a thousandth of the route first, so a standing user does not re-paint the
+line once a second. The three colours live in `@carma-mapping/routing`
+(`routeColors.ts`), read by the ranking's candidates, this line and the route
+options drawer alike.
+
 A rotated camera needs the restriction lifted: a restricted camera resets its
 bearing to zero, so the rotation would be undone as it is applied. Rather than
 have two addons write the one override slot, `cameraRestriction` got a mode
@@ -1102,6 +1122,7 @@ map back north.
 | `Routing/Routing.tsx`     | the addon: reads the route and the fixes, publishes the offer, drives the camera |
 | `Routing/RecenterControl.tsx` | the "Zentrieren" pill shown while the follow is paused |
 | `Routing/routeChannel.ts` | both channels, their types and hooks |
+| `Routing/routeLine.ts`    | the driven route on the map, gray behind the user and blue ahead |
 | `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
 | `Routing/config.ts`       | `RoutingConfig` and its defaults |
 
