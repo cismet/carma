@@ -226,6 +226,35 @@ describe("createTileBytesPredictor", () => {
 });
 
 describe("deriveTilePriority", () => {
+  it("prioritizes JSON, then missing coverage, then visible refinement, then casters", () => {
+    const common = {
+      distanceFromCamera: 1,
+      depth: 30,
+      inMainFrustum: true,
+      isExternalTileset: false,
+      centerness: 1,
+    };
+    const detail = deriveTilePriority(common);
+    const coverage = deriveTilePriority({
+      ...common,
+      distanceFromCamera: 10_000,
+      fillsViewCoverage: true,
+    });
+    const metadata = deriveTilePriority({
+      ...common,
+      distanceFromCamera: Infinity,
+      inMainFrustum: false,
+      isExternalTileset: true,
+    });
+    const caster = deriveTilePriority({
+      ...common,
+      distanceFromCamera: 0,
+      inMainFrustum: false,
+    });
+    expect(metadata).toBeGreaterThan(coverage);
+    expect(coverage).toBeGreaterThan(detail);
+    expect(detail).toBeGreaterThan(caster);
+  });
   it("orders mesh requests by observer distance, ahead of offscreen casters", () => {
     const priority = (distance: number, depth: number, inMainFrustum = true) =>
       deriveTilePriority({

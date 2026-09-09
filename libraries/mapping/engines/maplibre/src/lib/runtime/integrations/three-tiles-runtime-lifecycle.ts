@@ -32,6 +32,7 @@ import {
 } from "./three-tiles-load-policy";
 import {
   collectLoadedMeshReceiverCandidates,
+  getRetainedMeshAncestors,
   isMeshCoveredByLoadedChildren,
   retainMeshDetailFrontier,
   shouldDeferMeshRefinement,
@@ -196,6 +197,7 @@ export function createThreeTilesLifecycle(
   // Bounded event samples, never a resident-cache scan. Decision:
   // TILE-PIPELINE-TELEMETRY-20260909 in engines/maplibre/README.md.
   const telemetryTiles = new Set<Tile>();
+  let retainedMeshAncestors = new Set<Tile>();
   let telemetryDropped = 0;
   const telemetryCenter = new THREE.Vector3();
   const telemetrySphere = new THREE.Sphere();
@@ -624,6 +626,15 @@ export function createThreeTilesLifecycle(
     runtimeState.tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
       dependencies.recordTileIteration(tile);
       calculateTileViewErrorWithPlugin(tile, target);
+      if (target.inView && retainedMeshAncestors.has(tile)) {
+        // Native REPLACE traversal must reach the retained mixed-LOD cut and
+        // discover missing sibling coverage. This affects admission only;
+        // publication/coarsening uses getTileScreenError for the real camera.
+        target.error = Math.max(
+          target.error,
+          runtimeState.effectiveErrorTarget + 1
+        );
+      }
       const runtimeTile = tile as RuntimeTile;
       runtimeTile.shadowReceiverCenterness = undefined;
       runtimeTile.shadowLightFacing = undefined;
@@ -679,7 +690,10 @@ export function createThreeTilesLifecycle(
       // re-enter loadAncestors' queue. Its hierarchy/metadata remains intact.
       if (
         runtimeState.options.providesTerrain &&
-        isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles)
+        (isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles) ||
+          (retainedMeshAncestors.has(tile) &&
+            tile.internal.hasRenderableContent &&
+            !tile.internal.hasUnrenderableContent))
       )
         return;
       if (
@@ -690,7 +704,8 @@ export function createThreeTilesLifecycle(
           runtimeState.map?.isMoving?.() || !runtimeState.meshBaseCoverageReady
             ? initialMeshLoadError(runtimeState.requestedErrorTarget)
             : runtimeState.requestedErrorTarget,
-          (parent) => dependencies.getTileScreenError(parent as RuntimeTile)
+          (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
+          retainedMeshAncestors
         )
       )
         return;
@@ -877,6 +892,14 @@ export function createThreeTilesLifecycle(
         frame.viewport.y
       );
       dependencies.prepareViewFrustums(viewCamera);
+      if (runtimeState.options.providesTerrain) {
+        retainedMeshAncestors = getRetainedMeshAncestors(
+          runtimeState.displayedMeshFrontier,
+          runtimeState.requestedErrorTarget,
+          dependencies.isTileInMainView,
+          dependencies.getTileScreenError
+        );
+      }
       if (runtimeState.options.providesTerrain) deferredMaterials.update();
       if (runtimeState.mainViewProjectionChanged)
         runtimeState.meshBaseCoverageReady = false;
@@ -937,7 +960,8 @@ export function createThreeTilesLifecycle(
           dependencies.getTileScreenError,
           undefined,
           undefined,
-          deferredMaterials.isReady
+          deferredMaterials.isReady,
+          retainedMeshAncestors
         );
         runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
         runtimeState.displayedMeshFrontier = retainMeshDetailFrontier({
@@ -945,6 +969,7 @@ export function createThreeTilesLifecycle(
           proposed: loadedViewportCut,
           requestedError: runtimeState.requestedErrorTarget,
           inView: dependencies.isTileInMainView,
+          errorPixels: dependencies.getTileScreenError,
         });
         if (runtimeState.shadowView) {
           dependencies.advanceMeshShadowCorridors(
@@ -959,6 +984,8 @@ export function createThreeTilesLifecycle(
             ])
           : new Set(runtimeState.displayedMeshFrontier);
         for (const tile of new Set([...traversalFrontier, ...displayed])) {
+          // Publish ready replacements directly: no tile fade/crossfade and no
+          // animated opacity. Layer opacity remains a separate user setting.
           const visible = displayed.has(tile);
           if (visible === runtimeState.tiles.visibleTiles.has(tile)) continue;
           runtimeState.tiles.setTileActive(tile, visible);

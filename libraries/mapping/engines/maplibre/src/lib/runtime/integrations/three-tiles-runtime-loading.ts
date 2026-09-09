@@ -17,7 +17,10 @@ import {
   resolveTilesCacheCeiling,
   shouldDeferTile,
 } from "./three-tiles-load-policy";
-import { isMeshCoveredByLoadedChildren } from "./three-tiles-mesh-frontier";
+import {
+  hasDisplayedAncestor,
+  isMeshCoveredByLoadedChildren,
+} from "./three-tiles-mesh-frontier";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -73,6 +76,7 @@ export function createThreeTilesLoading(
     | "errorTargetState"
     | "lastMainViewConverged"
     | "meshBaseCoverageReady"
+    | "displayedMeshFrontier"
     | "ceilingBytes"
     | "lastProgressAt"
     | "deferred"
@@ -712,6 +716,10 @@ export function createThreeTilesLoading(
       centerness = dependencies.getTileCenterness(bounds);
     }
     tile.priority = deriveTilePriority({
+      fillsViewCoverage:
+        runtimeState.options.providesTerrain &&
+        inMainFrustum &&
+        !hasDisplayedAncestor(tile, runtimeState.displayedMeshFrontier),
       distanceFromCamera: runtimeState.options.providesTerrain
         ? tile.traversal?.distanceFromCamera ?? Number.POSITIVE_INFINITY
         : undefined,

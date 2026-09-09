@@ -9,6 +9,17 @@ const LOADED = 4;
 const isLoadedMesh = (tile: Tile): boolean =>
   tile.internal?.hasRenderableContent && tile.internal.loadingState === LOADED;
 
+/** O(tree depth) membership check; never enumerate the resident tile pool. */
+export const hasDisplayedAncestor = (
+  tile: Tile,
+  displayed: ReadonlySet<Tile>
+): boolean => {
+  for (let current: Tile | null = tile; current; current = current.parent) {
+    if (displayed.has(current) && isLoadedMesh(current)) return true;
+  }
+  return false;
+};
+
 /** Loaded external JSON is a routing volume, not missing display geometry.
  * Its loose box must not keep a finished view waiting when all real children
  * miss the camera. The caller treats unknown bounds as intersecting.
@@ -107,7 +118,8 @@ export const collectLoadedMeshReceiverCandidates = (
   errorPixels: (tile: Tile) => number,
   committed?: ReadonlySet<Tile>,
   presented?: ReadonlySet<Tile>,
-  receiverReady: (tile: Tile) => boolean = isLoadedMesh
+  receiverReady: (tile: Tile) => boolean = isLoadedMesh,
+  retainedAncestors: ReadonlySet<Tile> = new Set()
 ): Set<Tile> => {
   const refinedAncestors = new Set<Tile>();
   for (const tile of committed ?? []) {
@@ -141,7 +153,8 @@ export const collectLoadedMeshReceiverCandidates = (
       !isMeshTileUnconditionallyRefined(tile) &&
       Number.isFinite(error) &&
       error <= maximumInitialErrorPixels &&
-      !refinedAncestors.has(tile);
+      !refinedAncestors.has(tile) &&
+      !retainedAncestors.has(tile);
     const children = tile.children ?? [];
     if (fallback && (error <= stageError(tile) || children.length === 0))
       return { cut: [tile], complete: true };
@@ -325,7 +338,8 @@ export const advanceMeshCorridorFrontier = ({
 export const shouldDeferMeshRefinement = (
   tile: Tile,
   requestedError: number,
-  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error
+  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
+  retainedAncestors: ReadonlySet<Tile> = new Set()
 ): boolean => {
   for (let parent = tile.parent; parent; parent = parent.parent) {
     if (
@@ -334,6 +348,9 @@ export const shouldDeferMeshRefinement = (
       isMeshTileUnconditionallyRefined(parent)
     )
       continue;
+    // A retained finer branch forbids its parent fallback. Fill missing sibling
+    // regions at this cut instead of waiting for/reloading that coarse parent.
+    if (retainedAncestors.has(parent)) return false;
     const error = errorPixels(parent);
     return (
       error <= requestedError ||
@@ -422,17 +439,43 @@ export const refineLoadedMeshFrontier = (
 export const canCoarsenMeshQuartet = (
   parent: Tile,
   previous: ReadonlySet<Tile>,
-  requestedError: number
+  requestedError: number,
+  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error
 ): boolean =>
   parent.refine === "REPLACE" &&
   isLoadedMesh(parent) &&
-  Number.isFinite(parent.traversal.error) &&
-  parent.traversal.error <= requestedError &&
+  Number.isFinite(errorPixels(parent)) &&
+  errorPixels(parent) <= requestedError &&
   parent.children?.length === 4 &&
   parent.children.every(
     (child) =>
       child.parent === parent && previous.has(child) && isLoadedMesh(child)
   );
+
+/** The ancestor closure of the retained cut, not a second tileset traversal.
+ * Native REPLACE traversal must reach these branches even during a coarse
+ * bootstrap pass. Only current camera SSE may release a complete quartet;
+ * traversal error can include a light camera or a relaxed admission target.
+ */
+export const getRetainedMeshAncestors = (
+  previous: ReadonlySet<Tile>,
+  requestedError: number,
+  inView: (tile: Tile) => boolean,
+  errorPixels: (tile: Tile) => number
+): Set<Tile> => {
+  const retained = new Set<Tile>();
+  for (const tile of previous) {
+    if (!isLoadedMesh(tile) || !inView(tile)) continue;
+    for (const parent of ancestors(tile)) {
+      if (
+        parent.refine === "REPLACE" &&
+        !canCoarsenMeshQuartet(parent, previous, requestedError, errorPixels)
+      )
+        retained.add(parent);
+    }
+  }
+  return retained;
+};
 
 /**
  * Preserve the already displayed mesh cut when upstream falls back to a
@@ -446,11 +489,13 @@ export const retainMeshDetailFrontier = ({
   proposed,
   requestedError,
   inView,
+  errorPixels = (tile) => tile.traversal.error,
 }: {
   previous: ReadonlySet<Tile>;
   proposed: ReadonlySet<Tile>;
   requestedError: number;
   inView: (tile: Tile) => boolean;
+  errorPixels?: (tile: Tile) => number;
 }): Set<Tile> => {
   const result = new Set(proposed);
   const rejected = new Set<Tile>();
@@ -464,7 +509,7 @@ export const retainMeshDetailFrontier = ({
       if (
         parent.refine === "REPLACE" &&
         proposed.has(parent) &&
-        !canCoarsenMeshQuartet(parent, previous, requestedError)
+        !canCoarsenMeshQuartet(parent, previous, requestedError, errorPixels)
       ) {
         rejected.add(parent);
       }

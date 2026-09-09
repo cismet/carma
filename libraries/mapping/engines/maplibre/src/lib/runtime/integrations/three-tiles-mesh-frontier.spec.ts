@@ -2,6 +2,8 @@ import type { Tile } from "3d-tiles-renderer/core";
 import { describe, expect, it } from "vitest";
 import {
   isMeshCoveredByLoadedChildren,
+  getRetainedMeshAncestors,
+  hasDisplayedAncestor,
   canCoarsenMeshQuartet,
   retainMeshDetailFrontier,
   shouldDeferMeshRefinement,
@@ -573,6 +575,61 @@ describe("progressive loaded mesh display", () => {
 });
 
 describe("mesh detail frontier", () => {
+  it("uses current camera SSE, never stale traversal/light error, when coarsening", () => {
+    const { parent, children } = quartet(mesh(null, 0.25));
+    const select = (cameraError: number) =>
+      retainMeshDetailFrontier({
+        previous: new Set(children),
+        proposed: new Set([parent]),
+        requestedError: 2,
+        inView: () => true,
+        errorPixels: () => cameraError,
+      });
+    expect(select(12)).toEqual(new Set(children));
+    parent.traversal.error = 64;
+    expect(select(1.9)).toEqual(new Set([parent]));
+  });
+
+  it("fills a mixed 3/2 cut around retained detail instead of reloading a level-1 parent", () => {
+    const { parent: root, children: level2 } = quartet(mesh(null, 8));
+    const level3 = quartet(level2[0]).children;
+    level2[0].traversal.error = 4;
+    const previous = new Set(level3);
+    const retained = getRetainedMeshAncestors(
+      previous,
+      2,
+      () => true,
+      (tile) => (tile === root ? 8 : tile.traversal.error)
+    );
+    // A fine branch is already visible. The other siblings supply coverage,
+    // despite the root meeting the relaxed 16px admission target.
+    level2[1].internal.loadingState = 0;
+    expect(
+      shouldDeferMeshRefinement(
+        level2[1],
+        16,
+        (tile) => tile.traversal.error,
+        retained
+      )
+    ).toBe(false);
+    expect(hasDisplayedAncestor(level2[1], previous)).toBe(false);
+    expect(hasDisplayedAncestor(mesh(level3[0]), previous)).toBe(true);
+    level2[1].internal.loadingState = 4;
+    const cut = collectLoadedMeshReceiverCandidates(
+      root,
+      2,
+      Infinity,
+      () => true,
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      () => true,
+      retained
+    );
+    // The retained branch's parent still exceeds the final 2px display target.
+    expect(cut.has(root)).toBe(false);
+    expect(cut).toEqual(new Set([...level3, ...level2.slice(1)]));
+  });
   it("releases a hidden parent payload only while every direct child is loaded and visible", () => {
     const { parent, children } = quartet();
     const visible = new Set(children);

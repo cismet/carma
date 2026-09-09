@@ -13,6 +13,34 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("current mesh corridor request admission", () => {
+  it("reaches retained fine branches during bootstrap and admits missing siblings instead of their coarse parent", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      // Separate the coverage contract from shadow publication in this fixture.
+      f.runtime.scene.setShadowView(null);
+      const coarse = f.tile("coarse", -10, 10, -100, 8, true, f.root);
+      const fine = f.tile("fine", -10, 0, -100, 0.5, true, coarse);
+      const missing = f.tile("missing", 0, 10, -100, 2, true, coarse);
+      coarse.children = [fine, missing];
+      f.root.children = [coarse];
+      f.load(fine);
+      f.update();
+      // One pass publishes the available cut; the next admits its coverage.
+      f.update();
+      const target = { inView: false, error: 0, distanceFromCamera: 0 };
+      f.renderer.calculateTileViewErrorWithPlugin(coarse, target);
+      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
+      f.renderer.queueTileForDownload(coarse);
+      f.renderer.queueTileForDownload(missing);
+      expect(f.queued).not.toHaveBeenCalledWith(coarse);
+      expect(f.queued).toHaveBeenCalledWith(missing);
+      f.load(missing);
+      f.update();
+      expect(f.visibleIds()).toEqual(["fine", "missing"]);
+    } finally {
+      f.dispose();
+    }
+  });
   it("discovers metadata while payload download and parse queues are paused", async () => {
     vi.useFakeTimers();
     const f = createMeshCorridorFixture();

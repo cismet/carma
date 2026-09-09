@@ -550,6 +550,35 @@ terrain-mesh runtime to the shared scene.
   remain unevaluated. Revisit on renderer upgrades, mutable source publication,
   or client measurements where the read path loses against HTTP cache.
 
+### TILE-RETAINED-COVERAGE-20260909
+
+- **Status/date:** Integrated follow-up, 2026-09-09; separate from cache/material
+  checkpoint `927bf4ef5`.
+- **Contract:** A new coarse download pass never downgrades visible detail.
+  Adjacent tiles may use different LODs, but a REPLACE parent and its descendants
+  must never overlap. Coarsening is one complete quartet at a time and only if
+  the replacement meets the unchanged requested SSE in the current camera.
+  The traversal's progressive/light-camera error is not that display metric.
+  Tile loading, restoration and LOD replacement use immediate visibility changes,
+  never animated fade-in/out or parent/child crossfades. User-controlled layer
+  opacity and progressive solar-disc accumulation are separate concerns.
+- **Decision:** Build an ancestor closure from the retained visible cut, not
+  another full tileset search. Let native REPLACE traversal reach that cut even
+  during 16px bootstrap; admit missing siblings there instead of reloading a
+  forbidden coarse parent. Complete local families publish without a global
+  viewport barrier. Metadata has an independent queue; payload ordering is
+  missing viewport coverage, visible refinement, then caster-only content, with
+  camera distance as the tie-breaker. Existing ready geometry is reused.
+- **Alternatives/evidence:** Restarting from a coarse parent loses detail; holding
+  all refinement behind full-viewport readiness wastes ready families. Neither is
+  used for presentation. Focused tests cover mixed 3/2 cuts, stale traversal SSE,
+  atomic replacement, ancestor-aware admission and explicit priority lanes.
+  This change has no claimed A/B reload speedup. Existing cache and texture
+  benchmarks above measure different stages.
+- **Revisit:** Native traversal/API changes, non-quadtree coarsening, or measured
+  priority starvation. Queued work remains bounded by existing admission limits;
+  no new worker, unbounded crawl, or per-frame resident-cache scan is introduced.
+
 ### TILE-OFFSCREEN-TEXTURES-20260909
 
 - **Status/date:** Integrated and native-loader tested, 2026-09-09.

@@ -242,6 +242,8 @@ export type TilePriorityInput = Readonly<{
   depth: number;
   inMainFrustum: boolean;
   isExternalTileset: boolean;
+  /** Missing viewport coverage, ahead of detail upgrades and caster-only work. */
+  fillsViewCoverage?: boolean;
   /** 1 at the view centre, 0 at the edge (or unknown). */
   centerness: number;
   /** View-centre relevance of the visible receiver for a shadow-only tile. */
@@ -258,7 +260,14 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
       : Number.MAX_VALUE;
     // Keep all visible requests ahead of corridor-only requests. Tree depth
     // and screen centerness must not outweigh the observer distance.
-    return (input.inMainFrustum ? 2 : 0) + 1 / (1 + distance);
+    const lane = input.isExternalTileset
+      ? 6
+      : input.inMainFrustum
+      ? input.fillsViewCoverage
+        ? 4
+        : 2
+      : 0;
+    return lane + 1 / (1 + distance);
   }
   const depth = clamp(Math.floor(input.depth), 0, TILE_PRIORITY.maxDepth);
   const requestedCenterness = input.inMainFrustum
@@ -323,8 +332,7 @@ export const getMeshLoadStage = (
     return { current: 0, total: 0, stable: false };
   }
   const initialError = initialMeshLoadError(targetErrorPixels);
-  const total =
-    Math.ceil(Math.log2(initialError / targetErrorPixels)) + 1;
+  const total = Math.ceil(Math.log2(initialError / targetErrorPixels)) + 1;
   const remaining = Math.max(
     0,
     Math.ceil(
