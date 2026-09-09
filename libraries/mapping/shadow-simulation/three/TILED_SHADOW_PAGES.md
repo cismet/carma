@@ -889,6 +889,11 @@ still invalidate incompatible work; pointer-down no longer cancels it.
 
 # SOLAR-HANDOVER-20260909 — retain shaded meshes during time changes
 
+**Superseded:** CAPTURE-BASIS-20260909 below keeps geometry resident but never
+replays a soft mask for another centre-sun direction. The current hard-shadow
+pass takes over immediately during animation; the old display-only exception
+has been removed at the user's explicit request.
+
 - **Context:** A changed solar identity immediately invalidated the previous
   mask for display as well as computation. Geometry could remain resident while
   its receiver page disappeared before the new corridor was ready.
@@ -1107,3 +1112,29 @@ still invalidate incompatible work; pointer-down no longer cancels it.
 - **Open:** Reduce repeated page rendering; complete explicit capability-error
   reporting and remove remaining unsupported-path fallbacks separately. No
   measured end-to-end speedup is claimed.
+
+### CAPTURE-BASIS-20260909 — stable projection and solar handover
+
+- **Problem:** The live static Mesh2024 view had 25 ready corridors but only one
+  finished capture, with continually increasing depth submissions. Exact hard
+  publication keys changed despite identical geometry, sunlight and allocation.
+- **Cause:** Feeding the normalized output camera quaternion into the next
+  capture-plan input introduced ULP drift in the projection matrices. This
+  republished the same hard page indefinitely and starved finite-disc work.
+- **Decision:** Store the original capture orientation alongside its plan. Never
+  derive its next input from its transformed output. Keep exact content keys;
+  rounding all keys or suppressing invalidation would conceal real changes.
+- **Solar handover:** Draw resident geometry with the common hard-shadow light
+  regardless of corridor readiness, then apply matching completed page masks.
+  Readiness controls shadow replacement, not whether loaded surfaces are drawn.
+  Old-sun soft masks must not replay, including during animation. Cancel obsolete
+  persistence work but keep geometry; centre-sun identity, not jitter samples,
+  determines mask compatibility.
+- **Evidence:** Internal browser at lat 51.2703003/lng 7.200381, zoom 21.414,
+  shadow 793;19: all 25/25 corridors completed at 64 samples after this fix.
+  Regression coverage includes interleaved hard/soft passes with real scratch
+  and presentation classes, tilted capture cameras, and unready solar handover.
+  No end-to-end timing ratio is claimed; the earlier run never converged.
+- **Verification:** 112 focused regression tests pass. Internal-browser captures
+  at animation start and during changing time retain Mesh2024 coverage. These
+  are sampled checks, not a guarantee for every possible camera/time sequence.

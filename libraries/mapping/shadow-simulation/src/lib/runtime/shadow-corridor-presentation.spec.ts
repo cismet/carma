@@ -131,7 +131,7 @@ it("keeps a finished mask after downsample allocation failure", () => {
 });
 
 describe("completed corridor presentation", () => {
-  it("retains the last shaded publication across time changes without claiming current readiness", () => {
+  it("never replays an old-sun soft mask during solar animation handover", () => {
     const f = fixture();
     const previous = {
       ...f.pages[0],
@@ -142,12 +142,12 @@ describe("completed corridor presentation", () => {
     const next = { ...previous, presentationKey: "new-sun" };
     expect(f.presentation.canPresent(next)).toBe(false);
     f.presentation.beginSolarTransition();
-    expect(f.presentation.canPresent(next)).toBe(true);
+    expect(f.presentation.canPresent(next)).toBe(false);
     expect(f.presentation.canReplay(next)).toBe(false);
     expect(f.presentation.hasAtLeast(next, 1)).toBe(false);
-    // A second time change while loading must still retain the same image.
+    // Further animation ticks must not reinstate a stale soft mask.
     f.presentation.beginSolarTransition();
-    expect(f.presentation.canPresent(next)).toBe(true);
+    expect(f.presentation.canPresent(next)).toBe(false);
     expect(
       f.presentation.publish(f.color, f.reference, f.camera, next, 1)
     ).toBe(true);

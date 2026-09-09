@@ -183,6 +183,22 @@ describe("Geoportal tiled scene adapter", () => {
     f.adapter.dispose();
   });
 
+  it("keeps loaded geometry drawn while new solar corridors are unready", () => {
+    const f = fixture({ isCorridorReady: () => false });
+    f.accumulation.presentation.canPresent.mockReturnValue(false);
+    f.adapter.cancelPending(true);
+    let renderedSurface = false;
+    f.renderer.render.mockImplementation((scene: THREE.Scene) => {
+      if (scene === f.scene && f.terrain.visible && f.light.visible)
+        renderedSurface = true;
+    });
+    f.adapter.render(new THREE.Camera(), null, 64);
+    expect(renderedSurface).toBe(true);
+    expect(f.terrain.visible).toBe(true);
+    expect(f.accumulation.dispose).not.toHaveBeenCalled();
+    f.adapter.dispose();
+  });
+
   it("pauses pending integration when inactive without dropping samples or retained masks", () => {
     const f = fixture();
     expect(
@@ -714,7 +730,8 @@ describe("Geoportal tiled scene adapter", () => {
       5,
       128
     );
-    expect(f.renderer.render).toHaveBeenCalledTimes(2);
+    // Atmosphere, resident geometry, overlay; geometry is never readiness-gated.
+    expect(f.renderer.render).toHaveBeenCalledTimes(3);
     expect(f.scene.children.every((c) => c.visible)).toBe(true);
     expect(f.renderer.autoClear).toBe(true);
     f.pages.renderPageSample.mockImplementationOnce(() => {

@@ -448,10 +448,13 @@ export class ShadowTiledScene {
       const lightVisible = this.host.light.visible;
       const replayCaptured =
         round === null && states.some(({ replay }) => replay);
-      this.host.light.visible = replayOnly || replayCaptured;
+      this.host.light.visible = true;
       try {
-        if (replayOnly || replayCaptured)
-          this.renderer.render(this.scene, camera);
+        // Mesh residency is independent of shadow publication readiness. During
+        // a solar transition a new page may have no retained capture yet: still
+        // draw the loaded scene with the common hard-shadow light, then overlay
+        // retained/completed corridor masks. Never publish a sky-only hole.
+        this.renderer.render(this.scene, camera);
         for (const { page, replay, ready } of states) {
           if (!ready) continue;
           if (replayOnly && !replay) {

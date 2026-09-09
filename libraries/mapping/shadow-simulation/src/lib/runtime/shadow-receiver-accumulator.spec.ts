@@ -180,6 +180,23 @@ vi.mock("./shadow-corridor-accumulator", () => ({
 
 import { ShadowReceiverAccumulator } from "./shadow-receiver-accumulator";
 
+it("settles a budget-limited view with interleaved hard and soft passes", () => {
+  const { accumulator, observer, pages, frame, page } = fixture();
+  pages.accumulationPages = Array.from({ length: 25 }, (_, i) => ({
+    ...page(String(i)),
+    groundTexelTargetMeters: 0.001,
+  }));
+  let settled = false;
+  for (let i = 0; i < 300 && !settled; i += 1) {
+    accumulator.renderHard(observer, pages, frame);
+    settled = accumulator.render(observer, pages, frame)?.settled ?? false;
+  }
+  expect(
+    accumulator.pageProgress.filter((page) => page.published)
+  ).toHaveLength(25);
+  expect(settled).toBe(true);
+});
+
 const fixture = () => {
   const observer = new THREE.PerspectiveCamera(60, 1.5, 0.1, 1000);
   observer.rotation.x = -0.6;
@@ -262,10 +279,20 @@ describe("independent full-receiver accumulation", () => {
   it("finishes its existing allocation when camera demand changes mid-integration", () => {
     const f = fixture();
     const original = f.page("a");
-    const pages = { accumulationPages: [original], supportsOpaqueAccumulation: true, renderPageSample: vi.fn(() => true) };
+    const pages = {
+      accumulationPages: [original],
+      supportsOpaqueAccumulation: true,
+      renderPageSample: vi.fn(() => true),
+    };
     f.accumulator.render(f.observer, pages, f.frame);
     const key = state.scratchKeys.at(-1);
-    pages.accumulationPages = [{ ...original, groundTexelTargetMeters: 0.01, screenBounds: new THREE.Vector4(0, 0, 0.8, 0.8) }];
+    pages.accumulationPages = [
+      {
+        ...original,
+        groundTexelTargetMeters: 0.01,
+        screenBounds: new THREE.Vector4(0, 0, 0.8, 0.8),
+      },
+    ];
     f.accumulator.render(f.observer, pages, { ...f.frame, viewKey: "moved" });
     expect(state.scratchKeys.at(-1)).toBe(key);
     expect(f.accumulator.pageProgress[0].samples).toBe(2);

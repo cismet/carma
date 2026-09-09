@@ -63,6 +63,7 @@ export class ShadowReceiverAccumulator {
     Readonly<{
       inputs: string;
       plan: ShadowReceiverCapturePlan;
+      orientation: THREE.Quaternion;
     }>
   >();
 
@@ -128,8 +129,7 @@ export class ShadowReceiverAccumulator {
       // The baked projection belongs to this receiver, not to a later camera
       // rotation. Keep its orientation even when a larger allocation is needed.
       const previous = this.plans.get(page.id);
-      const captureOrientation =
-        previous?.plan.camera.quaternion ?? orientation;
+      const captureOrientation = previous?.orientation ?? orientation;
       const options = {
         groundTexelTargetMeters: page.groundTexelTargetMeters ?? 1,
         maximumDimension: this.renderer.capabilities.maxTextureSize,
@@ -149,7 +149,14 @@ export class ShadowReceiverAccumulator {
               captureOrientation,
               options
             );
-      this.plans.set(page.id, { inputs, plan });
+      // Keep the original basis, not the normalized output camera quaternion.
+      // Feeding that output back drifts by ULPs, changes exact projection keys
+      // each paint and repeatedly replaces hard masks before soft integration.
+      this.plans.set(page.id, {
+        inputs,
+        plan,
+        orientation: captureOrientation,
+      });
       plan.camera.layers.mask = observer.layers.mask;
       return { page, plan };
     });

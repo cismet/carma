@@ -77,7 +77,6 @@ const matrixMatches = (left: THREE.Matrix4, right: THREE.Matrix4) =>
  */
 export class ShadowCorridorPresentation {
   private readonly captures = new Map<string, CorridorCapture>();
-  private solarTransitionCaptures = new WeakSet<CorridorCapture>();
   private visiblePageIds = new Set<string>();
   private samples = 0;
   private replayCount = 0;
@@ -407,21 +406,14 @@ export class ShadowCorridorPresentation {
     this.persistenceTimer = null;
   }
 
-  /** Decision: SOLAR-HANDOVER-20260909 in three/TILED_SHADOW_PAGES.md.
-   * Keep the old image as a display-only fallback, never as current-time work.
-   * Object identity automatically retires it when a new capture is published.
-   */
+  /** Cancel old-time I/O, not resident geometry. A different centre-sun vector
+   * must use current hard shadows until its own finite-disc result is ready. */
   beginSolarTransition() {
     this.cancelPendingPersistence();
-    this.solarTransitionCaptures = new WeakSet(this.captures.values());
   }
 
   canPresent(page: ShadowAccumulationPage): boolean {
-    const capture = this.captures.get(page.id);
-    return (
-      this.canReplay(page) ||
-      Boolean(capture && this.solarTransitionCaptures.has(capture))
-    );
+    return this.canReplay(page);
   }
 
   prepareRestore(
@@ -911,7 +903,7 @@ export class ShadowCorridorPresentation {
     // A drag-end LOD/sample change must not hide a finished corridor while its
     // replacement is integrating. Reuse the baked world-projected visibility
     // without observer-depth rejection. A different sun is never a cache hit;
-    // canPresent separately retains the old image during the solar handover.
+    // The common current-sun hard pass keeps geometry visible during handover.
     // Decision: three/TILED_SHADOW_PAGES.md, RETAINED-VISIBILITY-20260907.
     if (
       !capture ||

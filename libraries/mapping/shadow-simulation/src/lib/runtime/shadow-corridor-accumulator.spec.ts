@@ -6,6 +6,7 @@ import {
   type ShadowCorridorFrame,
 } from "./shadow-corridor-accumulator";
 import type { ShadowAccumulationPage } from "./tiled-shadow-renderer";
+import { ShadowReceiverAccumulator } from "./shadow-receiver-accumulator";
 
 const fixture = () => {
   const hostTarget = new THREE.WebGLRenderTarget(320, 200);
@@ -121,6 +122,37 @@ const fixture = () => {
 };
 
 describe("camera-registered corridor accumulation", () => {
+  it("converges all full receiver publications with the real scratch and presentation", () => {
+    const f = fixture();
+    f.camera.rotation.set(-0.65, 0.19, 0.15);
+    f.camera.updateMatrixWorld(true);
+    const renderer = Object.assign(f.renderer, {
+      extensions: { has: () => true },
+    });
+    const receiver = new ShadowReceiverAccumulator(
+      renderer as unknown as THREE.WebGLRenderer
+    );
+    f.pageRenderer.accumulationPages = Array.from({ length: 25 }, (_, i) => ({
+      ...f.pages[0],
+      id: String(i),
+      contentKey: "geometry",
+      presentationKey: "sun",
+      groundTexelTargetMeters: 0.001,
+    }));
+    const frame = { ...f.frame, width: 1440, height: 1440, samples: 3 };
+    let settled = false;
+    for (let i = 0; i < 200 && !settled; i += 1) {
+      receiver.renderHard(f.camera, f.pageRenderer, frame);
+      settled =
+        receiver.render(f.camera, f.pageRenderer, frame)?.settled ?? false;
+    }
+    expect(receiver.pageProgress.filter((page) => page.published)).toHaveLength(
+      25
+    );
+    expect(settled).toBe(true);
+    receiver.dispose();
+  });
+
   it("batches sequential samples of one corridor with independent running-mean blends", () => {
     const f = fixture();
     f.pages.splice(1);
