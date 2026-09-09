@@ -44,6 +44,9 @@ export {
   getModeLabel,
 } from "./utils/formatters";
 
+// What a route looks like, wherever one is drawn
+export { ROUTE_BLUE, ROUTE_CASING, ROUTE_GRAY } from "./utils/routeColors";
+
 // UI Components
 export { RouteOptionsDrawer } from "./components/RouteOptionsDrawer";
 export { InlineRouteOptions } from "./components/InlineRouteOptions";

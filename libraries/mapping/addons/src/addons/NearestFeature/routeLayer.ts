@@ -4,6 +4,8 @@ import maplibregl, {
   type Map as MaplibreMap,
 } from "maplibre-gl";
 
+import { ROUTE_BLUE, ROUTE_CASING, ROUTE_GRAY } from "@carma-mapping/routing";
+
 import type { PickableHit } from "./pickHit";
 
 /**
@@ -47,9 +49,9 @@ const LAYER_IDS = [CASING_LAYER_ID, LINE_LAYER_ID, SELECTED_LAYER_ID];
 /** the property a line carries, and what a click reads off it */
 const KEY_PROPERTY = "routeKey";
 
-const UNSELECTED_COLOR = "#6b7280";
-const SELECTED_COLOR = "#3b82f6";
-const CASING_COLOR = "#ffffff";
+const UNSELECTED_COLOR = ROUTE_GRAY;
+const SELECTED_COLOR = ROUTE_BLUE;
+const CASING_COLOR = ROUTE_CASING;
 
 /**
  * Matches the picked route, and nothing at all while none is picked: no hit's
