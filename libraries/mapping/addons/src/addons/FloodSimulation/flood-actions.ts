@@ -348,7 +348,7 @@ export const useFloodActions = () => {
  * the flood on and off.
  */
 export const useFloodLauncher = () => {
-  const { setState } = useStoredFloodState();
+  const { state, setState } = useStoredFloodState();
 
   const launchedState = useCallback(
     (previous: FloodState, def: FloodDefinition): FloodState => {
@@ -387,5 +387,15 @@ export const useFloodLauncher = () => {
     [setState, launchedState]
   );
 
-  return { startFlood, toggleFlood };
+  /**
+   * Whether this flood is the one the channel currently draws. What the
+   * workflow card that launched it shows on its button, so a card that is on
+   * the map offers to remove it rather than to add it again.
+   */
+  const isFloodRunning = useCallback(
+    (def: FloodDefinition): boolean => state.isOn && sameDefinition(state, def),
+    [state]
+  );
+
+  return { startFlood, toggleFlood, isFloodRunning };
 };

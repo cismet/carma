@@ -3,13 +3,15 @@ export {
   type LayerCatalogProps,
 } from "./components/LayerCatalog";
 export {
+  type AdditionalEntryLayer,
+  type AdditionalLayer,
   type AdditionalLayerEntry,
-  type AdditionalLayerGroup,
-  type AdditionalLayerRef,
+  type AdditionalStyleLayer,
   type LayerCatalogConfig,
   wuppDiscoverProps,
   wuppLayerCatalogConfig,
 } from "./config/layerCatalogConfig";
+export type { CatalogConfigEntry } from "./helper/buildCatalog";
 export type { DiscoverProps } from "./helper/discover";
 export {
   LayerCatalogConfigProvider,

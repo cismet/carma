@@ -2,7 +2,7 @@ import {
   buildWorkflowsCategoryDefinition,
   defaultCategoryDefinitions,
   filterPerspectivesByAvailability,
-  type AdditionalLayerEntry,
+  type AdditionalLayer,
   type CatalogFilters,
   type CatalogSubCategory,
   type CategoryDefinition,
@@ -116,12 +116,12 @@ type FachzwillingRouteBase = {
   addons?: AddonEntry[];
   background?: FachzwillingBackgroundConfig;
   /**
-   * Layers this route adds to the catalog on top of the services: vector style
-   * urls and ids of catalog layers, each group under a Title of its own. They
-   * ignore the route's `filters`, since a filter config cannot know a layer
-   * that is declared here.
+   * Layers this route adds to the catalog, the counterpart of `filters`: either
+   * a full entry in the shape of `additionalLayerConfig.json`, or a vector style
+   * url whose item is derived from the style itself, exactly as when the style
+   * is dropped onto the map. They are never hidden by the route's filters.
    */
-  additionalLayers?: AdditionalLayerEntry[];
+  additionalLayers?: AdditionalLayer[];
 };
 
 /** route reachable through the catalog, so it needs a card and its filters */

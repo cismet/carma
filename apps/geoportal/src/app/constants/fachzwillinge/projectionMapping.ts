@@ -44,7 +44,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       Title: "Projection Mapping",
       layers: [
         {
-          layer: `${PROJECTION_MAPPING_STYLES}/umriss.style.json`,
+          styleUrl: `${PROJECTION_MAPPING_STYLES}/umriss.style.json`,
           // everything outside the projection area is darkened by this layer,
           // so it has to stay above whatever is added after it
           tools: ["alwaysOnTop"],

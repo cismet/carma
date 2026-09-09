@@ -1,36 +1,80 @@
-import type { LayerConfig, ToolEntry } from "../lib/contracts/carma-layers.d";
+import type {
+  Item,
+  LayerConfig,
+  ToolEntry,
+} from "../lib/contracts/carma-layers.d";
 import type { DiscoverProps } from "../helper/discover";
 import type { CatalogFilters } from "../helper/catalogFilter";
+import type { CatalogConfigEntry } from "../helper/buildCatalog";
 import { serviceConfig } from "../helper/config";
 import { ASSET_BASE_URL } from "../helper/assetUrls";
 
 /**
- * One configured layer: either the url of a vector style ("…style.json"), which
- * becomes a catalog item of its own, or the id of a catalog layer
- * ("<serviceName>:<layerName>"), which lifts an existing layer into the group.
- *
- * The object form adds tools to that layer (addons declared per layer, e.g.
- * "alwaysOnTop"). They are added to whatever the style or the catalog item
- * already declares, they do not replace it.
+ * A vector style added to the catalog by url alone: title, description,
+ * keywords, tags, thumbnail and legend all come from the style's
+ * `metadata.carmaConf.layerInfo`, exactly as when the style is dropped onto the
+ * map. On its own it lands in the same "Externe Dienste" category a drop does;
+ * inside the `layers` of a titled entry it lands in that entry's category.
  */
-export type AdditionalLayerRef =
-  | string
-  | { layer: string; tools?: ToolEntry[] };
-
-/**
- * Configured layers and the subcategory they appear in. The category is
- * mandatory: a layer added into an existing category is not findable, since
- * nothing about it says it was configured rather than delivered.
- */
-export type AdditionalLayerGroup = {
-  /** subcategory title */
-  Title: string;
-  /** subcategory id; derived from the Title when omitted */
+export type AdditionalStyleLayer = {
+  styleUrl: string;
+  /** item id, defaults to the `custom:<styleUrl>` a drop of that url would use */
   id?: string;
-  layers: AdditionalLayerRef[];
+  /** "object" files it as a 3d twin item, as a dropped *.twin.json does */
+  type?: "layer" | "object";
+  /**
+   * Addons declared per layer (e.g. "alwaysOnTop"). They are added to what the
+   * style's `layerInfo` already declares, they do not replace it.
+   */
+  tools?: ToolEntry[];
 };
 
-export type AdditionalLayerEntry = AdditionalLayerGroup;
+/**
+ * A catalog item this config moves into another category, named by its id
+ * (`"<serviceName>:<layerName>"`). The item keeps its definition, but it is
+ * shown where the entry stands instead of in the category it comes from.
+ */
+export type AdditionalLayerReference = {
+  layerId: string;
+  /**
+   * Addons declared per layer (e.g. "alwaysOnTop"). They are added to what the
+   * referenced item already declares, they do not replace it.
+   */
+  tools?: ToolEntry[];
+};
+
+/**
+ * A layer inside an entry: a full item, a style url standing in for one, or the
+ * id of a catalog item to pull in. A bare string is read as a style url when it
+ * looks like one (`http(s)://…` or `….json`), else as an item id.
+ */
+export type AdditionalEntryLayer =
+  | Item
+  | string
+  | AdditionalStyleLayer
+  | AdditionalLayerReference;
+
+/**
+ * An entry in the shape of `additionalLayerConfig.json`, except that any of its
+ * layers may be written as a style url. A `Title` makes the entry a category of
+ * its own, which is where its layers are then filed.
+ */
+export type AdditionalLayerEntry = Omit<CatalogConfigEntry, "layers"> & {
+  layers: AdditionalEntryLayer[];
+};
+
+/**
+ * One entry of `additionalLayers`: a full entry, or a style url shorthand for a
+ * single layer. A bare string is the shorthand with all defaults.
+ *
+ * `mergeId` / `replaceId` layers are not supported here: those rewrite the
+ * service structure app-wide, before the capabilities are read.
+ */
+export type AdditionalLayer =
+  | string
+  | AdditionalStyleLayer
+  | AdditionalLayerReference
+  | AdditionalLayerEntry;
 
 export type LayerCatalogConfig = {
   /** WMS/config services whose capabilities fill the catalog */
@@ -49,12 +93,11 @@ export type LayerCatalogConfig = {
    */
   filters?: CatalogFilters;
   /**
-   * Layers added to the catalog on top of what the services and the additional
-   * config deliver: vector style urls and ids of catalog layers, each group
-   * under a Title of its own. They are exempt from `filters`, like dropped
-   * layers, since a curated filter config cannot know them.
+   * Layers shown in this catalog on top of the fetched sources, the counterpart
+   * of `filters`. They are never hidden by `filters`, since both come from the
+   * same config.
    */
-  additionalLayers?: AdditionalLayerEntry[];
+  additionalLayers?: AdditionalLayer[];
 };
 
 export const wuppDiscoverProps: DiscoverProps = {

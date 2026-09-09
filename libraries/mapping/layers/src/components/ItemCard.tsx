@@ -56,6 +56,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const {
     setAdditionalLayers,
     activeLayers,
+    isWorkflowActive,
     favorites,
     addFavorite,
     removeFavorite,
@@ -104,7 +105,10 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const isActiveLayer =
     matchingActiveLayers.length > 0 ||
     (isLayerGroupWorkflow &&
-      activeLayers.some((activeLayer) => activeLayer.group?.id === layer.id));
+      activeLayers.some((activeLayer) => activeLayer.group?.id === layer.id)) ||
+    // a card that launches an addon instead of adding layers: the host owns
+    // that state, the layer stack knows nothing about it
+    (isWorkflow && !isLayerGroupWorkflow && !!isWorkflowActive?.(layer));
   const canShowInfo =
     layer.type === "layer" ||
     layer.type === "object" ||

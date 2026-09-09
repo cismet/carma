@@ -9,12 +9,14 @@ export const CAPABILITIES_QUERY_KEY = "wmsCapabilities";
 export const ADDITIONAL_CONFIG_QUERY_KEY = "additionalConfig";
 export const SENSOR_CONFIG_QUERY_KEY = "sensorConfig";
 export const OBJECT_CONFIG_QUERY_KEY = "objectConfig";
+export const ADDITIONAL_LAYERS_QUERY_KEY = "additionalLayers";
 
 const PERSISTED_QUERY_KEYS = [
   CAPABILITIES_QUERY_KEY,
   ADDITIONAL_CONFIG_QUERY_KEY,
   SENSOR_CONFIG_QUERY_KEY,
   OBJECT_CONFIG_QUERY_KEY,
+  ADDITIONAL_LAYERS_QUERY_KEY,
 ];
 
 // how long persisted capabilities stay usable across reloads

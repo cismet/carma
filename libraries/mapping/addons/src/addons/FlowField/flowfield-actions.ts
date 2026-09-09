@@ -291,7 +291,7 @@ export const useFlowFieldActions = () => {
  * animation on and off.
  */
 export const useFlowFieldLauncher = () => {
-  const { setState, isCaged } = useStoredFlowFieldState();
+  const { state, setState, isCaged } = useStoredFlowFieldState();
 
   const launchedState = useCallback(
     (previous: FlowFieldState, def: FlowFieldDefinition): FlowFieldState => {
@@ -356,5 +356,15 @@ export const useFlowFieldLauncher = () => {
     [setState, launchedState]
   );
 
-  return { startField, toggleField };
+  /**
+   * Whether this animation is the one the channel currently runs. What the
+   * workflow card that launched it shows on its button, so a card that is on
+   * the map offers to remove it rather than to add it again.
+   */
+  const isFieldRunning = useCallback(
+    (def: FlowFieldDefinition): boolean => state.isOn && sameDefinition(state, def),
+    [state]
+  );
+
+  return { startField, toggleField, isFieldRunning };
 };
