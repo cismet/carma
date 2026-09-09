@@ -25,6 +25,8 @@ import type { ReactNode } from "react";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 
 import { subscribeCompassHeading } from "./locate/compass-heading";
+import { getGeolocationSource } from "./locate/geolocation-source";
+import type { GeolocationSource } from "./locate/geolocation-source";
 import {
   createAccuracyCircleGeoJSON,
   createLocateMarkerElement,
@@ -96,6 +98,12 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const markerRef = useRef<Marker | null>(null);
   const accuracyCircleRef = useRef<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  /**
+   * The source the running watch was started on. The slot may change while
+   * the watch runs (a simulator mounting or going), and a watch id only means
+   * something to the source that handed it out.
+   */
+  const watchSourceRef = useRef<GeolocationSource | null>(null);
   /** whether this activation moves the map; see `activate` */
   const flyRef = useRef(true);
   /**
@@ -234,7 +242,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
 
   const startLocating = useCallback(() => {
     isActiveRef.current = true;
-    if (!navigator.geolocation) {
+    const geolocation = getGeolocationSource();
+    if (!geolocation) {
       console.error("Geolocation is not supported by this browser.");
       setProblem("unsupported");
       setIsLoading(false);
@@ -247,7 +256,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     followRef.current = flyRef.current;
     startHeading();
 
-    navigator.geolocation.getCurrentPosition(
+    geolocation.getCurrentPosition(
       (position) => {
         setCurrentPosition(position);
         setIsLoading(false);
@@ -275,7 +284,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       }
     );
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
+    watchSourceRef.current = geolocation;
+    watchIdRef.current = geolocation.watchPosition(
       (position) => {
         setCurrentPosition(position);
         updateLocationMarker(position);
@@ -300,18 +310,23 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     );
   }, [map, updateLocationMarker, startHeading]);
 
+  const clearWatch = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      watchSourceRef.current?.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+      watchSourceRef.current = null;
+    }
+  }, []);
+
   const stopLocating = useCallback(() => {
     isActiveRef.current = false;
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    clearWatch();
     stopHeading();
     clearLocationMarker();
     followRef.current = false;
     setCurrentPosition(null);
     setHasMapMoved(false);
-  }, [clearLocationMarker, stopHeading]);
+  }, [clearWatch, clearLocationMarker, stopHeading]);
 
   useEffect(() => {
     if (!map || !isLocationActive) return;
@@ -345,13 +360,11 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   useEffect(() => {
     return () => {
       isActiveRef.current = false;
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
+      clearWatch();
       stopHeading();
       clearLocationMarker();
     };
-  }, [clearLocationMarker, stopHeading]);
+  }, [clearWatch, clearLocationMarker, stopHeading]);
 
   const activate = useCallback((options?: { fly?: boolean }) => {
     // the flag belongs to the activation, not to the mode: whoever switches it
