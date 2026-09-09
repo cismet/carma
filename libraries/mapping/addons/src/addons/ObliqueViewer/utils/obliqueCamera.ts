@@ -64,6 +64,9 @@ export const freePitch = (map: MaplibreMap): void => {
 /** hand the camera back to whoever restricted it before */
 export const releaseCamera = (map: MaplibreMap): void => {
   map.setMinPitch(0);
+  // a flight takes the centre off the ground; whatever state the viewer
+  // leaves in, the map gets its centre back on it
+  map.setCenterClampedToGround(true);
   setCameraRestrictionOverride(map, null, OBLIQUE_RESTRICTION_OWNER);
 };
 
