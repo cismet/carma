@@ -67,6 +67,13 @@ export type {
 export { ADMIN_MODE_FLAG, useIsAdminMode } from "./lib/admin-mode";
 
 export {
+  ALWAYS_ON_TOP_KIND,
+  isAlwaysOnTop,
+  orderAlwaysOnTopLast,
+} from "./addons/AlwaysOnTop";
+export type { AlwaysOnTopConfig } from "./addons/AlwaysOnTop";
+
+export {
   TimeSlider,
   TimeSliderPanel,
   TimeSliderInteractionPanel,

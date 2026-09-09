@@ -96,6 +96,7 @@ import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
+import type { AlwaysOnTopConfig } from "../addons/AlwaysOnTop";
 import {
   CageIndicatorBadge,
   type CageIndicatorBadgeConfig,
@@ -162,6 +163,11 @@ export type AddonConfigMap = {
    */
   floodSimulation: FloodSimulationConfig;
   zoomToExtent: ZoomToExtentConfig;
+  /**
+   * Declared on a layer to keep it above the others; the host does the
+   * stacking, so there is nothing to mount.
+   */
+  alwaysOnTop: AlwaysOnTopConfig;
   /** implemented in cage; renders nothing when cage is absent */
   cageIndicatorBadge: CageIndicatorBadgeConfig;
 };
@@ -366,6 +372,12 @@ export type AddonTrigger<K extends AddonKind = AddonKind> = {
 export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
   Component?: ComponentType<AddonComponentProps<K>>;
   trigger?: AddonTrigger<K>;
+  /**
+   * The kind is declared on a layer rather than on a route, and the host reads
+   * it off the layer instead of mounting anything. Like a trigger, it keeps the
+   * kind out of the route-wide addon switching.
+   */
+  perTarget?: boolean;
   /** state channels this addon writes (headless producers declare these) */
   provides?: readonly AddonStateKey[];
   /**
@@ -456,6 +468,7 @@ export const addonRegistry: {
     provides: ["floodSimulation"],
   },
   zoomToExtent: { trigger: zoomToExtentTrigger },
+  alwaysOnTop: { perTarget: true },
   // Component is undefined when cage is absent; AddonHost renders nothing then.
   cageIndicatorBadge: { Component: CageIndicatorBadge },
 };

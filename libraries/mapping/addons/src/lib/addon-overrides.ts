@@ -61,13 +61,14 @@ export const isSwitchableKind = (kind: AddonKind): boolean =>
 /**
  * Whether `AddonHost` is the one mounting this kind. Kinds with a trigger are
  * declared on a layer stack entry and mounted per layer by `TargetAddonHost`,
- * so the route-wide switch has nothing to act on. Decided by the trigger alone,
- * not by whether the kind has a `Component`: a caged kind resolves to no
+ * and `perTarget` kinds are declared on a layer and read off it by the host, so
+ * for both the route-wide switch has nothing to act on. Decided by those two
+ * alone, not by whether the kind has a `Component`: a caged kind resolves to no
  * component in a build without the cage submodule, and it is still a route-wide
  * addon there, just one that renders nothing.
  */
 export const isHostMountedKind = (kind: AddonKind): boolean =>
-  !addonRegistry[kind].trigger;
+  !addonRegistry[kind].trigger && !addonRegistry[kind].perTarget;
 
 /**
  * Whether this build actually carries the kind's implementation. False only for
@@ -77,7 +78,7 @@ export const isHostMountedKind = (kind: AddonKind): boolean =>
  */
 export const isImplementedKind = (kind: AddonKind): boolean => {
   const entry = addonRegistry[kind];
-  return !!entry.trigger || !!entry.Component;
+  return !!entry.trigger || !!entry.Component || !!entry.perTarget;
 };
 
 /** the route's entries as the host should mount them, overrides applied */
