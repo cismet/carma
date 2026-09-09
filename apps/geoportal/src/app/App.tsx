@@ -82,6 +82,7 @@ import {
   withDefaultAddons,
 } from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
+import { STORE_APP_KEY } from "./store/app-key";
 import { getFeatureFlagConfig } from "./config/featureFlags";
 import { routeFeatureFlagConfig } from "./config/availability";
 
@@ -247,6 +248,7 @@ function App({
           categories={categories}
           appKey={APP_KEY}
           storagePrefix={STORAGE_PREFIX}
+          storageScope={STORE_APP_KEY || APP_KEY}
           legacyFavoritesKey={`persist:@${APP_KEY}.${STORAGE_PREFIX}.app.layers`}
         >
           <MatomoTracker>

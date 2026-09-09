@@ -37,6 +37,7 @@ import {
   useDiscoverRefetch,
   useIsInsideLayerCatalogProvider,
   useLayerCatalog,
+  useSelectedCategoryStorageKey,
 } from "../context/LayerCatalogProvider";
 import {
   CatalogInteractionProvider,
@@ -63,6 +64,10 @@ import {
   useCatalogSearch,
 } from "../hooks/useCatalogSearch";
 import { filterCategoriesByFilters } from "../helper/catalogFilter";
+import {
+  loadSelectedCategoryId,
+  persistSelectedCategoryId,
+} from "../helper/selectedCategoryStorage";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 import { useAdditionalLayers } from "../hooks/useAdditionalLayers";
 import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
@@ -187,7 +192,29 @@ const LayerCatalogView = ({
     [customCategoryDefinitions, favorites, savedCollections, isCesium]
   );
   const [showItems, setShowItems] = useState(false);
-  const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
+
+  // the category the user left the catalog on survives a reload; the key is
+  // route-scoped by the provider, see its storageScope
+  const selectedCategoryStorageKey = useSelectedCategoryStorageKey();
+
+  const [restoredCategoryIndex] = useState(() => {
+    const storedId = loadSelectedCategoryId(selectedCategoryStorageKey);
+    if (!storedId) {
+      return -1;
+    }
+    return categoryDefinitions.findIndex(
+      (definition) => definition.id === storedId
+    );
+  });
+  const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(
+    restoredCategoryIndex === -1 ? 0 : restoredCategoryIndex
+  );
+
+  const pendingRestoredCategoryId = useRef(
+    restoredCategoryIndex === -1
+      ? null
+      : categoryDefinitions[restoredCategoryIndex].id
+  );
   const [dropped, applyDrop] = useReducer(
     applyCatalogDrop,
     EMPTY_DROPPED_CATALOG
@@ -219,14 +246,12 @@ const LayerCatalogView = ({
 
   // the layers this catalog config adds on top of the fetched sources; their
   // references are resolved by the catalog derivation, which knows every item
-  const {
-    categories: additionalLayerCategories,
-    itemIds: additionalLayerIds,
-  } = useAdditionalLayers({
-    additionalLayers: catalogConfig.additionalLayers,
-    vectorTileServerUrl: catalogConfig.vectorTileServerUrl,
-    setFeatureFlags,
-  });
+  const { categories: additionalLayerCategories, itemIds: additionalLayerIds } =
+    useAdditionalLayers({
+      additionalLayers: catalogConfig.additionalLayers,
+      vectorTileServerUrl: catalogConfig.vectorTileServerUrl,
+      setFeatureFlags,
+    });
 
   const {
     additionalConfig,
@@ -402,6 +427,25 @@ const LayerCatalogView = ({
   const isFiltering = !!catalogFilters?.length;
 
   const currentDefinition = sidebarElements[selectedNavItemIndex];
+  /**
+   * Every user-driven category change, in contrast to the fallbacks below: it
+   * gives up on an unreached restore, and writes the choice itself because
+   * picking the very category a fallback had landed on leaves the persisting
+   * effect below without a change to react to.
+   */
+  const selectNavItem = useCallback(
+    (index: number) => {
+      const category = sidebarElements[index];
+      if (pendingRestoredCategoryId.current && category) {
+        pendingRestoredCategoryId.current = null;
+        if (category.source !== "searchResults") {
+          persistSelectedCategoryId(selectedCategoryStorageKey, category.id);
+        }
+      }
+      setSelectedNavItemIndex(index);
+    },
+    [sidebarElements, selectedCategoryStorageKey]
+  );
   const isSearchCategory = currentDefinition.source === "searchResults";
   const isDiscoverCategory = currentDefinition.source === "discover";
   const loadingCurrentCategory =
@@ -564,9 +608,34 @@ const LayerCatalogView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchTerm, isFiltering, filteredCategories]);
 
+  // declared after the fallbacks above so it wins when the same change (the
+  // arriving discover items, a filter run) makes both of them write
+  useEffect(() => {
+    const pendingId = pendingRestoredCategoryId.current;
+    if (!pendingId) {
+      return;
+    }
+    const categoryIndex = sidebarElements.findIndex(
+      (element) => element.id === pendingId
+    );
+    if (categoryIndex === -1) {
+      pendingRestoredCategoryId.current = null;
+      return;
+    }
+    if (
+      sidebarElements[categoryIndex].disabled ||
+      !mainCategoryHasResults(filteredCategories, pendingId)
+    ) {
+      // still loading or filtered away for now; keep waiting for its content
+      return;
+    }
+    pendingRestoredCategoryId.current = null;
+    setSelectedNavItemIndex(categoryIndex);
+  }, [sidebarElements, filteredCategories]);
+
   useHandleDrop({
     setOpen,
-    setSelectedNavItemIndex,
+    setSelectedNavItemIndex: selectNavItem,
     onDrop: applyDrop,
     activeLayers,
     updateActiveLayer,
@@ -574,8 +643,25 @@ const LayerCatalogView = ({
     vectorTileServerUrl: catalogConfig.vectorTileServerUrl,
   });
 
-  // start on the map layers tab as long as there is nothing in the favorites
+  // the search results are a transient entry, never the category to return to;
+  // an unreached restore must not be overwritten by the fallback it sits on
   useEffect(() => {
+    if (
+      !currentDefinition ||
+      currentDefinition.source === "searchResults" ||
+      pendingRestoredCategoryId.current
+    ) {
+      return;
+    }
+    persistSelectedCategoryId(selectedCategoryStorageKey, currentDefinition.id);
+  }, [currentDefinition, selectedCategoryStorageKey]);
+
+  // start on the map layers tab as long as there is nothing in the favorites;
+  // a restored category is an explicit choice and wins over this default
+  useEffect(() => {
+    if (restoredCategoryIndex !== -1) {
+      return;
+    }
     const numOfCustomLayers = resolvedCustomCategories.reduce(
       (acc, category) => acc + category.layers.length,
       0
@@ -606,10 +692,10 @@ const LayerCatalogView = ({
         sidebarElements[selectedNavItemIndex]?.source === "searchResults" &&
         !value
       ) {
-        setSelectedNavItemIndex(0);
+        selectNavItem(0);
       }
     },
-    [setSearchValue, sidebarElements, selectedNavItemIndex]
+    [setSearchValue, sidebarElements, selectedNavItemIndex, selectNavItem]
   );
   const handleSearchSubmit = useCallback(
     (value: string) => {
@@ -618,11 +704,11 @@ const LayerCatalogView = ({
           (element) => element.source === "searchResults"
         );
         if (searchResultsIndex !== -1) {
-          setSelectedNavItemIndex(searchResultsIndex);
+          selectNavItem(searchResultsIndex);
         }
       }
     },
-    [sidebarElements]
+    [sidebarElements, selectNavItem]
   );
 
   const searchInputRef = useRef<InputRef>(null);
@@ -687,7 +773,7 @@ const LayerCatalogView = ({
           <CategorySidebar
             entries={sidebarEntries}
             selectedIndex={selectedNavItemIndex}
-            onSelect={setSelectedNavItemIndex}
+            onSelect={selectNavItem}
           />
 
           <div

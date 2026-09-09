@@ -18,6 +18,7 @@ import {
   loadFavorites,
   persistFavorites,
 } from "./favoritesStorage";
+import { buildSelectedCategoryStorageKey } from "../helper/selectedCategoryStorage";
 import type { CategoryDefinition } from "../config/categoryDefinitions";
 import { defaultCategoryDefinitions } from "../config/categoryDefinitions";
 
@@ -272,6 +273,9 @@ const CatalogFavoritesContext = createContext<LayerCatalogContextValue | null>(
 const CatalogCategoriesContext = createContext<CategoryDefinition[]>(
   defaultCategoryDefinitions
 );
+const CatalogSelectedCategoryKeyContext = createContext<string>(
+  buildSelectedCategoryStorageKey()
+);
 
 export const useCatalogData = (): CatalogDataContextValue => {
   const value = useContext(CatalogDataContext);
@@ -328,6 +332,10 @@ export const useIsInsideLayerCatalogProvider = () =>
 /** the main category registry (sidebar entries + tree assembly order) */
 export const useCategoryDefinitions = () =>
   useContext(CatalogCategoriesContext);
+
+/** localStorage key the catalog remembers its selected main category under */
+export const useSelectedCategoryStorageKey = () =>
+  useContext(CatalogSelectedCategoryKeyContext);
 
 interface CatalogStateProviderProps {
   favoritesStorageKey: string;
@@ -484,6 +492,12 @@ export interface LayerCatalogProviderProps {
   appKey?: string;
   storagePrefix?: string;
   /**
+   * storage namespace of the route, for state that must not travel between
+   * routes (the selected category, whose registry is route-specific);
+   * defaults to `appKey`, which every route of an app shares
+   */
+  storageScope?: string;
+  /**
    * localforage key of a redux-persist record to import favorites from ONCE:
    * only consulted while the lib's own favorites key was never written
    */
@@ -496,19 +510,27 @@ export const LayerCatalogProvider = ({
   categories = defaultCategoryDefinitions,
   appKey = "carma",
   storagePrefix = "defaultStorage",
+  storageScope,
   legacyFavoritesKey,
   children,
 }: LayerCatalogProviderProps) => (
   <LayerCatalogConfigProvider value={config ?? wuppLayerCatalogConfig}>
     <CatalogCategoriesContext.Provider value={categories}>
-      <CatalogQueryProvider>
-        <CatalogStateProvider
-          favoritesStorageKey={buildFavoritesStorageKey(appKey, storagePrefix)}
-          legacyFavoritesKey={legacyFavoritesKey}
-        >
-          {children}
-        </CatalogStateProvider>
-      </CatalogQueryProvider>
+      <CatalogSelectedCategoryKeyContext.Provider
+        value={buildSelectedCategoryStorageKey(
+          storageScope ?? appKey,
+          storagePrefix
+        )}
+      >
+        <CatalogQueryProvider>
+          <CatalogStateProvider
+            favoritesStorageKey={buildFavoritesStorageKey(appKey, storagePrefix)}
+            legacyFavoritesKey={legacyFavoritesKey}
+          >
+            {children}
+          </CatalogStateProvider>
+        </CatalogQueryProvider>
+      </CatalogSelectedCategoryKeyContext.Provider>
     </CatalogCategoriesContext.Provider>
   </LayerCatalogConfigProvider>
 );
