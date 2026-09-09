@@ -145,6 +145,7 @@ export {
   type RouteCameraTarget,
   type RouteNavigation,
   type RouteNavigationState,
+  type RouteProgress,
   type RoutingConfig,
 } from "./addons/Routing";
 export {

@@ -17,10 +17,11 @@ import {
   DEFAULT_RECENTER_POSITION,
   DEFAULT_SNAP_TOLERANCE_METERS,
   DEFAULT_ZOOM,
+  REMAINING_PREFIX,
 } from "./config";
 import { RecenterControl } from "./RecenterControl";
-import { routeCameraTarget } from "./routeCamera";
-import { useActiveRoute } from "./routeChannel";
+import { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
+import { useActiveRoute, type RouteProgress } from "./routeChannel";
 
 /**
  * Puts the user on the route and keeps them there: the map eases to where
@@ -43,6 +44,14 @@ import { useActiveRoute } from "./routeChannel";
  * front, while the route in focus carries a duration. A route that was only
  * measured as the crow flies carries none and gets no note: a straight-line
  * distance is not a route summary.
+ *
+ * While a navigation runs that note counts down: "noch 6 Min · 2,1 km", what
+ * is left from where the user is on the route, per fix. The meters come off
+ * the route, the minutes are the route's own duration scaled by the fraction
+ * still ahead (see `routeProgress`), and both are published on
+ * `routeNavigation` for whoever else wants them. It counts down whether or not
+ * the camera is following: the user goes on towards the destination while they
+ * pan the map.
  *
  * Where the user is comes from the locate context, the one position every
  * reader of the map shares: the origin search hands that same position to
@@ -101,6 +110,12 @@ export const Routing = ({
   // what says "another route" without comparing every vertex
   const coordinates = route?.coordinates ?? null;
 
+  // what the route costs as a whole: the note before the start, and what the
+  // countdown scales while a navigation runs
+  const durationInSeconds = route?.durationInSeconds;
+  const distanceInMeters = route?.distanceInMeters;
+  const routeMode = route?.mode;
+
   const { currentPosition, activate } = useLocate();
   const position: [number, number] | null = currentPosition
     ? [currentPosition.coords.longitude, currentPosition.coords.latitude]
@@ -124,12 +139,32 @@ export const Routing = ({
    */
   const handledFixRef = useRef<GeolocationPosition | null>(null);
 
+  /**
+   * The whole route's numbers, for the countdown to scale. Through a ref
+   * because `flyOntoRoute` below reads them and is what `start` is built from:
+   * a route whose numbers arrived a render later must not republish the offer.
+   */
+  const summaryRef = useRef({ durationInSeconds, distanceInMeters });
+  summaryRef.current = { durationInSeconds, distanceInMeters };
+
   const [navigating, setNavigating] = useState(false);
   const navigatingRef = useRef(navigating);
   navigatingRef.current = navigating;
   const [following, setFollowing] = useState(false);
   const followingRef = useRef(following);
   followingRef.current = following;
+  /** what is left to the destination; null while no navigation runs */
+  const [progress, setProgress] = useState<RouteProgress | null>(null);
+
+  /**
+   * Reads what is left off a target the user is on. Not called for a target
+   * further off the route than the tolerance: the place on the line is a guess
+   * then, and so is everything read from it, so the last honest value stands.
+   */
+  const trackProgress = useCallback((target: RouteCameraTarget) => {
+    const { durationInSeconds, distanceInMeters } = summaryRef.current;
+    setProgress(routeProgress(target, durationInSeconds, distanceInMeters));
+  }, []);
 
   /**
    * Counts the flights, so a `moveend` of a leave that was overtaken by a new
@@ -145,7 +180,9 @@ export const Routing = ({
    * matters: `navigating` stays true until the camera is flat, because the
    * restriction re-locks the moment it flips and would snap the camera there
    * instead of letting it ease. Following stops at once, so no fix arriving
-   * during the ease starts a move of its own and cuts it short.
+   * during the ease starts a move of its own and cuts it short, and so does
+   * the countdown: the note is the whole route's summary again from the moment
+   * the user asks to leave, not once the camera has finished flattening.
    *
    * Eased when the user asks for it, instant when the route goes away
    * underneath (a new starting point, another pick): whoever took the route
@@ -156,6 +193,7 @@ export const Routing = ({
       const map = mapRef.current;
       const flight = ++flightRef.current;
       setFollowing(false);
+      setProgress(null);
       if (!map || !animate) {
         map?.jumpTo({ pitch: 0, bearing: 0 });
         setNavigating(false);
@@ -205,6 +243,9 @@ export const Routing = ({
     const onRoute = target.offRoute <= snapToleranceMeters;
     if (onRoute) {
       bearingRef.current = target.bearing;
+      // so the note counts down from the press rather than from the first fix
+      // after it, which is up to a second later
+      trackProgress(target);
     }
     handledFixRef.current = fixRef.current;
     flightRef.current++;
@@ -216,7 +257,14 @@ export const Routing = ({
       duration,
     });
     return true;
-  }, [zoom, pitch, lookAheadMeters, duration, snapToleranceMeters]);
+  }, [
+    zoom,
+    pitch,
+    lookAheadMeters,
+    duration,
+    snapToleranceMeters,
+    trackProgress,
+  ]);
 
   const start = useCallback(() => {
     // the fixes are what the camera goes along with; without the map moving
@@ -242,36 +290,43 @@ export const Routing = ({
   }, [flyOntoRoute]);
 
   /**
-   * The step per fix. Only while following: a paused navigation reads the
-   * fixes and leaves the camera alone. The ease takes about one fix interval,
-   * so the camera is still moving when the next fix arrives and the motion
-   * reads as one. Arrival is judged on the route, not on a fix that happens to
-   * be far from it.
+   * The step per fix: where the user is on the route, and what that means for
+   * the camera and for what is left.
+   *
+   * Reading the fix and moving the camera are two different questions. The
+   * place on the route is read on every fix of a navigation, because the user
+   * goes on towards the destination whether or not the map is following them:
+   * a paused navigation counts down and arrives like any other, only the
+   * camera stays where the user put it. The camera step is the part that waits
+   * for `following`, and it skips a fix that `start` or `recenter` already
+   * flew to, so its one-second move does not cut their long flight short.
+   *
+   * The ease takes about one fix interval, so the camera is still moving when
+   * the next fix arrives and the motion reads as one. Arrival is judged on the
+   * route, not on a fix that happens to be far from it.
    */
   useEffect(() => {
     const map = mapRef.current;
     const current = coordinatesRef.current;
-    if (
-      !map ||
-      !current ||
-      !position ||
-      !currentPosition ||
-      currentPosition === handledFixRef.current ||
-      !navigating ||
-      !following
-    ) {
+    if (!map || !current || !position || !currentPosition || !navigating) {
       return;
     }
-    handledFixRef.current = currentPosition;
     const target = routeCameraTarget(current, lookAheadMeters, position);
     if (!target) {
       return;
     }
     const onRoute = target.offRoute <= snapToleranceMeters;
-    if (onRoute && target.remaining <= arrivalMeters) {
-      leave(true);
+    if (onRoute) {
+      trackProgress(target);
+      if (target.remaining <= arrivalMeters) {
+        leave(true);
+        return;
+      }
+    }
+    if (!following || currentPosition === handledFixRef.current) {
       return;
     }
+    handledFixRef.current = currentPosition;
     if (onRoute) {
       bearingRef.current = target.bearing;
     }
@@ -296,6 +351,7 @@ export const Routing = ({
     snapToleranceMeters,
     arrivalMeters,
     leave,
+    trackProgress,
   ]);
 
   /**
@@ -337,31 +393,57 @@ export const Routing = ({
   }, [carma, route, navigating, start, stop]);
 
   /**
-   * The summary, for as long as the route in focus has one. Its own effect,
-   * keyed on the numbers rather than on the route object: the button above is
-   * re-registered when `navigating` flips, and the note has no reason to go
-   * with it.
+   * What the note says: the whole route while it is only in focus, what is
+   * left of it while it is being driven. A route that carries no numbers is a
+   * straight line someone measured rather than a route, and gets no note
+   * either way.
    */
-  const durationInSeconds = route?.durationInSeconds;
-  const distanceInMeters = route?.distanceInMeters;
-  const routeMode = route?.mode;
+  const summary =
+    durationInSeconds !== undefined && distanceInMeters !== undefined
+      ? formatRouteSummary(durationInSeconds, distanceInMeters)
+      : null;
+  const countdown =
+    summary && progress && progress.remainingSeconds !== undefined
+      ? `${REMAINING_PREFIX} ${formatRouteSummary(
+          progress.remainingSeconds,
+          progress.remainingMeters
+        )}`
+      : null;
+  const noteText = countdown ?? summary;
+
+  /**
+   * The note, for as long as there is one to show. Its own effect, keyed on
+   * the text rather than on the route or on the raw meters: the button above
+   * is re-registered when `navigating` flips and the note has no reason to go
+   * with it, and a fix a second only re-adds the note on the second the
+   * rounded numbers actually change, so the info box is not re-rendered
+   * between two roundings while the user stands at a light.
+   */
   useEffect(() => {
-    if (durationInSeconds === undefined || distanceInMeters === undefined) {
+    if (!noteText) {
       return;
     }
     return carma.ui.addInfoBoxNote({
       key: "routing",
-      text: formatRouteSummary(durationInSeconds, distanceInMeters),
+      text: noteText,
       icon: getModeIcon(routeMode ?? "car"),
     });
-  }, [carma, durationInSeconds, distanceInMeters, routeMode]);
+  }, [carma, noteText, routeMode]);
 
   const [, publishNavigation] = useAddonState("routeNavigation");
   useEffect(() => {
     publishNavigation({
-      navigation: { navigating, following, start, stop, recenter },
+      navigation: { navigating, following, progress, start, stop, recenter },
     });
-  }, [publishNavigation, navigating, following, start, stop, recenter]);
+  }, [
+    publishNavigation,
+    navigating,
+    following,
+    progress,
+    start,
+    stop,
+    recenter,
+  ]);
   // the offer goes with the addon, so a route without it shows no button
   useEffect(
     () => () => publishNavigation({ navigation: null }),
@@ -380,4 +462,38 @@ export const Routing = ({
       onClick={recenter}
     />
   );
+};
+
+/**
+ * What is left, from where the user is on the route.
+ *
+ * The meters are measured; the minutes are not. The routing service gives one
+ * duration for the whole route and no per-segment speeds, so the time left is
+ * that duration scaled by the fraction of the route still ahead: right at the
+ * start and right at the destination, and off in between by however much the
+ * route's speed varies. Asking the service again per fix is the only way to do
+ * better, and a request a second is not worth those minutes.
+ *
+ * The distance is scaled the same way rather than taken from the geometry, so
+ * both numbers agree about how far along the user is, and so the countdown
+ * starts at the number the summary showed: the service's distance and the
+ * geometry's length differ by a few meters, enough for a countdown to open at
+ * "4,2 km" under a summary that said "4,3 km".
+ */
+const routeProgress = (
+  target: RouteCameraTarget,
+  durationInSeconds?: number,
+  distanceInMeters?: number
+): RouteProgress => {
+  const total = target.along + target.remaining;
+  const ahead = total > 0 ? target.remaining / total : 0;
+  return {
+    remainingMeters:
+      distanceInMeters !== undefined
+        ? distanceInMeters * ahead
+        : target.remaining,
+    remainingSeconds:
+      durationInSeconds !== undefined ? durationInSeconds * ahead : undefined,
+    fraction: 1 - ahead,
+  };
 };

@@ -7,6 +7,7 @@ export {
   type ActiveRouteState,
   type RouteNavigation,
   type RouteNavigationState,
+  type RouteProgress,
 } from "./routeChannel";
 export { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
 export type { RouteMode } from "./routeMode";

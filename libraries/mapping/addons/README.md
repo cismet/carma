@@ -981,6 +981,12 @@ type RouteNavigationState = {
     navigating: boolean;
     /** false while the user moved the map by hand during a navigation */
     following: boolean;
+    /** what is left to the destination; null while no navigation runs */
+    progress: {
+      remainingMeters: number;
+      remainingSeconds?: number;
+      fraction: number;
+    } | null;
     start: () => void;
     stop: () => void;
     recenter: () => void;
@@ -1014,6 +1020,27 @@ measured as the crow flies leaves them out and the box shows no note, because
 a straight-line distance is not a route summary. The words come from
 `@carma-mapping/routing` (`formatRouteSummary`), the same ones the dropdown
 rows use, so the row and the box never disagree.
+
+While a navigation runs, that note counts down: "noch 6 Min · 2,1 km", what is
+left from where the user is on the route, and the whole route's summary again
+once the navigation ends. The meters are measured, the minutes are not: the
+routing service gives one duration for the whole route and no per-segment
+speeds, so the time left is that duration scaled by the fraction of the route
+still ahead. Right at the start and right at the destination, off in between by
+however much the route's own speed varies, which is the price of not asking the
+service again once a second. The distance is scaled by the same fraction rather
+than read off the geometry, so both numbers agree about how far along the user
+is and the countdown starts at the number the summary showed.
+
+It counts down whether or not the camera is following: panning the map does not
+stop the user moving towards the destination, so a paused navigation counts down
+and arrives like any other. It holds its last value while the user is off the
+route, where the place on the line means nothing, the same policy the bearing
+follows. The numbers also go on `routeNavigation` as `progress`
+(`remainingMeters`, `remainingSeconds`, `fraction`), so the next reader does not
+recompute them. The note is re-added only when the formatted text changes, so a
+fix a second does not re-render the info box a second, or flicker between two
+roundings at a red light.
 
 Where the user is comes from the locate context (`useLocate`), the one
 position everything on the map shares: the origin search hands that same
