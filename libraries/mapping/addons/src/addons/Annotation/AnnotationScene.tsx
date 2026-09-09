@@ -227,8 +227,8 @@ export const AnnotationScene = ({
   });
 
   /**
-   * Stroke width, font size and image size are screen referenced: they keep
-   * the pixel size they were drawn at while the geometry scales with the map.
+   * Stroke width is screen referenced: it keeps the pixel size it was drawn at
+   * while the geometry — text and images included — scales with the map.
    * See `annotation-normalize`.
    */
   const { normalize: normalizeDecoration, noteState } = useDecorationScale({

@@ -36,6 +36,13 @@ import type { AnnotationAnchor } from "./types";
  * An image is neither, and is not touched at all. It is drawn over a place, so
  * it stays the size it was given and scales with the map like the ground does.
  *
+ * Text is geometry too, for the same reason: a label belongs to the place it
+ * was written on, so it grows and shrinks with the rectangle it names instead
+ * of standing over the whole city once the map is zoomed out. Only the size
+ * the style panel hands out is a pixel size — a font size picked there is read
+ * as pixels once, at the zoom it was picked at, and the glyphs are ground
+ * referenced from then on, exactly like a rectangle drawn at that size.
+ *
  * The scene also has to stay inside excalidraw's own zoom clamp, 0.1 to 30, or
  * it renders the drawing at a scale the map is not at: wrong size, wrong
  * place, and a stroke that is off by whatever the clamp swallowed. A drawing
@@ -141,6 +148,36 @@ const freeze = (
   return { px: current, at: current / scale };
 };
 
+/**
+ * The scene font size of a text element, which is ground referenced: what it
+ * carries is what it keeps, through every zoom.
+ *
+ * The one thing rewritten is a size the user just picked in the style panel.
+ * The panel deals in pixels — 20 is "M" on screen, whatever the map is showing
+ * — so such a value is divided by the scale once and is scene units from then
+ * on. It is recognisable the same way the pen's values are: only the panel
+ * hands out a preset, and only a value that is not the one we last saw on the
+ * element can have come from the user at all.
+ *
+ * `at` is that last seen value; `px` is what it was on screen when it was
+ * written, and is kept only so a stored size still reads like the frozen ones.
+ */
+const grounded = (
+  current: number,
+  stored: unknown,
+  scale: number,
+  panel: boolean
+): Frozen => {
+  const previous = storedFrozen(stored);
+  if (previous && Math.abs(current - previous.at) < EPSILON) {
+    return previous;
+  }
+  if (previous && panel && isPreset(current, FONT_PRESETS)) {
+    return { px: current, at: current / scale };
+  }
+  return { px: current * scale, at: current };
+};
+
 const changed = (frozen: Frozen, stored: unknown) => {
   const previous = storedFrozen(stored);
   return (
@@ -152,6 +189,13 @@ const changed = (frozen: Frozen, stored: unknown) => {
 
 type TextElement = ExcalidrawElement & {
   fontSize: number;
+  /**
+   * Where the glyphs sit in the box: excalidraw draws a line at `height -
+   * baseline` from the top, so a font size rewritten without it puts the text
+   * outside the box it is drawn into and the canvas cuts it off. It is a font
+   * metric, so it scales with the glyphs.
+   */
+  baseline: number;
   containerId: string | null;
 };
 
@@ -209,6 +253,15 @@ const rebased = (element: ExcalidrawElement, factor: number): Patch => {
     };
   }
 
+  // the glyphs are geometry, so they are read in the new units like the box
+  const text = element as Partial<TextElement>;
+  if (element.type === "text" && typeof text.fontSize === "number") {
+    patch.fontSize = text.fontSize * factor;
+    if (typeof text.baseline === "number") {
+      patch.baseline = text.baseline * factor;
+    }
+  }
+
   const roundness = element.roundness as {
     type: number;
     value?: number;
@@ -224,7 +277,9 @@ const rescaled = (
   element: ExcalidrawElement,
   scale: number,
   pen: Pen,
-  busy: Set<string>
+  busy: Set<string>,
+  /** scene units per old unit when the anchor moves in the same pass, else 1 */
+  factor: number
 ): Patch | null => {
   // an image is left exactly as it is, in both its size and its frame
   if (element.type === "image") {
@@ -264,17 +319,21 @@ const rescaled = (
 
   if (element.type === "text") {
     const text = element as TextElement;
-    const font = freeze(text.fontSize, data.fontNorm, scale, pen.font);
+    // read in the units the element is about to be in, so a rebase in the
+    // same pass is not mistaken for the user picking a size
+    const current = text.fontSize * factor;
+    const font = grounded(current, data.fontNorm, scale, factor === 1);
     customData.fontNorm = font;
     dirty = dirty || changed(font, data.fontNorm);
-    if (Math.abs(text.fontSize - font.at) > EPSILON) {
+    if (Math.abs(current - font.at) > EPSILON && current > EPSILON) {
+      const ratio = font.at / current;
       patch.fontSize = font.at;
+      patch.baseline = text.baseline * factor * ratio;
       // the measured box goes with the glyphs. A text bound to a container is
       // laid out by excalidraw itself, so its box is left alone
-      if (!text.containerId && text.fontSize > EPSILON) {
-        const ratio = font.at / text.fontSize;
-        patch.width = text.width * ratio;
-        patch.height = text.height * ratio;
+      if (!text.containerId) {
+        patch.width = text.width * factor * ratio;
+        patch.height = text.height * factor * ratio;
       }
     }
   }
@@ -525,7 +584,13 @@ export const useDecorationScale = ({
         .filter((element) => !isClipProxy(element))
         .map((element) => {
           const moved = rebasing ? rebased(element, painted) : null;
-          const decoration = rescaled(element, scale, pen, busy);
+          const decoration = rescaled(
+            element,
+            scale,
+            pen,
+            busy,
+            rebasing ? painted : 1
+          );
           if (!moved && !decoration) {
             return element;
           }
