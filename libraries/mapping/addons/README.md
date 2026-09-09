@@ -46,6 +46,7 @@ so the second folder is the list of what actually exists:
 | `addons/NearestFeature/categories/` | one addon per category the mode offers ("Apotheken") |
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
 | `addons/Routing/`           | puts the camera on the route in focus and follows the user along it (see below) |
+| `addons/LocationSimulator/` | dev only: a pretend GPS receiver that drives along the route (see below) |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain toggle button for the maplibre map              |
@@ -1076,6 +1077,37 @@ map back north.
 | `Routing/routeChannel.ts` | both channels, their types and hooks |
 | `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
 | `Routing/config.ts`       | `RoutingConfig` and its defaults |
+
+### Faking the device: `locationSimulator`
+
+The routes only exist around Wuppertal, and whoever tests the navigation
+mostly is not there. `locationSimulator` pretends to be the device: the
+locate context asks a geolocation slot (`setGeolocationSource` in
+`@carma-mapping/contexts`, the device by default, the same one-slot shape as
+the camera restriction override), and this addon puts a pretend receiver
+into it while mounted. The locate button, the origin search and the routing
+camera keep reading `currentPosition` and cannot tell.
+
+While no navigation runs the pretend user stands at `position` (default the
+Wuppertal main station), so "In der Nähe" ranks from there and a route starts
+there. When `routeNavigation` says `navigating`, the receiver drives along
+the route in focus at `speedMetersPerSecond` (8, about 30 km/h), one fix per
+`intervalMs` (1000), each scattered by up to `jitterMeters` (2) the way a real
+receiver's are; the routing addon sees its own route's fixes come in and ends
+the navigation on arrival, after which the user is back home for the next
+search. Time is real, so a slow tab makes the fixes sparser, not the car
+slower.
+
+Dev only: the component does nothing outside a dev build, so the entry on the
+`#/addons` route never fakes a position in a deployment. `Ctrl+Alt+A` switches
+it off to test against the real device; the location mode has to be switched
+off and on for the context to ask the device again.
+
+| File                                    | |
+| --------------------------------------- | --- |
+| `LocationSimulator/LocationSimulator.tsx` | the addon: owns the slot, stands or drives on the navigation channel |
+| `LocationSimulator/fakeDevice.ts`       | the pretend receiver: `stand`, `drive`, and the three `Geolocation` calls |
+| `LocationSimulator/config.ts`           | `LocationSimulatorConfig` and its defaults |
 
 ## Guidelines
 

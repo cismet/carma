@@ -88,6 +88,16 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // navigation ends
     "routing",
     { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
+    // dev harness for the routing: pretends the device is at the home view
+    // and drives it along the route while a navigation runs. No-op outside a
+    // dev build; Ctrl+Alt+A switches it off to test against the real device
+    {
+      kind: "locationSimulator",
+      config: {
+        position: [DEFAULT_HOME_VIEW_REF.lng, DEFAULT_HOME_VIEW_REF.lat],
+        speedMetersPerSecond: 8,
+      },
+    },
     {
       kind: "visibleFeatureStatsSource",
       config: {
