@@ -45,7 +45,7 @@ so the second folder is the list of what actually exists:
 | `addons/NearestFeature/`    | "In der Nähe" mode in the search bar: pick a category, get the nearest ones |
 | `addons/NearestFeature/categories/` | one addon per category the mode offers ("Apotheken") |
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
-| `addons/Routing/`           | puts the camera on the route in focus (see below)        |
+| `addons/Routing/`           | puts the camera on the route in focus and follows the user along it (see below) |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain toggle button for the maplibre map              |
@@ -941,11 +941,12 @@ filter typed behind the same run".
 ## Onto the route: `routing`
 
 The third piece of the pair is what happens once there is a route. `routing`
-puts the user on it when asked: the map eases to the start of the route, zooms
-in and turns so the route runs up the screen, with a little tilt. Asked, not
-automatic: picking a hit shows its info box as it always did, and a button in
-that box starts the navigation. That is all it does for now; no turn list, no
-following along.
+puts the user on it when asked and keeps them there: the map eases to where
+they are on the route, zooms in and turns so the road ahead runs up the
+screen, with a little tilt, and then goes along with every position fix until
+the destination, turning at each corner. Asked, not automatic: picking a hit
+shows its info box as it always did, and a button in that box starts the
+navigation. No turn list and no re-routing yet.
 
 Two channels carry it. `activeRoute` is the route in focus:
 
@@ -975,7 +976,14 @@ route for this".
 ```ts
 type RouteNavigationState = {
   /** null while no routing addon is mounted */
-  navigation: { navigating: boolean; start: () => void; stop: () => void } | null;
+  navigation: {
+    navigating: boolean;
+    /** false while the user moved the map by hand during a navigation */
+    following: boolean;
+    start: () => void;
+    stop: () => void;
+    recenter: () => void;
+  } | null;
 };
 ```
 
@@ -1006,17 +1014,45 @@ a straight-line distance is not a route summary. The words come from
 `@carma-mapping/routing` (`formatRouteSummary`), the same ones the dropdown
 rows use, so the row and the box never disagree.
 
-The start of the route is the current location without asking the device
-again: the origin search hands the user's own position to the ranking as its
-default starting point, so a driven route already begins there. A route from a
-picked address begins at that address, which is right as well.
+Where the user is comes from the locate context (`useLocate`), the one
+position everything on the map shares: the origin search hands that same
+position to the ranking as its default starting point, so a driven route
+begins where the fixes begin. `start` switches the location mode on with
+`activate({ fly: false })`, which also takes the locate button's own
+following off if it was on, since from here the routing camera holds the map.
 
-The bearing looks `lookAheadMeters` (10 m) along the line, so the first meters
-of the route run straight up the screen and the first turn shows as a turn;
-a longer look-ahead averages that turn into the bearing and the start leg
-comes out slanted. `zoom` (18), `pitch` (30) and `duration` (1200 ms) are the
-rest of the config; everything is optional, so the bare kind `"routing"`
-works.
+Each fix is snapped onto the route (`routeCameraTarget` with a position):
+GPS wanders a few meters sideways, and a tilted camera centred beside the
+road shows the road beside the dot. The camera eases to the snapped point
+over `followDuration` (1000 ms, about one fix interval) with a linear easing,
+so one move runs into the next and the motion reads as one rather than a hop
+per second. A fix further than `snapToleranceMeters` (30 m) off the route is
+followed as it is, with the last bearing on the route kept: the user has
+left the route, and pulling them back onto it would lie. Once fewer than
+`arrivalMeters` (15 m) of route are left the navigation ends on its own,
+with the same eased leave as the button.
+
+The user's hand wins. Any move with an `originalEvent` (a drag, a wheel, a
+rotate) pauses the following: `navigating` stays true, the camera stays where
+they put it, the fixes keep coming in unseen. A pill "Zentrieren" with a
+crosshairs icon appears at the bottom of the map while paused
+(`recenterPosition` `bottomcenter`, `recenterOrder` 10, `recenterLabel`) and
+puts the camera back on the position with the long ease; `following` goes
+back to true with it. The same shape as the recenter button of any
+navigation app, and on the map rather than in the info box because the box
+may be closed or scrolled away while the user pans. It is the one piece of
+UI the addon renders itself. The navigation only ends with the route button,
+arrival, or the route going away.
+
+The bearing looks `lookAheadMeters` (10 m) along the line from the user's
+place on it, so the next meters run straight up the screen and a turn shows
+as a turn; a longer look-ahead averages the next turn into the bearing and
+the road comes out slanted. `zoom` (19, as close in as a navigation app;
+the map allows 22. MapLibre zoom, the unit of `easeTo`; the geoportal's URL
+hash is in the Leaflet convention and shows one more), `pitch` (30) and
+`duration` (1200
+ms, the start, recenter and leave ease) are the rest of the config;
+everything is optional, so the bare kind `"routing"` works.
 
 A rotated camera needs the restriction lifted: a restricted camera resets its
 bearing to zero, so the rotation would be undone as it is applied. Rather than
@@ -1035,9 +1071,10 @@ map back north.
 
 | File                      | |
 | ------------------------- | --- |
-| `Routing/Routing.tsx`     | the addon: reads the route, publishes the offer, eases the camera |
+| `Routing/Routing.tsx`     | the addon: reads the route and the fixes, publishes the offer, drives the camera |
+| `Routing/RecenterControl.tsx` | the "Zentrieren" pill shown while the follow is paused |
 | `Routing/routeChannel.ts` | both channels, their types and hooks |
-| `Routing/routeCamera.ts`  | start point and look-ahead bearing of a route |
+| `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
 | `Routing/config.ts`       | `RoutingConfig` and its defaults |
 
 ## Guidelines

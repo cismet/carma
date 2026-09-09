@@ -370,6 +370,12 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     // the flag belongs to the activation, not to the mode: whoever switches it
     // on says whether the map goes there, and the button still does
     flyRef.current = options?.fly ?? true;
+    // a caller that asks for the coordinates only, while the button already
+    // has the mode following, takes the following off: it is about to move
+    // the map itself (the routing camera), and two hands on the camera fight
+    if (options?.fly === false) {
+      followRef.current = false;
+    }
     setIsLocationActive(true);
   }, []);
 
