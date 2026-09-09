@@ -20,6 +20,8 @@ import { degToRadNumeric } from "@carma-units";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { applyShadowReceiverMask } from "../../core/shadow-receiver-mask";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
+import { TilesetHierarchyPlugin } from "./tileset-hierarchy-plugin";
+import { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plugin";
 import type { SharedThreeSceneFrame } from "./shared-three-scene-layer";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
@@ -57,6 +59,8 @@ import {
   MESH_EVICTION_BATCH_SIZE,
   MESH_MOTION_COVERAGE_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
+  TILE_METADATA_DOWNLOAD_CONCURRENCY,
+  TILE_METADATA_PARSE_CONCURRENCY,
   VIEW_QUALITY_AUDIT_PASSES,
 } from "./three-tiles-runtime-config";
 import {
@@ -118,7 +122,7 @@ export function createThreeTilesLifecycle(
     | "committedMeshReceiverFrontier"
     | "committedMeshCasterFrontier"
     | "lastRuntimeDebugAt"
-    | "tileViewFrustum"
+    | "tileViewProjection"
     | "lastMainViewConverged"
     | "orientationGroup"
     | "disposed"
@@ -131,6 +135,7 @@ export function createThreeTilesLifecycle(
     ThreeTilesRuntimeServices,
     | "getTileDebugProgress"
     | "refreshRenderedMaterials"
+    | "applyMaterialFlags"
     | "readModelWorldBounds"
     | "invalidateShadowRegionRevisions"
     | "reapplyCacheBoundsIfDrifted"
@@ -175,6 +180,59 @@ export function createThreeTilesLifecycle(
     | "restoreShadowSides"
   >
 ) {
+  const deferredMaterials = new TilesetDeferredMaterialsPlugin({
+    inView: dependencies.isTileInMainView,
+    onPromoted: (tile, scene) => {
+      dependencies.refreshRenderedMaterials(scene);
+      runtimeState.mainViewProjectionChanged = true;
+      runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
+      runtimeState.options.onContentChanged?.([], [scene]);
+      dependencies.requestRender();
+    },
+    onError: (tile, error) => {
+      dependencies.getTileDebugProgress(tile).lastError = String(error);
+    },
+  });
+  // Bounded event samples, never a resident-cache scan. Decision:
+  // TILE-PIPELINE-TELEMETRY-20260909 in engines/maplibre/README.md.
+  const telemetryTiles = new Set<Tile>();
+  let telemetryDropped = 0;
+  const telemetryCenter = new THREE.Vector3();
+  const telemetrySphere = new THREE.Sphere();
+  let parseWakeTimer: ReturnType<typeof setTimeout> | null = null;
+  let metadataWakeTimer: ReturnType<typeof setTimeout> | null = null;
+  const metadataDownloads = new DownloadPriorityQueue();
+  metadataDownloads.maxJobsPerOrigin = TILE_METADATA_DOWNLOAD_CONCURRENCY;
+  metadataDownloads.priorityCallback = tilesQueuePriorityCallback;
+  const metadataParsing = new PriorityQueue();
+  metadataParsing.maxJobs = TILE_METADATA_PARSE_CONCURRENCY;
+  metadataParsing.priorityCallback = tilesNodeQueuePriorityCallback;
+  metadataParsing.scheduleJobRun = () => {
+    if (metadataWakeTimer !== null || runtimeState.disposed) return;
+    metadataWakeTimer = setTimeout(() => {
+      metadataWakeTimer = null;
+      if (!runtimeState.disposed) metadataParsing.tryRunJobs();
+    }, 0);
+  };
+  const noteTileActivity = (tile: Tile) => {
+    if (runtimeState.disposed || runtimeState.options.tileTelemetry === false)
+      return;
+    if (telemetryTiles.has(tile)) return;
+    if (telemetryTiles.size >= 32) {
+      telemetryDropped += 1;
+      return;
+    }
+    telemetryTiles.add(tile);
+  };
+  const handleDownloadStart = ({ tile }: { tile: Tile }) => {
+    const progress = dependencies.getTileDebugProgress(tile);
+    progress.downloadStartedAt = performance.now();
+    progress.downloadFinishedAt = undefined;
+    progress.parseStartedAt = undefined;
+    progress.parseFinishedAt = undefined;
+    progress.lastError = undefined;
+    noteTileActivity(tile);
+  };
   let requestCancellationTimer: ReturnType<typeof setTimeout> | null = null;
   const supersededRequests = new Set<Tile>();
   const cancelSupersededRequests = () => {
@@ -214,8 +272,11 @@ export function createThreeTilesLifecycle(
   const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
     (event: { scene?: THREE.Object3D; tile?: Tile; url?: string }) => {
       if (event.tile) {
+        dependencies.getTileDebugProgress(event.tile).publicationStartedAt =
+          performance.now();
         dependencies.getTileDebugProgress(event.tile).loadedAt ??=
           performance.now();
+        noteTileActivity(event.tile);
       }
       runtimeState.meshContentRevision += 1;
       if (event.tile) {
@@ -226,7 +287,9 @@ export function createThreeTilesLifecycle(
         runtimeState.tileRetries.handleSuccess(event.tile, event.url);
       const changedBounds: THREE.Box3[] = [];
       if (event.scene) {
-        dependencies.refreshRenderedMaterials(event.scene);
+        if (!event.tile || deferredMaterials.isReady(event.tile))
+          dependencies.refreshRenderedMaterials(event.scene);
+        else dependencies.applyMaterialFlags(event.scene);
         const bounds = dependencies.readModelWorldBounds(
           event.scene,
           new THREE.Box3()
@@ -256,6 +319,9 @@ export function createThreeTilesLifecycle(
       dependencies.applyRequestConcurrency();
       dependencies.notifyRequestStateChange();
       dependencies.requestRender();
+      if (event.tile)
+        dependencies.getTileDebugProgress(event.tile).publicationFinishedAt =
+          performance.now();
     };
 
   const handleModelDispose: ThreeTilesRuntimeServices["handleModelDispose"] =
@@ -319,6 +385,12 @@ export function createThreeTilesLifecycle(
         dependencies.applyRequestConcurrency();
       }
       const failedTile = event.tile ?? null;
+      if (failedTile) {
+        dependencies.getTileDebugProgress(failedTile).lastError = String(
+          event.error
+        ).slice(0, 240);
+        noteTileActivity(failedTile);
+      }
       if (failedTile && runtimeState.deferred.has(failedTile)) return;
       const retryState = runtimeState.tileRetries.handleFailure(
         failedTile,
@@ -462,14 +534,72 @@ export function createThreeTilesLifecycle(
     ) as typeof tileCache.unloadPriorityCallback;
     const downloadQueue = new DownloadPriorityQueue();
     downloadQueue.priorityCallback = tilesQueuePriorityCallback;
+    // Decision: TILE-METADATA-FAST-LANE-20260909 in engines/maplibre/README.md.
+    // Preserve upstream ownership/abort handling, but metadata must not wait
+    // behind payload downloads or the mesh parse-backlog throttle.
+    const addDownload = downloadQueue.add.bind(downloadQueue);
+    downloadQueue.add = (url, tile: Tile, callback, signal) =>
+      tile.internal.hasUnrenderableContent
+        ? metadataDownloads.add(url, tile, callback, signal)
+        : addDownload(url, tile, callback, signal);
+    const removeDownload = downloadQueue.remove.bind(downloadQueue);
+    downloadQueue.remove = (tile) => {
+      metadataDownloads.remove(tile);
+      removeDownload(tile);
+    };
+    const hasDownload = downloadQueue.has.bind(downloadQueue);
+    downloadQueue.has = (tile) =>
+      metadataDownloads.has(tile) || hasDownload(tile);
     const parseQueue = new PriorityQueue();
     parseQueue.priorityCallback = tilesQueuePriorityCallback;
+    // Parsing must not wait for an expensive shadow frame to finish before the
+    // next two jobs start. Coalesce native wakeups onto a separate browser task;
+    // keep bounded concurrency and yield between batches instead of microtasks.
+    parseQueue.scheduleJobRun = () => {
+      if (parseWakeTimer !== null || runtimeState.disposed) return;
+      parseWakeTimer = setTimeout(() => {
+        parseWakeTimer = null;
+        if (!runtimeState.disposed) parseQueue.tryRunJobs();
+      }, 0);
+    };
     const processNodeQueue = new PriorityQueue();
     processNodeQueue.priorityCallback = tilesNodeQueuePriorityCallback;
     runtimeState.tiles.lruCache = tileCache;
     runtimeState.tiles.downloadQueue = downloadQueue;
     runtimeState.tiles.parseQueue = parseQueue;
     runtimeState.tiles.processNodeQueue = processNodeQueue;
+    const addParseJob = parseQueue.add.bind(parseQueue);
+    const removeParseJob = parseQueue.remove.bind(parseQueue);
+    parseQueue.remove = (tile) => {
+      metadataParsing.remove(tile);
+      removeParseJob(tile);
+    };
+    const hasParseJob = parseQueue.has.bind(parseQueue);
+    parseQueue.has = (tile) => metadataParsing.has(tile) || hasParseJob(tile);
+    parseQueue.add = (tile: Tile, callback) => {
+      const progress = dependencies.getTileDebugProgress(tile);
+      progress.downloadFinishedAt = performance.now();
+      noteTileActivity(tile);
+      const add = tile.internal.hasUnrenderableContent
+        ? metadataParsing.add.bind(metadataParsing)
+        : addParseJob;
+      return add(tile, async (item) => {
+        // Native queue callbacks start in rAF. Yield before metadata/GLTF work
+        // so queue admission itself does not run parsing inside a paint callback.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        if (runtimeState.disposed) return;
+        progress.parseStartedAt = performance.now();
+        try {
+          return await callback(item);
+        } catch (error) {
+          progress.lastError = String(error).slice(0, 240);
+          throw error;
+        } finally {
+          progress.parseFinishedAt = performance.now();
+          noteTileActivity(tile);
+        }
+      });
+    };
     // D2: admission registers a predicted size so the cache fills before
     // downloads finish; measured content carries the resident overhead.
     const calculateBytesUsed = runtimeState.tiles.calculateBytesUsed.bind(
@@ -579,11 +709,22 @@ export function createThreeTilesLifecycle(
       runtimeState.queuedThisTraversal.add(tile);
       const progress = dependencies.getTileDebugProgress(tile);
       progress.queuedAt ??= performance.now();
+      noteTileActivity(tile);
       queueTileForDownload(tile);
     };
     // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
     runtimeState.tiles.registerPlugin(new ImplicitTilingPlugin());
     runtimeState.tiles.registerPlugin(new UpdateOnChangePlugin());
+    if (runtimeState.options.providesTerrain)
+      runtimeState.tiles.registerPlugin(deferredMaterials);
+    if (
+      runtimeState.options.hierarchyCache !== false &&
+      typeof Worker !== "undefined"
+    ) {
+      runtimeState.tiles.registerPlugin(
+        new TilesetHierarchyPlugin(runtimeState.tilesetUrl)
+      );
+    }
     // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly. The raw
     // response feeds the wire-size sampling of the request concurrency.
     runtimeState.tiles.registerPlugin(
@@ -598,6 +739,7 @@ export function createThreeTilesLifecycle(
       new GLTFExtensionsPlugin({
         dracoLoader: runtimeState.dracoLoader,
         plugins: [
+          deferredMaterials.createGltfPlugin,
           (parser: unknown) =>
             buildPrimitiveOutlinePlugin(parser, {
               color: runtimeState.outlineColor,
@@ -661,6 +803,10 @@ export function createThreeTilesLifecycle(
     runtimeState.tiles.addEventListener("load-tileset", handleTilesetLoad);
     runtimeState.tiles.addEventListener("update-after", handleUpdateAfter);
     runtimeState.tiles.addEventListener("load-model", handleModelLoad);
+    runtimeState.tiles.addEventListener(
+      "tile-download-start",
+      handleDownloadStart
+    );
     runtimeState.tiles.addEventListener("dispose-model", handleModelDispose);
     runtimeState.tiles.addEventListener("load-error", handleLoadError);
     runtimeState.tiles.addEventListener("tiles-load-end", handleTilesLoadEnd);
@@ -731,6 +877,7 @@ export function createThreeTilesLifecycle(
         frame.viewport.y
       );
       dependencies.prepareViewFrustums(viewCamera);
+      if (runtimeState.options.providesTerrain) deferredMaterials.update();
       if (runtimeState.mainViewProjectionChanged)
         runtimeState.meshBaseCoverageReady = false;
       // Refresh both pending jobs AND cached candidates before the upstream
@@ -787,7 +934,10 @@ export function createThreeTilesLifecycle(
           runtimeState.requestedErrorTarget,
           Number.POSITIVE_INFINITY,
           dependencies.isTileInMainView,
-          dependencies.getTileScreenError
+          dependencies.getTileScreenError,
+          undefined,
+          undefined,
+          deferredMaterials.isReady
         );
         runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
         runtimeState.displayedMeshFrontier = retainMeshDetailFrontier({
@@ -828,14 +978,39 @@ export function createThreeTilesLifecycle(
             runtimeState.effectiveErrorTarget,
           false
         );
-      if (performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000) {
+      if (
+        runtimeState.options.tileTelemetry !== false &&
+        performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000
+      ) {
         runtimeState.lastRuntimeDebugAt = performance.now();
-        const residentTiles = [
-          ...(runtimeState.tiles.lruCache as RuntimeLruCache).itemList,
-        ] as RuntimeTile[];
-        const loadedTiles = residentTiles.filter(
-          (tile) => tile.engineData?.scene
-        );
+        const tileEvents = [...telemetryTiles].map((tile) => {
+          const progress = dependencies.getTileDebugProgress(tile);
+          const inView = dependencies.isTileInMainView(tile as RuntimeTile);
+          const bounds = (tile as RuntimeTile).engineData?.boundingVolume;
+          if (bounds) {
+            bounds.getSphere(telemetrySphere);
+            telemetryCenter
+              .copy(telemetrySphere.center)
+              .applyMatrix4(runtimeState.tileViewProjection);
+          }
+          return {
+            url: resolveTileContentUrl(tile),
+            inView,
+            shadowOnly:
+              !inView && (tile as RuntimeTile).shadowReceiverCurrent === true,
+            externalTileset: tile.internal.hasUnrenderableContent,
+            loadingState: tile.internal.loadingState,
+            lodDepth: tile.internal.depth,
+            geometricError: tile.geometricError,
+            screenErrorPixels: tile.traversal.error,
+            cameraDistance: tile.traversal.distanceFromCamera,
+            screenCenterDistanceNdc: bounds
+              ? Math.hypot(telemetryCenter.x, telemetryCenter.y)
+              : null,
+            ...progress,
+          };
+        });
+        telemetryTiles.clear();
         console.debug(
           "[tiles3d-debug] runtime state",
           JSON.stringify({
@@ -846,24 +1021,15 @@ export function createThreeTilesLifecycle(
             queued: runtimeState.tiles.stats.queued,
             downloading: runtimeState.tiles.stats.downloading,
             parsing: runtimeState.tiles.stats.parsing,
+            metadataDownloadsRunning: metadataDownloads.running,
+            metadataParsingRunning: metadataParsing.running,
             viewportCut: runtimeState.lastLoadedViewportCutSize,
             retainedViewport: runtimeState.displayedMeshFrontier.size,
             corridorTiles: runtimeState.committedMeshCasterFrontier.size,
-            loadedCorridorTiles: loadedTiles.filter(
-              (tile) => tile.shadowReceiverCurrent === true
-            ).length,
             shadowSelectionEnabled: runtimeState.shadowSelectionEnabled,
             receiverCount: runtimeState.shadowReceiverMask?.sourceCount ?? 0,
-            loadedModels: loadedTiles.length,
-            traversalInFrustum: loadedTiles.filter(
-              (tile) => tile.traversal?.inFrustum
-            ).length,
-            explicitMainFrustum: loadedTiles.filter((tile) => {
-              const bounds = tile.engineData?.boundingVolume;
-              return (
-                bounds?.intersectsFrustum(runtimeState.tileViewFrustum) ?? false
-              );
-            }).length,
+            tileEvents,
+            telemetryDropped,
             requestConcurrency:
               runtimeState.tiles.downloadQueue.maxJobsPerOrigin,
             perOriginConcurrency:
@@ -874,6 +1040,7 @@ export function createThreeTilesLifecycle(
             mainViewConverged: runtimeState.lastMainViewConverged,
           })
         );
+        telemetryDropped = 0;
       }
       dependencies.syncTileDebugOverlay();
       if (completingShadowTraversal)
@@ -963,6 +1130,12 @@ export function createThreeTilesLifecycle(
 
   const dispose: ThreeTilesRuntimeServices["dispose"] = () => {
     runtimeState.disposed = true;
+    deferredMaterials.dispose();
+    if (parseWakeTimer !== null) clearTimeout(parseWakeTimer);
+    parseWakeTimer = null;
+    if (metadataWakeTimer !== null) clearTimeout(metadataWakeTimer);
+    metadataWakeTimer = null;
+    telemetryTiles.clear();
     if (requestCancellationTimer !== null)
       clearTimeout(requestCancellationTimer);
     requestCancellationTimer = null;
@@ -1006,6 +1179,10 @@ export function createThreeTilesLifecycle(
     runtimeState.tiles?.removeEventListener("load-tileset", handleTilesetLoad);
     runtimeState.tiles?.removeEventListener("update-after", handleUpdateAfter);
     runtimeState.tiles?.removeEventListener("load-model", handleModelLoad);
+    runtimeState.tiles?.removeEventListener(
+      "tile-download-start",
+      handleDownloadStart
+    );
     runtimeState.tiles?.removeEventListener(
       "dispose-model",
       handleModelDispose

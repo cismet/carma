@@ -106,7 +106,8 @@ export const collectLoadedMeshReceiverCandidates = (
   inView: (tile: Tile) => boolean,
   errorPixels: (tile: Tile) => number,
   committed?: ReadonlySet<Tile>,
-  presented?: ReadonlySet<Tile>
+  presented?: ReadonlySet<Tile>,
+  receiverReady: (tile: Tile) => boolean = isLoadedMesh
 ): Set<Tile> => {
   const refinedAncestors = new Set<Tile>();
   for (const tile of committed ?? []) {
@@ -136,6 +137,7 @@ export const collectLoadedMeshReceiverCandidates = (
     const error = errorPixels(tile);
     const fallback =
       isLoadedMesh(tile) &&
+      receiverReady(tile) &&
       !isMeshTileUnconditionallyRefined(tile) &&
       Number.isFinite(error) &&
       error <= maximumInitialErrorPixels &&

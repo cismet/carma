@@ -59,6 +59,7 @@ export function createThreeTilesShadows(
     | "displayedMeshFrontier"
     | "cameraSet"
     | "shadowSignatureDirection"
+    | "meshDemandSweepPending"
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
@@ -590,10 +591,12 @@ export function createThreeTilesShadows(
       // the local family refinement below still prevents parent/child hybrids.
       // A tile may be both a receiver and a caster; Set union keeps it once.
       const residentTiles =
-        (runtimeState.tiles.lruCache as RuntimeLruCache | undefined)?.itemList ??
-        [];
+        (runtimeState.tiles.lruCache as RuntimeLruCache | undefined)
+          ?.itemList ?? [];
       const proposed = new Set(
-        [...new Set([...traversalTiles, ...previousCasters, ...residentTiles])].filter((tile) => {
+        [
+          ...new Set([...traversalTiles, ...previousCasters, ...residentTiles]),
+        ].filter((tile) => {
           const runtimeTile = tile as RuntimeTile;
           // The receiver cut exclusively owns observer-visible coverage.
           // Re-introducing upstream's partial parent/child traversal here made

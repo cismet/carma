@@ -13,10 +13,121 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("current mesh corridor request admission", () => {
+  it("discovers metadata while payload download and parse queues are paused", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    const metadata = f.tile("external", -10, 10, -100, 16, true, f.root);
+    metadata.internal.hasUnrenderableContent = true;
+    try {
+      f.renderer.downloadQueue.maxJobsPerOrigin = 0;
+      f.renderer.parseQueue.maxJobs = 0;
+      const download = vi.fn().mockResolvedValue({ root: {} });
+      const parse = vi.fn().mockResolvedValue("metadata ready");
+      const result = f.renderer.downloadQueue
+        .add("https://example.test/external.json", metadata, download)
+        .then(() => f.renderer.parseQueue.add(metadata, parse));
+      await vi.advanceTimersByTimeAsync(40);
+      await expect(result).resolves.toBe("metadata ready");
+      expect(download).toHaveBeenCalledOnce();
+      expect(parse).toHaveBeenCalledOnce();
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBe(0);
+      expect(f.renderer.parseQueue.maxJobs).toBe(0);
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels queued metadata through the native queue facade", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    const metadata = f.tile("external", -10, 10, -100, 16, true, f.root);
+    metadata.internal.hasUnrenderableContent = true;
+    try {
+      const download = vi.fn();
+      const result = f.renderer.downloadQueue
+        .add("https://example.test/external.json", metadata, download)
+        .catch(() => "cancelled");
+      expect(f.renderer.downloadQueue.has(metadata)).toBe(true);
+      f.renderer.downloadQueue.remove(metadata);
+      expect(f.renderer.downloadQueue.has(metadata)).toBe(false);
+      await vi.advanceTimersByTimeAsync(40);
+      expect(download).not.toHaveBeenCalled();
+      expect(await result).toBe("cancelled");
+      const parse = vi.fn();
+      const parsed = f.renderer.parseQueue
+        .add(metadata, parse)
+        .catch(() => "cancelled");
+      expect(f.renderer.parseQueue.has(metadata)).toBe(true);
+      f.renderer.parseQueue.remove(metadata);
+      expect(f.renderer.parseQueue.has(metadata)).toBe(false);
+      await vi.advanceTimersByTimeAsync(5);
+      expect(parse).not.toHaveBeenCalled();
+      expect(await parsed).toBe("cancelled");
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts parsing without waiting for a render frame", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    try {
+      const frame = f.renderer.frameCount;
+      const parse = vi.fn().mockResolvedValue("decoded");
+      const result = f.renderer.parseQueue.add(f.receiver, parse);
+      expect(parse).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(5);
+      await expect(result).resolves.toBe("decoded");
+      expect(f.renderer.frameCount).toBe(frame);
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("yields before a native parse job and preserves its result", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    try {
+      f.renderer.parseQueue.autoUpdate = false;
+      const parse = vi.fn().mockResolvedValue("decoded");
+      const result = f.renderer.parseQueue.add(f.receiver, parse);
+      f.renderer.parseQueue.tryRunJobs();
+      expect(parse).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(result).resolves.toBe("decoded");
+      expect(parse).toHaveBeenCalledWith(f.receiver);
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not parse a yielded job after runtime disposal", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    try {
+      f.renderer.parseQueue.autoUpdate = false;
+      const parse = vi.fn();
+      const result = f.renderer.parseQueue.add(f.receiver, parse);
+      f.renderer.parseQueue.tryRunJobs();
+      f.dispose();
+      await vi.advanceTimersByTimeAsync(1);
+      await result;
+      expect(parse).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("wakes paused downloads on capacity recovery without another traversal", () => {
     const f = createMeshCorridorFixture();
     const queue = new PriorityQueue();
-    const schedule = vi.spyOn(queue, "scheduleJobRun").mockImplementation(() => {});
+    const schedule = vi
+      .spyOn(queue, "scheduleJobRun")
+      .mockImplementation(() => {});
     const start = vi.spyOn(queue, "tryRunJobs").mockImplementation(() => {});
     const origin = "https://resume.example.test";
     try {

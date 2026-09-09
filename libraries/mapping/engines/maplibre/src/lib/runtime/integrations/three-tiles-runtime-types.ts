@@ -31,6 +31,8 @@ export type RuntimeTile = Tile & {
   };
   engineData?: {
     scene?: THREE.Object3D;
+    materials?: THREE.Material[];
+    textures?: THREE.Texture[];
     boundingVolume?: {
       getAABB: (target: THREE.Box3) => void;
       getOBB?: (bounds: THREE.Box3, transform: THREE.Matrix4) => void;
@@ -44,6 +46,13 @@ export type RuntimeTile = Tile & {
 export type MeshTileDebugProgress = {
   discoveredAt: number;
   queuedAt?: number;
+  downloadStartedAt?: number;
+  downloadFinishedAt?: number;
+  parseStartedAt?: number;
+  parseFinishedAt?: number;
+  publicationStartedAt?: number;
+  publicationFinishedAt?: number;
+  lastError?: string;
   loadedAt?: number;
   visibleAt?: number;
   corridorReadyAt?: number;
@@ -163,6 +172,10 @@ export interface CacheBudgetOptions {
 }
 
 export interface ThreeTilesRuntimeOptions {
+  /** Optional worker-backed static hierarchy cache; false uses native JSON loading. */
+  hierarchyCache?: boolean;
+  /** Bounded pipeline console samples; false disables collection/reporting. */
+  tileTelemetry?: boolean;
   /** Dataset metadata; absent means identity, never a dataset-specific fallback. */
   colorCorrection?: TextureColorCorrection;
   cacheBudgetBytes?: number;

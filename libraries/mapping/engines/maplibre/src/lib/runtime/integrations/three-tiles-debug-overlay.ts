@@ -79,10 +79,7 @@ const BOX_EDGE_INDICES = [
   [6, 7],
 ] as const;
 
-const boxCorners = (
-  bounds: THREE.Box3,
-  transform = new THREE.Matrix4()
-) => {
+const boxCorners = (bounds: THREE.Box3, transform = new THREE.Matrix4()) => {
   const { min, max } = bounds;
   return [
     new THREE.Vector3(min.x, min.y, min.z),
@@ -102,7 +99,7 @@ const createLineSegments = (
   opacity: number,
   name: string
 ) => {
-  const geometry = new THREE.BufferGeometry().setFromPoints(positions);
+  const geometry = new THREE.BufferGeometry().setFromPoints([...positions]);
   const material = new THREE.LineBasicMaterial({
     color,
     depthTest: false,
@@ -118,10 +115,7 @@ const createLineSegments = (
   return lines;
 };
 
-const createBoundsEdges = (
-  volume: ThreeTilesDebugVolume,
-  color: string
-) => {
+const createBoundsEdges = (volume: ThreeTilesDebugVolume, color: string) => {
   const corners = boxCorners(volume.bounds, volume.boundsTransform);
   return createLineSegments(
     BOX_EDGE_INDICES.flatMap(([start, end]) => [corners[start], corners[end]]),
@@ -131,10 +125,7 @@ const createBoundsEdges = (
   );
 };
 
-const createCorridorEdges = (
-  volume: ThreeTilesDebugVolume,
-  color: string
-) => {
+const createCorridorEdges = (volume: ThreeTilesDebugVolume, color: string) => {
   if (!volume.corridor || volume.corridor.distance <= 0) return null;
   const near = boxCorners(volume.bounds, volume.boundsTransform);
   const offset = volume.corridor.direction

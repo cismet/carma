@@ -236,7 +236,7 @@ export function createThreeTilesSpatial(
         return (
           getReadyMeshRegionCut(root, frontier, acceptedError, (tile) => ({
             intersects:
-              !tile.engineData?.boundingVolume ||
+              !(tile as RuntimeTile).engineData?.boundingVolume ||
               isTileInMainView(tile as RuntimeTile),
             errorPixels: getTileScreenError(tile as RuntimeTile),
           })) !== null

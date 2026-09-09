@@ -88,6 +88,7 @@ export interface ThreeTilesRuntimeState {
   motionCoverageTimer: ReturnType<typeof setTimeout> | null;
   motionCoverageDue: boolean;
   meshDemandSweepPending: boolean;
+  meshBaseCoverageReady: boolean;
   lastMemoryCheck: number;
   normalParseConcurrency: number | null;
   orientationGroup: THREE.Group<THREE.Object3DEventMap>;

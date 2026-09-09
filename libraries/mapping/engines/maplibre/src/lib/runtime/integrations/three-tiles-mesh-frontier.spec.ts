@@ -37,6 +37,24 @@ const retain = (previous: Tile[], proposed: Tile[], requestedError = 1) =>
   });
 
 describe("local progressive mesh admission", () => {
+  it("keeps the textured parent until all visible geometry-only children are promoted", () => {
+    const { parent, children } = quartet(mesh(null, 16));
+    const ready = new Set([parent, ...children.slice(1)]);
+    const select = () =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        1,
+        Infinity,
+        (tile) => tile.traversal.inFrustum,
+        (tile) => tile.traversal.error,
+        undefined,
+        undefined,
+        (tile) => ready.has(tile)
+      );
+    expect(select()).toEqual(new Set([parent]));
+    ready.add(children[0]);
+    expect(select()).toEqual(new Set(children));
+  });
   it("retains a shared chimney parent until its offscreen caster child is loaded", () => {
     const { parent, children } = quartet(mesh(null, 16));
     const [receiver, chimney, unrelatedA, unrelatedB] = children;
@@ -466,14 +484,22 @@ describe("progressive loaded mesh display", () => {
   it("rechecks resident error and releases loose parent bounds with no intersecting children", () => {
     const { parent, children } = quartet(mesh(null, 0));
     const proposed = new Set([parent, ...children]);
-    const currentError = (tile: Tile) => tile === parent ? 16 : 0.5;
-    expect([...refineLoadedMeshFrontier(proposed, 1, () => true, currentError)])
-      .toEqual(children);
-    expect([...refineLoadedMeshFrontier(proposed, 1, tile => tile === parent, currentError)])
-      .toEqual([]);
+    const currentError = (tile: Tile) => (tile === parent ? 16 : 0.5);
+    expect([
+      ...refineLoadedMeshFrontier(proposed, 1, () => true, currentError),
+    ]).toEqual(children);
+    expect([
+      ...refineLoadedMeshFrontier(
+        proposed,
+        1,
+        (tile) => tile === parent,
+        currentError
+      ),
+    ]).toEqual([]);
     children[0].internal.loadingState = 2;
-    expect([...refineLoadedMeshFrontier(proposed, 1, () => true, currentError)])
-      .toEqual([parent]);
+    expect([
+      ...refineLoadedMeshFrontier(proposed, 1, () => true, currentError),
+    ]).toEqual([parent]);
   });
 
   it("never publishes a partial child set over a retained parent", () => {

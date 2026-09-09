@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
 
+import { hasDeferredGltfMaterials } from "./gltf-deferred-materials";
 import type { SharedThreeSceneShadowStyle } from "./shared-three-scene-layer";
 import type {
   ThreeTilesRuntimeServices,
@@ -277,6 +278,16 @@ export function createThreeTilesAppearance(
       }
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
+      if (hasDeferredGltfMaterials(mesh)) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
+        // Transient placeholders never enter the long-lived material-restore maps.
+        for (const material of dependencies.asMaterialArray(mesh.material))
+          material.shadowSide = runtimeState.shadowSimulationStyle
+            ? THREE.DoubleSide
+            : null;
+        return;
+      }
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       let clayState = runtimeState.clayMaterialStates.get(mesh);

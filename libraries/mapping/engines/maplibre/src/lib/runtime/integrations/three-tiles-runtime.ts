@@ -87,6 +87,7 @@ export function buildThreeTilesRuntime(
     getTileDebugProgress: (...args) => debug.getTileDebugProgress(...args),
     refreshRenderedMaterials: (...args) =>
       appearance.refreshRenderedMaterials(...args),
+    applyMaterialFlags: (...args) => appearance.applyMaterialFlags(...args),
     readModelWorldBounds: (...args) => spatial.readModelWorldBounds(...args),
     invalidateShadowRegionRevisions: (...args) =>
       shadows.invalidateShadowRegionRevisions(...args),

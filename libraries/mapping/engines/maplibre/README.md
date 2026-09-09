@@ -409,6 +409,216 @@ terrain-mesh runtime to the shared scene.
 - **Open:** Spatial mesh readiness/invalidation and atomic same-LOD mesh/hard
   shadow publication remain separate work, as listed above. No broad build/lint.
 
+### TILE-METADATA-FAST-LANE-20260909
+
+- **Status/date:** Implemented queue isolation,2026-09-09; persistence remains a
+  benchmark candidate. No complete-tree worker discovery implementation claimed.
+- **Context/constraints:** External JSON used the same native download and parse
+  queues as meshes. Payload backpressure therefore stalled hierarchy discovery.
+  Discover required viewport/sunward-corridor metadata before waiting for payload
+  processing, without downloading the entire city's unrelated tree speculatively.
+- **Decision:** Route native `hasUnrenderableContent` JSON jobs through independent
+  eight-download-per-origin/two-parse queues. Preserve native callbacks, tile
+  identity, loading statistics and LRU abort ownership; facade `has`/`remove`
+  cover both lanes. Metadata parsing wakes on browser tasks independently of
+  the mesh limit. Native loadingTiles tracks both lanes for readiness. Existing
+  hierarchy expansion/camera traversal remains bounded and main-thread; memory
+  safety, retries and view cancellation still apply. No global barrier holds
+  mesh work until all metadata is known.
+- **Evidence:** Focused queue tests admit/parse metadata with mesh download and
+  parse limits both zero and verify metadata cancellation through the native
+  facade. Internal Codex browser logs contain four reports with metadata active
+  while mesh admission is zero. Some JSON jobs still waited610-1411ms before
+  sub-timer-resolution preprocessing: task scheduling remains a bottleneck.
+- **Persistence experiment:** Reused `createDerivedBufferCache` in a separate
+  internal-browser tab while keeping Geoportal open, Chrome152/macOS/14logical
+  cores. Three real Mesh2024 external JSONs11542/16961/11539, encoded sizes
+  10851/14316/9708bytes. Nine alternating warm parallel batches after warm-up,
+  deep JSON parity checked each time. HTTP `force-cache` fetch+JSON parse median
+  1.2ms/p95 1.5ms; derived-cache object reads with touch:false median0.6ms/p95
+  1.0ms. Initial fetch7.1ms (not a proven cold download); writes/open8.9ms.
+  Baseline raw ms:[1.5,1.5,1,1.1,1.2,0.9,1.2,1.5,1.2]; restore:
+  [0.8,0.5,0.6,0.5,0.5,0.4,1,0.6,0.9]. About15 batch reuses amortize preparation.
+  Artifact:`output/playwright/tileset-cache-benchmark.html`; temporary isolated
+  database deleted after the run. This is not full-tree hydration, worker-transfer,
+  production freshness validation, storage overhead or end-to-end load timing.
+- **Alternatives/disposition:** Whole parsed-tree persistence: deferred, not
+  rejected. The measured raw-object restore saves0.6ms, but native live trees
+  contain prototypes, runtime references and cyclic parents; a versioned portable
+  descriptor format must reconstruct them. Stable source URLs also need validated
+  source revision/freshness and producer invalidation. Do not activate a parallel
+  production JSON cache based only on this partial-stage gain. Next benchmark must
+  include reconstruction, source validation and worker transfer before admission
+  through the existing per-client cache calibration policy.
+
+### TILE-SPARSE-HIERARCHY-INDEX-20260909
+
+- **Status/date:** Historical measured prototype, 2026-09-09; superseded for
+  integration by TILE-HIERARCHY-PAGES-PRODUCTION-20260909 below. Supersedes the three-document
+  JSON-object cache experiment above as the persistence direction, not as a
+  shipped replacement. Geoportal still uses its existing metadata-loading path.
+- **Context/constraints:** Persist the integrated static hierarchy for a fixed
+  dataset, not 3000 independently re-fetched JSON documents or live renderer
+  objects. Stay compatible with `3d-tiles-renderer@0.5.2` and existing corridor
+  APIs. Sparse growth, worker execution, at most 512 MiB of accounted resident
+  index data; do not reserve that memory or eagerly instantiate the whole tree.
+- **Decision:** Prototype typed parent/first-child/next-sibling links, geometric
+  errors, sparse Float64 transforms, UTF-8 URI tables and dictionary references.
+  Deduplicate tile/content volumes and omit exact zero components via bitmasks;
+  retain nonzero IEEE Float64 values, including negative zero, without coordinate
+  quantization or potentially lossy subtract/add deltas. Shared metadata occurs
+  once (three records in this sample), not once per tile. Rare fields remain
+  structured-clone metadata; no JSON parsing is needed on restore.
+  Reconstruct native descriptors through `TilesRenderer.preprocessNode` and use
+  the existing `readOrientedTileBounds` / `createShadowReceiverMask`. Do not
+  substitute an AABB for a native OBB or invent another refinement algorithm.
+- **Evidence:** Internal browser Chrome152/macOS, 14 logical cores; bounded real
+  breadth-first Mesh2024 hierarchy: 128 JSON documents, 70,202 nodes. The
+  preparing worker is terminated; a fresh worker reopens persistent storage and
+  restores all nodes with **zero metadata HTTP requests** in 215.4ms, including
+  5.5ms database open/read. Nine alternating warm comparisons after one warm-up
+  each: HTTP-cache/JSON/native construction median269.9ms versus index/native
+  construction198.2ms (26.6% less). p95/max-of-nine324.9ms versus338.4ms: eager
+  reconstruction still has worse tail latency. Read-only medians105.7ms versus
+  6.2ms must not be advertised as whole-app speedup. Source JSON UTF8 size27.277MB;
+  typed data5.844MB plus14.7KB estimated metadata/header payload; database and
+  native heap overhead excluded. Packing128.5ms plus writing23.3ms. Exact source
+  descriptor roundtrip and native OBB/transform parity; 210,606 existing corridor
+  queries, 317 hits, zero mismatches (synthetic light rotations, not current-view
+  shadow validation). Reproduce with the running Vite server's `/@fs/` URL for
+  `output/playwright/tileset-index-benchmark.html?limit=128`; worker implementation
+  alongside it; raw timings in `output/playwright/tileset-index-benchmark-results.json`.
+- **Alternatives/disposition:** Dense numeric columns plus per-node metadata:
+  measured rejection (larger storage and no full-path win). Sparse/deduplicated
+  columns: promising measured median gain, not yet a production admission result.
+  Native eager reconstruction: retain as parity baseline, not startup strategy.
+  Incremental immutable pages with stable node IDs and atomic manifest updates,
+  lazy native hydration, viewport-priority paging and 512MiB resident accounting:
+  next implementation, not implemented by this benchmark. Store newly integrated
+  subtrees/changed pages only; unresolved external URI references remain holes,
+  never falsely marked complete. Keep child sets/refinement identical to native.
+  Compression and direct packed-column corridor traversal: not evaluated here.
+- **Version/safety contract for integration:** Key by canonical dataset identity,
+  explicit immutable dataset revision, codec version and renderer-adapter epoch.
+  `mesh2024` or a stable URL alone is not proof of immutable contents; the resource
+  currently has no explicit revision. Without one, revalidate a trustworthy
+  whole-dataset revision manifest or fall back to ordinary loading. Never infer
+  validity of every child from an unchanged root ETag alone. Missing/corrupt
+  pages, interrupted writes, schema mismatches and storage failure must fall
+  back locally without blocking rendering. Runtime cameras, visibility, pending
+  requests, scene/material/texture handles and GPU objects are never persisted.
+- **Revisit when:** Lazy/incremental native integration is implemented; compare
+  actual application reloads and a known 3000-document workload, include transfer,
+  peak heap, source-version validation and tail latency before enabling by default.
+  The offscreen geometry-only texture trial remains a separate open benchmark.
+
+### TILE-HIERARCHY-PAGES-PRODUCTION-20260909
+
+- **Status/date:** Integrated, 2026-09-09; incremental successor to the prototype
+  above. No package changes or separate cache infrastructure.
+- **Decision:** Persist one sparse binary descriptor page per discovered external
+  tileset document through the shared derived-buffer cache. Typed parent links,
+  dictionary metadata, exact Float64 transforms/volumes/errors and UTF-8 content
+  URIs reconstruct native descriptors; no runtime renderer objects are stored.
+  Discover only demanded subtrees, write only new pages, and yield during native
+  hydration after 2 ms or 2048 nodes. Fetch, JSON parsing and packing run in a
+  module worker; native renderer preprocessing remains native, not another tree.
+- **Version contract:** Revalidate and hash the full root document at startup.
+  Key pages by source URL, root SHA-256, document URL, codec version and producer
+  epoch (hashed worker bundle in production, codec fingerprint during HMR).
+  This follows the requested fixed-dataset/root-hash contract: a child-only server
+  edit with unchanged root is NOT detectable. Mutable datasets without that
+  contract must disable `hierarchyCache` or change the root revision. A whole-tree
+  manifest would provide stronger validation but is not supplied by this source.
+- **Bounds/fallback:** 32 MiB per page, 64 MiB queued optional writes, 256 MiB
+  persistent namespace budget; no preallocated city-wide resident index. Schema
+  validation precedes publication. Storage errors/corruption/worker failure fall
+  back to normal loading. A cache read exceeding 32 ms disables reads for that
+  worker lifetime; network and worker requests have deadlines. Writes never gate
+  rendering. No per-device calibration sweep on startup.
+- **Evidence:** Internal Chrome 152/macOS, 14 logical cores; 24 real Mesh2024
+  external documents, concurrency 8, nine alternating warm batches after warm-up.
+  A fresh worker restores existing pages: median HTTP-cache/JSON path 90.0 ms
+  versus worker/cache/hydration 62.2 ms (31% reduction); p95/max 104.2 versus
+  86.9 ms. Root validation 72.7 ms separately; preparation 91.3 ms. 240 hits,
+  one root miss, zero fallbacks; descriptor parity for every document. This is
+  NOT whole-app reload timing or native OBB/shadow/render time. Reproduce using
+  `test/benchmarks/tileset-hierarchy.html` through the running Vite `/@fs/` route.
+- **Alternatives/revisit:** Raw JSON/object caches retain parsing or cloning cost;
+  the earlier eager full-tree restore had worse tail latency. Incremental native
+  hydration avoids that startup barrier. Compression/direct packed-tree traversal
+  remain unevaluated. Revisit on renderer upgrades, mutable source publication,
+  or client measurements where the read path loses against HTTP cache.
+
+### TILE-OFFSCREEN-TEXTURES-20260909
+
+- **Status/date:** Integrated and native-loader tested, 2026-09-09.
+- **Decision:** Intercept native GLTF material loading only for wholly opaque
+  triangular caster payloads. Keep positions, indices, UVs, native transforms and
+  compressed source buffers. Placeholders never write colour/depth in the normal
+  colour pass; they still cast via the shadow depth material. Promote at most two
+  newly visible payloads concurrently, retry failed images with backoff, and
+  publish complete materials atomically before receiver eligibility. Appearance
+  changes cannot turn pending placeholders into visible clay. Native engine owns
+  promoted textures/disposal and updates its memory estimate after promotion.
+- **Safety:** Alpha-mask/blend, unknown material extensions, variants and
+  non-triangle primitives remain wholly native; do not change their silhouettes.
+  A 30-second promotion deadline/disposal releases admission slots; unabortable
+  native image results arriving later are disposed, never published. Private
+  native image-cache/byte-accounting seams are documented and regression-tested.
+- **Evidence:** Three real Mesh2024 B3DM payloads, nine alternating warm parses
+  each on the above client. Full versus geometry-only median: 0.7/0.1 ms,
+  4.2/0.3 ms, 4.5/0.3 ms; p95: 1.0/0.2, 5.8/0.4, 6.1/0.4 ms.
+  Deferred decoded RGBA estimate: 256 KiB, 4 MiB, 4 MiB respectively. Geometry
+  hashes/transforms are identical. Promotion preserves geometry identity and
+  native texture ownership; delayed material loads measured 0.6, 5.2, 4.3 ms.
+  Reproduce with `test/benchmarks/offscreen-materials.html`. Excludes download,
+  GPU upload and shadow drawing; embedded image bytes are STILL downloaded.
+- **Alternatives/revisit:** Stripping image bytes from B3DM would add another
+  parser and break cheap promotion; not selected. Re-decoding a whole tile on
+  camera entry discards reusable geometry; not selected. Already textured tiles
+  are not demoted offscreen. Revisit on GLTF loader upgrades and non-opaque
+  datasets; preserve native fallback rather than extending heuristic coverage.
+
+### TILE-PIPELINE-TELEMETRY-20260909
+
+- **Status/date:** Partial implementation, 2026-09-09. Checkpoint before this work:
+  `f3a686e31`; telemetry and scheduling changes remain separate.
+- **Context/constraints:** Diagnose long queue stalls without repeatedly walking
+  the resident mesh cache. Keep rendering and requests independent; no geometry
+  serialization, texture copies, or per-frame telemetry enumeration.
+- **Decision:** Existing runtime console reports now include at most32 distinct
+  tile samples per second and an omitted-activity counter. Set runtime option
+  `tileTelemetry:false` to disable sample collection/reporting. Samples contain
+  URL, `inView`, `shadowOnly`, metadata-vs-payload flag, native loading-state code,
+  tree depth (not a raster zoom), geometric error, traversal selection SSE,
+  native camera distance and projected centre distance in NDC. Shadow-only SSE
+  is receiver-matched selection error, not offscreen observer-pixel error.
+  Existing per-tile WeakMap progress holds monotonic page-relative milliseconds:
+  discovered/first queued, download started/finished, parse started/finished,
+  loaded, publication started/finished, plus bounded error text and iterations.
+  Download-finished is parse-queue admission, including response body reading.
+  Parse elapsed includes asynchronous decoding/textures, not pure CPU time;
+  publication elapsed covers our synchronous load-model handler, not later GPU
+  uploads, traversal or shadow rendering. Samples are not a complete request log.
+- **Scheduling:** Parse-queue wakeups use coalesced browser tasks instead of rAF;
+  parse callbacks yield before work. Concurrency remains2, or1 while moving.
+  Disposal cancels wakeups and prevents yielded work from starting. Native
+  cancellation checks in the original callback remain intact. This replaces
+  rAF-coupled parsing admission, not Three's parser or its Draco worker pool.
+- **Evidence:** Internal Codex browser, existing Mesh2024 session: four observed
+  payloads spent483-506ms waiting before6-27ms parse calls. This is a small live
+  sample, not controlled A/B evidence. Nine focused corridor/scheduling tests
+  verify results, independent admission, no-render-frame progress and disposal.
+  No end-to-end or telemetry-overhead benchmark is claimed; work is bounded to32
+  records/second instead of the former full resident-cache/frustum scans.
+- **Alternatives/disposition:** Increasing download concurrency alone: deferred
+  while parsing is backed up. Whole-tree worker traversal and geometry-only
+  caster GLTF parsing/promotion: still open. Main-thread scene creation remains;
+  Draco is already worker-backed. GPU calls cannot simply be sent to a worker
+  owning a different WebGL context. Revisit after stage timing isolates the next
+  bottleneck; do not interpret timer yielding as actual worker offloading.
+
 ### CORRIDOR-REQUEST-CONCURRENCY-20260909
 
 - **Status/date:** Implemented 2026-09-09; focused concurrency regression tests.
