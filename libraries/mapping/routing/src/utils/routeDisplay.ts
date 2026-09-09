@@ -3,6 +3,7 @@
  */
 import maplibregl from "maplibre-gl";
 import { planRoute } from "../services/motisService";
+import { ROUTE_BLUE } from "./routeColors";
 
 export interface DisplayRouteOptions {
   mapInstance: maplibregl.Map;
@@ -149,7 +150,7 @@ export function displaySelectedRouteOnMap(
     route,
     sourceId = "routing-action-source",
     lineLayerId = "routing-action-line",
-    lineColor = "#3b82f6",
+    lineColor = ROUTE_BLUE,
     lineWidth = 5,
     lineOpacity = 0.8,
     fitBounds = true,
@@ -222,7 +223,7 @@ export async function displayRouteOnMap(
     time = new Date(),
     sourceId = "routing-action-source",
     lineLayerId = "routing-action-line",
-    lineColor = "#3b82f6",
+    lineColor = ROUTE_BLUE,
     lineWidth = 5,
     lineOpacity = 0.8,
     fitBounds = true,
