@@ -67,6 +67,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         "wuppUmwelt:Klimafunktion",
         "https://tiles.cismet.de/pm_naturdenkmale/style.json",
         "https://tiles.cismet.de/pm_poi/style.json",
+        "https://tiles.cismet.de/pm_belis_leuchten/style.json",
       ],
     },
     {
@@ -82,6 +83,15 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         `${PROJECTION_MAPPING_STYLES}/grundriss_light.style.json`,
         `${PROJECTION_MAPPING_STYLES}/grundriss_graublau.style.json`,
         `${PROJECTION_MAPPING_STYLES}/grundriss_extralight.style.json`,
+      ],
+    },
+    {
+      Title: "Dark",
+      layers: [
+        `${PROJECTION_MAPPING_STYLES}/trueortho_dunkel.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/grundriss_extralight_dunkel.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/grundriss_light_dunkel.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/grundriss_graublau_dunkel.style.json`,
       ],
     },
   ],
