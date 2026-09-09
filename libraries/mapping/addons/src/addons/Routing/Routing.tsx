@@ -1,23 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { faRoute } from "@fortawesome/free-solid-svg-icons";
 
+import { useLocate } from "@carma-mapping/contexts";
 import { formatRouteSummary, getModeIcon } from "@carma-mapping/routing";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import {
+  DEFAULT_ARRIVAL_METERS,
   DEFAULT_DURATION,
+  DEFAULT_FOLLOW_DURATION,
   DEFAULT_LOOK_AHEAD_METERS,
   DEFAULT_PITCH,
+  DEFAULT_RECENTER_LABEL,
+  DEFAULT_RECENTER_ORDER,
+  DEFAULT_RECENTER_POSITION,
+  DEFAULT_SNAP_TOLERANCE_METERS,
   DEFAULT_ZOOM,
 } from "./config";
+import { RecenterControl } from "./RecenterControl";
 import { routeCameraTarget } from "./routeCamera";
 import { useActiveRoute } from "./routeChannel";
 
 /**
- * Puts the user on the route in focus, when asked: the map eases to the start
- * of the route, zooms in, tilts a little and turns so the route runs up the
- * screen.
+ * Puts the user on the route and keeps them there: the map eases to where
+ * they are on it, zooms in, tilts a little and turns so the road ahead runs
+ * up the screen, and then goes along with every position fix until the
+ * destination, turning at each corner.
  *
  * Asked, not automatic. The addon reads the `activeRoute` channel for the
  * route and, while there is one, puts a button into the selected feature's
@@ -35,14 +44,27 @@ import { useActiveRoute } from "./routeChannel";
  * measured as the crow flies carries none and gets no note: a straight-line
  * distance is not a route summary.
  *
- * Whether the camera is on the route is published on `routeNavigation`, for
- * the camera restriction, which lets the map turn while it is.
+ * Where the user is comes from the locate context, the one position every
+ * reader of the map shares: the origin search hands that same position to
+ * the ranking as its starting point, so the route begins where the fixes
+ * begin, and the addon switches the location mode on without moving the map
+ * when it starts. Each fix is snapped onto the route (GPS wanders a few
+ * meters sideways) and the camera eases to it over about one fix interval,
+ * so the motion is continuous rather than a hop per second. A fix too far
+ * off the route is followed as it is, with the last bearing kept: the user
+ * has left the route, and pulling them back onto it would lie. Close enough
+ * to the end, the navigation ends on its own.
  *
- * The start of the route is where the user is: the origin search hands the
- * user's own position to the ranking as its default starting point, so the
- * first coordinate of a driven route already is the current location, and
- * the addon asks the device for nothing. A route from a picked address starts
- * at that address, which is right as well.
+ * The user's own hand wins: a drag, a wheel, a rotate pauses the following,
+ * the camera stays where they put it and the fixes keep coming in unseen. A
+ * pill at the bottom of the map, "Zentrieren", puts the camera back on the
+ * position and the following resumes, the way the recenter button of any
+ * navigation app does; it is the one piece of UI the addon renders itself.
+ * The navigation only ends with the route button, arrival, or the route
+ * going away.
+ *
+ * Whether a navigation runs is published on `routeNavigation`, for the
+ * camera restriction, which lets the map turn while it does.
  *
  * Navigation belongs to the route it was started on. Another route in focus,
  * or none, ends it: the user presses the button again for the next feature.
@@ -53,7 +75,8 @@ import { useActiveRoute } from "./routeChannel";
  * first place. Re-locking snaps rather than eases, which is why the camera is
  * flattened first and locked second.
  *
- * MapLibre only: without a MapLibre map `start` does nothing.
+ * MapLibre only: without a MapLibre map `start` does nothing and nothing is
+ * rendered.
  */
 export const Routing = ({
   config,
@@ -65,6 +88,12 @@ export const Routing = ({
     pitch = DEFAULT_PITCH,
     lookAheadMeters = DEFAULT_LOOK_AHEAD_METERS,
     duration = DEFAULT_DURATION,
+    followDuration = DEFAULT_FOLLOW_DURATION,
+    snapToleranceMeters = DEFAULT_SNAP_TOLERANCE_METERS,
+    arrivalMeters = DEFAULT_ARRIVAL_METERS,
+    recenterPosition = DEFAULT_RECENTER_POSITION,
+    recenterOrder = DEFAULT_RECENTER_ORDER,
+    recenterLabel = DEFAULT_RECENTER_LABEL,
   } = config ?? {};
 
   const [route] = useActiveRoute();
@@ -72,29 +101,51 @@ export const Routing = ({
   // what says "another route" without comparing every vertex
   const coordinates = route?.coordinates ?? null;
 
+  const { currentPosition, activate } = useLocate();
+  const position: [number, number] | null = currentPosition
+    ? [currentPosition.coords.longitude, currentPosition.coords.latitude]
+    : null;
+
   // `start` is published once and called from the info box; what it needs is
-  // read through refs so a new route or map does not republish the offer
+  // read through refs so a new route, map or fix does not republish the offer
   const mapRef = useRef(libreMap);
   mapRef.current = libreMap;
   const coordinatesRef = useRef(coordinates);
   coordinatesRef.current = coordinates;
+  const positionRef = useRef(position);
+  positionRef.current = position;
+  const fixRef = useRef(currentPosition);
+  fixRef.current = currentPosition;
+  /**
+   * The fix the camera was last sent to. The step effect below reacts to a
+   * fix it has not seen, and to nothing else: `start` and `recenter` fly to
+   * the current fix with the long ease and mark it seen, so the step does not
+   * cut that flight short with its own one-second move.
+   */
+  const handledFixRef = useRef<GeolocationPosition | null>(null);
 
   const [navigating, setNavigating] = useState(false);
   const navigatingRef = useRef(navigating);
   navigatingRef.current = navigating;
+  const [following, setFollowing] = useState(false);
+  const followingRef = useRef(following);
+  followingRef.current = following;
 
   /**
    * Counts the flights, so a `moveend` of a leave that was overtaken by a new
    * `start` does not end the navigation that start just began.
    */
   const flightRef = useRef(0);
+  /** the bearing of the last fix on the route, kept while a fix is off it */
+  const bearingRef = useRef(0);
 
   /**
    * Takes the camera off the route: back to north-up and flat, which is the
    * view the restriction locks to, and then ends the navigation. The order
    * matters: `navigating` stays true until the camera is flat, because the
    * restriction re-locks the moment it flips and would snap the camera there
-   * instead of letting it ease.
+   * instead of letting it ease. Following stops at once, so no fix arriving
+   * during the ease starts a move of its own and cuts it short.
    *
    * Eased when the user asks for it, instant when the route goes away
    * underneath (a new starting point, another pick): whoever took the route
@@ -104,6 +155,7 @@ export const Routing = ({
     (animate: boolean) => {
       const map = mapRef.current;
       const flight = ++flightRef.current;
+      setFollowing(false);
       if (!map || !animate) {
         map?.jumpTo({ pitch: 0, bearing: 0 });
         setNavigating(false);
@@ -131,32 +183,139 @@ export const Routing = ({
     }
   }, [coordinates, leave]);
 
-  const start = useCallback(() => {
+  /**
+   * Eases the camera onto the user's place on the route, or onto its start
+   * while no fix has come in yet, with the long ease: this is the flight of
+   * `start` and of `recenter`, not the step of a fix.
+   */
+  const flyOntoRoute = useCallback(() => {
     const map = mapRef.current;
     const current = coordinatesRef.current;
     if (!map || !current) {
-      return;
+      return false;
     }
-    const target = routeCameraTarget(current, lookAheadMeters);
+    const target = routeCameraTarget(
+      current,
+      lookAheadMeters,
+      positionRef.current ?? undefined
+    );
     if (!target) {
-      return;
+      return false;
     }
+    const onRoute = target.offRoute <= snapToleranceMeters;
+    if (onRoute) {
+      bearingRef.current = target.bearing;
+    }
+    handledFixRef.current = fixRef.current;
     flightRef.current++;
-    // the restriction reads `navigating` and unlocks the camera on it; that
-    // write lands before the ease starts moving, so the bearing sticks
-    setNavigating(true);
     map.easeTo({
-      center: target.center,
+      center: onRoute ? target.center : positionRef.current ?? target.center,
       zoom,
-      bearing: target.bearing,
+      bearing: onRoute ? target.bearing : bearingRef.current,
       pitch,
       duration,
     });
-  }, [zoom, pitch, lookAheadMeters, duration]);
+    return true;
+  }, [zoom, pitch, lookAheadMeters, duration, snapToleranceMeters]);
+
+  const start = useCallback(() => {
+    // the fixes are what the camera goes along with; without the map moving
+    // to them on its own, which is our job from here on
+    activate({ fly: false });
+    // the restriction reads `navigating` and unlocks the camera on it; that
+    // write lands before the ease starts moving, so the bearing sticks
+    setNavigating(true);
+    setFollowing(true);
+    flyOntoRoute();
+  }, [activate, flyOntoRoute]);
 
   const stop = useCallback(() => {
     leave(true);
   }, [leave]);
+
+  const recenter = useCallback(() => {
+    if (!navigatingRef.current) {
+      return;
+    }
+    setFollowing(true);
+    flyOntoRoute();
+  }, [flyOntoRoute]);
+
+  /**
+   * The step per fix. Only while following: a paused navigation reads the
+   * fixes and leaves the camera alone. The ease takes about one fix interval,
+   * so the camera is still moving when the next fix arrives and the motion
+   * reads as one. Arrival is judged on the route, not on a fix that happens to
+   * be far from it.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    const current = coordinatesRef.current;
+    if (
+      !map ||
+      !current ||
+      !position ||
+      !currentPosition ||
+      currentPosition === handledFixRef.current ||
+      !navigating ||
+      !following
+    ) {
+      return;
+    }
+    handledFixRef.current = currentPosition;
+    const target = routeCameraTarget(current, lookAheadMeters, position);
+    if (!target) {
+      return;
+    }
+    const onRoute = target.offRoute <= snapToleranceMeters;
+    if (onRoute && target.remaining <= arrivalMeters) {
+      leave(true);
+      return;
+    }
+    if (onRoute) {
+      bearingRef.current = target.bearing;
+    }
+    map.easeTo({
+      center: onRoute ? target.center : position,
+      zoom,
+      bearing: bearingRef.current,
+      pitch,
+      duration: followDuration,
+      easing: (t) => t,
+    });
+    // `position` is a fresh tuple per render; the fix behind it is what counts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentPosition,
+    navigating,
+    following,
+    zoom,
+    pitch,
+    lookAheadMeters,
+    followDuration,
+    snapToleranceMeters,
+    arrivalMeters,
+    leave,
+  ]);
+
+  /**
+   * The user's hand pauses the following. Only their moves count: the eases
+   * to each fix are ours and carry no `originalEvent`.
+   */
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    const onMoveStart = (event: { originalEvent?: Event }) => {
+      if (event.originalEvent) {
+        setFollowing(false);
+      }
+    };
+    libreMap.on("movestart", onMoveStart);
+    return () => {
+      libreMap.off("movestart", onMoveStart);
+    };
+  }, [libreMap, navigating]);
 
   /**
    * The button, for as long as there is a route to go along. Re-registered
@@ -199,13 +358,26 @@ export const Routing = ({
 
   const [, publishNavigation] = useAddonState("routeNavigation");
   useEffect(() => {
-    publishNavigation({ navigation: { navigating, start, stop } });
-  }, [publishNavigation, navigating, start, stop]);
+    publishNavigation({
+      navigation: { navigating, following, start, stop, recenter },
+    });
+  }, [publishNavigation, navigating, following, start, stop, recenter]);
   // the offer goes with the addon, so a route without it shows no button
   useEffect(
     () => () => publishNavigation({ navigation: null }),
     [publishNavigation]
   );
 
-  return null;
+  // the recenter button, only while the user has taken the camera off
+  if (!libreMap || !navigating || following) {
+    return null;
+  }
+  return (
+    <RecenterControl
+      position={recenterPosition}
+      order={recenterOrder}
+      label={recenterLabel}
+      onClick={recenter}
+    />
+  );
 };
