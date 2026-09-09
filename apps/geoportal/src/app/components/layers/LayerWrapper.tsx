@@ -38,6 +38,7 @@ import { AppDispatch } from "../../store";
 import {
   getBackgroundLayer,
   getLayerStack,
+  getPinning,
   getSelectedLayerIndex,
   getSelectedStackEntry,
   getSelectionShowsNoInfoView,
@@ -116,14 +117,14 @@ const LayerWrapper = () => {
     (entry) =>
       isLayerGroup(entry) || shouldShowAdhocLayerInLayerList(entry, isCesium)
   );
+  // pinning as the store applies it, so a layer pinned by its "alwaysOnTop"
+  // tool sits in the same block here as it does in the stack
   const pinnedFirstEntries = listedEntries.filter(
-    (entry) => !isLayerGroup(entry) && entry.pinned === "first"
+    (entry) => getPinning(entry) === "first"
   );
-  const sortableEntries = listedEntries.filter(
-    (entry) => isLayerGroup(entry) || !entry.pinned
-  );
+  const sortableEntries = listedEntries.filter((entry) => !getPinning(entry));
   const pinnedLastEntries = listedEntries.filter(
-    (entry) => !isLayerGroup(entry) && entry.pinned === "last"
+    (entry) => getPinning(entry) === "last"
   );
   const sortableItemIds = sortableEntries.map((entry) => entry.id);
 

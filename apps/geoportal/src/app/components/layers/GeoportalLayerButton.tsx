@@ -14,7 +14,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faEye, faEyeSlash, faFilter } from "@fortawesome/free-solid-svg-icons";
+import {
+  faEye,
+  faEyeSlash,
+  faFilter,
+  faThumbtack,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -22,6 +27,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { getInteractionButtons } from "@carma-mapping/layers";
+import { isAlwaysOnTop } from "@carma-mapping/addons";
 import { cn } from "@carma-commons/utils";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
@@ -370,6 +376,14 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
+            {isAlwaysOnTop(layer) && (
+              <Tooltip title="Dieser Layer bleibt über den anderen">
+                <FontAwesomeIcon
+                  icon={faThumbtack}
+                  className="text-xs !text-gray-600 px-1.5"
+                />
+              </Tooltip>
+            )}
             {interactionActivationMode === "action" && layer.filterConfig && (
               <button
                 id={`layerInteractionButton-${id}`}

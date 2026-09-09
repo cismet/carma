@@ -22,6 +22,7 @@ import {
 } from "@carma-appframeworks/portals";
 
 import { extractCarmaConfig } from "@carma-commons/utils";
+import { isAlwaysOnTop } from "@carma-mapping/addons";
 
 import { RootState } from "..";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
@@ -38,8 +39,22 @@ type GeoportalMappingState = Omit<MappingState, "layers"> & {
   layers: LayerStackEntry[];
 };
 
-const getPinning = (entry: LayerStackEntry) =>
-  isLayerGroup(entry) ? undefined : entry.pinned;
+/**
+ * Where an entry sits in the stack. Besides an explicit `pinned`, the
+ * "alwaysOnTop" tool pins a layer last, which is what keeps it above the layers
+ * added after it, in the renderers and in the layer bar alike.
+ */
+export const getPinning = (entry: LayerStackEntry) =>
+  isLayerGroup(entry)
+    ? undefined
+    : entry.pinned ?? (isAlwaysOnTop(entry) ? "last" : undefined);
+
+/** the stack in pinning order, entries of one block keeping their order */
+const applyPinning = (layers: LayerStackEntry[]): LayerStackEntry[] => [
+  ...layers.filter((l) => getPinning(l) === "first"),
+  ...layers.filter((l) => !getPinning(l)),
+  ...layers.filter((l) => getPinning(l) === "last"),
+];
 
 const resolveStackTarget = (
   state: GeoportalMappingState,
@@ -147,11 +162,7 @@ const slice = createSlice({
   initialState,
   reducers: {
     setLayers(state, action) {
-      const incoming = action.payload as LayerStackEntry[];
-      const pinnedFirst = incoming.filter((l) => getPinning(l) === "first");
-      const unpinned = incoming.filter((l) => !getPinning(l));
-      const pinnedLast = incoming.filter((l) => getPinning(l) === "last");
-      state.layers = [...pinnedFirst, ...unpinned, ...pinnedLast];
+      state.layers = applyPinning(action.payload as LayerStackEntry[]);
     },
     appendLayer(state, action: PayloadAction<LayerStackEntry>) {
       const entry = action.payload;
@@ -186,6 +197,9 @@ const slice = createSlice({
       const layer = resolveLayer(state, action.payload.id);
       if (layer) {
         Object.assign(layer, action.payload);
+        // the update may be what pins the layer: the catalog sync hands the
+        // layer its tools after it is already on the map
+        state.layers = applyPinning(state.layers);
       }
     },
     removeLayer(state, action: PayloadAction<string>) {
@@ -566,8 +580,14 @@ export const getLayerStack = (state: RootState): LayerStackEntry[] =>
  * The layers the map actually draws, with groups flattened into their members.
  * This is what renderers, feature info, print and share consume, so grouping
  * stays invisible to them.
+ *
+ * Pinning is applied here as well, not only in the reducers: a stack rehydrated
+ * from storage was ordered by whatever was stored, and a layer pinned by its
+ * "alwaysOnTop" tool has to end up on top there too.
  */
-export const getLayers = createSelector([getLayerStack], flattenLayerStack);
+export const getLayers = createSelector([getLayerStack], (stack) =>
+  flattenLayerStack(applyPinning(stack))
+);
 export const getSavedLayerConfigs = (state: RootState) =>
   state.mapping.savedLayerConfigs;
 export const getSelectedLayerIndex = (state: RootState) =>
