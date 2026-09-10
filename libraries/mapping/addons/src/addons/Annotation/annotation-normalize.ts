@@ -16,7 +16,16 @@ import {
   oversized,
   proxiesFor,
   sameProxy,
+  visibleOpacity,
 } from "./annotation-clip";
+import {
+  dropHeads,
+  headProxiesFor,
+  isHeadProxy,
+  parkHeads,
+  parkedHeads,
+  sameHeadProxy,
+} from "./annotation-arrowhead";
 import type { SceneRect } from "./annotation-clip";
 import { planeLog } from "./annotation-plane-active";
 import { planeSceneRect } from "./annotation-scene-space";
@@ -32,6 +41,11 @@ import type { AnnotationAnchor } from "./types";
  * `symbol`: geometry is ground referenced, it sits on the map and scales with
  * it. Decoration is screen referenced — a 2 px line is 2 px wide at every
  * zoom, and 2 px is what the toolbar hands out whatever the map is showing.
+ *
+ * An arrowhead is decoration too, and the one piece of it excalidraw keeps to
+ * itself: it is drawn at a constant size in scene units that no property can
+ * reach. It is taken off the element and drawn at its pixel size by a copy of
+ * its own, see `annotation-arrowhead`.
  *
  * An image is neither, and is not touched at all. It is drawn over a place, so
  * it stays the size it was given and scales with the map like the ground does.
@@ -510,6 +524,25 @@ export const useDecorationScale = ({
   /** the window the copies were clipped to, null while there are none */
   const clipRef = useRef<SceneRect | null>(null);
 
+  /** the heads the pen last reported, where a head picked away is noticed */
+  const headPenRef = useRef<{
+    start: unknown;
+    end: unknown;
+  }>({ start: undefined, end: undefined });
+
+  /** the rest of the pen, which only moves as a whole when one is handed over */
+  const penStyleRef = useRef("");
+
+  /** what the elements that have a head looked like when a pass last ran */
+  const headedRef = useRef("");
+
+  /** the ends of the selection the user has just picked a head away from */
+  const pickedRef = useRef<{
+    ids: Set<string>;
+    start: boolean;
+    end: boolean;
+  } | null>(null);
+
   /** the pass itself, for the callbacks that are made before it exists */
   const passRef = useRef<((force: boolean) => void) | null>(null);
   /** a pass already asked for, so a burst of reports still costs one */
@@ -637,6 +670,64 @@ export const useDecorationScale = ({
         pen.roughness.px = state.currentItemRoughness;
       }
 
+      /**
+       * A head picked away in the panel writes the absence of a head onto the
+       * element, which is what the parking writes there too — so the element
+       * cannot say it happened. The pen can: excalidraw sets the pen in the
+       * same action, and nothing else moves it while a scene is open.
+       */
+      const heads = headPenRef.current;
+      const start = state.currentItemStartArrowhead ?? null;
+      const end = state.currentItemEndArrowhead ?? null;
+      const off = {
+        start: heads.start !== undefined && heads.start !== start && !start,
+        end: heads.end !== undefined && heads.end !== end && !end,
+      };
+      headPenRef.current = { start, end };
+      // a whole pen arriving from another scene moves every style at once, and
+      // the heads with them; a pick in the panel moves nothing but the head
+      const style = [
+        state.currentItemStrokeColor,
+        state.currentItemBackgroundColor,
+        state.currentItemFillStyle,
+        state.currentItemStrokeStyle,
+        state.currentItemOpacity,
+      ].join("|");
+      const handed = style !== penStyleRef.current;
+      penStyleRef.current = style;
+      const selected = Object.keys(state.selectedElementIds ?? {}).filter(
+        (id) => state.selectedElementIds[id]
+      );
+      if (!handed && (off.start || off.end) && selected.length > 0) {
+        const picked = pickedRef.current;
+        pickedRef.current = {
+          ids: new Set([...(picked?.ids ?? []), ...selected]),
+          start: off.start || Boolean(picked?.start),
+          end: off.end || Boolean(picked?.end),
+        };
+        askForPass();
+      }
+
+      /**
+       * A head is drawn by a copy of its own, and a copy made for where the
+       * element was is a head hanging in the air. Excalidraw reports every
+       * version an element goes through, a dragged one once a frame, so this
+       * is where a head is kept up with the line it ends — the pass itself
+       * finds nothing to do once it has caught up, and the reports stop.
+       *
+       * Not `busy`: an element being *moved* is in none of the three fields
+       * above. Those hold the element being drawn, typed into or point
+       * edited, which is a different thing from the element under the hand.
+       */
+      const headed = elements
+        .filter((element) => parkedHeads(element))
+        .map((element) => `${element.id}:${element.version}`)
+        .join();
+      if (headed !== headedRef.current) {
+        headedRef.current = headed;
+        askForPass();
+      }
+
       // A style picked in the panel lands on the element here and nowhere else:
       // it is not a gesture on the canvas, so nothing else would notice it until
       // the next one — a click or two later, with the element drawn in the
@@ -722,8 +813,13 @@ export const useDecorationScale = ({
       // copies are not the drawing and are made again further down
       const scene = api.getSceneElementsIncludingDeleted();
       const spare = new Map(
-        scene.filter(isClipProxy).map((proxy) => [proxy.id, proxy])
+        scene
+          .filter((element) => isClipProxy(element) || isHeadProxy(element))
+          .map((proxy) => [proxy.id, proxy])
       );
+      // a head the user has just picked away, which only the pen could report
+      const picked = pickedRef.current;
+      pickedRef.current = null;
       // where the anchor stands once this pass is done, which is the anchor
       // every element is read into
       const anchorZoom = rebasing
@@ -731,7 +827,7 @@ export const useDecorationScale = ({
         : anchor.zoom;
 
       const rewritten = scene
-        .filter((element) => !isClipProxy(element))
+        .filter((element) => !isClipProxy(element) && !isHeadProxy(element))
         .map((element) => {
           // the element under the hand is moved out from under the pointer by
           // a rewrite, so it is left for the pass after the gesture
@@ -753,21 +849,31 @@ export const useDecorationScale = ({
           const moved =
             Math.abs(factor - 1) > EPSILON ? rebased(element, factor) : null;
           const decoration = rescaled(element, scale, pen, busy, factor);
+          // the head comes off the element, so it can be drawn at its pixel
+          // size; the element under the hand keeps its own until it is let go
+          const heads = busy.has(element.id)
+            ? null
+            : (picked?.ids.has(element.id)
+                ? dropHeads(element, picked)
+                : null) ?? parkHeads(element);
           // an image is not rescaled at all, so this is what stamps it
           const restamp =
             stamp === null || Math.abs(stamp - anchorZoom) > EPSILON;
-          if (!moved && !decoration && !restamp) {
+          if (!moved && !decoration && !heads && !restamp) {
             return element;
           }
           touched = true;
           return redrawn(element, {
             ...(moved ?? {}),
             ...(decoration ?? {}),
+            ...(heads ?? {}),
             customData: {
               ...((element.customData ?? {}) as Record<string, unknown>),
               ...((decoration?.customData as
                 | Record<string, unknown>
                 | undefined) ?? {}),
+              ...((heads?.customData as Record<string, unknown> | undefined) ??
+                {}),
               anchorZoom,
             },
           }) as ExcalidrawElement;
@@ -781,6 +887,21 @@ export const useDecorationScale = ({
       const pixelRatio = globalThis.devicePixelRatio || 1;
       const elements: ExcalidrawElement[] = [];
       const copies = new Set<string>();
+      /** how many of them are clipped outlines, which is what the window is for */
+      let clipped = 0;
+      const keep = (proxy: ExcalidrawElement) => {
+        copies.add(proxy.id);
+        const previous = spare.get(proxy.id);
+        // the same copy as last time keeps its version, so excalidraw draws it
+        // from its cache instead of making it again
+        const same = isHeadProxy(proxy) ? sameHeadProxy : sameProxy;
+        if (previous && same(previous, proxy)) {
+          elements.push(previous);
+          return;
+        }
+        touched = true;
+        elements.push(proxy);
+      };
       rewritten.forEach((element) => {
         const takeOver =
           clipBox !== null &&
@@ -789,40 +910,37 @@ export const useDecorationScale = ({
         if (!takeOver) {
           if (!isClipped(element)) {
             elements.push(element);
-            return;
+          } else {
+            touched = true;
+            elements.push(redrawn(clipShown(element), {}) as ExcalidrawElement);
           }
-          touched = true;
-          elements.push(redrawn(clipShown(element), {}) as ExcalidrawElement);
-          return;
-        }
-        if (isClipped(element)) {
-          elements.push(element);
         } else {
-          touched = true;
-          elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
-        }
-        proxiesFor(element, clipBox, geometry).forEach((proxy) => {
-          copies.add(proxy.id);
-          const previous = spare.get(proxy.id);
-          // the same copy as last time keeps its version, so excalidraw draws
-          // it from its cache instead of making it again
-          if (previous && sameProxy(previous, proxy)) {
-            elements.push(previous);
-            return;
+          if (isClipped(element)) {
+            elements.push(element);
+          } else {
+            touched = true;
+            elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
           }
-          touched = true;
-          elements.push(proxy);
-        });
+          proxiesFor(element, clipBox, geometry).forEach((proxy) => {
+            clipped += 1;
+            keep(proxy);
+          });
+        }
+        // the head is drawn over the line it ends, and is made for the element
+        // under the hand as well, so that it keeps up with it
+        headProxiesFor(element, scale, visibleOpacity(element)).forEach(keep);
       });
       if (spare.size !== copies.size) {
         touched = true;
       }
-      // a copy only covers the window it was clipped to, so panning past that
-      // window has to make them again; nothing to watch while there are none
-      clipRef.current = copies.size > 0 ? clipBox : null;
+      // a clipped copy only covers the window it was clipped to, so panning
+      // past that window has to make them again; a head copy is not clipped to
+      // anything, and nothing is watched while there are no clipped ones
+      clipRef.current = clipped > 0 ? clipBox : null;
 
       const sample = elements.find(
-        (element) => !element.isDeleted && !isClipProxy(element)
+        (element) =>
+          !element.isDeleted && !isClipProxy(element) && !isHeadProxy(element)
       );
       planeLog("normalize", {
         force,
