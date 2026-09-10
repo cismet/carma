@@ -18,7 +18,7 @@ import {
   sameProxy,
 } from "./annotation-clip";
 import type { SceneRect } from "./annotation-clip";
-import { planeLog } from "./annotation-plane-flag";
+import { planeLog } from "./annotation-plane-active";
 import { planeSceneRect } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor } from "./types";
