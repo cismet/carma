@@ -108,6 +108,13 @@ export type VehicleAnimationDefinition = {
    * map. Default: `flat`.
    */
   renderer?: VehicleRenderer;
+  /**
+   * Whether the layer-bar row belongs to the app rather than to the visitor:
+   * no button, no way to remove it, only its visibility. For an animation the
+   * app puts on every map, e.g. a default workflow. Default: false, which is
+   * what a workflow card launches.
+   */
+  permanent?: boolean;
 };
 
 export type VehicleRenderer = "flat" | "three";
@@ -139,6 +146,14 @@ export type VehicleAnimationState = {
   /** empty: the fleet runs a headway rather than a timetable */
   timetableUrl: string;
   renderer: VehicleRenderer;
+  /** the row is the app's, see `permanent` on the definition */
+  permanent: boolean;
+  /**
+   * The fleet is off the map while its row stays. What the row's eye does, as
+   * against `isOn`, which is whether there is an animation at all. The host
+   * owns the choice (it is the one that persists it) and mirrors it in here.
+   */
+  isHidden: boolean;
   /** the fleet stands still but stays on the map */
   isPaused: boolean;
   /** the route is being fetched */
@@ -189,6 +204,8 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   structureUrl: "",
   timetableUrl: "",
   renderer: "flat",
+  permanent: false,
+  isHidden: false,
   isPaused: false,
   isLoading: false,
   error: null,
@@ -233,6 +250,14 @@ export const useVehicleAnimationActions = () => {
     [setState]
   );
 
+  const setHidden = useCallback(
+    (next: boolean) =>
+      setState((previous) =>
+        previous.isHidden === next ? previous : { ...previous, isHidden: next }
+      ),
+    [setState]
+  );
+
   const setPaused = useCallback(
     (next: boolean) =>
       setState((previous) =>
@@ -272,7 +297,9 @@ export const useVehicleAnimationActions = () => {
   const setLoading = useCallback(
     (next: boolean) =>
       setState((previous) =>
-        previous.isLoading === next ? previous : { ...previous, isLoading: next }
+        previous.isLoading === next
+          ? previous
+          : { ...previous, isLoading: next }
       ),
     [setState]
   );
@@ -307,7 +334,9 @@ export const useVehicleAnimationActions = () => {
   const setFleetSize = useCallback(
     (next: number) =>
       setState((previous) =>
-        previous.fleetSize === next ? previous : { ...previous, fleetSize: next }
+        previous.fleetSize === next
+          ? previous
+          : { ...previous, fleetSize: next }
       ),
     [setState]
   );
@@ -326,6 +355,7 @@ export const useVehicleAnimationActions = () => {
     ...state,
     setOn,
     toggle,
+    setHidden,
     setPaused,
     togglePaused,
     setSpeed,
@@ -395,6 +425,11 @@ export const useVehicleAnimationLauncher = () => {
         structureUrl: def.structureUrl ?? fallback.structureUrl,
         timetableUrl: def.timetableUrl ?? fallback.timetableUrl,
         renderer: def.renderer ?? fallback.renderer,
+        permanent: def.permanent ?? fallback.permanent,
+        // the host's choice, not the definition's: a hidden default workflow
+        // that is relaunched (a route change, a config edit) stays hidden
+        // rather than flashing onto the map before the host says so again
+        isHidden: previous.isHidden,
         isOn: true,
       };
     },

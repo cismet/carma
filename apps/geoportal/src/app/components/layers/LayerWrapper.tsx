@@ -115,9 +115,12 @@ const LayerWrapper = () => {
     color: isOver ? "green" : undefined,
   };
 
+  // a permanent row belongs to the app, not to the visitor: it stays in the
+  // stack and in the layer list of the info view, but it gets no button here
   const listedEntries = layerStack.filter(
     (entry) =>
-      isLayerGroup(entry) || shouldShowAdhocLayerInLayerList(entry, isCesium)
+      isLayerGroup(entry) ||
+      (!entry.permanent && shouldShowAdhocLayerInLayerList(entry, isCesium))
   );
   // pinning as the store applies it, so a layer pinned by its "alwaysOnTop"
   // tool sits in the same block here as it does in the stack

@@ -107,6 +107,7 @@ export const VehicleAnimation = ({
     structureUrl,
     timetableUrl,
     renderer,
+    isHidden,
     isPaused,
     focusRequest,
     selectedCar,
@@ -131,6 +132,8 @@ export const VehicleAnimation = ({
   opacityRef.current = opacity;
   const pausedRef = useRef(isPaused);
   pausedRef.current = isPaused;
+  const hiddenRef = useRef(isHidden);
+  hiddenRef.current = isHidden;
   const speedRef = useRef(speedKmh);
   speedRef.current = speedKmh;
   const setSelectedCarRef = useRef(setSelectedCar);
@@ -161,6 +164,7 @@ export const VehicleAnimation = ({
     structureUrl: configStructureUrl,
     timetableUrl: configTimetableUrl,
     renderer: configRenderer,
+    permanent: configPermanent,
   } = config;
 
   useEffect(() => {
@@ -186,6 +190,7 @@ export const VehicleAnimation = ({
       structureUrl: configStructureUrl,
       timetableUrl: configTimetableUrl,
       renderer: configRenderer,
+      permanent: configPermanent,
     });
     return () => setOn(false);
   }, [
@@ -208,6 +213,7 @@ export const VehicleAnimation = ({
     configStructureUrl,
     configTimetableUrl,
     configRenderer,
+    configPermanent,
     startVehicle,
     setOn,
   ]);
@@ -325,7 +331,9 @@ export const VehicleAnimation = ({
         console.error("[VEHICLE ANIMATION] timetable request failed", error);
         setTimetable(null);
         setError(
-          `Fahrplan fehlt: ${error instanceof Error ? error.message : "unbekannter Fehler"}`
+          `Fahrplan fehlt: ${
+            error instanceof Error ? error.message : "unbekannter Fehler"
+          }`
         );
       });
 
@@ -336,8 +344,7 @@ export const VehicleAnimation = ({
   }, [isOn, timetableUrl, setError]);
 
   const fleetTimetable = useMemo<FleetTimetable | null>(
-    () =>
-      timetable ? { timetable, dwellSeconds, stationRadiusMeters } : null,
+    () => (timetable ? { timetable, dwellSeconds, stationRadiusMeters } : null),
     [timetable, dwellSeconds, stationRadiusMeters]
   );
 
@@ -351,7 +358,7 @@ export const VehicleAnimation = ({
       noseWidth: CAR_SHAPE_GTW15.noseWidth,
       noseMeters: Math.min(
         CAR_SHAPE_GTW15.noseMeters,
-        widthMeters * CAR_SHAPE_GTW15.noseMeters / CAR_SHAPE_GTW15.widthMeters
+        (widthMeters * CAR_SHAPE_GTW15.noseMeters) / CAR_SHAPE_GTW15.widthMeters
       ),
     }),
     [lengthMeters, widthMeters, sectionShares, jointMeters]
@@ -428,6 +435,8 @@ export const VehicleAnimation = ({
             onSelection: (car) => setSelectedCarRef.current(car),
           });
     handle.setPaused(pausedRef.current);
+    // a layer rebuilt while the row is hidden must not come back on the map
+    handle.setVisible(!hiddenRef.current);
     layerRef.current = handle;
 
     return () => {
@@ -471,6 +480,10 @@ export const VehicleAnimation = ({
   useEffect(() => {
     layerRef.current?.setPaused(isPaused);
   }, [isPaused]);
+
+  useEffect(() => {
+    layerRef.current?.setVisible(!isHidden);
+  }, [isHidden]);
 
   // the host closed its info box, or showed something else in it: the
   // highlight goes with it

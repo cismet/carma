@@ -27,6 +27,7 @@ import {
   getLayerStack,
   removeLayer,
   setLayers,
+  setPermanentLayerHidden,
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
@@ -59,6 +60,10 @@ const getLayerRowFallbackIcon = (layer: LayerStackEntry | BackgroundLayer) =>
 const isPinnedLayer = (layer: LayerStackEntry | BackgroundLayer): boolean =>
   !!(layer as Layer).pinned;
 
+/** the app owns this row: it can be hidden, not removed, like the background */
+const isPermanentLayer = (layer: LayerStackEntry | BackgroundLayer): boolean =>
+  !!(layer as Layer).permanent;
+
 const LayerRow = ({
   layer,
   id,
@@ -77,6 +82,7 @@ const LayerRow = ({
   const isGroup = isLayerGroup(layer);
   const icon = getLayerRowFallbackIcon(layer);
   const isPinned = isPinnedLayer(layer);
+  const isPermanent = isPermanentLayer(layer);
   const skipSelection = !isGroup && !!(layer as Layer).skipSelection;
   const isSelectable =
     index !== -1 && (!isGroup || layerGroupHasInfoView(layer));
@@ -101,7 +107,11 @@ const LayerRow = ({
   }, [dispatch, index, isSelectable]);
   const handleToggleVisibility = useCallback(
     (nextVisible: boolean) => {
-      if (onToggleVisibility) {
+      if (isPermanent) {
+        // the addon owns this row and hands it over again on every readout
+        // change, so the choice is recorded next to the stack instead of on it
+        dispatch(setPermanentLayerHidden({ id, hidden: !nextVisible }));
+      } else if (onToggleVisibility) {
         onToggleVisibility(nextVisible);
       } else if (isBackgroundLayer) {
         dispatch(changeBackgroundVisibility(nextVisible));
@@ -113,7 +123,14 @@ const LayerRow = ({
         clearLayerSelection();
       }
     },
-    [clearLayerSelection, dispatch, id, isBackgroundLayer, onToggleVisibility]
+    [
+      clearLayerSelection,
+      dispatch,
+      id,
+      isBackgroundLayer,
+      isPermanent,
+      onToggleVisibility,
+    ]
   );
   const handleRemoveLayer = useCallback(() => {
     dispatch(removeLayer(id));
@@ -178,7 +195,9 @@ const LayerRow = ({
         </p>
         <VisibilityToggle
           visible={layer.visible}
-          disabled={skipSelection || visibilityToggleDisabled}
+          // an addon row is otherwise not toggled from here; a permanent one is
+          // the exception, hiding it is the only handle the visitor has on it
+          disabled={(skipSelection && !isPermanent) || visibilityToggleDisabled}
           labels={visibilityToggleLabels}
           onToggleVisibility={handleToggleVisibility}
         />
@@ -226,13 +245,15 @@ const LayerRow = ({
                   </button>
                 </>
               )}
-              <button
-                className="ml-auto flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
-                onClick={handleRemoveLayer}
-              >
-                <FontAwesomeIcon icon={faTrash} />
-                Entfernen
-              </button>
+              {!isPermanent && (
+                <button
+                  className="ml-auto flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
+                  onClick={handleRemoveLayer}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                  Entfernen
+                </button>
+              )}
             </div>
           )}
         </div>

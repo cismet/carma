@@ -6,7 +6,10 @@ import type {
 } from "maplibre-gl";
 import * as THREE from "three";
 
-import { add3dPresence, remove3dPresence } from "@carma-mapping/engines/maplibre";
+import {
+  add3dPresence,
+  remove3dPresence,
+} from "@carma-mapping/engines/maplibre";
 
 import { buildCar, type CarModel } from "./car-model";
 import {
@@ -99,14 +102,21 @@ type LocalFrame = {
 };
 
 /** lon/lat to metres east and north of the frame's origin */
-const toLocal = (frame: LocalFrame, lon: number, lat: number): [number, number] => [
+const toLocal = (
+  frame: LocalFrame,
+  lon: number,
+  lat: number
+): [number, number] => [
   (lon - frame.origin[0]) * frame.metersPerLon,
   (lat - frame.origin[1]) * METERS_PER_LAT,
 ];
 
 /** a coarse grid over points in the local frame, for nearest lookups */
 class PointGrid<T> {
-  private readonly cells = new Map<string, { x: number; y: number; value: T }[]>();
+  private readonly cells = new Map<
+    string,
+    { x: number; y: number; value: T }[]
+  >();
 
   constructor(private readonly cellSize: number) {}
 
@@ -197,7 +207,8 @@ const groundProfile = (
     } else {
       for (let fill = previous + 1; fill < index; fill++) {
         const t = (fill - previous) / (index - previous);
-        ground[fill] = ground[previous] + (ground[index] - ground[previous]) * t;
+        ground[fill] =
+          ground[previous] + (ground[index] - ground[previous]) * t;
       }
     }
     previous = index;
@@ -224,8 +235,16 @@ const segmentAt = (cumulative: number[], distance: number): number => {
 const isCounterClockwise = (track: Track, frame: LocalFrame): boolean => {
   let area = 0;
   for (let index = 1; index < track.points.length; index++) {
-    const [ax, ay] = toLocal(frame, track.points[index - 1][0], track.points[index - 1][1]);
-    const [bx, by] = toLocal(frame, track.points[index][0], track.points[index][1]);
+    const [ax, ay] = toLocal(
+      frame,
+      track.points[index - 1][0],
+      track.points[index - 1][1]
+    );
+    const [bx, by] = toLocal(
+      frame,
+      track.points[index][0],
+      track.points[index][1]
+    );
     area += ax * by - bx * ay;
   }
   return area > 0;
@@ -305,6 +324,7 @@ export const createVehicleThreeLayer = (
 
   let opacity = options.opacity;
   let paused = false;
+  let visible = true;
   let destroyed = false;
   let lastTimestamp: number | null = null;
   /** whether a frame has set the camera yet; picking needs its matrix */
@@ -423,7 +443,8 @@ export const createVehicleThreeLayer = (
     // but only a chord stays within a hand's breadth of it along its length.
     const isRail = ([x1, y1, z1, x2, y2, z2]: Segment3): boolean => {
       const length = Math.hypot(x2 - x1, y2 - y1);
-      if (length < 0.5 || Math.abs(z2 - z1) > 0.05 * length + 0.05) return false;
+      if (length < 0.5 || Math.abs(z2 - z1) > 0.05 * length + 0.05)
+        return false;
       // judged at both ends: a chord can be 200 m long, and its middle is far
       // from every other girder point
       const floorA = lowestGirderNear(x1, y1);
@@ -443,8 +464,18 @@ export const createVehicleThreeLayer = (
         heightOf,
         (segment) => (isRail(segment) ? RAIL_COLOR : STEEL_COLOR)
       ),
-      buildMembers(members.bracing, { thickness: BRACING_THICKNESS }, steel, heightOf),
-      buildMembers(members.supports, { thickness: SUPPORT_THICKNESS }, steel, heightOf)
+      buildMembers(
+        members.bracing,
+        { thickness: BRACING_THICKNESS },
+        steel,
+        heightOf
+      ),
+      buildMembers(
+        members.supports,
+        { thickness: SUPPORT_THICKNESS },
+        steel,
+        heightOf
+      )
     );
     // the plate girder hangs under the bottom chord; the Laufwerke run on its top
     const rails = members.girder.filter(isRail);
@@ -468,7 +499,9 @@ export const createVehicleThreeLayer = (
    * ---------------------------------------------------------------- */
 
   const geometries: THREE.BufferGeometry[] = [];
-  const keep = <T extends THREE.BufferGeometry | THREE.Material>(resource: T): T => {
+  const keep = <T extends THREE.BufferGeometry | THREE.Material>(
+    resource: T
+  ): T => {
     if (resource instanceof THREE.Material) materials.push(resource);
     else geometries.push(resource);
     return resource;
@@ -502,7 +535,9 @@ export const createVehicleThreeLayer = (
         const pose = poseAt(track, distance);
         const [x, y] = toLocal(frame, pose.lon, pose.lat);
         const bottomChord = pose.height ?? 0;
-        const height = hasTerrain ? bottomChord : bottomChord - groundAt(distance);
+        const height = hasTerrain
+          ? bottomChord
+          : bottomChord - groundAt(distance);
         group.position.set(x, height, -y);
         group.rotation.y = pose.heading;
         // a pingpong vehicle runs backwards on the way home; its cab does not
@@ -530,7 +565,8 @@ export const createVehicleThreeLayer = (
     const [x, y] = toLocal(frame, pose.lon, pose.lat);
     const bottomChord = pose.height ?? 0;
     const height =
-      (hasTerrain ? bottomChord : bottomChord - groundAt(wrapped)) - CAR_PICK_DEPTH;
+      (hasTerrain ? bottomChord : bottomChord - groundAt(wrapped)) -
+      CAR_PICK_DEPTH;
     clip.set(x, height, -y, 1).applyMatrix4(camera.projectionMatrix);
     if (clip.w <= 0) return null;
     const canvas = map.getCanvas();
@@ -550,7 +586,13 @@ export const createVehicleThreeLayer = (
     const squared = dx * dx + dy * dy;
     const t =
       squared > 0
-        ? Math.max(0, Math.min(1, ((point.x - a[0]) * dx + (point.y - a[1]) * dy) / squared))
+        ? Math.max(
+            0,
+            Math.min(
+              1,
+              ((point.x - a[0]) * dx + (point.y - a[1]) * dy) / squared
+            )
+          )
         : 0;
     return Math.hypot(point.x - (a[0] + dx * t), point.y - (a[1] + dy * t));
   };
@@ -567,7 +609,11 @@ export const createVehicleThreeLayer = (
     let bestDistance = PICK_TOLERANCE_PX;
     fleet.cars.forEach((car, index) => {
       if (!car.visible) return;
-      const points = [car.distance - half, car.distance, car.distance + half].map(screenOf);
+      const points = [
+        car.distance - half,
+        car.distance,
+        car.distance + half,
+      ].map(screenOf);
       for (let step = 0; step + 1 < points.length; step++) {
         const a = points[step];
         const b = points[step + 1];
@@ -606,7 +652,10 @@ export const createVehicleThreeLayer = (
       });
       renderer.autoClear = false;
     },
-    render(gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {
+    render(
+      gl: WebGLRenderingContext | WebGL2RenderingContext,
+      args: CustomRenderMethodInput
+    ) {
       if (destroyed || !renderer) return;
 
       const now = performance.now();
@@ -645,11 +694,12 @@ export const createVehicleThreeLayer = (
   };
 
   const attach = (): void => {
-    if (destroyed || !map.getStyle() || map.getLayer(id)) return;
+    if (destroyed || !visible || !map.getStyle() || map.getLayer(id)) return;
     // before the layer goes on: the host reads the presence on the style
     // event that addLayer fires
     add3dPresence(map, id);
-    const insertBefore = beforeId && map.getLayer(beforeId) ? beforeId : undefined;
+    const insertBefore =
+      beforeId && map.getLayer(beforeId) ? beforeId : undefined;
     map.addLayer(layer, insertBefore);
     map.triggerRepaint();
   };
@@ -696,6 +746,22 @@ export const createVehicleThreeLayer = (
     setOpacity: (next) => {
       opacity = Math.max(0, Math.min(1, next));
       applyOpacity();
+      map.triggerRepaint();
+    },
+    /**
+     * The whole custom layer goes off the style rather than its members being
+     * hidden: that stops the render loop with it, and it hands back the 3D
+     * presence, so a hidden fleet no longer holds the camera free.
+     */
+    setVisible: (next) => {
+      if (visible === next) return;
+      visible = next;
+      lastTimestamp = null;
+      if (visible) {
+        attach();
+      } else {
+        detach();
+      }
       map.triggerRepaint();
     },
     getFleetSize: visibleCount,

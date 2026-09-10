@@ -96,7 +96,8 @@ const statusLabel = ({
   headwaySeconds: number;
   hasTimetable: boolean;
 }): string => {
-  if (error) return error.startsWith("Fahrplan") ? "Fahrplan fehlt" : "Strecke fehlt";
+  if (error)
+    return error.startsWith("Fahrplan") ? "Fahrplan fehlt" : "Strecke fehlt";
   if (isLoading) return "lädt";
   if (isPaused) return "angehalten";
   if (hasTimetable) return `${countLabel(fleetSize)} · Fahrplan`;
@@ -186,6 +187,12 @@ export type UseVehicleAnimationLayerRowOptions = {
    * being dropped as stale.
    */
   restoredSeed?: VehicleAnimationDefinition;
+  /**
+   * Whether the host has this row hidden. The host owns the choice, because it
+   * is the one that persists it; this mirrors it into the channel, where the
+   * engine reads it, and reports it back as the row's `visible`.
+   */
+  hidden?: boolean;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
   /** the host keeps a snapshot, so a changed row has to be handed over again */
@@ -201,6 +208,7 @@ export const useVehicleAnimationLayerRow = ({
   hasRow,
   hasEngine,
   restoredSeed,
+  hidden,
   onAdd,
   onRemove,
   onUpdate,
@@ -208,6 +216,8 @@ export const useVehicleAnimationLayerRow = ({
   const {
     isOn,
     setOn,
+    isHidden,
+    setHidden,
     title,
     trackUrl,
     lengthMeters,
@@ -228,6 +238,7 @@ export const useVehicleAnimationLayerRow = ({
     structureUrl,
     timetableUrl,
     renderer,
+    permanent,
     isPaused,
     isLoading,
     error,
@@ -238,6 +249,14 @@ export const useVehicleAnimationLayerRow = ({
     requestFocus,
   } = useVehicleAnimationActions();
   const { startVehicle } = useVehicleAnimationLauncher();
+
+  // the host's choice reaches the engine through the channel, the same way
+  // everything else about the animation does
+  useEffect(() => {
+    if (hidden !== undefined && hidden !== isHidden) {
+      setHidden(hidden);
+    }
+  }, [hidden, isHidden, setHidden]);
 
   const label = statusLabel({
     isLoading,
@@ -258,7 +277,24 @@ export const useVehicleAnimationLayerRow = ({
     () => ({
       ...VEHICLE_ANIMATION_LAYER,
       title,
-      iconColor: canPlay && !isPaused ? ICON_COLOR.running : ICON_COLOR.idle,
+      // an app-owned row: no layer button, and no path removes it
+      permanent,
+      // A row the visitor switched on is the newest thing on the map and pins
+      // last, above everything already there. A permanent one is not something
+      // anyone put on top: it is the app's own furniture and sits directly on
+      // the background, so every layer added later draws over it.
+      pinned: permanent ? "first" : VEHICLE_ANIMATION_LAYER.pinned,
+      // what the row's eye shows; the engine reads the same flag
+      visible: !isHidden,
+      // The blue says "this mode is running", which is worth saying for a row
+      // the visitor switched on and can switch off again. A permanent row is
+      // simply there, like the background, so its icon takes the layer list's
+      // own colour rather than reporting a state.
+      iconColor: permanent
+        ? undefined
+        : canPlay && !isPaused
+        ? ICON_COLOR.running
+        : ICON_COLOR.idle,
       interactionButtons: buildInteractionButtons(
         label,
         isPaused,
@@ -310,6 +346,8 @@ export const useVehicleAnimationLayerRow = ({
     }),
     [
       title,
+      permanent,
+      isHidden,
       label,
       isPaused,
       canPlay,
