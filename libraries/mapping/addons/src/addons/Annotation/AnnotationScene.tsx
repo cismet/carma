@@ -186,6 +186,17 @@ export const AnnotationScene = ({
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const plane = usePlaneActive(libreMap);
+
+  /**
+   * The drawing lies on the ground and is put on screen by one matrix a frame,
+   * so it follows bearing and pitch instead of being hidden by them. The plane
+   * hangs past the map area by as much ground as the camera is looking at —
+   * a rotation turns the corners out, a pitch pushes the far side a long way
+   * out; the box is clipped back to the map area in CSS. It is measured before
+   * the camera, because the camera is what puts the map area's middle in the
+   * middle of that box.
+   */
+  const margin = usePlaneMargin(libreMap, host, inset, plane);
   const {
     inSync,
     onSceneChange,
@@ -201,17 +212,10 @@ export const AnnotationScene = ({
     live,
     syncLimits,
     savedAnchor,
-    plane
+    plane,
+    margin
   );
   const drawing = editable && inSync;
-
-  /**
-   * The drawing lies on the ground and is put on screen by one matrix a frame,
-   * so it follows bearing and pitch instead of being hidden by them. The plane
-   * hangs past the map area on every side, which is what a rotation turns into
-   * the corners; the box is clipped back to the map area in CSS.
-   */
-  const margin = usePlaneMargin(host, plane);
   const ground = useGroundPlane({
     map: libreMap,
     box,
@@ -581,15 +585,17 @@ export const AnnotationScene = ({
       style={
         {
           position: "absolute",
-          top: inset.top - margin.y,
-          right: inset.right - margin.x,
-          bottom: inset.bottom - margin.y,
-          left: inset.left - margin.x,
+          top: inset.top - margin.top,
+          right: inset.right - margin.right,
+          bottom: inset.bottom - margin.bottom,
+          left: inset.left - margin.left,
           zIndex,
           pointerEvents: drawing ? "auto" : "none",
           visibility: inSync && shown ? "visible" : "hidden",
-          "--carma-plane-x": `${margin.x}px`,
-          "--carma-plane-y": `${margin.y}px`,
+          "--carma-plane-top": `${margin.top}px`,
+          "--carma-plane-right": `${margin.right}px`,
+          "--carma-plane-bottom": `${margin.bottom}px`,
+          "--carma-plane-left": `${margin.left}px`,
         } as CSSProperties
       }
     >
