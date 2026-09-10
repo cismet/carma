@@ -25,7 +25,7 @@ export default defineConfig(() => ({
     base: process.env.BASE_URL || "/",
     worker: {
       // Module workers need ES output for their dynamically imported chunks.
-      format: "es",
+      format: "es" as const,
       // The worker sub-build resolves the wildcard tsconfig paths like the main build.
       plugins: () => [nxViteTsPaths()],
     },
