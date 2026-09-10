@@ -73,6 +73,36 @@ function mapIsUsable(map: unknown): boolean {
   return !!candidate && !candidate._removed && !!candidate.style;
 }
 
+/**
+ * Whether the style will accept a layer, which is all `attach` has to wait for.
+ *
+ * Deliberately not `map.isStyleLoaded()`. That reports the whole style ready,
+ * and `Style.loaded()` only says yes once every source has finished loading its
+ * tiles as well:
+ *
+ *     if (!this._loaded) return false;
+ *     if (Object.keys(this._updatedSources).length) return false;
+ *     for (const id in this.tileManagers)
+ *       if (!this.tileManagers[id].loaded()) return false;
+ *
+ * A single request that never settles, a dropped DEM tile for instance, holds
+ * that at false for as long as the map lives. `idle` is gated on the same
+ * predicate, so the retry that was meant to cover the wait never fires either
+ * and the tileset is never put on at all. Switching terrain on is itself one
+ * more source that has to settle first, and this layer is the reason it went on.
+ *
+ * `addLayer` asks for far less: `Style._checkLoaded` throws only while
+ * `Style._loaded` is false, which flips as soon as the style document has been
+ * parsed, whatever its sources are still doing.
+ */
+function styleAcceptsLayers(map: unknown): boolean {
+  if (!mapIsUsable(map)) {
+    return false;
+  }
+  const style = (map as { style: { _loaded?: boolean } }).style;
+  return style._loaded === true;
+}
+
 export function Tiles3dLayerManager({
   config,
   layerOpacity,
@@ -100,12 +130,16 @@ export function Tiles3dLayerManager({
     // Adding the layer is a repeated affair, not a one-off. MapLibre cannot
     // diff a style while a custom layer is attached, so every change to the
     // layer list rebuilds the style from scratch and takes this layer off
-    // again. The style can also still be loading when the config first
-    // arrives, and `addLayer` refuses outright while it is. Both are answered
-    // by trying again on the events that mark the style usable; the layer
-    // object survives in between, so a re-attach costs no downloads.
+    // again. The style document can also still be unparsed when the config
+    // first arrives, and `addLayer` throws while it is. Both are answered by
+    // trying again on the events that mark the style usable; the layer object
+    // survives in between, so a re-attach costs no downloads.
+    //
+    // What is deliberately not waited for is the style being *fully* loaded,
+    // see `styleAcceptsLayers`: that never arrives while any source has a
+    // request outstanding, and it would take `idle` down with it.
     const attach = () => {
-      if (!mapIsUsable(map) || !map.isStyleLoaded()) return;
+      if (!styleAcceptsLayers(map)) return;
       if (map.getLayer(layerId)) return;
 
       const layer =
