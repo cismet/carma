@@ -85,6 +85,7 @@ type PersistedLayer = {
   id?: string;
   tools?: unknown[];
   interactionButtons?: unknown;
+  permanent?: boolean;
 };
 
 /**
@@ -102,6 +103,10 @@ type PersistedLayer = {
  * startup, with one exception: a mode row that carries `tools` holds its own
  * relaunch config (the time series embeds its series there, the way a
  * workflow card does) and is exactly what its mode needs at boot.
+ *
+ * A permanent row is dropped either way. It is the app's, built from the
+ * config on every boot (see `constants/default-workflows`), so a restored one
+ * could only be an older reading of a definition that has since been edited.
  */
 const dropModeRows = createTransform<PersistedLayer[], PersistedLayer[]>(
   (inbound) =>
@@ -118,7 +123,8 @@ const dropModeRows = createTransform<PersistedLayer[], PersistedLayer[]>(
     Array.isArray(outbound)
       ? outbound.filter(
           (layer) =>
-            !layer?.id?.startsWith("__") || (layer.tools?.length ?? 0) > 0
+            !layer?.permanent &&
+            (!layer?.id?.startsWith("__") || (layer.tools?.length ?? 0) > 0)
         )
       : outbound,
   { whitelist: ["layers"] }
@@ -130,6 +136,9 @@ const mappingConfig = {
   transforms: [dropModeRows],
   whitelist: [
     "layers",
+    // the rows themselves are rebuilt from config on every boot, only the
+    // visitor's choice to hide one survives
+    "hiddenPermanentLayers",
     "focusMode",
     "savedLayerConfigs",
     "selectedMapLayer",

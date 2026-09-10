@@ -9,6 +9,7 @@ import {
 
 import {
   appendLayer,
+  getHiddenPermanentLayers,
   getLayers,
   removeLayer,
   updateLayer,
@@ -26,10 +27,16 @@ export function useVehicleAnimationLayerButton() {
   // this hook runs on every route, the addon that draws the animation does not;
   // a row that arrives without it is dropped rather than shown dead
   const hasEngine = useHasAddonStateProducer("vehicleAnimation");
+  // the visitor's choice for this row, kept next to the stack because the row
+  // itself is rebuilt from config on every boot
+  const hidden = useSelector(getHiddenPermanentLayers).includes(
+    VEHICLE_ANIMATION_LAYER_ID
+  );
 
   useVehicleAnimationLayerRow({
     hasRow: Boolean(rowLayer),
     hasEngine,
+    hidden,
     // a row that came back out of the persisted layer stack carries its
     // service in its tools; the lib hook relaunches it at boot
     restoredSeed: getVehicleAnimationRowSeed(rowLayer),
@@ -37,6 +44,8 @@ export function useVehicleAnimationLayerButton() {
     // the readout carries the speed and the pause state, so the row goes stale
     // without the animation itself changing
     onUpdate: (layer) => dispatch(updateLayer(layer)),
-    onRemove: (id) => dispatch(removeLayer(id)),
+    // the addon owns this row, so it takes down a permanent one as well, e.g.
+    // when its engine is suspended in the addon manager
+    onRemove: (id) => dispatch(removeLayer({ id, force: true })),
   });
 }

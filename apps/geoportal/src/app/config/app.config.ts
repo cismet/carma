@@ -32,6 +32,7 @@ import {
 import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
+import { defaultWorkflowAddons } from "../constants/default-workflows";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -76,13 +77,19 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
  * A default addon may carry an `availability` like a route addon; a feature
  * flag used there must be in the base feature flag config (featureFlags.ts).
  * The route's addons arrive already filtered, see constants/fachzwillinge.
+ *
+ * The default workflows join the defaults as ordinary addon entries, each
+ * carrying the definition it launches at mount, see constants/default-workflows.
+ * They follow the same precedence rule, so a route that declares the same kind
+ * takes the engine over and the default workflow does not run there.
  */
 export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
   const declared = new Set((addons ?? []).map(getAddonKind));
   return [
-    ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext).filter(
-      (addon) => !declared.has(getAddonKind(addon))
-    ),
+    ...[
+      ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext),
+      ...defaultWorkflowAddons(),
+    ].filter((addon) => !declared.has(getAddonKind(addon))),
     ...(addons ?? []),
   ];
 };

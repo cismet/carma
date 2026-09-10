@@ -3,7 +3,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrain } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 
-import { claimClick } from "@carma-mapping/engines/maplibre";
+import {
+  claimClick,
+  useCameraRestriction,
+} from "@carma-mapping/engines/maplibre";
 import {
   Control,
   ControlButtonStyler,
@@ -49,6 +52,21 @@ export type VehicleAnimationConfig = Partial<VehicleAnimationDefinition> & {
   /** whether a config-declared route goes on the map at mount. Default: true */
   startEnabled?: boolean;
   /**
+   * The animation to run instead while the map's camera restriction is lifted,
+   * i.e. while the map is in 3D. The same fleet as a `three` variant is what
+   * this is for: relief is on and the view can be tilted, so the Gerüst may as
+   * well stand up in it.
+   *
+   * It runs with `claims3d: false`, whatever it says itself. This variant is a
+   * consequence of the free camera and must not become its own cause: counting
+   * itself would keep the camera free after everything else 3D has gone, and
+   * the flat variant could never come back.
+   *
+   * Only for a config-declared animation: a workflow card launches one variant
+   * and switches nothing.
+   */
+  variant3d?: VehicleAnimationDefinition;
+  /**
    * Whether the control column gets a button toggling the animation. Default:
    * false; the layer-bar row is the addon's face, the button is opt-in.
    */
@@ -77,6 +95,7 @@ export const VehicleAnimation = ({
 }: AddonComponentProps<"vehicleAnimation">) => {
   const {
     startEnabled = true,
+    variant3d,
     showControl = false,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -86,6 +105,7 @@ export const VehicleAnimation = ({
   const {
     isOn,
     toggle,
+    title: runningTitle,
     trackUrl,
     lengthMeters,
     widthMeters,
@@ -107,6 +127,8 @@ export const VehicleAnimation = ({
     structureUrl,
     timetableUrl,
     renderer,
+    claims3d,
+    isHidden,
     isPaused,
     focusRequest,
     selectedCar,
@@ -131,6 +153,8 @@ export const VehicleAnimation = ({
   opacityRef.current = opacity;
   const pausedRef = useRef(isPaused);
   pausedRef.current = isPaused;
+  const hiddenRef = useRef(isHidden);
+  hiddenRef.current = isHidden;
   const speedRef = useRef(speedKmh);
   speedRef.current = speedKmh;
   const setSelectedCarRef = useRef(setSelectedCar);
@@ -161,56 +185,153 @@ export const VehicleAnimation = ({
     structureUrl: configStructureUrl,
     timetableUrl: configTimetableUrl,
     renderer: configRenderer,
+    permanent: configPermanent,
   } = config;
 
+  /** what this mount puts on the map, or null when the engine only idles */
+  const configDefinition = useMemo<VehicleAnimationDefinition | null>(
+    () =>
+      configTrackUrl
+        ? {
+            title: configTitle ?? "Fahrzeug",
+            trackUrl: configTrackUrl,
+            lengthMeters: configLengthMeters,
+            widthMeters: configWidthMeters,
+            sectionShares: configSectionShares,
+            jointMeters: configJointMeters,
+            speedKmh: configSpeedKmh,
+            mode: configMode,
+            schedule: configSchedule,
+            bodyColor: configBodyColor,
+            jointColor: configJointColor,
+            outlineColor: configOutlineColor,
+            opacity: configOpacity,
+            showTrack: configShowTrack,
+            trackColor: configTrackColor,
+            structureUrl: configStructureUrl,
+            timetableUrl: configTimetableUrl,
+            renderer: configRenderer,
+            permanent: configPermanent,
+          }
+        : null,
+    [
+      configTitle,
+      configTrackUrl,
+      configLengthMeters,
+      configWidthMeters,
+      configSectionShares,
+      configJointMeters,
+      configSpeedKmh,
+      configMode,
+      configSchedule,
+      configBodyColor,
+      configJointColor,
+      configOutlineColor,
+      configOpacity,
+      configShowTrack,
+      configTrackColor,
+      configStructureUrl,
+      configTimetableUrl,
+      configRenderer,
+      configPermanent,
+    ]
+  );
+
+  /**
+   * The 3D alternative, with the two facts that belong to this mount rather
+   * than to the definition written over it.
+   *
+   * `claims3d`: it appears because the camera is already free, so it must not
+   * become the reason it stays free. See `variant3d` on the config.
+   *
+   * `permanent`: switching variant may not change whose row it is. The flag
+   * reaches the base definition from the config the host resolved (a default
+   * workflow sets it there), and the nested variant is not part of that
+   * config, so without this the switch to 3D would hand the visitor a button
+   * and a ✕ for a row the app owns.
+   */
+  const variant3dDefinition = useMemo<VehicleAnimationDefinition | null>(
+    () =>
+      variant3d
+        ? { ...variant3d, claims3d: false, permanent: configPermanent }
+        : null,
+    [variant3d, configPermanent]
+  );
+
+  // the map's own answer, the same one the terrain follows: no entry yet means
+  // the engine has not written its base, and until then nothing is free
+  const cameraRestricted = useCameraRestriction(libreMap)?.restricted ?? true;
+
+  /** the variant this mount wants on the map right now */
+  const activeDefinition =
+    !cameraRestricted && variant3dDefinition
+      ? variant3dDefinition
+      : configDefinition;
+
+  /**
+   * Whether the running animation is this mount's, rather than one a workflow
+   * card launched into the same channel. The channel holds one at a time, so
+   * both the variant switch and the reclaim below have to keep their hands off
+   * a card's animation; the launcher tells two definitions apart by title and
+   * route, so that is what is compared here.
+   */
+  const isOurs =
+    (!!configDefinition &&
+      runningTitle === configDefinition.title &&
+      trackUrl === configDefinition.trackUrl) ||
+    (!!variant3dDefinition &&
+      runningTitle === variant3dDefinition.title &&
+      trackUrl === variant3dDefinition.trackUrl);
+
+  // read without depending on it: the effects below react to their own
+  // triggers, and always launch whatever the current pick is
+  const activeDefinitionRef = useRef(activeDefinition);
+  activeDefinitionRef.current = activeDefinition;
+
   useEffect(() => {
-    if (!startEnabled || !configTrackUrl) {
+    if (!startEnabled || !configDefinition) {
       return undefined;
     }
-    startVehicle({
-      title: configTitle ?? "Fahrzeug",
-      trackUrl: configTrackUrl,
-      lengthMeters: configLengthMeters,
-      widthMeters: configWidthMeters,
-      sectionShares: configSectionShares,
-      jointMeters: configJointMeters,
-      speedKmh: configSpeedKmh,
-      mode: configMode,
-      schedule: configSchedule,
-      bodyColor: configBodyColor,
-      jointColor: configJointColor,
-      outlineColor: configOutlineColor,
-      opacity: configOpacity,
-      showTrack: configShowTrack,
-      trackColor: configTrackColor,
-      structureUrl: configStructureUrl,
-      timetableUrl: configTimetableUrl,
-      renderer: configRenderer,
-    });
+    startVehicle(activeDefinitionRef.current ?? configDefinition);
     return () => setOn(false);
-  }, [
-    startEnabled,
-    configTitle,
-    configTrackUrl,
-    configLengthMeters,
-    configWidthMeters,
-    configSectionShares,
-    configJointMeters,
-    configSpeedKmh,
-    configMode,
-    configSchedule,
-    configBodyColor,
-    configJointColor,
-    configOutlineColor,
-    configOpacity,
-    configShowTrack,
-    configTrackColor,
-    configStructureUrl,
-    configTimetableUrl,
-    configRenderer,
-    startVehicle,
-    setOn,
-  ]);
+  }, [startEnabled, configDefinition, startVehicle, setOn]);
+
+  /**
+   * The map went 3D, or came back out of it: run the other variant.
+   *
+   * Relaunching is what a variant change costs, because the renderer decides
+   * which layer is built. A headway fleet therefore re-forms once per switch,
+   * which is accepted; a timetable fleet is placed from the clock and does not.
+   */
+  useEffect(() => {
+    if (!startEnabled || !isOurs || !activeDefinition) {
+      return;
+    }
+    startVehicle(activeDefinition);
+  }, [startEnabled, isOurs, activeDefinition, startVehicle]);
+
+  /**
+   * A default workflow owns the channel whenever nothing else is using it.
+   *
+   * The channel holds one animation at a time, so a workflow card takes it over
+   * while it runs. Switching that card off again (its ✕, or a second click on
+   * the card) left the map bare until a reload, because the mount effect above
+   * had long since run. Claiming the channel back here is what makes the
+   * default behave like the app's own furniture rather than like a card that
+   * happened to be launched first.
+   *
+   * Only on the transition to off, and only for a config the app declared
+   * permanent: an idle engine a route mounts for its cards stays idle.
+   */
+  const wasOnRef = useRef(isOn);
+  useEffect(() => {
+    const wasOn = wasOnRef.current;
+    wasOnRef.current = isOn;
+    const definition = activeDefinitionRef.current;
+    if (!isOn && wasOn && startEnabled && configPermanent && definition) {
+      startVehicle(definition);
+    }
+  }, [isOn, startEnabled, configPermanent, startVehicle]);
 
   // Fetch and stitch the route. Separate from the layer, because the same route
   // survives a hold, an opacity change and a basemap swap, and re-reading a few
@@ -325,7 +446,9 @@ export const VehicleAnimation = ({
         console.error("[VEHICLE ANIMATION] timetable request failed", error);
         setTimetable(null);
         setError(
-          `Fahrplan fehlt: ${error instanceof Error ? error.message : "unbekannter Fehler"}`
+          `Fahrplan fehlt: ${
+            error instanceof Error ? error.message : "unbekannter Fehler"
+          }`
         );
       });
 
@@ -336,8 +459,7 @@ export const VehicleAnimation = ({
   }, [isOn, timetableUrl, setError]);
 
   const fleetTimetable = useMemo<FleetTimetable | null>(
-    () =>
-      timetable ? { timetable, dwellSeconds, stationRadiusMeters } : null,
+    () => (timetable ? { timetable, dwellSeconds, stationRadiusMeters } : null),
     [timetable, dwellSeconds, stationRadiusMeters]
   );
 
@@ -351,7 +473,7 @@ export const VehicleAnimation = ({
       noseWidth: CAR_SHAPE_GTW15.noseWidth,
       noseMeters: Math.min(
         CAR_SHAPE_GTW15.noseMeters,
-        widthMeters * CAR_SHAPE_GTW15.noseMeters / CAR_SHAPE_GTW15.widthMeters
+        (widthMeters * CAR_SHAPE_GTW15.noseMeters) / CAR_SHAPE_GTW15.widthMeters
       ),
     }),
     [lengthMeters, widthMeters, sectionShares, jointMeters]
@@ -402,6 +524,7 @@ export const VehicleAnimation = ({
             jointColor,
             opacity: opacityRef.current,
             structure,
+            claims3d,
             beforeId,
             onFleetSize: setFleetSize,
             onSelection: (car) => setSelectedCarRef.current(car),
@@ -428,6 +551,8 @@ export const VehicleAnimation = ({
             onSelection: (car) => setSelectedCarRef.current(car),
           });
     handle.setPaused(pausedRef.current);
+    // a layer rebuilt while the row is hidden must not come back on the map
+    handle.setVisible(!hiddenRef.current);
     layerRef.current = handle;
 
     return () => {
@@ -454,6 +579,7 @@ export const VehicleAnimation = ({
     fleetTimetable,
     timetableUrl,
     renderer,
+    claims3d,
     beforeId,
     setFleetSize,
   ]);
@@ -471,6 +597,10 @@ export const VehicleAnimation = ({
   useEffect(() => {
     layerRef.current?.setPaused(isPaused);
   }, [isPaused]);
+
+  useEffect(() => {
+    layerRef.current?.setVisible(!isHidden);
+  }, [isHidden]);
 
   // the host closed its info box, or showed something else in it: the
   // highlight goes with it

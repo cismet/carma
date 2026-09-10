@@ -75,6 +75,12 @@ export type VehicleLayerHandle = {
   setSpeed: (speedKmh: number) => void;
   setPaused: (paused: boolean) => void;
   setOpacity: (opacity: number) => void;
+  /**
+   * Take the fleet off the map without ending it. Unlike `setPaused`, which
+   * leaves the vehicles standing where they are, this draws nothing at all and
+   * lets the animation rest; the row that hid it can bring it back.
+   */
+  setVisible: (visible: boolean) => void;
   /** how many vehicles are on the track right now */
   getFleetSize: () => number;
   /** the vehicle under a screen point (CSS pixels), as its index in the fleet, or null */
@@ -88,7 +94,10 @@ export type VehicleLayerHandle = {
    * moving the map is the host app's business, and moving this MapLibre map
    * on its own would leave the other framework behind.
    */
-  pickNearestCar: (lon: number, lat: number) => { lon: number; lat: number } | null;
+  pickNearestCar: (
+    lon: number,
+    lat: number
+  ) => { lon: number; lat: number } | null;
   destroy: () => void;
 };
 
@@ -115,10 +124,14 @@ const metersWide = (
   lat: number,
   minPixels: number
 ): ExpressionSpecification => {
-  const metersPerPixel = EQUATOR_METERS_PER_PIXEL * Math.cos((lat * Math.PI) / 180);
+  const metersPerPixel =
+    EQUATOR_METERS_PER_PIXEL * Math.cos((lat * Math.PI) / 180);
   const stops: number[] = [];
   for (let zoom = 10; zoom <= 24; zoom++) {
-    stops.push(zoom, Math.max(minPixels, (meters * 2 ** zoom) / metersPerPixel));
+    stops.push(
+      zoom,
+      Math.max(minPixels, (meters * 2 ** zoom) / metersPerPixel)
+    );
   }
   return ["interpolate", ["exponential", 2], ["zoom"], ...stops];
 };
@@ -165,6 +178,19 @@ export const createVehicleLayer = (
   const railId = `${id}-rail`;
   const stationDotId = `${id}-stations`;
   const stationLabelId = `${id}-station-labels`;
+  /** every layer the fleet draws, for the ones that go on or off together */
+  const allLayerIds = [
+    bodyId,
+    jointId,
+    outlineId,
+    trackId,
+    girderId,
+    bracingId,
+    supportId,
+    railId,
+    stationDotId,
+    stationLabelId,
+  ];
 
   /** the structure's lines from above, built once: they never move */
   const structureFeatures = structure ? structurePlanFeatures(structure) : null;
@@ -172,6 +198,7 @@ export const createVehicleLayer = (
 
   let opacity = options.opacity;
   let paused = false;
+  let visible = true;
   let destroyed = false;
   let frame: number | null = null;
   let lastTimestamp: number | null = null;
@@ -206,7 +233,11 @@ export const createVehicleLayer = (
       car.visible
         ? carParts(track, car.distance, shape).map((part) => ({
             type: "Feature" as const,
-            properties: { part: part.kind, car: index, selected: index === selected },
+            properties: {
+              part: part.kind,
+              car: index,
+              selected: index === selected,
+            },
             geometry: { type: "Polygon" as const, coordinates: [part.ring] },
           }))
         : []
@@ -455,6 +486,23 @@ export const createVehicleLayer = (
     }
 
     pushCars();
+    // a basemap swap rebuilds every layer with the style's own defaults, so a
+    // fleet that was hidden has to be hidden again here
+    applyVisibility();
+  };
+
+  /** what `setVisible` and every re-attach apply to the layers that exist */
+  const applyVisibility = (): void => {
+    if (!map.getStyle()) return;
+    for (const layerId of allLayerIds) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(
+          layerId,
+          "visibility",
+          visible ? "visible" : "none"
+        );
+      }
+    }
   };
 
   const detach = (): void => {
@@ -499,7 +547,7 @@ export const createVehicleLayer = (
   };
 
   const start = (): void => {
-    if (destroyed || paused || frame !== null) return;
+    if (destroyed || paused || !visible || frame !== null) return;
     lastTimestamp = null;
     frame = requestAnimationFrame(tick);
   };
@@ -547,6 +595,17 @@ export const createVehicleLayer = (
         map.setPaintProperty(stationDotId, "circle-stroke-opacity", opacity);
       }
     },
+    setVisible: (next) => {
+      if (visible === next) return;
+      visible = next;
+      applyVisibility();
+      // nothing is drawn while hidden, so the frame loop rests as well
+      if (visible) {
+        start();
+      } else {
+        stop();
+      }
+    },
     getFleetSize: visibleCount,
     pickCarAt: (point) => {
       if (!map.getStyle()) return null;
@@ -558,7 +617,8 @@ export const createVehicleLayer = (
         .queryRenderedFeatures([point.x, point.y], { layers })
         .find(
           (feature) =>
-            typeof (feature.properties as Record<string, unknown>).car === "number"
+            typeof (feature.properties as Record<string, unknown>).car ===
+            "number"
         );
       return hit
         ? ((hit.properties as Record<string, unknown>).car as number)

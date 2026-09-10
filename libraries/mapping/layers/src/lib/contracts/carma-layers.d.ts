@@ -186,6 +186,13 @@ type BaseLayer = {
   /** Size of the row icon as a CSS length, e.g. "1.25rem". Default: 1rem */
   iconSize?: string;
   pinned?: "first" | "last";
+  /**
+   * A row the app owns rather than the visitor: it gets no button in the layer
+   * bar and no removal from any path, only its visibility is theirs. The same
+   * contract the background layer has, for a row the app puts on every map,
+   * e.g. a default workflow. Groups cannot be permanent.
+   */
+  permanent?: boolean;
   group?: {
     id: string;
     title: string;

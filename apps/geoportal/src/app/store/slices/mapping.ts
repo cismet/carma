@@ -37,6 +37,13 @@ const defaultOpacity = 0.2;
 
 type GeoportalMappingState = Omit<MappingState, "layers"> & {
   layers: LayerStackEntry[];
+  /**
+   * Ids of the permanent rows the visitor has hidden. Their own row cannot
+   * hold it: a permanent row is rebuilt from the config on every boot, so the
+   * choice is kept here, where it is persisted, and the owning addon reads it
+   * back through its channel.
+   */
+  hiddenPermanentLayers: string[];
 };
 
 /**
@@ -55,6 +62,15 @@ const applyPinning = (layers: LayerStackEntry[]): LayerStackEntry[] => [
   ...layers.filter((l) => !getPinning(l)),
   ...layers.filter((l) => getPinning(l) === "last"),
 ];
+
+/**
+ * A row the app owns rather than the visitor, e.g. a default workflow's. It
+ * survives every removal path, which is guarded here rather than in the layer
+ * bar alone: "Alle Karteninhalte entfernen", loading a saved configuration and
+ * the carma-map-api all reach the stack through these two reducers.
+ */
+const isPermanent = (entry: LayerStackEntry): boolean =>
+  !isLayerGroup(entry) && entry.permanent === true;
 
 const resolveStackTarget = (
   state: GeoportalMappingState,
@@ -98,6 +114,7 @@ const shouldSkipEntryForSelection = (
 
 const initialState: GeoportalMappingState = {
   layers: [],
+  hiddenPermanentLayers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
   activeInteractionLayerID: null,
@@ -162,7 +179,14 @@ const slice = createSlice({
   initialState,
   reducers: {
     setLayers(state, action) {
-      state.layers = applyPinning(action.payload as LayerStackEntry[]);
+      // A permanent layer is the app's own row and no stack the user or a URL
+      // brings along carries it, so it is kept across a replacement.
+      const incoming = action.payload as LayerStackEntry[];
+      const incomingIds = new Set(incoming.map((entry) => entry.id));
+      const kept = state.layers.filter(
+        (entry) => isPermanent(entry) && !incomingIds.has(entry.id)
+      );
+      state.layers = applyPinning([...incoming, ...kept]);
     },
     appendLayer(state, action: PayloadAction<LayerStackEntry>) {
       const entry = action.payload;
@@ -193,6 +217,21 @@ const slice = createSlice({
         }
       }
     },
+    /**
+     * Hide or show a permanent row. Kept apart from `changeVisibility`, which
+     * writes `visible` on the stack entry: the owning addon hands its row over
+     * again on every readout change and would overwrite that.
+     */
+    setPermanentLayerHidden(
+      state,
+      action: PayloadAction<{ id: string; hidden: boolean }>
+    ) {
+      const { id, hidden } = action.payload;
+      const kept = state.hiddenPermanentLayers.filter(
+        (entryId) => entryId !== id
+      );
+      state.hiddenPermanentLayers = hidden ? [...kept, id] : kept;
+    },
     updateLayer(state, action: PayloadAction<Layer>) {
       const layer = resolveLayer(state, action.payload.id);
       if (layer) {
@@ -202,9 +241,24 @@ const slice = createSlice({
         state.layers = applyPinning(state.layers);
       }
     },
-    removeLayer(state, action: PayloadAction<string>) {
-      const id = action.payload;
+    /**
+     * `force` is the owner's way out: an addon whose engine is no longer
+     * mounted takes its own permanent row down, where every visitor-facing
+     * path is refused. Plain string payloads keep working.
+     */
+    removeLayer(
+      state,
+      action: PayloadAction<string | { id: string; force?: boolean }>
+    ) {
+      const { id, force = false } =
+        typeof action.payload === "string"
+          ? { id: action.payload, force: false }
+          : action.payload;
       const found = findStackEntryByLayerId(state.layers, id);
+      const target = found?.member ?? found?.entry;
+      if (!force && target && isPermanent(target)) {
+        return;
+      }
       let newLayers = state.layers;
       if (found?.member) {
         const group = found.entry as LayerGroup;
@@ -525,6 +579,7 @@ export const {
   updateLayer,
   removeLayer,
   removeLastLayer,
+  setPermanentLayerHidden,
 
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
@@ -567,6 +622,15 @@ export const {
 
 export const getBackgroundLayer = (state: RootState) =>
   state.mapping.backgroundLayer;
+
+export const getHiddenPermanentLayers = (state: RootState): string[] =>
+  state.mapping.hiddenPermanentLayers;
+
+/** whether the visitor has hidden this permanent row */
+export const getPermanentLayerHidden = (
+  state: RootState,
+  id: string
+): boolean => state.mapping.hiddenPermanentLayers.includes(id);
 export const getClickFromInfoView = (state: RootState) =>
   state.mapping.clickFromInfoView;
 export const getFocusMode = (state: RootState) => state.mapping.focusMode;
