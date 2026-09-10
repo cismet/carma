@@ -78,6 +78,14 @@ export {
   orderAlwaysOnTopLast,
 } from "./addons/AlwaysOnTop";
 export type { AlwaysOnTopConfig } from "./addons/AlwaysOnTop";
+export {
+  runSwitchOn,
+  resolveStyleLayerIds,
+  switchOnConfig,
+  SWITCH_ON_KIND,
+} from "./addons/SwitchOn";
+export type { SwitchOnConfig, SwitchOnTarget } from "./addons/SwitchOn";
+export { useSwitchOn } from "./lib/useSwitchOn";
 
 export {
   TimeSlider,

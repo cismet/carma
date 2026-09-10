@@ -120,7 +120,7 @@ import {
   getUIHashWriteEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
-import { useHighlightOwnsMapClicks } from "@carma-mapping/addons";
+import { useHighlightOwnsMapClicks, useSwitchOn } from "@carma-mapping/addons";
 
 import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
 import { getLibreDrawMode } from "../../store/slices/measurements.ts";
@@ -858,6 +858,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   );
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
+  // the "switchOn" tool of a layer, run when its style layers reach the map
+  useSwitchOn(libreMap, useSelector(getLayers));
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModePrint = uiMode === UIMode.PRINT;
