@@ -104,7 +104,11 @@ describe("shadow terrain settings", () => {
     expect(queryByRole("radio", { name: "2 px" })).not.toBeNull();
     meshPresence.active = false;
     rerender(panel());
-    expect(queryByRole("radio", { name: "2 px" })).toBeNull();
+    const disabledMeshHeader = getByText("Mesh (kein Mesh aktiv)").closest(
+      '[role="button"]'
+    );
+    expect(disabledMeshHeader?.getAttribute("aria-expanded")).toBe("false");
+    expect(disabledMeshHeader?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("keeps atmosphere options separate from shadow quality", () => {
@@ -269,7 +273,7 @@ describe("adaptive shadow quality", () => {
           name: "Adaptive Schattenqualität",
         }) as HTMLInputElement
       ).disabled
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

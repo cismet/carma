@@ -23,6 +23,7 @@ import {
   CameraRestriction,
   type CameraRestrictionConfig,
 } from "../addons/CameraRestriction";
+import { FreeCamera, type FreeCameraConfig } from "../addons/FreeCamera";
 import {
   AnnotationControl,
   AnnotationOverlay,
@@ -136,6 +137,7 @@ import type { CompareLayerEntry } from "../addons/comparing/comparing-layers";
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
   cameraRestriction: CameraRestrictionConfig;
+  freeCamera: FreeCameraConfig;
   comparingControl: ComparingControlConfig;
   compareSwipe: CompareSwipeConfig;
   compareArena: CompareArenaConfig;
@@ -323,8 +325,7 @@ export type ResolvedAddon = {
 }[AddonKind];
 
 /** whether an object entry names its addon with `addon` rather than `kind` */
-const isNamedAddon = (entry: Addon): entry is AddonWithName =>
-  "addon" in entry;
+const isNamedAddon = (entry: Addon): entry is AddonWithName => "addon" in entry;
 
 /** the addon an entry names, whichever of the three forms it was written in */
 export const getAddonKind = (entry: AddonEntry): AddonKind =>
@@ -425,6 +426,7 @@ export const addonRegistry: {
 } = {
   addonManager: { Component: AddonManager, provides: ["addonOverrides"] },
   cameraRestriction: { Component: CameraRestriction },
+  freeCamera: { Component: FreeCamera },
   comparingControl: {
     Component: ComparingControl,
     provides: ["compareState", "compareLayers"],

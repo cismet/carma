@@ -200,6 +200,7 @@ describe("shadow display panel integration", () => {
     fireEvent.click(getByRole("button", { name: "Hauptpanel umschalten" }));
     expect(queryByLabelText("Schattenintensität")).toBeNull();
     const panel = await findByRole("dialog", { name: "Schattendarstellung" });
+    fireEvent.click(within(panel).getByText("Kartenstil", { exact: true }));
     const basemap = within(panel).getByLabelText(
       "Basiskarte auf dem Terrain anzeigen",
       { selector: "input" }
@@ -222,6 +223,9 @@ describe("shadow display panel integration", () => {
     const reopenedPanel = await findByRole("dialog", {
       name: "Schattendarstellung",
     });
+    fireEvent.click(
+      within(reopenedPanel).getByText("Kartenstil", { exact: true })
+    );
     expect(
       (
         within(reopenedPanel).getByLabelText(

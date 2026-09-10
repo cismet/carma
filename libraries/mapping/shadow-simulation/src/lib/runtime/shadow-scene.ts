@@ -2246,7 +2246,7 @@ export const buildShadowSimulationScene = (
     return tiledScene;
   };
   const bootstrapPreview = createShadowBootstrapPreview();
-  const useBootstrapPreview = () =>
+  const shouldUseBootstrapPreview = () =>
     isTiledBufferEnabled() && bootstrapPreview(getCoverageRuntimes());
   const accumulationController = {
     // Mono and tiled soft-sun paths share this post-composition hook. Point
@@ -2268,7 +2268,7 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       !timeAnimating &&
       (!initialTerrainStageReady ||
-        useBootstrapPreview() ||
+        shouldUseBootstrapPreview() ||
         (!isTiledBufferEnabled() && !meshViewReady()) ||
         (!isTiledBufferEnabled() && isSharedThreeTerrainLoading(map)) ||
         mapInMotion ||
@@ -2277,7 +2277,7 @@ export const buildShadowSimulationScene = (
       nativeAccumulationFits &&
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
-      !useBootstrapPreview() &&
+      !shouldUseBootstrapPreview() &&
       (isTiledBufferEnabled() || meshViewReady()) &&
       (isTiledBufferEnabled() || !isSharedThreeTerrainLoading(map)) &&
       !mapInMotion &&
@@ -2315,7 +2315,7 @@ export const buildShadowSimulationScene = (
         if (!softSunShadowsEnabled || timeAnimating || !nativeAccumulationFits)
           return null;
         return withTileVolumeSnapshot(() => {
-          if (useBootstrapPreview()) return null;
+          if (shouldUseBootstrapPreview()) return null;
           const tiles = updateTiledScene();
           if (!tiles) return null;
           const result = tiles.renderProgressive(camera, {
@@ -2339,7 +2339,7 @@ export const buildShadowSimulationScene = (
       return withTileVolumeSnapshot(() => {
         // A common centre-sun pass includes every currently loaded caster;
         // unlike page-by-page replay it leaves time for the remaining loads.
-        if (useBootstrapPreview()) return false;
+        if (shouldUseBootstrapPreview()) return false;
         const tiles = updateTiledScene();
         if (!tiles) return false;
         const rendered = tiles.render(

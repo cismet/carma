@@ -40,6 +40,7 @@ export const UNSUSPENDABLE_KIND = "addonManager" satisfies AddonKind;
  */
 export const SWITCHABLE_KINDS = [
   "cameraRestriction",
+  "freeCamera",
   "nearestFeature",
   "nearestFeatureApotheken",
   "nearestFeatureBahnhoefe",

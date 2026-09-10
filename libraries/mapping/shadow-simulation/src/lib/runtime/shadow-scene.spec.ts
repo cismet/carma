@@ -842,7 +842,7 @@ describe("shadow scene lighting integration", () => {
       .mockImplementation(() => undefined);
     const render = vi
       .spyOn(ShadowTiledScene.prototype, "render")
-      .mockImplementation(() => undefined);
+      .mockReturnValue(true);
     sharedLayer.getRenderer = () =>
       ({
         capabilities: { maxTextureSize: 4096 },
@@ -996,7 +996,7 @@ describe("shadow scene lighting integration", () => {
         .mockResolvedValue(null);
       const render = vi
         .spyOn(ShadowTiledScene.prototype, "render")
-        .mockImplementation(() => undefined);
+        .mockReturnValue(true);
       const update = vi
         .spyOn(ShadowTiledScene.prototype, "update")
         .mockImplementation(() => undefined);
@@ -1081,7 +1081,7 @@ describe("shadow scene lighting integration", () => {
     };
     const renderTiled = vi
       .spyOn(ShadowTiledScene.prototype, "render")
-      .mockImplementation(() => undefined);
+      .mockReturnValue(true);
     const progressiveResult = {
       progress: 0.5,
       settled: false,
@@ -1116,21 +1116,21 @@ describe("shadow scene lighting integration", () => {
       styleEpoch: 3,
       active: true,
     };
-    expect(accumulation.renderProgressive?.(camera, nativeFrame)).toBeNull();
+    expect(accumulation.renderProgressive?.(camera, nativeFrame)).toBeUndefined();
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
     });
     updateShadows(map, camera);
     expect(accumulation.visualEpoch()).toBeGreaterThan(epoch);
     expect(accumulation.renderScene?.(camera, 7)).toBe(true);
-    expect(renderTiled).toHaveBeenLastCalledWith(camera, 7, 512);
+    expect(renderTiled).toHaveBeenLastCalledWith(camera, 7, 64, true);
     const directPasses = renderTiled.mock.calls.length;
     expect(accumulation.renderProgressive?.(camera, nativeFrame)).toBe(
       progressiveResult
     );
     expect(renderProgressive).toHaveBeenLastCalledWith(camera, {
       ...nativeFrame,
-      samples: 512,
+      samples: 64,
       maxRenderTargetPixels: Infinity,
       options: { format: "rgba16f-32f", msaaSamples: 0 },
     });
@@ -1138,7 +1138,7 @@ describe("shadow scene lighting integration", () => {
     expect(sharedRuntimes.size).toBe(runtimeCount);
     expect(sharedLayer.setAccumulationController).toHaveBeenCalledTimes(1);
     expect(accumulation.renderScene?.(camera, null)).toBe(true);
-    expect(renderTiled).toHaveBeenLastCalledWith(camera, null, 512);
+    expect(renderTiled).toHaveBeenLastCalledWith(camera, null, 64, true);
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
     });
@@ -1151,7 +1151,7 @@ describe("shadow scene lighting integration", () => {
     disposeTiled.mockRestore();
   });
 
-  it("adapts tiled depth demand during slow motion without resizing or replacing the native view", () => {
+  it("reprojects retained tiled shadows during motion without refitting or replacing the native view", () => {
     let regionReady = false;
     const isShadowRegionReady = vi.fn(() => regionReady);
     const readVolumes = vi.fn(() => [
@@ -1173,10 +1173,6 @@ describe("shadow scene lighting integration", () => {
         acknowledgeShadowStage,
       },
     ] as never);
-    let nowMs = 0;
-    const performanceNow = vi
-      .spyOn(performance, "now")
-      .mockImplementation(() => nowMs);
     sharedLayer.projectLngLatToScene = () => new THREE.Vector3();
     const canvas = {
       clientWidth: 1280,
@@ -1208,6 +1204,12 @@ describe("shadow scene lighting integration", () => {
     const updateTiled = vi
       .spyOn(ShadowTiledScene.prototype, "update")
       .mockImplementation((_cells, actualFrame) => {
+        expect(actualFrame.viewport).toBe(viewport);
+        expect(actualFrame.viewport.toArray()).toEqual([2560, 1440]);
+      });
+    const updatePresentation = vi
+      .spyOn(ShadowTiledScene.prototype, "updatePresentation")
+      .mockImplementation((actualFrame) => {
         expect(actualFrame.viewport).toBe(viewport);
         expect(actualFrame.viewport.toArray()).toEqual([2560, 1440]);
       });
@@ -1245,6 +1247,7 @@ describe("shadow scene lighting integration", () => {
         }
         const pages = [{ id: "page", receiverBounds: bounds }];
         host.onPresentedPages(pages, pages);
+        return true;
       });
     const disposeTiled = vi.spyOn(ShadowTiledScene.prototype, "dispose");
     const controller = buildShadowSimulationScene(map as never);
@@ -1271,8 +1274,9 @@ describe("shadow scene lighting integration", () => {
       };
       const runtime = sharedRuntimes.get("shadow-simulation-controller")!;
       const accumulation = accumulationController!;
-      const renderFrame = () => {
+      const renderFrame = (refit: boolean) => {
         const updateCount = updateTiled.mock.calls.length;
+        const presentationCount = updatePresentation.mock.calls.length;
         const renderCount = renderTiled.mock.calls.length;
         runtime.update?.(frame);
         const volumeReads = readVolumes.mock.calls.length;
@@ -1284,8 +1288,12 @@ describe("shadow scene lighting integration", () => {
         expect(acknowledgeShadowStage).toHaveBeenLastCalledWith([
           "mesh-2024/root/tile-1",
         ]);
-        expect(updateTiled).toHaveBeenCalledTimes(updateCount + 1);
+        expect(updateTiled).toHaveBeenCalledTimes(updateCount + (refit ? 1 : 0));
+        expect(updatePresentation).toHaveBeenCalledTimes(
+          presentationCount + (refit ? 0 : 1)
+        );
         expect(renderTiled).toHaveBeenCalledTimes(renderCount + 1);
+        expect(renderTiled.mock.lastCall?.[3]).toBe(refit);
       };
       const moveStart = map.on.mock.calls.find(
         ([event]) => event === MAPLIBRE_EVENT.MOVE_START
@@ -1296,45 +1304,27 @@ describe("shadow scene lighting integration", () => {
       const moveEnd = map.on.mock.calls.find(
         ([event]) => event === MAPLIBRE_EVENT.MOVE_END
       )?.[1] as () => void;
-      const advanceMotion = (frames: number, frameMs: number) => {
+      const advanceMotion = (frames: number) => {
         for (let index = 0; index < frames; index += 1) {
-          nowMs += frameMs;
           move();
-          renderFrame();
+          renderFrame(false);
         }
       };
       const runtimeCount = sharedRuntimes.size;
-      renderFrame();
+      renderFrame(true);
       expect(updateTiled).toHaveBeenCalledOnce();
+      expect(updatePresentation).not.toHaveBeenCalled();
       expect(renderTiled).toHaveBeenCalledOnce();
       expect(updateTiled.mock.lastCall?.[3]).toBe(0.5);
 
       moveStart();
-      renderFrame();
-      advanceMotion(10, 50);
-      expect(updateTiled.mock.lastCall?.[3]).toBeCloseTo(0.5 / 0.75);
-      // A useful trial improves throughput enough to permit a second step.
-      advanceMotion(12, 45);
-      expect(updateTiled.mock.lastCall?.[3]).toBe(0.5 / 0.5);
-
-      controller.updateRenderQuality({
-        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
-        shadowAdaptiveQuality: false,
-      });
-      renderFrame();
-      expect(updateTiled.mock.lastCall?.[3]).toBe(0.5);
-      advanceMotion(12, 50);
-      expect(updateTiled.mock.lastCall?.[3]).toBe(0.5);
-
-      controller.updateRenderQuality({
-        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
-        shadowAdaptiveQuality: true,
-      });
-      renderFrame();
-      advanceMotion(10, 50);
-      expect(updateTiled.mock.lastCall?.[3]).toBeCloseTo(0.5 / 0.75);
+      renderFrame(false);
+      advanceMotion(3);
+      expect(updateTiled).toHaveBeenCalledOnce();
+      expect(updatePresentation).toHaveBeenCalledTimes(4);
       moveEnd();
-      renderFrame();
+      renderFrame(true);
+      expect(updateTiled).toHaveBeenCalledTimes(2);
       expect(updateTiled.mock.lastCall?.[3]).toBe(0.5);
 
       for (const [, actualFrame] of updateTiled.mock.calls) {
@@ -1342,7 +1332,12 @@ describe("shadow scene lighting integration", () => {
         expect(actualFrame.viewport).toBe(viewport);
         expect(actualFrame.viewport.toArray()).toEqual([2560, 1440]);
       }
-      expect(renderTiled).toHaveBeenCalledTimes(updateTiled.mock.calls.length);
+      for (const [actualFrame] of updatePresentation.mock.calls) {
+        expect(actualFrame).toBe(frame);
+      }
+      expect(renderTiled).toHaveBeenCalledTimes(
+        updateTiled.mock.calls.length + updatePresentation.mock.calls.length
+      );
       expect(updateTiled.mock.instances[0]).toBeInstanceOf(ShadowTiledScene);
       expect(new Set(updateTiled.mock.instances).size).toBe(1);
       expect(sharedRuntimes.size).toBe(runtimeCount);
@@ -1356,8 +1351,8 @@ describe("shadow scene lighting integration", () => {
       expect(releaseScene).not.toHaveBeenCalled();
     } finally {
       controller.dispose();
-      performanceNow.mockRestore();
       updateTiled.mockRestore();
+      updatePresentation.mockRestore();
       renderTiled.mockRestore();
       disposeTiled.mockRestore();
     }
@@ -1402,7 +1397,7 @@ describe("shadow scene lighting integration", () => {
     };
     const renderTiled = vi
       .spyOn(ShadowTiledScene.prototype, "render")
-      .mockImplementation(() => undefined);
+      .mockReturnValue(true);
     let tiledStats = {
       pages: 3,
       cachedSamplePages: 2,
@@ -1613,10 +1608,9 @@ describe("shadow scene lighting integration", () => {
     const initialRuntimeCount = vi.mocked(sharedLayer.addRuntime).mock.calls
       .length;
     const initialOptions = accumulation.options;
-    expect(accumulation.rounds).toBe(512);
-    // Tiled ownership is native-pixel / opaque until per-sample receiver
-    // coverage exists. The mono strategy retains its requested geometry MSAA.
-    expect(initialOptions).toEqual({ format: "rgba16f-32f", msaaSamples: 0 });
+    expect(accumulation.rounds).toBe(64);
+    // The default mono strategy retains its requested geometry MSAA.
+    expect(initialOptions).toEqual({ format: "rgba16f-32f", msaaSamples: 4 });
 
     map.triggerRepaint.mockClear();
     controller.updateRenderQuality({
@@ -1644,7 +1638,7 @@ describe("shadow scene lighting integration", () => {
     controller.updateShadowQuality(4);
     expect(accumulation.rounds).toBe(256);
     controller.updateRenderQuality({});
-    expect(accumulation.rounds).toBe(128);
+    expect(accumulation.rounds).toBe(64);
     controller.dispose();
   });
 
@@ -2007,14 +2001,16 @@ describe("shadow scene lighting integration", () => {
     const accumulation = accumulationController!;
     expect(accumulation.active()).toBe(true);
     expect(accumulation.retainSettledFrame()).toBe(true);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    });
     const contentRuntimes = getSharedThreeSceneRuntimes(map as never);
     const isMainViewReady = vi.fn(() => false);
-    const getRequestDemand = vi.fn(() => 12);
+    const hasRenderableContent = vi.fn(() => false);
     const loadingMesh = {
       providesTerrain: true,
       isMainViewReady,
-      getRequestDemand,
-      hasRenderableContent: () => true,
+      hasRenderableContent,
     };
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
       ...contentRuntimes,
@@ -2023,12 +2019,10 @@ describe("shadow scene lighting integration", () => {
     expect(accumulation.active()).toBe(false);
     expect(accumulation.pending?.()).toBe(true);
     expect(accumulation.renderScene?.(camera, null)).toBe(false);
-    isMainViewReady.mockReturnValue(true);
-    expect(accumulation.active()).toBe(false);
-    getRequestDemand.mockReturnValue(0);
+    hasRenderableContent.mockReturnValue(true);
     expect(accumulation.active()).toBe(true);
-    // Later demand (pan/refinement) retains the tiled renderer, never preview.
-    getRequestDemand.mockReturnValue(12);
+    // Later loading/refinement retains the tiled renderer, never preview.
+    hasRenderableContent.mockReturnValue(false);
     isMainViewReady.mockReturnValue(false);
     expect(accumulation.active()).toBe(true);
     expect(accumulation.pending?.()).toBe(false);
@@ -2937,6 +2931,7 @@ describe("shadow scene lighting integration", () => {
   });
 
   it("replaces shadow terrain while a Mesh tiles runtime provides terrain", async () => {
+    vi.useFakeTimers();
     vi.stubGlobal("window", { clearTimeout, setTimeout });
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
@@ -2997,6 +2992,7 @@ describe("shadow scene lighting integration", () => {
       dispose: vi.fn(),
     });
     contentChanged();
+    vi.advanceTimersByTime(1_000);
 
     expect(sharedRuntimes.has(initialTerrain.id)).toBe(false);
     expect(initialTerrain.dispose).toHaveBeenCalledOnce();
@@ -3007,6 +3003,7 @@ describe("shadow scene lighting integration", () => {
 
     meshRenderable = true;
     contentChanged();
+    vi.advanceTimersByTime(1_000);
     expect(sharedLayer.setAccumulationController).toHaveBeenCalledTimes(
       resetCalls
     );
@@ -3018,6 +3015,7 @@ describe("shadow scene lighting integration", () => {
 
     activeContentRuntimes.length = 0;
     contentChanged();
+    vi.advanceTimersByTime(1_000);
     await restoredTerrain.ready;
 
     expect(buildRasterDemTerrainRuntime).toHaveBeenCalledTimes(2);

@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { carma as carmaApi } from "@carma-api";
-import { setCameraRestrictionOverride } from "@carma-mapping/engines/maplibre";
+import { DEFAULT_MAX_PITCH } from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../lib/registry";
+import {
+  ADDON_CAMERA_RESTRICTION_PRIORITY,
+  setAddonCameraRestriction,
+} from "../lib/camera-restriction-overrides";
 import { use3dLayers } from "../lib/use3dLayers";
 
 /**
@@ -117,25 +121,19 @@ const useZoom = (map: MaplibreMap | null, enabled: boolean): number | null => {
   return zoom;
 };
 
-/**
- * How far the addon lets the camera tilt once it decides the view is free:
- * 5 degrees above the horizon. MapLibre's stock cap of 60 stays the base for
- * maps without this addon; a config `maxPitch` still overrides.
- */
-const ADDON_UNRESTRICTED_MAX_PITCH = 85;
-
 export const CameraRestriction = ({
   carma,
   config,
   libreMap,
 }: AddonComponentProps<"cameraRestriction">) => {
+  const overrideOwner = useRef(Symbol("cameraRestriction")).current;
   const {
     mode = "always",
     layers,
     requireVisible = true,
     restrictBelowZoom,
     restrictAboveZoom,
-    maxPitch = ADDON_UNRESTRICTED_MAX_PITCH,
+    maxPitch = DEFAULT_MAX_PITCH,
   } = config ?? {};
 
   const usesLayers =
@@ -193,11 +191,16 @@ export const CameraRestriction = ({
     if (!libreMap) {
       return;
     }
-    setCameraRestrictionOverride(libreMap, { restricted, maxPitch });
+    setAddonCameraRestriction(
+      libreMap,
+      overrideOwner,
+      { restricted, maxPitch },
+      ADDON_CAMERA_RESTRICTION_PRIORITY.ROUTE
+    );
     return () => {
-      setCameraRestrictionOverride(libreMap, null);
+      setAddonCameraRestriction(libreMap, overrideOwner, null);
     };
-  }, [libreMap, restricted, maxPitch]);
+  }, [libreMap, maxPitch, overrideOwner, restricted]);
 
   return null;
 };

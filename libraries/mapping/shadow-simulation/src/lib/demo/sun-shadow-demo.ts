@@ -88,7 +88,7 @@ export const createSunShadowDemo = (
   const drawingSize = new THREE.Vector2();
   let options = initialOptions;
   // Explicit opt-in: raw scalar experiments remain available independently.
-  const useCachedLighting = () =>
+  const shouldUseCachedLighting = () =>
     options.cachedLighting && !options.bufferFormat.startsWith("rgba");
   const lightingCache = createSunShadowLightingCache(
     renderer,
@@ -97,7 +97,7 @@ export const createSunShadowDemo = (
     reference.controller.lights[0]
   );
   const lighting = () =>
-    useCachedLighting() ? lightingCache.lighting : undefined;
+    shouldUseCachedLighting() ? lightingCache.lighting : undefined;
   const createAccumulator = () =>
     buildSharedSceneAccumulator(options.samples, {
       format: options.bufferFormat,
@@ -125,7 +125,7 @@ export const createSunShadowDemo = (
       shadowMapSize: options.shadowMapSize,
       bufferFormat: options.bufferFormat,
       msaaSamples: accumulator.msaaSamples,
-      cachedLighting: useCachedLighting(),
+      cachedLighting: shouldUseCachedLighting(),
       shadowCamera: reference.snapshot?.camera,
       benchmark: benchmarkResult,
       imageDifference,
@@ -139,7 +139,7 @@ export const createSunShadowDemo = (
     targetAccumulator = accumulator,
     rgbReference = false
   ) => {
-    if (useCachedLighting() && !rgbReference && round === 0) {
+    if (shouldUseCachedLighting() && !rgbReference && round === 0) {
       reference.controller.restoreSunDiscCenter();
       lightingCache.render(drawingSize.x, drawingSize.y);
     }
@@ -199,7 +199,7 @@ export const createSunShadowDemo = (
         options.samples,
         {
           format:
-            useCachedLighting() || options.bufferFormat.startsWith("rgba")
+            shouldUseCachedLighting() || options.bufferFormat.startsWith("rgba")
               ? "rgba32f"
               : "r32f",
           msaaSamples: 0,
@@ -210,7 +210,12 @@ export const createSunShadowDemo = (
         for (let round = 0; round < options.samples; round += 1) {
           if (abort.signal.aborted)
             throw new DOMException("Cancelled", "AbortError");
-          renderRound(round, "full", referenceAccumulator, useCachedLighting());
+          renderRound(
+            round,
+            "full",
+            referenceAccumulator,
+            shouldUseCachedLighting()
+          );
           if (round % 4 === 3)
             await waitForSunShadowBenchmarkFrame(abort.signal);
         }
@@ -234,7 +239,7 @@ export const createSunShadowDemo = (
             renderRound(round, mode, target, rgbReference);
             // Include static RGB-cache generation (round zero above) and the
             // final composition for BOTH methods in this end-to-end comparison.
-            if (useCachedLighting() && round === options.samples - 1) {
+            if (shouldUseCachedLighting() && round === options.samples - 1) {
               renderer.setRenderTarget(null);
               renderer.clear(true, true, false);
               target.composite(
@@ -251,7 +256,7 @@ export const createSunShadowDemo = (
           abort.signal,
           (progress) => publish(`Benchmark: ${progress}`),
           {
-            ...(useCachedLighting()
+            ...(shouldUseCachedLighting()
               ? { cases: ["full", "full-rgb-reference"] as const }
               : {}),
             batchRounds: options.samples >= 1024 ? 16 : 4,
@@ -304,7 +309,7 @@ export const createSunShadowDemo = (
     ) {
       reference.controller.restoreSunDiscCenter();
       const previousMaterial = reference.scene.overrideMaterial;
-      if (useCachedLighting()) reference.scene.overrideMaterial = null;
+      if (shouldUseCachedLighting()) reference.scene.overrideMaterial = null;
       try {
         renderer.render(reference.scene, reference.camera);
       } finally {

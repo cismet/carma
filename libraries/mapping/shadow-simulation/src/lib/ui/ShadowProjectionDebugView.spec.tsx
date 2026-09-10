@@ -225,12 +225,14 @@ describe("projection debug availability", () => {
     expect(
       getByRole("button", { name: "Info zum Projektions-Debug" })
     ).toBeTruthy();
-    expect(
-      getByRole("region", { name: "Schattenstatistik" }).style.overflowY
-    ).toBe("auto");
-    expect(
-      getByRole("region", { name: "Schattenseitenformate" }).style.maxHeight
-    ).toBe("88px");
+    const statistics = getByRole("region", { name: "Schattenstatistik" });
+    expect(statistics.style.overflowY).toBe("auto");
+    expect(statistics.tabIndex).toBe(0);
+    const dimensions = getByRole("region", {
+      name: "Schattenseitenformate",
+    });
+    expect(dimensions.style.maxHeight).toBe("88px");
+    expect(dimensions.tabIndex).toBe(0);
   });
 
   it("makes unsupported corridor integration visible instead of claiming local means", () => {

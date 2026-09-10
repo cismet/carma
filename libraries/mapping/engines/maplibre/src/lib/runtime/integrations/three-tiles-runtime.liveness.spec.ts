@@ -13,8 +13,12 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
-import { HIDDEN_TAB_WIPE_DELAY_MS } from "./three-tiles-runtime-config";
+import {
+  HIDDEN_TAB_WIPE_DELAY_MS,
+  MESH_MOTION_COVERAGE_INTERVAL_MS,
+} from "./three-tiles-runtime-config";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -104,10 +108,11 @@ describe("three tiles runtime liveness", () => {
 
   it("does not let loose external metadata keep offscreen mesh demand alive", () => {
     const { layer, renderer, frame } = mountRuntime(true);
-    const parent = buildTile("coarse.b3dm", new THREE.Group());
+    const root = buildTile("root.json");
+    const receiver = buildTile("receiver.b3dm", new THREE.Group());
     const metadata = buildTile("children.json");
     const child = buildTile("outside.b3dm");
-    for (const tile of [parent, metadata, child]) {
+    for (const tile of [root, receiver, metadata, child]) {
       Object.assign(tile.engineData, {
         // Main-view membership now uses the native bound/frustum predicate,
         // not calculateTileViewError (which also includes shadow cameras).
@@ -118,29 +123,36 @@ describe("three tiles runtime liveness", () => {
       });
       Object.assign(tile.traversal, { error: 300 });
     }
-    parent.internal.loadingState = 4;
+    Object.assign(root.internal, {
+      loadingState: 4,
+      hasRenderableContent: false,
+      hasUnrenderableContent: true,
+    });
+    Object.assign(receiver.internal, { loadingState: 4 });
+    Object.assign(receiver.traversal, { error: 1 });
     Object.assign(metadata.internal, {
       loadingState: 4,
       hasRenderableContent: false,
       hasUnrenderableContent: true,
     });
-    Object.assign(parent, { children: [metadata] });
-    Object.assign(metadata, { children: [child] });
-    const error = vi
-      .spyOn(renderer, "calculateTileViewError")
-      .mockImplementation((tile, target) => {
+    Object.assign(root, { children: [receiver, metadata] });
+    Object.assign(receiver, { parent: root });
+    Object.assign(metadata, { parent: root, children: [child] });
+    Object.assign(child, { parent: metadata });
+    vi.spyOn(renderer, "calculateTileViewError").mockImplementation(
+      (tile, target) => {
         Object.assign(target, {
           inView: tile !== child,
-          error: 300,
+          error: tile === receiver ? 1 : 300,
           distanceFromCamera: 1,
         });
-      });
-    renderer.visibleTiles.add(parent as never);
+      }
+    );
+    Object.assign(renderer, { rootTileset: { root } });
+    frame.renderCamera.position.x = 1;
+    frame.renderCamera.updateMatrixWorld(true);
     layer.scene.update(frame);
     expect(layer.scene.isMainViewReady?.()).toBe(true);
-    const calls = error.mock.calls.length;
-    expect(layer.scene.isMainViewReady?.()).toBe(true);
-    expect(error.mock.calls.length).toBe(calls);
     // Missing descendant bounds must remain unresolved, never false coverage.
     Object.assign(child.engineData, { boundingVolume: undefined });
     renderer.dispatchEvent({
@@ -152,8 +164,8 @@ describe("three tiles runtime liveness", () => {
     layer.scene.dispose();
   });
 
-  it("admits a ready mesh branch immediately without a view-wide stage or audit timer", () => {
-    const { layer, renderer } = mountRuntime(true);
+  it("admits a ready mesh branch directly after base coverage without an intermediate view-wide stage", () => {
+    const { layer, renderer, frame } = mountRuntime(true);
     const parent = {
       ...buildTile("coarse.b3dm", new THREE.Group()),
       refine: "REPLACE",
@@ -165,6 +177,14 @@ describe("three tiles runtime liveness", () => {
     const grandchild = { ...buildTile("local-final.b3dm"), parent: child };
     Object.assign(child, { refine: "REPLACE" });
     Object.assign(child.traversal, { error: 4 });
+    Object.assign(parent, { children: [child] });
+    Object.assign(child, { children: [grandchild] });
+    renderer.queueTileForDownload(child);
+    expect(renderer.queuedTiles).toEqual([]);
+    Object.assign(renderer, { rootTileset: { root: parent } });
+    frame.renderCamera.position.x = 1;
+    frame.renderCamera.updateMatrixWorld(true);
+    layer.scene.update(frame);
     renderer.queueTileForDownload(child);
     renderer.queueTileForDownload(child);
     expect(renderer.queuedTiles).toEqual([child]);
@@ -180,19 +200,29 @@ describe("three tiles runtime liveness", () => {
     const { layer, map, frame, renderer } = mountRuntime(true);
     let moving = true;
     Object.assign(map, { isMoving: () => moving });
-    let now = 0;
-    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const emit = (event: string) => {
+      const calls = vi.mocked(map.on).mock.calls as unknown as [
+        string,
+        () => void
+      ][];
+      for (const [type, handler] of calls) if (type === event) handler();
+    };
     const update = vi.mocked(renderer.update);
     update.mockClear();
+    emit(MAPLIBRE_EVENT.MOVE_START);
+    emit(MAPLIBRE_EVENT.MOVE);
     layer.scene.update(frame);
-    now = 50;
+    expect(update).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(MESH_MOTION_COVERAGE_INTERVAL_MS - 1);
     layer.scene.update(frame);
-    now = 120;
+    expect(update).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    layer.scene.update(frame);
+    expect(update).toHaveBeenCalledTimes(1);
+    moving = false;
+    emit(MAPLIBRE_EVENT.MOVE_END);
     layer.scene.update(frame);
     expect(update).toHaveBeenCalledTimes(2);
-    moving = false;
-    layer.scene.update(frame);
-    expect(update).toHaveBeenCalledTimes(3);
     layer.scene.dispose();
   });
 

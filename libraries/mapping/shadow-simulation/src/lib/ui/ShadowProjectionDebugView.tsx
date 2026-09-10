@@ -142,6 +142,7 @@ export type ShadowProjectionDebugSettings = Readonly<{
 const formatMeters = (value: number, fractionDigits = 0) =>
   `${value.toFixed(fractionDigits)} m`;
 
+/* eslint-disable jsx-a11y/no-noninteractive-tabindex -- The named overflow regions must remain focusable for cross-browser keyboard scrolling. */
 const ShadowBufferStatistics = ({
   model,
 }: {
@@ -307,6 +308,7 @@ const ShadowBufferStatistics = ({
     </div>
   );
 };
+/* eslint-enable jsx-a11y/no-noninteractive-tabindex */
 
 const SUN_CAMERA_PREVIEW_INTERVAL_MS = 120;
 

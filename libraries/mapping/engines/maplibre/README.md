@@ -151,9 +151,11 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 - **Context:** The 3,585-line closure mixed engine lifetime, loading, materials,
   spatial queries, shadow corridors and diagnostic rendering.
 - **Decision:** `three-tiles-runtime.ts` only constructs the instance and wires
-  its public methods. `three-tiles-runtime-lifecycle.ts` owns engine attachment,
-  events, frame updates and disposal; `-loading.ts` owns queues, memory and SSE;
-  `-shadows.ts` owns receiver/caster selection and corridor revisions;
+  its public methods. `three-tiles-runtime-attachment.ts` owns `TilesRenderer`
+  construction, queues, plugins, subscriptions and their symmetric teardown;
+  `three-tiles-runtime-lifecycle.ts` owns event reactions and frame updates;
+  `-loading.ts` owns loading policy, memory and SSE; `-shadows.ts` owns
+  receiver/caster selection and corridor revisions;
   `-spatial.ts` owns bounds, frustums and screen errors; `-appearance.ts`,
   `-projection.ts` and `-surfaces.ts` own materials, projection and topology;
   `-debug.ts` observes their state.
@@ -172,7 +174,8 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
   73 passing and seven failing cases. The known reload/offscreen-chimney and
   convergence failures remain open; this refactor does not claim to fix them.
   The architecture test enforces at most 1,000 lines per runtime module and
-  no type/configuration re-exports from the entry file.
+  no type/configuration re-exports from the entry file. Renderer attachment is
+  kept separate so queue/plugin teardown cannot drift away from registration.
   Final scoped runtime/frontier, architecture and layer-manager verification:
   93 passing tests, the same seven pre-existing failures; no TypeScript
   diagnostics in the extracted runtime modules. The facade is 189 lines;

@@ -101,7 +101,7 @@ export const createMeshCorridorFixture = (
           getSphere: (out: THREE.Sphere) => native.getBoundingSphere(out),
           distanceToPoint: (point: THREE.Vector3) =>
             native.distanceToPoint(point),
-          intersectsFrustum: () => inView,
+          intersectsFrustum: () => errors.get(result)?.inView ?? false,
         },
       },
     } as unknown as Tile;
@@ -110,7 +110,21 @@ export const createMeshCorridorFixture = (
   };
   const load = (value: Tile) => {
     value.internal.loadingState = 4;
-    value.engineData.scene ??= new THREE.Group();
+    if (!value.engineData.scene) {
+      const bounds = new THREE.Box3();
+      const transform = new THREE.Matrix4();
+      value.engineData.boundingVolume.getOBB(bounds, transform);
+      const size = bounds.getSize(new THREE.Vector3());
+      const center = bounds.getCenter(new THREE.Vector3());
+      const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+      geometry.translate(center.x, center.y, center.z);
+      geometry.applyMatrix4(transform);
+      value.engineData.scene = new THREE.Group();
+      value.engineData.scene.add(
+        new THREE.Mesh(geometry, new THREE.MeshStandardMaterial())
+      );
+      renderer.group.add(value.engineData.scene);
+    }
     renderer.lruCache.add(value, () => {});
     renderer.dispatchEvent({
       type: "load-model",
@@ -158,6 +172,10 @@ export const createMeshCorridorFixture = (
     setSun,
     setTileError: (value: Tile, error: number) => {
       errors.set(value, { ...errors.get(value)!, error });
+    },
+    setTileInView: (value: Tile, inView: boolean) => {
+      errors.set(value, { ...errors.get(value)!, inView });
+      value.traversal.inFrustum = inView;
     },
     receiverBox,
     corridor: receiverBox.clone().expandByVector(new THREE.Vector3(0, 0, 51)),

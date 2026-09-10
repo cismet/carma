@@ -66,6 +66,11 @@ export type {
   UvCorrection,
 } from "./lib/caged-addons";
 export { ADMIN_MODE_FLAG, useIsAdminMode } from "./lib/admin-mode";
+export {
+  FreeCamera,
+  FREE_CAMERA_MAX_PITCH,
+  type FreeCameraConfig,
+} from "./addons/FreeCamera";
 
 export {
   ALWAYS_ON_TOP_KIND,

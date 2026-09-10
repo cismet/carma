@@ -159,7 +159,7 @@ let legacyCleanupAttempted = false;
 const withPipelineCache = async <T>(
   producerAssetUrl: string | undefined,
   missing: T,
-  use: (cache: ReturnType<typeof createPipelineCache>) => Promise<T>
+  operation: (cache: ReturnType<typeof createPipelineCache>) => Promise<T>
 ): Promise<T> => {
   const mainAssetUrl = resolveDerivedCacheAssetEpoch({
     production: import.meta.env.PROD,
@@ -186,7 +186,7 @@ const withPipelineCache = async <T>(
   pipelineCaches.set(epoch, cache);
   cache.activeJobs += 1;
   try {
-    return await use(cache);
+    return await operation(cache);
   } finally {
     cache.activeJobs -= 1;
   }

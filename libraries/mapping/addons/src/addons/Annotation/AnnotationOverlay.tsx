@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 import type { BinaryFiles } from "@excalidraw/excalidraw/types/types";
 
-import {
-  DEFAULT_MAX_PITCH,
-  setCameraRestrictionOverride,
-} from "@carma-mapping/engines/maplibre";
+import { DEFAULT_MAX_PITCH } from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import {
+  ADDON_CAMERA_RESTRICTION_PRIORITY,
+  setAddonCameraRestriction,
+} from "../../lib/camera-restriction-overrides";
 import { stageHostOf } from "../comparing/stage/stage-host";
 import { useToolbarInset } from "../comparing/stage/useToolbarInset";
 import { reserveIdSequence, useAnnotationActions } from "./annotation-actions";
@@ -189,20 +190,24 @@ export const AnnotationOverlay = ({
    * engine applies and publishes, so the compass and the pitch control follow
    * without knowing this addon exists. A base the app marked forced, print
    * above all, still wins, and a `cameraRestriction` addon on the same route
-   * writes the same slot: the later write stands.
+   * writes a lower-priority route policy. A `freeCamera` route remains above
+   * both while mounted.
    */
+  const cameraOverrideOwner = useRef(Symbol("annotationCamera")).current;
   useEffect(() => {
     if (!libreMap || !isOn) {
       return;
     }
-    setCameraRestrictionOverride(libreMap, {
-      restricted: false,
-      maxPitch: DEFAULT_MAX_PITCH,
-    });
+    setAddonCameraRestriction(
+      libreMap,
+      cameraOverrideOwner,
+      { restricted: false, maxPitch: DEFAULT_MAX_PITCH },
+      ADDON_CAMERA_RESTRICTION_PRIORITY.INTERACTION
+    );
     return () => {
-      setCameraRestrictionOverride(libreMap, null);
+      setAddonCameraRestriction(libreMap, cameraOverrideOwner, null);
     };
-  }, [isOn, libreMap]);
+  }, [cameraOverrideOwner, isOn, libreMap]);
 
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);
