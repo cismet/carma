@@ -25,11 +25,12 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
   base: base,
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
-
+  worker: {
+    // Module workers need ES output for their dynamically imported chunks.
+    format: "es",
+    // The worker sub-build resolves the wildcard tsconfig paths like the main build.
+    plugins: () => [nxViteTsPaths()],
+  },
   optimizeDeps: {
     include: ["maplibre-gl"],
     esbuildOptions: {

@@ -49,6 +49,12 @@ export default defineConfig({
       silent: false,
     }),
   ],
+  worker: {
+    // Module workers need ES output for their dynamically imported chunks.
+    format: "es",
+    // The worker sub-build resolves the wildcard tsconfig paths like the main build.
+    plugins: () => [nxViteTsPaths()],
+  },
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,

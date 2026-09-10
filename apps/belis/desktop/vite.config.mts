@@ -48,7 +48,8 @@ export default defineConfig({
 
   // Uncomment this if you are using workers.
   worker: {
-    plugins: () => [comlink()],
+    // The worker sub-build resolves the wildcard tsconfig paths like the main build.
+    plugins: () => [nxViteTsPaths(), comlink()],
   },
 
   build: {
