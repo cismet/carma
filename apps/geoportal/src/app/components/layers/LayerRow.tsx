@@ -14,7 +14,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import { isLayerGroup, layerGroupHasInfoView } from "@carma-mapping/layers";
+import { entryHasInfoView, isLayerGroup } from "@carma-mapping/layers";
 import type {
   BackgroundLayer,
   Layer,
@@ -84,8 +84,15 @@ const LayerRow = ({
   const isPinned = isPinnedLayer(layer);
   const isPermanent = isPermanentLayer(layer);
   const skipSelection = !isGroup && !!(layer as Layer).skipSelection;
-  const isSelectable =
-    index !== -1 && (!isGroup || layerGroupHasInfoView(layer));
+  // Whether clicking the title has anywhere to go. `entryHasInfoView` is the
+  // same predicate the store selects by, so a row can only offer a click the
+  // store will honour: asked for a selection it refuses, it resets to
+  // NO_SELECTION and the click reads as the info view closing itself. That
+  // covers the addon rows (`skipSelection`, unless they declare `hasInfoView`)
+  // as well as the groups this used to ask about on its own. The background
+  // layer stays out through its `index` of -1, which is how `BaseLayerInfo`
+  // marks the row that is not part of the stack.
+  const isSelectable = index !== -1 && entryHasInfoView(layer as LayerStackEntry);
   const opacity = skipSelection ? 1 : layer.opacity ?? 1;
 
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -187,7 +194,7 @@ const LayerRow = ({
         )}
         <p
           className={`mb-0 text-lg flex-1 min-w-0 truncate ${
-            isSelectable && "hover:underline cursor-pointer"
+            isSelectable ? "hover:underline cursor-pointer" : ""
           }`}
           onClick={handleSelectLayer}
         >
