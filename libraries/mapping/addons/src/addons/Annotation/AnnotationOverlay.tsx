@@ -16,7 +16,6 @@ import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { coverageAround } from "./annotation-zoom-coverage";
 import type { AnnotationPen } from "./annotation-pen";
 import { AnnotationScene } from "./AnnotationScene";
-import { usePlaneActive } from "./annotation-plane-active";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
 import type {
@@ -192,7 +191,6 @@ export const AnnotationOverlay = ({
    * above all, still wins, and a `cameraRestriction` addon on the same route
    * writes the same slot: the later write stands.
    */
-  const plane = usePlaneActive(libreMap);
   useEffect(() => {
     if (!libreMap || !isOn) {
       return;
