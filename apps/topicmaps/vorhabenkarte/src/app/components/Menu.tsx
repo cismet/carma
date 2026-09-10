@@ -17,6 +17,16 @@ import {
 } from "@carma-collab/wuppertal/vorhabenkarte";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
+
+/**
+ * The filter still reads the react-cismap FeatureCollection, which the MapLibre
+ * map no longer fills. Until the filter is driven by the vector style's
+ * carmaConf.filterConfig it would render an empty topic list, so the section is
+ * switched off rather than removed: FilterUI stays the reference for the
+ * behaviour that has to be reproduced one to one.
+ */
+const FILTER_SECTION_ENABLED = false;
 
 const Menu = () => {
   const { filteredItems, shownFeatures } = useContext<
@@ -42,21 +52,26 @@ const Menu = () => {
           />
         }
         menuSections={[
-          <Section
-            key="filter"
-            sectionKey="filter"
-            sectionTitle={getFilterHeader(
-              filteredItems?.length,
-              shownFeatures?.length || 0
-            )}
-            sectionBsStyle={FilterStyle}
-            sectionContent={<FilterUI />}
-          />,
+          ...(FILTER_SECTION_ENABLED
+            ? [
+                <Section
+                  key="filter"
+                  sectionKey="filter"
+                  sectionTitle={getFilterHeader(
+                    filteredItems?.length,
+                    shownFeatures?.length || 0
+                  )}
+                  sectionBsStyle={FilterStyle}
+                  sectionContent={<FilterUI />}
+                />,
+              ]
+            : []),
           <DefaultSettingsPanel
             key="settings"
             skipFilterTitleSettings={false}
             skipClusteringSettings={true}
             itemFilterFunction={() => true}
+            overridingMapPreview={<PreviewLibreMap />}
           />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,
