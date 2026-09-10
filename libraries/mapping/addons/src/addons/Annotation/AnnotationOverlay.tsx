@@ -16,7 +16,7 @@ import { highestIdSequence, readDrawings } from "./annotation-storage";
 import { coverageAround } from "./annotation-zoom-coverage";
 import type { AnnotationPen } from "./annotation-pen";
 import { AnnotationScene } from "./AnnotationScene";
-import { usePlaneEnabled } from "./annotation-plane-flag";
+import { usePlaneActive } from "./annotation-plane-active";
 import { useAnnotationStorage } from "./useAnnotationStorage";
 import { useDrawingPicker } from "./useDrawingPicker";
 import type {
@@ -178,16 +178,13 @@ export const AnnotationOverlay = ({
   const getPen = useCallback(() => penRef.current, []);
 
   /**
-   * Who decides whether the camera may turn and tilt, and only while the
-   * pencil is out. Off, the addon says nothing at all and the camera is the
-   * app's own, whatever bearing and pitch it is standing at.
-   *
-   * Turning the mode on, the answer depends on the ground plane. With it, the
-   * lock is lifted: the drawing follows bearing and pitch, so there is nothing
-   * left for the lock to protect it from. Without it, the lock goes on and the
-   * engine brings the camera back to north-up and flat as it applies it — a
-   * flat scene only lines up with a flat, north-up map. Ending the mode hands
-   * the camera back either way.
+   * The camera may turn and tilt while the pencil is out, whatever the route
+   * otherwise allows. The lock the addon used to put on is gone: the drawing
+   * follows bearing and pitch by itself now — flat and north-up it is the
+   * upright scene, and the ground plane takes over the moment the camera
+   * leaves that, see `annotation-plane-active`. Locking here would also be a
+   * trap, since a camera held flat could never reach the tilt that turns the
+   * plane on. Ending the mode hands the camera back.
    *
    * It goes through the map's camera-restriction override, the one channel the
    * engine applies and publishes, so the compass and the pitch control follow
@@ -195,19 +192,19 @@ export const AnnotationOverlay = ({
    * above all, still wins, and a `cameraRestriction` addon on the same route
    * writes the same slot: the later write stands.
    */
-  const plane = usePlaneEnabled();
+  const plane = usePlaneActive(libreMap);
   useEffect(() => {
     if (!libreMap || !isOn) {
       return;
     }
     setCameraRestrictionOverride(libreMap, {
-      restricted: !plane,
+      restricted: false,
       maxPitch: DEFAULT_MAX_PITCH,
     });
     return () => {
       setCameraRestrictionOverride(libreMap, null);
     };
-  }, [isOn, libreMap, plane]);
+  }, [isOn, libreMap]);
 
   // in state so the measurement re-runs once the host is there
   const [host, setHost] = useState<HTMLElement | null>(null);

@@ -6,7 +6,7 @@ import type {
   NormalizedZoomValue,
 } from "@excalidraw/excalidraw/types/types";
 
-import { planeLog } from "./annotation-plane-flag";
+import { planeLog } from "./annotation-plane-active";
 import { lngLatToScene, overlayOffset } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
 import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
@@ -82,7 +82,7 @@ export const useMapSceneSync = (
   live: boolean,
   limits: AnnotationSyncLimits,
   savedAnchor?: AnnotationAnchor,
-  /** the drawing follows bearing and pitch; see `annotation-plane-flag` */
+  /** the drawing follows bearing and pitch; see `annotation-plane-active` */
   plane = false
 ) => {
   const {

@@ -16,7 +16,7 @@ import { isAnnotationShape } from "./shape-tools";
 import { sceneHasElementAt } from "./annotation-hit-test";
 import { useDecorationScale } from "./annotation-normalize";
 import { useStyleMarks } from "./annotation-style-marks";
-import { usePlaneEnabled } from "./annotation-plane-flag";
+import { usePlaneActive } from "./annotation-plane-active";
 import { useGroundPlane, usePlaneMargin } from "./annotation-plane";
 import { usePlanePointer } from "./annotation-plane-pointer";
 import { sceneToLngLat } from "./annotation-scene-space";
@@ -185,7 +185,7 @@ export const AnnotationScene = ({
 }: AnnotationSceneProps) => {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
-  const plane = usePlaneEnabled();
+  const plane = usePlaneActive(libreMap);
   const {
     inSync,
     onSceneChange,
