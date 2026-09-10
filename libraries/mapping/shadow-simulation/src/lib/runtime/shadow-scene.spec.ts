@@ -42,7 +42,6 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
     MAPLIBRE_EVENT: mapLibreEventMock,
     WUPPERTAL_TERRAIN_SOURCE_ID: "terrain-source",
     acquireSharedThreeScene: vi.fn(),
-    buildRasterDemTerrainRuntime: vi.fn(),
     getGenericThreeLayers: vi.fn(() => []),
     getSharedThreeShadowViewSignature: vi.fn(({ camera, shadowMapSize }) =>
       [
@@ -68,9 +67,15 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
   };
 });
 
+// The scene imports the terrain runtime from the engine's terrain entry, which
+// keeps the terrain worker out of the root barrel.
+vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
+  buildRasterDemTerrainRuntime: vi.fn(),
+}));
+
+import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import {
   acquireSharedThreeScene,
-  buildRasterDemTerrainRuntime,
   getGenericThreeLayers,
   getSharedThreeSceneRuntimes,
   MAPLIBRE_EVENT,
