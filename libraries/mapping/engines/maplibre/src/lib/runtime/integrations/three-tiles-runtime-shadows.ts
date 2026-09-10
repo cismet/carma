@@ -203,6 +203,24 @@ export function createThreeTilesShadows(
           .negate()
           .normalize();
         const regionalReceivers: ShadowReceiverSource[] = [];
+        for (const receiver of runtimeState.shadowView.terrainReceivers ?? []) {
+          const clippedBounds = new THREE.Box3(
+            new THREE.Vector3(...receiver.minimum),
+            new THREE.Vector3(...receiver.maximum)
+          ).intersect(receiverBounds);
+          if (clippedBounds.isEmpty()) continue;
+          regionalReceivers.push({
+            bounds: clippedBounds,
+            geometricError: receiver.geometricError ?? 1,
+            screenErrorPixels: receiver.errorPixels ?? errorPixels,
+            centerness: 1,
+            maximumCasterDistance: maximumSweepDistanceWithinBox(
+              clippedBounds,
+              runtimeState.rootWorldBoundingBox,
+              runtimeState.sunwardDirection
+            ),
+          });
+        }
         const receiverFrontier = runtimeState.options.providesTerrain
           ? runtimeState.committedMeshReceiverFrontier
           : runtimeState.tiles.visibleTiles;
@@ -408,6 +426,7 @@ export function createThreeTilesShadows(
         runtimeState.shadowViewSignature,
         runtimeState.requestedErrorTarget,
         runtimeState.tilesToShadowView.elements,
+        runtimeState.shadowView?.terrainReceivers,
         receivers
           .map(({ tile, screenErrorPixels }) => [
             dependencies.getTileDebugId(tile),
@@ -431,6 +450,30 @@ export function createThreeTilesShadows(
       }
       const sources: ShadowReceiverSource[] = [];
       const sourceTiles = new Set<Tile>();
+      // Decision: LOD2-TERRAIN-CORRIDORS-20260910 in engines/maplibre/README.md.
+      // Ground receivers belong to the independent DEM, not the building tree.
+      const worldToTiles = runtimeState.tiles.group.matrixWorld
+        .clone()
+        .invert();
+      for (const receiver of runtimeState.shadowView?.terrainReceivers ?? []) {
+        const bounds = new THREE.Box3(
+          new THREE.Vector3(...receiver.minimum),
+          new THREE.Vector3(...receiver.maximum)
+        );
+        sources.push({
+          bounds,
+          boundsTransform: worldToTiles,
+          geometricError: receiver.geometricError ?? 1,
+          screenErrorPixels:
+            receiver.errorPixels ?? runtimeState.requestedErrorTarget,
+          centerness: 1,
+          maximumCasterDistance: maximumSweepDistanceWithinBox(
+            bounds,
+            runtimeState.rootWorldBoundingBox,
+            runtimeState.sunwardDirection
+          ),
+        });
+      }
       for (const { tile, screenErrorPixels } of receivers) {
         const bounds = tile.engineData?.boundingVolume;
         if (!bounds?.getAABB) continue;
@@ -491,10 +534,11 @@ export function createThreeTilesShadows(
       if (!runtimeState.tiles) return "empty" as const;
       // Pass 1 owns receiver demand. Offscreen caster tiles from pass 2 must not
       // recursively become receivers and grow the requested region city-wide.
-      const receiverFrontier =
-        runtimeState.committedMeshReceiverFrontier.size > 0
-          ? runtimeState.committedMeshReceiverFrontier
-          : runtimeState.displayedMeshFrontier;
+      const receiverFrontier = !runtimeState.options.providesTerrain
+        ? runtimeState.tiles.visibleTiles
+        : runtimeState.committedMeshReceiverFrontier.size > 0
+        ? runtimeState.committedMeshReceiverFrontier
+        : runtimeState.displayedMeshFrontier;
       const snapshot = createReceiverSnapshot(receiverFrontier);
       if (!snapshot?.mask) return "empty" as const;
       const {
@@ -512,6 +556,8 @@ export function createThreeTilesShadows(
       // corridor. Keeping the previous mask alive would retain and request tiles
       // that belong to neither after a view change.
       runtimeState.shadowReceiverMask = nextMask;
+      if (!runtimeState.options.providesTerrain)
+        runtimeState.shadowRegionRevisions.clear();
       // Receiver membership changed with the observer, but existing per-receiver
       // corridor proofs remain valid for the same sun direction and source cut.
       // Their bounds and error target are already part of the cache key.
@@ -529,7 +575,8 @@ export function createThreeTilesShadows(
         !runtimeState.shadowView ||
         !runtimeState.tiles ||
         !runtimeState.cameraSet ||
-        runtimeState.tiles.group.children.length === 0
+        (runtimeState.tiles.group.children.length === 0 &&
+          !runtimeState.shadowView.terrainReceivers?.length)
       ) {
         return;
       }

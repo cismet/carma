@@ -12,6 +12,8 @@ export interface SharedThreeSceneFrame {
 
 export type SharedThreeSceneShadowView = Readonly<{
   camera: THREE.Camera;
+  /** Scene-space ground receivers supplied to building-only caster runtimes. */
+  terrainReceivers?: readonly SharedThreeSceneTileVolume[];
   casterAngularRadiusRadians?: number;
   shadowMapSize: Readonly<{
     width: number;

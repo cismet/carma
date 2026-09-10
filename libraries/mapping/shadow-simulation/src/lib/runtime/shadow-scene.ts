@@ -1547,6 +1547,27 @@ export const buildShadowSimulationScene = (
   const applyRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     appliedRuntimeShadowView = view;
     const selectionSignature = getTerrainSelectionSignature(view);
+    const receiverCamera = latestFrame?.renderCamera;
+    const receiverFrustum =
+      view && receiverCamera
+        ? new THREE.Frustum().setFromProjectionMatrix(
+            new THREE.Matrix4().multiplyMatrices(
+              receiverCamera.projectionMatrix,
+              receiverCamera.matrixWorldInverse
+            ),
+            receiverCamera.coordinateSystem,
+            receiverCamera.reversedDepth
+          )
+        : null;
+    const receiverBounds = new THREE.Box3();
+    const terrainReceivers = receiverFrustum
+      ? terrainRuntime?.getActiveTileVolumes?.().filter((tile) => {
+          // Caster-only terrain must not recursively extend receiver demand.
+          receiverBounds.min.fromArray(tile.minimum);
+          receiverBounds.max.fromArray(tile.maximum);
+          return receiverFrustum.intersectsBox(receiverBounds);
+        })
+      : undefined;
     const runtimes = [
       ...getSharedThreeSceneRuntimes(map),
       ...(terrainRuntime ? [terrainRuntime] : []),
@@ -1556,7 +1577,7 @@ export const buildShadowSimulationScene = (
       // while per-tile stages are diagnosed in the scene overlay.
       runtime.setShadowStagePresentationGate?.(false);
       if (!runtime.providesTerrain) {
-        runtime.setShadowView?.(view);
+        runtime.setShadowView?.(view ? { ...view, terrainReceivers } : null);
         continue;
       }
       if (terrainSelectionSignatures.get(runtime) === selectionSignature) {

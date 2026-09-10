@@ -911,3 +911,30 @@ terrain-mesh runtime to the shared scene.
 - **Validation:** 36 focused layer/registry/camera tests pass against the actual
   split. Internal browser still renders Mesh2024 and hard shadows. No build/lint
   or full performance claim; global barrel-policy findings remain elsewhere.
+
+### LOD2 terrain corridor reuse
+
+- **ID / date / status:** LOD2-TERRAIN-CORRIDORS-20260910 / 2026-09-10 /
+  user-confirmed working in preview ca9b7a957-1789005533718.
+- **Context:** Building-only tilesets do not populate mesh receiver frontiers.
+  Using that empty frontier disabled their sunward selection. Independent raster
+  terrain can receive building shadows even where no building intersects the view.
+- **Decision:** Native tilesets use their visible receiver tiles plus visible
+  triangulated-terrain Box3 volumes supplied through the existing shadow view.
+  Both use createShadowReceiverMask, the existing finite-sun sweep and hierarchy
+  readiness/revision search. Scene-space ground bounds are transformed into tile
+  space for loading, and clipped to the requested receiver for regional proofs.
+  Terrain outside the observer frustum never seeds recursive caster demand.
+- **Alternatives:** A separate LOD2 corridor algorithm is unnecessary; increasing
+  texture sizes cannot fix missing casters or readiness stuck at preview quality.
+- **Evidence:** Focused native-frontier and open-ground LOD2 regressions pass.
+  The wider corridor file has 14 passes and two mesh-selection failures; both
+  reproduce with the committed shadow module substituted by a Vite load hook.
+  Native regression verifies offscreen caster inView admission, which upstream
+  traversal uses for LRU residency. End-to-end eviction retention remains unverified.
+  Existing shadow map limits, samples and animation direct-draw policy are unchanged.
+  User confirmed the candidate works in the internal browser. No measured speed
+  comparison or pixel-level chimney-shadow parity established.
+- **Revisit when:** Ground receiver metadata lacks adequate spatial precision,
+  bounds changes cause excess proof invalidation, or live resolution remains low
+  after corridor coverage is complete.

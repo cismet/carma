@@ -8,7 +8,10 @@ import { buildThreeTilesRuntime } from "../src/lib/runtime/integrations/three-ti
 /** Metadata/decoded-payload fixture; no network or GPU. Spatial roles are explicit
  * and native/local transforms remain coherent. Loading state matches scene data.
  */
-export const createMeshCorridorFixture = (rotation = 0) => {
+export const createMeshCorridorFixture = (
+  rotation = 0,
+  providesTerrain = true
+) => {
   let renderer!: TilesRenderer;
   const errors = new WeakMap<Tile, { inView: boolean; error: number }>();
   vi.spyOn(TilesRenderer.prototype, "update").mockImplementation(function () {
@@ -43,7 +46,7 @@ export const createMeshCorridorFixture = (rotation = 0) => {
     "corridor",
     "https://example.test/mesh/tileset.json",
     [7.2, 51.2],
-    { providesTerrain: true }
+    { providesTerrain }
   );
   const camera = new THREE.PerspectiveCamera();
   const frame = {

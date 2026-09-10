@@ -14,6 +14,67 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("current mesh corridor request admission", () => {
+  it("builds native LOD2 caster demand without a mesh receiver frontier", () => {
+    const f = createMeshCorridorFixture(0, false);
+    f.renderer.group.add(f.receiver.engineData.scene!);
+    vi.mocked(TilesRenderer.prototype.update).mockImplementation(function () {
+      this.frameCount += 1;
+      this.visibleTiles.add(f.receiver);
+    });
+    try {
+      f.update();
+      const casterDemand = { inView: false, error: 0, distanceFromCamera: 0 };
+      f.renderer.calculateTileViewErrorWithPlugin(f.caster, casterDemand);
+      expect(casterDemand.inView).toBe(true);
+      expect(
+        f.runtime.scene.getShadowRegionDiagnostics?.(
+          f.corridor,
+          16,
+          f.receiverBox
+        )
+      ).toBeTruthy();
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("uses independent terrain boxes for LOD2 corridors over open ground", () => {
+    const f = createMeshCorridorFixture(0, false);
+    f.root.children = [f.caster];
+    f.renderer.group.add(f.caster.engineData.scene!);
+    vi.mocked(TilesRenderer.prototype.update).mockImplementation(function () {
+      this.frameCount += 1;
+      this.visibleTiles.clear();
+      this.visibleTiles.add(f.caster);
+    });
+    try {
+      f.runtime.scene.setShadowView({
+        camera: f.sun,
+        shadowMapSize: { width: 1024, height: 1024 },
+        terrainReceivers: [
+          {
+            id: "ground",
+            kind: "terrain-tile",
+            geometricError: 16,
+            errorPixels: 16,
+            minimum: f.receiverBox.min.toArray(),
+            maximum: f.receiverBox.max.toArray(),
+          },
+        ],
+      });
+      f.update();
+      const diagnostic = f.runtime.scene.getShadowRegionDiagnostics?.(
+        f.corridor,
+        16,
+        f.receiverBox
+      );
+      expect(diagnostic).toMatchObject({ receiverPrismTested: true });
+      expect(diagnostic?.selectedTileIds.length).toBeGreaterThan(0);
+    } finally {
+      f.dispose();
+    }
+  });
+
   it("retains visible receiver/caster coverage at dragstart, through throttled drags and on moveend", async () => {
     vi.useFakeTimers();
     const f = createMeshCorridorFixture();
