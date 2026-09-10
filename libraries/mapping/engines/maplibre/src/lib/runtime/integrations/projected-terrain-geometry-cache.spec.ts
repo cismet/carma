@@ -783,6 +783,9 @@ describe("projected terrain geometry cache", () => {
   });
 
   it("bounds pending array bytes across namespaces and admits writes after completion", async () => {
+    // Byte accounting only: the 12 MiB fixtures are cloned three times per
+    // write, so a real clock would let the 50 ms read deadline fire under load.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     const caches = ["first", "second", "third"].map((source) =>
       createProjectedTerrainGeometryCache(source, [7.15, 51.25], undefined)
     );
