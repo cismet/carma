@@ -58,6 +58,16 @@ export type VehicleThreeLayerOptions = {
   opacity: number;
   /** the girders, bracing and supports; without one only the vehicles show */
   structure: StructureAsset | null;
+  /**
+   * Whether the layer reports itself as a 3D layer on the map, which is what
+   * lifts the camera restriction and, with it, the terrain. Default: true, the
+   * right answer for an animation someone asked for in three dimensions.
+   *
+   * A variant that appears *because* the camera is already free passes false:
+   * it needs to unlock nothing, and counting itself would make it the reason
+   * the camera stays free, so it could never go back to the flat variant.
+   */
+  claims3d?: boolean;
   beforeId?: string;
   id?: string;
   onFleetSize?: (count: number) => void;
@@ -316,6 +326,7 @@ export const createVehicleThreeLayer = (
     schedule,
     timetable = null,
     structure,
+    claims3d = true,
     beforeId,
     id = DEFAULT_ID,
     onFleetSize,
@@ -697,7 +708,9 @@ export const createVehicleThreeLayer = (
     if (destroyed || !visible || !map.getStyle() || map.getLayer(id)) return;
     // before the layer goes on: the host reads the presence on the style
     // event that addLayer fires
-    add3dPresence(map, id);
+    if (claims3d) {
+      add3dPresence(map, id);
+    }
     const insertBefore =
       beforeId && map.getLayer(beforeId) ? beforeId : undefined;
     map.addLayer(layer, insertBefore);

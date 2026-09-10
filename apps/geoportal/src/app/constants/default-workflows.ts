@@ -7,7 +7,7 @@ import type { WorkflowDefinition } from "@carma-mapping/layers";
 import { isAvailable } from "@carma-commons/utils";
 
 import { availabilityContext } from "../config/availability";
-import { SCHWEBEBAHN_VEHICLE } from "./schwebebahn";
+import { SCHWEBEBAHN_3D_VEHICLE, SCHWEBEBAHN_VEHICLE } from "./schwebebahn";
 
 /**
  * Workflows that are on the map without anyone adding them.
@@ -48,7 +48,17 @@ export const DEFAULT_WORKFLOWS: WorkflowDefinition<AddonEntry>[] = [
       "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
       "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
       "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
-    tools: [{ addon: "vehicleAnimation", config: SCHWEBEBAHN_VEHICLE }],
+    // `variant3d`: while the map's camera is free, the same fleet runs as the
+    // 3D variant, Gerüst and all. Terrain is on in that state anyway, so the
+    // Schwebebahn stands up with it and lies back down when the camera locks.
+    // It runs without a claim on the camera of its own, so it follows that
+    // state rather than holding it open, see the addon's config.
+    tools: [
+      {
+        addon: "vehicleAnimation",
+        config: { ...SCHWEBEBAHN_VEHICLE, variant3d: SCHWEBEBAHN_3D_VEHICLE },
+      },
+    ],
   },
 ];
 

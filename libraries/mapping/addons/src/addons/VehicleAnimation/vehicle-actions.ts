@@ -115,6 +115,17 @@ export type VehicleAnimationDefinition = {
    * what a workflow card launches.
    */
   permanent?: boolean;
+  /**
+   * Only for `renderer: "three"`: whether the layer reports itself as a 3D
+   * layer, which is what lifts the map's camera restriction and, with it, the
+   * terrain. Default: true, the right answer for an animation someone asked
+   * for in three dimensions.
+   *
+   * An animation that appears *because* the camera is already free passes
+   * false, see `variant3d` on the addon's config: it needs to unlock nothing,
+   * and counting itself would make it the reason the camera stays free.
+   */
+  claims3d?: boolean;
 };
 
 export type VehicleRenderer = "flat" | "three";
@@ -146,6 +157,8 @@ export type VehicleAnimationState = {
   /** empty: the fleet runs a headway rather than a timetable */
   timetableUrl: string;
   renderer: VehicleRenderer;
+  /** whether a `three` fleet unlocks the camera, see the definition */
+  claims3d: boolean;
   /** the row is the app's, see `permanent` on the definition */
   permanent: boolean;
   /**
@@ -204,6 +217,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   structureUrl: "",
   timetableUrl: "",
   renderer: "flat",
+  claims3d: true,
   permanent: false,
   isHidden: false,
   isPaused: false,
@@ -425,6 +439,7 @@ export const useVehicleAnimationLauncher = () => {
         structureUrl: def.structureUrl ?? fallback.structureUrl,
         timetableUrl: def.timetableUrl ?? fallback.timetableUrl,
         renderer: def.renderer ?? fallback.renderer,
+        claims3d: def.claims3d ?? fallback.claims3d,
         permanent: def.permanent ?? fallback.permanent,
         // the host's choice, not the definition's: a hidden default workflow
         // that is relaunched (a route change, a config edit) stays hidden
