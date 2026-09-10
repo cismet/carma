@@ -10,6 +10,7 @@ import {
   Group,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   Sphere,
   Vector3,
@@ -447,6 +448,16 @@ export const buildRasterDemTerrainRuntime = (
     // default opposite-side pass, which requires a closed volume.
     shadowSide: FrontSide,
   });
+  // Decision: OFFSCREEN-CASTERS-20260910 in
+  // libraries/mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md.
+  // Keep depth geometry resident, but never light or project basemap colour
+  // onto a tile outside the observer frustum. No per-tile texture is needed.
+  const casterMaterial = new MeshBasicMaterial({
+    side: FrontSide,
+    shadowSide: FrontSide,
+    colorWrite: false,
+    depthWrite: false,
+  });
   let mapStyleProjectionVersion = 0;
   const sourcePromise = acquireRasterDemTerrainTileSource(terrainSourceConfig, {
     maxCacheBytes: options.maxCacheBytes,
@@ -459,6 +470,11 @@ export const buildRasterDemTerrainRuntime = (
   let source: RasterDemTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
   let latestRenderCamera: Camera | null = null;
+  const observerFrustum = new Frustum();
+  const observerProjection = new Matrix4();
+  const nextObserverProjection = new Matrix4();
+  const identityProjection = new Matrix4();
+  let observerFrustumReady = false;
   let shadowView: SharedThreeSceneShadowView | null = null;
   let previousShadowFrustum: Frustum | null = null;
   let unregisterSampler: (() => void) | null = null;
@@ -1086,6 +1102,7 @@ export const buildRasterDemTerrainRuntime = (
       volumes.push({
         id: `${runtimeId}:${key}`,
         kind: "terrain-tile",
+        loadReason: record.reliefMesh?.receiveShadow ? "viewport" : "shadow",
         minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
         maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
       });
@@ -1094,8 +1111,22 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   const applyMeshVisibility = () => {
+    root.updateWorldMatrix(true, false);
+    const bounds = new Box3();
     for (const [key, record] of meshes) {
       record.node.visible = root.visible && activeMeshKeys.has(key);
+      if (!record.node.visible || !record.reliefMesh) continue;
+      const receiver =
+        !observerFrustumReady ||
+        observerFrustum.intersectsBox(
+          getTerrainMeshWorldBounds(record, bounds)
+        );
+      const nextMaterial = receiver ? material : casterMaterial;
+      if (record.reliefMesh.material !== nextMaterial) {
+        record.reliefMesh.material = nextMaterial;
+        mapStyleProjectionVersion += 1;
+      }
+      record.reliefMesh.receiveShadow = receiver;
     }
   };
 
@@ -2090,7 +2121,10 @@ export const buildRasterDemTerrainRuntime = (
     originLngLat,
     root,
     providesTerrain: true,
-    receivesMapStyleTexture: options.receivesMapStyleTexture === true,
+    receivesMapStyleTexture:
+      options.receivesMapStyleTexture === true
+        ? (candidate) => candidate === material
+        : false,
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
@@ -2143,6 +2177,29 @@ export const buildRasterDemTerrainRuntime = (
       latestRenderCamera = frame.renderCamera;
       if (disposed || !root.visible) return;
       if (!source) return;
+      latestRenderCamera.updateMatrixWorld(true);
+      nextObserverProjection.multiplyMatrices(
+        latestRenderCamera.projectionMatrix,
+        latestRenderCamera.matrixWorldInverse
+      );
+      if (
+        !observerProjection.equals(nextObserverProjection) ||
+        contentChangedSinceFrame
+      ) {
+        observerProjection.copy(nextObserverProjection);
+        // Solar samples do not change observer roles. Only camera/content
+        // events require another terrain-bounds walk.
+        observerFrustumReady =
+          observerProjection.elements.every(Number.isFinite) &&
+          !latestRenderCamera.projectionMatrix.equals(identityProjection);
+        if (observerFrustumReady)
+          observerFrustum.setFromProjectionMatrix(
+            observerProjection,
+            latestRenderCamera.coordinateSystem,
+            latestRenderCamera.reversedDepth
+          );
+        applyMeshVisibility();
+      }
       if (contentChangedSinceFrame) {
         contentChangedSinceFrame = false;
         // Compare only at publication, never per camera frame. A same-bounds
@@ -2282,6 +2339,7 @@ export const buildRasterDemTerrainRuntime = (
       meshes.clear();
       publishedShadowGeometry.clear();
       material.dispose();
+      casterMaterial.dispose();
       root.clear();
       map = null;
       settleReady(false);

@@ -389,3 +389,27 @@ Use `kill -USR1 <preview-pid>` to pause rebuilds, then inspect
 `kill -USR2 <preview-pid>`. Keep viewport, physical resolution, Mesh2024, sunlight,
 64 samples and cache warmness fixed. Build completion alone does not establish
 interactive performance or GPU output parity.
+
+## 2026-09-10: native LoD2 soft convergence
+
+Decision and results: **OFFSCREEN-CASTERS-20260910** in `TILED_SHADOW_PAGES.md`.
+The user's internal Codex tab was reused, not an external Chrome profile. Preserve
+the exact view hash documented there, native LoD2, 64 samples, tiled buffer,
+30-FPS preset and 2-px terrain target. Pause the existing preview watcher and
+wait for its ready log before each measurement; retain existing browser caches.
+
+The immutable diagnostic build is `/build/761be033b-1789033971501/`. In that build
+only, `?shadowProfile=1` before the view hash enables a temporary 60-s rAF sampler
+from shadow-runtime startup plus `PerformanceObserver({type: "longtask", buffered:
+true})`. It records sorted median/p95/max rAF intervals, total/max Long Task time
+and counts. Read `[shadow-profile] responsiveness` and `[shadow-simulation] all
+soft corridors ready` from the internal tab's console. The latter timestamps
+`performance.now()` when all current pages are ready and published; confirm the
+final stable page count in the debug statistics. Three unchanged reloads produced
+11/11 at 13.133, 14.575 and 10.192 s. No build or test was run during those samples.
+
+This is a bounded local readiness/responsiveness profile, **not** a CPU/GPU trace,
+cold-network benchmark, frame-by-frame drag proof, or throughput measurement.
+Production sources no longer contain the temporary sampler or per-node diagnostic;
+the immutable diagnostic build and local `output/soft-shadow-profile-20260910.json`
+preserve the evidence. Two drag spot checks afterward retained visible cast shadows.

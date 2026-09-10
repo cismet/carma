@@ -50,14 +50,12 @@ describe("advanced shadow render settings", () => {
     expect(queryByRole("checkbox", { name: "Sky-Irradianz-LUT" })).toBeNull();
   });
   it("shows the buffer selector while advanced quality settings stay collapsed", () => {
-    const state = {
-      ...createInitialShadowSimulationState(undefined),
-      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
-    };
+    const state = createInitialShadowSimulationState(undefined);
     const { getByLabelText } = render(
       <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
     );
     const layout = getByLabelText("Schattenpuffer", { selector: "input" });
+    expect(selectedText(layout)).toBe("Einzelpuffer");
     const details = getByLabelText("Farbpuffer der Schattenakkumulation", {
       selector: "input",
     }).closest("details");

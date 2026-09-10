@@ -6,7 +6,9 @@ import {
   BufferGeometry,
   Camera,
   Float32BufferAttribute,
+  Frustum,
   Group,
+  Matrix4,
   Mesh,
   OrthographicCamera,
   PerspectiveCamera,
@@ -55,6 +57,7 @@ vi.mock("./shared-three-terrain-registry", () => ({
 }));
 
 import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
+import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
 import type { TerrainTile, TerrainTileId } from "../../core/raster-dem-tile";
 import { TERRAIN_IDLE_SHADOW_REASON } from "../../core/terrain-idle-prefetch";
 
@@ -210,13 +213,18 @@ describe("buildRasterDemTerrainRuntime", () => {
     };
   };
 
-  it.each([false, true])("releases its raster source exactly once (acquired=%s)", async (acquired) => {
-    const { runtime, source, start } = createIdlePrefetchFixture(`source-release-${acquired}`);
-    if (acquired) await start();
-    runtime.dispose();
-    runtime.dispose();
-    await vi.waitFor(() => expect(source.release).toHaveBeenCalledOnce());
-  });
+  it.each([false, true])(
+    "releases its raster source exactly once (acquired=%s)",
+    async (acquired) => {
+      const { runtime, source, start } = createIdlePrefetchFixture(
+        `source-release-${acquired}`
+      );
+      if (acquired) await start();
+      runtime.dispose();
+      runtime.dispose();
+      await vi.waitFor(() => expect(source.release).toHaveBeenCalledOnce());
+    }
+  );
 
   it("retains the loaded visible surface when drag-start selection has no replacement", async () => {
     const f = createIdlePrefetchFixture("drag-coverage");
@@ -252,14 +260,24 @@ describe("buildRasterDemTerrainRuntime", () => {
 
   it("retains an offscreen caster in the shadow frustum across an empty transient selection", async () => {
     const f = createIdlePrefetchFixture("offscreen-caster-retention");
-    const shadowCamera = new OrthographicCamera(-50000, 50000, 50000, -50000, 1, 100000);
+    const shadowCamera = new OrthographicCamera(
+      -50000,
+      50000,
+      50000,
+      -50000,
+      1,
+      100000
+    );
     shadowCamera.position.set(0, 10000, 0);
     shadowCamera.lookAt(0, 0, 0);
     shadowCamera.updateMatrixWorld(true);
-    f.runtime.setShadowView({ camera: shadowCamera, shadowMapSize: { width: 1024, height: 1024 } });
+    f.runtime.setShadowView({
+      camera: shadowCamera,
+      shadowMapSize: { width: 1024, height: 1024 },
+    });
     await f.start();
     await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledTimes(1));
-    const visible = f.runtime.root.children.filter(node => node.visible);
+    const visible = f.runtime.root.children.filter((node) => node.visible);
     expect(visible).toHaveLength(1);
     f.source.getTileGridIdsForBounds.mockReturnValue([]);
     // Mutating the external controller must not mutate the accepted shadow view.
@@ -274,7 +292,10 @@ describe("buildRasterDemTerrainRuntime", () => {
 
   it("reports target-LOD readiness only after its selected terrain is published", async () => {
     const f = createIdlePrefetchFixture("corridor-readiness");
-    const region = new Box3(new Vector3(-100, -100, -100), new Vector3(100, 200, 100));
+    const region = new Box3(
+      new Vector3(-100, -100, -100),
+      new Vector3(100, 200, 100)
+    );
     expect(f.runtime.isShadowRegionReady?.(region)).toBe(false);
     await f.start();
     await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledTimes(1));
@@ -1050,6 +1071,7 @@ describe("buildRasterDemTerrainRuntime", () => {
         maximumLevel: 10,
         shadowLevelOffset: 0,
         onContentChanged,
+        receivesMapStyleTexture: true,
       }
     );
     const map = {
@@ -1132,6 +1154,102 @@ describe("buildRasterDemTerrainRuntime", () => {
     expect(publishedBounds).toHaveLength(1);
     expect(publishedBounds[0].min.toArray()).toEqual(debugVolumes[0].minimum);
     expect(publishedBounds[0].max.toArray()).toEqual(debugVolumes[0].maximum);
+
+    const receiverCamera = new OrthographicCamera(
+      -20_000,
+      20_000,
+      20_000,
+      -20_000,
+      1,
+      50_000
+    );
+    receiverCamera.position.set(0, 20_000, 0);
+    receiverCamera.lookAt(0, 0, 0);
+    receiverCamera.updateMatrixWorld(true);
+    runtime.update({ ...frame, renderCamera: receiverCamera });
+    const receiverMaterial = mesh.material as MeshLambertMaterial;
+    expect(mesh.receiveShadow).toBe(true);
+    const receivesStyle = runtime.receivesMapStyleTexture;
+    expect(
+      typeof receivesStyle === "function" && receivesStyle(receiverMaterial)
+    ).toBe(true);
+    expect(runtime.getActiveTileVolumes()[0].loadReason).toBe("viewport");
+
+    const offscreenCamera = receiverCamera.clone();
+    offscreenCamera.position.x += 200_000;
+    offscreenCamera.updateMatrixWorld(true);
+    runtime.update({ ...frame, renderCamera: offscreenCamera });
+    expect(mesh.receiveShadow).toBe(false);
+    expect(mesh.castShadow).toBe(true);
+    expect(tileNode.visible).toBe(true);
+    expect(mesh.material).not.toBe(receiverMaterial);
+    expect(
+      typeof receivesStyle === "function" && receivesStyle(mesh.material)
+    ).toBe(false);
+    expect(mesh.material).toMatchObject({
+      colorWrite: false,
+      depthWrite: false,
+      isMeshBasicMaterial: true,
+    });
+    expect(runtime.getActiveTileVolumes()[0].loadReason).toBe("shadow");
+
+    const copyFramebufferToTexture = vi.fn();
+    const projection = createSharedThreeMapStyleProjection(
+      "terrain-style",
+      new Map([[runtime.id, runtime]]),
+      frame.viewport
+    );
+    projection.attach(
+      { ...map, on: vi.fn(), off: vi.fn() } as never,
+      { copyFramebufferToTexture } as never
+    );
+    const clipMatrix = new Matrix4();
+    projection.capture(clipMatrix, false);
+    expect(projection.getState(0).enabled).toBe(false);
+    expect(copyFramebufferToTexture).not.toHaveBeenCalled();
+
+    // A sliver of the bounds is enough: neither the tile center nor its old
+    // asynchronous selection reason may keep a visible tile caster-only.
+    const edgeCamera = receiverCamera.clone();
+    edgeCamera.position.x = publishedBounds[0].max.x + edgeCamera.right - 1;
+    edgeCamera.updateMatrixWorld(true);
+    clipMatrix.multiplyMatrices(
+      edgeCamera.projectionMatrix,
+      edgeCamera.matrixWorldInverse
+    );
+    const edgeFrustum = new Frustum().setFromProjectionMatrix(clipMatrix);
+    expect(edgeFrustum.intersectsBox(publishedBounds[0])).toBe(true);
+    expect(
+      edgeFrustum.containsPoint(publishedBounds[0].getCenter(new Vector3()))
+    ).toBe(false);
+    const casterVersion = runtime.mapStyleProjectionVersion?.();
+    runtime.update({ ...frame, renderCamera: edgeCamera });
+    expect(mesh.receiveShadow).toBe(true);
+    expect(mesh.material).toBe(receiverMaterial);
+    expect(runtime.mapStyleProjectionVersion?.()).toBeGreaterThan(
+      casterVersion!
+    );
+    expect(runtime.getActiveTileVolumes()[0].loadReason).toBe("viewport");
+    projection.capture(clipMatrix, false);
+    expect(projection.getState(1).enabled).toBe(true);
+    expect(copyFramebufferToTexture).toHaveBeenCalledOnce();
+    const shader = {
+      uniforms: {},
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader: "#include <common>\n#include <map_fragment>",
+    };
+    receiverMaterial.onBeforeCompile(shader as never, {} as never);
+    expect(shader.uniforms).toMatchObject({
+      carmaMapStyleTexture: {
+        value: copyFramebufferToTexture.mock.calls[0][0],
+      },
+      carmaMapStyleEnabled: { value: 1 },
+    });
+    projection.dispose();
+
+    runtime.update({ ...frame, renderCamera: receiverCamera });
+    expect(mesh.receiveShadow).toBe(true);
+    expect(mesh.material).toBe(receiverMaterial);
 
     const shadowCamera = new OrthographicCamera(
       -1_000,

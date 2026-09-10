@@ -36,7 +36,7 @@ describe("shadow render quality", () => {
     (quality, samples, msaa) => {
       expect(resolveShadowRenderQuality({}, quality)).toEqual({
         shadowAdaptiveQuality: true,
-        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
         shadowBufferFormat: SHADOW_BUFFER_FORMAT.HDR_16_32,
         shadowSunDiscSamples: samples,
         shadowMsaaSamples: msaa,
@@ -54,12 +54,12 @@ describe("shadow render quality", () => {
     }
   );
 
-  it("falls back to tiled buffers for an unsupported layout", () => {
+  it("falls back to the direct viewport buffer for an unsupported layout", () => {
     expect(
       resolveShadowRenderQuality({
         shadowBufferLayout: "unsupported" as ShadowBufferLayout,
       }).shadowBufferLayout
-    ).toBe(SHADOW_BUFFER_LAYOUT.TILED);
+    ).toBe(SHADOW_BUFFER_LAYOUT.MONO);
   });
 
   it("budgets terrain separately from the native-resolution color path", () => {

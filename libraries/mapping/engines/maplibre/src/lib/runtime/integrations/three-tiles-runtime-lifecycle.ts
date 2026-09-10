@@ -656,7 +656,8 @@ export function createThreeTilesLifecycle(
         runtimeState.tiles
       );
     runtimeState.tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
-      if (runtimeState.tileBoundsVisible) dependencies.recordTileIteration(tile);
+      if (runtimeState.tileBoundsVisible)
+        dependencies.recordTileIteration(tile);
       calculateTileViewErrorWithPlugin(tile, target);
       if (target.inView && retainedMeshAncestors.has(tile)) {
         // Native REPLACE traversal must reach the retained mixed-LOD cut and
@@ -674,8 +675,8 @@ export function createThreeTilesLifecycle(
       if (
         runtimeState.shadowSelectionEnabled &&
         runtimeState.shadowReceiverMask &&
-        !runtimeState.mainViewSourceTiles.has(tile) &&
-        !target.inView
+        (!runtimeState.options.providesTerrain ||
+          (!runtimeState.mainViewSourceTiles.has(tile) && !target.inView))
       ) {
         const bounds = runtimeTile.engineData?.boundingVolume;
         if (bounds?.getAABB) {
@@ -684,6 +685,8 @@ export function createThreeTilesLifecycle(
             runtimeState.tileBoundingBox,
             runtimeState.tileBoundsTransform
           );
+          const observerInView = target.inView;
+          const observerError = target.error;
           const matchedCurrent = applyShadowReceiverMask(
             runtimeState.shadowReceiverMask,
             runtimeState.tileBoundingBox,
@@ -694,6 +697,14 @@ export function createThreeTilesLifecycle(
             runtimeState.tileBoundsTransform,
             { key: tile, parent: tile.parent ?? undefined }
           );
+          // A visible LOD2 ancestor can also lead to an offscreen caster.
+          // Native camera coverage must not suppress that corridor's demand.
+          if (observerInView) {
+            target.inView = true;
+            target.error = matchedCurrent
+              ? Math.max(observerError, target.error)
+              : observerError;
+          }
           if (matchedCurrent) {
             runtimeTile.shadowReceiverCenterness =
               runtimeState.shadowReceiverMatch.receiverCenterness;
@@ -702,6 +713,40 @@ export function createThreeTilesLifecycle(
             runtimeTile.shadowReceiverCurrent = true;
           }
         }
+      }
+      if (
+        !runtimeState.options.providesTerrain &&
+        target.inView &&
+        !tile.internal.hasRenderableContent &&
+        tile.children.length > 0
+      ) {
+        // Decision: OFFSCREEN-CASTERS-20260910 in
+        // libraries/mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md.
+        // An implicit-tileset routing node is not an empty coarse surface.
+        // Reach actual content before accepting its SSE; otherwise a loaded
+        // offscreen leaf never enters the depth cut and its corridor stalls.
+        target.error = Math.max(
+          target.error,
+          runtimeState.effectiveErrorTarget + 1
+        );
+      }
+      const parent = tile.parent;
+      if (
+        !runtimeState.options.providesTerrain &&
+        target.inView &&
+        parent?.refine === "ADD" &&
+        !parent.internal.hasRenderableContent &&
+        parent.geometricError > 0 &&
+        tile.geometricError > 0
+      ) {
+        // Upstream's ADD shortcut scales the child's SSE to its parent and
+        // skips the child even when that parent has no content to draw.
+        // Cross that shortcut without forcing the child itself to finer LOD.
+        target.error = Math.max(
+          target.error,
+          ((runtimeState.effectiveErrorTarget + 1) * tile.geometricError) /
+            parent.geometricError
+        );
       }
       dependencies.applyTileDeferral(tile, target.inView);
     };
@@ -889,6 +934,7 @@ export function createThreeTilesLifecycle(
     );
   };
 
+  let publishedNativeFrontier = new Set<Tile>();
   const update: ThreeTilesRuntimeServices["update"] = (
     frame: SharedThreeSceneFrame
   ) => {
@@ -980,6 +1026,43 @@ export function createThreeTilesLifecycle(
       // invalidation paths.
       if (runtimeState.tiles.frameCount !== previousTraversal)
         runtimeState.mainViewIntersectionCache = new WeakMap();
+      if (!runtimeState.options.providesTerrain) {
+        const changedBounds: THREE.Box3[] = [];
+        let unknownBounds = false;
+        for (const tile of new Set([
+          ...publishedNativeFrontier,
+          ...traversalFrontier,
+        ])) {
+          if (publishedNativeFrontier.has(tile) === traversalFrontier.has(tile))
+            continue;
+          const model = (tile as RuntimeTile).engineData?.scene;
+          const bounds =
+            model && dependencies.readModelWorldBounds(model, new THREE.Box3());
+          if (bounds && !bounds.isEmpty()) changedBounds.push(bounds);
+          else unknownBounds = true;
+        }
+        if (unknownBounds || changedBounds.length) {
+          // Loaded payloads can become visible without another load-model event.
+          // Recheck only changed corridors when the native published cut changes.
+          dependencies.invalidateShadowRegionRevisions(
+            unknownBounds ? undefined : changedBounds
+          );
+          runtimeState.options.onContentChanged?.(
+            unknownBounds ? undefined : changedBounds
+          );
+        }
+        publishedNativeFrontier = traversalFrontier;
+        // Native LOD2 uses the same receiver/caster split as mesh corridors.
+        // Re-evaluate against the observer, never the sun camera's tile set.
+        for (const tile of traversalFrontier) {
+          const model = (tile as RuntimeTile).engineData?.scene;
+          if (model)
+            setTileShadowRole(model, {
+              receiver: dependencies.isTileInMainView(tile as RuntimeTile),
+              caster: true,
+            });
+        }
+      }
       if (
         runtimeState.options.providesTerrain &&
         runtimeState.tiles.rootTileset?.root &&

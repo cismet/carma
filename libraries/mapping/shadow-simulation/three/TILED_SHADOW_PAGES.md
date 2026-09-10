@@ -455,8 +455,9 @@ and `budgetLimited: true`; the terrain runtime had 16 prepared neighbour regions
 This confirms safe budget gating, not an app-level prewarm gain. Do not raise
 the budget merely to make the component benchmark's reuse case fit.
 
-Tiled is the user-requested default, not a claim of a measured equal-quality
-speedup. Multipass colour cost and finite-disc storage remain limitations.
+Tiled was the user-requested default at this stage, not a claim of a measured
+equal-quality speedup. Superseded by DIRECT-SUN-DEFAULT-20260910 below:
+multipass colour cost and finite-disc storage remain limitations.
 
 ## Coverage and interaction priority
 
@@ -1209,3 +1210,98 @@ has been removed at the user's explicit request.
   Rebuilds overlapped inspection and must be excluded from comparative profiling.
 - **Revisit when:** A usable internal-browser trace identifies the remaining long
   task, especially a single hierarchy query, geometry upload or GPU submission.
+
+## OFFSCREEN-CASTERS-20260910
+
+- **ID / date / status:** OFFSCREEN-CASTERS-20260910 / 2026-09-10 / implemented,
+  same-view soft convergence measured in the internal Codex browser.
+- **Context and constraints:** Native LoD2 plus raster terrain; keep 64 sun samples,
+  30-FPS quality preset, 2-px terrain target, early hard shadows, retained drag
+  presentation and offscreen casting. Do not turn missing coverage into readiness.
+- **Decision:** Classify raster receivers against the observer only on camera or
+  content changes. Retain offscreen geometry with an unlit, colour/depth-write-free
+  caster material, excluded from basemap projection and receiver pages. Native LoD2
+  gets explicit receiver/caster roles and independent Three observer/light frustum
+  culling. Merge native observer and caster demand, and invalidate regional proofs
+  when already-loaded payloads enter/leave the published cut.
+- **Deadlock:** Native implicit-tileset metadata has no drawable surface. Its SSE
+  must not terminate traversal before real content. The upstream ADD shortcut also
+  scales a child's error to its parent's, incorrectly accepting a contentless
+  parent as coverage. Cross that shortcut without forcing the child's own LOD
+  finer. The observed `6_26_40.glb` was loaded but unpublished; its metadata parent
+  had SSE 1.456 at a 2-px target. Raising only the parent's error did not fix ADD's
+  separate child shortcut. Both gates now preserve actual caster coverage.
+- **Evidence:** Same view `lat=51.2507834&lng=7.1284658&zoom=17.302&b=350.57&p=29.13&shadow=946%3B302`.
+  Baseline `00f948804-1789031710066` remained at 10/11 after 183.7 s, with no active
+  samples. Candidate `761be033b-1789033971501` reached 11/11 with 64 samples in
+  **13.133, 14.575 and 10.192 s** from navigation (median 13.133 s). Its three
+  60-s rAF samples had p95 intervals 13.9, 13.9 and 9.4 ms; longest Long Tasks
+  were 294, 294 and 295 ms. These include startup, not just shadow integration.
+  Hardware: Apple M4 Max, 14 logical CPUs, macOS 15.7.7; internal Chromium browser,
+  exact engine version not captured. No viewport override; same open tab throughout.
+  Existing caches retained, no separate cold-cache warm-up; builds paused.
+  See local raw observations `output/soft-shadow-profile-20260910.json` and the
+  detailed method in `CORRIDOR_PERFORMANCE_20260909.md`.
+- **Parity and costs:** All 11 pages still use the 4096-square depth ceiling and
+  64 samples. Fixed settled snapshot: 79 loaded tiles, 715 depth / 946 colour
+  passes, 248.1 MiB integration buffer, 128 MiB cache and 128 MiB scratch. Two
+  internal-browser drag spot checks retained shaded buildings/ground immediately
+  afterward; this is not a frame-by-frame proof or exhaustive chimney test.
+- **Alternatives and disposition:** Role splitting, culling and publication
+  invalidation alone were measured insufficient for the deadlock (10/11).
+  Parent-only SSE correction was also insufficient; ADD's child shortcut remained.
+  Faking readiness or lowering samples/resolution is incompatible with coverage
+  and parity. New workers, a GPU rewrite and per-tile basemap textures were not
+  evaluated or added. Basemap projection uses a shared viewport capture, not
+  separately baked textures for offscreen casters.
+- **Limits / revisit when:** rAF intervals include idle time; they are neither INP
+  nor render throughput. No CPU/GPU trace API was available for this internal
+  session. Temporary per-node/Long-Task/rAF instrumentation was removed; a single
+  localhost-only all-ready timestamp remains. Investigate the remaining ~300-ms
+  startup task with attributable tracing before another rendering rewrite.
+
+## DIRECT-SUN-DEFAULT-20260910
+
+- **ID / date / status:** DIRECT-SUN-DEFAULT-20260910 / 2026-09-10 / implemented;
+  supersedes the tiled default, not the offscreen caster traversal.
+- **Context and constraints:** At the user's close LoD2+terrain view
+  (`lat=51.2705427&lng=7.2012243&zoom=20.335&b=16.52&p=35.98&shadow=867%3B6`),
+  complete source-tile masks replace initially finer shadows with large visible
+  texels. The internal-browser baseline `761be033b-1789043472271` uses 30-FPS
+  quality and 64 sun-disc samples. Its preceding identical-code build reports
+  7/7 completed corridors, all seven depth pages capped at 4096 squared, for a
+  roughly 72-by-71-metre visible footprint. Receiver capture allocation also
+  coarsens complete tile projections to fit working/retained pixel budgets.
+- **Decision:** Default to the existing direct viewport path. It draws hard
+  shadows while loading/moving and accumulates the finite sun disc at native
+  viewport resolution when ready. Do not plan/capture full source-tile masks in
+  direct draws. Keep explicit experimental tiled selection available. Keep
+  native/terrain shadow cameras, offscreen caster retention, terrain 2-px target,
+  basemap projection and sample count unchanged. No new helper or dependency.
+- **Alternatives and disposition:** Larger full-tile buffers and softened
+  magnification are deferred: neither fixes the mismatch between a tiny visible
+  footprint and a full source-tile mask at bounded memory. World-anchored shadow
+  subpages remain a future tiled-path candidate, not required for this direct
+  rendering correction. Removing offscreen coverage is incompatible with the
+  user's long-caster requirement.
+- **Evidence:** Same-camera live selection of Einzelpuffer removes the visible
+  pixel grid while retaining the long offscreen shadow. Reloading the old build
+  restores its tiled default and reproduces the grid, so a UI-only change is
+  insufficient. 28 core/default/state tests, 13 settings tests and a scene
+  regression cover default routing, 64 direct solar draws, no capture planning,
+  and retaining the shadow view on drag. Logs: `/private/tmp/direct-sun-*-test*.log`.
+- **Measurement limits / revisit when:** Visual A/B on the existing internal
+  Codex browser on Apple M4 Max; cache/warm-up and per-stage CPU/GPU time are not
+  controlled. No end-to-end speedup or frame-time claim. Direct accumulation uses
+  the existing viewport-sized HDR/MSAA budgets instead of the tiled mask cache;
+  its GPU bytes were not measured here. Revisit tiled default only with close-up
+  spatial parity, late-reload stability and unchanged offscreen-caster coverage.
+- **Known motion limitation:** Mono retains the accumulated screen-space colour
+  frame only while the observer pose matches. `movestart` pauses accumulation;
+  a changed camera invalidates the retained frame, so motion shows direct hard
+  shadows and soft sampling resumes after `moveend`. This preserves caster
+  coverage, not softness across camera movement. Keeping softness requires
+  world-registered visibility or depth-validated reprojection, with hard fallback
+  for newly exposed surfaces. Neither is implemented by this default change.
+  The temporary all-ready timing trace used during the preceding profiling was
+  removed before commit; the existing local stall watchdog is unchanged.

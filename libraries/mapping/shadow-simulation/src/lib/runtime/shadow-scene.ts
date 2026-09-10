@@ -2334,7 +2334,8 @@ export const buildShadowSimulationScene = (
       // three/CORRIDOR_PERFORMANCE_20260909.md. Point light and animation use
       // the host's direct centre-sun draw, not receiver capture/restore queues.
       // The controller runtime still updates sunward caster coverage above.
-      if (!softSunShadowsEnabled || timeAnimating) return false;
+      if (!softSunShadowsEnabled || timeAnimating || !isTiledBufferEnabled())
+        return false;
       return withTileVolumeSnapshot(() => {
         // A common centre-sun pass includes every currently loaded caster;
         // unlike page-by-page replay it leaves time for the remaining loads.

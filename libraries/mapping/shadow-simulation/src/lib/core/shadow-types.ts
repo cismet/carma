@@ -140,7 +140,9 @@ export const resolveShadowRenderQuality = (
     options.shadowBufferLayout &&
     Object.values(SHADOW_BUFFER_LAYOUT).includes(options.shadowBufferLayout)
       ? options.shadowBufferLayout
-      : SHADOW_BUFFER_LAYOUT.TILED,
+      : // Decision: DIRECT-SUN-DEFAULT-20260910 in three/TILED_SHADOW_PAGES.md.
+        // Full-tile captures can violate visible pixel demand at close range.
+        SHADOW_BUFFER_LAYOUT.MONO,
   shadowBufferFormat:
     options.shadowBufferFormat &&
     Object.values(SHADOW_BUFFER_FORMAT).includes(options.shadowBufferFormat)

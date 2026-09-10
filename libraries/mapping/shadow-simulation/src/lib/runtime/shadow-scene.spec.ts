@@ -643,6 +643,38 @@ describe("shadow scene lighting integration", () => {
     return { controller, raster, map, camera, fire, postTask, tasks };
   };
 
+  it("defaults to direct hard then sun-disc draws without full-tile capture planning", async () => {
+    const f = await createIdleTerrainHost();
+    const rendererLookup = vi.fn(() => null);
+    sharedLayer.getRenderer = rendererLookup;
+    expect(accumulationController!.renderProgressive).toBeUndefined();
+    expect(accumulationController!.rounds).toBe(64);
+    expect(accumulationController!.active()).toBe(true);
+    expect(f.raster.setShadowView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        camera: expect.any(THREE.Camera),
+        casterAngularRadiusRadians: expect.any(Number),
+      })
+    );
+    rendererLookup.mockClear();
+    f.raster.getActiveTileVolumes.mockClear();
+    f.raster.setShadowView.mockClear();
+    expect(accumulationController!.renderScene!(f.camera, null)).toBe(false);
+    for (let round = 0; round < 64; round += 1) {
+      accumulationController!.prepareRound(round);
+      expect(accumulationController!.renderScene!(f.camera, round)).toBe(false);
+      accumulationController!.finishRound?.();
+    }
+    expect(rendererLookup).not.toHaveBeenCalled();
+    expect(f.raster.getActiveTileVolumes).not.toHaveBeenCalled();
+    f.fire("movestart");
+    expect(accumulationController!.active()).toBe(false);
+    expect(accumulationController!.renderScene!(f.camera, null)).toBe(false);
+    // Moving uses the direct hard draw, never clears the offscreen caster view.
+    expect(f.raster.setShadowView).not.toHaveBeenCalledWith(null);
+    f.controller.dispose();
+  });
+
   it.each(["point-light", "animation"])(
     "uses a direct hard draw without receiver planning during %s",
     async (mode) => {

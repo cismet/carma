@@ -286,7 +286,7 @@ export function createThreeTilesAppearance(
       // Three tests the observer AND each light's own frustum independently;
       // an offscreen chimney remains a caster when it intersects the light.
       // Disabling this submits the whole loaded city for every solar sample.
-      if (runtimeState.options.providesTerrain) mesh.frustumCulled = true;
+      mesh.frustumCulled = true;
       const role = getTileShadowRole(mesh);
       for (const material of dependencies.asMaterialArray(mesh.material))
         setTileShadowMaterialReceiver(material, true);

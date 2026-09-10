@@ -389,7 +389,7 @@ export function createThreeTilesShadows(
         : "shadow";
     }
     if (dependencies.isTileInMainView(tile)) return "viewport";
-    return tile.shadowReceiverCenterness === undefined ? undefined : "shadow";
+    return "shadow";
   };
 
   const createReceiverSnapshot: ThreeTilesRuntimeServices["createReceiverSnapshot"] =
