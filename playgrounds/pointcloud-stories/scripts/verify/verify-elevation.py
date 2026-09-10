@@ -16,11 +16,13 @@ import numpy as np
 from PIL import Image
 from pyproj import Transformer
 
+# NRW DGM1 (DHHN2016) as Terrarium tiles; the same service the MapLibre
+# default style uses (NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN in commons/resources).
 TILE_URL = (
-    "https://wuppertal-terrain.cismet.de/services/"
-    "wupp_dgm_01/tiles/{z}/{x}/{y}.png"
+    "https://terrain.cismet.de/services/nrw/"
+    "dgm1_dhhn2016_terrarium/tiles/{z}/{x}/{y}.webp"
 )
-TILE_ZOOM = 15
+TILE_ZOOM = 16
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATASETS = (
     ("seg2512", "nordbahntrasse-2025-12-segments.copc.laz", 93_257_079, 32632),
@@ -53,9 +55,10 @@ class DgmTiles:
                         Image.open(io.BytesIO(response.read())).convert("RGB"),
                         dtype=np.float64,
                     )
-                self._tiles[key] = -10000.0 + (
-                    rgb[..., 0] * 65536 + rgb[..., 1] * 256 + rgb[..., 2]
-                ) * 0.1
+                # Terrarium: height = R * 256 + G + B / 256 - 32768
+                self._tiles[key] = (
+                    rgb[..., 0] * 256 + rgb[..., 1] + rgb[..., 2] / 256.0
+                ) - 32768.0
             except Exception:
                 self._tiles[key] = None
 

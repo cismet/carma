@@ -1,17 +1,19 @@
 import type { StyleSpecification } from "maplibre-gl";
 
+import {
+  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  type RasterDemTerrainResource,
+} from "@carma-commons/resources";
+
 import { slugifyUrl } from "../utils/styleComposer";
+import { withRetryTileProtocol } from "../utils/retryTileProtocol";
 /**
  * Configuration for creating a city-specific MapLibre default style.
  * Other cities can define their own config and use createDefaultStyle().
  */
 export interface CityMapConfig {
   /** Terrain DEM source configuration (optional - not all cities have terrain data) */
-  terrain?: {
-    url: string;
-    tileSize?: number;
-    maxzoom?: number;
-  };
+  terrain?: RasterDemTerrainResource;
   /** Base map raster tile source */
   baseMap: {
     url: string;
@@ -43,11 +45,16 @@ export function createTerrainSources(
     return {};
   }
   return {
-    [slugifyUrl(config.terrain.url)]: {
+    [config.terrain.id || slugifyUrl(config.terrain.url)]: {
       type: "raster-dem",
-      tiles: [config.terrain.url],
-      tileSize: config.terrain.tileSize ?? 512,
-      maxzoom: config.terrain.maxzoom ?? 15,
+      // A DEM tile that drops out leaves the terrain flat there for good;
+      // fetch it through the retrying protocol instead.
+      tiles: [withRetryTileProtocol(config.terrain.url)],
+      tileSize: config.terrain.tileSize,
+      minzoom: config.terrain.minzoom,
+      maxzoom: config.terrain.maxzoom,
+      encoding: config.terrain.encoding,
+      bounds: [...config.terrain.bounds],
     },
   };
 }
@@ -113,11 +120,7 @@ export function createPreviewStyle(config: CityMapConfig): StyleSpecification {
 // =============================================================================
 
 export const WUPPERTAL_CONFIG: CityMapConfig = {
-  terrain: {
-    url: "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-    tileSize: 512,
-    maxzoom: 15,
-  },
+  terrain: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
   baseMap: {
     url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
     tileSize: 256,
@@ -125,9 +128,7 @@ export const WUPPERTAL_CONFIG: CityMapConfig = {
   },
 };
 
-export const WUPPERTAL_TERRAIN_SOURCE_ID = slugifyUrl(
-  WUPPERTAL_CONFIG.terrain!.url
-);
+export const WUPPERTAL_TERRAIN_SOURCE_ID = WUPPERTAL_CONFIG.terrain!.id;
 
 /** Default MapLibre style for Wuppertal (includes terrain source) */
 export const WUPPERTAL_DEFAULT_STYLE = createDefaultStyle(WUPPERTAL_CONFIG);

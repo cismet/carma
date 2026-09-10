@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import maplibregl from "maplibre-gl";
 
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -71,22 +72,16 @@ export default function LibreMap({
           }
         );
 
-        map.current.addSource("terrainSource", {
-          type: "raster-dem",
-          tiles: [
-            "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-          ],
-          tileSize: 512,
-          maxzoom: 15,
-        });
-        map.current.addSource("hillshadeSource", {
-          type: "raster-dem",
-          tiles: [
-            "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-          ],
-          tileSize: 512,
-          maxzoom: 15,
-        });
+        const demSource = {
+          type: "raster-dem" as const,
+          tiles: [NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.url],
+          tileSize: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.tileSize,
+          minzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.minzoom,
+          maxzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+          encoding: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.encoding,
+        };
+        map.current.addSource("terrainSource", demSource);
+        map.current.addSource("hillshadeSource", demSource);
 
         // Layers ------------------------------------------------------------------------------
         map.current.addLayer({
