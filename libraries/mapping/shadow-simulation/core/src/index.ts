@@ -19,5 +19,4 @@ export {
   applyShadowHashSelection,
   resolveShadowHashSelection,
   shadowStateMatchesHashSelection,
-  createShadowStartupState,
 } from "../../src/lib/core/shadow-selection-state";

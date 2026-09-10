@@ -641,6 +641,70 @@ describe("shadow scene lighting integration", () => {
     return { controller, raster, map, camera, fire, postTask, tasks };
   };
 
+  it("reuses corridor revisions within a draw and refreshes null and changed cuts next draw", async () => {
+    const f = await createIdleTerrainHost();
+    const revision = vi.fn(() => null as string | null);
+    Object.assign(f.raster, { getShadowRegionRevision: revision });
+    sharedLayer.getRenderer = () =>
+      ({
+        capabilities: { maxTextureSize: 4096 },
+        shadowMap: { type: THREE.PCFShadowMap },
+        getContext: () => ({
+          getInternalformatParameter: () => new Int32Array([4, 2]),
+          getParameter: () => 4096,
+        }),
+      } as unknown as THREE.WebGLRenderer);
+    const update = vi
+      .spyOn(ShadowTiledScene.prototype, "update")
+      .mockImplementation(() => {});
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(6650, 100, 50756),
+      new THREE.Vector3(7650, 200, 51756)
+    );
+    const render = vi
+      .spyOn(ShadowTiledScene.prototype, "render")
+      .mockImplementation(function () {
+        const host = (
+          this as unknown as {
+            host: {
+              corridorRevision: (
+                bounds: THREE.Box3,
+                error?: number,
+                receiver?: THREE.Box3
+              ) => string | null;
+            };
+          }
+        ).host;
+        const before = revision.mock.calls.length;
+        for (let index = 0; index < 100; index += 1) {
+          expect(
+            host.corridorRevision(bounds.clone(), 4, bounds.clone())
+          ).toEqual(
+            revision.getMockImplementation()!() === null
+              ? null
+              : JSON.stringify([JSON.stringify([f.raster.id, "new-cut"])])
+          );
+          host.corridorRevision(bounds.clone(), undefined, bounds.clone());
+        }
+        expect(revision).toHaveBeenCalledTimes(before + 2);
+        return true;
+      });
+    try {
+      f.controller.updateRenderQuality({
+        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+      });
+      updateShadows(f.map, f.camera);
+      expect(accumulationController!.renderScene!(f.camera, null)).toBe(true);
+      revision.mockReturnValue("new-cut");
+      expect(accumulationController!.renderScene!(f.camera, null)).toBe(true);
+      expect(render).toHaveBeenCalledTimes(2);
+    } finally {
+      f.controller.dispose();
+      render.mockRestore();
+      update.mockRestore();
+    }
+  });
+
   it("starts one deferred terrain-cache job only after visible shadow convergence", async () => {
     const { controller, raster, map, postTask, tasks } =
       await createIdleTerrainHost();
@@ -2548,9 +2612,13 @@ describe("shadow scene lighting integration", () => {
     const scheduled = vi.spyOn(window, "setTimeout");
     scheduled.mockClear();
     contentChanged({ bounds: [], roots: [buildingVolume] });
-    expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(true);
+    expect(configureReceiverPlaneShadow(buildingVolume.material).value).toBe(
+      true
+    );
     expect(scheduled).not.toHaveBeenCalled();
-    expect(setTerrainShadowView).toHaveBeenCalledTimes(initialTerrainShadowViewCalls);
+    expect(setTerrainShadowView).toHaveBeenCalledTimes(
+      initialTerrainShadowViewCalls
+    );
     scheduled.mockRestore();
     contentChanged({ roots: [buildingVolume] });
     // Material setup is immediate; geometric coverage is refreshed on the

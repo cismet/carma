@@ -383,12 +383,10 @@ export class ShadowCorridorPresentation {
 
   isRestorePending(page: ShadowAccumulationPage, samples: number) {
     const pending = this.pendingRestores.get(page.id);
+    if (!pending || pending.samples !== samples) return false;
     const identity = this.persistence?.identity(page, samples);
     return Boolean(
-      pending &&
-        pending.samples === samples &&
-        identity &&
-        shadowCorridorCacheKey(identity) === pending.key
+      identity && shadowCorridorCacheKey(identity) === pending.key
     );
   }
 

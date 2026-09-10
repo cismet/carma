@@ -238,3 +238,53 @@ Memory cost and interaction latency are not measured by this synthetic benchmark
 
 **Revisit when:** The browser benchmark fails parity, Three changes its draw entry,
 or whole-app traces show that remaining traversal/depth work dominates.
+
+## Frame-local corridor queries
+
+**ID / date / status:** FRAME-CORRIDOR-QUERIES-20260910 / 2026-09-10 /
+implemented; whole-app latency measurement pending.
+
+**Context and constraints:** Hard capture, restore preparation, soft scheduling
+and retained presentation query the same caster trees before the sample budget
+is applied. `isRestorePending` even constructed a persistent identity with no
+pending restore. These queries run on the MapLibre rendering thread.
+
+**Decision:** Return immediately for absent or differently sampled restores.
+Reuse exact region revisions (including null) and receiver stage errors within
+the existing synchronous tile-volume snapshot. Nested draws preserve the enclosing
+snapshot; all memoized results expire on exit, including exception paths.
+
+**Alternatives and disposition:** Cross-frame revision memoization is deferred
+until all source/metadata invalidation inputs have a proven version contract.
+Reducing pixel resolution or sun samples is outside the task's quality constraints.
+
+**Evidence:** The existing scene integration regression repeats the same hard and
+soft revision queries for 100 receivers and expects only two provider reads per
+draw. Subsequent draws change provider readiness/revision, including null results,
+and must observe the new state. The restore regression expects no identity calls
+for absent or wrong-sample pending work, and one for a matching pending restore.
+This bounds repeated query work; it does not measure GPU or whole-app acceleration.
+
+**Revisit when:** Remaining profile cost is in unique-region queries, descriptor
+construction, or depth submissions rather than repeated queries.
+
+## Production preview workflow
+
+The untracked local helper `scripts/geoportal-preview.mjs` is not part of this PR.
+Run it with Node from the worktree. The local server uses
+port 4300, builds `geoportal:build:production` with Nx, watches app/library/config
+changes with a three-second debounce and serializes builds. The existing
+`cesium-core -> resources -> cesium-core` task cycle requires
+`--excludeTaskDependencies`; Vite still bundles library source normally.
+
+Each successful build has an immutable `/build/<id>/` URL and `build-info.json`
+with HEAD, dirty status, tracked diff hash and build times. A build whose sources
+changed during compilation is not published. Opening `/` selects the latest build;
+an existing tab never reloads automatically. Build logs and artifacts remain in
+`dist/preview/geoportal/`; failed builds do not replace the last good one.
+
+Use `kill -USR1 <preview-pid>` to pause rebuilds, then inspect
+`/__preview/status` until `building` is null before measuring. Resume with
+`kill -USR2 <preview-pid>`. Keep viewport, physical resolution, Mesh2024, sunlight,
+64 samples and cache warmness fixed. Build completion alone does not establish
+interactive performance or GPU output parity.

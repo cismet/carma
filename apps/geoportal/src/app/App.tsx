@@ -20,7 +20,6 @@ import {
   COLORS_HEX,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
   useDeployment,
-  getHashParams,
 } from "@carma-commons/utils";
 import {
   MapFrameworkSwitcherProvider,
@@ -85,13 +84,6 @@ import {
 } from "./config/app.config";
 import store, { geoportalInitialHashState } from "./store";
 import { STORE_APP_KEY } from "./store/app-key";
-import {
-  addonOverridesStorageKey,
-  loadAddonOverrides,
-} from "@carma-mapping/addons";
-import { resolveShadowSimulationAddon } from "./helper/shadow-simulation-layer";
-import { createShadowStartupState } from "@carma-mapping/shadow-simulation/core";
-import { resolveGeoportalCustomHashState } from "./helper/geoportal-custom-hash-state";
 import { getFeatureFlagConfig } from "./config/featureFlags";
 import { routeFeatureFlagConfig } from "./config/availability";
 
@@ -243,28 +235,6 @@ function App({
   );
 
   const mergedAddons = useMemo(() => withDefaultAddons(addons), [addons]);
-  const initialAddonState = useMemo(() => {
-    const overrides = loadAddonOverrides(
-      addonOverridesStorageKey(mergedAddons, routePath)
-    );
-    const addon = resolveShadowSimulationAddon(mergedAddons, overrides);
-    const hash = getHashParams();
-    const latitude = Number.parseFloat(hash.lat);
-    const longitude = Number.parseFloat(hash.lng);
-    return {
-      addonOverrides: overrides,
-      ...(addon
-        ? createShadowStartupState(
-            addon.config,
-            resolveGeoportalCustomHashState(hash).shadowSimulationSelection,
-            {
-              latitude: Number.isFinite(latitude) ? latitude : undefined,
-              longitude: Number.isFinite(longitude) ? longitude : undefined,
-            }
-          )
-        : {}),
-    };
-  }, [mergedAddons, routePath]);
 
   const { initialMapFramework } = geoportalInitialHashState;
 
@@ -301,7 +271,6 @@ function App({
                 topicMapConfig={{ appKey: APP_KEY }}
                 addons={mergedAddons}
                 addonScope={routePath}
-                initialAddonState={initialAddonState}
               >
                 <ObliqueProvider
                   config={OBLIQUE_CONFIG}

@@ -1442,6 +1442,8 @@ export const buildShadowSimulationScene = (
   };
   let renderTileVolumes: readonly SharedThreeSceneTileVolume[] | null = null;
   let renderRegionReadiness: Map<string, boolean> | null = null;
+  let renderRegionRevisions: Map<string, string | null> | null = null;
+  let renderReceiverErrors: Map<string, number> | null = null;
   let renderedTileVolumes: readonly SharedThreeSceneTileVolume[] = [];
   const readActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
     getCoverageRuntimes().flatMap(
@@ -1484,8 +1486,12 @@ export const buildShadowSimulationScene = (
     // frame still sees all newly committed geometry and changed transforms.
     const previous = renderTileVolumes;
     const previousReadiness = renderRegionReadiness;
+    const previousRevisions = renderRegionRevisions;
+    const previousErrors = renderReceiverErrors;
     renderTileVolumes = previous ?? readActiveTileVolumes();
     renderRegionReadiness = previousReadiness ?? new Map();
+    renderRegionRevisions = previousRevisions ?? new Map();
+    renderReceiverErrors = previousErrors ?? new Map();
     if (!previous) {
       const changes = getChangedShadowVolumeBounds(
         renderedTileVolumes,
@@ -1505,6 +1511,8 @@ export const buildShadowSimulationScene = (
     } finally {
       renderTileVolumes = previous;
       renderRegionReadiness = previousReadiness;
+      renderRegionRevisions = previousRevisions;
+      renderReceiverErrors = previousErrors;
     }
   };
   let mapInMotion = false;
@@ -2085,12 +2093,18 @@ export const buildShadowSimulationScene = (
           renderRegionReadiness?.set(key, ready);
           return ready;
         },
-        receiverStageError: (bounds) =>
-          shadowReceiverStageError(
+        receiverStageError: (bounds) => {
+          const key = shadowRegionQueryKey(bounds);
+          const cached = renderReceiverErrors?.get(key);
+          if (cached !== undefined) return cached;
+          const error = shadowReceiverStageError(
             bounds,
             getActiveTileVolumes(),
             latestMeshErrorTarget
-          ),
+          );
+          renderReceiverErrors?.set(key, error);
+          return error;
+        },
         receiverBiasLimit: (bounds, groundTexelTargetMeters) =>
           resolveMeshReceiverBiasLimit(bounds, groundTexelTargetMeters) ??
           MESH_FINAL_SHADOW_BIAS_METERS,
@@ -2112,6 +2126,12 @@ export const buildShadowSimulationScene = (
           }
         },
         corridorRevision: (bounds, errorPixels, receiverBounds) => {
+          // Decision: FRAME-CORRIDOR-QUERIES-20260910 in
+          // three/CORRIDOR_PERFORMANCE_20260909.md. Hard capture, disk restore
+          // and soft scheduling share this synchronous geometry snapshot.
+          const key = shadowRegionQueryKey(bounds, errorPixels, receiverBounds);
+          const cached = renderRegionRevisions?.get(key);
+          if (cached !== undefined) return cached;
           const revisions: string[] = [];
           for (const runtime of getCoverageRuntimes()) {
             if (runtime === shadowControllerRuntime) continue;
@@ -2122,10 +2142,17 @@ export const buildShadowSimulationScene = (
             );
             // A runtime with no persistent geometry identity cannot certify a
             // cache hit. Live shadows continue normally without persistent I/O.
-            if (!revision) return null;
+            if (!revision) {
+              renderRegionRevisions?.set(key, null);
+              return null;
+            }
             revisions.push(JSON.stringify([runtime.id, revision]));
           }
-          return revisions.length ? JSON.stringify(revisions.sort()) : null;
+          const revision = revisions.length
+            ? JSON.stringify(revisions.sort())
+            : null;
+          renderRegionRevisions?.set(key, revision);
+          return revision;
         },
         dateTimeKey: () => latestSolarPosition?.instant.toISOString() ?? null,
         worldBasis: () => {

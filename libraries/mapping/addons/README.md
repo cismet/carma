@@ -308,12 +308,11 @@ export const MapInsightsPanel = (
 };
 ```
 
-`useAddonState` subscribes to its requested channel using `useSyncExternalStore`.
-Changes to another channel do not re-render that reader; unchanged channel
-values do not notify it. `AddonProvider.initialState` seeds the route before
-children mount, so hosts can resolve URL and persisted addon decisions before
-creating their map. It is initialization-only and resets when the scope changes.
-`useAddonStateSnapshot()` subscribes to the whole
+Addon state uses the shared React context from dev; writes can re-render readers
+of other channels. Shadow startup state is initialized by the addon and then
+restored by the Geoportal hash-sync effect. Per-key subscriptions are deferred
+to a separate PR, not required for map lifecycle gating.
+`useAddonStateSnapshot()` reads the whole
 channel map at once for callers outside the addon components (the layer-button
 trigger path, once it derives from state); addons themselves should read
 single channels.

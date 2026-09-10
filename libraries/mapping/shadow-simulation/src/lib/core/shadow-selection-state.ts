@@ -1,18 +1,10 @@
 import { getDaysInYear } from "@carma-commons/utils";
 
 import type {
-  ShadowSimulationConfig,
   ShadowDateState,
   ShadowSimulationState,
 } from "../contracts/shadow-simulation";
-import {
-  createInitialShadowDateState,
-  createInitialShadowSimulationState,
-} from "./create-shadow-simulation-state";
-import {
-  clampShadowSimulationSelectionToDaylight,
-  DEFAULT_SHADOW_SIMULATION_LOCATION,
-} from "./solar-position";
+import { clampShadowSimulationSelectionToDaylight } from "./solar-position";
 
 type ShadowSelection = Readonly<{
   minutes: number;
@@ -61,37 +53,3 @@ export const applyShadowHashSelection = (
   shadowState: { ...shadowState, enabled: selection !== null },
   dateState: selection ? { ...dateState, ...selection } : dateState,
 });
-
-/** Resolve URL-owned state before the map chooses its first basemap sources. */
-export const createShadowStartupState = (
-  config: ShadowSimulationConfig | undefined,
-  selection: ShadowSelection | null,
-  location: { latitude?: number; longitude?: number }
-) => {
-  const resolvedLocation = {
-    latitude:
-      location.latitude ??
-      config?.latitude ??
-      DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
-    longitude:
-      location.longitude ??
-      config?.longitude ??
-      DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
-  };
-  const date = createInitialShadowDateState(config, resolvedLocation);
-  const resolved = resolveShadowHashSelection(
-    selection,
-    date.year,
-    resolvedLocation,
-    date.timeZone
-  );
-  const initial = applyShadowHashSelection(
-    createInitialShadowSimulationState(config),
-    date,
-    resolved
-  );
-  return {
-    shadowSimulation: initial.shadowState,
-    shadowDate: initial.dateState,
-  };
-};

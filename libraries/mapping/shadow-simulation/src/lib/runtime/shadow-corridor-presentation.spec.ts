@@ -704,6 +704,20 @@ const settlePersistence = async () => {
 };
 
 describe("persistent corridor GPU integration", () => {
+  it("does not traverse caster identity without a matching pending restore", () => {
+    const f = persistentFixture();
+    expect(f.presentation.isRestorePending(f.pages[0], 128)).toBe(false);
+    expect(f.context.identity).not.toHaveBeenCalled();
+    f.cache.read.mockReturnValue(new Promise(() => {}));
+    f.presentation.prepareRestore(f.pages[0], 128, f.captureMatrix);
+    f.context.identity.mockClear();
+    expect(f.presentation.isRestorePending(f.pages[0], 1)).toBe(false);
+    expect(f.context.identity).not.toHaveBeenCalled();
+    expect(f.presentation.isRestorePending(f.pages[0], 128)).toBe(true);
+    expect(f.context.identity).toHaveBeenCalledOnce();
+    f.presentation.dispose();
+  });
+
   it("rejects late old-time cache reads after solar cancellation", async () => {
     const f = persistentFixture();
     let complete!: (record: ShadowCorridorCacheRecord) => void;

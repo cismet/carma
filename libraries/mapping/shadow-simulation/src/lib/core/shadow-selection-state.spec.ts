@@ -9,7 +9,6 @@ import {
   applyShadowHashSelection,
   resolveShadowHashSelection,
   shadowStateMatchesHashSelection,
-  createShadowStartupState,
 } from "./shadow-selection-state";
 
 describe("shadow selection state", () => {
@@ -24,30 +23,6 @@ describe("shadow selection state", () => {
     expect(
       resolveShadowHashSelection(selection, 2024.5, {}, "Europe/Berlin")
     ).toBeNull();
-  });
-  it("resolves enabled state and date before any map or addon mounts", () => {
-    const state = createShadowStartupState(
-      { year: 2026 },
-      { dayOfYear: 172, minutes: 720 },
-      { latitude: 51.27, longitude: 7.2 }
-    );
-    expect(state.shadowSimulation.enabled).toBe(true);
-    expect(state.shadowDate).toMatchObject({
-      year: 2026,
-      dayOfYear: 172,
-      minutes: 720,
-      timeZone: "Europe/Berlin",
-    });
-    expect(
-      createShadowStartupState(
-        { year: 2025 },
-        { dayOfYear: 366, minutes: 720 },
-        {}
-      ).shadowSimulation.enabled
-    ).toBe(false);
-    expect(
-      createShadowStartupState(undefined, null, {}).shadowSimulation.enabled
-    ).toBe(false);
   });
   it("matches enabled state and hash selection by value", () => {
     const selection = { dayOfYear: 172, minutes: 720 };

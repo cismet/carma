@@ -101,6 +101,34 @@ const ShadowPanels = ({
 };
 
 describe("shadow display panel integration", () => {
+  it("initializes missing addon channels in effects without provider seed state", () => {
+    const setSharedState = vi.fn();
+    const setSharedDateState = vi.fn();
+    const props = {
+      config: { year: 2026, initialDayOfYear: 172, initialMinutes: 720 },
+      libreMap: null,
+      targeted: false,
+      sharedState: undefined,
+      sharedDateState: undefined,
+      setSharedState,
+      setSharedDateState,
+    };
+    const { rerender } = render(<ShadowSimulationView {...props} />);
+    expect(setSharedState).toHaveBeenCalledTimes(1);
+    expect(setSharedDateState).toHaveBeenCalledWith(
+      expect.objectContaining({ year: 2026, dayOfYear: 172, minutes: 720 })
+    );
+    rerender(
+      <ShadowSimulationView
+        {...props}
+        sharedState={setSharedState.mock.calls[0][0]}
+        sharedDateState={setSharedDateState.mock.calls[0][0]}
+      />
+    );
+    expect(setSharedState).toHaveBeenCalledTimes(1);
+    expect(setSharedDateState).toHaveBeenCalledTimes(1);
+  });
+
   it("opens curves from display settings without replacing quick controls", async () => {
     const { getByRole, findByRole, queryByRole } = render(
       <ShadowPanels controlStyle={SHADOW_CONTROL_STYLE.QUICK} />

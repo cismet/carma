@@ -9,7 +9,6 @@ import {
   LibreContextProvider,
   MapSelectionProvider,
   MapHighlightProvider,
-  type AddonStateRecord,
 } from "@carma-mapping/contexts";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -70,7 +69,6 @@ type CarmaMapProviderWrapperProps = {
   defaultRuntimeState?: Partial<CesiumState>;
   addons?: readonly unknown[];
   addonScope?: string;
-  initialAddonState?: AddonStateRecord;
   topicMapConfig?: {
     appKey?: string;
     featureItemsURL?: string;
@@ -173,7 +171,6 @@ export const CarmaMapProviderWrapper = ({
   defaultRuntimeState,
   addons,
   addonScope,
-  initialAddonState,
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
@@ -213,11 +210,7 @@ export const CarmaMapProviderWrapper = ({
                       <MapSelectionProvider>
                         <CarmaApiBridge store={store} />
                         <MapHighlightProvider>
-                          <AddonProvider
-                            addons={addons}
-                            scopeKey={addonScope}
-                            initialState={initialAddonState}
-                          >
+                          <AddonProvider addons={addons} scopeKey={addonScope}>
                             {wrappedChildren}
                           </AddonProvider>
                         </MapHighlightProvider>
