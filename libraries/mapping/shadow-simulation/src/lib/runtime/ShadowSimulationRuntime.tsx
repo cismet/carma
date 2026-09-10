@@ -54,9 +54,10 @@ export const ShadowSimulationRuntime = ({
     () =>
       resolveShadowTerrainQuality(
         terrain,
-        resolveShadowQuality(state.shadowQuality)
+        resolveShadowQuality(state.shadowQuality),
+        state.terrainErrorTarget
       ),
-    [terrain, state.shadowQuality]
+    [terrain, state.shadowQuality, state.terrainErrorTarget]
   );
   const terrainRef = useRef(effectiveTerrain);
   terrainRef.current = effectiveTerrain;

@@ -17,6 +17,7 @@ import { clamp } from "@carma-commons/math";
 import type { ShadowSimulationState } from "../contracts/shadow-simulation";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
+  DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -54,6 +55,23 @@ export const ShadowSimulationSurfaceSettings = ({
     setState({ ...state, ...patch });
   return (
     <Space direction="vertical" size="small" style={{ width: "100%" }}>
+      {!meshLoaded && (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Typography.Text strong type="secondary">
+            Terrain-LOD
+          </Typography.Text>
+          <Segmented
+            data-test-id="shadow-simulation-terrain-quality"
+            value={
+              state.terrainErrorTarget ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
+            }
+            options={[...MESH_ERROR_TARGETS]}
+            onChange={(value) =>
+              onChange({ terrainErrorTarget: value as MeshErrorTargetPixels })
+            }
+          />
+        </div>
+      )}
       {meshLoaded && (
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Typography.Text strong type="secondary">

@@ -72,13 +72,14 @@ export const SHADOW_QUALITY_PROFILES = {
 
 export const resolveShadowTerrainQuality = (
   terrain: ShadowTerrainOptions | undefined,
-  quality: ShadowQualityMultiplier
+  quality: ShadowQualityMultiplier,
+  errorTargetPixels: MeshErrorTargetPixels = DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
 ): ShadowTerrainOptions | undefined => {
   if (!terrain) return undefined;
   const profile = SHADOW_QUALITY_PROFILES[quality];
   return {
     ...terrain,
-    errorTargetPixels: profile.terrainErrorPixels,
+    errorTargetPixels,
     meshSegments: Math.min(terrain.tileSize, profile.terrainSegments),
     maxSelectionTiles: Math.min(
       terrain.maxSelectionTiles ?? profile.terrainTileLimit,
@@ -89,6 +90,7 @@ export const resolveShadowTerrainQuality = (
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 64;
 export const DEFAULT_MESH_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 2;
+export const DEFAULT_TERRAIN_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 2;
 /** Explicit mesh-only ceiling; browser memory-pressure admission still applies. */
 export const DEFAULT_MESH_CACHE_BUDGET_BYTES = 24 * 1024 ** 3;
 export const DEFAULT_SHADOW_SURFACE_COLOR = "#d3d3d3";

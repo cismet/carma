@@ -38,6 +38,7 @@ export class ShadowTiledScene {
   private readonly frameCache: SceneFrameCache;
   private presentedPageIds = new Set<string>();
   private casterRevisionsDirty = true;
+  private casterRevisionCursor = 0;
   private hardRetryTimer: ReturnType<typeof globalThis.setTimeout> | null =
     null;
 
@@ -163,6 +164,7 @@ export class ShadowTiledScene {
     );
     this.viewKey = key;
     this.casterRevisionsDirty = true;
+    this.casterRevisionCursor = 0;
   }
 
   /** Keep completed corridor textures attached to their receiver tiles while
@@ -178,6 +180,7 @@ export class ShadowTiledScene {
   invalidateContent(changedBounds?: readonly THREE.Box3[]) {
     if (changedBounds?.length === 0) return;
     this.casterRevisionsDirty = true;
+    this.casterRevisionCursor = 0;
     this.frameCache.invalidate();
     if (!changedBounds) this.pages.clearCache();
     else if (changedBounds.length > 0)
@@ -283,6 +286,7 @@ export class ShadowTiledScene {
     }
     const result = this.renderWithHost(camera, () => {
       const hard = this.captureHard(camera);
+      if (this.casterRevisionsDirty && this.host.corridorRevision) return null;
       // Hard coverage gets the first submission, not exclusive ownership of
       // every frame until unrelated corridors or viewport tiles become ready.
       const progress = this.accumulation.presentation.capture(this.scene, () =>
@@ -384,7 +388,21 @@ export class ShadowTiledScene {
 
   private captureHard(camera: THREE.Camera) {
     if (this.casterRevisionsDirty && this.host.corridorRevision) {
-      for (const page of this.pages.accumulationPages) {
+      const pages = this.pages.accumulationPages;
+      const started = performance.now();
+      let processed = 0;
+      // Bound publication audits per frame; retain the common early hard draw
+      // while the remaining corridor proofs are checked on subsequent frames.
+      while (this.casterRevisionCursor < pages.length) {
+        if (
+          processed >= 4 ||
+          (processed > 0 && performance.now() - started >= 4)
+        ) {
+          this.host.requestRepaint?.();
+          return { published: 0, needsRepaint: true };
+        }
+        const page = pages[this.casterRevisionCursor++];
+        processed += 1;
         const geometry = this.pages.getPageGeometry(page.id);
         if (!geometry) continue;
         const revision = this.host.corridorRevision(
@@ -401,6 +419,7 @@ export class ShadowTiledScene {
       // caster provenance. Advancing another solar sample changes neither.
       // Readiness still runs independently, including pending metadata loads.
       this.casterRevisionsDirty = false;
+      this.casterRevisionCursor = 0;
     }
     const result = this.accumulation.presentation.capture(this.scene, () =>
       this.accumulation.renderHard(camera, this.pages, {
@@ -437,7 +456,14 @@ export class ShadowTiledScene {
       // Keep a compatible completed capture while its replacement loads. An
       // unknown receiver without that capture must still wait for its casters.
       const replay = this.accumulation.presentation.canPresent(page);
-      return { page, replay, ready: replay || this.isPageReady(page.id, true) };
+      return {
+        page,
+        replay,
+        ready:
+          replay ||
+          ((!this.host.corridorRevision || !this.casterRevisionsDirty) &&
+            this.isPageReady(page.id, true)),
+      };
     });
     let incomplete = false;
     const draw = () => {

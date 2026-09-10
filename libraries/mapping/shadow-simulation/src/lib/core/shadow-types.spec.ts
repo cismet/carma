@@ -75,7 +75,10 @@ describe("shadow render quality", () => {
     for (const quality of Object.values(SHADOW_QUALITY)) {
       const terrain = resolveShadowTerrainQuality(source, quality)!;
       const profile = SHADOW_QUALITY_PROFILES[quality];
-      expect(terrain.errorTargetPixels).toBe(profile.terrainErrorPixels);
+      expect(terrain.errorTargetPixels).toBe(2);
+      expect(
+        resolveShadowTerrainQuality(source, quality, 4)?.errorTargetPixels
+      ).toBe(4);
       expect(terrain.meshSegments).toBe(profile.terrainSegments);
       expect(terrain.maxzoom).toBe(16);
       expect(terrain.url).toBe(source.url);

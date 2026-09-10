@@ -1158,3 +1158,54 @@ has been removed at the user's explicit request.
   end-to-end speedup or stall-free result is claimed.
 - **Revisit when:** implement and benchmark the geometry-only worker pipeline in
   [CORRIDOR_WORKERS_REVIEW.md](CORRIDOR_WORKERS_REVIEW.md).
+
+## Edge receiver shadow publication
+
+- **ID / date / status:** EDGE-SHADOW-PUBLICATION-20260910 / 2026-09-10 /
+  rejected after user visual testing; implementation reverted.
+- **Context:** User reports edge shadows flickering during LOD2/terrain loading.
+  Saved-mask publication checks corridor readiness, but the common colour draw
+  also displayed live shadows from an incomplete caster set in uncovered pixels.
+  That bypassed readiness until edge receivers obtained retained captures.
+- **Decision:** Restore the common early hard-shadow draw and its original stage
+  acknowledgement. Keep the committed LOD2 terrain-corridor fix unchanged.
+  The attempted fallback suppression left the user's scene without any visible
+  shadows while waiting for captures, so it is not an acceptable flicker fix.
+- **Alternatives:** Hiding terrain would create holes; global loading gates would
+  block ready centre corridors; extra per-page depth renders would duplicate work.
+  Suppressing early shadows was rejected by user observation, not a speed test.
+- **Evidence:** The attempted change passed 67 mocked presentation/adapter tests,
+  but build 00f948804-1789030807191 showed only hillshade in the user's view.
+  Those tests did not establish usable end-to-end shadow presentation.
+- **Revisit when:** Investigating caster-cut replacement and receiver identity
+  transitions; any replacement must preserve early hard shadows and be verified
+  in the live loading scene before claiming the edge flicker fixed.
+
+## Terrain error target and bounded provenance audits
+
+- **ID / date / status:** TERRAIN-ERROR-AUDIT-SLICES-20260910 / 2026-09-10 /
+  local implementation; end-to-end nonblocking acceptance remains open.
+- **Decision:** Terrain-LOD has the existing 0.25/0.5/1/2/4 px selector, defaults
+  to 2 px independently of shadow-resolution presets, and drives raster-terrain
+  selection plus the native caster error target and receiver-stage readiness.
+  Mesh terrain keeps its separate mesh target. Shadow map resolution is unchanged.
+- **Scheduling:** Dirty caster provenance is checked in slices of at most four
+  pages, yielding once four milliseconds have elapsed between queries. New
+  captures wait for the audit; early common hard drawing and retained masks remain
+  available. A single hierarchy query/GPU submission is not preemptible. This
+  bounds one stage, not the entire rendering pipeline, and is not worker offload.
+- **Evidence:** Settings/type/state suites and the adapter pass (56 unique tests),
+  plus five focused scene smoke tests. The nine-page audit test spans three calls.
+  The internal browser was reloaded on baseline 00f948804-1789031198649; its current
+  camera had changed through user interaction, so this was not a fixed-workload A/B.
+  A concurrent rebuild snapshot showed Node PID65329 at 173.6% CPU and Codex
+  renderer PID22064 at 15.3%. A five-second macOS sample of PID22064 at 11:12:59
+  (5ms interval, macOS15.7.7 ARM64) had752/864 main-thread samples in mach_msg wait;
+  it cannot attribute map JavaScript cost or establish freedom from stalls.
+  Raw diagnostic: /private/tmp/shadow-reload-sample.txt. Browser logs also reported
+  Cesium terrain-provider failures and an elevation/source maxzoom warning.
+- **Limits:** Internal browser exposes no trace API here; CPU/GPU frame timings,
+  warm-up repetitions, post-change parity and end-to-end responsiveness are unverified.
+  Rebuilds overlapped inspection and must be excluded from comparative profiling.
+- **Revisit when:** A usable internal-browser trace identifies the remaining long
+  task, especially a single hierarchy query, geometry upload or GPU submission.

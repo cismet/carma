@@ -457,6 +457,32 @@ describe("Geoportal tiled scene adapter", () => {
     expect(revision).toHaveBeenCalledTimes(proofs);
   });
 
+  it("yields corridor provenance in bounded batches while preserving the direct scene draw", () => {
+    const revision = vi.fn(() => "ready");
+    const requestRepaint = vi.fn();
+    const f = fixture({ corridorRevision: revision, requestRepaint });
+    f.pages.accumulationPages.splice(
+      0,
+      1,
+      ...Array.from({ length: 9 }, (_, i) => ({
+        ...f.pages.accumulationPages[0],
+        id: `page-${i}`,
+      }))
+    );
+    const camera = new THREE.Camera();
+    f.adapter.render(camera, null, 64);
+    expect(revision).toHaveBeenCalledTimes(4);
+    expect(f.accumulation.renderHard).not.toHaveBeenCalled();
+    expect(f.renderer.render).toHaveBeenCalled();
+    expect(requestRepaint).toHaveBeenCalled();
+    f.adapter.render(camera, null, 64);
+    expect(revision).toHaveBeenCalledTimes(8);
+    f.adapter.render(camera, null, 64);
+    expect(revision).toHaveBeenCalledTimes(9);
+    expect(f.accumulation.renderHard).toHaveBeenCalledOnce();
+    f.adapter.dispose();
+  });
+
   it("does not expose an unshadowed receiver when no complete corridor stage is available", () => {
     const ready = vi.fn(() => false);
     const f = fixture({ isCorridorReady: ready });

@@ -10,6 +10,20 @@ afterEach(() => {
 });
 
 describe("shadow surface display settings", () => {
+  it("defaults terrain LOD to 2 px and edits it independently of mesh LOD", () => {
+    const state = createInitialShadowSimulationState(undefined);
+    const setState = vi.fn();
+    const { getByRole } = render(
+      <StyleProvider mock="server">
+        <ShadowSimulationSurfaceSettings state={state} setState={setState} />
+      </StyleProvider>
+    );
+    expect(
+      (getByRole("radio", { name: "2 px" }) as HTMLInputElement).checked
+    ).toBe(true);
+    fireEvent.click(getByRole("radio", { name: "4 px" }));
+    expect(setState).toHaveBeenCalledWith({ ...state, terrainErrorTarget: 4 });
+  });
   it("keeps terrain colour available without loading the debug view or a mesh", () => {
     const { getByText, queryByText } = render(
       <StyleProvider mock="server">

@@ -46,6 +46,7 @@ import {
 import type { ShadowReceiverCell } from "../core/shadow-page-plan";
 import {
   DEFAULT_MESH_ERROR_TARGET_PIXELS,
+  DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
   resolveShadowRenderQuality,
@@ -1115,7 +1116,8 @@ export const buildShadowSimulationScene = (
       terrainSourceConfig,
       originLngLat ?? [mapCenter.lng, mapCenter.lat],
       {
-        errorTargetPixels: errorTargetPixels ?? 0.5,
+        errorTargetPixels:
+          errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
         shadowLevelOffset,
         minimumLevel,
         maximumLevel,
@@ -1577,6 +1579,9 @@ export const buildShadowSimulationScene = (
       // while per-tile stages are diagnosed in the scene overlay.
       runtime.setShadowStagePresentationGate?.(false);
       if (!runtime.providesTerrain) {
+        runtime.setErrorTarget?.(
+          terrain?.errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
+        );
         runtime.setShadowView?.(view ? { ...view, terrainReceivers } : null);
         continue;
       }
@@ -2117,7 +2122,10 @@ export const buildShadowSimulationScene = (
           const error = shadowReceiverStageError(
             bounds,
             getActiveTileVolumes(),
-            latestMeshErrorTarget
+            sharedSceneProvidesTerrain()
+              ? latestMeshErrorTarget
+              : terrain?.errorTargetPixels ??
+                  DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
           );
           renderReceiverErrors?.set(key, error);
           return error;
