@@ -16,6 +16,13 @@ export default defineConfig({
     }),
   ],
 
+  worker: {
+    // Module workers need ES output for their dynamically imported chunks.
+    format: 'es',
+    // The worker sub-build resolves the wildcard tsconfig paths like the main build.
+    plugins: () => [nxViteTsPaths()],
+  },
+
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
