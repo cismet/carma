@@ -42,6 +42,10 @@ import {
   InfoBoxHeader,
   utils,
   getActionLinksForFeature,
+  getInfoBoxActionLinks,
+  getInfoBoxNoteElements,
+  useInfoBoxActions,
+  useInfoBoxNotes,
 } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -86,6 +90,12 @@ const FeatureInfoBox = ({
   const { map: libreMap } = useLibreContext();
   // zoom-dependent replacement image, published by the infoBoxZoomImage addon
   const [infoBoxImage] = useAddonState("infoBoxImage");
+  // buttons contributed at runtime through `carma.ui.addInfoBoxAction`, e.g.
+  // the routing addon's "Route anzeigen"; rendered after the app's own
+  const infoBoxActions = useInfoBoxActions();
+  // lines contributed through `carma.ui.addInfoBoxNote`, e.g. the routing
+  // addon's "12 Min · 4,3 km"; rendered under the subtitle
+  const infoBoxNotes = useInfoBoxNotes();
 
   if (secondaryInfoBoxElements.length > 4) {
     dispatch(setSecondaryInfoBoxElements([]));
@@ -198,6 +208,10 @@ const FeatureInfoBox = ({
       isOrbiting,
       onOrbitToggle,
     });
+  }
+
+  if (selectedFeature) {
+    links.push(...getInfoBoxActionLinks(infoBoxActions));
   }
 
   const loadingRef = useRef(loadingFeatureInfo);
@@ -361,6 +375,7 @@ const FeatureInfoBox = ({
           )
         }
         noCurrentFeatureContent=""
+        notes={getInfoBoxNoteElements(infoBoxNotes)}
         secondaryInfoBoxElements={visibleSecondaryInfoBoxElements}
         links={links}
       />

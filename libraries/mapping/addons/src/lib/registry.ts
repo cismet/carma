@@ -56,6 +56,12 @@ import {
 } from "../addons/OriginSearch";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
+  Routing,
+  type ActiveRouteState,
+  type RouteNavigationState,
+  type RoutingConfig,
+} from "../addons/Routing";
+import {
   VectorHighlight,
   VectorHighlightControl,
   VectorHighlightDebugPanel,
@@ -65,6 +71,10 @@ import {
   type VectorHighlightDebugPanelConfig,
 } from "../addons/VectorHighlight";
 import { LibreTerrain, type LibreTerrainConfig } from "../addons/LibreTerrain";
+import {
+  LocationSimulator,
+  type LocationSimulatorConfig,
+} from "../addons/LocationSimulator";
 import {
   LayerVisibility,
   layerVisibilityTrigger,
@@ -144,6 +154,9 @@ export type AddonConfigMap = {
   nearestFeatureBahnhoefe: NearestFeatureBahnhoefeConfig;
   nearestFeatureKrankenhaeuser: NearestFeatureKrankenhaeuserConfig;
   originSearch: OriginSearchConfig;
+  routing: RoutingConfig;
+  /** dev only; never declare it on a shipped route (and it no-ops outside a dev build) */
+  locationSimulator: LocationSimulatorConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -204,6 +217,18 @@ export type AddonStateMap = {
    * one starting point rather than each keeping their own.
    */
   originLocation: OriginLocationState;
+  /**
+   * the route the user is looking at; see `Routing/routeChannel.ts`. "In der
+   * Nähe" publishes the route of the picked hit; anything that produces a
+   * route later writes this same channel. Nothing moves the camera on it.
+   */
+  activeRoute: ActiveRouteState;
+  /**
+   * the offer to go along that route, and whether the camera is on it; see
+   * `Routing`. Read by the host app's info box, which renders the button, and
+   * by `cameraRestriction`, which lets the map turn while navigating.
+   */
+  routeNavigation: RouteNavigationState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
@@ -430,6 +455,7 @@ export const addonRegistry: {
     // channel stays empty and the configured origin is used
     Component: NearestFeature,
     requires: ["nearestFeatureCategories"],
+    provides: ["activeRoute"],
   },
   nearestFeatureApotheken: {
     Component: NearestFeatureApotheken,
@@ -447,6 +473,14 @@ export const addonRegistry: {
     Component: OriginSearch,
     provides: ["originLocation"],
   },
+  routing: {
+    Component: Routing,
+    requires: ["activeRoute"],
+    provides: ["routeNavigation"],
+  },
+  // reads `activeRoute` and `routeNavigation` when they are there, to drive
+  // along the route; without them it only stands at its position
+  locationSimulator: { Component: LocationSimulator },
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],

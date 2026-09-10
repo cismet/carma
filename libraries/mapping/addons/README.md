@@ -45,6 +45,8 @@ so the second folder is the list of what actually exists:
 | `addons/NearestFeature/`    | "In der Nähe" mode in the search bar: pick a category, get the nearest ones |
 | `addons/NearestFeature/categories/` | one addon per category the mode offers ("Apotheken") |
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
+| `addons/Routing/`           | puts the camera on the route in focus and follows the user along it (see below) |
+| `addons/LocationSimulator/` | dev only: a pretend GPS receiver that drives along the route (see below) |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain for the maplibre map: a toggle button, or on whenever the camera is free |
@@ -948,6 +950,225 @@ filter typed behind the same run".
 | `OriginSearch/originMarker.ts` | the gazetteer's own pin, for an origin that is a picked place |
 | `OriginSearch/config.ts` | position, `defaultOrigin`, placeholders, warnings, `alwaysVisible` |
 | `contexts/LocateContext.tsx` | the map's one location mode, shared with the locate button |
+
+## Onto the route: `routing`
+
+The third piece of the pair is what happens once there is a route. `routing`
+puts the user on it when asked and keeps them there: the map eases to where
+they are on the route, zooms in and turns so the road ahead runs up the
+screen, with a little tilt, and then goes along with every position fix until
+the destination, turning at each corner. Asked, not automatic: picking a hit
+shows its info box as it always did, and a button in that box starts the
+navigation. No turn list and no re-routing yet.
+
+Two channels carry it. `activeRoute` is the route in focus:
+
+```ts
+type ActiveRouteState = {
+  /** the route in focus; null while there is none */
+  route: {
+    source: string;
+    coordinates: [number, number][];
+    label?: string;
+    /** what it takes, when the producer routed rather than measured */
+    durationInSeconds?: number;
+    distanceInMeters?: number;
+    mode?: "car" | "bike" | "walk" | "transit";
+  } | null;
+};
+```
+
+"In der Nähe" publishes the route of the *picked* hit, and only that one.
+Clearing the pick, leaving the stage or leaving the mode empties the channel.
+A routing search publishes the same channel later, and nothing downstream
+changes. Nothing moves the camera on this channel; it only says "there is a
+route for this".
+
+`routeNavigation` is the offer to go along it, published by the addon:
+
+```ts
+type RouteNavigationState = {
+  /** null while no routing addon is mounted */
+  navigation: {
+    navigating: boolean;
+    /** false while the user moved the map by hand during a navigation */
+    following: boolean;
+    /** what is left to the destination; null while no navigation runs */
+    progress: {
+      remainingMeters: number;
+      remainingSeconds?: number;
+      fraction: number;
+    } | null;
+    start: () => void;
+    stop: () => void;
+    recenter: () => void;
+  } | null;
+};
+```
+
+The button itself does not go through a channel: the app's info box is the
+consumer, and an app must not have to import this library to show it. So the
+addon contributes it through the public api, `carma.ui.addInfoBoxAction`, the
+way the gazetteer addons contribute their modes; the bridge in portals keeps
+the contributed actions, the app's info box renders whatever is there with
+`useInfoBoxActions` and `getInfoBoxActionLinks`, and neither side names the
+other. The action is registered while a route is in focus and re-registered
+under its key when `navigating` flips, which swaps label and colour in place.
+`start` does the flight and sets `navigating`, `stop` clears it, and a change
+of the route in focus ends it on its own: the user presses the button again
+for the next hit. A feature clicked directly on the map has no route in focus
+and therefore no button; fetching one from the origin is a later step.
+
+`routeNavigation` is what the camera restriction reads (below); the info box
+does not.
+
+What the route costs goes into the box the same way, through
+`carma.ui.addInfoBoxNote`: a line "12 Min · 4,3 km" with the mode's icon in
+front, rendered under the feature's subtitle by the app's info box
+(`useInfoBoxNotes`, `getInfoBoxNoteElements`), for as long as the route in
+focus carries `durationInSeconds` and `distanceInMeters`. "In der Nähe" puts
+the ranking's numbers on `activeRoute` with the line; a producer that only
+measured as the crow flies leaves them out and the box shows no note, because
+a straight-line distance is not a route summary. The words come from
+`@carma-mapping/routing` (`formatRouteSummary`), the same ones the dropdown
+rows use, so the row and the box never disagree.
+
+While a navigation runs, that note counts down: "noch 6 Min · 2,1 km", what is
+left from where the user is on the route, and the whole route's summary again
+once the navigation ends. The meters are measured, the minutes are not: the
+routing service gives one duration for the whole route and no per-segment
+speeds, so the time left is that duration scaled by the fraction of the route
+still ahead. Right at the start and right at the destination, off in between by
+however much the route's own speed varies, which is the price of not asking the
+service again once a second. The distance is scaled by the same fraction rather
+than read off the geometry, so both numbers agree about how far along the user
+is and the countdown starts at the number the summary showed.
+
+It counts down whether or not the camera is following: panning the map does not
+stop the user moving towards the destination, so a paused navigation counts down
+and arrives like any other. It holds its last value while the user is off the
+route, where the place on the line means nothing, the same policy the bearing
+follows. The numbers also go on `routeNavigation` as `progress`
+(`remainingMeters`, `remainingSeconds`, `fraction`), so the next reader does not
+recompute them. The note is re-added only when the formatted text changes, so a
+fix a second does not re-render the info box a second, or flicker between two
+roundings at a red light.
+
+Where the user is comes from the locate context (`useLocate`), the one
+position everything on the map shares: the origin search hands that same
+position to the ranking as its default starting point, so a driven route
+begins where the fixes begin. `start` switches the location mode on with
+`activate({ fly: false })`, which also takes the locate button's own
+following off if it was on, since from here the routing camera holds the map.
+
+Each fix is snapped onto the route (`routeCameraTarget` with a position):
+GPS wanders a few meters sideways, and a tilted camera centred beside the
+road shows the road beside the dot. The camera eases to the snapped point
+over `followDuration` (1000 ms, about one fix interval) with a linear easing,
+so one move runs into the next and the motion reads as one rather than a hop
+per second. A fix further than `snapToleranceMeters` (30 m) off the route is
+followed as it is, with the last bearing on the route kept: the user has
+left the route, and pulling them back onto it would lie. Once fewer than
+`arrivalMeters` (15 m) of route are left the navigation ends on its own,
+with the same eased leave as the button.
+
+The user's hand wins. Any move with an `originalEvent` (a drag, a wheel, a
+rotate) pauses the following: `navigating` stays true, the camera stays where
+they put it, the fixes keep coming in unseen. A button "Zentrieren" appears at
+the bottom of the map while paused, its word and nothing else, on the same
+white surface the square controls use
+(`recenterPosition` `bottomcenter`, `recenterOrder` 10, `recenterLabel`) and
+puts the camera back on the position with the long ease; `following` goes
+back to true with it. The same shape as the recenter button of any
+navigation app, and on the map rather than in the info box because the box
+may be closed or scrolled away while the user pans. It is the one piece of
+UI the addon renders itself. The navigation only ends with the route button,
+arrival, or the route going away.
+
+The bearing looks `lookAheadMeters` (10 m) along the line from the user's
+place on it, so the next meters run straight up the screen and a turn shows
+as a turn; a longer look-ahead averages the next turn into the bearing and
+the road comes out slanted. `zoom` (19, as close in as a navigation app;
+the map allows 22. MapLibre zoom, the unit of `easeTo`; the geoportal's URL
+hash is in the Leaflet convention and shows one more), `pitch` (30) and
+`duration` (1200
+ms, the start, recenter and leave ease) are the rest of the config;
+everything is optional, so the bare kind `"routing"` works.
+
+While a navigation runs, the map shows one route: the one being driven, drawn
+by this addon (`routeLine.ts`), while its producer takes its own lines off (the
+ranking hides all its candidates until the navigation ends). The picture
+belongs to the addon that owns the navigation, so a second producer of routes
+gets it without drawing anything itself, and "only the route we are on" is the
+design rather than a filter.
+
+That line is in two colours, split where the user is: gray (`ROUTE_GRAY`) for
+what is already driven, blue (`ROUTE_BLUE`) for what is still ahead, at the
+width and opacity the picked candidate had, so pressing start changes the
+colours behind the user and nothing else. One line rather than two: MapLibre
+paints it with a `line-gradient` over `line-progress`, which is why the source
+is created with `lineMetrics: true`, and the split is a `step` at
+`progress.fraction` because it is a place on the route and not a fade. Moving
+it is one paint property per fix, no geometry rebuilt; the fraction is rounded
+to a thousandth of the route first, so a standing user does not re-paint the
+line once a second. The three colours live in `@carma-mapping/routing`
+(`routeColors.ts`), read by the ranking's candidates, this line and the route
+options drawer alike.
+
+A rotated camera needs the restriction lifted: a restricted camera resets its
+bearing to zero, so the rotation would be undone as it is applied. Rather than
+have two addons write the one override slot, `cameraRestriction` got a mode
+that follows the channel:
+
+```ts
+addons: [
+  "routing",
+  { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
+]
+```
+
+Free while navigating, locked again once it ends, which is also what turns the
+map back north.
+
+| File                      | |
+| ------------------------- | --- |
+| `Routing/Routing.tsx`     | the addon: reads the route and the fixes, publishes the offer, drives the camera |
+| `Routing/RecenterControl.tsx` | the "Zentrieren" button shown while the follow is paused |
+| `Routing/routeChannel.ts` | both channels, their types and hooks |
+| `Routing/routeLine.ts`    | the driven route on the map, gray behind the user and blue ahead |
+| `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
+| `Routing/config.ts`       | `RoutingConfig` and its defaults |
+
+### Faking the device: `locationSimulator`
+
+The routes only exist around Wuppertal, and whoever tests the navigation
+mostly is not there. `locationSimulator` pretends to be the device: the
+locate context asks a geolocation slot (`setGeolocationSource` in
+`@carma-mapping/contexts`, the device by default, the same one-slot shape as
+the camera restriction override), and this addon puts a pretend receiver
+into it while mounted. The locate button, the origin search and the routing
+camera keep reading `currentPosition` and cannot tell.
+
+While no navigation runs the pretend user stands at `position` (default the
+Wuppertal main station), so "In der Nähe" ranks from there and a route starts
+there. When `routeNavigation` says `navigating`, the receiver drives along
+the route in focus at `speedMetersPerSecond` (8, about 30 km/h), one fix per
+`intervalMs` (1000), each scattered by up to `jitterMeters` (2) the way a real
+receiver's are; the routing addon sees its own route's fixes come in and ends
+the navigation on arrival, after which the user is back home for the next
+search. Time is real, so a slow tab makes the fixes sparser, not the car
+slower.
+
+Dev only: the component does nothing outside a dev build, so the entry on the
+`#/addons` route never fakes a position in a deployment. `Ctrl+Alt+A` switches
+it off to test against the real device; the location mode has to be switched
+off and on for the context to ask the device again.
+
+| File                                    | |
+| --------------------------------------- | --- |
+| `LocationSimulator/LocationSimulator.tsx` | the addon: owns the slot, stands or drives on the navigation channel |
+| `LocationSimulator/fakeDevice.ts`       | the pretend receiver: `stand`, `drive`, and the three `Geolocation` calls |
+| `LocationSimulator/config.ts`           | `LocationSimulatorConfig` and its defaults |
 
 ## Guidelines
 
