@@ -765,8 +765,11 @@ describe("shared Three.js scene registry", () => {
     const terrain = Object.create({ getMeshFrameDelta: () => 42 }) as {
       getMeshFrameDelta: (zoom: number) => number;
     };
+    const nativeTerrain = { source: "dem", exaggeration: 1.5 };
     const map = {
       terrain,
+      getTerrain: vi.fn(() => nativeTerrain),
+      setTerrain: vi.fn(),
       getStyle: vi.fn(() => ({
         layers: layers.filter(({ id }) => id !== sharedLayer.id),
       })),
@@ -817,8 +820,12 @@ describe("shared Three.js scene registry", () => {
     expect(paint.get(`${poiLayer.id}:text-halo-color`)).toBe("#ffffff");
     // MapLibre's tile skirts stay out of the captured pass.
     expect(terrain.getMeshFrameDelta(15)).toBe(0);
+    // Keep native DEM elevation for labels; only the captured surface is hidden.
+    expect(map.getTerrain()).toBe(nativeTerrain);
+    expect(map.setTerrain).not.toHaveBeenCalled();
 
     lease.release();
+    expect(map.setTerrain).not.toHaveBeenCalled();
     expect(terrain.getMeshFrameDelta(15)).toBe(42);
     expect(Object.hasOwn(terrain, "getMeshFrameDelta")).toBe(false);
     expect(layout.has("basemap:visibility")).toBe(false);

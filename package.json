@@ -34,7 +34,6 @@
     "@motis-project/motis-client": "^2.7.6",
     "@react-hook/window-size": "^3.1.1",
     "@react-pdf/renderer": "^3.4.4",
-    "@react-three/fiber": "8.17.10",
     "@reduxjs/toolkit": "^2.2.7",
     "@rehooks/component-size": "^1.0.3",
     "@rehooks/online-status": "^1.1.2",

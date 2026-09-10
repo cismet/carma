@@ -450,6 +450,8 @@ export const acquireShadowMapLibreTerrain = (
       } else {
         ensureOpaqueDrape();
       }
+      // Keep the DEM active for MapLibre label elevation even when Three owns
+      // the visible surface. The shared scene clears its captured ground color.
       if (terrainMap.getSource(sourceId)) {
         const current = terrainMap.getTerrain();
         if (current?.source !== sourceId || (current.exaggeration ?? 1) !== 1) {
@@ -1974,15 +1976,9 @@ export const buildShadowSimulationScene = (
           height: primary.shadowMapHeight,
         },
       });
-      // The mono camera remains the conservative caster-fetch envelope in tiled
-      // mode; it needs no resident depth target or visible directional light.
-      if (isTiledBufferEnabled()) {
-        const light = sharedBinding.controller.lights[0];
-        if (light.shadow.map) {
-          disposeShadowDepthPage(light.shadow.map);
-          light.shadow.map = null;
-        }
-      }
+      // The common hard draw also runs in tiled mode. Keep its depth target
+      // across sun updates; Three owns resizing and invalidation, not a fresh
+      // dispose/allocation on every animation tick.
       const publishWanted = hasShadowProjectionDebugListeners(map);
       if (primary && publishWanted) {
         frame.lodCamera.updateMatrixWorld(true);
@@ -2286,9 +2282,10 @@ export const buildShadowSimulationScene = (
           styleEpoch: number;
           active: boolean;
         }>
-      ) =>
-        withTileVolumeSnapshot(() => {
-          if (!softSunShadowsEnabled || !nativeAccumulationFits) return null;
+      ) => {
+        if (!softSunShadowsEnabled || timeAnimating || !nativeAccumulationFits)
+          return null;
+        return withTileVolumeSnapshot(() => {
           if (useBootstrapPreview()) return null;
           const tiles = updateTiledScene();
           if (!tiles) return null;
@@ -2301,9 +2298,15 @@ export const buildShadowSimulationScene = (
           publishProjectionDebug();
           return result;
         });
+      };
     },
-    renderScene: (camera: THREE.Camera, round: number | null) =>
-      withTileVolumeSnapshot(() => {
+    renderScene: (camera: THREE.Camera, round: number | null) => {
+      // Decision: LIVE-HARD-SHADOW-20260910 in
+      // three/CORRIDOR_PERFORMANCE_20260909.md. Point light and animation use
+      // the host's direct centre-sun draw, not receiver capture/restore queues.
+      // The controller runtime still updates sunward caster coverage above.
+      if (!softSunShadowsEnabled || timeAnimating) return false;
+      return withTileVolumeSnapshot(() => {
         // A common centre-sun pass includes every currently loaded caster;
         // unlike page-by-page replay it leaves time for the remaining loads.
         if (useBootstrapPreview()) return false;
@@ -2319,7 +2322,8 @@ export const buildShadowSimulationScene = (
         // convergence stops repaints before the next debug interval.
         publishProjectionDebug();
         return rendered;
-      }),
+      });
+    },
   };
   sceneLease.layer.setAccumulationController?.(accumulationController);
   const refreshSharedShadowCoverage = () => {
@@ -2808,6 +2812,7 @@ export const buildShadowSimulationScene = (
       if (timeAnimating === animating) return;
       idleTerrainPrefetch.cancel();
       timeAnimating = animating;
+      if (animating) tiledScene?.pausePending();
       if (!animating) {
         flushMapLibreLightSample();
         sharedBinding.dirty = true;

@@ -239,6 +239,107 @@ Memory cost and interaction latency are not measured by this synthetic benchmark
 **Revisit when:** The browser benchmark fails parity, Three changes its draw entry,
 or whole-app traces show that remaining traversal/depth work dominates.
 
+## Live hard shadows
+
+**ID / date / status:** LIVE-HARD-SHADOW-20260910 / 2026-09-10 /
+candidate implemented; browser CPU/GPU profile and visual parity pending.
+
+**Context and constraints:** Point-light rendering disabled progressive sampling
+but still entered tiled receiver planning and the hard capture/restore queue.
+Tiled presentation subsequently drew a common hard-shadow scene anyway.
+The controller also disposed that common light's depth target on each dirty
+update, despite the common draw using it again. Animation changes the sun often,
+invalidating any baked visibility tied to the previous sun direction.
+
+**Decision:** Point-light and running animation return to the existing host
+centre-sun draw before taking a tile snapshot or updating receiver captures.
+Caster coverage still updates in the shadow controller runtime. Pause pending
+tiled work on animation start. Retain the common depth target across updates;
+the existing shadow controller reallocates it when fitted dimensions change.
+Idle finite-disc integration and its retained results remain separate.
+
+**Alternatives and disposition:** Per-time hard-mask baking is deferred pending
+evidence of reuse sufficient to amortize capture and restore work. Moving WebGL
+submission to a worker is not evaluated here: this change removes redundant work
+from the main thread, but does not relocate rendering to a worker.
+
+**Evidence:** Three focused scene tests verify both bypass modes, no repeated
+tile-volume/provider lookups to choose the direct draw, continuing caster camera
+registration, and the same depth target surviving ten equal-size solar updates.
+These are control-flow/resource-lifecycle tests, not elapsed-time measurements.
+User approved an isolated Chrome profiling page and loading the same Mesh2024
+source. Preliminary browser observations are recorded below; pixel parity and
+GPU timing are still not established.
+
+**Preliminary browser observations:** Chrome 152 on macOS, 14 reported logical
+processors, 1200×1143 CSS viewport, DPR 2 (2400×2286 canvas), Mesh2024 at
+51.2719076/7.2001887, zoom 19.51, bearing 304.12°, pitch 54.47°. Point light,
+December 12, starting 10:56, 4× daily animation. No concurrent preview build.
+One untraced 10-second run per version, following a three-second pause after
+resetting the date. These are RAF scheduling observations, not completed GPU frames.
+
+| Build | RAF intervals | Median interval | p95 interval | Long-task time |
+| --- | ---: | ---: | ---: | ---: |
+| c864ffca9-1789001229606 | 35 | 270.9 ms | 438.2 ms | 9394 ms |
+| 43c4613ac-1789002590249 | 141 | 55.5 ms | 236.8 ms | 4955 ms |
+
+An additional traced baseline run recorded 40 intervals, median 249.2 ms.
+The result indicates lower main-thread pressure, not an isolated 4× rendering
+speedup: the candidate also includes the addon-store rollback and frame-query
+changes, and the timer-driven animation visits more sun positions when faster.
+Tile residency/cache warmness and selected mesh LOD were not fully recorded.
+No randomized repetitions, hardware comparison, or screenshot parity established.
+Candidate-only fixed hash time steps took 165–529 ms to two RAF callbacks;
+this includes hash/React work and is not input-to-visible-shadow latency.
+Trace export was denied by tool workspace configuration and the profiler transport
+closed during analysis, preventing baseline fixed-step comparison and a full
+CPU call-tree breakdown. Raw observations are local-only:
+`output/hard-shadow-profile/observations.json`.
+
+**Related terrain diagnosis:** `acquireShadowMapLibreTerrain` keeps the DEM
+enabled even with a textured terrain mesh, and its terrain-event callback
+reinstates the source after another owner calls `setTerrain(null)`. Existing
+tests explicitly assert this. `syncTerrainRuntime` removes the separate Three
+terrain runtime, not MapLibre terrain. Label-only draping and skirt suppression
+therefore do not mean the MapLibre terrain engine has been removed. No terrain
+policy change was included in that profiling candidate; the follow-up below
+supersedes the old terrain-retention policy.
+
+## Mesh owns the visible terrain
+
+**ID / date / status:** MESH-NATIVE-TERRAIN-OFF-20260910 / 2026-09-10 /
+superseded by user clarification: retain DEM for label elevation.
+
+**Context and decision:** Native MapLibre terrain must stay loaded and active
+for label elevation in mesh and shadow modes. Reverted the native terrain-off
+implementation. Reuse the existing shared render pass: capture MapLibre style
+color/depth, clear its visible ground color/depth, then draw Three and retained
+MapLibre label overlays. Mesh style visibility and skirt suppression remain;
+the elevation source and native terrain configuration are not disabled.
+
+**Alternatives:** Disabling native terrain loses required label elevation and
+was explicitly rejected by the user. Hiding the source before capture would
+also remove the basemap texture needed by the Three raster terrain.
+
+**Evidence:** 32 registry/render-context tests and five focused shadow tests pass.
+Mesh acquisition/release does not call setTerrain; labels/opaque/labels changes
+retain native terrain. Existing framebuffer tests cover clearing visible color
+and depth. Live label elevation and surface composition remain visually unverified.
+
+**Dependency cleanup:** Removed unused PR-added direct `@react-three/fiber`
+dependency. npm retains version 8.17.10 as a peer dependency required by
+`@takram/three-geospatial@0.1.0`; no application import or r3f entrypoint use
+was found. No broad dependency upgrades or peer overrides were introduced.
+
+**Revisit when:** A native surface leaks through after capture, or label elevation
+is incorrect despite the native terrain remaining active.
+
+**Revisit when:** Profile the original immutable build versus this candidate at
+the same camera, Mesh2024 LOD, point-light state and animation rate, without a
+concurrent build. Compare depth dimensions and shadow detail: a shared fitted
+shadow map can have different spatial sampling from per-receiver captures.
+Do not call the candidate accepted until that visual tradeoff is checked.
+
 ## Frame-local corridor queries
 
 **ID / date / status:** FRAME-CORRIDOR-QUERIES-20260910 / 2026-09-10 /

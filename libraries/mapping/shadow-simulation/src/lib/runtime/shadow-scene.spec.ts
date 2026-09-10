@@ -257,6 +257,7 @@ describe("shadow scene MapLibre terrain", () => {
     // The mesh leaves the scene: the opaque basemap drape takes over again.
     drapeMode = "opaque";
     release.refresh();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
     expect(layout.get("roads:visibility")).toBe("visible");
     expect(layout.has("basemap:visibility")).toBe(false);
     expect(paint.get("basemap:raster-opacity")).toBe(1);
@@ -264,6 +265,7 @@ describe("shadow scene MapLibre terrain", () => {
 
     drapeMode = "labels";
     release.refresh();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
     expect(layers.some(({ id }) => id === "carma-shadow-map-style-base")).toBe(
       false
     );
@@ -640,6 +642,77 @@ describe("shadow scene lighting integration", () => {
     };
     return { controller, raster, map, camera, fire, postTask, tasks };
   };
+
+  it.each(["point-light", "animation"])(
+    "uses a direct hard draw without receiver planning during %s",
+    async (mode) => {
+      const f = await createIdleTerrainHost();
+      const rendererLookup = vi.fn(() => null);
+      sharedLayer.getRenderer = rendererLookup;
+      f.controller.updateRenderQuality({
+        shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+      });
+      if (mode === "point-light") f.controller.updateSoftSunShadows(false);
+      else f.controller.updateTimeAnimating(true);
+      updateShadows(f.map, f.camera);
+      rendererLookup.mockClear();
+      f.raster.getActiveTileVolumes.mockClear();
+      for (let tick = 0; tick < 10; tick += 1) {
+        expect(accumulationController!.renderScene!(f.camera, null)).toBe(
+          false
+        );
+        expect(
+          accumulationController!.renderProgressive!(f.camera, {
+            width: 800,
+            height: 600,
+            viewKey: "hard-animation",
+            styleEpoch: tick,
+            active: false,
+          })
+        ).toBeNull();
+      }
+      expect(rendererLookup).not.toHaveBeenCalled();
+      // No snapshot/traversal is needed just to select the direct draw.
+      expect(f.raster.getActiveTileVolumes).not.toHaveBeenCalled();
+      expect(f.raster.setShadowView).toHaveBeenCalledWith(
+        expect.objectContaining({ camera: expect.any(THREE.Camera) })
+      );
+      f.controller.dispose();
+    }
+  );
+
+  it("retains the common hard depth target across same-size sun updates", async () => {
+    const f = await createIdleTerrainHost();
+    f.controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    });
+    f.controller.updateSoftSunShadows(false);
+    updateShadows(f.map, f.camera);
+    const lights: THREE.DirectionalLight[] = [];
+    scene.traverse((object) => {
+      if (object instanceof THREE.DirectionalLight && object.castShadow)
+        lights.push(object);
+    });
+    expect(lights.length).toBeGreaterThan(0);
+    const light = lights[0];
+    const depth = new THREE.WebGLRenderTarget(
+      light.shadow.mapSize.x,
+      light.shadow.mapSize.y
+    );
+    light.shadow.map = depth;
+    const dispose = vi.spyOn(depth, "dispose");
+    for (let tick = 0; tick < 10; tick += 1) {
+      f.controller.updateSolarPosition({
+        instant: new Date(2026, 5, 21, 12, tick),
+        azimuthDegrees: 135 + tick * 0.01,
+        elevationDegrees: 45,
+      });
+      updateShadows(f.map, f.camera);
+      expect(light.shadow.map).toBe(depth);
+    }
+    expect(dispose).not.toHaveBeenCalled();
+    f.controller.dispose();
+  });
 
   it("reuses corridor revisions within a draw and refreshes null and changed cuts next draw", async () => {
     const f = await createIdleTerrainHost();
