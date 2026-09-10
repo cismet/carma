@@ -825,7 +825,8 @@ export class TiledShadowRenderer {
       const rendered = renderShadowReceiverObject(
         scene,
         page.receiverObjectId,
-        () => renderer.render(scene, camera),
+        renderer,
+        camera,
         "color-only"
       );
       if (rendered) this.colorPasses += 1;
@@ -991,7 +992,8 @@ export class TiledShadowRenderer {
           const rendered = renderShadowReceiverObject(
             scene,
             page.receiverObjectId,
-            () => renderer.render(scene, camera)
+            renderer,
+            camera
           );
           if (rendered) {
             this.colorPasses += 1;

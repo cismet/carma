@@ -1,18 +1,20 @@
-import type { Material, Mesh, Object3D, Scene } from "three";
+import type { Camera, Mesh, Object3D, Scene, WebGLRenderer } from "three";
 
 const members = new WeakMap<Object3D, ReadonlySet<Object3D>>();
 
 /** Restrict colour/depth RECEIVERS without excluding any shadow caster.
- * Three calls onBeforeShadow for its sun pass, onBeforeRender for colour.
- * Per-draw writes also support materials shared between different objects.
+ * The light's camera is distinct from the receiver capture camera.
+ * Geometry and materials remain shared and unmodified in both passes.
  * Payload subtrees are immutable; replacement payloads have a new object ID.
  */
 export const renderShadowReceiverObject = (
   scene: Scene,
   objectId: number | undefined,
-  render: () => void,
+  renderer: WebGLRenderer,
+  camera: Camera,
   pass: "shadow-and-color" | "color-only" = "shadow-and-color"
 ): boolean => {
+  const render = () => renderer.render(scene, camera);
   if (objectId === undefined) {
     render();
     return true;
@@ -51,48 +53,25 @@ export const renderShadowReceiverObject = (
       for (const object of hidden) object.visible = true;
     }
   }
-  const restoreCallbacks: (() => void)[] = [];
-  const writes = new Map<
-    Material,
-    { colorWrite: boolean; depthWrite: boolean }
-  >();
-  const restore = (material: Material) => {
-    const saved = writes.get(material);
-    if (!saved) return;
-    material.colorWrite = saved.colorWrite;
-    material.depthWrite = saved.depthWrite;
-    writes.delete(material);
+  // Decision: suppress the draw, not its framebuffer writes. The latter still
+  // runs every unrelated vertex/shader for each sun sample. The public draw
+  // entry distinguishes capture from light cameras without hiding any caster.
+  // See three/CORRIDOR_PERFORMANCE_20260909.md, RECEIVER-DRAW-ELISION-20260910.
+  const drawBuffer = renderer.renderBufferDirect;
+  renderer.renderBufferDirect = function (...args) {
+    const [drawCamera, , , , object] = args;
+    if (
+      drawCamera === camera &&
+      (object as Mesh).isMesh &&
+      !receiver.has(object)
+    )
+      return;
+    drawBuffer.apply(this, args);
   };
-  scene.traverseVisible((object) => {
-    const mesh = object as Mesh;
-    if (!mesh.isMesh || receiver.has(mesh)) return;
-    const before = mesh.onBeforeRender;
-    const after = mesh.onAfterRender;
-    mesh.onBeforeRender = (...args) => {
-      before.call(mesh, ...args);
-      const material = args[4];
-      writes.set(material, {
-        colorWrite: material.colorWrite,
-        depthWrite: material.depthWrite,
-      });
-      material.colorWrite = false;
-      material.depthWrite = false;
-    };
-    mesh.onAfterRender = (...args) => {
-      restore(args[4]);
-      after.call(mesh, ...args);
-    };
-    restoreCallbacks.push(() => {
-      mesh.onBeforeRender = before;
-      mesh.onAfterRender = after;
-    });
-  });
   try {
     render();
     return true;
   } finally {
-    for (const material of writes.keys()) restore(material);
-    for (const restoreCallbacksForMesh of restoreCallbacks)
-      restoreCallbacksForMesh();
+    renderer.renderBufferDirect = drawBuffer;
   }
 };

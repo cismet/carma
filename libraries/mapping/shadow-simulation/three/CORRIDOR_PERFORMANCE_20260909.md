@@ -206,3 +206,35 @@ renderer wiring that excludes other objects only with shadow updates disabled,
 preserves all casters during sampling and refuses capture of a disposed receiver.
 The earlier 141 mesh tests and focused scene-content test remain the separate
 validated scopes. No broad build/lint/typecheck was run.
+
+## Receiver draw elision
+
+**ID / date / status:** RECEIVER-DRAW-ELISION-20260910 / 2026-09-10 /
+implemented; GPU performance and output parity pending.
+
+**Context and constraints:** Material write masking still submits unrelated
+receiver triangles on every sun sample. All light-camera caster draws, including
+offscreen geometry, must remain available. Keep 64 samples and physical resolution.
+
+**Decision:** Temporarily intercept `renderer.renderBufferDirect` during a receiver
+capture and skip meshes outside its subtree only for the capture camera. Restore
+the original method in `finally`. Colour-only replay retains its separate visibility
+filter with shadow updates disabled. Three's installed renderer and shadow-map
+implementation both dispatch through this public draw entry.
+
+**Alternatives and disposition:** Material write masking is the frozen benchmark
+baseline, not a measured rejection. Hiding unrelated casters during combined
+passes is incompatible by inspection. Shared depth passes and GPU workers remain
+deferred; this change does not remove scene traversal or main-thread submission.
+
+**Evidence:** Receiver tests cover camera separation, all casters, shared resources,
+exception restoration and missing receivers. The reproducible browser entry is
+`test/benchmarks/receiver-draw-elision.html`: 100 spheres and an offscreen chimney,
+64 identical sun positions, 512-square R32F capture, 1024-square PCF depth, one warmup
+per arm and five alternating pairs. Timing includes integration, publication and
+blocking float readback; output reports pixel parity, draw/triangle counts, median
+and maximum times, browser and GPU. No GPU result or whole-app speedup is claimed.
+Memory cost and interaction latency are not measured by this synthetic benchmark.
+
+**Revisit when:** The browser benchmark fails parity, Three changes its draw entry,
+or whole-app traces show that remaining traversal/depth work dominates.
