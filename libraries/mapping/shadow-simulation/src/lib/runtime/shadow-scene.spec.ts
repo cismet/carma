@@ -718,6 +718,40 @@ describe("shadow scene lighting integration", () => {
     }
   );
 
+  it("re-selects runtime casters at most once a second while animating and once more on stop", async () => {
+    const f = await createIdleTerrainHost();
+    let now = 100_000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const sun = (tick: number) => ({
+      instant: new Date(Date.UTC(2026, 5, 21, 10, tick)),
+      azimuthDegrees: 135 + tick,
+      elevationDegrees: 45,
+    });
+    f.controller.updateTimeAnimating(true);
+    f.raster.setShadowView.mockClear();
+    for (let tick = 1; tick <= 12; tick += 1) {
+      now += 33;
+      f.controller.updateSolarPosition(sun(tick));
+      updateShadows(f.map, f.camera);
+    }
+    // Twelve sun changes inside one second: one caster re-selection.
+    expect(f.raster.setShadowView).toHaveBeenCalledTimes(1);
+    now += 1_000;
+    f.controller.updateSolarPosition(sun(13));
+    updateShadows(f.map, f.camera);
+    expect(f.raster.setShadowView).toHaveBeenCalledTimes(2);
+    now += 33;
+    f.controller.updateSolarPosition(sun(14));
+    updateShadows(f.map, f.camera);
+    expect(f.raster.setShadowView).toHaveBeenCalledTimes(2);
+    // The stop applies the deferred final view instead of waiting for a move.
+    f.controller.updateTimeAnimating(false);
+    expect(f.raster.setShadowView).toHaveBeenCalledTimes(3);
+    expect(f.raster.setShadowView.mock.lastCall?.[0]?.camera).toBeDefined();
+    clock.mockRestore();
+    f.controller.dispose();
+  });
+
   it("retains the common hard depth target across same-size sun updates", async () => {
     const f = await createIdleTerrainHost();
     f.controller.updateRenderQuality({
@@ -1895,6 +1929,7 @@ describe("shadow scene lighting integration", () => {
     );
 
     const animatedMapStyleUpdateCount = setLight.mock.calls.length;
+    const animatedLabelUpdateCount = setLocationLabelColor.mock.calls.length;
     controller.updateTimeAnimating(true);
     controller.updateSolarPosition({
       ...solarPosition,
@@ -1905,8 +1940,19 @@ describe("shadow scene lighting integration", () => {
       instant: new Date("2026-06-21T10:03:00Z"),
     });
     expect(setLight).toHaveBeenCalledTimes(animatedMapStyleUpdateCount);
+    // The label colour would re-run the overlay maintenance over every symbol
+    // layer; it stays frozen while animating and follows the final sample.
+    expect(setLocationLabelColor).toHaveBeenCalledTimes(
+      animatedLabelUpdateCount
+    );
     controller.updateTimeAnimating(false);
     expect(setLight).toHaveBeenCalledTimes(animatedMapStyleUpdateCount + 1);
+    expect(setLocationLabelColor).toHaveBeenCalledTimes(
+      animatedLabelUpdateCount + 1
+    );
+    expect(setLocationLabelColor).toHaveBeenLastCalledWith(
+      setLight.mock.lastCall?.[0].color
+    );
 
     const restoreMapContent = vi.fn();
     vi.mocked(suppressMapLibreRegularStyleLayers).mockReturnValueOnce(

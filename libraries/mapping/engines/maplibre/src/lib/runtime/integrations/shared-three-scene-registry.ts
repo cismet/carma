@@ -436,6 +436,10 @@ const getTerrainCoverageFilter = (
   const boxes: TerrainCoverageBox[] = [];
   for (const runtime of terrainRuntimes) {
     for (const volume of runtime.getActiveTileVolumes?.() ?? []) {
+      // Caster-only tiles follow the sun, not the view. Including them made
+      // every sun step rewrite the coverage filter of each label layer, and
+      // MapLibre reloads the whole vector source for a filter change.
+      if (volume.loadReason === "shadow") continue;
       const [minimumX, , minimumZ] = volume.minimum;
       const [maximumX, , maximumZ] = volume.maximum;
       if (

@@ -30,7 +30,6 @@ import {
 } from "../core/solar-position";
 import { ShadowSimulationRuntime } from "../runtime/ShadowSimulationRuntime";
 import { useMapCenterSolarLocation } from "../runtime/hooks/use-map-center-solar-location";
-import { useShadowAnimation } from "../runtime/hooks/use-shadow-animation";
 import { ShadowSimulationSecondaryPanel } from "./ShadowSimulationSecondaryPanel";
 
 const ShadowProjectionDebugView = lazy(() =>
@@ -122,12 +121,6 @@ export const ShadowSimulationView = ({
     if (!sharedDateState) setSharedDateState(initialDateState);
   }, [initialDateState, setSharedDateState, sharedDateState]);
 
-  useShadowAnimation({
-    initialDateState,
-    setDateState: setSharedDateState,
-    location,
-    shadowState: state,
-  });
 
   if (targeted) {
     return (
@@ -187,6 +180,7 @@ export const ShadowSimulationView = ({
         location={location}
         state={state}
         dateState={dateState}
+        setDateState={setSharedDateState}
       />
       {state.controlStyle === SHADOW_CONTROL_STYLE.CURVE && (
         <Suspense fallback={null}>

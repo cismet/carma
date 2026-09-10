@@ -9,6 +9,7 @@ import type { GeoportalCustomHashState } from "../helper/geoportal-custom-hash-s
 
 type ShadowStateFixture = {
   enabled: boolean;
+  isAnimating?: boolean;
   terrainColor: string;
   buildingsFullOpacity: boolean;
   buildingColorMix: number;
@@ -236,6 +237,52 @@ describe("useGeoportalShadowSimulationHash", () => {
     await act(async () => vi.advanceTimersByTimeAsync(500));
     expect(hashStateMock.updateHashState).toHaveBeenCalledWith(
       { shadow: "662;141" },
+      { label: "geoportal:sync-shadow-simulation", replace: true }
+    );
+  });
+
+  it("does not write the hash while the animation runs and writes the final date on stop", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-28T12:00:00Z"));
+    const customHashState = createCustomHashState({
+      selection: { minutes: 660, dayOfYear: 140 },
+    });
+    addonStateMock.shadowState = createShadowState({
+      enabled: true,
+      isAnimating: true,
+    });
+    addonStateMock.shadowDate = createShadowDate({
+      minutes: 660,
+      dayOfYear: 140,
+    });
+    const { rerender } = renderHook(() =>
+      useGeoportalShadowSimulationHash({ customHashState })
+    );
+    act(() => {
+      addonStateMock.shadowDate = createShadowDate({
+        minutes: 700,
+        dayOfYear: 140,
+      });
+      rerender();
+      addonStateMock.shadowDate = createShadowDate({
+        minutes: 740,
+        dayOfYear: 140,
+      });
+      rerender();
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+    expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
+    act(() => {
+      addonStateMock.shadowState = createShadowState({
+        enabled: true,
+        isAnimating: false,
+      });
+      rerender();
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(500));
+    expect(hashStateMock.updateHashState).toHaveBeenCalledTimes(1);
+    expect(hashStateMock.updateHashState).toHaveBeenCalledWith(
+      { shadow: "740;140" },
       { label: "geoportal:sync-shadow-simulation", replace: true }
     );
   });

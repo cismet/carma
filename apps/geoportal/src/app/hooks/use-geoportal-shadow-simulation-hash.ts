@@ -170,6 +170,7 @@ export const useGeoportalShadowSimulationHash = ({
   ]);
 
   const shadowEnabled = shadowState?.enabled;
+  const shadowAnimating = shadowState?.isAnimating === true;
   const shadowMinutes = shadowDate?.minutes;
   const shadowDayOfYear = shadowDate?.dayOfYear;
 
@@ -196,7 +197,9 @@ export const useGeoportalShadowSimulationHash = ({
       }
       pendingHashStateVersionRef.current = null;
     }
-
+    // The animation publishes dates continuously; the hash follows once it
+    // stops, so history and the URL are not rewritten twice a second.
+    if (shadowAnimating) return;
     scheduleHashUpdate(
       buildGeoportalShadowSimulationHashUpdate({
         enabled: shadowEnabled,
@@ -210,6 +213,7 @@ export const useGeoportalShadowSimulationHash = ({
     hashSelection,
     hashStateVersion,
     scheduleHashUpdate,
+    shadowAnimating,
     shadowDayOfYear,
     shadowEnabled,
     shadowMinutes,

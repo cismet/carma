@@ -11,6 +11,7 @@ import {
 
 import type {
   ShadowDateState,
+  ShadowDateStateSetter,
   ShadowSimulationState,
   ShadowTerrainOptions,
   ShadowTerrainQuality,
@@ -29,6 +30,7 @@ import {
   buildShadowSimulationScene,
   type ShadowSimulationScene,
 } from "./shadow-scene";
+import { useShadowAnimation } from "./hooks/use-shadow-animation";
 
 export const ShadowSimulationRuntime = ({
   libreMap,
@@ -39,6 +41,7 @@ export const ShadowSimulationRuntime = ({
   location,
   state,
   dateState,
+  setDateState,
 }: {
   libreMap: MaplibreMap | null;
   shadowAreaMeters?: number;
@@ -48,8 +51,21 @@ export const ShadowSimulationRuntime = ({
   location: SolarLocation;
   state: ShadowSimulationState;
   dateState: ShadowDateState;
+  setDateState: ShadowDateStateSetter;
 }) => {
   const shadowScene = useRef<ShadowSimulationScene | null>(null);
+  // Animation ticks bypass React: the sun is pushed into the scene here and the
+  // shared date follows at a throttled rate for the label and the URL hash.
+  const animatedDate = useShadowAnimation({
+    dateState,
+    setDateState,
+    location,
+    shadowState: state,
+    onFrame: (next) => {
+      if (!state.enabled) return;
+      shadowScene.current?.updateSolarPosition(getSolarPosition(next, location));
+    },
+  });
   const effectiveTerrain = useMemo(
     () =>
       resolveShadowTerrainQuality(
@@ -62,10 +78,6 @@ export const ShadowSimulationRuntime = ({
   const terrainRef = useRef(effectiveTerrain);
   terrainRef.current = effectiveTerrain;
   const [sceneRevision, setSceneRevision] = useState(0);
-  const solarPosition = useMemo(
-    () => getSolarPosition(dateState, location),
-    [dateState, location]
-  );
 
   useEffect(() => {
     if (!libreMap || !state.enabled) return;
@@ -129,8 +141,10 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
-    shadowScene.current?.updateSolarPosition(solarPosition);
-  }, [solarPosition, state.enabled, sceneRevision]);
+    // A running animation already showed a newer date than the shared state.
+    const shown = animatedDate.current ?? dateState;
+    shadowScene.current?.updateSolarPosition(getSolarPosition(shown, location));
+  }, [animatedDate, dateState, location, state.enabled, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;

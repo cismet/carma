@@ -123,6 +123,7 @@ const SUN_VECTOR_VIEWPORT_LENGTH_FACTOR = 0.5;
 const SHADOW_SIMULATION_SKY_LIGHT_NAME = "shadow-simulation-sky-light";
 const LOCAL_ATMOSPHERE_GROUND_ELEVATION_METERS = 100;
 const MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS = 1_000;
+const ANIMATION_RUNTIME_SHADOW_VIEW_INTERVAL_MS = 1_000;
 const SHADOW_DEBUG_PUBLISH_INTERVAL_MS = 100;
 const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
 
@@ -1304,7 +1305,10 @@ export const buildShadowSimulationScene = (
     pendingMapLibreLightSample = null;
     lastMapLibreStyleUpdateMs = performance.now();
     const nextColor = `#${sample.color.getHexString()}`;
-    sceneLease.setLocationLabelColor(nextColor);
+    // A label colour change re-runs the overlay maintenance over every symbol
+    // layer of the basemap. While the sun animates, keep the colour from the
+    // start of the animation; the stop flushes the final sample.
+    if (!timeAnimating) sceneLease.setLocationLabelColor(nextColor);
     if (!map.isStyleLoaded()) return;
     const nextPosition: [number, number, number] = [
       1.5,
@@ -1522,6 +1526,8 @@ export const buildShadowSimulationScene = (
   let mapInMotion = false;
   let latestShadowView: SharedThreeSceneShadowView | null = null;
   let appliedRuntimeShadowView: SharedThreeSceneShadowView | null = null;
+  let lastAnimatedRuntimeShadowViewMs = Number.NEGATIVE_INFINITY;
+  let runtimeShadowViewDeferredByAnimation = false;
   const terrainSelectionSignatures = new WeakMap<
     SharedThreeSceneRuntime,
     string
@@ -1548,6 +1554,22 @@ export const buildShadowSimulationScene = (
   };
   const applyRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     appliedRuntimeShadowView = view;
+    if (timeAnimating) {
+      // Every animation tick moves the sun and with it the shadow camera. The
+      // terrain and mesh runtimes re-select their caster coverage per view,
+      // through worker round trips whose input copies land on the main thread.
+      // Follow the sun coarsely while animating; the stop applies the final view.
+      const now = performance.now();
+      if (
+        now - lastAnimatedRuntimeShadowViewMs <
+        ANIMATION_RUNTIME_SHADOW_VIEW_INTERVAL_MS
+      ) {
+        runtimeShadowViewDeferredByAnimation = true;
+        return;
+      }
+      lastAnimatedRuntimeShadowViewMs = now;
+    }
+    runtimeShadowViewDeferredByAnimation = false;
     const selectionSignature = getTerrainSelectionSignature(view);
     const receiverCamera = latestFrame?.renderCamera;
     const receiverFrustum =
@@ -2845,6 +2867,10 @@ export const buildShadowSimulationScene = (
       if (animating) tiledScene?.pausePending();
       if (!animating) {
         flushMapLibreLightSample();
+        lastAnimatedRuntimeShadowViewMs = Number.NEGATIVE_INFINITY;
+        if (runtimeShadowViewDeferredByAnimation && !mapInMotion) {
+          applyRuntimeShadowView(appliedRuntimeShadowView);
+        }
         sharedBinding.dirty = true;
       }
       map.triggerRepaint();

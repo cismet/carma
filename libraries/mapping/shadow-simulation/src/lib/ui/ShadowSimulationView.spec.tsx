@@ -35,9 +35,6 @@ const debugLifecycle = vi.hoisted(() => ({
 vi.mock("../runtime/ShadowSimulationRuntime", () => ({
   ShadowSimulationRuntime: () => null,
 }));
-vi.mock("../runtime/hooks/use-shadow-animation", () => ({
-  useShadowAnimation: () => undefined,
-}));
 vi.mock("./ShadowProjectionDebugView", async () => {
   const { useEffect } = await import("react");
   debugLifecycle.imported();
