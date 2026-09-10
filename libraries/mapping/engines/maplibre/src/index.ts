@@ -298,8 +298,6 @@ export type {
   ImageProjector,
   ThreeTilesRuntime,
 } from "./lib/runtime/integrations/three-tiles-runtime-types";
-export { buildRasterDemTerrainRuntime } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
-export type { RasterDemTerrainRuntimeOptions } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
 export {
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,

@@ -8,7 +8,6 @@ import {
 } from "@carma-commons/resources";
 import {
   acquireSharedThreeScene,
-  buildRasterDemTerrainRuntime,
   getGenericThreeLayers,
   MAPLIBRE_EVENT,
   getSharedThreeSceneRuntimes,
@@ -20,6 +19,7 @@ import {
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
 } from "@carma-mapping/engines/maplibre";
+import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneLayer,

@@ -1,5 +1,5 @@
 import type { Positions } from "@carma-mapping/map-controls-layout";
-import type { RasterDemTerrainRuntimeOptions } from "@carma-mapping/engines/maplibre";
+import type { RasterDemTerrainRuntimeOptions } from "@carma-mapping/engines/maplibre/terrain";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 
 import type { SolarSelection } from "../core/solar-position";
