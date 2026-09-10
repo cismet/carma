@@ -49,6 +49,9 @@ export default defineConfig({
       silent: false,
     }),
   ],
+  worker: {
+    plugins: () => [nxViteTsPaths()],
+  },
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,

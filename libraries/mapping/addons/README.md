@@ -48,6 +48,7 @@ so the second folder is the list of what actually exists:
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | `addons/LibreTerrain.tsx`   | terrain for the maplibre map: a toggle button, or on whenever the camera is free |
+| `addons/ShadowSimulation/`   | daylight-clamped sun control for MapLibre and Three.js content   |
 
 An addon that needs more than one file gets its own folder there
 (`addons/CameraTour/index.tsx` plus its parts).
@@ -150,17 +151,18 @@ for a hook. It overrides the decision where the map engine keeps it, and the
 app keeps passing its own props unchanged.
 
 `cameraRestriction` is the worked example. `@carma-mapping/engines/maplibre`
-keeps the camera restriction per map instance, with the app's props as the base
-and `setCameraRestrictionOverride(map, value | null)` as an override on top:
+keeps the camera restriction per map instance, with the app's props as the base.
+Addon writers publish through the package-local priority coordinator so one
+addon's cleanup cannot erase another addon's active decision:
 
 ```tsx
 useEffect(() => {
   if (!libreMap) {
     return;
   }
-  setCameraRestrictionOverride(libreMap, { restricted, maxPitch });
+  setAddonCameraRestriction(libreMap, owner, { restricted, maxPitch });
   return () => {
-    setCameraRestrictionOverride(libreMap, null);
+    setAddonCameraRestriction(libreMap, owner, null);
   };
 }, [libreMap, restricted, maxPitch]);
 ```
@@ -170,6 +172,14 @@ what is true (`useCameraRestriction(map)`) instead of re-deriving it from the
 app's config, and the unmount cleanup hands the decision back on a route switch.
 A base the app marked as forced cannot be overridden, which is how app modes
 that depend on a locked camera (print) stay safe from route configuration.
+
+`freeCamera` is the explicit highest-priority addon policy. It enables the full
+MapLibre pitch range (0–180°), rotation, and the unclamped terrain-centre mode
+needed beyond 90°. It deliberately permits looking beneath terrain. It does not
+override a forced app lock or unrelated data/zoom bounds, and unmount restores
+the next addon policy plus the prior centre-clamping state. Registration alone
+does not mount it: no route declares it by default, and the addon manager offers
+it as an initially-off opt-in.
 
 Use this shape rather than an addon-state channel whenever the consumer is the
 app or the engine; channels are for addons talking to each other.
@@ -307,8 +317,11 @@ export const MapInsightsPanel = (
 };
 ```
 
-`useAddonState` subscribes per component, so a producer that only writes does
-not re-render on state changes. `useAddonStateSnapshot()` returns the whole
+Addon state uses the shared React context from dev; writes can re-render readers
+of other channels. Shadow startup state is initialized by the addon and then
+restored by the Geoportal hash-sync effect. Per-key subscriptions are deferred
+to a separate PR, not required for map lifecycle gating.
+`useAddonStateSnapshot()` reads the whole
 channel map at once for callers outside the addon components (the layer-button
 trigger path, once it derives from state); addons themselves should read
 single channels.

@@ -16,6 +16,10 @@ export default defineConfig({
     }),
   ],
 
+  worker: {
+    plugins: () => [nxViteTsPaths()],
+  },
+
   build: {
     outDir: "../../../dist/libraries/mapping/measurements",
     reportCompressedSize: true,

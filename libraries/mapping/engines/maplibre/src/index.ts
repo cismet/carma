@@ -2,7 +2,15 @@
 // MapLibre GL JS integration for CARMA mapping framework
 
 export const MAPLIBRE_ENGINE_VERSION = "0.0.1";
-export * from "./lib/contracts/maplibre-style.d";
+export type {
+  CarmaConf3DModel,
+  CarmaConf3DClippingPolygon,
+  CarmaConf3D,
+  CarmaMapLibreStyleMetadata,
+  CarmaMapLibreStyleData,
+  CarmaMapLibreFeatureProperties,
+} from "./lib/contracts/maplibre-style.d";
+export { useMapLoadingProgress } from "./lib/runtime/hooks/use-map-loading-progress";
 
 // Components
 export { LibreMap } from "./components/LibreMap";
@@ -225,15 +233,81 @@ export {
   DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
   DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
 } from "./constants/cameraDefaults";
+export { MAPLIBRE_EVENT, type MapLibreEventName } from "./constants/mapEvents";
 
 // Three.js layer management
-export { ThreeLayerManager, get3dLayers } from "./components/ThreeLayerManager";
+export { ThreeLayerManager } from "./components/ThreeLayerManager";
+export { getGenericThreeLayers as get3dLayers } from "./lib/runtime/integrations/generic-three-layer-registry";
 export {
   add3dPresence,
   has3dLayers,
   remove3dPresence,
 } from "./utils/threeDPresence";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
+
+export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
+export { getSharedThreeShadowViewSignature } from "./lib/core/shared-three-shadow-view";
+export type {
+  SharedThreeSceneFrame,
+  SharedThreeSceneLayer,
+  SharedThreeSceneRuntime,
+  SharedThreeSceneShadowView,
+  SharedThreeSceneTileVolume,
+  SharedThreeShadowRegionDiagnostics,
+} from "./lib/core/shared-three-scene-types";
+export {
+  createSharedThreeSceneCameraPreview,
+  type SharedThreeSceneCameraPreview,
+} from "./lib/runtime/integrations/shared-three-scene-camera-preview";
+export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
+export {
+  TERRAIN_MAP_STYLE,
+  isTerrainShadingStyleLayer,
+  prepareTerrainDrapeStyle,
+} from "./lib/core/terrain-map-style";
+export {
+  getSharedThreeSceneRuntimes,
+  notifySharedThreeSceneContentChanged,
+  notifySharedThreeSceneRequestStateChanged,
+  registerSharedThreeSceneRuntime,
+  subscribeSharedThreeSceneContent,
+  subscribeSharedThreeSceneRequestState,
+  hasSharedThreeShadedPresentation,
+  subscribeSharedThreeShadedPresentation,
+} from "./lib/runtime/integrations/shared-three-scene-content-registry";
+export {
+  getGenericThreeLayers,
+  notifyGenericThreeLayerContentChanged,
+  registerGenericThreeLayer,
+  subscribeGenericThreeLayers,
+  unregisterGenericThreeLayer,
+} from "./lib/runtime/integrations/generic-three-layer-registry";
+export type { ThreeTilesLayer } from "./lib/runtime/integrations/three-tiles-layer";
+export { meshShadowStageError } from "./lib/runtime/integrations/three-tiles-load-policy";
+export {
+  THREE_TILES_LAYER_TYPE,
+  THREE_TILES_SHADER_KIND,
+} from "./lib/runtime/integrations/three-tiles-layer";
+export { buildThreeTilesRuntime } from "./lib/runtime/integrations/three-tiles-runtime";
+export {
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_ERROR_TARGET_MAX_PIXELS,
+  TILES_ERROR_TARGET_MIN_PIXELS,
+} from "./lib/runtime/integrations/three-tiles-runtime-config";
+export type {
+  ImageProjector,
+  ThreeTilesRuntime,
+} from "./lib/runtime/integrations/three-tiles-runtime-types";
+export {
+  isSharedThreeTerrainLoading,
+  subscribeSharedThreeTerrainLoading,
+} from "./lib/runtime/integrations/shared-three-terrain-registry";
+export {
+  acquireMapLibreTerrainMeshComposition,
+  isMapStyleContourLineLayer,
+  MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
+  suppressMapLibreRegularStyleLayers,
+} from "./lib/runtime/integrations/map-style-layer-suppression";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

@@ -42,6 +42,44 @@ export {
 
 export { isNumberArrayEqual } from "./lib/arrays";
 
+export { createDerivedBufferCache } from "./lib/collections/derived-cache-storage";
+export type { DerivedBufferCacheOptions } from "./lib/collections/derived-cache-storage";
+export { resolveDerivedCacheAssetEpoch } from "./lib/collections/derived-cache-epoch";
+export type { DerivedCacheAssetEpochOptions } from "./lib/collections/derived-cache-epoch";
+export { encodeTypedBinaryRecord, decodeTypedBinaryRecord } from "./lib/collections/typed-binary-record";
+export type { TypedBinaryRecordOptions } from "./lib/collections/typed-binary-record";
+export { calibrateDerivedCacheStrategies, isDerivedCacheCalibrationProfileValid } from "./lib/collections/derived-cache-calibration";
+export type { DerivedCacheCalibrationCandidate, DerivedCacheCalibrationResult } from "./lib/collections/derived-cache-calibration";
+export type {
+  DerivedBufferCache,
+  DerivedBufferCacheRegistration,
+  DerivedBufferCacheStats,
+  DerivedBufferCacheValue,
+} from "./lib/collections/derived-cache-storage";
+export type {
+  DerivedCacheCosts,
+  DerivedCacheMetadata,
+  DerivedCachePolicyOptions,
+  DerivedCacheRecord,
+} from "./lib/collections/derived-cache-policy";
+export { isDerivedCacheSavingSufficient } from "./lib/collections/derived-cache-policy";
+
+export {
+  getDayOfYear,
+  getDaysInYear,
+  getUtcDateForDayOfYear,
+  offsetYearDay,
+  type YearDay,
+  type YearDayTime,
+  type ZonedYearDayTime,
+} from "./lib/calendar";
+
+export {
+  getZonedUtcOffsetMinutes,
+  instantToZonedYearDayTime,
+  zonedYearDayTimeToInstant,
+} from "./lib/zoned-date-time";
+
 export {
   extractCarmaConfig,
   resolveLayerTitle,

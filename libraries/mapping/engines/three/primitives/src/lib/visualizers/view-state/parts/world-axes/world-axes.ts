@@ -32,6 +32,7 @@ export type WorldAxisGeometry = {
 
 export type WorldAxisDisplay = {
   visible: boolean;
+  showUp: boolean;
   lineWidthPx: number;
   cueColors: WorldAxisColors;
 };
@@ -91,7 +92,10 @@ export const createWorldAxes = (
     },
     setDisplay: (display) => {
       WORLD_AXIS_KEY_LIST.forEach((key) => {
-        wideLines.setVisible(key, display.visible);
+        wideLines.setVisible(
+          key,
+          display.visible && (key !== WORLD_AXIS_KEYS.UP || display.showUp)
+        );
         wideLines.setWidth(key, display.lineWidthPx);
       });
       wideLines.setColor(WORLD_AXIS_KEYS.EAST, display.cueColors.east);

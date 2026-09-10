@@ -1,4 +1,4 @@
-import { useContext, useEffect, type ComponentType } from "react";
+import { useContext, useEffect, useMemo, type ComponentType } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { useStore } from "react-redux";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -75,7 +75,10 @@ export const AddonHost = () => {
     }
   }, [addons]);
 
-  const entries = applyAddonOverrides(resolveAddonEntries(addons), overrides);
+  const entries = useMemo(
+    () => applyAddonOverrides(resolveAddonEntries(addons), overrides),
+    [addons, overrides]
+  );
   if (!entries.length) {
     return null;
   }

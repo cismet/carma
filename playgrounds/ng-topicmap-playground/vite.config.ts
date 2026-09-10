@@ -23,11 +23,9 @@ export default defineConfig(() => ({
 
     plugins: [react(), nxViteTsPaths()],
     base: process.env.BASE_URL || "/",
-    // Uncomment this if you are using workers.
-    // worker: {
-    //  plugins: [ nxViteTsPaths() ],
-    // },
-
+    worker: {
+      plugins: () => [nxViteTsPaths()],
+    },
     optimizeDeps: {
       include: ["maplibre-gl"],
       esbuildOptions: {

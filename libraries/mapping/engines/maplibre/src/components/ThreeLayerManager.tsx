@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { LngLat, MercatorCoordinate } from "maplibre-gl";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import * as THREE from "three";
-import type { Scene } from "three";
 
+import {
+  getGeographicRingBounds,
+  unionGeographicBounds,
+} from "@carma-geo/helpers";
 import {
   buildGenericLayer,
   buildOverlayLayer,
@@ -31,30 +34,25 @@ import type {
   GenericCustomLayer,
 } from "@carma-mapping/engines/threejs";
 
+import { MAPLIBRE_EVENT } from "../constants/mapEvents";
 import { useLibreContext } from "../contexts/LibreContext";
-import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
-// ─────────────────────────────────────────────────────────────
-//  ThreeLayerManager: bridges carma3d configs to the threejs engine
-// ─────────────────────────────────────────────────────────────
+import {
+  notifyGenericThreeLayerContentChanged,
+  registerGenericThreeLayer,
+  unregisterGenericThreeLayer,
+} from "../lib/runtime/integrations/generic-three-layer-registry";
+import { getMapLibreLayerOpacityProperties } from "../lib/runtime/integrations/map-style-layer-suppression";
+import {
+  getSharedThreeTerrainElevation,
+  subscribeSharedThreeTerrain,
+} from "../lib/runtime/integrations/shared-three-terrain-registry";
+import {
+  getFootprintRadiusMeters,
+  retainBuildingGroupsInView,
+  type CachedBuildingGroup,
+} from "./building-group-cache";
 
-/** MapLibre paint properties that control opacity, keyed by layer type. */
-const OPACITY_PROPS: Record<string, string[]> = {
-  circle: ["circle-opacity", "circle-stroke-opacity"],
-  fill: ["fill-opacity"],
-  line: ["line-opacity"],
-  symbol: ["icon-opacity", "text-opacity"],
-  "fill-extrusion": ["fill-extrusion-opacity"],
-  raster: ["raster-opacity"],
-  heatmap: ["heatmap-opacity"],
-};
-
-/** Whether the map can still be asked about its layers.
- *
- *  A panel that goes away destroys its map, and React tears a deleted subtree
- *  down from the top, so this component's cleanup runs after that. `remove()`
- *  drops the style on its way out, which leaves every `getLayer` call reading
- *  a property of nothing. There is also nothing left worth removing at that
- *  point: the map took its layers with it. */
+/** Whether layer cleanup can still access the map style. */
 function mapIsUsable(map: MaplibreMap | null | undefined): map is MaplibreMap {
   return !!map && !map._removed && !!map.style;
 }
@@ -65,49 +63,11 @@ export interface ThreeLayerManagerProps {
   perfRef?: React.MutableRefObject<ThreePerfData>;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Registry: expose 3D layers on the map instance for click handling
-// ─────────────────────────────────────────────────────────────
-
-const LAYER_REGISTRY_KEY = "__carma3dLayers";
-
-function register3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
-  const registry =
-    ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
-  if (!registry.includes(layer)) {
-    registry.push(layer);
-  }
-  (map as any)[LAYER_REGISTRY_KEY] = registry;
-  add3dPresence(map, layer.id);
-  // console.log("[3D-SELECT] registered layer:", layer.id, "total:", registry.length);
-}
-
-function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
-  const registry =
-    ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
-  const idx = registry.indexOf(layer);
-  remove3dPresence(map, layer.id);
-  if (idx >= 0) {
-    registry.splice(idx, 1);
-    // console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
-  }
-  (map as any)[LAYER_REGISTRY_KEY] = registry;
-}
-
-/**
- * The colour a feature gets: a colour it carries wins, then a colour its
- * category is mapped to.
- *
- * A colour in the data is more specific than one derived from a class, so the
- * field is asked first and the mapping only fills in behind it. The mapping's
- * `default` also answers for a feature that has no such property at all, which
- * is what makes a half-filled table colour what it knows and leave the rest
- * uniform rather than blank.
- */
+/** Resolve a direct feature color before its category mapping and default. */
 function resolveFeatureColor(
   properties: Record<string, unknown> | undefined,
   field: string | undefined,
-  mapping: ColorMapping | undefined,
+  mapping: ColorMapping | undefined
 ): string | null {
   if (field) {
     const carried = properties?.[field];
@@ -128,16 +88,11 @@ function resolveFeatureColor(
   return null;
 }
 
-/** Get all registered 3D layers from a map instance. */
-export function get3dLayers(map: MaplibreMap): GenericCustomLayer[] {
-  return ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
-}
-
 /** Apply building color/opacity overrides to existing building meshes in-place. */
 function applyBuildingAppearance(
   layer: GenericCustomLayer | null,
   color: string | undefined,
-  opacity: number | undefined,
+  opacity: number | undefined
 ): void {
   if (!layer) return;
   for (const child of layer.scene.children) {
@@ -152,7 +107,9 @@ function applyBuildingAppearance(
     }
 
     // Update vertex colors
-    const colorAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+    const colorAttr = mesh.geometry.getAttribute("color") as
+      | THREE.BufferAttribute
+      | undefined;
     if (!colorAttr) continue;
     const colorArray = colorAttr.array as Float32Array;
     const origColors = mesh.userData.originalColors as Float32Array | undefined;
@@ -189,27 +146,26 @@ export function ThreeLayerManager({
   const overlayIdRef = useRef<string | null>(null);
   const profilesEnsuredRef = useRef(false);
   const addingRef = useRef(false);
-  /** Saved 2D layer opacity values for restore when 3D layer is removed */
-  const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
-  /** Current building appearance overrides (kept in ref so syncBuildings can access) */
-  const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>({});
-  /** Where building colours come from this render (same ref reason) */
+  const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(
+    new Map()
+  );
+  const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>(
+    {}
+  );
   const buildingColorsRef = useRef<BuildingColors | undefined>(undefined);
-  /** Last logged building count to suppress repeated log lines */
-  const lastLoggedCountRef = useRef(-1);
 
   const useLoft = (Number(runtimeParams.useLoft) || 0) > 0;
   const radiusMix = Number(runtimeParams.radiusMix) || 0;
-  const viewportPadding = typeof runtimeParams.viewportPadding === "number" ? runtimeParams.viewportPadding : undefined;
+  const viewportPadding =
+    typeof runtimeParams.viewportPadding === "number"
+      ? runtimeParams.viewportPadding
+      : undefined;
 
-  // Merge runtime viewportPadding override into config
   const effectiveConfig = useMemo(
-    () =>
-      viewportPadding != null ? { ...config, viewportPadding } : config,
+    () => (viewportPadding != null ? { ...config, viewportPadding } : config),
     [config, viewportPadding]
   );
 
-  // Effect 1: Layer lifecycle (tear down on mode change or unmount)
   useEffect(() => {
     if (!map) return;
     return () => {
@@ -219,7 +175,7 @@ export function ThreeLayerManager({
         }
         if (layerRef.current) {
           layerRef.current.unhighlight();
-          unregister3dLayer(map, layerRef.current);
+          unregisterGenericThreeLayer(map, layerRef.current);
           const layerId = layerRef.current.id;
           if (map.getLayer(layerId)) {
             map.removeLayer(layerId);
@@ -233,12 +189,9 @@ export function ThreeLayerManager({
     };
   }, [map, useLoft]);
 
-  // Effect 2: Restore 2D layer opacity on unmount (opacity is managed by addLayer/removeLayer)
   useEffect(() => {
     if (!map) return;
     return () => {
-      // Restore any saved 2D layer opacity on unmount. A map that has gone
-      // has taken those layers with it, so there is nothing to put back.
       if (mapIsUsable(map)) {
         for (const [layerId, originals] of savedOpacityRef.current) {
           if (!map.getLayer(layerId)) continue;
@@ -260,15 +213,14 @@ export function ThreeLayerManager({
     map?.triggerRepaint();
   }, [config, map]);
 
-  // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {
     if (!map) return;
 
     const isLod2 = config.renderMode === "lod2";
-    // Both building modes want the same surroundings: a footprint layer, ground
-    // read from the terrain, and the same layer, selection and idle-sync
-    // plumbing. What the roof is built from is decided inside syncBuildings.
     const isExtrusion = config.renderMode === "extrusion" || isLod2;
+    const buildingElevationCache = new Map<string, number>();
+    const buildingGroupCache = new Map<string | number, CachedBuildingGroup>();
+    let buildingGroupCacheZoom: number | null = null;
 
     const rebuildFn = useLoft
       ? (
@@ -300,7 +252,7 @@ export function ThreeLayerManager({
         }
         if (layerRef.current) {
           layerRef.current.unhighlight();
-          unregister3dLayer(map, layerRef.current);
+          unregisterGenericThreeLayer(map, layerRef.current);
           if (map.getLayer(layerRef.current.id)) {
             map.removeLayer(layerRef.current.id);
           }
@@ -319,6 +271,8 @@ export function ThreeLayerManager({
       layerRef.current = null;
       addingRef.current = false;
       savedOpacityRef.current.clear();
+      buildingGroupCache.clear();
+      buildingGroupCacheZoom = null;
     };
 
     // The 3D custom layers should render above fill/line layers but below
@@ -340,7 +294,8 @@ export function ThreeLayerManager({
 
       // If the last source is our own, nothing to insert before
       const srcId = config.sourceId;
-      if (lastSource === srcId || lastSource.endsWith(`::${srcId}`)) return undefined;
+      if (lastSource === srcId || lastSource.endsWith(`::${srcId}`))
+        return undefined;
 
       // Find the first layer from that last source
       for (const sl of layers) {
@@ -368,13 +323,12 @@ export function ThreeLayerManager({
       requestAnimationFrame(() => {
         try {
           if (!map.getLayer(layer.id)) return;
-          console.log("[3D-ZORDER] moving", layer.id, "before", beforeId);
           map.moveLayer(layer.id, beforeId);
           if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
             map.moveLayer(overlayIdRef.current, beforeId);
           }
         } catch (err) {
-          console.warn("[3D-ZORDER] moveLayer failed:", err);
+          console.error("[3D-ZORDER] moveLayer failed:", err);
           zOrderTarget = undefined; // allow retry
         }
       });
@@ -393,16 +347,20 @@ export function ThreeLayerManager({
 
       const layerId = isExtrusion
         ? `3d-${isLod2 ? "lod2" : "extrusion"}-${config.sourceId}`
-        : useLoft ? "3d-generic-loft" : "3d-generic";
-      const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
+        : useLoft
+        ? "3d-generic-loft"
+        : "3d-generic";
+      const customLayer = buildGenericLayer(
+        effectiveConfig,
+        rebuildFn,
+        layerId
+      );
       layerRef.current = customLayer;
 
       try {
         const initialBeforeId = findInsertBefore();
-        console.log("[3D-ZORDER] addLayer", layerId, "beforeId:", initialBeforeId,
-          "source:", config.sourceId);
         map.addLayer(customLayer, initialBeforeId);
-        register3dLayer(map, customLayer);
+        registerGenericThreeLayer(map, customLayer);
 
         const oId = layerId + "-overlay";
         const overlay = buildOverlayLayer(customLayer, oId);
@@ -414,8 +372,8 @@ export function ThreeLayerManager({
           for (const lid of config.skipIn2DLayerIds) {
             const layer2d = map.getLayer(lid);
             if (!layer2d) continue;
-            const props = OPACITY_PROPS[layer2d.type];
-            if (!props) continue;
+            const props = getMapLibreLayerOpacityProperties(layer2d.type);
+            if (props.length === 0) continue;
             const originals: Array<[string, unknown]> = [];
             for (const prop of props) {
               originals.push([prop, map.getPaintProperty(lid, prop)]);
@@ -425,7 +383,7 @@ export function ThreeLayerManager({
           }
         }
       } catch (err) {
-        console.warn("[3D-SELECT] addLayer failed:", err);
+        console.error("[3D-SELECT] addLayer failed:", err);
         layerRef.current = null;
       } finally {
         addingRef.current = false;
@@ -440,7 +398,10 @@ export function ThreeLayerManager({
 
       // Initialize origin if not yet set (extrusion layers skip the tree rebuild() path)
       if (!layer._originMerc) {
-        const originMerc = MercatorCoordinate.fromLngLat(resolveOrigin(config), 0);
+        const originMerc = MercatorCoordinate.fromLngLat(
+          resolveOrigin(config),
+          0
+        );
         layer._originMerc = originMerc;
         layer._mScale = originMerc.meterInMercatorCoordinateUnits();
       }
@@ -451,63 +412,49 @@ export function ThreeLayerManager({
       const wallColorField = config.fields?.wallColorField;
       const roofColorMap = config.roofColorMap;
       const wallColorMap = config.wallColorMap;
-      // Where the roof surfaces live and what they call the plane they lie in.
-      // Defaults are the names the LoD2 tileset uses.
       const roofSourceLayer = config.roofSourceLayer ?? "roof";
       const parentField = config.fields?.roofParentField ?? "parent_fid";
       const groundField = config.fields?.groundField ?? "z_ground";
       const gradEField = config.fields?.planeGradEField ?? "grad_e";
       const gradNField = config.fields?.planeGradNField ?? "grad_n";
       const zRefField = config.fields?.planeZRefField ?? "z_ref";
-      // In lod2 mode the height decides nothing about the shape, which comes
-      // from the roof surfaces. It is still read where it is configured,
-      // because the raycast grid needs a rough height per building.
-      if (!isLod2 && !heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
+      // LoD2 geometry comes from roof surfaces; height only sizes its ray grid.
+      if (!isLod2 && !heightField) {
+        console.error("[3D-BUILDINGS] no heightField configured");
+        return;
+      }
 
       const hasTerrain = map.getTerrain() != null;
 
-      // How the ground under a building is read.
-      //
-      // `map.queryTerrainElevation` decides which zoom to read the DEM at by
-      // running `coveringTiles` over the whole viewport, and it does that on
-      // every call before reading its one pixel. Asked once per building that
-      // is about 0.3 ms of tile arithmetic against a few microseconds of
-      // lookup, so a rebuild of several thousand buildings spends around a
-      // second of the main thread in there and the map stands still while the
-      // geometry is put together. Every tile that arrives asks for another one.
-      //
-      // The zoom it arrives at belongs to the camera, not to the point, so it
-      // is the same for every building in one rebuild. Worked out once and
-      // handed to the per-point entry point, the same lookup costs about a
-      // hundred and fiftieth of that and returns the same elevation.
+      // Resolve the terrain zoom once; MapLibre otherwise recomputes viewport
+      // coverage for every building elevation lookup.
       const terrain = map.terrain;
       const terrainZoom = Math.floor(map.getZoom());
       const elevationAt = (lng: number, lat: number): number => {
-        if (!hasTerrain) {
-          return 0;
-        }
-        if (terrain) {
-          return terrain.getElevationForLngLatZoom(
+        const cacheKey = `${lng.toFixed(7)}/${lat.toFixed(7)}`;
+        let elevation: number | undefined;
+        if (hasTerrain && terrain) {
+          elevation = terrain.getElevationForLngLatZoom(
             new LngLat(lng, lat),
             terrainZoom
           );
+        } else if (hasTerrain) {
+          elevation = map.queryTerrainElevation({ lng, lat }) ?? undefined;
+        } else {
+          elevation = getSharedThreeTerrainElevation(map, lng, lat);
         }
-        return map.queryTerrainElevation({ lng, lat }) ?? 0;
+        if (Number.isFinite(elevation)) {
+          buildingElevationCache.set(cacheKey, elevation!);
+          return elevation!;
+        }
+        return buildingElevationCache.get(cacheKey) ?? 0;
       };
 
       const raw = map.querySourceFeatures(config.sourceId, {
         sourceLayer: config.sourceLayer,
       });
 
-      // Logging moved to end-of-sync summary (only on change)
-
-      // The roof surfaces, gathered per footprint.
-      //
-      // Deduplicated by feature id first. The tileset is cut without clipping,
-      // so a surface that straddles a tile boundary comes back once per tile it
-      // touches; left in, every one of its edges would be counted twice and the
-      // outline hashing in the factory would take the outside for the inside
-      // and leave the walls off.
+      // Tile-boundary duplicates would cancel roof outline edges.
       const facesByParent = new Map<string, Lod2RoofFace[]>();
       if (isLod2) {
         const seenRoofIds = new Set<string | number>();
@@ -524,7 +471,11 @@ export function ThreeLayerManager({
           const gradE = Number(rf.properties?.[gradEField]);
           const gradN = Number(rf.properties?.[gradNField]);
           const zRef = Number(rf.properties?.[zRefField]);
-          if (!Number.isFinite(gradE) || !Number.isFinite(gradN) || !Number.isFinite(zRef)) {
+          if (
+            !Number.isFinite(gradE) ||
+            !Number.isFinite(gradN) ||
+            !Number.isFinite(zRef)
+          ) {
             continue;
           }
 
@@ -555,24 +506,14 @@ export function ThreeLayerManager({
         }
       }
 
-      // Group tile fragments by feature ID, keeping raw feature refs for _sourceFeatures
-      interface BldgGroup {
-        fragments: number[][][];
-        height: number;
-        /** the footprint's ground height above sea level; lod2 mode only */
-        zGround: number;
-        isPublic: boolean;
-        /** hex strings straight off the feature; the factory parses them */
-        roofColor: string | null;
-        wallColor: string | null;
-        /** First raw feature for this group (used for _sourceFeatures snapshot) */
-        rawFeature: (typeof raw)[0];
-      }
-      const groups = new Map<string | number, BldgGroup>();
+      // Source tiles may disappear while their building still crosses the
+      // viewport. Group the current fragments, then merge them into the
+      // zoom-local retention cache below.
+      const queriedGroups = new Map<string | number, CachedBuildingGroup>();
 
       for (const f of raw) {
         const height = heightField
-          ? ((f.properties?.[heightField] as number) ?? 0)
+          ? (f.properties?.[heightField] as number) ?? 0
           : 0;
         // In lod2 mode the height is only used for the raycast grid, so a
         // building without one is still worth drawing.
@@ -592,31 +533,67 @@ export function ThreeLayerManager({
 
         for (const ring of polyRings) {
           if (!ring || ring.length < 3) continue;
-          const fid = f.id ?? `${f.properties?.gml_id ?? ""}`;
-          const g = groups.get(fid);
+          const fragment = ring.map(([longitude, latitude]) => [
+            longitude,
+            latitude,
+          ]);
+          const fid =
+            f.id ?? `${f.properties?.gml_id ?? JSON.stringify(fragment)}`;
+          const fragmentBounds = getGeographicRingBounds(
+            fragment as [number, number][]
+          );
+          const mapFeature = f as MapGeoJSONFeature & {
+            sourceLayer?: string;
+          };
+          const g = queriedGroups.get(fid);
           if (g) {
-            g.fragments.push(ring);
+            g.fragments.push(fragment);
+            g.bounds = unionGeographicBounds(g.bounds, fragmentBounds);
           } else {
-            groups.set(fid, {
-              fragments: [ring],
+            queriedGroups.set(fid, {
+              fragments: [fragment],
               height,
               zGround: Number(f.properties?.[groundField]) || 0,
-              isPublic: f.properties?.[publicField] === "1",
+              roofFaces:
+                facesByParent.get(String(f.properties?.fid ?? fid)) ??
+                facesByParent.get(String(fid)),
+              isPublic:
+                publicField !== undefined &&
+                f.properties?.[publicField] === "1",
               roofColor: resolveFeatureColor(
                 f.properties,
                 roofColorField,
-                roofColorMap,
+                roofColorMap
               ),
               wallColor: resolveFeatureColor(
                 f.properties,
                 wallColorField,
-                wallColorMap,
+                wallColorMap
               ),
-              rawFeature: f,
+              sourceFeature: {
+                id: f.id,
+                properties: { ...(f.properties ?? {}) },
+                source: mapFeature.source ?? config.sourceId,
+                sourceLayer: mapFeature.sourceLayer ?? config.sourceLayer,
+              },
+              bounds: fragmentBounds,
             });
           }
         }
       }
+
+      const currentZoom = Math.floor(map.getZoom());
+      if (buildingGroupCacheZoom !== currentZoom) {
+        buildingGroupCache.clear();
+        buildingGroupCacheZoom = currentZoom;
+      }
+      const viewport = map.getBounds();
+      retainBuildingGroupsInView(buildingGroupCache, queriedGroups, {
+        west: viewport.getWest(),
+        south: viewport.getSouth(),
+        east: viewport.getEast(),
+        north: viewport.getNorth(),
+      });
 
       // Build _sourceFeatures snapshot (parallel array, one entry per building group)
       // and assign sourceIndex to each building feature
@@ -627,15 +604,21 @@ export function ThreeLayerManager({
         sourceLayer: string;
         geometry: GeoJSON.Geometry | null;
       }> = [];
-      const groupEntries = Array.from(groups.entries());
+      const groupEntries = Array.from(buildingGroupCache.entries());
       for (const [, g] of groupEntries) {
-        const rf = g.rawFeature;
+        const sourceFeature = g.sourceFeature;
         sourceFeatures.push({
-          id: rf.id,
-          properties: { ...(rf.properties ?? {}) },
-          source: (rf as any).source ?? config.sourceId,
-          sourceLayer: (rf as any).sourceLayer ?? config.sourceLayer,
-          geometry: rf.geometry ?? null,
+          id: sourceFeature.id,
+          properties: { ...sourceFeature.properties },
+          source: sourceFeature.source,
+          sourceLayer: sourceFeature.sourceLayer,
+          geometry:
+            g.fragments.length === 1
+              ? { type: "Polygon", coordinates: [g.fragments[0]] }
+              : {
+                  type: "MultiPolygon",
+                  coordinates: g.fragments.map((ring) => [[...ring]]),
+                },
         });
       }
 
@@ -652,32 +635,20 @@ export function ThreeLayerManager({
         if (isLod2) {
           // One entry per building, not per fragment: the roof surfaces are the
           // geometry, and they are already gathered for the whole footprint.
-          const faces =
-            facesByParent.get(String(g.rawFeature.properties?.fid ?? groupEntries[gi][0])) ??
-            facesByParent.get(String(groupEntries[gi][0]));
+          const faces = g.roofFaces;
           if (faces && faces.length > 0) {
             const ring = ringsToExtrude[0];
             let cLng = 0;
             let cLat = 0;
-            for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
+            for (const pt of ring) {
+              cLng += pt[0];
+              cLat += pt[1];
+            }
             cLng /= ring.length;
             cLat /= ring.length;
             const elevation = elevationAt(cLng, cLat);
 
-            // What the building is measured against.
-            //
-            // With terrain on, the survey's own heights are the ones that
-            // count: the 3D tileset of the same model is drawn at absolute
-            // heights, and so is the Cesium view, while anchoring a building
-            // to the DEM instead shifts it against both by however much the
-            // terrain model and the survey disagree about the ground under it.
-            // Handing `zGround` in as the elevation makes `elevation + (z -
-            // zGround)` come out at plain `z`, so the two draw the same
-            // building in the same place.
-            //
-            // Without terrain there is no ground to be absolute against: the
-            // map is flat at zero and the building is dropped onto it, which
-            // is what `elevationAt` returns there.
+            // Terrain mode preserves the survey's absolute LoD2 heights.
             const groundReference = hasTerrain ? g.zGround : elevation;
 
             lod2Buildings.push({
@@ -690,13 +661,7 @@ export function ThreeLayerManager({
               sourceIndex,
             });
 
-            let maxR = 0;
-            for (const pt of ring) {
-              const dLng = (pt[0] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
-              const dLat = (pt[1] - cLat) * 110540;
-              const r = Math.sqrt(dLng * dLng + dLat * dLat);
-              if (r > maxR) maxR = r;
-            }
+            const maxR = getFootprintRadiusMeters(ring, cLng, cLat);
             mappedFeatures.push({
               type: "building",
               lng: cLng,
@@ -722,7 +687,10 @@ export function ThreeLayerManager({
         for (const ring of ringsToExtrude) {
           let cLng = 0;
           let cLat = 0;
-          for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
+          for (const pt of ring) {
+            cLng += pt[0];
+            cLat += pt[1];
+          }
           cLng /= ring.length;
           cLat /= ring.length;
           const elevation = elevationAt(cLng, cLat);
@@ -736,14 +704,7 @@ export function ThreeLayerManager({
             sourceIndex,
           });
 
-          // Approximate footprint radius: max distance from centroid to any vertex
-          let maxR = 0;
-          for (const pt of ring) {
-            const dLng = (pt[0] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
-            const dLat = (pt[1] - cLat) * 110540;
-            const r = Math.sqrt(dLng * dLng + dLat * dLat);
-            if (r > maxR) maxR = r;
-          }
+          const maxR = getFootprintRadiusMeters(ring, cLng, cLat);
 
           mappedFeatures.push({
             type: "building",
@@ -782,7 +743,7 @@ export function ThreeLayerManager({
           layer.scene,
           layer._originMerc,
           layer._mScale,
-          buildingColorsRef.current,
+          buildingColorsRef.current
         );
       } else {
         buildExtrusionMeshes(
@@ -791,7 +752,7 @@ export function ThreeLayerManager({
           layer._originMerc,
           layer._mScale,
           buildingColorsRef.current,
-          config.wallAngleThreshold,
+          config.wallAngleThreshold
         );
       }
 
@@ -800,6 +761,7 @@ export function ThreeLayerManager({
       if (color || opacity != null) {
         applyBuildingAppearance(layer, color, opacity);
       }
+      notifyGenericThreeLayerContentChanged(map);
 
       // Build the spatial grid for raycast pre-filtering (reuse rebuild() logic)
       // We call rebuild() which rebuilds the grid from _features, but for extrusion
@@ -808,7 +770,17 @@ export function ThreeLayerManager({
       // Instead, build the grid inline to avoid double geometry creation.
       const originMerc = layer._originMerc;
       const mScale = layer._mScale;
-      const grid = new Map<string, Array<{ sourceIndex: number; x: number; z: number; yBase: number; height: number; radius: number }>>();
+      const grid = new Map<
+        string,
+        Array<{
+          sourceIndex: number;
+          x: number;
+          z: number;
+          yBase: number;
+          height: number;
+          radius: number;
+        }>
+      >();
       for (const f of mappedFeatures) {
         const mrc = MercatorCoordinate.fromLngLat([f.lng, f.lat], f.elevation);
         const x = (mrc.x - originMerc.x) / mScale;
@@ -818,7 +790,14 @@ export function ThreeLayerManager({
         const cellX = Math.floor(x / GRID_CELL_SIZE);
         const cellZ = Math.floor(z / GRID_CELL_SIZE);
         const key = `${cellX},${cellZ}`;
-        const entry = { sourceIndex: f._sourceIndex, x, z, yBase, height: f.heightMax, radius: f.radiusMax };
+        const entry = {
+          sourceIndex: f._sourceIndex,
+          x,
+          z,
+          yBase,
+          height: f.heightMax,
+          radius: f.radiusMax,
+        };
         const bucket = grid.get(key);
         if (bucket) bucket.push(entry);
         else grid.set(key, [entry]);
@@ -842,22 +821,7 @@ export function ThreeLayerManager({
         }
       }
 
-      if (builtCount !== lastLoggedCountRef.current) {
-        lastLoggedCountRef.current = builtCount;
-        console.log("[3D-BUILDINGS]", builtCount, "buildings,",
-          sourceFeatures.length, "sourceFeatures,",
-          grid.size, "grid cells");
-      }
-
-      // Ask for the frame this rebuild is meant to be seen in.
-      //
-      // What a custom layer holds is not part of MapLibre's own state, so
-      // replacing the geometry in the scene tells it nothing: it draws when it
-      // has a reason to, and new buildings are not one. Most rebuilds get away
-      // with it because what triggered them was a movement, which is drawing
-      // anyway. Switching terrain on is not: the camera stands still, the
-      // rebuild finishes, and the canvas keeps showing the frame from before it
-      // until the user nudges the map.
+      // Custom-layer geometry changes do not invalidate MapLibre by themselves.
       map.triggerRepaint();
     };
 
@@ -870,6 +834,7 @@ export function ThreeLayerManager({
         layerRef.current,
         radiusMix
       );
+      if (result) notifyGenericThreeLayerContentChanged(map);
       if (result && perfRef) {
         perfRef.current = {
           ...result,
@@ -878,111 +843,150 @@ export function ThreeLayerManager({
       }
     };
 
+    let extrusionSyncPending = isExtrusion;
+    let syncInFlight = false;
+    let rerunRequested = false;
+    let sourceSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
     const trySync = async () => {
-      // If the source's 2D layers are hidden, tear down the 3D layer
-      if (!isSourceVisible()) {
-        if (layerRef.current) {
-          // console.log("[3D-LAYER] hiding 3D layer (source layers not visible):", config.sourceId);
-          removeLayer();
-        }
+      if (syncInFlight) {
+        rerunRequested = true;
         return;
       }
+      syncInFlight = true;
+      rerunRequested = false;
+      try {
+        // If the source's 2D layers are hidden, tear down the 3D layer
+        if (!isSourceVisible()) {
+          if (layerRef.current) {
+            removeLayer();
+          }
+          return;
+        }
 
-      await addLayerIfReady();
-      if (!layerRef.current || !map.getSource(config.sourceId)) return;
+        await addLayerIfReady();
+        if (!layerRef.current || !map.getSource(config.sourceId)) return;
 
-      if (isExtrusion) {
-        syncBuildings();
-      } else {
-        syncTrees();
+        if (isExtrusion) {
+          if (!extrusionSyncPending) return;
+          extrusionSyncPending = false;
+          syncBuildings();
+        } else {
+          syncTrees();
+        }
+      } finally {
+        syncInFlight = false;
+        if (rerunRequested) void trySync();
       }
     };
 
-    map.on("moveend", trySync);
+    const requestSync = () => {
+      if (isExtrusion) extrusionSyncPending = true;
+      void trySync();
+    };
 
-    // For extrusion layers, also sync after idle (all tiles loaded)
-    const handleIdle = isExtrusion ? () => { trySync(); } : undefined;
-    if (handleIdle) map.on("idle", handleIdle);
+    const scheduleSourceSync = () => {
+      if (!isExtrusion) {
+        void trySync();
+        return;
+      }
+      extrusionSyncPending = true;
+      if (sourceSyncTimer) clearTimeout(sourceSyncTimer);
+      sourceSyncTimer = setTimeout(() => {
+        sourceSyncTimer = null;
+        void trySync();
+      }, 500);
+    };
+
+    map.on(MAPLIBRE_EVENT.MOVE_END, requestSync);
+
+    // Idle also follows unrelated style/light changes. Use it only to flush
+    // source work that was explicitly marked dirty.
+    const handleIdle = isExtrusion
+      ? () => {
+          if (extrusionSyncPending && !sourceSyncTimer) void trySync();
+        }
+      : undefined;
+    if (handleIdle) map.on(MAPLIBRE_EVENT.IDLE, handleIdle);
 
     const handleSourceData = (e: {
       sourceId: string;
       isSourceLoaded: boolean;
     }) => {
-      if (e.sourceId === config.sourceId && e.isSourceLoaded) {
-        trySync();
-      }
+      if (e.sourceId !== config.sourceId) return;
+      // A vector source emits this once per arriving tile. Rebuilding here
+      // repeatedly triangulates progressively larger partial snapshots. Mark
+      // the batch dirty and consume it once the tile burst has settled.
+      scheduleSourceSync();
     };
     map.on("sourcedata", handleSourceData);
 
     // Force rebuild when terrain is toggled so elevation is applied/removed
-    const handleTerrain = () => {
-      trySync();
-    };
-    map.on("terrain", handleTerrain);
+    const handleTerrain = requestSync;
+    map.on(MAPLIBRE_EVENT.TERRAIN, handleTerrain);
+    const unsubscribeSharedTerrain = subscribeSharedThreeTerrain(
+      map,
+      requestSync
+    );
 
     // Re-add layer after background style change (style swap removes custom layers)
     // Also re-checks visibility so toggling a layer back on re-creates the 3D layer
     const handleStyleData = () => {
+      let layerWasRemoved = false;
       if (layerRef.current && !map.getLayer(layerRef.current.id)) {
-        unregister3dLayer(map, layerRef.current);
+        unregisterGenericThreeLayer(map, layerRef.current);
         overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
         zOrderTarget = undefined;
+        layerWasRemoved = true;
       }
       // A later sub-style (e.g. POI) may have loaded after the 3D layer was
       // added, pushing it behind. Re-position if needed.
       ensureZOrder();
-      trySync();
+      // Paint and light changes emit styledata too. Source data and terrain
+      // have dedicated handlers, so rebuilding the complete extrusion here
+      // only turns a static sun adjustment into needless retriangulation.
+      if (!isSourceVisible()) {
+        if (layerRef.current) removeLayer();
+      } else if (layerWasRemoved || !layerRef.current) {
+        requestSync();
+      }
     };
-    map.on("styledata", handleStyleData);
+    map.on(MAPLIBRE_EVENT.STYLE_DATA, handleStyleData);
 
     // Sync immediately if the map is already idle
     if (map.isStyleLoaded()) {
-      trySync();
+      requestSync();
     } else {
-      map.once("idle", trySync);
+      map.once(MAPLIBRE_EVENT.IDLE, requestSync);
     }
 
     return () => {
-      map.off("moveend", trySync);
-      if (handleIdle) map.off("idle", handleIdle);
+      if (sourceSyncTimer) clearTimeout(sourceSyncTimer);
+      map.off(MAPLIBRE_EVENT.MOVE_END, requestSync);
+      if (handleIdle) map.off(MAPLIBRE_EVENT.IDLE, handleIdle);
       map.off("sourcedata", handleSourceData);
-      map.off("terrain", handleTerrain);
-      map.off("styledata", handleStyleData);
+      map.off(MAPLIBRE_EVENT.TERRAIN, handleTerrain);
+      unsubscribeSharedTerrain();
+      map.off(MAPLIBRE_EVENT.STYLE_DATA, handleStyleData);
       if (perfRef) {
         perfRef.current = EMPTY_PERF;
       }
     };
   }, [map, useLoft, radiusMix, config, effectiveConfig, perfRef]);
 
-  // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
-  const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
-  // How opaque the buildings end up: what the layer is worth on its own, times
-  // what the host has asked of the layer as a whole.
-  //
-  // The multiplication is the same one the 2D side does, where the layer bar's
-  // slider scales each paint property against the value the style gave it. So a
-  // layer drawn at 0.65 sits at 0.325 when the slider is halfway, and a slider
-  // at the top leaves the style's own number alone. Without this the slider
-  // moves nothing at all on a three.js layer, since it has no paint properties
-  // for the usual path to scale.
+  const buildingColor =
+    typeof runtimeParams.buildingColor === "string"
+      ? runtimeParams.buildingColor
+      : undefined;
+  // Match 2D layer-bar opacity semantics for the custom Three.js layer.
   const baseBuildingOpacity =
     typeof runtimeParams.buildingOpacity === "number"
       ? runtimeParams.buildingOpacity
       : config.buildingOpacity ?? DEFAULT_BUILDING_OPACITY;
-  const buildingOpacity =
-    baseBuildingOpacity * (config.layerOpacity ?? 1);
+  const buildingOpacity = baseBuildingOpacity * (config.layerOpacity ?? 1);
 
-  // Where the buildings take their colours from.
-  //
-  // Naming any of the four says the features decide, whether they carry a
-  // colour outright or a category that is mapped to one. None of them: a
-  // building keeps the colour it gets from being public or not, which is what
-  // it has always had.
-  //
-  // `buildingColor` overrides either, since it repaints every vertex uniformly
-  // after the rebuild.
   const buildingColors: BuildingColors | undefined =
     config.fields?.roofColorField ||
     config.fields?.wallColorField ||
@@ -991,13 +995,20 @@ export function ThreeLayerManager({
       ? featureBuildingColors
       : undefined;
 
-  // Keep refs in sync so syncBuildings can re-apply after geometry rebuild
-  buildingAppearanceRef.current = { color: buildingColor, opacity: buildingOpacity };
+  buildingAppearanceRef.current = {
+    color: buildingColor,
+    opacity: buildingOpacity,
+  };
   buildingColorsRef.current = buildingColors;
 
   useEffect(() => {
-    if (!map || (config.renderMode !== "extrusion" && config.renderMode !== "lod2")) return;
+    if (
+      !map ||
+      (config.renderMode !== "extrusion" && config.renderMode !== "lod2")
+    )
+      return;
     applyBuildingAppearance(layerRef.current, buildingColor, buildingOpacity);
+    notifyGenericThreeLayerContentChanged(map);
     map.triggerRepaint();
   }, [map, config.renderMode, buildingColor, buildingOpacity]);
 

@@ -23,6 +23,7 @@ import {
   CameraRestriction,
   type CameraRestrictionConfig,
 } from "../addons/CameraRestriction";
+import { FreeCamera, type FreeCameraConfig } from "../addons/FreeCamera";
 import {
   AnnotationControl,
   AnnotationOverlay,
@@ -65,6 +66,12 @@ import {
   type VectorHighlightDebugPanelConfig,
 } from "../addons/VectorHighlight";
 import { LibreTerrain, type LibreTerrainConfig } from "../addons/LibreTerrain";
+import {
+  ShadowSimulation,
+  type ShadowDateState,
+  type ShadowSimulationConfig,
+  type ShadowSimulationState,
+} from "../addons/ShadowSimulation";
 import {
   LayerVisibility,
   layerVisibilityTrigger,
@@ -130,6 +137,7 @@ import type { CompareLayerEntry } from "../addons/comparing/comparing-layers";
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
   cameraRestriction: CameraRestrictionConfig;
+  freeCamera: FreeCameraConfig;
   comparingControl: ComparingControlConfig;
   compareSwipe: CompareSwipeConfig;
   compareArena: CompareArenaConfig;
@@ -150,6 +158,7 @@ export type AddonConfigMap = {
   vectorHighlightDebug: VectorHighlightDebugPanelConfig;
   layerVisibility: LayerVisibilityConfig;
   libreTerrain: LibreTerrainConfig;
+  shadowSimulation: ShadowSimulationConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
@@ -248,6 +257,10 @@ export type AddonStateMap = {
    * addon, which is why it has no consumer among the registry's `requires`.
    */
   addonOverrides: AddonOverridesState;
+  /** rendering and animation state shared by the shadow controls */
+  shadowSimulation: ShadowSimulationState;
+  /** selected civil date and time, separate for future shared-time sync */
+  shadowDate: ShadowDateState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -312,8 +325,7 @@ export type ResolvedAddon = {
 }[AddonKind];
 
 /** whether an object entry names its addon with `addon` rather than `kind` */
-const isNamedAddon = (entry: Addon): entry is AddonWithName =>
-  "addon" in entry;
+const isNamedAddon = (entry: Addon): entry is AddonWithName => "addon" in entry;
 
 /** the addon an entry names, whichever of the three forms it was written in */
 export const getAddonKind = (entry: AddonEntry): AddonKind =>
@@ -356,6 +368,13 @@ export type AddonComponentProps<K extends AddonKind = AddonKind> = {
   target: LayerStackEntry | null;
 };
 
+export const ADDON_TARGET_PLACEMENT = {
+  SECONDARY_VIEW: "secondary-view",
+} as const;
+
+export type AddonTargetPlacement =
+  (typeof ADDON_TARGET_PLACEMENT)[keyof typeof ADDON_TARGET_PLACEMENT];
+
 export type AddonContext<K extends AddonKind = AddonKind> = {
   config?: AddonConfigMap[K];
   target: LayerStackEntry | null;
@@ -389,6 +408,8 @@ export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
    * kind out of the route-wide addon switching.
    */
   perTarget?: boolean;
+  /** Render this target-bound component inside the host's secondary view. */
+  targetPlacement?: AddonTargetPlacement;
   /** state channels this addon writes (headless producers declare these) */
   provides?: readonly AddonStateKey[];
   /**
@@ -405,6 +426,7 @@ export const addonRegistry: {
 } = {
   addonManager: { Component: AddonManager, provides: ["addonOverrides"] },
   cameraRestriction: { Component: CameraRestriction },
+  freeCamera: { Component: FreeCamera },
   comparingControl: {
     Component: ComparingControl,
     provides: ["compareState", "compareLayers"],
@@ -464,6 +486,11 @@ export const addonRegistry: {
     trigger: layerVisibilityTrigger,
   },
   libreTerrain: { Component: LibreTerrain },
+  shadowSimulation: {
+    Component: ShadowSimulation,
+    targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
+    provides: ["shadowSimulation", "shadowDate"],
+  },
   infoBoxZoomImage: {
     Component: InfoBoxZoomImage,
     provides: ["infoBoxImage"],

@@ -17,6 +17,12 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
+import {
+  resolveSecondaryViewTargetAddon,
+  ShadowSimulationHeaderControls,
+  TargetAddonHost,
+  useAddonState,
+} from "@carma-mapping/addons";
 
 import {
   changeBackgroundVisibility,
@@ -62,6 +68,7 @@ import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
 import { DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS } from "./layer-visibility-toggle-props";
+import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
 
 type Ref = HTMLDivElement;
 
@@ -79,6 +86,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const selectedEntry = useSelector(getSelectedStackEntry);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { favorites, addFavorite, removeFavorite } = useLayerCatalog();
+  const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const entry =
     (selectedLayerIndex >= 0 ? selectedEntry : backgroundLayer) ??
@@ -114,6 +122,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
+  const secondaryViewAddon =
+    !isBaseLayer && !group
+      ? resolveSecondaryViewTargetAddon(layer as Layer)
+      : undefined;
+  const isShadowSimulationLayer =
+    entry.id === SHADOW_SIMULATION_LAYER_ID &&
+    secondaryViewAddon?.kind === "shadowSimulation";
 
   // An addon row draws through its addon, not through the layer stack, so the
   // eye here would toggle a flag nothing reads. Its opacity does travel back
@@ -134,7 +149,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const filterInfo = (layer as Layer)?.filterInfo;
 
   const canFavorite =
-    !isBaseLayer && (entry.type === "layer" || entry.type === "object");
+    !isBaseLayer &&
+    !secondaryViewAddon &&
+    (entry.type === "layer" || entry.type === "object");
   const isFavorite =
     canFavorite &&
     favorites.some(
@@ -213,7 +230,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     };
 
     const handleOutsideClick = (event: PointerEvent) => {
-      if ((event.target as Element)?.closest?.(".ant-dropdown")) {
+      // antd portals (dropdowns, date pickers) live on document.body but
+      // belong to controls inside this view - clicking them must not close it.
+      if (
+        (event.target as Element)?.closest?.(
+          ".ant-dropdown, .ant-picker-dropdown"
+        )
+      ) {
         return;
       }
       let newLayerIndex = -2;
@@ -329,11 +352,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           ref={infoRef}
           className={cn(
             "pointer-events-auto",
+            isShadowSimulationLayer && "shadow-simulation-secondary-container",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-[100vw] sm:w-3/4 sm:mx-0 shrink-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo
-              ? "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
-              : isBaseLayer
+              ? secondaryViewAddon
+                ? "max-h-[min(600px,80vh)]"
+                : "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
+              : isBaseLayer || isShadowSimulationLayer
               ? "h-fit"
               : "h-fit sm:h-12"
           )}
@@ -360,8 +386,26 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
-          <div className="flex items-center w-full h-8 shrink-0 gap-2 px-6 sm:px-0 sm:gap-6">
-            <div className="flex-1 sm:flex-none sm:w-1/4 min-w-0 flex items-center gap-2">
+          <div
+            className={cn(
+              "flex items-center w-full shrink-0 gap-2 px-6 sm:px-0",
+              isShadowSimulationLayer ? "flex-nowrap min-h-8" : "h-8",
+              secondaryViewAddon ? "sm:gap-3" : "sm:gap-6"
+            )}
+          >
+            <div
+              className={cn(
+                "min-w-0 flex items-center gap-2",
+                isShadowSimulationLayer
+                  ? "shadow-simulation-layer-title"
+                  : "flex-1 sm:flex-none",
+                isShadowSimulationLayer
+                  ? ""
+                  : secondaryViewAddon
+                  ? "sm:w-auto sm:shrink-0"
+                  : "sm:w-1/4"
+              )}
+            >
               {group ? (
                 <FontAwesomeIcon
                   icon={faLayerGroup}
@@ -371,7 +415,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               ) : (
                 <DynamicStylingLayerIcon
                   layer={layer}
-                  fallbackIcon={icon}
+                  fallbackIcon={layer.icon ?? icon}
                   isBackgroundLayer={isBaseLayer}
                   isBaseLayer={isBaseLayer}
                   iconId={iconId}
@@ -384,23 +428,32 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 {isBaseLayer ? "Hintergrund" : entry.title}
               </label>
             </div>
-            <div className="hidden sm:flex w-full items-center gap-2">
-              <label
-                className="mb-0 text-[15px] whitespace-nowrap"
-                htmlFor="opacity-slider"
-              >
-                Transparenz:
-              </label>
-              <div className="w-2/3 pt-1">
-                <OpacitySlider
-                  isBackgroundLayer={isBaseLayer}
-                  opacity={entry.opacity ?? 1}
-                  id={entry.id}
-                  isVisible={entry.visible}
-                  disabled={isCesium}
+            {!secondaryViewAddon && (
+              <div className="hidden sm:flex w-full items-center gap-2">
+                <label
+                  className="mb-0 text-[15px] whitespace-nowrap"
+                  htmlFor="opacity-slider"
+                >
+                  Transparenz:
+                </label>
+                <div className="w-2/3 pt-1">
+                  <OpacitySlider
+                    isBackgroundLayer={isBaseLayer}
+                    opacity={entry.opacity ?? 1}
+                    id={entry.id}
+                    isVisible={entry.visible}
+                    disabled={isCesium}
+                  />
+                </div>
+              </div>
+            )}
+            {isShadowSimulationLayer && (
+              <div className="shadow-simulation-header-slot">
+                <ShadowSimulationHeaderControls
+                  config={secondaryViewAddon?.config}
                 />
               </div>
-            </div>
+            )}
             {canFilter && (
               <button
                 className="hover:text-gray-500 text-gray-600 flex items-center justify-center sm:hidden"
@@ -456,17 +509,24 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               visible={entry.visible}
               disabled={isCesium || ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
-              onToggleVisibility={(nextVisible) =>
+              onToggleVisibility={(nextVisible) => {
+                if (isShadowSimulationLayer && shadowState) {
+                  setShadowState({ ...shadowState, enabled: nextVisible });
+                }
                 dispatch(
                   isBaseLayer
                     ? changeBackgroundVisibility(nextVisible)
                     : changeVisibility({ id: entry.id, visible: nextVisible })
-                )
-              }
+                );
+              }}
             />
             <button
               onClick={() => {
                 dispatch(setUIShowInfo(!showInfo));
+                if (secondaryViewAddon) {
+                  dispatch(setUIShowInfoText(false));
+                  return;
+                }
                 setTimeout(
                   () => dispatch(setUIShowInfoText(!showInfoText)),
                   showInfoText || isBaseLayer ? 0 : 80
@@ -488,30 +548,41 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </button>
           </div>
 
-          <div className="flex sm:hidden items-center w-full gap-2 px-6 shrink-0">
-            <label
-              className="mb-0 text-[15px] whitespace-nowrap"
-              htmlFor="opacity-slider"
-            >
-              Transparenz:
-            </label>
-            <div className="flex-1 pt-1">
-              <OpacitySlider
-                isBackgroundLayer={isBaseLayer}
-                opacity={entry.opacity ?? 1}
-                id={entry.id}
-                isVisible={entry.visible}
-                disabled={isCesium}
-              />
+          {!secondaryViewAddon && (
+            <div className="flex sm:hidden items-center w-full gap-2 px-6 shrink-0">
+              <label
+                className="mb-0 text-[15px] whitespace-nowrap"
+                htmlFor="opacity-slider"
+              >
+                Transparenz:
+              </label>
+              <div className="flex-1 pt-1">
+                <OpacitySlider
+                  isBackgroundLayer={isBaseLayer}
+                  opacity={entry.opacity ?? 1}
+                  id={entry.id}
+                  isVisible={entry.visible}
+                  disabled={isCesium}
+                />
+              </div>
+              <span className="text-sm w-10 text-right whitespace-nowrap">
+                {Math.round((1 - (entry.opacity ?? 1)) * 100)}%
+              </span>
             </div>
-            <span className="text-sm w-10 text-right whitespace-nowrap">
-              {Math.round((1 - (entry.opacity ?? 1)) * 100)}%
-            </span>
-          </div>
+          )}
 
           {isInteractionActive && !group && (
             <div className="w-full px-6 pb-1 sm:hidden">
               <InteractionContent layer={layer as Layer} />
+            </div>
+          )}
+
+          {showInfo && secondaryViewAddon && !group && (
+            <div className="w-full px-6 pb-2 overflow-y-auto">
+              <TargetAddonHost
+                addon={secondaryViewAddon}
+                target={layer as Layer}
+              />
             </div>
           )}
 
@@ -524,10 +595,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </div>
           )}
 
-          {showInfoText && (
+          {showInfoText && !secondaryViewAddon && (
             <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
           )}
           {showInfoText &&
+            !secondaryViewAddon &&
             (isBaseLayer ? (
               <BaseLayerInfo />
             ) : group ? (

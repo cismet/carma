@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { Provider, useDispatch } from "react-redux";
 import {
   RouterProvider,
@@ -92,9 +92,7 @@ const RoutedApp = () => {
 
   useEffect(() => {
     dispatch(setUIVisibleControls(resolveFachzwillingUi(fachzwilling?.ui)));
-    dispatch(
-      setUIMapInteractionEnabled(!fachzwilling?.disableMapInteraction)
-    );
+    dispatch(setUIMapInteractionEnabled(!fachzwilling?.disableMapInteraction));
     dispatch(setUIHashWriteEnabled(!fachzwilling?.disableHashWrite));
   }, [dispatch, fachzwilling]);
 
@@ -133,7 +131,19 @@ suppressReactCismapErrors();
 
 preventPinchZoom();
 
-const root = createRoot(document.getElementById("root") as HTMLElement);
+/**
+ * Vite's React plugin treats this export-less entry as a Fast Refresh
+ * boundary, so a hot update that bubbles up here re-executes the module in
+ * place instead of reloading the page. A second `createRoot()` on the same
+ * container would then render a parallel tree over the old one, which ends in
+ * `removeChild` errors while the old map tears down. Reuse the root instead.
+ */
+type HotRootData = { root?: Root };
+const hotRootData = import.meta.hot?.data as HotRootData | undefined;
+const root =
+  hotRootData?.root ??
+  createRoot(document.getElementById("root") as HTMLElement);
+if (hotRootData) hotRootData.root = root;
 
 document.getElementById("splash-loading")?.remove();
 

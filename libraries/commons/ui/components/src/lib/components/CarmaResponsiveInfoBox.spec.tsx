@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import type { CSSProperties, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -35,6 +35,60 @@ vi.mock("./CarmaCard", () => ({
 }));
 
 describe("CarmaResponsiveInfoBox", () => {
+  it("restores an offscreen fixed panel to its CSS anchor after resizing", () => {
+    const { getByRole, unmount } = render(
+      <CarmaResponsiveInfoBox
+        role="dialog"
+        aria-label="Resize regression"
+        useControlLayout={false}
+        draggable
+        initialDragOffset={{ x: -120, y: 16 }}
+        style={{ position: "fixed", top: 100, right: 24 }}
+        content="Settings"
+      />
+    );
+    const dialog = getByRole("dialog", { name: "Resize regression" });
+    const bounds = vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue({
+      left: -120,
+      top: 116,
+      right: 176,
+      bottom: 600,
+    } as DOMRect);
+    expect(dialog.style.transform).toBe("translate(-120px, 16px)");
+    fireEvent.resize(window);
+    expect(dialog.style.transform).toBe("translate(0px, 0px)");
+    bounds.mockRestore();
+    unmount();
+  });
+
+  it("keeps accessible dialog semantics on the positioned draggable surface", () => {
+    const { container, getByRole } = render(
+      <CarmaResponsiveInfoBox
+        role="dialog"
+        aria-label="Darstellung"
+        dataTestId="display-dialog"
+        useControlLayout={false}
+        draggable
+        style={{ position: "fixed", top: 100, right: 24 }}
+        heading={<button type="button">Schließen</button>}
+        content={
+          <label>
+            Intensität
+            <input type="range" />
+          </label>
+        }
+      />
+    );
+    const dialog = getByRole("dialog", { name: "Darstellung" });
+    expect(dialog).toBe(container.firstElementChild);
+    expect(dialog.getAttribute("data-test-id")).toBe("display-dialog");
+    expect(dialog.style.position).toBe("fixed");
+    expect(dialog.style.transform).toBe("translate(0px, 0px)");
+    expect(dialog.contains(getByRole("button", { name: "Schließen" }))).toBe(
+      true
+    );
+    expect(dialog.contains(getByRole("slider"))).toBe(true);
+  });
   it("keeps the shared Geoportal-style minimum width when fit-content sizing is enabled", () => {
     const { container } = render(
       <CarmaResponsiveInfoBox

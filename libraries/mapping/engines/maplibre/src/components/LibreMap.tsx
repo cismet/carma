@@ -20,6 +20,10 @@ import {
   useState,
 } from "react";
 import { getHashParams } from "@carma-commons/utils";
+import type {
+  Carma3dConfig,
+  ThreePerfData,
+} from "@carma-mapping/engines/threejs";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
@@ -85,9 +89,19 @@ import { FeatureInfobox } from "@carma-appframeworks/portals";
 import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
-import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
+import { ThreeLayerManager } from "./ThreeLayerManager";
+import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
 import { Tiles3dLayerManager } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
+import { SharedThreeTilesLayerManager } from "./SharedThreeTilesLayerManager";
+import {
+  THREE_TILES_LAYER_TYPE,
+  type ThreeTilesLayer,
+} from "../lib/runtime/integrations/three-tiles-layer";
+import {
+  notifyMapLibreStyleCompositionReady,
+  notifyMapLibreStyleCompositionStarted,
+} from "../lib/runtime/integrations/map-style-layer-suppression";
 
 const buildGazetteerRouteInfobox = (pos: number[], label: string) => ({
   properties: {
@@ -134,7 +148,7 @@ export interface VectorStyle {
    *  e.g. "id" so selection/highlight feature-state keys by the stable DB pk. */
   promoteId?: string;
   /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
-  carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+  carma3d?: Carma3dConfig;
   /** Optional filter expression to AND into every style layer in this vector style
    *  during style construction. The original filter is preserved at
    *  metadata.originalFilter so consumers can still recover it. */
@@ -175,6 +189,7 @@ export interface RasterPaintOverrides {
 
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
+  | ThreeTilesLayer
   | {
       type: "geojson";
       name: string;
@@ -247,6 +262,8 @@ export interface LibreMapProps {
   useRouting?: boolean;
   /** Keep the canvas readable for toDataURL() snapshot capture */
   preserveDrawingBuffer?: boolean;
+  /** Initial canvas ceiling; omitted retains MapLibre's default. */
+  maxCanvasSize?: maplibregl.MapOptions["maxCanvasSize"];
   /** Disable all map interaction (pan, zoom, rotate, keyboard) */
   interactive?: boolean;
   /** Enable visual selection via setFeatureState even without infoboxMapping */
@@ -315,9 +332,7 @@ export interface LibreMapProps {
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
   threeRuntimeParams?: Record<string, number | string>;
   /** Ref for 3D layer performance data */
-  threePerfRef?: React.MutableRefObject<
-    import("@carma-mapping/engines/threejs").ThreePerfData
-  >;
+  threePerfRef?: React.MutableRefObject<ThreePerfData>;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
   maxPitch?: number;
   minZoom?: number;
@@ -403,6 +418,7 @@ export const LibreMap = ({
   useRouting = false,
   interactive = true,
   preserveDrawingBuffer = false,
+  maxCanvasSize,
   selectionEnabled = true,
   layerMode = "merged",
   onFeatureSelect,
@@ -427,6 +443,18 @@ export const LibreMap = ({
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const mapStyleLayers = useMemo(
+    () => layers?.filter((layer) => layer.type !== THREE_TILES_LAYER_TYPE),
+    [layers]
+  );
+  const threeTilesLayers = useMemo(
+    () =>
+      (layers ?? []).filter(
+        (layer): layer is ThreeTilesLayer =>
+          layer.type === THREE_TILES_LAYER_TYPE
+      ),
+    [layers]
+  );
   const hidingManagerRef = useRef<HidingForwardingManager | null>(null);
   const detachNonTiledRef = useRef<(() => void) | null>(null);
   const selectedFeaturesRef = useRef<
@@ -453,7 +481,7 @@ export const LibreMap = ({
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [detectedCarma3dConfigs, setDetectedCarma3dConfigs] = useState<
-    import("@carma-mapping/engines/threejs").Carma3dConfig[]
+    Carma3dConfig[]
   >([]);
   const [detectedTiles3dConfigs, setDetectedTiles3dConfigs] = useState<
     Array<Tiles3dConfig & { layerOpacity: number }>
@@ -857,7 +885,7 @@ export const LibreMap = ({
   useImperativeStyle({
     enabled: layerMode === "imperative",
     map: map.current,
-    layers,
+    layers: mapStyleLayers,
     backgroundStyle,
     vectorBackgroundLayers,
     clusteringEnabled,
@@ -916,6 +944,7 @@ export const LibreMap = ({
         attributionControl: false,
         interactive,
         refreshExpiredTiles,
+        ...(maxCanvasSize ? { maxCanvasSize } : {}),
         canvasContextAttributes: preserveDrawingBuffer
           ? { preserveDrawingBuffer: true }
           : undefined,
@@ -935,7 +964,9 @@ export const LibreMap = ({
       publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
-      if (exposeMapToWindow) {
+      if (exposeMapToWindow || import.meta.env?.DEV) {
+        // Always exposed in dev builds: the perf and shadow debugging flows
+        // drive the map from the console.
         (window as unknown as Record<string, unknown>).__carmaMap = mapInstance;
       }
 
@@ -1485,8 +1516,8 @@ export const LibreMap = ({
         // Prepend vector background layers before data layers
         const effectiveLayers =
           vectorBackgroundLayers.length > 0
-            ? [...vectorBackgroundLayers, ...(layers || [])]
-            : layers;
+            ? [...vectorBackgroundLayers, ...(mapStyleLayers || [])]
+            : mapStyleLayers;
 
         if (effectiveLayers) {
           // The style (re)build below refetches vector styles before any source
@@ -1568,7 +1599,16 @@ export const LibreMap = ({
             styleForMap = withoutTerrain as StyleSpecification;
           }
 
-          map.current?.setStyle(styleForMap);
+          const mapInstance = map.current;
+          if (mapInstance) {
+            notifyMapLibreStyleCompositionStarted(mapInstance);
+            mapInstance.setStyle(styleForMap);
+            // setStyle installs the complete layer graph synchronously. Mesh
+            // integrations may already be mounted from the previous style,
+            // or mount just after detectedTiles3dConfigs updates below; the
+            // revision signal handles both without a styledata feedback loop.
+            notifyMapLibreStyleCompositionReady(mapInstance);
+          }
           if (debugLog)
             console.log("[LAYER_MODE] merged: derived style", style);
 
@@ -1591,8 +1631,7 @@ export const LibreMap = ({
 
           // Detect carma3d configs from style metadata and explicit layer props
           {
-            const configs: import("@carma-mapping/engines/threejs").Carma3dConfig[] =
-              [];
+            const configs: Carma3dConfig[] = [];
             const sourceToIdx = new Map<string, number>();
 
             // Tilesets are collected in the same pass over the layers below.
@@ -1789,7 +1828,7 @@ export const LibreMap = ({
           }
 
           // Get mapping for vector layers (only from user-provided layers, not backgrounds)
-          const vectorLayers = (layers || []).filter(
+          const vectorLayers = (mapStyleLayers || []).filter(
             (layer) => layer.type === "vector"
           );
           let mapping = {};
@@ -1821,7 +1860,7 @@ export const LibreMap = ({
           if (filterFunction && map.current) {
             const applyFilter = () => {
               if (map.current) {
-                filterFunction(map.current, layers);
+                filterFunction(map.current, mapStyleLayers);
               }
             };
 
@@ -1895,7 +1934,7 @@ export const LibreMap = ({
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
-    layers,
+    mapStyleLayers,
     clusteringEnabled,
     markerSymbolSize,
     filterFunction,
@@ -2231,7 +2270,6 @@ export const LibreMap = ({
             perfRef={threePerfRef}
           />
         ))}
-
       {/* Tilesets named by a style's own metadata, see Tiles3dLayerManager */}
       {detectedTiles3dConfigs.map((config) => (
         <Tiles3dLayerManager
@@ -2240,6 +2278,7 @@ export const LibreMap = ({
           layerOpacity={config.layerOpacity}
         />
       ))}
+      <SharedThreeTilesLayerManager layers={threeTilesLayers} />
     </>
   );
 };

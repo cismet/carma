@@ -19,6 +19,10 @@ import {
 import type { CarmaVectorStyle } from "../helper/vectorStyleItem";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { useLiveDeployment } from "@carma-commons/utils";
+import {
+  isJsonUrl,
+  resolveDroppedUrl,
+} from "../helper/resolve-dropped-url";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -71,7 +75,6 @@ export const useHandleDrop = ({
       return null;
     }
   };
-
   const handleAddToMap = async (newItem: Item, instant = false) => {
     const existingLayer = activeLayers.find((layer) => layer.id === newItem.id);
 
@@ -197,7 +200,7 @@ export const useHandleDrop = ({
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
-      const url = event.dataTransfer?.getData("URL");
+      const url = resolveDroppedUrl(event.dataTransfer);
 
       const file = event?.dataTransfer?.files[0];
 
@@ -207,7 +210,7 @@ export const useHandleDrop = ({
       ) {
         handleTwinFile(file ?? null, url ?? null);
       } else {
-        if (url && url.endsWith(".json")) {
+        if (url && isJsonUrl(url)) {
           handleJsonStyle(null, url);
         } else if (url) {
           fetch(url)
@@ -276,12 +279,12 @@ export const useHandleDrop = ({
       event.preventDefault();
     };
 
-    window.addEventListener("drop", handleDrop);
-    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("drop", handleDrop, true);
+    window.addEventListener("dragover", handleDragOver, true);
 
     return () => {
-      window.removeEventListener("drop", handleDrop);
-      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("drop", handleDrop, true);
+      window.removeEventListener("dragover", handleDragOver, true);
     };
   }, [
     setOpen,

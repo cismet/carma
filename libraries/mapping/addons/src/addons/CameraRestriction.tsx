@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { carma as carmaApi } from "@carma-api";
-import {
-  DEFAULT_MAX_PITCH,
-  setCameraRestrictionOverride,
-} from "@carma-mapping/engines/maplibre";
+import { DEFAULT_MAX_PITCH } from "@carma-mapping/engines/maplibre";
 
 import type { AddonComponentProps } from "../lib/registry";
+import {
+  ADDON_CAMERA_RESTRICTION_PRIORITY,
+  setAddonCameraRestriction,
+} from "../lib/camera-restriction-overrides";
 import { use3dLayers } from "../lib/use3dLayers";
 
 /**
@@ -125,6 +126,7 @@ export const CameraRestriction = ({
   config,
   libreMap,
 }: AddonComponentProps<"cameraRestriction">) => {
+  const overrideOwner = useRef(Symbol("cameraRestriction")).current;
   const {
     mode = "always",
     layers,
@@ -189,11 +191,16 @@ export const CameraRestriction = ({
     if (!libreMap) {
       return;
     }
-    setCameraRestrictionOverride(libreMap, { restricted, maxPitch });
+    setAddonCameraRestriction(
+      libreMap,
+      overrideOwner,
+      { restricted, maxPitch },
+      ADDON_CAMERA_RESTRICTION_PRIORITY.ROUTE
+    );
     return () => {
-      setCameraRestrictionOverride(libreMap, null);
+      setAddonCameraRestriction(libreMap, overrideOwner, null);
     };
-  }, [libreMap, restricted, maxPitch]);
+  }, [libreMap, maxPitch, overrideOwner, restricted]);
 
   return null;
 };

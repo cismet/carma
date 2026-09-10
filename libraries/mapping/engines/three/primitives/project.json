@@ -5,6 +5,12 @@
   "projectType": "library",
   "tags": ["type:library", "scope:mapping"],
   "targets": {
+    "test": {
+      "executor": "@nx/vite:test",
+      "options": {
+        "configFile": "libraries/mapping/engines/three/primitives/vite.config.ts"
+      }
+    },
     "build": {
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],

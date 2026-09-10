@@ -21,6 +21,10 @@ import {
   createNonTiledImageSource,
   createNonTiledMetadata,
 } from "./nonTiledWms";
+import {
+  styleProvidesTerrain,
+  withTerrainProviderMetadata,
+} from "./terrainProviderMetadata";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -715,6 +719,7 @@ export const vectorStylesToMapLibreStyle = async ({
 
       if (layer.type === "vector") {
         const additionalStyle = fetched.data;
+        const providesTerrain = styleProvidesTerrain(additionalStyle);
         let capabilitiesLayer = "";
 
         if (layer.layer) {
@@ -760,6 +765,11 @@ export const vectorStylesToMapLibreStyle = async ({
           .userFilter;
         additionalStyle.layers = additionalStyle.layers.map(
           (styleLayer: LayerSpecification) => {
+            const styleLayerMetadata = (
+              styleLayer as LayerSpecification & {
+                metadata?: Record<string, unknown>;
+              }
+            ).metadata;
             const src = (styleLayer as { source?: string }).source;
             const origFilter =
               (styleLayer as { filter?: unknown[] }).filter ?? null;
@@ -777,11 +787,10 @@ export const vectorStylesToMapLibreStyle = async ({
                 : {}),
               ...(userFilter ? { filter: bakedFilter as never } : {}),
               metadata: {
-                ...(
-                  styleLayer as LayerSpecification & {
-                    metadata?: Record<string, unknown>;
-                  }
-                ).metadata,
+                ...withTerrainProviderMetadata(
+                  styleLayerMetadata,
+                  providesTerrain
+                ),
                 "z-index": index,
                 "layer-id": layerId,
                 // What the layer bar's slider asks of this layer. A 2D layer

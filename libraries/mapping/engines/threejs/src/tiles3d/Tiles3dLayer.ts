@@ -244,7 +244,10 @@ export function buildTiles3dLayer(
     type: "custom",
     renderingMode: "3d",
 
-    onAdd(mapInstance: MaplibreMap, gl: WebGLRenderingContext | WebGL2RenderingContext) {
+    onAdd(
+      mapInstance: MaplibreMap,
+      gl: WebGLRenderingContext | WebGL2RenderingContext
+    ) {
       map = mapInstance;
 
       // A style rebuild takes every custom layer off the map and the manager
@@ -328,7 +331,7 @@ export function buildTiles3dLayer(
       // about to reach; the library treats it as implied here anyway.
       tiles.loadSiblings = true;
       tiles.loadAncestors = true;
-      tiles.downloadQueue.maxJobs = Math.max(
+      tiles.downloadQueue.maxJobsPerOrigin = Math.max(
         1,
         Math.floor(options.requestConcurrency ?? 6)
       );

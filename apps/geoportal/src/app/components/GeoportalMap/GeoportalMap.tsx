@@ -936,6 +936,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
         <CarmaMap
           appKey="geoportal"
           mapEngine="maplibre"
+          // Do not turn MapLibre's default 4096px ceiling into blurry HiDPI
+          // output. Its drawing-buffer/GL-limit fallback remains authoritative.
+          maxCanvasSize={[Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]}
           backgroundLayers={null}
           zoomControls={false}
           fullScreenControl={false}

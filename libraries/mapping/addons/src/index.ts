@@ -4,6 +4,7 @@ export {
   getTargetAddonsWithTrigger,
   hasTargetAddonsWithTrigger,
   resolveActiveTargetAddon,
+  resolveSecondaryViewTargetAddon,
   toAddonButtonId,
 } from "./lib/target-addons";
 export {
@@ -65,6 +66,11 @@ export type {
   UvCorrection,
 } from "./lib/caged-addons";
 export { ADMIN_MODE_FLAG, useIsAdminMode } from "./lib/admin-mode";
+export {
+  FreeCamera,
+  FREE_CAMERA_MAX_PITCH,
+  type FreeCameraConfig,
+} from "./addons/FreeCamera";
 
 export {
   ALWAYS_ON_TOP_KIND,
@@ -176,7 +182,11 @@ export {
 } from "./addons/FloodSimulation";
 
 export { useHasAddonStateProducer } from "./lib/addon-channels";
-export { useAddonState, useAddonStateSnapshot } from "./lib/AddonStateContext";
+export {
+  useAddonState,
+  useAddonStateSnapshot,
+  useRouteAddons,
+} from "./lib/AddonStateContext";
 export type { AddonStateAction } from "./lib/AddonStateContext";
 
 export { AddonManager, type AddonManagerConfig } from "./addons/AddonManager";
@@ -280,6 +290,12 @@ export {
   type LayerVisibilityConfig,
 } from "./addons/LayerVisibility";
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
+export {
+  ShadowSimulation,
+  ShadowSimulationHeaderControls,
+  type ShadowSimulationConfig,
+  type ShadowSimulationState,
+} from "./addons/ShadowSimulation";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export {
   CompareSwipe,

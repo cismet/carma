@@ -1,0 +1,241 @@
+import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  Button,
+  Checkbox,
+  ColorPicker,
+  InputNumber,
+  Segmented,
+  Slider,
+  Space,
+  Tooltip,
+  Typography,
+} from "antd";
+
+import { clamp } from "@carma-commons/math";
+
+import type { ShadowSimulationState } from "../contracts/shadow-simulation";
+import {
+  DEFAULT_MESH_ERROR_TARGET_PIXELS,
+  DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
+  DEFAULT_SHADOW_BUILDING_COLOR,
+  DEFAULT_SHADOW_BUILDING_COLOR_MIX,
+  DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
+  DEFAULT_SHADOW_SURFACE_COLOR,
+  type MeshErrorTargetPixels,
+} from "../core/shadow-types";
+import { MESH_ERROR_TARGETS } from "./shadow-control-utils";
+
+export const ShadowSimulationSurfaceSettings = ({
+  state,
+  setState,
+  meshLoaded = false,
+}: {
+  state: ShadowSimulationState;
+  setState: (state: ShadowSimulationState) => void;
+  meshLoaded?: boolean;
+}) => {
+  const settings = {
+    meshErrorTarget: state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS,
+    terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
+    buildingsFullOpacity: state.buildingsFullOpacity ?? true,
+    buildingColorMix: clamp(
+      state.buildingColorMix ?? DEFAULT_SHADOW_BUILDING_COLOR_MIX,
+      0,
+      1
+    ),
+    meshTextureSaturation: clamp(
+      state.meshTextureSaturation ?? DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
+      0,
+      1
+    ),
+    buildingColor: state.buildingColor ?? DEFAULT_SHADOW_BUILDING_COLOR,
+  };
+  const onChange = (patch: Partial<ShadowSimulationState>) =>
+    setState({ ...state, ...patch });
+  return (
+    <Space direction="vertical" size="small" style={{ width: "100%" }}>
+      {!meshLoaded && (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Typography.Text strong type="secondary">
+            Terrain-LOD
+          </Typography.Text>
+          <Segmented
+            data-test-id="shadow-simulation-terrain-quality"
+            value={
+              state.terrainErrorTarget ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
+            }
+            options={[...MESH_ERROR_TARGETS]}
+            onChange={(value) =>
+              onChange({ terrainErrorTarget: value as MeshErrorTargetPixels })
+            }
+          />
+        </div>
+      )}
+      {meshLoaded && (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Typography.Text strong type="secondary">
+            Mesh-LOD
+          </Typography.Text>
+          <Segmented
+            data-test-id="shadow-simulation-mesh-quality"
+            value={settings.meshErrorTarget}
+            options={[...MESH_ERROR_TARGETS]}
+            onChange={(value) =>
+              onChange({ meshErrorTarget: value as MeshErrorTargetPixels })
+            }
+          />
+          <>
+            <InputNumber
+              aria-label="Mesh-Cache in GiB"
+              placeholder="Auto"
+              suffix="GiB"
+              min={0.125}
+              max={24}
+              step={1}
+              value={
+                state.meshCacheBudgetBytes === undefined
+                  ? null
+                  : state.meshCacheBudgetBytes / 1024 ** 3
+              }
+              onChange={(value) =>
+                onChange({
+                  meshCacheBudgetBytes:
+                    typeof value === "number" && Number.isFinite(value)
+                      ? value * 1024 ** 3
+                      : undefined,
+                })
+              }
+            />
+            <Tooltip
+              trigger={["hover", "focus", "click"]}
+              title="Residenter Mesh-Cache in GiB. Leer: Geräte-Standard. Große Budgets können RAM und GPU-Speicher überlasten; der Browser meldet nicht jeden Engpass rechtzeitig."
+            >
+              <Button
+                type="text"
+                size="small"
+                aria-label="Info zum Mesh-Cache"
+                icon={<FontAwesomeIcon icon={faCircleInfo} />}
+              />
+            </Tooltip>
+          </>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {!meshLoaded && (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Typography.Text strong type="secondary">
+              Terrain
+            </Typography.Text>
+            <>
+              <ColorPicker
+                value={settings.terrainColor}
+                showText={(color) => color.toHexString().toUpperCase()}
+                onChangeComplete={(color) =>
+                  onChange({ terrainColor: color.toHexString() })
+                }
+              />
+              <Tooltip
+                trigger={["hover", "focus", "click"]}
+                title="Grundfarbe des Rasterterrains. Auf texturierten Flächen beeinflusst auch die Basiskarte das Ergebnis; für Meshflächen gelten die separaten Textur-/Farboptionen."
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="Info zur Terrainfarbe"
+                  icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                />
+              </Tooltip>
+            </>
+          </div>
+        )}
+        {meshLoaded && (
+          <>
+            <Checkbox
+              checked={settings.buildingsFullOpacity}
+              onChange={(event) =>
+                onChange({ buildingsFullOpacity: event.target.checked })
+              }
+            >
+              Gebäude volle Deckkraft
+            </Checkbox>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Typography.Text strong type="secondary">
+                Gebäude-Mesh
+              </Typography.Text>
+              <Typography.Text type="secondary">Textur</Typography.Text>
+              {/* AntD 5.19 forwards rc-slider handle ARIA props but omits their types. */}
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                value={settings.buildingColorMix}
+                onChange={(value) => onChange({ buildingColorMix: value })}
+                tooltip={{ formatter: null }}
+                className="!m-0 w-24"
+                {...{
+                  ariaLabelForHandle: "Mischung aus Meshtextur und Farbe",
+                }}
+              />
+              <Typography.Text type="secondary">Farbe</Typography.Text>
+              <Typography.Text
+                type="secondary"
+                className="w-8 text-right tabular-nums"
+              >
+                {Math.round(settings.buildingColorMix * 100)}%
+              </Typography.Text>
+            </div>
+            <>
+              <Checkbox
+                checked={state.meshTextureColorCorrection ?? true}
+                onChange={(event) =>
+                  onChange({ meshTextureColorCorrection: event.target.checked })
+                }
+                data-test-id="shadow-mesh-color-correction"
+              >
+                Farbkorrektur (Mesh 2024)
+              </Checkbox>
+              <Tooltip
+                trigger={["hover", "focus", "click"]}
+                title="Schwarz-/Weißpunkt und Gamma aus den Mesh-Datensatzmetadaten, vor der Beleuchtung. Entfernt keine bereits in der Textur enthaltenen Schatten."
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="Info zur Mesh-Farbkorrektur"
+                  icon={<FontAwesomeIcon icon={faCircleInfo} />}
+                />
+              </Tooltip>
+            </>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Typography.Text type="secondary">Sättigung</Typography.Text>
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                value={settings.meshTextureSaturation}
+                onChange={(value) => onChange({ meshTextureSaturation: value })}
+                tooltip={{ formatter: null }}
+                className="!m-0 w-24"
+                {...{ ariaLabelForHandle: "Sättigung der Meshtextur" }}
+              />
+              <Typography.Text
+                type="secondary"
+                className="w-8 text-right tabular-nums"
+              >
+                {Math.round(settings.meshTextureSaturation * 100)}%
+              </Typography.Text>
+              <ColorPicker
+                value={settings.buildingColor}
+                showText={(color) => color.toHexString().toUpperCase()}
+                onChangeComplete={(color) =>
+                  onChange({ buildingColor: color.toHexString() })
+                }
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </Space>
+  );
+};

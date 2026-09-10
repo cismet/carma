@@ -139,6 +139,7 @@ export const loadAddonOverrides = (
   if (!storageKey) {
     return undefined;
   }
+  migrateLegacySharedOverrides(storageKey);
   try {
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
@@ -198,7 +199,6 @@ export const usePersistedAddonOverrides = (): [
     [addons, scope]
   );
   const storedOverrides = useMemo(() => {
-    migrateLegacySharedOverrides(storageKey);
     return loadAddonOverrides(storageKey);
   }, [storageKey]);
 

@@ -53,6 +53,7 @@ export type CarmaMapLibreStyleMetadata = {
       header?: string;
       accentColor?: string;
       keywords?: string[];
+      tags?: string[];
     };
   };
 };

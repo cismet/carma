@@ -1,6 +1,7 @@
 import type { BackgroundLayer } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
+import { prepareTerrainDrapeStyle } from "@carma-mapping/engines/maplibre";
 
 type NamedLayerConfig = {
   type: string;
@@ -13,6 +14,23 @@ type NamedLayerConfig = {
   maxNativeZoom?: number;
 };
 
+type GeoportalBackgroundLibreOptions = {
+  terrainMeshActive?: boolean;
+  shadowTerrainActive?: boolean;
+};
+
+// Raster bases bake place names into their ground pixels. Shaded terrain uses
+// the existing vector basemap instead so its ground can be projected while
+// point-based place names remain a separate symbol pass above Three.
+const TERRAIN_MESH_OVERLAY_LAYERS = "basemap_relief@100";
+const TERRAIN_MESH_REPLACED_LAYER_NAMES = new Set([
+  "amtlich",
+  "amtlichBasiskarte",
+  "rvrGrundriss",
+  "rvrSchriftNT",
+  "basemap_relief",
+]);
+
 const isTransparent = (value: unknown): boolean => {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") return value.toLowerCase() === "true";
@@ -21,7 +39,8 @@ const isTransparent = (value: unknown): boolean => {
 
 export const geoportalBackgroundToLibreLayers = (
   backgroundLayer: BackgroundLayer | null | undefined,
-  extraNamedLayers?: Record<string, NamedLayerConfig>
+  extraNamedLayers?: Record<string, NamedLayerConfig>,
+  options: GeoportalBackgroundLibreOptions = {}
 ): LibreLayer[] => {
   if (!backgroundLayer || !backgroundLayer.visible) {
     return [];
@@ -34,11 +53,24 @@ export const geoportalBackgroundToLibreLayers = (
     ...extraNamedLayers,
   };
   const layerOpacity = backgroundLayer.opacity ?? 1;
+  const separateLocationLabels =
+    options.terrainMeshActive === true || options.shadowTerrainActive === true;
   // All named layers of a background spec belong to the single background
   // button, so they share one id and their loading states aggregate.
   const carmaLayerId = backgroundLayer.id;
 
-  for (const spec of backgroundLayer.layers.split("|")) {
+  const originalLayerSpecs = backgroundLayer.layers
+    .split("|")
+    .filter(
+      (spec) =>
+        !separateLocationLabels ||
+        !TERRAIN_MESH_REPLACED_LAYER_NAMES.has(spec.split("@")[0])
+    );
+  const layerSpecs = separateLocationLabels
+    ? [...originalLayerSpecs, ...TERRAIN_MESH_OVERLAY_LAYERS.split("|")]
+    : originalLayerSpecs;
+
+  for (const spec of layerSpecs) {
     const [name, opacityStr] = spec.split("@");
     const cfg = namedLayers[name];
     if (!cfg) {
@@ -101,6 +133,12 @@ export const geoportalBackgroundToLibreLayers = (
           carmaLayerId,
           style: cfg.style,
           opacity,
+          ...(options.shadowTerrainActive
+            ? {
+                userStyleTransform: prepareTerrainDrapeStyle,
+                userStyleTransformKey: "terrain-albedo-v1",
+              }
+            : {}),
         });
         break;
       }
