@@ -167,56 +167,84 @@ export const VehicleAnimation = ({
     permanent: configPermanent,
   } = config;
 
+  /** what this mount puts on the map, or null when the engine only idles */
+  const configDefinition = useMemo<VehicleAnimationDefinition | null>(
+    () =>
+      configTrackUrl
+        ? {
+            title: configTitle ?? "Fahrzeug",
+            trackUrl: configTrackUrl,
+            lengthMeters: configLengthMeters,
+            widthMeters: configWidthMeters,
+            sectionShares: configSectionShares,
+            jointMeters: configJointMeters,
+            speedKmh: configSpeedKmh,
+            mode: configMode,
+            schedule: configSchedule,
+            bodyColor: configBodyColor,
+            jointColor: configJointColor,
+            outlineColor: configOutlineColor,
+            opacity: configOpacity,
+            showTrack: configShowTrack,
+            trackColor: configTrackColor,
+            structureUrl: configStructureUrl,
+            timetableUrl: configTimetableUrl,
+            renderer: configRenderer,
+            permanent: configPermanent,
+          }
+        : null,
+    [
+      configTitle,
+      configTrackUrl,
+      configLengthMeters,
+      configWidthMeters,
+      configSectionShares,
+      configJointMeters,
+      configSpeedKmh,
+      configMode,
+      configSchedule,
+      configBodyColor,
+      configJointColor,
+      configOutlineColor,
+      configOpacity,
+      configShowTrack,
+      configTrackColor,
+      configStructureUrl,
+      configTimetableUrl,
+      configRenderer,
+      configPermanent,
+    ]
+  );
+
   useEffect(() => {
-    if (!startEnabled || !configTrackUrl) {
+    if (!startEnabled || !configDefinition) {
       return undefined;
     }
-    startVehicle({
-      title: configTitle ?? "Fahrzeug",
-      trackUrl: configTrackUrl,
-      lengthMeters: configLengthMeters,
-      widthMeters: configWidthMeters,
-      sectionShares: configSectionShares,
-      jointMeters: configJointMeters,
-      speedKmh: configSpeedKmh,
-      mode: configMode,
-      schedule: configSchedule,
-      bodyColor: configBodyColor,
-      jointColor: configJointColor,
-      outlineColor: configOutlineColor,
-      opacity: configOpacity,
-      showTrack: configShowTrack,
-      trackColor: configTrackColor,
-      structureUrl: configStructureUrl,
-      timetableUrl: configTimetableUrl,
-      renderer: configRenderer,
-      permanent: configPermanent,
-    });
+    startVehicle(configDefinition);
     return () => setOn(false);
-  }, [
-    startEnabled,
-    configTitle,
-    configTrackUrl,
-    configLengthMeters,
-    configWidthMeters,
-    configSectionShares,
-    configJointMeters,
-    configSpeedKmh,
-    configMode,
-    configSchedule,
-    configBodyColor,
-    configJointColor,
-    configOutlineColor,
-    configOpacity,
-    configShowTrack,
-    configTrackColor,
-    configStructureUrl,
-    configTimetableUrl,
-    configRenderer,
-    configPermanent,
-    startVehicle,
-    setOn,
-  ]);
+  }, [startEnabled, configDefinition, startVehicle, setOn]);
+
+  /**
+   * A default workflow owns the channel whenever nothing else is using it.
+   *
+   * The channel holds one animation at a time, so a workflow card takes it over
+   * while it runs. Switching that card off again (its ✕, or a second click on
+   * the card) left the map bare until a reload, because the mount effect above
+   * had long since run. Claiming the channel back here is what makes the
+   * default behave like the app's own furniture rather than like a card that
+   * happened to be launched first.
+   *
+   * Only on the transition to off, and only for a config the app declared
+   * permanent: an idle engine a route mounts for its cards stays idle.
+   */
+  const wasOnRef = useRef(isOn);
+  useEffect(() => {
+    const wasOn = wasOnRef.current;
+    wasOnRef.current = isOn;
+    if (!isOn && wasOn && startEnabled && configPermanent && configDefinition) {
+      startVehicle(configDefinition);
+    }
+  }, [isOn, startEnabled, configPermanent, configDefinition, startVehicle]);
 
   // Fetch and stitch the route. Separate from the layer, because the same route
   // survives a hold, an opacity change and a basemap swap, and re-reading a few
