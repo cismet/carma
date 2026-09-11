@@ -4,6 +4,8 @@ import type { LeerstandPhoto, LeerstandProperties } from "./leerstandApi";
 export interface BuildingInfo {
   /** ALKIS object id, e.g. DENW29AL1000GXa6 */
   alkisId: string;
+  /** "Hauptgebäude" or "Nebengebäude" (ALKIS geb_typ, trimmed) */
+  typ: string | null;
   funktion: string | null;
   geschosseOberirdisch: number | null;
   /** first address of the building, e.g. "Wall 1" */
@@ -35,6 +37,7 @@ export const buildingInfoFromProperties = (
   if (!alkisId) return undefined;
   return {
     alkisId,
+    typ: asText(props.geb_typ),
     funktion: asText(props.geb_fkt),
     geschosseOberirdisch: asNumber(props.og_geschosse),
     mainAddress: asText(props.main_address),
@@ -105,30 +108,31 @@ export const createLeerstandInfoBoxControlObject = (
   };
 };
 
-/** info box control object for a tapped ALKIS building with the capture action */
+/**
+ * info box control object for a tapped ALKIS building. Same layout as the
+ * ALKIS info box of the geoportal: header = Gebäudetyp, title = Adresse,
+ * body = Funktion and Grundfläche. `modal: true` adds the info button that
+ * opens the ALKIS datasheet (collab AlkisSIM); the plus link opens the
+ * capture dialog.
+ */
 export const createBuildingInfoBoxControlObject = (
   building: BuildingInfo,
   onErfassen: () => void
 ) => {
   const puretitle = building.mainAddress ?? "Gebäude ohne Adresse";
-  const details = [
-    building.geschosseOberirdisch != null
-      ? `${building.geschosseOberirdisch} Geschosse oberirdisch`
-      : null,
-    building.addressCount > 1 ? `${building.addressCount} Adressen` : null,
+  const lines = [
+    `Funktion: ${building.funktion ?? "-"}`,
     building.grundflaeche != null
-      ? `Grundfläche ${Math.round(building.grundflaeche)} m²`
+      ? `Grundfläche: ${building.grundflaeche} m²`
       : null,
   ].filter(Boolean);
 
   return {
-    headerColor: "#1565c0",
-    header: "ALKIS-Gebäude",
+    header: building.typ ?? "Gebäude",
     puretitle,
-    title: "<html><h3>" + puretitle + "</html>",
-    subtitle: building.funktion ?? undefined,
-    additionalInfo: details.join(" · "),
-    modal: false,
+    title: "<html><h3>" + puretitle + "</h3></html>",
+    subtitle: lines.join("\n"),
+    modal: true,
     genericLinks: [
       {
         action: onErfassen,

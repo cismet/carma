@@ -22,6 +22,7 @@ import {
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
+import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import versionData from "../version.json";
 import { Menu } from "./Menu";
 import SecondaryInfoModal from "./Modal";
@@ -52,6 +53,22 @@ interface MapProps {
   onAuthError: () => void;
   onConnectionError: (hasError: boolean) => void;
 }
+
+/** ALKIS datasheet of the geoportal (collab AlkisSIM) */
+const AlkisModal = additionalInfoFactory("alkisSIM");
+
+/**
+ * Datasheet by what was tapped: the ALKIS datasheet for a building, the
+ * Leerstand datasheet for a stored point. react-cismap writes the source
+ * layer of a hit into properties.carmaInfo.
+ */
+const InfoModal = (props: any) => {
+  const sourceLayer = props.feature?.properties?.carmaInfo?.sourceLayer;
+  if (sourceLayer === "building" && AlkisModal) {
+    return <AlkisModal {...props} />;
+  }
+  return <SecondaryInfoModal {...props} />;
+};
 
 /** house numbers of the Stadtgrundkarte, the layer react-cismap calls "nrs" */
 const HAUSNUMMERN_WMS = {
@@ -180,6 +197,9 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
       });
       feature.properties.info = info;
       feature.text = info.puretitle;
+      // bounds from the tile attributes, so the zoom link fits the whole
+      // building even where the tile clips its polygon
+      feature.properties.sourceProps = { bounds: feature.properties.bounds };
       setSelectedFeature(feature);
       return;
     }
@@ -229,7 +249,7 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
                 selectedFeature={selectedFeature}
                 versionData={versionData}
                 bigMobileIconsInsteadOfCollapsing={true}
-                Modal={SecondaryInfoModal}
+                Modal={InfoModal}
               />
             }
             contactButtonEnabled={false}
