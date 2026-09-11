@@ -17,7 +17,7 @@ import {
  */
 
 const KRANKENHAEUSER: NearestFeatureCategory = {
-  key: "krankenhaeuser",
+  id: "krankenhaeuser",
   label: "Krankenhäuser",
   icon: faHospital,
   layerId: "wuppPOI:poi_krankenhaeuser",
@@ -26,7 +26,7 @@ const KRANKENHAEUSER: NearestFeatureCategory = {
   detailProperties: ["strasse", "Strasse", "adresse", "Adresse", "info"],
 };
 
-/** everything but the key, so a route may point it at another layer or rename it */
+/** any part of the definition, so a route may rename it, filter it or declare a variant */
 export type NearestFeatureKrankenhaeuserConfig = NearestFeatureCategoryConfig;
 
 export const NearestFeatureKrankenhaeuser = ({

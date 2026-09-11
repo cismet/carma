@@ -248,6 +248,8 @@ export {
   NearestFeatureBahnhoefe,
   NearestFeatureKrankenhaeuser,
   useNearestFeatureCategory,
+  type FeaturePredicate,
+  type FeaturePropertyValue,
   type NearestFeatureApothekenConfig,
   type NearestFeatureBahnhoefeConfig,
   type NearestFeatureKrankenhaeuserConfig,

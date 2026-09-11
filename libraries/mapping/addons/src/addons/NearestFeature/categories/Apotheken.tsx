@@ -16,11 +16,25 @@ import {
  * category addons it wants, and each of them can be switched off on its own.
  *
  * A further category is a copy of this file with another definition; nothing
- * else changes, and the mode is not touched.
+ * else changes, and the mode is not touched. A *variant* of this one is not a
+ * new file but a second declaration of this addon with its own config: the
+ * pharmacies on duty today are
+ *
+ *   {
+ *     addon: "nearestFeatureApotheken",
+ *     config: {
+ *       id: "apothekenNotdienst",
+ *       label: "Apotheken mit Notdienst",
+ *       where: ({ heute }) => heute === true,
+ *     },
+ *   }
+ *
+ * which reads the `heute` column the pipeline writes into the layer's
+ * `features.json` (`FEATURE_INDEX_PROPERTIES=heute,morgen`).
  */
 
 const APOTHEKEN: NearestFeatureCategory = {
-  key: "apotheken",
+  id: "apotheken",
   label: "Apotheken",
   icon: faPrescriptionBottleMedical,
   layerId: "wuppInfra:apotheken",
@@ -28,7 +42,7 @@ const APOTHEKEN: NearestFeatureCategory = {
   detailProperties: ["strasse", "Strasse", "adresse", "Adresse", "info"],
 };
 
-/** everything but the key, so a route may point it at another layer or rename it */
+/** any part of the definition, so a route may rename it, filter it or declare a variant */
 export type NearestFeatureApothekenConfig = NearestFeatureCategoryConfig;
 
 export const NearestFeatureApotheken = ({

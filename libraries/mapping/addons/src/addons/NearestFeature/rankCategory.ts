@@ -154,6 +154,7 @@ export const rankCategory = async ({
     filter: {
       carmaLayerIds: [category.layerId],
       ...(category.sourceLayer ? { sourceLayers: [category.sourceLayer] } : {}),
+      ...(category.where ? { where: category.where } : {}),
     },
     ...(category.featureIndexUrl ? { indexUrl: category.featureIndexUrl } : {}),
   });
@@ -164,11 +165,22 @@ export const rankCategory = async ({
     entries,
   });
   if (entries.length === 0) {
+    // a filtered category that finds nothing is most often an index without
+    // the columns its predicate reads, which the pipeline has to be told to
+    // write; say that rather than "nothing here"
+    const noIndex = statuses.some((one) => one.featureCount === null);
+    const noProperties =
+      category.where !== undefined &&
+      statuses.every((one) => one.properties.length === 0);
     return {
       rows: [],
       routes: [],
-      problem: statuses.some((one) => one.featureCount === null)
+      problem: noIndex
         ? "Layer hat keinen Feature-Index (features.json)"
+        : noProperties
+        ? "Feature-Index enthält keine Eigenschaften zum Filtern"
+        : category.where
+        ? "Keine passenden Objekte in diesem Layer"
         : "Keine Objekte in diesem Layer",
     };
   }

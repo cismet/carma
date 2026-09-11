@@ -325,7 +325,7 @@ export const NearestFeature = ({
       // they were ranked from the origin that is current now
       const isFilteringLastRun =
         query !== "" &&
-        lastRun?.category.key === category.key &&
+        lastRun?.category.id === category.id &&
         lastRun.originKey === originKey;
 
       const run =

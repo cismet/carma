@@ -1,5 +1,9 @@
 export { NearestFeature } from "./NearestFeature";
 export type { NearestFeatureConfig } from "./config";
+export type {
+  FeaturePredicate,
+  FeaturePropertyValue,
+} from "../../lib/featureIndex";
 export {
   useNearestFeatureCategory,
   type NearestFeatureCategory,

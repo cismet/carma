@@ -576,10 +576,12 @@ geometry is compared, and a search costs no requests at all.
 to `metadata.json`: one id, one source-layer and one bounding box per feature,
 about 25 bytes each, columnar. One request per tileset, none per search.
 
-It carries no properties, which is why the names are read back off the drawn
-features (see below); writing a hit's attributes into the index itself is
-`docs/features-json-generic.md`. Tiles that MapLibre fetches to *draw* the layer
-are unrelated and unaffected by any of this.
+It carries no properties by default, which is why the names are read back off
+the drawn features (see below). A layer may opt into **property columns** in the
+pipeline (`FEATURE_INDEX_PROPERTIES=heute,morgen`), which is what lets a
+category filter before ranking; see "Filtering a category" below. Tiles that
+MapLibre fetches to *draw* the layer are unrelated and unaffected by any of
+this.
 
 Picking a row **clicks the hit on the map**, where it is drawn, so the host app
 answers with the info box it shows for any other click on that feature; see
@@ -752,6 +754,53 @@ because several producers write it side by side: `useNearestFeatureCategory`
 merges its own key in and takes it out again when it unmounts, so nobody
 overwrites a sibling. The mode reads the channel through a ref, so a category
 mounting later does not re-register the mode.
+
+### Filtering a category
+
+A category may carry a **`where` predicate**, and only the features it accepts
+take part in the ranking. A route declares one as a variant of an existing
+category, through that addon's config, so a narrowing never needs a new addon:
+
+```ts
+addons: [
+  "nearestFeature",
+  "nearestFeatureApotheken",
+  {
+    addon: "nearestFeatureApotheken",
+    config: {
+      id: "apothekenNotdienst",
+      label: "Apotheken mit Notdienst",
+      where: ({ heute }) => heute === true,
+    },
+  },
+]
+```
+
+Every field of the definition is overridable, `id` included: it is the
+category's identity in the channel, so a second declaration of the same addon
+needs its own or it replaces the first. The host mounts one instance per
+declaration (keyed per kind, see `AddonHost.tsx`); the addon manager switches
+the *kind*, so it switches every variant of it at once.
+
+The predicate reads the **property columns of `features.json`**, which the
+index carries only for a layer the pipeline was told to write them for
+(`FEATURE_INDEX_PROPERTIES=heute,morgen` in the layer's `.env`). They are
+columnar and dictionary-encoded on disk and decoded per row only while a
+predicate is there to read them, so an unfiltered ranking pays nothing for
+them. A property the index does not carry reads as `undefined`, a feature with
+no value in a column it does carry reads as `null`.
+
+It filters *before* the top-`count` cut, in the same scan that measures the
+distance: the result is the nearest `count` of what passes, not a shortlist
+that the filter then thins out. It cannot be done any other way with the current
+data, because the names and attributes read off the drawn features (step 5)
+come after the cut and only for what is on screen.
+
+"Apotheken mit Notdienst" is therefore a row of the first stage next to
+"Apotheken", not a switch inside it: a route declares the narrowings it wants
+as categories. A filtered category that finds nothing says whether the index
+lacks the columns (`"Feature-Index enthält keine Eigenschaften zum Filtern"`)
+or nothing passed.
 
 A row may carry its own icon (`DynamicSearchOption.icon`), which is how a
 category's icon reaches the first stage; without one a row shows the mode's

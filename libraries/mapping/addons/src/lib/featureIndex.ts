@@ -42,15 +42,33 @@ import {
  * the layer's own extent. A point is a zero-sized box. 1e-6 degrees is about
  * 10 cm, far below anything a distance ranking cares about.
  *
- * What the index does *not* carry is properties or geometry. Ranking needs
- * neither: a box gives an exact answer for points and a lower bound for
- * everything else, and "inside the box" is what a click on a parcel needs. So
- * this module issues exactly one request per tileset, ever, and none per click.
+ * What the index does *not* carry by default is properties or geometry.
+ * Ranking needs neither: a box gives an exact answer for points and a lower
+ * bound for everything else, and "inside the box" is what a click on a parcel
+ * needs. So this module issues exactly one request per tileset, ever, and none
+ * per click.
  *
  * A hit therefore has an id but no attributes. The `ids` are the ids tippecanoe
  * stamped onto the tile features, so they join back to the tiles and are what
- * selection is keyed on; showing a feature's attributes needs the pipeline to
- * write properties into `features.json`, see `docs/features-json-generic.md`.
+ * selection is keyed on.
+ *
+ * A layer that wants to be *filtered* before ranking ("nearest Apotheke with
+ * Notdienst") opts into an additive `properties` block in the pipeline
+ * (`FEATURE_INDEX_PROPERTIES=heute,morgen`): one column per named property,
+ * parallel to `ids`, booleans as 0/1, strings as indexes into the column's
+ * `dict`, `null` for a missing value.
+ *
+ * ```json
+ * "properties": {
+ *   "heute": { "type": "boolean", "values": [0, 1, 0] },
+ *   "name":  { "type": "string", "dict": ["Adler Apotheke"], "values": [0, 0, 0] }
+ * }
+ * ```
+ *
+ * A caller's `where` predicate is run over those columns for every row, so
+ * rejecting a feature costs no request either, and the ranking's top `count`
+ * is the top `count` of what passed rather than a cut that filtering would
+ * then thin out.
  *
  * Tiles the *map* fetches to draw itself are a separate matter and unaffected:
  * nothing here can or should stop MapLibre rendering the layer.
@@ -59,6 +77,13 @@ import {
  * reported in `statuses`, so "this layer has no index yet" stays visible
  * instead of being papered over with a worse answer.
  */
+
+/** one property column as it is served */
+type FeatureIndexColumnDocument = {
+  type?: string;
+  values?: unknown[];
+  dict?: unknown[];
+};
 
 /** the file as it is served, before decoding */
 type FeatureIndexDocument = {
@@ -69,7 +94,16 @@ type FeatureIndexDocument = {
   ids?: unknown[];
   layerIndex?: number[];
   bbox?: number[];
+  properties?: Record<string, FeatureIndexColumnDocument>;
 };
+
+/** the value of one property of one feature, as the predicate sees it */
+export type FeaturePropertyValue = string | number | boolean | null;
+
+/** one decoded property column; `values[i]` belongs to `ids[i]` */
+export type FeatureIndexColumn =
+  | { type: "boolean" | "number"; values: (number | null)[] }
+  | { type: "string"; values: (number | null)[]; dict: string[] };
 
 /** one layer's index, decoded into flat arrays that survive half a million rows */
 export type FeatureIndex = {
@@ -84,6 +118,8 @@ export type FeatureIndex = {
   originX: number;
   originY: number;
   count: number;
+  /** the property columns the pipeline was asked to write; usually none */
+  properties: Record<string, FeatureIndexColumn>;
   /** what the file weighed, for the load log */
   bytes: number;
 };
@@ -106,6 +142,8 @@ export type FeatureIndexStatus = {
   layerId: string;
   /** number of features the index holds, or `null` when there is no index */
   featureCount: number | null;
+  /** the property columns the index carries; empty when it carries none */
+  properties: string[];
 };
 
 export type NearestFromIndexResult = {
@@ -114,9 +152,21 @@ export type NearestFromIndexResult = {
   statuses: FeatureIndexStatus[];
 };
 
+/**
+ * Which features take part in the ranking at all. Called once per row with
+ * the row's decoded property columns, so it has to be cheap, and only the
+ * columns the pipeline was asked to write are in there: a property the index
+ * does not carry reads as `undefined`, and a feature with no value in a
+ * column it does carry reads as `null`.
+ */
+export type FeaturePredicate = (
+  properties: Record<string, FeaturePropertyValue | undefined>
+) => boolean;
+
 export type StackedSourceFilter = {
   carmaLayerIds?: string[];
   sourceLayers?: string[];
+  where?: FeaturePredicate;
 };
 
 export type NearestFromIndexOptions = {
@@ -150,6 +200,89 @@ const DEFAULT_COUNT = 5;
 const isNumberArray = (value: unknown): value is number[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "number");
 
+const isNullableNumberArray = (value: unknown): value is (number | null)[] =>
+  Array.isArray(value) &&
+  value.every((entry) => entry === null || typeof entry === "number");
+
+/**
+ * One column, or `null` when it is not of the documented shape or not as long
+ * as `ids`: a column that cannot be trusted row for row is worse than none,
+ * because a predicate would silently read the wrong feature's value.
+ */
+const decodeColumn = (
+  column: FeatureIndexColumnDocument,
+  count: number
+): FeatureIndexColumn | null => {
+  const { type, values } = column;
+  if (!isNullableNumberArray(values) || values.length !== count) {
+    return null;
+  }
+  if (type === "boolean" || type === "number") {
+    return { type, values };
+  }
+  if (type === "string" && Array.isArray(column.dict)) {
+    return { type, values, dict: column.dict.map(String) };
+  }
+  return null;
+};
+
+const decodeColumns = (
+  properties: FeatureIndexDocument["properties"],
+  count: number,
+  url: string
+): Record<string, FeatureIndexColumn> => {
+  const columns: Record<string, FeatureIndexColumn> = {};
+  if (!properties || typeof properties !== "object") {
+    return columns;
+  }
+  for (const [name, column] of Object.entries(properties)) {
+    const decoded = column ? decodeColumn(column, count) : null;
+    if (decoded) {
+      columns[name] = decoded;
+    } else {
+      console.warn(
+        `[NEAREST FEATURE INDEX] ${url}: property column "${name}" is malformed, ignoring it`
+      );
+    }
+  }
+  return columns;
+};
+
+/** the value of one column for one row, decoded back into what the pipeline read */
+const columnValue = (
+  column: FeatureIndexColumn,
+  row: number
+): FeaturePropertyValue => {
+  const stored = column.values[row];
+  if (stored == null) {
+    return null;
+  }
+  switch (column.type) {
+    case "boolean":
+      return stored !== 0;
+    case "number":
+      return stored;
+    case "string":
+      return column.dict[stored] ?? null;
+  }
+};
+
+/**
+ * The properties of one row, as a plain object for a predicate. Built only
+ * when a predicate is there to read it: at half a million rows an object per
+ * row is what a ranking without a filter must not pay for.
+ */
+const propertiesAt = (
+  index: FeatureIndex,
+  row: number
+): Record<string, FeaturePropertyValue> => {
+  const properties: Record<string, FeaturePropertyValue> = {};
+  for (const name in index.properties) {
+    properties[name] = columnValue(index.properties[name], row);
+  }
+  return properties;
+};
+
 /**
  * Decode the served document into flat arrays. Typed arrays for the two big
  * columns: at ALKIS scale `bbox` is two million numbers, and an `Int32Array`
@@ -161,7 +294,8 @@ const isNumberArray = (value: unknown): value is number[] =>
  */
 const decodeIndex = (
   document: FeatureIndexDocument,
-  bytes: number
+  bytes: number,
+  url: string
 ): FeatureIndex | null => {
   if (document?.version !== 1) {
     return null;
@@ -191,6 +325,7 @@ const decodeIndex = (
     originX: origin?.[0] ?? 0,
     originY: origin?.[1] ?? 0,
     count,
+    properties: decodeColumns(document.properties, count, url),
     bytes,
   };
 };
@@ -222,12 +357,14 @@ const fetchFeatureIndex = (url: string): Promise<FeatureIndex | null> => {
       } catch {
         return null;
       }
-      const index = decodeIndex(document, body.length);
+      const index = decodeIndex(document, body.length, url);
       if (index) {
+        const columns = Object.keys(index.properties);
         console.debug(
           `[NEAREST FEATURE INDEX] ${url}: ${index.count} features, ` +
             `${(index.bytes / 1024).toFixed(0)} KB, layers ` +
-            index.layers.join(", ")
+            index.layers.join(", ") +
+            (columns.length > 0 ? `, properties ${columns.join(", ")}` : "")
         );
       }
       return index;
@@ -338,11 +475,17 @@ const rankIndex = (
   // empty means "every source-layer the tileset has"; a caller's own list wins
   // over the style's, which is how one source-layer of a tileset is ranked
   const wanted = filter?.sourceLayers ?? source.sourceLayers;
+  const where = filter?.where;
   const ranked: IndexedFeatureEntry[] = [];
 
   for (let i = 0; i < index.count; i++) {
     const sourceLayer = layers[layerIndex[i]] ?? "";
     if (wanted.length > 0 && !wanted.includes(sourceLayer)) {
+      continue;
+    }
+    // filtered before the cut, so the top `count` is the top `count` of what
+    // passes and not a shortlist the filter then thins out
+    if (where && !where(propertiesAt(index, i))) {
       continue;
     }
     const offset = i * 4;
@@ -426,6 +569,7 @@ export const collectNearestFromIndex = async (
           sourceId: source.sourceId,
           layerId: source.catalogLayerId,
           featureCount: index?.count ?? null,
+          properties: index ? Object.keys(index.properties) : [],
         },
         entries: index ? rankIndex(index, source, lng, lat, count, filter) : [],
       };

@@ -20,7 +20,7 @@ import {
  */
 
 const BAHNHOEFE: NearestFeatureCategory = {
-  key: "bahnhoefe",
+  id: "bahnhoefe",
   label: "Bahnhöfe",
   icon: faTrain,
   layerId: "wuppPOI:poi_bahnhoefe",
@@ -31,7 +31,7 @@ const BAHNHOEFE: NearestFeatureCategory = {
   detailProperties: ["strasse", "Strasse", "adresse", "Adresse", "info"],
 };
 
-/** everything but the key, so a route may point it at another layer or rename it */
+/** any part of the definition, so a route may rename it, filter it or declare a variant */
 export type NearestFeatureBahnhoefeConfig = NearestFeatureCategoryConfig;
 
 export const NearestFeatureBahnhoefe = ({
