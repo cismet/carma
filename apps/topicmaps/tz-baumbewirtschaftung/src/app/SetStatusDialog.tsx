@@ -285,7 +285,7 @@ const SetStatusDialog = ({
           {isConfirm && attributeset.illustration && (
             // Keeps clear of the modal's close button (top right corner).
             <img
-              src={attributeset.illustration}
+              src={import.meta.env.BASE_URL + attributeset.illustration}
               alt=""
               style={{
                 height: 96,

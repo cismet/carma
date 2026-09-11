@@ -37,7 +37,11 @@ export type AttributesetConfig = {
   confirmLabel?: string;
   /** Extra vector layers shown to "*" users (Auftraggeber) only. */
   adminOverlays?: VectorOverlay[];
-  /** Picture shown top right in the "confirm" dialog (path under public/). */
+  /**
+   * Picture shown top right in the "confirm" dialog: a path under public/,
+   * relative to the app base (no leading slash, the app may be deployed
+   * under a sub path).
+   */
   illustration?: string;
   /**
    * Infobox line "<label>: <date>" with the newest `done` action of this
@@ -86,7 +90,7 @@ export const ATTRIBUTESETS: Record<string, AttributesetConfig> = {
       exception: "Ausnahme bei der Bewässerung",
     },
     confirmLabel: "Bewässerung bestätigen",
-    illustration: "/images/irrigation.png",
+    illustration: "images/irrigation.png",
     lastActionLabel: "Zuletzt bewässert",
     adminOverlays: [
       {
