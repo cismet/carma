@@ -42,7 +42,7 @@ import {
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
-import { AddonHost } from "@carma-mapping/addons";
+import { AddonHost, useAddonState } from "@carma-mapping/addons";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -135,6 +135,10 @@ const MapWrapper = () => {
     "ontouchstart" in window;
 
   const showLibreMap = useLibreMapEnabled();
+  // The map-frame loading bar reports terrain and shadow work, so it only
+  // belongs on screen while the shadow simulation is switched on.
+  const [shadowSimulationState] = useAddonState("shadowSimulation");
+  const showLoadingProgress = shadowSimulationState?.enabled ?? false;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -576,7 +580,7 @@ const MapWrapper = () => {
           }}
         >
           <GeoportalMap height={height} width={width} allow3d={allow3d} />
-          {showLibreMap && !isCesium && (
+          {showLibreMap && !isCesium && showLoadingProgress && (
             <MapLoadingProgress
               navbarVisible={!zenMode && visibleControls.navbar}
             />
