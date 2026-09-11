@@ -3,9 +3,9 @@ import localforage from "localforage";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { backgroundConfWithFastOrtho2024 } from "@carma-appframeworks/portals";
+import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 
 import "bootstrap/dist/css/bootstrap.min.css";
-import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "../styles.css";
@@ -107,16 +107,18 @@ const App = () => {
           />
         )}
         <TitleControl user={user} onLogout={logout} connectionError={connectionError} />
-        <Map
-          jwt={auth.jwt}
-          user={user}
-          onAuthError={() => {
-            logout();
-            setLoginInfo({ color: "#F9D423", text: "Bitte melden Sie sich erneut an." });
-            setTimeout(() => setLoginInfo(undefined), 2500);
-          }}
-          onConnectionError={setConnectionError}
-        />
+        <LibreContextProvider>
+          <Map
+            jwt={auth.jwt}
+            user={user}
+            onAuthError={() => {
+              logout();
+              setLoginInfo({ color: "#F9D423", text: "Bitte melden Sie sich erneut an." });
+              setTimeout(() => setLoginInfo(undefined), 2500);
+            }}
+            onConnectionError={setConnectionError}
+          />
+        </LibreContextProvider>
       </TopicMapContextProvider>
     </DisplayOptionsProvider>
   );

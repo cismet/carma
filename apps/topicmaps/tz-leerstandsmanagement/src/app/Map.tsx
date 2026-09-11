@@ -1,38 +1,24 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useEffect, useContext, useMemo, useState } from "react";
 import { message } from "antd";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import CismapLayer from "react-cismap/CismapLayer";
+import type maplibregl from "maplibre-gl";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import {
-  FeatureInfobox,
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { FeatureInfobox } from "@carma-appframeworks/portals";
+import { CarmaMap } from "@carma-mapping/core";
+import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import {
   defaultTypeInference,
-  EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import {
-  FullscreenControl,
-  RoutedMapLocateControl,
-  ZoomControl,
-} from "@carma-mapping/components";
-import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import versionData from "../version.json";
+import { APP_CONFIG } from "../config/appConfig";
 import { Menu } from "./Menu";
 import SecondaryInfoModal from "./Modal";
 import { LeerstandForm, type PlacedPoint } from "./LeerstandForm";
 import { useDisplayOptions } from "./DisplayOptionsContext";
-import {
-  ALKIS_SOURCE,
-  LEERSTAND_SOURCE,
-  useLeerstandStyle,
-} from "./hooks/useLeerstandStyle";
+import { LEERSTAND_SOURCE, useLeerstandStyle } from "./hooks/useLeerstandStyle";
 import {
   buildingInfoFromProperties,
   createBuildingInfoBoxControlObject,
@@ -59,8 +45,8 @@ const AlkisModal = additionalInfoFactory("alkisSIM");
 
 /**
  * Datasheet by what was tapped: the ALKIS datasheet for a building, the
- * Leerstand datasheet for a stored point. react-cismap writes the source
- * layer of a hit into properties.carmaInfo.
+ * Leerstand datasheet for a stored point. LibreMap stamps the source layer
+ * of a hit into properties.carmaInfo.
  */
 const InfoModal = (props: any) => {
   const sourceLayer = props.feature?.properties?.carmaInfo?.sourceLayer;
@@ -76,18 +62,21 @@ const HAUSNUMMERN_WMS = {
   layers: "R102%3Astadtgrundkarte_hausnr",
 };
 
-// Shape of what react-cismap hands to onSelectionChanged: a MapLibre feature
-// plus the click position.
+/** name of the vector layer; the merged style prefixes source and layer ids with it */
+const LEERSTAND_LAYER_NAME = "leerstand";
+
+const GLYPHS_URL = "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf";
+
+// What LibreMap hands to onSelectionChanged: the filtered click hits (top
+// first) and the click position. Fires on empty ground too, with hit undefined.
 interface SelectionEvent {
-  hit?: {
-    id?: number | string;
-    source?: string;
-    properties: Record<string, unknown>;
-    geometry?: unknown;
-    text?: string;
-  };
-  latlng: { lat: number; lng: number };
+  hits: maplibregl.MapGeoJSONFeature[];
+  hit: maplibregl.MapGeoJSONFeature | undefined;
+  latlng: maplibregl.LngLat;
 }
+
+/** the hit as the info box wants it: control object under properties.info */
+type InfoboxFeature = maplibregl.MapGeoJSONFeature & { text?: string };
 
 export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as {
@@ -96,17 +85,16 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   ) as { responsiveState: string; gap: number; windowSize: { width: number } };
-  useSelectionTopicMap();
   const { showHausnummern } = useDisplayOptions();
 
   const [lookups, setLookups] = useState<Lookups>();
   const [featureCollection, setFeatureCollection] =
     useState<LeerstandFeatureCollection>();
-  const [selectedFeature, setSelectedFeature] = useState<unknown>();
-  const [maplibreMap, setMaplibreMap] = useState<any>(null);
+  const [selectedFeature, setSelectedFeature] = useState<InfoboxFeature>();
+  const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [dialogPoint, setDialogPoint] = useState<PlacedPoint>();
 
-  const style = useLeerstandStyle(markerSymbolSize);
+  const style = useLeerstandStyle(markerSymbolSize, featureCollection);
 
   const handleError = useCallback(
     (e: unknown) => {
@@ -161,21 +149,39 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jwt]);
 
-  // Push the feature collection into the MapLibre source, as tzb does for its
-  // trees: CismapLayer does not react to data changes by itself.
-  useEffect(() => {
-    if (!maplibreMap || !featureCollection || !maplibreMap.style) return;
-    const source = maplibreMap.getSource(LEERSTAND_SOURCE);
-    if (source) source.setData(featureCollection);
-  }, [maplibreMap, featureCollection]);
+  // Layer stack of the map, bottom first: house numbers (optional), then the
+  // ALKIS buildings and the Leerstand points as one inline vector style.
+  const libreLayers = useMemo<LibreLayer[]>(() => {
+    const layers: LibreLayer[] = [];
+    if (showHausnummern) {
+      layers.push({
+        type: "wms",
+        url: HAUSNUMMERN_WMS.url,
+        layers: HAUSNUMMERN_WMS.layers,
+        format: "image/png",
+        transparent: true,
+        carmaLayerId: "hausnummern",
+      });
+    }
+    if (jwt) {
+      layers.push({
+        type: "vector",
+        name: LEERSTAND_LAYER_NAME,
+        style,
+        carmaLayerId: LEERSTAND_LAYER_NAME,
+      });
+    }
+    return layers;
+  }, [showHausnummern, jwt, style]);
 
   const onSelectionChanged = (e: SelectionEvent) => {
-    const feature = e.hit;
+    const feature = e.hit as InfoboxFeature | undefined;
     if (!feature) {
       setSelectedFeature(undefined);
       return;
     }
-    if (feature.source === LEERSTAND_SOURCE) {
+    // the merged style namespaces the source id as "<layer name>::<source>"
+    if (feature.source.endsWith(`::${LEERSTAND_SOURCE}`)) {
       const properties = parseLeerstandProperties(feature.properties);
       const info = createLeerstandInfoBoxControlObject(properties);
       feature.properties.info = info;
@@ -183,15 +189,13 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
       setSelectedFeature(feature);
       return;
     }
-    if (feature.source === ALKIS_SOURCE) {
+    if (feature.sourceLayer === "building") {
       const building = buildingInfoFromProperties(feature.properties);
       if (!building) {
         setSelectedFeature(undefined);
         return;
       }
       const lngLat: LngLat = [e.latlng.lng, e.latlng.lat];
-      // Only the state setter may be used here: react-cismap registers the
-      // click handler once, so this closure never sees later renders.
       const info = createBuildingInfoBoxControlObject(building, () => {
         setDialogPoint({ lngLat, utm: lngLatToUtm(lngLat), building });
       });
@@ -207,23 +211,17 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
   };
 
   return (
-    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+    <>
       <SandboxedEvalProvider>
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
-            />
-          </Control>
-          <Control position="bottomleft" order={10}>
+        <CarmaMap
+          appKey={APP_CONFIG.appKey}
+          mapEngine="maplibre"
+          overrideGlyphs={GLYPHS_URL}
+          libreLayers={libreLayers}
+          setLibreMap={setLibreMap}
+          modalMenu={<Menu />}
+          applicationMenuTooltipString="Einstellungen"
+          gazetteerSearchComponent={
             <div style={{ marginTop: "4px" }}>
               <LibFuzzySearch
                 pixelwidth={
@@ -234,56 +232,24 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
                 typeInference={defaultTypeInference}
               />
             </div>
-          </Control>
-          <TopicMapComponent
-            modalMenu={<Menu />}
-            gazetteerSearchControl={true}
-            gazetteerSearchComponent={EmptySearchComponent}
-            applicationMenuTooltipString="Einstellungen"
-            locatorControl={false}
-            fullScreenControl={false}
-            zoomControls={false}
-            infoBox={
-              <FeatureInfobox
-                collapsible={responsiveState !== "small"}
-                selectedFeature={selectedFeature}
-                versionData={versionData}
-                bigMobileIconsInsteadOfCollapsing={true}
-                Modal={InfoModal}
-              />
-            }
-            contactButtonEnabled={false}
-          >
-            <TopicMapSelectionContent />
-            {showHausnummern && (
-              <CismapLayer
-                key="hausnummern"
-                type="wms"
-                url={HAUSNUMMERN_WMS.url}
-                layers={HAUSNUMMERN_WMS.layers}
-                transparent="true"
-                format="image/png"
-                pane="oneAboveBackgroundLayers"
-                opacity={1}
-              />
-            )}
-            {jwt && (
-              <CismapLayer
-                key={`leerstand-layer-${markerSymbolSize}`}
-                pane="additionalLayers0"
-                selectionEnabled={true}
-                manualSelectionManagement={false}
-                logMapLibreErrors={true}
-                onSelectionChanged={onSelectionChanged}
-                style={style}
-                type="vector"
-                onMapLibreCoreMapReady={(map: unknown) => {
-                  setMaplibreMap(map);
-                }}
-              />
-            )}
-          </TopicMapComponent>
-        </ControlLayout>
+          }
+          terrainControl={false}
+          contactButtonEnabled={false}
+          selectionEnabled={true}
+          disableInternalSelection={true}
+          gazetteerInfoOnClick={false}
+          onSelectionChanged={onSelectionChanged}
+          extraControls={
+            <FeatureInfobox
+              collapsible={responsiveState !== "small"}
+              selectedFeature={selectedFeature}
+              versionData={versionData}
+              bigMobileIconsInsteadOfCollapsing={true}
+              Modal={InfoModal}
+              libreMap={libreMap ?? undefined}
+            />
+          }
+        />
       </SandboxedEvalProvider>
 
       {jwt && user && dialogPoint && lookups && (
@@ -301,6 +267,6 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
           }}
         />
       )}
-    </div>
+    </>
   );
 };

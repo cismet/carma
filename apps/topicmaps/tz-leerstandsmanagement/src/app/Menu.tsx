@@ -3,6 +3,7 @@ import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPan
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { Form } from "react-bootstrap";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
 import versionData from "../version.json";
 import { useDisplayOptions } from "./DisplayOptionsContext";
 
@@ -43,6 +44,7 @@ export const Menu = () => {
             key="settings"
             skipClusteringSettings={true}
             getSymbolSVG={previewSVG}
+            overridingMapPreview={<PreviewLibreMap />}
             sparseSettingsSectionsExtensions={[
               <Form key="display-options">
                 <label

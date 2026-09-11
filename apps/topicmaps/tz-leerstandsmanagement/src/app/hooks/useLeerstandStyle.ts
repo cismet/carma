@@ -1,20 +1,57 @@
 import { useMemo } from "react";
+import type { ExpressionSpecification, StyleSpecification } from "maplibre-gl";
+import type { LeerstandFeatureCollection } from "../helper/leerstandApi";
 
 /** vector tile source with the ALKIS buildings (source layer `building`) */
 export const ALKIS_SOURCE = "alkis_data";
 /** GeoJSON source that receives the Leerstand points via `setData` */
 export const LEERSTAND_SOURCE = "leerstaende";
 
-const EMPTY_FEATURE_COLLECTION = { type: "FeatureCollection", features: [] };
+const EMPTY_FEATURE_COLLECTION: LeerstandFeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+/** zoom-dependent point radius, scaled by the symbol size setting (35 = unscaled) */
+const circleRadius = (markerSymbolSize: number): ExpressionSpecification => [
+  "interpolate",
+  ["exponential", 1.75],
+  ["zoom"],
+  0,
+  (3 * markerSymbolSize) / 35,
+  16,
+  (10 * markerSymbolSize) / 35,
+  22,
+  (26 * markerSymbolSize) / 35,
+];
+
+const circleStrokeWidth = (
+  markerSymbolSize: number
+): ExpressionSpecification => [
+  "interpolate",
+  ["exponential", 1.75],
+  ["zoom"],
+  0,
+  (0.1 * markerSymbolSize) / 35,
+  16,
+  (4 * markerSymbolSize) / 35,
+  22,
+  (10 * markerSymbolSize) / 35,
+];
 
 /**
  * Style for the single vector layer of the map, modelled on the tree style of
  * tz-baumbewirtschaftung: layers whose id contains "selection" are painted
- * through the `selected` feature state that react-cismap sets on a hit.
- * The building layers copy the ALKIS style at tiles.cismet.de/alkis.
+ * through the `selected` feature state that LibreMap sets on a hit.
+ * The building layers copy the ALKIS style at tiles.cismet.de/alkis. The
+ * Leerstand points travel inline in the geojson source, so every reload of
+ * the feature collection yields a new style and LibreMap re-merges it.
  */
-export const useLeerstandStyle = (markerSymbolSize: number) =>
-  useMemo(
+export const useLeerstandStyle = (
+  markerSymbolSize: number,
+  leerstaende?: LeerstandFeatureCollection
+): StyleSpecification =>
+  useMemo<StyleSpecification>(
     () => ({
       version: 8,
       sources: {
@@ -26,7 +63,7 @@ export const useLeerstandStyle = (markerSymbolSize: number) =>
         },
         [LEERSTAND_SOURCE]: {
           type: "geojson",
-          data: EMPTY_FEATURE_COLLECTION,
+          data: leerstaende ?? EMPTY_FEATURE_COLLECTION,
         },
       },
       layers: [
@@ -49,12 +86,7 @@ export const useLeerstandStyle = (markerSymbolSize: number) =>
           minzoom: 15,
           paint: {
             "line-color": "#000000",
-            "line-width": {
-              stops: [
-                [13, 0.05],
-                [21, 2],
-              ],
-            },
+            "line-width": ["interpolate", ["linear"], ["zoom"], 13, 0.05, 21, 2],
           },
         },
         {
@@ -81,24 +113,10 @@ export const useLeerstandStyle = (markerSymbolSize: number) =>
           minzoom: 0,
           maxzoom: 24,
           paint: {
-            "circle-radius": {
-              base: 1.75,
-              stops: [
-                [0, (3 * markerSymbolSize) / 35],
-                [16, (10 * markerSymbolSize) / 35],
-                [22, (26 * markerSymbolSize) / 35],
-              ],
-            },
+            "circle-radius": circleRadius(markerSymbolSize),
             "circle-color": "#c62828",
             "circle-stroke-color": "#7f0000",
-            "circle-stroke-width": {
-              base: 1.75,
-              stops: [
-                [0, (0.1 * markerSymbolSize) / 35],
-                [16, (4 * markerSymbolSize) / 35],
-                [22, (10 * markerSymbolSize) / 35],
-              ],
-            },
+            "circle-stroke-width": circleStrokeWidth(markerSymbolSize),
             "circle-opacity": 0.8,
             "circle-stroke-opacity": 1,
           },
@@ -110,24 +128,10 @@ export const useLeerstandStyle = (markerSymbolSize: number) =>
           minzoom: 0,
           maxzoom: 24,
           paint: {
-            "circle-radius": {
-              base: 1.75,
-              stops: [
-                [0, (3 * markerSymbolSize) / 35],
-                [16, (10 * markerSymbolSize) / 35],
-                [22, (26 * markerSymbolSize) / 35],
-              ],
-            },
+            "circle-radius": circleRadius(markerSymbolSize),
             "circle-color": "#3A7CEB",
             "circle-stroke-color": "#0D6759",
-            "circle-stroke-width": {
-              base: 1.75,
-              stops: [
-                [0, (0.1 * markerSymbolSize) / 35],
-                [16, (4 * markerSymbolSize) / 35],
-                [22, (10 * markerSymbolSize) / 35],
-              ],
-            },
+            "circle-stroke-width": circleStrokeWidth(markerSymbolSize),
             "circle-opacity": [
               "case",
               ["boolean", ["feature-state", "selected"], false],
@@ -144,5 +148,5 @@ export const useLeerstandStyle = (markerSymbolSize: number) =>
         },
       ],
     }),
-    [markerSymbolSize]
+    [markerSymbolSize, leerstaende]
   );
