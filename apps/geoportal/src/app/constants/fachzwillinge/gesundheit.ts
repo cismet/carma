@@ -41,6 +41,18 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
   description:
     "Beschreibung: Der Fachzwilling Gesundheit bündelt die Karteninhalte des Geoportals zu den Themen Gesundheitsversorgung, Umwelt- und Klimabelastung, Lärm sowie Sport und Erholung.",
   filters: [{ field: "id", values: gesundheitItemIds }],
+  addons: [
+    "nearestFeature",
+    {
+      addon: "nearestFeatureApotheken",
+      config: {
+        id: "apothekenNotdienst",
+        label: "Apotheken mit Notdienst",
+        where: ({ heute }) => heute === true,
+      },
+    },
+    "originSearch",
+  ],
   perspectives: [
     {
       id: "versorgung",
