@@ -20,6 +20,7 @@ import {
   type VehicleMode,
   type VehicleSchedule,
 } from "./fleet";
+import { createFleetLoop } from "./fleet-loop";
 import {
   structureSegments,
   type Segment3,
@@ -77,8 +78,12 @@ export type VehicleThreeLayerOptions = {
 
 const DEFAULT_ID = "vehicle-animation-3d";
 const METERS_PER_LAT = 111320;
-/** a tab that was in the background hands back a huge delta; ignore it */
-const MAX_FRAME_SECONDS = 0.25;
+/**
+ * How far beyond the track a vehicle can still be in view: it hangs a girder's
+ * height over the ground, and a tilted camera sees it from well past the
+ * ground point under it.
+ */
+const VIEW_PAD_METERS = 100;
 
 /** the painted steel of the Gerüst, and the rust of the bare rail on top */
 const STEEL_COLOR = new THREE.Color("#93ad98");
@@ -337,7 +342,6 @@ export const createVehicleThreeLayer = (
   let paused = false;
   let visible = true;
   let destroyed = false;
-  let lastTimestamp: number | null = null;
   /** whether a frame has set the camera yet; picking needs its matrix */
   let rendered = false;
 
@@ -669,19 +673,6 @@ export const createVehicleThreeLayer = (
     ) {
       if (destroyed || !renderer) return;
 
-      const now = performance.now();
-      const seconds =
-        lastTimestamp === null
-          ? 0
-          : Math.min((now - lastTimestamp) / 1000, MAX_FRAME_SECONDS);
-      lastTimestamp = now;
-      if (!paused) {
-        fleet.advance(seconds);
-        selection.tick();
-        placeCars();
-        reportFleet();
-      }
-
       const projection = new THREE.Matrix4().fromArray(
         args.defaultProjectionData.mainMatrix as unknown as number[]
       );
@@ -699,9 +690,31 @@ export const createVehicleThreeLayer = (
       renderer.resetState();
       renderer.render(scene, camera);
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
-
-      if (!paused) map.triggerRepaint();
     },
+  };
+
+  // The fleet moves on in the loop, not here: a layer that asked for the
+  // next frame from inside `render` would redraw the whole map sixty times a
+  // second, and end every one of those frames in an `idle` event.
+  const loop = createFleetLoop({
+    map,
+    track,
+    fleet,
+    padMeters: VIEW_PAD_METERS,
+    onAdvance: () => {
+      selection.tick();
+      reportFleet();
+    },
+    onDraw: () => {
+      placeCars();
+      map.triggerRepaint();
+    },
+  });
+
+  /** the loop runs while there is a fleet on the map that is not held */
+  const run = (): void => {
+    if (destroyed || paused || !visible) loop.stop();
+    else loop.start();
   };
 
   const attach = (): void => {
@@ -747,14 +760,14 @@ export const createVehicleThreeLayer = (
 
   attach();
   reportFleet();
+  run();
 
   return {
     setSpeed: fleet.setSpeed,
     setPaused: (next) => {
       if (paused === next) return;
       paused = next;
-      lastTimestamp = null;
-      if (!paused) map.triggerRepaint();
+      run();
     },
     setOpacity: (next) => {
       opacity = Math.max(0, Math.min(1, next));
@@ -769,12 +782,12 @@ export const createVehicleThreeLayer = (
     setVisible: (next) => {
       if (visible === next) return;
       visible = next;
-      lastTimestamp = null;
       if (visible) {
         attach();
       } else {
         detach();
       }
+      run();
       map.triggerRepaint();
     },
     getFleetSize: visibleCount,
@@ -791,6 +804,7 @@ export const createVehicleThreeLayer = (
     },
     destroy: () => {
       destroyed = true;
+      loop.destroy();
       map.off("styledata", onStyleData);
       map.off("terrain", onTerrain);
       detach();
