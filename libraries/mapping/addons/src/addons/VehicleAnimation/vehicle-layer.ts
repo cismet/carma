@@ -1,8 +1,4 @@
-import type {
-  ExpressionSpecification,
-  GeoJSONSource,
-  Map as MapLibreMap,
-} from "maplibre-gl";
+import type { ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
 
 import {
   createFleet,
@@ -12,23 +8,27 @@ import {
   type VehicleMode,
   type VehicleSchedule,
 } from "./fleet";
+import { createFleetLoop } from "./fleet-loop";
 import { structurePlanFeatures, type StructureAsset } from "./geruest";
-import { carParts, type CarShape, type Track } from "./track";
+import { carStrips, poseAt, type CarShape, type Track } from "./track";
+import { createFlatCarLayer, type FlatCar } from "./vehicle-flat-cars";
 
 export type { VehicleMode, VehicleSchedule } from "./fleet";
 
 /**
- * The moving fleet on the map: one GeoJSON source rewritten every frame, drawn
- * as body sections with the articulations between them, over the track and its
- * stations.
+ * The moving fleet on the flat map: body sections with the articulations
+ * between them, over the track and its stations, under the Gerüst.
  *
- * Plain MapLibre and nothing caged. A vehicle is a slice of the route's own
- * polyline widened to either side, so `setData` on a few dozen small rings is
- * cheap enough to do per frame and the body bends through curves the way the
- * real one does.
+ * A vehicle is a slice of the route's own polyline widened to either side, so
+ * the body bends through curves the way the real one does. The track, the
+ * stations and the Gerüst never move and are plain MapLibre layers. The
+ * vehicles are drawn by a custom layer in their place in the style
+ * (`vehicle-flat-cars.ts`): moving them through a GeoJSON source would cost a
+ * worker round trip and a reload of the source's tiles on every frame.
  *
- * The handle owns its animation frame. Nothing outside it reads the clock, so a
- * held fleet costs nothing and a destroyed one cannot leave a frame behind.
+ * The fleet runs on `fleet-loop.ts`, which asks the map for a frame only when
+ * a vehicle has visibly moved. Nothing outside the handle reads the clock, so
+ * a held fleet costs nothing and a destroyed one cannot leave a frame behind.
  */
 
 export type VehicleLayerOptions = {
@@ -102,8 +102,6 @@ export type VehicleLayerHandle = {
 };
 
 const DEFAULT_ID = "vehicle-animation";
-/** a tab that was in the background hands back a huge delta; ignore it */
-const MAX_FRAME_SECONDS = 0.25;
 
 /** the painted steel of the Gerüst, and the rust of the bare rail on top */
 const STEEL_COLOR = "#7fa48b";
@@ -136,11 +134,6 @@ const metersWide = (
   return ["interpolate", ["exponential", 2], ["zoom"], ...stops];
 };
 
-const emptyCollection: GeoJSON.FeatureCollection = {
-  type: "FeatureCollection",
-  features: [],
-};
-
 export const createVehicleLayer = (
   options: VehicleLayerOptions
 ): VehicleLayerHandle => {
@@ -164,13 +157,10 @@ export const createVehicleLayer = (
     onSelection,
   } = options;
 
-  const sourceId = `${id}-source`;
   const trackSourceId = `${id}-track-source`;
   const stationSourceId = `${id}-station-source`;
   const structureSourceId = `${id}-structure-source`;
-  const bodyId = id;
-  const jointId = `${id}-joints`;
-  const outlineId = `${id}-outline`;
+  const carsId = id;
   const trackId = `${id}-track`;
   const girderId = `${id}-girder`;
   const bracingId = `${id}-bracing`;
@@ -180,9 +170,7 @@ export const createVehicleLayer = (
   const stationLabelId = `${id}-station-labels`;
   /** every layer the fleet draws, for the ones that go on or off together */
   const allLayerIds = [
-    bodyId,
-    jointId,
-    outlineId,
+    carsId,
     trackId,
     girderId,
     bracingId,
@@ -200,8 +188,6 @@ export const createVehicleLayer = (
   let paused = false;
   let visible = true;
   let destroyed = false;
-  let frame: number | null = null;
-  let lastTimestamp: number | null = null;
 
   const fleet = createFleet({
     track,
@@ -227,21 +213,42 @@ export const createVehicleLayer = (
     onSelection?.(car)
   );
 
-  const carFeatures = (): GeoJSON.Feature[] => {
+  const flatCars = createFlatCarLayer({
+    id: carsId,
+    map,
+    origin: [track.points[0][0], track.points[0][1]],
+    colors: {
+      body: bodyColor,
+      joint: jointColor,
+      outline: outlineColor,
+      highlight: HIGHLIGHT_COLOR,
+      highlightOutline: HIGHLIGHT_OUTLINE_COLOR,
+    },
+    opacity,
+  });
+
+  /** the ground under a vehicle: the flat map has none, terrain does */
+  const elevationAt = (distance: number): number => {
+    const pose = poseAt(track, distance);
+    return map.queryTerrainElevation([pose.lon, pose.lat]) ?? 0;
+  };
+
+  /** lays the fleet out for the custom layer and asks the map for a frame */
+  const drawCars = (): void => {
     const selected = selection.get();
-    return fleet.cars.flatMap((car, index) =>
-      car.visible
-        ? carParts(track, car.distance, shape).map((part) => ({
-            type: "Feature" as const,
-            properties: {
-              part: part.kind,
-              car: index,
-              selected: index === selected,
-            },
-            geometry: { type: "Polygon" as const, coordinates: [part.ring] },
-          }))
-        : []
-    );
+    const hasTerrain = Boolean(map.getTerrain());
+    const cars: FlatCar[] = [];
+    fleet.cars.forEach((car, index) => {
+      if (!car.visible) return;
+      cars.push({
+        index,
+        strips: carStrips(track, car.distance, shape),
+        selected: index === selected,
+        elevation: hasTerrain ? elevationAt(car.distance) : 0,
+      });
+    });
+    flatCars.setCars(cars);
+    map.triggerRepaint();
   };
 
   const trackFeature = (): GeoJSON.Feature => ({
@@ -259,16 +266,6 @@ export const createVehicleLayer = (
       properties: { name: station.name },
       geometry: { type: "Point", coordinates: [station.lon, station.lat] },
     }));
-
-  const pushCars = (): void => {
-    const source = map.getSource(sourceId);
-    if (source && "setData" in source) {
-      (source as GeoJSONSource).setData({
-        type: "FeatureCollection",
-        features: carFeatures(),
-      });
-    }
-  };
 
   const attach = (): void => {
     if (destroyed || !map.getStyle()) return;
@@ -291,9 +288,6 @@ export const createVehicleLayer = (
         type: "geojson",
         data: { type: "FeatureCollection", features: stationFeatures() },
       });
-    }
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: "geojson", data: emptyCollection });
     }
 
     const insertBefore =
@@ -333,66 +327,11 @@ export const createVehicleLayer = (
         insertBefore
       );
     }
-    // the sections sit over the articulations, so a rounded cab end never
-    // shows the black band through the gap it leaves
-    if (!map.getLayer(jointId)) {
-      map.addLayer(
-        {
-          id: jointId,
-          type: "fill",
-          source: sourceId,
-          filter: ["==", ["get", "part"], "joint"],
-          paint: { "fill-color": jointColor, "fill-opacity": opacity },
-        },
-        insertBefore
-      );
-    }
-    if (!map.getLayer(bodyId)) {
-      map.addLayer(
-        {
-          id: bodyId,
-          type: "fill",
-          source: sourceId,
-          filter: ["==", ["get", "part"], "section"],
-          paint: {
-            "fill-color": [
-              "case",
-              ["boolean", ["get", "selected"], false],
-              HIGHLIGHT_COLOR,
-              bodyColor,
-            ],
-            "fill-opacity": opacity,
-          },
-        },
-        insertBefore
-      );
-    }
-    if (!map.getLayer(outlineId)) {
-      map.addLayer(
-        {
-          id: outlineId,
-          type: "line",
-          source: sourceId,
-          filter: ["==", ["get", "part"], "section"],
-          layout: { "line-join": "round" },
-          paint: {
-            "line-color": [
-              "case",
-              ["boolean", ["get", "selected"], false],
-              HIGHLIGHT_OUTLINE_COLOR,
-              outlineColor,
-            ],
-            "line-width": [
-              "case",
-              ["boolean", ["get", "selected"], false],
-              2,
-              1.2,
-            ],
-            "line-opacity": opacity,
-          },
-        },
-        insertBefore
-      );
+    // the vehicles: over the track and the station dots, under the Gerüst
+    // and the station names. A layer that comes back after a basemap swap
+    // still holds the last frame's vehicles.
+    if (!map.getLayer(carsId)) {
+      map.addLayer(flatCars.layer, insertBefore);
     }
     // The Gerüst goes over the vehicles: from above, the rail runs along the
     // roof of every car and the bracing crosses between the two rails. The
@@ -485,7 +424,6 @@ export const createVehicleLayer = (
       });
     }
 
-    pushCars();
     // a basemap swap rebuilds every layer with the style's own defaults, so a
     // fleet that was hidden has to be hidden again here
     applyVisibility();
@@ -513,55 +451,40 @@ export const createVehicleLayer = (
       supportId,
       bracingId,
       girderId,
-      outlineId,
-      bodyId,
-      jointId,
+      carsId,
       stationDotId,
       trackId,
     ]) {
       if (map.getLayer(layerId)) map.removeLayer(layerId);
     }
-    for (const source of [
-      sourceId,
-      trackSourceId,
-      stationSourceId,
-      structureSourceId,
-    ]) {
+    for (const source of [trackSourceId, stationSourceId, structureSourceId]) {
       if (map.getSource(source)) map.removeSource(source);
     }
   };
 
-  const tick = (timestamp: number): void => {
-    frame = null;
-    if (destroyed) return;
-    const seconds =
-      lastTimestamp === null
-        ? 0
-        : Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_SECONDS);
-    lastTimestamp = timestamp;
-    fleet.advance(seconds);
-    selection.tick();
-    pushCars();
-    reportFleet();
-    if (!paused) frame = requestAnimationFrame(tick);
-  };
+  const loop = createFleetLoop({
+    map,
+    track,
+    fleet,
+    padMeters: shape.lengthMeters,
+    onAdvance: () => {
+      selection.tick();
+      reportFleet();
+    },
+    onDraw: drawCars,
+  });
 
   const start = (): void => {
-    if (destroyed || paused || !visible || frame !== null) return;
-    lastTimestamp = null;
-    frame = requestAnimationFrame(tick);
-  };
-
-  const stop = (): void => {
-    if (frame !== null) cancelAnimationFrame(frame);
-    frame = null;
-    lastTimestamp = null;
+    if (destroyed || paused || !visible) return;
+    loop.start();
   };
 
   // a basemap swap throws every layer away, so it has to go back on afterwards
   const onStyleData = (): void => attach();
   map.on("styledata", onStyleData);
   attach();
+  // drawn once up front: a fleet that is paused right away still shows
+  drawCars();
   reportFleet();
   start();
 
@@ -570,15 +493,14 @@ export const createVehicleLayer = (
     setPaused: (next) => {
       if (paused === next) return;
       paused = next;
-      if (paused) stop();
+      if (paused) loop.stop();
       else start();
     },
     setOpacity: (next) => {
       opacity = Math.max(0, Math.min(1, next));
+      flatCars.setOpacity(opacity);
+      map.triggerRepaint();
       for (const [layerId, property, value] of [
-        [bodyId, "fill-opacity", opacity],
-        [jointId, "fill-opacity", opacity],
-        [outlineId, "line-opacity", opacity],
         [trackId, "line-opacity", 0.6 * opacity],
         [girderId, "line-opacity", 0.55 * opacity],
         [bracingId, "line-opacity", opacity],
@@ -603,30 +525,18 @@ export const createVehicleLayer = (
       if (visible) {
         start();
       } else {
-        stop();
+        loop.stop();
       }
     },
     getFleetSize: visibleCount,
     pickCarAt: (point) => {
-      if (!map.getStyle()) return null;
-      const layers = [bodyId, jointId].filter(
-        (layerId) => map.getLayer(layerId) !== undefined
-      );
-      if (layers.length === 0) return null;
-      const hit = map
-        .queryRenderedFeatures([point.x, point.y], { layers })
-        .find(
-          (feature) =>
-            typeof (feature.properties as Record<string, unknown>).car ===
-            "number"
-        );
-      return hit
-        ? ((hit.properties as Record<string, unknown>).car as number)
-        : null;
+      if (!visible || !map.getLayer(carsId)) return null;
+      const at = map.unproject([point.x, point.y]);
+      return flatCars.pick(at.lng, at.lat);
     },
     selectCar: (index) => {
       selection.set(index);
-      pushCars();
+      drawCars();
     },
     getSelectedCar: selection.get,
     pickNearestCar: (lon, lat) => {
@@ -635,9 +545,10 @@ export const createVehicleLayer = (
     },
     destroy: () => {
       destroyed = true;
-      stop();
+      loop.destroy();
       map.off("styledata", onStyleData);
       detach();
+      flatCars.dispose();
     },
   };
 };

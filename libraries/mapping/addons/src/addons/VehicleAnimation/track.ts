@@ -422,7 +422,9 @@ const subPolyline = (
 };
 
 /**
- * A closed ring around a local polyline, `halfWidth(s)` meters to either side.
+ * The two edges of a band around a local polyline, `halfWidth(s)` meters to
+ * either side, in lon/lat and pairwise across: `left[i]` faces `right[i]`.
+ * Null when fewer than two points carry a direction.
  *
  * The normal at a vertex is taken from its two neighbours together, so the band
  * stays the same width through a curve instead of pinching on the inside of it.
@@ -432,7 +434,7 @@ const ribbon = (
   halfWidth: (s: number) => number,
   origin: TrackPose,
   metersPerLonScale: number
-): [number, number][] => {
+): { left: [number, number][]; right: [number, number][] } | null => {
   const left: [number, number][] = [];
   const right: [number, number][] = [];
 
@@ -459,8 +461,8 @@ const ribbon = (
     right.push(toLonLat(point.x + ty * width, point.y - tx * width));
   }
 
-  if (left.length < 2) return [];
-  return [...left, ...right.reverse(), left[0]];
+  if (left.length < 2) return null;
+  return { left, right };
 };
 
 /**
@@ -510,18 +512,42 @@ export type CarPart = {
 };
 
 /**
+ * A piece of a vehicle as the band it is: its two long edges in lon/lat,
+ * pairwise across, so a renderer can lay triangles between them without
+ * taking a ring apart again.
+ */
+export type CarStrip = {
+  kind: CarPart["kind"];
+  left: [number, number][];
+  right: [number, number][];
+};
+
+/**
  * The pieces of one vehicle centred at `distance` along the track, as rings in
  * lon/lat.
- *
- * The body follows the track rather than sitting on it as a straight box, so a
- * vehicle in a curve bends the way the real one does. That is the whole reason
- * the shape is built from a slice of the polyline instead of from four corners.
  */
 export const carParts = (
   track: Track,
   distance: number,
   shape: CarShape
-): CarPart[] => {
+): CarPart[] =>
+  carStrips(track, distance, shape).map(({ kind, left, right }) => ({
+    kind,
+    ring: [...left, ...[...right].reverse(), left[0]],
+  }));
+
+/**
+ * The pieces of one vehicle centred at `distance` along the track, as strips.
+ *
+ * The body follows the track rather than sitting on it as a straight box, so a
+ * vehicle in a curve bends the way the real one does. That is the whole reason
+ * the shape is built from a slice of the polyline instead of from four corners.
+ */
+export const carStrips = (
+  track: Track,
+  distance: number,
+  shape: CarShape
+): CarStrip[] => {
   const { lengthMeters, widthMeters, jointMeters } = shape;
   const shares =
     shape.sectionShares.length > 0 ? shape.sectionShares : ([1] as const);
@@ -549,7 +575,7 @@ export const carParts = (
   const bodyLength = Math.max(0, lengthMeters - jointCount * jointMeters);
   const shareSum = shares.reduce((sum, share) => sum + share, 0) || 1;
 
-  const parts: CarPart[] = [];
+  const strips: CarStrip[] = [];
   let cursor = 0;
   for (let index = 0; index < shares.length; index++) {
     const kinds: { kind: CarPart["kind"]; length: number }[] = [
@@ -559,15 +585,15 @@ export const carParts = (
         : []),
     ];
     for (const { kind, length } of kinds) {
-      const ring = ribbon(
+      const band = ribbon(
         subPolyline(points, cursor, cursor + length, OUTLINE_STEP_METERS),
         halfWidth,
         origin,
         track.metersPerLon
       );
-      if (ring.length > 3) parts.push({ kind, ring });
+      if (band) strips.push({ kind, ...band });
       cursor += length;
     }
   }
-  return parts;
+  return strips;
 };
