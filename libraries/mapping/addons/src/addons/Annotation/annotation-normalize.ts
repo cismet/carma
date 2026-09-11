@@ -27,6 +27,7 @@ import {
   sameHeadProxy,
 } from "./annotation-arrowhead";
 import type { SceneRect } from "./annotation-clip";
+import { fitBoundText } from "./annotation-text-fit";
 import { planeLog } from "./annotation-plane-active";
 import { planeSceneRect } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
@@ -138,6 +139,12 @@ type Birth = {
 
 type Pen = { stroke: PenSlot; font: PenSlot; roughness: PenSlot };
 
+/**
+ * A font size the user has just picked in the style panel, and the elements
+ * excalidraw handed it to. Only the pen can report it — see `fontPickRef`.
+ */
+type FontPick = { px: number; ids: Set<string> };
+
 const emptySlot = (): PenSlot => ({ px: null, written: [] });
 
 const isPreset = (value: number, presets: number[]) =>
@@ -201,9 +208,10 @@ const freeze = (
  * The one thing rewritten is a size the user just picked in the style panel.
  * The panel deals in pixels — 20 is "M" on screen, whatever the map is showing
  * — so such a value is divided by the scale once and is scene units from then
- * on. It is recognisable the same way the pen's values are: only the panel
- * hands out a preset, and only a value that is not the one we last saw on the
- * element can have come from the user at all.
+ * on. A pick is known from the pen, which excalidraw writes in the same action
+ * — see `fontPickRef` — and, where the pen could not be read, from the value
+ * itself: only the panel hands out a preset, and only a value that is not the
+ * one we last saw on the element can have come from the user at all.
  *
  * `at` is the size we last saw on the element, in whatever units the scene is
  * in at the time. `px` is the size that was picked, which is the style itself:
@@ -217,8 +225,16 @@ const grounded = (
   scale: number,
   factor: number,
   /** the pixel size this element was born with, for an unstamped copy */
-  birth: number | null
+  birth: number | null,
+  /** a size just picked in the panel, as the pen reported it */
+  pick: number | null
 ): Frozen => {
+  // A pick the pen reported, which is the one thing the element cannot always
+  // say for itself: what it carries is scene units, so a pick that lands on
+  // the number already there leaves nothing behind to read
+  if (pick !== null) {
+    return { px: pick, at: pick / scale };
+  }
   const previous = storedFrozen(stored);
   // the size we last saw, in the units it is now read in: the element has not
   // been touched, or has been touched by nothing but our own rebase. The size
@@ -242,6 +258,11 @@ const grounded = (
 
 type TextElement = ExcalidrawElement & {
   fontSize: number;
+  fontFamily: number;
+  lineHeight: number;
+  text: string;
+  originalText: string;
+  verticalAlign: "top" | "middle" | "bottom";
   textAlign: "left" | "center" | "right";
   /**
    * Where the glyphs sit in the box: excalidraw draws a line at `height -
@@ -416,6 +437,52 @@ const rebased = (element: ExcalidrawElement, factor: number): Patch => {
   return patch;
 };
 
+/**
+ * A text rewritten for a font size it was not measured at.
+ *
+ * The measured box goes with the glyphs: both are the same font at another
+ * size, so the box they were measured into is that box times the ratio. A text
+ * bound to a container is the exception — its box is not its own, it is the
+ * wrapping excalidraw did inside the shape, and that has to be laid out again
+ * rather than scaled, see `refitted`.
+ *
+ * `factor` is the rebase happening in the same pass, which the numbers read
+ * off the element are still in.
+ */
+const glyphs = (
+  text: TextElement,
+  font: Frozen,
+  /** the size the element carries, in the units it is about to be in */
+  current: number,
+  factor: number
+): Record<string, number> => {
+  const ratio = font.at / current;
+  const patch: Record<string, number> = {
+    fontSize: font.at,
+    baseline: text.baseline * factor * ratio,
+  };
+  if (text.containerId) {
+    return patch;
+  }
+  const width = text.width * factor;
+  const height = text.height * factor;
+  patch.width = width * ratio;
+  patch.height = height * ratio;
+  // A resized text is held the way excalidraw holds one, in
+  // `offsetElementAfterFontResize`: the vertical middle stays put and the
+  // horizontal edge the text is aligned to does. The style panel has just done
+  // this for the size it set, and this pass sets another one on top of it —
+  // leaving the box where it is instead would walk the text up the map a step
+  // per click.
+  patch.y = text.y * factor + (height - patch.height) / 2;
+  if (text.textAlign !== "left") {
+    patch.x =
+      text.x * factor +
+      (width - patch.width) / (text.textAlign === "center" ? 2 : 1);
+  }
+  return patch;
+};
+
 /** the element's decoration rewritten for this scale, or null when it fits */
 const rescaled = (
   element: ExcalidrawElement,
@@ -425,19 +492,43 @@ const rescaled = (
   /** scene units per old unit when the anchor moves in the same pass, else 1 */
   factor: number,
   /** the sizes this element was born with, where it carries no stamp */
-  birth: Birth | null
+  birth: Birth | null,
+  /** a font size just picked in the panel for this element, if there is one */
+  pick: number | null
 ): Patch | null => {
   // an image is left exactly as it is, in both its size and its frame
   if (element.type === "image") {
     return null;
   }
-  // the element under the hand: rewriting it takes the text editor apart
-  // around the caret, and moves a shape out from under the pointer
-  if (busy.has(element.id)) {
-    return null;
-  }
 
   const data = (element.customData ?? {}) as Record<string, unknown>;
+
+  // The element under the hand: rewriting it takes the text editor apart
+  // around the caret, and moves a shape out from under the pointer. A size
+  // picked in the panel while the editor is open is the one exception. Left
+  // out, the pixel size is never read off it: the glyphs keep a pixel number
+  // that is drawn as scene units, and the panel — which is marked from what
+  // this pass writes, see `annotation-style-marks` — goes on marking the size
+  // the text had before the edit for as long as the editor is open. Only the
+  // glyphs are touched, so the box excalidraw lays the editor out from is left
+  // exactly where it is.
+  if (busy.has(element.id)) {
+    if (pick === null || element.type !== "text") {
+      return null;
+    }
+    const text = element as TextElement;
+    const font: Frozen = { px: pick, at: pick / scale };
+    const rewrite =
+      Math.abs(text.fontSize - font.at) > EPSILON && text.fontSize > EPSILON;
+    if (!rewrite && !changed(font, data.fontNorm)) {
+      return null;
+    }
+    return {
+      ...(rewrite ? glyphs(text, font, text.fontSize, 1) : {}),
+      customData: { ...data, fontNorm: font },
+    };
+  }
+
   const patch: Record<string, number> = {};
   const customData: Record<string, unknown> = { ...data };
   let dirty = false;
@@ -480,34 +571,13 @@ const rescaled = (
       data.fontNorm,
       scale,
       factor,
-      birth?.font ?? null
+      birth?.font ?? null,
+      pick
     );
     customData.fontNorm = font;
     dirty = dirty || changed(font, data.fontNorm);
     if (Math.abs(current - font.at) > EPSILON && current > EPSILON) {
-      const ratio = font.at / current;
-      patch.fontSize = font.at;
-      patch.baseline = text.baseline * factor * ratio;
-      // the measured box goes with the glyphs. A text bound to a container is
-      // laid out by excalidraw itself, so its box is left alone
-      if (!text.containerId) {
-        const width = text.width * factor;
-        const height = text.height * factor;
-        patch.width = width * ratio;
-        patch.height = height * ratio;
-        // A resized text is held the way excalidraw holds one, in
-        // `offsetElementAfterFontResize`: the vertical middle stays put and
-        // the horizontal edge the text is aligned to does. The style panel has
-        // just done this for the size it set, and this pass sets another one
-        // on top of it — leaving the box where it is instead would walk the
-        // text up the map a step per click.
-        patch.y = text.y * factor + (height - patch.height) / 2;
-        if (text.textAlign !== "left") {
-          patch.x =
-            text.x * factor +
-            (width - patch.width) / (text.textAlign === "center" ? 2 : 1);
-        }
-      }
+      Object.assign(patch, glyphs(text, font, current, factor));
     }
   }
 
@@ -536,6 +606,50 @@ export type UseDecorationScaleOptions = {
    * plane switched off.
    */
   getCamera?: () => PlaneCamera | null;
+};
+
+/**
+ * The labels whose glyphs a pass rewrote, laid out again for the size they now
+ * have — the box excalidraw measured is for the size it set itself, which is
+ * the pixel number, see `annotation-text-fit`. Left as it was, the lines wrap
+ * where they would have at that size and the text stands outside its shape.
+ *
+ * The shape goes with it: excalidraw grows a shape whose label has outgrown
+ * it, and the label is centred in whatever the shape then is.
+ */
+const refitted = (
+  elements: readonly ExcalidrawElement[],
+  labels: Set<string>
+): readonly ExcalidrawElement[] => {
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  const patches = new Map<string, Patch>();
+  labels.forEach((id) => {
+    const label = byId.get(id) as TextElement | undefined;
+    const container = label?.containerId
+      ? byId.get(label.containerId)
+      : undefined;
+    if (!label || !container) {
+      return;
+    }
+    const fit = fitBoundText(label, container);
+    if (!fit) {
+      return;
+    }
+    patches.set(label.id, fit.label);
+    if (
+      Math.abs(container.width - fit.container.width) > EPSILON ||
+      Math.abs(container.height - fit.container.height) > EPSILON
+    ) {
+      patches.set(container.id, fit.container);
+    }
+  });
+  if (patches.size === 0) {
+    return elements;
+  }
+  return elements.map((element) => {
+    const patch = patches.get(element.id);
+    return patch ? (redrawn(element, patch) as ExcalidrawElement) : element;
+  });
 };
 
 /**
@@ -609,6 +723,26 @@ export const useDecorationScale = ({
 
   /** what the elements that have a head looked like when a pass last ran */
   const headedRef = useRef("");
+
+  /**
+   * A font size just picked in the style panel, which only the pen can report.
+   *
+   * The element cannot. What it carries is scene units — the pixel size read
+   * on the map — so a pick that lands on the number already there changes
+   * nothing about it, and there is nothing for a pass to notice: the panel
+   * keeps marking the old size and the button stays dead for as long as the
+   * two numbers agree. A pick made while the text editor is open lands on an
+   * element no pass may rewrite, which leaves the same gap.
+   *
+   * Excalidraw writes `currentItemFontSize` in the same action as the element,
+   * on every pick, whether the element changes or not. So the pen is what says
+   * a pick happened, and `penFontRef` is what tells a pick from this pass
+   * writing the pen out in scene units.
+   */
+  const fontPickRef = useRef<FontPick | null>(null);
+
+  /** the font size the pen last reported, or that this pass last wrote to it */
+  const penFontRef = useRef<number | null>(null);
 
   /** the ends of the selection the user has just picked a head away from */
   const pickedRef = useRef<{
@@ -767,6 +901,38 @@ export const useDecorationScale = ({
       }
       if (isPreset(state.currentItemRoughness, ROUGHNESS_PRESETS)) {
         pen.roughness.px = state.currentItemRoughness;
+      }
+
+      // a size picked in the panel, which the pen reports and the element may
+      // not; the sizes this pass writes out are not picks, see `penFontRef`
+      const penFont = penFontRef.current;
+      penFontRef.current = state.currentItemFontSize;
+      if (
+        penFont !== null &&
+        Math.abs(state.currentItemFontSize - penFont) > EPSILON &&
+        isPreset(state.currentItemFontSize, FONT_PRESETS)
+      ) {
+        // what excalidraw hands the size to: the selection, the label inside a
+        // selected shape, and the text the editor is open on
+        const targets = new Set<string>();
+        elements.forEach((element) => {
+          if (!state.selectedElementIds?.[element.id]) {
+            return;
+          }
+          targets.add(element.id);
+          (element.boundElements ?? []).forEach((bound) => {
+            if (bound.type === "text") {
+              targets.add(bound.id);
+            }
+          });
+        });
+        if (state.editingElement) {
+          targets.add(state.editingElement.id);
+        }
+        if (targets.size > 0) {
+          fontPickRef.current = { px: state.currentItemFontSize, ids: targets };
+          askForPass();
+        }
       }
 
       /**
@@ -955,6 +1121,11 @@ export const useDecorationScale = ({
       // a head the user has just picked away, which only the pen could report
       const picked = pickedRef.current;
       pickedRef.current = null;
+      // and a font size picked in the panel, which the pen reports the same way
+      const fontPick = fontPickRef.current;
+      fontPickRef.current = null;
+      // the labels whose glyphs this pass rewrites, whose boxes go with them
+      const labels = new Set<string>();
       // where the anchor stands once this pass is done, which is the anchor
       // every element is read into
       const anchorZoom = rebasing
@@ -964,10 +1135,29 @@ export const useDecorationScale = ({
       const rewritten = scene
         .filter((element) => !isClipProxy(element) && !isHeadProxy(element))
         .map((element) => {
-          // the element under the hand is moved out from under the pointer by
-          // a rewrite, so it is left for the pass after the gesture
+          const pick = fontPick?.ids.has(element.id) ? fontPick.px : null;
+          // The element under the hand is moved out from under the pointer by
+          // a rewrite, so it is left for the pass after the gesture — all but
+          // a size picked in the panel while the text editor is open, which is
+          // read onto the glyphs alone and nothing else, see `rescaled`
           if (busy.has(element.id)) {
-            return element;
+            const edited = rescaled(element, scale, pen, busy, 1, null, pick);
+            if (!edited) {
+              return element;
+            }
+            touched = true;
+            if (edited.fontSize !== undefined) {
+              labels.add(element.id);
+            }
+            return redrawn(element, {
+              ...edited,
+              customData: {
+                ...((element.customData ?? {}) as Record<string, unknown>),
+                ...((edited.customData as
+                  | Record<string, unknown>
+                  | undefined) ?? {}),
+              },
+            }) as ExcalidrawElement;
           }
           // Its own catch-up, not the pass's: an element left behind by a
           // rebase — an undo hands those back — carries the whole ratio
@@ -993,7 +1183,8 @@ export const useDecorationScale = ({
             pen,
             busy,
             factor,
-            stamp === null ? birth ?? null : null
+            stamp === null ? birth ?? null : null,
+            pick
           );
           // what the first pass made of what the pen drew it with, kept for
           // the copies of this element the history took before that pass
@@ -1017,6 +1208,11 @@ export const useDecorationScale = ({
             return element;
           }
           touched = true;
+          // a rebase carries the box and the glyphs by the same factor, so the
+          // one that has to be measured again is a size read off the panel
+          if (decoration?.fontSize !== undefined) {
+            labels.add(element.id);
+          }
           return redrawn(element, {
             ...(moved ?? {}),
             ...(decoration ?? {}),
@@ -1032,6 +1228,10 @@ export const useDecorationScale = ({
             },
           }) as ExcalidrawElement;
         });
+
+      // a label is laid out by excalidraw, so a rewritten size has to be laid
+      // out again before anything is drawn from it, see `annotation-text-fit`
+      const laid = labels.size > 0 ? refitted(rewritten, labels) : rewritten;
 
       // What excalidraw's canvas cap would eat is drawn by clipped copies
       // instead, see `annotation-clip`. The element under the hand keeps
@@ -1056,7 +1256,7 @@ export const useDecorationScale = ({
         touched = true;
         elements.push(proxy);
       };
-      rewritten.forEach((element) => {
+      laid.forEach((element) => {
         const takeOver =
           clipBox !== null &&
           !busy.has(element.id) &&
@@ -1121,6 +1321,11 @@ export const useDecorationScale = ({
         // the scene draws them with. Read off the painted camera, not the map:
         // the zoom that puts this scale at 1 is the one the scene is at
         setAnchorZoom(anchorZoom);
+      }
+      // the pen is about to carry a size of ours, in scene units. Noted before
+      // excalidraw echoes it back, so that the echo is not taken for a pick
+      if (penMoved && fontAt !== null) {
+        penFontRef.current = fontAt;
       }
       // not an edit the user made, so it stays out of the undo history
       api.updateScene({
