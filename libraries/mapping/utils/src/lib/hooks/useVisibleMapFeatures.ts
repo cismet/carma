@@ -153,6 +153,7 @@ export const useVisibleMapFeatures = ({
   const lastDebugBoundsRef = useRef<string | null>(null);
   // Track whether previous query used the source fallback
   const wasUsingFallbackRef = useRef(false);
+  const lastResultKeyRef = useRef<string | null>(null);
 
   // Resolve layerFilterExpressions to MapLibre layer IDs once on style load.
   // In imperative mode, actual layer IDs are namespaced (e.g. "slug::leitungen-base")
@@ -432,6 +433,7 @@ export const useVisibleMapFeatures = ({
 
         const seen = new Set<string>();
         const uniqueFeatures: MapGeoJSONFeatureWithOriginal[] = [];
+        const resultKeys: string[] = [];
         let count = 0;
         const layerCounts: Record<string, number> = {};
         const checkHighlight = highlightedOnlyRef.current && maplibreMap;
@@ -476,6 +478,9 @@ export const useVisibleMapFeatures = ({
             }
 
             count++;
+            // features without an id share a key, so the count is part of the
+            // signature below
+            resultKeys.push(key);
             const layerKey = f.sourceLayer || f.source || "other";
             layerCounts[layerKey] = (layerCounts[layerKey] || 0) + 1;
             if (uniqueFeatures.length < maxFeatures) {
@@ -488,6 +493,17 @@ export const useVisibleMapFeatures = ({
 
         // Overview mode: feature count exceeds the sidebar limit
         const inOverviewMode = count > maxFeatures;
+
+        // Same features as last time: keep the published arrays, so consumers
+        // keyed on them do not re-run. Order matters, since the feature list
+        // is handed out in query order.
+        const resultKey = `${count}|${inOverviewMode ? 1 : 0}|${resultKeys.join(
+          ","
+        )}`;
+        if (resultKey === lastResultKeyRef.current) {
+          return;
+        }
+        lastResultKeyRef.current = resultKey;
 
         setFeatures(inOverviewMode ? [] : uniqueFeatures);
         setTotalCount(count);
@@ -521,6 +537,8 @@ export const useVisibleMapFeatures = ({
     const onMoveStart = () => setIsLoading(true);
     maplibreMap.on("movestart", onMoveStart);
 
+    // a new map or query configuration always publishes its first result
+    lastResultKeyRef.current = null;
     setIsLoading(true);
     updateFeatures();
 
