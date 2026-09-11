@@ -37,6 +37,13 @@ export type AttributesetConfig = {
   confirmLabel?: string;
   /** Extra vector layers shown to "*" users (Auftraggeber) only. */
   adminOverlays?: VectorOverlay[];
+  /** Picture shown top right in the "confirm" dialog (path under public/). */
+  illustration?: string;
+  /**
+   * Infobox line "<label>: <date>" with the newest `done` action of this
+   * record's action key, e.g. "Zuletzt bewässert: 11.9.2026 09:49".
+   */
+  lastActionLabel?: string;
   /**
    * Tree attributes the datasheet should show, from `baumdaten` on the
    * server. Undefined means the datasheet's built-in set.
@@ -79,6 +86,8 @@ export const ATTRIBUTESETS: Record<string, AttributesetConfig> = {
       exception: "Ausnahme bei der Bewässerung",
     },
     confirmLabel: "Bewässerung bestätigen",
+    illustration: "/images/irrigation.png",
+    lastActionLabel: "Zuletzt bewässert",
     adminOverlays: [
       {
         // Watermark-Bodenfeuchtesensoren, same layer as in the geoportal

@@ -287,7 +287,7 @@ const TZBaumbewirtschaftung = ({
           updatedSelectedFeature,
           setShowStatusDialog,
           jwt,
-          attributesetForFeature(updatedSelectedFeature).headerLabel
+          attributesetForFeature(updatedSelectedFeature)
         );
         updatedSelectedFeature.text =
           updatedSelectedFeature.properties.info.puretitle;
@@ -330,7 +330,7 @@ const TZBaumbewirtschaftung = ({
             updatedSelectedFeature,
             setShowStatusDialog,
             jwt,
-            attributesetForFeature(updatedSelectedFeature).headerLabel
+            attributesetForFeature(updatedSelectedFeature)
           );
           updatedSelectedFeature.text =
             updatedSelectedFeature.properties.info.puretitle;
@@ -379,7 +379,7 @@ const TZBaumbewirtschaftung = ({
           affectedFeature,
           setShowStatusDialog,
           jwt,
-          attributesetForFeature(affectedFeature).headerLabel
+          attributesetForFeature(affectedFeature)
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
@@ -865,7 +865,7 @@ const TZBaumbewirtschaftung = ({
                         feature,
                         setShowStatusDialog,
                         jwt,
-                        attributesetForFeature(feature).headerLabel
+                        attributesetForFeature(feature)
                       );
                       feature.text = feature.properties.info.puretitle;
 

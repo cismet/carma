@@ -22,6 +22,7 @@ import {
   type EmbeddedKampagne,
 } from "./context/KampagneContext";
 import type { ActionStatus } from "../config/attributesets";
+import { treeTitle } from "./helper/treeHelper";
 
 const { Text } = Typography;
 
@@ -271,22 +272,30 @@ const SetStatusDialog = ({
     <Modal
       zIndex={30000001}
       title={
-        <>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span>{isConfirm ? attributeset.headerLabel : "Status ändern"}</span>
-            <SyncStatusIndicator />
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span>
+                {isConfirm ? attributeset.headerLabel : "Status ändern"}
+              </span>
+              <SyncStatusIndicator />
+            </div>
+            <Text type="secondary">{treeTitle(p)}</Text>
           </div>
-          <Text type="secondary">
-            {p.baumart_botanisch +
-              " (" +
-              p.standort_nr +
-              "." +
-              p.zusatz +
-              "." +
-              p.lfd_nr_str +
-              ")"}
-          </Text>
-        </>
+          {isConfirm && attributeset.illustration && (
+            // Keeps clear of the modal's close button (top right corner).
+            <img
+              src={attributeset.illustration}
+              alt=""
+              style={{
+                height: 96,
+                marginRight: 28,
+                flexShrink: 0,
+                opacity: 0.7,
+              }}
+            />
+          )}
+        </div>
       }
       centered
       open={true}
@@ -318,10 +327,10 @@ const SetStatusDialog = ({
         }}
       >
         {isConfirm ? (
-          <Text>
-            {attributeset.statusDescription.done} wird für diesen Baum
-            gespeichert.
-          </Text>
+          <p style={{ marginTop: 0, marginBottom: 16 }}>
+            <Text strong>{attributeset.statusDescription.done}</Text> wird für
+            diesen Baum gespeichert.
+          </p>
         ) : (
           <Form.Item
             name="status"
