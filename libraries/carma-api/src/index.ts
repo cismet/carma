@@ -2,6 +2,7 @@
 import { config } from "./lib/config";
 import { gazetteer } from "./lib/gazetteer";
 import { mapping, mapping2D, mapping3D } from "./lib/mapping";
+import { nuke } from "./lib/nuke";
 import { ui } from "./lib/ui";
 
 export const carma = {
@@ -10,6 +11,7 @@ export const carma = {
   mapping,
   mapping2D,
   mapping3D,
+  nuke,
   ui,
 } as const;
 
@@ -34,6 +36,15 @@ export type {
   CameraPosition3D,
   BackgroundLayerInfo,
 } from "./lib/mapping";
+
+export { registerNuke } from "./lib/nuke";
+export type {
+  NukeAdapter,
+  NukeCommand,
+  NukeFacade,
+  NukeInventory,
+  NukeOptions,
+} from "./lib/nuke";
 
 export { registerUi } from "./lib/ui";
 export type { UiAdapter, UiFacade } from "./lib/ui";
