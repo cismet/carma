@@ -94,6 +94,15 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         `${PROJECTION_MAPPING_STYLES}/grundriss_graublau_dunkel.style.json`,
       ],
     },
+    {
+      Title: "Tools",
+      // plain colour backgrounds: blank the model between steps or give a
+      // layer a neutral ground
+      layers: [
+        "https://tiles.cismet.de/colors/black.style.json",
+        "https://tiles.cismet.de/colors/white.style.json",
+      ],
+    },
   ],
   /**
    * The "Workflows" category of this route: one card per set of layers that is
