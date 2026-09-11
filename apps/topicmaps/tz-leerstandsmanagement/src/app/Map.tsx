@@ -17,7 +17,6 @@ import { APP_CONFIG } from "../config/appConfig";
 import { Menu } from "./Menu";
 import SecondaryInfoModal from "./Modal";
 import { LeerstandForm, type PlacedPoint } from "./LeerstandForm";
-import { useDisplayOptions } from "./DisplayOptionsContext";
 import { LEERSTAND_SOURCE, useLeerstandStyle } from "./hooks/useLeerstandStyle";
 import {
   buildingInfoFromProperties,
@@ -56,12 +55,6 @@ const InfoModal = (props: any) => {
   return <SecondaryInfoModal {...props} />;
 };
 
-/** house numbers of the Stadtgrundkarte, the layer react-cismap calls "nrs" */
-const HAUSNUMMERN_WMS = {
-  url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-  layers: "R102%3Astadtgrundkarte_hausnr",
-};
-
 /** name of the vector layer; the merged style prefixes source and layer ids with it */
 const LEERSTAND_LAYER_NAME = "leerstand";
 
@@ -85,7 +78,6 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   ) as { responsiveState: string; gap: number; windowSize: { width: number } };
-  const { showHausnummern } = useDisplayOptions();
 
   const [lookups, setLookups] = useState<Lookups>();
   const [featureCollection, setFeatureCollection] =
@@ -149,20 +141,9 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jwt]);
 
-  // Layer stack of the map, bottom first: house numbers (optional), then the
-  // ALKIS buildings and the Leerstand points as one inline vector style.
+  // The ALKIS buildings and the Leerstand points as one inline vector style.
   const libreLayers = useMemo<LibreLayer[]>(() => {
     const layers: LibreLayer[] = [];
-    if (showHausnummern) {
-      layers.push({
-        type: "wms",
-        url: HAUSNUMMERN_WMS.url,
-        layers: HAUSNUMMERN_WMS.layers,
-        format: "image/png",
-        transparent: true,
-        carmaLayerId: "hausnummern",
-      });
-    }
     if (jwt) {
       layers.push({
         type: "vector",
@@ -172,7 +153,7 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
       });
     }
     return layers;
-  }, [showHausnummern, jwt, style]);
+  }, [jwt, style]);
 
   const onSelectionChanged = (e: SelectionEvent) => {
     const feature = e.hit as InfoboxFeature | undefined;

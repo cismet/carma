@@ -1,11 +1,9 @@
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import { Form } from "react-bootstrap";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
 import versionData from "../version.json";
-import { useDisplayOptions } from "./DisplayOptionsContext";
 
 const previewSVG = (size: number) => {
   const s = size * 1.3;
@@ -17,8 +15,6 @@ const previewSVG = (size: number) => {
 };
 
 export const Menu = () => {
-  const { showHausnummern, setShowHausnummern } = useDisplayOptions();
-
   return (
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
@@ -45,28 +41,6 @@ export const Menu = () => {
             skipClusteringSettings={true}
             getSymbolSVG={previewSVG}
             overridingMapPreview={<PreviewLibreMap />}
-            sparseSettingsSectionsExtensions={[
-              <Form key="display-options">
-                <label
-                  style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
-                    fontWeight: 700,
-                  }}
-                >
-                  Hilfsebenen
-                </label>
-                <br />
-                <Form.Check
-                  type="checkbox"
-                  id="checkbox_hausnummern"
-                  checked={showHausnummern}
-                  onChange={() => setShowHausnummern(!showHausnummern)}
-                  label="Hausnummern aus der Stadtgrundkarte (ALKIS) einblenden"
-                />
-              </Form>,
-            ]}
           />,
         ]}
       />

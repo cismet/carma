@@ -13,7 +13,6 @@ import "../styles.css";
 import { APP_CONFIG } from "../config/appConfig";
 import { LoginForm, type LoginInfo } from "./components/LoginForm";
 import { TitleControl } from "./components/TitleControl";
-import { DisplayOptionsProvider } from "./DisplayOptionsContext";
 import { Map } from "./Map";
 import { getUserFromJWT } from "./helper/auth";
 import { GraphQLRequestError, gql } from "./helper/graphql";
@@ -92,8 +91,7 @@ const App = () => {
   const logout = () => setAuth({ checked: true });
 
   return (
-    <DisplayOptionsProvider>
-      <TopicMapContextProvider
+    <TopicMapContextProvider
         appKey={APP_CONFIG.appKey}
         backgroundConfigurations={backgroundConfWithFastOrtho2024}
         backgroundModes={backgroundModes}
@@ -119,8 +117,7 @@ const App = () => {
             onConnectionError={setConnectionError}
           />
         </LibreContextProvider>
-      </TopicMapContextProvider>
-    </DisplayOptionsProvider>
+    </TopicMapContextProvider>
   );
 };
 
