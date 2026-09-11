@@ -115,6 +115,19 @@ type Frozen = { px: number; at: number };
 /** the pen for one property: its pixel size, and what we wrote it out as */
 type PenSlot = { px: number | null; written: number[] };
 
+/**
+ * What an element was born with: the anchor its coordinates were written in,
+ * and the pixel sizes the first pass read off it. Both are for the unstamped
+ * copy excalidraw's history hands back, which carries neither — see
+ * `stampedZoom` and `freeze`.
+ */
+type Birth = {
+  zoom: number;
+  stroke?: number;
+  rough?: number;
+  font?: number;
+};
+
 type Pen = { stroke: PenSlot; font: PenSlot; roughness: PenSlot };
 
 const emptySlot = (): PenSlot => ({ px: null, written: [] });
@@ -147,11 +160,22 @@ const freeze = (
   current: number,
   stored: unknown,
   scale: number,
-  pen: PenSlot
+  pen: PenSlot,
+  /** the pixel size this element was born with, for an unstamped copy */
+  birth: number | null
 ): Frozen => {
   const previous = storedFrozen(stored);
   if (previous && Math.abs(current - previous.at) < EPSILON) {
     return { px: previous.px, at: previous.px / scale };
+  }
+  // An unstamped element we have seen before: a copy excalidraw's history
+  // kept from before the first pass stamped it, handed back by an undo or a
+  // redo. What it carries is scene units of the anchor it was born in, so
+  // reading it as pixels would draw it at that number divided by the scale —
+  // the same line back at another width. The size it was given is the one the
+  // pass that first saw it worked out, and that is remembered per id
+  if (!previous && birth !== null) {
+    return { px: birth, at: birth / scale };
   }
   if (
     pen.px !== null &&
@@ -183,7 +207,9 @@ const grounded = (
   current: number,
   stored: unknown,
   scale: number,
-  factor: number
+  factor: number,
+  /** the pixel size this element was born with, for an unstamped copy */
+  birth: number | null
 ): Frozen => {
   const previous = storedFrozen(stored);
   // the size we last saw, in the units it is now read in: the element has not
@@ -191,6 +217,12 @@ const grounded = (
   // the user picked is a style and stays, whatever the map does to the units
   if (previous && Math.abs(current - previous.at * factor) < EPSILON) {
     return { px: previous.px, at: current };
+  }
+  // an unstamped copy out of the history, see `freeze`: the glyphs are
+  // geometry and are already in this anchor's units, the size that was picked
+  // is the remembered one
+  if (!previous && birth !== null) {
+    return { px: birth, at: current };
   }
   // a size just picked in the style panel; the panel's numbers are pixels
   if (previous && factor === 1 && isPreset(current, FONT_PRESETS)) {
@@ -383,7 +415,9 @@ const rescaled = (
   pen: Pen,
   busy: Set<string>,
   /** scene units per old unit when the anchor moves in the same pass, else 1 */
-  factor: number
+  factor: number,
+  /** the sizes this element was born with, where it carries no stamp */
+  birth: Birth | null
 ): Patch | null => {
   // an image is left exactly as it is, in both its size and its frame
   if (element.type === "image") {
@@ -404,7 +438,8 @@ const rescaled = (
     element.strokeWidth,
     data.strokeNorm,
     scale,
-    pen.stroke
+    pen.stroke,
+    birth?.stroke ?? null
   );
   customData.strokeNorm = stroke;
   dirty = dirty || changed(stroke, data.strokeNorm);
@@ -414,7 +449,13 @@ const rescaled = (
 
   // rough.js wobbles by `roughness` scene units, so a hand-drawn line drawn
   // over a city block is a scribble over a house
-  const rough = freeze(element.roughness, data.roughNorm, scale, pen.roughness);
+  const rough = freeze(
+    element.roughness,
+    data.roughNorm,
+    scale,
+    pen.roughness,
+    birth?.rough ?? null
+  );
   customData.roughNorm = rough;
   dirty = dirty || changed(rough, data.roughNorm);
   if (Math.abs(element.roughness - rough.at) > EPSILON) {
@@ -426,7 +467,13 @@ const rescaled = (
     // read in the units the element is about to be in, so a rebase in the
     // same pass is not mistaken for the user picking a size
     const current = text.fontSize * factor;
-    const font = grounded(current, data.fontNorm, scale, factor);
+    const font = grounded(
+      current,
+      data.fontNorm,
+      scale,
+      factor,
+      birth?.font ?? null
+    );
     customData.fontNorm = font;
     dirty = dirty || changed(font, data.fontNorm);
     if (Math.abs(current - font.at) > EPSILON && current > EPSILON) {
@@ -504,12 +551,13 @@ export const useDecorationScale = ({
 }: UseDecorationScaleOptions) => {
   const scaleRef = useRef(0);
   /**
-   * The anchor zoom each element was born in, kept by id for the unstamped
-   * copies excalidraw's history hands back; see `stampedZoom`. Ids are kept
-   * for the session: a deleted element comes back on a redo, and the scene
-   * holds its own deleted elements just as long.
+   * What each element was born with — the anchor zoom it was written in and
+   * the pixel sizes the first pass read off it — kept by id for the unstamped
+   * copies excalidraw's history hands back; see `stampedZoom` and `freeze`.
+   * Ids are kept for the session: a deleted element comes back on a redo, and
+   * the scene holds its own deleted elements just as long.
    */
-  const bornRef = useRef(new Map<string, number>());
+  const bornRef = useRef(new Map<string, Birth>());
   const penRef = useRef<Pen>({
     stroke: emptySlot(),
     font: emptySlot(),
@@ -841,14 +889,33 @@ export const useDecorationScale = ({
           // 1, which is the rebase-free pass exactly as it was.
           const stamp = stampedZoom(element);
           const born = bornRef.current;
-          if (stamp === null && !born.has(element.id)) {
-            born.set(element.id, anchor.zoom);
+          let birth = born.get(element.id);
+          if (stamp === null && !birth) {
+            birth = { zoom: anchor.zoom };
+            born.set(element.id, birth);
           }
-          const from = stamp ?? born.get(element.id) ?? anchor.zoom;
+          const from = stamp ?? birth?.zoom ?? anchor.zoom;
           const factor = 2 ** (anchorZoom - from);
           const moved =
             Math.abs(factor - 1) > EPSILON ? rebased(element, factor) : null;
-          const decoration = rescaled(element, scale, pen, busy, factor);
+          // the birth sizes are for the unstamped copy alone: a stamped
+          // element carries its own record, which is the newer one
+          const decoration = rescaled(
+            element,
+            scale,
+            pen,
+            busy,
+            factor,
+            stamp === null ? birth ?? null : null
+          );
+          // what the first pass made of what the pen drew it with, kept for
+          // the copies of this element the history took before that pass
+          if (stamp === null && birth && decoration) {
+            const sizes = decoration.customData as Record<string, unknown>;
+            birth.stroke ??= storedFrozen(sizes.strokeNorm)?.px;
+            birth.rough ??= storedFrozen(sizes.roughNorm)?.px;
+            birth.font ??= storedFrozen(sizes.fontNorm)?.px;
+          }
           // the head comes off the element, so it can be drawn at its pixel
           // size; the element under the hand keeps its own until it is let go
           const heads = busy.has(element.id)
