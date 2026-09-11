@@ -52,10 +52,6 @@ export const APP_CONFIG = {
   // Authorization config attribute (value: "*" or comma-separated kampagne names)
   configAttributeKey: "tzb_Baumbewirtschaftung",
 
-  // Per-user Anwendungsfall (wupp #4128/#4145), value: an id from attributesets.ts.
-  // Missing or unknown value falls back to the default attributeset.
-  attributesetConfigAttributeKey: "tzb_Attributeset",
-
   // RxDB Sync Configuration
   // Live URLs (for production):
   //   httpUrl: "https://wunda-offline-actions.cismet.de/v1/graphql"

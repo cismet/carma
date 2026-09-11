@@ -1,10 +1,12 @@
 /**
  * Attributesets (wupp #4128): one record per Anwendungsfall of the tree app.
  *
- * Which record applies is decided per logged-in user through the config
- * attribute `APP_CONFIG.attributesetConfigAttributeKey` (wupp #4145). A user
- * without that attribute, or with an unknown value, gets the default record,
- * which is exactly the behaviour the app had before attributesets existed.
+ * Which record applies is decided per Kampagne (wupp #4145). The campaigns
+ * DAQ delivers `attributeset`, `workflow` and `baumdaten` for every Kampagne
+ * from the server table `tzb_attributeset`; the record here is looked up by
+ * that `attributeset` name. A Kampagne without one, or with an unknown name,
+ * gets the default record, which is exactly the behaviour the app had before
+ * attributesets existed.
  */
 
 export type ActionStatus = "open" | "done" | "exception";
@@ -35,6 +37,21 @@ export type AttributesetConfig = {
   confirmLabel?: string;
   /** Extra vector layers shown to "*" users (Auftraggeber) only. */
   adminOverlays?: VectorOverlay[];
+  /**
+   * Tree attributes the datasheet should show, from `baumdaten` on the
+   * server. Undefined means the datasheet's built-in set.
+   */
+  datasheetFields?: string[];
+};
+
+/**
+ * What the campaigns DAQ carries per Kampagne. All optional: the cloud DB
+ * does not deliver them yet, and the app has to keep working there.
+ */
+export type ServerAttributeset = {
+  attributeset?: string | null;
+  workflow?: string | null;
+  baumdaten?: string | null;
 };
 
 export const DEFAULT_ATTRIBUTESET_ID = "crownmaintenance";
@@ -79,4 +96,48 @@ export const resolveAttributeset = (
 ): AttributesetConfig => {
   const id = raw?.trim().toLowerCase() ?? "";
   return ATTRIBUTESETS[id] ?? ATTRIBUTESETS[DEFAULT_ATTRIBUTESET_ID];
+};
+
+// Values of `tzb_attributeset.workflow` on the server.
+const workflowFromServer = (
+  raw: string | null | undefined
+): WorkflowKind | undefined => {
+  switch (raw?.trim().toLowerCase()) {
+    case "fotologik":
+      return "photo";
+    case "bestätigungsbutton":
+      return "confirm";
+    default:
+      return undefined;
+  }
+};
+
+const datasheetFieldsFromServer = (
+  raw: string | null | undefined
+): string[] | undefined => {
+  const fields = raw
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return fields && fields.length > 0 ? fields : undefined;
+};
+
+/**
+ * Record for a Kampagne: the client record picked by `attributeset`, with the
+ * server's `workflow` and `baumdaten` applied on top when they are present.
+ * Without any server fields the shared default record is returned as is, so
+ * the identity stays stable for memoisation.
+ */
+export const resolveCampaignAttributeset = (
+  campaign: ServerAttributeset | null | undefined
+): AttributesetConfig => {
+  const base = resolveAttributeset(campaign?.attributeset);
+  const workflow = workflowFromServer(campaign?.workflow);
+  const datasheetFields = datasheetFieldsFromServer(campaign?.baumdaten);
+  if (!workflow && !datasheetFields) return base;
+  return {
+    ...base,
+    ...(workflow ? { workflow } : {}),
+    ...(datasheetFields ? { datasheetFields } : {}),
+  };
 };
