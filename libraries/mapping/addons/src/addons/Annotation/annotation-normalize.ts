@@ -103,6 +103,14 @@ const ROUGHNESS_PRESETS = [0, 1, 2];
 const PEN_MEMORY = 6;
 
 /**
+ * How many frames a forced pass waits for a camera it can measure against.
+ * The wait is the scene echoing back a camera we pushed, which takes a frame
+ * or two; the cap is what keeps a scene that never echoes from being asked
+ * every frame for the rest of the session.
+ */
+const FORCE_FRAMES = 30;
+
+/**
  * How far the scene camera may drift from 1 before the anchor is moved, in
  * zoom levels. Excalidraw clamps at 0.1 and 30, so there is room for more; two
  * levels keeps the numbers in the scene comfortable and the rewrites rare.
@@ -569,6 +577,24 @@ export const useDecorationScale = ({
     editing: false,
   });
 
+  /**
+   * The painted camera the last pass measured against.
+   *
+   * With a ground plane the scene's camera is only written when the map comes
+   * to rest, and it counts only once excalidraw has echoed it back — a frame
+   * or more after the `moveend` that wrote it, and after the pass that same
+   * `moveend` asks for. That pass therefore measures the camera the scene was
+   * painted with *before* the map moved, and a camera that still reads 1
+   * never looks far enough from 1 to move the anchor. The scene is then left
+   * standing in an anchor several zoom levels away, which excalidraw draws
+   * with its own clamped camera: the whole drawing, several times too big,
+   * until something else happens to ask for a pass.
+   *
+   * So the camera the pass used is kept, and the echo — which arrives here,
+   * through excalidraw's own report — asks for another pass.
+   */
+  const paintedRef = useRef<number | null>(null);
+
   /** the window the copies were clipped to, null while there are none */
   const clipRef = useRef<SceneRect | null>(null);
 
@@ -595,6 +621,21 @@ export const useDecorationScale = ({
   const passRef = useRef<((force: boolean) => void) | null>(null);
   /** a pass already asked for, so a burst of reports still costs one */
   const askedRef = useRef(false);
+
+  /**
+   * A forced pass that found nothing to measure, waiting for the camera.
+   *
+   * There is no camera to measure against while the scene is still painting
+   * the anchor the drawing has just left — the frames between a rebase and
+   * the scene echoing the camera for the new anchor back. A pass asked for in
+   * that window would be dropped, and with it the one thing that reads an
+   * undone element out of the anchor it was captured in: the drawing stays on
+   * screen at the ratio between the two anchors, four times its size or more,
+   * until something else happens to ask for a pass. So the ask is held and
+   * made again on the next frame, for as long as the wait is plausibly the
+   * camera's.
+   */
+  const waitRef = useRef({ frames: 0, scheduled: false });
 
   /**
    * A pass on the next frame. Excalidraw is in the middle of telling us about
@@ -701,8 +742,18 @@ export const useDecorationScale = ({
       if (state.draggingElement) {
         ids.add(state.draggingElement.id);
       }
-      if (state.editingLinearElement) {
-        ids.add(state.editingLinearElement.elementId);
+      /**
+       * The line editor is a mode and not a gesture: it is opened by a double
+       * click and stays open, and an undo puts it back — excalidraw keeps it
+       * in the app state it captures. Held busy for as long as it is open,
+       * the line is left out of every pass, and a busy element stops the
+       * whole scene rebasing: zoom far enough out and excalidraw clamps its
+       * own camera instead, which draws the entire drawing several times too
+       * big. Only a point actually being dragged is under the hand.
+       */
+      const editor = state.editingLinearElement;
+      if (editor && (editor.isDragging || editor.lastUncommittedPoint)) {
+        ids.add(editor.elementId);
       }
       busyRef.current = { ids, editing: Boolean(state.editingElement) };
 
@@ -776,6 +827,20 @@ export const useDecorationScale = ({
         askForPass();
       }
 
+      // the camera the scene really paints with, echoed back at last: what
+      // the pass before it measured was the camera of another map position
+      const camera = getCamera?.();
+      const painted = paintedRef.current;
+      if (
+        camera &&
+        camera.zoom > 0 &&
+        painted !== null &&
+        painted > 0 &&
+        Math.abs(Math.log2(camera.zoom / painted)) >= K
+      ) {
+        askForPass();
+      }
+
       // A style picked in the panel lands on the element here and nowhere else:
       // it is not a gesture on the canvas, so nothing else would notice it until
       // the next one — a click or two later, with the element drawn in the
@@ -786,13 +851,30 @@ export const useDecorationScale = ({
         askForPass();
       }
     },
-    [askForPass]
+    [askForPass, getCamera]
   );
+
+  /** holds a forced pass that could not run, and makes it again next frame */
+  const waitForCamera = useCallback(() => {
+    const wait = waitRef.current;
+    if (wait.scheduled || wait.frames >= FORCE_FRAMES) {
+      return;
+    }
+    wait.scheduled = true;
+    wait.frames += 1;
+    requestAnimationFrame(() => {
+      wait.scheduled = false;
+      passRef.current?.(true);
+    });
+  }, []);
 
   const normalize = useCallback(
     (force: boolean) => {
       const anchor = getAnchor();
       if (!api || !libreMap || !anchor) {
+        if (force) {
+          waitForCamera();
+        }
         return;
       }
       const scales = scalesNow();
@@ -804,9 +886,14 @@ export const useDecorationScale = ({
           cameraAnchorZoom: seen?.anchor.zoom ?? null,
           cameraZoom: seen?.zoom ?? null,
         });
+        if (force) {
+          waitForCamera();
+        }
         return;
       }
+      waitRef.current.frames = 0;
       const { painted, screen } = scales;
+      paintedRef.current = painted;
       // the decoration is what drifts while the map moves, so it is what says
       // whether the pass is worth its cost
       const moved =
@@ -1059,6 +1146,7 @@ export const useDecorationScale = ({
       scalesNow,
       setAnchorZoom,
       viewportRect,
+      waitForCamera,
     ]
   );
 
