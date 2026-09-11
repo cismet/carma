@@ -390,10 +390,20 @@ export const AnnotationScene = ({
      * copies and all, written in whatever anchor the drawing stood in then.
      * The copies go, so the pass makes the ones this camera needs, and the
      * pass reads every element into the anchor in use — see the stamp in
-     * `annotation-normalize`. A frame later, because excalidraw applies the
-     * undo after this handler and updateScene is not ours to take until it has.
+     * `annotation-normalize`.
+     *
+     * Straight away, in this handler: excalidraw puts the elements back into
+     * the scene while it handles the shortcut, and paints them on the frame
+     * that follows. A pass put off to that frame is one paint too late, and
+     * what that paint shows is the drawing in the units of the anchor it was
+     * captured in — the whole ratio between the two anchors, four times its
+     * size or more, for as long as that frame lasts.
+     *
+     * The frame after as well, for what the scene does with the undo of its
+     * own after this: the second pass finds the drawing already in this
+     * anchor and stops at the first check.
      */
-    requestAnimationFrame(() => {
+    const pass = () => {
       if (!api) {
         return;
       }
@@ -402,7 +412,9 @@ export const AnnotationScene = ({
         api.updateScene({ elements: dropped, commitToHistory: false });
       }
       normalizeDecoration(true);
-    });
+    };
+    pass();
+    requestAnimationFrame(pass);
   }, [api, box, editable, normalizeDecoration, redoVersion, undoVersion]);
 
   /**
