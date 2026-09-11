@@ -58,6 +58,7 @@ import {
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { treeMatches, useKampagne } from "./context/KampagneContext";
+import type { VectorOverlay } from "../config/attributesets";
 
 type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
@@ -121,8 +122,20 @@ const TZBaumbewirtschaftung = ({
     ready: kampagneReady,
     showAll,
     effectiveCampaignIds,
-    attributeset,
+    attributesetForFeature,
+    activeAttributesets,
   } = useKampagne();
+
+  // Overlays of every Anwendungsfall in the current view, one layer per style.
+  const adminOverlays = useMemo(() => {
+    const byKey = new Map<string, VectorOverlay>();
+    for (const a of activeAttributesets) {
+      for (const o of a.adminOverlays ?? []) {
+        if (!byKey.has(o.key)) byKey.set(o.key, o);
+      }
+    }
+    return [...byKey.values()];
+  }, [activeAttributesets]);
 
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
@@ -274,7 +287,7 @@ const TZBaumbewirtschaftung = ({
           updatedSelectedFeature,
           setShowStatusDialog,
           jwt,
-          attributeset.headerLabel
+          attributesetForFeature(updatedSelectedFeature).headerLabel
         );
         updatedSelectedFeature.text =
           updatedSelectedFeature.properties.info.puretitle;
@@ -317,7 +330,7 @@ const TZBaumbewirtschaftung = ({
             updatedSelectedFeature,
             setShowStatusDialog,
             jwt,
-            attributeset.headerLabel
+            attributesetForFeature(updatedSelectedFeature).headerLabel
           );
           updatedSelectedFeature.text =
             updatedSelectedFeature.properties.info.puretitle;
@@ -366,7 +379,7 @@ const TZBaumbewirtschaftung = ({
           affectedFeature,
           setShowStatusDialog,
           jwt,
-          attributeset.headerLabel
+          attributesetForFeature(affectedFeature).headerLabel
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
@@ -403,7 +416,7 @@ const TZBaumbewirtschaftung = ({
     isFollowMode,
     routedMapRef,
     effectiveCampaignIds,
-    attributeset.headerLabel,
+    attributesetForFeature,
   ]);
 
   useEffect(() => {
@@ -811,7 +824,7 @@ const TZBaumbewirtschaftung = ({
                 Watermark soil moisture sensors for irrigation (wupp #4145).
                 Same pane as the Stadtbezirk backdrop, below the tree markers. */}
             {showAll &&
-              attributeset.adminOverlays?.map((overlay) => (
+              adminOverlays.map((overlay) => (
                 <CismapLayer
                   key={`admin-overlay-${overlay.key}`}
                   type="vector"
@@ -852,7 +865,7 @@ const TZBaumbewirtschaftung = ({
                         feature,
                         setShowStatusDialog,
                         jwt,
-                        attributeset.headerLabel
+                        attributesetForFeature(feature).headerLabel
                       );
                       feature.text = feature.properties.info.puretitle;
 

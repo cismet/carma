@@ -77,12 +77,8 @@ const SetStatusDialog = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const { status: syncStatus, syncedAction } = useSync();
-  const { allowedCampaignIds, campaigns, showAll, attributeset } =
+  const { allowedCampaignIds, campaigns, showAll, attributesetForCampaign } =
     useKampagne();
-
-  // "confirm" workflow (e.g. irrigation, wupp #4145): no photo, no status
-  // choice, one button that stores the action as done.
-  const isConfirm = attributeset.workflow === "confirm";
 
   // Intersect this tree's embedded kampagnen with the user's allowed kampagne ids.
   // Result: the kampagnen the user can plausibly stamp on a new action for this tree.
@@ -109,6 +105,19 @@ const SetStatusDialog = ({
     editableKampagnen.length >= 1 ? editableKampagnen[0].id : undefined;
 
   const needsKampagnePicker = showAll && editableKampagnen.length > 1;
+
+  // The Anwendungsfall hangs on the Kampagne the action is stamped with
+  // (wupp #4145): the picked one for admins, else the default above.
+  const pickedKampagneId = Form.useWatch("fk_kampagne", form) as
+    | number
+    | undefined;
+  const attributeset = attributesetForCampaign(
+    pickedKampagneId ?? defaultKampagneId
+  );
+
+  // "confirm" workflow (e.g. irrigation): no photo, no status choice, one
+  // button that stores the action as done.
+  const isConfirm = attributeset.workflow === "confirm";
 
   // Check for devMode URL parameter (supports hash-based routing)
   const isDevMode = (() => {
