@@ -79,6 +79,11 @@ export {
 } from "./addons/AlwaysOnTop";
 export type { AlwaysOnTopConfig } from "./addons/AlwaysOnTop";
 export {
+  getLayerLaunchedAddons,
+  withLayerLaunchedAddons,
+  type LayerLaunchedAddon,
+} from "./lib/layer-launched-addons";
+export {
   runSwitchOn,
   resolveStyleLayerIds,
   switchOnConfig,

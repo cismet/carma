@@ -65,6 +65,7 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useLayerLaunchedAddons } from "./hooks/useLayerLaunchedAddons";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
@@ -234,7 +235,13 @@ function App({
     [deployment, customFeatureFlags]
   );
 
-  const mergedAddons = useMemo(() => withDefaultAddons(addons), [addons]);
+  // a layer in the stack may launch an engine of its own, which then takes the
+  // route's and the defaults' place for that kind
+  const routeAddons = useLayerLaunchedAddons(addons);
+  const mergedAddons = useMemo(
+    () => withDefaultAddons(routeAddons),
+    [routeAddons]
+  );
 
   const { initialMapFramework } = geoportalInitialHashState;
 
