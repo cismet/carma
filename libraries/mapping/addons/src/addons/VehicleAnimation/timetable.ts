@@ -218,6 +218,33 @@ export const zonedMoment = (timezone: string, epochMs: number): ZonedMoment => {
   };
 };
 
+/**
+ * `zonedMoment` for a clock that is read on every animation frame.
+ *
+ * The formatter is what costs, so it runs once a minute. Every zone in use
+ * today is a whole number of minutes off UTC, so a new day, weekday or a
+ * daylight saving switch can only begin on a UTC minute, and the seconds
+ * within one minute follow from the epoch alone.
+ */
+export const createZonedClock = (
+  timezone: string
+): ((epochMs: number) => ZonedMoment) => {
+  let minuteStart = Number.NaN;
+  let atMinute: ZonedMoment | null = null;
+  return (epochMs) => {
+    const minute = Math.floor(epochMs / 60000) * 60000;
+    if (atMinute === null || minute !== minuteStart) {
+      atMinute = zonedMoment(timezone, minute);
+      minuteStart = minute;
+    }
+    return {
+      day: atMinute.day,
+      weekday: atMinute.weekday,
+      seconds: atMinute.seconds + (epochMs - minute) / 1000,
+    };
+  };
+};
+
 /** `day` (YYYYMMDD) moved by `days`, with its new weekday */
 export const shiftDay = (
   day: string,

@@ -1,5 +1,6 @@
 import type { Car, CarInfo, Fleet } from "./fleet";
 import {
+  createZonedClock,
   serviceRunsOn,
   shiftDay,
   zonedMoment,
@@ -472,11 +473,30 @@ export const createTimetableFleet = ({
   /** the day's second the vehicles were last placed at */
   let lastSeconds = 0;
 
+  // `update` runs on every animation frame, so what it can find once a
+  // minute it finds once a minute: the zoned clock, and the runs that can be
+  // on the model at all during that minute
+  const clock = createZonedClock(timetable.timezone);
+  let candidateDay = "";
+  let candidateMinute = Number.NaN;
+  let candidates: DayRun[] = [];
+  const present = new Map<string, { dayRun: DayRun; u: number }>();
+
   const update = (): void => {
-    const { day, weekday, seconds } = zonedMoment(timetable.timezone, now());
+    const { day, weekday, seconds } = clock(now());
     lastSeconds = seconds;
-    const present = new Map<string, { dayRun: DayRun; u: number }>();
-    for (const dayRun of runsOn(day, weekday)) {
+    const minute = Math.floor(seconds / 60);
+    if (day !== candidateDay || minute !== candidateMinute) {
+      candidateDay = day;
+      candidateMinute = minute;
+      const from = minute * 60;
+      const to = from + 60;
+      candidates = runsOn(day, weekday).filter(
+        (dayRun) => dayRun.enter <= to && dayRun.exit >= from
+      );
+    }
+    present.clear();
+    for (const dayRun of candidates) {
       if (seconds < dayRun.enter || seconds > dayRun.exit) continue;
       const u = positionAt(dayRun.run, seconds - dayRun.offset, dwell);
       if (u === null || u < dayRun.run.arc.start || u > dayRun.run.arc.end) continue;
