@@ -8,7 +8,7 @@ import type {
 
 import { planeLog } from "./annotation-plane-active";
 import { lngLatToScene, overlayOffset } from "./annotation-scene-space";
-import type { PlaneCamera } from "./annotation-plane";
+import type { PlaneCamera, PlaneMargin } from "./annotation-plane";
 import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
 
 /** excalidraw clamps zoom.value to this range; see its getNormalizedZoom */
@@ -83,7 +83,9 @@ export const useMapSceneSync = (
   limits: AnnotationSyncLimits,
   savedAnchor?: AnnotationAnchor,
   /** the drawing follows bearing and pitch; see `annotation-plane-active` */
-  plane = false
+  plane = false,
+  /** how far the box hangs past the map area, per side; see `usePlaneMargin` */
+  margin: PlaneMargin = { top: 0, right: 0, bottom: 0, left: 0 }
 ) => {
   const {
     rotated: hideRotated = false,
@@ -100,6 +102,10 @@ export const useMapSceneSync = (
 
   /** the camera the plane is solved against: what the scene is rendering with */
   const appliedRef = useRef<PlaneCamera | null>(null);
+
+  /** read, not depended on: a margin change resizes the box, which pushes anyway */
+  const marginRef = useRef(margin);
+  marginRef.current = margin;
 
   const holdingRef = useRef(false);
   const touchedRef = useRef(0);
@@ -189,21 +195,26 @@ export const useMapSceneSync = (
      * the edge of the canvas: a straight cut through a shape, and then no
      * shape.
      *
-     * So the ground under the middle of the plane is what the plane is centred
-     * on, which is true at any bearing and any pitch, and is the same
+     * So the ground under the middle of the map area is what the plane is
+     * centred on, which is true at any bearing and any pitch, and is the same
      * arithmetic as before whenever the bearing is zero.
+     *
+     * The middle of the map area, not the middle of the box: the box hangs
+     * past the area by as much ground as the camera looks at, which is not the
+     * same on every side once there is a pitch in it. Where the area's middle
+     * sits inside the box is where its ground has to land.
      */
     const camera: SceneCamera =
       plane && box && box.width > 0 && box.height > 0
         ? (() => {
-            const middle = map.unproject([
-              offset.x + box.width / 2,
-              offset.y + box.height / 2,
-            ]);
+            const gap = marginRef.current;
+            const atX = gap.left + (box.width - gap.left - gap.right) / 2;
+            const atY = gap.top + (box.height - gap.top - gap.bottom) / 2;
+            const middle = map.unproject([offset.x + atX, offset.y + atY]);
             const centre = lngLatToScene(anchor, middle.lng, middle.lat);
             return {
-              scrollX: box.width / (2 * scale) - centre.x,
-              scrollY: box.height / (2 * scale) - centre.y,
+              scrollX: atX / scale - centre.x,
+              scrollY: atY / scale - centre.y,
               scale,
             };
           })()

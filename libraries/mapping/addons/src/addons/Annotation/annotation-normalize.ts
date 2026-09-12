@@ -16,8 +16,18 @@ import {
   oversized,
   proxiesFor,
   sameProxy,
+  visibleOpacity,
 } from "./annotation-clip";
+import {
+  dropHeads,
+  headProxiesFor,
+  isHeadProxy,
+  parkHeads,
+  parkedHeads,
+  sameHeadProxy,
+} from "./annotation-arrowhead";
 import type { SceneRect } from "./annotation-clip";
+import { fitBoundText } from "./annotation-text-fit";
 import { planeLog } from "./annotation-plane-active";
 import { planeSceneRect } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
@@ -32,6 +42,11 @@ import type { AnnotationAnchor } from "./types";
  * `symbol`: geometry is ground referenced, it sits on the map and scales with
  * it. Decoration is screen referenced — a 2 px line is 2 px wide at every
  * zoom, and 2 px is what the toolbar hands out whatever the map is showing.
+ *
+ * An arrowhead is decoration too, and the one piece of it excalidraw keeps to
+ * itself: it is drawn at a constant size in scene units that no property can
+ * reach. It is taken off the element and drawn at its pixel size by a copy of
+ * its own, see `annotation-arrowhead`.
  *
  * An image is neither, and is not touched at all. It is drawn over a place, so
  * it stays the size it was given and scales with the map like the ground does.
@@ -89,6 +104,14 @@ const ROUGHNESS_PRESETS = [0, 1, 2];
 const PEN_MEMORY = 6;
 
 /**
+ * How many frames a forced pass waits for a camera it can measure against.
+ * The wait is the scene echoing back a camera we pushed, which takes a frame
+ * or two; the cap is what keeps a scene that never echoes from being asked
+ * every frame for the rest of the session.
+ */
+const FORCE_FRAMES = 30;
+
+/**
  * How far the scene camera may drift from 1 before the anchor is moved, in
  * zoom levels. Excalidraw clamps at 0.1 and 30, so there is room for more; two
  * levels keeps the numbers in the scene comfortable and the rewrites rare.
@@ -101,7 +124,26 @@ type Frozen = { px: number; at: number };
 /** the pen for one property: its pixel size, and what we wrote it out as */
 type PenSlot = { px: number | null; written: number[] };
 
+/**
+ * What an element was born with: the anchor its coordinates were written in,
+ * and the pixel sizes the first pass read off it. Both are for the unstamped
+ * copy excalidraw's history hands back, which carries neither — see
+ * `stampedZoom` and `freeze`.
+ */
+type Birth = {
+  zoom: number;
+  stroke?: number;
+  rough?: number;
+  font?: number;
+};
+
 type Pen = { stroke: PenSlot; font: PenSlot; roughness: PenSlot };
+
+/**
+ * A font size the user has just picked in the style panel, and the elements
+ * excalidraw handed it to. Only the pen can report it — see `fontPickRef`.
+ */
+type FontPick = { px: number; ids: Set<string> };
 
 const emptySlot = (): PenSlot => ({ px: null, written: [] });
 
@@ -133,11 +175,22 @@ const freeze = (
   current: number,
   stored: unknown,
   scale: number,
-  pen: PenSlot
+  pen: PenSlot,
+  /** the pixel size this element was born with, for an unstamped copy */
+  birth: number | null
 ): Frozen => {
   const previous = storedFrozen(stored);
   if (previous && Math.abs(current - previous.at) < EPSILON) {
     return { px: previous.px, at: previous.px / scale };
+  }
+  // An unstamped element we have seen before: a copy excalidraw's history
+  // kept from before the first pass stamped it, handed back by an undo or a
+  // redo. What it carries is scene units of the anchor it was born in, so
+  // reading it as pixels would draw it at that number divided by the scale —
+  // the same line back at another width. The size it was given is the one the
+  // pass that first saw it worked out, and that is remembered per id
+  if (!previous && birth !== null) {
+    return { px: birth, at: birth / scale };
   }
   if (
     pen.px !== null &&
@@ -155,9 +208,10 @@ const freeze = (
  * The one thing rewritten is a size the user just picked in the style panel.
  * The panel deals in pixels — 20 is "M" on screen, whatever the map is showing
  * — so such a value is divided by the scale once and is scene units from then
- * on. It is recognisable the same way the pen's values are: only the panel
- * hands out a preset, and only a value that is not the one we last saw on the
- * element can have come from the user at all.
+ * on. A pick is known from the pen, which excalidraw writes in the same action
+ * — see `fontPickRef` — and, where the pen could not be read, from the value
+ * itself: only the panel hands out a preset, and only a value that is not the
+ * one we last saw on the element can have come from the user at all.
  *
  * `at` is the size we last saw on the element, in whatever units the scene is
  * in at the time. `px` is the size that was picked, which is the style itself:
@@ -169,14 +223,30 @@ const grounded = (
   current: number,
   stored: unknown,
   scale: number,
-  factor: number
+  factor: number,
+  /** the pixel size this element was born with, for an unstamped copy */
+  birth: number | null,
+  /** a size just picked in the panel, as the pen reported it */
+  pick: number | null
 ): Frozen => {
+  // A pick the pen reported, which is the one thing the element cannot always
+  // say for itself: what it carries is scene units, so a pick that lands on
+  // the number already there leaves nothing behind to read
+  if (pick !== null) {
+    return { px: pick, at: pick / scale };
+  }
   const previous = storedFrozen(stored);
   // the size we last saw, in the units it is now read in: the element has not
   // been touched, or has been touched by nothing but our own rebase. The size
   // the user picked is a style and stays, whatever the map does to the units
   if (previous && Math.abs(current - previous.at * factor) < EPSILON) {
     return { px: previous.px, at: current };
+  }
+  // an unstamped copy out of the history, see `freeze`: the glyphs are
+  // geometry and are already in this anchor's units, the size that was picked
+  // is the remembered one
+  if (!previous && birth !== null) {
+    return { px: birth, at: current };
   }
   // a size just picked in the style panel; the panel's numbers are pixels
   if (previous && factor === 1 && isPreset(current, FONT_PRESETS)) {
@@ -188,6 +258,11 @@ const grounded = (
 
 type TextElement = ExcalidrawElement & {
   fontSize: number;
+  fontFamily: number;
+  lineHeight: number;
+  text: string;
+  originalText: string;
+  verticalAlign: "top" | "middle" | "bottom";
   textAlign: "left" | "center" | "right";
   /**
    * Where the glyphs sit in the box: excalidraw draws a line at `height -
@@ -362,6 +437,52 @@ const rebased = (element: ExcalidrawElement, factor: number): Patch => {
   return patch;
 };
 
+/**
+ * A text rewritten for a font size it was not measured at.
+ *
+ * The measured box goes with the glyphs: both are the same font at another
+ * size, so the box they were measured into is that box times the ratio. A text
+ * bound to a container is the exception — its box is not its own, it is the
+ * wrapping excalidraw did inside the shape, and that has to be laid out again
+ * rather than scaled, see `refitted`.
+ *
+ * `factor` is the rebase happening in the same pass, which the numbers read
+ * off the element are still in.
+ */
+const glyphs = (
+  text: TextElement,
+  font: Frozen,
+  /** the size the element carries, in the units it is about to be in */
+  current: number,
+  factor: number
+): Record<string, number> => {
+  const ratio = font.at / current;
+  const patch: Record<string, number> = {
+    fontSize: font.at,
+    baseline: text.baseline * factor * ratio,
+  };
+  if (text.containerId) {
+    return patch;
+  }
+  const width = text.width * factor;
+  const height = text.height * factor;
+  patch.width = width * ratio;
+  patch.height = height * ratio;
+  // A resized text is held the way excalidraw holds one, in
+  // `offsetElementAfterFontResize`: the vertical middle stays put and the
+  // horizontal edge the text is aligned to does. The style panel has just done
+  // this for the size it set, and this pass sets another one on top of it —
+  // leaving the box where it is instead would walk the text up the map a step
+  // per click.
+  patch.y = text.y * factor + (height - patch.height) / 2;
+  if (text.textAlign !== "left") {
+    patch.x =
+      text.x * factor +
+      (width - patch.width) / (text.textAlign === "center" ? 2 : 1);
+  }
+  return patch;
+};
+
 /** the element's decoration rewritten for this scale, or null when it fits */
 const rescaled = (
   element: ExcalidrawElement,
@@ -369,19 +490,45 @@ const rescaled = (
   pen: Pen,
   busy: Set<string>,
   /** scene units per old unit when the anchor moves in the same pass, else 1 */
-  factor: number
+  factor: number,
+  /** the sizes this element was born with, where it carries no stamp */
+  birth: Birth | null,
+  /** a font size just picked in the panel for this element, if there is one */
+  pick: number | null
 ): Patch | null => {
   // an image is left exactly as it is, in both its size and its frame
   if (element.type === "image") {
     return null;
   }
-  // the element under the hand: rewriting it takes the text editor apart
-  // around the caret, and moves a shape out from under the pointer
-  if (busy.has(element.id)) {
-    return null;
-  }
 
   const data = (element.customData ?? {}) as Record<string, unknown>;
+
+  // The element under the hand: rewriting it takes the text editor apart
+  // around the caret, and moves a shape out from under the pointer. A size
+  // picked in the panel while the editor is open is the one exception. Left
+  // out, the pixel size is never read off it: the glyphs keep a pixel number
+  // that is drawn as scene units, and the panel — which is marked from what
+  // this pass writes, see `annotation-style-marks` — goes on marking the size
+  // the text had before the edit for as long as the editor is open. Only the
+  // glyphs are touched, so the box excalidraw lays the editor out from is left
+  // exactly where it is.
+  if (busy.has(element.id)) {
+    if (pick === null || element.type !== "text") {
+      return null;
+    }
+    const text = element as TextElement;
+    const font: Frozen = { px: pick, at: pick / scale };
+    const rewrite =
+      Math.abs(text.fontSize - font.at) > EPSILON && text.fontSize > EPSILON;
+    if (!rewrite && !changed(font, data.fontNorm)) {
+      return null;
+    }
+    return {
+      ...(rewrite ? glyphs(text, font, text.fontSize, 1) : {}),
+      customData: { ...data, fontNorm: font },
+    };
+  }
+
   const patch: Record<string, number> = {};
   const customData: Record<string, unknown> = { ...data };
   let dirty = false;
@@ -390,7 +537,8 @@ const rescaled = (
     element.strokeWidth,
     data.strokeNorm,
     scale,
-    pen.stroke
+    pen.stroke,
+    birth?.stroke ?? null
   );
   customData.strokeNorm = stroke;
   dirty = dirty || changed(stroke, data.strokeNorm);
@@ -400,7 +548,13 @@ const rescaled = (
 
   // rough.js wobbles by `roughness` scene units, so a hand-drawn line drawn
   // over a city block is a scribble over a house
-  const rough = freeze(element.roughness, data.roughNorm, scale, pen.roughness);
+  const rough = freeze(
+    element.roughness,
+    data.roughNorm,
+    scale,
+    pen.roughness,
+    birth?.rough ?? null
+  );
   customData.roughNorm = rough;
   dirty = dirty || changed(rough, data.roughNorm);
   if (Math.abs(element.roughness - rough.at) > EPSILON) {
@@ -412,33 +566,18 @@ const rescaled = (
     // read in the units the element is about to be in, so a rebase in the
     // same pass is not mistaken for the user picking a size
     const current = text.fontSize * factor;
-    const font = grounded(current, data.fontNorm, scale, factor);
+    const font = grounded(
+      current,
+      data.fontNorm,
+      scale,
+      factor,
+      birth?.font ?? null,
+      pick
+    );
     customData.fontNorm = font;
     dirty = dirty || changed(font, data.fontNorm);
     if (Math.abs(current - font.at) > EPSILON && current > EPSILON) {
-      const ratio = font.at / current;
-      patch.fontSize = font.at;
-      patch.baseline = text.baseline * factor * ratio;
-      // the measured box goes with the glyphs. A text bound to a container is
-      // laid out by excalidraw itself, so its box is left alone
-      if (!text.containerId) {
-        const width = text.width * factor;
-        const height = text.height * factor;
-        patch.width = width * ratio;
-        patch.height = height * ratio;
-        // A resized text is held the way excalidraw holds one, in
-        // `offsetElementAfterFontResize`: the vertical middle stays put and
-        // the horizontal edge the text is aligned to does. The style panel has
-        // just done this for the size it set, and this pass sets another one
-        // on top of it — leaving the box where it is instead would walk the
-        // text up the map a step per click.
-        patch.y = text.y * factor + (height - patch.height) / 2;
-        if (text.textAlign !== "left") {
-          patch.x =
-            text.x * factor +
-            (width - patch.width) / (text.textAlign === "center" ? 2 : 1);
-        }
-      }
+      Object.assign(patch, glyphs(text, font, current, factor));
     }
   }
 
@@ -470,6 +609,50 @@ export type UseDecorationScaleOptions = {
 };
 
 /**
+ * The labels whose glyphs a pass rewrote, laid out again for the size they now
+ * have — the box excalidraw measured is for the size it set itself, which is
+ * the pixel number, see `annotation-text-fit`. Left as it was, the lines wrap
+ * where they would have at that size and the text stands outside its shape.
+ *
+ * The shape goes with it: excalidraw grows a shape whose label has outgrown
+ * it, and the label is centred in whatever the shape then is.
+ */
+const refitted = (
+  elements: readonly ExcalidrawElement[],
+  labels: Set<string>
+): readonly ExcalidrawElement[] => {
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  const patches = new Map<string, Patch>();
+  labels.forEach((id) => {
+    const label = byId.get(id) as TextElement | undefined;
+    const container = label?.containerId
+      ? byId.get(label.containerId)
+      : undefined;
+    if (!label || !container) {
+      return;
+    }
+    const fit = fitBoundText(label, container);
+    if (!fit) {
+      return;
+    }
+    patches.set(label.id, fit.label);
+    if (
+      Math.abs(container.width - fit.container.width) > EPSILON ||
+      Math.abs(container.height - fit.container.height) > EPSILON
+    ) {
+      patches.set(container.id, fit.container);
+    }
+  });
+  if (patches.size === 0) {
+    return elements;
+  }
+  return elements.map((element) => {
+    const patch = patches.get(element.id);
+    return patch ? (redrawn(element, patch) as ExcalidrawElement) : element;
+  });
+};
+
+/**
  * Keeps the decoration at its pixel size. Driven by the map's `zoom`, never by
  * `move`: panning changes no scale, so it must cost nothing. A forced pass
  * runs when a gesture ends, which is where a new element gets its pixel size,
@@ -490,12 +673,13 @@ export const useDecorationScale = ({
 }: UseDecorationScaleOptions) => {
   const scaleRef = useRef(0);
   /**
-   * The anchor zoom each element was born in, kept by id for the unstamped
-   * copies excalidraw's history hands back; see `stampedZoom`. Ids are kept
-   * for the session: a deleted element comes back on a redo, and the scene
-   * holds its own deleted elements just as long.
+   * What each element was born with — the anchor zoom it was written in and
+   * the pixel sizes the first pass read off it — kept by id for the unstamped
+   * copies excalidraw's history hands back; see `stampedZoom` and `freeze`.
+   * Ids are kept for the session: a deleted element comes back on a redo, and
+   * the scene holds its own deleted elements just as long.
    */
-  const bornRef = useRef(new Map<string, number>());
+  const bornRef = useRef(new Map<string, Birth>());
   const penRef = useRef<Pen>({
     stroke: emptySlot(),
     font: emptySlot(),
@@ -507,13 +691,85 @@ export const useDecorationScale = ({
     editing: false,
   });
 
+  /**
+   * The painted camera the last pass measured against.
+   *
+   * With a ground plane the scene's camera is only written when the map comes
+   * to rest, and it counts only once excalidraw has echoed it back — a frame
+   * or more after the `moveend` that wrote it, and after the pass that same
+   * `moveend` asks for. That pass therefore measures the camera the scene was
+   * painted with *before* the map moved, and a camera that still reads 1
+   * never looks far enough from 1 to move the anchor. The scene is then left
+   * standing in an anchor several zoom levels away, which excalidraw draws
+   * with its own clamped camera: the whole drawing, several times too big,
+   * until something else happens to ask for a pass.
+   *
+   * So the camera the pass used is kept, and the echo — which arrives here,
+   * through excalidraw's own report — asks for another pass.
+   */
+  const paintedRef = useRef<number | null>(null);
+
   /** the window the copies were clipped to, null while there are none */
   const clipRef = useRef<SceneRect | null>(null);
+
+  /** the heads the pen last reported, where a head picked away is noticed */
+  const headPenRef = useRef<{
+    start: unknown;
+    end: unknown;
+  }>({ start: undefined, end: undefined });
+
+  /** the rest of the pen, which only moves as a whole when one is handed over */
+  const penStyleRef = useRef("");
+
+  /** what the elements that have a head looked like when a pass last ran */
+  const headedRef = useRef("");
+
+  /**
+   * A font size just picked in the style panel, which only the pen can report.
+   *
+   * The element cannot. What it carries is scene units — the pixel size read
+   * on the map — so a pick that lands on the number already there changes
+   * nothing about it, and there is nothing for a pass to notice: the panel
+   * keeps marking the old size and the button stays dead for as long as the
+   * two numbers agree. A pick made while the text editor is open lands on an
+   * element no pass may rewrite, which leaves the same gap.
+   *
+   * Excalidraw writes `currentItemFontSize` in the same action as the element,
+   * on every pick, whether the element changes or not. So the pen is what says
+   * a pick happened, and `penFontRef` is what tells a pick from this pass
+   * writing the pen out in scene units.
+   */
+  const fontPickRef = useRef<FontPick | null>(null);
+
+  /** the font size the pen last reported, or that this pass last wrote to it */
+  const penFontRef = useRef<number | null>(null);
+
+  /** the ends of the selection the user has just picked a head away from */
+  const pickedRef = useRef<{
+    ids: Set<string>;
+    start: boolean;
+    end: boolean;
+  } | null>(null);
 
   /** the pass itself, for the callbacks that are made before it exists */
   const passRef = useRef<((force: boolean) => void) | null>(null);
   /** a pass already asked for, so a burst of reports still costs one */
   const askedRef = useRef(false);
+
+  /**
+   * A forced pass that found nothing to measure, waiting for the camera.
+   *
+   * There is no camera to measure against while the scene is still painting
+   * the anchor the drawing has just left — the frames between a rebase and
+   * the scene echoing the camera for the new anchor back. A pass asked for in
+   * that window would be dropped, and with it the one thing that reads an
+   * undone element out of the anchor it was captured in: the drawing stays on
+   * screen at the ratio between the two anchors, four times its size or more,
+   * until something else happens to ask for a pass. So the ask is held and
+   * made again on the next frame, for as long as the wait is plausibly the
+   * camera's.
+   */
+  const waitRef = useRef({ frames: 0, scheduled: false });
 
   /**
    * A pass on the next frame. Excalidraw is in the middle of telling us about
@@ -620,8 +876,18 @@ export const useDecorationScale = ({
       if (state.draggingElement) {
         ids.add(state.draggingElement.id);
       }
-      if (state.editingLinearElement) {
-        ids.add(state.editingLinearElement.elementId);
+      /**
+       * The line editor is a mode and not a gesture: it is opened by a double
+       * click and stays open, and an undo puts it back — excalidraw keeps it
+       * in the app state it captures. Held busy for as long as it is open,
+       * the line is left out of every pass, and a busy element stops the
+       * whole scene rebasing: zoom far enough out and excalidraw clamps its
+       * own camera instead, which draws the entire drawing several times too
+       * big. Only a point actually being dragged is under the hand.
+       */
+      const editor = state.editingLinearElement;
+      if (editor && (editor.isDragging || editor.lastUncommittedPoint)) {
+        ids.add(editor.elementId);
       }
       busyRef.current = { ids, editing: Boolean(state.editingElement) };
 
@@ -637,6 +903,110 @@ export const useDecorationScale = ({
         pen.roughness.px = state.currentItemRoughness;
       }
 
+      // a size picked in the panel, which the pen reports and the element may
+      // not; the sizes this pass writes out are not picks, see `penFontRef`
+      const penFont = penFontRef.current;
+      penFontRef.current = state.currentItemFontSize;
+      if (
+        penFont !== null &&
+        Math.abs(state.currentItemFontSize - penFont) > EPSILON &&
+        isPreset(state.currentItemFontSize, FONT_PRESETS)
+      ) {
+        // what excalidraw hands the size to: the selection, the label inside a
+        // selected shape, and the text the editor is open on
+        const targets = new Set<string>();
+        elements.forEach((element) => {
+          if (!state.selectedElementIds?.[element.id]) {
+            return;
+          }
+          targets.add(element.id);
+          (element.boundElements ?? []).forEach((bound) => {
+            if (bound.type === "text") {
+              targets.add(bound.id);
+            }
+          });
+        });
+        if (state.editingElement) {
+          targets.add(state.editingElement.id);
+        }
+        if (targets.size > 0) {
+          fontPickRef.current = { px: state.currentItemFontSize, ids: targets };
+          askForPass();
+        }
+      }
+
+      /**
+       * A head picked away in the panel writes the absence of a head onto the
+       * element, which is what the parking writes there too — so the element
+       * cannot say it happened. The pen can: excalidraw sets the pen in the
+       * same action, and nothing else moves it while a scene is open.
+       */
+      const heads = headPenRef.current;
+      const start = state.currentItemStartArrowhead ?? null;
+      const end = state.currentItemEndArrowhead ?? null;
+      const off = {
+        start: heads.start !== undefined && heads.start !== start && !start,
+        end: heads.end !== undefined && heads.end !== end && !end,
+      };
+      headPenRef.current = { start, end };
+      // a whole pen arriving from another scene moves every style at once, and
+      // the heads with them; a pick in the panel moves nothing but the head
+      const style = [
+        state.currentItemStrokeColor,
+        state.currentItemBackgroundColor,
+        state.currentItemFillStyle,
+        state.currentItemStrokeStyle,
+        state.currentItemOpacity,
+      ].join("|");
+      const handed = style !== penStyleRef.current;
+      penStyleRef.current = style;
+      const selected = Object.keys(state.selectedElementIds ?? {}).filter(
+        (id) => state.selectedElementIds[id]
+      );
+      if (!handed && (off.start || off.end) && selected.length > 0) {
+        const picked = pickedRef.current;
+        pickedRef.current = {
+          ids: new Set([...(picked?.ids ?? []), ...selected]),
+          start: off.start || Boolean(picked?.start),
+          end: off.end || Boolean(picked?.end),
+        };
+        askForPass();
+      }
+
+      /**
+       * A head is drawn by a copy of its own, and a copy made for where the
+       * element was is a head hanging in the air. Excalidraw reports every
+       * version an element goes through, a dragged one once a frame, so this
+       * is where a head is kept up with the line it ends — the pass itself
+       * finds nothing to do once it has caught up, and the reports stop.
+       *
+       * Not `busy`: an element being *moved* is in none of the three fields
+       * above. Those hold the element being drawn, typed into or point
+       * edited, which is a different thing from the element under the hand.
+       */
+      const headed = elements
+        .filter((element) => parkedHeads(element))
+        .map((element) => `${element.id}:${element.version}`)
+        .join();
+      if (headed !== headedRef.current) {
+        headedRef.current = headed;
+        askForPass();
+      }
+
+      // the camera the scene really paints with, echoed back at last: what
+      // the pass before it measured was the camera of another map position
+      const camera = getCamera?.();
+      const painted = paintedRef.current;
+      if (
+        camera &&
+        camera.zoom > 0 &&
+        painted !== null &&
+        painted > 0 &&
+        Math.abs(Math.log2(camera.zoom / painted)) >= K
+      ) {
+        askForPass();
+      }
+
       // A style picked in the panel lands on the element here and nowhere else:
       // it is not a gesture on the canvas, so nothing else would notice it until
       // the next one — a click or two later, with the element drawn in the
@@ -647,13 +1017,30 @@ export const useDecorationScale = ({
         askForPass();
       }
     },
-    [askForPass]
+    [askForPass, getCamera]
   );
+
+  /** holds a forced pass that could not run, and makes it again next frame */
+  const waitForCamera = useCallback(() => {
+    const wait = waitRef.current;
+    if (wait.scheduled || wait.frames >= FORCE_FRAMES) {
+      return;
+    }
+    wait.scheduled = true;
+    wait.frames += 1;
+    requestAnimationFrame(() => {
+      wait.scheduled = false;
+      passRef.current?.(true);
+    });
+  }, []);
 
   const normalize = useCallback(
     (force: boolean) => {
       const anchor = getAnchor();
       if (!api || !libreMap || !anchor) {
+        if (force) {
+          waitForCamera();
+        }
         return;
       }
       const scales = scalesNow();
@@ -665,9 +1052,14 @@ export const useDecorationScale = ({
           cameraAnchorZoom: seen?.anchor.zoom ?? null,
           cameraZoom: seen?.zoom ?? null,
         });
+        if (force) {
+          waitForCamera();
+        }
         return;
       }
+      waitRef.current.frames = 0;
       const { painted, screen } = scales;
+      paintedRef.current = painted;
       // the decoration is what drifts while the map moves, so it is what says
       // whether the pass is worth its cost
       const moved =
@@ -722,8 +1114,18 @@ export const useDecorationScale = ({
       // copies are not the drawing and are made again further down
       const scene = api.getSceneElementsIncludingDeleted();
       const spare = new Map(
-        scene.filter(isClipProxy).map((proxy) => [proxy.id, proxy])
+        scene
+          .filter((element) => isClipProxy(element) || isHeadProxy(element))
+          .map((proxy) => [proxy.id, proxy])
       );
+      // a head the user has just picked away, which only the pen could report
+      const picked = pickedRef.current;
+      pickedRef.current = null;
+      // and a font size picked in the panel, which the pen reports the same way
+      const fontPick = fontPickRef.current;
+      fontPickRef.current = null;
+      // the labels whose glyphs this pass rewrites, whose boxes go with them
+      const labels = new Set<string>();
       // where the anchor stands once this pass is done, which is the anchor
       // every element is read into
       const anchorZoom = rebasing
@@ -731,12 +1133,31 @@ export const useDecorationScale = ({
         : anchor.zoom;
 
       const rewritten = scene
-        .filter((element) => !isClipProxy(element))
+        .filter((element) => !isClipProxy(element) && !isHeadProxy(element))
         .map((element) => {
-          // the element under the hand is moved out from under the pointer by
-          // a rewrite, so it is left for the pass after the gesture
+          const pick = fontPick?.ids.has(element.id) ? fontPick.px : null;
+          // The element under the hand is moved out from under the pointer by
+          // a rewrite, so it is left for the pass after the gesture — all but
+          // a size picked in the panel while the text editor is open, which is
+          // read onto the glyphs alone and nothing else, see `rescaled`
           if (busy.has(element.id)) {
-            return element;
+            const edited = rescaled(element, scale, pen, busy, 1, null, pick);
+            if (!edited) {
+              return element;
+            }
+            touched = true;
+            if (edited.fontSize !== undefined) {
+              labels.add(element.id);
+            }
+            return redrawn(element, {
+              ...edited,
+              customData: {
+                ...((element.customData ?? {}) as Record<string, unknown>),
+                ...((edited.customData as
+                  | Record<string, unknown>
+                  | undefined) ?? {}),
+              },
+            }) as ExcalidrawElement;
           }
           // Its own catch-up, not the pass's: an element left behind by a
           // rebase — an undo hands those back — carries the whole ratio
@@ -745,33 +1166,72 @@ export const useDecorationScale = ({
           // 1, which is the rebase-free pass exactly as it was.
           const stamp = stampedZoom(element);
           const born = bornRef.current;
-          if (stamp === null && !born.has(element.id)) {
-            born.set(element.id, anchor.zoom);
+          let birth = born.get(element.id);
+          if (stamp === null && !birth) {
+            birth = { zoom: anchor.zoom };
+            born.set(element.id, birth);
           }
-          const from = stamp ?? born.get(element.id) ?? anchor.zoom;
+          const from = stamp ?? birth?.zoom ?? anchor.zoom;
           const factor = 2 ** (anchorZoom - from);
           const moved =
             Math.abs(factor - 1) > EPSILON ? rebased(element, factor) : null;
-          const decoration = rescaled(element, scale, pen, busy, factor);
+          // the birth sizes are for the unstamped copy alone: a stamped
+          // element carries its own record, which is the newer one
+          const decoration = rescaled(
+            element,
+            scale,
+            pen,
+            busy,
+            factor,
+            stamp === null ? birth ?? null : null,
+            pick
+          );
+          // what the first pass made of what the pen drew it with, kept for
+          // the copies of this element the history took before that pass
+          if (stamp === null && birth && decoration) {
+            const sizes = decoration.customData as Record<string, unknown>;
+            birth.stroke ??= storedFrozen(sizes.strokeNorm)?.px;
+            birth.rough ??= storedFrozen(sizes.roughNorm)?.px;
+            birth.font ??= storedFrozen(sizes.fontNorm)?.px;
+          }
+          // the head comes off the element, so it can be drawn at its pixel
+          // size; the element under the hand keeps its own until it is let go
+          const heads = busy.has(element.id)
+            ? null
+            : (picked?.ids.has(element.id)
+                ? dropHeads(element, picked)
+                : null) ?? parkHeads(element);
           // an image is not rescaled at all, so this is what stamps it
           const restamp =
             stamp === null || Math.abs(stamp - anchorZoom) > EPSILON;
-          if (!moved && !decoration && !restamp) {
+          if (!moved && !decoration && !heads && !restamp) {
             return element;
           }
           touched = true;
+          // a rebase carries the box and the glyphs by the same factor, so the
+          // one that has to be measured again is a size read off the panel
+          if (decoration?.fontSize !== undefined) {
+            labels.add(element.id);
+          }
           return redrawn(element, {
             ...(moved ?? {}),
             ...(decoration ?? {}),
+            ...(heads ?? {}),
             customData: {
               ...((element.customData ?? {}) as Record<string, unknown>),
               ...((decoration?.customData as
                 | Record<string, unknown>
                 | undefined) ?? {}),
+              ...((heads?.customData as Record<string, unknown> | undefined) ??
+                {}),
               anchorZoom,
             },
           }) as ExcalidrawElement;
         });
+
+      // a label is laid out by excalidraw, so a rewritten size has to be laid
+      // out again before anything is drawn from it, see `annotation-text-fit`
+      const laid = labels.size > 0 ? refitted(rewritten, labels) : rewritten;
 
       // What excalidraw's canvas cap would eat is drawn by clipped copies
       // instead, see `annotation-clip`. The element under the hand keeps
@@ -781,7 +1241,22 @@ export const useDecorationScale = ({
       const pixelRatio = globalThis.devicePixelRatio || 1;
       const elements: ExcalidrawElement[] = [];
       const copies = new Set<string>();
-      rewritten.forEach((element) => {
+      /** how many of them are clipped outlines, which is what the window is for */
+      let clipped = 0;
+      const keep = (proxy: ExcalidrawElement) => {
+        copies.add(proxy.id);
+        const previous = spare.get(proxy.id);
+        // the same copy as last time keeps its version, so excalidraw draws it
+        // from its cache instead of making it again
+        const same = isHeadProxy(proxy) ? sameHeadProxy : sameProxy;
+        if (previous && same(previous, proxy)) {
+          elements.push(previous);
+          return;
+        }
+        touched = true;
+        elements.push(proxy);
+      };
+      laid.forEach((element) => {
         const takeOver =
           clipBox !== null &&
           !busy.has(element.id) &&
@@ -789,40 +1264,37 @@ export const useDecorationScale = ({
         if (!takeOver) {
           if (!isClipped(element)) {
             elements.push(element);
-            return;
+          } else {
+            touched = true;
+            elements.push(redrawn(clipShown(element), {}) as ExcalidrawElement);
           }
-          touched = true;
-          elements.push(redrawn(clipShown(element), {}) as ExcalidrawElement);
-          return;
-        }
-        if (isClipped(element)) {
-          elements.push(element);
         } else {
-          touched = true;
-          elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
-        }
-        proxiesFor(element, clipBox, geometry).forEach((proxy) => {
-          copies.add(proxy.id);
-          const previous = spare.get(proxy.id);
-          // the same copy as last time keeps its version, so excalidraw draws
-          // it from its cache instead of making it again
-          if (previous && sameProxy(previous, proxy)) {
-            elements.push(previous);
-            return;
+          if (isClipped(element)) {
+            elements.push(element);
+          } else {
+            touched = true;
+            elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
           }
-          touched = true;
-          elements.push(proxy);
-        });
+          proxiesFor(element, clipBox, geometry).forEach((proxy) => {
+            clipped += 1;
+            keep(proxy);
+          });
+        }
+        // the head is drawn over the line it ends, and is made for the element
+        // under the hand as well, so that it keeps up with it
+        headProxiesFor(element, scale, visibleOpacity(element)).forEach(keep);
       });
       if (spare.size !== copies.size) {
         touched = true;
       }
-      // a copy only covers the window it was clipped to, so panning past that
-      // window has to make them again; nothing to watch while there are none
-      clipRef.current = copies.size > 0 ? clipBox : null;
+      // a clipped copy only covers the window it was clipped to, so panning
+      // past that window has to make them again; a head copy is not clipped to
+      // anything, and nothing is watched while there are no clipped ones
+      clipRef.current = clipped > 0 ? clipBox : null;
 
       const sample = elements.find(
-        (element) => !element.isDeleted && !isClipProxy(element)
+        (element) =>
+          !element.isDeleted && !isClipProxy(element) && !isHeadProxy(element)
       );
       planeLog("normalize", {
         force,
@@ -850,6 +1322,11 @@ export const useDecorationScale = ({
         // the zoom that puts this scale at 1 is the one the scene is at
         setAnchorZoom(anchorZoom);
       }
+      // the pen is about to carry a size of ours, in scene units. Noted before
+      // excalidraw echoes it back, so that the echo is not taken for a pick
+      if (penMoved && fontAt !== null) {
+        penFontRef.current = fontAt;
+      }
       // not an edit the user made, so it stays out of the undo history
       api.updateScene({
         elements: touched ? elements : undefined,
@@ -874,6 +1351,7 @@ export const useDecorationScale = ({
       scalesNow,
       setAnchorZoom,
       viewportRect,
+      waitForCamera,
     ]
   );
 
