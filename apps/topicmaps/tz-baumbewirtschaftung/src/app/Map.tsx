@@ -58,6 +58,7 @@ import {
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { treeMatches, useKampagne } from "./context/KampagneContext";
+import type { VectorOverlay } from "../config/attributesets";
 
 type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
@@ -117,7 +118,24 @@ const TZBaumbewirtschaftung = ({
   // kampagne-filtered view (`featureCollection`) computed from it.
   const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
     useState<any>();
-  const { ready: kampagneReady, showAll, effectiveCampaignIds } = useKampagne();
+  const {
+    ready: kampagneReady,
+    showAll,
+    effectiveCampaignIds,
+    attributesetForFeature,
+    activeAttributesets,
+  } = useKampagne();
+
+  // Overlays of every Anwendungsfall in the current view, one layer per style.
+  const adminOverlays = useMemo(() => {
+    const byKey = new Map<string, VectorOverlay>();
+    for (const a of activeAttributesets) {
+      for (const o of a.adminOverlays ?? []) {
+        if (!byKey.has(o.key)) byKey.set(o.key, o);
+      }
+    }
+    return [...byKey.values()];
+  }, [activeAttributesets]);
 
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
@@ -268,7 +286,8 @@ const TZBaumbewirtschaftung = ({
         updatedSelectedFeature.properties.info = createInfoBoxControlObject(
           updatedSelectedFeature,
           setShowStatusDialog,
-          jwt
+          jwt,
+          attributesetForFeature(updatedSelectedFeature)
         );
         updatedSelectedFeature.text =
           updatedSelectedFeature.properties.info.puretitle;
@@ -310,7 +329,8 @@ const TZBaumbewirtschaftung = ({
           updatedSelectedFeature.properties.info = createInfoBoxControlObject(
             updatedSelectedFeature,
             setShowStatusDialog,
-            jwt
+            jwt,
+            attributesetForFeature(updatedSelectedFeature)
           );
           updatedSelectedFeature.text =
             updatedSelectedFeature.properties.info.puretitle;
@@ -358,7 +378,8 @@ const TZBaumbewirtschaftung = ({
         affectedFeature.properties.info = createInfoBoxControlObject(
           affectedFeature,
           setShowStatusDialog,
-          jwt
+          jwt,
+          attributesetForFeature(affectedFeature)
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
@@ -395,6 +416,7 @@ const TZBaumbewirtschaftung = ({
     isFollowMode,
     routedMapRef,
     effectiveCampaignIds,
+    attributesetForFeature,
   ]);
 
   useEffect(() => {
@@ -798,6 +820,21 @@ const TZBaumbewirtschaftung = ({
               opacity={0.5}
             />
 
+            {/* Attributeset overlays for "*" users (Auftraggeber), e.g. the
+                Watermark soil moisture sensors for irrigation (wupp #4145).
+                Same pane as the Stadtbezirk backdrop, below the tree markers. */}
+            {showAll &&
+              adminOverlays.map((overlay) => (
+                <CismapLayer
+                  key={`admin-overlay-${overlay.key}`}
+                  type="vector"
+                  style={overlay.style}
+                  pane="oneAboveBackgroundLayers"
+                  selectionEnabled={false}
+                  opacity={overlay.opacity ?? 1}
+                />
+              ))}
+
             {featureCollection && (
               <CismapLayer
                 key={`tree-layer-${markerSymbolSize}`}
@@ -827,7 +864,8 @@ const TZBaumbewirtschaftung = ({
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
                         setShowStatusDialog,
-                        jwt
+                        jwt,
+                        attributesetForFeature(feature)
                       );
                       feature.text = feature.properties.info.puretitle;
 

@@ -21,6 +21,8 @@ import {
   useKampagne,
   type EmbeddedKampagne,
 } from "./context/KampagneContext";
+import type { ActionStatus } from "../config/attributesets";
+import { treeTitle } from "./helper/treeHelper";
 
 const { Text } = Typography;
 
@@ -28,7 +30,7 @@ const { Text } = Typography;
 interface TreeActionPayload {
   [key: string]: unknown;
   key: string;
-  status: "open" | "done" | "exception";
+  status: ActionStatus;
   payload: {
     pic?: string;
     user: string;
@@ -76,7 +78,8 @@ const SetStatusDialog = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const { status: syncStatus, syncedAction } = useSync();
-  const { allowedCampaignIds, campaigns, showAll } = useKampagne();
+  const { allowedCampaignIds, campaigns, showAll, attributesetForCampaign } =
+    useKampagne();
 
   // Intersect this tree's embedded kampagnen with the user's allowed kampagne ids.
   // Result: the kampagnen the user can plausibly stamp on a new action for this tree.
@@ -104,6 +107,19 @@ const SetStatusDialog = ({
 
   const needsKampagnePicker = showAll && editableKampagnen.length > 1;
 
+  // The Anwendungsfall hangs on the Kampagne the action is stamped with
+  // (wupp #4145): the picked one for admins, else the default above.
+  const pickedKampagneId = Form.useWatch("fk_kampagne", form) as
+    | number
+    | undefined;
+  const attributeset = attributesetForCampaign(
+    pickedKampagneId ?? defaultKampagneId
+  );
+
+  // "confirm" workflow (e.g. irrigation): no photo, no status choice, one
+  // button that stores the action as done.
+  const isConfirm = attributeset.workflow === "confirm";
+
   // Check for devMode URL parameter (supports hash-based routing)
   const isDevMode = (() => {
     const hashParams = window.location.hash.split("?")[1];
@@ -113,8 +129,10 @@ const SetStatusDialog = ({
     return new URLSearchParams(window.location.search).has("devMode");
   })();
 
+  const photoRequired = !isConfirm && !isDevMode;
+
   // Compute default status based on the 90% rule
-  const getDefaultStatus = (): "open" | "done" | "exception" => {
+  const getDefaultStatus = (): ActionStatus => {
     const latestStatus = feature?.properties?.latestActionStatus;
     // If no action exists, presume the user wants to start
     if (!latestStatus || latestStatus === "none") {
@@ -154,8 +172,8 @@ const SetStatusDialog = ({
 
   const handleSave = async () => {
     try {
-      // Validate image is attached (skip in devMode)
-      if (!imagePreview && !isDevMode) {
+      // Validate image is attached (skip in devMode and for confirm workflows)
+      if (!imagePreview && photoRequired) {
         message.error("Bitte ein Foto hinzufügen.");
         return;
       }
@@ -166,18 +184,20 @@ const SetStatusDialog = ({
       const now = new Date();
       const isoNow = now.toISOString();
 
+      const status: ActionStatus = isConfirm ? "done" : values.status;
+
       // Build the action payload according to the server spec
       const actionPayload: TreeActionPayload = {
-        key: "shoot_cutting", // TODO: Make this configurable based on action type
-        status: values.status,
+        key: attributeset.actionKey,
+        status,
         payload: {
           pic: imagePreview || undefined,
           user: username ?? "",
         },
         created_at: isoNow,
         action_time: isoNow,
-        description: getStatusDescription(values.status),
-        status_reason: values.remarks || getStatusName(values.status),
+        description: attributeset.statusDescription[status],
+        status_reason: values.remarks || getStatusName(status),
         fk_tree: feature.properties?.id || feature.id,
         fk_kampagne: values.fk_kampagne,
       };
@@ -192,7 +212,7 @@ const SetStatusDialog = ({
 
       // Also call the original onClose for any local updates
       const parameter = {
-        status: values.status,
+        status,
         user: values.user,
         remarks: values.remarks,
         image: imagePreview,
@@ -209,19 +229,6 @@ const SetStatusDialog = ({
       message.error("Fehler beim Speichern: " + String(error));
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const getStatusDescription = (status: string) => {
-    switch (status) {
-      case "open":
-        return "Zurückschneiden von Stamm und Stockaustrieb";
-      case "done":
-        return "Arbeiten abgeschlossen";
-      case "exception":
-        return "Ausnahme bei der Bearbeitung";
-      default:
-        return "Status geändert";
     }
   };
 
@@ -265,22 +272,30 @@ const SetStatusDialog = ({
     <Modal
       zIndex={30000001}
       title={
-        <>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span>Status ändern</span>
-            <SyncStatusIndicator />
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span>
+                {isConfirm ? attributeset.headerLabel : "Status ändern"}
+              </span>
+              <SyncStatusIndicator />
+            </div>
+            <Text type="secondary">{treeTitle(p)}</Text>
           </div>
-          <Text type="secondary">
-            {p.baumart_botanisch +
-              " (" +
-              p.standort_nr +
-              "." +
-              p.zusatz +
-              "." +
-              p.lfd_nr_str +
-              ")"}
-          </Text>
-        </>
+          {isConfirm && attributeset.illustration && (
+            // Keeps clear of the modal's close button (top right corner).
+            <img
+              src={import.meta.env.BASE_URL + attributeset.illustration}
+              alt=""
+              style={{
+                height: 96,
+                marginRight: 28,
+                flexShrink: 0,
+                opacity: 0.7,
+              }}
+            />
+          )}
+        </div>
       }
       centered
       open={true}
@@ -289,11 +304,17 @@ const SetStatusDialog = ({
         onCancel();
         close();
       }}
-      okText={isSaving ? "Speichern..." : "Speichern"}
+      okText={
+        isSaving
+          ? "Speichern..."
+          : isConfirm
+          ? attributeset.confirmLabel ?? "Bestätigen"
+          : "Speichern"
+      }
       cancelText="Abbrechen"
       okButtonProps={{
         loading: isSaving,
-        disabled: !syncStatus.isReady || (!imagePreview && !isDevMode),
+        disabled: !syncStatus.isReady || (!imagePreview && photoRequired),
       }}
     >
       <Form
@@ -305,44 +326,51 @@ const SetStatusDialog = ({
           fk_kampagne: defaultKampagneId,
         }}
       >
-        <Form.Item
-          name="status"
-          label="Status"
-          rules={[
-            {
-              required: true,
-              message: "Bitte einen Status auswählen.",
-            },
-          ]}
-        >
-          <Radio.Group
-            style={{ width: "100%", marginBottom: 15 }}
-            buttonStyle="solid"
+        {isConfirm ? (
+          <p style={{ marginTop: 0, marginBottom: 16 }}>
+            <Text strong>{attributeset.statusDescription.done}</Text> wird für
+            diesen Baum gespeichert.
+          </p>
+        ) : (
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[
+              {
+                required: true,
+                message: "Bitte einen Status auswählen.",
+              },
+            ]}
           >
-            <Radio.Button
-              style={{ width: "33%", textAlign: "center", fontSize: 12 }}
-              value="open"
+            <Radio.Group
+              style={{ width: "100%", marginBottom: 15 }}
+              buttonStyle="solid"
             >
-              <span className="status-emoji">▶️</span>
-              <span className="status-text">Gestartet</span>
-            </Radio.Button>
-            <Radio.Button
-              style={{ width: "33%", textAlign: "center", fontSize: 12 }}
-              value="done"
-              disabled={!canComplete}
-            >
-              <span className="status-emoji">✅</span>
-              <span className="status-text">Abgeschlossen</span>
-            </Radio.Button>
-            <Radio.Button
-              style={{ width: "33%", textAlign: "center", fontSize: 12 }}
-              value="exception"
-            >
-              <span className="status-emoji">⚠️</span>
-              <span className="status-text">Ausnahme</span>
-            </Radio.Button>
-          </Radio.Group>
-        </Form.Item>
+              <Radio.Button
+                style={{ width: "33%", textAlign: "center", fontSize: 12 }}
+                value="open"
+              >
+                <span className="status-emoji">▶️</span>
+                <span className="status-text">Gestartet</span>
+              </Radio.Button>
+              <Radio.Button
+                style={{ width: "33%", textAlign: "center", fontSize: 12 }}
+                value="done"
+                disabled={!canComplete}
+              >
+                <span className="status-emoji">✅</span>
+                <span className="status-text">Abgeschlossen</span>
+              </Radio.Button>
+              <Radio.Button
+                style={{ width: "33%", textAlign: "center", fontSize: 12 }}
+                value="exception"
+              >
+                <span className="status-emoji">⚠️</span>
+                <span className="status-text">Ausnahme</span>
+              </Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+        )}
 
         {needsKampagnePicker && (
           <Form.Item
@@ -365,24 +393,26 @@ const SetStatusDialog = ({
           </Form.Item>
         )}
 
-        <Form.Item
-          name="picture"
-          label="Foto"
-          required={!isDevMode}
-          tooltip={isDevMode ? undefined : "Ein Foto ist erforderlich"}
-        >
-          <Upload
-            name="upload"
-            className="avatar-uploader"
-            showUploadList={false}
-            onChange={handleUploadChange}
-            customRequest={dummyRequest}
+        {!isConfirm && (
+          <Form.Item
+            name="picture"
+            label="Foto"
+            required={photoRequired}
+            tooltip={photoRequired ? "Ein Foto ist erforderlich" : undefined}
           >
-            <Button style={{ width: "100%" }} icon={<UploadOutlined />}>
-              Foto hinzufügen
-            </Button>
-          </Upload>
-        </Form.Item>
+            <Upload
+              name="upload"
+              className="avatar-uploader"
+              showUploadList={false}
+              onChange={handleUploadChange}
+              customRequest={dummyRequest}
+            >
+              <Button style={{ width: "100%" }} icon={<UploadOutlined />}>
+                Foto hinzufügen
+              </Button>
+            </Upload>
+          </Form.Item>
+        )}
 
         {imagePreview && (
           <div style={{ marginTop: 20, marginBottom: 20 }}>
