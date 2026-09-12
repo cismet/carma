@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useMemo } from "react";
-import { Modal, Button } from "antd";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { Modal, Button, Checkbox } from "antd";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { useSelector, useDispatch } from "react-redux";
@@ -102,6 +102,9 @@ const ArbeitsauftragSearchModal = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [noResults, setNoResults] = useState(false);
+  // When set, results are loaded into the sidebar/map layer but the map view
+  // is left where it is instead of being fitted to the result bounds.
+  const [keepMapPosition, setKeepMapPosition] = useState(false);
   const [queryPreview, setQueryPreview] = useState("");
 
   const showRaw = useMemo(() => {
@@ -113,11 +116,28 @@ const ArbeitsauftragSearchModal = ({
     return window.location.hostname === "localhost";
   }, []);
 
+  useEffect(() => {
+    if (noResults) {
+      const timer = setTimeout(() => setNoResults(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [noResults]);
+
   const searchValuesRef = useRef<ArbeitsauftragSearchValues>({});
+
+  // Without this the preview stays empty (and its box collapses) until the
+  // user edits a field for the first time.
+  useEffect(() => {
+    if (showRaw && isOpen) {
+      setQueryPreview(generateQueryPreview(searchValuesRef.current));
+    }
+  }, [showRaw, isOpen]);
 
   const handleValuesChange = useCallback(
     (values: ArbeitsauftragSearchValues) => {
       searchValuesRef.current = values;
+      // Editing the criteria clears the message, so the checkbox comes back.
+      setNoResults(false);
       if (showRaw) {
         setQueryPreview(generateQueryPreview(values));
       }
@@ -174,7 +194,10 @@ const ArbeitsauftragSearchModal = ({
         dispatch(setSelectedTeamId(null));
         dispatch(clearSelection());
         dispatch(setFeatures(transformed));
-        dispatch(bumpSearchResultsVersion());
+        // The version bump is what triggers the map's fit-to-results effect.
+        if (!keepMapPosition) {
+          dispatch(bumpSearchResultsVersion());
+        }
 
         setIsSearching(false);
         setIsOpen(false);
@@ -183,7 +206,7 @@ const ArbeitsauftragSearchModal = ({
       .catch((err) => {
         setIsSearching(false);
       });
-  }, [jwt, dispatch, onSearchDone]);
+  }, [jwt, dispatch, onSearchDone, keepMapPosition]);
 
   return (
     <>
@@ -200,18 +223,28 @@ const ArbeitsauftragSearchModal = ({
         onCancel={() => setIsOpen(false)}
         footer={
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <div className="text-sm text-gray-500">
-              {noResults && "Keine Ergebnisse gefunden"}
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-              <Button
-                type="primary"
-                onClick={executeSearch}
-                loading={isSearching}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={keepMapPosition}
+                onChange={(e) => setKeepMapPosition(e.target.checked)}
               >
-                Suchen
-              </Button>
+                <span className="text-sm text-gray-500">
+                  Kartenposition nicht ändern
+                </span>
+              </Checkbox>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
+                <Button
+                  type="primary"
+                  onClick={executeSearch}
+                  loading={isSearching}
+                >
+                  Suchen
+                </Button>
+              </div>
             </div>
           </div>
         }
