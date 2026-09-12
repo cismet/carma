@@ -750,10 +750,10 @@ export const workflowsFachzwilling: FachzwillingRoute = {
     deployments: ["localDev", "dev", "pr"],
   },
   // The bare engines, idle until a workflow card launches something into them.
-  // `vehicleAnimation` is deliberately absent: the default workflow declares
-  // that engine with its Schwebebahn config for every route, and a bare
-  // declaration here would take precedence and leave this route without it.
-  addons: ["timeSlider", "flowField", "floodSimulation"],
+  // `vehicleAnimation` is declared here like the other three: the Schwebebahn
+  // default is a layer now (`constants/default-layers`), and a layer only
+  // launches its engine on the route it is on, which is the plain geoportal.
+  addons: ["timeSlider", "flowField", "vehicleAnimation", "floodSimulation"],
   perspectives: [
     {
       id: "versorgung",

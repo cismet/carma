@@ -7,7 +7,6 @@ import type { WorkflowDefinition } from "@carma-mapping/layers";
 import { isAvailable } from "@carma-commons/utils";
 
 import { availabilityContext } from "../config/availability";
-import { SCHWEBEBAHN_3D_VEHICLE, SCHWEBEBAHN_VEHICLE } from "./schwebebahn";
 
 /**
  * Workflows that are on the map without anyone adding them.
@@ -22,45 +21,14 @@ import { SCHWEBEBAHN_3D_VEHICLE, SCHWEBEBAHN_VEHICLE } from "./schwebebahn";
  * Only the payload of a card's `tools` is supported. A workflow whose payload
  * is `layers` (a catalog layer group) is skipped with a warning; making the
  * catalog add a group on every route is a different mechanism.
+ *
+ * A default that is a layer rather than a tool belongs in `DEFAULT_LAYERS`
+ * (`constants/default-layers`), which puts a style in the stack. A style whose
+ * `carmaConf.tools` carry a complete engine config needs no entry here at all:
+ * the layer launches the engine itself, see `getLayerLaunchedAddons`. That is
+ * where the Schwebebahn went, which is why this list is currently empty.
  */
-export const DEFAULT_WORKFLOWS: WorkflowDefinition<AddonEntry>[] = [
-  {
-    id: "schwebebahn",
-    title: "Schwebebahn",
-    // Same reach as the `workflows` Fachzwilling the card came from. The
-    // Schwebebahn is the first workflow to run unasked on every route, so it
-    // stays off the production geoportal until that has been seen in dev.
-    availability: {
-      deployments: ["localDev", "dev", "pr"],
-    },
-    description:
-      "Inhalt: Mehrere Schwebebahnen, die im Takt über die Trasse " +
-      "fahren und an jeder Station halten. " +
-      "Sichtbarkeit: öffentlich. " +
-      "Nutzung: Zeigt den Betrieb auf der Strecke, nicht nur ihren " +
-      "Verlauf. Über den Knopf in der Layer-Zeile lassen sich die " +
-      "Fahrten anhalten.",
-    metaDataText:
-      "Grundlage ist die Mittellinie des 3D-Trassenmodells der Stadt " +
-      "Wuppertal, die Stationen stammen aus OpenStreetMap. Gefahren " +
-      "wird im 3:40-Takt mit 25 Sekunden Halt je Station und 36 km/h " +
-      "zwischen den Halten, zusammen die rund 27 km/h " +
-      "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
-      "sind GTW 15: 24,06 m lang, 2,2 m breit, zwei Fahrgastteile mit " +
-      "einem kurzen Mittelteil dazwischen, verbunden über zwei Gelenke.",
-    // `variant3d`: while the map's camera is free, the same fleet runs as the
-    // 3D variant, Gerüst and all. Terrain is on in that state anyway, so the
-    // Schwebebahn stands up with it and lies back down when the camera locks.
-    // It runs without a claim on the camera of its own, so it follows that
-    // state rather than holding it open, see the addon's config.
-    tools: [
-      {
-        addon: "vehicleAnimation",
-        config: { ...SCHWEBEBAHN_VEHICLE, variant3d: SCHWEBEBAHN_3D_VEHICLE },
-      },
-    ],
-  },
-];
+export const DEFAULT_WORKFLOWS: WorkflowDefinition<AddonEntry>[] = [];
 
 /**
  * The addon kinds a default workflow can carry: the four engines that idle

@@ -62,6 +62,7 @@ import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
 
 import { useAppConfig } from "./hooks/useAppConfig";
+import { useDefaultLayers } from "./hooks/useDefaultLayers";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -207,6 +208,8 @@ function App({
   const showLoginModal = useSelector(getShowLoginModal);
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
+  // the plain geoportal's own layers, see constants/default-layers
+  useDefaultLayers(routePath);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);

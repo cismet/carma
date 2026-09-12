@@ -14,6 +14,15 @@ export {
 export type { CatalogConfigEntry } from "./helper/buildCatalog";
 export type { DiscoverProps } from "./helper/discover";
 export {
+  buildVectorStyleItem,
+  loadVectorStyle,
+  parseVectorStyle,
+  styleUrlTitle,
+  substituteServerUrl,
+  type CarmaVectorStyle,
+  type VectorStyleItemProps,
+} from "./helper/vectorStyleItem";
+export {
   LayerCatalogConfigProvider,
   useLayerCatalogConfig,
 } from "./config/LayerCatalogConfigContext";
