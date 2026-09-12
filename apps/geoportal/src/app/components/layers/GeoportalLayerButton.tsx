@@ -26,7 +26,7 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
-import { getInteractionButtons } from "@carma-mapping/layers";
+import { getInteractionButtons, isLayerGroup } from "@carma-mapping/layers";
 import { isAlwaysOnTop } from "@carma-mapping/addons";
 import { cn } from "@carma-commons/utils";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
@@ -155,6 +155,16 @@ const GeoportalLayerButton = ({
   const showSettings = index === selectedLayerIndex;
   const layerStack = useSelector(getLayerStack);
   const layersLength = layerStack.length;
+  /**
+   * What the narrow layout counts: the layers the visitor put on the map. A
+   * permanent row is the app's own and gets no button of its own either (see
+   * `LayerWrapper`), so counting it would announce a layer that cannot be
+   * reached from here. `layersLength` stays the whole stack, since the scroll
+   * edges index into it.
+   */
+  const visitorLayerCount = layerStack.filter(
+    (entry) => isLayerGroup(entry) || !entry.permanent
+  ).length;
   const showsNoSelection = useSelector(getSelectionShowsNoInfoView);
 
   const isPinned = !!(layer as Layer).pinned;
@@ -361,8 +371,8 @@ const GeoportalLayerButton = ({
           />
         )}
 
-        {layersLength > 0 && (
-          <span className="text-base sm:hidden">{layersLength} Layer</span>
+        {visitorLayerCount > 0 && (
+          <span className="text-base sm:hidden">{visitorLayerCount} Layer</span>
         )}
         {error && (
           <div
