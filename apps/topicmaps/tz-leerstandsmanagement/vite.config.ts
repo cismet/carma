@@ -22,6 +22,28 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
 
+  // maplibre-gl stringifies functions to build its workers; esbuild's
+  // __publicField helper for downlevelled class fields is missing in that
+  // worker scope and the GeoJSON source dies with "__publicField is not
+  // defined". Keep class fields native in dev pre-bundling and in the build.
+  optimizeDeps: {
+    include: ["maplibre-gl"],
+    esbuildOptions: {
+      target: "es2022",
+      supported: {
+        "class-field": true,
+        "class-static-field": true,
+      },
+    },
+  },
+
+  esbuild: {
+    supported: {
+      "class-field": true,
+      "class-static-field": true,
+    },
+  },
+
   build: {
     outDir: "../../../dist/apps/topicmaps/tz-leerstandsmanagement",
     reportCompressedSize: true,
