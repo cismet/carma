@@ -22,6 +22,13 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
 
+  // The maplibre engine spawns module workers (tileset hierarchy); their
+  // bundles need the tsconfig path aliases and ES output too.
+  worker: {
+    format: "es",
+    plugins: () => [nxViteTsPaths()],
+  },
+
   // maplibre-gl stringifies functions to build its workers; esbuild's
   // __publicField helper for downlevelled class fields is missing in that
   // worker scope and the GeoJSON source dies with "__publicField is not
