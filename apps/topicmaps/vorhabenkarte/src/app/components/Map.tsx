@@ -125,9 +125,8 @@ const Map = ({ styleUrl }: MapProps) => {
         modalMenu={<Menu />}
         applicationMenuTooltipString={MenuTooltip()}
         gazetteerSearchComponent={
-          // data-test-id is what the shared smoke test looks for. CarmaMap only
-          // sets it on its own default search, not on an injected one.
-          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+          // LibFuzzySearch carries the data-test-id the smoke test looks for
+          <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               gazData={gazDataWithProjects}
               typeInference={defaultTypeInference}
