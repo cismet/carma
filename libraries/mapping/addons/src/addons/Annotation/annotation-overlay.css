@@ -51,12 +51,30 @@
    which is not the same on every side: a rotation turns the corners out, a
    pitch pushes the far side a long way out. What is drawn out there is clipped
    back to the map area, so it never covers the app's own chrome and never
-   takes a pointer event meant for it. */
+   takes a pointer event meant for it.
+
+   A polygon and not an inset: the box is painted at less than full size once
+   the camera looks at more ground than the canvas holds, and is then narrower
+   than the map area it is clipped to. The far insets are negative there, which
+   inset() will not take and a polygon does not mind. */
 .carma-annotation-overlay[data-plane="true"] {
-  clip-path: inset(
-    var(--carma-plane-top, 0) var(--carma-plane-right, 0)
-      var(--carma-plane-bottom, 0) var(--carma-plane-left, 0)
+  clip-path: polygon(
+    var(--carma-plane-left, 0px) var(--carma-plane-top, 0px),
+    calc(100% - var(--carma-plane-right, 0px)) var(--carma-plane-top, 0px),
+    calc(100% - var(--carma-plane-right, 0px))
+      calc(100% - var(--carma-plane-bottom, 0px)),
+    var(--carma-plane-left, 0px) calc(100% - var(--carma-plane-bottom, 0px))
   );
+}
+
+/* Excalidraw's container clips to itself. The canvases inside it are drawn
+   through a matrix that reaches well outside it — a magnified plane is a box
+   painted smaller than the map area it covers — and that clip would cut
+   exactly what the matrix reaches out to draw. What keeps the drawing off the
+   app's chrome is the clip above, on the overlay, which is the map area
+   whatever the box does. */
+.carma-annotation-overlay[data-plane="true"] .excalidraw {
+  overflow: visible;
 }
 
 /* excalidraw pins its chrome to the box it is given, and that box is now

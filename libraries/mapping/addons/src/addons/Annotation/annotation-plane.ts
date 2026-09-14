@@ -42,6 +42,11 @@ import type { AnnotationAnchor } from "./types";
  * See `reachOf`. The box is clipped back to the map area in CSS, so the extra
  * never covers the app's own chrome and never takes a pointer event meant for
  * it.
+ *
+ * What a tilted camera looks at is more ground than any canvas can hold at
+ * full size. That is not answered by cutting the box back — a cut box is a
+ * drawing that ends in mid air — but by painting the scene smaller, see
+ * `MIN_PLANE_QUALITY`.
  */
 
 /** the least the plane hangs past the map area, per side, of the area's size */
@@ -53,10 +58,41 @@ const MAX_PLANE_MARGIN_PX = 4096;
 /**
  * What the two excalidraw canvases may cost together, in device pixels. A
  * plane twice the size of the viewport is four times the canvas, which on a
- * large retina screen is hundreds of megabytes; past this the margin is given
- * back until it fits.
+ * large retina screen is hundreds of megabytes; past this the scene is painted
+ * smaller until it fits, see `MIN_PLANE_QUALITY`.
  */
 const PLANE_DEVICE_PX_BUDGET = 24e6;
+
+/**
+ * The least the plane may be painted at, in box pixels per map pixel.
+ *
+ * A pitched camera looks at several screens of ground, which is more canvas
+ * than the budget buys. Cutting the box back to what it does buy is what cut
+ * the drawing: ground the camera is looking at is then simply not painted, and
+ * a shape out there ends at a straight edge in mid air.
+ *
+ * So the box is not cut. The scene is painted smaller — `quality` box pixels
+ * per map pixel — and the same matrix that puts the plane on screen blows it
+ * back up, because the matrix is solved from the camera the scene is actually
+ * painted with and carries whatever scale that camera has. All the ground the
+ * camera asked for is there; it is a magnified bitmap, softer the further the
+ * quality is from 1.
+ *
+ * The trade has an end. A stroke painted well under a pixel does not come back
+ * as a soft stroke, it comes back as grey crumbs, so below this the ground is
+ * given back after all and the far side is cut as it was before.
+ */
+const MIN_PLANE_QUALITY = 0.25;
+
+/**
+ * Quality moves in steps of this. Every change repaints the whole scene, so a
+ * tilt is not followed continuously: it walks the quality in steps, and a
+ * wobble inside a step costs nothing. The same bargain as `MARGIN_STEP`.
+ */
+const QUALITY_STEP = 1 / 32;
+
+/** how finely the comfort margin is given back to the budget */
+const COMFORT_STEPS = 8;
 
 /**
  * Margins move in steps of this many pixels. Every change of one resizes both
@@ -96,6 +132,8 @@ export type PlaneCamera = {
   scrollX: number;
   scrollY: number;
   zoom: number;
+  /** the box pixels per map pixel that zoom was taken at; see `PlaneFit` */
+  quality: number;
 };
 
 export type PlaneMargin = {
@@ -120,6 +158,38 @@ const sameMargin = (a: PlaneMargin, b: PlaneMargin) =>
   a.right === b.right &&
   a.bottom === b.bottom &&
   a.left === b.left;
+
+/**
+ * The box the scene is painted into: how far it hangs past the map area, and
+ * how small the scene is painted to make the camera's ground fit in it. See
+ * `MIN_PLANE_QUALITY`.
+ */
+export type PlaneFit = {
+  /** how far the box hangs past the map area, per side, in box pixels */
+  margin: PlaneMargin;
+  /** box pixels per map pixel, at most 1 */
+  quality: number;
+  /**
+   * How much narrower and shorter the box is than the map area plus its
+   * margins. The area is painted at `quality` like everything else, so it
+   * takes only `quality` of its own width inside the box, and the box is that
+   * much smaller than the layout it is pinned to. Layout only — see the box
+   * style in `AnnotationScene`.
+   */
+  shrink: { x: number; y: number };
+};
+
+export const NO_PLANE_FIT: PlaneFit = {
+  margin: NO_MARGIN,
+  quality: 1,
+  shrink: { x: 0, y: 0 },
+};
+
+const sameFit = (a: PlaneFit, b: PlaneFit) =>
+  sameMargin(a.margin, b.margin) &&
+  a.quality === b.quality &&
+  a.shrink.x === b.shrink.x &&
+  a.shrink.y === b.shrink.y;
 
 /**
  * How far past the map area the ground under the view reaches, per side, in
@@ -229,71 +299,126 @@ const reachOf = (map: MaplibreMap, area: PlaneArea) => {
 };
 
 /**
- * The margin the camera asks for, cut back to what two canvases may cost. The
- * four sides are cut by one factor, so the shape of what the camera wants
- * survives the cut: at a pitch the far side keeps most of the room even after
- * the budget has taken its share.
+ * The box the camera asks for, brought inside what two canvases may cost.
+ *
+ * The budget is spent on quality first: all the ground the camera is looking
+ * at is kept, and the scene is painted smaller until that ground fits. Only
+ * once the quality floor is reached is ground given back, and then by one
+ * factor on all four sides, so the shape of what the camera wants survives the
+ * cut: at a pitch the far side keeps most of the room even then.
  */
-const marginFor = (map: MaplibreMap | null, area: PlaneArea): PlaneMargin => {
+const fitFor = (map: MaplibreMap | null, area: PlaneArea): PlaneFit => {
   const { width, height } = area;
   if (width <= 0 || height <= 0) {
-    return NO_MARGIN;
+    return NO_PLANE_FIT;
   }
   const reach = (map && reachOf(map, area)) ?? NO_MARGIN;
+  const capped = (value: number) => Math.min(value, MAX_PLANE_MARGIN_PX);
+  /** the ground the camera is looking at: what a cut would cut into */
+  const needed: PlaneMargin = {
+    top: capped(reach.top),
+    right: capped(reach.right),
+    bottom: capped(reach.bottom),
+    left: capped(reach.left),
+  };
+  /** and the room given on top of it, which is only ever comfort */
   const floorX = width * PLANE_MARGIN;
   const floorY = height * PLANE_MARGIN;
-  const capped = (value: number, floor: number) =>
-    Math.min(Math.max(value, floor), MAX_PLANE_MARGIN_PX);
   const wanted: PlaneMargin = {
-    top: capped(reach.top, floorY),
-    right: capped(reach.right, floorX),
-    bottom: capped(reach.bottom, floorY),
-    left: capped(reach.left, floorX),
+    top: Math.max(needed.top, floorY),
+    right: Math.max(needed.right, floorX),
+    bottom: Math.max(needed.bottom, floorY),
+    left: Math.max(needed.left, floorX),
   };
 
   const ratio = globalThis.devicePixelRatio || 1;
-  let factor = 1;
-  const cost = () =>
-    (width + (wanted.left + wanted.right) * factor) *
-    (height + (wanted.top + wanted.bottom) * factor) *
-    ratio *
-    ratio *
-    2;
-  while (factor > 0.02 && cost() > PLANE_DEVICE_PX_BUDGET) {
-    factor *= 0.8;
-  }
+  /** what the two canvases may cover between them, in box pixels */
+  const budget = PLANE_DEVICE_PX_BUDGET / (2 * ratio * ratio);
+  /**
+   * The quality that just holds the ground the camera is looking at. Measured
+   * against `needed` and not against `wanted`: the comfort margin is given
+   * back to the budget further down, and paying for it in sharpness instead
+   * would soften a merely rotated camera, which needs no room at all.
+   */
+  const affordable = Math.sqrt(
+    budget /
+      ((width + needed.left + needed.right) *
+        (height + needed.top + needed.bottom))
+  );
+  const quality = Math.max(
+    MIN_PLANE_QUALITY,
+    Math.min(1, Math.floor(affordable / QUALITY_STEP) * QUALITY_STEP)
+  );
+  // at the floor the quality no longer pays for all of it and the rest comes
+  // off the ground, which is the old bargain and the old straight cut
+  const held = Math.min(1, affordable / quality);
 
-  const step = (value: number) =>
-    Math.round((value * factor) / MARGIN_STEP) * MARGIN_STEP;
+  /** the margins holding `share` of the comfort room, in box pixels */
+  const at = (share: number): PlaneMargin => {
+    const side = (need: number, like: number) =>
+      quality * (need * held + (like - need) * share);
+    return {
+      top: side(needed.top, wanted.top),
+      right: side(needed.right, wanted.right),
+      bottom: side(needed.bottom, wanted.bottom),
+      left: side(needed.left, wanted.left),
+    };
+  };
+  const costOf = (margin: PlaneMargin) =>
+    (quality * width + margin.left + margin.right) *
+    (quality * height + margin.top + margin.bottom);
+
+  // the ground the camera looks at is held whatever it costs; the comfort on
+  // top of it is what the budget takes back
+  let share = 1;
+  for (
+    let taken = 0;
+    taken < COMFORT_STEPS && costOf(at(share)) > budget;
+    taken += 1
+  ) {
+    share -= 1 / COMFORT_STEPS;
+  }
+  const margin = at(Math.max(0, share));
+
+  // rounded up, not to the nearest: a step is 128 box pixels, and down at the
+  // quality floor that is half a thousand map pixels of ground to give back
+  const step = (value: number) => Math.ceil(value / MARGIN_STEP) * MARGIN_STEP;
   return {
-    top: step(wanted.top),
-    right: step(wanted.right),
-    bottom: step(wanted.bottom),
-    left: step(wanted.left),
+    margin: {
+      top: step(margin.top),
+      right: step(margin.right),
+      bottom: step(margin.bottom),
+      left: step(margin.left),
+    },
+    quality,
+    shrink: { x: width * (1 - quality), y: height * (1 - quality) },
   };
 };
 
 /**
- * How much the plane box hangs past the map area on each side.
+ * The box the scene is painted into: how far it hangs past the map area on
+ * each side, and how small it is painted to hold the ground the camera is
+ * looking at.
  *
  * Recomputed while the camera turns, but only when it has turned far enough to
  * matter: every change resizes both canvases and repaints the scene, so a
  * degree of pitch is the resolution and a gesture is only ever allowed to grow
- * the box. What it wants to give back is given back once the map is at rest.
+ * the box and lower the quality. What it wants to give back is given back once
+ * the map is at rest.
  */
-export const usePlaneMargin = (
+export const usePlaneFit = (
   map: MaplibreMap | null,
   host: HTMLElement | null,
   inset: PlaneMargin,
   enabled: boolean
-): PlaneMargin => {
-  const [margin, setMargin] = useState<PlaneMargin>(NO_MARGIN);
+): PlaneFit => {
+  const [fit, setFit] = useState<PlaneFit>(NO_PLANE_FIT);
   const insetRef = useRef(inset);
   insetRef.current = inset;
 
   useEffect(() => {
     if (!host || !enabled) {
-      setMargin(NO_MARGIN);
+      setFit(NO_PLANE_FIT);
       return;
     }
 
@@ -328,8 +453,8 @@ export const usePlaneMargin = (
         return;
       }
       key = next;
-      const wanted = marginFor(map, area);
-      planeLog("margin", {
+      const wanted = fitFor(map, area);
+      planeLog("fit", {
         pitch: map?.getPitch() ?? null,
         bearing: map?.getBearing() ?? null,
         area,
@@ -337,18 +462,30 @@ export const usePlaneMargin = (
         wanted,
         ratio: globalThis.devicePixelRatio || 1,
       });
-      setMargin((current) => {
-        // a gesture may only grow the box; shrinking it mid-tilt costs a
-        // canvas resize and a full repaint for room we are about to want back
-        const merged = moving
+      setFit((current) => {
+        // a gesture may only grow the box and only lower the quality; giving
+        // either back mid-tilt costs a canvas resize and a full repaint for
+        // room we are about to want back
+        const quality = moving
+          ? Math.min(current.quality, wanted.quality)
+          : wanted.quality;
+        const merged: PlaneFit = moving
           ? {
-              top: Math.max(current.top, wanted.top),
-              right: Math.max(current.right, wanted.right),
-              bottom: Math.max(current.bottom, wanted.bottom),
-              left: Math.max(current.left, wanted.left),
+              margin: {
+                top: Math.max(current.margin.top, wanted.margin.top),
+                right: Math.max(current.margin.right, wanted.margin.right),
+                bottom: Math.max(current.margin.bottom, wanted.margin.bottom),
+                left: Math.max(current.margin.left, wanted.margin.left),
+              },
+              quality,
+              // the shrink is the quality's own, never the one it came with
+              shrink: {
+                x: area.width * (1 - quality),
+                y: area.height * (1 - quality),
+              },
             }
           : wanted;
-        return sameMargin(current, merged) ? current : merged;
+        return sameFit(current, merged) ? current : merged;
       });
     };
 
@@ -380,7 +517,7 @@ export const usePlaneMargin = (
     };
   }, [enabled, host, map]);
 
-  return margin;
+  return fit;
 };
 
 export type GroundPlane = {

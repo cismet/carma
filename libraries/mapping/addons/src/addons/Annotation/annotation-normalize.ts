@@ -840,6 +840,11 @@ export const useDecorationScale = ({
    * painted` out for the length of a gesture, bold zooming one way and thin
    * the other.
    *
+   * `quality` is the part of the gap between them that is deliberate: the
+   * plane paints the scene smaller while the camera looks at more ground than
+   * the canvas holds, see `MIN_PLANE_QUALITY`. It is what tells a painted
+   * camera that has drifted from a painted camera that was put there.
+   *
    * Null while the scene is still drawn against an anchor the drawing has
    * moved past — a coordinate does not mean the same thing in the two of them,
    * so there is nothing to measure yet.
@@ -847,6 +852,7 @@ export const useDecorationScale = ({
   const scalesNow = useCallback((): {
     painted: number;
     screen: number;
+    quality: number;
   } | null => {
     const anchor = getAnchor();
     if (!libreMap || !anchor) {
@@ -855,9 +861,11 @@ export const useDecorationScale = ({
     const screen = 2 ** (libreMap.getZoom() - anchor.zoom);
     const camera = getCamera?.();
     if (!camera) {
-      return { painted: screen, screen };
+      return { painted: screen, screen, quality: 1 };
     }
-    return camera.anchor === anchor ? { painted: camera.zoom, screen } : null;
+    return camera.anchor === anchor
+      ? { painted: camera.zoom, screen, quality: camera.quality }
+      : null;
   }, [getAnchor, getCamera, libreMap]);
 
   /** the scale of the canvas itself, for everything measured against it */
@@ -1058,7 +1066,7 @@ export const useDecorationScale = ({
         return;
       }
       waitRef.current.frames = 0;
-      const { painted, screen } = scales;
+      const { painted, screen, quality } = scales;
       paintedRef.current = painted;
       // the decoration is what drifts while the map moves, so it is what says
       // whether the pass is worth its cost
@@ -1070,15 +1078,25 @@ export const useDecorationScale = ({
       }
       const busy = busyRef.current.ids;
 
-      // Far enough out that excalidraw would clamp its own camera: the anchor
-      // moves to this zoom and the drawing is read against it instead. Never
-      // while the hand is on an element, which would be rewritten under it.
+      /**
+       * Far enough out that excalidraw would clamp its own camera: the anchor
+       * moves to this zoom and the drawing is read against it instead. Never
+       * while the hand is on an element, which would be rewritten under it.
+       *
+       * Measured on the camera with the quality taken back out of it. The
+       * plane paints the scene smaller while the map is tilted, which is a
+       * decision about this frame's canvas and not a drawing that has drifted;
+       * rebasing on it would rewrite every coordinate in the scene on the way
+       * into a tilt and every one of them again on the way out.
+       */
+      const drift = painted / quality;
       const rebasing =
-        busy.size === 0 && Math.abs(Math.log2(painted)) >= REBASE_LEVELS;
-      // a rebase reads every coordinate in units `painted` times smaller, so
+        busy.size === 0 && Math.abs(Math.log2(drift)) >= REBASE_LEVELS;
+      // a rebase reads every coordinate in units `drift` times smaller, so
       // both scales are read in those units from here on
-      const geometry = rebasing ? 1 : painted;
-      const scale = rebasing ? screen / painted : screen;
+      const rebaseBy = rebasing ? drift : 1;
+      const geometry = painted / rebaseBy;
+      const scale = screen / rebaseBy;
       scaleRef.current = scale;
 
       // the pen first: what it hands out is what a new element is born with,
@@ -1129,7 +1147,7 @@ export const useDecorationScale = ({
       // where the anchor stands once this pass is done, which is the anchor
       // every element is read into
       const anchorZoom = rebasing
-        ? anchor.zoom + Math.log2(painted)
+        ? anchor.zoom + Math.log2(rebaseBy)
         : anchor.zoom;
 
       const rewritten = scene
@@ -1273,7 +1291,9 @@ export const useDecorationScale = ({
             elements.push(element);
           } else {
             touched = true;
-            elements.push(redrawn(clipHidden(element), {}) as ExcalidrawElement);
+            elements.push(
+              redrawn(clipHidden(element), {}) as ExcalidrawElement
+            );
           }
           proxiesFor(element, clipBox, geometry).forEach((proxy) => {
             clipped += 1;
@@ -1302,6 +1322,7 @@ export const useDecorationScale = ({
         anchorZoom: anchor.zoom,
         painted,
         screen,
+        quality,
         rebasing,
         geometry,
         decoration: scale,

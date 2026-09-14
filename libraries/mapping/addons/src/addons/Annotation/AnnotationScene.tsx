@@ -17,7 +17,7 @@ import { sceneHasElementAt } from "./annotation-hit-test";
 import { useDecorationScale } from "./annotation-normalize";
 import { useStyleMarks } from "./annotation-style-marks";
 import { usePlaneActive } from "./annotation-plane-active";
-import { useGroundPlane, usePlaneMargin } from "./annotation-plane";
+import { useGroundPlane, usePlaneFit } from "./annotation-plane";
 import { usePlanePointer } from "./annotation-plane-pointer";
 import { sceneToLngLat } from "./annotation-scene-space";
 import { useMapSceneSync } from "./map-scene-sync";
@@ -195,8 +195,14 @@ export const AnnotationScene = ({
    * out; the box is clipped back to the map area in CSS. It is measured before
    * the camera, because the camera is what puts the map area's middle in the
    * middle of that box.
+   *
+   * More ground than the canvas can hold at full size is held at less than
+   * full size: the whole box, the map area with it, is painted at `quality`
+   * box pixels per map pixel and magnified back by the matrix. `shrink` is
+   * what that takes off the box's layout size. See `MIN_PLANE_QUALITY`.
    */
-  const margin = usePlaneMargin(libreMap, host, inset, plane);
+  const fit = usePlaneFit(libreMap, host, inset, plane);
+  const { margin, shrink } = fit;
   const {
     inSync,
     onSceneChange,
@@ -213,7 +219,7 @@ export const AnnotationScene = ({
     syncLimits,
     savedAnchor,
     plane,
-    margin
+    fit
   );
   const drawing = editable && inSync;
   const ground = useGroundPlane({
@@ -598,15 +604,19 @@ export const AnnotationScene = ({
         {
           position: "absolute",
           top: inset.top - margin.top,
-          right: inset.right - margin.right,
-          bottom: inset.bottom - margin.bottom,
+          right: inset.right - margin.right + shrink.x,
+          bottom: inset.bottom - margin.bottom + shrink.y,
           left: inset.left - margin.left,
           zIndex,
           pointerEvents: drawing ? "auto" : "none",
           visibility: inSync && shown ? "visible" : "hidden",
+          // where the map area sits inside the box, which is the margin on
+          // the near sides and the margin less the shrink on the far ones —
+          // negative once the box is painted small enough, hence the polygon
+          // clip in the stylesheet
           "--carma-plane-top": `${margin.top}px`,
-          "--carma-plane-right": `${margin.right}px`,
-          "--carma-plane-bottom": `${margin.bottom}px`,
+          "--carma-plane-right": `${margin.right - shrink.x}px`,
+          "--carma-plane-bottom": `${margin.bottom - shrink.y}px`,
           "--carma-plane-left": `${margin.left}px`,
         } as CSSProperties
       }
