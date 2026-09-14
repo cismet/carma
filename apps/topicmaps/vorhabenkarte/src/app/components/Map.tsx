@@ -120,6 +120,7 @@ const Map = ({ styleUrl }: MapProps) => {
         mapEngine="maplibre"
         libreLayers={libreLayers}
         overrideGlyphs={GLYPHS_URL}
+        restrictCamera
         terrainControl={false}
         compassControl={false}
         modalMenu={<Menu />}
