@@ -16,8 +16,7 @@ import {
   changeVisibility,
   getBackgroundLayer,
   getLayerStack,
-  getSelectedLuftbildLayer,
-  getSelectedMapLayer,
+  getSelectedBackgroundEntry,
   setLayers,
 } from "../../store/slices/mapping";
 import LayerRow from "./LayerRow";
@@ -40,8 +39,7 @@ const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
   const dispatch: AppDispatch = useDispatch();
 
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
-  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
+  const selectedEntry = useSelector(getSelectedBackgroundEntry);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayerStack);
   const { isCesium } = useMapFrameworkSwitcherContext();
@@ -102,15 +100,10 @@ const BaseLayerInfo = () => {
   );
 
   const getBackgroundDescription = () => {
-    if (backgroundLayer.id === "karte") {
-      return isCesium
-        ? "LoD2-Gebäudemodell"
-        : layerMap[selectedMapLayer.id].description;
-    } else {
-      return isCesium
-        ? "3D-Mesh"
-        : layerMap[selectedLuftbildLayer.id].description;
+    if (isCesium) {
+      return backgroundLayer.id === "karte" ? "LoD2-Gebäudemodell" : "3D-Mesh";
     }
+    return selectedEntry ? layerMap[selectedEntry.id]?.description : "";
   };
 
   return (

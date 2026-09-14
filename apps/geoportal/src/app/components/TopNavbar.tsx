@@ -36,8 +36,7 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
   getBackgroundLayer,
-  getSelectedLuftbildLayer,
-  getSelectedMapLayer,
+  getSelectedByCategory,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
 import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
@@ -71,8 +70,7 @@ const TopNavbar = () => {
 
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
-  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
+  const selectedByCategory = useSelector(getSelectedByCategory);
   const zenMode = useSelector(getZenMode);
   const visibleControls = useSelector(getUIVisibleControls);
   const navbarHidden = zenMode || !visibleControls.navbar;
@@ -299,7 +297,9 @@ const TopNavbar = () => {
                 >
                   <Tooltip
                     title={
-                      isLeaflet ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
+                      isLeaflet
+                        ? selectedByCategory[MapStyleKeys.TOPO]?.title
+                        : "LoD2-Gebäude (NRW)"
                     }
                   >
                     <Radio.Button
@@ -311,7 +311,9 @@ const TopNavbar = () => {
                   </Tooltip>
                   <Tooltip
                     title={
-                      isLeaflet ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
+                      isLeaflet
+                        ? selectedByCategory[MapStyleKeys.AERIAL]?.title
+                        : "3D-Mesh 03/24"
                     }
                   >
                     <Radio.Button

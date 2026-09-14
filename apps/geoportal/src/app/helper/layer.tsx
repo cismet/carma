@@ -4,8 +4,7 @@ import type { BackgroundLayerCatalogEntry } from "@carma-appframeworks/portals";
 import type { AppDispatch } from "../store";
 import {
   setBackgroundLayer,
-  setSelectedLuftbildLayer,
-  setSelectedMapLayer,
+  setSelectedByCategory,
 } from "../store/slices/mapping";
 
 export const createBackgroundLayerConfig = (
@@ -31,9 +30,7 @@ export const applyBackgroundLayer = (
   entry: BackgroundLayerCatalogEntry
 ): void => {
   dispatch(
-    entry.group === "luftbild"
-      ? setSelectedLuftbildLayer(entry.config)
-      : setSelectedMapLayer(entry.config)
+    setSelectedByCategory({ categoryId: entry.group, layer: entry.config })
   );
   dispatch(setBackgroundLayer({ ...entry.config, id: entry.group }));
   setCurrentStyle(entry.style);

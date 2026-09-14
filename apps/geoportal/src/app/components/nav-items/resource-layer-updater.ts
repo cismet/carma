@@ -23,13 +23,11 @@ import {
   setActiveInteractionLayerID,
   setBackgroundLayer,
   setLayers,
-  setSelectedLuftbildLayer,
-  setSelectedMapLayer,
+  setSelectedByCategory,
 } from "../../store/slices/mapping";
 import { removeMeasurement } from "../../store/slices/measurements";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import {
   zoomToLibreStyleFeatures,
   zoomToStyleFeatures,
@@ -67,7 +65,7 @@ type SetSelectedFeatureByIdFn = (
 type SetShouldFocusSelectedFn = (shouldFocus: boolean) => void;
 type ClearFeatureCollectionsFn = (collectionIds?: string[]) => void;
 type ToggleFrameworkFn = () => Promise<unknown>;
-type SetCurrentStyleFn = (style: MapStyleKeys) => void;
+type SetCurrentStyleFn = (style: string) => void;
 type GetFrameworkModeFn = () => {
   isLeaflet: boolean;
   isCesium: boolean;
@@ -213,15 +211,13 @@ const applyCollectionLayer = async ({
         (key) => layerMap[key].title === layer.backgroundLayer?.title
       );
       if (layerKey) {
-        if (layer.backgroundLayer.id === "karte") {
-          dispatch(setSelectedMapLayer(createBackgroundLayerConfig(layerKey)));
-          setCurrentStyle(MapStyleKeys.TOPO);
-        } else {
-          dispatch(
-            setSelectedLuftbildLayer(createBackgroundLayerConfig(layerKey))
-          );
-          setCurrentStyle(MapStyleKeys.AERIAL);
-        }
+        dispatch(
+          setSelectedByCategory({
+            categoryId: layer.backgroundLayer.id,
+            layer: createBackgroundLayerConfig(layerKey),
+          })
+        );
+        setCurrentStyle(layer.backgroundLayer.id);
       }
     }
     if (layer.settings) {

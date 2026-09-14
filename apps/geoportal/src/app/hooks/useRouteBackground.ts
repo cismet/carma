@@ -8,8 +8,7 @@ import type { NamedLayers } from "@carma-appframeworks/portals";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import {
   getBackgroundLayer,
-  getSelectedLuftbildLayer,
-  getSelectedMapLayer,
+  getSelectedBackgroundEntry,
 } from "../store/slices/mapping";
 
 type RouteBackground = {
@@ -20,20 +19,15 @@ type RouteBackground = {
 export const useRouteBackground = (): RouteBackground => {
   const { pathname } = useLocation();
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
-  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
+  // backgroundLayer.id is the category, while an override names the base map
+  // selected inside that category
+  const baseMapId = useSelector(getSelectedBackgroundEntry)?.id;
 
   return useMemo(() => {
     const background = findFachzwillingByPathname(pathname)?.background;
-    if (!background?.layerMap) {
+    if (!background?.layerMap || !baseMapId) {
       return { backgroundLayer };
     }
-    // backgroundLayer.id is the group ("karte" | "luftbild"), while an override
-    // names the base map selected inside that group
-    const baseMapId =
-      backgroundLayer.id === "luftbild"
-        ? selectedLuftbildLayer.id
-        : selectedMapLayer.id;
     const override = background.layerMap[baseMapId];
     if (!override) {
       return { backgroundLayer };
@@ -42,12 +36,7 @@ export const useRouteBackground = (): RouteBackground => {
       backgroundLayer: { ...backgroundLayer, layers: override.layers },
       namedLayers: background.namedLayers,
     };
-  }, [
-    pathname,
-    backgroundLayer,
-    selectedMapLayer.id,
-    selectedLuftbildLayer.id,
-  ]);
+  }, [pathname, backgroundLayer, baseMapId]);
 };
 
 export default useRouteBackground;

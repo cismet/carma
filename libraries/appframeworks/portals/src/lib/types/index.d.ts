@@ -112,8 +112,9 @@ export type Settings = {
 export interface LayerState {
   layers: LayerStackEntry[];
   selectedLayerIndex: SELECTED_LAYER_INDEX | number;
-  selectedMapLayer: BackgroundLayer;
-  selectedLuftbildLayer: BackgroundLayer;
+  /** the base map chosen inside each background category, by category id */
+  selectedByCategory: Record<string, BackgroundLayer>;
+  /** the active category's base map, its `id` being the category id */
   backgroundLayer: BackgroundLayer;
 }
 

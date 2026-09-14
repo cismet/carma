@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import {
   getBackgroundLayer,
-  getSelectedMapLayer,
+  getSelectedByCategory,
 } from "../../store/slices/mapping";
 import { Radio } from "antd";
 import { backgroundLayerCatalog, cesiumBackgroundlayerNames } from "../../config";
@@ -20,7 +20,7 @@ const BaseLayerSelection = () => {
   const dispatch = useDispatch();
 
   const { setCurrentStyle } = useMapStyle();
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const selectedMapLayer = useSelector(getSelectedByCategory)["karte"];
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { isLeaflet } = useMapFrameworkSwitcherContext();
 

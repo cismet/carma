@@ -23,8 +23,7 @@ import {
   setBackgroundLayer,
   setConfigSelection,
   setLayers,
-  setSelectedLuftbildLayer,
-  setSelectedMapLayer,
+  setSelectedByCategory,
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
@@ -99,11 +98,12 @@ const onLoadedConfig = (
           id: backgroundLayerId,
         })
       );
-      if (backgroundLayerId === "luftbild") {
-        dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
-      } else {
-        dispatch(setSelectedMapLayer(selectedBackgroundLayer));
-      }
+      dispatch(
+        setSelectedByCategory({
+          categoryId: backgroundLayerId,
+          layer: selectedBackgroundLayer,
+        })
+      );
     } else {
       // named a base map the app does not have: keep the current one rather
       // than reading through an undefined entry

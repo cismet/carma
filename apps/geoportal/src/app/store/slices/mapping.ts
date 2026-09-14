@@ -25,8 +25,18 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 import { isAlwaysOnTop } from "@carma-mapping/addons";
 
 import { RootState } from "..";
+import {
+  dropUnrestorableRows,
+  stripInteractionButtons,
+} from "../persisted-layer-stack";
 import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
-import { backgroundLayerCatalog, layerMap } from "../../config";
+import {
+  backgroundLayerCatalog,
+  DEFAULT_BACKGROUND_LAYER_ID,
+  DEFAULT_BACKGROUND_SELECTED_LAYER_ID,
+  layerMap,
+} from "../../config";
+import { geoportalBackgroundConfig } from "../../config/backgroundConfig";
 
 type MapLibreMapEntry = {
   id: string;
@@ -37,6 +47,12 @@ const defaultOpacity = 0.2;
 
 type GeoportalMappingState = Omit<MappingState, "layers"> & {
   layers: LayerStackEntry[];
+  /**
+   * The base map chosen inside each background category, keyed by category id.
+   * `backgroundLayer` is the one of the active category, with its `id` swapped
+   * for the category id.
+   */
+  selectedByCategory: Record<string, BackgroundLayer>;
   /**
    * Ids of the permanent rows the visitor has hidden. Their own row cannot
    * hold it: a permanent row is rebuilt from the config on every boot, so the
@@ -112,6 +128,26 @@ const shouldSkipEntryForSelection = (
   return false;
 };
 
+const toBackgroundLayer = (id: string): BackgroundLayer => ({
+  title: layerMap[id].title,
+  id,
+  opacity: 1.0,
+  description: layerMap[id].description,
+  inhalt: layerMap[id].inhalt,
+  eignung: layerMap[id].eignung,
+  visible: true,
+  layerType: "wmts",
+  layers: layerMap[id].layers,
+});
+
+const initialSelectedByCategory: Record<string, BackgroundLayer> =
+  Object.fromEntries(
+    geoportalBackgroundConfig.categories.map((category) => [
+      category.id,
+      toBackgroundLayer(category.defaultEntry ?? category.entries[0]),
+    ])
+  );
+
 const initialState: GeoportalMappingState = {
   layers: [],
   hiddenPermanentLayers: [],
@@ -124,40 +160,11 @@ const initialState: GeoportalMappingState = {
   layersIdle: false,
   backgroundLayers: backgroundLayerCatalog,
 
-  selectedMapLayer: {
-    title: "Stadtplan",
-    id: "stadtplan",
-    opacity: 1.0,
-    description: layerMap["stadtplan"].description,
-    inhalt: layerMap["stadtplan"].inhalt,
-    eignung: layerMap["stadtplan"].eignung,
-    visible: true,
-    layerType: "wmts",
-    layers: layerMap["stadtplan"].layers,
-  },
-
-  selectedLuftbildLayer: {
-    title: "Luftbildkarte 03/24",
-    id: "luftbild",
-    opacity: 1.0,
-    description: layerMap["luftbild"].description,
-    inhalt: layerMap["luftbild"].inhalt,
-    eignung: layerMap["luftbild"].eignung,
-    visible: true,
-    layerType: "wmts",
-    layers: layerMap["luftbild"].layers,
-  },
+  selectedByCategory: initialSelectedByCategory,
 
   backgroundLayer: {
-    title: "Stadtplan",
-    id: "karte",
-    opacity: 1.0,
-    description: layerMap["stadtplan"].description,
-    inhalt: layerMap["stadtplan"].inhalt,
-    eignung: layerMap["stadtplan"].eignung,
-    visible: true,
-    layerType: "wmts",
-    layers: layerMap["stadtplan"].layers,
+    ...toBackgroundLayer(DEFAULT_BACKGROUND_SELECTED_LAYER_ID),
+    id: DEFAULT_BACKGROUND_LAYER_ID,
   },
 
   showLeftScrollButton: false,
@@ -315,10 +322,9 @@ const slice = createSlice({
     },
 
     changeBackgroundOpacity(state, action) {
-      if (state.backgroundLayer.id === "karte") {
-        state.selectedMapLayer.opacity = action.payload.opacity;
-      } else {
-        state.selectedLuftbildLayer.opacity = action.payload.opacity;
+      const selected = state.selectedByCategory[state.backgroundLayer.id];
+      if (selected) {
+        selected.opacity = action.payload.opacity;
       }
       state.backgroundLayer.opacity = action.payload.opacity;
       if (action.payload.opacity === 1) {
@@ -513,14 +519,16 @@ const slice = createSlice({
     setActiveInteractionButtonID(state, action: PayloadAction<string | null>) {
       state.activeInteractionButtonID = action.payload;
     },
-    setSelectedMapLayer(state, action: PayloadAction<BackgroundLayer>) {
-      state.selectedMapLayer = action.payload;
+    /** remember which base map a category shows; does not activate it */
+    setSelectedByCategory(
+      state,
+      action: PayloadAction<{ categoryId: string; layer: BackgroundLayer }>
+    ) {
+      state.selectedByCategory[action.payload.categoryId] =
+        action.payload.layer;
     },
     setBackgroundLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.backgroundLayer = action.payload;
-    },
-    setSelectedLuftbildLayer(state, action: PayloadAction<BackgroundLayer>) {
-      state.selectedLuftbildLayer = action.payload;
     },
 
     setShowLeftScrollButton(state, action) {
@@ -596,9 +604,8 @@ export const {
   setPreviousSelectedLayerIndex,
   setActiveInteractionLayerID,
   setActiveInteractionButtonID,
-  setSelectedMapLayer,
+  setSelectedByCategory,
   setBackgroundLayer,
-  setSelectedLuftbildLayer,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   setShowFullscreenButton,
@@ -665,10 +672,14 @@ export const getSelectedLayerIndexIsBackground = (state: RootState): boolean =>
 export const getSelectedLayerIndexIsAddedLayer = (state: RootState): boolean =>
   state.mapping.selectedLayerIndex > SELECTED_LAYER_INDEX.NO_SELECTION;
 
-export const getSelectedMapLayer = (state: RootState) =>
-  state.mapping.selectedMapLayer;
-export const getSelectedLuftbildLayer = (state: RootState) =>
-  state.mapping.selectedLuftbildLayer;
+export const getSelectedByCategory = (state: RootState) =>
+  state.mapping.selectedByCategory;
+/** the base map behind the active background category, with its own id */
+export const getSelectedBackgroundEntry = createSelector(
+  [getSelectedByCategory, getBackgroundLayer],
+  (selectedByCategory, backgroundLayer): BackgroundLayer | undefined =>
+    selectedByCategory[backgroundLayer.id]
+);
 export const getShowFullscreenButton = (state: RootState) =>
   state.mapping.showFullscreenButton;
 export const getShowHamburgerMenu = (state: RootState) =>
@@ -714,21 +725,15 @@ export const getLayerState = createSelector(
   [
     getLayerStack,
     getBackgroundLayer,
-    getSelectedMapLayer,
-    getSelectedLuftbildLayer,
+    getSelectedByCategory,
     getSelectedLayerIndex,
   ],
-  (
-    layers,
+  (layers, backgroundLayer, selectedByCategory, selectedLayerIndex) => ({
+    // this state is what gets shared, and a share config is a stored stack:
+    // no live React elements, no rows the app rebuilds on its own
+    layers: dropUnrestorableRows(stripInteractionButtons(layers)),
     backgroundLayer,
-    selectedMapLayer,
-    selectedLuftbildLayer,
-    selectedLayerIndex
-  ) => ({
-    layers,
-    backgroundLayer,
-    selectedMapLayer,
-    selectedLuftbildLayer,
+    selectedByCategory,
     selectedLayerIndex,
   })
 );

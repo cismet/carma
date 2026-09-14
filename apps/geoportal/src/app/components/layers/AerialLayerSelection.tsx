@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import {
   getBackgroundLayer,
-  getSelectedLuftbildLayer,
+  getSelectedByCategory,
 } from "../../store/slices/mapping";
 import { Radio } from "antd";
 import { backgroundLayerCatalog, cesiumBackgroundlayerNames } from "../../config";
@@ -20,7 +20,7 @@ const AerialLayerSelection = () => {
   const dispatch = useDispatch();
 
   const { setCurrentStyle } = useMapStyle();
-  const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
+  const selectedLuftbildLayer = useSelector(getSelectedByCategory)["luftbild"];
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { isLeaflet } = useMapFrameworkSwitcherContext();
 

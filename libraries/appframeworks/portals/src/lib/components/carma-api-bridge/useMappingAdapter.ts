@@ -222,15 +222,12 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           if (!entry) {
             return false;
           }
-          // Mirror BaseLayerSelection/AerialLayerSelection: remember the chosen
-          // variant for its group, set it as the active background (id is the
-          // group key), then flip the map style.
+          // Mirror the app's applyBackgroundLayer: remember the chosen variant
+          // for its category, set it as the active background (id is the
+          // category id), then flip the map style.
           store.dispatch({
-            type:
-              entry.group === "luftbild"
-                ? "mapping/setSelectedLuftbildLayer"
-                : "mapping/setSelectedMapLayer",
-            payload: entry.config,
+            type: "mapping/setSelectedByCategory",
+            payload: { categoryId: entry.group, layer: entry.config },
           });
           store.dispatch({
             type: "mapping/setBackgroundLayer",
