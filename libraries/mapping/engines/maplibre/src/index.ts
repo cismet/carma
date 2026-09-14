@@ -189,9 +189,11 @@ export {
   useUrlFeatureSelectionById,
 } from "./hooks/useSelectFeatureById";
 export type {
+  SelectByIdCallOptions,
   SelectFeatureByIdOptions,
   UrlFeatureSelectionByIdOptions,
-} from "./hooks/useSelectFeatureById";export type { RebindStyleSourceToGeoJsonOptions } from "./utils/geojsonSourceRebind";
+} from "./hooks/useSelectFeatureById";
+export type { RebindStyleSourceToGeoJsonOptions } from "./utils/geojsonSourceRebind";
 
 // Lasso drawing
 export { LassoDrawingManager } from "./lib/LassoDrawingManager";
