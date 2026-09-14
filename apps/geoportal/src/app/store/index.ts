@@ -1,13 +1,19 @@
 import { configureStore } from "@reduxjs/toolkit";
 
 import { createLogger } from "redux-logger";
-import { createTransform, persistReducer } from "redux-persist";
+import { createMigrate, createTransform, persistReducer } from "redux-persist";
+import type { PersistedState } from "redux-persist";
 import localForage from "localforage";
 
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
 import { STORE_APP_KEY } from "./app-key";
+import {
+  dropUnrestorableRows,
+  stripInteractionButtons,
+  type PersistedLayer,
+} from "./persisted-layer-stack";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
 import measurementsReducer from "./slices/measurements";
@@ -80,59 +86,53 @@ const uiConfig = {
   ],
 };
 
-/** a layer row as it goes through storage, before the slice types it */
-type PersistedLayer = {
-  id?: string;
-  tools?: unknown[];
-  interactionButtons?: unknown;
-  permanent?: boolean;
-};
-
 /**
- * Keeps the persisted layer stack serializable, and drops what cannot come
- * back.
- *
- * On the way in, every row loses its `interactionButtons`: mode rows
- * (measurement, comparison, the time series) carry live React elements there,
- * which are circular in dev (`_owner` is a fiber) and would abort the whole
- * slice write. The running session never reads them back, the owning mode
- * hands the host fresh buttons on every change.
- *
- * On the way out, a row whose id starts with `__` is dropped, since it is the
- * layer bar's handle on a running mode and that mode adds its row again at
- * startup, with one exception: a mode row that carries `tools` holds its own
- * relaunch config (the time series embeds its series there, the way a
- * workflow card does) and is exactly what its mode needs at boot.
- *
- * A permanent row is dropped either way. It is the app's, built from the
- * config on every boot (see `constants/default-workflows`), so a restored one
- * could only be an older reading of a definition that has since been edited.
+ * Keeps the persisted layer stack serializable on the way in, and drops what
+ * cannot come back on the way out; see `persisted-layer-stack` for the rules,
+ * which the share config follows as well.
  */
 const dropModeRows = createTransform<PersistedLayer[], PersistedLayer[]>(
   (inbound) =>
-    Array.isArray(inbound)
-      ? inbound.map((layer) =>
-          layer &&
-          typeof layer === "object" &&
-          layer.interactionButtons !== undefined
-            ? { ...layer, interactionButtons: undefined }
-            : layer
-        )
-      : inbound,
+    Array.isArray(inbound) ? stripInteractionButtons(inbound) : inbound,
   (outbound) =>
-    Array.isArray(outbound)
-      ? outbound.filter(
-          (layer) =>
-            !layer?.permanent &&
-            (!layer?.id?.startsWith("__") || (layer.tools?.length ?? 0) > 0)
-        )
-      : outbound,
+    Array.isArray(outbound) ? dropUnrestorableRows(outbound) : outbound,
   { whitelist: ["layers"] }
 );
+
+/**
+ * A stored mapping slice as it looked before the per-category selection: one
+ * field per background category. Only the migration reads it.
+ */
+type LegacyMappingPersistedState = PersistedState & {
+  selectedMapLayer?: unknown;
+  selectedLuftbildLayer?: unknown;
+  selectedByCategory?: Record<string, unknown>;
+};
+
+const mappingMigrations = {
+  // selectedMapLayer / selectedLuftbildLayer -> selectedByCategory
+  1: (state: PersistedState): PersistedState => {
+    const { selectedMapLayer, selectedLuftbildLayer, ...rest } =
+      state as LegacyMappingPersistedState;
+    const migrated: Record<string, unknown> = {};
+    if (selectedMapLayer) {
+      migrated.karte = selectedMapLayer;
+    }
+    if (selectedLuftbildLayer) {
+      migrated.luftbild = selectedLuftbildLayer;
+    }
+    return {
+      ...rest,
+      selectedByCategory: { ...rest.selectedByCategory, ...migrated },
+    } as PersistedState;
+  },
+};
 
 const mappingConfig = {
   key: "@" + (customAppKey || APP_KEY) + "." + STORAGE_PREFIX + ".app.mapping",
   storage: localForage,
+  version: 1,
+  migrate: createMigrate(mappingMigrations),
   transforms: [dropModeRows],
   whitelist: [
     "layers",
@@ -141,10 +141,9 @@ const mappingConfig = {
     "hiddenPermanentLayers",
     "focusMode",
     "savedLayerConfigs",
-    "selectedMapLayer",
+    "selectedByCategory",
     "paleOpacityValue",
     "backgroundLayer",
-    "selectedLuftbildLayer",
     "showFullscreenButton",
     "showLocatorButton",
     "showMeasurementButton",

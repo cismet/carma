@@ -22,8 +22,7 @@ const createShareKey = async ({
   gazetteerSelection,
   selectedFeature,
 }: ShareStateArgs): Promise<string> => {
-  const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
-    layerState;
+  const { layers, backgroundLayer, selectedByCategory } = layerState;
   const currentParams = getHashParams();
   const lat = currentParams.lat || 51.27256992259917;
   const lng = currentParams.lng || 7.199920713901521;
@@ -36,10 +35,7 @@ const createShareKey = async ({
   const newConfig = {
     backgroundLayer: {
       ...backgroundLayer,
-      selectedLayerId:
-        backgroundLayer.id === "luftbild"
-          ? selectedLuftbildLayer.id
-          : selectedMapLayer.id,
+      selectedLayerId: selectedByCategory[backgroundLayer.id]?.id,
     },
     layers,
     view,
@@ -92,7 +88,8 @@ export const useShareUrl = () => {
           content: `Link wurde in die Zwischenablage kopiert.`,
           duration: 0.8,
         });
-      } catch {
+      } catch (error) {
+        console.error("[SHARE] creating the share url failed", error);
         messageApi.open({
           type: "error",
           content: `Es gab einen Fehler beim erstellen des Links`,
@@ -123,7 +120,8 @@ export const useShareUrl = () => {
           content: `Share-ID wurde in die Zwischenablage kopiert.`,
           duration: 0.8,
         });
-      } catch {
+      } catch (error) {
+        console.error("[SHARE] creating the share id failed", error);
         messageApi.open({
           type: "error",
           content: `Es gab einen Fehler beim Erstellen der Share-ID`,
