@@ -1,6 +1,5 @@
 import { useContext } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
-import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
@@ -19,15 +18,9 @@ import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
 import { createSymbolBadgeRenderer } from "@carma-commons/ui/components";
-
-/**
- * The filter still reads the react-cismap FeatureCollection, which the MapLibre
- * map no longer fills. Until the filter is driven by the vector style's
- * carmaConf.filterConfig it would render an empty topic list, so the section is
- * switched off rather than removed: FilterUI stays the reference for the
- * behaviour that has to be reproduced one to one.
- */
-const FILTER_SECTION_ENABLED = false;
+import { useShownFeatureCount } from "@carma-appframeworks/portals";
+import { useVorhabenItems } from "../../data/vorhabenItems";
+import { VORHABEN_SOURCE_ID } from "../../data/vorhabenGeoJson";
 
 /**
  * The signature the live Leaflet deployment shows next to the symbol size
@@ -56,9 +49,8 @@ const getSymbolSVG = createSymbolBadgeRenderer({
 });
 
 const Menu = () => {
-  const { filteredItems, shownFeatures } = useContext<
-    typeof FeatureCollectionContext
-  >(FeatureCollectionContext);
+  const { filteredItems } = useVorhabenItems();
+  const shownCount = useShownFeatureCount(VORHABEN_SOURCE_ID, "fid");
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
@@ -79,25 +71,17 @@ const Menu = () => {
           />
         }
         menuSections={[
-          ...(FILTER_SECTION_ENABLED
-            ? [
-                <Section
-                  key="filter"
-                  sectionKey="filter"
-                  sectionTitle={getFilterHeader(
-                    filteredItems?.length,
-                    shownFeatures?.length || 0
-                  )}
-                  sectionBsStyle={FilterStyle}
-                  sectionContent={<FilterUI />}
-                />,
-              ]
-            : []),
+          <Section
+            key="filter"
+            sectionKey="filter"
+            sectionTitle={getFilterHeader(filteredItems.length, shownCount)}
+            sectionBsStyle={FilterStyle}
+            sectionContent={<FilterUI />}
+          />,
           <DefaultSettingsPanel
             key="settings"
             skipFilterTitleSettings={false}
             skipClusteringSettings={true}
-            itemFilterFunction={() => true}
             getSymbolSVG={getSymbolSVG}
             overridingMapPreview={<PreviewLibreMap />}
           />,
