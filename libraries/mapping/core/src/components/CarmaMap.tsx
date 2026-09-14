@@ -268,6 +268,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
               <Control position="topright" order={10}>
                 <ControlButtonStyler
                   useDisabledStyle={false}
+                  title={props.applicationMenuTooltipString}
                   onClick={() => {
                     setAppMenuVisible(true);
                   }}
