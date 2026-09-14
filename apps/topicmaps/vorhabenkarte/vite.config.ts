@@ -43,10 +43,12 @@ export default defineConfig({
     },
   },
 
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
+  // The maplibre engine ships module workers (tileset hierarchy) that import
+  // workspace libs; same setup as the geoportal.
+  worker: {
+    format: 'es',
+    plugins: () => [nxViteTsPaths()],
+  },
 
   build: {
     target: 'es2022',
