@@ -57,9 +57,9 @@ import type {
   LayerGroup,
   LayerStackEntry,
 } from "@carma-mapping/layers";
-import AerialLayerSelection from "./AerialLayerSelection";
+import { geoportalBackgroundConfig } from "../../config/backgroundConfig";
+import BackgroundCategorySelection from "./BackgroundCategorySelection";
 import BaseLayerInfo from "./BaseLayerInfo";
-import BaseLayerSelection from "./BaseLayerSelection";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
@@ -589,8 +589,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           {isBaseLayer && (
             <div className="flex flex-col gap-2 pb-4">
               <div className="w-full flex last:rounded-s-md first:rounded-s-md">
-                <BaseLayerSelection />
-                <AerialLayerSelection />
+                {geoportalBackgroundConfig.categories.map((category) => (
+                  <BackgroundCategorySelection
+                    key={category.id}
+                    category={category}
+                  />
+                ))}
               </div>
             </div>
           )}

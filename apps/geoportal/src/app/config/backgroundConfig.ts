@@ -35,6 +35,17 @@ export type BackgroundConfig = {
   namedLayers?: NamedLayers;
 };
 
+export const findBackgroundCategory = (
+  id: string
+): BackgroundCategory | undefined =>
+  geoportalBackgroundConfig.categories.find((category) => category.id === id);
+
+/** what the category is called in the given engine */
+export const getBackgroundCategoryTitle = (
+  category: BackgroundCategory,
+  isLeaflet: boolean
+): string => (isLeaflet ? category.title : category.title3d ?? category.title);
+
 export const geoportalBackgroundConfig: BackgroundConfig = {
   defaultCategory: MapStyleKeys.TOPO,
   categories: [

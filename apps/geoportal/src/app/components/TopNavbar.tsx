@@ -42,7 +42,11 @@ import {
 import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
 
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
-import { MapStyleKeys } from "../constants/MapStyleKeys";
+import {
+  findBackgroundCategory,
+  geoportalBackgroundConfig,
+  getBackgroundCategoryTitle,
+} from "../config/backgroundConfig";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
 
@@ -121,10 +125,8 @@ const TopNavbar = () => {
       e.stopPropagation();
       if (e.target.value === "openBaseLayerView") {
         dispatch(setSelectedLayerIndex(-1));
-      } else if (e.target.value === MapStyleKeys.TOPO) {
-        setCurrentStyle(MapStyleKeys.TOPO);
-      } else if (e.target.value === MapStyleKeys.AERIAL) {
-        setCurrentStyle(MapStyleKeys.AERIAL);
+      } else if (findBackgroundCategory(e.target.value)) {
+        setCurrentStyle(e.target.value);
       }
     },
     [dispatch, setCurrentStyle]
@@ -295,34 +297,20 @@ const TopNavbar = () => {
                   value={currentStyle}
                   onChange={handleBackgroundLayerChange}
                 >
-                  <Tooltip
-                    title={
-                      isLeaflet
-                        ? selectedByCategory[MapStyleKeys.TOPO]?.title
-                        : "LoD2-Gebäude (NRW)"
-                    }
-                  >
-                    <Radio.Button
-                      className="select-none"
-                      value={MapStyleKeys.TOPO}
+                  {geoportalBackgroundConfig.categories.map((category) => (
+                    <Tooltip
+                      key={category.id}
+                      title={
+                        isLeaflet
+                          ? selectedByCategory[category.id]?.title
+                          : getBackgroundCategoryTitle(category, isLeaflet)
+                      }
                     >
-                      Karte
-                    </Radio.Button>
-                  </Tooltip>
-                  <Tooltip
-                    title={
-                      isLeaflet
-                        ? selectedByCategory[MapStyleKeys.AERIAL]?.title
-                        : "3D-Mesh 03/24"
-                    }
-                  >
-                    <Radio.Button
-                      className="select-none"
-                      value={MapStyleKeys.AERIAL}
-                    >
-                      Luftbild
-                    </Radio.Button>
-                  </Tooltip>
+                      <Radio.Button className="select-none" value={category.id}>
+                        {category.title}
+                      </Radio.Button>
+                    </Tooltip>
+                  ))}
                   <Tooltip title="Hintergrund auswählen">
                     <Radio.Button
                       className="select-none"

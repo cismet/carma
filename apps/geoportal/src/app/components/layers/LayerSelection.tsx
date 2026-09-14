@@ -1,25 +1,19 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
-import type { BackgroundLayer } from "@carma-mapping/layers";
 import { cn } from "@carma-commons/utils";
 
-import {
-  getBackgroundLayer,
-  setBackgroundLayer,
-} from "../../store/slices/mapping";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { getBackgroundLayer } from "../../store/slices/mapping";
 import { useMapStyle } from "../../hooks/useGeoportalMapStyle";
 
 interface LayerSelectionProps extends React.HTMLAttributes<HTMLButtonElement> {
+  /** the background category this column stands for */
   id: string;
-  selectedLayer: BackgroundLayer;
   title: string;
   children: React.ReactNode;
 }
 
 const LayerSelection = ({
   id,
-  selectedLayer,
   title,
   children,
   ...props
@@ -35,11 +29,7 @@ const LayerSelection = ({
           (e.target as HTMLElement).localName !== "span" &&
           (e.target as HTMLElement).localName !== "input"
         ) {
-          if (selectedLayer.id === MapStyleKeys.TOPO) {
-            setCurrentStyle(MapStyleKeys.TOPO);
-          } else if (selectedLayer.id === MapStyleKeys.AERIAL) {
-            setCurrentStyle(MapStyleKeys.AERIAL);
-          }
+          setCurrentStyle(id);
         }
       }}
       className={cn(

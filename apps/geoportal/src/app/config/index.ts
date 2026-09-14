@@ -10,23 +10,6 @@ export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const APP_KEY = "geoportal";
 export const STORAGE_PREFIX = "1";
 
-/** 3D label per category id, for categories that declare one */
-export const cesiumBackgroundlayerNames: Record<string, string> =
-  Object.fromEntries(
-    geoportalBackgroundConfig.categories
-      .filter((category) => category.title3d)
-      .map((category) => [category.id, category.title3d])
-  );
-
-/** 3D info panel texts per category id, for categories that declare them */
-export const cesiumDescriptions: Record<
-  string,
-  { inhalt: string; eignung: string }
-> = Object.fromEntries(
-  geoportalBackgroundConfig.categories
-    .filter((category) => category.description3d)
-    .map((category) => [category.id, category.description3d])
-);
 
 /**
  * Which base map a configuration means when it names none. Only reached through
