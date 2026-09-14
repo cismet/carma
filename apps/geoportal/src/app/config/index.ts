@@ -1,148 +1,32 @@
-import type {
-  BackgroundLayerCatalogEntry,
-  DefaultLayerConfig,
-  LayerMap,
-  NamedStyles,
+import {
+  defaultLayerConf,
+  type BackgroundLayerCatalogEntry,
+  type LayerMap,
 } from "@carma-appframeworks/portals";
 
-import { MapStyleKeys } from "../constants/MapStyleKeys";
+import { geoportalBackgroundConfig } from "./backgroundConfig";
 
 export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const APP_KEY = "geoportal";
 export const STORAGE_PREFIX = "1";
 
-export const cesiumBackgroundlayerNames = {
-  karte: "LoD2-Gebäude (NRW)",
-  luftbild: "3D-Mesh 03/2024",
-};
+/** 3D label per category id, for categories that declare one */
+export const cesiumBackgroundlayerNames: Record<string, string> =
+  Object.fromEntries(
+    geoportalBackgroundConfig.categories
+      .filter((category) => category.title3d)
+      .map((category) => [category.id, category.title3d])
+  );
 
-export const namedStyles: NamedStyles = {
-  default: { opacity: 0.6 },
-  night: {
-    opacity: 0.9,
-    "css-filter": "filter:grayscale(0.9)brightness(0.9)invert(1)",
-  },
-  blue: {
-    opacity: 1.0,
-    "css-filter":
-      "filter:sepia(0.5) hue-rotate(155deg) contrast(0.9) opacity(0.9) invert(0)",
-  },
-};
-
-export const defaultLayerConfig: DefaultLayerConfig = {
-  namedStyles: {
-    default: { opacity: 0.6 },
-    night: {
-      opacity: 0.9,
-      "css-filter": "filter:grayscale(0.9)brightness(0.9)invert(1)",
-    },
-    blue: {
-      opacity: 1.0,
-      "css-filter":
-        "filter:sepia(0.5) hue-rotate(155deg) contrast(0.9) opacity(0.9) invert(0)",
-    },
-  },
-  defaults: {
-    wms: {
-      format: "image/png",
-      tiled: true,
-      maxZoom: 22,
-      opacity: 0.6,
-      version: "1.1.1",
-      pane: "backgroundLayers",
-    },
-    vector: {},
-  },
-  namedLayers: {
-    "wupp-plan-live": {
-      type: "wms",
-      url: "https://geodaten.metropoleruhr.de/spw2/service",
-      layers: "spw2_light",
-      tiled: false,
-      version: "1.3.0",
-    },
-    trueOrtho2020: {
-      type: "wms",
-      url: "https://maps.wuppertal.de/karten",
-      layers: "R102:trueortho2020",
-      transparent: true,
-    },
-    rvrGrundriss: {
-      type: "wmts",
-      url: "https://geodaten.metropoleruhr.de/spw2/service",
-      layers: "spw2_light_grundriss",
-      version: "1.3.0",
-      transparent: true,
-      tiled: false,
-    },
-    trueOrtho2022: {
-      type: "wms",
-      url: "https://maps.wuppertal.de/karten",
-      layers: "R102:trueortho2022",
-      transparent: true,
-    },
-    trueOrtho2024: {
-      type: "wms",
-      url: "https://maps.wuppertal.de/karten",
-      layers: "R102:trueortho2024",
-      transparent: true,
-    },
-    trueOrtho2024Alternative: {
-      type: "wms",
-      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-      layers: "GIS-102:trueortho2024",
-      maxNativeZoom: 22,
-      transparent: true,
-    },
-    trueOrtho2021: {
-      type: "wms",
-      url: "https://www.wms.nrw.de/geobasis/wms_nw_hist_dop",
-      layers: "nw_hist_dop_2021",
-      transparent: true,
-    },
-    rvrSchriftNT: {
-      type: "wmts-nt",
-      url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-      layers: "dop_overlay",
-      version: "1.3.0",
-      tiled: false,
-      transparent: true,
-      buffer: 50,
-    },
-    rvrSchrift: {
-      type: "wmts",
-      url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-      layers: "dop_overlay",
-      version: "1.3.0",
-      tiled: false,
-      transparent: true,
-    },
-    amtlich: {
-      type: "tiles",
-      maxNativeZoom: 20,
-      maxZoom: 22,
-      url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-    },
-    basemap_relief: {
-      type: "vector",
-      style:
-        "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
-    },
-    bergisches_staedtedreieck: {
-      type: "vector",
-      style: "https://tiles.cismet.de/bergisches_staedtedreieck/style.json",
-    },
-    amtlichBasiskarte: {
-      type: "wmts",
-      // url: "https://maps.wuppertal.de/karten",
-      // layers: "abkf",
-      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-      layers: "GIS-102:abkf",
-      maxNativeZoom: 20,
-      transparent: true,
-    },
-  },
-};
+/** 3D info panel texts per category id, for categories that declare them */
+export const cesiumDescriptions: Record<
+  string,
+  { inhalt: string; eignung: string }
+> = Object.fromEntries(
+  geoportalBackgroundConfig.categories
+    .filter((category) => category.description3d)
+    .map((category) => [category.id, category.description3d])
+);
 
 /**
  * Which base map a configuration means when it names none. Only reached through
@@ -154,8 +38,13 @@ export const defaultLayerConfig: DefaultLayerConfig = {
  * The two belong together: `id` is the group the map switch shows as selected,
  * `selectedLayerId` the entry of `layerMap` actually drawn.
  */
-export const DEFAULT_BACKGROUND_LAYER_ID = "karte";
-export const DEFAULT_BACKGROUND_SELECTED_LAYER_ID = "stadtplan";
+export const DEFAULT_BACKGROUND_LAYER_ID =
+  geoportalBackgroundConfig.defaultCategory;
+const defaultCategory = geoportalBackgroundConfig.categories.find(
+  (category) => category.id === DEFAULT_BACKGROUND_LAYER_ID
+);
+export const DEFAULT_BACKGROUND_SELECTED_LAYER_ID =
+  defaultCategory.defaultEntry ?? defaultCategory.entries[0];
 
 export const layerMap: LayerMap = {
   luftbild: {
@@ -216,42 +105,30 @@ export const layerMap: LayerMap = {
   },
 };
 
-export const backgroundLayerCatalog: BackgroundLayerCatalogEntry[] = (
-  [
-    { id: "stadtplan", group: "karte", style: MapStyleKeys.TOPO },
-    { id: "gelaende", group: "karte", style: MapStyleKeys.TOPO },
-    { id: "amtlich", group: "karte", style: MapStyleKeys.TOPO },
-    { id: "luftbild", group: "luftbild", style: MapStyleKeys.AERIAL },
-    { id: "luftbild21", group: "luftbild", style: MapStyleKeys.AERIAL },
-  ] as const
-).map(({ id, group, style }) => ({
-  id,
-  title: layerMap[id].title,
-  group,
-  style,
-  config: {
-    id,
-    title: layerMap[id].title,
-    opacity: 1.0,
-    description: layerMap[id].description,
-    inhalt: layerMap[id].inhalt,
-    eignung: layerMap[id].eignung,
-    layerType: "wmts",
-    visible: true,
-    layers: layerMap[id].layers,
-  },
-}));
-
-export const cesiumDescriptions = {
-  luftbild: {
-    inhalt: `3D-Mesh, berechnet auf der Grundlage von Senkrecht- und Schrägluftbildern aus Bildflügen der Firma Aerowest GmbH/Dortmund vom 14.03. und 17.03.2024, hergestellt durch Aerowest GmbH/Dortmund, Bodenauflösung des Ausgangsbildmaterials 3 cm.`,
-    eignung: `Ein 3D-Mesh wird automatisiert aus Senkrecht- und Schrägluftbildern erzeugt, die bei derselben Befliegung erstellt wurden. Dabei wird aus den Bilddaten ein digitales Oberflächenmodell in Form eines Dreiecksnetzes berechnet, auf das die Bilder projiziert werden. Solche Modelle können Fehler und Lücken enthalten, vor allem dort, wo verschiedene Ebenen übereinander liegen, wie zum Beispiel bei den Schwebebahnhöfen. Ein 3D-Mesh strebt eine fotorealistische Darstellung der Situation an. Es eignet sich daher immer dann, wenn Anschaulichkeit, einfache Orientierung und schnelles Wiedererkennen der Örtlichkeit benötigt werden. Das 3D-Mesh 03/2024 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
-  },
-  karte: {
-    inhalt: `Ausschnitt des für ganz Nordrhein-Westfalen vorliegenden 3D-Gebäudemodells der Landesvermessung NRW (Geobasis NRW) in der inhaltlichen Ausbaustufe "Level of Detail 2 (LoD2)".`,
-    eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
-  },
-};
+/**
+ * Flat list of every base map of every category, in config order. The entry's
+ * `group` and `style` are both the category id (see BackgroundCategory).
+ */
+export const backgroundLayerCatalog: BackgroundLayerCatalogEntry[] =
+  geoportalBackgroundConfig.categories.flatMap((category) =>
+    category.entries.map((id) => ({
+      id,
+      title: layerMap[id].title,
+      group: category.id,
+      style: category.id,
+      config: {
+        id,
+        title: layerMap[id].title,
+        opacity: 1.0,
+        description: layerMap[id].description,
+        inhalt: layerMap[id].inhalt,
+        eignung: layerMap[id].eignung,
+        layerType: "wmts",
+        visible: true,
+        layers: layerMap[id].layers,
+      },
+    }))
+  );
 
 export const convertLayerStringToLayers = (
   layerString: string,
@@ -261,7 +138,7 @@ export const convertLayerStringToLayers = (
   const layers = layerString.split("|");
   return layers.map((layer) => {
     const [layerConfigName, opacity] = layer.split("@");
-    const config = defaultLayerConfig.namedLayers[layerConfigName];
+    const config = defaultLayerConf.namedLayers[layerConfigName];
     return {
       ...config,
       visible,

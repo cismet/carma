@@ -9,7 +9,14 @@ export type Orientation = "portrait" | "landscape";
  */
 export interface PrintInputLayer {
   visible?: boolean;
-  layerType: "wms" | "wmts" | "wmts-nt" | "vector" | "tiles" | "inline";
+  layerType:
+    | "wms"
+    | "wms-nt"
+    | "wmts"
+    | "wmts-nt"
+    | "vector"
+    | "tiles"
+    | "inline";
   opacity?: number;
   url?: string;
   layers?: string;

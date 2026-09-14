@@ -23,6 +23,7 @@ export function getPrintLayers(layers: PrintInputLayer[]): MapFishLayer[] {
     }
     switch (layer.layerType) {
       case "wms":
+      case "wms-nt":
       case "wmts":
       case "wmts-nt": {
         const url = layer.url || layer.props?.url;
