@@ -267,6 +267,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
             {props.modalMenu && modalMenuControl && (
               <Control position="topright" order={10}>
                 <ControlButtonStyler
+                  // id react-cismap's TopicMapComponent used; the shared
+                  // e2e modal-menu test opens the menu through it
+                  id="cmdShowModalApplicationMenu"
                   useDisabledStyle={false}
                   title={props.applicationMenuTooltipString}
                   onClick={() => {
