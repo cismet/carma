@@ -19,7 +19,7 @@ import {
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
-import { isAreaType } from "@carma-commons/resources";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import {
   MenuTooltip,
   searchTextPlaceholder,
@@ -67,6 +67,7 @@ const Map = ({ styleUrl }: MapProps) => {
     sourceId: VORHABEN_SOURCE_ID,
     idProperty: "fid",
     collection,
+    maxZoom: 17,
   });
   useUrlFeatureSelectionById({
     selectById,
@@ -83,7 +84,17 @@ const Map = ({ styleUrl }: MapProps) => {
       selectionTimestamp: Date.now(),
       isAreaSelection: isAreaType(selection.type),
     };
+    // jump + marker as for every hit
     setSelection(Object.assign({}, selection, selectionMetaData));
+    // A Vorhaben hit then zooms onto the item's geometry and selects it
+    // (highlight + infobox), as the Leaflet map did with zoomToFeature. The
+    // tick lets the selection effect do its jump first, so the zoom wins.
+    if (selection.type === ENDPOINT.VORHABEN && selection.more?.id != null) {
+      const id = selection.more.id;
+      window.setTimeout(() => {
+        void selectById(id);
+      }, 0);
+    }
   };
 
   useEffect(() => {

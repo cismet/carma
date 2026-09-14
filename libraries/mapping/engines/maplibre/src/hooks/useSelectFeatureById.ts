@@ -22,6 +22,14 @@ export interface SelectFeatureByIdOptions {
   padding?: number;
 }
 
+export interface SelectByIdCallOptions {
+  /** Move the map to the item first (default). Pass false when something
+   *  else already positions the map. */
+  move?: boolean;
+  /** Animate the move; off by default, like the old Leaflet setView/fitBounds */
+  animate?: boolean;
+}
+
 type Position = GeoJSON.Position;
 
 const collectPositions = (geometry: GeoJSON.Geometry, out: Position[]) => {
@@ -68,6 +76,20 @@ const boundsOf = (geometries: GeoJSON.Geometry[]): LngLatBoundsLike | null => {
   ];
 };
 
+const findItemFeatures = (
+  collection: GeoJSON.FeatureCollection,
+  idProperty: string,
+  id: string | number
+) => {
+  const wanted = String(id);
+  return collection.features.filter(
+    (feature) =>
+      String(
+        (feature.properties as Record<string, unknown> | null)?.[idProperty]
+      ) === wanted
+  );
+};
+
 /** Resolves on the next idle, or after a grace period if the map has nothing to do */
 const nextIdle = (map: maplibregl.Map, timeoutMs = 1500) =>
   new Promise<void>((resolve) => {
@@ -100,17 +122,14 @@ export const useSelectFeatureById = ({
   const { selectFeature } = useMapSelection();
 
   return useCallback(
-    async (id: string | number): Promise<boolean> => {
+    async (
+      id: string | number,
+      { move = true, animate = false }: SelectByIdCallOptions = {}
+    ): Promise<boolean> => {
       if (!map || !collection) {
         return false;
       }
-      const wanted = String(id);
-      const features = collection.features.filter(
-        (feature) =>
-          String(
-            (feature.properties as Record<string, unknown> | null)?.[idProperty]
-          ) === wanted
-      );
+      const features = findItemFeatures(collection, idProperty, id);
       if (features.length === 0) {
         console.warn("[SELECT BY ID] no feature with", idProperty, id);
         return false;
@@ -131,13 +150,20 @@ export const useSelectFeatureById = ({
         return false;
       }
 
-      if (bounds) {
-        map.fitBounds(bounds, { padding, maxZoom });
-      } else {
-        map.easeTo({ center: anchor as [number, number], zoom: maxZoom });
+      if (move) {
+        if (bounds) {
+          map.fitBounds(bounds, { padding, maxZoom, animate });
+        } else {
+          map.easeTo({
+            center: anchor as [number, number],
+            zoom: maxZoom,
+            animate,
+          });
+        }
       }
 
-      // The style may still be rebuilding with the data; give it a few idles.
+      // The style may still be rebuilding with the data, or the caller's own
+      // camera move has not happened yet; give it a few idles.
       for (let attempt = 0; attempt < 3; attempt++) {
         await nextIdle(map);
         const hit = map
