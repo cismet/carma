@@ -100,3 +100,21 @@ export const planeSceneRect = (
     maxY: (box.height - originY) / scale,
   };
 };
+
+/**
+ * The ground between two lng/lats, in map pixels of `zoom`, north up: x east,
+ * y south. The same arithmetic as `lngLatToScene`, asked without an anchor —
+ * what the plane needs to know is how far the camera looks, not where the
+ * drawing is.
+ */
+export const groundOffset = (
+  from: { lng: number; lat: number },
+  to: { lng: number; lat: number },
+  zoom: number
+): ScenePoint => {
+  const size = worldSize(zoom);
+  return {
+    x: (mercatorX(to.lng) - mercatorX(from.lng)) * size,
+    y: (mercatorY(to.lat) - mercatorY(from.lat)) * size,
+  };
+};

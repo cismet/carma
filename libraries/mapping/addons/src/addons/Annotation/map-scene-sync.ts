@@ -7,8 +7,9 @@ import type {
 } from "@excalidraw/excalidraw/types/types";
 
 import { planeLog } from "./annotation-plane-active";
+import { NO_PLANE_FIT } from "./annotation-plane";
 import { lngLatToScene, overlayOffset } from "./annotation-scene-space";
-import type { PlaneCamera } from "./annotation-plane";
+import type { PlaneCamera, PlaneFit } from "./annotation-plane";
 import type { AnnotationAnchor, AnnotationSyncLimits } from "./types";
 
 /** excalidraw clamps zoom.value to this range; see its getNormalizedZoom */
@@ -45,8 +46,8 @@ type Anchor = AnnotationAnchor;
 
 type SceneCamera = { scrollX: number; scrollY: number; scale: number };
 
-/** a camera we wrote, kept with the anchor it was worked out against */
-type PushedCamera = SceneCamera & { anchor: Anchor };
+/** a camera we wrote, kept with the anchor and quality it was worked out against */
+type PushedCamera = SceneCamera & { anchor: Anchor; quality: number };
 
 const same = (a: SceneCamera, b: SceneCamera) =>
   Math.abs(a.scrollX - b.scrollX) < EPSILON &&
@@ -83,7 +84,9 @@ export const useMapSceneSync = (
   limits: AnnotationSyncLimits,
   savedAnchor?: AnnotationAnchor,
   /** the drawing follows bearing and pitch; see `annotation-plane-active` */
-  plane = false
+  plane = false,
+  /** the box the scene is painted into; see `usePlaneFit` */
+  fit: PlaneFit = NO_PLANE_FIT
 ) => {
   const {
     rotated: hideRotated = false,
@@ -100,6 +103,18 @@ export const useMapSceneSync = (
 
   /** the camera the plane is solved against: what the scene is rendering with */
   const appliedRef = useRef<PlaneCamera | null>(null);
+
+  /** read, not depended on: a margin change resizes the box, which pushes anyway */
+  const marginRef = useRef(fit.margin);
+  marginRef.current = fit.margin;
+
+  /**
+   * Depended on, unlike the margin. The scene is painted at `scale * quality`,
+   * and the quality can step without the box changing size at all — the margin
+   * is quantised and the area is not — so nothing else would carry it out to
+   * the scene.
+   */
+  const quality = plane ? fit.quality : 1;
 
   const holdingRef = useRef(false);
   const touchedRef = useRef(0);
@@ -159,6 +174,18 @@ export const useMapSceneSync = (
 
     const scale = 2 ** (map.getZoom() - anchor.zoom);
     const inZoomRange = scale >= MIN_SCENE_ZOOM && scale <= MAX_SCENE_ZOOM;
+    /**
+     * What the scene is painted at: the map's own scale, brought down by the
+     * plane's quality. A tilted camera looks at more ground than the canvas
+     * holds at full size, so the scene is painted smaller and the matrix —
+     * solved from this very camera, see `useGroundPlane` — blows it back up.
+     * The quality is 1 whenever the ground fits, which is every camera the
+     * flat branch ever sees.
+     */
+    const painted = Math.min(
+      MAX_SCENE_ZOOM,
+      Math.max(MIN_SCENE_ZOOM, scale * quality)
+    );
     const usable = plane
       ? !hideZoom || inZoomRange
       : (!hideRotated || map.getBearing() === 0) &&
@@ -189,31 +216,46 @@ export const useMapSceneSync = (
      * the edge of the canvas: a straight cut through a shape, and then no
      * shape.
      *
-     * So the ground under the middle of the plane is what the plane is centred
-     * on, which is true at any bearing and any pitch, and is the same
+     * So the ground under the middle of the map area is what the plane is
+     * centred on, which is true at any bearing and any pitch, and is the same
      * arithmetic as before whenever the bearing is zero.
+     *
+     * The middle of the map area, not the middle of the box: the box hangs
+     * past the area by as much ground as the camera looks at, which is not the
+     * same on every side once there is a pitch in it. Where the area's middle
+     * sits inside the box is where its ground has to land.
      */
     const camera: SceneCamera =
       plane && box && box.width > 0 && box.height > 0
         ? (() => {
-            const middle = map.unproject([
-              offset.x + box.width / 2,
-              offset.y + box.height / 2,
-            ]);
+            const gap = marginRef.current;
+            const atX = gap.left + (box.width - gap.left - gap.right) / 2;
+            const atY = gap.top + (box.height - gap.top - gap.bottom) / 2;
+            /**
+             * The map area is painted at `quality` like everything else, so
+             * between the margins it takes `quality` of its own width — and
+             * the screen point whose ground has to land at the middle of that
+             * is further out than the middle itself by exactly that factor.
+             * The two are the same point only at quality 1, which is why this
+             * used to be one number.
+             */
+            const areaX = gap.left + (atX - gap.left) / quality;
+            const areaY = gap.top + (atY - gap.top) / quality;
+            const middle = map.unproject([offset.x + areaX, offset.y + areaY]);
             const centre = lngLatToScene(anchor, middle.lng, middle.lat);
             return {
-              scrollX: box.width / (2 * scale) - centre.x,
-              scrollY: box.height / (2 * scale) - centre.y,
-              scale,
+              scrollX: atX / painted - centre.x,
+              scrollY: atY / painted - centre.y,
+              scale: painted,
             };
           })()
         : // the anchor is scene (0, 0), so its screen position is scroll * scale
           (() => {
             const point = map.project([anchor.lng, anchor.lat]);
             return {
-              scrollX: (point.x - offset.x) / scale,
-              scrollY: (point.y - offset.y) / scale,
-              scale,
+              scrollX: (point.x - offset.x) / painted,
+              scrollY: (point.y - offset.y) / painted,
+              scale: painted,
             };
           })();
     if (plane && pushedRef.current && same(camera, pushedRef.current)) {
@@ -233,19 +275,29 @@ export const useMapSceneSync = (
         appliedRef.current = { ...applied, anchor };
         map.triggerRepaint();
       }
-      pushedRef.current = { ...camera, anchor };
+      pushedRef.current = { ...camera, anchor, quality };
       return;
     }
 
-    pushedRef.current = { ...camera, anchor };
+    pushedRef.current = { ...camera, anchor, quality };
     api.updateScene({
       appState: {
         scrollX: camera.scrollX,
         scrollY: camera.scrollY,
-        zoom: { value: scale as NormalizedZoomValue },
+        zoom: { value: painted as NormalizedZoomValue },
       },
     });
-  }, [api, hideRotated, hideTilted, hideZoom, map, offsetOf, overlay, plane]);
+  }, [
+    api,
+    hideRotated,
+    hideTilted,
+    hideZoom,
+    map,
+    offsetOf,
+    overlay,
+    plane,
+    quality,
+  ]);
 
   const applySceneCamera = useCallback(
     (state: Pick<AppState, "scrollX" | "scrollY" | "zoom">) => {
@@ -298,6 +350,7 @@ export const useMapSceneSync = (
           scrollX: camera.scrollX,
           scrollY: camera.scrollY,
           zoom: camera.scale,
+          quality: pushed.quality,
         };
         planeLog("camera", {
           anchorZoom: pushed.anchor.zoom,
@@ -380,15 +433,21 @@ export const useMapSceneSync = (
     if (!applied || applied.anchor !== anchor) {
       return;
     }
-    const screen = 2 ** (map.getZoom() - anchor.zoom);
-    if (!(screen > 0) || !(applied.zoom > 0)) {
+    // against the scale the scene would be painted at now, quality and all:
+    // the quality is part of the camera, so a step of it is a rescale like any
+    // other, and measuring without it would rewrite the camera every frame
+    const painted = Math.min(
+      MAX_SCENE_ZOOM,
+      Math.max(MIN_SCENE_ZOOM, 2 ** (map.getZoom() - anchor.zoom) * quality)
+    );
+    if (!(painted > 0) || !(applied.zoom > 0)) {
       return;
     }
-    if (Math.abs(Math.log2(screen / applied.zoom)) < PLANE_RESCALE_LEVELS) {
+    if (Math.abs(Math.log2(painted / applied.zoom)) < PLANE_RESCALE_LEVELS) {
       return;
     }
     applyMapCamera();
-  }, [applyMapCamera, map]);
+  }, [applyMapCamera, map, quality]);
 
   // a fresh excalidraw starts from its own defaults again, so nothing it says
   // counts as a camera until it has echoed one of ours
