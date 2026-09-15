@@ -747,11 +747,30 @@ export const useGroundPlane = ({
     };
 
     /**
-     * The text editor is put where its anchor lands but kept upright: a
-     * textarea drawn through the matrix would be skewed, and a skewed caret is
-     * not something anyone can type into.
+     * The text editor is put where its anchor lands, but kept upright and at
+     * the map's own scale: a textarea drawn through the matrix would be
+     * skewed and foreshortened, and neither a skewed nor a four times too
+     * small caret is something anyone can type into.
+     *
+     * Written as `translate` and `scale` rather than as `transform`, because
+     * the editor's `transform` is excalidraw's own — it carries the element's
+     * angle and the scene zoom there and rewrites it on every keystroke. The
+     * individual properties apply outside it, so the two compose instead of
+     * overwriting each other.
+     *
+     * Excalidraw scales the editor by the zoom the scene is painted at, which
+     * on a tilted map is the map's scale brought down by the plane's quality,
+     * so the editor comes out as small as the scene is painted — down to a
+     * quarter. That much is given back, and no more: the quality is ours, an
+     * answer to what a canvas costs, while the perspective is the drawing's
+     * own and the glyphs on the canvas really are that size out there.
+     *
+     * Both properties are applied around the element's centre, the origin
+     * excalidraw's transform is written for; the half-size term takes that
+     * back out, so the scale lands on the anchor and not on the middle.
      */
-    const billboard = (matrix: Mat3) => {
+    const written = new WeakMap<HTMLElement, string>();
+    const billboard = (matrix: Mat3, quality: number) => {
       for (let index = 0; index < editors.length; index += 1) {
         const editor = editors[index];
         if (!(editor instanceof HTMLElement)) {
@@ -759,22 +778,44 @@ export const useGroundPlane = ({
         }
         const at = localOffset(editor, box);
         const to = at ? apply(matrix, at.x, at.y) : null;
-        const transform =
+        const scale = quality > 0 ? 1 / quality : 1;
+        const shift = (scale - 1) / 2;
+        const translate =
           at && to
-            ? `translate(${(to.x - at.x).toFixed(2)}px, ${(to.y - at.y).toFixed(
-                2
-              )}px)`
+            ? `${(to.x - at.x + shift * editor.offsetWidth).toFixed(2)}px ${(
+                to.y -
+                at.y +
+                shift * editor.offsetHeight
+              ).toFixed(2)}px`
             : "";
-        if (editor.style.transform !== transform) {
-          editor.style.transform = transform;
-          editor.style.transformOrigin = "0 0";
+        const magnify = at && to ? scale.toFixed(4) : "";
+        // compared against what was written, not against the style: the CSSOM
+        // serialises these back normalised, so `scale` never reads as "1.0000"
+        // and every frame would look like a change
+        if (written.get(editor) !== `${translate} ${magnify}`) {
+          written.set(editor, `${translate} ${magnify}`);
+          editor.style.translate = translate;
+          editor.style.scale = magnify;
         }
       }
     };
 
+    /**
+     * How small the scene is painted against the map, read back rather than
+     * passed in: `camera.zoom` is the map's scale times the quality, and the
+     * map's scale is what the anchor's zoom says it is. See `usePlaneFit`.
+     */
+    const qualityOf = (camera: PlaneCamera | null) => {
+      if (!camera || !(camera.zoom > 0)) {
+        return 1;
+      }
+      const scale = 2 ** (map.getZoom() - camera.anchor.zoom);
+      return scale > 0 ? camera.zoom / scale : 1;
+    };
+
     const clear = () => {
       write("none", "none");
-      billboard(IDENTITY);
+      billboard(IDENTITY, 1);
       matrixRef.current = IDENTITY;
       inverseRef.current = IDENTITY;
     };
@@ -844,8 +885,36 @@ export const useGroundPlane = ({
         cssTransform(matrix, rect.width, rect.height),
         cssClipPath(clipToHorizon(corners, matrix, HORIZON_W), corners)
       );
-      billboard(matrix);
+      billboard(matrix, qualityOf(camera));
     };
+
+    /**
+     * The editor is a DOM box, so it is not carried by the canvas matrix but
+     * placed by hand, and `tick` runs only while maplibre paints. An editor
+     * opened on a map at rest would never be placed at all — it would sit
+     * where the drawing was before the map was turned or tilted — and one
+     * typed into is laid out again on every keystroke, so it is followed for
+     * as long as it is open.
+     *
+     * The matrix is not solved again for this: what the map is doing is not
+     * what changed, so the one the last tick left is the right one.
+     */
+    let frame = 0;
+    const follow = () => {
+      if (editors.length === 0) {
+        frame = 0;
+        return;
+      }
+      billboard(matrixRef.current, qualityOf(cameraRef.current));
+      frame = requestAnimationFrame(follow);
+    };
+    const editing = new MutationObserver(() => {
+      if (editors.length > 0 && frame === 0) {
+        billboard(matrixRef.current, qualityOf(cameraRef.current));
+        frame = requestAnimationFrame(follow);
+      }
+    });
+    editing.observe(box, { childList: true, subtree: true });
 
     tick();
     map.on("render", tick);
@@ -856,6 +925,10 @@ export const useGroundPlane = ({
     return () => {
       map.off("render", tick);
       sizes.disconnect();
+      editing.disconnect();
+      if (frame !== 0) {
+        cancelAnimationFrame(frame);
+      }
       clear();
     };
   }, [box, enabled, map]);
