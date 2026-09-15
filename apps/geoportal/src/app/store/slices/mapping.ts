@@ -34,9 +34,11 @@ import {
   backgroundLayerCatalog,
   DEFAULT_BACKGROUND_LAYER_ID,
   DEFAULT_BACKGROUND_SELECTED_LAYER_ID,
-  layerMap,
 } from "../../config";
-import { geoportalBackgroundConfig } from "../../config/backgroundConfig";
+import {
+  backgroundConfig,
+  toBackgroundLayer,
+} from "../../config/backgroundConfig";
 
 type MapLibreMapEntry = {
   id: string;
@@ -128,21 +130,9 @@ const shouldSkipEntryForSelection = (
   return false;
 };
 
-const toBackgroundLayer = (id: string): BackgroundLayer => ({
-  title: layerMap[id].title,
-  id,
-  opacity: 1.0,
-  description: layerMap[id].description,
-  inhalt: layerMap[id].inhalt,
-  eignung: layerMap[id].eignung,
-  visible: true,
-  layerType: "wmts",
-  layers: layerMap[id].layers,
-});
-
 const initialSelectedByCategory: Record<string, BackgroundLayer> =
   Object.fromEntries(
-    geoportalBackgroundConfig.categories.map((category) => [
+    backgroundConfig.categories.map((category) => [
       category.id,
       toBackgroundLayer(category.defaultEntry ?? category.entries[0]),
     ])

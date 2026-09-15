@@ -82,7 +82,6 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
-import { useRouteBackground } from "../../hooks/useRouteBackground.ts";
 import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
 import { useMaplibreTransitionShim } from "../../hooks/libre/useMaplibreTransitionShim.ts";
 import { useLibreMapSelectionHandler } from "../../hooks/libre/useLibreMapClickHandler.ts";
@@ -106,12 +105,14 @@ import {
   setSelectedFeature,
 } from "../../store/slices/features.ts";
 import {
+  getBackgroundLayer,
   getLayers,
   getLayersIdle,
   getShowHamburgerMenu,
   setLayersIdle,
   setMaplibreMaps as setMaplibreMapsStore,
 } from "../../store/slices/mapping.ts";
+import { backgroundConfig } from "../../config/backgroundConfig.ts";
 import {
   getUIMode,
   UIMode,
@@ -184,8 +185,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const selectionSemanticIdentifierRef = useRef<string | undefined>(undefined);
 
   // State and Selectors
-  const { backgroundLayer, namedLayers: routeNamedLayers } =
-    useRouteBackground();
+  const backgroundLayer = useSelector(getBackgroundLayer);
   const {
     //activeFramework: currentFramework, trigger re-renders on framework change
     // State values that trigger re-renders when framework changes
@@ -762,12 +762,12 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
               { layerSeparator: "|" },
               // only routes with their own base maps bring named services of
               // their own; without them the shared config resolves the names
-              routeNamedLayers
+              backgroundConfig.namedLayers
                 ? {
                     ...defaultLayerConf,
                     namedLayers: {
                       ...defaultLayerConf.namedLayers,
-                      ...routeNamedLayers,
+                      ...backgroundConfig.namedLayers,
                     },
                   }
                 : undefined

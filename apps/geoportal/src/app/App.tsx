@@ -207,7 +207,7 @@ function App({
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
-  useManageLayers(layerMap);
+  useManageLayers();
   // the plain geoportal's own layers, see constants/default-layers
   useDefaultLayers(routePath);
   const syncToken = useSyncToken();

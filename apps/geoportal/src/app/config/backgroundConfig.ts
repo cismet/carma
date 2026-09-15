@@ -1,7 +1,15 @@
-import type { LayerMap, NamedLayers } from "@carma-appframeworks/portals";
+import type {
+  BackgroundLayerCatalogEntry,
+  LayerInfo,
+  LayerMap,
+  NamedLayers,
+} from "@carma-appframeworks/portals";
 import type { SceneStyleId } from "@carma-mapping/engines/cesium/react/runtime";
+import { LAYER_PROVIDER_TYPES, type BackgroundLayer } from "@carma-mapping/layers";
 
 import { MapStyleKeys } from "../constants/MapStyleKeys";
+import { findFachzwillingRouteByPath } from "../constants/fachzwillinge/routes";
+import { initialRoutePath } from "../store/app-key";
 
 /**
  * One background category, i.e. one button of the map switch. Its `id` is at
@@ -18,7 +26,10 @@ export type BackgroundCategory = {
   title3d?: string;
   /** info panel texts in 3D */
   description3d?: { inhalt: string; eignung: string };
-  /** which Cesium scene setup this category shows; several may share one */
+  /**
+   * which Cesium scene setup this category shows; several may share one. Must
+   * name a scene of `defaultCesiumState.sceneStyles`, defaults to the id.
+   */
   cesiumSceneStyle?: SceneStyleId;
   /** ids into layerMap, in display order */
   entries: string[];
@@ -29,25 +40,98 @@ export type BackgroundCategory = {
 export type BackgroundConfig = {
   categories: BackgroundCategory[];
   defaultCategory: string;
-  /** base map definitions; a route may add to or override the app-wide ones */
-  layerMap?: LayerMap;
-  /** service definitions the entries reference */
+  /** base map definitions the category entries reference */
+  layerMap: LayerMap;
+  /**
+   * service definitions the layer strings reference, on top of the shared
+   * `defaultLayerConf.namedLayers`
+   */
   namedLayers?: NamedLayers;
 };
 
-export const findBackgroundCategory = (
-  id: string
-): BackgroundCategory | undefined =>
-  geoportalBackgroundConfig.categories.find((category) => category.id === id);
+/**
+ * What a Fachzwilling route may change about the background. Everything is
+ * optional and merged over the app-wide config:
+ * - `categories` replaces the whole list (a route that wants a single "Karte"
+ *   button with two base maps lists exactly that)
+ * - `defaultCategory` must be one of the resulting categories, otherwise the
+ *   app-wide default (if still present) or the first category is used
+ * - `layerMap` is merged per entry: a partial entry overrides the fields it
+ *   names on the app-wide base map of the same id, a new id needs at least
+ *   `title` and `layers`; `layerType` defaults to "wmts"
+ * - `namedLayers` adds service definitions for the layer strings
+ */
+export type BackgroundConfigOverride = {
+  categories?: BackgroundCategory[];
+  defaultCategory?: string;
+  layerMap?: Record<string, Partial<LayerInfo>>;
+  namedLayers?: NamedLayers;
+};
 
-/** what the category is called in the given engine */
-export const getBackgroundCategoryTitle = (
-  category: BackgroundCategory,
-  isLeaflet: boolean
-): string => (isLeaflet ? category.title : category.title3d ?? category.title);
+/** the app-wide base maps of the plain geoportal */
+export const geoportalLayerMap: LayerMap = {
+  luftbild: {
+    title: "Luftbildkarte 03/24",
+    layers: "rvrGrundriss@100|trueOrtho2024Alternative@75|rvrSchriftNT@100",
+    description: `Luftbildkarte (aus True Orthofoto 03/24) © Stadt Wuppertal / RVR und Kooperationspartner`,
+    inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
+               True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
+              GmbH/Dortmund, Bodenauflösung 3 cm.
+              (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung
+              in einem automatisierten Bildverarbeitungsprozess
+              berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Stadt Wuppertal (</span>
+              <a class="remove-margins" href="https://www.wuppertal.de/geoportal/Nutzungsbedingungen/NB-GDIKOM-C_Geodaten.pdf">NB-GDIKOM C</a>
+              <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen:
+              Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
+    eignung: `Luftbildkarten eignen sich wegen ihrer Anschaulichkeit und ihres Inhaltsreichtums vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthofotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Die Luftbildkarte 03/24 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
+  },
+  luftbild21: {
+    title: "Luftbildkarte 06/21",
+    layers: "rvrGrundriss@100|trueOrtho2021@75|rvrSchriftNT@100",
+    description: `Luftbildkarte (aus True Orthofoto 06/21) © Geobasis NRW  / RVR und Kooperationspartner`,
+    inhalt: `<span>(1) Kartendienst (WMS) des Landes NRW, gehostet von IT.NRW. Datengrundlage: True Orthofoto weit überwiegend aus Bildflügen vom 01. und 02. Juni 2021, durchgeführt im Auftrag von Geobasis NRW durch MGGP AERO Sp. z o.o./Krakau, Bodenauflösung 10 cm. In Teilen von Nächstebreck-Ost, Beyenburg-Mitte und Herbringhausen Bildflug vom 30. März 2021, durchgeführt durch Aerowest GmbH/Dortmund. (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung in einem automatisierten Bildverarbeitungsprozess berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Geobasis NRW (</span>
+              <a class="remove-margins" href="https://www.govdata.de/dl-de/zero-2-0">dl-zero-de/2.0</a>
+              <span>). (2) Kartendienste (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlagen: Stadtkarte 2.0 und Kartenschrift aus der Stadtkarte 2.0. Details s. Hintergrundkarte Stadtplan).</span>`,
+    eignung: `Luftbildkarten eignen sich wegen ihrer Anschaulichkeit und ihres Inhaltsreichtums vor allem für Detailbetrachtungen. Durch die Verwendung eines "True Orthofotos" ist die passgenaue Überlagerung mit grundrisstreuen Kartenebenen möglich. Die Luftbildkarte 06/21 basiert auf einer vom Land NRW (Geobasis NRW) beauftragten Befliegung bei voller Belaubung (Sommerbefliegung). Die Straßenbereiche sind daher nicht vollständig sichtbar, während die Grünbereiche anschaulich und gut zu interpretieren sind. Aktualität: Geobasis NRW lässt in einem Turnus von 4 Jahren solche Sommerbildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 4,5 Jahre alt sein.`,
+  },
+  stadtplan: {
+    title: "Stadtplan",
+    layers: "amtlich@90",
+    description: `Stadtplan (Stadtkarte 2.0) © RVR und Kooperationspartner`,
+    inhalt: `<span>Kartendienst (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlage: Stadtkarte 2.0. Wöchentlich in einem automatischen Prozess aktualisierte Zusammenführung des Straßennetzes der OpenStreetMap mit Amtlichen Geobasisdaten des Landes NRW aus den Fachverfahren ALKIS (Gebäude, Flächennutzungen) und ATKIS (Gewässer). © RVR und Kooperationspartner (</span><a class="remove-margins" href="https://www.govdata.de/dl-de/by-2-0">
+                Datenlizenz Deutschland - Namensnennung - Version 2.0
+              </a><span>). Lizenzen der Ausgangsprodukte: </span><a href="https://www.govdata.de/dl-de/zero-2-0">
+                Datenlizenz Deutschland - Zero - Version 2.0
+              </a><span> (Amtliche Geobasisdaten) und </span><a href="https://opendatacommons.org/licenses/odbl/1-0/">    ODbL    </a><span> (OpenStreetMap contributors).</span>`,
+    eignung: `Der Stadtplan ist der am einfachsten und sichersten interpretierbare Kartenhintergrund, weil er an den von Stadtplänen geprägten Sehgewohnheiten von Kartennutzerinnen und -nutzern anschließt. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich der Stadtplan als Hintergrund für beliebige Maßstäbe. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung aus dem Liegenschaftskataster sehr aktuell. Gebäude können sicher identifiziert werden, da bei Detailbetrachtungen alle Hausnummern dargestellt werden.`,
+  },
+  gelaende: {
+    title: "Gelände",
+    layers: "basemap_relief@40",
+    description: `Gelände (basemap.de Web Vektor) © GeoBasis-DE / BKG (2024)`,
+    inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst</span>
+              <a href="https://basemap.de/web-vektor/">basemap.de Web Vektor</a>
+              <span>des Bundesamtes für Kartographie und Geodäsie (BKG), Kartenstil "Relief". © GeoBasis-DE /</span>
+              <a href="https://www.bkg.bund.de/">BKG</a>
+              <span>(2024)</span>
+              <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>`,
+    eignung: `Mit diesem Kartenhintergrund wird durch eine Geländeschummerung und Höhenlinien ein plastischer Geländeeindruck erzeugt. Er eignet sich damit in beliebigen Maßstäben für Karten, bei denen die Geländeform wichtig ist, z. B. zu Radwegen oder zum Regenwasserabfluss. "Gelände" basiert auf Vektor-Kacheln und ist dadurch die Hintergrundkarte mit der kürzesten Ladezeit. Der Gebäudebestand wird jährlich aktualisiert, hat also keine Spitzenaktualität.`,
+  },
+  amtlich: {
+    title: "Amtliche Basiskarte",
+    layers: "amtlichBasiskarte@90",
+    description: `Amtliche Basiskarte (Stadtgrundkarte / ABK) © Stadt Wuppertal`,
+    inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage: Amtliche Basiskarte ABK, farbige Ausprägung, wöchentlich in einem automatisierten Prozess aus dem Fachverfahren ALKIS des Liegenschaftskatasters abgeleitet. © Stadt Wuppertal (</span>
+              <a class="remove-margins" href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland - Zero - Version 2.0</a>
+              <span>).</span>`,
+    eignung: `Die Amtliche Basiskarte ABK ist ein Kartenprodukt, das aus dem Amtlichen Liegenschaftskatasterinformationssystem ALKIS abgeleitet ist. Neben einer detaillierten Darstellung der Gebäude werden daher auch die Grundstücksgrenzen dargestellt. Damit eignet sich die ABK insbesondere als Hintergrund für gebäude- und grundstücksbezogene Fachdaten sowie planungsrechtliche Darstellungen. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung der Karten aus dem ALKIS-Datenbestand sehr aktuell. Die Identifikation der Gebäude ist mit etwas Aufwand verbunden, da nur ausgewählte Hausnummern dargestellt werden.`,
+  },
+};
 
+/** the plain geoportal's background: the categories of the map switch */
 export const geoportalBackgroundConfig: BackgroundConfig = {
   defaultCategory: MapStyleKeys.TOPO,
+  layerMap: geoportalLayerMap,
   categories: [
     {
       id: MapStyleKeys.TOPO,
@@ -73,3 +157,145 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
     },
   ],
 };
+
+const isCompleteLayerInfo = (entry: Partial<LayerInfo>): entry is LayerInfo =>
+  typeof entry.title === "string" && typeof entry.layers === "string";
+
+/**
+ * The route's overrides merged over the base config. Category entries that
+ * name no base map are dropped with an error rather than crashing every
+ * consumer that reads `layerMap[id].title`; an empty category is dropped too.
+ */
+export const resolveBackgroundConfig = (
+  base: BackgroundConfig,
+  override?: BackgroundConfigOverride
+): BackgroundConfig => {
+  if (!override) {
+    return base;
+  }
+
+  const layerMap: LayerMap = { ...base.layerMap };
+  for (const [id, entry] of Object.entries(override.layerMap ?? {})) {
+    const merged = { ...base.layerMap[id], ...entry };
+    if (isCompleteLayerInfo(merged)) {
+      layerMap[id] = {
+        description: "",
+        inhalt: "",
+        eignung: "",
+        ...merged,
+      };
+    } else {
+      console.error(
+        `[BACKGROUND] base map "${id}" is new to this route and needs at least title and layers; ignoring it.`
+      );
+    }
+  }
+
+  const categories = (override.categories ?? base.categories).flatMap(
+    (category) => {
+      const entries = category.entries.filter((id) => {
+        if (layerMap[id]) {
+          return true;
+        }
+        console.error(
+          `[BACKGROUND] category "${category.id}" names unknown base map "${id}"; dropping it.`
+        );
+        return false;
+      });
+      if (entries.length === 0) {
+        console.error(
+          `[BACKGROUND] category "${category.id}" has no base maps left; dropping it.`
+        );
+        return [];
+      }
+      const defaultEntry =
+        category.defaultEntry && entries.includes(category.defaultEntry)
+          ? category.defaultEntry
+          : entries[0];
+      return [{ ...category, entries, defaultEntry }];
+    }
+  );
+
+  const hasCategory = (id: string | undefined): id is string =>
+    id !== undefined && categories.some((category) => category.id === id);
+  const defaultCategory = hasCategory(override.defaultCategory)
+    ? override.defaultCategory
+    : hasCategory(base.defaultCategory)
+    ? base.defaultCategory
+    : categories[0]?.id;
+
+  return {
+    categories,
+    defaultCategory,
+    layerMap,
+    namedLayers:
+      base.namedLayers || override.namedLayers
+        ? { ...base.namedLayers, ...override.namedLayers }
+        : undefined,
+  };
+};
+
+/**
+ * The background of the route the app started on. Resolved once, like the
+ * storage namespace (see STORE_APP_KEY): the store's initial state and the
+ * persisted selection are built from it, and a switch to another route is a
+ * page reload anyway. The one case that does not reload, an explicit
+ * `?appKey=` pinning one namespace for every route, keeps the boot route's
+ * background as well.
+ */
+export const backgroundConfig: BackgroundConfig = resolveBackgroundConfig(
+  geoportalBackgroundConfig,
+  findFachzwillingRouteByPath(initialRoutePath)?.background
+);
+
+export const findBackgroundCategory = (
+  id: string
+): BackgroundCategory | undefined =>
+  backgroundConfig.categories.find((category) => category.id === id);
+
+/** what the category is called in the given engine */
+export const getBackgroundCategoryTitle = (
+  category: BackgroundCategory,
+  isLeaflet: boolean
+): string => (isLeaflet ? category.title : category.title3d ?? category.title);
+
+/**
+ * The store's shape of a base map: the layerMap entry plus the visitor's
+ * opacity and visibility. Every place that turns a base map id into a
+ * `BackgroundLayer` goes through here, so the "wmts" default lives once.
+ */
+export const toBackgroundLayer = (
+  id: string,
+  state: { opacity?: number; visible?: boolean } = {},
+  layerMap: LayerMap = backgroundConfig.layerMap
+): BackgroundLayer => {
+  const entry = layerMap[id];
+  return {
+    id,
+    title: entry.title,
+    opacity: state.opacity ?? 1.0,
+    description: entry.description,
+    inhalt: entry.inhalt,
+    eignung: entry.eignung,
+    layerType: entry.layerType ?? LAYER_PROVIDER_TYPES.WMTS,
+    visible: state.visible ?? true,
+    layers: entry.layers,
+  };
+};
+
+/**
+ * Flat list of every base map of every category, in config order. The entry's
+ * `group` and `style` are both the category id (see BackgroundCategory).
+ */
+export const buildBackgroundLayerCatalog = (
+  config: BackgroundConfig
+): BackgroundLayerCatalogEntry[] =>
+  config.categories.flatMap((category) =>
+    category.entries.map((id) => ({
+      id,
+      title: config.layerMap[id].title,
+      group: category.id,
+      style: category.id,
+      config: toBackgroundLayer(id, {}, config.layerMap),
+    }))
+  );

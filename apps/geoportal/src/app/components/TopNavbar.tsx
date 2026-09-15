@@ -44,7 +44,7 @@ import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import {
   findBackgroundCategory,
-  geoportalBackgroundConfig,
+  backgroundConfig,
   getBackgroundCategoryTitle,
 } from "../config/backgroundConfig";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
@@ -297,7 +297,7 @@ const TopNavbar = () => {
                   value={currentStyle}
                   onChange={handleBackgroundLayerChange}
                 >
-                  {geoportalBackgroundConfig.categories.map((category) => (
+                  {backgroundConfig.categories.map((category) => (
                     <Tooltip
                       key={category.id}
                       title={

@@ -17,6 +17,7 @@ import {
   DEFAULT_BACKGROUND_LAYER_ID,
   DEFAULT_BACKGROUND_SELECTED_LAYER_ID,
 } from "../config";
+import { toBackgroundLayer } from "../config/backgroundConfig";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 
 import {
@@ -78,20 +79,15 @@ const onLoadedConfig = (
     const backgroundLayerId = givenId ?? DEFAULT_BACKGROUND_LAYER_ID;
     const selectedMapLayerId =
       givenSelectedLayerId ?? DEFAULT_BACKGROUND_SELECTED_LAYER_ID;
-    const mapLayerEntry = layerMap[selectedMapLayerId];
-
-    if (mapLayerEntry) {
-      const selectedBackgroundLayer: BackgroundLayer = {
-        title: mapLayerEntry.title,
-        id: selectedMapLayerId,
-        opacity: config.backgroundLayer.opacity,
-        description: mapLayerEntry.description,
-        inhalt: mapLayerEntry.inhalt,
-        eignung: mapLayerEntry.eignung,
-        visible: config.backgroundLayer.visible,
-        layerType: "wmts",
-        layers: mapLayerEntry.layers,
-      };
+    if (layerMap[selectedMapLayerId]) {
+      const selectedBackgroundLayer = toBackgroundLayer(
+        selectedMapLayerId,
+        {
+          opacity: config.backgroundLayer.opacity,
+          visible: config.backgroundLayer.visible,
+        },
+        layerMap
+      );
       dispatch(
         setBackgroundLayer({
           ...selectedBackgroundLayer,

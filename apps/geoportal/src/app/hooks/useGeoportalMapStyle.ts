@@ -3,7 +3,7 @@ import { useMapStyle as usePortalsMapStyle } from "@carma-appframeworks/portals"
 
 import {
   findBackgroundCategory,
-  geoportalBackgroundConfig,
+  backgroundConfig,
 } from "../config/backgroundConfig";
 
 /**
@@ -17,7 +17,7 @@ export const useMapStyle = () => {
 
   const currentStyle = findBackgroundCategory(currentStringStyle)
     ? currentStringStyle
-    : geoportalBackgroundConfig.defaultCategory;
+    : backgroundConfig.defaultCategory;
 
   const setCurrentStyle = useCallback(
     (style: string) => {

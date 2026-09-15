@@ -9,12 +9,13 @@ import {
   geoportalLayersToLibreLayers,
   layerProvidesTerrainMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
-import { getLayers } from "../../store/slices/mapping";
-import { useRouteBackground } from "../useRouteBackground";
+import { backgroundConfig } from "../../config/backgroundConfig";
+import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
-  const { backgroundLayer, namedLayers } = useRouteBackground();
+  const backgroundLayer = useSelector(getBackgroundLayer);
+  const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
 
   const computedLibreLayers = useMemo(() => {

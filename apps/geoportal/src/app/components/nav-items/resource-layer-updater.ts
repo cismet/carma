@@ -27,7 +27,7 @@ import {
 } from "../../store/slices/mapping";
 import { removeMeasurement } from "../../store/slices/measurements";
 import { layerMap } from "../../config";
-import { createBackgroundLayerConfig } from "../../helper/layer";
+import { toBackgroundLayer } from "../../config/backgroundConfig";
 import {
   zoomToLibreStyleFeatures,
   zoomToStyleFeatures,
@@ -214,7 +214,7 @@ const applyCollectionLayer = async ({
         dispatch(
           setSelectedByCategory({
             categoryId: layer.backgroundLayer.id,
-            layer: createBackgroundLayerConfig(layerKey),
+            layer: toBackgroundLayer(layerKey),
           })
         );
         setCurrentStyle(layer.backgroundLayer.id);

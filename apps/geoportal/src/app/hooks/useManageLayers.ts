@@ -1,9 +1,11 @@
-import { LayerMap } from "@carma-appframeworks/portals";
 import type { BackgroundLayer } from "@carma-mapping/layers";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { geoportalBackgroundConfig } from "../config/backgroundConfig";
+import {
+  backgroundConfig,
+  toBackgroundLayer,
+} from "../config/backgroundConfig";
 import {
   getBackgroundLayer,
   getSelectedByCategory,
@@ -12,12 +14,14 @@ import {
 } from "../store/slices/mapping";
 
 /**
- * Refreshes the restored background selection against the current layerMap on
- * boot: the persisted entries carry the texts and layer strings of the release
- * that wrote them. A stored choice the app no longer knows, or a category the
- * store has no choice for yet, falls back to the category default.
+ * Refreshes the restored background selection against the current background
+ * config on boot: the persisted entries carry the texts and layer strings of
+ * the release that wrote them. A stored choice the config no longer knows, or
+ * a category the store has no choice for yet, falls back to the category
+ * default; a stored category the config no longer has falls back to the
+ * default category.
  */
-export const useManageLayers = (layerMap: LayerMap) => {
+export const useManageLayers = () => {
   const dispatch = useDispatch();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedByCategory = useSelector(getSelectedByCategory);
@@ -25,40 +29,35 @@ export const useManageLayers = (layerMap: LayerMap) => {
   useEffect(() => {
     const refreshed: Record<string, BackgroundLayer> = {};
 
-    for (const category of geoportalBackgroundConfig.categories) {
+    for (const category of backgroundConfig.categories) {
       const stored = selectedByCategory[category.id];
       const id =
-        stored && layerMap[stored.id]
+        stored && category.entries.includes(stored.id)
           ? stored.id
           : category.defaultEntry ?? category.entries[0];
-      const layer: BackgroundLayer = {
-        title: layerMap[id].title,
-        id,
-        opacity: stored?.opacity ?? 1.0,
-        description: layerMap[id].description,
-        inhalt: layerMap[id].inhalt,
-        eignung: layerMap[id].eignung,
-        visible: stored?.visible ?? true,
-        layerType: "wmts",
-        layers: layerMap[id].layers,
-      };
+      const layer = toBackgroundLayer(id, {
+        opacity: stored?.opacity,
+        visible: stored?.visible,
+      });
       refreshed[category.id] = layer;
       dispatch(setSelectedByCategory({ categoryId: category.id, layer }));
     }
 
     const active =
       refreshed[backgroundLayer.id] ??
-      refreshed[geoportalBackgroundConfig.defaultCategory];
+      refreshed[backgroundConfig.defaultCategory];
     dispatch(
       setBackgroundLayer({
         ...backgroundLayer,
         ...active,
         id: refreshed[backgroundLayer.id]
           ? backgroundLayer.id
-          : geoportalBackgroundConfig.defaultCategory,
+          : backgroundConfig.defaultCategory,
         opacity: backgroundLayer.opacity,
         visible: backgroundLayer.visible,
       })
     );
-  }, [dispatch, layerMap]);
+    // boot only: the config is fixed for the page's lifetime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 };

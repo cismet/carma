@@ -7,6 +7,8 @@ import {
 } from "@carma-mapping/engines/cesium/core";
 
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { backgroundConfig } from "../backgroundConfig";
+import { geoportalCesiumSceneStyleByMapStyle } from "../mapStyleConfig";
 import {
   CESIUM_IMAGERY_LAYER_IDS,
   CESIUM_TERRAIN_PROVIDER_IDS,
@@ -15,7 +17,9 @@ import {
 import { MODEL_ASSETS } from "./assets.config";
 
 export const defaultCesiumState: CesiumState = {
-  currentSceneStyle: MapStyleKeys.TOPO,
+  // the scene of the route's default background category
+  currentSceneStyle:
+    geoportalCesiumSceneStyleByMapStyle[backgroundConfig.defaultCategory],
   styling: {
     tileset: {
       opacity: 1.0,

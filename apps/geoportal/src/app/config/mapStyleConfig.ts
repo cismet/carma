@@ -2,11 +2,11 @@ import type { MapStyleConfig } from "@carma-appframeworks/portals";
 import type { SceneStyleId } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { MapStyleKeys } from "../constants/MapStyleKeys";
-import { geoportalBackgroundConfig } from "./backgroundConfig";
+import { backgroundConfig } from "./backgroundConfig";
 
 export const geoportalMapStyleConfig: MapStyleConfig = {
-  defaultStyle: geoportalBackgroundConfig.defaultCategory,
-  availableStyles: geoportalBackgroundConfig.categories.map(
+  defaultStyle: backgroundConfig.defaultCategory,
+  availableStyles: backgroundConfig.categories.map(
     (category) => category.id
   ),
 };
@@ -17,7 +17,7 @@ export const geoportalMapStyleConfig: MapStyleConfig = {
  */
 export const geoportalCesiumSceneStyleByMapStyle: Record<string, SceneStyleId> =
   Object.fromEntries(
-    geoportalBackgroundConfig.categories.map((category) => [
+    backgroundConfig.categories.map((category) => [
       category.id,
       category.cesiumSceneStyle ?? category.id,
     ])

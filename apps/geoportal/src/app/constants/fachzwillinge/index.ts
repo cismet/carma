@@ -11,8 +11,9 @@ import {
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
 import { filterAddonsByAvailability, type AddonEntry } from "@carma-mapping/addons";
-import type { NamedLayers } from "@carma-appframeworks/portals";
 import { isAvailable, type Availability } from "@carma-commons/utils";
+
+import type { BackgroundConfigOverride } from "../../config/backgroundConfig";
 
 import {
   defaultVisibleControls,
@@ -53,18 +54,6 @@ export const resolveFachzwillingUi = (
   const { hideAll = false, ...overrides } = ui;
   const baseline = hideAll ? noVisibleControls : defaultVisibleControls;
   return { ...baseline, ...overrides };
-};
-
-/**
- * Route-scoped base map overrides. They are applied where the background is
- * turned into map layers (useRouteBackground) and never dispatched, so the
- * store keeps saying what the app-wide catalog says. That matters because the
- * background is persisted: a route that wrote its own layer string into the
- * store would still be showing it after navigating back to the plain geoportal.
- */
-export type FachzwillingBackgroundConfig = {
-  namedLayers?: NamedLayers;
-  layerMap?: Record<string, { layers: string }>;
 };
 
 type FachzwillingRouteBase = {
@@ -114,7 +103,13 @@ type FachzwillingRouteBase = {
    */
   perspectives?: WorkflowPerspective<AddonEntry>[];
   addons?: AddonEntry[];
-  background?: FachzwillingBackgroundConfig;
+  /**
+   * The route's own background: categories of the map switch, base maps and
+   * their services, merged over the plain geoportal's (see
+   * BackgroundConfigOverride). Resolved once at boot, since every route has
+   * its own persisted store and a route switch reloads the page anyway.
+   */
+  background?: BackgroundConfigOverride;
   /**
    * Layers this route adds to the catalog, the counterpart of `filters`: either
    * a full entry in the shape of `additionalLayerConfig.json`, or a vector style
