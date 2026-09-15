@@ -1,4 +1,4 @@
-import { allFachzwillingRoutes } from "../constants/fachzwillinge/routes";
+import { findFachzwillingRouteByPath } from "../constants/fachzwillinge/routes";
 
 /**
  * The storage namespace of a route: every Fachzwilling gets one of its own,
@@ -12,9 +12,7 @@ import { allFachzwillingRoutes } from "../constants/fachzwillinge/routes";
  * something that happens to a bookmark days later.
  */
 export const routeAppKeyForPath = (routePath: string): string | undefined => {
-  const route = allFachzwillingRoutes.find(
-    (candidate) => routePath === `/${candidate.path}`
-  );
+  const route = findFachzwillingRouteByPath(routePath);
   return route ? route.appKey ?? route.path : undefined;
 };
 

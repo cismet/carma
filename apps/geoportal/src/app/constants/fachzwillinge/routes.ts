@@ -25,3 +25,13 @@ export const allFachzwillingRoutes: FachzwillingRoute[] = [
   workflowsFachzwilling,
   projectionMappingFachzwilling,
 ];
+
+/**
+ * The route registered for a hash path such as "/gesundheit", availability
+ * not applied: for the boot-time lookups (storage namespace, background) that
+ * run before the barrel's filtered list exists.
+ */
+export const findFachzwillingRouteByPath = (
+  routePath: string
+): FachzwillingRoute | undefined =>
+  allFachzwillingRoutes.find((route) => routePath === `/${route.path}`);
