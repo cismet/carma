@@ -26,6 +26,7 @@ export type LayerInfo = {
   description: string;
   inhalt: string;
   eignung: string;
+  layerType?: BackgroundLayer["layerType"];
 };
 
 export type LayerMap = {
