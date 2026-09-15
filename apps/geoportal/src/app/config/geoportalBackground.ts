@@ -139,12 +139,28 @@ export const geoportalLayerMap: LayerMap = {
               <span>).</span>`,
     eignung: `Die Amtliche Basiskarte ABK ist ein Kartenprodukt, das aus dem Amtlichen Liegenschaftskatasterinformationssystem ALKIS abgeleitet ist. Neben einer detaillierten Darstellung der Gebäude werden daher auch die Grundstücksgrenzen dargestellt. Damit eignet sich die ABK insbesondere als Hintergrund für gebäude- und grundstücksbezogene Fachdaten sowie planungsrechtliche Darstellungen. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung der Karten aus dem ALKIS-Datenbestand sehr aktuell. Die Identifikation der Gebäude ist mit etwas Aufwand verbunden, da nur ausgewählte Hausnummern dargestellt werden.`,
   },
+  osm: {
+    title: "OpenStreetMap (OSM)",
+    layers: "osm_shortbread@100",
+    description: `OpenStreetMap (Shortbread) © OpenStreetMap contributors`,
+    inhalt: `Mapbox-konformer Vector-Tiles-Kartendienst auf Grundlage der OpenStreetMap`,
+    eignung: `Die OpenStreetMap ist eine von Freiwilligen gepflegte, weltweit verfügbare Karte mit einem breiten Inhaltsspektrum von Straßen und Wegen über Gebäude bis zu Points of Interest. Sie eignet sich als vertrauter, schnell ladender Kartenhintergrund für beliebige Maßstäbe. Aktualität und Vollständigkeit hängen von der Aktivität der OSM-Community vor Ort ab.`,
+    availability: {
+      featureFlag: "osm",
+    },
+  },
 };
 
 /** the plain geoportal's background: the categories of the map switch */
 export const geoportalBackgroundConfig: BackgroundConfig = {
   defaultCategory: MapStyleKeys.TOPO,
   layerMap: geoportalLayerMap,
+  namedLayers: {
+    osm_shortbread: {
+      type: "vector",
+      style: "https://tiles.cismet.de/osm_shortbread/osm_shortbread.style.json",
+    },
+  },
   categories: [
     {
       id: MapStyleKeys.TOPO,
@@ -155,7 +171,7 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
       cesiumSceneStyle: MapStyleKeys.TOPO,
-      entries: ["stadtplan", "gelaende", "amtlich"],
+      entries: ["stadtplan", "gelaende", "amtlich", "osm"],
     },
     {
       id: MapStyleKeys.AERIAL,
