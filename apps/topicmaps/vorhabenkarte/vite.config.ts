@@ -24,12 +24,34 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
 
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
+  // MapLibre builds its worker by stringifying its own chunk functions. With
+  // the default esbuild target the dep pre-bundle injects a `__publicField`
+  // helper into those functions, which then does not exist inside the worker
+  // ("__publicField is not defined" on geojson sources). Native class fields
+  // avoid the helper; same setup as ng-topicmap-playground.
+  optimizeDeps: {
+    include: ['maplibre-gl'],
+    esbuildOptions: {
+      target: 'es2022',
+    },
+  },
+
+  esbuild: {
+    supported: {
+      'class-field': true,
+      'class-static-field': true,
+    },
+  },
+
+  // The maplibre engine ships module workers (tileset hierarchy) that import
+  // workspace libs; same setup as the geoportal.
+  worker: {
+    format: 'es',
+    plugins: () => [nxViteTsPaths()],
+  },
 
   build: {
+    target: 'es2022',
     outDir: '../../../dist/apps/topicmaps/vorhabenkarte',
     reportCompressedSize: true,
     commonjsOptions: {
