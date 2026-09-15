@@ -35,6 +35,18 @@ export {
   type FetchCarRouteParams,
 } from "./utils/carRoute";
 
+// How a route's numbers read, everywhere they are shown
+export {
+  formatDistance,
+  formatDuration,
+  formatRouteSummary,
+  getModeIcon,
+  getModeLabel,
+} from "./utils/formatters";
+
+// What a route looks like, wherever one is drawn
+export { ROUTE_BLUE, ROUTE_CASING, ROUTE_GRAY } from "./utils/routeColors";
+
 // UI Components
 export { RouteOptionsDrawer } from "./components/RouteOptionsDrawer";
 export { InlineRouteOptions } from "./components/InlineRouteOptions";
