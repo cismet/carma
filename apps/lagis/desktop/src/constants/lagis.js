@@ -1,10 +1,13 @@
 import { gql } from "graphql-request";
 import queries from "../core/queries/online";
 
-export const REST_SERVICE_LAGIS = "https://lagis-api.cismet.de";
+export const REST_SERVICE_LAGIS =
+  import.meta.env.VITE_REST_SERVICE_LAGIS ||
+  "https://lagis-cloud-api.cismet.de";
 export const LAGIS_DOMAIN = "LAGIS";
 
-export const REST_SERVICE_WUNDA = "https://wunda-api.cismet.de";
+export const REST_SERVICE_WUNDA =
+  import.meta.env.VITE_REST_SERVICE_WUNDA || "https://wunda-api.cismet.de";
 export const WUNDA_DOMAIN = "WUNDA_BLAU";
 
 export const REST_SERVICES = {

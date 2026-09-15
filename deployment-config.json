@@ -1198,7 +1198,8 @@
               "org": "digital-twin-wuppertal-live",
               "prj": "lagis-desktop",
               "envs": [
-                "VITE_LAGIS_DESKTOP_DMS_DOCUMENT_SERVER=http://dokumente.sl0548.wuppertal-intra.de"
+                "VITE_LAGIS_DESKTOP_DMS_DOCUMENT_SERVER=http://dokumente.sl0548.wuppertal-intra.de",
+                "VITE_REST_SERVICE_LAGIS=https://lagis-api.cismet.de"
               ]
             }
           }
