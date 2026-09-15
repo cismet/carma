@@ -34,9 +34,47 @@ const getOrientationEventName = (): OrientationEventName | null => {
   return null;
 };
 
-/** degrees clockwise from north, or null when the event carries no heading */
+type LegacyOrientationWindow = Window & {
+  /** iOS: -90, 0, 90 or 180, always relative to portrait */
+  orientation?: number;
+};
+
+/**
+ * How far the screen is turned from the orientation the compass value is
+ * measured in, degrees counterclockwise, 0 when unknown.
+ *
+ * `window.orientation` comes first on purpose: it is Apple's value, in the
+ * same portrait-based frame as `webkitCompassHeading`, on iPhone and iPad.
+ * `screen.orientation.angle` is relative to the device's "natural"
+ * orientation instead, which iPadOS takes to be landscape, so it would put
+ * the iPad a quarter turn off in every orientation. Android has no
+ * `window.orientation`, and there `alpha` and the angle share the
+ * natural-orientation frame, so the fallback is consistent.
+ */
+export const getScreenOrientationAngle = (): number => {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+  const angle =
+    (window as LegacyOrientationWindow).orientation ??
+    window.screen?.orientation?.angle;
+  if (typeof angle !== "number" || !Number.isFinite(angle)) {
+    return 0;
+  }
+  return ((angle % 360) + 360) % 360;
+};
+
+/**
+ * Degrees clockwise from north, or null when the event carries no heading.
+ *
+ * Both the iOS and the Android value are relative to the device's physical
+ * top edge, not the screen's "up": a device held in landscape reports a
+ * heading a quarter turn off from where the map's user is facing. Adding
+ * the screen rotation moves the heading into the screen's frame.
+ */
 export const headingFromOrientationEvent = (
-  event: DeviceOrientationEvent
+  event: DeviceOrientationEvent,
+  screenAngle = getScreenOrientationAngle()
 ): number | null => {
   const { webkitCompassHeading, absolute, alpha } =
     event as OrientationEventWithWebkit;
@@ -50,7 +88,7 @@ export const headingFromOrientationEvent = (
   if (heading === null || !Number.isFinite(heading)) {
     return null;
   }
-  return Math.round(heading) % 360;
+  return Math.round(heading + screenAngle) % 360;
 };
 
 /**
