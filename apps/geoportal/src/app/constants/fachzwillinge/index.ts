@@ -13,7 +13,7 @@ import {
 import { filterAddonsByAvailability, type AddonEntry } from "@carma-mapping/addons";
 import { isAvailable, type Availability } from "@carma-commons/utils";
 
-import type { BackgroundConfigOverride } from "../../config/backgroundConfig";
+import type { BackgroundConfigOverride } from "../../config/geoportalBackground";
 
 import {
   defaultVisibleControls,

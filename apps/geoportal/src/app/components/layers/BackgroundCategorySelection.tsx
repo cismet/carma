@@ -6,10 +6,8 @@ import { useMapStyle } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { backgroundLayerCatalog } from "../../config";
-import {
-  getBackgroundCategoryTitle,
-  type BackgroundCategory,
-} from "../../config/backgroundConfig";
+import { getBackgroundCategoryTitle } from "../../config/backgroundConfig";
+import type { BackgroundCategory } from "../../config/geoportalBackground";
 import { applyBackgroundLayer } from "../../helper/layer";
 import {
   getBackgroundLayer,

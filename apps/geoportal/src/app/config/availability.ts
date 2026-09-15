@@ -11,6 +11,10 @@ import {
 import { allFachzwillingRoutes } from "../constants/fachzwillinge/routes";
 import type { FachzwillingRoute } from "../constants/fachzwillinge";
 import { getFeatureFlagConfig } from "./featureFlags";
+import {
+  geoportalBackgroundConfig,
+  type BackgroundConfigOverride,
+} from "./geoportalBackground";
 
 /**
  * The context every `availability` in the app is resolved against: routes,
@@ -22,6 +26,18 @@ import { getFeatureFlagConfig } from "./featureFlags";
 export const currentDeployment = resolveDeployment();
 
 const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
+
+/** every availability declared on a background's base maps and categories */
+const collectBackgroundAvailabilities = (
+  background: BackgroundConfigOverride | undefined
+): Availability[] => [
+  ...Object.values(background?.layerMap ?? {}).flatMap((entry) =>
+    entry.availability ? [entry.availability] : []
+  ),
+  ...(background?.categories ?? []).flatMap((category) =>
+    category.availability ? [category.availability] : []
+  ),
+];
 
 /** every availability declared anywhere inside a route */
 const collectRouteAvailabilities = (route: FachzwillingRoute): Availability[] => [
@@ -35,17 +51,21 @@ const collectRouteAvailabilities = (route: FachzwillingRoute): Availability[] =>
   ...(route.addons ?? []).flatMap((addon) =>
     typeof addon !== "string" && addon.availability ? [addon.availability] : []
   ),
+  ...collectBackgroundAvailabilities(route.background),
 ];
 
 /**
- * Feature flags only referenced by an availability, so they resolve (default
- * off, alias equal to the name) without an entry in the base config. Flags on
- * the app's default addons (app.config.ts) are not collected here, that module
- * imports this one; they belong in the base config.
+ * Feature flags only referenced by an availability (routes and their contents,
+ * the app-wide background), so they resolve (default off, alias equal to the
+ * name) without an entry in the base config. Flags on the app's default addons
+ * (app.config.ts) are not collected here, that module imports this one; they
+ * belong in the base config.
  */
 export const routeFeatureFlagConfig: FeatureFlagConfig = Object.fromEntries(
-  allFachzwillingRoutes
-    .flatMap(collectRouteAvailabilities)
+  [
+    ...collectBackgroundAvailabilities(geoportalBackgroundConfig),
+    ...allFachzwillingRoutes.flatMap(collectRouteAvailabilities),
+  ]
     .map((availability) => availability.featureFlag)
     .filter(
       (flagName): flagName is string =>

@@ -5,6 +5,7 @@ import type {
   LayerStackEntry,
   SavedLayerConfig,
 } from "@carma-mapping/layers";
+import type { Availability } from "@carma-commons/utils";
 import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
 
 // TODO elevate some of the type here to carma-commons
@@ -27,6 +28,8 @@ export type LayerInfo = {
   inhalt: string;
   eignung: string;
   layerType?: BackgroundLayer["layerType"];
+  /** where this base map is offered; omitted means everywhere */
+  availability?: Availability;
 };
 
 export type LayerMap = {
