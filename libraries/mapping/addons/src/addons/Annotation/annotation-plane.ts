@@ -14,7 +14,11 @@ import {
 } from "./annotation-homography";
 import type { Mat3, Point } from "./annotation-homography";
 import { planeLog } from "./annotation-plane-active";
-import { groundOffset, lngLatToScene } from "./annotation-scene-space";
+import {
+  groundOffset,
+  lngLatToScene,
+  sceneToLngLat,
+} from "./annotation-scene-space";
 import type { AnnotationAnchor } from "./types";
 
 /**
@@ -107,6 +111,18 @@ const ROUND_TRIP_PX = 1.5;
 
 /** how far a look at the horizon is taken to reach, in map pixels */
 const HORIZON_REACH_PX = 1e5;
+
+/**
+ * The drawing's own box on the ground, for the plane to be sized to it.
+ *
+ * Kept with the anchor its coordinates are counted from, like every other pair
+ * of scene coordinates here: a box read against the wrong anchor is a box in
+ * the wrong place by the ratio between the two.
+ */
+export type PlaneContent = {
+  anchor: AnnotationAnchor;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
+};
 
 /**
  * The screen points the homography is solved from, as fractions of the map
@@ -299,46 +315,126 @@ const reachOf = (map: MaplibreMap, area: PlaneArea) => {
 };
 
 /**
+ * How far past the map area the drawing itself reaches, per side, in map
+ * pixels of the current zoom.
+ *
+ * The same ground arithmetic as `reachOf`, asked of the scene instead of the
+ * camera: the drawing's own box, put on the ground through its anchor and
+ * measured out from the middle of the map area. No camera in it at all, so a
+ * pitch does not change the answer — a drawing covers the ground it covers.
+ */
+const contentReach = (
+  map: MaplibreMap,
+  area: PlaneArea,
+  content: PlaneContent
+): PlaneMargin | null => {
+  const zoom = map.getZoom();
+  const middle = map.unproject([
+    area.x + area.width / 2,
+    area.y + area.height / 2,
+  ]);
+  if (!Number.isFinite(middle.lng) || !Number.isFinite(middle.lat)) {
+    return null;
+  }
+  const { minX, minY, maxX, maxY } = content.bounds;
+  const corners: readonly [number, number][] = [
+    [minX, minY],
+    [maxX, minY],
+    [maxX, maxY],
+    [minX, maxY],
+  ];
+  const box = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  let first = true;
+  for (const [x, y] of corners) {
+    const at = sceneToLngLat(content.anchor, x, y);
+    const offset = groundOffset(middle, at, zoom);
+    if (!Number.isFinite(offset.x) || !Number.isFinite(offset.y)) {
+      return null;
+    }
+    if (first) {
+      box.minX = offset.x;
+      box.maxX = offset.x;
+      box.minY = offset.y;
+      box.maxY = offset.y;
+      first = false;
+      continue;
+    }
+    box.minX = Math.min(box.minX, offset.x);
+    box.maxX = Math.max(box.maxX, offset.x);
+    box.minY = Math.min(box.minY, offset.y);
+    box.maxY = Math.max(box.maxY, offset.y);
+  }
+  return {
+    top: Math.max(0, -box.minY - area.height / 2),
+    right: Math.max(0, box.maxX - area.width / 2),
+    bottom: Math.max(0, box.maxY - area.height / 2),
+    left: Math.max(0, -box.minX - area.width / 2),
+  };
+};
+
+/**
  * The box the camera asks for, brought inside what two canvases may cost.
  *
- * The budget is spent on quality first: all the ground the camera is looking
- * at is kept, and the scene is painted smaller until that ground fits. Only
- * once the quality floor is reached is ground given back, and then by one
- * factor on all four sides, so the shape of what the camera wants survives the
- * cut: at a pitch the far side keeps most of the room even then.
+ * What has to be covered is the drawing, not the view. Ground with nothing
+ * drawn on it can be left unpainted for nothing: there is no shape out there
+ * to cut. So the drawing's own box is what the budget must hold, and the rest
+ * of what the camera looks at is comfort — room for the next stroke — given
+ * back by the `share` loop as the budget needs it.
+ *
+ * That is what keeps a small drawing sharp at any pitch. A tilted camera looks
+ * at several screens of ground and the note on the hill covers a few hundred
+ * pixels of it; sizing the plane to the camera bought five screens of empty
+ * canvas and paid for it in sharpness, or in a cut. Sizing it to the note
+ * costs nothing.
+ *
+ * Only a drawing that is itself too big for the budget lowers the quality now,
+ * and only then is ground given back, by one factor on all four sides.
  */
-const fitFor = (map: MaplibreMap | null, area: PlaneArea): PlaneFit => {
+const fitFor = (
+  area: PlaneArea,
+  /** how far the camera looks, from `reachOf` */
+  camera: PlaneMargin | null,
+  /** how far the drawing reaches, from `contentReach`; null means none yet */
+  drawn: PlaneMargin | null
+): PlaneFit => {
   const { width, height } = area;
   if (width <= 0 || height <= 0) {
     return NO_PLANE_FIT;
   }
-  const reach = (map && reachOf(map, area)) ?? NO_MARGIN;
+  const reach = camera ?? NO_MARGIN;
   const capped = (value: number) => Math.min(value, MAX_PLANE_MARGIN_PX);
-  /** the ground the camera is looking at: what a cut would cut into */
-  const needed: PlaneMargin = {
-    top: capped(reach.top),
-    right: capped(reach.right),
-    bottom: capped(reach.bottom),
-    left: capped(reach.left),
-  };
+  /**
+   * What a cut would cut into: the drawing, as far as the camera can see it.
+   * Past the camera's own reach there is no screen to be cut off, so the two
+   * are taken together. Nothing drawn yet means nothing has to be covered, and
+   * the plane is free to spend everything on the comfort below.
+   */
+  const needed: PlaneMargin = drawn
+    ? {
+        top: capped(Math.min(drawn.top, reach.top)),
+        right: capped(Math.min(drawn.right, reach.right)),
+        bottom: capped(Math.min(drawn.bottom, reach.bottom)),
+        left: capped(Math.min(drawn.left, reach.left)),
+      }
+    : NO_MARGIN;
   /** and the room given on top of it, which is only ever comfort */
   const floorX = width * PLANE_MARGIN;
   const floorY = height * PLANE_MARGIN;
   const wanted: PlaneMargin = {
-    top: Math.max(needed.top, floorY),
-    right: Math.max(needed.right, floorX),
-    bottom: Math.max(needed.bottom, floorY),
-    left: Math.max(needed.left, floorX),
+    top: Math.max(capped(reach.top), floorY),
+    right: Math.max(capped(reach.right), floorX),
+    bottom: Math.max(capped(reach.bottom), floorY),
+    left: Math.max(capped(reach.left), floorX),
   };
 
   const ratio = globalThis.devicePixelRatio || 1;
   /** what the two canvases may cover between them, in box pixels */
   const budget = PLANE_DEVICE_PX_BUDGET / (2 * ratio * ratio);
   /**
-   * The quality that just holds the ground the camera is looking at. Measured
-   * against `needed` and not against `wanted`: the comfort margin is given
-   * back to the budget further down, and paying for it in sharpness instead
-   * would soften a merely rotated camera, which needs no room at all.
+   * The quality that just holds the ground that has to be held. Measured
+   * against `needed` and not against `wanted`: the comfort is given back to
+   * the budget further down, and paying for it in sharpness instead would
+   * soften a drawing that fits perfectly well.
    */
   const affordable = Math.sqrt(
     budget /
@@ -410,11 +506,24 @@ export const usePlaneFit = (
   map: MaplibreMap | null,
   host: HTMLElement | null,
   inset: PlaneMargin,
-  enabled: boolean
+  enabled: boolean,
+  /** the drawing the box is sized to; see `fitFor` */
+  getContent: () => PlaneContent | null = () => null,
+  /** bumped when that drawing has moved enough to be worth measuring again */
+  contentVersion = 0
 ): PlaneFit => {
   const [fit, setFit] = useState<PlaneFit>(NO_PLANE_FIT);
   const insetRef = useRef(inset);
   insetRef.current = inset;
+  const contentRef = useRef(getContent);
+  contentRef.current = getContent;
+
+  /**
+   * The measurement, for the drawing to ask for one of its own. The map's own
+   * events do not fire while a shape is dragged out past the edge of the box,
+   * and that is exactly when the box has to grow.
+   */
+  const measureRef = useRef<(force: boolean) => void>(() => undefined);
 
   useEffect(() => {
     if (!host || !enabled) {
@@ -439,26 +548,51 @@ export const usePlaneFit = (
 
     let moving = false;
     let key = "";
+    let camera: PlaneMargin | null = null;
     const measure = (force: boolean) => {
       const area = areaOf();
       if (!area || area.width <= 0 || area.height <= 0) {
         return;
       }
+      /**
+       * The camera's own reach is kept until the camera's shape changes. It is
+       * measured in map pixels, which a zoom scales along with everything
+       * else, and it is taken from the middle of the area, which a pan carries
+       * with it — so a pitch, a bearing and the size of the area are the whole
+       * of what it depends on. It is also the expensive half: two dozen
+       * unprojects against four cheap ones.
+       */
       const next = map
         ? `${Math.round(map.getPitch())}|${Math.round(map.getBearing())}|${
             Math.round(area.width) + "x" + Math.round(area.height)
           }`
         : `${Math.round(area.width)}x${Math.round(area.height)}`;
-      if (!force && next === key) {
-        return;
+      if (force || next !== key || !camera) {
+        key = next;
+        camera = map ? reachOf(map, area) : null;
       }
-      key = next;
-      const wanted = fitFor(map, area);
+      /**
+       * The drawing's reach is not scale free and not pan free: a zoom changes
+       * how many map pixels it covers, a pan changes which edge it hangs past.
+       * So it is asked for every time, and the box follows the drawing through
+       * a gesture instead of waiting for the map to come to rest. Whether that
+       * costs anything is `sameFit`'s answer, not this one's — margins move in
+       * whole steps, so most frames end here.
+       */
+      const content = contentRef.current();
+      // A drawing whose ground cannot be worked out falls back to the camera's
+      // own reach, not to nothing: `null` here means "there is nothing out
+      // there to cut", and answering that about a drawing we simply failed to
+      // measure is the one way this can cut without ever recovering.
+      const measured = map && content ? contentReach(map, area, content) : null;
+      const drawn = content ? measured ?? camera : null;
+      const wanted = fitFor(area, camera, drawn);
       planeLog("fit", {
         pitch: map?.getPitch() ?? null,
         bearing: map?.getBearing() ?? null,
         area,
-        reach: map ? reachOf(map, area) : null,
+        reach: camera,
+        drawn,
         wanted,
         ratio: globalThis.devicePixelRatio || 1,
       });
@@ -490,12 +624,14 @@ export const usePlaneFit = (
     };
 
     measure(true);
+    measureRef.current = measure;
     const sizes = new ResizeObserver(() => measure(true));
     sizes.observe(host);
 
     if (!map) {
       return () => {
         sizes.disconnect();
+        measureRef.current = () => undefined;
       };
     }
     const onStart = () => {
@@ -511,11 +647,18 @@ export const usePlaneFit = (
     map.on("moveend", onRest);
     return () => {
       sizes.disconnect();
+      measureRef.current = () => undefined;
       map.off("movestart", onStart);
       map.off("move", onMove);
       map.off("moveend", onRest);
     };
   }, [enabled, host, map]);
+
+  // the drawing grew: the box is measured against it, so it is measured again.
+  // Forced, because none of the keys the camera is watched by have moved
+  useEffect(() => {
+    measureRef.current(true);
+  }, [contentVersion]);
 
   return fit;
 };

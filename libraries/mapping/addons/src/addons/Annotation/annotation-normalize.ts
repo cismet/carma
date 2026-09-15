@@ -1083,18 +1083,24 @@ export const useDecorationScale = ({
        * moves to this zoom and the drawing is read against it instead. Never
        * while the hand is on an element, which would be rewritten under it.
        *
-       * Measured on the camera with the quality taken back out of it. The
-       * plane paints the scene smaller while the map is tilted, which is a
-       * decision about this frame's canvas and not a drawing that has drifted;
-       * rebasing on it would rewrite every coordinate in the scene on the way
-       * into a tilt and every one of them again on the way out.
+       * Measured on the map's own scale, which is the drawing's distance from
+       * the anchor and nothing else. Not on the painted camera: that carries
+       * the plane's quality, which is a decision about this frame's canvas and
+       * not a drift — and it is clamped at excalidraw's own floor, so far
+       * enough out it stops moving altogether and reports a drift of nothing
+       * however far the map goes. Both of those hide the rebase that is due,
+       * and a rebase that never comes is a scene painted at a scale the box
+       * was not measured for: the ground it covers is off by the whole clamp,
+       * and the drawing is cut to what is left.
+       *
+       * `screen` is free of both. After a rebase it is 1, so the camera is the
+       * quality itself and the clamp cannot bind again.
        */
-      const drift = painted / quality;
       const rebasing =
-        busy.size === 0 && Math.abs(Math.log2(drift)) >= REBASE_LEVELS;
-      // a rebase reads every coordinate in units `drift` times smaller, so
+        busy.size === 0 && Math.abs(Math.log2(screen)) >= REBASE_LEVELS;
+      // a rebase reads every coordinate in units `screen` times smaller, so
       // both scales are read in those units from here on
-      const rebaseBy = rebasing ? drift : 1;
+      const rebaseBy = rebasing ? screen : 1;
       const geometry = painted / rebaseBy;
       const scale = screen / rebaseBy;
       scaleRef.current = scale;

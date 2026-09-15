@@ -1,4 +1,11 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -18,6 +25,7 @@ import { useDecorationScale } from "./annotation-normalize";
 import { useStyleMarks } from "./annotation-style-marks";
 import { usePlaneActive } from "./annotation-plane-active";
 import { useGroundPlane, usePlaneFit } from "./annotation-plane";
+import type { PlaneContent } from "./annotation-plane";
 import { usePlanePointer } from "./annotation-plane-pointer";
 import { sceneToLngLat } from "./annotation-scene-space";
 import { useMapSceneSync } from "./map-scene-sync";
@@ -60,6 +68,14 @@ const ZOOM_PADDING = 80;
 /** how far zooming to a drawing goes in, however small the drawing is */
 const ZOOM_TO_MAX = 20;
 
+/**
+ * How far the drawing's box may move, in scene units, before the plane is
+ * measured against it again. The plane is what this is for, and the plane
+ * quantises its own margins to whole steps, so following every point of a
+ * drag would resize nothing and cost a pass each time.
+ */
+const CONTENT_STEP = 64;
+
 type SceneBox = { minX: number; minY: number; maxX: number; maxY: number };
 
 const sceneBounds = (
@@ -93,6 +109,26 @@ const sceneBounds = (
         }
       : box
     : null;
+};
+
+/** whether the plane would measure a different box for these two */
+const contentMoved = (
+  from: PlaneContent | null,
+  to: PlaneContent | null
+): boolean => {
+  if (!from || !to) {
+    return from !== to;
+  }
+  if (from.anchor !== to.anchor) {
+    return true;
+  }
+  const moved = (a: number, b: number) => Math.abs(a - b) > CONTENT_STEP;
+  return (
+    moved(from.bounds.minX, to.bounds.minX) ||
+    moved(from.bounds.minY, to.bounds.minY) ||
+    moved(from.bounds.maxX, to.bounds.maxX) ||
+    moved(from.bounds.maxY, to.bounds.maxY)
+  );
 };
 
 const referencedFiles = (
@@ -196,12 +232,24 @@ export const AnnotationScene = ({
    * the camera, because the camera is what puts the map area's middle in the
    * middle of that box.
    *
-   * More ground than the canvas can hold at full size is held at less than
-   * full size: the whole box, the map area with it, is painted at `quality`
-   * box pixels per map pixel and magnified back by the matrix. `shrink` is
-   * what that takes off the box's layout size. See `MIN_PLANE_QUALITY`.
+   * What the box is sized to is the drawing, not the camera: empty ground
+   * costs canvas and holds nothing that could be cut. Only a drawing too big
+   * for the budget is painted at less than full size — the whole box, the map
+   * area with it, at `quality` box pixels per map pixel, magnified back by the
+   * matrix, with `shrink` taken off the box's layout size. See `fitFor` and
+   * `MIN_PLANE_QUALITY`.
    */
-  const fit = usePlaneFit(libreMap, host, inset, plane);
+  const contentRef = useRef<PlaneContent | null>(null);
+  const getContent = useCallback(() => contentRef.current, []);
+  const [contentVersion, setContentVersion] = useState(0);
+  const fit = usePlaneFit(
+    libreMap,
+    host,
+    inset,
+    plane,
+    getContent,
+    contentVersion
+  );
   const { margin, shrink } = fit;
   const {
     inSync,
@@ -319,6 +367,15 @@ export const AnnotationScene = ({
     // there, and the elements they stand for are hidden while they exist:
     // neither belongs in what is saved, see `annotation-clip`
     const drawing = unclipped(elements);
+
+    // the plane is sized to the drawing, so it is told when the drawing grows
+    const bounds = sceneBounds(drawing);
+    const anchor = getAnchor();
+    const content = bounds && anchor ? { anchor, bounds } : null;
+    if (contentMoved(contentRef.current, content)) {
+      contentRef.current = content;
+      setContentVersion((version) => version + 1);
+    }
     const version = getSceneVersion?.(drawing) ?? -1;
     const used = referencedFiles(drawing, files);
     const fileCount = Object.keys(used).length;
