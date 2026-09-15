@@ -221,30 +221,9 @@ export const defaultLayerConf = {
       layers: "OSM-WMS",
       tiled: false,
     },
-    abkf: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-      layers: "abkf",
-    },
-    nrs: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-      layers: "R102%3Astadtgrundkarte_hausnr",
-      transparent: "true",
-    },
-    abkg: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-      layers: "abkg",
-    },
     bplan_abkg: {
       type: "wms",
       url: "https://maps.wuppertal.de/karten",
-      layers: "bplanreihe",
-    },
-    bplan_abkg_cached: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
       layers: "bplanreihe",
     },
     bplan_abkg_uncached: {
@@ -257,11 +236,6 @@ export const defaultLayerConf = {
       url: "https://maps.wuppertal.de/karten",
       layers: "bplanhintergrund",
     },
-    bplan_ovl_cached: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-      layers: "bplanhintergrund",
-    },
     abkIntra: {
       type: "wms",
       url: "http://s10221:7098/alkis/services",
@@ -270,11 +244,6 @@ export const defaultLayerConf = {
     uwBPlan: {
       type: "wms",
       url: "https://maps.wuppertal.de/karten",
-      layers: "bplanreihe,bplanhintergrund",
-    },
-    uwBPlanCached: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
       layers: "bplanreihe,bplanhintergrund",
     },
     webatlas: {
@@ -391,21 +360,6 @@ export const defaultLayerConf = {
     hillshade: {
       type: "wms",
       url: "https://maps.wuppertal.de/karten",
-      layers: "hillshade",
-    },
-    trueOrtho2018Cached: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-      layers: "R102:trueortho201810",
-    },
-    trueOrtho2020Cached: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
-      layers: "R102:trueortho202010",
-    },
-    hillshadeCached: {
-      type: "wms",
-      url: "https://wunda-geoportal-cache.cismet.de/geoportal",
       layers: "hillshade",
     },
     ESRILayer: {

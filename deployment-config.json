@@ -112,6 +112,27 @@
       },
       "projectPath": "./dist/apps/topicmaps/tz-baumbewirtschaftung"
     },
+    "tz-leerstandsmanagement": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "tz-leerstandsmanagement"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "tz-leerstandsmanagement"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/topicmaps/tz-leerstandsmanagement"
+    },
     "x-and-ride": {
       "deployment": {
         "manual": {
