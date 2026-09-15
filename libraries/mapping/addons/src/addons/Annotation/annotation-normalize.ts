@@ -27,7 +27,7 @@ import {
   sameHeadProxy,
 } from "./annotation-arrowhead";
 import type { SceneRect } from "./annotation-clip";
-import { fitBoundText } from "./annotation-text-fit";
+import { fitBoundText, hangsBlank, trimHanging } from "./annotation-text-fit";
 import { planeLog } from "./annotation-plane-active";
 import { planeSceneRect } from "./annotation-scene-space";
 import type { PlaneCamera } from "./annotation-plane";
@@ -653,6 +653,31 @@ const refitted = (
 };
 
 /**
+ * The labels whose drawn lines still carry the blanks the wrap left hanging on
+ * them, taken off — see `trimHanging`. Only what is drawn is touched, so the
+ * lines break where they broke and the box stays where it was measured.
+ *
+ * Never the label under the hand: while the editor is open the element carries
+ * what is being typed rather than a wrap, and its own blanks are the user's.
+ */
+const trimmed = (
+  elements: readonly ExcalidrawElement[],
+  busy: Set<string>
+): readonly ExcalidrawElement[] => {
+  let found = false;
+  const next = elements.map((element) => {
+    if (busy.has(element.id) || !hangsBlank(element)) {
+      return element;
+    }
+    found = true;
+    return redrawn(element, {
+      text: trimHanging((element as TextElement).text),
+    }) as ExcalidrawElement;
+  });
+  return found ? next : elements;
+};
+
+/**
  * Keeps the decoration at its pixel size. Driven by the map's `zoom`, never by
  * `move`: panning changes no scale, so it must cost nothing. A forced pass
  * runs when a gesture ends, which is where a new element gets its pixel size,
@@ -755,6 +780,8 @@ export const useDecorationScale = ({
   const passRef = useRef<((force: boolean) => void) | null>(null);
   /** a pass already asked for, so a burst of reports still costs one */
   const askedRef = useRef(false);
+  /** the same for one asked for before the frame is painted */
+  const nowRef = useRef(false);
 
   /**
    * A forced pass that found nothing to measure, waiting for the camera.
@@ -782,6 +809,31 @@ export const useDecorationScale = ({
     askedRef.current = true;
     requestAnimationFrame(() => {
       askedRef.current = false;
+      passRef.current?.(true);
+    });
+  }, []);
+
+  /**
+   * A pass before this frame is painted, rather than in the next one.
+   *
+   * The frame is excalidraw's: it paints its canvas from a `requestAnimationFrame`
+   * of its own, asked for in the same commit that tells us about the change.
+   * A pass asked for on the next frame is therefore a pass the user sees the
+   * frame before — which for a rewrite of what is drawn is a flash of the old
+   * drawing. A microtask is past the commit, so `updateScene` is ours to take,
+   * and still ahead of every frame callback.
+   *
+   * Only for a rewrite that has to land in this frame. Everything else is
+   * better off waiting: a pass costs a walk of the scene, and the frame it is
+   * made in is the one excalidraw is busy with.
+   */
+  const askForPassNow = useCallback(() => {
+    if (nowRef.current) {
+      return;
+    }
+    nowRef.current = true;
+    queueMicrotask(() => {
+      nowRef.current = false;
       passRef.current?.(true);
     });
   }, []);
@@ -1024,8 +1076,18 @@ export const useDecorationScale = ({
       ) {
         askForPass();
       }
+
+      // A label excalidraw has just wrapped, which it does on every edit and
+      // on the submit that closes the editor. The blanks that wrap leaves on
+      // the line ends are what the canvas centres a line off by, so they come
+      // off in the same frame the wrap lands in, see `trimHanging`.
+      if (
+        elements.some((element) => !ids.has(element.id) && hangsBlank(element))
+      ) {
+        askForPassNow();
+      }
     },
-    [askForPass, getCamera]
+    [askForPass, askForPassNow, getCamera]
   );
 
   /** holds a forced pass that could not run, and makes it again next frame */
@@ -1256,6 +1318,11 @@ export const useDecorationScale = ({
       // a label is laid out by excalidraw, so a rewritten size has to be laid
       // out again before anything is drawn from it, see `annotation-text-fit`
       const laid = labels.size > 0 ? refitted(rewritten, labels) : rewritten;
+      // and the lines it hands back are excalidraw's own, blanks and all
+      const drawn = trimmed(laid, busy);
+      if (drawn !== laid) {
+        touched = true;
+      }
 
       // What excalidraw's canvas cap would eat is drawn by clipped copies
       // instead, see `annotation-clip`. The element under the hand keeps
@@ -1280,7 +1347,7 @@ export const useDecorationScale = ({
         touched = true;
         elements.push(proxy);
       };
-      laid.forEach((element) => {
+      drawn.forEach((element) => {
         const takeOver =
           clipBox !== null &&
           !busy.has(element.id) &&

@@ -108,3 +108,45 @@ export const fitBoundText = (
     container: { width: shape.width, height: shape.height },
   };
 };
+
+/**
+ * A run of blanks left standing on the end of a line, which is what `wrapText`
+ * leaves on every line but the last: it joins a line's words with a space and
+ * pushes the line with that space still on it. See `trimHanging`.
+ */
+const HANGING = /[^\S\n]+(?=\n|$)/;
+
+/** whether this element is a wrapped label with such a blank on it */
+export const hangsBlank = (element: ExcalidrawElement): boolean => {
+  const text = element as Partial<ExcalidrawTextElement>;
+  return (
+    element.type === "text" &&
+    Boolean(text.containerId) &&
+    typeof text.text === "string" &&
+    // a label of nothing but blanks draws nothing either way, and excalidraw
+    // reads an empty one as a label that is not there
+    text.text.trim() !== "" &&
+    HANGING.test(text.text)
+  );
+};
+
+/**
+ * The drawn lines with the blanks the wrap left hanging taken off their ends.
+ *
+ * The canvas centres the string it is handed, blanks and all, so a wrapped
+ * line comes out half a space to the left of the box it is centred in. The
+ * text editor is a textarea, and CSS hangs a blank at the end of a line rather
+ * than counting it — so the same line is centred there on its glyphs alone.
+ * That difference is the sideways jump every line but the last makes the
+ * moment the editor opens on a label, and back again when it closes.
+ *
+ * Only what is drawn is trimmed. `originalText` is what the wrap is made from
+ * and what the editor is filled with, and the measured box is what the editor
+ * is laid out from: both are left as excalidraw made them, so the lines go on
+ * breaking in the same places and the box goes on sitting where it sat.
+ */
+export const trimHanging = (text: string): string =>
+  text
+    .split("\n")
+    .map((line) => line.replace(/[^\S\n]+$/, ""))
+    .join("\n");
