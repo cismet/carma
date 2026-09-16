@@ -33,7 +33,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import { useLayerHealth } from "../../hooks/useLayerHealth";
 import type { LayerHealth } from "../../helper/layerHealth";
 
-/** Broken layers keep every control usable, the whole row just turns red. */
+/** Broken layers keep every control usable; the row just turns red. */
 const rowClass = (health?: LayerHealth) =>
   health === "broken"
     ? "flex items-center gap-2 hover:bg-zinc-100 py-1 belis-layer-row belis-layer-row-error"

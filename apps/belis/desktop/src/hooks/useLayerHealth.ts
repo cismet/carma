@@ -1,69 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import {
-  backgroundLayerConfigs,
-  additionalLayerConfigs,
-} from "../config/mapLayerConfigs";
-import {
-  probeLayerEntryWithRetry,
-  type LayerHealth,
-} from "../helper/layerHealth";
-
-export type LayerHealthMap = Record<string, LayerHealth>;
-
-export interface UseLayerHealthResult {
-  health: LayerHealthMap;
-  /** Device reports no network at all — one note beats ten red rows. */
-  offline: boolean;
-}
+  getLayerHealthState,
+  runLayerHealthCheck,
+  subscribeLayerHealth,
+  type LayerHealthState,
+} from "../helper/layerHealthStore";
 
 /**
- * Checks every configured layer whenever the settings drawer opens.
- *
- * Re-runs on each opening rather than caching: the point of the check is to
- * tell you whether the layers work *right now* (VPN just dropped, service just
- * came back), and a cached verdict from ten minutes ago cannot do that.
+ * Layer availability for the settings panel. Reads the shared store, and runs
+ * a fresh check on every opening: only a current probe can tell whether the
+ * VPN just dropped or a service just came back.
  */
-export const useLayerHealth = (open: boolean): UseLayerHealthResult => {
-  const [health, setHealth] = useState<LayerHealthMap>({});
-  const [offline, setOffline] = useState(false);
-
+export const useLayerHealth = (open: boolean): LayerHealthState => {
   useEffect(() => {
-    if (!open) return;
-
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setOffline(true);
-      setHealth({});
-      return;
-    }
-    setOffline(false);
-
-    const entries = [
-      ...Object.entries(backgroundLayerConfigs),
-      ...Object.entries(additionalLayerConfigs),
-    ];
-
-    // Blue while checking: a working layer must never flicker red on the way.
-    setHealth(
-      Object.fromEntries(
-        entries.map(([key]) => [key, "checking" as LayerHealth])
-      )
-    );
-
-    let cancelled = false;
-    for (const [key, entry] of entries) {
-      void probeLayerEntryWithRetry(entry).then((ok) => {
-        if (cancelled) return;
-        setHealth((prev) => ({ ...prev, [key]: ok ? "ok" : "broken" }));
-      });
-    }
-
-    return () => {
-      cancelled = true;
-    };
+    if (open) void runLayerHealthCheck();
   }, [open]);
 
-  return { health, offline };
+  return useSyncExternalStore(
+    subscribeLayerHealth,
+    getLayerHealthState,
+    getLayerHealthState
+  );
 };
 
 export default useLayerHealth;
