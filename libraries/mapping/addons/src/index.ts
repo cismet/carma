@@ -276,9 +276,16 @@ export {
 } from "./addons/OriginSearch";
 export {
   Routing,
+  RoutingPanel,
+  RoutingInteractionPanel,
   routeCameraTarget,
   useActiveRoute,
   useRouteNavigation,
+  useRoutingLayerRow,
+  ROUTING_ICON_COLOR,
+  ROUTING_LAYER,
+  ROUTING_LAYER_ID,
+  ROUTING_TOOLS_INTERACTION_ID,
   type ActiveRoute,
   type ActiveRouteState,
   type RouteCameraTarget,
@@ -286,11 +293,15 @@ export {
   type RouteNavigationState,
   type RouteProgress,
   type RoutingConfig,
+  type UseRoutingLayerRowOptions,
 } from "./addons/Routing";
 export {
   LocationSimulator,
   createFakeDevice,
+  useLocationSimulation,
   type FakeDevice,
+  type LocationSimulation,
+  type LocationSimulationState,
   type LocationSimulatorConfig,
 } from "./addons/LocationSimulator";
 export {

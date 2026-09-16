@@ -2,8 +2,12 @@ import type { Positions } from "@carma-mapping/map-controls-layout";
 import { ROUTE_BLUE, ROUTE_GRAY } from "@carma-mapping/routing";
 
 export type RoutingConfig = {
-  /** where the recenter button sits while the follow is paused; default bottomcenter */
+  /**
+   * where the recenter button sits while the follow is paused; default
+   * topcenter, under the layer bar
+   */
   recenterPosition?: Positions;
+  /** default 20, which is after the layer bar's 10 */
   recenterOrder?: number;
   /** what the recenter button says; default "Zentrieren" */
   recenterLabel?: string;
@@ -47,8 +51,8 @@ export type RoutingConfig = {
  */
 export const REMAINING_PREFIX = "noch";
 
-export const DEFAULT_RECENTER_POSITION: Positions = "bottomcenter";
-export const DEFAULT_RECENTER_ORDER = 10;
+export const DEFAULT_RECENTER_POSITION: Positions = "topcenter";
+export const DEFAULT_RECENTER_ORDER = 20;
 export const DEFAULT_RECENTER_LABEL = "Zentrieren";
 export const DEFAULT_ZOOM = 19;
 export const DEFAULT_PITCH = 30;

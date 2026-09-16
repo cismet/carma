@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { setGeolocationSource } from "@carma-mapping/contexts";
 
+import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import { useActiveRoute, useRouteNavigation } from "../Routing/routeChannel";
 import {
@@ -32,6 +33,11 @@ import type { FakeDevice } from "./fakeDevice";
  * along the route in focus at the configured speed; the routing addon sees
  * the fixes come in along its own route and ends the navigation on arrival,
  * after which the user is back home for the next search.
+ *
+ * The drive can be moved by hand: the addon publishes a handle on the
+ * `locationSimulation` channel with `seek` and `setPaused`, which the
+ * routing's ribbon turns into a slider and a pause button, so a tester can
+ * look at any spot on the route without driving there first.
  *
  * Dev only: the component does nothing at all outside a dev build, so an
  * entry left on a route never fakes a position in a deployment.
@@ -75,6 +81,7 @@ export const LocationSimulator = ({
     };
   }, [enabled, intervalMs, jitterMeters, accuracyMeters, lng, lat]);
 
+  const driving = Boolean(navigating && coordinates);
   useEffect(() => {
     const device = deviceRef.current;
     if (!device) {
@@ -86,6 +93,33 @@ export const LocationSimulator = ({
       device.stand([lng, lat]);
     }
   }, [navigating, coordinates, speedMetersPerSecond, lng, lat]);
+
+  // a pause belongs to one drive; the next one starts moving
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (!driving) {
+      setPaused(false);
+    }
+  }, [driving]);
+  useEffect(() => {
+    deviceRef.current?.setPaused(paused);
+  }, [paused]);
+
+  const seek = useCallback((fraction: number) => {
+    deviceRef.current?.seek(fraction);
+  }, []);
+
+  const [, publishSimulation] = useAddonState("locationSimulation");
+  useEffect(() => {
+    publishSimulation({
+      simulation: enabled ? { driving, paused, setPaused, seek } : null,
+    });
+  }, [publishSimulation, enabled, driving, paused, seek]);
+  // the handle goes with the addon, so nothing offers to move a real device
+  useEffect(
+    () => () => publishSimulation({ simulation: null }),
+    [publishSimulation]
+  );
 
   return null;
 };
