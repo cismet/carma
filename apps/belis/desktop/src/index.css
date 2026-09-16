@@ -59,11 +59,6 @@ body {
 
 /* A layer whose service did not answer stays usable but is drawn in the
    Löschmodus red. See helper/layerHealth.ts. */
-.belis-layer-row-error {
-  /* !important beats the row's hover:bg-zinc-100 so the tint survives hover. */
-  background-color: #fff5f5 !important;
-  border-radius: 6px;
-}
 .belis-layer-row-error .ant-radio-wrapper,
 .belis-layer-row-error .ant-checkbox-wrapper {
   color: #cf222e !important;
