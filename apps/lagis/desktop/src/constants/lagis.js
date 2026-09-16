@@ -3,7 +3,7 @@ import queries from "../core/queries/online";
 
 export const REST_SERVICE_LAGIS =
   import.meta.env.VITE_REST_SERVICE_LAGIS ||
-  "https://lagis-cloud-api.cismet.de";
+  "https://lagis-cloud-blau-api.cismet.de";
 export const LAGIS_DOMAIN = "LAGIS";
 
 export const REST_SERVICE_WUNDA =
