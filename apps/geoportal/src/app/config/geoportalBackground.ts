@@ -171,7 +171,7 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
       cesiumSceneStyle: MapStyleKeys.TOPO,
-      entries: ["stadtplan", "gelaende", "amtlich", "osm"],
+      entries: ["stadtplan", "osm", "gelaende", "amtlich"],
     },
     {
       id: MapStyleKeys.AERIAL,

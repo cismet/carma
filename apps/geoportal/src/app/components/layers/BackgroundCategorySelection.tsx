@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Radio } from "antd";
 
 import { useMapStyle } from "@carma-appframeworks/portals";
+import { cn } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { backgroundLayerCatalog } from "../../config";
@@ -57,7 +58,16 @@ const BackgroundCategorySelection = ({
               applyBackgroundLayer(dispatch, setCurrentStyle, entry);
             }
           }}
-          className="pb-2 flex flex-col px-2 min-[686px]:inline-block"
+          className={cn(
+            "pb-2 px-2 flex flex-col",
+            // more than two entries: two aligned columns instead of a
+            // centered inline flow, whose rows would not line up
+            entries.length > 2 &&
+              "min-[686px]:grid min-[686px]:grid-cols-[auto_auto] min-[686px]:w-fit min-[686px]:mx-auto min-[686px]:justify-items-start",
+            // an odd last entry spans the row and sits in the middle
+            entries.length > 2 &&
+              "min-[686px]:[&>:last-child:nth-child(odd)]:col-span-2 min-[686px]:[&>:last-child:nth-child(odd)]:justify-self-center"
+          )}
           optionType="default"
           style={{
             filter: !isActive && !hovered ? "saturate(0)" : "",
@@ -67,7 +77,7 @@ const BackgroundCategorySelection = ({
             <Radio
               key={entry.id}
               value={entry.id}
-              className="text-left"
+              className="text-left whitespace-nowrap"
               onClick={() => {
                 // clicking the already checked entry of an inactive category
                 // fires no change event, but still means "show this one"
