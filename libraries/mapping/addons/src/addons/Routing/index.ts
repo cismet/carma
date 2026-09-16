@@ -11,3 +11,12 @@ export {
 } from "./routeChannel";
 export { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
 export type { RouteMode } from "./routeMode";
+export { RoutingPanel, RoutingInteractionPanel } from "./RoutingPanel";
+export {
+  useRoutingLayerRow,
+  ROUTING_ICON_COLOR,
+  ROUTING_LAYER,
+  ROUTING_LAYER_ID,
+  ROUTING_TOOLS_INTERACTION_ID,
+  type UseRoutingLayerRowOptions,
+} from "./routing-layer-row";

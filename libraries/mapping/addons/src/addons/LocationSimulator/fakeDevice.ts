@@ -17,6 +17,14 @@ export type FakeDevice = GeolocationSource & {
   stand: (position: [number, number]) => void;
   /** go along the line from its start, at `speed` meters per second */
   drive: (coordinates: [number, number][], speed: number) => void;
+  /**
+   * Put the drive at this fraction of the line, 0 its start and 1 its end,
+   * and tell every watcher at once rather than on the next tick. Does nothing
+   * while standing.
+   */
+  seek: (fraction: number) => void;
+  /** hold the drive where it is; the fixes keep coming, from the same spot */
+  setPaused: (paused: boolean) => void;
   /** stop every watch; the device answers nothing after this */
   dispose: () => void;
 };
@@ -41,6 +49,10 @@ type Motion =
 
 const METERS = { units: "meters" } as const;
 const METERS_PER_DEGREE_LAT = 111320;
+
+/** the point `meters` along the line */
+const alongLine = (line: ReturnType<typeof lineString>, meters: number) =>
+  along(line, meters, METERS);
 
 const scatter = (
   [lng, lat]: [number, number],
@@ -94,7 +106,11 @@ export const createFakeDevice = ({
   accuracyMeters,
 }: FakeDeviceOptions): FakeDevice => {
   let motion: Motion = { kind: "stand", at: [0, 0] };
-  const watches = new Map<number, ReturnType<typeof setInterval>>();
+  let paused = false;
+  const watches = new Map<
+    number,
+    { timer: ReturnType<typeof setInterval>; success: PositionCallback }
+  >();
   let nextWatchId = 1;
   let disposed = false;
 
@@ -108,13 +124,15 @@ export const createFakeDevice = ({
       );
     }
     const now = Date.now();
-    const elapsed = (now - motion.lastTick) / 1000;
+    // a paused drive lets the clock run without going anywhere, so resuming
+    // continues from the spot rather than jumping by the time held
+    const elapsed = paused ? 0 : (now - motion.lastTick) / 1000;
     motion.lastTick = now;
     const before = motion.along;
     motion.along = Math.min(motion.total, before + motion.speed * elapsed);
-    const here = along(motion.line, motion.along, METERS);
+    const here = alongLine(motion.line, motion.along);
     if (motion.along > before) {
-      const there = along(motion.line, before, METERS);
+      const there = alongLine(motion.line, before);
       motion.heading = (turfBearing(there, here) + 360) % 360;
     }
     const arrived = motion.along >= motion.total;
@@ -148,6 +166,33 @@ export const createFakeDevice = ({
         heading: (turfBearing(coordinates[0], coordinates[1]) + 360) % 360,
       };
     },
+    seek: (fraction) => {
+      if (motion.kind !== "drive" || disposed) {
+        return;
+      }
+      const along = Math.min(1, Math.max(0, fraction)) * motion.total;
+      // the heading is read off the stretch just behind the new spot, the
+      // way a tick reads it off the stretch it just went along
+      const behind = Math.max(0, along - 1);
+      if (along > behind) {
+        motion.heading =
+          (turfBearing(
+            alongLine(motion.line, behind),
+            alongLine(motion.line, along)
+          ) +
+            360) %
+          360;
+      }
+      motion.along = along;
+      motion.lastTick = Date.now();
+      const position = fix();
+      for (const { success } of watches.values()) {
+        success(position);
+      }
+    },
+    setPaused: (next) => {
+      paused = next;
+    },
     getCurrentPosition: (success) => {
       if (disposed) {
         return;
@@ -159,22 +204,22 @@ export const createFakeDevice = ({
       if (disposed) {
         return id;
       }
-      watches.set(
-        id,
-        setInterval(() => success(fix()), intervalMs)
-      );
+      watches.set(id, {
+        timer: setInterval(() => success(fix()), intervalMs),
+        success,
+      });
       return id;
     },
     clearWatch: (id) => {
-      const timer = watches.get(id);
-      if (timer !== undefined) {
-        clearInterval(timer);
+      const watch = watches.get(id);
+      if (watch !== undefined) {
+        clearInterval(watch.timer);
         watches.delete(id);
       }
     },
     dispose: () => {
       disposed = true;
-      for (const timer of watches.values()) {
+      for (const { timer } of watches.values()) {
         clearInterval(timer);
       }
       watches.clear();
