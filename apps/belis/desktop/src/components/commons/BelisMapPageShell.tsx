@@ -4,12 +4,14 @@ import { useSelector, useDispatch } from "react-redux";
 import { CustomCard } from "./CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
 import type { AppDispatch } from "../../store";
-import {
-  useDatasheet,
-  useMapHighlight,
-} from "@carma-mapping/engines/maplibre";
+import { useDatasheet, useMapHighlight } from "@carma-mapping/engines/maplibre";
 import { Badge, Button, Spin, Switch, Tooltip } from "antd";
-import { EditOutlined, LockOutlined, SaveOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  LockOutlined,
+  SaveOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import {
   getGlobalEditMode,
   toggleGlobalEditMode,
@@ -22,6 +24,10 @@ import {
   clearSelection,
   getDraftMode,
   setDraftMode,
+  getAAFeatures,
+  getZoomToAAOnTeamChange,
+  setZoomToAAOnTeamChange,
+  bumpFitBoundsVersion,
 } from "../../store/slices/arbeitsauftraege";
 import { getTotalDraftCount } from "../../store/slices/arbeitsauftraegeDrafts";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
@@ -65,6 +71,13 @@ const BelisMapPageShell = () => {
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const draftMode = useSelector(getDraftMode);
+  const zoomToAAOnTeamChange = useSelector(getZoomToAAOnTeamChange);
+  const aaFeatures = useSelector(getAAFeatures);
+  // Without a hull there is nothing to fit to, so the zoom button stays off.
+  const hasAAGeometry = useMemo(
+    () => aaFeatures.some((f) => f.geometry),
+    [aaFeatures]
+  );
   const totalDraftCount = useSelector(getTotalDraftCount);
   const featureCollection = useSelector(getFeatureCollection);
 
@@ -87,9 +100,8 @@ const BelisMapPageShell = () => {
   // Sort list (field + direction) behind the current `highlightResults`, empty
   // for classic searches. Feeds the sidebar so both the Highlights and the
   // Fachobjekte lists follow that order; reset to empty on clear.
-  const [highlightExpertSort, setHighlightExpertSort] = useState<ExpertSortSpec>(
-    []
-  );
+  const [highlightExpertSort, setHighlightExpertSort] =
+    useState<ExpertSortSpec>([]);
   const [lassoActive, setLassoActive] = useState(false);
 
   // Route switch (Fachobjekte ↔ Arbeitsaufträge) disarms the lasso. The shell is
@@ -477,8 +489,32 @@ const BelisMapPageShell = () => {
               )}
 
               {filterConfig?.variant === "arbeitsauftraege" && (
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center gap-3 ml-auto">
                   <ArbeitsauftragSearchModal onSearchDone={closeDatasheet} />
+                  <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
+                    <Tooltip title="Auf alle Arbeitsaufträge zoomen">
+                      <Button
+                        icon={<SearchOutlined />}
+                        size="small"
+                        disabled={!hasAAGeometry}
+                        onClick={() => dispatch(bumpFitBoundsVersion())}
+                      />
+                    </Tooltip>
+                    <Tooltip title="Nach Teamwechsel automatisch auf alle Arbeitsaufträge zoomen">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          size="small"
+                          checked={zoomToAAOnTeamChange}
+                          onChange={(checked) =>
+                            dispatch(setZoomToAAOnTeamChange(checked))
+                          }
+                        />
+                        <span className="text-sm text-gray-500 select-none">
+                          Auto-Zoom
+                        </span>
+                      </div>
+                    </Tooltip>
+                  </div>
                   <TeamSelect
                     value={selectedTeamId}
                     onChange={(id) => {
