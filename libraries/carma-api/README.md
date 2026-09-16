@@ -53,6 +53,11 @@ const removeNote = carma.ui.addInfoBoxNote({
   icon: faCar,
 });                                          // a line of text above the info box's links
 removeNote();
+const showControls = carma.ui.hideControls({
+  key: "routing",
+  keepLayerRows: ["__routing__"],            // layer bar rows that stay
+});                                          // map only: navbar, buttons, search, info box go
+showControls();
 
 // gazetteer search
 const removeMode = carma.gazetteer.addMode({

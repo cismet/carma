@@ -5,10 +5,11 @@ import { registerUi, type UiAdapter } from "@carma-api";
 
 import { addInfoBoxAction } from "../info-box-actions";
 import { addInfoBoxNote } from "../info-box-notes";
+import { requestHideControls } from "../hidden-controls";
 
 /**
- * Registers the `carma.ui` adapter: menu visibility, the helper overlay and
- * the info box stores (actions and notes).
+ * Registers the `carma.ui` adapter: menu visibility, the helper overlay, the
+ * info box stores (actions and notes) and the requests to hide the controls.
  *
  * To add a ui function: extend `UiAdapter` in `@carma-api`, then add the
  * closure to the adapter object below.
@@ -26,6 +27,9 @@ export const useUiAdapter = (): void => {
       // `useInfoBoxNotes`
       registerInfoBoxAction: addInfoBoxAction,
       registerInfoBoxNote: addInfoBoxNote,
+      // the app's map wrapper, navbar, info box and layer bar read the store
+      // with `useControlsHidden`
+      requestHideControls,
     };
     registerUi(adapter);
     return () => registerUi(null);
