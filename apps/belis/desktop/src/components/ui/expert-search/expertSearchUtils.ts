@@ -53,8 +53,19 @@ const toBoolean = (v: unknown): boolean =>
   v === true || v === "true" || v === 1 || v === "1";
 
 // Build the condition body for one rule (e.g. `fk_leuchttyp: {_eq: 5}`), or
-// null when the rule is incomplete and should be skipped.
+// null when the rule is incomplete and should be skipped. Fields declaring a
+// `filterRelation` get wrapped in that relationship (see `buildRuleCondition`'s
+// caller-visible result, e.g. `tdta_standort_mast: {fk_stadtbezirk: {_eq: 5}}`).
 const buildRuleCondition = (
+  rule: ExpertRuleState,
+  field: Field
+): string | null => {
+  const cond = buildColumnCondition(rule, field);
+  if (cond === null) return null;
+  return field.filterRelation ? `${field.filterRelation}: {${cond}}` : cond;
+};
+
+const buildColumnCondition = (
   rule: ExpertRuleState,
   field: Field
 ): string | null => {

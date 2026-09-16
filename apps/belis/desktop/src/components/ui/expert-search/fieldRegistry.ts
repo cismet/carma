@@ -52,6 +52,10 @@ export interface Field {
   // by the human label (e.g. street name) rather than by the FK id.
   sortRelation?: string;
   sortColumn?: string;
+  // For a column that lives on a RELATED table rather than on the object itself:
+  // the GraphQL object-relationship to nest the condition in, so the where
+  // builder emits `{<filterRelation>: {<key>: {...}}}`.
+  filterRelation?: string;
 }
 
 // Columns that recur across BELIS object types (same backend name everywhere).
@@ -76,6 +80,9 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "leuchtennummer", label: "Leuchtennummer", type: "text" },
     { key: "lfd_nummer", label: "Laufende Nummer", type: "number" },
     { key: "fk_standort", label: "Standort", type: "number" },
+    // A Leuchte has no Stadtbezirk column — filter/sort it through the parent
+    // Standort (fk_standort → tdta_standort_mast.fk_stadtbezirk).
+    { key: "fk_stadtbezirk", label: "Stadtbezirk", type: "fk", fkTable: "bezirk", filterRelation: "tdta_standort_mast", sortRelation: "tdta_standort_mast", sortColumn: "fk_stadtbezirk" },
     COMMON.strassenschluessel,
     { key: "fk_leuchttyp", label: "Leuchtentyp", type: "fk", fkTable: "leuchtentyp" },
     { key: "leuchtmittel", label: "Leuchtmittel", type: "fk", fkTable: "leuchtmittel" },
