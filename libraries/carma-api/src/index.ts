@@ -48,6 +48,7 @@ export type {
 
 export { registerUi } from "./lib/ui";
 export type {
+  ControlsHideRequest,
   InfoBoxAction,
   InfoBoxNote,
   UiAdapter,

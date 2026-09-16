@@ -209,6 +209,12 @@ export {
   getInfoBoxNotes,
   useInfoBoxNotes,
 } from "./lib/components/info-box-notes";
+export {
+  requestHideControls,
+  getControlsHideRequests,
+  useControlsHidden,
+  type ControlsHidden,
+} from "./lib/components/hidden-controls";
 
 export {
   motisClient,

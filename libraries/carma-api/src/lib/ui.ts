@@ -36,6 +36,24 @@ export type InfoBoxNote = {
 };
 
 /**
+ * A request to take the app's controls off the screen for a while: the
+ * navbar, the button columns, the search, the info box, the layer bar. For a
+ * moment in which the map is all the user wants to see (a navigation on a
+ * phone). Held for as long as the contributor holds it; the remover
+ * `hideControls` returns ends it, and the controls stay hidden while any
+ * request is open.
+ */
+export type ControlsHideRequest = {
+  /** one per contributor; adding the same key again replaces the request in place */
+  key: string;
+  /**
+   * Ids of layer bar rows that stay on screen while the rest goes: the
+   * contributor's own row, which carries its readout and its way out.
+   */
+  keepLayerRows?: string[];
+};
+
+/**
  * Raw injection point for the `ui` namespace. The bridge provides these
  * closures. Optional methods may be left unimplemented; the facade no-ops.
  */
@@ -44,6 +62,7 @@ export interface UiAdapter {
   openHelperOverlay?: () => void;
   registerInfoBoxAction?: (action: InfoBoxAction) => () => void;
   registerInfoBoxNote?: (note: InfoBoxNote) => () => void;
+  requestHideControls?: (request: ControlsHideRequest) => () => void;
 }
 
 /** Public shape seen by callers of `carma.ui`. */
@@ -54,6 +73,8 @@ export interface UiFacade {
   addInfoBoxAction: (action: InfoBoxAction) => () => void;
   /** put a line of text into the selected feature's info box; returns its remover */
   addInfoBoxNote: (note: InfoBoxNote) => () => void;
+  /** take the app's controls off the screen; returns the remover that puts them back */
+  hideControls: (request: ControlsHideRequest) => () => void;
 }
 
 const noop = () => {};
@@ -66,4 +87,5 @@ export const { facade: ui, register: registerUi } = createNamespace<
   openHelperOverlay: () => get()?.openHelperOverlay?.(),
   addInfoBoxAction: (action) => get()?.registerInfoBoxAction?.(action) ?? noop,
   addInfoBoxNote: (note) => get()?.registerInfoBoxNote?.(note) ?? noop,
+  hideControls: (request) => get()?.requestHideControls?.(request) ?? noop,
 }));
