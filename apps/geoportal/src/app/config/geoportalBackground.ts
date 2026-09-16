@@ -142,7 +142,7 @@ export const geoportalLayerMap: LayerMap = {
   osm: {
     title: "OpenStreetMap",
     layers: "osm_shortbread@100",
-    description: `OpenStreetMap (Shortbread) © OpenStreetMap contributors`,
+    description: `OpenStreetMap (Shortbread)`,
     inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst auf Grundlage der OSM, gehostet von der</span>
               <a href="https://cismet.de/" target="_blank" rel="noopener noreferrer">cismet GmbH</a>
               <span>für die Stadt Wuppertal. Primäre Datenquelle: PBF-Daten der OSM für Deutschland, bereitgestellt von der Geofabrik GmbH unter der</span>
@@ -151,8 +151,11 @@ export const geoportalLayerMap: LayerMap = {
               <a href="https://shortbread-tiles.org/" target="_blank" rel="noopener noreferrer">Shortbread</a>
               <span>(frei unter der</span>
               <a href="https://shortbread-tiles.org/copyright/CC0-1.0-LICENSE.txt" target="_blank" rel="noopener noreferrer">CC-0</a><span>) durch cismet GmbH, ebenso Style-Definition in Anlehnung an OSM Bright von</span>
-              <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a><span>.</span>`,
-    eignung: `Die OpenStreetMap ist eine von Freiwilligen gepflegte, weltweit verfügbare Karte mit einem breiten Inhaltsspektrum von Straßen und Wegen über Gebäude bis zu Points of Interest. Sie eignet sich als vertrauter, schnell ladender Kartenhintergrund für beliebige Maßstäbe. Aktualität und Vollständigkeit hängen von der Aktivität der OSM-Community vor Ort ab.`,
+              <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a><span>. © </span>
+              <a href="https://www.opendatacommons.org/licenses/odbl/1.0/" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>`,
+    eignung: `<span>Die OpenStreetMap (OSM) ist eine von Freiwilligen ("OSM Contributors") gepflegte, weltweit verfügbare Karte mit einem breiten Inhaltsspektrum von Straßen und Wegen über Gebäude bis hin zu Points of Interest. Wuppertal trägt mit dem Team</span>
+              <a href="https://www.wuppertal.de/vv/oe/102370100000259433.php" target="_blank" rel="noopener noreferrer">Stadtkartographie</a>
+              <span>zur OSM bei. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich OSM als Hintergrund für beliebige Maßstäbe. Als unbürokratisches Community-Projekt wird die OSM oftmals schneller aktualisiert als die amtlichen Geobasisdaten. Aktualität und Vollständigkeit sind jedoch tendenziell unzuverlässig, sie hängen von der Aktivität der OSM-Community vor Ort ab. Die OSM-Gebäudegeometrien sind zu einem großen Teil nicht mit vermessungstechnischer Genauigkeit erfasst. Sie weichen daher vom Gebäudenachweis im Liegenschaftskataster und anderen darauf aufbauenden amtlichen Karten ab.</span>`,
     availability: {
       featureFlag: "osm",
     },
