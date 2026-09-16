@@ -371,7 +371,10 @@ const GeoportalLayerButton = ({
           />
         )}
 
-        {visitorLayerCount > 0 && (
+        {/* the narrow layout's summary belongs to the background button, the
+            one row it always shows; a row kept through the map-only view
+            (the navigation's) says what it is itself */}
+        {background && visitorLayerCount > 0 && (
           <span className="text-base sm:hidden">{visitorLayerCount} Layer</span>
         )}
         {error && (

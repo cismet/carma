@@ -32,6 +32,7 @@ import { useWindowSize } from "@uidotdev/usehooks";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import { useControlsHidden } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 
 import { AppDispatch } from "../../store";
@@ -106,6 +107,12 @@ const LayerWrapper = () => {
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
   const { isCesium, isLeaflet } = useMapFrameworkSwitcherContext();
+
+  // a contributor's "map only" moment (`carma.ui.hideControls`): the bar
+  // shows nothing but the rows the request keeps (the navigation's row with
+  // its countdown and ✕), on every width. This component stays mounted for
+  // it, because the hooks above are what put those rows into the stack.
+  const { hidden: controlsHidden, keepLayerRows } = useControlsHidden();
 
   const [isDragging, setIsDragging] = useState(false);
 
@@ -200,6 +207,39 @@ const LayerWrapper = () => {
   }, [size]);
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
+
+  if (controlsHidden) {
+    const keptEntries = layerStack.filter((entry) =>
+      keepLayerRows.includes(entry.id)
+    );
+    // the buttons are sortables and expect a dnd context, even with nothing
+    // to sort. The ribbon renders on every width here, unlike below: a kept
+    // row's click opens its panel, and a row that turns blue with nothing
+    // under it would be a broken button
+    return (
+      <>
+        <DndContext sensors={sensors}>
+          <div
+            id="buttonWrapper"
+            className="relative w-full h-9 z-[999] pointer-events-none"
+          >
+            <div className="w-full flex justify-center items-center h-full gap-2 pointer-events-none [&>*]:pointer-events-auto">
+              {keptEntries.map((entry) => (
+                <GeoportalLayerButtonSlot
+                  title={entry.title}
+                  id={entry.id}
+                  key={entry.id}
+                  index={layerStack.indexOf(entry)}
+                  layer={entry as Layer}
+                />
+              ))}
+            </div>
+          </div>
+        </DndContext>
+        <InteractionView />
+      </>
+    );
+  }
 
   return (
     <>
