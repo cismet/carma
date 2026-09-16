@@ -25,22 +25,24 @@ test.describe("lagis smoke test", () => {
       })
     );
 
-    await context.route("https://lagis-api.cismet.de/users", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          user: "cismet",
-          domain: "LAGIS",
-          jwt: "0000000",
-          passHash: "0000000",
-          userGroups: ["Lagerbuch", "NKF"],
-        }),
-      })
+    await context.route(
+      "https://lagis-cloud-blau-api.cismet.de/users",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            user: "cismet",
+            domain: "LAGIS",
+            jwt: "0000000",
+            passHash: "0000000",
+            userGroups: ["Lagerbuch", "NKF"],
+          }),
+        })
     );
     // Add this mock for flurstuecke data
     await context.route(
-      "https://lagis-api.cismet.de/graphql/LAGIS/execute",
+      "https://lagis-cloud-blau-api.cismet.de/graphql/LAGIS/execute",
       (route) => {
         const requestBody = route.request().postDataJSON();
 
