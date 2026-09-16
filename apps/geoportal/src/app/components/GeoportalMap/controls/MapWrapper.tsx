@@ -19,6 +19,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import {
   SelectionMapMode,
   type SelectionMetaData,
+  useControlsHidden,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
@@ -168,6 +169,14 @@ const MapWrapper = () => {
   const visibleControls = useSelector(getUIVisibleControls);
   const allow3d = visibleControls.allow3d && hasGPU;
   const zenMode = useSelector(getZenMode);
+  // a contributor's "map only" moment (`carma.ui.hideControls`, e.g. the
+  // routing addon while navigating on a phone): the layout hides every
+  // control, the app's and the addons' alike, except those marked
+  // `keepWhenHidden` (the layer bar, which then renders only the rows the
+  // request keeps, and the contributor's own controls). The navbar and the
+  // info box go with them. No eye button: the contributor's own way out ends it
+  const { hidden: controlsHidden } = useControlsHidden();
+  const navbarVisible = !zenMode && visibleControls.navbar && !controlsHidden;
   const ctx = useCesiumContext();
   const configSelection = useSelector(getConfigSelection);
 
@@ -301,7 +310,7 @@ const MapWrapper = () => {
   };
 
   return (
-    <ControlLayout>
+    <ControlLayout controlsHidden={controlsHidden}>
       <AddonHost />
       {zenMode ? (
         <Control position="topcenter" order={10}>
@@ -340,7 +349,7 @@ const MapWrapper = () => {
       ) : (
         <div
           style={{
-            paddingTop: visibleControls.navbar
+            paddingTop: navbarVisible
               ? "calc(4rem + var(--system-message-banner-height, 0px))"
               : "var(--system-message-banner-height, 0px)",
           }}
@@ -539,7 +548,7 @@ const MapWrapper = () => {
           )}
 
           {!isObliquePreviewVisible && visibleControls.layerButtons && (
-            <Control position="topcenter" order={10}>
+            <Control position="topcenter" order={10} keepWhenHidden>
               <LayerWrapper />
             </Control>
           )}
@@ -576,14 +585,12 @@ const MapWrapper = () => {
           className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
           ref={wrapperRef}
           style={{
-            marginTop: zenMode || !visibleControls.navbar ? "0px" : "-56px",
+            marginTop: navbarVisible ? "-56px" : "0px",
           }}
         >
           <GeoportalMap height={height} width={width} allow3d={allow3d} />
           {showLibreMap && !isCesium && showLoadingProgress && (
-            <MapLoadingProgress
-              navbarVisible={!zenMode && visibleControls.navbar}
-            />
+            <MapLoadingProgress navbarVisible={navbarVisible} />
           )}
           {isCesium && <ObliqueControls hideControls={zenMode} />}
         </div>
