@@ -92,6 +92,7 @@ import {
 } from "../addons/ModelCollection";
 import {
   LocationSimulator,
+  type LocationSimulationState,
   type LocationSimulatorConfig,
 } from "../addons/LocationSimulator";
 import {
@@ -292,6 +293,14 @@ export type AddonStateMap = {
    * by `cameraRestriction`, which lets the map turn while navigating.
    */
   routeNavigation: RouteNavigationState;
+  /**
+   * the pretend device, while `locationSimulator` stands in for the real one:
+   * whether it is going along the route, and the calls that put it somewhere
+   * on the route or hold it there; see `LocationSimulator/simulationChannel.ts`.
+   * Read by the routing's ribbon, which offers the slider only while this is
+   * there.
+   */
+  locationSimulation: LocationSimulationState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
@@ -573,7 +582,10 @@ export const addonRegistry: {
   },
   // reads `activeRoute` and `routeNavigation` when they are there, to drive
   // along the route; without them it only stands at its position
-  locationSimulator: { Component: LocationSimulator },
+  locationSimulator: {
+    Component: LocationSimulator,
+    provides: ["locationSimulation"],
+  },
   vectorHighlight: {
     Component: VectorHighlight,
     provides: ["highlightMode"],
