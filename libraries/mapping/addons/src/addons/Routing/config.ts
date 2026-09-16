@@ -41,7 +41,16 @@ export type RoutingConfig = {
   aheadColor?: string;
   /** the stretch already driven; default the shared route gray */
   travelledColor?: string;
+  /**
+   * When the host's controls go off the screen for the duration of a
+   * navigation, so the map is all there is (plus the navigation's own row
+   * and the recenter button). "mobile" (default): on phones and tablets, by
+   * user agent; "always"; "never".
+   */
+  mapOnly?: MapOnlyMode;
 };
+
+export type MapOnlyMode = "mobile" | "always" | "never";
 
 /**
  * What the info box note says in front of the numbers while a navigation runs
@@ -63,3 +72,4 @@ export const DEFAULT_SNAP_TOLERANCE_METERS = 30;
 export const DEFAULT_ARRIVAL_METERS = 15;
 export const DEFAULT_AHEAD_COLOR = ROUTE_BLUE;
 export const DEFAULT_TRAVELLED_COLOR = ROUTE_GRAY;
+export const DEFAULT_MAP_ONLY: MapOnlyMode = "mobile";

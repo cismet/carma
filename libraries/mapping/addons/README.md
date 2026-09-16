@@ -1192,6 +1192,23 @@ addons: [
 Free while navigating, locked again once it ends, which is also what turns the
 map back north.
 
+On a phone the map is all the user wants to see while driving, so the addon
+asks the host for a map-only view for the duration: `carma.ui.hideControls`
+with the navigation's own row (`ROUTING_LAYER_ID`) as the one to keep. The
+host's control layout then hides every control, the app's and every addon's
+alike (`ControlLayout` `controlsHidden`), except those registered with
+`keepWhenHidden`: the layer bar, which renders only the kept rows, and the
+recenter button, which marks itself. Hidden, not unmounted, so the search
+keeps its mode and the ranking its routes. The geoportal drops its navbar and
+the info box with them; what remains is the map, the navigation row at the top
+(countdown as readout, ✕ as the way out) and the recenter button while the
+follow is paused. The remover on the effect's cleanup puts everything back,
+whether the navigation ended or the addon was switched off under it. `mapOnly` picks when: `"mobile"` (default, phones and
+tablets by user agent), `"always"`, `"never"`. Not zen mode: that belongs to
+the user, has its own exit, and would have to be restored around the
+navigation; and not a store the app syncs from `routeNavigation`, so the next
+addon with a map-only moment asks the same way.
+
 | File                      | |
 | ------------------------- | --- |
 | `Routing/Routing.tsx`     | the addon: reads the route and the fixes, publishes the offer, drives the camera |
