@@ -143,7 +143,15 @@ export const geoportalLayerMap: LayerMap = {
     title: "OpenStreetMap",
     layers: "osm_shortbread@100",
     description: `OpenStreetMap (Shortbread) © OpenStreetMap contributors`,
-    inhalt: `Mapbox-konformer Vector-Tiles-Kartendienst auf Grundlage der OpenStreetMap`,
+    inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst auf Grundlage der OSM, gehostet von der</span>
+              <a href="https://cismet.de/" target="_blank" rel="noopener noreferrer">cismet GmbH</a>
+              <span>für die Stadt Wuppertal. Primäre Datenquelle: PBF-Daten der OSM für Deutschland, bereitgestellt von der Geofabrik GmbH unter der</span>
+              <a href="https://opendatacommons.org/licenses/odbl/index.html" target="_blank" rel="noopener noreferrer">Open Database License 1.0</a>
+              <span>(ODbL), mindestens wöchentlich auf Seiten der cismet aktualisiert. Ableitung des Vector-Tilesets im Schema von</span>
+              <a href="https://shortbread-tiles.org/" target="_blank" rel="noopener noreferrer">Shortbread</a>
+              <span>(frei unter der</span>
+              <a href="https://shortbread-tiles.org/copyright/CC0-1.0-LICENSE.txt" target="_blank" rel="noopener noreferrer">CC-0</a><span>) durch cismet GmbH, ebenso Style-Definition in Anlehnung an OSM Bright von</span>
+              <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a><span>.</span>`,
     eignung: `Die OpenStreetMap ist eine von Freiwilligen gepflegte, weltweit verfügbare Karte mit einem breiten Inhaltsspektrum von Straßen und Wegen über Gebäude bis zu Points of Interest. Sie eignet sich als vertrauter, schnell ladender Kartenhintergrund für beliebige Maßstäbe. Aktualität und Vollständigkeit hängen von der Aktivität der OSM-Community vor Ort ab.`,
     availability: {
       featureFlag: "osm",
