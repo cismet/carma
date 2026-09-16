@@ -6,7 +6,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { ArbeitsauftragSearch } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
-import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
+import {
+  transformGqlToTileFeatures,
+  filterFeaturesInBounds,
+} from "../../helper/transformArbeitsauftraege";
 import {
   setFeatures,
   setSelectedTeamId,
@@ -17,6 +20,7 @@ import {
 import { buildArbeitsauftragWhereClause } from "../../helper/arbeitsauftragSearchUtils";
 import type { ArbeitsauftragSearchValues } from "../../helper/arbeitsauftragSearchUtils";
 import type { AppDispatch } from "../../store";
+import { useLibreContext } from "@carma-mapping/engines/maplibre";
 import RawDisplay from "./RawDisplay";
 
 // Full fields matching arbeitsauftraege_by_team query shape.
@@ -98,13 +102,12 @@ const ArbeitsauftragSearchModal = ({
 }: ArbeitsauftragSearchModalProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
+  const { map } = useLibreContext();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [noResults, setNoResults] = useState(false);
-  // When set, results are loaded into the sidebar/map layer but the map view
-  // is left where it is instead of being fitted to the result bounds.
-  const [keepMapPosition, setKeepMapPosition] = useState(false);
+  const [onlyCurrentViewport, setOnlyCurrentViewport] = useState(false);
   const [queryPreview, setQueryPreview] = useState("");
 
   const showRaw = useMemo(() => {
@@ -187,15 +190,30 @@ const ArbeitsauftragSearchModal = ({
           return;
         }
 
-        const transformed = transformGqlToTileFeatures(results);
+        let transformed = transformGqlToTileFeatures(results);
+
+        if (onlyCurrentViewport && map) {
+          const b = map.getBounds();
+          transformed = filterFeaturesInBounds(transformed, [
+            b.getWest(),
+            b.getSouth(),
+            b.getEast(),
+            b.getNorth(),
+          ]);
+          if (transformed.length === 0) {
+            setNoResults(true);
+            setIsSearching(false);
+            return;
+          }
+        }
 
         // Set searchActive BEFORE clearing team to prevent tile extraction from overwriting
         dispatch(setSearchActive(true));
         dispatch(setSelectedTeamId(null));
         dispatch(clearSelection());
         dispatch(setFeatures(transformed));
-        // The version bump is what triggers the map's fit-to-results effect.
-        if (!keepMapPosition) {
+
+        if (!onlyCurrentViewport) {
           dispatch(bumpSearchResultsVersion());
         }
 
@@ -206,7 +224,7 @@ const ArbeitsauftragSearchModal = ({
       .catch((err) => {
         setIsSearching(false);
       });
-  }, [jwt, dispatch, onSearchDone, keepMapPosition]);
+  }, [jwt, dispatch, onSearchDone, onlyCurrentViewport, map]);
 
   return (
     <>
@@ -228,11 +246,11 @@ const ArbeitsauftragSearchModal = ({
             </div>
             <div className="flex items-center gap-3">
               <Checkbox
-                checked={keepMapPosition}
-                onChange={(e) => setKeepMapPosition(e.target.checked)}
+                checked={onlyCurrentViewport}
+                onChange={(e) => setOnlyCurrentViewport(e.target.checked)}
               >
                 <span className="text-sm text-gray-500">
-                  Kartenposition nicht ändern
+                  Nur im aktuellen Kartenausschnitt
                 </span>
               </Checkbox>
               <div className="flex gap-2">
