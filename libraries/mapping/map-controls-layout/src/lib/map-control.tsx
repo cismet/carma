@@ -20,6 +20,8 @@ export type ControlComponent = {
   position: Positions;
   component: ReactNode;
   order: number;
+  /** stays on screen while the layout hides its controls (`controlsHidden`) */
+  keepWhenHidden?: boolean;
 };
 
 interface ControlContextType {
@@ -33,6 +35,8 @@ interface ControlContextType {
   addCanvas: (component: ReactNode) => void;
   removeCanvas: () => void;
   controls: ControlComponent[];
+  /** whether the layout is hiding its controls right now, see `ControlLayoutProps` */
+  controlsHidden: boolean;
 }
 
 const isSameControl = (a: ControlComponent, b: ControlComponent): boolean =>
@@ -46,6 +50,14 @@ interface ControlLayoutProps {
   onResponsiveCollapse?: (collapseEvent: any) => void;
   onHeightResize?: (height: number) => void;
   debugMode?: boolean;
+  /**
+   * Take every control off the screen except those registered with
+   * `keepWhenHidden`, for a moment in which the map is all the user wants to
+   * see. Hidden, not unmounted: a control's children keep their state (a
+   * search with a mode open, a panel with its inputs), and everything is
+   * where it was when the controls come back.
+   */
+  controlsHidden?: boolean;
 }
 
 const ControlContext = createContext<ControlContextType | undefined>(undefined);
@@ -58,7 +70,10 @@ export function useControlContext() {
   return context;
 }
 
-function ControlLayout({ children }: ControlLayoutProps) {
+function ControlLayout({
+  children,
+  controlsHidden = false,
+}: ControlLayoutProps) {
   const [controls, setControls] = useState<ControlComponent[]>([]);
   const [canvas, setCanvas] = useState<ReactNode | null>(null);
 
@@ -101,6 +116,7 @@ function ControlLayout({ children }: ControlLayoutProps) {
       controls,
       addCanvas,
       removeCanvas,
+      controlsHidden,
     }),
     [
       addControl,
@@ -109,6 +125,7 @@ function ControlLayout({ children }: ControlLayoutProps) {
       controls,
       addCanvas,
       removeCanvas,
+      controlsHidden,
     ]
   );
 

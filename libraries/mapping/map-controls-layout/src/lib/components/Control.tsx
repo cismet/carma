@@ -9,9 +9,16 @@ interface ControlProps {
   bottomLeftWidth?: number;
   bottomRightWidth?: number;
   title?: string;
+  /** stays on screen while the layout hides its controls, see `ControlLayoutProps` */
+  keepWhenHidden?: boolean;
 }
 
-function Control({ position, children, order }: ControlProps) {
+function Control({
+  position,
+  children,
+  order,
+  keepWhenHidden = false,
+}: ControlProps) {
   const { addControl, updateControl, removeControl } = useControlContext();
   const registeredRef = useRef<ControlComponent | null>(null);
 
@@ -19,7 +26,12 @@ function Control({ position, children, order }: ControlProps) {
   // Replacing the registered entry in place keeps that to one layout update
   // instead of a remove-then-add pair per control.
   useEffect(() => {
-    const next: ControlComponent = { position, component: children, order };
+    const next: ControlComponent = {
+      position,
+      component: children,
+      order,
+      keepWhenHidden,
+    };
     const previous = registeredRef.current;
     if (previous) {
       updateControl(previous, next);
@@ -27,7 +39,7 @@ function Control({ position, children, order }: ControlProps) {
       addControl(next);
     }
     registeredRef.current = next;
-  }, [addControl, children, order, position, updateControl]);
+  }, [addControl, children, order, position, keepWhenHidden, updateControl]);
 
   useEffect(
     () => () => {
