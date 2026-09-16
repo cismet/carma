@@ -1,6 +1,6 @@
 import UserName from "./UserName";
 import { Tooltip } from "antd";
-import { LogoutOutlined } from "@ant-design/icons";
+import { LogoutOutlined, PartitionOutlined } from "@ant-design/icons";
 import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
 import {
   storeLandParcels,
@@ -26,10 +26,11 @@ import {
 } from "../../store/slices/ui";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { removeLeadingZeros } from "../../core/tools/helper";
 import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
+import LandParcelWizard from "../wizard/LandParcelWizard";
 import {
   getCurrentLParcelNav,
   setCurrentLP,
@@ -47,6 +48,7 @@ const UserBar = () => {
     getLandparcelInternaDataStructure
   );
   const currentLParcelNav = useSelector(getCurrentLParcelNav);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Build display string from URL params for the search input
   const urlGem = urlParams.get("gem");
@@ -153,6 +155,14 @@ const UserBar = () => {
         showButton={false}
       />
       <div className="ml-auto flex gap-1 items-center">
+        <Tooltip title="Flurstücksassistent öffnen" placement="bottom">
+          <PartitionOutlined
+            className="text-sm cursor-pointer"
+            style={{ paddingRight: "12px" }}
+            onClick={() => setWizardOpen(true)}
+            data-test-id="open-landparcel-wizard"
+          />
+        </Tooltip>
         <div className="logout ml-auto pl-1 flex items-center">
           <Tooltip title="Ausloggen" placement="right">
             <LogoutOutlined
@@ -175,6 +185,10 @@ const UserBar = () => {
           <UserName name={userLogin} />
         </div>
       </div>
+      <LandParcelWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+      />
     </div>
   );
 };
