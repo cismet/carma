@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isMobile } from "react-device-detect";
 import { faRoute } from "@fortawesome/free-solid-svg-icons";
 
 import { useLocate } from "@carma-mapping/contexts";
@@ -12,6 +13,7 @@ import {
   DEFAULT_DURATION,
   DEFAULT_FOLLOW_DURATION,
   DEFAULT_LOOK_AHEAD_METERS,
+  DEFAULT_MAP_ONLY,
   DEFAULT_PITCH,
   DEFAULT_RECENTER_LABEL,
   DEFAULT_RECENTER_ORDER,
@@ -22,6 +24,7 @@ import {
   REMAINING_PREFIX,
 } from "./config";
 import { RecenterControl } from "./RecenterControl";
+import { ROUTING_LAYER_ID } from "./routing-layer-row";
 import {
   clearRouteLine,
   drawRouteLine,
@@ -85,6 +88,12 @@ import { useActiveRoute, type RouteProgress } from "./routeChannel";
  * as its readout, and a ribbon behind it (`RoutingPanel`) with the slider that
  * moves the pretend device of the location simulator along the route.
  *
+ * On a phone the map is all the user wants to see while driving, so the addon
+ * asks the host for a map-only view for the duration (`carma.ui.hideControls`,
+ * `mapOnly` in the config): navbar, buttons, search, info box and every other
+ * addon's controls go, the navigation's row stays alone at the top with the
+ * countdown and the ✕ that ends it, and the recenter button stays with it.
+ *
  * Whether a navigation runs is published on `routeNavigation`, for the
  * camera restriction, which lets the map turn while it does.
  *
@@ -118,6 +127,7 @@ export const Routing = ({
     recenterLabel = DEFAULT_RECENTER_LABEL,
     aheadColor = DEFAULT_AHEAD_COLOR,
     travelledColor = DEFAULT_TRAVELLED_COLOR,
+    mapOnly = DEFAULT_MAP_ONLY,
   } = config ?? {};
 
   const [route] = useActiveRoute();
@@ -491,6 +501,26 @@ export const Routing = ({
       icon: getModeIcon(routeMode ?? "car"),
     });
   }, [carma, noteText, routeMode]);
+
+  /**
+   * The map-only view, for as long as a navigation runs on a phone: the host
+   * takes its chrome off the screen (`carma.ui.hideControls`) and keeps only
+   * the navigation's own row, whose countdown is the readout and whose ✕ is
+   * the way out. The remover on cleanup puts everything back, whether the
+   * navigation ended or the addon was switched off underneath it.
+   */
+  useEffect(() => {
+    if (!navigating || mapOnly === "never") {
+      return;
+    }
+    if (mapOnly === "mobile" && !isMobile) {
+      return;
+    }
+    return carma.ui.hideControls({
+      key: "routing",
+      keepLayerRows: [ROUTING_LAYER_ID],
+    });
+  }, [carma, navigating, mapOnly]);
 
   const [, publishNavigation] = useAddonState("routeNavigation");
   useEffect(() => {

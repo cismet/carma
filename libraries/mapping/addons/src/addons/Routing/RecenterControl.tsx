@@ -33,7 +33,9 @@ export const RecenterControl = ({
   label,
   onClick,
 }: RecenterControlProps) => (
-  <Control position={position} order={order}>
+  // kept through the map-only view the addon asks for while navigating: it
+  // is the one control that view is there for
+  <Control position={position} order={order} keepWhenHidden>
     {/* the topcenter group lets the map underneath take the pointer and
         centres its items itself; the bottomcenter column starts at the middle
         of the map instead, so there the button is pulled back by half its own
