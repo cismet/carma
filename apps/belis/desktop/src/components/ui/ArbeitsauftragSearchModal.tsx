@@ -82,12 +82,14 @@ const AA_SEARCH_FIELDS = `id
       }
     }`;
 
+const AA_SEARCH_LIMIT = 5000;
+
 const generateQueryPreview = (values: ArbeitsauftragSearchValues): string => {
   const whereClause = buildArbeitsauftragWhereClause(values);
   return `query ArbeitsauftragSearch {
   arbeitsauftrag(${
     whereClause ? `${whereClause}, ` : ""
-  }order_by: {angelegt_am: desc}) {
+  }order_by: {angelegt_am: desc}, limit: ${AA_SEARCH_LIMIT}) {
     ${AA_SEARCH_FIELDS}
   }
 }`;
@@ -159,7 +161,7 @@ const ArbeitsauftragSearchModal = ({
     const query = `query ArbeitsauftragSearch {
       arbeitsauftrag(${
         whereClause ? `${whereClause}, ` : ""
-      }order_by: {angelegt_am: desc}) {
+      }order_by: {angelegt_am: desc}, limit: ${AA_SEARCH_LIMIT}) {
         ${AA_SEARCH_FIELDS}
       }
     }`;
