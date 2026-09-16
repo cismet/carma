@@ -74,11 +74,16 @@ import { useActiveRoute, type RouteProgress } from "./routeChannel";
  *
  * The user's own hand wins: a drag, a wheel, a rotate pauses the following,
  * the camera stays where they put it and the fixes keep coming in unseen. A
- * button at the bottom of the map, "Zentrieren", puts the camera back on the
+ * button under the layer bar, "Zentrieren", puts the camera back on the
  * position and the following resumes, the way the recenter button of any
  * navigation app does; it is the one piece of UI the addon renders itself.
- * The navigation only ends with the route button, arrival, or the route
- * going away.
+ * The navigation only ends with the route button, the ✕ of its row, arrival,
+ * or the route going away.
+ *
+ * While it runs the layer bar shows a row for it (`useRoutingLayerRow`, in
+ * the host's tree like the flood's and the time series' rows): the countdown
+ * as its readout, and a ribbon behind it (`RoutingPanel`) with the slider that
+ * moves the pretend device of the location simulator along the route.
  *
  * Whether a navigation runs is published on `routeNavigation`, for the
  * camera restriction, which lets the map turn while it does.

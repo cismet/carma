@@ -30,6 +30,10 @@ import {
   SpotHighlightsPanel,
   SPOT_HIGHLIGHTS_TOOLS_INTERACTION_ID,
 } from "../addons/SpotHighlights";
+import {
+  RoutingInteractionPanel,
+  ROUTING_TOOLS_INTERACTION_ID,
+} from "../addons/Routing";
 
 /**
  * Panels addons contribute to the host's interaction view, keyed by the id of
@@ -49,4 +53,5 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   // opened from the readout on the button of the layer that launched it
   [TRAFFIC_TOOLS_INTERACTION_ID]: TrafficInteractionPanel,
   [SPOT_HIGHLIGHTS_TOOLS_INTERACTION_ID]: SpotHighlightsPanel,
+  [ROUTING_TOOLS_INTERACTION_ID]: RoutingInteractionPanel,
 };

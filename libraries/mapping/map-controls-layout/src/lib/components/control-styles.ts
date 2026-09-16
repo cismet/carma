@@ -146,11 +146,14 @@ const topSideControlGroupStyle: CSSProperties = {
 // all buttons flicker/jump. The pre-existing left/right-anchored centering had
 // no transform, which is what regressed it. Keep a transform here; the exact
 // value is irrelevant as long as it is not `none`.
+// A column: a second topcenter control (the routing's recenter button) goes
+// under the first (the layer bar), not next to it. Each item spans the full
+// width and centres its content, so one control alone sits as it always did.
 const topCenterControlGroupStyle: CSSProperties = {
   ...topControlGroupStyle,
   ...topCenterInlineInsetStyle,
   transform: "translateZ(0)",
-  flexDirection: "row",
+  flexDirection: "column",
   fontSize: controlLayoutOptions.topCenterFontSize,
   zIndex: controlLayoutOptions.secondaryViewLayerZIndex,
   pointerEvents: "none",

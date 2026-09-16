@@ -70,6 +70,7 @@ import { useVehicleAnimationInfoBox } from "../../hooks/useVehicleAnimationInfoB
 import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
+import { useRoutingLayerButton } from "../../hooks/useRoutingLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
 
 const scrollLayerBarBy = (left: number) => {
@@ -93,6 +94,8 @@ const LayerWrapper = () => {
   useFloodLayerButton();
   useTrafficAnimationLayerButton();
   useSpotHighlightsLayerButton();
+  // the navigation's row, with the ribbon that walks the pretend device
+  useRoutingLayerButton();
   useComparingSelectionReset();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
