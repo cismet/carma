@@ -140,7 +140,7 @@ export const geoportalLayerMap: LayerMap = {
     eignung: `Die Amtliche Basiskarte ABK ist ein Kartenprodukt, das aus dem Amtlichen Liegenschaftskatasterinformationssystem ALKIS abgeleitet ist. Neben einer detaillierten Darstellung der Gebäude werden daher auch die Grundstücksgrenzen dargestellt. Damit eignet sich die ABK insbesondere als Hintergrund für gebäude- und grundstücksbezogene Fachdaten sowie planungsrechtliche Darstellungen. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung der Karten aus dem ALKIS-Datenbestand sehr aktuell. Die Identifikation der Gebäude ist mit etwas Aufwand verbunden, da nur ausgewählte Hausnummern dargestellt werden.`,
   },
   osm: {
-    title: "OpenStreetMap (OSM)",
+    title: "OpenStreetMap",
     layers: "osm_shortbread@100",
     description: `OpenStreetMap (Shortbread) © OpenStreetMap contributors`,
     inhalt: `Mapbox-konformer Vector-Tiles-Kartendienst auf Grundlage der OpenStreetMap`,
