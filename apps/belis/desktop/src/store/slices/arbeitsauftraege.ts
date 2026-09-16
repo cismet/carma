@@ -53,6 +53,10 @@ interface ArbeitsauftraegeState {
   lassoSelectedFeatures: LassoSelectedFeature[];
   protokolleSort: ProtokolleSort | null;
   searchResultsVersion: number;
+  // User preference: zoom to all Arbeitsaufträge after a team was picked.
+  zoomToAAOnTeamChange: boolean;
+  // Bumped by the manual "zoom to all Arbeitsaufträge" button in the toolbar.
+  fitBoundsVersion: number;
 }
 
 const initialState: ArbeitsauftraegeState = {
@@ -73,6 +77,8 @@ const initialState: ArbeitsauftraegeState = {
   lassoSelectedFeatures: [],
   protokolleSort: null,
   searchResultsVersion: 0,
+  zoomToAAOnTeamChange: true,
+  fitBoundsVersion: 0,
 };
 
 const slice = createSlice({
@@ -161,6 +167,12 @@ const slice = createSlice({
     bumpSearchResultsVersion(state) {
       state.searchResultsVersion += 1;
     },
+    setZoomToAAOnTeamChange(state, action: { payload: boolean }) {
+      state.zoomToAAOnTeamChange = action.payload;
+    },
+    bumpFitBoundsVersion(state) {
+      state.fitBoundsVersion += 1;
+    },
   },
 });
 
@@ -186,6 +198,8 @@ export const {
   clearLassoSelectedFeatures,
   setProtokolleSort,
   bumpSearchResultsVersion,
+  setZoomToAAOnTeamChange,
+  bumpFitBoundsVersion,
 } = slice.actions;
 
 export const getAAFeatures = (state: RootState) =>
@@ -221,3 +235,7 @@ export const getProtokolleSort = (state: RootState) =>
   state.arbeitsauftraege.protokolleSort;
 export const getSearchResultsVersion = (state: RootState) =>
   state.arbeitsauftraege.searchResultsVersion;
+export const getZoomToAAOnTeamChange = (state: RootState) =>
+  state.arbeitsauftraege.zoomToAAOnTeamChange;
+export const getFitBoundsVersion = (state: RootState) =>
+  state.arbeitsauftraege.fitBoundsVersion;

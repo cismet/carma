@@ -105,6 +105,8 @@ import {
   getDraftMode,
   getGraphqlLoading,
   getSearchResultsVersion,
+  getZoomToAAOnTeamChange,
+  getFitBoundsVersion,
 } from "../../store/slices/arbeitsauftraege";
 import {
   buildApGeoJson,
@@ -689,6 +691,11 @@ const BelisMapLibWrapper = ({
   const selectedTeamId = useSelector(getSelectedTeamId);
   const aaFeatures = useSelector(getAAFeatures);
   const searchResultsVersion = useSelector(getSearchResultsVersion);
+  const zoomToAAOnTeamChange = useSelector(getZoomToAAOnTeamChange);
+  // Held in a ref so flipping the switch never re-triggers the team fetch.
+  const zoomToAAOnTeamChangeRef = useRef(zoomToAAOnTeamChange);
+  zoomToAAOnTeamChangeRef.current = zoomToAAOnTeamChange;
+  const fitBoundsVersion = useSelector(getFitBoundsVersion);
   const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
   const apDeletions = useSelector(getAPDeletions);
@@ -993,7 +1000,8 @@ const BelisMapLibWrapper = ({
       // Leuchte). getFeatureState needs the geojson-aware target; toggleFeature-
       // Highlight keys on the logical layer — same two shapes as Alt+click.
       const memberOf = (f: SidebarFeature) => ({
-        source: (f as unknown as { source?: string }).source ?? namespacedSource,
+        source:
+          (f as unknown as { source?: string }).source ?? namespacedSource,
         sourceLayer: f.sourceLayer ?? "",
         id: f.id!,
       });
@@ -3188,7 +3196,7 @@ const BelisMapLibWrapper = ({
           raw as Record<string, unknown>[]
         );
         dispatch(setAAFeatures(features));
-        if (activeAATab !== "ap") {
+        if (activeAATab !== "ap" && zoomToAAOnTeamChangeRef.current) {
           fitAABounds(features, map);
         }
       } catch (err) {
@@ -3220,6 +3228,13 @@ const BelisMapLibWrapper = ({
     if (activeAATab === "ap") return;
     fitAABounds(aaFeaturesRef.current, map);
   }, [searchResultsVersion, map, activeAATab]);
+
+  // --- Arbeitsauftraege: fit map bounds on demand (toolbar zoom button) ---
+  // Runs regardless of the active tab: the button is an explicit user action.
+  useEffect(() => {
+    if (fitBoundsVersion === 0) return;
+    fitAABounds(aaFeaturesRef.current, map);
+  }, [fitBoundsVersion, map]);
 
   // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
   useEffect(() => {
