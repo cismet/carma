@@ -1,19 +1,11 @@
 import { fetchGraphQL } from "../graphql";
 import wizardQueries from "./queries";
 import { finishCall, startCall } from "./gqlLog";
+import { deleteObject, saveObject, saveAndGetId } from "./cidsActions";
+import { ActionNotSuccessfulError } from "./errors";
 import { formatKey } from "./keys";
 
-/**
- * Error carrying the message that should be shown to the user, mirroring
- * de.cismet.lagis.Exception.ActionNotSuccessfulException.
- */
-export class ActionNotSuccessfulError extends Error {
-  constructor(message, cause) {
-    super(message);
-    this.name = "ActionNotSuccessfulError";
-    this.cause = cause;
-  }
-}
+export { ActionNotSuccessfulError, CidsActionError } from "./errors";
 
 /**
  * Runs a document and unwraps it. Every GraphQL call of the wizard goes through
@@ -60,18 +52,42 @@ export const run = async (query, variables, jwt) => {
   return result.data;
 };
 
-const nowIso = () => new Date().toISOString();
-
-/** Date-only value, as the historic/valid-until columns are dates. */
-export const toDateOnly = (date) => {
-  if (!date) {
-    return null;
-  }
-  const d = date instanceof Date ? date : new Date(date);
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${month}-${day}`;
+/** cids class names, i.e. the database table each write targets. */
+export const CLASS = {
+  SCHLUESSEL: "flurstueck_schluessel",
+  FLURSTUECK: "flurstueck",
+  HISTORIE: "flurstueck_historie",
+  NUTZUNG: "nutzung",
+  NUTZUNG_BUCHUNG: "nutzung_buchung",
+  DMS_URL: "dms_url",
+  VERWALTUNGSBEREICH_EINTRAG: "verwaltungsbereiche_eintrag",
+  REBE: "rebe",
+  MIPA: "mipa",
+  LOCK: "cs_locks",
 };
+
+const pad2 = (value) => String(value).padStart(2, "0");
+
+/**
+ * cids parses dates with a Java DateFormat that wants exactly
+ * `YYYY-MM-DDTHH:mm:ss` — no timezone, no milliseconds. A bare `2026-09-17`
+ * and an ISO string ending in `Z` both come back as
+ * `{"Exception": "Unparseable date: ..."}`. Same format BelIS sends from
+ * transformDatesForBackend.
+ */
+const formatCidsDate = (date, withTime) => {
+  const d = date instanceof Date ? date : new Date(date);
+  const day = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const time = withTime
+    ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+    : "00:00:00";
+  return `${day}T${time}`;
+};
+
+const nowIso = () => formatCidsDate(new Date(), true);
+
+/** A date column: midnight, because only the day carries meaning. */
+export const toDateOnly = (date) => (date ? formatCidsDate(date, false) : null);
 
 /* ------------------------------------------------------------ Stammdaten */
 
@@ -146,28 +162,23 @@ export const fetchSchluesselById = async (id, jwt) => {
   return mapSchluessel(data.flurstueck_schluessel_by_pk);
 };
 
-export const insertSchluessel = async (object, jwt) => {
-  const data = await run(wizardQueries.insertSchluessel, { object }, jwt);
-  return data.insert_flurstueck_schluessel_one.id;
-};
+export const insertSchluessel = (object, jwt) =>
+  saveAndGetId(CLASS.SCHLUESSEL, object, jwt);
 
-export const updateSchluessel = async (id, changes, jwt, accountName) => {
-  await run(
-    wizardQueries.updateSchluessel,
+export const updateSchluessel = (id, changes, jwt, accountName) =>
+  saveObject(
+    CLASS.SCHLUESSEL,
     {
       id,
-      changes: {
-        ...changes,
-        letzter_bearbeiter: accountName,
-        letzte_bearbeitung: nowIso(),
-      },
+      ...changes,
+      letzter_bearbeiter: accountName,
+      letzte_bearbeitung: nowIso(),
     },
     jwt
   );
-};
 
 export const deleteSchluessel = (id, jwt) =>
-  run(wizardQueries.deleteSchluessel, { id }, jwt);
+  deleteObject(CLASS.SCHLUESSEL, { id }, jwt);
 
 /* ---------------------------------------------------------------- Flurstück */
 
@@ -191,19 +202,27 @@ export const fetchFlurstueckBySchluesselId = async (schluesselId, jwt) => {
     dmsUrls: row.dms_urlArrayRelationShip ?? [],
     verwaltungsbereichEintraege:
       row.verwaltungsbereiche_eintragArrayRelationShip ?? [],
+    arVertraege: row.ar_vertraegeArray ?? [],
+    arBaeume: row.ar_baeumeArray ?? [],
   };
 };
 
-export const insertFlurstueck = async (object, jwt) => {
-  const data = await run(wizardQueries.insertFlurstueck, { object }, jwt);
-  return data.insert_flurstueck_one.id;
-};
+export const insertFlurstueck = (object, jwt) =>
+  saveAndGetId(CLASS.FLURSTUECK, object, jwt);
 
 export const updateFlurstueck = (id, changes, jwt) =>
-  run(wizardQueries.updateFlurstueck, { id, changes }, jwt);
+  saveObject(CLASS.FLURSTUECK, { id, ...changes }, jwt);
 
 export const deleteFlurstueck = (id, jwt) =>
-  run(wizardQueries.deleteFlurstueck, { id }, jwt);
+  deleteObject(CLASS.FLURSTUECK, { id }, jwt);
+
+/**
+ * Moves the contract and tree links by writing the array properties, the way
+ * renameFlurstueck did it in Java (addAll on the new bean, clear on the old).
+ * cids persists an array property as a whole, so each side is one call.
+ */
+export const saveFlurstueckArrays = (id, arrays, jwt) =>
+  saveObject(CLASS.FLURSTUECK, { id, ...arrays }, jwt);
 
 /* ------------------------------------------------------------------ Historie */
 
@@ -221,22 +240,15 @@ export const hasSuccessors = async (flurstueckId, jwt) =>
   (await fetchSuccessorEdges(flurstueckId, jwt)).length > 0;
 
 /** Mirrors LagisBroker.createHistoryEdge(vorgaenger, nachfolger). */
-export const insertHistoryEdge = async (vorgaengerId, nachfolgerId, jwt) => {
-  const data = await run(
-    wizardQueries.insertHistoryEdge,
-    {
-      object: {
-        fk_vorgaenger: vorgaengerId,
-        fk_nachfolger: nachfolgerId,
-      },
-    },
+export const insertHistoryEdge = (vorgaengerId, nachfolgerId, jwt) =>
+  saveAndGetId(
+    CLASS.HISTORIE,
+    { fk_vorgaenger: vorgaengerId, fk_nachfolger: nachfolgerId },
     jwt
   );
-  return data.insert_flurstueck_historie_one.id;
-};
 
 export const deleteHistoryEdge = (id, jwt) =>
-  run(wizardQueries.deleteHistoryEdge, { id }, jwt);
+  deleteObject(CLASS.HISTORIE, { id }, jwt);
 
 /* ------------------------------------------------------------------ Nutzung */
 
@@ -249,43 +261,35 @@ export const fetchNutzungenForFlurstueck = async (flurstueckId, jwt) => {
   return data.nutzung ?? [];
 };
 
-export const insertNutzung = async (object, jwt) => {
-  const data = await run(wizardQueries.insertNutzung, { object }, jwt);
-  return data.insert_nutzung_one.id;
-};
+export const insertNutzung = (object, jwt) =>
+  saveAndGetId(CLASS.NUTZUNG, object, jwt);
 
 export const updateNutzung = (id, changes, jwt) =>
-  run(wizardQueries.updateNutzung, { id, changes }, jwt);
+  saveObject(CLASS.NUTZUNG, { id, ...changes }, jwt);
 
 export const deleteNutzung = (id, jwt) =>
-  run(wizardQueries.deleteNutzung, { id }, jwt);
+  deleteObject(CLASS.NUTZUNG, { id }, jwt);
 
 export const updateNutzungBuchung = (id, changes, jwt) =>
-  run(wizardQueries.updateNutzungBuchung, { id, changes }, jwt);
+  saveObject(CLASS.NUTZUNG_BUCHUNG, { id, ...changes }, jwt);
 
 /* ------------------------------------------------------- angehängte Objekte */
 
 export const moveDmsUrl = (id, flurstueckId, jwt) =>
-  run(wizardQueries.updateDmsUrlFlurstueck, { id, flurstueckId }, jwt);
+  saveObject(CLASS.DMS_URL, { id, fk_flurstueck: flurstueckId }, jwt);
 
 export const moveVerwaltungsbereichEintrag = (id, flurstueckId, jwt) =>
-  run(
-    wizardQueries.updateVerwaltungsbereichEintragFlurstueck,
-    { id, flurstueckId },
+  saveObject(
+    CLASS.VERWALTUNGSBEREICH_EINTRAG,
+    { id, fk_flurstueck: flurstueckId },
     jwt
   );
 
-export const moveArVertraege = (fromFlurstueckId, toFlurstueckId, jwt) =>
-  run(wizardQueries.moveArVertraege, { fromFlurstueckId, toFlurstueckId }, jwt);
-
-export const moveArBaeume = (fromFlurstueckId, toFlurstueckId, jwt) =>
-  run(wizardQueries.moveArBaeume, { fromFlurstueckId, toFlurstueckId }, jwt);
-
 export const updateRebe = (id, datumLoeschung, jwt) =>
-  run(wizardQueries.updateRebe, { id, datumLoeschung }, jwt);
+  saveObject(CLASS.REBE, { id, datum_loeschung: datumLoeschung }, jwt);
 
 export const updateMipa = (id, vertragsende, jwt) =>
-  run(wizardQueries.updateMipa, { id, vertragsende }, jwt);
+  saveObject(CLASS.MIPA, { id, vertragsende }, jwt);
 
 export const fetchRebeByGeo = async (geo, jwt) => {
   const data = await run(wizardQueries.rebeByGeo, { geo }, jwt);

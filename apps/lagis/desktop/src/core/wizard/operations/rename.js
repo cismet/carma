@@ -6,10 +6,9 @@ import {
   fetchNutzungenForFlurstueck,
   insertHistoryEdge,
   insertNutzung,
-  moveArBaeume,
-  moveArVertraege,
   moveDmsUrl,
   moveVerwaltungsbereichEintrag,
+  saveFlurstueckArrays,
   updateFlurstueck,
 } from "../api";
 import { formatKey } from "../keys";
@@ -68,15 +67,26 @@ export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
       () => deleteHistoryEdge(edgeId, jwt)
     );
 
-    await moveArBaeume(oldFlurstueck.id, created.flurstueckId, jwt);
-    journal.record(`Verschieben der Bäume nach "${newKeyString}"`, () =>
-      moveArBaeume(created.flurstueckId, oldFlurstueck.id, jwt)
-    );
+    // Java moved these by handing the array property from one bean to the
+    // other — newFlurstueck.getAr_baeume().addAll(old); old.clear() — and cids
+    // persists an array property as a whole, so each side is a single call.
+    const movedArrays = {
+      ar_vertraegeArray: oldFlurstueck.arVertraege,
+      ar_baeumeArray: oldFlurstueck.arBaeume,
+    };
+    const emptyArrays = { ar_vertraegeArray: [], ar_baeumeArray: [] };
 
-    await moveArVertraege(oldFlurstueck.id, created.flurstueckId, jwt);
-    journal.record(`Verschieben der Verträge nach "${newKeyString}"`, () =>
-      moveArVertraege(created.flurstueckId, oldFlurstueck.id, jwt)
-    );
+    if (movedArrays.ar_vertraegeArray.length || movedArrays.ar_baeumeArray.length) {
+      await saveFlurstueckArrays(created.flurstueckId, movedArrays, jwt);
+      await saveFlurstueckArrays(oldFlurstueck.id, emptyArrays, jwt);
+      journal.record(
+        `Verschieben der Verträge und Bäume nach "${newKeyString}"`,
+        async () => {
+          await saveFlurstueckArrays(oldFlurstueck.id, movedArrays, jwt);
+          await saveFlurstueckArrays(created.flurstueckId, emptyArrays, jwt);
+        }
+      );
+    }
 
     for (const dms of oldFlurstueck.dmsUrls) {
       await moveDmsUrl(dms.id, created.flurstueckId, jwt);

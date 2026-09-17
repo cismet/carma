@@ -61,7 +61,7 @@ const keysToCheck = (stepId, data) => {
  * problem line above it that blocks forward navigation while it is set.
  */
 
-const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
+const LandParcelWizard = ({ open, onClose, showGraphQL = false }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [, setUrlParams] = useSearchParams();

@@ -1,10 +1,10 @@
 /**
- * GraphQL documents for the Flurstück-Assistent.
+ * GraphQL documents for the Flurstück-Assistent — reads only.
  *
- * Table and relationship names follow the ones already used in
- * core/queries/online.js. The mutation names assume the default Hasura naming
- * (insert_<table>_one / update_<table>_by_pk / ...); they are collected here so
- * that a rename on the server only has to be fixed in one place.
+ * The /graphql/LAGIS/execute proxy accepts queries, not mutations, so every
+ * write goes through the cids SaveObject/DeleteObject actions instead; see
+ * cidsActions.js. Table and relationship names follow the ones already used in
+ * core/queries/online.js.
  */
 
 const wizardQueries = {};
@@ -183,128 +183,6 @@ wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
   mipa(where: {extended_geom: {geo_field: {_st_intersects: $geo}}}) {
     id
     vertragsende
-  }
-}`;
-
-/* -------------------------------------------------------------- mutations */
-
-wizardQueries.insertSchluessel = `mutation InsertSchluessel($object: flurstueck_schluessel_insert_input!) {
-  insert_flurstueck_schluessel_one(object: $object) {
-    id
-  }
-}`;
-
-wizardQueries.updateSchluessel = `mutation UpdateSchluessel($id: Int!, $changes: flurstueck_schluessel_set_input!) {
-  update_flurstueck_schluessel_by_pk(pk_columns: {id: $id}, _set: $changes) {
-    id
-  }
-}`;
-
-wizardQueries.deleteSchluessel = `mutation DeleteSchluessel($id: Int!) {
-  delete_flurstueck_schluessel_by_pk(id: $id) {
-    id
-  }
-}`;
-
-wizardQueries.insertFlurstueck = `mutation InsertFlurstueck($object: flurstueck_insert_input!) {
-  insert_flurstueck_one(object: $object) {
-    id
-  }
-}`;
-
-wizardQueries.updateFlurstueck = `mutation UpdateFlurstueck($id: Int!, $changes: flurstueck_set_input!) {
-  update_flurstueck_by_pk(pk_columns: {id: $id}, _set: $changes) {
-    id
-  }
-}`;
-
-wizardQueries.deleteFlurstueck = `mutation DeleteFlurstueck($id: Int!) {
-  delete_flurstueck_by_pk(id: $id) {
-    id
-  }
-}`;
-
-wizardQueries.insertHistoryEdge = `mutation InsertHistoryEdge($object: flurstueck_historie_insert_input!) {
-  insert_flurstueck_historie_one(object: $object) {
-    id
-  }
-}`;
-
-wizardQueries.deleteHistoryEdge = `mutation DeleteHistoryEdge($id: Int!) {
-  delete_flurstueck_historie_by_pk(id: $id) {
-    id
-  }
-}`;
-
-wizardQueries.insertNutzung = `mutation InsertNutzung($object: nutzung_insert_input!) {
-  insert_nutzung_one(object: $object) {
-    id
-  }
-}`;
-
-wizardQueries.updateNutzung = `mutation UpdateNutzung($id: Int!, $changes: nutzung_set_input!) {
-  update_nutzung_by_pk(pk_columns: {id: $id}, _set: $changes) {
-    id
-  }
-}`;
-
-wizardQueries.deleteNutzung = `mutation DeleteNutzung($id: Int!) {
-  delete_nutzung_by_pk(id: $id) {
-    id
-  }
-}`;
-
-wizardQueries.updateNutzungBuchung = `mutation UpdateNutzungBuchung($id: Int!, $changes: nutzung_buchung_set_input!) {
-  update_nutzung_buchung_by_pk(pk_columns: {id: $id}, _set: $changes) {
-    id
-  }
-}`;
-
-wizardQueries.updateDmsUrlFlurstueck = `mutation UpdateDmsUrlFlurstueck($id: Int!, $flurstueckId: Int!) {
-  update_dms_url_by_pk(pk_columns: {id: $id}, _set: {fk_flurstueck: $flurstueckId}) {
-    id
-  }
-}`;
-
-wizardQueries.updateVerwaltungsbereichEintragFlurstueck = `mutation UpdateVerwaltungsbereichEintragFlurstueck($id: Int!, $flurstueckId: Int!) {
-  update_verwaltungsbereiche_eintrag_by_pk(pk_columns: {id: $id}, _set: {fk_flurstueck: $flurstueckId}) {
-    id
-  }
-}`;
-
-wizardQueries.moveArVertraege = `mutation MoveArVertraege($fromFlurstueckId: Int!, $toFlurstueckId: Int!) {
-  update_ar_vertraege(where: {fk_flurstueck: {_eq: $fromFlurstueckId}}, _set: {fk_flurstueck: $toFlurstueckId}) {
-    affected_rows
-  }
-}`;
-
-wizardQueries.moveArBaeume = `mutation MoveArBaeume($fromFlurstueckId: Int!, $toFlurstueckId: Int!) {
-  update_ar_baeume(where: {fk_flurstueck: {_eq: $fromFlurstueckId}}, _set: {fk_flurstueck: $toFlurstueckId}) {
-    affected_rows
-  }
-}`;
-
-wizardQueries.updateRebe = `mutation UpdateRebe($id: Int!, $datumLoeschung: date) {
-  update_rebe_by_pk(pk_columns: {id: $id}, _set: {datum_loeschung: $datumLoeschung}) {
-    id
-  }
-}`;
-
-wizardQueries.updateMipa = `mutation UpdateMipa($id: Int!, $vertragsende: date) {
-  update_mipa_by_pk(pk_columns: {id: $id}, _set: {vertragsende: $vertragsende}) {
-    id
-  }
-}`;
-
-wizardQueries.insertLock = `mutation InsertLock($object: cs_locks_insert_input!) {
-  insert_cs_locks_one(object: $object) {
-    id
-  }
-}`;
-
-wizardQueries.deleteLock = `mutation DeleteLock($id: Int!) {
-  delete_cs_locks_by_pk(id: $id) {
-    id
   }
 }`;
 

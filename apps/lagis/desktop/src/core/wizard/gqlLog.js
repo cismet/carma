@@ -1,5 +1,6 @@
 /**
- * In-memory log of every GraphQL call the Assistent makes.
+ * In-memory log of every server call the Assistent makes — GraphQL reads and
+ * cids SaveObject/DeleteObject writes alike.
  *
  * It exists so the raw documents, their variables and the server's answer can
  * be read inside the app instead of in the Network tab — the same need the
@@ -60,15 +61,21 @@ export const clearLog = () => {
   emit();
 };
 
-export const startCall = (query, variables) => {
+/**
+ * @param {string} query   the document, or for a cids action the request body
+ * @param {unknown} variables
+ * @param {{kind?: string, operation?: string}} [meta] overrides for calls that
+ *   are not GraphQL — SaveObject and DeleteObject name their class instead
+ */
+export const startCall = (query, variables, meta) => {
   if (!enabled) {
     return undefined;
   }
   const entry = {
     id: nextId++,
     at: new Date(),
-    kind: kindOf(query),
-    operation: operationNameOf(query),
+    kind: meta?.kind ?? kindOf(query),
+    operation: meta?.operation ?? operationNameOf(query),
     query,
     variables,
     status: "pending",

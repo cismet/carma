@@ -21,6 +21,21 @@ export const STORAGE_PREFIX = "1";
 export const WUNDA_ENDPOINT =
   REST_SERVICE_WUNDA + "/graphql/" + WUNDA_DOMAIN + "/execute";
 
+// Writes go through the generic cids actions, not through GraphQL — the
+// /graphql/LAGIS/execute proxy only accepts queries. Same mechanism BelIS
+// desktop and the WUNDA portals already use.
+export const LAGIS_SAVE_ENDPOINT =
+  REST_SERVICE_LAGIS +
+  "/actions/" +
+  LAGIS_DOMAIN +
+  ".SaveObject/tasks?resultingInstanceType=result";
+
+export const LAGIS_DELETE_ENDPOINT =
+  REST_SERVICE_LAGIS +
+  "/actions/" +
+  LAGIS_DOMAIN +
+  ".DeleteObject/tasks?resultingInstanceType=result";
+
 export const landparcelForPointGeomQuery = gql`
   ${queries.landparcelForPointGeom}
 `;
