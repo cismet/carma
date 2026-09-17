@@ -94,7 +94,7 @@ class Gcg2016Spline:
                 raise ValueError(f"Unsupported TypeScript tile module: {tile_path}")
             tile_text = tile_text[start + len(declaration) : end]
         tile = json.loads(tile_text)
-        if tile.get("format") != "carma-gcg2016-float32-tile-v2":
+        if tile.get("format") != "carma-gcg2016-uint16-tile-v4":
             raise ValueError(f"Unsupported GCG2016 tile: {tile_path}")
         grid = tile["grid"]
         self.first_longitude = float(grid["firstLongitude"])
@@ -106,10 +106,17 @@ class Gcg2016Spline:
         self.width = int(grid["width"])
         self.height = int(grid["height"])
         self.no_data = grid["noDataValue"]
-        decoded = base64.b64decode(tile["values"]["data"])
-        self.values = np.frombuffer(decoded, dtype="<f4").reshape(
-            (self.height, self.width)
-        )
+        # Mirrors decode_tile() in libraries/geo/gcg2016/src/lib/gcg2016/
+        # derive-gcg2016-tiles.py: uint16 row deltas over lattice indices.
+        values = tile["values"]
+        residual = np.frombuffer(
+            base64.b64decode(values["data"]), dtype="<u2"
+        ).reshape((self.height, self.width)).astype(np.int64)
+        codes = np.cumsum(residual, axis=1) & 0xFFFF
+        decoded = codes * values["quantumMeters"] + values["offsetMeters"]
+        if self.no_data is not None:
+            decoded = np.where(codes == values["noDataCode"], self.no_data, decoded)
+        self.values = decoded.astype(np.float64)
         self.to_geographic = Transformer.from_crs(
             "EPSG:25832", "EPSG:4326", always_xy=True
         )

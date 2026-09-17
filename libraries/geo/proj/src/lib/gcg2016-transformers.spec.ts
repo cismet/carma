@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Absolute undulations are asserted to 5e-4 m. The payload stores samples on a
+// Absolute height anomalies are asserted to 5e-4 m. The payload stores samples on a
 // 0.25 mm lattice, so a value can sit up to one lattice step from an evaluation
 // of the unquantised source grid; the tolerance is that bound with headroom,
 // not a figure fitted to the current output. Round-trip identities below stay
@@ -46,11 +46,11 @@ describe("GCG2016 coordinate transformers", () => {
   const dhhn2016Height = 161.002 as Altitude.DHHN2016Meters;
 
   it("accepts every ETRS89 UTM zone covered by the GCG2016 source grid", async () => {
-    const undulations = await Promise.all(
+    const heightAnomalies = await Promise.all(
       Object.values(coordinatesByZone).map(getGcg2016HeightAnomalyFromUtm)
     );
 
-    for (const heightAnomaly of undulations) {
+    for (const heightAnomaly of heightAnomalies) {
       expect(heightAnomaly).toBeCloseTo(46.59667038816, 3);
     }
   });

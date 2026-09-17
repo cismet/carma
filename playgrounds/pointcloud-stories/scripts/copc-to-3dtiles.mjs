@@ -33,7 +33,7 @@ const WGS84_FIRST_ECCENTRICITY_SQUARED = 6.69437999014e-3;
 const parseArguments = (argv) => {
   const options = {
     maxDepth: Infinity,
-    geoidUndulationMeters: 0,
+    heightAnomalyMeters: 0,
     pointLimit: Infinity,
   };
   for (let index = 0; index < argv.length; index += 2) {
@@ -43,7 +43,7 @@ const parseArguments = (argv) => {
       case "--source": options.source = value; break;
       case "--out": options.out = value; break;
       case "--max-depth": options.maxDepth = Number(value); break;
-      case "--geoid-undulation": options.geoidUndulationMeters = Number(value); break;
+      case "--height-anomaly": options.heightAnomalyMeters = Number(value); break;
       case "--point-limit": options.pointLimit = Number(value); break;
       case "--name": options.name = value; break;
       default: throw new Error(`Unknown option ${key}`);
@@ -52,7 +52,7 @@ const parseArguments = (argv) => {
   if (!options.source || !options.out) {
     throw new Error(
       "Usage: copc-to-3dtiles.mjs --source <path|url> --out <dir> " +
-        "[--max-depth N] [--geoid-undulation METERS] [--point-limit N]"
+        "[--max-depth N] [--height-anomaly METERS] [--point-limit N]"
     );
   }
   return options;
@@ -265,11 +265,11 @@ const main = async () => {
   const rootTransform = enuToEcefMatrix(
     originLongitude,
     originLatitude,
-    originHeight + options.geoidUndulationMeters
+    originHeight + options.heightAnomalyMeters
   );
   log(
     `origin: ${originEasting.toFixed(3)} E ${originNorthing.toFixed(3)} N ` +
-      `${originHeight.toFixed(3)} m (+${options.geoidUndulationMeters} geoid) → ` +
+      `${originHeight.toFixed(3)} m (+${options.heightAnomalyMeters} height anomaly) → ` +
       `${originLongitude.toFixed(6)}, ${originLatitude.toFixed(6)}`
   );
 

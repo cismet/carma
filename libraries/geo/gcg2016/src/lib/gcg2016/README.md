@@ -218,8 +218,8 @@ accuracy matters. The combination of an `EPSG:4326` position and a DHHN2016
 height is not an official compound CRS, so `compoundCrs` is also `null`.
 
 The query metrics document observed agreement with the millimeter-rounded
-official program output and lossless repackaging of the verified raster
-values. The bilinear difference is only a method comparison.
+official program output and the deviation the lattice encoding adds against the
+verified raster values. The bilinear difference is only a method comparison.
 `physicalModelAccuracyMeters` deliberately remains `null`: these software
 checks do not establish a local physical accuracy bound for GCG2016.
 

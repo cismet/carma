@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract lossless, independently loadable GCG2016 Float32 tiles.
+"""Extract independently loadable GCG2016 tiles on a quarter-millimetre lattice.
 
 The generated browser tiles retain the source raster samples unchanged. The
 runtime dynamically combines neighboring tiles when the BKG five-by-five

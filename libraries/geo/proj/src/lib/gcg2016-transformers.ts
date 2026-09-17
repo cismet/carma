@@ -271,14 +271,14 @@ const assertMatchingLengths = (
 const transformUtmHeights = async (
   coordinates: readonly Coordinates.ETRS89UTM[],
   heights: readonly Meters[],
-  undulationFactor: 1 | -1
+  anomalySign: 1 | -1
 ) => {
   assertMatchingLengths(coordinates, heights);
   const geographicCoordinates = coordinates.map(utmToGeographic);
-  const undulations = await getGcg2016HeightAnomalies(geographicCoordinates);
+  const heightAnomalies = await getGcg2016HeightAnomalies(geographicCoordinates);
   return heights.map(
     (height, index) =>
-      (height + undulationFactor * undulations[index]) as Meters
+      (height + anomalySign * heightAnomalies[index]) as Meters
   );
 };
 
@@ -305,13 +305,13 @@ export const ellipsoidalToDhhn2016Heights = async (
 const transformWgs84Heights = async (
   coordinates: readonly LngLatArray.deg[],
   heights: readonly Meters[],
-  undulationFactor: 1 | -1
+  anomalySign: 1 | -1
 ) => {
   assertMatchingLengths(coordinates, heights);
-  const undulations = await getGcg2016HeightAnomalies(coordinates);
+  const heightAnomalies = await getGcg2016HeightAnomalies(coordinates);
   return heights.map(
     (height, index) =>
-      (height + undulationFactor * undulations[index]) as Meters
+      (height + anomalySign * heightAnomalies[index]) as Meters
   );
 };
 
