@@ -15,7 +15,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import type { Coordinates } from "@carma-geo/data-structures";
 import {
   getFromWGS84ToUTM32,
-  getGcg2016UndulationFromUtm,
+  getGcg2016HeightAnomalyFromUtm,
 } from "@carma-geo/proj";
 
 import {
@@ -396,21 +396,21 @@ export function MeshNivCalibrationScene() {
       requestRender,
     });
     const { tiles } = mesh;
-    // Mesh 2024 carries DHHN-as-ellipsoidal heights, one geoid undulation
+    // Mesh 2024 carries DHHN-as-ellipsoidal heights, one height anomaly
     // below the true ellipsoidal frame of this scene. Raising the mesh by the
-    // origin's GCG2016 undulation closes that systematic gap, so the residual
+    // origin's GCG2016 height anomaly closes that systematic gap, so the residual
     // panel shows what remains beyond the known datum defect.
     const originUtm = getFromWGS84ToUTM32([
       SCENE_ORIGIN_LONGITUDE_DEGREES,
       SCENE_ORIGIN_LATITUDE_DEGREES,
     ] as Parameters<typeof getFromWGS84ToUTM32>[0]) as [number, number];
-    void getGcg2016UndulationFromUtm({
+    void getGcg2016HeightAnomalyFromUtm({
       east: originUtm[0] as Coordinates.ETRS89UTMEastingMeters,
       north: originUtm[1] as Coordinates.ETRS89UTMNorthingMeters,
       zone: 32,
-    }).then((undulation) => {
+    }).then((heightAnomaly) => {
       if (disposed) return;
-      mesh.anchor.position.y = undulation;
+      mesh.anchor.position.y = heightAnomaly;
       mesh.anchor.updateMatrixWorld(true);
       requestRender();
     });

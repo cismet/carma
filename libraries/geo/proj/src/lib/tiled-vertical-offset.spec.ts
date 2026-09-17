@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createTiledVerticalOffsetModel,
-  type Float32VerticalOffsetTile,
+  type VerticalOffsetTile,
   InvalidVerticalOffsetTileError,
   UnsupportedVerticalOffsetRegionError,
   VerticalOffsetTileLoadError,
@@ -38,7 +38,7 @@ const encode = (
 };
 
 interface TileOptions {
-  grid?: Partial<Float32VerticalOffsetTile["grid"]>;
+  grid?: Partial<VerticalOffsetTile["grid"]>;
   valueAt?: (sourceColumn: number, sourceRow: number) => number;
 }
 
@@ -46,7 +46,7 @@ const tile = (
   id: string,
   bounds: [number, number, number, number],
   options: TileOptions = {}
-): Float32VerticalOffsetTile => {
+): VerticalOffsetTile => {
   const grid = {
     firstLongitude: 0.25,
     firstLatitude: 0.25,

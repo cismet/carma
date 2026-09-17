@@ -12,8 +12,8 @@ import type { Meters, MetricVector3 } from "@carma-units";
 
 import {
   gcg2016Model,
-  getGcg2016Undulation,
-  getGcg2016Undulations,
+  getGcg2016HeightAnomaly,
+  getGcg2016HeightAnomalies,
 } from "./gcg2016";
 import { getFromEcefToWGS84, getFromWGS84ToEcef } from "./proj4";
 
@@ -234,11 +234,11 @@ const initUtmCoordinates = (
   );
 };
 
-export const getGcg2016UndulationFromUtm = (
+export const getGcg2016HeightAnomalyFromUtm = (
   coordinate: Coordinates.ETRS89UTM
 ) => {
   const [longitude, latitude] = utmToGeographic(coordinate);
-  return getGcg2016Undulation(longitude, latitude);
+  return getGcg2016HeightAnomaly(longitude, latitude);
 };
 
 export const dhhn2016ToEllipsoidalHeight = async (
@@ -246,7 +246,7 @@ export const dhhn2016ToEllipsoidalHeight = async (
   dhhn2016Height: Altitude.DHHN2016Meters
 ) =>
   (dhhn2016Height +
-    (await getGcg2016UndulationFromUtm(
+    (await getGcg2016HeightAnomalyFromUtm(
       coordinate
     ))) as Altitude.EllipsoidalWGS84Meters;
 
@@ -255,7 +255,7 @@ export const ellipsoidalToDhhn2016Height = async (
   ellipsoidalHeight: Altitude.EllipsoidalWGS84Meters
 ) =>
   (ellipsoidalHeight -
-    (await getGcg2016UndulationFromUtm(coordinate))) as Altitude.DHHN2016Meters;
+    (await getGcg2016HeightAnomalyFromUtm(coordinate))) as Altitude.DHHN2016Meters;
 
 const assertMatchingLengths = (
   coordinates: readonly unknown[],
@@ -275,7 +275,7 @@ const transformUtmHeights = async (
 ) => {
   assertMatchingLengths(coordinates, heights);
   const geographicCoordinates = coordinates.map(utmToGeographic);
-  const undulations = await getGcg2016Undulations(geographicCoordinates);
+  const undulations = await getGcg2016HeightAnomalies(geographicCoordinates);
   return heights.map(
     (height, index) =>
       (height + undulationFactor * undulations[index]) as Meters
@@ -308,7 +308,7 @@ const transformWgs84Heights = async (
   undulationFactor: 1 | -1
 ) => {
   assertMatchingLengths(coordinates, heights);
-  const undulations = await getGcg2016Undulations(coordinates);
+  const undulations = await getGcg2016HeightAnomalies(coordinates);
   return heights.map(
     (height, index) =>
       (height + undulationFactor * undulations[index]) as Meters
@@ -374,7 +374,7 @@ const ecefTransformer: Gcg2016EcefTransformer = {
   async forward(coordinate, dhhn2016Height) {
     const [longitude, latitude] = utmToGeographic(coordinate);
     const ellipsoidalHeight =
-      dhhn2016Height + (await getGcg2016Undulation(longitude, latitude));
+      dhhn2016Height + (await getGcg2016HeightAnomaly(longitude, latitude));
     const [x, y, z] = getFromWGS84ToEcef([
       longitude,
       latitude,
@@ -390,7 +390,7 @@ const ecefTransformer: Gcg2016EcefTransformer = {
     ]);
     const coordinate = geographicToUtm([longitude, latitude], zone);
     const height = (ellipsoidalHeight -
-      (await getGcg2016Undulation(
+      (await getGcg2016HeightAnomaly(
         longitude,
         latitude
       ))) as Altitude.DHHN2016Meters;

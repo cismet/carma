@@ -172,15 +172,15 @@ previous bilinear calculation differed from the spline by at most approximately
 
 ## API and validity limits
 
-- `queryGcg2016Undulation(longitude, latitude)` returns the value together
+- `queryGcg2016HeightAnomaly(longitude, latitude)` returns the value together
   with the resource tiles actually used, the interpolation method, and separate
   validation metrics;
-- `queryGcg2016Undulations(coordinates)` and
-  `getGcg2016Undulations(coordinates)` process points concurrently, preserve
+- `queryGcg2016HeightAnomalies(coordinates)` and
+  `getGcg2016HeightAnomalies(coordinates)` process points concurrently, preserve
   input order, and share in-flight tile imports;
-- `getGcg2016Undulation(longitude, latitude)` accepts geographic
+- `getGcg2016HeightAnomaly(longitude, latitude)` accepts geographic
   ETRS89/DREF91/2016 angles as branded degrees;
-- `getGcg2016UndulationFromUtm(coordinate)` accepts a branded
+- `getGcg2016HeightAnomalyFromUtm(coordinate)` accepts a branded
   `Coordinates.ETRS89UTM` position in zone 31, 32, or 33;
 - `dhhn2016ToEllipsoidalHeight(coordinate, height)` and
   `ellipsoidalToDhhn2016Height(coordinate, height)` keep DHHN2016 and

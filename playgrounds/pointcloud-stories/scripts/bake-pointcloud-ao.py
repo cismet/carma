@@ -114,7 +114,7 @@ class Gcg2016Spline:
             "EPSG:25832", "EPSG:4326", always_xy=True
         )
         reference = float(
-            self.undulation(
+            self.heightAnomaly(
                 np.asarray([371_804.597]), np.asarray([5_678_240.294])
             )[0]
         )
@@ -171,7 +171,7 @@ class Gcg2016Spline:
             / 6.0
         )
 
-    def undulation(self, easting: np.ndarray, northing: np.ndarray) -> np.ndarray:
+    def heightAnomaly(self, easting: np.ndarray, northing: np.ndarray) -> np.ndarray:
         longitude, latitude = self.to_geographic.transform(easting, northing)
         source_column = (longitude - self.first_longitude) / self.step_longitude
         source_row = (latitude - self.first_latitude) / self.step_latitude
@@ -222,7 +222,7 @@ def registered_positions(
     if profile["datumTransform"] == "dhhn2016-to-ellipsoidal-gcg2016":
         if gcg2016 is None:
             raise ValueError("DHHN2016 profile requires a GCG2016 resource")
-        up = up + gcg2016.undulation(east, north)
+        up = up + gcg2016.heightAnomaly(east, north)
     rigid = profile.get("rigid")
     if rigid is None:
         return np.column_stack((east, north, up))

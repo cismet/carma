@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { Latitude, Longitude } from "@carma-geo/data-structures";
 
 import {
-  getGcg2016Undulation,
-  queryGcg2016Undulation,
-  queryGcg2016Undulations,
+  getGcg2016HeightAnomaly,
+  queryGcg2016HeightAnomaly,
+  queryGcg2016HeightAnomalies,
 } from "./gcg2016";
 import { UnsupportedVerticalOffsetRegionError } from "./tiled-vertical-offset";
 
@@ -16,16 +16,16 @@ describe("GCG2016 tiled grid", () => {
   // tiled-vertical-offset.spec.ts, which builds a multi-tile set directly.
   it("resolves inside the bundled tile and refuses coordinates beyond it", async () => {
     await expect(
-      getGcg2016Undulation(7.9 as Longitude.deg, 51.25 as Latitude.deg)
+      getGcg2016HeightAnomaly(7.9 as Longitude.deg, 51.25 as Latitude.deg)
     ).resolves.toBeCloseTo(47.420052107263714, 3);
 
     await expect(
-      getGcg2016Undulation(8.0001 as Longitude.deg, 51.25 as Latitude.deg)
+      getGcg2016HeightAnomaly(8.0001 as Longitude.deg, 51.25 as Latitude.deg)
     ).rejects.toBeInstanceOf(UnsupportedVerticalOffsetRegionError);
   });
 
   it("returns an auditable query result without presenting physical accuracy as known", async () => {
-    const result = await queryGcg2016Undulation(
+    const result = await queryGcg2016HeightAnomaly(
       7.25 as Longitude.deg,
       51.25 as Latitude.deg
     );
@@ -49,7 +49,7 @@ describe("GCG2016 tiled grid", () => {
         physicalModelAccuracyMeters: null,
       },
     });
-    expect(result.undulationMeters).toBeCloseTo(46.718027052093014, 3);
+    expect(result.heightAnomalyMeters).toBeCloseTo(46.718027052093014, 3);
     // Generated figures are asserted as bounds, not as literals, so a
     // regenerated payload does not churn the test.
     expect(
@@ -59,7 +59,7 @@ describe("GCG2016 tiled grid", () => {
   });
 
   it("preserves order in batched queries", async () => {
-    const queries = await queryGcg2016Undulations([
+    const queries = await queryGcg2016HeightAnomalies([
       [7.25 as Longitude.deg, 51.25 as Latitude.deg],
       [6.75 as Longitude.deg, 51.5 as Latitude.deg],
     ]);

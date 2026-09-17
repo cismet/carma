@@ -79,13 +79,13 @@ export const GCG2016_VALIDATION_METRICS = {
   physicalModelAccuracyMeters: null,
 } as const;
 
-export interface Gcg2016UndulationQueryResult {
+export interface Gcg2016HeightAnomalyQueryResult {
   coordinate: {
     longitude: Longitude.deg;
     latitude: Latitude.deg;
     horizontalCrs: string;
   };
-  undulationMeters: Meters;
+  heightAnomalyMeters: Meters;
   /** Constant bound; see `GCG2016_SOFTWARE_BOUND_METERS`. */
   softwareBoundMeters: Meters;
   resourceTileIds: readonly string[];
@@ -93,10 +93,10 @@ export interface Gcg2016UndulationQueryResult {
   validation: typeof GCG2016_VALIDATION_METRICS;
 }
 
-export const queryGcg2016Undulation = async (
+export const queryGcg2016HeightAnomaly = async (
   longitude: Longitude.deg,
   latitude: Latitude.deg
-): Promise<Gcg2016UndulationQueryResult> => {
+): Promise<Gcg2016HeightAnomalyQueryResult> => {
   const query = await gcg2016Model.queryOffset(longitude, latitude);
   return {
     coordinate: {
@@ -104,7 +104,7 @@ export const queryGcg2016Undulation = async (
       latitude,
       horizontalCrs: GCG2016_PROVENANCE.source.horizontalCrs,
     },
-    undulationMeters: query.offset as Meters,
+    heightAnomalyMeters: query.offset as Meters,
     softwareBoundMeters: GCG2016_SOFTWARE_BOUND_METERS,
     resourceTileIds: query.tileIds,
     method: GCG2016_INTERPOLATION_METHOD,
@@ -112,25 +112,25 @@ export const queryGcg2016Undulation = async (
   };
 };
 
-export const queryGcg2016Undulations = (
+export const queryGcg2016HeightAnomalies = (
   coordinates: readonly LngLatArray.deg[]
 ) =>
   Promise.all(
     coordinates.map(([longitude, latitude]) =>
-      queryGcg2016Undulation(longitude, latitude)
+      queryGcg2016HeightAnomaly(longitude, latitude)
     )
   );
 
-export const getGcg2016Undulation = async (
+export const getGcg2016HeightAnomaly = async (
   longitude: Longitude.deg,
   latitude: Latitude.deg
-) => (await queryGcg2016Undulation(longitude, latitude)).undulationMeters;
+) => (await queryGcg2016HeightAnomaly(longitude, latitude)).heightAnomalyMeters;
 
-export const getGcg2016Undulations = async (
+export const getGcg2016HeightAnomalies = async (
   coordinates: readonly LngLatArray.deg[]
 ) =>
-  (await queryGcg2016Undulations(coordinates)).map(
-    ({ undulationMeters }) => undulationMeters
+  (await queryGcg2016HeightAnomalies(coordinates)).map(
+    ({ heightAnomalyMeters }) => heightAnomalyMeters
   );
 
 export const prefetchGcg2016Tiles = (

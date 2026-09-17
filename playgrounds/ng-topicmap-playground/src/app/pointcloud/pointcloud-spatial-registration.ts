@@ -140,7 +140,7 @@ export const applyCopcRigidRegistration = (
  * This is the datum transformation term `h_ellipsoidal = H_DHHN2016 + zeta`,
  * not an empirical point-cloud registration offset.
  */
-export const AWG2_GCG2016_UNDULATION_METERS = 46.499918254;
+export const AWG2_GCG2016_HEIGHT_ANOMALY_METERS = 46.499918254;
 
 /**
  * AWG2 mount correction fitted to class-2 points against DGM1 transformed to
@@ -185,7 +185,7 @@ export const AWG2_REGISTRATION_PROVENANCE = {
     target: "EPSG:7837 DHHN2016",
     model: "GCG2016",
     operation: "H_DHHN2016 = h_ellipsoidal - zeta_GCG2016",
-    undulationMeters: AWG2_GCG2016_UNDULATION_METERS,
+    heightAnomalyMeters: AWG2_GCG2016_HEIGHT_ANOMALY_METERS,
   },
   sampledGroundPoints: 63_723,
   fittedGroundPoints: 63_660,

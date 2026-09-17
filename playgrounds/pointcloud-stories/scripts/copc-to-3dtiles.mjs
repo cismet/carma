@@ -254,7 +254,7 @@ const main = async () => {
 
   // Local ENU origin: horizontal center of the data extent at its floor. The
   // declared vertical datum is orthometric, so the ellipsoidal height used for
-  // the ECEF anchor adds the geoid undulation supplied by the caller.
+  // the ECEF anchor adds the height anomaly supplied by the caller.
   const originEasting = (copc.header.min[0] + copc.header.max[0]) / 2;
   const originNorthing = (copc.header.min[1] + copc.header.max[1]) / 2;
   const originHeight = copc.header.min[2];

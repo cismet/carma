@@ -13,13 +13,13 @@ export {
   GCG2016_SOFTWARE_BOUND_METERS,
   GCG2016_PROVENANCE,
   GCG2016_VALIDATION_METRICS,
-  getGcg2016Undulation,
-  getGcg2016Undulations,
+  getGcg2016HeightAnomaly,
+  getGcg2016HeightAnomalies,
   prefetchGcg2016Tiles,
-  queryGcg2016Undulation,
-  queryGcg2016Undulations,
+  queryGcg2016HeightAnomaly,
+  queryGcg2016HeightAnomalies,
 } from "./lib/gcg2016";
-export type { Gcg2016UndulationQueryResult } from "./lib/gcg2016";
+export type { Gcg2016HeightAnomalyQueryResult } from "./lib/gcg2016";
 export {
   GCG2016_UTM_ZONES,
   dhhn2016ToEllipsoidalHeight,
@@ -27,7 +27,7 @@ export {
   ellipsoidalToDhhn2016Height,
   ellipsoidalToDhhn2016Heights,
   getGcg2016EcefTransformer,
-  getGcg2016UndulationFromUtm,
+  getGcg2016HeightAnomalyFromUtm,
   getGcg2016UtmVerticalTransformer,
   getGcg2016Wgs84VerticalTransformer,
 } from "./lib/gcg2016-transformers";

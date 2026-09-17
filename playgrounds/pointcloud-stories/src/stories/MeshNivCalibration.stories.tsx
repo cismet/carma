@@ -19,7 +19,7 @@ const meta = {
           "variabel mit GCG2016 in ETRS89-Ellipsoidhöhe überführt (h = H + zeta, zeta ~ 46.43 m in Wuppertal) und als " +
           "ECEF abgelegt; die Szene setzt die Marken direkt auf dieses ECEF. (2) Mesh-Treffer: Szenenposition -> ECEF -> " +
           "Ellipsoidhöhe, für die Anzeige mit demselben zeta des jeweiligen Festpunkts zurück nach DHHN2016.\n\n" +
-          "BEKANNTE ABWEICHUNG (~46 m): Die Marken schweben rund eine Geoidundulation über dem Mesh. Ursache ist nicht " +
+          "BEKANNTE ABWEICHUNG (~46 m): Die Marken schweben rund eine Höhenanomalie über dem Mesh. Ursache ist nicht " +
           "die Punktkette, sondern das Mesh 2024 selbst: dessen Kachelgeometrie führt orthometrische DHHN2016-Höhen, " +
           "obwohl sie als ECEF/ellipsoidisch interpretiert wird. Zwei unabhängige Belege: eine Dachprobe an " +
           "METTMANNER STRASSE 6 liefert roh 180.37 m und trifft damit die orthometrische Dachhöhe (Bolzen 169.768 m " +

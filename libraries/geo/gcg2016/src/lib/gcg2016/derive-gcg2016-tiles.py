@@ -620,7 +620,7 @@ def main():
             "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
             "sourceUrl": "https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html",
             "documentationUrl": "https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/quasigeoid.pdf",
-            "adaptation": "source Float32 samples unchanged, only regrouped into byte planes; spatially subset to the tiles the bundled elevation coverage reaches and repackaged as independently loadable CARMA TypeScript payload modules",
+            "adaptation": "spatially subset to the tiles the bundled elevation coverage reaches and repackaged as independently loadable CARMA TypeScript payload modules; sample values are stored as indices on a 0.25 mm lattice, delta-coded per raster row",
             "horizontalCrs": "EPSG:10283 (ETRS89/DREF91/2016)",
         },
         "sourceGrid": {
@@ -632,7 +632,7 @@ def main():
             "stepLatitude": reference.step_latitude,
             "sampleEncoding": "source Float32",
         },
-        "runtimeMethod": "BKG-compatible natural bicubic spline over a local five-by-five source stencil",
+        "runtimeMethod": "BKG-compatible natural bicubic spline over a local five-by-five stencil of the stored lattice samples",
         "referenceMethod": "same spline evaluated directly against the complete source GeoTIFF array",
         "officialReferenceValidation": OFFICIAL_REFERENCE_VALIDATION,
         "bilinearComparison": BILINEAR_COMPARISON,

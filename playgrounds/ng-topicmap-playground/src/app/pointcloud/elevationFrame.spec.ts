@@ -8,7 +8,7 @@ describe("resolveTerrainBaseHeight", () => {
       resolveTerrainBaseHeight({
         datum: "ellipsoidal",
         zBase: 187.25,
-        geoidUndulation: 47.4,
+        heightAnomaly: 47.4,
       })
     ).toBeCloseTo(139.85, 10);
   });
@@ -18,7 +18,7 @@ describe("resolveTerrainBaseHeight", () => {
       resolveTerrainBaseHeight({
         datum: "dhhn",
         zBase: 140.1,
-        geoidUndulation: 47.4,
+        heightAnomaly: 47.4,
       })
     ).toBe(140.1);
   });
@@ -28,7 +28,7 @@ describe("resolveTerrainBaseHeight", () => {
       resolveTerrainBaseHeight({
         datum: "surfaceRelative",
         zBase: -3,
-        geoidUndulation: 47.4,
+        heightAnomaly: 47.4,
       })
     ).toThrow("active registered terrain surface");
   });
@@ -38,7 +38,7 @@ describe("resolveTerrainBaseHeight", () => {
       resolveTerrainBaseHeight({
         datum: "surfaceRelative",
         zBase: -3,
-        geoidUndulation: 47.4,
+        heightAnomaly: 47.4,
         surfaceHeightTerrain: 153.2,
       })
     ).toBe(153.2);

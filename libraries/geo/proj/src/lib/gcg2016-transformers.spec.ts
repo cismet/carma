@@ -21,7 +21,7 @@ import {
   ellipsoidalToDhhn2016Height,
   ellipsoidalToDhhn2016Heights,
   getGcg2016EcefTransformer,
-  getGcg2016UndulationFromUtm,
+  getGcg2016HeightAnomalyFromUtm,
   getGcg2016UtmVerticalTransformer,
   getGcg2016Wgs84VerticalTransformer,
   type Gcg2016UtmZone,
@@ -47,17 +47,17 @@ describe("GCG2016 coordinate transformers", () => {
 
   it("accepts every ETRS89 UTM zone covered by the GCG2016 source grid", async () => {
     const undulations = await Promise.all(
-      Object.values(coordinatesByZone).map(getGcg2016UndulationFromUtm)
+      Object.values(coordinatesByZone).map(getGcg2016HeightAnomalyFromUtm)
     );
 
-    for (const undulation of undulations) {
-      expect(undulation).toBeCloseTo(46.59667038816, 3);
+    for (const heightAnomaly of undulations) {
+      expect(heightAnomaly).toBeCloseTo(46.59667038816, 3);
     }
   });
 
   it("matches the BKG spline at the Mesh 2024 anchor", async () => {
     const coordinate = coordinatesByZone[32];
-    await expect(getGcg2016UndulationFromUtm(coordinate)).resolves.toBeCloseTo(
+    await expect(getGcg2016HeightAnomalyFromUtm(coordinate)).resolves.toBeCloseTo(
       46.59667038816,
       3
     );
@@ -145,7 +145,7 @@ describe("GCG2016 coordinate transformers", () => {
       north: 5_700_000 as Coordinates.ETRS89UTMNorthingMeters,
       zone: 30,
     } satisfies Coordinates.ETRS89UTM;
-    expect(() => getGcg2016UndulationFromUtm(unsupportedZone)).toThrow(
+    expect(() => getGcg2016HeightAnomalyFromUtm(unsupportedZone)).toThrow(
       RangeError
     );
 
@@ -155,7 +155,7 @@ describe("GCG2016 coordinate transformers", () => {
       33
     );
     await expect(
-      getGcg2016UndulationFromUtm(outsideBundledExtent)
+      getGcg2016HeightAnomalyFromUtm(outsideBundledExtent)
     ).rejects.toBeInstanceOf(UnsupportedVerticalOffsetRegionError);
   });
 });

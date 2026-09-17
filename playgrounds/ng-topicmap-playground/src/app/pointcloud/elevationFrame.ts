@@ -3,7 +3,7 @@ export type ElevationDatum = "dhhn" | "ellipsoidal" | "surfaceRelative";
 interface TerrainBaseHeightOptions {
   datum: ElevationDatum;
   zBase: number;
-  geoidUndulation: number;
+  heightAnomaly: number;
   surfaceHeightTerrain?: number;
 }
 
@@ -14,14 +14,14 @@ interface TerrainBaseHeightOptions {
 export const resolveTerrainBaseHeight = ({
   datum,
   zBase,
-  geoidUndulation,
+  heightAnomaly,
   surfaceHeightTerrain,
 }: TerrainBaseHeightOptions): number => {
-  if (!Number.isFinite(geoidUndulation)) {
-    throw new Error("GCG2016 undulation is unavailable");
+  if (!Number.isFinite(heightAnomaly)) {
+    throw new Error("GCG2016 height anomaly is unavailable");
   }
 
-  if (datum === "ellipsoidal") return zBase - geoidUndulation;
+  if (datum === "ellipsoidal") return zBase - heightAnomaly;
   if (datum === "dhhn") return zBase;
   if (!Number.isFinite(surfaceHeightTerrain)) {
     throw new Error(

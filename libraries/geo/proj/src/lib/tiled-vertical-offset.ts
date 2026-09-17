@@ -5,13 +5,13 @@ export interface GeographicBounds {
   north: number;
 }
 
-const FLOAT32_VERTICAL_OFFSET_TILE_FORMAT =
+const VERTICAL_OFFSET_TILE_FORMAT =
   "carma-gcg2016-uint16-tile-v4" as const;
-const FLOAT32_VERTICAL_OFFSET_TILE_ENCODING =
+const VERTICAL_OFFSET_TILE_ENCODING =
   "base64-uint16-rowdelta" as const;
 
-export interface Float32VerticalOffsetTile {
-  format: typeof FLOAT32_VERTICAL_OFFSET_TILE_FORMAT;
+export interface VerticalOffsetTile {
+  format: typeof VERTICAL_OFFSET_TILE_FORMAT;
   id: string;
   bounds: [number, number, number, number];
   grid: {
@@ -26,7 +26,7 @@ export interface Float32VerticalOffsetTile {
     noDataValue: number | null;
   };
   values: {
-    encoding: typeof FLOAT32_VERTICAL_OFFSET_TILE_ENCODING;
+    encoding: typeof VERTICAL_OFFSET_TILE_ENCODING;
     offsetMeters: number;
     quantumMeters: number;
     noDataCode: number;
@@ -34,7 +34,7 @@ export interface Float32VerticalOffsetTile {
   };
 }
 
-export type Float32VerticalOffsetTileLoader = () => Promise<unknown>;
+export type VerticalOffsetTileLoader = () => Promise<unknown>;
 
 export interface TiledVerticalOffsetModel {
   getOffset(longitude: number, latitude: number): Promise<number>;
@@ -93,14 +93,14 @@ export class UnsupportedVerticalOffsetRegionError extends RangeError {
 }
 
 interface DecodedTile {
-  source: Float32VerticalOffsetTile;
+  source: VerticalOffsetTile;
   values: Float32Array;
 }
 
 interface TiledVerticalOffsetModelOptions {
   supportedRegion: GeographicBounds;
   rootTileSizeDegrees: number;
-  tileLoaders: Readonly<Record<string, Float32VerticalOffsetTileLoader>>;
+  tileLoaders: Readonly<Record<string, VerticalOffsetTileLoader>>;
 }
 
 const SPLINE_STENCIL_RADIUS_BEFORE = 1;
@@ -192,7 +192,7 @@ const unwrapTileModule = (loaded: unknown) =>
 const parseTile = (
   source: unknown,
   expectedId: string
-): Float32VerticalOffsetTile => {
+): VerticalOffsetTile => {
   if (!isRecord(source)) {
     throw new InvalidVerticalOffsetTileError(
       expectedId,
@@ -205,7 +205,7 @@ const parseTile = (
       `loader returned tile ${String(source.id)}`
     );
   }
-  if (source.format !== FLOAT32_VERTICAL_OFFSET_TILE_FORMAT) {
+  if (source.format !== VERTICAL_OFFSET_TILE_FORMAT) {
     throw new InvalidVerticalOffsetTileError(
       expectedId,
       `unsupported format ${String(source.format)}`
@@ -250,7 +250,7 @@ const parseTile = (
   }
   if (
     !isRecord(source.values) ||
-    source.values.encoding !== FLOAT32_VERTICAL_OFFSET_TILE_ENCODING ||
+    source.values.encoding !== VERTICAL_OFFSET_TILE_ENCODING ||
     typeof source.values.data !== "string" ||
     !Number.isFinite(source.values.offsetMeters) ||
     !Number.isFinite(source.values.quantumMeters) ||
@@ -263,7 +263,7 @@ const parseTile = (
     );
   }
 
-  return source as unknown as Float32VerticalOffsetTile;
+  return source as unknown as VerticalOffsetTile;
 };
 
 const decodeTile = (rawSource: unknown, expectedId: string): DecodedTile => {
