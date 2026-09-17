@@ -31,13 +31,12 @@ export const clampLatitudeToWebMercatorExtent = (
 /**
  * Forward WGS84 (EPSG:4326) to Web Mercator (EPSG:3857) in metres.
  *
- * Kept here rather than imported from `@carma-geo/proj`, which would close a
- * package cycle: proj reads the GCG2016 payloads from `@carma-commons/resources`
- * (proj/src/lib/gcg2016.ts), and resources imports WMS types back from this
- * package (resources/src/lib/de.nrw.ruhr/wms.ts). EPSG:3857 is defined with
- * spherical formulas on the WGS84 semi-major axis, so this is the definition
- * rather than an approximation of the proj4 result. Latitudes are not clamped,
- * matching proj4's forward transform.
+ * Kept here rather than imported from `@carma-geo/proj`, so this package needs
+ * no proj4 at runtime for a closed form. EPSG:3857 is defined with spherical
+ * formulas on the WGS84 semi-major axis, so this is the definition rather than
+ * an approximation of the proj4 result, and it keeps the branded degree and
+ * metre types instead of a generic converter coordinate. Latitudes are not
+ * clamped, matching proj4's forward transform.
  */
 export const getWebMercatorFromWgs84Deg = (
   longitude: Degrees,
