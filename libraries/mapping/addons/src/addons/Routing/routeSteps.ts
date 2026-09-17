@@ -1,8 +1,4 @@
-import {
-  formatDirection,
-  formatDistance,
-  type RouteStep,
-} from "@carma-mapping/routing";
+import type { RouteStep } from "@carma-mapping/routing";
 
 import type { RouteInstruction } from "./routeChannel";
 
@@ -43,29 +39,4 @@ export const stepAt = (
       current.startsAtMeters + current.distanceInMeters - alongMeters
     ),
   };
-};
-
-/** "1. Abfahrt auf Bahnstraße (120 m) · 2. rechts abbiegen auf … (1,4 km)" */
-export const formatSteps = (steps: RouteStep[]): string =>
-  steps
-    .map(
-      (step, i) =>
-        `${i + 1}. ${formatDirection(step.direction, step.streetName)} (${formatDistance(
-          step.distanceInMeters
-        )})`
-    )
-    .join(" · ");
-
-/**
- * "auf Friedrich-Engels-Allee · in 240 m rechts abbiegen auf Bahnstraße", or
- * "auf Bahnstraße · in 80 m Ziel" on the last step. A current step without a
- * name gets no "auf": the turn ahead is still worth saying.
- */
-export const formatInstruction = (instruction: RouteInstruction): string => {
-  const { current, next, metersToNext } = instruction;
-  const here = current.streetName ? `auf ${current.streetName}` : "unterwegs";
-  const ahead = next
-    ? formatDirection(next.direction, next.streetName)
-    : "Ziel";
-  return `${here} · in ${formatDistance(metersToNext)} ${ahead}`;
 };
