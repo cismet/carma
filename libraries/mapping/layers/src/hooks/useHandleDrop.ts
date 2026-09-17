@@ -19,10 +19,7 @@ import {
 import type { CarmaVectorStyle } from "../helper/vectorStyleItem";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { useLiveDeployment } from "@carma-commons/utils";
-import {
-  isJsonUrl,
-  resolveDroppedUrl,
-} from "../helper/resolve-dropped-url";
+import { isJsonUrl, resolveDroppedUrl } from "../helper/resolve-dropped-url";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -190,6 +187,10 @@ export const useHandleDrop = ({
 
   const handleWmsCapabilitiesText = (text: string) => {
     const result = parser.toJSON(text);
+    if (!result?.Capability) {
+      message.warning("Nur WMS-Capabilities-Dokumente werden unterstützt");
+      return;
+    }
     const items = wmsCapabilitiesToCustomItems(result);
     if (items.length > 0) {
       onDrop({ kind: "layers", items });
