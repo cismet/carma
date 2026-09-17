@@ -4,7 +4,12 @@ import maplibregl, {
   type Map as MaplibreMap,
 } from "maplibre-gl";
 
-import { ROUTE_BLUE, ROUTE_CASING, ROUTE_GRAY } from "@carma-mapping/routing";
+import {
+  ROUTE_BLUE,
+  ROUTE_CASING,
+  ROUTE_GRAY,
+  type RouteStep,
+} from "@carma-mapping/routing";
 
 import type { PickableHit } from "./pickHit";
 
@@ -37,6 +42,8 @@ export type NearestFeatureRoute = {
   /** what the routing service said it takes; shown once the hit is picked */
   durationInSeconds: number;
   distanceInMeters: number;
+  /** the service's driving instructions along the line; empty when it sent none */
+  steps: RouteStep[];
 };
 
 const SOURCE_ID = "carma-nearest-feature-routes";

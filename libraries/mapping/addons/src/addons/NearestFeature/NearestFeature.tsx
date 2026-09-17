@@ -473,6 +473,7 @@ export const NearestFeature = ({
             coordinates: picked.coordinates,
             durationInSeconds: picked.durationInSeconds,
             distanceInMeters: picked.distanceInMeters,
+            steps: picked.steps,
             // the ranking drives; see `carRanking.ts`
             mode: "car",
           }
