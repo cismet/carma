@@ -25,6 +25,8 @@ export type FakeDevice = GeolocationSource & {
   seek: (fraction: number) => void;
   /** hold the drive where it is; the fixes keep coming, from the same spot */
   setPaused: (paused: boolean) => void;
+  /** change the pace of the drive in flight, meters per second; nothing while standing */
+  setSpeed: (speed: number) => void;
   /** stop every watch; the device answers nothing after this */
   dispose: () => void;
 };
@@ -192,6 +194,15 @@ export const createFakeDevice = ({
     },
     setPaused: (next) => {
       paused = next;
+    },
+    setSpeed: (speed) => {
+      if (motion.kind !== "drive") {
+        return;
+      }
+      // the stretch since the last tick was driven at the old pace: book it
+      // before the new one applies, so a change is not applied backwards
+      fix();
+      motion.speed = speed;
     },
     getCurrentPosition: (success) => {
       if (disposed) {
