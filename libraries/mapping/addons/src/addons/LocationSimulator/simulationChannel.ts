@@ -20,6 +20,9 @@ export type LocationSimulation = {
    * destination; the routing sees the fix at once, not on the next tick
    */
   seek: (fraction: number) => void;
+  /** how much faster than the configured speed the drive goes; 1 is as configured */
+  speedFactor: number;
+  setSpeedFactor: (factor: number) => void;
 };
 
 export type LocationSimulationState = {
