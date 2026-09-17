@@ -640,8 +640,8 @@ and moving the map per keystroke:
    because the ranking only sees sources the style actually has;
 2. **the ranking** (`collectNearestFromIndex`, narrowed to that layer through
    its new `filter` option);
-3. **the candidates are driven to** (`carRanking.ts`), which is what puts them
-   in the order the user sees;
+3. **the candidates are routed to** (`routeRanking.ts`), by car, bike or on
+   foot, which is what puts them in the order the user sees;
 4. **the map is fitted** to the origin and every hit;
 5. **the names are read off the drawn features** with `queryRenderedFeatures`;
 6. **the map is fitted again**, now around the driven lines as well.
@@ -655,20 +655,30 @@ Which properties make a label is configured per category (`labelProperties`,
 `detailProperties`), because every layer names things differently;
 `"<Kategorie> #<id>"` is the fallback.
 
-### Nearest by car, and the routes on the map
+### Nearest by car, bike or on foot, and the routes on the map
 
 `features.json` can only measure as the crow flies, which is what makes it free.
 That is a good *candidate* set and a poor order: a river or a valley puts the
-nearest pharmacy on the map twenty minutes away by car. So the straight-line
-hits stay the shortlist and each one is driven to once, in parallel, through
-`fetchCarRoute` of `@carma-mapping/routing` (MOTIS, `CAR` as the only direct
-mode). That is `count` requests per ranking, and the reason it is not done over
-the whole layer. A hit the service cannot answer for keeps its place at the end
-of the list with its straight-line distance: it is still one of the nearest, it
-is only unknown how long it takes to get there. `carRouteRanking: false` turns
-all of it off, and the rows read as they did before.
+nearest pharmacy on the map twenty minutes away by car, and a flight of stairs
+makes it a short walk and a long ride. So the straight-line hits stay the
+shortlist and each one is routed to once, in parallel, through `fetchRoute` of
+`@carma-mapping/routing` (MOTIS, the chosen mode as the only direct mode, and
+`maxDirectTime` raised from the service's 30 minutes to two hours so a walk
+across town still gets an answer). That is `count` requests per ranking, and
+the reason it is not done over the whole layer. A hit the service cannot answer
+for keeps its place at the end of the list with its straight-line distance: it
+is still one of the nearest, it is only unknown how long it takes to get there.
+`routeRanking: false` turns all of it off, and the rows read as they did
+before.
 
-The driven lines are then drawn (`routeLayer.ts`), which is what makes "twelve
+Which mode is read off the `routeMode` channel, which the `routeModePicker`
+addon below writes; without that addon everything is by car. A new mode
+re-ranks the category on screen exactly as a new starting point does (see
+below), and the picked route goes on `activeRoute` with the mode it was ranked
+by, so the info box note and the navigation show the right icon and the right
+instructions.
+
+The routed lines are then drawn (`routeLayer.ts`), which is what makes "twelve
 minutes" mean something: one geojson source, a white casing, the routes in grey,
 and the picked one in blue on top. Which one is picked is not state of its own,
 it is read from the selection: a click on a line picks the hit at its end,
@@ -823,7 +833,7 @@ The addon's folder is split along those steps:
 | `categories/Krankenhaeuser.tsx` | another POI category, same shape as `Bahnhoefe` |
 | `categoryInput.ts` | the `"Apotheken: "` input grammar and the first stage |
 | `rankCategory.ts` | the second stage: add layer, rank, drive, fit, build the rows |
-| `carRanking.ts` | driving to the candidates and ordering them by how long it takes |
+| `routeRanking.ts` | routing to the candidates by the chosen mode and ordering them by how long it takes |
 | `routeLayer.ts` | the routes on the map: drawing them, the blue one, clicking one |
 | `pickHit.ts` | picking a hit by clicking it where the map draws it |
 | `mapReady.ts` | waiting for the style to carry the layer, and for `idle` |
@@ -1002,8 +1012,9 @@ are already there when the search asks: the mode keeps the run it just did as
 pending, and `resolve` takes it instead of ranking the same category twice. The mode object
 stays identical (the callback lives in a ref), so nothing re-registers and no
 gaz data is refetched. Every run carries the category and the origin it belongs
-to, which is what tells "the same category from somewhere else" apart from "a
-filter typed behind the same run".
+to, and the mode it was ranked by (`rankingKey`), which is what tells "the same
+category from somewhere else, or by bike" apart from "a filter typed behind the
+same run".
 
 | File | |
 | --- | --- |
@@ -1012,6 +1023,59 @@ filter typed behind the same run".
 | `OriginSearch/originMarker.ts` | the gazetteer's own pin, for an origin that is a picked place |
 | `OriginSearch/config.ts` | position, `defaultOrigin`, placeholders, warnings, `alwaysVisible` |
 | `contexts/LocateContext.tsx` | the map's one location mode, shared with the locate button |
+
+## „Womit?“: `routeModePicker`
+
+The origin says where from, the app's search where to; the picker says how.
+One vertical pill of icon buttons, car, bike, on foot, to the right of those
+two inputs and spanning both. The bottom-left column is a stack with no slot
+beside it, so the control registers a zero-size anchor at the end of the
+column (`bottomleft`, order 30) and hangs the pill off its bottom, past the
+column's right edge and growing upward. The end and not the top on purpose:
+the layout keys the column's items by index, so an item in front of the search
+would remount it and reset its mode. On a phone, where the inputs span the
+whole width, the anchor is an ordinary row under "Von:" and the pill lies
+horizontal in it. What it produces goes on the `routeMode` channel and nowhere
+else:
+"In der Nähe" ranks by it today, a routing UI will route by it, and neither
+knows about this component.
+
+```ts
+addons: [
+  "nearestFeature",
+  "nearestFeatureApotheken",
+  "originSearch",
+  "routeModePicker",
+]
+```
+
+```ts
+type RouteModeState = {
+  /** how the user travels; "car" until something publishes another */
+  mode: "car" | "bike" | "walk" | "transit";
+  /** who wants the picker on screen right now: key -> why */
+  requests: Record<string, string>;
+};
+```
+
+`requests` works as the origin's does: a consumer asks with
+`useRouteModeRequest` while it wants a mode and drops the request when it
+unmounts, so a route without anything to route shows no picker; "In der Nähe"
+asks the moment a ranking starts, together with the origin. `alwaysVisible`
+overrides that. The channel starts at `car` and the picker publishes its
+`defaultMode` once on mount, and takes nothing back on unmount: a consumer never
+sees the mode flip under a ranking that is running. `modes` narrows what is
+offered, for a pedestrian zone or a cycling map; `transit` is typed on the
+channel and not offered by default, because nothing can draw or follow a
+transit itinerary yet (a consumer routes it as a car trip until then,
+`travelModeOf`).
+
+| File | |
+| --- | --- |
+| `Routing/routeModeChannel.ts` | the channel, its type, the mode, state and request hooks |
+| `Routing/routeMode.ts` | the `RouteMode` type and its narrowing to what the routing lib drives |
+| `RouteModePicker/RouteModePicker.tsx` | the pill in its `<Control>` |
+| `RouteModePicker/config.ts` | position, `modes`, `defaultMode`, `alwaysVisible` |
 
 ## Onto the route: `routing`
 
