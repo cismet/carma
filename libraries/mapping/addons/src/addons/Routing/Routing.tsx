@@ -3,7 +3,11 @@ import { isMobile } from "react-device-detect";
 import { faRoute } from "@fortawesome/free-solid-svg-icons";
 
 import { useLocate } from "@carma-mapping/contexts";
-import { formatRouteSummary, getModeIcon } from "@carma-mapping/routing";
+import {
+  formatRouteSummary,
+  getModeIcon,
+  type RouteStep,
+} from "@carma-mapping/routing";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
@@ -33,6 +37,7 @@ import {
 } from "./routeLine";
 import { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
 import { useActiveRoute, type RouteProgress } from "./routeChannel";
+import { formatInstruction, formatSteps, stepAt } from "./routeSteps";
 
 /**
  * Puts the user on the route and keeps them there: the map eases to where
@@ -140,6 +145,9 @@ export const Routing = ({
   const durationInSeconds = route?.durationInSeconds;
   const distanceInMeters = route?.distanceInMeters;
   const routeMode = route?.mode;
+  // the instructions along it, for where the user is in them; a route that
+  // was only measured has none
+  const steps = route?.steps;
 
   const { currentPosition, activate } = useLocate();
   const position: [number, number] | null = currentPosition
@@ -165,12 +173,13 @@ export const Routing = ({
   const handledFixRef = useRef<GeolocationPosition | null>(null);
 
   /**
-   * The whole route's numbers, for the countdown to scale. Through a ref
-   * because `flyOntoRoute` below reads them and is what `start` is built from:
-   * a route whose numbers arrived a render later must not republish the offer.
+   * The whole route's numbers and instructions, for the countdown to scale
+   * and the instruction to be looked up in. Through a ref because
+   * `flyOntoRoute` below reads them and is what `start` is built from: a route
+   * whose numbers arrived a render later must not republish the offer.
    */
-  const summaryRef = useRef({ durationInSeconds, distanceInMeters });
-  summaryRef.current = { durationInSeconds, distanceInMeters };
+  const summaryRef = useRef({ durationInSeconds, distanceInMeters, steps });
+  summaryRef.current = { durationInSeconds, distanceInMeters, steps };
 
   const [navigating, setNavigating] = useState(false);
   const navigatingRef = useRef(navigating);
@@ -187,9 +196,32 @@ export const Routing = ({
    * then, and so is everything read from it, so the last honest value stands.
    */
   const trackProgress = useCallback((target: RouteCameraTarget) => {
-    const { durationInSeconds, distanceInMeters } = summaryRef.current;
-    setProgress(routeProgress(target, durationInSeconds, distanceInMeters));
+    const { durationInSeconds, distanceInMeters, steps } = summaryRef.current;
+    setProgress(
+      routeProgress(target, durationInSeconds, distanceInMeters, steps)
+    );
   }, []);
+
+  /**
+   * The instructions on the console, the first consumer of them: the whole
+   * list once, when a route that carries any comes into focus, and one line
+   * per step change while navigating. The distance to the next turn is not
+   * logged per fix; the console would only scroll.
+   */
+  useEffect(() => {
+    if (steps && steps.length > 0) {
+      console.debug(`[ROUTING] Anweisungen: ${formatSteps(steps)}`);
+    }
+  }, [steps]);
+  const instruction = progress?.instruction;
+  const currentStep = instruction?.current;
+  useEffect(() => {
+    if (instruction) {
+      console.debug(`[ROUTING] ${formatInstruction(instruction)}`);
+    }
+    // the step is what counts, not the meters left on it, which change per fix
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   /**
    * Counts the flights, so a `moveend` of a leave that was overtaken by a new
@@ -571,14 +603,20 @@ export const Routing = ({
  * starts at the number the summary showed: the service's distance and the
  * geometry's length differ by a few meters, enough for a countdown to open at
  * "4,2 km" under a summary that said "4,3 km".
+ *
+ * The instruction is read off the same place, so it advances only while the
+ * user is on the route and goes back when the place does (the simulator's
+ * slider dragged back): it is a function of `along`, not of history.
  */
 const routeProgress = (
   target: RouteCameraTarget,
   durationInSeconds?: number,
-  distanceInMeters?: number
+  distanceInMeters?: number,
+  steps?: RouteStep[]
 ): RouteProgress => {
   const total = target.along + target.remaining;
   const ahead = total > 0 ? target.remaining / total : 0;
+  const instruction = steps ? stepAt(steps, target.along) : undefined;
   return {
     remainingMeters:
       distanceInMeters !== undefined
@@ -587,5 +625,6 @@ const routeProgress = (
     remainingSeconds:
       durationInSeconds !== undefined ? durationInSeconds * ahead : undefined,
     fraction: 1 - ahead,
+    ...(instruction ? { instruction } : {}),
   };
 };
