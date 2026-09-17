@@ -36,6 +36,7 @@ export const SharedThreeTilesLayerManager = ({
         {
           requestConcurrency:
             layer.requestConcurrency ?? THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+          cameraLocalMount: true,
           onContentChanged: (changedBounds, changedRoots) =>
             notifySharedThreeSceneContentChanged(map, {
               bounds: changedBounds,

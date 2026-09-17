@@ -1,5 +1,6 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
+import { getCameraLocalMercatorFit } from "@carma-geo/utils";
 
 import { isLocalhostHostname } from "@carma-commons/utils";
 
@@ -449,6 +450,15 @@ export function createThreeTilesLifecycle(
     scheduleMotionCoverage,
   });
   let publishedNativeFrontier = new Set<Tile>();
+  // Live mount: an extra parent between the offset group and the tileset,
+  // refitted at the camera target. Moving the parent moves rendering, picking
+  // and loader bounds together, without replacing the tileset or reparsing any
+  // resident GPU resources.
+  const cameraMount = new THREE.Group();
+  cameraMount.matrixAutoUpdate = false;
+  const mountAxisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
+  let mountLongitude = NaN,
+    mountLatitude = NaN;
   const update: ThreeTilesRuntimeServices["update"] = (
     frame: SharedThreeSceneFrame
   ) => {
@@ -458,6 +468,32 @@ export function createThreeTilesLifecycle(
       !runtimeState.map
     )
       return;
+    if (runtimeState.options.cameraLocalMount) {
+      const center = runtimeState.map.getCenter();
+      if (center.lng !== mountLongitude || center.lat !== mountLatitude) {
+        cameraMount.matrix
+          .copy(
+            getCameraLocalMercatorFit(
+              [runtimeState.originLngLat[0], runtimeState.originLngLat[1]],
+              [center.lng, center.lat],
+              { correctEllipsoidMetric: true }
+            )
+          )
+          .premultiply(mountAxisFlip)
+          .multiply(mountAxisFlip);
+        if (cameraMount.parent !== runtimeState.offsetGroup) {
+          runtimeState.offsetGroup.add(cameraMount);
+          cameraMount.add(runtimeState.tiles.group);
+        }
+        runtimeState.orientationGroup.updateMatrixWorld(true);
+        mountLongitude = center.lng;
+        mountLatitude = center.lat;
+        runtimeState.mainViewIntersectionCache = new WeakMap();
+        runtimeState.meshDemandSweepPending = true;
+        dependencies.requestShadowSelectionRefresh();
+        runtimeState.options.onContentChanged?.();
+      }
+    }
     // Keep drawing the retained cut at native resolution. While input is
     // active, only a bounded coverage traversal admits missing coarse tiles;
     // moveend immediately runs the full requested-error audit again.

@@ -30,7 +30,9 @@ export {
   getMercatorScaleFactorAtLatitudeRad,
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
+  getWebMercatorFromWgs84Deg,
 } from "./lib/mercator";
+export { getCameraLocalMercatorFit } from "./lib/camera-local-mercator-fit";
 export {
   EARTH_CIRCUMFERENCE,
   EARTH_RADIUS,

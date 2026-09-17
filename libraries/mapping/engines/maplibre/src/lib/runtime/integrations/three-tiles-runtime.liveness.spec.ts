@@ -60,13 +60,14 @@ const buildMap = () =>
     on: vi.fn(),
     off: vi.fn(),
     triggerRepaint: vi.fn(),
+    getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.25 })),
   } as unknown as MaplibreMap);
 
 /** Event types seen by a `dispatchEvent` spy (three stamps `target` onto events). */
 const dispatchedTypes = (spy: { mock: { calls: unknown[][] } }) =>
   spy.mock.calls.map(([event]) => (event as { type: string }).type);
 
-const mountRuntime = (providesTerrain = false) => {
+const mountRuntime = (providesTerrain = false, cameraLocalMount = false) => {
   let renderer: LivenessRenderer | undefined;
   vi.spyOn(TilesRenderer.prototype, "update").mockImplementation(function (
     this: TilesRenderer
@@ -77,6 +78,7 @@ const mountRuntime = (providesTerrain = false) => {
   const repaint = map.triggerRepaint as unknown as ReturnType<typeof vi.fn>;
   const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], {
     providesTerrain,
+    cameraLocalMount,
   });
   if (providesTerrain) layer.loading.setErrorTarget(1);
   const camera = new THREE.PerspectiveCamera();
@@ -104,6 +106,29 @@ describe("three tiles runtime liveness", () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("refits a retained mount only when the geographic camera target changes", () => {
+    const { layer, renderer, map, frame } = mountRuntime(false, true);
+    try {
+      const group = renderer.group;
+      const fit = group.parent!;
+      const initial = fit.matrix.clone();
+      const copy = vi.spyOn(fit.matrix, "copy");
+      layer.scene.update(frame);
+      expect(copy).not.toHaveBeenCalled();
+      vi.mocked(map.getCenter).mockReturnValue({
+        lng: 7.3,
+        lat: 51.3,
+      } as ReturnType<MaplibreMap["getCenter"]>);
+      layer.scene.update(frame);
+      expect(group.parent).toBe(fit);
+      expect(fit.matrix.equals(initial)).toBe(false);
+      expect(fit.matrix.elements.every(Number.isFinite)).toBe(true);
+      expect(copy).toHaveBeenCalledOnce();
+    } finally {
+      layer.scene.dispose();
+    }
   });
 
   it("does not let loose external metadata keep offscreen mesh demand alive", () => {

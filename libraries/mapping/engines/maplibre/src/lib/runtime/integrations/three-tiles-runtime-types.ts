@@ -192,6 +192,11 @@ export interface ThreeTilesRuntimeOptions {
   outlineOpacity?: number;
   /** The tileset includes the ground surface represented by terrain. */
   providesTerrain?: boolean;
+  /**
+   * Refit the tileset at the current camera target each time the map centre
+   * moves, instead of keeping the fixed mount the tileset was built at.
+   */
+  cameraLocalMount?: boolean;
   /** Restyle this tileset like a building layer while shadow mode is active. */
   shadowBuildingStyle?: boolean;
 }

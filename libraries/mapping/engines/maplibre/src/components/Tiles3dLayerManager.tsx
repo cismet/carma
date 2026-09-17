@@ -135,6 +135,7 @@ export function Tiles3dLayerManager({
       origin,
       {
         requestConcurrency: THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+        cameraLocalMount: true,
         cacheBudgetBytes: initialConfig.cacheBudgetBytes,
         cacheOverflowBytes: initialConfig.cacheOverflowBytes,
         outline: initialConfig.outline,
