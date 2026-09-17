@@ -336,11 +336,19 @@ export {
   type OriginSearchConfig,
 } from "./addons/OriginSearch";
 export {
+  RouteModePicker,
+  type RouteModePickerConfig,
+} from "./addons/RouteModePicker";
+export {
   Routing,
   RoutingPanel,
   RoutingInteractionPanel,
+  DEFAULT_ROUTE_MODE,
   routeCameraTarget,
   useActiveRoute,
+  useRouteMode,
+  useRouteModeRequest,
+  useRouteModeState,
   useRouteNavigation,
   useRoutingLayerRow,
   ROUTING_ICON_COLOR,
@@ -350,6 +358,8 @@ export {
   type ActiveRoute,
   type ActiveRouteState,
   type RouteCameraTarget,
+  type RouteMode,
+  type RouteModeState,
   type RouteNavigation,
   type RouteNavigationState,
   type RouteProgress,
