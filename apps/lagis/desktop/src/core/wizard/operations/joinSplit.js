@@ -24,7 +24,7 @@ export const joinSplitFlurstuecke = async (
 ) => {
   const { jwt, accountName, journal } = ctx;
 
-  const arten = await fetchFlurstueckArten(jwt);
+  const arten = ctx.arten ?? (await fetchFlurstueckArten(jwt));
   const pseudoArt = requireArt(arten, FLURSTUECK_ART.PSEUDO);
 
   const pseudoId = await insertSchluessel(

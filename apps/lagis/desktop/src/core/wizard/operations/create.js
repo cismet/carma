@@ -10,7 +10,7 @@ import { createFlurstueckForKey } from "./core";
  * that do not exist yet.
  */
 export const createFlurstueck = async ({ key, isStaedtisch }, ctx) => {
-  const arten = await fetchFlurstueckArten(ctx.jwt);
+  const arten = ctx.arten ?? (await fetchFlurstueckArten(ctx.jwt));
   const art = requireArt(
     arten,
     isStaedtisch ? FLURSTUECK_ART.STAEDTISCH : FLURSTUECK_ART.ABTEILUNG_IX
