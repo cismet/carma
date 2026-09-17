@@ -1,6 +1,6 @@
 import React from "react";
 import { PlusOutlined } from "@ant-design/icons";
-import { landparcelLabel } from "./areaCheck";
+import { landparcelLabel } from "./keys";
 
 /**
  * What the wizard adds on top of LandParcelSearch, which stays unaware of it.

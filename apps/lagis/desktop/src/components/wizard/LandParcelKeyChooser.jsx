@@ -145,8 +145,7 @@ const LandParcelKeyChooser = ({
     }
 
     const candidate = {
-      // structureKey saves alkisIdForKey from deriving it from the Schlüssel
-      gemarkung: { ...gemarkung, structureKey: data.gemarkungKey },
+      gemarkung,
       flur: data.flur,
       zaehler: data.zaehler,
       nenner: data.nenner,

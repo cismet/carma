@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Spin, Table } from "antd";
 import { useSelector } from "react-redux";
-import { getLandparcelInternaDataStructure } from "../../../store/slices/lagis";
 import { checkAreas } from "../../../core/wizard/areaCheck";
 import {
   SMALL_AREA_THRESHOLD_SQM,
@@ -42,7 +41,6 @@ const partition = (value) => {
 /** Port of SummaryPanel — the area comparison shown before finishing. */
 const SummaryStep = ({ value, onProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
-  const structure = useSelector(getLandparcelInternaDataStructure);
   const [state, setState] = useState({ loading: true });
 
   useEffect(() => {
@@ -50,7 +48,7 @@ const SummaryStep = ({ value, onProblem }) => {
     onProblem("Prüfe Flurstücke...");
     (async () => {
       try {
-        const result = await checkAreas(partition(value), structure, jwt);
+        const result = await checkAreas(partition(value), jwt);
         if (!cancelled) {
           setState({ loading: false, result });
           onProblem(null);

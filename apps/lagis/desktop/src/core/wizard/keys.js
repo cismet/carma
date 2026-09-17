@@ -15,6 +15,15 @@ import { FLURSTUECK_ART } from "./constants";
 export const isPseudoKey = (key) =>
   key?.art?.bezeichnung === FLURSTUECK_ART.PSEUDO;
 
+export const pad = (value, length) =>
+  String(value ?? "").padStart(length, "0");
+
+/** Five digit Zähler, four digit Nenner only when there is one. */
+export const landparcelLabel = (zaehler, nenner) =>
+  nenner === null || nenner === undefined || Number(nenner) === 0
+    ? pad(zaehler, 5)
+    : `${pad(zaehler, 5)}/${pad(nenner, 4)}`;
+
 /** Mirrors FlurstueckSchluesselCustomBean.getKeyString(). */
 export const formatKey = (key) => {
   if (!key) {
