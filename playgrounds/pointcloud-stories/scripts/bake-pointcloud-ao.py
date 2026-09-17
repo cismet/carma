@@ -125,8 +125,10 @@ class Gcg2016Spline:
                 np.asarray([371_804.597]), np.asarray([5_678_240.294])
             )[0]
         )
+        # The tile stores samples on a lattice, so a query can sit up to one
+        # lattice step from the unquantised reference this anchor was taken from.
         reference_error = abs(reference - 46.59667038816)
-        if reference_error > 1.0e-8:
+        if reference_error > values["quantumMeters"]:
             raise ValueError(
                 f"Python GCG2016 spline differs from CARMA reference by {reference_error} m"
             )

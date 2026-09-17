@@ -164,7 +164,7 @@ The spline selection was independently verified against the official BKG
 `spline_`/`splint_` symbols, uses five support positions, and applies natural
 boundary derivatives. Across 321,201 points in the complete geodetic footprint
 of Mesh 2024, the reconstructed calculation differed by at most
-`0.000501833693043352 m` from the millimeter-rounded `gintbs` text output.
+`0.502 mm` from the millimeter-rounded `gintbs` text output.
 Package, program, and raster hashes and the verification region are recorded in
 `GCG2016_PROVENANCE.officialReferenceValidation`. For comparison, the
 previous bilinear calculation differed from the spline by at most approximately
