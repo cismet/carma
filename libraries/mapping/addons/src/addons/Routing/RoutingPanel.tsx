@@ -9,18 +9,22 @@ import { useRouteNavigation } from "./routeChannel";
 /** the slider's step; a thousandth of the route, the same grain the line's split uses */
 const SEEK_STEP = 0.001;
 
+/** the paces the drive can be set to, as multiples of the configured speed */
+const SPEED_FACTORS = [0.5, 1, 2, 4];
+
 /**
  * The ribbon under the layer bar while a navigation runs.
  *
- * What it holds today is a test harness: a slider over the route and a pause
- * button, which move the pretend device of the `locationSimulator` addon. The
- * slider's knob sits where the routing says the user is (its `progress`), so
- * it goes along on its own while the drive runs, and dragging it puts the
- * device there at once: the camera, the countdown and the line all react as
- * they would to a real fix at that spot, which is what makes every corner of
- * a route checkable without driving to it first. A real device cannot be
- * moved, and the ribbon says so rather than offering a slider that does
- * nothing.
+ * What it holds today is a test harness: a slider over the route, a pause
+ * button and a speed selector, which move the pretend device of the
+ * `locationSimulator` addon. The slider's knob sits where the routing says
+ * the user is (its `progress`), so it goes along on its own while the drive
+ * runs, and dragging it puts the device there at once: the camera, the
+ * countdown and the line all react as they would to a real fix at that spot,
+ * which is what makes every corner of a route checkable without driving to
+ * it first. The speed is for the stretches in between: a long route at 4×,
+ * a tricky junction at half pace. A real device cannot be moved, and the
+ * ribbon says so rather than offering controls that do nothing.
  */
 export const RoutingPanel = () => {
   const navigation = useRouteNavigation();
@@ -51,6 +55,26 @@ export const RoutingPanel = () => {
               <FontAwesomeIcon icon={simulation.paused ? faPlay : faPause} />
             </button>
           </Tooltip>
+          <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label="Geschwindigkeit">
+            {SPEED_FACTORS.map((factor) => {
+              const active = factor === simulation.speedFactor;
+              return (
+                <button
+                  key={factor}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => simulation.setSpeedFactor(factor)}
+                  className={`h-7 cursor-pointer rounded-full border-0 px-2 text-xs tabular-nums ${
+                    active
+                      ? "bg-black/10 font-semibold text-gray-800"
+                      : "bg-transparent text-gray-500 hover:bg-black/5"
+                  }`}
+                >
+                  {factor}×
+                </button>
+              );
+            })}
+          </div>
           <span className="shrink-0 whitespace-nowrap">Position auf der Route</span>
           <Slider
             className="grow"
